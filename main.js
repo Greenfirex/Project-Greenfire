@@ -13,12 +13,12 @@ const game = new Phaser.Game(config);
 
 function preload() {
 	// Load assets here (images, sounds, etc.)
-	this.load.image('background', 'assets/images/background.jpg')
+	this.load.image('background', 'assets/images/background.jpg');
 }
 
 function create() {
 	// Initialize game objects and variables here
-	this.add.image(960, 540, 'background').setOrigin(0.5, 0.5);;
+	this.add.image(960, 540, 'background').setOrigin(0.5, 0.5);
 }
 
 function update() {
