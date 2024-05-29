@@ -19,6 +19,12 @@ function preload() {
 function create() {
 	// Initialize game objects and variables here
 	this.add.image(960, 540, 'background').setOrigin(0.5, 0.5);
+const graphics = this.add.graphics();
+    graphics.lineStyle(2, 0xffffff, 1);
+    graphics.beginPath();
+    graphics.moveTo(1344, 0); // 1920 * 0.7 = 1344
+    graphics.lineTo(1344, 1080);
+    graphics.strokePath();
 }
 
 function update() {
