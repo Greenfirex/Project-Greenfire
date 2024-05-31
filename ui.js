@@ -13,21 +13,20 @@ export function createButton(scene, x, y, imageKey, text, callback) {
     buttonContainer.setSize(buttonImage.width, buttonImage.height);
     buttonContainer.setInteractive();
 
+    let buttonGraphics = scene.add.graphics();
+
     buttonContainer.on('pointerdown', callback);
 
     // Hover effect
     buttonContainer.on('pointerover', () => {
         buttonImage.setTint(0x44ff44); // Change to a brighter color
-        scene.add.graphics().lineStyle(2, 0xffffff, 1).strokeRect(buttonContainer.x - buttonImage.width / 2, buttonContainer.y - buttonImage.height / 2, buttonImage.width, buttonImage.height);
+        buttonGraphics.lineStyle(2, 0xffffff, 1);
+        buttonGraphics.strokeRect(buttonContainer.x - buttonImage.width / 2, buttonContainer.y - buttonImage.height / 2, buttonImage.width, buttonImage.height);
     });
 
     buttonContainer.on('pointerout', () => {
         buttonImage.clearTint(); // Reset color
-        scene.children.each(child => {
-            if (child.type === 'Graphics') {
-                child.clear(); // Clear graphics
-            }
-        });
+        buttonGraphics.clear(); // Clear button-specific graphics
     });
 
     return buttonContainer;

@@ -44,7 +44,8 @@ function create() {
 
 // Vytvoření tlačítek s použitím funkce z ui.js
     createButton(this, config.width * 0.05, config.height * 0.15, 'button1', 'Klikni zde', () => {
-        console.log('Tlačítko 1 bylo stisknuto!');
+        addResource('hydrogen', 1);
+        hydrogenText.setText('Hydrogen: ' + getResource('hydrogen'));
     });
 
     createButton(this, config.width * 0.05, config.height * 0.25, 'button1', 'Tlačítko 2', () => {
