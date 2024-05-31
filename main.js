@@ -50,9 +50,9 @@ function create() {
         if (getResource('hydrogen') >= 10 && !button2) {
             button2 = createButton(this, config.width * 0.25, config.height * 0.15, 'button1', 'Tlačítko 2', () => {
                 console.log('Tlačítko 2 bylo stisknuto!');
-            });
+            }, 'Toto je tlačítko 2');
         }
-    });
+    }, 'Přidej 1 vodík');
 
 
 hydrogenText = this.add.text(config.width * 0.85, config.height * 0.1, 'Hydrogen: 0', { fontSize: '32px', fill: '#ffffff' });
