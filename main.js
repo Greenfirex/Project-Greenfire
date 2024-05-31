@@ -25,7 +25,7 @@ function create() {
 
 // Čáry
     const graphics = this.add.graphics();
-    graphics.lineStyle(2, 0x00ff00, 1);
+    graphics.lineStyle(2, 0x000000, 1);
 
 // Vodorovná čára
     graphics.beginPath();
