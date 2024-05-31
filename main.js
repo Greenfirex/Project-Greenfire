@@ -11,25 +11,17 @@ const config = {
     }
 };
 
-const buttonStyle = {
-    fontSize: '32px',
-    fill: '#ffffff',
-    backgroundColor: '#0000ff',
-    padding: { x: 10, y: 5 },
-    borderRadius: 5
-};
-
 const game = new Phaser.Game(config);
 
 function preload() {
-    // Načtěte zde zdroje (obrázky, zvuky, atd.)
-this.load.image('background', 'assets/images/background.jpg');
-this.load.image('button1', 'assets/images/PNG/Button01.png');
+// Načtěte zde zdroje (obrázky, zvuky, atd.)
+	this.load.image('background', 'assets/images/background.jpg');
+	this.load.image('button1', 'assets/images/PNG/Button01.png');
 };
 
 function create() {
 // Nastavíte obrázek pozadí tak, aby vyplňoval celou scénu    
-    this.add.image(config.width / 2, config.height / 2, 'background').setDisplaySize(config.width, config.height); 
+	this.add.image(config.width / 2, config.height / 2, 'background').setDisplaySize(config.width, config.height); 
 
 // Čáry
     const graphics = this.add.graphics();
@@ -47,14 +39,7 @@ function create() {
     graphics.lineTo(config.width * 0.8, config.height);
     graphics.strokePath();
 
-// Vytvoření tlačítek s použitím funkce z ui.js
-    createButton(this, config.width * 0.05, config.height * 0.15, 'button1', 'Klikni zde', () => {
-        console.log('Tlačítko 1 bylo stisknuto!');
-    });
 
-    createButton(this, config.width * 0.05, config.height * 0.25, 'button1', 'Tlačítko 2', () => {
-        console.log('Tlačítko 2 bylo stisknuto!');
-    });
 
 }
 
