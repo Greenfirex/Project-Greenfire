@@ -23,7 +23,7 @@ function preload() {
     // Načtěte zde zdroje (obrázky, zvuky, atd.)
 this.load.image('background', 'assets/images/background.jpg');
 this.load.image('button1', 'assets/images/PNG/Button01.png');
-}
+};
 
 function create() {
     // Inicializace herních objektů a proměnných zde
@@ -47,7 +47,6 @@ function create() {
 // Vytvoření tlačítka s grafikou a textem
     let button1 = this.add.image(0, 0, 'button1');
     let text1 = this.add.text(0, 0, 'Klikni zde', { fontSize: '20px', fill: '#ffffff' });
-
     let container1 = this.add.container(config.width * 0.4, config.height * 0.2, [button1, text1]);
 
 // Vycentrování textu na tlačítku
@@ -62,6 +61,7 @@ function create() {
         });
 
 
+};
 
 function update() {
     // Logika herní smyčky jde sem
