@@ -43,6 +43,11 @@ function create() {
     graphics.lineTo(config.width * 0.8, config.height);
     graphics.strokePath();
 
+// Černé pozadí pro pravou část
+    graphics.fillStyle(0x000000, 1);
+    graphics.fillRect(config.width * 0.8, 0, config.width * 0.2, config.height);
+
+
 // Vytvoření tlačítek s použitím funkce z ui.js
    createButton(this, config.width * 0.1, config.height * 0.15, 'button1', 'Klikni zde', () => {
         addResource('hydrogen', 1);
