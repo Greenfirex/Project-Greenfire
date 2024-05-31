@@ -9,7 +9,7 @@ export function createButton(scene, x, y, imageKey, text) {
     buttonText.y = buttonImage.height / 2;
 
     buttonContainer.setSize(buttonImage.width, buttonImage.height);
-    buttonContainer.setInteractive();
+    buttonContainer.setInteractive().on('pointerdown', callback);
 
     return buttonContainer;
 }
