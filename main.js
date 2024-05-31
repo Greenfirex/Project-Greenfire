@@ -15,6 +15,7 @@ const config = {
 const game = new Phaser.Game(config);
 
 let hydrogenText;
+let button2;
 
 function preload() {
 // Načtěte zde zdroje (obrázky, zvuky, atd.)
@@ -43,13 +44,14 @@ function create() {
     graphics.strokePath();
 
 // Vytvoření tlačítek s použitím funkce z ui.js
-    createButton(this, config.width * 0.05, config.height * 0.15, 'button1', 'Klikni zde', () => {
+   createButton(this, config.width * 0.1, config.height * 0.15, 'button1', 'Klikni zde', () => {
         addResource('hydrogen', 1);
         hydrogenText.setText('Hydrogen: ' + getResource('hydrogen'));
-    });
-
-    createButton(this, config.width * 0.05, config.height * 0.25, 'button1', 'Tlačítko 2', () => {
-        console.log('Tlačítko 2 bylo stisknuto!');
+        if (getResource('hydrogen') >= 10 && !button2) {
+            button2 = createButton(this, config.width * 0.25, config.height * 0.15, 'button1', 'Tlačítko 2', () => {
+                console.log('Tlačítko 2 bylo stisknuto!');
+            });
+        }
     });
 
 
