@@ -9,6 +9,14 @@ const config = {
     }
 };
 
+const buttonStyle = {
+    fontSize: '32px',
+    fill: '#ffffff',
+    backgroundColor: '#0000ff',
+    padding: { x: 10, y: 5 },
+    borderRadius: 5
+};
+
 const game = new Phaser.Game(config);
 
 function preload() {
@@ -35,20 +43,18 @@ function create() {
     graphics.lineTo(config.width * 0.8, config.height);
     graphics.strokePath();
 
-// Přidání tlačítka pod vodorovnou čárou
-    let button = this.add.text(config.width * 0.4, config.height * 0.2, 'Klikni zde', {
-        fontSize: '32px',
-        fill: '#ffffff',
-        backgroundColor: '#0000ff',
-        padding: { x: 10, y: 5 },
-        borderRadius: 5
-    })
-    .setInteractive()
-    .on('pointerdown', () => {
-        console.log('Tlačítko bylo stisknuto!');
-    });
+// Přidání tlačítek s definovaným stylem
+ let button1 = this.add.text(config.width * 0.4, config.height * 0.2, 'Klikni zde', buttonStyle)
+        .setInteractive()
+        .on('pointerdown', () => {
+            console.log('Tlačítko 1 bylo stisknuto!');
+        });
 
-
+    let button2 = this.add.text(config.width * 0.4, config.height * 0.3, 'Další tlačítko', buttonStyle)
+        .setInteractive()
+        .on('pointerdown', () => {
+            console.log('Tlačítko 2 bylo stisknuto!');
+        });
    
 }
 
