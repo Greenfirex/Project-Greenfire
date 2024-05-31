@@ -26,9 +26,10 @@ this.load.image('button1', 'assets/images/PNG/Button01.png');
 };
 
 function create() {
-    // Inicializace herních objektů a proměnných zde
-    this.add.image(config.width / 2, config.height / 2, 'background').setDisplaySize(config.width, config.height); // Nastavíte obrázek pozadí tak, aby vyplňoval celou scénu
+// Nastavíte obrázek pozadí tak, aby vyplňoval celou scénu    
+    this.add.image(config.width / 2, config.height / 2, 'background').setDisplaySize(config.width, config.height); 
 
+// Čáry
     const graphics = this.add.graphics();
     graphics.lineStyle(2, 0x00ff00, 1);
 
@@ -44,24 +45,37 @@ function create() {
     graphics.lineTo(config.width * 0.8, config.height);
     graphics.strokePath();
 
-// Vytvoření tlačítka s grafikou a textem
+// Definice tlačítkového stylu a umístění
     let button1 = this.add.image(0, 0, 'button1');
     let text1 = this.add.text(0, 0, 'Klikni zde', { fontSize: '20px', fill: '#ffffff' });
-    let container1 = this.add.container(config.width * 0.4, config.height * 0.2, [button1, text1]);
 
-// Vycentrování textu na tlačítku
+    let container1 = this.add.container(config.width * 0.05, config.height * 0.15, [button1, text1]);
+
+    // Vycentrování textu na tlačítku
     text1.setOrigin(0.5, 0.5);
     text1.x = button1.width / 2;
     text1.y = button1.height / 2;
 
     container1.setSize(button1.width, button1.height);
-    container1.setInteractive()
-        .on('pointerdown', () => {
-            console.log('Tlačítko 1 bylo stisknuto!');
-        });
+    container1.setInteractive().on('pointerdown', () => {
+        console.log('Tlačítko 1 bylo stisknuto!');
+    });
 
+    // Další tlačítka v první řadě
+    let button2 = this.add.image(0, 0, 'button1');
+    let text2 = this.add.text(0, 0, 'Tlačítko 2', { fontSize: '20px', fill: '#ffffff' });
 
-};
+    let container2 = this.add.container(config.width * 0.05, config.height * 0.25, [button2, text2]);
+
+    text2.setOrigin(0.5, 0.5);
+    text2.x = button2.width / 2;
+    text2.y = button2.height / 2;
+
+    container2.setSize(button2.width, button2.height);
+    container2.setInteractive().on('pointerdown', () => {
+        console.log('Tlačítko 2 bylo stisknuto!');
+    });
+}
 
 function update() {
     // Logika herní smyčky jde sem
