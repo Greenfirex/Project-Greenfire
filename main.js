@@ -21,7 +21,8 @@ const game = new Phaser.Game(config);
 
 function preload() {
     // Načtěte zde zdroje (obrázky, zvuky, atd.)
-    this.load.image('background', 'assets/images/background.jpg');
+this.load.image('background', 'assets/images/background.jpg');
+this.load.image('button1', 'assets/images/PNG/Button01.png');
 }
 
 function create() {
@@ -44,13 +45,13 @@ function create() {
     graphics.strokePath();
 
 // Přidání tlačítek s definovaným stylem
- let button1 = this.add.text(config.width * 0.4, config.height * 0.2, 'Klikni zde', buttonStyle)
+ let button1 = this.add.image(config.width * 0.4, config.height * 0.2, 'Klikni zde', buttonStyle)
         .setInteractive()
         .on('pointerdown', () => {
             console.log('Tlačítko 1 bylo stisknuto!');
         });
 
-    let button2 = this.add.text(config.width * 0.4, config.height * 0.3, 'Další tlačítko', buttonStyle)
+    let button2 = this.add.image(config.width * 0.4, config.height * 0.3, 'Další tlačítko', buttonStyle)
         .setInteractive()
         .on('pointerdown', () => {
             console.log('Tlačítko 2 bylo stisknuto!');
