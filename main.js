@@ -1,4 +1,5 @@
 import { createButton } from './ui.js';
+import { resources, addResource, getResource } from './resources.js';
 
 const config = {
     type: Phaser.AUTO,
@@ -12,6 +13,8 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+
+let hydrogenText;
 
 function preload() {
 // Načtěte zde zdroje (obrázky, zvuky, atd.)
@@ -49,7 +52,7 @@ function create() {
     });
 
 
-
+hydrogenText = this.add.text(config.width * 0.85, config.height * 0.1, 'Hydrogen: 0', { fontSize: '32px', fill: '#ffffff' });
 
 
 
