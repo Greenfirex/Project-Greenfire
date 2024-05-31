@@ -44,20 +44,24 @@ function create() {
     graphics.lineTo(config.width * 0.8, config.height);
     graphics.strokePath();
 
-// Přidání tlačítek s definovaným stylem
- let button1 = this.add.image(config.width * 0.4, config.height * 0.2, 'Klikni zde', buttonStyle)
-        .setInteractive()
+// Vytvoření tlačítka s grafikou a textem
+    let button1 = this.add.image(0, 0, 'button1');
+    let text1 = this.add.text(0, 0, 'Klikni zde', { fontSize: '20px', fill: '#ffffff' });
+
+    let container1 = this.add.container(config.width * 0.4, config.height * 0.2, [button1, text1]);
+
+// Vycentrování textu na tlačítku
+    text1.setOrigin(0.5, 0.5);
+    text1.x = button1.width / 2;
+    text1.y = button1.height / 2;
+
+    container1.setSize(button1.width, button1.height);
+    container1.setInteractive()
         .on('pointerdown', () => {
             console.log('Tlačítko 1 bylo stisknuto!');
         });
 
-    let button2 = this.add.image(config.width * 0.4, config.height * 0.3, 'Další tlačítko', buttonStyle)
-        .setInteractive()
-        .on('pointerdown', () => {
-            console.log('Tlačítko 2 bylo stisknuto!');
-        });
-   
-}
+
 
 function update() {
     // Logika herní smyčky jde sem
