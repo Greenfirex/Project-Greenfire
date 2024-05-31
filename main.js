@@ -35,6 +35,19 @@ function create() {
     graphics.lineTo(config.width * 0.8, config.height);
     graphics.strokePath();
 
+// Přidání tlačítka pod vodorovnou čárou
+    let button = this.add.text(config.width * 0.4, config.height * 0.2, 'Klikni zde', {
+        fontSize: '32px',
+        fill: '#ffffff',
+        backgroundColor: '#0000ff',
+        padding: { x: 10, y: 5 },
+        borderRadius: 5
+    })
+    .setInteractive()
+    .on('pointerdown', () => {
+        console.log('Tlačítko bylo stisknuto!');
+    });
+
 
    
 }
