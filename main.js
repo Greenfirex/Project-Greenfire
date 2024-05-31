@@ -39,6 +39,18 @@ function create() {
     graphics.lineTo(config.width * 0.8, config.height);
     graphics.strokePath();
 
+// Vytvoření tlačítek s použitím funkce z ui.js
+    createButton(this, config.width * 0.05, config.height * 0.15, 'button1', 'Klikni zde', () => {
+        console.log('Tlačítko 1 bylo stisknuto!');
+    });
+
+    createButton(this, config.width * 0.05, config.height * 0.25, 'button1', 'Tlačítko 2', () => {
+        console.log('Tlačítko 2 bylo stisknuto!');
+    });
+
+
+
+
 
 
 }
