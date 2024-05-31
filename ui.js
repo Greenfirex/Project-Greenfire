@@ -15,7 +15,18 @@ export function createButton(scene, x, y, imageKey, text, callback, tooltipText)
 
     let buttonGraphics = scene.add.graphics();
 
-    let tooltip = scene.add.text(0, 0, tooltipText, { fontSize: '16px', fill: '#ffffff', backgroundColor: '#000000' });
+    let tooltip = scene.add.text(0, 0, tooltipText, {
+        fontSize: '16px',
+        fill: '#ffffff',
+        backgroundColor: '#000000',
+        padding: {
+            left: 10,
+            right: 10,
+            top: 5,
+            bottom: 5
+        }
+    });
+
     tooltip.setVisible(false);
 
     buttonContainer.on('pointerdown', callback);
