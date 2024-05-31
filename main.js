@@ -14,7 +14,7 @@ const config = {
 
 const game = new Phaser.Game(config);
 
-let hydrogenText;
+let hydrogenText, oxygenText, heliumText, lithiumText;
 let button2;
 
 function preload() {
@@ -60,7 +60,10 @@ function create() {
     }, 'Přidej 1 vodík');
 
 
-hydrogenText = this.add.text(config.width * 0.85, config.height * 0.1, 'Hydrogen: 0', { fontSize: '32px', fill: '#ffffff' });
+hydrogenText = this.add.text(config.width * 0.81, config.height * 0.1, 'Hydrogen: 0', { fontSize: '32px', fill: '#ffffff' });
+oxygenText = this.add.text(config.width * 0.81, config.height * 0.2, 'Oxygen: 0', { fontSize: '32px', fill: '#ffffff' });
+heliumText = this.add.text(config.width * 0.81, config.height * 0.3, 'Helium: 0', { fontSize: '32px', fill: '#ffffff' });
+lithiumText = this.add.text(config.width * 0.81, config.height * 0.4, 'Lithium: 0', { fontSize: '32px', fill: '#ffffff' });
 
 
 
