@@ -1,7 +1,7 @@
 import { createButton } from './ui.js';
 
 const config = {
-    type: Phaser.CANVAS,
+    type: Phaser.AUTO,
     width: window.innerWidth, // Nastavuje šířku scény podle šířky okna prohlížeče
     height: window.innerHeight, // Nastavuje výšku scény podle výšky okna prohlížeče
     scene: {
