@@ -7,10 +7,11 @@ body {
 }
 
 #header, #footer {
+    border: 1px solid white; /* Přidání bílého okraje */
+    padding: 5px; /* Přidání polštáře pro lepší vzhled */
     background-color: #000000;
     color: white;
     text-align: center;
-    padding: 10px 0;
     flex-shrink: 0;
 }
 
@@ -21,6 +22,7 @@ body {
 }
 
 #mainMenu {
+    border: 1px solid white; /* Přidání bílého okraje */
     width: 20%;
     background-color: #002000;
     height: 100%;
@@ -39,6 +41,9 @@ body {
 }
 
 .menu-button {
+    background-image: url('../assets/images/PNG/Button03.png');
+    background-size: auto; /* Nastavení velikosti obrázku */
+    background-repeat: no-repeat;
     width: 80%;
     margin: 10px 0;
     padding: 10px;
@@ -52,7 +57,8 @@ body {
 }
 
 .menu-button:hover {
-    background-color: #16a085;
+    color: #16a085;
+    background-image: url('../assets/images/PNG/Button04.png');
 }
 
 .game-button {
@@ -78,8 +84,8 @@ body {
 
 #miningSection.active,
 #researchSection.active,
-#other2Section.active,
-#other3Section.active,
+#manufacturingSection.active,
+#trade3Section.active,
 #other4Section.active,
 #other5Section.active,
 #other6Section.active {
@@ -100,11 +106,11 @@ opacity: 0.8;
     filter: brightness(50%) contrast(50%);
 }
 
-#gameArea.other2-bg {
+#gameArea.manufacturing-bg {
     background-image: url('assets/images/background3.jpg');
 }
 
-#gameArea.other3-bg {
+#gameArea.trade-bg {
     background-image: url('assets/images/background4.jpg');
 }
 
@@ -126,4 +132,30 @@ opacity: 0.8;
     background-color: #34495e;
     overflow: hidden;
     position: relative;
+}
+
+.info-section {
+    float: right; /* Zarovnání doprava */
+    width: 200px; /* Šířka informačního panelu */
+    padding: 10px;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+}
+
+.info-section h2 {
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+.info-section ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.info-section li {
+    margin-bottom: 5px;
+}
+
+.info-section li span {
+    font-weight: bold;
 }
