@@ -1,25 +1,14 @@
-const config = {
-    type: Phaser.AUTO,
-    width: window.innerWidth * 0.6,
-    height: window.innerHeight,
-    parent: 'gameArea',
-    scene: {
-        preload: preload,
-        create: create,
-        update: update
-    }
-};
+document.addEventListener('DOMContentLoaded', () => {
+    showSection('mining');
+});
 
-const game = new Phaser.Game(config);
+function showSection(sectionId) {
+    const sections = document.querySelectorAll('.game-section');
+    sections.forEach(section => section.classList.remove('active'));
 
-function preload() {
-    this.load.image('background', 'assets/images/backgrousdfsfnd.jpg');
-}
+    document.getElementById(`${sectionId}Section`).classList.add('active');
 
-function create() {
-    this.add.image(this.scale.width / 2, this.scale.height / 2, 'background').setOrigin(0.5, 0.5);
-}
-
-function update() {
-    // Game loop logic
+    const gameArea = document.getElementById('gameArea');
+    gameArea.className = ''; // Remove all current background classes
+    gameArea.classList.add(`${sectionId}-bg`); // Add the new background class
 }

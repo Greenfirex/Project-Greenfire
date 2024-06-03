@@ -3,15 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Game</title>
     <link rel="stylesheet" href="styles.css">
+    <title>Idle Sci-Fi Game</title>
 </head>
 <body>
-    <div id="mainMenu"></div>
-    <div id="gameArea"></div>
-    <div id="infoPanel"></div>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
-    <script type="module" src="main.js"></script>
-    <script type="module" src="ui.js"></script>
+    <div id="header">Header</div>
+    <div id="mainContainer">
+        <div id="mainMenu">
+            <button class="menu-button" onclick="showSection('mining')">Mining</button>
+            <button class="menu-button" onclick="showSection('other1')">Other 1</button>
+            <button class="menu-button" onclick="showSection('other2')">Other 2</button>
+            <button class="menu-button" onclick="showSection('other3')">Other 3</button>
+            <button class="menu-button" onclick="showSection('other4')">Other 4</button>
+            <button class="menu-button" onclick="showSection('other5')">Other 5</button>
+            <button class="menu-button" onclick="showSection('other6')">Other 6</button>
+        </div>
+        <div id="gameArea">
+            <div id="miningSection" class="game-section">
+                <button class="game-button" onclick="mineResource()">Mine Resource</button>
+            </div>
+            <div id="other1Section" class="game-section">Other 1 Content</div>
+            <div id="other2Section" class="game-section">Other 2 Content</div>
+            <div id="other3Section" class="game-section">Other 3 Content</div>
+            <div id="other4Section" class="game-section">Other 4 Content</div>
+            <div id="other5Section" class="game-section">Other 5 Content</div>
+            <div id="other6Section" class="game-section">Other 6 Content</div>
+        </div>
+        <div id="infoPanel" class="info-section">Resources Info</div>
+    </div>
+    <div id="footer">Footer</div>
+    <script src="main.js"></script>
+    <script src="ui.js"></script>
+    <script src="resources.js"></script>
 </body>
 </html>

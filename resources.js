@@ -1,16 +1,15 @@
-export let resources = {
-    hydrogen: 0,
-    oxygen: 0,
-    helium: 0,
-    lithium: 0
+let resources = {
+    hydrogen: 0
 };
 
-export function addResource(resource, amount) {
-    if (resources[resource] !== undefined) {
-        resources[resource] += amount;
-    }
+function mineResource() {
+    resources.hydrogen += 1;
+    updateResourceDisplay();
 }
 
-export function getResource(resource) {
-    return resources[resource] || 0;
+function updateResourceDisplay() {
+    const infoPanel = document.getElementById('infoPanel');
+    infoPanel.innerHTML = `
+        <p>Hydrogen: ${resources.hydrogen}</p>
+    `;
 }
