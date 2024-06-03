@@ -46,26 +46,15 @@ export function createButton(scene, x, y, width, height, imageKey, text, callbac
     });
 }
 
-export function createLeftButton(scene, x, y, text, callback, tooltipText) {
-    const leftColumnWidth = scene.sys.game.config.width * 0.2; // Šířka levého sloupce
+export function createLeftButton(scene, x, y, imageKey, text, callback, tooltipText) {
+    let buttonImage = scene.add.image(0, 0, imageKey).setDisplaySize(150, 50);
+    let buttonText = scene.add.text(0, 0, text, { fontSize: '20px', fill: '#ffffff' });
 
-    // Vypočítáme šířku a výšku tlačítka
-    const buttonWidth = leftColumnWidth * 0.8;
-    const buttonHeight = scene.sys.game.config.height * 0.05;
-
-    // Vytvoříme tlačítko s použitím funkce createButton z ui.js
-    let buttonImage = scene.add.image(x, y, 'button1');
-    let buttonText = scene.add.text(x, y, text, { fontSize: '20px', fill: '#ffffff', align: 'center' }); // Zarovnání textu na střed
-
-    // Nastavení velikosti obrázku na rozměry tlačítka
-    buttonImage.setDisplaySize(buttonWidth, buttonHeight);
+    buttonText.setOrigin(0.5, 0.5);
+    buttonImage.setOrigin(0.5, 0.5);
 
     let buttonContainer = scene.add.container(x, y, [buttonImage, buttonText]);
-
-    // Upravení pozice textu tak, aby byl zarovnán s obrázkem tlačítka
-    buttonText.setPosition(buttonContainer.x, buttonContainer.y);
-
-    buttonContainer.setSize(buttonWidth, buttonHeight);
+    buttonContainer.setSize(buttonImage.width, buttonImage.height);
     buttonContainer.setInteractive();
 
     let buttonGraphics = scene.add.graphics();
@@ -89,7 +78,7 @@ export function createLeftButton(scene, x, y, text, callback, tooltipText) {
     buttonContainer.on('pointerover', (pointer) => {
         buttonImage.setTint(0x44ff44);
         buttonGraphics.lineStyle(2, 0xffffff, 1);
-        buttonGraphics.strokeRect(buttonContainer.x - buttonWidth / 2, buttonContainer.y - buttonHeight / 2, buttonWidth, buttonHeight);
+        buttonGraphics.strokeRect(buttonContainer.x - buttonImage.width / 2, buttonContainer.y - buttonImage.height / 2, buttonImage.width, buttonImage.height);
         tooltip.setPosition(pointer.worldX + 10, pointer.worldY + 10);
         tooltip.setVisible(true);
     });
@@ -99,4 +88,7 @@ export function createLeftButton(scene, x, y, text, callback, tooltipText) {
         buttonGraphics.clear();
         tooltip.setVisible(false);
     });
+
+    return buttonContainer;
+
 }
