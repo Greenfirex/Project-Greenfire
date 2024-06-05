@@ -46,23 +46,45 @@ function showSection(sectionId) {
 function updateResourceInfo() {
     const infoPanel = document.getElementById('infoPanel');
     infoPanel.innerHTML = ''; // Vyčistíme info panel
+let nameElement, generationElement, storageElement;
+let topOffset = 0; // Initialize top offset
 
     resources.forEach(resource => {
         const resourceDiv = document.createElement('div');
         resourceDiv.className = 'resource-info';
+        resourceDiv.style.position = 'absolute';
+        resourceDiv.style.top = topOffset + 'px'; // Set top offset
+        resourceDiv.style.left = 0; // Align resourceDiv to the left
+        topOffset += 50;
 
-        const name = document.createElement('h3');
-        name.textContent = resource.name;
+// Create three columns
+        const column1 = document.createElement('div');
+        const column2 = document.createElement('div');
+        const column3 = document.createElement('div');
 
-        const generation = document.createElement('p');
-        generation.textContent = `Generation: ${resource.generationRate} per second`;
+// Set class names for columns
+        column1.className = 'infocolumn1';
+        column2.className = 'infocolumn2';
+        column3.className = 'infocolumn3';
 
-        const storage = document.createElement('p');
-        storage.textContent = `Stored: ${resource.amount}`;
+        const nameElement = document.createElement('h3');
+        nameElement.textContent = resource.name;
 
-        resourceDiv.appendChild(name);
-        resourceDiv.appendChild(generation);
-        resourceDiv.appendChild(storage);
+        const generationElement = document.createElement('p');
+        generationElement.textContent = `Generation: ${resource.generationRate} per second`;
+
+        const storageElement = document.createElement('p');
+        storageElement.textContent = `Stored: ${resource.amount}`;
+
+// Append elements to columns
+        column1.appendChild(nameElement);
+        column2.appendChild(generationElement);
+        column3.appendChild(storageElement);
+
+// Append columns to resourceDiv
+        resourceDiv.appendChild(column1);
+        resourceDiv.appendChild(column2);
+        resourceDiv.appendChild(column3);
 
         infoPanel.appendChild(resourceDiv);
     });
