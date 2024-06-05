@@ -1,3 +1,6 @@
+import { setupMiningSection } from './sections/mining.js';
+import { setupResearchSection } from './sections/research.js';
+
 document.addEventListener('DOMContentLoaded', () => {
     preloadImages();
     showSection('mining');
@@ -22,27 +25,17 @@ function preloadImages() {
 
 function showSection(sectionId) {
 const gameArea = document.getElementById('gameArea');
-    gameArea.innerHTML = ''; // Vymaže předchozí tlačítka
-    gameArea.className = ''; // Odstraní všechny aktuální třídy pozadí
-    gameArea.classList.add(`${sectionId}-bg`); // Přidá novou třídu pozadí
+    gameArea.innerHTML = '';
+    gameArea.className = '';
+    gameArea.classList.add(`${sectionId}-bg`);
 
-    // Dynamicky přidá tlačítka podle aktuální sekce
     if (sectionId === 'mining') {
-        createGameButton('Mine Resource', mineResource);
-    } else if (sectionId === 'other1') {
-        createGameButton('Other Action 1', otherAction1);
-    } else if (sectionId === 'other2') {
-        createGameButton('Other Action 2', otherAction2);
+        setupMiningSection();
+    } else if (sectionId === 'research') {
+        setupResearchSection();
     }
     // Další sekce podle potřeby
-
-}    
-
-function createGameButton(text, callback) {
-    const gameArea = document.getElementById('gameArea');
-    const button = document.createElement('button');
-    button.className = 'game-button';
-    button.textContent = text;
-    button.onclick = callback;
-    gameArea.appendChild(button);
 }
+
+// Make the showSection function available globally
+window.showSection = showSection;
