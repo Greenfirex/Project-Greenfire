@@ -61,26 +61,7 @@ body {
     background-image: url('../assets/images/PNG/Button04.png');
 }
 
-.game-button {
-    width: 22%; /* Tlačítka budou mít 22% šířky herní sekce */
-    height: 100px; /* Fixní výška tlačítka */
-    margin: 1%; /* Malý mezery mezi tlačítky */
-    padding: 10px;
-    background-color: #444; /* Základní barva tlačítka */
-    border: 2px solid #666; /* Rámeček tlačítka */
-    color: white;
-    text-align: center;
-    line-height: 80px; /* Vertikální centrování textu */
-    cursor: pointer;
-}
 
-.game-button:hover {
-    border-color: #fff; /* Změna barvy rámečku při najetí myší */
-}
-
-.game-section {
-    display: none;
-}
 
 #miningSection.active,
 #researchSection.active,
@@ -90,10 +71,6 @@ body {
 #other5Section.active,
 #other6Section.active {
     display: block;
-}
-
-.info-section {
-    background-color: black;
 }
 
 #gameArea.mining-bg {
@@ -134,28 +111,62 @@ opacity: 0.8;
     position: relative;
 }
 
-.info-section {
-    float: right; /* Zarovnání doprava */
-    width: 200px; /* Šířka informačního panelu */
+.game-button {
+    width: 22%; /* Tlačítka budou mít 22% šířky herní sekce */
+    height: 100px; /* Fixní výška tlačítka */
+    margin: 1%; /* Malý mezery mezi tlačítky */
     padding: 10px;
-    border: 1px solid #ccc;
-    background-color: #f9f9f9;
+    background-color: #444; /* Základní barva tlačítka */
+    border: 2px solid #666; /* Rámeček tlačítka */
+    color: white;
+    text-align: center;
+    line-height: 80px; /* Vertikální centrování textu */
+    cursor: pointer;
 }
 
-.info-section h2 {
-    font-size: 18px;
-    margin-bottom: 10px;
+.game-button:hover {
+    border-color: #fff; /* Změna barvy rámečku při najetí myší */
 }
 
-.info-section ul {
-    list-style-type: none;
-    padding: 0;
+.info-section {
+    background-color: #000;
+    color: #fff;
+    padding: 20px;
+    height: 100%;
+    overflow-y: auto;
 }
 
-.info-section li {
-    margin-bottom: 5px;
+.resource-info {
+    margin-bottom: 20px;
 }
 
-.info-section li span {
-    font-weight: bold;
+.section-header {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 24px;
+    color: white;
+    display: block; 
 }
+
+#miningSection {
+    display: flex;
+    justify-content: center;  /* Center horizontally */
+    align-items: center;      /* Center vertically */
+    flex-wrap: wrap;
+    height: 100%;             /* Ensure it takes up the full height */
+    position: relative;       /* Necessary for absolute positioning */
+}
+
+.mining-button {
+    margin: 10px;             /* Space between buttons */
+    width: 200px;             /* Button width */
+    height: 50px;             /* Button height */
+    display: flex;
+    justify-content: center;  /* Center text horizontally */
+    align-items: center;      /* Center text vertically */
+}
+
+.mining-button:hover {
+    background-color: #555;
+}
+
