@@ -21,7 +21,7 @@ function preloadImages() {
 }
 
 function showSection(sectionId) {
-    const gameArea = document.getElementById('gameArea');
+const gameArea = document.getElementById('gameArea');
     gameArea.innerHTML = ''; // Vymaže předchozí tlačítka
     gameArea.className = ''; // Odstraní všechny aktuální třídy pozadí
     gameArea.classList.add(`${sectionId}-bg`); // Přidá novou třídu pozadí
@@ -35,7 +35,8 @@ function showSection(sectionId) {
         createGameButton('Other Action 2', otherAction2);
     }
     // Další sekce podle potřeby
-}
+
+}    
 
 function createGameButton(text, callback) {
     const gameArea = document.getElementById('gameArea');
