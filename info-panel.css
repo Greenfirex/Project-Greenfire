@@ -1,0 +1,35 @@
+#infoPanel {
+  position: relative;
+  width: 20%;
+  background-color: black;
+  height: 100%;
+  color: white;
+  border: 1px solid white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.info-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 5px;
+  height: 20px;
+  overflow: hidden;
+}
+
+.infocolumn1, .infocolumn2, .infocolumn3 {
+  width: 120px;
+  flex: 0 0 auto;
+  height: 20px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+

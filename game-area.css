@@ -1,0 +1,66 @@
+#gameArea {
+  width: 60%;
+  height: 100%;
+  background-color: #34495e;
+  overflow: hidden;
+  position: relative;
+}
+
+#gameArea.mining-bg {
+  background-image: url('assets/images/background1.jpg');
+}
+
+#gameArea.research-bg {
+  background-image: url('assets/images/background2.jpg');
+  opacity: 0.8;
+  filter: brightness(50%) contrast(50%);
+}
+
+#gameArea.manufacturing-bg {
+  background-image: url('assets/images/background3.jpg');
+}
+
+#gameArea.trade-bg {
+  background-image: url('assets/images/background4.jpg');
+}
+
+#gameArea.other4-bg {
+  background-image: url('assets/images/background5.jpg');
+}
+
+#gameArea.other5-bg, #gameArea.other6-bg {
+  background-image: url('assets/images/background1.jpg');
+}
+
+.game-button {
+  width: 22%;
+  height: 100px;
+  margin: 1%;
+  padding: 10px;
+  background-color: #444;
+  border: 2px solid #666;
+  color: white;
+  text-align: center;
+  line-height: 80px;
+  cursor: pointer;
+}
+
+.game-button:hover {
+  border-color: #fff;
+}
+
+#miningSection, #researchSection, #manufacturingSection, #trade3Section, #other4Section, #other5Section, #other6Section {
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  height: 100%;
+  position: relative;
+}
+
+#miningSection.active, #researchSection.active, #manufacturingSection.active, #trade3Section.active, #other4Section.active, #other5Section.active, #other6Section.active {
+  display: block;
+}
+
+#miningSection .mining-button:hover {
+  background-color: #555;
+}

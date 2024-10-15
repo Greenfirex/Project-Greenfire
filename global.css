@@ -5,3 +5,9 @@ body {
     height: 100vh;
     overflow: hidden;
 }
+
+#mainContainer {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}

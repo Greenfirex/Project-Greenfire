@@ -51,7 +51,7 @@ let topOffset = 0; // Initialize top offset
 
     resources.forEach(resource => {
         const resourceDiv = document.createElement('div');
-        resourceDiv.className = 'resource-info';
+        resourceDiv.className = 'info-section';
         resourceDiv.style.top = topOffset + 'px'; // Set top offset
         topOffset += 20;
 
