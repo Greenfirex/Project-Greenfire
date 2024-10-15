@@ -1,0 +1,110 @@
+.menu-button {
+  background-image: url('../assets/images/PNG/Button03.png');
+  background-size: auto;
+  background-repeat: no-repeat;
+  width: 80%;
+  margin: 10px 0;
+  padding: 10px;
+  font-size: 16px;
+  background-color: #1abc9c;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  display: block;
+}
+
+.menu-button:hover {
+  color: #16a085;
+  background-image: url('../assets/images/PNG/Button04.png');
+}
+
+.tooltip {
+  visibility: hidden;
+  position: absolute;
+  background-color: #555;
+  color: #fff;
+  text-align: center;
+  padding: 5px;
+  border-radius: 5px;
+  z-index: 1;
+}
+
+.menu-button:hover .tooltip {
+  visibility: visible;
+}
+
+.mining-button, .info-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 10px;
+  width: 200px;
+  height: 50px;
+}
+
+.resource-info {
+  display: flex;
+  height: 20px;
+  overflow: hidden;
+  position: relative;
+  left: 0;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.infocolumn1, .infocolumn2, .infocolumn3 {
+  width: 120px;
+  flex: 0 0 auto;
+  height: 20px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.infocolumn1 {
+  background-color: #ffaaaa;
+}
+
+.infocolumn2 {
+  background-color: #caffcc;
+}
+
+.infocolumn3 {
+  background-color: #caccff;
+}
+
+.game-button {
+  width: 22%;
+  height: 100px;
+  margin: 1%;
+  padding: 10px;
+  background-color: #444;
+  border: 2px solid #666;
+  color: white;
+  text-align: center;
+  line-height: 80px;
+  cursor: pointer;
+}
+
+.game-button:hover {
+  border-color: #fff;
+}
+
+#miningSection, #researchSection, #manufacturingSection, #trade3Section, #other4Section, #other5Section, #other6Section {
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  height: 100%;
+  position: relative;
+}
+
+#miningSection.active, #researchSection.active, #manufacturingSection.active, #trade3Section.active, #other4Section.active, #other5Section.active, #other6Section.active {
+  display: block;
+}
+
+#miningSection .mining-button:hover {
+  background-color: #555;
+}
