@@ -58,9 +58,27 @@ body {
     width: 20%;
     background-color: #002000;
     height: 100%;
-    color: white;
-    padding: 10px;
+    color: black;
     border: 1px solid white;
+    display: flex; /* Make #infoPanel a flex container */
+    flex-direction: column; /* Arrange child elements vertically */
+    align-items: center; /* Center child elements horizontally */
+    justify-content: center; /* Center child elements vertically */
+}
+
+.tooltip {
+    visibility: hidden;
+    position: absolute;
+    background-color: #555;
+    color: #fff;
+    text-align: center;
+    padding: 5px;
+    border-radius: 5px;
+    z-index: 1;
+}
+
+.menu-button:hover .tooltip {
+    visibility: visible;
 }
 
 #miningSection.active,
@@ -128,33 +146,51 @@ opacity: 0.8;
     border-color: #fff; /* Změna barvy rámečku při najetí myší */
 }
 
-
-// PRAVA STRANA PRAVA STRANAPRAVA STRANAPRAVA STRANAPRAVA STRANAPRAVA STRANAPRAVA STRANAPRAVA STRANAPRAVA STRANA
-
-.resource-info {
-    justify-content: space-between;
-    margin-bottom: 10px;
+#infoPanel {
+  position: relative;
+  width: 20%;
+  background-color: #002000;
+  height: 100%;
+  color: white;
+  border: 1px solid white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  overflow-y: auto;
 }
 
-.infocolumn1,
-.infocolumn2,
-.infocolumn3 {
-    width: 33.33%;
-    display: inline-block;
-    vertical-align: top;
-    margin-right: 10px; /* Adjust as needed */
+.resource-info {
+  display: flex;
+  height: 20px;
+  overflow: hidden;
+  position: relative;
+  left: 0;
+  align-items: center;
+  justify-content: center;
+  width: 100%; /* Ensure it spans the full width of the parent */
+}
+
+.infocolumn1, .infocolumn2, .infocolumn3 {
+  width: 120px;
+  flex: 0 0 auto;
+  height: 20px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Center text horizontally */
 }
 
 .infocolumn1 {
-    background-color: #ffcccc; /* Light red */
+  background-color: #ffaaaa; /* Light red */
 }
 
 .infocolumn2 {
-    background-color: #ccffcc; /* Light green */
+  background-color: #caffcc; /* Light green */
 }
 
 .infocolumn3 {
-    background-color: #ccccff; /* Light blue */
+  background-color: #caccff; /* Light blue */
 }
 
 .section-header {

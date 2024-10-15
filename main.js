@@ -46,16 +46,14 @@ function showSection(sectionId) {
 function updateResourceInfo() {
     const infoPanel = document.getElementById('infoPanel');
     infoPanel.innerHTML = ''; // Vyčistíme info panel
-let nameElement, generationElement, storageElement;
+
 let topOffset = 0; // Initialize top offset
 
     resources.forEach(resource => {
         const resourceDiv = document.createElement('div');
         resourceDiv.className = 'resource-info';
-        resourceDiv.style.position = 'absolute';
         resourceDiv.style.top = topOffset + 'px'; // Set top offset
-        resourceDiv.style.left = 0; // Align resourceDiv to the left
-        topOffset += 50;
+        topOffset += 20;
 
 // Create three columns
         const column1 = document.createElement('div');
@@ -71,7 +69,7 @@ let topOffset = 0; // Initialize top offset
         nameElement.textContent = resource.name;
 
         const generationElement = document.createElement('p');
-        generationElement.textContent = `Generation: ${resource.generationRate} per second`;
+        generationElement.textContent = `${resource.generationRate}/s`;
 
         const storageElement = document.createElement('p');
         storageElement.textContent = `Stored: ${resource.amount}`;
@@ -92,6 +90,7 @@ let topOffset = 0; // Initialize top offset
 function incrementResources() {
     resources.forEach(resource => {
         resource.amount += resource.generationRate;
+        resource.amount = parseFloat(resource.amount.toFixed(2));
     });
 }
 
