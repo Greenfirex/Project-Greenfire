@@ -30,11 +30,11 @@
   z-index: 1;
 }
 
-.menu-button:hover .tooltip {
+.menu-button:hover {
   visibility: visible;
 }
 
-.mining-button, .info-section {
+.mining-button, {
   display: flex;
   justify-content: center;
   align-items: center;

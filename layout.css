@@ -1,6 +1,6 @@
 #header, #footer {
-    border: 1px solid white; /* Přidání bílého okraje */
-    padding: 5px; /* Přidání polštáře pro lepší vzhled */
+    border: 1px solid white; 
+    padding: 5px;
     background-color: #000000;
     color: white;
     text-align: center;
@@ -14,7 +14,7 @@
 }
 
 #mainMenu {
-    border: 1px solid white; /* Přidání bílého okraje */
+    border: 1px solid white; 
     width: 20%;
     background-color: #002000;
     height: 100%;
@@ -25,16 +25,16 @@
 }
 
 #infoPanel {
+    border: 1px solid white;
     position: relative;
     width: 20%;
     background-color: #002000;
     height: 100%;
     color: black;
-    border: 1px solid white;
-    display: flex; /* Make #infoPanel a flex container */
-    flex-direction: column; /* Arrange child elements vertically */
-    align-items: center; /* Center child elements horizontally */
-    justify-content: center; /* Center child elements vertically */
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
 }
 
 #gameArea {
