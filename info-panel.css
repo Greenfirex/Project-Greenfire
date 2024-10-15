@@ -21,6 +21,16 @@
   margin-bottom: 5px;
   height: 20px;
   overflow: hidden;
+  color: orange;
+}
+
+.info-section:nth-child(even) {
+  background-color: #0a0a0a; /* Light background color for even rows */
+}
+
+.info-section:nth-child(odd) {
+  background-color: #111111; /* Slightly darker background color for odd rows */
+  
 }
 
 .infocolumn1, .infocolumn2, .infocolumn3 {
@@ -32,4 +42,5 @@
   align-items: center;
   justify-content: center;
 }
+
 

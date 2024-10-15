@@ -47,20 +47,14 @@ function updateResourceInfo() {
     const infoPanel = document.getElementById('infoPanel');
     infoPanel.innerHTML = ''; // Vyčistíme info panel
 
-let topOffset = 0; // Initialize top offset
-
-    resources.forEach(resource => {
+        resources.forEach(resource => {
         const resourceDiv = document.createElement('div');
         resourceDiv.className = 'info-section';
-        resourceDiv.style.top = topOffset + 'px'; // Set top offset
-        topOffset += 20;
-
-// Create three columns
+        
         const column1 = document.createElement('div');
         const column2 = document.createElement('div');
         const column3 = document.createElement('div');
 
-// Set class names for columns
         column1.className = 'infocolumn1';
         column2.className = 'infocolumn2';
         column3.className = 'infocolumn3';
@@ -74,12 +68,10 @@ let topOffset = 0; // Initialize top offset
         const storageElement = document.createElement('p');
         storageElement.textContent = `Stored: ${resource.amount}`;
 
-// Append elements to columns
         column1.appendChild(nameElement);
         column2.appendChild(generationElement);
         column3.appendChild(storageElement);
 
-// Append columns to resourceDiv
         resourceDiv.appendChild(column1);
         resourceDiv.appendChild(column2);
         resourceDiv.appendChild(column3);
