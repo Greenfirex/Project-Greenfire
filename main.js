@@ -3,8 +3,8 @@ import { setupResearchSection } from './sections/research.js';
 import { resources } from './resources.js';
 import { updateResourceInfo } from './resources.js';
 import { incrementResources } from './resources.js';
-import { loadGameState } from './saveLoad.js';
-import './headerOptions.js';
+import { loadGameState } from './saveload.js';
+import './headeroptions.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     preloadImages();
