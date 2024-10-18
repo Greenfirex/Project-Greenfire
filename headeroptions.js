@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     resetButton.addEventListener('click', () => {
       if (confirm("Are you sure you want to reset your progress?")) {
-        import('saveload.js').then(module => {
+        import('./saveload.js').then(module => {
           module.resetGameState();
           optionsMenu.style.display = 'none';
         });
