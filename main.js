@@ -23,8 +23,8 @@ function preloadImages() {
         'assets/images/background3.jpg',
         'assets/images/background4.jpg',
         'assets/images/background5.jpg',
-	'../assets/images/PNG/Button03.png',
-        '../assets/images/PNG/Button04.png',
+	'assets/images/PNG/Button03.png',
+        'assets/images/PNG/Button04.png',
     ];
     
     images.forEach((image) => {
