@@ -1,12 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
 #mainMenu {
-  border: 1px solid white;
+  border: 1px solid #555;
   width: 20%;
-  background-color: #002000;
-  height: 100%;
+  margin-top: -1px;
+  background-color: #001000;
+  height: 100%; /* Make it full height */
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between; /* Space out content to top and bottom */
+  padding-top: 10px;
+}
+
+.menu-buttons-container {
+  flex-grow: 1; /* Allow it to grow to fill space */
+  margin-top: -1px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #001000; /* Ensure background color stays black */
 }
 
 .menu-button {
@@ -43,4 +57,43 @@
 
 .menu-button:hover .tooltip {
   visibility: visible;
+}
+
+#logSection {
+  width: 100%; /* Match the width of the main menu */
+  background-color: #001000;
+  color: white;
+  border-top: 1px solid #555;
+  padding: 10px;
+  height: 30%; /* Adjust height to 50% */
+  flex-shrink: 0; /* Prevent it from shrinking */
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.log-entry {
+  margin-top: 10px;
+  margin-bottom: 10px;
+  font-family: 'Press Start 2P', cursive; /* Matrix-style font */
+  font-size: 8px; /* Adjust size as needed */
+  color: green;
+}
+
+#logSection::-webkit-scrollbar {
+  width: 12px; /* Width of the scrollbar */
+}
+
+#logSection::-webkit-scrollbar-track {
+  background: #333; /* Track color */
+  border-radius: 10px; /* Rounded corners */
+}
+
+#logSection::-webkit-scrollbar-thumb {
+  background-color: #888; /* Scrollbar color */
+  border-radius: 10px; /* Rounded corners */
+  border: 3px solid #333; /* Padding around the thumb */
+}
+
+#logSection::-webkit-scrollbar-thumb:hover {
+  background-color: #555; /* Color when hovered */
 }

@@ -26,7 +26,7 @@ export function setupMiningSection() {
 
 function createMiningButton(text, callback, container) {
     const button = document.createElement('button');
-    button.className = 'mining-button';
+    button.className = 'game-button';
     button.textContent = text;
     button.onclick = callback;
     container.appendChild(button);

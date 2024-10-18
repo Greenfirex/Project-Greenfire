@@ -1,0 +1,130 @@
+#researchSection {
+  padding: 20px;
+  color: white;
+}
+
+.progress-bar-container {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20vh;
+  background-color: #000;
+  padding: 10px;
+  border-radius: 5px;
+  box-sizing: border-box;
+}
+
+.progress-bar-wrapper {
+  width: 100%;
+  height: 20px;
+  background-color: #555; /* Background color of the unfilled part */
+  border-radius: 5px;
+  position: relative;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  width: 0;
+  height: 100%;
+  background-color: #2e8b57; /* Darker shade of green */
+  transition: width 0.6s linear;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-sizing: border-box;
+  height: 35px; /* Set a fixed height */
+}
+
+.progress-text {
+  margin: 0;
+  color: white;
+}
+
+.cancel-button {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px; /* Adjust padding to fit better */
+  font-size: 12px;
+  cursor: pointer;
+  display: none;
+  z-index: 1;
+  flex: 0 0 auto;
+}
+
+.cancel-button:hover {
+  background-color: #d32f2f;
+}
+
+.tab-container {
+  display: flex;
+  justify-content: flex-start; /* Align tabs to the left */
+  margin-bottom: 10px;
+  position: relative; /* Needed for the bookmark effect */
+}
+
+.tab {
+  padding: 10px;
+  background-color: #333;
+  color: white;
+  border: none;
+  cursor: pointer;
+  text-align: center; /* Center text within tabs */
+  margin: 0 5px; /* Space out tabs */
+  z-index: 1;
+  position: relative; /* Needed for the bookmark effect */
+  top: 5px; /* Move the tab 10px up */
+  box-shadow: 0 0 10px 0 #333;
+}
+
+.tab.active {
+  background-color: green;
+  top: 0; /* Reset the top position for the active tab */
+  z-index: 2; /* Ensure the active tab is on top */
+  box-shadow: 0 0 10px 0 #555;
+}
+
+.tech-container {
+  height: 40%;
+  display: none; /* Hide by default */
+  flex-wrap: wrap; /* Allow wrapping to new lines */
+  justify-content: flex-start; /* Align items to the start (left) */
+  gap: 10px; /* Add some space between buttons */
+  background-color: #000; /* Match active tab background color */
+  padding: 10px;
+}
+
+.tech-container.active {
+  display: flex; /* Show only active tech containers */
+}
+
+.tech-button {
+  margin: 5px;
+  padding: 10px;
+  background-color: green;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  flex: 0 0 auto; /* Prevent buttons from stretching */
+  display: inline-block; /* Ensure buttons line up nicely */
+  height: 40px; /* Set fixed height to fit five buttons */
+  line-height: 30px; /* Center text vertically */
+  font-size: 12px; /* Adjust font size for smaller buttons */
+  display: flex; /* Enable flexbox alignment */
+  z-index: 1; /* Ensure it’s clickable */
+  align-items: center; /* Vertically center the text */
+  justify-content: center; /* Horizontally center the text */
+}
+
+.tech-button:hover {
+  background-color: #16a085;
+}
+

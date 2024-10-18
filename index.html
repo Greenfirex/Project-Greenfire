@@ -8,12 +8,20 @@
     <link rel="stylesheet" href="main-menu.css">
     <link rel="stylesheet" href="info-panel.css">
     <link rel="stylesheet" href="game-area.css">
+    <link rel="stylesheet" href="sections/research.css">
     <title>Idle Sci-Fi Game</title>
 </head>
 <body>
-    <div id="header">Header</div>
+
+<div id="header">
+<span>Header</span>
+    <a href="#" id="optionsLink" class="header-link">Options</a>
+</div>
+
 <div id="mainContainer">
-    <div id="mainMenu">
+
+<div id="mainMenu">
+<div class="menu-buttons-container">
 <button class="menu-button" onclick="showSection('mining')">Mining</button>
 <button class="menu-button" onclick="showSection('research')">Research</button>
 <button class="menu-button" onclick="showSection('manufacturing')">Manufacturing</button>
@@ -22,15 +30,37 @@
 <button class="menu-button" onclick="showSection('other5')">Other 5</button>
 <button class="menu-button" onclick="showSection('other6')">Other 6</button>
 </div>
-<div id="gameArea" class="game-area"></div>
-<div id="infoPanel" class="info-section"></div>
- <!-- This div will be populated dynamically by the JavaScript function -->
+<div id="logSection">Log entries:</div>
 </div>
-    <div id="footer">Green ™</div>
+
+<div id="gameArea" class="game-area"></div>
+
+<div id="infoPanel" class="info-section"></div>
+<!-- This div will be populated dynamically by the JavaScript function -->
+</div>
+
+<div id="footer">Green ™</div>
+
+<div id="optionsMenu" class="popup">
+    <div class="popup-content">
+      <span class="close-button">&times;</span>
+      <button id="resetButton">Reset Progress</button>
+    </div>
+</div>
+
 <script src="main.js" type="module"></script>
 <script src="resources.js" type="module"></script>
+<script src="saveload.js" type="module"></script>
+<script src="headerOptions.js" type="module" ></script>
+<script src="log.js" type="module"></script>
 <script src="sections/mining.js" type="module"></script>
 <script src="sections/research.js" type="module"></script>
+<script type="module">
+import { loadGameState } from './saveLoad.js';
+import { updateResourceInfo } from './resources.js';    
+    loadGameState();
+    updateResourceInfo();
+</script>  
     
 </body>
 </html>

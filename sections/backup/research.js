@@ -1,8 +1,13 @@
 import { addLogEntry } from '../log.js';
-import { technologies } from './technologies.js';
 
 let researchProgress = 0;
 let researchInterval;
+
+export const technologies = [
+  { name: 'Quantum Computing', duration: 5, isResearched: false }, // Add isResearched field
+  { name: 'Nano Fabrication', duration: 120, isResearched: false },
+  { name: 'AI Integration', duration: 180, isResearched: false }
+];
 
 export function setupResearchSection() {
   const gameArea = document.getElementById('gameArea');
@@ -46,70 +51,17 @@ export function setupResearchSection() {
   progressBarContainer.appendChild(progressInfo);
   researchSection.appendChild(progressBarContainer);
 
-  // Tabs for available and researched tech
-  const tabContainer = document.createElement('div');
-  tabContainer.className = 'tab-container';
-
-  const availableTab = document.createElement('button');
-  availableTab.className = 'tab active';
-  availableTab.textContent = 'Available Tech';
-  availableTab.addEventListener('click', () => showTab('available'));
-
-  const researchedTab = document.createElement('button');
-  researchedTab.className = 'tab';
-  researchedTab.textContent = 'Researched Tech';
-  researchedTab.addEventListener('click', () => showTab('researched'));
-
-  tabContainer.appendChild(availableTab);
-  tabContainer.appendChild(researchedTab);
-  researchSection.appendChild(tabContainer);
-
-  // Tech containers
-  const availableContainer = document.createElement('div');
-  availableContainer.className = 'tech-container available active';
-
-  const researchedContainer = document.createElement('div');
-  researchedContainer.className = 'tech-container researched';
+  // Available technologies
+  const techContainer = document.createElement('div');
+  techContainer.className = 'tech-container';
 
   technologies.forEach(tech => {
-    if (tech.isResearched) {
-      const techName = document.createElement('p');
-      techName.textContent = tech.name;
-      researchedContainer.appendChild(techName);
-    } else {
-      const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
-        return technologies.find(t => t.name === prereq).isResearched;
-      });
-
-      if (allPrerequisitesResearched) {
-        createTechButton(tech.name, () => startResearch(tech, cancelButton), availableContainer);
-      }
+    if (!tech.isResearched) {
+      createTechButton(tech.name, () => startResearch(tech, cancelButton), techContainer);
     }
   });
-
-  researchSection.appendChild(availableContainer);
-  researchSection.appendChild(researchedContainer);
-
+  researchSection.appendChild(techContainer);
   gameArea.appendChild(researchSection);
-}
-
-function showTab(tabName) {
-  const availableContainer = document.querySelector('.tech-container.available');
-  const researchedContainer = document.querySelector('.tech-container.researched');
-  const availableTab = document.querySelector('.tab:nth-child(1)');
-  const researchedTab = document.querySelector('.tab:nth-child(2)');
-
-  if (tabName === 'available') {
-    availableContainer.classList.add('active');
-    researchedContainer.classList.remove('active');
-    availableTab.classList.add('active');
-    researchedTab.classList.remove('active');
-  } else {
-    availableContainer.classList.remove('active');
-    researchedContainer.classList.add('active');
-    availableTab.classList.remove('active');
-    researchedTab.classList.add('active');
-  }
 }
 
 function createTechButton(text, callback, container) {
@@ -153,29 +105,6 @@ function startResearch(tech, cancelButton) {
         techButton.style.display = 'none'; // Hide the button upon completion
       }
       tech.isResearched = true; // Mark technology as researched
-      
-      // Add the tech name to the researched tab
-      const researchedContainer = document.querySelector('.tech-container.researched');
-      const techName = document.createElement('p');
-      techName.textContent = tech.name;
-      researchedContainer.appendChild(techName);
-      // Check for new available technologies
-      const availableContainer = document.querySelector('.tech-container.available');
-      technologies.forEach(t => {
-        if (!t.isResearched) {
-          const allPrerequisitesResearched = t.prerequisites.every(prereq => {
-            return technologies.find(tech => tech.name === prereq).isResearched;
-          });
-
-          if (allPrerequisitesResearched) {
-            createTechButton(t.name, () => startResearch(t, cancelButton), availableContainer);
-          }
-        }
-      });
-      // Log new available technologies
-      if (newAvailableTechs.length > 0) {
-        addLogEntry(`New technologies available: ${newAvailableTechs.join(', ')}.`, 'blue');
-      }
     } else {
       updateProgressBar(cancelButton);
     }
@@ -188,20 +117,18 @@ function updateProgressBar(cancelButton) {
   const progressText = document.querySelector('.progress-text');
   progressBar.style.width = `${researchProgress}%`;
   progressText.innerText = `Research Progress: ${Math.floor(researchProgress)}%`;
-if (cancelButton && researchProgress > 0 && researchProgress < 100) {
+if (researchProgress > 0 && researchProgress < 100) {
     cancelButton.style.display = 'inline-block';
-  } else if (cancelButton) {
+  } else {
     cancelButton.style.display = 'none';
   }
 }
 
 function cancelResearch() {
   clearInterval(researchInterval);
-  researchProgress = 0;
-  addLogEntry('Research cancelled.', 'red');
-
+  
+  // Hide progress bar immediately to avoid visual jump from current progress to 0%
   const progressBar = document.querySelector('.progress-bar');
-  const progressText = document.querySelector('.progress-text');
   progressBar.style.transition = 'none';
   progressBar.style.width = '0';
   
@@ -209,6 +136,9 @@ function cancelResearch() {
     progressBar.style.transition = 'width 0.6s linear';
     updateProgressBar();
   }, 50);
+
+  researchProgress = 0;
+  addLogEntry('Research cancelled.', 'red');
 
   const cancelButton = document.querySelector('.cancel-button');
   if (cancelButton) {
