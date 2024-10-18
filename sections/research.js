@@ -1,7 +1,7 @@
 import { addLogEntry } from '../log.js';
 import { technologies } from './technologies.js';
 
-let researchProgress = 0;
+export let researchProgress = 0;
 export let researchInterval;
 
 export function setupResearchSection() {
