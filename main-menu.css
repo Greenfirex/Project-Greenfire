@@ -24,7 +24,7 @@
 }
 
 .menu-button {
-  background-image: url('../assets/images/PNG/Button03.png');
+  background-image: url('./assets/images/PNG/Button03.png');
   background-size: auto;
   background-repeat: no-repeat;
   width: 80%;
@@ -41,7 +41,7 @@
 
 .menu-button:hover {
   color: #16a085;
-  background-image: url('../assets/images/PNG/Button04.png');
+  background-image: url('./assets/images/PNG/Button04.png');
 }
 
 .tooltip {
