@@ -15,7 +15,7 @@
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5); /* Adjust the color and opacity */
   pointer-events: none; /* Ensure it doesn't block clicks */
-  z-index: 0; /* Ensure it's behind the elements */
+  z-index: -1; /* Ensure it's behind the elements */
 }
 
 #gameArea.mining-bg::after, 

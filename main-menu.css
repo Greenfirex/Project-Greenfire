@@ -1,10 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
 #mainMenu {
   border: 1px solid #555;
   width: 20%;
   margin-top: -1px;
-  background-color: #001000;
+  background-color: black !important;
   height: 100%; /* Make it full height */
   display: flex;
   flex-direction: column;
@@ -20,7 +18,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  background-color: #001000; /* Ensure background color stays black */
+  background-color: black !important; /* Ensure background color stays black */
 }
 
 .menu-button {
@@ -31,7 +29,7 @@
   margin: 10px 0;
   padding: 10px;
   font-size: 16px;
-  background-color: #1abc9c;
+  background-color: black;
   color: white;
   border: none;
   border-radius: 5px;
@@ -61,7 +59,7 @@
 
 #logSection {
   width: 100%; /* Match the width of the main menu */
-  background-color: #001000;
+  background-color: black !important;
   color: white;
   border-top: 1px solid #555;
   padding: 10px;
@@ -69,13 +67,14 @@
   flex-shrink: 0; /* Prevent it from shrinking */
   overflow-y: auto;
   box-sizing: border-box;
+  font-family: 'Roboto Mono', monospace;
 }
 
 .log-entry {
   margin-top: 10px;
   margin-bottom: 10px;
-  font-family: 'Press Start 2P', cursive; /* Matrix-style font */
-  font-size: 8px; /* Adjust size as needed */
+  font-family: 'Roboto Mono', monospace; /* Matrix-style font */
+  font-size: 12px; /* Adjust size as needed */
   color: green;
 }
 

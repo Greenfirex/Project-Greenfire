@@ -204,13 +204,18 @@ function startResearch(tech, cancelButton) {
 export function updateProgressBar(cancelButton) {
   const progressBar = document.querySelector('.progress-bar');
   const progressText = document.querySelector('.progress-text');
-  progressBar.style.width = `${researchProgress}%`;
-  progressText.innerText = `Research Progress: ${Math.floor(researchProgress)}%`;
-if (cancelButton && researchProgress > 0 && researchProgress < 100) {
-    cancelButton.style.display = 'inline-block';
-  } else if (cancelButton) {
-    cancelButton.style.display = 'none';
-  }
+  if (progressBar && progressText) {  // Add null checks
+        progressBar.style.width = `${researchProgress}%`;
+        progressText.innerText = `Research Progress: ${Math.floor(researchProgress)}%`;
+
+        if (cancelButton && researchProgress > 0 && researchProgress < 100) {
+            cancelButton.style.display = 'inline-block';
+        } else if (cancelButton) {
+            cancelButton.style.display = 'none';
+        }
+    } else {
+        console.error('Progress bar elements not found.');  // Log an error if elements are missing
+    }
 }
 
 function cancelResearch() {

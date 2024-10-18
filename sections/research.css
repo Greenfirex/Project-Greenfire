@@ -11,12 +11,13 @@
   padding: 10px;
   border-radius: 5px;
   box-sizing: border-box;
+  z-index: 1;
 }
 
 .progress-bar-wrapper {
   width: 100%;
   height: 20px;
-  background-color: #555; /* Background color of the unfilled part */
+  background-color: #222; /* Background color of the unfilled part */
   border-radius: 5px;
   position: relative;
   margin-bottom: 10px;
@@ -26,7 +27,7 @@
 .progress-bar {
   width: 0;
   height: 100%;
-  background-color: #2e8b57; /* Darker shade of green */
+  background-color: green; /* Darker shade of green */
   transition: width 0.6s linear;
   position: absolute;
   top: 0;
@@ -67,7 +68,8 @@
   display: flex;
   justify-content: flex-start; /* Align tabs to the left */
   margin-bottom: 10px;
-  position: relative; /* Needed for the bookmark effect */
+  position: relative;  /* Needed for the bookmark effect */
+  z-index: 1;
 }
 
 .tab {
@@ -99,6 +101,7 @@
   gap: 10px; /* Add some space between buttons */
   background-color: #000; /* Match active tab background color */
   padding: 10px;
+  z-index: 1;
 }
 
 .tech-container.active {
