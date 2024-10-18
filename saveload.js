@@ -1,5 +1,6 @@
 import { resources, updateResourceInfo } from './resources.js';
 import { technologies } from './sections/technologies.js';
+import { resetGameState, researchInterval } from './sections/research.js';
 
 export function saveGameState() {
   const gameState = {

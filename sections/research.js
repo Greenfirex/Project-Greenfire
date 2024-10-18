@@ -2,7 +2,7 @@ import { addLogEntry } from '../log.js';
 import { technologies } from './technologies.js';
 
 let researchProgress = 0;
-let researchInterval;
+export let researchInterval;
 
 export function setupResearchSection() {
   const gameArea = document.getElementById('gameArea');
