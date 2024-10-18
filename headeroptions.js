@@ -17,13 +17,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     resetButton.addEventListener('click', () => {
-      if (confirm("Are you sure you want to reset your progress?")) {
-        import('./saveload.js').then(module => {
-          module.resetGameState();
-          optionsMenu.style.display = 'none';
+        if (confirm("Are you sure you want to reset your progress?")) {
+            resetGameState(); // Directly calling the function
+            optionsMenu.style.display = 'none';
+            }
         });
-      }
-    });
 // Close the popup if the user clicks outside of it
     window.addEventListener('click', (event) => {
       if (event.target === optionsMenu) {

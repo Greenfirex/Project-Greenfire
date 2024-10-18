@@ -1,6 +1,6 @@
 import { resources, updateResourceInfo } from './resources.js';
 import { technologies } from './sections/technologies.js';
-import { researchInterval, researchProgress } from './sections/research.js';
+import { getResearchInterval, setResearchProgress, updateProgressBar } from './sections/research.js';
 
 export function saveGameState() {
   const gameState = {
@@ -42,7 +42,6 @@ export function resetGameState() {
     resource.generationRate = 0.01;
   });
 
-  // Reset research progress and show all tech buttons again
   technologies.forEach(tech => {
     tech.isResearched = false;
   });
@@ -52,12 +51,12 @@ export function resetGameState() {
     button.style.display = 'inline-block';
   });
 
-  clearInterval(researchInterval);
-  researchProgress = 0;
-  updateProgressBar(); // Ensure progress bar resets
+  clearInterval(getResearchInterval());  // Get the interval
+  setResearchProgress(0);  // Set progress
 
-  saveGameState(); // Save the reset state
-  updateResourceInfo(); // Update the UI
+  updateProgressBar();  // Ensure progress bar resets
+  saveGameState();  // Save the reset state
+  updateResourceInfo();  // Update the UI
   location.reload();  // Enforce page refresh
 }
 

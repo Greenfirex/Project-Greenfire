@@ -4,6 +4,22 @@ import { technologies } from './technologies.js';
 export let researchProgress = 0;
 export let researchInterval;
 
+export function getResearchInterval() {
+    return researchInterval;
+}
+
+export function setResearchInterval(interval) {
+    researchInterval = interval;
+}
+
+export function getResearchProgress() {
+    return researchProgress;
+}
+
+export function setResearchProgress(progress) {
+    researchProgress = progress;
+}
+
 export function setupResearchSection() {
   const gameArea = document.getElementById('gameArea');
   gameArea.innerHTML = ''; // Clear any existing content
@@ -161,6 +177,7 @@ function startResearch(tech, cancelButton) {
       researchedContainer.appendChild(techName);
       // Check for new available technologies
       const availableContainer = document.querySelector('.tech-container.available');
+	  const newAvailableTechs = [];
       technologies.forEach(t => {
         if (!t.isResearched) {
           const allPrerequisitesResearched = t.prerequisites.every(prereq => {
@@ -169,6 +186,7 @@ function startResearch(tech, cancelButton) {
 
           if (allPrerequisitesResearched) {
             createTechButton(t.name, () => startResearch(t, cancelButton), availableContainer);
+			newAvailableTechs.push(t.name);
           }
         }
       });
@@ -183,7 +201,7 @@ function startResearch(tech, cancelButton) {
 }
 
 
-function updateProgressBar(cancelButton) {
+export function updateProgressBar(cancelButton) {
   const progressBar = document.querySelector('.progress-bar');
   const progressText = document.querySelector('.progress-text');
   progressBar.style.width = `${researchProgress}%`;
