@@ -1,3 +1,5 @@
+import { resetGameState, loadGameState } from './saveload.js';
+
 document.addEventListener('DOMContentLoaded', () => {
   const optionsLink = document.getElementById('optionsLink');
   const optionsMenu = document.getElementById('optionsMenu');
