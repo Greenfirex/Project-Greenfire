@@ -42,6 +42,10 @@
   background-image: url('./assets/images/PNG/Button04.png');
 }
 
+.menu-button.hidden {
+    display: none;
+}
+
 .tooltip {
   visibility: hidden;
   position: absolute;

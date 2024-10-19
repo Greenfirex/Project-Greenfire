@@ -2,6 +2,15 @@ import { resources, updateResourceInfo } from './resources.js';
 import { technologies } from './sections/technologies.js';
 import { getResearchInterval, setResearchProgress, updateProgressBar } from './sections/research.js';
 
+let activatedSections = {
+    research: false,
+    manufacturing: false,
+    trade: false,
+    other4: false,
+    other5: false,
+    other6: false
+};
+
 export function saveGameState() {
   const gameState = {
     resources: resources.map(resource => ({
@@ -37,27 +46,44 @@ export function loadGameState() {
 }
 
 export function resetGameState() {
-  resources.forEach(resource => {
-    resource.amount = 0;
-    resource.generationRate = 0.01;
-  });
+    resources.forEach(resource => {
+        resource.amount = 0;
+        resource.generationRate = 0.01;
+    });
 
-  technologies.forEach(tech => {
-    tech.isResearched = false;
-  });
+    technologies.forEach(tech => {
+        tech.isResearched = false;
+    });
 
-  const techButtons = document.querySelectorAll('.tech-button');
-  techButtons.forEach(button => {
-    button.style.display = 'inline-block';
-  });
+    const techButtons = document.querySelectorAll('.tech-button');
+    techButtons.forEach(button => {
+        button.style.display = 'inline-block';
+    });
 
-  clearInterval(getResearchInterval());  // Get the interval
-  setResearchProgress(0);  // Set progress
+    clearInterval(getResearchInterval());
+    setResearchProgress(0);
 
-  updateProgressBar();  // Ensure progress bar resets
-  saveGameState();  // Save the reset state
-  updateResourceInfo();  // Update the UI
-  location.reload();  // Enforce page refresh
+    updateProgressBar();
+    saveGameState();
+    updateResourceInfo();
+
+    // Reset activated sections
+    activatedSections = {
+        research: false,
+        manufacturing: false,
+        trade: false,
+        other4: false,
+        other5: false,
+        other6: false
+    };
+    localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
+
+    // Ensure all buttons are hidden again
+    document.querySelectorAll('.menu-button[data-section]').forEach(button => {
+        button.classList.add('hidden');
+    });
+
+    location.reload();
 }
 
 // Save the game state before unloading the page
