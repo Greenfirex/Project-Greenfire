@@ -1,93 +1,87 @@
 import { resources, updateResourceInfo } from './resources.js';
 import { technologies } from './sections/technologies.js';
 import { getResearchInterval, setResearchProgress, updateProgressBar } from './sections/research.js';
+import { applyActivatedSections, checkConditions, activatedSections, setActivatedSections } from './main.js'
 
-let activatedSections = {
-    research: false,
-    manufacturing: false,
-    trade: false,
-    other4: false,
-    other5: false,
-    other6: false
-};
-
-export function saveGameState() {
-  const gameState = {
-    resources: resources.map(resource => ({
-      name: resource.name,
-      generationRate: resource.generationRate,
-      amount: resource.amount
-    })),
-    researchedTechnologies: technologies.filter(tech => tech.isResearched)
-  };
-  localStorage.setItem('gameState', JSON.stringify(gameState));
-}
-
-export function loadGameState() {
-  const savedGameState = localStorage.getItem('gameState');
-  if (savedGameState) {
-    const gameState = JSON.parse(savedGameState);
-    gameState.resources.forEach((savedResource, index) => {
-      resources[index].amount = savedResource.amount;
-      resources[index].generationRate = savedResource.generationRate;
-    });
-    gameState.researchedTechnologies.forEach(savedTech => {
-      const tech = technologies.find(t => t.name === savedTech.name);
-      if (tech) {
-        tech.isResearched = true;
-        const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
-        if (techButton) {
-          techButton.style.display = 'none'; // Hide the button for researched technologies
-        }
-      }
-    });
-    updateResourceInfo();
-  }
-}
-
-export function resetGameState() {
-    resources.forEach(resource => {
-        resource.amount = 0;
-        resource.generationRate = 0.01;
-    });
-
-    technologies.forEach(tech => {
-        tech.isResearched = false;
-    });
-
-    const techButtons = document.querySelectorAll('.tech-button');
-    techButtons.forEach(button => {
-        button.style.display = 'inline-block';
-    });
-
-    clearInterval(getResearchInterval());
-    setResearchProgress(0);
-
-    updateProgressBar();
-    saveGameState();
-    updateResourceInfo();
-
-    // Reset activated sections
-    activatedSections = {
+const defaultGameState = {
+    resources: [
+        { name: 'Hydrogen', generationRate: 0.01, amount: 0 },
+        { name: 'Iron', generationRate: 0.01, amount: 0 },
+        { name: 'Copper', generationRate: 0.01, amount: 0 },
+        { name: 'Titanium', generationRate: 0.01, amount: 0 },
+        { name: 'Dumbium', generationRate: 0.61, amount: 0 }
+    ],
+    technologies: [
+        { name: 'Quantum Computing', duration: 5, isResearched: false, prerequisites: [] },
+        { name: 'Nano Fabrication', duration: 120, isResearched: false, prerequisites: ['Quantum Computing'] },
+        { name: 'AI Integration', duration: 180, isResearched: false, prerequisites: ['Quantum Computing'] }
+    ],
+    activatedSections: {
         research: false,
         manufacturing: false,
         trade: false,
         other4: false,
         other5: false,
         other6: false
+    }
+};
+
+export function saveGameState() {
+    const gameState = {
+        resources,
+        technologies,
+        activatedSections
     };
-    localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
-
-    // Ensure all buttons are hidden again
-    document.querySelectorAll('.menu-button[data-section]').forEach(button => {
-        button.classList.add('hidden');
-    });
-
-    location.reload();
+    localStorage.setItem('gameState', JSON.stringify(gameState));
 }
 
-// Save the game state before unloading the page
-window.addEventListener('beforeunload', saveGameState);
+export function loadGameState() {
+    const savedGameState = localStorage.getItem('gameState');
 
-// Load the game state when the page loads
+    if (savedGameState) {
+        const gameState = JSON.parse(savedGameState);
+
+        if (Array.isArray(gameState.resources)) {
+            resources.length = 0;
+            resources.push(...gameState.resources);
+        }
+
+        if (Array.isArray(gameState.technologies)) {
+            technologies.length = 0;
+            technologies.push(...gameState.technologies);
+        }
+
+        if (gameState.activatedSections) {
+            setActivatedSections(gameState.activatedSections);
+        }
+
+        applyActivatedSections();
+        updateResourceInfo(); // Aktualizace zdrojů na stránce
+    }
+}
+
+
+export function resetGameState() {
+    console.log('Resetting game state');
+
+    resources.length = 0; // Clear existing resources
+    resources.push(...defaultGameState.resources); // Assign default resources
+    technologies.length = 0; // Clear existing technologies
+    technologies.push(...defaultGameState.technologies); // Assign default technologies
+    resetActivatedSections();
+
+    document.querySelectorAll('.menu-button[data-section]').forEach(button => {
+        if (button.getAttribute('data-section') !== 'mining') {
+            button.classList.add('hidden');
+        }
+    });
+
+    saveGameState();
+    setTimeout(() => {
+        console.log('Calling checkConditions post-reset');
+        checkConditions();
+    }, 100);
+}
+
+window.addEventListener('beforeunload', saveGameState);
 window.addEventListener('load', loadGameState);

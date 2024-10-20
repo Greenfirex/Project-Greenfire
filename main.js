@@ -7,7 +7,7 @@ import { loadGameState } from './saveload.js';
 import { addLogEntry } from './log.js'
 import './headeroptions.js';
 
-let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || {
+export let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || {
     research: false,
     manufacturing: false,
     trade: false,
@@ -16,30 +16,25 @@ let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) ||
     other6: false
 };
 
-// Function to apply activatedSections to buttons on load
-function applyActivatedSections() {
-    if (activatedSections.research) {
-        document.querySelector('.menu-button[data-section="research"]').classList.remove('hidden');
-    }
-    if (activatedSections.manufacturing) {
-        document.querySelector('.menu-button[data-section="manufacturing"]').classList.remove('hidden');
-    }
-    if (activatedSections.trade) {
-        document.querySelector('.menu-button[data-section="trade"]').classList.remove('hidden');
-    }
-    if (activatedSections.other4) {
-        document.querySelector('.menu-button[data-section="other4"]').classList.remove('hidden');
-    }
-    if (activatedSections.other5) {
-        document.querySelector('.menu-button[data-section="other5"]').classList.remove('hidden');
-    }
-    if (activatedSections.other6) {
-        document.querySelector('.menu-button[data-section="other6"]').classList.remove('hidden');
-    }
+export function setActivatedSections(sections) {
+    activatedSections = sections;
+    localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
+}
+
+
+export function applyActivatedSections() {
+    document.querySelectorAll('.menu-button[data-section]').forEach(button => {
+        const section = button.getAttribute('data-section');
+        if (activatedSections[section]) {
+            button.classList.remove('hidden');
+        } else if (section !== 'mining') {
+            button.classList.add('hidden');
+        }
+    });
 }
 
 // Function to check conditions and show buttons
-function checkConditions() {
+export function checkConditions() {
     const buttons = [
         { button: document.querySelector('.menu-button[data-section="research"]'), threshold: 10, section: 'research', logText: 'New menu section activated: Research' },
         { button: document.querySelector('.menu-button[data-section="manufacturing"]'), threshold: 20, section: 'manufacturing', logText: 'New menu section activated: Manufacturing' },
@@ -60,9 +55,6 @@ function checkConditions() {
             }
         });
     }
-
-// Save activated sections state to localStorage
-    localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -83,7 +75,7 @@ function preloadImages() {
         'assets/images/background3.jpg',
         'assets/images/background4.jpg',
         'assets/images/background5.jpg',
-	'assets/images/PNG/Button03.png',
+	    'assets/images/PNG/Button03.png',
         'assets/images/PNG/Button04.png',
     ];
     
@@ -93,15 +85,13 @@ function preloadImages() {
     });
 }
 
-function showSection(sectionId) {
+window.showSection = function(sectionId) {
     const gameArea = document.getElementById('gameArea');
-    gameArea.innerHTML = ''; //
-    gameArea.className = ''; //
+    gameArea.innerHTML = ''; 
+    gameArea.className = ''; 
 
-    // Save the current section to localStorage
     localStorage.setItem('currentSection', sectionId);
 
-    // Add the correct background class based on the section
     if (sectionId === 'mining') {
         gameArea.classList.add('mining-bg');
         setupMiningSection();
@@ -110,9 +100,8 @@ function showSection(sectionId) {
         setupResearchSection();
     } else if (sectionId === 'manufacturing') {
         gameArea.classList.add('manufacturing-bg');
-    } 
-    // Add more sections as needed
-}
+    }
+};
 
 // Function to load the saved section
 function loadCurrentSection() {
@@ -124,6 +113,3 @@ function loadCurrentSection() {
     showSection('mining');
   }
 }
-
-// Make the showSection function available globally
-window.showSection = showSection;
