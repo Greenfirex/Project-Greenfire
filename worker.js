@@ -4,6 +4,8 @@ self.onmessage = function(event) {
     if (event.data.action === 'initializeResources') {
         self.resources = event.data.resources;
         updateResources();
+    } else if (event.data.action === 'saveGameState') {
+        postMessage({ action: 'saveGameState', resources: resources });
     }
 };
 

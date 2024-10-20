@@ -1,7 +1,7 @@
 import { setupMiningSection } from './sections/mining.js';
 import { setupResearchSection } from './sections/research.js';
-import { resources, updateResourceInfo } from './resources.js';
-import { loadGameState } from './saveload.js';
+import { resources, updateResourceInfo, incrementResources } from './resources.js';
+import { loadGameState, saveGameState } from './saveload.js';
 import { addLogEntry } from './log.js'
 import './headeroptions.js';
 
@@ -11,24 +11,20 @@ document.addEventListener('DOMContentLoaded', () => {
 	loadGameState();
     updateResourceInfo();
 	applyActivatedSections();
-	setInterval(checkConditions, 1000);
+	setInterval(() => {
+        incrementResources(); 
+        updateResourceInfo();
+		checkConditions();
+    }, 100);
 });
 
-if (window.Worker) {
-    const worker = new Worker('worker.js');
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        saveGameState();
+    }
+});
 
-    worker.onmessage = function(event) {
-        if (event.data.action === 'updateResources') {
-            resources.length = 0;
-            resources.push(...event.data.resources);
-            updateResourceInfo();
-        }
-    };
-
-    worker.postMessage({ action: 'initializeResources', resources: resources });
-
-    window.addEventListener('beforeunload', () => worker.terminate());
-}
+window.addEventListener('beforeunload', saveGameState);
 
 export let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || {
     research: false,
@@ -90,7 +86,16 @@ export function resetActivatedSections() {
         other6: false
     };
     localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
+
+    // Skrytí tlačítek po resetování aktivovaných sekcí
+    document.querySelectorAll('.menu-button[data-section]').forEach(button => {
+        if (button.getAttribute('data-section') !== 'mining') {
+            button.classList.add('hidden');
+            button.disabled = true;
+        }
+    });
 }
+
 
 function preloadImages() {
     const images = [

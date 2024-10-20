@@ -1,15 +1,15 @@
-import { resources, updateResourceInfo } from './resources.js';
+import { resources, updateResourceInfo, incrementResources } from './resources.js';
 import { technologies } from './sections/technologies.js';
 import { getResearchInterval, setResearchProgress, updateProgressBar } from './sections/research.js';
 import { applyActivatedSections, checkConditions, activatedSections, setActivatedSections, resetActivatedSections } from './main.js'
 
 const defaultGameState = {
     resources: [
-        { name: 'Hydrogen', generationRate: 0.01, amount: 0 },
-        { name: 'Iron', generationRate: 0.01, amount: 0 },
+        { name: 'Hydrogen', generationRate: 0.15, amount: 0 },
+        { name: 'Iron', generationRate: 0.06, amount: 0 },
         { name: 'Copper', generationRate: 0.01, amount: 0 },
-        { name: 'Titanium', generationRate: 0.01, amount: 0 },
-        { name: 'Dumbium', generationRate: 0.61, amount: 0 }
+        { name: 'Titanium', generationRate: 0.02, amount: 0 },
+        { name: 'Dumbium', generationRate: 0.01, amount: 0 }
     ],
     technologies: [
         { name: 'Quantum Computing', duration: 5, isResearched: false, prerequisites: [] },
@@ -27,6 +27,7 @@ const defaultGameState = {
 };
 
 export function saveGameState() {
+    console.log('Saving game state');
     const gameState = {
         resources,
         technologies,
@@ -37,51 +38,50 @@ export function saveGameState() {
 
 export function loadGameState() {
     const savedGameState = localStorage.getItem('gameState');
-
     if (savedGameState) {
         const gameState = JSON.parse(savedGameState);
+        console.log('Parsed gameState:', gameState);
 
         if (Array.isArray(gameState.resources)) {
             resources.length = 0;
             resources.push(...gameState.resources);
+            console.log('Loaded resources:', resources);
         }
 
         if (Array.isArray(gameState.technologies)) {
             technologies.length = 0;
             technologies.push(...gameState.technologies);
+            console.log('Loaded technologies:', technologies);
         }
 
         if (gameState.activatedSections) {
             setActivatedSections(gameState.activatedSections);
+            console.log('Loaded activated sections:', activatedSections);
         }
 
         applyActivatedSections();
-        updateResourceInfo(); // Aktualizace zdrojů na stránce
+        updateResourceInfo();
     }
 }
 
-
 export function resetGameState() {
     console.log('Resetting game state');
+    resources.length = 0;
+    resources.push(...defaultGameState.resources);
+    console.log('Resources reset');
 
-    resources.length = 0; // Clear existing resources
-    resources.push(...defaultGameState.resources); // Assign default resources
-    technologies.length = 0; // Clear existing technologies
-    technologies.push(...defaultGameState.technologies); // Assign default technologies
+    technologies.length = 0;
+    technologies.push(...defaultGameState.technologies);
+    console.log('Technologies reset');
+
     resetActivatedSections();
-
-    document.querySelectorAll('.menu-button[data-section]').forEach(button => {
-        if (button.getAttribute('data-section') !== 'mining') {
-            button.classList.add('hidden');
-        }
-    });
+    console.log('Activated sections reset');
 
     saveGameState();
-    setTimeout(() => {
-        console.log('Calling checkConditions post-reset');
-        checkConditions();
-    }, 100);
-	showSection('mining');
+	checkConditions();
+    applyActivatedSections();
+    showSection('mining');
+
 }
 
 window.addEventListener('beforeunload', saveGameState);
