@@ -1,11 +1,34 @@
 import { setupMiningSection } from './sections/mining.js';
 import { setupResearchSection } from './sections/research.js';
-import { resources } from './resources.js';
-import { updateResourceInfo } from './resources.js';
-import { incrementResources } from './resources.js';
+import { resources, updateResourceInfo } from './resources.js';
 import { loadGameState } from './saveload.js';
 import { addLogEntry } from './log.js'
 import './headeroptions.js';
+
+document.addEventListener('DOMContentLoaded', () => {
+    preloadImages();
+    loadCurrentSection();
+	loadGameState();
+    updateResourceInfo();
+	applyActivatedSections();
+	setInterval(checkConditions, 1000);
+});
+
+if (window.Worker) {
+    const worker = new Worker('worker.js');
+
+    worker.onmessage = function(event) {
+        if (event.data.action === 'updateResources') {
+            resources.length = 0;
+            resources.push(...event.data.resources);
+            updateResourceInfo();
+        }
+    };
+
+    worker.postMessage({ action: 'initializeResources', resources: resources });
+
+    window.addEventListener('beforeunload', () => worker.terminate());
+}
 
 export let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || {
     research: false,
@@ -57,16 +80,17 @@ export function checkConditions() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    preloadImages();
-    loadCurrentSection();
-    setInterval(updateResourceInfo, 100);
-    setInterval(incrementResources, 100);
-	loadGameState();
-    updateResourceInfo();
-	applyActivatedSections();
-	setInterval(checkConditions, 1000);
-});
+export function resetActivatedSections() {
+    activatedSections = {
+        research: false,
+        manufacturing: false,
+        trade: false,
+        other4: false,
+        other5: false,
+        other6: false
+    };
+    localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
+}
 
 function preloadImages() {
     const images = [

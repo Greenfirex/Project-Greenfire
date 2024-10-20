@@ -1,7 +1,7 @@
 import { resources, updateResourceInfo } from './resources.js';
 import { technologies } from './sections/technologies.js';
 import { getResearchInterval, setResearchProgress, updateProgressBar } from './sections/research.js';
-import { applyActivatedSections, checkConditions, activatedSections, setActivatedSections } from './main.js'
+import { applyActivatedSections, checkConditions, activatedSections, setActivatedSections, resetActivatedSections } from './main.js'
 
 const defaultGameState = {
     resources: [
@@ -81,6 +81,7 @@ export function resetGameState() {
         console.log('Calling checkConditions post-reset');
         checkConditions();
     }, 100);
+	showSection('mining');
 }
 
 window.addEventListener('beforeunload', saveGameState);

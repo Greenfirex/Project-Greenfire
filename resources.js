@@ -41,13 +41,6 @@ export function incrementResources() {
     });
 }
 
-export function updateResourceGenerationRate(name, newRate) {
-    const resource = resources.find(resource => resource.name === name);
-    if (resource) {
-        resource.generationRate = newRate;
-    }
-}
-
 export let resources = [
     { name: 'Hydrogen', generationRate: 0.01, amount: 0 },
     { name: 'Iron', generationRate: 0.01, amount: 0 },
