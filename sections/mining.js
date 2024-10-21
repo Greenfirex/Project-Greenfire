@@ -1,5 +1,4 @@
 import { resources } from '../resources.js';
-import { getResearchProgress, getResearchInterval } from './research.js'
 
 export function setupMiningSection() {
     let miningSection = document.getElementById('miningSection');

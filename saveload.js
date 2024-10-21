@@ -20,10 +20,6 @@ const defaultGameState = {
     activatedSections: {
         research: false,
         manufacturing: false,
-        trade: false,
-        other4: false,
-        other5: false,
-        other6: false
     }
 };
 

@@ -64,20 +64,11 @@
     background-repeat: no-repeat;
 }
 
-#gameArea.manufacturing-bg::after {
-  background-image: url('assets/images/background3.jpg');
-}
-
-#gameArea.trade-bg::after {
-  background-image: url('assets/images/background4.jpg');
-}
-
-#gameArea.other4-bg::after {
-  background-image: url('assets/images/background5.jpg');
-}
-
-#gameArea.other5-bg::after, #gameArea.other6-bg::after {
-  background-image: url('assets/images/background1.jpg');
+#manufacturingSection {
+    background-image: url('assets/images/background3.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
 .mining-button, .game-button, {
@@ -97,20 +88,4 @@
 
 .mining-button:hover, .game-button:hover, {
   border-color: #fff;
-}
-
-#miningSection, #researchSection, #manufacturingSection, #trade3Section, #other4Section, #other5Section, #other6Section {
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  height: 100%;
-  position: relative;
-}
-
-#miningSection.active, #researchSection.active, #manufacturingSection.active, #trade3Section.active, #other4Section.active, #other5Section.active, #other6Section.active {
-  display: block;
-}
-
-#miningSection .mining-button:hover {
-  background-color: #555;
 }

@@ -1,5 +1,6 @@
 import { setupMiningSection } from './sections/mining.js';
 import { setupResearchSection, currentResearchingTech, currentResearchDuration, currentResearchStartTime, setResearchProgress, setResearchInterval, getResearchProgress } from './sections/research.js'
+import { setupManufacturingSection } from './sections/manufacturing.js';
 import { resources, updateResourceInfo, incrementResources } from './resources.js';
 import { loadGameState, saveGameState } from './saveload.js';
 import { addLogEntry } from './log.js'
@@ -12,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateResourceInfo();
 	setupMiningSection();
     setupResearchSection();
+	setupManufacturingSection();
 	setupMenuButtons();
     applyActivatedSections();
     setInterval(() => {
@@ -31,11 +33,7 @@ window.addEventListener('beforeunload', saveGameState);
 
 export let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || {
     researchSection: false,
-    manufacturing: false,
-    trade: false,
-    other4: false,
-    other5: false,
-    other6: false
+    manufacturingSection: false,
 };
 
 export function setActivatedSections(sections) {
@@ -44,7 +42,7 @@ export function setActivatedSections(sections) {
 }
 
 function setupMenuButtons() {
-    const sections = ['miningSection', 'researchSection', 'manufacturing', 'trade', 'other4', 'other5', 'other6'];
+    const sections = ['miningSection', 'researchSection', 'manufacturingSection'];
     const container = document.querySelector('.menu-buttons-container');
     container.innerHTML = ''; // Clear any existing buttons
     sections.forEach(section => {
@@ -82,11 +80,7 @@ export function checkConditions() {
     const buttons = [
 	    { button: document.querySelector('.menu-button[data-section="miningSection"]'), threshold: 0, section: 'miningSection', logText: 'Mining section available' }, // Mining with no prerequisites
         { button: document.querySelector('.menu-button[data-section="researchSection"]'), threshold: 10, section: 'researchSection', logText: 'New menu section activated: Research' },
-        { button: document.querySelector('.menu-button[data-section="manufacturing"]'), threshold: 20, section: 'manufacturing', logText: 'New menu section activated: Manufacturing' },
-        { button: document.querySelector('.menu-button[data-section="trade"]'), threshold: 30, section: 'trade', logText: 'New menu section activated: Trade' },
-        { button: document.querySelector('.menu-button[data-section="other4"]'), threshold: 40, section: 'other4', logText: 'New menu section activated: Other 4' },
-        { button: document.querySelector('.menu-button[data-section="other5"]'), threshold: 50, section: 'other5', logText: 'New menu section activated: Other 5' },
-        { button: document.querySelector('.menu-button[data-section="other6"]'), threshold: 60, section: 'other6', logText: 'New menu section activated: Other 6' }
+        { button: document.querySelector('.menu-button[data-section="manufacturingSection"]'), threshold: 20, section: 'manufacturingSection', logText: 'New menu section activated: Manufacturing' },
     ];
 
     const requiredResource = resources.find(resource => resource.name === 'Hydrogen');
@@ -107,11 +101,7 @@ export function checkConditions() {
 export function resetActivatedSections() {
     activatedSections = {
         researchSection: false,
-        manufacturing: false,
-        trade: false,
-        other4: false,
-        other5: false,
-        other6: false
+        manufacturingSection: false,
     };
     localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
 	applyActivatedSections();
