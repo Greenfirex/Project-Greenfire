@@ -79,9 +79,11 @@ export function resetGameState() {
     // Check conditions and apply activated sections
     checkConditions();
     applyActivatedSections();
+	setupResearchSection();
 
     // Ensure the mining section is activated by default
     showSection('miningSection');
+	
 
     // Reapply event listeners to buttons
     reapplyEventListeners();
