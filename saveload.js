@@ -12,9 +12,10 @@ const defaultGameState = {
         { name: 'Dumbium', generationRate: 0.01, amount: 0 }
     ],
     technologies: [
-        { name: 'Quantum Computing', duration: 5, isResearched: false, prerequisites: [] },
-        { name: 'Nano Fabrication', duration: 120, isResearched: false, prerequisites: ['Quantum Computing'] },
-        { name: 'AI Integration', duration: 180, isResearched: false, prerequisites: ['Quantum Computing'] }
+      { name: 'Quantum Computing', duration: 5, isResearched: false, prerequisites: [] }, // No prerequisites
+      { name: 'Nano Fabrication', duration: 120, isResearched: false, prerequisites: ['Quantum Computing'] },
+      { name: 'AI Integration', duration: 180, isResearched: false, prerequisites: ['Quantum Computing'] },
+      { name: 'Testtech', duration: 60, isResearched: false, prerequisites: ['Quantum Computing', 'AI Integration'] }
     ],
     activatedSections: {
         research: false,
@@ -27,7 +28,6 @@ const defaultGameState = {
 };
 
 export function saveGameState() {
-    console.log('Saving game state');
     const gameState = {
         resources,
         technologies,
@@ -40,25 +40,19 @@ export function loadGameState() {
     const savedGameState = localStorage.getItem('gameState');
     if (savedGameState) {
         const gameState = JSON.parse(savedGameState);
-        console.log('Parsed gameState:', gameState);
-
         if (Array.isArray(gameState.resources)) {
             resources.length = 0;
             resources.push(...gameState.resources);
-            console.log('Loaded resources:', resources);
         }
 
         if (Array.isArray(gameState.technologies)) {
             technologies.length = 0;
             technologies.push(...gameState.technologies);
-            console.log('Loaded technologies:', technologies);
         }
 
         if (gameState.activatedSections) {
             setActivatedSections(gameState.activatedSections);
-            console.log('Loaded activated sections:', activatedSections);
         }
-
         applyActivatedSections();
         updateResourceInfo();
     }
@@ -81,19 +75,16 @@ export function resetGameState() {
 	
 	// Clear research state
     localStorage.removeItem('researchState');
-    console.log('Research state cleared');
 
     // Check conditions and apply activated sections
     checkConditions();
     applyActivatedSections();
 
     // Ensure the mining section is activated by default
-    showSection('mining');
+    showSection('miningSection');
 
     // Reapply event listeners to buttons
     reapplyEventListeners();
-
-    console.log('Game state reset and sections applied');
 }
 
 function reapplyEventListeners() {
@@ -103,5 +94,16 @@ function reapplyEventListeners() {
     });
 }
 
+function autosaveGameState() {
+    saveGameState();
+    console.log('Autosave completed at', new Date().toLocaleTimeString());
+}
+
+// Start the autosave interval when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    setInterval(autosaveGameState, 5 * 60 * 1000); // Autosave every 5 minutes
+});
+
 window.addEventListener('beforeunload', saveGameState);
 window.addEventListener('load', loadGameState);
+

@@ -24,8 +24,8 @@
 
 <div id="mainMenu">
 <div class="menu-buttons-container">
-    <button class="menu-button" onclick="showSection('mining')">Mining</button>
-    <button class="menu-button hidden" data-section="research" onclick="showSection('research')">Research</button>
+    <button class="menu-button" data-section="miningSection" onclick="showSection('mining')">Mining</button>
+    <button class="menu-button hidden" data-section="researchSection" onclick="showSection('research')">Research</button>
     <button class="menu-button hidden" data-section="manufacturing" onclick="showSection('manufacturing')">Manufacturing</button>
     <button class="menu-button hidden" data-section="trade" onclick="showSection('trade')">Trade</button>
     <button class="menu-button hidden" data-section="other4" onclick="showSection('other4')">Other 4</button>
@@ -36,6 +36,9 @@
 </div>
 
 <div id="gameArea" class="game-area"></div>
+    <div id="miningSection" class="game-section hidden"></div>
+    <div id="researchSection" class="game-section hidden"></div>
+    <div id="manufacturingSection" class="game-section hidden"></div>
 
 <div id="infoPanel" class="info-section"></div>
 </div>

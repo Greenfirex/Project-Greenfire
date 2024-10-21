@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCurrentSection();
     loadGameState();
     updateResourceInfo();
+	setupMiningSection();
+    setupResearchSection();
 	setupMenuButtons();
     applyActivatedSections();
     setInterval(() => {
@@ -28,7 +30,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('beforeunload', saveGameState);
 
 export let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || {
-    research: false,
+    researchSection: false,
     manufacturing: false,
     trade: false,
     other4: false,
@@ -42,7 +44,7 @@ export function setActivatedSections(sections) {
 }
 
 function setupMenuButtons() {
-    const sections = ['mining', 'research', 'manufacturing', 'trade', 'other4', 'other5', 'other6'];
+    const sections = ['miningSection', 'researchSection', 'manufacturing', 'trade', 'other4', 'other5', 'other6'];
     const container = document.querySelector('.menu-buttons-container');
     container.innerHTML = ''; // Clear any existing buttons
     sections.forEach(section => {
@@ -52,7 +54,6 @@ function setupMenuButtons() {
         button.textContent = section.charAt(0).toUpperCase() + section.slice(1);
         button.addEventListener('click', () => showSection(section));
         container.appendChild(button);
-        console.log(`Initial button created: ${section}`);
     });
 }
 
@@ -62,7 +63,7 @@ export function applyActivatedSections() {
         if (activatedSections[section]) {
             button.classList.remove('hidden');
             button.addEventListener('click', handleSectionClick); // Attach the click event
-        } else if (section !== 'mining') {
+        } else if (section !== 'miningSection') {
             button.classList.add('hidden');
             }
     });
@@ -70,27 +71,17 @@ export function applyActivatedSections() {
 
 export function handleSectionClick(event) {
     const section = event.currentTarget.getAttribute('data-section');
-    console.log(`Button clicked: ${section}`);
-	saveResearchState();
     showSection(section);
 }
-
-export function saveResearchState() {
-    const researchState = {
-        progress: getResearchProgress(),
-        duration: currentResearchDuration, // Save the total duration of the research
-        startTime: currentResearchStartTime, // Save the start time of the research
-        researchingTech: currentResearchingTech
-    };
-    localStorage.setItem('researchState', JSON.stringify(researchState));
-    console.log('Research state saved', researchState);
-}
+document.querySelectorAll('.menu-button').forEach(button => {
+    button.addEventListener('click', handleSectionClick);
+});
 
 // Function to check conditions and show buttons
 export function checkConditions() {
     const buttons = [
-	    { button: document.querySelector('.menu-button[data-section="mining"]'), threshold: 0, section: 'mining', logText: 'Mining section available' }, // Mining with no prerequisites
-        { button: document.querySelector('.menu-button[data-section="research"]'), threshold: 10, section: 'research', logText: 'New menu section activated: Research' },
+	    { button: document.querySelector('.menu-button[data-section="miningSection"]'), threshold: 0, section: 'miningSection', logText: 'Mining section available' }, // Mining with no prerequisites
+        { button: document.querySelector('.menu-button[data-section="researchSection"]'), threshold: 10, section: 'researchSection', logText: 'New menu section activated: Research' },
         { button: document.querySelector('.menu-button[data-section="manufacturing"]'), threshold: 20, section: 'manufacturing', logText: 'New menu section activated: Manufacturing' },
         { button: document.querySelector('.menu-button[data-section="trade"]'), threshold: 30, section: 'trade', logText: 'New menu section activated: Trade' },
         { button: document.querySelector('.menu-button[data-section="other4"]'), threshold: 40, section: 'other4', logText: 'New menu section activated: Other 4' },
@@ -115,7 +106,7 @@ export function checkConditions() {
 
 export function resetActivatedSections() {
     activatedSections = {
-        research: false,
+        researchSection: false,
         manufacturing: false,
         trade: false,
         other4: false,
@@ -127,7 +118,7 @@ export function resetActivatedSections() {
 
     // Skrytí tlačítek po resetování aktivovaných sekcí
     document.querySelectorAll('.menu-button[data-section]').forEach(button => {
-        if (button.getAttribute('data-section') !== 'mining') {
+        if (button.getAttribute('data-section') !== 'miningSection') {
             button.classList.add('hidden');
             button.disabled = true;
         }
@@ -153,21 +144,18 @@ function preloadImages() {
 }
 
 window.showSection = function(sectionId) {
-    const gameArea = document.getElementById('gameArea');
-    gameArea.innerHTML = ''; 
-    gameArea.className = ''; 
+    const sections = document.querySelectorAll('.game-section');
+    sections.forEach(section => {
+        if (section.id !== sectionId) { // Only hide if it’s not the target section
+            section.classList.add('hidden'); // Hide all sections
+        }
+    });
 
-    localStorage.setItem('currentSection', sectionId);
-
-    if (sectionId === 'mining') {
-        gameArea.classList.add('mining-bg');
-        setupMiningSection();
-    } else if (sectionId === 'research') {
-        gameArea.classList.add('research-bg');
-        setupResearchSection();
-    } else if (sectionId === 'manufacturing') {
-        gameArea.classList.add('manufacturing-bg');
-    }
+    const activeSection = document.getElementById(sectionId);
+    if (activeSection) {
+        activeSection.classList.remove('hidden'); // Show the active section
+    }  
+    localStorage.setItem('currentSection', sectionId); // Save current section
 };
 
 // Function to load the saved section
@@ -177,6 +165,6 @@ function loadCurrentSection() {
     showSection(savedSection);
   } else {
     // Default to mining section if no section is saved
-    showSection('mining');
+    showSection('miningSection');
   }
 }

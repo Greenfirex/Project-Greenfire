@@ -1,6 +1,5 @@
 import { addLogEntry } from '../log.js';
 import { technologies } from './technologies.js';
-import { saveResearchState } from '../main.js';
 
 export let currentResearchingTech = null;
 export let researchInterval = null
@@ -25,12 +24,18 @@ export function setResearchProgress(progress) {
 }
 
 export function setupResearchSection() {
-  const gameArea = document.getElementById('gameArea');
-  gameArea.innerHTML = ''; // Clear any existing content
-
-  const researchSection = document.createElement('div');
-  researchSection.id = 'researchSection';
-
+    let researchSection = document.getElementById('researchSection');
+    if (!researchSection) {
+        researchSection = document.createElement('div');
+        researchSection.id = 'researchSection';
+        researchSection.className = 'game-section hidden';
+		document.getElementById('gameArea').appendChild(researchSection);
+    }
+	
+  researchSection.innerHTML = '';
+  researchSection.classList.add('research-bg');
+  researchSection.classList.add('hidden');
+  
   // Progress bar container
   const progressBarContainer = document.createElement('div');
   progressBarContainer.className = 'progress-bar-container';
@@ -136,6 +141,14 @@ export function setupResearchSection() {
       }
     }
   });
+  
+  // Hide buttons for researched techs
+  technologies.forEach(tech => {
+    const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
+        if (tech.isResearched && techButton) {
+            techButton.style.display = 'none';
+        }
+  });
 
   researchSection.appendChild(availableContainer);
   researchSection.appendChild(researchedContainer);
@@ -161,13 +174,13 @@ function showTab(tabName) {
   }
 }
 
-function createTechButton(text, callback, container) {
+function createTechButton(name, onClick, container) {
   const button = document.createElement('button');
   button.className = 'tech-button';
-  button.textContent = text;
-  button.dataset.tech = text; // Set data-tech attribute
-  button.addEventListener('click', callback);
-  container.appendChild(button);
+  button.dataset.tech = name;
+    button.innerText = name;
+    button.addEventListener('click', onClick);
+    container.appendChild(button);
 }
 
 function startResearch(tech, cancelButton) {
@@ -186,9 +199,6 @@ function startResearch(tech, cancelButton) {
     cancelButton.dataset.tech = tech.name;
     addLogEntry(`Started researching ${tech.name}.`, 'yellow');
 
-    // Save research state with start time and duration
-    saveResearchState();
-
     // Disable all other tech buttons
     document.querySelectorAll('.tech-button').forEach(button => {
         if (button.dataset.tech !== tech.name) {
@@ -196,7 +206,7 @@ function startResearch(tech, cancelButton) {
         }
     });
 
-     // Update the progress bar at regular intervals
+    // Update the progress bar at regular intervals
     researchInterval = setInterval(() => {
         const elapsedTime = (Date.now() - currentResearchStartTime) / 1000; // Calculate elapsed time
         researchProgress = (elapsedTime / tech.duration) * 100;
@@ -208,21 +218,26 @@ function startResearch(tech, cancelButton) {
             addLogEntry(`${tech.name} research complete!`, 'green');
             cancelButton.style.display = 'none';
             currentResearchingTech = null;
+		}
+	tech.isResearched = true; // Mark technology as researched
 
-        // Enable all tech buttons after research completion
-        document.querySelectorAll('.tech-button').forEach(button => {
-            button.disabled = false;
-        });
+    // Hide the button upon completion if it exists
+        if (techButton) {
+            techButton.style.display = 'none';
+        }	
 
-        tech.isResearched = true; // Mark technology as researched
+    // Enable all tech buttons after research completion
+    document.querySelectorAll('.tech-button').forEach(button => {
+    button.disabled = false;
+    });
 
-        // Add the tech name to the researched tab
+    // Add the tech name to the researched tab
         const researchedContainer = document.querySelector('.tech-container.researched');
         const techName = document.createElement('p');
         techName.textContent = tech.name;
         researchedContainer.appendChild(techName);
 
-        // Check for new available technologies
+    // Check for new available technologies
         const availableContainer = document.querySelector('.tech-container.available');
         const newAvailableTechs = [];
         technologies.forEach(t => {
@@ -236,13 +251,11 @@ function startResearch(tech, cancelButton) {
                 }
             }
         });
-
-            // Log new available technologies
+    // Log new available technologies
             if (newAvailableTechs.length > 0) {
                 addLogEntry(`New technologies available: ${newAvailableTechs.join(', ')}.`, 'blue');
-            }
         }
-    }, 1000); // Update every second
+    }, tech.duration * 1); // Set research completion timer based on duration
 }
 
 export function updateProgressBar(cancelButton) {

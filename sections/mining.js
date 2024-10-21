@@ -2,11 +2,14 @@ import { resources } from '../resources.js';
 import { getResearchProgress, getResearchInterval } from './research.js'
 
 export function setupMiningSection() {
-    const gameArea = document.getElementById('gameArea');
-    gameArea.innerHTML = ''; // Clear any existing content
-
-    const miningSection = document.createElement('div');
-    miningSection.id = 'miningSection';
+    let miningSection = document.getElementById('miningSection');
+    if (!miningSection) {
+        miningSection = document.createElement('div');
+        miningSection.id = 'miningSection';
+        miningSection.className = 'game-section';
+    }
+    miningSection.innerHTML = ''; // Clear any existing content
+    miningSection.classList.add('mining-bg'); 
 	
 
 // Create and add the header to the mining section
