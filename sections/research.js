@@ -145,7 +145,9 @@ function startResearch(tech, cancelButton) {
   updateProgressBar(cancelButton);
   const increment = (100 / (tech.duration * 1000 / 30));
   const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`); // Select the button
+  techButton.style.display = 'none'; // Skryjeme tlačítko při zahájení výzkumu
   cancelButton.style.display = 'inline-block'; // Show cancel button
+  cancelButton.dataset.tech = tech.name;
   addLogEntry(`Started researching ${tech.name}.`, 'yellow');
 
   researchInterval = setInterval(() => {
@@ -219,22 +221,28 @@ export function updateProgressBar(cancelButton) {
 }
 
 function cancelResearch() {
-  clearInterval(researchInterval);
-  researchProgress = 0;
-  addLogEntry('Research cancelled.', 'red');
+    clearInterval(researchInterval);
+    researchProgress = 0;
+    addLogEntry('Research cancelled.', 'red');
+    
+    const progressBar = document.querySelector('.progress-bar');
+    const progressText = document.querySelector('.progress-text');
+    progressBar.style.transition = 'none';
+    progressBar.style.width = '0';
 
-  const progressBar = document.querySelector('.progress-bar');
-  const progressText = document.querySelector('.progress-text');
-  progressBar.style.transition = 'none';
-  progressBar.style.width = '0';
-  
-  setTimeout(() => {
-    progressBar.style.transition = 'width 0.6s linear';
-    updateProgressBar();
-  }, 50);
+    setTimeout(() => {
+        progressBar.style.transition = 'width 0.6s linear';
+        updateProgressBar();
+    }, 50);
 
-  const cancelButton = document.querySelector('.cancel-button');
-  if (cancelButton) {
-    cancelButton.style.display = 'none';
-  }
+    const cancelButton = document.querySelector('.cancel-button');
+    if (cancelButton) {
+        cancelButton.style.display = 'none';
+    }
+
+    const techButton = document.querySelector(`.tech-button[data-tech="${cancelButton.dataset.tech}"]`);
+    if (techButton) {
+        techButton.style.display = 'inline-block'; // Zobrazíme tlačítko zpět při zrušení výzkumu
+    }
 }
+

@@ -116,10 +116,7 @@
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  flex: 0 0 auto; /* Prevent buttons from stretching */
-  display: inline-block; /* Ensure buttons line up nicely */
   height: 40px; /* Set fixed height to fit five buttons */
-  line-height: 30px; /* Center text vertically */
   font-size: 12px; /* Adjust font size for smaller buttons */
   display: flex; /* Enable flexbox alignment */
   z-index: 1; /* Ensure it’s clickable */
