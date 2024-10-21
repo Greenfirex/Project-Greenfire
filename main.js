@@ -16,6 +16,13 @@ document.addEventListener('DOMContentLoaded', () => {
         updateResourceInfo();
 		checkConditions();
     }, 100);
+	// Inicializuj tlačítka po načtení stavu hry
+    document.querySelector('.menu-button[data-section="research"]').addEventListener('click', () => {
+        showSection('research');
+    });
+    document.querySelector('.menu-button[data-section="mining"]').addEventListener('click', () => {
+        showSection('mining');
+    });
 });
 
 document.addEventListener('visibilitychange', () => {
@@ -46,8 +53,10 @@ export function applyActivatedSections() {
         const section = button.getAttribute('data-section');
         if (activatedSections[section]) {
             button.classList.remove('hidden');
+			button.disabled = false;
         } else if (section !== 'mining') {
             button.classList.add('hidden');
+			button.disabled = true;
         }
     });
 }
