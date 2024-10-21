@@ -5,7 +5,7 @@ import { applyActivatedSections, checkConditions, activatedSections, setActivate
 
 const defaultGameState = {
     resources: [
-        { name: 'Hydrogen', generationRate: 0.15, amount: 0 },
+        { name: 'Hydrogen', generationRate: 5.00, amount: 0 },
         { name: 'Iron', generationRate: 0.06, amount: 0 },
         { name: 'Copper', generationRate: 0.01, amount: 0 },
         { name: 'Titanium', generationRate: 0.02, amount: 0 },
@@ -78,6 +78,10 @@ export function resetGameState() {
     console.log('Activated sections reset');
 
     saveGameState();
+	
+	// Clear research state
+    localStorage.removeItem('researchState');
+    console.log('Research state cleared');
 
     // Check conditions and apply activated sections
     checkConditions();

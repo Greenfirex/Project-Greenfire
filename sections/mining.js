@@ -1,4 +1,5 @@
 import { resources } from '../resources.js';
+import { getResearchProgress, getResearchInterval } from './research.js'
 
 export function setupMiningSection() {
     const gameArea = document.getElementById('gameArea');
@@ -6,6 +7,7 @@ export function setupMiningSection() {
 
     const miningSection = document.createElement('div');
     miningSection.id = 'miningSection';
+	
 
 // Create and add the header to the mining section
     const header = document.createElement('h2');

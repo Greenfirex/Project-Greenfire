@@ -1,5 +1,5 @@
 import { setupMiningSection } from './sections/mining.js';
-import { setupResearchSection } from './sections/research.js';
+import { setupResearchSection, currentResearchingTech, currentResearchDuration, currentResearchStartTime, setResearchProgress, setResearchInterval, getResearchProgress } from './sections/research.js'
 import { resources, updateResourceInfo, incrementResources } from './resources.js';
 import { loadGameState, saveGameState } from './saveload.js';
 import { addLogEntry } from './log.js'
@@ -71,12 +71,25 @@ export function applyActivatedSections() {
 export function handleSectionClick(event) {
     const section = event.currentTarget.getAttribute('data-section');
     console.log(`Button clicked: ${section}`);
+	saveResearchState();
     showSection(section);
+}
+
+export function saveResearchState() {
+    const researchState = {
+        progress: getResearchProgress(),
+        duration: currentResearchDuration, // Save the total duration of the research
+        startTime: currentResearchStartTime, // Save the start time of the research
+        researchingTech: currentResearchingTech
+    };
+    localStorage.setItem('researchState', JSON.stringify(researchState));
+    console.log('Research state saved', researchState);
 }
 
 // Function to check conditions and show buttons
 export function checkConditions() {
     const buttons = [
+	    { button: document.querySelector('.menu-button[data-section="mining"]'), threshold: 0, section: 'mining', logText: 'Mining section available' }, // Mining with no prerequisites
         { button: document.querySelector('.menu-button[data-section="research"]'), threshold: 10, section: 'research', logText: 'New menu section activated: Research' },
         { button: document.querySelector('.menu-button[data-section="manufacturing"]'), threshold: 20, section: 'manufacturing', logText: 'New menu section activated: Manufacturing' },
         { button: document.querySelector('.menu-button[data-section="trade"]'), threshold: 30, section: 'trade', logText: 'New menu section activated: Trade' },

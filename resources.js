@@ -42,7 +42,7 @@ export function incrementResources() {
 }
 
 export let resources = [
-    { name: 'Hydrogen', generationRate: 0.26, amount: 0 },
+    { name: 'Hydrogen', generationRate: 5.00, amount: 0 },
     { name: 'Iron', generationRate: 0.01, amount: 0 },
     { name: 'Copper', generationRate: 0.01, amount: 0 },
     { name: 'Titanium', generationRate: 0.01, amount: 0 },
