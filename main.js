@@ -29,17 +29,15 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-window.addEventListener('beforeunload', saveGameState);
+export function setActivatedSections(sections) {
+    activatedSections = sections;
+    localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
+}
 
 export let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || {
     researchSection: false,
     manufacturingSection: false,
 };
-
-export function setActivatedSections(sections) {
-    activatedSections = sections;
-    localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
-}
 
 function setupMenuButtons() {
     const sections = ['miningSection', 'researchSection', 'manufacturingSection'];
@@ -71,9 +69,6 @@ export function handleSectionClick(event) {
     const section = event.currentTarget.getAttribute('data-section');
     showSection(section);
 }
-document.querySelectorAll('.menu-button').forEach(button => {
-    button.addEventListener('click', handleSectionClick);
-});
 
 // Function to check conditions and show buttons
 export function checkConditions() {

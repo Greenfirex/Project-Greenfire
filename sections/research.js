@@ -35,7 +35,6 @@ export function setupResearchSection() {
 	
   researchSection.innerHTML = '';
   researchSection.classList.add('research-bg');
-  researchSection.classList.add('hidden');
   
   // Progress bar container
   const progressBarContainer = document.createElement('div');
@@ -100,29 +99,18 @@ export function setupResearchSection() {
   const createdTechButtons = new Set();
 
   technologies.forEach(tech => {
-    const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
+        tech.isResearched = false; // Ensure all techs are reset
 
-    if (tech.isResearched && techButton) {
-        techButton.style.display = 'none'; // Skrýt tlačítko pokud je tech vyzkoumaný
-    } else if (!tech.isResearched && !createdTechButtons.has(tech.name)) {
-        const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
-            return technologies.find(t => t.name === prereq).isResearched;
-        });
-
-        if (allPrerequisitesResearched) {
-            createTechButton(tech.name, () => startResearch(tech, cancelButton), availableContainer); // Vytvořit tlačítko pokud neexistuje
-            createdTechButtons.add(tech.name); // Přidat tlačítko do Set
+        const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
+        if (techButton) {
+            techButton.style.display = 'none'; // Hide all tech buttons initially
         }
-    }
-});
 
-  // Move this section outside the loop to avoid repeated action
-  technologies.forEach(tech => {
-    const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
-    if (tech.isResearched && techButton) {
-        techButton.style.display = 'none'; // Skrýt tlačítko pokud je tech vyzkoumaný
-    }
-});
+        // Create buttons for techs with no prerequisites
+        if (tech.prerequisites.length === 0) {
+            createTechButton(tech.name, () => startResearch(tech, cancelButton), availableContainer);
+        }
+    });
 
   researchSection.appendChild(availableContainer);
   researchSection.appendChild(researchedContainer);
