@@ -8,21 +8,15 @@ import './headeroptions.js';
 document.addEventListener('DOMContentLoaded', () => {
     preloadImages();
     loadCurrentSection();
-	loadGameState();
+    loadGameState();
     updateResourceInfo();
-	applyActivatedSections();
-	setInterval(() => {
-        incrementResources(); 
+	setupMenuButtons();
+    applyActivatedSections();
+    setInterval(() => {
+        incrementResources();
         updateResourceInfo();
-		checkConditions();
+        checkConditions();
     }, 100);
-	// Inicializuj tlačítka po načtení stavu hry
-    document.querySelector('.menu-button[data-section="research"]').addEventListener('click', () => {
-        showSection('research');
-    });
-    document.querySelector('.menu-button[data-section="mining"]').addEventListener('click', () => {
-        showSection('mining');
-    });
 });
 
 document.addEventListener('visibilitychange', () => {
@@ -47,18 +41,37 @@ export function setActivatedSections(sections) {
     localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
 }
 
+function setupMenuButtons() {
+    const sections = ['mining', 'research', 'manufacturing', 'trade', 'other4', 'other5', 'other6'];
+    const container = document.querySelector('.menu-buttons-container');
+    container.innerHTML = ''; // Clear any existing buttons
+    sections.forEach(section => {
+        const button = document.createElement('button');
+        button.className = 'menu-button';
+        button.dataset.section = section;
+        button.textContent = section.charAt(0).toUpperCase() + section.slice(1);
+        button.addEventListener('click', () => showSection(section));
+        container.appendChild(button);
+        console.log(`Initial button created: ${section}`);
+    });
+}
 
 export function applyActivatedSections() {
     document.querySelectorAll('.menu-button[data-section]').forEach(button => {
         const section = button.getAttribute('data-section');
         if (activatedSections[section]) {
             button.classList.remove('hidden');
-			button.disabled = false;
+            button.addEventListener('click', handleSectionClick); // Attach the click event
         } else if (section !== 'mining') {
             button.classList.add('hidden');
-			button.disabled = true;
-        }
+            }
     });
+}
+
+export function handleSectionClick(event) {
+    const section = event.currentTarget.getAttribute('data-section');
+    console.log(`Button clicked: ${section}`);
+    showSection(section);
 }
 
 // Function to check conditions and show buttons
@@ -78,6 +91,8 @@ export function checkConditions() {
         buttons.forEach(({ button, threshold, section, logText }) => {
             if (requiredResource.amount >= threshold && !activatedSections[section]) {
                 button.classList.remove('hidden');
+				button.disabled = false;
+                button.addEventListener('click', handleSectionClick);
                 addLogEntry(logText, 'blue');
                 activatedSections[section] = true;
             }
@@ -95,6 +110,7 @@ export function resetActivatedSections() {
         other6: false
     };
     localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
+	applyActivatedSections();
 
     // Skrytí tlačítek po resetování aktivovaných sekcí
     document.querySelectorAll('.menu-button[data-section]').forEach(button => {

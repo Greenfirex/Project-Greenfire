@@ -1,7 +1,7 @@
 import { resources, updateResourceInfo, incrementResources } from './resources.js';
 import { technologies } from './sections/technologies.js';
 import { getResearchInterval, setResearchProgress, updateProgressBar } from './sections/research.js';
-import { applyActivatedSections, checkConditions, activatedSections, setActivatedSections, resetActivatedSections } from './main.js'
+import { applyActivatedSections, checkConditions, activatedSections, setActivatedSections, resetActivatedSections, handleSectionClick } from './main.js'
 
 const defaultGameState = {
     resources: [
@@ -78,10 +78,25 @@ export function resetGameState() {
     console.log('Activated sections reset');
 
     saveGameState();
-	checkConditions();
+
+    // Check conditions and apply activated sections
+    checkConditions();
     applyActivatedSections();
+
+    // Ensure the mining section is activated by default
     showSection('mining');
 
+    // Reapply event listeners to buttons
+    reapplyEventListeners();
+
+    console.log('Game state reset and sections applied');
+}
+
+function reapplyEventListeners() {
+    document.querySelectorAll('.menu-button[data-section]').forEach(button => {
+        button.removeEventListener('click', handleSectionClick); // Remove existing listeners
+        button.addEventListener('click', handleSectionClick); // Reattach click event
+    });
 }
 
 window.addEventListener('beforeunload', saveGameState);
