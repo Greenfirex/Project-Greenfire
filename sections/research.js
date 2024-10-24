@@ -6,6 +6,7 @@ export let researchInterval = null;
 export let currentResearchDuration = 0;
 export let currentResearchStartTime = 0;
 export let researchProgress = 0;
+
 const createdTechButtons = new Set();
 
 export function getResearchInterval() {
@@ -22,6 +23,14 @@ export function getResearchProgress() {
 
 export function setResearchProgress(progress) {
     researchProgress = progress;
+}
+
+export function getCurrentResearchingTech() {
+  return currentResearchingTech;
+}
+
+export function setCurrentResearchingTech(tech) {
+  currentResearchingTech = tech;
 }
 
 export function setupResearchSection() {
@@ -145,20 +154,26 @@ function createTechButton(name, onClick, container) {
     container.appendChild(button);
 }
 
-function startResearch(tech, cancelButton) {
+export function startResearch(tech, cancelButton) {
     if (researchInterval) {
         clearInterval(researchInterval); // Clear any existing interval
     }
     currentResearchingTech = tech.name;
     currentResearchDuration = tech.duration;
-    currentResearchStartTime = Date.now();
-    researchProgress = 0;
+    currentResearchStartTime = currentResearchStartTime || Date.now();
+    researchProgress = getResearchProgress();
     updateProgressBar(cancelButton);
 
     const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`); // Select the button
+    if (techButton) {
     techButton.style.display = 'none'; // Hide the button on start
+    }
+
+    if (cancelButton) {
     cancelButton.style.display = 'inline-block'; // Show cancel button
     cancelButton.dataset.tech = tech.name;
+    }
+
     addLogEntry(`Started researching ${tech.name}.`, 'yellow');
 
     // Disable all other tech buttons
@@ -173,6 +188,11 @@ function startResearch(tech, cancelButton) {
         const elapsedTime = (Date.now() - currentResearchStartTime) / 1000; // Calculate elapsed time
         researchProgress = (elapsedTime / tech.duration) * 100;
         updateProgressBar(cancelButton);
+
+        if (isNaN(researchProgress)) {
+        researchProgress = 0; // Handle NaN case
+        console.error('Research progress calculation resulted in NaN.');
+        }
 
         if (researchProgress >= 100) {
             researchProgress = 100;

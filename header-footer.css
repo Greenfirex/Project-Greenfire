@@ -21,6 +21,11 @@
   flex-grow: 1; /* Ensures the title takes up available space */
 }
 
+.header-links {
+  display: flex;
+  gap: 10px; /* Add some space between the links */
+}
+
 .header-link {
   height: 20px; /* Set a fixed height */
   line-height: 40px; /* Center the text vertically */

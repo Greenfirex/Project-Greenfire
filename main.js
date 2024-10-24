@@ -11,10 +11,10 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCurrentSection();
     loadGameState();
     updateResourceInfo();
-	setupMiningSection();
+    setupMiningSection();
     setupResearchSection();
-	setupManufacturingSection();
-	setupMenuButtons();
+    setupManufacturingSection();
+    setupMenuButtons();
     applyActivatedSections();
     setInterval(() => {
         incrementResources();

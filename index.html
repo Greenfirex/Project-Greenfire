@@ -17,7 +17,11 @@
 
 <div id="header">
 <span>Header</span>
+<div class="header-links">
     <a href="#" id="optionsLink" class="header-link">Options</a>
+    <a href="#" id="saveLink" class="header-link">Save</a>
+    <a href="#" id="loadLink" class="header-link">Load</a>
+</div>
 </div>
 
 <div id="mainContainer">
@@ -55,12 +59,7 @@
 <script src="log.js" type="module"></script>
 <script src="sections/mining.js" type="module"></script>
 <script src="sections/research.js" type="module"></script>
-<script type="module">
-import { loadGameState } from './saveload.js';
-import { updateResourceInfo } from './resources.js';    
-    loadGameState();
-    updateResourceInfo();
-</script>  
+
     
 </body>
 </html>
