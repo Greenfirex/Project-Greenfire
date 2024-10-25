@@ -9,7 +9,14 @@ import './headeroptions.js';
 document.addEventListener('DOMContentLoaded', () => {
     preloadImages();
     loadCurrentSection();
-    loadGameState();
+
+    const isResetting = localStorage.getItem('isResetting');
+  if (!isResetting) {
+    loadGameState(); // Only load if not resetting
+  } else {
+    localStorage.removeItem('isResetting'); // Clean up after reset
+  }
+
     updateResourceInfo();
     setupMiningSection();
     setupResearchSection();

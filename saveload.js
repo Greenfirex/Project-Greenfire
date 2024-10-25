@@ -1,50 +1,87 @@
 import { resources, updateResourceInfo, incrementResources } from './resources.js';
 import { technologies } from './sections/technologies.js';
-import { setupResearchSection, setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, startResearch, researchInterval } from './sections/research.js';
+import { setupResearchSection, setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, startResearch, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime } from './sections/research.js';
 import { applyActivatedSections, checkConditions, activatedSections, setActivatedSections, resetActivatedSections, handleSectionClick } from './main.js'
 import { setupMiningSection } from './sections/mining.js';
 import { addLogEntry } from './log.js';
 
 const defaultGameState = {
-    resources: [
-        { name: 'Hydrogen', generationRate: 3.00, amount: 0 },
-    ],
-    technologies: [
-      { name: 'Quantum Computing', duration: 5, isResearched: false, prerequisites: [] }, // No prerequisites
-      { name: 'Nano Fabrication', duration: 15, isResearched: false, prerequisites: ['Quantum Computing'] },
-      { name: 'AI Integration', duration: 20, isResearched: false, prerequisites: ['Quantum Computing'] },
-      { name: 'Testtech', duration: 30, isResearched: false, prerequisites: ['Quantum Computing', 'AI Integration'] }
-    ],
-    activatedSections: {
-        researchSection: false,
-        manufacturingSection: false,
-    }
+  resources: [
+    { name: 'Hydrogen', generationRate: 1.00, amount: 0 },
+  ],
+  technologies: [
+    { name: 'Quantum Computing', duration: 5, isResearched: false, prerequisites: [] },
+    { name: 'Nano Fabrication', duration: 120, isResearched: false, prerequisites: ['Quantum Computing'] },
+    { name: 'AI Integration', duration: 180, isResearched: false, prerequisites: ['Nano Fabrication'] }
+  ],
+  activatedSections: {
+    researchSection: false,
+    manufacturingSection: false,
+  }
 };
 
+export function saveDefaultGameState() {
+const defaultGameState = {
+    resources: [
+        { name: 'Hydrogen', generationRate: 1.00, amount: 0 },
+    ],
+    technologies: [
+      { name: 'Quantum Computing', duration: 5, isResearched: false, prerequisites: [] },
+      { name: 'Nano Fabrication', duration: 120, isResearched: false, prerequisites: ['Quantum Computing'] },
+      { name: 'AI Integration', duration: 180, isResearched: false, prerequisites: ['Nano Fabrication'] }
+    ]
+  };
+  localStorage.setItem('gameState', JSON.stringify(defaultGameState));
+}
+
 export function saveGameState() {
-    console.log('Saving game state');
-    const gameState = {
+  const gameState = {
     resources: resources,
-    technologies: technologies,
+      technologies: technologies.map(tech => ({
+      name: tech.name,
+      duration: tech.duration,
+      isResearched: tech.isResearched, // Ensure this is saved
+      prerequisites: tech.prerequisites
+    })),
     researchProgress: getResearchProgress(),
     currentResearchingTech: getCurrentResearchingTech(),
+    researchInterval: getResearchInterval(),
     activatedSections: activatedSections
-    };
-    localStorage.setItem('gameState', JSON.stringify(gameState));
-    console.log('Game state saved');
-    addLogEntry('Game has been saved.', 'blue');
+  };
+
+  console.log('Saving game state:', gameState);
+  localStorage.setItem('gameState', JSON.stringify(gameState));
+  addLogEntry('Game state saved.', 'blue');
 }
 
 export function loadGameState() {
     const savedGameState = localStorage.getItem('gameState');
-    if (savedGameState) {
+    // Clear the in-game log except for the header
+    const logSection = document.getElementById('logSection');
+    const logHeaderText = 'Log entries:'; // Store the header text
+    logSection.innerHTML = logHeaderText; // Clear existing log entries, keep the header
+    
+if (savedGameState) {
     const gameState = JSON.parse(savedGameState);
+
+    console.log('Loading game state:', gameState);
+
+
     resources.length = 0;
     resources.push(...gameState.resources);
     technologies.length = 0;
-    technologies.push(...gameState.technologies);
-    setResearchProgress(gameState.researchProgress);
+    technologies.push(...gameState.technologies.map(tech => ({
+      name: tech.name,
+      duration: tech.duration,
+      isResearched: tech.isResearched, // Ensure this is restored
+      prerequisites: tech.prerequisites
+    })));
+
+    setResearchProgress(gameState.researchProgress ?? 0);
     setCurrentResearchingTech(gameState.currentResearchingTech);
+    setResearchInterval(null);
+    setCurrentResearchStartTime(0);
+
     setActivatedSections(gameState.activatedSections);
     updateResourceInfo();
     setupMiningSection();
@@ -55,10 +92,16 @@ export function loadGameState() {
       const tech = technologies.find(t => t.name === getCurrentResearchingTech());
       if (tech) {
         const cancelButton = document.querySelector('.cancel-button');
-        setResearchProgress(gameState.researchProgress); // Ensure correct progress
-        currentResearchDuration = tech.duration; // Set correct duration
-        currentResearchStartTime = Date.now() - (gameState.researchProgress / 100) * tech.duration * 1000; // Calculate start time based on progress
+        const elapsedTime = (gameState.researchProgress / 100) * tech.duration * 1000; // Calculate elapsed time based on progress
+        setCurrentResearchStartTime(Date.now() - elapsedTime); 
         startResearch(tech, cancelButton); // Restart research with correct values
+        setResearchProgress(getResearchProgress()); // Ensure correct progress is set after restart
+          
+	// Ensure the cancel button is displayed correctly
+        if (cancelButton) {
+          cancelButton.style.display = 'inline-block';
+          cancelButton.dataset.tech = tech.name;
+        }
       }
     }
     addLogEntry('Game state loaded.', 'green');
@@ -69,53 +112,59 @@ export function loadGameState() {
 }
 
 export function resetGameState() {
-    console.log('Resetting game state');
+  console.log('Resetting game state');
 
-    // Load default game state
-    resources.length = 0;
-    resources.push(...defaultGameState.resources);
-    console.log('Resources reset');
+  // Set a flag indicating the game is being reset
+  localStorage.setItem('isResetting', 'true');
 
-    technologies.length = 0;
-    technologies.push(...defaultGameState.technologies);
-    console.log('Technologies reset');
+  // Clear local storage
+  localStorage.removeItem('gameState');
+  console.log('Game state storage cleared');
 
-    resetActivatedSections();
-    console.log('Activated sections reset');
+  // Load default game state
+  resources.length = 0;
+  resources.push(...defaultGameState.resources);
+  console.log('Resources reset');
+  technologies.length = 0;
+  technologies.push(...defaultGameState.technologies);
+  console.log('Technologies reset');
 
-    // Clear any ongoing research
-    clearInterval(researchInterval);
-    researchProgress = 0;
-    currentResearchingTech = null;
+  // Reset activated sections
+  Object.keys(activatedSections).forEach(key => {
+    activatedSections[key] = defaultGameState.activatedSections[key];
+  });
+  localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
+  applyActivatedSections();
+  console.log('Activated sections reset');
 
-    // Ensure no sections remain active
-    const sections = document.querySelectorAll('.game-section');
-    sections.forEach(section => {
-        section.classList.add('hidden');
-    });
+  // Clear any ongoing research
+  clearInterval(getResearchInterval());
+  setResearchInterval(null);
+  setResearchProgress(0);
+  setCurrentResearchingTech(null);
 
-    // Reinitialize all sections
-    setupMiningSection();
-    setupResearchSection();
+  // Ensure no sections remain active
+  const sections = document.querySelectorAll('.game-section');
+  sections.forEach(section => {
+    section.classList.add('hidden');
+  });
 
-    // Enable mining section by default
-    showSection('miningSection');
+  // Reinitialize all sections
+  setupMiningSection();
+  setupResearchSection();
 
-    // Save default game state
-    saveGameState();
-    console.log('Default game state saved');
+  // Enable mining section by default
+  showSection('miningSection');
+
+  // Save default game state
+  saveDefaultGameState(); // Separate function to save the default state
+
+  console.log('Default game state saved');
+
+   // Log the reset action
+  addLogEntry('Game state reset.', 'yellow');
+
+  // Enforce page refresh
+  window.location.href = window.location.href; 
 }
-
-function autosaveGameState() {
-    saveGameState();
-    console.log('Autosave completed at', new Date().toLocaleTimeString());
-}
-
-// Start the autosave interval when the page loads
-document.addEventListener('DOMContentLoaded', () => {
-    setInterval(autosaveGameState, 5 * 60 * 1000); // Autosave every 5 minutes
-});
-
-window.addEventListener('beforeunload', saveGameState);
-window.addEventListener('load', loadGameState);
 

@@ -33,6 +33,14 @@ export function setCurrentResearchingTech(tech) {
   currentResearchingTech = tech;
 }
 
+export function getCurrentResearchStartTime() {
+  return currentResearchStartTime;
+}
+
+export function setCurrentResearchStartTime(time) {
+  currentResearchStartTime = time;
+}
+
 export function setupResearchSection() {
     let researchSection = document.getElementById('researchSection');
     if (!researchSection) {
@@ -155,13 +163,14 @@ function createTechButton(name, onClick, container) {
 }
 
 export function startResearch(tech, cancelButton) {
-    if (researchInterval) {
-        clearInterval(researchInterval); // Clear any existing interval
+    if (getResearchInterval()) {
+        clearInterval(getResearchInterval());
+        setResearchInterval(null); 
     }
-    currentResearchingTech = tech.name;
+    setCurrentResearchingTech(tech.name);
+    setResearchProgress(0);
     currentResearchDuration = tech.duration;
-    currentResearchStartTime = currentResearchStartTime || Date.now();
-    researchProgress = getResearchProgress();
+    setCurrentResearchStartTime(Date.now());
     updateProgressBar(cancelButton);
 
     const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`); // Select the button
@@ -183,24 +192,23 @@ export function startResearch(tech, cancelButton) {
         }
     });
 
-    // Update the progress bar at regular intervals
-    researchInterval = setInterval(() => {
-        const elapsedTime = (Date.now() - currentResearchStartTime) / 1000; // Calculate elapsed time
-        researchProgress = (elapsedTime / tech.duration) * 100;
-        updateProgressBar(cancelButton);
-
-        if (isNaN(researchProgress)) {
-        researchProgress = 0; // Handle NaN case
-        console.error('Research progress calculation resulted in NaN.');
-        }
-
-        if (researchProgress >= 100) {
-            researchProgress = 100;
-            clearInterval(researchInterval);
-            addLogEntry(`${tech.name} research complete!`, 'green');
-            cancelButton.style.display = 'none';
-            currentResearchingTech = null;
-            tech.isResearched = true; // Mark technology as researched
+    setResearchInterval(setInterval(() => {
+    const elapsedTime = (Date.now() - getCurrentResearchStartTime()) / 1000;
+    const progress = currentResearchDuration > 0 ? (elapsedTime / currentResearchDuration) * 100 : 0;
+    setResearchProgress(progress);
+    updateProgressBar(cancelButton);
+    if (getResearchProgress() >= 100) {
+      setResearchProgress(100);
+      clearInterval(getResearchInterval());
+      setResearchInterval(null);
+      addLogEntry(`${tech.name} research complete!`, 'green');
+      setResearchProgress(0);
+      updateProgressBar(cancelButton);
+      if (cancelButton) {
+        cancelButton.style.display = 'none';
+      }
+      setCurrentResearchingTech(null);
+      tech.isResearched = true;
 
             // Hide the button upon completion if it exists
             if (techButton) {
@@ -240,7 +248,7 @@ export function startResearch(tech, cancelButton) {
                 addLogEntry(`New technologies available: ${newAvailableTechs.join(', ')}.`, 'blue');
             }
         }
-    }, 1000); // Update every second
+    }, 1000)); // Update every second
 }
 	
 
@@ -248,14 +256,14 @@ export function updateProgressBar(cancelButton) {
     const progressBar = document.querySelector('.progress-bar');
     const progressText = document.querySelector('.progress-text');
     if (progressBar && progressText) {
-        const elapsedTime = (Date.now() - currentResearchStartTime) / 1000; // Elapsed time in seconds
-        const totalDuration = currentResearchDuration;
-        researchProgress = Math.min((elapsedTime / totalDuration) * 100, 100); // Calculate progress
-
+        const elapsedTime = (Date.now() - getCurrentResearchStartTime()) / 1000; // Elapsed time in seconds
+        const totalDuration = currentResearchDuration || 1;
+        const progress = Math.min((elapsedTime / totalDuration) * 100, 100);
+        setResearchProgress(progress);
         progressBar.style.width = `${researchProgress}%`;
         progressText.innerText = `Research Progress: ${Math.floor(researchProgress)}%`;
 
-        if (cancelButton && researchProgress > 0 && researchProgress < 100) {
+        if (cancelButton && getResearchProgress() > 0 && getResearchProgress() < 100) {
             cancelButton.style.display = 'inline-block';
         } else if (cancelButton) {
             cancelButton.style.display = 'none';
@@ -266,39 +274,44 @@ export function updateProgressBar(cancelButton) {
 }
 
 function cancelResearch() {
-    clearInterval(researchInterval);
-    researchProgress = 0;
-    setResearchProgress(0);
-    setResearchInterval(null);
-    
-    const techName = currentResearchingTech;
-    addLogEntry(`${techName} research cancelled.`, 'red');
+  clearInterval(getResearchInterval());
+  setResearchInterval(null);
 
-    // Clear saved research state
-    localStorage.removeItem('researchState');
+  const techName = getCurrentResearchingTech();
+  addLogEntry(`${techName} research cancelled.`, 'red');
 
-    const progressBar = document.querySelector('.progress-bar');
-    const progressText = document.querySelector('.progress-text');
-    if (progressBar && progressText) {
-        progressBar.style.transition = 'none';
-        progressBar.style.width = '0'; // Reset to zero
-        progressText.innerText = 'Research Progress: 0%'; // Update the text to zero
-    }
+  setResearchProgress(0); 
+  setCurrentResearchingTech(null);
+  researchProgress = 0;
+  currentResearchingTech = null;
 
-    const cancelButton = document.querySelector('.cancel-button');
-    if (cancelButton) {
-        cancelButton.style.display = 'none';
-    }
+ 
+  // Clear saved research state
+  localStorage.removeItem('researchState');
 
-    const techButton = document.querySelector(`.tech-button[data-tech="${cancelButton.dataset.tech}"]`);
-    if (techButton) {
-        techButton.style.display = 'inline-block'; // Show button again when research is cancelled
-    }
+  const progressBar = document.querySelector('.progress-bar');
+  const progressText = document.querySelector('.progress-text');
+  if (progressBar && progressText) {
+    progressBar.style.transition = 'none';
+    progressBar.style.width = '0'; // Reset to zero
+    progressText.innerText = 'Research Progress: 0%'; // Update the text to zero
+  }
 
-    // Re-enable all tech buttons
-    document.querySelectorAll('.tech-button').forEach(button => {
-        button.disabled = false;
-    });
+  const cancelButton = document.querySelector('.cancel-button');
+  if (cancelButton) {
+    cancelButton.style.display = 'none';
+  }
 
-    currentResearchingTech = null;
+  // Ensure techButton visibility is reset
+  const techButton = document.querySelector(`.tech-button[data-tech="${cancelButton.dataset.tech}"]`);
+  if (techButton) {
+    techButton.style.display = 'inline-block'; // Show button again when research is cancelled
+  }
+
+  // Re-enable all tech buttons
+  document.querySelectorAll('.tech-button').forEach(button => {
+    button.disabled = false;
+  });
+
+  currentResearchingTech = null;
 }
