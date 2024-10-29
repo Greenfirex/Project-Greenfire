@@ -299,6 +299,7 @@ export function resumeOngoingResearch(tech, cancelButton, savedProgress, savedSt
         }
 
         // Post-completion logic
+		const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
         if (techButton) {
           techButton.style.display = 'none';
           createdTechButtons.delete(tech.name);
@@ -333,7 +334,6 @@ export function resumeOngoingResearch(tech, cancelButton, savedProgress, savedSt
         }
       }
 
-      // Reset research progress and progress bar
       setResearchProgress(0);
       updateProgressBar(cancelButton);
     }

@@ -91,6 +91,7 @@ if (savedGameState) {
         const elapsedTime = (gameState.researchProgress / 100) * tech.duration * 1000; // Calculate elapsed time based on progress
         setCurrentResearchStartTime(Date.now() - elapsedTime); 
         resumeOngoingResearch(tech, cancelButton, getResearchProgress(), getCurrentResearchStartTime()); // Use the new resume function
+		updateProgressBar(cancelButton);
       }
     }
 
