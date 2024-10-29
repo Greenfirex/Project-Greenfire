@@ -116,18 +116,24 @@ export function setupResearchSection() {
   const createdTechButtons = new Set();
 
   technologies.forEach(tech => {
-        tech.isResearched = false; // Ensure all techs are reset
+    // Only create buttons for techs that are not researched
+    if (!tech.isResearched) {
+      const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
+      if (techButton) {
+        techButton.style.display = 'none'; // Hide all tech buttons initially
+      }
 
-        const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
-        if (techButton) {
-            techButton.style.display = 'none'; // Hide all tech buttons initially
-        }
-
-        // Create buttons for techs with no prerequisites
-        if (tech.prerequisites.length === 0) {
-            createTechButton(tech.name, () => startResearch(tech, cancelButton), availableContainer);
-        }
-    });
+      // Create buttons for techs with no prerequisites
+      if (tech.prerequisites.length === 0) {
+        createTechButton(tech.name, () => startResearch(tech, cancelButton), availableContainer);
+      }
+    } else {
+      // If the tech is already researched, add it to the researched container
+      const techName = document.createElement('p');
+      techName.textContent = tech.name;
+      researchedContainer.appendChild(techName);
+    }
+  });
 
   researchSection.appendChild(availableContainer);
   researchSection.appendChild(researchedContainer);
@@ -267,6 +273,12 @@ export function resumeOngoingResearch(tech, cancelButton, savedProgress, savedSt
   setCurrentResearchStartTime(savedStartTime);
   updateProgressBar(cancelButton);
 
+  // Ensure the cancel button is displayed correctly
+  if (cancelButton) {
+    cancelButton.style.display = 'inline-block';
+    cancelButton.dataset.tech = tech.name;
+  }
+
   setResearchInterval(setInterval(() => {
     const elapsedTime = (Date.now() - getCurrentResearchStartTime()) / 1000;
     const progress = currentResearchDuration > 0 ? (elapsedTime / currentResearchDuration) * 100 : 0;
@@ -278,11 +290,51 @@ export function resumeOngoingResearch(tech, cancelButton, savedProgress, savedSt
       clearInterval(getResearchInterval());
       setResearchInterval(null);
       addLogEntry(`${tech.name} research complete!`, 'green');
-      if (cancelButton) {
-        cancelButton.style.display = 'none';
+
+      if (!tech.isResearched) {
+        setCurrentResearchingTech(null);
+        tech.isResearched = true;
+
+        if (cancelButton) {
+          cancelButton.style.display = 'none';
+        }
+
+        // Post-completion logic
+        if (techButton) {
+          techButton.style.display = 'none';
+          createdTechButtons.delete(tech.name);
+        }
+
+        document.querySelectorAll('.tech-button').forEach(button => {
+          button.disabled = false;
+        });
+
+        const researchedContainer = document.querySelector('.tech-container.researched');
+        const techName = document.createElement('p');
+        techName.textContent = tech.name;
+        researchedContainer.appendChild(techName);
+
+        const availableContainer = document.querySelector('.tech-container.available');
+        const newAvailableTechs = [];
+        technologies.forEach(t => {
+          const techButton = document.querySelector(`.tech-button[data-tech='${t.name}']`);
+          if (!t.isResearched && !techButton) {
+            const allPrerequisitesResearched = t.prerequisites.every(prereq => {
+              return technologies.find(tech => tech.name === prereq).isResearched;
+            });
+            if (allPrerequisitesResearched) {
+              createTechButton(t.name, () => startResearch(t, cancelButton), availableContainer);
+              newAvailableTechs.push(t.name);
+            }
+          }
+        });
+
+        if (newAvailableTechs.length > 0) {
+          addLogEntry(`New technologies available: ${newAvailableTechs.join(', ')}.`, 'blue');
+        }
       }
-      setCurrentResearchingTech(null);
-      tech.isResearched = true;
+
+      // Reset research progress and progress bar
       setResearchProgress(0);
       updateProgressBar(cancelButton);
     }
