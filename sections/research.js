@@ -42,17 +42,16 @@ export function setCurrentResearchStartTime(time) {
 }
 
 export function setupResearchSection() {
-    let researchSection = document.getElementById('researchSection');
-    if (!researchSection) {
-        researchSection = document.createElement('div');
-        researchSection.id = 'researchSection';
-        researchSection.className = 'game-section hidden';
-		document.getElementById('gameArea').appendChild(researchSection);
-    }
-	
+  let researchSection = document.getElementById('researchSection');
+  if (!researchSection) {
+    researchSection = document.createElement('div');
+    researchSection.id = 'researchSection';
+    researchSection.className = 'game-section hidden';
+    document.getElementById('gameArea').appendChild(researchSection);
+  }
   researchSection.innerHTML = '';
   researchSection.classList.add('research-bg');
-  
+
   // Progress bar container
   const progressBarContainer = document.createElement('div');
   progressBarContainer.className = 'progress-bar-container';
@@ -84,9 +83,10 @@ export function setupResearchSection() {
   cancelButton.style.display = 'none'; // Hidden initially
   cancelButton.addEventListener('click', cancelResearch);
   progressInfo.appendChild(cancelButton);
+
   progressBarContainer.appendChild(progressInfo);
   researchSection.appendChild(progressBarContainer);
-  
+
   // Tabs for available and researched tech
   const tabContainer = document.createElement('div');
   tabContainer.className = 'tab-container';
@@ -108,27 +108,26 @@ export function setupResearchSection() {
   // Tech containers
   const availableContainer = document.createElement('div');
   availableContainer.className = 'tech-container available active';
-
   const researchedContainer = document.createElement('div');
   researchedContainer.className = 'tech-container researched';
-  
-  // Create a Set to keep track of created tech buttons
-  const createdTechButtons = new Set();
 
   technologies.forEach(tech => {
-    // Only create buttons for techs that are not researched
     if (!tech.isResearched) {
       const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
       if (techButton) {
-        techButton.style.display = 'none'; // Hide all tech buttons initially
+        techButton.style.display = 'none';
       }
 
-      // Create buttons for techs with no prerequisites
-      if (tech.prerequisites.length === 0) {
+      // Check if prerequisites are met
+      const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
+        return technologies.find(t => t.name === prereq).isResearched;
+      });
+
+      // Create buttons for eligible techs
+      if (allPrerequisitesResearched) {
         createTechButton(tech.name, () => startResearch(tech, cancelButton), availableContainer);
       }
     } else {
-      // If the tech is already researched, add it to the researched container
       const techName = document.createElement('p');
       techName.textContent = tech.name;
       researchedContainer.appendChild(techName);
@@ -137,7 +136,7 @@ export function setupResearchSection() {
 
   researchSection.appendChild(availableContainer);
   researchSection.appendChild(researchedContainer);
-  gameArea.appendChild(researchSection);
+  document.getElementById('gameArea').appendChild(researchSection);
 }
 
 function showTab(tabName) {
