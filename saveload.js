@@ -1,6 +1,6 @@
 import { resources, updateResourceInfo, incrementResources } from './resources.js';
 import { technologies } from './sections/technologies.js';
-import { setupResearchSection, setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, startResearch, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from './sections/research.js';
+import { setupResearchSection, setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, startResearch, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch, updateProgressBar } from './sections/research.js';
 import { applyActivatedSections, checkConditions, activatedSections, setActivatedSections, resetActivatedSections, handleSectionClick } from './main.js'
 import { setupMiningSection } from './sections/mining.js';
 import { addLogEntry } from './log.js';
