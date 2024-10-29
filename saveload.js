@@ -63,10 +63,7 @@ export function loadGameState() {
     
 if (savedGameState) {
     const gameState = JSON.parse(savedGameState);
-
     console.log('Loading game state:', gameState);
-
-
     resources.length = 0;
     resources.push(...gameState.resources);
     technologies.length = 0;
@@ -81,7 +78,6 @@ if (savedGameState) {
     setCurrentResearchingTech(gameState.currentResearchingTech);
     setResearchInterval(null);
     setCurrentResearchStartTime(0);
-
     setActivatedSections(gameState.activatedSections);
     updateResourceInfo();
     setupMiningSection();
@@ -94,16 +90,10 @@ if (savedGameState) {
         const cancelButton = document.querySelector('.cancel-button');
         const elapsedTime = (gameState.researchProgress / 100) * tech.duration * 1000; // Calculate elapsed time based on progress
         setCurrentResearchStartTime(Date.now() - elapsedTime); 
-        startResearch(tech, cancelButton); // Restart research with correct values
-        setResearchProgress(getResearchProgress()); // Ensure correct progress is set after restart
-          
-	// Ensure the cancel button is displayed correctly
-        if (cancelButton) {
-          cancelButton.style.display = 'inline-block';
-          cancelButton.dataset.tech = tech.name;
-        }
+        resumeOngoingResearch(tech, cancelButton, getResearchProgress(), getCurrentResearchStartTime()); // Use the new resume function
       }
     }
+
     addLogEntry('Game state loaded.', 'green');
   } else {
     console.log('No saved game state found');

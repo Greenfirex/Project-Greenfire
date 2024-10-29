@@ -163,40 +163,42 @@ function createTechButton(name, onClick, container) {
 }
 
 export function startResearch(tech, cancelButton) {
-    if (getResearchInterval()) {
-        clearInterval(getResearchInterval());
-        setResearchInterval(null); 
-    }
-    setCurrentResearchingTech(tech.name);
-    setResearchProgress(0);
-    currentResearchDuration = tech.duration;
-    setCurrentResearchStartTime(Date.now());
-    updateProgressBar(cancelButton);
+  if (getResearchInterval()) {
+    clearInterval(getResearchInterval());
+    setResearchInterval(null);
+  }
 
-    const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`); // Select the button
-    if (techButton) {
+  setCurrentResearchingTech(tech.name);
+  setResearchProgress(0);
+  currentResearchDuration = tech.duration;
+  setCurrentResearchStartTime(Date.now());
+  updateProgressBar(cancelButton);
+
+  const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`); // Select the button
+  if (techButton) {
     techButton.style.display = 'none'; // Hide the button on start
-    }
+  }
 
-    if (cancelButton) {
+  if (cancelButton) {
     cancelButton.style.display = 'inline-block'; // Show cancel button
     cancelButton.dataset.tech = tech.name;
+  }
+
+  addLogEntry(`Started researching ${tech.name}.`, 'yellow');
+
+  // Disable all other tech buttons
+  document.querySelectorAll('.tech-button').forEach(button => {
+    if (button.dataset.tech !== tech.name) {
+      button.disabled = true;
     }
+  });
 
-    addLogEntry(`Started researching ${tech.name}.`, 'yellow');
-
-    // Disable all other tech buttons
-    document.querySelectorAll('.tech-button').forEach(button => {
-        if (button.dataset.tech !== tech.name) {
-            button.disabled = true;
-        }
-    });
-
-    setResearchInterval(setInterval(() => {
+  setResearchInterval(setInterval(() => {
     const elapsedTime = (Date.now() - getCurrentResearchStartTime()) / 1000;
     const progress = currentResearchDuration > 0 ? (elapsedTime / currentResearchDuration) * 100 : 0;
     setResearchProgress(progress);
     updateProgressBar(cancelButton);
+
     if (getResearchProgress() >= 100) {
       setResearchProgress(100);
       clearInterval(getResearchInterval());
@@ -204,53 +206,88 @@ export function startResearch(tech, cancelButton) {
       addLogEntry(`${tech.name} research complete!`, 'green');
       setResearchProgress(0);
       updateProgressBar(cancelButton);
+      
+      if (cancelButton) {
+        cancelButton.style.display = 'none';
+      }
+
+      setCurrentResearchingTech(null);
+      tech.isResearched = true;
+
+      // Hide the button upon completion if it exists
+      if (techButton) {
+        techButton.style.display = 'none';
+        createdTechButtons.delete(tech.name);
+      }
+
+      // Enable all tech buttons after research completion
+      document.querySelectorAll('.tech-button').forEach(button => {
+        button.disabled = false;
+      });
+
+      // Add the tech name to the researched tab
+      const researchedContainer = document.querySelector('.tech-container.researched');
+      const techName = document.createElement('p');
+      techName.textContent = tech.name;
+      researchedContainer.appendChild(techName);
+
+      // Check for new available technologies
+      const availableContainer = document.querySelector('.tech-container.available');
+      const newAvailableTechs = [];
+      technologies.forEach(t => {
+        const techButton = document.querySelector(`.tech-button[data-tech='${t.name}']`);
+        if (!t.isResearched && !techButton) {
+          const allPrerequisitesResearched = t.prerequisites.every(prereq => {
+            return technologies.find(tech => tech.name === prereq).isResearched;
+          });
+          if (allPrerequisitesResearched) {
+            createTechButton(t.name, () => startResearch(t, cancelButton), availableContainer);
+            newAvailableTechs.push(t.name);
+          }
+        }
+      });
+
+      // Log new available technologies
+      if (newAvailableTechs.length > 0) {
+        addLogEntry(`New technologies available: ${newAvailableTechs.join(', ')}.`, 'blue');
+      }
+    }
+  }, 1000)); // Update every second
+}
+	
+export function resumeOngoingResearch(tech, cancelButton, savedProgress, savedStartTime) {
+  if (getResearchInterval()) {
+    clearInterval(getResearchInterval());
+    setResearchInterval(null);
+  }
+
+  setCurrentResearchingTech(tech.name);
+  setResearchProgress(savedProgress);
+  currentResearchDuration = tech.duration;
+  setCurrentResearchStartTime(savedStartTime);
+  updateProgressBar(cancelButton);
+
+  setResearchInterval(setInterval(() => {
+    const elapsedTime = (Date.now() - getCurrentResearchStartTime()) / 1000;
+    const progress = currentResearchDuration > 0 ? (elapsedTime / currentResearchDuration) * 100 : 0;
+    setResearchProgress(progress);
+    updateProgressBar(cancelButton);
+
+    if (getResearchProgress() >= 100) {
+      setResearchProgress(100);
+      clearInterval(getResearchInterval());
+      setResearchInterval(null);
+      addLogEntry(`${tech.name} research complete!`, 'green');
       if (cancelButton) {
         cancelButton.style.display = 'none';
       }
       setCurrentResearchingTech(null);
       tech.isResearched = true;
-
-            // Hide the button upon completion if it exists
-            if (techButton) {
-                techButton.style.display = 'none';
-                createdTechButtons.delete(tech.name);
-            }
-
-            // Enable all tech buttons after research completion
-            document.querySelectorAll('.tech-button').forEach(button => {
-                button.disabled = false;
-            });
-
-            // Add the tech name to the researched tab
-            const researchedContainer = document.querySelector('.tech-container.researched');
-            const techName = document.createElement('p');
-            techName.textContent = tech.name;
-            researchedContainer.appendChild(techName);
-
-            // Check for new available technologies
-            const availableContainer = document.querySelector('.tech-container.available');
-            const newAvailableTechs = [];
-            technologies.forEach(t => {
-                const techButton = document.querySelector(`.tech-button[data-tech='${t.name}']`);
-                if (!t.isResearched && !techButton) {
-                    const allPrerequisitesResearched = t.prerequisites.every(prereq => {
-                        return technologies.find(tech => tech.name === prereq).isResearched;
-                    });
-                    if (allPrerequisitesResearched) {
-                        createTechButton(t.name, () => startResearch(t, cancelButton), availableContainer);
-                        newAvailableTechs.push(t.name);
-                    }
-                }
-            });
-
-            // Log new available technologies
-            if (newAvailableTechs.length > 0) {
-                addLogEntry(`New technologies available: ${newAvailableTechs.join(', ')}.`, 'blue');
-            }
-        }
-    }, 1000)); // Update every second
+      setResearchProgress(0);
+      updateProgressBar(cancelButton);
+    }
+  }, 1000));
 }
-	
 
 export function updateProgressBar(cancelButton) {
     const progressBar = document.querySelector('.progress-bar');
