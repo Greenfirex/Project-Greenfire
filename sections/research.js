@@ -42,96 +42,90 @@ export function setCurrentResearchStartTime(time) {
 }
 
 export function setupResearchSection(researchSection) {
-    researchSection.innerHTML = '';
-    researchSection.classList.add('research-bg');
+    if (!researchSection) {
+        researchSection = document.getElementById('researchSection');
+    }
 
-    // Vytváříme kontejner pro progress bar
-    const progressBarContainer = document.createElement('div');
-    progressBarContainer.className = 'progress-bar-container';
+    if (researchSection) {
+        researchSection.innerHTML = '';
+        researchSection.classList.add('research-bg');
 
-    // Vytváříme samotný progress bar
-    const progressBar = document.createElement('div');
-    progressBar.className = 'progress-bar';
+        const progressBarContainer = document.createElement('div');
+        progressBarContainer.className = 'progress-bar-container';
 
-    // Vytváříme informační kontejner
-    const progressInfo = document.createElement('div');
-    progressInfo.className = 'progress-info';
+        const progressBar = document.createElement('div');
+        progressBar.className = 'progress-bar';
 
-    // Textový prvek, který bude zobrazovat pokrok
-    const progressText = document.createElement('p');
-    progressText.className = 'progress-text';
-    progressText.innerText = 'Researching...';
-    progressInfo.appendChild(progressText);
+        const progressInfo = document.createElement('div');
+        progressInfo.className = 'progress-info';
 
-    // Tlačítko pro zrušení výzkumu
-    const cancelButton = document.createElement('button');
-    cancelButton.className = 'cancel-button';
-    cancelButton.textContent = 'Cancel Research';
-    cancelButton.style.display = 'none'; // Skryjeme ho na začátku
-    cancelButton.addEventListener('click', cancelResearch);
-    progressInfo.appendChild(cancelButton);
+        const progressText = document.createElement('p');
+        progressText.className = 'progress-text';
+        progressText.innerText = 'Researching...';
+        progressInfo.appendChild(progressText);
 
-    // Přidáváme progress bar a info kontejner do hlavního kontejneru
-    progressBarContainer.appendChild(progressBar);
-    progressBarContainer.appendChild(progressInfo);
-    researchSection.appendChild(progressBarContainer);
+        const cancelButton = document.createElement('button');
+        cancelButton.className = 'cancel-button';
+        cancelButton.textContent = 'Cancel Research';
+        cancelButton.style.display = 'none';
+        cancelButton.addEventListener('click', cancelResearch);
+        progressInfo.appendChild(cancelButton);
 
-    // Vytvoříme kontejner, který bude držet taby a tlačítka a vycentruje je
-    const researchContent = document.createElement('div');
-    researchContent.className = 'research-content';
+        progressBarContainer.appendChild(progressBar);
+        progressBarContainer.appendChild(progressInfo);
+        researchSection.appendChild(progressBarContainer);
 
-    // Tabs for available and researched tech
-    const tabContainer = document.createElement('div');
-    tabContainer.className = 'tab-container';
+        const researchContent = document.createElement('div');
+        researchContent.className = 'research-content';
 
-    const availableTab = document.createElement('button');
-    availableTab.className = 'tab active';
-    availableTab.textContent = 'Available Tech';
-    availableTab.addEventListener('click', () => showTab('available'));
+        const tabContainer = document.createElement('div');
+        tabContainer.className = 'tab-container';
 
-    const researchedTab = document.createElement('button');
-    researchedTab.className = 'tab';
-    researchedTab.textContent = 'Researched Tech';
-    researchedTab.addEventListener('click', () => showTab('researched'));
+        const availableTab = document.createElement('button');
+        availableTab.className = 'tab active';
+        availableTab.textContent = 'Available Tech';
+        availableTab.addEventListener('click', () => showTab('available'));
 
-    tabContainer.appendChild(availableTab);
-    tabContainer.appendChild(researchedTab);
-    researchContent.appendChild(tabContainer);
+        const researchedTab = document.createElement('button');
+        researchedTab.className = 'tab';
+        researchedTab.textContent = 'Researched Tech';
+        researchedTab.addEventListener('click', () => showTab('researched'));
 
-    // Tech containers
-    const availableContainer = document.createElement('div');
-    availableContainer.className = 'tech-container available active';
-    const researchedContainer = document.createElement('div');
-    researchedContainer.className = 'tech-container researched';
+        tabContainer.appendChild(availableTab);
+        tabContainer.appendChild(researchedTab);
+        researchContent.appendChild(tabContainer);
 
-    technologies.forEach(tech => {
-        if (!tech.isResearched) {
-            const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
-            if (techButton) {
-                techButton.style.display = 'none';
+        const availableContainer = document.createElement('div');
+        availableContainer.className = 'tech-container available active';
+        const researchedContainer = document.createElement('div');
+        researchedContainer.className = 'tech-container researched';
+
+        technologies.forEach(tech => {
+            if (!tech.isResearched) {
+                const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
+                if (techButton) {
+                    techButton.style.display = 'none';
+                }
+
+                const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
+                    const preTech = technologies.find(t => t.name === prereq);
+                    return preTech && preTech.isResearched;
+                });
+
+                if (allPrerequisitesResearched) {
+                    createTechButton(tech.name, () => startResearch(tech, cancelButton), availableContainer);
+                }
+            } else {
+                const techName = document.createElement('p');
+                techName.textContent = tech.name;
+                researchedContainer.appendChild(techName);
             }
+        });
 
-            // Check if prerequisites are met
-            const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
-                const preTech = technologies.find(t => t.name === prereq);
-                return preTech && preTech.isResearched;
-            });
-
-            // Create buttons for eligible techs
-            if (allPrerequisitesResearched) {
-                createTechButton(tech.name, () => startResearch(tech, cancelButton), availableContainer);
-            }
-        } else {
-            const techName = document.createElement('p');
-            techName.textContent = tech.name;
-            researchedContainer.appendChild(techName);
-        }
-    });
-
-    researchContent.appendChild(availableContainer);
-    researchContent.appendChild(researchedContainer);
-    researchSection.appendChild(researchContent);
-    document.getElementById('gameArea').appendChild(researchSection);
+        researchContent.appendChild(availableContainer);
+        researchContent.appendChild(researchedContainer);
+        researchSection.appendChild(researchContent);
+    }
 }
 
 function showTab(tabName) {
