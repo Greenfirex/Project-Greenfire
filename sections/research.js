@@ -294,19 +294,21 @@ function cancelResearch() {
 
     // 4. Znovu zobrazíme všechna dostupná tlačítka pro výzkum
     document.querySelectorAll('.tech-button').forEach(button => {
-        button.disabled = false; // Všechna tlačítka jsou znova aktivní
-        
-        const techName = button.getAttribute('data-tech');
-        const tech = technologies.find(t => t.name === techName);
+    button.disabled = false;
+    
+    const techName = button.getAttribute('data-tech');
+    const tech = technologies.find(t => t.name === techName);
 
-        // Zkontrolujeme, zda se technologie má zobrazit (splňuje předpoklady)
-        if (tech && tech.prerequisites.every(prereq => {
-            const preTech = technologies.find(t => t.name === prereq);
-            return preTech && preTech.isResearched;
-        })) {
-            button.style.display = 'inline-block';
-        }
-    });
+    // Zkontrolujeme, zda se má tlačítko zobrazit: splňuje předpoklady a není již prozkoumaná
+    if (tech && !tech.isResearched && tech.prerequisites.every(prereq => {
+        const preTech = technologies.find(t => t.name === prereq);
+        return preTech && preTech.isResearched;
+    })) {
+        button.style.display = 'inline-block';
+    } else {
+        button.style.display = 'none'; // Skryjeme tlačítko, pokud už je technologie prozkoumána
+    }
+});
 }
 
 function handleResearchCompletion(tech, cancelButton) {
