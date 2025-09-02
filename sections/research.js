@@ -42,95 +42,98 @@ export function setCurrentResearchStartTime(time) {
 }
 
 export function setupResearchSection() {
-  let researchSection = document.getElementById('researchSection');
-  if (!researchSection) {
-    researchSection = document.createElement('div');
-    researchSection.id = 'researchSection';
-    researchSection.className = 'game-section hidden';
-    document.getElementById('gameArea').appendChild(researchSection);
-  }
-  researchSection.innerHTML = '';
-  researchSection.classList.add('research-bg');
-
-  const progressBarContainer = document.createElement('div');
-  progressBarContainer.className = 'progress-bar-container';
-
-  const progressBarWrapper = document.createElement('div');
-  progressBarWrapper.className = 'progress-bar-wrapper';
-
-  const progressBar = document.createElement('div');
-  progressBar.className = 'progress-bar';
-  progressBarWrapper.appendChild(progressBar);
-  progressBarContainer.appendChild(progressBarWrapper);
-
-  const progressInfo = document.createElement('div');
-  progressInfo.className = 'progress-info';
-
-  const progressText = document.createElement('p');
-  progressText.className = 'progress-text';
-  progressText.innerText = 'Research Progress: 0%';
-  progressInfo.appendChild(progressText);
-
-  const cancelButton = document.createElement('button');
-  cancelButton.className = 'cancel-button';
-  cancelButton.textContent = 'Cancel Research';
-  cancelButton.style.display = 'none';
-  cancelButton.addEventListener('click', cancelResearch);
-  progressInfo.appendChild(cancelButton);
-
-  progressBarContainer.appendChild(progressInfo);
-  researchSection.appendChild(progressBarContainer);
-
-  // Tabs for available and researched tech
-  const tabContainer = document.createElement('div');
-  tabContainer.className = 'tab-container';
-
-  const availableTab = document.createElement('button');
-  availableTab.className = 'tab active';
-  availableTab.textContent = 'Available Tech';
-  availableTab.addEventListener('click', () => showTab('available'));
-
-  const researchedTab = document.createElement('button');
-  researchedTab.className = 'tab';
-  researchedTab.textContent = 'Researched Tech';
-  researchedTab.addEventListener('click', () => showTab('researched'));
-
-  tabContainer.appendChild(availableTab);
-  tabContainer.appendChild(researchedTab);
-  researchSection.appendChild(tabContainer);
-
-  // Tech containers
-  const availableContainer = document.createElement('div');
-  availableContainer.className = 'tech-container available active';
-  const researchedContainer = document.createElement('div');
-  researchedContainer.className = 'tech-container researched';
-
-  technologies.forEach(tech => {
-    if (!tech.isResearched) {
-      const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
-      if (techButton) {
-        techButton.style.display = 'none';
-      }
-
-      // Check if prerequisites are met
-      const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
-        return technologies.find(t => t.name === prereq).isResearched;
-      });
-
-      // Create buttons for eligible techs
-      if (allPrerequisitesResearched) {
-        createTechButton(tech.name, () => startResearch(tech, cancelButton), availableContainer);
-      }
-    } else {
-      const techName = document.createElement('p');
-      techName.textContent = tech.name;
-      researchedContainer.appendChild(techName);
+    let researchSection = document.getElementById('researchSection');
+    if (!researchSection) {
+        researchSection = document.createElement('div');
+        researchSection.id = 'researchSection';
+        researchSection.className = 'game-section hidden';
+        document.getElementById('gameArea').appendChild(researchSection);
     }
-  });
+    researchSection.innerHTML = '';
+    researchSection.classList.add('research-bg');
 
-  researchSection.appendChild(availableContainer);
-  researchSection.appendChild(researchedContainer);
-  document.getElementById('gameArea').appendChild(researchSection);
+    // Vytváříme kontejner pro progress bar, text a tlačítko
+    const progressBarContainer = document.createElement('div');
+    progressBarContainer.className = 'progress-bar-container';
+
+    // Vytváříme samotný progress bar
+    const progressBar = document.createElement('div');
+    progressBar.className = 'progress-bar';
+
+    // Vytváříme informační kontejner
+    const progressInfo = document.createElement('div');
+    progressInfo.className = 'progress-info';
+
+    // Textový prvek, který bude zobrazovat pokrok
+    const progressText = document.createElement('p');
+    progressText.className = 'progress-text';
+    progressText.innerText = 'Researching...';
+    progressInfo.appendChild(progressText);
+
+    // Tlačítko pro zrušení výzkumu
+    const cancelButton = document.createElement('button');
+    cancelButton.className = 'cancel-button';
+    cancelButton.textContent = 'Cancel Research';
+    cancelButton.style.display = 'none'; // Skryjeme ho na začátku
+    cancelButton.addEventListener('click', cancelResearch);
+    progressInfo.appendChild(cancelButton);
+
+    // Přidáváme progress bar a info kontejner do hlavního kontejneru
+    progressBarContainer.appendChild(progressBar);
+    progressBarContainer.appendChild(progressInfo);
+    researchSection.appendChild(progressBarContainer);
+
+    // Tabs for available and researched tech
+    const tabContainer = document.createElement('div');
+    tabContainer.className = 'tab-container';
+
+    const availableTab = document.createElement('button');
+    availableTab.className = 'tab active';
+    availableTab.textContent = 'Available Tech';
+    availableTab.addEventListener('click', () => showTab('available'));
+
+    const researchedTab = document.createElement('button');
+    researchedTab.className = 'tab';
+    researchedTab.textContent = 'Researched Tech';
+    researchedTab.addEventListener('click', () => showTab('researched'));
+
+    tabContainer.appendChild(availableTab);
+    tabContainer.appendChild(researchedTab);
+    researchSection.appendChild(tabContainer);
+
+    // Tech containers
+    const availableContainer = document.createElement('div');
+    availableContainer.className = 'tech-container available active';
+    const researchedContainer = document.createElement('div');
+    researchedContainer.className = 'tech-container researched';
+
+    technologies.forEach(tech => {
+        if (!tech.isResearched) {
+            const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
+            if (techButton) {
+                techButton.style.display = 'none';
+            }
+
+            // Check if prerequisites are met
+            const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
+                const preTech = technologies.find(t => t.name === prereq);
+                return preTech && preTech.isResearched;
+            });
+
+            // Create buttons for eligible techs
+            if (allPrerequisitesResearched) {
+                createTechButton(tech.name, () => startResearch(tech, cancelButton), availableContainer);
+            }
+        } else {
+            const techName = document.createElement('p');
+            techName.textContent = tech.name;
+            researchedContainer.appendChild(techName);
+        }
+    });
+
+    researchSection.appendChild(availableContainer);
+    researchSection.appendChild(researchedContainer);
+    document.getElementById('gameArea').appendChild(researchSection);
 }
 
 function showTab(tabName) {
