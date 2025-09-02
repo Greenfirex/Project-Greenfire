@@ -241,12 +241,16 @@ export function resumeOngoingResearch(tech, cancelButton, savedProgress, savedSt
 export function updateProgressBar(cancelButton) {
 const progressBar = document.querySelector('.progress-bar');
 const progressText = document.querySelector('.progress-text');
+const cancelButton = document.querySelector('.cancel-button'); // Přidáme odkaz na tlačítko
 
 if (!getCurrentResearchingTech()) {
-    // Skryje text a progress bar, pokud neprobíhá žádný výzkum
+    // Skryje text a progress bar
     if (progressBar && progressText) {
+        progressBar.style.width = '0%';
         progressText.style.display = 'none';
-        progressBar.style.width = '0';
+        if (cancelButton) {
+            cancelButton.style.display = 'none';
+        }
     }
     return;
 }
@@ -257,8 +261,9 @@ if (progressBar && progressText) {
     const progress = Math.min((elapsedTime / totalDuration) * 100, 100);
     setResearchProgress(progress);
     
-    // Zobrazí progress bar a text
+    // Zobrazí text, který má být viditelný jen při probíhajícím výzkumu
     progressText.style.display = 'block';
+    
     progressBar.style.width = `${researchProgress}%`;
     
     const remainingTime = Math.max(0, totalDuration - elapsedTime);
