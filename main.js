@@ -54,10 +54,12 @@ function setupMenuButtons() {
         const button = document.createElement('button');
         button.className = 'menu-button';
         button.dataset.section = section;
-        // Převedeme název sekce na hezčí formát
         const displayName = section.replace('Section', '').charAt(0).toUpperCase() + section.replace('Section', '').slice(1);
         button.textContent = displayName;
+        
+        // Přidáme event listener pro přepínání sekcí
         button.addEventListener('click', () => showSection(section));
+        
         container.appendChild(button);
     });
 }
@@ -65,11 +67,12 @@ function setupMenuButtons() {
 export function applyActivatedSections() {
     document.querySelectorAll('.menu-button[data-section]').forEach(button => {
         const section = button.getAttribute('data-section');
-        if (activatedSections[section]) {
-            button.classList.remove('hidden');
-            button.addEventListener('click', handleSectionClick);
-        } else if (section !== 'miningSection') {
+        
+        // Skryjeme tlačítka, pokud nejsou aktivní, kromě Mining, které má být vždy vidět
+        if (!activatedSections[section] && section !== 'miningSection') {
             button.classList.add('hidden');
+        } else {
+            button.classList.remove('hidden');
         }
     });
 }
