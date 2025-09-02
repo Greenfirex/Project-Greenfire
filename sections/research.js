@@ -41,8 +41,7 @@ export function setCurrentResearchStartTime(time) {
   currentResearchStartTime = time;
 }
 
-export function setupResearchSection() {
-    let researchSection = document.getElementById('researchSection');
+export function setupResearchSection(researchSection) {
     if (!researchSection) {
         researchSection = document.createElement('div');
         researchSection.id = 'researchSection';

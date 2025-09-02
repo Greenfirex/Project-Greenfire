@@ -1,7 +1,6 @@
 import { resources } from '../resources.js';
 
-export function setupMiningSection() {
-    let miningSection = document.getElementById('miningSection');
+export function setupMiningSection(miningSection) {
     if (!miningSection) {
         miningSection = document.createElement('div');
         miningSection.id = 'miningSection';

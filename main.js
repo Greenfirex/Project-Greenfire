@@ -16,11 +16,29 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     localStorage.removeItem('isResetting'); // Clean up after reset
   }
+// Create all the sections first
+    const miningSection = document.createElement('div');
+    miningSection.id = 'miningSection';
+    miningSection.classList.add('game-section');
 
+    const researchSection = document.createElement('div');
+    researchSection.id = 'researchSection';
+    researchSection.classList.add('game-section');
+
+    const manufacturingSection = document.createElement('div');
+    manufacturingSection.id = 'manufacturingSection';
+    manufacturingSection.classList.add('game-section');
+
+    // Append them to the game area
+    document.getElementById('gameArea').appendChild(miningSection);
+    document.getElementById('gameArea').appendChild(researchSection);
+    document.getElementById('gameArea').appendChild(manufacturingSection);
+
+    // Call the setup functions and pass the new section elements
+    setupMiningSection(miningSection);
+    setupResearchSection(researchSection);
+    setupManufacturingSection(manufacturingSection);
     updateResourceInfo();
-    setupMiningSection();
-    setupResearchSection();
-    setupManufacturingSection();
     setupMenuButtons();
     applyActivatedSections();
     setInterval(() => {

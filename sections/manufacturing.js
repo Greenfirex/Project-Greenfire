@@ -1,5 +1,4 @@
-export function setupManufacturingSection() {
-    let miningSection = document.getElementById('manufacturingSection');
+export function setupManufacturingSection(manufacturingSection) {
     if (!miningSection) {
         miningSection = document.createElement('div');
         miningSection.id = 'manufacturingSection';
