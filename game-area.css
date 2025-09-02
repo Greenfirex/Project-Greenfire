@@ -3,11 +3,11 @@
 }
 
 .game-section {
-    justify-content: center;
-    align-items: center;
-    flex-wrap: wrap;
+    display: flex;
+    flex-direction: column;
     height: 100%;
     position: relative;
+    justify-content: flex-start; /* Zarovnáme obsah nahoru */
 }
 
 #gameArea {

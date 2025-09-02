@@ -46,13 +46,13 @@ export function setupResearchSection() {
     if (!researchSection) {
         researchSection = document.createElement('div');
         researchSection.id = 'researchSection';
-        researchSection.className = 'game-section hidden';
+        researchSection.className = 'game-section';
         document.getElementById('gameArea').appendChild(researchSection);
     }
     researchSection.innerHTML = '';
     researchSection.classList.add('research-bg');
 
-    // Vytváříme kontejner pro progress bar, text a tlačítko
+    // Vytváříme kontejner pro progress bar
     const progressBarContainer = document.createElement('div');
     progressBarContainer.className = 'progress-bar-container';
 
@@ -83,6 +83,10 @@ export function setupResearchSection() {
     progressBarContainer.appendChild(progressInfo);
     researchSection.appendChild(progressBarContainer);
 
+    // Vytvoříme kontejner, který bude držet taby a tlačítka a vycentruje je
+    const researchContent = document.createElement('div');
+    researchContent.className = 'research-content';
+
     // Tabs for available and researched tech
     const tabContainer = document.createElement('div');
     tabContainer.className = 'tab-container';
@@ -99,7 +103,7 @@ export function setupResearchSection() {
 
     tabContainer.appendChild(availableTab);
     tabContainer.appendChild(researchedTab);
-    researchSection.appendChild(tabContainer);
+    researchContent.appendChild(tabContainer);
 
     // Tech containers
     const availableContainer = document.createElement('div');
@@ -131,8 +135,9 @@ export function setupResearchSection() {
         }
     });
 
-    researchSection.appendChild(availableContainer);
-    researchSection.appendChild(researchedContainer);
+    researchContent.appendChild(availableContainer);
+    researchContent.appendChild(researchedContainer);
+    researchSection.appendChild(researchContent);
     document.getElementById('gameArea').appendChild(researchSection);
 }
 
