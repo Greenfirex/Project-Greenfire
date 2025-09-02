@@ -245,25 +245,31 @@ export function resumeOngoingResearch(tech, cancelButton, savedProgress, savedSt
 }
 
 export function updateProgressBar(cancelButton) {
-    const progressBar = document.querySelector('.progress-bar');
-    const progressText = document.querySelector('.progress-text');
-    if (progressBar && progressText) {
-        const elapsedTime = (Date.now() - getCurrentResearchStartTime()) / 1000; // Elapsed time in seconds
-        const totalDuration = currentResearchDuration || 1;
-        const progress = Math.min((elapsedTime / totalDuration) * 100, 100);
-        setResearchProgress(progress);
-        progressBar.style.width = `${researchProgress}%`;
-        const remainingTime = Math.max(0, currentResearchDuration - elapsedTime);
-		progressText.innerText = `${getCurrentResearchingTech()}: ${remainingTime.toFixed(0)}s`;
+const progressBar = document.querySelector('.progress-bar');
+const progressText = document.querySelector('.progress-text');
 
-        if (cancelButton && getResearchProgress() > 0 && getResearchProgress() < 100) {
-            cancelButton.style.display = 'inline-block';
-        } else if (cancelButton) {
-            cancelButton.style.display = 'none';
-        }
-    } else {
-        console.error('Progress bar elements not found.');
+if (!getCurrentResearchingTech()) {
+    // Skryje text a progress bar, pokud neprobíhá žádný výzkum
+    if (progressBar && progressText) {
+        progressText.style.display = 'none';
+        progressBar.style.width = '0';
     }
+    return;
+}
+
+if (progressBar && progressText) {
+    const elapsedTime = (Date.now() - getCurrentResearchStartTime()) / 1000;
+    const totalDuration = currentResearchDuration || 1;
+    const progress = Math.min((elapsedTime / totalDuration) * 100, 100);
+    setResearchProgress(progress);
+    
+    // Zobrazí progress bar a text
+    progressText.style.display = 'block';
+    progressBar.style.width = `${researchProgress}%`;
+    
+    const remainingTime = Math.max(0, totalDuration - elapsedTime);
+    progressText.innerText = `${getCurrentResearchingTech()}: ${remainingTime.toFixed(0)}s`;
+}
 }
 
 function cancelResearch() {

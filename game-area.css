@@ -64,28 +64,6 @@
     background-repeat: no-repeat;
 }
 
-.progress-bar {
-    position: relative;
-    display: flex; /* Použijeme flexbox pro centrování obsahu */
-    align-items: center; /* Vertikální centrování */
-    justify-content: center; /* Horizontální centrování */
-}
-
-.progress-text {
-    position: absolute;
-    width: 100%; /* Zajistí, že se text roztáhne přes celou šířku progress baru */
-    text-align: center;
-    color: white; /* Barva textu */
-    font-size: 14px;
-    font-weight: bold;
-    z-index: 2; /* Zajistí, že text bude nad progress barem */
-}
-
-/* Skryjeme původní progress info text, který je nyní zbytečný */
-.progress-info {
-    display: none;
-}
-
 #manufacturingSection {
     background-image: url('assets/images/background3.jpg');
     background-size: cover;
