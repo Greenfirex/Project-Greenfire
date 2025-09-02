@@ -241,7 +241,6 @@ export function resumeOngoingResearch(tech, cancelButton, savedProgress, savedSt
 export function updateProgressBar(cancelButton) {
 const progressBar = document.querySelector('.progress-bar');
 const progressText = document.querySelector('.progress-text');
-const cancelButton = document.querySelector('.cancel-button'); // Přidáme odkaz na tlačítko
 
 if (!getCurrentResearchingTech()) {
     // Skryje text a progress bar
