@@ -5,7 +5,7 @@ export function setupMiningSection() {
     if (!miningSection) {
         miningSection = document.createElement('div');
         miningSection.id = 'miningSection';
-        miningSection.className = 'game-section';
+        miningSection.classList.add('game-section');
     }
     miningSection.innerHTML = ''; // Clear any existing content
     miningSection.classList.add('mining-bg'); 

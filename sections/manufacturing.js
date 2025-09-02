@@ -3,7 +3,7 @@ export function setupManufacturingSection() {
     if (!miningSection) {
         miningSection = document.createElement('div');
         miningSection.id = 'manufacturingSection';
-        miningSection.className = 'game-section';
+        miningSection.classList.add('game-section');
     }
     miningSection.innerHTML = ''; // Clear any existing content
     miningSection.classList.add('manufacturing-bg'); 

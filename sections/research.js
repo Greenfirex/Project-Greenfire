@@ -46,7 +46,7 @@ export function setupResearchSection() {
     if (!researchSection) {
         researchSection = document.createElement('div');
         researchSection.id = 'researchSection';
-        researchSection.className = 'game-section';
+        researchSection.classList.add('game-section');
         document.getElementById('gameArea').appendChild(researchSection);
     }
     researchSection.innerHTML = '';
