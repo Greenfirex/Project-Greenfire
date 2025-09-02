@@ -23,11 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const researchSection = document.createElement('div');
     researchSection.id = 'researchSection';
-    researchSection.classList.add('game-section');
+    researchSection.classList.add('game-section', 'hidden');
 
     const manufacturingSection = document.createElement('div');
     manufacturingSection.id = 'manufacturingSection';
-    manufacturingSection.classList.add('game-section');
+    manufacturingSection.classList.add('game-section', 'hidden');
 
     // Append them to the game area
     document.getElementById('gameArea').appendChild(miningSection);
@@ -161,16 +161,15 @@ function preloadImages() {
 window.showSection = function(sectionId) {
     const sections = document.querySelectorAll('.game-section');
     sections.forEach(section => {
-        if (section.id !== sectionId) { // Only hide if it’s not the target section
-            section.classList.add('hidden'); // Hide all sections
-        }
+        section.classList.add('hidden'); // Add 'hidden' to all sections
     });
 
     const activeSection = document.getElementById(sectionId);
     if (activeSection) {
-        activeSection.classList.remove('hidden'); // Show the active section
-    }  
-    localStorage.setItem('currentSection', sectionId); // Save current section
+        activeSection.classList.remove('hidden'); // Then, remove it from the active one
+    }
+
+    localStorage.setItem('currentSection', sectionId);
 };
 
 // Function to load the saved section
