@@ -1,11 +1,7 @@
 import { resources } from '../resources.js';
 
 export function setupMiningSection(miningSection) {
-    if (!miningSection) {
-        miningSection = document.createElement('div');
-        miningSection.id = 'miningSection';
-        miningSection.classList.add('game-section');
-    }
+
     miningSection.innerHTML = ''; // Clear any existing content
     miningSection.classList.add('mining-bg'); 
 	

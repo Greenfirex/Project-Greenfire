@@ -42,12 +42,6 @@ export function setCurrentResearchStartTime(time) {
 }
 
 export function setupResearchSection(researchSection) {
-    if (!researchSection) {
-        researchSection = document.createElement('div');
-        researchSection.id = 'researchSection';
-        researchSection.classList.add('game-section');
-        document.getElementById('gameArea').appendChild(researchSection);
-    }
     researchSection.innerHTML = '';
     researchSection.classList.add('research-bg');
 
