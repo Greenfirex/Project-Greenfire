@@ -253,7 +253,8 @@ export function updateProgressBar(cancelButton) {
         const progress = Math.min((elapsedTime / totalDuration) * 100, 100);
         setResearchProgress(progress);
         progressBar.style.width = `${researchProgress}%`;
-        progressText.innerText = `Research Progress: ${Math.floor(researchProgress)}%`;
+        const remainingTime = Math.max(0, currentResearchDuration - elapsedTime);
+		progressText.innerText = `${getCurrentResearchingTech()}: ${remainingTime.toFixed(0)}s`;
 
         if (cancelButton && getResearchProgress() > 0 && getResearchProgress() < 100) {
             cancelButton.style.display = 'inline-block';
