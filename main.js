@@ -49,12 +49,14 @@ export let activatedSections = JSON.parse(localStorage.getItem('activatedSection
 function setupMenuButtons() {
     const sections = ['miningSection', 'researchSection', 'manufacturingSection'];
     const container = document.querySelector('.menu-buttons-container');
-    container.innerHTML = ''; // Clear any existing buttons
+    container.innerHTML = '';
     sections.forEach(section => {
         const button = document.createElement('button');
         button.className = 'menu-button';
         button.dataset.section = section;
-        button.textContent = section.charAt(0).toUpperCase() + section.slice(1);
+        // Převedeme název sekce na hezčí formát
+        const displayName = section.replace('Section', '').charAt(0).toUpperCase() + section.replace('Section', '').slice(1);
+        button.textContent = displayName;
         button.addEventListener('click', () => showSection(section));
         container.appendChild(button);
     });
@@ -65,10 +67,10 @@ export function applyActivatedSections() {
         const section = button.getAttribute('data-section');
         if (activatedSections[section]) {
             button.classList.remove('hidden');
-            button.addEventListener('click', handleSectionClick); // Attach the click event
+            button.addEventListener('click', handleSectionClick);
         } else if (section !== 'miningSection') {
             button.classList.add('hidden');
-            }
+        }
     });
 }
 
