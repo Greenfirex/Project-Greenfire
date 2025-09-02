@@ -1,26 +1,25 @@
 import { resources } from '../resources.js';
 
 export function setupMiningSection(miningSection) {
+    if (!miningSection) {
+        miningSection = document.getElementById('miningSection');
+    }
 
-    miningSection.innerHTML = ''; // Clear any existing content
-    miningSection.classList.add('mining-bg'); 
-	
+    if (miningSection) {
+        miningSection.innerHTML = '';
+        miningSection.classList.add('mining-bg');
 
-// Create and add the header to the mining section
-    const header = document.createElement('h2');
-    header.textContent = 'Manual Gathering';
-    header.className = 'section-header';
-    miningSection.appendChild(header);
+        const header = document.createElement('h2');
+        header.textContent = 'Manual Gathering';
+        header.className = 'section-header';
+        miningSection.appendChild(header);
 
-// Create and add buttons to the mining section
-    createMiningButton('Mine Resource', mineResource, miningSection);
-    createMiningButton('Mine Resource 2', mineResource2, miningSection);
-    createMiningButton('Mine Resource 3', mineResource3, miningSection);
-    createMiningButton('Mine Resource 4', mineResource4, miningSection);
-    createMiningButton('Mine Resource 5', mineResource5, miningSection);
-
-
-    gameArea.appendChild(miningSection);
+        createMiningButton('Mine Resource', mineResource, miningSection);
+        createMiningButton('Mine Resource 2', mineResource2, miningSection);
+        createMiningButton('Mine Resource 3', mineResource3, miningSection);
+        createMiningButton('Mine Resource 4', mineResource4, miningSection);
+        createMiningButton('Mine Resource 5', mineResource5, miningSection);
+    }
 }
 
 function createMiningButton(text, callback, container) {
