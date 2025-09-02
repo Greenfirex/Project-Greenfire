@@ -52,35 +52,29 @@ export function setupResearchSection() {
   researchSection.innerHTML = '';
   researchSection.classList.add('research-bg');
 
-  // Progress bar container
   const progressBarContainer = document.createElement('div');
   progressBarContainer.className = 'progress-bar-container';
 
-  // Progress bar wrapper
   const progressBarWrapper = document.createElement('div');
   progressBarWrapper.className = 'progress-bar-wrapper';
 
-  // Progress bar
   const progressBar = document.createElement('div');
   progressBar.className = 'progress-bar';
   progressBarWrapper.appendChild(progressBar);
   progressBarContainer.appendChild(progressBarWrapper);
 
-  // Progress info (text and cancel button)
   const progressInfo = document.createElement('div');
   progressInfo.className = 'progress-info';
 
-  // Progress text
   const progressText = document.createElement('p');
   progressText.className = 'progress-text';
   progressText.innerText = 'Research Progress: 0%';
   progressInfo.appendChild(progressText);
 
-  // Cancel button
   const cancelButton = document.createElement('button');
   cancelButton.className = 'cancel-button';
   cancelButton.textContent = 'Cancel Research';
-  cancelButton.style.display = 'none'; // Hidden initially
+  cancelButton.style.display = 'none';
   cancelButton.addEventListener('click', cancelResearch);
   progressInfo.appendChild(cancelButton);
 

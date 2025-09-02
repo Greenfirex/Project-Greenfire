@@ -3,40 +3,54 @@
     color: white;
 }
 .progress-bar-container {
-    position: relative;
-    width: 100%;
+    position: relative;
+    width: 100%;
+    height: 30px;
+    background-color: black; /* Černé pozadí pro celý kontejner */
 }
 .progress-bar-wrapper {
-    position: relative;
-    width: 100%;
-    background-color: #555;
-    height: 30px;
+    position: relative;
+    width: 100%;
+    height: 100%;
 }
 .progress-bar {
-    height: 100%;
-    background-color: #1abc9c;
-    width: 0;
+    height: 100%;
+    background-color: green;
+    width: 0;
+    transition: width 0.5s ease-in-out; /* Plynulý přechod */
 }
 .progress-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-sizing: border-box;
-    height: 35px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px; /* Přidáme padding pro mezery na krajích */
 }
 .progress-text {
-    /* Původní text necháme, ale skryjeme ho přes JS */
-    color: white;
-    font-size: 14px;
-    font-weight: bold;
+    /* Text uvnitř progress baru */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 2;
+    display: none; /* Skryjeme na začátku, než se spustí výzkum */
 }
 .cancel-button {
-    padding: 5px 10px;
-    font-size: 12px;
-    cursor: pointer;
+    background-color: transparent;
+    border: none;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
 }
 .cancel-button:hover {
-    background-color: #d32f2f;
+    color: red;
 }
 .tab-container {
     display: flex;
