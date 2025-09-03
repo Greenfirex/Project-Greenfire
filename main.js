@@ -8,39 +8,45 @@ import './headeroptions.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     preloadImages();
-    loadCurrentSection();
 
     const isResetting = localStorage.getItem('isResetting');
-  if (!isResetting) {
-    loadGameState(); // Only load if not resetting
-  } else {
-    localStorage.removeItem('isResetting'); // Clean up after reset
-  }
-// Create all the sections first
+    if (!isResetting) {
+        loadGameState(); // 1. Načíst uložený stav hry
+    } else {
+        localStorage.removeItem('isResetting');
+    }
+
+    // 2. Vytvořit a naplnit všechny sekce
     const miningSection = document.createElement('div');
-miningSection.id = 'miningSection';
-miningSection.classList.add('game-section', 'hidden'); /* Make all sections hidden at the start */
+    miningSection.id = 'miningSection';
+    miningSection.classList.add('game-section');
 
-const researchSection = document.createElement('div');
-researchSection.id = 'researchSection';
-researchSection.classList.add('game-section', 'hidden');
+    const researchSection = document.createElement('div');
+    researchSection.id = 'researchSection';
+    researchSection.classList.add('game-section');
 
-const manufacturingSection = document.createElement('div');
-manufacturingSection.id = 'manufacturingSection';
-manufacturingSection.classList.add('game-section', 'hidden');
+    const manufacturingSection = document.createElement('div');
+    manufacturingSection.id = 'manufacturingSection';
+    manufacturingSection.classList.add('game-section');
 
-    // Append them to the game area
+    // Přidat sekce do DOMu
     document.getElementById('gameArea').appendChild(miningSection);
     document.getElementById('gameArea').appendChild(researchSection);
     document.getElementById('gameArea').appendChild(manufacturingSection);
 
-    // Call the setup functions and pass the new section elements
+    // Naplnit sekce obsahem
     setupMiningSection(miningSection);
     setupResearchSection(researchSection);
     setupManufacturingSection(manufacturingSection);
+
+    // 3. Spustit logiku zobrazení po vytvoření všech sekcí
+    loadCurrentSection();
+
+    // 4. Spustit zbytek inicializace
     updateResourceInfo();
     setupMenuButtons();
     applyActivatedSections();
+
     setInterval(() => {
         incrementResources();
         updateResourceInfo();
