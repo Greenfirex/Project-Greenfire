@@ -85,18 +85,18 @@
 }
 
 .tech-container {
-    flex-grow: 1; /* This will make it fill all remaining space */
+    flex-grow: 1;
     width: 100%;
-    display: none;
     flex-wrap: wrap;
     justify-content: flex-start;
     gap: 10px;
     background-color: #000;
     padding: 10px;
+    display: none; /* This controls visibility */
 }
 
 .tech-container.active {
-    display: flex;
+    display: flex; /* This makes it visible and a flex container */
 }
 
 .tech-button {
