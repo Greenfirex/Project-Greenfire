@@ -172,13 +172,16 @@ window.showSection = function(sectionId) {
     localStorage.setItem('currentSection', sectionId);
 };
 
-// Function to load the saved section
+// Function to load the saved section or default to mining
 function loadCurrentSection() {
-  const savedSection = localStorage.getItem('currentSection');
-  if (savedSection) {
-    showSection(savedSection);
-  } else {
-    // Default to mining section if no section is saved
-    showSection('miningSection');
-  }
+    const savedSection = localStorage.getItem('currentSection');
+    
+    // Check if a section was saved in localStorage
+    if (savedSection) {
+        // If a section was saved, show it
+        showSection(savedSection);
+    } else {
+        // If no section was saved, default to the mining section
+        showSection('miningSection');
+    }
 }
