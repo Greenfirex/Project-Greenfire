@@ -3,15 +3,14 @@
     color: white;
     display: flex;
     flex-direction: column;
-    align-items: flex-start; /* This aligns the children to the left */
+    align-items: flex-start;
     height: 100%;
     width: 100%;
 }
 
 .progress-bar-container {
     position: relative;
-    width: 100%;
-    max-width: 600px;
+    width: 100%; /* Make it fill the entire width */
     height: 30px;
     background-color: black;
     margin-bottom: 20px;
@@ -56,7 +55,7 @@
 
 .tab-container {
     display: flex;
-    justify-content: flex-start; /* This aligns the tabs to the left */
+    justify-content: flex-start;
     margin-bottom: 20px;
     width: 100%;
 }
@@ -76,7 +75,7 @@
 }
 
 .tech-container {
-    height: 40%;
+    flex-grow: 1; /* This will make it fill all remaining space */
     width: 100%;
     display: none;
     flex-wrap: wrap;
@@ -102,8 +101,8 @@
     font-size: 12px;
     display: flex;
     align-items: center;
-    justify-content: flex-start; /* This aligns text inside the buttons to the left */
-    padding-left: 20px; /* Add some padding for better spacing */
+    justify-content: flex-start;
+    padding-left: 20px;
 }
 
 .tech-button:hover {
