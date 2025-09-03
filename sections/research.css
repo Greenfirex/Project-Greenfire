@@ -92,6 +92,7 @@
     gap: 10px;
     background-color: #000;
     padding: 10px;
+	box-sizing: border-box;
     display: none; /* This controls visibility */
 }
 
@@ -100,7 +101,7 @@
 }
 
 .tech-button {
-    margin: 5px;
+    margin: 0px;
     padding: 10px;
     background-color: #90EE90;
     color: white;
