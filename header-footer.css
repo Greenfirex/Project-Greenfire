@@ -82,5 +82,8 @@
 }
 
 #currentTime {
-    color: #90EE90; /* Light green color */
+    color: #90EE90;
+    margin-right: 10px; /* Přidá mezeru mezi čas a tlačítka */
+    display: flex;
+    align-items: center;
 }
