@@ -1,24 +1,25 @@
 #researchSection {
     padding: 20px;
     color: white;
-}
-
-.research-content {
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
+    align-items: flex-start; /* This aligns the children to the left */
+    height: 100%;
+    width: 100%;
 }
 
 .progress-bar-container {
     position: relative;
     width: 100%;
+    max-width: 600px;
     height: 30px;
     background-color: black;
+    margin-bottom: 20px;
 }
 
 .progress-bar {
     height: 100%;
-    background-color: #1abc9c;
+    background-color: #90EE90;
     width: 0;
     transition: width 0.5s ease-in-out;
 }
@@ -55,8 +56,9 @@
 
 .tab-container {
     display: flex;
-    justify-content: center;
-    margin-bottom: 10px;
+    justify-content: flex-start; /* This aligns the tabs to the left */
+    margin-bottom: 20px;
+    width: 100%;
 }
 
 .tab {
@@ -75,7 +77,8 @@
 
 .tech-container {
     height: 40%;
-    display: none; /* This is the key: hide by default */
+    width: 100%;
+    display: none;
     flex-wrap: wrap;
     justify-content: flex-start;
     gap: 10px;
@@ -84,7 +87,7 @@
 }
 
 .tech-container.active {
-    display: flex; /* This is the other key: show only when active */
+    display: flex;
 }
 
 .tech-button {
@@ -99,7 +102,8 @@
     font-size: 12px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start; /* This aligns text inside the buttons to the left */
+    padding-left: 20px; /* Add some padding for better spacing */
 }
 
 .tech-button:hover {
