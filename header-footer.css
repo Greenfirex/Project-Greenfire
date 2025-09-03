@@ -80,3 +80,7 @@
   text-decoration: none;
   cursor: pointer;
 }
+
+#currentTime {
+    color: #90EE90; /* Light green color */
+}
