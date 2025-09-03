@@ -18,16 +18,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 // Create all the sections first
     const miningSection = document.createElement('div');
-    miningSection.id = 'miningSection';
-    miningSection.classList.add('game-section');
+miningSection.id = 'miningSection';
+miningSection.classList.add('game-section', 'hidden'); /* Make all sections hidden at the start */
 
-    const researchSection = document.createElement('div');
-    researchSection.id = 'researchSection';
-    researchSection.classList.add('game-section', 'hidden');
+const researchSection = document.createElement('div');
+researchSection.id = 'researchSection';
+researchSection.classList.add('game-section', 'hidden');
 
-    const manufacturingSection = document.createElement('div');
-    manufacturingSection.id = 'manufacturingSection';
-    manufacturingSection.classList.add('game-section', 'hidden');
+const manufacturingSection = document.createElement('div');
+manufacturingSection.id = 'manufacturingSection';
+manufacturingSection.classList.add('game-section', 'hidden');
 
     // Append them to the game area
     document.getElementById('gameArea').appendChild(miningSection);
