@@ -1,4 +1,4 @@
-import { resetGameState, loadGameState, saveGameState } from './saveload.js';
+import { saveGameState, loadGameState, resetGameState } from './saveload.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const optionsLink = document.getElementById('optionsLink');
@@ -31,7 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
         addClickListener(resetButton, () => {
             if (confirm("Are you sure you want to reset your progress?")) {
                 resetGameState();
-                optionsMenu.style.display = 'none';
             }
         });
 

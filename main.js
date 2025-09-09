@@ -1,22 +1,36 @@
+import { resources, updateResourceInfo } from './resources.js';
+import { technologies } from './data/technologies.js';
+import { buildings } from './data/buildings.js';
 import { setupMiningSection } from './sections/mining.js';
-import { setupResearchSection, currentResearchingTech, currentResearchDuration, currentResearchStartTime, setResearchProgress, setResearchInterval, getResearchProgress } from './sections/research.js'
+import { setupResearchSection } from './sections/research.js';
 import { setupManufacturingSection } from './sections/manufacturing.js';
-import { resources, updateResourceInfo, incrementResources } from './resources.js';
-import { loadGameState, saveGameState } from './saveload.js';
-import { addLogEntry } from './log.js'
+import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js';
+import { addLogEntry } from './log.js';
 import './headeroptions.js';
 
+// This function will unlock all sections for testing
+export function unlockAllSections() {
+    activatedSections.researchSection = true;
+    activatedSections.manufacturingSection = true;
+    applyActivatedSections(); // Call this to update the menu buttons
+}
+
+// All core game logic starts here
 document.addEventListener('DOMContentLoaded', () => {
     preloadImages();
 
+    // Check for a reset flag in local storage
     const isResetting = localStorage.getItem('isResetting');
     if (!isResetting) {
-        loadGameState(); // 1. Načíst uložený stav hry
+        // If not resetting, load the game state
+        loadGameState();
     } else {
+        // If resetting, remove the flag and reset to default
         localStorage.removeItem('isResetting');
+        resetToDefaultState();
     }
 
-    // 2. Vytvořit a naplnit všechny sekce
+    // Create and append all sections to the game area
     const miningSection = document.createElement('div');
     miningSection.id = 'miningSection';
     miningSection.classList.add('game-section');
@@ -29,37 +43,44 @@ document.addEventListener('DOMContentLoaded', () => {
     manufacturingSection.id = 'manufacturingSection';
     manufacturingSection.classList.add('game-section');
 
-    // Přidat sekce do DOMu
     document.getElementById('gameArea').appendChild(miningSection);
     document.getElementById('gameArea').appendChild(researchSection);
     document.getElementById('gameArea').appendChild(manufacturingSection);
 
-    // Naplnit sekce obsahem
+    // Call the setup functions to populate the sections with content
     setupMiningSection(miningSection);
     setupResearchSection(researchSection);
     setupManufacturingSection(manufacturingSection);
 
-    // 3. Spustit logiku zobrazení po vytvoření všech sekcí
+    // After everything is set up, load the correct section
     loadCurrentSection();
 
-    // 4. Spustit zbytek inicializace
+    // The rest of the game's initialization
     updateResourceInfo();
     setupMenuButtons();
     applyActivatedSections();
 
+    // The main game loop that runs every 100ms
     setInterval(() => {
-        incrementResources();
+        buildings.forEach(building => {
+            const resourceToProduce = resources.find(r => r.name === building.produces);
+            if (resourceToProduce) {
+                resourceToProduce.amount += (building.rate * building.count) / 10;
+            }
+        });
         updateResourceInfo();
         checkConditions();
     }, 100);
 });
 
+// A single function to handle the visibility change event
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
         saveGameState();
     }
 });
 
+// A simple way to manage the 'activatedSections' state
 export function setActivatedSections(sections) {
     activatedSections = sections;
     localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
@@ -70,29 +91,7 @@ export let activatedSections = JSON.parse(localStorage.getItem('activatedSection
     manufacturingSection: false,
 };
 
-// This new function will unlock all sections for testing
-export function unlockAllSections() {
-    activatedSections.researchSection = true;
-    activatedSections.manufacturingSection = true;
-    applyActivatedSections(); // Call this to update the menu buttons
-}
-
-export function checkConditions() {
-    const stone = resources.find(r => r.name === 'Stone');
-    const xylite = resources.find(r => r.name === 'Xylite');
-
-    if (stone && xylite) {
-        if (stone.amount >= 5 && !xylite.isDiscovered) {
-            xylite.isDiscovered = true;
-            addLogEntry('Xylite discovered! Your miners can now find traces of this rare crystal.', 'blue');
-            updateResourceInfo();
-
-            // This is the key change: tell the mining section to rebuild itself
-            setupMiningSection();
-        }
-    }
-}
-
+// Creates the main menu buttons
 function setupMenuButtons() {
     const sections = ['miningSection', 'researchSection', 'manufacturingSection'];
     const container = document.querySelector('.menu-buttons-container');
@@ -103,19 +102,17 @@ function setupMenuButtons() {
         button.dataset.section = section;
         const displayName = section.replace('Section', '').charAt(0).toUpperCase() + section.replace('Section', '').slice(1);
         button.textContent = displayName;
-        
-        // Přidáme event listener pro přepínání sekcí
+
         button.addEventListener('click', () => showSection(section));
-        
+
         container.appendChild(button);
     });
 }
 
+// Applies the 'hidden' class to menu buttons that are not activated
 export function applyActivatedSections() {
     document.querySelectorAll('.menu-button[data-section]').forEach(button => {
         const section = button.getAttribute('data-section');
-        
-        // Skryjeme tlačítka, pokud nejsou aktivní, kromě Mining, které má být vždy vidět
         if (!activatedSections[section] && section !== 'miningSection') {
             button.classList.add('hidden');
         } else {
@@ -124,69 +121,41 @@ export function applyActivatedSections() {
     });
 }
 
-export function handleSectionClick(event) {
-    const section = event.currentTarget.getAttribute('data-section');
-    showSection(section);
-}
+// Handles conditions for unlocking new features
+export function checkConditions() {
+    const stone = resources.find(r => r.name === 'Stone');
+    const xylite = resources.find(r => r.name === 'Xylite');
 
-export function resetActivatedSections() {
-    activatedSections = {
-        researchSection: false,
-        manufacturingSection: false,
-    };
-    localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
-	applyActivatedSections();
-
-    // Skrytí tlačítek po resetování aktivovaných sekcí
-    document.querySelectorAll('.menu-button[data-section]').forEach(button => {
-        if (button.getAttribute('data-section') !== 'miningSection') {
-            button.classList.add('hidden');
-            button.disabled = true;
+    if (stone && xylite) {
+        if (stone.amount >= 5 && !xylite.isDiscovered) {
+            xylite.isDiscovered = true;
+            addLogEntry('Xylite discovered! Your miners can now find traces of this rare crystal.', 'blue');
+            updateResourceInfo();
+            setupMiningSection();
         }
-    });
+    }
 }
 
-function preloadImages() {
-    const images = [
-        'assets/images/background1.jpg',
-        'assets/images/background2.jpg',
-        'assets/images/background3.jpg',
-        'assets/images/background4.jpg',
-        'assets/images/background5.jpg',
-	    'assets/images/PNG/Button03.png',
-        'assets/images/PNG/Button04.png',
-    ];
-    
-    images.forEach((image) => {
-        const img = new Image();
-        img.src = image;
-    });
-}
-
+// Reloads the page to ensure the correct section is loaded
 window.showSection = function(sectionId) {
     const sections = document.querySelectorAll('.game-section');
     sections.forEach(section => {
-        section.classList.add('hidden'); // Add 'hidden' to all sections
+        section.classList.add('hidden');
     });
 
     const activeSection = document.getElementById(sectionId);
     if (activeSection) {
-        activeSection.classList.remove('hidden'); // Then, remove it from the active one
+        activeSection.classList.remove('hidden');
     }
-
     localStorage.setItem('currentSection', sectionId);
 };
 
-// Function to load the saved section or default to mining
+// Loads the last active section or defaults to mining
 function loadCurrentSection() {
     const savedSection = localStorage.getItem('currentSection');
-    
-    // Check if a section was saved in localStorage
     if (savedSection) {
-        // If a section was saved, show it
         showSection(savedSection);
     } else {
-        // If no section was saved, default to the mining section
         showSection('miningSection');
     }
 }

@@ -7,7 +7,6 @@ import { setupMiningSection } from './sections/mining.js';
 import { setupResearchSection } from './sections/research.js';
 import { addLogEntry } from './log.js';
 
-// A function that dynamically generates the default game state
 export function getDefaultGameState() {
     return {
         resources: resources,
@@ -77,7 +76,6 @@ export function loadGameState() {
     }
 }
 
-// A new, clean function to reset the game to its default state
 export function resetToDefaultState() {
     const defaultState = getDefaultGameState();
 
@@ -103,5 +101,5 @@ export function resetToDefaultState() {
 export function resetGameState() {
     console.log('Resetting game state via page reload');
     localStorage.clear();
-    window.location.href = window.location.href;
+    location.reload();
 }
