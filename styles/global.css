@@ -11,3 +11,8 @@ body {
   flex: 1;
   overflow: hidden;
 }
+
+/* Apply 'Roboto Mono' to every element on the page */
+* {
+    font-family: 'Roboto Mono', monospace;
+}
