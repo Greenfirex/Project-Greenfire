@@ -3,53 +3,6 @@ import { buildings } from '../data/buildings.js';
 import { addLogEntry } from '../log.js';
 import { unlockAllSections } from '../main.js';
 
-export function setupMiningSection(miningSection) {
-    if (!miningSection) {
-        miningSection = document.getElementById('miningSection');
-    }
-
-    if (miningSection) {
-        miningSection.innerHTML = '';
-        miningSection.classList.add('mining-bg');
-
-        const header = document.createElement('h2');
-        header.textContent = 'Manual Gathering';
-        header.className = 'section-header';
-        miningSection.appendChild(header);
-
-        // Category 1: Manual Gathering
-        const manualCategory = document.createElement('div');
-        manualCategory.className = 'mining-category-container';
-
-        const manualButtons = document.createElement('div');
-        manualButtons.className = 'button-group';
-        
-        createMiningButton('Mine Stone', mineStone, manualButtons);
-        
-        manualCategory.appendChild(manualButtons);
-        miningSection.appendChild(manualCategory);
-
-        // Category 2: Mining
-        const miningHeader = document.createElement('h2');
-        miningHeader.textContent = 'Mining';
-        miningHeader.className = 'section-header';
-        miningSection.appendChild(miningHeader);
-
-        const miningCategory = document.createElement('div');
-        miningCategory.className = 'mining-category-container';
-
-        const miningButtons = document.createElement('div');
-        miningButtons.className = 'button-group';
-        
-        createMiningButton('Build Quarry', buildQuarry, miningButtons);
-        createMiningButton('Build Extractor', buildExtractor, miningButtons);
-        
-        miningCategory.appendChild(miningButtons);
-        miningSection.appendChild(miningCategory);
-    }
-}
-
-// Helper function to create a button
 function createMiningButton(text, callback, container) {
     const button = document.createElement('button');
     button.className = 'game-button';
@@ -58,7 +11,6 @@ function createMiningButton(text, callback, container) {
     container.appendChild(button);
 }
 
-// Manual Mining: adds 1 Stone on click
 function mineStone() {
     const stone = resources.find(r => r.name === 'Stone');
     if (stone) {
@@ -66,14 +18,12 @@ function mineStone() {
         updateResourceInfo();
         addLogEntry('Manually mined 1 Stone.', 'blue');
 
-        // Unlock all sections for testing after the first click
         if (stone.amount > 0) {
             unlockAllSections();
         }
     }
 }
 
-// Building Logic: builds a Quarry
 function buildQuarry() {
     const quarry = buildings.find(b => b.name === 'Quarry');
     const stone = resources.find(r => r.name === 'Stone');
@@ -95,7 +45,6 @@ function buildQuarry() {
     }
 }
 
-// Building Logic: builds an Extractor
 function buildExtractor() {
     const extractor = buildings.find(b => b.name === 'Extractor');
     const stone = resources.find(r => r.name === 'Stone');
@@ -117,3 +66,48 @@ function buildExtractor() {
     }
 }
 
+export function setupMiningSection() {
+    const miningSection = document.getElementById('miningSection');
+
+    if (miningSection) {
+        miningSection.innerHTML = '';
+        miningSection.classList.add('mining-bg');
+
+        const header = document.createElement('h2');
+        header.textContent = 'Manual Gathering';
+        header.className = 'section-header';
+        miningSection.appendChild(header);
+
+        const manualCategory = document.createElement('div');
+        manualCategory.className = 'mining-category-container';
+
+        const manualButtons = document.createElement('div');
+        manualButtons.className = 'button-group';
+
+        createMiningButton('Mine Stone', mineStone, manualButtons);
+
+        manualCategory.appendChild(manualButtons);
+        miningSection.appendChild(manualCategory);
+
+        const miningHeader = document.createElement('h2');
+        miningHeader.textContent = 'Mining';
+        miningHeader.className = 'section-header';
+        miningSection.appendChild(miningHeader);
+
+        const miningCategory = document.createElement('div');
+        miningCategory.className = 'mining-category-container';
+
+        const miningButtons = document.createElement('div');
+        miningButtons.className = 'button-group';
+
+        createMiningButton('Build Quarry', buildQuarry, miningButtons);
+
+        const xylite = resources.find(r => r.name === 'Xylite');
+        if (xylite && xylite.isDiscovered) {
+            createMiningButton('Build Extractor', buildExtractor, miningButtons);
+        }
+
+        miningCategory.appendChild(miningButtons);
+        miningSection.appendChild(miningCategory);
+    }
+}

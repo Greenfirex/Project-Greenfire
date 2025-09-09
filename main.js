@@ -78,6 +78,19 @@ export function unlockAllSections() {
 }
 
 export function checkConditions() {
+    const stone = resources.find(r => r.name === 'Stone');
+    const xylite = resources.find(r => r.name === 'Xylite');
+
+    if (stone && xylite) {
+        if (stone.amount >= 5 && !xylite.isDiscovered) {
+            xylite.isDiscovered = true;
+            addLogEntry('Xylite discovered! Your miners can now find traces of this rare crystal.', 'blue');
+            updateResourceInfo();
+
+            // This is the key change: tell the mining section to rebuild itself
+            setupMiningSection();
+        }
+    }
 }
 
 function setupMenuButtons() {

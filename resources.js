@@ -42,7 +42,6 @@ export function incrementResources() {
 }
 
 export let resources = [
-    { name: 'Stone', generationRate: 0, amount: 0 },
-    { name: 'Xylite', generationRate: 0, amount: 0 },
-    // You can add more resources here later
+    { name: 'Stone', generationRate: 0, amount: 0, isDiscovered: true },
+    { name: 'Xylite', generationRate: 0, amount: 0, isDiscovered: false },
 ];
