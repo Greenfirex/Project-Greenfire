@@ -61,21 +61,21 @@
 }
 
 #miningSection {
-    background-image: url('assets/images/background1.jpg');
+    background-image: url('../assets/images/background1.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
 }
 
 #researchSection {
-    background-image: url('assets/images/background2.jpg');
+    background-image: url('../assets/images/background2.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
 }
 
 #manufacturingSection {
-    background-image: url('assets/images/background3.jpg');
+    background-image: url('../assets/images/background3.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
