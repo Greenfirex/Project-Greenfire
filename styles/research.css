@@ -126,3 +126,10 @@
 .tech-button:hover {
     background-color: #16a085;
 }
+
+.category-heading {
+    display: block;
+    width: 100%;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}

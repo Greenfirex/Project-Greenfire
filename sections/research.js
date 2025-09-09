@@ -98,9 +98,6 @@ export function setupResearchSection(researchSection) {
         const researchedContainer = document.createElement('div');
         researchedContainer.className = 'tech-container researched';
 
-        // --- THE NEW LOGIC STARTS HERE ---
-        
-        // Get unique categories and their order
         const categories = ['Mining Tech', 'Bio Tech', 'Social Tech'];
 
         categories.forEach(category => {
@@ -110,7 +107,7 @@ export function setupResearchSection(researchSection) {
             availableContainer.appendChild(categoryHeading);
 
             const categoryTechs = technologies.filter(tech => tech.category === category);
-            
+
             categoryTechs.forEach(tech => {
                 if (!tech.isResearched) {
                     const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
@@ -124,7 +121,6 @@ export function setupResearchSection(researchSection) {
             });
         });
 
-        // Add researched techs without categories to the researched container
         technologies.forEach(tech => {
             if (tech.isResearched) {
                 const techName = document.createElement('p');
@@ -132,7 +128,7 @@ export function setupResearchSection(researchSection) {
                 researchedContainer.appendChild(techName);
             }
         });
-        
+
         researchSection.appendChild(availableContainer);
         researchSection.appendChild(researchedContainer);
     }
