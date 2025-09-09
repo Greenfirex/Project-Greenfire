@@ -1,46 +1,29 @@
 import { resources, updateResourceInfo } from './resources.js';
 import { technologies } from './data/technologies.js';
-import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch, updateProgressBar } from './sections/research.js';
+import { buildings } from './data/buildings.js';
+import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from './sections/research.js';
 import { applyActivatedSections, activatedSections, setActivatedSections } from './main.js';
 import { setupMiningSection } from './sections/mining.js';
 import { setupResearchSection } from './sections/research.js';
 import { addLogEntry } from './log.js';
 
-// The single source of truth for the default game state
-export const defaultGameState = {
-    resources: [
-        { name: 'Stone', generationRate: 0, amount: 0, isDiscovered: true },
-        { name: 'Xylite', generationRate: 0, amount: 0, isDiscovered: false },
-    ],
-    technologies: [
-        { name: 'Quantum Computing', duration: 5, isResearched: false, prerequisites: [], category: 'Social Tech' },
-        { name: 'Nano Fabrication', duration: 15, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Bio Tech' },
-        { name: 'AI Integration', duration: 20, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Social Tech' },
-        { name: 'Testtech', duration: 60, isResearched: false, prerequisites: ['Quantum Computing', 'Nano Fabrication'], category: 'Mining Tech' },
-        { name: 'Automated Drills', duration: 30, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Mining Tech' },
-        { name: 'Advanced Sonar', duration: 90, isResearched: false, prerequisites: ['Automated Drills'], category: 'Mining Tech' },
-        { name: 'Plasma Cutter', duration: 180, isResearched: false, prerequisites: ['Advanced Sonar', 'Nano Fabrication'], category: 'Mining Tech' },
-        { name: 'Xeno-Biology', duration: 45, isResearched: false, prerequisites: ['Nano Fabrication'], category: 'Bio Tech' },
-        { name: 'Synthetic Crops', duration: 150, isResearched: false, prerequisites: ['Xeno-Biology'], category: 'Bio Tech' },
-        { name: 'Genetic Engineering', duration: 250, isResearched: false, prerequisites: ['Synthetic Crops', 'AI Integration'], category: 'Bio Tech' },
-        { name: 'Communication Array', duration: 40, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Social Tech' },
-        { name: 'Universal Translator', duration: 120, isResearched: false, prerequisites: ['Communication Array'], category: 'Social Tech' },
-        { name: 'Galactic Diplomacy', duration: 200, isResearched: false, prerequisites: ['Universal Translator'], category: 'Social Tech' }
-    ],
-    activatedSections: {
-        researchSection: false,
-        manufacturingSection: false,
-    },
-    buildings: [
-        { name: 'Quarry', produces: 'Stone', rate: 0.1, count: 0, cost: [{ resource: 'Stone', amount: 10 }] },
-        { name: 'Extractor', produces: 'Xylite', rate: 0.05, count: 0, cost: [{ resource: 'Stone', amount: 20 }] },
-    ],
-};
+// A function that dynamically generates the default game state
+export function getDefaultGameState() {
+    return {
+        resources: resources,
+        technologies: technologies,
+        activatedSections: {
+            researchSection: false,
+            manufacturingSection: false,
+        },
+        buildings: buildings,
+    };
+}
 
 export function saveGameState() {
     const gameState = {
         resources: resources,
-        technologies: technologies, // Save all technology properties, including category
+        technologies: technologies,
         researchProgress: getResearchProgress(),
         currentResearchingTech: getCurrentResearchingTech(),
         researchInterval: getResearchInterval(),
@@ -65,6 +48,7 @@ export function loadGameState() {
         resources.push(...gameState.resources);
         technologies.length = 0;
         technologies.push(...gameState.technologies);
+        
         setResearchProgress(gameState.researchProgress ?? 0);
         setCurrentResearchingTech(gameState.currentResearchingTech);
         setResearchInterval(null);
@@ -95,23 +79,20 @@ export function loadGameState() {
 
 // A new, clean function to reset the game to its default state
 export function resetToDefaultState() {
-    console.log('Resetting game state to default');
+    const defaultState = getDefaultGameState();
 
-    // Reset all game data to the default state
     resources.length = 0;
-    resources.push(...defaultGameState.resources);
+    resources.push(...defaultState.resources);
     technologies.length = 0;
-    technologies.push(...defaultGameState.technologies);
-    
-    // Clear any ongoing research
+    technologies.push(...defaultState.technologies);
+
     clearInterval(getResearchInterval());
     setResearchInterval(null);
     setResearchProgress(0);
     setCurrentResearchingTech(null);
 
-    // Reset activated sections
-    setActivatedSections(defaultGameState.activatedSections);
-    
+    setActivatedSections(defaultState.activatedSections);
+
     updateResourceInfo();
     setupMiningSection();
     setupResearchSection();
