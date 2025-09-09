@@ -1,5 +1,5 @@
 import { addLogEntry } from '../log.js';
-import { technologies } from './technologies.js';
+import { technologies } from '../data/technologies.js';
 
 export let currentResearchingTech = null;
 export let researchInterval = null;
@@ -61,7 +61,7 @@ export function setupResearchSection(researchSection) {
 
         const progressText = document.createElement('p');
         progressText.className = 'progress-text';
-		progressText.style.display = 'none';
+        progressText.style.display = 'none';
         progressText.innerText = 'Researching...';
         progressInfo.appendChild(progressText);
 
@@ -70,15 +70,11 @@ export function setupResearchSection(researchSection) {
         cancelButton.textContent = 'Cancel Research';
         cancelButton.style.display = 'none';
         cancelButton.addEventListener('click', cancelResearch);
-        
+        progressInfo.appendChild(cancelButton);
 
         progressBarContainer.appendChild(progressBar);
         progressBarContainer.appendChild(progressInfo);
-		progressBarContainer.appendChild(cancelButton);
         researchSection.appendChild(progressBarContainer);
-
-        const researchContent = document.createElement('div');
-        researchContent.className = 'research-content';
 
         const tabContainer = document.createElement('div');
         tabContainer.className = 'tab-container';
@@ -95,38 +91,50 @@ export function setupResearchSection(researchSection) {
 
         tabContainer.appendChild(availableTab);
         tabContainer.appendChild(researchedTab);
-        researchContent.appendChild(tabContainer);
+        researchSection.appendChild(tabContainer);
 
         const availableContainer = document.createElement('div');
         availableContainer.className = 'tech-container available active';
         const researchedContainer = document.createElement('div');
         researchedContainer.className = 'tech-container researched';
 
+        // --- THE NEW LOGIC STARTS HERE ---
+        
+        // Get unique categories and their order
+        const categories = ['Mining Tech', 'Bio Tech', 'Social Tech'];
+
+        categories.forEach(category => {
+            const categoryHeading = document.createElement('h3');
+            categoryHeading.className = 'category-heading';
+            categoryHeading.textContent = category;
+            availableContainer.appendChild(categoryHeading);
+
+            const categoryTechs = technologies.filter(tech => tech.category === category);
+            
+            categoryTechs.forEach(tech => {
+                if (!tech.isResearched) {
+                    const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
+                        const preTech = technologies.find(t => t.name === prereq);
+                        return preTech && preTech.isResearched;
+                    });
+                    if (allPrerequisitesResearched) {
+                        createTechButton(tech.name, () => startResearch(tech, cancelButton), availableContainer);
+                    }
+                }
+            });
+        });
+
+        // Add researched techs without categories to the researched container
         technologies.forEach(tech => {
-            if (!tech.isResearched) {
-                const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
-                if (techButton) {
-                    techButton.style.display = 'none';
-                }
-
-                const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
-                    const preTech = technologies.find(t => t.name === prereq);
-                    return preTech && preTech.isResearched;
-                });
-
-                if (allPrerequisitesResearched) {
-                    createTechButton(tech.name, () => startResearch(tech, cancelButton), availableContainer);
-                }
-            } else {
+            if (tech.isResearched) {
                 const techName = document.createElement('p');
                 techName.textContent = tech.name;
                 researchedContainer.appendChild(techName);
             }
         });
-
-        researchContent.appendChild(availableContainer);
-        researchContent.appendChild(researchedContainer);
-        researchSection.appendChild(researchContent);
+        
+        researchSection.appendChild(availableContainer);
+        researchSection.appendChild(researchedContainer);
     }
 }
 
