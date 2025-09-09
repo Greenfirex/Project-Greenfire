@@ -7,6 +7,7 @@ import { setupMiningSection } from './sections/mining.js';
 import { setupResearchSection } from './sections/research.js';
 import { addLogEntry } from './log.js';
 
+// Dynamically generates the default game state from the data files
 export function getDefaultGameState() {
     return {
         resources: resources,
@@ -27,7 +28,7 @@ export function saveGameState() {
         currentResearchingTech: getCurrentResearchingTech(),
         researchInterval: getResearchInterval(),
         activatedSections: activatedSections,
-        buildings: buildings, // Save buildings as well
+        buildings: buildings,
     };
     console.log('Saving game state:', gameState);
     localStorage.setItem('gameState', JSON.stringify(gameState));
@@ -49,10 +50,15 @@ export function loadGameState() {
         technologies.length = 0;
         technologies.push(...gameState.technologies);
         
-        // Bezpečně načte pole budov, pokud existuje
+        // Safely load buildings, checking if the array exists in the old save data
         if (gameState.buildings) {
             buildings.length = 0;
             buildings.push(...gameState.buildings);
+        } else {
+            // If buildings array does not exist in old save, reset to default
+            const defaultState = getDefaultGameState();
+            buildings.length = 0;
+            buildings.push(...defaultState.buildings);
         }
 
         setResearchProgress(gameState.researchProgress ?? 0);
@@ -91,7 +97,7 @@ export function resetToDefaultState() {
     technologies.length = 0;
     technologies.push(...defaultState.technologies);
     buildings.length = 0;
-    buildings.push(...defaultState.buildings); // Reset buildings
+    buildings.push(...defaultState.buildings);
 
     clearInterval(getResearchInterval());
     setResearchInterval(null);
@@ -109,7 +115,6 @@ export function resetToDefaultState() {
 
 export function resetGameState() {
     console.log('Resetting game state via page reload');
-    addLogEntry('Game state reset.', 'yellow');
     localStorage.clear();
     location.reload();
 }
