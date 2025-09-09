@@ -41,6 +41,9 @@ export function setCurrentResearchStartTime(time) {
   currentResearchStartTime = time;
 }
 
+import { addLogEntry } from '../log.js';
+import { technologies } from '../data/technologies.js';
+
 export function setupResearchSection(researchSection) {
     if (!researchSection) {
         researchSection = document.getElementById('researchSection');
@@ -98,41 +101,40 @@ export function setupResearchSection(researchSection) {
         const researchedContainer = document.createElement('div');
         researchedContainer.className = 'tech-container researched';
 
-        const categories = ['Mining Tech', 'Bio Tech', 'Social Tech'];
+        // Get unique categories to create headings
+        const categories = [...new Set(technologies.map(tech => tech.category))];
 
         categories.forEach(category => {
-    // Create a container for the category heading and its buttons
-    const categoryContainer = document.createElement('div');
-    categoryContainer.className = 'category-container';
+            const categoryContainer = document.createElement('div');
+            categoryContainer.className = 'category-container';
 
-    const categoryHeading = document.createElement('h3');
-    categoryHeading.className = 'category-heading';
-    categoryHeading.textContent = category;
-    categoryContainer.appendChild(categoryHeading);
+            const categoryHeading = document.createElement('h3');
+            categoryHeading.className = 'category-heading';
+            categoryHeading.textContent = category;
+            categoryContainer.appendChild(categoryHeading);
 
-    // Create a div to hold the buttons for this category
-    const buttonGroup = document.createElement('div');
-    buttonGroup.className = 'button-group';
-    categoryContainer.appendChild(buttonGroup);
+            const buttonGroup = document.createElement('div');
+            buttonGroup.className = 'button-group';
+            categoryContainer.appendChild(buttonGroup);
 
-    const categoryTechs = technologies.filter(tech => tech.category === category);
+            const categoryTechs = technologies.filter(tech => tech.category === category);
 
-    categoryTechs.forEach(tech => {
-        if (!tech.isResearched) {
-            const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
-                const preTech = technologies.find(t => t.name === prereq);
-                return preTech && preTech.isResearched;
+            categoryTechs.forEach(tech => {
+                if (!tech.isResearched) {
+                    const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
+                        const preTech = technologies.find(t => t.name === prereq);
+                        return preTech && preTech.isResearched;
+                    });
+                    if (allPrerequisitesResearched) {
+                        createTechButton(tech.name, () => startResearch(tech, cancelButton), buttonGroup);
+                    }
+                }
             });
-            if (allPrerequisitesResearched) {
-                // Append buttons to the correct button group
-                createTechButton(tech.name, () => startResearch(tech, cancelButton), buttonGroup);
-            }
-        }
-    });
 
-    availableContainer.appendChild(categoryContainer);
-});
+            availableContainer.appendChild(categoryContainer);
+        });
 
+        // Loop through all technologies again to find researched ones and put them in their own container
         technologies.forEach(tech => {
             if (tech.isResearched) {
                 const techName = document.createElement('p');
