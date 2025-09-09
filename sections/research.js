@@ -41,9 +41,6 @@ export function setCurrentResearchStartTime(time) {
   currentResearchStartTime = time;
 }
 
-import { addLogEntry } from '../log.js';
-import { technologies } from '../data/technologies.js';
-
 export function setupResearchSection(researchSection) {
     if (!researchSection) {
         researchSection = document.getElementById('researchSection');
