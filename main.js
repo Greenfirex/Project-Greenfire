@@ -136,6 +136,24 @@ export function checkConditions() {
     }
 }
 
+// This function preloads all the images used in the game to avoid flickering
+function preloadImages() {
+    const images = [
+        'assets/images/background1.jpg',
+        'assets/images/background2.jpg',
+        'assets/images/background3.jpg',
+        'assets/images/background4.jpg',
+        'assets/images/background5.jpg',
+        'assets/images/PNG/Button03.png',
+        'assets/images/PNG/Button04.png',
+    ];
+
+    images.forEach((image) => {
+        const img = new Image();
+        img.src = image;
+    });
+}
+
 // Reloads the page to ensure the correct section is loaded
 window.showSection = function(sectionId) {
     const sections = document.querySelectorAll('.game-section');
