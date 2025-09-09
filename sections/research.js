@@ -61,6 +61,7 @@ export function setupResearchSection(researchSection) {
 
         const progressText = document.createElement('p');
         progressText.className = 'progress-text';
+		progressText.style.display = 'none';
         progressText.innerText = 'Researching...';
         progressInfo.appendChild(progressText);
 
