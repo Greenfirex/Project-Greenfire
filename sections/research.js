@@ -70,10 +70,11 @@ export function setupResearchSection(researchSection) {
         cancelButton.textContent = 'Cancel Research';
         cancelButton.style.display = 'none';
         cancelButton.addEventListener('click', cancelResearch);
-        progressInfo.appendChild(cancelButton);
+        
 
         progressBarContainer.appendChild(progressBar);
         progressBarContainer.appendChild(progressInfo);
+		progressBarContainer.appendChild(cancelButton);
         researchSection.appendChild(progressBarContainer);
 
         const researchContent = document.createElement('div');

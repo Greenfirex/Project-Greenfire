@@ -20,10 +20,12 @@
 
 .progress-bar-container {
     position: relative;
-    width: 100%; /* Make it fill the entire width */
+    width: 100%;
     height: 30px;
     background-color: black;
     margin-bottom: 20px;
+    display: flex; /* Make it a flex container */
+    flex-direction: column; /* Stack children vertically */
 }
 
 .progress-bar {
@@ -52,15 +54,20 @@
 }
 
 .cancel-button {
-    background-color: transparent;
-    border: none;
+    background-color: #e74c3c; /* A distinct red button color */
     color: white;
-    font-size: 12px;
+    border: none;
+    padding: 10px 20px;
     cursor: pointer;
+    font-size: 14px;
+    text-align: center;
+    border-radius: 5px;
+    margin-top: 10px; /* Push it down from the progress bar */
+    align-self: flex-end; /* Align it to the right */
 }
 
 .cancel-button:hover {
-    color: red;
+    background-color: #c0392b;
 }
 
 .tab-container {
