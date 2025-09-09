@@ -133,3 +133,17 @@
     margin-top: 20px;
     margin-bottom: 10px;
 }
+
+.category-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-bottom: 20px; /* Spacing between categories */
+}
+
+.button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+}

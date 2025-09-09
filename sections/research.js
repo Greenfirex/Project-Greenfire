@@ -101,25 +101,37 @@ export function setupResearchSection(researchSection) {
         const categories = ['Mining Tech', 'Bio Tech', 'Social Tech'];
 
         categories.forEach(category => {
-            const categoryHeading = document.createElement('h3');
-            categoryHeading.className = 'category-heading';
-            categoryHeading.textContent = category;
-            availableContainer.appendChild(categoryHeading);
+    // Create a container for the category heading and its buttons
+    const categoryContainer = document.createElement('div');
+    categoryContainer.className = 'category-container';
 
-            const categoryTechs = technologies.filter(tech => tech.category === category);
+    const categoryHeading = document.createElement('h3');
+    categoryHeading.className = 'category-heading';
+    categoryHeading.textContent = category;
+    categoryContainer.appendChild(categoryHeading);
 
-            categoryTechs.forEach(tech => {
-                if (!tech.isResearched) {
-                    const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
-                        const preTech = technologies.find(t => t.name === prereq);
-                        return preTech && preTech.isResearched;
-                    });
-                    if (allPrerequisitesResearched) {
-                        createTechButton(tech.name, () => startResearch(tech, cancelButton), availableContainer);
-                    }
-                }
+    // Create a div to hold the buttons for this category
+    const buttonGroup = document.createElement('div');
+    buttonGroup.className = 'button-group';
+    categoryContainer.appendChild(buttonGroup);
+
+    const categoryTechs = technologies.filter(tech => tech.category === category);
+
+    categoryTechs.forEach(tech => {
+        if (!tech.isResearched) {
+            const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
+                const preTech = technologies.find(t => t.name === prereq);
+                return preTech && preTech.isResearched;
             });
-        });
+            if (allPrerequisitesResearched) {
+                // Append buttons to the correct button group
+                createTechButton(tech.name, () => startResearch(tech, cancelButton), buttonGroup);
+            }
+        }
+    });
+
+    availableContainer.appendChild(categoryContainer);
+});
 
         technologies.forEach(tech => {
             if (tech.isResearched) {
