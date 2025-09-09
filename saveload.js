@@ -48,8 +48,12 @@ export function loadGameState() {
         resources.push(...gameState.resources);
         technologies.length = 0;
         technologies.push(...gameState.technologies);
-        buildings.length = 0;
-        buildings.push(...gameState.buildings); // Load buildings
+        
+        // Bezpečně načte pole budov, pokud existuje
+        if (gameState.buildings) {
+            buildings.length = 0;
+            buildings.push(...gameState.buildings);
+        }
 
         setResearchProgress(gameState.researchProgress ?? 0);
         setCurrentResearchingTech(gameState.currentResearchingTech);
