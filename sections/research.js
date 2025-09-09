@@ -283,13 +283,14 @@ function cancelResearch() {
     // 3. Resetujeme vizuální prvky
     const progressBar = document.querySelector('.progress-bar');
     const progressText = document.querySelector('.progress-text');
+	const cancelButton = document.querySelector('.cancel-button');
+	
     if (progressBar && progressText) {
         progressBar.style.transition = 'none';
         progressBar.style.width = '0'; // Reset na 0 %
-        progressText.innerText = 'Research Progress: 0%';
+        progressText.style.display = 'none';
     }
-
-    const cancelButton = document.querySelector('.cancel-button');
+  
     if (cancelButton) {
         cancelButton.style.display = 'none';
     }

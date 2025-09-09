@@ -21,7 +21,7 @@
 .progress-bar-container {
     position: relative;
     width: 100%;
-    height: 30px;
+    height: 60px;
     background-color: black;
     margin-bottom: 20px;
     display: flex; /* Make it a flex container */
