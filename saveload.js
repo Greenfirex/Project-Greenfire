@@ -27,6 +27,7 @@ export function saveGameState() {
         currentResearchingTech: getCurrentResearchingTech(),
         researchInterval: getResearchInterval(),
         activatedSections: activatedSections,
+        buildings: buildings, // Save buildings as well
     };
     console.log('Saving game state:', gameState);
     localStorage.setItem('gameState', JSON.stringify(gameState));
@@ -47,7 +48,9 @@ export function loadGameState() {
         resources.push(...gameState.resources);
         technologies.length = 0;
         technologies.push(...gameState.technologies);
-        
+        buildings.length = 0;
+        buildings.push(...gameState.buildings); // Load buildings
+
         setResearchProgress(gameState.researchProgress ?? 0);
         setCurrentResearchingTech(gameState.currentResearchingTech);
         setResearchInterval(null);
@@ -83,6 +86,8 @@ export function resetToDefaultState() {
     resources.push(...defaultState.resources);
     technologies.length = 0;
     technologies.push(...defaultState.technologies);
+    buildings.length = 0;
+    buildings.push(...defaultState.buildings); // Reset buildings
 
     clearInterval(getResearchInterval());
     setResearchInterval(null);
@@ -100,6 +105,6 @@ export function resetToDefaultState() {
 
 export function resetGameState() {
     console.log('Resetting game state via page reload');
-    localStorage.setItem('isResetting', 'true'); // Nastavíme příznak resetu
-    location.reload(); // Obnovíme stránku
+    localStorage.clear();
+    location.reload();
 }
