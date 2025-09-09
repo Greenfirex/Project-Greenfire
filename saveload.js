@@ -109,6 +109,7 @@ export function resetToDefaultState() {
 
 export function resetGameState() {
     console.log('Resetting game state via page reload');
+    addLogEntry('Game state reset.', 'yellow');
     localStorage.clear();
     location.reload();
 }
