@@ -17,6 +17,26 @@ export function unlockAllSections() {
 document.addEventListener('DOMContentLoaded', () => {
     preloadImages();
 
+    const miningSection = document.createElement('div');
+    miningSection.id = 'miningSection';
+    miningSection.classList.add('game-section');
+
+    const researchSection = document.createElement('div');
+    researchSection.id = 'researchSection';
+    researchSection.classList.add('game-section');
+
+    const manufacturingSection = document.createElement('div');
+    manufacturingSection.id = 'manufacturingSection';
+    manufacturingSection.classList.add('game-section');
+
+    document.getElementById('gameArea').appendChild(miningSection);
+    document.getElementById('gameArea').appendChild(researchSection);
+    document.getElementById('gameArea').appendChild(manufacturingSection);
+
+    setupMiningSection(miningSection);
+    setupResearchSection(researchSection);
+    setupManufacturingSection(manufacturingSection);
+
     const isResetting = localStorage.getItem('isResetting');
     if (!isResetting) {
         loadGameState();
@@ -24,6 +44,23 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.removeItem('isResetting');
         resetToDefaultState();
     }
+    
+    // Finalize the setup
+    updateResourceInfo();
+    setupMenuButtons();
+    applyActivatedSections();
+    loadCurrentSection();
+
+    setInterval(() => {
+        buildings.forEach(building => {
+            const resourceToProduce = resources.find(r => r.name === building.produces);
+            if (resourceToProduce) {
+                resourceToProduce.amount += (building.rate * building.count) / 10;
+            }
+        });
+        updateResourceInfo();
+        checkConditions();
+    }, 100);
 });
 
 document.addEventListener('visibilitychange', () => {
