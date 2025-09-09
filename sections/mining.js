@@ -3,6 +3,52 @@ import { buildings } from '../data/buildings.js';
 import { addLogEntry } from '../log.js';
 import { unlockAllSections } from '../main.js';
 
+export function setupMiningSection(miningSection) {
+    if (!miningSection) {
+        miningSection = document.getElementById('miningSection');
+    }
+
+    if (miningSection) {
+        miningSection.innerHTML = '';
+        miningSection.classList.add('mining-bg');
+
+        const header = document.createElement('h2');
+        header.textContent = 'Manual Gathering';
+        header.className = 'section-header';
+        miningSection.appendChild(header);
+
+        // Category 1: Manual Gathering
+        const manualCategory = document.createElement('div');
+        manualCategory.className = 'mining-category-container';
+
+        const manualButtons = document.createElement('div');
+        manualButtons.className = 'button-group';
+        
+        createMiningButton('Mine Stone', mineStone, manualButtons);
+        
+        manualCategory.appendChild(manualButtons);
+        miningSection.appendChild(manualCategory);
+
+        // Category 2: Mining
+        const miningHeader = document.createElement('h2');
+        miningHeader.textContent = 'Mining';
+        miningHeader.className = 'section-header';
+        miningSection.appendChild(miningHeader);
+
+        const miningCategory = document.createElement('div');
+        miningCategory.className = 'mining-category-container';
+
+        const miningButtons = document.createElement('div');
+        miningButtons.className = 'button-group';
+        
+        createMiningButton('Build Quarry', buildQuarry, miningButtons);
+        createMiningButton('Build Extractor', buildExtractor, miningButtons);
+        
+        miningCategory.appendChild(miningButtons);
+        miningSection.appendChild(miningCategory);
+    }
+}
+
 // Helper function to create a button
 function createMiningButton(text, callback, container) {
     const button = document.createElement('button');
@@ -71,24 +117,3 @@ function buildExtractor() {
     }
 }
 
-// The main function that sets up the mining section
-export function setupMiningSection(miningSection) {
-    if (!miningSection) {
-        miningSection = document.getElementById('miningSection');
-    }
-
-    if (miningSection) {
-        miningSection.innerHTML = '';
-        miningSection.classList.add('mining-bg');
-
-        const header = document.createElement('h2');
-        header.textContent = 'Manual Gathering';
-        header.className = 'section-header';
-        miningSection.appendChild(header);
-
-        // Connect the specific functions to the buttons
-        createMiningButton('Mine Stone', mineStone, miningSection);
-        createMiningButton('Build Quarry', buildQuarry, miningSection);
-        createMiningButton('Build Extractor', buildExtractor, miningSection);
-    }
-}
