@@ -70,6 +70,16 @@ export let activatedSections = JSON.parse(localStorage.getItem('activatedSection
     manufacturingSection: false,
 };
 
+// This new function will unlock all sections for testing
+export function unlockAllSections() {
+    activatedSections.researchSection = true;
+    activatedSections.manufacturingSection = true;
+    applyActivatedSections(); // Call this to update the menu buttons
+}
+
+export function checkConditions() {
+}
+
 function setupMenuButtons() {
     const sections = ['miningSection', 'researchSection', 'manufacturingSection'];
     const container = document.querySelector('.menu-buttons-container');
@@ -106,29 +116,6 @@ export function handleSectionClick(event) {
     showSection(section);
 }
 
-// Function to check conditions and show buttons
-export function checkConditions() {
-    const buttons = [
-	    { button: document.querySelector('.menu-button[data-section="miningSection"]'), threshold: 0, section: 'miningSection', logText: 'Mining section available' }, // Mining with no prerequisites
-        { button: document.querySelector('.menu-button[data-section="researchSection"]'), threshold: 10, section: 'researchSection', logText: 'New menu section activated: Research' },
-        { button: document.querySelector('.menu-button[data-section="manufacturingSection"]'), threshold: 20, section: 'manufacturingSection', logText: 'New menu section activated: Manufacturing' },
-    ];
-
-    const requiredResource = resources.find(resource => resource.name === 'Hydrogen');
-
-    if (requiredResource) {
-        buttons.forEach(({ button, threshold, section, logText }) => {
-            if (requiredResource.amount >= threshold && !activatedSections[section]) {
-                button.classList.remove('hidden');
-				button.disabled = false;
-                button.addEventListener('click', handleSectionClick);
-                addLogEntry(logText, 'blue');
-                activatedSections[section] = true;
-            }
-        });
-    }
-}
-
 export function resetActivatedSections() {
     activatedSections = {
         researchSection: false,
@@ -145,7 +132,6 @@ export function resetActivatedSections() {
         }
     });
 }
-
 
 function preloadImages() {
     const images = [

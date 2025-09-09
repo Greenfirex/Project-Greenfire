@@ -1,4 +1,7 @@
-import { resources } from '../resources.js';
+import { resources, updateResourceInfo } from '../resources.js';
+import { buildings } from '../data/buildings.js';
+import { addLogEntry } from '../log.js';
+import { unlockAllSections } from '../main.js';
 
 export function setupMiningSection(miningSection) {
     if (!miningSection) {
@@ -30,28 +33,17 @@ function createMiningButton(text, callback, container) {
     container.appendChild(button);
 }
 
-function mineResource() {
-    console.log('Mining resource...');
-    // Logic for mining resource
-}
+// Manual Mining
+function mineStone() {
+    const stone = resources.find(r => r.name === 'Stone');
+    if (stone) {
+        stone.amount += 1;
+        updateResourceInfo();
+        addLogEntry('Manually mined 1 Stone.', 'blue');
 
-function mineResource2() {
-    console.log('Mining resource 2...');
-    // Logic for mining resource 2
+        // Unlock all sections for testing after the first click
+        if (stone.amount > 0) {
+            unlockAllSections();
+        }
+    }
 }
-
-function mineResource3() {
-    console.log('Mining resource 3...');
-    // Logic for mining resource 3
-}
-
-function mineResource4() {
-    console.log('Mining resource 4...');
-    // Logic for mining resource 4
-}
-
-function mineResource5() {
-    console.log('Mining resource 5...');
-    // Logic for mining resource 5
-}
-
