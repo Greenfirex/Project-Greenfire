@@ -7,7 +7,6 @@ import { setupMiningSection } from './sections/mining.js';
 import { setupResearchSection } from './sections/research.js';
 import { addLogEntry } from './log.js';
 
-// Dynamically generates the default game state from the data files
 export function getDefaultGameState() {
     return {
         resources: resources,
