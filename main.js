@@ -144,6 +144,27 @@ function preloadAssets() {
     return Promise.all(promises);
 }
 
+function setupTooltip(button, tooltipText) {
+    const tooltip = document.createElement('div');
+    tooltip.className = 'tooltip';
+    tooltip.textContent = tooltipText;
+    document.body.appendChild(tooltip);
+
+    button.addEventListener('mouseenter', () => {
+        tooltip.style.display = 'block';
+    });
+
+    button.addEventListener('mouseleave', () => {
+        tooltip.style.display = 'none';
+    });
+
+    button.addEventListener('mousemove', (e) => {
+        // Position the tooltip based on the cursor's location
+        tooltip.style.left = `${e.clientX + 15}px`;
+        tooltip.style.top = `${e.clientY - 30}px`;
+    });
+}
+
 window.showSection = function(sectionId) {
     const sections = document.querySelectorAll('.game-section');
     sections.forEach(section => {

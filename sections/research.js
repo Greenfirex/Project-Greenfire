@@ -164,12 +164,15 @@ function showTab(tabName) {
   }
 }
 
-function createTechButton(name, onClick, container) {
-  const button = document.createElement('button');
-  button.className = 'tech-button';
-  button.dataset.tech = name;
+function createTechButton(name, onClick, container, tooltipText) {
+    const button = document.createElement('button');
+    button.className = 'tech-button';
+    button.dataset.tech = name;
     button.innerText = name;
     button.addEventListener('click', onClick);
+
+    setupTooltip(button, tooltipText); // Call the new tooltip function
+
     container.appendChild(button);
 }
 

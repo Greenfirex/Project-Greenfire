@@ -9,12 +9,8 @@ function createMiningButton(text, callback, container, tooltipText) {
     button.textContent = text;
     button.onclick = callback;
 
-    // Create the tooltip element
-    const tooltip = document.createElement('span');
-    tooltip.className = 'tooltip';
-    tooltip.textContent = tooltipText;
+    setupTooltip(button, tooltipText); // Call the new tooltip function
 
-    button.appendChild(tooltip);
     container.appendChild(button);
 }
 
