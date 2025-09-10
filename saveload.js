@@ -44,10 +44,21 @@ export function loadGameState() {
         const gameState = JSON.parse(savedGameState);
         console.log('Loading game state:', gameState);
 
-        resources.length = 0;
-        resources.push(...gameState.resources);
-        technologies.length = 0;
-        technologies.push(...gameState.technologies);
+        if (gameState.resources) {
+            resources.length = 0;
+            resources.push(...gameState.resources);
+        } else {
+            resources.length = 0;
+            resources.push(...getInitialResources());
+        }
+
+        if (gameState.technologies) {
+            technologies.length = 0;
+            technologies.push(...gameState.technologies);
+        } else {
+            technologies.length = 0;
+            technologies.push(...getDefaultGameState().technologies);
+        }
         
         if (gameState.buildings) {
             buildings.length = 0;
