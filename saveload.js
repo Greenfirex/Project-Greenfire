@@ -1,4 +1,4 @@
-import { getInitialResources, updateResourceInfo } from './resources.js';
+import { resources, getInitialResources, updateResourceInfo } from './resources.js';
 import { technologies } from './data/technologies.js';
 import { buildings } from './data/buildings.js';
 import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from './sections/research.js';
@@ -44,28 +44,18 @@ export function loadGameState() {
         const gameState = JSON.parse(savedGameState);
         console.log('Loading game state:', gameState);
 
-        if (gameState.resources) {
-            resources.length = 0;
-            resources.push(...gameState.resources);
-        } else {
-            resources.length = 0;
-            resources.push(...getInitialResources());
-        }
-
-        if (gameState.technologies) {
-            technologies.length = 0;
-            technologies.push(...gameState.technologies);
-        } else {
-            technologies.length = 0;
-            technologies.push(...getDefaultGameState().technologies);
-        }
+        resources.length = 0;
+        resources.push(...gameState.resources);
+        technologies.length = 0;
+        technologies.push(...gameState.technologies);
         
         if (gameState.buildings) {
             buildings.length = 0;
             buildings.push(...gameState.buildings);
         } else {
+            const defaultState = getDefaultGameState();
             buildings.length = 0;
-            buildings.push(...getDefaultGameState().buildings);
+            buildings.push(...defaultState.buildings);
         }
 
         setResearchProgress(gameState.researchProgress ?? 0);
