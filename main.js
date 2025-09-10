@@ -22,6 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+document.addEventListener('beforeunload', () => {
+    saveGameState();
+});
+
 function startGame() {
     const isResetting = localStorage.getItem('isResetting');
     if (!isResetting) {
