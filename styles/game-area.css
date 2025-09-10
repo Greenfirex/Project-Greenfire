@@ -133,7 +133,7 @@
 
 .tooltip {
     position: fixed;
-    visibility: hidden; /* Use visibility instead of display */
+    visibility: hidden;
     background-color: rgba(26, 188, 156, 0.9);
     border: 1px solid #1abc9c;
     color: white;
@@ -143,7 +143,6 @@
     z-index: 1000;
     pointer-events: none;
     box-shadow: 0 0 10px #1abc9c;
-    transition: visibility 0.2s ease-in-out; /* Add a smooth transition */
 }
 
 .game-button:hover .tooltip {
