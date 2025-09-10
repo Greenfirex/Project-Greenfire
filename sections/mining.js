@@ -3,11 +3,18 @@ import { buildings } from '../data/buildings.js';
 import { addLogEntry } from '../log.js';
 import { unlockAllSections } from '../main.js';
 
-function createMiningButton(text, callback, container) {
+function createMiningButton(text, callback, container, tooltipText) {
     const button = document.createElement('button');
     button.className = 'game-button';
     button.textContent = text;
     button.onclick = callback;
+
+    // Create the tooltip element
+    const tooltip = document.createElement('span');
+    tooltip.className = 'tooltip';
+    tooltip.textContent = tooltipText;
+
+    button.appendChild(tooltip);
     container.appendChild(button);
 }
 
@@ -84,7 +91,7 @@ export function setupMiningSection() {
         const manualButtons = document.createElement('div');
         manualButtons.className = 'button-group';
 
-        createMiningButton('Mine Stone', mineStone, manualButtons);
+        createMiningButton('Mine Stone', mineStone, manualButtons, 'Gain 1 Stone');
 
         manualCategory.appendChild(manualButtons);
         miningSection.appendChild(manualCategory);
@@ -100,11 +107,12 @@ export function setupMiningSection() {
         const miningButtons = document.createElement('div');
         miningButtons.className = 'button-group';
 
-        createMiningButton('Build Quarry', buildQuarry, miningButtons);
+        createMiningButton('Build Quarry', buildQuarry, miningButtons, 'Cost: 10 Stone');
 
         const xylite = resources.find(r => r.name === 'Xylite');
         if (xylite && xylite.isDiscovered) {
-            createMiningButton('Build Extractor', buildExtractor, miningButtons);
+            createMiningButton('Build Extractor', buildExtractor, miningButtons, 'Cost: 20 Stone');
+
         }
 
         miningCategory.appendChild(miningButtons);

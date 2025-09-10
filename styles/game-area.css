@@ -125,3 +125,26 @@
 .mining-button:hover, .game-button:hover {
   border-color: #fff;
 }
+
+/* Styling for the tooltip */
+.game-button {
+    position: relative; /* This is key for positioning the tooltip */
+}
+
+.tooltip {
+    visibility: hidden;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #555;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    white-space: nowrap;
+    z-index: 10;
+}
+
+.game-button:hover .tooltip {
+    visibility: visible;
+}

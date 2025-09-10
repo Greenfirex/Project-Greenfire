@@ -39,8 +39,8 @@ export function updateResourceInfo() {
 
 export function getInitialResources() {
     return [
-        { name: 'Stone', generationRate: 0, amount: 1, isDiscovered: true },
-        { name: 'Xylite', generationRate: 0, amount: 0, isDiscovered: false },
+        { name: 'Stone', generationRate: 0, amount: 0, isDiscovered: true, description: 'Gain 1 Stone' },
+        { name: 'Xylite', generationRate: 0, amount: 0, isDiscovered: false, description: 'Mine traces of Xylite' },
     ];
 }
 
