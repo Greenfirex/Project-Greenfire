@@ -43,7 +43,26 @@
 }
 
 .menu-button.hidden {
-    display: none;
+    opacity: 0;
+    visibility: hidden; /* This is key to allow for transitions */
+    transform: scale(0.9); /* Start slightly smaller for a pop-in effect */
+    transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out, visibility 0.5s;
+}
+
+/* New CSS rule for the animation */
+.menu-button:not(.hidden) {
+    animation: unlocked-in 0.5s ease-in-out forwards;
+}
+
+@keyframes unlocked-in {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .tooltip {
