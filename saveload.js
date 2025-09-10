@@ -1,4 +1,4 @@
-import { resources, updateResourceInfo, getInitialResources } from './resources.js';
+import { resources, getInitialResources, updateResourceInfo } from './resources.js';
 import { technologies } from './data/technologies.js';
 import { buildings } from './data/buildings.js';
 import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from './sections/research.js';
@@ -35,6 +35,7 @@ export function saveGameState() {
 }
 
 export function loadGameState() {
+    console.log('2. loadGameState() called. Resources before load:', resources);
     const savedGameState = localStorage.getItem('gameState');
     const logSection = document.getElementById('logSection');
     const logHeaderText = 'Log entries:';
@@ -42,10 +43,12 @@ export function loadGameState() {
 
     if (savedGameState) {
         const gameState = JSON.parse(savedGameState);
-        console.log('Loading game state:', gameState);
-
+        console.log('3. Loading from saved state:', gameState);
+        
+        // Zde si ulož data do pole resources
         resources.length = 0;
         resources.push(...gameState.resources);
+        
         technologies.length = 0;
         technologies.push(...gameState.technologies);
         
@@ -57,7 +60,8 @@ export function loadGameState() {
             buildings.length = 0;
             buildings.push(...defaultState.buildings);
         }
-
+        console.log('4. Resources after loading from save:', resources);
+        
         setResearchProgress(gameState.researchProgress ?? 0);
         setCurrentResearchingTech(gameState.currentResearchingTech);
         setResearchInterval(null);
@@ -80,13 +84,16 @@ export function loadGameState() {
         }
         addLogEntry('Game state loaded.', 'green');
     } else {
-        console.log('No saved game state found');
+        console.log('3. No saved game state found. Resetting to default.');
         addLogEntry('No saved game state found.', 'red');
         resetToDefaultState();
     }
 }
 
 export function resetToDefaultState() {
+    console.log('5. resetToDefaultState() called. Resources before reset:', resources);
+    const defaultState = getDefaultGameState();
+
     resources.length = 0;
     resources.push(...getInitialResources());
     technologies.length = 0;
@@ -106,6 +113,7 @@ export function resetToDefaultState() {
     setupResearchSection();
     applyActivatedSections();
     addLogEntry('Game state reset.', 'yellow');
+    console.log('6. Resources after reset:', resources);
 }
 
 export function resetGameState() {

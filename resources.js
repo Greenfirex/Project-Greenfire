@@ -45,3 +45,5 @@ export function getInitialResources() {
 }
 
 export let resources = getInitialResources();
+
+console.log('1. Resources.js loaded. Initial resources:', resources);
