@@ -44,18 +44,28 @@ export function loadGameState() {
         const gameState = JSON.parse(savedGameState);
         console.log('Loading game state:', gameState);
 
-        resources.length = 0;
-        resources.push(...gameState.resources);
-        technologies.length = 0;
-        technologies.push(...gameState.technologies);
+        if (gameState.resources) {
+            resources.length = 0;
+            resources.push(...gameState.resources);
+        } else {
+            resources.length = 0;
+            resources.push(...getInitialResources());
+        }
+
+        if (gameState.technologies) {
+            technologies.length = 0;
+            technologies.push(...gameState.technologies);
+        } else {
+            technologies.length = 0;
+            technologies.push(...getDefaultGameState().technologies);
+        }
         
         if (gameState.buildings) {
             buildings.length = 0;
             buildings.push(...gameState.buildings);
         } else {
-            const defaultState = getDefaultGameState();
             buildings.length = 0;
-            buildings.push(...defaultState.buildings);
+            buildings.push(...getDefaultGameState().buildings);
         }
 
         setResearchProgress(gameState.researchProgress ?? 0);
@@ -87,21 +97,19 @@ export function loadGameState() {
 }
 
 export function resetToDefaultState() {
-    const defaultState = getDefaultGameState();
-
     resources.length = 0;
-    resources.push(...defaultState.resources);
+    resources.push(...getInitialResources());
     technologies.length = 0;
-    technologies.push(...defaultState.technologies);
+    technologies.push(...getDefaultGameState().technologies);
     buildings.length = 0;
-    buildings.push(...defaultState.buildings);
+    buildings.push(...getDefaultGameState().buildings);
 
     clearInterval(getResearchInterval());
     setResearchInterval(null);
     setResearchProgress(0);
     setCurrentResearchingTech(null);
 
-    setActivatedSections(defaultState.activatedSections);
+    setActivatedSections(getDefaultGameState().activatedSections);
 
     updateResourceInfo();
     setupMiningSection();
