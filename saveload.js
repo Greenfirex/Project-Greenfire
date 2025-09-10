@@ -1,4 +1,4 @@
-import { resources, updateResourceInfo, getInitialResources } from './resources.js';
+import { resources, getInitialResources, updateResourceInfo } from './resources.js';
 import { technologies } from './data/technologies.js';
 import { buildings } from './data/buildings.js';
 import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from './sections/research.js';
@@ -87,21 +87,19 @@ export function loadGameState() {
 }
 
 export function resetToDefaultState() {
-    const defaultState = getDefaultGameState();
-
     resources.length = 0;
-    resources.push(...defaultState.resources);
+    resources.push(...getInitialResources());
     technologies.length = 0;
-    technologies.push(...defaultState.technologies);
+    technologies.push(...getDefaultGameState().technologies);
     buildings.length = 0;
-    buildings.push(...defaultState.buildings);
+    buildings.push(...getDefaultGameState().buildings);
 
     clearInterval(getResearchInterval());
     setResearchInterval(null);
     setResearchProgress(0);
     setCurrentResearchingTech(null);
 
-    setActivatedSections(defaultState.activatedSections);
+    setActivatedSections(getDefaultGameState().activatedSections);
 
     updateResourceInfo();
     setupMiningSection();
