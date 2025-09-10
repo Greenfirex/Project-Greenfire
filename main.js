@@ -65,12 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
 	console.log('Final resources state:', resources);
 });
 
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-        saveGameState();
-    }
-});
-
 export function setActivatedSections(sections) {
     activatedSections = sections;
     localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
