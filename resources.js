@@ -39,7 +39,7 @@ export function updateResourceInfo() {
 
 export function getInitialResources() {
     return [
-        { name: 'Stone', generationRate: 1, amount: 10, isDiscovered: true },
+        { name: 'Stone', generationRate: 0, amount: 1, isDiscovered: true },
         { name: 'Xylite', generationRate: 0, amount: 0, isDiscovered: false },
     ];
 }
