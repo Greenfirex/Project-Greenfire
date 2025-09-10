@@ -1,4 +1,4 @@
-import { resources, updateResourceInfo } from './resources.js';
+import { getInitialResources, updateResourceInfo } from './resources.js';
 import { technologies } from './data/technologies.js';
 import { buildings } from './data/buildings.js';
 import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from './sections/research.js';
@@ -9,7 +9,7 @@ import { addLogEntry } from './log.js';
 
 export function getDefaultGameState() {
     return {
-        resources: resources,
+        resources: getInitialResources(),
         technologies: technologies,
         activatedSections: {
             researchSection: false,
@@ -49,12 +49,10 @@ export function loadGameState() {
         technologies.length = 0;
         technologies.push(...gameState.technologies);
         
-        // Safely load buildings, checking if the array exists in the old save data
         if (gameState.buildings) {
             buildings.length = 0;
             buildings.push(...gameState.buildings);
         } else {
-            // If buildings array does not exist in old save, reset to default
             const defaultState = getDefaultGameState();
             buildings.length = 0;
             buildings.push(...defaultState.buildings);

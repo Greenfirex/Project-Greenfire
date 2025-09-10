@@ -1,13 +1,12 @@
 export function updateResourceInfo() {
     const infoPanel = document.getElementById('infoPanel');
-    infoPanel.innerHTML = ''; // Clear the info panel
+    infoPanel.innerHTML = '';
 
     resources.forEach(resource => {
-        // Only display resources that have been discovered
         if (resource.isDiscovered) {
             const resourceDiv = document.createElement('div');
             resourceDiv.className = 'info-section';
-
+            
             const column1 = document.createElement('div');
             const column2 = document.createElement('div');
             const column3 = document.createElement('div');
@@ -38,14 +37,11 @@ export function updateResourceInfo() {
     });
 }
 
-export function incrementResources() {
-    resources.forEach(resource => {
-        resource.amount += resource.generationRate;
-        resource.amount = parseFloat(resource.amount.toFixed(2));
-    });
+export function getInitialResources() {
+    return [
+        { name: 'Stone', generationRate: 0, amount: 0, isDiscovered: true },
+        { name: 'Xylite', generationRate: 0, amount: 0, isDiscovered: false },
+    ];
 }
 
-export let resources = [
-    { name: 'Stone', generationRate: 0, amount: 0, isDiscovered: true },
-    { name: 'Xylite', generationRate: 0, amount: 0, isDiscovered: false },
-];
+export let resources = getInitialResources();
