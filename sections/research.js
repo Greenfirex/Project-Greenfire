@@ -1,5 +1,6 @@
 import { addLogEntry } from '../log.js';
 import { technologies } from '../data/technologies.js';
+import { setupTooltip } from '../main.js';
 
 export let currentResearchingTech = null;
 export let researchInterval = null;

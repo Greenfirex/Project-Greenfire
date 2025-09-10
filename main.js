@@ -144,7 +144,7 @@ function preloadAssets() {
     return Promise.all(promises);
 }
 
-function setupTooltip(button, tooltipText) {
+export function setupTooltip(button, tooltipText) {
     const tooltip = document.createElement('div');
     tooltip.className = 'tooltip';
     tooltip.textContent = tooltipText;

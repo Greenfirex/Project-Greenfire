@@ -1,7 +1,7 @@
 import { resources, updateResourceInfo } from '../resources.js';
 import { buildings } from '../data/buildings.js';
 import { addLogEntry } from '../log.js';
-import { unlockAllSections } from '../main.js';
+import { unlockAllSections, setupTooltip } from '../main.js';
 
 function createMiningButton(text, callback, container, tooltipText) {
     const button = document.createElement('button');
