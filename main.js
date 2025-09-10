@@ -61,6 +61,8 @@ document.addEventListener('DOMContentLoaded', () => {
         updateResourceInfo();
         checkConditions();
     }, 100);
+	
+	console.log('Final resources state:', resources);
 });
 
 document.addEventListener('visibilitychange', () => {
