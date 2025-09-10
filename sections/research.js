@@ -99,8 +99,7 @@ export function setupResearchSection(researchSection) {
         const researchedContainer = document.createElement('div');
         researchedContainer.className = 'tech-container researched';
 
-        // Get unique categories to create headings
-        const categories = [...new Set(technologies.map(tech => tech.category))];
+        const categories = ['Mining Tech', 'Bio Tech', 'Social Tech'];
 
         categories.forEach(category => {
             const categoryContainer = document.createElement('div');
@@ -132,7 +131,6 @@ export function setupResearchSection(researchSection) {
             availableContainer.appendChild(categoryContainer);
         });
 
-        // Loop through all technologies again to find researched ones and put them in their own container
         technologies.forEach(tech => {
             if (tech.isResearched) {
                 const techName = document.createElement('p');
