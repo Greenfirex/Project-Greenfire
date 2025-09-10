@@ -15,7 +15,21 @@ export function unlockAllSections() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    preloadImages();
+    preloadAssets().then(() => {
+        // Až se načtou všechny prvky, schováme preloader a spustíme hru
+        document.getElementById('preloader').classList.add('hidden');
+        startGame();
+    });
+});
+
+function startGame() {
+    const isResetting = localStorage.getItem('isResetting');
+    if (!isResetting) {
+        loadGameState();
+    } else {
+        localStorage.removeItem('isResetting');
+        resetToDefaultState();
+    }
 
     const miningSection = document.createElement('div');
     miningSection.id = 'miningSection';
@@ -37,19 +51,11 @@ document.addEventListener('DOMContentLoaded', () => {
     setupResearchSection(researchSection);
     setupManufacturingSection(manufacturingSection);
 
-    const isResetting = localStorage.getItem('isResetting');
-    if (!isResetting) {
-        loadGameState();
-    } else {
-        localStorage.removeItem('isResetting');
-        resetToDefaultState();
-    }
-    
-    // Finalize the setup
+    loadCurrentSection();
+
     updateResourceInfo();
     setupMenuButtons();
     applyActivatedSections();
-    loadCurrentSection();
 
     setInterval(() => {
         buildings.forEach(building => {
@@ -61,9 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateResourceInfo();
         checkConditions();
     }, 100);
-	
-	console.log('Final resources state:', resources);
-});
+}
 
 export function setActivatedSections(sections) {
     activatedSections = sections;
@@ -117,7 +121,7 @@ export function checkConditions() {
     }
 }
 
-function preloadImages() {
+function preloadAssets() {
     const images = [
         'assets/images/background1.jpg',
         'assets/images/background2.jpg',
@@ -128,10 +132,16 @@ function preloadImages() {
         'assets/images/PNG/Button04.png',
     ];
 
-    images.forEach((image) => {
-        const img = new Image();
-        img.src = image;
+    const promises = images.map(src => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+            img.src = src;
+        });
     });
+
+    return Promise.all(promises);
 }
 
 window.showSection = function(sectionId) {
