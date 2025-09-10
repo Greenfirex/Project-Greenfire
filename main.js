@@ -151,15 +151,14 @@ export function setupTooltip(button, tooltipText) {
     document.body.appendChild(tooltip);
 
     button.addEventListener('mouseenter', () => {
-        tooltip.style.display = 'block';
+        tooltip.style.visibility = 'visible';
     });
 
     button.addEventListener('mouseleave', () => {
-        tooltip.style.display = 'none';
+        tooltip.style.visibility = 'hidden';
     });
 
     button.addEventListener('mousemove', (e) => {
-        // Position the tooltip based on the cursor's location
         tooltip.style.left = `${e.clientX + 15}px`;
         tooltip.style.top = `${e.clientY - 30}px`;
     });

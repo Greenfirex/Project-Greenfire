@@ -132,17 +132,18 @@
 }
 
 .tooltip {
-    position: fixed; /* This is key for making it follow the cursor */
-    display: none; /* Hide by default */
-    background-color: rgba(26, 188, 156, 0.9); /* A semi-transparent cyan */
+    position: fixed;
+    visibility: hidden; /* Use visibility instead of display */
+    background-color: rgba(26, 188, 156, 0.9);
     border: 1px solid #1abc9c;
     color: white;
     padding: 8px 12px;
     border-radius: 5px;
     white-space: nowrap;
     z-index: 1000;
-    pointer-events: none; /* Prevents it from interfering with clicks */
-    box-shadow: 0 0 10px #1abc9c; /* Subtle glow effect */
+    pointer-events: none;
+    box-shadow: 0 0 10px #1abc9c;
+    transition: visibility 0.2s ease-in-out; /* Add a smooth transition */
 }
 
 .game-button:hover .tooltip {
