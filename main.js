@@ -116,11 +116,23 @@ export function checkConditions() {
     const xylite = resources.find(r => r.name === 'Xylite');
 
     if (stone && xylite) {
+        // Logika pro odemykání Xylite
         if (stone.amount >= 5 && !xylite.isDiscovered) {
             xylite.isDiscovered = true;
             addLogEntry('Xylite discovered! Your miners can now find traces of this rare crystal.', 'blue');
             updateResourceInfo();
             setupMiningSection();
+        }
+    }
+    
+    // Nová logika pro odemykání Manufacturing sekce
+    const manufacturingButton = document.querySelector('.menu-button[data-section="manufacturingSection"]');
+    if (stone && manufacturingButton) {
+        if (stone.amount >= 20 && !activatedSections['manufacturingSection']) {
+            manufacturingButton.classList.remove('hidden');
+            addLogEntry('New menu section activated: Manufacturing', 'blue');
+            activatedSections['manufacturingSection'] = true;
+            applyActivatedSections();
         }
     }
 }
