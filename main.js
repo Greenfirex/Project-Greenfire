@@ -148,20 +148,35 @@ function preloadAssets() {
     return Promise.all(promises);
 }
 
-export function setupTooltip(button, tooltipText) {
-    const tooltip = document.createElement('div');
-    tooltip.className = 'tooltip';
-    tooltip.textContent = tooltipText;
-    document.body.appendChild(tooltip);
+// A single, global tooltip element
+let globalTooltip = null;
 
-    button.addEventListener('mouseenter', () => {
+function getOrCreateTooltip() {
+    if (!globalTooltip) {
+        globalTooltip = document.createElement('div');
+        globalTooltip.className = 'tooltip';
+        document.body.appendChild(globalTooltip);
+    }
+    return globalTooltip;
+}
+
+export function setupTooltip(button, tooltipText) {
+    const tooltip = getOrCreateTooltip();
+
+    // Show the tooltip on mouseenter
+    button.addEventListener('mouseenter', (e) => {
+        tooltip.textContent = tooltipText;
         tooltip.style.visibility = 'visible';
+        tooltip.style.left = `${e.clientX + 15}px`;
+        tooltip.style.top = `${e.clientY - 30}px`;
     });
 
+    // Hide the tooltip on mouseleave
     button.addEventListener('mouseleave', () => {
         tooltip.style.visibility = 'hidden';
     });
 
+    // Update the tooltip position on mousemove
     button.addEventListener('mousemove', (e) => {
         tooltip.style.left = `${e.clientX + 15}px`;
         tooltip.style.top = `${e.clientY - 30}px`;
