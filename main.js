@@ -8,12 +8,6 @@ import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js
 import { addLogEntry } from './log.js';
 import './headeroptions.js';
 
-export function unlockAllSections() {
-    activatedSections.researchSection = true;
-    activatedSections.manufacturingSection = true;
-    applyActivatedSections();
-}
-
 document.addEventListener('DOMContentLoaded', () => {
     preloadAssets().then(() => {
         // Až se načtou všechny prvky, schováme preloader a spustíme hru

@@ -20,10 +20,6 @@ function mineStone() {
         stone.amount += 1;
         updateResourceInfo();
         addLogEntry('Manually mined 1 Stone.', 'blue');
-
-        if (stone.amount > 0) {
-            unlockAllSections();
-        }
     }
 }
 
