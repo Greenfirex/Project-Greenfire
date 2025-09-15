@@ -270,7 +270,7 @@ function handleResearchCompletion(tech, cancelButton) {
                     return preTech && preTech.isResearched;
                 });
                 if (allPrerequisitesResearched) {
-                    createTechButton(t.name, () => startResearch(t, cancelButton), buttonGroup);
+                    createTechButton(t.name, () => startResearch(t, cancelButton), availableContainer);
                     newAvailableTechs.push(t.name);
                 }
             }
