@@ -10,9 +10,7 @@ function createMiningButton(buttonText, callback, container, tooltipData) {
     button.textContent = buttonText;
     button.onclick = callback;
 
-    if (typeof tooltipData === 'string') {
-        setupTooltip(button, tooltipData);
-    } else if (tooltipData && tooltipData.cost) {
+    if (tooltipData) {
         setupTooltip(button, tooltipData);
     }
 

@@ -181,36 +181,39 @@ export function setupTooltip(button, tooltipData) {
     const tooltip = getOrCreateTooltip();
 
     button.addEventListener('mouseenter', (e) => {
-        tooltip.innerHTML = ''; // Vyčistíme starý obsah
-
-        // Vytvoříme obsah tooltipu na základě dat
-        const costSection = document.createElement('div');
-        costSection.className = 'tooltip-section cost';
-        const costHeader = document.createElement('h4');
-        costHeader.textContent = 'Cost';
-        costSection.appendChild(costHeader);
+        tooltip.innerHTML = ''; // Clear old content
         
-        if (tooltipData.cost) {
+        // Check if the tooltip data is a simple string or a complex object
+        if (typeof tooltipData === 'string') {
+            tooltip.textContent = tooltipData;
+        } else if (tooltipData && tooltipData.cost) {
+            // Logic for building complex tooltips with cost and generation
+            const costSection = document.createElement('div');
+            costSection.className = 'tooltip-section cost';
+            const costHeader = document.createElement('h4');
+            costHeader.textContent = 'Cost';
+            costSection.appendChild(costHeader);
+            
             tooltipData.cost.forEach(c => {
                 const costItem = document.createElement('p');
                 costItem.textContent = `${c.resource}: ${c.amount}`;
                 costSection.appendChild(costItem);
             });
-        }
-        tooltip.appendChild(costSection);
+            tooltip.appendChild(costSection);
 
-        const genSection = document.createElement('div');
-        genSection.className = 'tooltip-section generation';
-        const genHeader = document.createElement('h4');
-        genHeader.textContent = 'Generation';
-        genSection.appendChild(genHeader);
+            const genSection = document.createElement('div');
+            genSection.className = 'tooltip-section generation';
+            const genHeader = document.createElement('h4');
+            genHeader.textContent = 'Generation';
+            genSection.appendChild(genHeader);
 
-        if (tooltipData.produces) {
-            const genItem = document.createElement('p');
-            genItem.textContent = `${tooltipData.produces}: +${tooltipData.rate}/s`;
-            genSection.appendChild(genItem);
+            if (tooltipData.produces) {
+                const genItem = document.createElement('p');
+                genItem.textContent = `${tooltipData.produces}: +${tooltipData.rate}/s`;
+                genSection.appendChild(genItem);
+            }
+            tooltip.appendChild(genSection);
         }
-        tooltip.appendChild(genSection);
 
         tooltip.style.visibility = 'visible';
         tooltip.style.left = `${e.clientX + 15}px`;
