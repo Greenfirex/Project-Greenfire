@@ -181,13 +181,11 @@ export function setupTooltip(button, tooltipData) {
     const tooltip = getOrCreateTooltip();
 
     button.addEventListener('mouseenter', (e) => {
-        tooltip.innerHTML = ''; // Clear old content
+        tooltip.innerHTML = '';
         
-        // Check if the tooltip data is a simple string or a complex object
         if (typeof tooltipData === 'string') {
             tooltip.textContent = tooltipData;
         } else if (tooltipData && tooltipData.cost) {
-            // Logic for building complex tooltips with cost and generation
             const costSection = document.createElement('div');
             costSection.className = 'tooltip-section cost';
             const costHeader = document.createElement('h4');
