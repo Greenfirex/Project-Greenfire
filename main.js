@@ -119,6 +119,17 @@ export function checkConditions() {
         }
     }
     
+    // Logika pro odemykání Research sekce
+    const researchButton = document.querySelector('.menu-button[data-section="researchSection"]');
+    if (stone && researchButton) {
+        if (stone.amount >= 10 && !activatedSections['researchSection']) {
+            researchButton.classList.remove('hidden');
+            addLogEntry('New menu section activated: Research', 'blue');
+            activatedSections['researchSection'] = true;
+            applyActivatedSections();
+        }
+    }
+
     // Nová logika pro odemykání Manufacturing sekce
     const manufacturingButton = document.querySelector('.menu-button[data-section="manufacturingSection"]');
     if (stone && manufacturingButton) {
