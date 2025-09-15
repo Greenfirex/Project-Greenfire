@@ -3,19 +3,23 @@ import { buildings } from '../data/buildings.js';
 import { addLogEntry } from '../log.js';
 import { setupTooltip } from '../main.js';
 
-function createMiningButton(buttonText, callback, container, buildingData) {
+// Helper function to create a button with a tooltip
+function createMiningButton(buttonText, callback, container, tooltipData) {
     const button = document.createElement('button');
     button.className = 'game-button';
     button.textContent = buttonText;
     button.onclick = callback;
 
-    if (buildingData) {
-        setupTooltip(button, buildingData);
+    if (typeof tooltipData === 'string') {
+        setupTooltip(button, tooltipData);
+    } else if (tooltipData && tooltipData.cost) {
+        setupTooltip(button, tooltipData);
     }
 
     container.appendChild(button);
 }
 
+// Manual Mining: adds 1 Stone on click
 function mineStone() {
     const stone = resources.find(r => r.name === 'Stone');
     if (stone) {
@@ -25,6 +29,7 @@ function mineStone() {
     }
 }
 
+// Building Logic: builds a Quarry
 function buildQuarry() {
     const quarry = buildings.find(b => b.name === 'Quarry');
     const stone = resources.find(r => r.name === 'Stone');
@@ -46,6 +51,7 @@ function buildQuarry() {
     }
 }
 
+// Building Logic: builds an Extractor
 function buildExtractor() {
     const extractor = buildings.find(b => b.name === 'Extractor');
     const stone = resources.find(r => r.name === 'Stone');
@@ -67,6 +73,7 @@ function buildExtractor() {
     }
 }
 
+// The main function that sets up the mining section
 export function setupMiningSection(miningSection) {
     if (!miningSection) {
         miningSection = document.getElementById('miningSection');
@@ -76,40 +83,44 @@ export function setupMiningSection(miningSection) {
         miningSection.innerHTML = '';
         miningSection.classList.add('mining-bg');
 
-        // Nadpis kategorie 1: Manual Gathering
-        const manualGatheringHeader = document.createElement('h2');
-        manualGatheringHeader.textContent = 'Manual Gathering';
-        manualGatheringHeader.className = 'section-header';
-        miningSection.appendChild(manualGatheringHeader);
+        const header = document.createElement('h2');
+        header.textContent = 'Manual Gathering';
+        header.className = 'section-header';
+        miningSection.appendChild(header);
 
-        // Kontejner pro tlačítka manuální těžby
+        const manualCategory = document.createElement('div');
+        manualCategory.className = 'mining-category-container';
+
         const manualButtons = document.createElement('div');
         manualButtons.className = 'button-group';
-        
-        // Přidání tlačítka "Mine Stone" do skupiny pro manuální těžbu
-        createMiningButton('Mine Stone', mineStone, manualButtons);
-        
-        miningSection.appendChild(manualButtons);
 
-        // Nadpis kategorie 2: Mining
+        createMiningButton('Mine Stone', mineStone, manualButtons, 'Gain 1 Stone');
+
+        manualCategory.appendChild(manualButtons);
+        miningSection.appendChild(manualCategory);
+
         const miningHeader = document.createElement('h2');
         miningHeader.textContent = 'Mining';
         miningHeader.className = 'section-header';
         miningSection.appendChild(miningHeader);
 
-        // Kontejner pro tlačítka těžby (budovy)
+        const miningCategory = document.createElement('div');
+        miningCategory.className = 'mining-category-container';
+
         const miningButtons = document.createElement('div');
         miningButtons.className = 'button-group';
-        
-        // Tlačítko pro stavbu Quarry
-        createMiningButton('Build Quarry', buildQuarry, miningButtons);
-        
-        // Tlačítko pro stavbu Extractor (podmíněně viditelné)
+
+        const quarryBuildingData = buildings.find(b => b.name === 'Quarry');
+        const extractorBuildingData = buildings.find(b => b.name === 'Extractor');
+
+        createMiningButton('Build Quarry', buildQuarry, miningButtons, quarryBuildingData);
+
         const xylite = resources.find(r => r.name === 'Xylite');
         if (xylite && xylite.isDiscovered) {
-            createMiningButton('Build Extractor', buildExtractor, miningButtons);
+            createMiningButton('Build Extractor', buildExtractor, miningButtons, extractorBuildingData);
         }
-        
-        miningSection.appendChild(miningButtons);
+
+        miningCategory.appendChild(miningButtons);
+        miningSection.appendChild(miningCategory);
     }
 }
