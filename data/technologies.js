@@ -1,6 +1,6 @@
 export let technologies = [
     // Existing Technologies
-    { name: 'Quantum Computing', duration: 5, isResearched: false, prerequisites: [], category: 'Social Tech' },
+    { name: 'Quantum Computing', duration: 5, isResearched: false, prerequisites: [''], category: 'Social Tech' },
     { name: 'Nano Fabrication', duration: 15, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Bio Tech' },
     { name: 'AI Integration', duration: 20, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Social Tech' },
     { name: 'Testtech', duration: 60, isResearched: false, prerequisites: ['Quantum Computing', 'Nano Fabrication'], category: 'Mining Tech' },
