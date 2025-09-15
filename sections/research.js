@@ -42,16 +42,15 @@ export function setCurrentResearchStartTime(time) {
     currentResearchStartTime = time;
 }
 
-function createTechButton(name, onClick, container) {
+function createTechButton(name, onClick, container, tooltipData) {
     const button = document.createElement('button');
     button.className = 'tech-button';
     button.dataset.tech = name;
     button.innerText = name;
     button.addEventListener('click', onClick);
 
-    const tooltipData = technologies.find(t => t.name === name);
     if (tooltipData) {
-        setupTooltip(button, tooltipData.description);
+        setupTooltip(button, tooltipData);
     }
 
     container.appendChild(button);
@@ -138,7 +137,7 @@ export function setupResearchSection(researchSection) {
                         return preTech && preTech.isResearched;
                     });
                     if (allPrerequisitesResearched) {
-                        createTechButton(tech.name, () => startResearch(tech, cancelButton), buttonGroup);
+                        createTechButton(tech.name, () => startResearch(tech, cancelButton), buttonGroup, tech);
                     }
                 });
 
@@ -271,7 +270,7 @@ function handleResearchCompletion(tech, cancelButton) {
                     return preTech && preTech.isResearched;
                 });
                 if (allPrerequisitesResearched) {
-                    createTechButton(t.name, () => startResearch(t, cancelButton), availableContainer);
+                    createTechButton(t.name, () => startResearch(t, cancelButton), buttonGroup);
                     newAvailableTechs.push(t.name);
                 }
             }
