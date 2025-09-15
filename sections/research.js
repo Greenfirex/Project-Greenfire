@@ -43,105 +43,105 @@ export function setCurrentResearchStartTime(time) {
 }
 
 export function setupResearchSection(researchSection) {
-    if (!researchSection) {
-        researchSection = document.getElementById('researchSection');
-    }
+    if (!researchSection) {
+        researchSection = document.getElementById('researchSection');
+    }
 
-    if (researchSection) {
-        researchSection.innerHTML = '';
-        researchSection.classList.add('research-bg');
+    if (researchSection) {
+        researchSection.innerHTML = '';
+        researchSection.classList.add('research-bg');
 
-        const progressBarContainer = document.createElement('div');
-        progressBarContainer.className = 'progress-bar-container';
+        const progressBarContainer = document.createElement('div');
+        progressBarContainer.className = 'progress-bar-container';
 
-        const progressBar = document.createElement('div');
-        progressBar.className = 'progress-bar';
+        const progressBar = document.createElement('div');
+        progressBar.className = 'progress-bar';
 
-        const progressInfo = document.createElement('div');
-        progressInfo.className = 'progress-info';
+        const progressInfo = document.createElement('div');
+        progressInfo.className = 'progress-info';
 
-        const progressText = document.createElement('p');
-        progressText.className = 'progress-text';
-        progressText.style.display = 'none';
-        progressText.innerText = 'Researching...';
-        progressInfo.appendChild(progressText);
+        const progressText = document.createElement('p');
+        progressText.className = 'progress-text';
+        progressText.style.display = 'none';
+        progressText.innerText = 'Researching...';
+        progressInfo.appendChild(progressText);
 
-        const cancelButton = document.createElement('button');
-        cancelButton.className = 'cancel-button';
-        cancelButton.textContent = 'Cancel Research';
-        cancelButton.style.display = 'none';
-        cancelButton.addEventListener('click', cancelResearch);
-        progressInfo.appendChild(cancelButton);
+        const cancelButton = document.createElement('button');
+        cancelButton.className = 'cancel-button';
+        cancelButton.textContent = 'Cancel Research';
+        cancelButton.style.display = 'none';
+        cancelButton.addEventListener('click', cancelResearch);
+        progressInfo.appendChild(cancelButton);
 
-        progressBarContainer.appendChild(progressBar);
-        progressBarContainer.appendChild(progressInfo);
-        researchSection.appendChild(progressBarContainer);
+        progressBarContainer.appendChild(progressBar);
+        progressBarContainer.appendChild(progressInfo);
+        researchSection.appendChild(progressBarContainer);
 
-        const tabContainer = document.createElement('div');
-        tabContainer.className = 'tab-container';
+        const tabContainer = document.createElement('div');
+        tabContainer.className = 'tab-container';
 
-        const availableTab = document.createElement('button');
-        availableTab.className = 'tab active';
-        availableTab.textContent = 'Available Tech';
-        availableTab.addEventListener('click', () => showTab('available'));
+        const availableTab = document.createElement('button');
+        availableTab.className = 'tab active';
+        availableTab.textContent = 'Available Tech';
+        availableTab.addEventListener('click', () => showTab('available'));
 
-        const researchedTab = document.createElement('button');
-        researchedTab.className = 'tab';
-        researchedTab.textContent = 'Researched Tech';
-        researchedTab.addEventListener('click', () => showTab('researched'));
+        const researchedTab = document.createElement('button');
+        researchedTab.className = 'tab';
+        researchedTab.textContent = 'Researched Tech';
+        researchedTab.addEventListener('click', () => showTab('researched'));
 
-        tabContainer.appendChild(availableTab);
-        tabContainer.appendChild(researchedTab);
-        researchSection.appendChild(tabContainer);
+        tabContainer.appendChild(availableTab);
+        tabContainer.appendChild(researchedTab);
+        researchSection.appendChild(tabContainer);
 
-        const availableContainer = document.createElement('div');
-        availableContainer.className = 'tech-container available active';
-        const researchedContainer = document.createElement('div');
-        researchedContainer.className = 'tech-container researched';
+        const availableContainer = document.createElement('div');
+        availableContainer.className = 'tech-container available active';
+        const researchedContainer = document.createElement('div');
+        researchedContainer.className = 'tech-container researched';
 
-        const categories = ['Mining Tech', 'Bio Tech', 'Social Tech'];
+        const categories = ['Mining Tech', 'Bio Tech', 'Social Tech'];
 
-        categories.forEach(category => {
-            const categoryTechs = technologies.filter(tech => tech.category === category && !tech.isResearched);
+        categories.forEach(category => {
+            const categoryTechs = technologies.filter(tech => tech.category === category && !tech.isResearched);
 
-            if (categoryTechs.length > 0) { // Klíčová podmínka
-                const categoryContainer = document.createElement('div');
-                categoryContainer.className = 'category-container';
+            if (categoryTechs.length > 0) {
+                const categoryContainer = document.createElement('div');
+                categoryContainer.className = 'category-container';
 
-                const categoryHeading = document.createElement('h3');
-                categoryHeading.className = 'category-heading';
-                categoryHeading.textContent = category;
-                categoryContainer.appendChild(categoryHeading);
+                const categoryHeading = document.createElement('h3');
+                categoryHeading.className = 'category-heading';
+                categoryHeading.textContent = category;
+                categoryContainer.appendChild(categoryHeading);
 
-                const buttonGroup = document.createElement('div');
-                buttonGroup.className = 'button-group';
-                categoryContainer.appendChild(buttonGroup);
+                const buttonGroup = document.createElement('div');
+                buttonGroup.className = 'button-group';
+                categoryContainer.appendChild(buttonGroup);
 
-                categoryTechs.forEach(tech => {
-                    const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
-                        const preTech = technologies.find(t => t.name === prereq);
-                        return preTech && preTech.isResearched;
-                    });
-                    if (allPrerequisitesResearched) {
-                        createTechButton(tech.name, () => startResearch(tech, cancelButton), buttonGroup);
-                    }
-                });
+                categoryTechs.forEach(tech => {
+                    const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
+                        const preTech = technologies.find(t => t.name === prereq);
+                        return preTech && preTech.isResearched;
+                    });
+                    if (allPrerequisitesResearched) {
+                        createTechButton(tech.name, () => startResearch(tech, cancelButton), buttonGroup, tech);
+                    }
+                });
 
-                availableContainer.appendChild(categoryContainer);
-            }
-        });
+                availableContainer.appendChild(categoryContainer);
+            }
+        });
 
-        technologies.forEach(tech => {
-            if (tech.isResearched) {
-                const techName = document.createElement('p');
-                techName.textContent = tech.name;
-                researchedContainer.appendChild(techName);
-            }
-        });
+        technologies.forEach(tech => {
+            if (tech.isResearched) {
+                const techName = document.createElement('p');
+                techName.textContent = tech.name;
+                researchedContainer.appendChild(techName);
+            }
+        });
 
-        researchSection.appendChild(availableContainer);
-        researchSection.appendChild(researchedContainer);
-    }
+        researchSection.appendChild(availableContainer);
+        researchSection.appendChild(researchedContainer);
+    }
 }
 
 function showTab(tabName) {
@@ -163,16 +163,18 @@ function showTab(tabName) {
   }
 }
 
-function createTechButton(name, onClick, container, tooltipText) {
-    const button = document.createElement('button');
-    button.className = 'tech-button';
-    button.dataset.tech = name;
-    button.innerText = name;
-    button.addEventListener('click', onClick);
+function createTechButton(name, onClick, container, tooltipData) {
+    const button = document.createElement('button');
+    button.className = 'tech-button';
+    button.dataset.tech = name;
+    button.innerText = name;
+    button.addEventListener('click', onClick);
 
-    setupTooltip(button, tooltipText); // Call the new tooltip function
+    if (tooltipData) {
+        setupTooltip(button, tooltipData);
+    }
 
-    container.appendChild(button);
+    container.appendChild(button);
 }
 
 export function startResearch(tech, cancelButton) {
