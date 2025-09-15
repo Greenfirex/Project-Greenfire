@@ -145,6 +145,19 @@
     box-shadow: 0 0 10px #1abc9c;
 }
 
+.tooltip-section {
+    padding: 5px;
+    border-bottom: 1px solid #444;
+}
+
+.tooltip-section.cost {
+    background-color: rgba(139, 0, 0, 0.5); /* Tmavě červené pozadí */
+}
+
+.tooltip-section.generation {
+    background-color: rgba(0, 100, 0, 0.5); /* Tmavě zelené pozadí */
+}
+
 .game-button:hover .tooltip {
     visibility: visible;
 }

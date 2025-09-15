@@ -3,13 +3,15 @@ import { buildings } from '../data/buildings.js';
 import { addLogEntry } from '../log.js';
 import { setupTooltip } from '../main.js';
 
-function createMiningButton(text, callback, container, tooltipText) {
+function createMiningButton(buttonText, callback, container, buildingData) {
     const button = document.createElement('button');
     button.className = 'game-button';
-    button.textContent = text;
+    button.textContent = buttonText;
     button.onclick = callback;
 
-    setupTooltip(button, tooltipText); // Call the new tooltip function
+    if (buildingData) {
+        setupTooltip(button, buildingData);
+    }
 
     container.appendChild(button);
 }
@@ -65,49 +67,49 @@ function buildExtractor() {
     }
 }
 
-export function setupMiningSection() {
-    const miningSection = document.getElementById('miningSection');
+export function setupMiningSection(miningSection) {
+    if (!miningSection) {
+        miningSection = document.getElementById('miningSection');
+    }
 
     if (miningSection) {
         miningSection.innerHTML = '';
         miningSection.classList.add('mining-bg');
 
-        const header = document.createElement('h2');
-        header.textContent = 'Manual Gathering';
-        header.className = 'section-header';
-        miningSection.appendChild(header);
+        // Nadpis kategorie 1: Manual Gathering
+        const manualGatheringHeader = document.createElement('h2');
+        manualGatheringHeader.textContent = 'Manual Gathering';
+        manualGatheringHeader.className = 'section-header';
+        miningSection.appendChild(manualGatheringHeader);
 
-        const manualCategory = document.createElement('div');
-        manualCategory.className = 'mining-category-container';
-
+        // Kontejner pro tlačítka manuální těžby
         const manualButtons = document.createElement('div');
         manualButtons.className = 'button-group';
+        
+        // Přidání tlačítka "Mine Stone" do skupiny pro manuální těžbu
+        createMiningButton('Mine Stone', mineStone, manualButtons);
+        
+        miningSection.appendChild(manualButtons);
 
-        createMiningButton('Mine Stone', mineStone, manualButtons, 'Gain 1 Stone');
-
-        manualCategory.appendChild(manualButtons);
-        miningSection.appendChild(manualCategory);
-
+        // Nadpis kategorie 2: Mining
         const miningHeader = document.createElement('h2');
         miningHeader.textContent = 'Mining';
         miningHeader.className = 'section-header';
         miningSection.appendChild(miningHeader);
 
-        const miningCategory = document.createElement('div');
-        miningCategory.className = 'mining-category-container';
-
+        // Kontejner pro tlačítka těžby (budovy)
         const miningButtons = document.createElement('div');
         miningButtons.className = 'button-group';
-
-        createMiningButton('Build Quarry', buildQuarry, miningButtons, 'Cost: 10 Stone');
-
+        
+        // Tlačítko pro stavbu Quarry
+        createMiningButton('Build Quarry', buildQuarry, miningButtons);
+        
+        // Tlačítko pro stavbu Extractor (podmíněně viditelné)
         const xylite = resources.find(r => r.name === 'Xylite');
         if (xylite && xylite.isDiscovered) {
-            createMiningButton('Build Extractor', buildExtractor, miningButtons, 'Cost: 20 Stone');
-
+            createMiningButton('Build Extractor', buildExtractor, miningButtons);
         }
-
-        miningCategory.appendChild(miningButtons);
-        miningSection.appendChild(miningCategory);
+        
+        miningSection.appendChild(miningButtons);
     }
 }

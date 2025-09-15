@@ -177,23 +177,50 @@ function getOrCreateTooltip() {
     return globalTooltip;
 }
 
-export function setupTooltip(button, tooltipText) {
+export function setupTooltip(button, tooltipData) {
     const tooltip = getOrCreateTooltip();
 
-    // Show the tooltip on mouseenter
     button.addEventListener('mouseenter', (e) => {
-        tooltip.textContent = tooltipText;
+        tooltip.innerHTML = ''; // Vyčistíme starý obsah
+
+        // Vytvoříme obsah tooltipu na základě dat
+        const costSection = document.createElement('div');
+        costSection.className = 'tooltip-section cost';
+        const costHeader = document.createElement('h4');
+        costHeader.textContent = 'Cost';
+        costSection.appendChild(costHeader);
+        
+        if (tooltipData.cost) {
+            tooltipData.cost.forEach(c => {
+                const costItem = document.createElement('p');
+                costItem.textContent = `${c.resource}: ${c.amount}`;
+                costSection.appendChild(costItem);
+            });
+        }
+        tooltip.appendChild(costSection);
+
+        const genSection = document.createElement('div');
+        genSection.className = 'tooltip-section generation';
+        const genHeader = document.createElement('h4');
+        genHeader.textContent = 'Generation';
+        genSection.appendChild(genHeader);
+
+        if (tooltipData.produces) {
+            const genItem = document.createElement('p');
+            genItem.textContent = `${tooltipData.produces}: +${tooltipData.rate}/s`;
+            genSection.appendChild(genItem);
+        }
+        tooltip.appendChild(genSection);
+
         tooltip.style.visibility = 'visible';
         tooltip.style.left = `${e.clientX + 15}px`;
         tooltip.style.top = `${e.clientY - 30}px`;
     });
 
-    // Hide the tooltip on mouseleave
     button.addEventListener('mouseleave', () => {
         tooltip.style.visibility = 'hidden';
     });
 
-    // Update the tooltip position on mousemove
     button.addEventListener('mousemove', (e) => {
         tooltip.style.left = `${e.clientX + 15}px`;
         tooltip.style.top = `${e.clientY - 30}px`;
