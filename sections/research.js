@@ -102,22 +102,22 @@ export function setupResearchSection(researchSection) {
         const categories = ['Mining Tech', 'Bio Tech', 'Social Tech'];
 
         categories.forEach(category => {
-            const categoryContainer = document.createElement('div');
-            categoryContainer.className = 'category-container';
+            const categoryTechs = technologies.filter(tech => tech.category === category && !tech.isResearched);
 
-            const categoryHeading = document.createElement('h3');
-            categoryHeading.className = 'category-heading';
-            categoryHeading.textContent = category;
-            categoryContainer.appendChild(categoryHeading);
+            if (categoryTechs.length > 0) { // Klíčová podmínka
+                const categoryContainer = document.createElement('div');
+                categoryContainer.className = 'category-container';
 
-            const buttonGroup = document.createElement('div');
-            buttonGroup.className = 'button-group';
-            categoryContainer.appendChild(buttonGroup);
+                const categoryHeading = document.createElement('h3');
+                categoryHeading.className = 'category-heading';
+                categoryHeading.textContent = category;
+                categoryContainer.appendChild(categoryHeading);
 
-            const categoryTechs = technologies.filter(tech => tech.category === category);
+                const buttonGroup = document.createElement('div');
+                buttonGroup.className = 'button-group';
+                categoryContainer.appendChild(buttonGroup);
 
-            categoryTechs.forEach(tech => {
-                if (!tech.isResearched) {
+                categoryTechs.forEach(tech => {
                     const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
                         const preTech = technologies.find(t => t.name === prereq);
                         return preTech && preTech.isResearched;
@@ -125,10 +125,10 @@ export function setupResearchSection(researchSection) {
                     if (allPrerequisitesResearched) {
                         createTechButton(tech.name, () => startResearch(tech, cancelButton), buttonGroup);
                     }
-                }
-            });
+                });
 
-            availableContainer.appendChild(categoryContainer);
+                availableContainer.appendChild(categoryContainer);
+            }
         });
 
         technologies.forEach(tech => {
