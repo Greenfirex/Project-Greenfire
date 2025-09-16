@@ -1,57 +1,72 @@
 import { resources, updateResourceInfo } from '../resources.js';
-import { technologies } from '../data/technologies.js';
 import { buildings } from '../data/buildings.js';
+import { technologies } from '../data/technologies.js';
 import { addLogEntry } from '../log.js';
 import { setupTooltip } from '../main.js';
 
 /**
+ * Creates a stylish, image-based button for a building, including its name and current count.
+ * @param {object} building - The building object from the buildings data.
+ * @param {HTMLElement} container - The parent element to append the button to.
+ */
+function createBuildingButton(building, container) {
+    const button = document.createElement('button');
+    button.className = 'image-button'; // Use our new stylish class
+
+    // Create a span for the building's name
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = `Build ${building.name}`;
+    button.appendChild(nameSpan);
+
+    // Create a separate span for the building's count
+    const countSpan = document.createElement('span');
+    countSpan.className = 'building-count'; // The class for the count in the corner
+    countSpan.textContent = `(${building.count})`;
+    button.appendChild(countSpan);
+    
+    // Set the button's action and tooltip
+    button.addEventListener('click', () => buildBuilding(building.name));
+    setupTooltip(button, building);
+
+    container.appendChild(button);
+}
+
+/**
  * A single, reusable function to handle purchasing any building.
- * It checks costs, deducts resources, and applies the building's effect.
- * @param {string} buildingName The name of the building to build.
  */
 function buildBuilding(buildingName) {
     const building = buildings.find(b => b.name === buildingName);
-    if (!building) {
-        console.error(`Building ${buildingName} not found!`);
-        return;
-    }
+    if (!building) { return; }
 
-    // --- Step 1: Check if the player can afford it ---
     let canAfford = true;
     for (const cost of building.cost) {
         const resource = resources.find(r => r.name === cost.resource);
         if (!resource || resource.amount < cost.amount) {
             canAfford = false;
             addLogEntry(`Not enough ${cost.resource} to build a ${buildingName}.`, 'red');
-            break; // Stop checking if we find one thing we can't afford
+            break;
         }
     }
 
-    // --- Step 2: If they can afford it, deduct resources and apply the effect ---
     if (canAfford) {
-        // Deduct costs
         for (const cost of building.cost) {
             const resource = resources.find(r => r.name === cost.resource);
             resource.amount -= cost.amount;
         }
 
-        // Increment the building count
         building.count += 1;
         addLogEntry(`Built a new ${buildingName}!`, 'green');
 
-        // --- Step 3: Apply the building's special effect (if it has one) ---
-        if (building.effect) {
-            if (building.effect.type === 'storage') {
-                const resourceToUpgrade = resources.find(r => r.name === building.effect.resource);
-                if (resourceToUpgrade) {
-                    resourceToUpgrade.capacity += building.effect.value;
-                    addLogEntry(`${resourceToUpgrade.name} capacity increased by ${building.effect.value}!`, 'blue');
-                }
+        if (building.effect && building.effect.type === 'storage') {
+            const resourceToUpgrade = resources.find(r => r.name === building.effect.resource);
+            if (resourceToUpgrade) {
+                resourceToUpgrade.capacity += building.effect.value;
+                addLogEntry(`${resourceToUpgrade.name} capacity increased by ${building.effect.value}!`, 'blue');
             }
         }
         
-        // Finally, update the UI
         updateResourceInfo();
+        setupMiningSection(); // Rebuild the mining section to update the button counts
     }
 }
 
@@ -59,85 +74,68 @@ export function setupMiningSection(miningSection) {
     if (!miningSection) {
         miningSection = document.getElementById('miningSection');
     }
+    if (!miningSection) { return; }
 
-    if (miningSection) {
-        miningSection.innerHTML = '';
-        miningSection.classList.add('mining-bg');
+    miningSection.innerHTML = '';
+    // We don't need the 'mining-bg' class if the main background is already set
 
-        // --- Category 1: Manual Gathering (Unchanged) ---
-        const manualHeader = document.createElement('h2');
-        manualHeader.textContent = 'Manual Gathering';
-        manualHeader.className = 'section-header';
-        miningSection.appendChild(manualHeader);
-        const manualCategory = document.createElement('div');
-        manualCategory.className = 'mining-category-container';
-        const manualButtons = document.createElement('div');
-        manualButtons.className = 'button-group';
-        createMiningButton('Mine Stone', mineStone, manualButtons, 'Gain 1 Stone');
-        manualCategory.appendChild(manualButtons);
-        miningSection.appendChild(manualCategory);
+    // --- Category 1: Manual Gathering ---
+    const manualHeader = document.createElement('h2');
+    manualHeader.textContent = 'Manual Gathering';
+    manualHeader.className = 'section-header';
+    miningSection.appendChild(manualHeader);
+    const manualCategory = document.createElement('div');
+    manualCategory.className = 'mining-category-container';
+    const manualButtons = document.createElement('div');
+    manualButtons.className = 'button-group'; // We can reuse button-group from research.css
+    // Manual button also gets the new style for consistency
+    const mineStoneButton = document.createElement('button');
+    mineStoneButton.className = 'image-button';
+    mineStoneButton.textContent = 'Mine Stone';
+    mineStoneButton.addEventListener('click', mineStone);
+    setupTooltip(mineStoneButton, 'Gain 1 Stone');
+    manualButtons.appendChild(mineStoneButton);
+    manualCategory.appendChild(manualButtons);
+    miningSection.appendChild(manualCategory);
 
-        // --- Category 2: Mining (Unchanged) ---
-        const miningHeader = document.createElement('h2');
-        miningHeader.textContent = 'Mining';
-        miningHeader.className = 'section-header';
-        miningSection.appendChild(miningHeader);
-        const miningCategory = document.createElement('div');
-        miningCategory.className = 'mining-category-container';
-        const miningButtons = document.createElement('div');
-        miningButtons.className = 'button-group';
-        const quarryData = buildings.find(b => b.name === 'Quarry');
-        createMiningButton('Build Quarry', () => buildBuilding('Quarry'), miningButtons, quarryData);
-        const xylite = resources.find(r => r.name === 'Xylite');
-        if (xylite && xylite.isDiscovered) {
-            const extractorData = buildings.find(b => b.name === 'Extractor');
-            createMiningButton('Build Extractor', () => buildBuilding('Extractor'), miningButtons, extractorData);
-        }
-        miningCategory.appendChild(miningButtons);
-        miningSection.appendChild(miningCategory);
+    // --- Category 2: Mining ---
+    const miningHeader = document.createElement('h2');
+    miningHeader.textContent = 'Production';
+    miningHeader.className = 'section-header';
+    miningSection.appendChild(miningHeader);
+    const miningCategory = document.createElement('div');
+    miningCategory.className = 'mining-category-container';
+    const miningButtons = document.createElement('div');
+    miningButtons.className = 'button-group';
+    
+    createBuildingButton(buildings.find(b => b.name === 'Quarry'), miningButtons);
+    const xylite = resources.find(r => r.name === 'Xylite');
+    if (xylite && xylite.isDiscovered) {
+        createBuildingButton(buildings.find(b => b.name === 'Extractor'), miningButtons);
+    }
+    miningCategory.appendChild(miningButtons);
+    miningSection.appendChild(miningCategory);
 
-        // --- FIXED: Category 3: Storage (Now checks for researched tech) ---
-        const basicStorageTech = technologies.find(t => t.name === 'Basic Storage' && t.isResearched);
-        const xyliteStorageTech = technologies.find(t => t.name === 'Xylite Storage' && t.isResearched);
+    // --- Category 3: Storage ---
+    const basicStorageTech = technologies.find(t => t.name === 'Basic Storage' && t.isResearched);
+    if (basicStorageTech) {
+        const storageHeader = document.createElement('h2');
+        storageHeader.textContent = 'Storage';
+        storageHeader.className = 'section-header';
+        miningSection.appendChild(storageHeader);
+        const storageCategory = document.createElement('div');
+        storageCategory.className = 'mining-category-container';
+        const storageButtons = document.createElement('div');
+        storageButtons.className = 'button-group';
         
-        // Only show the Storage category if at least one of its buildings is unlocked
-        if (basicStorageTech) {
-            const storageHeader = document.createElement('h2');
-            storageHeader.textContent = 'Storage';
-            storageHeader.className = 'section-header';
-            miningSection.appendChild(storageHeader);
-
-            const storageCategory = document.createElement('div');
-            storageCategory.className = 'mining-category-container';
-            const storageButtons = document.createElement('div');
-            storageButtons.className = 'button-group';
-
-            // Check for Basic Storage tech before creating the button
-            const stockpileData = buildings.find(b => b.name === 'Stone Stockpile');
-            createMiningButton('Build Stone Stockpile', () => buildBuilding('Stone Stockpile'), storageButtons, stockpileData);
-
-            // Check for Xylite Storage tech before creating the button
-            if (xyliteStorageTech) {
-                const siloData = buildings.find(b => b.name === 'Xylite Silo');
-                createMiningButton('Build Xylite Silo', () => buildBuilding('Xylite Silo'), storageButtons, siloData);
-            }
-            
-            storageCategory.appendChild(storageButtons);
-            miningSection.appendChild(storageCategory);
+        createBuildingButton(buildings.find(b => b.name === 'Stone Stockpile'), storageButtons);
+        const xyliteStorageTech = technologies.find(t => t.name === 'Xylite Storage' && t.isResearched);
+        if (xyliteStorageTech) {
+            createBuildingButton(buildings.find(b => b.name === 'Xylite Silo'), storageButtons);
         }
+        storageCategory.appendChild(storageButtons);
+        miningSection.appendChild(storageCategory);
     }
-}
-
-function createMiningButton(buttonText, callback, container, tooltipData) {
-    const button = document.createElement('button');
-    button.className = 'game-button';
-    button.textContent = buttonText;
-    button.addEventListener('click', callback);
-
-    if (tooltipData) {
-        setupTooltip(button, tooltipData);
-    }
-    container.appendChild(button);
 }
 
 function mineStone() {
@@ -152,6 +150,3 @@ function mineStone() {
         addLogEntry('Manually mined 1 Stone.', 'blue');
     }
 }
-
-// The old buildQuarry and buildExtractor functions are no longer needed
-// and can be deleted, since buildBuilding() handles everything.

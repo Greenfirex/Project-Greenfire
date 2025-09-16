@@ -1,0 +1,61 @@
+.section-header {
+    width: 100%;
+    margin-bottom: 10px;
+    margin-top: 20px;
+    font-size: 1.2em;
+    color: #FFF;
+}
+
+.mining-category-container {
+    background-color: #000;
+    border: 1px solid #444;
+    padding: 15px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Base style for all image-based buttons in this section */
+.image-button {
+    /* --- Sizing and Layout --- */
+    width: 180px;
+    height: 55px;
+    position: relative; /* Needed to position the count element inside */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+
+    /* --- Background Image --- */
+    background-image: url('../assets/images/PNG/Button03.png');
+    background-size: 100% 100%;
+    background-color: transparent;
+
+    /* --- Text and Font --- */
+    color: #EAEAEA;
+    font-size: 14px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+
+    /* --- General --- */
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.image-button:hover {
+    background-image: url('../assets/images/PNG/Button04.png');
+    color: #FFF;
+    transform: scale(1.05);
+}
+
+/* Special element for the building count */
+.building-count {
+    position: absolute; /* Position it relative to the button */
+    bottom: 4px;
+    right: 8px;
+    font-size: 12px;
+    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent background */
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #90EE90; /* Light green to stand out */
+}
