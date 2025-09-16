@@ -1,3 +1,5 @@
+// sections/research.js
+
 import { addLogEntry } from '../log.js';
 import { technologies } from '../data/technologies.js';
 import { setupTooltip } from '../main.js';
@@ -125,11 +127,12 @@ export function setupResearchSection(researchSection) {
                 const categoryHeading = document.createElement('h3');
                 categoryHeading.className = 'category-heading';
                 categoryHeading.textContent = category;
-                categoryContainer.appendChild(categoryHeading);
 
                 const buttonGroup = document.createElement('div');
                 buttonGroup.className = 'button-group';
-                categoryContainer.appendChild(buttonGroup);
+                
+                // CHANGED: We check if any buttons were actually created for this category.
+                let hasVisibleTechs = false; 
 
                 categoryTechs.forEach(tech => {
                     const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
@@ -138,10 +141,16 @@ export function setupResearchSection(researchSection) {
                     });
                     if (allPrerequisitesResearched) {
                         createTechButton(tech.name, () => startResearch(tech, cancelButton), buttonGroup, tech);
+                        hasVisibleTechs = true; // Mark that we found a visible tech.
                     }
                 });
 
-                availableContainer.appendChild(categoryContainer);
+                // CHANGED: Only add the category container to the page if it has visible techs.
+                if (hasVisibleTechs) {
+                    categoryContainer.appendChild(categoryHeading);
+                    categoryContainer.appendChild(buttonGroup);
+                    availableContainer.appendChild(categoryContainer);
+                }
             }
         });
 
@@ -155,6 +164,17 @@ export function setupResearchSection(researchSection) {
 
         researchSection.appendChild(availableContainer);
         researchSection.appendChild(researchedContainer);
+
+        // If a research is ongoing, we need to update the UI to reflect that
+        if (currentResearchingTech) {
+            updateProgressBar(cancelButton);
+            document.querySelectorAll('.tech-button').forEach(button => {
+                button.disabled = true;
+            });
+            if(cancelButton) {
+                cancelButton.style.display = 'inline-block';
+            }
+        }
     }
 }
 
@@ -197,7 +217,7 @@ function updateProgressBar(cancelButton) {
         const totalDuration = currentResearchDuration || 1;
         const progress = Math.min((elapsedTime / totalDuration) * 100, 100);
         setResearchProgress(progress);
-        
+
         progressText.style.display = 'block';
         progressBar.style.width = `${researchProgress}%`;
 
@@ -217,87 +237,23 @@ function cancelResearch() {
     setCurrentResearchingTech(null);
     localStorage.removeItem('researchState');
 
-    const progressBar = document.querySelector('.progress-bar');
-    const progressText = document.querySelector('.progress-text');
-    const cancelButton = document.querySelector('.cancel-button');
-
-    if (progressBar && progressText) {
-        progressBar.style.transition = 'none';
-        progressBar.style.width = '0';
-        progressText.style.display = 'none';
-    }
-
-    if (cancelButton) {
-        cancelButton.style.display = 'none';
-    }
-
-    document.querySelectorAll('.tech-button').forEach(button => {
-        button.disabled = false;
-        
-        const techName = button.getAttribute('data-tech');
-        const tech = technologies.find(t => t.name === techName);
-
-        if (tech && !tech.isResearched && tech.prerequisites.every(prereq => {
-            const preTech = technologies.find(t => t.name === prereq);
-            return preTech && preTech.isResearched;
-        })) {
-            button.style.display = 'inline-block';
-        } else {
-            button.style.display = 'none';
-        }
-    });
-
-    setCurrentResearchingTech(null);
+    // CHANGED: Instead of manually re-enabling buttons, just rebuild the section.
+    setupResearchSection();
 }
 
 function handleResearchCompletion(tech, cancelButton) {
     if (!tech.isResearched) {
         addLogEntry(`${tech.name} research complete!`, 'green');
         tech.isResearched = true;
-
-        const researchedContainer = document.querySelector('.tech-container.researched');
-        const techName = document.createElement('p');
-        techName.textContent = tech.name;
-        researchedContainer.appendChild(techName);
-
-        const availableContainer = document.querySelector('.tech-container.available');
-        const newAvailableTechs = [];
-        technologies.forEach(t => {
-            const techButton = document.querySelector(`.tech-button[data-tech='${t.name}']`);
-            if (!t.isResearched && !techButton) {
-                const allPrerequisitesResearched = t.prerequisites.every(prereq => {
-                    const preTech = technologies.find(tech => tech.name === prereq);
-                    return preTech && preTech.isResearched;
-                });
-                if (allPrerequisitesResearched) {
-                    createTechButton(t.name, () => startResearch(t, cancelButton), availableContainer);
-                    newAvailableTechs.push(t.name);
-                }
-            }
-        });
-
-        if (newAvailableTechs.length > 0) {
-            addLogEntry(`New technologies available: ${newAvailableTechs.join(', ')}.`, 'blue');
-        }
     }
 
     setResearchProgress(0);
-    updateProgressBar(cancelButton);
-    if (cancelButton) {
-        cancelButton.style.display = 'none';
-    }
-
-    document.querySelectorAll('.tech-button').forEach(button => {
-        button.disabled = false;
-    });
-
-    const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
-    if (techButton) {
-        techButton.style.display = 'none';
-        createdTechButtons.delete(tech.name);
-    }
-
-    setCurrentResearchingTech(null);
+    setCurrentResearchingTech(null); // Set current tech to null before rebuilding
+    
+    // CHANGED: The logic for adding new buttons was flawed. 
+    // It's much simpler and more reliable to just rebuild the entire research section.
+    // This will automatically show newly unlocked techs in their correct categories.
+    setupResearchSection(); 
 }
 
 export function startResearch(tech, cancelButton) {
@@ -311,12 +267,7 @@ export function startResearch(tech, cancelButton) {
     currentResearchDuration = tech.duration;
     setCurrentResearchStartTime(Date.now());
     updateProgressBar(cancelButton);
-
-    const techButton = document.querySelector(`.tech-button[data-tech='${tech.name}']`);
-    if (techButton) {
-        techButton.style.display = 'none';
-    }
-
+    
     if (cancelButton) {
         cancelButton.style.display = 'inline-block';
         cancelButton.dataset.tech = tech.name;
@@ -325,9 +276,7 @@ export function startResearch(tech, cancelButton) {
     addLogEntry(`Started researching ${tech.name}.`, 'yellow');
 
     document.querySelectorAll('.tech-button').forEach(button => {
-        if (button.dataset.tech !== tech.name) {
-            button.disabled = true;
-        }
+        button.disabled = true;
     });
 
     setResearchInterval(setInterval(() => {
