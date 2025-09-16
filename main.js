@@ -68,6 +68,7 @@ setInterval(() => {
     updateResourceInfo();
     checkConditions();
 }, 100);
+}
 
 export function setActivatedSections(sections) {
     activatedSections = sections;
