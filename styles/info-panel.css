@@ -1,54 +1,49 @@
 #infoPanel {
-  position: relative;
-  width: 20%;
-  background-color: black;
-  height: 100%;
-  color: white;
-  border: 1px solid #555;
-  margin-top: -1px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 10px;
-  box-sizing: border-box;
-  overflow-y: auto;
+    position: relative;
+    width: 20%;
+    background-color: black;
+    height: 100%;
+    color: white;
+    border: 1px solid #555;
+    margin-top: -1px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow-y: auto;
 }
 
-/* --- FIXED: Switched from Flexbox to CSS Grid --- */
 .info-section {
-  display: grid; /* Use Grid for precise column control */
-  /* This defines our 3 columns and their proportional widths. */
-  /* It divides the total space into 8 parts (3 + 2 + 3). */
-  grid-template-columns: 3fr 2fr 3fr; 
-  align-items: center;
-  width: 100%;
-  margin-bottom: 5px;
-  height: 20px;
-  overflow: hidden;
-  color: orange;
+    display: grid;
+    grid-template-columns: 3fr 2fr 3fr; /* Divides the row into 3 proportional columns */
+    align-items: center;
+    width: 100%;
+    margin-bottom: 5px;
+    height: 20px;
+    overflow: hidden;
+    color: orange;
 }
 
 .info-section:nth-child(even) {
-  background-color: #444444; 
+    background-color: #444444;
 }
 
 .info-section:nth-child(odd) {
-  background-color: black;
+    background-color: black;
 }
 
-/* --- FIXED: Removed widths, as the grid container now handles it --- */
-
-.infocolumn1 { /* Resource Name gets 3 parts of the space */
+.infocolumn1 {
     text-align: left;
     padding-left: 5px;
 }
-.infocolumn2 { /* Generation Rate gets 2 parts */
+
+.infocolumn2 {
     text-align: right;
 }
-.infocolumn3 { /* Stored Amount gets 3 parts */
+
+.infocolumn3 {
     text-align: right;
     padding-right: 5px;
 }
-
-
