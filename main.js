@@ -55,17 +55,19 @@ function startGame() {
     setupMenuButtons();
     applyActivatedSections();
 
-    setInterval(() => {
-        buildings.forEach(building => {
-            const resourceToProduce = resources.find(r => r.name === building.produces);
-            if (resourceToProduce) {
-                resourceToProduce.amount += (building.rate * building.count) / 10;
-            }
-        });
-        updateResourceInfo();
-        checkConditions();
-    }, 100);
-}
+setInterval(() => {
+    buildings.forEach(building => {
+        const resourceToProduce = resources.find(r => r.name === building.produces);
+        if (resourceToProduce) {
+            // Calculate the new amount
+            const newAmount = resourceToProduce.amount + (building.rate * building.count) / 10;
+            // FIXED: Use Math.min to ensure the amount does not exceed the capacity
+            resourceToProduce.amount = Math.min(newAmount, resourceToProduce.capacity);
+        }
+    });
+    updateResourceInfo();
+    checkConditions();
+}, 100);
 
 export function setActivatedSections(sections) {
     activatedSections = sections;
@@ -180,28 +182,23 @@ function getOrCreateTooltip() {
 export function setupTooltip(button, tooltipData) {
     const tooltip = getOrCreateTooltip();
 
-    console.log("Setting up tooltip for button:", button.textContent, "with data:", tooltipData);
-
     button.addEventListener('mouseenter', (e) => {
-        // The debugger will pause your game here ONLY if you have the developer tools open.
-        // You can then inspect variables and step through the code.
-        debugger; 
+        tooltip.innerHTML = ''; // Clear previous content
 
-        console.log(`--- Mouse hovered over "${button.textContent}" ---`);
-        tooltip.innerHTML = ''; 
-
+        // Case 1: Handles simple tooltips like for "Mine Stone"
         if (typeof tooltipData === 'string') {
-            console.log("Tooltip data is a string. Setting text content.");
             tooltip.textContent = tooltipData;
         
+        // Case 2: Handles complex tooltips for buildings (looks for .cost)
         } else if (tooltipData && tooltipData.cost && Array.isArray(tooltipData.cost)) {
-            console.log("Tooltip data is an object. Building complex tooltip.");
-            // ... (The rest of the logic is the same as the fix I sent before)
+            
+            // --- Cost Section ---
             const costSection = document.createElement('div');
             costSection.className = 'tooltip-section cost';
             const costHeader = document.createElement('h4');
             costHeader.textContent = 'Cost';
             costSection.appendChild(costHeader);
+            
             tooltipData.cost.forEach(c => {
                 const costItem = document.createElement('p');
                 if (c.resource && typeof c.amount !== 'undefined') {
@@ -210,22 +207,44 @@ export function setupTooltip(button, tooltipData) {
                 }
             });
             tooltip.appendChild(costSection);
+
+            // --- Generation Section ---
             if (tooltipData.produces) {
                 const genSection = document.createElement('div');
                 genSection.className = 'tooltip-section generation';
                 const genHeader = document.createElement('h4');
                 genHeader.textContent = 'Generation';
                 genSection.appendChild(genHeader);
+                
                 const genItem = document.createElement('p');
                 genItem.textContent = `${tooltipData.produces}: +${tooltipData.rate}/s`;
                 genSection.appendChild(genItem);
                 tooltip.appendChild(genSection);
             }
-        } else {
-             console.log("Tooltip data is not a string and not a valid object. Doing nothing.");
+
+        // NEW!! Case 3: Handles tooltips for technologies (looks for .description)
+        } else if (tooltipData && tooltipData.description) {
+            
+            // --- Title ---
+            const title = document.createElement('h4');
+            title.className = 'tooltip-title';
+            title.textContent = tooltipData.name;
+            tooltip.appendChild(title);
+
+            // --- Description ---
+            const description = document.createElement('p');
+            description.className = 'tooltip-description';
+            description.textContent = tooltipData.description;
+            tooltip.appendChild(description);
+
+            // --- Duration ---
+            const duration = document.createElement('p');
+            duration.className = 'tooltip-duration';
+            duration.textContent = `Research Time: ${tooltipData.duration}s`;
+            tooltip.appendChild(duration);
         }
 
-        console.log("Making tooltip visible.");
+        // This line makes the tooltip appear
         tooltip.style.visibility = 'visible';
         tooltip.style.left = `${e.clientX + 15}px`;
         tooltip.style.top = `${e.clientY - 30}px`;

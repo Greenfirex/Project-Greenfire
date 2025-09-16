@@ -3,6 +3,57 @@ import { buildings } from '../data/buildings.js';
 import { addLogEntry } from '../log.js';
 import { setupTooltip } from '../main.js';
 
+/**
+ * A single, reusable function to handle purchasing any building.
+ * It checks costs, deducts resources, and applies the building's effect.
+ * @param {string} buildingName The name of the building to build.
+ */
+function buildBuilding(buildingName) {
+    const building = buildings.find(b => b.name === buildingName);
+    if (!building) {
+        console.error(`Building ${buildingName} not found!`);
+        return;
+    }
+
+    // --- Step 1: Check if the player can afford it ---
+    let canAfford = true;
+    for (const cost of building.cost) {
+        const resource = resources.find(r => r.name === cost.resource);
+        if (!resource || resource.amount < cost.amount) {
+            canAfford = false;
+            addLogEntry(`Not enough ${cost.resource} to build a ${buildingName}.`, 'red');
+            break; // Stop checking if we find one thing we can't afford
+        }
+    }
+
+    // --- Step 2: If they can afford it, deduct resources and apply the effect ---
+    if (canAfford) {
+        // Deduct costs
+        for (const cost of building.cost) {
+            const resource = resources.find(r => r.name === cost.resource);
+            resource.amount -= cost.amount;
+        }
+
+        // Increment the building count
+        building.count += 1;
+        addLogEntry(`Built a new ${buildingName}!`, 'green');
+
+        // --- Step 3: Apply the building's special effect (if it has one) ---
+        if (building.effect) {
+            if (building.effect.type === 'storage') {
+                const resourceToUpgrade = resources.find(r => r.name === building.effect.resource);
+                if (resourceToUpgrade) {
+                    resourceToUpgrade.capacity += building.effect.value;
+                    addLogEntry(`${resourceToUpgrade.name} capacity increased by ${building.effect.value}!`, 'blue');
+                }
+            }
+        }
+        
+        // Finally, update the UI
+        updateResourceInfo();
+    }
+}
+
 export function setupMiningSection(miningSection) {
     if (!miningSection) {
         miningSection = document.getElementById('miningSection');
@@ -12,45 +63,53 @@ export function setupMiningSection(miningSection) {
         miningSection.innerHTML = '';
         miningSection.classList.add('mining-bg');
 
-        const header = document.createElement('h2');
-        header.textContent = 'Manual Gathering';
-        header.className = 'section-header';
-        miningSection.appendChild(header);
-
+        // --- Category 1: Manual Gathering ---
+        const manualHeader = document.createElement('h2');
+        manualHeader.textContent = 'Manual Gathering';
+        manualHeader.className = 'section-header';
+        miningSection.appendChild(manualHeader);
         const manualCategory = document.createElement('div');
         manualCategory.className = 'mining-category-container';
-
         const manualButtons = document.createElement('div');
         manualButtons.className = 'button-group';
-
         createMiningButton('Mine Stone', mineStone, manualButtons, 'Gain 1 Stone');
-
         manualCategory.appendChild(manualButtons);
         miningSection.appendChild(manualCategory);
 
+        // --- Category 2: Mining ---
         const miningHeader = document.createElement('h2');
         miningHeader.textContent = 'Mining';
         miningHeader.className = 'section-header';
         miningSection.appendChild(miningHeader);
-
         const miningCategory = document.createElement('div');
         miningCategory.className = 'mining-category-container';
-
         const miningButtons = document.createElement('div');
         miningButtons.className = 'button-group';
-
-        const quarryBuildingData = buildings.find(b => b.name === 'Quarry');
-        const extractorBuildingData = buildings.find(b => b.name === 'Extractor');
-
-        createMiningButton('Build Quarry', buildQuarry, miningButtons, quarryBuildingData);
-
+        const quarryData = buildings.find(b => b.name === 'Quarry');
+        createMiningButton('Build Quarry', () => buildBuilding('Quarry'), miningButtons, quarryData);
         const xylite = resources.find(r => r.name === 'Xylite');
         if (xylite && xylite.isDiscovered) {
-            createMiningButton('Build Extractor', buildExtractor, miningButtons, extractorBuildingData);
+            const extractorData = buildings.find(b => b.name === 'Extractor');
+            createMiningButton('Build Extractor', () => buildBuilding('Extractor'), miningButtons, extractorData);
         }
-
         miningCategory.appendChild(miningButtons);
         miningSection.appendChild(miningCategory);
+
+        // --- NEW! Category 3: Storage ---
+        const storageHeader = document.createElement('h2');
+        storageHeader.textContent = 'Storage';
+        storageHeader.className = 'section-header';
+        miningSection.appendChild(storageHeader);
+        const storageCategory = document.createElement('div');
+        storageCategory.className = 'mining-category-container';
+        const storageButtons = document.createElement('div');
+        storageButtons.className = 'button-group';
+        const stockpileData = buildings.find(b => b.name === 'Stone Stockpile');
+        const siloData = buildings.find(b => b.name === 'Xylite Silo');
+        createMiningButton('Build Stone Stockpile', () => buildBuilding('Stone Stockpile'), storageButtons, stockpileData);
+        createMiningButton('Build Xylite Silo', () => buildBuilding('Xylite Silo'), storageButtons, siloData);
+        storageCategory.appendChild(storageButtons);
+        miningSection.appendChild(storageCategory);
     }
 }
 
@@ -58,62 +117,26 @@ function createMiningButton(buttonText, callback, container, tooltipData) {
     const button = document.createElement('button');
     button.className = 'game-button';
     button.textContent = buttonText;
-    button.addEventListener('click', callback); // Using addEventListener is more modern
+    button.addEventListener('click', callback);
 
     if (tooltipData) {
         setupTooltip(button, tooltipData);
     }
-
     container.appendChild(button);
 }
 
 function mineStone() {
     const stone = resources.find(r => r.name === 'Stone');
     if (stone) {
-        stone.amount += 1;
+        if (stone.amount >= stone.capacity) {
+            addLogEntry('Stone storage is full!', 'orange');
+            return;
+        }
+        stone.amount = Math.min(stone.amount + 1, stone.capacity);
         updateResourceInfo();
         addLogEntry('Manually mined 1 Stone.', 'blue');
     }
 }
 
-function buildQuarry() {
-    const quarry = buildings.find(b => b.name === 'Quarry');
-    const stone = resources.find(r => r.name === 'Stone');
-
-    if (!quarry || !stone) {
-        addLogEntry('Could not find Quarry or Stone.', 'red');
-        return;
-    }
-
-    const cost = quarry.cost.find(c => c.resource === 'Stone');
-
-    if (cost && stone.amount >= cost.amount) {
-        stone.amount -= cost.amount;
-        quarry.count += 1;
-        addLogEntry('Built a new Quarry! Automatic Stone production has increased.', 'green');
-        updateResourceInfo();
-    } else {
-        addLogEntry('Not enough Stone to build a Quarry.', 'red');
-    }
-}
-
-function buildExtractor() {
-    const extractor = buildings.find(b => b.name === 'Extractor');
-    const stone = resources.find(r => r.name === 'Stone');
-
-    if (!extractor || !stone) {
-        addLogEntry('Could not find Extractor or Stone.', 'red');
-        return;
-    }
-
-    const cost = extractor.cost.find(c => c.resource === 'Stone');
-
-    if (cost && stone.amount >= cost.amount) {
-        stone.amount -= cost.amount;
-        extractor.count += 1;
-        addLogEntry('Built a new Extractor! Automatic Xylite production has increased.', 'green');
-        updateResourceInfo();
-    } else {
-        addLogEntry('Not enough Stone to build an Extractor.', 'red');
-    }
-}
+// The old buildQuarry and buildExtractor functions are no longer needed
+// and can be deleted, since buildBuilding() handles everything.
