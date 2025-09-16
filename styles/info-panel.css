@@ -24,6 +24,7 @@
     height: 20px;
     overflow: hidden;
     color: orange;
+    gap: 10px; /* FIXED: Adds a 10px gap between each column */
 }
 
 .info-section:nth-child(even) {
@@ -48,8 +49,8 @@
     padding-right: 5px;
 }
 
-/* NEW RULE TO FIX INVISIBLE TEXT */
 .info-section h3,
 .info-section p {
     margin: 0;
+    font-size: 14px; /* FIXED: Set a consistent, slightly smaller font size */
 }
