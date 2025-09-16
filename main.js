@@ -180,50 +180,52 @@ function getOrCreateTooltip() {
 export function setupTooltip(button, tooltipData) {
     const tooltip = getOrCreateTooltip();
 
-    button.addEventListener('mouseenter', (e) => {
-        tooltip.innerHTML = ''; // Clear previous content
+    console.log("Setting up tooltip for button:", button.textContent, "with data:", tooltipData);
 
-        // This block handles simple tooltips, like for "Mine Stone"
+    button.addEventListener('mouseenter', (e) => {
+        // The debugger will pause your game here ONLY if you have the developer tools open.
+        // You can then inspect variables and step through the code.
+        debugger; 
+
+        console.log(`--- Mouse hovered over "${button.textContent}" ---`);
+        tooltip.innerHTML = ''; 
+
         if (typeof tooltipData === 'string') {
+            console.log("Tooltip data is a string. Setting text content.");
             tooltip.textContent = tooltipData;
         
-        // **FIXED**: This block now correctly handles complex tooltips for buildings
         } else if (tooltipData && tooltipData.cost && Array.isArray(tooltipData.cost)) {
-            
-            // --- Cost Section ---
+            console.log("Tooltip data is an object. Building complex tooltip.");
+            // ... (The rest of the logic is the same as the fix I sent before)
             const costSection = document.createElement('div');
             costSection.className = 'tooltip-section cost';
             const costHeader = document.createElement('h4');
             costHeader.textContent = 'Cost';
             costSection.appendChild(costHeader);
-            
             tooltipData.cost.forEach(c => {
                 const costItem = document.createElement('p');
-                // Check that resource and amount exist before creating the text
                 if (c.resource && typeof c.amount !== 'undefined') {
                     costItem.textContent = `${c.resource}: ${c.amount}`;
                     costSection.appendChild(costItem);
                 }
             });
             tooltip.appendChild(costSection);
-
-            // --- Generation Section ---
-            // Check that there is something to produce before creating the section
             if (tooltipData.produces) {
                 const genSection = document.createElement('div');
                 genSection.className = 'tooltip-section generation';
                 const genHeader = document.createElement('h4');
                 genHeader.textContent = 'Generation';
                 genSection.appendChild(genHeader);
-                
                 const genItem = document.createElement('p');
                 genItem.textContent = `${tooltipData.produces}: +${tooltipData.rate}/s`;
                 genSection.appendChild(genItem);
                 tooltip.appendChild(genSection);
             }
+        } else {
+             console.log("Tooltip data is not a string and not a valid object. Doing nothing.");
         }
 
-        // This line makes the tooltip appear
+        console.log("Making tooltip visible.");
         tooltip.style.visibility = 'visible';
         tooltip.style.left = `${e.clientX + 15}px`;
         tooltip.style.top = `${e.clientY - 30}px`;
