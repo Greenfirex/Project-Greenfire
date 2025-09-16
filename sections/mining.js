@@ -1,3 +1,5 @@
+// sections/mining.js
+
 import { resources, updateResourceInfo } from '../resources.js';
 import { buildings } from '../data/buildings.js';
 import { technologies } from '../data/technologies.js';
@@ -5,29 +7,36 @@ import { addLogEntry } from '../log.js';
 import { setupTooltip } from '../main.js';
 
 /**
- * Creates a stylish, image-based button for a building, including its name and current count.
- * @param {object} building - The building object from the buildings data.
- * @param {HTMLElement} container - The parent element to append the button to.
+ * NEW: A reusable function to apply a click animation to a button.
+ * @param {Event} event - The click event from the event listener.
+ */
+function animateButtonClick(event) {
+    const button = event.currentTarget;
+    button.classList.add('is-clicking');
+    // Remove the class after the animation finishes so it can be re-triggered
+    setTimeout(() => {
+        button.classList.remove('is-clicking');
+    }, 200); // 200ms matches the animation duration
+}
+
+/**
+ * Creates a stylish, image-based button for a building.
  */
 function createBuildingButton(building, container) {
     const button = document.createElement('button');
     button.className = 'image-button';
 
-    // --- FIXED: Swapped the order of these two blocks ---
-
-    // Create a separate span for the building's count and add it FIRST
     const countSpan = document.createElement('span');
     countSpan.className = 'building-count';
     countSpan.textContent = `(${building.count})`;
     button.appendChild(countSpan);
 
-    // Create a span for the building's name and add it SECOND
     const nameSpan = document.createElement('span');
     nameSpan.textContent = `Build ${building.name}`;
     button.appendChild(nameSpan);
     
-    // Set the button's action and tooltip
-    button.addEventListener('click', () => buildBuilding(building.name));
+    // Pass the event to the buildBuilding function
+    button.addEventListener('click', (event) => buildBuilding(event, building.name));
     setupTooltip(button, building);
 
     container.appendChild(button);
@@ -36,7 +45,8 @@ function createBuildingButton(building, container) {
 /**
  * A single, reusable function to handle purchasing any building.
  */
-function buildBuilding(buildingName) {
+function buildBuilding(event, buildingName) {
+    // animateButtonClick(event); // MOVED FROM HERE
     const building = buildings.find(b => b.name === buildingName);
     if (!building) { return; }
 
@@ -51,6 +61,9 @@ function buildBuilding(buildingName) {
     }
 
     if (canAfford) {
+        animateButtonClick(event); // MOVED TO HERE: Animation only plays on success.
+
+        // Deduct costs
         for (const cost of building.cost) {
             const resource = resources.find(r => r.name === cost.resource);
             resource.amount -= cost.amount;
@@ -68,7 +81,7 @@ function buildBuilding(buildingName) {
         }
         
         updateResourceInfo();
-        setupMiningSection(); // Rebuild the mining section to update the button counts
+        setupMiningSection();
     }
 }
 
@@ -79,7 +92,6 @@ export function setupMiningSection(miningSection) {
     if (!miningSection) { return; }
 
     miningSection.innerHTML = '';
-    // We don't need the 'mining-bg' class if the main background is already set
 
     // --- Category 1: Manual Gathering ---
     const manualHeader = document.createElement('h2');
@@ -89,18 +101,19 @@ export function setupMiningSection(miningSection) {
     const manualCategory = document.createElement('div');
     manualCategory.className = 'mining-category-container';
     const manualButtons = document.createElement('div');
-    manualButtons.className = 'button-group'; // We can reuse button-group from research.css
-    // Manual button also gets the new style for consistency
+    manualButtons.className = 'button-group';
     const mineStoneButton = document.createElement('button');
     mineStoneButton.className = 'image-button';
     mineStoneButton.textContent = 'Mine Stone';
-    mineStoneButton.addEventListener('click', mineStone);
+    // Pass the event to the mineStone function
+    mineStoneButton.addEventListener('click', (event) => mineStone(event));
     setupTooltip(mineStoneButton, 'Gain 1 Stone');
     manualButtons.appendChild(mineStoneButton);
     manualCategory.appendChild(manualButtons);
     miningSection.appendChild(manualCategory);
 
-    // --- Category 2: Mining ---
+    // --- Category 2: Production ---
+    // (This section's logic is unchanged, but the createBuildingButton call now passes the event)
     const miningHeader = document.createElement('h2');
     miningHeader.textContent = 'Production';
     miningHeader.className = 'section-header';
@@ -109,7 +122,6 @@ export function setupMiningSection(miningSection) {
     miningCategory.className = 'mining-category-container';
     const miningButtons = document.createElement('div');
     miningButtons.className = 'button-group';
-    
     createBuildingButton(buildings.find(b => b.name === 'Quarry'), miningButtons);
     const xylite = resources.find(r => r.name === 'Xylite');
     if (xylite && xylite.isDiscovered) {
@@ -119,7 +131,8 @@ export function setupMiningSection(miningSection) {
     miningSection.appendChild(miningCategory);
 
     // --- Category 3: Storage ---
-    const basicStorageTech = technologies.find(t => t.name === 'Basic Storage' && t.isResearched);
+    // (This section's logic is unchanged, but the createBuildingButton call now passes the event)
+    const basicStorageTech = technologies.find(t => t.name === 'Basic Storage' && t.isReserached);
     if (basicStorageTech) {
         const storageHeader = document.createElement('h2');
         storageHeader.textContent = 'Storage';
@@ -129,7 +142,6 @@ export function setupMiningSection(miningSection) {
         storageCategory.className = 'mining-category-container';
         const storageButtons = document.createElement('div');
         storageButtons.className = 'button-group';
-        
         createBuildingButton(buildings.find(b => b.name === 'Stone Stockpile'), storageButtons);
         const xyliteStorageTech = technologies.find(t => t.name === 'Xylite Storage' && t.isResearched);
         if (xyliteStorageTech) {
@@ -140,7 +152,8 @@ export function setupMiningSection(miningSection) {
     }
 }
 
-function mineStone() {
+function mineStone(event) {
+    animateButtonClick(event); // Trigger the animation
     const stone = resources.find(r => r.name === 'Stone');
     if (stone) {
         if (stone.amount >= stone.capacity) {

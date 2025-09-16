@@ -58,3 +58,21 @@
     border-radius: 0;
     color: #90EE90;
 }
+
+/* This defines the "bounce" animation */
+@keyframes button-click-bounce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* We'll add this class with JavaScript to trigger the animation */
+.is-clicking {
+  animation: button-click-bounce 0.2s ease;
+}
