@@ -17,7 +17,7 @@
 
 .info-section {
     display: grid;
-    grid-template-columns: 3fr 2fr 3fr; /* Divides the row into 3 proportional columns */
+    grid-template-columns: 3fr 2fr 3fr;
     align-items: center;
     width: 100%;
     margin-bottom: 5px;
@@ -46,4 +46,10 @@
 .infocolumn3 {
     text-align: right;
     padding-right: 5px;
+}
+
+/* NEW RULE TO FIX INVISIBLE TEXT */
+.info-section h3,
+.info-section p {
+    margin: 0;
 }
