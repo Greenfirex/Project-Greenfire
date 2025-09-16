@@ -64,22 +64,50 @@ export function setupResearchSection(researchSection) {
     }
 
     if (researchSection) {
-        // This initial part of the function that sets up the progress bar,
-        // tabs, and the "Available Tech" container remains the same.
-        // I'm including it all here so you can replace the whole function.
         researchSection.innerHTML = '';
         researchSection.classList.add('research-bg');
 
+        // --- Block 1: Create the Progress Bar (This part was working) ---
         const progressBarContainer = document.createElement('div');
         progressBarContainer.className = 'progress-bar-container';
-        // ... progress bar elements
+        const progressBar = document.createElement('div');
+        progressBar.className = 'progress-bar';
+        const progressInfo = document.createElement('div');
+        progressInfo.className = 'progress-info';
+        const progressText = document.createElement('p');
+        progressText.className = 'progress-text';
+        progressText.style.display = 'none';
+        progressText.innerText = 'Researching...';
+        progressInfo.appendChild(progressText);
+        const cancelButton = document.createElement('button');
+        cancelButton.className = 'cancel-button';
+        cancelButton.textContent = 'Cancel Research';
+        cancelButton.style.display = 'none';
+        cancelButton.addEventListener('click', cancelResearch);
+        progressInfo.appendChild(cancelButton);
+        progressBarContainer.appendChild(progressBar);
+        progressBarContainer.appendChild(progressInfo);
         researchSection.appendChild(progressBarContainer);
 
+        // --- Block 2: CREATE THE TABS (This was likely missing) ---
         const tabContainer = document.createElement('div');
         tabContainer.className = 'tab-container';
-        // ... tab buttons
-        researchSection.appendChild(tabContainer);
 
+        const availableTab = document.createElement('button');
+        availableTab.className = 'tab active';
+        availableTab.textContent = 'Available Tech';
+        availableTab.addEventListener('click', () => showTab('available'));
+
+        const researchedTab = document.createElement('button');
+        researchedTab.className = 'tab';
+        researchedTab.textContent = 'Researched Tech';
+        researchedTab.addEventListener('click', () => showTab('researched'));
+
+        tabContainer.appendChild(availableTab);
+        tabContainer.appendChild(researchedTab);
+        researchSection.appendChild(tabContainer);
+        
+        // --- Block 3: Create the Content Panels (The rest of the function) ---
         const availableContainer = document.createElement('div');
         availableContainer.className = 'tech-container available active';
         const researchedContainer = document.createElement('div');
@@ -87,49 +115,66 @@ export function setupResearchSection(researchSection) {
 
         const categories = ['Mining Tech', 'Bio Tech', 'Social Tech'];
 
-        // Logic for the "Available Tech" tab (unchanged)
+        // Logic for the "Available Tech" tab
         categories.forEach(category => {
-            // ...
+            const categoryTechs = technologies.filter(tech => tech.category === category && !tech.isResearched);
+            if (categoryTechs.length > 0) {
+                const categoryContainer = document.createElement('div');
+                categoryContainer.className = 'category-container';
+                const categoryHeading = document.createElement('h3');
+                categoryHeading.className = 'category-heading';
+                categoryHeading.textContent = category;
+                const buttonGroup = document.createElement('div');
+                buttonGroup.className = 'button-group';
+                let hasVisibleTechs = false;
+                categoryTechs.forEach(tech => {
+                    const allPrerequisitesResearched = tech.prerequisites.every(prereq => {
+                        const preTech = technologies.find(t => t.name === prereq);
+                        return preTech && preTech.isResearched;
+                    });
+                    if (allPrerequisitesResearched) {
+                        createTechButton(tech.name, () => startResearch(tech, cancelButton), buttonGroup, tech);
+                        hasVisibleTechs = true;
+                    }
+                });
+                if (hasVisibleTechs) {
+                    categoryContainer.appendChild(categoryHeading);
+                    categoryContainer.appendChild(buttonGroup);
+                    availableContainer.appendChild(categoryContainer);
+                }
+            }
         });
 
-        // --- FIXED: This is the updated logic for the "Researched Tech" tab ---
+        // Logic for the "Researched Tech" tab
         categories.forEach(category => {
-            const researchedTechsInCategory = technologies.filter(tech => 
+            const researchedTechsInCategory = technologies.filter(tech =>
                 tech.category === category && tech.isResearched
             );
-
-            // If any techs in this category have been researched, create a section for them.
             if (researchedTechsInCategory.length > 0) {
                 const categoryContainer = document.createElement('div');
-                categoryContainer.className = 'category-container'; // We can reuse this class
-
+                categoryContainer.className = 'category-container';
                 const categoryHeading = document.createElement('h3');
                 categoryHeading.className = 'category-heading';
                 categoryHeading.textContent = category;
                 categoryContainer.appendChild(categoryHeading);
-
-                // Add each researched tech name and attach a tooltip
                 researchedTechsInCategory.forEach(tech => {
                     const techElement = document.createElement('p');
-                    techElement.className = 'researched-tech-name'; // A new class for styling
+                    techElement.className = 'researched-tech-name';
                     techElement.textContent = tech.name;
-
-                    // Attach our powerful, reusable tooltip function!
                     setupTooltip(techElement, tech);
-
                     categoryContainer.appendChild(techElement);
                 });
-
                 researchedContainer.appendChild(categoryContainer);
             }
         });
-        
+
         researchSection.appendChild(availableContainer);
         researchSection.appendChild(researchedContainer);
 
-        // Logic to resume ongoing research (unchanged)
         if (currentResearchingTech) {
-            // ...
+            updateProgressBar(cancelButton);
+            document.querySelectorAll('.tech-button').forEach(button => button.disabled = true);
+            if (cancelButton) cancelButton.style.display = 'inline-block';
         }
     }
 }
