@@ -113,23 +113,35 @@
 }
 
 .tech-button {
-    margin: 0px;
-    padding: 10px;
-    background-color: #90EE90;
-    color: white;
-    border: none;
-    border-radius: 5px;
+    /* --- Sizing and Layout --- */
+    width: 160px;                           /* Set a fixed width */
+    height: 50px;                            /* Set a fixed height */
+    display: flex;                           /* Use flexbox for easy centering */
+    align-items: center;                     /* Center text vertically */
+    justify-content: center;                 /* Center text horizontally */
+    padding: 0 10px;                         /* Add some side padding for long text */
+
+    /* --- Background Image --- */
+    background-image: url('../assets/images/PNG/Button03.png'); /* Use your button image */
+    background-size: 100% 100%;              /* Stretch the image to fit the button */
+    background-color: transparent;           /* Remove the old green color */
+    
+    /* --- Text and Font --- */
+    color: #EAEAEA;                          /* A slightly off-white for better readability */
+    font-size: 14px;                         /* Increased font size slightly */
+    font-weight: bold;                       /* Make the text stand out */
+    text-shadow: 1px 1px 2px #000;           /* Add a subtle shadow to the text */
+    
+    /* --- General --- */
+    border: none;                            /* Remove the default border */
     cursor: pointer;
-    height: 40px;
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    padding-left: 20px;
+    transition: transform 0.15s ease;        /* Add a smooth transition for the hover effect */
 }
 
 .tech-button:hover {
-    background-color: #16a085;
+    background-image: url('../assets/images/PNG/Button04.png'); /* Use the "hover" version of your button */
+    color: #FFF;                             /* Make text brighter on hover */
+    transform: scale(1.05);                  /* Make the button slightly larger on hover */
 }
 
 .category-heading {
