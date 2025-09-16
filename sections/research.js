@@ -1,8 +1,7 @@
-// sections/research.js
-
 import { addLogEntry } from '../log.js';
 import { technologies } from '../data/technologies.js';
 import { setupTooltip } from '../main.js';
+import { setupMiningSection } from './mining.js';
 
 export let currentResearchingTech = null;
 export let researchInterval = null;
@@ -247,14 +246,14 @@ function handleResearchCompletion(tech, cancelButton) {
         addLogEntry(`${tech.name} research complete!`, 'green');
         tech.isResearched = true;
     }
-
     setResearchProgress(0);
-    setCurrentResearchingTech(null); // Set current tech to null before rebuilding
+    setCurrentResearchingTech(null);
     
-    // CHANGED: The logic for adding new buttons was flawed. 
-    // It's much simpler and more reliable to just rebuild the entire research section.
-    // This will automatically show newly unlocked techs in their correct categories.
+    // This rebuilds the research panel
     setupResearchSection(); 
+    
+    // FIXED: Rebuild the mining section as well to show new unlocks
+    setupMiningSection();
 }
 
 export function startResearch(tech, cancelButton) {
