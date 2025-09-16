@@ -181,11 +181,16 @@ export function setupTooltip(button, tooltipData) {
     const tooltip = getOrCreateTooltip();
 
     button.addEventListener('mouseenter', (e) => {
-        tooltip.innerHTML = '';
-        
+        tooltip.innerHTML = ''; // Clear previous content
+
+        // This block handles simple tooltips, like for "Mine Stone"
         if (typeof tooltipData === 'string') {
             tooltip.textContent = tooltipData;
-        } else if (tooltipData && tooltipData.cost) {
+        
+        // **FIXED**: This block now correctly handles complex tooltips for buildings
+        } else if (tooltipData && tooltipData.cost && Array.isArray(tooltipData.cost)) {
+            
+            // --- Cost Section ---
             const costSection = document.createElement('div');
             costSection.className = 'tooltip-section cost';
             const costHeader = document.createElement('h4');
@@ -194,25 +199,31 @@ export function setupTooltip(button, tooltipData) {
             
             tooltipData.cost.forEach(c => {
                 const costItem = document.createElement('p');
-                costItem.textContent = `${c.resource}: ${c.amount}`;
-                costSection.appendChild(costItem);
+                // Check that resource and amount exist before creating the text
+                if (c.resource && typeof c.amount !== 'undefined') {
+                    costItem.textContent = `${c.resource}: ${c.amount}`;
+                    costSection.appendChild(costItem);
+                }
             });
             tooltip.appendChild(costSection);
 
-            const genSection = document.createElement('div');
-            genSection.className = 'tooltip-section generation';
-            const genHeader = document.createElement('h4');
-            genHeader.textContent = 'Generation';
-            genSection.appendChild(genHeader);
-
+            // --- Generation Section ---
+            // Check that there is something to produce before creating the section
             if (tooltipData.produces) {
+                const genSection = document.createElement('div');
+                genSection.className = 'tooltip-section generation';
+                const genHeader = document.createElement('h4');
+                genHeader.textContent = 'Generation';
+                genSection.appendChild(genHeader);
+                
                 const genItem = document.createElement('p');
                 genItem.textContent = `${tooltipData.produces}: +${tooltipData.rate}/s`;
                 genSection.appendChild(genItem);
+                tooltip.appendChild(genSection);
             }
-            tooltip.appendChild(genSection);
         }
 
+        // This line makes the tooltip appear
         tooltip.style.visibility = 'visible';
         tooltip.style.left = `${e.clientX + 15}px`;
         tooltip.style.top = `${e.clientY - 30}px`;

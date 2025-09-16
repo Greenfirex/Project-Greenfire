@@ -58,7 +58,7 @@ function createMiningButton(buttonText, callback, container, tooltipData) {
     const button = document.createElement('button');
     button.className = 'game-button';
     button.textContent = buttonText;
-    button.onclick = callback;
+    button.addEventListener('click', callback); // Using addEventListener is more modern
 
     if (tooltipData) {
         setupTooltip(button, tooltipData);
