@@ -35,7 +35,7 @@ export function updateResourceInfo() {
             // --- FIXED: Format the stored amount and show capacity ---
             const storageElement = document.createElement('p');
             const storedAmount = resource.amount.toFixed(2); // Format to 2 decimal places
-            storageElement.textContent = `Stored: ${storedAmount} / ${resource.capacity}`;
+            storageElement.textContent = `${storedAmount} / ${resource.capacity}`;
 
             column1.appendChild(nameElement);
             column2.appendChild(generationElement);

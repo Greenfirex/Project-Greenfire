@@ -1,47 +1,54 @@
 #infoPanel {
-  position: relative;
-  width: 20%;
-  background-color: black;
-  height: 100%;
-  color: white;
-  border: 1px solid #555;
-  margin-top: -1px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 10px;
-  overflow-y: auto;
+  position: relative;
+  width: 20%;
+  background-color: black;
+  height: 100%;
+  color: white;
+  border: 1px solid #555;
+  margin-top: -1px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow-y: auto;
 }
 
+/* --- FIXED: Switched from Flexbox to CSS Grid --- */
 .info-section {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  margin-bottom: 5px;
-  height: 20px;
-  overflow: hidden;
-  color: orange;
+  display: grid; /* Use Grid for precise column control */
+  /* This defines our 3 columns and their proportional widths. */
+  /* It divides the total space into 8 parts (3 + 2 + 3). */
+  grid-template-columns: 3fr 2fr 3fr; 
+  align-items: center;
+  width: 100%;
+  margin-bottom: 5px;
+  height: 20px;
+  overflow: hidden;
+  color: orange;
 }
 
 .info-section:nth-child(even) {
-  background-color: #444444; /* Light background color for even rows */
+  background-color: #444444; 
 }
 
 .info-section:nth-child(odd) {
-  background-color: black; /* Slightly darker background color for odd rows */
-  
+  background-color: black;
 }
 
-.infocolumn1, .infocolumn2, .infocolumn3 {
-  width: 120px;
-  flex: 0 0 auto;
-  height: 20px;
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* --- FIXED: Removed widths, as the grid container now handles it --- */
+
+.infocolumn1 { /* Resource Name gets 3 parts of the space */
+    text-align: left;
+    padding-left: 5px;
+}
+.infocolumn2 { /* Generation Rate gets 2 parts */
+    text-align: right;
+}
+.infocolumn3 { /* Stored Amount gets 3 parts */
+    text-align: right;
+    padding-right: 5px;
 }
 
 
