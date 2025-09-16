@@ -38,7 +38,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 0 20px;
-    box-sizing: border-box;
+    box-sizing: border-box; /* This ensures padding is inside the width */
 }
 
 .progress-text {
@@ -97,12 +97,11 @@
     display: none;
 }
 
-/* --- FIXED: Replaced Flexbox with a more efficient Grid layout --- */
 .tech-container.active {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
     gap: 20px;
-    align-content: flex-start; /* Aligns all content to the top */
+    align-content: flex-start;
 }
 
 .tech-button {
@@ -137,7 +136,6 @@
     margin-bottom: 5px;
 }
 
-/* --- FIXED: Removed width: 100% to allow categories to sit side-by-side --- */
 .category-container {
     display: flex;
     flex-direction: column;
