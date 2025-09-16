@@ -1,4 +1,5 @@
 import { resources, updateResourceInfo } from '../resources.js';
+import { technologies } from '../data/technologies.js';
 import { buildings } from '../data/buildings.js';
 import { addLogEntry } from '../log.js';
 import { setupTooltip } from '../main.js';
@@ -63,7 +64,7 @@ export function setupMiningSection(miningSection) {
         miningSection.innerHTML = '';
         miningSection.classList.add('mining-bg');
 
-        // --- Category 1: Manual Gathering ---
+        // --- Category 1: Manual Gathering (Unchanged) ---
         const manualHeader = document.createElement('h2');
         manualHeader.textContent = 'Manual Gathering';
         manualHeader.className = 'section-header';
@@ -76,7 +77,7 @@ export function setupMiningSection(miningSection) {
         manualCategory.appendChild(manualButtons);
         miningSection.appendChild(manualCategory);
 
-        // --- Category 2: Mining ---
+        // --- Category 2: Mining (Unchanged) ---
         const miningHeader = document.createElement('h2');
         miningHeader.textContent = 'Mining';
         miningHeader.className = 'section-header';
@@ -95,21 +96,35 @@ export function setupMiningSection(miningSection) {
         miningCategory.appendChild(miningButtons);
         miningSection.appendChild(miningCategory);
 
-        // --- NEW! Category 3: Storage ---
-        const storageHeader = document.createElement('h2');
-        storageHeader.textContent = 'Storage';
-        storageHeader.className = 'section-header';
-        miningSection.appendChild(storageHeader);
-        const storageCategory = document.createElement('div');
-        storageCategory.className = 'mining-category-container';
-        const storageButtons = document.createElement('div');
-        storageButtons.className = 'button-group';
-        const stockpileData = buildings.find(b => b.name === 'Stone Stockpile');
-        const siloData = buildings.find(b => b.name === 'Xylite Silo');
-        createMiningButton('Build Stone Stockpile', () => buildBuilding('Stone Stockpile'), storageButtons, stockpileData);
-        createMiningButton('Build Xylite Silo', () => buildBuilding('Xylite Silo'), storageButtons, siloData);
-        storageCategory.appendChild(storageButtons);
-        miningSection.appendChild(storageCategory);
+        // --- FIXED: Category 3: Storage (Now checks for researched tech) ---
+        const basicStorageTech = technologies.find(t => t.name === 'Basic Storage' && t.isResearched);
+        const xyliteStorageTech = technologies.find(t => t.name === 'Xylite Storage' && t.isResearched);
+        
+        // Only show the Storage category if at least one of its buildings is unlocked
+        if (basicStorageTech) {
+            const storageHeader = document.createElement('h2');
+            storageHeader.textContent = 'Storage';
+            storageHeader.className = 'section-header';
+            miningSection.appendChild(storageHeader);
+
+            const storageCategory = document.createElement('div');
+            storageCategory.className = 'mining-category-container';
+            const storageButtons = document.createElement('div');
+            storageButtons.className = 'button-group';
+
+            // Check for Basic Storage tech before creating the button
+            const stockpileData = buildings.find(b => b.name === 'Stone Stockpile');
+            createMiningButton('Build Stone Stockpile', () => buildBuilding('Stone Stockpile'), storageButtons, stockpileData);
+
+            // Check for Xylite Storage tech before creating the button
+            if (xyliteStorageTech) {
+                const siloData = buildings.find(b => b.name === 'Xylite Silo');
+                createMiningButton('Build Xylite Silo', () => buildBuilding('Xylite Silo'), storageButtons, siloData);
+            }
+            
+            storageCategory.appendChild(storageButtons);
+            miningSection.appendChild(storageCategory);
+        }
     }
 }
 
