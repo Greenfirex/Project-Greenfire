@@ -19,10 +19,11 @@
     /* --- Sizing and Layout --- */
     width: 180px;
     height: 55px;
-    position: relative; /* Needed to position the count element inside */
+    position: relative; 
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: center;    /* This vertically centers everything */
+    justify-content: center;  /* This horizontally centers the group */
+    gap: 10px;                /* FIXED: Adds space between the count and the name */
     padding: 0 10px;
 
     /* --- Background Image --- */
@@ -50,12 +51,10 @@
 
 /* Special element for the building count */
 .building-count {
-    position: absolute; /* Position it relative to the button */
-    bottom: 4px;
-    right: 8px;
-    font-size: 12px;
-    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent background */
-    padding: 2px 6px;
-    border-radius: 4px;
-    color: #90EE90; /* Light green to stand out */
+    /* FIXED: Removed all absolute positioning */
+    font-size: 14px; /* Make font size consistent with the name */
+    background-color: transparent; /* Remove the dark background */
+    padding: 0;
+    border-radius: 0;
+    color: #90EE90;
 }

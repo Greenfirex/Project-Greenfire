@@ -11,18 +11,20 @@ import { setupTooltip } from '../main.js';
  */
 function createBuildingButton(building, container) {
     const button = document.createElement('button');
-    button.className = 'image-button'; // Use our new stylish class
+    button.className = 'image-button';
 
-    // Create a span for the building's name
+    // --- FIXED: Swapped the order of these two blocks ---
+
+    // Create a separate span for the building's count and add it FIRST
+    const countSpan = document.createElement('span');
+    countSpan.className = 'building-count';
+    countSpan.textContent = `(${building.count})`;
+    button.appendChild(countSpan);
+
+    // Create a span for the building's name and add it SECOND
     const nameSpan = document.createElement('span');
     nameSpan.textContent = `Build ${building.name}`;
     button.appendChild(nameSpan);
-
-    // Create a separate span for the building's count
-    const countSpan = document.createElement('span');
-    countSpan.className = 'building-count'; // The class for the count in the corner
-    countSpan.textContent = `(${building.count})`;
-    button.appendChild(countSpan);
     
     // Set the button's action and tooltip
     button.addEventListener('click', () => buildBuilding(building.name));
