@@ -55,20 +55,21 @@
 }
 
 .cancel-button {
-    background-color: #e74c3c; /* A distinct red button color */
+    background-color: #e74c3c;
     color: white;
-    border: none;
-    padding: 10px 20px;
+    border: 1px solid #c0392b; /* Added a slightly darker border */
+    padding: 8px 16px;         /* Adjusted padding for a sleeker look */
     cursor: pointer;
     font-size: 14px;
+    font-weight: bold;         /* Added bold font */
     text-align: center;
     border-radius: 5px;
-    margin-top: 10px; /* Push it down from the progress bar */
-    align-self: flex-end; /* Align it to the right */
+    margin: 0;                 /* FIXED: Removed margin-top to allow for centering */
+    transition: background-color 0.2s ease; /* Added a smooth transition */
 }
 
 .cancel-button:hover {
-    background-color: #c0392b;
+    background-color: #c0392b; /* Kept the existing hover color */
 }
 
 .tab-container {
