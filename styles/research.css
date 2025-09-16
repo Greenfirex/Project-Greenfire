@@ -6,16 +6,8 @@
     align-items: flex-start;
     height: 100%;
     width: 100%;
-	box-sizing: border-box;
-	justify-content: flex-start;
-}
-
-.research-content {
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-    width: 100%;
-    margin-top: 15%; /* Adjust this value to move it down */
+    box-sizing: border-box;
+    justify-content: flex-start;
 }
 
 .progress-bar-container {
@@ -24,9 +16,9 @@
     height: 60px;
     background-color: black;
     margin-bottom: 20px;
-	border: 1px solid #444;
-    display: flex; /* Make it a flex container */
-    flex-direction: column; /* Stack children vertically */
+    border: 1px solid #444;
+    display: flex;
+    flex-direction: column;
 }
 
 .progress-bar {
@@ -45,7 +37,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 10px;
+    padding: 0 20px;
+    box-sizing: border-box;
 }
 
 .progress-text {
@@ -57,19 +50,19 @@
 .cancel-button {
     background-color: #e74c3c;
     color: white;
-    border: 1px solid #c0392b; /* Added a slightly darker border */
-    padding: 8px 16px;         /* Adjusted padding for a sleeker look */
+    border: 1px solid #c0392b;
+    padding: 8px 16px;
     cursor: pointer;
     font-size: 14px;
-    font-weight: bold;         /* Added bold font */
+    font-weight: bold;
     text-align: center;
     border-radius: 5px;
-    margin: 0;                 /* FIXED: Removed margin-top to allow for centering */
-    transition: background-color 0.2s ease; /* Added a smooth transition */
+    margin: 0;
+    transition: background-color 0.2s ease;
 }
 
 .cancel-button:hover {
-    background-color: #c0392b; /* Kept the existing hover color */
+    background-color: #c0392b;
 }
 
 .tab-container {
@@ -84,9 +77,8 @@
     padding: 10px;
     background-color: #333;
     color: white;
-    border: none;
+    border: 1px solid #444;
     cursor: pointer;
-	border: 1px solid #444;
     text-align: center;
     margin: 0 5px;
 }
@@ -98,64 +90,58 @@
 .tech-container {
     flex-grow: 1;
     width: 100%;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 10px;
     background-color: #000;
-	border: 1px solid #444;
+    border: 1px solid #444;
     padding: 10px;
-	box-sizing: border-box;
-    display: none; /* This controls visibility */
+    box-sizing: border-box;
+    display: none;
 }
 
+/* --- FIXED: Replaced Flexbox with a more efficient Grid layout --- */
 .tech-container.active {
-    display: flex; /* This makes it visible and a flex container */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+    align-content: flex-start; /* Aligns all content to the top */
 }
 
 .tech-button {
-    /* --- Sizing and Layout --- */
-    width: 160px;                           /* Set a fixed width */
-    height: 50px;                            /* Set a fixed height */
-    display: flex;                           /* Use flexbox for easy centering */
-    align-items: center;                     /* Center text vertically */
-    justify-content: center;                 /* Center text horizontally */
-    padding: 0 10px;                         /* Add some side padding for long text */
-
-    /* --- Background Image --- */
-    background-image: url('../assets/images/PNG/Button03.png'); /* Use your button image */
-    background-size: 100% 100%;              /* Stretch the image to fit the button */
-    background-color: transparent;           /* Remove the old green color */
-    
-    /* --- Text and Font --- */
-    color: #EAEAEA;                          /* A slightly off-white for better readability */
-    font-size: 14px;                         /* Increased font size slightly */
-    font-weight: bold;                       /* Make the text stand out */
-    text-shadow: 1px 1px 2px #000;           /* Add a subtle shadow to the text */
-    
-    /* --- General --- */
-    border: none;                            /* Remove the default border */
+    width: 160px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    background-image: url('../assets/images/PNG/Button03.png');
+    background-size: 100% 100%;
+    background-color: transparent;
+    color: #EAEAEA;
+    font-size: 14px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+    border: none;
     cursor: pointer;
-    transition: transform 0.15s ease;        /* Add a smooth transition for the hover effect */
+    transition: transform 0.15s ease;
 }
 
 .tech-button:hover {
-    background-image: url('../assets/images/PNG/Button04.png'); /* Use the "hover" version of your button */
-    color: #FFF;                             /* Make text brighter on hover */
-    transform: scale(1.05);                  /* Make the button slightly larger on hover */
+    background-image: url('../assets/images/PNG/Button04.png');
+    color: #FFF;
+    transform: scale(1.05);
 }
 
 .category-heading {
     display: block;
     width: 100%;
-    margin-top: 10px; /* Zmenšená mezera nahoře */
-    margin-bottom: 5px; /* Zmenšená mezera dole */
+    margin-top: 10px;
+    margin-bottom: 5px;
 }
 
+/* --- FIXED: Removed width: 100% to allow categories to sit side-by-side --- */
 .category-container {
     display: flex;
     flex-direction: column;
-    width: 100%;
-    margin-bottom: 20px; /* Spacing between categories */
+    margin-bottom: 20px;
 }
 
 .button-group {
@@ -163,4 +149,11 @@
     flex-wrap: wrap;
     gap: 10px;
     width: 100%;
+}
+
+.researched-tech-name {
+    margin-left: 15px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    cursor: default;
 }
