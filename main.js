@@ -72,7 +72,7 @@ setInterval(() => {
         saveGameState();
     }, 15000); // 15000 milliseconds = 15 seconds
 }
-}
+
 
 export function setActivatedSections(sections) {
     activatedSections = sections;
