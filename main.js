@@ -68,6 +68,10 @@ setInterval(() => {
     updateResourceInfo();
     checkConditions();
 }, 100);
+setInterval(() => {
+        saveGameState();
+    }, 15000); // 15000 milliseconds = 15 seconds
+}
 }
 
 export function setActivatedSections(sections) {
@@ -276,9 +280,12 @@ window.showSection = function(sectionId) {
 
 function loadCurrentSection() {
     const savedSection = localStorage.getItem('currentSection');
-    if (savedSection) {
+
+    // Check if the saved section is actually unlocked
+    if (savedSection && activatedSections[savedSection]) {
         showSection(savedSection);
     } else {
+        // If the saved section is locked (or doesn't exist), default to mining
         showSection('miningSection');
     }
 }
