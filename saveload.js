@@ -1,23 +1,9 @@
 import { resources, getInitialResources, updateResourceInfo } from './resources.js';
-import { technologies } from './data/technologies.js';
-import { buildings } from './data/buildings.js';
+import { technologies, resetTechnologies } from './data/technologies.js';
+import { buildings, resetBuildings } from './data/buildings.js'; // FIXED: Import the new reset function
 import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from './sections/research.js';
 import { applyActivatedSections, activatedSections, setActivatedSections } from './main.js';
-import { setupMiningSection } from './sections/mining.js';
-import { setupResearchSection } from './sections/research.js';
 import { addLogEntry } from './log.js';
-
-export function getDefaultGameState() {
-    return {
-        resources: getInitialResources(),
-        technologies: technologies,
-        activatedSections: {
-            researchSection: false,
-            manufacturingSection: false,
-        },
-        buildings: buildings,
-    };
-}
 
 export function saveGameState() {
     const gameState = {
@@ -38,14 +24,12 @@ export function loadGameState() {
     console.log('2. loadGameState() called. Resources before load:', resources);
     const savedGameState = localStorage.getItem('gameState');
     const logSection = document.getElementById('logSection');
-    const logHeaderText = 'Log entries:';
-    logSection.innerHTML = logHeaderText;
+    logSection.innerHTML = 'Log entries:';
 
     if (savedGameState) {
         const gameState = JSON.parse(savedGameState);
         console.log('3. Loading from saved state:', gameState);
         
-        // Zde si ulož data do pole resources
         resources.length = 0;
         resources.push(...gameState.resources);
         
@@ -55,12 +39,7 @@ export function loadGameState() {
         if (gameState.buildings) {
             buildings.length = 0;
             buildings.push(...gameState.buildings);
-        } else {
-            const defaultState = getDefaultGameState();
-            buildings.length = 0;
-            buildings.push(...defaultState.buildings);
         }
-        console.log('4. Resources after loading from save:', resources);
         
         setResearchProgress(gameState.researchProgress ?? 0);
         setCurrentResearchingTech(gameState.currentResearchingTech);
@@ -68,10 +47,7 @@ export function loadGameState() {
         setCurrentResearchStartTime(0);
         setActivatedSections(gameState.activatedSections);
 
-        updateResourceInfo();
-        setupMiningSection();
-        setupResearchSection();
-        applyActivatedSections();
+        // REMOVED: All setup calls are now correctly handled only in main.js.
 
         if (getCurrentResearchingTech()) {
             const tech = technologies.find(t => t.name === getCurrentResearchingTech());
@@ -92,30 +68,32 @@ export function loadGameState() {
 
 export function resetToDefaultState() {
     console.log('5. resetToDefaultState() called. Resources before reset:', resources);
-    const defaultState = getDefaultGameState();
 
+    // FIXED: Correctly reset all data using their specific reset functions.
     resources.length = 0;
     resources.push(...getInitialResources());
-    technologies.length = 0;
-    technologies.push(...getDefaultGameState().technologies);
-    buildings.length = 0;
-    buildings.push(...getDefaultGameState().buildings);
+    resetTechnologies();
+    resetBuildings();
 
+    // Reset research progress
     clearInterval(getResearchInterval());
     setResearchInterval(null);
     setResearchProgress(0);
     setCurrentResearchingTech(null);
 
-    setActivatedSections(getDefaultGameState().activatedSections);
-
-    updateResourceInfo();
-    setupMiningSection();
-    setupResearchSection();
-    applyActivatedSections();
+    // Reset unlocked sections
+    setActivatedSections({
+        researchSection: false,
+        manufacturingSection: false,
+    });
+    
+    // REMOVED: All setup calls are handled in main.js. This prevents the "element not found" error.
+    
     addLogEntry('Game state reset.', 'yellow');
     console.log('6. Resources after reset:', resources);
 }
 
+// This function is unchanged and remains as part of the file.
 export function resetGameState() {
     console.log('Resetting game state via page reload');
     localStorage.clear();
