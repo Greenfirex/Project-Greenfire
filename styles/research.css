@@ -74,17 +74,39 @@
 }
 
 .tab {
-    padding: 10px;
-    background-color: #333;
-    color: white;
-    border: 1px solid #444;
+    /* --- Sizing and Layout --- */
+    width: 180px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* --- Background Image (Inactive State) --- */
+    background-image: url('../assets/images/PNG/Button03.png');
+    background-size: 100% 100%;
+    background-color: transparent;
+    
+    /* --- Text and Font --- */
+    color: #EAEAEA;
+    font-size: 14px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+    
+    /* --- General --- */
+    border: none;
     cursor: pointer;
-    text-align: center;
     margin: 0 5px;
+    transition: transform 0.15s ease;
+}
+
+.tab:hover {
+    transform: scale(1.05); /* Add a hover effect for all tabs */
 }
 
 .tab.active {
-    background-color: #90EE90;
+    /* --- Background Image (Active State) --- */
+    background-image: url('../assets/images/PNG/Button04.png');
+    color: #FFF; /* Make text brighter for the active tab */
 }
 
 .tech-container {
