@@ -76,3 +76,15 @@
 .is-clicking {
   animation: button-click-bounce 0.2s ease;
 }
+
+.image-button.unaffordable {
+    filter: grayscale(60%); /* Make the button less vibrant */
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Make the text color red, but only for the name, not the count */
+.image-button.unaffordable .building-name {
+    color: #E74C3C; /* A nice red color */
+    text-shadow: none;
+}

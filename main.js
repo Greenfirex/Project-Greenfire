@@ -1,7 +1,7 @@
 import { resources, updateResourceInfo } from './resources.js';
 import { technologies } from './data/technologies.js';
 import { buildings } from './data/buildings.js';
-import { setupMiningSection } from './sections/mining.js';
+import { setupMiningSection, updateBuildingButtonsState } from './sections/mining.js';
 import { setupResearchSection } from './sections/research.js';
 import { setupManufacturingSection } from './sections/manufacturing.js';
 import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js';
@@ -67,6 +67,7 @@ setInterval(() => {
     });
     updateResourceInfo();
     checkConditions();
+	updateBuildingButtonsState();
 }, 100);
 setInterval(() => {
         saveGameState();
