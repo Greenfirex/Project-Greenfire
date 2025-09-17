@@ -3,7 +3,7 @@ import { technologies, resetTechnologies } from './data/technologies.js';
 import { buildings, resetBuildings } from './data/buildings.js'; // FIXED: Import the new reset function
 import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from './sections/research.js';
 import { applyActivatedSections, activatedSections, setActivatedSections } from './main.js';
-import { showStoryPopup } from '.data/popup.js';
+import { showStoryPopup } from './data/popup.js';
 import { storyEvents } from './data/storyEvents.js';
 import { addLogEntry } from './log.js';
 
