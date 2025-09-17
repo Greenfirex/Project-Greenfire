@@ -31,6 +31,7 @@
     color: #888;
     cursor: pointer;
     transition: color 0.2s ease;
+	z-index: 10;
 }
 
 .popup-close:hover {
