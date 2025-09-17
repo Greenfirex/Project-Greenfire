@@ -8,7 +8,7 @@ import { setupShipyardSection } from './sections/shipyard.js';
 import { setupGalaxyMapSection } from './sections/galaxyMap.js';
 import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js';
 import { addLogEntry } from './log.js';
-import { showStoryPopup } from '.data/popup.js';
+import { showStoryPopup } from './data/popup.js';
 import './headeroptions.js';
 
 document.addEventListener('DOMContentLoaded', () => {
