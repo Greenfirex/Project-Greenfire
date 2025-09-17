@@ -51,7 +51,6 @@
 
 /* --- NEW: Style for the active button --- */
 .menu-button.active {
-    background-image: url('../assets/images/PNG/Button04.png');
     color: #FFF;
     box-shadow: 0 0 12px #FFF, 0 0 6px #FFF inset; /* Glowing effect */
 }
