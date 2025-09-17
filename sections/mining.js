@@ -151,7 +151,7 @@ export function setupMiningSection(miningSection) {
     miningCategory.appendChild(miningButtons);
     miningSection.appendChild(miningCategory);
 
-    // --- Category 3: Storage ---
+      // --- Category 3: Storage ---
     // TYPO FIX: Changed "isReserached" to "isResearched"
     const basicStorageTech = technologies.find(t => t.name === 'Basic Storage' && t.isResearched); 
     if (basicStorageTech) {
@@ -161,4 +161,30 @@ export function setupMiningSection(miningSection) {
         miningSection.appendChild(storageHeader);
         const storageCategory = document.createElement('div');
         storageCategory.className = 'mining-category-container';
-        const storageButtons = document.createElement('
+        const storageButtons = document.createElement('div');
+        storageButtons.className = 'button-group';
+        createBuildingButton(buildings.find(b => b.name === 'Stone Stockpile'), storageButtons);
+        const xyliteStorageTech = technologies.find(t => t.name === 'Xylite Storage' && t.isResearched);
+        if (xyliteStorageTech) {
+            createBuildingButton(buildings.find(b => b.name === 'Xylite Silo'), storageButtons);
+        }
+        storageCategory.appendChild(storageButtons);
+        miningSection.appendChild(storageCategory);
+    }
+
+    // ADDED: Call the update function to set the initial state of the buttons
+    updateBuildingButtonsState();
+}
+
+function mineStone(event) {
+    animateButtonClick(event);
+    const stone = resources.find(r => r.name === 'Stone');
+    if (stone) {
+        if (stone.amount >= stone.capacity) {
+            addLogEntry('Stone storage is full!', 'orange');
+            return;
+        }
+        stone.amount = Math.min(stone.amount + 1, stone.capacity);
+        updateResourceInfo();
+    }
+}
