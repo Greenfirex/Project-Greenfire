@@ -4,6 +4,8 @@ import { buildings } from './data/buildings.js';
 import { setupMiningSection, updateBuildingButtonsState } from './sections/mining.js';
 import { setupResearchSection } from './sections/research.js';
 import { setupManufacturingSection } from './sections/manufacturing.js';
+import { setupShipyardSection } from './sections/shipyard.js';
+import { setupGalaxyMapSection } from './sections/galaxyMap.js';
 import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js';
 import { addLogEntry } from './log.js';
 import './headeroptions.js';
@@ -40,14 +42,26 @@ function startGame() {
     const manufacturingSection = document.createElement('div');
     manufacturingSection.id = 'manufacturingSection';
     manufacturingSection.classList.add('game-section');
+	
+	const shipyardSection = document.createElement('div');
+    shipyardSection.id = 'shipyardSection';
+    shipyardSection.classList.add('game-section');
+
+    const galaxyMapSection = document.createElement('div');
+    galaxyMapSection.id = 'galaxyMapSection';
+    galaxyMapSection.classList.add('game-section');
 
     document.getElementById('gameArea').appendChild(miningSection);
     document.getElementById('gameArea').appendChild(researchSection);
     document.getElementById('gameArea').appendChild(manufacturingSection);
+	document.getElementById('gameArea').appendChild(shipyardSection);
+	document.getElementById('gameArea').appendChild(galaxyMapSection);
 
     setupMiningSection(miningSection);
     setupResearchSection(researchSection);
     setupManufacturingSection(manufacturingSection);
+	setupShipyardSection(shipyardSection);
+	setupGalaxyMapSection(galaxyMapSection);
 
     loadCurrentSection();
 
@@ -83,10 +97,12 @@ export function setActivatedSections(sections) {
 export let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || {
     researchSection: false,
     manufacturingSection: false,
+	shipyardSection: false,
+	galaxyMapSection: false,
 };
 
 function setupMenuButtons() {
-    const sections = ['miningSection', 'researchSection', 'manufacturingSection'];
+    const sections = ['miningSection', 'researchSection', 'manufacturingSection', 'shipyardSection', 'galaxyMapSection'];
     const container = document.querySelector('.menu-buttons-container');
     container.innerHTML = '';
     sections.forEach(section => {

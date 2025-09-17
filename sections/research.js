@@ -1,6 +1,6 @@
 import { addLogEntry } from '../log.js';
 import { technologies } from '../data/technologies.js';
-import { setupTooltip } from '../main.js';
+import { setupTooltip, activatedSections, setActivatedSections } from '../main.js';
 import { setupMiningSection } from './mining.js';
 
 export let currentResearchingTech = null;
@@ -257,14 +257,29 @@ function handleResearchCompletion(tech, cancelButton) {
     if (!tech.isResearched) {
         addLogEntry(`${tech.name} research complete!`, 'green');
         tech.isResearched = true;
+
+        // --- NEW: Check for unlocks upon research completion ---
+        let newUnlocks = false;
+        if (tech.name === 'Starship Construction' && !activatedSections.shipyardSection) {
+            activatedSections.shipyardSection = true;
+            addLogEntry('New menu section unlocked: Shipyard', 'blue');
+            newUnlocks = true;
+        }
+        if (tech.name === 'Stellar Cartography' && !activatedSections.galaxyMapSection) {
+            activatedSections.galaxyMapSection = true;
+            addLogEntry('New menu section unlocked: Galaxy Map', 'blue');
+            newUnlocks = true;
+        }
+
+        if (newUnlocks) {
+            setActivatedSections(activatedSections); // Save the updated unlocks
+        }
     }
+    
     setResearchProgress(0);
     setCurrentResearchingTech(null);
     
-    // This rebuilds the research panel
     setupResearchSection(); 
-    
-    // FIXED: Rebuild the mining section as well to show new unlocks
     setupMiningSection();
 }
 

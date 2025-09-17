@@ -1,17 +1,10 @@
 export function setupManufacturingSection(manufacturingSection) {
     if (!manufacturingSection) {
+        // A fallback to find the element if it's not passed in
         manufacturingSection = document.getElementById('manufacturingSection');
     }
+    if (!manufacturingSection) { return; } // Exit if the element can't be found
 
-    if (manufacturingSection) {
-        manufacturingSection.innerHTML = '';
-        manufacturingSection.classList.add('manufacturing-bg');
-
-        const header = document.createElement('h2');
-        header.textContent = 'Manufacturing';
-        header.className = 'section-header';
-        manufacturingSection.appendChild(header);
-
-        gameArea.appendChild(manufacturingSection);
-    }
+    // Set the placeholder content
+    manufacturingSection.innerHTML = `<h2>Manufacturing</h2><p>Feature coming soon...</p>`;
 }
