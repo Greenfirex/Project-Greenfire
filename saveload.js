@@ -3,6 +3,8 @@ import { technologies, resetTechnologies } from './data/technologies.js';
 import { buildings, resetBuildings } from './data/buildings.js'; // FIXED: Import the new reset function
 import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from './sections/research.js';
 import { applyActivatedSections, activatedSections, setActivatedSections } from './main.js';
+import { showStoryPopup } from '.data/popup.js';
+import { storyEvents } from './data/storyEvents.js';
 import { addLogEntry } from './log.js';
 
 export function saveGameState() {
@@ -66,9 +68,11 @@ export function loadGameState() {
 }
 
 export function resetToDefaultState() {
-    console.log('5. resetToDefaultState() called. Resources before reset:', resources);
+    // Trigger the introductory story popup for a new game or reset
+    const event = storyEvents.gameStart;
+    showStoryPopup(event.title, event.message);
 
-    // FIXED: Correctly reset all data using their specific reset functions.
+    // Correctly reset all data using their specific reset functions
     resources.length = 0;
     resources.push(...getInitialResources());
     resetTechnologies();
@@ -84,12 +88,11 @@ export function resetToDefaultState() {
     setActivatedSections({
         researchSection: false,
         manufacturingSection: false,
+        shipyardSection: false, // Ensures these are reset as well
+        galaxyMapSection: false,
     });
     
-    // REMOVED: All setup calls are handled in main.js. This prevents the "element not found" error.
-    
     addLogEntry('Game state reset.', 'yellow');
-    console.log('6. Resources after reset:', resources);
 }
 
 // This function is unchanged and remains as part of the file.
