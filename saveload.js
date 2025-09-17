@@ -11,7 +11,6 @@ export function saveGameState() {
         technologies: technologies,
         researchProgress: getResearchProgress(),
         currentResearchingTech: getCurrentResearchingTech(),
-        researchInterval: getResearchInterval(),
         activatedSections: activatedSections,
         buildings: buildings,
     };
