@@ -8,6 +8,7 @@ import { setupShipyardSection } from './sections/shipyard.js';
 import { setupGalaxyMapSection } from './sections/galaxyMap.js';
 import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js';
 import { addLogEntry } from './log.js';
+import { showStoryPopup } from '.data/popup.js';
 import './headeroptions.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -151,6 +152,11 @@ export function checkConditions() {
             addLogEntry('New menu section activated: Research', 'blue');
             activatedSections['researchSection'] = true;
             applyActivatedSections();
+
+            // --- TRIGGER THE POPUP ---
+            const title = "A Glimmer of Insight";
+            const message = "As our miners excavate deeper, they've uncovered a strange, glowing crystal. We've named it Xylite. To understand its potential, we must analyze it. The Research Lab is now available.";
+            showStoryPopup(title, message);
         }
     }
 
