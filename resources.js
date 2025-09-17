@@ -9,15 +9,18 @@ export function updateResourceInfo() {
             const resourceDiv = document.createElement('div');
             resourceDiv.className = 'info-section';
             
-            const column1 = document.createElement('div');
-            const column2 = document.createElement('div');
-            const column3 = document.createElement('div');
+            // NEW: Check if the resource is at capacity
+            if (resource.amount >= resource.capacity) {
+                resourceDiv.classList.add('capped');
+            }
 
+            const column1 = document.createElement('div');
             column1.className = 'infocolumn1';
+            const column2 = document.createElement('div');
             column2.className = 'infocolumn2';
+            const column3 = document.createElement('div');
             column3.className = 'infocolumn3';
 
-            // FIXED: Changed from <h3> to a more neutral <span>
             const nameElement = document.createElement('span'); 
             nameElement.textContent = resource.name;
 

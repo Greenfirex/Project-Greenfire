@@ -59,3 +59,9 @@
 .infocolumn1 span {
     font-weight: bold;
 }
+
+/* Style for the storage text when a resource is capped */
+.info-section.capped .infocolumn3 {
+    color: #E74C3C; /* A nice red color */
+    font-weight: bold;
+}
