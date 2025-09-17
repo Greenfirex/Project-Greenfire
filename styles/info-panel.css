@@ -20,18 +20,22 @@
     grid-template-columns: 3fr 2fr 3fr;
     align-items: center;
     width: 100%;
-    padding: 4px 0; /* FIXED: Control row height with padding */
-    color: orange;
+    padding: 6px 0;
+    color: #EAEAEA;
     gap: 10px; 
+    border-top: 1px solid #333;
 }
 
 .info-section:nth-child(even) {
-    background-color: #444444;
-    color: white; 
+    background-color: #222; /* Subtle dark gray */
 }
 
 .info-section:nth-child(odd) {
-    background-color: black;
+    background-color: black; /* Black */
+}
+
+.info-section:first-child {
+    border-top: none;
 }
 
 .infocolumn1 {
@@ -48,20 +52,17 @@
     padding-right: 5px;
 }
 
-/* FIXED: Unified style for ALL text elements */
 .info-section span,
 .info-section p {
     margin: 0;
     font-size: 14px;
 }
 
-/* Make the resource name bold */
 .infocolumn1 span {
     font-weight: bold;
 }
 
-/* Style for the storage text when a resource is capped */
 .info-section.capped .infocolumn3 {
-    color: #E74C3C; /* A nice red color */
+    color: #E74C3C;
     font-weight: bold;
 }
