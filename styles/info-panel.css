@@ -21,14 +21,16 @@
     align-items: center;
     width: 100%;
     margin-bottom: 5px;
-    height: 20px;
-    overflow: hidden;
+    /* height: 20px;    REMOVED: We'll use padding for better results */
+    /* overflow: hidden; REMOVED: No longer needed */
+    padding: 4px 0; /* FIXED: Control row height with padding */
     color: orange;
-    gap: 10px; /* FIXED: Adds a 10px gap between each column */
+    gap: 10px; 
 }
 
 .info-section:nth-child(even) {
     background-color: #444444;
+    color: white; 
 }
 
 .info-section:nth-child(odd) {
@@ -49,8 +51,14 @@
     padding-right: 5px;
 }
 
-.info-section h3,
+/* FIXED: Unified style for ALL text elements */
+.info-section span,
 .info-section p {
     margin: 0;
-    font-size: 14px; /* FIXED: Set a consistent, slightly smaller font size */
+    font-size: 14px;
+}
+
+/* Make the resource name bold */
+.infocolumn1 span {
+    font-weight: bold;
 }

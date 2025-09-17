@@ -2,7 +2,7 @@ import { buildings } from './data/buildings.js'; // We need this to calculate ge
 
 export function updateResourceInfo() {
     const infoPanel = document.getElementById('infoPanel');
-    infoPanel.innerHTML = ''; // Clear the panel before updating
+    infoPanel.innerHTML = ''; 
 
     resources.forEach(resource => {
         if (resource.isDiscovered) {
@@ -17,10 +17,10 @@ export function updateResourceInfo() {
             column2.className = 'infocolumn2';
             column3.className = 'infocolumn3';
 
-            const nameElement = document.createElement('h3');
+            // FIXED: Changed from <h3> to a more neutral <span>
+            const nameElement = document.createElement('span'); 
             nameElement.textContent = resource.name;
 
-            // --- FIXED: Calculate the total generation rate ---
             let totalGeneration = 0;
             buildings.forEach(building => {
                 if (building.produces === resource.name) {
@@ -29,12 +29,10 @@ export function updateResourceInfo() {
             });
 
             const generationElement = document.createElement('p');
-            // Use toFixed(2) to ensure two decimal places
             generationElement.textContent = `${totalGeneration.toFixed(2)}/s`;
 
-            // --- FIXED: Format the stored amount and show capacity ---
             const storageElement = document.createElement('p');
-            const storedAmount = resource.amount.toFixed(2); // Format to 2 decimal places
+            const storedAmount = resource.amount.toFixed(2);
             storageElement.textContent = `${storedAmount} / ${resource.capacity}`;
 
             column1.appendChild(nameElement);
