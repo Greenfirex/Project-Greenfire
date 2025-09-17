@@ -120,10 +120,10 @@
 }
 
 .tech-container.active {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    display: flex;             /* FIXED: Changed from grid to flex */
+    flex-direction: column;    /* This forces categories to stack vertically */
     gap: 20px;
-    align-content: flex-start;
+    align-items: flex-start; /* Aligns categories to the left */
 }
 
 .tech-button {
@@ -161,6 +161,7 @@
 .category-container {
     display: flex;
     flex-direction: column;
+    width: 100%;               /* ADDED BACK: Ensures each category takes a full row */
     margin-bottom: 20px;
 }
 
