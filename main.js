@@ -190,13 +190,21 @@ export function setupTooltip(button, tooltipData) {
     button.addEventListener('mouseenter', (e) => {
         tooltip.innerHTML = ''; // Clear previous content
 
-        // Case 1: Handles simple tooltips like for "Mine Stone"
+        // Case 1: Handles simple tooltips (e.g., "Mine Stone")
         if (typeof tooltipData === 'string') {
             tooltip.textContent = tooltipData;
         
-        // Case 2: Handles complex tooltips for buildings (looks for .cost)
-        } else if (tooltipData && tooltipData.cost && Array.isArray(tooltipData.cost)) {
+        // Case 2: Handles building objects (identified by having a .cost property)
+        } else if (tooltipData && tooltipData.cost) {
             
+            // Add the new description at the top
+            if (tooltipData.description) {
+                const description = document.createElement('p');
+                description.className = 'tooltip-description';
+                description.textContent = tooltipData.description;
+                tooltip.appendChild(description);
+            }
+
             // --- Cost Section ---
             const costSection = document.createElement('div');
             costSection.className = 'tooltip-section cost';
@@ -227,7 +235,7 @@ export function setupTooltip(button, tooltipData) {
                 tooltip.appendChild(genSection);
             }
 
-        // NEW!! Case 3: Handles tooltips for technologies (looks for .description)
+        // Case 3: Handles technology objects
         } else if (tooltipData && tooltipData.description) {
             
             // --- Title ---
@@ -249,7 +257,7 @@ export function setupTooltip(button, tooltipData) {
             tooltip.appendChild(duration);
         }
 
-        // This line makes the tooltip appear
+        // This makes the tooltip appear and sets its position
         tooltip.style.visibility = 'visible';
         tooltip.style.left = `${e.clientX + 15}px`;
         tooltip.style.top = `${e.clientY - 30}px`;

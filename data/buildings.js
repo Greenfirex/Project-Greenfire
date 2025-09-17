@@ -1,30 +1,31 @@
 // A private, unchangeable "master copy" of the original building data.
 const initialBuildings = [
-    {
+  {
         name: 'Quarry',
         produces: 'Stone',
         rate: 0.1,
         count: 0,
-        cost: [{ resource: 'Stone', amount: 10 }]
+        cost: [{ resource: 'Stone', amount: 10 }],
+        description: 'Construct a Quarry to begin automatic Stone extraction.'
     },
     {
         name: 'Extractor',
         produces: 'Xylite',
         rate: 0.05,
         count: 0,
-        cost: [{ resource: 'Stone', amount: 20 }]
+        cost: [{ resource: 'Stone', amount: 20 }],
+        description: 'Build an Extractor to mine the rare resource Xylite.'
     },
-    // --- NEW STORAGE BUILDINGS ---
     {
         name: 'Stone Stockpile',
         count: 0,
         cost: [{ resource: 'Stone', amount: 50 }],
-        // The new "effect" property describes what the building does.
         effect: { 
-            type: 'storage',      // What kind of effect is it?
-            resource: 'Stone',    // What resource does it affect?
-            value: 100            // How much capacity does it add?
-        }
+            type: 'storage',
+            resource: 'Stone',
+            value: 100
+        },
+        description: 'Increases the maximum storage capacity for Stone.'
     },
     {
         name: 'Xylite Silo',
@@ -37,7 +38,8 @@ const initialBuildings = [
             type: 'storage',
             resource: 'Xylite',
             value: 75
-        }
+        },
+        description: 'Construct a high-tech silo to increase Xylite storage.'
     }
 ];
 

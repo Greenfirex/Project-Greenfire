@@ -54,3 +54,36 @@ body {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* Tooltip styling */
+
+.tooltip {
+    position: absolute;
+    visibility: hidden;
+    background-color: #111;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 8px;
+    z-index: 100;
+    width: 220px;
+    pointer-events: none;
+}
+
+.tooltip h4 {
+    margin: 0 0 4px 0;
+    font-size: 1em;
+    color: #90EE90; /* Light green for titles */
+}
+
+.tooltip p {
+    margin: 0 0 2px 0;
+    font-size: 0.9em;
+    line-height: 1.2;
+}
+
+.tooltip-description {
+    font-style: italic;
+    color: #ccc;
+    margin-bottom: 8px !important;
+}
