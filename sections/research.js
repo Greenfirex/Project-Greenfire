@@ -1,6 +1,6 @@
 import { addLogEntry } from '../log.js';
 import { technologies } from '../data/technologies.js';
-import { setupTooltip, activatedSections, setActivatedSections } from '../main.js';
+import { setupTooltip, activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
 import { setupMiningSection } from './mining.js';
 
 export let currentResearchingTech = null;
@@ -273,6 +273,7 @@ function handleResearchCompletion(tech, cancelButton) {
 
         if (newUnlocks) {
             setActivatedSections(activatedSections); // Save the updated unlocks
+			applyActivatedSections();
         }
     }
     
