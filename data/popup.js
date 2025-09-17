@@ -1,33 +1,42 @@
-// This function will be available globally for other scripts to import
-export let showStoryPopup;
+// Find the popup elements on the page
+const storyPopup = document.getElementById('storyPopup');
+const popupTitle = document.getElementById('popupTitle');
+const popupMessage = document.getElementById('popupMessage');
+// Important: Check that storyPopup exists before trying to find the button inside it
+const popupCloseButton = storyPopup ? storyPopup.querySelector('.popup-close') : null;
 
-// This ensures all code inside only runs after the page is fully loaded
-document.addEventListener('DOMContentLoaded', () => {
-    const storyPopup = document.getElementById('storyPopup');
-    const popupTitle = document.getElementById('popupTitle');
-    const popupMessage = document.getElementById('popupMessage');
-    const popupCloseButton = storyPopup.querySelector('.popup-close');
-
-    /**
-     * Shows the story popup with a specific title and message.
-     */
-    showStoryPopup = function(title, message) {
-        if (!storyPopup || !popupTitle || !popupMessage) { return; }
-
-        popupTitle.textContent = title;
-        popupMessage.textContent = message;
-        storyPopup.classList.remove('hidden');
+/**
+ * Shows the story popup with a specific title and message.
+ */
+export function showStoryPopup(title, message) {
+    if (!storyPopup || !popupTitle || !popupMessage) {
+        console.error("Popup HTML elements not found!");
+        return;
     }
 
-    function hideStoryPopup() {
+    popupTitle.textContent = title;
+    popupMessage.textContent = message;
+    storyPopup.classList.remove('hidden');
+}
+
+/**
+ * Hides the story popup.
+ */
+function hideStoryPopup() {
+    if (storyPopup) {
         storyPopup.classList.add('hidden');
     }
+}
 
-    // Add event listeners to close the popup
+// Attach the event listeners, but only if all the elements were found
+if (storyPopup && popupCloseButton) {
     popupCloseButton.addEventListener('click', hideStoryPopup);
     storyPopup.addEventListener('click', (event) => {
+        // Only close if the click is on the dark background, not the popup window itself
         if (event.target === storyPopup) {
             hideStoryPopup();
         }
     });
-});
+} else {
+    console.error("Could not attach popup close listeners. Check your HTML structure.");
+}
