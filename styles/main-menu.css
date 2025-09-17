@@ -1,55 +1,70 @@
 #mainMenu {
-  border: 1px solid #555;
-  width: 20%;
-  margin-top: -1px;
-  background-color: black !important;
-  height: 100%; /* Make it full height */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between; /* Space out content to top and bottom */
-  padding-top: 10px;
+    border: 1px solid #555;
+    width: 20%;
+    margin-top: -1px;
+    background-color: #000;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 10px;
 }
 
 .menu-buttons-container {
-  flex-grow: 1; /* Allow it to grow to fill space */
-  margin-top: -1px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background-color: black !important; /* Ensure background color stays black */
+    flex-grow: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #000;
 }
 
+/* --- UPDATED: Consistent Button Styling --- */
 .menu-button {
-  background-image: url('../assets/images/PNG/Button03.png');
-  background-size: auto;
-  background-repeat: no-repeat;
-  width: 80%;
-  margin: 10px 0;
-  padding: 10px;
-  font-size: 16px;
-  background-color: black;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  display: block;
+    width: 85%; /* Adjusted width slightly */
+    height: 50px;
+    margin: 8px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background-image: url('../assets/images/PNG/Button03.png');
+    background-size: 100% 100%;
+    background-color: transparent;
+    
+    color: #EAEAEA;
+    font-size: 16px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+    
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out; /* Combined transition */
 }
 
 .menu-button:hover {
-  color: #16a085;
-  background-image: url('../assets/images/PNG/Button04.png');
+    background-image: url('../assets/images/PNG/Button04.png');
+    color: #FFF;
+    transform: scale(1.05);
 }
 
+/* --- NEW: Style for the active button --- */
+.menu-button.active {
+    background-image: url('../assets/images/PNG/Button04.png');
+    color: #FFF;
+    box-shadow: 0 0 12px #FFF, 0 0 6px #FFF inset; /* Glowing effect */
+}
+
+
+/* --- Animation for newly unlocked buttons --- */
 .menu-button.hidden {
     opacity: 0;
-    visibility: hidden; /* This is key to allow for transitions */
-    transform: scale(0.9); /* Start slightly smaller for a pop-in effect */
-    transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out, visibility 0.5s;
+    visibility: hidden;
+    transform: scale(0.9);
+    transition: opacity 0.5s ease, transform 0.5s ease, visibility 0.5s;
 }
 
-/* New CSS rule for the animation */
 .menu-button:not(.hidden) {
     animation: unlocked-in 0.5s ease-in-out forwards;
 }
@@ -65,57 +80,43 @@
     }
 }
 
-.tooltip {
-  visibility: hidden;
-  position: absolute;
-  background-color: #555;
-  color: #fff;
-  text-align: center;
-  padding: 5px;
-  border-radius: 5px;
-  z-index: 1;
-}
 
-.menu-button:hover .tooltip {
-  visibility: visible;
-}
-
+/* --- Log Section Styling --- */
 #logSection {
-  width: 100%; /* Match the width of the main menu */
-  background-color: black !important;
-  color: white;
-  border-top: 1px solid #555;
-  padding: 10px;
-  height: 30%; /* Adjust height to 50% */
-  flex-shrink: 0; /* Prevent it from shrinking */
-  overflow-y: auto;
-  box-sizing: border-box;
-  font-family: 'Roboto Mono', monospace;
+    width: 100%;
+    background-color: #000;
+    color: white;
+    border-top: 1px solid #555;
+    padding: 10px;
+    height: 30%;
+    flex-shrink: 0;
+    overflow-y: auto;
+    box-sizing: border-box;
+    font-family: 'Roboto Mono', monospace;
 }
 
 .log-entry {
-  margin-top: 10px;
-  margin-bottom: 10px;
-  font-family: 'Roboto Mono', monospace; /* Matrix-style font */
-  font-size: 12px; /* Adjust size as needed */
-  color: green;
+    margin-bottom: 5px; /* Adjusted spacing */
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
 }
 
+/* --- Custom Scrollbar Styling --- */
 #logSection::-webkit-scrollbar {
-  width: 12px; /* Width of the scrollbar */
+    width: 12px;
 }
 
 #logSection::-webkit-scrollbar-track {
-  background: #333; /* Track color */
-  border-radius: 10px; /* Rounded corners */
+    background: #333;
+    border-radius: 10px;
 }
 
 #logSection::-webkit-scrollbar-thumb {
-  background-color: #888; /* Scrollbar color */
-  border-radius: 10px; /* Rounded corners */
-  border: 3px solid #333; /* Padding around the thumb */
+    background-color: #888;
+    border-radius: 10px;
+    border: 3px solid #333;
 }
 
 #logSection::-webkit-scrollbar-thumb:hover {
-  background-color: #555; /* Color when hovered */
+    background-color: #555;
 }

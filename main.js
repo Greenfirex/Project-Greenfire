@@ -274,6 +274,20 @@ export function setupTooltip(button, tooltipData) {
 }
 
 window.showSection = function(sectionId) {
+    // --- NEW LOGIC: Manage the active button style ---
+    // First, find all menu buttons and remove the .active class from them
+    const allMenuButtons = document.querySelectorAll('.menu-button');
+    allMenuButtons.forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Next, find the button that was just clicked and add the .active class to it
+    const newActiveButton = document.querySelector(`.menu-button[data-section="${sectionId}"]`);
+    if (newActiveButton) {
+        newActiveButton.classList.add('active');
+    }
+
+    // --- Original logic to show/hide the section panels ---
     const sections = document.querySelectorAll('.game-section');
     sections.forEach(section => {
         section.classList.add('hidden');
@@ -283,6 +297,7 @@ window.showSection = function(sectionId) {
     if (activeSection) {
         activeSection.classList.remove('hidden');
     }
+    
     localStorage.setItem('currentSection', sectionId);
 };
 
