@@ -63,3 +63,17 @@
     background-position: center;
     background-repeat: no-repeat;
 }
+
+#shipyardSection {
+    background-image: url('../assets/images/background4.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+#galaxyMapSection {
+    background-image: url('../assets/images/background5.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
