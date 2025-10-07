@@ -2,7 +2,7 @@ import { resources, updateResourceInfo } from './resources.js';
 import { technologies } from './data/technologies.js';
 import { buildings } from './data/buildings.js';
 import { setupMiningSection, updateBuildingButtonsState } from './sections/mining.js';
-import { setupResearchSection } from './sections/research.js';
+import { setupResearchSection, updateTechButtonsState } from './sections/research.js';
 import { setupManufacturingSection } from './sections/manufacturing.js';
 import { setupShipyardSection } from './sections/shipyard.js';
 import { setupGalaxyMapSection } from './sections/galaxyMap.js';
@@ -83,10 +83,11 @@ setInterval(() => {
     updateResourceInfo();
     checkConditions();
 	updateBuildingButtonsState();
+	updateTechButtonsState();
 }, 100);
 setInterval(() => {
         saveGameState();
-    }, 15000); // 15000 milliseconds = 15 seconds
+    }, 150000); // 15000 milliseconds = 15 seconds
 }
 
 

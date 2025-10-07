@@ -151,6 +151,14 @@
     transform: scale(1.05);
 }
 
+.tech-button.unaffordable {
+    filter: grayscale(80%);
+    opacity: 0.7;
+    color: #E74C3C; /* Red text */
+    text-shadow: none;
+    cursor: not-allowed;
+}
+
 .category-heading {
     display: block;
     width: 100%;
@@ -178,3 +186,4 @@
     margin-bottom: 5px;
     cursor: default;
 }
+

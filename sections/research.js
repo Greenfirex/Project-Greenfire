@@ -58,6 +58,34 @@ function createTechButton(name, onClick, container, tooltipData) {
     container.appendChild(button);
 }
 
+export function updateTechButtonsState() {
+    // Find all visible tech buttons
+    const techButtons = document.querySelectorAll('.tech-button');
+
+    techButtons.forEach(button => {
+        const techName = button.dataset.tech;
+        const tech = technologies.find(t => t.name === techName);
+        if (!tech || !tech.cost) { return; }
+
+        // Check if player can afford it
+        let canAfford = true;
+        for (const cost of tech.cost) {
+            const resource = resources.find(r => r.name === cost.resource);
+            if (!resource || resource.amount < cost.amount) {
+                canAfford = false;
+                break;
+            }
+        }
+
+        // Add or remove the 'unaffordable' class
+        if (canAfford) {
+            button.classList.remove('unaffordable');
+        } else {
+            button.classList.add('unaffordable');
+        }
+    });
+}
+
 export function setupResearchSection(researchSection) {
     if (!researchSection) {
         researchSection = document.getElementById('researchSection');
@@ -190,6 +218,7 @@ export function setupResearchSection(researchSection) {
         document.querySelectorAll('.tech-button').forEach(button => button.disabled = true);
         if (cancelButton) cancelButton.style.display = 'inline-block';
     }
+	updateTechButtonsState();
 }
 
 function showTab(tabName) {
