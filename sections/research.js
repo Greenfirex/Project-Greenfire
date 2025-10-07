@@ -244,13 +244,33 @@ function cancelResearch() {
     setResearchInterval(null);
 
     const techName = getCurrentResearchingTech();
-    addLogEntry(`${techName} research cancelled.`, 'red');
+    if (!techName) return;
 
+    // --- NEW: Refund Logic ---
+    const tech = technologies.find(t => t.name === techName);
+    if (tech && tech.cost) {
+        let refundedResources = [];
+        for (const cost of tech.cost) {
+            const resource = resources.find(r => r.name === cost.resource);
+            if (resource) {
+                // Calculate a 50% refund, rounded down
+                const refundAmount = Math.floor(cost.amount * 0.5);
+                resource.amount = Math.min(resource.amount + refundAmount, resource.capacity);
+                refundedResources.push(`${refundAmount} ${cost.resource}`);
+            }
+        }
+        // Update the UI and log the refund
+        updateResourceInfo();
+        if (refundedResources.length > 0) {
+            addLogEntry(`Research cancelled. Refunded: ${refundedResources.join(', ')}.`, 'orange');
+        }
+    }
+    
+    // --- Original logic continues ---
+    addLogEntry(`${techName} research cancelled.`, 'red');
     setResearchProgress(0);
     setCurrentResearchingTech(null);
     localStorage.removeItem('researchState');
-
-    // CHANGED: Instead of manually re-enabling buttons, just rebuild the section.
     setupResearchSection();
 }
 
