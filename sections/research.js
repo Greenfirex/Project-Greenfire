@@ -88,6 +88,7 @@ export function setupResearchSection(researchSection) {
     progressText.innerText = 'Researching...';
     progressInfo.appendChild(progressText);
     const cancelButton = document.createElement('button');
+	setupTooltip(cancelButton, 'Cancels research and refunds 50% of the cost.');
     cancelButton.className = 'cancel-button';
     cancelButton.textContent = 'Cancel Research';
     cancelButton.style.display = 'none';
