@@ -87,3 +87,19 @@ body {
     color: #ccc;
     margin-bottom: 8px !important;
 }
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 4px #555;
+  }
+  50% {
+    box-shadow: 0 0 10px #888;
+  }
+  100% {
+    box-shadow: 0 0 4px #555;
+  }
+}
+
+#mainMenu, #gameArea, #infoPanel {
+    animation: pulse-glow 5s ease-in-out infinite;
+}
