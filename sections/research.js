@@ -1,6 +1,6 @@
 import { addLogEntry } from '../log.js';
 import { technologies } from '../data/technologies.js';
-import { setupTooltip, activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
+import { setupTooltip, hideTooltip, activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
 import { setupMiningSection } from './mining.js';
 import { resources, updateResourceInfo } from '../resources.js';
 
@@ -241,6 +241,7 @@ function updateProgressBar(cancelButton) {
 }
 
 function cancelResearch() {
+	hideTooltip();
     clearInterval(getResearchInterval());
     setResearchInterval(null);
 
@@ -268,7 +269,6 @@ function cancelResearch() {
     }
     
     // --- Original logic continues ---
-    addLogEntry(`${techName} research cancelled.`, 'red');
     setResearchProgress(0);
     setCurrentResearchingTech(null);
     localStorage.removeItem('researchState');

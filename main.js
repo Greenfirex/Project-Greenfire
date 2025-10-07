@@ -207,6 +207,13 @@ function getOrCreateTooltip() {
     return globalTooltip;
 }
 
+export function hideTooltip() {
+    const tooltip = getOrCreateTooltip();
+    if (tooltip) {
+        tooltip.style.visibility = 'hidden';
+    }
+}
+
 export function setupTooltip(button, tooltipData) {
     const tooltip = getOrCreateTooltip();
 
