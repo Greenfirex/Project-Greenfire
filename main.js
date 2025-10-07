@@ -217,10 +217,9 @@ export function setupTooltip(button, tooltipData) {
         if (typeof tooltipData === 'string') {
             tooltip.textContent = tooltipData;
         
-        // Case 2: Handles building objects (identified by having a .cost property)
-        } else if (tooltipData && tooltipData.cost) {
+        // Case 2: Handles building objects (identified by having .produces or .effect)
+        } else if (tooltipData && (tooltipData.produces || tooltipData.effect)) {
             
-            // Add the new description at the top
             if (tooltipData.description) {
                 const description = document.createElement('p');
                 description.className = 'tooltip-description';
@@ -228,54 +227,55 @@ export function setupTooltip(button, tooltipData) {
                 tooltip.appendChild(description);
             }
 
-            // --- Cost Section ---
-            const costSection = document.createElement('div');
-            costSection.className = 'tooltip-section cost';
-            const costHeader = document.createElement('h4');
-            costHeader.textContent = 'Cost';
-            costSection.appendChild(costHeader);
-            
-            tooltipData.cost.forEach(c => {
-                const costItem = document.createElement('p');
-                if (c.resource && typeof c.amount !== 'undefined') {
-                    costItem.textContent = `${c.resource}: ${c.amount}`;
-                    costSection.appendChild(costItem);
-                }
-            });
-            tooltip.appendChild(costSection);
+            if (tooltipData.cost && tooltipData.cost.length > 0) {
+                const costHeader = document.createElement('h4');
+                costHeader.textContent = 'Cost';
+                tooltip.appendChild(costHeader);
 
-            // --- Generation Section ---
+                tooltipData.cost.forEach(c => {
+                    const costItem = document.createElement('p');
+                    costItem.textContent = `${c.resource}: ${c.amount}`;
+                    tooltip.appendChild(costItem);
+                });
+            }
+
             if (tooltipData.produces) {
-                const genSection = document.createElement('div');
-                genSection.className = 'tooltip-section generation';
                 const genHeader = document.createElement('h4');
                 genHeader.textContent = 'Generation';
-                genSection.appendChild(genHeader);
+                tooltip.appendChild(genHeader);
                 
                 const genItem = document.createElement('p');
                 genItem.textContent = `${tooltipData.produces}: +${tooltipData.rate}/s`;
-                genSection.appendChild(genItem);
-                tooltip.appendChild(genSection);
+                tooltip.appendChild(genItem);
             }
 
-        // Case 3: Handles technology objects
-        } else if (tooltipData && tooltipData.description) {
+        // Case 3: Handles technology objects (identified by having .duration)
+        } else if (tooltipData && typeof tooltipData.duration !== 'undefined') {
             
-            // --- Title ---
             const title = document.createElement('h4');
-            title.className = 'tooltip-title';
             title.textContent = tooltipData.name;
             tooltip.appendChild(title);
 
-            // --- Description ---
-            const description = document.createElement('p');
-            description.className = 'tooltip-description';
-            description.textContent = tooltipData.description;
-            tooltip.appendChild(description);
+            if (tooltipData.description) {
+                const description = document.createElement('p');
+                description.className = 'tooltip-description';
+                description.textContent = tooltipData.description;
+                tooltip.appendChild(description);
+            }
 
-            // --- Duration ---
+            if (tooltipData.cost && tooltipData.cost.length > 0) {
+                const costHeader = document.createElement('h4');
+                costHeader.textContent = 'Cost';
+                tooltip.appendChild(costHeader);
+
+                tooltipData.cost.forEach(c => {
+                    const costItem = document.createElement('p');
+                    costItem.textContent = `${c.resource}: ${c.amount}`;
+                    tooltip.appendChild(costItem);
+                });
+            }
+
             const duration = document.createElement('p');
-            duration.className = 'tooltip-duration';
             duration.textContent = `Research Time: ${tooltipData.duration}s`;
             tooltip.appendChild(duration);
         }

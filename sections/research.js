@@ -2,6 +2,7 @@ import { addLogEntry } from '../log.js';
 import { technologies } from '../data/technologies.js';
 import { setupTooltip, activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
 import { setupMiningSection } from './mining.js';
+import { resources, updateResourceInfo } from '../resources.js';
 
 export let currentResearchingTech = null;
 export let researchInterval = null;
@@ -285,6 +286,34 @@ function handleResearchCompletion(tech, cancelButton) {
 }
 
 export function startResearch(tech, cancelButton) {
+    // --- NEW: Affordability Check ---
+    let canAfford = true;
+    if (tech.cost && tech.cost.length > 0) {
+        for (const cost of tech.cost) {
+            const resource = resources.find(r => r.name === cost.resource);
+            if (!resource || resource.amount < cost.amount) {
+                canAfford = false;
+                addLogEntry(`Not enough ${cost.resource} to research ${tech.name}.`, 'red');
+                break;
+            }
+        }
+    }
+
+    // If we can't afford it, stop the function right here.
+    if (!canAfford) {
+        return;
+    }
+
+    // --- NEW: Deduct Resources ---
+    if (tech.cost && tech.cost.length > 0) {
+        for (const cost of tech.cost) {
+            const resource = resources.find(r => r.name === cost.resource);
+            resource.amount -= cost.amount;
+        }
+        updateResourceInfo(); // Update the display to show the new resource totals
+    }
+    
+    // --- Original logic continues here ---
     if (getResearchInterval()) {
         clearInterval(getResearchInterval());
         setResearchInterval(null);
@@ -295,7 +324,7 @@ export function startResearch(tech, cancelButton) {
     currentResearchDuration = tech.duration;
     setCurrentResearchStartTime(Date.now());
     updateProgressBar(cancelButton);
-    
+
     if (cancelButton) {
         cancelButton.style.display = 'inline-block';
         cancelButton.dataset.tech = tech.name;
