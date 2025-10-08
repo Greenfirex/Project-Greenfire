@@ -150,7 +150,7 @@ body {
     height: 100%;
     width: 1px;
     animation: pulse-glow-vertical 5s ease-in-out infinite;
-    z-index: 1; /* ADD THIS LINE */
+    z-index: 4; /* ADD THIS LINE */
 }
 
 #mainContainer::before {
