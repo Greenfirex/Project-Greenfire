@@ -29,11 +29,8 @@ export function loadGameState() {
 
     if (savedGameState) {
         const gameState = JSON.parse(savedGameState);
-        console.log('3. Loading from saved state:', gameState);
-        
         resources.length = 0;
         resources.push(...gameState.resources);
-        
         technologies.length = 0;
         technologies.push(...gameState.technologies);
         
@@ -48,8 +45,6 @@ export function loadGameState() {
         setCurrentResearchStartTime(0);
         setActivatedSections(gameState.activatedSections);
 
-        // REMOVED: All setup calls are now correctly handled only in main.js.
-
         if (getCurrentResearchingTech()) {
             const tech = technologies.find(t => t.name === getCurrentResearchingTech());
             if (tech) {
@@ -61,13 +56,12 @@ export function loadGameState() {
         }
         addLogEntry('Game state loaded.', 'green');
     } else {
-        console.log('3. No saved game state found. Resetting to default.');
-        addLogEntry('No saved game state found.', 'red');
         resetToDefaultState();
     }
 }
 
 export function resetToDefaultState() {
+	addLogEntry('Game state reset.', 'yellow');
     // Show the intro popup as before
     const event = storyEvents.gameStart;
     showStoryPopup(event.title, event.message);
@@ -97,7 +91,7 @@ export function resetToDefaultState() {
         galaxyMapSection: false,
     });
     
-    addLogEntry('Game state reset.', 'yellow');
+
 }
 
 // This function is unchanged and remains as part of the file.
