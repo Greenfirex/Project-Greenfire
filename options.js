@@ -1,17 +1,21 @@
-// A map of color names to their RGB values
+// A map for the main UI glow
 const colorMap = {
     green:  '105, 240, 174',
     blue:   '64, 196, 255',
     purple: '171, 71, 188',
     gold:   '255, 215, 0',
-    white:  '224, 224, 224', // ADD THIS
-    black:  '0, 0, 0'          // ADD THIS
+    white:  '224, 224, 224',
+    black:  '0, 0, 0'
 };
 
-/**
- * Sets the UI glow color by updating CSS variables.
- * @param {string} colorName - The name of the color (e.g., 'green').
- */
+// NEW: A separate map for the active button glow
+const activeColorMap = {
+    white:  '255, 255, 255',
+    cyan:   '0, 188, 212',
+    lime:   '205, 220, 57',
+    red:    '244, 67, 54'
+};
+
 export function setGlowColor(colorName) {
     const rgb = colorMap[colorName];
     if (!rgb) { return; }
@@ -39,19 +43,33 @@ export function setGlowColor(colorName) {
     });
 }
 
-/**
- * Initializes the options menu, including the color picker.
- */
+export function setActiveGlowColor(colorName) {
+    const rgb = activeColorMap[colorName];
+    if (!rgb) { return; }
+
+    const [r, g, b] = rgb.split(', ');
+    const root = document.body;
+    root.style.setProperty('--active-glow-r', r);
+    root.style.setProperty('--active-glow-g', g);
+    root.style.setProperty('--active-glow-b', b);
+
+    localStorage.setItem('activeGlowColor', colorName);
+}
+
 export function initOptions() {
+    // Setup for main UI glow
     const colorSwatches = document.querySelectorAll('.color-swatch');
-
-    // ADD THIS LINE FOR DEBUGGING
-    console.log('Searching for color swatches. Found:', colorSwatches.length);
-
     colorSwatches.forEach(swatch => {
         swatch.addEventListener('click', () => {
-            const colorName = swatch.dataset.color;
-            setGlowColor(colorName);
+            setGlowColor(swatch.dataset.color);
+        });
+    });
+
+    // NEW: Setup for active button glow
+    const activeColorSwatches = document.querySelectorAll('.color-swatch-active');
+    activeColorSwatches.forEach(swatch => {
+        swatch.addEventListener('click', () => {
+            setActiveGlowColor(swatch.dataset.color);
         });
     });
 }

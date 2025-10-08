@@ -11,6 +11,10 @@ body {
     --glow-r: 105;
     --glow-g: 240;
     --glow-b: 174;
+	
+	--active-glow-r: 255;
+    --active-glow-g: 255;
+    --active-glow-b: 255;
 }
 
 /* Universal font style */

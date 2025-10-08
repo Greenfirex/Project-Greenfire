@@ -132,3 +132,21 @@
 .color-swatch[data-color="gold"]   { background-color: #FFD700; }
 .color-swatch[data-color="white"] { background-color: #E0E0E0; }
 .color-swatch[data-color="black"] { background-color: #111; border-color: #FFF; }
+
+.color-swatch-active {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid #555;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.color-swatch-active:hover {
+    transform: scale(1.1);
+}
+
+.color-swatch-active[data-color="white"] { background-color: #FFFFFF; }
+.color-swatch-active[data-color="cyan"]  { background-color: #00BCD4; }
+.color-swatch-active[data-color="lime"]  { background-color: #CDDC39; }
+.color-swatch-active[data-color="red"]   { background-color: #F44336; }

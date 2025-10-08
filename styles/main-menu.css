@@ -51,7 +51,9 @@
 /* --- NEW: Style for the active button --- */
 .menu-button.active {
     color: #FFF;
-    box-shadow: 0 0 12px #FFF, 0 0 6px #FFF inset; /* Glowing effect */
+    /* MODIFIED: Use the new --active-glow variables */
+    box-shadow: 0 0 12px rgba(var(--active-glow-r), var(--active-glow-g), var(--active-glow-b), 0.8), 
+                0 0 6px rgba(var(--active-glow-r), var(--active-glow-g), var(--active-glow-b), 0.5) inset;
 }
 
 
