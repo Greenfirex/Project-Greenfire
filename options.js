@@ -51,7 +51,14 @@ export function setActiveGlowColor(colorName) {
  * @param {number} intensity - The opacity value from 0 to 1.
  */
 export function setGlowIntensity(intensity) {
-    document.body.style.setProperty('--glow-opacity', intensity);
+    // Opacity is capped at 1 (100%)
+    const opacity = Math.min(intensity, 1);
+    // The spread multiplier can go up to 2 (200%)
+    const spreadMultiplier = intensity;
+
+    document.body.style.setProperty('--glow-opacity', opacity);
+    document.body.style.setProperty('--glow-spread-multiplier', spreadMultiplier);
+    
     localStorage.setItem('glowIntensity', intensity);
 }
 
@@ -77,10 +84,9 @@ export function initOptions() {
 	
 	const glowSlider = document.getElementById('glowIntensitySlider');
     if (glowSlider) {
-        // Set the slider's initial position from localStorage
-        glowSlider.value = localStorage.getItem('glowIntensity') || 0.8;
+        // Set the slider's initial position from localStorage (defaulting to 1)
+        glowSlider.value = localStorage.getItem('glowIntensity') || 1;
 
-        // Add a listener to update the intensity when the slider is moved
         glowSlider.addEventListener('input', (event) => {
             setGlowIntensity(event.target.value);
         });
