@@ -9,6 +9,7 @@ import { setupGalaxyMapSection } from './sections/galaxyMap.js';
 import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js';
 import { addLogEntry } from './log.js';
 import { showStoryPopup } from './data/popup.js';
+import { storyEvents } from './data/storyEvents.js';
 import './headeroptions.js';
 
 let lastUpdateTime = Date.now();
@@ -143,35 +144,44 @@ export function checkConditions() {
     const stone = resources.find(r => r.name === 'Stone');
     const xylite = resources.find(r => r.name === 'Xylite');
 
-    if (stone && xylite) {
-        // Logika pro odemykání Xylite
+     // Xylite discovery logic
+     if (stone && xylite) {
         if (stone.amount >= 5 && !xylite.isDiscovered) {
             xylite.isDiscovered = true;
-            addLogEntry('Xylite discovered! Your miners can now find traces of this rare crystal.', 'blue');
             updateResourceInfo();
             setupMiningSection();
+
+            // --- TRIGGER THE POPUP ---
+            const event = storyEvents.unlockXylite;
+            showStoryPopup(event.title, event.message);
+            
+            addLogEntry('A crystalline anomaly has been detected. (Click to read)', '#7E57C2', {
+                onClick: () => showStoryPopup(event.title, event.message)
+            });
         }
     }
     
     // Logika pro odemykání Research sekce
-const researchButton = document.querySelector('.menu-button[data-section="researchSection"]');
-if (stone && researchButton) {
-    if (stone.amount >= 10 && !activatedSections['researchSection']) {
-        researchButton.classList.remove('hidden');
-        // We'll let the new clickable log handle the announcement
-        // addLogEntry('New menu section activated: Research', 'blue'); 
-        activatedSections['researchSection'] = true;
-        applyActivatedSections();
+    const researchButton = document.querySelector('.menu-button[data-section="researchSection"]');
+    if (stone && researchButton) {
+        // Check if the unlock condition is met AND it hasn't been unlocked before
+        if (stone.amount >= 10 && !activatedSections['researchSection']) {
+            // 1. Update the game state
+            activatedSections['researchSection'] = true;
+            
+            // 2. Update the UI to show the button
+            applyActivatedSections(); 
 
-        const event = storyEvents.unlockResearch;
-        showStoryPopup(event.title, event.message);
-        
-        // NEW: Add a clickable log entry
-        addLogEntry('A glimmer of insight has been recorded. (Click to read)', '#7E57C2', {
-            onClick: () => showStoryPopup(event.title, event.message)
-        });
+            // 3. Show the story popup
+            const event = storyEvents.unlockResearch;
+            showStoryPopup(event.title, event.message);
+            
+            // 4. Add the clickable log entry
+            addLogEntry('A glimmer of insight has been recorded. (Click to read)', '#7E57C2', {
+                onClick: () => showStoryPopup(event.title, event.message)
+            });
+        }
     }
-}
 
     // Nová logika pro odemykání Manufacturing sekce
     const manufacturingButton = document.querySelector('.menu-button[data-section="manufacturingSection"]');

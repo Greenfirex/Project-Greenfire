@@ -7,4 +7,8 @@ export const storyEvents = {
         title: "A Glimmer of Insight",
         message: "As our miners excavate deeper, they've uncovered a strange, glowing crystal. We've named it Xylite. To understand its potential, we must analyze it. The Research Lab is now available."
     }
+	unlockXylite: {
+        title: "Crystalline Anomaly",
+        message: "While excavating common stone, our geological team detected unusual energy readings. They've isolated a new crystalline mineral of unknown potential. It has been designated: Xylite."
+    }
 };
