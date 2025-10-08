@@ -10,8 +10,6 @@ body {
   display: flex;
   flex: 1;
   overflow: hidden;
-  animation: pulse-glow 5s ease-in-out infinite;
-  border: none; /* Ensure no residual border here */
 }
 
 /* Apply 'Roboto Mono' to every element on the page */
@@ -102,3 +100,6 @@ body {
   }
 }
 
+#header, #footer, #mainMenu, #gameArea, #infoPanel {
+    animation: pulse-glow 5s ease-in-out infinite;
+}

@@ -13,6 +13,11 @@
     box-sizing: border-box;
     overflow-y: auto;
 	border-bottom: none;
+	scrollbar-width: none;
+}
+
+#infoPanel::-webkit-scrollbar {
+    display: none;
 }
 
 .info-section {

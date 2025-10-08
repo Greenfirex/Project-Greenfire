@@ -22,32 +22,25 @@
     gap: 15px;
 }
 
-/* UPDATED: Consistent button styling */
 .header-link {
-    width: 120px;
-    height: 40px;
+    height: 30px; /* Kept the smaller height */
+    padding: 0 25px;
+    background-image: url('../assets/images/PNG/Button03.png');
+    background-size: 100% 100%; /* Stretches the image to fit */
+    background-repeat: no-repeat;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    
-    background-image: url('../assets/images/PNG/Button03.png');
-    background-size: 100% 100%;
-    background-color: transparent;
-    
-    color: #EAEAEA;
-    font-weight: bold;
-    text-shadow: 1px 1px 2px #000;
-    text-decoration: none;
-    
     border: none;
-    cursor: pointer;
-    transition: transform 0.15s ease;
+    background-color: transparent;
 }
 
 .header-link:hover {
     background-image: url('../assets/images/PNG/Button04.png');
-    color: #FFF;
-    transform: scale(1.05);
 }
 
 /* These styles are for your options menu popup */
