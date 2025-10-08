@@ -257,8 +257,9 @@ export function setupTooltip(button, tooltipData) {
         if (typeof tooltipData === 'string') {
             tooltip.textContent = tooltipData;
         
-        // Case 2: Handles building objects (identified by having .produces or .effect)
-        } else if (tooltipData && (tooltipData.produces || tooltipData.effect)) {
+        // Case 2: Building object
+        // FIXED: Now correctly identifies any object with a 'count' property as a building
+        } else if (tooltipData && typeof tooltipData.count !== 'undefined') {
             
             if (tooltipData.description) {
                 const description = document.createElement('p');
