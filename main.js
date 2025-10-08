@@ -11,6 +11,8 @@ import { addLogEntry } from './log.js';
 import { showStoryPopup } from './data/popup.js';
 import './headeroptions.js';
 
+let lastUpdateTime = Date.now();
+
 document.addEventListener('DOMContentLoaded', () => {
     preloadAssets().then(() => {
         // Až se načtou všechny prvky, schováme preloader a spustíme hru
@@ -70,21 +72,27 @@ function startGame() {
     setupMenuButtons();
     applyActivatedSections();
 
-setInterval(() => {
-    buildings.forEach(building => {
-        const resourceToProduce = resources.find(r => r.name === building.produces);
-        if (resourceToProduce) {
-            // Calculate the new amount
-            const newAmount = resourceToProduce.amount + (building.rate * building.count) / 10;
-            // FIXED: Use Math.min to ensure the amount does not exceed the capacity
-            resourceToProduce.amount = Math.min(newAmount, resourceToProduce.capacity);
-        }
-    });
-    updateResourceInfo();
-    checkConditions();
-	updateBuildingButtonsState();
-	updateTechButtonsState();
-}, 100);
+ setInterval(() => {
+        // Calculate delta time
+        const now = Date.now();
+        const deltaTime = (now - lastUpdateTime) / 1000; // Time in seconds since last update
+        lastUpdateTime = now; // Reset the timer for the next loop
+
+        // Update resources based on delta time
+        buildings.forEach(building => {
+            const resourceToProduce = resources.find(r => r.name === building.produces);
+            if (resourceToProduce) {
+                // MODIFIED: Multiply generation rate by the elapsed time
+                const newAmount = resourceToProduce.amount + (building.rate * building.count) * deltaTime;
+                resourceToProduce.amount = Math.min(newAmount, resourceToProduce.capacity);
+            }
+        });
+        
+        updateResourceInfo();
+        checkConditions();
+        updateBuildingButtonsState();
+        updateTechButtonsState();
+    }, 100);
 setInterval(() => {
         saveGameState();
     }, 150000); // 15000 milliseconds = 15 seconds
