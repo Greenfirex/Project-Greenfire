@@ -15,15 +15,37 @@ body {
     --glow-b: 174;
 }
 
-#mainContainer {
-    display: flex;
-    gap: 2px; /* Creates space between menu, game area, and info panel */
-    overflow: hidden; /* This is okay here now */
-}
-
 /* Apply 'Roboto Mono' to every element on the page */
 * {
     font-family: 'Roboto Mono', monospace;
+}
+
+#mainContainer {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    position: relative; /* This is now the anchor for our separator lines */
+}
+
+#mainContainer::before,
+#mainContainer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 1px; /* The line itself is an invisible 1px bar */
+    /* The animation is applied to the shadow of the line */
+    animation: pulse-glow 5s ease-in-out infinite;
+}
+
+/* Position the first line after the Main Menu (which is 20% wide) */
+#mainContainer::before {
+    left: 20%;
+}
+
+/* Position the second line after the Game Area (20% + 60% = 80%) */
+#mainContainer::after {
+    left: 80%;
 }
 
 /* Styly pro preloader */
@@ -110,8 +132,8 @@ body {
   }
 }
 
-#header, #footer, #mainMenu, #infoPanel {
+#header, #footer {
     animation: pulse-glow 5s ease-in-out infinite;
     background-color: #000;
-    border: none !important; /* Forcefully remove any stray borders */
+    border: none !important;
 }

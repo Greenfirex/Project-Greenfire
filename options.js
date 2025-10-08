@@ -12,7 +12,7 @@ const colorMap = {
  */
 export function setGlowColor(colorName) {
     const rgb = colorMap[colorName];
-    if (!rgb) { return; } // Exit if color is not found
+    if (!rgb) { return; }
 
     const [r, g, b] = rgb.split(', ');
     const root = document.documentElement;
@@ -20,8 +20,18 @@ export function setGlowColor(colorName) {
     root.style.setProperty('--glow-g', g);
     root.style.setProperty('--glow-b', b);
 
-    // Save the choice
     localStorage.setItem('glowColor', colorName);
+
+    // --- NEW: Force the animation to restart ---
+    const animatedElements = document.querySelectorAll('#header, #footer, #mainMenu, #infoPanel');
+    animatedElements.forEach(element => {
+        // Temporarily remove the animation
+        element.style.animation = 'none';
+        // Trigger a reflow (this is a standard trick to make the browser apply the change)
+        void element.offsetWidth;
+        // Re-add the animation from the stylesheet
+        element.style.animation = '';
+    });
 }
 
 /**
