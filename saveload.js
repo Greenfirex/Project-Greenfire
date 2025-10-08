@@ -1,6 +1,6 @@
 import { resources, getInitialResources, updateResourceInfo } from './resources.js';
 import { technologies, resetTechnologies } from './data/technologies.js';
-import { buildings, resetBuildings } from './data/buildings.js'; // FIXED: Import the new reset function
+import { buildings, getInitialBuildings, resetBuildings } from './data/buildings.js'; // FIXED: Import the new reset function
 import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from './sections/research.js';
 import { applyActivatedSections, activatedSections, setActivatedSections } from './main.js';
 import { showStoryPopup } from './data/popup.js';
@@ -22,34 +22,50 @@ export function saveGameState() {
 }
 
 export function loadGameState() {
-    console.log('2. loadGameState() called. Resources before load:', resources);
     const savedGameState = localStorage.getItem('gameState');
     const logSection = document.getElementById('logSection');
-    logSection.innerHTML = 'Log entries:';
+    logSection.innerHTML = '<h3>Log entries:</h3>';
 
     if (savedGameState) {
         const gameState = JSON.parse(savedGameState);
-        resources.length = 0;
-        resources.push(...gameState.resources);
-        technologies.length = 0;
-        technologies.push(...gameState.technologies);
         
+        // --- Smart Loading Logic ---
+        const defaultResources = getInitialResources();
+        const defaultBuildings = getInitialBuildings();
+
+        defaultResources.forEach(defaultResource => {
+            const savedResource = gameState.resources.find(r => r.name === defaultResource.name);
+            if (savedResource) {
+                Object.assign(defaultResource, savedResource); // Copy saved data over default
+            }
+        });
+        resources.length = 0;
+        resources.push(...defaultResources);
+
         if (gameState.buildings) {
+            defaultBuildings.forEach(defaultBuilding => {
+                const savedBuilding = gameState.buildings.find(b => b.name === defaultBuilding.name);
+                if (savedBuilding) {
+                    Object.assign(defaultBuilding, savedBuilding);
+                }
+            });
             buildings.length = 0;
-            buildings.push(...gameState.buildings);
+            buildings.push(...defaultBuildings);
         }
         
+        // --- Load the rest of the game state ---
         setResearchProgress(gameState.researchProgress ?? 0);
         setCurrentResearchingTech(gameState.currentResearchingTech);
         setResearchInterval(null);
         setCurrentResearchStartTime(0);
         setActivatedSections(gameState.activatedSections);
 
+        // Resume any ongoing research
         if (getCurrentResearchingTech()) {
             const tech = technologies.find(t => t.name === getCurrentResearchingTech());
             if (tech) {
                 const cancelButton = document.querySelector('.cancel-button');
-                const elapsedTime = (gameState.researchProgress / 100) * tech.duration * 1000;
+                const elapsedTime = (getResearchProgress() / 100) * tech.duration * 1000;
                 setCurrentResearchStartTime(Date.now() - elapsedTime);
                 resumeOngoingResearch(tech, cancelButton, getResearchProgress(), getCurrentResearchStartTime());
             }

@@ -48,6 +48,10 @@ const initialBuildings = [
 // This is the "live" state of buildings that the game will modify.
 export let buildings = JSON.parse(JSON.stringify(initialBuildings));
 
+export function getInitialBuildings() {
+    return JSON.parse(JSON.stringify(initialBuildings));
+}
+
 // This function will be called to properly reset the live data from the master copy.
 export function resetBuildings() {
     buildings.length = 0;
