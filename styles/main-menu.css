@@ -7,6 +7,7 @@
     align-items: center;
     justify-content: space-between;
     padding-top: 10px;
+    position: relative; /* ADDED: To anchor the new glowing line */
 }
 
 .menu-buttons-container {
@@ -83,13 +84,23 @@
     width: 100%;
     background-color: #000;
     color: white;
-    border-top: 1px solid #555;
     padding: 10px;
     height: 40%;
     flex-shrink: 0;
     overflow-y: auto;
     box-sizing: border-box;
     font-family: 'Roboto Mono', monospace;
+}
+
+#logSection::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 60%; /* Position it at the start of the log section (100% - 40% = 60%) */
+    width: 100%;
+    height: 2px;
+    animation: pulse-glow 5s ease-in-out infinite;
+    z-index: 5;
 }
 
 #logSection h3 {
