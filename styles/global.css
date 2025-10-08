@@ -1,26 +1,25 @@
+Of course. Here are the complete and final versions of both files with all changes integrated.
+
+This will remove the outer frame and ensure all the inner glowing lines are perfectly consistent because they are all created in the exact same way.
+
+## global.css (Complete File)
+Action: Please replace the entire contents of your styles/global.css file with this code.
+
+CSS
+
 body {
     height: 100vh;
     margin: 0;
+    background-color: #000;
     box-sizing: border-box;
     display: grid;
     grid-template-rows: auto 1fr auto; 
-    gap: 2px;     /* This is now our border thickness */
-    padding: 2px;   /* This is now our border thickness */
-    overflow: hidden;
-
-    /* Defines the glow color using RGB values */
+    gap: 2px;
+    
+    /* Defines the glow color */
     --glow-r: 105;
     --glow-g: 240;
     --glow-b: 174;
-
-    /* NEW: Animated background that shows through the gaps */
-    background: linear-gradient(
-        135deg,
-        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.6),
-        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.3)
-    );
-    background-size: 200% 200%;
-    animation: animated-glow-background 6s ease-in-out infinite;
 }
 
 /* Universal font style */
@@ -30,18 +29,13 @@ body {
 
 #mainContainer {
     display: flex;
-    gap: 2px; /* This is now our border thickness */
     overflow: hidden;
+    position: relative;
+    gap: 2px;
 }
 
-#header, #footer, #mainMenu, #gameArea, #infoPanel {
-    background-color: #000;
-    border: none;
-    animation: none; /* REMOVED: No individual animations needed */
-    box-shadow: none; /* REMOVED: No individual shadows needed */
-}
 
-/* --- Preloader Styles (Unchanged) --- */
+/* --- Styly pro preloader --- */
 #preloader {
     position: fixed;
     top: 0;
@@ -59,10 +53,12 @@ body {
     opacity: 1;
     transition: opacity 0.5s ease-in-out;
 }
+
 #preloader.hidden {
     opacity: 0;
     pointer-events: none;
 }
+
 .loader {
     border: 8px solid #333;
     border-top: 8px solid #90EE90;
@@ -71,12 +67,13 @@ body {
     height: 60px;
     animation: spin 1s linear infinite;
 }
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
-/* --- Tooltip Styling (Unchanged) --- */
+/* --- Tooltip styling --- */
 .tooltip {
     position: absolute;
     visibility: hidden;
@@ -89,25 +86,52 @@ body {
     width: 220px;
     pointer-events: none;
 }
+
 .tooltip h4 {
     margin: 0 0 4px 0;
     font-size: 1em;
     color: #90EE90;
 }
+
 .tooltip p {
     margin: 0 0 2px 0;
     font-size: 0.9em;
     line-height: 1.2;
 }
+
 .tooltip-description {
     font-style: italic;
     color: #ccc;
     margin-bottom: 8px !important;
 }
 
-/* --- The NEW background animation --- */
-@keyframes animated-glow-background {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+/* --- The UNIFIED Glow Animation --- */
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 7px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
+  }
+  100% {
+    box-shadow: 0 0 7px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+  }
+}
+
+/* --- Vertical Glowing Separators --- */
+#mainContainer::before,
+#mainContainer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    animation: pulse-glow 5s ease-in-out infinite;
+    z-index: 5;
+}
+#mainContainer::before {
+    left: 20%;
+}
+#mainContainer::after {
+    left: 80%;
 }
