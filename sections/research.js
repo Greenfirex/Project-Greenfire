@@ -92,14 +92,13 @@ export function setupResearchSection(researchSection) {
     }
     if (!researchSection) { return; }
 
-    // NEW: Remember which tab is currently active before we delete everything
+    // Remember which tab is currently active
     let activeTabName = 'available';
     const currentActiveTab = researchSection.querySelector('.tab.active');
     if (currentActiveTab && currentActiveTab.textContent === 'Researched Tech') {
         activeTabName = 'researched';
     }
 
-    // Now, we rebuild the entire UI
     researchSection.innerHTML = '';
     researchSection.classList.add('research-bg');
 
@@ -116,10 +115,10 @@ export function setupResearchSection(researchSection) {
     progressText.innerText = 'Researching...';
     progressInfo.appendChild(progressText);
     const cancelButton = document.createElement('button');
-	setupTooltip(cancelButton, 'Cancels research and refunds 50% of the cost.');
     cancelButton.className = 'cancel-button';
     cancelButton.textContent = 'Cancel Research';
     cancelButton.style.display = 'none';
+    setupTooltip(cancelButton, 'Cancels research and refunds 50% of the cost.');
     cancelButton.addEventListener('click', cancelResearch);
     progressInfo.appendChild(cancelButton);
     progressBarContainer.appendChild(progressBar);
@@ -129,32 +128,31 @@ export function setupResearchSection(researchSection) {
     // --- Block 2: Create the Tabs ---
     const tabContainer = document.createElement('div');
     tabContainer.className = 'tab-container';
-
-    // MODIFIED: Neither tab starts with the .active class. showTab() will handle it.
     const availableTab = document.createElement('button');
-    availableTab.className = 'tab'; 
+    availableTab.className = 'tab';
     availableTab.textContent = 'Available Tech';
     availableTab.addEventListener('click', () => showTab('available'));
-
     const researchedTab = document.createElement('button');
     researchedTab.className = 'tab';
     researchedTab.textContent = 'Researched Tech';
     researchedTab.addEventListener('click', () => showTab('researched'));
-
     tabContainer.appendChild(availableTab);
     tabContainer.appendChild(researchedTab);
     researchSection.appendChild(tabContainer);
 
+    // --- NEW: A wrapper for the tab content ---
+    const contentWrapper = document.createElement('div');
+    contentWrapper.className = 'tech-content-wrapper';
+
     // --- Block 3: Create the Content Panels ---
-    // MODIFIED: The 'available' container no longer starts with the .active class.
     const availableContainer = document.createElement('div');
-    availableContainer.className = 'tech-container available'; 
+    availableContainer.className = 'tech-container available';
     const researchedContainer = document.createElement('div');
     researchedContainer.className = 'tech-container researched';
 
     const categories = ['Mining Tech', 'Bio Tech', 'Social Tech'];
 
-    // Logic for the "Available Tech" tab (unchanged)
+    // Logic for the "Available Tech" tab
     categories.forEach(category => {
         const categoryTechs = technologies.filter(tech => tech.category === category && !tech.isResearched);
         if (categoryTechs.length > 0) {
@@ -184,7 +182,7 @@ export function setupResearchSection(researchSection) {
         }
     });
 
-    // Logic for the "Researched Tech" tab (unchanged)
+    // Logic for the "Researched Tech" tab
     categories.forEach(category => {
         const researchedTechsInCategory = technologies.filter(tech =>
             tech.category === category && tech.isResearched
@@ -207,10 +205,13 @@ export function setupResearchSection(researchSection) {
         }
     });
 
-    researchSection.appendChild(availableContainer);
-    researchSection.appendChild(researchedContainer);
+    // Append panels to the new wrapper
+    contentWrapper.appendChild(availableContainer);
+    contentWrapper.appendChild(researchedContainer);
+    // Append the wrapper to the main section
+    researchSection.appendChild(contentWrapper);
 
-    // NEW: Restore the previously active tab using the showTab function
+    // Restore the correct active tab
     showTab(activeTabName);
 
     if (currentResearchingTech) {
@@ -218,23 +219,24 @@ export function setupResearchSection(researchSection) {
         document.querySelectorAll('.tech-button').forEach(button => button.disabled = true);
         if (cancelButton) cancelButton.style.display = 'inline-block';
     }
-	updateTechButtonsState();
+    updateTechButtonsState();
 }
 
 function showTab(tabName) {
+    // --- MODIFIED: This function now uses a '.visible' class for content ---
     const availableContainer = document.querySelector('.tech-container.available');
     const researchedContainer = document.querySelector('.tech-container.researched');
     const availableTab = document.querySelector('.tab:nth-child(1)');
     const researchedTab = document.querySelector('.tab:nth-child(2)');
 
     if (tabName === 'available') {
-        availableContainer.classList.add('active');
-        researchedContainer.classList.remove('active');
+        availableContainer.classList.add('visible');
+        researchedContainer.classList.remove('visible');
         availableTab.classList.add('active');
         researchedTab.classList.remove('active');
     } else {
-        availableContainer.classList.remove('active');
-        researchedContainer.classList.add('active');
+        availableContainer.classList.remove('visible');
+        researchedContainer.classList.add('visible');
         availableTab.classList.remove('active');
         researchedTab.classList.add('active');
     }

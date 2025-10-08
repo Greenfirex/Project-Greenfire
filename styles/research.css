@@ -117,24 +117,37 @@
     color: #FFF; /* Make text brighter for the active tab */
 }
 
-.tech-container {
-    flex-grow: 1;
+.tech-content-wrapper {
+    position: relative; /* This is the anchor for the absolute panels */
+    flex-grow: 1;       /* This makes the wrapper fill the available space */
     width: 100%;
+}
+
+.tech-container {
+    /* These panels now sit on top of each other */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+
     background-color: #000;
     border: 1px solid #444;
     padding: 10px;
     box-sizing: border-box;
-    display: none;
-	overflow-y: scroll;
-	scrollbar-gutter: stable;
-    min-height: 0;    /* Helps the container respect its boundaries */
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+
+    /* They are invisible by default */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-in-out;
 }
 
-.tech-container.active {
-    display: flex;             /* FIXED: Changed from grid to flex */
-    flex-direction: column;    /* This forces categories to stack vertically */
-    gap: 20px;
-    align-items: flex-start; /* Aligns categories to the left */
+/* The .visible class makes a panel appear */
+.tech-container.visible {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 /* --- NEW: Custom Scrollbar for Tech Containers --- */
