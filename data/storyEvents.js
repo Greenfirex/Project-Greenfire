@@ -5,7 +5,7 @@ export const storyEvents = {
     },
     unlockResearch: {
         title: "A Glimmer of Insight",
-        message: "As our miners excavate deeper, they've uncovered a strange, glowing crystal. We've named it Xylite. To understand its potential, we must analyze it. The Research Lab is now available."
+        message: "The Research Lab is now available. We need to expand our knowledge and technologies in order to succeed"
     },
 	unlockXylite: {
         title: "Crystalline Anomaly",

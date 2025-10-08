@@ -157,7 +157,9 @@ export function checkConditions() {
             
             addLogEntry('A crystalline anomaly has been detected. (Click to read)', '#7E57C2', {
                 onClick: () => showStoryPopup(event.title, event.message)
-            });
+            }
+			);
+			addLogEntry('Xylite discovered', 'blue');
         }
     }
     
@@ -180,6 +182,7 @@ export function checkConditions() {
             addLogEntry('A glimmer of insight has been recorded. (Click to read)', '#7E57C2', {
                 onClick: () => showStoryPopup(event.title, event.message)
             });
+			addLogEntry('Research lab now available', 'blue');
         }
     }
 
