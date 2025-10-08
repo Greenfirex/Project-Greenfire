@@ -36,10 +36,12 @@ const initialBuildings = [
     },
     {
         name: 'Laboratory',
-        count: 0,
-        cost: [{ resource: 'Stone', amount: 15 }],
-        description: 'A basic facility required to begin scientific research. Unlocks the Research panel.',
-        isUnlocked: false // Will be unlocked at 10 Stone
+		produces: 'Insight', // ADD THIS
+		rate: 0.1,           // ADD THIS (0.1 per second)
+		count: 0,
+		cost: [{ resource: 'Stone', amount: 15 }],
+		description: 'A basic facility that generates Insight required for scientific research.',
+		isUnlocked: false
     }
 ];
 

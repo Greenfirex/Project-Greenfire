@@ -53,12 +53,13 @@ export function updateResourceInfo() {
 
 export function getInitialResources() {
     return [
-        // FIXED: Added capacity property
         { name: 'Stone', amount: 0, isDiscovered: true, capacity: 100 },
         { name: 'Xylite', amount: 0, isDiscovered: false, capacity: 50 },
-		{ name: 'Helion-3 Concentrate', amount: 0, isDiscovered: true, capacity: 25 },
-        { name: 'Cygnium Ore', amount: 0, isDiscovered: true, capacity: 100 },
-        { name: 'Sentient Mycelium', amount: 0, isDiscovered: true, capacity: 10 },
+        { name: 'Helion-3 Concentrate', amount: 0, isDiscovered: false, capacity: 25 },
+        { name: 'Cygnium Ore', amount: 0, isDiscovered: false, capacity: 100 },
+        { name: 'Sentient Mycelium', amount: 0, isDiscovered: false, capacity: 10 },
+        // --- NEW RESOURCE ---
+        { name: 'Insight', amount: 0, isDiscovered: false, capacity: 100 },
     ];
 }
 
