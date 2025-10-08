@@ -125,7 +125,7 @@
     padding: 10px;
     box-sizing: border-box;
     display: none;
-	overflow-y: auto; /* FIXED: Enable vertical scrolling inside this container */
+	overflow-y: scroll;
     min-height: 0;    /* Helps the container respect its boundaries */
 }
 
