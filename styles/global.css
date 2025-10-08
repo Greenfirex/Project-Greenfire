@@ -1,13 +1,20 @@
 body {
     margin: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
     overflow: hidden;
     background-color: #000;
+    gap: 4px;
 }
 
 #mainContainer {
-  display: flex;
-  flex: 1;
-  border-bottom: none !important;
+   display: flex;
+    flex: 1;
+    overflow: hidden;
+    gap: 4px; /* ADD THIS: Creates space between menu, game area, and info panel */
+    border: none !important; /* Make sure no borders are here */
+    animation: none; /* Remove animation from the container */
 }
 
 /* Apply 'Roboto Mono' to every element on the page */
@@ -104,4 +111,9 @@ body {
     height: 100vh;
     width: 100vw;
     animation: pulse-glow 5s ease-in-out infinite;
+}
+
+#header, #footer, #mainMenu, #gameArea, #infoPanel {
+    animation: pulse-glow 5s ease-in-out infinite;
+    background-color: #000; /* Ensure panels have a solid background */
 }
