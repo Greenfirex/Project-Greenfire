@@ -4,12 +4,24 @@ export function updateResourceInfo() {
     const infoPanel = document.getElementById('infoPanel');
     infoPanel.innerHTML = ''; 
 
-    resources.forEach(resource => {
+    // NEW: Create a sorted array for display
+    const displayResources = [...resources].sort((a, b) => {
+        if (a.name === 'Insight') return -1; // 'a' (Insight) comes first
+        if (b.name === 'Insight') return 1;  // 'b' (Insight) comes first
+        return 0; // Keep original order for others
+    });
+
+    // MODIFIED: Loop over the new sorted array
+    displayResources.forEach(resource => {
+        // Auto-discovery logic (still useful for other resources)
+        if (resource.amount > 0 && !resource.isDiscovered) {
+            resource.isDiscovered = true;
+        }
+
         if (resource.isDiscovered) {
             const resourceDiv = document.createElement('div');
             resourceDiv.className = 'info-section';
             
-            // NEW: Check if the resource is at capacity
             if (resource.amount >= resource.capacity) {
                 resourceDiv.classList.add('capped');
             }
