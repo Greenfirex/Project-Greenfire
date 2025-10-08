@@ -116,7 +116,7 @@ body {
     position: absolute;
     top: 0;
     height: 100%;
-    width: 1px;
+    width: 2px;
     animation: pulse-glow 5s ease-in-out infinite;
     z-index: 5;
 }
