@@ -1,12 +1,3 @@
-Of course. Here are the complete and final versions of both files with all changes integrated.
-
-This will remove the outer frame and ensure all the inner glowing lines are perfectly consistent because they are all created in the exact same way.
-
-## global.css (Complete File)
-Action: Please replace the entire contents of your styles/global.css file with this code.
-
-CSS
-
 body {
     height: 100vh;
     margin: 0;
