@@ -35,7 +35,7 @@ body {
     height: 100%;
     width: 1px; /* The line itself is an invisible 1px bar */
     /* The animation is applied to the shadow of the line */
-    animation: pulse-glow 5s ease-in-out infinite;
+    animation: pulse-glow-vertical 5s ease-in-out infinite;
 }
 
 /* Position the first line after the Main Menu (which is 20% wide) */
@@ -119,9 +119,9 @@ body {
     margin-bottom: 8px !important;
 }
 
+/* The standard glow for wide panels like the header and footer */
 @keyframes pulse-glow {
   0% {
-    /* MODIFIED: Use the CSS variables */
     box-shadow: 0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
   }
   50% {
@@ -129,6 +129,20 @@ body {
   }
   100% {
     box-shadow: 0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+  }
+}
+
+/* The more intense glow for the thin 1px separator lines */
+@keyframes pulse-glow-vertical {
+  0% {
+    /* Use the same colors, but a slightly larger shadow */
+    box-shadow: 0 0 7px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
+  }
+  100% {
+    box-shadow: 0 0 7px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
   }
 }
 
