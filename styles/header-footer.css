@@ -82,3 +82,7 @@
     margin-right: auto; /* Pushes the clock to the left of the links */
     padding-left: 10px;
 }
+
+#header, #footer {
+    animation: pulse-glow 5s ease-in-out infinite !important;
+}
