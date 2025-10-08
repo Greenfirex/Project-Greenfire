@@ -92,8 +92,34 @@ body {
 
 /* --- FINAL UNIFIED GLOW --- */
 
-/* This is now the ONLY glow animation */
-@keyframes pulse-glow {
+/* 1. The animation for the HEADER (glow points down) */
+@keyframes pulse-glow-bottom {
+  0% {
+    box-shadow: 0 4px 7px -3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.4);
+  }
+  50% {
+    box-shadow: 0 6px 12px -4px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7);
+  }
+  100% {
+    box-shadow: 0 4px 7px -3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.4);
+  }
+}
+
+/* 2. The animation for the FOOTER (glow points up) */
+@keyframes pulse-glow-top {
+  0% {
+    box-shadow: 0 -4px 7px -3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.4);
+  }
+  50% {
+    box-shadow: 0 -6px 12px -4px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7);
+  }
+  100% {
+    box-shadow: 0 -4px 7px -3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.4);
+  }
+}
+
+/* 3. The animation for the VERTICAL SEPARATORS (glows on both sides) */
+@keyframes pulse-glow-vertical {
   0% {
     box-shadow: 0 0 7px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
   }
@@ -105,13 +131,20 @@ body {
   }
 }
 
-/* This single rule applies the animation to the outer frame and inner separators */
-#header, #footer,
+
+/* --- Apply the animations to the correct elements --- */
+
+#header {
+    animation: pulse-glow-bottom 5s ease-in-out infinite;
+}
+
+#footer {
+    animation: pulse-glow-top 5s ease-in-out infinite;
+}
+
 #mainContainer::before,
 #mainContainer::after {
-    animation: pulse-glow 5s ease-in-out infinite;
-    background-color: #000; /* Ensure a solid background */
-    border: none !important;
+    animation: pulse-glow-vertical 5s ease-in-out infinite;
 }
 
 /* This defines the position of the separator lines */
