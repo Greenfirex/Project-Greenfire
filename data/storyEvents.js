@@ -1,6 +1,6 @@
 export const storyEvents = {
     gameStart: {
-        title: "Project Exodus",
+        title: "Project Greenfire",
         message: "Humanity has reached for the stars, and you are the commander of this new colony. Your mission: to explore, expand, and unlock the secrets of the universe. The fate of this new civilization rests in your hands. Good luck, Commander."
     },
     unlockResearch: {
