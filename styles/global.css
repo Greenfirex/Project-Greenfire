@@ -144,18 +144,15 @@ body {
 
 #mainContainer::before,
 #mainContainer::after {
-    animation: pulse-glow-vertical 5s ease-in-out infinite;
-}
-
-/* This defines the position of the separator lines */
-#mainContainer::before,
-#mainContainer::after {
     content: '';
     position: absolute;
     top: 0;
     height: 100%;
     width: 1px;
+    animation: pulse-glow-vertical 5s ease-in-out infinite;
+    z-index: 1; /* ADD THIS LINE */
 }
+
 #mainContainer::before {
     left: 20%;
 }
