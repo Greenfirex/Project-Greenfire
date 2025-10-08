@@ -2,7 +2,7 @@ import { resources, updateResourceInfo } from '../resources.js';
 import { buildings } from '../data/buildings.js';
 import { technologies } from '../data/technologies.js';
 import { addLogEntry } from '../log.js';
-import { setupTooltip } from '../main.js';
+import { setupTooltip, activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
 
 /**
  * NEW: Checks affordability for all buildings and updates their button styles.
@@ -102,6 +102,15 @@ function buildBuilding(event, buildingName) {
                 addLogEntry(`${resourceToUpgrade.name} capacity increased by ${building.effect.value}!`, 'blue');
             }
         }
+		
+		if (building.name === 'Laboratory' && building.count === 1) {
+            if (!activatedSections.researchSection) {
+                activatedSections.researchSection = true;
+                setActivatedSections(activatedSections);
+                applyActivatedSections(); // This makes the menu button appear
+                addLogEntry('The first Laboratory is operational. Research is now available.', 'blue');
+            }
+        }
         
         updateResourceInfo();
         setupMiningSection();
@@ -170,6 +179,22 @@ export function setupMiningSection(miningSection) {
         }
         storageCategory.appendChild(storageButtons);
         miningSection.appendChild(storageCategory);
+    }
+	
+	// --- NEW: Science Category ---
+    const laboratory = buildings.find(b => b.name === 'Laboratory');
+    if (laboratory && laboratory.isUnlocked) {
+        const scienceHeader = document.createElement('h2');
+        scienceHeader.textContent = 'Science';
+        scienceHeader.className = 'section-header';
+        miningSection.appendChild(scienceHeader);
+        const scienceCategory = document.createElement('div');
+        scienceCategory.className = 'mining-category-container';
+        const scienceButtons = document.createElement('div');
+        scienceButtons.className = 'button-group';
+        createBuildingButton(laboratory, scienceButtons);
+        scienceCategory.appendChild(scienceButtons);
+        miningSection.appendChild(scienceCategory);
     }
 
     // ADDED: Call the update function to set the initial state of the buttons

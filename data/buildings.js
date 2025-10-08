@@ -1,12 +1,13 @@
 // A private, unchangeable "master copy" of the original building data.
 const initialBuildings = [
-  {
+    {
         name: 'Quarry',
         produces: 'Stone',
         rate: 0.1,
         count: 0,
         cost: [{ resource: 'Stone', amount: 10 }],
-        description: 'Construct a Quarry to begin automatic Stone extraction.'
+        description: 'Construct a Quarry to begin automatic Stone extraction.',
+        isUnlocked: true // Available from the start
     },
     {
         name: 'Extractor',
@@ -14,32 +15,31 @@ const initialBuildings = [
         rate: 0.05,
         count: 0,
         cost: [{ resource: 'Stone', amount: 20 }],
-        description: 'Build an Extractor to mine the rare resource Xylite.'
+        description: 'Build an Extractor to mine the rare resource Xylite.',
+        isUnlocked: false // Will be unlocked when Xylite is discovered
     },
     {
         name: 'Stone Stockpile',
         count: 0,
         cost: [{ resource: 'Stone', amount: 50 }],
-        effect: { 
-            type: 'storage',
-            resource: 'Stone',
-            value: 100
-        },
-        description: 'Increases the maximum storage capacity for Stone.'
+        effect: { type: 'storage', resource: 'Stone', value: 100 },
+        description: 'Increases the maximum storage capacity for Stone.',
+        isUnlocked: false // Will be unlocked by research
     },
     {
         name: 'Xylite Silo',
         count: 0,
-        cost: [
-            { resource: 'Stone', amount: 100 },
-            { resource: 'Xylite', amount: 20 }
-        ],
-        effect: {
-            type: 'storage',
-            resource: 'Xylite',
-            value: 75
-        },
-        description: 'Construct a high-tech silo to increase Xylite storage.'
+        cost: [{ resource: 'Stone', amount: 100 }, { resource: 'Xylite', amount: 20 }],
+        effect: { type: 'storage', resource: 'Xylite', value: 75 },
+        description: 'Construct a high-tech silo to increase Xylite storage.',
+        isUnlocked: false // Will be unlocked by research
+    },
+    {
+        name: 'Laboratory',
+        count: 0,
+        cost: [{ resource: 'Stone', amount: 15 }],
+        description: 'A basic facility required to begin scientific research. Unlocks the Research panel.',
+        isUnlocked: false // Will be unlocked at 10 Stone
     }
 ];
 

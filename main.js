@@ -173,26 +173,24 @@ export function checkConditions() {
     }
     
     // Logika pro odemykání Research sekce
-    const researchButton = document.querySelector('.menu-button[data-section="researchSection"]');
-    if (stone && researchButton) {
-        // Check if the unlock condition is met AND it hasn't been unlocked before
-        if (stone.amount >= 10 && !activatedSections['researchSection']) {
-            // 1. Update the game state
-            activatedSections['researchSection'] = true;
-            
-            // 2. Update the UI to show the button
-            applyActivatedSections(); 
+    const laboratory = buildings.find(b => b.name === 'Laboratory');
+    // Check if the condition is met AND the lab hasn't been unlocked yet
+    if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
+        // 1. Unlock the Laboratory building
+        laboratory.isUnlocked = true;
+        addLogEntry('The ability to construct a Laboratory has been unlocked!', 'purple');
+        
+        // 2. Refresh the mining panel to show the new button
+        setupMiningSection();
 
-            // 3. Show the story popup
-            const event = storyEvents.unlockResearch;
-            showStoryPopup(event.title, event.message);
-            
-            // 4. Add the clickable log entry
-            addLogEntry('A glimmer of insight has been recorded. (Click to read)', '#7E57C2', {
-                onClick: () => showStoryPopup(event.title, event.message)
-            });
-			addLogEntry('Research lab now available', 'blue');
-        }
+        // 3. Show the story popup
+        const event = storyEvents.unlockResearch;
+        showStoryPopup(event.title, event.message);
+        
+        // 4. Add the clickable log entry
+        addLogEntry('A glimmer of insight has been recorded. (Click to read)', '#7E57C2', {
+            onClick: () => showStoryPopup(event.title, event.message)
+        });
     }
 
     // Nová logika pro odemykání Manufacturing sekce
