@@ -36,7 +36,7 @@ function startGame() {
     setGlowIntensity(savedIntensity);
 
     // NEW: Load active button glow color
-    const savedActiveColor = localStorage.getItem('activeGlowColor') || 'white';
+    const savedActiveColor = localStorage.getItem('activeGlowColor') || 'green';
     setActiveGlowColor(savedActiveColor);
     const isResetting = localStorage.getItem('isResetting');
     if (!isResetting) {
