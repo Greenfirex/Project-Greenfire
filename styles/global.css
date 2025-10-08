@@ -96,13 +96,13 @@ body {
 
 @keyframes pulse-glow {
   0% {
-    box-shadow: 0 0 3px #444; /* Smaller and darker start/end glow */
+    box-shadow: 0 0 5px rgba(105, 240, 174, 0.5); /* Dim green glow */
   }
   50% {
-    box-shadow: 0 0 7px #666; /* Smaller and darker peak glow */
+    box-shadow: 0 0 12px rgba(105, 240, 174, 0.8); /* Brighter green glow */
   }
   100% {
-    box-shadow: 0 0 3px #444; /* Smaller and darker start/end glow */
+    box-shadow: 0 0 5px rgba(105, 240, 174, 0.5); /* Back to dim */
   }
 }
 
