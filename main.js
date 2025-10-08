@@ -10,7 +10,7 @@ import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js
 import { addLogEntry } from './log.js';
 import { showStoryPopup } from './data/popup.js';
 import { storyEvents } from './data/storyEvents.js';
-import { initOptions, setGlowColor, setActiveGlowColor } from './options.js';
+import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity } from './options.js';
 import './headeroptions.js';
 
 let lastUpdateTime = Date.now();
@@ -32,6 +32,8 @@ function startGame() {
 	// Load main glow color
     const savedColor = localStorage.getItem('glowColor') || 'green';
     setGlowColor(savedColor);
+	const savedIntensity = localStorage.getItem('glowIntensity') || 0.8;
+    setGlowIntensity(savedIntensity);
 
     // NEW: Load active button glow color
     const savedActiveColor = localStorage.getItem('activeGlowColor') || 'white';
