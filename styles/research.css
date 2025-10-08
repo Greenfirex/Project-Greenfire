@@ -126,6 +126,7 @@
     box-sizing: border-box;
     display: none;
 	overflow-y: scroll;
+	scrollbar-gutter: stable;
     min-height: 0;    /* Helps the container respect its boundaries */
 }
 
