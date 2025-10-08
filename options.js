@@ -29,6 +29,10 @@ export function setGlowColor(colorName) {
  */
 export function initOptions() {
     const colorSwatches = document.querySelectorAll('.color-swatch');
+
+    // ADD THIS LINE FOR DEBUGGING
+    console.log('Searching for color swatches. Found:', colorSwatches.length);
+
     colorSwatches.forEach(swatch => {
         swatch.addEventListener('click', () => {
             const colorName = swatch.dataset.color;
