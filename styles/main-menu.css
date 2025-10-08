@@ -105,6 +105,16 @@
     font-size: 12px;
 }
 
+.log-entry.clickable {
+    cursor: pointer;
+    text-decoration: underline;
+    font-style: italic;
+}
+
+.log-entry.clickable:hover {
+    filter: brightness(1.5); /* Make it slightly brighter on hover */
+}
+
 /* --- Custom Scrollbar Styling --- */
 #logSection::-webkit-scrollbar {
     width: 12px;

@@ -68,9 +68,14 @@ export function loadGameState() {
 }
 
 export function resetToDefaultState() {
-    // Trigger the introductory story popup for a new game or reset
+    // Show the intro popup as before
     const event = storyEvents.gameStart;
     showStoryPopup(event.title, event.message);
+
+    // NEW: Add a clickable log entry to re-open it
+    addLogEntry('A new journey begins... (Click to read)', '#7E57C2', {
+        onClick: () => showStoryPopup(event.title, event.message)
+    });
 
     // Correctly reset all data using their specific reset functions
     resources.length = 0;

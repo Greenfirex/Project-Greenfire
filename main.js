@@ -154,20 +154,24 @@ export function checkConditions() {
     }
     
     // Logika pro odemykání Research sekce
-    const researchButton = document.querySelector('.menu-button[data-section="researchSection"]');
-    if (stone && researchButton) {
-        if (stone.amount >= 10 && !activatedSections['researchSection']) {
-            researchButton.classList.remove('hidden');
-            addLogEntry('New menu section activated: Research', 'blue');
-            activatedSections['researchSection'] = true;
-            applyActivatedSections();
+const researchButton = document.querySelector('.menu-button[data-section="researchSection"]');
+if (stone && researchButton) {
+    if (stone.amount >= 10 && !activatedSections['researchSection']) {
+        researchButton.classList.remove('hidden');
+        // We'll let the new clickable log handle the announcement
+        // addLogEntry('New menu section activated: Research', 'blue'); 
+        activatedSections['researchSection'] = true;
+        applyActivatedSections();
 
-            // --- TRIGGER THE POPUP ---
-            const title = "A Glimmer of Insight";
-            const message = "As our miners excavate deeper, they've uncovered a strange, glowing crystal. We've named it Xylite. To understand its potential, we must analyze it. The Research Lab is now available.";
-            showStoryPopup(title, message);
-        }
+        const event = storyEvents.unlockResearch;
+        showStoryPopup(event.title, event.message);
+        
+        // NEW: Add a clickable log entry
+        addLogEntry('A glimmer of insight has been recorded. (Click to read)', '#7E57C2', {
+            onClick: () => showStoryPopup(event.title, event.message)
+        });
     }
+}
 
     // Nová logika pro odemykání Manufacturing sekce
     const manufacturingButton = document.querySelector('.menu-button[data-section="manufacturingSection"]');

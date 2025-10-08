@@ -1,18 +1,19 @@
-export function addLogEntry(message, color = 'white') {
+export function addLogEntry(message, color = 'white', options = {}) {
     const logSection = document.getElementById('logSection');
     const logEntry = document.createElement('div');
     logEntry.className = 'log-entry';
     
-    // Get the current time and format it
     const now = new Date();
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
-    const timeString = `[${hours}:${minutes}:${seconds}]`;
+    const timeString = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
 
-    // Combine the time with the message
     logEntry.textContent = `${timeString} ${message}`;
     logEntry.style.color = color;
+    
+    // NEW: Check for an onClick option
+    if (options.onClick) {
+        logEntry.classList.add('clickable');
+        logEntry.addEventListener('click', options.onClick);
+    }
     
     logSection.appendChild(logEntry);
     logSection.scrollTop = logSection.scrollHeight;
