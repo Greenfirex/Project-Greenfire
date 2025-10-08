@@ -1,20 +1,21 @@
 body {
-    margin: 0;
-    display: flex;
-    flex-direction: column;
     height: 100vh;
-    overflow: hidden;
+    margin: 0;
     background-color: #000;
-    gap: 4px;
+    box-sizing: border-box; /* Important for correct height calculation */
+
+    /* NEW: Use CSS Grid for the main layout */
+    display: grid;
+    /* Create 3 rows: Header (auto-height), Main (stretches), Footer (auto-height) */
+    grid-template-rows: auto 1fr auto; 
+    padding: 5px; /* Creates the 5px "frame" around the entire game */
+    gap: 5px;     /* Creates the 5px space between all components */
 }
 
 #mainContainer {
-   display: flex;
-    flex: 1;
-    overflow: hidden;
-    gap: 4px; /* ADD THIS: Creates space between menu, game area, and info panel */
-    border: none !important; /* Make sure no borders are here */
-    animation: none; /* Remove animation from the container */
+    display: flex;
+    gap: 5px; /* Creates space between menu, game area, and info panel */
+    overflow: hidden; /* This is okay here now */
 }
 
 /* Apply 'Roboto Mono' to every element on the page */
@@ -115,5 +116,6 @@ body {
 
 #header, #footer, #mainMenu, #gameArea, #infoPanel {
     animation: pulse-glow 5s ease-in-out infinite;
-    background-color: #000; /* Ensure panels have a solid background */
+    background-color: #000;
+    border: none !important; /* Forcefully remove any stray borders */
 }
