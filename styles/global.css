@@ -8,8 +8,8 @@ body {
     display: grid;
     /* Create 3 rows: Header (auto-height), Main (stretches), Footer (auto-height) */
     grid-template-rows: auto 1fr auto; 
-    padding: 2px; /* Creates the 5px "frame" around the entire game */
-    gap: 2px;     /* Creates the 5px space between all components */
+    padding: 1px; /* Creates the 5px "frame" around the entire game */
+    gap: 1px;     /* Creates the 5px space between all components */
 }
 
 #mainContainer {
@@ -96,13 +96,13 @@ body {
 
 @keyframes pulse-glow {
   0% {
-    box-shadow: 0 0 4px #555;
+    box-shadow: 0 0 3px #444; /* Smaller and darker start/end glow */
   }
   50% {
-    box-shadow: 0 0 10px #888;
+    box-shadow: 0 0 7px #666; /* Smaller and darker peak glow */
   }
   100% {
-    box-shadow: 0 0 4px #555;
+    box-shadow: 0 0 3px #444; /* Smaller and darker start/end glow */
   }
 }
 

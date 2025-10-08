@@ -85,14 +85,21 @@
     color: white;
     border-top: 1px solid #555;
     padding: 10px;
-    height: 30%;
+    height: 40%;
     flex-shrink: 0;
     overflow-y: auto;
     box-sizing: border-box;
     font-family: 'Roboto Mono', monospace;
 }
 
+#logSection h3 {
+    margin: 0 0 10px 0;
+    font-size: 1em;
+    font-weight: normal;
+}
+
 .log-entry {
+	margin-top: 5px;
     margin-bottom: 5px; /* Adjusted spacing */
     font-family: 'Roboto Mono', monospace;
     font-size: 12px;
