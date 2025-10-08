@@ -10,6 +10,9 @@ body {
     grid-template-rows: auto 1fr auto; 
     padding: 1px; /* Creates the 5px "frame" around the entire game */
     gap: 1px;     /* Creates the 5px space between all components */
+	--glow-r: 105;
+    --glow-g: 240;
+    --glow-b: 174;
 }
 
 #mainContainer {
@@ -96,13 +99,14 @@ body {
 
 @keyframes pulse-glow {
   0% {
-    box-shadow: 0 0 5px rgba(105, 240, 174, 0.5); /* Dim green glow */
+    /* MODIFIED: Use the CSS variables */
+    box-shadow: 0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
   }
   50% {
-    box-shadow: 0 0 12px rgba(105, 240, 174, 0.8); /* Brighter green glow */
+    box-shadow: 0 0 12px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
   }
   100% {
-    box-shadow: 0 0 5px rgba(105, 240, 174, 0.5); /* Back to dim */
+    box-shadow: 0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
   }
 }
 

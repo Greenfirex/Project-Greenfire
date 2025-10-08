@@ -10,6 +10,7 @@ import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js
 import { addLogEntry } from './log.js';
 import { showStoryPopup } from './data/popup.js';
 import { storyEvents } from './data/storyEvents.js';
+import { initOptions, setGlowColor } from './options.js';
 import './headeroptions.js';
 
 let lastUpdateTime = Date.now();
@@ -27,6 +28,10 @@ document.addEventListener('beforeunload', () => {
 });
 
 function startGame() {
+	initOptions();
+	 // Load the saved glow color, or default to green
+    const savedColor = localStorage.getItem('glowColor') || 'green';
+    setGlowColor(savedColor);
     const isResetting = localStorage.getItem('isResetting');
     if (!isResetting) {
         loadGameState();

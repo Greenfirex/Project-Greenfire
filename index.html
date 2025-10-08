@@ -46,8 +46,18 @@
 <div id="footer">Green ™</div>
 <div id="optionsMenu" class="popup">
     <div class="popup-content">
-      <span class="close-button">&times;</span>
-      <button id="resetButton">Reset Progress</button>
+        <span class="close-button">&times;</span>
+        <h3>Options</h3>
+
+        <h4>UI Glow Color</h4>
+        <div id="colorPickerContainer">
+            <button class="color-swatch" data-color="green" title="Sci-Fi Green"></button>
+            <button class="color-swatch" data-color="blue" title="Cyber Blue"></button>
+            <button class="color-swatch" data-color="purple" title="Void Purple"></button>
+            <button class="color-swatch" data-color="gold" title="Warm Gold"></button>
+        </div>
+
+        <button id="resetButton">Reset Progress</button>
     </div>
 </div>
 
@@ -63,6 +73,7 @@
 <script src="resources.js" type="module"></script>
 <script src="saveload.js" type="module"></script>
 <script src="headeroptions.js" type="module" ></script>
+<script src="options.js" type="module"></script>
 <script src="log.js" type="module"></script>
 <script src="data/popup.js" type="module"></script>
 <script src="sections/mining.js" type="module"></script>

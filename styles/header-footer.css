@@ -82,3 +82,29 @@
     margin-right: auto; /* Pushes the clock to the left of the links */
     padding-left: 10px;
 }
+
+#colorPickerContainer {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin: 15px 0 25px 0;
+}
+
+.color-swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%; /* Make them circles */
+    border: 2px solid #555;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.color-swatch:hover {
+    transform: scale(1.1);
+}
+
+/* Define the color for each swatch */
+.color-swatch[data-color="green"]  { background-color: #69f0ae; }
+.color-swatch[data-color="blue"]   { background-color: #40C4FF; }
+.color-swatch[data-color="purple"] { background-color: #AB47BC; }
+.color-swatch[data-color="gold"]   { background-color: #FFD700; }
