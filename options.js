@@ -3,7 +3,9 @@ const colorMap = {
     green:  '105, 240, 174',
     blue:   '64, 196, 255',
     purple: '171, 71, 188',
-    gold:   '255, 215, 0'
+    gold:   '255, 215, 0',
+    white:  '224, 224, 224', // ADD THIS
+    black:  '0, 0, 0'          // ADD THIS
 };
 
 /**
@@ -15,19 +17,22 @@ export function setGlowColor(colorName) {
     if (!rgb) { return; }
 
     const [r, g, b] = rgb.split(', ');
-    const root = document.documentElement;
+    // FIXED: Target document.body instead of document.documentElement
+    const root = document.body; 
     root.style.setProperty('--glow-r', r);
     root.style.setProperty('--glow-g', g);
     root.style.setProperty('--glow-b', b);
 
     localStorage.setItem('glowColor', colorName);
 
-    // --- NEW: Force the animation to restart ---
-    const animatedElements = document.querySelectorAll('#header, #footer, #mainMenu, #infoPanel');
+    // --- Force the animation to restart on all glowing elements ---
+    // FIXED: Added #mainContainer to restart the separator line animations
+    const animatedElements = document.querySelectorAll('#header, #footer, #mainMenu, #infoPanel, #mainContainer');
+    
     animatedElements.forEach(element => {
         // Temporarily remove the animation
         element.style.animation = 'none';
-        // Trigger a reflow (this is a standard trick to make the browser apply the change)
+        // Trigger a browser reflow (a standard trick)
         void element.offsetWidth;
         // Re-add the animation from the stylesheet
         element.style.animation = '';
