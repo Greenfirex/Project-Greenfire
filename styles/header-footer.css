@@ -4,7 +4,7 @@
     color: white;
     text-align: center;
     flex-shrink: 0;
-    border: none; /* Ensure no border */
+    border-top: none !important;
 }
 
 #header {

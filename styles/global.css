@@ -9,7 +9,7 @@ body {
 #mainContainer {
   display: flex;
   flex: 1;
-  overflow: hidden;
+  border-bottom: none !important;
 }
 
 /* Apply 'Roboto Mono' to every element on the page */
