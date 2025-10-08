@@ -71,11 +71,9 @@ function startGame() {
     setupManufacturingSection(manufacturingSection);
 	setupShipyardSection(shipyardSection);
 	setupGalaxyMapSection(galaxyMapSection);
-
-    loadCurrentSection();
-
-    updateResourceInfo();
     setupMenuButtons();
+    loadCurrentSection();
+    updateResourceInfo();
     applyActivatedSections();
 
  setInterval(() => {
