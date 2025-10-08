@@ -2,53 +2,30 @@ body {
     height: 100vh;
     margin: 0;
     background-color: #000;
-    box-sizing: border-box; /* Important for correct height calculation */
-
-    /* NEW: Use CSS Grid for the main layout */
+    box-sizing: border-box;
     display: grid;
-    /* Create 3 rows: Header (auto-height), Main (stretches), Footer (auto-height) */
     grid-template-rows: auto 1fr auto; 
-    padding: 1px; /* Creates the 5px "frame" around the entire game */
-    gap: 1px;     /* Creates the 5px space between all components */
-	--glow-r: 105;
+    padding: 5px; /* Increased slightly to give glow more space */
+    gap: 5px;     /* Increased slightly to give glow more space */
+
+    /* Defines the glow color */
+    --glow-r: 105;
     --glow-g: 240;
     --glow-b: 174;
 }
 
-/* Apply 'Roboto Mono' to every element on the page */
+/* Universal font style */
 * {
     font-family: 'Roboto Mono', monospace;
 }
 
 #mainContainer {
     display: flex;
-    flex: 1;
     overflow: hidden;
-    position: relative; /* This is now the anchor for our separator lines */
+    position: relative;
 }
 
-#mainContainer::before,
-#mainContainer::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    height: 100%;
-    width: 1px; /* The line itself is an invisible 1px bar */
-    /* The animation is applied to the shadow of the line */
-    animation: pulse-glow-vertical 5s ease-in-out infinite;
-}
-
-/* Position the first line after the Main Menu (which is 20% wide) */
-#mainContainer::before {
-    left: 20%;
-}
-
-/* Position the second line after the Game Area (20% + 60% = 80%) */
-#mainContainer::after {
-    left: 80%;
-}
-
-/* Styly pro preloader */
+/* --- Preloader Styles (Unchanged) --- */
 #preloader {
     position: fixed;
     top: 0;
@@ -66,12 +43,10 @@ body {
     opacity: 1;
     transition: opacity 0.5s ease-in-out;
 }
-
 #preloader.hidden {
     opacity: 0;
-    pointer-events: none; /* Zabrání kliknutí na neviditelný preloader */
+    pointer-events: none;
 }
-
 .loader {
     border: 8px solid #333;
     border-top: 8px solid #90EE90;
@@ -80,14 +55,12 @@ body {
     height: 60px;
     animation: spin 1s linear infinite;
 }
-
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
-/* Tooltip styling */
-
+/* --- Tooltip Styling (Unchanged) --- */
 .tooltip {
     position: absolute;
     visibility: hidden;
@@ -100,42 +73,28 @@ body {
     width: 220px;
     pointer-events: none;
 }
-
 .tooltip h4 {
     margin: 0 0 4px 0;
     font-size: 1em;
-    color: #90EE90; /* Light green for titles */
+    color: #90EE90;
 }
-
 .tooltip p {
     margin: 0 0 2px 0;
     font-size: 0.9em;
     line-height: 1.2;
 }
-
 .tooltip-description {
     font-style: italic;
     color: #ccc;
     margin-bottom: 8px !important;
 }
 
-/* The standard glow for wide panels like the header and footer */
+
+/* --- FINAL UNIFIED GLOW --- */
+
+/* This is now the ONLY glow animation */
 @keyframes pulse-glow {
   0% {
-    box-shadow: 0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
-  }
-  50% {
-    box-shadow: 0 0 12px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
-  }
-  100% {
-    box-shadow: 0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
-  }
-}
-
-/* The more intense glow for the thin 1px separator lines */
-@keyframes pulse-glow-vertical {
-  0% {
-    /* Use the same colors, but a slightly larger shadow */
     box-shadow: 0 0 7px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
   }
   50% {
@@ -146,8 +105,27 @@ body {
   }
 }
 
-#header, #footer {
+/* This single rule applies the animation to the outer frame and inner separators */
+#header, #footer,
+#mainContainer::before,
+#mainContainer::after {
     animation: pulse-glow 5s ease-in-out infinite;
-    background-color: #000;
+    background-color: #000; /* Ensure a solid background */
     border: none !important;
+}
+
+/* This defines the position of the separator lines */
+#mainContainer::before,
+#mainContainer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 1px;
+}
+#mainContainer::before {
+    left: 20%;
+}
+#mainContainer::after {
+    left: 80%;
 }
