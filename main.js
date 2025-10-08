@@ -13,6 +13,8 @@ import { storyEvents } from './data/storyEvents.js';
 import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity } from './options.js';
 import './headeroptions.js';
 
+window.debugResources = resources;
+
 let lastUpdateTime = Date.now();
 
 document.addEventListener('DOMContentLoaded', () => {
