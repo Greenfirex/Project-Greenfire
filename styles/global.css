@@ -8,13 +8,13 @@ body {
     display: grid;
     /* Create 3 rows: Header (auto-height), Main (stretches), Footer (auto-height) */
     grid-template-rows: auto 1fr auto; 
-    padding: 5px; /* Creates the 5px "frame" around the entire game */
-    gap: 5px;     /* Creates the 5px space between all components */
+    padding: 2px; /* Creates the 5px "frame" around the entire game */
+    gap: 2px;     /* Creates the 5px space between all components */
 }
 
 #mainContainer {
     display: flex;
-    gap: 5px; /* Creates space between menu, game area, and info panel */
+    gap: 2px; /* Creates space between menu, game area, and info panel */
     overflow: hidden; /* This is okay here now */
 }
 
@@ -106,7 +106,7 @@ body {
   }
 }
 
-#header, #footer, #mainMenu, #gameArea, #infoPanel {
+#header, #footer, #mainMenu, #infoPanel {
     animation: pulse-glow 5s ease-in-out infinite;
     background-color: #000;
     border: none !important; /* Forcefully remove any stray borders */
