@@ -1,5 +1,4 @@
 #infoPanel {
-    position: relative;
     width: 20%;
     background-color: black;
     height: 100%;
@@ -13,7 +12,6 @@
     overflow-y: auto;
 	border-bottom: none;
 	scrollbar-width: none;
-	z-index: 1;
 }
 
 #infoPanel::-webkit-scrollbar {

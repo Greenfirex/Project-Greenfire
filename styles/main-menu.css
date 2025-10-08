@@ -7,8 +7,6 @@
     align-items: center;
     justify-content: space-between;
     padding-top: 10px;
-	position: relative;
-    z-index: 3;
 }
 
 .menu-buttons-container {

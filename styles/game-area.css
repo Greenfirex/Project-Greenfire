@@ -25,9 +25,6 @@
   background-color: #34495e;
   overflow: hidden;
   position: relative;
-  animation: none !important;
-  box-shadow: none !important;
-  z-index: 2;
 }
 
 #gameArea::before {
