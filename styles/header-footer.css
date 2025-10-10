@@ -17,6 +17,28 @@
     position: relative; /* Needed for the pseudo-element */
 }
 
+/* Define the three columns for the header */
+.header-left, .header-center, .header-right {
+    flex: 1; /* Each column will take up 1/3 of the space */
+}
+
+/* Center the clock */
+.header-center {
+    text-align: center;
+}
+
+/* Align the links to the far right */
+.header-right {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Style the new logo */
+#gameLogo {
+    height: 40px; /* Control the size of the logo */
+    width: auto;
+}
+
 /* --- Horizontal Glowing Separators --- */
 #header::after,
 #footer::before {
