@@ -8,24 +8,26 @@
 }
 
 #header {
-    display: grid; /* Use CSS Grid for powerful layout control */
-    grid-template-columns: 1fr auto 1fr; /* Left (flexible), Center (auto-width), Right (flexible) */
+    display: flex; /* A simpler flexbox layout */
+    justify-content: space-between; /* Pushes logo and links to the edges */
     align-items: center;
     padding: 10px;
     background-color: #000;
     color: white;
-    position: relative;
-    border: none;
+    position: relative; /* This is the anchor for the clock */
 }
 
-/* Style the new logo */
+/* Position the logo on the left */
 #gameLogo {
-    grid-column: 1 / 2; /* Place logo in the first column */
-    justify-self: center; /* Center horizontally within its column */
-    margin-left: 10%; /* Adjust this to visually align it over the main menu panel */
-    /* You may need to experiment with this percentage */
-    height: 40px; /* Initial height, adjust as needed */
+    height: 60px;
     width: auto;
+}
+
+#currentTime {
+    grid-column: 2 / 3; /* Place clock in the second (auto-width) column */
+    justify-self: center; /* Center horizontally in its column */
+    color: #90EE90;
+    padding: 0 20px; /* Add some padding around the clock */
 }
 
 /* --- Horizontal Glowing Separators --- */
@@ -49,8 +51,6 @@
 }
 
 .header-links {
-    grid-column: 3 / 4; /* Place links in the third column */
-    justify-self: flex-end; /* Align links to the far right */
     display: flex;
     gap: 15px;
 }
@@ -110,13 +110,6 @@
     color: white; /* Changed from black to white for dark background */
     text-decoration: none;
     cursor: pointer;
-}
-
-#currentTime {
-    grid-column: 2 / 3; /* Place clock in the second (auto-width) column */
-    justify-self: center; /* Center horizontally in its column */
-    color: #90EE90;
-    padding: 0 20px; /* Add some padding around the clock */
 }
 
 #colorPickerContainer {
