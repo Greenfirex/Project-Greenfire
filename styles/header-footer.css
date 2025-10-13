@@ -206,3 +206,30 @@
     align-items: center;
     margin: 20px 0;
 }
+
+.save-management {
+    margin: 20px 0;
+    text-align: center;
+}
+#importContainer {
+    margin-top: 10px;
+}
+#importSaveText {
+    width: 90%;
+    height: 60px;
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 4px;
+}
+.save-management button {
+    padding: 8px 12px;
+    background-color: #555;
+    color: #fff;
+    border: 1px solid #777;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.save-management button:hover {
+    background-color: #777;
+}

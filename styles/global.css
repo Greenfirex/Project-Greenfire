@@ -20,6 +20,11 @@ body {
 	--glow-spread-multiplier: 1;
 }
 
+body.glow-disabled * {
+    animation: none !important;
+    box-shadow: none !important;
+}
+
 /* Universal font style */
 * {
     font-family: 'Roboto Mono', monospace;

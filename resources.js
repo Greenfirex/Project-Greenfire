@@ -1,4 +1,5 @@
 import { buildings } from './data/buildings.js'; // We need this to calculate generation rates
+import { formatNumber } from './formatting.js';
 
 export function updateResourceInfo() {
     const infoPanel = document.getElementById('infoPanel');
@@ -19,22 +20,18 @@ export function updateResourceInfo() {
             const resourceDiv = document.createElement('div');
             resourceDiv.className = 'info-section';
             
-            // --- NEW: Create and update the progress bar ---
             const progressBar = document.createElement('div');
             progressBar.className = 'resource-progress-bar';
             
-            // Calculate the fill percentage and cap it at 100%
             const fillPercentage = Math.min((resource.amount / resource.capacity) * 100, 100);
             progressBar.style.width = `${fillPercentage}%`;
 
-            // Add the bar to the row
             resourceDiv.appendChild(progressBar);
 
             if (resource.amount >= resource.capacity) {
                 resourceDiv.classList.add('capped');
             }
 
-            // --- The rest of the function is the same ---
             const column1 = document.createElement('div');
             column1.className = 'infocolumn1';
             const column2 = document.createElement('div');
@@ -53,11 +50,12 @@ export function updateResourceInfo() {
             });
 
             const generationElement = document.createElement('p');
-            generationElement.textContent = `${totalGeneration.toFixed(2)}/s`;
+            // MODIFIED: Use the new formatNumber function
+            generationElement.textContent = `${formatNumber(totalGeneration)}/s`;
 
             const storageElement = document.createElement('p');
-            const storedAmount = resource.amount.toFixed(2);
-            storageElement.textContent = `${storedAmount} / ${resource.capacity}`;
+            // MODIFIED: Use the new formatNumber function for both amount and capacity
+            storageElement.textContent = `${formatNumber(resource.amount)} / ${formatNumber(resource.capacity)}`;
 
             column1.appendChild(nameElement);
             column2.appendChild(generationElement);
@@ -76,10 +74,6 @@ export function getInitialResources() {
     return [
         { name: 'Stone', amount: 0, isDiscovered: true, capacity: 100 },
         { name: 'Xylite', amount: 0, isDiscovered: false, capacity: 50 },
-        { name: 'Helion-3 Concentrate', amount: 0, isDiscovered: false, capacity: 25 },
-        { name: 'Cygnium Ore', amount: 0, isDiscovered: false, capacity: 100 },
-        { name: 'Sentient Mycelium', amount: 0, isDiscovered: false, capacity: 10 },
-        // --- NEW RESOURCE ---
         { name: 'Insight', amount: 0, isDiscovered: false, capacity: 100 },
     ];
 }

@@ -1,3 +1,5 @@
+import { setNotation } from './formatting.js';
+
 // A single, unified map for all color options
 const colorMap = {
     green:  '105, 240, 174',
@@ -9,6 +11,7 @@ const colorMap = {
 };
 
 let runInBackground = true;
+let glowEffectsEnabled = true;
 
 export function shouldRunInBackground() {
     return runInBackground;
@@ -98,6 +101,21 @@ export function initOptions() {
         });
     }
 	
+	// --- Glow Toggle ---
+    const glowToggle = document.getElementById('glowToggle');
+    if (glowToggle) {
+        glowEffectsEnabled = JSON.parse(localStorage.getItem('glowEffectsEnabled')) ?? true;
+        glowToggle.checked = glowEffectsEnabled;
+        document.body.classList.toggle('glow-disabled', !glowEffectsEnabled);
+
+        glowToggle.addEventListener('change', () => {
+            glowEffectsEnabled = glowToggle.checked;
+            localStorage.setItem('glowEffectsEnabled', glowEffectsEnabled);
+            document.body.classList.toggle('glow-disabled', !glowEffectsEnabled);
+        });
+    }
+	
+	// --- Run in background Toggle ---
 	const backgroundToggle = document.getElementById('backgroundToggle');
     if (backgroundToggle) {
         // 1. Load the saved setting
@@ -110,5 +128,55 @@ export function initOptions() {
             localStorage.setItem('runInBackground', runInBackground);
         });
     }
+	
+	 // --- Notation Picker ---
+    const notationRadios = document.querySelectorAll('input[name="notation"]');
+    if (notationRadios.length > 0) {
+        const savedNotation = localStorage.getItem('numberNotation') || 'standard';
+        setNotation(savedNotation);
+        document.querySelector(`input[value="${savedNotation}"]`).checked = true;
+
+        notationRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (radio.checked) {
+                    setNotation(radio.value);
+                    localStorage.setItem('numberNotation', radio.value);
+                }
+            });
+        });
+    }
+	
+	// --- Save Management ---
+    const exportBtn = document.getElementById('exportSaveButton');
+    const importBtn = document.getElementById('importSaveButton');
+    const importText = document.getElementById('importSaveText');
+
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            const saveData = localStorage.getItem('gameState');
+            if (saveData) {
+                navigator.clipboard.writeText(saveData).then(() => {
+                    exportBtn.textContent = 'Copied!';
+                    setTimeout(() => { exportBtn.textContent = 'Export to Clipboard'; }, 2000);
+                });
+            }
+        });
+    }
+
+    if (importBtn && importText) {
+        importBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to import this save? It will overwrite your current progress.')) {
+                try {
+                    // Test if the save data is valid JSON
+                    JSON.parse(importText.value);
+                    localStorage.setItem('gameState', importText.value);
+                    location.reload();
+                } catch (e) {
+                    alert('Invalid save data!');
+                }
+            }
+        });
+    }
 }
 }
+

@@ -55,6 +55,21 @@
     <div class="popup-content">
         <span class="close-button">&times;</span>
         <h3>Options</h3>
+		
+		<h4>Settings</h4>
+		<div class="option-toggle">
+			<label for="backgroundToggle">Should the game run in background?</label>
+			<input type="checkbox" id="backgroundToggle">
+			<label for="glowToggle">Enable UI Glow Effects</label>
+			<input type="checkbox" id="glowToggle">
+		</div>
+		
+		<h4>Number Formatting</h4>
+		<div id="numberFormatPicker">
+			<label><input type="radio" name="notation" value="standard"> Standard</label>
+			<label><input type="radio" name="notation" value="scientific"> Scientific</label>
+			<label><input type="radio" name="notation" value="short"> Short Scale</label>
+		</div>
 
         <h4>UI Glow Color</h4>
         <div id="colorPickerContainer">
@@ -76,15 +91,18 @@
             <button class="color-swatch" data-color="black" title="Glow Off"></button>
         </div>
 		
-		<div class="option-toggle">
-			<label for="backgroundToggle">Run in background</label>
-			<input type="checkbox" id="backgroundToggle">
-		</div>
-
         <h4>Glow Intensity</h4>
         <input type="range" id="glowIntensitySlider" min="0" max="2" step="0.1">
-
-        <button id="resetButton">Reset Progress</button>
+		
+		<h4>Save Management</h4>
+		<div class="save-management">
+			<button id="exportSaveButton">Export to Clipboard</button>
+		<div id="importContainer">
+			<textarea id="importSaveText" placeholder="Paste save data here..."></textarea>
+			<button id="importSaveButton">Import</button>
+			<button id="resetButton">Reset Progress</button>
+		</div>
+		</div>     
     </div>
 </div>
 
@@ -110,6 +128,7 @@
 <script src="log.js" type="module"></script>
 <script src="eventManager.js" type="module"></script>
 <script src="popup.js" type="module"></script>
+<script src="formatting.js" type="module"></script>
 <script src="sections/mining.js" type="module"></script>
 <script src="sections/research.js" type="module"></script>
 <script src="sections/manufacturing.js" type="module"></script>
