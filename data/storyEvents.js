@@ -9,7 +9,7 @@ gameStart: {
         title: "A Glimmer of Insight",
         // FIXED: Message is now an array
         message: [
-            "As our miners excavate deeper, they've uncovered a strange, glowing crystal. We've named it Xylite. To understand its potential, we must analyze it. The Research Lab is now available."
+            "We should use our resources to estabilish our first laboratory to analyze Xylite potential. Lets build laboratory and research its properties."
         ]
     },
     unlockXylite: {
