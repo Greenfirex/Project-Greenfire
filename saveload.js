@@ -78,34 +78,35 @@ export function loadGameState() {
 
 export function resetToDefaultState() {
 	addLogEntry('Game state reset.', 'yellow');
-	showStoryPopup(storyEvents.gameStart);
 
-    // NEW: Add a clickable log entry to re-open it
-    addLogEntry('A new journey begins... (Click to read)', '#7E57C2', {
-        onClick: () => showStoryPopup(event.title, event.message)
-    });
-
-    // Correctly reset all data using their specific reset functions
-    resources.length = 0;
-    resources.push(...getInitialResources());
-    resetTechnologies();
-    resetBuildings();
-
-    // Reset research progress
-    clearInterval(getResearchInterval());
-    setResearchInterval(null);
-    setResearchProgress(0);
-    setCurrentResearchingTech(null);
-
-    // Reset unlocked sections
-    setActivatedSections({
-        researchSection: false,
-        manufacturingSection: false,
-        shipyardSection: false, // Ensures these are reset as well
-        galaxyMapSection: false,
-    });
+    // Define the event object first
+	const event = storyEvents.gameStart;
     
+    // Call the initial popup with the full event object
+	showStoryPopup(event);
 
+    // Use the same event object for the clickable log's callback
+    addLogEntry('A new journey begins... (Click to read)', '#7E57C2', {
+        onClick: () => showStoryPopup(event)
+    });
+
+    // The rest of the function remains the same
+    resources.length = 0;
+    resources.push(...getInitialResources());
+    resetTechnologies();
+    resetBuildings();
+
+    clearInterval(getResearchInterval());
+    setResearchInterval(null);
+    setResearchProgress(0);
+    setCurrentResearchingTech(null);
+
+    setActivatedSections({
+        researchSection: false,
+        manufacturingSection: false,
+        shipyardSection: false,
+        galaxyMapSection: false,
+    });
 }
 
 // This function is unchanged and remains as part of the file.
