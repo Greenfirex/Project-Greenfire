@@ -8,20 +8,34 @@
 }
 
 #header {
-    display: flex; /* A simpler flexbox layout */
-    justify-content: space-between; /* Pushes logo and links to the edges */
+    display: flex;
     align-items: center;
-    padding: 10px;
+    padding: 5px; /* Reduced padding for a tighter fit */
     background-color: #000;
     color: white;
-    position: relative; /* This is the anchor for the clock */
+    height: 70px; /* Set a consistent header height */
 }
 
-/* Position the logo on the left */
+/* Defines the three columns */
+.header-left {
+    width: 20%; /* Same width as your mainMenu */
+    display: flex;
+    justify-content: center; /* Centers the logo inside */
+}
+.header-center {
+    flex-grow: 1; /* Takes up the remaining middle space */
+    text-align: center;
+}
+.header-right {
+    width: 20%; /* Same width as mainMenu for balance */
+    display: flex;
+    justify-content: flex-end; /* Pushes links to the right */
+}
+
+/* Style for the logo */
 #gameLogo {
-    height: 30px; /* Changed to match menu button height */
-    width: auto; /* Let the width adjust proportionally */
-    left: 10%; /* Add a little margin to keep it off the edge */
+    height: 60px; /* Increase this value to make the logo larger */
+    width: auto;  /* Keeps the proportions correct */
 }
 
 #currentTime {
