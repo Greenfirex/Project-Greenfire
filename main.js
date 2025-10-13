@@ -189,7 +189,7 @@ export function checkConditions() {
         showStoryPopup(storyEvents.unlockResearch);
         
         addLogEntry('A glimmer of insight has been recorded. (Click to read)', '#7E57C2', {
-            onClick: () => showStoryPopup(storyEvents.unlockResearch)
+            onClick: () => showStoryPopup(storyEvents.unlockResearch);
 		addLogEntry('The ability to construct a Laboratory has been unlocked!', 'purple');	
         });
     }
