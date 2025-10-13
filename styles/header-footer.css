@@ -199,3 +199,10 @@
     border-radius: 50%;
     border: 1px solid #FFF;
 }
+
+.option-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px 0;
+}

@@ -10,7 +10,7 @@ import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js
 import { addLogEntry } from './log.js';
 import { showStoryPopup } from './popup.js';
 import { storyEvents } from './data/storyEvents.js';
-import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity } from './options.js';
+import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity, shouldRunInBackground } from './options.js';
 import { updateImpactTimer } from './eventManager.js';
 import './headeroptions.js';
 
@@ -85,17 +85,22 @@ function startGame() {
     updateResourceInfo();
     applyActivatedSections();
 
- setInterval(() => {
+setInterval(() => {
         // Calculate delta time
         const now = Date.now();
-        const deltaTime = (now - lastUpdateTime) / 1000; // Time in seconds since last update
-        lastUpdateTime = now; // Reset the timer for the next loop
+        let deltaTime = (now - lastUpdateTime) / 1000;
+        lastUpdateTime = now;
 
-        // Update resources based on delta time
+        // --- NEW PAUSE LOGIC ---
+        // If the setting is off and the tab has been inactive for a while (e.g., > 2 seconds)
+        if (!shouldRunInBackground() && deltaTime > 2) {
+            deltaTime = 0; // Ignore the time that passed, effectively pausing the game
+        }
+
+        // --- The rest of the loop proceeds as normal ---
         buildings.forEach(building => {
             const resourceToProduce = resources.find(r => r.name === building.produces);
             if (resourceToProduce) {
-                // MODIFIED: Multiply generation rate by the elapsed time
                 const newAmount = resourceToProduce.amount + (building.rate * building.count) * deltaTime;
                 resourceToProduce.amount = Math.min(newAmount, resourceToProduce.capacity);
             }
@@ -105,11 +110,12 @@ function startGame() {
         checkConditions();
         updateBuildingButtonsState();
         updateTechButtonsState();
-		updateImpactTimer();
+        updateImpactTimer();
     }, 100);
+	
 setInterval(() => {
         saveGameState();
-    }, 150000); // 15000 milliseconds = 15 seconds
+    }, 300000); // 300000 milliseconds = 300 seconds
 }
 
 

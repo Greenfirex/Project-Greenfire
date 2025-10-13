@@ -8,6 +8,12 @@ const colorMap = {
     black:  '0, 0, 0'
 };
 
+let runInBackground = true;
+
+export function shouldRunInBackground() {
+    return runInBackground;
+}
+
 /**
  * Sets the main UI glow color.
  */
@@ -91,4 +97,18 @@ export function initOptions() {
             setGlowIntensity(event.target.value);
         });
     }
+	
+	const backgroundToggle = document.getElementById('backgroundToggle');
+    if (backgroundToggle) {
+        // 1. Load the saved setting
+        runInBackground = JSON.parse(localStorage.getItem('runInBackground')) ?? true;
+        // 2. Set the checkbox to match the loaded setting
+        backgroundToggle.checked = runInBackground;
+        // 3. Listen for changes
+        backgroundToggle.addEventListener('change', () => {
+            runInBackground = backgroundToggle.checked;
+            localStorage.setItem('runInBackground', runInBackground);
+        });
+    }
+}
 }
