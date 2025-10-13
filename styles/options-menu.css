@@ -13,7 +13,7 @@
 
 /* This is the SPECIFIC style for the options menu's grid layout */
 .options-popup {
-    max-width: 70%;
+    max-width: 55%;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px 30px;
