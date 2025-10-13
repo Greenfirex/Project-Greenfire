@@ -157,47 +157,38 @@ export function checkConditions() {
     const stone = resources.find(r => r.name === 'Stone');
     const xylite = resources.find(r => r.name === 'Xylite');
 
-     // Xylite discovery logic
-     if (stone && xylite) {
+    // Xylite discovery logic
+    if (stone && xylite) {
         if (stone.amount >= 5 && !xylite.isDiscovered) {
             xylite.isDiscovered = true;
             updateResourceInfo();
             setupMiningSection();
 
-            // --- TRIGGER THE POPUP ---
-            const event = storyEvents.unlockXylite;
-            showStoryPopup(event.title, event.message);
+            // Pass the whole event object
+            showStoryPopup(storyEvents.unlockXylite);
             
             addLogEntry('A crystalline anomaly has been detected. (Click to read)', '#7E57C2', {
-                onClick: () => showStoryPopup(event.title, event.message)
-            }
-			);
-			addLogEntry('Xylite discovered', 'blue');
+                onClick: () => showStoryPopup(storyEvents.unlockXylite)
+            });
         }
     }
     
-    // Logika pro odemykání Research sekce
+    // Research section unlock logic
     const laboratory = buildings.find(b => b.name === 'Laboratory');
-    // Check if the condition is met AND the lab hasn't been unlocked yet
     if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
-        // 1. Unlock the Laboratory building
         laboratory.isUnlocked = true;
         addLogEntry('The ability to construct a Laboratory has been unlocked!', 'purple');
-        
-        // 2. Refresh the mining panel to show the new button
         setupMiningSection();
 
-        // 3. Show the story popup
-        const event = storyEvents.unlockResearch;
-        showStoryPopup(event.title, event.message);
+        // Pass the whole event object
+        showStoryPopup(storyEvents.unlockResearch);
         
-        // 4. Add the clickable log entry
         addLogEntry('A glimmer of insight has been recorded. (Click to read)', '#7E57C2', {
-            onClick: () => showStoryPopup(event.title, event.message)
+            onClick: () => showStoryPopup(storyEvents.unlockResearch)
         });
     }
 
-    // Nová logika pro odemykání Manufacturing sekce
+    // Manufacturing section unlock logic
     const manufacturingButton = document.querySelector('.menu-button[data-section="manufacturingSection"]');
     if (stone && manufacturingButton) {
         if (stone.amount >= 20 && !activatedSections['manufacturingSection']) {

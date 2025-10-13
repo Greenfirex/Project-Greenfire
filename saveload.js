@@ -78,9 +78,7 @@ export function loadGameState() {
 
 export function resetToDefaultState() {
 	addLogEntry('Game state reset.', 'yellow');
-    // Show the intro popup as before
-    const event = storyEvents.gameStart;
-    showStoryPopup(event.title, event.message);
+	showStoryPopup(storyEvents.gameStart);
 
     // NEW: Add a clickable log entry to re-open it
     addLogEntry('A new journey begins... (Click to read)', '#7E57C2', {
