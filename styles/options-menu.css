@@ -1,17 +1,21 @@
-.popup-overlay {
+/* This rule makes the options menu a full-screen, centered overlay */
+.popup {
+    display: none;
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.75);
-    z-index: 1000;
+    z-index: 9999; /* High z-index to appear on top */
+
+    /* Flexbox properties to center the content */
     display: flex;
+    align-items: center;
     justify-content: center;
-    align-items: center; /* ADDED BACK: This will center the popup vertically */
 }
 
-/* Base style for the popup window */
+/* This is the base style for the popup window itself */
 .popup-content {
     background-color: #1a1a1a;
     color: #fff;
@@ -20,17 +24,20 @@
     width: 90%;
     border-radius: 8px;
     position: relative;
+    text-align: center;
 }
 
+/* This adds the specific grid layout for the OPTIONS popup */
 .options-popup {
     max-width: 700px;
-    margin: auto; /* This works with the parent's flex settings for perfect centering */
+    margin: auto;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px 30px;
     align-items: start;
-    /* Other styles for background, etc. are in the base .popup-content rule */
 }
+
+/* --- The rest of your options menu styles remain below --- */
 
 .popup-header {
     grid-column: 1 / -1;
