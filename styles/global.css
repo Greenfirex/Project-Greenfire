@@ -138,3 +138,8 @@ body.glow-disabled * {
 #mainContainer::after {
     left: 80%;
 }
+
+#mainMenu, #gameArea, #infoPanel {
+    position: relative; /* Ensures z-index will apply */
+    z-index: 1;       /* Places them on layer 1 */
+}

@@ -1,4 +1,3 @@
-/* Base style for the popup overlay */
 .popup-overlay {
     position: fixed;
     top: 0;
@@ -9,6 +8,7 @@
     z-index: 1000;
     display: flex;
     justify-content: center;
+    align-items: center; /* ADDED BACK: This will center the popup vertically */
 }
 
 /* Base style for the popup window */
@@ -22,14 +22,14 @@
     position: relative;
 }
 
-/* Specific grid layout for the OPTIONS popup */
 .options-popup {
     max-width: 700px;
-    margin: 15vh auto 0;
+    margin: auto; /* This works with the parent's flex settings for perfect centering */
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px 30px;
     align-items: start;
+    /* Other styles for background, etc. are in the base .popup-content rule */
 }
 
 .popup-header {
