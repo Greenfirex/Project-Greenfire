@@ -53,11 +53,6 @@ function hideStoryPopup() {
     if (storyPopup) {
         storyPopup.classList.add('hidden');
     }
-
-    if (activeStoryEvent && activeStoryEvent.title === "Project Greenfire - Déjà Vu") {
-        startImpactTimer();
-    }
-    
     activeStoryEvent = null; // Clear the active event
 }
 
