@@ -22,7 +22,6 @@
     height: 30px; /* Changed to match menu button height */
     width: auto; /* Let the width adjust proportionally */
     left: 10%; /* Add a little margin to keep it off the edge */
-	position: absolute;
 }
 
 #currentTime {
