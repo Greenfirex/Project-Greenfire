@@ -4,16 +4,13 @@ export function updateResourceInfo() {
     const infoPanel = document.getElementById('infoPanel');
     infoPanel.innerHTML = ''; 
 
-    // NEW: Create a sorted array for display
     const displayResources = [...resources].sort((a, b) => {
-        if (a.name === 'Insight') return -1; // 'a' (Insight) comes first
-        if (b.name === 'Insight') return 1;  // 'b' (Insight) comes first
-        return 0; // Keep original order for others
+        if (a.name === 'Insight') return -1;
+        if (b.name === 'Insight') return 1;
+        return 0;
     });
 
-    // MODIFIED: Loop over the new sorted array
     displayResources.forEach(resource => {
-        // Auto-discovery logic (still useful for other resources)
         if (resource.amount > 0 && !resource.isDiscovered) {
             resource.isDiscovered = true;
         }
@@ -22,10 +19,22 @@ export function updateResourceInfo() {
             const resourceDiv = document.createElement('div');
             resourceDiv.className = 'info-section';
             
+            // --- NEW: Create and update the progress bar ---
+            const progressBar = document.createElement('div');
+            progressBar.className = 'resource-progress-bar';
+            
+            // Calculate the fill percentage and cap it at 100%
+            const fillPercentage = Math.min((resource.amount / resource.capacity) * 100, 100);
+            progressBar.style.width = `${fillPercentage}%`;
+
+            // Add the bar to the row
+            resourceDiv.appendChild(progressBar);
+
             if (resource.amount >= resource.capacity) {
                 resourceDiv.classList.add('capped');
             }
 
+            // --- The rest of the function is the same ---
             const column1 = document.createElement('div');
             column1.className = 'infocolumn1';
             const column2 = document.createElement('div');
