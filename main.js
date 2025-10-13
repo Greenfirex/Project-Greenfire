@@ -8,7 +8,7 @@ import { setupShipyardSection } from './sections/shipyard.js';
 import { setupGalaxyMapSection } from './sections/galaxyMap.js';
 import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js';
 import { addLogEntry } from './log.js';
-import { showStoryPopup } from './data/popup.js';
+import { showStoryPopup } from './popup.js';
 import { storyEvents } from './data/storyEvents.js';
 import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity } from './options.js';
 import { updateImpactTimer } from './eventManager.js';
