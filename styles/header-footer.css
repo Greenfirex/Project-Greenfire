@@ -21,7 +21,7 @@
 #gameLogo {
     height: 30px; /* Changed to match menu button height */
     width: auto; /* Let the width adjust proportionally */
-    margin-left: 10px; /* Add a little margin to keep it off the edge */
+    left: 10%; /* Add a little margin to keep it off the edge */
 }
 
 #currentTime {
