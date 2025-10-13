@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="styles/research.css">
 <link rel="stylesheet" href="styles/mining.css">
 <link rel="stylesheet" href="styles/popup.css">
+<link rel="stylesheet" href="styles/options-menu.css">
 	<link rel="icon" type="image/x-icon" href="favicon.ico">
 	<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
     <title>Project Greenfire</title>
@@ -71,10 +72,19 @@
         <div class="option-group">
             <h4>Number Formatting</h4>
             <div id="numberFormatPicker">
-                <label><input type="radio" name="notation" value="standard"> Standard</label>
-                <label><input type="radio" name="notation" value="scientific"> Scientific</label>
-                <label><input type="radio" name="notation" value="short"> Short Scale</label>
-            </div>
+    <label>
+        <span><input type="radio" name="notation" value="standard"> Standard</span>
+        <span class="format-example">(e.g., 1,234,567)</span>
+    </label>
+    <label>
+        <span><input type="radio" name="notation" value="scientific"> Scientific</span>
+        <span class="format-example">(e.g., 1.23e+6)</span>
+    </label>
+    <label>
+        <span><input type="radio" name="notation" value="short"> Short Scale</span>
+        <span class="format-example">(e.g., 1.23 M)</span>
+    </label>
+		</div>
         </div>
 
         <div class="option-group popup-span-all">
