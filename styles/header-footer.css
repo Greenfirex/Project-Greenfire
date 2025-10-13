@@ -119,18 +119,23 @@
 .popup-content {
     background-color: #1a1a1a;
     color: #fff;
-    margin: auto; /* Center the popup vertically and horizontally */
-    padding: 20px;
+    margin: auto;
+    padding: 20px 30px;
     border: 1px solid #888;
     width: 90%;
-    max-width: 700px; /* FIXED: Increased max-width */
+    max-width: 700px;
     border-radius: 8px;
-    
-    /* NEW: Two-column grid layout */
     display: grid;
-    grid-template-columns: 1fr 1fr; /* Create two equal columns */
-    gap: 10px 30px; /* Add space between rows and columns */
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 30px;
     align-items: center;
+}
+
+/* This targets the main "Options" title */
+.popup-content h3 {
+    grid-column: 1 / -1; /* Make the main title span both columns */
+    text-align: center;
+    margin: 0;
 }
 
 /* This class makes an element span across both columns */
@@ -139,17 +144,20 @@
 }
 
 .close-button {
-    color: #aaa;
-    float: right;
+    grid-column: 2; /* Place it in the second column */
+    grid-row: 1;    /* Place it on the first row */
+    justify-self: end; /* Align it to the right of its grid cell */
     font-size: 28px;
     font-weight: bold;
+    color: #aaa;
+    cursor: pointer;
+    line-height: 1; /* Helps with alignment */
 }
 
 .close-button:hover,
 .close-button:focus {
-    color: white; /* Changed from black to white for dark background */
+    color: white;
     text-decoration: none;
-    cursor: pointer;
 }
 
 #colorPickerContainer {

@@ -53,8 +53,8 @@
 <div id="footer">Green ™</div>
 <div id="optionsMenu" class="popup">
     <div class="popup-content">
+        <h3>Options</h3>
         <span class="close-button">&times;</span>
-        <h3 class="popup-span-all">Options</h3>
 
         <div class="option-group">
             <h4>Settings</h4>
@@ -80,13 +80,25 @@
         <div class="option-group popup-span-all">
             <h4>UI Glow Color</h4>
             <div id="colorPickerContainer">
-                </div>
+                <button class="color-swatch" data-color="green" title="Sci-Fi Green"></button>
+                <button class="color-swatch" data-color="blue" title="Cyber Blue"></button>
+                <button class="color-swatch" data-color="purple" title="Void Purple"></button>
+                <button class="color-swatch" data-color="gold" title="Warm Gold"></button>
+                <button class="color-swatch" data-color="white" title="White"></button>
+                <button class="color-swatch" data-color="black" title="Glow Off"></button>
+            </div>
         </div>
 
         <div class="option-group popup-span-all">
             <h4>Active Button Glow</h4>
             <div id="activeButtonColorPicker">
-                </div>
+                <button class="color-swatch" data-color="green" title="Sci-Fi Green"></button>
+                <button class="color-swatch" data-color="blue" title="Cyber Blue"></button>
+                <button class="color-swatch" data-color="purple" title="Void Purple"></button>
+                <button class="color-swatch" data-color="gold" title="Warm Gold"></button>
+                <button class="color-swatch" data-color="white" title="White"></button>
+                <button class="color-swatch" data-color="black" title="Glow Off"></button>
+            </div>
         </div>
 
         <div class="option-group popup-span-all">
@@ -95,7 +107,12 @@
         </div>
 
         <div class="save-management popup-span-all">
+            <button id="exportSaveButton">Export to Clipboard</button>
+            <div id="importContainer">
+                <textarea id="importSaveText" placeholder="Paste save data here..."></textarea>
+                <button id="importSaveButton">Import</button>
             </div>
+        </div>
 
         <button id="resetButton" class="popup-span-all">Reset Progress</button>
     </div>
