@@ -1,68 +1,73 @@
 import { saveGameState, loadGameState, resetGameState } from './saveload.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+
     const optionsLink = document.getElementById('optionsLink');
     const optionsMenu = document.getElementById('optionsMenu');
-    const closeButton = document.querySelector('.close-button');
+    const closeButton = optionsMenu?.querySelector('.close-button');
     const resetButton = document.getElementById('resetButton');
     const saveLink = document.getElementById('saveLink');
     const loadLink = document.getElementById('loadLink');
 
-    const addClickListener = (element, callback) => {
-        if (element) {
-            element.addEventListener('click', (event) => {
-                event.preventDefault();
-                callback();
-            });
-        } else {
-            console.error('Element not found: ', element);
+    function showOptionsMenu(event) {
+        event.preventDefault();
+        if (optionsMenu) {
+            optionsMenu.classList.remove('hidden');
         }
-    };
+    }
 
-    if (optionsLink && optionsMenu && closeButton && resetButton && saveLink && loadLink) {
-        addClickListener(optionsLink, () => {
-            optionsMenu.style.display = 'block';
-        });
+    function hideOptionsMenu() {
+        if (optionsMenu) {
+            optionsMenu.classList.add('hidden');
+        }
+    }
 
-        addClickListener(closeButton, () => {
-            optionsMenu.style.display = 'none';
-        });
-
-        addClickListener(resetButton, () => {
-            if (confirm("Are you sure you want to reset your progress?")) {
-                resetGameState();
-            }
-        });
-
-        addClickListener(saveLink, () => {
-            saveGameState();
-            console.log('Game state saved');
-        });
-
-        addClickListener(loadLink, () => {
-            loadGameState();
-            console.log('Game state loaded');
-        });
-
-        window.addEventListener('click', (event) => {
+    // --- Event Listeners ---
+    if (optionsLink) {
+        optionsLink.addEventListener('click', showOptionsMenu);
+    }
+    if (closeButton) {
+        closeButton.addEventListener('click', hideOptionsMenu);
+    }
+    if (optionsMenu) {
+        optionsMenu.addEventListener('click', (event) => {
             if (event.target === optionsMenu) {
-                optionsMenu.style.display = 'none';
+                hideOptionsMenu();
             }
         });
-    } else {
-        console.error('One or more elements are missing.');
+    }
+    if (resetButton) {
+        resetButton.addEventListener('click', () => {
+            if (confirm("Are you sure you want to reset your progress? This cannot be undone.")) {
+                localStorage.setItem('isResetting', 'true');
+                location.reload();
+            }
+        });
+    }
+    if (saveLink) {
+        saveLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            saveGameState();
+        });
+    }
+    if (loadLink) {
+        loadLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (confirm("Are you sure you want to load your last save? Any unsaved progress will be lost.")) {
+                localStorage.removeItem('isResetting'); // Ensure we're not in a reset loop
+                location.reload();
+            }
+        });
     }
 });
 
+// This handles the clock at the top of the screen
 function updateTime() {
     const timeElement = document.getElementById('currentTime');
-    const now = new Date();
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
-    timeElement.textContent = `${hours}:${minutes}:${seconds}`;
+    if (timeElement) {
+        const now = new Date();
+        timeElement.textContent = now.toLocaleTimeString();
+    }
 }
-
 setInterval(updateTime, 1000);
-
 updateTime();
