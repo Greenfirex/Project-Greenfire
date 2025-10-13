@@ -9,73 +9,85 @@ let currentPageIndex = 0;
 function renderPopupPage() {
     if (!activeStoryEvent) return;
 
-    const message = activeStoryEvent.message[currentPageIndex];
-    document.getElementById('popupMessage').textContent = message;
-
-    // Update paging info and button text
+    const messageEl = document.getElementById('popupMessage');
     const pagingEl = document.getElementById('popupPaging');
     const nextBtn = document.getElementById('popupNext');
-    
+    const prevBtn = document.getElementById('popupPrev');
+
+    if (!messageEl || !pagingEl || !nextBtn || !prevBtn) return;
+
+    messageEl.textContent = activeStoryEvent.message[currentPageIndex];
     pagingEl.textContent = `${currentPageIndex + 1} / ${activeStoryEvent.message.length}`;
     
-    // If it's the last page, change "Next" to "Close"
     if (currentPageIndex === activeStoryEvent.message.length - 1) {
         nextBtn.textContent = 'Close';
     } else {
         nextBtn.textContent = 'Next';
     }
 
-    // Hide "Previous" button on the first page
-    document.getElementById('popupPrev').style.visibility = (currentPageIndex === 0) ? 'hidden' : 'visible';
+    prevBtn.style.visibility = (currentPageIndex === 0) ? 'hidden' : 'visible';
 }
 
+/**
+ * Shows the story popup with the data from a story event object.
+ */
 export function showStoryPopup(event) {
     const storyPopup = document.getElementById('storyPopup');
-    if (!storyPopup || !event) return;
+    const titleEl = document.getElementById('popupTitle');
+    
+    if (!storyPopup || !titleEl || !event || !event.message) return;
 
-    activeStoryEvent = event; // Store the active event
+    activeStoryEvent = event;
     currentPageIndex = 0;
 
-    document.getElementById('popupTitle').textContent = activeStoryEvent.title;
+    titleEl.textContent = activeStoryEvent.title;
     storyPopup.classList.remove('hidden');
     renderPopupPage();
 }
 
+/**
+ * Hides the story popup and performs any necessary cleanup.
+ */
 function hideStoryPopup() {
     const storyPopup = document.getElementById('storyPopup');
     if (storyPopup) {
         storyPopup.classList.add('hidden');
     }
 
-    // If we just closed the intro story, start the impact timer!
-    if (activeStoryEvent && activeStoryEvent.title === "Project Greenfire") {
+    if (activeStoryEvent && activeStoryEvent.title === "Project Greenfire - Déjà Vu") {
         startImpactTimer();
     }
-    activeStoryEvent = null;
+    
+    activeStoryEvent = null; // Clear the active event
 }
 
+/**
+ * Sets up the event listeners for the popup's controls.
+ */
 function setupPopup() {
+    const storyPopup = document.getElementById('storyPopup');
     const nextBtn = document.getElementById('popupNext');
     const prevBtn = document.getElementById('popupPrev');
+    const closeBtn = storyPopup ? storyPopup.querySelector('.popup-close') : null;
+
+    if (!storyPopup || !nextBtn || !prevBtn || !closeBtn) return;
 
     nextBtn.addEventListener('click', () => {
+        if (!activeStoryEvent) return;
         if (currentPageIndex < activeStoryEvent.message.length - 1) {
             currentPageIndex++;
             renderPopupPage();
         } else {
-            hideStoryPopup(); // Close the popup if on the last page
+            hideStoryPopup();
         }
     });
 
     prevBtn.addEventListener('click', () => {
-        if (currentPageIndex > 0) {
-            currentPageIndex--;
-            renderPopupPage();
-        }
+        if (!activeStoryEvent || currentPageIndex <= 0) return;
+        currentPageIndex--;
+        renderPopupPage();
     });
 
-    // Close button still works instantly
-    const closeBtn = document.querySelector('.popup-close');
     closeBtn.addEventListener('click', hideStoryPopup);
 }
 
