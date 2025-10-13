@@ -49,7 +49,7 @@
 /* Style for the logo */
 #gameLogo {
     height: 35px; /* MODIFIED: Adjusted to fit the new header height */
-    width: 80%;
+    width: 60%;
 }
 
 #currentTime {
