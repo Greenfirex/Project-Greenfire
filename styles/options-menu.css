@@ -1,7 +1,20 @@
+/* Base style for the popup overlay */
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.75);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+}
+
+/* Base style for the popup window */
 .popup-content {
     background-color: #1a1a1a;
     color: #fff;
-    margin: auto;
     padding: 20px 30px;
     border: 1px solid #888;
     width: 90%;
@@ -9,19 +22,14 @@
     position: relative;
 }
 
+/* Specific grid layout for the OPTIONS popup */
 .options-popup {
     max-width: 700px;
+    margin: 15vh auto 0;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px 30px; /* Increased row gap */
-    align-items: start; /* Align items to the top of their cells */
-}
-
-/* This targets the main "Options" title */
-.popup-content h3 {
-    text-align: center;
-    margin: 0;
-    flex-grow: 1; /* Allow title to take space */
+    gap: 20px 30px;
+    align-items: start;
 }
 
 .popup-header {
@@ -32,9 +40,10 @@
     margin-bottom: 10px;
 }
 
-/* This class makes an element span across both columns */
-.popup-span-all {
-    grid-column: 1 / -1;
+.popup-content h3 {
+    text-align: center;
+    margin: 0;
+    flex-grow: 1;
 }
 
 .close-button {
@@ -48,93 +57,31 @@
 .close-button:hover,
 .close-button:focus {
     color: white;
-    text-decoration: none;
 }
 
-#colorPickerContainer {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin: 15px 0 25px 0;
-}
-
-.color-swatch {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%; /* Make them circles */
-    border: 2px solid #555;
-    cursor: pointer;
-    transition: transform 0.2s ease;
-}
-
-.color-swatch:hover {
-    transform: scale(1.1);
-}
-
-/* Define the color for each swatch */
-.color-swatch[data-color="green"]  { background-color: #69f0ae; }
-.color-swatch[data-color="blue"]   { background-color: #40C4FF; }
-.color-swatch[data-color="purple"] { background-color: #AB47BC; }
-.color-swatch[data-color="gold"]   { background-color: #FFD700; }
-.color-swatch[data-color="white"] { background-color: #E0E0E0; }
-.color-swatch[data-color="black"] { background-color: #111; border-color: #FFF; }
-
-/* --- Glow Intensity Slider Styles --- */
-#glowIntensitySlider {
-    width: 100%; /* Make the slider fill the width of the popup */
-    margin-bottom: 25px;
-    cursor: pointer;
-    -webkit-appearance: none; /* Remove default browser styles */
-    appearance: none;
-    background: transparent;
-}
-
-/* Style the slider track */
-#glowIntensitySlider::-webkit-slider-runnable-track {
-    width: 100%;
-    height: 8px;
-    background: #333;
-    border-radius: 4px;
-    border: 1px solid #555;
-}
-
-/* Style the slider handle (thumb) */
-#glowIntensitySlider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    margin-top: -6px; /* Center the thumb on the track */
-    width: 20px;
-    height: 20px;
-    background: #90EE90; /* Use your theme's green color */
-    border-radius: 50%;
-    border: 1px solid #FFF;
-}
-
-.option-toggle {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin: 20px 0;
+/* This class makes an element span across both columns */
+.popup-span-all {
+    grid-column: 1 / -1;
 }
 
 .option-group {
     text-align: center;
 }
 
-.save-management {
-    margin: 20px 0;
-    text-align: center;
+/* --- Toggle Styles --- */
+.option-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 10px 0;
 }
-#importContainer {
-    margin-top: 10px;
-}
-#importSaveText {
-    width: 90%;
-    height: 60px;
-    background-color: #333;
-    color: #fff;
-    border: 1px solid #555;
-    border-radius: 4px;
+
+/* --- Number Formatting Styles --- */
+#numberFormatPicker {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
 }
 
 #numberFormatPicker label {
@@ -150,6 +97,83 @@
     font-size: 0.9em;
 }
 
+/* --- Color Picker Styles --- */
+#colorPickerContainer, #activeButtonColorPicker {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin: 10px 0;
+}
+
+.color-swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid #555;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.color-swatch:hover {
+    transform: scale(1.1);
+}
+
+.color-swatch[data-color="green"]  { background-color: #69f0ae; }
+.color-swatch[data-color="blue"]   { background-color: #40C4FF; }
+.color-swatch[data-color="purple"] { background-color: #AB47BC; }
+.color-swatch[data-color="gold"]   { background-color: #FFD700; }
+.color-swatch[data-color="white"] { background-color: #E0E0E0; }
+.color-swatch[data-color="black"] { background-color: #111; border-color: #FFF; }
+
+/* --- Glow Intensity Slider Styles --- */
+#glowIntensitySlider {
+    width: 100%;
+    margin-top: 10px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+}
+
+#glowIntensitySlider::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 8px;
+    background: #333;
+    border-radius: 4px;
+    border: 1px solid #555;
+}
+
+#glowIntensitySlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    margin-top: -6px;
+    width: 20px;
+    height: 20px;
+    background: #90EE90;
+    border-radius: 50%;
+    border: 1px solid #FFF;
+}
+
+/* --- Save Management Styles --- */
+.save-management {
+    margin: 20px 0;
+    text-align: center;
+}
+#importContainer {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+#importSaveText {
+    width: 90%;
+    height: 60px;
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 4px;
+}
 .save-management button {
     padding: 8px 12px;
     background-color: #555;
@@ -160,4 +184,19 @@
 }
 .save-management button:hover {
     background-color: #777;
+}
+
+/* --- Reset Button --- */
+#resetButton {
+    width: 100%;
+    padding: 10px;
+    background-color: #c0392b; /* Red color */
+    color: #fff;
+    border: 1px solid #e74c3c;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+#resetButton:hover {
+    background-color: #e74c3c;
 }
