@@ -183,7 +183,6 @@ export function checkConditions() {
     const laboratory = buildings.find(b => b.name === 'Laboratory');
     if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
         laboratory.isUnlocked = true;
-        addLogEntry('The ability to construct a Laboratory has been unlocked!', 'purple');
         setupMiningSection();
 
         // Pass the whole event object
@@ -191,6 +190,7 @@ export function checkConditions() {
         
         addLogEntry('A glimmer of insight has been recorded. (Click to read)', '#7E57C2', {
             onClick: () => showStoryPopup(storyEvents.unlockResearch)
+		addLogEntry('The ability to construct a Laboratory has been unlocked!', 'purple');	
         });
     }
 
