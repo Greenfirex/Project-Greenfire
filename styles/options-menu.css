@@ -1,4 +1,3 @@
-/* This is the base style for ALL popups */
 .popup-content {
     background-color: #1a1a1a;
     color: #fff;
@@ -7,25 +6,30 @@
     border: 1px solid #888;
     width: 90%;
     border-radius: 8px;
-    text-align: center; /* This will center the story popup's title */
     position: relative;
 }
 
-/* This is the SPECIFIC style for the options menu's grid layout */
 .options-popup {
-    max-width: 55%;
+    max-width: 700px;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px 30px;
-    align-items: center;
-    margin: auto; /* FIXED: This will center it perfectly */
+    gap: 20px 30px; /* Increased row gap */
+    align-items: start; /* Align items to the top of their cells */
 }
 
 /* This targets the main "Options" title */
 .popup-content h3 {
-    grid-column: 1 / -1; /* Make the main title span both columns */
     text-align: center;
     margin: 0;
+    flex-grow: 1; /* Allow title to take space */
+}
+
+.popup-header {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
 }
 
 /* This class makes an element span across both columns */
@@ -34,14 +38,11 @@
 }
 
 .close-button {
-    grid-column: 2; /* Place it in the second column */
-    grid-row: 1;    /* Place it on the first row */
-    justify-self: end; /* Align it to the right of its grid cell */
     font-size: 28px;
     font-weight: bold;
     color: #aaa;
     cursor: pointer;
-    line-height: 1; /* Helps with alignment */
+    line-height: 1;
 }
 
 .close-button:hover,

@@ -54,8 +54,10 @@
 <div id="footer">Green ™</div>
 <div id="optionsMenu" class="popup">
     <div class="popup-content options-popup">
-        <h3>Options</h3>
-        <span class="close-button">&times;</span>
+        <div class="popup-header popup-span-all">
+            <h3>Options</h3>
+            <span class="close-button">&times;</span>
+        </div>
 
         <div class="option-group">
             <h4>Settings</h4>
@@ -72,43 +74,31 @@
         <div class="option-group">
             <h4>Number Formatting</h4>
             <div id="numberFormatPicker">
-    <label>
-        <span><input type="radio" name="notation" value="standard"> Standard</span>
-        <span class="format-example">(e.g., 1,234,567)</span>
-    </label>
-    <label>
-        <span><input type="radio" name="notation" value="scientific"> Scientific</span>
-        <span class="format-example">(e.g., 1.23e+6)</span>
-    </label>
-    <label>
-        <span><input type="radio" name="notation" value="short"> Short Scale</span>
-        <span class="format-example">(e.g., 1.23 M)</span>
-    </label>
-		</div>
+                <label>
+                    <span><input type="radio" name="notation" value="standard"> Standard</span>
+                    <span class="format-example">(e.g., 1,234,567)</span>
+                </label>
+                <label>
+                    <span><input type="radio" name="notation" value="scientific"> Scientific</span>
+                    <span class="format-example">(e.g., 1.23e+6)</span>
+                </label>
+                <label>
+                    <span><input type="radio" name="notation" value="short"> Short Scale</span>
+                    <span class="format-example">(e.g., 1.23 M)</span>
+                </label>
+            </div>
         </div>
 
-        <div class="option-group popup-span-all">
+        <div class="option-group">
             <h4>UI Glow Color</h4>
             <div id="colorPickerContainer">
-                <button class="color-swatch" data-color="green" title="Sci-Fi Green"></button>
-                <button class="color-swatch" data-color="blue" title="Cyber Blue"></button>
-                <button class="color-swatch" data-color="purple" title="Void Purple"></button>
-                <button class="color-swatch" data-color="gold" title="Warm Gold"></button>
-                <button class="color-swatch" data-color="white" title="White"></button>
-                <button class="color-swatch" data-color="black" title="Glow Off"></button>
-            </div>
+                </div>
         </div>
 
-        <div class="option-group popup-span-all">
+        <div class="option-group">
             <h4>Active Button Glow</h4>
             <div id="activeButtonColorPicker">
-                <button class="color-swatch" data-color="green" title="Sci-Fi Green"></button>
-                <button class="color-swatch" data-color="blue" title="Cyber Blue"></button>
-                <button class="color-swatch" data-color="purple" title="Void Purple"></button>
-                <button class="color-swatch" data-color="gold" title="Warm Gold"></button>
-                <button class="color-swatch" data-color="white" title="White"></button>
-                <button class="color-swatch" data-color="black" title="Glow Off"></button>
-            </div>
+                </div>
         </div>
 
         <div class="option-group popup-span-all">
@@ -117,12 +107,7 @@
         </div>
 
         <div class="save-management popup-span-all">
-            <button id="exportSaveButton">Export to Clipboard</button>
-            <div id="importContainer">
-                <textarea id="importSaveText" placeholder="Paste save data here..."></textarea>
-                <button id="importSaveButton">Import</button>
             </div>
-        </div>
 
         <button id="resetButton" class="popup-span-all">Reset Progress</button>
     </div>
