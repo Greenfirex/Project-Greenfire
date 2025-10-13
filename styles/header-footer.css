@@ -20,11 +20,14 @@
 
 #header {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    padding: 5px; /* Reduced padding for a tighter fit */
+    padding: 5px 10px;
     background-color: #000;
     color: white;
-    height: 50px; /* Set a consistent header height */
+    position: relative;
+    border: none;
+    height: 40px; /* MODIFIED */
 }
 
 /* Defines the three columns */
@@ -45,8 +48,8 @@
 
 /* Style for the logo */
 #gameLogo {
-    height: 60px; /* Increase this value to make the logo larger */
-    width: auto;  /* Keeps the proportions correct */
+    height: 35px; /* MODIFIED: Adjusted to fit the new header height */
+    width: auto;
 }
 
 #currentTime {
