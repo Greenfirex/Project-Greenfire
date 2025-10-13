@@ -47,3 +47,25 @@
     color: #EAEAEA;
     line-height: 1.6;
 }
+
+.popup-nav {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+#popupPaging {
+    font-style: italic;
+    color: #888;
+}
+.popup-nav button {
+    padding: 8px 16px;
+    background-color: #333;
+    color: white;
+    border: 1px solid #555;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.popup-nav button:hover {
+    background-color: #555;
+}

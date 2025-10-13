@@ -11,6 +11,7 @@ import { addLogEntry } from './log.js';
 import { showStoryPopup } from './data/popup.js';
 import { storyEvents } from './data/storyEvents.js';
 import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity } from './options.js';
+import { updateImpactTimer } from './eventManager.js';
 import './headeroptions.js';
 
 window.debugResources = resources;
@@ -104,6 +105,7 @@ function startGame() {
         checkConditions();
         updateBuildingButtonsState();
         updateTechButtonsState();
+		updateImpactTimer();
     }, 100);
 setInterval(() => {
         saveGameState();

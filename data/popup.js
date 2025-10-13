@@ -1,74 +1,82 @@
-// popup.js
+import { startImpactTimer } from './eventManager.js';
 
-let isPopupClosable = false;
-
-/**
- * Shows the story popup with a specific title and message.
- */
-export function showStoryPopup(title, message) {
-    const storyPopup = document.getElementById('storyPopup');
-    const popupTitle = document.getElementById('popupTitle');
-    const popupMessage = document.getElementById('popupMessage');
-
-    if (!storyPopup || !popupTitle || !popupMessage) {
-        console.error("Popup HTML elements not found!");
-        return;
-    }
-
-    // When the popup appears, make the overlay unclosable for a short time.
-    isPopupClosable = false;
-
-    popupTitle.textContent = title;
-    popupMessage.textContent = message;
-    storyPopup.classList.remove('hidden');
-
-    // After a 1.5-second delay, make the overlay closable.
-    setTimeout(() => {
-        isPopupClosable = true;
-    }, 1500);
-}
+let activeStoryEvent = null;
+let currentPageIndex = 0;
 
 /**
- * Hides the popup, but only if the delay has passed. (For the overlay click)
+ * Renders a specific page of a story event in the popup.
  */
-function hidePopupWithDelay() {
-    if (!isPopupClosable) {
-        return; // Ignore the click if the delay isn't over
-    }
-    const storyPopup = document.getElementById('storyPopup');
-    if (storyPopup) {
-        storyPopup.classList.add('hidden');
-    }
-}
+function renderPopupPage() {
+    if (!activeStoryEvent) return;
 
-/**
- * Hides the popup instantly, ignoring any delay. (For the '×' button)
- */
-function forceHidePopup() {
-    const storyPopup = document.getElementById('storyPopup');
-    if (storyPopup) {
-        storyPopup.classList.add('hidden');
-    }
-}
+    const message = activeStoryEvent.message[currentPageIndex];
+    document.getElementById('popupMessage').textContent = message;
 
-// This function sets up the close buttons and should only run once the page is loaded.
-function setupPopupClosers() {
-    const storyPopup = document.getElementById('storyPopup');
-    const popupCloseButton = storyPopup ? storyPopup.querySelector('.popup-close') : null;
-
-    if (storyPopup && popupCloseButton) {
-        // The '×' button calls the instant close function.
-        popupCloseButton.addEventListener('click', forceHidePopup);
-        
-        // The overlay background calls the delayed close function.
-        storyPopup.addEventListener('click', (event) => {
-            if (event.target === storyPopup) {
-                hidePopupWithDelay();
-            }
-        });
+    // Update paging info and button text
+    const pagingEl = document.getElementById('popupPaging');
+    const nextBtn = document.getElementById('popupNext');
+    
+    pagingEl.textContent = `${currentPageIndex + 1} / ${activeStoryEvent.message.length}`;
+    
+    // If it's the last page, change "Next" to "Close"
+    if (currentPageIndex === activeStoryEvent.message.length - 1) {
+        nextBtn.textContent = 'Close';
     } else {
-        console.error("Could not attach popup close listeners.");
+        nextBtn.textContent = 'Next';
     }
+
+    // Hide "Previous" button on the first page
+    document.getElementById('popupPrev').style.visibility = (currentPageIndex === 0) ? 'hidden' : 'visible';
 }
 
-window.addEventListener('load', setupPopupClosers);
+export function showStoryPopup(event) {
+    const storyPopup = document.getElementById('storyPopup');
+    if (!storyPopup || !event) return;
+
+    activeStoryEvent = event; // Store the active event
+    currentPageIndex = 0;
+
+    document.getElementById('popupTitle').textContent = activeStoryEvent.title;
+    storyPopup.classList.remove('hidden');
+    renderPopupPage();
+}
+
+function hideStoryPopup() {
+    const storyPopup = document.getElementById('storyPopup');
+    if (storyPopup) {
+        storyPopup.classList.add('hidden');
+    }
+
+    // If we just closed the intro story, start the impact timer!
+    if (activeStoryEvent && activeStoryEvent.title === "Project Greenfire") {
+        startImpactTimer();
+    }
+    activeStoryEvent = null;
+}
+
+function setupPopup() {
+    const nextBtn = document.getElementById('popupNext');
+    const prevBtn = document.getElementById('popupPrev');
+
+    nextBtn.addEventListener('click', () => {
+        if (currentPageIndex < activeStoryEvent.message.length - 1) {
+            currentPageIndex++;
+            renderPopupPage();
+        } else {
+            hideStoryPopup(); // Close the popup if on the last page
+        }
+    });
+
+    prevBtn.addEventListener('click', () => {
+        if (currentPageIndex > 0) {
+            currentPageIndex--;
+            renderPopupPage();
+        }
+    });
+
+    // Close button still works instantly
+    const closeBtn = document.querySelector('.popup-close');
+    closeBtn.addEventListener('click', hideStoryPopup);
+}
+
+window.addEventListener('load', setupPopup);

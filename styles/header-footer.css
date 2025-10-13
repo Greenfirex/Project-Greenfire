@@ -7,6 +7,17 @@
     position: relative; /* Needed for the pseudo-element */
 }
 
+.footer-progress-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%; /* Starts empty */
+    background: linear-gradient(to right, #FF8A80, #D50000); /* Red gradient */
+    opacity: 0.6;
+    transition: width 0.5s linear;
+}
+
 #header {
     display: flex;
     align-items: center;
