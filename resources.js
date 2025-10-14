@@ -3,8 +3,6 @@ import { technologies } from './data/technologies.js';
 import { formatNumber } from './formatting.js';
 import { setupTooltip } from '../main.js';
 
-export let resources = getInitialResources();
-
 export function updateResourceInfo() {
     const infoPanel = document.getElementById('infoPanel');
     infoPanel.innerHTML = ''; 
