@@ -14,18 +14,11 @@ export function updateResourceInfo() {
     });
 
     displayResources.forEach(resource => {
-        if (resource.amount > 0 && !resource.isDiscovered) {
-            resource.isDiscovered = true;
-        }
-
         if (resource.isDiscovered) {
             const resourceDiv = document.createElement('div');
             resourceDiv.className = 'info-section';
             
-            // Add the dedicated element for the hover background
-            const hoverBg = document.createElement('div');
-            hoverBg.className = 'info-section-hover-bg';
-            resourceDiv.appendChild(hoverBg);
+            // The hover-bg div has been correctly removed from here.
             
             const progressBar = document.createElement('div');
             progressBar.className = 'resource-progress-bar';

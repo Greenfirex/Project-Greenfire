@@ -5,8 +5,8 @@
     color: white;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
+    align-items: center; /* This will center the shrink-to-fit rows */
+    gap: 2px; /* Adds a small gap between each resource row */
     padding: 10px;
     box-sizing: border-box;
     overflow-y: auto;
@@ -18,47 +18,49 @@
 }
 
 .info-section {
+    position: relative;
     display: grid;
     grid-template-columns: 3fr 4fr 2fr;
-    width: 100%;
-    gap: 5px;
-}
-
-.info-section-content {
-    grid-column: 1 / -1; /* Make it span all three grid columns */
-    position: relative;
-    display: contents; /* This is a special value that makes its children act like they are direct children of the grid */
-    
-    padding: 6px 0;
+    align-items: center;
+    /* width: 100%; <-- REMOVED so the row shrinks to fit */
+    padding: 6px 10px;
+    color: #EAEAEA;
+    gap: 15px;
     background-color: #111;
     border-radius: 4px;
     overflow: hidden;
     transition: background-color 0.2s ease;
 }
 
-.info-section:hover .info-section-content {
+.info-section:hover {
     background-color: #2a2a2a;
     cursor: help;
+}
+
+.resource-progress-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%;
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.2);
+    z-index: 1;
+    transition: width 0.2s ease-out;
 }
 
 .infocolumn1, .infocolumn2, .infocolumn3 {
     display: flex;
     align-items: center;
     height: 100%;
-    z-index: 2; /* Keep text on top of the progress bar */
+    z-index: 2;
 }
 
 .infocolumn1 {
     justify-content: flex-start;
-    padding-left: 5px;
 }
 
 .infocolumn2, .infocolumn3 {
     justify-content: flex-end;
-}
-
-.infocolumn3 {
-    padding-right: 5px;
 }
 
 .info-section span,
@@ -75,16 +77,3 @@
     color: #E74C3C;
     font-weight: bold;
 }
-
-/* --- Progress Bar --- */
-.resource-progress-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 0%;
-    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.2);
-    z-index: 1;
-    transition: width 0.2s ease-out;
-}
-
