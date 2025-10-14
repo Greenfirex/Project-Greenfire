@@ -113,23 +113,23 @@ function buildBuilding(event, buildingName) {
         }
         
         updateResourceInfo();
-        setupMiningSection();
+        setupcolonySection();
     }
 }
 
-export function setupMiningSection(miningSection) {
-    if (!miningSection) {
-        miningSection = document.getElementById('miningSection');
+export function setupColonySection(colonySection) {
+    if (!colonySection) {
+        colonySection = document.getElementById('colonySection');
     }
-    if (!miningSection) { return; }
+    if (!colonySection) { return; }
 
-    miningSection.innerHTML = '';
+    colonySection.innerHTML = '';
 
     // --- Category 1: Manual Gathering ---
     const manualHeader = document.createElement('h2');
     manualHeader.textContent = 'Manual Gathering';
     manualHeader.className = 'section-header';
-    miningSection.appendChild(manualHeader);
+    colonySection.appendChild(manualHeader);
     const manualCategory = document.createElement('div');
     manualCategory.className = 'mining-category-container';
     const manualButtons = document.createElement('div');
@@ -141,13 +141,13 @@ export function setupMiningSection(miningSection) {
     setupTooltip(mineStoneButton, 'Gain 1 Stone');
     manualButtons.appendChild(mineStoneButton);
     manualCategory.appendChild(manualButtons);
-    miningSection.appendChild(manualCategory);
+    colonySection.appendChild(manualCategory);
 
     // --- Category 2: Production ---
     const miningHeader = document.createElement('h2');
     miningHeader.textContent = 'Production';
     miningHeader.className = 'section-header';
-    miningSection.appendChild(miningHeader);
+    colonySection.appendChild(miningHeader);
     const miningCategory = document.createElement('div');
     miningCategory.className = 'mining-category-container';
     const miningButtons = document.createElement('div');
@@ -158,7 +158,7 @@ export function setupMiningSection(miningSection) {
         createBuildingButton(buildings.find(b => b.name === 'Extractor'), miningButtons);
     }
     miningCategory.appendChild(miningButtons);
-    miningSection.appendChild(miningCategory);
+    colonySection.appendChild(miningCategory);
 
       // --- Category 3: Storage ---
     // TYPO FIX: Changed "isReserached" to "isResearched"
@@ -167,7 +167,7 @@ export function setupMiningSection(miningSection) {
         const storageHeader = document.createElement('h2');
         storageHeader.textContent = 'Storage';
         storageHeader.className = 'section-header';
-        miningSection.appendChild(storageHeader);
+        colonySection.appendChild(storageHeader);
         const storageCategory = document.createElement('div');
         storageCategory.className = 'mining-category-container';
         const storageButtons = document.createElement('div');
@@ -178,7 +178,7 @@ export function setupMiningSection(miningSection) {
             createBuildingButton(buildings.find(b => b.name === 'Xylite Silo'), storageButtons);
         }
         storageCategory.appendChild(storageButtons);
-        miningSection.appendChild(storageCategory);
+        colonySection.appendChild(storageCategory);
     }
 	
 	// --- NEW: Science Category ---
@@ -187,14 +187,14 @@ export function setupMiningSection(miningSection) {
         const scienceHeader = document.createElement('h2');
         scienceHeader.textContent = 'Science';
         scienceHeader.className = 'section-header';
-        miningSection.appendChild(scienceHeader);
+        colonySection.appendChild(scienceHeader);
         const scienceCategory = document.createElement('div');
         scienceCategory.className = 'mining-category-container';
         const scienceButtons = document.createElement('div');
         scienceButtons.className = 'button-group';
         createBuildingButton(laboratory, scienceButtons);
         scienceCategory.appendChild(scienceButtons);
-        miningSection.appendChild(scienceCategory);
+        colonySection.appendChild(scienceCategory);
     }
 
     // ADDED: Call the update function to set the initial state of the buttons

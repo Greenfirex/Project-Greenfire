@@ -1,7 +1,7 @@
 import { addLogEntry } from '../log.js';
 import { technologies } from '../data/technologies.js';
 import { setupTooltip, hideTooltip, activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
-import { setupMiningSection } from './mining.js';
+import { setupColonySection } from './colony.js';
 import { resources, updateResourceInfo } from '../resources.js';
 
 export let currentResearchingTech = null;
@@ -334,7 +334,7 @@ function handleResearchCompletion(tech, cancelButton) {
     setCurrentResearchingTech(null);
     
     setupResearchSection(); 
-    setupMiningSection();
+    setupColonySection();
 }
 
 export function startResearch(tech, cancelButton) {

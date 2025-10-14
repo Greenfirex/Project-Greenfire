@@ -1,7 +1,7 @@
 import { resources, updateResourceInfo } from './resources.js';
 import { technologies } from './data/technologies.js';
 import { buildings } from './data/buildings.js';
-import { setupMiningSection, updateBuildingButtonsState } from './sections/mining.js';
+import { setupColonySection, updateBuildingButtonsState } from './sections/colony.js';
 import { setupResearchSection, updateTechButtonsState } from './sections/research.js';
 import { setupManufacturingSection } from './sections/manufacturing.js';
 import { setupShipyardSection } from './sections/shipyard.js';
@@ -49,9 +49,9 @@ function startGame() {
         resetToDefaultState();
     }
 
-    const miningSection = document.createElement('div');
-    miningSection.id = 'miningSection';
-    miningSection.classList.add('game-section');
+    const colonySection = document.createElement('div');
+    colonySection.id = 'miningSection';
+    colonySection.classList.add('game-section');
 
     const researchSection = document.createElement('div');
     researchSection.id = 'researchSection';
@@ -69,13 +69,13 @@ function startGame() {
     galaxyMapSection.id = 'galaxyMapSection';
     galaxyMapSection.classList.add('game-section');
 
-    document.getElementById('gameArea').appendChild(miningSection);
+    document.getElementById('gameArea').appendChild(colonySection);
     document.getElementById('gameArea').appendChild(researchSection);
     document.getElementById('gameArea').appendChild(manufacturingSection);
 	document.getElementById('gameArea').appendChild(shipyardSection);
 	document.getElementById('gameArea').appendChild(galaxyMapSection);
 
-    setupMiningSection(miningSection);
+    setupColonySection(colonySection);
     setupResearchSection(researchSection);
     setupManufacturingSection(manufacturingSection);
 	setupShipyardSection(shipyardSection);
@@ -132,7 +132,7 @@ export let activatedSections = JSON.parse(localStorage.getItem('activatedSection
 };
 
 function setupMenuButtons() {
-    const sections = ['miningSection', 'researchSection', 'manufacturingSection', 'shipyardSection', 'galaxyMapSection'];
+    const sections = ['colonySection', 'researchSection', 'manufacturingSection', 'shipyardSection', 'galaxyMapSection'];
     const container = document.querySelector('.menu-buttons-container');
     container.innerHTML = '';
     sections.forEach(section => {
@@ -151,7 +151,7 @@ function setupMenuButtons() {
 export function applyActivatedSections() {
     document.querySelectorAll('.menu-button[data-section]').forEach(button => {
         const section = button.getAttribute('data-section');
-        if (!activatedSections[section] && section !== 'miningSection') {
+        if (!activatedSections[section] && section !== 'colonySection') {
             button.classList.add('hidden');
         } else {
             button.classList.remove('hidden');
@@ -168,7 +168,7 @@ export function checkConditions() {
         if (stone.amount >= 5 && !xylite.isDiscovered) {
             xylite.isDiscovered = true;
             updateResourceInfo();
-            setupMiningSection();
+            setupColonySection();
 
             // Pass the whole event object
             showStoryPopup(storyEvents.unlockXylite);
@@ -392,6 +392,6 @@ function loadCurrentSection() {
         showSection(savedSection);
     } else {
         // If the saved section is locked (or doesn't exist), default to mining
-        showSection('miningSection');
+        showSection('colonySection');
     }
 }
