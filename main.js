@@ -258,16 +258,30 @@ export function setupTooltip(button, tooltipData) {
     const tooltip = getOrCreateTooltip();
 
     button.addEventListener('mouseenter', (e) => {
-        tooltip.innerHTML = ''; // Clear previous content
+        tooltip.innerHTML = '';
 
-        // Case 1: Handles simple tooltips (e.g., "Mine Stone")
-        if (typeof tooltipData === 'string') {
+        // Case 1: Resource Breakdown Tooltip
+        if (tooltipData && typeof tooltipData.totalProduction !== 'undefined') {
+            tooltip.innerHTML = `
+                <h4>Production Breakdown</h4>
+                <div class="tooltip-section">
+                    <p>Base: ${tooltipData.base.toFixed(2)}/s</p>
+                    ${tooltipData.buildings.map(b => `<p class="tooltip-detail">+ ${b.amount.toFixed(2)}/s from ${b.count}x ${b.name}</p>`).join('')}
+                </div>
+                <div class="tooltip-section">
+                    <p>Bonus: +${(tooltipData.bonusMultiplier * 100).toFixed(0)}%</p>
+                    ${tooltipData.bonuses.map(b => `<p class="tooltip-detail">+${b.multiplier * 100}% from ${b.name}</p>`).join('')}
+                </div>
+                <hr>
+                <p><strong>Total: ${tooltipData.totalProduction.toFixed(2)}/s</strong></p>
+            `;
+        
+        // Case 2: Simple string
+        } else if (typeof tooltipData === 'string') {
             tooltip.textContent = tooltipData;
         
-        // Case 2: Building object
-        // FIXED: Now correctly identifies any object with a 'count' property as a building
+        // Case 3: Building object
         } else if (tooltipData && typeof tooltipData.count !== 'undefined') {
-            
             if (tooltipData.description) {
                 const description = document.createElement('p');
                 description.className = 'tooltip-description';
@@ -297,9 +311,8 @@ export function setupTooltip(button, tooltipData) {
                 tooltip.appendChild(genItem);
             }
 
-        // Case 3: Handles technology objects (identified by having .duration)
+        // Case 4: Technology object
         } else if (tooltipData && typeof tooltipData.duration !== 'undefined') {
-            
             const title = document.createElement('h4');
             title.textContent = tooltipData.name;
             tooltip.appendChild(title);
@@ -328,10 +341,9 @@ export function setupTooltip(button, tooltipData) {
             tooltip.appendChild(duration);
         }
 
-        // This makes the tooltip appear and sets its position
         tooltip.style.visibility = 'visible';
         tooltip.style.left = `${e.clientX + 15}px`;
-        tooltip.style.top = `${e.clientY - 30}px`;
+        tooltip.style.top = `${e.clientY + 15}px`;
     });
 
     button.addEventListener('mouseleave', () => {
@@ -340,7 +352,7 @@ export function setupTooltip(button, tooltipData) {
 
     button.addEventListener('mousemove', (e) => {
         tooltip.style.left = `${e.clientX + 15}px`;
-        tooltip.style.top = `${e.clientY - 30}px`;
+        tooltip.style.top = `${e.clientY + 15}px`;
     });
 }
 

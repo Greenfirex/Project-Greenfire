@@ -108,6 +108,19 @@ body.glow-disabled * {
     margin-bottom: 8px !important;
 }
 
+.tooltip-section {
+    border-top: 1px solid #444;
+    padding-top: 5px;
+    margin-top: 5px;
+}
+.tooltip-detail {
+    margin-left: 10px;
+    color: #ccc;
+}
+.tooltip hr {
+    border-color: #444;
+}
+
 /* --- The UNIFIED Glow Animation --- */
 @keyframes pulse-glow {
   0% {

@@ -3,12 +3,40 @@ const initialTechnologies = [
     // DURATIONS HAVE BEEN REDUCED, AND COSTS ARE SET TO 20 STONE FOR TESTING
     { name: 'Quantum Computing', duration: 0.5, isResearched: false, prerequisites: [], category: 'Social Tech', cost: [{ resource: 'Stone', amount: 20 },{ resource: 'Xylite', amount: 5 }], description: 'Unlocks advanced technologies...' },
     { name: 'Nano Fabrication', duration: 1.5, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Bio Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Allows the creation of materials...' },
-    { name: 'AI Integration', duration: 2, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Social Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Integrates artificial intelligence...' },
+    { 
+    name: 'AI Integration', 
+    duration: 2, 
+    isResearched: false, 
+    prerequisites: ['Quantum Computing'], 
+    category: 'Social Tech', 
+    cost: [{ resource: 'Stone', amount: 20 }], 
+    bonus: {
+        type: 'production',
+        resource: 'Insight', // Affects Insight
+        multiplier: 0.25     // +25%
+    },
+    description: 'Integrates artificial intelligence to increase efficiency.' 
+},
     
     // --- Mining Technologies ---
     { name: 'Basic Storage', duration: 2.5, isResearched: false, prerequisites: [], category: 'Mining Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Unlocks the Stone Stockpile.' },
     { name: 'Xylite Storage', duration: 6, isResearched: false, prerequisites: ['Basic Storage'], category: 'Mining Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Unlocks the Xylite Silo.' },
-    { name: 'Automated Drills', duration: 3, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Mining Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Deploys automated drills...' },
+	{ 
+    name: 'Automated Drills', 
+    duration: 3, 
+    isResearched: false, 
+    prerequisites: ['Quantum Computing'], 
+    category: 'Mining Tech', 
+    cost: [{ resource: 'Stone', amount: 20 }],
+    // NEW: Add a bonus property
+    bonus: {
+        type: 'production', // What kind of bonus
+        resource: 'Stone',  // Which resource it affects
+        multiplier: 0.15    // +15%
+    },
+    description: 'Deploys automated drills to increase mining yield.' 
+},
+    
     { name: 'Advanced Sonar', duration: 9, isResearched: false, prerequisites: ['Automated Drills'], category: 'Mining Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Uses advanced sonar...' },
     { name: 'Plasma Cutter', duration: 18, isResearched: false, prerequisites: ['Advanced Sonar', 'Nano Fabrication'], category: 'Mining Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Cuts through the toughest materials...' },
     

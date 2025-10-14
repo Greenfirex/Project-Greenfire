@@ -1,5 +1,7 @@
-import { buildings } from './data/buildings.js'; // We need this to calculate generation rates
+import { buildings } from './data/buildings.js';
+import { technologies } from './data/technologies.js';
 import { formatNumber } from './formatting.js';
+import { setupTooltip } from '../main.js';
 
 export function updateResourceInfo() {
     const infoPanel = document.getElementById('infoPanel');
@@ -32,6 +34,36 @@ export function updateResourceInfo() {
                 resourceDiv.classList.add('capped');
             }
 
+            // --- Calculate Production Breakdown for the Tooltip ---
+            const breakdown = {
+                base: 0,
+                buildings: [],
+                bonusMultiplier: 0,
+                bonuses: [],
+                totalProduction: 0
+            };
+
+            buildings.forEach(b => {
+                if (b.produces === resource.name && b.count > 0) {
+                    const amount = b.rate * b.count;
+                    breakdown.base += amount;
+                    breakdown.buildings.push({ name: b.name, count: b.count, amount: amount });
+                }
+            });
+
+            technologies.forEach(t => {
+                if (t.isResearched && t.bonus && t.bonus.resource === resource.name) {
+                    breakdown.bonusMultiplier += t.bonus.multiplier;
+                    breakdown.bonuses.push({ name: t.name, multiplier: t.bonus.multiplier });
+                }
+            });
+
+            breakdown.totalProduction = breakdown.base * (1 + breakdown.bonusMultiplier);
+
+            // Attach the detailed tooltip to the resource row
+            setupTooltip(resourceDiv, breakdown);
+
+            // --- Create Display Columns ---
             const column1 = document.createElement('div');
             column1.className = 'infocolumn1';
             const column2 = document.createElement('div');
@@ -42,25 +74,15 @@ export function updateResourceInfo() {
             const nameElement = document.createElement('span'); 
             nameElement.textContent = resource.name;
 
-            let totalGeneration = 0;
-            buildings.forEach(building => {
-                if (building.produces === resource.name) {
-                    totalGeneration += building.rate * building.count;
-                }
-            });
-
             const generationElement = document.createElement('p');
-            // MODIFIED: Use the new formatNumber function
-            generationElement.textContent = `${formatNumber(totalGeneration)}/s`;
+            generationElement.textContent = `${formatNumber(breakdown.totalProduction)}/s`;
 
             const storageElement = document.createElement('p');
-            // MODIFIED: Use the new formatNumber function for both amount and capacity
             storageElement.textContent = `${formatNumber(resource.amount)} / ${formatNumber(resource.capacity)}`;
 
             column1.appendChild(nameElement);
-			column2.appendChild(storageElement);
+            column2.appendChild(storageElement);
             column3.appendChild(generationElement);
-            
 
             resourceDiv.appendChild(column1);
             resourceDiv.appendChild(column2);
