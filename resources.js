@@ -1,7 +1,7 @@
 import { buildings } from './data/buildings.js';
 import { technologies } from './data/technologies.js';
 import { formatNumber } from './formatting.js';
-import { setupTooltip } from '../main.js';
+import { setupTooltip } from './main.js';
 
 export function updateResourceInfo() {
     const infoPanel = document.getElementById('infoPanel');
