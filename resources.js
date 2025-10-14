@@ -14,28 +14,29 @@ export function updateResourceInfo() {
     });
 
     displayResources.forEach(resource => {
+        if (resource.amount > 0 && !resource.isDiscovered) {
+            resource.isDiscovered = true;
+        }
+
         if (resource.isDiscovered) {
-              // This is now the outer, invisible container for the row
+            // This is the outer container for one row, used for layout and tooltips
             const resourceRow = document.createElement('div');
             resourceRow.className = 'info-section-row';
 
-            // This is the new inner div that contains all visible content
+            // This is the inner div that contains all visible content and gets the hover effect
             const resourceContent = document.createElement('div');
             resourceContent.className = 'info-section-content';
-
-            // The tooltip is attached to the outer row
-            setupTooltip(resourceRow, breakdown);
+            
+            if (resource.amount >= resource.capacity) {
+                resourceContent.classList.add('capped');
+            }
             
             const progressBar = document.createElement('div');
             progressBar.className = 'resource-progress-bar';
             
             const fillPercentage = Math.min((resource.amount / resource.capacity) * 100, 100);
             progressBar.style.width = `${fillPercentage}%`;
-            resourceDiv.appendChild(progressBar);
-
-            if (resource.amount >= resource.capacity) {
-                resourceDiv.classList.add('capped');
-            }
+            resourceContent.appendChild(progressBar);
 
             const breakdown = {
                 base: 0,
@@ -58,7 +59,7 @@ export function updateResourceInfo() {
                 }
             });
             breakdown.totalProduction = breakdown.base * (1 + breakdown.bonusMultiplier);
-            setupTooltip(resourceDiv, breakdown);
+            setupTooltip(resourceRow, breakdown);
 
             const column1 = document.createElement('div');
             column1.className = 'infocolumn1';
@@ -87,9 +88,9 @@ export function updateResourceInfo() {
             column2.appendChild(storageElement);
             column3.appendChild(generationElement);
 
-            resourceDiv.appendChild(column1);
-            resourceDiv.appendChild(column2);
-            resourceDiv.appendChild(column3);
+            resourceContent.appendChild(column1);
+            resourceContent.appendChild(column2);
+            resourceContent.appendChild(column3);
 
             resourceRow.appendChild(resourceContent);
             infoPanel.appendChild(resourceRow);
