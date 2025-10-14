@@ -22,12 +22,16 @@ export function updateResourceInfo() {
             const resourceDiv = document.createElement('div');
             resourceDiv.className = 'info-section';
             
+            // Add the hover background element
+            const hoverBg = document.createElement('div');
+            hoverBg.className = 'info-section-hover-bg';
+            resourceDiv.appendChild(hoverBg);
+            
             const progressBar = document.createElement('div');
             progressBar.className = 'resource-progress-bar';
             
             const fillPercentage = Math.min((resource.amount / resource.capacity) * 100, 100);
             progressBar.style.width = `${fillPercentage}%`;
-
             resourceDiv.appendChild(progressBar);
 
             if (resource.amount >= resource.capacity) {
@@ -41,7 +45,6 @@ export function updateResourceInfo() {
                 bonuses: [],
                 totalProduction: 0
             };
-
             buildings.forEach(b => {
                 if (b.produces === resource.name && b.count > 0) {
                     const amount = b.rate * b.count;
@@ -49,14 +52,12 @@ export function updateResourceInfo() {
                     breakdown.buildings.push({ name: b.name, count: b.count, amount: amount });
                 }
             });
-
             technologies.forEach(t => {
                 if (t.isResearched && t.bonus && t.bonus.resource === resource.name) {
                     breakdown.bonusMultiplier += t.bonus.multiplier;
                     breakdown.bonuses.push({ name: t.name, multiplier: t.bonus.multiplier });
                 }
             });
-
             breakdown.totalProduction = breakdown.base * (1 + breakdown.bonusMultiplier);
             setupTooltip(resourceDiv, breakdown);
 
@@ -74,8 +75,6 @@ export function updateResourceInfo() {
             generationElement.textContent = `${formatNumber(breakdown.totalProduction)}/s`;
 
             const storageElement = document.createElement('p');
-
-            // --- Smart Formatting Logic ---
             let amountDisplay;
             if (resource.amount >= resource.capacity) {
                 amountDisplay = Math.floor(resource.amount).toLocaleString();

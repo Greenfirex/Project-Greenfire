@@ -18,7 +18,7 @@
 }
 
 .info-section {
-    position: relative; /* Ensure this is set */
+    position: relative;
     display: grid;
     grid-template-columns: 3fr 4fr 2fr;
     align-items: center;
@@ -29,32 +29,27 @@
     background-color: #111;
     border-radius: 4px;
     overflow: hidden;
-    /* This defines the border that separates the rows */
-    border-top: 1px solid #333;
-    transition: background-color 0.2s ease, border-top-color 0.2s ease;
+    transition: background-color 0.2s ease;
 }
 
-/* Make the first row have no top border */
-.info-section:first-child {
-    border-top: none;
-}
-
-.info-section:hover {
-    background-color: #2a2a2a;
-    /* On hover, we just change the color of the existing top border */
-    border-top-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7);
-    cursor: help;
-}
-
-.resource-progress-bar {
+.info-section-hover-bg {
     position: absolute;
     top: 0;
     left: 0;
+    width: 100%;
     height: 100%;
-    width: 0%;
-    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.2);
-    z-index: 1;
-    transition: width 0.2s ease-out;
+    background-color: #2a2a2a;
+    opacity: 0;
+    z-index: 0;
+    transition: opacity 0.2s ease;
+}
+
+.info-section:hover .info-section-hover-bg {
+    opacity: 1; /* Show the background on hover */
+}
+
+.info-section:hover {
+    cursor: help;
 }
 
 .infocolumn1, .infocolumn2, .infocolumn3 {
@@ -91,3 +86,16 @@
     color: #E74C3C;
     font-weight: bold;
 }
+
+/* --- Progress Bar --- */
+.resource-progress-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%;
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.2);
+    z-index: 1;
+    transition: width 0.2s ease-out;
+}
+
