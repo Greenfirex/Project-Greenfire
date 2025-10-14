@@ -1,10 +1,11 @@
-import { saveGameState, loadGameState, resetGameState } from './saveload.js';
+import { saveGameState } from './saveload.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
     const optionsLink = document.getElementById('optionsLink');
     const optionsMenu = document.getElementById('optionsMenu');
-    const closeButton = optionsMenu?.querySelector('.close-button');
+    // MODIFIED: Use the unique class for the options menu's close button
+    const closeButton = optionsMenu?.querySelector('.options-menu-close');
     const resetButton = document.getElementById('resetButton');
     const saveLink = document.getElementById('saveLink');
     const loadLink = document.getElementById('loadLink');
@@ -54,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadLink.addEventListener('click', (e) => {
             e.preventDefault();
             if (confirm("Are you sure you want to load your last save? Any unsaved progress will be lost.")) {
-                localStorage.removeItem('isResetting'); // Ensure we're not in a reset loop
+                localStorage.removeItem('isResetting');
                 location.reload();
             }
         });
@@ -66,6 +67,7 @@ function updateTime() {
     const timeElement = document.getElementById('currentTime');
     if (timeElement) {
         const now = new Date();
+        // Using toLocaleTimeString without options for a standard format
         timeElement.textContent = now.toLocaleTimeString();
     }
 }

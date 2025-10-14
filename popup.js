@@ -53,6 +53,12 @@ function hideStoryPopup() {
     if (storyPopup) {
         storyPopup.classList.add('hidden');
     }
+
+    // Check if the intro story was the one being closed, then start the timer
+    if (activeStoryEvent && activeStoryEvent.title === "Project Greenfire - Déjà Vu") {
+        startImpactTimer();
+    }
+    
     activeStoryEvent = null; // Clear the active event
 }
 
@@ -63,7 +69,8 @@ function setupPopup() {
     const storyPopup = document.getElementById('storyPopup');
     const nextBtn = document.getElementById('popupNext');
     const prevBtn = document.getElementById('popupPrev');
-    const closeBtn = storyPopup ? storyPopup.querySelector('.popup-close') : null;
+    // MODIFIED: Use the unique class for the story popup's close button
+    const closeBtn = storyPopup ? storyPopup.querySelector('.story-popup-close') : null;
 
     if (!storyPopup || !nextBtn || !prevBtn || !closeBtn) return;
 
