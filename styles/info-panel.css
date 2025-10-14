@@ -43,7 +43,7 @@
     transition: opacity 0.2s ease;
 }
 
-/* This rule applies ONLY to the row being hovered */
+/* This rule applies ONLY to the specific row being hovered */
 .info-section:hover .info-section-hover-bg {
     opacity: 1; /* Show the hover background */
 }
@@ -51,6 +51,7 @@
     cursor: help; /* Change the cursor only on the hovered row */
 }
 
+/* --- Progress Bar --- */
 .resource-progress-bar {
     position: absolute;
     top: 0;
@@ -62,11 +63,12 @@
     transition: width 0.2s ease-out;
 }
 
+/* --- Columns & Text --- */
 .infocolumn1, .infocolumn2, .infocolumn3 {
     display: flex;
     align-items: center;
     height: 100%;
-    z-index: 2; /* Keep text on top */
+    z-index: 2;
 }
 
 .infocolumn1 {
