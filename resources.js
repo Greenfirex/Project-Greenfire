@@ -3,6 +3,8 @@ import { technologies } from './data/technologies.js';
 import { formatNumber } from './formatting.js';
 import { setupTooltip } from '../main.js';
 
+export let resources = getInitialResources();
+
 export function updateResourceInfo() {
     const infoPanel = document.getElementById('infoPanel');
     infoPanel.innerHTML = ''; 
@@ -34,7 +36,6 @@ export function updateResourceInfo() {
                 resourceDiv.classList.add('capped');
             }
 
-            // --- Calculate Production Breakdown for the Tooltip ---
             const breakdown = {
                 base: 0,
                 buildings: [],
@@ -59,11 +60,8 @@ export function updateResourceInfo() {
             });
 
             breakdown.totalProduction = breakdown.base * (1 + breakdown.bonusMultiplier);
-
-            // Attach the detailed tooltip to the resource row
             setupTooltip(resourceDiv, breakdown);
 
-            // --- Create Display Columns ---
             const column1 = document.createElement('div');
             column1.className = 'infocolumn1';
             const column2 = document.createElement('div');
@@ -78,7 +76,16 @@ export function updateResourceInfo() {
             generationElement.textContent = `${formatNumber(breakdown.totalProduction)}/s`;
 
             const storageElement = document.createElement('p');
-            storageElement.textContent = `${formatNumber(resource.amount)} / ${formatNumber(resource.capacity)}`;
+
+            // --- Smart Formatting Logic ---
+            let amountDisplay;
+            if (resource.amount >= resource.capacity) {
+                amountDisplay = Math.floor(resource.amount).toLocaleString();
+            } else {
+                amountDisplay = formatNumber(resource.amount);
+            }
+            const capacityDisplay = Math.floor(resource.capacity).toLocaleString();
+            storageElement.textContent = `${amountDisplay} / ${capacityDisplay}`;
 
             column1.appendChild(nameElement);
             column2.appendChild(storageElement);
