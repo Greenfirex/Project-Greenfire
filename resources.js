@@ -15,13 +15,16 @@ export function updateResourceInfo() {
 
     displayResources.forEach(resource => {
         if (resource.isDiscovered) {
-            const resourceDiv = document.createElement('div');
-            resourceDiv.className = 'info-section';
-            
-            // Add the dedicated element for the hover background
-            const hoverBg = document.createElement('div');
-            hoverBg.className = 'info-section-hover-bg';
-            resourceDiv.appendChild(hoverBg);
+              // This is now the outer, invisible container for the row
+            const resourceRow = document.createElement('div');
+            resourceRow.className = 'info-section-row';
+
+            // This is the new inner div that contains all visible content
+            const resourceContent = document.createElement('div');
+            resourceContent.className = 'info-section-content';
+
+            // The tooltip is attached to the outer row
+            setupTooltip(resourceRow, breakdown);
             
             const progressBar = document.createElement('div');
             progressBar.className = 'resource-progress-bar';
@@ -88,7 +91,8 @@ export function updateResourceInfo() {
             resourceDiv.appendChild(column2);
             resourceDiv.appendChild(column3);
 
-            infoPanel.appendChild(resourceDiv);
+            resourceRow.appendChild(resourceContent);
+            infoPanel.appendChild(resourceRow);
         }
     });
 }
