@@ -30,6 +30,15 @@
     background-color: #111;	
 	border-radius: 4px;
     overflow: hidden;
+	border: 1px solid transparent; 
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.info-section:hover {
+    background-color: #2a2a2a;
+    /* MODIFIED: Now brightens the entire border */
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7);
+    cursor: help;
 }
 
 .resource-progress-bar {
