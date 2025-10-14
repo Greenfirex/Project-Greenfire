@@ -3,6 +3,14 @@ import { technologies } from './data/technologies.js';
 import { formatNumber } from './formatting.js';
 import { setupTooltip } from './main.js';
 
+Of course. Here is the complete updateResourceInfo function with the hover background fix integrated.
+
+## Complete updateResourceInfo Function
+Action:
+In your resources.js file, replace your updateResourceInfo function with this complete version.
+
+JavaScript
+
 export function updateResourceInfo() {
     const infoPanel = document.getElementById('infoPanel');
     infoPanel.innerHTML = ''; 
@@ -22,7 +30,7 @@ export function updateResourceInfo() {
             const resourceDiv = document.createElement('div');
             resourceDiv.className = 'info-section';
             
-            // Add the hover background element
+            // Add the dedicated element for the hover background
             const hoverBg = document.createElement('div');
             hoverBg.className = 'info-section-hover-bg';
             resourceDiv.appendChild(hoverBg);
