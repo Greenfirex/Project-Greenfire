@@ -10,8 +10,7 @@
     padding: 10px;
     box-sizing: border-box;
     overflow-y: auto;
-	border-bottom: none;
-	scrollbar-width: none;
+    scrollbar-width: none;
 }
 
 #infoPanel::-webkit-scrollbar {
@@ -19,7 +18,7 @@
 }
 
 .info-section {
-    position: relative; /* This is needed to contain the progress bar */
+    position: relative; /* Ensure this is set */
     display: grid;
     grid-template-columns: 3fr 4fr 2fr;
     align-items: center;
@@ -27,17 +26,23 @@
     padding: 6px 0;
     color: #EAEAEA;
     gap: 5px;
-    background-color: #111;	
-	border-radius: 4px;
+    background-color: #111;
+    border-radius: 4px;
     overflow: hidden;
-	border: 1px solid transparent; 
-    transition: background-color 0.2s ease, border-color 0.2s ease;
+    /* This defines the border that separates the rows */
+    border-top: 1px solid #333;
+    transition: background-color 0.2s ease, border-top-color 0.2s ease;
+}
+
+/* Make the first row have no top border */
+.info-section:first-child {
+    border-top: none;
 }
 
 .info-section:hover {
     background-color: #2a2a2a;
-    /* MODIFIED: Now brightens the entire border */
-    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7);
+    /* On hover, we just change the color of the existing top border */
+    border-top-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7);
     cursor: help;
 }
 
@@ -46,26 +51,26 @@
     top: 0;
     left: 0;
     height: 100%;
-    width: 0%; /* Starts empty, JS will set the width */
-    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.2); /* Use the theme color */
-    z-index: 1; /* Place it behind the text */
-    transition: width 0.2s ease-out; /* Smooth animation */
+    width: 0%;
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.2);
+    z-index: 1;
+    transition: width 0.2s ease-out;
 }
 
 .infocolumn1, .infocolumn2, .infocolumn3 {
     display: flex;
-    align-items: center; /* This is the fix for perfect vertical centering */
+    align-items: center;
     height: 100%;
-	z-index: 2;
+    z-index: 2; /* Keep text on top of the progress bar */
 }
 
 .infocolumn1 {
-    justify-content: flex-start; /* Aligns text to the left */
+    justify-content: flex-start;
     padding-left: 5px;
 }
 
 .infocolumn2, .infocolumn3 {
-    justify-content: flex-end; /* Aligns text to the right */
+    justify-content: flex-end;
 }
 
 .infocolumn3 {

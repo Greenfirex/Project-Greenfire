@@ -4,6 +4,8 @@ import { technologies } from '../data/technologies.js';
 import { addLogEntry } from '../log.js';
 import { setupTooltip, activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
 
+let isMiningOnCooldown = false;
+
 /**
  * Calculates the current cost of a building based on how many are owned.
  * @param {object} building - The building data object.
@@ -208,15 +210,27 @@ export function setupColonySection(colonySection) {
 }
 
 function mineStone(event) {
+    // 1. Check if the button is on cooldown
+    if (isMiningOnCooldown) {
+        return;
+    }
+    // 2. Start the cooldown
+    isMiningOnCooldown = true;
+
     animateButtonClick(event);
     const stone = resources.find(r => r.name === 'Stone');
     if (stone) {
         if (stone.amount >= stone.capacity) {
             addLogEntry('Stone storage is full!', 'orange');
-            return;
+        } else {
+            stone.amount = Math.min(stone.amount + 1, stone.capacity);
+            addLogEntry('Manually mined 1 Stone.', 'blue');
         }
-        stone.amount = Math.min(stone.amount + 1, stone.capacity);
         updateResourceInfo();
-        addLogEntry('Manually mined 1 Stone.', 'blue');
     }
+
+    // 3. End the cooldown after 100ms
+    setTimeout(() => {
+        isMiningOnCooldown = false;
+    }, 100); // 100ms cooldown
 }
