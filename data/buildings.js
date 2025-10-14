@@ -6,8 +6,9 @@ const initialBuildings = [
         rate: 0.1,
         count: 0,
         cost: [{ resource: 'Stone', amount: 10 }],
+        costMultiplier: 1.15, // Costs 15% more each time
         description: 'Construct a Quarry to begin automatic Stone extraction.',
-        isUnlocked: true // Available from the start
+        isUnlocked: true 
     },
     {
         name: 'Extractor',
@@ -15,33 +16,37 @@ const initialBuildings = [
         rate: 0.05,
         count: 0,
         cost: [{ resource: 'Stone', amount: 20 }],
+        costMultiplier: 1.15,
         description: 'Build an Extractor to mine the rare resource Xylite.',
-        isUnlocked: false // Will be unlocked when Xylite is discovered
+        isUnlocked: false 
     },
     {
         name: 'Stone Stockpile',
         count: 0,
         cost: [{ resource: 'Stone', amount: 50 }],
+        costMultiplier: 1.25, // Storage can scale a bit faster
         effect: { type: 'storage', resource: 'Stone', value: 100 },
         description: 'Increases the maximum storage capacity for Stone.',
-        isUnlocked: false // Will be unlocked by research
+        isUnlocked: false
     },
     {
         name: 'Xylite Silo',
         count: 0,
         cost: [{ resource: 'Stone', amount: 100 }, { resource: 'Xylite', amount: 20 }],
+        costMultiplier: 1.25,
         effect: { type: 'storage', resource: 'Xylite', value: 75 },
         description: 'Construct a high-tech silo to increase Xylite storage.',
-        isUnlocked: false // Will be unlocked by research
+        isUnlocked: false
     },
     {
         name: 'Laboratory',
-		produces: 'Insight', // ADD THIS
-		rate: 0.1,           // ADD THIS (0.1 per second)
-		count: 0,
-		cost: [{ resource: 'Stone', amount: 15 }],
-		description: 'A basic facility that generates Insight required for scientific research.',
-		isUnlocked: false
+        produces: 'Insight',
+        rate: 0.1,
+        count: 0,
+        cost: [{ resource: 'Stone', amount: 50 }],
+        costMultiplier: 1.15,
+        description: 'A basic facility that generates Insight required for scientific research.',
+        isUnlocked: false
     }
 ];
 

@@ -5,17 +5,31 @@ import { addLogEntry } from '../log.js';
 import { setupTooltip, activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
 
 /**
- * NEW: Checks affordability for all buildings and updates their button styles.
+ * Calculates the current cost of a building based on how many are owned.
+ * @param {object} building - The building data object.
+ * @returns {Array} - An array of the current costs.
  */
+function getCurrentBuildingCost(building) {
+    if (!building.costMultiplier) {
+        return building.cost; // Return base cost if there's no multiplier
+    }
+    const currentCosts = [];
+    building.cost.forEach(baseCost => {
+        // Formula: NewCost = BaseCost * (Multiplier ^ AmountOwned)
+        const currentAmount = Math.floor(baseCost.amount * Math.pow(building.costMultiplier, building.count));
+        currentCosts.push({ resource: baseCost.resource, amount: currentAmount });
+    });
+    return currentCosts;
+}
+
 export function updateBuildingButtonsState() {
     buildings.forEach(building => {
-        // Find the button associated with this building
         const button = document.querySelector(`.image-button[data-building="${building.name}"]`);
-        if (!button) { return; } // Skip if the button isn't currently displayed
+        if (!button) { return; }
 
-        // Check if the player has enough resources
+        const currentCost = getCurrentBuildingCost(building);
         let canAfford = true;
-        for (const cost of building.cost) {
+        for (const cost of currentCost) {
             const resource = resources.find(r => r.name === cost.resource);
             if (!resource || resource.amount < cost.amount) {
                 canAfford = false;
@@ -23,7 +37,6 @@ export function updateBuildingButtonsState() {
             }
         }
 
-        // Add or remove the 'unaffordable' class based on the check
         if (canAfford) {
             button.classList.remove('unaffordable');
         } else {
@@ -32,9 +45,6 @@ export function updateBuildingButtonsState() {
     });
 }
 
-/**
- * A reusable function to apply a click animation to a button.
- */
 function animateButtonClick(event) {
     const button = event.currentTarget;
     button.classList.add('is-clicking');
@@ -43,13 +53,10 @@ function animateButtonClick(event) {
     }, 200);
 }
 
-/**
- * Creates a stylish, image-based button for a building.
- */
 function createBuildingButton(building, container) {
     const button = document.createElement('button');
     button.className = 'image-button';
-    button.dataset.building = building.name; // ADDED: A data-attribute to easily find the button
+    button.dataset.building = building.name;
 
     const countSpan = document.createElement('span');
     countSpan.className = 'building-count';
@@ -57,25 +64,26 @@ function createBuildingButton(building, container) {
     button.appendChild(countSpan);
 
     const nameSpan = document.createElement('span');
-    nameSpan.className = 'building-name'; // ADDED: A class for specific styling
+    nameSpan.className = 'building-name';
     nameSpan.textContent = `Build ${building.name}`;
     button.appendChild(nameSpan);
     
+    // Create a temporary object for the tooltip with the updated cost
+    const tooltipData = { ...building, cost: getCurrentBuildingCost(building) };
+    
     button.addEventListener('click', (event) => buildBuilding(event, building.name));
-    setupTooltip(button, building);
+    setupTooltip(button, tooltipData);
 
     container.appendChild(button);
 }
 
-/**
- * A single, reusable function to handle purchasing any building.
- */
 function buildBuilding(event, buildingName) {
     const building = buildings.find(b => b.name === buildingName);
     if (!building) { return; }
 
+    const currentCost = getCurrentBuildingCost(building);
     let canAfford = true;
-    for (const cost of building.cost) {
+    for (const cost of currentCost) {
         const resource = resources.find(r => r.name === cost.resource);
         if (!resource || resource.amount < cost.amount) {
             canAfford = false;
@@ -87,7 +95,7 @@ function buildBuilding(event, buildingName) {
     if (canAfford) {
         animateButtonClick(event);
 
-        for (const cost of building.cost) {
+        for (const cost of currentCost) {
             const resource = resources.find(r => r.name === cost.resource);
             resource.amount -= cost.amount;
         }
@@ -107,13 +115,13 @@ function buildBuilding(event, buildingName) {
             if (!activatedSections.researchSection) {
                 activatedSections.researchSection = true;
                 setActivatedSections(activatedSections);
-                applyActivatedSections(); // This makes the menu button appear
+                applyActivatedSections();
                 addLogEntry('The first Laboratory is operational. Research is now available.', 'blue');
             }
         }
         
         updateResourceInfo();
-        setupcolonySection();
+        setupColonySection(); // Note the rename here to avoid infinite loops if it was wrong
     }
 }
 
@@ -160,8 +168,7 @@ export function setupColonySection(colonySection) {
     miningCategory.appendChild(miningButtons);
     colonySection.appendChild(miningCategory);
 
-      // --- Category 3: Storage ---
-    // TYPO FIX: Changed "isReserached" to "isResearched"
+    // --- Category 3: Storage ---
     const basicStorageTech = technologies.find(t => t.name === 'Basic Storage' && t.isResearched); 
     if (basicStorageTech) {
         const storageHeader = document.createElement('h2');
@@ -181,7 +188,7 @@ export function setupColonySection(colonySection) {
         colonySection.appendChild(storageCategory);
     }
 	
-	// --- NEW: Science Category ---
+	// --- Category 4: Science ---
     const laboratory = buildings.find(b => b.name === 'Laboratory');
     if (laboratory && laboratory.isUnlocked) {
         const scienceHeader = document.createElement('h2');
@@ -197,7 +204,6 @@ export function setupColonySection(colonySection) {
         colonySection.appendChild(scienceCategory);
     }
 
-    // ADDED: Call the update function to set the initial state of the buttons
     updateBuildingButtonsState();
 }
 
@@ -211,5 +217,6 @@ function mineStone(event) {
         }
         stone.amount = Math.min(stone.amount + 1, stone.capacity);
         updateResourceInfo();
+        addLogEntry('Manually mined 1 Stone.', 'blue');
     }
 }
