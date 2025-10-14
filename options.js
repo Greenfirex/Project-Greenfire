@@ -17,9 +17,6 @@ export function shouldRunInBackground() {
     return runInBackground;
 }
 
-/**
- * Sets the main UI glow color.
- */
 export function setGlowColor(colorName) {
     const rgb = colorMap[colorName];
     if (!rgb) { return; }
@@ -31,7 +28,16 @@ export function setGlowColor(colorName) {
 
     localStorage.setItem('glowColor', colorName);
     
-    // Restart animation logic...
+    // --- Update the visual indicator ---
+    const swatches = document.querySelectorAll('#colorPickerContainer .color-swatch');
+    swatches.forEach(swatch => {
+        swatch.classList.remove('selected');
+        if (swatch.dataset.color === colorName) {
+            swatch.classList.add('selected');
+        }
+    });
+
+    // Restart animation logic
     const animatedElements = document.querySelectorAll('#header, #footer, #mainMenu, #infoPanel, #mainContainer');
     animatedElements.forEach(element => {
         element.style.animation = 'none';
@@ -40,11 +46,8 @@ export function setGlowColor(colorName) {
     });
 }
 
-/**
- * Sets the active menu button glow color.
- */
 export function setActiveGlowColor(colorName) {
-    const rgb = colorMap[colorName]; // MODIFIED: Uses the single colorMap
+    const rgb = colorMap[colorName];
     if (!rgb) { return; }
 
     const [r, g, b] = rgb.split(', ');
@@ -53,6 +56,15 @@ export function setActiveGlowColor(colorName) {
     document.body.style.setProperty('--active-glow-b', b);
 
     localStorage.setItem('activeGlowColor', colorName);
+
+    // --- Update the visual indicator ---
+    const swatches = document.querySelectorAll('#activeButtonColorPicker .color-swatch');
+    swatches.forEach(swatch => {
+        swatch.classList.remove('selected');
+        if (swatch.dataset.color === colorName) {
+            swatch.classList.add('selected');
+        }
+    });
 }
 
 /**

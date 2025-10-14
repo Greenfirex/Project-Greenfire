@@ -106,6 +106,11 @@
     transform: scale(1.1);
 }
 
+.color-swatch.selected {
+    transform: scale(1.2);
+    border-color: #FFF;
+}
+
 .color-swatch[data-color="green"]  { background-color: #69f0ae; }
 .color-swatch[data-color="blue"]   { background-color: #40C4FF; }
 .color-swatch[data-color="purple"] { background-color: #AB47BC; }
