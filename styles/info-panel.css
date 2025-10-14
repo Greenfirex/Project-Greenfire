@@ -28,6 +28,8 @@
     color: #EAEAEA;
     gap: 5px;
     background-color: #111;	
+	border-radius: 4px;
+    overflow: hidden;
 }
 
 .resource-progress-bar {
