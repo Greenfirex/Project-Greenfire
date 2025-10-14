@@ -29,7 +29,6 @@
     background-color: #111;
     border-radius: 4px;
     overflow: hidden;
-    transition: background-color 0.2s ease;
 }
 
 .info-section-hover-bg {
