@@ -5,8 +5,9 @@
     color: white;
     display: flex;
     flex-direction: column;
-    align-items: center; /* This will center the shrink-to-fit rows */
-    gap: 2px; /* Adds a small gap between each resource row */
+    align-items: stretch; /* MODIFIED: Stretches rows to full width */
+    justify-content: flex-start;
+    gap: 2px; /* Use gap for consistent spacing */
     padding: 10px;
     box-sizing: border-box;
     overflow-y: auto;
@@ -22,7 +23,6 @@
     display: grid;
     grid-template-columns: 3fr 4fr 2fr;
     align-items: center;
-    /* width: 100%; <-- REMOVED so the row shrinks to fit */
     padding: 6px 10px;
     color: #EAEAEA;
     gap: 15px;
