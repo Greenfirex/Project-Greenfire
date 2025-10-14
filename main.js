@@ -254,10 +254,38 @@ export function hideTooltip() {
     }
 }
 
-export function setupTooltip(button, tooltipData) {
+function updateTooltipPosition(e, tooltip) {
+    // Get the dimensions of the tooltip and the window
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Default position: to the right and below the cursor
+    let newLeft = e.clientX + 15;
+    let newTop = e.clientY + 15;
+
+    // Check if it goes off the right edge
+    if (newLeft + tooltipRect.width > viewportWidth) {
+        newLeft = e.clientX - tooltipRect.width - 15; // Flip to the left
+    }
+
+    // Check if it goes off the bottom edge
+    if (newTop + tooltipRect.height > viewportHeight) {
+        newTop = e.clientY - tooltipRect.height - 15; // Flip above
+    }
+
+    // Ensure it doesn't go off the top or left edges either
+    if (newTop < 0) { newTop = 5; }
+    if (newLeft < 0) { newLeft = 5; }
+
+    tooltip.style.left = `${newLeft}px`;
+    tooltip.style.top = `${newTop}px`;
+}
+
+export function setupTooltip(element, tooltipData) {
     const tooltip = getOrCreateTooltip();
 
-    button.addEventListener('mouseenter', (e) => {
+    element.addEventListener('mouseenter', (e) => {
         tooltip.innerHTML = '';
 
         // Case 1: Resource Breakdown Tooltip
@@ -288,24 +316,20 @@ export function setupTooltip(button, tooltipData) {
                 description.textContent = tooltipData.description;
                 tooltip.appendChild(description);
             }
-
             if (tooltipData.cost && tooltipData.cost.length > 0) {
                 const costHeader = document.createElement('h4');
                 costHeader.textContent = 'Cost';
                 tooltip.appendChild(costHeader);
-
                 tooltipData.cost.forEach(c => {
                     const costItem = document.createElement('p');
                     costItem.textContent = `${c.resource}: ${c.amount}`;
                     tooltip.appendChild(costItem);
                 });
             }
-
             if (tooltipData.produces) {
                 const genHeader = document.createElement('h4');
                 genHeader.textContent = 'Generation';
                 tooltip.appendChild(genHeader);
-                
                 const genItem = document.createElement('p');
                 genItem.textContent = `${tooltipData.produces}: +${tooltipData.rate}/s`;
                 tooltip.appendChild(genItem);
@@ -316,43 +340,37 @@ export function setupTooltip(button, tooltipData) {
             const title = document.createElement('h4');
             title.textContent = tooltipData.name;
             tooltip.appendChild(title);
-
             if (tooltipData.description) {
                 const description = document.createElement('p');
                 description.className = 'tooltip-description';
                 description.textContent = tooltipData.description;
                 tooltip.appendChild(description);
             }
-
             if (tooltipData.cost && tooltipData.cost.length > 0) {
                 const costHeader = document.createElement('h4');
                 costHeader.textContent = 'Cost';
                 tooltip.appendChild(costHeader);
-
                 tooltipData.cost.forEach(c => {
                     const costItem = document.createElement('p');
                     costItem.textContent = `${c.resource}: ${c.amount}`;
                     tooltip.appendChild(costItem);
                 });
             }
-
             const duration = document.createElement('p');
             duration.textContent = `Research Time: ${tooltipData.duration}s`;
             tooltip.appendChild(duration);
         }
 
         tooltip.style.visibility = 'visible';
-        tooltip.style.left = `${e.clientX + 15}px`;
-        tooltip.style.top = `${e.clientY + 15}px`;
+        updateTooltipPosition(e, tooltip);
     });
 
-    button.addEventListener('mouseleave', () => {
+    element.addEventListener('mouseleave', () => {
         tooltip.style.visibility = 'hidden';
     });
 
-    button.addEventListener('mousemove', (e) => {
-        tooltip.style.left = `${e.clientX + 15}px`;
-        tooltip.style.top = `${e.clientY + 15}px`;
+    element.addEventListener('mousemove', (e) => {
+        updateTooltipPosition(e, tooltip);
     });
 }
 
