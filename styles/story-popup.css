@@ -17,9 +17,8 @@
     background-color: #1a1a1a;
     color: #fff;
     padding: 20px 30px;
-    border: 1px solid #888;
     width: 100%;
-    max-width: 550px;
+    max-width: 600px;
     border-radius: 8px;
     position: relative;
     text-align: center;
@@ -33,19 +32,42 @@
     margin-bottom: 15px;
 }
 
+.story-popup-body {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.story-popup-logo {
+    flex-shrink: 0;
+    width: 120px;
+    height: 120px;
+    /* Use the circular logo you have */
+    background-image: url('/assets/images/logo.png'); 
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.story-popup-text {
+    text-align: left;
+}
+
 .story-popup-content h2 {
-    margin: 0;
-    flex-grow: 1;
+    margin: 0 0 10px 0;
     color: #90EE90;
-    text-align: center;
 }
 
 .story-popup-close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
     font-size: 28px;
     font-weight: bold;
     color: #aaa;
     cursor: pointer;
-    line-height: 1;
+    z-index: 10;
 }
 
 .story-popup-close:hover {
@@ -55,14 +77,14 @@
 #popupMessage {
     color: #EAEAEA;
     line-height: 1.6;
-    text-align: left;
 }
 
 .story-popup-nav {
-    margin-top: 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-top: 1px solid #333;
+    padding-top: 15px;
 }
 
 .story-popup-nav button {
