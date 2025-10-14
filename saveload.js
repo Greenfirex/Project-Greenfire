@@ -110,10 +110,3 @@ export function resetGameState() {
     localStorage.clear();
     location.reload();
 }
-
-// This function is unchanged and remains as part of the file.
-export function resetGameState() {
-    console.log('Resetting game state via page reload');
-    localStorage.clear();
-    location.reload();
-}
