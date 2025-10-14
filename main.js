@@ -219,6 +219,8 @@ function preloadAssets() {
         '/assets/images/background5.jpg',
         '/assets/images/PNG/Button03.png',
         '/assets/images/PNG/Button04.png',
+		'/assets/images/logo.png',
+		'/assets/images/logo-header.png',
     ];
 
     const promises = images.map(src => {
