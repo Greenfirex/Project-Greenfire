@@ -179,20 +179,23 @@ export function checkConditions() {
         }
     }
     
-    // Research section unlock logic
-    const laboratory = buildings.find(b => b.name === 'Laboratory');
-    if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
-        laboratory.isUnlocked = true;
-        setupMiningSection();
+// Research section unlock logic
+const laboratory = buildings.find(b => b.name === 'Laboratory');
+if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
+    laboratory.isUnlocked = true;
+    setupMiningSection();
 
-        // Pass the whole event object
-        showStoryPopup(storyEvents.unlockResearch);
-        
-        addLogEntry('A glimmer of insight has been recorded. (Click to read)', '#7E57C2', {
-            onClick: () => showStoryPopup(storyEvents.unlockResearch);
-		addLogEntry('The ability to construct a Laboratory has been unlocked!', 'purple');	
-        });
-    }
+    // Show the story popup
+    showStoryPopup(storyEvents.unlockResearch);
+    
+    // Add the first, clickable log entry
+    addLogEntry('A glimmer of insight has been recorded. (Click to read)', '#7E57C2', {
+        onClick: () => showStoryPopup(storyEvents.unlockResearch)
+    });
+
+    // Add the second, non-clickable log entry after it
+    addLogEntry('The ability to construct a Laboratory has been unlocked!', 'purple');
+}
 
     // Manufacturing section unlock logic
     const manufacturingButton = document.querySelector('.menu-button[data-section="manufacturingSection"]');
