@@ -23,7 +23,7 @@
     border-radius: 8px;
     position: relative;
     text-align: center;
-    box-shadow: 0 0 20px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.3);
+    animation: pulse-glow 5s ease-in-out infinite;
 }
 
 .story-popup-header {
