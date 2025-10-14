@@ -21,12 +21,13 @@
 .info-section {
     position: relative; /* This is needed to contain the progress bar */
     display: grid;
-    grid-template-columns: 3fr 2fr 3fr;
+    grid-template-columns: 3fr 4fr 2fr;
     align-items: center;
     width: 100%;
     padding: 6px 0;
     color: #EAEAEA;
-    gap: 10px; 
+    gap: 5px;
+    background-color: #111;	
 }
 
 .resource-progress-bar {
@@ -38,18 +39,6 @@
     background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.2); /* Use the theme color */
     z-index: 1; /* Place it behind the text */
     transition: width 0.2s ease-out; /* Smooth animation */
-}
-
-.info-section:nth-child(even) {
-    background-color: #222; /* Subtle dark gray */
-}
-
-.info-section:nth-child(odd) {
-    background-color: black; /* Black */
-}
-
-.info-section:first-child {
-    border-top: none;
 }
 
 .infocolumn1 {
@@ -74,7 +63,7 @@
 .info-section span,
 .info-section p {
     margin: 0;
-    font-size: 14px;
+    font-size: 12px;
 }
 
 .infocolumn1 span {

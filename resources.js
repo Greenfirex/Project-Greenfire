@@ -58,8 +58,9 @@ export function updateResourceInfo() {
             storageElement.textContent = `${formatNumber(resource.amount)} / ${formatNumber(resource.capacity)}`;
 
             column1.appendChild(nameElement);
-            column2.appendChild(generationElement);
-            column3.appendChild(storageElement);
+			column2.appendChild(storageElement);
+            column3.appendChild(generationElement);
+            
 
             resourceDiv.appendChild(column1);
             resourceDiv.appendChild(column2);
