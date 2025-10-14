@@ -1,22 +1,22 @@
-import { resources, getInitialResources, updateResourceInfo } from './resources.js';
+import { resources, getInitialResources, resetResources } from './resources.js';
 import { technologies, resetTechnologies } from './data/technologies.js';
-import { buildings, getInitialBuildings, resetBuildings } from './data/buildings.js'; // FIXED: Import the new reset function
+import { buildings, getInitialBuildings, resetBuildings } from './data/buildings.js'; 
 import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from './sections/research.js';
-import { applyActivatedSections, activatedSections, setActivatedSections } from './main.js';
+import { activatedSections, setActivatedSections } from './main.js';
 import { showStoryPopup } from './popup.js';
 import { storyEvents } from './data/storyEvents.js';
 import { addLogEntry } from './log.js';
 
 export function saveGameState() {
+    const research = getCurrentResearchingTech();
     const gameState = {
         resources: resources,
         technologies: technologies,
         researchProgress: getResearchProgress(),
-        currentResearchingTech: getCurrentResearchingTech(),
+        currentResearchingTech: research ? research.name : null, 
         activatedSections: activatedSections,
         buildings: buildings,
     };
-    console.log('Saving game state:', gameState);
     localStorage.setItem('gameState', JSON.stringify(gameState));
     addLogEntry('Game state saved.', 'blue');
 }
@@ -36,7 +36,7 @@ export function loadGameState() {
         defaultResources.forEach(defaultResource => {
             const savedResource = gameState.resources.find(r => r.name === defaultResource.name);
             if (savedResource) {
-                Object.assign(defaultResource, savedResource); // Copy saved data over default
+                Object.assign(defaultResource, savedResource);
             }
         });
         resources.length = 0;
@@ -61,8 +61,9 @@ export function loadGameState() {
         setActivatedSections(gameState.activatedSections);
 
         // Resume any ongoing research
-        if (getCurrentResearchingTech()) {
-            const tech = technologies.find(t => t.name === getCurrentResearchingTech());
+        const techName = getCurrentResearchingTech();
+        if (techName) {
+            const tech = technologies.find(t => t.name === techName);
             if (tech) {
                 const cancelButton = document.querySelector('.cancel-button');
                 const elapsedTime = (getResearchProgress() / 100) * tech.duration * 1000;
@@ -79,20 +80,15 @@ export function loadGameState() {
 export function resetToDefaultState() {
 	addLogEntry('Game state reset.', 'yellow');
 
-    // Define the event object first
 	const event = storyEvents.gameStart;
-    
-    // Call the initial popup with the full event object
 	showStoryPopup(event);
 
-    // Use the same event object for the clickable log's callback
-    addLogEntry('A new journey begins... (Click to read)', '#7E57C2', {
+	addLogEntry('A new journey begins... (Click to read)', '#7E57C2', {
         onClick: () => showStoryPopup(event)
     });
 
-    // The rest of the function remains the same
-    resources.length = 0;
-    resources.push(...getInitialResources());
+    // MODIFIED: Use the dedicated reset functions for consistency.
+    resetResources();
     resetTechnologies();
     resetBuildings();
 
@@ -107,6 +103,12 @@ export function resetToDefaultState() {
         shipyardSection: false,
         galaxyMapSection: false,
     });
+}
+
+export function resetGameState() {
+    console.log('Resetting game state via page reload');
+    localStorage.clear();
+    location.reload();
 }
 
 // This function is unchanged and remains as part of the file.
