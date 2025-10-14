@@ -43,23 +43,24 @@
     transition: width 0.2s ease-out; /* Smooth animation */
 }
 
+.infocolumn1, .infocolumn2, .infocolumn3 {
+    display: flex;
+    align-items: center; /* This is the fix for perfect vertical centering */
+    height: 100%;
+	z-index: 2;
+}
+
 .infocolumn1 {
-    text-align: left;
+    justify-content: flex-start; /* Aligns text to the left */
     padding-left: 5px;
 }
 
-.infocolumn2 {
-    text-align: right;
+.infocolumn2, .infocolumn3 {
+    justify-content: flex-end; /* Aligns text to the right */
 }
 
 .infocolumn3 {
-    text-align: right;
     padding-right: 5px;
-}
-
-.infocolumn1, .infocolumn2, .infocolumn3 {
-    position: relative;
-    z-index: 2;
 }
 
 .info-section span,
