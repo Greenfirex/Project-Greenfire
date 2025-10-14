@@ -50,7 +50,7 @@ function startGame() {
     }
 
     const colonySection = document.createElement('div');
-    colonySection.id = 'miningSection';
+    colonySection.id = 'colonySection';
     colonySection.classList.add('game-section');
 
     const researchSection = document.createElement('div');
@@ -183,7 +183,7 @@ export function checkConditions() {
 const laboratory = buildings.find(b => b.name === 'Laboratory');
 if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
     laboratory.isUnlocked = true;
-    setupMiningSection();
+    setupColonySection();
 
     // Show the story popup
     showStoryPopup(storyEvents.unlockResearch);
@@ -409,7 +409,7 @@ function loadCurrentSection() {
     if (savedSection && activatedSections[savedSection]) {
         showSection(savedSection);
     } else {
-        // If the saved section is locked (or doesn't exist), default to mining
+        // If the saved section is locked (or doesn't exist), default to colony
         showSection('colonySection');
     }
 }
