@@ -212,15 +212,15 @@ if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
 function preloadAssets() {
     const images = [
         // MODIFIED: All paths now start with '/'
-        '/assets/images/background1.jpg',
-        '/assets/images/background2.jpg',
-        '/assets/images/background3.jpg',
-        '/assets/images/background4.jpg',
-        '/assets/images/background5.jpg',
-        '/assets/images/PNG/Button03.png',
-        '/assets/images/PNG/Button04.png',
-		'/assets/images/logo.png',
-		'/assets/images/logo-header.png',
+        'assets/images/background1.jpg',
+        'assets/images/background2.jpg',
+        'assets/images/background3.jpg',
+        'assets/images/background4.jpg',
+        'assets/images/background5.jpg',
+        'assets/images/PNG/Button03.png',
+        'assets/images/PNG/Button04.png',
+		'assets/images/logo.png',
+		'assets/images/logo-header.png',
     ];
 
     const promises = images.map(src => {

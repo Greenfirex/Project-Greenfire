@@ -44,7 +44,7 @@
     width: 120px;
     height: 120px;
     /* Use the circular logo you have */
-    background-image: url('/assets/images/logo.png'); 
+    background-image: url('../assets/images/logo.png'); 
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
