@@ -40,7 +40,6 @@ export function setupInfoPanel() {
         infoRow.classList.add('hidden');
 
         infoRow.innerHTML = `
-            <div class="info-section-hover-bg"></div>
             <div class="resource-progress-bar"></div>
             <div class="infocolumn1"><span>${resource.name}</span></div>
             <div class="infocolumn2"><p data-value-type="storage"></p></div>
