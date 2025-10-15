@@ -11,6 +11,7 @@ import { addLogEntry } from './log.js';
 import { showStoryPopup } from './popup.js';
 import { storyEvents } from './data/storyEvents.js';
 import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity, shouldRunInBackground } from './options.js';
+import { formatNumber } from './formatting.js';
 import { updateImpactTimer } from './eventManager.js';
 import './headeroptions.js';
 
