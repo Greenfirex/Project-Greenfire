@@ -212,7 +212,7 @@ if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
 // A single, global tooltip element
 let globalTooltip = null;
 
-function getOrCreateTooltip() {
+export function getOrCreateTooltip() {
     if (!globalTooltip) {
         globalTooltip = document.createElement('div');
         globalTooltip.className = 'tooltip';
@@ -228,7 +228,7 @@ export function hideTooltip() {
     }
 }
 
-function updateTooltipPosition(e, tooltip) {
+export function updateTooltipPosition(e, tooltip) {
     // Get the dimensions of the tooltip and the window
     const tooltipRect = tooltip.getBoundingClientRect();
     const viewportWidth = window.innerWidth;

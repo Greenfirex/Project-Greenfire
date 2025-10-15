@@ -1,7 +1,7 @@
 import { buildings } from './data/buildings.js';
 import { technologies } from './data/technologies.js';
 import { formatNumber } from './formatting.js';
-import { setupTooltip } from './main.js';
+import { getOrCreateTooltip, updateTooltipPosition } from '../main.js';
 
 // --- DATA ---
 export function getInitialResources() {
@@ -14,13 +14,13 @@ export function getInitialResources() {
         { name: 'Sentient Mycelium', amount: 0, isDiscovered: false, capacity: 10 },
     ];
 }
-
 export let resources = getInitialResources();
 
 export function resetResources() {
     const initial = getInitialResources();
     resources.length = 0;
-    resources.push(...initial);
+    // Use Object.assign on individual items if they are objects to preserve references
+    initial.forEach(res => resources.push({...res}));
     console.log("Resource data has been reset.");
 }
 
@@ -33,25 +33,72 @@ export function setupInfoPanel() {
     const infoSection = document.createElement('div');
     infoSection.className = 'info-section';
 
-    // Create the permanent structure for each resource row
     getInitialResources().forEach(resource => {
         const infoRow = document.createElement('div');
         infoRow.className = 'info-row';
         infoRow.dataset.resource = resource.name; 
-        infoRow.classList.add('hidden'); // All rows start hidden
+        infoRow.classList.add('hidden');
 
         infoRow.innerHTML = `
+            <div class="info-section-hover-bg"></div>
             <div class="resource-progress-bar"></div>
-            <div class="infocolumn1">
-                <span>${resource.name}</span>
-            </div>
-            <div class="infocolumn2">
-                <p data-value-type="storage"></p>
-            </div>
-            <div class="infocolumn3">
-                <p data-value-type="generation"></p>
-            </div>
+            <div class="infocolumn1"><span>${resource.name}</span></div>
+            <div class="infocolumn2"><p data-value-type="storage"></p></div>
+            <div class="infocolumn3"><p data-value-type="generation"></p></div>
         `;
+
+        const tooltip = getOrCreateTooltip();
+        infoRow.addEventListener('mouseenter', (e) => {
+            const resourceName = infoRow.dataset.resource;
+            const currentResource = resources.find(r => r.name === resourceName);
+            if (!currentResource) return;
+
+            const breakdown = {
+                base: 0, buildings: [], bonusMultiplier: 0,
+                bonuses: [], totalProduction: 0
+            };
+
+            buildings.forEach(b => {
+                if (b.produces === resourceName && b.count > 0) {
+                    const amount = b.rate * b.count;
+                    breakdown.base += amount;
+                    breakdown.buildings.push({ name: b.name, count: b.count, amount: amount });
+                }
+            });
+            technologies.forEach(t => {
+                if (t.isResearched && t.bonus?.resource === resourceName) {
+                    breakdown.bonusMultiplier += t.bonus.multiplier;
+                    breakdown.bonuses.push({ name: t.name, multiplier: t.bonus.multiplier });
+                }
+            });
+            breakdown.totalProduction = breakdown.base * (1 + breakdown.bonusMultiplier);
+            
+            tooltip.innerHTML = `
+                <h4>${resourceName} Production</h4>
+                <div class="tooltip-section">
+                    <p>Base: ${formatNumber(breakdown.base)}/s</p>
+                    ${breakdown.buildings.map(b => `<p class="tooltip-detail">+ ${formatNumber(b.amount)}/s from ${b.count}x ${b.name}</p>`).join('')}
+                </div>
+                <div class="tooltip-section">
+                    <p>Bonus: +${(breakdown.bonusMultiplier * 100).toFixed(0)}%</p>
+                    ${breakdown.bonuses.map(b => `<p class="tooltip-detail">+${b.multiplier * 100}% from ${b.name}</p>`).join('')}
+                </div>
+                <hr>
+                <p><strong>Total: ${formatNumber(breakdown.totalProduction)}/s</strong></p>
+            `;
+
+            tooltip.style.visibility = 'visible';
+            updateTooltipPosition(e, tooltip);
+        });
+
+        infoRow.addEventListener('mouseleave', () => {
+            tooltip.style.visibility = 'hidden';
+        });
+
+        infoRow.addEventListener('mousemove', (e) => {
+            updateTooltipPosition(e, tooltip);
+        });
+        
         infoSection.appendChild(infoRow);
     });
     infoPanel.appendChild(infoSection);
@@ -59,73 +106,38 @@ export function setupInfoPanel() {
 
 // --- UI UPDATE (RUNS EVERY TICK) ---
 export function updateResourceInfo() {
-    const displayResources = [...resources].sort((a, b) => {
-        if (a.name === 'Insight') return -1;
-        if (b.name === 'Insight') return 1;
-        return 0;
-    });
-
-    displayResources.forEach(resource => {
+    resources.forEach(resource => {
         const infoRow = document.querySelector(`.info-row[data-resource="${resource.name}"]`);
         if (!infoRow) return;
 
-        // Auto-discovery logic
         if (resource.amount > 0 && !resource.isDiscovered) {
             resource.isDiscovered = true;
         }
         
-        // Show or hide the row based on discovery status
-        if (resource.isDiscovered) {
-            infoRow.classList.remove('hidden');
-        } else {
-            infoRow.classList.add('hidden');
-            return; // Don't update the rest if it's hidden
-        }
+        infoRow.classList.toggle('hidden', !resource.isDiscovered);
+        if (!resource.isDiscovered) return;
         
-        // --- Calculate Production Breakdown for Tooltip ---
-        const breakdown = {
-            base: 0,
-            buildings: [],
-            bonusMultiplier: 0,
-            bonuses: [],
-            totalProduction: 0
-        };
+        let baseProduction = 0;
+        let bonusMultiplier = 0;
         buildings.forEach(b => {
-            if (b.produces === resource.name && b.count > 0) {
-                const amount = b.rate * b.count;
-                breakdown.base += amount;
-                breakdown.buildings.push({ name: b.name, count: b.count, amount: amount });
-            }
+            if (b.produces === resource.name) baseProduction += b.rate * b.count;
         });
         technologies.forEach(t => {
-            if (t.isResearched && t.bonus && t.bonus.resource === resource.name) {
-                breakdown.bonusMultiplier += t.bonus.multiplier;
-                breakdown.bonuses.push({ name: t.name, multiplier: t.bonus.multiplier });
-            }
+            if (t.isResearched && t.bonus?.resource === resource.name) bonusMultiplier += t.bonus.multiplier;
         });
-        breakdown.totalProduction = breakdown.base * (1 + breakdown.bonusMultiplier);
-        setupTooltip(infoRow, breakdown);
+        const totalProduction = baseProduction * (1 + bonusMultiplier);
 
-        // --- Update Values of Existing Elements ---
         const progressBar = infoRow.querySelector('.resource-progress-bar');
-        const fillPercentage = Math.min((resource.amount / resource.capacity) * 100, 100);
-        progressBar.style.width = `${fillPercentage}%`;
+        progressBar.style.width = `${Math.min((resource.amount / resource.capacity) * 100, 100)}%`;
 
         const generationEl = infoRow.querySelector('[data-value-type="generation"]');
-        generationEl.textContent = `${formatNumber(breakdown.totalProduction)}/s`;
+        generationEl.textContent = `${formatNumber(totalProduction)}/s`;
         
         const storageEl = infoRow.querySelector('[data-value-type="storage"]');
-        let amountDisplay;
-        if (resource.amount >= resource.capacity) {
-            amountDisplay = Math.floor(resource.amount).toLocaleString();
-        } else {
-            amountDisplay = formatNumber(resource.amount);
-        }
+        let amountDisplay = (resource.amount >= resource.capacity) ? Math.floor(resource.amount).toLocaleString() : formatNumber(resource.amount);
         const capacityDisplay = Math.floor(resource.capacity).toLocaleString();
         storageEl.textContent = `${amountDisplay} / ${capacityDisplay}`;
 
-        // Update 'capped' class
         infoRow.classList.toggle('capped', resource.amount >= resource.capacity);
     });
 }
-
