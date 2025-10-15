@@ -15,7 +15,7 @@
     background-color: #1a1a1a;
     color: #fff;
     padding: 20px 30px;
-    border: 1px solid #888;
+    animation: pulse-glow 5s ease-in-out infinite;
     width: 90%;
     max-width: 400px;
     border-radius: 8px;
