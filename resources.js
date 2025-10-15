@@ -7,6 +7,10 @@ export function updateResourceInfo() {
     const infoPanel = document.getElementById('infoPanel');
     infoPanel.innerHTML = ''; 
 
+    // Create the new wrapper for all resource rows
+    const infoSection = document.createElement('div');
+    infoSection.className = 'info-section';
+
     const displayResources = [...resources].sort((a, b) => {
         if (a.name === 'Insight') return -1;
         if (b.name === 'Insight') return 1;
@@ -14,25 +18,25 @@ export function updateResourceInfo() {
     });
 
     displayResources.forEach(resource => {
+        // Auto-discover a resource once its amount is > 0
+        if (resource.amount > 0 && !resource.isDiscovered) {
+            resource.isDiscovered = true;
+        }
+        
         if (resource.isDiscovered) {
-            const resourceDiv = document.createElement('div');
-            resourceDiv.className = 'info-section';
+            // This is the individual row for a single resource
+            const infoRow = document.createElement('div');
+            infoRow.className = 'info-row';
             
-            // Add the dedicated element for the hover background
-            const hoverBg = document.createElement('div');
-            hoverBg.className = 'info-section-hover-bg';
-            resourceDiv.appendChild(hoverBg);
+            if (resource.amount >= resource.capacity) {
+                infoRow.classList.add('capped');
+            }
             
             const progressBar = document.createElement('div');
             progressBar.className = 'resource-progress-bar';
-            
             const fillPercentage = Math.min((resource.amount / resource.capacity) * 100, 100);
             progressBar.style.width = `${fillPercentage}%`;
-            resourceDiv.appendChild(progressBar);
-
-            if (resource.amount >= resource.capacity) {
-                resourceDiv.classList.add('capped');
-            }
+            infoRow.appendChild(progressBar);
 
             const breakdown = {
                 base: 0,
@@ -49,13 +53,13 @@ export function updateResourceInfo() {
                 }
             });
             technologies.forEach(t => {
-                if (t.isResearched && t.bonus && t.bonus.resource === resource.name) {
+                if (t.isReserached && t.bonus && t.bonus.resource === resource.name) {
                     breakdown.bonusMultiplier += t.bonus.multiplier;
                     breakdown.bonuses.push({ name: t.name, multiplier: t.bonus.multiplier });
                 }
             });
             breakdown.totalProduction = breakdown.base * (1 + breakdown.bonusMultiplier);
-            setupTooltip(resourceDiv, breakdown);
+            setupTooltip(infoRow, breakdown);
 
             const column1 = document.createElement('div');
             column1.className = 'infocolumn1';
@@ -84,13 +88,17 @@ export function updateResourceInfo() {
             column2.appendChild(storageElement);
             column3.appendChild(generationElement);
 
-            resourceDiv.appendChild(column1);
-            resourceDiv.appendChild(column2);
-            resourceDiv.appendChild(column3);
+            infoRow.appendChild(column1);
+            infoRow.appendChild(column2);
+            infoRow.appendChild(column3);
 
-            infoPanel.appendChild(resourceDiv);
+            // Append the finished row to our new section wrapper
+            infoSection.appendChild(infoRow);
         }
     });
+
+    // Append the single section wrapper to the main panel
+    infoPanel.appendChild(infoSection);
 }
 
 export function getInitialResources() {
