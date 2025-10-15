@@ -100,6 +100,20 @@
     text-align: center;
 }
 
+#logOptionsBtn {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 20px;
+    cursor: pointer;
+    position: absolute;
+    right: 10px;
+    transition: color 0.2s ease;
+}
+#logOptionsBtn:hover {
+    color: white;
+}
+
 .log-header h3 {
     margin: 0;
     font-size: 1em;

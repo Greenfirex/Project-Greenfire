@@ -1,0 +1,46 @@
+.log-options-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.75);
+    z-index: 1001; /* Slightly higher than other popups */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.log-options-content {
+    background-color: #1a1a1a;
+    color: #fff;
+    padding: 20px 30px;
+    border: 1px solid #888;
+    width: 90%;
+    max-width: 400px;
+    border-radius: 8px;
+}
+
+.log-options-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.log-options-header h3 {
+    margin: 0;
+    flex-grow: 1;
+    text-align: center;
+}
+
+.log-options-close {
+    font-size: 28px;
+    font-weight: bold;
+    color: #aaa;
+    cursor: pointer;
+}
+
+.log-options-close:hover {
+    color: white;
+}

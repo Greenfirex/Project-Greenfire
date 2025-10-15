@@ -1,26 +1,32 @@
-export function addLogEntry(message, color = 'white', options = {}) {
-    // MODIFIED: Target the new 'logContent' div for entries
+export const LogType = {
+    INFO: 'info', SUCCESS: 'success', ERROR: 'error',
+    STORY: 'story', ACTION: 'action', UNLOCK: 'unlock'
+};
+
+let logSettings = { colors: {}, filters: {} };
+
+export function updateLogSettings(newSettings) {
+    logSettings = newSettings;
+}
+
+export function addLogEntry(message, type, options = {}) {
+    if (logSettings.filters[type]) { return; }
+
     const logContent = document.getElementById('logContent');
     if (!logContent) return;
-
+    
     const logEntry = document.createElement('div');
     logEntry.className = 'log-entry';
     
-    const now = new Date();
-    const timeString = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
-
+    const timeString = `[${new Date().toLocaleTimeString()}]`;
     logEntry.textContent = `${timeString} ${message}`;
-    logEntry.style.color = color;
+    logEntry.style.color = logSettings.colors[type] || 'white';
     
     if (options.onClick) {
         logEntry.classList.add('clickable');
-        logEntry.addEventListener('click', (event) => {
-            console.log("Clickable log entry was successfully clicked!"); 
-            options.onClick(event);
-        });
+        logEntry.addEventListener('click', options.onClick);
     }
     
     logContent.appendChild(logEntry);
-    // Scroll the new container
     logContent.scrollTop = logContent.scrollHeight;
 }

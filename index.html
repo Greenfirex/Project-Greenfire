@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="styles/colony.css">
 <link rel="stylesheet" href="styles/story-popup.css">
 <link rel="stylesheet" href="styles/options-menu.css">
+<link rel="stylesheet" href="styles/log-options.css">
 	<link rel="icon" type="image/x-icon" href="favicon.ico">
 	<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
     <title>Project Greenfire</title>
@@ -49,6 +50,7 @@
 <div id="logSection">
     <div class="log-header">
         <h3>Log entries:</h3>
+		<button id="logOptionsBtn" title="Log Options">⚙️</button>
     </div>
     <div id="logContent"></div> </div>
 </div>
@@ -135,6 +137,22 @@
     </div>
 </div>
 
+<div id="logOptionsMenu" class="log-options-overlay hidden">
+    <div class="log-options-content">
+        <div class="log-options-header">
+            <h3>Log Options</h3>
+            <span class="log-options-close">&times;</span>
+        </div>
+        <div class="option-group">
+            <h4>Filters</h4>
+            <div class="log-filter-option">
+                <label for="filterAction">Hide Manual Action Logs</label>
+                <input type="checkbox" id="filterAction" data-log-type="action">
+            </div>
+            </div>
+    </div>
+</div>
+
 <div id="storyPopup" class="story-popup-overlay hidden">
     <div class="story-popup-content">
         <span class="story-popup-close">&times;</span>
@@ -162,6 +180,7 @@
 <script src="eventManager.js" type="module"></script>
 <script src="popup.js" type="module"></script>
 <script src="formatting.js" type="module"></script>
+<script src="log-options.js" type="module"></script>
 <script src="sections/colony.js" type="module"></script>
 <script src="sections/research.js" type="module"></script>
 <script src="sections/manufacturing.js" type="module"></script>

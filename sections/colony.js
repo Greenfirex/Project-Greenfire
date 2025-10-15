@@ -89,7 +89,7 @@ function buildBuilding(event, buildingName) {
         const resource = resources.find(r => r.name === cost.resource);
         if (!resource || resource.amount < cost.amount) {
             canAfford = false;
-            addLogEntry(`Not enough ${cost.resource} to build a ${buildingName}.`, 'red');
+            addLogEntry(`Not enough ${cost.resource} to build a ${buildingName}.`, LogType.ERROR);
             break;
         }
     }
@@ -103,13 +103,13 @@ function buildBuilding(event, buildingName) {
         }
 
         building.count += 1;
-        addLogEntry(`Built a new ${buildingName}!`, 'green');
+        addLogEntry(`Built a new ${buildingName}!`, LogType.SUCCESS);
 
         if (building.effect && building.effect.type === 'storage') {
             const resourceToUpgrade = resources.find(r => r.name === building.effect.resource);
             if (resourceToUpgrade) {
                 resourceToUpgrade.capacity += building.effect.value;
-                addLogEntry(`${resourceToUpgrade.name} capacity increased by ${building.effect.value}!`, 'blue');
+                addLogEntry(`${resourceToUpgrade.name} capacity increased by ${building.effect.value}!`, LogType.INFO);
             }
         }
 		
@@ -118,7 +118,7 @@ function buildBuilding(event, buildingName) {
                 activatedSections.researchSection = true;
                 setActivatedSections(activatedSections);
                 applyActivatedSections();
-                addLogEntry('The first Laboratory is operational. Research is now available.', 'blue');
+                addLogEntry('The first Laboratory is operational. Research is now available.', LogType.UNLOCK);
             }
         }
         
@@ -221,10 +221,10 @@ function mineStone(event) {
     const stone = resources.find(r => r.name === 'Stone');
     if (stone) {
         if (stone.amount >= stone.capacity) {
-            addLogEntry('Stone storage is full!', 'orange');
+            addLogEntry('Stone storage is full!', LogType.ERROR);
         } else {
             stone.amount = Math.min(stone.amount + 1, stone.capacity);
-            addLogEntry('Manually mined 1 Stone.', 'blue');
+            addLogEntry('Manually mined 1 Stone.', LogType.ACTION);
         }
         updateResourceInfo();
     }
