@@ -1,7 +1,7 @@
 import { buildings } from './data/buildings.js';
 import { technologies } from './data/technologies.js';
 import { formatNumber } from './formatting.js';
-import { getOrCreateTooltip, updateTooltipPosition } from '../main.js';
+import { getOrCreateTooltip, updateTooltipPosition } from './main.js';
 
 // --- DATA ---
 export function getInitialResources() {
