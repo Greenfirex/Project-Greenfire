@@ -69,7 +69,6 @@
     }
 }
 
-/* --- Log Section Styling --- */
 /* --- Log Section Styles --- */
 #logSection {
     width: 100%;
@@ -131,6 +130,18 @@
     font-family: 'Roboto Mono', monospace;
     font-size: 12px;
     color: #90EE90; /* Default green color for readability */
+}
+
+/* Style for clickable log entries */
+.log-entry.clickable {
+    cursor: pointer;
+    text-decoration: underline;
+    font-style: italic;
+    color: #AB47BC !important; /* A distinct purple color */
+}
+
+.log-entry.clickable:hover {
+    filter: brightness(1.5);
 }
 
 /* Custom Scrollbar, now applied to #logContent */
