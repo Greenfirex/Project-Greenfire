@@ -4,58 +4,47 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    padding-top: 10px;
-    position: relative; /* ADDED: To anchor the new glowing line */
+    position: relative; /* This is an anchor for child elements */
 }
 
 .menu-buttons-container {
-    flex-grow: 1;
+    padding-top: 10px;
     width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
     background-color: #000;
+    flex-grow: 1; /* Allow this to fill available space */
 }
 
-/* --- UPDATED: Consistent Button Styling --- */
+/* --- Menu Button Styles --- */
 .menu-button {
-    width: 85%; /* Adjusted width slightly */
+    width: 85%;
     height: 50px;
     margin: 8px 0;
     display: flex;
     align-items: center;
     justify-content: center;
-
     background-image: url('../assets/images/PNG/Button03.png');
     background-size: 100% 100%;
-    background-color: transparent;
-    
     color: #EAEAEA;
     font-size: 16px;
     font-weight: bold;
     text-shadow: 1px 1px 2px #000;
-    
     border: none;
     cursor: pointer;
-    transition: all 0.2s ease-in-out; /* Combined transition */
+    transition: all 0.2s ease-in-out;
 }
-
 .menu-button:hover {
     background-image: url('../assets/images/PNG/Button04.png');
     color: #FFF;
     transform: scale(1.05);
 }
-
-/* --- NEW: Style for the active button --- */
 .menu-button.active {
     color: #FFF;
-    /* MODIFIED: Use the new --active-glow variables */
-    box-shadow: 0 0 12px rgba(var(--active-glow-r), var(--active-glow-g), var(--active-glow-b), 0.8), 
-                0 0 6px rgba(var(--active-glow-r), var(--active-glow-g), var(--active-glow-b), 0.5) inset;
+    box-shadow: 0 0 12px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8), 
+                0 0 6px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5) inset;
 }
-
 
 /* --- Animation for newly unlocked buttons --- */
 .menu-button.hidden {
@@ -80,29 +69,17 @@
     }
 }
 
-
 /* --- Log Section Styling --- */
+/* --- Log Section Styles --- */
 #logSection {
     width: 100%;
-    height: 40%;
-    background-color: #000;
-    border-top: 1px solid #555; /* Keep the original top border */
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-}
-
-/* This is the existing glowing line at the top */
-#logSection {
-    width: 100%;
-    height: 40%;
+    height: 40%; /* Fixed height */
     background-color: #000;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
+    flex-shrink: 0;
     position: relative;
-    flex-shrink: 0; /* Prevent it from shrinking */
 }
 
 /* This is the glowing line at the top of the whole log section */
@@ -110,7 +87,7 @@
     content: '';
     position: absolute;
     left: 0;
-    top: 0; /* Position at the top */
+    top: 0;
     width: 100%;
     height: 2px;
     animation: pulse-glow 5s ease-in-out infinite;
@@ -122,13 +99,13 @@
     position: relative;
     flex-shrink: 0;
     text-align: center;
-    border-top: 1px solid #555;
 }
 
 .log-header h3 {
     margin: 0;
     font-size: 1em;
     font-weight: normal;
+    color: white; /* Ensure title text is visible */
 }
 
 /* This is the glowing line below the title */
@@ -146,14 +123,14 @@
 #logContent {
     flex-grow: 1;
     overflow-y: auto;
-    padding: 0 10px;
+    padding: 5px 10px; /* Add some padding */
 }
 
 .log-entry {
-    margin-top: 5px;
     margin-bottom: 5px;
     font-family: 'Roboto Mono', monospace;
     font-size: 12px;
+    color: #90EE90; /* Default green color for readability */
 }
 
 /* Custom Scrollbar, now applied to #logContent */
