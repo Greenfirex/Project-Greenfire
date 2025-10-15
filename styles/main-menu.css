@@ -94,32 +94,44 @@
 }
 
 /* This is the existing glowing line at the top */
+#logSection {
+    width: 100%;
+    height: 40%;
+    background-color: #000;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    flex-shrink: 0; /* Prevent it from shrinking */
+}
+
+/* This is the glowing line at the top of the whole log section */
 #logSection::before {
     content: '';
     position: absolute;
     left: 0;
-    top: -2px;
+    top: 0; /* Position at the top */
     width: 100%;
     height: 2px;
     animation: pulse-glow 5s ease-in-out infinite;
     z-index: 5;
 }
 
-/* This styles the new static header for the title */
 .log-header {
     padding: 10px;
-    position: relative; /* Anchor for the new bottom line */
+    position: relative;
     flex-shrink: 0;
+    text-align: center;
+    border-top: 1px solid #555;
 }
 
 .log-header h3 {
     margin: 0;
     font-size: 1em;
     font-weight: normal;
-    text-align: center;
 }
 
-/* This is the NEW glowing line below the title */
+/* This is the glowing line below the title */
 .log-header::after {
     content: '';
     position: absolute;
@@ -131,9 +143,8 @@
     z-index: 5;
 }
 
-/* This is the new scrollable area for log entries */
 #logContent {
-    flex-grow: 1; /* Allows it to fill the remaining space */
+    flex-grow: 1;
     overflow-y: auto;
     padding: 0 10px;
 }
