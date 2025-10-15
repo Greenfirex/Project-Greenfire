@@ -149,14 +149,14 @@
     width: 12px;
 }
 #logContent::-webkit-scrollbar-track {
-    background: #333;
-    border-radius: 10px;
+    background: #111;
 }
 #logContent::-webkit-scrollbar-thumb {
-    background-color: #888;
-    border-radius: 10px;
-    border: 3px solid #333;
+    /* Use the CSS variable for your glow color */
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+    border-radius: 6px;
+    border: 3px solid #111;
 }
 #logContent::-webkit-scrollbar-thumb:hover {
-    background-color: #555;
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
 }
