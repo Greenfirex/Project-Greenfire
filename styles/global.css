@@ -20,6 +20,25 @@ body {
 	--glow-spread-multiplier: 1;
 }
 
+/* This rule preloads all necessary background images */
+body::after {
+    position: absolute; 
+    width: 0; 
+    height: 0; 
+    overflow: hidden; 
+    z-index: -1;
+    content: 
+        url('../assets/images/background1.jpg')
+        url('../assets/images/background2.jpg')
+        url('../assets/images/background3.jpg')
+        url('../assets/images/background4.jpg')
+        url('../assets/images/background5.jpg')
+        url('../assets/images/PNG/Button03.png')
+        url('../assets/images/PNG/Button04.png')
+        url('../assets/images/logo.png')
+        url('../assets/images/logo-header.png');
+}
+
 body.glow-disabled * {
     animation: none !important;
     box-shadow: none !important;
@@ -156,3 +175,4 @@ body.glow-disabled * {
     position: relative; /* Ensures z-index will apply */
     z-index: 1;       /* Places them on layer 1 */
 }
+

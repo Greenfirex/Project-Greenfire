@@ -20,11 +20,8 @@ window.debugResources = resources;
 let lastUpdateTime = Date.now();
 
 document.addEventListener('DOMContentLoaded', () => {
-    preloadAssets().then(() => {
-        // Až se načtou všechny prvky, schováme preloader a spustíme hru
-        document.getElementById('preloader').classList.add('hidden');
-        startGame();
-    });
+    document.getElementById('preloader').classList.add('hidden');
+    startGame();
 });
 
 document.addEventListener('beforeunload', () => {
@@ -210,32 +207,6 @@ if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
             applyActivatedSections();
         }
     }
-}
-
-function preloadAssets() {
-    const images = [
-        // MODIFIED: All paths now start with '/'
-        'assets/images/background1.jpg',
-        'assets/images/background2.jpg',
-        'assets/images/background3.jpg',
-        'assets/images/background4.jpg',
-        'assets/images/background5.jpg',
-        'assets/images/PNG/Button03.png',
-        'assets/images/PNG/Button04.png',
-		'assets/images/logo.png',
-		'assets/images/logo-header.png',
-    ];
-
-    const promises = images.map(src => {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve();
-            img.onerror = () => resolve();
-            img.src = src;
-        });
-    });
-
-    return Promise.all(promises);
 }
 
 // A single, global tooltip element
