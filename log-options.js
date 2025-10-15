@@ -14,7 +14,7 @@ const defaultLogSettings = {
     }
 };
 
-// This will hold the current settings
+// This will hold the current settingssssss
 let logSettings;
 
 // This function updates the button UI to show what's active
