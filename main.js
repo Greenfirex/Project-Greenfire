@@ -1,4 +1,4 @@
-import { resources, updateResourceInfo } from './resources.js';
+import { resources, updateResourceInfo, setupInfoPanel } from './resources.js';
 import { technologies } from './data/technologies.js';
 import { buildings } from './data/buildings.js';
 import { setupColonySection, updateBuildingButtonsState } from './sections/colony.js';
@@ -75,11 +75,13 @@ function startGame() {
 	document.getElementById('gameArea').appendChild(shipyardSection);
 	document.getElementById('gameArea').appendChild(galaxyMapSection);
 
+    setupInfoPanel();
     setupColonySection(colonySection);
     setupResearchSection(researchSection);
     setupManufacturingSection(manufacturingSection);
 	setupShipyardSection(shipyardSection);
 	setupGalaxyMapSection(galaxyMapSection);
+	
     setupMenuButtons();
     loadCurrentSection();
     updateResourceInfo();
