@@ -95,23 +95,26 @@
 
 .log-header {
     padding: 10px;
-    position: relative;
-    flex-shrink: 0;
+    position: relative; /* This is the anchor for the button */
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #logOptionsBtn {
     background: none;
     border: none;
-    color: #888;
+    color: #555; /* FIXED: A much darker, more subtle gray */
     font-size: 20px;
     cursor: pointer;
-    position: absolute;
-    right: 10px;
+    position: absolute; /* Position it relative to the header above */
+    right: 15px;      /* Give it some padding from the edge */
     transition: color 0.2s ease;
 }
+
 #logOptionsBtn:hover {
-    color: white;
+    color: #999; /* A lighter gray on hover */
 }
 
 .log-header h3 {
