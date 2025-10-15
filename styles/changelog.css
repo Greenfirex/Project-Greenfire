@@ -1,0 +1,45 @@
+.changelog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 1002;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.changelog-content {
+    background-color: #1a1a1a;
+    color: #fff;
+    padding: 20px 30px;
+    border: 1px solid #888;
+    width: 90%;
+    max-width: 600px;
+    height: 70vh;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.changelog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-shrink: 0;
+}
+
+.changelog-close { font-size: 28px; cursor: pointer; color: #888; }
+.changelog-close:hover { color: #fff; }
+
+#changelogBody {
+    overflow-y: auto;
+    text-align: left;
+}
+
+#changelogBody h1, #changelogBody h3 { color: #90EE90; }
+#changelogBody ul { list-style-type: '✨'; padding-left: 20px; }
+#changelogBody li { padding-bottom: 5px; }

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="styles/global.css">
 <link rel="stylesheet" href="styles/header-footer.css">
 <link rel="stylesheet" href="styles/main-menu.css">
@@ -13,10 +13,30 @@
 <link rel="stylesheet" href="styles/story-popup.css">
 <link rel="stylesheet" href="styles/options-menu.css">
 <link rel="stylesheet" href="styles/log-options.css">
-	<link rel="icon" type="image/x-icon" href="favicon.ico">
-	<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
-    <title>Project Greenfire</title>
+<link rel="stylesheet" href="styles/changelog.css">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
+	
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="main.js" type="module"></script>
+<script src="resources.js" type="module"></script>
+<script src="saveload.js" type="module"></script>
+<script src="headeroptions.js" type="module" ></script>
+<script src="options.js" type="module"></script>
+<script src="log.js" type="module"></script>
+<script src="eventManager.js" type="module"></script>
+<script src="popup.js" type="module"></script>
+<script src="formatting.js" type="module"></script>
+<script src="log-options.js" type="module"></script>
+<script src="sections/colony.js" type="module"></script>
+<script src="sections/research.js" type="module"></script>
+<script src="sections/manufacturing.js" type="module"></script>
+<script src="sections/shipyard.js" type="module"></script>
+<script src="sections/galaxyMap.js" type="module"></script>
+
+<title>Project Greenfire</title>
 </head>
+
 <body>
 <div id="preloader">
         <div class="loader"></div>
@@ -193,22 +213,16 @@
     </div>
 </div>
 
-<script src="main.js" type="module"></script>
-<script src="resources.js" type="module"></script>
-<script src="saveload.js" type="module"></script>
-<script src="headeroptions.js" type="module" ></script>
-<script src="options.js" type="module"></script>
-<script src="log.js" type="module"></script>
-<script src="eventManager.js" type="module"></script>
-<script src="popup.js" type="module"></script>
-<script src="formatting.js" type="module"></script>
-<script src="log-options.js" type="module"></script>
-<script src="sections/colony.js" type="module"></script>
-<script src="sections/research.js" type="module"></script>
-<script src="sections/manufacturing.js" type="module"></script>
-<script src="sections/shipyard.js" type="module"></script>
-<script src="sections/galaxyMap.js" type="module"></script>
-
-    
+<div id="changelogPopup" class="changelog-overlay hidden">
+    <div class="changelog-content">
+        <div class="changelog-header">
+            <h3>Changelog</h3>
+            <span class="changelog-close">&times;</span>
+        </div>
+        <div id="changelogBody">
+            </div>
+    </div>
+</div>
+  
 </body>
 </html>

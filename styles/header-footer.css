@@ -4,7 +4,10 @@
     color: white;
     text-align: center;
     flex-shrink: 0;
-    position: relative; /* Needed for the pseudo-element */
+    position: relative;
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
 }
 
 .footer-progress-bar {
