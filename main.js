@@ -288,24 +288,23 @@ export function setupTooltip(element, tooltipData) {
     const tooltip = getOrCreateTooltip();
 
     element.addEventListener('mouseenter', (e) => {
+        // --- The heavy work of building the tooltip is done ONCE here ---
         tooltip.innerHTML = '';
 
-        // Case 1: Resource Breakdown Tooltip
         if (tooltipData && typeof tooltipData.totalProduction !== 'undefined') {
             tooltip.innerHTML = `
                 <h4>Production Breakdown</h4>
                 <div class="tooltip-section">
-                    <p>Base: ${tooltipData.base.toFixed(2)}/s</p>
-                    ${tooltipData.buildings.map(b => `<p class="tooltip-detail">+ ${b.amount.toFixed(2)}/s from ${b.count}x ${b.name}</p>`).join('')}
+                    <p>Base: ${formatNumber(tooltipData.base)}/s</p>
+                    ${tooltipData.buildings.map(b => `<p class="tooltip-detail">+ ${formatNumber(b.amount)}/s from ${b.count}x ${b.name}</p>`).join('')}
                 </div>
                 <div class="tooltip-section">
                     <p>Bonus: +${(tooltipData.bonusMultiplier * 100).toFixed(0)}%</p>
                     ${tooltipData.bonuses.map(b => `<p class="tooltip-detail">+${b.multiplier * 100}% from ${b.name}</p>`).join('')}
                 </div>
                 <hr>
-                <p><strong>Total: ${tooltipData.totalProduction.toFixed(2)}/s</strong></p>
+                <p><strong>Total: ${formatNumber(tooltipData.totalProduction)}/s</strong></p>
             `;
-        
         // Case 2: Simple string
         } else if (typeof tooltipData === 'string') {
             tooltip.textContent = tooltipData;
@@ -371,6 +370,7 @@ export function setupTooltip(element, tooltipData) {
         tooltip.style.visibility = 'hidden';
     });
 
+// --- This now ONLY updates the position, which is very fast ---
     element.addEventListener('mousemove', (e) => {
         updateTooltipPosition(e, tooltip);
     });
