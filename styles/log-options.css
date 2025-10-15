@@ -44,3 +44,27 @@
 .log-options-close:hover {
     color: white;
 }
+
+.log-color-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 10px 0;
+}
+
+/* Style the color input */
+.log-color-option input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 40px;
+    height: 25px;
+    background-color: transparent;
+    border: 1px solid #555;
+    border-radius: 4px;
+    cursor: pointer;
+}
+/* Style the color picker indicator */
+.log-color-option input[type="color"]::-webkit-color-swatch {
+    border-radius: 3px;
+    border: none;
+}
