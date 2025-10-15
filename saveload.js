@@ -23,16 +23,20 @@ export function saveGameState() {
 
 export function loadGameState() {
     const savedGameState = localStorage.getItem('gameState');
-    const logSection = document.getElementById('logSection');
-    logSection.innerHTML = '<h3>Log entries:</h3>';
+    
+    // MODIFIED: Find the inner content area, not the whole section
+    const logContent = document.getElementById('logContent');
+    // Clear only the scrollable content, leaving the header
+    if (logContent) {
+        logContent.innerHTML = '';
+    }
 
     if (savedGameState) {
         const gameState = JSON.parse(savedGameState);
         
-        // --- Smart Loading Logic ---
+        // --- Smart Loading Logic (unchanged) ---
         const defaultResources = getInitialResources();
         const defaultBuildings = getInitialBuildings();
-
         defaultResources.forEach(defaultResource => {
             const savedResource = gameState.resources.find(r => r.name === defaultResource.name);
             if (savedResource) {
@@ -41,7 +45,6 @@ export function loadGameState() {
         });
         resources.length = 0;
         resources.push(...defaultResources);
-
         if (gameState.buildings) {
             defaultBuildings.forEach(defaultBuilding => {
                 const savedBuilding = gameState.buildings.find(b => b.name === defaultBuilding.name);
@@ -53,14 +56,13 @@ export function loadGameState() {
             buildings.push(...defaultBuildings);
         }
         
-        // --- Load the rest of the game state ---
+        // --- Load the rest of the game state (unchanged) ---
         setResearchProgress(gameState.researchProgress ?? 0);
         setCurrentResearchingTech(gameState.currentResearchingTech);
         setResearchInterval(null);
         setCurrentResearchStartTime(0);
         setActivatedSections(gameState.activatedSections);
 
-        // Resume any ongoing research
         const techName = getCurrentResearchingTech();
         if (techName) {
             const tech = technologies.find(t => t.name === techName);
