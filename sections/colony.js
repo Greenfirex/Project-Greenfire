@@ -1,7 +1,7 @@
 import { resources, updateResourceInfo } from '../resources.js';
 import { buildings } from '../data/buildings.js';
 import { technologies } from '../data/technologies.js';
-import { addLogEntry } from '../log.js';
+import { addLogEntry, LogType } from '../log.js';
 import { setupTooltip, activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
 
 let isMiningOnCooldown = false;
