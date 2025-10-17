@@ -2,20 +2,14 @@ import { LogType, updateLogSettings } from './log.js';
 
 const defaultLogSettings = {
     colors: {
-        [LogType.INFO]: '#2196F3',
-        [LogType.SUCCESS]: '#4CAF50',
-        [LogType.ERROR]: '#F44336',
-        [LogType.STORY]: '#9C27B0',
-        [LogType.ACTION]: '#9E9E9E',
-        [LogType.UNLOCK]: '#FFC107'
+        [LogType.INFO]: '#64B5F6',    [LogType.SUCCESS]: '#81C784',
+        [LogType.ERROR]: '#E57373',   [LogType.STORY]: '#BA68C8',
+        [LogType.ACTION]: '#9E9E9E',  [LogType.UNLOCK]: '#FFD54F'
     },
     filters: {
-        [LogType.INFO]: false,
-        [LogType.SUCCESS]: false,
-        [LogType.ERROR]: false,
-        [LogType.STORY]: false,
-        [LogType.ACTION]: false,
-        [LogType.UNLOCK]: false
+        [LogType.INFO]: false, [LogType.SUCCESS]: false,
+        [LogType.ERROR]: false, [LogType.STORY]: false,
+        [LogType.ACTION]: false, [LogType.UNLOCK]: false
     }
 };
 
@@ -60,7 +54,6 @@ function updateFilter(logType, isDisabled) {
 }
 
 function updateAllColorUI() {
-    // Update the color picker input values
     const colorPickers = document.querySelectorAll('#logColorsContainer input[type="color"]');
     colorPickers.forEach(picker => {
         const logType = picker.dataset.logType;
@@ -68,7 +61,6 @@ function updateAllColorUI() {
             picker.value = logSettings.colors[logType];
         }
     });
-    // Update the example text colors in the filter section
     for (const logType in logSettings.colors) {
         const exampleText = document.querySelector(`.log-filter-group[data-log-type="${logType}"] .log-filter-example`);
         if (exampleText) {
@@ -84,6 +76,10 @@ function setupLogOptions() {
 
     logOptionsBtn?.addEventListener('click', () => {
         logOptionsMenu.classList.remove('hidden');
+        // Refresh the UI every time the popup is opened
+        updateFilterButtonsUI();
+        updateAllColorUI();
+        updateExampleLog(LogType.INFO);
     });
     closeButton?.addEventListener('click', () => logOptionsMenu.classList.add('hidden'));
     logOptionsMenu?.addEventListener('click', (e) => {
@@ -106,14 +102,14 @@ function setupLogOptions() {
             const label = document.createElement('span');
             label.className = 'log-filter-label';
             label.textContent = `${logType.charAt(0).toUpperCase() + logType.slice(1)}`;
-            
+
             const example = document.createElement('span');
             example.className = 'log-filter-example';
             example.textContent = `(e.g., "${exampleMessages[logType]}")`;
             
             const buttonWrapper = document.createElement('div');
             buttonWrapper.className = 'log-filter-buttons';
-            
+
             const btnEnabled = document.createElement('button');
             btnEnabled.className = 'filter-btn filter-btn-show';
             btnEnabled.textContent = 'Show';
@@ -123,6 +119,8 @@ function setupLogOptions() {
             btnDisabled.className = 'filter-btn filter-btn-hide';
             btnDisabled.textContent = 'Hide';
             btnDisabled.addEventListener('click', () => updateFilter(logType, true));
+            
+            group.addEventListener('mouseenter', () => updateExampleLog(logType));
 
             buttonWrapper.appendChild(btnEnabled);
             buttonWrapper.appendChild(btnDisabled);
@@ -136,18 +134,16 @@ function setupLogOptions() {
     const colorPickers = document.querySelectorAll('#logColorsContainer input[type="color"]');
     colorPickers.forEach(picker => {
         const logType = picker.dataset.logType;
-        
-        // THIS LOGIC WAS MISSING
-        if (logSettings.colors[logType]) {
-            picker.value = logSettings.colors[logType];
-        }
-
         picker.addEventListener('input', () => {
             logSettings.colors[logType] = picker.value;
             localStorage.setItem('logSettings', JSON.stringify(logSettings));
             updateLogSettings(logSettings);
             updateAllColorUI();
         });
+        const colorOption = picker.closest('.log-color-option');
+        if (colorOption) {
+            colorOption.addEventListener('mouseenter', () => updateExampleLog(logType));
+        }
     });
     
     const resetColorsBtn = document.getElementById('resetLogColorsBtn');
