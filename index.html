@@ -167,44 +167,45 @@
             <h3>Log Options</h3>
             <span class="log-options-close">&times;</span>
         </div>
+
         <div class="log-option-group">
-		<h4>Filters</h4>
-    <div id="logFiltersContainer" class="option-group"></div>
-		</div>
+            <h4>Filters</h4>
+            <div id="logFiltersContainer"></div>
+        </div>
 
         <div class="log-option-group">
             <h4>Colors</h4>
-            <div class="log-color-option">
-                <label for="colorInfo">Info Messages</label>
-                <input type="color" id="colorInfo" data-log-type="info">
+            <div id="logColorsContainer">
+                <div class="log-color-option">
+                    <label for="colorInfo">Info Messages</label>
+                    <input type="color" id="colorInfo" data-log-type="info">
+                </div>
+                <div class="log-color-option">
+                    <label for="colorSuccess">Success Messages</label>
+                    <input type="color" id="colorSuccess" data-log-type="success">
+                </div>
+                <div class="log-color-option">
+                    <label for="colorError">Error Messages</label>
+                    <input type="color" id="colorError" data-log-type="error">
+                </div>
+                <div class="log-color-option">
+                    <label for="colorStory">Story Messages</label>
+                    <input type="color" id="colorStory" data-log-type="story">
+                </div>
+                <div class="log-color-option">
+                    <label for="colorAction">Action Messages</label>
+                    <input type="color" id="colorAction" data-log-type="action">
+                </div>
+                <div class="log-color-option">
+                    <label for="colorUnlock">Unlock Messages</label>
+                    <input type="color" id="colorUnlock" data-log-type="unlock">
+                </div>
             </div>
-            <div class="log-color-option">
-                <label for="colorSuccess">Success Messages</label>
-                <input type="color" id="colorSuccess" data-log-type="success">
-            </div>
-            <div class="log-color-option">
-                <label for="colorError">Error Messages</label>
-                <input type="color" id="colorError" data-log-type="error">
-            </div>
-            <div class="log-color-option">
-                <label for="colorStory">Story Messages</label>
-                <input type="color" id="colorStory" data-log-type="story">
-            </div>
-			<div class="log-color-option">
-				<label for="colorAction">Action Messages</label>
-				<input type="color" id="colorAction" data-log-type="action">
-			</div>
-            <div class="log-color-option">
-                <label for="colorUnlock">Unlock Messages</label>
-                <input type="color" id="colorUnlock" data-log-type="unlock">
-			</div>
-		</div>	
-		<div class="log-option-group">
-			<h4>Defaults</h4>
-			<div id="logColorsContainer">
-				<button id="resetLogColorsBtn" class="log-option-button">Reset Colors to Default</button>
-			</div>	
-        </div>        
+        </div>
+
+        <div class="log-option-group">
+            <button id="resetLogColorsBtn" class="log-option-button">Reset Colors to Default</button>
+        </div>
     </div>
 </div>
 
