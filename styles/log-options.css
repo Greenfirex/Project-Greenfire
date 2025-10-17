@@ -106,18 +106,34 @@
 }
 
 .filter-btn {
-    background-color: #333;
-    color: #888;
-    border: 1px solid #555;
-    padding: 5px 10px;
-    border-radius: 4px;
+    width: 80px; /* Give the buttons a fixed width */
+    height: 35px; /* Give the buttons a fixed height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background-image: url('../assets/images/PNG/Button03.png');
+    background-size: 100% 100%;
+    background-color: transparent;
+
+    color: #888; /* Dim the text for the inactive button */
+    font-size: 14px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+    
+    border: none;
+    border-radius: 5px;
     cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.filter-btn:hover {
+    transform: scale(1.05);
 }
 
 .filter-btn.active {
-    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7);
-    color: white;
-    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 1);
+    background-image: url('../assets/images/PNG/Button04.png'); /* Use the "active" image */
+    color: white; /* Make the text bright for the selected button */
 }
 
 .log-color-option {
