@@ -5,7 +5,7 @@ import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, se
 import { activatedSections, setActivatedSections } from './main.js';
 import { showStoryPopup } from './popup.js';
 import { storyEvents } from './data/storyEvents.js';
-import { addLogEntry } from './log.js';
+import { addLogEntry, LogType } from './log.js';
 
 export function saveGameState() {
     const research = getCurrentResearchingTech();
