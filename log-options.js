@@ -30,14 +30,6 @@ const exampleMessages = {
 
 let logSettings;
 
-function updateExampleLog(logType) {
-    const exampleLog = document.getElementById('logExample');
-    if (exampleLog) {
-        exampleLog.style.color = logSettings.colors[logType];
-        exampleLog.textContent = `[12:34:56] ${exampleMessages[logType]}`;
-    }
-}
-
 function updateFilterButtonsUI() {
     Object.keys(logSettings.filters).forEach(logType => {
         const group = document.querySelector(`.log-filter-group[data-log-type="${logType}"]`);
