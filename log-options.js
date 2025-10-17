@@ -131,12 +131,18 @@ function setupLogOptions() {
             picker.value = logSettings.colors[logType];
         }
         // Add listener to update settings on change
-        picker.addEventListener('input', () => {
-            logSettings.colors[logType] = picker.value;
-            localStorage.setItem('logSettings', JSON.stringify(logSettings));
-            updateLogSettings(logSettings);
-        });
+            picker.addEventListener('input', () => {
+        const newColor = picker.value;
+        logSettings.colors[logType] = newColor;
+        localStorage.setItem('logSettings', JSON.stringify(logSettings));
+        updateLogSettings(logSettings);
+
+        // ADD THIS LINE to update the example color in real-time
+        const exampleText = document.querySelector(`.log-filter-group[data-log-type="${logType}"] .log-filter-example`);
+        if (exampleText) {
+            exampleText.style.color = newColor;
+        }
     });
-}
+});
 
 window.addEventListener('load', setupLogOptions);
