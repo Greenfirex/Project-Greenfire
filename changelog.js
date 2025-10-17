@@ -4,14 +4,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeBtn = changelogPopup?.querySelector('.changelog-close');
     const changelogBody = document.getElementById('changelogBody');
 
-    // Function to load and render the changelog
+    let changelogLoaded = false; // Use a simple flag
+
     async function loadChangelog() {
-        if (changelogBody.innerHTML !== '') return; // Don't load it twice
+        if (changelogLoaded) return; // Only load the content once
+        
         try {
             const response = await fetch('./CHANGELOG.md');
+            if (!response.ok) { // Check if the file was found
+                throw new Error('Changelog.md not found');
+            }
             const markdownText = await response.text();
-            // Use the 'marked' library we imported to convert the text to HTML
             changelogBody.innerHTML = marked.parse(markdownText);
+            changelogLoaded = true; // Set the flag
         } catch (error) {
             changelogBody.innerHTML = 'Error: Could not load changelog.';
             console.error('Error fetching changelog:', error);
@@ -19,8 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     changelogBtn?.addEventListener('click', () => {
-        loadChangelog(); // Load the content when the popup is opened
         changelogPopup.classList.remove('hidden');
+        loadChangelog();
     });
 
     closeBtn?.addEventListener('click', () => {
