@@ -173,7 +173,7 @@ export function checkConditions() {
             // Pass the whole event object
             showStoryPopup(storyEvents.unlockXylite);
             
-            addLogEntry('A crystalline anomaly has been detected. (Click to read)', '#7E57C2', {
+            addLogEntry('A crystalline anomaly has been detected. (Click to read)', LogType.STORY, {
                 onClick: () => showStoryPopup(storyEvents.unlockXylite)
             });
         }
@@ -189,12 +189,12 @@ if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
     showStoryPopup(storyEvents.unlockResearch);
     
     // Add the first, clickable log entry
-    addLogEntry('A glimmer of insight has been recorded. (Click to read)', '#7E57C2', {
+    addLogEntry('A glimmer of insight has been recorded. (Click to read)', LogType.STORY, {
         onClick: () => showStoryPopup(storyEvents.unlockResearch)
     });
 
     // Add the second, non-clickable log entry after it
-    addLogEntry('The ability to construct a Laboratory has been unlocked!', 'purple');
+    addLogEntry('The ability to construct a Laboratory has been unlocked!', LogType.UNLOCK);
 }
 
     // Manufacturing section unlock logic
@@ -202,7 +202,7 @@ if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
     if (stone && manufacturingButton) {
         if (stone.amount >= 20 && !activatedSections['manufacturingSection']) {
             manufacturingButton.classList.remove('hidden');
-            addLogEntry('New menu section activated: Manufacturing', 'blue');
+            addLogEntry('New menu section activated: Manufacturing', LogType.UNLOCK);
             activatedSections['manufacturingSection'] = true;
             applyActivatedSections();
         }

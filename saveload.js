@@ -18,7 +18,7 @@ export function saveGameState() {
         buildings: buildings,
     };
     localStorage.setItem('gameState', JSON.stringify(gameState));
-    addLogEntry('Game state saved.', 'blue');
+    addLogEntry('Game state saved.', LogType.INFO);
 }
 
 export function loadGameState() {
@@ -73,19 +73,19 @@ export function loadGameState() {
                 resumeOngoingResearch(tech, cancelButton, getResearchProgress(), getCurrentResearchStartTime());
             }
         }
-        addLogEntry('Game state loaded.', 'green');
+        addLogEntry('Game state loaded.', LogType.INFO);
     } else {
         resetToDefaultState();
     }
 }
 
 export function resetToDefaultState() {
-	addLogEntry('Game state reset.', 'yellow');
+	addLogEntry('Game state reset.', LogType.INFO);
 
 	const event = storyEvents.gameStart;
 	showStoryPopup(event);
 
-	addLogEntry('A new journey begins... (Click to read)', '#7E57C2', {
+	addLogEntry('A new journey begins... (Click to read)', LogType.STORY, {
         onClick: () => showStoryPopup(event)
     });
 
