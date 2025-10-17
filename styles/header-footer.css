@@ -1,24 +1,54 @@
 #footer {
-    padding: 10px;
+    padding: 0 10px; /* Use padding on columns instead */
     background-color: #000;
     color: white;
-    text-align: center;
     flex-shrink: 0;
     position: relative;
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
+    
+    /* NEW: 3-column grid layout */
+    display: grid;
+    grid-template-columns: 30% 40% 30%; /* The widths you requested */
+    align-items: center;
+    height: 40px; /* Match the header height */
 }
 
-.footer-progress-bar {
+/* NEW: Style for the columns */
+.footer-column {
+    display: flex;
+    align-items: center;
+}
+/* Center the middle column's content */
+.footer-column:nth-child(2) {
+    justify-content: center;
+}
+/* Push the right column's content to the end */
+.footer-column:nth-child(3) {
+    justify-content: flex-end;
+}
+#gameVersion {
+    color: #888;
+    font-style: italic;
+}
+
+
+/* NEW: Vertical Glowing Separators for the footer */
+#footer::before,
+#footer::after {
+    content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 0%; /* Starts empty */
-    background: linear-gradient(to right, #FF8A80, #D50000); /* Red gradient */
-    opacity: 0.6;
-    transition: width 0.5s linear;
+    top: 15%; /* Give it some vertical padding */
+    height: 70%;
+    width: 2px;
+    animation: pulse-glow 5s ease-in-out infinite;
+    z-index: 5;
+}
+/* Position the first separator */
+#footer::before {
+    left: 30%;
+}
+/* Position the second separator */
+#footer::after {
+    left: 70%; /* (30% + 40%) */
 }
 
 #header {
