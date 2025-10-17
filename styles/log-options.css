@@ -111,6 +111,7 @@
     border: 1px solid #555;
     border-radius: 4px;
     cursor: pointer;
+	z-index: 2;
 }
 /* Style the color picker indicator */
 .log-color-option input[type="color"]::-webkit-color-swatch {
