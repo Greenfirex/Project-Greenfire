@@ -136,6 +136,12 @@ function setupLogOptions() {
     const colorPickers = document.querySelectorAll('#logColorsContainer input[type="color"]');
     colorPickers.forEach(picker => {
         const logType = picker.dataset.logType;
+        
+        // THIS LOGIC WAS MISSING
+        if (logSettings.colors[logType]) {
+            picker.value = logSettings.colors[logType];
+        }
+
         picker.addEventListener('input', () => {
             logSettings.colors[logType] = picker.value;
             localStorage.setItem('logSettings', JSON.stringify(logSettings));
