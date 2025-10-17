@@ -49,6 +49,18 @@
     color: white;
 }
 
+.log-option-group { /* MODIFIED */
+    position: relative;
+    z-index: 2;
+}
+
+.log-option-group h4 { /* Also update this to be more specific */
+    margin-bottom: 10px;
+    text-align: center;
+    border-bottom: 1px solid #444;
+    padding-bottom: 5px;
+}
+
 .log-filter-group {
     display: grid;
     grid-template-columns: 100px 1fr auto; /* Label | Example | Buttons */
