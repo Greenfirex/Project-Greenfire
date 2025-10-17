@@ -84,7 +84,6 @@ function setupLogOptions() {
 
     logOptionsBtn?.addEventListener('click', () => {
         logOptionsMenu.classList.remove('hidden');
-        updateExampleLog(LogType.INFO);
     });
     closeButton?.addEventListener('click', () => logOptionsMenu.classList.add('hidden'));
     logOptionsMenu?.addEventListener('click', (e) => {
@@ -107,15 +106,14 @@ function setupLogOptions() {
             const label = document.createElement('span');
             label.className = 'log-filter-label';
             label.textContent = `${logType.charAt(0).toUpperCase() + logType.slice(1)}`;
-
+            
             const example = document.createElement('span');
             example.className = 'log-filter-example';
             example.textContent = `(e.g., "${exampleMessages[logType]}")`;
-            example.style.color = logSettings.colors[logType];
-
+            
             const buttonWrapper = document.createElement('div');
             buttonWrapper.className = 'log-filter-buttons';
-
+            
             const btnEnabled = document.createElement('button');
             btnEnabled.className = 'filter-btn filter-btn-show';
             btnEnabled.textContent = 'Show';
@@ -125,8 +123,6 @@ function setupLogOptions() {
             btnDisabled.className = 'filter-btn filter-btn-hide';
             btnDisabled.textContent = 'Hide';
             btnDisabled.addEventListener('click', () => updateFilter(logType, true));
-            
-            group.addEventListener('mouseenter', () => updateExampleLog(logType));
 
             buttonWrapper.appendChild(btnEnabled);
             buttonWrapper.appendChild(btnDisabled);
@@ -135,10 +131,8 @@ function setupLogOptions() {
             group.appendChild(buttonWrapper);
             filterContainer.appendChild(group);
         }
-        updateFilterButtonsUI();
     }
 
-// --- Color Picker Logic ---
     const colorPickers = document.querySelectorAll('#logColorsContainer input[type="color"]');
     colorPickers.forEach(picker => {
         const logType = picker.dataset.logType;
@@ -146,32 +140,21 @@ function setupLogOptions() {
             logSettings.colors[logType] = picker.value;
             localStorage.setItem('logSettings', JSON.stringify(logSettings));
             updateLogSettings(logSettings);
-            updateAllColorUI(); // Update all colors in real-time
+            updateAllColorUI();
         });
-        const colorOption = picker.closest('.log-color-option');
-        if (colorOption) {
-            colorOption.addEventListener('mouseenter', () => updateExampleLog(logType));
-        }
     });
-
-    // --- NEW: Reset Button Logic ---
+    
     const resetColorsBtn = document.getElementById('resetLogColorsBtn');
     if (resetColorsBtn) {
         resetColorsBtn.addEventListener('click', () => {
-            // Reset the colors in our settings object
             logSettings.colors = { ...defaultLogSettings.colors };
-            // Save the reset settings
             localStorage.setItem('logSettings', JSON.stringify(logSettings));
-            // Apply the changes to the game
             updateLogSettings(logSettings);
-            // Refresh the entire color UI
             updateAllColorUI();
         });
     }
 
-    // --- Final UI Updates on Load ---
     updateFilterButtonsUI();
-    updateAllColorUI(); // Set initial colors
+    updateAllColorUI();
 }
-
 window.addEventListener('load', setupLogOptions);
