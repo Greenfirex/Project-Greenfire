@@ -30,6 +30,17 @@ const exampleMessages = {
 
 let logSettings;
 
+/**
+ * Updates the example log message style and text.
+ */
+function updateExampleLog(logType) {
+    const exampleLog = document.getElementById('logExample');
+    if (exampleLog) {
+        exampleLog.style.color = logSettings.colors[logType];
+        exampleLog.textContent = `[12:34:56] ${exampleMessages[logType]}`;
+    }
+}
+
 function updateFilterButtonsUI() {
     Object.keys(logSettings.filters).forEach(logType => {
         const group = document.querySelector(`.log-filter-group[data-log-type="${logType}"]`);
@@ -58,7 +69,7 @@ function setupLogOptions() {
 
     logOptionsBtn?.addEventListener('click', () => {
         logOptionsMenu.classList.remove('hidden');
-        updateExampleLog(LogType.INFO); // Set a default example when opening
+        updateExampleLog(LogType.INFO);
     });
     closeButton?.addEventListener('click', () => logOptionsMenu.classList.add('hidden'));
     logOptionsMenu?.addEventListener('click', (e) => {
@@ -124,9 +135,12 @@ function setupLogOptions() {
             updateLogSettings(logSettings);
             
             const exampleText = document.querySelector(`.log-filter-group[data-log-type="${logType}"] .log-filter-example`);
-            if(exampleText) exampleText.style.color = picker.value;
+            if (exampleText) exampleText.style.color = picker.value;
         });
-        picker.closest('.log-color-option').addEventListener('mouseenter', () => updateExampleLog(logType));
+        const colorOption = picker.closest('.log-color-option');
+        if (colorOption) {
+            colorOption.addEventListener('mouseenter', () => updateExampleLog(logType));
+        }
     });
 }
 
