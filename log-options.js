@@ -30,9 +30,6 @@ const exampleMessages = {
 
 let logSettings;
 
-/**
- * Updates the example log message style and text.
- */
 function updateExampleLog(logType) {
     const exampleLog = document.getElementById('logExample');
     if (exampleLog) {
@@ -60,6 +57,24 @@ function updateFilter(logType, isDisabled) {
     localStorage.setItem('logSettings', JSON.stringify(logSettings));
     updateLogSettings(logSettings);
     updateFilterButtonsUI();
+}
+
+function updateAllColorUI() {
+    // Update the color picker input values
+    const colorPickers = document.querySelectorAll('#logColorsContainer input[type="color"]');
+    colorPickers.forEach(picker => {
+        const logType = picker.dataset.logType;
+        if (logSettings.colors[logType]) {
+            picker.value = logSettings.colors[logType];
+        }
+    });
+    // Update the example text colors in the filter section
+    for (const logType in logSettings.colors) {
+        const exampleText = document.querySelector(`.log-filter-group[data-log-type="${logType}"] .log-filter-example`);
+        if (exampleText) {
+            exampleText.style.color = logSettings.colors[logType];
+        }
+    }
 }
 
 function setupLogOptions() {
@@ -123,24 +138,40 @@ function setupLogOptions() {
         updateFilterButtonsUI();
     }
 
+// --- Color Picker Logic ---
     const colorPickers = document.querySelectorAll('#logColorsContainer input[type="color"]');
-colorPickers.forEach(picker => {
-    const logType = picker.dataset.logType;
-    if (logSettings.colors[logType]) {
-        picker.value = logSettings.colors[logType];
-    }
-    picker.addEventListener('input', () => {
-        const newColor = picker.value;
-        logSettings.colors[logType] = newColor;
-        localStorage.setItem('logSettings', JSON.stringify(logSettings));
-        updateLogSettings(logSettings);
-
-        const exampleText = document.querySelector(`.log-filter-group[data-log-type="${logType}"] .log-filter-example`);
-        if (exampleText) {
-            exampleText.style.color = newColor;
+    colorPickers.forEach(picker => {
+        const logType = picker.dataset.logType;
+        picker.addEventListener('input', () => {
+            logSettings.colors[logType] = picker.value;
+            localStorage.setItem('logSettings', JSON.stringify(logSettings));
+            updateLogSettings(logSettings);
+            updateAllColorUI(); // Update all colors in real-time
+        });
+        const colorOption = picker.closest('.log-color-option');
+        if (colorOption) {
+            colorOption.addEventListener('mouseenter', () => updateExampleLog(logType));
         }
     });
-});
 
+    // --- NEW: Reset Button Logic ---
+    const resetColorsBtn = document.getElementById('resetLogColorsBtn');
+    if (resetColorsBtn) {
+        resetColorsBtn.addEventListener('click', () => {
+            // Reset the colors in our settings object
+            logSettings.colors = { ...defaultLogSettings.colors };
+            // Save the reset settings
+            localStorage.setItem('logSettings', JSON.stringify(logSettings));
+            // Apply the changes to the game
+            updateLogSettings(logSettings);
+            // Refresh the entire color UI
+            updateAllColorUI();
+        });
+    }
+
+    // --- Final UI Updates on Load ---
+    updateFilterButtonsUI();
+    updateAllColorUI(); // Set initial colors
+}
 
 window.addEventListener('load', setupLogOptions);
