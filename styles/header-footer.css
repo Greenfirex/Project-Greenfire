@@ -13,6 +13,7 @@
 .footer-column {
     display: flex;
     align-items: center;
+    position: relative; /* ADDED: This is needed for positioning the separators */
 }
 .footer-column:nth-child(2) {
     justify-content: center;
@@ -25,27 +26,20 @@
     font-style: italic;
 }
 
-/* This rule styles BOTH separator lines */
-#footer::before,
-#footer::after {
+/* NEW: Vertical separators are now attached to the columns themselves to avoid conflicts */
+.footer-column:nth-child(1)::after,
+.footer-column:nth-child(2)::after {
     content: '';
     position: absolute;
     top: 15%;
+    /* Position the line at the right edge of the first and second columns */
+    right: -1px; 
     height: 70%;
     width: 2px;
     animation: pulse-glow 5s ease-in-out infinite;
     z-index: 5;
 }
 
-/* This rule positions the FIRST separator line */
-#footer::before {
-    left: 30%;
-}
-
-/* This rule positions the SECOND separator line */
-#footer::after {
-    left: 70%;
-}
 
 #header {
     display: flex;
@@ -56,7 +50,7 @@
     color: white;
     position: relative;
     border: none;
-    height: 40px; /* MODIFIED */
+    height: 40px;
 }
 
 /* Defines the three columns */
@@ -89,6 +83,7 @@
 }
 
 /* --- Horizontal Glowing Separators --- */
+/* RESTORED: #footer::before is back, now that the conflict is resolved */
 #header::after,
 #footer::before {
     content: '';
@@ -100,8 +95,8 @@
     z-index: 5;
 }
 
-#header::after { bottom: -3px; } /* Adjusted for the new height */
-#footer::before { top: -3px; }   /* Adjusted for the new height */
+#header::after { bottom: -3px; }
+#footer::before { top: -3px; }   /* RESTORED: This creates the horizontal line above the footer */
 
 /* --- Header Link and Options Popup styles (Unchanged) --- */
 .header-title {
