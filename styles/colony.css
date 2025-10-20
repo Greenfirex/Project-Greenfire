@@ -19,7 +19,8 @@
     /* --- Sizing and Layout --- */
     width: 180px;
     height: 55px;
-    position: relative; 
+    position: relative;
+	overflow: hidden;	
     display: flex;
     align-items: center;    /* This vertically centers everything */
     justify-content: center;  /* This horizontally centers the group */

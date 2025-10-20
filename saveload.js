@@ -2,9 +2,10 @@ import { resources, getInitialResources, resetResources } from './resources.js';
 import { technologies, resetTechnologies } from './data/technologies.js';
 import { buildings, getInitialBuildings, resetBuildings } from './data/buildings.js'; 
 import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from './sections/research.js';
-import { activatedSections, setActivatedSections } from './main.js';
+import { activatedSections, setActivatedSections, getInitialActivatedSections } from './main.js';
 import { showStoryPopup } from './popup.js';
 import { storyEvents } from './data/storyEvents.js';
+import { salvageActions } from './data/actions.js';
 import { addLogEntry, LogType } from './log.js';
 
 export function saveGameState() {
@@ -16,6 +17,7 @@ export function saveGameState() {
         currentResearchingTech: research,
         activatedSections: activatedSections,
         buildings: buildings,
+		salvageActions: salvageActions
     };
     localStorage.setItem('gameState', JSON.stringify(gameState));
     addLogEntry('Game state saved.', LogType.INFO);
@@ -55,6 +57,16 @@ export function loadGameState() {
             buildings.length = 0;
             buildings.push(...defaultBuildings);
         }
+		
+		// ADDED: Smart-loading for actions
+        if (gameState.salvageActions) {
+            salvageActions.forEach(defaultAction => {
+                const savedAction = gameState.salvageActions.find(a => a.id === defaultAction.id);
+                if (savedAction) {
+                    Object.assign(defaultAction, savedAction);
+                }
+            });
+        }
         
         // --- NEW: Smart Loading for Technologies ---
         if (gameState.technologies) {
@@ -93,33 +105,25 @@ export function loadGameState() {
 export function resetToDefaultState() {
 	addLogEntry('Game state reset.', LogType.INFO);
 
-	const event = storyEvents.gameStart;
+	const event = storyEvents.crashIntro;
 	showStoryPopup(event);
 
-	addLogEntry('A new journey begins... (Click to read)', LogType.STORY, {
-        onClick: () => showStoryPopup(event)
-    });
+	addLogEntry('You survived... somehow. (Click to read)', LogType.STORY, {
+        onClick: () => showStoryPopup(event)
+    });
 
-    // MODIFIED: Use the dedicated reset functions for consistency.
     resetResources();
-    resetTechnologies();
-    resetBuildings();
-
-    clearInterval(getResearchInterval());
-    setResearchInterval(null);
-    setResearchProgress(0);
-    setCurrentResearchingTech(null);
-
-    setActivatedSections({
-        researchSection: false,
-        manufacturingSection: false,
-        shipyardSection: false,
-        galaxyMapSection: false,
-    });
+	resetBuildings();
+    resetTechnologies();
+    clearInterval(getResearchInterval());
+    setResearchInterval(null);
+    setResearchProgress(0);
+    setCurrentResearchingTech(null);
+    setActivatedSections(getInitialActivatedSections());
 }
 
 export function resetGameState() {
-    console.log('Resetting game state via page reload');
-    localStorage.clear();
-    location.reload();
+    console.log('Resetting game state via page reload');
+    localStorage.clear();
+    location.reload();
 }

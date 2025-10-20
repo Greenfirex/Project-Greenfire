@@ -1,5 +1,3 @@
-import { startImpactTimer } from './eventManager.js';
-
 let activeStoryEvent = null;
 let currentPageIndex = 0;
 
@@ -16,10 +14,12 @@ function renderPopupPage() {
 
     if (!messageEl || !pagingEl || !nextBtn || !prevBtn) return;
 
-    messageEl.textContent = activeStoryEvent.message[currentPageIndex];
-    pagingEl.textContent = `${currentPageIndex + 1} / ${activeStoryEvent.message.length}`;
+    // MODIFIED: Use the 'pages' array
+    messageEl.textContent = activeStoryEvent.pages[currentPageIndex];
+    pagingEl.textContent = `${currentPageIndex + 1} / ${activeStoryEvent.pages.length}`;
     
-    if (currentPageIndex === activeStoryEvent.message.length - 1) {
+    // MODIFIED: Check against the length of the 'pages' array
+    if (currentPageIndex === activeStoryEvent.pages.length - 1) {
         nextBtn.textContent = 'Close';
     } else {
         nextBtn.textContent = 'Next';
@@ -35,7 +35,8 @@ export function showStoryPopup(event) {
     const storyPopup = document.getElementById('storyPopup');
     const titleEl = document.getElementById('popupTitle');
     
-    if (!storyPopup || !titleEl || !event || !event.message) return;
+    // MODIFIED: Check for the 'pages' property instead of 'message'
+    if (!storyPopup || !titleEl || !event || !event.pages || event.pages.length === 0) return;
 
     activeStoryEvent = event;
     currentPageIndex = 0;
@@ -69,14 +70,14 @@ function setupPopup() {
     const storyPopup = document.getElementById('storyPopup');
     const nextBtn = document.getElementById('popupNext');
     const prevBtn = document.getElementById('popupPrev');
-    // MODIFIED: Use the unique class for the story popup's close button
     const closeBtn = storyPopup ? storyPopup.querySelector('.story-popup-close') : null;
 
     if (!storyPopup || !nextBtn || !prevBtn || !closeBtn) return;
 
     nextBtn.addEventListener('click', () => {
         if (!activeStoryEvent) return;
-        if (currentPageIndex < activeStoryEvent.message.length - 1) {
+        // MODIFIED: Check against the length of the 'pages' array
+        if (currentPageIndex < activeStoryEvent.pages.length - 1) {
             currentPageIndex++;
             renderPopupPage();
         } else {
@@ -93,4 +94,5 @@ function setupPopup() {
     closeBtn.addEventListener('click', hideStoryPopup);
 }
 
-window.addEventListener('load', setupPopup);
+// This should be DOMContentLoaded to ensure elements exist before setup
+document.addEventListener('DOMContentLoaded', setupPopup);
