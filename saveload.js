@@ -13,7 +13,7 @@ export function saveGameState() {
         resources: resources,
         technologies: technologies,
         researchProgress: getResearchProgress(),
-        currentResearchingTech: research ? research.name : null, 
+        currentResearchingTech: research,
         activatedSections: activatedSections,
         buildings: buildings,
     };
@@ -24,9 +24,7 @@ export function saveGameState() {
 export function loadGameState() {
     const savedGameState = localStorage.getItem('gameState');
     
-    // MODIFIED: Find the inner content area, not the whole section
     const logContent = document.getElementById('logContent');
-    // Clear only the scrollable content, leaving the header
     if (logContent) {
         logContent.innerHTML = '';
     }
@@ -34,9 +32,8 @@ export function loadGameState() {
     if (savedGameState) {
         const gameState = JSON.parse(savedGameState);
         
-        // --- Smart Loading Logic (unchanged) ---
+        // --- Smart Loading for Resources ---
         const defaultResources = getInitialResources();
-        const defaultBuildings = getInitialBuildings();
         defaultResources.forEach(defaultResource => {
             const savedResource = gameState.resources.find(r => r.name === defaultResource.name);
             if (savedResource) {
@@ -45,6 +42,9 @@ export function loadGameState() {
         });
         resources.length = 0;
         resources.push(...defaultResources);
+
+        // --- Smart Loading for Buildings ---
+        const defaultBuildings = getInitialBuildings();
         if (gameState.buildings) {
             defaultBuildings.forEach(defaultBuilding => {
                 const savedBuilding = gameState.buildings.find(b => b.name === defaultBuilding.name);
@@ -56,7 +56,18 @@ export function loadGameState() {
             buildings.push(...defaultBuildings);
         }
         
-        // --- Load the rest of the game state (unchanged) ---
+        // --- NEW: Smart Loading for Technologies ---
+        if (gameState.technologies) {
+            technologies.forEach(tech => {
+                const savedTech = gameState.technologies.find(t => t.name === tech.name);
+                if (savedTech) {
+                    // Update the game's tech object with the saved data (e.g., isResearched: true)
+                    Object.assign(tech, savedTech);
+                }
+            });
+        }
+        
+        // --- Load the rest of the game state ---
         setResearchProgress(gameState.researchProgress ?? 0);
         setCurrentResearchingTech(gameState.currentResearchingTech);
         setResearchInterval(null);
