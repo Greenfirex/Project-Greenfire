@@ -62,3 +62,21 @@
 .content-panel::-webkit-scrollbar-thumb:hover {
     background-color: #555;
 }
+
+/* The 'Abort?' text is hidden by default */
+.image-button .cancel-text {
+    display: none;
+    position: relative;
+    z-index: 2;
+    color: #E74C3C; /* Red color */
+    font-weight: bold;
+}
+
+/* When the button has the 'confirm-cancel' class... */
+.image-button.confirm-cancel .building-name {
+    display: none; /* Hide the normal timer/name text */
+}
+
+.image-button.confirm-cancel .cancel-text {
+    display: inline; /* Show the 'Abort?' text */
+}

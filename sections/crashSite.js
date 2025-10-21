@@ -4,10 +4,11 @@ import { addLogEntry, LogType } from '../log.js';
 import { setActivatedSections, applyActivatedSections, showSection, getInitialActivatedSections, setupTooltip } from '../main.js';
 import { storyEvents } from '../data/storyEvents.js';
 import { showStoryPopup } from '../popup.js';
+import { getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/activeActions.js';
 
-let salvageInterval = null;
-let salvageStartTime = 0;
-let currentSalvageAction = null;
+let actionInterval = null;
+let isPendingCancel = null; // Tracks which action ID is pending cancellation
+let cancelTimeout = null;   // The timer for the confirmation window
 
 function getRandomInt(min, max) {
     min = Math.ceil(min);
@@ -50,23 +51,19 @@ export function setupCrashSiteSection(section) {
         availableActions.filter(action => action.category === category).forEach(action => {
             const button = document.createElement('button');
             button.className = 'image-button';
-
-            // THIS IS THE CORRECT HTML STRUCTURE FOR THE BUTTON
             button.innerHTML = `
                 <div class="action-progress-bar"></div>
                 <span class="building-name">${action.name}</span>
+                <span class="cancel-text">Abort?</span>
             `;
-            
-            button.onclick = () => startSalvage(action, section);
-            
-            // THIS IS THE CRUCIAL ID ATTRIBUTE THAT WAS MISSING
+            button.onclick = () => startAction(action, section);
             button.dataset.actionId = action.id;
-            
             setupTooltip(button, action);
 
             let canAfford = true;
-            if (action.cost) {
-                for (const cost of action.cost) {
+            if (action.cost || action.drain) {
+                 const resourcesToDeduct = (action.cost || []).concat(action.drain || []);
+                 for (const cost of resourcesToDeduct) {
                     const resource = resources.find(r => r.name === cost.resource);
                     if (!resource || resource.amount < cost.amount) {
                         canAfford = false;
@@ -84,48 +81,98 @@ export function setupCrashSiteSection(section) {
     });
 }
 
-function startSalvage(action, section) {
-    if (salvageInterval) return;
+function startAction(action, section) {
+    if (actionInterval) return;
+
+    const resourcesToDeduct = (action.cost || []).concat(action.drain || []);
+    for (const cost of resourcesToDeduct) {
+        const resource = resources.find(r => r.name === cost.resource);
+        if (!resource || resource.amount < cost.amount) {
+            addLogEntry(`Not enough ${cost.resource} to begin: ${action.name}.`, LogType.ERROR);
+            return;
+        }
+    }
 
     if (action.cost) {
-        for (const cost of action.cost) {
-            const resource = resources.find(r => r.name === cost.resource);
-            if (!resource || resource.amount < cost.amount) {
-                addLogEntry(`Not enough ${cost.resource} to begin: ${action.name}.`, LogType.ERROR);
-                return;
-            }
-        }
         for (const cost of action.cost) {
             const resource = resources.find(r => r.name === cost.resource);
             resource.amount -= cost.amount;
         }
     }
 
-    currentSalvageAction = action;
-    salvageStartTime = Date.now();
+    setActiveCrashSiteAction({
+        ...action,
+        startTime: Date.now()
+    });
 
-    // MODIFIED: Disable all buttons instead of hiding the container
+    // MODIFIED: Disable all buttons, then re-enable the active one as a cancel button
     section.querySelectorAll('.image-button').forEach(button => {
         button.disabled = true;
     });
 
-    addLogEntry(`Started: ${action.name}.`, LogType.INFO);
+    const activeButton = section.querySelector(`[data-action-id="${action.id}"]`);
+    if (activeButton) {
+        activeButton.disabled = false;
+        // MODIFIED: The first click now requests a cancellation
+        activeButton.onclick = () => requestCancel(action, section);
+    }
 
-    salvageInterval = setInterval(() => updateSalvageProgress(section), 100);
+    addLogEntry(`Started: ${action.name}.`, LogType.INFO);
+    actionInterval = setInterval(() => updateActionProgress(section, 0.1), 100);
 }
 
-function updateSalvageProgress(section) {
-    const elapsedTime = (Date.now() - salvageStartTime) / 1000;
-    const progress = Math.min((elapsedTime / currentSalvageAction.duration) * 100, 100);
+function requestCancel(action, section) {
+    // If you click a second time while confirmation is pending, cancel immediately
+    if (isPendingCancel === action.id) {
+        clearTimeout(cancelTimeout);
+        cancelAction(section, `${action.name} cancelled by user.`);
+        return;
+    }
 
-    // MODIFIED: Target the specific button's progress bar and text
-    const activeButton = section.querySelector(`[data-action-id="${currentSalvageAction.id}"]`);
+    // On the first click, show the confirmation
+    isPendingCancel = action.id;
+    const activeButton = section.querySelector(`[data-action-id="${action.id}"]`);
+    if (activeButton) {
+        activeButton.classList.add('confirm-cancel');
+    }
+
+    // Set a timer to automatically revert if not clicked again
+    cancelTimeout = setTimeout(() => {
+        if (activeButton) {
+            activeButton.classList.remove('confirm-cancel');
+        }
+        isPendingCancel = null;
+        cancelTimeout = null;
+    }, 2000); // 2-second window to confirm
+}
+
+function updateActionProgress(section, intervalSeconds) {
+    const activeAction = getActiveCrashSiteAction();
+    if (!activeAction) return;
+
+    if (activeAction.drain) {
+        for (const drain of activeAction.drain) {
+            const resource = resources.find(r => r.name === drain.resource);
+            const drainPerSecond = drain.amount / activeAction.duration;
+            const drainThisTick = drainPerSecond * intervalSeconds;
+            
+            if (resource.amount < drainThisTick) {
+                cancelAction(section, `${activeAction.name} cancelled: Ran out of ${resource.name}.`);
+                return;
+            }
+            resource.amount -= drainThisTick;
+        }
+    }
+
+    const elapsedTime = (Date.now() - activeAction.startTime) / 1000;
+    const progress = Math.min((elapsedTime / activeAction.duration) * 100, 100);
+    const activeButton = section.querySelector(`[data-action-id="${activeAction.id}"]`);
+
     if (activeButton) {
         const progressBar = activeButton.querySelector('.action-progress-bar');
         const textSpan = activeButton.querySelector('.building-name');
-        
         progressBar.style.width = `${progress}%`;
-        const remainingTime = Math.max(0, currentSalvageAction.duration - elapsedTime);
+        const remainingTime = Math.max(0, activeAction.duration - elapsedTime);
         textSpan.innerText = `${remainingTime.toFixed(1)}s`;
     }
 
@@ -134,15 +181,70 @@ function updateSalvageProgress(section) {
     }
 }
 
+function cancelAction(section, message) {
+    clearInterval(actionInterval);
+    actionInterval = null;
+	
+	if (cancelTimeout) {
+        clearTimeout(cancelTimeout);
+        cancelTimeout = null;
+    }
+    isPendingCancel = null;
+
+    const cancelledAction = getActiveCrashSiteAction();
+    if (!cancelledAction) return;
+
+    // --- Refund Logic ---
+    let refundedStrings = [];
+    // Refund 50% of initial costs
+    if (cancelledAction.cost) {
+        for (const cost of cancelledAction.cost) {
+            const resource = resources.find(r => r.name === cost.resource);
+            const refundAmount = Math.floor(cost.amount * 0.5);
+            if (resource && refundAmount > 0) {
+                resource.amount = Math.min(resource.amount + refundAmount, resource.capacity);
+                refundedStrings.push(`${refundAmount} ${resource.name}`);
+            }
+        }
+    }
+    // Refund 50% of resources drained so far
+    if (cancelledAction.drain) {
+        const elapsedTime = (Date.now() - cancelledAction.startTime) / 1000;
+        for (const drain of cancelledAction.drain) {
+            const resource = resources.find(r => r.name === drain.resource);
+            const drainPerSecond = drain.amount / cancelledAction.duration;
+            const amountDrained = drainPerSecond * elapsedTime;
+            const refundAmount = Math.floor(amountDrained * 0.5);
+            if (resource && refundAmount > 0) {
+                resource.amount = Math.min(resource.amount + refundAmount, resource.capacity);
+                refundedStrings.push(`${refundAmount} ${resource.name}`);
+            }
+        }
+    }
+
+    setActiveCrashSiteAction(null);
+
+    addLogEntry(message, LogType.ERROR);
+    if (refundedStrings.length > 0) {
+        addLogEntry(`Refunded: ${refundedStrings.join(', ')}.`, LogType.INFO);
+    }
+    
+    setupCrashSiteSection(section);
+}
+
 function handleActionCompletion(section) {
-    clearInterval(salvageInterval);
-    salvageInterval = null;
+    clearInterval(actionInterval);
+    actionInterval = null;
+	
+	if (cancelTimeout) {
+        clearTimeout(cancelTimeout);
+        cancelTimeout = null;
+    }
+    isPendingCancel = null;
 
-    // Keep a reference to the action that just finished
-    const completedAction = currentSalvageAction;
-    currentSalvageAction = null;
+    const completedAction = getActiveCrashSiteAction();
+    setActiveCrashSiteAction(null);
 
-    // --- 1. Process Resource Rewards ---
     if (completedAction.reward) {
         let rewardStrings = [];
         completedAction.reward.forEach(reward => {
@@ -150,13 +252,10 @@ function handleActionCompletion(section) {
             if (resource) {
                 let gainedAmount;
                 if (Array.isArray(reward.amount)) {
-                    // Handle random amount from a [min, max] range
                     gainedAmount = getRandomInt(reward.amount[0], reward.amount[1]);
                 } else {
-                    // Handle fixed amount
                     gainedAmount = reward.amount;
                 }
-                
                 resource.amount = Math.min(resource.amount + gainedAmount, resource.capacity);
                 rewardStrings.push(`${gainedAmount} ${reward.resource}`);
             }
@@ -166,54 +265,47 @@ function handleActionCompletion(section) {
         addLogEntry(`${completedAction.name} complete!`, LogType.SUCCESS);
     }
 
-    // --- 2. Process Story and Unlock Rewards ---
     if (completedAction.stages) {
-        // This is a multi-stage action like "Scout Surroundings"
-        const currentStageData = completedAction.stages[completedAction.stage];
-
-        if (currentStageData) {
-            // Trigger the story for the current stage
-            if (currentStageData.story) {
-                showStoryPopup(storyEvents[currentStageData.story]);
-				addLogEntry('New discovery made. (Click to read)', LogType.STORY, {
-                    onClick: () => showStoryPopup(event)
-				});	
-            }
-            // Process any unlocks for the current stage
-            if (currentStageData.unlocks) {
-                currentStageData.unlocks.forEach(actionId => {
-                    const actionToUnlock = salvageActions.find(a => a.id === actionId);
-                    if (actionToUnlock) {
-                        actionToUnlock.isUnlocked = true;
-                        addLogEntry(`New action available: ${actionToUnlock.name}`, LogType.UNLOCK);
+        // MODIFIED: Find the original action object from our main data array
+        const originalAction = salvageActions.find(a => a.id === completedAction.id);
+        if (originalAction) {
+            const currentStageData = originalAction.stages[originalAction.stage];
+            if (currentStageData) {
+                if (currentStageData.story) {
+                    const event = storyEvents[currentStageData.story];
+                    if (event) {
+                        showStoryPopup(event);
+                        addLogEntry(currentStageData.logText, LogType.STORY, {
+                            onClick: () => showStoryPopup(event)
+                        });
                     }
-                });
+                }
+                if (currentStageData.unlocks) {
+                    currentStageData.unlocks.forEach(actionId => {
+                        const actionToUnlock = salvageActions.find(a => a.id === actionId);
+                        if (actionToUnlock) {
+                            actionToUnlock.isUnlocked = true;
+                            addLogEntry(`New action available: ${actionToUnlock.name}`, LogType.UNLOCK);
+                        }
+                    });
+                }
+                // MODIFIED: Increment the stage on the ORIGINAL action object
+                originalAction.stage++;
             }
-            // Increment the stage for the next time this action is run
-            completedAction.stage++;
         }
     }
 
-    // --- 3. Check for End-of-Chapter Trigger ---
     if (completedAction.id === 'repairComms') {
-        // If the main objective is complete, transition to the next chapter
         showStoryPopup(storyEvents.contactHQ);
-        
         const stone = resources.find(r => r.name === 'Stone');
         if(stone) stone.isDiscovered = true;
-
         let currentSections = getInitialActivatedSections();
         currentSections.crashSiteSection = false;
         currentSections.colonySection = true;
         setActivatedSections(currentSections);
         applyActivatedSections();
-        
         showSection('colonySection');
-
     } else {
-        // --- 4. Redraw the UI ---
-        // If the chapter is not over, just redraw the current section
-        // This will show any newly unlocked buttons or hide completed ones
         setupCrashSiteSection(section);
     }
 }

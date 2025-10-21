@@ -299,31 +299,26 @@ export function setupTooltip(element, tooltipData) {
                 tooltip.innerHTML += `<div class="tooltip-section"><h4>Generation</h4><p>${tooltipData.produces}: +${tooltipData.rate}/s</p></div>`;
             }
 
-        // Case 4: Technology object
-        } else if (tooltipData && typeof tooltipData.duration !== 'undefined' && !tooltipData.reward) {
-            tooltip.innerHTML = `<h4>${tooltipData.name}</h4>`;
-            if (tooltipData.description) {
-                tooltip.innerHTML += `<p class="tooltip-description">${tooltipData.description}</p>`;
-            }
-            if (tooltipData.cost && tooltipData.cost.length > 0) {
-                tooltip.innerHTML += `<div class="tooltip-section"><h4>Cost</h4>${tooltipData.cost.map(c => `<p>${c.resource}: ${c.amount}</p>`).join('')}</div>`;
-            }
-            tooltip.innerHTML += `<p>Research Time: ${tooltipData.duration}s</p>`;
-        
-        // --- Case for Action objects ---
-        } else if (tooltipData && tooltipData.reward) {
+        // Case 4: Action object (check for the unique 'id' property)
+        } else if (tooltipData && tooltipData.id) {
             tooltip.innerHTML = `<h4>${tooltipData.name}</h4>`;
 
             if (tooltipData.description) {
                 tooltip.innerHTML += `<p class="tooltip-description">${tooltipData.description}</p>`;
             }
 
+            let costHtml = '';
             if (tooltipData.cost && tooltipData.cost.length > 0) {
-                tooltip.innerHTML += `<div class="tooltip-section"><h4>Cost</h4>${tooltipData.cost.map(c => `<p>${c.resource}: ${c.amount}</p>`).join('')}</div>`;
+                costHtml += tooltipData.cost.map(c => `<p>${c.resource}: ${c.amount}</p>`).join('');
+            }
+            if (tooltipData.drain && tooltipData.drain.length > 0) {
+                costHtml += tooltipData.drain.map(d => `<p>${d.resource}: ${d.amount} (Total)</p>`).join('');
+            }
+            if (costHtml) {
+                tooltip.innerHTML += `<div class="tooltip-section"><h4>Cost</h4>${costHtml}</div>`;
             }
 
             if (tooltipData.reward && tooltipData.reward.length > 0) {
-                // MODIFIED: Display the amount as a range if it's an array
                 const rewardHtml = tooltipData.reward.map(r => {
                     const amountText = Array.isArray(r.amount) ? `${r.amount[0]} - ${r.amount[1]}` : r.amount;
                     return `<p>${r.resource}: ${amountText}</p>`;
@@ -332,6 +327,17 @@ export function setupTooltip(element, tooltipData) {
             }
             
             tooltip.innerHTML += `<p>Duration: ${tooltipData.duration}s</p>`;
+
+        // Case 5: Technology object (check for the unique 'isResearched' property)
+        } else if (tooltipData && typeof tooltipData.isResearched !== 'undefined') {
+            tooltip.innerHTML = `<h4>${tooltipData.name}</h4>`;
+            if (tooltipData.description) {
+                tooltip.innerHTML += `<p class="tooltip-description">${tooltipData.description}</p>`;
+            }
+            if (tooltipData.cost && tooltipData.cost.length > 0) {
+                tooltip.innerHTML += `<div class="tooltip-section"><h4>Cost</h4>${tooltipData.cost.map(c => `<p>${c.resource}: ${c.amount}</p>`).join('')}</div>`;
+            }
+            tooltip.innerHTML += `<p>Research Time: ${tooltipData.duration}s</p>`;
         }
 
         tooltip.style.visibility = 'visible';

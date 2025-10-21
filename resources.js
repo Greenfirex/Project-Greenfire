@@ -2,16 +2,15 @@ import { buildings } from './data/buildings.js';
 import { technologies } from './data/technologies.js';
 import { formatNumber } from './formatting.js';
 import { getOrCreateTooltip, updateTooltipPosition } from './main.js';
+// MODIFIED: Updated import path
+import { getActiveCrashSiteAction } from './data/activeActions.js';
 
-// --- DATA ---
 export function getInitialResources() {
     return [
-        // ADDED: New survival resources with a consumption rate
-		{ name: 'Survivors', amount: 1, isDiscovered: false, capacity: 10, producible: false, integer: true },
-		{ name: 'Energy', amount: 100, isDiscovered: true, capacity: 100, producible: false, integer: true },
-        { name: 'Food Rations', amount: 100, isDiscovered: true, capacity: 150, producible: false, integer: true, baseConsumption: 0.15 },
-        { name: 'Clean Water', amount: 100, isDiscovered: true, capacity: 150, producible: false, integer: true, baseConsumption: 0.18 },
-        
+        { name: 'Energy', amount: 100, isDiscovered: true, capacity: 100, producible: false, integer: true },
+        { name: 'Survivors', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true },
+        { name: 'Food Rations', amount: 100, isDiscovered: true, capacity: 150, producible: false, integer: true, baseConsumption: 0.05 },
+        { name: 'Clean Water', amount: 100, isDiscovered: true, capacity: 150, producible: false, integer: true, baseConsumption: 0.1 },
         { name: 'Scrap Metal', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
         { name: 'Ship Components', amount: 0, isDiscovered: false, capacity: 50, producible: false, integer: true },
         { name: 'Insight', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
@@ -22,16 +21,15 @@ export function getInitialResources() {
         { name: 'Sentient Mycelium', amount: 0, isDiscovered: false, capacity: 10, producible: true, integer: false },
     ];
 }
+
 export let resources = getInitialResources();
 
 export function resetResources() {
     const initial = getInitialResources();
     resources.length = 0;
     initial.forEach(res => resources.push({...res}));
-    console.log("Resource data has been reset.");
 }
 
-// --- UI SETUP (RUNS ONCE) ---
 export function setupInfoPanel() {
     const infoPanel = document.getElementById('infoPanel');
     if (!infoPanel) return;
@@ -58,12 +56,16 @@ export function setupInfoPanel() {
         `;
 
         const tooltip = getOrCreateTooltip();
-
-        // MODIFIED: This entire event listener has been updated
+        // MODIFIED: This entire event listener has been updated for better detail
         infoRow.addEventListener('mouseenter', (e) => {
             const resourceName = infoRow.dataset.resource;
             const currentResource = resources.find(r => r.name === resourceName);
             if (!currentResource) return;
+
+            // --- Get Active States ---
+            const activeAction = getActiveCrashSiteAction();
+            const survivorResource = resources.find(r => r.name === 'Survivors');
+            const survivorCount = survivorResource ? survivorResource.amount : 0;
 
             // --- Production Calculation ---
             let baseProduction = 0;
@@ -83,29 +85,40 @@ export function setupInfoPanel() {
             });
             const totalProduction = baseProduction * (1 + bonusMultiplier);
 
-            // --- Consumption Calculation ---
-            const survivorResource = resources.find(r => r.name === 'Survivors');
-            const survivorCount = survivorResource ? survivorResource.amount : 0;
-            const totalConsumption = currentResource.baseConsumption ? currentResource.baseConsumption * survivorCount : 0;
+            // --- Consumption & Drain Calculation ---
+            const passiveConsumption = currentResource.baseConsumption ? currentResource.baseConsumption * survivorCount : 0;
+            let activeDrainRate = 0;
+            if (activeAction && activeAction.drain) {
+                const drainInfo = activeAction.drain.find(d => d.resource === resourceName);
+                if (drainInfo) {
+                    activeDrainRate = drainInfo.amount / activeAction.duration;
+                }
+            }
+            const totalConsumption = passiveConsumption + activeDrainRate;
 
             // --- Net Change Calculation ---
             const netChange = totalProduction - totalConsumption;
             const sign = netChange >= 0 ? '+' : '';
-
+            
             // --- Build Tooltip HTML ---
+            let consumptionDetailsHtml = '';
+            if (passiveConsumption > 0) {
+                consumptionDetailsHtml += `<p class="tooltip-detail">-${formatNumber(passiveConsumption)}/s from ${survivorCount} survivor(s)</p>`;
+            }
+            if (activeDrainRate > 0) {
+                consumptionDetailsHtml += `<p class="tooltip-detail">-${formatNumber(activeDrainRate)}/s from ${activeAction.name}</p>`;
+            }
+
             tooltip.innerHTML = `
                 <h4>${resourceName} Details</h4>
-                
                 <div class="tooltip-section">
                     <p>Production: +${formatNumber(totalProduction)}/s</p>
                     ${productionBuildings.map(b => `<p class="tooltip-detail">+ ${formatNumber(b.amount)}/s from ${b.count}x ${b.name}</p>`).join('')}
                 </div>
-
                 <div class="tooltip-section">
                     <p>Consumption: -${formatNumber(totalConsumption)}/s</p>
-                    ${totalConsumption > 0 ? `<p class="tooltip-detail">from ${survivorCount} survivor(s)</p>` : ''}
+                    ${consumptionDetailsHtml}
                 </div>
-
                 <hr>
                 <p><strong>Net Change: ${sign}${formatNumber(netChange)}/s</strong></p>
             `;
@@ -127,10 +140,10 @@ export function setupInfoPanel() {
     infoPanel.appendChild(infoSection);
 }
 
-// --- UI UPDATE (RUNS EVERY TICK) ---
 export function updateResourceInfo() {
     const survivorResource = resources.find(r => r.name === 'Survivors');
     const survivorCount = survivorResource ? survivorResource.amount : 0;
+    const activeAction = getActiveCrashSiteAction();
 
     resources.forEach(resource => {
         const infoRow = document.querySelector(`.info-row[data-resource="${resource.name}"]`);
@@ -147,47 +160,49 @@ export function updateResourceInfo() {
         
         const generationEl = infoRow.querySelector('[data-value-type="generation"]');
         const storageEl = infoRow.querySelector('[data-value-type="storage"]');
-		const nameEl = infoRow.querySelector('.infocolumn1 span');
+        const nameEl = infoRow.querySelector('.infocolumn1 span');
+        
         const isZero = resource.amount <= 0;
-        storageEl.classList.toggle('zero-amount', resource.amount <= 0);
-		nameEl.classList.toggle('zero-amount', isZero);
+        storageEl.classList.toggle('zero-amount', isZero);
+        nameEl.classList.toggle('zero-amount', isZero);
 
-        // 1. Always calculate and display storage text in the second column
         const amountDisplay = resource.integer ? Math.floor(resource.amount).toLocaleString() : formatNumber(resource.amount);
         const capacityDisplay = Math.floor(resource.capacity).toLocaleString();
         storageEl.textContent = `${amountDisplay} / ${capacityDisplay}`;
 
-        // 2. Calculate net change (production - consumption)
         let baseProduction = 0;
         buildings.forEach(b => {
             if (b.produces === resource.name) baseProduction += b.rate * b.count;
         });
-        // There was a typo here, it should be isResearched
         let bonusMultiplier = 0;
         technologies.forEach(t => {
             if (t.isResearched && t.bonus?.resource === resource.name) bonusMultiplier += t.bonus.multiplier;
         });
         const totalProduction = baseProduction * (1 + bonusMultiplier);
         const totalConsumption = resource.baseConsumption ? resource.baseConsumption * survivorCount : 0;
-        const netChange = totalProduction - totalConsumption;
-		
-		generationEl.classList.toggle('negative-rate', netChange < 0);
+        
+        let activeDrainRate = 0;
+        if (activeAction && activeAction.drain) {
+            const drainInfo = activeAction.drain.find(d => d.resource === resource.name);
+            if (drainInfo) {
+                activeDrainRate = drainInfo.amount / activeAction.duration;
+            }
+        }
 
-        // 3. Display the net change in the third column, if applicable
-        if (resource.producible || totalConsumption > 0) {
+        const netChange = totalProduction - totalConsumption - activeDrainRate;
+
+        generationEl.classList.toggle('negative-rate', netChange < 0);
+
+        if (resource.producible || totalConsumption > 0 || activeDrainRate > 0) {
             const sign = netChange >= 0 ? '+' : '';
-            // For pure consumables, show rate in parentheses
             if (totalConsumption > 0 && !resource.producible) {
                 generationEl.textContent = `(${formatNumber(netChange)}/s)`;
             } else {
                 generationEl.textContent = `${sign}${formatNumber(netChange)}/s`;
             }
         } else {
-            // Clear the third column for simple resources like Scrap Metal
             generationEl.textContent = '';
         }
-
-        // --- End of Corrected Logic ---
 
         const progressBar = infoRow.querySelector('.resource-progress-bar');
         progressBar.style.width = `${Math.min((resource.amount / resource.capacity) * 100, 100)}%`;
