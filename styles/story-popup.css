@@ -41,13 +41,17 @@
 
 .story-popup-logo {
     flex-shrink: 0;
-    width: 120px;
-    height: 120px;
-    /* Use the circular logo you have */
-    background-image: url('../assets/images/logo.png'); 
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
+    display: block;
+    margin: 0 auto;
+    width: min(20vw, 220px);
+    height: auto;
+}
+.story-popup-logo img {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px; /* optional */
 }
 
 .story-popup-text {

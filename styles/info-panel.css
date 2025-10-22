@@ -59,6 +59,11 @@
     transition: width 0.2s ease-out;
 }
 
+/* Ensure text over the Energy bar is readable */
+.info-row[data-resource="Energy"] {
+    color: rgba(255, 215, 0, 0.9);
+}
+
 .infocolumn1, .infocolumn2, .infocolumn3 {
     display: flex;
     align-items: center;

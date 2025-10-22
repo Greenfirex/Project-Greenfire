@@ -9,6 +9,7 @@ import { setupGalaxyMapSection } from './sections/galaxyMap.js';
 import { setupCrashSiteSection } from './sections/crashSite.js';
 import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js';
 import { addLogEntry, LogType } from './log.js';
+import { initTimeManager } from './time.js';
 import { showStoryPopup } from './popup.js';
 import { storyEvents } from './data/storyEvents.js';
 import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity, shouldRunInBackground } from './options.js';
@@ -31,6 +32,7 @@ document.addEventListener('beforeunload', () => {
 
 function startGame() {
 	initOptions();
+    initTimeManager(true);
     const savedColor = localStorage.getItem('glowColor') || 'green';
     setGlowColor(savedColor);
 	const savedIntensity = localStorage.getItem('glowIntensity') || 1;
@@ -94,46 +96,86 @@ function startGame() {
     updateResourceInfo();
     applyActivatedSections();
 
-    setInterval(() => {
-        const now = Date.now();
-        let deltaTime = (now - lastUpdateTime) / 1000;
-        lastUpdateTime = now;
+    let gameLoopInterval = null;
+    let autosaveInterval = null;
 
-        if (!shouldRunInBackground() && deltaTime > 2) {
-            deltaTime = 0;
+    function startMainLoop() {
+        if (gameLoopInterval) return;
+        lastUpdateTime = Date.now();
+        gameLoopInterval = setInterval(() => {
+            const now = Date.now();
+            let deltaTime = (now - lastUpdateTime) / 1000;
+            lastUpdateTime = now;
+
+            // If run-in-background is disabled and we woke after a long sleep, avoid giant jumps
+            if (!shouldRunInBackground() && deltaTime > 2) {
+                deltaTime = 0;
+            }
+
+            // --- Resource Production (keep your existing logic) ---
+            buildings.forEach(building => {
+                const resourceToProduce = resources.find(r => r.name === building.produces);
+                if (resourceToProduce) {
+                    const newAmount = resourceToProduce.amount + (building.rate * building.count) * deltaTime;
+                    resourceToProduce.amount = Math.min(newAmount, resourceToProduce.capacity);
+                }
+            });
+
+            // --- Optional: existing consumption / other per-tick logic ---
+            // (leave or add other per-tick updates you currently have)
+
+            // --- UI Updates (call your existing update functions) ---
+            updateResourceInfo();
+            checkConditions();
+            if (typeof updateBuildingButtonsState === 'function') updateBuildingButtonsState();
+            if (typeof updateTechButtonsState === 'function') updateTechButtonsState();
+            if (typeof updateImpactTimer === 'function') updateImpactTimer();
+        }, 100);
+    }
+
+    function stopMainLoop() {
+        if (gameLoopInterval) {
+            clearInterval(gameLoopInterval);
+            gameLoopInterval = null;
         }
+    }
 
-        // --- Resource Production (existing logic) ---
-        buildings.forEach(building => {
-            const resourceToProduce = resources.find(r => r.name === building.produces);
-            if (resourceToProduce) {
-                const newAmount = resourceToProduce.amount + (building.rate * building.count) * deltaTime;
-                resourceToProduce.amount = Math.min(newAmount, resourceToProduce.capacity);
+    function startAutosave() {
+        if (autosaveInterval) return;
+        autosaveInterval = setInterval(() => {
+            saveGameState();
+        }, 300000);
+    }
+
+    function stopAutosave() {
+        if (autosaveInterval) {
+            clearInterval(autosaveInterval);
+            autosaveInterval = null;
+        }
+    }
+
+    // Visibility handler: pause/resume based on the option
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            if (!shouldRunInBackground()) {
+                stopMainLoop();
+                stopAutosave();
+                window.dispatchEvent(new CustomEvent('game-pause'));
+                console.log('[visibility] game paused (tab hidden)');
+            } else {
+                console.log('[visibility] run-in-background enabled — keeping game running');
             }
-        });
-        
-        // --- ADDED: Resource Consumption ---
-        const survivorResource = resources.find(r => r.name === 'Survivors');
-        const survivorCount = survivorResource ? survivorResource.amount : 0;
+        } else if (document.visibilityState === 'visible') {
+            startMainLoop();
+            startAutosave();
+            window.dispatchEvent(new CustomEvent('game-resume'));
+            console.log('[visibility] game resumed (tab visible)');
+        }
+    });
 
-        resources.forEach(resource => {
-            if (resource.baseConsumption) {
-                const consumption = resource.baseConsumption * survivorCount * deltaTime;
-                resource.amount = Math.max(0, resource.amount - consumption);
-            }
-        });
-
-        // --- UI Updates (existing logic) ---
-        updateResourceInfo();
-        checkConditions();
-        updateBuildingButtonsState();
-        updateTechButtonsState();
-        updateImpactTimer();
-    }, 100);
-	
-    setInterval(() => {
-        saveGameState();
-    }, 300000);
+    // start loops initially
+    startMainLoop();
+    startAutosave();
 }
 
 export function getInitialActivatedSections() {

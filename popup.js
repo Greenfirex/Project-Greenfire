@@ -14,58 +14,74 @@ function renderPopupPage() {
 
     if (!messageEl || !pagingEl || !nextBtn || !prevBtn) return;
 
-    // MODIFIED: Use the 'pages' array
     messageEl.textContent = activeStoryEvent.pages[currentPageIndex];
     pagingEl.textContent = `${currentPageIndex + 1} / ${activeStoryEvent.pages.length}`;
-    
-    // MODIFIED: Check against the length of the 'pages' array
     if (currentPageIndex === activeStoryEvent.pages.length - 1) {
         nextBtn.textContent = 'Close';
     } else {
         nextBtn.textContent = 'Next';
     }
-
     prevBtn.style.visibility = (currentPageIndex === 0) ? 'hidden' : 'visible';
 }
 
-/**
- * Shows the story popup with the data from a story event object.
- */
 export function showStoryPopup(event) {
     const storyPopup = document.getElementById('storyPopup');
     const titleEl = document.getElementById('popupTitle');
-    
-    // MODIFIED: Check for the 'pages' property instead of 'message'
-    if (!storyPopup || !titleEl || !event || !event.pages || event.pages.length === 0) return;
+    const overlay = storyPopup ? storyPopup : document.getElementById('storyPopup'); // keep reference
+
+    if (!storyPopup || !titleEl || !event || !event.pages || event.pages.length === 0) {
+        console.debug('showStoryPopup aborted: missing elements or invalid event', { storyPopup, titleEl, event });
+        return;
+    }
 
     activeStoryEvent = event;
     currentPageIndex = 0;
 
     titleEl.textContent = activeStoryEvent.title;
-    storyPopup.classList.remove('hidden');
+
+    // Ensure popup and its overlay live directly under body so stacking contexts don't hide them
+    const overlayEl = document.getElementById('storyPopup'); // your overlay element id
+    const contentEl = overlayEl ? overlayEl.querySelector('.story-popup-content') : null;
+
+    if (overlayEl && overlayEl.parentElement !== document.body) {
+        document.body.appendChild(overlayEl);
+    }
+    if (contentEl && contentEl.parentElement !== document.body) {
+        // keep content inside overlay; ensure overlay is direct child of body
+        // (we've already appended overlayEl to body, so content remains inside it)
+    }
+
+    // Populate and show
     renderPopupPage();
+
+    // Set very-high z-index to outrank options and other UI
+    if (overlayEl) overlayEl.style.zIndex = '2147483000';
+    if (contentEl) contentEl.style.zIndex = '2147483001';
+
+    // Make visible
+    overlayEl.classList.remove('hidden');
+    overlayEl.style.display = '';
+    // force a reflow so browser applies stacking and transitions immediately
+    // eslint-disable-next-line no-unused-expressions
+    overlayEl.offsetHeight;
+
+    // focus for accessibility and to ensure it's active on some browsers
+    overlayEl.setAttribute('tabindex', '-1');
+    try { overlayEl.focus({ preventScroll: true }); } catch (e) {}
+
+    console.debug('showStoryPopup displayed:', event?.title || event?.id || '<unknown>');
 }
 
-/**
- * Hides the story popup and performs any necessary cleanup.
- */
 function hideStoryPopup() {
     const storyPopup = document.getElementById('storyPopup');
     if (storyPopup) {
         storyPopup.classList.add('hidden');
+        storyPopup.style.display = 'none';
     }
-
-    // Check if the intro story was the one being closed, then start the timer
-    if (activeStoryEvent && activeStoryEvent.title === "Project Greenfire - Déjà Vu") {
-        startImpactTimer();
-    }
-    
-    activeStoryEvent = null; // Clear the active event
+    activeStoryEvent = null;
 }
 
-/**
- * Sets up the event listeners for the popup's controls.
- */
+// setupPopup unchanged except it uses the existing elements
 function setupPopup() {
     const storyPopup = document.getElementById('storyPopup');
     const nextBtn = document.getElementById('popupNext');
@@ -76,7 +92,6 @@ function setupPopup() {
 
     nextBtn.addEventListener('click', () => {
         if (!activeStoryEvent) return;
-        // MODIFIED: Check against the length of the 'pages' array
         if (currentPageIndex < activeStoryEvent.pages.length - 1) {
             currentPageIndex++;
             renderPopupPage();
@@ -94,5 +109,4 @@ function setupPopup() {
     closeBtn.addEventListener('click', hideStoryPopup);
 }
 
-// This should be DOMContentLoaded to ensure elements exist before setup
 document.addEventListener('DOMContentLoaded', setupPopup);

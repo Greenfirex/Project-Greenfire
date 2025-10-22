@@ -1,4 +1,5 @@
 import { saveGameState } from './saveload.js';
+import { getIngameTimeString } from './time.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -64,12 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // This handles the clock at the top of the screen
 function updateTime() {
-    const timeElement = document.getElementById('currentTime');
-    if (timeElement) {
-        const now = new Date();
-        // Using toLocaleTimeString without options for a standard format
-        timeElement.textContent = now.toLocaleTimeString();
-    }
+    const clockEl = document.getElementById('headerClock');
+    if (!clockEl) return;
+    // show in-game time
+    clockEl.textContent = getIngameTimeString();
 }
+
+// Replace any existing setInterval(updateTime, 1000) with:
 setInterval(updateTime, 1000);
 updateTime();

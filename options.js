@@ -1,4 +1,5 @@
 import { setNotation } from './formatting.js';
+import { exportSaveToClipboard, importSaveFromText } from './saveload.js';
 
 // A single, unified map for all color options
 const colorMap = {
@@ -9,6 +10,25 @@ const colorMap = {
     white:  '224, 224, 224',
     black:  '0, 0, 0'
 };
+
+const EXPORT_ENCRYPT_KEY = 'options.exportEncryptDefault';
+
+function setExportEncryptDefault(value) {
+    try {
+        localStorage.setItem(EXPORT_ENCRYPT_KEY, JSON.stringify(!!value));
+    } catch (e) {
+        console.warn('Could not persist export-encrypt option', e);
+    }
+}
+
+function getExportEncryptDefault() {
+    try {
+        const raw = localStorage.getItem(EXPORT_ENCRYPT_KEY);
+        return raw === null ? false : JSON.parse(raw);
+    } catch (e) {
+        return false;
+    }
+}
 
 let runInBackground = true;
 let glowEffectsEnabled = true;
@@ -155,38 +175,6 @@ export function initOptions() {
                     localStorage.setItem('numberNotation', radio.value);
                 }
             });
-        });
-    }
-	
-	// --- Save Management ---
-    const exportBtn = document.getElementById('exportSaveButton');
-    const importBtn = document.getElementById('importSaveButton');
-    const importText = document.getElementById('importSaveText');
-
-    if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
-            const saveData = localStorage.getItem('gameState');
-            if (saveData) {
-                navigator.clipboard.writeText(saveData).then(() => {
-                    exportBtn.textContent = 'Copied!';
-                    setTimeout(() => { exportBtn.textContent = 'Export to Clipboard'; }, 2000);
-                });
-            }
-        });
-    }
-
-    if (importBtn && importText) {
-        importBtn.addEventListener('click', () => {
-            if (confirm('Are you sure you want to import this save? It will overwrite your current progress.')) {
-                try {
-                    // Test if the save data is valid JSON
-                    JSON.parse(importText.value);
-                    localStorage.setItem('gameState', importText.value);
-                    location.reload();
-                } catch (e) {
-                    alert('Invalid save data!');
-                }
-            }
         });
     }
 }

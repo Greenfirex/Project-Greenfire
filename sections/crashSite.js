@@ -10,6 +10,48 @@ let actionInterval = null;
 let isPendingCancel = null; // Tracks which action ID is pending cancellation
 let cancelTimeout = null;   // The timer for the confirmation window
 
+// --- NEW: Controlled loop start/stop and pause-awareness ---
+export function startCrashSiteLoop(section) {
+    if (actionInterval) return;
+    // Try to find the section if not provided (safe fallback)
+    if (!section) {
+        const container = document.querySelector('#salvageActionsContainer');
+        section = container ? container.closest('.content-panel') || container.parentElement : null;
+    }
+
+    const activeAction = typeof getActiveCrashSiteAction === 'function' ? getActiveCrashSiteAction() : null;
+    if (!activeAction) return;
+
+    // Clear any existing interval just in case
+    if (actionInterval) {
+        clearInterval(actionInterval);
+        actionInterval = null;
+    }
+
+    // If the action was paused, resume time accounting by removing pause marker
+    if (activeAction.pauseStart) {
+        const pausedDuration = Date.now() - activeAction.pauseStart;
+        activeAction.startTime = (activeAction.startTime || Date.now()) + pausedDuration;
+        delete activeAction.pauseStart;
+    }
+
+    // Use the same tick as before (100ms)
+    actionInterval = setInterval(() => updateActionProgress(section, 0.1), 100);
+}
+
+export function stopCrashSiteLoop() {
+    if (actionInterval) {
+        clearInterval(actionInterval);
+        actionInterval = null;
+    }
+
+    // Mark pause start so resume adjusts startTime
+    const activeAction = typeof getActiveCrashSiteAction === 'function' ? getActiveCrashSiteAction() : null;
+    if (activeAction) {
+        activeAction.pauseStart = Date.now();
+    }
+}
+
 function getRandomInt(min, max) {
     min = Math.ceil(min);
     max = Math.floor(max);
@@ -82,7 +124,9 @@ export function setupCrashSiteSection(section) {
 }
 
 function startAction(action, section) {
-    if (actionInterval) return;
+     // Prevent starting if an action is already running
+    const existing = typeof getActiveCrashSiteAction === 'function' ? getActiveCrashSiteAction() : null;
+    if (existing) return;
 
     const resourcesToDeduct = (action.cost || []).concat(action.drain || []);
     for (const cost of resourcesToDeduct) {
@@ -105,7 +149,7 @@ function startAction(action, section) {
         startTime: Date.now()
     });
 
-    // MODIFIED: Disable all buttons, then re-enable the active one as a cancel button
+    // Disable all buttons, then re-enable the active one as a cancel button
     section.querySelectorAll('.image-button').forEach(button => {
         button.disabled = true;
     });
@@ -113,12 +157,14 @@ function startAction(action, section) {
     const activeButton = section.querySelector(`[data-action-id="${action.id}"]`);
     if (activeButton) {
         activeButton.disabled = false;
-        // MODIFIED: The first click now requests a cancellation
+        // First click requests a cancellation
         activeButton.onclick = () => requestCancel(action, section);
     }
 
     addLogEntry(`Started: ${action.name}.`, LogType.INFO);
-    actionInterval = setInterval(() => updateActionProgress(section, 0.1), 100);
+
+    // Start the controlled loop (handles pause/resume correctly)
+    startCrashSiteLoop(section);
 }
 
 function requestCancel(action, section) {
@@ -182,16 +228,16 @@ function updateActionProgress(section, intervalSeconds) {
 }
 
 function cancelAction(section, message) {
-    clearInterval(actionInterval);
-    actionInterval = null;
-	
-	if (cancelTimeout) {
+    // Stop the loop and clear any pending cancel marker
+    stopCrashSiteLoop();
+
+    if (cancelTimeout) {
         clearTimeout(cancelTimeout);
         cancelTimeout = null;
     }
     isPendingCancel = null;
 
-    const cancelledAction = getActiveCrashSiteAction();
+    const cancelledAction = typeof getActiveCrashSiteAction === 'function' ? getActiveCrashSiteAction() : null;
     if (!cancelledAction) return;
 
     // --- Refund Logic ---
@@ -213,7 +259,7 @@ function cancelAction(section, message) {
         for (const drain of cancelledAction.drain) {
             const resource = resources.find(r => r.name === drain.resource);
             const drainPerSecond = drain.amount / cancelledAction.duration;
-            const amountDrained = drainPerSecond * elapsedTime;
+            const amountDrained = drainPerSecond * Math.max(0, Math.min(elapsedTime, cancelledAction.duration));
             const refundAmount = Math.floor(amountDrained * 0.5);
             if (resource && refundAmount > 0) {
                 resource.amount = Math.min(resource.amount + refundAmount, resource.capacity);
@@ -222,28 +268,44 @@ function cancelAction(section, message) {
         }
     }
 
-    setActiveCrashSiteAction(null);
+    // Clear pause marker if present
+    if (cancelledAction.pauseStart) {
+        delete cancelledAction.pauseStart;
+    }
+
+    if (typeof setActiveCrashSiteAction === 'function') {
+        setActiveCrashSiteAction(null);
+    }
 
     addLogEntry(message, LogType.ERROR);
     if (refundedStrings.length > 0) {
         addLogEntry(`Refunded: ${refundedStrings.join(', ')}.`, LogType.INFO);
     }
-    
+
     setupCrashSiteSection(section);
 }
 
 function handleActionCompletion(section) {
-    clearInterval(actionInterval);
-    actionInterval = null;
-	
-	if (cancelTimeout) {
+    // Stop the loop
+    stopCrashSiteLoop();
+
+    if (cancelTimeout) {
         clearTimeout(cancelTimeout);
         cancelTimeout = null;
     }
     isPendingCancel = null;
 
-    const completedAction = getActiveCrashSiteAction();
-    setActiveCrashSiteAction(null);
+    const completedAction = typeof getActiveCrashSiteAction === 'function' ? getActiveCrashSiteAction() : null;
+    if (!completedAction) return;
+
+    // Clear pause marker if present
+    if (completedAction.pauseStart) {
+        delete completedAction.pauseStart;
+    }
+
+    if (typeof setActiveCrashSiteAction === 'function') {
+        setActiveCrashSiteAction(null);
+    }
 
     if (completedAction.reward) {
         let rewardStrings = [];
@@ -309,3 +371,23 @@ function handleActionCompletion(section) {
         setupCrashSiteSection(section);
     }
 }
+
+// --- NEW: Global pause/resume handlers so the module reacts to main.js events ---
+window.addEventListener('game-pause', () => {
+    // Only pause the crash-site loop if an action is active
+    const active = typeof getActiveCrashSiteAction === 'function' ? getActiveCrashSiteAction() : null;
+    if (active) {
+        stopCrashSiteLoop();
+    }
+});
+
+window.addEventListener('game-resume', () => {
+    const active = typeof getActiveCrashSiteAction === 'function' ? getActiveCrashSiteAction() : null;
+    if (!active) return;
+
+    // Find section DOM to pass to the loop starter
+    const container = document.querySelector('#salvageActionsContainer');
+    const section = container ? container.closest('.content-panel') || container.parentElement : null;
+    // startCrashSiteLoop will adjust startTime using pauseStart if present
+    startCrashSiteLoop(section);
+});
