@@ -1,3 +1,17 @@
+---
+
+# [0.1.1] - 2025-10-25
+
+- Fix: debuff icon tooltip reliably shows (hit-test priority, direct icon handlers) and properly transitions icon ↔ row without races.
+- Fix: removed stray event handlers and runtime errors that prevented tooltip logic from running.
+- Change: tooltip hide is triggered when story popups open (dispatches request-hide-tooltip).
+- UI: story popup is now a fixed-size dialog with a scrollable content area so Next/Previous buttons do not move; dialog size increased (~50% larger).
+- UX: added Esc key support to close story popup; handler is attached when popup opens and removed on close.
+- Style: popup navigation uses the shared menu-button styling and buttons constrained to ~20% width for consistent layout.
+- Misc: removed temporary debug helpers (TIME_SCALE) and trimmed nonessential tooltip workarounds while keeping minimal, robust fixes.
+
+---
+
 # [0.1.0] - 2025-10-22
 
 This update introduces the foundational elements of **Chapter 1: Fall From the Sky**, shifting the game's start to a narrative-driven survival scenario before the colony-building phase. It also includes various quality-of-life improvements and bug fixes based on initial development.
@@ -49,8 +63,6 @@ This update introduces the foundational elements of **Chapter 1: Fall From the S
 - Resolved CSS conflicts and layout problems in the footer and info panel (text wrapping, inconsistent row heights).
 - Fixed JavaScript errors related to module exports (`showSection`) and incorrect variable references during action completion.
 - Corrected tooltip display logic to reliably differentiate between actions and technologies.
-
----
 
 # [0.0.1] - 2025-10-15
 

@@ -1,8 +1,7 @@
 import { buildings } from './data/buildings.js';
 import { technologies } from './data/technologies.js';
 import { formatNumber } from './formatting.js';
-import { getOrCreateTooltip, updateTooltipPosition } from './main.js';
-// MODIFIED: Updated import path
+import { getOrCreateTooltip, updateTooltipPosition } from './tooltip.js';
 import { getActiveCrashSiteAction } from './data/activeActions.js';
 
 export function getInitialResources() {
@@ -19,6 +18,7 @@ export function getInitialResources() {
         { name: 'Helion-3 Concentrate', amount: 0, isDiscovered: false, capacity: 25, producible: true, integer: false },
         { name: 'Cygnium Ore', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
         { name: 'Sentient Mycelium', amount: 0, isDiscovered: false, capacity: 10, producible: true, integer: false },
+        { name: 'Crude Prybar', amount: 0, isDiscovered: false, capacity: 5, producible: false, integer: true },
     ];
 }
 
@@ -149,7 +149,8 @@ export function updateResourceInfo() {
         const infoRow = document.querySelector(`.info-row[data-resource="${resource.name}"]`);
         if (!infoRow) return;
 
-        if (resource.name !== 'Survivors' && resource.amount > 0 && !resource.isDiscovered) {
+        // reveal any resource that has a positive amount
+        if (resource.amount > 0 && !resource.isDiscovered) {
             resource.isDiscovered = true;
         }
         

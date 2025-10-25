@@ -1,3 +1,13 @@
+#colonySection {
+    background-image: url('../assets/images/background1.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    align-items: flex-start;
+    padding-left: 20px;
+    box-sizing: border-box;
+}
+
 .section-header {
     width: 100%;
     margin-bottom: 10px;

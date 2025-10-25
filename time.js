@@ -24,23 +24,19 @@ function save() {
     }
 }
 
-/** Convert totalIngameMinutes -> { day, hour (1-24), minute } */
+// Return structured in-game time object { day, hour, minute } based on totalIngameMinutes
 export function getIngameTimeObject() {
-    const mins = Math.floor(totalIngameMinutes);
-    const totalHours = Math.floor(mins / 60);
-    const day = Math.floor(totalHours / 24);
-    const hour = (totalHours % 24); // 1..24
+    const mins = Math.max(0, Math.floor(totalIngameMinutes || 0));
+    const day = Math.floor(mins / (60 * 24));
+    const hour = Math.floor((mins % (60 * 24)) / 60);
     const minute = mins % 60;
     return { day, hour, minute };
 }
 
-function pad(n) {
-    return n.toString().padStart(2, '0');
-}
-
+// Convenience string formatter: "Day X, Hour YY"
 export function getIngameTimeString() {
     const t = getIngameTimeObject();
-    return `Day ${t.day}, Hour ${pad(t.hour)}`;
+    return `Day ${t.day}, Hour ${String(t.hour).padStart(2, '0')}`;
 }
 
 /** Advance internal time by realSeconds.

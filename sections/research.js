@@ -1,6 +1,7 @@
 import { addLogEntry } from '../log.js';
 import { technologies } from '../data/technologies.js';
-import { setupTooltip, hideTooltip, activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
+import { activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
+import { setupTooltip, hideTooltip } from '../tooltip.js';
 import { setupColonySection } from './colony.js';
 import { resources, updateResourceInfo } from '../resources.js';
 

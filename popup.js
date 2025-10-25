@@ -1,5 +1,29 @@
+import { getIngameTimeObject, getIngameTimeString } from './time.js';
+
 let activeStoryEvent = null;
 let currentPageIndex = 0;
+
+// Add a single Esc handler that is attached only while the popup is open
+let _popupEscHandler = null;
+function attachPopupEscHandler(overlayEl) {
+    if (_popupEscHandler) return;
+    _popupEscHandler = function (e) {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            // prefer using the existing close button so existing close logic runs
+            const closeBtn = (overlayEl && overlayEl.querySelector) ? overlayEl.querySelector('.story-popup-close') : document.querySelector('.story-popup-close');
+            if (closeBtn) closeBtn.click();
+            else hideStoryPopup();
+            e.preventDefault();
+        }
+    };
+    document.addEventListener('keydown', _popupEscHandler);
+}
+function detachPopupEscHandler() {
+    if (_popupEscHandler) {
+        document.removeEventListener('keydown', _popupEscHandler);
+        _popupEscHandler = null;
+    }
+}
 
 /**
  * Renders a specific page of a story event in the popup.
@@ -14,7 +38,15 @@ function renderPopupPage() {
 
     if (!messageEl || !pagingEl || !nextBtn || !prevBtn) return;
 
-    messageEl.textContent = activeStoryEvent.pages[currentPageIndex];
+    // Apply the project's shared button style so popup nav matches the rest of the UI
+    try {
+        nextBtn.classList.add('menu-button', 'story-nav-button');
+        prevBtn.classList.add('menu-button', 'story-nav-button');
+    } catch (e) { /* ignore in case buttons change */ }
+    
+    // use innerHTML with pre-wrap in CSS to preserve paragraph spacing
+    // If you want markdown support, replace the next line with: messageEl.innerHTML = marked(activeStoryEvent.pages[currentPageIndex]);
+    messageEl.innerHTML = (activeStoryEvent.pages[currentPageIndex] || '').replace(/\n/g, '<br><br>');
     pagingEl.textContent = `${currentPageIndex + 1} / ${activeStoryEvent.pages.length}`;
     if (currentPageIndex === activeStoryEvent.pages.length - 1) {
         nextBtn.textContent = 'Close';
@@ -25,6 +57,7 @@ function renderPopupPage() {
 }
 
 export function showStoryPopup(event) {
+    try { window.dispatchEvent(new CustomEvent('request-hide-tooltip')); } catch (e) { /* ignore */ }
     const storyPopup = document.getElementById('storyPopup');
     const titleEl = document.getElementById('popupTitle');
     const overlay = storyPopup ? storyPopup : document.getElementById('storyPopup'); // keep reference
@@ -46,10 +79,6 @@ export function showStoryPopup(event) {
     if (overlayEl && overlayEl.parentElement !== document.body) {
         document.body.appendChild(overlayEl);
     }
-    if (contentEl && contentEl.parentElement !== document.body) {
-        // keep content inside overlay; ensure overlay is direct child of body
-        // (we've already appended overlayEl to body, so content remains inside it)
-    }
 
     // Populate and show
     renderPopupPage();
@@ -61,18 +90,40 @@ export function showStoryPopup(event) {
     // Make visible
     overlayEl.classList.remove('hidden');
     overlayEl.style.display = '';
-    // force a reflow so browser applies stacking and transitions immediately
-    // eslint-disable-next-line no-unused-expressions
     overlayEl.offsetHeight;
-
-    // focus for accessibility and to ensure it's active on some browsers
     overlayEl.setAttribute('tabindex', '-1');
     try { overlayEl.focus({ preventScroll: true }); } catch (e) {}
+
+    // attach Esc handler now that popup is visible
+    attachPopupEscHandler(overlayEl);
+
+    try {
+        const raw = localStorage.getItem('storyLog');
+        const list = raw ? JSON.parse(raw) : [];
+        const id = event.id || event.title || null;
+        const text = (Array.isArray(event.pages) ? event.pages.join('\n\n') : (event.pages || event.text || '')) || '';
+        // dedupe by id/title
+        const exists = id ? list.find(x => x.id === id) : list.find(x => x.title === (event.title || id));
+        if (!exists) {
+            list.push({
+                id,
+                title: event.title || id || 'Untitled',
+                time: Date.now(),
+                // store structured in-game time object (day/hour/minute) for exact timestamping
+                ingameTime: (() => { try { return getIngameTimeObject(); } catch(e){ return null; } })(),
+                text
+            });
+            localStorage.setItem('storyLog', JSON.stringify(list));
+        }
+    } catch (e) { /* ignore storage errors */ }
 
     console.debug('showStoryPopup displayed:', event?.title || event?.id || '<unknown>');
 }
 
 function hideStoryPopup() {
+    // detach Esc handler immediately so it won't fire during hide steps
+    detachPopupEscHandler();
+
     const storyPopup = document.getElementById('storyPopup');
     if (storyPopup) {
         storyPopup.classList.add('hidden');

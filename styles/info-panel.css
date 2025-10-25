@@ -1,4 +1,5 @@
 #infoPanel {
+    position: relative;
     width: 20%;
     background-color: black;
     height: 100%;
@@ -75,6 +76,16 @@
 .infocolumn1 { justify-content: flex-start; }
 .infocolumn2, .infocolumn3 { justify-content: flex-end; }
 
+.info-row {
+    position: relative;
+}
+
+.info-row .infocolumn1 {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px; /* space between icon and text */
+}
+
 .info-row span,
 .info-row p {
     margin: 0;
@@ -107,3 +118,48 @@
 .info-row.insight-resource {
     color: #FFD700;
 }
+
+/* Debuff icon inside resource row: symbol only */
+.info-row .debuff-icon {
+    display: none; /* shown when .active is added */
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 14px;
+    pointer-events: auto;   /* ensure it receives mouse events */
+    position: relative; 
+    z-index: 999; 
+}
+
+/* show when active */
+.info-row .debuff-icon.active {
+    display: inline-flex !important;
+}
+
+/* smaller icon and multiplier styling */
+.info-row .debuff-icon .icon { 
+    font-size: 12px; line-height: 1;
+    pointer-events: none;
+ }
+
+.info-row .debuff-icon .mult { 
+font-size: 11px; margin-left: 2px;
+display: none !important; 
+}
+
+/* hide by default; JS will toggle display */
+.info-row .debuff-icon { display: none; }
+
+/* Visually indicate actions blocked until the nearby sound has been investigated */
+.blocked-investigate-sound {
+    opacity: 0.55;
+    filter: grayscale(30%);
+    cursor: not-allowed;
+}
+
+/* keep cancel-text and tooltip behavior functional even when visually blocked */
+.blocked-investigate-sound .cancel-text { opacity: 0.6; }

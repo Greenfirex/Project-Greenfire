@@ -1,0 +1,71 @@
+/* Journal styling — reuses .content-panel from crashSite.css */
+
+.journal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.header-close {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.06);
+    color: #fff;
+    padding: 6px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.journal-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: calc(100vh - 180px);
+    overflow: auto;
+    padding-right: 6px;
+}
+
+.journal-entry {
+    background: rgba(255, 255, 255, 0);
+    border: 1px solid rgba(255,255,255,0.04);
+    padding: 12px;
+    border-radius: 6px;
+}
+
+.journal-entry-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.journal-entry-time {
+    font-size: 0.85em;
+    opacity: 0.7;
+    margin-bottom: 8px;
+}
+
+.journal-entry-body {
+    white-space: pre-wrap;
+    line-height: 1.45;
+    color: #ececec;
+}
+
+.muted { color: rgba(255,255,255,0.5); }
+
+#journalSection {
+    background-image: url('../assets/images/journalbackground.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    display: flex;
+    align-items: flex-start;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* Make journal headers use the same accent color as story popups */
+.journal-header h2,
+.journal-entry-title {
+    color: #90EE90; /* popup header color */
+}
+
+/* .content-panel and shared UI styles have been moved to styles/game-area.css */

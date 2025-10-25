@@ -119,6 +119,22 @@ export function loadGameState() {
 export function resetToDefaultState() {
     addLogEntry('Game state reset.', LogType.INFO);
 
+    try {
+        localStorage.removeItem('storyLog');
+        localStorage.removeItem('logEntries');
+    } catch (e) { /* ignore storage errors */ }
+ 
+         try {
+         import('./data/actions.js').then(mod => {
+             if (mod && typeof mod.resetActionsToDefaults === 'function') {
+                 mod.resetActionsToDefaults();
+             }
+         }).catch(() => { /* ignore */ });
+     } catch (e) { /* ignore */ }
+
+    // Ensure in-game clock resets BEFORE creating the initial story/journal entry
+    try { resetIngameTime(); } catch (e) { console.warn('resetIngameTime failed', e); }
+
     const event = storyEvents.crashIntro;
     showStoryPopup(event);
 
@@ -148,10 +164,18 @@ export function resetToDefaultState() {
 
     // Persist the freshly reset default to storage so subsequent loads use it
     try { saveGameState(); } catch (e) { console.warn('saveGameState failed', e); }
+
+    try { window.dispatchEvent(new CustomEvent('gameReset')); } catch (e) { /* ignore */ }
 }
 
 export function resetGameState() {
     console.log('Resetting game state via page reload');
+    try { window.dispatchEvent(new CustomEvent('gameReset')); } catch (e) { /* ignore */ }
+        try {
+        import('./data/actions.js').then(mod => {
+            if (mod && typeof mod.resetActionsToDefaults === 'function') mod.resetActionsToDefaults();
+        }).catch(() => { /* ignore */ });
+    } catch (e) { /* ignore */ }
     localStorage.clear();
     location.reload();
 }
