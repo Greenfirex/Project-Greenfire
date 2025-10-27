@@ -97,8 +97,11 @@
 .content-panel::-webkit-scrollbar-thumb:hover { background-color: #666; }
 
 /* small utility to indicate a visually-blocked action (kept here too) */
-.blocked-investigate-sound {
+.image-button.blocked-action {
     opacity: 0.55;
-    filter: grayscale(30%);
-    cursor: not-allowed;
+    filter: grayscale(0.25);
+    cursor: default;                  /* non-clickable look but still hoverable */
+    pointer-events: auto !important;  /* ensure hover/mouse events still fire */
+    position: relative;
+    z-index: 2;                        /* raise above accidental overlays */
 }

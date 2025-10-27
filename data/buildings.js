@@ -47,6 +47,28 @@ const initialBuildings = [
         costMultiplier: 1.15,
         description: 'A basic facility that generates Insight required for scientific research.',
         isUnlocked: false
+    },
+
+    // For Crash Site builds (locked until survivors are found / investigateSound completes)
+    {
+        name: 'Foraging Camp',
+        // This building unlocks a "Foraging" job slot per built camp.
+        effect: { type: 'job', jobId: 'foraging' },
+        count: 0,
+        cost: [{ resource: 'Scrap Metal', amount: 20 }],
+        costMultiplier: 1.3,
+        description: 'A basic camp where survivors can be organized to forage for food.',
+        isUnlocked: false
+    },
+    {
+        name: 'Water Station',
+        // This building unlocks a "Water Collection" job slot per built station.
+        effect: { type: 'job', jobId: 'water_collection' },
+        count: 0,
+        cost: [{ resource: 'Scrap Metal', amount: 20 }],
+        costMultiplier: 1.3,
+        description: 'A makeshift station to collect and purify water.',
+        isUnlocked: false
     }
 ];
 

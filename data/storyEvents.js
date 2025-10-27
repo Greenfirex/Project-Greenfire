@@ -1,7 +1,7 @@
 export const storyEvents = {
     // --- NEW: The intro story for Chapter 1 ---
     crashIntro: {
-        title: 'Waking to Ash',
+        title: 'Chapter I - Waking to Ash',
     pages: [
         "I am Lieutenant Commander — second in command aboard the scout vessel Vinea-IV, deployed by Starfleet Command on a terraforming reconnaissance. Our objective was simple and vital: scan this sector, assess viability, and send our findings back to Command. We were not prepared for ruin.",
         "Everything happened during a routine surface scan. A sudden, high‑velocity impact ripped through the hull. Sensors registered nothing beforehand — no heat signature — just a sudden strike from some kind of projectile. Systems failed. Alarms consumed the bridge. Fire and smoke filled the corridors.",
@@ -11,7 +11,7 @@ export const storyEvents = {
     },
 	foundBerries: {
         title: "Edible Flora",
-        pages: ["Your brief scouting run was fruitful. You've identified a patch of alien flora that appears to be edible, although not particularly nutritious. This should allow you to forage for basic food rations."]
+        pages: ["While searching for an alternate route into the ship you discovered a small patch of edible berries. They're modest, but nutritious — you gather what you can to stave off hunger for now."]
     },
     foundRiver: {
         title: "Water Source",
@@ -19,7 +19,9 @@ export const storyEvents = {
     },
     foundCave: {
         title: "Shelter",
-        pages: ["Finally, you found a small, dry cave recessed into a rock wall. It's not much, but it's a sheltered location, perfect for resting and recovering energy safely."]
+        pages: [
+            "You make it away from the blaze and crawl into a small, dry cave recessed in the rock. Completely exhausted, you collapse and let the quiet settle in. For now this shelter is safe — you can rest here and recover before pressing on."
+        ]
     },
     reentryFailed: {
         title: 'Entry Denied — Forward Hull Collapsed',
@@ -52,6 +54,13 @@ investigate_sound_found: {
     pages: [
         "You move cautiously toward the noise, keeping your light low. Behind a collapsed panel you find two survivors — shaken and bruised, but alive. You help them to their feet and bring them to safety.",
         "They can be counted among your people now. For a moment the wreck feels less hopeless."
+    ]
+},
+basecamp_established: {
+    title: 'Base Camp Established',
+    pages: [
+        "You have established a rudimentary base camp. This central location allows you to organise survivors, assign simple tasks, and coordinate recovery efforts.",
+        "Crew Management is now available — assign survivors to jobs and prioritize tasks from there. Assigned crew will help with routine resource collection and management, improving efficiency and freeing you to focus on exploration and repairs."
     ]
 },
 bridge_dark: {

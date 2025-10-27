@@ -1,65 +1,71 @@
 import { salvageActions } from '../data/actions.js';
 import { resources } from '../resources.js';
 import { addLogEntry, LogType } from '../log.js';
-import { setActivatedSections, applyActivatedSections, showSection, getInitialActivatedSections } from '../main.js';
+import { enableSection } from '../main.js';
 import { setupTooltip } from '../tooltip.js';
 import { storyEvents } from '../data/storyEvents.js';
 import { showStoryPopup } from '../popup.js';
 import { getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/activeActions.js';
+import { buildings } from '../data/buildings.js';
+import { buildBuilding, updateBuildingButtonsState, createBuildingButton } from './colony.js';
 
-let actionInterval = null;
-let isPendingCancel = null; // Tracks which action ID is pending cancellation
-let cancelTimeout = null;   // The timer for the confirmation window
-
-const __initialActionsSnapshot = {
-    actions: (typeof actions !== 'undefined' && Array.isArray(actions)) ? JSON.parse(JSON.stringify(actions)) : null,
-    salvageActions: (typeof salvageActions !== 'undefined' && Array.isArray(salvageActions)) ? JSON.parse(JSON.stringify(salvageActions)) : null
-};
-
-export function resetActionsToDefaults() {
-    // restore `actions` if present
-    if (__initialActionsSnapshot.actions && typeof actions !== 'undefined' && Array.isArray(actions)) {
-        actions.length = 0;
-        __initialActionsSnapshot.actions.forEach(a => actions.push(JSON.parse(JSON.stringify(a))));
+function canAffordAction(action) {
+    const required = {};
+    if (action.cost) {
+        for (const c of action.cost) required[c.resource] = (required[c.resource] || 0) + c.amount;
     }
-    // restore `salvageActions` if present
-    if (__initialActionsSnapshot.salvageActions && typeof salvageActions !== 'undefined' && Array.isArray(salvageActions)) {
-        salvageActions.length = 0;
-        __initialActionsSnapshot.salvageActions.forEach(a => salvageActions.push(JSON.parse(JSON.stringify(a))));
+    if (action.drain) {
+        for (const d of action.drain) required[d.resource] = (required[d.resource] || 0) + d.amount;
     }
+    for (const resourceName in required) {
+        const res = resources.find(r => r.name === resourceName);
+        if (!res || res.amount < required[resourceName]) return false;
+    }
+    return true;
 }
 
-// --- NEW: Controlled loop start/stop and pause-awareness ---
-export function startCrashSiteLoop(section) {
+function getAffordabilityShortfalls(action) {
+    const required = {};
+    if (action.cost) {
+        for (const c of action.cost) required[c.resource] = (required[c.resource] || 0) + c.amount;
+    }
+    if (action.drain) {
+        for (const d of action.drain) required[d.resource] = (required[d.resource] || 0) + d.amount;
+    }
+    const shortfalls = [];
+    for (const resourceName in required) {
+        const res = resources.find(r => r.name === resourceName);
+        const have = res ? res.amount : 0;
+        const need = required[resourceName];
+        if (!res) {
+            shortfalls.push(`${resourceName} missing (need ${need})`);
+        } else if (have < need) {
+            const more = Math.ceil(need - have);
+            shortfalls.push(`${resourceName}: need ${more} more`);
+        }
+    }
+    return shortfalls;
+}
+
+let actionInterval = null;
+let isPendingCancel = null;
+let cancelTimeout = null;
+
+export function startCrashSiteLoop(section = null) {
     if (actionInterval) return;
-    // Try to find the section if not provided (safe fallback)
     if (!section) {
         const container = document.querySelector('#salvageActionsContainer');
         section = container ? container.closest('.content-panel') || container.parentElement : null;
     }
-
-    const activeAction = typeof getActiveCrashSiteAction === 'function' ? getActiveCrashSiteAction() : null;
+    const activeAction = getActiveCrashSiteAction();
     if (!activeAction) return;
-
-    // Clear any existing interval just in case
-    if (actionInterval) {
-        clearInterval(actionInterval);
-        actionInterval = null;
-    }
-
-    // If the action was paused, resume time accounting by removing pause marker
     if (activeAction.pauseStart) {
         const pausedDuration = Date.now() - activeAction.pauseStart;
         activeAction.startTime = (activeAction.startTime || Date.now()) + pausedDuration;
+        activeAction.lastTickTime = Date.now();
         delete activeAction.pauseStart;
     }
-
-
-    // Pass a scaled intervalSeconds so drains/progress per tick accelerate with window.TIME_SCALE.
-    actionInterval = setInterval(() => {
-        const scale = (window.TIME_SCALE || 1);
-        updateActionProgress(section, 0.1 * scale);
-    }, 100);
+    actionInterval = setInterval(() => updateActionProgress(section), 100);
 }
 
 export function stopCrashSiteLoop() {
@@ -67,23 +73,19 @@ export function stopCrashSiteLoop() {
         clearInterval(actionInterval);
         actionInterval = null;
     }
-
-    // Mark pause start so resume adjusts startTime
-    const activeAction = typeof getActiveCrashSiteAction === 'function' ? getActiveCrashSiteAction() : null;
+    const activeAction = getActiveCrashSiteAction();
     if (activeAction) {
         activeAction.pauseStart = Date.now();
     }
 }
 
 function getRandomInt(min, max) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
+    min = Math.ceil(min); max = Math.floor(max);
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 export function setupCrashSiteSection(section) {
     if (!section) return;
-
     section.innerHTML = `
         <div class="content-panel">
             <h2>Crash Site</h2>
@@ -93,405 +95,353 @@ export function setupCrashSiteSection(section) {
     `;
 
     const actionsContainer = section.querySelector('#salvageActionsContainer');
-    actionsContainer.innerHTML = ''; 
-
-    // UPDATED: allow repeatable actions to remain available even if their stages are exhausted
     const availableActions = salvageActions.filter(action => {
         const stageIndex = action.stage || 0;
         const totalStages = (action.stages || []).length;
-        // If action has stages and stage index >= totalStages:
-        if (totalStages > 0 && stageIndex >= totalStages) {
-            // keep repeatable actions visible only if unlocked
-            return !!action.repeatable && !!action.isUnlocked;
-        }
-        // otherwise show if unlocked
+        if (totalStages > 0 && stageIndex >= totalStages) return !!action.repeatable && !!action.isUnlocked;
         return !!action.isUnlocked;
     });
-    
-    const categories = [...new Set(availableActions.map(action => action.category))];
+
+    const categories = [...new Set(availableActions.map(a => a.category))].filter(c => c !== 'Construction');
 
     categories.forEach(category => {
-        const categoryHeading = document.createElement('h3');
-        categoryHeading.textContent = category;
-        categoryHeading.className = 'category-heading';
-        actionsContainer.appendChild(categoryHeading);
+        const h = document.createElement('h3');
+        h.textContent = category;
+        h.className = 'category-heading';
+        actionsContainer.appendChild(h);
 
-        const buttonGroup = document.createElement('div');
-        buttonGroup.className = 'button-group';
+        const group = document.createElement('div');
+        group.className = 'button-group';
 
-        availableActions.filter(action => action.category === category).forEach(action => {
-            const button = document.createElement('button');
-            button.className = 'image-button';
-            button.innerHTML = `
+        availableActions.filter(a => a.category === category).forEach(action => {
+            const btn = document.createElement('button');
+            btn.className = 'image-button';
+            btn.dataset.actionId = action.id;
+            btn.innerHTML = `
                 <div class="action-progress-bar"></div>
                 <span class="building-name">${action.name}</span>
                 <span class="cancel-text">Abort?</span>
             `;
-            // Default click handler — may be overridden below for special blocking rules
-            button.onclick = () => startAction(action, section);
-            button.dataset.actionId = action.id;
-            setupTooltip(button, action);
- 
-            let canAfford = true;
-            if (action.cost || action.drain) {
-                 const resourcesToDeduct = (action.cost || []).concat(action.drain || []);
-                 for (const cost of resourcesToDeduct) {
-                    const resource = resources.find(r => r.name === cost.resource);
-                    if (!resource || resource.amount < cost.amount) {
-                        canAfford = false;
-                        break;
-                    }
-                }
-            }
+
+            setupTooltip(btn, action);
+
+            const canAfford = canAffordAction(action);
             if (!canAfford) {
-                button.classList.add('unaffordable');
+                btn.classList.add('unaffordable');
+                btn.setAttribute('aria-disabled', 'true');
             }
 
-            // Block access to certain high-priority routes until 'Investigate Nearby Sound' has been completed.
-            const blockedUntilInvestigate = ['searchSouthCorridor','searchNorthCorridor','investigateBridge'];
+            // Block certain exploration actions until investigating / basecamp progress.
+            // Requires salvageActions to be available in this module (import if needed).
+            const blocked = ['searchSouthCorridor','searchNorthCorridor','investigateBridge'];
             const investigateAction = salvageActions.find(a => a.id === 'investigateSound');
+            const basecampAction = salvageActions.find(a => a.id === 'establishBaseCamp');
             const isInvestigateDone = !!(investigateAction && investigateAction.completed);
-            if (blockedUntilInvestigate.includes(action.id) && !isInvestigateDone) {
-                // visually block but keep clickable so we can show a helpful log message
-                button.classList.add('blocked-investigate-sound');
-                button.setAttribute('aria-disabled', 'true');
-                button.onclick = (e) => {
-                    // Prevent starting the action and give player guidance
+            const isBasecampDone = !!(basecampAction && basecampAction.completed);
+
+            const blockedByInvestigate = blocked.includes(action.id) && !isInvestigateDone;
+            const blockedByBasecamp = blocked.includes(action.id) && isInvestigateDone && !isBasecampDone;
+            if (blockedByInvestigate || blockedByBasecamp) {
+                btn.classList.add('blocked-action');        // style this class in CSS
+                btn.setAttribute('aria-disabled', 'true');
+                btn.title = blockedByInvestigate
+                    ? 'Investigate Nearby Sound first — someone might be alive nearby.'
+                    : 'You found survivors — secure a base camp first before exploring deeper.';
+            }
+
+            btn.onclick = (e) => {
+                if (blocked.includes(action.id) && !isInvestigateDone) {
                     e.preventDefault();
                     addLogEntry('You should investigate the nearby sound first — someone might be alive nearby. Try "Investigate Nearby Sound".', LogType.INFO);
-                };
-            }
+                    return;
+                }
+                if (blocked.includes(action.id) && isInvestigateDone && !isBasecampDone) {
+                    e.preventDefault();
+                    addLogEntry('You found survivors — secure a base camp first before exploring deeper. Try "Establish Base Camp".', LogType.INFO);
+                    return;
+                }
+                const shortfalls = getAffordabilityShortfalls(action);
+                if (shortfalls.length > 0) {
+                    e.preventDefault();
+                    addLogEntry(`Cannot start "${action.name}": ${shortfalls.join('; ')}`, LogType.INFO);
+                    return;
+                }
+                startAction(action, section);
+            };
 
-            buttonGroup.appendChild(button);
+            group.appendChild(btn);
         });
-        actionsContainer.appendChild(buttonGroup);
+
+        actionsContainer.appendChild(group);
     });
+
+    const constructionWrapper = document.createElement('div');
+    constructionWrapper.style.marginTop = '18px';
+    const ch = document.createElement('h3');
+    ch.textContent = 'Construction';
+    constructionWrapper.appendChild(ch);
+
+    const buildGroup = document.createElement('div');
+    buildGroup.className = 'button-group';
+    const siteBuildings = buildings.filter(b => ['Foraging Camp', 'Water Station'].includes(b.name) && b.isUnlocked === true);
+
+    siteBuildings.forEach(bld => {
+        createBuildingButton(bld, buildGroup);
+        const btn = buildGroup.querySelector(`.image-button[data-building="${bld.name}"]`);
+        if (btn) {
+            const nameSpan = btn.querySelector('.building-name');
+            if (nameSpan) nameSpan.textContent = bld.name;
+            const countSpan = btn.querySelector('.building-count');
+            if (countSpan) countSpan.textContent = `(${bld.count})`;
+            // click handler already attached by createBuildingButton; keep tooltip in sync
+            setupTooltip(btn, bld);
+        }
+    });
+
+    if (buildGroup.children.length > 0) {
+        if (typeof updateBuildingButtonsState === 'function') updateBuildingButtonsState();
+        constructionWrapper.appendChild(buildGroup);
+        actionsContainer.appendChild(constructionWrapper);
+    }
 }
 
 function startAction(action, section) {
-     // Prevent starting if an action is already running
-    const existing = typeof getActiveCrashSiteAction === 'function' ? getActiveCrashSiteAction() : null;
+    const existing = getActiveCrashSiteAction();
     if (existing) return;
 
-    const resourcesToDeduct = (action.cost || []).concat(action.drain || []);
-    for (const cost of resourcesToDeduct) {
-        const resource = resources.find(r => r.name === cost.resource);
-        if (!resource || resource.amount < cost.amount) {
-            addLogEntry(`Not enough ${cost.resource} to begin: ${action.name}.`, LogType.ERROR);
-            return;
-        }
+    if (!canAffordAction(action)) {
+        addLogEntry(`Not enough resources to begin: ${action.name}.`, LogType.ERROR);
+        return;
     }
+    const upfront = action.cost || [];
+    upfront.forEach(cost => {
+        const r = resources.find(x => x.name === cost.resource);
+        if (r) r.amount -= cost.amount;
+    });
 
-    if (action.cost) {
-        for (const cost of action.cost) {
-            const resource = resources.find(r => r.name === cost.resource);
-            resource.amount -= cost.amount;
+    const btn = section.querySelector(`[data-action-id="${action.id}"]`);
+    if (btn) {
+        const name = btn.querySelector('.building-name');
+        if (name && !btn.dataset.originalLabel) btn.dataset.originalLabel = name.innerText;
+        const bar = btn.querySelector('.action-progress-bar');
+        if (bar) bar.style.width = '0%';
+        btn.classList.add('running');
+        if (action.cancelable) {
+            btn.onclick = () => requestCancel(action, section);
+            btn.disabled = false;
+        } else {
+            btn.onclick = null;
+            btn.disabled = true;
         }
     }
 
     setActiveCrashSiteAction({
-        ...action,
-        startTime: Date.now()
+        ...JSON.parse(JSON.stringify(action)),
+        startTime: Date.now(),
+        lastTickTime: Date.now(),
+        elapsed: 0
     });
-
-    // Disable all buttons, then re-enable the active one as a cancel button
-    section.querySelectorAll('.image-button').forEach(button => {
-        button.disabled = true;
-    });
-
-    const activeButton = section.querySelector(`[data-action-id="${action.id}"]`);
-     if (activeButton) {
-        activeButton.disabled = false;
-        // Only wire cancel request if the action is cancelable (default true)
-        if (action.cancelable === false) {
-            // visually indicate non-cancelable (optional)
-            activeButton.classList.add('non-cancelable');
-            activeButton.onclick = null;
-        } else {
-            activeButton.onclick = () => requestCancel(action, section);
-        }
-    }
 
     addLogEntry(`Started: ${action.name}.`, LogType.INFO);
-
-    // Start the controlled loop (handles pause/resume correctly)
     startCrashSiteLoop(section);
 }
 
 function requestCancel(action, section) {
+    const running = getActiveCrashSiteAction();
+    if (!running || running.cancelable === false) return;
 
-    // If action is not cancelable, ignore and inform player
-    if (action.cancelable === false) {
-        addLogEntry(`${action.name} cannot be cancelled.`, LogType.INFO);
-        return;
-    }
-
-    // If you click a second time while confirmation is pending, cancel immediately
     if (isPendingCancel === action.id) {
         clearTimeout(cancelTimeout);
         cancelAction(section, `${action.name} cancelled by user.`);
         return;
     }
-
-    // On the first click, show the confirmation
     isPendingCancel = action.id;
-    const activeButton = section.querySelector(`[data-action-id="${action.id}"]`);
-    if (activeButton) {
-        activeButton.classList.add('confirm-cancel');
-    }
-
-    // Set a timer to automatically revert if not clicked again
+    const btn = section.querySelector(`[data-action-id="${action.id}"]`);
+    if (btn) btn.classList.add('confirm-cancel');
     cancelTimeout = setTimeout(() => {
-        if (activeButton) {
-            activeButton.classList.remove('confirm-cancel');
-        }
+        if (btn) btn.classList.remove('confirm-cancel');
         isPendingCancel = null;
         cancelTimeout = null;
-    }, 2000); // 2-second window to confirm
+    }, 2000);
 }
 
-function updateActionProgress(section, intervalSeconds) {
-    const activeAction = getActiveCrashSiteAction();
-    if (!activeAction) return;
+function updateActionProgress(section) {
+    const a = getActiveCrashSiteAction();
+    if (!a) return;
 
-    // Determine survival debuff multiplier from resources
-    const foodRes = resources.find(r => r.name === 'Food Rations');
-    const waterRes = resources.find(r => r.name === 'Clean Water');
-    let debuffMultiplier = 1;
-    if (foodRes && foodRes.amount <= 0) debuffMultiplier *= 1.5;
-    if (waterRes && waterRes.amount <= 0) debuffMultiplier *= 1.5;
+    const now = Date.now();
+    const rawDelta = Math.max(0, Math.min((now - (a.lastTickTime || now)) / 1000, 0.25));
+    a.lastTickTime = now;
 
-    // Notify player once per-action when debuff is affecting it
-    if (debuffMultiplier > 1 && !activeAction._debuffNotified) {
-        addLogEntry('You are weakened by lack of food/water — actions take longer and consume more.', LogType.INFO);
-        activeAction._debuffNotified = true;
-    }
-    if (debuffMultiplier === 1 && activeAction._debuffNotified) {
-        // clear the per-action flag when debuff no longer applies so future runs notify again if needed
-        delete activeAction._debuffNotified;
-    }
+    const timeScale = (window.TIME_SCALE || 1);
+    const delta = rawDelta * timeScale;
 
-    // Apply drains scaled to effective duration (so drains last the full effective duration)
-    if (activeAction.drain) {
-        for (const drain of activeAction.drain) {
-            const resource = resources.find(r => r.name === drain.resource);
-            const effectiveDuration = Math.max(0.001, (activeAction.duration || 1) * debuffMultiplier);
-            const drainPerSecond = drain.amount / effectiveDuration;
-            const drainThisTick = drainPerSecond * intervalSeconds;
+    const food = resources.find(r => r.name === 'Food Rations');
+    const water = resources.find(r => r.name === 'Clean Water');
+    let debuff = 1;
+    if (food && food.amount <= 0) debuff *= 1.5;
+    if (water && water.amount <= 0) debuff *= 1.5;
 
-            if (resource.amount < drainThisTick) {
-                cancelAction(section, `${activeAction.name} cancelled: Ran out of ${resource.name}.`);
-                return;
+    const effectiveDuration = Math.max(0.001, (a.duration || 1) * debuff);
+
+    if (a.drain) {
+        for (const d of a.drain) {
+            const res = resources.find(r => r.name === d.resource);
+            const perSec = d.amount / effectiveDuration;
+            const take = perSec * delta;
+            if (res.amount < take) {
+                if (a.cancelable) {
+                    cancelAction(section, `${a.name} cancelled: Ran out of ${res.name}.`);
+                    return;
+                } else {
+                    res.amount = 0;
+                }
+            } else {
+                res.amount -= take;
             }
-            resource.amount -= drainThisTick;
         }
     }
 
-    const effectiveDuration = Math.max(0.001, (activeAction.duration || 1) * debuffMultiplier);
-    // Scale elapsedTime by the global debug TIME_SCALE so actions speed up when TIME_SCALE > 1
-    const elapsedTime = ((Date.now() - activeAction.startTime) / 1000) * (window.TIME_SCALE || 1);
-    const progress = Math.min((elapsedTime / effectiveDuration) * 100, 100);
-    const activeButton = section.querySelector(`[data-action-id="${activeAction.id}"]`);
+    a.elapsed = Math.min(effectiveDuration, (a.elapsed || 0) + delta);
+    const progress = Math.min((a.elapsed / effectiveDuration) * 100, 100);
 
-    if (activeButton) {
-        const progressBar = activeButton.querySelector('.action-progress-bar');
-        const textSpan = activeButton.querySelector('.building-name');
-        progressBar.style.width = `${progress}%`;
-        const remainingTime = Math.max(0, effectiveDuration - elapsedTime);
-        textSpan.innerText = `${remainingTime.toFixed(1)}s`;
+    const btn = section.querySelector(`[data-action-id="${a.id}"]`);
+    if (btn) {
+        const bar = btn.querySelector('.action-progress-bar');
+        const label = btn.querySelector('.building-name');
+        if (bar) bar.style.width = `${progress}%`;
+        if (label) {
+            const remainingRealSeconds = Math.max(0, (effectiveDuration - a.elapsed) / timeScale);
+            label.innerText = `${remainingRealSeconds.toFixed(1)}s`;
+        }
     }
 
-    if (progress >= 100) {
-        handleActionCompletion(section);
-    }
+    if (a.elapsed >= effectiveDuration) handleActionCompletion(section);
 }
 
 function cancelAction(section, message) {
-    const cancelledAction = typeof getActiveCrashSiteAction === 'function' ? getActiveCrashSiteAction() : null;
-    if (!cancelledAction) return;
-
-    // If action is not cancelable, do nothing
-    if (cancelledAction.cancelable === false) {
-        addLogEntry(`${cancelledAction.name} cannot be cancelled.`, LogType.INFO);
+    const a = getActiveCrashSiteAction();
+    if (!a) return;
+    if (a.cancelable === false) {
+        addLogEntry(`${a.name} cannot be cancelled.`, LogType.INFO);
         return;
     }
 
-    // Stop the loop and clear any pending cancel marker
     stopCrashSiteLoop();
-
-    if (cancelTimeout) {
-        clearTimeout(cancelTimeout);
-        cancelTimeout = null;
-    }
+    if (cancelTimeout) { clearTimeout(cancelTimeout); cancelTimeout = null; }
     isPendingCancel = null;
 
-    // --- Refund Logic ---
-    let refundedStrings = [];
-    // Refund 50% of initial costs
-    if (cancelledAction.cost) {
-        for (const cost of cancelledAction.cost) {
-            const resource = resources.find(r => r.name === cost.resource);
-            const refundAmount = Math.floor(cost.amount * 0.5);
-            if (resource && refundAmount > 0) {
-                resource.amount = Math.min(resource.amount + refundAmount, resource.capacity);
-                refundedStrings.push(`${refundAmount} ${resource.name}`);
+    const refunds = [];
+    if (a.cost) {
+        for (const c of a.cost) {
+            const res = resources.find(r => r.name === c.resource);
+            const refund = Math.floor(c.amount * 0.5);
+            if (res && refund > 0) {
+                res.amount = Math.min(res.amount + refund, res.capacity);
+                refunds.push(`${refund} ${res.name}`);
             }
         }
     }
-    // Refund 50% of resources drained so far
-    if (cancelledAction.drain) {
-        const elapsedTime = (Date.now() - cancelledAction.startTime) / 1000;
-        for (const drain of cancelledAction.drain) {
-            const resource = resources.find(r => r.name === drain.resource);
-            const drainPerSecond = drain.amount / cancelledAction.duration;
-            const amountDrained = drainPerSecond * Math.max(0, Math.min(elapsedTime, cancelledAction.duration));
-            const refundAmount = Math.floor(amountDrained * 0.5);
-            if (resource && refundAmount > 0) {
-                resource.amount = Math.min(resource.amount + refundAmount, resource.capacity);
-                refundedStrings.push(`${refundAmount} ${resource.name}`);
+    if (a.drain) {
+        const elapsed = Math.max(0, Math.min(a.elapsed || 0, a.duration));
+        for (const d of a.drain) {
+            const res = resources.find(r => r.name === d.resource);
+            const perSec = d.amount / a.duration;
+            const drained = perSec * elapsed;
+            const refund = Math.floor(drained * 0.5);
+            if (res && refund > 0) {
+                res.amount = Math.min(res.amount + refund, res.capacity);
+                refunds.push(`${refund} ${res.name}`);
             }
         }
     }
 
-    // Clear pause marker if present
-    if (cancelledAction.pauseStart) {
-        delete cancelledAction.pauseStart;
-    }
-
-    if (typeof setActiveCrashSiteAction === 'function') {
-        setActiveCrashSiteAction(null);
-    }
-
+    setActiveCrashSiteAction(null);
     addLogEntry(message, LogType.ERROR);
-    if (refundedStrings.length > 0) {
-        addLogEntry(`Refunded: ${refundedStrings.join(', ')}.`, LogType.INFO);
-    }
-
+    if (refunds.length) addLogEntry(`Refunded: ${refunds.join(', ')}.`, LogType.INFO);
     setupCrashSiteSection(section);
 }
 
 function handleActionCompletion(section) {
-    // Stop the loop
     stopCrashSiteLoop();
-
-    if (cancelTimeout) {
-        clearTimeout(cancelTimeout);
-        cancelTimeout = null;
-    }
+    if (cancelTimeout) { clearTimeout(cancelTimeout); cancelTimeout = null; }
     isPendingCancel = null;
 
-    const completedAction = typeof getActiveCrashSiteAction === 'function' ? getActiveCrashSiteAction() : null;
-    if (!completedAction) return;
+    const completed = getActiveCrashSiteAction();
+    if (!completed) return;
 
-    // Clear pause marker if present
-    if (completedAction.pauseStart) {
-        delete completedAction.pauseStart;
-    }
-
-    if (typeof setActiveCrashSiteAction === 'function') {
-        setActiveCrashSiteAction(null);
-    }
-
-    if (completedAction.reward) {
-        let rewardStrings = [];
-        completedAction.reward.forEach(reward => {
-            const resource = resources.find(r => r.name === reward.resource);
-            if (resource) {
-                let gainedAmount;
-                if (Array.isArray(reward.amount)) {
-                    gainedAmount = getRandomInt(reward.amount[0], reward.amount[1]);
-                } else {
-                    gainedAmount = reward.amount;
-                }
-                resource.amount = Math.min(resource.amount + gainedAmount, resource.capacity);
-                rewardStrings.push(`${gainedAmount} ${reward.resource}`);
-            }
+    if (completed.reward) {
+        const gains = [];
+        completed.reward.forEach(rw => {
+            const res = resources.find(r => r.name === rw.resource);
+            if (!res) return;
+            const amt = Array.isArray(rw.amount) ? getRandomInt(rw.amount[0], rw.amount[1]) : rw.amount;
+            res.amount = Math.min(res.amount + amt, res.capacity);
+            gains.push(`${amt} ${rw.resource}`);
         });
-        addLogEntry(`${completedAction.name} complete! Gained: ${rewardStrings.join(', ')}.`, LogType.SUCCESS);
+        addLogEntry(`${completed.name} complete! Gained: ${gains.join(', ')}.`, LogType.SUCCESS);
     } else {
-        addLogEntry(`${completedAction.name} complete!`, LogType.SUCCESS);
+        addLogEntry(`${completed.name} complete!`, LogType.SUCCESS);
     }
 
- if (completedAction.stages) {
-        // Find the original action object from the shared actions array
-        const originalAction = salvageActions.find(a => a.id === completedAction.id || a.name === completedAction.name);
-        if (originalAction) {
-            // Mark as completed for conditional checks elsewhere
-            originalAction.completed = true;
+    const original = salvageActions.find(a => a.id === completed.id || a.name === completed.name);
+    if (original) {
+        original.completed = true;
+        const idx = original.stage || 0;
+        const stage = (original.stages || [])[idx];
 
-            // --- Run the next stage (each completion advances the stage index) ---
-            const currentStageIndex = originalAction.stage || 0;
-            const stageData = (originalAction.stages || [])[currentStageIndex];
-            if (stageData) {
-                // Story popup (if defined)
-                if (stageData.story) {
-                    const event = storyEvents[stageData.story];
-                    if (event) {
-                        showStoryPopup(event);
-                        addLogEntry(stageData.logText || '', LogType.STORY, {
-                            onClick: () => showStoryPopup(event)
-                        });
+        if (stage) {
+            if (stage.story) {
+                const event = storyEvents[stage.story];
+                if (event) {
+                    showStoryPopup(event);
+                    addLogEntry(stage.logText || '', LogType.STORY, { onClick: () => showStoryPopup(event) });
+                }
+            } else if (stage.logText) {
+                addLogEntry(stage.logText, LogType.STORY);
+            }
+            if (Array.isArray(stage.unlocks)) {
+                stage.unlocks.forEach(id => {
+                    const toUnlock = salvageActions.find(a => a.id === id || a.name === id);
+                    if (toUnlock && !toUnlock.isUnlocked) {
+                        toUnlock.isUnlocked = true;
+                        addLogEntry(`New action available: ${toUnlock.name}`, LogType.UNLOCK);
                     }
-                }
-                // Log text only if no story to show
-                if (!stageData.story && stageData.logText) {
-                    try {
-                        addLogEntry(stageData.logText, LogType.STORY);
-                    } catch (e) { /* ignore logging errors */ }
-                }
-
-                // Unlock actions listed for this stage
-                if (Array.isArray(stageData.unlocks)) {
-                    stageData.unlocks.forEach(actionId => {
-                        const actionToUnlock = salvageActions.find(a => a.id === actionId || (a.name && a.name === actionId));
-                        if (actionToUnlock && !actionToUnlock.isUnlocked) {
-                            actionToUnlock.isUnlocked = true;
-                            addLogEntry(`New action available: ${actionToUnlock.name}`, LogType.UNLOCK);
-        }
+                });
+            }
+            if (original.id === 'establishBaseCamp') {
+                try {
+                    if (typeof enableSection === 'function') enableSection('crewManagementSection');
+                    const toUnlock = ['Foraging Camp', 'Water Station'];
+                    buildings.forEach(b => {
+                        if (toUnlock.includes(b.name) && !b.isUnlocked) {
+                            b.isUnlocked = true;
+                            addLogEntry(`New building available: ${b.name}`, LogType.UNLOCK);
+                        }
                     });
-                }
-
-                // advance stage index but clamp to totalStages to avoid overflow
-                const totalStages = (originalAction.stages || []).length;
-                originalAction.stage = Math.min(currentStageIndex + 1, totalStages);
-
-                // If we've reached or passed the last stage:
-                if (originalAction.stage >= totalStages) {
-                    if (originalAction.repeatable) {
-                        // keep it visible for further uses; stage is clamped to totalStages
-                        originalAction.isUnlocked = true;
-                        originalAction.stage = totalStages;
-                    } else {
-                        // hide if not repeatable and no more stages
-                        originalAction.isUnlocked = false;
-                    }
-                }
+                } catch {}
+            }
+            const total = (original.stages || []).length;
+            original.stage = Math.min(idx + 1, total);
+            if (original.stage >= total) {
+                original.isUnlocked = !!original.repeatable;
             }
         }
     }
 
+    setActiveCrashSiteAction(null);
     setupCrashSiteSection(section);
-};    
+}
 
-// --- NEW: Global pause/resume handlers so the module reacts to main.js events ---
 window.addEventListener('game-pause', () => {
-    // Only pause the crash-site loop if an action is active
-    const active = typeof getActiveCrashSiteAction === 'function' ? getActiveCrashSiteAction() : null;
-    if (active) {
-        stopCrashSiteLoop();
-    }
+    const active = getActiveCrashSiteAction();
+    if (active) stopCrashSiteLoop();
 });
 
 window.addEventListener('game-resume', () => {
-    const active = typeof getActiveCrashSiteAction === 'function' ? getActiveCrashSiteAction() : null;
+    const active = getActiveCrashSiteAction();
     if (!active) return;
-
-    // Find section DOM to pass to the loop starter
     const container = document.querySelector('#salvageActionsContainer');
     const section = container ? container.closest('.content-panel') || container.parentElement : null;
-    // startCrashSiteLoop will adjust startTime using pauseStart if present
     startCrashSiteLoop(section);
 });
-
-
-

@@ -13,9 +13,10 @@ export const salvageActions = [
     ],
     stage: 0,
     stages: [
+        // new order: sheltered area (rest) first, then food, then water/alternate access
+        { story: 'foundCave', unlocks: ['rest'], logText: 'You have discovered a sheltered area — someone can rest here. (Click to read)' },
         { story: 'foundBerries', unlocks: ['forageFood'], logText: 'You have discovered a source of food. (Click to read)' },
-        { story: 'foundRiver', unlocks: ['purifyWater'], logText: 'You have discovered a source of water. (Click to read)' },
-        { story: 'foundCave', unlocks: ['rest', 'attemptAlternateAccess'], logText: 'You have discovered a sheltered area. (Click to read)' }
+        { story: 'foundRiver', unlocks: ['purifyWater', 'attemptAlternateAccess'], logText: 'You have discovered a source of water. (Click to read)' }
     ]
 },
     {
@@ -74,7 +75,7 @@ export const salvageActions = [
     {
     id: 'rest',
     name: 'Rest',
-    description: 'Take a break to recover some energy.',
+    description: 'Take a quick break to recover some energy.',
     duration: 2,
     category: 'Survival',
     isUnlocked: false, // make available by default
@@ -86,7 +87,7 @@ export const salvageActions = [
         {
             story: null,
             unlocks: [],
-            logText: 'Having rested, you feel ready to try a different route back to the ship.'
+            logText: 'Having rested, you feel ready to press on. Maybe there\'s another way into the ship. Lets try to find it.'
         }
     ]
     },
@@ -94,7 +95,7 @@ export const salvageActions = [
     {
         id: 'attemptAlternateAccess',
         name: 'Attempt Alternate Access',
-        description: 'With basic needs addressed, try to find an alternate route into the ship — maintenance tunnels, vents or a collapsed access way.',
+        description: 'Now that you have scouted the area around the crash site, try to find an alternate route into the ship — maintenance tunnels, vents or a collapsed access way.',
         duration: 10,
         category: 'Exploration',
         isUnlocked: false,      // unlocked after Rest completes
@@ -184,11 +185,9 @@ export const salvageActions = [
         duration: 6,
         category: 'Exploration',
         isUnlocked: false,
-        cancelable: false,      // one-time, non-cancelable
-        drain: [
+        cancelable: false,        drain: [
             { resource: 'Energy', amount: 8 }
         ],
-        // immediate survivors reward (one-time)
         reward: [
             { resource: 'Survivors', amount: 2 }
         ],
@@ -197,12 +196,37 @@ export const salvageActions = [
         stages: [
             {
                 story: 'investigate_sound_found',
-                unlocks: [],
+                // After investigating the sound the player can then establish a base camp
+                unlocks: ['establishBaseCamp'],
                 logText: 'You follow the sound and find survivors huddled in a dark alcove. (Click to read)'
             }
         ]
     },
-
+    {
+        id: 'establishBaseCamp',
+        name: 'Establish Base Camp',
+        description: 'Set up a rudimentary base to organize survivors, assign work and improve coordination.',
+        duration: 10,
+        category: 'Survival', // <-- ensure this is in the Survival category
+        isUnlocked: false,
+        cancelable: true,
+        cost: [
+            { resource: 'Scrap Metal', amount: 12 }
+        ],
+        drain: [
+            { resource: 'Energy', amount: 6 }
+        ],
+        reward: [],
+        hideRewardPreview: true,
+        stage: 0,
+        stages: [
+            {
+                story: 'basecamp_established', // matches new storyEvents entry
+                unlocks: [],
+                logText: 'You establish a small base camp. Survivors can be organized here. (Click to read)'
+            }
+        ]
+    },
     {
     id: 'searchSouthCorridor',
     name: 'Search South Corridor',
@@ -281,5 +305,4 @@ export const salvageActions = [
             }
         ]
     },
-	
 ];

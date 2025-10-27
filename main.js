@@ -10,7 +10,7 @@ import { setupCrewManagementSection, updateCrewSection } from './sections/crewMa
 import { setupJournalSection } from './sections/journal.js';
 import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js';
 import { addLogEntry, LogType } from './log.js';
-import { updateSurvivalDebuffBadge } from './tooltip.js';
+import { updateSurvivalDebuffBadge, initTooltips } from './tooltip.js';
 import { initTimeManager } from './time.js';
 import { showStoryPopup } from './popup.js';
 import { storyEvents } from './data/storyEvents.js';
@@ -34,6 +34,7 @@ document.addEventListener('beforeunload', () => {
 
 function startGame() {
     initOptions();
+    initTooltips();
     initTimeManager(true);
     const savedColor = localStorage.getItem('glowColor') || 'green';
     setGlowColor(savedColor);
@@ -262,14 +263,6 @@ export function checkConditions() {
     const xylite = resources.find(r => r.name === 'Xylite');
     const survivors = resources.find(r => r.name === 'Survivors');
 
-        // Unlock crew management once survivors have been found
-    if (survivors && survivors.amount > 0 && !activatedSections['crewManagementSection']) {
-        activatedSections['crewManagementSection'] = true;
-        try { setActivatedSections(activatedSections); } catch (e) { /* ignore */ }
-        addLogEntry('New menu section activated: Crew Management', LogType.UNLOCK);
-        applyActivatedSections();
-    }
-
     // Unlock Xylite resource once enough stone has been gathered
     if (stone && xylite) {
         if (stone.amount >= 5 && !xylite.isDiscovered) {
@@ -353,4 +346,26 @@ function loadCurrentSection() {
     } else {
         showSection(defaultSection);
     }
+}
+
+// Export helper to enable a UI section by id (keeps activation logic centralized)
+export function enableSection(sectionId) {
+    try {
+        // `activatedSections` is the module-scoped object used by main.js
+        if (typeof activatedSections === 'undefined') return;
+        if (activatedSections[sectionId]) return;
+        activatedSections[sectionId] = true;
+        try { setActivatedSections(activatedSections); } catch (e) { /* ignore */ }
+        addLogEntry(`New menu section activated: ${formatSectionName(sectionId) || sectionId}`, LogType.UNLOCK);
+        try { applyActivatedSections(); } catch (e) { /* ignore */ }
+    } catch (e) {
+        console.warn('enableSection failed', e);
+    }
+}
+
+// small helper to humanize the key (optional)
+function formatSectionName(key) {
+    if (!key) return '';
+    const base = key.replace('Section', '');
+    return base.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
 }

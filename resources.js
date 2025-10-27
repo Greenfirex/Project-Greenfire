@@ -1,7 +1,7 @@
 import { buildings } from './data/buildings.js';
 import { technologies } from './data/technologies.js';
 import { formatNumber } from './formatting.js';
-import { getOrCreateTooltip, updateTooltipPosition } from './tooltip.js';
+import { setupTooltip } from './tooltip.js';
 import { getActiveCrashSiteAction } from './data/activeActions.js';
 
 export function getInitialResources() {
@@ -33,15 +33,16 @@ export function resetResources() {
 export function setupInfoPanel() {
     const infoPanel = document.getElementById('infoPanel');
     if (!infoPanel) return;
-    infoPanel.innerHTML = ''; 
+    infoPanel.innerHTML = '';
 
     const infoSection = document.createElement('div');
     infoSection.className = 'info-section';
 
+    // iterate over the master initial set so undiscovered resources still have rows
     getInitialResources().forEach(resource => {
         const infoRow = document.createElement('div');
         infoRow.className = 'info-row';
-        infoRow.dataset.resource = resource.name; 
+        infoRow.dataset.resource = resource.name;
         infoRow.classList.add('hidden');
 
         if (resource.name === 'Insight') {
@@ -55,12 +56,16 @@ export function setupInfoPanel() {
             <div class="infocolumn3"><p data-value-type="generation"></p></div>
         `;
 
-        const tooltip = getOrCreateTooltip();
-        // MODIFIED: This entire event listener has been updated for better detail
-        infoRow.addEventListener('mouseenter', (e) => {
+        // register the row with the shared tooltip system.
+        // the callback returns the HTML to render for the tooltip on demand,
+        // so the persistent doc-level handler can manage visibility/positioning.
+        setupTooltip(infoRow, () => {
             const resourceName = infoRow.dataset.resource;
             const currentResource = resources.find(r => r.name === resourceName);
-            if (!currentResource) return;
+            if (!currentResource) {
+                // fallback minimal content if resource not found
+                return `<h4>${resourceName}</h4><p>No data available.</p>`;
+            }
 
             // --- Get Active States ---
             const activeAction = getActiveCrashSiteAction();
@@ -91,7 +96,7 @@ export function setupInfoPanel() {
             if (activeAction && activeAction.drain) {
                 const drainInfo = activeAction.drain.find(d => d.resource === resourceName);
                 if (drainInfo) {
-                    activeDrainRate = drainInfo.amount / activeAction.duration;
+                    activeDrainRate = drainInfo.amount / Math.max(0.0001, (activeAction.duration || 1));
                 }
             }
             const totalConsumption = passiveConsumption + activeDrainRate;
@@ -99,21 +104,26 @@ export function setupInfoPanel() {
             // --- Net Change Calculation ---
             const netChange = totalProduction - totalConsumption;
             const sign = netChange >= 0 ? '+' : '';
-            
+
             // --- Build Tooltip HTML ---
+            let productionLines = '';
+            if (productionBuildings.length) {
+                productionLines = productionBuildings.map(b => `<p class="tooltip-detail">+ ${formatNumber(b.amount)}/s from ${b.count}x ${b.name}</p>`).join('');
+            }
+
             let consumptionDetailsHtml = '';
             if (passiveConsumption > 0) {
                 consumptionDetailsHtml += `<p class="tooltip-detail">-${formatNumber(passiveConsumption)}/s from ${survivorCount} survivor(s)</p>`;
             }
-            if (activeDrainRate > 0) {
+            if (activeDrainRate > 0 && activeAction) {
                 consumptionDetailsHtml += `<p class="tooltip-detail">-${formatNumber(activeDrainRate)}/s from ${activeAction.name}</p>`;
             }
 
-            tooltip.innerHTML = `
+            return `
                 <h4>${resourceName} Details</h4>
                 <div class="tooltip-section">
                     <p>Production: +${formatNumber(totalProduction)}/s</p>
-                    ${productionBuildings.map(b => `<p class="tooltip-detail">+ ${formatNumber(b.amount)}/s from ${b.count}x ${b.name}</p>`).join('')}
+                    ${productionLines}
                 </div>
                 <div class="tooltip-section">
                     <p>Consumption: -${formatNumber(totalConsumption)}/s</p>
@@ -122,21 +132,11 @@ export function setupInfoPanel() {
                 <hr>
                 <p><strong>Net Change: ${sign}${formatNumber(netChange)}/s</strong></p>
             `;
-
-            tooltip.style.visibility = 'visible';
-            updateTooltipPosition(e, tooltip);
         });
 
-        infoRow.addEventListener('mouseleave', () => {
-            tooltip.style.visibility = 'hidden';
-        });
-
-        infoRow.addEventListener('mousemove', (e) => {
-            updateTooltipPosition(e, tooltip);
-        });
-        
         infoSection.appendChild(infoRow);
     });
+
     infoPanel.appendChild(infoSection);
 }
 
@@ -153,16 +153,16 @@ export function updateResourceInfo() {
         if (resource.amount > 0 && !resource.isDiscovered) {
             resource.isDiscovered = true;
         }
-        
+
         infoRow.classList.toggle('hidden', !resource.isDiscovered);
         if (!resource.isDiscovered) return;
 
         infoRow.classList.toggle('non-producible', !resource.producible);
-        
+
         const generationEl = infoRow.querySelector('[data-value-type="generation"]');
         const storageEl = infoRow.querySelector('[data-value-type="storage"]');
         const nameEl = infoRow.querySelector('.infocolumn1 span');
-        
+
         const isZero = resource.amount <= 0;
         storageEl.classList.toggle('zero-amount', isZero);
         nameEl.classList.toggle('zero-amount', isZero);
@@ -181,12 +181,12 @@ export function updateResourceInfo() {
         });
         const totalProduction = baseProduction * (1 + bonusMultiplier);
         const totalConsumption = resource.baseConsumption ? resource.baseConsumption * survivorCount : 0;
-        
+
         let activeDrainRate = 0;
         if (activeAction && activeAction.drain) {
             const drainInfo = activeAction.drain.find(d => d.resource === resource.name);
             if (drainInfo) {
-                activeDrainRate = drainInfo.amount / activeAction.duration;
+                activeDrainRate = drainInfo.amount / Math.max(0.0001, (activeAction.duration || 1));
             }
         }
 
@@ -207,7 +207,7 @@ export function updateResourceInfo() {
 
         const progressBar = infoRow.querySelector('.resource-progress-bar');
         progressBar.style.width = `${Math.min((resource.amount / resource.capacity) * 100, 100)}%`;
-        
+
         infoRow.classList.toggle('capped', resource.amount >= resource.capacity);
     });
 }
