@@ -54,7 +54,7 @@ export const salvageActions = [
             { resource: 'Energy', amount: 5 }
         ],
         reward: [ 
-            { resource: 'Food Rations', amount: [8, 12] }
+            { resource: 'Food Rations', amount: [20, 25] }
         ]
     },
     {
@@ -69,7 +69,7 @@ export const salvageActions = [
             { resource: 'Energy', amount: 5 }
         ],
         reward: [ 
-            { resource: 'Clean Water', amount: [10, 15] }
+            { resource: 'Clean Water', amount: [30, 50] }
         ]
     },
     {
@@ -80,7 +80,7 @@ export const salvageActions = [
     category: 'Survival',
     isUnlocked: false, // make available by default
     repeatable: true, // allow infinite uses (stages run only once)
-    reward: [ { resource: 'Energy', amount: [20, 30] } ],
+    reward: [ { resource: 'Energy', amount: [40, 60] } ],
     // stage kept so completing Rest can unlock follow-ups, but action remains usable
     stage: 0,
     stages: [
@@ -124,7 +124,7 @@ export const salvageActions = [
 				{ resource: 'Food Rations', amount: 6 },
                 { resource: 'Clean Water', amount: 7 } 
             ],
-		reward: [ { resource: 'Scrap Metal', amount: [3, 5] } ]
+		reward: [ { resource: 'Scrap Metal', amount: [9, 18] } ]
     },
 
         {

@@ -7,6 +7,7 @@ import { showStoryPopup } from './popup.js';
 import { resetIngameTime } from './time.js';
 import { storyEvents } from './data/storyEvents.js';
 import { salvageActions } from './data/actions.js';
+import { jobs } from './data/jobs.js';
 import { addLogEntry, LogType } from './log.js';
 
 export function saveGameState() {
@@ -20,11 +21,14 @@ export function getGameState() {
     return {
         resources: resources,
         technologies: technologies,
+        jobs: jobs,
         researchProgress: getResearchProgress(),
         currentResearchingTech: getCurrentResearchingTech(),
         activatedSections: activatedSections,
         buildings: buildings,
-        salvageActions: salvageActions
+        salvageActions: salvageActions,
+        timeScale: (typeof window !== 'undefined' && window.TIME_SCALE) ? Number(window.TIME_SCALE) : 1,
+        paused: (typeof localStorage !== 'undefined') ? (localStorage.getItem('gamePaused') === 'true') : false
     };
 }
 
@@ -65,6 +69,16 @@ export function applyGameState(gameState) {
         });
     }
 
+    // --- Smart-loading for jobs (crew assignments) ---
+    if (gameState.jobs) {
+        jobs.forEach(job => {
+            const savedJob = gameState.jobs.find(j => j.id === job.id || j.name === job.name);
+            if (savedJob) {
+                Object.assign(job, savedJob);
+            }
+        });
+    }
+
     // --- Smart Loading for Technologies ---
     if (gameState.technologies) {
         technologies.forEach(tech => {
@@ -73,6 +87,18 @@ export function applyGameState(gameState) {
                 Object.assign(tech, savedTech);
             }
         });
+    }
+
+        // --- Persist UI/runtime settings into localStorage so main.js can pick them up later ---
+    try {
+        if (typeof gameState.timeScale !== 'undefined' && typeof localStorage !== 'undefined') {
+            localStorage.setItem('gameTimeScale', String(gameState.timeScale));
+        }
+        if (typeof gameState.paused !== 'undefined' && typeof localStorage !== 'undefined') {
+            localStorage.setItem('gamePaused', gameState.paused ? 'true' : 'false');
+        }
+    } catch (e) {
+        console.warn('applyGameState: could not persist runtime settings', e);
     }
 
     // --- Load the rest of the game state ---

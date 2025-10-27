@@ -22,9 +22,14 @@
 .footer-column:nth-child(3) {
     justify-content: flex-end;
 }
-#gameVersion {
-    color: #888;
-    font-style: italic;
+
+#gameStatusHUD {
+    font-size: 13px;
+    color: #cfeccf;
+    padding-left: 10px;
+    margin-left: 8px;
+    border-left: 1px solid rgba(255,255,255,0.04);
+    align-self: center;
 }
 
 /* --- Horizontal Line Above Footer --- */
@@ -137,4 +142,48 @@
 
 .header-link:hover {
     background-image: url('../assets/images/PNG/Button04.png');
+}
+
+.header-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 12px;
+}
+
+.header-controls .speed-buttons {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.speed-btn {
+    padding: 4px 8px;
+    font-size: 13px;
+    min-width: 42px;
+    text-align: center;
+    border-radius: 4px;
+    opacity: 0.95;
+    transition: transform 120ms ease, box-shadow 180ms ease, background 160ms ease, color 120ms ease;
+}
+
+.speed-btn.active {
+    background: linear-gradient(180deg, rgba(34,139,34,0.22), rgba(0,100,0,0.18));
+    color: #eaffea;
+    border: 1px solid rgba(144,238,144,0.45);
+    box-shadow: 0 8px 22px rgba(0,160,80,0.14), 0 0 10px rgba(144,238,144,0.18) inset;
+    transform: translateY(-2px) scale(1.06);
+    font-weight: 700;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.45);
+}
+
+/* keep header-link look but slightly smaller for these controls */
+.header-controls .header-link {
+    padding: 4px 10px;
+    font-size: 13px;
+}
+
+/* tweak responsiveness */
+@media (max-width: 700px) {
+    .header-controls { display: none; } /* hide controls on very small screens */
 }

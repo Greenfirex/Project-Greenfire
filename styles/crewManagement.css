@@ -9,4 +9,91 @@
     box-sizing: border-box;
 }
 
-/* .content-panel and shared UI styles have been moved to styles/game-area.css */
+/* New table-like layout for crew jobs */
+.crew-jobs {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Each row is a grid: name | dec | counts | inc */
+.crew-job {
+    display: grid;
+    grid-template-columns: 1fr 48px 140px 48px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: linear-gradient(180deg, rgba(12,12,12,0.95), rgba(6,6,6,0.9));
+    border: 1px solid rgba(var(--glow-r),var(--glow-g),var(--glow-b),0.12);
+    border-radius: 6px;
+    color: #EAEAEA;
+}
+
+/* Header styles */
+.crew-header {
+    font-size: 12px;
+    color: #cfcfcf;
+    background: transparent;
+    border: none;
+    padding: 0 6px;
+}
+
+/* Idle row emphasised */
+.idle-row {
+    background: linear-gradient(90deg, rgba(255,215,0,0.06), rgba(12,12,12,0.92));
+    color: #ffd700;
+    border-color: rgba(255,215,0,0.12);
+}
+
+/* small arrow buttons */
+.arrow-button {
+    width: 36px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(0,0,0,0.45);
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 80ms ease, background 120ms ease;
+}
+.arrow-button:active { transform: translateY(1px); }
+.arrow-button[disabled] {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* job counts column */
+.job-count { text-align: center; font-weight: 600; color: #90EE90; }
+
+/* small note under each row */
+.job-note {
+    font-size: 12px;
+    color: #bbb;
+    margin-top: 6px;
+}
+
+/* wrapper that contains row + note */
+.crew-job-wrapper { display: flex; flex-direction: column; gap: 4px; }
+
+/* ensure the wrapper note spans full width */
+.crew-job-wrapper .job-note { padding-left: 6px; }
+
+/* Make job name hint that it has more info (tooltip) */
+.job-name {
+    cursor: help;
+    user-select: none;
+}
+
+/* Slight spacing to allow tooltip hover comfortably */
+.job-name { padding-right: 6px; }
+
+/* responsive */
+@media (max-width: 800px) {
+    .crew-job { grid-template-columns: 1fr 40px 120px 40px; }
+    .arrow-button { width: 32px; height: 26px; font-size: 16px; }
+}

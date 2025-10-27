@@ -86,10 +86,11 @@ export function createBuildingButton(building, container) {
     nameSpan.textContent = `Build ${building.name}`;
     button.appendChild(nameSpan);
 
-    const tooltipData = { ...building, cost: getCurrentBuildingCost(building) };
+    // register tooltip with a function so cost is computed on-demand (keeps it up-to-date)
+    const tooltipGetter = () => ({ ...building, cost: getCurrentBuildingCost(building) });
 
     // determine initial affordability BEFORE appending to DOM
-    const currentCost = tooltipData.cost || [];
+    const currentCost = getCurrentBuildingCost(building);
     let canAfford = true;
     for (const cost of currentCost) {
         const resource = resources.find(r => r.name === cost.resource);
@@ -101,75 +102,80 @@ export function createBuildingButton(building, container) {
     }
 
     button.addEventListener('click', (event) => buildBuilding(event, building.name));
-    setupTooltip(button, tooltipData);
+    setupTooltip(button, tooltipGetter);
 
     container.appendChild(button);
     return button;
 }
 
 export function buildBuilding(event, buildingName) {
-     const building = buildings.find(b => b.name === buildingName);
-     if (!building) { return; }
- 
-     const currentCost = getCurrentBuildingCost(building);
-     let canAfford = true;
-     for (const cost of currentCost) {
-         const resource = resources.find(r => r.name === cost.resource);
-         if (!resource || resource.amount < cost.amount) {
-             canAfford = false;
-             addLogEntry(`Not enough ${cost.resource} to build a ${buildingName}.`, LogType.ERROR);
-             break;
-         }
-     }
-    if (!canAfford) return false;
+    const building = buildings.find(b => b.name === buildingName);
+    if (!building) return false;
 
-    if (canAfford) {
-        // animate only when a DOM event was passed (Crash Site calls buildBuilding programmatically)
-        if (event && event.currentTarget) animateButtonClick(event);
- 
-         for (const cost of currentCost) {
-             const resource = resources.find(r => r.name === cost.resource);
-             resource.amount -= cost.amount;
-         }
- 
-         building.count += 1;
-         addLogEntry(`Built a new ${buildingName}!`, LogType.SUCCESS);
- 
-        // New: handle job-unlock buildings
-        if (building.effect && building.effect.type === 'job') {
-            try {
-                addSlotsForBuilding(building.name, 1);
-                addLogEntry(`New job slot available: ${building.effect.jobId} (from ${building.name}).`, LogType.UNLOCK);
-                // If crew UI exists, refresh it
-                if (typeof updateCrewSection === 'function') {
-                    updateCrewSection();
-                }
-            } catch (e) { /* ignore */ }
+    // Prevent building while game is paused (persisted in localStorage)
+    try {
+        if (localStorage.getItem('gamePaused') === 'true') {
+            addLogEntry(`Cannot build "${buildingName}" while game is paused. Resume the game first.`, LogType.INFO);
+            return false;
         }
- 
-        if (building.effect && building.effect.type === 'storage') {
-            const resourceToUpgrade = resources.find(r => r.name === building.effect.resource);
-            if (resourceToUpgrade) {
-                resourceToUpgrade.capacity += building.effect.value;
-                addLogEntry(`${resourceToUpgrade.name} capacity increased by ${building.effect.value}!`, LogType.INFO);
-            }
+    } catch (e) { /* ignore localStorage errors */ }
+
+    const currentCost = getCurrentBuildingCost(building);
+    // Check affordability
+    for (const cost of currentCost) {
+        const resource = resources.find(r => r.name === cost.resource);
+        if (!resource || resource.amount < cost.amount) {
+            addLogEntry(`Not enough ${cost.resource} to build a ${buildingName}.`, LogType.ERROR);
+            return false;
         }
-		
-		if (building.name === 'Laboratory' && building.count === 1) {
-            if (!activatedSections.researchSection) {
-                activatedSections.researchSection = true;
-                setActivatedSections(activatedSections);
-                applyActivatedSections();
-                addLogEntry('The first Laboratory is operational. Research is now available.', LogType.UNLOCK);
-            }
+    }
+
+    // animate only when a DOM event was passed (Crash Site calls buildBuilding programmatically)
+    if (event && event.currentTarget) animateButtonClick(event);
+
+    // Deduct costs
+    for (const cost of currentCost) {
+        const resource = resources.find(r => r.name === cost.resource);
+        if (resource) resource.amount -= cost.amount;
+    }
+
+    // Build
+    building.count += 1;
+    addLogEntry(`Built a new ${buildingName}!`, LogType.SUCCESS);
+
+    // Handle job-unlock buildings
+    if (building.effect && building.effect.type === 'job') {
+        try {
+            // addSlotsForBuilding expects the building.name (e.g. "Water Station")
+            addSlotsForBuilding(building.name, 1);
+            addLogEntry(`New job slot available: ${building.name} (from ${building.name}).`, LogType.UNLOCK);
+            if (typeof updateCrewSection === 'function') updateCrewSection();
+        } catch (e) { /* ignore */ }
+    }
+
+    // Handle storage effect
+    if (building.effect && building.effect.type === 'storage') {
+        const resourceToUpgrade = resources.find(r => r.name === building.effect.resource);
+        if (resourceToUpgrade) {
+            resourceToUpgrade.capacity += building.effect.value;
+            addLogEntry(`${resourceToUpgrade.name} capacity increased by ${building.effect.value}!`, LogType.INFO);
         }
-        
-        updateResourceInfo();
-        setupColonySection(); // Note the rename here to avoid infinite loops if it was wrong
-        return true;
-     }
-    return false;
- }
+    }
+
+    // Laboratory unlock handling
+    if (building.name === 'Laboratory' && building.count === 1) {
+        if (!activatedSections.researchSection) {
+            activatedSections.researchSection = true;
+            setActivatedSections(activatedSections);
+            applyActivatedSections();
+            addLogEntry('The first Laboratory is operational. Research is now available.', LogType.UNLOCK);
+        }
+    }
+
+    updateResourceInfo();
+    setupColonySection(); // refresh UI
+    return true;
+}
 
 export function setupColonySection(colonySection) {
     if (!colonySection) {
@@ -254,6 +260,14 @@ export function setupColonySection(colonySection) {
 }
 
 function mineStone(event) {
+    // Prevent manual actions while paused
+    try {
+        if (localStorage.getItem('gamePaused') === 'true') {
+            addLogEntry('Cannot mine while game is paused. Resume the game first.', LogType.INFO);
+            return;
+        }
+    } catch (e) { /* ignore localStorage errors */ }
+
     // 1. Check if the button is on cooldown
     if (isMiningOnCooldown) {
         return;

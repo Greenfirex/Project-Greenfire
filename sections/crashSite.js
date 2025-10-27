@@ -53,6 +53,15 @@ let cancelTimeout = null;
 
 export function startCrashSiteLoop(section = null) {
     if (actionInterval) return;
+
+    // Respect global paused state persisted in localStorage
+    try {
+        if (localStorage.getItem('gamePaused') === 'true') {
+            addLogEntry('Cannot resume crash site loop while game is paused.', LogType.INFO);
+            return;
+        }
+    } catch (e) { /* ignore localStorage errors */ }
+
     if (!section) {
         const container = document.querySelector('#salvageActionsContainer');
         section = container ? container.closest('.content-panel') || container.parentElement : null;
@@ -193,8 +202,6 @@ export function setupCrashSiteSection(section) {
             if (nameSpan) nameSpan.textContent = bld.name;
             const countSpan = btn.querySelector('.building-count');
             if (countSpan) countSpan.textContent = `(${bld.count})`;
-            // click handler already attached by createBuildingButton; keep tooltip in sync
-            setupTooltip(btn, bld);
         }
     });
 
@@ -208,6 +215,14 @@ export function setupCrashSiteSection(section) {
 function startAction(action, section) {
     const existing = getActiveCrashSiteAction();
     if (existing) return;
+
+    // Prevent starting actions when game is paused
+    try {
+        if (localStorage.getItem('gamePaused') === 'true') {
+            addLogEntry(`Cannot start "${action.name}" while game is paused. Resume the game first.`, LogType.INFO);
+            return;
+        }
+    } catch (e) { /* ignore localStorage errors */ }
 
     if (!canAffordAction(action)) {
         addLogEntry(`Not enough resources to begin: ${action.name}.`, LogType.ERROR);

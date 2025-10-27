@@ -16,38 +16,67 @@
     border-radius: 4px;
 }
 
-.journal-entries {
+/* Ensure the journal section and its inner .content-panel do not produce their own scrollbars.
+   The .journal-entries element will be the only scroll host. Adjust the calc() value if your
+   header/footer heights differ. */
+#journalSection,
+#journalSection > .content-panel {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    max-height: calc(100vh - 180px);
-    overflow: auto;
-    padding-right: 6px;
+    /* approximate available height; tweak (reduce/increase) if you see clipping */
+    height: calc(100vh - 140px);
+    overflow: hidden; /* hide outer scrollbar */
 }
 
-.journal-entry {
-    background: rgba(255, 255, 255, 0);
-    border: 1px solid rgba(255,255,255,0.04);
-    padding: 12px;
+/* Make .journal-entries fill the remaining space and be the only scrollable element */
+.journal-entries {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 12px; /* avoid content under the thumb */
+    padding-bottom: 18px; /* room for shadow / last item */
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--glow-r),var(--glow-g),var(--glow-b),0.5) #0b0b0b;
+}
+
+/* Reuse the same styled scrollbar as the Log section (#logContent) */
+.journal-entries::-webkit-scrollbar { width: 12px; }
+.journal-entries::-webkit-scrollbar-track { background: #111; }
+.journal-entries::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
     border-radius: 6px;
+    border: 3px solid #111;
+}
+.journal-entries::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
 }
 
-.journal-entry-title {
-    font-weight: 600;
-    margin-bottom: 6px;
+/* Increase spacing between entries so they don't feel cramped */
+.journal-entry {
+    margin-bottom: 12px;
+    background: rgba(255,255,255,0);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.12);
+    box-shadow: 0 6px 18px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.04), inset 0 1px 0 rgba(255,255,255,0.02);
+    padding: 14px;
+    border-radius: 8px;
+    /* prevent hover from affecting layout; use transform on its own composited layer */
+    will-change: transform, box-shadow;
+    transform: translateZ(0);
+    transition: box-shadow 160ms ease, transform 120ms ease;
+    position: relative;
+    z-index: 0;
 }
 
-.journal-entry-time {
-    font-size: 0.85em;
-    opacity: 0.7;
-    margin-bottom: 8px;
+/* Hover: do not translate vertically (prevents shifting other entries) */
+.journal-entry:hover {
+    box-shadow: 0 12px 30px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08), inset 0 1px 0 rgba(255,255,255,0.03);
+    transform: translateZ(0) scale(1.002); /* tiny GPU-only hint, no layout change */
 }
 
-.journal-entry-body {
-    white-space: pre-wrap;
-    line-height: 1.45;
-    color: #ececec;
-}
+/* Fine tune title/time/body spacing (keeps content readable) */
+.journal-entry-title { margin-bottom: 8px; }
+.journal-entry-time { margin-bottom: 10px; }
 
 .muted { color: rgba(255,255,255,0.5); }
 

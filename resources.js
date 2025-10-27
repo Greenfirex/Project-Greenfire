@@ -1,5 +1,6 @@
 import { buildings } from './data/buildings.js';
 import { technologies } from './data/technologies.js';
+import { jobs } from './data/jobs.js';
 import { formatNumber } from './formatting.js';
 import { setupTooltip } from './tooltip.js';
 import { getActiveCrashSiteAction } from './data/activeActions.js';
@@ -23,6 +24,72 @@ export function getInitialResources() {
 }
 
 export let resources = getInitialResources();
+
+export function computeResourceRates(resourceName) {
+    const currentResource = resources.find(r => r.name === resourceName);
+    if (!currentResource) return null;
+
+    // --- Get Active States ---
+    const activeAction = getActiveCrashSiteAction();
+    const survivorResource = resources.find(r => r.name === 'Survivors');
+    const survivorCount = survivorResource ? survivorResource.amount : 0;
+
+    // --- Production Calculation (buildings + jobs) ---
+    let baseProduction = 0;
+    const productionBuildings = [];
+    buildings.forEach(b => {
+        if (b.produces === resourceName && b.count > 0) {
+            const amount = b.rate * b.count;
+            baseProduction += amount;
+            productionBuildings.push({ name: b.name, count: b.count, amount: amount });
+        }
+    });
+
+    let jobContribution = 0;
+    const jobLines = [];
+    if (Array.isArray(jobs)) {
+        jobs.forEach(job => {
+            if (job.produces === resourceName && job.assigned > 0 && job.rate) {
+                const amt = job.rate * job.assigned;
+                jobContribution += amt;
+                jobLines.push({ name: job.name, assigned: job.assigned, amount: amt });
+            }
+        });
+    }
+
+    let bonusMultiplier = 0;
+    technologies.forEach(t => {
+        if (t.isResearched && t.bonus?.resource === resourceName) {
+            bonusMultiplier += t.bonus.multiplier;
+        }
+    });
+
+    const totalProduction = (baseProduction + jobContribution) * (1 + bonusMultiplier);
+
+    // --- Consumption & Drain Calculation ---
+    const passiveConsumption = currentResource.baseConsumption ? currentResource.baseConsumption * survivorCount : 0;
+    let activeDrainRate = 0;
+    if (activeAction && activeAction.drain) {
+        const drainInfo = activeAction.drain.find(d => d.resource === resourceName);
+        if (drainInfo) {
+            activeDrainRate = drainInfo.amount / Math.max(0.0001, (activeAction.duration || 1));
+        }
+    }
+    const totalConsumption = passiveConsumption + activeDrainRate;
+
+    const netPerSecond = totalProduction - totalConsumption;
+
+    return {
+        resource: currentResource,
+        totalProduction,
+        totalConsumption,
+        netPerSecond,
+        productionBuildings,
+        jobLines,
+        passiveConsumption,
+        activeDrainRate,
+    };
+}
 
 export function resetResources() {
     const initial = getInitialResources();
@@ -57,80 +124,44 @@ export function setupInfoPanel() {
         `;
 
         // register the row with the shared tooltip system.
-        // the callback returns the HTML to render for the tooltip on demand,
-        // so the persistent doc-level handler can manage visibility/positioning.
         setupTooltip(infoRow, () => {
             const resourceName = infoRow.dataset.resource;
-            const currentResource = resources.find(r => r.name === resourceName);
-            if (!currentResource) {
-                // fallback minimal content if resource not found
-                return `<h4>${resourceName}</h4><p>No data available.</p>`;
-            }
+            const rates = computeResourceRates(resourceName);
+            if (!rates) return `<h4>${resourceName}</h4><p>No data available.</p>`;
 
-            // --- Get Active States ---
-            const activeAction = getActiveCrashSiteAction();
-            const survivorResource = resources.find(r => r.name === 'Survivors');
-            const survivorCount = survivorResource ? survivorResource.amount : 0;
+            const { totalProduction, totalConsumption, netPerSecond, productionBuildings, jobLines, passiveConsumption, activeDrainRate } = rates;
 
-            // --- Production Calculation ---
-            let baseProduction = 0;
-            const productionBuildings = [];
-            buildings.forEach(b => {
-                if (b.produces === resourceName && b.count > 0) {
-                    const amount = b.rate * b.count;
-                    baseProduction += amount;
-                    productionBuildings.push({ name: b.name, count: b.count, amount: amount });
-                }
-            });
-            let bonusMultiplier = 0;
-            technologies.forEach(t => {
-                if (t.isResearched && t.bonus?.resource === resourceName) {
-                    bonusMultiplier += t.bonus.multiplier;
-                }
-            });
-            const totalProduction = baseProduction * (1 + bonusMultiplier);
-
-            // --- Consumption & Drain Calculation ---
-            const passiveConsumption = currentResource.baseConsumption ? currentResource.baseConsumption * survivorCount : 0;
-            let activeDrainRate = 0;
-            if (activeAction && activeAction.drain) {
-                const drainInfo = activeAction.drain.find(d => d.resource === resourceName);
-                if (drainInfo) {
-                    activeDrainRate = drainInfo.amount / Math.max(0.0001, (activeAction.duration || 1));
-                }
-            }
-            const totalConsumption = passiveConsumption + activeDrainRate;
-
-            // --- Net Change Calculation ---
-            const netChange = totalProduction - totalConsumption;
-            const sign = netChange >= 0 ? '+' : '';
-
-            // --- Build Tooltip HTML ---
-            let productionLines = '';
+            const productionHtml = [];
             if (productionBuildings.length) {
-                productionLines = productionBuildings.map(b => `<p class="tooltip-detail">+ ${formatNumber(b.amount)}/s from ${b.count}x ${b.name}</p>`).join('');
+                productionBuildings.forEach(b => productionHtml.push(`<p class="tooltip-detail">+ ${formatNumber(b.amount)}/s from ${b.count}x ${b.name}</p>`));
+            }
+            if (jobLines.length) {
+                jobLines.forEach(j => productionHtml.push(`<p class="tooltip-detail">+ ${formatNumber(j.amount)}/s from ${j.assigned}x ${j.name}</p>`));
             }
 
             let consumptionDetailsHtml = '';
             if (passiveConsumption > 0) {
-                consumptionDetailsHtml += `<p class="tooltip-detail">-${formatNumber(passiveConsumption)}/s from ${survivorCount} survivor(s)</p>`;
+                consumptionDetailsHtml += `<p class="tooltip-detail">-${formatNumber(passiveConsumption)}/s from ${resources.find(r=>r.name==='Survivors')?.amount || 0} survivor(s)</p>`;
             }
-            if (activeDrainRate > 0 && activeAction) {
-                consumptionDetailsHtml += `<p class="tooltip-detail">-${formatNumber(activeDrainRate)}/s from ${activeAction.name}</p>`;
+            if (activeDrainRate > 0) {
+                const activeAction = getActiveCrashSiteAction();
+                consumptionDetailsHtml += `<p class="tooltip-detail">-${formatNumber(activeDrainRate)}/s from ${activeAction ? activeAction.name : 'active event'}</p>`;
             }
+
+            const sign = netPerSecond >= 0 ? '+' : '';
 
             return `
                 <h4>${resourceName} Details</h4>
                 <div class="tooltip-section">
                     <p>Production: +${formatNumber(totalProduction)}/s</p>
-                    ${productionLines}
+                    ${productionHtml.join('')}
                 </div>
                 <div class="tooltip-section">
                     <p>Consumption: -${formatNumber(totalConsumption)}/s</p>
                     ${consumptionDetailsHtml}
                 </div>
                 <hr>
-                <p><strong>Net Change: ${sign}${formatNumber(netChange)}/s</strong></p>
+                <p><strong>Net Change: ${sign}${formatNumber(netPerSecond)}/s</strong></p>
             `;
         });
 
@@ -171,35 +202,19 @@ export function updateResourceInfo() {
         const capacityDisplay = Math.floor(resource.capacity).toLocaleString();
         storageEl.textContent = `${amountDisplay} / ${capacityDisplay}`;
 
-        let baseProduction = 0;
-        buildings.forEach(b => {
-            if (b.produces === resource.name) baseProduction += b.rate * b.count;
-        });
-        let bonusMultiplier = 0;
-        technologies.forEach(t => {
-            if (t.isResearched && t.bonus?.resource === resource.name) bonusMultiplier += t.bonus.multiplier;
-        });
-        const totalProduction = baseProduction * (1 + bonusMultiplier);
-        const totalConsumption = resource.baseConsumption ? resource.baseConsumption * survivorCount : 0;
+        const rates = computeResourceRates(resource.name);
+        if (!rates) return;
 
-        let activeDrainRate = 0;
-        if (activeAction && activeAction.drain) {
-            const drainInfo = activeAction.drain.find(d => d.resource === resource.name);
-            if (drainInfo) {
-                activeDrainRate = drainInfo.amount / Math.max(0.0001, (activeAction.duration || 1));
-            }
-        }
+        const { totalProduction, totalConsumption, netPerSecond, activeDrainRate } = rates;
 
-        const netChange = totalProduction - totalConsumption - activeDrainRate;
-
-        generationEl.classList.toggle('negative-rate', netChange < 0);
+        generationEl.classList.toggle('negative-rate', netPerSecond < 0);
 
         if (resource.producible || totalConsumption > 0 || activeDrainRate > 0) {
-            const sign = netChange >= 0 ? '+' : '';
+            const sign = netPerSecond >= 0 ? '+' : '';
             if (totalConsumption > 0 && !resource.producible) {
-                generationEl.textContent = `(${formatNumber(netChange)}/s)`;
+                generationEl.textContent = `(${formatNumber(netPerSecond)}/s)`;
             } else {
-                generationEl.textContent = `${sign}${formatNumber(netChange)}/s`;
+                generationEl.textContent = `${sign}${formatNumber(netPerSecond)}/s`;
             }
         } else {
             generationEl.textContent = '';

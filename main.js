@@ -1,4 +1,4 @@
-import { resources, updateResourceInfo, setupInfoPanel } from './resources.js';
+import { resources, updateResourceInfo, setupInfoPanel, computeResourceRates } from './resources.js';
 import { buildings } from './data/buildings.js';
 import { setupColonySection, updateBuildingButtonsState } from './sections/colony.js';
 import { setupResearchSection, updateTechButtonsState } from './sections/research.js';
@@ -19,7 +19,7 @@ import { updateImpactTimer } from './eventManager.js';
 import './headeroptions.js';
 
 window.debugResources = resources;
-window.TIME_SCALE = 10;
+window.TIME_SCALE = Number(localStorage.getItem('gameTimeScale')) || 1;
 
 let lastUpdateTime = Date.now();
 
@@ -114,6 +114,82 @@ function startGame() {
     let gameLoopInterval = null;
     let autosaveInterval = null;
 
+        // --- Pause / Speed controls wiring ---
+    let isPaused = false;
+    // ensure TIME_SCALE exists and reflect initial buttons
+    const savedPaused = (localStorage.getItem('gamePaused') === 'true');
+
+    function updateHUD() {
+        const hud = document.getElementById('gameStatusHUD');
+        if (hud) hud.textContent = isPaused ? 'Paused' : `${window.TIME_SCALE}x`;
+    }
+
+    function setGameSpeed(factor, announce = true) {
+        window.TIME_SCALE = Number(factor) || 1;
+        // persist new value
+        try { localStorage.setItem('gameTimeScale', String(window.TIME_SCALE)); } catch (e) {}
+        // update UI active button
+        document.querySelectorAll('.speed-btn').forEach(btn => {
+            btn.classList.toggle('active', Number(btn.dataset.speed) === Number(window.TIME_SCALE));
+        });
+        updateHUD();
+        if (announce) addLogEntry(`Game speed set to ${window.TIME_SCALE}x.`, LogType.INFO);
+    }
+
+    // Pause/resume helpers
+    function pauseGame(announce = true) {
+        if (isPaused) return;
+        isPaused = true;
+        // stop main loop and notify subsystems
+        stopMainLoop();
+        window.dispatchEvent(new CustomEvent('game-pause'));
+        const btn = document.getElementById('pauseBtn');
+        if (btn) btn.textContent = 'Resume';
+        // persist paused state
+        try { localStorage.setItem('gamePaused', 'true'); } catch (e) {}
+        updateHUD();
+        if (announce) addLogEntry('Game paused.', LogType.INFO);
+    }
+    function resumeGame(announce = true) {
+        if (!isPaused) return;
+        isPaused = false;
+        startMainLoop();
+        window.dispatchEvent(new CustomEvent('game-resume'));
+        const btn = document.getElementById('pauseBtn');
+        if (btn) btn.textContent = 'Pause';
+        try { localStorage.setItem('gamePaused', 'false'); } catch (e) {}
+        updateHUD();
+        if (announce) addLogEntry(`Game resumed at ${window.TIME_SCALE}x.`, LogType.INFO);
+    }
+    function togglePause() {
+        if (isPaused) resumeGame(); else pauseGame();
+    }
+
+    // Hook up DOM controls (safe even if DOM not present)
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) pauseBtn.addEventListener('click', (e) => { e.preventDefault(); togglePause(); });
+    document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const v = Number(btn.dataset.speed) || 1;
+            setGameSpeed(v, true);
+            // if paused, do not auto-resume; just show speed change in log
+        });
+    });
+
+    // Apply persisted settings now that handlers exist
+    setGameSpeed(window.TIME_SCALE, false);
+    if (savedPaused) {
+        // do not announce when restoring state
+        pauseGame(false);
+    } else {
+        // ensure we are not paused
+        isPaused = false;
+        const pBtn = document.getElementById('pauseBtn'); if (pBtn) pBtn.textContent = 'Pause';
+        updateHUD();
+    }
+    // --- end pause/speed wiring ---
+
     function startMainLoop() {
         if (gameLoopInterval) return;
         lastUpdateTime = Date.now();
@@ -130,26 +206,14 @@ function startGame() {
                 deltaTime = 0;
             }
 
-            // --- Resource Production (keep your existing logic) ---
-            buildings.forEach(building => {
-                const resourceToProduce = resources.find(r => r.name === building.produces);
-                if (resourceToProduce) {
-                    const newAmount = resourceToProduce.amount + (building.rate * building.count) * deltaTime;
-                    resourceToProduce.amount = Math.min(newAmount, resourceToProduce.capacity);
-                }
+            // --- Resource rate application (use centralized computeResourceRates)
+            resources.forEach(res => {
+                const rates = computeResourceRates(res.name);
+                if (!rates) return;
+                const delta = rates.netPerSecond * deltaTime;
+                if (delta === 0) return;
+                res.amount = Math.max(0, Math.min(res.capacity, res.amount + delta));
             });
-
-            // --- Passive consumption by survivors (apply per-tick) ---
-            const survivorResource = resources.find(r => r.name === 'Survivors');
-            const survivorCount = survivorResource ? survivorResource.amount : 0;
-            if (survivorCount > 0) {
-                resources.forEach(res => {
-                    if (res.baseConsumption && res.baseConsumption > 0) {
-                        const consume = res.baseConsumption * survivorCount * deltaTime;
-                        res.amount = Math.max(0, Math.min(res.capacity, res.amount - consume));
-                    }
-                });
-            }
 
             // --- UI Updates (call your existing update functions) ---
             updateResourceInfo();
@@ -203,7 +267,7 @@ function startGame() {
     });
 
     // start loops initially
-    startMainLoop();
+    if (!isPaused) startMainLoop();
     startAutosave();
 }
 

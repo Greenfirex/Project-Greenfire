@@ -54,6 +54,16 @@
     </div>
     <div class="header-center">
         <span id="headerClock"></span>
+        <!-- Game controls: pause + speed multipliers -->
+        <div id="headerControls" class="header-controls" aria-hidden="false">
+            <button id="pauseBtn" class="header-link" title="Pause / Resume game">Pause</button>
+            <div class="speed-buttons" role="tablist" aria-label="Game speed">
+                <button class="header-link speed-btn" data-speed="1" title="1x speed">1x</button>
+                <button class="header-link speed-btn" data-speed="2" title="2x speed">2x</button>
+                <button class="header-link speed-btn" data-speed="5" title="5x speed">5x</button>
+                <button class="header-link speed-btn active" data-speed="10" title="10x speed">10x</button>
+            </div>
+        </div>
     </div>
     <div class="header-right">
         <div class="header-links">
@@ -82,10 +92,11 @@
         <span>Green ™</span>
     </div>
     <div class="footer-column">
-        <span id="gameVersion">v0.1.1</span>
+        <!-- HUD shows Pause / speed; initial text is a harmless placeholder that main.js will overwrite -->
+        <span id="gameStatusHUD">1x</span>
     </div>
     <div class="footer-column">
-        <button id="changelogBtn" class="header-link">Changelog</button>
+        <button id="changelogBtn" class="header-link">v0.1.1</button>
     </div>
 </div>
 
