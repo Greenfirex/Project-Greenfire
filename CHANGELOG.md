@@ -1,5 +1,3 @@
----
-
 # [0.1.1] - 2025-10-25
 
 - Fix: debuff icon tooltip reliably shows (hit-test priority, direct icon handlers) and properly transitions icon ↔ row without races.
