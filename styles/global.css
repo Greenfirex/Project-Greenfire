@@ -97,16 +97,51 @@ body.glow-disabled * {
 
 /* --- Tooltip styling --- */
 .tooltip {
-    position: absolute;
+    position: fixed;            /* FIX: fixed prevents creating scrollbars */
+    left: 0;
+    top: 0;
     visibility: hidden;
     background-color: #111;
     color: #fff;
-    border: 1px solid #555;
-    border-radius: 4px;
-    padding: 8px;
-    z-index: 100;
-    width: 220px;
+    border-radius: 6px;
+    padding: 10px;
+    z-index: 32768;             /* FIX: ensure tooltip sits above UI/panels */
+    min-width: 280px;
+    max-width: 380px;
+    box-sizing: border-box;
     pointer-events: none;
+
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
+    background: linear-gradient(180deg, rgba(18,18,18,0.98), rgba(10,10,10,0.92));
+    box-shadow:
+        0 4px 18px rgba(0,0,0,0.65),
+        0 0 20px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08);
+    transition: opacity 140ms ease, transform 140ms ease, box-shadow 200ms ease;
+    transform-origin: top left;
+    transform: translateY(-4px) scale(0.995);
+    opacity: 0;
+    will-change: transform, opacity, left, top;
+}
+
+/* subtle tweak so the blurred glow pseudo-element does not interact with layout */
+.tooltip::before {
+    content: '';
+    position: absolute;
+    top: -8px; left: -8px; right: -8px; bottom: -8px;
+    border-radius: 10px;
+    background: linear-gradient(90deg,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.06),
+        rgba(var(--active-glow-r), var(--active-glow-g), var(--active-glow-b), 0.04));
+    filter: blur(10px);
+    z-index: -1;
+    pointer-events: none;
+}
+
+.tooltip.visible {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    animation: pulse-glow 5s ease-in-out infinite;
 }
 
 .tooltip h4 {

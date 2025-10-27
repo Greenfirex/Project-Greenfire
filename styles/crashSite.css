@@ -1,0 +1,12 @@
+#crashSiteSection {
+    background-image: url('../assets/images/crashbackground.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    display: flex;
+    align-items: flex-start;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* .content-panel and shared UI styles have been moved to styles/game-area.css */

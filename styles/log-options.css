@@ -5,7 +5,7 @@
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.75);
-    z-index: 1001; /* Slightly higher than other popups */
+    z-index: 4000; /* raised above other popups */
     display: flex;
     align-items: center;
     justify-content: center;

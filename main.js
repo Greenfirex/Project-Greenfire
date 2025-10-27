@@ -1,21 +1,25 @@
 import { resources, updateResourceInfo, setupInfoPanel } from './resources.js';
-import { technologies } from './data/technologies.js';
 import { buildings } from './data/buildings.js';
 import { setupColonySection, updateBuildingButtonsState } from './sections/colony.js';
 import { setupResearchSection, updateTechButtonsState } from './sections/research.js';
 import { setupManufacturingSection } from './sections/manufacturing.js';
 import { setupShipyardSection } from './sections/shipyard.js';
 import { setupGalaxyMapSection } from './sections/galaxyMap.js';
+import { setupCrashSiteSection } from './sections/crashSite.js';
+import { setupCrewManagementSection, updateCrewSection } from './sections/crewManagement.js';
+import { setupJournalSection } from './sections/journal.js';
 import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js';
 import { addLogEntry, LogType } from './log.js';
+import { updateSurvivalDebuffBadge, initTooltips } from './tooltip.js';
+import { initTimeManager } from './time.js';
 import { showStoryPopup } from './popup.js';
 import { storyEvents } from './data/storyEvents.js';
 import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity, shouldRunInBackground } from './options.js';
-import { formatNumber } from './formatting.js';
 import { updateImpactTimer } from './eventManager.js';
 import './headeroptions.js';
 
 window.debugResources = resources;
+window.TIME_SCALE = 10;
 
 let lastUpdateTime = Date.now();
 
@@ -29,14 +33,14 @@ document.addEventListener('beforeunload', () => {
 });
 
 function startGame() {
-	initOptions();
-	// Load main glow color
+    initOptions();
+    initTooltips();
+    initTimeManager(true);
     const savedColor = localStorage.getItem('glowColor') || 'green';
     setGlowColor(savedColor);
-	const savedIntensity = localStorage.getItem('glowIntensity') || 1;
+    const savedIntensity = localStorage.getItem('glowIntensity') || 1;
     setGlowIntensity(savedIntensity);
 
-    // NEW: Load active button glow color
     const savedActiveColor = localStorage.getItem('activeGlowColor') || 'green';
     setActiveGlowColor(savedActiveColor);
     const isResetting = localStorage.getItem('isResetting');
@@ -46,6 +50,19 @@ function startGame() {
         localStorage.removeItem('isResetting');
         resetToDefaultState();
     }
+
+    // --- Create all game section elements ---
+    const crashSiteSection = document.createElement('div');
+    crashSiteSection.id = 'crashSiteSection';
+    crashSiteSection.classList.add('game-section');
+
+    const crewSection = document.createElement('div');
+    crewSection.id = 'crewManagementSection';
+    crewSection.classList.add('game-section');
+
+    const journalSection = document.createElement('div'); 
+    journalSection.id = 'journalSection';
+    journalSection.classList.add('game-section');
 
     const colonySection = document.createElement('div');
     colonySection.id = 'colonySection';
@@ -67,13 +84,22 @@ function startGame() {
     galaxyMapSection.id = 'galaxyMapSection';
     galaxyMapSection.classList.add('game-section');
 
-    document.getElementById('gameArea').appendChild(colonySection);
-    document.getElementById('gameArea').appendChild(researchSection);
-    document.getElementById('gameArea').appendChild(manufacturingSection);
-	document.getElementById('gameArea').appendChild(shipyardSection);
-	document.getElementById('gameArea').appendChild(galaxyMapSection);
+    // --- Append all sections to the game area ---
+    const gameArea = document.getElementById('gameArea');
+    gameArea.appendChild(crashSiteSection);
+    gameArea.appendChild(crewSection); 
+    gameArea.appendChild(journalSection);
+    gameArea.appendChild(colonySection);
+    gameArea.appendChild(researchSection);
+    gameArea.appendChild(manufacturingSection);
+	gameArea.appendChild(shipyardSection);
+	gameArea.appendChild(galaxyMapSection);
 
+    // --- Setup all sections ---
     setupInfoPanel();
+    setupCrashSiteSection(crashSiteSection);
+    setupCrewManagementSection(crewSection);
+    setupJournalSection(journalSection);
     setupColonySection(colonySection);
     setupResearchSection(researchSection);
     setupManufacturingSection(manufacturingSection);
@@ -85,65 +111,137 @@ function startGame() {
     updateResourceInfo();
     applyActivatedSections();
 
-setInterval(() => {
-        // Calculate delta time
-        const now = Date.now();
-        let deltaTime = (now - lastUpdateTime) / 1000;
-        lastUpdateTime = now;
+    let gameLoopInterval = null;
+    let autosaveInterval = null;
 
-        // --- NEW PAUSE LOGIC ---
-        // If the setting is off and the tab has been inactive for a while (e.g., > 2 seconds)
-        if (!shouldRunInBackground() && deltaTime > 2) {
-            deltaTime = 0; // Ignore the time that passed, effectively pausing the game
-        }
+    function startMainLoop() {
+        if (gameLoopInterval) return;
+        lastUpdateTime = Date.now();
+        gameLoopInterval = setInterval(() => {
+            const now = Date.now();
+            let deltaTime = (now - lastUpdateTime) / 1000;
+            lastUpdateTime = now;
 
-        // --- The rest of the loop proceeds as normal ---
-        buildings.forEach(building => {
-            const resourceToProduce = resources.find(r => r.name === building.produces);
-            if (resourceToProduce) {
-                const newAmount = resourceToProduce.amount + (building.rate * building.count) * deltaTime;
-                resourceToProduce.amount = Math.min(newAmount, resourceToProduce.capacity);
+                        // Apply temporary global time scale for debugging
+            deltaTime *= (window.TIME_SCALE || 5);
+
+            // If run-in-background is disabled and we woke after a long sleep, avoid giant jumps
+            if (!shouldRunInBackground() && deltaTime > 2) {
+                deltaTime = 0;
             }
-        });
-        
-        updateResourceInfo();
-        checkConditions();
-        updateBuildingButtonsState();
-        updateTechButtonsState();
-        updateImpactTimer();
-    }, 100);
-	
-setInterval(() => {
-        saveGameState();
-    }, 300000); // 300000 milliseconds = 300 seconds
+
+            // --- Resource Production (keep your existing logic) ---
+            buildings.forEach(building => {
+                const resourceToProduce = resources.find(r => r.name === building.produces);
+                if (resourceToProduce) {
+                    const newAmount = resourceToProduce.amount + (building.rate * building.count) * deltaTime;
+                    resourceToProduce.amount = Math.min(newAmount, resourceToProduce.capacity);
+                }
+            });
+
+            // --- Passive consumption by survivors (apply per-tick) ---
+            const survivorResource = resources.find(r => r.name === 'Survivors');
+            const survivorCount = survivorResource ? survivorResource.amount : 0;
+            if (survivorCount > 0) {
+                resources.forEach(res => {
+                    if (res.baseConsumption && res.baseConsumption > 0) {
+                        const consume = res.baseConsumption * survivorCount * deltaTime;
+                        res.amount = Math.max(0, Math.min(res.capacity, res.amount - consume));
+                    }
+                });
+            }
+
+            // --- UI Updates (call your existing update functions) ---
+            updateResourceInfo();
+            updateSurvivalDebuffBadge();
+            updateCrewSection();
+            checkConditions();
+            if (typeof updateBuildingButtonsState === 'function') updateBuildingButtonsState();
+            if (typeof updateTechButtonsState === 'function') updateTechButtonsState();
+            if (typeof updateImpactTimer === 'function') updateImpactTimer();
+        }, 100);
+    }
+
+    function stopMainLoop() {
+        if (gameLoopInterval) {
+            clearInterval(gameLoopInterval);
+            gameLoopInterval = null;
+        }
+    }
+
+    function startAutosave() {
+        if (autosaveInterval) return;
+        autosaveInterval = setInterval(() => {
+            saveGameState();
+        }, 300000);
+    }
+
+    function stopAutosave() {
+        if (autosaveInterval) {
+            clearInterval(autosaveInterval);
+            autosaveInterval = null;
+        }
+    }
+
+    // Visibility handler: pause/resume based on the option
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            if (!shouldRunInBackground()) {
+                stopMainLoop();
+                stopAutosave();
+                window.dispatchEvent(new CustomEvent('game-pause'));
+                console.log('[visibility] game paused (tab hidden)');
+            } else {
+                console.log('[visibility] run-in-background enabled — keeping game running');
+            }
+        } else if (document.visibilityState === 'visible') {
+            startMainLoop();
+            startAutosave();
+            window.dispatchEvent(new CustomEvent('game-resume'));
+            console.log('[visibility] game resumed (tab visible)');
+        }
+    });
+
+    // start loops initially
+    startMainLoop();
+    startAutosave();
 }
 
+export function getInitialActivatedSections() {
+    return {
+        crashSiteSection: true,
+        crewManagementSection: false,
+        journalSection: true,
+        colonySection: false,
+        researchSection: false,
+        manufacturingSection: false,
+        shipyardSection: false,
+        galaxyMapSection: false,
+    };
+}
 
 export function setActivatedSections(sections) {
     activatedSections = sections;
     localStorage.setItem('activatedSections', JSON.stringify(activatedSections));
 }
 
-export let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || {
-    researchSection: false,
-    manufacturingSection: false,
-	shipyardSection: false,
-	galaxyMapSection: false,
-};
+export let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || getInitialActivatedSections();
 
 function setupMenuButtons() {
-    const sections = ['colonySection', 'researchSection', 'manufacturingSection', 'shipyardSection', 'galaxyMapSection'];
+    const sections = ['crashSiteSection', 'crewManagementSection', 'journalSection', 'colonySection', 'researchSection', 'manufacturingSection', 'shipyardSection', 'galaxyMapSection'];
     const container = document.querySelector('.menu-buttons-container');
     container.innerHTML = '';
     sections.forEach(section => {
         const button = document.createElement('button');
         button.className = 'menu-button';
         button.dataset.section = section;
-        const displayName = section.replace('Section', '').charAt(0).toUpperCase() + section.replace('Section', '').slice(1);
+        
+        const baseName = section.replace('Section', '');
+        const formattedName = baseName.replace(/([A-Z])/g, ' $1');
+        const displayName = formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
+
         button.textContent = displayName;
-
         button.addEventListener('click', () => showSection(section));
-
         container.appendChild(button);
     });
 }
@@ -151,10 +249,11 @@ function setupMenuButtons() {
 export function applyActivatedSections() {
     document.querySelectorAll('.menu-button[data-section]').forEach(button => {
         const section = button.getAttribute('data-section');
-        if (!activatedSections[section] && section !== 'colonySection') {
-            button.classList.add('hidden');
-        } else {
+        // MODIFIED: Simplified logic to just check the flag
+        if (activatedSections[section]) {
             button.classList.remove('hidden');
+        } else {
+            button.classList.add('hidden');
         }
     });
 }
@@ -162,42 +261,34 @@ export function applyActivatedSections() {
 export function checkConditions() {
     const stone = resources.find(r => r.name === 'Stone');
     const xylite = resources.find(r => r.name === 'Xylite');
+    const survivors = resources.find(r => r.name === 'Survivors');
 
-    // Xylite discovery logic
+    // Unlock Xylite resource once enough stone has been gathered
     if (stone && xylite) {
         if (stone.amount >= 5 && !xylite.isDiscovered) {
             xylite.isDiscovered = true;
             updateResourceInfo();
             setupColonySection();
-
-            // Pass the whole event object
             showStoryPopup(storyEvents.unlockXylite);
-            
             addLogEntry('A crystalline anomaly has been detected. (Click to read)', LogType.STORY, {
                 onClick: () => showStoryPopup(storyEvents.unlockXylite)
             });
         }
     }
     
-// Research section unlock logic
-const laboratory = buildings.find(b => b.name === 'Laboratory');
-if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
-    laboratory.isUnlocked = true;
-    setupColonySection();
+    // Unlock Laboratory building once enough stone has been gathered
+    const laboratory = buildings.find(b => b.name === 'Laboratory');
+    if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
+        laboratory.isUnlocked = true;
+        setupColonySection();
+        showStoryPopup(storyEvents.unlockResearch);
+        addLogEntry('A glimmer of insight has been recorded. (Click to read)', LogType.STORY, {
+            onClick: () => showStoryPopup(storyEvents.unlockResearch)
+        });
+        addLogEntry('The ability to construct a Laboratory has been unlocked!', LogType.UNLOCK);
+    }
 
-    // Show the story popup
-    showStoryPopup(storyEvents.unlockResearch);
-    
-    // Add the first, clickable log entry
-    addLogEntry('A glimmer of insight has been recorded. (Click to read)', LogType.STORY, {
-        onClick: () => showStoryPopup(storyEvents.unlockResearch)
-    });
-
-    // Add the second, non-clickable log entry after it
-    addLogEntry('The ability to construct a Laboratory has been unlocked!', LogType.UNLOCK);
-}
-
-    // Manufacturing section unlock logic
+    // Unlock Manufacturing section once enough stone has been gathered
     const manufacturingButton = document.querySelector('.menu-button[data-section="manufacturingSection"]');
     if (stone && manufacturingButton) {
         if (stone.amount >= 20 && !activatedSections['manufacturingSection']) {
@@ -209,160 +300,19 @@ if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
     }
 }
 
-// A single, global tooltip element
-let globalTooltip = null;
+// Tooltip implementation moved to tooltip.js (imports at top of file)
 
-export function getOrCreateTooltip() {
-    if (!globalTooltip) {
-        globalTooltip = document.createElement('div');
-        globalTooltip.className = 'tooltip';
-        document.body.appendChild(globalTooltip);
-    }
-    return globalTooltip;
-}
-
-export function hideTooltip() {
-    const tooltip = getOrCreateTooltip();
-    if (tooltip) {
-        tooltip.style.visibility = 'hidden';
-    }
-}
-
-export function updateTooltipPosition(e, tooltip) {
-    // Get the dimensions of the tooltip and the window
-    const tooltipRect = tooltip.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    // Default position: to the right and below the cursor
-    let newLeft = e.clientX + 15;
-    let newTop = e.clientY + 15;
-
-    // Check if it goes off the right edge
-    if (newLeft + tooltipRect.width > viewportWidth) {
-        newLeft = e.clientX - tooltipRect.width - 15; // Flip to the left
-    }
-
-    // Check if it goes off the bottom edge
-    if (newTop + tooltipRect.height > viewportHeight) {
-        newTop = e.clientY - tooltipRect.height - 15; // Flip above
-    }
-
-    // Ensure it doesn't go off the top or left edges either
-    if (newTop < 0) { newTop = 5; }
-    if (newLeft < 0) { newLeft = 5; }
-
-    tooltip.style.left = `${newLeft}px`;
-    tooltip.style.top = `${newTop}px`;
-}
-
-export function setupTooltip(element, tooltipData) {
-    const tooltip = getOrCreateTooltip();
-
-    element.addEventListener('mouseenter', (e) => {
-        // --- The heavy work of building the tooltip is done ONCE here ---
-        tooltip.innerHTML = '';
-
-        if (tooltipData && typeof tooltipData.totalProduction !== 'undefined') {
-            tooltip.innerHTML = `
-                <h4>Production Breakdown</h4>
-                <div class="tooltip-section">
-                    <p>Base: ${formatNumber(tooltipData.base)}/s</p>
-                    ${tooltipData.buildings.map(b => `<p class="tooltip-detail">+ ${formatNumber(b.amount)}/s from ${b.count}x ${b.name}</p>`).join('')}
-                </div>
-                <div class="tooltip-section">
-                    <p>Bonus: +${(tooltipData.bonusMultiplier * 100).toFixed(0)}%</p>
-                    ${tooltipData.bonuses.map(b => `<p class="tooltip-detail">+${b.multiplier * 100}% from ${b.name}</p>`).join('')}
-                </div>
-                <hr>
-                <p><strong>Total: ${formatNumber(tooltipData.totalProduction)}/s</strong></p>
-            `;
-        // Case 2: Simple string
-        } else if (typeof tooltipData === 'string') {
-            tooltip.textContent = tooltipData;
-        
-        // Case 3: Building object
-        } else if (tooltipData && typeof tooltipData.count !== 'undefined') {
-            if (tooltipData.description) {
-                const description = document.createElement('p');
-                description.className = 'tooltip-description';
-                description.textContent = tooltipData.description;
-                tooltip.appendChild(description);
-            }
-            if (tooltipData.cost && tooltipData.cost.length > 0) {
-                const costHeader = document.createElement('h4');
-                costHeader.textContent = 'Cost';
-                tooltip.appendChild(costHeader);
-                tooltipData.cost.forEach(c => {
-                    const costItem = document.createElement('p');
-                    costItem.textContent = `${c.resource}: ${c.amount}`;
-                    tooltip.appendChild(costItem);
-                });
-            }
-            if (tooltipData.produces) {
-                const genHeader = document.createElement('h4');
-                genHeader.textContent = 'Generation';
-                tooltip.appendChild(genHeader);
-                const genItem = document.createElement('p');
-                genItem.textContent = `${tooltipData.produces}: +${tooltipData.rate}/s`;
-                tooltip.appendChild(genItem);
-            }
-
-        // Case 4: Technology object
-        } else if (tooltipData && typeof tooltipData.duration !== 'undefined') {
-            const title = document.createElement('h4');
-            title.textContent = tooltipData.name;
-            tooltip.appendChild(title);
-            if (tooltipData.description) {
-                const description = document.createElement('p');
-                description.className = 'tooltip-description';
-                description.textContent = tooltipData.description;
-                tooltip.appendChild(description);
-            }
-            if (tooltipData.cost && tooltipData.cost.length > 0) {
-                const costHeader = document.createElement('h4');
-                costHeader.textContent = 'Cost';
-                tooltip.appendChild(costHeader);
-                tooltipData.cost.forEach(c => {
-                    const costItem = document.createElement('p');
-                    costItem.textContent = `${c.resource}: ${c.amount}`;
-                    tooltip.appendChild(costItem);
-                });
-            }
-            const duration = document.createElement('p');
-            duration.textContent = `Research Time: ${tooltipData.duration}s`;
-            tooltip.appendChild(duration);
-        }
-
-        tooltip.style.visibility = 'visible';
-        updateTooltipPosition(e, tooltip);
-    });
-
-    element.addEventListener('mouseleave', () => {
-        tooltip.style.visibility = 'hidden';
-    });
-
-// --- This now ONLY updates the position, which is very fast ---
-    element.addEventListener('mousemove', (e) => {
-        updateTooltipPosition(e, tooltip);
-    });
-}
-
-window.showSection = function(sectionId) {
-    // --- NEW LOGIC: Manage the active button style ---
-    // First, find all menu buttons and remove the .active class from them
+export function showSection(sectionId) {
     const allMenuButtons = document.querySelectorAll('.menu-button');
     allMenuButtons.forEach(btn => {
         btn.classList.remove('active');
     });
 
-    // Next, find the button that was just clicked and add the .active class to it
     const newActiveButton = document.querySelector(`.menu-button[data-section="${sectionId}"]`);
     if (newActiveButton) {
         newActiveButton.classList.add('active');
     }
 
-    // --- Original logic to show/hide the section panels ---
     const sections = document.querySelectorAll('.game-section');
     sections.forEach(section => {
         section.classList.add('hidden');
@@ -372,6 +322,15 @@ window.showSection = function(sectionId) {
     if (activeSection) {
         activeSection.classList.remove('hidden');
     }
+
+    if (sectionId === 'journalSection') {
+        import('./sections/journal.js').then(mod => {
+            const sectionEl = document.getElementById('journalSection');
+            if (sectionEl && typeof mod.setupJournalSection === 'function') {
+                mod.setupJournalSection(sectionEl);
+            }
+        }).catch(() => { /* ignore import errors */ });
+    }
     
     localStorage.setItem('currentSection', sectionId);
 };
@@ -379,11 +338,34 @@ window.showSection = function(sectionId) {
 function loadCurrentSection() {
     const savedSection = localStorage.getItem('currentSection');
 
-    // Check if the saved section is actually unlocked
+    // MODIFIED: Default to crashSiteSection for a new game
+    const defaultSection = 'crashSiteSection';
+
     if (savedSection && activatedSections[savedSection]) {
         showSection(savedSection);
     } else {
-        // If the saved section is locked (or doesn't exist), default to colony
-        showSection('colonySection');
+        showSection(defaultSection);
     }
+}
+
+// Export helper to enable a UI section by id (keeps activation logic centralized)
+export function enableSection(sectionId) {
+    try {
+        // `activatedSections` is the module-scoped object used by main.js
+        if (typeof activatedSections === 'undefined') return;
+        if (activatedSections[sectionId]) return;
+        activatedSections[sectionId] = true;
+        try { setActivatedSections(activatedSections); } catch (e) { /* ignore */ }
+        addLogEntry(`New menu section activated: ${formatSectionName(sectionId) || sectionId}`, LogType.UNLOCK);
+        try { applyActivatedSections(); } catch (e) { /* ignore */ }
+    } catch (e) {
+        console.warn('enableSection failed', e);
+    }
+}
+
+// small helper to humanize the key (optional)
+function formatSectionName(key) {
+    if (!key) return '';
+    const base = key.replace('Section', '');
+    return base.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
 }

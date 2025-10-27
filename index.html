@@ -10,10 +10,13 @@
 <link rel="stylesheet" href="styles/game-area.css">
 <link rel="stylesheet" href="styles/research.css">
 <link rel="stylesheet" href="styles/colony.css">
+<link rel="stylesheet" href="styles/crashSite.css">
 <link rel="stylesheet" href="styles/story-popup.css">
 <link rel="stylesheet" href="styles/options-menu.css">
 <link rel="stylesheet" href="styles/log-options.css">
 <link rel="stylesheet" href="styles/changelog.css">
+<link rel="stylesheet" href="styles/journal.css">
+<link rel="stylesheet" href="styles/crewManagement.css">
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
 	
@@ -29,6 +32,7 @@
 <script src="formatting.js" type="module"></script>
 <script src="log-options.js" type="module"></script>
 <script src="changelog.js" type="module"></script>
+<script src="sections/journal.js" type="module"></script>
 <script src="sections/colony.js" type="module"></script>
 <script src="sections/research.js" type="module"></script>
 <script src="sections/manufacturing.js" type="module"></script>
@@ -49,7 +53,7 @@
         <img id="gameLogo" src="assets/images/logo-header.png" alt="Project Greenfire">
     </div>
     <div class="header-center">
-        <span id="currentTime"></span>
+        <span id="headerClock"></span>
     </div>
     <div class="header-right">
         <div class="header-links">
@@ -61,13 +65,8 @@
 </div>
 
 <div id="mainContainer">
-
 <div id="mainMenu">
-<div class="menu-buttons-container">
-<button class="menu-button" data-section="miningSection">Mining</button>
-<button class="menu-button hidden" data-section="researchSection">Research</button>
-<button class="menu-button hidden" data-section="manufacturingSection">Manufacturing</button>
-</div>
+<div class="menu-buttons-container"></div>
 <div id="logSection">
     <div class="log-header">
         <h3>Log entries:</h3>
@@ -155,18 +154,27 @@
             <h4>Glow Intensity</h4>
             <input type="range" id="glowIntensitySlider" min="0" max="2" step="0.1" value="1">
         </div>
+<div class="save-management popup-span-all">
+    <h4>Save Management</h4>
 
-        <div class="save-management popup-span-all">
-            <h4>Save Management</h4>
-            <button id="exportSaveButton">Export to Clipboard</button>
-            <div id="importContainer">
-                <textarea id="importSaveText" placeholder="Not implemented yet"></textarea>
-                <button id="importSaveButton">Import</button>
-            </div>
-        </div>
-
-        <button id="resetButton" class="popup-span-all">Reset Progress</button>
+    <div class="export-row">
+        <button id="exportSaveButton">Export to Clipboard (encrypted)</button>
     </div>
+
+    <div id="importContainer">
+        <textarea id="importSaveText" placeholder="Paste exported save here"></textarea>
+        <div class="import-controls">
+            <button id="importSaveButton">Import</button>
+        </div>
+    <div class="option-group">
+    <h4>Reset Game data</h4>        
+    <div class="import-reset-row">
+        <button id="resetButton" class="danger">Reset Progress</button>
+    </div>
+    </div>    
+    </div>
+</div>
+</div>
 </div>
 
 <div id="logOptionsMenu" class="log-options-overlay hidden">
@@ -221,7 +229,9 @@
     <div class="story-popup-content">
         <span class="story-popup-close">&times;</span>
         <div class="story-popup-body">
-            <div class="story-popup-logo"></div>
+            <div class="story-popup-logo">
+    <img src="assets/images/logo.png" alt="Project Greenfire logo">
+</div>
             <div class="story-popup-text">
                 <h2 id="popupTitle"></h2>
                 <p id="popupMessage"></p>

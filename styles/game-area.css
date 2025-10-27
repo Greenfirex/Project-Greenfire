@@ -39,40 +39,69 @@
   z-index: -1; 
 }
 
-#colonySection {
-    background-image: url('../assets/images/background1.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    align-items: flex-start;
-    padding-left: 20px;
+/* Shared content panel (centralized) */
+.content-panel {
+    /* very dark, near-opaque panel for maximum readability over art */
+    position: relative;
+    background-color: rgba(6, 6, 6, 0.89);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.56);
+    border-radius: 6px;
+    width: 100%;
+    height: 100%;
+    padding: 25px;
     box-sizing: border-box;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+
+    /* elevation / glow */
+    box-shadow: 0 10px 34px rgba(0,0,0,0.75), 0 0 28px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.16);
 }
 
-#researchSection {
-    background-image: url('../assets/images/background2.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+/* progress bar used by image-button */
+.action-progress-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%;
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.25);
+    z-index: 1;
+    transition: width 0.1s linear;
 }
 
-#manufacturingSection {
-    background-image: url('../assets/images/background3.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+/* ensure button label sits above progress bar */
+.image-button .building-name {
+    position: relative;
+    z-index: 2;
 }
 
-#shipyardSection {
-    background-image: url('../assets/images/background4.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+/* hidden "Abort?" text behavior shared by sections */
+.image-button .cancel-text {
+    display: none;
+    position: relative;
+    z-index: 2;
+    color: #E74C3C;
+    font-weight: bold;
 }
+.image-button.confirm-cancel .building-name { display: none; }
+.image-button.confirm-cancel .cancel-text { display: inline; }
 
-#galaxyMapSection {
-    background-image: url('../assets/images/background2.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+/* Shared custom scrollbar for content-panel */
+.content-panel::-webkit-scrollbar { width: 12px; }
+.content-panel::-webkit-scrollbar-track { background: #0b0b0b; }
+.content-panel::-webkit-scrollbar-thumb {
+    background-color: rgba(136,136,136,0.9);
+    border-radius: 6px;
+    border: 3px solid #0b0b0b;
+}
+.content-panel::-webkit-scrollbar-thumb:hover { background-color: #666; }
+
+/* small utility to indicate a visually-blocked action (kept here too) */
+.image-button.blocked-action {
+    opacity: 0.55;
+    filter: grayscale(0.25);
+    cursor: default;                  /* non-clickable look but still hoverable */
+    pointer-events: auto !important;  /* ensure hover/mouse events still fire */
+    position: relative;
+    z-index: 2;                        /* raise above accidental overlays */
 }

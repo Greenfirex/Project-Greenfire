@@ -159,4 +159,13 @@ function setupLogOptions() {
     updateFilterButtonsUI();
     updateAllColorUI();
 }
-window.addEventListener('load', setupLogOptions);
+
+// Replace the load handler with a robust one-time init on DOMContentLoaded
+if (!window.__pgfLogOptionsInitialized) {
+    window.__pgfLogOptionsInitialized = true;
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupLogOptions, { once: true });
+    } else {
+        setupLogOptions();
+    }
+}

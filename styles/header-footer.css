@@ -101,7 +101,7 @@
     width: auto;
 }
 
-#currentTime {
+#headerClock {
     grid-column: 2 / 3;
     justify-self: center;
     color: #90EE90;

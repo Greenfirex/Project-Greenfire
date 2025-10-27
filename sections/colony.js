@@ -2,7 +2,9 @@ import { resources, updateResourceInfo } from '../resources.js';
 import { buildings } from '../data/buildings.js';
 import { technologies } from '../data/technologies.js';
 import { addLogEntry, LogType } from '../log.js';
-import { setupTooltip, activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
+import { activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
+import { setupTooltip } from '../tooltip.js';
+import { addSlotsForBuilding } from '../data/jobs.js';
 
 let isMiningOnCooldown = false;
 
@@ -24,25 +26,39 @@ function getCurrentBuildingCost(building) {
     return currentCosts;
 }
 
-export function updateBuildingButtonsState() {
+let _updateBuildingButtonsStateTimer = null;
+export function updateBuildingButtonsState(immediate = false) {
+    if (!immediate) {
+        if (_updateBuildingButtonsStateTimer) clearTimeout(_updateBuildingButtonsStateTimer);
+        _updateBuildingButtonsStateTimer = setTimeout(() => updateBuildingButtonsState(true), 40);
+        return;
+    }
+    _updateBuildingButtonsStateTimer = null;
+
     buildings.forEach(building => {
         const button = document.querySelector(`.image-button[data-building="${building.name}"]`);
-        if (!button) { return; }
+        if (!button) return;
+
+        const countEl = button.querySelector('.building-count');
+        const desiredCount = `(${building.count})`;
+        if (countEl && countEl.textContent !== desiredCount) countEl.textContent = desiredCount;
+
+        const nameEl = button.querySelector('.building-name');
+        if (nameEl && nameEl.textContent !== building.name) nameEl.textContent = building.name;
 
         const currentCost = getCurrentBuildingCost(building);
         let canAfford = true;
         for (const cost of currentCost) {
             const resource = resources.find(r => r.name === cost.resource);
-            if (!resource || resource.amount < cost.amount) {
-                canAfford = false;
-                break;
-            }
+            if (!resource || resource.amount < cost.amount) { canAfford = false; break; }
         }
 
         if (canAfford) {
             button.classList.remove('unaffordable');
+            button.removeAttribute('aria-disabled');
         } else {
             button.classList.add('unaffordable');
+            button.setAttribute('aria-disabled', 'true');
         }
     });
 }
@@ -55,7 +71,7 @@ function animateButtonClick(event) {
     }, 200);
 }
 
-function createBuildingButton(building, container) {
+export function createBuildingButton(building, container) {
     const button = document.createElement('button');
     button.className = 'image-button';
     button.dataset.building = building.name;
@@ -69,42 +85,68 @@ function createBuildingButton(building, container) {
     nameSpan.className = 'building-name';
     nameSpan.textContent = `Build ${building.name}`;
     button.appendChild(nameSpan);
-    
-    // Create a temporary object for the tooltip with the updated cost
+
     const tooltipData = { ...building, cost: getCurrentBuildingCost(building) };
-    
+
+    // determine initial affordability BEFORE appending to DOM
+    const currentCost = tooltipData.cost || [];
+    let canAfford = true;
+    for (const cost of currentCost) {
+        const resource = resources.find(r => r.name === cost.resource);
+        if (!resource || resource.amount < cost.amount) { canAfford = false; break; }
+    }
+    if (!canAfford) {
+        button.classList.add('unaffordable');
+        button.setAttribute('aria-disabled', 'true');
+    }
+
     button.addEventListener('click', (event) => buildBuilding(event, building.name));
     setupTooltip(button, tooltipData);
 
     container.appendChild(button);
+    return button;
 }
 
-function buildBuilding(event, buildingName) {
-    const building = buildings.find(b => b.name === buildingName);
-    if (!building) { return; }
-
-    const currentCost = getCurrentBuildingCost(building);
-    let canAfford = true;
-    for (const cost of currentCost) {
-        const resource = resources.find(r => r.name === cost.resource);
-        if (!resource || resource.amount < cost.amount) {
-            canAfford = false;
-            addLogEntry(`Not enough ${cost.resource} to build a ${buildingName}.`, LogType.ERROR);
-            break;
-        }
-    }
+export function buildBuilding(event, buildingName) {
+     const building = buildings.find(b => b.name === buildingName);
+     if (!building) { return; }
+ 
+     const currentCost = getCurrentBuildingCost(building);
+     let canAfford = true;
+     for (const cost of currentCost) {
+         const resource = resources.find(r => r.name === cost.resource);
+         if (!resource || resource.amount < cost.amount) {
+             canAfford = false;
+             addLogEntry(`Not enough ${cost.resource} to build a ${buildingName}.`, LogType.ERROR);
+             break;
+         }
+     }
+    if (!canAfford) return false;
 
     if (canAfford) {
-        animateButtonClick(event);
-
-        for (const cost of currentCost) {
-            const resource = resources.find(r => r.name === cost.resource);
-            resource.amount -= cost.amount;
+        // animate only when a DOM event was passed (Crash Site calls buildBuilding programmatically)
+        if (event && event.currentTarget) animateButtonClick(event);
+ 
+         for (const cost of currentCost) {
+             const resource = resources.find(r => r.name === cost.resource);
+             resource.amount -= cost.amount;
+         }
+ 
+         building.count += 1;
+         addLogEntry(`Built a new ${buildingName}!`, LogType.SUCCESS);
+ 
+        // New: handle job-unlock buildings
+        if (building.effect && building.effect.type === 'job') {
+            try {
+                addSlotsForBuilding(building.name, 1);
+                addLogEntry(`New job slot available: ${building.effect.jobId} (from ${building.name}).`, LogType.UNLOCK);
+                // If crew UI exists, refresh it
+                if (typeof updateCrewSection === 'function') {
+                    updateCrewSection();
+                }
+            } catch (e) { /* ignore */ }
         }
-
-        building.count += 1;
-        addLogEntry(`Built a new ${buildingName}!`, LogType.SUCCESS);
-
+ 
         if (building.effect && building.effect.type === 'storage') {
             const resourceToUpgrade = resources.find(r => r.name === building.effect.resource);
             if (resourceToUpgrade) {
@@ -124,8 +166,10 @@ function buildBuilding(event, buildingName) {
         
         updateResourceInfo();
         setupColonySection(); // Note the rename here to avoid infinite loops if it was wrong
-    }
-}
+        return true;
+     }
+    return false;
+ }
 
 export function setupColonySection(colonySection) {
     if (!colonySection) {

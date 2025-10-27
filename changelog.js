@@ -23,18 +23,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    changelogBtn?.addEventListener('click', () => {
+    function showChangelog() {
+        if (!changelogPopup) return;
+
+        // Ensure popup is a direct child of <body> to avoid stacking-context issues
+        if (changelogPopup.parentElement !== document.body) {
+            document.body.appendChild(changelogPopup);
+        }
+
+        // Bring to front and make visible
+        changelogPopup.style.zIndex = '2147483002';
+        changelogPopup.style.display = '';
         changelogPopup.classList.remove('hidden');
+
+        // Force reflow so the browser paints it immediately
+        // eslint-disable-next-line no-unused-expressions
+        changelogPopup.offsetHeight;
+
+        // Load content (only first time)
         loadChangelog();
+    }
+
+    changelogBtn?.addEventListener('click', () => {
+        showChangelog();
     });
 
     closeBtn?.addEventListener('click', () => {
         changelogPopup.classList.add('hidden');
+        changelogPopup.style.display = 'none';
     });
 
     changelogPopup?.addEventListener('click', (e) => {
         if (e.target === changelogPopup) {
             changelogPopup.classList.add('hidden');
+            changelogPopup.style.display = 'none';
         }
     });
 });
