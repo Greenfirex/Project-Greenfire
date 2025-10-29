@@ -1,6 +1,6 @@
-import { buildings } from './data/buildings.js';
 import { technologies } from './data/technologies.js';
-import { jobs } from './data/jobs.js';
+import { jobs, getEffectiveJobRate } from './data/jobs.js';
+import { buildings } from './data/buildings.js';
 import { formatNumber } from './formatting.js';
 import { setupTooltip } from './tooltip.js';
 import { getActiveCrashSiteAction } from './data/activeActions.js';
@@ -10,7 +10,7 @@ export function getInitialResources() {
         { name: 'Energy', amount: 70, isDiscovered: true, capacity: 100, producible: false, integer: true },
         { name: 'Survivors', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true },
         { name: 'Food Rations', amount: 85, isDiscovered: true, capacity: 150, producible: false, integer: true, baseConsumption: 0.05 },
-        { name: 'Clean Water', amount: 60, isDiscovered: true, capacity: 150, producible: false, integer: true, baseConsumption: 0.1 },
+        { name: 'Clean Water', amount: 60, isDiscovered: true, capacity: 150, producible: false, integer: true, baseConsumption: 0.06 },
         { name: 'Scrap Metal', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
         { name: 'Ship Components', amount: 0, isDiscovered: false, capacity: 50, producible: false, integer: true },
         { name: 'Insight', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
@@ -20,6 +20,7 @@ export function getInitialResources() {
         { name: 'Cygnium Ore', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
         { name: 'Sentient Mycelium', amount: 0, isDiscovered: false, capacity: 10, producible: true, integer: false },
         { name: 'Crude Prybar', amount: 0, isDiscovered: false, capacity: 5, producible: false, integer: true },
+        { name: 'Fabric', amount: 0, isDiscovered: false, capacity: 100, producible: false, integer: true },
     ];
 }
 
@@ -34,14 +35,32 @@ export function computeResourceRates(resourceName) {
     const survivorResource = resources.find(r => r.name === 'Survivors');
     const survivorCount = survivorResource ? survivorResource.amount : 0;
 
+    // --- Action debuff multiplier (match crashSite logic) ---
+    // If food or water are depleted, actions take longer -> drain spreads over longer time.
+    let actionDebuff = 1;
+    const foodRes = resources.find(r => r.name === 'Food Rations');
+    const waterRes = resources.find(r => r.name === 'Clean Water');
+    if (foodRes && foodRes.amount <= 0) actionDebuff *= 1.5;
+    if (waterRes && waterRes.amount <= 0) actionDebuff *= 1.5;
+
     // --- Production Calculation (buildings + jobs) ---
+    // Collect buildings that actively produce this resource (either via `produces` or passive effect)
     let baseProduction = 0;
     const productionBuildings = [];
     buildings.forEach(b => {
-        if (b.produces === resourceName && b.count > 0) {
-            const amount = b.rate * b.count;
+        if (!b || b.count <= 0) return;
+        // buildings that declare a direct `produces` value
+        if (b.produces === resourceName) {
+            const amount = (b.rate || 0) * b.count;
             baseProduction += amount;
             productionBuildings.push({ name: b.name, count: b.count, amount: amount });
+        }
+        // buildings that provide a passive effect for this resource
+        if (b.effect && b.effect.type === 'passive' && b.effect.resource === resourceName) {
+            const amount = (b.effect.rate || 0) * b.count;
+            // treat passive contributions as production for tooltip/total calculations
+            baseProduction += amount;
+            productionBuildings.push({ name: b.name + ' (passive)', count: b.count, amount: amount });
         }
     });
 
@@ -50,7 +69,7 @@ export function computeResourceRates(resourceName) {
     if (Array.isArray(jobs)) {
         jobs.forEach(job => {
             if (job.produces === resourceName && job.assigned > 0 && job.rate) {
-                const amt = job.rate * job.assigned;
+                const amt = getEffectiveJobRate(job) * job.assigned;
                 jobContribution += amt;
                 jobLines.push({ name: job.name, assigned: job.assigned, amount: amt });
             }
@@ -72,20 +91,35 @@ export function computeResourceRates(resourceName) {
     if (activeAction && activeAction.drain) {
         const drainInfo = activeAction.drain.find(d => d.resource === resourceName);
         if (drainInfo) {
-            activeDrainRate = drainInfo.amount / Math.max(0.0001, (activeAction.duration || 1));
+            // spread the drain across the effective duration (accounting for hunger/thirst debuff)
+            const effectiveDuration = Math.max(0.0001, (activeAction.duration || 1) * actionDebuff);
+            activeDrainRate = drainInfo.amount / effectiveDuration;
         }
     }
     const totalConsumption = passiveConsumption + activeDrainRate;
 
+    // (building passive effects were already included above in `baseProduction`)
     const netPerSecond = totalProduction - totalConsumption;
+
+    // produce a structured bonuses array so tooltips can display what contributed
+    const bonuses = technologies.filter(t => t.isResearched && t.bonus?.resource === resourceName)
+        .map(t => ({ name: t.name || t.id || 'Technology', multiplier: t.bonus.multiplier }));
 
     return {
         resource: currentResource,
+        // base building production (includes passive building effects)
+        base: baseProduction,
+        // buildings array for detailed breakdown
+        buildings: productionBuildings,
+        // job contribution lines and total
+        jobLines,
+        jobContribution,
+        // bonuses data
+        bonusMultiplier: bonusMultiplier,
+        bonuses,
         totalProduction,
         totalConsumption,
         netPerSecond,
-        productionBuildings,
-        jobLines,
         passiveConsumption,
         activeDrainRate,
     };
@@ -111,6 +145,7 @@ export function setupInfoPanel() {
         infoRow.className = 'info-row';
         infoRow.dataset.resource = resource.name;
         infoRow.classList.add('hidden');
+        infoRow.classList.toggle('non-producible', !resource.producible);
 
         if (resource.name === 'Insight') {
             infoRow.classList.add('insight-resource');
@@ -129,11 +164,11 @@ export function setupInfoPanel() {
             const rates = computeResourceRates(resourceName);
             if (!rates) return `<h4>${resourceName}</h4><p>No data available.</p>`;
 
-            const { totalProduction, totalConsumption, netPerSecond, productionBuildings, jobLines, passiveConsumption, activeDrainRate } = rates;
+            const { totalProduction, totalConsumption, netPerSecond, buildings, jobLines, passiveConsumption, activeDrainRate } = rates;
 
             const productionHtml = [];
-            if (productionBuildings.length) {
-                productionBuildings.forEach(b => productionHtml.push(`<p class="tooltip-detail">+ ${formatNumber(b.amount)}/s from ${b.count}x ${b.name}</p>`));
+            if (buildings && buildings.length) {
+                buildings.forEach(b => productionHtml.push(`<p class="tooltip-detail">+ ${formatNumber(b.amount)}/s from ${b.count}x ${b.name}</p>`));
             }
             if (jobLines.length) {
                 jobLines.forEach(j => productionHtml.push(`<p class="tooltip-detail">+ ${formatNumber(j.amount)}/s from ${j.assigned}x ${j.name}</p>`));
@@ -183,6 +218,12 @@ export function updateResourceInfo() {
         // reveal any resource that has a positive amount
         if (resource.amount > 0 && !resource.isDiscovered) {
             resource.isDiscovered = true;
+            // notify other systems that a resource was discovered (e.g. colony can unlock upgrades)
+            if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+                try {
+                    window.dispatchEvent(new CustomEvent('resourceDiscovered', { detail: { name: resource.name } }));
+                } catch (e) { /* ignore in non-browser env */ }
+            }
         }
 
         infoRow.classList.toggle('hidden', !resource.isDiscovered);
@@ -209,13 +250,14 @@ export function updateResourceInfo() {
 
         generationEl.classList.toggle('negative-rate', netPerSecond < 0);
 
-        if (resource.producible || totalConsumption > 0 || activeDrainRate > 0) {
+        // Only show generation when there is an actual non-zero production or consumption.
+        // Use a small EPS to avoid floating point noise. Always display a clear sign (+/-)
+        // for consistency across resources (no parentheses).
+        const EPS = 1e-9;
+        if (Math.abs(totalProduction) > EPS || Math.abs(totalConsumption) > EPS || Math.abs(activeDrainRate) > EPS) {
             const sign = netPerSecond >= 0 ? '+' : '';
-            if (totalConsumption > 0 && !resource.producible) {
-                generationEl.textContent = `(${formatNumber(netPerSecond)}/s)`;
-            } else {
-                generationEl.textContent = `${sign}${formatNumber(netPerSecond)}/s`;
-            }
+            const value = formatNumber(Math.abs(netPerSecond));
+            generationEl.textContent = `${sign}${value}/s`;
         } else {
             generationEl.textContent = '';
         }

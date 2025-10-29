@@ -69,6 +69,34 @@ const initialBuildings = [
         costMultiplier: 1.3,
         description: 'A makeshift station to collect and purify water.',
         isUnlocked: false
+    },
+    {
+        name: 'Food Larder',
+        count: 0,
+        cost: [{ resource: 'Scrap Metal', amount: 15 }, { resource: 'Fabric', amount: 4 }],
+        costMultiplier: 1.2,
+        effect: { type: 'storage', resource: 'Food Rations', value: 100 },
+        description: 'A basic insulated larder that increases food storage capacity.',
+        isUnlocked: false
+    },
+    {
+        name: 'Water Reservoir',
+        count: 0,
+        cost: [{ resource: 'Scrap Metal', amount: 18 }],
+        costMultiplier: 1.2,
+        effect: { type: 'storage', resource: 'Clean Water', value: 120 },
+        description: 'A small covered reservoir that increases water storage capacity.',
+        isUnlocked: false
+    },
+    {
+        name: 'Rain Tarp',
+        // Passive effect: yields Clean Water per second per built rain tarp
+        effect: { type: 'passive', resource: 'Clean Water', rate: 0.02 },
+        count: 0,
+        cost: [{ resource: 'Fabric', amount: 6 }, { resource: 'Scrap Metal', amount: 6 }],
+        costMultiplier: 1.2,
+        description: 'Tarped catchments and troughs that funnel rainwater into storage.',
+        isUnlocked: false
     }
 ];
 

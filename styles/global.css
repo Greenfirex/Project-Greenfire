@@ -175,6 +175,33 @@ body.glow-disabled * {
     border-color: #444;
 }
 
+/* Tooltip reward and upgrade highlight styling */
+.tooltip .reward-amount {
+    color: #8FFFA0;               /* bright green for boosted amounts */
+    font-weight: 700;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.6);
+}
+
+.tooltip .tooltip-bonuses {
+    margin: 6px 0 0 18px;
+    padding-left: 0;
+    list-style: disc;
+    list-style-position: inside;
+}
+
+.tooltip .tooltip-bonuses .bonus-item {
+    color: #FFD36B;               /* warm accent for bonus labels */
+    font-weight: 600;
+    margin: 2px 0;
+    font-size: 0.9em;
+}
+
+/* keep existing tooltip-detail style for legacy single-line notes */
+.tooltip .tooltip-detail {
+    color: #ccc;
+    margin-left: 10px;
+}
+
 /* --- The UNIFIED Glow Animation --- */
 @keyframes pulse-glow {
   0% {

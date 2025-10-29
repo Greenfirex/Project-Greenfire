@@ -9,12 +9,12 @@ import { storyEvents } from './data/storyEvents.js';
 import { salvageActions } from './data/actions.js';
 import { jobs } from './data/jobs.js';
 import { addLogEntry, LogType } from './log.js';
+import { gameFlags, resetGameFlags, applySavedGameFlags } from './data/gameFlags.js';
 
 export function saveGameState() {
-    const research = getCurrentResearchingTech();
     const gameState = getGameState();
     localStorage.setItem('gameState', JSON.stringify(gameState));
-    addLogEntry('Game state saved.', LogType.INFO);
+    addLogEntry('Game saved.', LogType.INFO);
 }
 
 export function getGameState() {
@@ -27,6 +27,7 @@ export function getGameState() {
         activatedSections: activatedSections,
         buildings: buildings,
         salvageActions: salvageActions,
+        gameFlags: { ...gameFlags },
         timeScale: (typeof window !== 'undefined' && window.TIME_SCALE) ? Number(window.TIME_SCALE) : 1,
         paused: (typeof localStorage !== 'undefined') ? (localStorage.getItem('gamePaused') === 'true') : false
     };
@@ -34,6 +35,16 @@ export function getGameState() {
 
 export function applyGameState(gameState) {
     if (!gameState) return;
+
+    // Restore simple game flags (persisted upgrades / toggles)
+    try {
+        if (gameState.gameFlags) {
+            // use helper to apply saved flags (keeps default keys and live reference)
+            applySavedGameFlags(gameState.gameFlags);
+        }
+    } catch (e) {
+        console.warn('applyGameState: failed to restore gameFlags', e);
+    }
 
     // --- Smart Loading for Resources ---
     const defaultResources = getInitialResources();
@@ -64,7 +75,15 @@ export function applyGameState(gameState) {
         salvageActions.forEach(defaultAction => {
             const savedAction = gameState.salvageActions.find(a => a.id === defaultAction.id);
             if (savedAction) {
-                Object.assign(defaultAction, savedAction);
+                               // Protect certain design-time fields from being overwritten by old saves.
+                // For example, we removed Survivors cost from 'salvageCookingEquipment' — don't restore it.
+                if (defaultAction.id === 'salvageCookingEquipment') {
+                    const copy = { ...savedAction };
+                    delete copy.cost;
+                    Object.assign(defaultAction, copy);
+                } else {
+                    Object.assign(defaultAction, savedAction);
+                }
             }
         });
     }
@@ -158,12 +177,8 @@ export function resetToDefaultState() {
          }).catch(() => { /* ignore */ });
      } catch (e) { /* ignore */ }
 
-    // Ensure in-game clock resets BEFORE creating the initial story/journal entry
-    try { resetIngameTime(); } catch (e) { console.warn('resetIngameTime failed', e); }
-
     const event = storyEvents.crashIntro;
     showStoryPopup(event);
-
     addLogEntry('You survived... somehow. (Click to read)', LogType.STORY, {
         onClick: () => showStoryPopup(event)
     });
@@ -171,6 +186,7 @@ export function resetToDefaultState() {
     resetResources();
     resetBuildings();
     resetTechnologies();
+    resetGameFlags();
     clearInterval(getResearchInterval());
     setResearchInterval(null);
     setResearchProgress(0);
@@ -197,11 +213,6 @@ export function resetToDefaultState() {
 export function resetGameState() {
     console.log('Resetting game state via page reload');
     try { window.dispatchEvent(new CustomEvent('gameReset')); } catch (e) { /* ignore */ }
-        try {
-        import('./data/actions.js').then(mod => {
-            if (mod && typeof mod.resetActionsToDefaults === 'function') mod.resetActionsToDefaults();
-        }).catch(() => { /* ignore */ });
-    } catch (e) { /* ignore */ }
     localStorage.clear();
     location.reload();
 }

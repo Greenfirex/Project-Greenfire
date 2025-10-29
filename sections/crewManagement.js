@@ -1,7 +1,9 @@
 import { resources } from '../resources.js';
-import { jobs, getJobById } from '../data/jobs.js';
+import { jobs, getJobById, getEffectiveJobRate } from '../data/jobs.js';
+import { upgradeEffects } from '../data/upgradeEffects.js';
+import { gameFlags } from '../data/gameFlags.js';
 import { addLogEntry, LogType } from '../log.js';
-import { setupTooltip } from '../tooltip.js';
+import { setupTooltip, refreshCurrentTooltip } from '../tooltip.js';
 
 // Render the Crew Management section (basic info for now)
 export function setupCrewManagementSection(sectionEl) {
@@ -106,7 +108,8 @@ export function updateCrewSection() {
 
         const countCol = document.createElement('div');
         countCol.className = 'job-count';
-        countCol.innerHTML = `<span class="assigned-count">${job.assigned || 0}</span> / <span class="slots-count">${job.slots || 0}</span>`;
+        const slotsText = (job.unlimited === true || job.slots === Number.POSITIVE_INFINITY) ? '∞' : (job.slots || 0);
+        countCol.innerHTML = `<span class="assigned-count">${job.assigned || 0}</span> / <span class="slots-count">${slotsText}</span>`;
         wrapper.appendChild(countCol);
 
         const incCol = document.createElement('div');
@@ -117,13 +120,14 @@ export function updateCrewSection() {
         incBtn.dataset.action = 'inc';
         incBtn.ariaLabel = `Increase assigned for ${job.name}`;
         incBtn.textContent = '›';
-        incBtn.disabled = (idle <= 0 || (job.assigned || 0) >= (job.slots || 0));
+        const atSlotLimit = !(job.unlimited === true) && (job.slots !== undefined) && ((job.assigned || 0) >= (job.slots || 0));
+        incBtn.disabled = (idle <= 0) || atSlotLimit;
         incCol.appendChild(incBtn);
         wrapper.appendChild(incCol);
 
         const note = document.createElement('div');
         note.className = 'job-note';
-        note.textContent = job.slots > 0 ? `Unlocked by: ${job.building}` : 'Locked — build structure on Crash Site.';
+        note.textContent = (job.unlimited === true || (typeof job.slots === 'number' && job.slots > 0)) ? `Unlocked by: ${job.building}` : 'Locked — build structure on Crash Site.';
         // place note as full-width element below row
         const rowWrapper = document.createElement('div');
         rowWrapper.className = 'crew-job-wrapper';
@@ -138,18 +142,43 @@ export function updateCrewSection() {
             const tooltipTarget = nameCol;
             const tooltipGetter = () => {
                 const produces = job.produces || '—';
-                const rate = (typeof job.rate === 'number') ? job.rate : 0;
+                const baseRate = (typeof job.rate === 'number') ? job.rate : 0;
+                const effectiveRate = getEffectiveJobRate(job);
                 const assigned = job.assigned || 0;
-                const slots = job.slots || 0;
+                const slots = (job.unlimited === true || job.slots === Number.POSITIVE_INFINITY) ? '∞' : (job.slots || 0);
                 const desc = job.description || '';
 
-                // Build simple HTML tooltip (the tooltip system should accept HTML)
+                // collect active upgrade labels that affect this job/resource
+                const bonuses = [];
+                // Only show upgrades that explicitly target jobs here.
+                // Action-only or resource-wide upgrades (eff.actions == null)
+                // should not appear on per-job tooltips.
+                for (let i = 0; i < upgradeEffects.length; i++) {
+                    const eff = upgradeEffects[i];
+                    if (!eff || !eff.flag) continue;
+                    if (!gameFlags[eff.flag]) continue;
+                    if (!eff.resources || !eff.resources.includes(produces)) continue;
+                    // Require the upgrade to explicitly list actions for job tooltips
+                    if (!eff.actions || !Array.isArray(eff.actions) || eff.actions.length === 0) continue;
+                    const matches = eff.actions.some(a => {
+                        if (!a) return false;
+                        const av = String(a).toLowerCase().replace(/\s+/g, '');
+                        return av === String(job.id).toLowerCase().replace(/\s+/g, '');
+                    });
+                    if (!matches) continue;
+                    if (eff.label) bonuses.push(eff.label);
+                }
+
                 const lines = [];
                 lines.push(`<strong>${job.name}</strong>`);
                 if (desc) lines.push(`<div style="margin-top:6px">${desc}</div>`);
                 lines.push(`<div style="margin-top:6px"><em>Produces:</em> ${produces}</div>`);
-                lines.push(`<div><em>Per worker:</em> ${rate}/s</div>`);
+                // highlight effective per-worker rate and show base in smaller text
+                lines.push(`<div><em>Per worker:</em> <span class="reward-amount">${effectiveRate.toFixed(3)}</span>/s <small style="color:#bbb"> (base ${baseRate}/s)</small></div>`);
                 lines.push(`<div><em>Assigned:</em> ${assigned} / ${slots}</div>`);
+                if (bonuses.length) {
+                    lines.push(`<ul class="tooltip-bonuses" style="margin-top:6px">${bonuses.map(b => `<li class="bonus-item">${b}</li>`).join('')}</ul>`);
+                }
                 return lines.join('');
             };
             try { setupTooltip(tooltipTarget, tooltipGetter); } catch (e) { /* ignore */ }
@@ -169,7 +198,7 @@ function incrementJob(jobId) {
         addLogEntry('No available survivors to assign.', LogType.ERROR);
         return;
     }
-    if ((job.assigned || 0) >= (job.slots || 0)) {
+    if (!(job.unlimited === true) && (typeof job.slots === 'number') && ((job.assigned || 0) >= (job.slots || 0))) {
         addLogEntry('No open job slots available.', LogType.ERROR);
         return;
     }
@@ -177,17 +206,15 @@ function incrementJob(jobId) {
     job.assigned = (job.assigned || 0) + 1;
     addLogEntry(`Assigned 1 survivor to ${job.name}.`, LogType.INFO);
     updateCrewSection();
+    try { refreshCurrentTooltip(); } catch (e) { /* ignore */ }
 }
 
 function decrementJob(jobId) {
     const job = getJobById(jobId);
     if (!job) return;
-    if ((job.assigned || 0) <= 0) {
-        addLogEntry('No assigned survivors to remove from this job.', LogType.ERROR);
-        return;
-    }
-
-    job.assigned -= 1;
-    addLogEntry(`Unassigned 1 survivor from ${job.name}.`, LogType.INFO);
+    if ((job.assigned || 0) <= 0) return;
+    job.assigned = Math.max(0, (job.assigned || 0) - 1);
+    addLogEntry(`Removed 1 survivor from ${job.name}.`, LogType.INFO);
     updateCrewSection();
+    try { refreshCurrentTooltip(); } catch (e) { /* ignore */ }
 }

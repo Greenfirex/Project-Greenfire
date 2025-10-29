@@ -1,3 +1,28 @@
+# [0.1.5] - 2025-10-29
+
+- **Added:** Tooltip ETA — tooltips now show estimated time-to-availability (ETA) for missing resources when there is a positive net production for that resource.
+- **Added:** Tooltip missing-cost highlighting — cost/drain lines that the player is short on are highlighted in red for immediate clarity.
+- **Added:** Tooltip auto-refresh — tooltips now refresh in-place every 1s while visible so ETAs and live rates stay up-to-date.
+- **Added:** Tooltip API — exported refreshCurrentTooltip() so modules can force an immediate tooltip rebuild after resource changes.
+- **Added:** Crash Site action-state updater — action affordances are recalculated each main-loop tick so buttons reflect real-time resource changes.
+
+- **Changed:** Tooltip rendering refactor — moved tooltip HTML generation into a single build function used for initial render and refresh.
+- **Changed:** Tooltip positioning — chosen screen coordinates are persisted on first layout and reused while refreshing to avoid jumps.
+- **Changed:** Resource display logic — per-second generation only shows when there is a non-zero production/consumption (avoids "0.0/s" noise) and uses explicit +/- formatting.
+- **Changed:** Scrap Metal resource flagged as non-producible by default to match Food/Clean Water layout and prevent misalignment.
+- **Changed:** Action/button behavior — stopped using native title attributes for shortfall/blocked messages; messages are stored in data-* attributes and shown via the custom tooltip.
+
+- **Fixed:** Removed duplicate native tooltip by stripping title attributes and observing mutations on registered tooltip elements.
+- **Fixed:** Prevented duplicate small tooltips by suppressing resource-row candidates while a non-resource tooltip is active.
+- **Fixed:** Debuff icons no longer register their own tooltip and are non-interactive so they don't steal hover.
+- **Fixed:** Tooltip refresh robustness — auto-refresh now persists while the tooltip is visible and stops cleanly on hide.
+- **Fixed:** Immediate tooltip updates — refreshCurrentTooltip() calls added to action/building/job handlers so tooltips update right after costs/rewards/refunds are applied.
+- **Fixed:** Action click handlers recompute affordability/blocked state on click (no stale closures) so log messages and prevention are reliable.
+
+- **Notes:** ETA calculations use computeResourceRates() for live netPerSecond values. The tooltip refresher is lightweight and defensive (swallows errors) to avoid impacting the main loop. If you want additional modules wired to refreshCurrentTooltip or different refresh frequency, indicate target files and desired cadence.
+
+---
+
 # [0.1.1] - 2025-10-25
 
 - Fix: debuff icon tooltip reliably shows (hit-test priority, direct icon handlers) and properly transitions icon ↔ row without races.

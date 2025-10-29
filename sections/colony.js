@@ -3,8 +3,9 @@ import { buildings } from '../data/buildings.js';
 import { technologies } from '../data/technologies.js';
 import { addLogEntry, LogType } from '../log.js';
 import { activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
-import { setupTooltip } from '../tooltip.js';
+import { setupTooltip, refreshCurrentTooltip } from '../tooltip.js';
 import { addSlotsForBuilding } from '../data/jobs.js';
+import { salvageActions } from '../data/actions.js';
 
 let isMiningOnCooldown = false;
 
@@ -138,10 +139,105 @@ export function buildBuilding(event, buildingName) {
         const resource = resources.find(r => r.name === cost.resource);
         if (resource) resource.amount -= cost.amount;
     }
+    // update any visible tooltip (ETA/shortfall) immediately
+    try { refreshCurrentTooltip(); } catch (e) { /* ignore */ }
 
     // Build
     building.count += 1;
     addLogEntry(`Built a new ${buildingName}!`, LogType.SUCCESS);
+
+    // Unlock upgrades tied to first-build of some structures
+    if (building.name === 'Foraging Camp' && building.count === 1) {
+        const act = (salvageActions || []).find(a => a.id === 'installForagingTools' || a.name === 'Crude Foraging Tools');
+        if (act && !act.isUnlocked) {
+            act.isUnlocked = true;
+            addLogEntry('Upgrade available: Crude Foraging Tools', LogType.UNLOCK);
+            // refresh crash-site UI so the newly unlocked upgrade appears immediately
+        if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+            window.setupCrashSiteSection();
+        }
+    }
+        // Unlock Food Larder building (storage for Food Rations)
+        const foodLarder = buildings.find(b => b.name === 'Food Larder');
+        if (foodLarder && !foodLarder.isUnlocked) {
+            foodLarder.isUnlocked = true;
+            addLogEntry('New building available: Food Larder', LogType.UNLOCK);
+            try { setupColonySection(); } catch (e) { if (typeof window !== 'undefined' && window.setupColonySection) window.setupColonySection(); }
+            // refresh other UIs so Crash Site and global buttons show the new building immediately
+            if (typeof window !== 'undefined') {
+                if (typeof window.setupCrashSiteSection === 'function') {
+                    try { window.setupCrashSiteSection(); } catch (e) { /* ignore */ }
+                }
+                if (typeof window.updateBuildingButtonsState === 'function') {
+                    try { window.updateBuildingButtonsState(); } catch (e) { /* ignore */ }
+                }
+                if (typeof window.setupColonySection === 'function') {
+                    try { window.setupColonySection(); } catch (e) { /* ignore */ }
+                }
+            }
+        }
+    }
+
+    // Unlock Rain Catchers when a Water Station is built AND Fabric has been discovered
+    if (building.name === 'Water Station' && building.count === 1) {
+        const fabricRes = (typeof resources !== 'undefined' ? resources : []).find(r => r.name === 'Fabric');
+        const act = (salvageActions || []).find(a => a.id === 'installRainCatchers');
+        // only unlock immediately if Fabric has actually been discovered
+        if (fabricRes && fabricRes.isDiscovered && act && !act.isUnlocked) {
+            act.isUnlocked = true;
+            addLogEntry('Upgrade available: Rain Catchers', LogType.UNLOCK);
+            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') window.setupCrashSiteSection();
+        } else if (act && !act.isUnlocked) {
+            // Fabric not discovered yet — register a one-time listener to unlock when Fabric is discovered
+            if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+                const onDiscover = (ev) => {
+                    if (!ev || !ev.detail || ev.detail.name !== 'Fabric') return;
+                    const fr = resources.find(r => r.name === 'Fabric');
+                    if (fr && fr.isDiscovered && act && !act.isUnlocked) {
+                        act.isUnlocked = true;
+                        addLogEntry('Upgrade available: Rain Catchers', LogType.UNLOCK);
+                        if (typeof window.setupCrashSiteSection === 'function') window.setupCrashSiteSection();
+                    }
+                };
+                window.addEventListener('resourceDiscovered', onDiscover);
+            }
+        }
+        // Unlock Water Reservoir building (storage for Clean Water)
+        const waterReservoir = buildings.find(b => b.name === 'Water Reservoir');
+        if (waterReservoir && !waterReservoir.isUnlocked) {
+            // only make it available if Fabric has been discovered (same gating as rain catchers)
+            const refreshColonyUI = () => {
+                // try local then global helpers; also refresh crash-site and button state
+                try { if (typeof setupColonySection === 'function') setupColonySection(); } catch (e) {}
+                if (typeof window !== 'undefined') {
+                    if (typeof window.setupColonySection === 'function') try { window.setupColonySection(); } catch (e) {}
+                    if (typeof window.setupCrashSiteSection === 'function') try { window.setupCrashSiteSection(); } catch (e) {}
+                    if (typeof window.updateBuildingButtonsState === 'function') try { window.updateBuildingButtonsState(); } catch (e) {}
+                }
+            };
+
+            if (fabricRes && fabricRes.isDiscovered) {
+                waterReservoir.isUnlocked = true;
+                addLogEntry('New building available: Water Reservoir', LogType.UNLOCK);
+                refreshColonyUI();
+            } else {
+                // register a one-time unlock when Fabric is discovered
+                if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+                    const onDiscoverReservoir = (ev) => {
+                        if (!ev || !ev.detail || ev.detail.name !== 'Fabric') return;
+                        const fr = resources.find(r => r.name === 'Fabric');
+                        if (fr && fr.isDiscovered && waterReservoir && !waterReservoir.isUnlocked) {
+                            waterReservoir.isUnlocked = true;
+                            addLogEntry('New building available: Water Reservoir', LogType.UNLOCK);
+                            refreshColonyUI();
+                        }
+                        window.removeEventListener('resourceDiscovered', onDiscoverReservoir);
+                    };
+                    window.addEventListener('resourceDiscovered', onDiscoverReservoir);
+                }
+            }
+        }
+    }
 
     // Handle job-unlock buildings
     if (building.effect && building.effect.type === 'job') {
@@ -173,9 +269,10 @@ export function buildBuilding(event, buildingName) {
     }
 
     updateResourceInfo();
-    setupColonySection(); // refresh UI
+    setupColonySection();
     return true;
 }
+
 
 export function setupColonySection(colonySection) {
     if (!colonySection) {
@@ -236,6 +333,11 @@ export function setupColonySection(colonySection) {
         if (xyliteStorageTech) {
             createBuildingButton(buildings.find(b => b.name === 'Xylite Silo'), storageButtons);
         }
+        // Add Food Larder / Water Reservoir buttons if the buildings are available/unlocked
+        const foodLarder = buildings.find(b => b.name === 'Food Larder');
+        if (foodLarder && foodLarder.isUnlocked) createBuildingButton(foodLarder, storageButtons);
+        const waterReservoir = buildings.find(b => b.name === 'Water Reservoir');
+        if (waterReservoir && waterReservoir.isUnlocked) createBuildingButton(waterReservoir, storageButtons);
         storageCategory.appendChild(storageButtons);
         colonySection.appendChild(storageCategory);
     }
@@ -285,10 +387,26 @@ function mineStone(event) {
             addLogEntry('Manually mined 1 Stone.', LogType.ACTION);
         }
         updateResourceInfo();
+        try { refreshCurrentTooltip(); } catch (e) { /* ignore */ }
     }
 
     // 3. End the cooldown after 100ms
     setTimeout(() => {
         isMiningOnCooldown = false;
     }, 100); // 100ms cooldown
+}
+
+// Listen for UI refresh requests from other modules (e.g. upgrade completion handlers)
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('refreshColonyUI', (ev) => {
+        // prefer direct call to setupColonySection if available in this module
+        if (typeof setupColonySection === 'function') {
+            try { setupColonySection(); } catch (e) { /* ignore */ }
+        } else {
+            // fallback: try other exposed helpers
+            if (typeof window.setupColonySection === 'function') {
+                try { window.setupColonySection(); } catch (e) { /* ignore */ }
+            }
+        }
+    });
 }

@@ -63,6 +63,47 @@ basecamp_established: {
         "Crew Management is now available — assign survivors to jobs and prioritize tasks from there. Assigned crew will help with routine resource collection and management, improving efficiency and freeing you to focus on exploration and repairs."
     ]
 },
+
+south_corridor_entry: {
+    title: 'South Corridor — New Access',
+    pages: [
+        "You pry and squeeze past collapsed plating and heat-scorched rails until a clearer path opens. Beyond the obstruction are two side compartments: a mess hall lined with crushed tables and a block of crew berths.",
+        "You can search these compartments for salvage and survivors — the cafeteria may hide food and water rations, and the crew quarters may contain parts that could aid survivors. Choose a location to investigate."
+    ]
+},
+
+south_explore_cafeteria: {
+    title: 'Mess Hall — Supplies and Survivors',
+    pages: [
+        "The mess hall is a mess of overturned tables and scorched trays, but in the wreckage you find sealed stashes of bottled water and compact energy bars — supplies that will keep you going.",
+        "Hidden beneath a collapsed service counter you discover two unconscious crew members. You drag them clear, tend to their wounds, and carry them back to the shelter outside. For now they are safe at the base camp and will recover; their presence will change the days ahead."
+    ]
+},
+
+cafeteria_salvage: {
+    title: 'Salvaged Cooker',
+    pages: [
+        "Beneath a fallen service bench you find a compact, scorched but repairable cooking rig — insulated plates, a pressurized water tank, and a simple field stove. It will take effort to extract and reinstall, but it could transform how you feed the survivors.",
+        "You haul the rig back to the base camp with the help of two rescued crew and a few tools. The cooker is crude but functional; it will let you prepare and preserve rations and treat water more efficiently at camp."
+    ]
+},
+
+south_check_quarters: {
+    title: 'Crew Quarters — Personal Effects',
+    pages: [
+        "The crew berths are cramped and personal lockers hang open. Amidst torn bedding and charred lockers you find a handful of spare fasteners, a compact tool roll, and one survivor who sheltered in a locker.",
+        "The items are modest, but combined with scavenged parts they may let you patch systems or improve survivor comfort. The extra pair of hands could help with delicate repairs."
+    ]
+},
+tents_installed: {
+    title: 'Shelter Established',
+    pages: [
+        "With enough fabric and some basic framing you and the survivors construct several simple tents at the base camp. They provide sheltered rest and make recovery more reliable.",
+        "Resting in camp now restores more energy and helps the group recover faster."
+    ]
+},
+
+
 bridge_dark: {
     title: 'The Bridge is Dark',
     pages: [
@@ -70,13 +111,7 @@ bridge_dark: {
         "The comms and nav cores are within reach, but the path is treacherous. Restoring emergency power here could change everything — proceed with caution."
     ]
 },
-south_found_power: {
-    title: 'Power Fragments',
-    pages: [
-        "You force your way through a buckled corridor and find the crippled remains of a power conduit. Panels hang loose and sparking lines run cold, but there are intact junctions and salvaged bus bars you can use.",
-        "With these parts you could jury-rig emergency lighting or boost a relay — but it will cost energy and components."
-    ]
-},
+
 north_found_armory: {
     title: 'Storeroom Cache',
     pages: [
@@ -84,24 +119,14 @@ north_found_armory: {
         "This could open crafting options and let you access stubborn seams elsewhere in the ship."
     ]
 },
-	
-
-    // --- Your existing story events ---
-    gameStart: {
-        title: "First Landing",
-        // MODIFIED: Changed 'message' to 'pages' for consistency with the popup system
-        pages: [
-            "Welcome, Commander. You have successfully established the first off-world science colony on the planet Telos-IV. This world is rich with unique and unknown resources. Your mission is to lead your team, build out the colony, and unlock the scientific potential hidden here. The future of exploration is in your hands."
-        ]
-    },
-    unlockResearch: {
+unlockResearch: {
         title: "A Glimmer of Insight",
         // MODIFIED: Changed 'message' to 'pages'
         pages: [
             "We should use our resources to estabilish our first laboratory to analyze Xylite potential. Lets build laboratory and research its properties."
         ]
     },
-    unlockXylite: {
+unlockXylite: {
         title: "Crystalline Anomaly",
         // MODIFIED: Changed 'message' to 'pages'
         pages: [

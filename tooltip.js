@@ -1,13 +1,15 @@
 // Tooltip + debuff-icon module
 
-import { resources } from './resources.js';
+import { resources, computeResourceRates } from './resources.js';
 import { formatNumber } from './formatting.js';
+import { gameFlags } from './data/gameFlags.js';
+import { upgradeEffects } from './data/upgradeEffects.js';
 
-// ...existing code...
 let globalTooltip = null;
 const tooltipRegistry = new WeakMap();
 let currentTooltipElement = null;
 let docMouseMoveHandler = null;
+let tooltipAttributeObserver = null; // new: keep observer to strip native title attrs
 // removed tooltipLockUntil and per-element lock complexity
 
 // --- NEW: ensure a single persistent doc mousemove handler ----------------
@@ -106,6 +108,15 @@ export function hideTooltip() {
         clearTimeout(tooltip._hideTimeout);
         tooltip._hideTimeout = null;
     }
+    // stop any running tooltip auto-refresh
+    if (tooltip._refreshInterval) {
+        clearInterval(tooltip._refreshInterval);
+        tooltip._refreshInterval = null;
+    }
+    // clear persisted position so next show repositions from cursor
+    tooltip._fixedLeft = null;
+    tooltip._fixedTop = null;
+
     tooltip._hideTimeout = setTimeout(() => {
         try { tooltip.style.visibility = 'hidden'; } catch (e) {}
         tooltip._hideTimeout = null;
@@ -152,25 +163,19 @@ export function updateTooltipPosition(event, tooltip) {
 
     tooltip.style.left = `${Math.round(tx)}px`;
     tooltip.style.top = `${Math.round(ty)}px`;
+
+    // persist the chosen coordinates so subsequent auto-refreshes reuse them
+    tooltip._fixedLeft = tooltip.style.left;
+    tooltip._fixedTop = tooltip.style.top;
 }
 
-// Render tooltip for a registered element
-function renderTooltipForElement(regEl, event) {
-    const tooltip = getOrCreateTooltip();
+// Helper: build tooltip HTML from the registry data (pure, side-effect-free)
+function buildTooltipHTML(data) {
+    // string builder
+    let html = '';
 
-    if (tooltip._hideTimeout) {
-        clearTimeout(tooltip._hideTimeout);
-        tooltip._hideTimeout = null;
-    }
-
-    const tooltipData = tooltipRegistry.get(regEl);
-    const data = (typeof tooltipData === 'function') ? tooltipData() : tooltipData;
-
-    tooltip.innerHTML = '';
-
-    // ...existing rendering logic unchanged...
     if (data && typeof data.totalProduction !== 'undefined') {
-        tooltip.innerHTML = `
+        html = `
             <h4>Production Breakdown</h4>
             <div class="tooltip-section">
                 <p>Base: ${formatNumber(data.base)}/s</p>
@@ -183,38 +188,119 @@ function renderTooltipForElement(regEl, event) {
             <hr>
             <p><strong>Total: ${formatNumber(data.totalProduction)}/s</strong></p>
         `;
-    } else if (typeof data === 'string') {
-        if (/<[a-z][\s\S]*>/i.test(data)) {
-            tooltip.innerHTML = data;
-        } else {
-            tooltip.innerHTML = data.replace(/\n/g, '<br>');
-        }
-    } else if (data && typeof data.count !== 'undefined') {
-        if (data.description) tooltip.innerHTML += `<p class="tooltip-description">${data.description}</p>`;
-        if (data.cost && data.cost.length > 0) tooltip.innerHTML += `<div class="tooltip-section"><h4>Cost</h4>${data.cost.map(c => `<p>${c.resource}: ${c.amount}</p>`).join('')}</div>`;
-        if (data.produces) tooltip.innerHTML += `<div class="tooltip-section"><h4>Generation</h4><p>${data.produces}: +${data.rate}/s</p></div>`;
-    } else if (data && data.id) {
-        tooltip.innerHTML = `<h4>${data.name}</h4>`;
-        if (data.description) tooltip.innerHTML += `<p class="tooltip-description">${data.description}</p>`;
+        return html;
+    }
 
-        // Costs / drains
+    if (typeof data === 'string') {
+        if (/<[a-z][\s\S]*>/i.test(data)) return data;
+        return data.replace(/\n/g, '<br>');
+    }
+
+    if (data && typeof data.count !== 'undefined') {
+        if (data.description) html += `<p class="tooltip-description">${data.description}</p>`;
+        if (data.cost && data.cost.length > 0) html += `<div class="tooltip-section"><h4>Cost</h4>${data.cost.map(c => `<p>${c.resource}: ${c.amount}</p>`).join('')}</div>`;
+        if (data.produces) html += `<div class="tooltip-section"><h4>Generation</h4><p>${data.produces}: +${data.rate}/s</p></div>`;
+        return html;
+    }
+
+    if (data && data.id) {
+        html += `<h4>${data.name}</h4>`;
+        if (data.description) html += `<p class="tooltip-description">${data.description}</p>`;
+
+        // Costs / drains — highlight missing resources and show ETA when net production is positive
+        function formatETA(seconds) {
+            if (!isFinite(seconds) || seconds <= 0) return null;
+            const s = Math.ceil(seconds);
+            if (s >= 3600) {
+                const h = Math.floor(s / 3600);
+                const m = Math.floor((s % 3600) / 60);
+                return `${h}h ${m}m`;
+            }
+            if (s >= 60) {
+                const m = Math.floor(s / 60);
+                const sec = s % 60;
+                return `${m}m ${sec}s`;
+            }
+            return `${s}s`;
+        }
+
         let costHtml = '';
-        if (data.cost && data.cost.length > 0) costHtml += data.cost.map(c => `<p>${c.resource}: ${c.amount}</p>`).join('');
-        if (data.drain && data.drain.length > 0) costHtml += data.drain.map(d => `<p>${d.resource}: ${d.amount} (Total)</p>`).join('');
-        if (costHtml) tooltip.innerHTML += `<div class="tooltip-section"><h4>Cost</h4>${costHtml}</div>`;
+        if (data.cost && data.cost.length > 0) {
+            const parts = data.cost.map(c => {
+                const res = resources.find(r => r.name === c.resource);
+                const have = res ? Number(res.amount) : 0;
+                const need = Number(c.amount || 0);
+                if (have < need) {
+                    // compute shortfall and ETA using computeResourceRates
+                    let etaText = '';
+                    try {
+                        const rates = computeResourceRates(c.resource);
+                        if (rates && rates.netPerSecond > 1e-9) {
+                            const shortfall = need - have;
+                            const eta = formatETA(shortfall / rates.netPerSecond);
+                            if (eta) etaText = ` <span class="eta">(ETA: ${eta})</span>`;
+                        }
+                    } catch (e) { /* ignore compute errors */ }
+                    return `<p><span style="color:#ff6b6b">${c.resource}: ${need} (missing ${formatNumber(need - have)})</span>${etaText}</p>`;
+                }
+                return `<p>${c.resource}: ${need}</p>`;
+            });
+            costHtml += parts.join('');
+        }
+        if (data.drain && data.drain.length > 0) {
+            const parts = data.drain.map(d => {
+                const res = resources.find(r => r.name === d.resource);
+                const have = res ? Number(res.amount) : 0;
+                const need = Number(d.amount || 0);
+                if (have < need) {
+                    let etaText = '';
+                    try {
+                        const rates = computeResourceRates(d.resource);
+                        if (rates && rates.netPerSecond > 1e-9) {
+                            const shortfall = need - have;
+                            const eta = formatETA(shortfall / rates.netPerSecond);
+                            if (eta) etaText = ` <span class="eta">(ETA: ${eta})</span>`;
+                        }
+                    } catch (e) { /* ignore */ }
+                    return `<p><span style="color:#ff6b6b">${d.resource}: ${need} (Total) — missing ${formatNumber(need - have)}</span>${etaText}</p>`;
+                }
+                return `<p>${d.resource}: ${need} (Total)</p>`;
+            });
+            costHtml += parts.join('');
+        }
+        if (costHtml) html += `<div class="tooltip-section"><h4>Cost</h4>${costHtml}</div>`;
 
         // Rewards (may be hidden for certain actions)
         if (data.reward && data.reward.length > 0) {
             const hideReward = !!data.hideRewardPreview || data.id === 'investigateSound';
             if (!hideReward) {
-                const rewardHtml = data.reward.map(r => {
-                    const amountText = Array.isArray(r.amount) ? `${r.amount[0]} - ${r.amount[1]}` : r.amount;
-                    return `<p>${r.resource}: ${amountText}</p>`;
+                const rewardsHtml = data.reward.map(r => {
+                    // compute base label
+                    const rawActionKey = data.id || (typeof data.name === 'string' ? data.name : null);
+                    const actionKey = rawActionKey ? String(rawActionKey).toLowerCase().replace(/\s+/g, '') : null;
+                    const { multiplier } = computeUpgradeMultiplier(r.resource, actionKey);
+                    const isRange = Array.isArray(r.amount);
+                    const label = isRange
+                        ? `${Math.floor(r.amount[0] * multiplier)} - ${Math.floor(r.amount[1] * multiplier)}`
+                        : `${Math.floor(r.amount * multiplier)}`;
+                    return `<p>${r.resource}: <span class="reward-amount">${label}</span></p>`;
                 }).join('');
-                tooltip.innerHTML += `<div class="tooltip-section"><h4>Reward</h4>${rewardHtml}</div>`;
+
+                // collect labels for display
+                const labelsFlat = [].concat(...(data.reward.map((r) => {
+                    const rawActionKey = data.id || (typeof data.name === 'string' ? data.name : null);
+                    const actionKey = rawActionKey ? String(rawActionKey).toLowerCase().replace(/\s+/g, '') : null;
+                    const entry = computeUpgradeMultiplier(r.resource, actionKey);
+                    return entry.labels || [];
+                })));
+                const uniqueLabels = Array.from(new Set(labelsFlat));
+
+                html += `<div class="tooltip-section"><h4>Reward</h4>${rewardsHtml}` +
+                    (uniqueLabels.length ? `<ul class="tooltip-bonuses">${uniqueLabels.map(l => `<li class="bonus-item">${l}</li>`).join('')}</ul>` : '') +
+                    `</div>`;
             } else {
                 const rewardHtmlHidden = data.reward.map(() => `<p>???</p>`).join('');
-                tooltip.innerHTML += `<div class="tooltip-section"><h4>Reward</h4>${rewardHtmlHidden}</div>`;
+                html += `<div class="tooltip-section"><h4>Reward</h4>${rewardHtmlHidden}</div>`;
             }
         }
 
@@ -229,7 +315,7 @@ function renderTooltipForElement(regEl, event) {
             const effects = [];
             if (food && Number(food.amount) <= 0) effects.push('<span style="color:#ff6b6b">Hunger — actions take 50% longer.</span>');
             if (water && Number(water.amount) <= 0) effects.push('<span style="color:#ff6b6b">Thirst — actions take 50% longer.</span>');
- 
+
             if (effects.length) {
                 // compute effective duration if base numeric
                 if (typeof data.duration === 'number') {
@@ -237,31 +323,101 @@ function renderTooltipForElement(regEl, event) {
                     const effective = Math.ceil(data.duration * multiplier);
                     durationHtml = `<p>Duration: ${baseDurationText}</p><p><strong>Effective duration: ${effective}s</strong></p>`;
                 }
-                tooltip.innerHTML += `<div class="tooltip-section"><h4>Current Conditions</h4><p>${effects.join('<br>')}</p></div>`;
+                html += `<div class="tooltip-section"><h4>Current Conditions</h4><p>${effects.join('<br>')}</p></div>`;
             }
         } catch (err) {
             // don't break tooltip rendering on errors
         }
 
-        tooltip.innerHTML += `<div class="tooltip-section">${durationHtml}</div>`;
-    } else if (data && typeof data.isResearched !== 'undefined') {
-        tooltip.innerHTML = `<h4>${data.name}</h4>`;
-        if (data.description) tooltip.innerHTML += `<p class="tooltip-description">${data.description}</p>`;
-        if (data.cost && data.cost.length > 0) tooltip.innerHTML += `<div class="tooltip-section"><h4>Cost</h4>${data.cost.map(c => `<p>${c.resource}: ${c.amount}</p>`).join('')}</div>`;
-        tooltip.innerHTML += `<p>Research Time: ${data.duration}s</p>`;
+        html += `<div class="tooltip-section">${durationHtml}</div>`;
+        return html;
     }
+
+    if (data && typeof data.isResearched !== 'undefined') {
+        html += `<h4>${data.name}</h4>`;
+        if (data.description) html += `<p class="tooltip-description">${data.description}</p>`;
+        if (data.cost && data.cost.length > 0) html += `<div class="tooltip-section"><h4>Cost</h4>${data.cost.map(c => `<p>${c.resource}: ${c.amount}</p>`).join('')}</div>`;
+        html += `<p>Research Time: ${data.duration}s</p>`;
+        return html;
+    }
+
+    return html;
+}
+
+// Render tooltip for a registered element (uses buildTooltipHTML and preserves position on refresh)
+function renderTooltipForElement(regEl, event) {
+    const tooltip = getOrCreateTooltip();
+
+    if (tooltip._hideTimeout) {
+        clearTimeout(tooltip._hideTimeout);
+        tooltip._hideTimeout = null;
+    }
+
+    // remember last mouse event so auto-refresh can re-position the tooltip reliably
+    tooltip._lastEvent = event || tooltip._lastEvent || { clientX: Math.round(window.innerWidth / 2), clientY: Math.round(window.innerHeight / 2) };
+
+    const tooltipData = tooltipRegistry.get(regEl);
+    const data = (typeof tooltipData === 'function') ? tooltipData() : tooltipData;
+
+    // build content and show
+    tooltip.innerHTML = buildTooltipHTML(data);
 
     tooltip.style.visibility = 'visible';
     tooltip.classList.add('visible');
     if (event && typeof updateTooltipPosition === 'function') updateTooltipPosition(event, tooltip);
 
     currentTooltipElement = regEl;
+
+    // start a single persistent auto-refresh while visible
+    ensureTooltipAutoRefresh(tooltip);
+}
+
+/* helper: compute combined multiplier and collect labels for a specific resource/action */
+function computeUpgradeMultiplier(resourceName, actionId) {
+    let multiplier = 1.0;
+    const labels = [];
+    // normalize incoming action identifier (may be null)
+    const actionKeyNormalized = actionId ? String(actionId).toLowerCase().replace(/\s+/g, '') : '';
+    for (const eff of upgradeEffects) {
+        if (!gameFlags[eff.flag]) continue;
+        if (!eff.resources || !eff.resources.includes(resourceName)) continue;
+        if (eff.actions) {
+            // allow matching by id or normalized name (case-insensitive)
+            const matches = eff.actions.some(a => {
+                if (!a) return false;
+                const av = String(a).toLowerCase().replace(/\s+/g, '');
+                return av === actionKeyNormalized;
+            });
+            if (!matches) continue;
+        }
+        multiplier *= (eff.multiplier || 1.0);
+        if (eff.label) labels.push(eff.label);
+    }
+    return { multiplier, labels };
 }
 
 // Public: register element with tooltip data (function or value)
 export function setupTooltip(element, tooltipData) {
     tooltipRegistry.set(element, tooltipData);
     try { element.dataset.tooltipRegistered = '1'; } catch (e) { /* ignore */ }
+
+    // Remove any native title (browser tooltip) and ensure future title changes are stripped
+    try {
+        element.removeAttribute('title');
+        if (!tooltipAttributeObserver) {
+            tooltipAttributeObserver = new MutationObserver((records) => {
+                for (const r of records) {
+                    if (r.type === 'attributes' && r.attributeName === 'title') {
+                        try {
+                            const t = r.target;
+                            if (t && t.dataset && t.dataset.tooltipRegistered) t.removeAttribute('title');
+                        } catch (e) { /* ignore */ }
+                    }
+                }
+            });
+        }
+        tooltipAttributeObserver.observe(element, { attributes: true, attributeFilter: ['title'] });
+    } catch (e) { /* ignore */ }
 
     // ensure tooltip DOM + global mousemove handler exist so registered rows work immediately
     ensureDocMouseMoveHandler();
@@ -381,4 +537,94 @@ export function initTooltips() {
     ensureDocMouseMoveHandler();
     getOrCreateTooltip();
 }
-// ...existing code...
+
+// Public: refresh the currently visible tooltip (rebuild content, reposition, ensure auto-refresh)
+export function refreshCurrentTooltip() {
+    const tooltip = getOrCreateTooltip();
+    if (!tooltip || tooltip.style.visibility !== 'visible') return;
+
+    // prefer the existing currentTooltipElement, but fall back to resolving a candidate
+    let element = currentTooltipElement;
+    if (!element || !tooltipRegistry.has(element)) {
+        // try to resolve from last known mouse event
+        const evt = tooltip._lastEvent || { clientX: Math.round(window.innerWidth / 2), clientY: Math.round(window.innerHeight / 2) };
+        try {
+            const elems = document.elementsFromPoint(evt.clientX, evt.clientY || 0);
+            for (const e of elems) {
+                const cand = e.closest && e.closest('[data-tooltip-registered]');
+                if (cand && tooltipRegistry.has(cand)) {
+                    element = cand;
+                    break;
+                }
+            }
+        } catch (err) { /* ignore */ }
+    }
+
+    if (!element || !tooltipRegistry.has(element)) {
+        // nothing we can refresh for
+        return;
+    }
+
+    try {
+        // ensure hide timeout cleared so tooltip remains visible while we refresh
+        if (tooltip._hideTimeout) {
+            clearTimeout(tooltip._hideTimeout);
+            tooltip._hideTimeout = null;
+        }
+
+        currentTooltipElement = element;
+        const tooltipData = tooltipRegistry.get(element);
+        const data = (typeof tooltipData === 'function') ? tooltipData() : tooltipData;
+
+        // single immediate rebuild
+        tooltip.innerHTML = buildTooltipHTML(data);
+
+        // reuse persisted coords where possible to avoid jumps
+        if (tooltip._fixedLeft && tooltip._fixedTop) {
+            tooltip.style.left = tooltip._fixedLeft;
+            tooltip.style.top = tooltip._fixedTop;
+        } else if (tooltip._lastEvent && typeof updateTooltipPosition === 'function') {
+            updateTooltipPosition(tooltip._lastEvent, tooltip);
+        }
+
+        // ensure the single persistent auto-refresh is running
+        ensureTooltipAutoRefresh(tooltip);
+    } catch (e) { /* ignore */ }
+}
+
+// Ensure there is exactly one auto-refresh interval while the tooltip is visible.
+// Rebuilds the currently-visible tooltip every second (cheap) and stops when tooltip is hidden.
+function ensureTooltipAutoRefresh(tooltip) {
+    if (!tooltip) return;
+    // already running
+    if (tooltip._refreshInterval) return;
+
+    tooltip._refreshInterval = setInterval(() => {
+        try {
+            // stop if tooltip hidden
+            if (tooltip.style.visibility !== 'visible') {
+                clearInterval(tooltip._refreshInterval);
+                tooltip._refreshInterval = null;
+                return;
+            }
+
+            // if we have a visible registered element, rebuild content in-place
+            const el = (currentTooltipElement && tooltipRegistry.has(currentTooltipElement)) ? currentTooltipElement : null;
+            if (!el) return;
+
+            const td = tooltipRegistry.get(el);
+            const d = (typeof td === 'function') ? td() : td;
+            tooltip.innerHTML = buildTooltipHTML(d);
+
+            // keep tooltip anchored: prefer persisted coords, else recompute
+            if (tooltip._fixedLeft && tooltip._fixedTop) {
+                tooltip.style.left = tooltip._fixedLeft;
+                tooltip.style.top = tooltip._fixedTop;
+            } else if (tooltip._lastEvent && typeof updateTooltipPosition === 'function') {
+                updateTooltipPosition(tooltip._lastEvent, tooltip);
+            }
+        } catch (e) {
+            // swallow errors so the interval keeps running
+        }
+    }, 1000);
+}

@@ -185,7 +185,8 @@ export const salvageActions = [
         duration: 6,
         category: 'Exploration',
         isUnlocked: false,
-        cancelable: false,        drain: [
+        cancelable: false,        
+        drain: [
             { resource: 'Energy', amount: 8 }
         ],
         reward: [
@@ -227,28 +228,229 @@ export const salvageActions = [
             }
         ]
     },
+
+    {
+    id: 'installForagingTools',
+    name: 'Crude Foraging Tools',
+    description: 'Equip foragers with improved crude tools to increase yield.',
+    duration: 5,
+    category: 'Upgrade',
+    isUnlocked: false, // unlocked when first Foraging Camp is built
+    cancelable: true,
+    cost: [
+        { resource: 'Scrap Metal', amount: 6 },
+        { resource: 'Crude Prybar', amount: 1 }
+    ],
+    repeatable: false,
+    hideRewardPreview: true,
+    reward: [],
+    stage: 0,
+    stages: [
+        {
+            story: null,
+            unlocks: [],
+            logText: 'Crude foraging tools are in place — foragers are more effective.'
+        }
+    ]
+},
     {
     id: 'searchSouthCorridor',
     name: 'Search South Corridor',
-    description: 'Move cautiously down the south corridor. Risk of collapsed panels but may lead to engineering or power nodes.',
+    description: 'Move cautiously down the south corridor. Risk of collapsed panels but this way should lead to junction leading to cafeteria and crew quarters.',
     duration: 12,
     category: 'Exploration',
     isUnlocked: false,
     cancelable: true,
     drain: [
-        { resource: 'Energy', amount: 20 }
+        { resource: 'Energy', amount: 40 }
+    ],
+    reward: [],
+    hideRewardPreview: true,
+    stage: 0,
+    stages: [
+        {
+            story: 'south_corridor_entry',
+            // completing south corridor should allow restoring emergency power
+            unlocks: ['exploreCafeteria', 'checkCrewQuarters'],
+            logText: 'You push through a buckled corridor and gain access to several side compartments — a mess hall and crew quarters lie ahead. Explore them to learn more. (Click to read)'
+        }
+    ]
+},
+
+{
+    id: 'exploreCafeteria',
+    name: 'Explore Cafeteria',
+    description: 'Search the ship\'s mess hall for usable food and clean water among the wreckage.',
+    duration: 6,
+    category: 'Exploration',
+    isUnlocked: false,
+    cancelable: true,
+    drain: [
+        { resource: 'Energy', amount: 16 }
     ],
     reward: [
-        { resource: 'Ship Components', amount: [6, 12] },
-        { resource: 'Insight', amount: [1, 2] }
+        { resource: 'Food Rations', amount: [15, 25] },
+        { resource: 'Clean Water', amount: [20, 40] },
+        { resource: 'Survivors', amount: 2 }
+    ],
+    hideRewardPreview: true,
+    stage: 0,
+    stages: [
+        {
+            story: 'south_explore_cafeteria',
+            unlocks: ['salvageCookingEquipment'],
+            logText: 'In the mess hall you find preserved rations and salvageable water among the wreckage. (Click to read)'
+        }
+    ]
+},
+
+{
+    id: 'salvageCookingEquipment',
+    name: 'Salvage Cooking Equipment',
+    description: 'We could salvage working cooking equipment if we can manage to take it out of the wreckage. This would help provide food and water for the crew at the base camp.',
+    duration: 8,
+    category: 'Upgrade',
+    isUnlocked: false,
+    cancelable: true,
+    cost: [
+        { resource: 'Crude Prybar', amount: 3 }
+    ],
+    repeatable: false,
+    hideRewardPreview: true,
+    reward: [],
+    stage: 0,
+    stages: [
+        {
+            story: 'cafeteria_salvage',
+            unlocks: [],
+            logText: 'You salvage a compact cooking rig and parts from the mess hall wreckage. With this at the base camp food and water gathering will be more effective. (Click to read)'
+        }
+    ]
+},
+
+{
+    id: 'checkCrewQuarters',
+    name: 'Check Crew Quarters',
+    description: 'Search the crew quarters for supplies, personal kits, and anything that might help survivors or crafts.',
+    duration: 5,
+    category: 'Exploration',
+    isUnlocked: false,
+    cancelable: true,
+    drain: [
+        { resource: 'Energy', amount: 12 }
+    ],
+    reward: [   
+        { resource: 'Fabric', amount: [1, 3] }
+    ],
+    hideRewardPreview: true,
+    stage: 0,
+    stages: [
+        {
+            story: 'south_check_quarters',
+            unlocks: ['makeTents', 'collectFabric'],
+            logText: 'You scavenge bunks and lockers; you find a few useful parts and personal items that might help survivors feel safer. (Click to read)'
+        }
+    ]
+},
+
+{
+    id: 'collectFabric',
+    name: 'Collect Fabric',
+    description: 'Search wreckage and clothing stores for scraps of fabric useful for making tents and repairs.',
+    duration: 3,
+    category: 'Materials',
+    isUnlocked: false,
+    cancelable: true,
+    repeatable: true,
+    drain: [
+        { resource: 'Energy', amount: 12 }
+    ],
+    reward: [
+        { resource: 'Fabric', amount: [1, 2] }
     ],
     stage: 0,
     stages: [
         {
-            story: 'south_found_power',
-            // completing south corridor should allow restoring emergency power
-            unlocks: ['restoreEmergencyPower'],
-            logText: 'You find damaged power conduits and salvageable components that could be used to get emergency lighting back online. (Click to read)'
+            story: null,
+            unlocks: [],
+            logText: 'You gather usable fabric scraps from bunks and upholstery. Useful for shelter work.'
+        }
+    ]
+},
+
+{
+    id: 'makeTents',
+    name: 'Make Tents (Base Camp)',
+    description: 'Use salvaged fabric and parts to construct simple tents at the base camp. Increases effectiveness of resting.',
+    duration: 6,
+    category: 'Upgrade',
+    isUnlocked: false,
+    cancelable: true,
+    cost: [
+        { resource: 'Fabric', amount: 6 },
+        { resource: 'Scrap Metal', amount: 4 },
+        { resource: 'Crude Prybar', amount: 1 }
+    ],
+    repeatable: false,
+    hideRewardPreview: true,
+    reward: [],
+    stage: 0,
+    stages: [
+        {
+            story: 'tents_installed',
+            unlocks: ['insulateShelters'],
+            logText: 'You construct several simple tents for the base camp. Resting will now be more effective. (Click to read)'
+        }
+    ]
+},
+
+{
+    id: 'insulateShelters',
+    name: 'Insulate Shelters',
+    description: 'Add insulation to tents to improve recovery during rest.',
+    duration: 4,
+    category: 'Upgrade',
+    isUnlocked: false,
+    cancelable: true,
+    cost: [
+        { resource: 'Fabric', amount: 20 },
+        { resource: 'Scrap Metal', amount: 6 },
+        { resource: 'Crude Prybar', amount: 2 }
+    ],
+    repeatable: false,
+    hideRewardPreview: true,
+    reward: [],
+    stage: 0,
+    stages: [
+        {
+            story: 'shelter_insulated',
+            unlocks: [],
+            logText: 'You upgrade the tents with added insulation. Resting restores a bit more energy now.'
+        }
+    ]
+},
+
+{
+    id: 'installRainCatchers',
+    name: 'Install Rain Catchers',
+    description: 'Set up tarps and channels to collect rain and funnel it to storage.',
+    duration: 5,
+    category: 'Upgrade',
+    isUnlocked: false, // unlocked when Water Station built AND Fabric is discovered
+    cancelable: true,
+    cost: [
+        { resource: 'Fabric', amount: 6 },
+        { resource: 'Scrap Metal', amount: 4 }
+    ],
+    repeatable: false,
+    hideRewardPreview: true,
+    reward: [],
+    stage: 0,
+    stages: [
+        {
+            story: 'rain_catchers',
+            unlocks: [],
+            logText: 'Catchment arrays gather rain and feed storage.'
         }
     ]
 },
@@ -265,9 +467,9 @@ export const salvageActions = [
         { resource: 'Energy', amount: 24 }
     ],
     reward: [
-        { resource: 'Scrap Metal', amount: [8, 14] },
-        { resource: 'Survivors', amount: 1 } 
+        { resource: 'Scrap Metal', amount: [8, 14] },   
     ],
+    hideRewardPreview: true,
     stage: 0,
     stages: [
         {
@@ -293,9 +495,9 @@ export const salvageActions = [
             { resource: 'Ship Components', amount: 6 }
         ],
         reward: [
-            { resource: 'Insight', amount: [2, 4] },
             { resource: 'Survivors', amount: [0, 1] }
         ],
+        hideRewardPreview: true,
         stage: 0,
         stages: [
             {

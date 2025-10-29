@@ -5,7 +5,7 @@ import { setupResearchSection, updateTechButtonsState } from './sections/researc
 import { setupManufacturingSection } from './sections/manufacturing.js';
 import { setupShipyardSection } from './sections/shipyard.js';
 import { setupGalaxyMapSection } from './sections/galaxyMap.js';
-import { setupCrashSiteSection } from './sections/crashSite.js';
+import { setupCrashSiteSection, updateCrashSiteActionButtonsState } from './sections/crashSite.js';
 import { setupCrewManagementSection, updateCrewSection } from './sections/crewManagement.js';
 import { setupJournalSection } from './sections/journal.js';
 import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js';
@@ -220,6 +220,8 @@ function startGame() {
             updateSurvivalDebuffBadge();
             updateCrewSection();
             checkConditions();
+            // Keep action buttons accurate as resources change (affordability/drains)
+            if (typeof updateCrashSiteActionButtonsState === 'function') updateCrashSiteActionButtonsState();
             if (typeof updateBuildingButtonsState === 'function') updateBuildingButtonsState();
             if (typeof updateTechButtonsState === 'function') updateTechButtonsState();
             if (typeof updateImpactTimer === 'function') updateImpactTimer();
