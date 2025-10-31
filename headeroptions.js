@@ -74,3 +74,19 @@ function updateTime() {
 // Replace any existing setInterval(updateTime, 1000) with:
 setInterval(updateTime, 1000);
 updateTime();
+
+// If a saved game is applied after the initial DOMContentLoaded, force an
+// immediate clock update so the header shows the restored in-game time
+// without waiting for the next interval tick.
+document.addEventListener('game-state-applied', () => {
+    updateTime();
+});
+
+/**
+ * Public helper to refresh the header clock immediately.
+ * Other modules can import this and call it instead of relying on the
+ * `game-state-applied` event.
+ */
+export function refreshClock() {
+    updateTime();
+}

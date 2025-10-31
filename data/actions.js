@@ -7,6 +7,7 @@ export const salvageActions = [
     category: 'Exploration',
     isUnlocked: false,        // locked at start, unlocked by Attempt Re-entry
     cancelable: false,
+    suppressGenericLog: true,
     drain: [ 
         { resource: 'Energy', amount: 15 },
         { resource: 'Clean Water', amount: 5 }
@@ -16,7 +17,7 @@ export const salvageActions = [
         // new order: sheltered area (rest) first, then food, then water/alternate access
         { story: 'foundCave', unlocks: ['rest'], logText: 'You have discovered a sheltered area — someone can rest here. (Click to read)' },
         { story: 'foundBerries', unlocks: ['forageFood'], logText: 'You have discovered a source of food. (Click to read)' },
-        { story: 'foundRiver', unlocks: ['purifyWater', 'attemptAlternateAccess'], logText: 'You have discovered a source of water. (Click to read)' }
+        { story: 'foundRiver', unlocks: ['purifyWater', 'attemptAlternateAccess'], logText: 'You have discovered a source of water. (Click to read)' },   
     ]
 },
     {
@@ -38,7 +39,8 @@ export const salvageActions = [
             story: 'reentryFailed',
             // unlock Scout Surroundings after Attempt Re-entry completes
             unlocks: ['scoutSurroundings'],
-            logText: 'A forward section collapsed during your re-entry attempt; the hull is impassable and still burning. (Click to read)'
+            logText: 'A forward section collapsed during your re-entry attempt; the hull is impassable and still burning. (Click to read)',
+            suppressGenericLog: true
         }
     ]
     },
@@ -109,7 +111,8 @@ export const salvageActions = [
             {
                 story: 'alternateAccessFound',
                 unlocks: ['scavengeDebris', 'makeCrudePrybar'],
-                logText: 'You find indications of a maintenance route that may lead back to the ship.'
+                logText: 'You find indications of a maintenance route that may lead back to the ship.',
+                suppressGenericLog: true
             }
         ]
     },
@@ -172,8 +175,10 @@ export const salvageActions = [
                 story: 'enteredShipChoices',
                 // unlock three distinct follow-up actions + investigateSound
                 unlocks: ['searchSouthCorridor','searchNorthCorridor','investigateBridge','investigateSound'],
-                logText: 'You pry open the hull and climb inside. The corridors branch—three routes present themselves. Something else stirs in the dark; you hear a faint sound nearby. (Click to read)'
+                logText: 'You pry open the hull and climb inside. The corridors branch—three routes present themselves. Something else stirs in the dark; you hear a faint sound nearby. (Click to read)',
+                suppressGenericLog: true
             }
+
         ]
     },
 
@@ -199,7 +204,8 @@ export const salvageActions = [
                 story: 'investigate_sound_found',
                 // After investigating the sound the player can then establish a base camp
                 unlocks: ['establishBaseCamp'],
-                logText: 'You follow the sound and find survivors huddled in a dark alcove. (Click to read)'
+                logText: 'You follow the sound and find survivors huddled in a dark alcove. (Click to read)',
+                suppressGenericLog: true
             }
         ]
     },
@@ -224,35 +230,12 @@ export const salvageActions = [
             {
                 story: 'basecamp_established', // matches new storyEvents entry
                 unlocks: [],
-                logText: 'You establish a small base camp. Survivors can be organized here. (Click to read)'
+                logText: 'You establish a small base camp. Survivors can be organized here. (Click to read)',
+                suppressGenericLog: true
             }
         ]
     },
 
-    {
-    id: 'installForagingTools',
-    name: 'Crude Foraging Tools',
-    description: 'Equip foragers with improved crude tools to increase yield.',
-    duration: 5,
-    category: 'Upgrade',
-    isUnlocked: false, // unlocked when first Foraging Camp is built
-    cancelable: true,
-    cost: [
-        { resource: 'Scrap Metal', amount: 6 },
-        { resource: 'Crude Prybar', amount: 1 }
-    ],
-    repeatable: false,
-    hideRewardPreview: true,
-    reward: [],
-    stage: 0,
-    stages: [
-        {
-            story: null,
-            unlocks: [],
-            logText: 'Crude foraging tools are in place — foragers are more effective.'
-        }
-    ]
-},
     {
     id: 'searchSouthCorridor',
     name: 'Search South Corridor',
@@ -304,29 +287,6 @@ export const salvageActions = [
     ]
 },
 
-{
-    id: 'salvageCookingEquipment',
-    name: 'Salvage Cooking Equipment',
-    description: 'We could salvage working cooking equipment if we can manage to take it out of the wreckage. This would help provide food and water for the crew at the base camp.',
-    duration: 8,
-    category: 'Upgrade',
-    isUnlocked: false,
-    cancelable: true,
-    cost: [
-        { resource: 'Crude Prybar', amount: 3 }
-    ],
-    repeatable: false,
-    hideRewardPreview: true,
-    reward: [],
-    stage: 0,
-    stages: [
-        {
-            story: 'cafeteria_salvage',
-            unlocks: [],
-            logText: 'You salvage a compact cooking rig and parts from the mess hall wreckage. With this at the base camp food and water gathering will be more effective. (Click to read)'
-        }
-    ]
-},
 
 {
     id: 'checkCrewQuarters',
@@ -378,105 +338,146 @@ export const salvageActions = [
     ]
 },
 
-{
-    id: 'makeTents',
-    name: 'Make Tents (Base Camp)',
-    description: 'Use salvaged fabric and parts to construct simple tents at the base camp. Increases effectiveness of resting.',
-    duration: 6,
-    category: 'Upgrade',
-    isUnlocked: false,
-    cancelable: true,
-    cost: [
-        { resource: 'Fabric', amount: 6 },
-        { resource: 'Scrap Metal', amount: 4 },
-        { resource: 'Crude Prybar', amount: 1 }
-    ],
-    repeatable: false,
-    hideRewardPreview: true,
-    reward: [],
-    stage: 0,
-    stages: [
-        {
-            story: 'tents_installed',
-            unlocks: ['insulateShelters'],
-            logText: 'You construct several simple tents for the base camp. Resting will now be more effective. (Click to read)'
-        }
-    ]
-},
 
-{
-    id: 'insulateShelters',
-    name: 'Insulate Shelters',
-    description: 'Add insulation to tents to improve recovery during rest.',
-    duration: 4,
-    category: 'Upgrade',
-    isUnlocked: false,
-    cancelable: true,
-    cost: [
-        { resource: 'Fabric', amount: 20 },
-        { resource: 'Scrap Metal', amount: 6 },
-        { resource: 'Crude Prybar', amount: 2 }
-    ],
-    repeatable: false,
-    hideRewardPreview: true,
-    reward: [],
-    stage: 0,
-    stages: [
-        {
-            story: 'shelter_insulated',
-            unlocks: [],
-            logText: 'You upgrade the tents with added insulation. Resting restores a bit more energy now.'
-        }
-    ]
-},
 
-{
-    id: 'installRainCatchers',
-    name: 'Install Rain Catchers',
-    description: 'Set up tarps and channels to collect rain and funnel it to storage.',
-    duration: 5,
-    category: 'Upgrade',
-    isUnlocked: false, // unlocked when Water Station built AND Fabric is discovered
-    cancelable: true,
-    cost: [
-        { resource: 'Fabric', amount: 6 },
-        { resource: 'Scrap Metal', amount: 4 }
-    ],
-    repeatable: false,
-    hideRewardPreview: true,
-    reward: [],
-    stage: 0,
-    stages: [
-        {
-            story: 'rain_catchers',
-            unlocks: [],
-            logText: 'Catchment arrays gather rain and feed storage.'
-        }
-    ]
-},
+
 
 {
     id: 'searchNorthCorridor',
-    name: 'Search North Corridor',
-    description: 'Sweep the north corridor. Narrow access, possible armory or supply caches — higher risk, higher reward.',
-    duration: 14,
+    name: 'Search: North Corridor',
+    description: 'Explore the northern hallways. The corridor opens toward a cluster of labs and also ships power core — you might find supplies or survivors.',
+    duration: 15,
     category: 'Exploration',
     isUnlocked: false,
     cancelable: true,
     drain: [
-        { resource: 'Energy', amount: 24 }
+        { resource: 'Energy', amount: 30 }
     ],
     reward: [
-        { resource: 'Scrap Metal', amount: [8, 14] },   
+         { resource: 'Survivors', amount: 1 }
     ],
     hideRewardPreview: true,
+    stages: [
+        {
+            story: 'north_corridor_found_branches',
+            unlocks: ['searchLabs', 'searchPowerCore'],
+            logText: 'You find a corridor leading north — it splits toward labs and a power core. On your way you found a survivor. You send him back to the base camp. (Click to read)'
+        }
+    ]
+},
+
+{
+    id: 'searchPowerCore',
+    name: 'Search: Power Core',
+    description: 'Follow the corridor to the ship\'s power core. The access is heavily reinforced — brute force alone might not be enough.',
+    duration: 8,
+    category: 'Exploration',
+    isUnlocked: false,
+    cancelable: true,
+    drain: [
+        { resource: 'Energy', amount: 20 }
+    ],
+    // no top-level reward; success is handled by completing stage 2
     stage: 0,
     stages: [
         {
-            story: 'north_found_armory',
-            // completing north corridor may unlock crafting options / tools
-            unlocks: ['makeCrudePrybar','scavengeDebris'],
-            logText: 'In a collapsed storage alcove you find a cache of tool parts and fasteners — useful for crafting. (Click to read)'
+            // first attempt: you reach the door and try to force it open with crude tools
+            story: 'powercore_locked_attempt',
+            unlocks: [],
+            logText: 'You reach a set of reinforced, locked doors protecting the power core. You try levering them with crude tools but the doors hold. With the ship without power, there is nothing to release the lockmechanism. (Click to read)'
+            // no stage-level cost here — this is the reconnaissance / failed attempt stage
+        },
+        {
+            // second attempt: requires and consumes a makeshift explosive to blast the lock
+            story: 'powercore_breached',
+            unlocks: ['restoreEmergencyPower'], // whatever follows opening the core
+            logText: 'You rig a makeshift explosive and set it against the lock. The blast blows the seal and you can access the power core. (Click to read)',
+            // stage-specific cost: this stage requires 1 Makeshift Explosive and will consume it on completion
+            cost: [
+                { resource: 'Makeshift Explosive', amount: 1 }
+            ],
+            reward: [
+                { resource: 'Power Cells', amount: [1,2] },
+                { resource: 'Ship Components', amount: [2,4] }
+            ]
+        }
+    ]
+},
+
+{
+    id: 'searchLabs',
+    name: 'Search: Labs',
+    description: 'Search the research labs for experimental components and data caches. Risk: hazardous environment and unstable equipment.',
+    duration: 6,
+    category: 'Exploration',
+    isUnlocked: false,
+    cancelable: true,
+    drain: [
+        { resource: 'Energy', amount: 14 },
+        { resource: 'Food Rations', amount: 6 }
+    ],
+    reward: [
+        { resource: 'Chemicals', amount: 3 },
+        { resource: 'Survivors', amount: 2 }
+    ],
+    hideRewardPreview: true,
+    stages: [
+        {
+            story: 'found_labs_cache',
+            unlocks: ['installPurificationUnit', 'collectChemicals'],
+            logText: 'You checked the labs and found the chief lab technician and his assistant. Also some intact equipment and chemical supplies. Laboratory seems to be in better shape than other sections of the ship. (Click to read)'
+        }
+    ]
+},
+
+{
+    id: 'collectChemicals',
+    name: 'Collect Chemicals',
+    description: 'Gather chemical reagents and lab residues from the surrounding area. Repeatable — yields small amounts of Chemicals.',
+    duration: 4,
+    category: 'Materials',
+    isUnlocked: false,
+    cancelable: true,
+    repeatable: true,
+    drain: [
+        { resource: 'Energy', amount: 8 }
+    ],
+    reward: [
+        { resource: 'Chemicals', amount: [1, 3] }
+    ],
+    hideRewardPreview: false,
+    stage: 0,
+    stages: [
+        {
+            story: null,
+            unlocks: [],
+            logText: 'You collect some useful reagents and chemical scraps from lab waste and broken containers.'
+        }
+    ]
+},
+
+{
+    id: 'assembleMakeshiftExplosive',
+    name: 'Assemble Makeshift Explosive',
+    description: 'Combine salvaged chemicals and scrap into a makeshift explosive. Dangerous work — requires caution and materials.',
+    duration: 4,
+    category: 'Crafting',
+    isUnlocked: false,               
+    cancelable: true,
+    cost: [
+        { resource: 'Chemicals', amount: 5 },
+        { resource: 'Scrap Metal', amount: 8 },
+        { resource: 'Clean Water', amount: 12 }
+    ],
+    reward: [
+        { resource: 'Makeshift Explosive', amount: 1 }
+    ],
+    stage: 0,
+    stages: [
+        {
+            story: 'assembled_explosive',
+            unlocks: [],
+            logText: 'You carefully combine reagents and scrap into a crude explosive device. Handle with care.'
         }
     ]
 },

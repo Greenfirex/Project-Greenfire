@@ -10,25 +10,42 @@ export function setupJournalSection(section) {
             <div id="journalEntriesContainer" class="journal-entries"></div>
         </div>
     `;
-    // initial render
-    renderJournalEntries(section.querySelector('#journalEntriesContainer'));
+    // ensure we render from the live storyLog
+    const container = section.querySelector('#journalEntriesContainer');
+    if (container) renderJournalEntries(container);
+
+    // If the rest of the function previously pushed entries to localStorage,
+    // prefer pushing to the live storyLog instead. (Keep rest of code unchanged.)
 }
 
-function renderJournalEntries(container) {
+// Minimal, data-style API for the journal (mirror pattern used by data/buildings.js and data/gameFlags.js)
+export function getInitialStoryLog() {
+    // Return the canonical initial journal entries (empty by default).
+    return [];
+}
+
+// live storyLog array that other modules can import and mutate
+export let storyLog = getInitialStoryLog();
+
+// Reset the live story log back to defaults (keeps same reference)
+export function resetStoryLog() {
+    storyLog.length = 0;
+    storyLog.push(...getInitialStoryLog());
+}
+
+// Apply saved story log (replace contents of live array)
+export function applySavedStoryLog(savedEntries) {
+    storyLog.length = 0;
+    if (Array.isArray(savedEntries)) storyLog.push(...savedEntries);
+}
+
+// Ensure renderJournalEntries is exported so saveload can refresh the UI after loading
+export function renderJournalEntries(container) {
     if (!container) return;
-    let entries = [];
-    try {
-        const raw = localStorage.getItem('storyLog');
-        entries = raw ? JSON.parse(raw) : [];
-    } catch (e) { entries = []; }
-
-    if (!entries || entries.length === 0) {
-        container.innerHTML = '<p class="muted">No journal entries yet.</p>';
-        return;
-    }
-
     container.innerHTML = '';
-    entries.slice().reverse().forEach(entry => {
+    // Render newest first to match previous behavior (reverse chronological)
+    const entriesToRender = (storyLog || []).slice().reverse();
+    entriesToRender.forEach(entry => {
         const el = document.createElement('div');
         el.className = 'journal-entry';
 
@@ -38,22 +55,12 @@ function renderJournalEntries(container) {
 
         const timeEl = document.createElement('div');
         timeEl.className = 'journal-entry-time';
-        // If entry.ingameTime is a structured object saved at creation, format Day/Hour.
         if (entry && entry.ingameTime && typeof entry.ingameTime.day !== 'undefined') {
-            try {
-                const d = entry.ingameTime.day;
-                const h = String(entry.ingameTime.hour).padStart(2, '0');
-                timeEl.textContent = `Day ${d}, Hour ${h}`;
-            } catch (e) {
-                timeEl.textContent = getIngameTimeString();
-            }
+            const d = entry.ingameTime.day;
+            const h = String(entry.ingameTime.hour).padStart(2, '0');
+            timeEl.textContent = `Day ${d}, Hour ${h}`;
         } else {
-            // fallback: current in-game time string or realtime timestamp
-            try {
-                timeEl.textContent = getIngameTimeString();
-            } catch (e) {
-                timeEl.textContent = new Date(entry.time).toLocaleString();
-            }
+            timeEl.textContent = '';
         }
 
         const body = document.createElement('div');
@@ -63,9 +70,19 @@ function renderJournalEntries(container) {
         el.appendChild(titleEl);
         if (timeEl.textContent) el.appendChild(timeEl);
         el.appendChild(body);
-
         container.appendChild(el);
     });
+}
+
+// New helper: add a journal entry (updates live storyLog, localStorage, and UI)
+export function addJournalEntry(entry) {
+    if (!entry || typeof entry !== 'object') return;
+    storyLog.push(entry);
+    if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('storyLog', JSON.stringify(storyLog));
+    }
+    const container = document.getElementById('journalEntriesContainer');
+    if (container) renderJournalEntries(container);
 }
 
 // wire main-menu button

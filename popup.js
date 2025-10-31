@@ -1,4 +1,5 @@
 import { getIngameTimeObject, getIngameTimeString } from './time.js';
+import { addJournalEntry } from './sections/journal.js';
 
 let activeStoryEvent = null;
 let currentPageIndex = 0;
@@ -97,25 +98,25 @@ export function showStoryPopup(event) {
     // attach Esc handler now that popup is visible
     attachPopupEscHandler(overlayEl);
 
-    try {
-        const raw = localStorage.getItem('storyLog');
-        const list = raw ? JSON.parse(raw) : [];
-        const id = event.id || event.title || null;
-        const text = (Array.isArray(event.pages) ? event.pages.join('\n\n') : (event.pages || event.text || '')) || '';
-        // dedupe by id/title
-        const exists = id ? list.find(x => x.id === id) : list.find(x => x.title === (event.title || id));
-        if (!exists) {
-            list.push({
-                id,
-                title: event.title || id || 'Untitled',
-                time: Date.now(),
-                // store structured in-game time object (day/hour/minute) for exact timestamping
-                ingameTime: (() => { try { return getIngameTimeObject(); } catch(e){ return null; } })(),
-                text
-            });
-            localStorage.setItem('storyLog', JSON.stringify(list));
-        }
-    } catch (e) { /* ignore storage errors */ }
+    // Record the popup to the shared journal data + UI.
+    const id = event.id || event.title || null;
+    const text = (Array.isArray(event.pages) ? event.pages.join('\n\n') : (event.pages || event.text || '')) || '';
+    // Build entry object (keep same shape as previous localStorage entries)
+    const entry = {
+        id,
+        title: event.title || id || 'Untitled',
+        time: Date.now(),
+        ingameTime: (function(){ try { return getIngameTimeObject(); } catch (e) { return null; } })(),
+        text
+    };
+    // Deduplicate using DOM/localStorage is not necessary — addJournalEntry will append.
+    // To preserve previous de-dupe behavior, check existing entries in localStorage first.
+    const raw = localStorage.getItem('storyLog');
+    const list = raw ? JSON.parse(raw) : [];
+    const exists = id ? list.find(x => x.id === id) : list.find(x => x.title === (event.title || id));
+    if (!exists) {
+        addJournalEntry(entry);
+    }
 
     console.debug('showStoryPopup displayed:', event?.title || event?.id || '<unknown>');
 }

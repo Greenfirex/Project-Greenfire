@@ -3,7 +3,7 @@
 import { resources, computeResourceRates } from './resources.js';
 import { formatNumber } from './formatting.js';
 import { gameFlags } from './data/gameFlags.js';
-import { upgradeEffects } from './data/upgradeEffects.js';
+import { computeRewardEffects } from './data/upgradeEffects.js';
 
 let globalTooltip = null;
 const tooltipRegistry = new WeakMap();
@@ -374,26 +374,8 @@ function renderTooltipForElement(regEl, event) {
 
 /* helper: compute combined multiplier and collect labels for a specific resource/action */
 function computeUpgradeMultiplier(resourceName, actionId) {
-    let multiplier = 1.0;
-    const labels = [];
-    // normalize incoming action identifier (may be null)
-    const actionKeyNormalized = actionId ? String(actionId).toLowerCase().replace(/\s+/g, '') : '';
-    for (const eff of upgradeEffects) {
-        if (!gameFlags[eff.flag]) continue;
-        if (!eff.resources || !eff.resources.includes(resourceName)) continue;
-        if (eff.actions) {
-            // allow matching by id or normalized name (case-insensitive)
-            const matches = eff.actions.some(a => {
-                if (!a) return false;
-                const av = String(a).toLowerCase().replace(/\s+/g, '');
-                return av === actionKeyNormalized;
-            });
-            if (!matches) continue;
-        }
-        multiplier *= (eff.multiplier || 1.0);
-        if (eff.label) labels.push(eff.label);
-    }
-    return { multiplier, labels };
+    const normalizedActionId = actionId ? String(actionId).toLowerCase().replace(/\s+/g, '') : '';
+    return computeRewardEffects(normalizedActionId, resourceName, gameFlags);
 }
 
 // Public: register element with tooltip data (function or value)
@@ -445,21 +427,6 @@ export function setupTooltip(element, tooltipData) {
         const tt = getOrCreateTooltip();
         if (tt.style.visibility === 'visible') updateTooltipPosition(e, tt);
     });
-}
-
-// Helper: find resource row tooltip HTML used by row fallback
-function getResourceTooltipText(resourceName) {
-    const res = resources.find(r => r.name === resourceName);
-    if (!res) return resourceName;
-    const amount = Number.isInteger(res.amount) ? res.amount : res.amount.toFixed(2);
-
-    return `
-        <h4>${res.name}</h4>
-        <div class="tooltip-section">
-            <p><strong>${amount}</strong> / ${res.capacity}</p>
-            ${res.baseConsumption ? `<p>Consumption: ${res.baseConsumption}/s per survivor</p>` : ''}
-        </div>
-    `;
 }
 
 // Create/ensure the small debuff icon on the resource row and attach direct icon handlers

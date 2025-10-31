@@ -16,28 +16,64 @@
     border-radius: 4px;
 }
 
-/* Ensure the journal section and its inner .content-panel do not produce their own scrollbars.
-   The .journal-entries element will be the only scroll host. Adjust the calc() value if your
-   header/footer heights differ. */
-#journalSection,
+/* Replace fixed viewport calc() sizing with flex-friendly rules so the section
+   fills its parent (.game-area) and the entries can scroll internally. */
+#journalSection {
+    /* let the section be sized by its parent .game-area */
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0; /* critical for inner scrolling to work inside flex containers */
+    overflow: hidden;
+    /* keep your background / padding */
+    background-image: url('../assets/images/journalbackground.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
 #journalSection > .content-panel {
     display: flex;
     flex-direction: column;
-    /* approximate available height; tweak (reduce/increase) if you see clipping */
-    height: calc(100vh - 140px);
-    overflow: hidden; /* hide outer scrollbar */
+    flex: 1 1 auto; /* fill the #journalSection space */
+    min-height: 0;  /* allow the .journal-entries child to scroll */
+    padding: 16px;
+    box-sizing: border-box;
 }
 
-/* Make .journal-entries fill the remaining space and be the only scrollable element */
+/* Ensure the section content fills the game-section and allows children to flex */
+.game-section .section-content,
+.journal-section .section-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;      /* allow section content to occupy the section's full height */
+    min-height: 0;     /* allow flex children to shrink (important for scrollable areas) */
+    box-sizing: border-box;
+}
+
+/* Make the entries list expand and scroll to the bottom edge */
 .journal-entries {
-    flex: 1 1 auto;
+    flex: 1 1 auto;   /* grow and shrink inside the section content */
+    min-height: 0;    /* required so the overflowed child can actually scroll */
     overflow-y: auto;
     overflow-x: hidden;
-    padding-right: 12px; /* avoid content under the thumb */
-    padding-bottom: 18px; /* room for shadow / last item */
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(var(--glow-r),var(--glow-g),var(--glow-b),0.5) #0b0b0b;
+    padding-bottom: 8px; /* keep your preferred small padding */
+}
+
+/* Keep header sized to its content */
+#journalSection .journal-header {
+    flex: 0 0 auto;
+    margin-bottom: 12px;
+}
+
+/* Let entries container grow to fill remaining space and scroll internally */
+#journalSection .journal-entries {
+    flex: 1 1 auto;
+    overflow: auto;
+    max-height: none; /* override any earlier fixed max-height */
+    padding-right: 6px; /* keep space for scrollbar */
 }
 
 /* Reuse the same styled scrollbar as the Log section (#logContent) */
@@ -60,18 +96,23 @@
     box-shadow: 0 6px 18px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.04), inset 0 1px 0 rgba(255,255,255,0.02);
     padding: 14px;
     border-radius: 8px;
-    /* prevent hover from affecting layout; use transform on its own composited layer */
-    will-change: transform, box-shadow;
-    transform: translateZ(0);
-    transition: box-shadow 160ms ease, transform 120ms ease;
+    will-change: box-shadow;
+    transform: none;        /* remove GPU transform to avoid clipping */
+    transition: box-shadow 160ms ease;
     position: relative;
     z-index: 0;
 }
 
-/* Hover: do not translate vertically (prevents shifting other entries) */
+/* Hover: raise z-index and strengthen shadow / border without scaling */
 .journal-entry:hover {
     box-shadow: 0 12px 30px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08), inset 0 1px 0 rgba(255,255,255,0.03);
-    transform: translateZ(0) scale(1.002); /* tiny GPU-only hint, no layout change */
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
+    z-index: 2;
+}
+
+/* avoid extra space on last item */
+.journal-entries .journal-entry:last-child {
+    margin-bottom: 0;
 }
 
 /* Fine tune title/time/body spacing (keeps content readable) */
@@ -97,4 +138,3 @@
     color: #90EE90; /* popup header color */
 }
 
-/* .content-panel and shared UI styles have been moved to styles/game-area.css */

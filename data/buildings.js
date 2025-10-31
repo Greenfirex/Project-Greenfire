@@ -55,7 +55,7 @@ const initialBuildings = [
         // This building unlocks a "Foraging" job slot per built camp.
         effect: { type: 'job', jobId: 'foraging' },
         count: 0,
-        cost: [{ resource: 'Scrap Metal', amount: 20 }],
+        cost: [{ resource: 'Scrap Metal', amount: 8 }],
         costMultiplier: 1.3,
         description: 'A basic camp where survivors can be organized to forage for food.',
         isUnlocked: false
@@ -65,7 +65,7 @@ const initialBuildings = [
         // This building unlocks a "Water Collection" job slot per built station.
         effect: { type: 'job', jobId: 'water_collection' },
         count: 0,
-        cost: [{ resource: 'Scrap Metal', amount: 20 }],
+        cost: [{ resource: 'Scrap Metal', amount: 10 }],
         costMultiplier: 1.3,
         description: 'A makeshift station to collect and purify water.',
         isUnlocked: false

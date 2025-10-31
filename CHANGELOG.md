@@ -1,3 +1,32 @@
+# [0.1.7] - 2025-10-31
+
+- Added: Two‑stage “Search: Power Core”. Stage 1 reports reinforced doors; Stage 2 requires and consumes 1 Makeshift Explosive, then opens the core and yields rewards. Stage‑specific costs now supported in UI and engine.
+- Added: New resources — Chemicals and Makeshift Explosive (hidden until discovered).
+- Added: Repeatable “Collect Chemicals” action (unlocked by Labs).
+- Added: “Assemble Makeshift Explosive” craft action. Auto‑unlocks when both Fabric and Chemicals are discovered (via centralized unlock rules).
+- Added: Upgrade “Install Purification Unit” (+20% Clean Water from Purify Water; +20% Water Collection job). Unlocks after “Search: Labs”.
+- Added: Central upgrade effects system (upgradeEffects.js) with:
+  - computeRewardMultiplier and computeRewardEffects (math + labels).
+  - Tooltips now use the same function as runtime, so previews match actual rewards.
+- Added: Centralized block/unlock rules (unlockRules.js):
+  - getBlockedStatus for action gating (e.g., corridors/bridge require Investigate Sound + Base Camp).
+  - evaluateEventUnlocks for resource‑based unlocks (e.g., Fabric + Chemicals ➜ Assemble Explosive).
+- Added: actionUtils.js with documented helpers (pure, stateless): stage merge for tooltips, affordability/shortfalls, effective duration (debuffs), RNG, lsGet.
+
+- Changed: Tooltips are stage‑aware (show stage.cost like Makeshift Explosive on Power Core stage 2; stage duration/reward overrides).
+- Changed: North corridor story updated to point to Labs + Power Core, survivor is sent back to base, and hints that restoring core power would boost search & rescue.
+- Changed: Generic completion logging is now opt‑out via suppressGenericLog on actions or stages (used by Establish Base Camp, Purification Unit installs).
+
+- Fixed: Power Core stage 2 properly blocked without Makeshift Explosive and shows correct tooltip cost; cost is consumed on start.
+- Fixed: Purify Water and Clean Water job tooltips reflect the Purification Unit’s +20% bonus.
+- Fixed: Removed duplicate green “complete/gained” log for actions that set suppressGenericLog.
+
+- Refactor: Split Upgrade actions into data/upgrades.js and added data/allActions.js aggregator; updated imports (Crash Site, Colony, Save/Load).
+- Refactor: crashSite.js trimmed; shared helpers moved to actionUtils.js; removed duplicate getRandomInt; resource‑discovery unlocks and action blocking now delegated to unlockRules.js.
+- Refactor: tooltip.js aligned to upgradeEffects (removed hard‑coded cases; unused helpers trimmed).
+
+---
+
 # [0.1.5] - 2025-10-29
 
 - **Added:** Tooltip ETA — tooltips now show estimated time-to-availability (ETA) for missing resources when there is a positive net production for that resource.

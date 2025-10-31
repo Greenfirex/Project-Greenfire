@@ -1,6 +1,7 @@
 import { technologies } from './data/technologies.js';
 import { jobs, getEffectiveJobRate } from './data/jobs.js';
 import { buildings } from './data/buildings.js';
+import { gameFlags } from './data/gameFlags.js';
 import { formatNumber } from './formatting.js';
 import { setupTooltip } from './tooltip.js';
 import { getActiveCrashSiteAction } from './data/activeActions.js';
@@ -8,19 +9,20 @@ import { getActiveCrashSiteAction } from './data/activeActions.js';
 export function getInitialResources() {
     return [
         { name: 'Energy', amount: 70, isDiscovered: true, capacity: 100, producible: false, integer: true },
-        { name: 'Survivors', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true },
-        { name: 'Food Rations', amount: 85, isDiscovered: true, capacity: 150, producible: false, integer: true, baseConsumption: 0.05 },
-        { name: 'Clean Water', amount: 60, isDiscovered: true, capacity: 150, producible: false, integer: true, baseConsumption: 0.06 },
+        { name: 'Survivors', amount: 0, isDiscovered: false, capacity: 20, producible: false, integer: true },
+        { name: 'Food Rations', amount: 75, isDiscovered: true, capacity: 75, producible: false, integer: true, baseConsumption: 0.04 },
+        { name: 'Clean Water', amount: 60, isDiscovered: true, capacity: 100, producible: false, integer: true, baseConsumption: 0.06 },
         { name: 'Scrap Metal', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
-        { name: 'Ship Components', amount: 0, isDiscovered: false, capacity: 50, producible: false, integer: true },
+        { name: 'Crude Prybar', amount: 0, isDiscovered: false, capacity: 5, producible: false, integer: true },
+        { name: 'Fabric', amount: 0, isDiscovered: false, capacity: 100, producible: false, integer: true },
+        { name: 'Chemicals', amount: 0, isDiscovered: false, capacity: 50, producible: false, integer: true },
+        { name: 'Makeshift Explosive', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true },
         { name: 'Insight', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
         { name: 'Stone', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
         { name: 'Xylite', amount: 0, isDiscovered: false, capacity: 50, producible: true, integer: false },
         { name: 'Helion-3 Concentrate', amount: 0, isDiscovered: false, capacity: 25, producible: true, integer: false },
         { name: 'Cygnium Ore', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
         { name: 'Sentient Mycelium', amount: 0, isDiscovered: false, capacity: 10, producible: true, integer: false },
-        { name: 'Crude Prybar', amount: 0, isDiscovered: false, capacity: 5, producible: false, integer: true },
-        { name: 'Fabric', amount: 0, isDiscovered: false, capacity: 100, producible: false, integer: true },
     ];
 }
 
@@ -83,6 +85,13 @@ export function computeResourceRates(resourceName) {
         }
     });
 
+    // Purification Unit provides a global bonus to Clean Water production and collection
+    try {
+        if (resourceName === 'Clean Water' && gameFlags && gameFlags.purificationUnitInstalled) {
+            bonusMultiplier += 0.20;
+        }
+    } catch (e) { /* ignore */ }
+
     const totalProduction = (baseProduction + jobContribution) * (1 + bonusMultiplier);
 
     // --- Consumption & Drain Calculation ---
@@ -104,6 +113,13 @@ export function computeResourceRates(resourceName) {
     // produce a structured bonuses array so tooltips can display what contributed
     const bonuses = technologies.filter(t => t.isResearched && t.bonus?.resource === resourceName)
         .map(t => ({ name: t.name || t.id || 'Technology', multiplier: t.bonus.multiplier }));
+
+    // Add Purification Unit as a visible bonus entry when active
+    try {
+        if (resourceName === 'Clean Water' && gameFlags && gameFlags.purificationUnitInstalled) {
+            bonuses.push({ name: 'Purification Unit', multiplier: 0.2 });
+        }
+    } catch (e) { /* ignore */ }
 
     return {
         resource: currentResource,
@@ -235,13 +251,17 @@ export function updateResourceInfo() {
         const storageEl = infoRow.querySelector('[data-value-type="storage"]');
         const nameEl = infoRow.querySelector('.infocolumn1 span');
 
-        const isZero = resource.amount <= 0;
-        storageEl.classList.toggle('zero-amount', isZero);
-        nameEl.classList.toggle('zero-amount', isZero);
-
+        // Determine "zero" based on the displayed numeric value to match UI rounding:
+        const displayedAmountNum = resource.integer ? Math.floor(resource.amount) : Number(resource.amount);
+        const isZero = !(isFinite(displayedAmountNum)) ? false : (displayedAmountNum <= 0);
         const amountDisplay = resource.integer ? Math.floor(resource.amount).toLocaleString() : formatNumber(resource.amount);
         const capacityDisplay = Math.floor(resource.capacity).toLocaleString();
         storageEl.textContent = `${amountDisplay} / ${capacityDisplay}`;
+
+        // Toggle zero-amount consistently on the info row and its child elements so styles are removed when >0.
+        storageEl.classList.toggle('zero-amount', isZero);
+        nameEl.classList.toggle('zero-amount', isZero);
+        infoRow.classList.toggle('zero-amount', isZero);
 
         const rates = computeResourceRates(resource.name);
         if (!rates) return;

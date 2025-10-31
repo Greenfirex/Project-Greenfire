@@ -1,29 +1,29 @@
 export const storyEvents = {
     // --- NEW: The intro story for Chapter 1 ---
-    crashIntro: {
+crashIntro: {
         title: 'Chapter I - Waking to Ash',
-    pages: [
+pages: [
         "I am Lieutenant Commander — second in command aboard the scout vessel Vinea-IV, deployed by Starfleet Command on a terraforming reconnaissance. Our objective was simple and vital: scan this sector, assess viability, and send our findings back to Command. We were not prepared for ruin.",
         "Everything happened during a routine surface scan. A sudden, high‑velocity impact ripped through the hull. Sensors registered nothing beforehand — no heat signature — just a sudden strike from some kind of projectile. Systems failed. Alarms consumed the bridge. Fire and smoke filled the corridors.",
         "I came to coughing, throat full of ash, with flames swallowing the hull where the blast tore a jagged hole. From that breach I crawled into air that smelled of ozone and scorched metal. I do not yet know how many of my crew survived. I do not know whether Command still has a lock on us.",
         "My mission suddenly changed to bare survival. Your first duty is twofold: find survivors — any crew you can reach and pull from the wreckage — and secure your own survival. Save as many as I can and find out what happened. Maybe the ship could be salvaged and we can hope to call for extraction."
     ]
     },
-	foundBerries: {
+foundBerries: {
         title: "Edible Flora",
         pages: ["While searching for an alternate route into the ship you discovered a small patch of edible berries. They're modest, but nutritious — you gather what you can to stave off hunger for now."]
     },
-    foundRiver: {
+foundRiver: {
         title: "Water Source",
         pages: ["Not far from the crash, you discovered a stream of clear, running water. With some basic filtering and boiling, it should be safe to drink."]
     },
-    foundCave: {
+foundCave: {
         title: "Shelter",
         pages: [
             "You make it away from the blaze and crawl into a small, dry cave recessed in the rock. Completely exhausted, you collapse and let the quiet settle in. For now this shelter is safe — you can rest here and recover before pressing on."
         ]
     },
-    reentryFailed: {
+reentryFailed: {
         title: 'Entry Denied — Forward Hull Collapsed',
         pages: [
             "You forced your way toward the forward section, smoke clawing at your lungs and heat blistering the plating. For a moment you thought you'd make it — then the structure gave. A shower of burning debris collapsed inward, sealing the corridor with twisted metal.",
@@ -31,7 +31,7 @@ export const storyEvents = {
             "It is harsh but clear: that route is closed. Your priority remains to secure survivors and stabilise a safe working area. Mark the collapse, keep distance from the forward hull, and look for alternate routes and resources to mount a future recovery."
         ]
     },
-    alternateAccessFound: {
+alternateAccessFound: {
         title: 'A Narrow Way Home',
         pages: [
             "After gaining your bearings and securing a place to rest, you push onward with a simple goal: get back to the ship by any means necessary.",
@@ -44,7 +44,7 @@ enteredShipChoices: {
     title: 'Three Ways Forward',
     pages: [
         "You wedge the prybar beneath the seam and heave. The hull groans and a section gives; a scar of cold metal yawns open. You climb into the breach and your boots scrape across scorched decking.",
-        "The ship’s interior is dead quiet and the corridors branch ahead. You can: (1) sweep the south corridor toward engineering and power nodes; (2) take the north corridor toward supply caches and workshops; or (3) press toward the bridge to try and restore systems.",
+        "The ship’s interior is dead quiet and the corridors branch ahead. You can: (1) sweep the south corridor toward a junction that leads to the cafeteria and crew quarters; (2) take the north corridor toward the labs and the power core; or (3) head for the bridge to check communications and navigation systems.",
         "Something else stirs in the dark — a faint sound nearby, like muffled movement or coughing. You can investigate it now, or focus on one of the three routes. Choose carefully — selecting an action will advance that path and reveal its findings."
     ]
 },
@@ -95,6 +95,7 @@ south_check_quarters: {
         "The items are modest, but combined with scavenged parts they may let you patch systems or improve survivor comfort. The extra pair of hands could help with delicate repairs."
     ]
 },
+
 tents_installed: {
     title: 'Shelter Established',
     pages: [
@@ -103,35 +104,39 @@ tents_installed: {
     ]
 },
 
-
-bridge_dark: {
-    title: 'The Bridge is Dark',
+north_corridor_found_branches: {
+    title: 'North Corridor — New Leads',
     pages: [
-        "You force your way toward the bridge. Panels hang loose and consoles are dark; the room is a maze of collapsed equipment and brittle wiring.",
-        "The comms and nav cores are within reach, but the path is treacherous. Restoring emergency power here could change everything — proceed with caution."
+        "You push into the northern passage and find the air stale with dust and coolant. The corridor splits quickly: one arm runs toward a cluster of research labs, the other slopes down toward the ship's power core. Both lines of travel promise salvage — and both carry risk.",
+        "A lone survivor, bruised and coughing, staggers from a side alcove clutching a scorched medkit. You help him to his feet, give him some water, then send him back to the base camp to recover and tend to the others.",
+        "Beyond immediate salvage, the power core offers more than parts: restoring even partial power could bring up emergency systems — lighting, limited comms and ventilation — that would greatly improve search and rescue operations. Getting inside might change the game for recovery efforts."
     ]
 },
 
-north_found_armory: {
-    title: 'Storeroom Cache',
+powercore_locked_attempt: {
+    title: 'Reinforced Doors — A Frustrating Barrier',
     pages: [
-        "A collapsed alcove hides a small cache of tool parts and sealed kits. Nothing pristine, but with some work you can fashion useful implements — pry tools, clamps, and replacement fasteners.",
-        "This could open crafting options and let you access stubborn seams elsewhere in the ship."
+        "You arrive at the power core access and find a pair of heavy, reinforced doors — the sort meant to survive boarding and blast. You set to work with pry bars and crude tools, levering at seams and searching for weak points. Sparks fly; the metal groans, but the mechanism will not yield.",
+        "Without the ship's power the locking servos remain jammed and encrypted failsafes do their job: keep everything sealed. Your crude tools are capable of noise and effort, not miracles. For now you must step back and consider another approach.",
+        "This attempt revealed the problem but not the solution. Somewhere in the wreckage there may be explosives or salvageable components that could open the core by force — but such solutions are dangerous and costly."
     ]
 },
-unlockResearch: {
-        title: "A Glimmer of Insight",
-        // MODIFIED: Changed 'message' to 'pages'
-        pages: [
-            "We should use our resources to estabilish our first laboratory to analyze Xylite potential. Lets build laboratory and research its properties."
-        ]
-    },
-unlockXylite: {
-        title: "Crystalline Anomaly",
-        // MODIFIED: Changed 'message' to 'pages'
-        pages: [
-            "While excavating common stone, our geological team detected unusual energy readings. They've isolated a new crystalline mineral of unknown potential. It has been designated: Xylite."
-        ]
-    },
-	
-};
+
+powercore_breached: {
+    title: 'Breach at the Core',
+    pages: [
+        "After scavenging materials and assembling a makeshift charge you return to the sealed access. Heart racing, you set the device against the reinforced seam and take cover. The detonation is a raw, awful thing — metal tears and a pressure wave rolls through the corridor — then silence and light.",
+        "The blast succeeds: the seal is blown and the core chamber is exposed. Inside, scorched conduits and cold reactors glint in your headlamp. Among the wreckage you recover power cells and a handful of ship components. The risk was high, but the payoff is immediate and practical.",
+        "The breach leaves you with new choices. Emergency power can be restored, with careful work, to bring systems online and simplify further recovery. But... doing so may draw attention from unknown external threats. You must weigh the benefits against the risks."
+    ]
+},
+
+found_labs_cache: {
+    title: 'Research Labs — Salvage and Secrets',
+    pages: [
+        "The labs are a study in frozen chaos: instruments half-melted, readouts fractured, and metal racks tipped over. Yet tucked into a sealed locker you find intact circuit modules, vials of stable reagents, and a battered datapad whose last entries hold experimental notes.",
+        "Among the salvaged items is a cache of chemical compounds — useful for repairs and certain craft projects — and evidence of ongoing experiments into propulsion catalysts. You also find two surviving technicians, groggy but alive, who can be coaxed back to the camp to help with repairs.",
+        "This area offers both immediate practical gains and long-term opportunity. The reagents and data may unlock new crafting or research options; the surviving technicians may speed future engineering work if you can keep them alive."
+    ]
+},
+}

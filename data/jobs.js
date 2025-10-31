@@ -65,6 +65,8 @@ export function getEffectiveJobRate(jobOrId) {
     if (job.id === 'foraging' && gameFlags.improvedForagingTools) multiplier *= 1.25;
     // Rain catchers boost water collection job
     if (job.id === 'water_collection' && gameFlags.rainCatchersInstalled) multiplier *= 1.10;
+    // Purification Unit further boosts water collection
+    if (job.id === 'water_collection' && gameFlags.purificationUnitInstalled) multiplier *= 1.20;
     // add more job-specific multipliers here as flags are added
     return job.rate * multiplier;
 }

@@ -5,7 +5,7 @@ import { addLogEntry, LogType } from '../log.js';
 import { activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
 import { setupTooltip, refreshCurrentTooltip } from '../tooltip.js';
 import { addSlotsForBuilding } from '../data/jobs.js';
-import { salvageActions } from '../data/actions.js';
+import { allActions as salvageActions } from '../data/allActions.js';
 
 let isMiningOnCooldown = false;
 

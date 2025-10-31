@@ -8,10 +8,10 @@ import { setupGalaxyMapSection } from './sections/galaxyMap.js';
 import { setupCrashSiteSection, updateCrashSiteActionButtonsState } from './sections/crashSite.js';
 import { setupCrewManagementSection, updateCrewSection } from './sections/crewManagement.js';
 import { setupJournalSection } from './sections/journal.js';
-import { loadGameState, saveGameState, resetToDefaultState } from './saveload.js';
 import { addLogEntry, LogType } from './log.js';
 import { updateSurvivalDebuffBadge, initTooltips } from './tooltip.js';
-import { initTimeManager } from './time.js';
+import { initTimeManager, startTimeManager } from './time.js';
+import { loadGameState, resetToDefaultState } from './saveload.js';
 import { showStoryPopup } from './popup.js';
 import { storyEvents } from './data/storyEvents.js';
 import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity, shouldRunInBackground } from './options.js';
@@ -35,7 +35,10 @@ document.addEventListener('beforeunload', () => {
 function startGame() {
     initOptions();
     initTooltips();
-    initTimeManager(true);
+    // Load stored time immediately but do NOT start the time loop yet.
+    // We'll start it after the saved game is applied so there are no visible
+    // intermediate ticks showing a stale/zero clock value.
+    initTimeManager(false);
     const savedColor = localStorage.getItem('glowColor') || 'green';
     setGlowColor(savedColor);
     const savedIntensity = localStorage.getItem('glowIntensity') || 1;
@@ -115,9 +118,11 @@ function startGame() {
     let autosaveInterval = null;
 
         // --- Pause / Speed controls wiring ---
-    let isPaused = false;
-    // ensure TIME_SCALE exists and reflect initial buttons
-    const savedPaused = (localStorage.getItem('gamePaused') === 'true');
+        let isPaused = false;
+        // ensure TIME_SCALE exists and reflect initial buttons
+        // Note: read persisted pause state AFTER apply/load so loaded saves can override
+        // the runtime localStorage value (applyGameState persists it).
+        const savedPaused = (localStorage.getItem('gamePaused') === 'true');
 
     function updateHUD() {
         const hud = document.getElementById('gameStatusHUD');
@@ -187,6 +192,12 @@ function startGame() {
         isPaused = false;
         const pBtn = document.getElementById('pauseBtn'); if (pBtn) pBtn.textContent = 'Pause';
         updateHUD();
+    }
+    // Start the time manager now that saved game state (including ingame minutes)
+    // has been applied. If the game is paused, the time manager should remain
+    // stopped until resumeGame is called.
+    if (!isPaused) {
+        try { startTimeManager(); } catch (e) { /* ignore if not available */ }
     }
     // --- end pause/speed wiring ---
 

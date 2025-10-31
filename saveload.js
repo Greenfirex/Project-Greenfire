@@ -4,12 +4,13 @@ import { buildings, getInitialBuildings, resetBuildings } from './data/buildings
 import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from './sections/research.js';
 import { activatedSections, setActivatedSections, getInitialActivatedSections } from './main.js';
 import { showStoryPopup } from './popup.js';
-import { resetIngameTime } from './time.js';
+import { resetIngameTime, getTotalIngameMinutes, setTotalIngameMinutes } from './time.js';
 import { storyEvents } from './data/storyEvents.js';
-import { salvageActions } from './data/actions.js';
+import { allActions as salvageActions } from './data/allActions.js';
 import { jobs } from './data/jobs.js';
 import { addLogEntry, LogType } from './log.js';
 import { gameFlags, resetGameFlags, applySavedGameFlags } from './data/gameFlags.js';
+import { storyLog, resetStoryLog, applySavedStoryLog, getInitialStoryLog, renderJournalEntries } from './sections/journal.js';
 
 export function saveGameState() {
     const gameState = getGameState();
@@ -28,6 +29,8 @@ export function getGameState() {
         buildings: buildings,
         salvageActions: salvageActions,
         gameFlags: { ...gameFlags },
+        storyLog: Array.isArray(storyLog) ? storyLog : getInitialStoryLog(),
+        ingameTimeMinutes: (typeof getTotalIngameMinutes === 'function') ? getTotalIngameMinutes() : undefined,
         timeScale: (typeof window !== 'undefined' && window.TIME_SCALE) ? Number(window.TIME_SCALE) : 1,
         paused: (typeof localStorage !== 'undefined') ? (localStorage.getItem('gamePaused') === 'true') : false
     };
@@ -36,14 +39,36 @@ export function getGameState() {
 export function applyGameState(gameState) {
     if (!gameState) return;
 
+    // --- restore ingame time (if present) before starting any timers ---
+    if (typeof gameState.ingameTimeMinutes === 'number' && typeof setTotalIngameMinutes === 'function') {
+        setTotalIngameMinutes(gameState.ingameTimeMinutes);
+        // also keep localStorage in sync
+        try { localStorage.setItem('ingameTimeMinutes', String(gameState.ingameTimeMinutes)); } catch (e) { /* ignore */ }
+    }
+
     // Restore simple game flags (persisted upgrades / toggles)
-    try {
-        if (gameState.gameFlags) {
-            // use helper to apply saved flags (keeps default keys and live reference)
-            applySavedGameFlags(gameState.gameFlags);
+    if (gameState.gameFlags) {
+        // use helper to apply saved flags (keeps default keys and live reference)
+        applySavedGameFlags(gameState.gameFlags);
+    }
+
+    // Restore journal / story log into the live storyLog and update UI if present.
+    // (No try/catch per request; assume browser env for DOM/localStorage.)
+    if (Array.isArray(gameState.storyLog)) {
+        applySavedStoryLog(gameState.storyLog);
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('storyLog', JSON.stringify(gameState.storyLog));
         }
-    } catch (e) {
-        console.warn('applyGameState: failed to restore gameFlags', e);
+        const journalContainer = document.getElementById('journalEntriesContainer');
+        if (journalContainer && typeof renderJournalEntries === 'function') {
+            renderJournalEntries(journalContainer);
+        }
+    } else {
+        // ensure live story log exists and storage is consistent
+        resetStoryLog();
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('storyLog', JSON.stringify(storyLog));
+        }
     }
 
     // --- Smart Loading for Resources ---
@@ -137,6 +162,19 @@ export function applyGameState(gameState) {
             resumeOngoingResearch(tech, cancelButton, getResearchProgress(), getCurrentResearchStartTime());
         }
     }
+    // Notify other subsystems (UI) that the game state has been applied so they
+    // can refresh immediately (for example, the header clock should update).
+    try { window.dispatchEvent(new CustomEvent('game-state-applied')); } catch (e) { /* ignore */ }
+    // Explicitly refresh the header clock by calling the exported helper from
+    // `headeroptions.js`. Use a dynamic import to avoid introducing a static
+    // circular module dependency at load time.
+    try {
+        import('./headeroptions.js').then(mod => {
+            if (mod && typeof mod.refreshClock === 'function') {
+                mod.refreshClock();
+            }
+        }).catch(() => { /* ignore failures */ });
+    } catch (e) { /* ignore */ }
 }
 
 export function loadGameState() {
@@ -177,6 +215,10 @@ export function resetToDefaultState() {
          }).catch(() => { /* ignore */ });
      } catch (e) { /* ignore */ }
 
+    // Ensure in-game clock resets to Day 0 Hour 1 before showing intro popup so
+    // any generated journal entries / popups use the correct timestamp.
+    try { resetIngameTime(); } catch (e) { console.warn('resetIngameTime failed', e); }
+
     const event = storyEvents.crashIntro;
     showStoryPopup(event);
     addLogEntry('You survived... somehow. (Click to read)', LogType.STORY, {
@@ -193,8 +235,7 @@ export function resetToDefaultState() {
     setCurrentResearchingTech(null);
     setActivatedSections(getInitialActivatedSections());
 
-    // Ensure in-game clock resets to Day 0 Hour 1
-    try { resetIngameTime(); } catch (e) { console.warn('resetIngameTime failed', e); }
+    // (resetIngameTime already called above before showing intro popup)
 
     // Best-effort: clear any active crash-site action or loop if those helpers are available
     try {

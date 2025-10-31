@@ -13,6 +13,9 @@ const initialGameFlags = {
     improvedForagingTools: false,
     // Rain catchers passive water collection
     rainCatchersInstalled: false
+    ,
+    // Purification Unit improves purifyWater yields and water collection job
+    purificationUnitInstalled: false
 };
 
 export function getInitialGameFlags() {
@@ -135,4 +138,23 @@ registerActionCompletionHandler('establishBaseCamp', () => {
             }
         }
     } catch (e) { /* non-fatal */ }
+});
+
+// Purification Unit completion handler
+registerActionCompletionHandler('installPurificationUnit', () => {
+    gameFlags.purificationUnitInstalled = true;
+    addLogEntry('Purification Unit installed — Purify Water now rewards +20% more and Water Collection job is +20% more effective.', LogType.UNLOCK);
+    // best-effort UI refresh: call known update functions where available
+    if (typeof window !== 'undefined') {
+        try {
+            // update resource rows and related UI
+            if (typeof window.updateResourceInfo === 'function') try { window.updateResourceInfo(); } catch (e) {}
+            if (typeof window.updateCrewSection === 'function') try { window.updateCrewSection(); } catch (e) {}
+            if (typeof window.updateBuildingButtonsState === 'function') try { window.updateBuildingButtonsState(); } catch (e) {}
+            if (typeof window.updateCrashSiteActionButtonsState === 'function') try { window.updateCrashSiteActionButtonsState(); } catch (e) {}
+            if (typeof window.setupCrashSiteSection === 'function') try { window.setupCrashSiteSection(document.querySelector('.content-panel')); } catch (e) {}
+            // dispatch an event so other systems can react
+            try { window.dispatchEvent(new CustomEvent('gameFlagsChanged', { detail: { flag: 'purificationUnitInstalled' } })); } catch (e) {}
+        } catch (e) { /* ignore non-fatal UI errors */ }
+    }
 });
