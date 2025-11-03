@@ -174,7 +174,9 @@ export function updateCrewSection() {
                 if (desc) lines.push(`<div style="margin-top:6px">${desc}</div>`);
                 lines.push(`<div style="margin-top:6px"><em>Produces:</em> ${produces}</div>`);
                 // highlight effective per-worker rate and show base in smaller text
-                lines.push(`<div><em>Per worker:</em> <span class="reward-amount">${effectiveRate.toFixed(3)}</span>/s <small style="color:#bbb"> (base ${baseRate}/s)</small></div>`);
+                const isBoosted = (typeof effectiveRate === 'number' && typeof baseRate === 'number') ? (effectiveRate > baseRate + 1e-9) : false;
+                const rateClass = isBoosted ? 'reward-amount boosted' : 'reward-amount';
+                lines.push(`<div><em>Per worker:</em> <span class="${rateClass}">${effectiveRate.toFixed(3)}</span>/s <small style="color:#bbb"> (base ${baseRate}/s)</small></div>`);
                 lines.push(`<div><em>Assigned:</em> ${assigned} / ${slots}</div>`);
                 if (bonuses.length) {
                     lines.push(`<ul class="tooltip-bonuses" style="margin-top:6px">${bonuses.map(b => `<li class="bonus-item">${b}</li>`).join('')}</ul>`);

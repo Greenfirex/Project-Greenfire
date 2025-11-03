@@ -15,12 +15,14 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
         if (optionsMenu) {
             optionsMenu.classList.remove('hidden');
+            try { window.dispatchEvent(new CustomEvent('popup-open')); } catch (e) { /* ignore */ }
         }
     }
 
     function hideOptionsMenu() {
         if (optionsMenu) {
             optionsMenu.classList.add('hidden');
+            try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ }
         }
     }
 

@@ -60,8 +60,8 @@
     transition: width 0.2s ease-out;
 }
 
-/* Ensure text over the Energy bar is readable */
-.info-row[data-resource="Energy"] {
+/* Ensure text over the Stamina bar is readable */
+.info-row[data-resource="Stamina"] {
     color: rgba(255, 215, 0, 0.9);
 }
 

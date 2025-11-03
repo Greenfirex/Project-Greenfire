@@ -228,7 +228,7 @@ function startAction(action, section) {
         return;
     }
 
-    if (!canAffordAction(action)) {
+    if (!canAffordAction(action, resources)) {
         addLogEntry(`Not enough resources to begin: ${action.name}.`, LogType.ERROR);
         return;
     }

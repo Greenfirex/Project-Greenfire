@@ -3,11 +3,11 @@
 // actions: null = any action; otherwise array of action ids to limit effect to specific actions.
 export const upgradeEffects = [
     { flag: 'cafeteriaCookerInstalled', label: '+40% - Cooking Equipment', multiplier: 1.4, resources: ['Food Rations', 'Clean Water'], actions: null },
-    { flag: 'tentsInstalled',             label: '+20% - Tents',                 multiplier: 1.2, resources: ['Energy'],                 actions: ['rest'] },
-    { flag: 'sheltersInsulated',          label: '+10% - Insulation',            multiplier: 1.1, resources: ['Energy'],                 actions: ['rest'] },
-    { flag: 'improvedForagingTools',      label: '+25% - Foraging Tools',        multiplier: 1.25, resources: ['Food Rations'],          actions: ['foraging'] },
+    { flag: 'tentsInstalled',             label: '+20% - Tents',                 multiplier: 1.2, resources: ['Stamina'],                 actions: ['rest'] },
+    { flag: 'sheltersInsulated',          label: '+10% - Insulation',            multiplier: 1.1, resources: ['Stamina'],                 actions: ['rest'] },
+    { flag: 'improvedForagingTools',      label: '+25% - Crude Foraging Tools',        multiplier: 1.25, resources: ['Food Rations'],          actions: ['foraging'] },
     { flag: 'rainCatchersInstalled',     label: '+10% - Rain Tarp',            multiplier: 1.10, resources: ['Clean Water'],           actions: ['water_collection'] },
-    { flag: 'purificationUnitInstalled',  label: '+20% - Purification Unit',     multiplier: 1.20, resources: ['Clean Water'],           actions: ['purifyWater'] }
+    { flag: 'purificationUnitInstalled',  label: '+20% - Purification Unit',     multiplier: 1.20, resources: ['Clean Water'],           actions: ['purifyWater', 'water_collection'] }
 ];
 
 // Compute a combined reward multiplier based on enabled upgrade flags.

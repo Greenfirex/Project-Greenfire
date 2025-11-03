@@ -176,7 +176,13 @@ body.glow-disabled * {
 }
 
 /* Tooltip reward and upgrade highlight styling */
+/* default (no upgrade): white/neutral */
 .tooltip .reward-amount {
+    color: #ffffff;
+    font-weight: 600;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.45);
+}
+.tooltip .reward-amount.boosted {
     color: #8FFFA0;               /* bright green for boosted amounts */
     font-weight: 700;
     text-shadow: 0 1px 0 rgba(0,0,0,0.6);
@@ -194,6 +200,16 @@ body.glow-disabled * {
     font-weight: 600;
     margin: 2px 0;
     font-size: 0.9em;
+}
+
+/* Building Effects: neutral white, no bullet points — used only for building Effects lists */
+.tooltip .effects-list-building { display: block; }
+
+/* Highlight effective duration in tooltips so it stands out (use debuff red) */
+.tooltip .effective-duration {
+    color: #ff6b6b; /* debuff red (matches hunger/thirst messaging) */
+    font-weight: 700;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.45);
 }
 
 /* keep existing tooltip-detail style for legacy single-line notes */

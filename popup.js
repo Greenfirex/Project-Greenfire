@@ -91,6 +91,7 @@ export function showStoryPopup(event) {
     // Make visible
     overlayEl.classList.remove('hidden');
     overlayEl.style.display = '';
+    try { window.dispatchEvent(new CustomEvent('popup-open')); } catch (e) { /* ignore */ }
     overlayEl.offsetHeight;
     overlayEl.setAttribute('tabindex', '-1');
     try { overlayEl.focus({ preventScroll: true }); } catch (e) {}
@@ -131,6 +132,7 @@ function hideStoryPopup() {
         storyPopup.style.display = 'none';
     }
     activeStoryEvent = null;
+    try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ }
 }
 
 // setupPopup unchanged except it uses the existing elements

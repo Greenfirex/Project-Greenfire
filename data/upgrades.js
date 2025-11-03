@@ -14,7 +14,9 @@ export const upgradeActions = [
         repeatable: false,
         suppressGenericLog: true,
         hideRewardPreview: true,
-        reward: [],
+    reward: [],
+    // Tooltip-only effects for clarity
+    tooltipEffects: ['Foraging job: +25% permanent bonus'],
         stage: 0,
         stages: [
             {
@@ -36,7 +38,8 @@ export const upgradeActions = [
         ],
         repeatable: false,
         hideRewardPreview: true,
-        reward: [],
+    reward: [],
+    tooltipEffects: ['Food Rations, Clean Water: +40% - Cooking Equipment'],
         stage: 0,
         stages: [
             {
@@ -61,7 +64,8 @@ export const upgradeActions = [
         ],
         repeatable: false,
         hideRewardPreview: true,
-        reward: [],
+    reward: [],
+    tooltipEffects: ['Stamina (rest): +20% - Tents'],
         stage: 0,
         stages: [
             {
@@ -86,13 +90,14 @@ export const upgradeActions = [
         ],
         repeatable: false,
         hideRewardPreview: true,
-        reward: [],
+    reward: [],
+    tooltipEffects: ['Stamina (rest): +10% - Insulation'],
         stage: 0,
         stages: [
             {
                 story: 'shelter_insulated',
                 unlocks: [],
-                logText: 'You upgrade the tents with added insulation. Resting restores a bit more energy now.'
+                logText: 'You upgrade the tents with added insulation. Resting restores a bit more stamina now.'
             }
         ]
     },
@@ -110,7 +115,8 @@ export const upgradeActions = [
         ],
         repeatable: false,
         hideRewardPreview: true,
-        reward: [],
+    reward: [],
+    tooltipEffects: ['Clean Water: +10% - Rain Tarp'],
         stage: 0,
         stages: [
             {
@@ -135,7 +141,8 @@ export const upgradeActions = [
         ],
         repeatable: false,
         hideRewardPreview: true,
-        reward: [],
+    reward: [],
+    tooltipEffects: ['Clean Water: +20% - Purification Unit'],
         stage: 0,
         stages: [
             {

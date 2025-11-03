@@ -75,7 +75,7 @@ south_corridor_entry: {
 south_explore_cafeteria: {
     title: 'Mess Hall — Supplies and Survivors',
     pages: [
-        "The mess hall is a mess of overturned tables and scorched trays, but in the wreckage you find sealed stashes of bottled water and compact energy bars — supplies that will keep you going.",
+    "The mess hall is a mess of overturned tables and scorched trays, but in the wreckage you find sealed stashes of bottled water and compact stamina bars — supplies that will keep you going.",
         "Hidden beneath a collapsed service counter you discover two unconscious crew members. You drag them clear, tend to their wounds, and carry them back to the shelter outside. For now they are safe at the base camp and will recover; their presence will change the days ahead."
     ]
 },
@@ -100,7 +100,7 @@ tents_installed: {
     title: 'Shelter Established',
     pages: [
         "With enough fabric and some basic framing you and the survivors construct several simple tents at the base camp. They provide sheltered rest and make recovery more reliable.",
-        "Resting in camp now restores more energy and helps the group recover faster."
+    "Resting in camp now restores more stamina and helps the group recover faster."
     ]
 },
 

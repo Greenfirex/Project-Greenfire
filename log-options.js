@@ -76,14 +76,15 @@ function setupLogOptions() {
 
     logOptionsBtn?.addEventListener('click', () => {
         logOptionsMenu.classList.remove('hidden');
+        try { window.dispatchEvent(new CustomEvent('popup-open')); } catch (e) { /* ignore */ }
         // Refresh the UI every time the popup is opened
         updateFilterButtonsUI();
         updateAllColorUI();
         updateExampleLog(LogType.INFO);
     });
-    closeButton?.addEventListener('click', () => logOptionsMenu.classList.add('hidden'));
+    closeButton?.addEventListener('click', () => { logOptionsMenu.classList.add('hidden'); try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ } });
     logOptionsMenu?.addEventListener('click', (e) => {
-        if (e.target === logOptionsMenu) logOptionsMenu.classList.add('hidden');
+        if (e.target === logOptionsMenu) { logOptionsMenu.classList.add('hidden'); try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ } }
     });
 
     logSettings = JSON.parse(localStorage.getItem('logSettings')) || defaultLogSettings;

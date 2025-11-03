@@ -70,13 +70,13 @@ registerActionCompletionHandler('salvageCookingEquipment', () => {
 
 registerActionCompletionHandler('makeTents', () => {
     gameFlags.tentsInstalled = true;
-    addLogEntry('Tents constructed at base camp — resting yields +20% energy.', LogType.UNLOCK);
+    addLogEntry('Tents constructed at base camp — resting yields +20% stamina.', LogType.UNLOCK);
 });
 
 // Insulate shelters -> set flag and log (unlocked only after tents)
 registerActionCompletionHandler('insulateShelters', () => {
     gameFlags.sheltersInsulated = true;
-    addLogEntry('Shelters insulated — resting yields +10% energy.', LogType.UNLOCK);
+    addLogEntry('Shelters insulated — resting yields +10% stamina.', LogType.UNLOCK);
 });
 
 // Crude Foraging Tools -> set flag and log

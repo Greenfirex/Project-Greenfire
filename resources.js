@@ -8,7 +8,7 @@ import { getActiveCrashSiteAction } from './data/activeActions.js';
 
 export function getInitialResources() {
     return [
-        { name: 'Energy', amount: 70, isDiscovered: true, capacity: 100, producible: false, integer: true },
+    { name: 'Stamina', amount: 70, isDiscovered: true, capacity: 100, producible: false, integer: true },
         { name: 'Survivors', amount: 0, isDiscovered: false, capacity: 20, producible: false, integer: true },
         { name: 'Food Rations', amount: 75, isDiscovered: true, capacity: 75, producible: false, integer: true, baseConsumption: 0.04 },
         { name: 'Clean Water', amount: 60, isDiscovered: true, capacity: 100, producible: false, integer: true, baseConsumption: 0.06 },

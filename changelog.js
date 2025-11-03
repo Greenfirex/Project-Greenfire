@@ -42,6 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Load content (only first time)
         loadChangelog();
+        // announce popup open so other systems (tooltips) can disable
+        try { window.dispatchEvent(new CustomEvent('popup-open')); } catch (e) { /* ignore */ }
     }
 
     changelogBtn?.addEventListener('click', () => {
@@ -51,12 +53,14 @@ document.addEventListener('DOMContentLoaded', () => {
     closeBtn?.addEventListener('click', () => {
         changelogPopup.classList.add('hidden');
         changelogPopup.style.display = 'none';
+        try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ }
     });
 
     changelogPopup?.addEventListener('click', (e) => {
         if (e.target === changelogPopup) {
             changelogPopup.classList.add('hidden');
             changelogPopup.style.display = 'none';
+            try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ }
         }
     });
 });

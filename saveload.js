@@ -408,15 +408,3 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Auto-save when the app is paused (e.g. tab hidden and run-in-background disabled)
-window.addEventListener('game-pause', () => {
-    try {
-        saveGameState();
-        if (typeof addLogEntry === 'function' && typeof LogType !== 'undefined') {
-            addLogEntry('Auto-saved on pause.', LogType.INFO);
-        }
-    } catch (e) {
-        console.warn('Auto-save on pause failed', e);
-    }
-});
-

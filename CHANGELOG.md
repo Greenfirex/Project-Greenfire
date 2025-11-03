@@ -73,9 +73,9 @@ This update introduces the foundational elements of **Chapter 1: Fall From the S
 - **Chapter 1 Implemented:** The game now begins at a crash site. Players start as a lone survivor and must explore, scavenge, and manage basic needs before establishing a colony.
 - **New "Crash Site" Section:** Replaces the initial "Colony" view as the starting area. Features unique actions focused on survival and salvaging.
 - **New Survival Mechanics:**
-    - **Energy Resource:** Added a new resource required for performing most actions. Drains over time during strenuous tasks.
+    - **Stamina Resource:** Added a new resource required for performing most actions. Drains over time during strenuous tasks.
     - **Food Rations & Clean Water Costs:** Actions now consume Food and Water directly, representing the player's personal needs.
-    - **New Survival Actions:** Added "Rest" (restores Energy), "Forage for Food", and "Purify Water".
+    - **New Survival Actions:** Added "Rest" (restores Stamina), "Forage for Food", and "Purify Water".
 - **New Salvage & Exploration Mechanics:**
     - **New Resources:** Added "Scrap Metal" and "Ship Components" gathered from the wreckage.
     - **Multi-Stage Scouting:** The "Scout Surroundings" action is now a three-stage quest that progressively unlocks survival and scavenging actions and reveals story elements via unique, clickable log entries.
@@ -94,7 +94,7 @@ This update introduces the foundational elements of **Chapter 1: Fall From the S
 - **UI & UX:**
     - **Info Panel:**
         - Improved layout for resource rows (slimmer height, adjusted column spacing, text forced to single line).
-        - Non-producible resources (Scrap, Components, Energy, etc.) no longer show a `/s` rate and have adjusted layouts.
+    - Non-producible resources (Scrap, Components, Stamina, etc.) no longer show a `/s` rate and have adjusted layouts.
         - Negative resource rates (e.g., from drains) now display in **red**.
         - Resources at zero amount now display their name and amount in **red**.
         - "Insight" resource text is now **yellow**.

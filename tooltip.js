@@ -3,12 +3,15 @@
 import { resources, computeResourceRates } from './resources.js';
 import { formatNumber } from './formatting.js';
 import { gameFlags } from './data/gameFlags.js';
-import { computeRewardEffects } from './data/upgradeEffects.js';
+import { computeRewardEffects, upgradeEffects } from './data/upgradeEffects.js';
+import { jobs } from './data/jobs.js';
+import { buildings } from './data/buildings.js';
 
 let globalTooltip = null;
 const tooltipRegistry = new WeakMap();
 let currentTooltipElement = null;
 let docMouseMoveHandler = null;
+let tooltipsEnabled = true;
 let tooltipAttributeObserver = null; // new: keep observer to strip native title attrs
 // removed tooltipLockUntil and per-element lock complexity
 
@@ -17,6 +20,8 @@ function ensureDocMouseMoveHandler() {
     if (docMouseMoveHandler) return;
     // reuse the same logic previously created inline
     docMouseMoveHandler = (moveEvent) => {
+        // respect global suppression (popups/menus)
+        if (!tooltipsEnabled) return;
         const tt = getOrCreateTooltip();
         if (tt._hideTimeout) {
             clearTimeout(tt._hideTimeout);
@@ -129,6 +134,14 @@ window.addEventListener('request-hide-tooltip', () => {
     try { hideTooltip(); } catch (e) { /* ignore */ }
 });
 
+// Disable tooltip rendering while popups/menus are open to avoid accidental hover
+window.addEventListener('popup-open', () => {
+    try { tooltipsEnabled = false; hideTooltip(); } catch (e) { /* ignore */ }
+});
+window.addEventListener('popup-close', () => {
+    try { tooltipsEnabled = true; } catch (e) { /* ignore */ }
+});
+
 export function updateTooltipPosition(event, tooltip) {
     if (!tooltip) return;
     const pad = 8; // keep tooltip away from edges
@@ -174,6 +187,50 @@ function buildTooltipHTML(data) {
     // string builder
     let html = '';
 
+    // Helper: format seconds into human ETA (reused for both actions and buildings)
+    function formatETA(seconds) {
+        if (!isFinite(seconds) || seconds <= 0) return null;
+        const s = Math.ceil(seconds);
+        if (s >= 3600) {
+            const h = Math.floor(s / 3600);
+            const m = Math.floor((s % 3600) / 60);
+            return `${h}h ${m}m`;
+        }
+        if (s >= 60) {
+            const m = Math.floor(s / 60);
+            const sec = s % 60;
+            return `${m}m ${sec}s`;
+        }
+        return `${s}s`;
+    }
+
+    // Helper: render an array of cost/drain entries with affordability and ETA logic
+    function renderCostItems(arr, opts = {}) {
+        if (!Array.isArray(arr) || !arr.length) return '';
+        const parts = arr.map(item => {
+            const res = resources.find(r => r.name === item.resource);
+            const have = res ? Number(res.amount) : 0;
+            const need = Number(item.amount || 0);
+            if (have < need) {
+                // compute shortfall and ETA using computeResourceRates
+                let etaText = '';
+                try {
+                    const rates = computeResourceRates(item.resource);
+                    if (rates && rates.netPerSecond > 1e-9) {
+                        const shortfall = need - have;
+                        const eta = formatETA(shortfall / rates.netPerSecond);
+                        if (eta) etaText = ` <span class="eta">(ETA: ${eta})</span>`;
+                    }
+                } catch (e) { /* ignore compute errors */ }
+                const totalLabel = opts.showTotal ? ' (Total)' : '';
+                return `<p><span style="color:#ff6b6b">${item.resource}: ${need}${totalLabel} (missing ${formatNumber(need - have)})</span>${etaText}</p>`;
+            }
+            const totalLabel = opts.showTotal ? ' (Total)' : '';
+            return `<p>${item.resource}: ${need}${totalLabel}</p>`;
+        });
+        return parts.join('');
+    }
+
     if (data && typeof data.totalProduction !== 'undefined') {
         html = `
             <h4>Production Breakdown</h4>
@@ -198,8 +255,30 @@ function buildTooltipHTML(data) {
 
     if (data && typeof data.count !== 'undefined') {
         if (data.description) html += `<p class="tooltip-description">${data.description}</p>`;
-        if (data.cost && data.cost.length > 0) html += `<div class="tooltip-section"><h4>Cost</h4>${data.cost.map(c => `<p>${c.resource}: ${c.amount}</p>`).join('')}</div>`;
+        if (data.cost && data.cost.length > 0) html += `<div class="tooltip-section"><h4>Cost</h4>${renderCostItems(data.cost)}</div>`;
         if (data.produces) html += `<div class="tooltip-section"><h4>Generation</h4><p>${data.produces}: +${data.rate}/s</p></div>`;
+        // Buildings: render Effects section when building has an effect descriptor
+        try {
+            if (data.effect) {
+                const lines = [];
+                const eff = data.effect;
+                if (eff.type === 'storage') {
+                    lines.push(`${eff.resource}: +${eff.value} capacity`);
+                } else if (eff.type === 'job') {
+                    // find job friendly name
+                    const job = jobs.find(j => j.id === eff.jobId || j.name === eff.jobId || j.id === eff.job || j.name === eff.job);
+                    lines.push(`Unlocks job: ${job ? job.name : (eff.jobId || eff.job || 'unknown')} (per built)`);
+                } else if (eff.type === 'passive') {
+                    lines.push(`${eff.resource}: +${eff.rate}/s (per built)`);
+                } else if (eff.type === 'production') {
+                    lines.push(`${eff.resource}: +${eff.rate}/s`);
+                } else {
+                    // generic fallback: stringify keys
+                    try { lines.push(Object.keys(eff).map(k => `${k}: ${eff[k]}`).join(', ')); } catch (e) { lines.push(String(eff)); }
+                }
+                if (lines.length) html += `<div class="tooltip-section"><h4>Effects</h4>${lines.map(l => `<p>${l}</p>`).join('')}</div>`;
+            }
+        } catch (e) { /* ignore building effect rendering errors */ }
         return html;
     }
 
@@ -207,83 +286,87 @@ function buildTooltipHTML(data) {
         html += `<h4>${data.name}</h4>`;
         if (data.description) html += `<p class="tooltip-description">${data.description}</p>`;
 
-        // Costs / drains — highlight missing resources and show ETA when net production is positive
-        function formatETA(seconds) {
-            if (!isFinite(seconds) || seconds <= 0) return null;
-            const s = Math.ceil(seconds);
-            if (s >= 3600) {
-                const h = Math.floor(s / 3600);
-                const m = Math.floor((s % 3600) / 60);
-                return `${h}h ${m}m`;
-            }
-            if (s >= 60) {
-                const m = Math.floor(s / 60);
-                const sec = s % 60;
-                return `${m}m ${sec}s`;
-            }
-            return `${s}s`;
-        }
-
-        let costHtml = '';
-        if (data.cost && data.cost.length > 0) {
-            const parts = data.cost.map(c => {
-                const res = resources.find(r => r.name === c.resource);
-                const have = res ? Number(res.amount) : 0;
-                const need = Number(c.amount || 0);
-                if (have < need) {
-                    // compute shortfall and ETA using computeResourceRates
-                    let etaText = '';
-                    try {
-                        const rates = computeResourceRates(c.resource);
-                        if (rates && rates.netPerSecond > 1e-9) {
-                            const shortfall = need - have;
-                            const eta = formatETA(shortfall / rates.netPerSecond);
-                            if (eta) etaText = ` <span class="eta">(ETA: ${eta})</span>`;
-                        }
-                    } catch (e) { /* ignore compute errors */ }
-                    return `<p><span style="color:#ff6b6b">${c.resource}: ${need} (missing ${formatNumber(need - have)})</span>${etaText}</p>`;
-                }
-                return `<p>${c.resource}: ${need}</p>`;
-            });
-            costHtml += parts.join('');
-        }
-        if (data.drain && data.drain.length > 0) {
-            const parts = data.drain.map(d => {
-                const res = resources.find(r => r.name === d.resource);
-                const have = res ? Number(res.amount) : 0;
-                const need = Number(d.amount || 0);
-                if (have < need) {
-                    let etaText = '';
-                    try {
-                        const rates = computeResourceRates(d.resource);
-                        if (rates && rates.netPerSecond > 1e-9) {
-                            const shortfall = need - have;
-                            const eta = formatETA(shortfall / rates.netPerSecond);
-                            if (eta) etaText = ` <span class="eta">(ETA: ${eta})</span>`;
-                        }
-                    } catch (e) { /* ignore */ }
-                    return `<p><span style="color:#ff6b6b">${d.resource}: ${need} (Total) — missing ${formatNumber(need - have)}</span>${etaText}</p>`;
-                }
-                return `<p>${d.resource}: ${need} (Total)</p>`;
-            });
-            costHtml += parts.join('');
-        }
+        // Costs / drains — use the shared renderer so ETA/affordability is consistent
+        const costHtml = (renderCostItems(data.cost) || '') + (renderCostItems(data.drain, { showTotal: true }) || '');
         if (costHtml) html += `<div class="tooltip-section"><h4>Cost</h4>${costHtml}</div>`;
+
+        // If this item/job produces a resource, show any active upgrade modifiers that affect
+        // that production (e.g., Rain Tarp, Purification Unit). This uses the same matching
+        // logic as computeRewardEffects so labels are consistent with action previews.
+        try {
+            if (data.produces) {
+                const produced = data.produces;
+                const aid = (data.id || '').toLowerCase();
+                const eff = computeRewardEffects(aid, produced, gameFlags);
+                if (eff && Array.isArray(eff.labels) && eff.labels.length) {
+                    html += `<div class="tooltip-section"><h4>Modifiers</h4><ul class="tooltip-bonuses">${eff.labels.map(l => `<li class="bonus-item">${l}</li>`).join('')}</ul></div>`;
+                }
+            }
+        } catch (e) { /* ignore modifier rendering errors */ }
+
+        // Effects: for Upgrade-category items, show expected modifiers / impacts below Cost
+        try {
+            if (data.category === 'Upgrade' || data.category === 'Upgrades') {
+                // explicit tooltipEffects override
+                let effectLines = [];
+                if (Array.isArray(data.tooltipEffects)) {
+                    effectLines = data.tooltipEffects.map(e => {
+                        if (typeof e === 'string') return e;
+                        if (e.resource && e.multiplier) return `${e.resource}: +${((e.multiplier - 1) * 100).toFixed(0)}%`;
+                        if (e.label) return e.label;
+                        return JSON.stringify(e);
+                    });
+                } else {
+                    // try to infer from upgradeEffects by matching eff.actions tokens to this action id
+                    const aid = (data.id || '').toLowerCase();
+                    const matched = [];
+                    for (const eff of (upgradeEffects || [])) {
+                        if (!eff) continue;
+                        if (!eff.actions || eff.actions.length === 0) {
+                            // global effect — include conservatively
+                            matched.push(eff);
+                            continue;
+                        }
+                        // check each token in eff.actions against the action id
+                        const matches = eff.actions.some(tok => {
+                            if (!tok) return false;
+                            const t = String(tok).toLowerCase();
+                            return aid.indexOf(t) !== -1 || t.indexOf(aid) !== -1;
+                        });
+                        if (matches) matched.push(eff);
+                    }
+                    // build human lines from matched effects
+                    effectLines = matched.map(eff => {
+                        if (eff.label) return eff.label;
+                        if (eff.resources && eff.multiplier) return `${eff.resources.join(', ')}: +${((eff.multiplier - 1) * 100).toFixed(0)}%`;
+                        if (eff.resources) return `Affects: ${eff.resources.join(', ')}`;
+                        return JSON.stringify(eff);
+                    });
+                }
+
+                if (effectLines.length) {
+                    html += `<div class="tooltip-section"><h4>Effects</h4><ul class="tooltip-bonuses">${effectLines.map(l => `<li class="bonus-item">${l}</li>`).join('')}</ul></div>`;
+                }
+            }
+        } catch (e) { /* ignore effect rendering errors */ }
 
         // Rewards (may be hidden for certain actions)
         if (data.reward && data.reward.length > 0) {
             const hideReward = !!data.hideRewardPreview || data.id === 'investigateSound';
             if (!hideReward) {
                 const rewardsHtml = data.reward.map(r => {
-                    // compute base label
+                    // compute base label and whether any upgrade multiplier applies
                     const rawActionKey = data.id || (typeof data.name === 'string' ? data.name : null);
                     const actionKey = rawActionKey ? String(rawActionKey).toLowerCase().replace(/\s+/g, '') : null;
-                    const { multiplier } = computeUpgradeMultiplier(r.resource, actionKey);
+                    const entry = computeUpgradeMultiplier(r.resource, actionKey);
+                    const multiplier = entry?.multiplier || 1;
+                    const isBoosted = multiplier > 1.000001;
                     const isRange = Array.isArray(r.amount);
                     const label = isRange
                         ? `${Math.floor(r.amount[0] * multiplier)} - ${Math.floor(r.amount[1] * multiplier)}`
                         : `${Math.floor(r.amount * multiplier)}`;
-                    return `<p>${r.resource}: <span class="reward-amount">${label}</span></p>`;
+                    const cls = isBoosted ? 'reward-amount boosted' : 'reward-amount';
+                    return `<p>${r.resource}: <span class="${cls}">${label}</span></p>`;
                 }).join('');
 
                 // collect labels for display
@@ -304,9 +387,62 @@ function buildTooltipHTML(data) {
             }
         }
 
-        // Duration and conditional modifiers (e.g. hunger/thirst debuffs)
+                // Duration and conditional modifiers (e.g. hunger/thirst debuffs)
         const baseDurationText = (typeof data.duration === 'number') ? `${data.duration}s` : (data.duration || '—');
         let durationHtml = `<p>Duration: ${baseDurationText}</p>`;
+
+                // --- Optional: Unlocks section (only shown when this item actually unlocks things) ---
+                try {
+                    // Global policy: hide unlock spoilers for exploration actions unless explicitly asked.
+                    // Allow explicit control per-data object:
+                    // - If data.showUnlocks === false -> never show
+                    // - If data.tooltipUnlocks is an array -> use it instead of auto-detection
+                    // - If data.category === 'Exploration' and caller did not explicitly opt-in
+                    //   (showUnlocks === true or tooltipUnlocks provided), skip rendering.
+                    if (data && data.showUnlocks === false) {
+                        /* explicit opt-out */
+                    } else if (data && data.category === 'Exploration' && data.showUnlocks !== true && !Array.isArray(data.tooltipUnlocks)) {
+                        // respect global no-spoiler rule for exploration category
+                    } else {
+                        let unlockIds = [];
+                        if (Array.isArray(data.tooltipUnlocks)) {
+                            unlockIds = data.tooltipUnlocks.slice();
+                        } else {
+                            // auto-detect from data.unlocks and current stage unlocks (legacy behavior)
+                            if (Array.isArray(data.unlocks)) unlockIds.push(...data.unlocks);
+                            const stageIdx = (typeof data.stage === 'number') ? data.stage : 0;
+                            const stageObj = (data.stages || [])[stageIdx];
+                            if (stageObj && Array.isArray(stageObj.unlocks)) unlockIds.push(...stageObj.unlocks);
+                        }
+
+                        if (unlockIds.length) {
+                            // Deduplicate
+                            const uniq = Array.from(new Set(unlockIds));
+                            const sectionNames = {
+                                crewManagementSection: 'Crew Management',
+                                crashSiteSection: 'Crash Site',
+                                colonySection: 'Colony',
+                                researchSection: 'Research',
+                                manufacturingSection: 'Manufacturing',
+                                shipyardSection: 'Shipyard',
+                                galaxyMapSection: 'Galaxy Map',
+                                journalSection: 'Journal'
+                            };
+                            const unlockLines = uniq.map(id => {
+                                // job id?
+                                const job = jobs.find(j => j.id === id || j.name === id);
+                                if (job) return `<li class="bonus-item">Unlocks job: ${job.name}</li>`;
+                                // building?
+                                const b = buildings.find(bb => bb.id === id || bb.name === id);
+                                if (b) return `<li class="bonus-item">Unlocks building: ${b.name}</li>`;
+                                if (sectionNames[id]) return `<li class="bonus-item">Unlocks ${sectionNames[id]}</li>`;
+                                // fallback: show raw id
+                                return `<li class="bonus-item">Unlocks: ${String(id)}</li>`;
+                            }).join('');
+                            html += `<div class="tooltip-section"><h4>Unlocks</h4><ul class="tooltip-bonuses">${unlockLines}</ul></div>`;
+                        }
+                    }
+                } catch (e) { /* ignore unlock rendering errors */ }
 
         try {
             // Check for depleted survival resources and present clear player guidance.
@@ -316,12 +452,13 @@ function buildTooltipHTML(data) {
             if (food && Number(food.amount) <= 0) effects.push('<span style="color:#ff6b6b">Hunger — actions take 50% longer.</span>');
             if (water && Number(water.amount) <= 0) effects.push('<span style="color:#ff6b6b">Thirst — actions take 50% longer.</span>');
 
-            if (effects.length) {
+                if (effects.length) {
                 // compute effective duration if base numeric
                 if (typeof data.duration === 'number') {
                     const multiplier = 1 + 0.5 * effects.length;
                     const effective = Math.ceil(data.duration * multiplier);
-                    durationHtml = `<p>Duration: ${baseDurationText}</p><p><strong>Effective duration: ${effective}s</strong></p>`;
+                    // mark effective duration with a class so it can be highlighted via CSS
+                    durationHtml = `<p>Duration: ${baseDurationText}</p><p><strong class="effective-duration">Effective duration: ${effective}s</strong></p>`;
                 }
                 html += `<div class="tooltip-section"><h4>Current Conditions</h4><p>${effects.join('<br>')}</p></div>`;
             }
@@ -336,7 +473,7 @@ function buildTooltipHTML(data) {
     if (data && typeof data.isResearched !== 'undefined') {
         html += `<h4>${data.name}</h4>`;
         if (data.description) html += `<p class="tooltip-description">${data.description}</p>`;
-        if (data.cost && data.cost.length > 0) html += `<div class="tooltip-section"><h4>Cost</h4>${data.cost.map(c => `<p>${c.resource}: ${c.amount}</p>`).join('')}</div>`;
+        if (data.cost && data.cost.length > 0) html += `<div class="tooltip-section"><h4>Cost</h4>${renderCostItems(data.cost)}</div>`;
         html += `<p>Research Time: ${data.duration}s</p>`;
         return html;
     }
