@@ -1,3 +1,29 @@
+# [0.1.8] - 2025-11-04
+
+## Added
+
+- Global Morale system (additive, percent-based) that scales job outputs only.
+    - New Morale row at the top of the info panel with color tinting and a detailed tooltip that lists sources and remaining days for time-based effects.
+    - Morale appears in Modifiers for jobs and producing items (tooltips show Morale as a ±X% delta from baseline).
+- In-game time-based decays for Morale sources:
+    - Crashlanded: −50% decays linearly to 0 over 7 in-game days; auto-clears when fully decayed.
+    - Base Camp Established: +10% decays linearly to 0 over 7 in-game days after establishment.
+- Crew Management job tooltips now include a unified Modifiers section (Morale + relevant upgrade effects).
+
+## Changed
+
+- Renamed “Energy” to “Stamina” across data, UI, tooltips, and styles.
+- Unified tooltip cost and ETA logic; Buildings and Research now show affordability/shortfalls and ETA consistent with Actions.
+- Info panel polish: capped resources no longer render as red; all rates use explicit +/− signs; fixed missing space for negative lines.
+
+## Fixed
+
+- Purification Unit upgrade correctly surfaces +20% for the Water Collection job in tooltips (effect mapping).
+- Action progress bars reset to 0% instantly on completion/cancel (temporarily disable transition to avoid flicker).
+- Disabled auto-save on pause by removing the pause-triggered save listener in the save system.
+
+---
+
 # [0.1.7] - 2025-10-31
 
 - Added: Two‑stage “Search: Power Core”. Stage 1 reports reinforced doors; Stage 2 requires and consumes 1 Makeshift Explosive, then opens the core and yields rewards. Stage‑specific costs now supported in UI and engine.
