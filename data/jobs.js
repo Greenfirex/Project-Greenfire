@@ -1,4 +1,5 @@
 import { gameFlags } from './gameFlags.js';
+import { getMorale } from './morale.js';
 
 export let jobs = [
     {
@@ -67,6 +68,11 @@ export function getEffectiveJobRate(jobOrId) {
     if (job.id === 'water_collection' && gameFlags.rainCatchersInstalled) multiplier *= 1.10;
     // Purification Unit further boosts water collection
     if (job.id === 'water_collection' && gameFlags.purificationUnitInstalled) multiplier *= 1.20;
+    // Global Morale affects all job outputs (but not passive consumption or action drains)
+    try {
+        const morale = getMorale();
+        multiplier *= (morale && morale.multiplier) ? morale.multiplier : 1;
+    } catch {}
     // add more job-specific multipliers here as flags are added
     return job.rate * multiplier;
 }

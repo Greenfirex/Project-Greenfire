@@ -5,6 +5,7 @@ import { gameFlags } from './data/gameFlags.js';
 import { formatNumber } from './formatting.js';
 import { setupTooltip } from './tooltip.js';
 import { getActiveCrashSiteAction } from './data/activeActions.js';
+import { getMorale } from './data/morale.js';
 
 export function getInitialResources() {
     return [
@@ -62,7 +63,7 @@ export function computeResourceRates(resourceName) {
             const amount = (b.effect.rate || 0) * b.count;
             // treat passive contributions as production for tooltip/total calculations
             baseProduction += amount;
-            productionBuildings.push({ name: b.name + ' (passive)', count: b.count, amount: amount });
+            productionBuildings.push({ name: b.name, count: b.count, amount: amount });
         }
     });
 
@@ -155,6 +156,38 @@ export function setupInfoPanel() {
     const infoSection = document.createElement('div');
     infoSection.className = 'info-section';
 
+    // --- Insert Morale row at the top ---
+    const moraleRow = document.createElement('div');
+    moraleRow.className = 'info-row morale';
+    moraleRow.dataset.resource = 'Morale';
+    moraleRow.classList.remove('hidden');
+    moraleRow.innerHTML = `
+        <div class="resource-progress-bar"></div>
+        <div class="infocolumn1"><span>Morale</span></div>
+        <div class="infocolumn2"><p data-value-type="morale"></p></div>
+        <div class="infocolumn3"><p></p></div>
+    `;
+
+    // Tooltip for Morale breakdown
+    setupTooltip(moraleRow, () => {
+        const m = getMorale();
+        const list = (m.sources || []).map(s => {
+            const sign = s.deltaPercent >= 0 ? '+' : '-';
+                const hint = (typeof s.remainingDays === 'number' && s.remainingDays > 0)
+                    ? ` <span class="tooltip-detail">(~${s.remainingDays} days left)</span>`
+                    : '';
+                return `<li class="bonus-item">${s.label}: ${sign}${Math.abs(s.deltaPercent)}%${hint}</li>`;
+        }).join('');
+        const modifiers = list ? `<ul class="tooltip-bonuses">${list}</ul>` : '<p>No active modifiers.</p>';
+        return `
+            <h4>Morale</h4>
+                <p>Current: <strong>${Math.round(m.percent)}%</strong></p>
+            <div class="tooltip-section"><h4>Sources</h4>${modifiers}</div>
+            
+        `;
+    });
+    infoSection.appendChild(moraleRow);
+
     // iterate over the master initial set so undiscovered resources still have rows
     getInitialResources().forEach(resource => {
         const infoRow = document.createElement('div');
@@ -192,11 +225,13 @@ export function setupInfoPanel() {
 
             let consumptionDetailsHtml = '';
             if (passiveConsumption > 0) {
-                consumptionDetailsHtml += `<p class="tooltip-detail">-${formatNumber(passiveConsumption)}/s from ${resources.find(r=>r.name==='Survivors')?.amount || 0} survivor(s)</p>`;
+                // add a space after the '-' so it matches the '+ ' formatting used for production lines
+                consumptionDetailsHtml += `<p class="tooltip-detail">- ${formatNumber(passiveConsumption)}/s from ${resources.find(r=>r.name==='Survivors')?.amount || 0} survivor(s)</p>`;
             }
             if (activeDrainRate > 0) {
                 const activeAction = getActiveCrashSiteAction();
-                consumptionDetailsHtml += `<p class="tooltip-detail">-${formatNumber(activeDrainRate)}/s from ${activeAction ? activeAction.name : 'active event'}</p>`;
+                // add a space after the '-' so it matches the '+ ' formatting used for production lines
+                consumptionDetailsHtml += `<p class="tooltip-detail">- ${formatNumber(activeDrainRate)}/s from ${activeAction ? activeAction.name : 'active event'}</p>`;
             }
 
             const sign = netPerSecond >= 0 ? '+' : '';
@@ -226,6 +261,20 @@ export function updateResourceInfo() {
     const survivorResource = resources.find(r => r.name === 'Survivors');
     const survivorCount = survivorResource ? survivorResource.amount : 0;
     const activeAction = getActiveCrashSiteAction();
+
+    // Update Morale row first
+    try {
+        const m = getMorale();
+        const row = document.querySelector('.info-row.morale');
+        if (row) {
+            const valEl = row.querySelector('[data-value-type="morale"]');
+            if (valEl) valEl.textContent = `${Math.round(m.percent)}%`;
+            row.classList.remove('morale-high','morale-mid','morale-low');
+            const pct = m.percent;
+            const cls = (pct >= 100) ? 'morale-high' : (pct >= 80 ? 'morale-mid' : 'morale-low');
+            row.classList.add(cls);
+        }
+    } catch {}
 
     resources.forEach(resource => {
         const infoRow = document.querySelector(`.info-row[data-resource="${resource.name}"]`);
@@ -266,16 +315,22 @@ export function updateResourceInfo() {
         const rates = computeResourceRates(resource.name);
         if (!rates) return;
 
-        const { totalProduction, totalConsumption, netPerSecond, activeDrainRate } = rates;
+    const { totalProduction, totalConsumption, netPerSecond, activeDrainRate } = rates;
 
-        generationEl.classList.toggle('negative-rate', netPerSecond < 0);
+    // compute capped state early so we can avoid showing negative styling when capped
+    const isCapped = (resource.capacity > 0) ? (resource.amount >= resource.capacity) : false;
+
+    // Only mark negative-rate visually when the resource is not capped. When capped
+    // we don't want the UI to render amounts or per-second production in red.
+    generationEl.classList.toggle('negative-rate', netPerSecond < 0 && !isCapped);
 
         // Only show generation when there is an actual non-zero production or consumption.
         // Use a small EPS to avoid floating point noise. Always display a clear sign (+/-)
         // for consistency across resources (no parentheses).
         const EPS = 1e-9;
         if (Math.abs(totalProduction) > EPS || Math.abs(totalConsumption) > EPS || Math.abs(activeDrainRate) > EPS) {
-            const sign = netPerSecond >= 0 ? '+' : '';
+            // Always show explicit '+' for positive and '-' for negative to match formatting.
+            const sign = netPerSecond >= 0 ? '+' : '-';
             const value = formatNumber(Math.abs(netPerSecond));
             generationEl.textContent = `${sign}${value}/s`;
         } else {
@@ -285,6 +340,6 @@ export function updateResourceInfo() {
         const progressBar = infoRow.querySelector('.resource-progress-bar');
         progressBar.style.width = `${Math.min((resource.amount / resource.capacity) * 100, 100)}%`;
 
-        infoRow.classList.toggle('capped', resource.amount >= resource.capacity);
+    infoRow.classList.toggle('capped', isCapped);
     });
 }

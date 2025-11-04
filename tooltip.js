@@ -4,6 +4,7 @@ import { resources, computeResourceRates } from './resources.js';
 import { formatNumber } from './formatting.js';
 import { gameFlags } from './data/gameFlags.js';
 import { computeRewardEffects, upgradeEffects } from './data/upgradeEffects.js';
+import { getMorale } from './data/morale.js';
 import { jobs } from './data/jobs.js';
 import { buildings } from './data/buildings.js';
 
@@ -290,16 +291,27 @@ function buildTooltipHTML(data) {
         const costHtml = (renderCostItems(data.cost) || '') + (renderCostItems(data.drain, { showTotal: true }) || '');
         if (costHtml) html += `<div class="tooltip-section"><h4>Cost</h4>${costHtml}</div>`;
 
-        // If this item/job produces a resource, show any active upgrade modifiers that affect
-        // that production (e.g., Rain Tarp, Purification Unit). This uses the same matching
+        // If this item/job produces a resource, show any active upgrade modifiers and Morale that affect
+        // that production (e.g., Rain Tarp, Purification Unit, Morale). This uses the same matching
         // logic as computeRewardEffects so labels are consistent with action previews.
         try {
             if (data.produces) {
                 const produced = data.produces;
                 const aid = (data.id || '').toLowerCase();
                 const eff = computeRewardEffects(aid, produced, gameFlags);
-                if (eff && Array.isArray(eff.labels) && eff.labels.length) {
-                    html += `<div class="tooltip-section"><h4>Modifiers</h4><ul class="tooltip-bonuses">${eff.labels.map(l => `<li class="bonus-item">${l}</li>`).join('')}</ul></div>`;
+                const labels = (eff && Array.isArray(eff.labels)) ? eff.labels.slice() : [];
+                try {
+                    const m = getMorale();
+                    if (m && typeof m.percent === 'number') {
+                        const delta = Math.round(m.percent - 100);
+                        if (delta !== 0) {
+                            const sign = delta > 0 ? '+' : '';
+                            labels.push(`Morale: ${sign}${delta}%`);
+                        }
+                    }
+                } catch {}
+                if (labels.length) {
+                    html += `<div class="tooltip-section"><h4>Modifiers</h4><ul class="tooltip-bonuses">${labels.map(l => `<li class="bonus-item">${l}</li>`).join('')}</ul></div>`;
                 }
             }
         } catch (e) { /* ignore modifier rendering errors */ }

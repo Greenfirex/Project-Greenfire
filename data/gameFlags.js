@@ -1,6 +1,7 @@
 import { addLogEntry, LogType } from '../log.js';
 import { buildings } from './buildings.js';
 import { jobs } from './jobs.js';
+import { getTotalIngameMinutes } from '../time.js';
 
 const initialGameFlags = {
     // set true once the salvaged cooking equipment is installed
@@ -15,12 +16,22 @@ const initialGameFlags = {
     rainCatchersInstalled: false
     ,
     // Purification Unit improves purifyWater yields and water collection job
-    purificationUnitInstalled: false
+    purificationUnitInstalled: false,
+    // Morale-related flags
+    crashlandedActive: true,
+    // Start markers (in-game minutes) for time-based morale sources
+    crashlandedStartMinutes: 0,
+    baseCampEstablished: false,
+    baseCampBoostStartMinutes: 0
 };
 
 export function getInitialGameFlags() {
-    // return a deep copy to avoid sharing references
-    return JSON.parse(JSON.stringify(initialGameFlags));
+    // return a deep copy to avoid sharing references and stamp dynamic in-game minutes lazily
+    const copy = JSON.parse(JSON.stringify(initialGameFlags));
+    try {
+        if (!copy.crashlandedStartMinutes) copy.crashlandedStartMinutes = getTotalIngameMinutes();
+    } catch (e) { /* fallback to 0; morale module will lazily initialize */ }
+    return copy;
 }
 
 // live flags object that the rest of the game imports and mutates
@@ -138,6 +149,13 @@ registerActionCompletionHandler('establishBaseCamp', () => {
             }
         }
     } catch (e) { /* non-fatal */ }
+
+    // Set morale-related base camp flag
+    try {
+        gameFlags.baseCampEstablished = true;
+        // Start a temporary +10% morale boost that decays over 7 in-game days from this moment
+        gameFlags.baseCampBoostStartMinutes = getTotalIngameMinutes();
+    } catch {}
 });
 
 // Purification Unit completion handler

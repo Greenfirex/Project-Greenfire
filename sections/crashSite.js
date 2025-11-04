@@ -245,7 +245,18 @@ function startAction(action, section) {
         const name = btn.querySelector('.building-name');
         if (name && !btn.dataset.originalLabel) btn.dataset.originalLabel = name.innerText;
         const bar = btn.querySelector('.action-progress-bar');
-        if (bar) bar.style.width = '0%';
+        if (bar) {
+            // Reset instantly without transition so the bar doesn't visibly shrink from full to empty.
+            try {
+                bar.style.transition = 'none';
+                bar.style.width = '0%';
+                // force reflow to apply the width immediately
+                // eslint-disable-next-line no-unused-expressions
+                void bar.offsetWidth;
+                // restore to stylesheet-controlled transition (remove inline override)
+                bar.style.transition = '';
+            } catch (e) { bar.style.width = '0%'; }
+        }
         btn.classList.add('running');
         if (action.cancelable) {
             btn.onclick = () => requestCancel(action, section);
@@ -395,7 +406,14 @@ function cancelAction(section, message, force = false) {
     if (btn) {
         btn.classList.remove('running');
         btn.classList.remove('confirm-cancel');
-        const bar = btn.querySelector('.action-progress-bar'); if (bar) bar.style.width = '0%';
+        const bar = btn.querySelector('.action-progress-bar'); if (bar) {
+            try {
+                bar.style.transition = 'none';
+                bar.style.width = '0%';
+                void bar.offsetWidth;
+                bar.style.transition = '';
+            } catch (e) { bar.style.width = '0%'; }
+        }
         const nameSpan = btn.querySelector('.building-name'); if (nameSpan) nameSpan.textContent = (btn.dataset.originalLabel || (a && a.name) || '');
         delete btn.dataset.originalLabel;
         const actionDef = salvageActions.find(s => s.id === a.id);
@@ -526,7 +544,14 @@ function handleActionCompletion(section) {
         const btn2 = section ? section.querySelector(`[data-action-id="${completed.id}"]`) : document.querySelector(`[data-action-id="${completed.id}"]`);
         if (btn2) {
             btn2.classList.remove('running');
-            const bar2 = btn2.querySelector('.action-progress-bar'); if (bar2) bar2.style.width = '0%';
+            const bar2 = btn2.querySelector('.action-progress-bar'); if (bar2) {
+                try {
+                    bar2.style.transition = 'none';
+                    bar2.style.width = '0%';
+                    void bar2.offsetWidth;
+                    bar2.style.transition = '';
+                } catch (e) { bar2.style.width = '0%'; }
+            }
             const nameSpan2 = btn2.querySelector('.building-name'); if (nameSpan2) nameSpan2.textContent = (btn2.dataset.originalLabel || (original && original.name) || completed.name || '');
             delete btn2.dataset.originalLabel;
             const actionDef2 = salvageActions.find(s => s.id === completed.id) || original;

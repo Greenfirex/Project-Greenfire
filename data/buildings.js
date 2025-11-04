@@ -90,7 +90,6 @@ const initialBuildings = [
     },
     {
         name: 'Rain Tarp',
-        // Passive effect: yields Clean Water per second per built rain tarp
         effect: { type: 'passive', resource: 'Clean Water', rate: 0.02 },
         count: 0,
         cost: [{ resource: 'Fabric', amount: 6 }, { resource: 'Scrap Metal', amount: 6 }],

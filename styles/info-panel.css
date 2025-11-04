@@ -65,6 +65,16 @@
     color: rgba(255, 215, 0, 0.9);
 }
 
+/* Morale row: always full bar; color tint varies by level */
+.info-row.morale .resource-progress-bar {
+    width: 100% !important;
+    transition: none;
+}
+.info-row.morale.morale-high .resource-progress-bar { background-color: rgba(80, 200, 120, 0.25); }
+.info-row.morale.morale-mid  .resource-progress-bar { background-color: rgba(255, 200, 0, 0.22); }
+.info-row.morale.morale-low  .resource-progress-bar { background-color: rgba(231, 76, 60, 0.22); }
+.info-row.morale span, .info-row.morale p { color: #EAEAEA; }
+
 .infocolumn1, .infocolumn2, .infocolumn3 {
     display: flex;
     align-items: center;
@@ -97,12 +107,6 @@
     font-weight: bold;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.info-row.capped .infocolumn3,
-.info-row.capped .infocolumn2 {
-    color: #E74C3C;
-    font-weight: bold;
 }
 
 .info-row .zero-amount {

@@ -1,6 +1,7 @@
 import { resources } from '../resources.js';
 import { jobs, getJobById, getEffectiveJobRate } from '../data/jobs.js';
 import { upgradeEffects } from '../data/upgradeEffects.js';
+import { getMorale } from '../data/morale.js';
 import { gameFlags } from '../data/gameFlags.js';
 import { addLogEntry, LogType } from '../log.js';
 import { setupTooltip, refreshCurrentTooltip } from '../tooltip.js';
@@ -178,8 +179,19 @@ export function updateCrewSection() {
                 const rateClass = isBoosted ? 'reward-amount boosted' : 'reward-amount';
                 lines.push(`<div><em>Per worker:</em> <span class="${rateClass}">${effectiveRate.toFixed(3)}</span>/s <small style="color:#bbb"> (base ${baseRate}/s)</small></div>`);
                 lines.push(`<div><em>Assigned:</em> ${assigned} / ${slots}</div>`);
-                if (bonuses.length) {
-                    lines.push(`<ul class="tooltip-bonuses" style="margin-top:6px">${bonuses.map(b => `<li class="bonus-item">${b}</li>`).join('')}</ul>`);
+                // Build a unified Modifiers section including Morale and any upgrades affecting this job
+                try {
+                    const m = getMorale();
+                    const moraleDelta = Math.round((m && typeof m.percent === 'number' ? m.percent : 100) - 100);
+                    const labels = [];
+                    const sign = moraleDelta > 0 ? '+' : '';
+                    labels.push(`Morale: ${sign}${moraleDelta}%`);
+                    for (const b of bonuses) labels.push(b);
+                    if (labels.length) {
+                        lines.push(`<div class="tooltip-section"><h4>Modifiers</h4><ul class="tooltip-bonuses">${labels.map(l => `<li class="bonus-item">${l}</li>`).join('')}</ul></div>`);
+                    }
+                } catch (e) {
+                    // ignore tooltip modifier errors
                 }
                 return lines.join('');
             };

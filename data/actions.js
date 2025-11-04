@@ -473,6 +473,7 @@ export const salvageActions = [
             category: 'Crafting',
             isUnlocked: false,               
             cancelable: true,
+            repeatable: true,
             cost: [
                 { resource: 'Chemicals', amount: 5 },
                 { resource: 'Scrap Metal', amount: 8 },
