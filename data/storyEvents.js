@@ -139,4 +139,30 @@ found_labs_cache: {
         "This area offers both immediate practical gains and long-term opportunity. The reagents and data may unlock new crafting or research options; the surviving technicians may speed future engineering work if you can keep them alive."
     ]
 },
+
+bridge_lift_no_power: {
+    title: 'Bridge Access — Dead Lift',
+    pages: [
+        "You follow signage toward the bridge and reach a recessed access well. A heavy personnel lift sits dead in its shaft — no glow on the panel, no sound from the motors.",
+        "You consider using force, but the framing and blast shielding were designed to resist breaches. Blasting through here would collapse the shaft and seal the route for good.",
+        "Conclusion: without ship power, the lift won’t move. You'll need to restore emergency power elsewhere before you can reach the bridge."
+    ]
+},
+
+emergency_power_restored: {
+    title: 'Emergency Power Online',
+    pages: [
+        "You bridge scorched conduits with fresh wire and jack recovered power cells into the emergency busses. One by one, indicators wink from red to amber.",
+        "A low hum builds. Emergency lighting kicks in, ventilation coughs to life, and system panels accept basic input. Not full power, but enough to move and work.",
+        "With this, sealed access ways — including the bridge lift — should cycle again. Proceed, but expect glitches and limited capacity."
+    ]
+},
+
+bridge_after_power: {
+    title: 'Bridge — Access Regained',
+    pages: [
+        "You return to the bridge access. The lift panel glows weakly now; you call it down and the doors grind open. Inside, debris and soot coat the floor, but the car moves.",
+        "At the bridge level, emergency lighting draws long shadows across dead consoles. Some subsystems respond to touch. You can begin the long work of bringing systems back."
+    ]
+},
 }

@@ -26,6 +26,57 @@ export const upgradeActions = [
         ]
     },
     {
+        id: 'lightCampfire',
+        name: 'Light Campfire',
+        description: 'Build and tend a safe campfire at base camp to lift spirits and morale.',
+        duration: 4,
+        category: 'Upgrade',
+        isUnlocked: false, // unlocked after Base Camp is established
+        cancelable: true,
+        cost: [
+            { resource: 'Scrap Metal', amount: 5 },
+            { resource: 'Food Rations', amount: 15 },
+            { resource: 'Clean Water', amount: 10 }
+        ],
+        repeatable: false,
+        hideRewardPreview: true,
+        reward: [],
+        tooltipEffects: ['Morale: +5%'],
+        stage: 0,
+        stages: [
+            {
+                story: null,
+                unlocks: [],
+                logText: 'A steady campfire crackles at the center of camp. Spirits lift a little.'
+            }
+        ]
+    },
+    {
+        id: 'installScavengerKit',
+        name: 'Scavenger Kit',
+        description: 'Harnesses, ties, and cable trays to organize salvage runs and improve scrap recovery.',
+        duration: 5,
+        category: 'Upgrade',
+        isUnlocked: false, // will unlock after Base Camp is established
+        cancelable: true,
+        cost: [
+            { resource: 'Wire', amount: 16 },
+            { resource: 'Scrap Metal', amount: 12 }
+        ],
+        repeatable: false,
+        hideRewardPreview: true,
+        reward: [],
+        tooltipEffects: ['Scrap Collector job: +20% Permanent Bonus'],
+        stage: 0,
+        stages: [
+            {
+                story: null,
+                unlocks: [],
+                logText: 'You rig cable harnesses and trays. Scrap runs get faster and tidier.'
+            }
+        ]
+    },
+    {
         id: 'salvageCookingEquipment',
         name: 'Salvage Cooking Equipment',
         description: 'We could salvage working cooking equipment if we can manage to take it out of the wreckage. This would help provide food and water for the crew at the base camp.',
@@ -39,7 +90,7 @@ export const upgradeActions = [
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Food Rations, Clean Water: +40% - Cooking Equipment'],
+    tooltipEffects: ['Forage for Food & Purify Water: +40% Bonus'],
         stage: 0,
         stages: [
             {
@@ -56,6 +107,7 @@ export const upgradeActions = [
         duration: 6,
         category: 'Upgrade',
         isUnlocked: false,
+        showUnlocks: false,
         cancelable: true,
         cost: [
             { resource: 'Fabric', amount: 6 },
@@ -65,7 +117,7 @@ export const upgradeActions = [
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Stamina (rest): +20% - Tents'],
+    tooltipEffects: ['Rest: +20% Bonus'],
         stage: 0,
         stages: [
             {
@@ -91,7 +143,7 @@ export const upgradeActions = [
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Stamina (rest): +10% - Insulation'],
+    tooltipEffects: ['Rest: +10% Bonus'],
         stage: 0,
         stages: [
             {
@@ -110,13 +162,15 @@ export const upgradeActions = [
         isUnlocked: false, // unlocked when Water Station built AND Fabric is discovered
         cancelable: true,
         cost: [
-            { resource: 'Fabric', amount: 6 },
-            { resource: 'Scrap Metal', amount: 4 }
+            { resource: 'Fabric', amount: 4 },
+            { resource: 'Scrap Metal', amount: 4 },
+            { resource: 'Wire', amount: 8 }
         ],
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Clean Water: +10% - Rain Tarp'],
+    tooltipEffects: ['Water Collection job: +25% Permanent Bonus'],
+        tooltipUnlocks: ['Rain Tarp'],
         stage: 0,
         stages: [
             {
@@ -142,7 +196,9 @@ export const upgradeActions = [
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Clean Water: +20% - Purification Unit'],
+    tooltipEffects: ['Water Collection job: +25% Permanent Bonus',
+                     'Purify Water: +20% Permanent Bonus'
+    ],
         stage: 0,
         stages: [
             {

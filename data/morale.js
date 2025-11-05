@@ -3,6 +3,7 @@
 
 import { resources } from '../resources.js';
 import { gameFlags } from './gameFlags.js';
+import { getCurrentWeather } from './weather.js';
 import { getTotalIngameMinutes } from '../time.js';
 
 // In-memory additional modifiers registry for future events. Values are deltas in percent.
@@ -89,11 +90,29 @@ export function getMorale() {
         }
     } catch {}
 
+    // Weather effect (v1): add morale delta and show remaining time
+    try {
+        const w = getCurrentWeather();
+        if (w && typeof w.moraleDelta === 'number' && w.moraleDelta !== 0) {
+            percent += w.moraleDelta;
+            const remainingDays = (typeof w.remainingMinutes === 'number') ? Number((w.remainingMinutes / (60 * 24)).toFixed(2)) : undefined;
+            sources.push({ id: `weather_${w.id}` , label: `Weather — ${w.label}` , deltaPercent: w.moraleDelta, remainingDays });
+        }
+    } catch {}
+
     // Future/custom event modifiers
     for (const m of extraModifiers.values()) {
         percent += m.delta;
         sources.push({ id: m.id, label: m.label || m.id, deltaPercent: m.delta });
     }
+
+    // Persistent campfire morale boost (+5%) when the campfire is lit
+    try {
+        if (gameFlags && gameFlags.campfireLit) {
+            percent += 5;
+            sources.push({ id: 'campfire', label: 'Campfire', deltaPercent: +5 });
+        }
+    } catch {}
 
     // Clamp and compute multiplier
     percent = Math.max(0, Math.min(200, percent));

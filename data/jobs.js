@@ -68,6 +68,8 @@ export function getEffectiveJobRate(jobOrId) {
     if (job.id === 'water_collection' && gameFlags.rainCatchersInstalled) multiplier *= 1.10;
     // Purification Unit further boosts water collection
     if (job.id === 'water_collection' && gameFlags.purificationUnitInstalled) multiplier *= 1.20;
+    // Scavenger Kit improves scrap collection
+    if (job.id === 'scrap_collector' && gameFlags.scavengerKitInstalled) multiplier *= 1.20;
     // Global Morale affects all job outputs (but not passive consumption or action drains)
     try {
         const morale = getMorale();

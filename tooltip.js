@@ -7,6 +7,8 @@ import { computeRewardEffects, upgradeEffects } from './data/upgradeEffects.js';
 import { getMorale } from './data/morale.js';
 import { jobs } from './data/jobs.js';
 import { buildings } from './data/buildings.js';
+import { allActions as salvageActions } from './data/allActions.js';
+import { getBlockedStatus } from './data/unlockRules.js';
 
 let globalTooltip = null;
 const tooltipRegistry = new WeakMap();
@@ -287,6 +289,15 @@ function buildTooltipHTML(data) {
         html += `<h4>${data.name}</h4>`;
         if (data.description) html += `<p class="tooltip-description">${data.description}</p>`;
 
+        // If the action is currently blocked, surface the reason prominently
+        try {
+            const block = getBlockedStatus(data.id, { actions: salvageActions, flags: gameFlags });
+            if (block && block.blocked) {
+                const reason = String(block.reason || 'Currently unavailable').trim();
+                html += `<div class="tooltip-section"><h4>Requirements</h4><p style="color:#ff6b6b;margin-left:0">${reason}</p></div>`;
+            }
+        } catch (e) { /* ignore block check errors */ }
+
         // Costs / drains — use the shared renderer so ETA/affordability is consistent
         const costHtml = (renderCostItems(data.cost) || '') + (renderCostItems(data.drain, { showTotal: true }) || '');
         if (costHtml) html += `<div class="tooltip-section"><h4>Cost</h4>${costHtml}</div>`;
@@ -378,7 +389,9 @@ function buildTooltipHTML(data) {
                         ? `${Math.floor(r.amount[0] * multiplier)} - ${Math.floor(r.amount[1] * multiplier)}`
                         : `${Math.floor(r.amount * multiplier)}`;
                     const cls = isBoosted ? 'reward-amount boosted' : 'reward-amount';
-                    return `<p>${r.resource}: <span class="${cls}">${label}</span></p>`;
+                    const chance = (typeof r.chance === 'number') ? (r.chance > 1 ? r.chance / 100 : r.chance) : null;
+                    const chanceText = (chance && chance > 0 && chance < 1) ? ` <span class="tooltip-detail">(${Math.round(chance * 100)}% chance)</span>` : '';
+                    return `<p>${r.resource}: <span class="${cls}">${label}</span>${chanceText}</p>`;
                 }).join('');
 
                 // collect labels for display

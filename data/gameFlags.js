@@ -1,6 +1,7 @@
 import { addLogEntry, LogType } from '../log.js';
 import { buildings } from './buildings.js';
 import { jobs } from './jobs.js';
+import { upgradeActions } from './upgrades.js';
 import { getTotalIngameMinutes } from '../time.js';
 
 const initialGameFlags = {
@@ -22,7 +23,17 @@ const initialGameFlags = {
     // Start markers (in-game minutes) for time-based morale sources
     crashlandedStartMinutes: 0,
     baseCampEstablished: false,
-    baseCampBoostStartMinutes: 0
+    baseCampBoostStartMinutes: 0,
+    // Engineering/state flags
+    emergencyPowerRestored: false,
+    // Upgrades
+    scavengerKitInstalled: false,
+    campfireLit: false,
+    // Weather state (v1): stored in flags for simple persistence
+    weatherCurrentId: 'clear',
+    weatherStartMinutes: 0,
+    weatherDurationMinutes: 8 * 60, // default 8 in-game hours
+    weatherTempC: 22
 };
 
 export function getInitialGameFlags() {
@@ -30,6 +41,7 @@ export function getInitialGameFlags() {
     const copy = JSON.parse(JSON.stringify(initialGameFlags));
     try {
         if (!copy.crashlandedStartMinutes) copy.crashlandedStartMinutes = getTotalIngameMinutes();
+        if (!copy.weatherStartMinutes) copy.weatherStartMinutes = getTotalIngameMinutes();
     } catch (e) { /* fallback to 0; morale module will lazily initialize */ }
     return copy;
 }
@@ -156,6 +168,30 @@ registerActionCompletionHandler('establishBaseCamp', () => {
         // Start a temporary +10% morale boost that decays over 7 in-game days from this moment
         gameFlags.baseCampBoostStartMinutes = getTotalIngameMinutes();
     } catch {}
+
+    // Unlock Scavenger Kit upgrade at Base Camp
+    try {
+        const act = (upgradeActions || []).find(a => a && a.id === 'installScavengerKit');
+        if (act && !act.isUnlocked) {
+            act.isUnlocked = true;
+            addLogEntry('Upgrade available: Scavenger Kit', LogType.UNLOCK);
+            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                try { window.setupCrashSiteSection(); } catch (e) {}
+            }
+        }
+    } catch (e) { /* ignore */ }
+
+    // Unlock Light Campfire upgrade at Base Camp
+    try {
+        const campfire = (upgradeActions || []).find(a => a && a.id === 'lightCampfire');
+        if (campfire && !campfire.isUnlocked) {
+            campfire.isUnlocked = true;
+            addLogEntry('Upgrade available: Light Campfire', LogType.UNLOCK);
+            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                try { window.setupCrashSiteSection(); } catch (e) {}
+            }
+        }
+    } catch (e) { /* ignore */ }
 });
 
 // Purification Unit completion handler
@@ -174,5 +210,42 @@ registerActionCompletionHandler('installPurificationUnit', () => {
             // dispatch an event so other systems can react
             try { window.dispatchEvent(new CustomEvent('gameFlagsChanged', { detail: { flag: 'purificationUnitInstalled' } })); } catch (e) {}
         } catch (e) { /* ignore non-fatal UI errors */ }
+    }
+});
+
+// Emergency power restore handler
+registerActionCompletionHandler('restoreEmergencyPower', () => {
+    gameFlags.emergencyPowerRestored = true;
+    addLogEntry('Emergency power restored — limited lighting and lift access available.', LogType.UNLOCK);
+    // best-effort UI refresh so blocked actions update immediately
+    if (typeof window !== 'undefined') {
+        try {
+            if (typeof window.updateCrashSiteActionButtonsState === 'function') try { window.updateCrashSiteActionButtonsState(); } catch (e) {}
+            if (typeof window.setupCrashSiteSection === 'function') try { window.setupCrashSiteSection(document.querySelector('.content-panel')); } catch (e) {}
+        } catch (e) { /* ignore */ }
+    }
+});
+
+// Scavenger Kit completion handler
+registerActionCompletionHandler('installScavengerKit', () => {
+    gameFlags.scavengerKitInstalled = true;
+    addLogEntry('Scavenger Kit installed — Scrap Collector job +20%.', LogType.UNLOCK);
+    if (typeof window !== 'undefined') {
+        try {
+            if (typeof window.updateCrewSection === 'function') try { window.updateCrewSection(); } catch (e) {}
+            if (typeof window.updateResourceInfo === 'function') try { window.updateResourceInfo(); } catch (e) {}
+        } catch (e) { /* ignore */ }
+    }
+});
+
+// Light Campfire completion handler
+registerActionCompletionHandler('lightCampfire', () => {
+    gameFlags.campfireLit = true;
+    addLogEntry('Campfire lit — Morale +5%.', LogType.UNLOCK);
+    if (typeof window !== 'undefined') {
+        try {
+            if (typeof window.updateResourceInfo === 'function') try { window.updateResourceInfo(); } catch (e) {}
+            if (typeof window.updateCrewSection === 'function') try { window.updateCrewSection(); } catch (e) {}
+        } catch (e) { /* ignore */ }
     }
 });

@@ -18,6 +18,8 @@ export function getInitialResources() {
         { name: 'Fabric', amount: 0, isDiscovered: false, capacity: 100, producible: false, integer: true },
         { name: 'Chemicals', amount: 0, isDiscovered: false, capacity: 50, producible: false, integer: true },
         { name: 'Makeshift Explosive', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true },
+        { name: 'Power Cells', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true },
+        { name: 'Wire', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
         { name: 'Insight', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
         { name: 'Stone', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
         { name: 'Xylite', amount: 0, isDiscovered: false, capacity: 50, producible: true, integer: false },

@@ -149,7 +149,7 @@ function startGame() {
         stopMainLoop();
         window.dispatchEvent(new CustomEvent('game-pause'));
         const btn = document.getElementById('pauseBtn');
-        if (btn) btn.textContent = 'Resume';
+        if (btn) { btn.textContent = 'Resume'; btn.classList.add('active'); }
         // persist paused state
         try { localStorage.setItem('gamePaused', 'true'); } catch (e) {}
         updateHUD();
@@ -161,7 +161,7 @@ function startGame() {
         startMainLoop();
         window.dispatchEvent(new CustomEvent('game-resume'));
         const btn = document.getElementById('pauseBtn');
-        if (btn) btn.textContent = 'Pause';
+        if (btn) { btn.textContent = 'Pause'; btn.classList.remove('active'); }
         try { localStorage.setItem('gamePaused', 'false'); } catch (e) {}
         updateHUD();
         if (announce) addLogEntry(`Game resumed at ${window.TIME_SCALE}x.`, LogType.INFO);
@@ -190,7 +190,7 @@ function startGame() {
     } else {
         // ensure we are not paused
         isPaused = false;
-        const pBtn = document.getElementById('pauseBtn'); if (pBtn) pBtn.textContent = 'Pause';
+        const pBtn = document.getElementById('pauseBtn'); if (pBtn) { pBtn.textContent = 'Pause'; pBtn.classList.remove('active'); }
         updateHUD();
     }
     // Start the time manager now that saved game state (including ingame minutes)

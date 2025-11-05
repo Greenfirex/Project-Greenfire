@@ -11,6 +11,7 @@ import { jobs } from './data/jobs.js';
 import { addLogEntry, LogType } from './log.js';
 import { gameFlags, resetGameFlags, applySavedGameFlags } from './data/gameFlags.js';
 import { storyLog, resetStoryLog, applySavedStoryLog, getInitialStoryLog, renderJournalEntries } from './sections/journal.js';
+import { resetObjectives, recomputeObjectives } from './data/objectives.js';
 
 export function saveGameState() {
     const gameState = getGameState();
@@ -205,6 +206,8 @@ export function resetToDefaultState() {
     try {
         localStorage.removeItem('storyLog');
         localStorage.removeItem('logEntries');
+        // Also clear objectives persistence so objectives fully reset
+        localStorage.removeItem('objectivesStatusV1');
     } catch (e) { /* ignore storage errors */ }
  
          try {
@@ -218,6 +221,9 @@ export function resetToDefaultState() {
     // Ensure in-game clock resets to Day 0 Hour 1 before showing intro popup so
     // any generated journal entries / popups use the correct timestamp.
     try { resetIngameTime(); } catch (e) { console.warn('resetIngameTime failed', e); }
+
+    // Reset Objectives model/state
+    try { resetObjectives(); } catch (e) { /* ignore */ }
 
     const event = storyEvents.crashIntro;
     showStoryPopup(event);
@@ -249,6 +255,8 @@ export function resetToDefaultState() {
     try { saveGameState(); } catch (e) { console.warn('saveGameState failed', e); }
 
     try { window.dispatchEvent(new CustomEvent('gameReset')); } catch (e) { /* ignore */ }
+    // After reset broadcast, recompute objectives to seed initial objectives
+    try { recomputeObjectives(); } catch (e) { /* ignore */ }
 }
 
 export function resetGameState() {

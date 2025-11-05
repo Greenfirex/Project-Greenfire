@@ -6,6 +6,7 @@ import { setupTooltip, refreshCurrentTooltip } from '../tooltip.js';
 import { storyEvents } from '../data/storyEvents.js';
 import { showStoryPopup } from '../popup.js';
 import { getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/activeActions.js';
+import { recomputeObjectives } from '../data/objectives.js';
 import { buildings } from '../data/buildings.js';
 import { updateBuildingButtonsState, createBuildingButton } from './colony.js';
 import { gameFlags, runActionCompletionHandlers } from '../data/gameFlags.js';
@@ -18,7 +19,7 @@ const SITE_BUILDING_NAMES = ['Foraging Camp', 'Water Station', 'Rain Tarp', 'Foo
 
 function attachStartClickHandler(btn, action, section) {
     btn.onclick = (e) => {
-    const block = getBlockedStatus(action.id, { actions: salvageActions });
+    const block = getBlockedStatus(action.id, { actions: salvageActions, flags: gameFlags });
         if (block.blocked) {
             e.preventDefault();
             addLogEntry(block.reason, LogType.INFO);
@@ -436,6 +437,13 @@ function handleActionCompletion(section) {
     if (completed.reward) {
         const gains = [];
         completed.reward.forEach(rw => {
+            // Optional percentage chance support: rw.chance in [0,1] or [0,100]
+            const hasChance = typeof rw.chance === 'number';
+            if (hasChance) {
+                const p = rw.chance > 1 ? (rw.chance / 100) : rw.chance;
+                if (!(Math.random() < p)) return; // skip this reward this time
+            }
+
             const res = resources.find(r => r.name === rw.resource);
             if (!res) return;
             const amt = Array.isArray(rw.amount) ? getRandomInt(rw.amount[0], rw.amount[1]) : rw.amount;
@@ -521,6 +529,9 @@ function handleActionCompletion(section) {
     }
 
     runActionCompletionHandlers(original, completed, section);
+
+    // Update narrative objectives in response to action completions
+    try { recomputeObjectives(); } catch (e) { /* non-fatal */ }
 
     try {
         const container = document.querySelector('#salvageActionsContainer');
@@ -624,7 +635,7 @@ export function updateCrashSiteActionButtonsState() {
         if (!action) return;
 
         const canAfford = !!canAffordAction(action, resources);
-    const { blocked: isBlocked, reason } = getBlockedStatus(action.id, { actions: salvageActions });
+    const { blocked: isBlocked, reason } = getBlockedStatus(action.id, { actions: salvageActions, flags: gameFlags });
 
         const wasAffordable = btn.dataset.affordable === 'true';
         const wasBlocked = btn.dataset.blocked === 'true';

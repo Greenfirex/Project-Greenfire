@@ -12,8 +12,14 @@ export function getBlockedStatus(actionId, state) {
     if (!BLOCKED_ACTION_IDS.includes(actionId)) return { blocked: false, reason: '' };
 
     const actions = (state && state.actions) || [];
+    const flags = (state && (state.flags || state.gameFlags)) || {};
     const find = (id) => actions.find(a => a && (a.id === id || a.name === id));
 
+    const target = find(actionId);
+    const currentStage = target && Number.isFinite(target.stage) ? target.stage : 0;
+    const totalStages = (target && Array.isArray(target.stages)) ? target.stages.length : 0;
+
+    // Global early gates for deeper exploration
     const investigate = find('investigateSound');
     const basecamp = find('establishBaseCamp');
     const isInvestigateDone = !!(investigate && investigate.completed);
@@ -21,6 +27,14 @@ export function getBlockedStatus(actionId, state) {
 
     if (!isInvestigateDone) return { blocked: true, reason: 'Investigate Nearby Sound first — someone might be alive nearby.' };
     if (!isBasecampDone) return { blocked: true, reason: 'You found survivors — secure a base camp first before exploring deeper.' };
+
+    // Additional stage-specific gate: Investigate Bridge stage 2 requires emergency power restored
+    if (actionId === 'investigateBridge' && totalStages > 1 && currentStage >= 1) {
+        if (!flags.emergencyPowerRestored) {
+            return { blocked: true, reason: 'Restore Emergency Power first to access the bridge lift.' };
+        }
+    }
+
     return { blocked: false, reason: '' };
 }
 

@@ -1,3 +1,36 @@
+# [0.1.9] - 2025-11-05
+
+## Added
+
+- Current Objectives system (spoiler‑lite, curated narrative beats):
+    - Objectives engine with states (locked/active/completed), timestamps, and minor resource rewards on completion.
+    - Persistence via localStorage and safe recompute hooks on action completion and key lifecycle events.
+    - Footer Objectives panel: a compact toggle in the center footer opens a slide‑up drawer listing up to 5 terse objectives (read‑only, no click‑through).
+- Weather v1 with morale effects and HUD:
+    - Dynamic weather types (Clear, Overcast, Rain, Storm, Heatwave, Cold Snap) with in‑game durations, temperature sampling (°C), and morale deltas.
+    - Header weather capsule shows icon, type, and °C; tooltip includes PDA forecast, morale impact, and ETA to next change.
+
+## Changed
+
+- “Investigate Bridge” now has stage‑aware descriptions (pre‑power vs post‑emergency power) and tooltips reflect the current stage.
+- New upgrade: “Light Campfire” (+5% Morale) available after Base Camp; cost set to Scrap 5, Food 15, Clean Water 10; sets campfireLit flag on completion.
+- “Install Rain Catchers” tooltip now explicitly lists the Rain Tarp building unlock.
+- HUD/UX refinements:
+    - Moved Pause/Speed controls from header to footer; standardized active highlight that doesn’t grow/shrink buttons; ~20% smaller sizing.
+    - Time and Weather capsules are fixed‑width, aligned, and non‑resizing; ETA removed from the capsule (now tooltip‑only) to prevent layout shifts.
+    - Objectives button made larger/more prominent; removed the game speed HUD label from the footer center.
+- Header tooltips:
+    - Time tooltip shows elapsed since crash and real‑time ↔ in‑game time mapping at current speed.
+    - Weather tooltip shows PDA forecast, morale effect, and ETA.
+
+## Fixed
+
+- Reset now fully clears Objectives status and re‑initializes them for a fresh game.
+- Weather capsule no longer expands/shrinks with content; fixed‑width prevents jitter.
+- Action tooltips and stage merges: stage‑specific cost/duration/description appear correctly (e.g., Power Core stage 2 and Bridge stages).
+
+---
+
 # [0.1.8] - 2025-11-04
 
 ## Added

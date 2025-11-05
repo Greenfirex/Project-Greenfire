@@ -4,7 +4,7 @@ export const salvageActions = [
             id: 'scoutSurroundings',
             name: 'Scout Surroundings',
             description: 'Explore the immediate area around the crash site.',
-            duration: 1,
+            duration: 5,
             category: 'Exploration',
             isUnlocked: false,        // locked at start, unlocked by Attempt Re-entry
             cancelable: false,
@@ -128,7 +128,11 @@ export const salvageActions = [
                         { resource: 'Food Rations', amount: 6 },
                         { resource: 'Clean Water', amount: 7 } 
                     ],
-                reward: [ { resource: 'Scrap Metal', amount: [9, 18] } ]
+                reward: [
+                    { resource: 'Scrap Metal', amount: [9, 18] },
+                    // 20% chance to find 1 Wire
+                    { resource: 'Wire', amount: 1, chance: 0.2 }
+                ]
             },
 
                 {
@@ -180,7 +184,7 @@ export const salvageActions = [
                         // show a choice-style popup describing three possible routes
                         story: 'enteredShipChoices',
                         // unlock three distinct follow-up actions + investigateSound
-                        unlocks: ['searchSouthCorridor','searchNorthCorridor','investigateBridge','investigateSound'],
+                        unlocks: ['searchSouthCorridor','searchNorthCorridor','investigateBridge','investigateSound','stripWiring'],
                         logText: 'You pry open the hull and climb inside. The corridors branch—three routes present themselves. Something else stirs in the dark; you hear a faint sound nearby. (Click to read)',
                         suppressGenericLog: true
                     }
@@ -248,7 +252,7 @@ export const salvageActions = [
 
             {
             id: 'searchSouthCorridor',
-            name: 'Search South Corridor',
+            name: 'Search: South Corridor',
             description: 'Move cautiously down the south corridor. Risk of collapsed panels but this way should lead to junction leading to cafeteria and crew quarters.',
             duration: 12,
             category: 'Exploration',
@@ -265,7 +269,34 @@ export const salvageActions = [
                     story: 'south_corridor_entry',
                     // completing south corridor should allow restoring emergency power
                     unlocks: ['exploreCafeteria', 'checkCrewQuarters'],
-                    logText: 'You push through a buckled corridor and gain access to several side compartments — a mess hall and crew quarters lie ahead. Explore them to learn more. (Click to read)'
+                    logText: 'You push through a buckled corridor and gain access to several side compartments — a mess hall and crew quarters lie ahead. Explore them to learn more. (Click to read)',
+                    suppressGenericLog: true
+                }
+            ]
+        },
+
+        {
+            id: 'stripWiring',
+            name: 'Strip Wiring',
+            description: 'Harvest salvageable wire from ruptured conduits, trays and damaged panels inside the wreck.',
+            duration: 4,
+            category: 'Materials',
+            isUnlocked: false, // unlocked after entering the ship (Pry Open Hull)
+            cancelable: true,
+            repeatable: true,
+            drain: [
+                { resource: 'Stamina', amount: 12 }
+            ],
+            reward: [
+                { resource: 'Wire', amount: [6, 12] }
+            ],
+            hideRewardPreview: false,
+            stage: 0,
+            stages: [
+                {
+                    story: null,
+                    unlocks: [],
+                    logText: 'You pull lengths of intact cable from shattered trays and scorched panels. Some insulation is charred, but most of the copper is usable.'
                 }
             ]
         },
@@ -407,7 +438,6 @@ export const salvageActions = [
                     ],
                     reward: [
                         { resource: 'Power Cells', amount: [1,2] },
-                        { resource: 'Ship Components', amount: [2,4] }
                     ]
                 }
             ]
@@ -422,7 +452,7 @@ export const salvageActions = [
             isUnlocked: false,
             cancelable: true,
             drain: [
-                { resource: 'Stamina', amount: 14 },
+                { resource: 'Stamina', amount: 24 },
                 { resource: 'Food Rations', amount: 6 }
             ],
             reward: [
@@ -465,6 +495,32 @@ export const salvageActions = [
             ]
         },
 
+        // New engineering action: restore emergency power after breaching the power core
+        {
+            id: 'restoreEmergencyPower',
+            name: 'Restore Emergency Power',
+            description: 'Route recovered cells into emergency busses and patch wiring to bring minimal ship systems online.',
+            duration: 10,
+            category: 'Exploration',
+            isUnlocked: false, // unlocked by Search: Power Core (breached)
+            cancelable: true,
+            cost: [
+                { resource: 'Power Cells', amount: 1 },
+                { resource: 'Wire', amount: 20 }
+            ],
+            reward: [],
+            hideRewardPreview: true,
+            stage: 0,
+            stages: [
+                {
+                    story: 'emergency_power_restored',
+                    unlocks: [],
+                    logText: 'You tie in power cells and patch lines. Emergency lighting flickers to life; lifts and ventilation hum weakly. (Click to read)',
+                    suppressGenericLog: true
+                }
+            ]
+        },
+
         {
             id: 'assembleMakeshiftExplosive',
             name: 'Assemble Makeshift Explosive',
@@ -477,7 +533,7 @@ export const salvageActions = [
             cost: [
                 { resource: 'Chemicals', amount: 5 },
                 { resource: 'Scrap Metal', amount: 8 },
-                { resource: 'Clean Water', amount: 12 }
+                { resource: 'Wire', amount: 12 }
             ],
             reward: [
                 { resource: 'Makeshift Explosive', amount: 1 }
@@ -494,27 +550,34 @@ export const salvageActions = [
         {
                 id: 'investigateBridge',
                 name: 'Investigate Bridge',
-                description: 'Head toward the bridge. High priority for comms and navigation, but likely complex and risky.',
-                duration: 16,
+                description: 'Check access to the bridge; without power the lift may not operate.',
+                duration: 8,
                 category: 'Exploration',
                 isUnlocked: false,
                 cancelable: true,
-                drain: [
-                    { resource: 'Stamina', amount: 28 }
-                ],
-                cost: [
-                    { resource: 'Ship Components', amount: 6 }
-                ],
-                reward: [
-                    { resource: 'Survivors', amount: [0, 1] }
-                ],
                 hideRewardPreview: true,
                 stage: 0,
                 stages: [
                     {
-                        story: 'bridge_dark',
-                        unlocks: ['restoreEmergencyPower'],
-                        logText: 'You make for the bridge; it is dark and cluttered but may hold crucial systems. (Click to read)'
+                        // Stage 1: Scout to the bridge access — discover an inaccessible lift without power
+                        story: 'bridge_lift_no_power',
+                        unlocks: [],
+                        description: 'Investigate access to the bridge, though without power you doubt you\'ll be able to operate the lift.',
+                        cost: [
+                            { resource: 'Stamina', amount: 15 },
+                            { resource: 'Clean Water', amount: 6 },
+                            { resource: 'Food Rations', amount: 4 }
+                        ],
+                        logText: 'You reach the bridge access. A heavy lift blocks the way — dead without power. Blasting through is not an option. (Click to read)',
+                        suppressGenericLog: true
+                    },
+                    {
+                        // Stage 2: Return after restoring emergency power (narrative follow-up)
+                        story: 'bridge_after_power',
+                        unlocks: [],
+                        description: 'With emergency power restored, you should be able to reach the bridge and assess the situation.',
+                        logText: 'With emergency power online, the lift cycles and limited access to the bridge returns. (Click to read)',
+                        suppressGenericLog: true
                     }
                 ]
             },
