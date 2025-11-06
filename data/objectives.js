@@ -14,6 +14,8 @@ const STORAGE_KEY = 'objectivesStatusV1';
 
 // Local status in memory
 let status = []; // [{ id, state: 'locked'|'active'|'completed', firstAt, doneAt }]
+// Track transitions from the most recent recompute so callers (e.g., story popup) can surface them
+let _lastDelta = { completedIds: [], newlyActiveIds: [] };
 
 export function getObjectivesStatus() {
     return status.slice();
@@ -89,7 +91,7 @@ const defs = [
         label: 'Force a way in',
         start: () => true,
         complete: () => hasCompletedAction('attemptReentry'),
-        reward: [{ resource: 'Food Rations', amount: 15 }, { resource: 'Clean Water', amount: 15 }],
+        reward: [{ resource: 'XP', amount: 30 }],
         priority: 1
     },
     {
@@ -97,7 +99,7 @@ const defs = [
         label: 'Scout the area',
         start: () => findAction('scoutSurroundings')?.isUnlocked,
         complete: () => hasCompletedAction('scoutSurroundings'),
-        reward: [{ resource: 'Food Rations', amount: 10 }, { resource: 'Clean Water', amount: 10 }],
+        reward: [{ resource: 'XP', amount: 40 }],
         priority: 2
     },
     {
@@ -105,7 +107,7 @@ const defs = [
         label: 'Craft a basic tool',
         start: () => findAction('makeCrudePrybar')?.isUnlocked,
         complete: () => hasCompletedAction('makeCrudePrybar'),
-        reward: [{ resource: 'Scrap Metal', amount: 10 }],
+        reward: [{ resource: 'XP', amount: 25 }],
         priority: 3
     },
     {
@@ -113,7 +115,7 @@ const defs = [
         label: 'Enter the wreck',
         start: () => findAction('pryOpenHull')?.isUnlocked,
         complete: () => hasCompletedAction('pryOpenHull'),
-        reward: [{ resource: 'Clean Water', amount: 10 }, { resource: 'Food Rations', amount: 10 }],
+        reward: [{ resource: 'XP', amount: 40 }],
         priority: 4
     },
     {
@@ -121,7 +123,7 @@ const defs = [
         label: 'Check for survivors',
         start: () => findAction('investigateSound')?.isUnlocked,
         complete: () => hasCompletedAction('investigateSound'),
-        reward: [{ resource: 'Clean Water', amount: 10 }],
+        reward: [{ resource: 'XP', amount: 30 }],
         priority: 5
     },
     {
@@ -129,7 +131,7 @@ const defs = [
         label: 'Establish a base',
         start: () => findAction('establishBaseCamp')?.isUnlocked,
         complete: () => gameFlags.baseCampEstablished === true,
-        reward: [{ resource: 'Fabric', amount: 8 }],
+        reward: [{ resource: 'XP', amount: 50 }],
         priority: 6
     },
     {
@@ -137,7 +139,7 @@ const defs = [
         label: 'Prepare what you need',
         start: () => findAction('assembleMakeshiftExplosive')?.isUnlocked,
         complete: () => getResourceAmount('Makeshift Explosive') >= 1 || hasCompletedAction('assembleMakeshiftExplosive'),
-        reward: [{ resource: 'Scrap Metal', amount: 10 }],
+        reward: [{ resource: 'XP', amount: 35 }],
         priority: 7
     },
     {
@@ -145,7 +147,7 @@ const defs = [
         label: 'Gain access to a sealed section',
         start: () => findAction('searchPowerCore')?.isUnlocked,
         complete: () => hasCompletedAction('searchPowerCore'),
-        reward: [{ resource: 'Clean Water', amount: 10 }, { resource: 'Food Rations', amount: 10 }],
+        reward: [{ resource: 'XP', amount: 50 }],
         priority: 8
     },
     {
@@ -153,7 +155,7 @@ const defs = [
         label: 'Restore emergency systems',
         start: () => findAction('restoreEmergencyPower')?.isUnlocked,
         complete: () => gameFlags.emergencyPowerRestored === true,
-        reward: [{ resource: 'Clean Water', amount: 10 }],
+        reward: [{ resource: 'XP', amount: 60 }],
         priority: 9
     },
     {
@@ -165,7 +167,7 @@ const defs = [
             const total = Array.isArray(a?.stages) ? a.stages.length : 0;
             return total > 0 ? (a.stage || 0) >= total : false;
         },
-        reward: [{ resource: 'Food Rations', amount: 15 }],
+        reward: [{ resource: 'XP', amount: 80 }],
         priority: 10
     }
 ];
@@ -178,6 +180,8 @@ function getOrCreateStateFor(id) {
 
 export function recomputeObjectives() {
     let didChange = false;
+    // reset delta tracking for this recompute pass
+    _lastDelta = { completedIds: [], newlyActiveIds: [] };
     defs.sort((a, b) => a.priority - b.priority).forEach(def => {
         const s = getOrCreateStateFor(def.id);
         const shouldStart = !!def.start?.();
@@ -188,12 +192,14 @@ export function recomputeObjectives() {
                 upsertStatus(def.id, 'completed');
                 grantRewards(def.reward || []);
                 addLogEntry(`Objective completed: ${def.label}`, LogType.UNLOCK);
+                try { _lastDelta.completedIds.push(def.id); } catch {}
                 didChange = true;
             }
         } else if (shouldStart) {
             if (s.state === 'locked') {
                 upsertStatus(def.id, 'active');
                 addLogEntry(`New objective: ${def.label}`, LogType.UNLOCK);
+                try { _lastDelta.newlyActiveIds.push(def.id); } catch {}
                 didChange = true;
             }
         }
@@ -206,14 +212,50 @@ export function recomputeObjectives() {
 }
 
 export function getVisibleObjectives(maxItems = 5) {
-    const active = defs
-        .slice()
-        .sort((a, b) => a.priority - b.priority)
-        .map(def => ({ def, st: status.find(s => s.id === def.id) }))
-        .filter(x => x.st && (x.st.state === 'active' || x.st.state === 'completed'))
-        .slice(0, maxItems)
-        .map(x => ({ id: x.def.id, label: x.def.label, completed: x.st.state === 'completed' }));
-    return active;
+    // Prefer showing active objectives first, then backfill with recently completed ones.
+    // This keeps the drawer feeling “alive” instead of being stuck on the first 5 completed items.
+    const byId = new Map(status.map(s => [s.id, s]));
+    const ranked = defs.slice().sort((a, b) => a.priority - b.priority);
+    const active = [];
+    const completed = [];
+    for (const def of ranked) {
+        const st = byId.get(def.id);
+        if (!st) continue;
+        if (st.state === 'active') active.push({ def, st });
+        if (st.state === 'completed') completed.push({ def, st });
+    }
+    // Sort completed by most recent completion (doneAt), fallback to priority when equal/missing
+    completed.sort((a, b) => {
+        const ad = typeof a.st.doneAt === 'number' ? a.st.doneAt : -Infinity;
+        const bd = typeof b.st.doneAt === 'number' ? b.st.doneAt : -Infinity;
+        if (ad !== bd) return bd - ad; // newest first
+        return a.def.priority - b.def.priority;
+    });
+
+    const picked = [...active, ...completed].slice(0, maxItems);
+    return picked.map(x => ({ id: x.def.id, label: x.def.label, completed: x.st.state === 'completed' }));
+}
+
+// Lightweight accessor for UI/other modules
+export function getObjectiveDefinition(id) {
+    const def = defs.find(d => d.id === id);
+    if (!def) return null;
+    // Return a copy with only safe fields for external use
+    return {
+        id: def.id,
+        label: def.label,
+        reward: Array.isArray(def.reward) ? def.reward.map(r => ({ resource: r.resource, amount: r.amount })) : [],
+        priority: def.priority
+    };
+}
+
+// Provide the list of transitions captured in the most recent recompute pass
+export function getLastObjectivesDelta() {
+    const toDefs = (ids) => ids.map(id => getObjectiveDefinition(id)).filter(Boolean);
+    return {
+        completed: toDefs(_lastDelta.completedIds || []),
+        newlyActive: toDefs(_lastDelta.newlyActiveIds || [])
+    };
 }
 
 // Initialize on import

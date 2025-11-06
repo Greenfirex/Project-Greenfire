@@ -1,3 +1,26 @@
+# [0.1.10] - 2025-11-07
+
+## Added
+
+- Story popup Outcome now includes Objectives:
+    - "Objective Completed" section listing just-finished objectives with their rewards inline.
+    - "New Objective" section listing newly active objectives.
+- Objective transition tracking inside the Objectives engine to power UI (exposed via a lightweight accessor).
+- Experience Points (XP) as a meta resource:
+    - Added hidden resource "XP" with very large capacity and integer display.
+    - Compact XP meter in the first footer column (right side): shows total XP and a thin progress bar (progress toward next 100 XP).
+
+## Changed
+
+- All objective rewards now grant XP instead of survival resources.
+- Outcome footer merges objective rewards into the Rewards list, so totals reflect XP gains alongside any other rewards.
+
+## Fixed
+
+- Popup sometimes omitted objective updates due to recompute timing. Hardened with engine-side delta capture plus a local snapshot fallback; also includes a last‑minute check using objective completion timestamps.
+
+---
+
 # [0.1.9] - 2025-11-05
 
 ## Added

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="styles/global.css">
 <link rel="stylesheet" href="styles/header-footer.css">
+<link rel="stylesheet" href="styles/objectives.css">
 <link rel="stylesheet" href="styles/main-menu.css">
 <link rel="stylesheet" href="styles/info-panel.css">
 <link rel="stylesheet" href="styles/game-area.css">
@@ -90,12 +91,17 @@
                 <button class="header-link speed-btn active" data-speed="10" title="10x speed">10x</button>
             </div>
         </div>
+        <!-- XP meter (right side of the first footer column) -->
+        <div id="xpMeter" class="xp-meter" aria-label="Experience">
+            <div class="xp-chip"><span class="xp-label">XP</span> <span class="xp-value">0</span></div>
+            <div class="xp-bar"><div class="xp-fill"></div></div>
+        </div>
     </div>
     <div class="footer-column">
         
     </div>
     <div class="footer-column">
-    <button id="changelogBtn" class="header-link">v0.1.9</button>
+    <button id="changelogBtn" class="header-link">v0.1.10</button>
     </div>
 </div>
 
@@ -245,6 +251,7 @@
             <div class="story-popup-text">
                 <h2 id="popupTitle"></h2>
                 <p id="popupMessage"></p>
+                <div id="popupOutcome" class="popup-outcome hidden"></div>
             </div>
         </div>
         <div class="story-popup-nav">

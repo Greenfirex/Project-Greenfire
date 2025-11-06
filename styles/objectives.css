@@ -1,0 +1,143 @@
+/* Objectives footer redesign */
+#objectivesContainer {
+  position: relative;
+}
+
+.objectives-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  color: #ffffff;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  background: transparent;
+  border: 0;
+  position: relative; /* allow right-aligned chevrons */
+}
+
+/* Double-chevron up icon with green glow */
+.objectives-banner .chevrons {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+.objectives-banner .chevrons-icon {
+  width: 22px; height: 16px;
+  stroke: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.95);
+  stroke-width: 2.5;
+  fill: none;
+  filter: drop-shadow(0 0 3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7));
+}
+.objectives-banner[aria-expanded="true"] .chevrons-icon { transform: translateY(1px); }
+/* Increase glow on hover/focus for opener */
+.objectives-banner:hover .chevrons-icon,
+.objectives-banner:focus .chevrons-icon,
+.objectives-banner:focus-within .chevrons-icon {
+  filter: drop-shadow(0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9));
+}
+
+.objectives-drawer {
+  transition: opacity 200ms ease, transform 240ms ease;
+  opacity: 0;
+  transform: translateY(14px);
+  pointer-events: none; /* don't block clicks when hidden */
+  /* allow side glow to extend to column boundary while still clipping height */
+  overflow-x: visible;
+  overflow-y: hidden;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(2px);
+}
+
+.objectives-container { position: relative; }
+.objectives-drawer {
+  position: absolute;
+  /* Slight widening so left glow matches footer divider exactly */
+  left: -1.5px;
+  bottom: 40px; /* just above footer */
+  width: calc(100% + 3px); /* extend left side outward by 1.5px */
+  box-sizing: border-box;
+  opacity: 0;
+  transform: translateY(14px);
+  overflow: hidden;
+  background: #000; /* solid black as requested */
+  border: 0; /* remove border for flush edge */
+  border-radius: 0; /* remove rounding */
+  box-shadow: none; /* remove shadowy outside part */
+  z-index: 40;
+  height: var(--objectives-drawer-height, 240px); /* fixed height, slide via transform */
+}
+/* Glowing divider lines (top & bottom) matching existing UI */
+.objectives-drawer::before,
+.objectives-drawer::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  animation: pulse-glow 5s ease-in-out infinite;
+  z-index: 41;
+}
+.objectives-drawer::before { top: 0; }
+.objectives-drawer::after { bottom: 0; }
+.objectives-drawer.open {
+  opacity: 1;
+  transform: translateY(0);
+  overflow-y: auto; /* allow scroll if content exceeds fixed height */
+  pointer-events: auto;
+}
+
+/* Drawer close control (top-right) */
+.objectives-drawer .drawer-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: transparent;
+  border: 0;
+  padding: 2px;
+  cursor: pointer;
+  line-height: 1;
+}
+.objectives-drawer .drawer-close .chevrons-icon {
+  width: 22px; height: 16px;
+  stroke: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.95);
+  stroke-width: 2.5;
+  fill: none;
+  filter: drop-shadow(0 0 3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7));
+}
+.objectives-drawer .drawer-close:hover .chevrons-icon,
+.objectives-drawer .drawer-close:focus .chevrons-icon {
+  filter: drop-shadow(0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9));
+}
+
+/* Vertical glow lines */
+.objectives-drawer .glow-vert {
+  position: absolute;
+  /* Align flush with top/bottom rails for perfect corner joins */
+  top: 0;
+  bottom: 0;
+  width: 6px; /* thicker for perceived parity with horizontal rail */
+  animation: pulse-glow 5s ease-in-out infinite;
+  z-index: 41;
+}
+.objectives-drawer .glow-left { left: -3px; }
+.objectives-drawer .glow-right { right: -3px; }
+
+.objectives-list { display: none; }
+
+.objective-details {
+  padding: 14px 22px;
+}
+.objective-details h4 { margin: 0 0 6px 0; color: #90EE90; font-size: 14px; }
+.objective-details p { margin: 0 0 8px 0; color: #d6e3d6; font-size: 13px; }
+.objective-details ul { margin: 0; padding-left: 18px; color: #c9d7c9; }
+.objective-details li { margin: 2px 0; }
+.objective-reward { margin-top: 8px; color: #ffd98a; font-weight: 600; }

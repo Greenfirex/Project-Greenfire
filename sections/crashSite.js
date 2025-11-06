@@ -6,7 +6,8 @@ import { setupTooltip, refreshCurrentTooltip } from '../tooltip.js';
 import { storyEvents } from '../data/storyEvents.js';
 import { showStoryPopup } from '../popup.js';
 import { getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/activeActions.js';
-import { recomputeObjectives } from '../data/objectives.js';
+import { recomputeObjectives, getLastObjectivesDelta, getObjectivesStatus, getObjectiveDefinition } from '../data/objectives.js';
+import { getTotalIngameMinutes } from '../time.js';
 import { buildings } from '../data/buildings.js';
 import { updateBuildingButtonsState, createBuildingButton } from './colony.js';
 import { gameFlags, runActionCompletionHandlers } from '../data/gameFlags.js';
@@ -434,6 +435,9 @@ function handleActionCompletion(section) {
     const actionDef = salvageActions.find(a => a.id === completed.id);
     const suppressGeneric = !!(actionDef && (actionDef.suppressGenericLog || ((actionDef.stages && actionDef.stages[(actionDef.stage || 0)] && actionDef.stages[(actionDef.stage || 0)].suppressGenericLog))));
 
+    // Build an outcome payload to optionally show in story popups
+    const outcome = { rewards: [], unlocks: { actions: [], buildings: [], sections: [], jobs: [] } };
+
     if (completed.reward) {
         const gains = [];
         completed.reward.forEach(rw => {
@@ -452,6 +456,7 @@ function handleActionCompletion(section) {
             let finalAmt = Math.floor(amt * rewardMul);
             res.amount = Math.min(res.amount + finalAmt, res.capacity);
             gains.push(`${finalAmt} ${rw.resource}`);
+            try { outcome.rewards.push({ resource: rw.resource, amount: finalAmt }); } catch (e) { /* ignore */ }
         });
         // Avoid generic success/gained log for actions that opt out via suppressGenericLog
         if (!suppressGeneric) {
@@ -464,30 +469,35 @@ function handleActionCompletion(section) {
     }
     refreshCurrentTooltip();
 
+    // Prepare story popup placeholders we may fill below
+    let pendingStoryEvent = null;
+    let pendingStoryLogText = null;
+
     const original = salvageActions.find(a => a.id === completed.id || a.name === completed.name);
     if (original) {
         original.completed = true;
         const idx = original.stage || 0;
         const stage = (original.stages || [])[idx];
 
+    // We'll defer showing any story popup until after we run completion handlers
+    // so the outcome can also include buildings/sections unlocked by handlers.
+
         if (stage) {
-            if (stage.story) {
-                const event = storyEvents[stage.story];
-                if (event) {
-                    showStoryPopup(event);
-                    addLogEntry(stage.logText || '', LogType.STORY, { onClick: () => showStoryPopup(event) });
-                }
-            } else if (stage.logText) {
-                addLogEntry(stage.logText, LogType.STORY);
-            }
             if (Array.isArray(stage.unlocks)) {
                 stage.unlocks.forEach(id => {
                     const toUnlock = salvageActions.find(a => a.id === id || a.name === id);
                     if (toUnlock && !toUnlock.isUnlocked) {
                         toUnlock.isUnlocked = true;
                         addLogEntry(`New action available: ${toUnlock.name}`, LogType.UNLOCK);
+                        try { outcome.unlocks.actions.push(toUnlock.name); } catch (e) { /* ignore */ }
                     }
                 });
+            }
+            if (stage.story) {
+                pendingStoryEvent = storyEvents[stage.story] || null;
+                pendingStoryLogText = stage.logText || '';
+            } else if (stage.logText) {
+                addLogEntry(stage.logText, LogType.STORY);
             }
 
             const total = (original.stages || []).length;
@@ -498,8 +508,12 @@ function handleActionCompletion(section) {
         }
     }
 
+    // Capture buildings unlocked by completion handlers by diffing pre/post states
+    const preUnlockedBuildings = new Set((typeof buildings !== 'undefined') ? buildings.filter(b => b.isUnlocked).map(b => b.name) : []);
+
     if (original && original.id === 'establishBaseCamp') {
         enableSection('crewManagementSection');
+        try { outcome.unlocks.sections.push('Crew Management'); } catch (e) { /* ignore */ }
     }
 
     // Track whether unlocks require a full UI rebuild
@@ -530,8 +544,70 @@ function handleActionCompletion(section) {
 
     runActionCompletionHandlers(original, completed, section);
 
+    try {
+        const newlyUnlocked = (typeof buildings !== 'undefined') ? buildings.filter(b => b.isUnlocked && !preUnlockedBuildings.has(b.name)).map(b => b.name) : [];
+        for (const name of newlyUnlocked) { outcome.unlocks.buildings.push(name); }
+    } catch (e) { /* ignore */ }
+
     // Update narrative objectives in response to action completions
+    // Capture a local snapshot for a robust fallback diff in case other code recomputes in-between
+    let prevStatus = [];
+    try { prevStatus = getObjectivesStatus(); } catch {}
     try { recomputeObjectives(); } catch (e) { /* non-fatal */ }
+    try {
+        let completed = [];
+        let newlyActive = [];
+        // First, try engine-provided delta
+        try {
+            const delta = getLastObjectivesDelta ? getLastObjectivesDelta() : null;
+            if (delta) {
+                completed = Array.isArray(delta.completed) ? delta.completed : [];
+                newlyActive = Array.isArray(delta.newlyActive) ? delta.newlyActive : [];
+            }
+        } catch {}
+
+        // Fallback: compute diff if delta came back empty
+        if ((!completed.length && !newlyActive.length)) {
+            const before = new Map((prevStatus || []).map(s => [s.id, s.state]));
+            const after = getObjectivesStatus();
+            for (const s of (after || [])) {
+                const was = before.get(s.id);
+                if (s.state === 'completed' && was !== 'completed') {
+                    const def = getObjectiveDefinition(s.id); if (def) completed.push(def);
+                }
+                if (s.state === 'active' && was !== 'active') {
+                    const def = getObjectiveDefinition(s.id); if (def) newlyActive.push(def);
+                }
+            }
+        }
+
+        // Extra safeguard: include any objectives whose doneAt matches the current ingame minute (i.e., just completed now)
+        try {
+            const nowMin = getTotalIngameMinutes ? getTotalIngameMinutes() : null;
+            if (typeof nowMin === 'number') {
+                const after = getObjectivesStatus();
+                const byId = new Set(completed.map(d => d.id));
+                for (const s of (after || [])) {
+                    if (s.state === 'completed' && s.doneAt === nowMin && !byId.has(s.id)) {
+                        const def = getObjectiveDefinition(s.id); if (def) completed.push(def);
+                    }
+                }
+            }
+        } catch { /* ignore */ }
+
+        if (completed.length || newlyActive.length) {
+            outcome.objectives = { completed, newlyActive };
+            // Merge objective rewards into rewards list so players see the total gain as well
+            const seen = new Set();
+            for (const def of completed) {
+                if (!def || !Array.isArray(def.reward)) continue;
+                if (seen.has(def.id)) continue; seen.add(def.id);
+                for (const rw of def.reward) {
+                    try { outcome.rewards.push({ resource: rw.resource, amount: rw.amount }); } catch {}
+                }
+            }
+        }
+    } catch {}
 
     try {
         const container = document.querySelector('#salvageActionsContainer');
@@ -575,6 +651,23 @@ function handleActionCompletion(section) {
 
         if (typeof updateCrashSiteActionButtonsState === 'function') updateCrashSiteActionButtonsState();
     }
+
+    // Finally, if there was a pending story, show it with the filled outcome payload
+    try {
+        const hasRewards = outcome.rewards && outcome.rewards.length > 0;
+        const hasUnlocks = outcome.unlocks && (
+            (outcome.unlocks.actions && outcome.unlocks.actions.length) ||
+            (outcome.unlocks.buildings && outcome.unlocks.buildings.length) ||
+            (outcome.unlocks.sections && outcome.unlocks.sections.length) ||
+            (outcome.unlocks.jobs && outcome.unlocks.jobs.length)
+        );
+        const hasObjectives = !!(outcome.objectives && ((outcome.objectives.completed && outcome.objectives.completed.length) || (outcome.objectives.newlyActive && outcome.objectives.newlyActive.length)));
+        const payload = (hasRewards || hasUnlocks || hasObjectives) ? outcome : null;
+        if (pendingStoryEvent) {
+            showStoryPopup(pendingStoryEvent, payload);
+            if (pendingStoryLogText) addLogEntry(pendingStoryLogText, LogType.STORY, { onClick: () => showStoryPopup(pendingStoryEvent, payload) });
+        }
+    } catch (e) { /* ignore */ }
 }
 
 // Pause/resume loop on global events

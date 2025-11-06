@@ -2,6 +2,7 @@ import { getIngameTimeObject, getIngameTimeString } from './time.js';
 import { addJournalEntry } from './sections/journal.js';
 
 let activeStoryEvent = null;
+let activeOutcome = null; // optional footer content (rewards/unlocks)
 let currentPageIndex = 0;
 
 // Add a single Esc handler that is attached only while the popup is open
@@ -37,6 +38,7 @@ function renderPopupPage() {
     const nextBtn = document.getElementById('popupNext');
     const prevBtn = document.getElementById('popupPrev');
 
+    const outcomeEl = document.getElementById('popupOutcome');
     if (!messageEl || !pagingEl || !nextBtn || !prevBtn) return;
 
     // Apply the project's shared button style so popup nav matches the rest of the UI
@@ -51,13 +53,66 @@ function renderPopupPage() {
     pagingEl.textContent = `${currentPageIndex + 1} / ${activeStoryEvent.pages.length}`;
     if (currentPageIndex === activeStoryEvent.pages.length - 1) {
         nextBtn.textContent = 'Close';
+        // render outcome footer if present
+        if (outcomeEl) {
+            const hasRewards = !!(activeOutcome && Array.isArray(activeOutcome.rewards) && activeOutcome.rewards.length);
+            const hasUnlocks = !!(activeOutcome && activeOutcome.unlocks && (
+                (Array.isArray(activeOutcome.unlocks.actions) && activeOutcome.unlocks.actions.length) ||
+                (Array.isArray(activeOutcome.unlocks.buildings) && activeOutcome.unlocks.buildings.length) ||
+                (Array.isArray(activeOutcome.unlocks.sections) && activeOutcome.unlocks.sections.length) ||
+                (Array.isArray(activeOutcome.unlocks.jobs) && activeOutcome.unlocks.jobs.length)
+            ));
+            const hasObjectives = !!(activeOutcome && activeOutcome.objectives && (
+                (Array.isArray(activeOutcome.objectives.completed) && activeOutcome.objectives.completed.length) ||
+                (Array.isArray(activeOutcome.objectives.newlyActive) && activeOutcome.objectives.newlyActive.length)
+            ));
+            if (hasRewards || hasUnlocks || hasObjectives) {
+                const makeList = (arr) => (arr || []).map(v => `<li>${v}</li>`).join('');
+                let parts = [];
+                if (hasObjectives) {
+                    const blocks = [];
+                    const comp = Array.isArray(activeOutcome.objectives.completed) ? activeOutcome.objectives.completed : [];
+                    const nexts = Array.isArray(activeOutcome.objectives.newlyActive) ? activeOutcome.objectives.newlyActive : [];
+                    if (comp.length) {
+                        const items = comp.map(d => {
+                            const rewards = Array.isArray(d.reward) && d.reward.length ? ` <span class="objective-rewards">(Rewards: ${d.reward.map(r => `+${r.amount} ${r.resource}`).join(', ')})</span>` : '';
+                            return `<li><strong>${d.label}</strong>${rewards}</li>`;
+                        }).join('');
+                        blocks.push(`<div class="outcome-objectives-completed"><h4>Objective Completed</h4><ul>${items}</ul></div>`);
+                    }
+                    if (nexts.length) {
+                        const items = nexts.map(d => `<li>${d.label}</li>`).join('');
+                        blocks.push(`<div class="outcome-objectives-new"><h4>New Objective</h4><ul>${items}</ul></div>`);
+                    }
+                    parts.push(`<div class="outcome-objectives">${blocks.join('')}</div>`);
+                }
+                if (hasUnlocks) {
+                    const blocks = [];
+                    if (activeOutcome.unlocks.actions && activeOutcome.unlocks.actions.length) blocks.push(`<div class="unlock-block"><h4>Actions Unlocked</h4><ul>${makeList(activeOutcome.unlocks.actions)}</ul></div>`);
+                    if (activeOutcome.unlocks.buildings && activeOutcome.unlocks.buildings.length) blocks.push(`<div class="unlock-block"><h4>Buildings Unlocked</h4><ul>${makeList(activeOutcome.unlocks.buildings)}</ul></div>`);
+                    if (activeOutcome.unlocks.sections && activeOutcome.unlocks.sections.length) blocks.push(`<div class="unlock-block"><h4>Sections Unlocked</h4><ul>${makeList(activeOutcome.unlocks.sections)}</ul></div>`);
+                    if (activeOutcome.unlocks.jobs && activeOutcome.unlocks.jobs.length) blocks.push(`<div class="unlock-block"><h4>Jobs Unlocked</h4><ul>${makeList(activeOutcome.unlocks.jobs)}</ul></div>`);
+                    parts.push(`<div class="outcome-unlocks"><div class="outcome-grid">${blocks.join('')}</div></div>`);
+                }
+                if (hasRewards) {
+                    const items = activeOutcome.rewards.map(r => `<li>+${r.amount} ${r.resource}</li>`).join('');
+                    parts.push(`<div class="outcome-rewards"><h4>Rewards</h4><ul>${items}</ul></div>`);
+                }
+                outcomeEl.innerHTML = parts.join('');
+                outcomeEl.classList.remove('hidden');
+            } else {
+                outcomeEl.innerHTML = '';
+                outcomeEl.classList.add('hidden');
+            }
+        }
     } else {
         nextBtn.textContent = 'Next';
+        if (outcomeEl) { outcomeEl.innerHTML = ''; outcomeEl.classList.add('hidden'); }
     }
     prevBtn.style.visibility = (currentPageIndex === 0) ? 'hidden' : 'visible';
 }
 
-export function showStoryPopup(event) {
+export function showStoryPopup(event, outcome = null) {
     try { window.dispatchEvent(new CustomEvent('request-hide-tooltip')); } catch (e) { /* ignore */ }
     const storyPopup = document.getElementById('storyPopup');
     const titleEl = document.getElementById('popupTitle');
@@ -69,6 +124,7 @@ export function showStoryPopup(event) {
     }
 
     activeStoryEvent = event;
+    activeOutcome = outcome;
     currentPageIndex = 0;
 
     titleEl.textContent = activeStoryEvent.title;
@@ -132,6 +188,7 @@ function hideStoryPopup() {
         storyPopup.style.display = 'none';
     }
     activeStoryEvent = null;
+    activeOutcome = null;
     try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ }
 }
 

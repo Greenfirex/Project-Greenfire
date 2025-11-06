@@ -10,6 +10,8 @@ import { getMorale } from './data/morale.js';
 export function getInitialResources() {
     return [
     { name: 'Stamina', amount: 70, isDiscovered: true, capacity: 100, producible: false, integer: true },
+        // Meta progression resource (hidden from info panel)
+        { name: 'XP', amount: 0, isDiscovered: true, capacity: 9000000000, producible: false, integer: true, hidden: true },
         { name: 'Survivors', amount: 0, isDiscovered: false, capacity: 20, producible: false, integer: true },
         { name: 'Food Rations', amount: 75, isDiscovered: true, capacity: 75, producible: false, integer: true, baseConsumption: 0.04 },
         { name: 'Clean Water', amount: 60, isDiscovered: true, capacity: 100, producible: false, integer: true, baseConsumption: 0.06 },
@@ -192,6 +194,7 @@ export function setupInfoPanel() {
 
     // iterate over the master initial set so undiscovered resources still have rows
     getInitialResources().forEach(resource => {
+        if (resource.hidden) return; // skip meta/hidden resources like XP
         const infoRow = document.createElement('div');
         infoRow.className = 'info-row';
         infoRow.dataset.resource = resource.name;
@@ -344,4 +347,19 @@ export function updateResourceInfo() {
 
     infoRow.classList.toggle('capped', isCapped);
     });
+
+    // Update XP meter in footer (simple modulo-100 progress)
+    try {
+        const xp = resources.find(r => r.name === 'XP');
+        const meter = document.getElementById('xpMeter');
+        if (xp && meter) {
+            const valueEl = meter.querySelector('.xp-value');
+            if (valueEl) valueEl.textContent = Math.floor(xp.amount).toLocaleString();
+            const fill = meter.querySelector('.xp-fill');
+            if (fill) {
+                const pct = (xp.amount % 100) / 100;
+                fill.style.width = `${Math.max(0, Math.min(100, pct * 100))}%`;
+            }
+        }
+    } catch {}
 }
