@@ -7,8 +7,12 @@
 import { resources } from '../resources.js';
 import { gameFlags } from './gameFlags.js';
 import { allActions } from './allActions.js';
+import { buildings } from './buildings.js';
+import { jobs } from './jobs.js';
 import { addLogEntry, LogType } from '../log.js';
 import { getTotalIngameMinutes } from '../time.js';
+import { showStoryPopup } from '../popup.js';
+import { storyEvents } from './storyEvents.js';
 
 const STORAGE_KEY = 'objectivesStatusV1';
 
@@ -34,12 +38,14 @@ export function loadStatus() {
     } catch { status = []; }
 }
 
-export function resetObjectives() {
+export function resetObjectives(opts = {}) {
+    const suppressEvent = !!opts.suppressEvent;
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
     status = [];
-    try { window.dispatchEvent(new CustomEvent('objectivesChanged')); } catch {}
+    if (!suppressEvent) {
+        try { window.dispatchEvent(new CustomEvent('objectivesChanged')); } catch {}
+    }
 }
-
 function findAction(id) {
     return (allActions || []).find(a => a && (a.id === id || a.name === id));
 }
@@ -57,6 +63,10 @@ function hasCompletedAction(id) {
 function getResourceAmount(name) {
     const r = (resources || []).find(x => x.name === name);
     return r ? Number(r.amount) : 0;
+}
+
+function hasResource(name, target) {
+    return getResourceAmount(name) >= target;
 }
 
 function grantRewards(rewards) {
@@ -87,88 +97,183 @@ function upsertStatus(id, nextState) {
 // Terse, spoiler-lite labels. Conditions use flags and known unlocks.
 const defs = [
     {
-        id: 'obj_reentry',
-        label: 'Force a way in',
+        id: 'obj_entry',
+        label: () => {
+            const reentryDone = hasCompletedAction('attemptReentry');
+            const scout = findAction('scoutSurroundings');
+            const scoutTotal = Array.isArray(scout?.stages) ? scout.stages.length : 0;
+            const scoutStage = Math.min(scout?.stage || 0, scoutTotal);
+            const scoutDone = hasCompletedAction('scoutSurroundings');
+            const altDone = hasCompletedAction('attemptAlternateAccess');
+            if (!reentryDone) return 'Attempt reentry into the ship';
+            if (!scoutDone) return `Scout surroundings (${scoutStage}/${scoutTotal || 3})`;
+            if (!altDone) return 'Attempt alternate access';
+            return 'Regain entry accomplished';
+        },
         start: () => true,
-        complete: () => hasCompletedAction('attemptReentry'),
-        reward: [{ resource: 'XP', amount: 30 }],
-        priority: 1
-    },
-    {
-        id: 'obj_scout',
-        label: 'Scout the area',
-        start: () => findAction('scoutSurroundings')?.isUnlocked,
-        complete: () => hasCompletedAction('scoutSurroundings'),
-        reward: [{ resource: 'XP', amount: 40 }],
-        priority: 2
-    },
-    {
-        id: 'obj_prybar',
-        label: 'Craft a basic tool',
-        start: () => findAction('makeCrudePrybar')?.isUnlocked,
-        complete: () => hasCompletedAction('makeCrudePrybar'),
-        reward: [{ resource: 'XP', amount: 25 }],
-        priority: 3
+        complete: () => hasCompletedAction('attemptAlternateAccess'),
+        reward: [{ resource: 'XP', amount: 70 }],
+        priority: 1,
+        steps: () => {
+            const scout = findAction('scoutSurroundings');
+            const total = Array.isArray(scout?.stages) ? scout.stages.length : 3;
+            const stage = Math.min(scout?.stage || 0, total);
+            return [
+                { id: 'attempt_reentry', label: 'Attempt reentry into the ship', done: hasCompletedAction('attemptReentry') },
+                { id: 'scout_area', label: 'Scout surroundings', done: hasCompletedAction('scoutSurroundings'), progress: `${stage}/${total}` },
+                { id: 'alternate_access', label: 'Attempt alternate access', done: hasCompletedAction('attemptAlternateAccess') }
+            ];
+        }
     },
     {
         id: 'obj_enter',
         label: 'Enter the wreck',
-        start: () => findAction('pryOpenHull')?.isUnlocked,
+        // Begin as soon as crafting the prybar is unlocked (after alternate access) or hull prying is available
+        start: () => !!findAction('makeCrudePrybar')?.isUnlocked || !!findAction('pryOpenHull')?.isUnlocked,
+        // Complete when the hull has been pried open
         complete: () => hasCompletedAction('pryOpenHull'),
-        reward: [{ resource: 'XP', amount: 40 }],
-        priority: 4
+        reward: [{ resource: 'XP', amount: 65 }],
+        priority: 3,
+        steps: () => {
+            const scrap = getResourceAmount('Scrap Metal');
+            const prybarCrafted = hasCompletedAction('makeCrudePrybar');
+            return [
+                { id: 'gather_scrap', label: 'Gather Scrap Metal (15)', done: gameFlags.hasReached15ScrapMetal, progress: gameFlags.hasReached15ScrapMetal ? '15/15' : `${scrap}/15` },
+                { id: 'craft_prybar', label: 'Make Crude Prybar', done: prybarCrafted },
+                { id: 'open_hull', label: 'Pry open hull', done: hasCompletedAction('pryOpenHull') }
+            ];
+        }
     },
     {
-        id: 'obj_survivors',
+        id: 'obj_survivors_basecamp',
         label: 'Check for survivors',
         start: () => findAction('investigateSound')?.isUnlocked,
-        complete: () => hasCompletedAction('investigateSound'),
-        reward: [{ resource: 'XP', amount: 30 }],
-        priority: 5
+        complete: () => hasCompletedAction('investigateSound') && gameFlags.baseCampEstablished === true,
+        reward: [{ resource: 'XP', amount: 80 }], // Combined XP reward (30 + 50)
+        priority: 5,
+        steps: () => {
+            const scrap = getResourceAmount('Scrap Metal');
+            const wire = getResourceAmount('Wire');
+            const investigatedSound = hasCompletedAction('investigateSound');
+            
+            // Show the first step always, but subsequent steps only after investigating sound
+            const steps = [
+                { id: 'investigate_sound', label: 'Investigate the sound', done: investigatedSound }
+            ];
+            
+            // Only show resource gathering and basecamp steps after investigating sound
+            if (investigatedSound) {
+                steps.push(
+                    { id: 'gather_scrap_basecamp', label: 'Gather Scrap Metal (25)', done: scrap >= 25 || gameFlags.baseCampEstablished, progress: gameFlags.baseCampEstablished ? '25/25' : `${scrap}/25` },
+                    { id: 'gather_wire_basecamp', label: 'Gather Wire (12)', done: wire >= 12 || gameFlags.baseCampEstablished, progress: gameFlags.baseCampEstablished ? '12/12' : `${wire}/12` },
+                    { id: 'perform_basecamp', label: 'Establish base camp', done: gameFlags.baseCampEstablished === true }
+                );
+            }
+            
+            return steps;
+        }
     },
     {
-        id: 'obj_basecamp',
-        label: 'Establish a base',
-        start: () => findAction('establishBaseCamp')?.isUnlocked,
-        complete: () => gameFlags.baseCampEstablished === true,
-        reward: [{ resource: 'XP', amount: 50 }],
-        priority: 6
-    },
-    {
-        id: 'obj_explosive',
-        label: 'Prepare what you need',
-        start: () => findAction('assembleMakeshiftExplosive')?.isUnlocked,
-        complete: () => getResourceAmount('Makeshift Explosive') >= 1 || hasCompletedAction('assembleMakeshiftExplosive'),
-        reward: [{ resource: 'XP', amount: 35 }],
-        priority: 7
-    },
-    {
-        id: 'obj_breach',
-        label: 'Gain access to a sealed section',
-        start: () => findAction('searchPowerCore')?.isUnlocked,
-        complete: () => hasCompletedAction('searchPowerCore'),
-        reward: [{ resource: 'XP', amount: 50 }],
-        priority: 8
-    },
-    {
-        id: 'obj_restore_power',
-        label: 'Restore emergency systems',
-        start: () => findAction('restoreEmergencyPower')?.isUnlocked,
-        complete: () => gameFlags.emergencyPowerRestored === true,
-        reward: [{ resource: 'XP', amount: 60 }],
-        priority: 9
-    },
-    {
-        id: 'obj_reach_bridge',
-        label: 'Reach the command deck',
-        start: () => findAction('investigateBridge')?.isUnlocked && gameFlags.emergencyPowerRestored === true,
+        id: 'obj_tasks_survivors',
+        label: 'Tasks for survivors',
+        start: () => gameFlags.baseCampEstablished === true,
         complete: () => {
-            const a = findAction('investigateBridge');
-            const total = Array.isArray(a?.stages) ? a.stages.length : 0;
-            return total > 0 ? (a.stage || 0) >= total : false;
+            // Check if we have built both buildings and assigned jobs
+            const foragingCamp = buildings.find(b => b.name === 'Foraging Camp');
+            const waterStation = buildings.find(b => b.name === 'Water Station');
+            const foragingJob = jobs.find(j => j.id === 'foraging');
+            const waterJob = jobs.find(j => j.id === 'water_collection');
+            const scrapJob = jobs.find(j => j.id === 'scrap_collector');
+            
+            const hasBothBuildings = (foragingCamp?.count || 0) >= 1 && (waterStation?.count || 0) >= 1;
+            const hasJobAssignments = (foragingJob?.assigned || 0) >= 1 && 
+                                    (waterJob?.assigned || 0) >= 1 && 
+                                    (scrapJob?.assigned || 0) >= 1;
+            
+            return hasBothBuildings && hasJobAssignments;
         },
+        reward: [{ resource: 'XP', amount: 50 }],
+        priority: 6,
+        steps: () => {
+            const foragingCamp = buildings.find(b => b.name === 'Foraging Camp');
+            const waterStation = buildings.find(b => b.name === 'Water Station');
+            const foragingJob = jobs.find(j => j.id === 'foraging');
+            const waterJob = jobs.find(j => j.id === 'water_collection');
+            const scrapJob = jobs.find(j => j.id === 'scrap_collector');
+            
+            const foragingCampCount = foragingCamp?.count || 0;
+            const waterStationCount = waterStation?.count || 0;
+            const foragingAssigned = foragingJob?.assigned || 0;
+            const waterAssigned = waterJob?.assigned || 0;
+            const scrapAssigned = scrapJob?.assigned || 0;
+            
+            return [
+                { id: 'build_foraging_camp', label: 'Build Foraging Camp (8 Scrap)', done: foragingCampCount >= 1, progress: foragingCampCount >= 1 ? '1/1' : `${foragingCampCount}/1` },
+                { id: 'build_water_station', label: 'Build Water Station (10 Scrap)', done: waterStationCount >= 1, progress: waterStationCount >= 1 ? '1/1' : `${waterStationCount}/1` },
+                { id: 'assign_water_job', label: 'Assign Water Collection job', done: waterAssigned >= 1, progress: waterAssigned >= 1 ? '1/1' : `${waterAssigned}/1` },
+                { id: 'assign_scrap_job', label: 'Assign Scrap Collector job', done: scrapAssigned >= 1, progress: scrapAssigned >= 1 ? '1/1' : `${scrapAssigned}/1` },
+                { id: 'assign_foraging_job', label: 'Assign Foraging job', done: foragingAssigned >= 1, progress: foragingAssigned >= 1 ? '1/1' : `${foragingAssigned}/1` }
+            ];
+        }
+    },
+    {
+        id: 'obj_explore_deeper',
+        label: 'Explore deeper',
+        start: () => gameFlags.hasCompleted_tasksSurvivors === true,
+        complete: () => hasCompletedAction('searchSouthCorridor') && hasCompletedAction('searchNorthCorridor') && hasCompletedAction('investigateBridge'),
+        reward: [{ resource: 'XP', amount: 75 }],
+        priority: 7,
+        steps: () => {
+            const southDone = hasCompletedAction('searchSouthCorridor');
+            const northDone = hasCompletedAction('searchNorthCorridor');
+            const bridgeDone = hasCompletedAction('investigateBridge');
+            
+            return [
+                { id: 'search_south', label: 'Search: South Corridor', done: southDone },
+                { id: 'search_north', label: 'Search: North Corridor', done: northDone },
+                { id: 'investigate_bridge', label: 'Investigate Bridge', done: bridgeDone }
+            ];
+        }
+    },
+    {
+        id: 'obj_fix_radio',
+        label: 'Fix long-range radio',
+        // Radio repair requires Fabric; ensure players have explored Crew Quarters first
+        start: () => !!findAction('fixLongRangeRadio')?.isUnlocked && hasCompletedAction('checkCrewQuarters'),
+        complete: () => hasCompletedAction('fixLongRangeRadio'),
+        reward: [{ resource: 'XP', amount: 60 }],
+        priority: 11,
+        steps: () => [
+            { id: 'explore_crew_quarters', label: 'Explore crew quarters (Fabric)', done: hasCompletedAction('checkCrewQuarters') },
+            { id: 'gather_fabric', label: 'Gather Fabric (6)', done: hasResource('Fabric', 6), progress: `${getResourceAmount('Fabric')}/6` },
+            { id: 'gather_wire', label: 'Gather Wire (25)', done: hasResource('Wire', 25), progress: `${getResourceAmount('Wire')}/25` },
+            { id: 'gather_power_cells', label: 'Gather Power Cells (1)', done: hasResource('Power Cells', 1), progress: `${getResourceAmount('Power Cells')}/1` },
+            { id: 'repair_radio', label: 'Perform radio repair', done: hasCompletedAction('fixLongRangeRadio') }
+        ]
+    },
+    {
+        id: 'obj_stockpile',
+        label: 'Stockpile food (150) & water (200)',
+        start: () => hasCompletedAction('fixLongRangeRadio'),
+        complete: () => getResourceAmount('Food Rations') >= 150 && getResourceAmount('Clean Water') >= 200,
         reward: [{ resource: 'XP', amount: 80 }],
-        priority: 10
+        priority: 12,
+        steps: () => {
+            const foodAmt = getResourceAmount('Food Rations');
+            const waterAmt = getResourceAmount('Clean Water');
+            const crewQuartersDone = hasCompletedAction('checkCrewQuarters');
+            const cafeteriaDone = hasCompletedAction('exploreCafeteria');
+            const guidanceNeeded = !crewQuartersDone || !cafeteriaDone;
+            return [
+                { id: 'food_goal', label: 'Accumulate Food Rations (150)', done: foodAmt >= 150, progress: `${foodAmt}/150` },
+                { id: 'water_goal', label: 'Accumulate Clean Water (200)', done: waterAmt >= 200, progress: `${waterAmt}/200` },
+                guidanceNeeded ? (
+                    !crewQuartersDone
+                        ? { id: 'hint_crew_quarters', label: 'Explore crew quarters (Fabric, potential supplies)', done: crewQuartersDone }
+                        : { id: 'hint_cafeteria', label: 'Explore cafeteria (additional rations & water)', done: cafeteriaDone }
+                ) : null
+            ].filter(Boolean);
+        }
     }
 ];
 
@@ -187,28 +292,68 @@ export function recomputeObjectives() {
         const shouldStart = !!def.start?.();
         const isComplete = !!def.complete?.();
         const prev = s.state;
+        const labelText = (typeof def.label === 'function') ? def.label() : def.label;
         if (isComplete) {
             if (s.state !== 'completed') {
                 upsertStatus(def.id, 'completed');
                 grantRewards(def.reward || []);
-                addLogEntry(`Objective completed: ${def.label}`, LogType.UNLOCK);
+                addLogEntry(`Objective completed: ${labelText}`, LogType.UNLOCK);
                 try { _lastDelta.completedIds.push(def.id); } catch {}
+                
+                // Set specific completion flags for game mechanics
+                if (def.id === 'obj_tasks_survivors') {
+                    gameFlags.hasCompleted_tasksSurvivors = true;
+                    // Show story popup for tasks completion with outcome data
+                    try {
+                        const storyEvent = storyEvents.tasks_for_survivors_completed;
+                        if (storyEvent) {
+                            // Build outcome data to show completed and new objectives in popup
+                            const completed = [getObjectiveDefinition(def.id)].filter(Boolean);
+                            const newlyActive = [];
+                            
+                            // Check if "Explore deeper" objective should start
+                            const exploreDeepDef = defs.find(d => d.id === 'obj_explore_deeper');
+                            if (exploreDeepDef && exploreDeepDef.start && exploreDeepDef.start()) {
+                                const exploreDefObj = getObjectiveDefinition('obj_explore_deeper');
+                                if (exploreDefObj) newlyActive.push(exploreDefObj);
+                            }
+                            
+                            const outcome = {
+                                objectives: { completed, newlyActive },
+                                rewards: def.reward || []
+                            };
+                            
+                            showStoryPopup(storyEvent, outcome);
+                            addLogEntry('Your base camp is now organized and efficient. Time to explore deeper. (Click to read)', LogType.STORY, {
+                                onClick: () => showStoryPopup(storyEvent, outcome)
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('Failed to show tasks completion story:', e);
+                    }
+                }
+                
                 didChange = true;
             }
         } else if (shouldStart) {
             if (s.state === 'locked') {
                 upsertStatus(def.id, 'active');
-                addLogEntry(`New objective: ${def.label}`, LogType.UNLOCK);
+                addLogEntry(`New objective: ${labelText}`, LogType.UNLOCK);
                 try { _lastDelta.newlyActiveIds.push(def.id); } catch {}
                 didChange = true;
             }
         }
         if (prev !== s.state) didChange = true;
     });
+    const snapshot = {
+        completed: (_lastDelta.completedIds || []).map(id => getObjectiveDefinition(id)).filter(Boolean),
+        newlyActive: (_lastDelta.newlyActiveIds || []).map(id => getObjectiveDefinition(id)).filter(Boolean)
+    };
     if (didChange) {
         saveStatus();
         try { window.dispatchEvent(new CustomEvent('objectivesChanged')); } catch {}
     }
+    return snapshot;
 }
 
 export function getVisibleObjectives(maxItems = 5) {
@@ -233,7 +378,12 @@ export function getVisibleObjectives(maxItems = 5) {
     });
 
     const picked = [...active, ...completed].slice(0, maxItems);
-    return picked.map(x => ({ id: x.def.id, label: x.def.label, completed: x.st.state === 'completed' }));
+    return picked.map(x => {
+        let label = typeof x.def.label === 'function' ? x.def.label() : x.def.label;
+        // Dynamic exploration hint for stockpile objective if key exploration actions incomplete
+        // Banner retains concise label; exploration hints now moved into steps list.
+        return { id: x.def.id, label, completed: x.st.state === 'completed' };
+    });
 }
 
 // Lightweight accessor for UI/other modules
@@ -243,10 +393,26 @@ export function getObjectiveDefinition(id) {
     // Return a copy with only safe fields for external use
     return {
         id: def.id,
-        label: def.label,
+        label: (typeof def.label === 'function') ? def.label() : def.label,
         reward: Array.isArray(def.reward) ? def.reward.map(r => ({ resource: r.resource, amount: r.amount })) : [],
         priority: def.priority
     };
+}
+
+// Public steps accessor: returns dynamic list of step objects
+export function getObjectiveSteps(id) {
+    const def = defs.find(d => d.id === id);
+    if (!def) return [];
+    if (typeof def.steps === 'function') {
+        try {
+            const raw = def.steps();
+            return Array.isArray(raw) ? raw.map(s => ({ id: s.id, label: s.label, done: !!s.done, progress: s.progress })) : [];
+        } catch { return []; }
+    }
+    if (Array.isArray(def.steps)) {
+        return def.steps.map(s => ({ id: s.id, label: s.label, done: !!s.done, progress: s.progress }));
+    }
+    return [];
 }
 
 // Provide the list of transitions captured in the most recent recompute pass

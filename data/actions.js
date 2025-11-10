@@ -10,7 +10,8 @@ export const salvageActions = [
             cancelable: false,
             suppressGenericLog: true,
             drain: [ 
-                { resource: 'Stamina', amount: 15 },
+                { resource: 'Stamina', amount: 13 },
+                { resource: 'Food Rations', amount: 4 },
                 { resource: 'Clean Water', amount: 5 }
             ],
             stage: 0,
@@ -30,9 +31,9 @@ export const salvageActions = [
             isUnlocked: true,           // start available (only action at start)
             cancelable: false,
             drain: [
-                { resource: 'Stamina', amount: 15 },
-                { resource: 'Food Rations', amount: 4 },
-                { resource: 'Clean Water', amount: 6 },
+                { resource: 'Stamina', amount: 25 },
+                { resource: 'Food Rations', amount: 9 },
+                { resource: 'Clean Water', amount: 15 },
             ],
             stage: 0,
             stages: [
@@ -104,7 +105,9 @@ export const salvageActions = [
                 isUnlocked: false,      // unlocked after Rest completes
                 cancelable: true,
                 drain: [
-                    { resource: 'Stamina', amount: 15 }
+                   { resource: 'Stamina', amount: 25 },
+                   { resource: 'Food Rations', amount: 15 },
+                   { resource: 'Clean Water', amount: 20 }
                 ],
                 // single-stage action that triggers a story popup on completion
                 stage: 0,
@@ -205,7 +208,7 @@ export const salvageActions = [
                     { resource: 'Stamina', amount: 8 }
                 ],
                 reward: [
-                    { resource: 'Survivors', amount: 2 }
+                    { resource: 'Survivors', amount: 3 }
                 ],
                 hideRewardPreview: true,
                 stage: 0,
@@ -228,7 +231,8 @@ export const salvageActions = [
                 isUnlocked: false,
                 cancelable: true,
                 cost: [
-                    { resource: 'Scrap Metal', amount: 12 }
+                    { resource: 'Scrap Metal', amount: 25 },
+                    { resource: 'Wire', amount: 12 }
                 ],
                 drain: [
                     { resource: 'Stamina', amount: 6 }
@@ -285,7 +289,9 @@ export const salvageActions = [
             cancelable: true,
             repeatable: true,
             drain: [
-                { resource: 'Stamina', amount: 12 }
+                { resource: 'Stamina', amount: 12 },
+                { resource: 'Food Rations', amount: 2 },
+                { resource: 'Clean Water', amount: 3 }
             ],
             reward: [
                 { resource: 'Wire', amount: [6, 12] }
@@ -550,7 +556,9 @@ export const salvageActions = [
         {
                 id: 'investigateBridge',
                 name: 'Investigate Bridge',
-                description: 'Check access to the bridge; without power the lift may not operate.',
+                // Base description will be stage-adaptive; we swap logic so if emergency power is already restored
+                // when player first clicks, they skip directly to the powered stage.
+                description: 'Assess access to the command deck. If power is offline the lift will be inert; with emergency power restored you can ride up.',
                 duration: 8,
                 category: 'Exploration',
                 isUnlocked: false,
@@ -562,7 +570,7 @@ export const salvageActions = [
                         // Stage 1: Scout to the bridge access — discover an inaccessible lift without power
                         story: 'bridge_lift_no_power',
                         unlocks: [],
-                        description: 'Investigate access to the bridge, though without power you doubt you\'ll be able to operate the lift.',
+                        description: 'You reach the bridge access. Without emergency power the heavy lift is inert and blocks progress.',
                         cost: [
                             { resource: 'Stamina', amount: 15 },
                             { resource: 'Clean Water', amount: 6 },
@@ -574,9 +582,34 @@ export const salvageActions = [
                     {
                         // Stage 2: Return after restoring emergency power (narrative follow-up)
                         story: 'bridge_after_power',
+                        unlocks: ['fixLongRangeRadio'],
+                        description: 'Emergency power is online: the lift cycles, granting limited access to the bridge. You can ride up and assess the situation.',
+                        logText: 'You reach the command deck. The bridge is a tomb — everyone you find is gone, and most equipment is beyond saving. One gutted comms panel might be salvageable. Your only chance is to scavenge it and try to rewire it to your last power cell to hail Starfleet Command. (Click to read)',
+                        suppressGenericLog: true
+                    }
+                ]
+            },
+            {
+                id: 'fixLongRangeRadio',
+                name: 'Fix Long-Range Radio',
+                description: 'Scavenge the damaged comms panel and rewire it to a power cell using insulated fabric and salvaged wiring to attempt contacting Starfleet Command.',
+                duration: 12,
+                category: 'Exploration',
+                isUnlocked: false,
+                cancelable: true,
+                hideRewardPreview: true,
+                drain: [ { resource: 'Stamina', amount: 20 } ],
+                cost: [
+                    { resource: 'Power Cells', amount: 1 },
+                    { resource: 'Wire', amount: 25 },
+                    { resource: 'Fabric', amount: 6 }
+                ],
+                stage: 0,
+                stages: [
+                    {
+                        story: 'comms_fixed_distress',
                         unlocks: [],
-                        description: 'With emergency power restored, you should be able to reach the bridge and assess the situation.',
-                        logText: 'With emergency power online, the lift cycles and limited access to the bridge returns. (Click to read)',
+                        logText: '',
                         suppressGenericLog: true
                     }
                 ]

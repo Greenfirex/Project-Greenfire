@@ -66,23 +66,21 @@ function renderPopupPage() {
                 (Array.isArray(activeOutcome.objectives.completed) && activeOutcome.objectives.completed.length) ||
                 (Array.isArray(activeOutcome.objectives.newlyActive) && activeOutcome.objectives.newlyActive.length)
             ));
-            if (hasRewards || hasUnlocks || hasObjectives) {
+                if (hasRewards || hasUnlocks || hasObjectives) {
                 const makeList = (arr) => (arr || []).map(v => `<li>${v}</li>`).join('');
                 let parts = [];
                 if (hasObjectives) {
                     const blocks = [];
                     const comp = Array.isArray(activeOutcome.objectives.completed) ? activeOutcome.objectives.completed : [];
                     const nexts = Array.isArray(activeOutcome.objectives.newlyActive) ? activeOutcome.objectives.newlyActive : [];
-                    if (comp.length) {
-                        const items = comp.map(d => {
-                            const rewards = Array.isArray(d.reward) && d.reward.length ? ` <span class="objective-rewards">(Rewards: ${d.reward.map(r => `+${r.amount} ${r.resource}`).join(', ')})</span>` : '';
-                            return `<li><strong>${d.label}</strong>${rewards}</li>`;
-                        }).join('');
-                        blocks.push(`<div class="outcome-objectives-completed"><h4>Objective Completed</h4><ul>${items}</ul></div>`);
-                    }
+                    // Prefer showing New Objective first, then Completed, to guide next actions
                     if (nexts.length) {
                         const items = nexts.map(d => `<li>${d.label}</li>`).join('');
                         blocks.push(`<div class="outcome-objectives-new"><h4>New Objective</h4><ul>${items}</ul></div>`);
+                    }
+                    if (comp.length) {
+                        const items = comp.map(d => `<li class="completed-objective-item">${d.label}</li>`).join('');
+                        blocks.push(`<div class="outcome-objectives-completed"><h4>Objective Completed</h4><ul>${items}</ul></div>`);
                     }
                     parts.push(`<div class="outcome-objectives">${blocks.join('')}</div>`);
                 }

@@ -29,6 +29,9 @@ const initialGameFlags = {
     // Upgrades
     scavengerKitInstalled: false,
     campfireLit: false,
+    // Progress tracking flags
+    hasReached15ScrapMetal: false,
+    hasCompleted_tasksSurvivors: false,
     // Weather state (v1): stored in flags for simple persistence
     weatherCurrentId: 'clear',
     weatherStartMinutes: 0,
@@ -219,6 +222,8 @@ registerActionCompletionHandler('restoreEmergencyPower', () => {
     addLogEntry('Emergency power restored — limited lighting and lift access available.', LogType.UNLOCK);
     // best-effort UI refresh so blocked actions update immediately
     if (typeof window !== 'undefined') {
+        // Notify other systems that emergency power is now online
+        try { window.dispatchEvent(new CustomEvent('emergencyPowerRestored')); } catch (e) { /* ignore */ }
         try {
             if (typeof window.updateCrashSiteActionButtonsState === 'function') try { window.updateCrashSiteActionButtonsState(); } catch (e) {}
             if (typeof window.setupCrashSiteSection === 'function') try { window.setupCrashSiteSection(document.querySelector('.content-panel')); } catch (e) {}

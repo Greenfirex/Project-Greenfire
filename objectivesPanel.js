@@ -3,10 +3,12 @@
 // - Shows up to 5 terse, spoiler-lite items
 // - Read-only (no clicks)
 
-import { getVisibleObjectives, recomputeObjectives } from './data/objectives.js';
+import { getVisibleObjectives, recomputeObjectives, getObjectiveSteps } from './data/objectives.js';
 
 let isOpen = false;
 let elements = { container: null, banner: null, drawer: null, list: null, details: null };
+let refreshTimer = null;
+let popupActive = false;
 
 function ensureContainer() {
     if (elements.container) return elements.container;
@@ -86,7 +88,16 @@ function ensureContainer() {
         drawer.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
         if (isOpen) {
             try { recomputeObjectives(); } catch {}
+            // Update banner immediately when opening
+            renderBannerText();
             renderDetails();
+            // While open, periodically refresh banner/details to reflect dynamic step/label changes
+            if (!popupActive) {
+                if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+                refreshTimer = setInterval(() => { refreshIfOpen(); }, 750);
+            }
+        } else {
+            if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
         }
     }
     banner.addEventListener('click', toggleOpen);
@@ -118,15 +129,35 @@ function renderDetails() {
     header.textContent = current ? current.label : 'No current objective';
     elements.details.appendChild(header);
     if (!current) return;
-    // Placeholder guidance text — could evolve into rich hints
-    const guidance = document.createElement('p');
-    guidance.textContent = 'Steps: Progress this objective by performing its associated action or fulfilling its condition.';
-    elements.details.appendChild(guidance);
-    // We don't have direct access to defs here; show a generic reward line if available via custom event payload in future.
-    // For now, omit reward lookup to keep this module sync-only and avoid dynamic imports.
+    const steps = getObjectiveSteps(current.id);
+    if (steps.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'objective-steps-empty';
+        empty.textContent = 'No detailed steps available.';
+        elements.details.appendChild(empty);
+    } else {
+        const list = document.createElement('ul');
+        list.className = 'objective-steps';
+        steps.forEach(step => {
+            const li = document.createElement('li');
+            li.className = 'objective-step-item';
+            if (step.done) li.classList.add('done');
+            const marker = document.createElement('span');
+            marker.className = 'step-marker';
+            marker.textContent = step.done ? '✓' : '•';
+            const label = document.createElement('span');
+            label.className = 'step-label';
+            label.textContent = step.label + (step.progress && !step.done ? ` (${step.progress})` : '');
+            li.appendChild(marker);
+            li.appendChild(label);
+            list.appendChild(li);
+        });
+        elements.details.appendChild(list);
+    }
 }
 
 function refreshIfOpen() {
+    if (popupActive) return; // avoid any UI churn while any popup/menu is open
     try { recomputeObjectives(); } catch {}
     renderBannerText();
     if (isOpen) renderDetails();
@@ -159,3 +190,18 @@ window.addEventListener('game-resume', () => { try { recomputeObjectives(); } ca
 
 // Optional: when new resources are discovered (can unlock objectives), recompute
 window.addEventListener('resourceDiscovered', () => { try { recomputeObjectives(); } catch {} refreshIfOpen(); });
+
+// Safety: clear timer on unload
+window.addEventListener('beforeunload', () => { if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; } });
+
+// Pause banner refresh while any popup/menu is open to prevent flashing
+window.addEventListener('popup-open', () => {
+    popupActive = true;
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+});
+window.addEventListener('popup-close', () => {
+    popupActive = false;
+    if (isOpen && !refreshTimer) {
+        refreshTimer = setInterval(() => { refreshIfOpen(); }, 750);
+    }
+});

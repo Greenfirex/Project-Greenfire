@@ -1,5 +1,6 @@
 import { resources, updateResourceInfo, setupInfoPanel, computeResourceRates } from './resources.js';
 import { buildings } from './data/buildings.js';
+import { gameFlags } from './data/gameFlags.js';
 import { setupColonySection, updateBuildingButtonsState } from './sections/colony.js';
 import { setupResearchSection, updateTechButtonsState } from './sections/research.js';
 import { setupManufacturingSection } from './sections/manufacturing.js';
@@ -339,6 +340,12 @@ export function checkConditions() {
     const stone = resources.find(r => r.name === 'Stone');
     const xylite = resources.find(r => r.name === 'Xylite');
     const survivors = resources.find(r => r.name === 'Survivors');
+    const scrapMetal = resources.find(r => r.name === 'Scrap Metal');
+
+    // Track when player first reaches 15 scrap metal (for objectives)
+    if (scrapMetal && scrapMetal.amount >= 15 && !gameFlags.hasReached15ScrapMetal) {
+        gameFlags.hasReached15ScrapMetal = true;
+    }
 
     // Unlock Xylite resource once enough stone has been gathered
     if (stone && xylite) {

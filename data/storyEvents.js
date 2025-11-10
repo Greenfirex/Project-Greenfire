@@ -2,12 +2,12 @@ export const storyEvents = {
     // --- NEW: The intro story for Chapter 1 ---
 crashIntro: {
         title: 'Chapter I - Waking to Ash',
-pages: [
+        pages: [
         "I am Lieutenant Commander — second in command aboard the scout vessel Vinea-IV, deployed by Starfleet Command on a terraforming reconnaissance. Our objective was simple and vital: scan this sector, assess viability, and send our findings back to Command. We were not prepared for ruin.",
         "Everything happened during a routine surface scan. A sudden, high‑velocity impact ripped through the hull. Sensors registered nothing beforehand — no heat signature — just a sudden strike from some kind of projectile. Systems failed. Alarms consumed the bridge. Fire and smoke filled the corridors.",
         "I came to coughing, throat full of ash, with flames swallowing the hull where the blast tore a jagged hole. From that breach I crawled into air that smelled of ozone and scorched metal. I do not yet know how many of my crew survived. I do not know whether Command still has a lock on us.",
-        "My mission suddenly changed to bare survival. Your first duty is twofold: find survivors — any crew you can reach and pull from the wreckage — and secure your own survival. Save as many as I can and find out what happened. Maybe the ship could be salvaged and we can hope to call for extraction."
-    ]
+        "My mission suddenly changed to bare survival. Your first duty is twofold: find survivors — any crew you can reach and pull from the wreckage — and secure your own survival. Save as many as I can and find out what happened. Maybe the ship could be salvaged and we can hope to call for extraction." 
+        ]
     },
 foundBerries: {
         title: "Edible Flora",
@@ -61,6 +61,15 @@ basecamp_established: {
     pages: [
         "You have established a rudimentary base camp. This central location allows you to organise survivors, assign simple tasks, and coordinate recovery efforts.",
         "Crew Management is now available — assign survivors to jobs and prioritize tasks from there. Assigned crew will help with routine resource collection and management, improving efficiency and freeing you to focus on exploration and repairs."
+    ]
+},
+
+tasks_for_survivors_completed: {
+    title: 'Camp Organized — Ready to Explore',
+    pages: [
+        "With the base camp now properly organized and survivors assigned to essential tasks, you feel the momentum of recovery beginning to take hold. Water collection and scrap gathering proceed steadily, and the foraging teams have begun to supplement your rations.",
+        "The survivors are settled and productive — they understand their roles and can maintain basic operations while you focus on broader objectives. The camp hums with quiet efficiency: a foundation from which to launch deeper exploration of the ship.",
+        "Now that your people are secure and organized, it's time to refocus on the ship itself. There are still survivors unaccounted for, vital systems to restore, and tools that could aid in your eventual rescue. The corridors ahead hold answers — and perhaps hope."
     ]
 },
 
@@ -163,6 +172,15 @@ bridge_after_power: {
     pages: [
         "You return to the bridge access. The lift panel glows weakly now; you call it down and the doors grind open. Inside, debris and soot coat the floor, but the car moves.",
         "At the bridge level, emergency lighting draws long shadows across dead consoles. Some subsystems respond to touch. You can begin the long work of bringing systems back."
+    ]
+},
+comms_fixed_distress: {
+    title: 'Distress Signal Sent',
+    pages: [
+        "You gut the least-destroyed comms console, splice scorched bundles, and bridge missing circuits with salvaged wire. A power cell hums at the edge of tolerance as you force the rig to life.",
+        "The carrier locks. A narrowband distress packet crawls outward — slow, because subspace relays are beyond repair with current tools. Without a proper subspace field the signal must ride conventional bands and chained amplification scattering across the sector.",
+        "Help will come, but not soon. Minutes of work just bought you days — maybe weeks — of waiting. You decide on the only rational response: build reserves.",
+        "Objective: Stockpile at least 150 Food Rations and 200 Clean Water while you wait for a reply. Survivors will need stability, and shortages during a long wait could be fatal."
     ]
 },
 }

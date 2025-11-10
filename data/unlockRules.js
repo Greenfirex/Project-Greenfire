@@ -27,6 +27,7 @@ export function getBlockedStatus(actionId, state) {
 
     if (!isInvestigateDone) return { blocked: true, reason: 'Investigate Nearby Sound first — someone might be alive nearby.' };
     if (!isBasecampDone) return { blocked: true, reason: 'You found survivors — secure a base camp first before exploring deeper.' };
+    if (!flags.hasCompleted_tasksSurvivors) return { blocked: true, reason: 'Complete Objective: "Tasks for survivors" before exploring deeper areas of the ship.' };
 
     // Additional stage-specific gate: Investigate Bridge stage 2 requires emergency power restored
     if (actionId === 'investigateBridge' && totalStages > 1 && currentStage >= 1) {

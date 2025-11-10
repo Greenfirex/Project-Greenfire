@@ -179,8 +179,9 @@
     row-gap: 10px;
 }
 .popup-outcome .unlock-block + .unlock-block { margin-top: 4px; }
+.popup-outcome .outcome-objectives { margin-bottom: 8px; }
 .popup-outcome .outcome-unlocks { margin-bottom: 8px; }
-.popup-outcome .outcome-rewards { margin-top: 6px; }
+.popup-outcome .outcome-rewards { margin-bottom: 0; }
 .popup-outcome .unlock-block { min-width: 0; }
 .popup-outcome ul {
     margin: 0;
@@ -195,5 +196,44 @@
 
 /* Objectives section within outcome */
 .popup-outcome .outcome-objectives { margin-bottom: 8px; }
-.popup-outcome .outcome-objectives-completed li strong { color: #8ee06e; }
+
+/* Individual objective sections should have consistent spacing with other unlock blocks */
+.popup-outcome .outcome-objectives-new,
+.popup-outcome .outcome-objectives-completed {
+    margin-bottom: 4px;
+}
+
+/* Add small spacing between objective types when both are present */
+.popup-outcome .outcome-objectives-new + .outcome-objectives-completed {
+    margin-top: 8px;
+}
+
+/* Make objective completed bullet points green (same as others) and text white */
+.popup-outcome .completed-objective-item::before {
+    color: #6ee06e !important;
+    content: '• ';
+    margin-right: 6px;
+}
+
+/* Make the text content white instead of green for completed objectives */
+.popup-outcome .completed-objective-item {
+    color: #cfd9cf !important;
+}
+
+/* Additional fallback rules to ensure bullets stay green */
+.story-popup-content .popup-outcome .outcome-objectives-completed ul li.completed-objective-item::before {
+    color: #6ee06e !important;
+}
+
+.popup-outcome .outcome-objectives .outcome-objectives-completed li.completed-objective-item::before {
+    color: #6ee06e !important;
+}
+
+/* Even more specific rule for nested structure */
+.popup-outcome .outcome-objectives-completed li::before {
+    color: #6ee06e !important;
+    content: '• ';
+    margin-right: 6px;
+}
+
 .popup-outcome .objective-rewards { color: #cfd9cf; opacity: 0.9; margin-left: 4px; font-style: italic; }

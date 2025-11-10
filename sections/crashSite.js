@@ -18,6 +18,21 @@ import { getBlockedStatus, evaluateEventUnlocks } from '../data/unlockRules.js';
 
 const SITE_BUILDING_NAMES = ['Foraging Camp', 'Water Station', 'Rain Tarp', 'Food Larder', 'Water Reservoir'];
 
+// Ensure Investigate Bridge skips pre-power stage when emergency power is already restored
+function ensureBridgeStageAfterPower() {
+    try {
+        if (!gameFlags.emergencyPowerRestored) return;
+        const bridge = (salvageActions || []).find(a => a && a.id === 'investigateBridge');
+        if (!bridge) return;
+        const total = Array.isArray(bridge.stages) ? bridge.stages.length : 0;
+        if (total < 2) return;
+        const currentStage = Number.isFinite(bridge.stage) ? bridge.stage : 0;
+        if (currentStage < 1) {
+            bridge.stage = 1; // Skip the pre-power scouting stage
+        }
+    } catch (e) { /* non-fatal */ }
+}
+
 function attachStartClickHandler(btn, action, section) {
     btn.onclick = (e) => {
     const block = getBlockedStatus(action.id, { actions: salvageActions, flags: gameFlags });
@@ -77,6 +92,8 @@ export function stopCrashSiteLoop() {
 
 // Build crash-site section UI
 export function setupCrashSiteSection(section) {
+    // Before building UI, normalize any stage transitions that depend on global flags
+    ensureBridgeStageAfterPower();
     if (!section) {
         const container = document.querySelector('#salvageActionsContainer');
         section = container ? container.closest('.content-panel') || container.parentElement : null;
@@ -550,21 +567,19 @@ function handleActionCompletion(section) {
     } catch (e) { /* ignore */ }
 
     // Update narrative objectives in response to action completions
-    // Capture a local snapshot for a robust fallback diff in case other code recomputes in-between
+    // Capture a local snapshot directly from recomputeObjectives to avoid race with other listeners
     let prevStatus = [];
     try { prevStatus = getObjectivesStatus(); } catch {}
-    try { recomputeObjectives(); } catch (e) { /* non-fatal */ }
+    let snapshot = null;
+    try { snapshot = recomputeObjectives(); } catch (e) { /* non-fatal */ }
     try {
         let completed = [];
         let newlyActive = [];
-        // First, try engine-provided delta
-        try {
-            const delta = getLastObjectivesDelta ? getLastObjectivesDelta() : null;
-            if (delta) {
-                completed = Array.isArray(delta.completed) ? delta.completed : [];
-                newlyActive = Array.isArray(delta.newlyActive) ? delta.newlyActive : [];
-            }
-        } catch {}
+        // Prefer the recompute snapshot
+        if (snapshot) {
+            completed = Array.isArray(snapshot.completed) ? snapshot.completed : [];
+            newlyActive = Array.isArray(snapshot.newlyActive) ? snapshot.newlyActive : [];
+        }
 
         // Fallback: compute diff if delta came back empty
         if ((!completed.length && !newlyActive.length)) {
@@ -682,6 +697,32 @@ window.addEventListener('game-resume', () => {
     const container = document.querySelector('#salvageActionsContainer');
     const section = container ? container.closest('.content-panel') || container.parentElement : null;
     startCrashSiteLoop(section);
+});
+
+// When emergency power is restored, advance Bridge stage and refresh the Crash Site UI
+window.addEventListener('emergencyPowerRestored', () => {
+    ensureBridgeStageAfterPower();
+    try {
+        const container = document.querySelector('#salvageActionsContainer');
+        if (container) {
+            const section = container.closest('.content-panel') || container.parentElement;
+            setupCrashSiteSection(section);
+        }
+    } catch (e) { /* ignore */ }
+});
+
+// Also normalize after loading saved state
+window.addEventListener('game-state-applied', () => {
+    ensureBridgeStageAfterPower();
+});
+
+// Listen for objectives changes and update action button states
+window.addEventListener('objectivesChanged', () => {
+    try {
+        if (typeof updateCrashSiteActionButtonsState === 'function') {
+            updateCrashSiteActionButtonsState();
+        }
+    } catch (e) { /* ignore */ }
 });
 
 if (typeof window !== 'undefined') {

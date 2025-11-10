@@ -222,13 +222,21 @@ export function resetToDefaultState() {
     // any generated journal entries / popups use the correct timestamp.
     try { resetIngameTime(); } catch (e) { console.warn('resetIngameTime failed', e); }
 
-    // Reset Objectives model/state
-    try { resetObjectives(); } catch (e) { /* ignore */ }
+    // Reset Objectives model/state, then seed and capture first objective for intro popup
+    try { resetObjectives({ suppressEvent: true }); } catch (e) { /* ignore */ }
+    let introOutcome = null;
+    try {
+        // Recompute immediately so the first objective becomes active and capture snapshot
+        const snapshot = recomputeObjectives();
+        if (snapshot && Array.isArray(snapshot.newlyActive) && snapshot.newlyActive.length) {
+            introOutcome = { objectives: { newlyActive: snapshot.newlyActive } };
+        }
+    } catch (e) { /* ignore */ }
 
     const event = storyEvents.crashIntro;
-    showStoryPopup(event);
+    showStoryPopup(event, introOutcome);
     addLogEntry('You survived... somehow. (Click to read)', LogType.STORY, {
-        onClick: () => showStoryPopup(event)
+        onClick: () => showStoryPopup(event, introOutcome)
     });
 
     resetResources();
@@ -255,7 +263,7 @@ export function resetToDefaultState() {
     try { saveGameState(); } catch (e) { console.warn('saveGameState failed', e); }
 
     try { window.dispatchEvent(new CustomEvent('gameReset')); } catch (e) { /* ignore */ }
-    // After reset broadcast, recompute objectives to seed initial objectives
+    // After reset broadcast, recompute again (ignore snapshot) to ensure any listeners sync
     try { recomputeObjectives(); } catch (e) { /* ignore */ }
 }
 
