@@ -149,8 +149,12 @@ export const salvageActions = [
                 repeatable: true,
                 showUnlocks: false,
                 cost: [
-                    { resource: 'Scrap Metal', amount: 15 },
-                    { resource: 'Stamina', amount: 10 }
+                    { resource: 'Scrap Metal', amount: 15 }
+                ],
+                drain: [
+                    { resource: 'Stamina', amount: 10 },
+                    { resource: 'Food Rations', amount: 3 },
+                    { resource: 'Clean Water', amount: 4 }
                 ],
                 reward: [
                     { resource: 'Crude Prybar', amount: 1 }
@@ -235,7 +239,9 @@ export const salvageActions = [
                     { resource: 'Wire', amount: 12 }
                 ],
                 drain: [
-                    { resource: 'Stamina', amount: 6 }
+                    { resource: 'Stamina', amount: 28 },
+                    { resource: 'Food Rations', amount: 7 },
+                    { resource: 'Clean Water', amount: 9 }
                 ],
                 reward: [],
                 // Tooltip-only: some unlocks are applied elsewhere in game code; expose them here
@@ -370,10 +376,12 @@ export const salvageActions = [
             cancelable: true,
             repeatable: true,
             drain: [
-                { resource: 'Stamina', amount: 12 }
+                { resource: 'Stamina', amount: 12 },
+                { resource: 'Food Rations', amount: 2 },
+                { resource: 'Clean Water', amount: 3 }
             ],
             reward: [
-                { resource: 'Fabric', amount: [1, 2] }
+                { resource: 'Fabric', amount: [2, 3] }
             ],
             stage: 0,
             stages: [
@@ -437,7 +445,7 @@ export const salvageActions = [
                     // second attempt: requires and consumes a makeshift explosive to blast the lock
                     story: 'powercore_breached',
                     unlocks: ['restoreEmergencyPower'], // whatever follows opening the core
-                    logText: 'You rig a makeshift explosive and set it against the lock. The blast blows the seal and you can access the power core. (Click to read)',
+                    logText: 'Now that all survivors are accounted for, you risk breaching the power core with the explosive. The blast blows the seal and you can access the core systems. (Click to read)',
                     // stage-specific cost: this stage requires 1 Makeshift Explosive and will consume it on completion
                     cost: [
                         { resource: 'Makeshift Explosive', amount: 1 }
@@ -469,7 +477,7 @@ export const salvageActions = [
             stages: [
                 {
                     story: 'found_labs_cache',
-                    unlocks: ['installPurificationUnit', 'collectChemicals'],
+                    unlocks: ['collectChemicals'],
                     logText: 'You checked the labs and found the chief lab technician and his assistant. Also some intact equipment and chemical supplies. Laboratory seems to be in better shape than other sections of the ship. (Click to read)'
                 }
             ]
@@ -485,7 +493,9 @@ export const salvageActions = [
             cancelable: true,
             repeatable: true,
             drain: [
-                { resource: 'Stamina', amount: 8 }
+                { resource: 'Stamina', amount: 8 },
+                { resource: 'Food Rations', amount: 2 },
+                { resource: 'Clean Water', amount: 2 }
             ],
             reward: [
                 { resource: 'Chemicals', amount: [1, 3] }
@@ -514,6 +524,11 @@ export const salvageActions = [
                 { resource: 'Power Cells', amount: 1 },
                 { resource: 'Wire', amount: 20 }
             ],
+            drain: [
+                { resource: 'Stamina', amount: 28 },
+                { resource: 'Food Rations', amount: 5 },
+                { resource: 'Clean Water', amount: 6 }
+            ],
             reward: [],
             hideRewardPreview: true,
             stage: 0,
@@ -540,6 +555,11 @@ export const salvageActions = [
                 { resource: 'Chemicals', amount: 5 },
                 { resource: 'Scrap Metal', amount: 8 },
                 { resource: 'Wire', amount: 12 }
+            ],
+            drain: [
+                { resource: 'Stamina', amount: 13 },
+                { resource: 'Food Rations', amount: 3 },
+                { resource: 'Clean Water', amount: 3 }
             ],
             reward: [
                 { resource: 'Makeshift Explosive', amount: 1 }
@@ -571,7 +591,7 @@ export const salvageActions = [
                         story: 'bridge_lift_no_power',
                         unlocks: [],
                         description: 'You reach the bridge access. Without emergency power the heavy lift is inert and blocks progress.',
-                        cost: [
+                        drain: [
                             { resource: 'Stamina', amount: 15 },
                             { resource: 'Clean Water', amount: 6 },
                             { resource: 'Food Rations', amount: 4 }

@@ -667,6 +667,22 @@ function handleActionCompletion(section) {
         if (typeof updateCrashSiteActionButtonsState === 'function') updateCrashSiteActionButtonsState();
     }
 
+    // Check for unlocks triggered by resource discovery (e.g., assembleMakeshiftExplosive when both Fabric and Chemicals are discovered)
+    // We do this BEFORE showing the story popup so these unlocks appear in the popup's "New Actions" list
+    try {
+        const unlockRuleActions = evaluateEventUnlocks({ type: 'resourceDiscovered' }, { resources, actions: salvageActions });
+        if (unlockRuleActions && Array.isArray(unlockRuleActions.actions) && unlockRuleActions.actions.length) {
+            for (const id of unlockRuleActions.actions) {
+                const a = salvageActions.find(x => x.id === id || x.name === id);
+                if (a && !a.isUnlocked) {
+                    a.isUnlocked = true;
+                    addLogEntry(`New action available: ${a.name}`, LogType.UNLOCK);
+                    try { outcome.unlocks.actions.push(a.name); } catch (e) { /* ignore */ }
+                }
+            }
+        }
+    } catch (e) { /* ignore */ }
+
     // Finally, if there was a pending story, show it with the filled outcome payload
     try {
         const hasRewards = outcome.rewards && outcome.rewards.length > 0;

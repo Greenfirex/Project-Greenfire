@@ -8,7 +8,7 @@
  * @returns {{ blocked: boolean, reason: string }}
  */
 export function getBlockedStatus(actionId, state) {
-    const BLOCKED_ACTION_IDS = ['searchSouthCorridor', 'searchNorthCorridor', 'investigateBridge'];
+    const BLOCKED_ACTION_IDS = ['searchSouthCorridor', 'searchNorthCorridor', 'investigateBridge', 'searchPowerCore'];
     if (!BLOCKED_ACTION_IDS.includes(actionId)) return { blocked: false, reason: '' };
 
     const actions = (state && state.actions) || [];
@@ -28,6 +28,18 @@ export function getBlockedStatus(actionId, state) {
     if (!isInvestigateDone) return { blocked: true, reason: 'Investigate Nearby Sound first — someone might be alive nearby.' };
     if (!isBasecampDone) return { blocked: true, reason: 'You found survivors — secure a base camp first before exploring deeper.' };
     if (!flags.hasCompleted_tasksSurvivors) return { blocked: true, reason: 'Complete Objective: "Tasks for survivors" before exploring deeper areas of the ship.' };
+
+    // Power Core stage 2 gate: must explore cafeteria and crew quarters first (survivor safety)
+    if (actionId === 'searchPowerCore' && totalStages > 1 && currentStage >= 1) {
+        const cafeteria = find('exploreCafeteria');
+        const crewQuarters = find('checkCrewQuarters');
+        const hasCafeteria = !!(cafeteria && cafeteria.completed);
+        const hasCrewQuarters = !!(crewQuarters && crewQuarters.completed);
+        
+        if (!hasCafeteria || !hasCrewQuarters) {
+            return { blocked: true, reason: 'Blasting the power core risks structural damage and survivor casualties. Search the cafeteria and crew quarters first to ensure all survivors are accounted for.' };
+        }
+    }
 
     // Additional stage-specific gate: Investigate Bridge stage 2 requires emergency power restored
     if (actionId === 'investigateBridge' && totalStages > 1 && currentStage >= 1) {
@@ -60,6 +72,15 @@ export function evaluateEventUnlocks(event, state) {
             const assemble = actions.find(a => a && a.id === 'assembleMakeshiftExplosive');
             if (assemble && !assemble.isUnlocked) {
                 result.actions.push('assembleMakeshiftExplosive');
+            }
+        }
+        
+        // Rule: when Fabric is discovered, unlock Install Purification Unit upgrade
+        if (hasFabric) {
+            const actions = (state.actions || []);
+            const purificationUnit = actions.find(a => a && a.id === 'installPurificationUnit');
+            if (purificationUnit && !purificationUnit.isUnlocked) {
+                result.actions.push('installPurificationUnit');
             }
         }
     }

@@ -8,13 +8,18 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 10px 12px; /* adjusted for better vertical centering */
   color: #ffffff;
   font-weight: 600;
+  font-size: 13px; /* reduced font size to prevent wrapping */
   letter-spacing: 0.2px;
+  line-height: 1.2; /* tighter line height for better centering */
   background: transparent;
   border: 0;
   position: relative; /* allow right-aligned chevrons */
+  white-space: nowrap; /* prevent text wrapping */
+  overflow: hidden; /* hide overflow if text is too long */
+  text-overflow: ellipsis; /* show ellipsis for very long text */
 }
 
 /* Double-chevron up icon with green glow */
@@ -34,8 +39,9 @@
   stroke-width: 2.5;
   fill: none;
   filter: drop-shadow(0 0 3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7));
+  transform: translateY(0); /* ensure chevron is centered */
 }
-.objectives-banner[aria-expanded="true"] .chevrons-icon { transform: translateY(1px); }
+.objectives-banner[aria-expanded="true"] .chevrons-icon { transform: translateY(0); } /* keep centered when open */
 /* Increase glow on hover/focus for opener */
 .objectives-banner:hover .chevrons-icon,
 .objectives-banner:focus .chevrons-icon,
@@ -58,24 +64,102 @@
 }
 
 .objectives-container { position: relative; }
+
+/* Blocker div that covers area behind drawer to prevent tooltip triggers */
+.objectives-blocker {
+  position: fixed;
+  background: rgba(255, 0, 0, 0.1); /* temporary visible red tint for debugging */
+  z-index: 50000; /* very high to ensure it's above everything */
+  pointer-events: auto; /* capture all mouse events */
+  display: none;
+  cursor: default; /* show normal cursor over blocker */
+}
+
+.objectives-blocker.active {
+  display: block;
+}
+
 .objectives-drawer {
   position: absolute;
-  /* Slight widening so left glow matches footer divider exactly */
-  left: -1.5px;
+  left: 0;
   bottom: 40px; /* just above footer */
-  width: calc(100% + 3px); /* extend left side outward by 1.5px */
+  width: 100%;
   box-sizing: border-box;
   opacity: 0;
   transform: translateY(14px);
-  overflow: hidden;
-  background: #000; /* solid black as requested */
-  border: 0; /* remove border for flush edge */
-  border-radius: 0; /* remove rounding */
-  box-shadow: none; /* remove shadowy outside part */
-  z-index: 40;
-  height: var(--objectives-drawer-height, 240px); /* fixed height, slide via transform */
+  overflow: visible; /* allow glow lines to extend */
+  background: #000;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  z-index: 40000; /* above tooltips (32768) */
+  height: var(--objectives-drawer-height, 320px);
+  display: flex;
+  flex-direction: column;
+  pointer-events: none; /* always start with no pointer events */
 }
-/* Glowing divider lines (top & bottom) matching existing UI */
+
+.objectives-drawer.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto; /* enable interactions when open */
+}
+
+/* Ensure entire drawer blocks mouse events when open */
+.objectives-drawer.open::before,
+.objectives-drawer.open::after {
+  pointer-events: auto; /* glow lines also block when open */
+}
+
+/* Fixed header section with objective title and chevron */
+.objectives-drawer .objective-header {
+  position: relative;
+  padding: 10px;
+  background: #000;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: auto; /* block events to elements below */
+}
+
+.objectives-drawer .objective-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg,
+    rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0) 0%,
+    rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8) 50%,
+    rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0) 100%);
+  animation: pulse-glow 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.objectives-drawer .objective-title {
+  margin: 0;
+  color: #90EE90;
+  font-size: 1em;
+  font-weight: normal;
+  text-align: center;
+  flex: 1;
+}
+
+/* Scrollable content area */
+.objectives-drawer .objective-details {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #000;
+  padding: 14px 22px 18px 22px;
+  box-sizing: border-box;
+  pointer-events: auto; /* explicitly block events to elements below */
+}
+
+/* Glowing divider lines (top & bottom) - fixed, don't scroll */
 .objectives-drawer::before,
 .objectives-drawer::after {
   content: '';
@@ -84,27 +168,26 @@
   width: 100%;
   height: 3px;
   animation: pulse-glow 5s ease-in-out infinite;
-  z-index: 41;
+  z-index: 42; /* above scrollbar */
+  pointer-events: none;
 }
 .objectives-drawer::before { top: 0; }
 .objectives-drawer::after { bottom: 0; }
-.objectives-drawer.open {
-  opacity: 1;
-  transform: translateY(0);
-  overflow-y: auto; /* allow scroll if content exceeds fixed height */
-  pointer-events: auto;
-}
 
-/* Drawer close control (top-right) */
+/* No need for duplicate .open rule - already defined above */
+
+/* Drawer close control - positioned on right side like log options button */
 .objectives-drawer .drawer-close {
   position: absolute;
-  top: 6px;
-  right: 8px;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
   background: transparent;
   border: 0;
   padding: 2px;
   cursor: pointer;
   line-height: 1;
+  z-index: 1;
 }
 .objectives-drawer .drawer-close .chevrons-icon {
   width: 22px; height: 16px;
@@ -124,20 +207,34 @@
   /* Align flush with top/bottom rails for perfect corner joins */
   top: 0;
   bottom: 0;
-  width: 6px; /* thicker for perceived parity with horizontal rail */
+  width: 3px; /* thicker for perceived parity with horizontal rail */
   animation: pulse-glow 5s ease-in-out infinite;
   z-index: 41;
+  pointer-events: none;
 }
-.objectives-drawer .glow-left { left: -3px; }
-.objectives-drawer .glow-right { right: -3px; }
+.objectives-drawer .glow-left { left: -1.5px; } /* extend to match horizontal glow */
+.objectives-drawer .glow-right { right: -1.5px; } /* extend to match horizontal glow */
 
 .objectives-list { display: none; }
 
-.objective-details {
-  padding: 14px 22px;
+/* Styling for objective content (no h4 - that's in the header now) */
+.objectives-drawer .objective-details p { margin: 0 0 8px 0; color: #d6e3d6; font-size: 13px; pointer-events: auto; }
+.objectives-drawer .objective-details ul { margin: 0 0 12px 0; padding-left: 18px; color: #c9d7c9; pointer-events: auto; }
+.objectives-drawer .objective-details li { margin: 2px 0; pointer-events: auto; }
+.objectives-drawer .objective-reward { margin-top: 8px; color: #ffd98a; font-weight: 600; pointer-events: auto; }
+
+/* Custom Scrollbar for objectives drawer content */
+.objectives-drawer .objective-details::-webkit-scrollbar {
+    width: 10px;
 }
-.objective-details h4 { margin: 0 0 6px 0; color: #90EE90; font-size: 14px; }
-.objective-details p { margin: 0 0 8px 0; color: #d6e3d6; font-size: 13px; }
-.objective-details ul { margin: 0; padding-left: 18px; color: #c9d7c9; }
-.objective-details li { margin: 2px 0; }
-.objective-reward { margin-top: 8px; color: #ffd98a; font-weight: 600; }
+.objectives-drawer .objective-details::-webkit-scrollbar-track {
+    background: #000;
+}
+.objectives-drawer .objective-details::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+    border-radius: 5px;
+    border: 2px solid #000;
+}
+.objectives-drawer .objective-details::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
+}

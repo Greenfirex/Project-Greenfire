@@ -134,9 +134,9 @@ powercore_locked_attempt: {
 powercore_breached: {
     title: 'Breach at the Core',
     pages: [
-        "After scavenging materials and assembling a makeshift charge you return to the sealed access. Heart racing, you set the device against the reinforced seam and take cover. The detonation is a raw, awful thing — metal tears and a pressure wave rolls through the corridor — then silence and light.",
-        "The blast succeeds: the seal is blown and the core chamber is exposed. Inside, scorched conduits and cold reactors glint in your headlamp. Among the wreckage you recover power cells and a handful of ship components. The risk was high, but the payoff is immediate and practical.",
-        "The breach leaves you with new choices. Emergency power can be restored, with careful work, to bring systems online and simplify further recovery. But... doing so may draw attention from unknown external threats. You must weigh the benefits against the risks."
+        "You have swept the accessible sections of the ship — the cafeteria, crew quarters, and nearby compartments. All survivors you could find are accounted for and safe at base camp. With everyone secured, you judge it safe to risk the explosive breach at the power core.",
+        "Heart racing, you set the makeshift charge against the reinforced seam and take cover. The detonation is raw and violent — metal tears, a pressure wave rolls through the corridor — then silence. The blast succeeds: the seal is blown and the core chamber is exposed.",
+        "Inside, scorched conduits and cold reactors glint in your headlamp. Among the wreckage you recover power cells and ship components. The risk was high, but knowing your people are safe makes it acceptable. Emergency power can now be restored — carefully — to bring systems online and simplify further recovery."
     ]
 },
 

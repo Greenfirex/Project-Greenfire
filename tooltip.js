@@ -390,7 +390,7 @@ function buildTooltipHTML(data) {
                         : `${Math.floor(r.amount * multiplier)}`;
                     const cls = isBoosted ? 'reward-amount boosted' : 'reward-amount';
                     const chance = (typeof r.chance === 'number') ? (r.chance > 1 ? r.chance / 100 : r.chance) : null;
-                    const chanceText = (chance && chance > 0 && chance < 1) ? ` <span class="tooltip-detail">(${Math.round(chance * 100)}% chance)</span>` : '';
+                    const chanceText = (chance && chance > 0 && chance < 1) ? ` (${Math.round(chance * 100)}% chance)` : '';
                     return `<p>${r.resource}: <span class="${cls}">${label}</span>${chanceText}</p>`;
                 }).join('');
 

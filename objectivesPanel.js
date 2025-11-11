@@ -40,13 +40,15 @@ function ensureContainer() {
     drawer.className = 'objectives-drawer';
     drawer.setAttribute('aria-hidden', 'true');
 
-    const details = document.createElement('div');
-    details.className = 'objective-details';
-    const list = document.createElement('ul');
-    list.id = 'objectivesList';
-    list.className = 'objectives-list';
-    details.appendChild(list);
-    // Close control (top-right) — double chevron pointing down
+    // Fixed header section with objective title and chevron
+    const header = document.createElement('div');
+    header.className = 'objective-header';
+    const headerTitle = document.createElement('h4');
+    headerTitle.className = 'objective-title';
+    headerTitle.textContent = '—';
+    header.appendChild(headerTitle);
+
+    // Close control (chevron down) — centered in header
     const closeBtn = document.createElement('button');
     closeBtn.className = 'drawer-close';
     closeBtn.type = 'button';
@@ -65,8 +67,17 @@ function ensureContainer() {
             drawer.setAttribute('aria-hidden', 'true');
         }
     });
+    header.appendChild(closeBtn);
 
-    drawer.appendChild(closeBtn);
+    // Scrollable content area
+    const details = document.createElement('div');
+    details.className = 'objective-details';
+    const list = document.createElement('ul');
+    list.id = 'objectivesList';
+    list.className = 'objectives-list';
+    details.appendChild(list);
+
+    drawer.appendChild(header);
     drawer.appendChild(details);
     // Add vertical glow lines (left & right) to match surrounding panel separators
     const glowLeft = document.createElement('div');
@@ -75,6 +86,15 @@ function ensureContainer() {
     glowRight.className = 'glow-vert glow-right';
     drawer.appendChild(glowLeft);
     drawer.appendChild(glowRight);
+
+    // Create a blocker div that will cover the game area behind the drawer
+    const blocker = document.createElement('div');
+    blocker.className = 'objectives-blocker';
+    // Insert blocker into game area itself, not body
+    const gameArea = document.getElementById('gameArea');
+    if (gameArea) {
+        gameArea.appendChild(blocker);
+    }
 
     wrapper.appendChild(banner);
     // Drawer now stays scoped to middle footer column only
@@ -86,6 +106,22 @@ function ensureContainer() {
         drawer.classList.toggle('open', isOpen);
         banner.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         drawer.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+        
+        // Position and show/hide blocker
+        if (isOpen) {
+            // Wait for drawer animation to complete before positioning blocker
+            setTimeout(() => {
+                const drawerRect = drawer.getBoundingClientRect();
+                blocker.style.left = drawerRect.left + 'px';
+                blocker.style.top = drawerRect.top + 'px';
+                blocker.style.width = drawerRect.width + 'px';
+                blocker.style.height = drawerRect.height + 'px';
+                blocker.classList.add('active');
+            }, 250); // match drawer transition time
+        } else {
+            blocker.classList.remove('active');
+        }
+        
         if (isOpen) {
             try { recomputeObjectives(); } catch {}
             // Update banner immediately when opening
@@ -123,11 +159,15 @@ function renderBannerText() {
 
 function renderDetails() {
     if (!elements.details) return;
-    elements.details.innerHTML = '';
+    // Update header title
+    const headerTitle = elements.drawer.querySelector('.objective-title');
     const current = pickCurrentObjective();
-    const header = document.createElement('h4');
-    header.textContent = current ? current.label : 'No current objective';
-    elements.details.appendChild(header);
+    if (headerTitle) {
+        headerTitle.textContent = current ? current.label : 'No current objective';
+    }
+    
+    // Clear and populate scrollable content
+    elements.details.innerHTML = '';
     if (!current) return;
     const steps = getObjectiveSteps(current.id);
     if (steps.length === 0) {

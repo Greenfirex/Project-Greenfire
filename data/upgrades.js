@@ -9,7 +9,13 @@ export const upgradeActions = [
         cancelable: true,
         cost: [
             { resource: 'Scrap Metal', amount: 6 },
-            { resource: 'Crude Prybar', amount: 1 }
+            { resource: 'Crude Prybar', amount: 1 },
+            { resource: 'Wire', amount: 10 }
+        ],
+        drain: [
+            { resource: 'Stamina', amount: 17 },
+            { resource: 'Food Rations', amount: 3 },
+            { resource: 'Clean Water', amount: 4 }
         ],
         repeatable: false,
         suppressGenericLog: true,
@@ -34,7 +40,10 @@ export const upgradeActions = [
         isUnlocked: false, // unlocked after Base Camp is established
         cancelable: true,
         cost: [
-            { resource: 'Scrap Metal', amount: 5 },
+            { resource: 'Scrap Metal', amount: 5 }
+        ],
+        drain: [
+            { resource: 'Stamina', amount: 11 },
             { resource: 'Food Rations', amount: 15 },
             { resource: 'Clean Water', amount: 10 }
         ],
@@ -47,7 +56,8 @@ export const upgradeActions = [
             {
                 story: null,
                 unlocks: [],
-                logText: 'A steady campfire crackles at the center of camp. Spirits lift a little.'
+                logText: 'A steady campfire crackles at the center of camp. Spirits lift a little.',
+                suppressGenericLog: true
             }
         ]
     },
@@ -63,6 +73,11 @@ export const upgradeActions = [
             { resource: 'Wire', amount: 16 },
             { resource: 'Scrap Metal', amount: 12 }
         ],
+        drain: [
+            { resource: 'Stamina', amount: 17 },
+            { resource: 'Food Rations', amount: 3 },
+            { resource: 'Clean Water', amount: 4 }
+        ],
         repeatable: false,
         hideRewardPreview: true,
         reward: [],
@@ -72,7 +87,8 @@ export const upgradeActions = [
             {
                 story: null,
                 unlocks: [],
-                logText: 'You rig cable harnesses and trays. Scrap runs get faster and tidier.'
+                logText: 'You rig cable harnesses and trays. Scrap runs get faster and tidier.',
+                suppressGenericLog: true
             }
         ]
     },
@@ -85,7 +101,12 @@ export const upgradeActions = [
         isUnlocked: false,
         cancelable: true,
         cost: [
-            { resource: 'Crude Prybar', amount: 3 }
+            { resource: 'Crude Prybar', amount: 2 }
+        ],
+        drain: [
+            { resource: 'Stamina', amount: 23 },
+            { resource: 'Food Rations', amount: 5 },
+            { resource: 'Clean Water', amount: 6 }
         ],
         repeatable: false,
         hideRewardPreview: true,
@@ -96,7 +117,8 @@ export const upgradeActions = [
             {
                 story: 'cafeteria_salvage',
                 unlocks: [],
-                logText: 'You salvage a compact cooking rig and parts from the mess hall wreckage. With this at the base camp food and water gathering will be more effective. (Click to read)'
+                logText: 'You salvage a compact cooking rig and parts from the mess hall wreckage. With this at the base camp food and water gathering will be more effective. (Click to read)',
+                suppressGenericLog: true
             }
         ]
     },
@@ -114,6 +136,11 @@ export const upgradeActions = [
             { resource: 'Scrap Metal', amount: 4 },
             { resource: 'Crude Prybar', amount: 1 }
         ],
+        drain: [
+            { resource: 'Stamina', amount: 23 },
+            { resource: 'Food Rations', amount: 4 },
+            { resource: 'Clean Water', amount: 5 }
+        ],
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
@@ -123,7 +150,8 @@ export const upgradeActions = [
             {
                 story: 'tents_installed',
                 unlocks: ['insulateShelters'],
-                logText: 'You construct several simple tents for the base camp. Resting will now be more effective. (Click to read)'
+                logText: 'You construct several simple tents for the base camp. Resting will now be more effective. (Click to read)',
+                suppressGenericLog: true
             }
         ]
     },
@@ -140,6 +168,11 @@ export const upgradeActions = [
             { resource: 'Scrap Metal', amount: 6 },
             { resource: 'Crude Prybar', amount: 2 }
         ],
+        drain: [
+            { resource: 'Stamina', amount: 17 },
+            { resource: 'Food Rations', amount: 3 },
+            { resource: 'Clean Water', amount: 4 }
+        ],
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
@@ -149,7 +182,8 @@ export const upgradeActions = [
             {
                 story: 'shelter_insulated',
                 unlocks: [],
-                logText: 'You upgrade the tents with added insulation. Resting restores a bit more stamina now.'
+                logText: 'You upgrade the tents with added insulation. Resting restores a bit more stamina now.',
+                suppressGenericLog: true
             }
         ]
     },
@@ -166,17 +200,23 @@ export const upgradeActions = [
             { resource: 'Scrap Metal', amount: 4 },
             { resource: 'Wire', amount: 8 }
         ],
+        drain: [
+            { resource: 'Stamina', amount: 19 },
+            { resource: 'Food Rations', amount: 3 },
+            { resource: 'Clean Water', amount: 4 }
+        ],
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Water Collection job: +25% Permanent Bonus'],
+    tooltipEffects: ['Water Collection job: +25% Bonus'],
         tooltipUnlocks: ['Rain Tarp'],
         stage: 0,
         stages: [
             {
                 story: 'rain_catchers',
                 unlocks: [],
-                logText: 'Catchment arrays gather rain and feed storage.'
+                logText: 'Catchment arrays gather rain and feed storage.',
+                suppressGenericLog: true
             }
         ]
     },
@@ -193,11 +233,16 @@ export const upgradeActions = [
             { resource: 'Chemicals', amount: 6 },
             { resource: 'Fabric', amount: 4 }
         ],
+        drain: [
+            { resource: 'Stamina', amount: 23 },
+            { resource: 'Food Rations', amount: 4 },
+            { resource: 'Clean Water', amount: 5 }
+        ],
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Water Collection job: +25% Permanent Bonus',
-                     'Purify Water: +20% Permanent Bonus'
+    tooltipEffects: ['Water Collection job: +25% Bonus',
+                     'Purify Water: +20% Bonus'
     ],
         stage: 0,
         stages: [

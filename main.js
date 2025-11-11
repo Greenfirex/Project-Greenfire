@@ -17,12 +17,14 @@ import { showStoryPopup } from './popup.js';
 import { storyEvents } from './data/storyEvents.js';
 import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity, shouldRunInBackground } from './options.js';
 import { updateImpactTimer } from './eventManager.js';
+import { recomputeObjectives } from './data/objectives.js';
 import './headeroptions.js';
 
 window.debugResources = resources;
 window.TIME_SCALE = Number(localStorage.getItem('gameTimeScale')) || 1;
 
 let lastUpdateTime = Date.now();
+let lastObjectivesCheck = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('preloader').classList.add('hidden');
@@ -237,6 +239,13 @@ function startGame() {
             if (typeof updateBuildingButtonsState === 'function') updateBuildingButtonsState();
             if (typeof updateTechButtonsState === 'function') updateTechButtonsState();
             if (typeof updateImpactTimer === 'function') updateImpactTimer();
+            
+            // Periodically check objectives to catch completions from passive resource gains
+            // Throttle to once per second to avoid excessive computation
+            if (now - lastObjectivesCheck >= 1000) {
+                try { recomputeObjectives(); } catch (e) { /* non-fatal */ }
+                lastObjectivesCheck = now;
+            }
         }, 100);
     }
 
