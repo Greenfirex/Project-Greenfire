@@ -1,0 +1,38 @@
+#colonySection {
+    background-image: url('../../assets/images/background1.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    align-items: flex-start;
+    padding-left: 20px;
+    box-sizing: border-box;
+}
+
+.section-header {
+    width: 100%;
+    margin-bottom: 10px;
+    margin-top: 20px;
+    font-size: 1.2em;
+    color: #FFF;
+}
+
+.mining-category-container {
+    background-color: #000;
+    border: 1px solid #444;
+    padding: 15px;
+    width: fit-content; /* FIXED: Changed from 100% to fit-content */
+    box-sizing: border-box;
+}
+
+/* Section-specific button state: unaffordable */
+.image-button.unaffordable {
+    filter: grayscale(60%);
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Make the text color red for unaffordable items */
+.image-button.unaffordable .building-name {
+    color: #E74C3C;
+    text-shadow: none;
+}

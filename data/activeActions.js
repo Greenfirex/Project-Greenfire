@@ -9,3 +9,7 @@ export function getActiveCrashSiteAction() {
 export function setActiveCrashSiteAction(action) {
     activeActionsState.crashSite = action;
 }
+
+export function resetActiveActions() {
+    activeActionsState.crashSite = null;
+}

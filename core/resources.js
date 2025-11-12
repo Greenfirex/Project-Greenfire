@@ -1,11 +1,12 @@
-import { technologies } from './data/technologies.js';
-import { jobs, getEffectiveJobRate } from './data/jobs.js';
-import { buildings } from './data/buildings.js';
-import { gameFlags } from './data/gameFlags.js';
+import { technologies } from '../data/definitions/technologies.js';
+import { jobs, getEffectiveJobRate } from '../data/jobsManager.js';
+import { buildings } from '../data/definitions/buildings.js';
+import { gameFlags } from '../data/gameFlags.js';
 import { formatNumber } from './formatting.js';
-import { setupTooltip } from './tooltip.js';
-import { getActiveCrashSiteAction } from './data/activeActions.js';
-import { getMorale } from './data/morale.js';
+import { setupTooltip } from '../ui/panels/tooltip.js';
+import { getActiveCrashSiteAction } from '../data/activeActions.js';
+import { getMorale } from '../data/morale.js';
+import { updateXPMeter } from '../ui/footer.js';
 
 export function getInitialResources() {
     return [
@@ -365,18 +366,6 @@ export function updateResourceInfo() {
     infoRow.classList.toggle('capped', isCapped);
     });
 
-    // Update XP meter in footer (simple modulo-100 progress)
-    try {
-        const xp = resources.find(r => r.name === 'XP');
-        const meter = document.getElementById('xpMeter');
-        if (xp && meter) {
-            const valueEl = meter.querySelector('.xp-value');
-            if (valueEl) valueEl.textContent = Math.floor(xp.amount).toLocaleString();
-            const fill = meter.querySelector('.xp-fill');
-            if (fill) {
-                const pct = (xp.amount % 100) / 100;
-                fill.style.width = `${Math.max(0, Math.min(100, pct * 100))}%`;
-            }
-        }
-    } catch {}
+    // Update XP meter in footer
+    updateXPMeter(resources);
 }

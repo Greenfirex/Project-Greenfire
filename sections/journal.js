@@ -1,4 +1,4 @@
-import { getIngameTimeString } from '../time.js';
+import { getIngameTimeString } from '../core/time.js';
 import { getAllObjectivesWithState, getObjectiveSteps } from '../data/objectives.js';
 
 export function setupJournalSection(section) {

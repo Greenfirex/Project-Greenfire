@@ -8,7 +8,7 @@
     width: 100%;
     box-sizing: border-box;
     justify-content: flex-start;
-    background-image: url('../assets/images/background2.jpg');
+    background-image: url('../../assets/images/background2.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -94,7 +94,7 @@
     justify-content: center;
 
     /* --- Background Image (Inactive State) --- */
-    background-image: url('../assets/images/PNG/Button03.png');
+    background-image: url('../../assets/images/PNG/Button03.png');
     background-size: 100% 100%;
     background-color: transparent;
     
@@ -117,7 +117,7 @@
 
 .tab.active {
     /* --- Background Image (Active State) --- */
-    background-image: url('../assets/images/PNG/Button04.png');
+    background-image: url('../../assets/images/PNG/Button04.png');
     color: #FFF; /* Make text brighter for the active tab */
 }
 
@@ -180,7 +180,7 @@
     align-items: center;
     justify-content: center;
     padding: 0 10px;
-    background-image: url('../assets/images/PNG/Button03.png');
+    background-image: url('../../assets/images/PNG/Button03.png');
     background-size: 100% 100%;
     background-color: transparent;
     color: #EAEAEA;
@@ -193,7 +193,7 @@
 }
 
 .tech-button:hover {
-    background-image: url('../assets/images/PNG/Button04.png');
+    background-image: url('../../assets/images/PNG/Button04.png');
     color: #FFF;
     transform: scale(1.05);
 }

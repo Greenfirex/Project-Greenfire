@@ -1,14 +1,14 @@
 // Tooltip + debuff-icon module
 
-import { resources, computeResourceRates } from './resources.js';
-import { formatNumber } from './formatting.js';
-import { gameFlags } from './data/gameFlags.js';
-import { computeRewardEffects, upgradeEffects } from './data/upgradeEffects.js';
-import { getMorale } from './data/morale.js';
-import { jobs } from './data/jobs.js';
-import { buildings } from './data/buildings.js';
-import { allActions as salvageActions } from './data/allActions.js';
-import { getBlockedStatus } from './data/unlockRules.js';
+import { resources, computeResourceRates } from '../../core/resources.js';
+import { formatNumber } from '../../core/formatting.js';
+import { gameFlags } from '../../data/gameFlags.js';
+import { computeRewardEffects, upgradeEffects } from '../../data/upgradeEffects.js';
+import { getMorale } from '../../data/morale.js';
+import { jobs } from '../../data/jobsManager.js';
+import { buildings } from '../../data/definitions/buildings.js';
+import { allActions as salvageActions } from '../../data/definitions/allActions.js';
+import { getBlockedStatus } from '../../data/unlockRules.js';
 
 let globalTooltip = null;
 const tooltipRegistry = new WeakMap();

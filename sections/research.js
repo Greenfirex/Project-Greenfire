@@ -1,9 +1,9 @@
-import { addLogEntry } from '../log.js';
-import { technologies } from '../data/technologies.js';
-import { activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
-import { setupTooltip, hideTooltip } from '../tooltip.js';
+import { addLogEntry } from '../core/ingameLog.js';
+import { technologies } from '../data/definitions/technologies.js';
+import { activatedSections, setActivatedSections, applyActivatedSections } from '../core/main.js';
+import { setupTooltip, hideTooltip } from '../ui/panels/tooltip.js';
 import { setupColonySection } from './colony.js';
-import { resources, updateResourceInfo } from '../resources.js';
+import { resources, computeResourceRates } from '../core/resources.js';
 
 export let currentResearchingTech = null;
 export let researchInterval = null;

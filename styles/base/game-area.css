@@ -69,6 +69,55 @@
     transition: width 0.1s linear;
 }
 
+/* ===================================================================
+   IMAGE BUTTON - Shared button component for actions and buildings
+   =================================================================== */
+
+/* Base style for all image-based buttons */
+.image-button {
+    /* --- Sizing and Layout --- */
+    width: 180px;
+    height: 55px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 0 10px;
+
+    /* --- Background Image --- */
+    background-image: url('../../assets/images/PNG/Button03.png');
+    background-size: 100% 100%;
+    background-color: transparent;
+
+    /* --- Text and Font --- */
+    color: #EAEAEA;
+    font-size: 14px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+
+    /* --- General --- */
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.image-button:hover {
+    background-image: url('../../assets/images/PNG/Button04.png');
+    color: #FFF;
+    transform: scale(1.05);
+}
+
+/* Special element for the building count */
+.building-count {
+    font-size: 14px;
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+    color: #90EE90;
+}
+
 /* ensure button label sits above progress bar */
 .image-button .building-name {
     position: relative;
@@ -86,7 +135,18 @@
 .image-button.confirm-cancel .building-name { display: none; }
 .image-button.confirm-cancel .cancel-text { display: inline; }
 
-/* Shared custom scrollbar for content-panel */
+/* Click animation for image buttons */
+@keyframes button-click-bounce {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.9); }
+    100% { transform: scale(1); }
+}
+
+.is-clicking {
+    animation: button-click-bounce 0.2s ease;
+}
+
+/* small utility to indicate a visually-blocked action */
 .content-panel::-webkit-scrollbar { width: 12px; }
 .content-panel::-webkit-scrollbar-track { background: #0b0b0b; }
 .content-panel::-webkit-scrollbar-thumb {
@@ -96,12 +156,14 @@
 }
 .content-panel::-webkit-scrollbar-thumb:hover { background-color: #666; }
 
-/* small utility to indicate a visually-blocked action (kept here too) */
+/* small utility to indicate a visually-blocked action */
 .image-button.blocked-action {
     opacity: 0.55;
     filter: grayscale(0.25);
-    cursor: default;                  /* non-clickable look but still hoverable */
-    pointer-events: auto !important;  /* ensure hover/mouse events still fire */
+    cursor: default;
+    pointer-events: auto !important;
     position: relative;
-    z-index: 2;                        /* raise above accidental overlays */
+    z-index: 2;
 }
+
+/* Shared custom scrollbar for content-panel */

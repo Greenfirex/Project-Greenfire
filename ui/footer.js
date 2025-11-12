@@ -1,0 +1,120 @@
+// Footer UI Management
+// - Pause/Resume button
+// - Speed control buttons (1x, 2x, 5x, 10x)
+// - XP meter display
+
+import { addLogEntry, LogType } from '../core/ingameLog.js';
+
+let isPaused = false;
+let mainLoopCallbacks = { start: null, stop: null };
+
+// Allow main.js to register its loop control functions
+function registerMainLoopCallbacks(startFn, stopFn) {
+    mainLoopCallbacks.start = startFn;
+    mainLoopCallbacks.stop = stopFn;
+}
+
+function updateHUD() {
+    const hud = document.getElementById('gameStatusHUD');
+    if (hud) hud.textContent = isPaused ? 'Paused' : `${window.TIME_SCALE}x`;
+}
+
+function setGameSpeed(factor, announce = true) {
+    window.TIME_SCALE = Number(factor) || 1;
+    // persist new value
+    try { localStorage.setItem('gameTimeScale', String(window.TIME_SCALE)); } catch (e) {}
+    // update UI active button
+    document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.speed) === Number(window.TIME_SCALE));
+    });
+    updateHUD();
+    if (announce) addLogEntry(`Game speed set to ${window.TIME_SCALE}x.`, LogType.INFO);
+}
+
+// Pause/resume helpers
+function pauseGame(announce = true) {
+    if (isPaused) return;
+    isPaused = true;
+    // stop main loop and notify subsystems
+    if (mainLoopCallbacks.stop) mainLoopCallbacks.stop();
+    window.dispatchEvent(new CustomEvent('game-pause'));
+    const btn = document.getElementById('pauseBtn');
+    if (btn) { btn.textContent = 'Resume'; btn.classList.add('active'); }
+    // persist paused state
+    try { localStorage.setItem('gamePaused', 'true'); } catch (e) {}
+    updateHUD();
+    if (announce) addLogEntry('Game paused.', LogType.INFO);
+}
+
+function resumeGame(announce = true) {
+    if (!isPaused) return;
+    isPaused = false;
+    if (mainLoopCallbacks.start) mainLoopCallbacks.start();
+    window.dispatchEvent(new CustomEvent('game-resume'));
+    const btn = document.getElementById('pauseBtn');
+    if (btn) { btn.textContent = 'Pause'; btn.classList.remove('active'); }
+    try { localStorage.setItem('gamePaused', 'false'); } catch (e) {}
+    updateHUD();
+    if (announce) addLogEntry(`Game resumed at ${window.TIME_SCALE}x.`, LogType.INFO);
+}
+
+function togglePause() {
+    if (isPaused) resumeGame(); else pauseGame();
+}
+
+// Update XP meter in footer
+export function updateXPMeter(resources) {
+    try {
+        const xp = resources.find(r => r.name === 'XP');
+        const meter = document.getElementById('xpMeter');
+        if (xp && meter) {
+            const valueEl = meter.querySelector('.xp-value');
+            if (valueEl) valueEl.textContent = Math.floor(xp.amount).toLocaleString();
+            const fill = meter.querySelector('.xp-fill');
+            if (fill) {
+                const pct = (xp.amount % 100) / 100;
+                fill.style.width = `${Math.max(0, Math.min(100, pct * 100))}%`;
+            }
+        }
+    } catch {}
+}
+
+// Export for main.js to use
+export function getIsPaused() {
+    return isPaused;
+}
+
+export function setIsPaused(value) {
+    isPaused = value;
+}
+
+export function initFooter() {
+    // Read persisted pause state
+    const savedPaused = (localStorage.getItem('gamePaused') === 'true');
+
+    // Hook up DOM controls
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) pauseBtn.addEventListener('click', (e) => { e.preventDefault(); togglePause(); });
+    
+    document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const v = Number(btn.dataset.speed) || 1;
+            setGameSpeed(v, true);
+        });
+    });
+
+    // Apply persisted settings
+    setGameSpeed(window.TIME_SCALE, false);
+    if (savedPaused) {
+        pauseGame(false);
+    } else {
+        isPaused = false;
+        const pBtn = document.getElementById('pauseBtn');
+        if (pBtn) { pBtn.textContent = 'Pause'; pBtn.classList.remove('active'); }
+        updateHUD();
+    }
+}
+
+// Export pause/resume functions and registration for core to use
+export { pauseGame, resumeGame, togglePause, updateHUD, registerMainLoopCallbacks };

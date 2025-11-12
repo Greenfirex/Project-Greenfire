@@ -1,10 +1,10 @@
 // Global Morale system: additive percent-based modifier that scales job outputs only.
 // 100% = baseline. Final multiplier = percent / 100. Values are clamped to [0, 200].
 
-import { resources } from '../resources.js';
+import { resources } from '../core/resources.js';
 import { gameFlags } from './gameFlags.js';
 import { getCurrentWeather } from './weather.js';
-import { getTotalIngameMinutes } from '../time.js';
+import { getTotalIngameMinutes } from '../core/time.js';
 
 // In-memory additional modifiers registry for future events. Values are deltas in percent.
 // Example: { id: 'festival', delta: +10, label: 'Festival +10%' }
@@ -21,6 +21,10 @@ export function clearMoraleModifier(id) {
 
 export function listMoraleModifiers() {
     return Array.from(extraModifiers.values());
+}
+
+export function resetMoraleModifiers() {
+    extraModifiers.clear();
 }
 
 function daysSinceMinutes(startMinutes) {

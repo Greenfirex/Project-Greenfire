@@ -1,17 +1,20 @@
 import { resources, getInitialResources, resetResources } from './resources.js';
-import { technologies, resetTechnologies } from './data/technologies.js';
-import { buildings, getInitialBuildings, resetBuildings } from './data/buildings.js'; 
-import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from './sections/research.js';
+import { technologies, resetTechnologies } from '../data/definitions/technologies.js';
+import { buildings, getInitialBuildings, resetBuildings } from '../data/definitions/buildings.js'; 
+import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from '../sections/research.js';
 import { activatedSections, setActivatedSections, getInitialActivatedSections } from './main.js';
-import { showStoryPopup } from './popup.js';
+import { showStoryPopup } from '../ui/panels/popup.js';
 import { resetIngameTime, getTotalIngameMinutes, setTotalIngameMinutes } from './time.js';
-import { storyEvents } from './data/storyEvents.js';
-import { allActions as salvageActions } from './data/allActions.js';
-import { jobs } from './data/jobs.js';
-import { addLogEntry, LogType } from './log.js';
-import { gameFlags, resetGameFlags, applySavedGameFlags } from './data/gameFlags.js';
-import { storyLog, resetStoryLog, applySavedStoryLog, getInitialStoryLog, renderJournalEntries } from './sections/journal.js';
-import { resetObjectives, recomputeObjectives } from './data/objectives.js';
+import { storyEvents } from '../data/definitions/storyEvents.js';
+import { allActions as salvageActions } from '../data/definitions/allActions.js';
+import { jobs, resetJobs } from '../data/jobsManager.js';
+import { addLogEntry, LogType } from './ingameLog.js';
+import { gameFlags, resetGameFlags, applySavedGameFlags } from '../data/gameFlags.js';
+import { storyLog, resetStoryLog, applySavedStoryLog, getInitialStoryLog, renderJournalEntries } from '../sections/journal.js';
+import { resetObjectives, recomputeObjectives } from '../data/objectives.js';
+import { resetActiveActions, getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/activeActions.js';
+import { resetMoraleModifiers, listMoraleModifiers, setMoraleModifier } from '../data/morale.js';
+import { resetWeather } from '../data/weather.js';
 
 export function saveGameState() {
     const gameState = getGameState();
@@ -21,58 +24,53 @@ export function saveGameState() {
 
 export function getGameState() {
     return {
-        resources: resources,
-        technologies: technologies,
-        jobs: jobs,
+        resources,
+        technologies,
+        jobs,
         researchProgress: getResearchProgress(),
         currentResearchingTech: getCurrentResearchingTech(),
-        activatedSections: activatedSections,
-        buildings: buildings,
-        salvageActions: salvageActions,
+        researchStartTime: getCurrentResearchStartTime(),
+        activatedSections,
+        buildings,
+        salvageActions,
         gameFlags: { ...gameFlags },
         storyLog: Array.isArray(storyLog) ? storyLog : getInitialStoryLog(),
-        ingameTimeMinutes: (typeof getTotalIngameMinutes === 'function') ? getTotalIngameMinutes() : undefined,
-        timeScale: (typeof window !== 'undefined' && window.TIME_SCALE) ? Number(window.TIME_SCALE) : 1,
-        paused: (typeof localStorage !== 'undefined') ? (localStorage.getItem('gamePaused') === 'true') : false
+        ingameTimeMinutes: getTotalIngameMinutes(),
+        timeScale: window.TIME_SCALE ? Number(window.TIME_SCALE) : 1,
+        paused: localStorage.getItem('gamePaused') === 'true',
+        activeCrashSiteAction: getActiveCrashSiteAction(),
+        moraleModifiers: listMoraleModifiers()
     };
 }
 
 export function applyGameState(gameState) {
     if (!gameState) return;
 
-    // --- restore ingame time (if present) before starting any timers ---
-    if (typeof gameState.ingameTimeMinutes === 'number' && typeof setTotalIngameMinutes === 'function') {
+    // Restore ingame time before starting any timers
+    if (typeof gameState.ingameTimeMinutes === 'number') {
         setTotalIngameMinutes(gameState.ingameTimeMinutes);
-        // also keep localStorage in sync
-        try { localStorage.setItem('ingameTimeMinutes', String(gameState.ingameTimeMinutes)); } catch (e) { /* ignore */ }
+        localStorage.setItem('ingameTimeMinutes', String(gameState.ingameTimeMinutes));
     }
 
-    // Restore simple game flags (persisted upgrades / toggles)
+    // Restore game flags (persisted upgrades/toggles)
     if (gameState.gameFlags) {
-        // use helper to apply saved flags (keeps default keys and live reference)
         applySavedGameFlags(gameState.gameFlags);
     }
 
-    // Restore journal / story log into the live storyLog and update UI if present.
-    // (No try/catch per request; assume browser env for DOM/localStorage.)
+    // Restore journal/story log
     if (Array.isArray(gameState.storyLog)) {
         applySavedStoryLog(gameState.storyLog);
-        if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('storyLog', JSON.stringify(gameState.storyLog));
-        }
+        localStorage.setItem('storyLog', JSON.stringify(gameState.storyLog));
         const journalContainer = document.getElementById('journalEntriesContainer');
-        if (journalContainer && typeof renderJournalEntries === 'function') {
+        if (journalContainer) {
             renderJournalEntries(journalContainer);
         }
     } else {
-        // ensure live story log exists and storage is consistent
         resetStoryLog();
-        if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('storyLog', JSON.stringify(storyLog));
-        }
+        localStorage.setItem('storyLog', JSON.stringify(storyLog));
     }
 
-    // --- Smart Loading for Resources ---
+    // Smart loading: merge saved data into fresh defaults to preserve forward compatibility
     const defaultResources = getInitialResources();
     defaultResources.forEach(defaultResource => {
         const savedResource = (gameState.resources || []).find(r => r.name === defaultResource.name);
@@ -83,7 +81,6 @@ export function applyGameState(gameState) {
     resources.length = 0;
     resources.push(...defaultResources);
 
-    // --- Smart Loading for Buildings ---
     const defaultBuildings = getInitialBuildings();
     if (gameState.buildings) {
         defaultBuildings.forEach(defaultBuilding => {
@@ -96,13 +93,11 @@ export function applyGameState(gameState) {
         buildings.push(...defaultBuildings);
     }
 
-    // --- Smart-loading for actions ---
     if (gameState.salvageActions) {
         salvageActions.forEach(defaultAction => {
             const savedAction = gameState.salvageActions.find(a => a.id === defaultAction.id);
             if (savedAction) {
-                               // Protect certain design-time fields from being overwritten by old saves.
-                // For example, we removed Survivors cost from 'salvageCookingEquipment' — don't restore it.
+                // Protect design-time fields from old saves (e.g., removed Survivors cost from salvageCookingEquipment)
                 if (defaultAction.id === 'salvageCookingEquipment') {
                     const copy = { ...savedAction };
                     delete copy.cost;
@@ -114,7 +109,6 @@ export function applyGameState(gameState) {
         });
     }
 
-    // --- Smart-loading for jobs (crew assignments) ---
     if (gameState.jobs) {
         jobs.forEach(job => {
             const savedJob = gameState.jobs.find(j => j.id === job.id || j.name === job.name);
@@ -124,7 +118,6 @@ export function applyGameState(gameState) {
         });
     }
 
-    // --- Smart Loading for Technologies ---
     if (gameState.technologies) {
         technologies.forEach(tech => {
             const savedTech = gameState.technologies.find(t => t.name === tech.name);
@@ -134,25 +127,37 @@ export function applyGameState(gameState) {
         });
     }
 
-        // --- Persist UI/runtime settings into localStorage so main.js can pick them up later ---
-    try {
-        if (typeof gameState.timeScale !== 'undefined' && typeof localStorage !== 'undefined') {
-            localStorage.setItem('gameTimeScale', String(gameState.timeScale));
-        }
-        if (typeof gameState.paused !== 'undefined' && typeof localStorage !== 'undefined') {
-            localStorage.setItem('gamePaused', gameState.paused ? 'true' : 'false');
-        }
-    } catch (e) {
-        console.warn('applyGameState: could not persist runtime settings', e);
+    // Persist UI/runtime settings
+    if (typeof gameState.timeScale !== 'undefined') {
+        localStorage.setItem('gameTimeScale', String(gameState.timeScale));
+    }
+    if (typeof gameState.paused !== 'undefined') {
+        localStorage.setItem('gamePaused', gameState.paused ? 'true' : 'false');
     }
 
-    // --- Load the rest of the game state ---
+    // Restore research state
     setResearchProgress(gameState.researchProgress ?? 0);
     setCurrentResearchingTech(gameState.currentResearchingTech);
     setResearchInterval(null);
-    setCurrentResearchStartTime(0);
+    setCurrentResearchStartTime(gameState.researchStartTime ?? 0);
     setActivatedSections(gameState.activatedSections ?? getInitialActivatedSections());
 
+    // Restore active crash site action
+    if (gameState.activeCrashSiteAction) {
+        setActiveCrashSiteAction(gameState.activeCrashSiteAction);
+    }
+
+    // Restore morale modifiers
+    if (Array.isArray(gameState.moraleModifiers)) {
+        resetMoraleModifiers();
+        gameState.moraleModifiers.forEach(mod => {
+            if (mod.id && typeof mod.delta === 'number') {
+                setMoraleModifier(mod.id, mod.delta, mod.label);
+            }
+        });
+    }
+
+    // Resume ongoing research if present
     const techName = getCurrentResearchingTech();
     if (techName) {
         const tech = technologies.find(t => t.name === techName);
@@ -163,38 +168,31 @@ export function applyGameState(gameState) {
             resumeOngoingResearch(tech, cancelButton, getResearchProgress(), getCurrentResearchStartTime());
         }
     }
-    // Notify other subsystems (UI) that the game state has been applied so they
-    // can refresh immediately (for example, the header clock should update).
-    try { window.dispatchEvent(new CustomEvent('game-state-applied')); } catch (e) { /* ignore */ }
-    // Explicitly refresh the header clock by calling the exported helper from
-    // `headeroptions.js`. Use a dynamic import to avoid introducing a static
-    // circular module dependency at load time.
-    try {
-        import('./headeroptions.js').then(mod => {
-            if (mod && typeof mod.refreshClock === 'function') {
-                mod.refreshClock();
-            }
-        }).catch(() => { /* ignore failures */ });
-    } catch (e) { /* ignore */ }
+
+    // Notify subsystems that game state has been applied
+    window.dispatchEvent(new CustomEvent('game-state-applied'));
+    
+    // Refresh header clock (dynamic import to avoid circular dependency)
+    import('../ui/header.js').then(mod => {
+        if (mod?.refreshClock) {
+            mod.refreshClock();
+        }
+    });
 }
 
 export function loadGameState() {
     const savedGameState = localStorage.getItem('gameState');
     
+    // Clear log content on load
     const logContent = document.getElementById('logContent');
     if (logContent) {
         logContent.innerHTML = '';
     }
 
     if (savedGameState) {
-        try {
-            const gameState = JSON.parse(savedGameState);
-            applyGameState(gameState);
-            addLogEntry('Game state loaded.', LogType.INFO);
-        } catch (e) {
-            addLogEntry('Failed to parse saved game state.', LogType.ERROR);
-            resetToDefaultState();
-        }
+        const gameState = JSON.parse(savedGameState);
+        applyGameState(gameState);
+        addLogEntry('Game state loaded.', LogType.INFO);
     } else {
         resetToDefaultState();
     }
@@ -203,73 +201,58 @@ export function loadGameState() {
 export function resetToDefaultState() {
     addLogEntry('Game state reset.', LogType.INFO);
 
-    try {
-        localStorage.removeItem('storyLog');
-        localStorage.removeItem('logEntries');
-        // Also clear objectives persistence so objectives fully reset
-        localStorage.removeItem('objectivesStatusV1');
-    } catch (e) { /* ignore storage errors */ }
- 
-         try {
-         import('./data/actions.js').then(mod => {
-             if (mod && typeof mod.resetActionsToDefaults === 'function') {
-                 mod.resetActionsToDefaults();
-             }
-         }).catch(() => { /* ignore */ });
-     } catch (e) { /* ignore */ }
+    // Clear persisted state from localStorage
+    localStorage.removeItem('storyLog');
+    localStorage.removeItem('logEntries');
+    localStorage.removeItem('objectivesStatusV1');
 
-    // Ensure in-game clock resets to Day 0 Hour 1 before showing intro popup so
-    // any generated journal entries / popups use the correct timestamp.
-    try { resetIngameTime(); } catch (e) { console.warn('resetIngameTime failed', e); }
+    // PRIORITY 1: Reset core game state first (data layer)
+    resetIngameTime();
+    resetResources();
+    resetBuildings();
+    resetTechnologies();
+    resetGameFlags();
+    resetStoryLog();
+    resetJobs();
+    resetActiveActions();
+    resetMoraleModifiers();
+    resetWeather();
+    
+    // PRIORITY 2: Reset research state
+    clearInterval(getResearchInterval());
+    setResearchInterval(null);
+    setResearchProgress(0);
+    setCurrentResearchingTech(null);
+    
+    // PRIORITY 3: Reset UI sections
+    setActivatedSections(getInitialActivatedSections());
 
-    // Reset Objectives model/state, then seed and capture first objective for intro popup
-    try { resetObjectives({ suppressEvent: true }); } catch (e) { /* ignore */ }
+    // PRIORITY 4: Reset objectives and capture first objective for intro popup
+    resetObjectives({ suppressEvent: true });
+    const snapshot = recomputeObjectives();
     let introOutcome = null;
-    try {
-        // Recompute immediately so the first objective becomes active and capture snapshot
-        const snapshot = recomputeObjectives();
-        if (snapshot && Array.isArray(snapshot.newlyActive) && snapshot.newlyActive.length) {
-            introOutcome = { objectives: { newlyActive: snapshot.newlyActive } };
-        }
-    } catch (e) { /* ignore */ }
+    if (snapshot && Array.isArray(snapshot.newlyActive) && snapshot.newlyActive.length) {
+        introOutcome = { objectives: { newlyActive: snapshot.newlyActive } };
+    }
 
+    // PRIORITY 5: Show intro story popup (after all state is clean)
     const event = storyEvents.crashIntro;
     showStoryPopup(event, introOutcome);
     addLogEntry('You survived... somehow. (Click to read)', LogType.STORY, {
         onClick: () => showStoryPopup(event, introOutcome)
     });
 
-    resetResources();
-    resetBuildings();
-    resetTechnologies();
-    resetGameFlags();
-    clearInterval(getResearchInterval());
-    setResearchInterval(null);
-    setResearchProgress(0);
-    setCurrentResearchingTech(null);
-    setActivatedSections(getInitialActivatedSections());
-
-    // (resetIngameTime already called above before showing intro popup)
-
-    // Best-effort: clear any active crash-site action or loop if those helpers are available
-    try {
-        if (typeof setActiveCrashSiteAction === 'function') setActiveCrashSiteAction(null);
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof stopCrashSiteLoop === 'function') stopCrashSiteLoop();
-    } catch (e) { /* ignore */ }
-
-    // Persist the freshly reset default to storage so subsequent loads use it
-    try { saveGameState(); } catch (e) { console.warn('saveGameState failed', e); }
-
-    try { window.dispatchEvent(new CustomEvent('gameReset')); } catch (e) { /* ignore */ }
-    // After reset broadcast, recompute again (ignore snapshot) to ensure any listeners sync
-    try { recomputeObjectives(); } catch (e) { /* ignore */ }
+    // PRIORITY 6: Persist clean state and broadcast reset event
+    saveGameState();
+    window.dispatchEvent(new CustomEvent('gameReset'));
+    
+    // Final recompute to ensure any listeners are synced
+    recomputeObjectives();
 }
 
 export function resetGameState() {
     console.log('Resetting game state via page reload');
-    try { window.dispatchEvent(new CustomEvent('gameReset')); } catch (e) { /* ignore */ }
+    window.dispatchEvent(new CustomEvent('gameReset'));
     localStorage.clear();
     location.reload();
 }

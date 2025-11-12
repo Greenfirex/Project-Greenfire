@@ -1,11 +1,11 @@
-import { resources, updateResourceInfo } from '../resources.js';
-import { buildings } from '../data/buildings.js';
-import { technologies } from '../data/technologies.js';
-import { addLogEntry, LogType } from '../log.js';
-import { activatedSections, setActivatedSections, applyActivatedSections } from '../main.js';
-import { setupTooltip, refreshCurrentTooltip } from '../tooltip.js';
-import { addSlotsForBuilding } from '../data/jobs.js';
-import { allActions as salvageActions } from '../data/allActions.js';
+import { resources, updateResourceInfo } from '../core/resources.js';
+import { buildings } from '../data/definitions/buildings.js';
+import { technologies } from '../data/definitions/technologies.js';
+import { addLogEntry, LogType } from '../core/ingameLog.js';
+import { activatedSections, setActivatedSections, applyActivatedSections } from '../core/main.js';
+import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
+import { addSlotsForBuilding } from '../data/jobsManager.js';
+import { allActions as salvageActions } from '../data/definitions/allActions.js';
 
 let isMiningOnCooldown = false;
 

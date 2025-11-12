@@ -1,8 +1,8 @@
-import { addLogEntry, LogType } from '../log.js';
-import { buildings } from './buildings.js';
-import { jobs } from './jobs.js';
-import { upgradeActions } from './upgrades.js';
-import { getTotalIngameMinutes } from '../time.js';
+import { addLogEntry, LogType } from '../core/ingameLog.js';
+import { buildings } from './definitions/buildings.js';
+import { jobs } from './jobsManager.js';
+import { upgradeActions } from './definitions/upgrades.js';
+import { getTotalIngameMinutes } from '../core/time.js';
 
 const initialGameFlags = {
     // set true once the salvaged cooking equipment is installed

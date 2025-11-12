@@ -1,5 +1,5 @@
-import { getIngameTimeObject, getIngameTimeString } from './time.js';
-import { addJournalEntry } from './sections/journal.js';
+import { getIngameTimeObject, getIngameTimeString } from '../../core/time.js';
+import { addJournalEntry } from '../../sections/journal.js';
 
 let activeStoryEvent = null;
 let activeOutcome = null; // optional footer content (rewards/unlocks)

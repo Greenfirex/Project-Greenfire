@@ -26,7 +26,7 @@
     min-height: 0; /* critical for inner scrolling to work inside flex containers */
     overflow: hidden;
     /* keep your background / padding */
-    background-image: url('../assets/images/journalbackground.png');
+    background-image: url('../../assets/images/journalbackground.png');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -126,7 +126,7 @@
 .muted { color: rgba(255,255,255,0.5); }
 
 #journalSection {
-    background-image: url('../assets/images/journalbackground.png');
+    background-image: url('../../assets/images/journalbackground.png');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;

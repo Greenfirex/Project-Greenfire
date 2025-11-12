@@ -112,7 +112,7 @@
     align-items: center;
     justify-content: center;
 
-    background-image: url('../assets/images/PNG/Button03.png');
+    background-image: url('../../assets/images/PNG/Button03.png');
     background-size: 100% 100%;
     background-color: transparent;
 
@@ -132,7 +132,7 @@
 }
 
 .filter-btn.active {
-    background-image: url('../assets/images/PNG/Button04.png'); /* Use the "active" image */
+    background-image: url('../../assets/images/PNG/Button04.png'); /* Use the "active" image */
     color: white; /* Make the text bright for the selected button */
 }
 

@@ -3,7 +3,7 @@
 // - Shows up to 5 terse, spoiler-lite items
 // - Read-only (no clicks)
 
-import { getVisibleObjectives, recomputeObjectives, getObjectiveSteps } from './data/objectives.js';
+import { getVisibleObjectives, recomputeObjectives, getObjectiveSteps } from '../../data/objectives.js';
 
 let isOpen = false;
 let elements = { container: null, banner: null, drawer: null, list: null, details: null };

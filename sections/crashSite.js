@@ -1,18 +1,18 @@
-import { allActions as salvageActions } from '../data/allActions.js';
-import { resources } from '../resources.js';
-import { addLogEntry, LogType } from '../log.js';
-import { enableSection } from '../main.js';
-import { setupTooltip, refreshCurrentTooltip } from '../tooltip.js';
-import { storyEvents } from '../data/storyEvents.js';
-import { showStoryPopup } from '../popup.js';
+import { allActions as salvageActions } from '../data/definitions/allActions.js';
+import { resources } from '../core/resources.js';
+import { addLogEntry, LogType } from '../core/ingameLog.js';
+import { enableSection } from '../core/main.js';
+import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
+import { storyEvents } from '../data/definitions/storyEvents.js';
+import { showStoryPopup } from '../ui/panels/popup.js';
 import { getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/activeActions.js';
 import { recomputeObjectives, getLastObjectivesDelta, getObjectivesStatus, getObjectiveDefinition } from '../data/objectives.js';
-import { getTotalIngameMinutes } from '../time.js';
-import { buildings } from '../data/buildings.js';
+import { getTotalIngameMinutes } from '../core/time.js';
+import { buildings } from '../data/definitions/buildings.js';
 import { updateBuildingButtonsState, createBuildingButton } from './colony.js';
 import { gameFlags, runActionCompletionHandlers } from '../data/gameFlags.js';
 import { computeRewardMultiplier } from '../data/upgradeEffects.js';
-import { lsGet, getCurrentStage, tooltipDataForAction, canAffordAction, getAffordabilityShortfalls, computeEffectiveDuration, getRandomInt } from '../data/actionUtils.js';
+import { lsGet, getCurrentStage, tooltipDataForAction, canAffordAction, getAffordabilityShortfalls, computeEffectiveDuration, getRandomInt } from '../data/actionsManager.js';
 import { getBlockedStatus, evaluateEventUnlocks } from '../data/unlockRules.js';
 
 

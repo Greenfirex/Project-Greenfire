@@ -1,10 +1,10 @@
-import { resources } from '../resources.js';
-import { jobs, getJobById, getEffectiveJobRate } from '../data/jobs.js';
+import { resources } from '../core/resources.js';
+import { jobs, getJobById, getEffectiveJobRate } from '../data/jobsManager.js';
 import { upgradeEffects } from '../data/upgradeEffects.js';
 import { getMorale } from '../data/morale.js';
 import { gameFlags } from '../data/gameFlags.js';
-import { addLogEntry, LogType } from '../log.js';
-import { setupTooltip, refreshCurrentTooltip } from '../tooltip.js';
+import { addLogEntry, LogType } from '../core/ingameLog.js';
+import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
 
 // Render the Crew Management section (basic info for now)
 export function setupCrewManagementSection(sectionEl) {

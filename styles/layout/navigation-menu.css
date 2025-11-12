@@ -1,0 +1,70 @@
+#mainMenu {
+    width: 20%;
+    background-color: #000;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative; /* This is an anchor for child elements */
+}
+
+.menu-buttons-container {
+    padding-top: 10px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #000;
+    flex-grow: 1; /* Allow this to fill available space */
+}
+
+/* --- Menu Button Styles --- */
+.menu-button {
+    width: 85%;
+    height: 50px;
+    margin: 8px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-image: url('../../assets/images/PNG/Button03.png');
+    background-size: 100% 100%;
+    color: #EAEAEA;
+    font-size: 16px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+.menu-button:hover {
+    background-image: url('../../assets/images/PNG/Button04.png');
+    color: #FFF;
+    transform: scale(1.05);
+}
+.menu-button.active {
+    color: #FFF;
+    box-shadow: 0 0 12px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8), 
+                0 0 6px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5) inset;
+}
+
+/* --- Animation for newly unlocked buttons --- */
+.menu-button.hidden {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.9);
+    transition: opacity 0.5s ease, transform 0.5s ease, visibility 0.5s;
+}
+
+.menu-button:not(.hidden) {
+    animation: unlocked-in 0.5s ease-in-out forwards;
+}
+
+@keyframes unlocked-in {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}

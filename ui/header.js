@@ -1,7 +1,7 @@
-import { saveGameState } from './saveload.js';
-import { getIngameTimeString, getTotalIngameMinutes } from './time.js';
-import { setupTooltip } from './tooltip.js';
-import { getCurrentWeather } from './data/weather.js';
+import { saveGameState } from '../core/saveload.js';
+import { getIngameTimeString, getTotalIngameMinutes } from '../core/time.js';
+import { setupTooltip } from './panels/tooltip.js';
+import { getCurrentWeather } from '../data/weather.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 

@@ -1,24 +1,24 @@
 import { resources, updateResourceInfo, setupInfoPanel, computeResourceRates } from './resources.js';
-import { buildings } from './data/buildings.js';
-import { gameFlags } from './data/gameFlags.js';
-import { setupColonySection, updateBuildingButtonsState } from './sections/colony.js';
-import { setupResearchSection, updateTechButtonsState } from './sections/research.js';
-import { setupManufacturingSection } from './sections/manufacturing.js';
-import { setupShipyardSection } from './sections/shipyard.js';
-import { setupGalaxyMapSection } from './sections/galaxyMap.js';
-import { setupCrashSiteSection, updateCrashSiteActionButtonsState } from './sections/crashSite.js';
-import { setupCrewManagementSection, updateCrewSection } from './sections/crewManagement.js';
-import { setupJournalSection } from './sections/journal.js';
-import { addLogEntry, LogType } from './log.js';
-import { updateSurvivalDebuffBadge, initTooltips } from './tooltip.js';
+import { buildings } from '../data/definitions/buildings.js';
+import { gameFlags } from '../data/gameFlags.js';
+import { setupColonySection, updateBuildingButtonsState } from '../sections/colony.js';
+import { setupResearchSection, updateTechButtonsState } from '../sections/research.js';
+import { setupManufacturingSection } from '../sections/manufacturing.js';
+import { setupShipyardSection } from '../sections/shipyard.js';
+import { setupGalaxyMapSection } from '../sections/galaxyMap.js';
+import { setupCrashSiteSection, updateCrashSiteActionButtonsState } from '../sections/crashSite.js';
+import { setupCrewManagementSection, updateCrewSection } from '../sections/crewManagement.js';
+import { setupJournalSection } from '../sections/journal.js';
+import { addLogEntry, LogType } from './ingameLog.js';
+import { updateSurvivalDebuffBadge, initTooltips } from '../ui/panels/tooltip.js';
 import { initTimeManager, startTimeManager } from './time.js';
 import { loadGameState, resetToDefaultState } from './saveload.js';
-import { showStoryPopup } from './popup.js';
-import { storyEvents } from './data/storyEvents.js';
-import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity, shouldRunInBackground } from './options.js';
-import { updateImpactTimer } from './eventManager.js';
-import { recomputeObjectives } from './data/objectives.js';
-import './headeroptions.js';
+import { showStoryPopup } from '../ui/panels/popup.js';
+import { storyEvents } from '../data/definitions/storyEvents.js';
+import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity, shouldRunInBackground } from './settings.js';
+import { recomputeObjectives } from '../data/objectives.js';
+import { initFooter, getIsPaused, pauseGame, resumeGame, registerMainLoopCallbacks } from '../ui/footer.js';
+import '../ui/header.js';
 
 window.debugResources = resources;
 window.TIME_SCALE = Number(localStorage.getItem('gameTimeScale')) || 1;
@@ -120,90 +120,6 @@ function startGame() {
     let gameLoopInterval = null;
     let autosaveInterval = null;
 
-        // --- Pause / Speed controls wiring ---
-        let isPaused = false;
-        // ensure TIME_SCALE exists and reflect initial buttons
-        // Note: read persisted pause state AFTER apply/load so loaded saves can override
-        // the runtime localStorage value (applyGameState persists it).
-        const savedPaused = (localStorage.getItem('gamePaused') === 'true');
-
-    function updateHUD() {
-        const hud = document.getElementById('gameStatusHUD');
-        if (hud) hud.textContent = isPaused ? 'Paused' : `${window.TIME_SCALE}x`;
-    }
-
-    function setGameSpeed(factor, announce = true) {
-        window.TIME_SCALE = Number(factor) || 1;
-        // persist new value
-        try { localStorage.setItem('gameTimeScale', String(window.TIME_SCALE)); } catch (e) {}
-        // update UI active button
-        document.querySelectorAll('.speed-btn').forEach(btn => {
-            btn.classList.toggle('active', Number(btn.dataset.speed) === Number(window.TIME_SCALE));
-        });
-        updateHUD();
-        if (announce) addLogEntry(`Game speed set to ${window.TIME_SCALE}x.`, LogType.INFO);
-    }
-
-    // Pause/resume helpers
-    function pauseGame(announce = true) {
-        if (isPaused) return;
-        isPaused = true;
-        // stop main loop and notify subsystems
-        stopMainLoop();
-        window.dispatchEvent(new CustomEvent('game-pause'));
-        const btn = document.getElementById('pauseBtn');
-        if (btn) { btn.textContent = 'Resume'; btn.classList.add('active'); }
-        // persist paused state
-        try { localStorage.setItem('gamePaused', 'true'); } catch (e) {}
-        updateHUD();
-        if (announce) addLogEntry('Game paused.', LogType.INFO);
-    }
-    function resumeGame(announce = true) {
-        if (!isPaused) return;
-        isPaused = false;
-        startMainLoop();
-        window.dispatchEvent(new CustomEvent('game-resume'));
-        const btn = document.getElementById('pauseBtn');
-        if (btn) { btn.textContent = 'Pause'; btn.classList.remove('active'); }
-        try { localStorage.setItem('gamePaused', 'false'); } catch (e) {}
-        updateHUD();
-        if (announce) addLogEntry(`Game resumed at ${window.TIME_SCALE}x.`, LogType.INFO);
-    }
-    function togglePause() {
-        if (isPaused) resumeGame(); else pauseGame();
-    }
-
-    // Hook up DOM controls (safe even if DOM not present)
-    const pauseBtn = document.getElementById('pauseBtn');
-    if (pauseBtn) pauseBtn.addEventListener('click', (e) => { e.preventDefault(); togglePause(); });
-    document.querySelectorAll('.speed-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const v = Number(btn.dataset.speed) || 1;
-            setGameSpeed(v, true);
-            // if paused, do not auto-resume; just show speed change in log
-        });
-    });
-
-    // Apply persisted settings now that handlers exist
-    setGameSpeed(window.TIME_SCALE, false);
-    if (savedPaused) {
-        // do not announce when restoring state
-        pauseGame(false);
-    } else {
-        // ensure we are not paused
-        isPaused = false;
-        const pBtn = document.getElementById('pauseBtn'); if (pBtn) { pBtn.textContent = 'Pause'; pBtn.classList.remove('active'); }
-        updateHUD();
-    }
-    // Start the time manager now that saved game state (including ingame minutes)
-    // has been applied. If the game is paused, the time manager should remain
-    // stopped until resumeGame is called.
-    if (!isPaused) {
-        try { startTimeManager(); } catch (e) { /* ignore if not available */ }
-    }
-    // --- end pause/speed wiring ---
-
     function startMainLoop() {
         if (gameLoopInterval) return;
         lastUpdateTime = Date.now();
@@ -238,7 +154,6 @@ function startGame() {
             if (typeof updateCrashSiteActionButtonsState === 'function') updateCrashSiteActionButtonsState();
             if (typeof updateBuildingButtonsState === 'function') updateBuildingButtonsState();
             if (typeof updateTechButtonsState === 'function') updateTechButtonsState();
-            if (typeof updateImpactTimer === 'function') updateImpactTimer();
             
             // Periodically check objectives to catch completions from passive resource gains
             // Throttle to once per second to avoid excessive computation
@@ -289,8 +204,21 @@ function startGame() {
         }
     });
 
+    // Register main loop control with footer module
+    registerMainLoopCallbacks(startMainLoop, stopMainLoop);
+
+    // Initialize footer controls (pause, speed, XP)
+    initFooter();
+
+    // Start the time manager now that saved game state (including ingame minutes)
+    // has been applied. If the game is paused, the time manager should remain
+    // stopped until resumeGame is called.
+    if (!getIsPaused()) {
+        try { startTimeManager(); } catch (e) { /* ignore if not available */ }
+    }
+
     // start loops initially
-    if (!isPaused) startMainLoop();
+    if (!getIsPaused()) startMainLoop();
     startAutosave();
 }
 
@@ -417,7 +345,7 @@ export function showSection(sectionId) {
     }
 
     if (sectionId === 'journalSection') {
-        import('./sections/journal.js').then(mod => {
+        import('../sections/journal.js').then(mod => {
             const sectionEl = document.getElementById('journalSection');
             if (sectionEl && typeof mod.setupJournalSection === 'function') {
                 mod.setupJournalSection(sectionEl);

@@ -2,7 +2,7 @@
 // Rotates through weather types on an in-game schedule and exposes current weather
 // Effects: moraleDelta only (integration done in morale.js). UI: header widget via headeroptions.js
 
-import { getTotalIngameMinutes } from '../time.js';
+import { getTotalIngameMinutes } from '../core/time.js';
 import { gameFlags } from './gameFlags.js';
 
 // Weather type catalog

@@ -4,15 +4,15 @@
 // - Spoiler-lite labels
 // - Minor resource rewards on completion
 
-import { resources } from '../resources.js';
+import { resources } from '../core/resources.js';
 import { gameFlags } from './gameFlags.js';
-import { allActions } from './allActions.js';
-import { buildings } from './buildings.js';
-import { jobs } from './jobs.js';
-import { addLogEntry, LogType } from '../log.js';
-import { getTotalIngameMinutes } from '../time.js';
-import { showStoryPopup } from '../popup.js';
-import { storyEvents } from './storyEvents.js';
+import { allActions } from './definitions/allActions.js';
+import { buildings } from './definitions/buildings.js';
+import { jobs } from './jobsManager.js';
+import { addLogEntry, LogType } from '../core/ingameLog.js';
+import { getTotalIngameMinutes } from '../core/time.js';
+import { showStoryPopup } from '../ui/panels/popup.js';
+import { storyEvents } from './definitions/storyEvents.js';
 
 const STORAGE_KEY = 'objectivesStatusV1';
 
