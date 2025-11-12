@@ -154,9 +154,9 @@ export function resetResources() {
 }
 
 export function setupInfoPanel() {
-    const infoPanel = document.getElementById('infoPanel');
-    if (!infoPanel) return;
-    infoPanel.innerHTML = '';
+    const infoPanelContent = document.getElementById('infoPanelContent');
+    if (!infoPanelContent) return;
+    infoPanelContent.innerHTML = '';
 
     const infoSection = document.createElement('div');
     infoSection.className = 'info-section';
@@ -265,7 +265,7 @@ export function setupInfoPanel() {
         infoSection.appendChild(infoRow);
     });
 
-    infoPanel.appendChild(infoSection);
+    infoPanelContent.appendChild(infoSection);
 }
 
 export function updateResourceInfo() {

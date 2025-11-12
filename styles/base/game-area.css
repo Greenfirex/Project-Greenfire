@@ -25,6 +25,19 @@
   background-color: #34495e;
   overflow: hidden;
   position: relative;
+  transition: width 0.3s ease;
+}
+
+#gameArea.expanded-left {
+  width: 80%;
+}
+
+#gameArea.expanded-right {
+  width: 80%;
+}
+
+#gameArea.expanded-both {
+  width: 100%;
 }
 
 #gameArea::before {

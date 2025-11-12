@@ -4,7 +4,69 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    position: relative; /* This is an anchor for child elements */
+    position: relative;
+    transition: width 0.3s ease, transform 0.3s ease;
+    overflow: visible;
+}
+
+#mainMenu.collapsed {
+    width: 40px;
+    overflow: visible;
+}
+
+#mainMenu.collapsed .menu-buttons-container,
+#mainMenu.collapsed #logSection {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Panel collapse button */
+.panel-collapse-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+}
+
+.panel-collapse-btn.left-panel {
+    right: -12px;
+}
+
+.panel-collapse-btn.right-panel {
+    left: -12px;
+}
+
+.collapse-chevron {
+    width: 24px;
+    height: 24px;
+    stroke: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.85);
+    stroke-width: 2.5;
+    fill: none;
+    filter: drop-shadow(0 0 3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.6));
+    transition: all 0.2s ease;
+}
+
+.panel-collapse-btn:hover .collapse-chevron {
+    stroke: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 1);
+    filter: drop-shadow(0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9));
+}
+
+/* Flip chevron when collapsed */
+#mainMenu.collapsed .panel-collapse-btn.left-panel .collapse-chevron {
+    transform: rotate(180deg);
+}
+
+#infoPanel.collapsed .panel-collapse-btn.right-panel .collapse-chevron {
+    transform: rotate(180deg);
 }
 
 .menu-buttons-container {
@@ -14,7 +76,8 @@
     flex-direction: column;
     align-items: center;
     background-color: #000;
-    flex-grow: 1; /* Allow this to fill available space */
+    flex-grow: 0;
+    flex-shrink: 0;
 }
 
 /* --- Menu Button Styles --- */

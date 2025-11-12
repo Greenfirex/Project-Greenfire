@@ -6,6 +6,7 @@ body {
     display: grid;
     grid-template-rows: auto 1fr auto; 
     gap: 3px;
+    overflow: visible;
     
     /* Defines the glow color */
     --glow-r: 105;
@@ -51,7 +52,7 @@ body.glow-disabled * {
 
 #mainContainer {
     display: flex;
-    overflow: hidden;
+    overflow: visible;
     position: relative;
     gap: 3px;
 }
@@ -241,6 +242,7 @@ body.glow-disabled * {
     width: 3px;
     animation: pulse-glow 5s ease-in-out infinite;
     z-index: 5;
+    transition: left 0.3s ease;
 }
 #mainContainer::before {
     left: 20%;
@@ -249,8 +251,25 @@ body.glow-disabled * {
     left: 80%;
 }
 
-#mainMenu, #gameArea, #infoPanel {
-    position: relative; /* Ensures z-index will apply */
-    z-index: 1;       /* Places them on layer 1 */
+/* Adjust left separator when left panel collapsed (40px width + 3px gap) */
+#mainContainer:has(#gameArea.expanded-left)::before,
+#mainContainer:has(#gameArea.expanded-both)::before {
+    left: 43px;
+}
+
+/* Adjust right separator when right panel collapsed */
+#mainContainer:has(#gameArea.expanded-right)::after,
+#mainContainer:has(#gameArea.expanded-both)::after {
+    left: calc(100% - 43px);
+}
+
+#mainMenu, #infoPanel {
+    position: relative;
+    z-index: 10;
+}
+
+#gameArea {
+    position: relative;
+    z-index: 1;
 }
 

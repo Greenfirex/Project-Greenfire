@@ -1,13 +1,14 @@
 /* --- In-Game Log Section Styles --- */
 #logSection {
     width: 100%;
-    height: 50%; /* Fixed height */
+    height: calc(50% + 20px);
     background-color: #000;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
     position: relative;
+    margin-top: auto;
 }
 
 /* This is the glowing line at the top of the whole log section */
@@ -23,27 +24,30 @@
 }
 
 .log-header {
-    padding: 10px;
-    position: relative; /* This is the anchor for the button */
+    padding: 0 10px;
+    position: relative;
     text-align: center;
     display: flex;
     align-items: center;
     justify-content: center;
+    height: 40px;
 }
 
 #logOptionsBtn {
     background: none;
     border: none;
-    color: #333; /* FIXED: A much darker, more subtle gray */
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.85);
     font-size: 20px;
     cursor: pointer;
-    position: absolute; /* Position it relative to the header above */
-    right: 15px;      /* Give it some padding from the edge */
-    transition: color 0.2s ease;
+    position: absolute;
+    right: 15px;
+    transition: all 0.2s ease;
+    filter: drop-shadow(0 0 3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.6));
 }
 
 #logOptionsBtn:hover {
-    color: #777; /* A lighter gray on hover */
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 1);
+    filter: drop-shadow(0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9));
 }
 
 .log-header h3 {
