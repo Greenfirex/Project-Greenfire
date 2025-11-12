@@ -201,6 +201,11 @@ export function setupInfoPanel() {
         infoRow.classList.add('hidden');
         infoRow.classList.toggle('non-producible', !resource.producible);
 
+        // Special styling hook for Survivors so we can position and style it differently
+        if (resource.name === 'Survivors') {
+            infoRow.classList.add('survivors');
+        }
+
         if (resource.name === 'Insight') {
             infoRow.classList.add('insight-resource');
         }
@@ -310,7 +315,14 @@ export function updateResourceInfo() {
         const isZero = !(isFinite(displayedAmountNum)) ? false : (displayedAmountNum <= 0);
         const amountDisplay = resource.integer ? Math.floor(resource.amount).toLocaleString() : formatNumber(resource.amount);
         const capacityDisplay = Math.floor(resource.capacity).toLocaleString();
-        storageEl.textContent = `${amountDisplay} / ${capacityDisplay}`;
+
+        if (resource.name === 'Survivors') {
+            // Survivors: show only the count (no capacity), and hide generation
+            storageEl.textContent = `${amountDisplay}`;
+            if (generationEl) generationEl.textContent = '';
+        } else {
+            storageEl.textContent = `${amountDisplay} / ${capacityDisplay}`;
+        }
 
         // Toggle zero-amount consistently on the info row and its child elements so styles are removed when >0.
         storageEl.classList.toggle('zero-amount', isZero);
@@ -343,7 +355,12 @@ export function updateResourceInfo() {
         }
 
         const progressBar = infoRow.querySelector('.resource-progress-bar');
-        progressBar.style.width = `${Math.min((resource.amount / resource.capacity) * 100, 100)}%`;
+        if (resource.name === 'Survivors') {
+            // Survivors: keep bar visually full for emphasis of population band
+            progressBar.style.width = '100%';
+        } else {
+            progressBar.style.width = `${Math.min((resource.amount / resource.capacity) * 100, 100)}%`;
+        }
 
     infoRow.classList.toggle('capped', isCapped);
     });

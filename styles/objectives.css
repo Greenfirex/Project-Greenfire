@@ -65,19 +65,7 @@
 
 .objectives-container { position: relative; }
 
-/* Blocker div that covers area behind drawer to prevent tooltip triggers */
-.objectives-blocker {
-  position: fixed;
-  background: rgba(255, 0, 0, 0.1); /* temporary visible red tint for debugging */
-  z-index: 50000; /* very high to ensure it's above everything */
-  pointer-events: auto; /* capture all mouse events */
-  display: none;
-  cursor: default; /* show normal cursor over blocker */
-}
-
-.objectives-blocker.active {
-  display: block;
-}
+/* Backdrop removed to allow interaction with underlying UI while drawer open */
 
 .objectives-drawer {
   position: absolute;
@@ -86,13 +74,14 @@
   width: 100%;
   box-sizing: border-box;
   opacity: 0;
+  visibility: hidden; /* fully remove from hit-testing when closed */
   transform: translateY(14px);
   overflow: visible; /* allow glow lines to extend */
   background: #000;
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  z-index: 40000; /* above tooltips (32768) */
+  z-index: 600; /* beneath modal overlays (>=1000) so they always win */
   height: var(--objectives-drawer-height, 320px);
   display: flex;
   flex-direction: column;
@@ -101,6 +90,7 @@
 
 .objectives-drawer.open {
   opacity: 1;
+  visibility: visible;
   transform: translateY(0);
   pointer-events: auto; /* enable interactions when open */
 }

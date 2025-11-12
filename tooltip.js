@@ -34,6 +34,19 @@ function ensureDocMouseMoveHandler() {
         // No per-element lock here anymore — rely on priority + topmost hit element
         const elements = document.elementsFromPoint(moveEvent.clientX, moveEvent.clientY);
 
+        // If the cursor is over the open objectives drawer, suppress tooltips just for that region
+        try {
+            const overObjectivesDrawer = elements.some(el => {
+                if (!el || !el.closest) return false;
+                const host = el.closest('.objectives-drawer');
+                return !!(host && host.classList && host.classList.contains('open'));
+            });
+            if (overObjectivesDrawer) {
+                hideTooltip();
+                return;
+            }
+        } catch (e) { /* ignore */ }
+
         const candidates = [];
         for (let i = 0; i < elements.length; i++) {
             const el = elements[i];
@@ -620,7 +633,7 @@ function ensureDebuffIcon(resourceName) {
             // very high priority so elementsFromPoint + sorting picks it instead of the row
             icon.dataset.tooltipPriority = '9999';
             // ensure the icon is above the row and receives pointer events so elementsFromPoint picks it
-            icon.style.zIndex = '9999';
+            icon.style.zIndex = '650'; // above drawer (600) but below modal overlays (>=1000)
             icon.style.position = 'relative';
             icon.style.pointerEvents = 'auto';
             const span = icon.querySelector('.icon');

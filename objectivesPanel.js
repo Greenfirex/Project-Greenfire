@@ -59,12 +59,9 @@ function ensureContainer() {
             <path d="M3 0 L12 9 L21 0" stroke-linecap="round" />
         </svg>`;
     closeBtn.addEventListener('click', () => {
-        // Use same toggle logic to close
+        // Use centralized toggle so backdrop and timers are updated consistently
         if (isOpen) {
-            isOpen = false;
-            drawer.classList.remove('open');
-            banner.setAttribute('aria-expanded', 'false');
-            drawer.setAttribute('aria-hidden', 'true');
+            toggleOpen();
         }
     });
     header.appendChild(closeBtn);
@@ -87,14 +84,7 @@ function ensureContainer() {
     drawer.appendChild(glowLeft);
     drawer.appendChild(glowRight);
 
-    // Create a blocker div that will cover the game area behind the drawer
-    const blocker = document.createElement('div');
-    blocker.className = 'objectives-blocker';
-    // Insert blocker into game area itself, not body
-    const gameArea = document.getElementById('gameArea');
-    if (gameArea) {
-        gameArea.appendChild(blocker);
-    }
+    // Backdrop removed: allow normal interaction with rest of UI while drawer is open.
 
     wrapper.appendChild(banner);
     // Drawer now stays scoped to middle footer column only
@@ -107,20 +97,7 @@ function ensureContainer() {
         banner.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         drawer.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
         
-        // Position and show/hide blocker
-        if (isOpen) {
-            // Wait for drawer animation to complete before positioning blocker
-            setTimeout(() => {
-                const drawerRect = drawer.getBoundingClientRect();
-                blocker.style.left = drawerRect.left + 'px';
-                blocker.style.top = drawerRect.top + 'px';
-                blocker.style.width = drawerRect.width + 'px';
-                blocker.style.height = drawerRect.height + 'px';
-                blocker.classList.add('active');
-            }, 250); // match drawer transition time
-        } else {
-            blocker.classList.remove('active');
-        }
+    // No backdrop activation; outside clicks interact with game and drawer stays open
         
         if (isOpen) {
             try { recomputeObjectives(); } catch {}
@@ -134,10 +111,12 @@ function ensureContainer() {
             }
         } else {
             if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+            // Nothing extra to reset
         }
     }
     banner.addEventListener('click', toggleOpen);
     banner.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOpen(); } });
+    // No backdrop click handler (backdrop removed)
 
     elements = { container: wrapper, banner, drawer, list, details };
     return wrapper;

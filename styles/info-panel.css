@@ -101,6 +101,7 @@
     margin: 0;
     font-size: 11px;
     white-space: nowrap;
+    font-weight: 600; /* unify with Survivors weight */
 }
 
 .infocolumn1 span {
@@ -116,11 +117,49 @@
 
 .info-row .negative-rate {
     color: #E74C3C;
-    font-weight: bold;
+    font-weight: 600; /* unify with other values */
 }
 
 .info-row.insight-resource {
     color: #FFD700;
+}
+
+/* Morale layout: place the % value on the far right */
+.info-row.morale .infocolumn2 {
+    /* Move the morale value cell into the third grid column (right side) */
+    grid-column: 3;
+    justify-content: flex-end;
+}
+.info-row.morale .infocolumn3 {
+    /* Hide the unused third cell so it doesn't occupy space */
+    display: none;
+}
+
+/* Ensure ordering: Morale first, Survivors directly after */
+.info-row.morale { order: -2; }
+.info-row.survivors { order: -1; }
+
+/* Survivors: hide the progress bar and the generation column; keep value right-aligned */
+/* Survivors row: keep standard 3-column grid, move value to right column */
+.info-row.survivors {
+    grid-template-columns: 6fr 7fr 5fr; /* match default */
+    grid-template-rows: initial;
+    height: 26px;
+    padding: 4px 10px;
+    gap: 10px;
+}
+.info-row.survivors .infocolumn1 { grid-column: 1; justify-content: flex-start; }
+.info-row.survivors .infocolumn2 { grid-column: 3; justify-content: flex-end; }
+.info-row.survivors .infocolumn3 { display: none; }
+
+/* Survivors progress bar: always full */
+.info-row.survivors .resource-progress-bar { width: 100% !important; }
+
+/* Survivors value styling */
+.info-row.survivors [data-value-type="storage"] {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e6ffe6;
 }
 
 /* Debuff icon inside resource row: symbol only */

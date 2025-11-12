@@ -1,3 +1,44 @@
+# [0.1.11] - 2025-11-12
+
+## Added
+
+- Objectives revamp and enhancements:
+    - Expanded completion criteria and evaluation logic in the objectives engine.
+    - Richer UI in the Objectives panel with improved state handling and visuals.
+    - Story event integration and unlock rule updates to better reflect progression.
+    - New/updated story events for early progression beats (Crash Site branches, power/bridge follow‑ups) with clickable log entries.
+
+## Changed
+
+- Info Panel & Resources:
+    - Survivors now has a dedicated display: always listed directly under Morale, shows only the count (no cap or rate), right-aligned, with an always‑full background bar.
+    - Morale percent moved to the far right for consistent alignment with other values.
+    - Unified numeric font weight (600) across resource values and Morale; negative rates use the same weight for consistency.
+- Journal:
+    - Active tab glow reduced; inactive tabs further dimmed for a clearer visual hierarchy.
+- Objectives UI polish:
+    - Objectives panel and styles refined alongside the backend revamp; tooltip alignment improved.
+ - Story & HUD polish:
+    - Story popup and header/footer styles refined; copy and states aligned to new objective/stage flows.
+    - Tooltip behavior updated to stay consistent with new objective states.
+ - Main Menu:
+    - Reverted a short grid experiment; kept the original flex layout with a fixed 50% log section height to avoid vertical shifts.
+- Actions & Unlocks:
+    - Tuned action data (durations, costs, and unlock chains) to better sequence early game steps.
+    - Consolidated gating rules (unlockRules) so corridors/bridge/base-camp interactions are enforced consistently.
+- Upgrades & Tooltips:
+    - Refreshed upgrade definitions and labels; tooltips aligned with data for preview vs. runtime parity.
+
+## Fixed
+
+- Survivors row no longer shows capacity or generation rate.
+- Morale percent no longer appears visually misaligned in the middle of the row.
+- Overly strong journal tab glow that distracted from content has been toned down.
+- Main menu log section no longer jumps when new entries arrive (fixed-height log with internal scrolling).
+ - Objectives panel updates no longer lag after certain story event transitions (more reliable recompute hooks).
+
+---
+
 # [0.1.10] - 2025-11-07
 
 ## Added

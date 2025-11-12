@@ -434,6 +434,23 @@ export function getObjectiveDefinition(id) {
     };
 }
 
+// New: return all objectives with current state & timing for history / journal objective tab
+export function getAllObjectivesWithState() {
+    const byId = new Map(status.map(s => [s.id, s]));
+    return defs.map(def => {
+        const st = byId.get(def.id) || { state: 'locked' };
+        return {
+            id: def.id,
+            label: (typeof def.label === 'function') ? def.label() : def.label,
+            reward: Array.isArray(def.reward) ? def.reward.map(r => ({ resource: r.resource, amount: r.amount })) : [],
+            priority: def.priority,
+            state: st.state,
+            firstAt: st.firstAt,
+            doneAt: st.doneAt
+        };
+    });
+}
+
 // Public steps accessor: returns dynamic list of step objects
 export function getObjectiveSteps(id) {
     const def = defs.find(d => d.id === id);
