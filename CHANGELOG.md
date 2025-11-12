@@ -2,6 +2,11 @@
 
 ## Added
 
+- Collapsible side panels:
+    - Added chevron buttons to main menu and info panel that allow collapsing panels to expand game area.
+    - Panel collapse state persists in localStorage.
+    - Game area dynamically expands: 80% when one panel collapsed, 100% when both collapsed.
+    - Glowing separator lines animate smoothly to match collapsed panel positions.
 - Objectives revamp and enhancements:
     - Expanded completion criteria and evaluation logic in the objectives engine.
     - Richer UI in the Objectives panel with improved state handling and visuals.
@@ -10,6 +15,10 @@
 
 ## Changed
 
+- UI Layout:
+    - Log section height adjusted to align collapse chevrons at screen center for visual balance.
+    - Log header height now matches footer height (40px) for consistency.
+    - Side panels (main menu and info panel) now render above game area (z-index: 10) to prevent clipping of collapse buttons.
 - Info Panel & Resources:
     - Survivors now has a dedicated display: always listed directly under Morale, shows only the count (no cap or rate), right-aligned, with an always‑full background bar.
     - Morale percent moved to the far right for consistent alignment with other values.
@@ -31,6 +40,8 @@
 
 ## Fixed
 
+- Collapse chevron buttons now properly visible on both sides (fixed z-index stacking issues with game area).
+- Glowing separator lines now correctly positioned when panels are collapsed, accounting for 3px flex gaps.
 - Survivors row no longer shows capacity or generation rate.
 - Morale percent no longer appears visually misaligned in the middle of the row.
 - Overly strong journal tab glow that distracted from content has been toned down.
