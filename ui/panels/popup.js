@@ -1,5 +1,6 @@
 import { getIngameTimeObject, getIngameTimeString } from '../../core/time.js';
 import { addJournalEntry } from '../../sections/journal.js';
+import { allActions as _allActions } from '../../data/definitions/allActions.js';
 
 let activeStoryEvent = null;
 let activeOutcome = null; // optional footer content (rewards/unlocks)
@@ -86,11 +87,31 @@ function renderPopupPage() {
                 }
                 if (hasUnlocks) {
                     const blocks = [];
-                    if (activeOutcome.unlocks.actions && activeOutcome.unlocks.actions.length) blocks.push(`<div class="unlock-block"><h4>Actions Unlocked</h4><ul>${makeList(activeOutcome.unlocks.actions)}</ul></div>`);
+
+                    // Split actions into Upgrades vs non-Upgrades using definitions
+                    const actionsList = Array.isArray(activeOutcome.unlocks.actions) ? activeOutcome.unlocks.actions.slice() : [];
+                    let upgradeNames = [];
+                    let regularActionNames = [];
+                    if (actionsList.length) {
+                        const defs = Array.isArray(_allActions) ? _allActions : [];
+                        const byNameOrId = (val) => defs.find(a => a && (a.name === val || a.id === val));
+                        for (const val of actionsList) {
+                            const def = byNameOrId(val);
+                            if (def && def.category === 'Upgrade') upgradeNames.push(def.name || val);
+                            else regularActionNames.push(def ? (def.name || val) : val);
+                        }
+                        // Remove duplicates in case of mixed inputs
+                        const uniq = (arr) => Array.from(new Set(arr));
+                        upgradeNames = uniq(upgradeNames);
+                        regularActionNames = uniq(regularActionNames);
+                    }
+
+                    if (regularActionNames.length) blocks.push(`<div class="unlock-block"><h4>Actions Unlocked</h4><ul>${makeList(regularActionNames)}</ul></div>`);
+                    if (upgradeNames.length) blocks.push(`<div class="unlock-block"><h4>Upgrades Unlocked</h4><ul>${makeList(upgradeNames)}</ul></div>`);
                     if (activeOutcome.unlocks.buildings && activeOutcome.unlocks.buildings.length) blocks.push(`<div class="unlock-block"><h4>Buildings Unlocked</h4><ul>${makeList(activeOutcome.unlocks.buildings)}</ul></div>`);
                     if (activeOutcome.unlocks.sections && activeOutcome.unlocks.sections.length) blocks.push(`<div class="unlock-block"><h4>Sections Unlocked</h4><ul>${makeList(activeOutcome.unlocks.sections)}</ul></div>`);
                     if (activeOutcome.unlocks.jobs && activeOutcome.unlocks.jobs.length) blocks.push(`<div class="unlock-block"><h4>Jobs Unlocked</h4><ul>${makeList(activeOutcome.unlocks.jobs)}</ul></div>`);
-                    parts.push(`<div class="outcome-unlocks"><div class="outcome-grid">${blocks.join('')}</div></div>`);
+                    if (blocks.length) parts.push(`<div class="outcome-unlocks"><div class="outcome-grid">${blocks.join('')}</div></div>`);
                 }
                 if (hasRewards) {
                     const items = activeOutcome.rewards.map(r => `<li>+${r.amount} ${r.resource}</li>`).join('');

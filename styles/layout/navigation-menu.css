@@ -14,10 +14,36 @@
     overflow: visible;
 }
 
+#mainMenu.collapsed::before {
+    content: 'Sections & Log';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    transform-origin: center;
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.97);
+    font-size: 21px; /* slightly larger */
+    font-weight: 800;
+    letter-spacing: 1.5px; /* slightly more spacing */
+    word-spacing: 2px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 120; /* above buttons/lines */
+    text-shadow:
+        0 0 2px rgba(0,0,0,0.9),
+        0 0 6px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.60),
+        0 0 12px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
+}
+
 #mainMenu.collapsed .menu-buttons-container,
 #mainMenu.collapsed #logSection {
     opacity: 0;
     pointer-events: none;
+}
+
+/* Remove reserved space when collapsed so the label centers nicely */
+#mainMenu.collapsed .menu-buttons-container {
+    padding-bottom: 0;
 }
 
 /* Panel collapse button */
@@ -78,6 +104,9 @@
     background-color: #000;
     flex-grow: 0;
     flex-shrink: 0;
+    /* Reserve space for the absolutely-positioned log at the bottom */
+    padding-bottom: calc(50% + 20px);
+    box-sizing: border-box;
 }
 
 /* --- Menu Button Styles --- */

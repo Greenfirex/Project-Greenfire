@@ -2,13 +2,15 @@
 #logSection {
     width: 100%;
     height: calc(50% + 20px);
+    max-height: calc(50% + 20px); /* clamp: never grow beyond intended size */
+    min-height: 0;               /* allow flex item to be smaller than content */
     background-color: #000;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    flex-shrink: 0;
-    position: relative;
-    margin-top: auto;
+    position: absolute;          /* pin to the bottom of left column */
+    left: 0; right: 0; bottom: 0;
+    overflow: hidden;            /* keep overflowing content inside; inner scroll handles overflow */
 }
 
 /* This is the glowing line at the top of the whole log section */
@@ -31,6 +33,8 @@
     align-items: center;
     justify-content: center;
     height: 40px;
+    flex: 0 0 40px;              /* lock header height so it never collapses */
+    min-height: 40px;
 }
 
 #logOptionsBtn {
@@ -70,7 +74,8 @@
 }
 
 #logContent {
-    flex-grow: 1;
+    flex: 1 1 auto;
+    min-height: 0;               /* critical for flex children to allow scrolling instead of expansion */
     overflow-y: auto;
     padding: 5px 10px; /* Add some padding */
 }

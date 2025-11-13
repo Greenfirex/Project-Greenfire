@@ -157,25 +157,7 @@ export function buildBuilding(event, buildingName) {
             window.setupCrashSiteSection();
         }
     }
-        // Unlock Food Larder building (storage for Food Rations)
-        const foodLarder = buildings.find(b => b.name === 'Food Larder');
-        if (foodLarder && !foodLarder.isUnlocked) {
-            foodLarder.isUnlocked = true;
-            addLogEntry('New building available: Food Larder', LogType.UNLOCK);
-            try { setupColonySection(); } catch (e) { if (typeof window !== 'undefined' && window.setupColonySection) window.setupColonySection(); }
-            // refresh other UIs so Crash Site and global buttons show the new building immediately
-            if (typeof window !== 'undefined') {
-                if (typeof window.setupCrashSiteSection === 'function') {
-                    try { window.setupCrashSiteSection(); } catch (e) { /* ignore */ }
-                }
-                if (typeof window.updateBuildingButtonsState === 'function') {
-                    try { window.updateBuildingButtonsState(); } catch (e) { /* ignore */ }
-                }
-                if (typeof window.setupColonySection === 'function') {
-                    try { window.setupColonySection(); } catch (e) { /* ignore */ }
-                }
-            }
-        }
+        // Food Larder is no longer unlocked by Foraging Camp; it's gated by the planning upgrade.
     }
 
     // Unlock Rain Catchers when a Water Station is built AND Fabric has been discovered
@@ -202,61 +184,28 @@ export function buildBuilding(event, buildingName) {
                 window.addEventListener('resourceDiscovered', onDiscover);
             }
         }
-        // Unlock Water Reservoir building (storage for Clean Water)
-        const waterReservoir = buildings.find(b => b.name === 'Water Reservoir');
-        if (waterReservoir && !waterReservoir.isUnlocked) {
-            // only make it available if Fabric has been discovered (same gating as rain catchers)
-            const refreshColonyUI = () => {
-                // try local then global helpers; also refresh crash-site and button state
-                try { if (typeof setupColonySection === 'function') setupColonySection(); } catch (e) {}
-                if (typeof window !== 'undefined') {
-                    if (typeof window.setupColonySection === 'function') try { window.setupColonySection(); } catch (e) {}
-                    if (typeof window.setupCrashSiteSection === 'function') try { window.setupCrashSiteSection(); } catch (e) {}
-                    if (typeof window.updateBuildingButtonsState === 'function') try { window.updateBuildingButtonsState(); } catch (e) {}
-                }
-            };
+        // Water Reservoir is no longer unlocked directly here; it's gated by the planning upgrade.
+    }
 
-            if (fabricRes && fabricRes.isDiscovered) {
-                waterReservoir.isUnlocked = true;
-                addLogEntry('New building available: Water Reservoir', LogType.UNLOCK);
-                refreshColonyUI();
-            } else {
-                // register a one-time unlock when Fabric is discovered
-                if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-                    const onDiscoverReservoir = (ev) => {
-                        if (!ev || !ev.detail || ev.detail.name !== 'Fabric') return;
-                        const fr = resources.find(r => r.name === 'Fabric');
-                        if (fr && fr.isDiscovered && waterReservoir && !waterReservoir.isUnlocked) {
-                            waterReservoir.isUnlocked = true;
-                            addLogEntry('New building available: Water Reservoir', LogType.UNLOCK);
-                            refreshColonyUI();
-                        }
-                        window.removeEventListener('resourceDiscovered', onDiscoverReservoir);
-                    };
-                    window.addEventListener('resourceDiscovered', onDiscoverReservoir);
-                }
+    // Handle job-unlock and storage effects (support single effect or effects[] array)
+    const applyEffect = (eff) => {
+        if (!eff || !eff.type) return;
+        if (eff.type === 'job') {
+            try {
+                addSlotsForBuilding(building.name, 1);
+                addLogEntry(`New job slot available: ${building.name} (from ${building.name}).`, LogType.UNLOCK);
+                if (typeof updateCrewSection === 'function') updateCrewSection();
+            } catch (e) { /* ignore */ }
+        } else if (eff.type === 'storage') {
+            const resourceToUpgrade = resources.find(r => r.name === eff.resource);
+            if (resourceToUpgrade) {
+                resourceToUpgrade.capacity += eff.value;
+                addLogEntry(`${resourceToUpgrade.name} capacity increased by ${eff.value}!`, LogType.INFO);
             }
         }
-    }
-
-    // Handle job-unlock buildings
-    if (building.effect && building.effect.type === 'job') {
-        try {
-            // addSlotsForBuilding expects the building.name (e.g. "Water Station")
-            addSlotsForBuilding(building.name, 1);
-            addLogEntry(`New job slot available: ${building.name} (from ${building.name}).`, LogType.UNLOCK);
-            if (typeof updateCrewSection === 'function') updateCrewSection();
-        } catch (e) { /* ignore */ }
-    }
-
-    // Handle storage effect
-    if (building.effect && building.effect.type === 'storage') {
-        const resourceToUpgrade = resources.find(r => r.name === building.effect.resource);
-        if (resourceToUpgrade) {
-            resourceToUpgrade.capacity += building.effect.value;
-            addLogEntry(`${resourceToUpgrade.name} capacity increased by ${building.effect.value}!`, LogType.INFO);
-        }
-    }
+    };
+    if (building.effect) applyEffect(building.effect);
+    if (Array.isArray(building.effects)) building.effects.forEach(applyEffect);
 
     // Laboratory unlock handling
     if (building.name === 'Laboratory' && building.count === 1) {

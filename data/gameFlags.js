@@ -254,3 +254,33 @@ registerActionCompletionHandler('lightCampfire', () => {
         } catch (e) { /* ignore */ }
     }
 });
+
+// Planning upgrades that unlock colony storage buildings
+registerActionCompletionHandler('planFoodLarder', () => {
+    try {
+        const b = (buildings || []).find(x => x && x.name === 'Food Larder');
+        if (b && !b.isUnlocked) {
+            b.isUnlocked = true;
+            addLogEntry('New building available: Food Larder', LogType.UNLOCK);
+            // Refresh Colony UI and related panels
+            if (typeof window !== 'undefined') {
+                if (typeof window.setupColonySection === 'function') try { window.setupColonySection(); } catch (e) {}
+                if (typeof window.updateBuildingButtonsState === 'function') try { window.updateBuildingButtonsState(); } catch (e) {}
+            }
+        }
+    } catch (e) { /* ignore */ }
+});
+
+registerActionCompletionHandler('planWaterReservoir', () => {
+    try {
+        const b = (buildings || []).find(x => x && x.name === 'Water Reservoir');
+        if (b && !b.isUnlocked) {
+            b.isUnlocked = true;
+            addLogEntry('New building available: Water Reservoir', LogType.UNLOCK);
+            if (typeof window !== 'undefined') {
+                if (typeof window.setupColonySection === 'function') try { window.setupColonySection(); } catch (e) {}
+                if (typeof window.updateBuildingButtonsState === 'function') try { window.updateBuildingButtonsState(); } catch (e) {}
+            }
+        }
+    } catch (e) { /* ignore */ }
+});

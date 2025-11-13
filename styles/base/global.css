@@ -232,35 +232,31 @@ body.glow-disabled * {
   }
 }
 
-/* --- Vertical Glowing Separators --- */
-#mainContainer::before,
-#mainContainer::after {
+/* --- Vertical Glowing Separators (anchored to panels) --- */
+/* Attach the left separator to the right edge of the main menu */
+#mainMenu::after {
     content: '';
     position: absolute;
     top: 0;
+    right: -1.5px; /* center 3px line on boundary accounting for gap */
     height: 100%;
     width: 3px;
     animation: pulse-glow 5s ease-in-out infinite;
     z-index: 5;
-    transition: left 0.3s ease;
-}
-#mainContainer::before {
-    left: 20%;
-}
-#mainContainer::after {
-    left: 80%;
+    pointer-events: none;
 }
 
-/* Adjust left separator when left panel collapsed (40px width + 3px gap) */
-#mainContainer:has(#gameArea.expanded-left)::before,
-#mainContainer:has(#gameArea.expanded-both)::before {
-    left: 43px;
-}
-
-/* Adjust right separator when right panel collapsed */
-#mainContainer:has(#gameArea.expanded-right)::after,
-#mainContainer:has(#gameArea.expanded-both)::after {
-    left: calc(100% - 43px);
+/* Attach the right separator to the LEFT edge of the info panel */
+#infoPanel::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -1.5px; /* center 3px line on boundary accounting for gap */
+    height: 100%;
+    width: 3px;
+    animation: pulse-glow 5s ease-in-out infinite;
+    z-index: 5;
+    pointer-events: none;
 }
 
 #mainMenu, #infoPanel {

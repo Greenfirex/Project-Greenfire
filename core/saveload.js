@@ -11,7 +11,7 @@ import { jobs, resetJobs } from '../data/jobsManager.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { gameFlags, resetGameFlags, applySavedGameFlags } from '../data/gameFlags.js';
 import { storyLog, resetStoryLog, applySavedStoryLog, getInitialStoryLog, renderJournalEntries } from '../sections/journal.js';
-import { resetObjectives, recomputeObjectives } from '../data/objectives.js';
+import { resetObjectives, recomputeObjectives, getObjectivesStatus, setObjectivesStatus } from '../data/objectives.js';
 import { resetActiveActions, getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/activeActions.js';
 import { resetMoraleModifiers, listMoraleModifiers, setMoraleModifier } from '../data/morale.js';
 import { resetWeather } from '../data/weather.js';
@@ -39,7 +39,9 @@ export function getGameState() {
         timeScale: window.TIME_SCALE ? Number(window.TIME_SCALE) : 1,
         paused: localStorage.getItem('gamePaused') === 'true',
         activeCrashSiteAction: getActiveCrashSiteAction(),
-        moraleModifiers: listMoraleModifiers()
+        moraleModifiers: listMoraleModifiers(),
+        // Persist narrative objectives alongside the main save so they don't drift
+        objectivesStatus: (function(){ try { return getObjectivesStatus(); } catch { return []; } })()
     };
 }
 
@@ -141,6 +143,17 @@ export function applyGameState(gameState) {
     setResearchInterval(null);
     setCurrentResearchStartTime(gameState.researchStartTime ?? 0);
     setActivatedSections(gameState.activatedSections ?? getInitialActivatedSections());
+
+    // Restore objectives from composite save (keeps them in sync with other state)
+    try {
+        if (Array.isArray(gameState.objectivesStatus)) {
+            setObjectivesStatus(gameState.objectivesStatus);
+            // Mirror into the objectives' own storage for forward compatibility
+            localStorage.setItem('objectivesStatusV1', JSON.stringify(gameState.objectivesStatus));
+        } else {
+            // If not present (older save), leave current objectives as-is
+        }
+    } catch { /* non-fatal */ }
 
     // Restore active crash site action
     if (gameState.activeCrashSiteAction) {

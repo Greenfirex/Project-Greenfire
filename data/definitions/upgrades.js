@@ -32,6 +32,70 @@ export const upgradeActions = [
         ]
     },
     {
+        id: 'planFoodLarder',
+        name: 'Plan Food Larder',
+        description: 'Design storage layout and salvage parts to enable building a Food Larder.',
+        duration: 4,
+        category: 'Upgrade',
+        isUnlocked: false, // unlocked when Fabric is discovered
+        cancelable: true,
+        cost: [
+            { resource: 'Fabric', amount: 2 },
+            { resource: 'Scrap Metal', amount: 4 },
+            { resource: 'Wire', amount: 4 }
+        ],
+        drain: [
+            { resource: 'Stamina', amount: 15 },
+            { resource: 'Food Rations', amount: 2 },
+            { resource: 'Clean Water', amount: 3 }
+        ],
+        repeatable: false,
+        hideRewardPreview: true,
+        reward: [],
+        tooltipEffects: ['Unlocks building: Food Larder'],
+        stage: 0,
+        stages: [
+            {
+                story: null,
+                unlocks: [],
+                logText: 'Plans finalized for a Food Larder. Construction can begin in the Colony.',
+                suppressGenericLog: true
+            }
+        ]
+    },
+    {
+        id: 'planWaterReservoir',
+        name: 'Plan Water Reservoir',
+        description: 'Draft reservoir layout and fittings so a Water Reservoir can be constructed.',
+        duration: 4,
+        category: 'Upgrade',
+        isUnlocked: false, // unlocked when Fabric is discovered
+        cancelable: true,
+        cost: [
+            { resource: 'Fabric', amount: 2 },
+            { resource: 'Scrap Metal', amount: 4 },
+            { resource: 'Wire', amount: 4 }
+        ],
+        drain: [
+            { resource: 'Stamina', amount: 15 },
+            { resource: 'Food Rations', amount: 2 },
+            { resource: 'Clean Water', amount: 3 }
+        ],
+        repeatable: false,
+        hideRewardPreview: true,
+        reward: [],
+        tooltipEffects: ['Unlocks building: Water Reservoir'],
+        stage: 0,
+        stages: [
+            {
+                story: null,
+                unlocks: [],
+                logText: 'Plans finalized for a Water Reservoir. Construction can begin in the Colony.',
+                suppressGenericLog: true
+            }
+        ]
+    },
+    {
         id: 'lightCampfire',
         name: 'Light Campfire',
         description: 'Build and tend a safe campfire at base camp to lift spirits and morale.',

@@ -275,9 +275,9 @@ function buildTooltipHTML(data) {
         if (data.produces) html += `<div class="tooltip-section"><h4>Generation</h4><p>${data.produces}: +${data.rate}/s</p></div>`;
         // Buildings: render Effects section when building has an effect descriptor
         try {
-            if (data.effect) {
-                const lines = [];
-                const eff = data.effect;
+            const lines = [];
+            const renderEff = (eff) => {
+                if (!eff || !eff.type) return;
                 if (eff.type === 'storage') {
                     lines.push(`${eff.resource}: +${eff.value} capacity`);
                 } else if (eff.type === 'job') {
@@ -289,11 +289,12 @@ function buildTooltipHTML(data) {
                 } else if (eff.type === 'production') {
                     lines.push(`${eff.resource}: +${eff.rate}/s`);
                 } else {
-                    // generic fallback: stringify keys
                     try { lines.push(Object.keys(eff).map(k => `${k}: ${eff[k]}`).join(', ')); } catch (e) { lines.push(String(eff)); }
                 }
-                if (lines.length) html += `<div class="tooltip-section"><h4>Effects</h4>${lines.map(l => `<p>${l}</p>`).join('')}</div>`;
-            }
+            };
+            if (data.effect) renderEff(data.effect);
+            if (Array.isArray(data.effects)) data.effects.forEach(renderEff);
+            if (lines.length) html += `<div class="tooltip-section"><h4>Effects</h4>${lines.map(l => `<p>${l}</p>`).join('')}</div>`;
         } catch (e) { /* ignore building effect rendering errors */ }
         return html;
     }

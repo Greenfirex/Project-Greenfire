@@ -429,7 +429,9 @@ export const salvageActions = [
             isUnlocked: false,
             cancelable: true,
             drain: [
-                { resource: 'Stamina', amount: 20 }
+                { resource: 'Stamina', amount: 20 },
+                { resource: 'Food Rations', amount: 25 },
+                { resource: 'Clean Water', amount: 25 },
             ],
             // no top-level reward; success is handled by completing stage 2
             stage: 0,
@@ -446,12 +448,17 @@ export const salvageActions = [
                     story: 'powercore_breached',
                     unlocks: ['restoreEmergencyPower'], // whatever follows opening the core
                     logText: 'Now that all survivors are accounted for, you risk breaching the power core with the explosive. The blast blows the seal and you can access the core systems. (Click to read)',
-                    // stage-specific cost: this stage requires 1 Makeshift Explosive and will consume it on completion
+                    // stage-specific cost: this stage requires 3 Makeshift Explosives and will consume them on completion
                     cost: [
-                        { resource: 'Makeshift Explosive', amount: 1 }
+                        { resource: 'Makeshift Explosive', amount: 3 }
+                    ],
+                    drain: [
+                        { resource: 'Stamina', amount: 50 },
+                        { resource: 'Food Rations', amount: 35 },
+                        { resource: 'Clean Water', amount: 30 },
                     ],
                     reward: [
-                        { resource: 'Power Cells', amount: [1,2] },
+                        { resource: 'Power Cells', amount: 3 },
                     ]
                 }
             ]
@@ -493,12 +500,12 @@ export const salvageActions = [
             cancelable: true,
             repeatable: true,
             drain: [
-                { resource: 'Stamina', amount: 8 },
-                { resource: 'Food Rations', amount: 2 },
-                { resource: 'Clean Water', amount: 2 }
+                { resource: 'Stamina', amount: 12 },
+                { resource: 'Food Rations', amount: 7 },
+                { resource: 'Clean Water', amount: 6 }
             ],
             reward: [
-                { resource: 'Chemicals', amount: [1, 3] }
+                { resource: 'Chemicals', amount: [2, 3] }
             ],
             hideRewardPreview: false,
             stage: 0,
@@ -522,7 +529,7 @@ export const salvageActions = [
             cancelable: true,
             cost: [
                 { resource: 'Power Cells', amount: 1 },
-                { resource: 'Wire', amount: 20 }
+                { resource: 'Wire', amount: 25 }
             ],
             drain: [
                 { resource: 'Stamina', amount: 28 },
@@ -554,7 +561,7 @@ export const salvageActions = [
             cost: [
                 { resource: 'Chemicals', amount: 5 },
                 { resource: 'Scrap Metal', amount: 8 },
-                { resource: 'Wire', amount: 12 }
+                { resource: 'Wire', amount: 14 }
             ],
             drain: [
                 { resource: 'Stamina', amount: 13 },
@@ -604,6 +611,11 @@ export const salvageActions = [
                         story: 'bridge_after_power',
                         unlocks: ['fixLongRangeRadio'],
                         description: 'Emergency power is online: the lift cycles, granting limited access to the bridge. You can ride up and assess the situation.',
+                        drain: [
+                            { resource: 'Stamina', amount: 25 },
+                            { resource: 'Clean Water', amount: 8 },
+                            { resource: 'Food Rations', amount: 7 }
+                        ],
                         logText: 'You reach the command deck. The bridge is a tomb — everyone you find is gone, and most equipment is beyond saving. One gutted comms panel might be salvageable. Your only chance is to scavenge it and try to rewire it to your last power cell to hail Starfleet Command. (Click to read)',
                         suppressGenericLog: true
                     }
@@ -618,7 +630,7 @@ export const salvageActions = [
                 isUnlocked: false,
                 cancelable: true,
                 hideRewardPreview: true,
-                drain: [ { resource: 'Stamina', amount: 20 } ],
+                drain: [ { resource: 'Stamina', amount: 50 } ],
                 cost: [
                     { resource: 'Power Cells', amount: 1 },
                     { resource: 'Wire', amount: 25 },

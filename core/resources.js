@@ -14,8 +14,8 @@ export function getInitialResources() {
         // Meta progression resource (hidden from info panel)
         { name: 'XP', amount: 0, isDiscovered: true, capacity: 9000000000, producible: false, integer: true, hidden: true },
         { name: 'Survivors', amount: 0, isDiscovered: false, capacity: 20, producible: false, integer: true },
-        { name: 'Food Rations', amount: 75, isDiscovered: true, capacity: 75, producible: false, integer: true, baseConsumption: 0.04 },
-        { name: 'Clean Water', amount: 60, isDiscovered: true, capacity: 100, producible: false, integer: true, baseConsumption: 0.06 },
+    { name: 'Food Rations', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.04 },
+    { name: 'Clean Water', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.06 },
         { name: 'Scrap Metal', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
         { name: 'Crude Prybar', amount: 0, isDiscovered: false, capacity: 5, producible: false, integer: true },
         { name: 'Fabric', amount: 0, isDiscovered: false, capacity: 100, producible: false, integer: true },

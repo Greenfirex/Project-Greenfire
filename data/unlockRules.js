@@ -55,7 +55,7 @@ export function getBlockedStatus(actionId, state) {
  * Evaluate event-driven unlocks (e.g., resource discoveries) and return what should unlock.
  * The caller applies these unlocks to live data and triggers UI updates.
  * @param {{ type: string }} event
- * @param {{ resources: Array<{name:string,isDiscovered?:boolean}>, actions: Array<{id:string,isUnlocked?:boolean}> }} state
+ * @param {{ resources: Array<{name:string,isDiscovered?:boolean}>, actions: Array<{id:string,isUnlocked?:boolean,name?:string,category?:string}>, buildings?: Array<{name:string,count?:number,isUnlocked?:boolean}> }} state
  * @returns {{ actions: string[], buildings: string[], sections: string[], jobs: string[] }}
  */
 export function evaluateEventUnlocks(event, state) {
@@ -64,24 +64,44 @@ export function evaluateEventUnlocks(event, state) {
 
     // Rule: when both Fabric and Chemicals are discovered, unlock Assemble Makeshift Explosive
     if (event.type === 'resourceDiscovered') {
-        const res = (state.resources || []);
-        const hasFabric = !!res.find(r => r && r.name === 'Fabric' && r.isDiscovered);
-        const hasChem = !!res.find(r => r && r.name === 'Chemicals' && r.isDiscovered);
+    const res = (state.resources || []);
+    const hasFabric = !!res.find(r => r && r.name === 'Fabric' && (r.isDiscovered || (r.amount || 0) > 0));
+    const hasChem = !!res.find(r => r && r.name === 'Chemicals' && (r.isDiscovered || (r.amount || 0) > 0));
+        const buildings = Array.isArray(state.buildings) ? state.buildings : [];
+        const waterStation = buildings.find(b => b && b.name === 'Water Station');
         if (hasFabric && hasChem) {
             const actions = (state.actions || []);
             const assemble = actions.find(a => a && a.id === 'assembleMakeshiftExplosive');
-            if (assemble && !assemble.isUnlocked) {
+            if (assemble && !assemble.isUnlocked && !assemble.completed) {
                 result.actions.push('assembleMakeshiftExplosive');
             }
         }
         
-        // Rule: when Fabric is discovered, unlock Install Purification Unit upgrade
-        if (hasFabric) {
+        // Rule: when BOTH Chemicals and Fabric are discovered, unlock Install Purification Unit upgrade
+        if (hasChem && hasFabric) {
             const actions = (state.actions || []);
             const purificationUnit = actions.find(a => a && a.id === 'installPurificationUnit');
-            if (purificationUnit && !purificationUnit.isUnlocked) {
+            if (purificationUnit && !purificationUnit.isUnlocked && !purificationUnit.completed) {
                 result.actions.push('installPurificationUnit');
             }
+        }
+
+        // New rule: if Water Station is built (count >= 1) AND Fabric is discovered, unlock Rain Catchers upgrade
+        if (hasFabric && waterStation && (waterStation.count || 0) >= 1) {
+            const actions = (state.actions || []);
+            const rain = actions.find(a => a && a.id === 'installRainCatchers');
+            if (rain && !rain.isUnlocked && !rain.completed) {
+                result.actions.push('installRainCatchers');
+            }
+        }
+
+        // New rules: When Fabric is discovered, unlock planning upgrades
+        if (hasFabric) {
+            const actions = (state.actions || []);
+            const planLarder = actions.find(a => a && a.id === 'planFoodLarder');
+            if (planLarder && !planLarder.isUnlocked && !planLarder.completed) result.actions.push('planFoodLarder');
+            const planReservoir = actions.find(a => a && a.id === 'planWaterReservoir');
+            if (planReservoir && !planReservoir.isUnlocked && !planReservoir.completed) result.actions.push('planWaterReservoir');
         }
     }
 

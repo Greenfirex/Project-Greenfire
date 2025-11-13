@@ -176,7 +176,12 @@ function renderDetails() {
 }
 
 function refreshIfOpen() {
-    if (popupActive) return; // avoid any UI churn while any popup/menu is open
+    // While a popup is open, avoid heavy recompute and details re-render to prevent flashing,
+    // but still update the banner text so the footer reflects the latest objective.
+    if (popupActive) {
+        renderBannerText();
+        return;
+    }
     try { recomputeObjectives(); } catch {}
     renderBannerText();
     if (isOpen) renderDetails();
@@ -200,7 +205,8 @@ if (document.readyState === 'loading') {
 }
 
 // Listen for model changes
-window.addEventListener('objectivesChanged', () => { refreshIfOpen(); });
+// When objectives change, update the banner immediately even if a popup is active.
+window.addEventListener('objectivesChanged', () => { renderBannerText(); if (!popupActive && isOpen) renderDetails(); });
 
 // On major lifecycle events, recompute to catch up
 window.addEventListener('game-state-applied', () => { try { recomputeObjectives(); } catch {} refreshIfOpen(); });
@@ -220,6 +226,9 @@ window.addEventListener('popup-open', () => {
 });
 window.addEventListener('popup-close', () => {
     popupActive = false;
+    // Immediately refresh banner/details once the popup is closed so UI catches up.
+    renderBannerText();
+    if (isOpen) renderDetails();
     if (isOpen && !refreshTimer) {
         refreshTimer = setInterval(() => { refreshIfOpen(); }, 750);
     }

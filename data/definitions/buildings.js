@@ -54,8 +54,12 @@ const initialBuildings = [
         name: 'Foraging Camp',
         // This building unlocks a "Foraging" job slot per built camp.
         effect: { type: 'job', jobId: 'foraging' },
+        // Additional effects can be declared in an optional array
+        effects: [
+            { type: 'storage', resource: 'Food Rations', value: 10 }
+        ],
         count: 0,
-        cost: [{ resource: 'Scrap Metal', amount: 8 }],
+        cost: [{ resource: 'Scrap Metal', amount: 8 }, { resource: 'Wire', amount: 4 }],
         costMultiplier: 1.3,
         description: 'A basic camp where survivors can be organized to forage for food.',
         isUnlocked: false
@@ -64,8 +68,11 @@ const initialBuildings = [
         name: 'Water Station',
         // This building unlocks a "Water Collection" job slot per built station.
         effect: { type: 'job', jobId: 'water_collection' },
+        effects: [
+            { type: 'storage', resource: 'Clean Water', value: 10 }
+        ],
         count: 0,
-        cost: [{ resource: 'Scrap Metal', amount: 10 }],
+        cost: [{ resource: 'Scrap Metal', amount: 10 }, { resource: 'Wire', amount: 6 }],
         costMultiplier: 1.3,
         description: 'A makeshift station to collect and purify water.',
         isUnlocked: false
@@ -73,18 +80,18 @@ const initialBuildings = [
     {
         name: 'Food Larder',
         count: 0,
-        cost: [{ resource: 'Scrap Metal', amount: 15 }, { resource: 'Fabric', amount: 4 }],
+        cost: [{ resource: 'Scrap Metal', amount: 15 }, { resource: 'Wire', amount: 4 }],
         costMultiplier: 1.2,
-        effect: { type: 'storage', resource: 'Food Rations', value: 100 },
+        effect: { type: 'storage', resource: 'Food Rations', value: 80 },
         description: 'A basic insulated larder that increases food storage capacity.',
         isUnlocked: false
     },
     {
         name: 'Water Reservoir',
         count: 0,
-        cost: [{ resource: 'Scrap Metal', amount: 18 }],
+        cost: [{ resource: 'Scrap Metal', amount: 18 }, { resource: 'Wire', amount: 6 }],
         costMultiplier: 1.2,
-        effect: { type: 'storage', resource: 'Clean Water', value: 120 },
+        effect: { type: 'storage', resource: 'Clean Water', value: 100 },
         description: 'A small covered reservoir that increases water storage capacity.',
         isUnlocked: false
     },

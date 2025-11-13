@@ -505,7 +505,8 @@ function handleActionCompletion(section) {
                     const toUnlock = salvageActions.find(a => a.id === id || a.name === id);
                     if (toUnlock && !toUnlock.isUnlocked) {
                         toUnlock.isUnlocked = true;
-                        addLogEntry(`New action available: ${toUnlock.name}`, LogType.UNLOCK);
+                        const isUpgrade = (toUnlock.category === 'Upgrade');
+                        addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${toUnlock.name}`, LogType.UNLOCK);
                         try { outcome.unlocks.actions.push(toUnlock.name); } catch (e) { /* ignore */ }
                     }
                 });
@@ -525,7 +526,8 @@ function handleActionCompletion(section) {
         }
     }
 
-    // Capture buildings unlocked by completion handlers by diffing pre/post states
+    // Capture actions/buildings unlocked by completion handlers by diffing pre/post states
+    const preUnlockedActions = new Set((salvageActions || []).filter(a => a && a.isUnlocked).map(a => a.id));
     const preUnlockedBuildings = new Set((typeof buildings !== 'undefined') ? buildings.filter(b => b.isUnlocked).map(b => b.name) : []);
 
     if (original && original.id === 'establishBaseCamp') {
@@ -560,6 +562,19 @@ function handleActionCompletion(section) {
     }
 
     runActionCompletionHandlers(original, completed, section);
+
+    // After handlers ran, include any newly unlocked actions (e.g., Base Camp upgrades) in the story payload
+    try {
+        const newlyUnlockedActions = (salvageActions || []).filter(a => a && a.isUnlocked && !preUnlockedActions.has(a.id));
+        if (newlyUnlockedActions && newlyUnlockedActions.length) {
+            const existing = new Set((outcome.unlocks && outcome.unlocks.actions) ? outcome.unlocks.actions : []);
+            for (const a of newlyUnlockedActions) {
+                if (!existing.has(a.name)) {
+                    try { outcome.unlocks.actions.push(a.name); } catch (e) { /* ignore */ }
+                }
+            }
+        }
+    } catch (e) { /* ignore */ }
 
     try {
         const newlyUnlocked = (typeof buildings !== 'undefined') ? buildings.filter(b => b.isUnlocked && !preUnlockedBuildings.has(b.name)).map(b => b.name) : [];
@@ -670,16 +685,25 @@ function handleActionCompletion(section) {
     // Check for unlocks triggered by resource discovery (e.g., assembleMakeshiftExplosive when both Fabric and Chemicals are discovered)
     // We do this BEFORE showing the story popup so these unlocks appear in the popup's "New Actions" list
     try {
-        const unlockRuleActions = evaluateEventUnlocks({ type: 'resourceDiscovered' }, { resources, actions: salvageActions });
+        const unlockRuleActions = evaluateEventUnlocks({ type: 'resourceDiscovered' }, { resources, actions: salvageActions, buildings });
+        let ruleDidUnlock = false;
         if (unlockRuleActions && Array.isArray(unlockRuleActions.actions) && unlockRuleActions.actions.length) {
             for (const id of unlockRuleActions.actions) {
                 const a = salvageActions.find(x => x.id === id || x.name === id);
                 if (a && !a.isUnlocked) {
                     a.isUnlocked = true;
-                    addLogEntry(`New action available: ${a.name}`, LogType.UNLOCK);
+                    const isUpgrade = (a.category === 'Upgrade');
+                    addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${a.name}`, LogType.UNLOCK);
                     try { outcome.unlocks.actions.push(a.name); } catch (e) { /* ignore */ }
+                    ruleDidUnlock = true;
                 }
             }
+        }
+        if (ruleDidUnlock) {
+            // Rebuild Crash Site UI immediately to surface newly unlocked actions/upgrades
+            const container = document.querySelector('#salvageActionsContainer');
+            const targetSection = section || (container ? (container.closest('.content-panel') || container.parentElement) : null);
+            if (targetSection) setupCrashSiteSection(targetSection);
         }
     } catch (e) { /* ignore */ }
 
@@ -749,14 +773,15 @@ if (typeof window !== 'undefined') {
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('resourceDiscovered', () => {
         try {
-            const unlocks = evaluateEventUnlocks({ type: 'resourceDiscovered' }, { resources, actions: salvageActions });
+            const unlocks = evaluateEventUnlocks({ type: 'resourceDiscovered' }, { resources, actions: salvageActions, buildings });
             let didUnlock = false;
             if (unlocks && Array.isArray(unlocks.actions) && unlocks.actions.length) {
                 for (const id of unlocks.actions) {
                     const a = salvageActions.find(x => x.id === id || x.name === id);
                     if (a && !a.isUnlocked) {
                         a.isUnlocked = true;
-                        addLogEntry(`New action available: ${a.name}`, LogType.UNLOCK);
+                        const isUpgrade = (a.category === 'Upgrade');
+                        addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${a.name}`, LogType.UNLOCK);
                         didUnlock = true;
                     }
                 }

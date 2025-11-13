@@ -251,22 +251,48 @@ const defs = [
             { id: 'repair_radio', label: 'Perform radio repair', done: hasCompletedAction('fixLongRangeRadio') }
         ]
     },
+    
     {
-        id: 'obj_stockpile',
-        label: 'Make yourself comfortable and prepared',
+        id: 'obj_improve_base_camp',
+        label: 'Improve base camp',
         start: () => hasCompletedAction('fixLongRangeRadio'),
         complete: () => {
             const upgradeIds = ['installForagingTools', 'lightCampfire', 'installScavengerKit', 'salvageCookingEquipment', 'makeTents', 'insulateShelters', 'installRainCatchers', 'installPurificationUnit'];
-            const allUpgradesComplete = upgradeIds.every(id => hasCompletedAction(id));
-            return getResourceAmount('Food Rations') >= 400 && 
+            return upgradeIds.every(id => hasCompletedAction(id));
+        },
+        reward: [{ resource: 'XP', amount: 100 }],
+        priority: 12,
+        steps: () => {
+            const upgrades = [
+                { id: 'installForagingTools', name: 'Crude Foraging Tools' },
+                { id: 'lightCampfire', name: 'Light Campfire' },
+                { id: 'installScavengerKit', name: 'Scavenger Kit' },
+                { id: 'salvageCookingEquipment', name: 'Salvage Cooking Equipment' },
+                { id: 'makeTents', name: 'Make Tents (Base Camp)' },
+                { id: 'insulateShelters', name: 'Insulate Shelters' },
+                { id: 'installRainCatchers', name: 'Install Rain Catchers' },
+                { id: 'installPurificationUnit', name: 'Install Purification Unit' }
+            ];
+            return upgrades.map(u => ({
+                id: u.id,
+                label: u.name,
+                done: hasCompletedAction(u.id)
+            }));
+        }
+    },
+    {
+        id: 'obj_hoard_supplies',
+        label: 'Hoard supplies',
+        start: () => hasCompletedAction('fixLongRangeRadio'),
+        complete: () => {
+            return getResourceAmount('Food Rations') >= 400 &&
                 getResourceAmount('Clean Water') >= 500 &&
                 getResourceAmount('Scrap Metal') >= 200 &&
                 getResourceAmount('Fabric') >= 20 &&
                 getResourceAmount('Chemicals') >= 20 &&
-                getResourceAmount('Wire') >= 100 &&
-                allUpgradesComplete;
+                getResourceAmount('Wire') >= 100;
         },
-        reward: [{ resource: 'XP', amount: 180 }],
+        reward: [{ resource: 'XP', amount: 80 }],
         priority: 12,
         steps: () => {
             const foodAmt = getResourceAmount('Food Rations');
@@ -278,18 +304,7 @@ const defs = [
             const crewQuartersDone = hasCompletedAction('checkCrewQuarters');
             const cafeteriaDone = hasCompletedAction('exploreCafeteria');
             const guidanceNeeded = !crewQuartersDone || !cafeteriaDone;
-            
-            const upgrades = [
-                { id: 'installForagingTools', name: 'Crude Foraging Tools' },
-                { id: 'lightCampfire', name: 'Light Campfire' },
-                { id: 'installScavengerKit', name: 'Scavenger Kit' },
-                { id: 'salvageCookingEquipment', name: 'Salvage Cooking Equipment' },
-                { id: 'makeTents', name: 'Make Tents (Base Camp)' },
-                { id: 'insulateShelters', name: 'Insulate Shelters' },
-                { id: 'installRainCatchers', name: 'Install Rain Catchers' },
-                { id: 'installPurificationUnit', name: 'Install Purification Unit' }
-            ];
-            
+
             return [
                 { id: 'food_goal', label: 'Accumulate Food Rations (400)', done: foodAmt >= 400, progress: `${foodAmt}/400` },
                 { id: 'water_goal', label: 'Accumulate Clean Water (500)', done: waterAmt >= 500, progress: `${waterAmt}/500` },
@@ -297,11 +312,6 @@ const defs = [
                 { id: 'fabric_goal', label: 'Accumulate Fabric (20)', done: fabricAmt >= 20, progress: `${fabricAmt}/20` },
                 { id: 'chem_goal', label: 'Accumulate Chemicals (20)', done: chemAmt >= 20, progress: `${chemAmt}/20` },
                 { id: 'wire_goal', label: 'Accumulate Wire (100)', done: wireAmt >= 100, progress: `${wireAmt}/100` },
-                ...upgrades.map(u => ({
-                    id: u.id,
-                    label: u.name,
-                    done: hasCompletedAction(u.id)
-                })),
                 guidanceNeeded ? (
                     !crewQuartersDone
                         ? { id: 'hint_crew_quarters', label: 'Explore crew quarters (Fabric, potential supplies)', done: crewQuartersDone }
