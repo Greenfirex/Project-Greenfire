@@ -98,7 +98,14 @@ export function computeResourceRates(resourceName) {
         }
     } catch (e) { /* ignore */ }
 
-    const totalProduction = (baseProduction + jobContribution) * (1 + bonusMultiplier);
+    let totalProduction = (baseProduction + jobContribution) * (1 + bonusMultiplier);
+
+    // Apply debug multiplier (excluding Survivors) for playtesting gains
+    try {
+        if (typeof window !== 'undefined' && window.DEBUG_RESOURCE_GAIN === 10 && resourceName !== 'Survivors') {
+            totalProduction *= 10;
+        }
+    } catch (e) { /* ignore */ }
 
     // --- Consumption & Drain Calculation ---
     const passiveConsumption = currentResource.baseConsumption ? currentResource.baseConsumption * survivorCount : 0;

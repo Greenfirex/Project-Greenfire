@@ -470,7 +470,12 @@ function handleActionCompletion(section) {
             const amt = Array.isArray(rw.amount) ? getRandomInt(rw.amount[0], rw.amount[1]) : rw.amount;
             // Apply upgrade-based reward multipliers via upgradeEffects
             const rewardMul = computeRewardMultiplier(completed.id, rw.resource, gameFlags);
-            let finalAmt = Math.floor(amt * rewardMul);
+            // Apply debug multiplier (excluding Survivors) for action rewards
+            let debugMul = 1;
+            try {
+                if (typeof window !== 'undefined' && window.DEBUG_RESOURCE_GAIN === 10 && rw.resource !== 'Survivors') debugMul = 10;
+            } catch (e) { /* ignore */ }
+            let finalAmt = Math.floor(amt * rewardMul * debugMul);
             res.amount = Math.min(res.amount + finalAmt, res.capacity);
             gains.push(`${finalAmt} ${rw.resource}`);
             try { outcome.rewards.push({ resource: rw.resource, amount: finalAmt }); } catch (e) { /* ignore */ }

@@ -8,6 +8,13 @@ import { addLogEntry, LogType } from '../core/ingameLog.js';
 let isPaused = false;
 let mainLoopCallbacks = { start: null, stop: null };
 
+// Debug resource gain multiplier (playtesting helper)
+// Exposed on window so other modules (resources, action handling) can read it.
+// 1 = normal, 10 = boosted. Survivors are explicitly excluded where applied.
+if (typeof window !== 'undefined' && typeof window.DEBUG_RESOURCE_GAIN === 'undefined') {
+    window.DEBUG_RESOURCE_GAIN = 1;
+}
+
 // Allow main.js to register its loop control functions
 function registerMainLoopCallbacks(startFn, stopFn) {
     mainLoopCallbacks.start = startFn;
@@ -104,6 +111,19 @@ export function initFooter() {
         });
     });
 
+    // Debug toggle button
+    const debugBtn = document.getElementById('debugBtn');
+    if (debugBtn) {
+        debugBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const enabled = window.DEBUG_RESOURCE_GAIN === 10;
+            window.DEBUG_RESOURCE_GAIN = enabled ? 1 : 10;
+            debugBtn.classList.toggle('active', !enabled);
+            const stateLabel = window.DEBUG_RESOURCE_GAIN === 10 ? 'ENABLED' : 'disabled';
+            addLogEntry(`Debug resource multiplier ${stateLabel}.`, LogType.INFO);
+        });
+    }
+
     // Apply persisted settings
     setGameSpeed(window.TIME_SCALE, false);
     if (savedPaused) {
@@ -114,6 +134,9 @@ export function initFooter() {
         if (pBtn) { pBtn.textContent = 'Pause'; pBtn.classList.remove('active'); }
         updateHUD();
     }
+
+    // Ensure debug button reflects current state on load
+    if (debugBtn) debugBtn.classList.toggle('active', window.DEBUG_RESOURCE_GAIN === 10);
 }
 
 // Export pause/resume functions and registration for core to use

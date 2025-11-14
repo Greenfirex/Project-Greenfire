@@ -32,6 +32,7 @@ const initialGameFlags = {
     // Progress tracking flags
     hasReached15ScrapMetal: false,
     hasCompleted_tasksSurvivors: false,
+    assembleMakeshiftExplosive_completions: 0,
     // Weather state (v1): stored in flags for simple persistence
     weatherCurrentId: 'clear',
     weatherStartMinutes: 0,
@@ -283,4 +284,24 @@ registerActionCompletionHandler('planWaterReservoir', () => {
             }
         }
     } catch (e) { /* ignore */ }
+});
+
+registerActionCompletionHandler('assembleMakeshiftExplosive', (original) => {
+    // Increment completion counter
+    gameFlags.assembleMakeshiftExplosive_completions = (gameFlags.assembleMakeshiftExplosive_completions || 0) + 1;
+    
+    // After 3 completions, hide the action and log
+    if (gameFlags.assembleMakeshiftExplosive_completions >= 3) {
+        const actions = (window.allActions || []);
+        const action = actions.find(a => a && a.id === 'assembleMakeshiftExplosive');
+        if (action) {
+            action.isUnlocked = false; // hide from UI
+            addLogEntry('Three makeshift explosives should be enough for now — you stop assembly work to conserve resources.', LogType.INFO);
+            
+            // Refresh crash site UI
+            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                try { window.setupCrashSiteSection(); } catch (e) {}
+            }
+        }
+    }
 });
