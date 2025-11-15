@@ -8,6 +8,7 @@ const initialBuildings = [
         cost: [{ resource: 'Stone', amount: 10 }],
         costMultiplier: 1.15, // Costs 15% more each time
         description: 'Construct a Quarry to begin automatic Stone extraction.',
+
         isUnlocked: true 
     },
     {
@@ -18,6 +19,7 @@ const initialBuildings = [
         cost: [{ resource: 'Stone', amount: 20 }],
         costMultiplier: 1.15,
         description: 'Build an Extractor to mine the rare resource Xylite.',
+
         isUnlocked: false 
     },
     {
@@ -27,6 +29,7 @@ const initialBuildings = [
         costMultiplier: 1.25, // Storage can scale a bit faster
         effect: { type: 'storage', resource: 'Stone', value: 100 },
         description: 'Increases the maximum storage capacity for Stone.',
+
         isUnlocked: false
     },
     {
@@ -36,6 +39,7 @@ const initialBuildings = [
         costMultiplier: 1.25,
         effect: { type: 'storage', resource: 'Xylite', value: 75 },
         description: 'Construct a high-tech silo to increase Xylite storage.',
+
         isUnlocked: false
     },
     {
@@ -46,6 +50,7 @@ const initialBuildings = [
         cost: [{ resource: 'Stone', amount: 50 }],
         costMultiplier: 1.15,
         description: 'A basic facility that generates Insight required for scientific research.',
+
         isUnlocked: false
     },
 
@@ -62,6 +67,7 @@ const initialBuildings = [
         cost: [{ resource: 'Scrap Metal', amount: 8 }, { resource: 'Wire', amount: 4 }],
         costMultiplier: 1.3,
         description: 'A basic camp where survivors can be organized to forage for food.',
+
         isUnlocked: false
     },
     {
@@ -75,6 +81,7 @@ const initialBuildings = [
         cost: [{ resource: 'Scrap Metal', amount: 10 }, { resource: 'Wire', amount: 6 }],
         costMultiplier: 1.3,
         description: 'A makeshift station to collect and purify water.',
+
         isUnlocked: false
     },
     {
@@ -84,6 +91,7 @@ const initialBuildings = [
         costMultiplier: 1.2,
         effect: { type: 'storage', resource: 'Food Rations', value: 80 },
         description: 'A basic insulated larder that increases food storage capacity.',
+
         isUnlocked: false
     },
     {
@@ -93,6 +101,7 @@ const initialBuildings = [
         costMultiplier: 1.2,
         effect: { type: 'storage', resource: 'Clean Water', value: 100 },
         description: 'A small covered reservoir that increases water storage capacity.',
+
         isUnlocked: false
     },
     {
@@ -102,6 +111,7 @@ const initialBuildings = [
         cost: [{ resource: 'Fabric', amount: 6 }, { resource: 'Scrap Metal', amount: 6 }],
         costMultiplier: 1.2,
         description: 'Tarped catchments and troughs that funnel rainwater into storage.',
+
         isUnlocked: false
     }
 ];

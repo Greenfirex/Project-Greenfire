@@ -72,7 +72,9 @@ export function evaluateEventUnlocks(event, state) {
         if (hasFabric && hasChem) {
             const actions = (state.actions || []);
             const assemble = actions.find(a => a && a.id === 'assembleMakeshiftExplosive');
-            if (assemble && !assemble.isUnlocked && !assemble.completed) {
+            // Don't re-unlock if already used 3 times
+            const hasReachedLimit = assemble && typeof assemble.uses === 'number' && typeof assemble.maxUses === 'number' && assemble.uses >= assemble.maxUses;
+            if (assemble && !assemble.isUnlocked && !assemble.completed && !hasReachedLimit) {
                 result.actions.push('assembleMakeshiftExplosive');
             }
         }

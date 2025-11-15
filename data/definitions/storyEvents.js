@@ -183,4 +183,23 @@ comms_fixed_distress: {
         "Objective: Stockpile at least 150 Food Rations and 200 Clean Water while you wait for a reply. Survivors will need stability, and shortages during a long wait could be fatal."
     ]
 },
+// New: Investigate distant smoke — escape pod survivors and a warning
+investigate_distant_smoke: {
+    title: 'Smoke on the Horizon',
+    pages: [
+        "Across the treeline a thin pillar of smoke spirals into the sky. You push through scrub and shattered branches until you find the source — an escape pod half-buried and hissing.",
+        "Inside you find two survivors — shaken, dehydrated, but alive. You stabilize them and begin the walk back to camp. They add hands, hope, and new stories to the fire.",
+        "One of them swears he saw something moving in the forest, keeping its distance. Big. Quiet. Not friendly. The warning chills the evening air. Whatever prowls out there will not ignore your growing camp forever."
+    ]
+},
+// Chapter II Intro (triggered after Stockpile resources objective completes)
+chapter2_intro: {
+    title: 'Chapter II - Shadows Beyond the Perimeter',
+    pages: [
+        "Your stockpiles are secure. Food, water, salvage, chemicals — enough to sustain a waiting period and fuel further work. The camp feels organized; survivors move with purpose.",
+        "Yet the forest is no longer quiet. Tracks where none should be. Bent growth near the ridge. Occasional flickers of reflective eyes at dusk. Whatever watches has grown bolder.",
+        "With immediate survival stabilized, the mission evolves: understand this world, expand capability, and prepare defenses. You will need advanced research, stronger structures, and a way to signal more reliably.",
+        "Chapter II begins: new objectives will focus on scanning the biome, fortifying camp, and investigating the unknown presence stalking the perimeter."
+    ]
+},
 }

@@ -45,7 +45,11 @@ export function updateBuildingButtonsState(immediate = false) {
         if (countEl && countEl.textContent !== desiredCount) countEl.textContent = desiredCount;
 
         const nameEl = button.querySelector('.building-name');
-        if (nameEl && nameEl.textContent !== building.name) nameEl.textContent = building.name;
+        // Avoid overriding the countdown label while construction is running
+        if (nameEl && !button.classList.contains('running')) {
+            const desiredName = `Build ${building.name}`;
+            if (nameEl.textContent !== desiredName) nameEl.textContent = desiredName;
+        }
 
         const currentCost = getCurrentBuildingCost(building);
         let canAfford = true;
@@ -76,6 +80,11 @@ export function createBuildingButton(building, container) {
     const button = document.createElement('button');
     button.className = 'image-button';
     button.dataset.building = building.name;
+
+    // progress bar overlay (shared class with actions)
+    const progressBar = document.createElement('div');
+    progressBar.className = 'action-progress-bar';
+    button.appendChild(progressBar);
 
     const countSpan = document.createElement('span');
     countSpan.className = 'building-count';
@@ -142,83 +151,167 @@ export function buildBuilding(event, buildingName) {
     // update any visible tooltip (ETA/shortfall) immediately
     try { refreshCurrentTooltip(); } catch (e) { /* ignore */ }
 
-    // Build
-    building.count += 1;
-    addLogEntry(`Built a new ${buildingName}!`, LogType.SUCCESS);
+    // Begin construction with a 2-second, pause-aware delay (no start log)
 
-    // Unlock upgrades tied to first-build of some structures
-    if (building.name === 'Foraging Camp' && building.count === 1) {
-        const act = (salvageActions || []).find(a => a.id === 'installForagingTools' || a.name === 'Crude Foraging Tools');
-        if (act && !act.isUnlocked) {
-            act.isUnlocked = true;
-            addLogEntry('Upgrade available: Crude Foraging Tools', LogType.UNLOCK);
-            // refresh crash-site UI so the newly unlocked upgrade appears immediately
-        if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
-            window.setupCrashSiteSection();
-        }
-    }
-        // Food Larder is no longer unlocked by Foraging Camp; it's gated by the planning upgrade.
-    }
+    const BUILD_TIME_MS = 2000;
+    const STEP_MS = 100; // UI update cadence; progress uses real-time delta
+    let elapsed = 0; // milliseconds progressed (scaled by TIME_SCALE)
+    let lastTick = Date.now();
 
-    // Unlock Rain Catchers when a Water Station is built AND Fabric has been discovered
-    if (building.name === 'Water Station' && building.count === 1) {
-        const fabricRes = (typeof resources !== 'undefined' ? resources : []).find(r => r.name === 'Fabric');
-        const act = (salvageActions || []).find(a => a.id === 'installRainCatchers');
-        // only unlock immediately if Fabric has actually been discovered
-        if (fabricRes && fabricRes.isDiscovered && act && !act.isUnlocked) {
-            act.isUnlocked = true;
-            addLogEntry('Upgrade available: Rain Catchers', LogType.UNLOCK);
-            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') window.setupCrashSiteSection();
-        } else if (act && !act.isUnlocked) {
-            // Fabric not discovered yet — register a one-time listener to unlock when Fabric is discovered
-            if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-                const onDiscover = (ev) => {
-                    if (!ev || !ev.detail || ev.detail.name !== 'Fabric') return;
-                    const fr = resources.find(r => r.name === 'Fabric');
-                    if (fr && fr.isDiscovered && act && !act.isUnlocked) {
-                        act.isUnlocked = true;
-                        addLogEntry('Upgrade available: Rain Catchers', LogType.UNLOCK);
-                        if (typeof window.setupCrashSiteSection === 'function') window.setupCrashSiteSection();
-                    }
-                };
-                window.addEventListener('resourceDiscovered', onDiscover);
+    const finishConstruction = () => {
+        // Build completes
+        building.count += 1;
+        addLogEntry(`Built a new ${buildingName}!`, LogType.SUCCESS);
+
+        // restore button UI immediately (in case rebuild is delayed)
+        try {
+            const btn = document.querySelector(`.image-button[data-building="${building.name}"]`);
+            if (btn) {
+                btn.classList.remove('running');
+                btn.disabled = false;
+                const bar = btn.querySelector('.action-progress-bar');
+                if (bar) {
+                    try {
+                        bar.style.transition = 'none';
+                        bar.style.width = '0%';
+                        void bar.offsetWidth; // reflow
+                        bar.style.transition = '';
+                    } catch (e) { bar.style.width = '0%'; }
+                }
+                const nameSpan = btn.querySelector('.building-name');
+                if (nameSpan && btn.dataset.originalLabel) nameSpan.textContent = btn.dataset.originalLabel;
+                delete btn.dataset.originalLabel;
+            }
+        } catch (e) { /* ignore */ }
+
+        // Unlock upgrades tied to first-build of some structures
+        if (building.name === 'Foraging Camp' && building.count === 1) {
+            const act = (salvageActions || []).find(a => a.id === 'installForagingTools' || a.name === 'Crude Foraging Tools');
+            if (act && !act.isUnlocked) {
+                act.isUnlocked = true;
+                addLogEntry('Upgrade available: Crude Foraging Tools', LogType.UNLOCK);
+                // refresh crash-site UI so the newly unlocked upgrade appears immediately
+            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                window.setupCrashSiteSection();
             }
         }
-        // Water Reservoir is no longer unlocked directly here; it's gated by the planning upgrade.
-    }
+            // Food Larder is no longer unlocked by Foraging Camp; it's gated by the planning upgrade.
+        }
 
-    // Handle job-unlock and storage effects (support single effect or effects[] array)
-    const applyEffect = (eff) => {
-        if (!eff || !eff.type) return;
-        if (eff.type === 'job') {
-            try {
-                addSlotsForBuilding(building.name, 1);
-                addLogEntry(`New job slot available: ${building.name} (from ${building.name}).`, LogType.UNLOCK);
-                if (typeof updateCrewSection === 'function') updateCrewSection();
-            } catch (e) { /* ignore */ }
-        } else if (eff.type === 'storage') {
-            const resourceToUpgrade = resources.find(r => r.name === eff.resource);
-            if (resourceToUpgrade) {
-                resourceToUpgrade.capacity += eff.value;
-                addLogEntry(`${resourceToUpgrade.name} capacity increased by ${eff.value}!`, LogType.INFO);
+        // Unlock Rain Catchers when a Water Station is built AND Fabric has been discovered
+        if (building.name === 'Water Station' && building.count === 1) {
+            const fabricRes = (typeof resources !== 'undefined' ? resources : []).find(r => r.name === 'Fabric');
+            const act = (salvageActions || []).find(a => a.id === 'installRainCatchers');
+            // only unlock immediately if Fabric has actually been discovered
+            if (fabricRes && fabricRes.isDiscovered && act && !act.isUnlocked) {
+                act.isUnlocked = true;
+                addLogEntry('Upgrade available: Rain Catchers', LogType.UNLOCK);
+                if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') window.setupCrashSiteSection();
+            } else if (act && !act.isUnlocked) {
+                // Fabric not discovered yet — register a one-time listener to unlock when Fabric is discovered
+                if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+                    const onDiscover = (ev) => {
+                        if (!ev || !ev.detail || ev.detail.name !== 'Fabric') return;
+                        const fr = resources.find(r => r.name === 'Fabric');
+                        if (fr && fr.isDiscovered && act && !act.isUnlocked) {
+                            act.isUnlocked = true;
+                            addLogEntry('Upgrade available: Rain Catchers', LogType.UNLOCK);
+                            if (typeof window.setupCrashSiteSection === 'function') window.setupCrashSiteSection();
+                        }
+                    };
+                    window.addEventListener('resourceDiscovered', onDiscover);
+                }
+            }
+            // Water Reservoir is no longer unlocked directly here; it's gated by the planning upgrade.
+        }
+
+        // Handle job-unlock and storage effects (support single effect or effects[] array)
+        const applyEffect = (eff) => {
+            if (!eff || !eff.type) return;
+            if (eff.type === 'job') {
+                try {
+                    addSlotsForBuilding(building.name, 1);
+                    addLogEntry(`New job slot available: ${building.name} (from ${building.name}).`, LogType.UNLOCK);
+                    if (typeof updateCrewSection === 'function') updateCrewSection();
+                } catch (e) { /* ignore */ }
+            } else if (eff.type === 'storage') {
+                const resourceToUpgrade = resources.find(r => r.name === eff.resource);
+                if (resourceToUpgrade) {
+                    resourceToUpgrade.capacity += eff.value;
+                    addLogEntry(`${resourceToUpgrade.name} capacity increased by ${eff.value}!`, LogType.INFO);
+                }
+            }
+        };
+        if (building.effect) applyEffect(building.effect);
+        if (Array.isArray(building.effects)) building.effects.forEach(applyEffect);
+
+        // Laboratory unlock handling
+        if (building.name === 'Laboratory' && building.count === 1) {
+            if (!activatedSections.researchSection) {
+                activatedSections.researchSection = true;
+                setActivatedSections(activatedSections);
+                applyActivatedSections();
+                addLogEntry('The first Laboratory is operational. Research is now available.', LogType.UNLOCK);
             }
         }
+
+        updateResourceInfo();
+        setupColonySection();
+        return true;
     };
-    if (building.effect) applyEffect(building.effect);
-    if (Array.isArray(building.effects)) building.effects.forEach(applyEffect);
 
-    // Laboratory unlock handling
-    if (building.name === 'Laboratory' && building.count === 1) {
-        if (!activatedSections.researchSection) {
-            activatedSections.researchSection = true;
-            setActivatedSections(activatedSections);
-            applyActivatedSections();
-            addLogEntry('The first Laboratory is operational. Research is now available.', LogType.UNLOCK);
+    // use a pause-aware ticking interval instead of a blind timeout
+    const btn = document.querySelector(`.image-button[data-building="${building.name}"]`);
+    if (btn) {
+        // set original label and enter running state
+        const nameSpan = btn.querySelector('.building-name');
+        if (nameSpan && !btn.dataset.originalLabel) btn.dataset.originalLabel = nameSpan.textContent || `Build ${building.name}`;
+        // reset bar immediately without transition so it doesn't shrink from full
+        const bar = btn.querySelector('.action-progress-bar');
+        if (bar) {
+            try {
+                bar.style.transition = 'none';
+                bar.style.width = '0%';
+                void bar.offsetWidth; // reflow
+                bar.style.transition = '';
+            } catch (e) { bar.style.width = '0%'; }
         }
+        btn.classList.add('running');
+        btn.disabled = true;
     }
 
-    updateResourceInfo();
-    setupColonySection();
+    const timer = setInterval(() => {
+        const now = Date.now();
+        // respect pause without catch-up: advance lastTick and skip progress
+        try {
+            if (localStorage.getItem('gamePaused') === 'true') {
+                lastTick = now;
+                return;
+            }
+        } catch (e) { /* ignore localStorage errors */ }
+
+        // compute scaled delta (cap to avoid huge jumps)
+        const rawDeltaMs = Math.max(0, now - lastTick);
+        lastTick = now;
+        const cappedMs = Math.min(rawDeltaMs, 250);
+        const timeScale = (typeof window !== 'undefined' && window.TIME_SCALE) ? window.TIME_SCALE : 1;
+        const effectiveMs = cappedMs * timeScale;
+        elapsed = Math.min(BUILD_TIME_MS, elapsed + effectiveMs);
+        // Update UI progress (bar only; no countdown label)
+        try {
+            const btn2 = document.querySelector(`.image-button[data-building="${building.name}"]`);
+            if (btn2) {
+                const progress = Math.min((elapsed / BUILD_TIME_MS) * 100, 100);
+                const bar = btn2.querySelector('.action-progress-bar'); if (bar) bar.style.width = `${progress}%`;
+            }
+        } catch (e) { /* ignore */ }
+        if (elapsed >= BUILD_TIME_MS) {
+            clearInterval(timer);
+            finishConstruction();
+        }
+    }, STEP_MS);
+
+    // defer completion; immediate return after starting construction
     return true;
 }
 

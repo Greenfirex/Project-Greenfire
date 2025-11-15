@@ -270,6 +270,7 @@ function buildTooltipHTML(data) {
     }
 
     if (data && typeof data.count !== 'undefined') {
+        // This is a building tooltip; internal fields like buildTime are excluded from display
         if (data.description) html += `<p class="tooltip-description">${data.description}</p>`;
         if (data.cost && data.cost.length > 0) html += `<div class="tooltip-section"><h4>Cost</h4>${renderCostItems(data.cost)}</div>`;
         if (data.produces) html += `<div class="tooltip-section"><h4>Generation</h4><p>${data.produces}: +${data.rate}/s</p></div>`;

@@ -282,10 +282,15 @@ const defs = [
     },
     {
         id: 'obj_hoard_supplies',
-        label: 'Hoard supplies',
-        start: () => hasCompletedAction('fixLongRangeRadio'),
+        label: 'Stockpile resources',
+        // Activate only after players improve base camp (all base-camp upgrades complete)
+        start: () => {
+            const upgradeIds = ['installForagingTools', 'lightCampfire', 'installScavengerKit', 'salvageCookingEquipment', 'makeTents', 'insulateShelters', 'installRainCatchers', 'installPurificationUnit'];
+            return upgradeIds.every(id => hasCompletedAction(id));
+        },
         complete: () => {
-            return getResourceAmount('Food Rations') >= 400 &&
+            return hasCompletedAction('investigateDistantSmoke') &&
+                getResourceAmount('Food Rations') >= 400 &&
                 getResourceAmount('Clean Water') >= 500 &&
                 getResourceAmount('Scrap Metal') >= 200 &&
                 getResourceAmount('Fabric') >= 20 &&
@@ -304,8 +309,10 @@ const defs = [
             const crewQuartersDone = hasCompletedAction('checkCrewQuarters');
             const cafeteriaDone = hasCompletedAction('exploreCafeteria');
             const guidanceNeeded = !crewQuartersDone || !cafeteriaDone;
+            const smokeDone = hasCompletedAction('investigateDistantSmoke');
 
             return [
+                { id: 'investigate_smoke', label: 'Investigate distant smoke', done: smokeDone },
                 { id: 'food_goal', label: 'Accumulate Food Rations (400)', done: foodAmt >= 400, progress: `${foodAmt}/400` },
                 { id: 'water_goal', label: 'Accumulate Clean Water (500)', done: waterAmt >= 500, progress: `${waterAmt}/500` },
                 { id: 'scrap_goal', label: 'Accumulate Scrap Metal (200)', done: scrapAmt >= 200, progress: `${scrapAmt}/200` },
@@ -376,6 +383,35 @@ export function recomputeObjectives() {
                     } catch (e) {
                         console.warn('Failed to show tasks completion story:', e);
                     }
+                }
+                // After improving base camp, surface guidance and unlock a new exploration lead
+                if (def.id === 'obj_improve_base_camp') {
+                    try {
+                        addLogEntry('Now that our camp is a bit more efficient, we should stockpile some resources.', LogType.STORY);
+                        addLogEntry('In the distance, a thin pillar of smoke catches your eye — likely an escape pod. We should explore it.', LogType.STORY);
+                    } catch {}
+                    try {
+                        const act = (allActions || []).find(a => a.id === 'investigateDistantSmoke');
+                        if (act && !act.isUnlocked) {
+                            act.isUnlocked = true;
+                            addLogEntry('New action available: Investigate Distant Smoke', LogType.UNLOCK);
+                            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                                try { window.setupCrashSiteSection(); } catch {}
+                            }
+                        }
+                    } catch {}
+                }
+                // Transition to Chapter II after Stockpile resources objective completes
+                if (def.id === 'obj_hoard_supplies') {
+                    try {
+                        gameFlags.chapter = 2;
+                        addLogEntry('Chapter II unlocked: Shadows Beyond the Perimeter', LogType.UNLOCK);
+                        const evt = storyEvents.chapter2_intro;
+                        if (evt && typeof showStoryPopup === 'function') {
+                            showStoryPopup(evt);
+                            addLogEntry('Chapter II begins. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(evt) });
+                        }
+                    } catch {}
                 }
                 
                 didChange = true;

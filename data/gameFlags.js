@@ -287,21 +287,28 @@ registerActionCompletionHandler('planWaterReservoir', () => {
 });
 
 registerActionCompletionHandler('assembleMakeshiftExplosive', (original) => {
-    // Increment completion counter
-    gameFlags.assembleMakeshiftExplosive_completions = (gameFlags.assembleMakeshiftExplosive_completions || 0) + 1;
-    
-    // After 3 completions, hide the action and log
-    if (gameFlags.assembleMakeshiftExplosive_completions >= 3) {
-        const actions = (window.allActions || []);
-        const action = actions.find(a => a && a.id === 'assembleMakeshiftExplosive');
-        if (action) {
-            action.isUnlocked = false; // hide from UI
-            addLogEntry('Three makeshift explosives should be enough for now — you stop assembly work to conserve resources.', LogType.INFO);
+    try {
+        if (!original) return;
+        // Increment uses counter (persisted by save system via smart-merge)
+        if (typeof original.uses !== 'number') original.uses = 0;
+        if (typeof original.maxUses !== 'number') original.maxUses = 3;
+        
+        original.uses = Math.max(0, original.uses) + 1;
+        
+        // After 3 completions, mark completed and hide from UI
+        if (original.uses >= original.maxUses) {
+            original.completed = true; // prevents re-unlock
+            original.isUnlocked = false; // hides from UI
+            addLogEntry('Three makeshift explosives should be enough to blast the power core seal.', LogType.INFO);
             
-            // Refresh crash site UI
-            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
-                try { window.setupCrashSiteSection(); } catch (e) {}
+            // Refresh crash site UI so button disappears
+            if (typeof window !== 'undefined') {
+                try {
+                    if (typeof window.setupCrashSiteSection === 'function') {
+                        window.setupCrashSiteSection(document.querySelector('.content-panel'));
+                    }
+                } catch (e) { /* ignore */ }
             }
         }
-    }
+    } catch (e) { /* non-fatal */ }
 });

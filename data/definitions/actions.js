@@ -558,6 +558,8 @@ export const salvageActions = [
             isUnlocked: false,               
             cancelable: true,
             repeatable: true,
+            maxUses: 3,
+            uses: 0,
             cost: [
                 { resource: 'Chemicals', amount: 5 },
                 { resource: 'Scrap Metal', amount: 8 },
@@ -617,6 +619,28 @@ export const salvageActions = [
                             { resource: 'Food Rations', amount: 7 }
                         ],
                         logText: 'You reach the command deck. The bridge is a tomb — everyone you find is gone, and most equipment is beyond saving. One gutted comms panel might be salvageable. Your only chance is to scavenge it and try to rewire it to your last power cell to hail Starfleet Command. (Click to read)',
+                        suppressGenericLog: true
+                    }
+                ]
+            },
+            // New exploration lead revealed after improving base camp
+            {
+                id: 'investigateDistantSmoke',
+                name: 'Investigate Distant Smoke',
+                description: 'Head toward a pillar of smoke seen on the horizon — could be an escape pod landing site with survivors.',
+                duration: 10,
+                category: 'Exploration',
+                isUnlocked: false,
+                cancelable: true,
+                hideRewardPreview: true,
+                drain: [ { resource: 'Stamina', amount: 22 } ],
+                reward: [ { resource: 'Survivors', amount: 2 } ],
+                stage: 0,
+                stages: [
+                    {
+                        story: 'investigate_distant_smoke',
+                        unlocks: [],
+                        logText: 'You approach the smoke plume and find an escape pod — with survivors. They report seeing something move in the forest.' ,
                         suppressGenericLog: true
                     }
                 ]
