@@ -220,8 +220,269 @@
 .journal-pane { display: none; flex: 1 1 auto; min-height: 0; }
 .journal-pane.active { display: flex; flex-direction: column; }
 
-/* Objectives History Pane */
-.objectives-history { flex: 1 1 auto; overflow-y: auto; padding-right: 6px; }
+/* Objectives History Pane - Two Column Layout */
+.objectives-history { 
+    flex: 1 1 auto; 
+    overflow: hidden; 
+    display: flex;
+    flex-direction: column;
+}
+
+.objectives-two-column {
+    display: flex;
+    gap: 16px;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Left Panel - Objectives List */
+.objectives-list-panel {
+    width: 35%;
+    min-width: 250px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 8px;
+    border-right: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.25);
+}
+
+.objectives-section-header {
+    margin: 0 0 8px 0;
+    padding: 6px 8px;
+    font-size: 13px;
+    color: #90EE90;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08);
+    border-left: 3px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+}
+
+.objectives-list {
+    list-style: none;
+    margin: 0 0 20px 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.objectives-list-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.14);
+    border-radius: 6px;
+    transition: all 160ms ease;
+}
+
+.objectives-list-item:hover {
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08);
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.28);
+}
+
+.objectives-list-item.selected {
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.15);
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+    border-left-width: 3px;
+    padding-left: 10px;
+}
+
+.objectives-list-item .objective-marker {
+    flex-shrink: 0;
+    width: 18px;
+    text-align: center;
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9);
+    font-size: 16px;
+    line-height: 1;
+}
+
+.objectives-list-item.completed .objective-marker {
+    color: #90EE90;
+}
+
+.objectives-list-item .objective-label {
+    flex: 1;
+    color: #d6e3d6;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.objectives-list-item .objective-track-btn {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.3);
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7);
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 160ms ease;
+}
+
+.objectives-list-item .objective-track-btn:hover {
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.15);
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9);
+}
+
+.objectives-list-item .objective-track-btn.tracked {
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.25);
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.6);
+    color: #90EE90;
+}
+
+.objectives-list-item.completed .objective-label {
+    color: #90EE90;
+    opacity: 0.75;
+}
+
+/* Right Panel - Objective Details */
+.objectives-detail-panel {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 12px 0 8px;
+}
+
+.objective-detail-title {
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    color: #90EE90;
+    font-weight: 600;
+}
+
+.objective-status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.objective-status {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.2);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.4);
+    border-radius: 4px;
+    color: #ffd98a;
+}
+
+.objective-status.completed {
+    background: rgba(144, 238, 144, 0.15);
+    border-color: rgba(144, 238, 144, 0.4);
+    color: #90EE90;
+}
+
+.objective-status.tracked-badge {
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.25);
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.6);
+    color: #90EE90;
+}
+
+.objective-detail-section-header {
+    margin: 20px 0 8px 0;
+    font-size: 14px;
+    color: #90EE90;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.objective-detail-steps {
+    list-style: none;
+    margin: 0 0 12px 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.objective-detail-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 6px 0;
+}
+
+.objective-detail-step .step-marker {
+    flex-shrink: 0;
+    width: 18px;
+    text-align: center;
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9);
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.objective-detail-step.done .step-marker {
+    color: #90EE90;
+}
+
+.objective-detail-step .step-label {
+    flex: 1;
+    color: #c9d7c9;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.objective-detail-step.done .step-label {
+    color: #90EE90;
+    opacity: 0.8;
+}
+
+.objective-detail-reward {
+    padding: 8px 12px;
+    background: rgba(255, 217, 138, 0.08);
+    border-left: 3px solid rgba(255, 217, 138, 0.5);
+    color: #ffd98a;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 4px;
+}
+
+.objective-detail-times {
+    color: #889988;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.objective-detail-times p {
+    margin: 4px 0;
+}
+
+/* Scrollbar styling for both panels */
+.objectives-list-panel::-webkit-scrollbar,
+.objectives-detail-panel::-webkit-scrollbar {
+    width: 10px;
+}
+
+.objectives-list-panel::-webkit-scrollbar-track,
+.objectives-detail-panel::-webkit-scrollbar-track {
+    background: #111;
+}
+
+.objectives-list-panel::-webkit-scrollbar-thumb,
+.objectives-detail-panel::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+    border-radius: 5px;
+    border: 2px solid #111;
+}
+
+.objectives-list-panel::-webkit-scrollbar-thumb:hover,
+.objectives-detail-panel::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
+}
+
+/* Legacy styles - keeping for compatibility */
 .objectives-history-section { margin-bottom: 18px; }
 .objectives-history-section h3 { margin: 0 0 10px 0; font-size: 16px; color: #90EE90; }
 .objectives-empty { font-style: italic; color: #888; margin: 4px 0 0 4px; }

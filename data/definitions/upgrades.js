@@ -175,7 +175,10 @@ export const upgradeActions = [
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Forage for Food & Purify Water: +40% Bonus'],
+    tooltipEffects: [
+        'Forage for Food: +40% Bonus',
+        'Purify Water: +40% Bonus'
+    ],
         stage: 0,
         stages: [
             {

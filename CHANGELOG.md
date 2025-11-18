@@ -1,3 +1,28 @@
+# [0.1.13] - 2025-11-18
+
+### Added
+
+- New story events: `base_camp_improved` (base camp fully upgraded) and `stockpile_resources_secured` (resource thresholds achieved).
+- Smoke sighting gating flag `smokeSightingShown` to ensure the distant smoke popup and action unlock fire only once.
+- Fallback unlock logic for the `Investigate Distant Smoke` action and objective if earlier trigger paths were missed.
+
+### Changed
+
+- Objective completion flow: "Improve base camp" and "Stockpile resources" now each show their own dedicated story popup; distant smoke sighting triggers only when the second prerequisite objective finishes.
+- Smoke sighting story event now explicitly lists: "New action unlocked: Investigate Distant Smoke." for clarity.
+- Save/Load action merge narrowed to runtime fields (unlock state, stage, timing) to prevent old saves from overwriting design‑time definitions (e.g., `tooltipEffects`).
+- Runtime merge expanded to persist limited‑use action fields (`uses`, `maxUses`, `completed`) so retired actions remain hidden across reloads.
+- Tooltip data integrity: prevented legacy save data from clobbering updated split effect lines (e.g., Salvage Cooking Equipment).
+
+### Fixed
+
+- `Investigate Distant Smoke` objective failing to appear after new gating logic — fallback pass now guarantees unlock when both prerequisites met.
+- `Assemble Makeshift Explosive` reappearing after reload despite reaching max uses — completion state now persists.
+- Duplicate or premature distant smoke popups prevented via `smokeSightingShown` flag.
+- Eliminated unlock regression where design-time `tooltipEffects` were overwritten by old save structures.
+
+---
+
 # [0.1.12] - 2025-11-13
 
 ### Added

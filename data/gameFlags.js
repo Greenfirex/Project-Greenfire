@@ -38,6 +38,9 @@ const initialGameFlags = {
     weatherStartMinutes: 0,
     weatherDurationMinutes: 8 * 60, // default 8 in-game hours
     weatherTempC: 22
+    ,
+    // Narrative gating: ensure distant smoke sighting popup only shows once
+    smokeSightingShown: false
 };
 
 export function getInitialGameFlags() {

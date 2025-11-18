@@ -3,7 +3,7 @@
 // - Shows up to 5 terse, spoiler-lite items
 // - Read-only (no clicks)
 
-import { getVisibleObjectives, recomputeObjectives, getObjectiveSteps } from '../../data/objectives.js';
+import { getVisibleObjectives, recomputeObjectives, getObjectiveSteps, getTrackedObjectiveId, getAllObjectivesWithState } from '../../data/objectives.js';
 
 let isOpen = false;
 let elements = { container: null, banner: null, drawer: null, list: null, details: null };
@@ -123,8 +123,17 @@ function ensureContainer() {
 }
 
 function pickCurrentObjective() {
+    const trackedId = getTrackedObjectiveId();
+    
+    // If there's a tracked objective, try to use it
+    if (trackedId) {
+        const allObjectives = getAllObjectivesWithState();
+        const tracked = allObjectives.find(o => o.id === trackedId && o.state === 'active');
+        if (tracked) return tracked;
+    }
+    
+    // Fallback: choose first active if any; else first incomplete; else most recent completed.
     const items = getVisibleObjectives(5);
-    // Choose first active if any; else first incomplete; else most recent completed.
     const activeFirst = items.find(i => !i.completed);
     return activeFirst || items[0] || null;
 }

@@ -15,17 +15,30 @@ import { showStoryPopup } from '../ui/panels/popup.js';
 import { storyEvents } from './definitions/storyEvents.js';
 
 const STORAGE_KEY = 'objectivesStatusV1';
+const TRACKED_KEY = 'trackedObjectiveV1';
 
 // Local status in memory
 let status = []; // [{ id, state: 'locked'|'active'|'completed', firstAt, doneAt }]
 // Track transitions from the most recent recompute so callers (e.g., story popup) can surface them
 let _lastDelta = { completedIds: [], newlyActiveIds: [] };
+// Tracked objective (for footer panel)
+let trackedObjectiveId = null;
 
 export function getObjectivesStatus() {
     return status.slice();
 }
 export function setObjectivesStatus(newStatus = []) {
     status = Array.isArray(newStatus) ? newStatus.slice() : [];
+}
+
+export function getTrackedObjectiveId() {
+    return trackedObjectiveId;
+}
+
+export function setTrackedObjective(id) {
+    trackedObjectiveId = id;
+    try { localStorage.setItem(TRACKED_KEY, id || ''); } catch {}
+    try { window.dispatchEvent(new CustomEvent('objectivesChanged')); } catch {}
 }
 
 function saveStatus() {
@@ -36,12 +49,17 @@ export function loadStatus() {
         const raw = localStorage.getItem(STORAGE_KEY);
         status = raw ? JSON.parse(raw) : [];
     } catch { status = []; }
+    try {
+        trackedObjectiveId = localStorage.getItem(TRACKED_KEY) || null;
+    } catch { trackedObjectiveId = null; }
 }
 
 export function resetObjectives(opts = {}) {
     const suppressEvent = !!opts.suppressEvent;
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    try { localStorage.removeItem(TRACKED_KEY); } catch {}
     status = [];
+    trackedObjectiveId = null;
     if (!suppressEvent) {
         try { window.dispatchEvent(new CustomEvent('objectivesChanged')); } catch {}
     }
@@ -138,7 +156,7 @@ const defs = [
             const scrap = getResourceAmount('Scrap Metal');
             const prybarCrafted = hasCompletedAction('makeCrudePrybar');
             return [
-                { id: 'gather_scrap', label: 'Gather Scrap Metal (15)', done: gameFlags.hasReached15ScrapMetal, progress: gameFlags.hasReached15ScrapMetal ? '15/15' : `${scrap}/15` },
+                { id: 'gather_scrap', label: 'Gather Scrap Metal (15)', done: gameFlags.hasReached15ScrapMetal, progress: gameFlags.hasReached15ScrapMetal ? '15/15' : `${Math.floor(scrap)}/15` },
                 { id: 'craft_prybar', label: 'Make Crude Prybar', done: prybarCrafted },
                 { id: 'open_hull', label: 'Pry open hull', done: hasCompletedAction('pryOpenHull') }
             ];
@@ -164,8 +182,8 @@ const defs = [
             // Only show resource gathering and basecamp steps after investigating sound
             if (investigatedSound) {
                 steps.push(
-                    { id: 'gather_scrap_basecamp', label: 'Gather Scrap Metal (25)', done: scrap >= 25 || gameFlags.baseCampEstablished, progress: gameFlags.baseCampEstablished ? '25/25' : `${scrap}/25` },
-                    { id: 'gather_wire_basecamp', label: 'Gather Wire (12)', done: wire >= 12 || gameFlags.baseCampEstablished, progress: gameFlags.baseCampEstablished ? '12/12' : `${wire}/12` },
+                    { id: 'gather_scrap_basecamp', label: 'Gather Scrap Metal (25)', done: scrap >= 25 || gameFlags.baseCampEstablished, progress: gameFlags.baseCampEstablished ? '25/25' : `${Math.floor(scrap)}/25` },
+                    { id: 'gather_wire_basecamp', label: 'Gather Wire (12)', done: wire >= 12 || gameFlags.baseCampEstablished, progress: gameFlags.baseCampEstablished ? '12/12' : `${Math.floor(wire)}/12` },
                     { id: 'perform_basecamp', label: 'Establish base camp', done: gameFlags.baseCampEstablished === true }
                 );
             }
@@ -245,9 +263,9 @@ const defs = [
         priority: 11,
         steps: () => [
             { id: 'explore_crew_quarters', label: 'Explore crew quarters (Fabric)', done: hasCompletedAction('checkCrewQuarters') },
-            { id: 'gather_fabric', label: 'Gather Fabric (6)', done: hasResource('Fabric', 6), progress: `${getResourceAmount('Fabric')}/6` },
-            { id: 'gather_wire', label: 'Gather Wire (25)', done: hasResource('Wire', 25), progress: `${getResourceAmount('Wire')}/25` },
-            { id: 'gather_power_cells', label: 'Gather Power Cells (1)', done: hasResource('Power Cells', 1), progress: `${getResourceAmount('Power Cells')}/1` },
+            { id: 'gather_fabric', label: 'Gather Fabric (6)', done: hasResource('Fabric', 6), progress: `${Math.floor(getResourceAmount('Fabric'))}/6` },
+            { id: 'gather_wire', label: 'Gather Wire (25)', done: hasResource('Wire', 25), progress: `${Math.floor(getResourceAmount('Wire'))}/25` },
+            { id: 'gather_power_cells', label: 'Gather Power Cells (1)', done: hasResource('Power Cells', 1), progress: `${Math.floor(getResourceAmount('Power Cells'))}/1` },
             { id: 'repair_radio', label: 'Perform radio repair', done: hasCompletedAction('fixLongRangeRadio') }
         ]
     },
@@ -261,7 +279,7 @@ const defs = [
             return upgradeIds.every(id => hasCompletedAction(id));
         },
         reward: [{ resource: 'XP', amount: 100 }],
-        priority: 12,
+        priority: 13,
         steps: () => {
             const upgrades = [
                 { id: 'installForagingTools', name: 'Crude Foraging Tools' },
@@ -283,14 +301,10 @@ const defs = [
     {
         id: 'obj_hoard_supplies',
         label: 'Stockpile resources',
-        // Activate only after players improve base camp (all base-camp upgrades complete)
-        start: () => {
-            const upgradeIds = ['installForagingTools', 'lightCampfire', 'installScavengerKit', 'salvageCookingEquipment', 'makeTents', 'insulateShelters', 'installRainCatchers', 'installPurificationUnit'];
-            return upgradeIds.every(id => hasCompletedAction(id));
-        },
+        // Activate after fixing long-range radio
+        start: () => hasCompletedAction('fixLongRangeRadio'),
         complete: () => {
-            return hasCompletedAction('investigateDistantSmoke') &&
-                getResourceAmount('Food Rations') >= 400 &&
+            return getResourceAmount('Food Rations') >= 400 &&
                 getResourceAmount('Clean Water') >= 500 &&
                 getResourceAmount('Scrap Metal') >= 200 &&
                 getResourceAmount('Fabric') >= 20 &&
@@ -298,7 +312,7 @@ const defs = [
                 getResourceAmount('Wire') >= 100;
         },
         reward: [{ resource: 'XP', amount: 80 }],
-        priority: 12,
+        priority: 14,
         steps: () => {
             const foodAmt = getResourceAmount('Food Rations');
             const waterAmt = getResourceAmount('Clean Water');
@@ -309,16 +323,14 @@ const defs = [
             const crewQuartersDone = hasCompletedAction('checkCrewQuarters');
             const cafeteriaDone = hasCompletedAction('exploreCafeteria');
             const guidanceNeeded = !crewQuartersDone || !cafeteriaDone;
-            const smokeDone = hasCompletedAction('investigateDistantSmoke');
 
             return [
-                { id: 'investigate_smoke', label: 'Investigate distant smoke', done: smokeDone },
-                { id: 'food_goal', label: 'Accumulate Food Rations (400)', done: foodAmt >= 400, progress: `${foodAmt}/400` },
-                { id: 'water_goal', label: 'Accumulate Clean Water (500)', done: waterAmt >= 500, progress: `${waterAmt}/500` },
-                { id: 'scrap_goal', label: 'Accumulate Scrap Metal (200)', done: scrapAmt >= 200, progress: `${scrapAmt}/200` },
-                { id: 'fabric_goal', label: 'Accumulate Fabric (20)', done: fabricAmt >= 20, progress: `${fabricAmt}/20` },
-                { id: 'chem_goal', label: 'Accumulate Chemicals (20)', done: chemAmt >= 20, progress: `${chemAmt}/20` },
-                { id: 'wire_goal', label: 'Accumulate Wire (100)', done: wireAmt >= 100, progress: `${wireAmt}/100` },
+                { id: 'food_goal', label: 'Accumulate Food Rations (400)', done: foodAmt >= 400, progress: `${Math.floor(foodAmt)}/400` },
+                { id: 'water_goal', label: 'Accumulate Clean Water (500)', done: waterAmt >= 500, progress: `${Math.floor(waterAmt)}/500` },
+                { id: 'scrap_goal', label: 'Accumulate Scrap Metal (200)', done: scrapAmt >= 200, progress: `${Math.floor(scrapAmt)}/200` },
+                { id: 'fabric_goal', label: 'Accumulate Fabric (20)', done: fabricAmt >= 20, progress: `${Math.floor(fabricAmt)}/20` },
+                { id: 'chem_goal', label: 'Accumulate Chemicals (20)', done: chemAmt >= 20, progress: `${Math.floor(chemAmt)}/20` },
+                { id: 'wire_goal', label: 'Accumulate Wire (100)', done: wireAmt >= 100, progress: `${Math.floor(wireAmt)}/100` },
                 guidanceNeeded ? (
                     !crewQuartersDone
                         ? { id: 'hint_crew_quarters', label: 'Explore crew quarters (Fabric, potential supplies)', done: crewQuartersDone }
@@ -326,6 +338,27 @@ const defs = [
                 ) : null
             ].filter(Boolean);
         }
+    },
+    {
+        id: 'obj_investigate_smoke',
+        label: 'Investigate distant smoke',
+        start: () => hasCompletedAction('fixLongRangeRadio') && 
+                     (() => {
+                         const upgradeIds = ['installForagingTools', 'lightCampfire', 'installScavengerKit', 'salvageCookingEquipment', 'makeTents', 'insulateShelters', 'installRainCatchers', 'installPurificationUnit'];
+                         return upgradeIds.every(id => hasCompletedAction(id));
+                     })() &&
+                     getResourceAmount('Food Rations') >= 400 &&
+                     getResourceAmount('Clean Water') >= 500 &&
+                     getResourceAmount('Scrap Metal') >= 200 &&
+                     getResourceAmount('Fabric') >= 20 &&
+                     getResourceAmount('Chemicals') >= 20 &&
+                     getResourceAmount('Wire') >= 100,
+        complete: () => hasCompletedAction('investigateDistantSmoke'),
+        reward: [{ resource: 'XP', amount: 40 }],
+        priority: 15,
+        steps: () => [
+            { id: 'investigate_smoke', label: 'Investigate distant smoke', done: hasCompletedAction('investigateDistantSmoke') }
+        ]
     }
 ];
 
@@ -384,25 +417,87 @@ export function recomputeObjectives() {
                         console.warn('Failed to show tasks completion story:', e);
                     }
                 }
-                // After improving base camp, surface guidance and unlock a new exploration lead
-                if (def.id === 'obj_improve_base_camp') {
+                // After fixing radio, notify about multiple objectives and tracking feature
+                if (def.id === 'obj_fix_radio') {
                     try {
-                        addLogEntry('Now that our camp is a bit more efficient, we should stockpile some resources.', LogType.STORY);
-                        addLogEntry('In the distance, a thin pillar of smoke catches your eye — likely an escape pod. We should explore it.', LogType.STORY);
-                    } catch {}
-                    try {
-                        const act = (allActions || []).find(a => a.id === 'investigateDistantSmoke');
-                        if (act && !act.isUnlocked) {
-                            act.isUnlocked = true;
-                            addLogEntry('New action available: Investigate Distant Smoke', LogType.UNLOCK);
-                            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
-                                try { window.setupCrashSiteSection(); } catch {}
-                            }
-                        }
+                        addLogEntry('Multiple objectives are now available. Visit the Journal to track which objective you want to focus on.', LogType.STORY);
                     } catch {}
                 }
-                // Transition to Chapter II after Stockpile resources objective completes
+                // After stockpiling resources, check if both prerequisites are complete
                 if (def.id === 'obj_hoard_supplies') {
+                    // Show dedicated stockpile completion story
+                    try {
+                        const evtStock = storyEvents.stockpile_resources_secured;
+                        if (evtStock && typeof showStoryPopup === 'function') {
+                            showStoryPopup(evtStock);
+                            addLogEntry('Critical reserves stabilized. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(evtStock) });
+                        }
+                    } catch {}
+                    // If base camp already complete and smoke sighting not yet shown, trigger distant smoke
+                    const upgradeIds = ['installForagingTools', 'lightCampfire', 'installScavengerKit', 'salvageCookingEquipment', 'makeTents', 'insulateShelters', 'installRainCatchers', 'installPurificationUnit'];
+                    const baseCampComplete = upgradeIds.every(id => hasCompletedAction(id));
+                    if (baseCampComplete && !gameFlags.smokeSightingShown) {
+                        try {
+                            const evt = storyEvents.stockpile_complete_smoke_sighting;
+                            if (evt && typeof showStoryPopup === 'function') {
+                                showStoryPopup(evt);
+                                addLogEntry('In the distance, a thin pillar of smoke catches your eye. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(evt) });
+                                gameFlags.smokeSightingShown = true;
+                            }
+                        } catch {}
+                        try {
+                            const act = (allActions || []).find(a => a.id === 'investigateDistantSmoke');
+                            if (act && !act.isUnlocked) {
+                                act.isUnlocked = true;
+                                addLogEntry('New action available: Investigate Distant Smoke', LogType.UNLOCK);
+                                if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                                    try { window.setupCrashSiteSection(); } catch {}
+                                }
+                            }
+                        } catch {}
+                    }
+                }
+                // After improving base camp, check if both prerequisites are complete
+                if (def.id === 'obj_improve_base_camp') {
+                    // Always show a dedicated base camp improvement story popup
+                    try {
+                        const evtBaseCamp = storyEvents.base_camp_improved;
+                        if (evtBaseCamp && typeof showStoryPopup === 'function') {
+                            showStoryPopup(evtBaseCamp);
+                            addLogEntry('The base camp infrastructure is now fully integrated. (Click to read)', LogType.STORY, {
+                                onClick: () => showStoryPopup(evtBaseCamp)
+                            });
+                        }
+                    } catch {}
+                    const stockpileComplete = getResourceAmount('Food Rations') >= 400 &&
+                        getResourceAmount('Clean Water') >= 500 &&
+                        getResourceAmount('Scrap Metal') >= 200 &&
+                        getResourceAmount('Fabric') >= 20 &&
+                        getResourceAmount('Chemicals') >= 20 &&
+                        getResourceAmount('Wire') >= 100;
+                    if (stockpileComplete && !gameFlags.smokeSightingShown) {
+                        try {
+                            const evt = storyEvents.stockpile_complete_smoke_sighting;
+                            if (evt && typeof showStoryPopup === 'function') {
+                                showStoryPopup(evt);
+                                addLogEntry('In the distance, a thin pillar of smoke catches your eye. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(evt) });
+                                gameFlags.smokeSightingShown = true;
+                            }
+                        } catch {}
+                        try {
+                            const act = (allActions || []).find(a => a.id === 'investigateDistantSmoke');
+                            if (act && !act.isUnlocked) {
+                                act.isUnlocked = true;
+                                addLogEntry('New action available: Investigate Distant Smoke', LogType.UNLOCK);
+                                if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                                    try { window.setupCrashSiteSection(); } catch {}
+                                }
+                            }
+                        } catch {}
+                    }
+                }
+                // Transition to Chapter II after investigating distant smoke
+                if (def.id === 'obj_investigate_smoke') {
                     try {
                         gameFlags.chapter = 2;
                         addLogEntry('Chapter II unlocked: Shadows Beyond the Perimeter', LogType.UNLOCK);
@@ -426,6 +521,34 @@ export function recomputeObjectives() {
         }
         if (prev !== s.state) didChange = true;
     });
+    // Fallback: ensure Investigate Distant Smoke action unlocks and objective activates when prerequisites met
+    try {
+        const upgradeIds = ['installForagingTools', 'lightCampfire', 'installScavengerKit', 'salvageCookingEquipment', 'makeTents', 'insulateShelters', 'installRainCatchers', 'installPurificationUnit'];
+        const baseCampComplete = upgradeIds.every(id => hasCompletedAction(id));
+        const stockpileComplete = getResourceAmount('Food Rations') >= 400 &&
+            getResourceAmount('Clean Water') >= 500 &&
+            getResourceAmount('Scrap Metal') >= 200 &&
+            getResourceAmount('Fabric') >= 20 &&
+            getResourceAmount('Chemicals') >= 20 &&
+            getResourceAmount('Wire') >= 100;
+        if (baseCampComplete && stockpileComplete) {
+            const act = (allActions || []).find(a => a.id === 'investigateDistantSmoke');
+            if (act && !act.isUnlocked) {
+                act.isUnlocked = true;
+                addLogEntry('New action available (fallback): Investigate Distant Smoke', LogType.UNLOCK);
+                if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                    try { window.setupCrashSiteSection(); } catch {}
+                }
+            }
+            const objSmoke = status.find(s => s.id === 'obj_investigate_smoke');
+            const defSmoke = defs.find(d => d.id === 'obj_investigate_smoke');
+            if (defSmoke && objSmoke && objSmoke.state === 'locked' && defSmoke.start && defSmoke.start()) {
+                upsertStatus('obj_investigate_smoke', 'active');
+                addLogEntry('New objective (fallback): Investigate distant smoke', LogType.UNLOCK);
+                didChange = true;
+            }
+        }
+    } catch {}
     const snapshot = {
         completed: (_lastDelta.completedIds || []).map(id => getObjectiveDefinition(id)).filter(Boolean),
         newlyActive: (_lastDelta.newlyActiveIds || []).map(id => getObjectiveDefinition(id)).filter(Boolean)

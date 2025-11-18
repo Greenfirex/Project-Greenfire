@@ -73,6 +73,26 @@ tasks_for_survivors_completed: {
     ]
 },
 
+// Triggered when the "Improve base camp" objective completes (all listed upgrades installed)
+base_camp_improved: {
+    title: 'Base Camp — Systems Integrated',
+    pages: [
+        "Piece by piece the rough encampment has become a functioning base. Crude foraging tools boost gathering, a steady campfire lifts morale, scavenger rigs streamline scrap recovery, and a salvaged cooking unit turns raw finds into reliable sustenance.",
+        "Shelters are up — insulated tents break the worst of the chill — and rain catchers feed purification units that cycle clean water into storage. Survivors move with practiced rhythm now; tasks are understood, hand‑offs are smooth, and downtime actually restores strength.",
+        "This is no longer a fragile staging area. It is a stable platform for longer operations and deeper exploration. You can afford broader objectives: stockpiling for endurance, investigating signals, and pushing into higher‑risk compartments. The wreck is still dangerous, but now you face it with infrastructure and purpose."
+    ]
+},
+
+// Triggered when Stockpile resources objective completes (resource goals reached)
+stockpile_resources_secured: {
+    title: 'Reserves Stabilized — Supply Lines Holding',
+    pages: [
+        "Food, water, scrap, chemicals, wire, fabric — the critical reserves now sit at sustainable levels. Collection cycles are efficient and storage areas feel ordered instead of desperate.",
+        "Crew no longer hover anxiously over dwindling numbers. Confidence replaces ration panic and repair work proceeds without constant triage. The camp can weather delays, pursue exploration, and absorb setbacks.",
+        "With endurance secured the path opens toward broader goals: infrastructural refinement, distant signals, and deeper ship salvage. Another pillar of survival is locked in — now leverage it." 
+    ]
+},
+
 south_corridor_entry: {
     title: 'South Corridor — New Access',
     pages: [
@@ -181,6 +201,17 @@ comms_fixed_distress: {
         "The carrier locks. A narrowband distress packet crawls outward — slow, because subspace relays are beyond repair with current tools. Without a proper subspace field the signal must ride conventional bands and chained amplification scattering across the sector.",
         "Help will come, but not soon. Minutes of work just bought you days — maybe weeks — of waiting. You decide on the only rational response: build reserves.",
         "Objective: Stockpile at least 150 Food Rations and 200 Clean Water while you wait for a reply. Survivors will need stability, and shortages during a long wait could be fatal."
+    ]
+},
+// Smoke sighting after both base camp improvements and stockpiling complete
+stockpile_complete_smoke_sighting: {
+    title: 'A Distant Signal',
+    pages: [
+        "The camp has transformed. Shelters stand insulated against the elements, water flows through purification systems, and stockpiles of food and supplies line the storage areas. Survivors move with confidence and purpose — the chaotic scramble for survival has given way to organized efficiency.",
+        "You take a moment near the perimeter to review the progress. The camp is no longer fragile — it's a functioning base, capable of sustaining your people through the wait for rescue.",
+        "That's when something catches your eye: a thin pillar of smoke rising steadily from the treeline in the distance. It's controlled, deliberate — not wildfire or natural combustion. That smoke could only mean one thing: another escape pod landing site.",
+        "There may be more survivors out there, waiting. You mark the direction and prepare to investigate.",
+        "New action unlocked: Investigate Distant Smoke."
     ]
 },
 // New: Investigate distant smoke — escape pod survivors and a warning

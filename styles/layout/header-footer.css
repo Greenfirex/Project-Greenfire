@@ -231,6 +231,17 @@
     text-shadow: 0 1px 0 rgba(0,0,0,0.45);
 }
 
+/* Apply the same active highlight to the Debug button when enabled */
+.footer-controls #debugBtn.active {
+    background: linear-gradient(180deg, rgba(34,139,34,0.22), rgba(0,100,0,0.18));
+    color: #eaffea;
+    border: 1px solid rgba(144,238,144,0.45);
+    box-shadow: 0 8px 22px rgba(0,160,80,0.14), 0 0 10px rgba(144,238,144,0.18) inset;
+    transform: none;
+    font-weight: 700;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.45);
+}
+
 /* Keep Pause/Resume width stable to avoid layout shift */
 .footer-controls #pauseBtn { min-width: 72px; text-align: center; }
 

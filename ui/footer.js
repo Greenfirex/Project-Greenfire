@@ -12,7 +12,9 @@ let mainLoopCallbacks = { start: null, stop: null };
 // Exposed on window so other modules (resources, action handling) can read it.
 // 1 = normal, 10 = boosted. Survivors are explicitly excluded where applied.
 if (typeof window !== 'undefined' && typeof window.DEBUG_RESOURCE_GAIN === 'undefined') {
-    window.DEBUG_RESOURCE_GAIN = 1;
+    // Load persisted debug state
+    const savedDebug = localStorage.getItem('debugResourceGain');
+    window.DEBUG_RESOURCE_GAIN = savedDebug === '10' ? 10 : 1;
 }
 
 // Allow main.js to register its loop control functions
@@ -119,6 +121,8 @@ export function initFooter() {
             const enabled = window.DEBUG_RESOURCE_GAIN === 10;
             window.DEBUG_RESOURCE_GAIN = enabled ? 1 : 10;
             debugBtn.classList.toggle('active', !enabled);
+            // Persist debug state
+            try { localStorage.setItem('debugResourceGain', String(window.DEBUG_RESOURCE_GAIN)); } catch {}
             const stateLabel = window.DEBUG_RESOURCE_GAIN === 10 ? 'ENABLED' : 'disabled';
             addLogEntry(`Debug resource multiplier ${stateLabel}.`, LogType.INFO);
         });

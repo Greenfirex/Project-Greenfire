@@ -96,16 +96,18 @@ export function applyGameState(gameState) {
     }
 
     if (gameState.salvageActions) {
+        // Restore runtime-mutating fields for actions while preserving design-time definitions.
+        // Include usage counters and completion flags so limited-use actions stay retired.
+        const RUNTIME_ACTION_KEYS = new Set([
+            'isUnlocked', 'stage', 'uses', 'maxUses', 'completed',
+            'startTime', 'lastTickTime', 'pauseStart'
+        ]);
         salvageActions.forEach(defaultAction => {
             const savedAction = gameState.salvageActions.find(a => a.id === defaultAction.id);
-            if (savedAction) {
-                // Protect design-time fields from old saves (e.g., removed Survivors cost from salvageCookingEquipment)
-                if (defaultAction.id === 'salvageCookingEquipment') {
-                    const copy = { ...savedAction };
-                    delete copy.cost;
-                    Object.assign(defaultAction, copy);
-                } else {
-                    Object.assign(defaultAction, savedAction);
+            if (!savedAction) return;
+            for (const k of RUNTIME_ACTION_KEYS) {
+                if (Object.prototype.hasOwnProperty.call(savedAction, k)) {
+                    defaultAction[k] = savedAction[k];
                 }
             }
         });
