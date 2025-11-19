@@ -86,6 +86,11 @@ export function updateCrewSection() {
 
     // Job rows
     jobs.forEach(job => {
+        // Hide Wire Collector job until the upgrade is completed
+        if (job.id === 'wire_collector' && !gameFlags.wireScavengingOrganized) {
+            return;
+        }
+
         const wrapper = document.createElement('div');
         wrapper.className = 'crew-job';
         wrapper.dataset.jobId = job.id;
@@ -126,16 +131,7 @@ export function updateCrewSection() {
         incCol.appendChild(incBtn);
         wrapper.appendChild(incCol);
 
-        const note = document.createElement('div');
-        note.className = 'job-note';
-        note.textContent = (job.unlimited === true || (typeof job.slots === 'number' && job.slots > 0)) ? `Unlocked by: ${job.building}` : 'Locked — build structure on Crash Site.';
-        // place note as full-width element below row
-        const rowWrapper = document.createElement('div');
-        rowWrapper.className = 'crew-job-wrapper';
-        rowWrapper.appendChild(wrapper);
-        rowWrapper.appendChild(note);
-
-        jobsContainer.appendChild(rowWrapper);
+        jobsContainer.appendChild(wrapper);
 
         // --- Setup tooltip for this job row (dynamic) ---
         if (typeof setupTooltip === 'function') {

@@ -157,6 +157,38 @@ export const upgradeActions = [
         ]
     },
     {
+        id: 'organizeWireScavenging',
+        name: 'Organize Wire Scavenging',
+        description: 'Establish systematic wire salvage operations. Train survivors to identify and extract usable wire from wreckage efficiently.',
+        duration: 5,
+        category: 'Upgrade',
+        isUnlocked: false, // Will be unlocked by Base Camp establishment
+        cancelable: true,
+        cost: [
+            { resource: 'Scrap Metal', amount: 8 },
+            { resource: 'Wire', amount: 12 }
+        ],
+        drain: [
+            { resource: 'Stamina', amount: 17 },
+            { resource: 'Food Rations', amount: 3 },
+            { resource: 'Clean Water', amount: 4 }
+        ],
+        repeatable: false,
+        suppressGenericLog: true,
+        hideRewardPreview: true,
+        reward: [],
+        tooltipEffects: ['Unlocks Wire Collector job (unlimited assignments)'],
+        stage: 0,
+        stages: [
+            {
+                story: null,
+                unlocks: [],
+                logText: 'Wire scavenging operations organized. Survivors can now be assigned to wire collection.',
+                suppressGenericLog: true
+            }
+        ]
+    },
+    {
         id: 'salvageCookingEquipment',
         name: 'Salvage Cooking Equipment',
         description: 'We could salvage working cooking equipment if we can manage to take it out of the wreckage. This would help provide food and water for the crew at the base camp.',
@@ -182,9 +214,9 @@ export const upgradeActions = [
         stage: 0,
         stages: [
             {
-                story: 'cafeteria_salvage',
+                story: null,
                 unlocks: [],
-                logText: 'You salvage a compact cooking rig and parts from the mess hall wreckage. With this at the base camp food and water gathering will be more effective. (Click to read)',
+                logText: 'Salvaged cooking equipment installed at base camp. Food and water gathering operations are now more effective.',
                 suppressGenericLog: true
             }
         ]

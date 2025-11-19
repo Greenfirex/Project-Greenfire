@@ -639,8 +639,59 @@ export const salvageActions = [
                 stages: [
                     {
                         story: 'investigate_distant_smoke',
+                        unlocks: ['decryptRadioMessage'],
+                        logText: 'You find two survivors at an escape pod site. Returning to camp, you learn the radio received an encrypted signal. (Click to read)',
+                        suppressGenericLog: true
+                    }
+                ]
+            },
+            {
+                id: 'decryptRadioMessage',
+                name: 'Decrypt Radio Message',
+                description: 'Use your command-level clearance and officer training to decrypt the incoming signal from the repaired long-range radio.',
+                duration: 8,
+                category: 'Exploration',
+                isUnlocked: false,
+                cancelable: true,
+                hideRewardPreview: true,
+                drain: [
+                    { resource: 'Stamina', amount: 18 },
+                    { resource: 'Clean Water', amount: 5 },
+                    { resource: 'Food Rations', amount: 4 }
+                ],
+                reward: [],
+                stage: 0,
+                stages: [
+                    {
+                        story: 'decrypt_radio_message',
+                        unlocks: ['checkCaptainsQuarters'],
+                        logText: 'You decrypt the transmission from Starfleet Command. The news is grim — and there are classified orders. (Click to read)',
+                        suppressGenericLog: true
+                    }
+                ]
+            },
+            {
+                id: 'checkCaptainsQuarters',
+                name: "Check Captain's Quarters",
+                description: "Search the captain's quarters for the encrypted data drive mentioned in the classified transmission from Command.",
+                duration: 10,
+                category: 'Exploration',
+                isUnlocked: false,
+                cancelable: true,
+                hideRewardPreview: true,
+                tooltipUnlocks: ['encryptedDriveSection'],
+                drain: [
+                    { resource: 'Stamina', amount: 25 },
+                    { resource: 'Clean Water', amount: 7 },
+                    { resource: 'Food Rations', amount: 6 }
+                ],
+                reward: [],
+                stage: 0,
+                stages: [
+                    {
+                        story: 'chapter2_intro',
                         unlocks: [],
-                        logText: 'You approach the smoke plume and find an escape pod — with survivors. They report seeing something move in the forest.' ,
+                        logText: 'You search the captain\'s quarters and recover the encrypted drive. Chapter II begins. (Click to read)',
                         suppressGenericLog: true
                     }
                 ]

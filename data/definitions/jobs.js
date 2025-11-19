@@ -30,5 +30,16 @@ export const jobs = [
         produces: 'Scrap Metal',
         rate: 0.06,
         unlimited: false
+    },
+    // Wire Collector — unlocked by Organize Wire Scavenging upgrade; unlimited assignments once unlocked
+    {
+        id: 'wire_collector',
+        name: 'Wire Collector',
+        building: 'Base Camp',
+        slots: 0,
+        assigned: 0,
+        produces: 'Wire',
+        rate: 0.07,
+        unlimited: false
     }
 ];

@@ -466,7 +466,8 @@ function buildTooltipHTML(data) {
                                 manufacturingSection: 'Manufacturing',
                                 shipyardSection: 'Shipyard',
                                 galaxyMapSection: 'Galaxy Map',
-                                journalSection: 'Journal'
+                                journalSection: 'Journal',
+                                encryptedDriveSection: 'Encrypted Drive'
                             };
                             const unlockLines = uniq.map(id => {
                                 // job id?

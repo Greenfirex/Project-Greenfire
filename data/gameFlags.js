@@ -29,6 +29,7 @@ const initialGameFlags = {
     // Upgrades
     scavengerKitInstalled: false,
     campfireLit: false,
+    wireScavengingOrganized: false,
     // Progress tracking flags
     hasReached15ScrapMetal: false,
     hasCompleted_tasksSurvivors: false,
@@ -199,6 +200,18 @@ registerActionCompletionHandler('establishBaseCamp', () => {
             }
         }
     } catch (e) { /* ignore */ }
+
+    // Unlock Organize Wire Scavenging upgrade at Base Camp
+    try {
+        const wireUpgrade = (upgradeActions || []).find(a => a && a.id === 'organizeWireScavenging');
+        if (wireUpgrade && !wireUpgrade.isUnlocked) {
+            wireUpgrade.isUnlocked = true;
+            addLogEntry('Upgrade available: Organize Wire Scavenging', LogType.UNLOCK);
+            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                try { window.setupCrashSiteSection(); } catch (e) {}
+            }
+        }
+    } catch (e) { /* ignore */ }
 });
 
 // Purification Unit completion handler
@@ -223,7 +236,7 @@ registerActionCompletionHandler('installPurificationUnit', () => {
 // Emergency power restore handler
 registerActionCompletionHandler('restoreEmergencyPower', () => {
     gameFlags.emergencyPowerRestored = true;
-    addLogEntry('Emergency power restored — limited lighting and lift access available.', LogType.UNLOCK);
+    addLogEntry('Emergency power restored — lift access is now available.', LogType.UNLOCK);
     // best-effort UI refresh so blocked actions update immediately
     if (typeof window !== 'undefined') {
         // Notify other systems that emergency power is now online
@@ -235,10 +248,50 @@ registerActionCompletionHandler('restoreEmergencyPower', () => {
     }
 });
 
+// Check captain's quarters handler - unlock encrypted drive section
+registerActionCompletionHandler('checkCaptainsQuarters', () => {
+    gameFlags.chapter = 2;
+    // Unlock the Encrypted Drive section
+    if (typeof window !== 'undefined' && typeof window.enableSection === 'function') {
+        window.enableSection('encryptedDriveSection');
+    } else {
+        window.dispatchEvent(new CustomEvent('requestEnableSection', { detail: { section: 'encryptedDriveSection' } }));
+    }
+    // Log a clear menu unlock message for consistency with other sections
+    try { addLogEntry('New menu section unlocked: Encrypted Drive', LogType.UNLOCK); } catch (e) { /* ignore */ }
+});
+
 // Scavenger Kit completion handler
 registerActionCompletionHandler('installScavengerKit', () => {
     gameFlags.scavengerKitInstalled = true;
     addLogEntry('Scavenger Kit installed — Scrap Collector job +20%.', LogType.UNLOCK);
+    if (typeof window !== 'undefined') {
+        try {
+            if (typeof window.updateCrewSection === 'function') try { window.updateCrewSection(); } catch (e) {}
+            if (typeof window.updateResourceInfo === 'function') try { window.updateResourceInfo(); } catch (e) {}
+        } catch (e) { /* ignore */ }
+    }
+});
+
+// Organize Wire Scavenging completion handler - unlocks the Wire Collector job
+registerActionCompletionHandler('organizeWireScavenging', () => {
+    gameFlags.wireScavengingOrganized = true;
+    
+    // Unlock the Wire Collector job and make it unlimited
+    try {
+        const wireJob = (jobs || []).find(j => j.id === 'wire_collector');
+        if (wireJob && !wireJob.unlimited) {
+            wireJob.unlimited = true;
+            wireJob.slots = Number.POSITIVE_INFINITY;
+            addLogEntry('New job unlocked: Wire Collector', LogType.UNLOCK);
+            // Refresh crew UI
+            if (typeof window !== 'undefined') {
+                if (typeof window.updateCrewSection === 'function') try { window.updateCrewSection(); } catch (e) {}
+                if (typeof window.setupCrewManagementSection === 'function') try { window.setupCrewManagementSection(document.querySelector('#crewSection')); } catch (e) {}
+            }
+        }
+    } catch (e) { /* non-fatal */ }
+    
     if (typeof window !== 'undefined') {
         try {
             if (typeof window.updateCrewSection === 'function') try { window.updateCrewSection(); } catch (e) {}

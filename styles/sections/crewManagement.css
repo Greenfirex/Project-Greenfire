@@ -12,22 +12,31 @@
 /* New table-like layout for crew jobs */
 .crew-jobs {
     width: 100%;
+    max-width: 600px; /* Make rows more compact by limiting width */
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 /* Each row is a grid: name | dec | counts | inc */
 .crew-job {
     display: grid;
-    grid-template-columns: 1fr 48px 140px 48px;
+    grid-template-columns: 1fr 48px 120px 48px; /* Reduced counts column from 140px to 120px */
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
-    background: linear-gradient(180deg, rgba(12,12,12,0.95), rgba(6,6,6,0.9));
+    padding: 10px 14px;
+    background: rgba(255,255,255,0);
     border: 1px solid rgba(var(--glow-r),var(--glow-g),var(--glow-b),0.12);
-    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.04), inset 0 1px 0 rgba(255,255,255,0.02);
+    border-radius: 8px;
     color: #EAEAEA;
+    /* Removed all transitions to prevent flashing during DOM updates */
+}
+
+/* Hover effect matching journal entries */
+.crew-job:not(.crew-header):not(.idle-row):hover {
+    box-shadow: 0 12px 30px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08), inset 0 1px 0 rgba(255,255,255,0.03);
+    /* Removed border-color change to prevent flashing */
 }
 
 /* Header styles */
@@ -36,14 +45,20 @@
     color: #cfcfcf;
     background: transparent;
     border: none;
-    padding: 0 6px;
+    padding: 4px 6px;
+    box-shadow: none;
 }
 
 /* Idle row emphasised */
 .idle-row {
-    background: linear-gradient(90deg, rgba(255,215,0,0.06), rgba(12,12,12,0.92));
+    background: rgba(255,215,0,0.04);
     color: #ffd700;
     border-color: rgba(255,215,0,0.12);
+}
+
+.idle-row:hover {
+    background: rgba(255,215,0,0.06);
+    /* Removed border-color change */
 }
 
 /* small arrow buttons */
@@ -70,27 +85,12 @@
 /* job counts column */
 .job-count { text-align: center; font-weight: 600; color: #90EE90; }
 
-/* small note under each row */
-.job-note {
-    font-size: 12px;
-    color: #bbb;
-    margin-top: 6px;
-}
-
-/* wrapper that contains row + note */
-.crew-job-wrapper { display: flex; flex-direction: column; gap: 4px; }
-
-/* ensure the wrapper note spans full width */
-.crew-job-wrapper .job-note { padding-left: 6px; }
-
 /* Make job name hint that it has more info (tooltip) */
 .job-name {
     cursor: help;
     user-select: none;
+    padding-right: 6px;
 }
-
-/* Slight spacing to allow tooltip hover comfortably */
-.job-name { padding-right: 6px; }
 
 /* responsive */
 @media (max-width: 800px) {

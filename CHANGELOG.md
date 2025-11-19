@@ -1,5 +1,15 @@
 # [0.1.13] - 2025-11-18
 
+feat: Introduce Encrypted Drive section and related mechanics
+
+- Added new job: Wire Collector, unlocked by Organize Wire Scavenging upgrade.
+- Implemented Organize Wire Scavenging upgrade to enhance wire salvage operations.
+- Created Encrypted Drive section with tasks for decrypting military-grade transmissions.
+- Updated actions and objectives to include new tasks related to decrypting radio messages and checking captain's quarters.
+- Enhanced resource management and UI updates for new tasks and job assignments.
+- Improved game flags and action completion handlers to support new features.
+- Refactored existing objectives to accommodate new gameplay elements and ensure smooth progression.
+
 ### Added
 
 - New story events: `base_camp_improved` (base camp fully upgraded) and `stockpile_resources_secured` (resource thresholds achieved).

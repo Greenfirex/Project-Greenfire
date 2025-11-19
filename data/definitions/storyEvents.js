@@ -109,14 +109,6 @@ south_explore_cafeteria: {
     ]
 },
 
-cafeteria_salvage: {
-    title: 'Salvaged Cooker',
-    pages: [
-        "Beneath a fallen service bench you find a compact, scorched but repairable cooking rig — insulated plates, a pressurized water tank, and a simple field stove. It will take effort to extract and reinstall, but it could transform how you feed the survivors.",
-        "You haul the rig back to the base camp with the help of two rescued crew and a few tools. The cooker is crude but functional; it will let you prepare and preserve rations and treat water more efficiently at camp."
-    ]
-},
-
 south_check_quarters: {
     title: 'Crew Quarters — Personal Effects',
     pages: [
@@ -220,17 +212,31 @@ investigate_distant_smoke: {
     pages: [
         "Across the treeline a thin pillar of smoke spirals into the sky. You push through scrub and shattered branches until you find the source — an escape pod half-buried and hissing.",
         "Inside you find two survivors — shaken, dehydrated, but alive. You stabilize them and begin the walk back to camp. They add hands, hope, and new stories to the fire.",
-        "One of them swears he saw something moving in the forest, keeping its distance. Big. Quiet. Not friendly. The warning chills the evening air. Whatever prowls out there will not ignore your growing camp forever."
+        "As you approach camp with the two survivors, one of your crew runs toward you, breathless and excited. Between gasps he delivers urgent news: the radio you repaired has received a signal — encrypted, but definitely a transmission. Command protocols, officer-grade cipher.",
+        "As second in command, you have the authority and training to decrypt military transmissions. This could be Starfleet Command responding to your distress call, or another survivor with access to secure channels. You need to get to the radio immediately and break that encryption."
     ]
 },
-// Chapter II Intro (triggered after Stockpile resources objective completes)
+
+decrypt_radio_message: {
+    title: 'Encrypted Transmission',
+    pages: [
+        "You sit at the makeshift console and begin the decryption process. The cipher is definitely Starfleet Command — high-priority military protocol. Your fingers work through the familiar patterns, peeling back layers of encryption.",
+        "The message materializes: Multiple sectors under coordinated attack. Unknown hostiles — fast, organized, devastating. Entire fleets are being engaged. Starfleet Command is overwhelmed, scrambling to mount a defense across the galaxy.",
+        "The nearest vessel that could render aid — the USS Horizon — was en route to your coordinates but went silent mid-transit. Assumed engaged or destroyed. Command cannot promise extraction. You are on your own for the foreseeable future.",
+        "Then comes a classified addendum, eyes-only for command staff: Your captain was on a covert mission. Details were compartmentalized. With the captain confirmed dead, Command directs you — as acting commanding officer — to search the captain's quarters for an encrypted data drive containing mission specifics.",
+        "The message ends with a grim directive: maintain operational security, sustain your crew, and retrieve that intel. Whatever the captain was hiding, Command believes it matters now more than ever. You delete the transmission from the log and keep this to yourself. The crew doesn't need more fear — they need leadership."
+    ]
+},
+// Chapter II Begins (triggered after checking captain's quarters)
 chapter2_intro: {
     title: 'Chapter II - Shadows Beyond the Perimeter',
     pages: [
-        "Your stockpiles are secure. Food, water, salvage, chemicals — enough to sustain a waiting period and fuel further work. The camp feels organized; survivors move with purpose.",
-        "Yet the forest is no longer quiet. Tracks where none should be. Bent growth near the ridge. Occasional flickers of reflective eyes at dusk. Whatever watches has grown bolder.",
-        "With immediate survival stabilized, the mission evolves: understand this world, expand capability, and prepare defenses. You will need advanced research, stronger structures, and a way to signal more reliably.",
-        "Chapter II begins: new objectives will focus on scanning the biome, fortifying camp, and investigating the unknown presence stalking the perimeter."
+        "You force open the sealed door to the captain's quarters. The room is untouched by fire but thick with ash and silent grief. Personal effects lie scattered — a coffee mug, star charts, a framed photo of a family you'll never meet.",
+        "Behind a false panel in the captain's desk you find what Command mentioned: a compact encrypted data drive, military-grade cipher. You pocket it carefully. With the captain dead and no master decryption key, unlocking its contents may prove impossible. Whatever secret mission brought you here remains locked away — for now.",
+        "You step back into the corridor and take stock. The message from Command was clear: you are on your own. The Horizon is gone. No rescue is coming. Survival is no longer about waiting for extraction — it's about building something that can endure.",
+        "Your crew has stabilized food and water. The base camp is functional. But the forest is not empty. You've seen the tracks, heard movement in the dark. Whatever inhabits this world is watching, and it won't ignore your presence forever.",
+        "You return to camp with a new resolve. The mission has changed. Secure the perimeter. Expand your capabilities. Fortify what you've built. Your scientist approaches you with urgency — he wants to establish a basic outdoor lab. Those strange crystals scattered across the landscape have caught his attention. He believes they may be significant, perhaps even critical.",
+        "Chapter II begins. New priorities: research the unknown, strengthen defenses, and prepare for what comes next."
     ]
 },
 }

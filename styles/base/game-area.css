@@ -179,4 +179,17 @@
     z-index: 2;
 }
 
+/* Unaffordable button state - applies to all sections */
+.image-button.unaffordable {
+    filter: grayscale(60%);
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Make the text color red for unaffordable items */
+.image-button.unaffordable .building-name {
+    color: #E74C3C;
+    text-shadow: none;
+}
+
 /* Shared custom scrollbar for content-panel */

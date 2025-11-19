@@ -1,0 +1,106 @@
+/* encryptedDrive.css */
+
+.encrypted-drive-content {
+    max-width: 900px;
+    margin: 6px auto 0 auto;
+    padding: 8px 10px 16px 10px;
+}
+
+/* Panel inspired by Objectives styling */
+.drive-panel {
+    position: relative;
+    background: #000;
+    border: 0;
+    border-radius: 8px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.12);
+    overflow: hidden;
+}
+
+.drive-panel::before,
+.drive-panel::after {
+    content: '';
+    position: absolute;
+    left: 0; width: 100%; height: 3px;
+    background: linear-gradient(90deg,
+      rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0) 0%,
+      rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8) 50%,
+      rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0) 100%);
+    animation: pulse-glow 5s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+}
+.drive-panel::before { top: 0; }
+.drive-panel::after { bottom: 0; }
+
+.drive-panel .panel-header {
+    padding: 12px 14px;
+    color: #90EE90;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+
+.drive-actions {
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.drive-action {
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+
+.drive-action-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.drive-action-title {
+    color: #d6e3d6;
+    font-weight: 600;
+}
+
+.drive-action .menu-button.start-task {
+    min-width: 120px;
+}
+.drive-action .menu-button.start-task.unaffordable {
+    filter: grayscale(0.7);
+    opacity: 0.7;
+}
+
+.drive-action-sub {
+    margin-top: 6px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    color: #c9d7c9;
+}
+.drive-action-sub .label {
+    color: #9dd89d;
+    margin-right: 6px;
+}
+
+.drive-progress {
+    margin-top: 10px;
+    height: 8px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.drive-progress .bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg,
+      rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.3) 0%,
+      rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9) 100%);
+    transition: width 240ms ease;
+}
+
+@media (max-width: 700px) {
+    .drive-action-sub { grid-template-columns: 1fr; }
+}

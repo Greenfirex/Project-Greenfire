@@ -9,6 +9,7 @@ import { setupGalaxyMapSection } from '../sections/galaxyMap.js';
 import { setupCrashSiteSection, updateCrashSiteActionButtonsState } from '../sections/crashSite.js';
 import { setupCrewManagementSection, updateCrewSection } from '../sections/crewManagement.js';
 import { setupJournalSection } from '../sections/journal.js';
+import { setupEncryptedDriveSection } from '../sections/encryptedDrive.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { updateSurvivalDebuffBadge, initTooltips } from '../ui/panels/tooltip.js';
 import { initTimeManager, startTimeManager } from './time.js';
@@ -90,6 +91,10 @@ function startGame() {
     galaxyMapSection.id = 'galaxyMapSection';
     galaxyMapSection.classList.add('game-section');
 
+    const encryptedDriveSection = document.createElement('div');
+    encryptedDriveSection.id = 'encryptedDriveSection';
+    encryptedDriveSection.classList.add('game-section');
+
     // --- Append all sections to the game area ---
     const gameArea = document.getElementById('gameArea');
     gameArea.appendChild(crashSiteSection);
@@ -100,6 +105,7 @@ function startGame() {
     gameArea.appendChild(manufacturingSection);
 	gameArea.appendChild(shipyardSection);
 	gameArea.appendChild(galaxyMapSection);
+    gameArea.appendChild(encryptedDriveSection);
 
     // --- Setup all sections ---
     setupInfoPanel();
@@ -111,6 +117,7 @@ function startGame() {
     setupManufacturingSection(manufacturingSection);
 	setupShipyardSection(shipyardSection);
 	setupGalaxyMapSection(galaxyMapSection);
+    setupEncryptedDriveSection(encryptedDriveSection);
 	
     setupMenuButtons();
     loadCurrentSection();
@@ -232,6 +239,7 @@ export function getInitialActivatedSections() {
         manufacturingSection: false,
         shipyardSection: false,
         galaxyMapSection: false,
+        encryptedDriveSection: false,
     };
 }
 
@@ -243,7 +251,7 @@ export function setActivatedSections(sections) {
 export let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || getInitialActivatedSections();
 
 function setupMenuButtons() {
-    const sections = ['crashSiteSection', 'crewManagementSection', 'journalSection', 'colonySection', 'researchSection', 'manufacturingSection', 'shipyardSection', 'galaxyMapSection'];
+    const sections = ['crashSiteSection', 'crewManagementSection', 'journalSection', 'colonySection', 'researchSection', 'manufacturingSection', 'shipyardSection', 'galaxyMapSection', 'encryptedDriveSection'];
     const container = document.querySelector('.menu-buttons-container');
     container.innerHTML = '';
     sections.forEach(section => {
@@ -382,6 +390,11 @@ export function enableSection(sectionId) {
     } catch (e) {
         console.warn('enableSection failed', e);
     }
+}
+
+// Reuse existing unlock path from anywhere (e.g., action handlers)
+if (typeof window !== 'undefined') {
+    window.enableSection = enableSection;
 }
 
 // small helper to humanize the key (optional)

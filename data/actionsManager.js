@@ -56,8 +56,13 @@ export function computeRequiredResources(action) {
     (action.cost || []).forEach(c => { req[c.resource] = (req[c.resource] || 0) + c.amount; });
     (action.drain || []).forEach(d => { req[d.resource] = (req[d.resource] || 0) + d.amount; });
     const st = getCurrentStage(action);
-    if (st && Array.isArray(st.cost)) {
-        st.cost.forEach(c => { req[c.resource] = (req[c.resource] || 0) + c.amount; });
+    if (st) {
+        if (Array.isArray(st.cost)) {
+            st.cost.forEach(c => { req[c.resource] = (req[c.resource] || 0) + c.amount; });
+        }
+        if (Array.isArray(st.drain)) {
+            st.drain.forEach(d => { req[d.resource] = (req[d.resource] || 0) + d.amount; });
+        }
     }
     return req;
 }

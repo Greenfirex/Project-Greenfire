@@ -171,6 +171,7 @@ export function setupCrashSiteSection(section) {
 
         const canAfford = canAffordAction(action, resources);
         btn.classList.toggle('unaffordable', !canAfford);
+        btn.dataset.affordable = canAfford ? 'true' : 'false'; // Set initial value for state tracking
         if (!canAfford) {
             btn.setAttribute('aria-disabled', 'true');
             btn.dataset.shortfall = getAffordabilityShortfalls(action, resources).join(', ');
@@ -538,6 +539,11 @@ function handleActionCompletion(section) {
     if (original && original.id === 'establishBaseCamp') {
         enableSection('crewManagementSection');
         try { outcome.unlocks.sections.push('Crew Management'); } catch (e) { /* ignore */ }
+    }
+
+    // If the captain's quarters has been checked, surface the new section in the popup outcome
+    if (original && original.id === 'checkCaptainsQuarters') {
+        try { outcome.unlocks.sections.push('Encrypted Drive'); } catch (e) { /* ignore */ }
     }
 
     // Track whether unlocks require a full UI rebuild

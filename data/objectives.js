@@ -196,41 +196,33 @@ const defs = [
         label: 'Tasks for survivors',
         start: () => gameFlags.baseCampEstablished === true,
         complete: () => {
-            // Check if we have built both buildings and assigned jobs
+            // Check if we have built both buildings and assigned 3+ jobs total
             const foragingCamp = buildings.find(b => b.name === 'Foraging Camp');
             const waterStation = buildings.find(b => b.name === 'Water Station');
-            const foragingJob = jobs.find(j => j.id === 'foraging');
-            const waterJob = jobs.find(j => j.id === 'water_collection');
-            const scrapJob = jobs.find(j => j.id === 'scrap_collector');
             
             const hasBothBuildings = (foragingCamp?.count || 0) >= 1 && (waterStation?.count || 0) >= 1;
-            const hasJobAssignments = (foragingJob?.assigned || 0) >= 1 && 
-                                    (waterJob?.assigned || 0) >= 1 && 
-                                    (scrapJob?.assigned || 0) >= 1;
             
-            return hasBothBuildings && hasJobAssignments;
+            // Count total job assignments across all jobs
+            const totalAssigned = jobs.reduce((sum, j) => sum + (j.assigned || 0), 0);
+            
+            return hasBothBuildings && totalAssigned >= 3;
         },
         reward: [{ resource: 'XP', amount: 50 }],
         priority: 6,
         steps: () => {
             const foragingCamp = buildings.find(b => b.name === 'Foraging Camp');
             const waterStation = buildings.find(b => b.name === 'Water Station');
-            const foragingJob = jobs.find(j => j.id === 'foraging');
-            const waterJob = jobs.find(j => j.id === 'water_collection');
-            const scrapJob = jobs.find(j => j.id === 'scrap_collector');
             
             const foragingCampCount = foragingCamp?.count || 0;
             const waterStationCount = waterStation?.count || 0;
-            const foragingAssigned = foragingJob?.assigned || 0;
-            const waterAssigned = waterJob?.assigned || 0;
-            const scrapAssigned = scrapJob?.assigned || 0;
+            
+            // Count total job assignments across all jobs
+            const totalAssigned = jobs.reduce((sum, j) => sum + (j.assigned || 0), 0);
             
             return [
                 { id: 'build_foraging_camp', label: 'Build Foraging Camp (8 Scrap)', done: foragingCampCount >= 1, progress: foragingCampCount >= 1 ? '1/1' : `${foragingCampCount}/1` },
                 { id: 'build_water_station', label: 'Build Water Station (10 Scrap)', done: waterStationCount >= 1, progress: waterStationCount >= 1 ? '1/1' : `${waterStationCount}/1` },
-                { id: 'assign_water_job', label: 'Assign Water Collection job', done: waterAssigned >= 1, progress: waterAssigned >= 1 ? '1/1' : `${waterAssigned}/1` },
-                { id: 'assign_scrap_job', label: 'Assign Scrap Collector job', done: scrapAssigned >= 1, progress: scrapAssigned >= 1 ? '1/1' : `${scrapAssigned}/1` },
-                { id: 'assign_foraging_job', label: 'Assign Foraging job', done: foragingAssigned >= 1, progress: foragingAssigned >= 1 ? '1/1' : `${foragingAssigned}/1` }
+                { id: 'assign_jobs', label: 'Assign jobs (any combination)', done: totalAssigned >= 3, progress: `${totalAssigned}/3` }
             ];
         }
     },
@@ -342,23 +334,43 @@ const defs = [
     {
         id: 'obj_investigate_smoke',
         label: 'Investigate distant smoke',
-        start: () => hasCompletedAction('fixLongRangeRadio') && 
-                     (() => {
-                         const upgradeIds = ['installForagingTools', 'lightCampfire', 'installScavengerKit', 'salvageCookingEquipment', 'makeTents', 'insulateShelters', 'installRainCatchers', 'installPurificationUnit'];
-                         return upgradeIds.every(id => hasCompletedAction(id));
-                     })() &&
-                     getResourceAmount('Food Rations') >= 400 &&
-                     getResourceAmount('Clean Water') >= 500 &&
-                     getResourceAmount('Scrap Metal') >= 200 &&
-                     getResourceAmount('Fabric') >= 20 &&
-                     getResourceAmount('Chemicals') >= 20 &&
-                     getResourceAmount('Wire') >= 100,
-        complete: () => hasCompletedAction('investigateDistantSmoke'),
-        reward: [{ resource: 'XP', amount: 40 }],
+        start: () => {
+            const s1 = status.find(o => o.id === 'obj_improve_base_camp');
+            const s2 = status.find(o => o.id === 'obj_hoard_supplies');
+            return s1 && s1.state === 'completed' && s2 && s2.state === 'completed';
+        },
+        complete: () => hasCompletedAction('investigateDistantSmoke') && hasCompletedAction('decryptRadioMessage') && hasCompletedAction('checkCaptainsQuarters'),
+        reward: [{ resource: 'XP', amount: 80 }],
         priority: 15,
         steps: () => [
-            { id: 'investigate_smoke', label: 'Investigate distant smoke', done: hasCompletedAction('investigateDistantSmoke') }
+            { id: 'investigate_smoke', label: 'Investigate distant smoke', done: hasCompletedAction('investigateDistantSmoke') },
+            { id: 'decrypt_message', label: 'Decrypt radio message', done: hasCompletedAction('decryptRadioMessage') },
+            { id: 'check_captains_quarters', label: "Check captain's quarters", done: hasCompletedAction('checkCaptainsQuarters') }
         ]
+    },
+    // New: Chapter II kickoff — Research & Crystal analysis
+    {
+        id: 'obj_research_crystals',
+        label: 'Research & Crystal analysis',
+        // Begin immediately after the distant smoke chain finishes (captain's quarters checked)
+        start: () => {
+            const smoke = status.find(o => o.id === 'obj_investigate_smoke');
+            return !!(smoke && smoke.state === 'completed');
+        },
+        // Complete when the Field Lab building exists (placeholder until building is implemented)
+        complete: () => {
+            const lab = (buildings || []).find(b => b && (b.name === 'Field Lab' || b.id === 'field_lab'));
+            return (lab?.count || 0) >= 1;
+        },
+        reward: [{ resource: 'XP', amount: 60 }],
+        priority: 16,
+        steps: () => {
+            const lab = (buildings || []).find(b => b && (b.name === 'Field Lab' || b.id === 'field_lab'));
+            const count = lab?.count || 0;
+            return [
+                { id: 'build_field_lab', label: 'Build Field Lab', done: count >= 1, progress: count >= 1 ? '1/1' : `${count}/1` }
+            ];
+        }
     }
 ];
 
@@ -496,18 +508,6 @@ export function recomputeObjectives() {
                         } catch {}
                     }
                 }
-                // Transition to Chapter II after investigating distant smoke
-                if (def.id === 'obj_investigate_smoke') {
-                    try {
-                        gameFlags.chapter = 2;
-                        addLogEntry('Chapter II unlocked: Shadows Beyond the Perimeter', LogType.UNLOCK);
-                        const evt = storyEvents.chapter2_intro;
-                        if (evt && typeof showStoryPopup === 'function') {
-                            showStoryPopup(evt);
-                            addLogEntry('Chapter II begins. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(evt) });
-                        }
-                    } catch {}
-                }
                 
                 didChange = true;
             }
@@ -523,19 +523,16 @@ export function recomputeObjectives() {
     });
     // Fallback: ensure Investigate Distant Smoke action unlocks and objective activates when prerequisites met
     try {
-        const upgradeIds = ['installForagingTools', 'lightCampfire', 'installScavengerKit', 'salvageCookingEquipment', 'makeTents', 'insulateShelters', 'installRainCatchers', 'installPurificationUnit'];
-        const baseCampComplete = upgradeIds.every(id => hasCompletedAction(id));
-        const stockpileComplete = getResourceAmount('Food Rations') >= 400 &&
-            getResourceAmount('Clean Water') >= 500 &&
-            getResourceAmount('Scrap Metal') >= 200 &&
-            getResourceAmount('Fabric') >= 20 &&
-            getResourceAmount('Chemicals') >= 20 &&
-            getResourceAmount('Wire') >= 100;
-        if (baseCampComplete && stockpileComplete) {
+        const baseCampObj = status.find(s => s.id === 'obj_improve_base_camp');
+        const stockpileObj = status.find(s => s.id === 'obj_hoard_supplies');
+        const bothComplete = baseCampObj && baseCampObj.state === 'completed' && 
+                           stockpileObj && stockpileObj.state === 'completed';
+        
+        if (bothComplete) {
             const act = (allActions || []).find(a => a.id === 'investigateDistantSmoke');
             if (act && !act.isUnlocked) {
                 act.isUnlocked = true;
-                addLogEntry('New action available (fallback): Investigate Distant Smoke', LogType.UNLOCK);
+                addLogEntry('New action available: Investigate Distant Smoke', LogType.UNLOCK);
                 if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
                     try { window.setupCrashSiteSection(); } catch {}
                 }
