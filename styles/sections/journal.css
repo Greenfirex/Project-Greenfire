@@ -41,10 +41,18 @@
     min-height: 0;
     padding: 20px; /* restore uniform padding now that tabs sit outside */
     box-sizing: border-box;
-    border-top: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.56); /* restore top border */
+    border-top-width: 0 !important; /* force remove top border width */
+    border-top-style: none !important; /* force remove top border style */
     /* remove top rounding so tabs provide the curved silhouette */
     border-top-left-radius: 0;
     border-top-right-radius: 0;
+    /* remove all shadows to eliminate shadow line */
+    box-shadow: none !important;
+    /* pull up to overlap with tab bottom */
+    margin-top: 0px;
+    /* ensure content overlaps the tab at connection point */
+    position: relative;
+    z-index: 3;
 }
 
 /* Ensure the section content fills the game-section and allows children to flex */
@@ -177,17 +185,13 @@
 
 /* Active tab: bright glow around */
 .journal-tab.active {
-        /* Reduced glow to better match .content-panel intensity */
-        background: linear-gradient(180deg, rgba(18,18,18,0.92), rgba(8,8,8,0.62));
+        /* Match content-panel background for seamless look */
+        background: rgba(6, 6, 6, 0.89);
         color: #ffffff;
         border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.60);
-        box-shadow:
-            /* subtle inner edge */
-            0 0 0 1px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.40) inset,
-            /* ambient shadow similar to panel elevation */
-            0 8px 24px rgba(0,0,0,0.55),
-            /* restrained outer glow */
-            0 0 18px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
+        border-bottom: none;
+        /* no shadow to prevent line between tab and content */
+        box-shadow: none;
         z-index: 2;
 }
 /* Inactive tab: subtle/faded glow */
@@ -199,21 +203,9 @@
         opacity: 0.70;
 }
 
-/* Baseline glow directly below tabs spanning full width */
+/* Baseline glow removed - active tab connects directly to content */
 .journal-tabs::after {
-    content: '';
-    position: absolute;
-    left: 0; right: 0; bottom: -4px; /* sit just above panel border */
-    height: 3px;
-    background: linear-gradient(90deg,
-        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0) 0%,
-        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.85) 10%,
-        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 1) 50%,
-        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.85) 90%,
-        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0) 100%
-    );
-    filter: drop-shadow(0 0 6px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.55));
-    pointer-events: none;
+    display: none;
 }
 
 .journal-tabpanes { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
