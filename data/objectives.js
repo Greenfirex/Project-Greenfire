@@ -230,19 +230,50 @@ const defs = [
         id: 'obj_explore_deeper',
         label: 'Explore deeper',
         start: () => gameFlags.hasCompleted_tasksSurvivors === true,
-        complete: () => hasCompletedAction('searchSouthCorridor') && hasCompletedAction('searchNorthCorridor') && hasCompletedAction('investigateBridge'),
+        complete: () => {
+            return hasCompletedAction('searchSouthCorridor') && 
+                   hasCompletedAction('searchNorthCorridor') && 
+                   hasCompletedAction('investigateBridge') && 
+                   hasCompletedAction('exploreCafeteria') && 
+                   hasCompletedAction('checkCrewQuarters') &&
+                   hasCompletedAction('searchLabs') &&
+                   hasCompletedAction('searchPowerCore');
+        },
         reward: [{ resource: 'XP', amount: 75 }],
         priority: 7,
         steps: () => {
             const southDone = hasCompletedAction('searchSouthCorridor');
             const northDone = hasCompletedAction('searchNorthCorridor');
             const bridgeDone = hasCompletedAction('investigateBridge');
+            const cafeteriaDone = hasCompletedAction('exploreCafeteria');
+            const crewQuartersDone = hasCompletedAction('checkCrewQuarters');
+            const labsDone = hasCompletedAction('searchLabs');
+            const powerCoreDone = hasCompletedAction('searchPowerCore');
             
-            return [
-                { id: 'search_south', label: 'Search: South Corridor', done: southDone },
-                { id: 'search_north', label: 'Search: North Corridor', done: northDone },
-                { id: 'investigate_bridge', label: 'Investigate Bridge', done: bridgeDone }
-            ];
+            const steps = [];
+            
+            // South Corridor
+            steps.push({ id: 'search_south', label: 'Search: South Corridor', done: southDone });
+            if (southDone) {
+                steps.push(
+                    { id: 'explore_cafeteria', label: '  ↳ Explore Cafeteria', done: cafeteriaDone },
+                    { id: 'check_crew_quarters', label: '  ↳ Check Crew Quarters', done: crewQuartersDone }
+                );
+            }
+            
+            // North Corridor
+            steps.push({ id: 'search_north', label: 'Search: North Corridor', done: northDone });
+            if (northDone) {
+                steps.push(
+                    { id: 'search_labs', label: '  ↳ Search Labs', done: labsDone },
+                    { id: 'search_power_core', label: '  ↳ Search Power Core', done: powerCoreDone }
+                );
+            }
+            
+            // Bridge
+            steps.push({ id: 'investigate_bridge', label: 'Investigate Bridge', done: bridgeDone });
+            
+            return steps;
         }
     },
     {

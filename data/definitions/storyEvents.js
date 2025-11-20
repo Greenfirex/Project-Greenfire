@@ -191,8 +191,7 @@ comms_fixed_distress: {
     pages: [
         "You gut the least-destroyed comms console, splice scorched bundles, and bridge missing circuits with salvaged wire. A power cell hums at the edge of tolerance as you force the rig to life.",
         "The carrier locks. A narrowband distress packet crawls outward — slow, because subspace relays are beyond repair with current tools. Without a proper subspace field the signal must ride conventional bands and chained amplification scattering across the sector.",
-        "Help will come, but not soon. Minutes of work just bought you days — maybe weeks — of waiting. You decide on the only rational response: build reserves.",
-        "Objective: Stockpile at least 150 Food Rations and 200 Clean Water while you wait for a reply. Survivors will need stability, and shortages during a long wait could be fatal."
+        "Help will come, but not soon. Minutes of work just bought you days — maybe weeks — of waiting. You decide on the only rational response: build reserves and organise base camp. Survivors will need stability, and shortages during a long wait could be fatal."
     ]
 },
 // Smoke sighting after both base camp improvements and stockpiling complete

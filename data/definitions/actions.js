@@ -440,13 +440,15 @@ export const salvageActions = [
                     // first attempt: you reach the door and try to force it open with crude tools
                     story: 'powercore_locked_attempt',
                     unlocks: [],
-                    logText: 'You reach a set of reinforced, locked doors protecting the power core. You try levering them with crude tools but the doors hold. With the ship without power, there is nothing to release the lockmechanism. (Click to read)'
-                    // no stage-level cost here — this is the reconnaissance / failed attempt stage
+                    description: 'Follow the corridor to the ship\'s power core. The access is heavily reinforced — brute force alone might not be enough.',
+                    logText: 'You reach a set of reinforced, locked doors protecting the power core. You try levering them with crude tools but the doors hold. With the ship without power, there is nothing to release the lockmechanism. (Click to read)',
+                    suppressGenericLog: true
                 },
                 {
                     // second attempt: requires and consumes a makeshift explosive to blast the lock
                     story: 'powercore_breached',
                     unlocks: ['restoreEmergencyPower'], // whatever follows opening the core
+                    description: 'Return to the power core with makeshift explosives and breach the reinforced lock. Dangerous — but necessary to access the core systems.',
                     logText: 'Now that all survivors are accounted for, you risk breaching the power core with the explosive. The blast blows the seal and you can access the core systems. (Click to read)',
                     // stage-specific cost: this stage requires 3 Makeshift Explosives and will consume them on completion
                     cost: [

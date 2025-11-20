@@ -1,18 +1,48 @@
-# [0.1.13] - 2025-11-18
-
-feat: Introduce Encrypted Drive section and related mechanics
-
-- Added new job: Wire Collector, unlocked by Organize Wire Scavenging upgrade.
-- Implemented Organize Wire Scavenging upgrade to enhance wire salvage operations.
-- Created Encrypted Drive section with tasks for decrypting military-grade transmissions.
-- Updated actions and objectives to include new tasks related to decrypting radio messages and checking captain's quarters.
-- Enhanced resource management and UI updates for new tasks and job assignments.
-- Improved game flags and action completion handlers to support new features.
-- Refactored existing objectives to accommodate new gameplay elements and ensure smooth progression.
+# [0.2.0] - 2025-11-20
 
 ### Added
 
-- New story events: `base_camp_improved` (base camp fully upgraded) and `stockpile_resources_secured` (resource thresholds achieved).
+- **Chapter 2 Story Event:** "Lost Signal" narrative event triggers when entering Chapter 2, introducing new story elements and setting up future content.
+- **Chapter Progression System:** Added `chapter` flag to gameFlags to track story progression; persisted in save system.
+- **Story Popup Visual Overhaul:**
+  - Background image support with dark overlay for improved atmosphere.
+  - Backdrop blur effect on the overlay for modern frosted-glass appearance.
+  - Enhanced header with gradient background, glowing border, and prominent title text-shadow.
+  - Category headers now feature gradient backgrounds, left border accent, and subtle glow effects matching objectives panel aesthetic.
+  - Message text now includes subtle text-shadow for better readability and "screen glow" effect.
+  - Removed redundant X close button; Close button now displays "Close (Esc)" to indicate keyboard shortcut.
+  - New job: Wire Collector, unlocked by Organize Wire Scavenging upgrade.
+  - Implemented Organize Wire Scavenging upgrade to enhance wire salvage operations.
+  - Created Encrypted Drive section with tasks for decrypting military-grade transmissions.
+  - Updated actions and objectives to include new tasks related to decrypting radio messages and checking captain's quarters.
+  - Enhanced resource management and UI updates for new tasks and job assignments.
+  - Improved game flags and action completion handlers to support new features.
+  - Refactored existing objectives to accommodate new gameplay elements and ensure smooth progression.
+
+### Changed
+
+- **Story Popup Reimagined:**
+  - Converted from multi-page pagination to single-page scrollable format for better content flow.
+  - Fixed height set to 50vh with scrollable body area.
+  - All pages from story events now display as distinct paragraphs in one view.
+  - Outcome sections (objectives, unlocks, rewards) always visible at bottom when present.
+  - Simplified navigation: removed Previous/Next buttons and page counter; single centered Close button.
+  - Category sections (New Objective, Objective Completed, Upgrades Unlocked, Buildings Unlocked, etc.) now use consistent 20px spacing.
+  - Custom scrollbar styling matches ingame log (12px width, dark track, semi-transparent green thumb).
+  - Improved spacing: added gaps above and below scrollable content, pushed bottom border down for better visual balance.
+
+### Fixed
+
+- Story popup category spacing inconsistencies resolved with unified margin rules.
+- Scrollbar positioning improved with proper padding in body and text areas.
+
+---
+
+# [0.1.13] - 2025-11-18
+
+### Added
+
+ New story events: `base_camp_improved` (base camp fully upgraded) and `stockpile_resources_secured` (resource thresholds achieved).
 - Smoke sighting gating flag `smokeSightingShown` to ensure the distant smoke popup and action unlock fire only once.
 - Fallback unlock logic for the `Investigate Distant Smoke` action and objective if earlier trigger paths were missed.
 

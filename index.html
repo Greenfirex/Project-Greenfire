@@ -123,7 +123,7 @@
         
     </div>
     <div class="footer-column">
-    <button id="changelogBtn" class="header-link">v0.1.13</button>
+    <button id="changelogBtn" class="header-link">v0.2.0</button>
     </div>
 </div>
 
@@ -266,20 +266,17 @@
 <div id="storyPopup" class="story-popup-overlay hidden">
     <div class="story-popup-content">
         <span class="story-popup-close">&times;</span>
+        <div class="story-popup-header">
+            <h2 id="popupTitle"></h2>
+        </div>
         <div class="story-popup-body">
-            <div class="story-popup-logo">
-    <img src="assets/images/logo.png" alt="Project Greenfire logo">
-</div>
             <div class="story-popup-text">
-                <h2 id="popupTitle"></h2>
                 <p id="popupMessage"></p>
                 <div id="popupOutcome" class="popup-outcome hidden"></div>
             </div>
         </div>
         <div class="story-popup-nav">
-            <button id="popupPrev">Previous</button>
-            <span id="popupPaging"></span>
-            <button id="popupNext">Next</button>
+            <button id="popupClose">Close (Esc)</button>
         </div>
     </div>
 </div>

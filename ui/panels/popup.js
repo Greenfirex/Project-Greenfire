@@ -4,7 +4,6 @@ import { allActions as _allActions } from '../../data/definitions/allActions.js'
 
 let activeStoryEvent = null;
 let activeOutcome = null; // optional footer content (rewards/unlocks)
-let currentPageIndex = 0;
 
 // Add a single Esc handler that is attached only while the popup is open
 let _popupEscHandler = null;
@@ -29,107 +28,100 @@ function detachPopupEscHandler() {
 }
 
 /**
- * Renders a specific page of a story event in the popup.
+ * Renders the story event content in the popup (all pages combined).
  */
 function renderPopupPage() {
     if (!activeStoryEvent) return;
 
     const messageEl = document.getElementById('popupMessage');
-    const pagingEl = document.getElementById('popupPaging');
-    const nextBtn = document.getElementById('popupNext');
-    const prevBtn = document.getElementById('popupPrev');
+    const closeBtn = document.getElementById('popupClose');
 
     const outcomeEl = document.getElementById('popupOutcome');
-    if (!messageEl || !pagingEl || !nextBtn || !prevBtn) return;
+    if (!messageEl || !closeBtn) return;
 
-    // Apply the project's shared button style so popup nav matches the rest of the UI
+    // Apply the project's shared button style
     try {
-        nextBtn.classList.add('menu-button', 'story-nav-button');
-        prevBtn.classList.add('menu-button', 'story-nav-button');
+        closeBtn.classList.add('menu-button', 'story-nav-button');
     } catch (e) { /* ignore in case buttons change */ }
     
-    // use innerHTML with pre-wrap in CSS to preserve paragraph spacing
-    // If you want markdown support, replace the next line with: messageEl.innerHTML = marked(activeStoryEvent.pages[currentPageIndex]);
-    messageEl.innerHTML = (activeStoryEvent.pages[currentPageIndex] || '').replace(/\n/g, '<br><br>');
-    pagingEl.textContent = `${currentPageIndex + 1} / ${activeStoryEvent.pages.length}`;
-    if (currentPageIndex === activeStoryEvent.pages.length - 1) {
-        nextBtn.textContent = 'Close';
-        // render outcome footer if present
-        if (outcomeEl) {
-            const hasRewards = !!(activeOutcome && Array.isArray(activeOutcome.rewards) && activeOutcome.rewards.length);
-            const hasUnlocks = !!(activeOutcome && activeOutcome.unlocks && (
-                (Array.isArray(activeOutcome.unlocks.actions) && activeOutcome.unlocks.actions.length) ||
-                (Array.isArray(activeOutcome.unlocks.buildings) && activeOutcome.unlocks.buildings.length) ||
-                (Array.isArray(activeOutcome.unlocks.sections) && activeOutcome.unlocks.sections.length) ||
-                (Array.isArray(activeOutcome.unlocks.jobs) && activeOutcome.unlocks.jobs.length)
-            ));
-            const hasObjectives = !!(activeOutcome && activeOutcome.objectives && (
-                (Array.isArray(activeOutcome.objectives.completed) && activeOutcome.objectives.completed.length) ||
-                (Array.isArray(activeOutcome.objectives.newlyActive) && activeOutcome.objectives.newlyActive.length)
-            ));
-                if (hasRewards || hasUnlocks || hasObjectives) {
-                const makeList = (arr) => (arr || []).map(v => `<li>${v}</li>`).join('');
-                let parts = [];
-                if (hasObjectives) {
-                    const blocks = [];
-                    const comp = Array.isArray(activeOutcome.objectives.completed) ? activeOutcome.objectives.completed : [];
-                    const nexts = Array.isArray(activeOutcome.objectives.newlyActive) ? activeOutcome.objectives.newlyActive : [];
-                    // Prefer showing New Objective first, then Completed, to guide next actions
-                    if (nexts.length) {
-                        const items = nexts.map(d => `<li>${d.label}</li>`).join('');
-                        blocks.push(`<div class="outcome-objectives-new"><h4>New Objective</h4><ul>${items}</ul></div>`);
-                    }
-                    if (comp.length) {
-                        const items = comp.map(d => `<li class="completed-objective-item">${d.label}</li>`).join('');
-                        blocks.push(`<div class="outcome-objectives-completed"><h4>Objective Completed</h4><ul>${items}</ul></div>`);
-                    }
-                    parts.push(`<div class="outcome-objectives">${blocks.join('')}</div>`);
+    // Combine all pages into paragraphs
+    const allPages = activeStoryEvent.pages || [];
+    const combinedHTML = allPages.map(page => 
+        `<p>${(page || '').replace(/\n/g, '<br><br>')}</p>`
+    ).join('');
+    
+    messageEl.innerHTML = combinedHTML;
+    
+    // Render outcome footer if present
+    if (outcomeEl) {
+        const hasRewards = !!(activeOutcome && Array.isArray(activeOutcome.rewards) && activeOutcome.rewards.length);
+        const hasUnlocks = !!(activeOutcome && activeOutcome.unlocks && (
+            (Array.isArray(activeOutcome.unlocks.actions) && activeOutcome.unlocks.actions.length) ||
+            (Array.isArray(activeOutcome.unlocks.buildings) && activeOutcome.unlocks.buildings.length) ||
+            (Array.isArray(activeOutcome.unlocks.sections) && activeOutcome.unlocks.sections.length) ||
+            (Array.isArray(activeOutcome.unlocks.jobs) && activeOutcome.unlocks.jobs.length)
+        ));
+        const hasObjectives = !!(activeOutcome && activeOutcome.objectives && (
+            (Array.isArray(activeOutcome.objectives.completed) && activeOutcome.objectives.completed.length) ||
+            (Array.isArray(activeOutcome.objectives.newlyActive) && activeOutcome.objectives.newlyActive.length)
+        ));
+            const makeList = (arr) => (arr || []).map(v => `<li>${v}</li>`).join('');
+            let parts = [];
+            if (hasObjectives) {
+                const blocks = [];
+                const comp = Array.isArray(activeOutcome.objectives.completed) ? activeOutcome.objectives.completed : [];
+                const nexts = Array.isArray(activeOutcome.objectives.newlyActive) ? activeOutcome.objectives.newlyActive : [];
+                // Prefer showing New Objective first, then Completed, to guide next actions
+                if (nexts.length) {
+                    const items = nexts.map(d => `<li>${d.label}</li>`).join('');
+                    blocks.push(`<div class="outcome-objectives-new"><h4>New Objective</h4><ul>${items}</ul></div>`);
                 }
-                if (hasUnlocks) {
-                    const blocks = [];
-
-                    // Split actions into Upgrades vs non-Upgrades using definitions
-                    const actionsList = Array.isArray(activeOutcome.unlocks.actions) ? activeOutcome.unlocks.actions.slice() : [];
-                    let upgradeNames = [];
-                    let regularActionNames = [];
-                    if (actionsList.length) {
-                        const defs = Array.isArray(_allActions) ? _allActions : [];
-                        const byNameOrId = (val) => defs.find(a => a && (a.name === val || a.id === val));
-                        for (const val of actionsList) {
-                            const def = byNameOrId(val);
-                            if (def && def.category === 'Upgrade') upgradeNames.push(def.name || val);
-                            else regularActionNames.push(def ? (def.name || val) : val);
-                        }
-                        // Remove duplicates in case of mixed inputs
-                        const uniq = (arr) => Array.from(new Set(arr));
-                        upgradeNames = uniq(upgradeNames);
-                        regularActionNames = uniq(regularActionNames);
-                    }
-
-                    if (regularActionNames.length) blocks.push(`<div class="unlock-block"><h4>Actions Unlocked</h4><ul>${makeList(regularActionNames)}</ul></div>`);
-                    if (upgradeNames.length) blocks.push(`<div class="unlock-block"><h4>Upgrades Unlocked</h4><ul>${makeList(upgradeNames)}</ul></div>`);
-                    if (activeOutcome.unlocks.buildings && activeOutcome.unlocks.buildings.length) blocks.push(`<div class="unlock-block"><h4>Buildings Unlocked</h4><ul>${makeList(activeOutcome.unlocks.buildings)}</ul></div>`);
-                    if (activeOutcome.unlocks.sections && activeOutcome.unlocks.sections.length) blocks.push(`<div class="unlock-block"><h4>Sections Unlocked</h4><ul>${makeList(activeOutcome.unlocks.sections)}</ul></div>`);
-                    if (activeOutcome.unlocks.jobs && activeOutcome.unlocks.jobs.length) blocks.push(`<div class="unlock-block"><h4>Jobs Unlocked</h4><ul>${makeList(activeOutcome.unlocks.jobs)}</ul></div>`);
-                    if (blocks.length) parts.push(`<div class="outcome-unlocks"><div class="outcome-grid">${blocks.join('')}</div></div>`);
+                if (comp.length) {
+                    const items = comp.map(d => `<li class="completed-objective-item">${d.label}</li>`).join('');
+                    blocks.push(`<div class="outcome-objectives-completed"><h4>Objective Completed</h4><ul>${items}</ul></div>`);
                 }
-                if (hasRewards) {
-                    const items = activeOutcome.rewards.map(r => `<li>+${r.amount} ${r.resource}</li>`).join('');
-                    parts.push(`<div class="outcome-rewards"><h4>Rewards</h4><ul>${items}</ul></div>`);
-                }
-                outcomeEl.innerHTML = parts.join('');
-                outcomeEl.classList.remove('hidden');
-            } else {
-                outcomeEl.innerHTML = '';
-                outcomeEl.classList.add('hidden');
+                parts.push(`<div class="outcome-objectives">${blocks.join('')}</div>`);
             }
+            if (hasUnlocks) {
+                const blocks = [];
+
+                // Split actions into Upgrades vs non-Upgrades using definitions
+                const actionsList = Array.isArray(activeOutcome.unlocks.actions) ? activeOutcome.unlocks.actions.slice() : [];
+                let upgradeNames = [];
+                let regularActionNames = [];
+                if (actionsList.length) {
+                    const defs = Array.isArray(_allActions) ? _allActions : [];
+                    const byNameOrId = (val) => defs.find(a => a && (a.name === val || a.id === val));
+                    for (const val of actionsList) {
+                        const def = byNameOrId(val);
+                        if (def && def.category === 'Upgrade') upgradeNames.push(def.name || val);
+                        else regularActionNames.push(def ? (def.name || val) : val);
+                    }
+                    // Remove duplicates in case of mixed inputs
+                    const uniq = (arr) => Array.from(new Set(arr));
+                    upgradeNames = uniq(upgradeNames);
+                    regularActionNames = uniq(regularActionNames);
+                }
+
+                if (regularActionNames.length) blocks.push(`<div class="unlock-block"><h4>Actions Unlocked</h4><ul>${makeList(regularActionNames)}</ul></div>`);
+                if (upgradeNames.length) blocks.push(`<div class="unlock-block"><h4>Upgrades Unlocked</h4><ul>${makeList(upgradeNames)}</ul></div>`);
+                if (activeOutcome.unlocks.buildings && activeOutcome.unlocks.buildings.length) blocks.push(`<div class="unlock-block"><h4>Buildings Unlocked</h4><ul>${makeList(activeOutcome.unlocks.buildings)}</ul></div>`);
+                if (activeOutcome.unlocks.sections && activeOutcome.unlocks.sections.length) blocks.push(`<div class="unlock-block"><h4>Sections Unlocked</h4><ul>${makeList(activeOutcome.unlocks.sections)}</ul></div>`);
+                if (activeOutcome.unlocks.jobs && activeOutcome.unlocks.jobs.length) blocks.push(`<div class="unlock-block"><h4>Jobs Unlocked</h4><ul>${makeList(activeOutcome.unlocks.jobs)}</ul></div>`);
+                if (blocks.length) parts.push(`<div class="outcome-unlocks"><div class="outcome-grid">${blocks.join('')}</div></div>`);
+            }
+            if (hasRewards) {
+                const items = activeOutcome.rewards.map(r => `<li>+${r.amount} ${r.resource}</li>`).join('');
+                parts.push(`<div class="outcome-rewards"><h4>Rewards</h4><ul>${items}</ul></div>`);
+            }
+            outcomeEl.innerHTML = parts.join('');
+            outcomeEl.classList.remove('hidden');
+        } else {
+            outcomeEl.innerHTML = '';
+            outcomeEl.classList.add('hidden');
         }
-    } else {
-        nextBtn.textContent = 'Next';
-        if (outcomeEl) { outcomeEl.innerHTML = ''; outcomeEl.classList.add('hidden'); }
     }
-    prevBtn.style.visibility = (currentPageIndex === 0) ? 'hidden' : 'visible';
-}
+
 
 export function showStoryPopup(event, outcome = null) {
     try { window.dispatchEvent(new CustomEvent('request-hide-tooltip')); } catch (e) { /* ignore */ }
@@ -144,7 +136,6 @@ export function showStoryPopup(event, outcome = null) {
 
     activeStoryEvent = event;
     activeOutcome = outcome;
-    currentPageIndex = 0;
 
     titleEl.textContent = activeStoryEvent.title;
 
@@ -214,29 +205,13 @@ function hideStoryPopup() {
 // setupPopup unchanged except it uses the existing elements
 function setupPopup() {
     const storyPopup = document.getElementById('storyPopup');
-    const nextBtn = document.getElementById('popupNext');
-    const prevBtn = document.getElementById('popupPrev');
-    const closeBtn = storyPopup ? storyPopup.querySelector('.story-popup-close') : null;
+    const closeBtn = document.getElementById('popupClose');
+    const xBtn = storyPopup ? storyPopup.querySelector('.story-popup-close') : null;
 
-    if (!storyPopup || !nextBtn || !prevBtn || !closeBtn) return;
-
-    nextBtn.addEventListener('click', () => {
-        if (!activeStoryEvent) return;
-        if (currentPageIndex < activeStoryEvent.pages.length - 1) {
-            currentPageIndex++;
-            renderPopupPage();
-        } else {
-            hideStoryPopup();
-        }
-    });
-
-    prevBtn.addEventListener('click', () => {
-        if (!activeStoryEvent || currentPageIndex <= 0) return;
-        currentPageIndex--;
-        renderPopupPage();
-    });
+    if (!storyPopup || !closeBtn) return;
 
     closeBtn.addEventListener('click', hideStoryPopup);
+    if (xBtn) xBtn.addEventListener('click', hideStoryPopup);
 }
 
 document.addEventListener('DOMContentLoaded', setupPopup);

@@ -182,7 +182,7 @@ function startGame() {
         if (autosaveInterval) return;
         autosaveInterval = setInterval(() => {
             saveGameState();
-        }, 300000);
+        }, 30000); // Autosave every 30 seconds (was 300000 = 5 minutes)
     }
 
     function stopAutosave() {

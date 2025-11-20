@@ -214,7 +214,6 @@ export function setupCrashSiteSection(section) {
         createBuildingButton(bld, buildGroup);
         const btn = buildGroup.querySelector(`.image-button[data-building="${bld.name}"]`);
         if (btn) {
-            const nameSpan = btn.querySelector('.building-name'); if (nameSpan) nameSpan.textContent = bld.name;
             const countSpan = btn.querySelector('.building-count'); if (countSpan) countSpan.textContent = `(${bld.count})`;
         }
     });
