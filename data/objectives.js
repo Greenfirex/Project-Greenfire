@@ -364,7 +364,7 @@ const defs = [
     },
     {
         id: 'obj_investigate_smoke',
-        label: 'Investigate distant smoke',
+        label: 'Beyond the Perimeter',
         start: () => {
             const s1 = status.find(o => o.id === 'obj_improve_base_camp');
             const s2 = status.find(o => o.id === 'obj_hoard_supplies');
@@ -373,11 +373,29 @@ const defs = [
         complete: () => hasCompletedAction('investigateDistantSmoke') && hasCompletedAction('decryptRadioMessage') && hasCompletedAction('checkCaptainsQuarters'),
         reward: [{ resource: 'XP', amount: 80 }],
         priority: 15,
-        steps: () => [
-            { id: 'investigate_smoke', label: 'Investigate distant smoke', done: hasCompletedAction('investigateDistantSmoke') },
-            { id: 'decrypt_message', label: 'Decrypt radio message', done: hasCompletedAction('decryptRadioMessage') },
-            { id: 'check_captains_quarters', label: "Check captain's quarters", done: hasCompletedAction('checkCaptainsQuarters') }
-        ]
+        steps: () => {
+            const investigateDone = hasCompletedAction('investigateDistantSmoke');
+            const decryptUnlocked = !!findAction('decryptRadioMessage')?.isUnlocked;
+            const decryptDone = hasCompletedAction('decryptRadioMessage');
+            const quartersUnlocked = !!findAction('checkCaptainsQuarters')?.isUnlocked;
+            const quartersDone = hasCompletedAction('checkCaptainsQuarters');
+            
+            const steps = [
+                { id: 'investigate_smoke', label: 'Investigate distant smoke', done: investigateDone }
+            ];
+            
+            // Only show decrypt step after its action unlocks
+            if (decryptUnlocked || investigateDone) {
+                steps.push({ id: 'decrypt_message', label: 'Decrypt radio message', done: decryptDone });
+            }
+            
+            // Only show quarters step after its action unlocks
+            if (quartersUnlocked || decryptDone) {
+                steps.push({ id: 'check_captains_quarters', label: "Check captain's quarters", done: quartersDone });
+            }
+            
+            return steps;
+        }
     },
     // New: Chapter II kickoff — Research & Crystal analysis
     {

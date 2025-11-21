@@ -47,7 +47,7 @@ export function updateBuildingButtonsState(immediate = false) {
         const nameEl = button.querySelector('.building-name');
         // Avoid overriding the countdown label while construction is running
         if (nameEl && !button.classList.contains('running')) {
-            const desiredName = `Build ${building.name}`;
+            const desiredName = building.name;
             if (nameEl.textContent !== desiredName) nameEl.textContent = desiredName;
         }
 
@@ -93,7 +93,7 @@ export function createBuildingButton(building, container) {
 
     const nameSpan = document.createElement('span');
     nameSpan.className = 'building-name';
-    nameSpan.textContent = `Build ${building.name}`;
+    nameSpan.textContent = building.name;
     button.appendChild(nameSpan);
 
     // register tooltip with a function so cost is computed on-demand (keeps it up-to-date)
@@ -265,7 +265,7 @@ export function buildBuilding(event, buildingName) {
     if (btn) {
         // set original label and enter running state
         const nameSpan = btn.querySelector('.building-name');
-        if (nameSpan && !btn.dataset.originalLabel) btn.dataset.originalLabel = nameSpan.textContent || `Build ${building.name}`;
+        if (nameSpan && !btn.dataset.originalLabel) btn.dataset.originalLabel = nameSpan.textContent || building.name;
         // reset bar immediately without transition so it doesn't shrink from full
         const bar = btn.querySelector('.action-progress-bar');
         if (bar) {

@@ -3,6 +3,7 @@ import { buildings } from './definitions/buildings.js';
 import { jobs } from './jobsManager.js';
 import { upgradeActions } from './definitions/upgrades.js';
 import { getTotalIngameMinutes } from '../core/time.js';
+import { resources } from '../core/resources.js';
 
 const initialGameFlags = {
     // set true once the salvaged cooking equipment is installed
@@ -254,11 +255,52 @@ registerActionCompletionHandler('checkCaptainsQuarters', () => {
     // Unlock the Encrypted Drive section
     if (typeof window !== 'undefined' && typeof window.enableSection === 'function') {
         window.enableSection('encryptedDriveSection');
+        window.enableSection('colonySection');
     } else {
         window.dispatchEvent(new CustomEvent('requestEnableSection', { detail: { section: 'encryptedDriveSection' } }));
+        window.dispatchEvent(new CustomEvent('requestEnableSection', { detail: { section: 'colonySection' } }));
     }
     // Log a clear menu unlock message for consistency with other sections
     try { addLogEntry('New menu section unlocked: Encrypted Drive', LogType.UNLOCK); } catch (e) { /* ignore */ }
+    try { addLogEntry('New menu section unlocked: Colony', LogType.UNLOCK); } catch (e) { /* ignore */ }
+    
+    // Hide Chapter I-specific resources that are no longer needed
+    try {
+        const obsoleteResources = ['Stamina', 'Crude Prybar', 'Makeshift Explosive'];
+        for (const name of obsoleteResources) {
+            const r = (resources || []).find(res => res && res.name === name);
+            if (r) {
+                r.amount = 0; // Zero out to prevent auto-rediscovery
+                r.isDiscovered = false; // Mark as undiscovered to hide
+            }
+        }
+        
+        // Rename Survivors to Crew Members for Chapter II
+        const survivors = (resources || []).find(res => res && res.name === 'Survivors');
+        if (survivors) {
+            survivors.name = 'Crew Members';
+            // Update the DOM element's displayed name
+            const row = document.querySelector('.info-row[data-resource="Survivors"]');
+            if (row) {
+                row.dataset.resource = 'Crew Members';
+                const nameEl = row.querySelector('.infocolumn1 span');
+                if (nameEl) nameEl.textContent = 'Crew Members';
+            }
+        }
+        
+        // Refresh resource display to hide obsolete resources
+        if (typeof window !== 'undefined' && typeof window.updateResourceInfo === 'function') {
+            window.updateResourceInfo();
+        }
+        
+        // Re-render Crew Management section to update labels for Chapter 2
+        try {
+            const crewSection = document.querySelector('#crewManagementSection');
+            if (crewSection && typeof window !== 'undefined' && typeof window.setupCrewManagementSection === 'function') {
+                window.setupCrewManagementSection(crewSection);
+            }
+        } catch (e) { /* ignore */ }
+    } catch (e) { /* ignore */ }
 });
 
 // Scavenger Kit completion handler

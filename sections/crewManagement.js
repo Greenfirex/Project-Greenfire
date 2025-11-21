@@ -9,13 +9,21 @@ import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
 // Render the Crew Management section (basic info for now)
 export function setupCrewManagementSection(sectionEl) {
     if (!sectionEl) return;
+    
+    // Determine labels based on chapter
+    const isChapter2 = gameFlags.chapter === 2;
+    const crewLabel = isChapter2 ? 'Crew Members' : 'Survivors';
+    const instructionText = isChapter2 
+        ? 'Assign crew members to manage colony operations and resource production.'
+        : 'Assign survivors to job slots unlocked by buildings on the Crash Site.';
+    
     sectionEl.innerHTML = `
         <div class="content-panel">
             <div class="section-inner crew-section">
                 <h2>Crew Management</h2>
                 <div class="crew-summary">
-                    <p>Current survivors: <strong id="crewCount">0</strong></p>
-                    <p class="crew-note">Assign survivors to job slots unlocked by buildings on the Crash Site.</p>
+                    <p>Current ${crewLabel.toLowerCase()}: <strong id="crewCount">0</strong></p>
+                    <p class="crew-note">${instructionText}</p>
                 </div>
                 <div id="crewJobsContainer" class="crew-jobs" style="margin-top:12px;"></div>
             </div>
@@ -50,7 +58,10 @@ export function setupCrewManagementSection(sectionEl) {
 export function updateCrewSection() {
     const countEl = document.getElementById('crewCount');
     if (!countEl) return;
-    const survivors = resources.find(r => r.name === 'Survivors');
+    
+    // Handle both "Survivors" (Chapter 1) and "Crew Members" (Chapter 2)
+    let survivors = resources.find(r => r.name === 'Survivors');
+    if (!survivors) survivors = resources.find(r => r.name === 'Crew Members');
     const survivorsCount = survivors ? Math.max(0, Math.floor(survivors.amount)) : 0;
     countEl.textContent = survivorsCount;
 
@@ -199,13 +210,17 @@ export function updateCrewSection() {
 function incrementJob(jobId) {
     const job = getJobById(jobId);
     if (!job) return;
-    const survivors = resources.find(r => r.name === 'Survivors');
+    
+    // Handle both "Survivors" (Chapter 1) and "Crew Members" (Chapter 2)
+    let survivors = resources.find(r => r.name === 'Survivors');
+    if (!survivors) survivors = resources.find(r => r.name === 'Crew Members');
     const survivorsCount = survivors ? Math.max(0, Math.floor(survivors.amount)) : 0;
     const totalAssigned = jobs.reduce((sum, j) => sum + (j.assigned || 0), 0);
     const idle = Math.max(0, survivorsCount - totalAssigned);
 
     if (idle <= 0) {
-        addLogEntry('No available survivors to assign.', LogType.ERROR);
+        const label = survivors?.name === 'Crew Members' ? 'crew members' : 'survivors';
+        addLogEntry(`No available ${label} to assign.`, LogType.ERROR);
         return;
     }
     if (!(job.unlimited === true) && (typeof job.slots === 'number') && ((job.assigned || 0) >= (job.slots || 0))) {
@@ -214,7 +229,8 @@ function incrementJob(jobId) {
     }
 
     job.assigned = (job.assigned || 0) + 1;
-    addLogEntry(`Assigned 1 survivor to ${job.name}.`, LogType.INFO);
+    const label = survivors?.name === 'Crew Members' ? 'crew member' : 'survivor';
+    addLogEntry(`Assigned 1 ${label} to ${job.name}.`, LogType.INFO);
     updateCrewSection();
     try { refreshCurrentTooltip(); } catch (e) { /* ignore */ }
 }
@@ -224,7 +240,12 @@ function decrementJob(jobId) {
     if (!job) return;
     if ((job.assigned || 0) <= 0) return;
     job.assigned = Math.max(0, (job.assigned || 0) - 1);
-    addLogEntry(`Removed 1 survivor from ${job.name}.`, LogType.INFO);
+    
+    // Determine label based on current resource name
+    let survivors = resources.find(r => r.name === 'Survivors');
+    if (!survivors) survivors = resources.find(r => r.name === 'Crew Members');
+    const label = survivors?.name === 'Crew Members' ? 'crew member' : 'survivor';
+    addLogEntry(`Removed 1 ${label} from ${job.name}.`, LogType.INFO);
     updateCrewSection();
     try { refreshCurrentTooltip(); } catch (e) { /* ignore */ }
 }

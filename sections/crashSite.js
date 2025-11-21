@@ -540,9 +540,10 @@ function handleActionCompletion(section) {
         try { outcome.unlocks.sections.push('Crew Management'); } catch (e) { /* ignore */ }
     }
 
-    // If the captain's quarters has been checked, surface the new section in the popup outcome
+    // If the captain's quarters has been checked, surface the new sections in the popup outcome
     if (original && original.id === 'checkCaptainsQuarters') {
         try { outcome.unlocks.sections.push('Encrypted Drive'); } catch (e) { /* ignore */ }
+        try { outcome.unlocks.sections.push('Colony'); } catch (e) { /* ignore */ }
     }
 
     // Track whether unlocks require a full UI rebuild

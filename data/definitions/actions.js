@@ -24,7 +24,7 @@ export const salvageActions = [
         },
             {
             id: 'attemptReentry',
-            name: 'Attempt Re-entry',
+            name: 'Go back inside',
             description: 'Try to force a way back into the forward hull to look for survivors or salvage. Risk of collapse and fire.',
             duration: 1,
             category: 'Exploration',
@@ -269,7 +269,9 @@ export const salvageActions = [
             isUnlocked: false,
             cancelable: true,
             drain: [
-                { resource: 'Stamina', amount: 40 }
+                { resource: 'Stamina', amount: 40 },
+                { resource: 'Food Rations', amount: 15 },
+                { resource: 'Clean Water', amount: 19 }
             ],
             reward: [],
             hideRewardPreview: true,
@@ -428,11 +430,6 @@ export const salvageActions = [
             category: 'Exploration',
             isUnlocked: false,
             cancelable: true,
-            drain: [
-                { resource: 'Stamina', amount: 20 },
-                { resource: 'Food Rations', amount: 25 },
-                { resource: 'Clean Water', amount: 25 },
-            ],
             // no top-level reward; success is handled by completing stage 2
             stage: 0,
             stages: [
@@ -442,7 +439,12 @@ export const salvageActions = [
                     unlocks: [],
                     description: 'Follow the corridor to the ship\'s power core. The access is heavily reinforced — brute force alone might not be enough.',
                     logText: 'You reach a set of reinforced, locked doors protecting the power core. You try levering them with crude tools but the doors hold. With the ship without power, there is nothing to release the lockmechanism. (Click to read)',
-                    suppressGenericLog: true
+                    suppressGenericLog: true,
+                    drain: [
+                        { resource: 'Stamina', amount: 20 },
+                        { resource: 'Food Rations', amount: 25 },
+                        { resource: 'Clean Water', amount: 25 },
+            ],
                 },
                 {
                     // second attempt: requires and consumes a makeshift explosive to blast the lock
@@ -681,7 +683,7 @@ export const salvageActions = [
                 isUnlocked: false,
                 cancelable: true,
                 hideRewardPreview: true,
-                tooltipUnlocks: ['encryptedDriveSection'],
+                tooltipUnlocks: ['encryptedDriveSection', 'colonySection'],
                 drain: [
                     { resource: 'Stamina', amount: 25 },
                     { resource: 'Clean Water', amount: 7 },

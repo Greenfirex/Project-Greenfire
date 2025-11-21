@@ -14,15 +14,15 @@ export function getInitialResources() {
         // Meta progression resource (hidden from info panel)
         { name: 'XP', amount: 0, isDiscovered: true, capacity: 9000000000, producible: false, integer: true, hidden: true },
         { name: 'Survivors', amount: 0, isDiscovered: false, capacity: 20, producible: false, integer: true },
-    { name: 'Food Rations', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.04 },
-    { name: 'Clean Water', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.06 },
+        { name: 'Food Rations', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.04 },
+        { name: 'Clean Water', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.06 },
         { name: 'Scrap Metal', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
+        { name: 'Wire', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
         { name: 'Crude Prybar', amount: 0, isDiscovered: false, capacity: 5, producible: false, integer: true },
         { name: 'Fabric', amount: 0, isDiscovered: false, capacity: 100, producible: false, integer: true },
         { name: 'Chemicals', amount: 0, isDiscovered: false, capacity: 50, producible: false, integer: true },
         { name: 'Makeshift Explosive', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true },
         { name: 'Power Cells', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true },
-        { name: 'Wire', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
         { name: 'Insight', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
         { name: 'Stone', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
         { name: 'Xylite', amount: 0, isDiscovered: false, capacity: 50, producible: true, integer: false },
@@ -228,6 +228,35 @@ export function setupInfoPanel() {
         // register the row with the shared tooltip system.
         setupTooltip(infoRow, () => {
             const resourceName = infoRow.dataset.resource;
+            
+            // Special tooltip for Survivors/Crew Members showing job assignments
+            if (resourceName === 'Survivors' || resourceName === 'Crew Members') {
+                const currentResource = resources.find(r => r.name === resourceName);
+                const total = currentResource ? Math.floor(currentResource.amount) : 0;
+                const totalAssigned = jobs.reduce((sum, j) => sum + (j.assigned || 0), 0);
+                const idle = Math.max(0, total - totalAssigned);
+                
+                const jobsList = [];
+                // Always show Idle first
+                jobsList.push(`<li class="bonus-item">Idle: ${idle}</li>`);
+                
+                jobs.filter(j => j.assigned > 0).forEach(j => {
+                    jobsList.push(`<li class="bonus-item">${j.name}: ${j.assigned}</li>`);
+                });
+                
+                const jobsSection = jobsList.length
+                    ? `<div class="tooltip-section"><h4>Job Assignments</h4><ul class="tooltip-bonuses">${jobsList.join('')}</ul></div>`
+                    : '<div class="tooltip-section"><p class="tooltip-detail">No jobs assigned</p></div>';
+                
+                return `
+                    <h4>${resourceName}</h4>
+                    <p>Total: <strong>${total}</strong></p>
+                    <p>Assigned: <strong>${totalAssigned}</strong></p>
+                    ${jobsSection}
+                `;
+            }
+            
+            // Standard resource tooltip
             const rates = computeResourceRates(resourceName);
             if (!rates) return `<h4>${resourceName}</h4><p>No data available.</p>`;
 
@@ -324,8 +353,8 @@ export function updateResourceInfo() {
         const amountDisplay = resource.integer ? Math.floor(resource.amount).toLocaleString() : formatNumber(resource.amount);
         const capacityDisplay = Math.floor(resource.capacity).toLocaleString();
 
-        if (resource.name === 'Survivors') {
-            // Survivors: show only the count (no capacity), and hide generation
+        if (resource.name === 'Survivors' || resource.name === 'Crew Members') {
+            // Survivors/Crew Members: show only the count (no capacity), and hide generation
             storageEl.textContent = `${amountDisplay}`;
             if (generationEl) generationEl.textContent = '';
         } else {
@@ -363,8 +392,8 @@ export function updateResourceInfo() {
         }
 
         const progressBar = infoRow.querySelector('.resource-progress-bar');
-        if (resource.name === 'Survivors') {
-            // Survivors: keep bar visually full for emphasis of population band
+        if (resource.name === 'Survivors' || resource.name === 'Crew Members') {
+            // Survivors/Crew Members: keep bar visually full for emphasis of population band
             progressBar.style.width = '100%';
         } else {
             progressBar.style.width = `${Math.min((resource.amount / resource.capacity) * 100, 100)}%`;

@@ -395,6 +395,7 @@ export function enableSection(sectionId) {
 // Reuse existing unlock path from anywhere (e.g., action handlers)
 if (typeof window !== 'undefined') {
     window.enableSection = enableSection;
+    window.setupCrewManagementSection = setupCrewManagementSection;
 }
 
 // small helper to humanize the key (optional)
