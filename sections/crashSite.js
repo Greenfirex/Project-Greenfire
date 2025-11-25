@@ -200,28 +200,32 @@ export function setupCrashSiteSection(section) {
         actionsContainer.appendChild(group);
     });
 
-    const constructionWrapper = document.createElement('div');
-    constructionWrapper.style.marginTop = '18px';
-    const ch = document.createElement('h3');
-    ch.textContent = 'Construction';
-    constructionWrapper.appendChild(ch);
+    // Only show Construction section if Colony section is not unlocked
+    const colonyUnlocked = gameFlags.colonySection === true;
+    if (!colonyUnlocked) {
+        const constructionWrapper = document.createElement('div');
+        constructionWrapper.style.marginTop = '18px';
+        const ch = document.createElement('h3');
+        ch.textContent = 'Construction';
+        constructionWrapper.appendChild(ch);
 
-    const buildGroup = document.createElement('div');
-    buildGroup.className = 'button-group';
-    const siteBuildings = buildings.filter(b => SITE_BUILDING_NAMES.includes(b.name) && b.isUnlocked === true);
+        const buildGroup = document.createElement('div');
+        buildGroup.className = 'button-group';
+        const siteBuildings = buildings.filter(b => SITE_BUILDING_NAMES.includes(b.name) && b.isUnlocked === true);
 
-    siteBuildings.forEach(bld => {
-        createBuildingButton(bld, buildGroup);
-        const btn = buildGroup.querySelector(`.image-button[data-building="${bld.name}"]`);
-        if (btn) {
-            const countSpan = btn.querySelector('.building-count'); if (countSpan) countSpan.textContent = `(${bld.count})`;
+        siteBuildings.forEach(bld => {
+            createBuildingButton(bld, buildGroup);
+            const btn = buildGroup.querySelector(`.image-button[data-building="${bld.name}"]`);
+            if (btn) {
+                const countSpan = btn.querySelector('.building-count'); if (countSpan) countSpan.textContent = `(${bld.count})`;
+            }
+        });
+
+        if (buildGroup.children.length > 0) {
+            if (typeof updateBuildingButtonsState === 'function') updateBuildingButtonsState();
+            constructionWrapper.appendChild(buildGroup);
+            actionsContainer.appendChild(constructionWrapper);
         }
-    });
-
-    if (buildGroup.children.length > 0) {
-        if (typeof updateBuildingButtonsState === 'function') updateBuildingButtonsState();
-        constructionWrapper.appendChild(buildGroup);
-        actionsContainer.appendChild(constructionWrapper);
     }
 
      const upgradeActions = availableActions.filter(a => a.category === 'Upgrade');

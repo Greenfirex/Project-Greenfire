@@ -71,14 +71,14 @@ function renderPopupPage() {
                 const blocks = [];
                 const comp = Array.isArray(activeOutcome.objectives.completed) ? activeOutcome.objectives.completed : [];
                 const nexts = Array.isArray(activeOutcome.objectives.newlyActive) ? activeOutcome.objectives.newlyActive : [];
-                // Prefer showing New Objective first, then Completed, to guide next actions
-                if (nexts.length) {
-                    const items = nexts.map(d => `<li>${d.label}</li>`).join('');
-                    blocks.push(`<div class="outcome-objectives-new"><h4>New Objective</h4><ul>${items}</ul></div>`);
-                }
+                // Show Objective Completed first, then New Objective
                 if (comp.length) {
                     const items = comp.map(d => `<li class="completed-objective-item">${d.label}</li>`).join('');
                     blocks.push(`<div class="outcome-objectives-completed"><h4>Objective Completed</h4><ul>${items}</ul></div>`);
+                }
+                if (nexts.length) {
+                    const items = nexts.map(d => `<li>${d.label}</li>`).join('');
+                    blocks.push(`<div class="outcome-objectives-new"><h4>New Objective</h4><ul>${items}</ul></div>`);
                 }
                 parts.push(`<div class="outcome-objectives">${blocks.join('')}</div>`);
             }

@@ -314,7 +314,7 @@ function buildTooltipHTML(data) {
         } catch (e) { /* ignore block check errors */ }
 
         // Costs / drains — use the shared renderer so ETA/affordability is consistent
-        const costHtml = (renderCostItems(data.cost) || '') + (renderCostItems(data.drain, { showTotal: true }) || '');
+        const costHtml = (renderCostItems(data.cost) || '') + (renderCostItems(data.drain) || '');
         if (costHtml) html += `<div class="tooltip-section"><h4>Cost</h4>${costHtml}</div>`;
 
         // If this item/job produces a resource, show any active upgrade modifiers and Morale that affect

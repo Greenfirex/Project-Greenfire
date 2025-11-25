@@ -1,5 +1,5 @@
 // Duplicate leading block removed during automated rename of resource 'Energy' -> 'Stamina'.
-export const salvageActions = [
+const initialSalvageActions = [
     {
             id: 'scoutSurroundings',
             name: 'Scout Surroundings',
@@ -726,3 +726,16 @@ export const salvageActions = [
                 ]
             },
         ];
+
+// Live actions that will be mutated during gameplay
+export let salvageActions = JSON.parse(JSON.stringify(initialSalvageActions));
+
+export function getInitialSalvageActions() {
+    return JSON.parse(JSON.stringify(initialSalvageActions));
+}
+
+export function resetSalvageActions() {
+    salvageActions.length = 0;
+    salvageActions.push(...JSON.parse(JSON.stringify(initialSalvageActions)));
+    console.log("Salvage actions have been reset.");
+}

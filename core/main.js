@@ -251,7 +251,7 @@ export function setActivatedSections(sections) {
 export let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || getInitialActivatedSections();
 
 function setupMenuButtons() {
-    const sections = ['crashSiteSection', 'crewManagementSection', 'journalSection', 'colonySection', 'researchSection', 'manufacturingSection', 'shipyardSection', 'galaxyMapSection', 'encryptedDriveSection'];
+    const sections = ['crashSiteSection', 'colonySection', 'crewManagementSection', 'manufacturingSection', 'shipyardSection', 'researchSection', 'galaxyMapSection', 'encryptedDriveSection', 'journalSection'];
     const container = document.querySelector('.menu-buttons-container');
     container.innerHTML = '';
     sections.forEach(section => {
@@ -385,7 +385,7 @@ export function enableSection(sectionId) {
         if (activatedSections[sectionId]) return;
         activatedSections[sectionId] = true;
         try { setActivatedSections(activatedSections); } catch (e) { /* ignore */ }
-        addLogEntry(`New menu section activated: ${formatSectionName(sectionId) || sectionId}`, LogType.UNLOCK);
+        // Removed "New menu section activated" log message
         try { applyActivatedSections(); } catch (e) { /* ignore */ }
     } catch (e) {
         console.warn('enableSection failed', e);
@@ -396,6 +396,10 @@ export function enableSection(sectionId) {
 if (typeof window !== 'undefined') {
     window.enableSection = enableSection;
     window.setupCrewManagementSection = setupCrewManagementSection;
+    window.activatedSections = activatedSections;
+    window.setActivatedSections = setActivatedSections;
+    window.applyActivatedSections = applyActivatedSections;
+    window.showSection = showSection;
 }
 
 // small helper to humanize the key (optional)

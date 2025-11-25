@@ -1,18 +1,61 @@
 /* encryptedDrive.css */
 
-.encrypted-drive-content {
-    max-width: 900px;
-    margin: 6px auto 0 auto;
-    padding: 8px 10px 16px 10px;
+#encryptedDriveSection {
+    background-image: url('../../assets/images/encrypted-background.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    display: flex;
+    align-items: flex-start;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
-/* Panel inspired by Objectives styling */
+/* Make content-panel semi-transparent to show background through */
+#encryptedDriveSection .content-panel {
+    background-color: rgba(6, 6, 6, 0.89);
+    padding: 20px;
+}
+
+/* Section header styling matching crew management */
+.encrypted-section h2 {
+    margin: 0 0 10px 0;
+    font-size: 24px;
+    color: #90EE90;
+    font-weight: 600;
+}
+
+.drive-summary {
+    margin-bottom: 20px;
+}
+
+.drive-summary p {
+    margin: 0;
+    color: #d6d6d6;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.drive-note {
+    color: #cfcfcf;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* .content-panel and shared UI styles have been moved to styles/base/game-area.css */
+
+.encrypted-drive-content {
+    width: 100%;
+}
+
+/* Panel inspired by Objectives styling - transparent to show background */
 .drive-panel {
     position: relative;
-    background: #000;
+    background: transparent;
     border: 0;
     border-radius: 8px;
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.12);
+    /* subtle outline similar to Objectives */
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.12), inset 0 1px 0 rgba(255,255,255,0.02);
     overflow: hidden;
 }
 
@@ -33,60 +76,211 @@
 .drive-panel::after { bottom: 0; }
 
 .drive-panel .panel-header {
-    padding: 12px 14px;
+    padding: 10px 14px;
     color: #90EE90;
     text-align: center;
-    border-bottom: 1px solid rgba(255,255,255,0.12);
+    border-bottom: 2px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
-.drive-actions {
-    padding: 12px;
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 10px;
+/* Section headers for UNLOCKED and LOCKED */
+.drive-section-header {
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #90EE90;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08);
+    border-bottom: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-g), 0.25);
 }
 
-.drive-action {
-    background: rgba(0,0,0,0.6);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 6px;
+.drive-section-header.active-header {
+    color: #90EE90;
+}
+
+.drive-section-header.locked-header {
+    color: #90EE90;
+}
+
+.drive-layout {
+    display: flex;
+    gap: 16px;
+    min-height: 300px;
+}
+
+/* Left panel: task list */
+.drive-task-list {
+    width: 35%;
+    min-width: 250px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-right: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.25);
+    padding-right: 8px;
+}
+
+.drive-task-item {
     padding: 10px 12px;
-}
-
-.drive-action-main {
+    margin-bottom: 2px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
 }
 
-.drive-action-title {
-    color: #d6e3d6;
-    font-weight: 600;
+.task-item-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
 }
 
-.drive-action .menu-button.start-task {
-    min-width: 120px;
+.drive-task-item:hover {
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.1);
+    border-left-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.4);
 }
-.drive-action .menu-button.start-task.unaffordable {
-    filter: grayscale(0.7);
+
+.drive-task-item.selected {
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.15);
+    border-left-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7);
+}
+
+.drive-task-item.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.lock-icon-small {
+    font-size: 12px;
     opacity: 0.7;
 }
 
-.drive-action-sub {
-    margin-top: 6px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    color: #c9d7c9;
+.task-item-name {
+    color: #d6e3d6;
+    font-size: 13px;
 }
-.drive-action-sub .label {
-    color: #9dd89d;
-    margin-right: 6px;
+
+.drive-task-item .drive-action-button {
+    padding: 4px 12px;
+    font-size: 11px;
+}
+
+/* Right panel: task details */
+.drive-details-panel {
+    flex: 1;
+    padding: 12px 16px;
+    overflow-y: auto;
+}
+
+.drive-details-empty {
+    color: #999;
+    text-align: center;
+    padding: 40px 20px;
+    font-style: italic;
+}
+
+.drive-task-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.drive-action-controls {
+    margin-top: 8px;
+}
+
+/* Scrollbar styling for task list */
+.drive-task-list::-webkit-scrollbar {
+    width: 10px;
+}
+.drive-task-list::-webkit-scrollbar-track {
+    background: #000;
+}
+.drive-task-list::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+    border-radius: 5px;
+    border: 2px solid #000;
+}
+.drive-task-list::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
+}
+
+.status-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 3px;
+    display: inline-block;
+    width: fit-content;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.status-badge.in-progress {
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.2);
+    color: #90EE90;
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.4);
+}
+
+.status-badge.completed {
+    background: rgba(255, 217, 138, 0.15);
+    color: #ffd98a;
+    border: 1px solid rgba(255, 217, 138, 0.4);
+}
+
+.drive-description {
+    color: #d6e3d6;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0;
+    display: block;
+    opacity: 1;
+}
+
+.drive-action.locked { opacity: 0.65; }
+.drive-action.locked .drive-action-button { color: #ccc; }
+
+.drive-action-button {
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.15);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.4);
+    color: #90EE90;
+    padding: 6px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.drive-action-button:hover {
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.25);
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.6);
+    box-shadow: 0 0 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.3);
+}
+
+.drive-action-button:disabled,
+.drive-action-button.unaffordable {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: grayscale(0.7);
+}
+
+.drive-action-button:disabled:hover,
+.drive-action-button.unaffordable:hover {
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.15);
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.4);
+    box-shadow: none;
 }
 
 .drive-progress {
-    margin-top: 10px;
     height: 8px;
     background: rgba(255,255,255,0.1);
     border-radius: 6px;
@@ -100,6 +294,29 @@
       rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9) 100%);
     transition: width 240ms ease;
 }
+
+.drive-reward-display {
+    background: linear-gradient(90deg, rgba(255, 217, 138, 0.15), rgba(255, 217, 138, 0.08) 50%, rgba(255, 217, 138, 0.15));
+    border-left: 3px solid rgba(255, 217, 138, 0.6);
+    padding: 6px 10px;
+    border-radius: 4px;
+    color: #ffd98a;
+    font-size: 13px;
+    box-shadow: 0 0 8px rgba(255, 217, 138, 0.15);
+}
+
+.drive-cost-display {
+    color: #c9d7c9;
+    font-size: 13px;
+    padding: 6px 10px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+    border-left: 2px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.3);
+}
+
+/* Sequential lock state */
+.drive-action.locked { opacity: 0.65; }
+.drive-action.locked .drive-action-button { color: #ccc; }
 
 @media (max-width: 700px) {
     .drive-action-sub { grid-template-columns: 1fr; }

@@ -497,7 +497,11 @@ export function recomputeObjectives() {
                     // If base camp already complete and smoke sighting not yet shown, trigger distant smoke
                     const upgradeIds = ['installForagingTools', 'lightCampfire', 'installScavengerKit', 'salvageCookingEquipment', 'makeTents', 'insulateShelters', 'installRainCatchers', 'installPurificationUnit'];
                     const baseCampComplete = upgradeIds.every(id => hasCompletedAction(id));
-                    if (baseCampComplete && !gameFlags.smokeSightingShown) {
+                    // Only unlock smoke if at least one base camp upgrade is actually completed
+                    const hasAnyUpgrade = upgradeIds.some(id => hasCompletedAction(id));
+                    // Additional safety: check if player has progressed beyond initial game state
+                    const hasProgressedBeyondStart = hasCompletedAction('attemptReentry') && hasCompletedAction('scoutSurroundings');
+                    if (baseCampComplete && !gameFlags.smokeSightingShown && hasAnyUpgrade && hasProgressedBeyondStart) {
                         try {
                             const evt = storyEvents.stockpile_complete_smoke_sighting;
                             if (evt && typeof showStoryPopup === 'function') {
@@ -536,7 +540,12 @@ export function recomputeObjectives() {
                         getResourceAmount('Fabric') >= 20 &&
                         getResourceAmount('Chemicals') >= 20 &&
                         getResourceAmount('Wire') >= 100;
-                    if (stockpileComplete && !gameFlags.smokeSightingShown) {
+                    // Only unlock smoke if at least one base camp upgrade is actually completed
+                    const upgradeIds = ['installForagingTools', 'lightCampfire', 'installScavengerKit', 'salvageCookingEquipment', 'makeTents', 'insulateShelters', 'installRainCatchers', 'installPurificationUnit'];
+                    const hasAnyUpgrade = upgradeIds.some(id => hasCompletedAction(id));
+                    // Additional safety: check if player has progressed beyond initial game state
+                    const hasProgressedBeyondStart = hasCompletedAction('attemptReentry') && hasCompletedAction('scoutSurroundings');
+                    if (stockpileComplete && !gameFlags.smokeSightingShown && hasAnyUpgrade && hasProgressedBeyondStart) {
                         try {
                             const evt = storyEvents.stockpile_complete_smoke_sighting;
                             if (evt && typeof showStoryPopup === 'function') {

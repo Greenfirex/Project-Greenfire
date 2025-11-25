@@ -1,4 +1,4 @@
-export const upgradeActions = [
+const initialUpgradeActions = [
     {
         id: 'installForagingTools',
         name: 'Crude Foraging Tools',
@@ -354,3 +354,16 @@ export const upgradeActions = [
         ]
     }
 ];
+
+// Live actions that will be mutated during gameplay
+export let upgradeActions = JSON.parse(JSON.stringify(initialUpgradeActions));
+
+export function getInitialUpgradeActions() {
+    return JSON.parse(JSON.stringify(initialUpgradeActions));
+}
+
+export function resetUpgradeActions() {
+    upgradeActions.length = 0;
+    upgradeActions.push(...JSON.parse(JSON.stringify(initialUpgradeActions)));
+    console.log("Upgrade actions have been reset.");
+}

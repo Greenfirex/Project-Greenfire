@@ -6,7 +6,8 @@ import { activatedSections, setActivatedSections, getInitialActivatedSections } 
 import { showStoryPopup } from '../ui/panels/popup.js';
 import { resetIngameTime, getTotalIngameMinutes, setTotalIngameMinutes } from './time.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
-import { allActions as salvageActions } from '../data/definitions/allActions.js';
+import { salvageActions, resetSalvageActions } from '../data/definitions/actions.js';
+import { upgradeActions, resetUpgradeActions } from '../data/definitions/upgrades.js';
 import { jobs, resetJobs } from '../data/jobsManager.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { gameFlags, resetGameFlags, applySavedGameFlags } from '../data/gameFlags.js';
@@ -15,6 +16,7 @@ import { resetObjectives, recomputeObjectives, getObjectivesStatus, setObjective
 import { resetActiveActions, getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/activeActions.js';
 import { resetMoraleModifiers, listMoraleModifiers, setMoraleModifier } from '../data/morale.js';
 import { resetWeather } from '../data/weather.js';
+import { driveTasks, resetDriveTasks } from '../data/definitions/encryptedDriveTasks.js';
 
 export function saveGameState() {
     const gameState = getGameState();
@@ -33,6 +35,7 @@ export function getGameState() {
         activatedSections,
         buildings,
         salvageActions,
+        upgradeActions,
         gameFlags: { ...gameFlags },
         storyLog: Array.isArray(storyLog) ? storyLog : getInitialStoryLog(),
         ingameTimeMinutes: getTotalIngameMinutes(),
@@ -40,6 +43,7 @@ export function getGameState() {
         paused: localStorage.getItem('gamePaused') === 'true',
         activeCrashSiteAction: getActiveCrashSiteAction(),
         moraleModifiers: listMoraleModifiers(),
+        driveTasks,
         // Persist narrative objectives alongside the main save so they don't drift
         objectivesStatus: (function(){ try { return getObjectivesStatus(); } catch { return []; } })()
     };
@@ -113,6 +117,23 @@ export function applyGameState(gameState) {
         });
     }
 
+    if (gameState.upgradeActions) {
+        // Restore runtime-mutating fields for upgrade actions
+        const RUNTIME_ACTION_KEYS = new Set([
+            'isUnlocked', 'stage', 'uses', 'maxUses', 'completed',
+            'startTime', 'lastTickTime', 'pauseStart'
+        ]);
+        upgradeActions.forEach(defaultAction => {
+            const savedAction = gameState.upgradeActions.find(a => a.id === defaultAction.id);
+            if (!savedAction) return;
+            for (const k of RUNTIME_ACTION_KEYS) {
+                if (Object.prototype.hasOwnProperty.call(savedAction, k)) {
+                    defaultAction[k] = savedAction[k];
+                }
+            }
+        });
+    }
+
     if (gameState.jobs) {
         jobs.forEach(job => {
             const savedJob = gameState.jobs.find(j => j.id === job.id || j.name === job.name);
@@ -172,6 +193,22 @@ export function applyGameState(gameState) {
         });
     }
 
+    // Restore encrypted drive tasks
+    if (Array.isArray(gameState.driveTasks)) {
+        const RUNTIME_TASK_KEYS = new Set([
+            'running', 'progress', 'completed', '_timer', '_startAt'
+        ]);
+        driveTasks.forEach(defaultTask => {
+            const savedTask = gameState.driveTasks.find(t => t.id === defaultTask.id);
+            if (!savedTask) return;
+            for (const k of RUNTIME_TASK_KEYS) {
+                if (Object.prototype.hasOwnProperty.call(savedTask, k)) {
+                    defaultTask[k] = savedTask[k];
+                }
+            }
+        });
+    }
+
     // Resume ongoing research if present
     const techName = getCurrentResearchingTech();
     if (techName) {
@@ -226,12 +263,15 @@ export function resetToDefaultState() {
     resetResources();
     resetBuildings();
     resetTechnologies();
+    resetSalvageActions();
+    resetUpgradeActions();
     resetGameFlags();
     resetStoryLog();
     resetJobs();
     resetActiveActions();
     resetMoraleModifiers();
     resetWeather();
+    resetDriveTasks();
     
     // PRIORITY 2: Reset research state
     clearInterval(getResearchInterval());

@@ -252,14 +252,35 @@ registerActionCompletionHandler('restoreEmergencyPower', () => {
 // Check captain's quarters handler - unlock encrypted drive section
 registerActionCompletionHandler('checkCaptainsQuarters', () => {
     gameFlags.chapter = 2;
-    // Unlock the Encrypted Drive section
-    if (typeof window !== 'undefined' && typeof window.enableSection === 'function') {
-        window.enableSection('encryptedDriveSection');
-        window.enableSection('colonySection');
-    } else {
-        window.dispatchEvent(new CustomEvent('requestEnableSection', { detail: { section: 'encryptedDriveSection' } }));
-        window.dispatchEvent(new CustomEvent('requestEnableSection', { detail: { section: 'colonySection' } }));
+    
+    // Hide Crash Site section and show Colony/Encrypted Drive sections
+    if (typeof window !== 'undefined') {
+        // Disable Crash Site
+        if (window.activatedSections) {
+            window.activatedSections.crashSiteSection = false;
+            // Persist the change
+            if (typeof window.setActivatedSections === 'function') {
+                window.setActivatedSections(window.activatedSections);
+            }
+        }
+        
+        // Enable new sections
+        if (typeof window.enableSection === 'function') {
+            window.enableSection('encryptedDriveSection');
+            window.enableSection('colonySection');
+        }
+        
+        // Update menu buttons visibility
+        if (typeof window.applyActivatedSections === 'function') {
+            window.applyActivatedSections();
+        }
+        
+        // Switch to Colony section as the active section
+        if (typeof window.showSection === 'function') {
+            window.showSection('colonySection');
+        }
     }
+    
     // Log a clear menu unlock message for consistency with other sections
     try { addLogEntry('New menu section unlocked: Encrypted Drive', LogType.UNLOCK); } catch (e) { /* ignore */ }
     try { addLogEntry('New menu section unlocked: Colony', LogType.UNLOCK); } catch (e) { /* ignore */ }

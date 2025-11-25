@@ -328,7 +328,12 @@ export function updateResourceInfo() {
         if (!infoRow) return;
 
         // reveal any resource that has a positive amount
-        if (resource.amount > 0 && !resource.isDiscovered) {
+        // BUT prevent auto-discovery of Chapter 1-only resources in Chapter 2
+        const chapter1OnlyResources = ['Stamina', 'Crude Prybar', 'Makeshift Explosive'];
+        const isChapter2 = gameFlags.chapter === 2;
+        const shouldPreventDiscovery = isChapter2 && chapter1OnlyResources.includes(resource.name);
+        
+        if (resource.amount > 0 && !resource.isDiscovered && !shouldPreventDiscovery) {
             resource.isDiscovered = true;
             // notify other systems that a resource was discovered (e.g. colony can unlock upgrades)
             if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {

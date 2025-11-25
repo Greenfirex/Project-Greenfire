@@ -240,6 +240,14 @@
     font-style: italic; 
 }
 
+/* Gold background for Objective Completed section */
+.popup-outcome .outcome-objectives-completed h4 {
+    background: linear-gradient(90deg, rgba(255, 217, 138, 0.15), rgba(255, 217, 138, 0.08) 50%, rgba(255, 217, 138, 0.15));
+    border-left: 3px solid rgba(255, 217, 138, 0.6);
+    color: #ffd98a;
+    box-shadow: 0 0 8px rgba(255, 217, 138, 0.15);
+}
+
 /* Responsive: adjust sizing on narrow screens */
 @media (max-width: 900px) {
     .story-popup-content {

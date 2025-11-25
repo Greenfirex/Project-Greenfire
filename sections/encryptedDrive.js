@@ -2,86 +2,8 @@
 import { resources } from '../core/resources.js';
 import { formatNumber } from '../core/formatting.js';
 import { addLogEntry, LogType } from '../core/ingameLog.js';
-
-// Local task state (first iteration: not persisted)
-const driveTasks = [
-    {
-        id: 'extract_key_material',
-        name: 'Extract Key Material',
-        duration: 20,
-        cost: [
-            { resource: 'Scrap Metal', amount: 20 },
-            { resource: 'Wire', amount: 15 }
-        ],
-        xp: 50,
-        running: false,
-        progress: 0,
-        completed: false,
-        _timer: null,
-        _startAt: 0
-    },
-    {
-        id: 'build_cipher_dictionary',
-        name: 'Build Cipher Dictionary',
-        duration: 25,
-        cost: [
-            { resource: 'Fabric', amount: 5 },
-            { resource: 'Chemicals', amount: 5 },
-            { resource: 'Wire', amount: 10 }
-        ],
-        xp: 70,
-        running: false,
-        progress: 0,
-        completed: false,
-        _timer: null,
-        _startAt: 0
-    },
-    {
-        id: 'pattern_analysis',
-        name: 'Pattern Analysis',
-        duration: 30,
-        cost: [
-            { resource: 'Scrap Metal', amount: 15 },
-            { resource: 'Chemicals', amount: 8 }
-        ],
-        xp: 80,
-        running: false,
-        progress: 0,
-        completed: false,
-        _timer: null,
-        _startAt: 0
-    },
-    {
-        id: 'signal_reconstruction',
-        name: 'Signal Reconstruction',
-        duration: 40,
-        cost: [
-            { resource: 'Wire', amount: 25 },
-            { resource: 'Scrap Metal', amount: 30 }
-        ],
-        xp: 100,
-        running: false,
-        progress: 0,
-        completed: false,
-        _timer: null,
-        _startAt: 0
-    },
-    {
-        id: 'final_decryption_attempt',
-        name: 'Final Decryption Attempt',
-        duration: 60,
-        cost: [
-            { resource: 'Power Cells', amount: 1 },
-            { resource: 'Wire', amount: 50 }
-        ],
-        xp: 150,
-        running: false,
-        progress: 0,
-        completed: false,
-        _timer: null,
-        _startAt: 0
-    }
-];
+import { setupTooltip } from '../ui/panels/tooltip.js';
+import { driveTasks } from '../data/definitions/encryptedDriveTasks.js';
 
 function getResourceByName(name) {
     return (resources || []).find(r => r && r.name === name);
@@ -128,42 +50,116 @@ function updateHeaderResources() {
     } catch {}
 }
 
-function renderTaskRow(task) {
-    const costText = (task.cost || []).map(c => `${formatNumber(c.amount)} ${c.resource}`).join(', ');
-    const buttonLabel = task.completed ? 'Completed' : (task.running ? 'In Progress…' : 'Start');
-    const disabled = task.completed || task.running;
-    const affordable = canAfford(task.cost);
-    const shortfall = affordable ? '' : getShortfalls(task.cost).join(', ');
+// Track selected task for detail view
+let selectedTaskId = null;
+
+function renderTaskListItem(task) {
+    const idx = driveTasks.findIndex(t => t && t.id === task.id);
+    const prev = idx > 0 ? driveTasks[idx - 1] : null;
+    const isLocked = !!(prev && !prev.completed);
+    const isSelected = selectedTaskId === task.id;
+    const disabled = task.completed || task.running || isLocked;
+    const affordable = !isLocked && canAfford(task.cost);
     const affordClass = affordable ? '' : 'unaffordable';
+    const buttonText = task.running ? 'In Progress…' : task.completed ? 'Completed' : (isLocked ? 'Locked' : 'Start');
 
     return `
-        <div class="drive-action" data-task-id="${task.id}">
-            <div class="drive-action-main">
-                <div class="drive-action-title">${task.name}</div>
-                <button class="menu-button start-task ${affordClass}" ${disabled ? 'disabled' : ''} ${!affordable && !disabled ? 'aria-disabled="true"' : ''} ${shortfall ? `data-shortfall="${shortfall}"` : ''}>${buttonLabel}</button>
+        <div class="drive-task-item ${isSelected ? 'selected' : ''} ${isLocked ? 'locked' : ''}" data-task-id="${task.id}">
+            <div class="task-item-content">
+                ${isLocked ? '<span class="lock-icon-small">🔒</span>' : ''}
+                <span class="task-item-name">${task.name}</span>
             </div>
-            <div class="drive-action-sub">
-                <div class="drive-costs"><span class="label">Cost:</span> ${costText || '—'}</div>
-                <div class="drive-reward"><span class="label">Reward:</span> +${formatNumber(task.xp)} XP</div>
-            </div>
-            <div class="drive-progress">
-                <div class="bar" style="width: ${Math.max(0, Math.min(100, Math.round(task.progress * 100)))}%"></div>
-            </div>
+            ${!isLocked ? `<button class="drive-action-button ${affordClass}" ${disabled ? 'disabled' : ''} data-task-id="${task.id}">${buttonText}</button>` : ''}
         </div>
     `;
 }
 
-function attachHandlers(container) {
-    const buttons = container.querySelectorAll('.drive-action .start-task');
-    buttons.forEach(btn => {
-        const row = btn.closest('.drive-action');
-        if (!row) return;
-        const id = row.getAttribute('data-task-id');
-        const task = driveTasks.find(t => t.id === id);
+function renderTaskDetails(task) {
+    if (!task) {
+        return '<div class="drive-details-empty">Select a task to view details</div>';
+    }
+
+    const statusBadge = task.running ? '<span class="status-badge in-progress">IN PROGRESS</span>' : 
+                        task.completed ? '<span class="status-badge completed">COMPLETED</span>' : '';
+    const description = task.description || 'No description available.';
+    const costText = (task.cost || []).map(c => `${formatNumber(c.amount)} ${c.resource}`).join(', ');
+    
+    // Check if there's a next task
+    const idx = driveTasks.findIndex(t => t && t.id === task.id);
+    const nextTask = (idx >= 0 && idx < driveTasks.length - 1) ? driveTasks[idx + 1] : null;
+    const unlockText = nextTask ? ` • Unlocks: ${nextTask.name}` : '';
+
+    return `
+        <div class="drive-task-details">
+            ${statusBadge}
+            <div class="drive-description">${description}</div>
+            <div class="drive-progress">
+                <div class="bar" style="width: ${Math.max(0, Math.min(100, Math.round(task.progress * 100)))}%"></div>
+            </div>
+            <div class="drive-cost-display">Cost: ${costText}</div>
+            <div class="drive-reward-display">Reward: +${formatNumber(task.xp)} XP${unlockText}</div>
+        </div>
+    `;
+}
+
+function attachTaskListHandlers(container) {
+    const taskItems = container.querySelectorAll('.drive-task-item');
+    taskItems.forEach(item => {
+        const taskId = item.getAttribute('data-task-id');
+        const task = driveTasks.find(t => t.id === taskId);
         if (!task) return;
 
+        // Check if locked
+        const idx = driveTasks.findIndex(t => t && t.id === task.id);
+        const prev = idx > 0 ? driveTasks[idx - 1] : null;
+        const isLocked = !!(prev && !prev.completed);
+
+        if (!isLocked) {
+            item.addEventListener('click', () => {
+                selectedTaskId = taskId;
+                setupEncryptedDriveSection(container);
+            });
+            item.style.cursor = 'pointer';
+        }
+    });
+}
+
+function attachHandlers(container) {
+    const buttons = container.querySelectorAll('.drive-action-button');
+    buttons.forEach(btn => {
+        const taskId = btn.getAttribute('data-task-id');
+        const task = driveTasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        // Add tooltip using the shared action tooltip schema
+        setupTooltip(btn, () => {
+            // Sequential lock check for tooltip
+            const idx = driveTasks.findIndex(t => t && t.id === task.id);
+            const prev = idx > 0 ? driveTasks[idx - 1] : null;
+            const isLocked = !!(prev && !prev.completed);
+            const tooltipData = {
+                id: task.id,
+                name: task.name,
+                description: task.description || 'High-complexity analysis step. Resource-intensive with long duration.',
+                cost: task.cost,
+                duration: task.duration,
+                reward: [ { resource: 'XP', amount: task.xp } ]
+            };
+            if (isLocked) {
+                tooltipData.tooltipUnlocks = []; // prevent spoilers
+                tooltipData.showUnlocks = false;
+                tooltipData.description += '\n\nComplete the previous analysis to unlock this step.';
+            }
+            return tooltipData;
+        });
+
         btn.addEventListener('click', () => {
+            // Enforce sequential lock
+            const idx = driveTasks.findIndex(t => t && t.id === task.id);
+            const prev = idx > 0 ? driveTasks[idx - 1] : null;
+            if (prev && !prev.completed) return;
             if (task.running || task.completed) return;
+            
             // Pause check
             try {
                 if (localStorage.getItem('gamePaused') === 'true') {
@@ -185,9 +181,11 @@ function attachHandlers(container) {
             task._startAt = Date.now();
             addLogEntry(`${task.name} started.`, LogType.INFO);
 
-            const progressEl = row.querySelector('.drive-progress .bar');
-            const btnEl = row.querySelector('.start-task');
-            if (btnEl) { btnEl.textContent = 'In Progress…'; btnEl.disabled = true; btnEl.classList.remove('unaffordable'); }
+            const row = btn.closest('.drive-action');
+            const progressEl = row?.querySelector('.drive-progress .bar');
+            btn.textContent = 'In Progress…';
+            btn.disabled = true;
+            btn.classList.remove('unaffordable');
 
             task._timer = setInterval(() => {
                 // Respect pause: freeze progress while paused
@@ -210,8 +208,6 @@ function attachHandlers(container) {
                     addLogEntry(`${task.name} completed. +${formatNumber(task.xp)} XP`, LogType.UNLOCK);
                     // Refresh the section to update states/affordability
                     try { setupEncryptedDriveSection(container); } catch {}
-                } else {
-                    // no-op
                 }
             }, 300);
         });
@@ -225,26 +221,63 @@ function attachHandlers(container) {
 export function setupEncryptedDriveSection(container) {
     if (!container) return;
 
-    const rowsHtml = driveTasks.map(renderTaskRow).join('');
+    // Separate tasks into active and locked
+    const activeTasks = [];
+    const lockedTasks = [];
+    
+    driveTasks.forEach((task, idx) => {
+        const prev = idx > 0 ? driveTasks[idx - 1] : null;
+        const isLocked = !!(prev && !prev.completed);
+        
+        if (isLocked) {
+            lockedTasks.push(task);
+        } else {
+            activeTasks.push(task);
+        }
+    });
+
+    // Auto-select first active task if none selected
+    if (!selectedTaskId && activeTasks.length > 0) {
+        selectedTaskId = activeTasks[0].id;
+    }
+
+    const activeListHtml = activeTasks.map(renderTaskListItem).join('');
+    const lockedListHtml = lockedTasks.map(renderTaskListItem).join('');
+    const selectedTask = driveTasks.find(t => t.id === selectedTaskId);
+    const detailsHtml = renderTaskDetails(selectedTask);
 
     container.innerHTML = `
-        <div class="section-header">
-            <h2>Encrypted Drive</h2>
-            <p class="section-description">
-                Data recovered from the captain's personal drive. The encryption is military-grade,
-                but fragments of information are beginning to emerge.
-            </p>
-        </div>
+        <div class="content-panel">
+            <div class="section-inner encrypted-section">
+                <h2>Encrypted Drive</h2>
+                <div class="drive-summary">
+                    <p class="drive-note">Data recovered from the captain's personal drive. Military-grade encryption prevents direct access — each decryption task reveals fragments of critical information.</p>
+                </div>
 
-        <div class="encrypted-drive-content">
-            <div class="drive-panel">
-                <div class="panel-header">Drive Analysis</div>
-                <div class="drive-actions">
-                    ${rowsHtml}
+                <div class="encrypted-drive-content">
+                    <div class="drive-panel">
+                        <div class="panel-header">Drive Analysis</div>
+                        <div class="drive-layout">
+                            <div class="drive-task-list">
+                                ${activeTasks.length > 0 ? `
+                                    <div class="drive-section-header active-header">UNLOCKED</div>
+                                    ${activeListHtml}
+                                ` : ''}
+                                ${lockedTasks.length > 0 ? `
+                                    <div class="drive-section-header locked-header">LOCKED</div>
+                                    ${lockedListHtml}
+                                ` : ''}
+                            </div>
+                            <div class="drive-details-panel">
+                                ${detailsHtml}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     `;
 
     attachHandlers(container);
+    attachTaskListHandlers(container);
 }

@@ -324,11 +324,15 @@ export function setupColonySection(colonySection) {
 
     colonySection.innerHTML = '';
 
+    // Create content panel wrapper
+    const contentPanel = document.createElement('div');
+    contentPanel.className = 'content-panel';
+
     // --- Category 1: Manual Gathering ---
     const manualHeader = document.createElement('h2');
     manualHeader.textContent = 'Manual Gathering';
     manualHeader.className = 'section-header';
-    colonySection.appendChild(manualHeader);
+    contentPanel.appendChild(manualHeader);
     const manualCategory = document.createElement('div');
     manualCategory.className = 'mining-category-container';
     const manualButtons = document.createElement('div');
@@ -340,13 +344,13 @@ export function setupColonySection(colonySection) {
     setupTooltip(mineStoneButton, 'Gain 1 Stone');
     manualButtons.appendChild(mineStoneButton);
     manualCategory.appendChild(manualButtons);
-    colonySection.appendChild(manualCategory);
+    contentPanel.appendChild(manualCategory);
 
     // --- Category 2: Production ---
     const miningHeader = document.createElement('h2');
     miningHeader.textContent = 'Production';
     miningHeader.className = 'section-header';
-    colonySection.appendChild(miningHeader);
+    contentPanel.appendChild(miningHeader);
     const miningCategory = document.createElement('div');
     miningCategory.className = 'mining-category-container';
     const miningButtons = document.createElement('div');
@@ -356,16 +360,23 @@ export function setupColonySection(colonySection) {
     if (xylite && xylite.isDiscovered) {
         createBuildingButton(buildings.find(b => b.name === 'Extractor'), miningButtons);
     }
+    // Add colony production buildings
+    const productionBuildings = buildings.filter(b => 
+        ['Foraging Camp', 'Water Station', 'Rain Tarp'].includes(b.name) && b.isUnlocked
+    );
+    productionBuildings.forEach(building => {
+        createBuildingButton(building, miningButtons);
+    });
     miningCategory.appendChild(miningButtons);
-    colonySection.appendChild(miningCategory);
+    contentPanel.appendChild(miningCategory);
 
-    // --- Category 3: Storage ---
+    // --- Category 4: Storage ---
     const basicStorageTech = technologies.find(t => t.name === 'Basic Storage' && t.isResearched); 
     if (basicStorageTech) {
         const storageHeader = document.createElement('h2');
         storageHeader.textContent = 'Storage';
         storageHeader.className = 'section-header';
-        colonySection.appendChild(storageHeader);
+        contentPanel.appendChild(storageHeader);
         const storageCategory = document.createElement('div');
         storageCategory.className = 'mining-category-container';
         const storageButtons = document.createElement('div');
@@ -375,30 +386,60 @@ export function setupColonySection(colonySection) {
         if (xyliteStorageTech) {
             createBuildingButton(buildings.find(b => b.name === 'Xylite Silo'), storageButtons);
         }
-        // Add Food Larder / Water Reservoir buttons if the buildings are available/unlocked
-        const foodLarder = buildings.find(b => b.name === 'Food Larder');
-        if (foodLarder && foodLarder.isUnlocked) createBuildingButton(foodLarder, storageButtons);
-        const waterReservoir = buildings.find(b => b.name === 'Water Reservoir');
-        if (waterReservoir && waterReservoir.isUnlocked) createBuildingButton(waterReservoir, storageButtons);
         storageCategory.appendChild(storageButtons);
-        colonySection.appendChild(storageCategory);
+        contentPanel.appendChild(storageCategory);
+    }
+    
+    // Add Food Larder and Water Reservoir to Storage (always show if unlocked)
+    const storageBuildings = buildings.filter(b => 
+        ['Food Larder', 'Water Reservoir'].includes(b.name) && b.isUnlocked
+    );
+    if (storageBuildings.length > 0) {
+        // If Storage category wasn't created yet (no Basic Storage tech), create it now
+        if (!basicStorageTech) {
+            const storageHeader = document.createElement('h2');
+            storageHeader.textContent = 'Storage';
+            storageHeader.className = 'section-header';
+            contentPanel.appendChild(storageHeader);
+            const storageCategory = document.createElement('div');
+            storageCategory.className = 'mining-category-container';
+            const storageButtons = document.createElement('div');
+            storageButtons.className = 'button-group';
+            storageBuildings.forEach(building => {
+                createBuildingButton(building, storageButtons);
+            });
+            storageCategory.appendChild(storageButtons);
+            contentPanel.appendChild(storageCategory);
+        } else {
+            // Add to existing storage buttons
+            const existingStorageCategory = contentPanel.querySelector('.mining-category-container:last-of-type');
+            const existingStorageButtons = existingStorageCategory?.querySelector('.button-group');
+            if (existingStorageButtons) {
+                storageBuildings.forEach(building => {
+                    createBuildingButton(building, existingStorageButtons);
+                });
+            }
+        }
     }
 	
-	// --- Category 4: Science ---
+	// --- Category 5: Science ---
     const laboratory = buildings.find(b => b.name === 'Laboratory');
     if (laboratory && laboratory.isUnlocked) {
         const scienceHeader = document.createElement('h2');
         scienceHeader.textContent = 'Science';
         scienceHeader.className = 'section-header';
-        colonySection.appendChild(scienceHeader);
+        contentPanel.appendChild(scienceHeader);
         const scienceCategory = document.createElement('div');
         scienceCategory.className = 'mining-category-container';
         const scienceButtons = document.createElement('div');
         scienceButtons.className = 'button-group';
         createBuildingButton(laboratory, scienceButtons);
         scienceCategory.appendChild(scienceButtons);
-        colonySection.appendChild(scienceCategory);
+        contentPanel.appendChild(scienceCategory);
     }
+
+    // Append the content panel to the section
+    colonySection.appendChild(contentPanel);
 
     updateBuildingButtonsState();
 }
