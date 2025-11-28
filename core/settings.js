@@ -201,9 +201,9 @@ const defaultLogSettings = {
 const exampleMessages = {
     [LogType.INFO]: 'Game state saved.',
     [LogType.SUCCESS]: 'Built a new Quarry!',
-    [LogType.ERROR]: 'Not enough Stone.',
+    [LogType.ERROR]: 'Not enough Crystal.',
     [LogType.STORY]: 'A new journey begins...',
-    [LogType.ACTION]: 'Mined 1 Stone.',
+    [LogType.ACTION]: 'Mined 1 Crystal.',
     [LogType.UNLOCK]: 'Research unlocked.'
 };
 

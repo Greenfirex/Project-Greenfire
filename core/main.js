@@ -1,7 +1,8 @@
 import { resources, updateResourceInfo, setupInfoPanel, computeResourceRates } from './resources.js';
 import { buildings } from '../data/definitions/buildings.js';
 import { gameFlags } from '../data/gameFlags.js';
-import { setupColonySection, updateBuildingButtonsState } from '../sections/colony.js';
+import { setupColonySection } from '../sections/colony.js';
+import { updateBuildingButtonsState } from '../ui/components/buildingButtons.js';
 import { setupResearchSection, updateTechButtonsState } from '../sections/research.js';
 import { setupManufacturingSection } from '../sections/manufacturing.js';
 import { setupShipyardSection } from '../sections/shipyard.js';
@@ -13,7 +14,7 @@ import { setupEncryptedDriveSection } from '../sections/encryptedDrive.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { updateSurvivalDebuffBadge, initTooltips } from '../ui/panels/tooltip.js';
 import { initTimeManager, startTimeManager } from './time.js';
-import { loadGameState, resetToDefaultState } from './saveload.js';
+import { loadGameState, resetToDefaultState, saveGameState } from './saveload.js';
 import { showStoryPopup } from '../ui/panels/popup.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
 import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity, shouldRunInBackground } from './settings.js';
@@ -161,6 +162,16 @@ function startGame() {
             if (typeof updateCrashSiteActionButtonsState === 'function') updateCrashSiteActionButtonsState();
             if (typeof updateBuildingButtonsState === 'function') updateBuildingButtonsState();
             if (typeof updateTechButtonsState === 'function') updateTechButtonsState();
+
+            // Emit a resource change event for instant UI reactions
+            try {
+                window.dispatchEvent(new CustomEvent('resources-updated', {
+                    detail: {
+                        timestamp: now,
+                        resourcesSnapshot: resources.map(r => ({ name: r.name, amount: r.amount, capacity: r.capacity }))
+                    }
+                }));
+            } catch (e) { /* non-fatal */ }
             
             // Periodically check objectives to catch completions from passive resource gains
             // Throttle to once per second to avoid excessive computation
@@ -282,7 +293,7 @@ export function applyActivatedSections() {
 }
 
 export function checkConditions() {
-    const stone = resources.find(r => r.name === 'Stone');
+    const crystal = resources.find(r => r.name === 'Crystal');
     const xylite = resources.find(r => r.name === 'Xylite');
     const survivors = resources.find(r => r.name === 'Survivors');
     const scrapMetal = resources.find(r => r.name === 'Scrap Metal');
@@ -292,9 +303,9 @@ export function checkConditions() {
         gameFlags.hasReached15ScrapMetal = true;
     }
 
-    // Unlock Xylite resource once enough stone has been gathered
-    if (stone && xylite) {
-        if (stone.amount >= 5 && !xylite.isDiscovered) {
+    // Unlock Xylite resource once enough crystal has been gathered
+    if (crystal && xylite) {
+        if (crystal.amount >= 5 && !xylite.isDiscovered) {
             xylite.isDiscovered = true;
             updateResourceInfo();
             setupColonySection();
@@ -305,9 +316,9 @@ export function checkConditions() {
         }
     }
     
-    // Unlock Laboratory building once enough stone has been gathered
+    // Unlock Laboratory building once enough crystal has been gathered
     const laboratory = buildings.find(b => b.name === 'Laboratory');
-    if (stone && laboratory && stone.amount >= 10 && !laboratory.isUnlocked) {
+    if (crystal && laboratory && crystal.amount >= 10 && !laboratory.isUnlocked) {
         laboratory.isUnlocked = true;
         setupColonySection();
         showStoryPopup(storyEvents.unlockResearch);
@@ -317,10 +328,10 @@ export function checkConditions() {
         addLogEntry('The ability to construct a Laboratory has been unlocked!', LogType.UNLOCK);
     }
 
-    // Unlock Manufacturing section once enough stone has been gathered
+    // Unlock Manufacturing section once enough crystal has been gathered
     const manufacturingButton = document.querySelector('.menu-button[data-section="manufacturingSection"]');
-    if (stone && manufacturingButton) {
-        if (stone.amount >= 20 && !activatedSections['manufacturingSection']) {
+    if (crystal && manufacturingButton) {
+        if (crystal.amount >= 20 && !activatedSections['manufacturingSection']) {
             manufacturingButton.classList.remove('hidden');
             addLogEntry('New menu section activated: Manufacturing', LogType.UNLOCK);
             activatedSections['manufacturingSection'] = true;

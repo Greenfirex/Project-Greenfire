@@ -22,7 +22,7 @@ Purpose: Single-page, data-driven survival/idle game. All logic runs fully clien
 - Unlock flows: Actions specify `stages[]` with `unlocks` listing other action ids; building first-build side effects also unlock upgrades or sections. Log unlocks using `addLogEntry(..., LogType.UNLOCK)`.
 - Logging: Use `addLogEntry(message, LogType.<TYPE>, optionalMeta)`; story entries often include onClick handlers opening a popup (`showStoryPopup`). Keep unlock/important messages concise.
 - Tooltip data provider: Pass a function returning a plain object snapshot; dynamic cost/rate calculations performed inside (e.g. building cost escalation, resource rate breakdown).
-- Pausing: Check `localStorage.getItem('gamePaused') === 'true'` before executing manual or time-dependent actions (see `buildBuilding`, `mineStone`). Respect pause by halting intervals and rAF in `main.js` and `time.js`.
+- Pausing: Check `localStorage.getItem('gamePaused') === 'true'` before executing manual or time-dependent actions (see `buildBuilding`, `mineCrystal`). Respect pause by halting intervals and rAF in `main.js` and `time.js`.
 - Resource discovery: Setting `resource.isDiscovered = true` triggers UI reveal and may unlock dependent buildings/actions. Dispatches `resourceDiscovered` event via `window.dispatchEvent`.
 - Performance throttling: Certain UI recomputations (e.g. `updateBuildingButtonsState`) debounce via short timeout; avoid adding heavy logic in every 100ms loop tick.
 - DOM regeneration: Section setup functions fully rewrite container innerHTML; add new controls by editing the setup function rather than incremental patched DOM elsewhere.

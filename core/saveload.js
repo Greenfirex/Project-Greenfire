@@ -8,6 +8,7 @@ import { resetIngameTime, getTotalIngameMinutes, setTotalIngameMinutes } from '.
 import { storyEvents } from '../data/definitions/storyEvents.js';
 import { salvageActions, resetSalvageActions } from '../data/definitions/actions.js';
 import { upgradeActions, resetUpgradeActions } from '../data/definitions/upgrades.js';
+import { refreshAllActions } from '../data/definitions/allActions.js';
 import { jobs, resetJobs } from '../data/jobsManager.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { gameFlags, resetGameFlags, applySavedGameFlags } from '../data/gameFlags.js';
@@ -115,6 +116,8 @@ export function applyGameState(gameState) {
                 }
             }
         });
+        // Keep aggregator in sync after applying saved action state
+        try { refreshAllActions(); } catch {}
     }
 
     if (gameState.upgradeActions) {
@@ -132,6 +135,8 @@ export function applyGameState(gameState) {
                 }
             }
         });
+        // Keep aggregator in sync after applying saved upgrade action state
+        try { refreshAllActions(); } catch {}
     }
 
     if (gameState.jobs) {
@@ -265,6 +270,8 @@ export function resetToDefaultState() {
     resetTechnologies();
     resetSalvageActions();
     resetUpgradeActions();
+    // Keep the exported allActions aggregator in sync after resets
+    refreshAllActions();
     resetGameFlags();
     resetStoryLog();
     resetJobs();

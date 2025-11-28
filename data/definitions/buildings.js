@@ -2,12 +2,12 @@
 const initialBuildings = [
     {
         name: 'Quarry',
-        produces: 'Stone',
+        produces: 'Crystal',
         rate: 0.1,
         count: 0,
-        cost: [{ resource: 'Stone', amount: 10 }],
+        cost: [{ resource: 'Crystal', amount: 10 }],
         costMultiplier: 1.15, // Costs 15% more each time
-        description: 'Construct a Quarry to begin automatic Stone extraction.',
+        description: 'Construct a Quarry to begin automatic Crystal extraction.',
 
         isUnlocked: true 
     },
@@ -16,26 +16,26 @@ const initialBuildings = [
         produces: 'Xylite',
         rate: 0.05,
         count: 0,
-        cost: [{ resource: 'Stone', amount: 20 }],
+        cost: [{ resource: 'Crystal', amount: 20 }],
         costMultiplier: 1.15,
         description: 'Build an Extractor to mine the rare resource Xylite.',
 
         isUnlocked: false 
     },
     {
-        name: 'Stone Stockpile',
+        name: 'Crystal Stockpile',
         count: 0,
-        cost: [{ resource: 'Stone', amount: 50 }],
+        cost: [{ resource: 'Crystal', amount: 50 }],
         costMultiplier: 1.25, // Storage can scale a bit faster
-        effect: { type: 'storage', resource: 'Stone', value: 100 },
-        description: 'Increases the maximum storage capacity for Stone.',
+        effect: { type: 'storage', resource: 'Crystal', value: 100 },
+        description: 'Increases the maximum storage capacity for Crystal.',
 
         isUnlocked: false
     },
     {
         name: 'Xylite Silo',
         count: 0,
-        cost: [{ resource: 'Stone', amount: 100 }, { resource: 'Xylite', amount: 20 }],
+        cost: [{ resource: 'Crystal', amount: 100 }, { resource: 'Xylite', amount: 20 }],
         costMultiplier: 1.25,
         effect: { type: 'storage', resource: 'Xylite', value: 75 },
         description: 'Construct a high-tech silo to increase Xylite storage.',
@@ -47,7 +47,7 @@ const initialBuildings = [
         produces: 'Insight',
         rate: 0.1,
         count: 0,
-        cost: [{ resource: 'Stone', amount: 50 }],
+        cost: [{ resource: 'Crystal', amount: 50 }],
         costMultiplier: 1.15,
         description: 'A basic facility that generates Insight required for scientific research.',
 

@@ -9,7 +9,7 @@ import { getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/acti
 import { recomputeObjectives, getLastObjectivesDelta, getObjectivesStatus, getObjectiveDefinition } from '../data/objectives.js';
 import { getTotalIngameMinutes } from '../core/time.js';
 import { buildings } from '../data/definitions/buildings.js';
-import { updateBuildingButtonsState, createBuildingButton } from './colony.js';
+import { createBuildingButton, updateBuildingButtonsState, rehydrateBuildingButton } from '../ui/components/buildingButtons.js';
 import { gameFlags, runActionCompletionHandlers } from '../data/gameFlags.js';
 import { computeRewardMultiplier } from '../data/upgradeEffects.js';
 import { lsGet, getCurrentStage, tooltipDataForAction, canAffordAction, getAffordabilityShortfalls, computeEffectiveDuration, getRandomInt } from '../data/actionsManager.js';
@@ -214,11 +214,8 @@ export function setupCrashSiteSection(section) {
         const siteBuildings = buildings.filter(b => SITE_BUILDING_NAMES.includes(b.name) && b.isUnlocked === true);
 
         siteBuildings.forEach(bld => {
-            createBuildingButton(bld, buildGroup);
-            const btn = buildGroup.querySelector(`.image-button[data-building="${bld.name}"]`);
-            if (btn) {
-                const countSpan = btn.querySelector('.building-count'); if (countSpan) countSpan.textContent = `(${bld.count})`;
-            }
+            const btn = createBuildingButton(bld, buildGroup);
+            rehydrateBuildingButton(btn, bld.name);
         });
 
         if (buildGroup.children.length > 0) {

@@ -1,15 +1,15 @@
 // A private, unchangeable "master copy" of the original technology data.
 const initialTechnologies = [
-    // DURATIONS HAVE BEEN REDUCED, AND COSTS ARE SET TO 20 STONE FOR TESTING
-    { name: 'Quantum Computing', duration: 0.5, isResearched: false, prerequisites: [], category: 'Social Tech', cost: [{ resource: 'Stone', amount: 20 },{ resource: 'Xylite', amount: 5 }], description: 'Unlocks advanced technologies...' },
-    { name: 'Nano Fabrication', duration: 1.5, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Bio Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Allows the creation of materials...' },
+    // DURATIONS HAVE BEEN REDUCED, AND COSTS ARE SET TO 20 CRYSTAL FOR TESTING
+    { name: 'Quantum Computing', duration: 0.5, isResearched: false, prerequisites: [], category: 'Social Tech', cost: [{ resource: 'Crystal', amount: 20 },{ resource: 'Xylite', amount: 5 }], description: 'Unlocks advanced technologies...' },
+    { name: 'Nano Fabrication', duration: 1.5, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Bio Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Allows the creation of materials...' },
     { 
     name: 'AI Integration', 
     duration: 2, 
     isResearched: false, 
     prerequisites: ['Quantum Computing'], 
     category: 'Social Tech', 
-    cost: [{ resource: 'Stone', amount: 20 }], 
+    cost: [{ resource: 'Crystal', amount: 20 }], 
     bonus: {
         type: 'production',
         resource: 'Insight', // Affects Insight
@@ -19,43 +19,43 @@ const initialTechnologies = [
 },
     
     // --- Mining Technologies ---
-    { name: 'Basic Storage', duration: 2.5, isResearched: false, prerequisites: [], category: 'Mining Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Unlocks the Stone Stockpile.' },
-    { name: 'Xylite Storage', duration: 6, isResearched: false, prerequisites: ['Basic Storage'], category: 'Mining Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Unlocks the Xylite Silo.' },
+    { name: 'Basic Storage', duration: 2.5, isResearched: false, prerequisites: [], category: 'Mining Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Unlocks the Crystal Stockpile.' },
+    { name: 'Xylite Storage', duration: 6, isResearched: false, prerequisites: ['Basic Storage'], category: 'Mining Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Unlocks the Xylite Silo.' },
 	{ 
     name: 'Automated Drills', 
     duration: 3, 
     isResearched: false, 
     prerequisites: ['Quantum Computing'], 
     category: 'Mining Tech', 
-    cost: [{ resource: 'Stone', amount: 20 }],
+    cost: [{ resource: 'Crystal', amount: 20 }],
     // NEW: Add a bonus property
     bonus: {
         type: 'production', // What kind of bonus
-        resource: 'Stone',  // Which resource it affects
+        resource: 'Crystal',  // Which resource it affects
         multiplier: 0.15    // +15%
     },
     description: 'Deploys automated drills to increase mining yield.' 
 },
     
-    { name: 'Advanced Sonar', duration: 9, isResearched: false, prerequisites: ['Automated Drills'], category: 'Mining Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Uses advanced sonar...' },
-    { name: 'Plasma Cutter', duration: 18, isResearched: false, prerequisites: ['Advanced Sonar', 'Nano Fabrication'], category: 'Mining Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Cuts through the toughest materials...' },
+    { name: 'Advanced Sonar', duration: 9, isResearched: false, prerequisites: ['Automated Drills'], category: 'Mining Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Uses advanced sonar...' },
+    { name: 'Plasma Cutter', duration: 18, isResearched: false, prerequisites: ['Advanced Sonar', 'Nano Fabrication'], category: 'Mining Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Cuts through the toughest materials...' },
     
     // --- Bio Technologies ---
-    { name: 'Xeno-Biology', duration: 4.5, isResearched: false, prerequisites: ['Nano Fabrication'], category: 'Bio Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Studies alien flora and fauna...' },
-    { name: 'Synthetic Crops', duration: 15, isResearched: false, prerequisites: ['Xeno-Biology'], category: 'Bio Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Grows high-yield synthetic crops...' },
-    { name: 'Genetic Engineering', duration: 25, isResearched: false, prerequisites: ['Synthetic Crops', 'AI Integration'], category: 'Bio Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Manipulates genetic code...' },
+    { name: 'Xeno-Biology', duration: 4.5, isResearched: false, prerequisites: ['Nano Fabrication'], category: 'Bio Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Studies alien flora and fauna...' },
+    { name: 'Synthetic Crops', duration: 15, isResearched: false, prerequisites: ['Xeno-Biology'], category: 'Bio Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Grows high-yield synthetic crops...' },
+    { name: 'Genetic Engineering', duration: 25, isResearched: false, prerequisites: ['Synthetic Crops', 'AI Integration'], category: 'Bio Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Manipulates genetic code...' },
 
     // --- Social Technologies ---
-    { name: 'Communication Array', duration: 4, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Social Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Establishes a galaxy-wide communication network.' },
-    { name: 'Universal Translator', duration: 12, isResearched: false, prerequisites: ['Communication Array'], category: 'Social Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Enables instantaneous translation...' },
-    { name: 'Galactic Diplomacy', duration: 20, isResearched: false, prerequisites: ['Universal Translator'], category: 'Social Tech', cost: [{ resource: 'Stone', amount: 20 }], description: 'Allows for complex diplomatic relations...' },
+    { name: 'Communication Array', duration: 4, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Social Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Establishes a galaxy-wide communication network.' },
+    { name: 'Universal Translator', duration: 12, isResearched: false, prerequisites: ['Communication Array'], category: 'Social Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Enables instantaneous translation...' },
+    { name: 'Galactic Diplomacy', duration: 20, isResearched: false, prerequisites: ['Universal Translator'], category: 'Social Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Allows for complex diplomatic relations...' },
     { 
         name: 'Starship Construction', 
         duration: 12, 
         isResearched: false, 
         prerequisites: ['Nano Fabrication', 'AI Integration'], 
         category: 'Social Tech', 
-        cost: [{ resource: 'Stone', amount: 20 }],
+        cost: [{ resource: 'Crystal', amount: 20 }],
         description: 'Unlocks the Shipyard...' 
     },
     { 
@@ -64,7 +64,7 @@ const initialTechnologies = [
         isResearched: false, 
         prerequisites: ['Starship Construction', 'Communication Array'], 
         category: 'Social Tech', 
-        cost: [{ resource: 'Stone', amount: 20 }],
+        cost: [{ resource: 'Crystal', amount: 20 }],
         description: 'Enables deep space exploration...' 
     },
 ];

@@ -2,319 +2,60 @@ import { resources, updateResourceInfo } from '../core/resources.js';
 import { buildings } from '../data/definitions/buildings.js';
 import { technologies } from '../data/definitions/technologies.js';
 import { addLogEntry, LogType } from '../core/ingameLog.js';
-import { activatedSections, setActivatedSections, applyActivatedSections } from '../core/main.js';
 import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
-import { addSlotsForBuilding } from '../data/jobsManager.js';
-import { allActions as salvageActions } from '../data/definitions/allActions.js';
+import { createBuildingButton, updateBuildingButtonsState, rehydrateBuildingButton } from '../ui/components/buildingButtons.js';
+import { getProgress } from '../data/buildingsManager.js';
 
 let isMiningOnCooldown = false;
+let colonyUiInterval = null;
 
-/**
- * Calculates the current cost of a building based on how many are owned.
- * @param {object} building - The building data object.
- * @returns {Array} - An array of the current costs.
- */
-function getCurrentBuildingCost(building) {
-    if (!building.costMultiplier) {
-        return building.cost; // Return base cost if there's no multiplier
-    }
-    const currentCosts = [];
-    building.cost.forEach(baseCost => {
-        // Formula: NewCost = BaseCost * (Multiplier ^ AmountOwned)
-        const currentAmount = Math.floor(baseCost.amount * Math.pow(building.costMultiplier, building.count));
-        currentCosts.push({ resource: baseCost.resource, amount: currentAmount });
-    });
-    return currentCosts;
-}
-
-let _updateBuildingButtonsStateTimer = null;
-export function updateBuildingButtonsState(immediate = false) {
-    if (!immediate) {
-        if (_updateBuildingButtonsStateTimer) clearTimeout(_updateBuildingButtonsStateTimer);
-        _updateBuildingButtonsStateTimer = setTimeout(() => updateBuildingButtonsState(true), 40);
-        return;
-    }
-    _updateBuildingButtonsStateTimer = null;
-
-    buildings.forEach(building => {
-        const button = document.querySelector(`.image-button[data-building="${building.name}"]`);
-        if (!button) return;
-
-        const countEl = button.querySelector('.building-count');
-        const desiredCount = `(${building.count})`;
-        if (countEl && countEl.textContent !== desiredCount) countEl.textContent = desiredCount;
-
-        const nameEl = button.querySelector('.building-name');
-        // Avoid overriding the countdown label while construction is running
-        if (nameEl && !button.classList.contains('running')) {
-            const desiredName = building.name;
-            if (nameEl.textContent !== desiredName) nameEl.textContent = desiredName;
-        }
-
-        const currentCost = getCurrentBuildingCost(building);
-        let canAfford = true;
-        for (const cost of currentCost) {
-            const resource = resources.find(r => r.name === cost.resource);
-            if (!resource || resource.amount < cost.amount) { canAfford = false; break; }
-        }
-
-        if (canAfford) {
-            button.classList.remove('unaffordable');
-            button.removeAttribute('aria-disabled');
-        } else {
-            button.classList.add('unaffordable');
-            button.setAttribute('aria-disabled', 'true');
-        }
-    });
-}
-
-function animateButtonClick(event) {
-    const button = event.currentTarget;
-    button.classList.add('is-clicking');
-    setTimeout(() => {
-        button.classList.remove('is-clicking');
-    }, 200);
-}
-
-export function createBuildingButton(building, container) {
-    const button = document.createElement('button');
-    button.className = 'image-button';
-    button.dataset.building = building.name;
-
-    // progress bar overlay (shared class with actions)
-    const progressBar = document.createElement('div');
-    progressBar.className = 'action-progress-bar';
-    button.appendChild(progressBar);
-
-    const countSpan = document.createElement('span');
-    countSpan.className = 'building-count';
-    countSpan.textContent = `(${building.count})`;
-    button.appendChild(countSpan);
-
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'building-name';
-    nameSpan.textContent = building.name;
-    button.appendChild(nameSpan);
-
-    // register tooltip with a function so cost is computed on-demand (keeps it up-to-date)
-    const tooltipGetter = () => ({ ...building, cost: getCurrentBuildingCost(building) });
-
-    // determine initial affordability BEFORE appending to DOM
-    const currentCost = getCurrentBuildingCost(building);
-    let canAfford = true;
-    for (const cost of currentCost) {
-        const resource = resources.find(r => r.name === cost.resource);
-        if (!resource || resource.amount < cost.amount) { canAfford = false; break; }
-    }
-    if (!canAfford) {
-        button.classList.add('unaffordable');
-        button.setAttribute('aria-disabled', 'true');
-    }
-
-    button.addEventListener('click', (event) => buildBuilding(event, building.name));
-    setupTooltip(button, tooltipGetter);
-
-    container.appendChild(button);
-    return button;
-}
-
-export function buildBuilding(event, buildingName) {
-    const building = buildings.find(b => b.name === buildingName);
-    if (!building) return false;
-
-    // Prevent building while game is paused (persisted in localStorage)
-    try {
-        if (localStorage.getItem('gamePaused') === 'true') {
-            addLogEntry(`Cannot build "${buildingName}" while game is paused. Resume the game first.`, LogType.INFO);
-            return false;
-        }
-    } catch (e) { /* ignore localStorage errors */ }
-
-    const currentCost = getCurrentBuildingCost(building);
-    // Check affordability
-    for (const cost of currentCost) {
-        const resource = resources.find(r => r.name === cost.resource);
-        if (!resource || resource.amount < cost.amount) {
-            addLogEntry(`Not enough ${cost.resource} to build a ${buildingName}.`, LogType.ERROR);
-            return false;
-        }
-    }
-
-    // animate only when a DOM event was passed (Crash Site calls buildBuilding programmatically)
-    if (event && event.currentTarget) animateButtonClick(event);
-
-    // Deduct costs
-    for (const cost of currentCost) {
-        const resource = resources.find(r => r.name === cost.resource);
-        if (resource) resource.amount -= cost.amount;
-    }
-    // update any visible tooltip (ETA/shortfall) immediately
-    try { refreshCurrentTooltip(); } catch (e) { /* ignore */ }
-
-    // Begin construction with a 2-second, pause-aware delay (no start log)
-
-    const BUILD_TIME_MS = 2000;
-    const STEP_MS = 100; // UI update cadence; progress uses real-time delta
-    let elapsed = 0; // milliseconds progressed (scaled by TIME_SCALE)
-    let lastTick = Date.now();
-
-    const finishConstruction = () => {
-        // Build completes
-        building.count += 1;
-        addLogEntry(`Built a new ${buildingName}!`, LogType.SUCCESS);
-
-        // restore button UI immediately (in case rebuild is delayed)
-        try {
-            const btn = document.querySelector(`.image-button[data-building="${building.name}"]`);
-            if (btn) {
-                btn.classList.remove('running');
-                btn.disabled = false;
-                const bar = btn.querySelector('.action-progress-bar');
-                if (bar) {
-                    try {
-                        bar.style.transition = 'none';
-                        bar.style.width = '0%';
-                        void bar.offsetWidth; // reflow
-                        bar.style.transition = '';
-                    } catch (e) { bar.style.width = '0%'; }
+export function startColonyLoop() {
+    if (colonyUiInterval) return;
+    colonyUiInterval = setInterval(() => {
+        const timeScale = (typeof window !== 'undefined' && window.TIME_SCALE) ? window.TIME_SCALE : 1;
+        
+        // Handle progress updates for actively building items FIRST
+        document.querySelectorAll('.image-button[data-building]').forEach(btn => {
+            const name = btn.dataset.building;
+            const prog = getProgress(name);
+            
+            if (!prog) {
+                // No active build - ensure button isn't stuck in running state
+                if (btn.classList.contains('running')) {
+                    btn.classList.remove('running');
+                    const bar = btn.querySelector('.action-progress-bar');
+                    if (bar) bar.style.width = '0%';
+                    const labelEl = btn.querySelector('.building-name');
+                    if (labelEl && btn.dataset.originalLabel) {
+                        labelEl.textContent = btn.dataset.originalLabel;
+                        delete btn.dataset.originalLabel;
+                    }
                 }
-                const nameSpan = btn.querySelector('.building-name');
-                if (nameSpan && btn.dataset.originalLabel) nameSpan.textContent = btn.dataset.originalLabel;
-                delete btn.dataset.originalLabel;
-            }
-        } catch (e) { /* ignore */ }
-
-        // Unlock upgrades tied to first-build of some structures
-        if (building.name === 'Foraging Camp' && building.count === 1) {
-            const act = (salvageActions || []).find(a => a.id === 'installForagingTools' || a.name === 'Crude Foraging Tools');
-            if (act && !act.isUnlocked) {
-                act.isUnlocked = true;
-                addLogEntry('Upgrade available: Crude Foraging Tools', LogType.UNLOCK);
-                // refresh crash-site UI so the newly unlocked upgrade appears immediately
-            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
-                window.setupCrashSiteSection();
-            }
-        }
-            // Food Larder is no longer unlocked by Foraging Camp; it's gated by the planning upgrade.
-        }
-
-        // Unlock Rain Catchers when a Water Station is built AND Fabric has been discovered
-        if (building.name === 'Water Station' && building.count === 1) {
-            const fabricRes = (typeof resources !== 'undefined' ? resources : []).find(r => r.name === 'Fabric');
-            const act = (salvageActions || []).find(a => a.id === 'installRainCatchers');
-            // only unlock immediately if Fabric has actually been discovered
-            if (fabricRes && fabricRes.isDiscovered && act && !act.isUnlocked) {
-                act.isUnlocked = true;
-                addLogEntry('Upgrade available: Rain Catchers', LogType.UNLOCK);
-                if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') window.setupCrashSiteSection();
-            } else if (act && !act.isUnlocked) {
-                // Fabric not discovered yet — register a one-time listener to unlock when Fabric is discovered
-                if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-                    const onDiscover = (ev) => {
-                        if (!ev || !ev.detail || ev.detail.name !== 'Fabric') return;
-                        const fr = resources.find(r => r.name === 'Fabric');
-                        if (fr && fr.isDiscovered && act && !act.isUnlocked) {
-                            act.isUnlocked = true;
-                            addLogEntry('Upgrade available: Rain Catchers', LogType.UNLOCK);
-                            if (typeof window.setupCrashSiteSection === 'function') window.setupCrashSiteSection();
-                        }
-                    };
-                    window.addEventListener('resourceDiscovered', onDiscover);
-                }
-            }
-            // Water Reservoir is no longer unlocked directly here; it's gated by the planning upgrade.
-        }
-
-        // Handle job-unlock and storage effects (support single effect or effects[] array)
-        const applyEffect = (eff) => {
-            if (!eff || !eff.type) return;
-            if (eff.type === 'job') {
-                try {
-                    addSlotsForBuilding(building.name, 1);
-                    addLogEntry(`New job slot available: ${building.name} (from ${building.name}).`, LogType.UNLOCK);
-                    if (typeof updateCrewSection === 'function') updateCrewSection();
-                } catch (e) { /* ignore */ }
-            } else if (eff.type === 'storage') {
-                const resourceToUpgrade = resources.find(r => r.name === eff.resource);
-                if (resourceToUpgrade) {
-                    resourceToUpgrade.capacity += eff.value;
-                    addLogEntry(`${resourceToUpgrade.name} capacity increased by ${eff.value}!`, LogType.INFO);
-                }
-            }
-        };
-        if (building.effect) applyEffect(building.effect);
-        if (Array.isArray(building.effects)) building.effects.forEach(applyEffect);
-
-        // Laboratory unlock handling
-        if (building.name === 'Laboratory' && building.count === 1) {
-            if (!activatedSections.researchSection) {
-                activatedSections.researchSection = true;
-                setActivatedSections(activatedSections);
-                applyActivatedSections();
-                addLogEntry('The first Laboratory is operational. Research is now available.', LogType.UNLOCK);
-            }
-        }
-
-        updateResourceInfo();
-        setupColonySection();
-        return true;
-    };
-
-    // use a pause-aware ticking interval instead of a blind timeout
-    const btn = document.querySelector(`.image-button[data-building="${building.name}"]`);
-    if (btn) {
-        // set original label and enter running state
-        const nameSpan = btn.querySelector('.building-name');
-        if (nameSpan && !btn.dataset.originalLabel) btn.dataset.originalLabel = nameSpan.textContent || building.name;
-        // reset bar immediately without transition so it doesn't shrink from full
-        const bar = btn.querySelector('.action-progress-bar');
-        if (bar) {
-            try {
-                bar.style.transition = 'none';
-                bar.style.width = '0%';
-                void bar.offsetWidth; // reflow
-                bar.style.transition = '';
-            } catch (e) { bar.style.width = '0%'; }
-        }
-        btn.classList.add('running');
-        btn.disabled = true;
-    }
-
-    const timer = setInterval(() => {
-        const now = Date.now();
-        // respect pause without catch-up: advance lastTick and skip progress
-        try {
-            if (localStorage.getItem('gamePaused') === 'true') {
-                lastTick = now;
                 return;
             }
-        } catch (e) { /* ignore localStorage errors */ }
-
-        // compute scaled delta (cap to avoid huge jumps)
-        const rawDeltaMs = Math.max(0, now - lastTick);
-        lastTick = now;
-        const cappedMs = Math.min(rawDeltaMs, 250);
-        const timeScale = (typeof window !== 'undefined' && window.TIME_SCALE) ? window.TIME_SCALE : 1;
-        const effectiveMs = cappedMs * timeScale;
-        elapsed = Math.min(BUILD_TIME_MS, elapsed + effectiveMs);
-        // Update UI progress (bar only; no countdown label)
-        try {
-            const btn2 = document.querySelector(`.image-button[data-building="${building.name}"]`);
-            if (btn2) {
-                const progress = Math.min((elapsed / BUILD_TIME_MS) * 100, 100);
-                const bar = btn2.querySelector('.action-progress-bar'); if (bar) bar.style.width = `${progress}%`;
+            
+            // Active build - update progress bar and countdown
+            const bar = btn.querySelector('.action-progress-bar');
+            const labelEl = btn.querySelector('.building-name');
+            const pct = Math.min((prog.elapsedSec / Math.max(1e-9, prog.durationSec)) * 100, 100);
+            if (bar) bar.style.width = `${pct}%`;
+            if (labelEl) {
+                const rem = Math.max(0, (prog.durationSec - (prog.elapsedSec || 0)) / Math.max(1e-9, timeScale));
+                labelEl.textContent = `${rem.toFixed(1)}s`;
             }
-        } catch (e) { /* ignore */ }
-        if (elapsed >= BUILD_TIME_MS) {
-            clearInterval(timer);
-            finishConstruction();
-        }
-    }, STEP_MS);
-
-    // defer completion; immediate return after starting construction
-    return true;
+            // ensure running state visually
+            btn.classList.add('running');
+            btn.disabled = true;
+        });
+        
+        // THEN update all building affordability states (this will re-enable non-running affordable buttons)
+        updateBuildingButtonsState(document);
+    }, 100);
 }
 
+export function stopColonyLoop() {
+    if (colonyUiInterval) { clearInterval(colonyUiInterval); colonyUiInterval = null; }
+}
 
 export function setupColonySection(colonySection) {
     if (!colonySection) {
@@ -322,27 +63,36 @@ export function setupColonySection(colonySection) {
     }
     if (!colonySection) { return; }
 
-    colonySection.innerHTML = '';
+    // Reuse existing content panel like Crash Site to better preserve nodes
+    let contentPanel = colonySection.querySelector('.content-panel');
+    if (!contentPanel) {
+        contentPanel = document.createElement('div');
+        contentPanel.className = 'content-panel';
+        colonySection.appendChild(contentPanel);
+    }
+    // Don't clear innerHTML - preserve existing buttons and only update them
+    // Only clear if completely empty OR if we need to show new unlocked buildings
+    const shouldRebuild = contentPanel.children.length === 0;
 
-    // Create content panel wrapper
-    const contentPanel = document.createElement('div');
-    contentPanel.className = 'content-panel';
-
-    // --- Category 1: Manual Gathering ---
-    const manualHeader = document.createElement('h2');
-    manualHeader.textContent = 'Manual Gathering';
-    manualHeader.className = 'section-header';
-    contentPanel.appendChild(manualHeader);
+    if (shouldRebuild) {
+        // --- Category 1: Manual Gathering ---
+        const manualHeader = document.createElement('h2');
+        manualHeader.textContent = 'Manual Gathering';
+        manualHeader.className = 'section-header';
+        contentPanel.appendChild(manualHeader);
     const manualCategory = document.createElement('div');
     manualCategory.className = 'mining-category-container';
     const manualButtons = document.createElement('div');
     manualButtons.className = 'button-group';
-    const mineStoneButton = document.createElement('button');
-    mineStoneButton.className = 'image-button';
-    mineStoneButton.textContent = 'Mine Stone';
-    mineStoneButton.addEventListener('click', (event) => mineStone(event));
-    setupTooltip(mineStoneButton, 'Gain 1 Stone');
-    manualButtons.appendChild(mineStoneButton);
+    const mineCrystalButton = document.createElement('button');
+    mineCrystalButton.className = 'image-button';
+    mineCrystalButton.innerHTML = `
+        <div class="action-progress-bar"></div>
+        <span class="building-name">Mine Crystal</span>
+    `;
+    mineCrystalButton.addEventListener('click', (event) => mineCrystal(event));
+    setupTooltip(mineCrystalButton, 'Gain 1 Crystal');
+    manualButtons.appendChild(mineCrystalButton);
     manualCategory.appendChild(manualButtons);
     contentPanel.appendChild(manualCategory);
 
@@ -355,17 +105,19 @@ export function setupColonySection(colonySection) {
     miningCategory.className = 'mining-category-container';
     const miningButtons = document.createElement('div');
     miningButtons.className = 'button-group';
-    createBuildingButton(buildings.find(b => b.name === 'Quarry'), miningButtons);
+    const quarry = buildings.find(b => b.name === 'Quarry');
+    rehydrateBuildingButton(createBuildingButton(quarry, miningButtons), quarry?.name);
     const xylite = resources.find(r => r.name === 'Xylite');
     if (xylite && xylite.isDiscovered) {
-        createBuildingButton(buildings.find(b => b.name === 'Extractor'), miningButtons);
+        const ext = buildings.find(b => b.name === 'Extractor');
+        rehydrateBuildingButton(createBuildingButton(ext, miningButtons), ext?.name);
     }
     // Add colony production buildings
     const productionBuildings = buildings.filter(b => 
         ['Foraging Camp', 'Water Station', 'Rain Tarp'].includes(b.name) && b.isUnlocked
     );
-    productionBuildings.forEach(building => {
-        createBuildingButton(building, miningButtons);
+    productionBuildings.forEach(b => {
+        rehydrateBuildingButton(createBuildingButton(b, miningButtons), b.name);
     });
     miningCategory.appendChild(miningButtons);
     contentPanel.appendChild(miningCategory);
@@ -381,10 +133,12 @@ export function setupColonySection(colonySection) {
         storageCategory.className = 'mining-category-container';
         const storageButtons = document.createElement('div');
         storageButtons.className = 'button-group';
-        createBuildingButton(buildings.find(b => b.name === 'Stone Stockpile'), storageButtons);
+        const cs = buildings.find(b => b.name === 'Crystal Stockpile');
+        rehydrateBuildingButton(createBuildingButton(cs, storageButtons), cs?.name);
         const xyliteStorageTech = technologies.find(t => t.name === 'Xylite Storage' && t.isResearched);
         if (xyliteStorageTech) {
-            createBuildingButton(buildings.find(b => b.name === 'Xylite Silo'), storageButtons);
+            const xs = buildings.find(b => b.name === 'Xylite Silo');
+            rehydrateBuildingButton(createBuildingButton(xs, storageButtons), xs?.name);
         }
         storageCategory.appendChild(storageButtons);
         contentPanel.appendChild(storageCategory);
@@ -415,8 +169,8 @@ export function setupColonySection(colonySection) {
             const existingStorageCategory = contentPanel.querySelector('.mining-category-container:last-of-type');
             const existingStorageButtons = existingStorageCategory?.querySelector('.button-group');
             if (existingStorageButtons) {
-                storageBuildings.forEach(building => {
-                    createBuildingButton(building, existingStorageButtons);
+                storageBuildings.forEach(b => {
+                    rehydrateBuildingButton(createBuildingButton(b, existingStorageButtons), b.name);
                 });
             }
         }
@@ -433,18 +187,22 @@ export function setupColonySection(colonySection) {
         scienceCategory.className = 'mining-category-container';
         const scienceButtons = document.createElement('div');
         scienceButtons.className = 'button-group';
-        createBuildingButton(laboratory, scienceButtons);
+        rehydrateBuildingButton(createBuildingButton(laboratory, scienceButtons), laboratory.name);
         scienceCategory.appendChild(scienceButtons);
         contentPanel.appendChild(scienceCategory);
     }
+    }  // End of shouldRebuild block
 
-    // Append the content panel to the section
-    colonySection.appendChild(contentPanel);
+    // Ensure panel is attached (it already is if reused)
+    if (!contentPanel.parentElement) {
+        colonySection.appendChild(contentPanel);
+    }
 
     updateBuildingButtonsState();
+    startColonyLoop();
 }
 
-function mineStone(event) {
+function mineCrystal(event) {
     // Prevent manual actions while paused
     try {
         if (localStorage.getItem('gamePaused') === 'true') {
@@ -457,26 +215,60 @@ function mineStone(event) {
     if (isMiningOnCooldown) {
         return;
     }
-    // 2. Start the cooldown
+    
+    // 2. Start the cooldown and disable button
     isMiningOnCooldown = true;
+    const button = event.currentTarget;
+    button.disabled = true;
+    
+    const bar = button.querySelector('.action-progress-bar');
+    const label = button.querySelector('.building-name');
+    
+    // Reset progress bar instantly without transition
+    if (bar) {
+        bar.style.transition = 'none';
+        bar.style.width = '0%';
+        void bar.offsetWidth; // Force reflow
+        bar.style.transition = ''; // Restore CSS transition
+    }
+    
+    const duration = 2.0; // 2 seconds
+    let elapsed = 0;
+    
+    // Update progress every 100ms
+    const progressInterval = setInterval(() => {
+        elapsed += 0.1;
+        const progress = Math.min((elapsed / duration) * 100, 100);
+        const remaining = Math.max(0, duration - elapsed);
+        
+        if (bar) bar.style.width = `${progress}%`;
+        if (label) label.textContent = `${remaining.toFixed(1)}s`;
+        
+        if (elapsed >= duration) {
+            clearInterval(progressInterval);
+            completeMining(button, bar, label);
+        }
+    }, 100);
+}
 
-    animateButtonClick(event);
-    const stone = resources.find(r => r.name === 'Stone');
-    if (stone) {
-        if (stone.amount >= stone.capacity) {
-            addLogEntry('Stone storage is full!', LogType.ERROR);
+function completeMining(button, bar, label) {
+    const crystal = resources.find(r => r.name === 'Crystal');
+    if (crystal) {
+        if (crystal.amount >= crystal.capacity) {
+            addLogEntry('Crystal storage is full!', LogType.ERROR);
         } else {
-            stone.amount = Math.min(stone.amount + 1, stone.capacity);
-            addLogEntry('Manually mined 1 Stone.', LogType.ACTION);
+            crystal.amount = Math.min(crystal.amount + 1, crystal.capacity);
+            addLogEntry('Manually mined 1 Crystal.', LogType.ACTION);
         }
         updateResourceInfo();
         try { refreshCurrentTooltip(); } catch (e) { /* ignore */ }
     }
-
-    // 3. End the cooldown after 100ms
-    setTimeout(() => {
-        isMiningOnCooldown = false;
-    }, 100); // 100ms cooldown
+    
+    // Reset button state
+    if (bar) bar.style.width = '0%';
+    if (label) label.textContent = 'Mine Crystal';
+    button.disabled = false;
+    isMiningOnCooldown = false;
 }
 
 // Listen for UI refresh requests from other modules (e.g. upgrade completion handlers)
@@ -491,5 +283,15 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
                 try { window.setupColonySection(); } catch (e) { /* ignore */ }
             }
         }
+    });
+    
+    // Re-render Colony on building completion so counts and availability refresh
+    window.addEventListener('building-complete', () => {
+        try { 
+            // Force rebuild to show newly unlocked buildings
+            const panel = document.querySelector('#colonySection .content-panel');
+            if (panel) panel.innerHTML = '';
+            setupColonySection(); 
+        } catch (e) { /* ignore */ }
     });
 }

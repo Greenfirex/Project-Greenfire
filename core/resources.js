@@ -24,7 +24,7 @@ export function getInitialResources() {
         { name: 'Makeshift Explosive', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true },
         { name: 'Power Cells', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true },
         { name: 'Insight', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
-        { name: 'Stone', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
+        { name: 'Crystal', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
         { name: 'Xylite', amount: 0, isDiscovered: false, capacity: 50, producible: true, integer: false },
         { name: 'Helion-3 Concentrate', amount: 0, isDiscovered: false, capacity: 25, producible: true, integer: false },
         { name: 'Cygnium Ore', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },

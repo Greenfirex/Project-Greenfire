@@ -327,7 +327,7 @@ This update introduces the foundational elements of **Chapter 1: Fall From the S
     - **Footer:** Correctly implemented the three-column layout with consistent glowing dividers.
 - **Progression:**
     - Game start significantly reworked around the Chapter 1 narrative.
-    - Resources like Stone, Scrap, and Components are now **hidden** until discovered/acquired.
+    - Resources like Crystal, Scrap, and Components are now **hidden** until discovered/acquired.
     - Survivor count starts at `0` and is hidden initially.
 
 ### 🐛 Bug Fixes
