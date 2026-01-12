@@ -10,6 +10,7 @@ import { setupGalaxyMapSection } from '../sections/galaxyMap.js';
 import { setupCrashSiteSection, updateCrashSiteActionButtonsState } from '../sections/crashSite.js';
 import { setupCrewManagementSection, updateCrewSection } from '../sections/crewManagement.js';
 import { setupJournalSection } from '../sections/journal.js';
+import { setupCharacterSection } from '../sections/character.js';
 import { setupEncryptedDriveSection } from '../sections/encryptedDrive.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { updateSurvivalDebuffBadge, initTooltips } from '../ui/panels/tooltip.js';
@@ -72,6 +73,10 @@ function startGame() {
     journalSection.id = 'journalSection';
     journalSection.classList.add('game-section');
 
+    const characterSection = document.createElement('div');
+    characterSection.id = 'characterSection';
+    characterSection.classList.add('game-section');
+
     const colonySection = document.createElement('div');
     colonySection.id = 'colonySection';
     colonySection.classList.add('game-section');
@@ -100,6 +105,7 @@ function startGame() {
     const gameArea = document.getElementById('gameArea');
     gameArea.appendChild(crashSiteSection);
     gameArea.appendChild(crewSection); 
+    gameArea.appendChild(characterSection);
     gameArea.appendChild(journalSection);
     gameArea.appendChild(colonySection);
     gameArea.appendChild(researchSection);
@@ -112,6 +118,7 @@ function startGame() {
     setupInfoPanel();
     setupCrashSiteSection(crashSiteSection);
     setupCrewManagementSection(crewSection);
+    setupCharacterSection(characterSection);
     setupJournalSection(journalSection);
     setupColonySection(colonySection);
     setupResearchSection(researchSection);
@@ -244,6 +251,7 @@ export function getInitialActivatedSections() {
     return {
         crashSiteSection: true,
         crewManagementSection: false,
+        characterSection: true,
         journalSection: true,
         colonySection: false,
         researchSection: false,
@@ -262,7 +270,8 @@ export function setActivatedSections(sections) {
 export let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || getInitialActivatedSections();
 
 function setupMenuButtons() {
-    const sections = ['crashSiteSection', 'colonySection', 'crewManagementSection', 'manufacturingSection', 'shipyardSection', 'researchSection', 'galaxyMapSection', 'encryptedDriveSection', 'journalSection'];
+    // Order matters: keep Character above Journal
+    const sections = ['crashSiteSection', 'colonySection', 'crewManagementSection', 'manufacturingSection', 'shipyardSection', 'researchSection', 'galaxyMapSection', 'encryptedDriveSection', 'characterSection', 'journalSection'];
     const container = document.querySelector('.menu-buttons-container');
     container.innerHTML = '';
     sections.forEach(section => {
@@ -274,7 +283,20 @@ function setupMenuButtons() {
         const formattedName = baseName.replace(/([A-Z])/g, ' $1');
         const displayName = formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
 
-        button.textContent = displayName;
+        // Use structured content so we can overlay badges (e.g., idle crew warning) without
+        // affecting the main label layout.
+        const label = document.createElement('span');
+        label.className = 'menu-button-label';
+        label.textContent = displayName;
+
+        const warning = document.createElement('span');
+        warning.className = 'menu-button-warning is-hidden';
+        warning.textContent = '!';
+        warning.setAttribute('aria-hidden', 'true');
+
+        button.appendChild(label);
+        button.appendChild(warning);
+
         button.addEventListener('click', () => showSection(section));
         container.appendChild(button);
     });
@@ -296,10 +318,11 @@ export function checkConditions() {
     const crystal = resources.find(r => r.name === 'Crystal');
     const xylite = resources.find(r => r.name === 'Xylite');
     const survivors = resources.find(r => r.name === 'Survivors');
-    const scrapMetal = resources.find(r => r.name === 'Scrap Metal');
+    const metalParts = resources.find(r => r.name === 'Metal Parts');
 
-    // Track when player first reaches 15 scrap metal (for objectives)
-    if (scrapMetal && scrapMetal.amount >= 15 && !gameFlags.hasReached15ScrapMetal) {
+    // Track when player first reaches 15 metal parts (for objectives)
+    // Note: keep the existing flag name for save compatibility.
+    if (metalParts && metalParts.amount >= 15 && !gameFlags.hasReached15ScrapMetal) {
         gameFlags.hasReached15ScrapMetal = true;
     }
 

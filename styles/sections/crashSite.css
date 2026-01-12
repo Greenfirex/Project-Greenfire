@@ -9,4 +9,13 @@
     box-sizing: border-box;
 }
 
+/* Category headers: match the green header accent used in Character/Journal (e.g., "Equipment") */
+#crashSiteSection .category-heading {
+    margin: 18px 0 10px 0;
+    font-size: 14px;
+    color: #90EE90;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
 /* .content-panel and shared UI styles have been moved to styles/base/game-area.css */

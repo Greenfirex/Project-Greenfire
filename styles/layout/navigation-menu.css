@@ -117,6 +117,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
     background-image: url('../../assets/images/PNG/Button03.png');
     background-size: 100% 100%;
     color: #EAEAEA;
@@ -126,6 +127,34 @@
     border: none;
     cursor: pointer;
     transition: all 0.2s ease-in-out;
+}
+
+.menu-button-label {
+    pointer-events: none;
+}
+
+.menu-button-warning {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1;
+    color: #111;
+    background: #ffd84a;
+    box-shadow:
+        0 0 6px rgba(255, 216, 74, 0.85),
+        0 0 10px rgba(255, 216, 74, 0.45);
+}
+
+.menu-button-warning.is-hidden {
+    display: none;
 }
 .menu-button:hover {
     background-image: url('../../assets/images/PNG/Button04.png');

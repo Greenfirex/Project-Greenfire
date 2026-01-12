@@ -10,13 +10,14 @@ import { updateXPMeter } from '../ui/footer.js';
 
 export function getInitialResources() {
     return [
-    { name: 'Stamina', amount: 70, isDiscovered: true, capacity: 100, producible: false, integer: true },
+        { name: 'Health', amount: 65, isDiscovered: true, capacity: 100, producible: false, integer: true },
+        { name: 'Stamina', amount: 70, isDiscovered: true, capacity: 100, producible: false, integer: true },
         // Meta progression resource (hidden from info panel)
         { name: 'XP', amount: 0, isDiscovered: true, capacity: 9000000000, producible: false, integer: true, hidden: true },
         { name: 'Survivors', amount: 0, isDiscovered: false, capacity: 20, producible: false, integer: true },
         { name: 'Food Rations', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.04 },
         { name: 'Clean Water', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.06 },
-        { name: 'Scrap Metal', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
+        { name: 'Metal Parts', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
         { name: 'Wire', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
         { name: 'Crude Prybar', amount: 0, isDiscovered: false, capacity: 5, producible: false, integer: true },
         { name: 'Fabric', amount: 0, isDiscovered: false, capacity: 100, producible: false, integer: true },
@@ -33,6 +34,40 @@ export function getInitialResources() {
 }
 
 export let resources = getInitialResources();
+
+const RESOURCE_CATEGORIES = {
+    // Essential vitals and survival
+    'Health': 'Essential',
+    'Stamina': 'Essential',
+    'Food Rations': 'Essential',
+    'Clean Water': 'Essential',
+    'Survivors': 'Essential',
+    'Crew Members': 'Essential',
+    'Morale': 'Essential',
+
+    // Tools / utility
+    'Crude Prybar': 'Tools',
+    'Makeshift Explosive': 'Tools',
+    'Power Cells': 'Tools',
+
+    // Materials / crafting inputs
+    'Metal Parts': 'Materials',
+    'Wire': 'Materials',
+    'Fabric': 'Materials',
+    'Chemicals': 'Materials',
+
+    // Exploration / research
+    'Insight': 'Science',
+    'Crystal': 'Science',
+    'Xylite': 'Science',
+    'Helion-3 Concentrate': 'Science',
+    'Cygnium Ore': 'Science',
+    'Sentient Mycelium': 'Science',
+};
+
+function getResourceCategoryName(resourceName) {
+    return RESOURCE_CATEGORIES[resourceName] || 'Other';
+}
 
 export function computeResourceRates(resourceName) {
     const currentResource = resources.find(r => r.name === resourceName);
@@ -99,6 +134,8 @@ export function computeResourceRates(resourceName) {
     } catch (e) { /* ignore */ }
 
     let totalProduction = (baseProduction + jobContribution) * (1 + bonusMultiplier);
+
+
 
     // Apply debug multiplier (excluding Survivors) for playtesting gains
     try {
@@ -168,6 +205,33 @@ export function setupInfoPanel() {
     const infoSection = document.createElement('div');
     infoSection.className = 'info-section';
 
+    const CATEGORY_ORDER = [
+        { id: 'Essential', title: 'Essential' },
+        { id: 'Materials', title: 'Materials' },
+        { id: 'Tools', title: 'Tools' },
+        { id: 'Science', title: 'Science' },
+        { id: 'Other', title: 'Other' },
+    ];
+
+    const categoryContainers = new Map();
+    CATEGORY_ORDER.forEach(cat => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'info-category hidden';
+        wrapper.dataset.category = cat.id;
+
+        const header = document.createElement('div');
+        header.className = 'info-category-header';
+        header.textContent = cat.title;
+
+        const body = document.createElement('div');
+        body.className = 'info-category-body';
+
+        wrapper.appendChild(header);
+        wrapper.appendChild(body);
+        infoSection.appendChild(wrapper);
+        categoryContainers.set(cat.id, body);
+    });
+
     // --- Insert Morale row at the top ---
     const moraleRow = document.createElement('div');
     moraleRow.className = 'info-row morale';
@@ -198,7 +262,7 @@ export function setupInfoPanel() {
             
         `;
     });
-    infoSection.appendChild(moraleRow);
+    (categoryContainers.get('Essential') || infoSection).appendChild(moraleRow);
 
     // iterate over the master initial set so undiscovered resources still have rows
     getInitialResources().forEach(resource => {
@@ -298,10 +362,22 @@ export function setupInfoPanel() {
             `;
         });
 
-        infoSection.appendChild(infoRow);
+        const cat = getResourceCategoryName(resource.name);
+        (categoryContainers.get(cat) || categoryContainers.get('Other') || infoSection).appendChild(infoRow);
     });
 
     infoPanelContent.appendChild(infoSection);
+
+    // Initial category visibility (after DOM attach)
+    updateResourceCategoryVisibility(infoPanelContent);
+}
+
+function updateResourceCategoryVisibility(root = document) {
+    const wrappers = root.querySelectorAll('.info-category');
+    wrappers.forEach(w => {
+        const hasVisibleRow = !!w.querySelector('.info-row:not(.hidden)');
+        w.classList.toggle('hidden', !hasVisibleRow);
+    });
 }
 
 export function updateResourceInfo() {
@@ -329,7 +405,7 @@ export function updateResourceInfo() {
 
         // reveal any resource that has a positive amount
         // BUT prevent auto-discovery of Chapter 1-only resources in Chapter 2
-        const chapter1OnlyResources = ['Stamina', 'Crude Prybar', 'Makeshift Explosive'];
+        const chapter1OnlyResources = ['Health', 'Stamina', 'Crude Prybar', 'Makeshift Explosive'];
         const isChapter2 = gameFlags.chapter === 2;
         const shouldPreventDiscovery = isChapter2 && chapter1OnlyResources.includes(resource.name);
         
@@ -406,6 +482,9 @@ export function updateResourceInfo() {
 
     infoRow.classList.toggle('capped', isCapped);
     });
+
+    // Hide empty categories to avoid spoilers.
+    updateResourceCategoryVisibility(document.getElementById('infoPanelContent') || document);
 
     // Update XP meter in footer
     updateXPMeter(resources);

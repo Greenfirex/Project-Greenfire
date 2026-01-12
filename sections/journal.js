@@ -262,6 +262,28 @@ function renderObjectiveDetails(panel, allObjectives) {
     }
     
     panel.appendChild(statusRow);
+
+    // Narrative (optional, supports Markdown)
+    const narrative = (selected && typeof selected.narrative === 'string') ? selected.narrative.trim() : '';
+    if (narrative) {
+        const narrativeWrap = document.createElement('div');
+        narrativeWrap.className = 'objective-detail-narrative';
+
+        // Prefer the global `marked` (loaded in index.html). Fallback to simple paragraphs.
+        const markedGlobal = (typeof window !== 'undefined') ? window.marked : null;
+        if (markedGlobal && typeof markedGlobal.parse === 'function') {
+            narrativeWrap.innerHTML = markedGlobal.parse(narrative);
+        } else {
+            const paras = narrative.split(/\n\s*\n/g).map(s => s.trim()).filter(Boolean);
+            paras.forEach(pTxt => {
+                const p = document.createElement('p');
+                p.textContent = pTxt;
+                narrativeWrap.appendChild(p);
+            });
+        }
+
+        panel.appendChild(narrativeWrap);
+    }
     
     // Steps
     const steps = getObjectiveSteps(selected.id);

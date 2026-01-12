@@ -59,6 +59,35 @@
     gap: 2px;
 }
 
+.info-category {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.info-category-header {
+    margin-top: 10px;
+    padding: 4px 10px 2px 10px;
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.85);
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    text-shadow:
+        0 0 2px rgba(0,0,0,0.85),
+        0 0 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.25);
+}
+
+.info-category:first-child .info-category-header {
+    margin-top: 0;
+}
+
+.info-category-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
 .info-section::-webkit-scrollbar {
     display: none;
 }
@@ -104,6 +133,19 @@
 /* Ensure text over the Stamina bar is readable */
 .info-row[data-resource="Stamina"] {
     color: rgba(255, 215, 0, 0.9);
+}
+
+.info-row[data-resource="Stamina"] .resource-progress-bar {
+    background-color: rgba(255, 215, 0, 0.18);
+}
+
+/* Health should read as a red vital */
+.info-row[data-resource="Health"] {
+    color: rgba(231, 76, 60, 0.95);
+}
+
+.info-row[data-resource="Health"] .resource-progress-bar {
+    background-color: rgba(231, 76, 60, 0.20);
 }
 
 /* Morale row: always full bar; color tint varies by level */

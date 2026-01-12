@@ -64,7 +64,7 @@ const initialBuildings = [
             { type: 'storage', resource: 'Food Rations', value: 10 }
         ],
         count: 0,
-        cost: [{ resource: 'Scrap Metal', amount: 8 }, { resource: 'Wire', amount: 4 }],
+        cost: [{ resource: 'Metal Parts', amount: 8 }, { resource: 'Wire', amount: 4 }],
         costMultiplier: 1.3,
         description: 'A basic camp where survivors can be organized to forage for food.',
 
@@ -78,7 +78,7 @@ const initialBuildings = [
             { type: 'storage', resource: 'Clean Water', value: 10 }
         ],
         count: 0,
-        cost: [{ resource: 'Scrap Metal', amount: 10 }, { resource: 'Wire', amount: 6 }],
+        cost: [{ resource: 'Metal Parts', amount: 10 }, { resource: 'Wire', amount: 6 }],
         costMultiplier: 1.3,
         description: 'A makeshift station to collect and purify water.',
 
@@ -87,7 +87,7 @@ const initialBuildings = [
     {
         name: 'Food Larder',
         count: 0,
-        cost: [{ resource: 'Scrap Metal', amount: 15 }, { resource: 'Wire', amount: 4 }],
+        cost: [{ resource: 'Metal Parts', amount: 15 }, { resource: 'Wire', amount: 4 }],
         costMultiplier: 1.2,
         effect: { type: 'storage', resource: 'Food Rations', value: 80 },
         description: 'A basic insulated larder that increases food storage capacity.',
@@ -97,7 +97,7 @@ const initialBuildings = [
     {
         name: 'Water Reservoir',
         count: 0,
-        cost: [{ resource: 'Scrap Metal', amount: 18 }, { resource: 'Wire', amount: 6 }],
+        cost: [{ resource: 'Metal Parts', amount: 18 }, { resource: 'Wire', amount: 6 }],
         costMultiplier: 1.2,
         effect: { type: 'storage', resource: 'Clean Water', value: 100 },
         description: 'A small covered reservoir that increases water storage capacity.',
@@ -108,7 +108,7 @@ const initialBuildings = [
         name: 'Rain Tarp',
         effect: { type: 'passive', resource: 'Clean Water', rate: 0.02 },
         count: 0,
-        cost: [{ resource: 'Fabric', amount: 6 }, { resource: 'Scrap Metal', amount: 6 }],
+        cost: [{ resource: 'Fabric', amount: 6 }, { resource: 'Metal Parts', amount: 6 }],
         costMultiplier: 1.2,
         description: 'Tarped catchments and troughs that funnel rainwater into storage.',
 

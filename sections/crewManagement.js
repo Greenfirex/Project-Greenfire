@@ -69,6 +69,8 @@ export function updateCrewSection() {
     const totalAssigned = jobs.reduce((sum, j) => sum + (j.assigned || 0), 0);
     const idle = Math.max(0, survivorsCount - totalAssigned);
 
+    updateCrewMenuIdleWarning(survivorsCount, idle);
+
     const jobsContainer = document.getElementById('crewJobsContainer');
     if (!jobsContainer) return;
     jobsContainer.innerHTML = '';
@@ -248,4 +250,14 @@ function decrementJob(jobId) {
     addLogEntry(`Removed 1 ${label} from ${job.name}.`, LogType.INFO);
     updateCrewSection();
     try { refreshCurrentTooltip(); } catch (e) { /* ignore */ }
+}
+
+function updateCrewMenuIdleWarning(totalSurvivors, idleSurvivors) {
+    const btn = document.querySelector('.menu-button[data-section="crewManagementSection"]');
+    if (!btn) return;
+    const badge = btn.querySelector('.menu-button-warning');
+    if (!badge) return;
+
+    const shouldShow = (Number(totalSurvivors) > 0) && (Number(idleSurvivors) > 0);
+    badge.classList.toggle('is-hidden', !shouldShow);
 }

@@ -192,4 +192,22 @@
     text-shadow: none;
 }
 
+/* Storage full (reward would be wasted) */
+.image-button.capacity-blocked {
+    filter: grayscale(55%);
+    opacity: 0.68;
+    cursor: not-allowed;
+}
+
+.image-button.capacity-blocked:hover {
+    background-image: url('../../assets/images/PNG/Button03.png');
+    color: #EAEAEA;
+    transform: none;
+}
+
+.image-button.capacity-blocked .building-name {
+    color: #ffd84a;
+    text-shadow: none;
+}
+
 /* Shared custom scrollbar for content-panel */

@@ -9,7 +9,7 @@ export const upgradeEffects = [
     { flag: 'rainCatchersInstalled',     label: 'Rain Tarp: +10%',            multiplier: 1.10, resources: ['Clean Water'],           actions: ['water_collection'] },
     { flag: 'purificationUnitInstalled',  label: 'Purification Unit: +20%',     multiplier: 1.20, resources: ['Clean Water'],           actions: ['purifyWater', 'water_collection'] },
     // Display label for Scrap Collector boost on job/tooltips
-    { flag: 'scavengerKitInstalled',      label: 'Scavenger Kit: +20%',         multiplier: 1.20, resources: ['Scrap Metal'],           actions: ['scrap_collector'] }
+    { flag: 'scavengerKitInstalled',      label: 'Scavenger Kit: +20%',         multiplier: 1.20, resources: ['Metal Parts'],           actions: ['scrap_collector'] }
 ];
 
 // Compute a combined reward multiplier based on enabled upgrade flags.

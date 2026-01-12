@@ -8,7 +8,7 @@ const initialUpgradeActions = [
         isUnlocked: false,
         cancelable: true,
         cost: [
-            { resource: 'Scrap Metal', amount: 6 },
+            { resource: 'Metal Parts', amount: 6 },
             { resource: 'Crude Prybar', amount: 1 },
             { resource: 'Wire', amount: 10 }
         ],
@@ -41,7 +41,7 @@ const initialUpgradeActions = [
         cancelable: true,
         cost: [
             { resource: 'Fabric', amount: 2 },
-            { resource: 'Scrap Metal', amount: 4 },
+            { resource: 'Metal Parts', amount: 4 },
             { resource: 'Wire', amount: 4 }
         ],
         drain: [
@@ -73,7 +73,7 @@ const initialUpgradeActions = [
         cancelable: true,
         cost: [
             { resource: 'Fabric', amount: 2 },
-            { resource: 'Scrap Metal', amount: 4 },
+            { resource: 'Metal Parts', amount: 4 },
             { resource: 'Wire', amount: 4 }
         ],
         drain: [
@@ -104,7 +104,7 @@ const initialUpgradeActions = [
         isUnlocked: false, // unlocked after Base Camp is established
         cancelable: true,
         cost: [
-            { resource: 'Scrap Metal', amount: 5 }
+            { resource: 'Metal Parts', amount: 5 }
         ],
         drain: [
             { resource: 'Stamina', amount: 11 },
@@ -135,7 +135,7 @@ const initialUpgradeActions = [
         cancelable: true,
         cost: [
             { resource: 'Wire', amount: 16 },
-            { resource: 'Scrap Metal', amount: 12 }
+            { resource: 'Metal Parts', amount: 12 }
         ],
         drain: [
             { resource: 'Stamina', amount: 17 },
@@ -165,7 +165,7 @@ const initialUpgradeActions = [
         isUnlocked: false, // Will be unlocked by Base Camp establishment
         cancelable: true,
         cost: [
-            { resource: 'Scrap Metal', amount: 8 },
+            { resource: 'Metal Parts', amount: 8 },
             { resource: 'Wire', amount: 12 }
         ],
         drain: [
@@ -232,7 +232,7 @@ const initialUpgradeActions = [
         cancelable: true,
         cost: [
             { resource: 'Fabric', amount: 6 },
-            { resource: 'Scrap Metal', amount: 4 },
+            { resource: 'Metal Parts', amount: 4 },
             { resource: 'Crude Prybar', amount: 1 }
         ],
         drain: [
@@ -264,7 +264,7 @@ const initialUpgradeActions = [
         cancelable: true,
         cost: [
             { resource: 'Fabric', amount: 20 },
-            { resource: 'Scrap Metal', amount: 6 },
+            { resource: 'Metal Parts', amount: 6 },
             { resource: 'Crude Prybar', amount: 2 }
         ],
         drain: [
@@ -296,7 +296,7 @@ const initialUpgradeActions = [
         cancelable: true,
         cost: [
             { resource: 'Fabric', amount: 4 },
-            { resource: 'Scrap Metal', amount: 4 },
+            { resource: 'Metal Parts', amount: 4 },
             { resource: 'Wire', amount: 8 }
         ],
         drain: [
@@ -328,7 +328,7 @@ const initialUpgradeActions = [
         isUnlocked: false,
         cancelable: true,
         cost: [
-            { resource: 'Scrap Metal', amount: 12 },
+            { resource: 'Metal Parts', amount: 12 },
             { resource: 'Chemicals', amount: 6 },
             { resource: 'Fabric', amount: 4 }
         ],

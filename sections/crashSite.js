@@ -18,6 +18,49 @@ import { getBlockedStatus, evaluateEventUnlocks } from '../data/unlockRules.js';
 
 const SITE_BUILDING_NAMES = ['Foraging Camp', 'Water Station', 'Rain Tarp', 'Food Larder', 'Water Reservoir'];
 
+function getMaxRewardAmount(rewardEntry) {
+    if (!rewardEntry) return 0;
+    const amt = rewardEntry.amount;
+    if (Array.isArray(amt)) {
+        const hi = Number(amt[1]);
+        return Number.isFinite(hi) ? hi : 0;
+    }
+    const n = Number(amt);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function getCapacityBlockReason(action) {
+    try {
+        const stage = getCurrentStage(action);
+        const reward = []
+            .concat(Array.isArray(action?.reward) ? action.reward : [])
+            .concat(Array.isArray(stage?.reward) ? stage.reward : []);
+
+        // Only consider positive reward entries.
+        const rewardEntries = reward.filter(r => r && r.resource && getMaxRewardAmount(r) > 0);
+        if (!rewardEntries.length) return null;
+
+        const cappedEntries = rewardEntries.filter(r => {
+            const res = resources.find(x => x && x.name === r.resource);
+            if (!res) return false;
+            const cap = Number(res.capacity);
+            if (!Number.isFinite(cap) || cap === Number.POSITIVE_INFINITY) return false;
+            const amount = Number(res.amount);
+            if (!Number.isFinite(amount)) return false;
+            return amount >= cap - 1e-9;
+        });
+
+        const allWasted = cappedEntries.length === rewardEntries.length;
+        if (!allWasted) return null;
+
+        const names = Array.from(new Set(cappedEntries.map(r => r.resource)));
+        if (names.length === 1) return `Storage full: ${names[0]}.`;
+        return `Storage full: ${names.join(', ')}.`;
+    } catch {
+        return null;
+    }
+}
+
 // Ensure Investigate Bridge skips pre-power stage when emergency power is already restored
 function ensureBridgeStageAfterPower() {
     try {
@@ -35,6 +78,12 @@ function ensureBridgeStageAfterPower() {
 
 function attachStartClickHandler(btn, action, section) {
     btn.onclick = (e) => {
+    const capReason = getCapacityBlockReason(action);
+        if (capReason) {
+            e.preventDefault();
+            addLogEntry(capReason, LogType.INFO);
+            return;
+        }
     const block = getBlockedStatus(action.id, { actions: salvageActions, flags: gameFlags });
         if (block.blocked) {
             e.preventDefault();
@@ -181,6 +230,16 @@ export function setupCrashSiteSection(section) {
         }
         attachStartClickHandler(btn, action, section);
 
+        const capReason = getCapacityBlockReason(action);
+        btn.classList.toggle('capacity-blocked', !!capReason);
+        if (capReason) {
+            btn.dataset.capacityBlocked = 'true';
+            btn.dataset.capacityBlockedReason = capReason;
+        } else {
+            btn.dataset.capacityBlocked = 'false';
+            delete btn.dataset.capacityBlockedReason;
+        }
+
         group.appendChild(btn);
     };
 
@@ -207,6 +266,7 @@ export function setupCrashSiteSection(section) {
         constructionWrapper.style.marginTop = '18px';
         const ch = document.createElement('h3');
         ch.textContent = 'Construction';
+        ch.className = 'category-heading';
         constructionWrapper.appendChild(ch);
 
         const buildGroup = document.createElement('div');
@@ -823,9 +883,12 @@ export function updateCrashSiteActionButtonsState() {
 
         const canAfford = !!canAffordAction(action, resources);
     const { blocked: isBlocked, reason } = getBlockedStatus(action.id, { actions: salvageActions, flags: gameFlags });
+        const capReason = getCapacityBlockReason(action);
+        const isCapBlocked = !!capReason;
 
         const wasAffordable = btn.dataset.affordable === 'true';
         const wasBlocked = btn.dataset.blocked === 'true';
+        const wasCapBlocked = btn.dataset.capacityBlocked === 'true';
 
         if (wasAffordable !== canAfford) {
             btn.classList.toggle('unaffordable', !canAfford);
@@ -843,6 +906,15 @@ export function updateCrashSiteActionButtonsState() {
             btn.classList.toggle('blocked-action', isBlocked);
             btn.dataset.blocked = isBlocked ? 'true' : 'false';
             if (isBlocked) btn.dataset.blockedReason = reason; else delete btn.dataset.blockedReason;
+        }
+
+        if (wasCapBlocked !== isCapBlocked) {
+            btn.classList.toggle('capacity-blocked', isCapBlocked);
+            btn.dataset.capacityBlocked = isCapBlocked ? 'true' : 'false';
+            if (isCapBlocked) btn.dataset.capacityBlockedReason = capReason; else delete btn.dataset.capacityBlockedReason;
+        } else if (isCapBlocked) {
+            // Keep reason current (stage-based rewards may change).
+            btn.dataset.capacityBlockedReason = capReason;
         }
     });
 }

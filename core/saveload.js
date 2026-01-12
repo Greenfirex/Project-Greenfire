@@ -18,6 +18,7 @@ import { resetActiveActions, getActiveCrashSiteAction, setActiveCrashSiteAction 
 import { resetMoraleModifiers, listMoraleModifiers, setMoraleModifier } from '../data/morale.js';
 import { resetWeather } from '../data/weather.js';
 import { driveTasks, resetDriveTasks } from '../data/definitions/encryptedDriveTasks.js';
+import { applySavedCharacterState, getCharacterStateForSave, resetCharacterState } from '../data/character.js';
 
 export function saveGameState() {
     const gameState = getGameState();
@@ -45,6 +46,7 @@ export function getGameState() {
         activeCrashSiteAction: getActiveCrashSiteAction(),
         moraleModifiers: listMoraleModifiers(),
         driveTasks,
+        characterState: (function(){ try { return getCharacterStateForSave(); } catch { return null; } })(),
         // Persist narrative objectives alongside the main save so they don't drift
         objectivesStatus: (function(){ try { return getObjectivesStatus(); } catch { return []; } })()
     };
@@ -77,8 +79,32 @@ export function applyGameState(gameState) {
         localStorage.setItem('storyLog', JSON.stringify(storyLog));
     }
 
+    // Restore character state (equipment + inventory)
+    try {
+        if (gameState.characterState && typeof gameState.characterState === 'object') {
+            applySavedCharacterState(gameState.characterState);
+            localStorage.setItem('characterStateV1', JSON.stringify(gameState.characterState));
+        } else {
+            resetCharacterState();
+            localStorage.setItem('characterStateV1', JSON.stringify(getCharacterStateForSave()));
+        }
+    } catch { /* non-fatal */ }
+
     // Smart loading: merge saved data into fresh defaults to preserve forward compatibility
     const defaultResources = getInitialResources();
+
+    // Migration: Scrap Metal -> Metal Parts
+    // Old saves used the resource name "Scrap Metal". We now use "Metal Parts".
+    // When loading, map the old entry into the new one if present.
+    try {
+        const saved = Array.isArray(gameState.resources) ? gameState.resources : [];
+        const oldScrap = saved.find(r => r && r.name === 'Scrap Metal');
+        const hasMetal = saved.some(r => r && r.name === 'Metal Parts');
+        if (oldScrap && !hasMetal) {
+            saved.push({ ...oldScrap, name: 'Metal Parts' });
+        }
+    } catch { /* non-fatal */ }
+
     defaultResources.forEach(defaultResource => {
         const savedResource = (gameState.resources || []).find(r => r.name === defaultResource.name);
         if (savedResource) {
@@ -262,6 +288,7 @@ export function resetToDefaultState() {
     localStorage.removeItem('storyLog');
     localStorage.removeItem('logEntries');
     localStorage.removeItem('objectivesStatusV1');
+    localStorage.removeItem('characterStateV1');
 
     // PRIORITY 1: Reset core game state first (data layer)
     resetIngameTime();
@@ -279,6 +306,7 @@ export function resetToDefaultState() {
     resetMoraleModifiers();
     resetWeather();
     resetDriveTasks();
+    resetCharacterState();
     
     // PRIORITY 2: Reset research state
     clearInterval(getResearchInterval());

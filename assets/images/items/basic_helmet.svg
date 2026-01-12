@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Helmet icon">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cfeccf" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#90EE90" stop-opacity="0.65"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="108" height="108" rx="18" fill="rgba(0,0,0,0.35)" stroke="rgba(105,240,174,0.55)" stroke-width="2"/>
+  <path d="M64 26
+           C43 26, 28 43, 28 64
+           L28 72
+           C28 76, 31 80, 36 80
+           L44 80
+           L44 64
+           C44 55, 52 48, 64 48
+           C76 48, 84 55, 84 64
+           L84 80
+           L92 80
+           C97 80, 100 76, 100 72
+           L100 64
+           C100 43, 85 26, 64 26 Z" fill="url(#g)"/>
+  <path d="M50 64 H78" stroke="rgba(0,0,0,0.55)" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="64" cy="64" r="6" fill="rgba(0,0,0,0.45)"/>
+</svg>

@@ -79,12 +79,15 @@ const initialSalvageActions = [
             {
             id: 'rest',
             name: 'Rest',
-            description: 'Take a quick break to recover some stamina.',
+            description: 'Take a quick break to recover stamina and patch yourself up.',
             duration: 2,
             category: 'Survival',
             isUnlocked: false, // make available by default
             repeatable: true, // allow infinite uses (stages run only once)
-            reward: [ { resource: 'Stamina', amount: [40, 60] } ],
+            reward: [
+                { resource: 'Stamina', amount: [40, 60] },
+                { resource: 'Health', amount: [6, 10] }
+            ],
             // stage kept so completing Rest can unlock follow-ups, but action remains usable
             stage: 0,
             stages: [
@@ -132,7 +135,7 @@ const initialSalvageActions = [
                         { resource: 'Clean Water', amount: 7 } 
                     ],
                 reward: [
-                    { resource: 'Scrap Metal', amount: [9, 18] },
+                    { resource: 'Metal Parts', amount: [9, 18] },
                     // 20% chance to find 1 Wire
                     { resource: 'Wire', amount: 1, chance: 0.2 }
                 ]
@@ -149,7 +152,7 @@ const initialSalvageActions = [
                 repeatable: true,
                 showUnlocks: false,
                 cost: [
-                    { resource: 'Scrap Metal', amount: 15 }
+                    { resource: 'Metal Parts', amount: 15 }
                 ],
                 drain: [
                     { resource: 'Stamina', amount: 10 },
@@ -235,7 +238,7 @@ const initialSalvageActions = [
                 isUnlocked: false,
                 cancelable: true,
                 cost: [
-                    { resource: 'Scrap Metal', amount: 25 },
+                    { resource: 'Metal Parts', amount: 25 },
                     { resource: 'Wire', amount: 12 }
                 ],
                 drain: [
@@ -566,7 +569,7 @@ const initialSalvageActions = [
             uses: 0,
             cost: [
                 { resource: 'Chemicals', amount: 5 },
-                { resource: 'Scrap Metal', amount: 8 },
+                { resource: 'Metal Parts', amount: 8 },
                 { resource: 'Wire', amount: 14 }
             ],
             drain: [

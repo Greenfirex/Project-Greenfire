@@ -1,0 +1,398 @@
+/* Character Section (v1 scaffold)
+   Keep styling consistent with existing section panels.
+*/
+
+#characterSection {
+    /* Match Journal / Crash Site section layout: background + padding + inner content-panel */
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+
+    padding: 20px;
+    box-sizing: border-box;
+
+    /* No dedicated background art yet; use a subtle, consistent gradient so the padding reads. */
+    background:
+        radial-gradient(circle at 50% 18%, rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10), rgba(0,0,0,0) 55%),
+        radial-gradient(circle at 20% 70%, rgba(255,255,255,0.04), rgba(0,0,0,0) 45%),
+        rgba(0,0,0,0);
+}
+
+/* Override shared .content-panel height:100% so it behaves well inside padded sections */
+#characterSection > .content-panel.character-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+}
+
+#characterSection .character-subtitle {
+    margin: 0 0 16px 0;
+    color: #c9d7c9;
+    font-size: 13px;
+}
+
+#characterSection .character-layout {
+    display: grid;
+    grid-template-columns: 0.95fr 1.05fr;
+    grid-template-areas:
+        "equipment stats"
+        "inventory inventory";
+    gap: 14px;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+#characterSection .equipment-card { grid-area: equipment; }
+#characterSection .stats-card { grid-area: stats; }
+#characterSection .inventory-card { grid-area: inventory; }
+
+#characterSection .character-card {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.25);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Stats */
+#characterSection .stats-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+#characterSection .stat-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 10px;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.22);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.14);
+}
+
+#characterSection .stat-row.stat-row-bar {
+    align-items: center;
+    justify-content: flex-start;
+}
+
+#characterSection .stat-row.stat-row-bar .stat-label {
+    flex: 0 0 84px;
+}
+
+#characterSection .stat-row.stat-row-bar .stat-value {
+    flex: 0 0 auto;
+    margin-left: 10px;
+}
+
+#characterSection .stat-bar {
+    position: relative;
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 16px;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+#characterSection .stat-bar-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    background: linear-gradient(90deg,
+        rgba(255, 214, 80, 0.55),
+        rgba(255, 214, 80, 0.95)
+    );
+    box-shadow: 0 0 12px rgba(255, 214, 80, 0.22);
+}
+
+/* Health is red, Stamina is yellow */
+#characterSection .stat-row[data-stat="health"] .stat-bar-fill {
+    background: linear-gradient(90deg,
+        rgba(231, 76, 60, 0.55),
+        rgba(231, 76, 60, 0.95)
+    );
+    box-shadow: 0 0 12px rgba(231, 76, 60, 0.22);
+}
+
+
+#characterSection .stat-label {
+    color: rgba(255,255,255,0.85);
+    font-size: 12px;
+}
+
+#characterSection .stat-value {
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+#characterSection .character-card-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+#characterSection .character-card-header h3 {
+    margin: 0;
+    font-size: 14px;
+    color: #90EE90;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+#characterSection .character-card-hint {
+    color: rgba(255,255,255,0.55);
+    font-size: 12px;
+}
+
+/* Equipment (Paper Doll) */
+#characterSection .paperdoll {
+    position: relative;
+    height: 470px;
+    border-radius: 12px;
+    background: radial-gradient(circle at 50% 25%, rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10), rgba(0,0,0,0) 60%),
+                rgba(0,0,0,0.18);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.14);
+    overflow: hidden;
+}
+
+#characterSection .paperdoll-silhouette {
+    position: absolute;
+    left: 50%;
+    top: 52%;
+    transform: translate(-50%, -50%);
+    height: 460px;
+    width: auto;
+    opacity: 0.72;
+    pointer-events: none;
+    z-index: 1;
+    image-rendering: auto;
+    /* The source image has a dark/black background; blend + mask it so it doesn't look like a hard rectangle. */
+    mix-blend-mode: screen;
+    -webkit-mask-image: radial-gradient(ellipse at 50% 46%, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 80%);
+    mask-image: radial-gradient(ellipse at 50% 46%, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 80%);
+    filter: drop-shadow(0 16px 28px rgba(0,0,0,0.65)) contrast(1.05) brightness(0.95);
+}
+
+#characterSection .equipment-slot {
+    position: relative;
+    height: 76px;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    cursor: default;
+    overflow: hidden;
+}
+
+/* Paper-doll slots are positioned around the silhouette */
+#characterSection .paperdoll .equipment-slot {
+    position: absolute;
+    width: 132px;
+    height: 64px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0.35));
+    backdrop-filter: blur(2px);
+    z-index: 2;
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="head"] {
+    left: 50%;
+    top: 28px;
+    transform: translateX(-50%);
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="chest"] {
+    left: 50%;
+    top: 132px;
+    transform: translateX(-50%);
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="legs"] {
+    left: 50%;
+    top: 256px;
+    transform: translateX(-50%);
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="weapon"] {
+    left: 8px;
+    top: 186px;
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="offhand"] {
+    right: 8px;
+    top: 186px;
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="accessory_1"] {
+    left: 8px;
+    top: 354px;
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="accessory_2"] {
+    right: 8px;
+    top: 354px;
+}
+
+#characterSection .equipment-slot .slot-frame {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10), rgba(0,0,0,0));
+    pointer-events: none;
+}
+
+#characterSection .equipment-slot .slot-label {
+    position: absolute;
+    left: 10px;
+    bottom: 8px;
+    color: #ffffff;
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+#characterSection .equipment-slot.has-item .slot-label {
+    opacity: 0.55;
+}
+
+#characterSection .slot-item {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    top: 8px;
+    bottom: 26px;
+    color: #eaffea;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    text-align: center;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+}
+
+#characterSection .slot-item .item-name {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+#characterSection .item-icon {
+    --item-icon-size: 30px;
+    width: var(--item-icon-size);
+    height: var(--item-icon-size);
+    flex: 0 0 auto;
+    filter: drop-shadow(0 1px 0 rgba(0,0,0,0.55));
+}
+
+/* Slightly larger icons on the paper-doll slots */
+#characterSection .paperdoll .equipment-slot .item-icon {
+    --item-icon-size: 34px;
+}
+
+/* Bag */
+#characterSection .inventory-card {
+    min-height: 230px;
+}
+
+#characterSection .bag-grid {
+    display: grid;
+    /* 2 rows, stretch across the card */
+    grid-template-columns: repeat(var(--bag-cols, 6), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--bag-rows, 2), minmax(0, 1fr));
+    gap: 10px;
+    padding: 4px;
+    box-sizing: border-box;
+    overflow: hidden;
+    flex: 1 1 auto;
+    min-height: 0;
+    align-content: stretch;
+}
+
+#characterSection .bag-slot {
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.22);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.16);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    position: relative;
+    overflow: hidden;
+}
+
+#characterSection .bag-item {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    top: 8px;
+    bottom: 8px;
+    color: rgba(255,255,255,0.90);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 0;
+    text-align: center;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.6);
+}
+
+#characterSection .bag-item .item-name {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* Drag & drop feedback */
+#characterSection .bag-slot.drop-ok,
+#characterSection .equipment-slot.drop-ok {
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.75);
+    box-shadow: 0 0 0 2px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18), inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+#characterSection .bag-slot.drop-bad,
+#characterSection .equipment-slot.drop-bad {
+    border-color: rgba(231, 76, 60, 0.65);
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.18), inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+#characterSection .bag-slot:focus {
+    outline: none;
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.55);
+    box-shadow: 0 0 0 2px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
+}
+
+@media (max-width: 1100px) {
+    #characterSection .character-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "equipment"
+            "stats"
+            "inventory";
+    }
+}

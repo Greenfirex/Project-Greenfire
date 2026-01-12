@@ -116,18 +116,13 @@ function upsertStatus(id, nextState) {
 const defs = [
     {
         id: 'obj_entry',
-        label: () => {
-            const reentryDone = hasCompletedAction('attemptReentry');
-            const scout = findAction('scoutSurroundings');
-            const scoutTotal = Array.isArray(scout?.stages) ? scout.stages.length : 0;
-            const scoutStage = Math.min(scout?.stage || 0, scoutTotal);
-            const scoutDone = hasCompletedAction('scoutSurroundings');
-            const altDone = hasCompletedAction('attemptAlternateAccess');
-            if (!reentryDone) return 'Attempt reentry into the ship';
-            if (!scoutDone) return `Scout surroundings (${scoutStage}/${scoutTotal || 3})`;
-            if (!altDone) return 'Attempt alternate access';
-            return 'Regain entry accomplished';
-        },
+        label: 'Assess the Wreckage',
+        // Optional: narrative text shown in the Journal objective details pane (Markdown supported)
+        narrative: () => [
+            "The forward hull is a furnace of warped plating and thick smoke. Your first push back inside makes it brutally clear: whatever hit the ship left the structure unstable, and the obvious route is gone.",
+            "If you’re going to reach intact compartments — or anyone who made it out alive — you’ll need to think like an officer, not a panicked survivor: secure a place to recover, find food and water, and map the ground around the wreck.",
+            "Once you have your bearings, search for a safer way in. Somewhere beneath the scorched seams and collapsed corridors there may be a maintenance path that still leads into the ship."
+        ].join('\n\n'),
         start: () => true,
         complete: () => hasCompletedAction('attemptAlternateAccess'),
         reward: [{ resource: 'XP', amount: 70 }],
@@ -146,6 +141,12 @@ const defs = [
     {
         id: 'obj_enter',
         label: 'Enter the wreck',
+        // Optional: narrative text shown in the Journal objective details pane (Markdown supported)
+        narrative: () => [
+            "The alternate route back to the ship is real — but it isn’t kind. A narrow conduit and a half-collapsed service corridor point toward intact compartments, yet the passage is choked with debris and jagged metal.",
+            "To force a way in, you’ll need leverage and patience. Scavenge enough scrap to craft a crude prybar, then return to the hull and find a seam you can prise apart without bringing the whole section down on your head.",
+            "If you can breach the plating, you’ll be inside again — and the wreck will stop being a distant threat and become a place you can search, piece by piece, for survivors and answers."
+        ].join('\n\n'),
         // Begin as soon as crafting the prybar is unlocked (after alternate access) or hull prying is available
         start: () => !!findAction('makeCrudePrybar')?.isUnlocked || !!findAction('pryOpenHull')?.isUnlocked,
         // Complete when the hull has been pried open
@@ -153,10 +154,10 @@ const defs = [
         reward: [{ resource: 'XP', amount: 65 }],
         priority: 3,
         steps: () => {
-            const scrap = getResourceAmount('Scrap Metal');
+            const scrap = getResourceAmount('Metal Parts');
             const prybarCrafted = hasCompletedAction('makeCrudePrybar');
             return [
-                { id: 'gather_scrap', label: 'Gather Scrap Metal (15)', done: gameFlags.hasReached15ScrapMetal, progress: gameFlags.hasReached15ScrapMetal ? '15/15' : `${Math.floor(scrap)}/15` },
+                { id: 'gather_scrap', label: 'Gather Metal Parts (15)', done: gameFlags.hasReached15ScrapMetal, progress: gameFlags.hasReached15ScrapMetal ? '15/15' : `${Math.floor(scrap)}/15` },
                 { id: 'craft_prybar', label: 'Make Crude Prybar', done: prybarCrafted },
                 { id: 'open_hull', label: 'Pry open hull', done: hasCompletedAction('pryOpenHull') }
             ];
@@ -170,7 +171,7 @@ const defs = [
         reward: [{ resource: 'XP', amount: 80 }], // Combined XP reward (30 + 50)
         priority: 5,
         steps: () => {
-            const scrap = getResourceAmount('Scrap Metal');
+            const scrap = getResourceAmount('Metal Parts');
             const wire = getResourceAmount('Wire');
             const investigatedSound = hasCompletedAction('investigateSound');
             
@@ -182,7 +183,7 @@ const defs = [
             // Only show resource gathering and basecamp steps after investigating sound
             if (investigatedSound) {
                 steps.push(
-                    { id: 'gather_scrap_basecamp', label: 'Gather Scrap Metal (25)', done: scrap >= 25 || gameFlags.baseCampEstablished, progress: gameFlags.baseCampEstablished ? '25/25' : `${Math.floor(scrap)}/25` },
+                    { id: 'gather_scrap_basecamp', label: 'Gather Metal Parts (25)', done: scrap >= 25 || gameFlags.baseCampEstablished, progress: gameFlags.baseCampEstablished ? '25/25' : `${Math.floor(scrap)}/25` },
                     { id: 'gather_wire_basecamp', label: 'Gather Wire (12)', done: wire >= 12 || gameFlags.baseCampEstablished, progress: gameFlags.baseCampEstablished ? '12/12' : `${Math.floor(wire)}/12` },
                     { id: 'perform_basecamp', label: 'Establish base camp', done: gameFlags.baseCampEstablished === true }
                 );
@@ -329,7 +330,7 @@ const defs = [
         complete: () => {
             return getResourceAmount('Food Rations') >= 400 &&
                 getResourceAmount('Clean Water') >= 500 &&
-                getResourceAmount('Scrap Metal') >= 200 &&
+                getResourceAmount('Metal Parts') >= 200 &&
                 getResourceAmount('Fabric') >= 20 &&
                 getResourceAmount('Chemicals') >= 20 &&
                 getResourceAmount('Wire') >= 100;
@@ -339,7 +340,7 @@ const defs = [
         steps: () => {
             const foodAmt = getResourceAmount('Food Rations');
             const waterAmt = getResourceAmount('Clean Water');
-            const scrapAmt = getResourceAmount('Scrap Metal');
+            const scrapAmt = getResourceAmount('Metal Parts');
             const fabricAmt = getResourceAmount('Fabric');
             const chemAmt = getResourceAmount('Chemicals');
             const wireAmt = getResourceAmount('Wire');
@@ -350,7 +351,7 @@ const defs = [
             return [
                 { id: 'food_goal', label: 'Accumulate Food Rations (400)', done: foodAmt >= 400, progress: `${Math.floor(foodAmt)}/400` },
                 { id: 'water_goal', label: 'Accumulate Clean Water (500)', done: waterAmt >= 500, progress: `${Math.floor(waterAmt)}/500` },
-                { id: 'scrap_goal', label: 'Accumulate Scrap Metal (200)', done: scrapAmt >= 200, progress: `${Math.floor(scrapAmt)}/200` },
+                { id: 'scrap_goal', label: 'Accumulate Metal Parts (200)', done: scrapAmt >= 200, progress: `${Math.floor(scrapAmt)}/200` },
                 { id: 'fabric_goal', label: 'Accumulate Fabric (20)', done: fabricAmt >= 20, progress: `${Math.floor(fabricAmt)}/20` },
                 { id: 'chem_goal', label: 'Accumulate Chemicals (20)', done: chemAmt >= 20, progress: `${Math.floor(chemAmt)}/20` },
                 { id: 'wire_goal', label: 'Accumulate Wire (100)', done: wireAmt >= 100, progress: `${Math.floor(wireAmt)}/100` },
@@ -536,7 +537,7 @@ export function recomputeObjectives() {
                     } catch {}
                     const stockpileComplete = getResourceAmount('Food Rations') >= 400 &&
                         getResourceAmount('Clean Water') >= 500 &&
-                        getResourceAmount('Scrap Metal') >= 200 &&
+                        getResourceAmount('Metal Parts') >= 200 &&
                         getResourceAmount('Fabric') >= 20 &&
                         getResourceAmount('Chemicals') >= 20 &&
                         getResourceAmount('Wire') >= 100;
@@ -653,6 +654,7 @@ export function getObjectiveDefinition(id) {
     return {
         id: def.id,
         label: (typeof def.label === 'function') ? def.label() : def.label,
+        narrative: (typeof def.narrative === 'function') ? def.narrative() : (def.narrative || ''),
         reward: Array.isArray(def.reward) ? def.reward.map(r => ({ resource: r.resource, amount: r.amount })) : [],
         priority: def.priority
     };
@@ -666,6 +668,7 @@ export function getAllObjectivesWithState() {
         return {
             id: def.id,
             label: (typeof def.label === 'function') ? def.label() : def.label,
+            narrative: (typeof def.narrative === 'function') ? def.narrative() : (def.narrative || ''),
             reward: Array.isArray(def.reward) ? def.reward.map(r => ({ resource: r.resource, amount: r.amount })) : [],
             priority: def.priority,
             state: st.state,

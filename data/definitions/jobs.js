@@ -27,7 +27,7 @@ export const jobs = [
         building: 'Base Camp',
         slots: 0,
         assigned: 0,
-        produces: 'Scrap Metal',
+        produces: 'Metal Parts',
         rate: 0.06,
         unlimited: false
     },

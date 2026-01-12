@@ -1,3 +1,31 @@
+# [0.2.1] - 2026-01-12
+
+### Added
+
+- **Character Section (v1):** New main menu section with Equipment, Inventory, and Stats panels.
+- **Inventory Interactions:** Drag-and-drop between bag and equipment, plus double-click quick equip/unequip.
+- **Item Tooltips (Character):** Item tooltips on Character equipment/bag slots showing slot + stat modifiers.
+- **Crew Management Reminder:** Yellow `!` badge on the Crew Management menu button when there are idle survivors/crew to assign.
+
+### Changed
+
+- **Character Stats Defaults:**
+    - Damage is now a range: **1 - 2**.
+    - Crit Chance default is now **5%**.
+    - Added **Attack Speed** stat (default **1.0**).
+    - Stats ordering is now grouped: Damage → Attack Speed → Crit Chance → Armor → Carry Capacity.
+- **Resource Panel Categories:**
+    - Added spoiler-safe category headers (hidden when empty).
+    - Reordered so **Materials** appears above **Tools**.
+    - Category header text size increased to match Crash Site category headings.
+- **Crash Site Category Headings:** Category headers now use the same green accent styling as Character/Journal section headers.
+
+### Fixed
+
+- **Crash Site Action Waste:** Certain Crash Site actions now become inactive when their reward would be fully wasted due to storage being at capacity (e.g., making a tool when its stock is full).
+
+---
+
 # [0.2.0] - 2025-11-20
 
 ### Added

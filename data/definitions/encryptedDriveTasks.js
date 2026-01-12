@@ -8,7 +8,7 @@ export function getInitialDriveTasks() {
             description: 'Isolate cryptographic key fragments from damaged sectors. High complexity — resource-intensive and time-consuming.',
             duration: 20,
             cost: [
-                { resource: 'Scrap Metal', amount: 20 },
+                { resource: 'Metal Parts', amount: 20 },
                 { resource: 'Wire', amount: 15 }
             ],
             xp: 50,
@@ -41,7 +41,7 @@ export function getInitialDriveTasks() {
             description: 'Scan blocks for repeating structures and probable key schedules. High cost and longer analysis time.',
             duration: 30,
             cost: [
-                { resource: 'Scrap Metal', amount: 15 },
+                { resource: 'Metal Parts', amount: 15 },
                 { resource: 'Chemicals', amount: 8 }
             ],
             xp: 80,
@@ -58,7 +58,7 @@ export function getInitialDriveTasks() {
             duration: 40,
             cost: [
                 { resource: 'Wire', amount: 25 },
-                { resource: 'Scrap Metal', amount: 30 }
+                { resource: 'Metal Parts', amount: 30 }
             ],
             xp: 100,
             running: false,
@@ -89,7 +89,7 @@ export function getInitialDriveTasks() {
             description: 'Validate decrypted blocks against checksums and redundancy codes. Ensure no corruption occurred during unlock.',
             duration: 35,
             cost: [
-                { resource: 'Scrap Metal', amount: 40 },
+                { resource: 'Metal Parts', amount: 40 },
                 { resource: 'Chemicals', amount: 10 }
             ],
             xp: 120,
