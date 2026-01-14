@@ -10,6 +10,19 @@ export const combatEncounters = [
             // Tuned for early-game pacing: should take ~10-25s with starter gear.
             maxHp: 40,
             dps: 1.2,
+            hitChance: 78,
+            portrait: 'assets/images/enemies/enemyrat1.png',
+            stats: {
+                // Display-only (and future-proof for per-enemy tuning)
+                hitChance: 78,
+                critChance: 0,
+                evasion: 2,
+                armor: 1,
+                damageMin: 1,
+                damageMax: 2,
+                // avg(1..2)=1.5; 1.5 * 0.8 = 1.2 DPS
+                attackSpeed: 0.8,
+            },
         },
         // Optional knobs for tuning and UI.
         rules: {

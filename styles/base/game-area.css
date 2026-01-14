@@ -137,6 +137,28 @@
     z-index: 2;
 }
 
+/* "New" badge for newly unlocked actions/buildings */
+.image-button .action-new-badge {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1;
+    color: #111;
+    background: #ffd84a;
+    box-shadow:
+        0 0 6px rgba(255, 216, 74, 0.85),
+        0 0 10px rgba(255, 216, 74, 0.45);
+    z-index: 3;
+    pointer-events: none;
+}
+
 /* hidden "Abort?" text behavior shared by sections */
 .image-button .cancel-text {
     display: none;

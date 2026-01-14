@@ -226,8 +226,33 @@ export function setupCrashSiteSection(section) {
         btn.innerHTML = `
             <div class="action-progress-bar"></div>
             <span class="building-name">${action.name}</span>
+            ${action.uiNew ? '<span class="action-new-badge" aria-hidden="true">!</span>' : ''}
             <span class="cancel-text">Abort?</span>
         `;
+
+        // Clear "new" badge after the player notices the button.
+        if (action.uiNew) {
+            const clearNew = () => {
+                if (!action.uiNew) return;
+                action.uiNew = false;
+                // Remove the badge immediately for responsiveness.
+                try { btn.querySelector('.action-new-badge')?.remove(); } catch {}
+                // Persist quietly to avoid log spam.
+                import('../core/saveload.js')
+                    .then(m => { try { m?.saveGameStateQuiet?.(); } catch {} })
+                    .catch(() => {});
+            };
+
+            // Use property handlers to avoid accumulating duplicate listeners on reused buttons.
+            btn.onmouseenter = clearNew;
+            btn.onfocus = clearNew;
+            btn.ontouchstart = clearNew;
+        } else {
+            // Ensure old handlers don't linger on reused buttons.
+            btn.onmouseenter = null;
+            btn.onfocus = null;
+            btn.ontouchstart = null;
+        }
 
     // register a dynamic tooltip provider so the tooltip always reflects the current stage
     setupTooltip(btn, () => tooltipDataForAction(action));
@@ -627,7 +652,8 @@ async function handleActionCompletion(section) {
                 const unique = Array.from(new Set(itemsToGrant.filter(Boolean)));
                 for (const itemId of unique) {
                     try {
-                        const placed = grantItemToCharacter(itemId, { preferEquip: true });
+                        const preferEquip = stage.grantItemsPreferEquip !== false;
+                        const placed = grantItemToCharacter(itemId, { preferEquip });
                         const def = getItemDefinition(itemId);
                         const itemName = (def && def.name) ? def.name : itemId;
                         if (placed && placed.ok) {
@@ -647,6 +673,7 @@ async function handleActionCompletion(section) {
                     const toUnlock = salvageActions.find(a => a.id === id || a.name === id);
                     if (toUnlock && !toUnlock.isUnlocked) {
                         toUnlock.isUnlocked = true;
+                        toUnlock.uiNew = true;
                         const isUpgrade = (toUnlock.category === 'Upgrade');
                         addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${toUnlock.name}`, LogType.UNLOCK);
                         try { outcome.unlocks.actions.push(toUnlock.name); } catch (e) { /* ignore */ }
@@ -840,6 +867,7 @@ async function handleActionCompletion(section) {
                 const a = salvageActions.find(x => x.id === id || x.name === id);
                 if (a && !a.isUnlocked) {
                     a.isUnlocked = true;
+                    a.uiNew = true;
                     const isUpgrade = (a.category === 'Upgrade');
                     addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${a.name}`, LogType.UNLOCK);
                     try { outcome.unlocks.actions.push(a.name); } catch (e) { /* ignore */ }

@@ -24,6 +24,13 @@ export const items = [
         stats: { stamina: 5 }
     },
     {
+        id: 'basic_boots',
+        name: 'Basic Boots',
+        slot: 'boots',
+        icon: 'assets/images/items/basic_boots.svg',
+        stats: { evasion: 3 }
+    },
+    {
         id: 'spiked_branch',
         name: 'Spiked Branch',
         slot: 'weapon',

@@ -14,12 +14,17 @@ foundBerries: {
         pages: [
             "While searching for an alternate route into the ship you discovered a small patch of edible berries. They’re modest, but nutritious — you gather what you can to stave off hunger for now.",
             "In the distance you hear the steady sound of flowing water — a river or stream. That could mean drinkable water and relief from dehydration… but it also carries danger. A low, unfamiliar growl echoes nearby.",
-            "You pick up a spiked branch from the ground — crude, but better than bare hands. You keep it ready as your weapon. If something attacks near the river, you’ll need it."
+            "You find a spiked branch on the ground — crude, but better than bare hands. You tuck it away for now.",
+            "NOTE: It would be a good idea to equip the Spiked Branch as a basic weapon before heading toward the river."
         ]
     },
 foundRiver: {
         title: "Water Source",
-        pages: ["Not far from the crash, you discovered a stream of clear, running water. With some basic filtering and boiling, it should be safe to drink."]
+        pages: [
+            "Not far from the crash, you discovered a stream of clear, running water. With some basic filtering and boiling, it should be safe to drink.",
+            "Something small and fast darted from the underbrush — not a predator, just hungry vermin defending the waterline. After a brief scuffle you drove it off, shaken but unharmed.",
+            "With the bank clear, you could finally focus on the prize: a reliable water source. You hoped it was compatible with human biology — but you had no real choice except to make it as safe as you could."
+        ]
     },
 foundCave: {
         title: "Shelter",

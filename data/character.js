@@ -7,22 +7,51 @@ const EQUIPMENT_SLOTS = [
     'head',
     'chest',
     'legs',
+    'boots',
     'weapon',
     'offhand',
     'accessory_1',
     'accessory_2'
 ];
 
+// Leveling
+// - XP curve: XP to next level = 100 * currentLevel
+// - Level starts at 1 when XP is 0
+const XP_PER_LEVEL_FACTOR = 100;
+const STAT_POINTS_PER_LEVEL = 3;
+
+const UPGRADEABLE_STATS = [
+    'health',
+    'stamina',
+    'hitChance',
+    'critChance',
+    'attackSpeed',
+    'evasion',
+];
+
+const STAT_POINT_EFFECTS = {
+    // Max vitals
+    health: 5,
+    stamina: 5,
+    // Combat
+    hitChance: 1, // percent points
+    critChance: 1, // percent points
+    attackSpeed: 0.05,
+    evasion: 1, // percent points
+};
+
 const BASE_STATS = {
     health: 100,
     stamina: 100,
     damageMin: 1,
     damageMax: 2,
-    attackSpeed: 1.0,
+    attackSpeed: 0.5,
     // Percent chance for an attack to land. Used by combat.
     hitChance: 80,
     armor: 0,
     critChance: 5,
+    // Percent chance to evade an incoming attack.
+    evasion: 0,
 };
 
 function emitCharacterStateChanged(reason = 'unknown') {
@@ -140,6 +169,7 @@ export function getInitialCharacterState() {
         head: 'basic_helmet',
         chest: 'field_armor',
         legs: 'utility_legs',
+        boots: 'basic_boots',
         weapon: null,
         offhand: null,
         accessory_1: null,
@@ -147,11 +177,21 @@ export function getInitialCharacterState() {
     };
 
     return {
-        version: 1,
+        version: 2,
         bagCols,
         bagRows,
         bag,
         equipment,
+        progression: {
+            allocated: {
+                health: 0,
+                stamina: 0,
+                hitChance: 0,
+                critChance: 0,
+                attackSpeed: 0,
+                evasion: 0,
+            }
+        },
     };
 }
 
@@ -205,8 +245,96 @@ export function applySavedCharacterState(saved) {
         next.equipment[slot] = getItemDefinition(v) ? v : null;
     });
 
+    // Progression / stat point allocations
+    try {
+        const savedProg = saved.progression && typeof saved.progression === 'object' ? saved.progression : null;
+        const savedAlloc = savedProg && savedProg.allocated && typeof savedProg.allocated === 'object' ? savedProg.allocated : null;
+        if (savedAlloc) {
+            for (const k of UPGRADEABLE_STATS) {
+                const raw = savedAlloc[k];
+                const n = Math.floor(Number(raw));
+                next.progression.allocated[k] = (Number.isFinite(n) && n >= 0) ? Math.min(9999, n) : 0;
+            }
+        }
+    } catch { /* non-fatal */ }
+
     characterState = next;
     emitCharacterStateChanged('applySavedCharacterState');
+}
+
+export function computeLevelFromXp(totalXp) {
+    const xp = Math.max(0, Math.floor(Number(totalXp) || 0));
+
+    // Total XP required to reach Level L is:
+    //   T(L) = 100 * (L-1) * L / 2
+    // Solve for L where T(L) <= xp < T(L+1)
+    const a = XP_PER_LEVEL_FACTOR;
+    const scaled = xp / a;
+    const approx = Math.floor((1 + Math.sqrt(1 + 8 * scaled)) / 2);
+    const level = Math.max(1, approx);
+    const xpAtLevelStart = Math.floor(a * (level - 1) * level / 2);
+    const toNext = a * level;
+    const progress = Math.max(0, xp - xpAtLevelStart);
+    const percent = toNext > 0 ? Math.max(0, Math.min(1, progress / toNext)) : 0;
+
+    return {
+        total: xp,
+        level,
+        progress: Math.floor(progress),
+        toNext: Math.floor(toNext),
+        percent,
+        xpAtLevelStart,
+    };
+}
+
+export function getTotalStatPointsForLevel(level) {
+    const lvl = Math.max(1, Math.floor(Number(level) || 1));
+    return (lvl - 1) * STAT_POINTS_PER_LEVEL;
+}
+
+export function getAllocatedStatPoints(state = characterState) {
+    const alloc = state?.progression?.allocated && typeof state.progression.allocated === 'object'
+        ? state.progression.allocated
+        : {};
+
+    const out = {};
+    let spent = 0;
+    for (const k of UPGRADEABLE_STATS) {
+        const n = Math.floor(Number(alloc[k] || 0));
+        const safe = (Number.isFinite(n) && n > 0) ? n : 0;
+        out[k] = safe;
+        spent += safe;
+    }
+    return { allocated: out, spent };
+}
+
+export function getUnspentStatPoints(totalXp, state = characterState) {
+    const lvl = computeLevelFromXp(totalXp).level;
+    const total = getTotalStatPointsForLevel(lvl);
+    const spent = getAllocatedStatPoints(state).spent;
+    return Math.max(0, total - spent);
+}
+
+export function allocateStatPoint(statKey, totalXp, state = characterState) {
+    const key = String(statKey || '').trim();
+    if (!UPGRADEABLE_STATS.includes(key)) return false;
+
+    const unspent = getUnspentStatPoints(totalXp, state);
+    if (unspent <= 0) return false;
+
+    if (!state.progression || typeof state.progression !== 'object') {
+        state.progression = { allocated: {} };
+    }
+    if (!state.progression.allocated || typeof state.progression.allocated !== 'object') {
+        state.progression.allocated = {};
+    }
+
+    const cur = Math.floor(Number(state.progression.allocated[key] || 0));
+    const next = (Number.isFinite(cur) && cur >= 0) ? Math.min(9999, cur + 1) : 1;
+    state.progression.allocated[key] = next;
+
+    if (state === characterState) emitCharacterStateChanged('allocateStatPoint');
+    return true;
 }
 
 export function getBagSize() {
@@ -230,6 +358,28 @@ export function setBagRows(newRows) {
 
 export function computeCharacterStats(state = characterState) {
     const stats = { ...BASE_STATS };
+
+    // Apply stat point allocations first (treated as base progression).
+    try {
+        const alloc = state?.progression?.allocated && typeof state.progression.allocated === 'object'
+            ? state.progression.allocated
+            : {};
+
+        const hpPts = Math.max(0, Math.floor(Number(alloc.health) || 0));
+        const stamPts = Math.max(0, Math.floor(Number(alloc.stamina) || 0));
+        const hitPts = Math.max(0, Math.floor(Number(alloc.hitChance) || 0));
+        const critPts = Math.max(0, Math.floor(Number(alloc.critChance) || 0));
+        const speedPts = Math.max(0, Math.floor(Number(alloc.attackSpeed) || 0));
+        const evasionPts = Math.max(0, Math.floor(Number(alloc.evasion) || 0));
+
+        stats.health += hpPts * (STAT_POINT_EFFECTS.health || 0);
+        stats.stamina += stamPts * (STAT_POINT_EFFECTS.stamina || 0);
+
+        stats.hitChance += hitPts * (STAT_POINT_EFFECTS.hitChance || 0);
+        stats.critChance += critPts * (STAT_POINT_EFFECTS.critChance || 0);
+        stats.attackSpeed += speedPts * (STAT_POINT_EFFECTS.attackSpeed || 0);
+        stats.evasion += evasionPts * (STAT_POINT_EFFECTS.evasion || 0);
+    } catch { /* non-fatal */ }
 
     const eq = state && state.equipment ? state.equipment : {};
     for (const slot of EQUIPMENT_SLOTS) {
@@ -255,6 +405,11 @@ export function computeCharacterStats(state = characterState) {
         stats.damage = Math.round(((Number(stats.damageMin) || 0) + (Number(stats.damageMax) || 0)) / 2);
     }
 
+    // Clamp percent-type stats to sensible bounds.
+    stats.hitChance = Math.max(0, Math.min(100, Number(stats.hitChance ?? 0)));
+    stats.critChance = Math.max(0, Math.min(100, Number(stats.critChance ?? 0)));
+    stats.evasion = Math.max(0, Math.min(95, Number(stats.evasion ?? 0)));
+
     return stats;
 }
 
@@ -278,6 +433,16 @@ export function consumeFirstItemFromBag(itemId, state = characterState) {
     if (idx < 0) return false;
     bag[idx] = null;
     if (state === characterState) emitCharacterStateChanged('consumeFirstItemFromBag');
+    return true;
+}
+
+export function discardBagItem(bagIndex, state = characterState) {
+    const bag = Array.isArray(state?.bag) ? state.bag : null;
+    if (!bag) return false;
+    if (!Number.isInteger(bagIndex) || bagIndex < 0 || bagIndex >= bag.length) return false;
+    if (!bag[bagIndex]) return false;
+    bag[bagIndex] = null;
+    if (state === characterState) emitCharacterStateChanged('discardBagItem');
     return true;
 }
 
@@ -312,7 +477,14 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
 
             if (!canEquipItemToSlot(itemId, slot)) continue;
             state.equipment[slot] = itemId;
-            if (state === characterState) emitCharacterStateChanged('grantItemToCharacter');
+            if (state === characterState) {
+                emitCharacterStateChanged('grantItemToCharacter');
+                try {
+                    window.dispatchEvent(new CustomEvent('inventory-item-added', {
+                        detail: { itemId, placed: 'equip', slot }
+                    }));
+                } catch (e) { /* non-fatal */ }
+            }
             return { ok: true, placed: 'equip', slot };
         }
     }
@@ -323,6 +495,13 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
     const idx = bag.findIndex(v => !v);
     if (idx < 0) return { ok: false, placed: 'none' };
     bag[idx] = itemId;
-    if (state === characterState) emitCharacterStateChanged('grantItemToCharacter');
+    if (state === characterState) {
+        emitCharacterStateChanged('grantItemToCharacter');
+        try {
+            window.dispatchEvent(new CustomEvent('inventory-item-added', {
+                detail: { itemId, placed: 'bag', index: idx }
+            }));
+        } catch (e) { /* non-fatal */ }
+    }
     return { ok: true, placed: 'bag', index: idx };
 }

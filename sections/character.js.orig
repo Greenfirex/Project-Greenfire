@@ -1,16 +1,12 @@
-// Character / Inventory section (v1 scaffold)
+﻿// Character / Inventory section (v1 scaffold)
 // Step 2: state-backed rendering (items + equipment + placeholder stats).
 
 import {
     characterState,
+    computeCarryCapacity,
     computeCharacterStats,
-    computeLevelFromXp,
-    getAllocatedStatPoints,
-    getTotalStatPointsForLevel,
-    allocateStatPoint,
     getBagSize,
     canEquipItemToSlot,
-    discardBagItem,
     moveBagItemToEquip,
     moveEquipItemToBag,
     moveEquipItemToEquip,
@@ -19,11 +15,9 @@ import {
 import { getItemDefinition } from '../data/definitions/items.js';
 import { resources } from '../core/resources.js';
 import { setupTooltip } from '../ui/panels/tooltip.js';
-import { showConfirmPopup } from '../ui/panels/confirmPopup.js';
 
 let listenersInstalled = false;
 let currentDragPayload = null;
-let discardMode = false;
 
 function refreshCharacterSectionIfVisible() {
     try {
@@ -50,10 +44,8 @@ export function setupCharacterSection(section) {
 
     const { cols: bagCols } = getBagSize();
     const stats = computeCharacterStats(characterState);
+    const carry = computeCarryCapacity(characterState);
     const bagRows = characterState?.bagRows ?? 2;
-
-    const xp = getXPResourceSnapshot();
-    const canSpendPoint = (xp?.statPoints?.unspent ?? 0) > 0;
 
     panel.innerHTML = `
         <h2>Character</h2>
@@ -70,7 +62,6 @@ export function setupCharacterSection(section) {
                     ${renderEquipmentSlot('head', 'Head', characterState?.equipment?.head)}
                     ${renderEquipmentSlot('chest', 'Chest', characterState?.equipment?.chest)}
                     ${renderEquipmentSlot('legs', 'Legs', characterState?.equipment?.legs)}
-                    ${renderEquipmentSlot('boots', 'Boots', characterState?.equipment?.boots)}
 
                     ${renderEquipmentSlot('weapon', 'Weapon', characterState?.equipment?.weapon)}
                     ${renderEquipmentSlot('offhand', 'Offhand', characterState?.equipment?.offhand)}
@@ -83,33 +74,24 @@ export function setupCharacterSection(section) {
             <div class="character-card stats-card">
                 <div class="character-card-header">
                     <h3>Stats</h3>
-                    <span class="stat-points-chip" data-stat-points-chip role="button" tabindex="0" aria-label="Stat points">
-                        Stat Points: <strong>${escapeHtml(String(xp?.statPoints?.unspent ?? 0))}</strong>
-                    </span>
                 </div>
 
                 <div class="stats-list" aria-label="Character stats">
-                    ${renderXPRow()}
                     ${renderHealthRow()}
                     ${renderStaminaRow()}
                     ${renderStatRow('Damage', formatDamageRange(stats))}
-                    ${renderUpgradeableStatRow('Attack Speed', formatAttackSpeed(stats.attackSpeed), { allocateKey: 'attackSpeed', canSpend: canSpendPoint })}
-                    ${renderUpgradeableStatRow('Hit Chance', `${Number(stats.hitChance ?? 0)}%`, { allocateKey: 'hitChance', canSpend: canSpendPoint }) }
-                    ${renderUpgradeableStatRow('Crit Chance', `${Number(stats.critChance ?? 0)}%`, { allocateKey: 'critChance', canSpend: canSpendPoint })}
+                    ${renderStatRow('Attack Speed', formatAttackSpeed(stats.attackSpeed))}
+                    ${renderStatRow('Hit Chance', `${Number(stats.hitChance ?? 0)}%`) }
+                    ${renderStatRow('Crit Chance', `${Number(stats.critChance ?? 0)}%`)}
                     ${renderStatRow('Armor', String(stats.armor ?? 0))}
-                    ${renderUpgradeableStatRow('Evasion', `${Number(stats.evasion ?? 0)}%`, { allocateKey: 'evasion', canSpend: canSpendPoint })}
+                    ${renderStatRow('Carry Capacity', `${carry.used} / ${carry.total}`)}
                 </div>
             </div>
 
             <div class="character-card inventory-card">
                 <div class="character-card-header">
                     <h3>Inventory</h3>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <span class="character-card-hint">Bag ${bagRows}×${bagCols}</span>
-                        <button type="button" class="inventory-trash-btn ${discardMode ? 'active' : ''}" data-inventory-trash title="Discard items" aria-label="Discard items">
-                            ${renderTrashIcon()}
-                        </button>
-                    </div>
+                    <span class="character-card-hint">Bag ${bagRows}├Ś${bagCols}</span>
                 </div>
 
                 <div class="bag-grid" style="--bag-cols:${bagCols}; --bag-rows:${bagRows};" aria-label="Inventory bag">
@@ -121,79 +103,11 @@ export function setupCharacterSection(section) {
 
     section.appendChild(panel);
 
-    // Visual state for discard mode
-    panel.classList.toggle('discard-mode', !!discardMode);
-
     // Attach interactions after markup is in the DOM
     attachDnDHandlers(section);
 
-    // Attach discard behavior
-    attachDiscardHandlers(section);
-
     // Attach tooltips after markup is in the DOM
     attachItemTooltips(section);
-
-    // Stat tooltips (+ points breakdown)
-    attachStatTooltips(section);
-
-    // Stat point allocation (+ buttons)
-    attachStatAllocationHandlers(section);
-}
-
-function renderTrashIcon() {
-    // Inline SVG so we don't need an asset file.
-    return `
-        <svg class="inventory-trash-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M9 3h6l1 2h4v2H4V5h4l1-2z" fill="currentColor" opacity="0.9" />
-            <path d="M6 9h12l-1 12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 9z" fill="none" stroke="currentColor" stroke-width="1.6" />
-            <path d="M10 11v8M14 11v8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-        </svg>
-    `;
-}
-
-function attachDiscardHandlers(sectionRoot) {
-    const panel = sectionRoot.querySelector('.character-panel');
-    if (!panel) return;
-
-    const trashBtn = panel.querySelector('button[data-inventory-trash]');
-    if (trashBtn) {
-        trashBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            discardMode = !discardMode;
-            setupCharacterSection(sectionRoot);
-        });
-    }
-
-    if (!discardMode) return;
-
-    const bagSlots = Array.from(panel.querySelectorAll('.bag-slot.has-item'));
-    for (const slotEl of bagSlots) {
-        slotEl.addEventListener('click', async (e) => {
-            e.preventDefault();
-
-            const idx = Number(slotEl.dataset.slot);
-            if (!Number.isInteger(idx)) return;
-            const itemId = Array.isArray(characterState?.bag) ? characterState.bag[idx] : null;
-            if (!itemId) return;
-
-            const def = getItemDefinition(itemId);
-            const name = def?.name || itemId;
-
-            const ok = await showConfirmPopup({
-                title: 'Discard Item',
-                message: `Discard ${name}? This cannot be undone.`,
-                confirmText: 'Yes',
-                cancelText: 'Cancel',
-            });
-            if (!ok) return;
-
-            const changed = discardBagItem(idx);
-            if (changed) commitCharacterChange(sectionRoot);
-
-            // Keep discard mode enabled so the player can discard multiple items.
-            setupCharacterSection(sectionRoot);
-        });
-    }
 }
 
 function renderEquipmentSlot(key, label, itemId) {
@@ -218,91 +132,9 @@ function renderEquipmentSlot(key, label, itemId) {
 function renderStatRow(label, value) {
     const safeKey = String(label).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
     return `
-        <div class="stat-line" data-stat-line="${safeKey}">
-            <div class="stat-row" data-stat="${safeKey}">
-                <span class="stat-label">${label}</span>
-                <span class="stat-value">${value}</span>
-            </div>
-            ${renderAllocateSpacerHtml()}
-        </div>
-    `;
-}
-
-function renderAllocateButtonHtml(allocateKey, opts = {}) {
-    const key = String(allocateKey || '');
-    if (!key) return '';
-    const disabled = !!opts.disabled;
-    const label = opts.label ? String(opts.label) : 'Increase stat (cost: 1 stat point)';
-    return `
-        <button type="button" class="stat-allocate-btn" data-allocate-stat="${escapeHtml(key)}" ${disabled ? 'disabled' : ''} aria-label="${escapeHtml(label)}">
-            +
-        </button>
-    `;
-}
-
-function renderAllocateSpacerHtml() {
-    return `<span class="stat-allocate-spacer" aria-hidden="true"></span>`;
-}
-
-function renderUpgradeableStatRow(label, value, opts = {}) {
-    const safeKey = String(label).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
-    const allocateKey = opts.allocateKey ? String(opts.allocateKey) : '';
-    const canSpend = !!opts.canSpend;
-    const btn = allocateKey
-        ? renderAllocateButtonHtml(allocateKey, { disabled: !canSpend, label: `Increase ${label} (cost: 1 stat point)` })
-        : '';
-    return `
-        <div class="stat-line" data-stat-line="${safeKey}">
-            <div class="stat-row" data-stat="${safeKey}">
-                <span class="stat-label">${label}</span>
-                <span class="stat-value">${value}</span>
-            </div>
-            ${btn}
-        </div>
-    `;
-}
-
-function getXPResourceSnapshot() {
-    const res = Array.isArray(resources) ? resources.find(r => r && r.name === 'XP') : null;
-    const total = res ? Math.max(0, Math.floor(Number(res.amount ?? 0))) : 0;
-
-    const lvl = computeLevelFromXp(total);
-    const alloc = getAllocatedStatPoints(characterState);
-    const totalPoints = getTotalStatPointsForLevel(lvl.level);
-    const spent = Math.max(0, Math.floor(Number(alloc?.spent ?? 0)));
-    const unspent = Math.max(0, totalPoints - spent);
-
-    return {
-        total: lvl.total,
-        level: lvl.level,
-        progress: lvl.progress,
-        max: lvl.toNext,
-        percent: Math.max(0, Math.min(1, lvl.percent)),
-        statPoints: {
-            total: totalPoints,
-            spent,
-            unspent,
-        },
-        allocated: alloc?.allocated || {},
-    };
-}
-
-function renderXPRow() {
-    const xp = getXPResourceSnapshot();
-    const percent = Math.round(xp.percent * 100);
-    const valueText = `Lv ${xp.level}`;
-    const aria = `Level ${xp.level}. XP ${xp.progress} / ${xp.max}. Total XP ${xp.total}.`;
-
-    return `
-        <div class="stat-line" data-stat-line="xp">
-            <div class="stat-row stat-row-bar" data-stat="xp">
-                <span class="stat-label">Level</span>
-                <div class="stat-bar" role="img" aria-label="${escapeHtml(aria)}">
-                    <div class="stat-bar-fill" style="width:${percent}%"></div>
-                </div>
-                <span class="stat-value">${escapeHtml(valueText)}</span>
-            </div>
-            ${renderAllocateSpacerHtml()}
+        <div class="stat-row" data-stat="${safeKey}">
+            <span class="stat-label">${label}</span>
+            <span class="stat-value">${value}</span>
         </div>
     `;
 }
@@ -341,22 +173,13 @@ function renderHealthRow() {
         ? `Health ${h.current} / ${h.max}`
         : `Health ${h.current}`;
 
-    const xp = getXPResourceSnapshot();
-    const btn = renderAllocateButtonHtml('health', {
-        disabled: (xp?.statPoints?.unspent ?? 0) <= 0,
-        label: 'Increase max Health (cost: 1 stat point)'
-    });
-
     return `
-        <div class="stat-line" data-stat-line="health">
-            <div class="stat-row stat-row-bar" data-stat="health">
-                <span class="stat-label">Health</span>
-                <div class="stat-bar" role="img" aria-label="${escapeHtml(aria)}">
-                    <div class="stat-bar-fill" style="width:${percent}%"></div>
-                </div>
-                <span class="stat-value">${escapeHtml(valueText)}</span>
+        <div class="stat-row stat-row-bar" data-stat="health">
+            <span class="stat-label">Health</span>
+            <div class="stat-bar" role="img" aria-label="${escapeHtml(aria)}">
+                <div class="stat-bar-fill" style="width:${percent}%"></div>
             </div>
-            ${btn}
+            <span class="stat-value">${escapeHtml(valueText)}</span>
         </div>
     `;
 }
@@ -369,48 +192,15 @@ function renderStaminaRow() {
         ? `Stamina ${s.current} / ${s.max}`
         : `Stamina ${s.current}`;
 
-    const xp = getXPResourceSnapshot();
-    const btn = renderAllocateButtonHtml('stamina', {
-        disabled: (xp?.statPoints?.unspent ?? 0) <= 0,
-        label: 'Increase max Stamina (cost: 1 stat point)'
-    });
-
     return `
-        <div class="stat-line" data-stat-line="stamina">
-            <div class="stat-row stat-row-bar" data-stat="stamina">
-                <span class="stat-label">Stamina</span>
-                <div class="stat-bar" role="img" aria-label="${escapeHtml(aria)}">
-                    <div class="stat-bar-fill" style="width:${percent}%"></div>
-                </div>
-                <span class="stat-value">${escapeHtml(valueText)}</span>
+        <div class="stat-row stat-row-bar" data-stat="stamina">
+            <span class="stat-label">Stamina</span>
+            <div class="stat-bar" role="img" aria-label="${escapeHtml(aria)}">
+                <div class="stat-bar-fill" style="width:${percent}%"></div>
             </div>
-            ${btn}
+            <span class="stat-value">${escapeHtml(valueText)}</span>
         </div>
     `;
-}
-
-function attachStatAllocationHandlers(sectionRoot) {
-    const panel = sectionRoot.querySelector('.character-panel');
-    if (!panel) return;
-
-    const buttons = Array.from(panel.querySelectorAll('button[data-allocate-stat]'));
-    if (!buttons.length) return;
-
-    for (const btn of buttons) {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const key = String(btn.dataset.allocateStat || '');
-            if (!key) return;
-
-            const xp = getXPResourceSnapshot();
-            const ok = allocateStatPoint(key, xp.total, characterState);
-            if (!ok) return;
-
-            commitCharacterChange(sectionRoot);
-        });
-    }
 }
 
 function renderBagSlots() {
@@ -450,184 +240,18 @@ function attachItemTooltips(sectionRoot) {
     }
 }
 
-function attachStatTooltips(sectionRoot) {
-    const panel = sectionRoot.querySelector('.character-panel');
-    if (!panel) return;
-
-    const rows = Array.from(panel.querySelectorAll('.stats-card .stat-row'));
-    for (const row of rows) {
-        const statKey = String(row?.dataset?.stat || '');
-        if (!statKey) continue;
-        setupTooltip(row, () => buildStatTooltipHTML(statKey));
-    }
-
-    const pointsChip = panel.querySelector('[data-stat-points-chip]');
-    if (pointsChip) {
-        setupTooltip(pointsChip, () => buildStatTooltipHTML('stat_points'));
-    }
-}
-
-function buildStatTooltipHTML(statKey) {
-    const key = String(statKey || '').toLowerCase();
-    const stats = computeCharacterStats(characterState);
-    const xp = getXPResourceSnapshot();
-    const alloc = xp?.allocated || {};
-
-    switch (key) {
-        case 'xp': {
-            return `
-                <h4>Level</h4>
-                <p>Current Level: <strong>${escapeHtml(String(xp.level))}</strong></p>
-                <p class="tooltip-detail">XP to next level: ${escapeHtml(String(xp.progress))} / ${escapeHtml(String(xp.max))}</p>
-                <div class="tooltip-section">
-                    <h4>How It Works</h4>
-                    <p>Level is derived from total XP. Each level gained grants <strong>3 stat points</strong> to allocate.</p>
-                    <p class="tooltip-detail">Formula: XP to next level = 100 × current level.</p>
-                    <p class="tooltip-detail">Total XP: ${escapeHtml(xp.total.toLocaleString())}</p>
-                </div>
-            `;
-        }
-        case 'stat_points': {
-            const pts = xp?.statPoints || { unspent: 0, total: 0, spent: 0 };
-            return `
-                <h4>Stat Points</h4>
-                <p>Available: <strong>${escapeHtml(String(pts.unspent))}</strong></p>
-                <p class="tooltip-detail">Spent: ${escapeHtml(String(pts.spent))} / ${escapeHtml(String(pts.total))}</p>
-                <div class="tooltip-section">
-                    <h4>How It Works</h4>
-                    <p>You gain 3 points each time your Level increases.</p>
-                    <p class="tooltip-detail">Spend points using the + buttons next to upgradeable stats.</p>
-                </div>
-            `;
-        }
-        case 'health': {
-            const h = getHealthResourceSnapshot();
-            const pts = Math.max(0, Math.floor(Number(alloc.health) || 0));
-            const bonus = pts > 0 ? `<p class="tooltip-detail">From stat points: +${escapeHtml(String(pts * 5))} max Health</p>` : '';
-            return `
-                <h4>Health</h4>
-                <p>Current: <strong>${escapeHtml(String(h.current))}</strong>${h.max > 0 ? ` / ${escapeHtml(String(h.max))}` : ''}</p>
-                <div class="tooltip-section">
-                    <h4>Notes</h4>
-                    <p>Health is your HP in combat.</p>
-                    ${bonus}
-                </div>
-            `;
-        }
-        case 'stamina': {
-            const s = getStaminaResourceSnapshot();
-            const pts = Math.max(0, Math.floor(Number(alloc.stamina) || 0));
-            const bonus = pts > 0 ? `<p class="tooltip-detail">From stat points: +${escapeHtml(String(pts * 5))} max Stamina</p>` : '';
-            return `
-                <h4>Stamina</h4>
-                <p>Current: <strong>${escapeHtml(String(s.current))}</strong>${s.max > 0 ? ` / ${escapeHtml(String(s.max))}` : ''}</p>
-                <div class="tooltip-section">
-                    <h4>Notes</h4>
-                    <p>Stamina is your short-term endurance.</p>
-                    ${bonus}
-                </div>
-            `;
-        }
-        case 'damage': {
-            const min = Number(stats?.damageMin ?? 0);
-            const max = Number(stats?.damageMax ?? min);
-            return `
-                <h4>Damage</h4>
-                <p>Shown as a range: <strong>${escapeHtml(String(Math.floor(min)))} - ${escapeHtml(String(Math.floor(max)))}</strong></p>
-                <div class="tooltip-section">
-                    <h4>How It Works</h4>
-                    <p>Higher damage increases your DPS in combat.</p>
-                </div>
-            `;
-        }
-        case 'attack_speed': {
-            const speed = Number(stats?.attackSpeed ?? 1);
-            const pts = Math.max(0, Math.floor(Number(alloc.attackSpeed) || 0));
-            const bonus = pts > 0 ? `<p class="tooltip-detail">From stat points: +${escapeHtml(String((pts * 0.05).toFixed(2)))} attack speed</p>` : '';
-            return `
-                <h4>Attack Speed</h4>
-                <p>Multiplier: <strong>${escapeHtml(formatAttackSpeed(speed))}</strong></p>
-                <div class="tooltip-section">
-                    <h4>How It Works</h4>
-                    <p>Attack Speed scales how often you attack.</p>
-                    ${bonus}
-                </div>
-            `;
-        }
-        case 'hit_chance': {
-            const hit = Number(stats?.hitChance ?? 0);
-            const pts = Math.max(0, Math.floor(Number(alloc.hitChance) || 0));
-            const bonus = pts > 0 ? `<p class="tooltip-detail">From stat points: +${escapeHtml(String(pts))}% hit chance</p>` : '';
-            return `
-                <h4>Hit Chance</h4>
-                <p>Chance to land an attack: <strong>${escapeHtml(String(hit))}%</strong></p>
-                <div class="tooltip-section">
-                    <h4>How It Works</h4>
-                    <p>When you miss, that attack deals no damage.</p>
-                    ${bonus}
-                </div>
-            `;
-        }
-        case 'crit_chance': {
-            const crit = Number(stats?.critChance ?? 0);
-            const pts = Math.max(0, Math.floor(Number(alloc.critChance) || 0));
-            const bonus = pts > 0 ? `<p class="tooltip-detail">From stat points: +${escapeHtml(String(pts))}% crit chance</p>` : '';
-            return `
-                <h4>Crit Chance</h4>
-                <p>Chance: <strong>${escapeHtml(String(crit))}%</strong></p>
-                <div class="tooltip-section">
-                    <h4>How It Works</h4>
-                    <p>Critical hits add +50% damage.</p>
-                    ${bonus}
-                </div>
-            `;
-        }
-        case 'armor': {
-            const armor = Math.max(0, Number(stats?.armor ?? 0));
-            const mitigation = armor / (armor + 20);
-            return `
-                <h4>Armor</h4>
-                <p>Value: <strong>${escapeHtml(String(Math.floor(armor)))}</strong></p>
-                <div class="tooltip-section">
-                    <h4>How It Works</h4>
-                    <p>Armor reduces incoming damage using: mitigation = armor / (armor + 20).</p>
-                    <p class="tooltip-detail">Current mitigation: ~${escapeHtml(String(Math.round(mitigation * 100)))}%</p>
-                </div>
-            `;
-        }
-        case 'evasion': {
-            const ev = Math.max(0, Number(stats?.evasion ?? 0));
-            const pts = Math.max(0, Math.floor(Number(alloc.evasion) || 0));
-            const bonus = pts > 0 ? `<p class="tooltip-detail">From stat points: +${escapeHtml(String(pts))}% evasion</p>` : '';
-            return `
-                <h4>Evasion</h4>
-                <p>Chance to avoid an incoming attack: <strong>${escapeHtml(String(ev))}%</strong></p>
-                <div class="tooltip-section">
-                    <h4>How It Works</h4>
-                    <p>Evasion reduces the enemy’s chance to hit you in combat.</p>
-                    ${bonus}
-                </div>
-            `;
-        }
-        default:
-            return `<h4>${escapeHtml(statKey)}</h4><p class="tooltip-detail">No tooltip available.</p>`;
-    }
-}
-
 function formatAttackSpeed(value) {
     const n = Number(value);
     if (!Number.isFinite(n)) return '1.0';
-    return n.toFixed(2);
+    return n.toFixed(1);
 }
 
 function formatDamageRange(stats) {
     const min = Number(stats?.damageMin);
     const max = Number(stats?.damageMax);
-    const safeMin = Number.isFinite(min) ? min : 0;
-    const safeMax = Number.isFinite(max) ? max : safeMin;
-    const isInt = Number.isInteger(safeMin) && Number.isInteger(safeMax);
-    const fmt = (n) => isInt ? String(Math.floor(n)) : Number(n).toFixed(1);
-    return `${fmt(safeMin)} - ${fmt(safeMax)}`;
+    const safeMin = Number.isFinite(min) ? Math.floor(min) : 0;
+    const safeMax = Number.isFinite(max) ? Math.floor(max) : safeMin;
+    return `${safeMin} - ${safeMax}`;
 }
 
 function buildItemTooltipHTML(slotEl) {
@@ -648,14 +272,11 @@ function buildItemTooltipHTML(slotEl) {
         attackSpeed: 'Attack Speed',
         armor: 'Armor',
         critChance: 'Crit Chance',
-        hitChance: 'Hit Chance',
-        evasion: 'Evasion',
     };
     const equipSlotLabels = {
         head: 'Head',
         chest: 'Chest',
         legs: 'Legs',
-        boots: 'Boots',
         weapon: 'Weapon',
         offhand: 'Offhand',
         accessory_1: 'Accessory 1',
@@ -668,7 +289,7 @@ function buildItemTooltipHTML(slotEl) {
             if (typeof v !== 'number' || !Number.isFinite(v) || v === 0) continue;
             const label = statLabels[k] || k;
             const sign = v > 0 ? '+' : '';
-            const suffix = (k === 'critChance' || k === 'hitChance' || k === 'evasion') ? '%' : '';
+            const suffix = (k === 'critChance') ? '%' : '';
             lines.push(`${escapeHtml(label)}: ${sign}${escapeHtml(String(v))}${suffix}`);
         }
     }
@@ -683,7 +304,7 @@ function buildItemTooltipHTML(slotEl) {
         html += `<p class="tooltip-description">${escapeHtml(String(def.description))}</p>`;
     }
 
-    html += `<div class="tooltip-section"><h4>Slot</h4><p>${escapeHtml(String(slotName || '—'))}</p></div>`;
+    html += `<div class="tooltip-section"><h4>Slot</h4><p>${escapeHtml(String(slotName || 'ÔÇö'))}</p></div>`;
 
     if (lines.length) {
         html += `<div class="tooltip-section"><h4>Modifiers</h4><ul class="tooltip-bonuses">${lines.map(l => `<li class="bonus-item">${l}</li>`).join('')}</ul></div>`;
@@ -723,44 +344,8 @@ function installGlobalCharacterListeners() {
 function updateVitalRowsIfPresent(sectionRoot) {
     const panel = sectionRoot.querySelector('.character-panel');
     if (!panel) return;
-    updateXPRowIfPresent(panel);
-    updateStatPointsChipIfPresent(panel);
-    updateAllocateButtonsIfPresent(panel);
     updateSingleVitalRow(panel, 'stamina', getStaminaResourceSnapshot, 'Stamina');
     updateSingleVitalRow(panel, 'health', getHealthResourceSnapshot, 'Health');
-}
-
-function updateXPRowIfPresent(panelEl) {
-    const row = panelEl.querySelector('.stat-row[data-stat="xp"]');
-    if (!row) return;
-
-    const fill = row.querySelector('.stat-bar-fill');
-    const text = row.querySelector('.stat-value');
-    const bar = row.querySelector('.stat-bar');
-
-    const xp = getXPResourceSnapshot();
-    const percent = Math.round(xp.percent * 100);
-    if (fill) fill.style.width = `${percent}%`;
-    if (text) text.textContent = `Lv ${xp.level}`;
-    if (bar) bar.setAttribute('aria-label', `Level ${xp.level}. XP ${xp.progress} / ${xp.max}. Total XP ${xp.total}.`);
-}
-
-function updateStatPointsChipIfPresent(panelEl) {
-    const chip = panelEl.querySelector('[data-stat-points-chip]');
-    if (!chip) return;
-    const xp = getXPResourceSnapshot();
-    const unspent = xp?.statPoints?.unspent ?? 0;
-    // Keep inner HTML structure stable (label + strong).
-    chip.innerHTML = `Stat Points: <strong>${escapeHtml(String(unspent))}</strong>`;
-}
-
-function updateAllocateButtonsIfPresent(panelEl) {
-    const xp = getXPResourceSnapshot();
-    const disabled = (xp?.statPoints?.unspent ?? 0) <= 0;
-    const buttons = Array.from(panelEl.querySelectorAll('button[data-allocate-stat]'));
-    for (const btn of buttons) {
-        btn.disabled = disabled;
-    }
 }
 
 function updateSingleVitalRow(panelEl, statKey, getSnapshotFn, label) {
@@ -820,12 +405,6 @@ function attachDnDHandlers(sectionRoot) {
 }
 
 function onDragStart(event, source) {
-    // Prevent accidental dragging while in discard mode.
-    if (discardMode) {
-        event.preventDefault();
-        return;
-    }
-
     // Only allow dragging when the source has an item.
     const itemId = getDragItemIdFromSource(source);
     if (!itemId) {

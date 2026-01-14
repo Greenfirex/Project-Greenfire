@@ -258,3 +258,38 @@
         font-size: 12px;
     }
 }
+
+/* Small confirm popup variant (reuses story popup look) */
+.story-popup-content.confirm-popup-content {
+    width: min(640px, 94vw);
+    max-width: 640px;
+    height: auto;
+    max-height: min(360px, 75vh);
+    padding: 18px;
+}
+
+.story-popup-content.confirm-popup-content .story-popup-body {
+    padding: 6px 0 8px 0;
+}
+
+.story-popup-content.confirm-popup-content .story-popup-text {
+    padding: 0 6px 0 6px;
+}
+
+.story-popup-content.confirm-popup-content #confirmPopupMessage {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.story-popup-content.confirm-popup-content .story-popup-nav.confirm-popup-nav {
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.story-popup-content.confirm-popup-content .story-popup-nav.confirm-popup-nav .menu-button,
+.story-popup-content.confirm-popup-content .story-popup-nav.confirm-popup-nav .story-nav-button {
+    flex: 0 0 auto;
+    width: auto;
+    max-width: none;
+    min-width: 110px;
+}

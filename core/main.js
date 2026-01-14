@@ -12,6 +12,7 @@ import { setupCrewManagementSection, updateCrewSection } from '../sections/crewM
 import { setupJournalSection } from '../sections/journal.js';
 import { setupCharacterSection } from '../sections/character.js';
 import { setupEncryptedDriveSection } from '../sections/encryptedDrive.js';
+import { characterState, computeCharacterStats } from '../data/character.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { updateSurvivalDebuffBadge, initTooltips } from '../ui/panels/tooltip.js';
 import { initTimeManager, startTimeManager } from './time.js';
@@ -28,6 +29,45 @@ window.TIME_SCALE = Number(localStorage.getItem('gameTimeScale')) || 1;
 
 let lastUpdateTime = Date.now();
 let lastObjectivesCheck = 0;
+
+const CHARACTER_MENU_NEW_ITEM_KEY = 'uiCharacterMenuNewItem';
+
+function syncVitalCapsFromCharacter() {
+    try {
+        const stats = computeCharacterStats(characterState);
+        const hp = resources.find(r => r && r.name === 'Health');
+        const stam = resources.find(r => r && r.name === 'Stamina');
+
+        if (hp) {
+            const nextCap = Math.max(1, Math.floor(Number(stats?.health ?? hp.capacity ?? 0)));
+            hp.capacity = nextCap;
+            hp.amount = Math.min(Number(hp.amount ?? 0), nextCap);
+        }
+        if (stam) {
+            const nextCap = Math.max(1, Math.floor(Number(stats?.stamina ?? stam.capacity ?? 0)));
+            stam.capacity = nextCap;
+            stam.amount = Math.min(Number(stam.amount ?? 0), nextCap);
+        }
+    } catch { /* non-fatal */ }
+}
+
+function setCharacterMenuNewItemBadgeVisible(visible) {
+    const btn = document.querySelector('.menu-button[data-section="characterSection"]');
+    const badge = btn ? btn.querySelector('.menu-button-warning') : null;
+    if (!badge) return;
+    badge.classList.toggle('is-hidden', !visible);
+}
+
+function setCharacterMenuNewItemFlag(visible) {
+    try { localStorage.setItem(CHARACTER_MENU_NEW_ITEM_KEY, visible ? 'true' : 'false'); } catch (e) { /* ignore */ }
+    setCharacterMenuNewItemBadgeVisible(visible);
+}
+
+function refreshCharacterMenuNewItemFlagFromStorage() {
+    let visible = false;
+    try { visible = localStorage.getItem(CHARACTER_MENU_NEW_ITEM_KEY) === 'true'; } catch (e) { /* ignore */ }
+    setCharacterMenuNewItemBadgeVisible(visible);
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('preloader').classList.add('hidden');
@@ -59,6 +99,12 @@ function startGame() {
         localStorage.removeItem('isResetting');
         resetToDefaultState();
     }
+
+    // Ensure max Health/Stamina reflect character progression/gear.
+    syncVitalCapsFromCharacter();
+    try {
+        window.addEventListener('character-state-changed', () => syncVitalCapsFromCharacter());
+    } catch { /* non-fatal */ }
 
     // --- Create all game section elements ---
     const crashSiteSection = document.createElement('div');
@@ -128,6 +174,7 @@ function startGame() {
     setupEncryptedDriveSection(encryptedDriveSection);
 	
     setupMenuButtons();
+    refreshCharacterMenuNewItemFlagFromStorage();
     loadCurrentSection();
     updateResourceInfo();
     applyActivatedSections();
@@ -388,6 +435,7 @@ export function showSection(sectionId) {
 
     // Re-render Character on show so inventory/equipment changes are reflected.
     if (sectionId === 'characterSection') {
+        setCharacterMenuNewItemFlag(false);
         try {
             const sectionEl = document.getElementById('characterSection');
             if (sectionEl) setupCharacterSection(sectionEl);
@@ -405,6 +453,18 @@ export function showSection(sectionId) {
     
     localStorage.setItem('currentSection', sectionId);
 };
+
+// Mark the Character menu button when a new item is granted.
+// This is intentionally UI-only and persists until the player opens the Character screen.
+if (typeof window !== 'undefined') {
+    window.addEventListener('inventory-item-added', () => {
+        try {
+            const current = localStorage.getItem('currentSection');
+            if (current === 'characterSection') return;
+        } catch (e) { /* ignore */ }
+        setCharacterMenuNewItemFlag(true);
+    });
+}
 
 function loadCurrentSection() {
     const savedSection = localStorage.getItem('currentSection');

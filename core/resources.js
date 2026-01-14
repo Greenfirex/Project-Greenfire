@@ -6,7 +6,6 @@ import { formatNumber } from './formatting.js';
 import { setupTooltip } from '../ui/panels/tooltip.js';
 import { getActiveCrashSiteAction } from '../data/activeActions.js';
 import { getMorale } from '../data/morale.js';
-import { updateXPMeter } from '../ui/footer.js';
 
 export function getInitialResources() {
     return [
@@ -236,7 +235,7 @@ export function setupInfoPanel() {
     const moraleRow = document.createElement('div');
     moraleRow.className = 'info-row morale';
     moraleRow.dataset.resource = 'Morale';
-    moraleRow.classList.remove('hidden');
+    moraleRow.classList.toggle('hidden', !shouldShowMoraleResource());
     moraleRow.innerHTML = `
         <div class="resource-progress-bar"></div>
         <div class="infocolumn1"><span>Morale</span></div>
@@ -380,6 +379,15 @@ function updateResourceCategoryVisibility(root = document) {
     });
 }
 
+function shouldShowMoraleResource() {
+    // Morale is only meaningful once there are people; hide until the first survivor/crew member is found.
+    const survivors = resources.find(r => r && r.name === 'Survivors');
+    const crew = resources.find(r => r && r.name === 'Crew Members');
+    const survivorsCount = survivors ? Math.floor(Number(survivors.amount) || 0) : 0;
+    const crewCount = crew ? Math.floor(Number(crew.amount) || 0) : 0;
+    return (survivorsCount + crewCount) > 0;
+}
+
 export function updateResourceInfo() {
     const survivorResource = resources.find(r => r.name === 'Survivors');
     const survivorCount = survivorResource ? survivorResource.amount : 0;
@@ -390,12 +398,16 @@ export function updateResourceInfo() {
         const m = getMorale();
         const row = document.querySelector('.info-row.morale');
         if (row) {
-            const valEl = row.querySelector('[data-value-type="morale"]');
-            if (valEl) valEl.textContent = `${Math.round(m.percent)}%`;
+            const shouldShow = shouldShowMoraleResource();
+            row.classList.toggle('hidden', !shouldShow);
             row.classList.remove('morale-high','morale-mid','morale-low');
-            const pct = m.percent;
-            const cls = (pct >= 100) ? 'morale-high' : (pct >= 80 ? 'morale-mid' : 'morale-low');
-            row.classList.add(cls);
+            if (shouldShow) {
+                const valEl = row.querySelector('[data-value-type="morale"]');
+                if (valEl) valEl.textContent = `${Math.round(m.percent)}%`;
+                const pct = m.percent;
+                const cls = (pct >= 100) ? 'morale-high' : (pct >= 80 ? 'morale-mid' : 'morale-low');
+                row.classList.add(cls);
+            }
         }
     } catch {}
 
@@ -486,6 +498,4 @@ export function updateResourceInfo() {
     // Hide empty categories to avoid spoilers.
     updateResourceCategoryVisibility(document.getElementById('infoPanelContent') || document);
 
-    // Update XP meter in footer
-    updateXPMeter(resources);
 }

@@ -3,11 +3,12 @@
 .combat-popup-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.65);
+    /* When combined with .story-popup-overlay, Story CSS provides the backdrop */
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 16px;
+    padding: 20px;
+    box-sizing: border-box;
     color: #E6EEF7;
     font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
@@ -17,17 +18,18 @@
 }
 
 .combat-popup-content {
-    width: min(720px, 96vw);
-    max-height: min(720px, 92vh);
+    /* sizing is inherited from .story-popup-content, keep combat overrides minimal */
     overflow: hidden;
-    background: rgba(10, 12, 16, 0.96);
-    border: 1px solid rgba(var(--glow-r, 105), var(--glow-g, 240), var(--glow-b, 174), 0.35);
-    box-shadow:
-        0 0 calc(16px * var(--glow-spread-multiplier, 1)) rgba(var(--glow-r, 105), var(--glow-g, 240), var(--glow-b, 174), var(--glow-opacity, 0.6)),
-        0 18px 40px rgba(0,0,0,0.5);
-    border-radius: 12px;
-    position: relative;
-    color: #E6EEF7;
+}
+
+.combat-popup-content.compact-header .combat-popup-header {
+    /* story header is fairly tall; compact variant saves vertical space */
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+.combat-subtitle:empty {
+    display: none;
 }
 
 .combat-popup-close {
@@ -48,8 +50,7 @@
 }
 
 .combat-popup-header {
-    padding: 18px 22px 10px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
 }
 
 .combat-popup-header h2 {
@@ -66,12 +67,18 @@
 }
 
 .combat-popup-body {
-    padding: 14px 22px;
+    padding: 0;
     display: grid;
     gap: 14px;
+    /* Prefer space for stats; keep log compact */
+    grid-template-rows: auto auto;
+    align-content: start;
+    flex: 1 1 0;
+    min-height: 0;
 }
 
 .combat-bars {
+    padding: 0 2px;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px;
@@ -82,6 +89,56 @@
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 10px;
     padding: 10px;
+    position: relative;
+}
+
+.combat-bar-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.combat-bar-top .combat-bar-label {
+    margin-bottom: 0;
+}
+
+.combat-stim-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.45);
+    background: rgba(0, 0, 0, 0.28);
+    color: rgba(255, 255, 255, 0.92);
+    cursor: pointer;
+    line-height: 1;
+}
+
+.combat-stim-icon .svg {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+}
+
+.combat-stim-icon .combat-stim-count {
+    min-width: 10px;
+    font-size: 11px;
+    opacity: 0.95;
+}
+
+.combat-stim-icon:hover {
+    border-color: rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.75);
+}
+
+.combat-stim-icon:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .combat-bar-label {
@@ -91,6 +148,7 @@
 }
 
 .combat-bar {
+    position: relative;
     height: 12px;
     border-radius: 8px;
     overflow: hidden;
@@ -98,11 +156,26 @@
     border: 1px solid rgba(255,255,255,0.06);
 }
 
+.combat-bar-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: rgba(255,255,255,0.92);
+    text-shadow: 0 1px 1px rgba(0,0,0,0.65);
+    pointer-events: none;
+}
+
 .combat-bar-fill {
     height: 100%;
     width: 50%;
-    background: rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.9);
-    box-shadow: 0 0 10px rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.45);
+    /* Both bars red for consistent combat danger */
+    background: rgba(239, 68, 68, 0.85);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
 }
 
 .combat-bar-fill.enemy {
@@ -117,8 +190,133 @@
     color: rgba(230, 238, 247, 0.85);
 }
 
+.combat-mini-inline {
+    margin-top: 8px;
+    padding-top: 0;
+    border-top: none;
+    display: block;
+}
+
+.combat-orbit {
+    position: relative;
+    /* Taller so left/right icon stacks don't overlap */
+    height: 176px;
+    border-radius: 10px;
+    background: radial-gradient(circle at 50% 30%, rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08), rgba(0,0,0,0) 62%),
+                rgba(0,0,0,0.18);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.12);
+    overflow: hidden;
+}
+
+.combat-portrait {
+    position: absolute;
+    left: 50%;
+    top: 52%;
+    transform: translate(-50%, -50%);
+    will-change: transform;
+    height: 164px;
+    width: auto;
+    opacity: 0.82;
+    pointer-events: none;
+    filter: drop-shadow(0 10px 18px rgba(0,0,0,0.6)) contrast(1.05);
+}
+
+.combat-portrait.hidden {
+    display: none;
+}
+
+/* Reuse the Character paperdoll visual treatment for the player portrait */
+.combat-portrait.player {
+    mix-blend-mode: screen;
+    -webkit-mask-image: radial-gradient(ellipse at 50% 46%, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 82%);
+    mask-image: radial-gradient(ellipse at 50% 46%, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 82%);
+}
+
+.combat-portrait.enemy {
+    opacity: 0.9;
+    /* Remove black box backgrounds from enemy PNGs */
+    mix-blend-mode: screen;
+    -webkit-mask-image: radial-gradient(ellipse at 50% 52%, rgba(0,0,0,1) 62%, rgba(0,0,0,0) 86%);
+    mask-image: radial-gradient(ellipse at 50% 52%, rgba(0,0,0,1) 62%, rgba(0,0,0,0) 86%);
+}
+
+.combat-portrait.attack {
+    animation-duration: 220ms;
+    animation-timing-function: cubic-bezier(0.2, 0.9, 0.2, 1);
+    animation-fill-mode: both;
+}
+
+.combat-portrait.player.attack {
+    animation-name: combat-lunge-right;
+}
+
+.combat-portrait.enemy.attack {
+    animation-name: combat-lunge-left;
+}
+
+@keyframes combat-lunge-right {
+    0% { transform: translate(-50%, -50%) translateX(0); }
+    55% { transform: translate(-50%, -50%) translateX(10px); }
+    100% { transform: translate(-50%, -50%) translateX(0); }
+}
+
+@keyframes combat-lunge-left {
+    0% { transform: translate(-50%, -50%) translateX(0); }
+    55% { transform: translate(-50%, -50%) translateX(-10px); }
+    100% { transform: translate(-50%, -50%) translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .combat-portrait.attack {
+        animation: none;
+    }
+}
+
+.combat-stat-icon {
+    position: absolute;
+    width: 48px;
+    height: 44px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.28);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    color: rgba(230, 238, 247, 0.92);
+}
+
+.combat-stat-icon .svg {
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    opacity: 0.95;
+}
+
+.combat-stat-icon .val {
+    font-size: 11px;
+    opacity: 0.92;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.combat-stat-icon.pos-tl { top: 14px; left: 14px; }
+.combat-stat-icon.pos-tr { top: 14px; right: 14px; }
+.combat-stat-icon.pos-ml { top: 50%; left: 14px; transform: translateY(-50%); }
+.combat-stat-icon.pos-mr { top: 50%; right: 14px; transform: translateY(-50%); }
+.combat-stat-icon.pos-bl { bottom: 14px; left: 14px; }
+.combat-stat-icon.pos-br { bottom: 14px; right: 14px; }
+
 .combat-log {
-    height: 220px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    /* Keep the log to ~2 visible rows; scroll for history */
+    height: 86px;
+    max-height: 86px;
+    min-height: 0;
     overflow: auto;
     background: rgba(0,0,0,0.35);
     border: 1px solid rgba(255,255,255,0.06);
@@ -127,6 +325,30 @@
     color: rgba(230, 238, 247, 0.9);
     font-size: 0.92em;
     line-height: 1.35;
+}
+
+/* Use the same scrollbar styling as the in-game log */
+.combat-log::-webkit-scrollbar {
+    width: 12px;
+}
+
+.combat-log::-webkit-scrollbar-track {
+    background: #111;
+}
+
+.combat-log::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+    border-radius: 6px;
+    border: 3px solid #111;
+}
+
+.combat-log::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
+}
+
+.combat-log {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.6) #111;
 }
 
 .combat-log-line {
@@ -143,11 +365,69 @@
     margin-right: 8px;
 }
 
+/* Color-coded combat log */
+.combat-log-line.kind-player-hit span:last-child {
+    color: rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.95);
+}
+
+.combat-log-line.kind-player-miss span:last-child {
+    color: rgba(230, 238, 247, 0.65);
+}
+
+.combat-log-line.kind-enemy-hit span:last-child {
+    color: rgba(239, 68, 68, 0.95);
+}
+
+.combat-log-line.kind-enemy-miss span:last-child {
+    color: rgba(230, 238, 247, 0.65);
+}
+
+.combat-log-line.kind-item span:last-child {
+    color: rgba(251, 191, 36, 0.95);
+}
+
+.combat-log-line.kind-player-crit span:last-child {
+    color: rgba(255, 241, 168, 0.98);
+}
+
+.combat-log-line.kind-system span:last-child {
+    color: rgba(147, 197, 253, 0.95);
+}
+
+.combat-log-line.kind-win span:last-child {
+    color: rgba(52, 211, 153, 0.98);
+}
+
+.combat-log-line.kind-lose span:last-child {
+    color: rgba(248, 113, 113, 0.98);
+}
+
+.combat-log-line.kind-enemy-crit span:last-child {
+    color: rgba(255, 209, 209, 0.98);
+}
+
 .combat-popup-actions {
-    padding: 0 22px 18px;
+    padding: 0;
+    margin-top: 16px;
     display: flex;
     gap: 10px;
-    justify-content: flex-end;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+/* Combat uses .menu-button (large by default); override to match compact popup controls */
+.combat-popup-actions .combat-btn {
+    width: auto;
+    height: 32px;
+    margin: 0;
+    padding: 6px 12px;
+    font-size: 13px;
+    line-height: 1;
+    transform: none;
+}
+
+.combat-popup-actions .combat-btn:hover {
+    transform: none;
 }
 
 .combat-btn.hidden {

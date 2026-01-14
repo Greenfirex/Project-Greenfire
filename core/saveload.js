@@ -26,6 +26,13 @@ export function saveGameState() {
     addLogEntry('Game saved.', LogType.INFO);
 }
 
+// Save without emitting an in-game log entry.
+// Useful for UI-only state (e.g., "new" badges) where logging would be noisy.
+export function saveGameStateQuiet() {
+    const gameState = getGameState();
+    localStorage.setItem('gameState', JSON.stringify(gameState));
+}
+
 export function getGameState() {
     return {
         resources,
@@ -131,7 +138,9 @@ export function applyGameState(gameState) {
         // Include usage counters and completion flags so limited-use actions stay retired.
         const RUNTIME_ACTION_KEYS = new Set([
             'isUnlocked', 'stage', 'uses', 'maxUses', 'completed',
-            'startTime', 'lastTickTime', 'pauseStart'
+            'startTime', 'lastTickTime', 'pauseStart',
+            // UI-only hint: show "new" badge until user hovers.
+            'uiNew'
         ]);
         salvageActions.forEach(defaultAction => {
             const savedAction = gameState.salvageActions.find(a => a.id === defaultAction.id);
@@ -150,7 +159,8 @@ export function applyGameState(gameState) {
         // Restore runtime-mutating fields for upgrade actions
         const RUNTIME_ACTION_KEYS = new Set([
             'isUnlocked', 'stage', 'uses', 'maxUses', 'completed',
-            'startTime', 'lastTickTime', 'pauseStart'
+            'startTime', 'lastTickTime', 'pauseStart',
+            'uiNew'
         ]);
         upgradeActions.forEach(defaultAction => {
             const savedAction = gameState.upgradeActions.find(a => a.id === defaultAction.id);

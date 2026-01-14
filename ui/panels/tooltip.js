@@ -116,6 +116,9 @@ export function getOrCreateTooltip() {
     if (globalTooltip) return globalTooltip;
     const t = document.createElement('div');
     t.className = 'tooltip';
+    // Some overlays (e.g., combat) use extremely high z-index values.
+    // Keep tooltips above those overlays.
+    try { t.style.zIndex = '2147483202'; } catch (e) { /* ignore */ }
     document.body.appendChild(t);
     globalTooltip = t;
     return t;
@@ -151,8 +154,14 @@ window.addEventListener('request-hide-tooltip', () => {
 });
 
 // Disable tooltip rendering while popups/menus are open to avoid accidental hover
-window.addEventListener('popup-open', () => {
-    try { tooltipsEnabled = false; hideTooltip(); } catch (e) { /* ignore */ }
+window.addEventListener('popup-open', (e) => {
+    // Some overlays (e.g., combat) want tooltips enabled inside the popup.
+    // Default behavior remains: disable tooltips while popups/menus are open.
+    try {
+        if (e && e.detail && e.detail.allowTooltips) return;
+        tooltipsEnabled = false;
+        hideTooltip();
+    } catch (err) { /* ignore */ }
 });
 window.addEventListener('popup-close', () => {
     try { tooltipsEnabled = true; } catch (e) { /* ignore */ }

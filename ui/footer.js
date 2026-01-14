@@ -1,7 +1,7 @@
 // Footer UI Management
 // - Pause/Resume button
 // - Speed control buttons (1x, 2x, 5x, 10x)
-// - XP meter display
+// - (XP display lives in Character stats)
 
 import { addLogEntry, LogType } from '../core/ingameLog.js';
 
@@ -69,23 +69,6 @@ function resumeGame(announce = true) {
 
 function togglePause() {
     if (isPaused) resumeGame(); else pauseGame();
-}
-
-// Update XP meter in footer
-export function updateXPMeter(resources) {
-    try {
-        const xp = resources.find(r => r.name === 'XP');
-        const meter = document.getElementById('xpMeter');
-        if (xp && meter) {
-            const valueEl = meter.querySelector('.xp-value');
-            if (valueEl) valueEl.textContent = Math.floor(xp.amount).toLocaleString();
-            const fill = meter.querySelector('.xp-fill');
-            if (fill) {
-                const pct = (xp.amount % 100) / 100;
-                fill.style.width = `${Math.max(0, Math.min(100, pct * 100))}%`;
-            }
-        }
-    } catch {}
 }
 
 // Export for main.js to use

@@ -18,7 +18,7 @@ const initialSalvageActions = [
             stages: [
                 // new order: sheltered area (rest) first, then food, then water/alternate access
                 { story: 'foundCave', unlocks: ['rest'], logText: 'You have discovered a sheltered area — someone can rest here. (Click to read)' },
-                { story: 'foundBerries', unlocks: ['forageFood'], grantItems: ['spiked_branch'], logText: 'You have discovered a source of food. (Click to read)' },
+                { story: 'foundBerries', unlocks: ['forageFood'], grantItems: ['spiked_branch'], grantItemsPreferEquip: false, logText: 'You have discovered a source of food. (Click to read)' },
                 { story: 'foundRiver', unlocks: ['purifyWater', 'attemptAlternateAccess', 'huntWildlife'], encounter: 'wildlife_river', logText: 'You have discovered a source of water. (Click to read)' },   
             ]
         },

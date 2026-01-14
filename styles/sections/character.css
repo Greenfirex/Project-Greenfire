@@ -19,6 +19,10 @@
         radial-gradient(circle at 50% 18%, rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10), rgba(0,0,0,0) 55%),
         radial-gradient(circle at 20% 70%, rgba(255,255,255,0.04), rgba(0,0,0,0) 45%),
         rgba(0,0,0,0);
+
+    /* Shared slot sizing (bag + equipment) so drag previews feel consistent */
+    --inv-slot-w: clamp(92px, 11vw, 132px);
+    --inv-slot-h: clamp(56px, 8vw, 64px);
 }
 
 /* Override shared .content-panel height:100% so it behaves well inside padded sections */
@@ -69,6 +73,23 @@
     gap: 10px;
 }
 
+#characterSection .stat-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#characterSection .stat-line .stat-row {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+#characterSection .stat-allocate-spacer {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+}
+
 #characterSection .stat-row {
     display: flex;
     align-items: center;
@@ -92,6 +113,36 @@
 #characterSection .stat-row.stat-row-bar .stat-value {
     flex: 0 0 auto;
     margin-left: 10px;
+}
+
+#characterSection .stat-allocate-btn {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    margin-left: 6px;
+    border-radius: 7px;
+    border: 1px solid rgba(255,255,255,0.20);
+    background: rgba(0,0,0,0.18);
+    color: rgba(255,255,255,0.90);
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
+}
+
+/* When the + is outside the stat row, don't add extra inner spacing. */
+#characterSection .stat-line .stat-allocate-btn {
+    margin-left: 0;
+}
+
+#characterSection .stat-allocate-btn:hover:not(:disabled) {
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.55);
+    box-shadow: 0 0 12px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
+}
+
+#characterSection .stat-allocate-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
 }
 
 #characterSection .stat-bar {
@@ -129,6 +180,15 @@
     box-shadow: 0 0 12px rgba(231, 76, 60, 0.22);
 }
 
+/* XP gets a distinct cool tone */
+#characterSection .stat-row[data-stat="xp"] .stat-bar-fill {
+    background: linear-gradient(90deg,
+        rgba(84, 132, 255, 0.55),
+        rgba(84, 132, 255, 0.95)
+    );
+    box-shadow: 0 0 12px rgba(84, 132, 255, 0.22);
+}
+
 
 #characterSection .stat-label {
     color: rgba(255,255,255,0.85);
@@ -149,6 +209,29 @@
     margin-bottom: 12px;
 }
 
+#characterSection .stat-points-chip {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: rgba(20, 40, 20, 0.25);
+    border: 1px solid rgba(144, 238, 144, 0.18);
+    box-shadow: 0 0 8px rgba(144,238,144,0.12) inset;
+    color: #eaffea;
+    font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: help;
+    user-select: none;
+}
+
+#characterSection .stat-points-chip strong {
+    color: #ffffff;
+    font-weight: 900;
+}
+
 #characterSection .character-card-header h3 {
     margin: 0;
     font-size: 14px;
@@ -160,6 +243,37 @@
 #characterSection .character-card-hint {
     color: rgba(255,255,255,0.55);
     font-size: 12px;
+}
+
+#characterSection .inventory-trash-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(0,0,0,0.20);
+    color: rgba(255,255,255,0.75);
+    cursor: pointer;
+}
+
+#characterSection .inventory-trash-btn:hover {
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.45);
+    color: rgba(255,255,255,0.92);
+}
+
+#characterSection .inventory-trash-btn.active {
+    border-color: rgba(231, 76, 60, 0.65);
+    color: rgba(231, 76, 60, 0.95);
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.14);
+}
+
+#characterSection .inventory-trash-icon {
+    width: 18px;
+    height: 18px;
+    display: block;
 }
 
 /* Equipment (Paper Doll) */
@@ -205,8 +319,8 @@
 /* Paper-doll slots are positioned around the silhouette */
 #characterSection .paperdoll .equipment-slot {
     position: absolute;
-    width: 132px;
-    height: 64px;
+    width: var(--inv-slot-w);
+    height: var(--inv-slot-h);
     background: linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0.35));
     backdrop-filter: blur(2px);
     z-index: 2;
@@ -227,6 +341,12 @@
 #characterSection .paperdoll .equipment-slot[data-slot="legs"] {
     left: 50%;
     top: 256px;
+    transform: translateX(-50%);
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="boots"] {
+    left: 50%;
+    top: 354px;
     transform: translateX(-50%);
 }
 
@@ -275,16 +395,16 @@
     position: absolute;
     left: 10px;
     right: 10px;
-    top: 8px;
-    bottom: 26px;
+    top: 6px;
+    bottom: 24px;
     color: #eaffea;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 5px;
     min-width: 0;
     text-align: center;
     text-shadow: 0 1px 0 rgba(0,0,0,0.55);
@@ -292,10 +412,13 @@
 
 #characterSection .slot-item .item-name {
     min-width: 0;
-    white-space: nowrap;
+    white-space: normal;
     overflow: hidden;
-    text-overflow: ellipsis;
     max-width: 100%;
+    line-height: 1.2;
+    max-height: 2.6em; /* ~2 lines; avoids descender clipping */
+    word-break: break-word;
+    hyphens: auto;
 }
 
 #characterSection .item-icon {
@@ -318,16 +441,17 @@
 
 #characterSection .bag-grid {
     display: grid;
-    /* 2 rows, stretch across the card */
-    grid-template-columns: repeat(var(--bag-cols, 6), minmax(0, 1fr));
-    grid-template-rows: repeat(var(--bag-rows, 2), minmax(0, 1fr));
+    /* Keep bag slots consistent with equipment slot sizing */
+    grid-template-columns: repeat(var(--bag-cols, 6), var(--inv-slot-w));
+    grid-template-rows: repeat(var(--bag-rows, 2), var(--inv-slot-h));
     gap: 10px;
-    padding: 4px;
+    padding: 6px;
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: auto;
     flex: 1 1 auto;
     min-height: 0;
-    align-content: stretch;
+    justify-content: start;
+    align-content: start;
 }
 
 #characterSection .bag-slot {
@@ -345,27 +469,35 @@
     position: absolute;
     left: 10px;
     right: 10px;
-    top: 8px;
-    bottom: 8px;
+    top: 6px;
+    bottom: 6px;
     color: rgba(255,255,255,0.90);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
     text-align: center;
     text-shadow: 0 1px 0 rgba(0,0,0,0.6);
 }
 
+/* Bag slots are smaller; slightly reduce icon size so text never clips */
+#characterSection .bag-item .item-icon {
+    --item-icon-size: 26px;
+}
+
 #characterSection .bag-item .item-name {
     min-width: 0;
-    white-space: nowrap;
+    white-space: normal;
     overflow: hidden;
-    text-overflow: ellipsis;
     max-width: 100%;
+    line-height: 1.2;
+    max-height: 2.6em; /* ~2 lines; avoids descender clipping */
+    word-break: break-word;
+    hyphens: auto;
 }
 
 /* Drag & drop feedback */
@@ -385,6 +517,16 @@
     outline: none;
     border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.55);
     box-shadow: 0 0 0 2px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
+}
+
+/* Discard mode affordance */
+#characterSection .character-panel.discard-mode .bag-slot.has-item {
+    cursor: pointer;
+}
+
+#characterSection .character-panel.discard-mode .bag-slot.has-item:hover {
+    border-color: rgba(231, 76, 60, 0.65);
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.14), inset 0 0 0 1px rgba(255,255,255,0.02);
 }
 
 @media (max-width: 1100px) {
