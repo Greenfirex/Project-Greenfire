@@ -18,8 +18,8 @@ const initialSalvageActions = [
             stages: [
                 // new order: sheltered area (rest) first, then food, then water/alternate access
                 { story: 'foundCave', unlocks: ['rest'], logText: 'You have discovered a sheltered area — someone can rest here. (Click to read)' },
-                { story: 'foundBerries', unlocks: ['forageFood'], logText: 'You have discovered a source of food. (Click to read)' },
-                { story: 'foundRiver', unlocks: ['purifyWater', 'attemptAlternateAccess'], logText: 'You have discovered a source of water. (Click to read)' },   
+                { story: 'foundBerries', unlocks: ['forageFood'], grantItems: ['spiked_branch'], logText: 'You have discovered a source of food. (Click to read)' },
+                { story: 'foundRiver', unlocks: ['purifyWater', 'attemptAlternateAccess', 'huntWildlife'], encounter: 'wildlife_river', logText: 'You have discovered a source of water. (Click to read)' },   
             ]
         },
             {
@@ -74,6 +74,24 @@ const initialSalvageActions = [
                 ],
                 reward: [ 
                     { resource: 'Clean Water', amount: [30, 50] }
+                ]
+            },
+            {
+                id: 'huntWildlife',
+                name: 'Hunt for Wildlife',
+                description: 'Track and hunt nearby wildlife. Dangerous, but can provide a large amount of food.',
+                duration: 4,
+                category: 'Survival',
+                isUnlocked: false,
+                cancelable: true,
+                repeatable: true,
+                encounter: 'wildlife_river',
+                drain: [
+                    { resource: 'Stamina', amount: 12 },
+                    { resource: 'Clean Water', amount: 6 }
+                ],
+                reward: [
+                    { resource: 'Food Rations', amount: [60, 90] }
                 ]
             },
             {

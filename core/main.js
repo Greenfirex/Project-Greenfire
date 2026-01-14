@@ -386,6 +386,14 @@ export function showSection(sectionId) {
         activeSection.classList.remove('hidden');
     }
 
+    // Re-render Character on show so inventory/equipment changes are reflected.
+    if (sectionId === 'characterSection') {
+        try {
+            const sectionEl = document.getElementById('characterSection');
+            if (sectionEl) setupCharacterSection(sectionEl);
+        } catch (e) { /* non-fatal */ }
+    }
+
     if (sectionId === 'journalSection') {
         import('../sections/journal.js').then(mod => {
             const sectionEl = document.getElementById('journalSection');

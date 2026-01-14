@@ -22,6 +22,21 @@ export const items = [
         slot: 'legs',
         icon: 'assets/images/items/utility_legs.svg',
         stats: { stamina: 5 }
+    },
+    {
+        id: 'spiked_branch',
+        name: 'Spiked Branch',
+        slot: 'weapon',
+        icon: 'assets/images/items/spiked_branch.svg',
+        stats: { damage: 2, attackSpeed: 0.55 }
+    },
+    {
+        id: 'stimpack',
+        name: 'Stimpack',
+        slot: 'consumable',
+        icon: 'assets/images/items/stimpack.svg',
+        // Consumables are used via UI buttons (e.g., combat popup)
+        consumable: { type: 'heal', resource: 'Health', amount: 25 }
     }
 ];
 

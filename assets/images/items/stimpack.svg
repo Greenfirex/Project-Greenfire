@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Stimpack icon">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dff7df" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#7fe3aa" stop-opacity="0.65"/>
+    </linearGradient>
+    <linearGradient id="r" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff9aa6" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#ff5f72" stop-opacity="0.75"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Card background (matches other item icons) -->
+  <rect x="10" y="10" width="108" height="108" rx="18" fill="rgba(0,0,0,0.35)" stroke="rgba(105,240,174,0.55)" stroke-width="2"/>
+
+  <!-- Vial body -->
+  <rect x="44" y="28" width="40" height="72" rx="10" fill="url(#g)"/>
+  <rect x="48" y="34" width="32" height="58" rx="8" fill="rgba(0,0,0,0.10)"/>
+
+  <!-- Red fluid fill -->
+  <path d="M48 74
+           C54 80, 60 82, 64 82
+           C68 82, 74 80, 80 74
+           L80 92
+           C80 96, 77 100, 72 100
+           H56
+           C51 100, 48 96, 48 92 Z" fill="url(#r)"/>
+
+  <!-- Cap -->
+  <rect x="42" y="22" width="44" height="14" rx="7" fill="rgba(0,0,0,0.35)"/>
+  <rect x="46" y="24" width="36" height="10" rx="5" fill="rgba(255,255,255,0.10)"/>
+
+  <!-- Plus symbol -->
+  <path d="M64 48 V64" stroke="rgba(0,0,0,0.55)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M56 56 H72" stroke="rgba(0,0,0,0.55)" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- Small highlight -->
+  <path d="M52 40 C52 36, 56 34, 60 34" stroke="rgba(255,255,255,0.25)" stroke-width="4" stroke-linecap="round"/>
+</svg>

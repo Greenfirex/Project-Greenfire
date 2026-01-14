@@ -14,6 +14,9 @@ import { gameFlags, runActionCompletionHandlers } from '../data/gameFlags.js';
 import { computeRewardMultiplier } from '../data/upgradeEffects.js';
 import { lsGet, getCurrentStage, tooltipDataForAction, canAffordAction, getAffordabilityShortfalls, computeEffectiveDuration, getRandomInt } from '../data/actionsManager.js';
 import { getBlockedStatus, evaluateEventUnlocks } from '../data/unlockRules.js';
+import { showCombatPopup } from '../ui/panels/combatPopup.js';
+import { characterState, grantItemToCharacter, countItemInBag } from '../data/character.js';
+import { getItemDefinition } from '../data/definitions/items.js';
 
 
 const SITE_BUILDING_NAMES = ['Foraging Camp', 'Water Station', 'Rain Tarp', 'Food Larder', 'Water Reservoir'];
@@ -54,6 +57,17 @@ function getCapacityBlockReason(action) {
         if (!allWasted) return null;
 
         const names = Array.from(new Set(cappedEntries.map(r => r.resource)));
+
+        // Special-case Rest: if you're already topped off, show a more human-friendly reason.
+        if (action && (action.id === 'rest' || action.name === 'Rest')) {
+            const hasHealth = names.includes('Health');
+            const hasStamina = names.includes('Stamina');
+            if (hasHealth && hasStamina) return 'You are already fully rested (Health and Stamina are full).';
+            if (hasHealth) return 'You are already at full Health.';
+            if (hasStamina) return 'You are already at full Stamina.';
+            return 'You do not need to rest right now.';
+        }
+
         if (names.length === 1) return `Storage full: ${names[0]}.`;
         return `Storage full: ${names.join(', ')}.`;
     } catch {
@@ -434,7 +448,9 @@ function updateActionProgress(section) {
         }
     }
 
-    if (a.elapsed >= effectiveDuration) handleActionCompletion(section);
+    if (a.elapsed >= effectiveDuration) {
+        handleActionCompletion(section).catch(() => { /* non-fatal */ });
+    }
 }
 
 // Cancel the running action with optional force and apply refunds
@@ -503,7 +519,7 @@ function cancelAction(section, message, force = false) {
 }
 
 // Handle completing an action: rewards, stories, unlocks, and UI
-function handleActionCompletion(section) {
+async function handleActionCompletion(section) {
     stopCrashSiteLoop();
     if (cancelTimeout) { clearTimeout(cancelTimeout); cancelTimeout = null; }
     isPendingCancel = null;
@@ -513,8 +529,38 @@ function handleActionCompletion(section) {
     const actionDef = salvageActions.find(a => a.id === completed.id);
     const suppressGeneric = !!(actionDef && (actionDef.suppressGenericLog || ((actionDef.stages && actionDef.stages[(actionDef.stage || 0)] && actionDef.stages[(actionDef.stage || 0)].suppressGenericLog))));
 
+    // If the current stage defines a combat encounter, run it BEFORE granting stage story/unlocks.
+    // If the player loses/retreats, do not advance the stage so they can retry.
+    const originalForEncounter = salvageActions.find(a => a.id === completed.id || a.name === completed.name);
+    if (originalForEncounter) {
+        const idx = originalForEncounter.stage || 0;
+        const st = (originalForEncounter.stages || [])[idx];
+        const encounterId = (st && st.encounter) || originalForEncounter.encounter;
+        if (encounterId) {
+            try {
+                // While combat is open we don't want the underlying action drain to keep ticking.
+                // We already have a local snapshot of the completed action, so it's safe to clear this now.
+                setActiveCrashSiteAction(null);
+                const stageIndex = (st && st.encounter) ? idx : null;
+                const result = await showCombatPopup(encounterId, { sourceActionId: originalForEncounter.id, stageIndex });
+                if (!result || result.outcome !== 'win') {
+                    // Clear active action and refresh the crash site UI so the action can be restarted.
+                    setActiveCrashSiteAction(null);
+                    try {
+                        if (section) setupCrashSiteSection(section);
+                        else setupCrashSiteSection();
+                    } catch (e) { /* ignore */ }
+                    return;
+                }
+            } catch (e) {
+                // If combat popup fails, fail open so players aren't hard-stuck.
+                console.warn('Combat popup failed; continuing stage completion.', e);
+            }
+        }
+    }
+
     // Build an outcome payload to optionally show in story popups
-    const outcome = { rewards: [], unlocks: { actions: [], buildings: [], sections: [], jobs: [] } };
+    const outcome = { rewards: [], items: [], unlocks: { actions: [], buildings: [], sections: [], jobs: [] } };
 
     if (completed.reward) {
         const gains = [];
@@ -566,6 +612,36 @@ function handleActionCompletion(section) {
     // so the outcome can also include buildings/sections unlocked by handlers.
 
         if (stage) {
+            const itemsToGrant = Array.isArray(stage.grantItems) ? stage.grantItems.slice() : [];
+
+            // Fallback: ensure the tutorial weapon is actually granted on the berries story stage.
+            // This guards against stale saves/definitions where grantItems might not exist.
+            try {
+                const hasBranch = (characterState?.equipment?.weapon === 'spiked_branch') || (countItemInBag('spiked_branch') > 0);
+                if (stage.story === 'foundBerries' && !hasBranch && !itemsToGrant.includes('spiked_branch')) {
+                    itemsToGrant.push('spiked_branch');
+                }
+            } catch { /* non-fatal */ }
+
+            if (itemsToGrant.length) {
+                const unique = Array.from(new Set(itemsToGrant.filter(Boolean)));
+                for (const itemId of unique) {
+                    try {
+                        const placed = grantItemToCharacter(itemId, { preferEquip: true });
+                        const def = getItemDefinition(itemId);
+                        const itemName = (def && def.name) ? def.name : itemId;
+                        if (placed && placed.ok) {
+                            const note = placed.placed === 'equip'
+                                ? `Equipped (${placed.slot})`
+                                : (placed.placed === 'bag' ? 'Added to bag' : 'Obtained');
+                            addLogEntry(`Item obtained: ${itemName}. ${note}.`, LogType.UNLOCK);
+                            outcome.items.push({ id: itemId, note });
+                        } else {
+                            addLogEntry(`Found item: ${itemName}, but your inventory is full.`, LogType.INFO);
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+            }
             if (Array.isArray(stage.unlocks)) {
                 stage.unlocks.forEach(id => {
                     const toUnlock = salvageActions.find(a => a.id === id || a.name === id);
@@ -782,6 +858,7 @@ function handleActionCompletion(section) {
     // Finally, if there was a pending story, show it with the filled outcome payload
     try {
         const hasRewards = outcome.rewards && outcome.rewards.length > 0;
+        const hasItems = outcome.items && outcome.items.length > 0;
         const hasUnlocks = outcome.unlocks && (
             (outcome.unlocks.actions && outcome.unlocks.actions.length) ||
             (outcome.unlocks.buildings && outcome.unlocks.buildings.length) ||
@@ -789,7 +866,7 @@ function handleActionCompletion(section) {
             (outcome.unlocks.jobs && outcome.unlocks.jobs.length)
         );
         const hasObjectives = !!(outcome.objectives && ((outcome.objectives.completed && outcome.objectives.completed.length) || (outcome.objectives.newlyActive && outcome.objectives.newlyActive.length)));
-        const payload = (hasRewards || hasUnlocks || hasObjectives) ? outcome : null;
+        const payload = (hasRewards || hasItems || hasUnlocks || hasObjectives) ? outcome : null;
         if (pendingStoryEvent) {
             showStoryPopup(pendingStoryEvent, payload);
             if (pendingStoryLogText) addLogEntry(pendingStoryLogText, LogType.STORY, { onClick: () => showStoryPopup(pendingStoryEvent, payload) });

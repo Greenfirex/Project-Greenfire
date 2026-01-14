@@ -1,6 +1,7 @@
 import { getIngameTimeObject, getIngameTimeString } from '../../core/time.js';
 import { addJournalEntry } from '../../sections/journal.js';
 import { allActions as _allActions } from '../../data/definitions/allActions.js';
+import { getItemDefinition } from '../../data/definitions/items.js';
 
 let activeStoryEvent = null;
 let activeOutcome = null; // optional footer content (rewards/unlocks)
@@ -55,6 +56,7 @@ function renderPopupPage() {
     // Render outcome footer if present
     if (outcomeEl) {
         const hasRewards = !!(activeOutcome && Array.isArray(activeOutcome.rewards) && activeOutcome.rewards.length);
+        const hasItems = !!(activeOutcome && Array.isArray(activeOutcome.items) && activeOutcome.items.length);
         const hasUnlocks = !!(activeOutcome && activeOutcome.unlocks && (
             (Array.isArray(activeOutcome.unlocks.actions) && activeOutcome.unlocks.actions.length) ||
             (Array.isArray(activeOutcome.unlocks.buildings) && activeOutcome.unlocks.buildings.length) ||
@@ -65,6 +67,7 @@ function renderPopupPage() {
             (Array.isArray(activeOutcome.objectives.completed) && activeOutcome.objectives.completed.length) ||
             (Array.isArray(activeOutcome.objectives.newlyActive) && activeOutcome.objectives.newlyActive.length)
         ));
+        if (hasRewards || hasItems || hasUnlocks || hasObjectives) {
             const makeList = (arr) => (arr || []).map(v => `<li>${v}</li>`).join('');
             let parts = [];
             if (hasObjectives) {
@@ -114,6 +117,17 @@ function renderPopupPage() {
                 const items = activeOutcome.rewards.map(r => `<li>+${r.amount} ${r.resource}</li>`).join('');
                 parts.push(`<div class="outcome-rewards"><h4>Rewards</h4><ul>${items}</ul></div>`);
             }
+            if (hasItems) {
+                const describeItem = (it) => {
+                    const id = (typeof it === 'string') ? it : it?.id;
+                    const note = (typeof it === 'object' && it && it.note) ? it.note : '';
+                    const def = id ? getItemDefinition(id) : null;
+                    const name = def?.name || id || 'Unknown item';
+                    return `${name}${note ? ` — ${note}` : ''}`;
+                };
+                const items = activeOutcome.items.map(it => `<li>${describeItem(it)}</li>`).join('');
+                parts.push(`<div class="outcome-items"><h4>Items Found</h4><ul>${items}</ul></div>`);
+            }
             outcomeEl.innerHTML = parts.join('');
             outcomeEl.classList.remove('hidden');
         } else {
@@ -121,6 +135,8 @@ function renderPopupPage() {
             outcomeEl.classList.add('hidden');
         }
     }
+
+}
 
 
 export function showStoryPopup(event, outcome = null) {

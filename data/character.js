@@ -19,9 +19,19 @@ const BASE_STATS = {
     damageMin: 1,
     damageMax: 2,
     attackSpeed: 1.0,
+    // Percent chance for an attack to land. Used by combat.
+    hitChance: 80,
     armor: 0,
     critChance: 5,
 };
+
+function emitCharacterStateChanged(reason = 'unknown') {
+    try {
+        window.dispatchEvent(new CustomEvent('character-state-changed', {
+            detail: { reason, time: Date.now() }
+        }));
+    } catch { /* non-fatal */ }
+}
 
 function isValidBagIndex(index) {
     return Number.isInteger(index) && index >= 0 && index < (characterState?.bag?.length ?? 0);
@@ -54,6 +64,7 @@ export function swapBagSlots(fromIndex, toIndex) {
     const tmp = bag[fromIndex];
     bag[fromIndex] = bag[toIndex] ?? null;
     bag[toIndex] = tmp ?? null;
+    emitCharacterStateChanged('swapBagSlots');
     return true;
 }
 
@@ -69,6 +80,7 @@ export function moveBagItemToEquip(bagIndex, equipSlot) {
     const prevEquip = characterState.equipment[slot] ?? null;
     characterState.equipment[slot] = itemId;
     characterState.bag[bagIndex] = prevEquip;
+    emitCharacterStateChanged('moveBagItemToEquip');
     return true;
 }
 
@@ -83,6 +95,7 @@ export function moveEquipItemToBag(equipSlot, bagIndex) {
     const prevBag = characterState.bag[bagIndex] ?? null;
     characterState.bag[bagIndex] = itemId;
     characterState.equipment[slot] = prevBag;
+    emitCharacterStateChanged('moveEquipItemToBag');
     return true;
 }
 
@@ -99,6 +112,7 @@ export function moveEquipItemToEquip(fromSlot, toSlot) {
     const prev = characterState.equipment[dst] ?? null;
     characterState.equipment[dst] = itemId;
     characterState.equipment[src] = prev;
+    emitCharacterStateChanged('moveEquipItemToEquip');
     return true;
 }
 
@@ -118,6 +132,8 @@ export function getInitialCharacterState() {
     const bagRows = DEFAULT_BAG_ROWS;
 
     const bag = makeEmptyBag(bagCols, bagRows);
+    // Starter consumable for combat prototype.
+    if (bag.length > 0) bag[0] = 'stimpack';
 
     // Starter loadout: equipped by default.
     const equipment = {
@@ -143,6 +159,7 @@ export let characterState = getInitialCharacterState();
 
 export function resetCharacterState() {
     characterState = getInitialCharacterState();
+    emitCharacterStateChanged('resetCharacterState');
 }
 
 export function getCharacterStateForSave() {
@@ -189,6 +206,7 @@ export function applySavedCharacterState(saved) {
     });
 
     characterState = next;
+    emitCharacterStateChanged('applySavedCharacterState');
 }
 
 export function getBagSize() {
@@ -244,4 +262,67 @@ export function computeCarryCapacity(state = characterState) {
     const total = (state?.bagCols ?? DEFAULT_BAG_COLS) * (state?.bagRows ?? DEFAULT_BAG_ROWS);
     const used = Array.isArray(state?.bag) ? state.bag.filter(x => !!x).length : 0;
     return { used, total };
+}
+
+export function countItemInBag(itemId, state = characterState) {
+    if (!itemId) return 0;
+    const bag = Array.isArray(state?.bag) ? state.bag : [];
+    return bag.reduce((n, v) => n + (v === itemId ? 1 : 0), 0);
+}
+
+export function consumeFirstItemFromBag(itemId, state = characterState) {
+    if (!itemId) return false;
+    const bag = Array.isArray(state?.bag) ? state.bag : null;
+    if (!bag) return false;
+    const idx = bag.findIndex(v => v === itemId);
+    if (idx < 0) return false;
+    bag[idx] = null;
+    if (state === characterState) emitCharacterStateChanged('consumeFirstItemFromBag');
+    return true;
+}
+
+export function grantItemToCharacter(itemId, opts = {}, state = characterState) {
+    if (!itemId) return { ok: false, placed: 'none' };
+    const def = getItemDefinition(itemId);
+    if (!def) return { ok: false, placed: 'none' };
+
+    const preferEquip = opts && opts.preferEquip !== false;
+
+    // Try to equip directly when possible (helps scripted tutorials).
+    if (preferEquip && state && state.equipment) {
+        const trySlots = [];
+        if (def.slot === 'accessory') {
+            trySlots.push('accessory_1', 'accessory_2');
+        } else {
+            trySlots.push(def.slot);
+        }
+
+        for (const s of trySlots) {
+            const slot = normalizeEquipSlot(s);
+            if (!slot) continue;
+
+            // If a save contains an old/removed item ID, treat that slot as empty.
+            // This keeps the game from getting stuck with invisible/invalid equipment.
+            const currentId = state.equipment[slot];
+            if (currentId) {
+                const currentDef = getItemDefinition(currentId);
+                if (currentDef) continue;
+                state.equipment[slot] = null;
+            }
+
+            if (!canEquipItemToSlot(itemId, slot)) continue;
+            state.equipment[slot] = itemId;
+            if (state === characterState) emitCharacterStateChanged('grantItemToCharacter');
+            return { ok: true, placed: 'equip', slot };
+        }
+    }
+
+    // Otherwise place into first empty bag slot.
+    const bag = Array.isArray(state?.bag) ? state.bag : null;
+    if (!bag) return { ok: false, placed: 'none' };
+    const idx = bag.findIndex(v => !v);
+    if (idx < 0) return { ok: false, placed: 'none' };
+    bag[idx] = itemId;
+    if (state === characterState) emitCharacterStateChanged('grantItemToCharacter');
+    return { ok: true, placed: 'bag', index: idx };
 }

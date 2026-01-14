@@ -11,7 +11,11 @@ crashIntro: {
     },
 foundBerries: {
         title: "Edible Flora",
-        pages: ["While searching for an alternate route into the ship you discovered a small patch of edible berries. They're modest, but nutritious — you gather what you can to stave off hunger for now."]
+        pages: [
+            "While searching for an alternate route into the ship you discovered a small patch of edible berries. They’re modest, but nutritious — you gather what you can to stave off hunger for now.",
+            "In the distance you hear the steady sound of flowing water — a river or stream. That could mean drinkable water and relief from dehydration… but it also carries danger. A low, unfamiliar growl echoes nearby.",
+            "You pick up a spiked branch from the ground — crude, but better than bare hands. You keep it ready as your weapon. If something attacks near the river, you’ll need it."
+        ]
     },
 foundRiver: {
         title: "Water Source",

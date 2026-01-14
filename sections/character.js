@@ -19,6 +19,16 @@ import { setupTooltip } from '../ui/panels/tooltip.js';
 let listenersInstalled = false;
 let currentDragPayload = null;
 
+function refreshCharacterSectionIfVisible() {
+    try {
+        const sectionEl = document.getElementById('characterSection');
+        if (!sectionEl) return;
+        // Only refresh if the Character section is currently being shown.
+        if (sectionEl.classList.contains('hidden')) return;
+        setupCharacterSection(sectionEl);
+    } catch { /* non-fatal */ }
+}
+
 export function setupCharacterSection(section) {
     if (!section) {
         section = document.getElementById('characterSection');
@@ -71,6 +81,7 @@ export function setupCharacterSection(section) {
                     ${renderStaminaRow()}
                     ${renderStatRow('Damage', formatDamageRange(stats))}
                     ${renderStatRow('Attack Speed', formatAttackSpeed(stats.attackSpeed))}
+                    ${renderStatRow('Hit Chance', `${Number(stats.hitChance ?? 0)}%`) }
                     ${renderStatRow('Crit Chance', `${Number(stats.critChance ?? 0)}%`)}
                     ${renderStatRow('Armor', String(stats.armor ?? 0))}
                     ${renderStatRow('Carry Capacity', `${carry.used} / ${carry.total}`)}
@@ -307,6 +318,11 @@ function buildItemTooltipHTML(slotEl) {
 function installGlobalCharacterListeners() {
     if (listenersInstalled) return;
     listenersInstalled = true;
+
+    // Refresh UI when inventory/equipment changes while the Character screen is open.
+    window.addEventListener('character-state-changed', () => {
+        refreshCharacterSectionIfVisible();
+    });
 
     window.addEventListener('game-state-applied', () => {
         const section = document.getElementById('characterSection');
