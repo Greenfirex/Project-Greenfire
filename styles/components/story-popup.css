@@ -133,11 +133,19 @@
     max-width: 20%;
     width: 20%;
     min-width: 90px; /* prevent buttons from becoming unusably small on narrow viewports */
-    padding: 6px 12px;
-    font-size: 13px;
+    height: 36px;
+    margin: 0;
+    padding: 7px 14px;
+    font-size: 14px;
     line-height: 1;
     border-radius: 4px;
     box-sizing: border-box;
+    transform: none;
+}
+
+.story-popup-nav .menu-button:hover,
+.story-nav-button:hover {
+    transform: none;
 }
 
 /* keep paging centered and allow it to grow */

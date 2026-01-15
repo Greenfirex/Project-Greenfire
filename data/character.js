@@ -36,7 +36,8 @@ const STAT_POINT_EFFECTS = {
     // Combat
     hitChance: 1, // percent points
     critChance: 1, // percent points
-    attackSpeed: 0.05,
+    // attackSpeed is seconds between attacks; lower is faster.
+    attackSpeed: -0.05,
     evasion: 1, // percent points
 };
 
@@ -45,7 +46,8 @@ const BASE_STATS = {
     stamina: 100,
     damageMin: 1,
     damageMax: 2,
-    attackSpeed: 0.5,
+    // attackSpeed is seconds between attacks.
+    attackSpeed: 1.0,
     // Percent chance for an attack to land. Used by combat.
     hitChance: 80,
     armor: 0,

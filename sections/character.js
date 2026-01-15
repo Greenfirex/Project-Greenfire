@@ -543,13 +543,14 @@ function buildStatTooltipHTML(statKey) {
         case 'attack_speed': {
             const speed = Number(stats?.attackSpeed ?? 1);
             const pts = Math.max(0, Math.floor(Number(alloc.attackSpeed) || 0));
-            const bonus = pts > 0 ? `<p class="tooltip-detail">From stat points: +${escapeHtml(String((pts * 0.05).toFixed(2)))} attack speed</p>` : '';
+            const bonusDelta = pts > 0 ? (-(pts * 0.05)).toFixed(2) : '0.00';
+            const bonus = pts > 0 ? `<p class="tooltip-detail">From stat points: ${escapeHtml(String(bonusDelta))}s (lower is faster)</p>` : '';
             return `
                 <h4>Attack Speed</h4>
-                <p>Multiplier: <strong>${escapeHtml(formatAttackSpeed(speed))}</strong></p>
+                <p>Time between attacks: <strong>${escapeHtml(formatAttackSpeed(speed))}</strong></p>
                 <div class="tooltip-section">
                     <h4>How It Works</h4>
-                    <p>Attack Speed scales how often you attack.</p>
+                    <p>Attack Speed is measured in seconds between attacks. Lower is faster.</p>
                     ${bonus}
                 </div>
             `;
@@ -616,8 +617,8 @@ function buildStatTooltipHTML(statKey) {
 
 function formatAttackSpeed(value) {
     const n = Number(value);
-    if (!Number.isFinite(n)) return '1.0';
-    return n.toFixed(2);
+    if (!Number.isFinite(n)) return '1.00s';
+    return `${n.toFixed(2)}s`;
 }
 
 function formatDamageRange(stats) {
@@ -668,7 +669,8 @@ function buildItemTooltipHTML(slotEl) {
             if (typeof v !== 'number' || !Number.isFinite(v) || v === 0) continue;
             const label = statLabels[k] || k;
             const sign = v > 0 ? '+' : '';
-            const suffix = (k === 'critChance' || k === 'hitChance' || k === 'evasion') ? '%' : '';
+            const suffix = (k === 'critChance' || k === 'hitChance' || k === 'evasion') ? '%'
+                : (k === 'attackSpeed' ? 's' : '');
             lines.push(`${escapeHtml(label)}: ${sign}${escapeHtml(String(v))}${suffix}`);
         }
     }

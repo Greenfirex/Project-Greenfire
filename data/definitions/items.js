@@ -35,7 +35,7 @@ export const items = [
         name: 'Spiked Branch',
         slot: 'weapon',
         icon: 'assets/images/items/spiked_branch.svg',
-        stats: { damage: 2, attackSpeed: 0.55 }
+        stats: { damage: 2, attackSpeed: 0.1 }
     },
     {
         id: 'stimpack',

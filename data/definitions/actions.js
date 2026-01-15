@@ -91,7 +91,8 @@ const initialSalvageActions = [
                     { resource: 'Clean Water', amount: 6 }
                 ],
                 reward: [
-                    { resource: 'Food Rations', amount: [60, 90] }
+                    { resource: 'Food Rations', amount: [60, 90] },
+                    { resource: 'XP', amount: 5 }
                 ]
             },
             {

@@ -82,8 +82,9 @@ export function computeResourceRates(resourceName) {
     let actionDebuff = 1;
     const foodRes = resources.find(r => r.name === 'Food Rations');
     const waterRes = resources.find(r => r.name === 'Clean Water');
-    if (foodRes && foodRes.amount <= 0) actionDebuff *= 1.5;
-    if (waterRes && waterRes.amount <= 0) actionDebuff *= 1.5;
+    const isHungry = !!(foodRes && Number(foodRes.amount) <= 0);
+    const isThirsty = !!(waterRes && Number(waterRes.amount) <= 0);
+    actionDebuff = 1 + (isHungry ? 0.5 : 0) + (isThirsty ? 0.5 : 0);
 
     // --- Production Calculation (buildings + jobs) ---
     // Collect buildings that actively produce this resource (either via `produces` or passive effect)
@@ -256,6 +257,7 @@ export function setupInfoPanel() {
         const modifiers = list ? `<ul class="tooltip-bonuses">${list}</ul>` : '<p>No active modifiers.</p>';
         return `
             <h4>Morale</h4>
+                <p class="tooltip-description">Morale scales job output. 100% is normal; higher morale increases production, lower morale reduces it.</p>
                 <p>Current: <strong>${Math.round(m.percent)}%</strong></p>
             <div class="tooltip-section"><h4>Sources</h4>${modifiers}</div>
             
@@ -438,11 +440,14 @@ export function updateResourceInfo() {
 
         const generationEl = infoRow.querySelector('[data-value-type="generation"]');
         const storageEl = infoRow.querySelector('[data-value-type="storage"]');
-        const nameEl = infoRow.querySelector('.infocolumn1 span');
+        // The survival debuff badge injects its own <span> inside .infocolumn1.
+        // Use the direct child span, which is the resource name, so we don't toggle styles on the badge.
+        const nameEl = infoRow.querySelector('.infocolumn1 > span');
 
-        // Determine "zero" based on the displayed numeric value to match UI rounding:
-        const displayedAmountNum = resource.integer ? Math.floor(resource.amount) : Number(resource.amount);
-        const isZero = !(isFinite(displayedAmountNum)) ? false : (displayedAmountNum <= 0);
+        // Determine "zero" based on the underlying amount (not the floored display).
+        // Otherwise integer resources can stay red while recovering from 0 -> 1.
+        const rawAmountNum = Number(resource.amount);
+        const isZero = !(isFinite(rawAmountNum)) ? false : (rawAmountNum <= 0);
         const amountDisplay = resource.integer ? Math.floor(resource.amount).toLocaleString() : formatNumber(resource.amount);
         const capacityDisplay = Math.floor(resource.capacity).toLocaleString();
 
@@ -456,7 +461,7 @@ export function updateResourceInfo() {
 
         // Toggle zero-amount consistently on the info row and its child elements so styles are removed when >0.
         storageEl.classList.toggle('zero-amount', isZero);
-        nameEl.classList.toggle('zero-amount', isZero);
+        if (nameEl) nameEl.classList.toggle('zero-amount', isZero);
         infoRow.classList.toggle('zero-amount', isZero);
 
         const rates = computeResourceRates(resource.name);

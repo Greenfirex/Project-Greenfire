@@ -67,7 +67,8 @@
 
 .info-category-header {
     margin-top: 10px;
-    padding: 4px 10px 2px 10px;
+    /* Align category header text with the left edge of resource bars/rows */
+    padding: 4px 0 2px 0;
     color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.85);
     font-size: 14px;
     font-weight: 800;
@@ -250,12 +251,19 @@
     display: none; /* shown when .active is added */
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
-    min-width: 26px;
-    border-radius: 6px;
-    color: #fff;
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    border-radius: 50%;
+    margin-right: 6px;
+    color: #111;
+    background: #ffd84a;
     font-size: 14px;
+    font-weight: 900;
+    line-height: 1;
+    box-shadow:
+        0 0 6px rgba(255, 216, 74, 0.85),
+        0 0 10px rgba(255, 216, 74, 0.45);
     pointer-events: auto;   /* ensure it receives mouse events */
     position: relative; 
     z-index: 999; 
@@ -266,19 +274,9 @@
     display: inline-flex !important;
 }
 
-/* smaller icon and multiplier styling */
-.info-row .debuff-icon .icon { 
-    font-size: 12px; line-height: 1;
+.info-row .debuff-icon .debuff-badge {
     pointer-events: none;
- }
-
-.info-row .debuff-icon .mult { 
-font-size: 11px; margin-left: 2px;
-display: none !important; 
 }
-
-/* hide by default; JS will toggle display */
-.info-row .debuff-icon { display: none; }
 
 /* Visually indicate actions blocked until the nearby sound has been investigated */
 .blocked-investigate-sound {

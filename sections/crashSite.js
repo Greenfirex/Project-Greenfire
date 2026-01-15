@@ -34,6 +34,9 @@ function getMaxRewardAmount(rewardEntry) {
 
 function getCapacityBlockReason(action) {
     try {
+        // Special-case: hunting is allowed even if Food Rations are full (you might be hunting for XP/other outcomes).
+        if (action && (action.id === 'huntWildlife' || action.name === 'Hunt for Wildlife')) return null;
+
         const stage = getCurrentStage(action);
         const reward = []
             .concat(Array.isArray(action?.reward) ? action.reward : [])
@@ -556,6 +559,7 @@ async function handleActionCompletion(section) {
 
     // If the current stage defines a combat encounter, run it BEFORE granting stage story/unlocks.
     // If the player loses/retreats, do not advance the stage so they can retry.
+    let encounterOutcomeForCompletion = null;
     const originalForEncounter = salvageActions.find(a => a.id === completed.id || a.name === completed.name);
     if (originalForEncounter) {
         const idx = originalForEncounter.stage || 0;
@@ -568,6 +572,7 @@ async function handleActionCompletion(section) {
                 setActiveCrashSiteAction(null);
                 const stageIndex = (st && st.encounter) ? idx : null;
                 const result = await showCombatPopup(encounterId, { sourceActionId: originalForEncounter.id, stageIndex });
+                encounterOutcomeForCompletion = result?.outcome || null;
                 if (!result || result.outcome !== 'win') {
                     // Clear active action and refresh the crash site UI so the action can be restarted.
                     setActiveCrashSiteAction(null);
@@ -580,6 +585,7 @@ async function handleActionCompletion(section) {
             } catch (e) {
                 // If combat popup fails, fail open so players aren't hard-stuck.
                 console.warn('Combat popup failed; continuing stage completion.', e);
+                encounterOutcomeForCompletion = 'error';
             }
         }
     }
@@ -599,6 +605,12 @@ async function handleActionCompletion(section) {
 
             const res = resources.find(r => r.name === rw.resource);
             if (!res) return;
+
+            // Ensure Hunt for Wildlife XP is only awarded after a confirmed combat victory.
+            if ((completed.id === 'huntWildlife' || completed.name === 'Hunt for Wildlife') && rw.resource === 'XP') {
+                if (encounterOutcomeForCompletion !== 'win') return;
+            }
+
             const amt = Array.isArray(rw.amount) ? getRandomInt(rw.amount[0], rw.amount[1]) : rw.amount;
             // Apply upgrade-based reward multipliers via upgradeEffects
             const rewardMul = computeRewardMultiplier(completed.id, rw.resource, gameFlags);

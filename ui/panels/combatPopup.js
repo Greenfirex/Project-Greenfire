@@ -171,7 +171,7 @@ const STAT_TOOLTIP_TEXT = {
     evasion: 'Evasion — reduces the enemy\'s chance to hit you.',
     armor: 'Armor — reduces damage taken.',
     damage: 'Damage — attack damage range.',
-    attackSpeed: 'Attack Speed — how fast you attack.',
+    attackSpeed: 'Attack Speed — time between attacks (seconds). Lower is faster.',
 };
 
 function initCombatStatTooltips(overlay) {
@@ -336,7 +336,7 @@ function show() {
     overlay.classList.remove('hidden');
     overlay.style.display = '';
     // Allow tooltips inside combat popup (used for stat icons).
-    try { window.dispatchEvent(new CustomEvent('popup-open', { detail: { source: 'combat', allowTooltips: true } })); } catch {}
+    try { window.dispatchEvent(new CustomEvent('popup-open', { detail: { source: 'combat', allowTooltips: true, tooltipRootId: 'combatPopup' } })); } catch {}
     overlay.setAttribute('tabindex', '-1');
     try { overlay.focus({ preventScroll: true }); } catch {}
     return overlay;
@@ -356,11 +356,13 @@ function computePlayerDps(stats) {
     const min = Number(stats?.damageMin ?? stats?.damage ?? 1);
     const max = Number(stats?.damageMax ?? stats?.damage ?? 2);
     const avg = (Number.isFinite(min) && Number.isFinite(max)) ? (min + max) / 2 : 1;
-    const speed = Number(stats?.attackSpeed ?? 1);
+    // attackSpeed is seconds per attack.
+    const interval = Math.max(0.05, Number(stats?.attackSpeed ?? 1));
     const critChance = clamp01((Number(stats?.critChance ?? 0)) / 100);
     // Crit is modeled as a small expected-value bonus (simple & stable)
     const expectedCritBonus = 0.5 * critChance; // +50% damage when crit, expected value
-    return Math.max(0.1, avg * Math.max(0.1, speed) * (1 + expectedCritBonus));
+    const attacksPerSecond = 1 / interval;
+    return Math.max(0.1, avg * Math.max(0.1, attacksPerSecond) * (1 + expectedCritBonus));
 }
 
 function computeDamageTakenPerSecond(enemyDps, armor) {
@@ -449,9 +451,20 @@ export function showCombatPopup(encounterId, opts = {}) {
     const enemyMaxHp = Number(def?.enemy?.maxHp ?? 10);
 
     const stats = computeCharacterStats(characterState);
-    const playerAttackSpeed = Math.max(0, Number(stats?.attackSpeed ?? 0.5));
+    // Survival debuffs also apply to combat.
+    const foodRes = resources.find(r => r.name === 'Food Rations');
+    const waterRes = resources.find(r => r.name === 'Clean Water');
+    const isHungry = !!(foodRes && Number(foodRes.amount) <= 0);
+    const isThirsty = !!(waterRes && Number(waterRes.amount) <= 0);
 
-    const playerHitChance = clampPercentToChance(stats?.hitChance ?? 80);
+    // attackSpeed is seconds per attack.
+    let playerAttackSpeed = Math.max(0.05, Number(stats?.attackSpeed ?? 1));
+    let playerHitChancePct = Number(stats?.hitChance ?? 80);
+    if (isHungry) playerHitChancePct -= 10;
+    // Thirst slows attacks: increase time between attacks by ~17.6%.
+    if (isThirsty) playerAttackSpeed *= (1 / 0.85);
+
+    const playerHitChance = clampPercentToChance(playerHitChancePct);
     const baseEnemyHitChance = clampPercentToChance(def?.enemy?.hitChance ?? def?.enemy?.stats?.hitChance ?? 80);
     const evasionChance = clamp01((Number(stats?.evasion ?? 0)) / 100);
     const enemyHitChance = Math.max(0, Math.min(1, baseEnemyHitChance * (1 - evasionChance)));
@@ -478,12 +491,12 @@ export function showCombatPopup(encounterId, opts = {}) {
     setBar(overlay, 'enemy', enemyHp, Math.max(1, enemyMaxHp));
 
     const combatStartPerf = performance.now();
-    const TURN_MS = 1000;
-    let nextTurnAt = combatStartPerf + TURN_MS;
 
-    // Attack speed is modeled as attacks per second. We accumulate fractional attacks.
-    let playerAttackAcc = 0;
-    let enemyAttackAcc = 0;
+    // Attack speed is modeled as seconds per attack.
+    const playerIntervalMs = Math.max(50, Math.round(playerAttackSpeed * 1000));
+    const enemyIntervalMs = Math.max(50, Math.round(enemyAttackSpeedFinal * 1000));
+    let nextPlayerAttackAt = combatStartPerf + playerIntervalMs;
+    let nextEnemyAttackAt = combatStartPerf + enemyIntervalMs;
 
     // Mini stats panel (static snapshot for this encounter)
     setMiniStats(overlay, {
@@ -493,7 +506,7 @@ export function showCombatPopup(encounterId, opts = {}) {
             evasion: fmtPct01(clamp01((Number(stats?.evasion ?? 0)) / 100)),
             armor: String(Math.max(0, Math.floor(Number(stats?.armor ?? 0)))),
             damage: `${Math.floor(Number(stats?.damageMin ?? 0))}-${Math.floor(Number(stats?.damageMax ?? 0))}`,
-            attackSpeed: String(playerAttackSpeed.toFixed(2)),
+            attackSpeed: `${playerAttackSpeed.toFixed(2)}s`,
         },
         enemy: {
             hit: fmtPct01(enemyHitChance),
@@ -501,7 +514,7 @@ export function showCombatPopup(encounterId, opts = {}) {
             evasion: fmtPct01(enemyEvasion),
             armor: String(enemyArmor),
             damage: `${enemyDamageMinFinal}-${enemyDamageMaxFinal}`,
-            attackSpeed: String(enemyAttackSpeedFinal.toFixed(2)),
+            attackSpeed: `${enemyAttackSpeedFinal.toFixed(2)}s`,
         }
     });
 
@@ -577,9 +590,10 @@ export function showCombatPopup(encounterId, opts = {}) {
             if (raf) cancelAnimationFrame(raf);
             raf = null;
             combatPaused = true;
-            // Reset scheduling so resume doesn't "catch up" on missed turns.
+            // Reset scheduling so resume doesn't "catch up" on missed attacks.
             last = performance.now();
-            nextTurnAt = last + TURN_MS;
+            nextPlayerAttackAt = last + playerIntervalMs;
+            nextEnemyAttackAt = last + enemyIntervalMs;
             setPauseBtnLabel();
         };
 
@@ -587,7 +601,8 @@ export function showCombatPopup(encounterId, opts = {}) {
             if (!active || finalOutcome) return;
             combatPaused = false;
             last = performance.now();
-            nextTurnAt = last + TURN_MS;
+            nextPlayerAttackAt = last + playerIntervalMs;
+            nextEnemyAttackAt = last + enemyIntervalMs;
             setPauseBtnLabel();
             if (!raf) raf = requestAnimationFrame(loop);
         };
@@ -645,7 +660,8 @@ export function showCombatPopup(encounterId, opts = {}) {
                         raf = null;
                     } else {
                         last = performance.now();
-                        nextTurnAt = last + TURN_MS;
+                        nextPlayerAttackAt = last + playerIntervalMs;
+                        nextEnemyAttackAt = last + enemyIntervalMs;
                         if (!raf) raf = requestAnimationFrame(loop);
                     }
                 }
@@ -679,27 +695,22 @@ export function showCombatPopup(encounterId, opts = {}) {
             const dt = Math.max(0, Math.min((now - last) / 1000, 0.5));
             last = now;
 
-            // Resolve combat in discrete 1-second turns (real time).
-            while (now >= nextTurnAt && active) {
-                const elapsedMs = nextTurnAt - combatStartPerf;
-                nextTurnAt += TURN_MS;
+            // Resolve combat by true time-based scheduling (attack every X seconds).
+            // Handle multiple events per frame in case the tab was inactive.
+            const effectivePlayerHitChance = clamp01(playerHitChance * (1 - enemyEvasion));
+            const effectiveEnemyHitChance = enemyHitChance;
 
-                // Determine attacks this turn from attackSpeed (attacks per second).
-                playerAttackAcc += playerAttackSpeed;
-                enemyAttackAcc += enemyAttackSpeedFinal;
+            let safety = 0;
+            while (active && safety < 1000) {
+                const nextAt = Math.min(nextPlayerAttackAt, nextEnemyAttackAt);
+                if (now < nextAt) break;
+                const elapsedMs = nextAt - combatStartPerf;
 
-                const playerAttacks = Math.max(0, Math.floor(playerAttackAcc));
-                const enemyAttacks = Math.max(0, Math.floor(enemyAttackAcc));
-                playerAttackAcc -= playerAttacks;
-                enemyAttackAcc -= enemyAttacks;
+                const playerDue = nextPlayerAttackAt <= nextAt + 0.0001;
+                const enemyDue = nextEnemyAttackAt <= nextAt + 0.0001;
 
-                // Effective hit chance respects the target's evasion.
-                const effectivePlayerHitChance = clamp01(playerHitChance * (1 - enemyEvasion));
-                const effectiveEnemyHitChance = enemyHitChance;
-
-                // Player attacks first within the second.
-                for (let i = 0; i < playerAttacks && active; i++) {
-                    const tMs = elapsedMs + Math.round(((i + 1) / (playerAttacks + 1)) * (TURN_MS * 0.45));
+                // If both happen at the same instant, resolve player first for consistency.
+                if (playerDue && active) {
                     const hit = Math.random() < effectivePlayerHitChance;
                     const crit = hit && (Math.random() < playerCritChance);
                     if (hit) {
@@ -707,27 +718,24 @@ export function showCombatPopup(encounterId, opts = {}) {
                         const withCrit = crit ? Math.round(raw * 1.5) : raw;
                         const dealt = applyArmorMitigation(withCrit, enemyArmor);
                         enemyHp = Math.max(0, enemyHp - dealt);
-                        appendLogWithTime(overlay, tMs, crit ? `You CRIT for ${dealt} damage.` : `You hit for ${dealt} damage.`, crit ? 'player-crit' : 'player-hit');
+                        appendLogWithTime(overlay, elapsedMs, crit ? `You CRIT for ${dealt} damage.` : `You hit for ${dealt} damage.`, crit ? 'player-crit' : 'player-hit');
                         triggerSilhouetteAttack(overlay, 'player');
                     } else {
-                        appendLogWithTime(overlay, tMs, 'You miss.', 'player-miss');
+                        appendLogWithTime(overlay, elapsedMs, 'You miss.', 'player-miss');
                         triggerSilhouetteAttack(overlay, 'player');
                     }
 
                     setBar(overlay, 'enemy', enemyHp, Math.max(1, enemyMaxHp));
-                    if (enemyHp <= 0) break;
+                    nextPlayerAttackAt += playerIntervalMs;
+                    if (enemyHp <= 0) {
+                        appendLogWithTime(overlay, elapsedMs, `Victory.`, 'win');
+                        addLogEntry(`Defeated: ${def.name}.`, LogType.SUCCESS);
+                        finalOutcome = finish({ outcome: 'win' });
+                        return;
+                    }
                 }
 
-                if (enemyHp <= 0) {
-                    appendLogWithTime(overlay, elapsedMs + 800, `Victory.`, 'win');
-                    addLogEntry(`Defeated: ${def.name}.`, LogType.SUCCESS);
-                    finalOutcome = finish({ outcome: 'win' });
-                    return;
-                }
-
-                // Enemy attacks later in the second.
-                for (let i = 0; i < enemyAttacks && active; i++) {
-                    const tMs = elapsedMs + Math.round((TURN_MS * 0.55) + ((i + 1) / (enemyAttacks + 1)) * (TURN_MS * 0.45));
+                if (enemyDue && active) {
                     const hit = Math.random() < effectiveEnemyHitChance;
                     const crit = hit && (Math.random() < enemyCritChance);
                     if (hit) {
@@ -735,23 +743,24 @@ export function showCombatPopup(encounterId, opts = {}) {
                         const withCrit = crit ? Math.round(raw * 1.5) : raw;
                         const taken = applyArmorMitigation(withCrit, stats?.armor ?? 0);
                         playerHp = Math.max(0, playerHp - taken);
-                        appendLogWithTime(overlay, tMs, crit ? `${def.name} CRITS for ${taken} damage.` : `${def.name} hits for ${taken} damage.`, crit ? 'enemy-crit' : 'enemy-hit');
+                        appendLogWithTime(overlay, elapsedMs, crit ? `${def.name} CRITS for ${taken} damage.` : `${def.name} hits for ${taken} damage.`, crit ? 'enemy-crit' : 'enemy-hit');
                         triggerSilhouetteAttack(overlay, 'enemy');
                     } else {
-                        appendLogWithTime(overlay, tMs, `${def.name} misses.`, 'enemy-miss');
+                        appendLogWithTime(overlay, elapsedMs, `${def.name} misses.`, 'enemy-miss');
                         triggerSilhouetteAttack(overlay, 'enemy');
                     }
 
                     setBar(overlay, 'player', playerHp, Math.max(1, playerMaxHp));
-                    if (playerHp <= 0) break;
+                    nextEnemyAttackAt += enemyIntervalMs;
+                    if (playerHp <= 0) {
+                        appendLogWithTime(overlay, elapsedMs, `You are down.`, 'lose');
+                        addLogEntry(`Defeated by: ${def.name}.`, LogType.ERROR);
+                        finalOutcome = finish({ outcome: 'lose' });
+                        return;
+                    }
                 }
 
-                if (playerHp <= 0) {
-                    appendLogWithTime(overlay, elapsedMs + 950, `You are down.`, 'lose');
-                    addLogEntry(`Defeated by: ${def.name}.`, LogType.ERROR);
-                    finalOutcome = finish({ outcome: 'lose' });
-                    return;
-                }
+                safety++;
             }
 
             // Optional stamina drain

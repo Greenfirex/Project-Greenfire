@@ -62,7 +62,8 @@ investigate_sound_found: {
     title: 'A Quiet Hope',
     pages: [
         "You move cautiously toward the noise, keeping your light low. Behind a collapsed panel you find two survivors — shaken and bruised, but alive. You help them to their feet and bring them to safety.",
-        "They can be counted among your people now. For a moment the wreck feels less hopeless."
+        "They can be counted among your people now. For a moment the wreck feels less hopeless.",
+        "NOTE: Survivors must be supplied with Food Rations and Clean Water. Keep your stores stocked so the group can endure."
     ]
 },
 basecamp_established: {

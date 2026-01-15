@@ -418,10 +418,10 @@
 /* Combat uses .menu-button (large by default); override to match compact popup controls */
 .combat-popup-actions .combat-btn {
     width: auto;
-    height: 32px;
+    height: 36px;
     margin: 0;
-    padding: 6px 12px;
-    font-size: 13px;
+    padding: 7px 14px;
+    font-size: 14px;
     line-height: 1;
     transform: none;
 }

@@ -117,10 +117,14 @@ export function getAffordabilityShortfalls(action, resources) {
 export function computeEffectiveDuration(action, resources) {
     const food = (resources || []).find(r => r.name === 'Food Rations');
     const water = (resources || []).find(r => r.name === 'Clean Water');
-    let debuff = 1;
-    if (food && food.amount <= 0) debuff *= 1.5;
-    if (water && water.amount <= 0) debuff *= 1.5;
-    return Math.max(0.001, (action?.duration || 1) * debuff);
+    const isHungry = !!(food && Number(food.amount) <= 0);
+    const isThirsty = !!(water && Number(water.amount) <= 0);
+    // Intuitive rule:
+    // - Hunger: +50% duration
+    // - Thirst: +50% duration
+    // - Both: +100% duration (2×), not 2.25×
+    const multiplier = 1 + (isHungry ? 0.5 : 0) + (isThirsty ? 0.5 : 0);
+    return Math.max(0.001, (action?.duration || 1) * multiplier);
 }
 
 /**

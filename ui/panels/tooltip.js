@@ -15,6 +15,7 @@ const tooltipRegistry = new WeakMap();
 let currentTooltipElement = null;
 let docMouseMoveHandler = null;
 let tooltipsEnabled = true;
+let tooltipScopeRoot = null; // when set, tooltips only resolve within this subtree
 let tooltipAttributeObserver = null; // new: keep observer to strip native title attrs
 // removed tooltipLockUntil and per-element lock complexity
 
@@ -34,6 +35,18 @@ function ensureDocMouseMoveHandler() {
         // No per-element lock here anymore — rely on priority + topmost hit element
         const elements = document.elementsFromPoint(moveEvent.clientX, moveEvent.clientY);
 
+        // If a modal/popup opted-in to tooltips, only allow tooltips inside that popup.
+        // This prevents background elements (behind the overlay) from generating tooltips.
+        if (tooltipScopeRoot) {
+            const isInsideScope = elements.some(el => {
+                try { return !!(el && tooltipScopeRoot.contains(el)); } catch { return false; }
+            });
+            if (!isInsideScope) {
+                hideTooltip();
+                return;
+            }
+        }
+
         // If the cursor is over the open objectives drawer, suppress tooltips just for that region
         try {
             const overObjectivesDrawer = elements.some(el => {
@@ -52,6 +65,7 @@ function ensureDocMouseMoveHandler() {
             const el = elements[i];
             const candidate = el.closest('[data-tooltip-registered]');
             if (!candidate || !tooltipRegistry.has(candidate)) continue;
+            if (tooltipScopeRoot && !(tooltipScopeRoot.contains(candidate))) continue;
 
             let topIndex = -1;
             for (let k = 0; k < elements.length; k++) {
@@ -158,13 +172,25 @@ window.addEventListener('popup-open', (e) => {
     // Some overlays (e.g., combat) want tooltips enabled inside the popup.
     // Default behavior remains: disable tooltips while popups/menus are open.
     try {
-        if (e && e.detail && e.detail.allowTooltips) return;
+        if (e && e.detail && e.detail.allowTooltips) {
+            tooltipsEnabled = true;
+            // Optional scoping: restrict tooltips to the popup root to avoid leaking through the overlay.
+            tooltipScopeRoot = null;
+            const rootId = e.detail.tooltipRootId;
+            if (rootId) tooltipScopeRoot = document.getElementById(rootId) || null;
+            hideTooltip();
+            return;
+        }
         tooltipsEnabled = false;
+        tooltipScopeRoot = null;
         hideTooltip();
     } catch (err) { /* ignore */ }
 });
 window.addEventListener('popup-close', () => {
-    try { tooltipsEnabled = true; } catch (e) { /* ignore */ }
+    try {
+        tooltipsEnabled = true;
+        tooltipScopeRoot = null;
+    } catch (e) { /* ignore */ }
 });
 
 export function updateTooltipPosition(event, tooltip) {
@@ -498,14 +524,20 @@ function buildTooltipHTML(data) {
             // Check for depleted survival resources and present clear player guidance.
             const food = resources.find(r => r.name === 'Food Rations');
             const water = resources.find(r => r.name === 'Clean Water');
+            const isHungry = !!(food && Number(food.amount) <= 0);
+            const isThirsty = !!(water && Number(water.amount) <= 0);
             const effects = [];
-            if (food && Number(food.amount) <= 0) effects.push('<span style="color:#ff6b6b">Hunger — actions take 50% longer.</span>');
-            if (water && Number(water.amount) <= 0) effects.push('<span style="color:#ff6b6b">Thirst — actions take 50% longer.</span>');
+            if (isHungry && isThirsty) {
+                effects.push('<span style="color:#ff6b6b">Hunger &amp; Thirst — actions take 2× as long.</span>');
+            } else {
+                if (isHungry) effects.push('<span style="color:#ff6b6b">Hunger — actions take 50% longer.</span>');
+                if (isThirsty) effects.push('<span style="color:#ff6b6b">Thirst — actions take 50% longer.</span>');
+            }
 
-                if (effects.length) {
+            if (effects.length) {
                 // compute effective duration if base numeric
                 if (typeof data.duration === 'number') {
-                    const multiplier = 1 + 0.5 * effects.length;
+                    const multiplier = 1 + (isHungry ? 0.5 : 0) + (isThirsty ? 0.5 : 0);
                     const effective = Math.ceil(data.duration * multiplier);
                     // mark effective duration with a class so it can be highlighted via CSS
                     durationHtml = `<p>Duration: ${baseDurationText}</p><p><strong class="effective-duration">Effective duration: ${effective}s</strong></p>`;
@@ -632,7 +664,7 @@ function ensureDebuffIcon(resourceName) {
     if (!icon) {
         icon = document.createElement('div');
         icon.className = 'debuff-icon';
-        icon.innerHTML = `<span class="icon" aria-hidden="true">⚠️</span>`;
+        icon.innerHTML = `<span class="debuff-badge" aria-hidden="true">!</span>`;
 
         const leftCol = row.querySelector('.infocolumn1');
         if (leftCol) leftCol.insertBefore(icon, leftCol.firstChild);
@@ -648,7 +680,7 @@ function ensureDebuffIcon(resourceName) {
             icon.style.zIndex = '650'; // above drawer (600) but below modal overlays (>=1000)
             icon.style.position = 'relative';
             icon.style.pointerEvents = 'auto';
-            const span = icon.querySelector('.icon');
+            const span = icon.querySelector('.debuff-badge');
             if (span) span.style.pointerEvents = 'auto';
         } catch (e) { /* ignore */ }
 
@@ -657,16 +689,40 @@ function ensureDebuffIcon(resourceName) {
     return icon;
 }
 
+function buildSurvivalDebuffTooltipHtml(kind) {
+    const k = String(kind || '').toLowerCase();
+    const isHungry = k === 'hunger';
+    const isThirsty = k === 'thirst';
+    const title = isHungry ? 'Hunger' : 'Thirst';
+
+    const lines = [];
+    lines.push('Morale: -20%.');
+    // Keep this phrasing general (not action-tooltip specific), while still conveying impact.
+    lines.push('Task time: +50%.');
+    if (isHungry) lines.push('Combat: -10 hit chance.');
+    if (isThirsty) lines.push('Combat: +18% time between attacks.');
+
+    return `
+        <h4>${title}</h4>
+        <div class="tooltip-section">
+            <ul class="tooltip-bonuses">${lines.map(l => `<li class="bonus-item">${l}</li>`).join('')}</ul>
+        </div>
+    `;
+}
+
 // Public: update the small debuff icons on resource rows
 export function updateSurvivalDebuffBadge() {
     const food = resources.find(r => r.name === 'Food Rations');
     const water = resources.find(r => r.name === 'Clean Water');
 
+    const isHungry = !!(food && Number(food.amount) <= 0);
+    const isThirsty = !!(water && Number(water.amount) <= 0);
+
     const foodIcon = ensureDebuffIcon('Food Rations');
     if (foodIcon) {
-        if (food && food.amount <= 0) {
+        if (isHungry) {
             foodIcon.classList.add('active');
-            foodIcon._tooltipText = 'Food depleted — actions take longer and consume more.';
+            foodIcon._tooltipText = buildSurvivalDebuffTooltipHtml('hunger');
         } else {
             foodIcon.classList.remove('active');
             foodIcon._tooltipText = '';
@@ -675,9 +731,9 @@ export function updateSurvivalDebuffBadge() {
 
     const waterIcon = ensureDebuffIcon('Clean Water');
     if (waterIcon) {
-        if (water && water.amount <= 0) {
+        if (isThirsty) {
             waterIcon.classList.add('active');
-            waterIcon._tooltipText = 'Water depleted — actions take longer and consume more.';
+            waterIcon._tooltipText = buildSurvivalDebuffTooltipHtml('thirst');
         } else {
             waterIcon.classList.remove('active');
             waterIcon._tooltipText = '';

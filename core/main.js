@@ -12,7 +12,7 @@ import { setupCrewManagementSection, updateCrewSection } from '../sections/crewM
 import { setupJournalSection } from '../sections/journal.js';
 import { setupCharacterSection } from '../sections/character.js';
 import { setupEncryptedDriveSection } from '../sections/encryptedDrive.js';
-import { characterState, computeCharacterStats } from '../data/character.js';
+import { characterState, computeCharacterStats, computeLevelFromXp } from '../data/character.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { updateSurvivalDebuffBadge, initTooltips } from '../ui/panels/tooltip.js';
 import { initTimeManager, startTimeManager } from './time.js';
@@ -20,7 +20,7 @@ import { loadGameState, resetToDefaultState, saveGameState } from './saveload.js
 import { showStoryPopup } from '../ui/panels/popup.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
 import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity, shouldRunInBackground } from './settings.js';
-import { recomputeObjectives } from '../data/objectives.js';
+import { recomputeObjectives, getLastObjectivesDelta } from '../data/objectives.js';
 import { initFooter, getIsPaused, pauseGame, resumeGame, registerMainLoopCallbacks } from '../ui/footer.js';
 import '../ui/header.js';
 
@@ -30,7 +30,10 @@ window.TIME_SCALE = Number(localStorage.getItem('gameTimeScale')) || 1;
 let lastUpdateTime = Date.now();
 let lastObjectivesCheck = 0;
 
+let lastKnownCharacterLevel = null;
+
 const CHARACTER_MENU_NEW_ITEM_KEY = 'uiCharacterMenuNewItem';
+const JOURNAL_MENU_NEW_ITEM_KEY = 'uiJournalMenuNewItem';
 
 function syncVitalCapsFromCharacter() {
     try {
@@ -58,15 +61,43 @@ function setCharacterMenuNewItemBadgeVisible(visible) {
     badge.classList.toggle('is-hidden', !visible);
 }
 
+function setJournalMenuNewItemBadgeVisible(visible) {
+    const btn = document.querySelector('.menu-button[data-section="journalSection"]');
+    const badge = btn ? btn.querySelector('.menu-button-warning') : null;
+    if (!badge) return;
+    badge.classList.toggle('is-hidden', !visible);
+}
+
 function setCharacterMenuNewItemFlag(visible) {
     try { localStorage.setItem(CHARACTER_MENU_NEW_ITEM_KEY, visible ? 'true' : 'false'); } catch (e) { /* ignore */ }
     setCharacterMenuNewItemBadgeVisible(visible);
+}
+
+function setJournalMenuNewItemFlag(visible) {
+    try { localStorage.setItem(JOURNAL_MENU_NEW_ITEM_KEY, visible ? 'true' : 'false'); } catch (e) { /* ignore */ }
+    setJournalMenuNewItemBadgeVisible(visible);
 }
 
 function refreshCharacterMenuNewItemFlagFromStorage() {
     let visible = false;
     try { visible = localStorage.getItem(CHARACTER_MENU_NEW_ITEM_KEY) === 'true'; } catch (e) { /* ignore */ }
     setCharacterMenuNewItemBadgeVisible(visible);
+}
+
+function refreshJournalMenuNewItemFlagFromStorage() {
+    let visible = false;
+    try { visible = localStorage.getItem(JOURNAL_MENU_NEW_ITEM_KEY) === 'true'; } catch (e) { /* ignore */ }
+    setJournalMenuNewItemBadgeVisible(visible);
+}
+
+function getCurrentCharacterLevel() {
+    try {
+        const xp = resources.find(r => r && r.name === 'XP');
+        const totalXp = xp ? xp.amount : 0;
+        return computeLevelFromXp(totalXp).level;
+    } catch {
+        return 1;
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -175,9 +206,13 @@ function startGame() {
 	
     setupMenuButtons();
     refreshCharacterMenuNewItemFlagFromStorage();
+    refreshJournalMenuNewItemFlagFromStorage();
     loadCurrentSection();
     updateResourceInfo();
     applyActivatedSections();
+
+    // Initialize character level tracking (used for menu badge on level-up).
+    lastKnownCharacterLevel = getCurrentCharacterLevel();
 
     let gameLoopInterval = null;
     let autosaveInterval = null;
@@ -206,6 +241,20 @@ function startGame() {
                 if (delta === 0) return;
                 res.amount = Math.max(0, Math.min(res.capacity, res.amount + delta));
             });
+
+            // --- Character level-up detection (UI badge) ---
+            try {
+                const lvl = getCurrentCharacterLevel();
+                if (lastKnownCharacterLevel === null) lastKnownCharacterLevel = lvl;
+                if (lvl > lastKnownCharacterLevel) {
+                    lastKnownCharacterLevel = lvl;
+                    let current = null;
+                    try { current = localStorage.getItem('currentSection'); } catch {}
+                    if (current !== 'characterSection') {
+                        setCharacterMenuNewItemFlag(true);
+                    }
+                }
+            } catch { /* non-fatal */ }
 
             // --- UI Updates (call your existing update functions) ---
             updateResourceInfo();
@@ -247,7 +296,7 @@ function startGame() {
         if (autosaveInterval) return;
         autosaveInterval = setInterval(() => {
             saveGameState();
-        }, 30000); // Autosave every 30 seconds (was 300000 = 5 minutes)
+        }, 300000); // Autosave every 5 minutes
     }
 
     function stopAutosave() {
@@ -443,6 +492,7 @@ export function showSection(sectionId) {
     }
 
     if (sectionId === 'journalSection') {
+        setJournalMenuNewItemFlag(false);
         import('../sections/journal.js').then(mod => {
             const sectionEl = document.getElementById('journalSection');
             if (sectionEl && typeof mod.setupJournalSection === 'function') {
@@ -463,6 +513,29 @@ if (typeof window !== 'undefined') {
             if (current === 'characterSection') return;
         } catch (e) { /* ignore */ }
         setCharacterMenuNewItemFlag(true);
+    });
+
+    // Mark the Journal menu button when new objectives become active (quests) or when a journal entry is added.
+    window.addEventListener('objectivesChanged', () => {
+        try {
+            const delta = getLastObjectivesDelta?.();
+            const hasNew = !!(delta && Array.isArray(delta.newlyActive) && delta.newlyActive.length);
+            if (!hasNew) return;
+
+            let current = null;
+            try { current = localStorage.getItem('currentSection'); } catch {}
+            if (current === 'journalSection') return;
+            setJournalMenuNewItemFlag(true);
+        } catch { /* ignore */ }
+    });
+
+    window.addEventListener('journal-entry-added', () => {
+        try {
+            let current = null;
+            try { current = localStorage.getItem('currentSection'); } catch {}
+            if (current === 'journalSection') return;
+            setJournalMenuNewItemFlag(true);
+        } catch { /* ignore */ }
     });
 }
 

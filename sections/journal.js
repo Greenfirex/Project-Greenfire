@@ -356,6 +356,9 @@ export function addJournalEntry(entry) {
     if (typeof localStorage !== 'undefined') {
         localStorage.setItem('storyLog', JSON.stringify(storyLog));
     }
+        try {
+            window.dispatchEvent(new CustomEvent('journal-entry-added', { detail: { entry } }));
+        } catch (e) {}
     const container = document.getElementById('journalEntriesContainer');
     if (container) renderJournalEntries(container);
 }
