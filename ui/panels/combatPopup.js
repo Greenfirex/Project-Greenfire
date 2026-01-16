@@ -4,6 +4,7 @@ import { addLogEntry, LogType } from '../../core/ingameLog.js';
 import { characterState, computeCharacterStats } from '../../data/character.js';
 import { consumeFirstItemFromBag, countItemInBag } from '../../data/character.js';
 import { setupTooltip } from './tooltip.js';
+import { getCombatStartPaused } from '../../core/settings.js';
 import { pauseGame, resumeGame, getIsPaused } from '../footer.js';
 
 let active = null;
@@ -19,7 +20,6 @@ function ensureOverlay() {
     overlay.className = 'combat-popup-overlay story-popup-overlay hidden';
     overlay.innerHTML = `
         <div class="combat-popup-content story-popup-content" role="dialog" aria-modal="true" aria-label="Combat">
-            <span class="combat-popup-close" title="Close">&times;</span>
             <div class="combat-popup-header story-popup-header">
                 <h2 class="combat-title"></h2>
                 <div class="combat-subtitle"></div>
@@ -30,51 +30,73 @@ function ensureOverlay() {
                     <div class="combat-bar-group">
                         <div class="combat-bar-top">
                             <div class="combat-bar-label">You</div>
-                            <button class="combat-stim-icon" type="button" data-action="stim" aria-label="Use Stimpack">
-                                <span class="svg" aria-hidden="true">${svgIcon('stim')}</span>
-                                <span class="combat-stim-count" data-stim-count></span>
-                            </button>
                         </div>
                         <div class="combat-bar" data-bar="player" role="img" aria-label="Player health">
                             <div class="combat-bar-fill player"></div>
                             <div class="combat-bar-overlay" data-overlay="player"></div>
                         </div>
+                        <div class="combat-bar combat-bar-secondary" data-bar="player-stamina" role="img" aria-label="Player stamina">
+                            <div class="combat-bar-fill stamina"></div>
+                            <div class="combat-bar-overlay" data-overlay="player-stamina"></div>
+                        </div>
                         <div class="combat-mini-inline" aria-label="Player stats">
                             <div class="combat-orbit" data-orbit="player">
                                 <img class="combat-portrait player" data-portrait="player" alt="" />
 
-                                <div class="combat-stat-icon pos-tl" data-stat="hit" data-who="player">
+                                <div class="combat-stat-icon pos-tr" data-stat="hit" data-who="player">
                                     <div class="svg" aria-hidden="true">${svgIcon('target')}</div>
                                     <div class="val" data-stat-value="player-hit"></div>
                                 </div>
-                                <div class="combat-stat-icon pos-tr" data-stat="crit" data-who="player">
+                                <div class="combat-stat-icon pos-tl" data-stat="crit" data-who="player">
                                     <div class="svg" aria-hidden="true">${svgIcon('burst')}</div>
                                     <div class="val" data-stat-value="player-crit"></div>
                                 </div>
-                                <div class="combat-stat-icon pos-ml" data-stat="evasion" data-who="player">
+                                <div class="combat-stat-icon pos-mr" data-stat="evasion" data-who="player">
                                     <div class="svg" aria-hidden="true">${svgIcon('swirl')}</div>
                                     <div class="val" data-stat-value="player-evasion"></div>
                                 </div>
-                                <div class="combat-stat-icon pos-mr" data-stat="armor" data-who="player">
+                                <div class="combat-stat-icon pos-ml" data-stat="armor" data-who="player">
                                     <div class="svg" aria-hidden="true">${svgIcon('shield')}</div>
                                     <div class="val" data-stat-value="player-armor"></div>
                                 </div>
-                                <div class="combat-stat-icon pos-bl" data-stat="damage" data-who="player">
+                                <div class="combat-stat-icon pos-br" data-stat="damage" data-who="player">
                                     <div class="svg" aria-hidden="true">${svgIcon('sword')}</div>
                                     <div class="val" data-stat-value="player-damage"></div>
                                 </div>
-                                <div class="combat-stat-icon pos-br" data-stat="attackSpeed" data-who="player">
+                                <div class="combat-stat-icon pos-bl" data-stat="attackSpeed" data-who="player">
                                     <div class="svg" aria-hidden="true">${svgIcon('clock')}</div>
                                     <div class="val" data-stat-value="player-attackSpeed"></div>
                                 </div>
                             </div>
+
+                            <div class="combat-ability-row" aria-label="Player abilities">
+                                <button class="combat-ability-btn" type="button" data-action="ability-placeholder" disabled aria-disabled="true">...</button>
+                                <button class="combat-ability-btn combat-stim-icon" type="button" data-action="stim" aria-label="Use Stimpack">
+                                    <span class="svg" aria-hidden="true">${svgIcon('stim')}</span>
+                                    <span class="combat-stim-count" data-stim-count></span>
+                                </button>
+                                <button class="combat-ability-btn" type="button" data-action="heavy-strike">Heavy Strike</button>
+                            </div>
                         </div>
                     </div>
+                    <div class="combat-float-lane" aria-label="Combat controls">
+                        <button class="combat-pause-toggle" type="button" data-action="toggle-pause" aria-label="Toggle pause">
+                            <span class="combat-pause-icon" aria-hidden="true"></span>
+                            <span class="combat-pause-text" aria-hidden="true">Paused</span>
+                        </button>
+                    </div>
                     <div class="combat-bar-group">
-                        <div class="combat-bar-label" data-enemy-label>Enemy</div>
+                        <div class="combat-bar-top">
+                            <div class="combat-bar-label" data-enemy-label>Enemy</div>
+                            <span class="combat-bar-top-spacer" aria-hidden="true"></span>
+                        </div>
                         <div class="combat-bar" data-bar="enemy" role="img" aria-label="Enemy health">
                             <div class="combat-bar-fill enemy"></div>
                             <div class="combat-bar-overlay" data-overlay="enemy"></div>
+                        </div>
+                        <div class="combat-bar combat-bar-secondary" data-bar="enemy-stamina" role="img" aria-label="Enemy stamina">
+                            <div class="combat-bar-fill stamina"></div>
+                            <div class="combat-bar-overlay" data-overlay="enemy-stamina"></div>
                         </div>
                         <div class="combat-mini-inline" aria-label="Enemy stats">
                             <div class="combat-orbit" data-orbit="enemy">
@@ -109,12 +131,12 @@ function ensureOverlay() {
                     </div>
                 </div>
 
-                <div class="combat-log" aria-label="Combat log"></div>
+                <div class="combat-log" aria-label="Combat log" aria-hidden="false"></div>
             </div>
 
             <div class="combat-popup-actions">
                 <button class="menu-button combat-btn" data-action="retreat">Retreat</button>
-                <button class="menu-button combat-btn combat-btn-primary" data-action="continue">Pause</button>
+                <button class="menu-button combat-btn combat-btn-primary" data-action="close" disabled aria-disabled="true">Close (Esc)</button>
             </div>
         </div>
     `;
@@ -129,18 +151,6 @@ function ensureOverlay() {
     overlay.style.zIndex = '2147483100';
     const content = overlay.querySelector('.combat-popup-content');
     if (content) content.style.zIndex = '2147483101';
-
-    // Close button is disabled during active combat. After combat, it acts like Continue/Close.
-    const close = overlay.querySelector('.combat-popup-close');
-    if (close) close.addEventListener('click', () => {
-        // Prefer the explicit Continue handler if present.
-        const cont = overlay.querySelector('button[data-action="continue"]');
-        if (cont && !cont.classList.contains('hidden') && !cont.disabled) {
-            cont.click();
-            return;
-        }
-        if (!active) hide();
-    });
 
     return overlay;
 }
@@ -166,12 +176,19 @@ function svgIcon(kind) {
 }
 
 const STAT_TOOLTIP_TEXT = {
-    hit: 'Hit Chance — chance to land an attack.',
-    crit: 'Crit Chance — chance for a critical hit (extra damage).',
-    evasion: 'Evasion — reduces the enemy\'s chance to hit you.',
-    armor: 'Armor — reduces damage taken.',
-    damage: 'Damage — attack damage range.',
-    attackSpeed: 'Attack Speed — time between attacks (seconds). Lower is faster.',
+    hit: 'Hit Chance — chance to land an attack before evasion.\nCapped at: 95%.',
+    crit: 'Crit Chance — chance for a critical hit (+50% damage).\nCapped at: 100%.',
+    evasion: 'Evasion — reduces the enemy\'s chance to hit you (multiplies by 1 − evasion).\nCapped at: 75%.',
+    armor: 'Armor — reduces damage taken with diminishing returns.\nDamage taken = round(damage × 20/(armor+20)).\nExamples: armor 0→100%, 10→67%, 20→50%, 40→33%.',
+    damage: 'Damage — attack damage range.\nNo cap.',
+    attackSpeed: 'Attack Speed — seconds per attack (lower is faster).\nMinimum: 0.20s per attack.',
+};
+
+const COMBAT_CAPS = {
+    minAttackSpeedSec: 0.2,
+    maxHitChancePct: 95,
+    defaultHitChancePct: 75,
+    maxEvasion: 0.75,
 };
 
 function initCombatStatTooltips(overlay) {
@@ -212,7 +229,7 @@ function applyArmorMitigation(damage, armor) {
     return Math.max(0, Math.round(dmg * (1 - mitigation)));
 }
 
-function setBar(overlay, which, current, max) {
+function setBar(overlay, which, current, max, opts = {}) {
     const bar = overlay.querySelector(`.combat-bar[data-bar="${which}"] .combat-bar-fill`);
     const overlayText = overlay.querySelector(`.combat-bar-overlay[data-overlay="${which}"]`);
     const barRoot = overlay.querySelector(`.combat-bar[data-bar="${which}"]`);
@@ -221,7 +238,11 @@ function setBar(overlay, which, current, max) {
     const cap = Math.max(0, Math.floor(max));
     if (bar) bar.style.width = `${Math.round(pct * 100)}%`;
     if (overlayText) overlayText.textContent = `${cur} / ${cap}`;
-    if (barRoot) barRoot.setAttribute('aria-label', `${which === 'enemy' ? 'Enemy' : 'Player'} health: ${cur} / ${cap}`);
+    if (barRoot) {
+        const who = String(which || '').toLowerCase().startsWith('enemy') ? 'Enemy' : 'Player';
+        const label = (opts && opts.label) ? String(opts.label) : (String(which || '').includes('stamina') ? 'stamina' : 'health');
+        barRoot.setAttribute('aria-label', `${who} ${label}: ${cur} / ${cap}`);
+    }
 }
 
 function appendLog(overlay, line) {
@@ -254,6 +275,36 @@ function appendLogWithTime(overlay, elapsedMs, line, kind = 'neutral') {
     log.scrollTop = log.scrollHeight;
 }
 
+function spawnCombatFloatText(overlay, text, opts = {}) {
+    const lane = overlay?.querySelector?.('.combat-float-lane');
+    if (!lane) return;
+    const value = String(text ?? '').trim();
+    if (!value) return;
+
+    const who = (opts.who === 'enemy') ? 'enemy' : 'player';
+    const kind = String(opts.kind || 'neutral');
+
+    const el = document.createElement('div');
+    el.className = `combat-float-text kind-${kind} from-${who}`;
+    el.textContent = value;
+
+    // Slight jitter so repeated hits don't overlap perfectly.
+    const baseX = who === 'player' ? 20 : -20;
+    const jitterX = randIntInclusive(-8, 8);
+    const rot = randIntInclusive(-5, 5);
+    el.style.setProperty('--x', `${baseX + jitterX}px`);
+    el.style.setProperty('--rot', `${rot}deg`);
+
+    lane.appendChild(el);
+
+    const cleanup = () => {
+        try { el.remove(); } catch {}
+    };
+    el.addEventListener('animationend', cleanup, { once: true });
+    // Fallback cleanup in case animationend doesn't fire.
+    setTimeout(cleanup, 1200);
+}
+
 function triggerSilhouetteAttack(overlay, who) {
     const el = overlay.querySelector(`.combat-portrait[data-portrait="${who}"]`);
     if (!el) return;
@@ -261,6 +312,15 @@ function triggerSilhouetteAttack(overlay, who) {
     // Force reflow so re-adding restarts the animation.
     void el.offsetWidth;
     el.classList.add('attack');
+}
+
+function triggerEnemyDefeatedFx(overlay) {
+    const orbit = overlay?.querySelector('.combat-orbit[data-orbit="enemy"]');
+    if (!orbit) return;
+    orbit.classList.remove('enemy-defeated');
+    // Force reflow so re-adding restarts the animation.
+    void orbit.offsetWidth;
+    orbit.classList.add('enemy-defeated');
 }
 
 function fmtPct01(chance01) {
@@ -299,18 +359,32 @@ function formatCombatTime(ms) {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(cs).padStart(2, '0')}`;
 }
 
-function setContinueVisible(overlay, visible, label = 'Continue') {
-    const btn = overlay.querySelector('button[data-action="continue"]');
+function setCloseButtonState(overlay, { enabled, label = 'Close (Esc)' } = {}) {
+    const btn = overlay.querySelector('button[data-action="close"]');
     if (!btn) return;
     btn.textContent = label;
-    btn.classList.toggle('hidden', !visible);
+    btn.disabled = !enabled;
+    btn.setAttribute('aria-disabled', btn.disabled ? 'true' : 'false');
 }
 
 function setCombatButtonsEnabled(overlay, enabled) {
     const stimBtn = overlay.querySelector('button[data-action="stim"]');
     const retreatBtn = overlay.querySelector('button[data-action="retreat"]');
+    const heavyBtn = overlay.querySelector('button[data-action="heavy-strike"]');
     if (stimBtn) stimBtn.disabled = !enabled;
     if (retreatBtn) retreatBtn.disabled = !enabled;
+    if (heavyBtn) heavyBtn.disabled = !enabled;
+}
+
+function setPauseUi(overlay, paused) {
+    if (!overlay) return;
+    overlay.classList.toggle('combat-paused', !!paused);
+
+    const btn = overlay.querySelector('button[data-action="toggle-pause"]');
+    if (btn) {
+        btn.setAttribute('aria-label', paused ? 'Resume combat' : 'Pause combat');
+        btn.setAttribute('title', paused ? 'Resume' : 'Pause');
+    }
 }
 
 function attachEsc(overlay, onRetreat) {
@@ -318,7 +392,7 @@ function attachEsc(overlay, onRetreat) {
     _escHandler = (e) => {
         if (e.key === 'Escape' || e.key === 'Esc') {
             e.preventDefault();
-            if (active) onRetreat();
+            onRetreat();
         }
     };
     document.addEventListener('keydown', _escHandler);
@@ -356,8 +430,8 @@ function computePlayerDps(stats) {
     const min = Number(stats?.damageMin ?? stats?.damage ?? 1);
     const max = Number(stats?.damageMax ?? stats?.damage ?? 2);
     const avg = (Number.isFinite(min) && Number.isFinite(max)) ? (min + max) / 2 : 1;
-    // attackSpeed is seconds per attack.
-    const interval = Math.max(0.05, Number(stats?.attackSpeed ?? 1));
+    // attackSpeed is seconds per attack (lower is faster). Clamp to combat caps.
+    const interval = Math.max(COMBAT_CAPS.minAttackSpeedSec, Number(stats?.attackSpeed ?? 1));
     const critChance = clamp01((Number(stats?.critChance ?? 0)) / 100);
     // Crit is modeled as a small expected-value bonus (simple & stable)
     const expectedCritBonus = 0.5 * critChance; // +50% damage when crit, expected value
@@ -412,7 +486,6 @@ export function showCombatPopup(encounterId, opts = {}) {
     const title = overlay.querySelector('.combat-title');
     const subtitle = overlay.querySelector('.combat-subtitle');
     const enemyLabel = overlay.querySelector('[data-enemy-label]');
-    const close = overlay.querySelector('.combat-popup-close');
 
     if (title) title.textContent = 'Combat Encounter';
     if (subtitle) subtitle.textContent = '';
@@ -428,14 +501,23 @@ export function showCombatPopup(encounterId, opts = {}) {
         if (enemyPortraitSrc) {
             enemyPortrait.classList.remove('hidden');
             enemyPortrait.setAttribute('src', enemyPortraitSrc);
+
+            // Optional per-enemy portrait scaling (useful when some sprites read too large).
+            // Scale is applied against the default CSS height (164px).
+            try {
+                const scale = Number(def?.enemy?.portraitScale);
+                if (Number.isFinite(scale) && scale > 0) {
+                    enemyPortrait.style.height = `${Math.round(164 * scale)}px`;
+                } else {
+                    enemyPortrait.style.removeProperty('height');
+                }
+            } catch { /* ignore */ }
         } else {
             enemyPortrait.classList.add('hidden');
             enemyPortrait.removeAttribute('src');
+            try { enemyPortrait.style.removeProperty('height'); } catch {}
         }
     }
-
-    // Disable close during combat
-    if (close) close.classList.add('disabled');
 
     // Reset log
     const log = overlay.querySelector('.combat-log');
@@ -448,7 +530,13 @@ export function showCombatPopup(encounterId, opts = {}) {
     const playerMaxHp = health ? Number(health.capacity ?? 0) : 0;
     const playerHpStart = health ? Number(health.amount ?? 0) : 0;
 
+    const playerMaxStamina = stamina ? Number(stamina.capacity ?? 0) : 0;
+    const playerStaminaStart = stamina ? Number(stamina.amount ?? 0) : 0;
+
     const enemyMaxHp = Number(def?.enemy?.maxHp ?? 10);
+
+    const enemyMaxStamina = Math.max(0, Number(def?.enemy?.maxStamina ?? def?.enemy?.stats?.stamina ?? def?.enemy?.stamina ?? 100));
+    let enemyStamina = enemyMaxStamina;
 
     const stats = computeCharacterStats(characterState);
     // Survival debuffs also apply to combat.
@@ -457,22 +545,26 @@ export function showCombatPopup(encounterId, opts = {}) {
     const isHungry = !!(foodRes && Number(foodRes.amount) <= 0);
     const isThirsty = !!(waterRes && Number(waterRes.amount) <= 0);
 
-    // attackSpeed is seconds per attack.
-    let playerAttackSpeed = Math.max(0.05, Number(stats?.attackSpeed ?? 1));
-    let playerHitChancePct = Number(stats?.hitChance ?? 80);
+    // attackSpeed is seconds per attack (lower is faster). Clamp to combat caps.
+    let playerAttackSpeed = Math.max(COMBAT_CAPS.minAttackSpeedSec, Number(stats?.attackSpeed ?? 1));
+    let playerHitChancePct = Number(stats?.hitChance ?? COMBAT_CAPS.defaultHitChancePct);
     if (isHungry) playerHitChancePct -= 10;
     // Thirst slows attacks: increase time between attacks by ~17.6%.
     if (isThirsty) playerAttackSpeed *= (1 / 0.85);
 
+    // Enforce caps after modifiers.
+    playerAttackSpeed = Math.max(COMBAT_CAPS.minAttackSpeedSec, playerAttackSpeed);
+    playerHitChancePct = Math.max(0, Math.min(COMBAT_CAPS.maxHitChancePct, playerHitChancePct));
+
     const playerHitChance = clampPercentToChance(playerHitChancePct);
-    const baseEnemyHitChance = clampPercentToChance(def?.enemy?.hitChance ?? def?.enemy?.stats?.hitChance ?? 80);
-    const evasionChance = clamp01((Number(stats?.evasion ?? 0)) / 100);
+    const baseEnemyHitChance = clampPercentToChance(Math.min(COMBAT_CAPS.maxHitChancePct, (def?.enemy?.hitChance ?? def?.enemy?.stats?.hitChance ?? 80)));
+    const evasionChance = Math.min(COMBAT_CAPS.maxEvasion, clamp01((Number(stats?.evasion ?? 0)) / 100));
     const enemyHitChance = Math.max(0, Math.min(1, baseEnemyHitChance * (1 - evasionChance)));
     const playerCritChance = clamp01((Number(stats?.critChance ?? 0)) / 100);
 
     const enemyStatsDef = def?.enemy?.stats || {};
     const enemyCritChance = clamp01((Number(enemyStatsDef?.critChance ?? 0)) / 100);
-    const enemyEvasion = clamp01((Number(enemyStatsDef?.evasion ?? 0)) / 100);
+    const enemyEvasion = Math.min(COMBAT_CAPS.maxEvasion, clamp01((Number(enemyStatsDef?.evasion ?? 0)) / 100));
     const enemyArmor = Math.max(0, Math.floor(Number(enemyStatsDef?.armor ?? 0)));
     const enemyDamageMin = Math.max(0, Math.floor(Number(enemyStatsDef?.damageMin ?? 0)));
     const enemyDamageMax = Math.max(enemyDamageMin, Math.floor(Number(enemyStatsDef?.damageMax ?? enemyDamageMin)));
@@ -480,7 +572,7 @@ export function showCombatPopup(encounterId, opts = {}) {
 
     // Back-compat: if an encounter only specifies DPS, synthesize a basic range.
     const fallbackEnemyDps = Math.max(0, Number(def?.enemy?.dps ?? 1.5));
-    const enemyAttackSpeedFinal = enemyAttackSpeed > 0 ? enemyAttackSpeed : 1;
+    const enemyAttackSpeedFinal = Math.max(COMBAT_CAPS.minAttackSpeedSec, (enemyAttackSpeed > 0 ? enemyAttackSpeed : 1));
     const enemyDamageMinFinal = (enemyDamageMin > 0 || enemyDamageMax > 0) ? enemyDamageMin : Math.max(1, Math.floor(fallbackEnemyDps));
     const enemyDamageMaxFinal = (enemyDamageMin > 0 || enemyDamageMax > 0) ? enemyDamageMax : Math.max(enemyDamageMinFinal, Math.ceil(fallbackEnemyDps));
 
@@ -489,6 +581,8 @@ export function showCombatPopup(encounterId, opts = {}) {
 
     setBar(overlay, 'player', playerHp, Math.max(1, playerMaxHp));
     setBar(overlay, 'enemy', enemyHp, Math.max(1, enemyMaxHp));
+    setBar(overlay, 'player-stamina', playerStaminaStart, Math.max(1, playerMaxStamina), { label: 'stamina' });
+    setBar(overlay, 'enemy-stamina', enemyStamina, Math.max(1, enemyMaxStamina), { label: 'stamina' });
 
     const combatStartPerf = performance.now();
 
@@ -503,7 +597,7 @@ export function showCombatPopup(encounterId, opts = {}) {
         player: {
             hit: fmtPct01(playerHitChance),
             crit: fmtPct01(clamp01((Number(stats?.critChance ?? 0)) / 100)),
-            evasion: fmtPct01(clamp01((Number(stats?.evasion ?? 0)) / 100)),
+            evasion: fmtPct01(evasionChance),
             armor: String(Math.max(0, Math.floor(Number(stats?.armor ?? 0)))),
             damage: `${Math.floor(Number(stats?.damageMin ?? 0))}-${Math.floor(Number(stats?.damageMax ?? 0))}`,
             attackSpeed: `${playerAttackSpeed.toFixed(2)}s`,
@@ -522,6 +616,8 @@ export function showCombatPopup(encounterId, opts = {}) {
 
     // Optional slight stamina cost over time (does not block prototype)
     const staminaCostPerSecond = 0.15;
+    const HEAVY_STRIKE_STAMINA_COST = 25;
+    const HEAVY_STRIKE_DAMAGE_MULT = 2.0;
 
     let last = performance.now();
     let raf = null;
@@ -543,8 +639,7 @@ export function showCombatPopup(encounterId, opts = {}) {
 
         // Freeze UI in an end-state and wait for explicit acknowledgement.
         setCombatButtonsEnabled(overlay, false);
-        setContinueVisible(overlay, true, outcome?.outcome === 'win' ? 'Continue' : 'Close');
-        if (close) close.classList.remove('disabled');
+        setCloseButtonState(overlay, { enabled: true, label: 'Close (Esc)' });
         return outcome;
     };
 
@@ -575,14 +670,66 @@ export function showCombatPopup(encounterId, opts = {}) {
 
         const stimBtn = overlay.querySelector('.combat-stim-icon');
         const retreatBtn = overlay.querySelector('button[data-action="retreat"]');
-        const continueBtn = overlay.querySelector('button[data-action="continue"]');
+        const closeBtn = overlay.querySelector('button[data-action="close"]');
+        const pauseBtn = overlay.querySelector('button[data-action="toggle-pause"]');
+        const heavyBtn = overlay.querySelector('button[data-action="heavy-strike"]');
+        const placeholderBtn = overlay.querySelector('button[data-action="ability-placeholder"]');
 
         let combatPaused = false;
 
-        const setPauseBtnLabel = () => {
-            if (!continueBtn) return;
-            if (finalOutcome) return; // finish() sets label to Continue/Close
-            continueBtn.textContent = combatPaused ? 'Resume' : 'Pause';
+        const togglePauseAction = () => {
+            if (finalOutcome) return;
+            if (!active) return;
+
+            // Toggle global pause (stops the game) and combat pauses via the events.
+            try {
+                if (getIsPaused()) {
+                    resumeGame(false);
+                } else {
+                    pauseGame(false);
+                    pausedByCombat = true;
+                }
+            } catch (err) {
+                // Fallback: local pause only.
+                combatPaused = !combatPaused;
+                setPauseUi(overlay, combatPaused);
+                if (combatPaused) {
+                    if (raf) cancelAnimationFrame(raf);
+                    raf = null;
+                } else {
+                    last = performance.now();
+                    nextPlayerAttackAt = last + playerIntervalMs;
+                    nextEnemyAttackAt = last + enemyIntervalMs;
+                    if (!raf) raf = requestAnimationFrame(loop);
+                }
+            }
+        };
+
+        const syncAbilityButtons = () => {
+            if (placeholderBtn) {
+                placeholderBtn.disabled = true;
+                placeholderBtn.setAttribute('aria-disabled', 'true');
+                try { setupTooltip(placeholderBtn, 'Ability slot (coming soon).'); } catch {}
+            }
+
+            const staminaRes = stamina;
+            const curStamina = staminaRes ? Number(staminaRes.amount ?? 0) : 0;
+            const hasStamina = !!staminaRes;
+            const enough = hasStamina && curStamina >= HEAVY_STRIKE_STAMINA_COST - 1e-9;
+
+            if (heavyBtn) {
+                const shouldDisable = !active || !!finalOutcome || combatPaused || !enough;
+                heavyBtn.disabled = shouldDisable;
+                heavyBtn.setAttribute('aria-disabled', shouldDisable ? 'true' : 'false');
+                try {
+                    setupTooltip(heavyBtn, () => {
+                        if (!hasStamina) return 'Heavy Strike: requires Stamina.';
+                        if (combatPaused) return 'Heavy Strike is unavailable while paused.';
+                        if (!enough) return `Heavy Strike: costs ${HEAVY_STRIKE_STAMINA_COST} Stamina. (Need ${Math.max(0, Math.ceil(HEAVY_STRIKE_STAMINA_COST - curStamina))} more)`;
+                        return `Heavy Strike: costs ${HEAVY_STRIKE_STAMINA_COST} Stamina. Deals heavy damage.`;
+                    });
+                } catch {}
+            }
         };
 
         const onGamePause = () => {
@@ -590,20 +737,22 @@ export function showCombatPopup(encounterId, opts = {}) {
             if (raf) cancelAnimationFrame(raf);
             raf = null;
             combatPaused = true;
+            setPauseUi(overlay, true);
+            try { syncAbilityButtons(); } catch (e) { /* ignore */ }
             // Reset scheduling so resume doesn't "catch up" on missed attacks.
             last = performance.now();
             nextPlayerAttackAt = last + playerIntervalMs;
             nextEnemyAttackAt = last + enemyIntervalMs;
-            setPauseBtnLabel();
         };
 
         const onGameResume = () => {
             if (!active || finalOutcome) return;
             combatPaused = false;
+            setPauseUi(overlay, false);
+            try { syncAbilityButtons(); } catch (e) { /* ignore */ }
             last = performance.now();
             nextPlayerAttackAt = last + playerIntervalMs;
             nextEnemyAttackAt = last + enemyIntervalMs;
-            setPauseBtnLabel();
             if (!raf) raf = requestAnimationFrame(loop);
         };
 
@@ -624,69 +773,108 @@ export function showCombatPopup(encounterId, opts = {}) {
             healthRes.amount = playerHp;
             const elapsedMs = performance.now() - combatStartPerf;
             appendLogWithTime(overlay, elapsedMs, `Used Stimpack (+${heal} Health).`, 'item');
+            spawnCombatFloatText(overlay, `+${heal}`, { who: 'player', kind: 'item' });
             setStimButtonState(overlay);
             setBar(overlay, 'player', playerHp, Math.max(1, playerMaxHp));
+            syncAbilityButtons();
+        };
+
+        const useHeavyStrike = () => {
+            if (!active || finalOutcome) return;
+            if (combatPaused) return;
+            if (!stamina) return;
+
+            const curStamina = Number(stamina.amount ?? 0);
+            if (!Number.isFinite(curStamina) || curStamina < HEAVY_STRIKE_STAMINA_COST) return;
+
+            stamina.amount = Math.max(0, curStamina - HEAVY_STRIKE_STAMINA_COST);
+
+            const base = randIntInclusive(stats?.damageMin ?? 1, stats?.damageMax ?? 2);
+            const raw = Math.max(0, Math.round(base * HEAVY_STRIKE_DAMAGE_MULT));
+            const dealt = applyArmorMitigation(raw, enemyArmor);
+            enemyHp = Math.max(0, enemyHp - dealt);
+
+            const elapsedMs = performance.now() - combatStartPerf;
+            appendLogWithTime(overlay, elapsedMs, `You HEAVY STRIKE for ${dealt} damage.`, 'player-crit');
+            spawnCombatFloatText(overlay, `${dealt}!`, { who: 'player', kind: 'player-crit' });
+            triggerSilhouetteAttack(overlay, 'player');
+
+            setBar(overlay, 'enemy', enemyHp, Math.max(1, enemyMaxHp));
+            setBar(
+                overlay,
+                'player-stamina',
+                Number(stamina.amount ?? 0),
+                Math.max(1, Number((stamina.capacity ?? playerMaxStamina) || 0)),
+                { label: 'stamina' }
+            );
+            syncAbilityButtons();
+
+            if (enemyHp <= 0) {
+                try { triggerEnemyDefeatedFx(overlay); } catch {}
+                appendLogWithTime(overlay, elapsedMs, `Victory.`, 'win');
+                addLogEntry(`Defeated: ${def.name}.`, LogType.SUCCESS);
+                finalOutcome = finish({ outcome: 'win' });
+            }
         };
 
         if (stimBtn) {
             stimBtn.onclick = (e) => { e.preventDefault(); useStim(); };
         }
+        if (heavyBtn) {
+            heavyBtn.onclick = (e) => { e.preventDefault(); useHeavyStrike(); };
+        }
         if (retreatBtn) {
             retreatBtn.onclick = (e) => { e.preventDefault(); onRetreat(); };
         }
-        if (continueBtn) {
-            continueBtn.onclick = (e) => {
+        if (pauseBtn) {
+            pauseBtn.onclick = (e) => {
                 e.preventDefault();
-                if (finalOutcome) {
-                    closeAndResolve();
-                    return;
-                }
-                if (!active) return;
+                togglePauseAction();
+            };
+        }
 
-                // Toggle global pause (stops the game) and combat pauses via the events.
-                try {
-                    if (getIsPaused()) {
-                        resumeGame(false);
-                        pausedByCombat = false;
-                    } else {
-                        pauseGame(false);
-                        pausedByCombat = true;
-                    }
-                } catch (err) {
-                    // If pause helpers fail for any reason, still locally toggle combat.
-                    combatPaused = !combatPaused;
-                    if (combatPaused) {
-                        if (raf) cancelAnimationFrame(raf);
-                        raf = null;
-                    } else {
-                        last = performance.now();
-                        nextPlayerAttackAt = last + playerIntervalMs;
-                        nextEnemyAttackAt = last + enemyIntervalMs;
-                        if (!raf) raf = requestAnimationFrame(loop);
-                    }
-                }
-                setPauseBtnLabel();
+        if (closeBtn) {
+            // Disabled until combat resolves.
+            setCloseButtonState(overlay, { enabled: false, label: 'Close (Esc)' });
+            closeBtn.onclick = (e) => {
+                e.preventDefault();
+                if (!finalOutcome) return;
+                closeAndResolve();
             };
         }
 
         setStimButtonState(overlay);
-        setContinueVisible(overlay, true, 'Pause');
+        syncAbilityButtons();
         // If the game is already paused, begin with combat paused too.
         try {
             if (getIsPaused()) {
                 combatPaused = true;
-                setPauseBtnLabel();
+                setPauseUi(overlay, true);
+            } else {
+                setPauseUi(overlay, false);
             }
         } catch (e) { /* ignore */ }
 
         attachEsc(overlay, () => {
-            // While active: retreat. After finished: close.
-            if (active) onRetreat();
-            else if (finalOutcome) closeAndResolve();
+            // Esc closes only after combat is resolved; otherwise it toggles pause.
+            if (finalOutcome) closeAndResolve();
+            else togglePauseAction();
         });
 
         active = { encounterId, startedAt: Date.now() };
         setCombatButtonsEnabled(overlay, true);
+        try { syncAbilityButtons(); } catch (e) { /* ignore */ }
+
+        // Option: start combat paused (also pauses the game so nothing continues ticking behind the overlay).
+        try {
+            const startPaused = (typeof getCombatStartPaused === 'function') ? !!getCombatStartPaused() : true;
+            if (startPaused && !getIsPaused()) {
+                combatPaused = true;
+                setPauseUi(overlay, true);
+                pauseGame(false);
+                pausedByCombat = true;
+            }
+        } catch (e) { /* ignore */ }
 
         function loop(now) {
             if (!active) return;
@@ -719,15 +907,18 @@ export function showCombatPopup(encounterId, opts = {}) {
                         const dealt = applyArmorMitigation(withCrit, enemyArmor);
                         enemyHp = Math.max(0, enemyHp - dealt);
                         appendLogWithTime(overlay, elapsedMs, crit ? `You CRIT for ${dealt} damage.` : `You hit for ${dealt} damage.`, crit ? 'player-crit' : 'player-hit');
+                        spawnCombatFloatText(overlay, crit ? `${dealt}!` : `${dealt}`, { who: 'player', kind: crit ? 'player-crit' : 'player-hit' });
                         triggerSilhouetteAttack(overlay, 'player');
                     } else {
                         appendLogWithTime(overlay, elapsedMs, 'You miss.', 'player-miss');
+                        spawnCombatFloatText(overlay, 'MISS', { who: 'player', kind: 'player-miss' });
                         triggerSilhouetteAttack(overlay, 'player');
                     }
 
                     setBar(overlay, 'enemy', enemyHp, Math.max(1, enemyMaxHp));
                     nextPlayerAttackAt += playerIntervalMs;
                     if (enemyHp <= 0) {
+                        try { triggerEnemyDefeatedFx(overlay); } catch (e) { /* ignore */ }
                         appendLogWithTime(overlay, elapsedMs, `Victory.`, 'win');
                         addLogEntry(`Defeated: ${def.name}.`, LogType.SUCCESS);
                         finalOutcome = finish({ outcome: 'win' });
@@ -744,9 +935,11 @@ export function showCombatPopup(encounterId, opts = {}) {
                         const taken = applyArmorMitigation(withCrit, stats?.armor ?? 0);
                         playerHp = Math.max(0, playerHp - taken);
                         appendLogWithTime(overlay, elapsedMs, crit ? `${def.name} CRITS for ${taken} damage.` : `${def.name} hits for ${taken} damage.`, crit ? 'enemy-crit' : 'enemy-hit');
+                        spawnCombatFloatText(overlay, crit ? `${taken}!` : `${taken}`, { who: 'enemy', kind: crit ? 'enemy-crit' : 'enemy-hit' });
                         triggerSilhouetteAttack(overlay, 'enemy');
                     } else {
                         appendLogWithTime(overlay, elapsedMs, `${def.name} misses.`, 'enemy-miss');
+                        spawnCombatFloatText(overlay, 'MISS', { who: 'enemy', kind: 'enemy-miss' });
                         triggerSilhouetteAttack(overlay, 'enemy');
                     }
 
@@ -770,6 +963,19 @@ export function showCombatPopup(encounterId, opts = {}) {
 
             setBar(overlay, 'player', playerHp, Math.max(1, playerMaxHp));
             setBar(overlay, 'enemy', enemyHp, Math.max(1, enemyMaxHp));
+            if (stamina) {
+                setBar(
+                    overlay,
+                    'player-stamina',
+                    Number(stamina.amount ?? 0),
+                    Math.max(1, Number((stamina.capacity ?? playerMaxStamina) || 0)),
+                    { label: 'stamina' }
+                );
+            } else {
+                setBar(overlay, 'player-stamina', 0, Math.max(1, playerMaxStamina || 0), { label: 'stamina' });
+            }
+            setBar(overlay, 'enemy-stamina', enemyStamina, Math.max(1, enemyMaxStamina), { label: 'stamina' });
+            try { syncAbilityButtons(); } catch (e) { /* ignore */ }
 
             // Win/lose is resolved inside the turn loop where attacks happen.
 

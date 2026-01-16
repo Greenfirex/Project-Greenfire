@@ -217,15 +217,53 @@ function renderEquipmentSlot(key, label, itemId) {
 
 function renderStatRow(label, value) {
     const safeKey = String(label).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+    const iconHtml = renderStatLabelIconHtml(safeKey);
     return `
         <div class="stat-line" data-stat-line="${safeKey}">
             <div class="stat-row" data-stat="${safeKey}">
-                <span class="stat-label">${label}</span>
+                <span class="stat-label">${iconHtml}<span class="stat-label-text">${escapeHtml(String(label))}</span></span>
                 <span class="stat-value">${value}</span>
             </div>
             ${renderAllocateSpacerHtml()}
         </div>
     `;
+}
+
+function renderStatLabelIconHtml(statKey) {
+    const key = String(statKey || '').toLowerCase();
+
+    // Match the combat popup stat icons.
+    const kindByKey = {
+        hit_chance: 'target',
+        crit_chance: 'burst',
+        evasion: 'swirl',
+        armor: 'shield',
+        damage: 'sword',
+        attack_speed: 'clock',
+    };
+
+    const kind = kindByKey[key];
+    if (!kind) return '';
+
+    return `<span class="stat-label-icon" aria-hidden="true">${svgIcon(kind)}</span>`;
+}
+
+function svgIcon(kind) {
+    switch (kind) {
+        case 'target':
+            return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v3M21 12h-3M12 21v-3M3 12h3"/></svg>`;
+        case 'burst':
+            return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.8 5.2L19 5l-2.2 5.2L22 12l-5.2 1.8L19 19l-5.2-2.2L12 22l-1.8-5.2L5 19l2.2-5.2L2 12l5.2-1.8L5 5l5.2 2.2L12 2z"/></svg>`;
+        case 'swirl':
+            return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/><path d="M12 7a5 5 0 1 0 5 5"/></svg>`;
+        case 'shield':
+            return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.4 9.4-8 10-4.6-.6-8-5-8-10V6l8-4z"/></svg>`;
+        case 'sword':
+            return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3l7 7-9 9H5v-7l9-9z"/><path d="M16 5l3 3"/><path d="M6 18l3 3"/></svg>`;
+        case 'clock':
+        default:
+            return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/></svg>`;
+    }
 }
 
 function renderAllocateButtonHtml(allocateKey, opts = {}) {
@@ -248,13 +286,14 @@ function renderUpgradeableStatRow(label, value, opts = {}) {
     const safeKey = String(label).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
     const allocateKey = opts.allocateKey ? String(opts.allocateKey) : '';
     const canSpend = !!opts.canSpend;
+    const iconHtml = renderStatLabelIconHtml(safeKey);
     const btn = allocateKey
         ? renderAllocateButtonHtml(allocateKey, { disabled: !canSpend, label: `Increase ${label} (cost: 1 stat point)` })
         : '';
     return `
         <div class="stat-line" data-stat-line="${safeKey}">
             <div class="stat-row" data-stat="${safeKey}">
-                <span class="stat-label">${label}</span>
+                <span class="stat-label">${iconHtml}<span class="stat-label-text">${escapeHtml(String(label))}</span></span>
                 <span class="stat-value">${value}</span>
             </div>
             ${btn}
@@ -473,6 +512,12 @@ function buildStatTooltipHTML(statKey) {
     const xp = getXPResourceSnapshot();
     const alloc = xp?.allocated || {};
 
+    const bullets = (items) => {
+        const clean = (Array.isArray(items) ? items : []).filter(Boolean).map(s => String(s));
+        if (!clean.length) return '';
+        return `<ul class="tooltip-bullets">${clean.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>`;
+    };
+
     switch (key) {
         case 'xp': {
             return `
@@ -503,28 +548,34 @@ function buildStatTooltipHTML(statKey) {
         case 'health': {
             const h = getHealthResourceSnapshot();
             const pts = Math.max(0, Math.floor(Number(alloc.health) || 0));
-            const bonus = pts > 0 ? `<p class="tooltip-detail">From stat points: +${escapeHtml(String(pts * 5))} max Health</p>` : '';
+            const b = bullets([
+                '1 stat point: +5 max Health.',
+                `Allocated: ${pts} (total: +${pts * 5} max Health).`,
+            ]);
             return `
                 <h4>Health</h4>
                 <p>Current: <strong>${escapeHtml(String(h.current))}</strong>${h.max > 0 ? ` / ${escapeHtml(String(h.max))}` : ''}</p>
                 <div class="tooltip-section">
                     <h4>Notes</h4>
                     <p>Health is your HP in combat.</p>
-                    ${bonus}
+                    ${b}
                 </div>
             `;
         }
         case 'stamina': {
             const s = getStaminaResourceSnapshot();
             const pts = Math.max(0, Math.floor(Number(alloc.stamina) || 0));
-            const bonus = pts > 0 ? `<p class="tooltip-detail">From stat points: +${escapeHtml(String(pts * 5))} max Stamina</p>` : '';
+            const b = bullets([
+                '1 stat point: +5 max Stamina.',
+                `Allocated: ${pts} (total: +${pts * 5} max Stamina).`,
+            ]);
             return `
                 <h4>Stamina</h4>
                 <p>Current: <strong>${escapeHtml(String(s.current))}</strong>${s.max > 0 ? ` / ${escapeHtml(String(s.max))}` : ''}</p>
                 <div class="tooltip-section">
                     <h4>Notes</h4>
                     <p>Stamina is your short-term endurance.</p>
-                    ${bonus}
+                    ${b}
                 </div>
             `;
         }
@@ -537,6 +588,7 @@ function buildStatTooltipHTML(statKey) {
                 <div class="tooltip-section">
                     <h4>How It Works</h4>
                     <p>Higher damage increases your DPS in combat.</p>
+                    ${bullets(['Affected by your equipped weapon.'])}
                 </div>
             `;
         }
@@ -544,69 +596,92 @@ function buildStatTooltipHTML(statKey) {
             const speed = Number(stats?.attackSpeed ?? 1);
             const pts = Math.max(0, Math.floor(Number(alloc.attackSpeed) || 0));
             const bonusDelta = pts > 0 ? (-(pts * 0.05)).toFixed(2) : '0.00';
-            const bonus = pts > 0 ? `<p class="tooltip-detail">From stat points: ${escapeHtml(String(bonusDelta))}s (lower is faster)</p>` : '';
+            const b = bullets([
+                'Seconds per attack (lower is faster).',
+                'Minimum: 0.20s per attack.',
+                '1 stat point: −0.05s per attack.',
+                `Allocated: ${pts} (total: ${bonusDelta}s).`,
+            ]);
             return `
                 <h4>Attack Speed</h4>
                 <p>Time between attacks: <strong>${escapeHtml(formatAttackSpeed(speed))}</strong></p>
                 <div class="tooltip-section">
                     <h4>How It Works</h4>
-                    <p>Attack Speed is measured in seconds between attacks. Lower is faster.</p>
-                    ${bonus}
+                    ${b}
                 </div>
             `;
         }
         case 'hit_chance': {
             const hit = Number(stats?.hitChance ?? 0);
             const pts = Math.max(0, Math.floor(Number(alloc.hitChance) || 0));
-            const bonus = pts > 0 ? `<p class="tooltip-detail">From stat points: +${escapeHtml(String(pts))}% hit chance</p>` : '';
+            const b = bullets([
+                'Chance to land an attack before evasion.',
+                'Capped at: 95%.',
+                '1 stat point: +1% hit chance.',
+                `Allocated: ${pts} (total: +${pts}% hit chance).`,
+                'On miss, that attack deals no damage.',
+            ]);
             return `
                 <h4>Hit Chance</h4>
                 <p>Chance to land an attack: <strong>${escapeHtml(String(hit))}%</strong></p>
                 <div class="tooltip-section">
                     <h4>How It Works</h4>
-                    <p>When you miss, that attack deals no damage.</p>
-                    ${bonus}
+                    ${b}
                 </div>
             `;
         }
         case 'crit_chance': {
             const crit = Number(stats?.critChance ?? 0);
             const pts = Math.max(0, Math.floor(Number(alloc.critChance) || 0));
-            const bonus = pts > 0 ? `<p class="tooltip-detail">From stat points: +${escapeHtml(String(pts))}% crit chance</p>` : '';
+            const b = bullets([
+                'Critical hits add +50% damage.',
+                'Capped at: 100%.',
+                '1 stat point: +1% crit chance.',
+                `Allocated: ${pts} (total: +${pts}% crit chance).`,
+            ]);
             return `
                 <h4>Crit Chance</h4>
                 <p>Chance: <strong>${escapeHtml(String(crit))}%</strong></p>
                 <div class="tooltip-section">
                     <h4>How It Works</h4>
-                    <p>Critical hits add +50% damage.</p>
-                    ${bonus}
+                    ${b}
                 </div>
             `;
         }
         case 'armor': {
             const armor = Math.max(0, Number(stats?.armor ?? 0));
             const mitigation = armor / (armor + 20);
+            const taken = 1 - mitigation;
+            const b = bullets([
+                'Armor reduces damage taken with diminishing returns.',
+                'Damage taken = round(damage × 20/(armor+20)).',
+                'Examples: armor 0→100%, 10→67%, 20→50%, 40→33%.',
+                `Current: ~${Math.round(taken * 100)}% damage taken.`,
+            ]);
             return `
                 <h4>Armor</h4>
                 <p>Value: <strong>${escapeHtml(String(Math.floor(armor)))}</strong></p>
                 <div class="tooltip-section">
                     <h4>How It Works</h4>
-                    <p>Armor reduces incoming damage using: mitigation = armor / (armor + 20).</p>
-                    <p class="tooltip-detail">Current mitigation: ~${escapeHtml(String(Math.round(mitigation * 100)))}%</p>
+                    ${b}
                 </div>
             `;
         }
         case 'evasion': {
             const ev = Math.max(0, Number(stats?.evasion ?? 0));
             const pts = Math.max(0, Math.floor(Number(alloc.evasion) || 0));
-            const bonus = pts > 0 ? `<p class="tooltip-detail">From stat points: +${escapeHtml(String(pts))}% evasion</p>` : '';
+            const b = bullets([
+                "Reduces the enemy's chance to hit you (multiplies by 1 − evasion).",
+                'Capped at: 75%.',
+                '1 stat point: +1% evasion.',
+                `Allocated: ${pts} (total: +${pts}% evasion).`,
+            ]);
             return `
                 <h4>Evasion</h4>
                 <p>Chance to avoid an incoming attack: <strong>${escapeHtml(String(ev))}%</strong></p>
                 <div class="tooltip-section">
                     <h4>How It Works</h4>
-                    <p>Evasion reduces the enemy’s chance to hit you in combat.</p>
-                    ${bonus}
+                    ${b}
                 </div>
             `;
         }

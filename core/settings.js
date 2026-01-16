@@ -15,6 +15,26 @@ const colorMap = {
 
 const EXPORT_ENCRYPT_KEY = 'options.exportEncryptDefault';
 
+const COMBAT_START_PAUSED_KEY = 'options.combatStartPaused';
+
+export function getCombatStartPaused() {
+    try {
+        const raw = localStorage.getItem(COMBAT_START_PAUSED_KEY);
+        // Default to true (safer for new players).
+        return raw === null ? true : !!JSON.parse(raw);
+    } catch (e) {
+        return true;
+    }
+}
+
+function setCombatStartPaused(value) {
+    try {
+        localStorage.setItem(COMBAT_START_PAUSED_KEY, JSON.stringify(!!value));
+    } catch (e) {
+        console.warn('Could not persist combat-start-paused option', e);
+    }
+}
+
 function setExportEncryptDefault(value) {
     try {
         localStorage.setItem(EXPORT_ENCRYPT_KEY, JSON.stringify(!!value));
@@ -160,6 +180,15 @@ export function initOptions() {
         backgroundToggle.addEventListener('change', () => {
             runInBackground = backgroundToggle.checked;
             localStorage.setItem('runInBackground', runInBackground);
+        });
+    }
+
+    // --- Combat starts paused Toggle ---
+    const combatStartPausedToggle = document.getElementById('combatStartPausedToggle');
+    if (combatStartPausedToggle) {
+        combatStartPausedToggle.checked = getCombatStartPaused();
+        combatStartPausedToggle.addEventListener('change', () => {
+            setCombatStartPaused(combatStartPausedToggle.checked);
         });
     }
 	

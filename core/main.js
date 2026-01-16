@@ -20,7 +20,7 @@ import { loadGameState, resetToDefaultState, saveGameState } from './saveload.js
 import { showStoryPopup } from '../ui/panels/popup.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
 import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity, shouldRunInBackground } from './settings.js';
-import { recomputeObjectives, getLastObjectivesDelta } from '../data/objectives.js';
+import { recomputeObjectives } from '../data/objectives.js';
 import { initFooter, getIsPaused, pauseGame, resumeGame, registerMainLoopCallbacks } from '../ui/footer.js';
 import '../ui/header.js';
 
@@ -515,22 +515,13 @@ if (typeof window !== 'undefined') {
         setCharacterMenuNewItemFlag(true);
     });
 
-    // Mark the Journal menu button when new objectives become active (quests) or when a journal entry is added.
-    window.addEventListener('objectivesChanged', () => {
+    // Mark the Journal menu button only when objectives become newly active (new quests).
+    // This uses a dedicated event so the badge isn't triggered by other uses of `objectivesChanged`.
+    window.addEventListener('objectivesNewlyActive', (ev) => {
         try {
-            const delta = getLastObjectivesDelta?.();
-            const hasNew = !!(delta && Array.isArray(delta.newlyActive) && delta.newlyActive.length);
-            if (!hasNew) return;
+            const newlyActive = ev?.detail?.newlyActive;
+            if (!Array.isArray(newlyActive) || !newlyActive.length) return;
 
-            let current = null;
-            try { current = localStorage.getItem('currentSection'); } catch {}
-            if (current === 'journalSection') return;
-            setJournalMenuNewItemFlag(true);
-        } catch { /* ignore */ }
-    });
-
-    window.addEventListener('journal-entry-added', () => {
-        try {
             let current = null;
             try { current = localStorage.getItem('currentSection'); } catch {}
             if (current === 'journalSection') return;

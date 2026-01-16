@@ -49,7 +49,7 @@ const BASE_STATS = {
     // attackSpeed is seconds between attacks.
     attackSpeed: 1.0,
     // Percent chance for an attack to land. Used by combat.
-    hitChance: 80,
+    hitChance: 75,
     armor: 0,
     critChance: 5,
     // Percent chance to evade an incoming attack.

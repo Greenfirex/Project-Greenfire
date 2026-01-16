@@ -193,6 +193,34 @@
 #characterSection .stat-label {
     color: rgba(255,255,255,0.85);
     font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+#characterSection .stat-label-icon {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.88);
+    opacity: 0.95;
+}
+
+#characterSection .stat-label-icon svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+
+#characterSection .stat-label-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 #characterSection .stat-value {

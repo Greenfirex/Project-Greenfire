@@ -205,6 +205,22 @@ export function setupCrashSiteSection(section) {
         .filter(c => c !== 'Construction' && c !== 'Upgrade');
 
     const createActionButton = (action, group) => {
+        const getEncounterIdForActionNow = (a) => {
+            if (!a) return null;
+            const idx = a.stage || 0;
+            const st = (a.stages || [])[idx];
+            return (st && st.encounter) || a.encounter || null;
+        };
+
+        const swordsIcon = () => (
+            `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M6 18L18 6" />
+                <path d="M4 16L8 20" />
+                <path d="M18 18L6 6" />
+                <path d="M20 16L16 20" />
+            </svg>`
+        );
+
         let btn = null;
         if (existingButtons && existingButtons.has(action.id)) {
             btn = existingButtons.get(action.id);
@@ -226,10 +242,14 @@ export function setupCrashSiteSection(section) {
         delete btn.dataset.blocked;
         delete btn.dataset.affordable;
         btn.classList.remove('running', 'confirm-cancel');
+
+        const encounterId = getEncounterIdForActionNow(action);
+        btn.classList.toggle('action-has-combat', !!encounterId);
         btn.innerHTML = `
             <div class="action-progress-bar"></div>
             <span class="building-name">${action.name}</span>
             ${action.uiNew ? '<span class="action-new-badge" aria-hidden="true">!</span>' : ''}
+            ${encounterId ? `<span class="action-combat-badge" aria-hidden="true">${swordsIcon()}</span>` : ''}
             <span class="cancel-text">Abort?</span>
         `;
 

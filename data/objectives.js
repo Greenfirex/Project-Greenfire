@@ -16,13 +16,33 @@ import { storyEvents } from './definitions/storyEvents.js';
 
 const STORAGE_KEY = 'objectivesStatusV1';
 const TRACKED_KEY = 'trackedObjectiveV1';
+// UI/support: monotonic counter for newly unlocked objectives (locked -> active).
+// This is intentionally stored outside the main save; it exists to drive UI "new" indicators.
+const UNLOCK_REV_KEY = 'objectivesUnlockRevV1';
 
 // Local status in memory
 let status = []; // [{ id, state: 'locked'|'active'|'completed', firstAt, doneAt }]
 // Track transitions from the most recent recompute so callers (e.g., story popup) can surface them
 let _lastDelta = { completedIds: [], newlyActiveIds: [] };
+let _unlockRev = 0;
 // Tracked objective (for footer panel)
 let trackedObjectiveId = null;
+
+function loadUnlockRev() {
+    try {
+        const raw = localStorage.getItem(UNLOCK_REV_KEY);
+        const n = Number(raw);
+        _unlockRev = Number.isFinite(n) ? n : 0;
+    } catch { _unlockRev = 0; }
+}
+
+function saveUnlockRev() {
+    try { localStorage.setItem(UNLOCK_REV_KEY, String(_unlockRev)); } catch {}
+}
+
+export function getObjectivesUnlockRevision() {
+    return _unlockRev;
+}
 
 export function getObjectivesStatus() {
     return status.slice();
@@ -58,8 +78,10 @@ export function resetObjectives(opts = {}) {
     const suppressEvent = !!opts.suppressEvent;
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
     try { localStorage.removeItem(TRACKED_KEY); } catch {}
+    try { localStorage.removeItem(UNLOCK_REV_KEY); } catch {}
     status = [];
     trackedObjectiveId = null;
+    _unlockRev = 0;
     if (!suppressEvent) {
         try { window.dispatchEvent(new CustomEvent('objectivesChanged')); } catch {}
     }
@@ -612,6 +634,16 @@ export function recomputeObjectives() {
     if (didChange) {
         saveStatus();
         try { window.dispatchEvent(new CustomEvent('objectivesChanged')); } catch {}
+
+        // Fire a dedicated event only when an objective becomes newly active.
+        // This avoids UI badges being triggered by other uses of `objectivesChanged` (e.g., tracking changes).
+        try {
+            if (snapshot.newlyActive && snapshot.newlyActive.length) {
+                _unlockRev += snapshot.newlyActive.length;
+                saveUnlockRev();
+                window.dispatchEvent(new CustomEvent('objectivesNewlyActive', { detail: { newlyActive: snapshot.newlyActive } }));
+            }
+        } catch {}
     }
     return snapshot;
 }
@@ -705,4 +737,5 @@ export function getLastObjectivesDelta() {
 
 // Initialize on import
 loadStatus();
+loadUnlockRev();
 setTimeout(() => { try { recomputeObjectives(); } catch {} }, 0);

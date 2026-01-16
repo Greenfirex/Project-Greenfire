@@ -12,6 +12,8 @@ export const combatEncounters = [
             dps: 1.2,
             hitChance: 78,
             portrait: 'assets/images/enemies/enemyrat1.png',
+            // Some sprites read larger than the player silhouette; scale down slightly.
+            portraitScale: 0.84,
             stats: {
                 // Display-only (and future-proof for per-enemy tuning)
                 hitChance: 78,

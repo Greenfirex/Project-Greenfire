@@ -70,8 +70,9 @@
     padding: 0;
     display: grid;
     gap: 14px;
-    /* Prefer space for stats; keep log compact */
-    grid-template-rows: auto auto;
+    position: relative;
+    /* Bars on top, compact log row below */
+    grid-template-rows: auto 150px;
     align-content: start;
     flex: 1 1 0;
     min-height: 0;
@@ -80,8 +81,148 @@
 .combat-bars {
     padding: 0 2px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* 3-column layout: left sheet, middle float lane, right sheet */
+    grid-template-columns: 1fr 64px 1fr;
     gap: 14px;
+}
+
+.combat-float-lane {
+    position: relative;
+    pointer-events: none;
+    align-self: stretch;
+    min-width: 0;
+}
+
+.combat-pause-toggle {
+    position: absolute;
+    left: 50%;
+    top: 52%;
+    transform: translate(-50%, -50%);
+    pointer-events: auto;
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    border-radius: 999px;
+    border: 1px solid rgba(230, 238, 247, 0.22);
+    background: rgba(0,0,0,0.38);
+    box-shadow: 0 10px 22px rgba(0,0,0,0.5);
+    cursor: pointer;
+    z-index: 6;
+    opacity: 0.32;
+}
+
+.combat-pause-toggle:hover {
+    border-color: rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.55);
+    opacity: 0.95;
+}
+
+.combat-pause-toggle:focus-visible {
+    outline: 2px solid rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.85);
+    outline-offset: 2px;
+}
+
+.combat-pause-icon {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    opacity: 0.75;
+}
+
+.combat-pause-icon::before,
+.combat-pause-icon::after {
+    content: "";
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    width: 7px;
+    border-radius: 2px;
+    background: rgba(230, 238, 247, 0.78);
+}
+
+.combat-pause-icon::before { left: 1px; }
+.combat-pause-icon::after { right: 1px; }
+
+.combat-pause-text {
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 6px);
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: rgba(255, 216, 74, 0.92);
+    text-shadow: 0 2px 10px rgba(0,0,0,0.85);
+    opacity: 0;
+    pointer-events: none;
+}
+
+#combatPopup.combat-paused .combat-pause-toggle {
+    border-color: rgba(255, 216, 74, 0.55);
+    background: rgba(0,0,0,0.48);
+    box-shadow:
+        0 12px 26px rgba(0,0,0,0.55),
+        0 0 22px rgba(255, 216, 74, 0.12);
+    opacity: 1;
+}
+
+#combatPopup.combat-paused .combat-pause-icon {
+    opacity: 1;
+}
+
+#combatPopup.combat-paused .combat-pause-text {
+    opacity: 1;
+}
+
+.combat-float-text {
+    position: absolute;
+    left: 50%;
+    top: 56%;
+    transform: translate(calc(-50% + var(--x, 0px)), 10px) rotate(var(--rot, 0deg));
+    font-weight: 800;
+    font-size: 26px;
+    letter-spacing: 0.2px;
+    text-shadow:
+        0 2px 8px rgba(0,0,0,0.75),
+        0 0 14px rgba(0,0,0,0.45);
+    opacity: 0;
+    animation: combat-float-up 950ms cubic-bezier(0.18, 0.9, 0.2, 1) forwards;
+    will-change: transform, opacity;
+    user-select: none;
+    z-index: 7;
+}
+
+@keyframes combat-float-up {
+    0% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--x, 0px)), 14px) rotate(var(--rot, 0deg)) scale(0.98);
+    }
+    12% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--x, 0px)), -44px) rotate(var(--rot, 0deg)) scale(1.02);
+    }
+}
+
+/* Float colors mirror log colors */
+.combat-float-text.kind-player-hit { color: rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.98); }
+.combat-float-text.kind-player-crit { color: rgba(255, 241, 168, 0.99); }
+.combat-float-text.kind-player-miss { color: rgba(230, 238, 247, 0.68); font-size: 18px; letter-spacing: 0.8px; }
+.combat-float-text.kind-enemy-hit { color: rgba(239, 68, 68, 0.98); }
+.combat-float-text.kind-enemy-crit { color: rgba(255, 209, 209, 0.98); }
+.combat-float-text.kind-enemy-miss { color: rgba(230, 238, 247, 0.68); font-size: 18px; letter-spacing: 0.8px; }
+.combat-float-text.kind-item { color: rgba(251, 191, 36, 0.98); }
+
+@media (max-width: 720px) {
+    .combat-bars {
+        grid-template-columns: 1fr;
+    }
+    .combat-float-lane {
+        display: none;
+    }
 }
 
 .combat-bar-group {
@@ -98,6 +239,15 @@
     justify-content: space-between;
     gap: 10px;
     margin-bottom: 8px;
+    /* Keep both sides aligned even if one side has extra controls (e.g., stim button). */
+    min-height: 28px;
+}
+
+.combat-bar-top-spacer {
+    /* Present on the enemy side to match the player's two-item header row.
+       No fixed width needed; we only care about equal row height/spacing. */
+    display: inline-block;
+    height: 1px;
 }
 
 .combat-bar-top .combat-bar-label {
@@ -156,6 +306,12 @@
     border: 1px solid rgba(255,255,255,0.06);
 }
 
+.combat-bar.combat-bar-secondary {
+    height: 10px;
+    margin-top: 6px;
+    opacity: 0.98;
+}
+
 .combat-bar-overlay {
     position: absolute;
     inset: 0;
@@ -178,6 +334,11 @@
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
 }
 
+.combat-bar-fill.stamina {
+    background: rgba(245, 198, 66, 0.85);
+    box-shadow: 0 0 10px rgba(245, 198, 66, 0.25);
+}
+
 .combat-bar-fill.enemy {
     background: rgba(239, 68, 68, 0.85);
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
@@ -195,6 +356,49 @@
     padding-top: 0;
     border-top: none;
     display: block;
+}
+
+.combat-ability-row {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.combat-ability-btn {
+    height: 34px;
+    min-width: 42px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(0,0,0,0.26);
+    color: rgba(230, 238, 247, 0.92);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.2px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.combat-ability-btn:hover {
+    border-color: rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.45);
+    background: rgba(0,0,0,0.34);
+}
+
+.combat-ability-btn[disabled],
+.combat-ability-btn[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* Keep stim button visually consistent inside the ability row */
+.combat-ability-row .combat-stim-icon {
+    border-radius: 10px;
+    padding: 6px 10px;
 }
 
 .combat-orbit {
@@ -238,6 +442,61 @@
     mix-blend-mode: screen;
     -webkit-mask-image: radial-gradient(ellipse at 50% 52%, rgba(0,0,0,1) 62%, rgba(0,0,0,0) 86%);
     mask-image: radial-gradient(ellipse at 50% 52%, rgba(0,0,0,1) 62%, rgba(0,0,0,0) 86%);
+}
+
+/* Enemy defeated FX: red ring pop + fade */
+.combat-orbit[data-orbit="enemy"].enemy-defeated::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 52%;
+    width: 142px;
+    height: 142px;
+    transform: translate(-50%, -50%) scale(0.25);
+    border-radius: 999px;
+    border: 3px solid rgba(239, 68, 68, 0.88);
+    box-shadow:
+        0 0 0 0 rgba(239, 68, 68, 0.25),
+        0 0 28px rgba(239, 68, 68, 0.28);
+    opacity: 0;
+    pointer-events: none;
+    animation: combat-enemy-defeated-pop 640ms cubic-bezier(0.18, 0.9, 0.2, 1) forwards;
+    z-index: 6;
+}
+
+.combat-orbit[data-orbit="enemy"].enemy-defeated .combat-portrait.enemy {
+    animation: combat-enemy-defeated-fade 620ms ease-out forwards;
+}
+
+@keyframes combat-enemy-defeated-pop {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.25);
+        box-shadow:
+            0 0 0 0 rgba(239, 68, 68, 0.25),
+            0 0 18px rgba(239, 68, 68, 0.22);
+    }
+    18% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.35);
+        box-shadow:
+            0 0 0 14px rgba(239, 68, 68, 0.0),
+            0 0 40px rgba(239, 68, 68, 0.0);
+    }
+}
+
+@keyframes combat-enemy-defeated-fade {
+    0% {
+        opacity: 0.9;
+        filter: drop-shadow(0 10px 18px rgba(0,0,0,0.6)) contrast(1.05);
+    }
+    100% {
+        opacity: 0.18;
+        filter: grayscale(0.65) drop-shadow(0 10px 18px rgba(0,0,0,0.55));
+    }
 }
 
 .combat-portrait.attack {
@@ -311,20 +570,22 @@
 .combat-stat-icon.pos-br { bottom: 14px; right: 14px; }
 
 .combat-log {
-    margin-top: 2px;
-    margin-bottom: 2px;
-    /* Keep the log to ~2 visible rows; scroll for history */
-    height: 86px;
-    max-height: 86px;
-    min-height: 0;
+    display: block;
+    position: relative;
+    margin: 0 2px;
+    height: 150px;
+    max-height: 150px;
     overflow: auto;
-    background: rgba(0,0,0,0.35);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 10px;
-    padding: 10px;
-    color: rgba(230, 238, 247, 0.9);
+    background: rgba(0,0,0,0.52);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: rgba(230, 238, 247, 0.92);
     font-size: 0.92em;
     line-height: 1.35;
+    z-index: 4;
+    backdrop-filter: blur(6px);
+    pointer-events: auto;
 }
 
 /* Use the same scrollbar styling as the in-game log */
@@ -417,7 +678,8 @@
 
 /* Combat uses .menu-button (large by default); override to match compact popup controls */
 .combat-popup-actions .combat-btn {
-    width: auto;
+    width: 170px;
+    flex: 0 0 170px;
     height: 36px;
     margin: 0;
     padding: 7px 14px;

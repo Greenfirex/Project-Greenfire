@@ -203,6 +203,22 @@ body.glow-disabled * {
     font-size: 0.9em;
 }
 
+/* Neutral bullet list for aligned tooltip details */
+.tooltip .tooltip-bullets {
+    margin: 6px 0 0 18px;
+    padding-left: 0;
+    list-style: disc;
+    list-style-position: inside;
+}
+
+.tooltip .tooltip-bullets li {
+    color: #ccc;
+    font-weight: 500;
+    margin: 2px 0;
+    font-size: 0.9em;
+    line-height: 1.25;
+}
+
 /* Building Effects: neutral white, no bullet points — used only for building Effects lists */
 .tooltip .effects-list-building { display: block; }
 
