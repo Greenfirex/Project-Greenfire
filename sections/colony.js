@@ -7,6 +7,7 @@ import { createBuildingButton, updateBuildingButtonsState, rehydrateBuildingButt
 import { getProgress } from '../data/buildingsManager.js';
 
 let isMiningOnCooldown = false;
+let isSalvagingOnCooldown = false;
 let colonyUiInterval = null;
 
 export function startColonyLoop() {
@@ -91,8 +92,34 @@ export function setupColonySection(colonySection) {
         <span class="building-name">Mine Crystal</span>
     `;
     mineCrystalButton.addEventListener('click', (event) => mineCrystal(event));
-    setupTooltip(mineCrystalButton, 'Gain 1 Crystal');
+    setupTooltip(mineCrystalButton, `
+        <h4>Mine Crystal</h4>
+        <p class="tooltip-description">Manually extract raw crystal from nearby deposits.</p>
+        <div class="tooltip-section"><h4>Reward</h4><p>Crystal: <span class="reward-amount">+1</span></p></div>
+        <div class="tooltip-section"><p>Duration: 2s</p></div>
+    `);
     manualButtons.appendChild(mineCrystalButton);
+
+    const salvageVineaButton = document.createElement('button');
+    salvageVineaButton.className = 'image-button';
+    salvageVineaButton.innerHTML = `
+        <div class="action-progress-bar"></div>
+        <span class="building-name">Salvage Vinea-IV</span>
+    `;
+    salvageVineaButton.addEventListener('click', (event) => salvageVinea(event));
+    setupTooltip(salvageVineaButton, `
+        <h4>Salvage Vinea-IV</h4>
+        <p class="tooltip-description">Scavenge the surface for ship debris and usable materials.</p>
+        <div class="tooltip-section"><h4>Reward</h4>
+            <p>Metal Parts: <span class="reward-amount">+2 to +5</span> (guaranteed)</p>
+            <p>Wire: <span class="reward-amount">+1 to +2</span> (25% chance)</p>
+            <p>Fabric: <span class="reward-amount">+1</span> (10% chance)</p>
+            <p>Chemicals: <span class="reward-amount">+1</span> (3% chance)</p>
+        </div>
+        <div class="tooltip-section"><p>Duration: 2.5s</p></div>
+    `);
+    manualButtons.appendChild(salvageVineaButton);
+
     manualCategory.appendChild(manualButtons);
     contentPanel.appendChild(manualCategory);
 
@@ -106,11 +133,15 @@ export function setupColonySection(colonySection) {
     const miningButtons = document.createElement('div');
     miningButtons.className = 'button-group';
     const quarry = buildings.find(b => b.name === 'Quarry');
-    rehydrateBuildingButton(createBuildingButton(quarry, miningButtons), quarry?.name);
+    if (quarry && quarry.isUnlocked) {
+        rehydrateBuildingButton(createBuildingButton(quarry, miningButtons), quarry?.name);
+    }
     const xylite = resources.find(r => r.name === 'Xylite');
     if (xylite && xylite.isDiscovered) {
         const ext = buildings.find(b => b.name === 'Extractor');
-        rehydrateBuildingButton(createBuildingButton(ext, miningButtons), ext?.name);
+        if (ext && ext.isUnlocked) {
+            rehydrateBuildingButton(createBuildingButton(ext, miningButtons), ext?.name);
+        }
     }
     // Add colony production buildings
     const productionBuildings = buildings.filter(b => 
@@ -178,7 +209,8 @@ export function setupColonySection(colonySection) {
 	
 	// --- Category 5: Science ---
     const laboratory = buildings.find(b => b.name === 'Laboratory');
-    if (laboratory && laboratory.isUnlocked) {
+    const fieldLab = buildings.find(b => b.name === 'Field Lab');
+    if ((laboratory && laboratory.isUnlocked) || (fieldLab && fieldLab.isUnlocked)) {
         const scienceHeader = document.createElement('h2');
         scienceHeader.textContent = 'Science';
         scienceHeader.className = 'section-header';
@@ -187,7 +219,12 @@ export function setupColonySection(colonySection) {
         scienceCategory.className = 'mining-category-container';
         const scienceButtons = document.createElement('div');
         scienceButtons.className = 'button-group';
-        rehydrateBuildingButton(createBuildingButton(laboratory, scienceButtons), laboratory.name);
+        if (fieldLab && fieldLab.isUnlocked) {
+            rehydrateBuildingButton(createBuildingButton(fieldLab, scienceButtons), fieldLab.name);
+        }
+        if (laboratory && laboratory.isUnlocked) {
+            rehydrateBuildingButton(createBuildingButton(laboratory, scienceButtons), laboratory.name);
+        }
         scienceCategory.appendChild(scienceButtons);
         contentPanel.appendChild(scienceCategory);
     }
@@ -294,4 +331,104 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
             setupColonySection(); 
         } catch (e) { /* ignore */ }
     });
+}
+
+function salvageVinea(event) {
+    // Prevent manual actions while paused
+    try {
+        if (localStorage.getItem('gamePaused') === 'true') {
+            addLogEntry('Cannot salvage while game is paused. Resume the game first.', LogType.INFO);
+            return;
+        }
+    } catch (e) { /* ignore localStorage errors */ }
+
+    if (isSalvagingOnCooldown) return;
+
+    isSalvagingOnCooldown = true;
+    const button = event.currentTarget;
+    button.disabled = true;
+
+    const bar = button.querySelector('.action-progress-bar');
+    const label = button.querySelector('.building-name');
+
+    if (bar) {
+        bar.style.transition = 'none';
+        bar.style.width = '0%';
+        void bar.offsetWidth;
+        bar.style.transition = '';
+    }
+
+    const duration = 2.5;
+    let elapsed = 0;
+    const progressInterval = setInterval(() => {
+        elapsed += 0.1;
+        const progress = Math.min((elapsed / duration) * 100, 100);
+        const remaining = Math.max(0, duration - elapsed);
+
+        if (bar) bar.style.width = `${progress}%`;
+        if (label) label.textContent = `${remaining.toFixed(1)}s`;
+
+        if (elapsed >= duration) {
+            clearInterval(progressInterval);
+            completeSalvageVinea(button, bar, label);
+        }
+    }, 100);
+}
+
+function addResourceClamped(resourceName, amount) {
+    const res = resources.find(r => r && r.name === resourceName);
+    if (!res) return 0;
+    const before = Number(res.amount) || 0;
+    const cap = Number(res.capacity);
+    const canCap = Number.isFinite(cap) ? cap : Number.POSITIVE_INFINITY;
+    const next = Math.min(before + (Number(amount) || 0), canCap);
+    res.amount = next;
+    return Math.max(0, next - before);
+}
+
+function completeSalvageVinea(button, bar, label) {
+    // Guaranteed Metal Parts (2-5)
+    const metalRoll = 2 + Math.floor(Math.random() * 4);
+    const gained = {
+        metal: addResourceClamped('Metal Parts', metalRoll),
+        wire: 0,
+        fabric: 0,
+        chem: 0,
+    };
+
+    // Lower chance of Wire (25%) (1-2)
+    if (Math.random() < 0.25) {
+        const wireRoll = 1 + Math.floor(Math.random() * 2);
+        gained.wire = addResourceClamped('Wire', wireRoll);
+    }
+
+    // Even lower chance of Fabric (10%) (1)
+    if (Math.random() < 0.10) {
+        gained.fabric = addResourceClamped('Fabric', 1);
+    }
+
+    // Very low chance of Chemicals (3%) (1)
+    if (Math.random() < 0.03) {
+        gained.chem = addResourceClamped('Chemicals', 1);
+    }
+
+    const parts = [];
+    if (gained.metal > 0) parts.push(`+${gained.metal} Metal Parts`);
+    if (gained.wire > 0) parts.push(`+${gained.wire} Wire`);
+    if (gained.fabric > 0) parts.push(`+${gained.fabric} Fabric`);
+    if (gained.chem > 0) parts.push(`+${gained.chem} Chemicals`);
+
+    if (parts.length) {
+        addLogEntry(`Salvaged Vinea-IV: ${parts.join(', ')}.`, LogType.ACTION);
+    } else {
+        addLogEntry('Salvage yielded nothing usable (storage may be full).', LogType.INFO);
+    }
+
+    updateResourceInfo();
+    try { refreshCurrentTooltip(); } catch (e) { /* ignore */ }
+
+    if (bar) bar.style.width = '0%';
+    if (label) label.textContent = 'Salvage Vinea-IV';
+    button.disabled = false;
+    isSalvagingOnCooldown = false;
 }

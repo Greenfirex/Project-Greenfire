@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Metal spear icon">
+  <defs>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e9eef2" stop-opacity="0.95"/>
+      <stop offset="0.55" stop-color="#9fb3c2" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#6a7c89" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="wrap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dff7df" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#7fe3aa" stop-opacity="0.25"/>
+    </linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d2a46d" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#8b5a2b" stop-opacity="0.85"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Card background (matches other item icons) -->
+  <rect x="10" y="10" width="108" height="108" rx="18" fill="rgba(0,0,0,0.35)" stroke="rgba(105,240,174,0.55)" stroke-width="2"/>
+
+  <!-- Shaft (wood) -->
+  <path d="M30 98 C44 84, 60 70, 76 54 C86 44, 96 36, 104 30" stroke="url(#wood)" stroke-width="12" stroke-linecap="round" fill="none"/>
+  <path d="M33 96 C47 82, 62 68, 78 52 C88 42, 98 34, 106 28" stroke="rgba(0,0,0,0.25)" stroke-width="5" stroke-linecap="round" fill="none"/>
+
+  <!-- Wrap/binding near the head -->
+  <path d="M74 60 C78 56, 82 52, 86 48" stroke="url(#wrap)" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <path d="M72 62 C76 58, 80 54, 84 50" stroke="rgba(0,0,0,0.25)" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+  <!-- Spearhead (steel) -->
+  <path d="M103 31 L112 38 L98 52 L90 44 Z" fill="url(#steel)" stroke="rgba(0,0,0,0.35)" stroke-width="1"/>
+  <path d="M103 31 L108 36 L97 47 L92 42 Z" fill="rgba(255,255,255,0.22)"/>
+
+  <!-- Tip highlight -->
+  <circle cx="111" cy="38" r="4" fill="rgba(255,255,255,0.20)"/>
+
+  <!-- Subtle inner glow -->
+  <path d="M28 98 C42 88, 56 78, 70 66" stroke="rgba(255,255,255,0.10)" stroke-width="6" stroke-linecap="round" fill="none"/>
+</svg>

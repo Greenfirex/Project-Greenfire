@@ -2,6 +2,8 @@ import { saveGameState } from '../core/saveload.js';
 import { getIngameTimeString, getTotalIngameMinutes } from '../core/time.js';
 import { setupTooltip } from './panels/tooltip.js';
 import { getCurrentWeather } from '../data/weather.js';
+import { getConfirmOnLoad, getConfirmOnReset } from '../core/settings.js';
+import { showConfirmPopup } from './panels/confirmPopup.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -43,8 +45,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     if (resetButton) {
-        resetButton.addEventListener('click', () => {
-            if (confirm("Are you sure you want to reset your progress? This cannot be undone.")) {
+        resetButton.addEventListener('click', async () => {
+            const needsConfirm = getConfirmOnReset();
+            const ok = !needsConfirm || await showConfirmPopup({
+                title: 'Reset Progress',
+                message: 'Are you sure you want to reset your progress? This cannot be undone.',
+                confirmText: 'Reset',
+                cancelText: 'Cancel'
+            });
+            if (ok) {
                 localStorage.setItem('isResetting', 'true');
                 location.reload();
             }
@@ -59,10 +68,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (loadLink) {
         loadLink.addEventListener('click', (e) => {
             e.preventDefault();
-            if (confirm("Are you sure you want to load your last save? Any unsaved progress will be lost.")) {
-                localStorage.removeItem('isResetting');
-                location.reload();
-            }
+            (async () => {
+                const needsConfirm = getConfirmOnLoad();
+                const ok = !needsConfirm || await showConfirmPopup({
+                    title: 'Load Last Save',
+                    message: 'Load your last save? Any unsaved progress will be lost.',
+                    confirmText: 'Load',
+                    cancelText: 'Cancel'
+                });
+                if (ok) {
+                    localStorage.removeItem('isResetting');
+                    location.reload();
+                }
+            })();
         });
     }
 

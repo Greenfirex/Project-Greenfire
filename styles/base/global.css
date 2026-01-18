@@ -45,6 +45,11 @@ body.glow-disabled * {
     box-shadow: none !important;
 }
 
+/* Reduce motion: keep the glow styling, but stop pulsing animations. */
+body.reduce-motion * {
+    animation: none !important;
+}
+
 /* Universal font style */
 * {
     font-family: 'Roboto Mono', monospace;

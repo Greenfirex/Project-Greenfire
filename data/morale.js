@@ -76,6 +76,21 @@ export function getMorale() {
         }
     }
 
+    // Stockpiling resources adds a temporary +10% for 5 (in-game) days (flat, not decaying)
+    if (gameFlags && gameFlags.stockpileMoraleBoostActive) {
+        if (!gameFlags.stockpileMoraleBoostStartMinutes) {
+            try { gameFlags.stockpileMoraleBoostStartMinutes = getTotalIngameMinutes(); } catch (e) {}
+        }
+        const d3 = daysSinceMinutes(gameFlags.stockpileMoraleBoostStartMinutes);
+        const remainingDays3 = Math.max(0, 5 - d3);
+        if (remainingDays3 <= 0) {
+            try { gameFlags.stockpileMoraleBoostActive = false; } catch (e) {}
+        } else {
+            percent += 10;
+            sources.push({ id: 'stockpile', label: 'Stockpile Secured', deltaPercent: +10, remainingDays: Number(remainingDays3.toFixed(1)) });
+        }
+    }
+
     // Hunger: Food depleted => -20%
     try {
         const food = resources.find(r => r.name === 'Food Rations');

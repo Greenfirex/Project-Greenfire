@@ -38,6 +38,14 @@ export const items = [
         stats: { damage: 2, attackSpeed: 0.1 }
     },
     {
+        id: 'metal_spear',
+        name: 'Metal Spear',
+        slot: 'weapon',
+        icon: 'assets/images/items/metal_spear.svg',
+        // Slightly better than Spiked Branch
+        stats: { damage: 3, attackSpeed: 0.1 }
+    },
+    {
         id: 'stimpack',
         name: 'Stimpack',
         slot: 'consumable',

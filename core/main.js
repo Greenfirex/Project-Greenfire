@@ -19,7 +19,7 @@ import { initTimeManager, startTimeManager } from './time.js';
 import { loadGameState, resetToDefaultState, saveGameState } from './saveload.js';
 import { showStoryPopup } from '../ui/panels/popup.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
-import { initOptions, setGlowColor, setActiveGlowColor, setGlowIntensity, shouldRunInBackground } from './settings.js';
+import { initOptions, setGlowColor, setGlowIntensity, shouldRunInBackground } from './settings.js';
 import { recomputeObjectives } from '../data/objectives.js';
 import { initFooter, getIsPaused, pauseGame, resumeGame, registerMainLoopCallbacks } from '../ui/footer.js';
 import '../ui/header.js';
@@ -118,11 +118,8 @@ function startGame() {
     initTimeManager(false);
     const savedColor = localStorage.getItem('glowColor') || 'green';
     setGlowColor(savedColor);
-    const savedIntensity = localStorage.getItem('glowIntensity') || 1;
+    const savedIntensity = localStorage.getItem('glowIntensity') || 70;
     setGlowIntensity(savedIntensity);
-
-    const savedActiveColor = localStorage.getItem('activeGlowColor') || 'green';
-    setActiveGlowColor(savedActiveColor);
     const isResetting = localStorage.getItem('isResetting');
     if (!isResetting) {
         loadGameState();
@@ -422,41 +419,11 @@ export function checkConditions() {
         gameFlags.hasReached15ScrapMetal = true;
     }
 
-    // Unlock Xylite resource once enough crystal has been gathered
-    if (crystal && xylite) {
-        if (crystal.amount >= 5 && !xylite.isDiscovered) {
-            xylite.isDiscovered = true;
-            updateResourceInfo();
-            setupColonySection();
-            showStoryPopup(storyEvents.unlockXylite);
-            addLogEntry('A crystalline anomaly has been detected. (Click to read)', LogType.STORY, {
-                onClick: () => showStoryPopup(storyEvents.unlockXylite)
-            });
-        }
-    }
+    // Legacy Xylite auto-unlock disabled: we'll use a different unlock method.
     
-    // Unlock Laboratory building once enough crystal has been gathered
-    const laboratory = buildings.find(b => b.name === 'Laboratory');
-    if (crystal && laboratory && crystal.amount >= 10 && !laboratory.isUnlocked) {
-        laboratory.isUnlocked = true;
-        setupColonySection();
-        showStoryPopup(storyEvents.unlockResearch);
-        addLogEntry('A glimmer of insight has been recorded. (Click to read)', LogType.STORY, {
-            onClick: () => showStoryPopup(storyEvents.unlockResearch)
-        });
-        addLogEntry('The ability to construct a Laboratory has been unlocked!', LogType.UNLOCK);
-    }
+    // Legacy Laboratory auto-unlock disabled: we'll use a different unlock method.
 
-    // Unlock Manufacturing section once enough crystal has been gathered
-    const manufacturingButton = document.querySelector('.menu-button[data-section="manufacturingSection"]');
-    if (crystal && manufacturingButton) {
-        if (crystal.amount >= 20 && !activatedSections['manufacturingSection']) {
-            manufacturingButton.classList.remove('hidden');
-            addLogEntry('New menu section activated: Manufacturing', LogType.UNLOCK);
-            activatedSections['manufacturingSection'] = true;
-            applyActivatedSections();
-        }
-    }
+    // Legacy Manufacturing auto-unlock disabled: we'll use a different unlock method.
 }
 
 // Tooltip implementation moved to tooltip.js (imports at top of file)

@@ -10,7 +10,9 @@ import { getMorale } from '../data/morale.js';
 export function getInitialResources() {
     return [
         { name: 'Health', amount: 65, isDiscovered: true, capacity: 100, producible: false, integer: true },
-        { name: 'Stamina', amount: 70, isDiscovered: true, capacity: 100, producible: false, integer: true },
+        // Hidden from the resource info panel (stamina is managed via Character/Combat),
+        // but still used by action drains and character vitals.
+        { name: 'Stamina', amount: 70, isDiscovered: true, capacity: 100, producible: false, integer: true, hidden: true },
         // Meta progression resource (hidden from info panel)
         { name: 'XP', amount: 0, isDiscovered: true, capacity: 9000000000, producible: false, integer: true, hidden: true },
         { name: 'Survivors', amount: 0, isDiscovered: false, capacity: 20, producible: false, integer: true },
@@ -55,10 +57,13 @@ const RESOURCE_CATEGORIES = {
     'Fabric': 'Materials',
     'Chemicals': 'Materials',
 
+    // Treat gathered crystals as materials (not science) for the new progression path
+    'Crystal': 'Materials',
+    'Xylite': 'Materials',
+
     // Exploration / research
-    'Insight': 'Science',
-    'Crystal': 'Science',
-    'Xylite': 'Science',
+    // Insight is effectively a core progression currency; keep it visible near vitals.
+    'Insight': 'Essential',
     'Helion-3 Concentrate': 'Science',
     'Cygnium Ore': 'Science',
     'Sentient Mycelium': 'Science',
@@ -155,6 +160,24 @@ export function computeResourceRates(resourceName) {
             activeDrainRate = drainInfo.amount / effectiveDuration;
         }
     }
+
+    // Stamina regeneration:
+    // - Chapter 1: +1/s once Base Camp is established, but only when not actively draining stamina.
+    // - Chapter 2+: +1/s always (resting becomes optional once Colony unlocks / Crash Site closes).
+    try {
+        const isChapter2OrLater =
+            (gameFlags && Number(gameFlags.chapter) >= 2) ||
+            (typeof window !== 'undefined' && window.activatedSections && window.activatedSections.colonySection);
+
+        if (resourceName === 'Stamina') {
+            if (isChapter2OrLater) {
+                totalProduction += 1;
+            } else if (activeDrainRate <= 1e-9 && gameFlags && gameFlags.baseCampEstablished) {
+                totalProduction += 1;
+            }
+        }
+    } catch (e) { /* ignore */ }
+
     const totalConsumption = passiveConsumption + activeDrainRate;
 
     // (building passive effects were already included above in `baseProduction`)

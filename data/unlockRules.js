@@ -4,10 +4,19 @@
 /**
  * Determine if an action is blocked and provide a reason string.
  * @param {string} actionId
- * @param {{ actions: Array<{id:string,name?:string,completed?:boolean,stage?:number,stages?:any[],isUnlocked?:boolean}> }} state
+ * @param {{ actions: Array<{id:string,name?:string,completed?:boolean,stage?:number,stages?:any[],isUnlocked?:boolean}>, flags?: any, gameFlags?: any, characterState?: any, character?: any }} state
  * @returns {{ blocked: boolean, reason: string }}
  */
 export function getBlockedStatus(actionId, state) {
+    // Crafting uniques: avoid producing duplicates.
+    if (actionId === 'craftMetalSpear') {
+        const ch = (state && (state.characterState || state.character)) || null;
+        const equippedWeapon = ch && ch.equipment ? ch.equipment.weapon : null;
+        const bag = (ch && Array.isArray(ch.bag)) ? ch.bag : [];
+        const hasMetalSpear = equippedWeapon === 'metal_spear' || bag.some(v => v === 'metal_spear');
+        if (hasMetalSpear) return { blocked: true, reason: 'You already have a Metal Spear.' };
+    }
+
     const BLOCKED_ACTION_IDS = ['searchSouthCorridor', 'searchNorthCorridor', 'investigateBridge', 'searchPowerCore'];
     if (!BLOCKED_ACTION_IDS.includes(actionId)) return { blocked: false, reason: '' };
 
@@ -62,15 +71,24 @@ export function evaluateEventUnlocks(event, state) {
     const result = { actions: [], buildings: [], sections: [], jobs: [] };
     if (!event || !state) return result;
 
-    // Rule: when both Fabric and Chemicals are discovered, unlock Assemble Makeshift Explosive
+    // Rule: unlock Assemble Makeshift Explosive only after the player learns it's needed
+    // (Power Core access is locked without explosives) AND all required input resources are discovered.
     if (event.type === 'resourceDiscovered') {
     const res = (state.resources || []);
-    const hasFabric = !!res.find(r => r && r.name === 'Fabric' && (r.isDiscovered || (r.amount || 0) > 0));
     const hasChem = !!res.find(r => r && r.name === 'Chemicals' && (r.isDiscovered || (r.amount || 0) > 0));
+    const hasMetal = !!res.find(r => r && r.name === 'Metal Parts' && (r.isDiscovered || (r.amount || 0) > 0));
+    const hasWire = !!res.find(r => r && r.name === 'Wire' && (r.isDiscovered || (r.amount || 0) > 0));
         const buildings = Array.isArray(state.buildings) ? state.buildings : [];
         const waterStation = buildings.find(b => b && b.name === 'Water Station');
-        if (hasFabric && hasChem) {
-            const actions = (state.actions || []);
+
+        // Power Core "need" signal: if the player has advanced the Power Core action past stage 0,
+        // they have discovered the locked access and know explosives will be required.
+        const actions = (state.actions || []);
+        const powerCore = actions.find(a => a && a.id === 'searchPowerCore');
+        const powerCoreStage = powerCore && Number.isFinite(powerCore.stage) ? powerCore.stage : 0;
+        const knowsExplosivesAreNeeded = powerCoreStage >= 1;
+
+        if (knowsExplosivesAreNeeded && hasChem && hasMetal && hasWire) {
             const assemble = actions.find(a => a && a.id === 'assembleMakeshiftExplosive');
             // Don't re-unlock if already used 3 times
             const hasReachedLimit = assemble && typeof assemble.uses === 'number' && typeof assemble.maxUses === 'number' && assemble.uses >= assemble.maxUses;
@@ -80,6 +98,7 @@ export function evaluateEventUnlocks(event, state) {
         }
         
         // Rule: when BOTH Chemicals and Fabric are discovered, unlock Install Purification Unit upgrade
+        const hasFabric = !!res.find(r => r && r.name === 'Fabric' && (r.isDiscovered || (r.amount || 0) > 0));
         if (hasChem && hasFabric) {
             const actions = (state.actions || []);
             const purificationUnit = actions.find(a => a && a.id === 'installPurificationUnit');

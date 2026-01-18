@@ -509,6 +509,15 @@ export function recomputeObjectives() {
                 }
                 // After stockpiling resources, check if both prerequisites are complete
                 if (def.id === 'obj_hoard_supplies') {
+                    // Morale boost: +10% for 5 in-game days
+                    try {
+                        if (!gameFlags.stockpileMoraleBoostActive) {
+                            gameFlags.stockpileMoraleBoostActive = true;
+                            gameFlags.stockpileMoraleBoostStartMinutes = getTotalIngameMinutes();
+                            addLogEntry('Morale boosted: +10% for 5 days (stockpiles secured).', LogType.UNLOCK);
+                        }
+                    } catch {}
+
                     // Show dedicated stockpile completion story
                     try {
                         const evtStock = storyEvents.stockpile_resources_secured;
@@ -624,6 +633,19 @@ export function recomputeObjectives() {
                 upsertStatus('obj_investigate_smoke', 'active');
                 addLogEntry('New objective (fallback): Investigate distant smoke', LogType.UNLOCK);
                 didChange = true;
+            }
+        }
+    } catch {}
+
+    // Compatibility: if Stockpile resources is already completed in saved objectives, but the morale timer
+    // flags weren't present (older saves), initialize from the objective's doneAt timestamp.
+    try {
+        const stock = status.find(s => s && s.id === 'obj_hoard_supplies');
+        if (stock && stock.state === 'completed') {
+            const hasStart = Number(gameFlags?.stockpileMoraleBoostStartMinutes) > 0;
+            if (!hasStart && Number(stock.doneAt) > 0) {
+                gameFlags.stockpileMoraleBoostActive = true;
+                gameFlags.stockpileMoraleBoostStartMinutes = Number(stock.doneAt);
             }
         }
     } catch {}

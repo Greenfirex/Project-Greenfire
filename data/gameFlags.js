@@ -6,6 +6,8 @@ import { getTotalIngameMinutes } from '../core/time.js';
 import { resources } from '../core/resources.js';
 
 const initialGameFlags = {
+    // Narrative chapter marker (1 = Crash Site, 2 = Colony)
+    chapter: 1,
     // set true once the salvaged cooking equipment is installed
     cafeteriaCookerInstalled: false,
     // set true once tents at base camp are installed
@@ -25,6 +27,9 @@ const initialGameFlags = {
     crashlandedStartMinutes: 0,
     baseCampEstablished: false,
     baseCampBoostStartMinutes: 0,
+    // Objective reward: Stockpile resources morale boost (+10% for 5 in-game days)
+    stockpileMoraleBoostActive: false,
+    stockpileMoraleBoostStartMinutes: 0,
     // Engineering/state flags
     emergencyPowerRestored: false,
     // Upgrades
@@ -287,7 +292,8 @@ registerActionCompletionHandler('checkCaptainsQuarters', () => {
     
     // Hide Chapter I-specific resources that are no longer needed
     try {
-        const obsoleteResources = ['Stamina', 'Crude Prybar', 'Makeshift Explosive'];
+        // NOTE: Stamina remains used by Character/Combat in Chapter 2+ (it is already hidden from the info panel elsewhere).
+        const obsoleteResources = ['Crude Prybar', 'Makeshift Explosive'];
         for (const name of obsoleteResources) {
             const r = (resources || []).find(res => res && res.name === name);
             if (r) {

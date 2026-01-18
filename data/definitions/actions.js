@@ -275,9 +275,42 @@ const initialSalvageActions = [
                 stages: [
                     {
                         story: 'basecamp_established', // matches new storyEvents entry
-                        unlocks: [],
+                        unlocks: ['craftMetalSpear'],
                         logText: 'You establish a small base camp. Survivors can be organized here. (Click to read)',
                         suppressGenericLog: true
+                    }
+                ]
+            },
+
+            {
+                id: 'craftMetalSpear',
+                name: 'Craft Metal Spear',
+                description: 'Use salvaged metal and wire to craft a sturdy spear — better than improvised weapons.',
+                duration: 5,
+                category: 'Crafting',
+                isUnlocked: false,
+                cancelable: true,
+                repeatable: true,
+                showUnlocks: false,
+                cost: [
+                    { resource: 'Metal Parts', amount: 12 },
+                    { resource: 'Wire', amount: 4 }
+                ],
+                drain: [
+                    { resource: 'Stamina', amount: 12 },
+                    { resource: 'Food Rations', amount: 3 },
+                    { resource: 'Clean Water', amount: 3 }
+                ],
+                reward: [],
+                hideRewardPreview: true,
+                stage: 0,
+                stages: [
+                    {
+                        story: null,
+                        unlocks: [],
+                        grantItems: ['metal_spear'],
+                        grantItemsPreferEquip: true,
+                        logText: 'You lash a sharpened metal head onto a reinforced shaft. It feels balanced and reliable.'
                     }
                 ]
             },
@@ -289,6 +322,9 @@ const initialSalvageActions = [
             duration: 12,
             category: 'Exploration',
             isUnlocked: false,
+            // Spoiler-free: keep the "?" badge until the player discovers the encounter (retreat/lose).
+            spoilerFreeEncounter: true,
+            encounterDiscovered: false,
             cancelable: true,
             drain: [
                 { resource: 'Stamina', amount: 40 },
@@ -300,10 +336,11 @@ const initialSalvageActions = [
             stage: 0,
             stages: [
                 {
-                    story: 'south_corridor_entry',
+                    story: 'south_corridor_drone',
+                    encounter: 'maintenance_drone_south_corridor',
                     // completing south corridor should allow restoring emergency power
                     unlocks: ['exploreCafeteria', 'checkCrewQuarters'],
-                    logText: 'You push through a buckled corridor and gain access to several side compartments — a mess hall and crew quarters lie ahead. Explore them to learn more. (Click to read)',
+                    logText: 'A damaged maintenance drone ambushes you in the south corridor. After the fight, you push through to a junction leading to the mess hall and crew quarters. (Click to read)',
                     suppressGenericLog: true
                 }
             ]
@@ -429,7 +466,9 @@ const initialSalvageActions = [
             isUnlocked: false,
             cancelable: true,
             drain: [
-                { resource: 'Stamina', amount: 30 }
+                { resource: 'Stamina', amount: 30 },
+                { resource: 'Food Rations', amount: 14 },
+                { resource: 'Clean Water', amount: 16 }
             ],
             reward: [
                  { resource: 'Survivors', amount: 1 }

@@ -34,6 +34,31 @@ export const combatEncounters = [
             simSpeed: 0.25,
         },
     },
+    {
+        id: 'maintenance_drone_south_corridor',
+        name: 'Haywire Maintenance Drone',
+        description: 'A damaged maintenance unit drops from a ceiling rail, optics flaring red as it locks onto you.',
+        enemy: {
+            // Slightly tougher than early wildlife; tuned for post-entry ship exploration.
+            maxHp: 60,
+            hitChance: 82,
+            portrait: 'assets/images/enemies/maintenance_drone.svg',
+            portraitScale: 0.9,
+            stats: {
+                hitChance: 82,
+                critChance: 3,
+                evasion: 4,
+                armor: 2,
+                damageMin: 2,
+                damageMax: 4,
+                // seconds per attack
+                attackSpeed: 1.05,
+            },
+        },
+        rules: {
+            blocksProgress: true,
+        },
+    },
 ];
 
 export function getCombatEncounter(id) {

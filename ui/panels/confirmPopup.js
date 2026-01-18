@@ -135,6 +135,15 @@ export function showConfirmPopup({
     overlay.style.display = '';
     try { window.dispatchEvent(new CustomEvent('popup-open')); } catch (e) { /* ignore */ }
 
+    // Ensure the message is visible even if a previous confirm was scrolled.
+    try {
+        const bodyEl = overlay.querySelector('.story-popup-body');
+        if (bodyEl) {
+            bodyEl.scrollTop = 0;
+            bodyEl.scrollLeft = 0;
+        }
+    } catch (e) { /* ignore */ }
+
     overlay.setAttribute('tabindex', '-1');
     try { overlay.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
 

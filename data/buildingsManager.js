@@ -145,12 +145,12 @@ function applyFirstBuildSideEffects(building) {
       }
     }
   }
-  if (building.name === 'Laboratory' && building.count === 1) {
+  if (building.name === 'Field Lab' && building.count === 1) {
     if (!activatedSections.researchSection) {
       activatedSections.researchSection = true;
       setActivatedSections(activatedSections);
       applyActivatedSections();
-      addLogEntry('The first Laboratory is operational. Research is now available.', LogType.UNLOCK);
+      addLogEntry('The first Field Lab is operational. Research is now available.', LogType.UNLOCK);
     }
   }
 }

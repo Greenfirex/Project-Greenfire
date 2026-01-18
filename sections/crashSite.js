@@ -101,7 +101,7 @@ function attachStartClickHandler(btn, action, section) {
             addLogEntry(capReason, LogType.INFO);
             return;
         }
-    const block = getBlockedStatus(action.id, { actions: salvageActions, flags: gameFlags });
+    const block = getBlockedStatus(action.id, { actions: salvageActions, flags: gameFlags, characterState });
         if (block.blocked) {
             e.preventDefault();
             addLogEntry(block.reason, LogType.INFO);
@@ -212,12 +212,37 @@ export function setupCrashSiteSection(section) {
             return (st && st.encounter) || a.encounter || null;
         };
 
+        const shouldShowUnknownOutcomeBadgeNow = (a, encounterId = null) => {
+            if (!a) return false;
+            const idx = a.stage || 0;
+            const st = (a.stages || [])[idx];
+            // Allow explicit opt-in on either the action or the current stage,
+            // but also cover existing exploration "Search:" actions by default.
+            if (st && st.unknownOutcome === true) return true;
+            if (a.unknownOutcome === true) return true;
+
+            // Spoiler-free encounter: show "?" until the encounter is discovered.
+            const spoilerFree = !!((st && st.spoilerFreeEncounter === true) || a.spoilerFreeEncounter === true);
+            const discovered = !!(a.encounterDiscovered === true);
+            if (encounterId && spoilerFree && !discovered) return true;
+
+            const name = String(a.name || '');
+            return (a.category === 'Exploration') && name.startsWith('Search:');
+        };
+
         const swordsIcon = () => (
             `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                 <path d="M6 18L18 6" />
                 <path d="M4 16L8 20" />
                 <path d="M18 18L6 6" />
                 <path d="M20 16L16 20" />
+            </svg>`
+        );
+
+        const questionIcon = () => (
+            `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M9 8.8a3.2 3.2 0 0 1 6.4 0c0 2.9-3.2 2.7-3.2 5.2" />
+                <circle cx="12" cy="17.2" r="1.2" fill="currentColor" stroke="none" />
             </svg>`
         );
 
@@ -244,12 +269,22 @@ export function setupCrashSiteSection(section) {
         btn.classList.remove('running', 'confirm-cancel');
 
         const encounterId = getEncounterIdForActionNow(action);
-        btn.classList.toggle('action-has-combat', !!encounterId);
+        const idxNow = action.stage || 0;
+        const stNow = (action.stages || [])[idxNow];
+        const spoilerFreeEncounter = !!((stNow && stNow.spoilerFreeEncounter === true) || action.spoilerFreeEncounter === true);
+        const encounterKnown = !spoilerFreeEncounter || !!(action.encounterDiscovered === true);
+
+        const showCombatBadge = !!encounterId && encounterKnown;
+        const showUnknownBadge = shouldShowUnknownOutcomeBadgeNow(action, encounterId) && !showCombatBadge;
+
+        btn.classList.toggle('action-has-combat', !!showCombatBadge);
+        btn.classList.toggle('action-has-unknown', !!showUnknownBadge);
         btn.innerHTML = `
             <div class="action-progress-bar"></div>
             <span class="building-name">${action.name}</span>
             ${action.uiNew ? '<span class="action-new-badge" aria-hidden="true">!</span>' : ''}
-            ${encounterId ? `<span class="action-combat-badge" aria-hidden="true">${swordsIcon()}</span>` : ''}
+            ${showCombatBadge ? `<span class="action-combat-badge" aria-hidden="true">${swordsIcon()}</span>` : ''}
+            ${showUnknownBadge ? `<span class="action-unknown-badge" aria-hidden="true">${questionIcon()}</span>` : ''}
             <span class="cancel-text">Abort?</span>
         `;
 
@@ -322,7 +357,9 @@ export function setupCrashSiteSection(section) {
     });
 
     // Only show Construction section if Colony section is not unlocked
-    const colonyUnlocked = gameFlags.colonySection === true;
+    const colonyUnlocked =
+        (gameFlags && Number(gameFlags.chapter) >= 2) ||
+        (typeof window !== 'undefined' && window.activatedSections && window.activatedSections.colonySection);
     if (!colonyUnlocked) {
         const constructionWrapper = document.createElement('div');
         constructionWrapper.style.marginTop = '18px';
@@ -594,6 +631,13 @@ async function handleActionCompletion(section) {
                 const result = await showCombatPopup(encounterId, { sourceActionId: originalForEncounter.id, stageIndex });
                 encounterOutcomeForCompletion = result?.outcome || null;
                 if (!result || result.outcome !== 'win') {
+                    // Spoiler-free encounters become "known combat" after the player experiences them.
+                    try {
+                        const spoilerFree = !!((st && st.spoilerFreeEncounter === true) || originalForEncounter.spoilerFreeEncounter === true);
+                        if (spoilerFree && (result?.outcome === 'retreat' || result?.outcome === 'lose')) {
+                            originalForEncounter.encounterDiscovered = true;
+                        }
+                    } catch { /* non-fatal */ }
                     // Clear active action and refresh the crash site UI so the action can be restarted.
                     setActiveCrashSiteAction(null);
                     try {
@@ -889,7 +933,8 @@ async function handleActionCompletion(section) {
         if (typeof updateCrashSiteActionButtonsState === 'function') updateCrashSiteActionButtonsState();
     }
 
-    // Check for unlocks triggered by resource discovery (e.g., assembleMakeshiftExplosive when both Fabric and Chemicals are discovered)
+    // Check for unlocks triggered by resource discovery / narrative gates.
+    // Example: assembleMakeshiftExplosive only unlocks after Power Core is found locked AND required inputs are discovered.
     // We do this BEFORE showing the story popup so these unlocks appear in the popup's "New Actions" list
     try {
         const unlockRuleActions = evaluateEventUnlocks({ type: 'resourceDiscovered' }, { resources, actions: salvageActions, buildings });
@@ -1019,7 +1064,7 @@ export function updateCrashSiteActionButtonsState() {
         if (!action) return;
 
         const canAfford = !!canAffordAction(action, resources);
-    const { blocked: isBlocked, reason } = getBlockedStatus(action.id, { actions: salvageActions, flags: gameFlags });
+    const { blocked: isBlocked, reason } = getBlockedStatus(action.id, { actions: salvageActions, flags: gameFlags, characterState });
         const capReason = getCapacityBlockReason(action);
         const isCapBlocked = !!capReason;
 

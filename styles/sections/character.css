@@ -14,11 +14,10 @@
     padding: 20px;
     box-sizing: border-box;
 
-    /* No dedicated background art yet; use a subtle, consistent gradient so the padding reads. */
-    background:
-        radial-gradient(circle at 50% 18%, rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10), rgba(0,0,0,0) 55%),
-        radial-gradient(circle at 20% 70%, rgba(255,255,255,0.04), rgba(0,0,0,0) 45%),
-        rgba(0,0,0,0);
+    background-image: url('../../assets/images/inventorybackground.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 
     /* Shared slot sizing (bag + equipment) so drag previews feel consistent */
     --inv-slot-w: clamp(92px, 11vw, 132px);

@@ -341,7 +341,7 @@ function buildTooltipHTML(data) {
 
         // If the action is currently blocked, surface the reason prominently
         try {
-            const block = getBlockedStatus(data.id, { actions: salvageActions, flags: gameFlags });
+            const block = getBlockedStatus(data.id, { actions: salvageActions, flags: gameFlags, characterState });
             if (block && block.blocked) {
                 const reason = String(block.reason || 'Currently unavailable').trim();
                 html += `<div class="tooltip-section"><h4>Requirements</h4><p style="color:#ff6b6b;margin-left:0">${reason}</p></div>`;

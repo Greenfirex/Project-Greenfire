@@ -9,7 +9,7 @@ const initialBuildings = [
         costMultiplier: 1.15, // Costs 15% more each time
         description: 'Construct a Quarry to begin automatic Crystal extraction.',
 
-        isUnlocked: true 
+        isUnlocked: false 
     },
     {
         name: 'Extractor',
@@ -52,6 +52,18 @@ const initialBuildings = [
         description: 'A basic facility that generates Insight required for scientific research.',
 
         isUnlocked: false
+    },
+    {
+        name: 'Field Lab',
+        produces: 'Insight',
+        rate: 0.08,
+        count: 0,
+        cost: [{ resource: 'Crystal', amount: 5 }],
+        costMultiplier: 1.32,
+        description: 'A compact research station assembled in the field. Generates Insight and unlocks Research once built.',
+
+        // Available as soon as the Colony section is accessible.
+        isUnlocked: true
     },
 
     // For Crash Site builds (locked until survivors are found / investigateSound completes)

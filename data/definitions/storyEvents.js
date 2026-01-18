@@ -111,6 +111,16 @@ south_corridor_entry: {
     ]
 },
 
+south_corridor_drone: {
+    title: 'South Corridor — Hostile Maintenance Unit',
+    pages: [
+        "Halfway down the south corridor something clanks above you. A maintenance drone — scorched, missing panels — drops from a ceiling rail and skitters forward on sparking actuators. Its optic blooms a hard red and a warning tone repeats in clipped bursts.",
+        "It does not hesitate. The unit surges into you with a cutter arm and a puncture spike, executing a containment routine as if you were a ruptured hazard or an intruder. You disable it the only way you can: with brute force and whatever weapon you have in hand.",
+        "Afterward you pry open its access panel. The diagnostic display is a mess of crash corruption: its IFF registry is blank, its mission queue is stuck on 'BREACH CONTAINMENT', and every unknown heat signature is flagged as hostile. The drone wasn't defending territory — it was still trying to do its job, just with its safeguards shattered.",
+        "With the threat silent, you push through the buckled corridor to a junction. Two compartments open off the hall: a mess hall and the crew quarters. If anything useful survived the crash, it will be in there."
+    ]
+},
+
 south_explore_cafeteria: {
     title: 'Mess Hall — Supplies and Survivors',
     pages: [

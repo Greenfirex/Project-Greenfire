@@ -1,6 +1,4 @@
-import { setNotation } from './formatting.js';
 import { saveGameState } from './saveload.js';
-import { exportSaveToClipboard, importSaveFromText } from './saveload.js';
 import { LogType, updateLogSettings } from './ingameLog.js';
 
 // A single, unified map for all color options
@@ -9,6 +7,12 @@ const colorMap = {
     blue:   '64, 196, 255',
     purple: '171, 71, 188',
     gold:   '255, 215, 0',
+    cyan:   '0, 229, 255',
+    teal:   '29, 233, 182',
+    orange: '255, 179, 0',
+    red:    '255, 82, 82',
+    pink:   '255, 79, 216',
+    lime:   '198, 255, 0',
     white:  '224, 224, 224',
     black:  '0, 0, 0'
 };
@@ -17,10 +21,41 @@ const EXPORT_ENCRYPT_KEY = 'options.exportEncryptDefault';
 
 const COMBAT_START_PAUSED_KEY = 'options.combatStartPaused';
 
+const REDUCE_MOTION_KEY = 'options.reduceMotion';
+const CONFIRM_LOAD_KEY = 'options.confirmBeforeLoad';
+const CONFIRM_RESET_KEY = 'options.confirmBeforeReset';
+
 export function getCombatStartPaused() {
     try {
         const raw = localStorage.getItem(COMBAT_START_PAUSED_KEY);
         // Default to true (safer for new players).
+        return raw === null ? true : !!JSON.parse(raw);
+    } catch (e) {
+        return true;
+    }
+}
+
+export function getReduceMotionEnabled() {
+    try {
+        const raw = localStorage.getItem(REDUCE_MOTION_KEY);
+        return raw === null ? false : !!JSON.parse(raw);
+    } catch (e) {
+        return false;
+    }
+}
+
+export function getConfirmOnLoad() {
+    try {
+        const raw = localStorage.getItem(CONFIRM_LOAD_KEY);
+        return raw === null ? true : !!JSON.parse(raw);
+    } catch (e) {
+        return true;
+    }
+}
+
+export function getConfirmOnReset() {
+    try {
+        const raw = localStorage.getItem(CONFIRM_RESET_KEY);
         return raw === null ? true : !!JSON.parse(raw);
     } catch (e) {
         return true;
@@ -68,6 +103,11 @@ export function setGlowColor(colorName) {
     document.body.style.setProperty('--glow-g', g);
     document.body.style.setProperty('--glow-b', b);
 
+    // Keep the "active" glow color in sync with the main UI glow.
+    document.body.style.setProperty('--active-glow-r', r);
+    document.body.style.setProperty('--active-glow-g', g);
+    document.body.style.setProperty('--active-glow-b', b);
+
     localStorage.setItem('glowColor', colorName);
     
     // --- Update the visual indicator ---
@@ -89,24 +129,9 @@ export function setGlowColor(colorName) {
 }
 
 export function setActiveGlowColor(colorName) {
-    const rgb = colorMap[colorName];
-    if (!rgb) { return; }
-
-    const [r, g, b] = rgb.split(', ');
-    document.body.style.setProperty('--active-glow-r', r);
-    document.body.style.setProperty('--active-glow-g', g);
-    document.body.style.setProperty('--active-glow-b', b);
-
-    localStorage.setItem('activeGlowColor', colorName);
-
-    // --- Update the visual indicator ---
-    const swatches = document.querySelectorAll('#activeButtonColorPicker .color-swatch');
-    swatches.forEach(swatch => {
-        swatch.classList.remove('selected');
-        if (swatch.dataset.color === colorName) {
-            swatch.classList.add('selected');
-        }
-    });
+    // Legacy API: active glow is no longer separately configurable.
+    // Keep compatibility by mapping this to the main glow color.
+    setGlowColor(colorName);
 }
 
 /**
@@ -114,15 +139,23 @@ export function setActiveGlowColor(colorName) {
  * @param {number} intensity - The opacity value from 0 to 1.
  */
 export function setGlowIntensity(intensity) {
-    // Opacity is capped at 1 (100%)
-    const opacity = Math.min(intensity, 1);
-    // The spread multiplier can go up to 2 (200%)
-    const spreadMultiplier = intensity;
+    let raw = Number.parseFloat(intensity);
+    if (!Number.isFinite(raw)) raw = 70;
+
+    // Back-compat: older saves used 0..2. Convert roughly to 0..100.
+    if (raw <= 2.0001) raw = raw * 50;
+
+    const value = Math.max(0, Math.min(100, raw));
+    const t = value / 100;
+
+    // Smooth mapping across the full slider range (avoid the old "opacity plateaus at 1" feel).
+    const opacity = 0.15 + 0.85 * t;
+    const spreadMultiplier = 0.6 + 1.8 * t;
 
     document.body.style.setProperty('--glow-opacity', opacity);
     document.body.style.setProperty('--glow-spread-multiplier', spreadMultiplier);
     
-    localStorage.setItem('glowIntensity', intensity);
+    localStorage.setItem('glowIntensity', String(Math.round(value)));
 }
 
 /**
@@ -137,23 +170,36 @@ export function initOptions() {
         });
     });
 
-    // Setup for the active button glow picker
-    const activeSwatches = document.querySelectorAll('#activeButtonColorPicker .color-swatch');
-    activeSwatches.forEach(swatch => {
-        swatch.addEventListener('click', () => {
-            setActiveGlowColor(swatch.dataset.color);
-        });
-    });
 	
 	const glowSlider = document.getElementById('glowIntensitySlider');
     if (glowSlider) {
-        // Set the slider's initial position from localStorage (defaulting to 1)
-        glowSlider.value = localStorage.getItem('glowIntensity') || 1;
+        // Set the slider's initial position from localStorage (defaulting to 70)
+        const stored = localStorage.getItem('glowIntensity');
+        let v = stored === null ? 70 : Number.parseFloat(stored);
+        if (!Number.isFinite(v)) v = 70;
+        if (v <= 2.0001) v = v * 50; // migrate legacy scale
+        v = Math.max(0, Math.min(100, v));
+        glowSlider.value = String(Math.round(v));
+        // Apply immediately so opening Options reflects the real state.
+        setGlowIntensity(glowSlider.value);
 
         glowSlider.addEventListener('input', (event) => {
             setGlowIntensity(event.target.value);
         });
     }
+
+	// --- Reduce Motion Toggle ---
+	const reduceMotionToggle = document.getElementById('reduceMotionToggle');
+	if (reduceMotionToggle) {
+		const enabled = getReduceMotionEnabled();
+		reduceMotionToggle.checked = enabled;
+		document.body.classList.toggle('reduce-motion', enabled);
+		reduceMotionToggle.addEventListener('change', () => {
+			const next = !!reduceMotionToggle.checked;
+			try { localStorage.setItem(REDUCE_MOTION_KEY, JSON.stringify(next)); } catch (e) {}
+			document.body.classList.toggle('reduce-motion', next);
+		});
+	}
 	
 	// --- Glow Toggle ---
     const glowToggle = document.getElementById('glowToggle');
@@ -192,20 +238,21 @@ export function initOptions() {
         });
     }
 	
-	 // --- Notation Picker ---
-    const notationRadios = document.querySelectorAll('input[name="notation"]');
-    if (notationRadios.length > 0) {
-        const savedNotation = localStorage.getItem('numberNotation') || 'standard';
-        setNotation(savedNotation);
-        document.querySelector(`input[value="${savedNotation}"]`).checked = true;
 
-        notationRadios.forEach(radio => {
-            radio.addEventListener('change', () => {
-                if (radio.checked) {
-                    setNotation(radio.value);
-                    localStorage.setItem('numberNotation', radio.value);
-                }
-            });
+    // --- Confirm before load/reset ---
+    const confirmLoadToggle = document.getElementById('confirmLoadToggle');
+    if (confirmLoadToggle) {
+        confirmLoadToggle.checked = getConfirmOnLoad();
+        confirmLoadToggle.addEventListener('change', () => {
+            try { localStorage.setItem(CONFIRM_LOAD_KEY, JSON.stringify(!!confirmLoadToggle.checked)); } catch (e) {}
+        });
+    }
+
+    const confirmResetToggle = document.getElementById('confirmResetToggle');
+    if (confirmResetToggle) {
+        confirmResetToggle.checked = getConfirmOnReset();
+        confirmResetToggle.addEventListener('change', () => {
+            try { localStorage.setItem(CONFIRM_RESET_KEY, JSON.stringify(!!confirmResetToggle.checked)); } catch (e) {}
         });
     }
 }

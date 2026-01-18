@@ -1,3 +1,28 @@
+# [0.2.2] - 2026-01-18
+
+### Added
+
+- **Options: Reduce Motion:** New toggle to disable most UI animations for a calmer / more accessible experience.
+- **Options: Confirmation Toggles:** New toggles to control whether **Load** and **Reset** actions require confirmation.
+- **Options: More UI Glow Colors:** Expanded UI glow palette with additional color choices.
+
+### Changed
+
+- **Stamina Progression (Chapter 2):** Once Chapter 2 begins (Colony unlocked), stamina now regenerates automatically — players no longer need to manually Rest to recover stamina.
+- **Colony Buildings:** **Quarry** and **Extractor** are now locked by default and no longer appear in the Colony build list until unlocked.
+- **Options Cleanup:** Removed **Number Formatting** and **Active Button Glow** settings for now.
+- **Glow Intensity Control:** Reworked the glow intensity slider to a stable **0–100** scale with smoother visual mapping.
+- **Unified Glow Behavior:** The “active” glow styling is now kept in sync with the main UI glow settings.
+- **Load/Reset UX:** Load and Reset confirmations now use the in-game confirmation popup instead of browser dialogs.
+
+### Fixed
+
+- **Confirm Popup Layout:** Increased confirm popup sizing and improved text wrapping so longer messages fit reliably.
+- **Confirm Popup Scrolling:** Prevented odd scroll/flex clipping behavior and reset scroll position on open.
+- **Crash Site → Colony Transition:** Fixed a bad unlock check that could cause incorrect section visibility after Colony unlock.
+
+---
+
 # [0.2.1] - 2026-01-12
 
 ### Added

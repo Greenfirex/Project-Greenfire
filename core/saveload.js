@@ -123,10 +123,17 @@ export function applyGameState(gameState) {
 
     const defaultBuildings = getInitialBuildings();
     if (gameState.buildings) {
+        // Restore only runtime-mutating fields for buildings while preserving design-time definitions
+        // (costs, descriptions, effects, production rates) so content updates apply to old saves.
+        const RUNTIME_BUILDING_KEYS = new Set(['count', 'isUnlocked']);
         defaultBuildings.forEach(defaultBuilding => {
             const savedBuilding = gameState.buildings.find(b => b.name === defaultBuilding.name);
             if (savedBuilding) {
-                Object.assign(defaultBuilding, savedBuilding);
+                for (const k of RUNTIME_BUILDING_KEYS) {
+                    if (Object.prototype.hasOwnProperty.call(savedBuilding, k)) {
+                        defaultBuilding[k] = savedBuilding[k];
+                    }
+                }
             }
         });
         buildings.length = 0;
@@ -140,7 +147,9 @@ export function applyGameState(gameState) {
             'isUnlocked', 'stage', 'uses', 'maxUses', 'completed',
             'startTime', 'lastTickTime', 'pauseStart',
             // UI-only hint: show "new" badge until user hovers.
-            'uiNew'
+            'uiNew',
+            // UI/runtime hint: if a spoiler-free encounter was discovered (retreat/lose), show combat badge.
+            'encounterDiscovered'
         ]);
         salvageActions.forEach(defaultAction => {
             const savedAction = gameState.salvageActions.find(a => a.id === defaultAction.id);
@@ -160,7 +169,8 @@ export function applyGameState(gameState) {
         const RUNTIME_ACTION_KEYS = new Set([
             'isUnlocked', 'stage', 'uses', 'maxUses', 'completed',
             'startTime', 'lastTickTime', 'pauseStart',
-            'uiNew'
+            'uiNew',
+            'encounterDiscovered'
         ]);
         upgradeActions.forEach(defaultAction => {
             const savedAction = gameState.upgradeActions.find(a => a.id === defaultAction.id);

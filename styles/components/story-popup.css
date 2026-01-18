@@ -269,15 +269,18 @@
 
 /* Small confirm popup variant (reuses story popup look) */
 .story-popup-content.confirm-popup-content {
-    width: min(640px, 94vw);
-    max-width: 640px;
+    width: min(820px, 96vw);
+    max-width: 820px;
     height: auto;
-    max-height: min(360px, 75vh);
-    padding: 18px;
+    max-height: min(440px, 80vh);
+    padding: 22px;
 }
 
 .story-popup-content.confirm-popup-content .story-popup-body {
     padding: 6px 0 8px 0;
+    /* Confirm dialogs are short; let the body size to content (avoid tiny scroll viewport). */
+    flex: 0 0 auto;
+    overflow: visible;
 }
 
 .story-popup-content.confirm-popup-content .story-popup-text {
@@ -285,8 +288,13 @@
 }
 
 .story-popup-content.confirm-popup-content #confirmPopupMessage {
+    display: block;
+    max-width: 100%;
     white-space: normal;
     overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.4;
+    font-size: 16px;
 }
 
 .story-popup-content.confirm-popup-content .story-popup-nav.confirm-popup-nav {

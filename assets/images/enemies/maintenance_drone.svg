@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Maintenance drone">
+  <defs>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e9eef2" stop-opacity="0.95"/>
+      <stop offset="0.55" stop-color="#9fb3c2" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#6a7c89" stop-opacity="0.95"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff4a4a" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#b10000" stop-opacity="0.55"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect x="18" y="18" width="220" height="220" rx="28" fill="rgba(0,0,0,0.28)" stroke="rgba(255,255,255,0.10)"/>
+
+  <!-- Body -->
+  <g filter="url(#shadow)">
+    <path d="M70 130c0-32 26-58 58-58s58 26 58 58-26 58-58 58-58-26-58-58z" fill="url(#steel)"/>
+    <path d="M86 130c0-23 19-42 42-42s42 19 42 42-19 42-42 42-42-19-42-42z" fill="rgba(0,0,0,0.18)"/>
+
+    <!-- Eye / sensor -->
+    <circle cx="128" cy="126" r="18" fill="rgba(0,0,0,0.35)" stroke="rgba(255,255,255,0.18)"/>
+    <circle cx="128" cy="126" r="9" fill="url(#glow)"/>
+    <circle cx="124" cy="122" r="3" fill="rgba(255,255,255,0.45)"/>
+
+    <!-- Side arms -->
+    <path d="M66 132c-10 0-18-8-18-18s8-18 18-18h10v36H66z" fill="rgba(120,140,155,0.9)"/>
+    <path d="M190 132c10 0 18-8 18-18s-8-18-18-18h-10v36h10z" fill="rgba(120,140,155,0.9)"/>
+
+    <!-- Tool/claw hints -->
+    <path d="M46 114l-14-8 6-10 16 10" fill="rgba(0,0,0,0.22)"/>
+    <path d="M210 114l14-8-6-10-16 10" fill="rgba(0,0,0,0.22)"/>
+
+    <!-- Damage sparks -->
+    <path d="M162 78l10-14 4 10 10-6-8 12" fill="rgba(255,216,74,0.9)"/>
+    <path d="M88 178l-10 14-4-10-10 6 8-12" fill="rgba(255,216,74,0.85)"/>
+
+    <!-- Crack line -->
+    <path d="M114 92c10 8 16 18 18 30" stroke="rgba(0,0,0,0.28)" stroke-width="5" stroke-linecap="round" fill="none"/>
+  </g>
+</svg>
