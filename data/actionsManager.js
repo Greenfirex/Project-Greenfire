@@ -39,7 +39,27 @@ export function tooltipDataForAction(action) {
         if (st.reward) out.reward = st.reward;
         if (typeof st.duration !== 'undefined') out.duration = st.duration;
         if (st.description) out.description = st.description;
+        if (typeof st.encounterChance === 'number') out.encounterChance = st.encounterChance;
+        if (typeof st.encounterFailLogText === 'string') out.encounterFailLogText = st.encounterFailLogText;
     }
+
+    // Tooltip-only: if an action's combat encounter is not guaranteed, reflect the overall chance
+    // on its rewards (similar to per-reward chance used by actions like Scavenge Debris Field).
+    // This is display-only: callers that award rewards use the live action definition/runtime state.
+    try {
+        const hasEncounter = !!(out && out.encounter);
+        const rawChance = (typeof out.encounterChance === 'number') ? out.encounterChance : 1;
+        const p = rawChance > 1 ? (rawChance / 100) : rawChance;
+        const chance = Math.max(0, Math.min(1, p));
+
+        if (hasEncounter && chance > 0 && chance < 1 && Array.isArray(out.reward)) {
+            out.reward = out.reward.map(r => {
+                const rr = Object.assign({}, r);
+                if (typeof rr.chance !== 'number') rr.chance = chance;
+                return rr;
+            });
+        }
+    } catch { /* ignore */ }
     return out;
 }
 

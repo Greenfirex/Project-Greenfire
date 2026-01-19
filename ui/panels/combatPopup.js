@@ -1,5 +1,5 @@
 import { getCombatEncounter } from '../../data/definitions/combatEncounters.js';
-import { resources } from '../../core/resources.js';
+import { resources, updateResourceInfo } from '../../core/resources.js';
 import { addLogEntry, LogType } from '../../core/ingameLog.js';
 import { characterState, computeCharacterStats } from '../../data/character.js';
 import { consumeFirstItemFromBag, countItemInBag } from '../../data/character.js';
@@ -538,6 +538,26 @@ export function showCombatPopup(encounterId, opts = {}) {
     const enemyMaxStamina = Math.max(0, Number(def?.enemy?.maxStamina ?? def?.enemy?.stats?.stamina ?? def?.enemy?.stamina ?? 100));
     let enemyStamina = enemyMaxStamina;
 
+    const awardVictoryRewards = (elapsedMs) => {
+        const xpRes = resources.find(r => r && r.name === 'XP');
+        const baseXp = Number(def?.xpReward ?? 0);
+        if (!xpRes || !Number.isFinite(baseXp) || baseXp <= 0) return;
+
+        let debugMul = 1;
+        try {
+            if (typeof window !== 'undefined' && window.DEBUG_RESOURCE_GAIN === 10) debugMul = 10;
+        } catch { /* ignore */ }
+
+        const gained = Math.max(0, Math.floor(baseXp * debugMul));
+        if (gained <= 0) return;
+        const cap = Number.isFinite(Number(xpRes.capacity)) ? Number(xpRes.capacity) : Number.MAX_SAFE_INTEGER;
+        xpRes.amount = Math.min(Number(xpRes.amount ?? 0) + gained, cap);
+
+        try { appendLogWithTime(overlay, elapsedMs, `Gained ${gained} XP.`, 'system'); } catch {}
+        try { addLogEntry(`Gained ${gained} XP.`, LogType.SUCCESS); } catch {}
+        try { updateResourceInfo(); } catch {}
+    };
+
     const stats = computeCharacterStats(characterState);
     // Survival debuffs also apply to combat.
     const foodRes = resources.find(r => r.name === 'Food Rations');
@@ -812,6 +832,7 @@ export function showCombatPopup(encounterId, opts = {}) {
             if (enemyHp <= 0) {
                 try { triggerEnemyDefeatedFx(overlay); } catch {}
                 appendLogWithTime(overlay, elapsedMs, `Victory.`, 'win');
+                try { awardVictoryRewards(elapsedMs); } catch {}
                 addLogEntry(`Defeated: ${def.name}.`, LogType.SUCCESS);
                 finalOutcome = finish({ outcome: 'win' });
             }
@@ -920,6 +941,7 @@ export function showCombatPopup(encounterId, opts = {}) {
                     if (enemyHp <= 0) {
                         try { triggerEnemyDefeatedFx(overlay); } catch (e) { /* ignore */ }
                         appendLogWithTime(overlay, elapsedMs, `Victory.`, 'win');
+                        try { awardVictoryRewards(elapsedMs); } catch {}
                         addLogEntry(`Defeated: ${def.name}.`, LogType.SUCCESS);
                         finalOutcome = finish({ outcome: 'win' });
                         return;

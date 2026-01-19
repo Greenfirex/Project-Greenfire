@@ -26,7 +26,9 @@
     padding: 20px;
     width: 80vw;
     max-width: 900px;
-    height: 50vh;
+    /* Match combat popup sizing (combat reuses story popup visuals) */
+    height: 82vh;
+    max-height: calc(100vh - 40px);
     border-radius: 8px;
     position: relative;
     text-align: left;
@@ -34,6 +36,49 @@
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* Narrow screens: use more viewport width/height while keeping content readable */
+@media (max-width: 720px) {
+    .story-popup-content:not(.confirm-popup-content) {
+        width: 94vw;
+        height: 86vh;
+        max-height: calc(100vh - 40px);
+        padding: 16px;
+    }
+
+    .story-popup-header {
+        padding: 10px 12px;
+        margin-bottom: 14px;
+    }
+
+    .story-popup-header h2 {
+        font-size: 20px;
+    }
+}
+
+/* Short screens: increase popup height and tighten internal spacing to reduce scrolling */
+@media (max-height: 760px) {
+    .story-popup-content:not(.confirm-popup-content) {
+        height: 90vh;
+        max-height: calc(100vh - 40px);
+        padding: 16px;
+    }
+
+    .story-popup-header {
+        padding: 10px 12px;
+        margin-bottom: 14px;
+    }
+
+    .story-popup-body {
+        padding: 6px 0 10px 0;
+    }
+
+    .story-popup-nav {
+        margin-top: 10px;
+        padding-top: 8px;
+    }
 }
 
 .story-popup-header {

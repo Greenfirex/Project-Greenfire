@@ -55,10 +55,10 @@ const initialSalvageActions = [
                 isUnlocked: false,
                 // ADDED: This action now drains Stamina over time
                 drain: [
-                    { resource: 'Stamina', amount: 5 }
+                    { resource: 'Stamina', amount: 7 }
                 ],
                 reward: [ 
-                    { resource: 'Food Rations', amount: [20, 25] }
+                    { resource: 'Food Rations', amount: [7, 13] }
                 ]
             },
             {
@@ -70,10 +70,10 @@ const initialSalvageActions = [
                 isUnlocked: false,
                 // ADDED: This action now drains Stamina over time
                 drain: [
-                    { resource: 'Stamina', amount: 5 }
+                    { resource: 'Stamina', amount: 7 }
                 ],
                 reward: [ 
-                    { resource: 'Clean Water', amount: [30, 50] }
+                    { resource: 'Clean Water', amount: [25, 35] }
                 ]
             },
             {
@@ -86,13 +86,15 @@ const initialSalvageActions = [
                 cancelable: true,
                 repeatable: true,
                 encounter: 'wildlife_river',
+                encounterChance: 0.8,
+                encounterFailLogText: 'You spend hours tracking signs, but find no prey.',
                 drain: [
-                    { resource: 'Stamina', amount: 12 },
-                    { resource: 'Clean Water', amount: 6 }
+                    { resource: 'Stamina', amount: 20 },
+                    { resource: 'Clean Water', amount: 10 },
+                    { resource: 'Food Rations', amount: 6 }
                 ],
                 reward: [
                     { resource: 'Food Rations', amount: [60, 90] },
-                    { resource: 'XP', amount: 5 }
                 ]
             },
             {

@@ -20,6 +20,16 @@
 .combat-popup-content {
     /* sizing is inherited from .story-popup-content, keep combat overrides minimal */
     overflow: hidden;
+    /* Story popup defaults to 50vh; combat needs more vertical space for bars + log + actions */
+    height: 82vh;
+    /* Account for overlay padding so it always fits */
+    max-height: calc(100vh - 40px);
+}
+
+/* Force the combat sizing to win over generic .story-popup-content rules, even if CSS order changes */
+#combatPopup .combat-popup-content.story-popup-content {
+    height: 82vh;
+    max-height: calc(100vh - 40px);
 }
 
 .combat-popup-content.compact-header .combat-popup-header {
@@ -68,14 +78,16 @@
 
 .combat-popup-body {
     padding: 0;
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 14px;
     position: relative;
-    /* Bars on top, compact log row below */
-    grid-template-rows: auto 150px;
     align-content: start;
     flex: 1 1 0;
     min-height: 0;
+    /* Critical: if the popup is short, don't let the log/bars overflow and paint over the footer buttons */
+    overflow: auto;
+    overscroll-behavior: contain;
 }
 
 .combat-bars {
@@ -573,8 +585,11 @@
     display: block;
     position: relative;
     margin: 0 2px;
-    height: 150px;
-    max-height: 150px;
+    /* Flex inside .combat-popup-body so it shrinks on small screens instead of overlapping the footer buttons */
+    flex: 1 1 150px;
+    min-height: 110px;
+    height: auto;
+    max-height: none;
     overflow: auto;
     background: rgba(0,0,0,0.52);
     border: 1px solid rgba(255,255,255,0.10);
@@ -669,22 +684,31 @@
 
 .combat-popup-actions {
     padding: 0;
-    margin-top: 16px;
+    margin-top: 12px;
     display: flex;
     gap: 10px;
     justify-content: space-between;
     flex-shrink: 0;
+    /* Match story popup footer treatment */
+    border-top: 2px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.4);
+    padding-top: 10px;
+    background: transparent;
 }
 
-/* Combat uses .menu-button (large by default); override to match compact popup controls */
+/* Combat uses .menu-button (large by default); override to match Story popup nav button sizing */
 .combat-popup-actions .combat-btn {
-    width: 170px;
-    flex: 0 0 170px;
+    /* Mirror .story-nav-button sizing rules */
+    flex: 0 0 20%;
+    max-width: 20%;
+    width: 20%;
+    min-width: 110px;
     height: 36px;
     margin: 0;
     padding: 7px 14px;
     font-size: 14px;
     line-height: 1;
+    border-radius: 4px;
+    box-sizing: border-box;
     transform: none;
 }
 
@@ -703,4 +727,79 @@
 .combat-btn[disabled] {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* Responsive comfort tweaks (short viewports / small screens)
+   Goal: keep Retreat/Close always visible and reduce scrolling pressure. */
+
+@media (max-width: 720px) {
+    /* Use more of the viewport on narrow screens while keeping padding via overlay */
+    .combat-popup-content {
+        width: 94vw;
+        max-width: 900px;
+        height: 86vh;
+        max-height: calc(100vh - 40px);
+    }
+
+    .combat-popup-body {
+        gap: 10px;
+    }
+
+    .combat-popup-actions {
+        margin-top: 12px;
+    }
+
+    .combat-popup-actions .combat-btn {
+        width: 48%;
+        flex: 1 1 0;
+        min-width: 0;
+    }
+}
+
+@media (max-height: 760px) {
+    /* Short screens: compact the tall orbit+portrait area and tighten spacing */
+    .combat-popup-content {
+        height: 90vh;
+        max-height: calc(100vh - 40px);
+        padding: 16px;
+    }
+
+    .combat-popup-content.compact-header .combat-popup-header {
+        margin-bottom: 10px;
+    }
+
+    .combat-popup-body {
+        gap: 10px;
+    }
+
+    .combat-bars {
+        gap: 10px;
+    }
+
+    .combat-bar-group {
+        padding: 8px;
+    }
+
+    .combat-orbit {
+        height: 148px;
+    }
+
+    .combat-portrait {
+        height: 136px;
+    }
+
+    .combat-ability-row {
+        margin-top: 8px;
+        gap: 8px;
+    }
+
+    .combat-log {
+        min-height: 96px;
+        padding: 8px 10px;
+        font-size: 0.9em;
+    }
+
+    .combat-popup-actions {
+        margin-top: 12px;
+    }
 }

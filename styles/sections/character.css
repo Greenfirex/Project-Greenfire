@@ -22,6 +22,10 @@
     /* Shared slot sizing (bag + equipment) so drag previews feel consistent */
     --inv-slot-w: clamp(92px, 11vw, 132px);
     --inv-slot-h: clamp(56px, 8vw, 64px);
+
+    /* Allow responsive rules to key off the actual section width (important when side panels shrink game area). */
+    container-type: inline-size;
+    container-name: character;
 }
 
 /* Override shared .content-panel height:100% so it behaves well inside padded sections */
@@ -45,9 +49,13 @@
     grid-template-areas:
         "equipment stats"
         "inventory inventory";
+    /* Let the inventory row take remaining height (so the bag can scroll inside it) */
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 14px;
     flex: 1 1 auto;
     min-height: 0;
+    /* Avoid nested scrollbars; scrolling happens inside the bag (and stats list when needed) */
+    overflow: hidden;
 }
 
 #characterSection .equipment-card { grid-area: equipment; }
@@ -70,6 +78,33 @@
     display: grid;
     grid-template-columns: 1fr;
     gap: 10px;
+    /* Allow the stats list to take remaining space in the stats card when height is constrained */
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* Styled scrollbar (match in-game log look) */
+#characterSection .stats-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.6) #111;
+}
+
+#characterSection .stats-list::-webkit-scrollbar {
+    width: 12px;
+}
+
+#characterSection .stats-list::-webkit-scrollbar-track {
+    background: #111;
+}
+
+#characterSection .stats-list::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+    border-radius: 6px;
+    border: 3px solid #111;
+}
+
+#characterSection .stats-list::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
 }
 
 #characterSection .stat-line {
@@ -415,7 +450,12 @@
 }
 
 #characterSection .equipment-slot.has-item .slot-label {
-    opacity: 0.55;
+    display: none;
+}
+
+/* When the label is hidden (equipped slots), let the item content use that space. */
+#characterSection .equipment-slot.has-item .slot-item {
+    bottom: 8px;
 }
 
 #characterSection .slot-item {
@@ -469,16 +509,42 @@
 #characterSection .bag-grid {
     display: grid;
     /* Keep bag slots consistent with equipment slot sizing */
-    grid-template-columns: repeat(var(--bag-cols, 6), var(--inv-slot-w));
+    /* Allow columns to shrink to fit (avoids horizontal scrolling in narrow game area) */
+    grid-template-columns: repeat(var(--bag-cols, 6), minmax(0, var(--inv-slot-w)));
     grid-template-rows: repeat(var(--bag-rows, 2), var(--inv-slot-h));
     gap: 10px;
     padding: 6px;
     box-sizing: border-box;
     overflow: auto;
+    overflow-x: hidden;
     flex: 1 1 auto;
     min-height: 0;
     justify-content: start;
     align-content: start;
+}
+
+/* Styled scrollbar (match in-game log look) */
+#characterSection .bag-grid {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.6) #111;
+}
+
+#characterSection .bag-grid::-webkit-scrollbar {
+    width: 12px;
+}
+
+#characterSection .bag-grid::-webkit-scrollbar-track {
+    background: #111;
+}
+
+#characterSection .bag-grid::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+    border-radius: 6px;
+    border: 3px solid #111;
+}
+
+#characterSection .bag-grid::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
 }
 
 #characterSection .bag-slot {
@@ -556,12 +622,258 @@
     box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.14), inset 0 0 0 1px rgba(255,255,255,0.02);
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 900px) {
     #characterSection .character-layout {
         grid-template-columns: 1fr;
         grid-template-areas:
             "equipment"
             "stats"
             "inventory";
+        /* Keep Stats + Inventory visible; they share remaining height and can scroll internally */
+        grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr);
+    }
+}
+
+/* Match the same stacking behavior based on the actual Character section width
+   (important when the viewport is wide but side panels make the game area narrow). */
+@container character (max-width: 1100px) {
+    /* Before we stack, shrink slots a bit so the 2-column layout can stay usable. */
+    #characterSection {
+        --inv-slot-w: clamp(76px, 10vw, 116px);
+        --inv-slot-h: clamp(52px, 7vw, 64px);
+    }
+
+    /* When the viewport is wide but side panels make the section narrow, vw doesn't shrink.
+       Prefer container query units when supported. */
+    @supports (width: 1cqw) {
+        #characterSection {
+            --inv-slot-w: clamp(76px, 10cqw, 116px);
+            --inv-slot-h: clamp(52px, 7cqw, 64px);
+        }
+    }
+
+    #characterSection .bag-grid {
+        gap: 8px;
+    }
+
+    #characterSection .paperdoll {
+        height: 420px;
+    }
+
+    #characterSection .paperdoll-silhouette {
+        height: 410px;
+    }
+}
+
+@container character (max-width: 900px) {
+    #characterSection {
+        --equip-slot-h: clamp(44px, 7.5vw, 56px);
+    }
+
+    @supports (width: 1cqw) {
+        #characterSection {
+            /* Aggressive shrink so equipment always fits when height is tight. */
+            --equip-slot-h: clamp(34px, 5.5cqw, 44px);
+        }
+    }
+
+    #characterSection .character-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "equipment"
+            "stats"
+            "inventory";
+        /* Ultra-small layouts: cap equipment growth and reserve minimum space
+           so at least one stat row + one inventory row remain visible. */
+        --character-stats-min-h: 170px;
+        --character-inv-min-h: calc(var(--inv-slot-h) + 92px);
+        /* Equipment should always fully show; Stats/Inventory use the remaining space and can scroll internally */
+        grid-template-rows:
+            auto
+            minmax(var(--character-stats-min-h), 1fr)
+            minmax(var(--character-inv-min-h), 1fr);
+    }
+
+    /* Keep equipment visible without scrolling: shrink slots instead */
+    #characterSection .equipment-card {
+        overflow: hidden;
+    }
+
+    #characterSection .paperdoll {
+        gap: 8px;
+    }
+
+    #characterSection .paperdoll .equipment-slot {
+        height: var(--equip-slot-h);
+    }
+
+    #characterSection .equipment-slot .slot-label {
+        left: 10px;
+        bottom: 7px;
+        font-size: 11px;
+    }
+
+    /* When the section is narrow (often due to side panels), switch to the compact equipment grid
+       so all equipment slots remain visible without needing to scroll past a large paperdoll. */
+    #characterSection .paperdoll {
+        height: auto;
+        min-height: 0;
+        display: grid;
+        /* 4 columns keeps all 8 slots in 2 rows, preventing accessory slots from being clipped */
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        padding: 6px;
+    }
+
+    #characterSection .paperdoll-silhouette {
+        display: none;
+    }
+
+    #characterSection .paperdoll .equipment-slot {
+        position: relative;
+        width: 100%;
+        height: var(--equip-slot-h, var(--inv-slot-h));
+        left: auto !important;
+        right: auto !important;
+        top: auto !important;
+        bottom: auto !important;
+        transform: none !important;
+    }
+
+    /* Reduce inner padding so icons/text fit in shorter slots */
+    #characterSection .paperdoll .equipment-slot .slot-item {
+        left: 8px;
+        right: 8px;
+        top: 4px;
+        bottom: 16px;
+        gap: 4px;
+        box-sizing: border-box;
+        padding-bottom: 2px;
+    }
+
+    #characterSection .paperdoll .equipment-slot.has-item .slot-item {
+        bottom: 8px;
+    }
+
+    #characterSection .paperdoll .equipment-slot .item-icon {
+        --item-icon-size: 28px;
+    }
+
+    /* Avoid max-height rounding/descender clipping in tight slots: clamp to 2 lines instead. */
+    #characterSection .paperdoll .equipment-slot .slot-item .item-name {
+        line-height: 1.3;
+        padding-bottom: 0.15em;
+        overflow: hidden;
+
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+
+        /* Fallback for non-line-clamp engines */
+        max-height: calc(2 * 1.3em + 0.2em);
+    }
+
+    /* If stats exceed available height, scroll within the stats list (not the whole page) */
+    #characterSection .stats-list {
+        overflow: auto;
+        overscroll-behavior: contain;
+        min-height: 0;
+    }
+
+    /* Let the inventory card shrink so the bag becomes the main scroll area */
+    #characterSection .inventory-card {
+        min-height: 0;
+    }
+}
+
+/* Mobile-friendly layout: keep inventory usable on narrow screens.
+   Use a container query so it triggers based on the actual Character section width. */
+@container character (max-width: 720px) {
+    #characterSection {
+        padding: 12px;
+        /* Smaller shared slot sizing on mobile */
+        --inv-slot-w: clamp(72px, 18vw, 96px);
+        --inv-slot-h: clamp(52px, 14vw, 64px);
+    }
+
+    #characterSection .character-card {
+        padding: 10px;
+    }
+
+    /* Paperdoll becomes a simple grid so equipment remains tappable */
+    /* Inventory grid wraps to the available width (no sideways scrolling) */
+    #characterSection .bag-grid {
+        grid-template-columns: repeat(auto-fill, minmax(var(--inv-slot-w), 1fr));
+        grid-template-rows: none;
+        grid-auto-rows: var(--inv-slot-h);
+        gap: 8px;
+        padding: 4px;
+        overflow-x: hidden;
+    }
+
+    #characterSection .stat-row {
+        padding: 8px 8px;
+    }
+}
+
+@container character (max-width: 420px) {
+    /* Extremely narrow screens: prioritize icons over text inside bag slots */
+    #characterSection {
+        padding: 10px;
+        --inv-slot-w: clamp(64px, 18vw, 84px);
+        --inv-slot-h: clamp(44px, 12vw, 56px);
+    }
+
+    #characterSection .character-card {
+        padding: 9px;
+    }
+
+    #characterSection .paperdoll {
+        gap: 8px;
+        padding: 4px;
+    }
+
+    /* Extra shrink for equipment so all slots remain visible */
+    #characterSection {
+        --equip-slot-h: clamp(38px, 10vw, 48px);
+    }
+
+    @supports (width: 1cqw) {
+        #characterSection {
+            --equip-slot-h: clamp(30px, 7cqw, 40px);
+        }
+    }
+
+    #characterSection .equipment-slot .slot-label {
+        font-size: 10px;
+        bottom: 6px;
+    }
+
+    #characterSection .bag-grid {
+        gap: 6px;
+    }
+
+    #characterSection .bag-item .item-name {
+        display: none;
+    }
+
+    #characterSection .bag-item .item-icon {
+        --item-icon-size: 28px;
+    }
+}
+
+@container character (max-width: 520px) {
+    /* If the section gets very narrow, 4 columns becomes too cramped; fall back to 2 columns. */
+    #characterSection .paperdoll {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* Short screens: shrink minimum reservations slightly so layout stays balanced */
+@media (max-height: 700px) {
+    #characterSection {
+        --inv-slot-w: clamp(64px, 12vw, 96px);
+        --inv-slot-h: clamp(44px, 8vw, 58px);
     }
 }

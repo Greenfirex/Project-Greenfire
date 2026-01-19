@@ -623,10 +623,24 @@ async function handleActionCompletion(section) {
         const st = (originalForEncounter.stages || [])[idx];
         const encounterId = (st && st.encounter) || originalForEncounter.encounter;
         if (encounterId) {
+            // Optional: not every attempt finds an encounter.
+            // Accept chance in [0,1] or [0,100]. Default is 100% (always encounter).
+            let encounterChance = (st && typeof st.encounterChance === 'number')
+                ? st.encounterChance
+                : (typeof originalForEncounter.encounterChance === 'number' ? originalForEncounter.encounterChance : 1);
+            if (encounterChance > 1) encounterChance = encounterChance / 100;
+            encounterChance = Math.max(0, Math.min(1, encounterChance));
+
             try {
                 // While combat is open we don't want the underlying action drain to keep ticking.
                 // We already have a local snapshot of the completed action, so it's safe to clear this now.
                 setActiveCrashSiteAction(null);
+
+                if (encounterChance < 0.999999 && !(Math.random() < encounterChance)) {
+                    encounterOutcomeForCompletion = 'no-encounter';
+                    const failText = (st && st.encounterFailLogText) || originalForEncounter.encounterFailLogText || 'You did not find any prey.';
+                    if (!suppressGeneric) addLogEntry(failText, LogType.INFO);
+                } else {
                 const stageIndex = (st && st.encounter) ? idx : null;
                 const result = await showCombatPopup(encounterId, { sourceActionId: originalForEncounter.id, stageIndex });
                 encounterOutcomeForCompletion = result?.outcome || null;
@@ -646,6 +660,7 @@ async function handleActionCompletion(section) {
                     } catch (e) { /* ignore */ }
                     return;
                 }
+                }
             } catch (e) {
                 // If combat popup fails, fail open so players aren't hard-stuck.
                 console.warn('Combat popup failed; continuing stage completion.', e);
@@ -659,6 +674,11 @@ async function handleActionCompletion(section) {
 
     if (completed.reward) {
         const gains = [];
+
+        // If Hunt for Wildlife didn't find prey, do not grant rewards.
+        if ((completed.id === 'huntWildlife' || completed.name === 'Hunt for Wildlife') && encounterOutcomeForCompletion === 'no-encounter') {
+            if (!suppressGeneric) addLogEntry(`${completed.name} complete! No prey found.`, LogType.INFO);
+        } else {
         completed.reward.forEach(rw => {
             // Optional percentage chance support: rw.chance in [0,1] or [0,100]
             const hasChance = typeof rw.chance === 'number';
@@ -669,11 +689,6 @@ async function handleActionCompletion(section) {
 
             const res = resources.find(r => r.name === rw.resource);
             if (!res) return;
-
-            // Ensure Hunt for Wildlife XP is only awarded after a confirmed combat victory.
-            if ((completed.id === 'huntWildlife' || completed.name === 'Hunt for Wildlife') && rw.resource === 'XP') {
-                if (encounterOutcomeForCompletion !== 'win') return;
-            }
 
             const amt = Array.isArray(rw.amount) ? getRandomInt(rw.amount[0], rw.amount[1]) : rw.amount;
             // Apply upgrade-based reward multipliers via upgradeEffects
@@ -690,7 +705,9 @@ async function handleActionCompletion(section) {
         });
         // Avoid generic success/gained log for actions that opt out via suppressGenericLog
         if (!suppressGeneric) {
-            addLogEntry(`${completed.name} complete! Gained: ${gains.join(', ')}.`, LogType.SUCCESS);
+            if (gains.length) addLogEntry(`${completed.name} complete! Gained: ${gains.join(', ')}.`, LogType.SUCCESS);
+            else addLogEntry(`${completed.name} complete!`, LogType.SUCCESS);
+        }
         }
     } else {
         if (!suppressGeneric) {

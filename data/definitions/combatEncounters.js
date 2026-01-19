@@ -6,6 +6,7 @@ export const combatEncounters = [
         id: 'wildlife_river',
         name: 'Aggressive Wildlife',
         description: 'Something darts from the underbrush as you approach the river.',
+        xpReward: 5,
         enemy: {
             // Tuned for early-game pacing: should take ~10-25s with starter gear.
             maxHp: 40,
@@ -38,6 +39,7 @@ export const combatEncounters = [
         id: 'maintenance_drone_south_corridor',
         name: 'Haywire Maintenance Drone',
         description: 'A damaged maintenance unit drops from a ceiling rail, optics flaring red as it locks onto you.',
+        xpReward: 10,
         enemy: {
             // Slightly tougher than early wildlife; tuned for post-entry ship exploration.
             maxHp: 60,

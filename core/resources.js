@@ -10,9 +10,9 @@ import { getMorale } from '../data/morale.js';
 export function getInitialResources() {
     return [
         { name: 'Health', amount: 65, isDiscovered: true, capacity: 100, producible: false, integer: true },
-        // Hidden from the resource info panel (stamina is managed via Character/Combat),
-        // but still used by action drains and character vitals.
-        { name: 'Stamina', amount: 70, isDiscovered: true, capacity: 100, producible: false, integer: true, hidden: true },
+        // Visible early-game (Chapter 1) in the info panel; hidden again in Chapter 2+.
+        // Still used by action drains and character vitals.
+        { name: 'Stamina', amount: 70, isDiscovered: true, capacity: 100, producible: false, integer: true },
         // Meta progression resource (hidden from info panel)
         { name: 'XP', amount: 0, isDiscovered: true, capacity: 9000000000, producible: false, integer: true, hidden: true },
         { name: 'Survivors', amount: 0, isDiscovered: false, capacity: 20, producible: false, integer: true },
@@ -440,10 +440,17 @@ export function updateResourceInfo() {
         const infoRow = document.querySelector(`.info-row[data-resource="${resource.name}"]`);
         if (!infoRow) return;
 
+        // Chapter 2+: Stamina becomes less relevant in the right-side info panel.
+        // Keep the resource itself (used by combat/character), but hide the UI row.
+        const isChapter2 = gameFlags.chapter === 2;
+        if (resource.name === 'Stamina' && isChapter2) {
+            infoRow.classList.add('hidden');
+            return;
+        }
+
         // reveal any resource that has a positive amount
         // BUT prevent auto-discovery of Chapter 1-only resources in Chapter 2
         const chapter1OnlyResources = ['Health', 'Stamina', 'Crude Prybar', 'Makeshift Explosive'];
-        const isChapter2 = gameFlags.chapter === 2;
         const shouldPreventDiscovery = isChapter2 && chapter1OnlyResources.includes(resource.name);
         
         if (resource.amount > 0 && !resource.isDiscovered && !shouldPreventDiscovery) {

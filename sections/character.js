@@ -56,8 +56,6 @@ export function setupCharacterSection(section) {
     const canSpendPoint = (xp?.statPoints?.unspent ?? 0) > 0;
 
     panel.innerHTML = `
-        <h2>Character</h2>
-
         <div class="character-layout">
             <div class="character-card equipment-card">
                 <div class="character-card-header">
