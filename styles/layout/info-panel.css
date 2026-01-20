@@ -112,7 +112,10 @@
 }
 
 .info-row.non-producible {
-    grid-template-columns: 2fr 0fr 1fr;
+    /* Keep columns consistent across all resources.
+       Some "non-producible" resources can still gain production from jobs/buildings
+       and should keep the generation column aligned. */
+    grid-template-columns: 6fr 7fr 5fr;
 }
 
 .info-row:hover {

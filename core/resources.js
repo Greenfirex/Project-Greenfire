@@ -19,18 +19,20 @@ export function getInitialResources() {
         { name: 'Food Rations', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.04 },
         { name: 'Clean Water', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.06 },
         { name: 'Metal Parts', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
-        { name: 'Wire', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
+        { name: 'Wire', amount: 0, isDiscovered: false, capacity: 100, producible: false, integer: true },
         { name: 'Crude Prybar', amount: 0, isDiscovered: false, capacity: 5, producible: false, integer: true },
-        { name: 'Fabric', amount: 0, isDiscovered: false, capacity: 100, producible: false, integer: true },
-        { name: 'Chemicals', amount: 0, isDiscovered: false, capacity: 50, producible: false, integer: true },
+        { name: 'Fabric', amount: 0, isDiscovered: false, capacity: 20, producible: false, integer: true },
+        { name: 'Chemicals', amount: 0, isDiscovered: false, capacity: 20, producible: false, integer: true },
         { name: 'Makeshift Explosive', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true },
         { name: 'Power Cells', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true },
-        { name: 'Insight', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
-        { name: 'Crystal', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
+        { name: 'Insight', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: true },
+        { name: 'Crystal', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: true },
         { name: 'Xylite', amount: 0, isDiscovered: false, capacity: 50, producible: true, integer: false },
         { name: 'Helion-3 Concentrate', amount: 0, isDiscovered: false, capacity: 25, producible: true, integer: false },
         { name: 'Cygnium Ore', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
         { name: 'Sentient Mycelium', amount: 0, isDiscovered: false, capacity: 10, producible: true, integer: false },
+        // Placeholder: used later by Manufacturing once Workshop is built
+        { name: 'Worker Drone Blueprint', amount: 0, isDiscovered: false, capacity: 1, producible: false, integer: true },
     ];
 }
 
@@ -67,6 +69,7 @@ const RESOURCE_CATEGORIES = {
     'Helion-3 Concentrate': 'Science',
     'Cygnium Ore': 'Science',
     'Sentient Mycelium': 'Science',
+    'Worker Drone Blueprint': 'Science',
 };
 
 function getResourceCategoryName(resourceName) {
@@ -306,9 +309,13 @@ export function setupInfoPanel() {
             infoRow.classList.add('insight-resource');
         }
 
+        const displayName = (resource.name === 'Survivors' && gameFlags && Number(gameFlags.chapter) >= 2)
+            ? 'Crew Members'
+            : resource.name;
+
         infoRow.innerHTML = `
             <div class="resource-progress-bar"></div>
-            <div class="infocolumn1"><span>${resource.name}</span></div>
+            <div class="infocolumn1"><span>${displayName}</span></div>
             <div class="infocolumn2"><p data-value-type="storage"></p></div>
             <div class="infocolumn3"><p data-value-type="generation"></p></div>
         `;
@@ -440,10 +447,19 @@ export function updateResourceInfo() {
         const infoRow = document.querySelector(`.info-row[data-resource="${resource.name}"]`);
         if (!infoRow) return;
 
-        // Chapter 2+: Stamina becomes less relevant in the right-side info panel.
-        // Keep the resource itself (used by combat/character), but hide the UI row.
+        // Chapter 2+ label rename (UI-only): Survivors -> Crew Members
+        try {
+            if (resource.name === 'Survivors') {
+                const isChapter2Plus = gameFlags && Number(gameFlags.chapter) >= 2;
+                const nameEl = infoRow.querySelector('.infocolumn1 > span');
+                if (nameEl) nameEl.textContent = isChapter2Plus ? 'Crew Members' : 'Survivors';
+            }
+        } catch { /* non-fatal */ }
+
+        // Chapter 2+: Health/Stamina become less relevant in the right-side info panel.
+        // Keep the resources themselves (used by combat/character), but hide the UI rows.
         const isChapter2 = gameFlags.chapter === 2;
-        if (resource.name === 'Stamina' && isChapter2) {
+        if ((resource.name === 'Stamina' || resource.name === 'Health') && isChapter2) {
             infoRow.classList.add('hidden');
             return;
         }

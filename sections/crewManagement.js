@@ -5,6 +5,7 @@ import { getMorale } from '../data/morale.js';
 import { gameFlags } from '../data/gameFlags.js';
 import { addLogEntry, LogType } from '../core/ingameLog.js';
 import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
+import { buildings } from '../data/definitions/buildings.js';
 
 // Render the Crew Management section (basic info for now)
 export function setupCrewManagementSection(sectionEl) {
@@ -102,6 +103,12 @@ export function updateCrewSection() {
         // Hide Wire Collector job until the upgrade is completed
         if (job.id === 'wire_collector' && !gameFlags.wireScavengingOrganized) {
             return;
+        }
+
+        // Hide Scientist job until at least one Field Lab is built.
+        if (job.id === 'scientist') {
+            const hasFieldLab = Array.isArray(buildings) && buildings.some(b => b && b.name === 'Field Lab' && Number(b.count) > 0);
+            if (!hasFieldLab) return;
         }
 
         const wrapper = document.createElement('div');

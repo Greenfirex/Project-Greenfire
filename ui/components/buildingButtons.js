@@ -3,6 +3,7 @@ import { buildings } from '../../data/definitions/buildings.js';
 import { startBuild, getCurrentBuildingCost, canAfford, getAffordabilityShortfalls, getProgress } from '../../data/buildingsManager.js';
 import { addLogEntry, LogType } from '../../core/ingameLog.js';
 import { resources, updateResourceInfo } from '../../core/resources.js';
+import { newBadgeHtml, wireClearUiNewBadge } from './uiNew.js';
 
 // Create a building button and wire tooltip + click handler
 export function createBuildingButton(building, container) {
@@ -10,8 +11,12 @@ export function createBuildingButton(building, container) {
   let btn = document.createElement('button');
   btn.className = 'image-button';
   btn.dataset.building = building.name;
+
+  const showNew = !!building.uiNew;
+
   btn.innerHTML = `
     <div class="action-progress-bar"></div>
+    ${newBadgeHtml(showNew)}
     <span class="building-count">(${building.count})</span>
     <span class="building-name">${building.name}</span>
   `;
@@ -47,6 +52,9 @@ export function createBuildingButton(building, container) {
       nameEl.textContent = `${remainingRealSeconds.toFixed(1)}s`;
     }
   });
+
+  // Clear "new" badge after the player notices the button (persistent via uiSeen).
+  if (showNew) wireClearUiNewBadge(btn, { legacyObj: building, legacyProp: 'uiNew' });
 
   container.appendChild(btn);
   

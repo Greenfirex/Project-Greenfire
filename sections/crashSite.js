@@ -3,6 +3,7 @@ import { resources } from '../core/resources.js';
 import { addLogEntry, LogType } from '../core/ingameLog.js';
 import { enableSection } from '../core/main.js';
 import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
+import { newBadgeHtml, wireClearUiNewBadge } from '../ui/components/uiNew.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
 import { showStoryPopup } from '../ui/panels/popup.js';
 import { getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/activeActions.js';
@@ -246,6 +247,15 @@ export function setupCrashSiteSection(section) {
             </svg>`
         );
 
+        const getActionButtonLabel = (a) => {
+            const name = (a && a.name) ? a.name : '';
+            const max = (a && typeof a.maxUses === 'number') ? a.maxUses : null;
+            if (!max || max <= 1) return name;
+            const uses = (a && typeof a.uses === 'number') ? a.uses : 0;
+            const clamped = Math.max(0, Math.min(max, uses));
+            return `${name} (${clamped}/${max})`;
+        };
+
         let btn = null;
         if (existingButtons && existingButtons.has(action.id)) {
             btn = existingButtons.get(action.id);
@@ -279,32 +289,19 @@ export function setupCrashSiteSection(section) {
 
         btn.classList.toggle('action-has-combat', !!showCombatBadge);
         btn.classList.toggle('action-has-unknown', !!showUnknownBadge);
+        const label = getActionButtonLabel(action);
         btn.innerHTML = `
             <div class="action-progress-bar"></div>
-            <span class="building-name">${action.name}</span>
-            ${action.uiNew ? '<span class="action-new-badge" aria-hidden="true">!</span>' : ''}
+            <span class="building-name">${label}</span>
+            ${newBadgeHtml(!!action.uiNew)}
             ${showCombatBadge ? `<span class="action-combat-badge" aria-hidden="true">${swordsIcon()}</span>` : ''}
             ${showUnknownBadge ? `<span class="action-unknown-badge" aria-hidden="true">${questionIcon()}</span>` : ''}
             <span class="cancel-text">Abort?</span>
         `;
 
-        // Clear "new" badge after the player notices the button.
+        // Clear "new" badge after the player notices the button (persist quietly).
         if (action.uiNew) {
-            const clearNew = () => {
-                if (!action.uiNew) return;
-                action.uiNew = false;
-                // Remove the badge immediately for responsiveness.
-                try { btn.querySelector('.action-new-badge')?.remove(); } catch {}
-                // Persist quietly to avoid log spam.
-                import('../core/saveload.js')
-                    .then(m => { try { m?.saveGameStateQuiet?.(); } catch {} })
-                    .catch(() => {});
-            };
-
-            // Use property handlers to avoid accumulating duplicate listeners on reused buttons.
-            btn.onmouseenter = clearNew;
-            btn.onfocus = clearNew;
-            btn.ontouchstart = clearNew;
+            wireClearUiNewBadge(btn, { legacyObj: action, legacyProp: 'uiNew' });
         } else {
             // Ensure old handlers don't linger on reused buttons.
             btn.onmouseenter = null;
@@ -595,7 +592,15 @@ function cancelAction(section, message, force = false) {
                 bar.style.transition = '';
             } catch (e) { bar.style.width = '0%'; }
         }
-        const nameSpan = btn.querySelector('.building-name'); if (nameSpan) nameSpan.textContent = (btn.dataset.originalLabel || (a && a.name) || '');
+        const nameSpan = btn.querySelector('.building-name');
+        if (nameSpan) {
+            const defForLabel = salvageActions.find(s => s.id === a.id) || a;
+            const max = defForLabel && typeof defForLabel.maxUses === 'number' ? defForLabel.maxUses : null;
+            const uses = defForLabel && typeof defForLabel.uses === 'number' ? defForLabel.uses : 0;
+            nameSpan.textContent = (max && max > 1)
+                ? `${defForLabel.name} (${Math.max(0, Math.min(max, uses))}/${max})`
+                : ((defForLabel && defForLabel.name) || '');
+        }
         delete btn.dataset.originalLabel;
         const actionDef = salvageActions.find(s => s.id === a.id);
         if (actionDef) { btn.disabled = false; attachStartClickHandler(btn, actionDef, section); }
@@ -937,7 +942,15 @@ async function handleActionCompletion(section) {
                     bar2.style.transition = '';
                 } catch (e) { bar2.style.width = '0%'; }
             }
-            const nameSpan2 = btn2.querySelector('.building-name'); if (nameSpan2) nameSpan2.textContent = (btn2.dataset.originalLabel || (original && original.name) || completed.name || '');
+            const nameSpan2 = btn2.querySelector('.building-name');
+            if (nameSpan2) {
+                const defForLabel = salvageActions.find(s => s.id === completed.id) || original || completed;
+                const max = defForLabel && typeof defForLabel.maxUses === 'number' ? defForLabel.maxUses : null;
+                const uses = defForLabel && typeof defForLabel.uses === 'number' ? defForLabel.uses : 0;
+                nameSpan2.textContent = (max && max > 1)
+                    ? `${defForLabel.name} (${Math.max(0, Math.min(max, uses))}/${max})`
+                    : ((defForLabel && defForLabel.name) || completed.name || '');
+            }
             delete btn2.dataset.originalLabel;
             const actionDef2 = salvageActions.find(s => s.id === completed.id) || original;
             if (actionDef2) { btn2.disabled = false; attachStartClickHandler(btn2, actionDef2, section); }
@@ -1051,6 +1064,7 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
                     const a = salvageActions.find(x => x.id === id || x.name === id);
                     if (a && !a.isUnlocked) {
                         a.isUnlocked = true;
+                        a.uiNew = true;
                         const isUpgrade = (a.category === 'Upgrade');
                         addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${a.name}`, LogType.UNLOCK);
                         didUnlock = true;

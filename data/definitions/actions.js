@@ -763,6 +763,7 @@ const initialSalvageActions = [
                     }
                 ]
             },
+
             {
                 id: 'fixLongRangeRadio',
                 name: 'Fix Long-Range Radio',

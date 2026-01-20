@@ -3,6 +3,7 @@ import { resources, updateResourceInfo } from '../core/resources.js';
 import { buildings } from './definitions/buildings.js';
 import { allActions as salvageActions } from './definitions/allActions.js';
 import { addLogEntry, LogType } from '../core/ingameLog.js';
+import { getJobById } from './jobsManager.js';
 import { activatedSections, setActivatedSections, applyActivatedSections } from '../core/main.js';
 import { addSlotsForBuilding } from './jobsManager.js';
 
@@ -152,6 +153,14 @@ function applyFirstBuildSideEffects(building) {
       applyActivatedSections();
       addLogEntry('The first Field Lab is operational. Research is now available.', LogType.UNLOCK);
     }
+
+    // Unlock Scientist job messaging (slots are granted via the Field Lab's job effect)
+    try {
+      const sci = getJobById('scientist');
+      if (sci) {
+        addLogEntry('New job unlocked: Scientist', LogType.UNLOCK);
+      }
+    } catch (e) { /* non-fatal */ }
   }
 }
 

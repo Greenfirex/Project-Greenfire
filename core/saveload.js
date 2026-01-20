@@ -1,7 +1,21 @@
 import { resources, getInitialResources, resetResources } from './resources.js';
 import { technologies, resetTechnologies } from '../data/definitions/technologies.js';
 import { buildings, getInitialBuildings, resetBuildings } from '../data/definitions/buildings.js'; 
-import { setResearchProgress, getResearchProgress, getCurrentResearchingTech, setCurrentResearchingTech, setResearchInterval, getResearchInterval, getCurrentResearchStartTime, setCurrentResearchStartTime, resumeOngoingResearch } from '../sections/research.js';
+import {
+    setResearchProgress,
+    getResearchProgress,
+    getCurrentResearchingTech,
+    setCurrentResearchingTech,
+    setResearchInterval,
+    getResearchInterval,
+    getCurrentResearchStartTime,
+    setCurrentResearchStartTime,
+    getCurrentResearchElapsedSec,
+    setCurrentResearchElapsedSec,
+    getCurrentResearchLastTickAt,
+    setCurrentResearchLastTickAt,
+    resumeOngoingResearch
+} from '../sections/research.js';
 import { activatedSections, setActivatedSections, getInitialActivatedSections } from './main.js';
 import { showStoryPopup } from '../ui/panels/popup.js';
 import { resetIngameTime, getTotalIngameMinutes, setTotalIngameMinutes } from './time.js';
@@ -19,6 +33,59 @@ import { resetMoraleModifiers, listMoraleModifiers, setMoraleModifier } from '..
 import { resetWeather } from '../data/weather.js';
 import { driveTasks, resetDriveTasks } from '../data/definitions/encryptedDriveTasks.js';
 import { applySavedCharacterState, getCharacterStateForSave, resetCharacterState } from '../data/character.js';
+
+function reconcileActivatedSectionsAfterLoad() {
+    try {
+        // Start from whatever was loaded (or defaults if none)
+        const next = { ...getInitialActivatedSections(), ...(activatedSections || {}) };
+
+        // Crew Management is unlocked once Base Camp is established.
+        if (gameFlags && gameFlags.baseCampEstablished) {
+            next.crewManagementSection = true;
+        }
+
+        // Chapter 2+ implies Colony + Encrypted Drive are available, and Crash Site is hidden.
+        if (gameFlags && Number(gameFlags.chapter) >= 2) {
+            next.colonySection = true;
+            next.encryptedDriveSection = true;
+            next.crashSiteSection = false;
+        }
+
+        // Research becomes available once the first Field Lab exists.
+        try {
+            const fieldLab = Array.isArray(buildings) ? buildings.find(b => b && b.name === 'Field Lab') : null;
+            const fieldLabCount = fieldLab ? Number(fieldLab.count) : 0;
+            const hasFieldLab = fieldLabCount >= 1;
+            if (hasFieldLab) next.researchSection = true;
+
+            // Forward-compat: older saves won't have Scientist slots persisted.
+            // Ensure the job has at least one slot per existing Field Lab.
+            const sci = Array.isArray(jobs) ? jobs.find(j => j && j.id === 'scientist') : null;
+            if (sci && isFinite(fieldLabCount) && fieldLabCount > 0) {
+                const currentSlots = (typeof sci.slots === 'number') ? sci.slots : 0;
+                if (currentSlots < fieldLabCount) sci.slots = fieldLabCount;
+                if (typeof sci.assigned === 'number' && sci.assigned > sci.slots) sci.assigned = sci.slots;
+            }
+        } catch { /* non-fatal */ }
+
+        // Tech-driven sections (mirrors research.js completion unlocks).
+        try {
+            const hasShipyardTech = Array.isArray(technologies) && technologies.some(t => t && t.name === 'Starship Construction' && t.isResearched);
+            if (hasShipyardTech) next.shipyardSection = true;
+            const hasGalaxyTech = Array.isArray(technologies) && technologies.some(t => t && t.name === 'Stellar Cartography' && t.isResearched);
+            if (hasGalaxyTech) next.galaxyMapSection = true;
+        } catch { /* non-fatal */ }
+
+        setActivatedSections(next);
+
+        // If the UI is already built (manual load), refresh visibility.
+        try {
+            if (typeof window !== 'undefined' && typeof window.applyActivatedSections === 'function') {
+                window.applyActivatedSections();
+            }
+        } catch { /* ignore */ }
+    } catch { /* non-fatal */ }
+}
 
 export function saveGameState() {
     const gameState = getGameState();
@@ -41,6 +108,8 @@ export function getGameState() {
         researchProgress: getResearchProgress(),
         currentResearchingTech: getCurrentResearchingTech(),
         researchStartTime: getCurrentResearchStartTime(),
+        researchElapsedSec: getCurrentResearchElapsedSec(),
+        researchLastTickAt: getCurrentResearchLastTickAt(),
         activatedSections,
         buildings,
         salvageActions,
@@ -112,12 +181,35 @@ export function applyGameState(gameState) {
         }
     } catch { /* non-fatal */ }
 
+    // Migration: Crew Members -> Survivors
+    // We keep the underlying resource name stable as "Survivors" for save/load compatibility,
+    // but Chapter 2+ displays it as "Crew Members" in the UI.
+    try {
+        const saved = Array.isArray(gameState.resources) ? gameState.resources : [];
+        const crew = saved.find(r => r && r.name === 'Crew Members');
+        const hasSurvivors = saved.some(r => r && r.name === 'Survivors');
+        if (crew && !hasSurvivors) {
+            saved.push({ ...crew, name: 'Survivors' });
+        }
+    } catch { /* non-fatal */ }
+
     defaultResources.forEach(defaultResource => {
         const savedResource = (gameState.resources || []).find(r => r.name === defaultResource.name);
         if (savedResource) {
             Object.assign(defaultResource, savedResource);
         }
     });
+
+    // Migration/UI consistency: Insight + Crystal should display as whole numbers in the info panel.
+    // Older saves may have persisted `integer:false` for these resources.
+    try {
+        defaultResources.forEach(r => {
+            if (!r) return;
+            if (r.name === 'Insight' || r.name === 'Crystal') {
+                r.integer = true;
+            }
+        });
+    } catch { /* non-fatal */ }
     resources.length = 0;
     resources.push(...defaultResources);
 
@@ -125,7 +217,7 @@ export function applyGameState(gameState) {
     if (gameState.buildings) {
         // Restore only runtime-mutating fields for buildings while preserving design-time definitions
         // (costs, descriptions, effects, production rates) so content updates apply to old saves.
-        const RUNTIME_BUILDING_KEYS = new Set(['count', 'isUnlocked']);
+        const RUNTIME_BUILDING_KEYS = new Set(['count', 'isUnlocked', 'uiNew']);
         defaultBuildings.forEach(defaultBuilding => {
             const savedBuilding = gameState.buildings.find(b => b.name === defaultBuilding.name);
             if (savedBuilding) {
@@ -195,10 +287,16 @@ export function applyGameState(gameState) {
     }
 
     if (gameState.technologies) {
-        technologies.forEach(tech => {
-            const savedTech = gameState.technologies.find(t => t.name === tech.name);
-            if (savedTech) {
-                Object.assign(tech, savedTech);
+        // Restore only runtime-mutating fields while preserving design-time definitions
+        // (costs, durations, prerequisites, categories, descriptions) so balance/content updates apply to old saves.
+        const RUNTIME_TECH_KEYS = new Set(['isResearched', 'uiNew']);
+        technologies.forEach(defaultTech => {
+            const savedTech = gameState.technologies.find(t => t && t.name === defaultTech.name);
+            if (!savedTech) return;
+            for (const k of RUNTIME_TECH_KEYS) {
+                if (Object.prototype.hasOwnProperty.call(savedTech, k)) {
+                    defaultTech[k] = savedTech[k];
+                }
             }
         });
     }
@@ -216,7 +314,13 @@ export function applyGameState(gameState) {
     setCurrentResearchingTech(gameState.currentResearchingTech);
     setResearchInterval(null);
     setCurrentResearchStartTime(gameState.researchStartTime ?? 0);
+    setCurrentResearchElapsedSec(gameState.researchElapsedSec ?? 0);
+    setCurrentResearchLastTickAt(gameState.researchLastTickAt ?? 0);
     setActivatedSections(gameState.activatedSections ?? getInitialActivatedSections());
+
+    // Re-check unlock conditions after load so the menu can't drift out of sync
+    // (e.g., Crew Management should stay unlocked once Base Camp is established).
+    reconcileActivatedSectionsAfterLoad();
 
     // Restore objectives from composite save (keeps them in sync with other state)
     try {
@@ -247,7 +351,7 @@ export function applyGameState(gameState) {
     // Restore encrypted drive tasks
     if (Array.isArray(gameState.driveTasks)) {
         const RUNTIME_TASK_KEYS = new Set([
-            'running', 'progress', 'completed', '_timer', '_startAt'
+            'running', 'progress', 'completed', '_startAt', '_elapsedSec', '_lastTickAt'
         ]);
         driveTasks.forEach(defaultTask => {
             const savedTask = gameState.driveTasks.find(t => t.id === defaultTask.id);
@@ -257,6 +361,8 @@ export function applyGameState(gameState) {
                     defaultTask[k] = savedTask[k];
                 }
             }
+            // Never restore interval handles; they are not meaningful across sessions.
+            defaultTask._timer = null;
         });
     }
 
@@ -265,9 +371,16 @@ export function applyGameState(gameState) {
     if (techName) {
         const tech = technologies.find(t => t.name === techName);
         if (tech) {
-            const cancelButton = document.querySelector('.cancel-button');
-            const elapsedTime = (getResearchProgress() / 100) * tech.duration * 1000;
-            setCurrentResearchStartTime(Date.now() - elapsedTime);
+            const cancelButton = document.querySelector('#researchSection .cancel-button');
+            // Prefer persisted scaled elapsed time; otherwise derive it from percent progress (back-compat).
+            let elapsedSec = Number(getCurrentResearchElapsedSec());
+            if (!(elapsedSec > 0)) {
+                elapsedSec = (Number(getResearchProgress()) / 100) * (Number(tech.duration) || 0);
+                setCurrentResearchElapsedSec(elapsedSec);
+            }
+            // Keep startTime for back-compat tooling, but the runtime loop uses elapsedSec.
+            setCurrentResearchStartTime(Date.now() - (elapsedSec * 1000));
+            setCurrentResearchLastTickAt(Date.now());
             resumeOngoingResearch(tech, cancelButton, getResearchProgress(), getCurrentResearchStartTime());
         }
     }

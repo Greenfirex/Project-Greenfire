@@ -1,17 +1,31 @@
-import { addLogEntry } from '../core/ingameLog.js';
+import { addLogEntry, LogType } from '../core/ingameLog.js';
 import { technologies } from '../data/definitions/technologies.js';
-import { activatedSections, setActivatedSections, applyActivatedSections } from '../core/main.js';
+import { activatedSections, setActivatedSections, applyActivatedSections, setColonyMenuNewItemFlag } from '../core/main.js';
 import { setupTooltip, hideTooltip } from '../ui/panels/tooltip.js';
 import { setupColonySection } from './colony.js';
-import { resources, computeResourceRates } from '../core/resources.js';
+import { resources, computeResourceRates, updateResourceInfo } from '../core/resources.js';
+import { buildings } from '../data/definitions/buildings.js';
+import { gameFlags } from '../data/gameFlags.js';
+import { newBadgeHtml, wireClearUiNewBadge } from '../ui/components/uiNew.js';
+import { showStoryPopup } from '../ui/panels/popup.js';
+import { storyEvents } from '../data/definitions/storyEvents.js';
 
 export let currentResearchingTech = null;
 export let researchInterval = null;
 export let currentResearchDuration = 0;
 export let currentResearchStartTime = 0;
 export let researchProgress = 0;
+// Track scaled (in-game) elapsed time so TIME_SCALE affects research speed.
+export let currentResearchElapsedSec = 0;
+export let currentResearchLastTickAt = 0;
 
 const createdTechButtons = new Set();
+
+let researchDomScope = null;
+
+function getResearchScope() {
+    return researchDomScope || document;
+}
 
 export function getResearchInterval() {
     return researchInterval;
@@ -45,23 +59,45 @@ export function setCurrentResearchStartTime(time) {
     currentResearchStartTime = time;
 }
 
+export function getCurrentResearchElapsedSec() {
+    return currentResearchElapsedSec;
+}
+
+export function setCurrentResearchElapsedSec(sec) {
+    currentResearchElapsedSec = sec;
+}
+
+export function getCurrentResearchLastTickAt() {
+    return currentResearchLastTickAt;
+}
+
+export function setCurrentResearchLastTickAt(ts) {
+    currentResearchLastTickAt = ts;
+}
+
 function createTechButton(name, onClick, container, tooltipData) {
     const button = document.createElement('button');
     button.className = 'tech-button';
     button.dataset.tech = name;
-    button.innerText = name;
+    button.innerHTML = `
+        <span class="tech-button-label">${name}</span>
+        ${newBadgeHtml(!!tooltipData?.uiNew)}
+    `;
     button.addEventListener('click', onClick);
 
     if (tooltipData) {
         setupTooltip(button, tooltipData);
     }
 
+    // Clear "new" badge after the player notices the button (persist quietly).
+    if (tooltipData?.uiNew) wireClearUiNewBadge(button, { legacyObj: tooltipData, legacyProp: 'uiNew' });
+
     container.appendChild(button);
 }
 
 export function updateTechButtonsState() {
-    // Find all visible tech buttons
-    const techButtons = document.querySelectorAll('.tech-button');
+    // Find all visible tech buttons (scope to the research section)
+    const techButtons = getResearchScope().querySelectorAll('.tech-button');
 
     techButtons.forEach(button => {
         const techName = button.dataset.tech;
@@ -103,6 +139,15 @@ export function setupResearchSection(researchSection) {
     researchSection.innerHTML = '';
     researchSection.classList.add('research-bg');
 
+    // Standard section framing used across the game
+    const contentPanel = document.createElement('div');
+    contentPanel.className = 'content-panel';
+    const sectionInner = document.createElement('div');
+    sectionInner.className = 'section-inner research-section';
+    contentPanel.appendChild(sectionInner);
+    researchSection.appendChild(contentPanel);
+    researchDomScope = sectionInner;
+
     // --- Block 1: Create the Progress Bar ---
     const progressBarContainer = document.createElement('div');
     progressBarContainer.className = 'progress-bar-container';
@@ -124,7 +169,7 @@ export function setupResearchSection(researchSection) {
     progressInfo.appendChild(cancelButton);
     progressBarContainer.appendChild(progressBar);
     progressBarContainer.appendChild(progressInfo);
-    researchSection.appendChild(progressBarContainer);
+    sectionInner.appendChild(progressBarContainer);
 
     // --- Block 2: Create the Tabs ---
     const tabContainer = document.createElement('div');
@@ -139,7 +184,7 @@ export function setupResearchSection(researchSection) {
     researchedTab.addEventListener('click', () => showTab('researched'));
     tabContainer.appendChild(availableTab);
     tabContainer.appendChild(researchedTab);
-    researchSection.appendChild(tabContainer);
+    sectionInner.appendChild(tabContainer);
 
     // --- NEW: A wrapper for the tab content ---
     const contentWrapper = document.createElement('div');
@@ -210,14 +255,14 @@ export function setupResearchSection(researchSection) {
     contentWrapper.appendChild(availableContainer);
     contentWrapper.appendChild(researchedContainer);
     // Append the wrapper to the main section
-    researchSection.appendChild(contentWrapper);
+    sectionInner.appendChild(contentWrapper);
 
     // Restore the correct active tab
     showTab(activeTabName);
 
     if (currentResearchingTech) {
         updateProgressBar(cancelButton);
-        document.querySelectorAll('.tech-button').forEach(button => button.disabled = true);
+        getResearchScope().querySelectorAll('.tech-button').forEach(button => button.disabled = true);
         if (cancelButton) cancelButton.style.display = 'inline-block';
     }
     updateTechButtonsState();
@@ -225,10 +270,13 @@ export function setupResearchSection(researchSection) {
 
 function showTab(tabName) {
     // --- MODIFIED: This function now uses a '.visible' class for content ---
-    const availableContainer = document.querySelector('.tech-container.available');
-    const researchedContainer = document.querySelector('.tech-container.researched');
-    const availableTab = document.querySelector('.tab:nth-child(1)');
-    const researchedTab = document.querySelector('.tab:nth-child(2)');
+    const scope = getResearchScope();
+    const availableContainer = scope.querySelector('.tech-container.available');
+    const researchedContainer = scope.querySelector('.tech-container.researched');
+    const availableTab = scope.querySelector('.tab-container .tab:nth-child(1)');
+    const researchedTab = scope.querySelector('.tab-container .tab:nth-child(2)');
+
+    if (!availableContainer || !researchedContainer || !availableTab || !researchedTab) return;
 
     if (tabName === 'available') {
         availableContainer.classList.add('visible');
@@ -244,8 +292,9 @@ function showTab(tabName) {
 }
 
 function updateProgressBar(cancelButton) {
-    const progressBar = document.querySelector('.progress-bar');
-    const progressText = document.querySelector('.progress-text');
+    const scope = getResearchScope();
+    const progressBar = scope.querySelector('.progress-bar');
+    const progressText = scope.querySelector('.progress-text');
 
     if (!getCurrentResearchingTech()) {
         if (progressBar && progressText) {
@@ -259,7 +308,7 @@ function updateProgressBar(cancelButton) {
     }
 
     if (progressBar && progressText) {
-        const elapsedTime = (Date.now() - getCurrentResearchStartTime()) / 1000;
+        const elapsedTime = Math.max(0, Number(getCurrentResearchElapsedSec()) || 0);
         const totalDuration = currentResearchDuration || 1;
         const progress = Math.min((elapsedTime / totalDuration) * 100, 100);
         setResearchProgress(progress);
@@ -303,12 +352,23 @@ function cancelResearch() {
     // --- Original logic continues ---
     setResearchProgress(0);
     setCurrentResearchingTech(null);
+    setCurrentResearchElapsedSec(0);
+    setCurrentResearchLastTickAt(0);
     localStorage.removeItem('researchState');
     setupResearchSection();
 }
 
 function handleResearchCompletion(tech, cancelButton) {
     if (!tech.isResearched) {
+        const visibleBefore = new Set(
+            (technologies || [])
+                .filter(t => t && !t.isResearched && Array.isArray(t.prerequisites) && t.prerequisites.every(p => {
+                    const pre = (technologies || []).find(x => x && x.name === p);
+                    return !!pre?.isResearched;
+                }))
+                .map(t => t.name)
+        );
+
         addLogEntry(`${tech.name} research complete!`, 'green');
         tech.isResearched = true;
 
@@ -324,6 +384,78 @@ function handleResearchCompletion(tech, cancelButton) {
             addLogEntry('New menu section unlocked: Galaxy Map', 'blue');
             newUnlocks = true;
         }
+
+        // Building unlocks tied to research
+        if (tech.name === 'Crystal Analysis') {
+            const workshop = (buildings || []).find(b => b && b.name === 'Workshop');
+            if (workshop && !workshop.isUnlocked) {
+                workshop.isUnlocked = true;
+                workshop.uiNew = true;
+                addLogEntry('New building unlocked: Workshop', 'blue');
+
+                // Surface the unlock as a menu badge unless the player is already in Colony.
+                try {
+                    const current = localStorage.getItem('currentSection');
+                    if (current !== 'colonySection') setColonyMenuNewItemFlag(true);
+                } catch {
+                    setColonyMenuNewItemFlag(true);
+                }
+            }
+
+            // Story popup for Crystal Analysis completion
+            try {
+                const evt = storyEvents && storyEvents.crystal_analysis_complete;
+                if (evt) {
+                    const payload = { unlocks: { buildings: ['Workshop'] } };
+                    showStoryPopup(evt, payload);
+                    addLogEntry('Crystal Analysis complete. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(evt, payload) });
+                }
+            } catch { /* non-fatal */ }
+        }
+
+        // Workforce is consumed by Colony UI (unlocks a Ship Salvage action there).
+        if (tech.name === 'Workforce') {
+            try {
+                const clears = Math.max(0, Math.min(5, Number(gameFlags.cargoBayRouteClears) || 0));
+                const reached = !!gameFlags.cargoBayReached || clears >= 5;
+                if (!reached) {
+                    gameFlags.cargoBayRouteUiNew = true;
+
+                    // Surface the unlock as a menu badge unless the player is already in Colony.
+                    try {
+                        const current = localStorage.getItem('currentSection');
+                        if (current !== 'colonySection') setColonyMenuNewItemFlag(true);
+                    } catch {
+                        setColonyMenuNewItemFlag(true);
+                    }
+                }
+
+                // Story popup for Workforce completion
+                try {
+                    const evt = storyEvents && storyEvents.workforce_research_complete;
+                    if (evt) {
+                        const payload = { unlocks: { actions: ['Clear Route to Cargo Bay'] } };
+                        showStoryPopup(evt, payload);
+                        addLogEntry('Workforce research complete. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(evt, payload) });
+                    }
+                } catch { /* non-fatal */ }
+            } catch { /* non-fatal */ }
+        }
+
+        // Mark newly-available techs with the "new" badge.
+        const visibleAfter = new Set(
+            (technologies || [])
+                .filter(t => t && !t.isResearched && Array.isArray(t.prerequisites) && t.prerequisites.every(p => {
+                    const pre = (technologies || []).find(x => x && x.name === p);
+                    return !!pre?.isResearched;
+                }))
+                .map(t => t.name)
+        );
+        visibleAfter.forEach(name => {
+            if (visibleBefore.has(name)) return;
+            const t = (technologies || []).find(x => x && x.name === name);
+            if (t) t.uiNew = true;
+        });
 
         if (newUnlocks) {
             setActivatedSections(activatedSections); // Save the updated unlocks
@@ -376,6 +508,8 @@ export function startResearch(tech, cancelButton) {
     setResearchProgress(0);
     currentResearchDuration = tech.duration;
     setCurrentResearchStartTime(Date.now());
+    setCurrentResearchElapsedSec(0);
+    setCurrentResearchLastTickAt(Date.now());
     updateProgressBar(cancelButton);
 
     if (cancelButton) {
@@ -385,13 +519,31 @@ export function startResearch(tech, cancelButton) {
 
     addLogEntry(`Started researching ${tech.name}.`, 'yellow');
 
-    document.querySelectorAll('.tech-button').forEach(button => {
+    getResearchScope().querySelectorAll('.tech-button').forEach(button => {
         button.disabled = true;
     });
 
     setResearchInterval(setInterval(() => {
-        const elapsedTime = (Date.now() - getCurrentResearchStartTime()) / 1000;
-        const progress = currentResearchDuration > 0 ? (elapsedTime / currentResearchDuration) * 100 : 0;
+        const now = Date.now();
+        const last = Number(getCurrentResearchLastTickAt()) || now;
+        setCurrentResearchLastTickAt(now);
+
+        // Pause safety: do not advance research while paused.
+        try {
+            if (localStorage.getItem('gamePaused') === 'true') {
+                updateProgressBar(cancelButton);
+                return;
+            }
+        } catch { /* ignore */ }
+
+        const dtReal = Math.max(0, (now - last) / 1000);
+        const timeScale = (typeof window !== 'undefined' && window.TIME_SCALE) ? Number(window.TIME_SCALE) : 1;
+        const dtScaled = dtReal * (isFinite(timeScale) ? timeScale : 1);
+
+        const nextElapsed = Math.max(0, (Number(getCurrentResearchElapsedSec()) || 0) + dtScaled);
+        setCurrentResearchElapsedSec(nextElapsed);
+
+        const progress = currentResearchDuration > 0 ? (nextElapsed / currentResearchDuration) * 100 : 0;
         setResearchProgress(progress);
         updateProgressBar(cancelButton);
 
@@ -400,7 +552,7 @@ export function startResearch(tech, cancelButton) {
             setResearchInterval(null);
             handleResearchCompletion(tech, cancelButton);
         }
-    }, 1000));
+    }, 100));
 }
 
 export function resumeOngoingResearch(tech, cancelButton, savedProgress, savedStartTime) {
@@ -413,6 +565,10 @@ export function resumeOngoingResearch(tech, cancelButton, savedProgress, savedSt
     setResearchProgress(savedProgress);
     currentResearchDuration = tech.duration;
     setCurrentResearchStartTime(savedStartTime);
+    // Back-compat: if we only have percent progress, derive elapsed seconds from it.
+    const derivedElapsed = (Number(savedProgress) || 0) / 100 * (Number(tech.duration) || 0);
+    setCurrentResearchElapsedSec(Math.max(0, derivedElapsed));
+    setCurrentResearchLastTickAt(Date.now());
     updateProgressBar(cancelButton);
 
     if (cancelButton) {
@@ -421,8 +577,25 @@ export function resumeOngoingResearch(tech, cancelButton, savedProgress, savedSt
     }
 
     setResearchInterval(setInterval(() => {
-        const elapsedTime = (Date.now() - getCurrentResearchStartTime()) / 1000;
-        const progress = currentResearchDuration > 0 ? (elapsedTime / currentResearchDuration) * 100 : 0;
+        const now = Date.now();
+        const last = Number(getCurrentResearchLastTickAt()) || now;
+        setCurrentResearchLastTickAt(now);
+
+        try {
+            if (localStorage.getItem('gamePaused') === 'true') {
+                updateProgressBar(cancelButton);
+                return;
+            }
+        } catch { /* ignore */ }
+
+        const dtReal = Math.max(0, (now - last) / 1000);
+        const timeScale = (typeof window !== 'undefined' && window.TIME_SCALE) ? Number(window.TIME_SCALE) : 1;
+        const dtScaled = dtReal * (isFinite(timeScale) ? timeScale : 1);
+
+        const nextElapsed = Math.max(0, (Number(getCurrentResearchElapsedSec()) || 0) + dtScaled);
+        setCurrentResearchElapsedSec(nextElapsed);
+
+        const progress = currentResearchDuration > 0 ? (nextElapsed / currentResearchDuration) * 100 : 0;
         setResearchProgress(progress);
         updateProgressBar(cancelButton);
 
@@ -431,5 +604,5 @@ export function resumeOngoingResearch(tech, cancelButton, savedProgress, savedSt
             setResearchInterval(null);
             handleResearchCompletion(tech, cancelButton);
         }
-    }, 1000));
+    }, 100));
 }

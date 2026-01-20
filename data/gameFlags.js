@@ -48,6 +48,16 @@ const initialGameFlags = {
     ,
     // Narrative gating: ensure distant smoke sighting popup only shows once
     smokeSightingShown: false
+    ,
+    // Colony salvage progression: clear route to Cargo Bay (0..5)
+    cargoBayRouteClears: 0,
+    cargoBayReached: false,
+    cargoBayRouteUiNew: false,
+    // UI-only persistence: which unlocks/buttons the player has already seen.
+    // Keys are strings like "tech:Workforce", "building:Workshop", "action:assembleMakeshiftExplosive".
+    uiSeen: {},
+    // Placeholder unlock for future Manufacturing usage
+    workerDroneBlueprintUnlocked: false
 };
 
 export function getInitialGameFlags() {
@@ -132,7 +142,7 @@ registerActionCompletionHandler('installRainCatchers', () => {
     const rainBuilding = (buildings || []).find(b => ['Rain Tarp', 'Rain Catchment'].includes(b.name));
     if (rainBuilding) {
         rainBuilding.isUnlocked = true;
-        // best-effort UI refresh: call known globals if present and dispatch an event
+            rainBuilding.uiNew = true; // Mark as new for UI
         if (typeof window !== 'undefined') {
             if (typeof window.setupColonySection === 'function') window.setupColonySection();
             if (typeof window.updateBuildingButtonsState === 'function') window.updateBuildingButtonsState();
@@ -156,6 +166,7 @@ registerActionCompletionHandler('establishBaseCamp', () => {
     buildings.forEach(b => {
         if (toUnlock.includes(b.name) && !b.isUnlocked) {
             b.isUnlocked = true;
+                b.uiNew = true; // Mark as new for UI
             addLogEntry(`New building available: ${b.name}`, LogType.UNLOCK);
         }
     });
@@ -302,18 +313,8 @@ registerActionCompletionHandler('checkCaptainsQuarters', () => {
             }
         }
         
-        // Rename Survivors to Crew Members for Chapter II
-        const survivors = (resources || []).find(res => res && res.name === 'Survivors');
-        if (survivors) {
-            survivors.name = 'Crew Members';
-            // Update the DOM element's displayed name
-            const row = document.querySelector('.info-row[data-resource="Survivors"]');
-            if (row) {
-                row.dataset.resource = 'Crew Members';
-                const nameEl = row.querySelector('.infocolumn1 span');
-                if (nameEl) nameEl.textContent = 'Crew Members';
-            }
-        }
+        // UI: display label for Survivors becomes "Crew Members" in Chapter II+
+        // Keep the underlying resource name stable for save/load compatibility.
         
         // Refresh resource display to hide obsolete resources
         if (typeof window !== 'undefined' && typeof window.updateResourceInfo === 'function') {

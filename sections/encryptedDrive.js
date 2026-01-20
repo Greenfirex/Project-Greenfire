@@ -53,6 +53,86 @@ function updateHeaderResources() {
 // Track selected task for detail view
 let selectedTaskId = null;
 
+function getTimeScale() {
+    try {
+        if (typeof window !== 'undefined' && typeof window.TIME_SCALE === 'number') {
+            return window.TIME_SCALE;
+        }
+    } catch {}
+    return 1;
+}
+
+function isPaused() {
+    try {
+        return localStorage.getItem('gamePaused') === 'true';
+    } catch {
+        return false;
+    }
+}
+
+function updateSelectedDetailsProgress(container, task) {
+    if (!container || !task) return;
+    if (selectedTaskId !== task.id) return;
+    const bar = container.querySelector('.drive-details-panel .drive-progress .bar');
+    if (!bar) return;
+    const pct = Math.max(0, Math.min(100, Math.round((task.progress || 0) * 100)));
+    bar.style.width = `${pct}%`;
+}
+
+function completeTask(task, container) {
+    task.running = false;
+    task.completed = true;
+    task.progress = 1;
+    if (task._timer) {
+        clearInterval(task._timer);
+        task._timer = null;
+    }
+    task._elapsedSec = 0;
+    task._lastTickAt = 0;
+
+    grantXP(task.xp);
+    updateHeaderResources();
+    addLogEntry(`${task.name} completed. +${formatNumber(task.xp)} XP`, LogType.UNLOCK);
+    try { setupEncryptedDriveSection(container); } catch {}
+}
+
+function startOrResumeTaskTimer(task, container) {
+    if (!task || !task.running || task.completed) return;
+    if (task._timer) return;
+
+    // Initialize elapsed time from saved progress when resuming
+    if (typeof task._elapsedSec !== 'number' || task._elapsedSec < 0) {
+        const d = Math.max(0.001, Number(task.duration || 1));
+        const p = Math.max(0, Math.min(1, Number(task.progress || 0)));
+        task._elapsedSec = p * d;
+    }
+    task._lastTickAt = Date.now();
+
+    task._timer = setInterval(() => {
+        const now = Date.now();
+
+        if (isPaused()) {
+            // Freeze progress while paused
+            task._lastTickAt = now;
+            return;
+        }
+
+        const deltaSec = Math.max(0, Math.min((now - (task._lastTickAt || now)) / 1000, 0.25));
+        task._lastTickAt = now;
+
+        const d = Math.max(0.001, Number(task.duration || 1));
+        const timeScale = getTimeScale();
+        task._elapsedSec = Math.min(d, (task._elapsedSec || 0) + deltaSec * timeScale);
+        task.progress = Math.max(0, Math.min(1, (task._elapsedSec || 0) / d));
+
+        updateSelectedDetailsProgress(container, task);
+
+        if (task.progress >= 1) {
+            completeTask(task, container);
+        }
+    }, 300);
+}
+
 function renderTaskListItem(task) {
     const idx = driveTasks.findIndex(t => t && t.id === task.id);
     const prev = idx > 0 ? driveTasks[idx - 1] : null;
@@ -161,12 +241,10 @@ function attachHandlers(container) {
             if (task.running || task.completed) return;
             
             // Pause check
-            try {
-                if (localStorage.getItem('gamePaused') === 'true') {
-                    addLogEntry('Game is paused. Resume to start analysis tasks.', LogType.INFO);
-                    return;
-                }
-            } catch {}
+            if (isPaused()) {
+                addLogEntry('Game is paused. Resume to start analysis tasks.', LogType.INFO);
+                return;
+            }
 
             if (!canAfford(task.cost)) {
                 const short = getShortfalls(task.cost).join(', ');
@@ -179,37 +257,16 @@ function attachHandlers(container) {
             task.running = true;
             task.progress = 0;
             task._startAt = Date.now();
+            task._elapsedSec = 0;
+            task._lastTickAt = Date.now();
             addLogEntry(`${task.name} started.`, LogType.INFO);
 
-            const row = btn.closest('.drive-action');
-            const progressEl = row?.querySelector('.drive-progress .bar');
-            btn.textContent = 'In Progress…';
-            btn.disabled = true;
-            btn.classList.remove('unaffordable');
+            // Ensure the details panel shows the running task
+            selectedTaskId = taskId;
+            try { setupEncryptedDriveSection(container); } catch {}
 
-            task._timer = setInterval(() => {
-                // Respect pause: freeze progress while paused
-                try {
-                    if (localStorage.getItem('gamePaused') === 'true') return;
-                } catch {}
-
-                const elapsed = (Date.now() - task._startAt) / 1000;
-                const pct = Math.max(0, Math.min(1, elapsed / task.duration));
-                task.progress = pct;
-                if (progressEl) progressEl.style.width = `${Math.round(pct * 100)}%`;
-
-                if (pct >= 1) {
-                    clearInterval(task._timer);
-                    task._timer = null;
-                    task.running = false;
-                    task.completed = true;
-                    grantXP(task.xp);
-                    updateHeaderResources();
-                    addLogEntry(`${task.name} completed. +${formatNumber(task.xp)} XP`, LogType.UNLOCK);
-                    // Refresh the section to update states/affordability
-                    try { setupEncryptedDriveSection(container); } catch {}
-                }
-            }, 300);
+            // Start ticking progress
+            startOrResumeTaskTimer(task, container);
         });
     });
 }
@@ -220,6 +277,13 @@ function attachHandlers(container) {
  */
 export function setupEncryptedDriveSection(container) {
     if (!container) return;
+
+    // Resume ticking for any already-running tasks (e.g. after load / refresh)
+    (driveTasks || []).forEach(t => {
+        if (t && t.running && !t.completed) {
+            startOrResumeTaskTimer(t, container);
+        }
+    });
 
     // Separate tasks into active and locked
     const activeTasks = [];

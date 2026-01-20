@@ -123,6 +123,16 @@ export function renderObjectivesHistory() {
         return;
     }
     
+    // If a new objective just unlocked while the player was elsewhere, auto-select it
+    // the next time they open the Journal.
+    try {
+        const pending = localStorage.getItem('journalAutoSelectObjectiveId');
+        if (pending && allObjectives.find(o => String(o.id) === String(pending))) {
+            selectedObjectiveId = pending;
+        }
+        if (pending) localStorage.removeItem('journalAutoSelectObjectiveId');
+    } catch { /* ignore */ }
+
     // Auto-select first objective if none selected or selected is not in list
     if (!selectedObjectiveId || !allObjectives.find(o => o.id === selectedObjectiveId)) {
         selectedObjectiveId = allObjectives[0].id;

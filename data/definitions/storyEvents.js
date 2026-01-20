@@ -74,6 +74,15 @@ basecamp_established: {
     ]
 },
 
+cargo_bay_reached: {
+        title: 'Cargo Bay Access',
+        pages: [
+            "The last slab of twisted plating gives way. Dust hangs in the air as your light spills into a wide compartment — the cargo bay.",
+            "Most containers are shattered or fused shut, but not everything was ruined. Among the wreckage you recover a compact worker drone — scuffed, but intact — and a blueprint packet detailing its frame and control systems.",
+            "Back at camp, you repurpose the drone’s intact subsystems and routines into a dedicated helper. It counts as an additional crew member, and the blueprint will be usable once proper manufacturing is online." 
+        ]
+    },
+
 tasks_for_survivors_completed: {
     title: 'Camp Organized — Ready to Explore',
     pages: [
@@ -222,7 +231,29 @@ stockpile_complete_smoke_sighting: {
         "You take a moment near the perimeter to review the progress. The camp is no longer fragile — it's a functioning base, capable of sustaining your people through the wait for rescue.",
         "That's when something catches your eye: a thin pillar of smoke rising steadily from the treeline in the distance. It's controlled, deliberate — not wildfire or natural combustion. That smoke could only mean one thing: another escape pod landing site.",
         "There may be more survivors out there, waiting. You mark the direction and prepare to investigate.",
-        "New action unlocked: Investigate Distant Smoke."
+        ""
+    ]
+},
+
+// Research completion: Crystal Analysis
+crystal_analysis_complete: {
+    title: 'Crystal Analysis — New Potential',
+    pages: [
+        "Under a makeshift lens you study the crystal’s lattice — regular, repeating, and strangely responsive to heat and pressure. It isn’t just a mineral deposit. It’s engineered… or at least formed under conditions that mimic engineering.",
+        "Small fractures propagate with clean symmetry. Under stress it stores and releases energy in predictable ways. That kind of behavior is rare in natural materials — and extremely useful.",
+        "If you can shape it and test it properly, crystal could become more than a curiosity: power routing, precision tools, signal modulation… even fabrication aids. The problem is you need controlled equipment to explore those applications.",
+        "You draft a plan for a Workshop — a dedicated space for experiments and prototyping. If crystal has even half the potential it suggests, the Workshop will be the first step toward turning survival into progress."
+    ]
+},
+
+// Research completion: Workforce
+workforce_research_complete: {
+    title: 'Workforce — A Way Forward',
+    pages: [
+        "With routines established and tasks delegated, the camp finally runs like a unit instead of a scramble. People know where to be, what to carry, and how to rotate before exhaustion turns into mistakes.",
+        "You revisit the crash data and the ship’s internal maps. The Cargo Bay sits deeper in the hull — sealed behind collapsed bulkheads and twisted plating.",
+        "If the manifests are accurate, there are maintenance drones stored there. Not combat units — workers: lifters, welders, basic fabrication assistants. Even one functioning drone could take pressure off the crew and accelerate every other project.",
+        "You outline the only practical approach: send crews to dig and clear a tunnel section by section until the route opens. It will be slow and costly, but it’s a path — and you finally have the organization to attempt it."
     ]
 },
 // New: Investigate distant smoke — escape pod survivors and a warning

@@ -8,6 +8,7 @@ import { resources } from '../core/resources.js';
 import { gameFlags } from './gameFlags.js';
 import { allActions } from './definitions/allActions.js';
 import { buildings } from './definitions/buildings.js';
+import { technologies } from './definitions/technologies.js';
 import { jobs } from './jobsManager.js';
 import { addLogEntry, LogType } from '../core/ingameLog.js';
 import { getTotalIngameMinutes } from '../core/time.js';
@@ -429,19 +430,32 @@ const defs = [
             const smoke = status.find(o => o.id === 'obj_investigate_smoke');
             return !!(smoke && smoke.state === 'completed');
         },
-        // Complete when the Field Lab building exists (placeholder until building is implemented)
+        // Complete when the Workshop is built.
         complete: () => {
-            const lab = (buildings || []).find(b => b && (b.name === 'Field Lab' || b.id === 'field_lab'));
-            return (lab?.count || 0) >= 1;
+            const workshop = (buildings || []).find(b => b && b.name === 'Workshop');
+            return (workshop?.count || 0) >= 1;
         },
         reward: [{ resource: 'XP', amount: 60 }],
         priority: 16,
         steps: () => {
             const lab = (buildings || []).find(b => b && (b.name === 'Field Lab' || b.id === 'field_lab'));
             const count = lab?.count || 0;
-            return [
-                { id: 'build_field_lab', label: 'Build Field Lab', done: count >= 1, progress: count >= 1 ? '1/1' : `${count}/1` }
+            const crystalAnalysis = (technologies || []).find(t => t && t.name === 'Crystal Analysis');
+            const crystalAnalysisDone = !!crystalAnalysis?.isResearched;
+            const workshop = (buildings || []).find(b => b && b.name === 'Workshop');
+            const workshopCount = workshop?.count || 0;
+
+            const steps = [
+                { id: 'build_field_lab', label: 'Build Field Lab', done: count >= 1, progress: count >= 1 ? '1/1' : `${count}/1` },
+                { id: 'research_crystal_analysis', label: 'Research Crystal Analysis', done: crystalAnalysisDone }
             ];
+
+            // Workshop unlocks after Crystal Analysis research completes
+            if (crystalAnalysisDone) {
+                steps.push({ id: 'build_workshop', label: 'Build Workshop', done: workshopCount >= 1, progress: workshopCount >= 1 ? '1/1' : `${workshopCount}/1` });
+            }
+
+            return steps;
         }
     }
 ];
@@ -534,22 +548,31 @@ export function recomputeObjectives() {
                     // Additional safety: check if player has progressed beyond initial game state
                     const hasProgressedBeyondStart = hasCompletedAction('attemptReentry') && hasCompletedAction('scoutSurroundings');
                     if (baseCampComplete && !gameFlags.smokeSightingShown && hasAnyUpgrade && hasProgressedBeyondStart) {
+                        let unlockedName = null;
                         try {
-                            const evt = storyEvents.stockpile_complete_smoke_sighting;
-                            if (evt && typeof showStoryPopup === 'function') {
-                                showStoryPopup(evt);
-                                addLogEntry('In the distance, a thin pillar of smoke catches your eye. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(evt) });
-                                gameFlags.smokeSightingShown = true;
-                            }
-                        } catch {}
-                        try {
-                            const act = (allActions || []).find(a => a.id === 'investigateDistantSmoke');
+                            const act = (allActions || []).find(a => a && a.id === 'investigateDistantSmoke');
                             if (act && !act.isUnlocked) {
                                 act.isUnlocked = true;
+                                act.uiNew = true;
+                                unlockedName = act.name || 'Investigate Distant Smoke';
                                 addLogEntry('New action available: Investigate Distant Smoke', LogType.UNLOCK);
                                 if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
                                     try { window.setupCrashSiteSection(); } catch {}
                                 }
+                            }
+                        } catch {}
+
+                        try {
+                            const evt = storyEvents.stockpile_complete_smoke_sighting;
+                            if (evt && typeof showStoryPopup === 'function') {
+                                const payload = unlockedName ? { unlocks: { actions: [unlockedName] } } : null;
+                                showStoryPopup(evt, payload);
+                                addLogEntry(
+                                    'In the distance, a thin pillar of smoke catches your eye. (Click to read)',
+                                    LogType.STORY,
+                                    { onClick: () => showStoryPopup(evt, payload) }
+                                );
+                                gameFlags.smokeSightingShown = true;
                             }
                         } catch {}
                     }
@@ -578,22 +601,31 @@ export function recomputeObjectives() {
                     // Additional safety: check if player has progressed beyond initial game state
                     const hasProgressedBeyondStart = hasCompletedAction('attemptReentry') && hasCompletedAction('scoutSurroundings');
                     if (stockpileComplete && !gameFlags.smokeSightingShown && hasAnyUpgrade && hasProgressedBeyondStart) {
+                        let unlockedName = null;
                         try {
-                            const evt = storyEvents.stockpile_complete_smoke_sighting;
-                            if (evt && typeof showStoryPopup === 'function') {
-                                showStoryPopup(evt);
-                                addLogEntry('In the distance, a thin pillar of smoke catches your eye. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(evt) });
-                                gameFlags.smokeSightingShown = true;
-                            }
-                        } catch {}
-                        try {
-                            const act = (allActions || []).find(a => a.id === 'investigateDistantSmoke');
+                            const act = (allActions || []).find(a => a && a.id === 'investigateDistantSmoke');
                             if (act && !act.isUnlocked) {
                                 act.isUnlocked = true;
+                                act.uiNew = true;
+                                unlockedName = act.name || 'Investigate Distant Smoke';
                                 addLogEntry('New action available: Investigate Distant Smoke', LogType.UNLOCK);
                                 if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
                                     try { window.setupCrashSiteSection(); } catch {}
                                 }
+                            }
+                        } catch {}
+
+                        try {
+                            const evt = storyEvents.stockpile_complete_smoke_sighting;
+                            if (evt && typeof showStoryPopup === 'function') {
+                                const payload = unlockedName ? { unlocks: { actions: [unlockedName] } } : null;
+                                showStoryPopup(evt, payload);
+                                addLogEntry(
+                                    'In the distance, a thin pillar of smoke catches your eye. (Click to read)',
+                                    LogType.STORY,
+                                    { onClick: () => showStoryPopup(evt, payload) }
+                                );
+                                gameFlags.smokeSightingShown = true;
                             }
                         } catch {}
                     }
@@ -622,6 +654,7 @@ export function recomputeObjectives() {
             const act = (allActions || []).find(a => a.id === 'investigateDistantSmoke');
             if (act && !act.isUnlocked) {
                 act.isUnlocked = true;
+                act.uiNew = true;
                 addLogEntry('New action available: Investigate Distant Smoke', LogType.UNLOCK);
                 if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
                     try { window.setupCrashSiteSection(); } catch {}

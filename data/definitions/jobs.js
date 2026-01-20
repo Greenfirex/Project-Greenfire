@@ -41,5 +41,16 @@ export const jobs = [
         produces: 'Wire',
         rate: 0.07,
         unlimited: false
+    },
+    // Scientist — unlocked once the first Field Lab is built
+    {
+        id: 'scientist',
+        name: 'Scientist',
+        building: 'Field Lab',
+        slots: 0,
+        assigned: 0,
+        produces: 'Insight',
+        rate: 0.03,
+        description: 'Conducts research work to generate Insight.'
     }
 ];

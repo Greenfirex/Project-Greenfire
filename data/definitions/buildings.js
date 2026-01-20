@@ -57,6 +57,8 @@ const initialBuildings = [
         name: 'Field Lab',
         produces: 'Insight',
         rate: 0.08,
+        // Also unlocks a Scientist job slot per Field Lab.
+        effect: { type: 'job', jobId: 'scientist' },
         count: 0,
         cost: [{ resource: 'Crystal', amount: 5 }],
         costMultiplier: 1.32,
@@ -64,6 +66,20 @@ const initialBuildings = [
 
         // Available as soon as the Colony section is accessible.
         isUnlocked: true
+    },
+    {
+        name: 'Workshop',
+        count: 0,
+        cost: [
+            { resource: 'Crystal', amount: 25 },
+            { resource: 'Metal Parts', amount: 40 },
+            { resource: 'Wire', amount: 20 },
+            { resource: 'Clean Water', amount: 20 },
+            { resource: 'Food Rations', amount: 20 }
+        ],
+        costMultiplier: 1.25,
+        description: 'A basic fabrication and repair workspace. (Placeholder building — effects coming soon.)',
+        isUnlocked: false
     },
 
     // For Crash Site builds (locked until survivors are found / investigateSound completes)

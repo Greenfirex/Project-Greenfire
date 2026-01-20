@@ -1,72 +1,73 @@
 // A private, unchangeable "master copy" of the original technology data.
+// Keep this list intentionally small and fully game-relevant (no placeholders).
+// NOTE: Several systems currently key off technology *names* (e.g. Colony storage gating,
+// Shipyard/Galaxy Map unlocks), so we keep those names stable.
 const initialTechnologies = [
-    // DURATIONS HAVE BEEN REDUCED, AND COSTS ARE SET TO 20 CRYSTAL FOR TESTING
-    { name: 'Quantum Computing', duration: 0.5, isResearched: false, prerequisites: [], category: 'Social Tech', cost: [{ resource: 'Crystal', amount: 20 },{ resource: 'Xylite', amount: 5 }], description: 'Unlocks advanced technologies...' },
-    { name: 'Nano Fabrication', duration: 1.5, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Bio Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Allows the creation of materials...' },
-    { 
-    name: 'AI Integration', 
-    duration: 2, 
-    isResearched: false, 
-    prerequisites: ['Quantum Computing'], 
-    category: 'Social Tech', 
-    cost: [{ resource: 'Crystal', amount: 20 }], 
-    bonus: {
-        type: 'production',
-        resource: 'Insight', // Affects Insight
-        multiplier: 0.25     // +25%
+    // --- Mining Tech ---
+    {
+        name: 'Basic Storage',
+        duration: 30,
+        isResearched: false,
+        prerequisites: [],
+        category: 'Mining Tech',
+        cost: [{ resource: 'Insight', amount: 25 }],
+        description: 'Blueprints for simple storage. Unlocks the Crystal Stockpile.'
     },
-    description: 'Integrates artificial intelligence to increase efficiency.' 
-},
-    
-    // --- Mining Technologies ---
-    { name: 'Basic Storage', duration: 2.5, isResearched: false, prerequisites: [], category: 'Mining Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Unlocks the Crystal Stockpile.' },
-    { name: 'Xylite Storage', duration: 6, isResearched: false, prerequisites: ['Basic Storage'], category: 'Mining Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Unlocks the Xylite Silo.' },
-	{ 
-    name: 'Automated Drills', 
-    duration: 3, 
-    isResearched: false, 
-    prerequisites: ['Quantum Computing'], 
-    category: 'Mining Tech', 
-    cost: [{ resource: 'Crystal', amount: 20 }],
-    // NEW: Add a bonus property
-    bonus: {
-        type: 'production', // What kind of bonus
-        resource: 'Crystal',  // Which resource it affects
-        multiplier: 0.15    // +15%
+    {
+        name: 'Crystal Analysis',
+        duration: 45,
+        isResearched: false,
+        prerequisites: ['Basic Storage'],
+        category: 'Mining Tech',
+        cost: [
+            { resource: 'Crystal', amount: 1 },
+            { resource: 'Insight', amount: 10 }
+        ],
+        bonus: {
+            type: 'production',
+            resource: 'Crystal',
+            multiplier: 0.10
+        },
+        description: 'Study lattice structures and fracture patterns to improve extraction efficiency.'
     },
-    description: 'Deploys automated drills to increase mining yield.' 
-},
-    
-    { name: 'Advanced Sonar', duration: 9, isResearched: false, prerequisites: ['Automated Drills'], category: 'Mining Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Uses advanced sonar...' },
-    { name: 'Plasma Cutter', duration: 18, isResearched: false, prerequisites: ['Advanced Sonar', 'Nano Fabrication'], category: 'Mining Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Cuts through the toughest materials...' },
-    
-    // --- Bio Technologies ---
-    { name: 'Xeno-Biology', duration: 4.5, isResearched: false, prerequisites: ['Nano Fabrication'], category: 'Bio Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Studies alien flora and fauna...' },
-    { name: 'Synthetic Crops', duration: 15, isResearched: false, prerequisites: ['Xeno-Biology'], category: 'Bio Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Grows high-yield synthetic crops...' },
-    { name: 'Genetic Engineering', duration: 25, isResearched: false, prerequisites: ['Synthetic Crops', 'AI Integration'], category: 'Bio Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Manipulates genetic code...' },
+    {
+        name: 'Xylite Storage',
+        duration: 75,
+        isResearched: false,
+        prerequisites: ['Crystal Analysis'],
+        category: 'Mining Tech',
+        cost: [{ resource: 'Insight', amount: 120 }],
+        description: 'Containment designs for volatile Xylite. Unlocks the Xylite Silo.'
+    },
 
-    // --- Social Technologies ---
-    { name: 'Communication Array', duration: 4, isResearched: false, prerequisites: ['Quantum Computing'], category: 'Social Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Establishes a galaxy-wide communication network.' },
-    { name: 'Universal Translator', duration: 12, isResearched: false, prerequisites: ['Communication Array'], category: 'Social Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Enables instantaneous translation...' },
-    { name: 'Galactic Diplomacy', duration: 20, isResearched: false, prerequisites: ['Universal Translator'], category: 'Social Tech', cost: [{ resource: 'Crystal', amount: 20 }], description: 'Allows for complex diplomatic relations...' },
-    { 
-        name: 'Starship Construction', 
-        duration: 12, 
-        isResearched: false, 
-        prerequisites: ['Nano Fabrication', 'AI Integration'], 
-        category: 'Social Tech', 
-        cost: [{ resource: 'Crystal', amount: 20 }],
-        description: 'Unlocks the Shipyard...' 
+    // --- Social Tech ---
+    {
+        name: 'Workforce',
+        duration: 60,
+        isResearched: false,
+        prerequisites: [],
+        category: 'Social Tech',
+        cost: [{ resource: 'Insight', amount: 40 }],
+        description: 'There may be drones in the Cargo Bay that could help with basic tasks — we just need to figure out a way to get there.'
     },
-    { 
-        name: 'Stellar Cartography', 
-        duration: 18, 
-        isResearched: false, 
-        prerequisites: ['Starship Construction', 'Communication Array'], 
-        category: 'Social Tech', 
-        cost: [{ resource: 'Crystal', amount: 20 }],
-        description: 'Enables deep space exploration...' 
+    {
+        name: 'Starship Construction',
+        duration: 120,
+        isResearched: false,
+        prerequisites: ['Xylite Storage'],
+        category: 'Social Tech',
+        cost: [{ resource: 'Insight', amount: 900 }],
+        description: 'Unlocks the Shipyard.'
     },
+    {
+        name: 'Stellar Cartography',
+        duration: 180,
+        isResearched: false,
+        prerequisites: ['Starship Construction'],
+        category: 'Social Tech',
+        cost: [{ resource: 'Insight', amount: 1100 }],
+        description: 'Unlocks the Galaxy Map.'
+    }
 ];
 
 // This is the "live" state of technologies that the game will modify.

@@ -26,6 +26,17 @@
 - Prefer **mutating in place** (e.g., `array.length = 0; array.push(...)`) rather than reassigning exports.
 - If you add new mutable fields that must persist, ensure they’re included in `core/saveload.js`.
 
+## UI “New” badges (“!”)
+- Any newly unlocked button/tech/building/action should show a `!` badge until the player notices it.
+- Pattern: set `uiNew = true` on the underlying object when it becomes available.
+  - Buildings: `building.uiNew = true`
+  - Crash Site actions/upgrades: `action.uiNew = true`
+  - Technologies: `tech.uiNew = true`
+- Rendering/clearing is centralized via `ui/components/uiNew.js` (clears on hover/focus/touch and persists quietly).
+- Also consider the main menu `!` badge:
+  - `core/main.js` has a lightweight poller that sets section menu badges when there is any unseen `uiNew` content.
+  - When adding a new kind of section-specific unlock (non-building/non-tech), ensure the poller covers it or explicitly set the section’s menu badge.
+
 ## Save/load + compatibility
 - Primary save blob: `localStorage.gameState` (see `core/saveload.js`).
 - Loader merges saved state into defaults for forward compatibility; when renaming concepts add a small migration (example: “Scrap Metal” → “Metal Parts” in `core/saveload.js`).
