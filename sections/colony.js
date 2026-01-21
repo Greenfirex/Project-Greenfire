@@ -8,7 +8,7 @@ import { getProgress } from '../data/buildingsManager.js';
 import { gameFlags } from '../data/gameFlags.js';
 import { showStoryPopup } from '../ui/panels/popup.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
-import { newBadgeHtml, wireClearUiNewBadge } from '../ui/components/uiNew.js';
+import { newBadgeHtml, wireClearUiNewBadge } from '../ui/components/contentNewBadges.js';
 
 let isMiningOnCooldown = false;
 let isSalvagingOnCooldown = false;

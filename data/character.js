@@ -179,11 +179,18 @@ export function getInitialCharacterState() {
     };
 
     return {
-        version: 2,
+        version: 3,
         bagCols,
         bagRows,
         bag,
         equipment,
+        localMap: {
+            // A-K / 1-9 grid coordinates (1-based)
+            x: 6,
+            y: 7,
+            selectedX: 6,
+            selectedY: 7,
+        },
         progression: {
             allocated: {
                 health: 0,
@@ -246,6 +253,23 @@ export function applySavedCharacterState(saved) {
         }
         next.equipment[slot] = getItemDefinition(v) ? v : null;
     });
+
+    // Local map state (prototype)
+    try {
+        const lm = (saved && typeof saved.localMap === 'object') ? saved.localMap : null;
+        const clampInt = (v, min, max) => {
+            const n = Math.floor(Number(v));
+            if (!Number.isFinite(n)) return min;
+            return Math.min(max, Math.max(min, n));
+        };
+        const x = clampInt(lm?.x ?? next.localMap.x, 1, 11);
+        const y = clampInt(lm?.y ?? next.localMap.y, 1, 9);
+        const selectedX = clampInt(lm?.selectedX ?? x, 1, 11);
+        const selectedY = clampInt(lm?.selectedY ?? y, 1, 9);
+        next.localMap = { x, y, selectedX, selectedY };
+    } catch {
+        // leave defaults
+    }
 
     // Progression / stat point allocations
     try {

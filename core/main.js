@@ -23,8 +23,10 @@ import { initOptions, setGlowColor, setGlowIntensity, shouldRunInBackground } fr
 import { recomputeObjectives } from '../data/objectives.js';
 import { initFooter, getIsPaused, pauseGame, resumeGame, registerMainLoopCallbacks } from '../ui/footer.js';
 import '../ui/header.js';
-import { technologies } from '../data/definitions/technologies.js';
-import { allActions as allActionsAggregate } from '../data/definitions/allActions.js';
+import '../ui/panelCollapse.js';
+import '../ui/panels/changelog.js';
+import '../ui/panels/objectivesPanel.js';
+import { MENU_SECTIONS, initMenuBadges, setMenuNewItemFlag, setColonyMenuNewItemFlag } from '../ui/menuBadges.js';
 
 window.debugResources = resources;
 window.TIME_SCALE = Number(localStorage.getItem('gameTimeScale')) || 1;
@@ -33,24 +35,6 @@ let lastUpdateTime = Date.now();
 let lastObjectivesCheck = 0;
 
 let lastKnownCharacterLevel = null;
-
-const CHARACTER_MENU_NEW_ITEM_KEY = 'uiCharacterMenuNewItem';
-const JOURNAL_MENU_NEW_ITEM_KEY = 'uiJournalMenuNewItem';
-const COLONY_MENU_NEW_ITEM_KEY = 'uiColonyMenuNewItem';
-const MENU_NEW_ITEM_PREFIX = 'uiMenuNew:';
-
-const MENU_SECTIONS = [
-    'crashSiteSection',
-    'colonySection',
-    'manufacturingSection',
-    'crewManagementSection',
-    'shipyardSection',
-    'researchSection',
-    'galaxyMapSection',
-    'encryptedDriveSection',
-    'characterSection',
-    'journalSection'
-];
 
 function syncVitalCapsFromCharacter() {
     try {
@@ -71,67 +55,6 @@ function syncVitalCapsFromCharacter() {
     } catch { /* non-fatal */ }
 }
 
-function setMenuNewItemBadgeVisible(sectionId, visible) {
-    const btn = document.querySelector(`.menu-button[data-section="${sectionId}"]`);
-    const badge = btn ? btn.querySelector('.menu-button-warning') : null;
-    if (!badge) return;
-    badge.classList.toggle('is-hidden', !visible);
-}
-
-export function setMenuNewItemFlag(sectionId, visible) {
-    if (!sectionId) return;
-    try { localStorage.setItem(`${MENU_NEW_ITEM_PREFIX}${sectionId}`, visible ? 'true' : 'false'); } catch (e) { /* ignore */ }
-    setMenuNewItemBadgeVisible(sectionId, visible);
-}
-
-function setCharacterMenuNewItemFlag(visible) {
-    try { localStorage.setItem(CHARACTER_MENU_NEW_ITEM_KEY, visible ? 'true' : 'false'); } catch (e) { /* ignore */ }
-    setMenuNewItemFlag('characterSection', visible);
-}
-
-function setJournalMenuNewItemFlag(visible) {
-    try { localStorage.setItem(JOURNAL_MENU_NEW_ITEM_KEY, visible ? 'true' : 'false'); } catch (e) { /* ignore */ }
-    setMenuNewItemFlag('journalSection', visible);
-}
-
-export function setColonyMenuNewItemFlag(visible) {
-    try { localStorage.setItem(COLONY_MENU_NEW_ITEM_KEY, visible ? 'true' : 'false'); } catch (e) { /* ignore */ }
-    setMenuNewItemFlag('colonySection', visible);
-}
-
-function refreshCharacterMenuNewItemFlagFromStorage() {
-    let visible = false;
-    try { visible = localStorage.getItem(CHARACTER_MENU_NEW_ITEM_KEY) === 'true'; } catch (e) { /* ignore */ }
-    setMenuNewItemBadgeVisible('characterSection', visible);
-}
-
-function refreshJournalMenuNewItemFlagFromStorage() {
-    let visible = false;
-    try { visible = localStorage.getItem(JOURNAL_MENU_NEW_ITEM_KEY) === 'true'; } catch (e) { /* ignore */ }
-    setMenuNewItemBadgeVisible('journalSection', visible);
-}
-
-function refreshColonyMenuNewItemFlagFromStorage() {
-    let visible = false;
-    try { visible = localStorage.getItem(COLONY_MENU_NEW_ITEM_KEY) === 'true'; } catch (e) { /* ignore */ }
-    setMenuNewItemBadgeVisible('colonySection', visible);
-}
-
-function refreshMenuNewItemFlagFromStorage(sectionId) {
-    let visible = false;
-    try { visible = localStorage.getItem(`${MENU_NEW_ITEM_PREFIX}${sectionId}`) === 'true'; } catch (e) { /* ignore */ }
-    setMenuNewItemBadgeVisible(sectionId, visible);
-}
-
-function refreshAllMenuNewItemFlagsFromStorage() {
-    for (const sectionId of MENU_SECTIONS) {
-        refreshMenuNewItemFlagFromStorage(sectionId);
-    }
-    // Also respect legacy keys for backward compatibility
-    refreshCharacterMenuNewItemFlagFromStorage();
-    refreshJournalMenuNewItemFlagFromStorage();
-    refreshColonyMenuNewItemFlagFromStorage();
-}
 
 function getCurrentCharacterLevel() {
     try {
@@ -245,9 +168,7 @@ function startGame() {
     setupEncryptedDriveSection(encryptedDriveSection);
 	
     setupMenuButtons();
-    refreshCharacterMenuNewItemFlagFromStorage();
-    refreshJournalMenuNewItemFlagFromStorage();
-    refreshColonyMenuNewItemFlagFromStorage();
+    initMenuBadges();
     loadCurrentSection();
     updateResourceInfo();
     applyActivatedSections();
@@ -292,7 +213,7 @@ function startGame() {
                     let current = null;
                     try { current = localStorage.getItem('currentSection'); } catch {}
                     if (current !== 'characterSection') {
-                        setCharacterMenuNewItemFlag(true);
+                        setMenuNewItemFlag('characterSection', true);
                     }
                 }
             } catch { /* non-fatal */ }
@@ -389,7 +310,7 @@ export function getInitialActivatedSections() {
         crashSiteSection: true,
         crewManagementSection: false,
         characterSection: true,
-        journalSection: true,
+        journalSection: false,
         colonySection: false,
         researchSection: false,
         manufacturingSection: false,
@@ -461,36 +382,7 @@ function setupMenuButtons() {
         container.appendChild(button);
     });
 
-    // After building the menu DOM, restore badge visibility from storage.
-    refreshAllMenuNewItemFlagsFromStorage();
-}
-
-function pollMenuNewBadges() {
-    let current = null;
-    try { current = localStorage.getItem('currentSection'); } catch { current = null; }
-
-    // Crash Site: any action flagged uiNew
-    try {
-        if (current !== 'crashSiteSection' && Array.isArray(allActionsAggregate) && allActionsAggregate.some(a => a && a.uiNew)) {
-            setMenuNewItemFlag('crashSiteSection', true);
-        }
-    } catch { /* ignore */ }
-
-    // Research: any tech flagged uiNew
-    try {
-        if (current !== 'researchSection' && Array.isArray(technologies) && technologies.some(t => t && t.uiNew)) {
-            setMenuNewItemFlag('researchSection', true);
-        }
-    } catch { /* ignore */ }
-
-    // Colony: any building flagged uiNew, or colony-specific action flags
-    try {
-        const hasBuildingNew = Array.isArray(buildings) && buildings.some(b => b && b.uiNew);
-        const hasColonyActionNew = !!gameFlags.cargoBayRouteUiNew;
-        if (current !== 'colonySection' && (hasBuildingNew || hasColonyActionNew)) {
-            setMenuNewItemFlag('colonySection', true);
-        }
-    } catch { /* ignore */ }
+    // Badge visibility is restored by `initMenuBadges()` after the menu is built.
 }
 
 export function applyActivatedSections() {
@@ -585,40 +477,6 @@ export function showSection(sectionId) {
     localStorage.setItem('currentSection', sectionId);
 };
 
-// Mark the Character menu button when a new item is granted.
-// This is intentionally UI-only and persists until the player opens the Character screen.
-if (typeof window !== 'undefined') {
-    window.addEventListener('inventory-item-added', () => {
-        try {
-            const current = localStorage.getItem('currentSection');
-            if (current === 'characterSection') return;
-        } catch (e) { /* ignore */ }
-        setCharacterMenuNewItemFlag(true);
-    });
-
-    // Mark the Journal menu button only when objectives become newly active (new quests).
-    // This uses a dedicated event so the badge isn't triggered by other uses of `objectivesChanged`.
-    window.addEventListener('objectivesNewlyActive', (ev) => {
-        try {
-            const newlyActive = ev?.detail?.newlyActive;
-            if (!Array.isArray(newlyActive) || !newlyActive.length) return;
-
-            // Persist the most recent newly-active objective so the Journal can auto-select it
-            // the next time the player opens the Journal section.
-            try {
-                const last = newlyActive[newlyActive.length - 1];
-                const id = last && last.id;
-                if (id) localStorage.setItem('journalAutoSelectObjectiveId', String(id));
-            } catch { /* ignore */ }
-
-            let current = null;
-            try { current = localStorage.getItem('currentSection'); } catch {}
-            if (current === 'journalSection') return;
-            setJournalMenuNewItemFlag(true);
-        } catch { /* ignore */ }
-    });
-}
-
 function loadCurrentSection() {
     const savedSection = localStorage.getItem('currentSection');
 
@@ -655,6 +513,7 @@ if (typeof window !== 'undefined') {
     window.setActivatedSections = setActivatedSections;
     window.applyActivatedSections = applyActivatedSections;
     window.showSection = showSection;
+    window.setMenuNewItemFlag = setMenuNewItemFlag;
 }
 
 // small helper to humanize the key (optional)
@@ -664,10 +523,5 @@ function formatSectionName(key) {
     return base.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
 }
 
-// Keep section menu badges in sync with newly unlocked UI elements.
-// This is intentionally low-cadence and lightweight.
-try {
-    setInterval(() => {
-        try { pollMenuNewBadges(); } catch { /* ignore */ }
-    }, 500);
-} catch { /* ignore */ }
+// Keep backwards-compatible exports for modules that already import these from `core/main.js`.
+export { setMenuNewItemFlag, setColonyMenuNewItemFlag };

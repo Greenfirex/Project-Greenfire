@@ -6,7 +6,7 @@ import { setupColonySection } from './colony.js';
 import { resources, computeResourceRates, updateResourceInfo } from '../core/resources.js';
 import { buildings } from '../data/definitions/buildings.js';
 import { gameFlags } from '../data/gameFlags.js';
-import { newBadgeHtml, wireClearUiNewBadge } from '../ui/components/uiNew.js';
+import { newBadgeHtml, wireClearUiNewBadge } from '../ui/components/contentNewBadges.js';
 import { showStoryPopup } from '../ui/panels/popup.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
 

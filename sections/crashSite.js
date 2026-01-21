@@ -3,7 +3,8 @@ import { resources } from '../core/resources.js';
 import { addLogEntry, LogType } from '../core/ingameLog.js';
 import { enableSection } from '../core/main.js';
 import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
-import { newBadgeHtml, wireClearUiNewBadge } from '../ui/components/uiNew.js';
+import { newBadgeHtml, wireClearUiNewBadge } from '../ui/components/contentNewBadges.js';
+import { setupCrashSiteLocalMap } from './crashSiteLocalMap.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
 import { showStoryPopup } from '../ui/panels/popup.js';
 import { getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/activeActions.js';
@@ -161,41 +162,190 @@ export function stopCrashSiteLoop() {
 export function setupCrashSiteSection(section) {
     // Before building UI, normalize any stage transitions that depend on global flags
     ensureBridgeStageAfterPower();
-    if (!section) {
-        const container = document.querySelector('#salvageActionsContainer');
-        section = container ? container.closest('.content-panel') || container.parentElement : null;
-    }
-    if (!section) return;
-    let targetPanel;
-    let existingButtons = new Map();
-    if (section.classList && section.classList.contains('content-panel')) {
-        targetPanel = section;
-        targetPanel.querySelectorAll('.image-button[data-action-id]').forEach(b => {
+
+    // Back-compat: if the player already unlocked scouting before this feature existed,
+    // ensure the new Move action becomes available.
+    try {
+        const scout = salvageActions.find(a => a && a.id === 'scoutSurroundings');
+        const move = salvageActions.find(a => a && a.id === 'move');
+        if (scout?.isUnlocked && move && !move.isUnlocked) {
+            move.isUnlocked = true;
+            if (move.uiNew !== false) move.uiNew = true;
+        }
+    } catch { /* ignore */ }
+    // Always render into the outer Crash Site section host.
+    // setupCrashSiteSection() can be called with an inner element (e.g., the tab pane) during refreshes.
+    const resolvedHost = (() => {
+        try {
+            if (section && typeof section.closest === 'function') {
+                const byId = section.closest('#crashSiteSection');
+                if (byId) return byId;
+                const bySection = section.closest('.game-section');
+                if (bySection) return bySection;
+            }
+        } catch { /* ignore */ }
+        try {
+            const direct = document.getElementById('crashSiteSection');
+            if (direct) return direct;
+        } catch { /* ignore */ }
+        try {
+            const container = document.querySelector('#salvageActionsContainer');
+            if (container && typeof container.closest === 'function') {
+                return container.closest('#crashSiteSection') || container.closest('.game-section') || container.parentElement;
+            }
+        } catch { /* ignore */ }
+        return null;
+    })();
+    if (!resolvedHost) return;
+    const host = resolvedHost;
+
+    // Preserve existing action buttons so we don't churn DOM unnecessarily.
+    const existingButtons = new Map();
+    try {
+        host.querySelectorAll('.image-button[data-action-id]').forEach(b => {
             existingButtons.set(b.dataset.actionId, b);
         });
-        targetPanel.innerHTML = '';
-    } else {
-        targetPanel = section.querySelector('.content-panel');
-        if (!targetPanel) {
-            targetPanel = document.createElement('div');
-            targetPanel.className = 'content-panel';
-            section.appendChild(targetPanel);
-        } else {
-            targetPanel.querySelectorAll('.image-button[data-action-id]').forEach(b => {
-                existingButtons.set(b.dataset.actionId, b);
-            });
-            targetPanel.innerHTML = '';
-        }
-    }
-    section = targetPanel;
-    section.innerHTML = `
-        <h2>Crash Site</h2>
-        <p>The wreckage of the exploration ship smolders at the edge of a dense forest. The priority is to assess the damage and salvage whatever you can.</p>
-        <div id="salvageActionsContainer" style="margin-top: 20px;"></div>
+    } catch { /* ignore */ }
+
+    let activeTab = 'crash';
+    try { activeTab = localStorage.getItem('crashSiteActiveTab') || 'crash'; } catch { /* ignore */ }
+    if (activeTab !== 'map') activeTab = 'crash';
+
+    host.innerHTML = `
+        <div class="crashsite-tabs" role="tablist" aria-label="Crash Site tabs">
+            <button class="crashsite-tab ${activeTab === 'crash' ? 'active' : ''}" data-tab="crash" role="tab" aria-selected="${activeTab === 'crash' ? 'true' : 'false'}">Crash Site</button>
+            <button class="crashsite-tab ${activeTab === 'map' ? 'active' : ''}" data-tab="map" role="tab" aria-selected="${activeTab === 'map' ? 'true' : 'false'}">Local map</button>
+        </div>
+        <div class="content-panel crashsite-panel">
+            <div class="crashsite-tabpanes">
+                <div id="crashSitePane" class="crashsite-pane ${activeTab === 'crash' ? 'active' : ''}" role="tabpanel">
+                    <div id="salvageActionsContainer"></div>
+                </div>
+                <div id="localMapPane" class="crashsite-pane ${activeTab === 'map' ? 'active' : ''}" role="tabpanel">
+                    <div id="crashSiteLocalMapContainer"></div>
+                </div>
+            </div>
+        </div>
     `;
 
-    const actionsContainer = section.querySelector('#salvageActionsContainer');
+    // Tab switching
+    const tabs = Array.from(host.querySelectorAll('.crashsite-tab'));
+    const panes = {
+        crash: host.querySelector('#crashSitePane'),
+        map: host.querySelector('#localMapPane')
+    };
+
+    const renderLocalMapActions = () => {
+        const actionsHost = host.querySelector('#crashSiteLocalMapActions');
+        if (!actionsHost) return;
+
+        actionsHost.innerHTML = '';
+
+        const mkButton = (actionDef, { disabled = false, disabledReason = '' } = {}) => {
+            const btn = document.createElement('button');
+            btn.className = 'image-button';
+            btn.dataset.actionId = actionDef.id;
+            btn.disabled = !!disabled;
+            btn.innerHTML = `
+                <div class="action-progress-bar"></div>
+                <span class="building-name">${actionDef.name}</span>
+                ${newBadgeHtml(!!actionDef.uiNew)}
+                <span class="cancel-text">Abort?</span>
+            `;
+            if (actionDef.uiNew) {
+                wireClearUiNewBadge(btn, { legacyObj: actionDef, legacyProp: 'uiNew' });
+            }
+            if (disabled && disabledReason) {
+                btn.setAttribute('aria-disabled', 'true');
+                btn.title = disabledReason;
+            }
+            attachStartClickHandler(btn, actionDef, host);
+            actionsHost.appendChild(btn);
+        };
+
+        // Move (prototype) always shown if unlocked
+        const move = salvageActions.find(a => a && a.id === 'move');
+        if (move && move.isUnlocked) {
+            mkButton(move);
+        }
+
+        // Coordinate-specific action: F6 has Go back inside (attemptReentry)
+        try {
+            const lm = characterState?.localMap;
+            const selX = Number.isFinite(lm?.selectedX) ? lm.selectedX : lm?.x;
+            const selY = Number.isFinite(lm?.selectedY) ? lm.selectedY : lm?.y;
+            const playerX = Number.isFinite(lm?.x) ? lm.x : 6;
+            const playerY = Number.isFinite(lm?.y) ? lm.y : 7;
+
+            // F6 (col 6 row 6)
+            if (selX === 6 && selY === 6) {
+                const reentry = salvageActions.find(a => a && a.id === 'attemptReentry');
+                if (reentry && reentry.isUnlocked) {
+                    const onTile = (playerX === 6 && playerY === 6);
+                    mkButton(reentry, {
+                        disabled: !onTile,
+                        disabledReason: onTile ? '' : 'Move to F6 to use this.'
+                    });
+                }
+            }
+        } catch { /* ignore */ }
+    };
+
+    const renderLocalMap = () => {
+        try {
+            const scout = salvageActions.find(a => a && a.id === 'scoutSurroundings');
+            const stage = Number(scout?.stage || 0);
+            const total = Array.isArray(scout?.stages) ? scout.stages.length : 3;
+            const mapHost = host.querySelector('#crashSiteLocalMapContainer');
+            setupCrashSiteLocalMap(mapHost, {
+                scoutStage: stage,
+                totalStages: total,
+                state: characterState?.localMap
+            });
+
+            // Re-render action list when a coordinate is selected.
+            try {
+                if (mapHost && !mapHost.dataset.boundLocalMapSelection) {
+                    mapHost.dataset.boundLocalMapSelection = 'true';
+                    mapHost.addEventListener('local-map-selection-changed', () => {
+                        renderLocalMapActions();
+                    });
+                }
+            } catch { /* ignore */ }
+        } catch { /* ignore */ }
+        renderLocalMapActions();
+    };
+    const setActive = (key) => {
+        tabs.forEach(t => {
+            const isOn = t.dataset.tab === key;
+            t.classList.toggle('active', isOn);
+            t.setAttribute('aria-selected', isOn ? 'true' : 'false');
+        });
+        if (panes.crash) panes.crash.classList.toggle('active', key === 'crash');
+        if (panes.map) panes.map.classList.toggle('active', key === 'map');
+        try { localStorage.setItem('crashSiteActiveTab', key); } catch { /* ignore */ }
+    };
+    tabs.forEach(t => {
+        t.addEventListener('click', () => {
+            const key = t.dataset.tab === 'map' ? 'map' : 'crash';
+            setActive(key);
+            if (key === 'map') {
+                renderLocalMap();
+            }
+        });
+    });
+
+    // If the map tab is active on load, render it.
+    if (activeTab === 'map') {
+        renderLocalMap();
+    }
+
+    // Continue building actions into the Crash Site pane.
+    section = host.querySelector('#crashSitePane') || host;
+
+    const actionsContainer = host.querySelector('#salvageActionsContainer');
     const availableActions = salvageActions.filter(action => {
+        if (action && action.id === 'move') return false; // Move lives under the map
         const stageIndex = action.stage || 0;
         const totalStages = (action.stages || []).length;
         if (totalStages > 0 && stageIndex >= totalStages) return !!action.repeatable && !!action.isUnlocked;
@@ -677,6 +827,47 @@ async function handleActionCompletion(section) {
     // Build an outcome payload to optionally show in story popups
     const outcome = { rewards: [], items: [], unlocks: { actions: [], buildings: [], sections: [], jobs: [] } };
 
+    // Special case: Local Map movement (prototype)
+    if (completed.id === 'move') {
+        try {
+            const st = characterState.localMap;
+            if (st && Number.isFinite(st.x) && Number.isFinite(st.y)) {
+                const tx = Number.isFinite(st.selectedX) ? st.selectedX : st.x;
+                const ty = Number.isFinite(st.selectedY) ? st.selectedY : st.y;
+                const dx = Math.sign(tx - st.x);
+                const dy = Math.sign(ty - st.y);
+                // Prefer horizontal movement if both differ (simple deterministic prototype)
+                if (dx !== 0) st.x += dx;
+                else if (dy !== 0) st.y += dy;
+
+                // Clamp to the A-K / 1-9 grid
+                st.x = Math.max(1, Math.min(11, st.x));
+                st.y = Math.max(1, Math.min(9, st.y));
+
+                const letter = String.fromCharCode('A'.charCodeAt(0) + (st.x - 1));
+                addLogEntry(`Moved to ${letter}${st.y}.`, LogType.INFO);
+
+                // If Local map tab is visible, refresh it.
+                const host = (section && typeof section.closest === 'function')
+                    ? (section.closest('#crashSiteSection') || section.closest('.game-section'))
+                    : document.getElementById('crashSiteSection');
+                if (host) {
+                    let activeTab = 'crash';
+                    try { activeTab = localStorage.getItem('crashSiteActiveTab') || 'crash'; } catch { /* ignore */ }
+                    if (activeTab === 'map') {
+                        try {
+                            const scout = salvageActions.find(a => a && a.id === 'scoutSurroundings');
+                            const stage = Number(scout?.stage || 0);
+                            const total = Array.isArray(scout?.stages) ? scout.stages.length : 3;
+                            const mapHost = host.querySelector('#crashSiteLocalMapContainer');
+                            setupCrashSiteLocalMap(mapHost, { scoutStage: stage, totalStages: total, state: characterState?.localMap });
+                        } catch { /* ignore */ }
+                    }
+                }
+            }
+        } catch { /* ignore */ }
+    }
+
     if (completed.reward) {
         const gains = [];
 
@@ -800,6 +991,19 @@ async function handleActionCompletion(section) {
     if (original && original.id === 'establishBaseCamp') {
         enableSection('crewManagementSection');
         try { outcome.unlocks.sections.push('Crew Management'); } catch (e) { /* ignore */ }
+    }
+
+    // Unlock Journal after the initial re-entry attempt, and surface it in the popup unlock list.
+    if (original && original.id === 'attemptReentry') {
+        enableSection('journalSection');
+        try { outcome.unlocks.sections.push('Journal'); } catch (e) { /* ignore */ }
+        try {
+            if (typeof window !== 'undefined' && typeof window.setMenuNewItemFlag === 'function') {
+                let current = null;
+                try { current = localStorage.getItem('currentSection'); } catch { current = null; }
+                if (current !== 'journalSection') window.setMenuNewItemFlag('journalSection', true);
+            }
+        } catch (e) { /* ignore */ }
     }
 
     // If the captain's quarters has been checked, surface the new sections in the popup outcome

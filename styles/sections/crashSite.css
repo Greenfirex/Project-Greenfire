@@ -4,9 +4,95 @@
     background-position: center;
     background-repeat: no-repeat;
     display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
     align-items: flex-start;
     padding: 20px;
     box-sizing: border-box;
+}
+
+/* --- Crash Site Tabs (mirrors Journal styling) --- */
+.crashsite-tabs {
+    position: relative;
+    display: flex;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.crashsite-tab {
+    flex: 1 1 0;
+    text-align: center;
+    background: linear-gradient(180deg, rgba(8,8,8,0.85), rgba(4,4,4,0.6));
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.38);
+    border-bottom: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.58);
+    color: #cfd8cf;
+    padding: 12px 28px;
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    cursor: pointer;
+    font-size: 15px;
+    letter-spacing: 0.6px;
+    position: relative;
+    transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.crashsite-tab:hover {
+    color: #fff;
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
+}
+
+.crashsite-tab.active {
+    background: rgba(6, 6, 6, 0.89);
+    color: #ffffff;
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.60);
+    border-bottom: none;
+    box-shadow: none;
+    z-index: 2;
+}
+
+.crashsite-tab:not(.active) {
+    box-shadow:
+        0 0 0 1px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.14) inset,
+        0 2px 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10);
+    opacity: 0.70;
+}
+
+#crashSiteSection > .content-panel.crashsite-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 20px;
+    border-top-width: 0 !important;
+    border-top-style: none !important;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    box-shadow: none !important;
+    margin-top: 0;
+    position: relative;
+    z-index: 3;
+}
+
+.crashsite-tabpanes {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.crashsite-pane {
+    display: none;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.crashsite-pane.active {
+    display: flex;
+    flex-direction: column;
 }
 
 /* Category headers: match the green header accent used in Character/Journal (e.g., "Equipment") */

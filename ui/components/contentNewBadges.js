@@ -1,5 +1,8 @@
 import { saveGameStateQuiet } from '../../core/saveload.js';
 
+// Content-level "NEW" markers (the little "!" next to actions/tech/buildings).
+// This module is intentionally separate from menu-level badges (see `ui/menuBadges.js`).
+
 export function getUiNewKey(kind, id) {
     const k = String(kind || '').trim();
     const v = String(id || '').trim();

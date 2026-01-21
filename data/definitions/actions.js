@@ -40,11 +40,25 @@ const initialSalvageActions = [
                 {
                     story: 'reentryFailed',
                     // unlock Scout Surroundings after Attempt Re-entry completes
-                    unlocks: ['scoutSurroundings'],
+                    unlocks: ['scoutSurroundings', 'move'],
                     logText: 'A forward section collapsed during your re-entry attempt; the hull is impassable and still burning. (Click to read)',
                     suppressGenericLog: true
                 }
             ]
+            },
+            {
+                id: 'move',
+                name: 'Move',
+                description: 'Advance one tile on the local map. (Prototype)',
+                duration: 0.8,
+                category: 'Exploration',
+                isUnlocked: false,
+                repeatable: true,
+                cancelable: false,
+                suppressGenericLog: true,
+                drain: [
+                    { resource: 'Stamina', amount: 2 }
+                ]
             },
             {
                 id: 'forageFood',

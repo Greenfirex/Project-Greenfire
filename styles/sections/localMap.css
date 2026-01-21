@@ -1,0 +1,364 @@
+/* Local map tab (Crash Site) */
+
+/* Layout: center the map within the tab */
+.crashsite-pane .localmap-root {
+    height: 100%;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
+.localmap-layout {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-areas:
+        "map info"
+        "actions actions";
+    grid-template-rows: auto;
+    gap: 14px;
+    align-items: stretch;
+    justify-content: stretch;
+    height: 100%;
+    min-height: 0;
+}
+
+.localmap-mapwrap {
+    grid-area: map;
+    display: flex;
+    align-items: flex-start;
+    justify-content: stretch;
+    min-height: 0;
+}
+
+.localmap-infowrap {
+    grid-area: info;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: stretch;
+    min-height: 0;
+}
+
+.localmap-card {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.25);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.localmap-card-header h3 {
+    margin: 0;
+    font-size: 14px;
+    color: #90EE90;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.localmap-card-body {
+    margin-top: 10px;
+    color: rgba(255,255,255,0.80);
+    font-size: 13px;
+    line-height: 1.35;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.localmap-info-card {
+    height: 100%;
+}
+
+.localmap-info-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 2px 0;
+}
+
+.localmap-info-row .k {
+    opacity: 0.75;
+}
+
+.localmap-info-row .v {
+    font-weight: 600;
+    color: rgba(255,255,255,0.92);
+}
+
+.localmap-divider {
+    height: 1px;
+    margin: 10px 0;
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.16);
+}
+
+.localmap-note {
+    color: rgba(255,255,255,0.70);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.localmap-shell {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    grid-template-rows: 26px 1fr;
+    gap: 8px;
+    padding: 14px;
+
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
+    border-radius: 10px;
+    box-shadow:
+        0 10px 26px rgba(0,0,0,0.25);
+
+    position: relative;
+    overflow: hidden;
+}
+
+/* Subtle scanner/noise underlay */
+.localmap-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(120% 100% at 40% 30%, rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10), transparent 55%),
+        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0)),
+        repeating-linear-gradient(0deg, rgba(127, 255, 212, 0.035) 0px, rgba(127, 255, 212, 0.035) 1px, transparent 1px, transparent 4px);
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.localmap-corner {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.localmap-top {
+    grid-column: 2;
+    grid-row: 1;
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 11), 1fr);
+    align-items: center;
+}
+
+.localmap-left {
+    grid-column: 1;
+    grid-row: 2;
+    display: grid;
+    grid-template-rows: repeat(var(--rows, 9), 1fr);
+    align-items: center;
+}
+
+.localmap-label {
+    color: rgba(255,255,255,0.75);
+    font-size: 12px;
+    letter-spacing: 0.6px;
+    text-align: center;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+.localmap-grid {
+    grid-column: 2;
+    grid-row: 2;
+
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 11), 1fr);
+    grid-template-rows: repeat(var(--rows, 9), 1fr);
+
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.22);
+    border-radius: 8px;
+    overflow: hidden;
+
+    position: relative;
+    z-index: 1;
+}
+
+/* Grid lines */
+.localmap-grid::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(to right, rgba(120,255,210,0.08) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(120,255,210,0.08) 1px, transparent 1px);
+    background-size:
+        calc(100% / var(--cols, 11)) 100%,
+        100% calc(100% / var(--rows, 9));
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.localmap-tile {
+    position: relative;
+    background: rgba(0,0,0,0.12);
+    cursor: pointer;
+}
+
+.localmap-tile:hover {
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.07);
+}
+
+.localmap-tile.is-selected {
+    outline: 2px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.80);
+    outline-offset: -2px;
+}
+
+.localmap-tile.is-player::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: rgba(255, 245, 170, 0.98);
+    border: 1px solid rgba(0, 0, 0, 0.55);
+    box-shadow:
+        0 0 10px rgba(255, 245, 170, 0.65),
+        0 0 18px rgba(255, 245, 170, 0.25),
+        0 0 22px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.12);
+    z-index: 2;
+}
+
+.localmap-tile.is-player::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 22px;
+    height: 22px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 2px solid rgba(255, 245, 170, 0.55);
+    box-shadow: 0 0 10px rgba(255, 245, 170, 0.25);
+    opacity: 0.9;
+    z-index: 1;
+}
+
+/* Crash Site POI footprint (D3-G6) */
+.localmap-tile.is-poi-area {
+    background: rgba(120,255,210,0.06);
+}
+
+.localmap-tile.is-poi-area.poi-border-top {
+    box-shadow: inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+
+.localmap-tile.is-poi-area.poi-border-bottom {
+    box-shadow: inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+
+.localmap-tile.is-poi-area.poi-border-left {
+    box-shadow: inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+
+.localmap-tile.is-poi-area.poi-border-right {
+    box-shadow: inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+
+/* Combine border shadows when multiple edges apply */
+.localmap-tile.is-poi-area.poi-border-top.poi-border-left {
+    box-shadow:
+        inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+.localmap-tile.is-poi-area.poi-border-top.poi-border-right {
+    box-shadow:
+        inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+.localmap-tile.is-poi-area.poi-border-bottom.poi-border-left {
+    box-shadow:
+        inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+.localmap-tile.is-poi-area.poi-border-bottom.poi-border-right {
+    box-shadow:
+        inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+.localmap-tile.is-poi-area.poi-border-top.poi-border-bottom {
+    box-shadow:
+        inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+.localmap-tile.is-poi-area.poi-border-left.poi-border-right {
+    box-shadow:
+        inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+.localmap-tile.is-poi-area.poi-border-top.poi-border-bottom.poi-border-left {
+    box-shadow:
+        inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+.localmap-tile.is-poi-area.poi-border-top.poi-border-bottom.poi-border-right {
+    box-shadow:
+        inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+.localmap-tile.is-poi-area.poi-border-top.poi-border-left.poi-border-right {
+    box-shadow:
+        inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+.localmap-tile.is-poi-area.poi-border-bottom.poi-border-left.poi-border-right {
+    box-shadow:
+        inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+.localmap-tile.is-poi-area.poi-border-top.poi-border-bottom.poi-border-left.poi-border-right {
+    box-shadow:
+        inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65),
+        inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+
+.localmap-tile.is-known {
+    background: rgba(0,0,0,0.14);
+}
+
+.localmap-tile.is-unknown {
+    background: rgba(0,0,0,0.68);
+}
+
+/* Fog texture */
+.localmap-tile.is-unknown::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(120% 80% at 40% 40%, rgba(0,0,0,0.10), rgba(0,0,0,0.55)),
+        repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 6px);
+    opacity: 0.9;
+    pointer-events: none;
+}
+
+/* Under-map actions panel (rendered by Crash Site tab) */
+
+.localmap-actions-card {
+    grid-area: actions;
+}
+
+.localmap-actions-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.localmap-actions-panel .image-button {
+    min-width: 220px;
+}
