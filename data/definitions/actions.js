@@ -61,6 +61,20 @@ const initialSalvageActions = [
                 ]
             },
             {
+                id: 'sitDown',
+                name: 'Sit down',
+                description: 'Catch your breath for a moment and recover a little stamina.',
+                duration: 1,
+                category: 'Survival',
+                isUnlocked: true,
+                repeatable: true,
+                cancelable: false,
+                drain: [],
+                reward: [
+                    { resource: 'Stamina', amount: [3, 6] }
+                ]
+            },
+            {
                 id: 'forageFood',
                 name: 'Forage for Food',
                 description: 'Search the surrounding area for edible plants.',

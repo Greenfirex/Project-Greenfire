@@ -1,3 +1,5 @@
+import { getLocalMapTileAt, isCrashPoi } from '../data/definitions/localMapTiles.js';
+
 const COLS = 11; // A-K
 const ROWS = 9;  // 1-9
 const LETTERS = Array.from({ length: COLS }, (_, i) => String.fromCharCode('A'.charCodeAt(0) + i));
@@ -20,9 +22,9 @@ function toCoordLabel(col, row) {
 function normalizeState(state) {
     const fallback = {
         x: 6,
-        y: 7,
+        y: 8,
         selectedX: 6,
-        selectedY: 7,
+        selectedY: 8,
     };
     if (!state || typeof state !== 'object') return { ...fallback };
     const x = clamp(Number(state.x) || fallback.x, 1, COLS);
@@ -37,12 +39,22 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
     const mapState = normalizeState(state);
     const stage = clamp(Number(scoutStage) || 0, 0, Math.max(0, Number(totalStages) || 0));
-    const radius = 1 + stage; // 0 -> 2x2-ish, grows as scouting progresses
+    const radius = 1; // Always reveal one tile away from the player
 
-    // Crash Site POI footprint (prototype): D3 to G6 (1-based coords)
-    const CRASH_POI = { c1: 4, c2: 7, r1: 3, r2: 6 };
-    const centerCol = 6; // used for scouting reveal radius (kept stable for now)
-    const centerRow = 5;
+    // Reveal should follow the player's current position.
+    const centerCol = mapState.x;
+    const centerRow = mapState.y;
+
+    const hasTriedReentry = (() => {
+        try {
+            const raw = (typeof state === 'object' && state) ? state.hasTriedReentry : null;
+            return raw === true;
+        } catch {
+            return false;
+        }
+    })();
+
+    const tileMeta = (c, r) => getLocalMapTileAt(c, r, { scoutStage: stage, hasTriedReentry, localMapState: state });
 
     container.innerHTML = `
         <div class="localmap-root">
@@ -80,18 +92,27 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
     const renderInfo = (col, row, discovered, poiLabel = null) => {
         if (!infoBody) return;
+        const meta = tileMeta(col, row);
         const label = toCoordLabel(col, row);
         const status = discovered ? 'Known' : 'Unknown (fog)';
         const poi = poiLabel ? `<div class="localmap-info-row"><span class="k">POI</span><span class="v">${poiLabel}</span></div>` : '';
+        const typeRow = discovered
+            ? `<div class="localmap-info-row"><span class="k">Type</span><span class="v">${meta.label}</span></div>`
+            : '';
+        const blockedRow = discovered && meta.blocked
+            ? `<div class="localmap-info-row"><span class="k">Access</span><span class="v">Blocked</span></div>`
+            : '';
         const noteText = !discovered
             ? 'Fog blocks detail. Scout more to reveal the area.'
-            : (poiLabel
+            : (meta.description || (poiLabel
                 ? 'The wreckage looms over the area. There may be ways inside.'
-                : 'Looks quiet. You could add discoveries here later (wreckage, herbs, hazards, etc.).');
+                : 'Looks quiet.'));
         infoBody.innerHTML = `
             <div class="localmap-info-row"><span class="k">Coord</span><span class="v">${label}</span></div>
             <div class="localmap-info-row"><span class="k">Status</span><span class="v">${status}</span></div>
+            ${typeRow}
             ${poi}
+            ${blockedRow}
             <div class="localmap-divider" aria-hidden="true"></div>
             <div class="localmap-note">${noteText}</div>
         `;
@@ -107,21 +128,35 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             tile.dataset.col = String(c);
             tile.dataset.row = String(r);
 
-            const discovered = isDiscovered({ col: c, row: r, centerCol, centerRow, radius });
+            const discovered = isDiscovered({ col: c, row: r, centerCol, centerRow, radius })
+                || (c === mapState.x && r === mapState.y);
             tile.classList.toggle('is-unknown', !discovered);
             tile.classList.toggle('is-known', discovered);
 
+            const meta = tileMeta(c, r);
+            tile.classList.toggle('is-blocked', !!meta.blocked);
+
+            // Tile markers (only show when discovered; hidden under fog)
+            if (discovered && meta.markerText) {
+                const marker = document.createElement('div');
+                const kind = meta.markerKind ? String(meta.markerKind) : 'alert';
+                marker.className = `localmap-marker localmap-marker--${kind}`;
+                marker.textContent = meta.markerText;
+                tile.appendChild(marker);
+            }
+
             // Crash Site POI footprint
-            const inCrash = (c >= CRASH_POI.c1 && c <= CRASH_POI.c2 && r >= CRASH_POI.r1 && r <= CRASH_POI.r2);
+            const inCrash = isCrashPoi(c, r);
             if (inCrash) {
                 tile.classList.add('is-poi-area');
-                tile.dataset.poi = 'Crash Site';
-                tile.title = 'Crash Site';
-                // Outline the footprint perimeter
-                if (r === CRASH_POI.r1) tile.classList.add('poi-border-top');
-                if (r === CRASH_POI.r2) tile.classList.add('poi-border-bottom');
-                if (c === CRASH_POI.c1) tile.classList.add('poi-border-left');
-                if (c === CRASH_POI.c2) tile.classList.add('poi-border-right');
+                tile.dataset.poi = meta.poiLabel || 'Crash Site';
+                tile.title = tile.dataset.poi;
+
+                // Outline the footprint perimeter by checking neighbors.
+                if (!isCrashPoi(c, r - 1)) tile.classList.add('poi-border-top');
+                if (!isCrashPoi(c, r + 1)) tile.classList.add('poi-border-bottom');
+                if (!isCrashPoi(c - 1, r)) tile.classList.add('poi-border-left');
+                if (!isCrashPoi(c + 1, r)) tile.classList.add('poi-border-right');
             }
 
             const isSelected = (c === mapState.selectedX && r === mapState.selectedY);
@@ -158,7 +193,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
             // Fill initial info based on current selection.
             if (isSelected) {
-                renderInfo(c, r, discovered, tile.dataset.poi || null);
+                renderInfo(c, r, discovered, discovered ? (tile.dataset.poi || null) : null);
             }
         }
     }
@@ -166,7 +201,9 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
     // If nothing was selected for some reason, show player's tile.
     if (infoBody && !infoBody.innerHTML) {
-        const discovered = isDiscovered({ col: mapState.x, row: mapState.y, centerCol, centerRow, radius });
-        renderInfo(mapState.x, mapState.y, discovered, (mapState.x === centerCol && mapState.y === centerRow) ? 'Crash Site' : null);
+        const discovered = true;
+        const meta = tileMeta(mapState.x, mapState.y);
+        const inCrash = isCrashPoi(mapState.x, mapState.y);
+        renderInfo(mapState.x, mapState.y, discovered, inCrash ? (meta.poiLabel || 'Crash Site') : null);
     }
 }

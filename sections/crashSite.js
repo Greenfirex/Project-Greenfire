@@ -5,6 +5,7 @@ import { enableSection } from '../core/main.js';
 import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
 import { newBadgeHtml, wireClearUiNewBadge } from '../ui/components/contentNewBadges.js';
 import { setupCrashSiteLocalMap } from './crashSiteLocalMap.js';
+import { getLocalMapTileAt, SHIP_ENTRANCE } from '../data/definitions/localMapTiles.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
 import { showStoryPopup } from '../ui/panels/popup.js';
 import { getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/activeActions.js';
@@ -241,7 +242,9 @@ export function setupCrashSiteSection(section) {
 
         actionsHost.innerHTML = '';
 
-        const mkButton = (actionDef, { disabled = false, disabledReason = '' } = {}) => {
+        let didAddAction = false;
+
+        const mkButton = (actionDef, { disabled = false, disabledReason = '', onClick = null } = {}) => {
             const btn = document.createElement('button');
             btn.className = 'image-button';
             btn.dataset.actionId = actionDef.id;
@@ -259,36 +262,126 @@ export function setupCrashSiteSection(section) {
                 btn.setAttribute('aria-disabled', 'true');
                 btn.title = disabledReason;
             }
-            attachStartClickHandler(btn, actionDef, host);
+
+            // Tooltips for local-map actions should behave the same as main action buttons.
+            setupTooltip(btn, () => tooltipDataForAction(actionDef));
+
+            if (typeof onClick === 'function') {
+                btn.onclick = onClick;
+            } else {
+                attachStartClickHandler(btn, actionDef, host);
+            }
             actionsHost.appendChild(btn);
+            didAddAction = true;
         };
 
-        // Move (prototype) always shown if unlocked
+        const lm = characterState?.localMap;
+        const playerX = Number.isFinite(lm?.x) ? lm.x : 6;
+        const playerY = Number.isFinite(lm?.y) ? lm.y : 8;
+
+        const selX = Number.isFinite(lm?.selectedX) ? lm.selectedX : playerX;
+        const selY = Number.isFinite(lm?.selectedY) ? lm.selectedY : playerY;
+        const isSelectingPlayerTile = (selX === playerX && selY === playerY);
+
+        const hasTriedReentry = !!(lm && lm.hasTriedReentry === true);
+
+        // Sit down: only available on the tile the player is standing on.
+        try {
+            const sit = salvageActions.find(a => a && a.id === 'sitDown');
+            if (sit && sit.isUnlocked && isSelectingPlayerTile) {
+                mkButton(sit);
+            }
+        } catch { /* ignore */ }
+
+        // Tile-specific actions (reusing existing Crash Site actions)
+        try {
+            if (isSelectingPlayerTile && playerX === 2 && playerY === 6) {
+                const rest = salvageActions.find(a => a && a.id === 'rest');
+                if (rest && rest.isUnlocked) mkButton(rest);
+            }
+        } catch { /* ignore */ }
+
+        try {
+            if (isSelectingPlayerTile && playerX === 4 && playerY === 7) {
+                const forage = salvageActions.find(a => a && a.id === 'forageFood');
+                if (forage && forage.isUnlocked) mkButton(forage);
+            }
+        } catch { /* ignore */ }
+
+        try {
+            if (isSelectingPlayerTile && playerX === 8 && playerY === 8) {
+                const purify = salvageActions.find(a => a && a.id === 'purifyWater');
+                if (purify && purify.isUnlocked) mkButton(purify);
+            }
+        } catch { /* ignore */ }
+
+        // Move (prototype): single action shown only when the selected tile is adjacent.
         const move = salvageActions.find(a => a && a.id === 'move');
+        const reentry = salvageActions.find(a => a && a.id === 'attemptReentry');
         if (move && move.isUnlocked) {
-            mkButton(move);
+            const dist = Math.abs(selX - playerX) + Math.abs(selY - playerY);
+
+            const scout = salvageActions.find(a => a && a.id === 'scoutSurroundings');
+            const stage = Number(scout?.stage || 0);
+            const tile = getLocalMapTileAt(selX, selY, { scoutStage: stage, hasTriedReentry, localMapState: lm });
+
+            const isEntrance = (selX === SHIP_ENTRANCE.x && selY === SHIP_ENTRANCE.y);
+            const canMoveHere = dist === 1 && !tile.blocked && !isEntrance;
+
+            if (dist === 1) {
+                if (isEntrance) {
+                    mkButton(move, {
+                        disabled: true,
+                        disabledReason: 'Select "Go back inside" for the ship entrance.'
+                    });
+                } else if (tile.blocked) {
+                    mkButton(move, {
+                        disabled: false,
+                        disabledReason: 'There is currently no need to go there.',
+                        onClick: (e) => {
+                            e.preventDefault();
+                            addLogEntry('There is currently no need to go there.', LogType.INFO);
+                        }
+                    });
+                } else {
+                    mkButton(move);
+                }
+            }
         }
 
-        // Coordinate-specific action: F6 has Go back inside (attemptReentry)
+        
+
+        // Coordinate-specific action: F7 has Go back inside (attemptReentry)
         try {
-            const lm = characterState?.localMap;
             const selX = Number.isFinite(lm?.selectedX) ? lm.selectedX : lm?.x;
             const selY = Number.isFinite(lm?.selectedY) ? lm.selectedY : lm?.y;
-            const playerX = Number.isFinite(lm?.x) ? lm.x : 6;
-            const playerY = Number.isFinite(lm?.y) ? lm.y : 7;
 
-            // F6 (col 6 row 6)
-            if (selX === 6 && selY === 6) {
-                const reentry = salvageActions.find(a => a && a.id === 'attemptReentry');
+            // F7 (col 6 row 7)
+            if (selX === SHIP_ENTRANCE.x && selY === SHIP_ENTRANCE.y) {
                 if (reentry && reentry.isUnlocked) {
-                    const onTile = (playerX === 6 && playerY === 6);
+                    const nearTile = (Math.abs(playerX - SHIP_ENTRANCE.x) + Math.abs(playerY - SHIP_ENTRANCE.y) <= 1);
                     mkButton(reentry, {
-                        disabled: !onTile,
-                        disabledReason: onTile ? '' : 'Move to F6 to use this.'
+                        disabled: !nearTile,
+                        disabledReason: nearTile ? '' : 'Move next to F7 to use this.'
                     });
                 }
             }
         } catch { /* ignore */ }
+
+        if (!didAddAction) {
+            const hint = document.createElement('div');
+            hint.className = 'localmap-actions-hint';
+
+            if (reentry && reentry.isUnlocked) {
+                hint.textContent = 'Select F7 (ship entrance) to go back inside.';
+            } else if (move && move.isUnlocked) {
+                hint.textContent = 'Select an adjacent tile to move there.';
+            } else {
+                hint.textContent = 'No actions available.';
+            }
+
+            actionsHost.appendChild(hint);
+        }
     };
 
     const renderLocalMap = () => {
@@ -296,6 +389,15 @@ export function setupCrashSiteSection(section) {
             const scout = salvageActions.find(a => a && a.id === 'scoutSurroundings');
             const stage = Number(scout?.stage || 0);
             const total = Array.isArray(scout?.stages) ? scout.stages.length : 3;
+            const reentry = salvageActions.find(a => a && a.id === 'attemptReentry');
+            const hasTriedReentry = !!(reentry && ((reentry.completed === true) || (Number.isFinite(reentry.stage) && reentry.stage > 0)));
+
+            try {
+                if (characterState && characterState.localMap) {
+                    characterState.localMap.hasTriedReentry = hasTriedReentry;
+                }
+            } catch { /* ignore */ }
+
             const mapHost = host.querySelector('#crashSiteLocalMapContainer');
             setupCrashSiteLocalMap(mapHost, {
                 scoutStage: stage,
@@ -566,7 +668,10 @@ function startAction(action, section) {
     });
     refreshCurrentTooltip();
 
-    const btn = section.querySelector(`[data-action-id="${action.id}"]`);
+    const sel = action && action.uiInstanceId
+        ? `[data-action-id="${action.id}"][data-action-instance="${action.uiInstanceId}"]`
+        : `[data-action-id="${action.id}"]`;
+    const btn = section.querySelector(sel);
     if (btn) {
         const name = btn.querySelector('.building-name');
         if (name && !btn.dataset.originalLabel) btn.dataset.originalLabel = name.innerText;
@@ -610,6 +715,8 @@ function startAction(action, section) {
 
     setActiveCrashSiteAction({
         ...snapshot,
+        // Optional: used to locate the correct UI button when multiple instances exist.
+        uiInstanceId: action && action.uiInstanceId ? action.uiInstanceId : undefined,
         startTime: Date.now(),
         lastTickTime: Date.now(),
         elapsed: 0
@@ -669,7 +776,10 @@ function updateActionProgress(section) {
     a.elapsed = Math.min(effectiveDuration, (a.elapsed || 0) + delta);
     const progress = Math.min((a.elapsed / effectiveDuration) * 100, 100);
 
-    const btn = section.querySelector(`[data-action-id="${a.id}"]`);
+    const sel = a && a.uiInstanceId
+        ? `[data-action-id="${a.id}"][data-action-instance="${a.uiInstanceId}"]`
+        : `[data-action-id="${a.id}"]`;
+    const btn = section.querySelector(sel);
     if (btn) {
         const bar = btn.querySelector('.action-progress-bar');
         const label = btn.querySelector('.building-name');
@@ -730,7 +840,10 @@ function cancelAction(section, message, force = false) {
     addLogEntry(message, LogType.ERROR);
     if (refunds.length) addLogEntry(`Refunded: ${refunds.join(', ')}.`, LogType.INFO);
     // Clear running UI for the cancelled action (in-place) then update button states to avoid DOM rebuild flicker
-    const btn = section ? section.querySelector(`[data-action-id="${a.id}"]`) : document.querySelector(`[data-action-id="${a.id}"]`);
+    const sel = a && a.uiInstanceId
+        ? `[data-action-id="${a.id}"][data-action-instance="${a.uiInstanceId}"]`
+        : `[data-action-id="${a.id}"]`;
+    const btn = section ? section.querySelector(sel) : document.querySelector(sel);
     if (btn) {
         btn.classList.remove('running');
         btn.classList.remove('confirm-cancel');
@@ -744,12 +857,16 @@ function cancelAction(section, message, force = false) {
         }
         const nameSpan = btn.querySelector('.building-name');
         if (nameSpan) {
-            const defForLabel = salvageActions.find(s => s.id === a.id) || a;
-            const max = defForLabel && typeof defForLabel.maxUses === 'number' ? defForLabel.maxUses : null;
-            const uses = defForLabel && typeof defForLabel.uses === 'number' ? defForLabel.uses : 0;
-            nameSpan.textContent = (max && max > 1)
-                ? `${defForLabel.name} (${Math.max(0, Math.min(max, uses))}/${max})`
-                : ((defForLabel && defForLabel.name) || '');
+            if (btn.dataset.originalLabel) {
+                nameSpan.textContent = btn.dataset.originalLabel;
+            } else {
+                const defForLabel = salvageActions.find(s => s.id === a.id) || a;
+                const max = defForLabel && typeof defForLabel.maxUses === 'number' ? defForLabel.maxUses : null;
+                const uses = defForLabel && typeof defForLabel.uses === 'number' ? defForLabel.uses : 0;
+                nameSpan.textContent = (max && max > 1)
+                    ? `${defForLabel.name} (${Math.max(0, Math.min(max, uses))}/${max})`
+                    : ((defForLabel && defForLabel.name) || '');
+            }
         }
         delete btn.dataset.originalLabel;
         const actionDef = salvageActions.find(s => s.id === a.id);
@@ -832,20 +949,111 @@ async function handleActionCompletion(section) {
         try {
             const st = characterState.localMap;
             if (st && Number.isFinite(st.x) && Number.isFinite(st.y)) {
+                const beforeX = st.x;
+                const beforeY = st.y;
                 const tx = Number.isFinite(st.selectedX) ? st.selectedX : st.x;
                 const ty = Number.isFinite(st.selectedY) ? st.selectedY : st.y;
-                const dx = Math.sign(tx - st.x);
-                const dy = Math.sign(ty - st.y);
-                // Prefer horizontal movement if both differ (simple deterministic prototype)
-                if (dx !== 0) st.x += dx;
-                else if (dy !== 0) st.y += dy;
+                const dist = Math.abs(tx - st.x) + Math.abs(ty - st.y);
+
+                // Enforce adjacency: move is a 1-tile step to the selected tile.
+                if (dist !== 1) {
+                    addLogEntry('Select an adjacent tile to move there.', LogType.INFO);
+                } else {
+                    // Respect tile defs (blocked tiles are impassable).
+                    const scout = salvageActions.find(a => a && a.id === 'scoutSurroundings');
+                    const stage = Number(scout?.stage || 0);
+                    const hasTriedReentry = !!(characterState && characterState.localMap && characterState.localMap.hasTriedReentry === true);
+                    const meta = getLocalMapTileAt(tx, ty, { scoutStage: stage, hasTriedReentry });
+                    if (meta && meta.blocked) {
+                        addLogEntry('There is currently no need to go there.', LogType.INFO);
+                    } else {
+                        st.x = tx;
+                        st.y = ty;
+
+                        // Keep selection synced so context actions appear immediately after moving.
+                        st.selectedX = st.x;
+                        st.selectedY = st.y;
+
+                        // Map-driven discoveries: reuse Scout Surroundings stage unlocks on specific tiles.
+                        try {
+                            const scout = salvageActions.find(a => a && a.id === 'scoutSurroundings');
+                            const stages = Array.isArray(scout?.stages) ? scout.stages : [];
+                            const totalScoutStages = stages.length;
+
+                            const unlockFromScoutStage = (stageIndex) => {
+                                const stg = stages[stageIndex];
+                                if (!stg) return;
+
+                                // Advance Scout Surroundings progress so objectives reflect map discoveries.
+                                try {
+                                    if (scout) {
+                                        const next = stageIndex + 1;
+                                        const cur = Number.isFinite(scout.stage) ? scout.stage : 0;
+                                        scout.stage = Math.max(cur, next);
+                                        if (totalScoutStages && scout.stage >= totalScoutStages) {
+                                            scout.completed = true;
+                                        }
+                                    }
+                                } catch { /* ignore */ }
+
+                                if (Array.isArray(stg.unlocks)) {
+                                    for (const id of stg.unlocks) {
+                                        const a = salvageActions.find(x => x && (x.id === id || x.name === id));
+                                        if (a && !a.isUnlocked) {
+                                            a.isUnlocked = true;
+                                            a.uiNew = true;
+                                            const isUpgrade = (a.category === 'Upgrade');
+                                            addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${a.name}`, LogType.UNLOCK);
+                                        }
+                                    }
+                                }
+
+                                if (stg.story) {
+                                    const ev = storyEvents ? (storyEvents[stg.story] || null) : null;
+                                    if (ev) showStoryPopup(ev, null);
+                                    if (stg.logText) addLogEntry(stg.logText, LogType.STORY, { onClick: () => (ev ? showStoryPopup(ev, null) : null) });
+                                } else if (stg.logText) {
+                                    addLogEntry(stg.logText, LogType.STORY);
+                                }
+                            };
+
+                            // B6 (cave) -> Scout stage 0 unlocks Rest
+                            if (st.x === 2 && st.y === 6 && !st.discoveredCave) {
+                                st.discoveredCave = true;
+                                unlockFromScoutStage(0);
+                            }
+
+                            // D7 (berries) -> Scout stage 1 unlocks Forage for Food
+                            if (st.x === 4 && st.y === 7 && !st.discoveredBerries) {
+                                st.discoveredBerries = true;
+                                unlockFromScoutStage(1);
+                            }
+
+                            // H8 (water source) -> Scout stage 2 unlocks Purify Water (and related)
+                            if (st.x === 8 && st.y === 8 && !st.discoveredRiver) {
+                                st.discoveredRiver = true;
+                                unlockFromScoutStage(2);
+
+                                // One-time combat at the river.
+                                if (!st.riverCombatDone) {
+                                    st.riverCombatDone = true;
+                                    try {
+                                        await showCombatPopup('wildlife_river', { sourceActionId: 'scoutSurroundings', stageIndex: 2 });
+                                    } catch { /* ignore */ }
+                                }
+                            }
+                        } catch { /* ignore */ }
+                    }
+                }
 
                 // Clamp to the A-K / 1-9 grid
                 st.x = Math.max(1, Math.min(11, st.x));
                 st.y = Math.max(1, Math.min(9, st.y));
 
-                const letter = String.fromCharCode('A'.charCodeAt(0) + (st.x - 1));
-                addLogEntry(`Moved to ${letter}${st.y}.`, LogType.INFO);
+                if (st.x !== beforeX || st.y !== beforeY) {
+                    const letter = String.fromCharCode('A'.charCodeAt(0) + (st.x - 1));
+                    addLogEntry(`Moved to ${letter}${st.y}.`, LogType.INFO);
+                }
 
                 // If Local map tab is visible, refresh it.
                 const host = (section && typeof section.closest === 'function')
@@ -861,6 +1069,11 @@ async function handleActionCompletion(section) {
                             const total = Array.isArray(scout?.stages) ? scout.stages.length : 3;
                             const mapHost = host.querySelector('#crashSiteLocalMapContainer');
                             setupCrashSiteLocalMap(mapHost, { scoutStage: stage, totalStages: total, state: characterState?.localMap });
+
+                            // Also refresh the local-map action row immediately.
+                            if (mapHost) {
+                                mapHost.dispatchEvent(new CustomEvent('local-map-selection-changed'));
+                            }
                         } catch { /* ignore */ }
                     }
                 }
@@ -1135,7 +1348,10 @@ async function handleActionCompletion(section) {
     if (didUnlock || (original && original.id === 'establishBaseCamp')) {
         setupCrashSiteSection(section);
     } else {
-        const btn2 = section ? section.querySelector(`[data-action-id="${completed.id}"]`) : document.querySelector(`[data-action-id="${completed.id}"]`);
+        const sel2 = completed && completed.uiInstanceId
+            ? `[data-action-id="${completed.id}"][data-action-instance="${completed.uiInstanceId}"]`
+            : `[data-action-id="${completed.id}"]`;
+        const btn2 = section ? section.querySelector(sel2) : document.querySelector(sel2);
         if (btn2) {
             btn2.classList.remove('running');
             const bar2 = btn2.querySelector('.action-progress-bar'); if (bar2) {
@@ -1148,18 +1364,25 @@ async function handleActionCompletion(section) {
             }
             const nameSpan2 = btn2.querySelector('.building-name');
             if (nameSpan2) {
-                const defForLabel = salvageActions.find(s => s.id === completed.id) || original || completed;
-                const max = defForLabel && typeof defForLabel.maxUses === 'number' ? defForLabel.maxUses : null;
-                const uses = defForLabel && typeof defForLabel.uses === 'number' ? defForLabel.uses : 0;
-                nameSpan2.textContent = (max && max > 1)
-                    ? `${defForLabel.name} (${Math.max(0, Math.min(max, uses))}/${max})`
-                    : ((defForLabel && defForLabel.name) || completed.name || '');
+                if (btn2.dataset.originalLabel) {
+                    nameSpan2.textContent = btn2.dataset.originalLabel;
+                } else {
+                    const defForLabel = salvageActions.find(s => s.id === completed.id) || original || completed;
+                    const max = defForLabel && typeof defForLabel.maxUses === 'number' ? defForLabel.maxUses : null;
+                    const uses = defForLabel && typeof defForLabel.uses === 'number' ? defForLabel.uses : 0;
+                    nameSpan2.textContent = (max && max > 1)
+                        ? `${defForLabel.name} (${Math.max(0, Math.min(max, uses))}/${max})`
+                        : ((defForLabel && defForLabel.name) || completed.name || '');
+                }
             }
             delete btn2.dataset.originalLabel;
             const actionDef2 = salvageActions.find(s => s.id === completed.id) || original;
             if (actionDef2) { btn2.disabled = false; attachStartClickHandler(btn2, actionDef2, section); }
             if (original && !original.isUnlocked) {
-                const removeBtn = section ? section.querySelector(`[data-action-id="${original.id}"]`) : document.querySelector(`[data-action-id="${original.id}"]`);
+                const sel3 = original && original.uiInstanceId
+                    ? `[data-action-id="${original.id}"][data-action-instance="${original.uiInstanceId}"]`
+                    : `[data-action-id="${original.id}"]`;
+                const removeBtn = section ? section.querySelector(sel3) : document.querySelector(sel3);
                 if (removeBtn && removeBtn.parentElement) removeBtn.parentElement.removeChild(removeBtn);
             }
         }

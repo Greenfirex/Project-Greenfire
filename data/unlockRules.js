@@ -8,6 +8,20 @@
  * @returns {{ blocked: boolean, reason: string }}
  */
 export function getBlockedStatus(actionId, state) {
+    // Local map gate: Go back inside requires being at the ship entrance tile.
+    if (actionId === 'attemptReentry') {
+        const ch = (state && (state.characterState || state.character)) || null;
+        const lm = ch && ch.localMap ? ch.localMap : null;
+        const x = lm && Number.isFinite(lm.x) ? lm.x : null;
+        const y = lm && Number.isFinite(lm.y) ? lm.y : null;
+        // Entrance tile is F7 (col 6, row 7). Allow starting when standing on it or adjacent.
+        const ok = (typeof x === 'number' && typeof y === 'number')
+            && (Math.abs(x - 6) + Math.abs(y - 7) <= 1);
+        if (!ok) {
+            return { blocked: true, reason: 'You must be next to F7 (ship entrance) to go back inside.' };
+        }
+    }
+
     // Crafting uniques: avoid producing duplicates.
     if (actionId === 'craftMetalSpear') {
         const ch = (state && (state.characterState || state.character)) || null;

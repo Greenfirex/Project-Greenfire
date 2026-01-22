@@ -187,9 +187,9 @@ export function getInitialCharacterState() {
         localMap: {
             // A-K / 1-9 grid coordinates (1-based)
             x: 6,
-            y: 7,
+            y: 8,
             selectedX: 6,
-            selectedY: 7,
+            selectedY: 8,
         },
         progression: {
             allocated: {
