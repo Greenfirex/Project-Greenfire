@@ -13,11 +13,13 @@
 .localmap-layout {
     width: 100%;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
+    /* Give the map more room; keep the Tile panel narrower */
+    grid-template-columns: minmax(0, 1fr) clamp(240px, 22vw, 320px);
     grid-template-areas:
         "map info"
         "actions actions";
-    grid-template-rows: auto;
+    /* Let the map/info row stretch to fill the available height */
+    grid-template-rows: minmax(0, 1fr) auto;
     gap: 14px;
     align-items: stretch;
     justify-content: stretch;
@@ -129,12 +131,14 @@
 
 .localmap-shell {
     width: 100%;
-    aspect-ratio: 16 / 10;
+    /* Slightly taller than before so the grid reads bigger */
+    aspect-ratio: 4 / 3;
     display: grid;
     grid-template-columns: 34px 1fr;
-    grid-template-rows: 26px 1fr;
-    gap: 8px;
-    padding: 14px;
+    /* Add a small bottom row for controls (zoom) */
+    grid-template-rows: 26px minmax(0, 1fr) 34px;
+    gap: 6px;
+    padding: 10px;
 
     background: rgba(0, 0, 0, 0.35);
     border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
@@ -189,9 +193,40 @@
     user-select: none;
 }
 
-.localmap-grid {
+.localmap-grid-viewport {
     grid-column: 2;
     grid-row: 2;
+
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.22);
+    border-radius: 8px;
+    overflow: hidden;
+
+    position: relative;
+    z-index: 1;
+
+    user-select: none;
+    touch-action: none;
+}
+
+.localmap-grid-viewport.is-pannable {
+    cursor: grab;
+}
+
+.localmap-grid-viewport.is-panning {
+    cursor: grabbing;
+}
+
+.localmap-grid-pan {
+    width: 100%;
+    height: 100%;
+    transform: translate3d(var(--pan-x, 0px), var(--pan-y, 0px), 0);
+    will-change: transform;
+    display: block;
+}
+
+.localmap-grid {
+    width: 100%;
+    height: 100%;
 
     display: grid;
     grid-template-columns: repeat(var(--cols, 11), 1fr);
@@ -203,12 +238,21 @@
     background-position: center;
     background-repeat: no-repeat;
 
-    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.22);
-    border-radius: 8px;
-    overflow: hidden;
-
     position: relative;
     z-index: 1;
+
+    /* Zoom (applied via --zoom on .localmap-shell) */
+    transform: scale(var(--zoom, 1));
+    transform-origin: center;
+    will-change: transform;
+}
+
+.localmap-bottom {
+    grid-column: 2;
+    grid-row: 3;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
 }
 
 /* Grid lines */
@@ -376,8 +420,14 @@
     background: rgba(0,0,0,0.14);
 }
 
+/* Previously visited tiles stay visible and slightly brighter */
+.localmap-tile.is-visited {
+    background: rgba(255,255,255,0.045);
+}
+
 .localmap-tile.is-unknown {
-    background: rgba(0,0,0,0.68);
+    /* Unexplored: strongly blackened */
+    background: rgba(0,0,0,0.92);
 }
 
 /* Fog texture */
@@ -386,10 +436,47 @@
     position: absolute;
     inset: 0;
     background:
-        radial-gradient(120% 80% at 40% 40%, rgba(0,0,0,0.10), rgba(0,0,0,0.55)),
-        repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 6px);
-    opacity: 0.9;
+        radial-gradient(120% 90% at 45% 40%, rgba(0,0,0,0.35), rgba(0,0,0,0.98)),
+        repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 2px, transparent 2px, transparent 7px);
+    opacity: 0.98;
     pointer-events: none;
+}
+
+/* Zoom controls */
+.localmap-zoom {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.38);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.22);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.28);
+    z-index: 6;
+}
+
+.localmap-zoom-readout {
+    min-width: 44px;
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255,255,255,0.85);
+    font-family: 'Roboto Mono', monospace;
+}
+
+.localmap-zoom-btn {
+    width: 30px;
+    height: 26px;
+    border-radius: 8px;
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.25);
+    background: rgba(0,0,0,0.25);
+    color: rgba(255,255,255,0.92);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.localmap-zoom-btn:hover {
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08);
 }
 
 /* Safety net: never show important markers in fog */
@@ -407,6 +494,8 @@
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    /* Ensure buttons sit visually below the header */
+    margin-top: 10px;
 }
 
 .localmap-actions-hint {

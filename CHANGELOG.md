@@ -1,3 +1,32 @@
+# [0.2.3] - 2026-01-23
+
+### Added
+
+- **Crash Site: Local Map (v1):** New Local Map tab with an interactive tile grid for exploring around the crash site.
+- **Tile Details Panel:** Selecting a tile shows its info (so the map is usable without guessing what each tile represents).
+- **Fog of War + Visited Tiles:** Unexplored tiles are hidden/blackened; visited tiles render brighter for quick navigation.
+- **Map Zoom Controls:** `+ / -` zoom controls (with sensible limits) to get a closer look at the crash zone.
+- **Drag-to-Pan (When Zoomed):** When zoomed in, you can drag the map viewport to pan around without losing the selected tile.
+- **Tile-Bound Action Panel:** Exploration actions are now shown contextually for the selected tile / player tile (instead of a long global list), matching the new map workflow.
+- **Crash Wreckage Boundary (Map):** The crash site perimeter now behaves like a physical barrier on the map, with progression-driven access points.
+- **New Torch Progression:** Added a craftable **Basic Torch** accessory and a torch-gated dark area on the map (including new story beats pointing you toward crafting/equipping one).
+
+### Changed
+
+- **Crash Zone Navigation:** Movement UX now enforces “no diagonals” and provides clearer blocked feedback (including keeping Move visible and explaining why it’s blocked).
+- **Crash Site Action Placement:** Key exploration actions are now map-driven (e.g., Rest/Forage/Purify/Hunt/Re-entry) and removed from the main Crash Site action list to reduce clutter.
+- **Local Map Layout:** Map view and action layout were tuned so the map is the primary focus (larger map area, more compact tile/actions side panel).
+- **Story / Gating Pass:** Several early exploration beats were moved onto the map (tile-triggered story popups and progression gates encountered by exploring, not just clicking a list).
+- **Alternate Access Flow (Map):** The alternate access path is now an adjacent interaction on the map and transitions into the hull-pry path after completion.
+
+### Fixed
+
+- **Zoomed Tile Selection:** Fixed a bug where selecting tiles could fail when zoomed (panning no longer suppresses clicks incorrectly).
+- **Repeatable Map Actions:** Progress bars and button state now remain reliable across repeated runs of the same map action.
+- **Action Availability Refresh:** Map action buttons now refresh their affordability/capacity/blocked styling more consistently after resource changes.
+
+---
+
 # [0.2.2] - 2026-01-18
 
 ### Added

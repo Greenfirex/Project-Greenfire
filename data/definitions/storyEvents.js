@@ -13,8 +13,15 @@ foundBerries: {
         title: "Edible Flora",
         pages: [
             "While searching for an alternate route into the ship you discovered a small patch of edible berries. They’re modest, but nutritious — you gather what you can to stave off hunger for now.",
-            "In the distance you hear the steady sound of flowing water — a river or stream. That could mean drinkable water and relief from dehydration… but it also carries danger. A low, unfamiliar growl echoes nearby.",
-            "You find a spiked branch on the ground — crude, but better than bare hands. You tuck it away for now.",
+            "It’s a small relief, but it’s something — enough to steady your hands and keep you moving."
+        ]
+    },
+heardRiverEast: {
+        title: "To the East",
+        pages: [
+            "You pause and listen. To the east, you hear the steady sound of flowing water — a river or stream.",
+            "Water could mean survival… but it also draws life. A low, unfamiliar growl rumbles somewhere beyond the trees.",
+            "Near your feet, half-buried in damp leaves, you spot a spiked branch. Crude, but better than bare hands. You take it.",
             "NOTE: It would be a good idea to equip the Spiked Branch as a basic weapon before heading toward the river."
         ]
     },
@@ -29,7 +36,16 @@ foundRiver: {
 foundCave: {
         title: "Shelter",
         pages: [
-            "You make it away from the blaze and crawl into a small, dry cave recessed in the rock. Completely exhausted, you collapse and let the quiet settle in. For now this shelter is safe — you can rest here and recover before pressing on."
+            "You make it away from the blaze and crawl into a small, dry cave recessed in the rock. Completely exhausted, you collapse and let the quiet settle in. For now this shelter is safe — you can rest here and recover before pressing on.",
+            "The cave is also dry enough to work. With a little time you can wrap cloth and resin around a branch to create a basic torch — something you can carry into darker terrain."
+        ]
+    },
+
+    caveSpottedWest: {
+        title: 'A Shelter to the West',
+        pages: [
+            "From here you spot a small cave tucked into the rocks to the west. It looks dry and sheltered — the kind of place you could rest, regroup, and keep your gear out of the rain.",
+            "It might be worth checking out before pushing deeper into the forest."
         ]
     },
 reentryFailed: {
@@ -38,6 +54,7 @@ reentryFailed: {
             "You forced your way toward the forward section, smoke clawing at your lungs and heat blistering the plating. For a moment you thought you'd make it — then the structure gave. A shower of burning debris collapsed inward, sealing the corridor with twisted metal.",
             "Flames still lick the breach and smoke roils in pockets beyond reach. The instability and heat make any further entry impossible without heavy equipment. Whatever was in the forward section — gear, consoles, possibly crew — is out of reach for now.",
             "It is harsh but clear: that route is closed. Your priority remains to secure survivors and stabilise a safe working area. Mark the collapse, keep distance from the forward hull, and look for alternate routes and resources to mount a future recovery.",
+            "That attempt was exhausting. Your mouth is already dry and your hands shake from the heat and effort — you need water, and quickly. If there's a stream nearby, your best bet is to search to the east.",
             "NOTE: You need a record — names, locations, supplies, and the choices that got people hurt. If you don’t make it, your notes might. Start a journal and keep it updated."
         ]
     },

@@ -190,6 +190,13 @@ export function getInitialCharacterState() {
             y: 8,
             selectedX: 6,
             selectedY: 8,
+            // Persistent exploration hints
+            visited: { '6,8': true },
+            // UI preference: local map zoom level
+            zoom: 1,
+            // UI preference: local map pan offsets (px)
+            panX: 0,
+            panY: 0,
         },
         progression: {
             allocated: {
@@ -266,7 +273,65 @@ export function applySavedCharacterState(saved) {
         const y = clampInt(lm?.y ?? next.localMap.y, 1, 9);
         const selectedX = clampInt(lm?.selectedX ?? x, 1, 11);
         const selectedY = clampInt(lm?.selectedY ?? y, 1, 9);
-        next.localMap = { x, y, selectedX, selectedY };
+
+        // Preserve extra prototype fields so content/markers remain consistent after load.
+        const extra = {};
+        if (lm && typeof lm === 'object') {
+            for (const [k, v] of Object.entries(lm)) {
+                if (k === 'x' || k === 'y' || k === 'selectedX' || k === 'selectedY' || k === 'visited' || k === 'zoom') continue;
+                if (typeof k !== 'string' || k.length > 60) continue;
+                if (typeof v === 'boolean' || typeof v === 'number' || typeof v === 'string') {
+                    extra[k] = v;
+                }
+            }
+        }
+
+        // Visited tiles (stored as an object map or legacy array of coord strings)
+        const visited = {};
+        const acceptVisitedKey = (key) => {
+            if (typeof key !== 'string') return;
+            const m = key.match(/^(\d+),(\d+)$/);
+            if (!m) return;
+            const c = clampInt(m[1], 1, 11);
+            const r = clampInt(m[2], 1, 9);
+            visited[`${c},${r}`] = true;
+        };
+        if (lm && typeof lm.visited === 'object' && lm.visited && !Array.isArray(lm.visited)) {
+            for (const [k, v] of Object.entries(lm.visited)) {
+                if (v !== true) continue;
+                acceptVisitedKey(k);
+            }
+        } else if (Array.isArray(lm?.visited)) {
+            for (const key of lm.visited) acceptVisitedKey(key);
+        }
+        // Always include the current player tile.
+        visited[`${x},${y}`] = true;
+
+        const rawZoom = Number(lm?.zoom);
+        const zoom = Number.isFinite(rawZoom)
+            ? Math.min(2, Math.max(0.6, rawZoom))
+            : (Number.isFinite(Number(next.localMap.zoom)) ? Number(next.localMap.zoom) : 1);
+
+        const clampPan = (v) => {
+            const n = Number(v);
+            if (!Number.isFinite(n)) return 0;
+            return Math.max(-5000, Math.min(5000, n));
+        };
+        const panX = (zoom <= 1.01) ? 0 : clampPan(lm?.panX);
+        const panY = (zoom <= 1.01) ? 0 : clampPan(lm?.panY);
+
+        next.localMap = {
+            ...next.localMap,
+            ...extra,
+            x,
+            y,
+            selectedX,
+            selectedY,
+            visited,
+            zoom,
+            panX,
+            panY,
+        };
     } catch {
         // leave defaults
     }

@@ -12,6 +12,12 @@ export const LOCAL_MAP_TILE_TYPES = {
         description: 'Dense alien forest. Visibility is limited and the ground is uneven.',
         blocked: false,
     },
+    darkForest: {
+        id: 'darkForest',
+        label: 'Dark Forest',
+        description: 'The canopy is thick enough to swallow the light. Without a torch, moving here is risky.',
+        blocked: false,
+    },
     river: {
         id: 'river',
         label: 'River',
@@ -110,6 +116,9 @@ const OVERRIDES = {
     '4,7': { type: 'clearing' },
     // Water source (H8)
     '8,8': { type: 'waterSource' },
+
+    // C5 (Dark Forest) - walkable, but gameplay may require a torch.
+    '3,5': { type: 'darkForest' },
 };
 
 function getMarkerForCell(col, row, localMapState) {
@@ -189,15 +198,14 @@ export function getLocalMapTileAt(col, row, { scoutStage = 0, hasTriedReentry = 
     const lockedByStage = (typeof minScoutStage === 'number') ? (Number(scoutStage) < minScoutStage) : false;
 
     // Global movement rule:
-    // - Block everything by default
-    // - Allow tiles adjacent to the POI footprint
-    // - Inside the POI: everything is blocked except D5 (always) and F7 (until reentry attempt)
+    // - Outside the crash POI: restrict to a walkable "ring" near the POI (plus explicit exceptions)
+    // - Inside the crash POI: tiles are not intrinsically blocked (the POI outline wall controls access)
     const isEntrance = (c === SHIP_ENTRANCE.x && r === SHIP_ENTRANCE.y);
     const isPoiSafeTile = (c === POI_SAFE_TILE.x && r === POI_SAFE_TILE.y);
 
     let globallyAllowed = false;
     if (inPoi) {
-        globallyAllowed = isPoiSafeTile || (isEntrance && !hasTriedReentry);
+        globallyAllowed = true;
     } else {
         globallyAllowed = isAdjacentToCrashPoi(col, row);
     }
@@ -211,14 +219,19 @@ export function getLocalMapTileAt(col, row, { scoutStage = 0, hasTriedReentry = 
     }
 
     // Block top rows to force a walkable route.
-    // Exception: allow the POI safe tile (D5) to remain walkable.
-    if (r >= 1 && r <= 5 && !(inPoi && isPoiSafeTile)) {
+    // Exception: do not apply this restriction inside the crash POI.
+    if (!inPoi && r >= 1 && r <= 5) {
         globallyAllowed = false;
     }
 
     // Explicitly allow special tiles even if they are not near the POI.
     if (c === 2 && r === 6) {
         globallyAllowed = true; // B6 cave
+    }
+
+    // Explicitly allow C5 even though it's in the normally-blocked top band.
+    if (c === 3 && r === 5) {
+        globallyAllowed = true; // C5 dark forest (torch-gated elsewhere)
     }
 
     const blocked = !globallyAllowed || !!(type.blocked || (ov && ov.blocked === true) || lockedByStage);
@@ -243,4 +256,51 @@ export function getLocalMapTileAt(col, row, { scoutStage = 0, hasTriedReentry = 
         minScoutStage,
         lockedByStage,
     };
+}
+
+export function isCrashWallBetween(fromX, fromY, toX, toY, { localMapState = null } = {}) {
+    // Crash-site outline is treated as a boundary wall from the start,
+    // but it has a gap under F7 until the re-entry attempt fails.
+    const hasTriedReentry = !!(localMapState && localMapState.hasTriedReentry === true);
+
+    const fx = Number(fromX);
+    const fy = Number(fromY);
+    const tx = Number(toX);
+    const ty = Number(toY);
+    if (!Number.isFinite(fx) || !Number.isFinite(fy) || !Number.isFinite(tx) || !Number.isFinite(ty)) return false;
+
+    const dist = Math.abs(tx - fx) + Math.abs(ty - fy);
+    if (dist !== 1) return false;
+
+    const fromIn = isCrashPoi(fx, fy);
+    const toIn = isCrashPoi(tx, ty);
+    if (fromIn === toIn) return false; // only blocks crossing the boundary
+
+    // Determine which side is inside the POI and which edge is being crossed.
+    const inX = toIn ? tx : fx;
+    const inY = toIn ? ty : fy;
+    const outX = toIn ? fx : tx;
+    const outY = toIn ? fy : ty;
+
+    let edge = null;
+    if (outX === inX - 1 && outY === inY) edge = 'left';
+    else if (outX === inX + 1 && outY === inY) edge = 'right';
+    else if (outX === inX && outY === inY - 1) edge = 'top';
+    else if (outX === inX && outY === inY + 1) edge = 'bottom';
+    if (!edge) return false;
+
+    // Requested: remove left wall at C3 (no-op if not part of the POI).
+    // Correction: C3 -> D5.
+    if (edge === 'left' && inX === 4 && inY === 5) return false;
+
+    // Gap under the ship entrance (F7) until re-entry attempt fails.
+    // Crossing between F8 (outside) and F7 (inside) is allowed before hasTriedReentry.
+    if (!hasTriedReentry && edge === 'bottom' && inX === SHIP_ENTRANCE.x && inY === SHIP_ENTRANCE.y) return false;
+
+    // Boundary edges are where the inside cell has a neighbor outside the POI.
+    if (edge === 'left') return !isCrashPoi(inX - 1, inY);
+    if (edge === 'right') return !isCrashPoi(inX + 1, inY);
+    if (edge === 'top') return !isCrashPoi(inX, inY - 1);
+    if (edge === 'bottom') return !isCrashPoi(inX, inY + 1);
+    return false;
 }

@@ -31,6 +31,14 @@ export function getBlockedStatus(actionId, state) {
         if (hasMetalSpear) return { blocked: true, reason: 'You already have a Metal Spear.' };
     }
 
+    if (actionId === 'createBasicTorch') {
+        const ch = (state && (state.characterState || state.character)) || null;
+        const eq = ch && ch.equipment ? ch.equipment : null;
+        const bag = (ch && Array.isArray(ch.bag)) ? ch.bag : [];
+        const hasTorch = (eq && (eq.accessory_1 === 'basic_torch' || eq.accessory_2 === 'basic_torch')) || bag.some(v => v === 'basic_torch');
+        if (hasTorch) return { blocked: true, reason: 'You already have a Basic Torch.' };
+    }
+
     const BLOCKED_ACTION_IDS = ['searchSouthCorridor', 'searchNorthCorridor', 'investigateBridge', 'searchPowerCore'];
     if (!BLOCKED_ACTION_IDS.includes(actionId)) return { blocked: false, reason: '' };
 

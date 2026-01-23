@@ -34,12 +34,54 @@ function normalizeState(state) {
     return { x, y, selectedX, selectedY };
 }
 
+function normalizeZoom(state) {
+    const z = Number(state && typeof state === 'object' ? state.zoom : 1);
+    if (!Number.isFinite(z)) return 1;
+    return clamp(z, 0.6, 2.0);
+}
+
+function normalizePan(state, zoom) {
+    if (!state || typeof state !== 'object') return { panX: 0, panY: 0 };
+    const px = Number(state.panX);
+    const py = Number(state.panY);
+    const panX = Number.isFinite(px) ? px : 0;
+    const panY = Number.isFinite(py) ? py : 0;
+    if (zoom <= 1.01) return { panX: 0, panY: 0 };
+    return {
+        panX: Math.max(-5000, Math.min(5000, panX)),
+        panY: Math.max(-5000, Math.min(5000, panY)),
+    };
+}
+
+function ensureVisited(state, x, y) {
+    if (!state || typeof state !== 'object') return;
+    if (!state.visited || typeof state.visited !== 'object' || Array.isArray(state.visited)) {
+        state.visited = {};
+    }
+    const key = `${clamp(Number(x) || 1, 1, COLS)},${clamp(Number(y) || 1, 1, ROWS)}`;
+    state.visited[key] = true;
+}
+
+function isVisited(state, col, row) {
+    try {
+        const key = `${Number(col)},${Number(row)}`;
+        return !!(state && typeof state === 'object' && state.visited && typeof state.visited === 'object' && state.visited[key] === true);
+    } catch {
+        return false;
+    }
+}
+
 export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages = 3, state = null } = {}) {
     if (!container) return;
 
     const mapState = normalizeState(state);
+    const zoom = normalizeZoom(state);
+    const { panX, panY } = normalizePan(state, zoom);
     const stage = clamp(Number(scoutStage) || 0, 0, Math.max(0, Number(totalStages) || 0));
     const radius = 1; // Always reveal one tile away from the player
+
+    // Mark the current player position as visited (persistent exploration).
+    ensureVisited(state, mapState.x, mapState.y);
 
     // Reveal should follow the player's current position.
     const centerCol = mapState.x;
@@ -54,13 +96,30 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
         }
     })();
 
+    // The crash-site outline is always visible, but it has a gap under F7 until
+    // the re-entry attempt fails (hasTriedReentry becomes true).
+    const shouldSkipCrashWallEdge = (col, row, edge) => {
+        const c = Number(col);
+        const r = Number(row);
+
+        // Gap at the ship entrance: remove the bottom edge under F7 until the attempt is made.
+        if (edge === 'bottom' && c === 6 && r === 7 && hasTriedReentry !== true) return true;
+
+        // User correction: previous C3 note was meant to be D5.
+        // (This is effectively a no-op in practice because the outside neighbor (C5) is blocked,
+        // but keep it as an explicit opening if/when rules change.)
+        if (edge === 'left' && c === 4 && r === 5) return true;
+
+        return false;
+    };
+
     const tileMeta = (c, r) => getLocalMapTileAt(c, r, { scoutStage: stage, hasTriedReentry, localMapState: state });
 
     container.innerHTML = `
         <div class="localmap-root">
             <div class="localmap-layout">
                 <div class="localmap-mapwrap">
-                    <div class="localmap-shell" style="--cols:${COLS}; --rows:${ROWS};">
+                    <div class="localmap-shell" style="--cols:${COLS}; --rows:${ROWS}; --zoom:${zoom}; --pan-x:${panX}px; --pan-y:${panY}px;">
                         <div class="localmap-corner" aria-hidden="true"></div>
                         <div class="localmap-top" aria-hidden="true">
                             ${LETTERS.map(l => `<div class="localmap-label">${l}</div>`).join('')}
@@ -68,7 +127,19 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                         <div class="localmap-left" aria-hidden="true">
                             ${Array.from({ length: ROWS }, (_, i) => `<div class="localmap-label">${i + 1}</div>`).join('')}
                         </div>
-                        <div class="localmap-grid" role="grid" aria-label="Local map grid (A-K / 1-9)"></div>
+                        <div class="localmap-grid-viewport" aria-label="Local map grid (A-K / 1-9)">
+                            <div class="localmap-grid-pan">
+                                <div class="localmap-grid" role="grid"></div>
+                            </div>
+                        </div>
+
+                        <div class="localmap-bottom" aria-label="Map controls">
+                            <div class="localmap-zoom" aria-label="Map zoom controls">
+                                <button type="button" class="localmap-zoom-btn" data-zoom="-" aria-label="Zoom out">−</button>
+                                <div class="localmap-zoom-readout" aria-hidden="true">${Math.round(zoom * 100)}%</div>
+                                <button type="button" class="localmap-zoom-btn" data-zoom="+" aria-label="Zoom in">+</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="localmap-infowrap" aria-live="polite">
@@ -87,6 +158,145 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
     const grid = container.querySelector('.localmap-grid');
     if (!grid) return;
+
+    const viewport = container.querySelector('.localmap-grid-viewport');
+    const shell = container.querySelector('.localmap-shell');
+
+    const clampPanToBounds = () => {
+        if (!state || typeof state !== 'object') return;
+        const z = normalizeZoom(state);
+        if (!viewport || !shell || z <= 1.01) {
+            state.panX = 0;
+            state.panY = 0;
+            return;
+        }
+        const rect = viewport.getBoundingClientRect();
+        const maxX = (rect.width * (z - 1)) / 2;
+        const maxY = (rect.height * (z - 1)) / 2;
+        const px = Number(state.panX);
+        const py = Number(state.panY);
+        const nextX = Number.isFinite(px) ? Math.max(-maxX, Math.min(maxX, px)) : 0;
+        const nextY = Number.isFinite(py) ? Math.max(-maxY, Math.min(maxY, py)) : 0;
+        state.panX = nextX;
+        state.panY = nextY;
+    };
+
+    // Pan/drag when zoomed in
+    // NOTE: Do not preventDefault on pointerdown, otherwise some browsers suppress click events.
+    // We only enter "panning" mode once movement passes a small threshold.
+    const drag = {
+        active: false,   // pointer is down
+        panning: false,  // movement threshold passed
+        startX: 0,
+        startY: 0,
+        startPanX: 0,
+        startPanY: 0,
+        lastDragAt: 0,
+        pointerId: null,
+    };
+
+    const setViewportClasses = () => {
+        if (!viewport) return;
+        const z = normalizeZoom(state);
+        viewport.classList.toggle('is-pannable', z > 1.01);
+        viewport.classList.toggle('is-panning', drag.panning);
+    };
+
+    try {
+        clampPanToBounds();
+        setViewportClasses();
+    } catch { /* ignore */ }
+
+    try {
+        if (viewport && !viewport.dataset.boundPan) {
+            viewport.dataset.boundPan = 'true';
+
+            const onPointerDown = (e) => {
+                const z = normalizeZoom(state);
+                if (z <= 1.01) return;
+                drag.active = true;
+                drag.panning = false;
+                drag.pointerId = e.pointerId;
+                drag.startX = e.clientX;
+                drag.startY = e.clientY;
+                drag.startPanX = Number(state?.panX) || 0;
+                drag.startPanY = Number(state?.panY) || 0;
+                setViewportClasses();
+            };
+
+            const onPointerMove = (e) => {
+                if (!drag.active) return;
+                if (drag.pointerId !== null && e.pointerId !== drag.pointerId) return;
+                if (!state || typeof state !== 'object') return;
+                const z = normalizeZoom(state);
+                if (z <= 1.01) return;
+                const dx = e.clientX - drag.startX;
+                const dy = e.clientY - drag.startY;
+
+                // Only start panning after a small movement threshold.
+                if (!drag.panning) {
+                    if ((Math.abs(dx) + Math.abs(dy)) <= 3) return;
+                    drag.panning = true;
+                    try { viewport.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+                    setViewportClasses();
+                }
+
+                state.panX = drag.startPanX + dx;
+                state.panY = drag.startPanY + dy;
+                clampPanToBounds();
+
+                // Update CSS vars without full rerender (smoother drag)
+                if (shell) {
+                    shell.style.setProperty('--pan-x', `${Number(state.panX) || 0}px`);
+                    shell.style.setProperty('--pan-y', `${Number(state.panY) || 0}px`);
+                }
+                setViewportClasses();
+                e.preventDefault();
+            };
+
+            const endDrag = () => {
+                if (!drag.active) return;
+                drag.active = false;
+                if (drag.panning) drag.lastDragAt = Date.now();
+                drag.panning = false;
+                drag.pointerId = null;
+                setViewportClasses();
+            };
+
+            viewport.addEventListener('pointerdown', onPointerDown);
+            viewport.addEventListener('pointermove', onPointerMove);
+            viewport.addEventListener('pointerup', endDrag);
+            viewport.addEventListener('pointercancel', endDrag);
+            viewport.addEventListener('pointerleave', endDrag);
+
+            // Prevent wheel-scroll from scrolling the page when hovering the map.
+            viewport.addEventListener('wheel', (e) => {
+                const z = normalizeZoom(state);
+                if (z <= 1.01) return;
+                e.preventDefault();
+            }, { passive: false });
+        }
+    } catch { /* ignore */ }
+
+    // Wire zoom buttons
+    try {
+        const zoomBtns = container.querySelectorAll('.localmap-zoom-btn');
+        zoomBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (!state || typeof state !== 'object') return;
+                const current = normalizeZoom(state);
+                const dir = btn.dataset.zoom;
+                const nextZoom = clamp(
+                    Math.round((current + (dir === '+' ? 0.1 : -0.1)) * 10) / 10,
+                    0.6,
+                    2.0
+                );
+                state.zoom = nextZoom;
+                setupCrashSiteLocalMap(container, { scoutStage, totalStages, state });
+            });
+        });
+    } catch { /* ignore */ }
 
     const infoBody = container.querySelector('#localMapInfoBody');
 
@@ -128,10 +338,13 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             tile.dataset.col = String(c);
             tile.dataset.row = String(r);
 
-            const discovered = isDiscovered({ col: c, row: r, centerCol, centerRow, radius })
+            const visited = isVisited(state, c, r);
+            const discovered = visited
+                || isDiscovered({ col: c, row: r, centerCol, centerRow, radius })
                 || (c === mapState.x && r === mapState.y);
             tile.classList.toggle('is-unknown', !discovered);
             tile.classList.toggle('is-known', discovered);
+            tile.classList.toggle('is-visited', visited);
 
             const meta = tileMeta(c, r);
             tile.classList.toggle('is-blocked', !!meta.blocked);
@@ -152,11 +365,11 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 tile.dataset.poi = meta.poiLabel || 'Crash Site';
                 tile.title = tile.dataset.poi;
 
-                // Outline the footprint perimeter by checking neighbors.
-                if (!isCrashPoi(c, r - 1)) tile.classList.add('poi-border-top');
-                if (!isCrashPoi(c, r + 1)) tile.classList.add('poi-border-bottom');
-                if (!isCrashPoi(c - 1, r)) tile.classList.add('poi-border-left');
-                if (!isCrashPoi(c + 1, r)) tile.classList.add('poi-border-right');
+                // Outline the footprint perimeter (always visible).
+                if (!isCrashPoi(c, r - 1) && !shouldSkipCrashWallEdge(c, r, 'top')) tile.classList.add('poi-border-top');
+                if (!isCrashPoi(c, r + 1) && !shouldSkipCrashWallEdge(c, r, 'bottom')) tile.classList.add('poi-border-bottom');
+                if (!isCrashPoi(c - 1, r) && !shouldSkipCrashWallEdge(c, r, 'left')) tile.classList.add('poi-border-left');
+                if (!isCrashPoi(c + 1, r) && !shouldSkipCrashWallEdge(c, r, 'right')) tile.classList.add('poi-border-right');
             }
 
             const isSelected = (c === mapState.selectedX && r === mapState.selectedY);
@@ -170,6 +383,9 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             }
 
             tile.addEventListener('click', () => {
+                try {
+                    if (drag.lastDragAt && (Date.now() - drag.lastDragAt) < 250) return;
+                } catch { /* ignore */ }
                 try {
                     if (state && typeof state === 'object') {
                         state.selectedX = c;

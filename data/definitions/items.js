@@ -52,6 +52,13 @@ export const items = [
         icon: 'assets/images/items/stimpack.svg',
         // Consumables are used via UI buttons (e.g., combat popup)
         consumable: { type: 'heal', resource: 'Health', amount: 25 }
+    },
+    {
+        id: 'basic_torch',
+        name: 'Basic Torch',
+        slot: 'accessory',
+        icon: 'assets/images/items/basic_torch.svg',
+        stats: { evasion: 0 }
     }
 ];
 

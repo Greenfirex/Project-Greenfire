@@ -17,8 +17,8 @@ const initialSalvageActions = [
             stage: 0,
             stages: [
                 // new order: sheltered area (rest) first, then food, then water/alternate access
-                { story: 'foundCave', unlocks: ['rest'], logText: 'You have discovered a sheltered area — someone can rest here. (Click to read)' },
-                { story: 'foundBerries', unlocks: ['forageFood'], grantItems: ['spiked_branch'], grantItemsPreferEquip: false, logText: 'You have discovered a source of food. (Click to read)' },
+                { story: 'foundCave', unlocks: ['rest', 'createBasicTorch'], logText: 'You have discovered a sheltered area — someone can rest here. (Click to read)' },
+                { story: 'foundBerries', unlocks: ['forageFood'], logText: 'You have discovered a source of food. (Click to read)' },
                 { story: 'foundRiver', unlocks: ['purifyWater', 'attemptAlternateAccess', 'huntWildlife'], encounter: 'wildlife_river', logText: 'You have discovered a source of water. (Click to read)' },   
             ]
         },
@@ -71,8 +71,24 @@ const initialSalvageActions = [
                 cancelable: false,
                 drain: [],
                 reward: [
-                    { resource: 'Stamina', amount: [3, 6] }
+                    { resource: 'Stamina', amount: [3, 6] },
+                    { resource: 'Health', amount: [1, 2] }
                 ]
+            },
+            {
+                id: 'createBasicTorch',
+                name: 'Create Basic Torch',
+                description: 'Use dry materials from the shelter to assemble a simple torch you can carry into darker terrain.',
+                duration: 2,
+                category: 'Crafting',
+                isUnlocked: false,
+                cancelable: true,
+                repeatable: false,
+                drain: [
+                    { resource: 'Stamina', amount: 4 }
+                ],
+                reward: [],
+                suppressGenericLog: true,
             },
             {
                 id: 'forageFood',
