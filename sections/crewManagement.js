@@ -7,9 +7,12 @@ import { addLogEntry, LogType } from '../core/ingameLog.js';
 import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
 import { buildings } from '../data/definitions/buildings.js';
 
+let _rootEl = null;
+
 // Render the Crew Management section (basic info for now)
-export function setupCrewManagementSection(sectionEl) {
+export function setupCrewManagementSection(sectionEl, { embedded = false } = {}) {
     if (!sectionEl) return;
+    _rootEl = sectionEl;
     
     // Determine labels based on chapter
     const isChapter2 = gameFlags.chapter === 2;
@@ -18,20 +21,32 @@ export function setupCrewManagementSection(sectionEl) {
         ? 'Assign crew members to manage colony operations and resource production.'
         : 'Assign survivors to job slots unlocked by buildings on the Crash Site.';
     
-    sectionEl.innerHTML = `
-        <div class="content-panel">
-            <div class="section-inner crew-section">
-                <h2>Crew Management</h2>
+    if (embedded) {
+        sectionEl.innerHTML = `
+            <div class="crew-section">
                 <div class="crew-summary">
-                    <p>Current ${crewLabel.toLowerCase()}: <strong id="crewCount">0</strong></p>
+                    <p>Current ${crewLabel.toLowerCase()}: <strong class="crewCount">0</strong></p>
                     <p class="crew-note">${instructionText}</p>
                 </div>
-                <div id="crewJobsContainer" class="crew-jobs" style="margin-top:12px;"></div>
+                <div class="crewJobsContainer crew-jobs" style="margin-top:12px;"></div>
             </div>
-        </div>
-    `;
+        `;
+    } else {
+        sectionEl.innerHTML = `
+            <div class="content-panel">
+                <div class="section-inner crew-section">
+                    <h2>Crew Management</h2>
+                    <div class="crew-summary">
+                        <p>Current ${crewLabel.toLowerCase()}: <strong class="crewCount">0</strong></p>
+                        <p class="crew-note">${instructionText}</p>
+                    </div>
+                    <div class="crewJobsContainer crew-jobs" style="margin-top:12px;"></div>
+                </div>
+            </div>
+        `;
+    }
     // setup delegated pointerdown handler once (works reliably during fast DOM updates)
-    const jobsContainer = document.getElementById('crewJobsContainer');
+    const jobsContainer = sectionEl.querySelector('.crewJobsContainer');
     if (jobsContainer && !jobsContainer._delegationAdded) {
         jobsContainer.addEventListener('pointerdown', (e) => {
             const btn = e.target.closest('button');
@@ -57,7 +72,8 @@ export function setupCrewManagementSection(sectionEl) {
 
 // Called every tick / when resources update to refresh the displayed values
 export function updateCrewSection() {
-    const countEl = document.getElementById('crewCount');
+    const root = _rootEl || document;
+    const countEl = root.querySelector('.crewCount');
     if (!countEl) return;
     
     // Handle both "Survivors" (Chapter 1) and "Crew Members" (Chapter 2)
@@ -72,7 +88,7 @@ export function updateCrewSection() {
 
     updateCrewMenuIdleWarning(survivorsCount, idle);
 
-    const jobsContainer = document.getElementById('crewJobsContainer');
+    const jobsContainer = root.querySelector('.crewJobsContainer');
     if (!jobsContainer) return;
     jobsContainer.innerHTML = '';
 

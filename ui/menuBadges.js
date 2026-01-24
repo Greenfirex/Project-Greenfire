@@ -13,7 +13,6 @@ export const MENU_SECTIONS = [
     'crashSiteSection',
     'colonySection',
     'manufacturingSection',
-    'crewManagementSection',
     'shipyardSection',
     'researchSection',
     'galaxyMapSection',

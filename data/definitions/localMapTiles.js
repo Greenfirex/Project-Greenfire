@@ -68,6 +68,13 @@ export const LOCAL_MAP_TILE_TYPES = {
         blocked: false,
         poiLabel: 'Ship Entrance',
     },
+    baseCamp: {
+        id: 'baseCamp',
+        label: 'Base Camp',
+        description: 'A small camp site: shelter, supplies, and a place to organize survivors.',
+        blocked: false,
+        poiLabel: 'Base Camp',
+    },
 };
 
 // Ship entrance tile (F7)
@@ -80,6 +87,45 @@ export const POI_SAFE_TILE = { x: 4, y: 5 }; // D5
 export const CAVE_TILE = { x: 2, y: 6 };      // B6
 export const BERRIES_TILE = { x: 4, y: 7 };   // D7
 export const WATER_TILE = { x: 8, y: 8 };     // H8
+
+// Base camp tile (locked until Investigate Nearby Sound completes)
+export const BASE_CAMP_TILE = { x: 2, y: 7 }; // B7
+
+// Ship interior hint tiles (revealed after first stepping on E5)
+export const SHIP_INTERIOR_HINT_TILES = [
+    { x: 5, y: 4 }, // E4
+    { x: 5, y: 5 }, // E5
+    { x: 5, y: 6 }, // E6
+    { x: 6, y: 5 }, // F5
+];
+
+function edgeKey(ax, ay, bx, by) {
+    const a = `${Number(ax)},${Number(ay)}`;
+    const b = `${Number(bx)},${Number(by)}`;
+    return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+// Internal ship corridor walls inside the crash POI.
+// Each entry is an edge between two orthogonally adjacent tiles.
+const INTERNAL_POI_WALLS = new Set([
+    // D5 <-> D6
+    edgeKey(4, 5, 4, 6),
+    // F4 <-> F5
+    edgeKey(6, 4, 6, 5),
+    // F5 <-> F6
+    edgeKey(6, 5, 6, 6),
+]);
+
+export function hasInternalPoiWallBetween(fromX, fromY, toX, toY) {
+    const fx = Number(fromX);
+    const fy = Number(fromY);
+    const tx = Number(toX);
+    const ty = Number(toY);
+    if (![fx, fy, tx, ty].every(Number.isFinite)) return false;
+    const dist = Math.abs(tx - fx) + Math.abs(ty - fy);
+    if (dist !== 1) return false;
+    return INTERNAL_POI_WALLS.has(edgeKey(fx, fy, tx, ty));
+}
 
 // Crash Site POI footprint tuned to assets/images/mapback.png.
 export const CRASH_POI_CELLS = new Set([
@@ -117,6 +163,9 @@ const OVERRIDES = {
     // Water source (H8)
     '8,8': { type: 'waterSource' },
 
+    // Base camp area (B7) once established
+    '2,7': { type: 'clearing' },
+
     // C5 (Dark Forest) - walkable, but gameplay may require a torch.
     '3,5': { type: 'darkForest' },
 };
@@ -124,6 +173,41 @@ const OVERRIDES = {
 function getMarkerForCell(col, row, localMapState) {
     const c = Number(col);
     const r = Number(row);
+
+    // Ship interior hint markers (shown after first stepping on E5).
+    // These are regular "!" markers intended to guide the player to the key junction tiles.
+    try {
+        if (localMapState && localMapState.shipInteriorTileHints === true) {
+            for (const t of SHIP_INTERIOR_HINT_TILES) {
+                if (c === t.x && r === t.y) {
+                    // E5: once Investigate Nearby Sound is completed, stop showing the "!" here.
+                    if (c === 5 && r === 5 && localMapState.investigateSoundDone === true) return null;
+                    const key = `${t.x},${t.y}`;
+                    const visited = !!(localMapState.visited && typeof localMapState.visited === 'object' && localMapState.visited[key] === true);
+                    if (!visited) return { kind: 'alert', text: '!' };
+                    return null;
+                }
+            }
+        }
+    } catch { /* ignore */ }
+
+    // Base camp: only becomes available after Investigate Nearby Sound.
+    // Once unlocked, show a marker until the player visits the tile.
+    if (c === BASE_CAMP_TILE.x && r === BASE_CAMP_TILE.y) {
+        const unlocked = !!(localMapState && localMapState.b7Unlocked === true);
+        if (!unlocked) return null;
+        const established = !!(localMapState && localMapState.baseCampEstablished === true);
+        const discovered = !!(localMapState && localMapState.discoveredBaseCamp === true);
+        if (established) return { kind: 'camp', text: '🏕', alwaysVisible: true };
+        if (discovered) return { kind: 'camp', text: '🏕' };
+        return { kind: 'alert', text: '!', alwaysVisible: true };
+    }
+
+    // Alternate access tile (D5): marker disappears once the hull is opened.
+    if (c === POI_SAFE_TILE.x && r === POI_SAFE_TILE.y) {
+        if (localMapState && localMapState.d5HullOpened === true) return null;
+        return { kind: 'alert', text: '!' };
+    }
 
     // Ship entrance: once re-entry has been attempted, the marker should disappear.
     if (c === SHIP_ENTRANCE.x && r === SHIP_ENTRANCE.y) {
@@ -133,19 +217,19 @@ function getMarkerForCell(col, row, localMapState) {
 
     // Cave
     if (c === CAVE_TILE.x && r === CAVE_TILE.y) {
-        if (localMapState && localMapState.discoveredCave) return { kind: 'rest', text: 'R' };
+        if (localMapState && localMapState.discoveredCave) return { kind: 'cave', text: '🕳️💧' };
         return { kind: 'alert', text: '!' };
     }
 
     // Berries / food
     if (c === BERRIES_TILE.x && r === BERRIES_TILE.y) {
-        if (localMapState && localMapState.discoveredBerries) return { kind: 'berries', text: 'B' };
+        if (localMapState && localMapState.discoveredBerries) return { kind: 'berries', text: '🍓' };
         return { kind: 'alert', text: '!' };
     }
 
     // Water source
     if (c === WATER_TILE.x && r === WATER_TILE.y) {
-        if (localMapState && localMapState.discoveredRiver) return { kind: 'water', text: 'W' };
+        if (localMapState && localMapState.discoveredRiver) return { kind: 'water', text: '💧' };
         return { kind: 'alert', text: '!' };
     }
 
@@ -192,6 +276,13 @@ export function getLocalMapTileAt(col, row, { scoutStage = 0, hasTriedReentry = 
     // Crash footprint paints over most base types
     if (inPoi) typeId = 'crashSite';
 
+    // Base camp tile switches type after camp is established.
+    if (c === BASE_CAMP_TILE.x && r === BASE_CAMP_TILE.y) {
+        if (localMapState && localMapState.baseCampEstablished === true) {
+            typeId = 'baseCamp';
+        }
+    }
+
     const type = LOCAL_MAP_TILE_TYPES[typeId] || LOCAL_MAP_TILE_TYPES.forest;
 
     const minScoutStage = (ov && Number.isFinite(ov.minScoutStage)) ? ov.minScoutStage : null;
@@ -229,6 +320,11 @@ export function getLocalMapTileAt(col, row, { scoutStage = 0, hasTriedReentry = 
         globallyAllowed = true; // B6 cave
     }
 
+    // Base camp tile (B7) is unlocked later.
+    if (c === BASE_CAMP_TILE.x && r === BASE_CAMP_TILE.y) {
+        globallyAllowed = !!(localMapState && localMapState.b7Unlocked === true);
+    }
+
     // Explicitly allow C5 even though it's in the normally-blocked top band.
     if (c === 3 && r === 5) {
         globallyAllowed = true; // C5 dark forest (torch-gated elsewhere)
@@ -250,6 +346,7 @@ export function getLocalMapTileAt(col, row, { scoutStage = 0, hasTriedReentry = 
         important: isImportantCell(col, row),
         markerKind: marker ? marker.kind : null,
         markerText: marker ? marker.text : null,
+        markerAlwaysVisible: !!(marker && marker.alwaysVisible === true),
         inPoi,
         isEntrance,
         isPoiSafeTile,
@@ -274,6 +371,12 @@ export function isCrashWallBetween(fromX, fromY, toX, toY, { localMapState = nul
 
     const fromIn = isCrashPoi(fx, fy);
     const toIn = isCrashPoi(tx, ty);
+
+    // Internal POI corridor walls (both sides inside the crash POI).
+    if (fromIn && toIn) {
+        return hasInternalPoiWallBetween(fx, fy, tx, ty);
+    }
+
     if (fromIn === toIn) return false; // only blocks crossing the boundary
 
     // Determine which side is inside the POI and which edge is being crossed.
@@ -289,9 +392,11 @@ export function isCrashWallBetween(fromX, fromY, toX, toY, { localMapState = nul
     else if (outX === inX && outY === inY + 1) edge = 'bottom';
     if (!edge) return false;
 
-    // Requested: remove left wall at C3 (no-op if not part of the POI).
-    // Correction: C3 -> D5.
-    if (edge === 'left' && inX === 4 && inY === 5) return false;
+    // Special opening at D5 (alternate access), but only after the hull has been pried open.
+    // This keeps the POI sealed until the player completes the Alternate Access chain.
+    if (edge === 'left' && inX === 4 && inY === 5) {
+        return !(localMapState && localMapState.d5HullOpened === true);
+    }
 
     // Gap under the ship entrance (F7) until re-entry attempt fails.
     // Crossing between F8 (outside) and F7 (inside) is allowed before hasTriedReentry.

@@ -32,17 +32,24 @@ import { resetActiveActions, getActiveCrashSiteAction, setActiveCrashSiteAction 
 import { resetMoraleModifiers, listMoraleModifiers, setMoraleModifier } from '../data/morale.js';
 import { resetWeather } from '../data/weather.js';
 import { driveTasks, resetDriveTasks } from '../data/definitions/encryptedDriveTasks.js';
-import { applySavedCharacterState, getCharacterStateForSave, resetCharacterState } from '../data/character.js';
+import { characterState, applySavedCharacterState, getCharacterStateForSave, resetCharacterState } from '../data/character.js';
 
 function reconcileActivatedSectionsAfterLoad() {
     try {
         // Start from whatever was loaded (or defaults if none)
         const next = { ...getInitialActivatedSections(), ...(activatedSections || {}) };
 
-        // Crew Management is unlocked once Base Camp is established.
-        if (gameFlags && gameFlags.baseCampEstablished) {
-            next.crewManagementSection = true;
-        }
+        // Crew Management is now embedded under Crash Site -> Campsite.
+        next.crewManagementSection = false;
+
+        // Forward-compat: if an older save already has Base Camp, show the Campsite tab as NEW once.
+        try {
+            if (gameFlags && gameFlags.baseCampEstablished && characterState && characterState.localMap) {
+                if (characterState.localMap.campsiteTabUiNew == null) {
+                    characterState.localMap.campsiteTabUiNew = true;
+                }
+            }
+        } catch { /* non-fatal */ }
 
         // Chapter 2+ implies Colony + Encrypted Drive are available, and Crash Site is hidden.
         if (gameFlags && Number(gameFlags.chapter) >= 2) {

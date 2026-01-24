@@ -10,6 +10,7 @@ import { allActions } from './definitions/allActions.js';
 import { buildings } from './definitions/buildings.js';
 import { technologies } from './definitions/technologies.js';
 import { jobs } from './jobsManager.js';
+import { characterState } from './character.js';
 import { addLogEntry, LogType } from '../core/ingameLog.js';
 import { getTotalIngameMinutes } from '../core/time.js';
 import { showStoryPopup } from '../ui/panels/popup.js';
@@ -179,11 +180,21 @@ const defs = [
         steps: () => {
             const scrap = getResourceAmount('Metal Parts');
             const prybarCrafted = hasCompletedAction('makeCrudePrybar');
-            return [
-                { id: 'gather_scrap', label: 'Gather Metal Parts (15)', done: gameFlags.hasReached15ScrapMetal, progress: gameFlags.hasReached15ScrapMetal ? '15/15' : `${Math.floor(scrap)}/15` },
-                { id: 'craft_prybar', label: 'Make Crude Prybar', done: prybarCrafted },
-                { id: 'open_hull', label: 'Pry open hull', done: hasCompletedAction('pryOpenHull') }
+            const scrapDone = !!gameFlags.hasReached15ScrapMetal;
+            const returnedToCave = !!gameFlags.returnedToCaveAfter15Scrap;
+            const steps = [
+                { id: 'gather_scrap', label: 'Gather Metal Parts (15)', done: scrapDone, progress: scrapDone ? '15/15' : `${Math.floor(scrap)}/15` },
             ];
+
+            if (scrapDone) {
+                steps.push(
+                    { id: 'return_to_cave', label: 'Return back to cave', done: returnedToCave, progress: returnedToCave ? 'Done' : 'B6' },
+                    { id: 'craft_prybar', label: 'Make Crude Prybar', done: prybarCrafted },
+                    { id: 'open_hull', label: 'Pry open hull', done: hasCompletedAction('pryOpenHull') }
+                );
+            }
+
+            return steps;
         }
     },
     {
@@ -679,6 +690,33 @@ export function recomputeObjectives() {
             if (!hasStart && Number(stock.doneAt) > 0) {
                 gameFlags.stockpileMoraleBoostActive = true;
                 gameFlags.stockpileMoraleBoostStartMinutes = Number(stock.doneAt);
+            }
+        }
+    } catch {}
+
+    // Objective guidance: once the player completes the first step of "Enter the wreck" (15 Metal Parts),
+    // prompt them to return to the cave to craft the prybar there, and track that return as a new step.
+    try {
+        const enter = status.find(s => s && s.id === 'obj_enter');
+        const enterActive = !!(enter && enter.state === 'active');
+        if (enterActive && gameFlags.hasReached15ScrapMetal === true) {
+            if (!gameFlags.returnToCaveAfterScrap15Shown) {
+                const evt = storyEvents.returnToCaveToCraftPrybar;
+                if (evt && typeof showStoryPopup === 'function') {
+                    showStoryPopup(evt);
+                    addLogEntry('You have enough metal to craft a prybar. Return to the cave. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(evt) });
+                }
+                gameFlags.returnToCaveAfterScrap15Shown = true;
+                didChange = true;
+            }
+
+            if (!gameFlags.returnedToCaveAfter15Scrap) {
+                const lm = characterState?.localMap;
+                const atCave = !!(lm && Number(lm.x) === 2 && Number(lm.y) === 6);
+                if (atCave) {
+                    gameFlags.returnedToCaveAfter15Scrap = true;
+                    didChange = true;
+                }
             }
         }
     } catch {}

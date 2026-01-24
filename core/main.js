@@ -105,10 +105,6 @@ function startGame() {
     crashSiteSection.id = 'crashSiteSection';
     crashSiteSection.classList.add('game-section');
 
-    const crewSection = document.createElement('div');
-    crewSection.id = 'crewManagementSection';
-    crewSection.classList.add('game-section');
-
     const journalSection = document.createElement('div'); 
     journalSection.id = 'journalSection';
     journalSection.classList.add('game-section');
@@ -144,7 +140,6 @@ function startGame() {
     // --- Append all sections to the game area ---
     const gameArea = document.getElementById('gameArea');
     gameArea.appendChild(crashSiteSection);
-    gameArea.appendChild(crewSection); 
     gameArea.appendChild(characterSection);
     gameArea.appendChild(journalSection);
     gameArea.appendChild(colonySection);
@@ -157,7 +152,6 @@ function startGame() {
     // --- Setup all sections ---
     setupInfoPanel();
     setupCrashSiteSection(crashSiteSection);
-    setupCrewManagementSection(crewSection);
     setupCharacterSection(characterSection);
     setupJournalSection(journalSection);
     setupColonySection(colonySection);
@@ -328,6 +322,10 @@ export function setActivatedSections(sections) {
         ...defaults,
         ...(sections && typeof sections === 'object' ? sections : {})
     };
+
+    // Crew Management is now embedded under Crash Site -> Campsite.
+    // Keep the standalone section disabled even if older saves enabled it.
+    next.crewManagementSection = false;
 
     if (!activatedSections || typeof activatedSections !== 'object') {
         // Extremely defensive: rehydrate to an object if something went wrong.

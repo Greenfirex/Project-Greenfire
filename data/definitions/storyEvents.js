@@ -28,9 +28,8 @@ heardRiverEast: {
 foundRiver: {
         title: "Water Source",
         pages: [
-            "Not far from the crash, you discovered a stream of clear, running water. With some basic filtering and boiling, it should be safe to drink.",
-            "Something small and fast darted from the underbrush — not a predator, just hungry vermin defending the waterline. After a brief scuffle you drove it off, shaken but unharmed.",
-            "With the bank clear, you could finally focus on the prize: a reliable water source. You hoped it was compatible with human biology — but you had no real choice except to make it as safe as you could."
+            "Something small and fast darted from the underbrush — not a predator, just hungry vermin defending the waterline. After a brief scuffle you managed to get rid of it with some scratches and bruises.",
+            "With the bank clear, you could finally focus on the prize: a reliable water source. You hope it is compatible with human biology — but you have no real choice. The stream is clear and flowing, and you fill your canteen.",
         ]
     },
 foundCave: {
@@ -67,11 +66,29 @@ alternateAccessFound: {
             "Unfortunately, the passage is blocked by heavy debris. You'll need to find a way to clear it before proceeding."
         ]
     },
+
+returnToCaveToCraftPrybar: {
+        title: 'A Tool Worth Making',
+        pages: [
+            "You’ve gathered enough metal to work with — but forcing the hull will take leverage, not brute strength.",
+            "Return to the cave and use the dry shelter to craft a crude prybar. It won’t be elegant, but it should be strong enough to prise open a seam in the plating.",
+            "Once you have it, you can go back to the wreck and try the alternate access point again."
+        ]
+    },
 enteredShipChoices: {
+    title: 'Hull Breached',
+    pages: [
+        "You wedge the prybar beneath the seam and heave. The hull groans; something gives. A scar of cold metal yawns open.",
+        "It takes several more brutal pulls to widen the gap enough to climb through. When you finally duck inside, the air is stale and hot, and every step echoes in the dead quiet.",
+        "For now, the important part is simple: you have a way back in."
+    ]
+},
+
+shipInteriorJunction: {
     title: 'Three Ways Forward',
     pages: [
-        "You wedge the prybar beneath the seam and heave. The hull groans and a section gives; a scar of cold metal yawns open. You climb into the breach and your boots scrape across scorched decking.",
-        "The ship’s interior is dead quiet and the corridors branch ahead. You can: (1) sweep the south corridor toward a junction that leads to the cafeteria and crew quarters; (2) take the north corridor toward the labs and the power core; or (3) head for the bridge to check communications and navigation systems.",
+        "Deeper inside, the passage opens into a junction. Your light catches scorch marks on the walls and a scatter of debris that looks like it fell during the crash — but the route ahead is clear enough to move.",
+        "The corridors branch. You can: (1) sweep the south corridor toward a junction that leads to the cafeteria and crew quarters; (2) take the north corridor toward the labs and the power core; or (3) head for the bridge to check communications and navigation systems.",
         "Something else stirs in the dark — a faint sound nearby, like muffled movement or coughing. You can investigate it now, or focus on one of the three routes. Choose carefully — selecting an action will advance that path and reveal its findings."
     ]
 },
@@ -80,6 +97,7 @@ investigate_sound_found: {
     title: 'A Quiet Hope',
     pages: [
         "You move cautiously toward the noise, keeping your light low. Behind a collapsed panel you find two survivors — shaken and bruised, but alive. You help them to their feet and bring them to safety.",
+        "On the way out, you spot a sheltered, defensible patch of ground south of the cave — a good place to establish a camp.",
         "They can be counted among your people now. For a moment the wreck feels less hopeless.",
         "NOTE: Survivors must be supplied with Food Rations and Clean Water. Keep your stores stocked so the group can endure."
     ]

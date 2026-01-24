@@ -17,7 +17,7 @@ const initialSalvageActions = [
             stage: 0,
             stages: [
                 // new order: sheltered area (rest) first, then food, then water/alternate access
-                { story: 'foundCave', unlocks: ['rest', 'createBasicTorch'], logText: 'You have discovered a sheltered area — someone can rest here. (Click to read)' },
+                { story: 'foundCave', unlocks: ['rest', 'createBasicTorch', 'drinkCaveWater'], logText: 'You have discovered a sheltered area — someone can rest here. (Click to read)' },
                 { story: 'foundBerries', unlocks: ['forageFood'], logText: 'You have discovered a source of food. (Click to read)' },
                 { story: 'foundRiver', unlocks: ['purifyWater', 'attemptAlternateAccess', 'huntWildlife'], encounter: 'wildlife_river', logText: 'You have discovered a source of water. (Click to read)' },   
             ]
@@ -165,6 +165,32 @@ const initialSalvageActions = [
             },
 
             {
+                id: 'drinkCaveWater',
+                name: 'Drink from Cave Stream',
+                description: 'Sip from a small underground stream running through the cave. It\'s not much, but it helps.',
+                duration: 1.2,
+                category: 'Survival',
+                isUnlocked: false,
+                cancelable: true,
+                repeatable: true,
+                drain: [
+                    { resource: 'Stamina', amount: 2 },
+                ],
+                reward: [
+                    // Smaller than the river-based water actions.
+                    { resource: 'Clean Water', amount: [4, 8] },
+                ],
+                stage: 0,
+                stages: [
+                    {
+                        story: null,
+                        unlocks: [],
+                        logText: 'You find a narrow trickle of water in the cave wall and drink what you can.'
+                    }
+                ]
+            },
+
+            {
                 id: 'attemptAlternateAccess',
                 name: 'Attempt Alternate Access',
                 description: 'Now that you have scouted the area around the crash site, try to find an alternate route into the ship — maintenance tunnels, vents or a collapsed access way.',
@@ -182,7 +208,7 @@ const initialSalvageActions = [
                 stages: [
                     {
                         story: 'alternateAccessFound',
-                        unlocks: ['scavengeDebris', 'makeCrudePrybar'],
+                        unlocks: ['scavengeDebris', 'makeCrudePrybar', 'pryOpenHull'],
                         logText: 'You find indications of a maintenance route that may lead back to the ship.',
                         suppressGenericLog: true
                     }
@@ -256,11 +282,10 @@ const initialSalvageActions = [
                 stage: 0,
                 stages: [
                     {
-                        // show a choice-style popup describing three possible routes
                         story: 'enteredShipChoices',
-                        // unlock three distinct follow-up actions + investigateSound
-                        unlocks: ['searchSouthCorridor','searchNorthCorridor','investigateBridge','investigateSound','stripWiring'],
-                        logText: 'You pry open the hull and climb inside. The corridors branch—three routes present themselves. Something else stirs in the dark; you hear a faint sound nearby. (Click to read)',
+                        // Ship interior branching happens later (E5 local map trigger)
+                        unlocks: [],
+                        logText: 'You pry open the hull and clear a way inside. (Click to read)',
                         suppressGenericLog: true
                     }
 
@@ -315,7 +340,7 @@ const initialSalvageActions = [
                 // Tooltip-only: some unlocks are applied elsewhere in game code; expose them here
                 // for the tooltip so players can see what this action will ultimately enable.
                 // Use internal ids (job ids, building names/ids or section ids) or plain labels.
-                tooltipUnlocks: ['crewManagementSection', 'scrap_collector'],
+                tooltipUnlocks: ['???', 'scrap_collector'],
                 hideRewardPreview: true,
                 stage: 0,
                 stages: [

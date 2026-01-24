@@ -4,6 +4,10 @@ import { jobs } from './jobsManager.js';
 import { upgradeActions } from './definitions/upgrades.js';
 import { getTotalIngameMinutes } from '../core/time.js';
 import { resources } from '../core/resources.js';
+import { allActions as salvageActions } from './definitions/allActions.js';
+import { characterState, grantItemToCharacter, countItemInBag } from './character.js';
+import { storyEvents } from './definitions/storyEvents.js';
+import { getLocalMapTileAt, isCrashWallBetween } from './definitions/localMapTiles.js';
 
 const initialGameFlags = {
     // Narrative chapter marker (1 = Crash Site, 2 = Colony)
@@ -38,6 +42,9 @@ const initialGameFlags = {
     wireScavengingOrganized: false,
     // Progress tracking flags
     hasReached15ScrapMetal: false,
+    // Objective guidance (Crash Site): after reaching 15 Metal Parts, prompt returning to the cave to craft a prybar
+    returnToCaveAfterScrap15Shown: false,
+    returnedToCaveAfter15Scrap: false,
     hasCompleted_tasksSurvivors: false,
     assembleMakeshiftExplosive_completions: 0,
     // Weather state (v1): stored in flags for simple persistence
@@ -101,13 +108,389 @@ export function registerActionCompletionHandler(actionId, fn) {
     handlers[actionId].push(fn);
 }
 
-export function runActionCompletionHandlers(original, completed, section) {
+export async function runActionCompletionHandlers(original, completed, section) {
     if (!original || !original.id) return;
     const list = handlers[original.id] || [];
     for (let i = 0; i < list.length; i++) {
-        list[i](original, completed, section);
+        try {
+            // Allow handlers to be async (returning a Promise).
+            // Use Promise.resolve to support sync handlers without branching.
+            // Run sequentially to preserve existing ordering assumptions.
+            // eslint-disable-next-line no-await-in-loop
+            await Promise.resolve(list[i](original, completed, section));
+        } catch (e) {
+            // Handlers should never break action completion.
+            console.warn(`Action completion handler failed for ${original.id}`, e);
+        }
     }
 }
+
+// --- Crash Site / Local Map handlers ---
+
+// Unlock Journal on the initial re-entry attempt and surface the menu "new" badge.
+registerActionCompletionHandler('attemptReentry', () => {
+    if (typeof window === 'undefined') return;
+    try {
+        if (typeof window.enableSection === 'function') {
+            window.enableSection('journalSection');
+        } else {
+            window.dispatchEvent(new CustomEvent('requestEnableSection', { detail: { section: 'journalSection' } }));
+        }
+    } catch { /* ignore */ }
+
+    // Mark Journal as "new" in the main menu until the player visits it.
+    try {
+        if (typeof window.setMenuNewItemFlag === 'function') {
+            let current = null;
+            try { current = localStorage.getItem('currentSection'); } catch { current = null; }
+            if (current !== 'journalSection') window.setMenuNewItemFlag('journalSection', true);
+        }
+    } catch { /* ignore */ }
+});
+
+// Create Basic Torch (tile action at B6)
+registerActionCompletionHandler('createBasicTorch', () => {
+    try {
+        const hasTorch =
+            (characterState?.equipment?.accessory_1 === 'basic_torch')
+            || (characterState?.equipment?.accessory_2 === 'basic_torch')
+            || (countItemInBag('basic_torch') > 0);
+
+        if (hasTorch) {
+            addLogEntry('You already have a Basic Torch.', LogType.INFO);
+            return;
+        }
+
+        const placed = grantItemToCharacter('basic_torch', { preferEquip: false });
+        if (placed && placed.ok) {
+            addLogEntry('Items Found: Basic Torch.', LogType.INFO);
+        } else {
+            addLogEntry('Could not carry the Basic Torch (inventory full).', LogType.INFO);
+        }
+    } catch { /* ignore */ }
+});
+
+// After prying open the hull, allow entering the Crash POI via D5.
+registerActionCompletionHandler('pryOpenHull', () => {
+    try {
+        if (characterState && characterState.localMap) {
+            characterState.localMap.d5HullOpened = true;
+        }
+    } catch { /* ignore */ }
+});
+
+// Local Map movement (prototype)
+registerActionCompletionHandler('move', async () => {
+    try {
+        const st = characterState?.localMap;
+        if (!st || !Number.isFinite(st.x) || !Number.isFinite(st.y)) return;
+
+        const beforeX = st.x;
+        const beforeY = st.y;
+        const tx = Number.isFinite(st.selectedX) ? st.selectedX : st.x;
+        const ty = Number.isFinite(st.selectedY) ? st.selectedY : st.y;
+        const dist = Math.abs(tx - st.x) + Math.abs(ty - st.y);
+
+        // Enforce adjacency: move is a 1-tile step to the selected tile.
+        if (dist !== 1) {
+            addLogEntry('Select an adjacent tile to move there.', LogType.INFO);
+        } else {
+            const hasTorchEquipped = !!(
+                (characterState?.equipment?.accessory_1 === 'basic_torch')
+                || (characterState?.equipment?.accessory_2 === 'basic_torch')
+            );
+            const isTorchGatedTile = (tx === 3 && ty === 5);
+
+            // Gate: do not allow moving west until the H8 river encounter has been visited.
+            const movingWest = tx < st.x;
+            const blockedByWestGate = !!(movingWest && !st.riverCombatDone);
+            if (blockedByWestGate) {
+                addLogEntry('You should first check out the east side.', LogType.INFO);
+                // Keep selection where the player clicked, but do not move.
+                st.selectedX = tx;
+                st.selectedY = ty;
+            } else if (isTorchGatedTile && !hasTorchEquipped) {
+                addLogEntry('It is too dark to go there without a torch equipped.', LogType.INFO);
+                st.selectedX = tx;
+                st.selectedY = ty;
+            } else {
+                // Respect tile defs (blocked tiles are impassable).
+                const scout = (salvageActions || []).find(a => a && a.id === 'scoutSurroundings');
+                const scoutStage = Number(scout?.stage || 0);
+                const hasTriedReentry = !!(st.hasTriedReentry === true);
+                const blockedByCrashWall = isCrashWallBetween(st.x, st.y, tx, ty, { localMapState: st });
+                if (blockedByCrashWall) {
+                    addLogEntry('Wreckage blocks the way.', LogType.INFO);
+                    st.selectedX = tx;
+                    st.selectedY = ty;
+                    return;
+                }
+
+                const meta = getLocalMapTileAt(tx, ty, { scoutStage, hasTriedReentry, localMapState: st });
+                if (meta && meta.blocked) {
+                    addLogEntry('There is currently no need to go there.', LogType.INFO);
+                } else {
+                    // For UI animation: capture origin/destination.
+                    try {
+                        st.lastMoveAt = Date.now();
+                        st.lastMoveFromX = beforeX;
+                        st.lastMoveFromY = beforeY;
+                        st.lastMoveToX = tx;
+                        st.lastMoveToY = ty;
+                    } catch { /* ignore */ }
+
+                    st.x = tx;
+                    st.y = ty;
+
+                    // Keep selection synced so context actions appear immediately after moving.
+                    st.selectedX = st.x;
+                    st.selectedY = st.y;
+
+                    // H7 (8,7): one-time log note about the blocked eastern path.
+                    try {
+                        if (st.x === 8 && st.y === 7 && !st.h7BlockedNoteShown) {
+                            st.h7BlockedNoteShown = true;
+                            addLogEntry('Path here is blocked by debris and flowing river. I will have to return back and go around to the west.', LogType.INFO);
+                        }
+                    } catch { /* ignore */ }
+
+                    // C6 (3,6): one-time story popup hinting at shelter to the west.
+                    try {
+                        if (st.x === 3 && st.y === 6 && !st.caveSpottedWest) {
+                            st.caveSpottedWest = true;
+                            const ev = storyEvents ? (storyEvents.caveSpottedWest || null) : null;
+                            if (ev) {
+                                const { showStoryPopup } = await import('../ui/panels/popup.js');
+                                showStoryPopup(ev, null);
+                            }
+                        }
+                    } catch { /* ignore */ }
+
+                    // Map-driven discoveries: reuse Scout Surroundings stage unlocks on specific tiles.
+                    try {
+                        const scout2 = (salvageActions || []).find(a => a && a.id === 'scoutSurroundings');
+                        const stages = Array.isArray(scout2?.stages) ? scout2.stages : [];
+                        const totalScoutStages = stages.length;
+
+                        const { showStoryPopup } = await import('../ui/panels/popup.js');
+                        const { showCombatPopup } = await import('../ui/panels/combatPopup.js');
+
+                        const unlockFromScoutStage = (stageIndex) => {
+                            const stg = stages[stageIndex];
+                            if (!stg) return;
+
+                            // Advance Scout Surroundings progress so objectives reflect map discoveries.
+                            try {
+                                if (scout2) {
+                                    const next = stageIndex + 1;
+                                    const cur = Number.isFinite(scout2.stage) ? scout2.stage : 0;
+                                    scout2.stage = Math.max(cur, next);
+                                    if (totalScoutStages && scout2.stage >= totalScoutStages) {
+                                        scout2.completed = true;
+                                    }
+                                }
+                            } catch { /* ignore */ }
+
+                            if (Array.isArray(stg.unlocks)) {
+                                for (const id of stg.unlocks) {
+                                    const a = (salvageActions || []).find(x => x && (x.id === id || x.name === id));
+                                    if (a && !a.isUnlocked) {
+                                        a.isUnlocked = true;
+                                        a.uiNew = true;
+                                        const isUpgrade = (a.category === 'Upgrade');
+                                        addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${a.name}`, LogType.UNLOCK);
+                                    }
+                                }
+                            }
+
+                            if (stg.story) {
+                                const ev = storyEvents ? (storyEvents[stg.story] || null) : null;
+                                if (ev) showStoryPopup(ev, null);
+                                if (stg.logText) addLogEntry(stg.logText, LogType.STORY, { onClick: () => (ev ? showStoryPopup(ev, null) : null) });
+                            } else if (stg.logText) {
+                                addLogEntry(stg.logText, LogType.STORY);
+                            }
+                        };
+
+                        // B6 (cave) -> Scout stage 0 unlocks Rest
+                        if (st.x === 2 && st.y === 6 && !st.discoveredCave) {
+                            st.discoveredCave = true;
+                            unlockFromScoutStage(0);
+                        }
+
+                        // D7 (berries) -> Scout stage 1 unlocks Forage for Food
+                        if (st.x === 4 && st.y === 7 && !st.discoveredBerries) {
+                            st.discoveredBerries = true;
+                            unlockFromScoutStage(1);
+                        }
+
+                        // H8 (water source) -> Scout stage 2 unlocks Purify Water (and related)
+                        if (st.x === 8 && st.y === 8 && !st.discoveredRiver) {
+                            st.discoveredRiver = true;
+                            unlockFromScoutStage(2);
+
+                            // One-time combat at the river.
+                            if (!st.riverCombatDone) {
+                                st.riverCombatDone = true;
+                                try {
+
+                                    // Base camp tile (B7): once unlocked, visiting it marks it as discovered (changes marker).
+                                    if (st.b7Unlocked === true && st.x === 2 && st.y === 7 && !st.discoveredBaseCamp) {
+                                        st.discoveredBaseCamp = true;
+                                    }
+                                    await showCombatPopup('wildlife_river', { sourceActionId: 'scoutSurroundings', stageIndex: 2 });
+                                } catch { /* ignore */ }
+                            }
+                        }
+
+                        // G8 -> one-time story hint + tutorial weapon
+                        if (st.x === 7 && st.y === 8 && !st.heardRiverEast) {
+                            st.heardRiverEast = true;
+                            const hasBranch = (characterState?.equipment?.weapon === 'spiked_branch') || (countItemInBag('spiked_branch') > 0);
+
+                            let granted = false;
+                            let note = '';
+                            if (!hasBranch) {
+                                try {
+                                    const placed = grantItemToCharacter('spiked_branch', { preferEquip: false });
+                                    granted = !!(placed && placed.ok);
+                                    note = placed?.placed === 'equip'
+                                        ? `Equipped (${placed.slot})`
+                                        : (placed?.placed === 'bag' ? 'Added to bag' : 'Obtained');
+                                } catch { /* ignore */ }
+                            }
+
+                            try {
+                                const ev = storyEvents ? (storyEvents.heardRiverEast || null) : null;
+                                if (ev) {
+                                    const out = granted ? { items: [{ id: 'spiked_branch', note }] } : null;
+                                    showStoryPopup(ev, out);
+                                }
+                            } catch { /* ignore */ }
+                        }
+                    } catch { /* ignore */ }
+
+                    // Ship interior junction (E5): once the alternate access route is opened, reaching E5
+                    // surfaces the branching choices and unlocks the corresponding actions.
+                    try {
+                        const isE5 = (st.x === 5 && st.y === 5);
+                        const canBeInside = !!(st.d5HullOpened === true);
+                        if (canBeInside && isE5 && !st.shipInteriorJunctionShown) {
+                            st.shipInteriorJunctionShown = true;
+
+                            // Also mark hint tiles (E4/E5/E6/F5) the first time the player reaches E5.
+                            // These are rendered as "!" markers to guide the player to interactable junction tiles.
+                            try {
+                                if (!st.shipInteriorTileHints) {
+                                    st.shipInteriorTileHints = true;
+                                }
+                            } catch { /* ignore */ }
+
+                            const { showStoryPopup } = await import('../ui/panels/popup.js');
+                            const ev = storyEvents ? (storyEvents.shipInteriorJunction || null) : null;
+                            if (ev) {
+                                showStoryPopup(ev, null);
+                                try {
+                                    addLogEntry('The corridors branch ahead. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(ev, null) });
+                                } catch { /* ignore */ }
+                            }
+
+                            const toUnlock = ['searchSouthCorridor', 'searchNorthCorridor', 'investigateBridge', 'investigateSound', 'stripWiring'];
+                            // Investigate Nearby Sound (E5): unlock the base camp tile on the local map.
+                            registerActionCompletionHandler('investigateSound', () => {
+                                try {
+                                    const st = characterState?.localMap;
+                                    if (st && typeof st === 'object') {
+                                        st.b7Unlocked = true;
+                                        st.investigateSoundDone = true;
+                                    }
+                                } catch { /* ignore */ }
+
+                                try {
+                                    addLogEntry('A promising spot for a base camp is marked on your map.', LogType.UNLOCK);
+                                } catch { /* ignore */ }
+
+                                // Refresh Crash Site UI (including local map) so the marker appears immediately.
+                                if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                                    try { window.setupCrashSiteSection(); } catch { /* ignore */ }
+                                }
+                            });
+
+                            const applyPendingActionMove = (expectedActionId) => {
+                                try {
+                                    const st = characterState?.localMap;
+                                    if (!st || typeof st !== 'object') return;
+                                    const pending = st.pendingActionMove;
+                                    if (!pending || typeof pending !== 'object') return;
+                                    if (String(pending.actionId || '') !== String(expectedActionId || '')) return;
+
+                                    const fromX = Number(pending.fromX);
+                                    const fromY = Number(pending.fromY);
+                                    const toX = Number(pending.toX);
+                                    const toY = Number(pending.toY);
+                                    if (![fromX, fromY, toX, toY].every(Number.isFinite)) return;
+                                    const dist = Math.abs(toX - fromX) + Math.abs(toY - fromY);
+                                    if (dist !== 1) return;
+
+                                    // Only apply if the player is still at the queued origin.
+                                    if (Number(st.x) !== fromX || Number(st.y) !== fromY) return;
+
+                                    st.lastMoveAt = Date.now();
+                                    st.lastMoveFromX = fromX;
+                                    st.lastMoveFromY = fromY;
+                                    st.lastMoveToX = toX;
+                                    st.lastMoveToY = toY;
+                                    st.x = toX;
+                                    st.y = toY;
+                                    st.selectedX = toX;
+                                    st.selectedY = toY;
+                                    delete st.pendingActionMove;
+
+                                    try {
+                                        const letter = String.fromCharCode('A'.charCodeAt(0) + (toX - 1));
+                                        addLogEntry(`Moved to ${letter}${toY}.`, LogType.INFO);
+                                    } catch { /* ignore */ }
+
+                                    if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                                        try { window.setupCrashSiteSection(); } catch { /* ignore */ }
+                                    }
+                                } catch { /* ignore */ }
+                            };
+
+                            // Corridor/bridge actions: once finished, step onto the tile (so traversal becomes possible).
+                            registerActionCompletionHandler('searchNorthCorridor', () => applyPendingActionMove('searchNorthCorridor'));
+                            registerActionCompletionHandler('searchSouthCorridor', () => applyPendingActionMove('searchSouthCorridor'));
+                            registerActionCompletionHandler('investigateBridge', () => applyPendingActionMove('investigateBridge'));
+                            for (const id of toUnlock) {
+                                const a = (salvageActions || []).find(x => x && (x.id === id || x.name === id));
+                                if (a && !a.isUnlocked) {
+                                    a.isUnlocked = true;
+                                    a.uiNew = true;
+                                    const isUpgrade = (a.category === 'Upgrade');
+                                    addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${a.name}`, LogType.UNLOCK);
+                                }
+                            }
+
+                            // Surface the new actions immediately in the Crash Site list.
+                            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                                try { window.setupCrashSiteSection(); } catch { /* ignore */ }
+                            }
+                        }
+                    } catch { /* ignore */ }
+                }
+            }
+        }
+
+        // Clamp to the A-K / 1-9 grid
+        st.x = Math.max(1, Math.min(11, st.x));
+        st.y = Math.max(1, Math.min(9, st.y));
+
+        if (st.x !== beforeX || st.y !== beforeY) {
+            const letter = String.fromCharCode('A'.charCodeAt(0) + (st.x - 1));
+            addLogEntry(`Moved to ${letter}${st.y}.`, LogType.INFO);
+        }
+    } catch { /* ignore */ }
+});
 
 // --- Built-in handlers (minimal, no saving) ---
 registerActionCompletionHandler('salvageCookingEquipment', () => {
@@ -154,13 +537,7 @@ registerActionCompletionHandler('installRainCatchers', () => {
 });
 
 registerActionCompletionHandler('establishBaseCamp', () => {
-    // prefer direct global call if present (keeps compatibility),
-    // otherwise dispatch an event that main.js can listen for.
-    if (typeof window !== 'undefined' && typeof window.enableSection === 'function') {
-        window.enableSection('crewManagementSection');
-    } else {
-        window.dispatchEvent(new CustomEvent('requestEnableSection', { detail: { section: 'crewManagementSection' } }));
-    }
+    // Crew management is now embedded under the Crash Site -> Campsite tab.
 
     const toUnlock = ['Foraging Camp', 'Water Station'];
     buildings.forEach(b => {
@@ -190,6 +567,14 @@ registerActionCompletionHandler('establishBaseCamp', () => {
     // Set morale-related base camp flag
     try {
         gameFlags.baseCampEstablished = true;
+        try {
+            if (characterState && characterState.localMap) {
+                characterState.localMap.baseCampEstablished = true;
+                if (characterState.localMap.campsiteTabUiNew !== false) {
+                    characterState.localMap.campsiteTabUiNew = true;
+                }
+            }
+        } catch { /* ignore */ }
         // Start a temporary +10% morale boost that decays over 7 in-game days from this moment
         gameFlags.baseCampBoostStartMinutes = getTotalIngameMinutes();
     } catch {}
@@ -229,6 +614,13 @@ registerActionCompletionHandler('establishBaseCamp', () => {
             }
         }
     } catch (e) { /* ignore */ }
+
+    // Refresh Crash Site UI so the Campsite tab enables immediately.
+    try {
+        if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+            window.setupCrashSiteSection();
+        }
+    } catch { /* ignore */ }
 });
 
 // Purification Unit completion handler

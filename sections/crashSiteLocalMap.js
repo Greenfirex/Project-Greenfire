@@ -1,4 +1,5 @@
-import { getLocalMapTileAt, isCrashPoi } from '../data/definitions/localMapTiles.js';
+import { getLocalMapTileAt, isCrashPoi, hasInternalPoiWallBetween, isCrashWallBetween } from '../data/definitions/localMapTiles.js';
+import { allActions as salvageActions } from '../data/definitions/allActions.js';
 
 const COLS = 11; // A-K
 const ROWS = 9;  // 1-9
@@ -105,10 +106,10 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
         // Gap at the ship entrance: remove the bottom edge under F7 until the attempt is made.
         if (edge === 'bottom' && c === 6 && r === 7 && hasTriedReentry !== true) return true;
 
-        // User correction: previous C3 note was meant to be D5.
-        // (This is effectively a no-op in practice because the outside neighbor (C5) is blocked,
-        // but keep it as an explicit opening if/when rules change.)
-        if (edge === 'left' && c === 4 && r === 5) return true;
+        // Alternate access opening at D5: only visible once the hull has been pried open.
+        if (edge === 'left' && c === 4 && r === 5) {
+            return !!(state && typeof state === 'object' && state.d5HullOpened === true);
+        }
 
         return false;
     };
@@ -300,6 +301,18 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
     const infoBody = container.querySelector('#localMapInfoBody');
 
+    const isOrthogonallyAdjacentToCrashPoi = (x, y) => {
+        const c = Number(x);
+        const r = Number(y);
+        if (isCrashPoi(c, r)) return false;
+        return (
+            isCrashPoi(c - 1, r)
+            || isCrashPoi(c + 1, r)
+            || isCrashPoi(c, r - 1)
+            || isCrashPoi(c, r + 1)
+        );
+    };
+
     const renderInfo = (col, row, discovered, poiLabel = null) => {
         if (!infoBody) return;
         const meta = tileMeta(col, row);
@@ -312,6 +325,38 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
         const blockedRow = discovered && meta.blocked
             ? `<div class="localmap-info-row"><span class="k">Access</span><span class="v">Blocked</span></div>`
             : '';
+
+        // Resources hinting:
+        // - D7 has Food Rations (berries/food source)
+        // - H8 has Clean Water (water source)
+        // - Once Scavenge Debris Field is unlocked, tiles adjacent to the crash POI are known to contain Metal Parts
+        // - Everything else stays Unknown
+        let resourcesValue = 'Unknown';
+        try {
+            if (discovered) {
+                const isD7 = (Number(col) === 4 && Number(row) === 7);
+                const isH8 = (Number(col) === 8 && Number(row) === 8);
+                if (isD7) {
+                    const debris = (salvageActions || []).find(a => a && a.id === 'scavengeDebris');
+                    const debrisUnlocked = !!(debris && debris.isUnlocked);
+
+                    const resources = ['Food Rations'];
+                    if (debrisUnlocked && isOrthogonallyAdjacentToCrashPoi(col, row)) {
+                        resources.push('Metal Parts');
+                    }
+                    resourcesValue = resources.join(', ');
+                } else if (isH8) {
+                    resourcesValue = 'Clean Water';
+                } else {
+                const debris = (salvageActions || []).find(a => a && a.id === 'scavengeDebris');
+                const debrisUnlocked = !!(debris && debris.isUnlocked);
+                if (debrisUnlocked && isOrthogonallyAdjacentToCrashPoi(col, row)) {
+                    resourcesValue = 'Metal Parts';
+                }
+                }
+            }
+        } catch { /* ignore */ }
+        const resourcesRow = `<div class="localmap-info-row"><span class="k">Resources</span><span class="v">${resourcesValue}</span></div>`;
         const noteText = !discovered
             ? 'Fog blocks detail. Scout more to reveal the area.'
             : (meta.description || (poiLabel
@@ -323,10 +368,29 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             ${typeRow}
             ${poi}
             ${blockedRow}
+            ${resourcesRow}
             <div class="localmap-divider" aria-hidden="true"></div>
             <div class="localmap-note">${noteText}</div>
         `;
     };
+
+    // Movement animation (lightweight): pulse the destination tile and briefly highlight the origin.
+    // Values are written by the Move action completion handler.
+    const moveAnim = (() => {
+        try {
+            const at = Number(state && typeof state === 'object' ? state.lastMoveAt : 0);
+            if (!Number.isFinite(at) || at <= 0) return null;
+            if ((Date.now() - at) > 900) return null;
+            const fromX = Number(state.lastMoveFromX);
+            const fromY = Number(state.lastMoveFromY);
+            const toX = Number(state.lastMoveToX);
+            const toY = Number(state.lastMoveToY);
+            if (![fromX, fromY, toX, toY].every(Number.isFinite)) return null;
+            return { fromX, fromY, toX, toY };
+        } catch {
+            return null;
+        }
+    })();
 
     // Build tiles
     const tiles = document.createDocumentFragment();
@@ -349,13 +413,27 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             const meta = tileMeta(c, r);
             tile.classList.toggle('is-blocked', !!meta.blocked);
 
-            // Tile markers (only show when discovered; hidden under fog)
-            if (discovered && meta.markerText) {
+            // Tile markers
+            // - Usually hidden under fog
+            // - Some tutorial/guide markers can opt in to always-visible (e.g., newly-unlocked base camp tile)
+            const hasMarker = (meta.markerKind !== null && meta.markerKind !== undefined);
+            if (hasMarker && (discovered || meta.markerAlwaysVisible)) {
                 const marker = document.createElement('div');
                 const kind = meta.markerKind ? String(meta.markerKind) : 'alert';
                 marker.className = `localmap-marker localmap-marker--${kind}`;
-                marker.textContent = meta.markerText;
+                marker.textContent = (meta.markerText !== null && meta.markerText !== undefined) ? String(meta.markerText) : '';
+                marker.setAttribute('aria-hidden', 'true');
+                if (meta.markerAlwaysVisible) {
+                    tile.classList.add('has-always-marker');
+                }
                 tile.appendChild(marker);
+            }
+
+            // Non-crash POI points (e.g., established Base Camp)
+            if (!isCrashPoi(c, r) && meta.poiLabel) {
+                tile.classList.add('is-poi-point');
+                tile.dataset.poi = meta.poiLabel;
+                tile.title = tile.dataset.poi;
             }
 
             // Crash Site POI footprint
@@ -370,6 +448,20 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 if (!isCrashPoi(c, r + 1) && !shouldSkipCrashWallEdge(c, r, 'bottom')) tile.classList.add('poi-border-bottom');
                 if (!isCrashPoi(c - 1, r) && !shouldSkipCrashWallEdge(c, r, 'left')) tile.classList.add('poi-border-left');
                 if (!isCrashPoi(c + 1, r) && !shouldSkipCrashWallEdge(c, r, 'right')) tile.classList.add('poi-border-right');
+
+                // Internal corridor walls inside the POI
+                try {
+                    if (hasInternalPoiWallBetween(c, r, c, r - 1)) tile.classList.add('poi-wall-top');
+                    if (hasInternalPoiWallBetween(c, r, c, r + 1)) tile.classList.add('poi-wall-bottom');
+                    if (hasInternalPoiWallBetween(c, r, c - 1, r)) tile.classList.add('poi-wall-left');
+                    if (hasInternalPoiWallBetween(c, r, c + 1, r)) tile.classList.add('poi-wall-right');
+                } catch { /* ignore */ }
+
+                // POI wall overlay layer (styled in CSS). This keeps hull walls visible even when a tile is selected.
+                const wallOverlay = document.createElement('div');
+                wallOverlay.className = 'poi-wall-overlay';
+                wallOverlay.setAttribute('aria-hidden', 'true');
+                tile.appendChild(wallOverlay);
             }
 
             const isSelected = (c === mapState.selectedX && r === mapState.selectedY);
@@ -377,6 +469,47 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
             const isPlayer = (c === mapState.x && r === mapState.y);
             tile.classList.toggle('is-player', isPlayer);
+
+            // Player route hints: tiny arrows on the edges indicating reachable adjacent tiles.
+            if (isPlayer) {
+                try {
+                    const arrowsHost = document.createElement('div');
+                    arrowsHost.className = 'localmap-player-arrows';
+
+                    const dirs = [
+                        { dx: 0, dy: -1, cls: 'up' },
+                        { dx: 0, dy: 1, cls: 'down' },
+                        { dx: -1, dy: 0, cls: 'left' },
+                        { dx: 1, dy: 0, cls: 'right' },
+                    ];
+
+                    for (const d of dirs) {
+                        const nx = c + d.dx;
+                        const ny = r + d.dy;
+                        if (nx < 1 || nx > COLS || ny < 1 || ny > ROWS) continue;
+
+                        const nMeta = tileMeta(nx, ny);
+                        if (nMeta && nMeta.blocked) continue;
+
+                        // Blocked by the crash POI boundary wall or internal corridor walls.
+                        try {
+                            if (isCrashWallBetween(c, r, nx, ny, { localMapState: state })) continue;
+                        } catch { /* ignore */ }
+
+                        const arrow = document.createElement('div');
+                        arrow.className = `localmap-move-arrow localmap-move-arrow--${d.cls}`;
+                        arrow.setAttribute('aria-hidden', 'true');
+                        arrowsHost.appendChild(arrow);
+                    }
+
+                    if (arrowsHost.childElementCount) tile.appendChild(arrowsHost);
+                } catch { /* ignore */ }
+            }
+
+            if (moveAnim) {
+                tile.classList.toggle('is-move-from', (c === moveAnim.fromX && r === moveAnim.fromY));
+                tile.classList.toggle('is-just-moved', (isPlayer && c === moveAnim.toX && r === moveAnim.toY));
+            }
 
             if (!inCrash) {
                 tile.title = `${LETTERS[c - 1]}${r}`;
@@ -399,6 +532,31 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 // Bubble an event so other UI can react if needed.
                 try {
                     container.dispatchEvent(new CustomEvent('local-map-selection-changed', {
+                        bubbles: true,
+                        detail: { x: c, y: r, coord: toCoordLabel(c, r) }
+                    }));
+                } catch { /* ignore */ }
+            });
+
+            // Double-click: treat as a Move intent by default.
+            tile.addEventListener('dblclick', (e) => {
+                try { e.preventDefault(); } catch { /* ignore */ }
+                try {
+                    if (drag.lastDragAt && (Date.now() - drag.lastDragAt) < 250) return;
+                } catch { /* ignore */ }
+
+                try {
+                    if (state && typeof state === 'object') {
+                        state.selectedX = c;
+                        state.selectedY = r;
+                    }
+                } catch { /* ignore */ }
+
+                // Re-render to update selection styling.
+                setupCrashSiteLocalMap(container, { scoutStage, totalStages, state });
+
+                try {
+                    container.dispatchEvent(new CustomEvent('local-map-tile-double-clicked', {
                         bubbles: true,
                         detail: { x: c, y: r, coord: toCoordLabel(c, r) }
                     }));
