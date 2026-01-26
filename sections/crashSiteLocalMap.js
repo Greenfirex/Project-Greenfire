@@ -5,13 +5,328 @@ const COLS = 11; // A-K
 const ROWS = 9;  // 1-9
 const LETTERS = Array.from({ length: COLS }, (_, i) => String.fromCharCode('A'.charCodeAt(0) + i));
 
+function tileCenterToSvgPoint(col, row) {
+    const c = Number(col);
+    const r = Number(row);
+    // SVG is 0..100 in each axis, so convert tile center to percent.
+    const x = ((c - 0.5) / COLS) * 100;
+    const y = ((r - 0.5) / ROWS) * 100;
+    return { x, y };
+}
+
+function ensurePathOverlay(container, grid) {
+    if (!container || !grid) return null;
+    try {
+        if (container._localMapPathOverlay && container._localMapPathOverlay.ownerSVGElement) {
+            const svg = container._localMapPathOverlay.ownerSVGElement;
+            // If the map DOM was re-rendered, the cached overlay may be detached.
+            // Only reuse it if it is still connected and inside the current grid.
+            if (svg && svg.isConnected && grid.contains(svg)) {
+                return svg;
+            }
+            try { delete container._localMapPathOverlay; } catch { /* ignore */ }
+        }
+    } catch { /* ignore */ }
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '100%');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.classList.add('localmap-path-overlay');
+    svg.dataset.kind = 'move';
+    // Ensure it sizes correctly across browsers.
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.style.display = 'block';
+
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    svg.appendChild(poly);
+
+    // Insert before tiles so it sits under markers.
+    try {
+        grid.insertBefore(svg, grid.firstChild);
+    } catch {
+        grid.appendChild(svg);
+    }
+
+    try {
+        container._localMapPathOverlay = poly;
+    } catch { /* ignore */ }
+
+    return svg;
+}
+
+export function updateCrashSiteLocalMapPathOverlay(container, preview = null) {
+    if (!container) return;
+    const grid = container.querySelector('.localmap-grid');
+    if (!grid) return;
+
+    const svg = ensurePathOverlay(container, grid);
+    let poly = null;
+    try { poly = container._localMapPathOverlay; } catch { poly = null; }
+    if (!svg || !poly) return;
+
+    const points = preview && Array.isArray(preview.points) ? preview.points : null;
+    const kind = preview && preview.kind ? String(preview.kind) : 'move';
+
+    if (!points || points.length < 2) {
+        poly.setAttribute('points', '');
+        svg.style.display = 'none';
+        return;
+    }
+
+    const svgPoints = [];
+    for (const p of points) {
+        const c = Number(p && (p.x ?? p.col));
+        const r = Number(p && (p.y ?? p.row));
+        if (!Number.isFinite(c) || !Number.isFinite(r)) continue;
+        const sp = tileCenterToSvgPoint(c, r);
+        svgPoints.push(`${sp.x.toFixed(3)},${sp.y.toFixed(3)}`);
+    }
+
+    poly.setAttribute('points', svgPoints.join(' '));
+    svg.dataset.kind = kind;
+    svg.style.display = 'block';
+}
+
+function startTravelDotAnimation(container, grid, moveAnim) {
+    if (!container || !grid || !moveAnim) return;
+
+    // Cancel any previous animation.
+    try {
+        if (container._localMapTravelAnim && typeof container._localMapTravelAnim.cancel === 'function') {
+            container._localMapTravelAnim.cancel();
+        }
+    } catch { /* ignore */ }
+
+    const from = tileCenterToSvgPoint(moveAnim.fromX, moveAnim.fromY);
+    const to = tileCenterToSvgPoint(moveAnim.toX, moveAnim.toY);
+
+    const dot = document.createElement('div');
+    dot.className = 'localmap-travel-dot';
+    dot.style.left = `${from.x}%`;
+    dot.style.top = `${from.y}%`;
+
+    try { grid.classList.add('is-player-traveling'); } catch { /* ignore */ }
+    try { grid.appendChild(dot); } catch { /* ignore */ }
+
+    const TRAVEL_MS = Math.max(120, Number(moveAnim.durationMs) || 320);
+    const start = Number(moveAnim.startAt) || Date.now();
+    let rafId = 0;
+    let cancelled = false;
+
+    const cleanup = () => {
+        try { if (rafId) cancelAnimationFrame(rafId); } catch { /* ignore */ }
+        try { dot.remove(); } catch { /* ignore */ }
+        // If an in-flight animation is being cancelled by a rerender, don't reveal the
+        // static player dot on the origin tile for a frame.
+        if (!(cancelled && moveAnim && moveAnim._kind === 'inflight')) {
+            try { grid.classList.remove('is-player-traveling'); } catch { /* ignore */ }
+        }
+    };
+
+    const tick = () => {
+        if (cancelled) return;
+        const t = Math.max(0, Math.min(1, (Date.now() - start) / TRAVEL_MS));
+        const x = from.x + (to.x - from.x) * t;
+        const y = from.y + (to.y - from.y) * t;
+        dot.style.left = `${x}%`;
+        dot.style.top = `${y}%`;
+        if (t >= 1) {
+            // For in-flight travel we intentionally keep the travel dot (and keep the
+            // static player dot hidden) until the next map rerender cancels it.
+            // Otherwise there's a one-frame flash of the player dot back on the origin tile.
+            if (moveAnim && moveAnim._kind === 'inflight') {
+                dot.style.left = `${to.x}%`;
+                dot.style.top = `${to.y}%`;
+                setTimeout(() => {
+                    try {
+                        if (!cancelled && dot.isConnected) cleanup();
+                    } catch { /* ignore */ }
+                }, 750);
+                return;
+            }
+
+            cleanup();
+            return;
+        }
+        rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+
+    try {
+        container._localMapTravelAnim = {
+            cancel: () => {
+                cancelled = true;
+                cleanup();
+            }
+        };
+    } catch { /* ignore */ }
+}
+
+function getTravelAnimSpec(state) {
+    try {
+        // If we just ran an in-flight travel animation, skip the fallback hop to avoid ghosting.
+        const skipUntil = Number(state && typeof state === 'object' ? state._skipPostMoveAnimUntil : 0);
+        if (Number.isFinite(skipUntil) && skipUntil > 0 && Date.now() < skipUntil) {
+            return null;
+        }
+
+        const inflight = state && typeof state === 'object' ? state.inFlightTravel : null;
+        if (inflight && typeof inflight === 'object') {
+            const startAt = Number(inflight.startAt);
+            const durationMs = Number(inflight.durationMs);
+            const fromX = Number(inflight.fromX);
+            const fromY = Number(inflight.fromY);
+            const toX = Number(inflight.toX);
+            const toY = Number(inflight.toY);
+            if ([startAt, durationMs, fromX, fromY, toX, toY].every(Number.isFinite) && durationMs > 0) {
+                if ((Date.now() - startAt) <= (durationMs + 200)) {
+                    return { fromX, fromY, toX, toY, startAt, durationMs, _kind: 'inflight' };
+                }
+            }
+        }
+    } catch { /* ignore */ }
+
+    // Fallback: lightweight post-move hop based on lastMoveAt.
+    try {
+        const at = Number(state && typeof state === 'object' ? state.lastMoveAt : 0);
+        if (!Number.isFinite(at) || at <= 0) return null;
+        if ((Date.now() - at) > 900) return null;
+        const fromX = Number(state.lastMoveFromX);
+        const fromY = Number(state.lastMoveFromY);
+        const toX = Number(state.lastMoveToX);
+        const toY = Number(state.lastMoveToY);
+        if (![fromX, fromY, toX, toY].every(Number.isFinite)) return null;
+        return { fromX, fromY, toX, toY, startAt: at, durationMs: 220, _kind: 'post' };
+    } catch {
+        return null;
+    }
+}
+
 function clamp(n, min, max) {
     return Math.max(min, Math.min(max, n));
 }
 
-function isDiscovered({ col, row, centerCol, centerRow, radius }) {
-    // Square reveal for now (simple, readable prototype)
-    return (Math.abs(col - centerCol) <= radius) && (Math.abs(row - centerRow) <= radius);
+const CARDINAL_DIRS = [
+    { dx: 0, dy: -1 },
+    { dx: 1, dy: 0 },
+    { dx: 0, dy: 1 },
+    { dx: -1, dy: 0 },
+];
+
+const EIGHT_DIRS = [
+    ...CARDINAL_DIRS,
+    { dx: 1, dy: -1 },
+    { dx: 1, dy: 1 },
+    { dx: -1, dy: 1 },
+    { dx: -1, dy: -1 },
+];
+
+function inBounds(col, row) {
+    const c = Number(col);
+    const r = Number(row);
+    return Number.isFinite(c) && Number.isFinite(r) && c >= 1 && c <= COLS && r >= 1 && r <= ROWS;
+}
+
+function edgeBlocksSight(fromX, fromY, toX, toY, localMapState) {
+    // Treat all crash-site walls (boundary + internal POI) as opaque for visibility.
+    // This prevents revealing tiles through ship walls / bulkheads.
+    try {
+        return !!isCrashWallBetween(fromX, fromY, toX, toY, { localMapState });
+    } catch {
+        return false;
+    }
+}
+
+function canStepDiagonal(fromX, fromY, toX, toY, localMapState) {
+    const fx = Number(fromX);
+    const fy = Number(fromY);
+    const tx = Number(toX);
+    const ty = Number(toY);
+    const dx = tx - fx;
+    const dy = ty - fy;
+    if (Math.abs(dx) !== 1 || Math.abs(dy) !== 1) return false;
+
+    // Diagonal visibility/stepping is allowed only if at least one of the two
+    // orthogonal "corner" routes isn't blocked by walls. This avoids seeing
+    // through corners across the crash-site boundary or internal bulkheads.
+    const viaX = { x: fx + dx, y: fy };
+    const viaY = { x: fx, y: fy + dy };
+
+    const pathViaX = inBounds(viaX.x, viaX.y)
+        && !edgeBlocksSight(fx, fy, viaX.x, viaX.y, localMapState)
+        && !edgeBlocksSight(viaX.x, viaX.y, tx, ty, localMapState);
+
+    const pathViaY = inBounds(viaY.x, viaY.y)
+        && !edgeBlocksSight(fx, fy, viaY.x, viaY.y, localMapState)
+        && !edgeBlocksSight(viaY.x, viaY.y, tx, ty, localMapState);
+
+    return pathViaX || pathViaY;
+}
+
+function computeVisibleTiles(centerCol, centerRow, radius, { localMapState = null, insideCrashPoi = false } = {}) {
+    const cx = Number(centerCol);
+    const cy = Number(centerRow);
+    const r = Math.max(0, Math.floor(Number(radius) || 0));
+    const visible = new Set();
+    if (!inBounds(cx, cy)) return visible;
+
+    const keyOf = (x, y) => `${x},${y}`;
+    visible.add(keyOf(cx, cy));
+    if (r <= 0) return visible;
+
+    // Special rule: inside the Crash Site POI, visibility is severely limited by smoke.
+    // Only reveal orthogonally adjacent tiles, and still respect walls.
+    if (insideCrashPoi) {
+        for (const d of CARDINAL_DIRS) {
+            const nx = cx + d.dx;
+            const ny = cy + d.dy;
+            if (!inBounds(nx, ny)) continue;
+            if (edgeBlocksSight(cx, cy, nx, ny, localMapState)) continue;
+            visible.add(keyOf(nx, ny));
+        }
+        return visible;
+    }
+
+    // Outside the POI: do a small breadth-first visibility flood within the square radius.
+    // Walls stop propagation so you can't "see" through the ship hull or bulkheads.
+    const queue = [{ x: cx, y: cy, dist: 0 }];
+    const seen = new Set([keyOf(cx, cy)]);
+
+    while (queue.length) {
+        const cur = queue.shift();
+        if (!cur) break;
+        if (cur.dist >= r) continue;
+
+        for (const d of EIGHT_DIRS) {
+            const nx = cur.x + d.dx;
+            const ny = cur.y + d.dy;
+            if (!inBounds(nx, ny)) continue;
+
+            // Keep the old "square" reveal feel.
+            if (Math.abs(nx - cx) > r || Math.abs(ny - cy) > r) continue;
+
+            const k = keyOf(nx, ny);
+            if (seen.has(k)) continue;
+
+            const isDiagonal = (d.dx !== 0 && d.dy !== 0);
+            if (isDiagonal) {
+                if (!canStepDiagonal(cur.x, cur.y, nx, ny, localMapState)) continue;
+            } else {
+                if (edgeBlocksSight(cur.x, cur.y, nx, ny, localMapState)) continue;
+            }
+
+            seen.add(k);
+            visible.add(k);
+            queue.push({ x: nx, y: ny, dist: cur.dist + 1 });
+        }
+    }
+
+    return visible;
 }
 
 function toCoordLabel(col, row) {
@@ -389,6 +704,9 @@ function buildLiftBoxPath() {
 export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages = 3, state = null } = {}) {
     if (!container) return;
 
+    // Allow the travel animation helper to clear state.inFlightTravel when it finishes.
+    try { container._localMapStateRef = state; } catch { /* ignore */ }
+
     const mapState = normalizeState(state);
     const zoom = normalizeZoom(state);
     const { panX, panY } = normalizePan(state, zoom);
@@ -401,6 +719,11 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
     // Reveal should follow the player's current position.
     const centerCol = mapState.x;
     const centerRow = mapState.y;
+
+    // IMPORTANT: Do not call tileMeta() here (it's a const defined later).
+    // Use the POI footprint directly to avoid temporal dead zone errors.
+    const insideCrashPoi = isCrashPoi(centerCol, centerRow);
+    const visibleNow = computeVisibleTiles(centerCol, centerRow, radius, { localMapState: state, insideCrashPoi });
 
     const hasTriedReentry = (() => {
         try {
@@ -743,7 +1066,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
             const visited = isVisited(state, c, r);
             const discovered = visited
-                || isDiscovered({ col: c, row: r, centerCol, centerRow, radius })
+                || visibleNow.has(`${c},${r}`)
                 || (c === mapState.x && r === mapState.y);
             tile.classList.toggle('is-unknown', !discovered);
             tile.classList.toggle('is-unexplored', !!(discovered && !visited));
@@ -802,22 +1125,26 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 if (!isCrashPoi(c - 1, r) && !shouldSkipCrashWallEdge(c, r, 'left')) tile.classList.add('poi-border-left');
                 if (!isCrashPoi(c + 1, r) && !shouldSkipCrashWallEdge(c, r, 'right')) tile.classList.add('poi-border-right');
 
-                // Internal corridor walls inside the POI
-                try {
-                    if (hasInternalPoiWallBetween(c, r, c, r - 1)) tile.classList.add('poi-wall-top');
-                    if (hasInternalPoiWallBetween(c, r, c, r + 1)) tile.classList.add('poi-wall-bottom');
-                    if (hasInternalPoiWallBetween(c, r, c - 1, r)) tile.classList.add('poi-wall-left');
-                    if (hasInternalPoiWallBetween(c, r, c + 1, r)) tile.classList.add('poi-wall-right');
-                } catch { /* ignore */ }
+                // Intentionally do NOT render thick "hull" wall edges inside the POI.
+                // The corridor/room outline visuals already communicate walls/doors well.
+                // Wall blocking still applies via localMapTiles.js logic.
 
-                // Visual doors
-                try {
-                    // Render each door edge only once (canonical owner):
-                    // - vertical edges: render on the lower tile as a "top" door
-                    // - horizontal edges: render on the right tile as a "left" door
-                    if (hasInternalPoiDoorBetween(c, r, c, r - 1)) tile.classList.add('poi-door-top');
-                    if (hasInternalPoiDoorBetween(c, r, c - 1, r)) tile.classList.add('poi-door-left');
-                } catch { /* ignore */ }
+                // Visual doors (hide under fog-of-war)
+                const isDiscoveredAt = (dc, dr) => {
+                    if (dc < 1 || dc > COLS || dr < 1 || dr > ROWS) return false;
+                    const v = isVisited(state, dc, dr);
+                    return v || visibleNow.has(`${dc},${dr}`) || (dc === mapState.x && dr === mapState.y);
+                };
+
+                if (discovered) {
+                    try {
+                        // Render each door edge only once (canonical owner):
+                        // - vertical edges: render on the lower tile as a "top" door
+                        // - horizontal edges: render on the right tile as a "left" door
+                        if (isDiscoveredAt(c, r - 1) && hasInternalPoiDoorBetween(c, r, c, r - 1)) tile.classList.add('poi-door-top');
+                        if (isDiscoveredAt(c - 1, r) && hasInternalPoiDoorBetween(c, r, c - 1, r)) tile.classList.add('poi-door-left');
+                    } catch { /* ignore */ }
+                }
 
                 // POI hull wall overlay layer (styled in CSS). This keeps hull walls visible even when a tile is selected.
                 const wallOverlay = document.createElement('div');
@@ -825,15 +1152,17 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 wallOverlay.setAttribute('aria-hidden', 'true');
                 tile.appendChild(wallOverlay);
 
-                // Doors overlay (visual only)
-                const doorsOverlay = document.createElement('div');
-                doorsOverlay.className = 'poi-doors-overlay';
-                doorsOverlay.setAttribute('aria-hidden', 'true');
-                doorsOverlay.innerHTML = `
-                    <div class="poi-door poi-door--top"></div>
-                    <div class="poi-door poi-door--left"></div>
-                `;
-                tile.appendChild(doorsOverlay);
+                // Doors overlay (visual only; hidden under fog-of-war)
+                if (discovered) {
+                    const doorsOverlay = document.createElement('div');
+                    doorsOverlay.className = 'poi-doors-overlay';
+                    doorsOverlay.setAttribute('aria-hidden', 'true');
+                    doorsOverlay.innerHTML = `
+                        <div class="poi-door poi-door--top"></div>
+                        <div class="poi-door poi-door--left"></div>
+                    `;
+                    tile.appendChild(doorsOverlay);
+                }
 
                 // Corridor/room overlays (visual): draw inset outlines for interior tiles.
                 try {
@@ -1013,6 +1342,16 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
     // so overlays don't stack on top of each other.
     grid.innerHTML = '';
     grid.appendChild(tiles);
+
+    // Animate the player marker traveling between tiles.
+    // getTravelAnimSpec() already handles:
+    // - in-flight travel (started at action start)
+    // - post-move hop fallback (based on lastMoveAt)
+    // - suppression window to avoid double-anim on completion
+    try {
+        const travelSpec = getTravelAnimSpec(state);
+        if (travelSpec) startTravelDotAnimation(container, grid, travelSpec);
+    } catch { /* ignore */ }
 
     // If nothing was selected for some reason, show player's tile.
     if (infoBody && !infoBody.innerHTML) {

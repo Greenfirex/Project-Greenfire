@@ -302,6 +302,57 @@
     will-change: transform;
 }
 
+.localmap-path-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 6;
+    pointer-events: none;
+}
+
+.localmap-path-overlay polyline {
+    fill: none;
+    stroke: rgba(80, 255, 140, 0.92);
+    stroke-width: 1.35;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    /* Dotted/condensed route hint */
+    stroke-dasharray: 1 4;
+    filter: drop-shadow(0 0 2px rgba(80, 255, 140, 0.28));
+    opacity: 0.9;
+}
+
+.localmap-path-overlay[data-kind="traverse"] polyline {
+    /* Keep traverse preview the same green as movement hints */
+    stroke: rgba(80, 255, 140, 0.92);
+    filter: drop-shadow(0 0 2px rgba(80, 255, 140, 0.28));
+}
+
+.localmap-travel-dot {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 10px;
+    height: 10px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: rgba(255, 245, 170, 0.98);
+    border: 1px solid rgba(0, 0, 0, 0.55);
+    box-shadow:
+        0 0 10px rgba(255, 245, 170, 0.65),
+        0 0 18px rgba(255, 245, 170, 0.25),
+        0 0 22px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.12);
+    z-index: 7;
+    pointer-events: none;
+}
+
+.localmap-grid.is-player-traveling .localmap-tile.is-player::after,
+.localmap-grid.is-player-traveling .localmap-tile.is-player::before {
+    opacity: 0;
+}
+
 .localmap-bottom {
     grid-column: 2;
     grid-row: 3;

@@ -90,6 +90,7 @@ enteredShipChoices: {
     pages: [
         "You wedge the prybar beneath the seam and heave. The hull groans; something gives. A scar of cold metal yawns open.",
         "It takes several more brutal pulls to widen the gap enough to climb through. When you finally duck inside, the air is stale and hot, and every step echoes in the dead quiet.",
+        "Smoke hangs low in the wreck. Visibility is poor — you can only make out what’s directly beside you as you move, not the corners or the spaces beyond the next doorway.",
         "For now, the important part is simple: you have a way back in."
     ]
 },

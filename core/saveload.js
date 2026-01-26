@@ -259,6 +259,19 @@ export function applyGameState(gameState) {
                 }
             }
         });
+
+        // Forward-compat/sanity: if the player already reached D5 (interior wiring story flag),
+        // ensure the Strip Wiring action isn't accidentally left locked.
+        try {
+            const lm = characterState?.localMap;
+            if (lm && lm.d5InteriorWiresShown === true) {
+                const strip = salvageActions.find(a => a && a.id === 'stripWiring');
+                if (strip && strip.isUnlocked !== true) {
+                    strip.isUnlocked = true;
+                }
+            }
+        } catch { /* non-fatal */ }
+
         // Keep aggregator in sync after applying saved action state
         try { refreshAllActions(); } catch {}
     }

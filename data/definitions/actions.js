@@ -19,7 +19,9 @@ const initialSalvageActions = [
                 // new order: sheltered area (rest) first, then food, then water/alternate access
                 { story: 'foundCave', unlocks: ['rest', 'createBasicTorch', 'drinkCaveWater'], logText: 'You have discovered a sheltered area — someone can rest here. (Click to read)' },
                 { story: 'foundBerries', unlocks: ['forageFood'], logText: 'You have discovered a source of food. (Click to read)' },
-                { story: 'foundRiver', unlocks: ['purifyWater', 'attemptAlternateAccess', 'huntWildlife'], encounter: 'wildlife_river', logText: 'You have discovered a source of water. (Click to read)' },   
+                // Water Source (H8): only unlock Purify Water here.
+                // Other related actions are tile-bound and should not be unlocked/listed from this story popup.
+                { story: 'foundRiver', unlocks: ['purifyWater'], encounter: 'wildlife_river', logText: 'You have discovered a source of water. (Click to read)' },
             ]
         },
             {
@@ -48,8 +50,8 @@ const initialSalvageActions = [
             },
             {
                 id: 'move',
-                name: 'Move',
-                description: 'Advance one tile on the local map. (Prototype)',
+                name: 'Explore',
+                description: 'Explore an adjacent tile on the local map.',
                 duration: 0.8,
                 category: 'Exploration',
                 isUnlocked: false,
