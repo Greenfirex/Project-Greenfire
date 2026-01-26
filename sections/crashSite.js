@@ -104,6 +104,43 @@ function attachStartClickHandler(btn, action, section) {
             addLogEntry(capReason, LogType.INFO);
             return;
         }
+
+        // Strip Wiring is limited per ship tile.
+        try {
+            if (action && action.id === 'stripWiring') {
+                const lm = characterState?.localMap;
+                const x = Number.isFinite(lm?.x) ? lm.x : null;
+                const y = Number.isFinite(lm?.y) ? lm.y : null;
+                if (Number.isFinite(x) && Number.isFinite(y)) {
+                    const key = `${x},${y}`;
+                    const used = Number(lm?.wiringStrippedByTile?.[key] || 0);
+                    if (used >= 5) {
+                        e.preventDefault();
+                        addLogEntry('No more wires to be stripped here.', LogType.INFO);
+                        return;
+                    }
+                }
+            }
+        } catch { /* ignore */ }
+
+        // Cafeteria supplies scavenging is limited per tile.
+        try {
+            if (action && action.id === 'scavengeCafeteriaSupplies') {
+                const lm = characterState?.localMap;
+                const x = Number.isFinite(lm?.x) ? lm.x : null;
+                const y = Number.isFinite(lm?.y) ? lm.y : null;
+                if (Number.isFinite(x) && Number.isFinite(y)) {
+                    const key = `${x},${y}`;
+                    const used = Number(lm?.cafeteriaSuppliesByTile?.[key] || 0);
+                    if (used >= 7) {
+                        e.preventDefault();
+                        addLogEntry('There is nothing usable left to scavenge here.', LogType.INFO);
+                        return;
+                    }
+                }
+            }
+        } catch { /* ignore */ }
+
         const block = getBlockedStatus(action.id, { actions: salvageActions, flags: gameFlags, characterState });
         if (block.blocked) {
             e.preventDefault();
@@ -287,7 +324,7 @@ export function setupCrashSiteSection(section) {
 
         let didAddAction = false;
 
-        const mkButton = (actionDef, { disabled = false, ariaDisabled = false, disabledReason = '', onClick = null, tooltipOverride = null } = {}) => {
+        const mkButton = (actionDef, { label = null, disabled = false, ariaDisabled = false, disabledReason = '', onClick = null, tooltipOverride = null } = {}) => {
             const btn = document.createElement('button');
             btn.className = 'image-button';
             btn.dataset.actionId = actionDef.id;
@@ -298,7 +335,7 @@ export function setupCrashSiteSection(section) {
             btn.disabled = !!disabled;
             btn.innerHTML = `
                 <div class="action-progress-bar"></div>
-                <span class="building-name">${actionDef.name}</span>
+                <span class="building-name">${label != null ? String(label) : actionDef.name}</span>
                 ${newBadgeHtml(!!actionDef.uiNew)}
                 <span class="cancel-text">Abort?</span>
             `;
@@ -405,6 +442,15 @@ export function setupCrashSiteSection(section) {
             // E5 (5,5) - ship interior junction (inside POI)
             '5,5': ['investigateSound'],
 
+            // Ship interior rooms
+            // G3 (7,3)
+            '7,3': ['searchLabs', 'collectChemicals'],
+            // G4 (7,4)
+            '7,4': ['searchPowerCore'],
+
+            // F6 (6,6)
+            '6,6': ['collectFabric'],
+
             // C2 (3,2)
             '3,2': ['huntWildlife'],
         };
@@ -450,8 +496,31 @@ export function setupCrashSiteSection(section) {
         // Strip Wiring: available on any crash POI tile the player is standing on (once unlocked).
         try {
             const strip = salvageActions.find(a => a && a.id === 'stripWiring');
-            if (strip && strip.isUnlocked && isSelectingPlayerTile && isCrashPoi(playerX, playerY)) {
-                mkButton(strip);
+            const here = getLocalMapTileAt(playerX, playerY, { scoutStage: stage, hasTriedReentry, localMapState: lm });
+            const isCorridorOnly = !!(here && here.typeId === 'corridor');
+            if (strip && strip.isUnlocked && isSelectingPlayerTile && isCorridorOnly) {
+                const lm = characterState?.localMap;
+                const key = `${playerX},${playerY}`;
+                const used = Math.max(0, Math.floor(Number(lm?.wiringStrippedByTile?.[key] || 0)));
+                const max = 5;
+                if (used < max) {
+                    mkButton(strip, { label: `${strip.name} (${Math.min(max, used)}/${max})` });
+                }
+            }
+        } catch { /* ignore */ }
+
+        // Cafeteria supplies scavenging: only on D6, limited.
+        try {
+            const sup = salvageActions.find(a => a && a.id === 'scavengeCafeteriaSupplies');
+            const isD6 = (playerX === 4 && playerY === 6);
+            if (sup && sup.isUnlocked && isSelectingPlayerTile && isD6) {
+                const lm = characterState?.localMap;
+                const key = '4,6';
+                const used = Math.max(0, Math.floor(Number(lm?.cafeteriaSuppliesByTile?.[key] || 0)));
+                const max = 7;
+                if (used < max) {
+                    mkButton(sup, { label: `${sup.name} (${Math.min(max, used)}/${max})` });
+                }
             }
         } catch { /* ignore */ }
 
@@ -466,17 +535,32 @@ export function setupCrashSiteSection(section) {
             '6,5': 'investigateBridge',
         };
 
-        const isShipCorridorTile = (x, y) => {
-            const k = coordKey(x, y);
-            return k === '5,4' || k === '5,6' || k === '6,5';
+        // Ship interior rooms: also approached via a tile-bound "Search:" action first.
+        const SHIP_ROOM_TILE_ACTIONS = {
+            // D6
+            '4,6': 'exploreCafeteria',
+            // F6
+            '6,6': 'checkCrewQuarters',
+            // G3
+            '7,3': 'searchLabs',
+            // G4
+            '7,4': 'searchPowerCore',
         };
 
-        const isShipCorridorActionIncompleteForTile = (x, y) => {
+        const SHIP_TILE_ACTIONS = Object.assign({}, SHIP_JUNCTION_TILE_ACTIONS, SHIP_ROOM_TILE_ACTIONS);
+
+        const isShipTileWithActionGate = (x, y) => {
+            const k = coordKey(x, y);
+            return !!SHIP_TILE_ACTIONS[k];
+        };
+
+        const isShipTileActionIncompleteForTile = (x, y) => {
             try {
-                const actionId = SHIP_JUNCTION_TILE_ACTIONS[coordKey(x, y)] || null;
+                const actionId = SHIP_TILE_ACTIONS[coordKey(x, y)] || null;
                 if (!actionId) return false;
                 const a = salvageActions.find(z => z && z.id === actionId);
                 if (!a) return false;
+                if (!a.isUnlocked) return false;
                 return !isFinished(a);
             } catch { /* ignore */ }
             return false;
@@ -491,7 +575,7 @@ export function setupCrashSiteSection(section) {
                 const dist = dx + dy;
                 const isDiagonal = (dx === 1 && dy === 1);
                 const key = coordKey(selX, selY);
-                const actionId = SHIP_JUNCTION_TILE_ACTIONS[key] || null;
+                const actionId = SHIP_TILE_ACTIONS[key] || null;
 
                 if (!isDiagonal && dist === 1 && actionId) {
                     const a = salvageActions.find(x => x && x.id === actionId);
@@ -519,9 +603,14 @@ export function setupCrashSiteSection(section) {
                                     return;
                                 }
 
-                                // Queue a post-completion move: the player steps onto the tile only after the action finishes.
+                                // Queue a post-completion move only when this run will finish the action.
+                                // This is important for multi-stage gated tiles like Investigate Bridge:
+                                // stage 1 should not move the player onto the tile; stage 2 completion should.
                                 try {
-                                    if (characterState && characterState.localMap) {
+                                    const idx = Number(a.stage || 0);
+                                    const total = Array.isArray(a.stages) ? a.stages.length : 0;
+                                    const willFinish = (total <= 0) ? true : ((idx + 1) >= total);
+                                    if (willFinish && characterState && characterState.localMap) {
                                         characterState.localMap.pendingActionMove = {
                                             actionId: String(a.id),
                                             fromX: playerX,
@@ -545,13 +634,13 @@ export function setupCrashSiteSection(section) {
             }
         } catch { /* ignore */ }
 
-        // Move (prototype): always show the Move button; enable only when a legal adjacent tile is selected.
+        // Move (prototype): show the Move button only once it is unlocked.
         // Exception: when selecting the ship entrance tile (F7), show only "Go back inside".
         const move = salvageActions.find(a => a && a.id === 'move');
         const reentry = salvageActions.find(a => a && a.id === 'attemptReentry');
         const moveUnlocked = !!(move && move.isUnlocked);
 
-        if (move && !isSelectingPlayerTile) {
+        if (move && moveUnlocked && !isSelectingPlayerTile) {
             const dx = Math.abs(selX - playerX);
             const dy = Math.abs(selY - playerY);
             const dist = dx + dy;
@@ -562,8 +651,8 @@ export function setupCrashSiteSection(section) {
                 // no-op
             } else {
 
-            // Do not offer plain Move onto corridor/bridge tiles until their action is finished.
-            if (isShipCorridorTile(selX, selY) && isShipCorridorActionIncompleteForTile(selX, selY)) {
+            // Do not offer plain Move onto ship interior gated tiles until their tile-action is complete.
+            if (isShipTileWithActionGate(selX, selY) && isShipTileActionIncompleteForTile(selX, selY)) {
                 // no-op
             } else {
 
@@ -572,23 +661,15 @@ export function setupCrashSiteSection(section) {
 
             const isEntrance = (selX === SHIP_ENTRANCE.x && selY === SHIP_ENTRANCE.y);
 
-            // Allow moving onto the entrance tile only after the initial re-entry attempt (the front is collapsed),
-            // and only when approaching from inside the Crash POI (later alternate access route).
-            const playerMeta = getLocalMapTileAt(playerX, playerY, { scoutStage: Number((salvageActions.find(a => a && a.id === 'scoutSurroundings')?.stage) || 0), hasTriedReentry, localMapState: lm });
-            const canMoveToEntranceFromInside = !!(isEntrance && hasTriedReentry && playerMeta && playerMeta.inPoi);
-
             // D5 (alternate access): hide Move until Pry Open Hull completes.
             const isAltAccessTile = (selX === 4 && selY === 5);
             const pry = isAltAccessTile ? salvageActions.find(a => a && a.id === 'pryOpenHull') : null;
             const pryDone = isAltAccessTile ? isFinished(pry) : false;
             const shouldHideMoveForAltAccess = !!(isAltAccessTile && !pryDone);
 
-            if (!isDiagonal && (!isEntrance || canMoveToEntranceFromInside) && !shouldHideMoveForAltAccess) {
-                const hasTorchEquipped = !!(
-                    (characterState?.equipment?.accessory_1 === 'basic_torch')
-                    || (characterState?.equipment?.accessory_2 === 'basic_torch')
-                );
-                const isTorchGatedTile = (selX === 3 && selY === 5);
+            if (!isDiagonal && !shouldHideMoveForAltAccess) {
+                const isC5 = (selX === 3 && selY === 5);
+                const isC5ThornWallBurned = !!(lm && lm.c5ThornWallBurned === true);
 
                 const scout = salvageActions.find(a => a && a.id === 'scoutSurroundings');
                 const stage = Number(scout?.stage || 0);
@@ -615,34 +696,25 @@ export function setupCrashSiteSection(section) {
                     });
                 };
 
-                if (isTorchGatedTile && !hasTorchEquipped) {
-                    mkBlockedMove('It is too dark to go there without a torch equipped.', {
-                        tip: 'Create a Basic Torch at B6 and equip it in an accessory slot.'
-                    });
-                } else if (!moveUnlocked) {
-                    const msg = (reentry && reentry.isUnlocked && !hasStartedReentry)
-                        ? 'You should first try "Go back inside" at F7.'
-                        : 'Not available yet.';
-                    mkBlockedMove(msg, {
-                        tip: (reentry && reentry.isUnlocked && !hasStartedReentry)
-                            ? 'Select F7 (ship entrance) and click "Go back inside".'
-                            : ''
+                // Entrance tile (F7): after the re-entry attempt fails, it should be permanently blocked.
+                if (isEntrance && hasTriedReentry) {
+                    mkBlockedMove('The way back inside collapsed — you will have to find another way in.');
+                } else {
+
+                if (isC5 && !isC5ThornWallBurned) {
+                    mkBlockedMove('A thick wall of thorns blocks the way. I may be able to burn it with a torch.', {
+                        tip: 'Craft a Basic Torch at B6, equip it, then use "Burn Thorny Wall" on C5 from C6.'
                     });
                 } else if (tile.blocked) {
                     mkBlockedMove('There is currently no need to go there.');
                 } else if (blockedByCrashWall) {
-                    const msg = (reentry && reentry.isUnlocked && !hasStartedReentry)
-                        ? 'Wreckage blocks the way. You should first try "Go back inside" at F7.'
-                        : 'Wreckage blocks the way.';
-                    mkBlockedMove(msg, {
-                        tip: (reentry && reentry.isUnlocked && !hasStartedReentry)
-                            ? 'You should first try "Go back inside" at F7 (ship entrance).'
-                            : ''
-                    });
+                    mkBlockedMove('Wreckage blocks the way.');
                 } else if (blockedByWestGate) {
                     mkBlockedMove('You should first check out the east side.');
                 } else {
                     mkButton(move);
+                }
+
                 }
             }
             }
@@ -689,6 +761,67 @@ export function setupCrashSiteSection(section) {
                     mkButton(pry, {
                         disabled: !playerAtC5,
                         disabledReason: playerAtC5 ? '' : notAtC5Reason,
+                    });
+                }
+            }
+        } catch { /* ignore */ }
+
+        // Coordinate-specific action: C5 thorny wall can be burned from C6 (one-time gate).
+        try {
+            const C5 = { x: 3, y: 5 };
+            const C6 = { x: 3, y: 6 };
+            const burn = salvageActions.find(a => a && a.id === 'burnThornyWall');
+
+            if (selX === C5.x && selY === C5.y && burn) {
+                const playerAtC6 = (playerX === C6.x && playerY === C6.y);
+                const alreadyBurned = !!(lm && lm.c5ThornWallBurned === true);
+
+                if (playerAtC6 && !alreadyBurned) {
+                    mkButton(burn, {
+                        ariaDisabled: true,
+                        disabledReason: 'Equip a Basic Torch in an accessory slot to burn the thorns.',
+                        onClick: (e) => {
+                            e.preventDefault();
+
+                            const torchEquippedNow = !!(
+                                (characterState?.equipment?.accessory_1 === 'basic_torch')
+                                || (characterState?.equipment?.accessory_2 === 'basic_torch')
+                            );
+
+                            if (!torchEquippedNow) {
+                                addLogEntry('Equip a Basic Torch in an accessory slot to burn the thorny wall.', LogType.INFO);
+                                return;
+                            }
+
+                            // Preflight checks mirror attachStartClickHandler.
+                            const capReason = getCapacityBlockReason(burn);
+                            if (capReason) {
+                                addLogEntry(capReason, LogType.INFO);
+                                return;
+                            }
+
+                            const block = getBlockedStatus(burn.id, { actions: salvageActions, flags: gameFlags, characterState });
+                            if (block.blocked) {
+                                addLogEntry(block.reason, LogType.INFO);
+                                return;
+                            }
+
+                            const shortfalls = getAffordabilityShortfalls(burn, resources);
+                            if (shortfalls.length > 0) {
+                                addLogEntry(`Cannot start "${burn.name}": ${shortfalls.join('; ')}`, LogType.INFO);
+                                return;
+                            }
+
+                            const actionForHandler = Object.assign({}, burn, { uiInstanceId: `localmap:${String(burn.id)}` });
+                            startAction(actionForHandler, host);
+
+                            try { renderLocalMap(); } catch { /* ignore */ }
+                        },
+                        tooltipOverride: () => {
+                            const base = tooltipDataForAction(burn);
+                            const desc = String(base.description || '');
+                            return Object.assign({}, base, { description: `${desc}\n\nRequires: Basic Torch equipped (accessory).` });
+                        }
                     });
                 }
             }
@@ -746,55 +879,59 @@ export function setupCrashSiteSection(section) {
                         // Only adjacent orthogonal moves are valid.
                         if (dist !== 1) return;
 
-                        // Ship interior corridor tiles: double-click starts the corridor action instead of Move (until finished).
-                        const junctionActions = {
+                        // Ship interior tiles: double-click starts the tile-bound action instead of Move (until complete).
+                        // After completion (or if not currently unlocked), double-click falls through to plain Move.
+                        const tileActions = {
+                            // Corridor junction tiles
                             '5,4': 'searchNorthCorridor',
                             '5,6': 'searchSouthCorridor',
                             '6,5': 'investigateBridge',
+                            // Cafeteria tile gate
+                            '4,6': 'exploreCafeteria',
+                            // Crew quarters gate
+                            '6,6': 'checkCrewQuarters',
+                            // Rooms
+                            '7,3': 'searchLabs',
+                            '7,4': 'searchPowerCore',
                         };
-                        const jKey = `${tx},${ty}`;
-                        const junctionActionId = junctionActions[jKey] || null;
-                        if (junctionActionId) {
-                            const a = salvageActions.find(x => x && x.id === junctionActionId);
-                            if (!a || !a.isUnlocked) return;
+                        const tKey = `${tx},${ty}`;
+                        const tileActionId = tileActions[tKey] || null;
+                        if (tileActionId) {
+                            const a = salvageActions.find(x => x && x.id === tileActionId);
+                            const canStart = !!(a && a.isUnlocked && !isFinished(a));
+                            if (canStart) {
+                                const capReason = getCapacityBlockReason(a);
+                                if (capReason) {
+                                    addLogEntry(capReason, LogType.INFO);
+                                    return;
+                                }
+                                const block = getBlockedStatus(a.id, { actions: salvageActions, flags: gameFlags, characterState });
+                                if (block.blocked) {
+                                    addLogEntry(block.reason, LogType.INFO);
+                                    return;
+                                }
+                                const shortfalls = getAffordabilityShortfalls(a, resources);
+                                if (shortfalls.length > 0) {
+                                    addLogEntry(`Cannot start "${a.name}": ${shortfalls.join('; ')}`, LogType.INFO);
+                                    return;
+                                }
 
-                            // If already finished, fall through to plain Move.
-                            if (isFinished(a)) {
-                                // no-op
-                            } else {
+                                // Queue a post-completion move.
+                                try {
+                                    lm.pendingActionMove = {
+                                        actionId: String(a.id),
+                                        fromX: px,
+                                        fromY: py,
+                                        toX: tx,
+                                        toY: ty,
+                                        queuedAt: Date.now(),
+                                    };
+                                } catch { /* ignore */ }
 
-                            const capReason = getCapacityBlockReason(a);
-                            if (capReason) {
-                                addLogEntry(capReason, LogType.INFO);
+                                try { renderLocalMapActions(); } catch { /* ignore */ }
+                                const actionForHandlerJ = Object.assign({}, a, { uiInstanceId: `localmap:${String(a.id)}` });
+                                startAction(actionForHandlerJ, host);
                                 return;
-                            }
-                            const block = getBlockedStatus(a.id, { actions: salvageActions, flags: gameFlags, characterState });
-                            if (block.blocked) {
-                                addLogEntry(block.reason, LogType.INFO);
-                                return;
-                            }
-                            const shortfalls = getAffordabilityShortfalls(a, resources);
-                            if (shortfalls.length > 0) {
-                                addLogEntry(`Cannot start "${a.name}": ${shortfalls.join('; ')}`, LogType.INFO);
-                                return;
-                            }
-
-                            // Queue a post-completion move.
-                            try {
-                                lm.pendingActionMove = {
-                                    actionId: String(a.id),
-                                    fromX: px,
-                                    fromY: py,
-                                    toX: tx,
-                                    toY: ty,
-                                    queuedAt: Date.now(),
-                                };
-                            } catch { /* ignore */ }
-
-                            try { renderLocalMapActions(); } catch { /* ignore */ }
-                            const actionForHandlerJ = Object.assign({}, a, { uiInstanceId: `localmap:${String(a.id)}` });
-                            startAction(actionForHandlerJ, host);
-                            return;
                             }
                         }
 
@@ -809,16 +946,7 @@ export function setupCrashSiteSection(section) {
                         const move = salvageActions.find(a => a && a.id === 'move');
                         if (!move) return;
 
-                        if (!move.isUnlocked) {
-                            // Match existing early-game guidance.
-                            const reentry = salvageActions.find(a => a && a.id === 'attemptReentry');
-                            const hasStartedReentry = !!(lm && lm.reentryAttemptStarted === true);
-                            const msg = (reentry && reentry.isUnlocked && !hasStartedReentry)
-                                ? 'You should first try "Go back inside" at F7.'
-                                : 'Not available yet.';
-                            addLogEntry(msg, LogType.INFO);
-                            return;
-                        }
+                        if (!move.isUnlocked) return;
 
                         // Run the same preflight checks as action buttons.
                         const actionForHandler = Object.assign({}, move, { uiInstanceId: `localmap:${String(move.id)}` });
@@ -897,6 +1025,14 @@ export function setupCrashSiteSection(section) {
         'searchNorthCorridor',
         'searchSouthCorridor',
         'investigateBridge',
+
+        // Ship interior room actions (tile-bound)
+        'searchLabs',
+        'searchPowerCore',
+
+        // Resource gathering should be local-map-only
+        'forageFood',
+        'collectChemicals',
     ]);
 
     const availableActions = salvageActions.filter(action => {
@@ -1534,14 +1670,22 @@ async function handleActionCompletion(section) {
                 }
             }
             if (Array.isArray(stage.unlocks)) {
+                const allowUnlockOutcome = !(
+                    (actionDef && actionDef.showUnlocks === false)
+                    || (stage && stage.showUnlocks === false)
+                );
                 stage.unlocks.forEach(id => {
                     const toUnlock = salvageActions.find(a => a.id === id || a.name === id);
                     if (toUnlock && !toUnlock.isUnlocked) {
                         toUnlock.isUnlocked = true;
                         toUnlock.uiNew = true;
                         const isUpgrade = (toUnlock.category === 'Upgrade');
-                        addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${toUnlock.name}`, LogType.UNLOCK);
-                        try { outcome.unlocks.actions.push(toUnlock.name); } catch (e) { /* ignore */ }
+                        if (!toUnlock.suppressUnlockLog) {
+                            addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${toUnlock.name}`, LogType.UNLOCK);
+                        }
+                        if (allowUnlockOutcome) {
+                            try { outcome.unlocks.actions.push(toUnlock.name); } catch (e) { /* ignore */ }
+                        }
                     }
                 });
             }
@@ -1769,7 +1913,9 @@ async function handleActionCompletion(section) {
                     a.isUnlocked = true;
                     a.uiNew = true;
                     const isUpgrade = (a.category === 'Upgrade');
-                    addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${a.name}`, LogType.UNLOCK);
+                        if (!a.suppressUnlockLog) {
+                            addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${a.name}`, LogType.UNLOCK);
+                        }
                     try { outcome.unlocks.actions.push(a.name); } catch (e) { /* ignore */ }
                     ruleDidUnlock = true;
                 }
@@ -1859,7 +2005,9 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
                         a.isUnlocked = true;
                         a.uiNew = true;
                         const isUpgrade = (a.category === 'Upgrade');
-                        addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${a.name}`, LogType.UNLOCK);
+                        if (!a.suppressUnlockLog) {
+                            addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${a.name}`, LogType.UNLOCK);
+                        }
                         didUnlock = true;
                     }
                 }

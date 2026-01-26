@@ -192,6 +192,10 @@ export function getInitialCharacterState() {
             selectedY: 8,
             // Persistent exploration hints
             visited: { '6,8': true },
+            // Per-ship-tile depletion tracking (e.g., Strip Wiring). Keys are "x,y".
+            wiringStrippedByTile: {},
+            // Per-ship-tile depletion tracking for cafeteria supplies scavenging. Keys are "x,y".
+            cafeteriaSuppliesByTile: {},
             // UI preference: local map zoom level
             zoom: 1,
             // UI preference: local map pan offsets (px)
@@ -280,7 +284,34 @@ export function applySavedCharacterState(saved) {
             for (const [k, v] of Object.entries(lm)) {
                 if (k === 'x' || k === 'y' || k === 'selectedX' || k === 'selectedY' || k === 'visited' || k === 'zoom') continue;
                 if (typeof k !== 'string' || k.length > 60) continue;
-                if (typeof v === 'boolean' || typeof v === 'number' || typeof v === 'string') {
+                // Allow a small set of whitelisted structured local-map fields.
+                if (k === 'wiringStrippedByTile' && v && typeof v === 'object' && !Array.isArray(v)) {
+                    const cleaned = {};
+                    for (const [kk, vv] of Object.entries(v)) {
+                        if (typeof kk !== 'string') continue;
+                        const m = kk.match(/^(\d+),(\d+)$/);
+                        if (!m) continue;
+                        const cx = clampInt(m[1], 1, 11);
+                        const cy = clampInt(m[2], 1, 9);
+                        const n = Math.floor(Number(vv));
+                        if (!Number.isFinite(n) || n < 0) continue;
+                        cleaned[`${cx},${cy}`] = Math.min(5, n);
+                    }
+                    extra[k] = cleaned;
+                } else if (k === 'cafeteriaSuppliesByTile' && v && typeof v === 'object' && !Array.isArray(v)) {
+                    const cleaned = {};
+                    for (const [kk, vv] of Object.entries(v)) {
+                        if (typeof kk !== 'string') continue;
+                        const m = kk.match(/^(\d+),(\d+)$/);
+                        if (!m) continue;
+                        const cx = clampInt(m[1], 1, 11);
+                        const cy = clampInt(m[2], 1, 9);
+                        const n = Math.floor(Number(vv));
+                        if (!Number.isFinite(n) || n < 0) continue;
+                        cleaned[`${cx},${cy}`] = Math.min(7, n);
+                    }
+                    extra[k] = cleaned;
+                } else if (typeof v === 'boolean' || typeof v === 'number' || typeof v === 'string') {
                     extra[k] = v;
                 }
             }

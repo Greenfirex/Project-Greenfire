@@ -40,7 +40,7 @@ const initialSalvageActions = [
                 {
                     story: 'reentryFailed',
                     // unlock Scout Surroundings after Attempt Re-entry completes
-                    unlocks: ['scoutSurroundings', 'move'],
+                    unlocks: ['move'],
                     logText: 'A forward section collapsed during your re-entry attempt; the hull is impassable and still burning. (Click to read)',
                     suppressGenericLog: true
                 }
@@ -89,6 +89,31 @@ const initialSalvageActions = [
                 ],
                 reward: [],
                 suppressGenericLog: true,
+            },
+
+            {
+                id: 'burnThornyWall',
+                name: 'Burn Thorny Wall',
+                description: 'Use an equipped torch to burn through a dense wall of thorns and clear a path.',
+                duration: 1.6,
+                category: 'Exploration',
+                isUnlocked: true,
+                cancelable: false,
+                repeatable: false,
+                suppressGenericLog: true,
+                drain: [
+                    { resource: 'Stamina', amount: 5 }
+                ],
+                reward: [],
+                stage: 0,
+                stages: [
+                    {
+                        story: null,
+                        unlocks: [],
+                        logText: 'The thorny wall catches and collapses into ash, leaving a clear opening.',
+                        suppressGenericLog: true,
+                    }
+                ]
             },
             {
                 id: 'forageFood',
@@ -328,8 +353,7 @@ const initialSalvageActions = [
                 isUnlocked: false,
                 cancelable: true,
                 cost: [
-                    { resource: 'Metal Parts', amount: 25 },
-                    { resource: 'Wire', amount: 12 }
+                    { resource: 'Metal Parts', amount: 15 }
                 ],
                 drain: [
                     { resource: 'Stamina', amount: 28 },
@@ -466,8 +490,38 @@ const initialSalvageActions = [
             stages: [
                 {
                     story: 'south_explore_cafeteria',
-                    unlocks: ['salvageCookingEquipment'],
+                    unlocks: ['salvageCookingEquipment', 'scavengeCafeteriaSupplies'],
                     logText: 'In the mess hall you find preserved rations and salvageable water among the wreckage. (Click to read)'
+                }
+            ]
+        },
+
+        {
+            id: 'scavengeCafeteriaSupplies',
+            name: 'Scavenge Kitchen Supplies',
+            description: 'Search the kitchen and storage areas for any remaining usable food and drinkable water.',
+            duration: 3,
+            category: 'Materials',
+            isUnlocked: false,
+            // Map-bound, tile-limited action: show on the cafeteria tile only.
+            suppressUnlockLog: true,
+            showUnlocks: false,
+            cancelable: true,
+            repeatable: true,
+            drain: [
+                { resource: 'Stamina', amount: 8 }
+            ],
+            reward: [
+                { resource: 'Food Rations', amount: [2, 5] },
+                { resource: 'Clean Water', amount: [3, 7] }
+            ],
+            hideRewardPreview: false,
+            stage: 0,
+            stages: [
+                {
+                    story: null,
+                    unlocks: [],
+                    logText: 'You pry open lockers, crawl through debris, and salvage what you can from the mess hall stores.'
                 }
             ]
         },
@@ -535,6 +589,7 @@ const initialSalvageActions = [
             duration: 15,
             category: 'Exploration',
             isUnlocked: false,
+            showUnlocks: false,
             cancelable: true,
             drain: [
                 { resource: 'Stamina', amount: 30 },
@@ -561,6 +616,8 @@ const initialSalvageActions = [
             duration: 8,
             category: 'Exploration',
             isUnlocked: false,
+            // This action is map-bound; suppress noisy generic "New action available" unlock logs.
+            suppressUnlockLog: true,
             cancelable: true,
             // no top-level reward; success is handled by completing stage 2
             stage: 0,
@@ -607,6 +664,8 @@ const initialSalvageActions = [
             duration: 6,
             category: 'Exploration',
             isUnlocked: false,
+            // This action is map-bound; suppress noisy generic "New action available" unlock logs.
+            suppressUnlockLog: true,
             cancelable: true,
             drain: [
                 { resource: 'Stamina', amount: 24 },

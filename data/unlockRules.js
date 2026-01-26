@@ -39,6 +39,57 @@ export function getBlockedStatus(actionId, state) {
         if (hasTorch) return { blocked: true, reason: 'You already have a Basic Torch.' };
     }
 
+    // Local map gate: burning the thorny wall requires standing at C6 and selecting C5.
+    if (actionId === 'burnThornyWall') {
+        const ch = (state && (state.characterState || state.character)) || null;
+        const lm = ch && ch.localMap ? ch.localMap : null;
+        const eq = ch && ch.equipment ? ch.equipment : null;
+        const x = lm && Number.isFinite(lm.x) ? lm.x : null;
+        const y = lm && Number.isFinite(lm.y) ? lm.y : null;
+        const sx = lm && Number.isFinite(lm.selectedX) ? lm.selectedX : null;
+        const sy = lm && Number.isFinite(lm.selectedY) ? lm.selectedY : null;
+
+        const onC6 = (x === 3 && y === 6);
+        const selectingC5 = (sx === 3 && sy === 5);
+        if (!onC6 || !selectingC5) {
+            return { blocked: true, reason: 'You must be standing at C6 and select C5 to burn the thorny wall.' };
+        }
+
+        if (lm && lm.c5ThornWallBurned === true) {
+            return { blocked: true, reason: 'The thorny wall has already been cleared.' };
+        }
+
+        const torchEquipped = !!(eq && (eq.accessory_1 === 'basic_torch' || eq.accessory_2 === 'basic_torch'));
+        if (!torchEquipped) {
+            return { blocked: true, reason: 'Equip a Basic Torch in an accessory slot to burn the thorns.' };
+        }
+    }
+
+    // Ship interior room gates: allow starting the search while adjacent and selecting the room tile
+    // (the UI queues a post-completion move onto the tile).
+    if (actionId === 'searchLabs' || actionId === 'searchPowerCore') {
+        const ch = (state && (state.characterState || state.character)) || null;
+        const lm = ch && ch.localMap ? ch.localMap : null;
+        const x = lm && Number.isFinite(lm.x) ? lm.x : null;
+        const y = lm && Number.isFinite(lm.y) ? lm.y : null;
+        const sx = lm && Number.isFinite(lm.selectedX) ? lm.selectedX : null;
+        const sy = lm && Number.isFinite(lm.selectedY) ? lm.selectedY : null;
+        const required = (actionId === 'searchLabs')
+            ? { x: 7, y: 3, label: 'G3 (Laboratory)' }
+            : { x: 7, y: 4, label: 'G4 (Power Core)' };
+
+        const selectingTarget = (sx === required.x && sy === required.y);
+        const standingOnTarget = (x === required.x && y === required.y);
+        const adjacentToTarget = (typeof x === 'number' && typeof y === 'number')
+            ? ((Math.abs(x - required.x) + Math.abs(y - required.y)) === 1)
+            : false;
+
+        const ok = selectingTarget && (standingOnTarget || adjacentToTarget);
+        if (!ok) {
+            return { blocked: true, reason: `Move next to ${required.label} and select it to do that.` };
+        }
+    }
+
     const BLOCKED_ACTION_IDS = ['searchSouthCorridor', 'searchNorthCorridor', 'investigateBridge', 'searchPowerCore'];
     if (!BLOCKED_ACTION_IDS.includes(actionId)) return { blocked: false, reason: '' };
 

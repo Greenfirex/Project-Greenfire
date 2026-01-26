@@ -36,6 +36,7 @@ foundCave: {
         title: "Shelter",
         pages: [
             "You make it away from the blaze and crawl into a small, dry cave recessed in the rock. Completely exhausted, you collapse and let the quiet settle in. For now this shelter is safe — you can rest here and recover before pressing on.",
+            "Deeper inside, you find a narrow underground stream running along the stone. The water is cold and clear — drinkable, at least for now.",
             "The cave is also dry enough to work. With a little time you can wrap cloth and resin around a branch to create a basic torch — something you can carry into darker terrain."
         ]
     },
@@ -44,7 +45,16 @@ foundCave: {
         title: 'A Shelter to the West',
         pages: [
             "From here you spot a small cave tucked into the rocks to the west. It looks dry and sheltered — the kind of place you could rest, regroup, and keep your gear out of the rain.",
-            "It might be worth checking out before pushing deeper into the forest."
+            "To the north, a dense wall of thorns chokes the path at C5. It's too thick to push through — but it looks dry enough that a torch might burn it away.",
+            "It might be worth checking out the cave before pushing deeper into the forest."
+        ]
+    },
+
+    c5ShipOpeningSpotted: {
+        title: 'A Way In',
+        pages: [
+            "With the thorns burned back, the forest opens into a small clearing.",
+            "From here you can see an opening in the ship's hull nearby — a dark passage that leads inside."
         ]
     },
 reentryFailed: {
@@ -60,10 +70,10 @@ reentryFailed: {
 alternateAccessFound: {
         title: 'A Narrow Way Home',
         pages: [
-            "After gaining your bearings and securing a place to rest, you push onward with a simple goal: get back to the ship by any means necessary.",
             "Between wreckage and scorched rock you find what looks like a maintenance conduit and a collapsed service corridor. It is cramped and unstable, but it runs toward the heart of the ship. The route is risky — falling debris, heat pockets, and tight squeezes — yet it may be the only way to reach intact compartments.",
             "You mark the route and plan carefully. This will not be a quick dash; preparation and caution will be required. For now, you have hope: an alternate path exists, one that might let you reach the ship and search for survivors or vital equipment.",
-            "Unfortunately, the passage is blocked by heavy debris. You'll need to find a way to clear it before proceeding."
+            "Unfortunately, the passage is blocked by heavy debris. You'll need to find a way to clear it before proceeding.",
+            "You have an idea: collect some Metal Parts scattered around the wreck and debris field, then return to the cave to craft a makeshift prybar. With enough leverage, you might be able to force your way inside."
         ]
     },
 
@@ -93,13 +103,23 @@ shipInteriorJunction: {
     ]
 },
 
+shipInteriorWires: {
+    title: 'Inside the Wreck',
+    pages: [
+        "You duck through the gap and into the ship’s interior. The corridor is barely a corridor at all — plating buckled, bulkheads warped, and soot caked into every seam.",
+        "Cold air leaks through hairline cracks. Somewhere above, torn cable trays hang like vines. Loose wires sway with each step, sparking faintly when they brush scorched metal.",
+        "The damage is massive, but one thing is clear: the wiring is everywhere. If you can strip the intact lengths, it could be invaluable for repairs — and for building anything that needs power back at camp."
+    ]
+},
+
 investigate_sound_found: {
     title: 'A Quiet Hope',
     pages: [
-        "You move cautiously toward the noise, keeping your light low. Behind a collapsed panel you find two survivors — shaken and bruised, but alive. You help them to their feet and bring them to safety.",
-        "On the way out, you spot a sheltered, defensible patch of ground south of the cave — a good place to establish a camp.",
-        "They can be counted among your people now. For a moment the wreck feels less hopeless.",
-        "NOTE: Survivors must be supplied with Food Rations and Clean Water. Keep your stores stocked so the group can endure."
+        "You move cautiously toward the noise, keeping your light low. Behind a collapsed panel you find three survivors — shaken and bruised, but alive. You help them to their feet.",
+        "Sudden relief washes over their faces. They had given up hope of rescue until your light appeared in the gloom.",
+        "You realize that securing these survivors is your top priority. With them safe, you can focus on stabilizing a base camp nearby and organizing further recovery efforts.",
+        "There was a nice clear opening south of the cave — a good place to establish a camp.",
+        "NOTE: Survivors must be supplied with Food Rations and Clean Water. They can help you with this once you set up a camp."
     ]
 },
 basecamp_established: {

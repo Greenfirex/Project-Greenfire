@@ -105,6 +105,47 @@
     min-width: 0;
 }
 
+.combat-speed-toggle {
+    position: absolute;
+    left: 50%;
+    top: 22%;
+    transform: translate(-50%, -50%);
+    pointer-events: auto;
+    display: grid;
+    place-items: center;
+    min-width: 54px;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(230, 238, 247, 0.22);
+    background: rgba(0,0,0,0.34);
+    box-shadow: 0 10px 22px rgba(0,0,0,0.45);
+    cursor: pointer;
+    z-index: 6;
+    opacity: 0.32;
+    color: rgba(230, 238, 247, 0.9);
+    font-weight: 800;
+    letter-spacing: 0.2px;
+}
+
+.combat-speed-toggle:hover {
+    border-color: rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.55);
+    opacity: 0.95;
+}
+
+.combat-speed-toggle:focus-visible {
+    outline: 2px solid rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.85);
+    outline-offset: 2px;
+}
+
+#combatPopup.combat-fast .combat-speed-toggle {
+    border-color: rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.75);
+    box-shadow:
+        0 12px 26px rgba(0,0,0,0.55),
+        0 0 22px rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.18);
+    opacity: 1;
+}
+
 .combat-pause-toggle {
     position: absolute;
     left: 50%;

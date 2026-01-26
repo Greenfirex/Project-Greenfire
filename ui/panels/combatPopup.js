@@ -84,6 +84,7 @@ function ensureOverlay() {
                             <span class="combat-pause-icon" aria-hidden="true"></span>
                             <span class="combat-pause-text" aria-hidden="true">Paused</span>
                         </button>
+                        <button class="combat-speed-toggle" type="button" data-action="toggle-speed" aria-label="Toggle combat speed">1×</button>
                     </div>
                     <div class="combat-bar-group">
                         <div class="combat-bar-top">
@@ -606,11 +607,19 @@ export function showCombatPopup(encounterId, opts = {}) {
 
     const combatStartPerf = performance.now();
 
+    // Combat speed control (UI toggle). This accelerates the simulation by reducing time between attacks.
+    // NOTE: This affects only combat; it does not change the global game time scale.
+    const SPEED_FAST_MULT = 5;
+    let combatSpeedMult = 1;
+
     // Attack speed is modeled as seconds per attack.
     const playerIntervalMs = Math.max(50, Math.round(playerAttackSpeed * 1000));
     const enemyIntervalMs = Math.max(50, Math.round(enemyAttackSpeedFinal * 1000));
-    let nextPlayerAttackAt = combatStartPerf + playerIntervalMs;
-    let nextEnemyAttackAt = combatStartPerf + enemyIntervalMs;
+
+    const effectivePlayerIntervalMs = () => Math.max(10, Math.round(playerIntervalMs / Math.max(1, combatSpeedMult)));
+    const effectiveEnemyIntervalMs = () => Math.max(10, Math.round(enemyIntervalMs / Math.max(1, combatSpeedMult)));
+    let nextPlayerAttackAt = combatStartPerf + effectivePlayerIntervalMs();
+    let nextEnemyAttackAt = combatStartPerf + effectiveEnemyIntervalMs();
 
     // Mini stats panel (static snapshot for this encounter)
     setMiniStats(overlay, {
@@ -692,10 +701,34 @@ export function showCombatPopup(encounterId, opts = {}) {
         const retreatBtn = overlay.querySelector('button[data-action="retreat"]');
         const closeBtn = overlay.querySelector('button[data-action="close"]');
         const pauseBtn = overlay.querySelector('button[data-action="toggle-pause"]');
+        const speedBtn = overlay.querySelector('button[data-action="toggle-speed"]');
         const heavyBtn = overlay.querySelector('button[data-action="heavy-strike"]');
         const placeholderBtn = overlay.querySelector('button[data-action="ability-placeholder"]');
 
         let combatPaused = false;
+
+        const setSpeedUi = () => {
+            if (!speedBtn) return;
+            const mult = Math.max(1, Math.floor(combatSpeedMult) || 1);
+            speedBtn.textContent = `${mult}×`;
+            speedBtn.setAttribute('aria-label', `Toggle combat speed (currently ${mult}×)`);
+            try { overlay.classList.toggle('combat-fast', mult >= SPEED_FAST_MULT); } catch { /* ignore */ }
+        };
+
+        const applySpeed = (nextMult) => {
+            const desired = Math.max(1, Math.floor(Number(nextMult) || 1));
+            const prev = Math.max(1, Math.floor(Number(combatSpeedMult) || 1));
+            if (desired === prev) return;
+
+            // Preserve how close we are to the next attacks.
+            const nowPerf = performance.now();
+            const scale = prev / desired;
+            nextPlayerAttackAt = nowPerf + Math.max(0, (nextPlayerAttackAt - nowPerf) * scale);
+            nextEnemyAttackAt = nowPerf + Math.max(0, (nextEnemyAttackAt - nowPerf) * scale);
+
+            combatSpeedMult = desired;
+            setSpeedUi();
+        };
 
         const togglePauseAction = () => {
             if (finalOutcome) return;
@@ -718,8 +751,8 @@ export function showCombatPopup(encounterId, opts = {}) {
                     raf = null;
                 } else {
                     last = performance.now();
-                    nextPlayerAttackAt = last + playerIntervalMs;
-                    nextEnemyAttackAt = last + enemyIntervalMs;
+                    nextPlayerAttackAt = last + effectivePlayerIntervalMs();
+                    nextEnemyAttackAt = last + effectiveEnemyIntervalMs();
                     if (!raf) raf = requestAnimationFrame(loop);
                 }
             }
@@ -761,8 +794,8 @@ export function showCombatPopup(encounterId, opts = {}) {
             try { syncAbilityButtons(); } catch (e) { /* ignore */ }
             // Reset scheduling so resume doesn't "catch up" on missed attacks.
             last = performance.now();
-            nextPlayerAttackAt = last + playerIntervalMs;
-            nextEnemyAttackAt = last + enemyIntervalMs;
+            nextPlayerAttackAt = last + effectivePlayerIntervalMs();
+            nextEnemyAttackAt = last + effectiveEnemyIntervalMs();
         };
 
         const onGameResume = () => {
@@ -771,8 +804,8 @@ export function showCombatPopup(encounterId, opts = {}) {
             setPauseUi(overlay, false);
             try { syncAbilityButtons(); } catch (e) { /* ignore */ }
             last = performance.now();
-            nextPlayerAttackAt = last + playerIntervalMs;
-            nextEnemyAttackAt = last + enemyIntervalMs;
+            nextPlayerAttackAt = last + effectivePlayerIntervalMs();
+            nextEnemyAttackAt = last + effectiveEnemyIntervalMs();
             if (!raf) raf = requestAnimationFrame(loop);
         };
 
@@ -854,6 +887,16 @@ export function showCombatPopup(encounterId, opts = {}) {
             };
         }
 
+        if (speedBtn) {
+            setSpeedUi();
+            speedBtn.onclick = (e) => {
+                e.preventDefault();
+                // Allow speed toggle even while paused.
+                const next = (Math.max(1, Math.floor(combatSpeedMult) || 1) >= SPEED_FAST_MULT) ? 1 : SPEED_FAST_MULT;
+                applySpeed(next);
+            };
+        }
+
         if (closeBtn) {
             // Disabled until combat resolves.
             setCloseButtonState(overlay, { enabled: false, label: 'Close (Esc)' });
@@ -901,8 +944,11 @@ export function showCombatPopup(encounterId, opts = {}) {
             if (!active) return;
             if (combatPaused) return;
 
-            const dt = Math.max(0, Math.min((now - last) / 1000, 0.5));
+            const dtReal = Math.max(0, Math.min((now - last) / 1000, 0.5));
             last = now;
+
+            // Accelerated simulation time (for stamina drain and any future time-based effects).
+            const dt = dtReal * Math.max(1, combatSpeedMult);
 
             // Resolve combat by true time-based scheduling (attack every X seconds).
             // Handle multiple events per frame in case the tab was inactive.
@@ -937,7 +983,7 @@ export function showCombatPopup(encounterId, opts = {}) {
                     }
 
                     setBar(overlay, 'enemy', enemyHp, Math.max(1, enemyMaxHp));
-                    nextPlayerAttackAt += playerIntervalMs;
+                    nextPlayerAttackAt += effectivePlayerIntervalMs();
                     if (enemyHp <= 0) {
                         try { triggerEnemyDefeatedFx(overlay); } catch (e) { /* ignore */ }
                         appendLogWithTime(overlay, elapsedMs, `Victory.`, 'win');
@@ -966,7 +1012,7 @@ export function showCombatPopup(encounterId, opts = {}) {
                     }
 
                     setBar(overlay, 'player', playerHp, Math.max(1, playerMaxHp));
-                    nextEnemyAttackAt += enemyIntervalMs;
+                    nextEnemyAttackAt += effectiveEnemyIntervalMs();
                     if (playerHp <= 0) {
                         appendLogWithTime(overlay, elapsedMs, `You are down.`, 'lose');
                         addLogEntry(`Defeated by: ${def.name}.`, LogType.ERROR);

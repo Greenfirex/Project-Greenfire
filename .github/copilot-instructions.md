@@ -1,5 +1,9 @@
 # Copilot instructions — Project Greenfire
 
+## Clarifying questions (always do this)
+- If any requirement is ambiguous or could be implemented in multiple reasonable ways, ask short clarifying questions before making code changes.
+- If requirements are clear, implement directly without extra questions.
+
 ## Project shape (read this first)
 - Browser idle game; **ES modules loaded directly by `index.html`** (no bundler).
 - Main folders:

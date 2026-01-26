@@ -1,4 +1,4 @@
-import { getLocalMapTileAt, isCrashPoi, hasInternalPoiWallBetween, isCrashWallBetween } from '../data/definitions/localMapTiles.js';
+import { getLocalMapTileAt, isCrashPoi, hasInternalPoiWallBetween, hasInternalPoiDoorBetween, isCrashWallBetween } from '../data/definitions/localMapTiles.js';
 import { allActions as salvageActions } from '../data/definitions/allActions.js';
 
 const COLS = 11; // A-K
@@ -70,6 +70,320 @@ function isVisited(state, col, row) {
     } catch {
         return false;
     }
+}
+
+function buildCorridorOutlinePath({ openTop, openBottom, openLeft, openRight, isPlayer = false } = {}) {
+    // Build an SVG path (stroke only) outlining the union of corridor rectangles.
+    // This avoids the "lines to the middle" artifact on junctions because the outline
+    // naturally wraps around the corridor shape.
+    const SCALE = 100; // hundredths of a percent (0..10000)
+    const MAX = 100 * SCALE;
+
+    const corridorWidthPct = 40;
+    const corridorHalfPct = corridorWidthPct / 2;
+    // Extend corridor openings all the way to the tile edge.
+    // We "bleed" the open corridor rectangles slightly past the SVG viewbox so
+    // the outline generator doesn't create a boundary segment on the tile edge.
+    // (Those edge strokes would look like walls between traversable tiles.)
+    const bleedPct = 8;
+
+    const x0 = Math.round((50 - corridorHalfPct) * SCALE);
+    const x1 = Math.round((50 + corridorHalfPct) * SCALE);
+    const y0 = Math.round((50 - corridorHalfPct) * SCALE);
+    const y1 = Math.round((50 + corridorHalfPct) * SCALE);
+    const bleed = Math.round(bleedPct * SCALE);
+
+    const rects = [];
+    rects.push({ xA: x0, yA: y0, xB: x1, yB: y1 });
+    if (openTop) rects.push({ xA: x0, yA: -bleed, xB: x1, yB: y0 });
+    if (openBottom) rects.push({ xA: x0, yA: y1, xB: x1, yB: MAX + bleed });
+    if (openLeft) rects.push({ xA: -bleed, yA: y0, xB: x0, yB: y1 });
+    if (openRight) rects.push({ xA: x1, yA: y0, xB: MAX + bleed, yB: y1 });
+
+    const clampRect = (r) => {
+        // Prevent pathological values, but preserve the bleed beyond 0..MAX.
+        const LIM = MAX * 2;
+        return {
+            xA: Math.max(-LIM, Math.min(LIM, r.xA)),
+            yA: Math.max(-LIM, Math.min(LIM, r.yA)),
+            xB: Math.max(-LIM, Math.min(LIM, r.xB)),
+            yB: Math.max(-LIM, Math.min(LIM, r.yB)),
+        };
+    };
+
+    const normRect = (r) => {
+        const rr = clampRect(r);
+        const xMin = Math.min(rr.xA, rr.xB);
+        const xMax = Math.max(rr.xA, rr.xB);
+        const yMin = Math.min(rr.yA, rr.yB);
+        const yMax = Math.max(rr.yA, rr.yB);
+        return { xMin, xMax, yMin, yMax };
+    };
+
+    const R = rects.map(normRect).filter(r => (r.xMax > r.xMin) && (r.yMax > r.yMin));
+    const xs = new Set([0, MAX]);
+    const ys = new Set([0, MAX]);
+    for (const r of R) {
+        xs.add(r.xMin); xs.add(r.xMax);
+        ys.add(r.yMin); ys.add(r.yMax);
+    }
+    const xVals = Array.from(xs).sort((a, b) => a - b);
+    const yVals = Array.from(ys).sort((a, b) => a - b);
+
+    const EPS = 1;
+    const filled = (x, y) => {
+        for (const r of R) {
+            if (x >= r.xMin && x <= r.xMax && y >= r.yMin && y <= r.yMax) return true;
+        }
+        return false;
+    };
+
+    const segments = [];
+    // Vertical boundary segments
+    for (const x of xVals) {
+        for (let i = 0; i < yVals.length - 1; i++) {
+            const yA = yVals[i];
+            const yB = yVals[i + 1];
+            if (yB <= yA) continue;
+            const yMid = Math.floor((yA + yB) / 2);
+            const left = filled(x - EPS, yMid);
+            const right = filled(x + EPS, yMid);
+            if (left !== right) segments.push({ ax: x, ay: yA, bx: x, by: yB });
+        }
+    }
+    // Horizontal boundary segments
+    for (const y of yVals) {
+        for (let i = 0; i < xVals.length - 1; i++) {
+            const xA2 = xVals[i];
+            const xB2 = xVals[i + 1];
+            if (xB2 <= xA2) continue;
+            const xMid = Math.floor((xA2 + xB2) / 2);
+            const up = filled(xMid, y - EPS);
+            const down = filled(xMid, y + EPS);
+            if (up !== down) segments.push({ ax: xA2, ay: y, bx: xB2, by: y });
+        }
+    }
+
+    // Build adjacency map for a single closed loop.
+    const pointKey = (x, y) => `${x},${y}`;
+    const points = new Map();
+    const adj = new Map();
+
+    const addEdge = (x1p, y1p, x2p, y2p) => {
+        const k1 = pointKey(x1p, y1p);
+        const k2 = pointKey(x2p, y2p);
+        points.set(k1, { x: x1p, y: y1p });
+        points.set(k2, { x: x2p, y: y2p });
+        if (!adj.has(k1)) adj.set(k1, []);
+        if (!adj.has(k2)) adj.set(k2, []);
+        adj.get(k1).push(k2);
+        adj.get(k2).push(k1);
+    };
+
+    for (const s of segments) {
+        addEdge(s.ax, s.ay, s.bx, s.by);
+    }
+
+    const allPts = Array.from(points.values());
+    if (!allPts.length) return '';
+    allPts.sort((p1, p2) => (p1.y - p2.y) || (p1.x - p2.x));
+    const start = allPts[0];
+    const startKey = pointKey(start.x, start.y);
+    const startNeighbors = adj.get(startKey) || [];
+    if (startNeighbors.length === 0) return '';
+
+    // Choose an arbitrary direction to walk the loop.
+    let prevKey = null;
+    let curKey = startKey;
+    let nextKey = startNeighbors[0];
+
+    const ordered = [startKey];
+    let guard = 0;
+    while (guard++ < 1000) {
+        if (nextKey === startKey) break;
+        ordered.push(nextKey);
+        const nbs = adj.get(nextKey) || [];
+        const candidate = nbs.find(k => k !== curKey);
+        prevKey = curKey;
+        curKey = nextKey;
+        nextKey = candidate || startKey;
+        if (prevKey === curKey) break;
+    }
+
+    // Convert to SVG path in 0..100 coordinates.
+    const toSvg = (k) => {
+        const p = points.get(k);
+        if (!p) return null;
+        return { x: p.x / SCALE, y: p.y / SCALE };
+    };
+    const first = toSvg(ordered[0]);
+    if (!first) return '';
+    let d = `M ${first.x} ${first.y}`;
+    for (let i = 1; i < ordered.length; i++) {
+        const p = toSvg(ordered[i]);
+        if (!p) continue;
+        d += ` L ${p.x} ${p.y}`;
+    }
+    d += ' Z';
+    return d;
+}
+
+function buildRoomOutlinePath({ openTop, openBottom, openLeft, openRight } = {}) {
+    // A room is mostly "filled" (inset rectangle), with optional openings that connect to adjacent traversable tiles.
+    // The outline is generated from the union of rectangles (same technique as corridor outlines).
+    const SCALE = 100;
+    const MAX = 100 * SCALE;
+
+    const insetPct = 9;
+    const openingWidthPct = 34;
+    const bleedPct = 8;
+
+    const inset = Math.round(insetPct * SCALE);
+    const bleed = Math.round(bleedPct * SCALE);
+    const halfOpen = Math.round((openingWidthPct / 2) * SCALE);
+
+    const xA = inset;
+    const xB = MAX - inset;
+    const yA = inset;
+    const yB = MAX - inset;
+
+    const rects = [{ xA, yA, xB, yB }];
+
+    const cx = Math.round(50 * SCALE);
+    const cy = Math.round(50 * SCALE);
+    const openX0 = cx - halfOpen;
+    const openX1 = cx + halfOpen;
+    const openY0 = cy - halfOpen;
+    const openY1 = cy + halfOpen;
+
+    if (openTop) rects.push({ xA: openX0, yA: -bleed, xB: openX1, yB: yA });
+    if (openBottom) rects.push({ xA: openX0, yA: yB, xB: openX1, yB: MAX + bleed });
+    if (openLeft) rects.push({ xA: -bleed, yA: openY0, xB: xA, yB: openY1 });
+    if (openRight) rects.push({ xA: xB, yA: openY0, xB: MAX + bleed, yB: openY1 });
+
+    // Reuse the corridor outline algorithm by inlining the same approach.
+    const clampRect = (r) => {
+        const LIM = MAX * 2;
+        return {
+            xA: Math.max(-LIM, Math.min(LIM, r.xA)),
+            yA: Math.max(-LIM, Math.min(LIM, r.yA)),
+            xB: Math.max(-LIM, Math.min(LIM, r.xB)),
+            yB: Math.max(-LIM, Math.min(LIM, r.yB)),
+        };
+    };
+
+    const normRect = (r) => {
+        const rr = clampRect(r);
+        const xMin = Math.min(rr.xA, rr.xB);
+        const xMax = Math.max(rr.xA, rr.xB);
+        const yMin = Math.min(rr.yA, rr.yB);
+        const yMax = Math.max(rr.yA, rr.yB);
+        return { xMin, xMax, yMin, yMax };
+    };
+
+    const R = rects.map(normRect).filter(r => (r.xMax > r.xMin) && (r.yMax > r.yMin));
+    const xs = new Set([0, MAX]);
+    const ys = new Set([0, MAX]);
+    for (const r of R) {
+        xs.add(r.xMin); xs.add(r.xMax);
+        ys.add(r.yMin); ys.add(r.yMax);
+    }
+    const xVals = Array.from(xs).sort((a, b) => a - b);
+    const yVals = Array.from(ys).sort((a, b) => a - b);
+
+    const EPS = 1;
+    const filled = (x, y) => {
+        for (const r of R) {
+            if (x >= r.xMin && x <= r.xMax && y >= r.yMin && y <= r.yMax) return true;
+        }
+        return false;
+    };
+
+    const segments = [];
+    for (const x of xVals) {
+        for (let i = 0; i < yVals.length - 1; i++) {
+            const y0 = yVals[i];
+            const y1 = yVals[i + 1];
+            if (y1 <= y0) continue;
+            const yMid = Math.floor((y0 + y1) / 2);
+            const left = filled(x - EPS, yMid);
+            const right = filled(x + EPS, yMid);
+            if (left !== right) segments.push({ ax: x, ay: y0, bx: x, by: y1 });
+        }
+    }
+    for (const y of yVals) {
+        for (let i = 0; i < xVals.length - 1; i++) {
+            const x0 = xVals[i];
+            const x1 = xVals[i + 1];
+            if (x1 <= x0) continue;
+            const xMid = Math.floor((x0 + x1) / 2);
+            const up = filled(xMid, y - EPS);
+            const down = filled(xMid, y + EPS);
+            if (up !== down) segments.push({ ax: x0, ay: y, bx: x1, by: y });
+        }
+    }
+
+    const pointKey = (x, y) => `${x},${y}`;
+    const points = new Map();
+    const adj = new Map();
+    const addEdge = (x1, y1, x2, y2) => {
+        const k1 = pointKey(x1, y1);
+        const k2 = pointKey(x2, y2);
+        points.set(k1, { x: x1, y: y1 });
+        points.set(k2, { x: x2, y: y2 });
+        if (!adj.has(k1)) adj.set(k1, []);
+        if (!adj.has(k2)) adj.set(k2, []);
+        adj.get(k1).push(k2);
+        adj.get(k2).push(k1);
+    };
+    for (const s of segments) addEdge(s.ax, s.ay, s.bx, s.by);
+
+    const allPts = Array.from(points.values());
+    if (!allPts.length) return '';
+    allPts.sort((p1, p2) => (p1.y - p2.y) || (p1.x - p2.x));
+    const start = allPts[0];
+    const startKey = pointKey(start.x, start.y);
+    const startNeighbors = adj.get(startKey) || [];
+    if (startNeighbors.length === 0) return '';
+
+    let curKey = startKey;
+    let nextKey = startNeighbors[0];
+    const ordered = [startKey];
+    let guard = 0;
+    while (guard++ < 1000) {
+        if (nextKey === startKey) break;
+        ordered.push(nextKey);
+        const nbs = adj.get(nextKey) || [];
+        const candidate = nbs.find(k => k !== curKey);
+        curKey = nextKey;
+        nextKey = candidate || startKey;
+    }
+
+    const toSvg = (k) => {
+        const p = points.get(k);
+        if (!p) return null;
+        return { x: p.x / SCALE, y: p.y / SCALE };
+    };
+    const first = toSvg(ordered[0]);
+    if (!first) return '';
+    let d = `M ${first.x} ${first.y}`;
+    for (let i = 1; i < ordered.length; i++) {
+        const p = toSvg(ordered[i]);
+        if (!p) continue;
+        d += ` L ${p.x} ${p.y}`;
+    }
+    d += ' Z';
+    return d;
+}
+
+function buildLiftBoxPath() {
+    // A simple central box representing the lift platform.
+    const inset = 28;
+    const x0 = inset;
+    const x1 = 100 - inset;
+    const y0 = inset;
+    const y1 = 100 - inset;
+    return `M ${x0} ${y0} L ${x1} ${y0} L ${x1} ${y1} L ${x0} ${y1} Z`;
 }
 
 export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages = 3, state = null } = {}) {
@@ -313,11 +627,13 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
         );
     };
 
-    const renderInfo = (col, row, discovered, poiLabel = null) => {
+    const renderInfo = (col, row, { discovered, visited } = {}, poiLabel = null) => {
         if (!infoBody) return;
         const meta = tileMeta(col, row);
         const label = toCoordLabel(col, row);
-        const status = discovered ? 'Known' : 'Unknown (fog)';
+        const status = visited
+            ? 'Explored'
+            : (discovered ? 'Unexplored' : 'Unknown (fog)');
         const poi = poiLabel ? `<div class="localmap-info-row"><span class="k">POI</span><span class="v">${poiLabel}</span></div>` : '';
         const typeRow = discovered
             ? `<div class="localmap-info-row"><span class="k">Type</span><span class="v">${meta.label}</span></div>`
@@ -336,6 +652,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             if (discovered) {
                 const isD7 = (Number(col) === 4 && Number(row) === 7);
                 const isH8 = (Number(col) === 8 && Number(row) === 8);
+                const isG3 = (Number(col) === 7 && Number(row) === 3);
                 if (isD7) {
                     const debris = (salvageActions || []).find(a => a && a.id === 'scavengeDebris');
                     const debrisUnlocked = !!(debris && debris.isUnlocked);
@@ -347,12 +664,34 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                     resourcesValue = resources.join(', ');
                 } else if (isH8) {
                     resourcesValue = 'Clean Water';
+                } else if (isG3) {
+                    const chem = (salvageActions || []).find(a => a && a.id === 'collectChemicals');
+                    if (chem && chem.isUnlocked) resourcesValue = 'Chemicals';
                 } else {
                 const debris = (salvageActions || []).find(a => a && a.id === 'scavengeDebris');
                 const debrisUnlocked = !!(debris && debris.isUnlocked);
                 if (debrisUnlocked && isOrthogonallyAdjacentToCrashPoi(col, row)) {
                     resourcesValue = 'Metal Parts';
                 }
+                }
+            }
+        } catch { /* ignore */ }
+
+        // Explored crash-site interior: wiring is abundant.
+        try {
+            if (resourcesValue === 'Unknown' && visited && isCrashPoi(Number(col), Number(row))) {
+                const isD6 = (Number(col) === 4 && Number(row) === 6);
+                if (isD6) {
+                    const used = Math.max(0, Math.floor(Number(state?.cafeteriaSuppliesByTile?.['4,6'] || 0)));
+                    resourcesValue = (used >= 7) ? 'None' : 'Food Rations, Clean Water';
+                } else if (meta && meta.typeId === 'crewQuarters') {
+                    resourcesValue = 'Fabric';
+                } else {
+                    const key = `${Number(col)},${Number(row)}`;
+                    if (meta && meta.typeId === 'corridor') {
+                        const used = Math.max(0, Math.floor(Number(state?.wiringStrippedByTile?.[key] || 0)));
+                        resourcesValue = (used >= 5) ? 'None' : 'Wire';
+                    }
                 }
             }
         } catch { /* ignore */ }
@@ -407,8 +746,8 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 || isDiscovered({ col: c, row: r, centerCol, centerRow, radius })
                 || (c === mapState.x && r === mapState.y);
             tile.classList.toggle('is-unknown', !discovered);
-            tile.classList.toggle('is-known', discovered);
-            tile.classList.toggle('is-visited', visited);
+            tile.classList.toggle('is-unexplored', !!(discovered && !visited));
+            tile.classList.toggle('is-explored', !!visited);
 
             const meta = tileMeta(c, r);
             tile.classList.toggle('is-blocked', !!meta.blocked);
@@ -416,17 +755,31 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             // Tile markers
             // - Usually hidden under fog
             // - Some tutorial/guide markers can opt in to always-visible (e.g., newly-unlocked base camp tile)
-            const hasMarker = (meta.markerKind !== null && meta.markerKind !== undefined);
-            if (hasMarker && (discovered || meta.markerAlwaysVisible)) {
-                const marker = document.createElement('div');
-                const kind = meta.markerKind ? String(meta.markerKind) : 'alert';
-                marker.className = `localmap-marker localmap-marker--${kind}`;
-                marker.textContent = (meta.markerText !== null && meta.markerText !== undefined) ? String(meta.markerText) : '';
-                marker.setAttribute('aria-hidden', 'true');
+            const markers = Array.isArray(meta.markers) && meta.markers.length
+                ? meta.markers
+                : ((meta.markerKind !== null && meta.markerKind !== undefined)
+                    ? [{ kind: meta.markerKind, text: meta.markerText, alwaysVisible: meta.markerAlwaysVisible }]
+                    : []);
+
+            const showMarkers = markers.length && (discovered || !!meta.markerAlwaysVisible);
+            if (showMarkers) {
+                const markersHost = document.createElement('div');
+                markersHost.className = 'localmap-markers';
+                markersHost.setAttribute('aria-hidden', 'true');
+
+                for (const m of markers) {
+                    const kind = (m && m.kind) ? String(m.kind) : 'alert';
+                    const marker = document.createElement('div');
+                    marker.className = `localmap-marker localmap-marker--${kind}`;
+                    marker.textContent = (m && m.text !== null && m.text !== undefined) ? String(m.text) : '';
+                    markersHost.appendChild(marker);
+                }
+
                 if (meta.markerAlwaysVisible) {
                     tile.classList.add('has-always-marker');
                 }
-                tile.appendChild(marker);
+
+                tile.appendChild(markersHost);
             }
 
             // Non-crash POI points (e.g., established Base Camp)
@@ -457,11 +810,96 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                     if (hasInternalPoiWallBetween(c, r, c + 1, r)) tile.classList.add('poi-wall-right');
                 } catch { /* ignore */ }
 
-                // POI wall overlay layer (styled in CSS). This keeps hull walls visible even when a tile is selected.
+                // Visual doors
+                try {
+                    // Render each door edge only once (canonical owner):
+                    // - vertical edges: render on the lower tile as a "top" door
+                    // - horizontal edges: render on the right tile as a "left" door
+                    if (hasInternalPoiDoorBetween(c, r, c, r - 1)) tile.classList.add('poi-door-top');
+                    if (hasInternalPoiDoorBetween(c, r, c - 1, r)) tile.classList.add('poi-door-left');
+                } catch { /* ignore */ }
+
+                // POI hull wall overlay layer (styled in CSS). This keeps hull walls visible even when a tile is selected.
                 const wallOverlay = document.createElement('div');
                 wallOverlay.className = 'poi-wall-overlay';
                 wallOverlay.setAttribute('aria-hidden', 'true');
                 tile.appendChild(wallOverlay);
+
+                // Doors overlay (visual only)
+                const doorsOverlay = document.createElement('div');
+                doorsOverlay.className = 'poi-doors-overlay';
+                doorsOverlay.setAttribute('aria-hidden', 'true');
+                doorsOverlay.innerHTML = `
+                    <div class="poi-door poi-door--top"></div>
+                    <div class="poi-door poi-door--left"></div>
+                `;
+                tile.appendChild(doorsOverlay);
+
+                // Corridor/room overlays (visual): draw inset outlines for interior tiles.
+                try {
+                    const isCorridorLike = meta && (meta.typeId === 'corridor' || meta.typeId === 'elevator');
+                    const isRoom = meta && ['cafeteria', 'crewQuarters', 'laboratory', 'powerCore', 'captainsQuarters', 'bridge'].includes(meta.typeId);
+
+                    if (isCorridorLike) {
+                        tile.classList.add('poi-has-corridor');
+
+                        const canTraverseTo = (toC, toR) => {
+                            if (toC < 1 || toC > COLS || toR < 1 || toR > ROWS) return false;
+                            const nMeta = tileMeta(toC, toR);
+                            if (!nMeta || nMeta.blocked) return false;
+                            try {
+                                if (isCrashWallBetween(c, r, toC, toR, { localMapState: state })) return false;
+                            } catch { /* ignore */ }
+                            return true;
+                        };
+
+                        const openTop = canTraverseTo(c, r - 1);
+                        const openBottom = canTraverseTo(c, r + 1);
+                        const openLeft = canTraverseTo(c - 1, r);
+                        const openRight = canTraverseTo(c + 1, r);
+
+                        const d = buildCorridorOutlinePath({ openTop, openBottom, openLeft, openRight, isPlayer: tile.classList.contains('is-player') });
+                        const liftBox = (meta.typeId === 'elevator') ? buildLiftBoxPath() : '';
+
+                        const overlay = document.createElement('div');
+                        overlay.className = 'poi-corridor-overlay';
+                        overlay.setAttribute('aria-hidden', 'true');
+                        overlay.innerHTML = d
+                            ? (meta.typeId === 'elevator'
+                                ? `<svg class="poi-corridor-svg poi-elevator-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" /><path class="lift-box" d="${liftBox}" /></svg>`
+                                : `<svg class="poi-corridor-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" /></svg>`)
+                            : '';
+                        tile.appendChild(overlay);
+                    }
+
+                    if (isRoom) {
+                        tile.classList.add('poi-has-room');
+
+                        const canTraverseTo = (toC, toR) => {
+                            if (toC < 1 || toC > COLS || toR < 1 || toR > ROWS) return false;
+                            const nMeta = tileMeta(toC, toR);
+                            if (!nMeta || nMeta.blocked) return false;
+                            try {
+                                if (isCrashWallBetween(c, r, toC, toR, { localMapState: state })) return false;
+                            } catch { /* ignore */ }
+                            return true;
+                        };
+
+                        const openTop = canTraverseTo(c, r - 1);
+                        const openBottom = canTraverseTo(c, r + 1);
+                        const openLeft = canTraverseTo(c - 1, r);
+                        const openRight = canTraverseTo(c + 1, r);
+
+                        const dRoom = buildRoomOutlinePath({ openTop, openBottom, openLeft, openRight });
+                        const roomOverlay = document.createElement('div');
+                        roomOverlay.className = 'poi-room-overlay';
+                        roomOverlay.setAttribute('aria-hidden', 'true');
+                        roomOverlay.innerHTML = dRoom
+                            ? `<svg class="poi-room-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${dRoom}" /></svg>`
+                            : '';
+                        tile.appendChild(roomOverlay);
+                    }
+                } catch { /* ignore */ }
             }
 
             const isSelected = (c === mapState.selectedX && r === mapState.selectedY);
@@ -567,17 +1005,21 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
             // Fill initial info based on current selection.
             if (isSelected) {
-                renderInfo(c, r, discovered, discovered ? (tile.dataset.poi || null) : null);
+                renderInfo(c, r, { discovered, visited }, discovered ? (tile.dataset.poi || null) : null);
             }
         }
     }
+    // Re-renders happen often (selection, zoom, movement). Clear the previous tile DOM
+    // so overlays don't stack on top of each other.
+    grid.innerHTML = '';
     grid.appendChild(tiles);
 
     // If nothing was selected for some reason, show player's tile.
     if (infoBody && !infoBody.innerHTML) {
         const discovered = true;
+        const visited = true;
         const meta = tileMeta(mapState.x, mapState.y);
         const inCrash = isCrashPoi(mapState.x, mapState.y);
-        renderInfo(mapState.x, mapState.y, discovered, inCrash ? (meta.poiLabel || 'Crash Site') : null);
+        renderInfo(mapState.x, mapState.y, { discovered, visited }, inCrash ? (meta.poiLabel || 'Crash Site') : null);
     }
 }
