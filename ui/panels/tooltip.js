@@ -494,7 +494,7 @@ function buildTooltipHTML(data) {
                             // Deduplicate
                             const uniq = Array.from(new Set(unlockIds));
                             const sectionNames = {
-                                crewManagementSection: 'Crew Management',
+                                campsiteSection: 'Campsite',
                                 crashSiteSection: 'Crash Site',
                                 colonySection: 'Colony',
                                 researchSection: 'Research',

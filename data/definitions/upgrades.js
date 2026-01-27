@@ -157,6 +157,37 @@ const initialUpgradeActions = [
         ]
     },
     {
+        id: 'workbench',
+        name: 'Workbench',
+        description: 'Assemble a sturdy workbench at base camp so you can craft and repair equipment more reliably.',
+        duration: 6,
+        category: 'Upgrade',
+        isUnlocked: false, // unlocked after Base Camp is established
+        cancelable: true,
+        cost: [
+            { resource: 'Metal Parts', amount: 10 },
+            { resource: 'Wire', amount: 6 },
+        ],
+        drain: [
+            { resource: 'Stamina', amount: 19 },
+            { resource: 'Food Rations', amount: 3 },
+            { resource: 'Clean Water', amount: 3 }
+        ],
+        repeatable: false,
+        hideRewardPreview: true,
+        reward: [],
+        tooltipEffects: ['Unlocks Campsite panel: Crafting'],
+        stage: 0,
+        stages: [
+            {
+                story: null,
+                unlocks: [],
+                logText: 'A sturdy workbench is assembled at base camp. Crafting options are now available in the Campsite tab.',
+                suppressGenericLog: true
+            }
+        ]
+    },
+    {
         id: 'organizeWireScavenging',
         name: 'Organize Wire Scavenging',
         description: 'Establish systematic wire salvage operations. Train survivors to identify and extract usable wire from wreckage efficiently.',

@@ -1,5 +1,24 @@
 import { getIngameTimeString } from '../core/time.js';
 import { getAllObjectivesWithState, getObjectiveSteps, getTrackedObjectiveId, setTrackedObjective } from '../data/objectives.js';
+import { storyEvents } from '../data/definitions/storyEvents.js';
+import { showStoryPopup } from '../ui/panels/popup.js';
+
+function resolveStoryEventForEntry(entry) {
+    if (!entry) return null;
+    const id = entry.id;
+    if (id && storyEvents && storyEvents[id]) return storyEvents[id];
+
+    // Back-compat: older saves may have stored `id` as the title.
+    // Try best-effort lookup by matching titles.
+    try {
+        const wantedTitle = String(entry.title || entry.id || '').trim();
+        if (!wantedTitle) return null;
+        for (const ev of Object.values(storyEvents || {})) {
+            if (ev && String(ev.title || '').trim() === wantedTitle) return ev;
+        }
+    } catch { /* ignore */ }
+    return null;
+}
 
 export function setupJournalSection(section) {
     if (!section) return;
@@ -79,6 +98,23 @@ export function renderJournalEntries(container) {
         const titleEl = document.createElement('div');
         titleEl.className = 'journal-entry-title';
         titleEl.textContent = entry.title || 'Untitled';
+
+        // Allow reopening story popups from Journal when possible.
+        const ev = resolveStoryEventForEntry(entry);
+        if (ev) {
+            titleEl.classList.add('is-clickable');
+            titleEl.tabIndex = 0;
+            titleEl.setAttribute('role', 'button');
+            titleEl.setAttribute('aria-label', 'Open story entry');
+            const open = (e) => {
+                e.preventDefault();
+                try { showStoryPopup(ev, entry && entry.outcome ? entry.outcome : null); } catch { /* ignore */ }
+            };
+            titleEl.addEventListener('click', open);
+            titleEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') open(e);
+            });
+        }
 
         const timeEl = document.createElement('div');
         timeEl.className = 'journal-entry-time';

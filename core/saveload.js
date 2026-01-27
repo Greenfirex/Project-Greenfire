@@ -39,8 +39,8 @@ function reconcileActivatedSectionsAfterLoad() {
         // Start from whatever was loaded (or defaults if none)
         const next = { ...getInitialActivatedSections(), ...(activatedSections || {}) };
 
-        // Crew Management is now embedded under Crash Site -> Campsite.
-        next.crewManagementSection = false;
+        // Compatibility: older saves may still contain this legacy section flag.
+        delete next.crewManagementSection;
 
         // Forward-compat: if an older save already has Base Camp, show the Campsite tab as NEW once.
         try {
@@ -273,6 +273,20 @@ export function applyGameState(gameState) {
             }
         });
 
+        // Migration: older builds incorrectly marked multi-stage actions as fully `completed`
+        // after finishing stage 0. If an action still has remaining stages, it must not be completed.
+        try {
+            for (const a of salvageActions) {
+                if (!a || a.repeatable) continue;
+                const total = Array.isArray(a.stages) ? a.stages.length : 0;
+                if (total <= 1) continue;
+                const idx = Number(a.stage || 0);
+                if (Number.isFinite(idx) && idx < total) {
+                    a.completed = false;
+                }
+            }
+        } catch { /* non-fatal */ }
+
         // Forward-compat/sanity: if the player already reached D5 (interior wiring story flag),
         // ensure the Strip Wiring action isn't accidentally left locked.
         try {
@@ -306,6 +320,19 @@ export function applyGameState(gameState) {
                 }
             }
         });
+
+        // Same migration for upgrade actions that use multi-stage definitions.
+        try {
+            for (const a of upgradeActions) {
+                if (!a || a.repeatable) continue;
+                const total = Array.isArray(a.stages) ? a.stages.length : 0;
+                if (total <= 1) continue;
+                const idx = Number(a.stage || 0);
+                if (Number.isFinite(idx) && idx < total) {
+                    a.completed = false;
+                }
+            }
+        } catch { /* non-fatal */ }
         // Keep aggregator in sync after applying saved upgrade action state
         try { refreshAllActions(); } catch {}
     }
@@ -357,7 +384,7 @@ export function applyGameState(gameState) {
     setActivatedSections(gameState.activatedSections ?? getInitialActivatedSections());
 
     // Re-check unlock conditions after load so the menu can't drift out of sync
-    // (e.g., Crew Management should stay unlocked once Base Camp is established).
+    // (e.g., Campsite tab should stay unlocked once Base Camp is established).
     reconcileActivatedSectionsAfterLoad();
 
     // Restore objectives from composite save (keeps them in sync with other state)

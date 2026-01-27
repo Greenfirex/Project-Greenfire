@@ -131,6 +131,17 @@
 .journal-entry-title { margin-bottom: 8px; }
 .journal-entry-time { margin-bottom: 10px; }
 
+.journal-entry-title.is-clickable {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
+    text-underline-offset: 3px;
+}
+
+.journal-entry-title.is-clickable:hover {
+    text-decoration-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+}
+
 .muted { color: rgba(255,255,255,0.5); }
 
 #journalSection {

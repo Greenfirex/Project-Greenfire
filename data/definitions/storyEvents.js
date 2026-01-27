@@ -45,8 +45,15 @@ foundCave: {
         title: 'A Shelter to the West',
         pages: [
             "From here you spot a small cave tucked into the rocks to the west. It looks dry and sheltered — the kind of place you could rest, regroup, and keep your gear out of the rain.",
-            "To the north, a dense wall of thorns chokes the path at C5. It's too thick to push through — but it looks dry enough that a torch might burn it away.",
             "It might be worth checking out the cave before pushing deeper into the forest."
+        ]
+    },
+
+    caveSpottedNorth: {
+        title: 'A Shelter to the North',
+        pages: [
+            "From here the terrain rises and you spot a small cave tucked into the rocks to the north. It looks dry and sheltered — the kind of place you could rest, regroup, and keep your gear out of the rain.",
+            "It might be worth checking it out before pushing deeper into the forest."
         ]
     },
 
@@ -99,7 +106,7 @@ shipInteriorJunction: {
     pages: [
         "Deeper inside, the passage opens into a junction. Your light catches scorch marks on the walls and a scatter of debris that looks like it fell during the crash — but the route ahead is clear enough to move.",
         "The corridors branch. You can: (1) sweep the south corridor toward a junction that leads to the cafeteria and crew quarters; (2) take the north corridor toward the labs and the power core; or (3) head for the bridge to check communications and navigation systems.",
-        "Something else stirs in the dark — a faint sound nearby, like muffled movement or coughing.\n\nAction unlocked: Investigate Nearby Sound.\n\nYou can investigate it now, or focus on one of the three routes. Choose carefully — selecting an action will advance that path and reveal its findings."
+        "Something else stirs in the dark — a faint sound nearby, like muffled movement or coughing."
     ]
 },
 
@@ -127,7 +134,7 @@ basecamp_established: {
     title: 'Base Camp Established',
     pages: [
         "You have established a rudimentary base camp. This central location allows you to organise survivors, assign simple tasks, and coordinate recovery efforts.",
-        "Crew Management is now available — assign survivors to jobs and prioritize tasks from there. Assigned crew will help with routine resource collection and management, improving efficiency and freeing you to focus on exploration and repairs."
+        "Campsite is now available — assign survivors to jobs and prioritize tasks from there. Assigned crew will help with routine resource collection and management, improving efficiency and freeing you to focus on exploration and repairs."
     ]
 },
 
@@ -347,3 +354,11 @@ chapter2_intro: {
     ]
 },
 }
+
+// Ensure every story event can be referenced by a stable id.
+// (Used by Journal entries to reopen the original popup.)
+try {
+    for (const [id, ev] of Object.entries(storyEvents)) {
+        if (ev && typeof ev === 'object' && !ev.id) ev.id = id;
+    }
+} catch { /* ignore */ }

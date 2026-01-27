@@ -171,7 +171,10 @@ function applyEffects(building) {
       try {
         addSlotsForBuilding(building.name, 1);
         addLogEntry(`New job slot available: ${building.name} (from ${building.name}).`, LogType.UNLOCK);
-        if (typeof updateCrewSection === 'function') updateCrewSection();
+        if (typeof window !== 'undefined') {
+          if (typeof window.updateCampsiteJobsPanel === 'function') window.updateCampsiteJobsPanel();
+          if (typeof window.updateCampsiteIdleWarnings === 'function') window.updateCampsiteIdleWarnings();
+        }
       } catch (e) {}
     } else if (eff.type === 'storage') {
       const resourceToUpgrade = resources.find(r => r.name === eff.resource);

@@ -1,3 +1,29 @@
+# [0.2.4] - 2026-01-27
+
+### Added
+
+- **Crash Site: Campsite tab:** The Crash Site screen now includes a Campsite tab with embedded **Jobs / Upgrades / Buildings** panels.
+- **Workbench → Crafting panel:** Completing **Workbench** unlocks a new **Crafting** panel in Campsite.
+- **Journal replay links:** Journal entry titles are now clickable to re-open the original story popup.
+- **Stable story ids + stored outcomes:** Story events now have stable ids and journal entries store the outcome payload so replayed popups match what you saw originally.
+- **Local Map: Tile panel collapse:** Added a chevron on the Local Map **Tile** panel to collapse it to a slim strip (widening the map). State persists.
+
+### Changed
+
+- **Objective / story presentation:** Key objective-completion popups now include explicit **Objective completed / Rewards / New objective** outcome sections where appropriate.
+- **Idle warnings:** Campsite `!` indicators now trigger at **1+ idle** survivors/crew (instead of 2+).
+- **Beyond the Perimeter progression:** “Investigate Distant Smoke” is now a **tile-bound** action on **J2**, with a fog-visible `!` marker until completed.
+- **Perimeter route unlock:** When the distant smoke story triggers, a corridor of tiles is unblocked to allow reaching J2 (C4 → J2 path).
+- **Base camp UX:** After Workbench, base camp tile actions are simplified and include a **Visit camp** utility button.
+- **Crafting proximity rule:** Crafting actions are shown in Campsite but can only be started while standing on **Base Camp (B7)**.
+
+### Fixed
+
+- **Base camp improvement popup:** “Improve base camp” now reliably lists the completed objective and its rewards in the story popup footer.
+- **Visit camp tooltip:** Fixed tooltip rendering for the Visit camp button.
+
+---
+
 # [0.2.3] - 2026-01-23
 
 ### Added
@@ -59,7 +85,7 @@
 - **Character Section (v1):** New main menu section with Equipment, Inventory, and Stats panels.
 - **Inventory Interactions:** Drag-and-drop between bag and equipment, plus double-click quick equip/unequip.
 - **Item Tooltips (Character):** Item tooltips on Character equipment/bag slots showing slot + stat modifiers.
-- **Crew Management Reminder:** Yellow `!` badge on the Crew Management menu button when there are idle survivors/crew to assign.
+- **Campsite Reminder:** Yellow `!` badge on the Campsite tab when there are idle survivors/crew to assign.
 
 ### Changed
 
@@ -285,7 +311,7 @@
 - In-game time-based decays for Morale sources:
     - Crashlanded: −50% decays linearly to 0 over 7 in-game days; auto-clears when fully decayed.
     - Base Camp Established: +10% decays linearly to 0 over 7 in-game days after establishment.
-- Crew Management job tooltips now include a unified Modifiers section (Morale + relevant upgrade effects).
+- Campsite job tooltips now include a unified Modifiers section (Morale + relevant upgrade effects).
 
 ## Changed
 

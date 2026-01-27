@@ -27,6 +27,11 @@
     min-height: 0;
 }
 
+.localmap-layout.is-tile-collapsed {
+    /* Shrink the Tile panel column so the map widens */
+    grid-template-columns: minmax(0, 1fr) 44px;
+}
+
 .localmap-mapwrap {
     grid-area: map;
     display: flex;
@@ -42,6 +47,79 @@
     align-items: stretch;
     justify-content: stretch;
     min-height: 0;
+    position: relative;
+}
+
+.localmap-infowrap.is-collapsed .localmap-card-body {
+    display: none;
+}
+
+.localmap-infowrap.is-collapsed .localmap-card {
+    padding: 10px 6px;
+}
+
+.localmap-infowrap.is-collapsed .localmap-card-header h3 {
+    display: none;
+}
+
+.localmap-infowrap.is-collapsed::before {
+    content: 'Tile';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center;
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.95);
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow:
+        0 0 2px rgba(0,0,0,0.85),
+        0 0 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
+}
+
+.localmap-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.localmap-info-collapse-btn {
+    border: 0;
+    background: transparent;
+    padding: 6px;
+    margin: -6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.localmap-info-collapse-btn .chevrons-icon {
+    width: 22px;
+    height: 16px;
+    stroke: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.95);
+    stroke-width: 2.5;
+    fill: none;
+    filter: drop-shadow(0 0 3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7));
+    transform-origin: 50% 50%;
+    transition: transform 140ms ease, filter 140ms ease;
+    /* Default: chevron points right */
+    transform: rotate(90deg);
+}
+
+.localmap-info-collapse-btn:hover .chevrons-icon,
+.localmap-info-collapse-btn:focus .chevrons-icon,
+.localmap-info-collapse-btn:focus-visible .chevrons-icon {
+    filter: drop-shadow(0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9));
+}
+
+.localmap-infowrap.is-collapsed .localmap-info-collapse-btn .chevrons-icon {
+    /* When collapsed, point left to indicate expand */
+    transform: rotate(-90deg);
 }
 
 .localmap-card {
@@ -66,6 +144,29 @@
     align-items: center;
     justify-content: flex-start;
     z-index: 4;
+    pointer-events: none;
+}
+
+/* Centered warning badge for important local-map alert tiles ("!") */
+.localmap-tile .localmap-tile-alert {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1;
+    color: #111;
+    background: #ffd84a;
+    box-shadow:
+        0 0 6px rgba(255, 216, 74, 0.85),
+        0 0 10px rgba(255, 216, 74, 0.45);
+    z-index: 5;
     pointer-events: none;
 }
 
@@ -518,6 +619,34 @@
 
 .localmap-tile.is-player.is-just-moved::after {
     animation: localmapPlayerMovePulse 650ms ease-out 1;
+}
+
+@keyframes localmapBurnFlicker {
+    0%   { opacity: 0.00; transform: translate(-50%, -52%) scale(0.96); filter: blur(0.0px); }
+    10%  { opacity: 0.90; transform: translate(-50%, -50%) scale(1.02); filter: blur(0.2px); }
+    30%  { opacity: 0.55; transform: translate(-50%, -49%) scale(1.06); filter: blur(0.5px); }
+    55%  { opacity: 0.85; transform: translate(-50%, -51%) scale(1.03); filter: blur(0.3px); }
+    100% { opacity: 0.00; transform: translate(-50%, -50%) scale(1.08); filter: blur(1.0px); }
+}
+
+/* One-shot effect when a thorn wall is burned away */
+.localmap-burn-overlay {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 34px;
+    height: 34px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 6;
+    background:
+        radial-gradient(circle at 45% 55%, rgba(255, 226, 120, 0.95) 0%, rgba(255, 175, 60, 0.75) 22%, rgba(255, 96, 22, 0.45) 42%, rgba(0,0,0,0) 70%),
+        radial-gradient(circle at 60% 40%, rgba(255, 255, 255, 0.35) 0%, rgba(255, 216, 74, 0.25) 18%, rgba(0,0,0,0) 55%);
+    box-shadow:
+        0 0 14px rgba(255, 140, 40, 0.45),
+        0 0 26px rgba(255, 216, 74, 0.20);
+    animation: localmapBurnFlicker 1400ms ease-out 1;
 }
 
 .localmap-tile.is-move-from {

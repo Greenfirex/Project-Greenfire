@@ -1,8 +1,6 @@
 #crashSiteSection {
-    background-image: url('../../assets/images/crashbackground.png');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+    background: none;
+    position: relative;
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
@@ -11,6 +9,42 @@
     align-items: flex-start;
     padding: 20px;
     box-sizing: border-box;
+}
+
+/* Cross-fade backgrounds between Crash Site and Campsite */
+#crashSiteSection::before,
+#crashSiteSection::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    transition: opacity 240ms ease;
+    z-index: 0;
+}
+
+/* Default (Local map): crash background visible */
+#crashSiteSection::before {
+    background-image: url('../../assets/images/crashbackground.png');
+    opacity: 1;
+}
+
+/* Campsite background layer */
+#crashSiteSection::after {
+    background-image: url('../../assets/images/crewbackground.png');
+    opacity: 0;
+}
+
+/* When Campsite tab is active: fade to crew background */
+#crashSiteSection.is-campsite::before { opacity: 0; }
+#crashSiteSection.is-campsite::after { opacity: 1; }
+
+/* Ensure section content stays above the background layers */
+#crashSiteSection > * {
+    position: relative;
+    z-index: 2;
 }
 
 /* --- Crash Site Tabs (mirrors Journal styling) --- */
@@ -81,24 +115,6 @@
     font-weight: 900;
     font-size: 12px;
     box-shadow: 0 0 0 2px rgba(0,0,0,0.35);
-}
-
-/* Campsite layout (3 cards + actions list below) */
-.campsite-layout {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-    align-items: stretch;
-}
-
-.campsite-actions {
-    margin-top: 14px;
-}
-
-@media (max-width: 980px) {
-    .campsite-layout {
-        grid-template-columns: 1fr;
-    }
 }
 
 #crashSiteSection > .content-panel.crashsite-panel {

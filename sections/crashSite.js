@@ -20,10 +20,7 @@ import { getBlockedStatus, evaluateEventUnlocks } from '../data/unlockRules.js';
 import { showCombatPopup } from '../ui/panels/combatPopup.js';
 import { characterState, grantItemToCharacter } from '../data/character.js';
 import { getItemDefinition } from '../data/definitions/items.js';
-import { setupCrewManagementSection, updateCrewSection } from './crewManagement.js';
-
-
-const SITE_BUILDING_NAMES = ['Foraging Camp', 'Water Station', 'Rain Tarp', 'Food Larder', 'Water Reservoir'];
+import { getCampsitePaneHtml, wireCampsiteCollapsibles, renderCampsitePanels, applyCampsiteBackground } from './campsite.js';
 
 // Travel-dot animation duration in the local map renderer (keep in sync with crashSiteLocalMap.js).
 const LOCALMAP_TRAVEL_ANIM_MS = 320;
@@ -555,25 +552,15 @@ export function setupCrashSiteSection(section) {
                     <div id="crashSiteLocalMapContainer"></div>
                 </div>
                 <div id="campsitePane" class="crashsite-pane ${activeTab === 'camp' ? 'active' : ''}" role="tabpanel">
-                    <div class="campsite-layout">
-                        <div class="localmap-card campsite-card">
-                            <div class="localmap-card-header"><h3>Upgrades</h3></div>
-                            <div class="localmap-card-body" id="campsiteUpgrades"></div>
-                        </div>
-                        <div class="localmap-card campsite-card">
-                            <div class="localmap-card-header"><h3>Buildings</h3></div>
-                            <div class="localmap-card-body" id="campsiteBuildings"></div>
-                        </div>
-                        <div class="localmap-card campsite-card">
-                            <div class="localmap-card-header"><h3>Jobs</h3></div>
-                            <div class="localmap-card-body" id="campsiteJobs"></div>
-                        </div>
-                    </div>
-                    <div id="salvageActionsContainer" class="campsite-actions"></div>
+                    ${getCampsitePaneHtml({ isUnlocked: isCampsiteUnlocked })}
                 </div>
             </div>
         </div>
     `;
+
+    // Initial state: apply immediately.
+    try { applyCampsiteBackground(host, activeTab === 'camp'); } catch { /* ignore */ }
+    try { wireCampsiteCollapsibles(host); } catch { /* ignore */ }
 
     // Tab switching
     const tabs = Array.from(host.querySelectorAll('.crashsite-tab'));
@@ -589,6 +576,19 @@ export function setupCrashSiteSection(section) {
             wireClearUiNewBadge(campTab, { legacyObj: lm, legacyProp: 'campsiteTabUiNew', selector: '.action-new-badge' });
         }
     } catch { /* ignore */ }
+
+    const tooltipDataForActionWithContext = (action) => {
+        const out = tooltipDataForAction(action);
+        try {
+            // Contextual tooltip fix: Investigate Bridge stage 2 assumes emergency power is online.
+            // If the player hasn't restored power yet, show a "needs power" description instead.
+            const idx = Number.isFinite(action?.stage) ? action.stage : 0;
+            if (action && action.id === 'investigateBridge' && idx >= 1 && gameFlags?.emergencyPowerRestored !== true) {
+                out.description = 'Emergency power required: the bridge lift won\'t cycle. Restore Emergency Power to proceed.';
+            }
+        } catch { /* ignore */ }
+        return out;
+    };
 
     const renderLocalMapActions = () => {
         const actionsHost = host.querySelector('#crashSiteLocalMapActions');
@@ -655,7 +655,7 @@ export function setupCrashSiteSection(section) {
             if (typeof tooltipOverride === 'function') {
                 setupTooltip(btn, tooltipOverride);
             } else {
-                setupTooltip(btn, () => tooltipDataForAction(actionDef));
+                setupTooltip(btn, () => tooltipDataForActionWithContext(actionDef));
             }
 
             if (typeof onClick === 'function') {
@@ -745,6 +745,8 @@ export function setupCrashSiteSection(section) {
 
         const isFinished = (a) => {
             if (!a) return false;
+            // Repeatables should never be considered "finished".
+            if (a.repeatable === true) return false;
             if (a.completed === true) return true;
             const idx = Number(a.stage || 0);
             const total = Array.isArray(a.stages) ? a.stages.length : 0;
@@ -793,6 +795,12 @@ export function setupCrashSiteSection(section) {
 
             // F6 (6,6)
             '6,6': ['collectFabric'],
+
+            // H6 (8,6) - bridge: salvage comms components after lift access
+            '8,6': ['scavengeCommsPanel'],
+
+            // J2 (10,2) - distant smoke investigation
+            '10,2': ['investigateDistantSmoke'],
         };
 
         const renderSelectedTileActions = () => {
@@ -803,7 +811,31 @@ export function setupCrashSiteSection(section) {
                 const isBaseCamp = (selX === 2 && selY === 7);
                 const established = !!(lm && lm.baseCampEstablished === true);
                 if (isBaseCamp && established) {
-                    ids = ['rest', 'createBasicTorch', 'craftMetalSpear', 'makeCrudePrybar'];
+                    const wb = salvageActions.find(a => a && a.id === 'workbench');
+                    const wbDone = !!(wb && (wb.completed === true || (Array.isArray(wb.stages) && (wb.stage || 0) >= wb.stages.length)));
+
+                    if (!wbDone) {
+                        // Before the Workbench is built, keep the traditional base-camp tile actions.
+                        ids = ['rest', 'createBasicTorch', 'craftMetalSpear', 'makeCrudePrybar'];
+                        try {
+                            const fix = salvageActions.find(a => a && a.id === 'fixLongRangeRadio');
+                            if (fix && fix.isUnlocked) ids = ids.concat(['fixLongRangeRadio']);
+                        } catch { /* ignore */ }
+                    } else {
+                        // After Workbench, crafting moves into Campsite -> Crafting, but Rest stays on the tile.
+                        ids = ['rest'];
+
+                        // Utility button: jump straight to the Campsite tab.
+                        mkUtilityButton({
+                            id: 'visitCamp',
+                            label: 'Visit camp',
+                            tooltipOverride: () => ({ id: 'visitCamp', name: 'Visit camp', description: 'Open the Campsite tab.' }),
+                            onClick: (e) => {
+                                e.preventDefault();
+                                try { setActive('camp'); } catch { /* ignore */ }
+                            }
+                        });
+                    }
                 }
             } catch { /* ignore */ }
             for (const id of ids) {
@@ -977,14 +1009,27 @@ export function setupCrashSiteSection(section) {
 
         const SHIP_TILE_ACTIONS = Object.assign({}, SHIP_JUNCTION_TILE_ACTIONS, SHIP_ROOM_TILE_ACTIONS);
 
+        const getShipTileActionIdFor = (x, y) => {
+            const key = coordKey(x, y);
+            if (key === '7,4') {
+                try {
+                    const core = salvageActions.find(a => a && a.id === 'searchPowerCore');
+                    if (core && core.isUnlocked && !isFinished(core)) return 'searchPowerCore';
+                    const restore = salvageActions.find(a => a && a.id === 'restoreEmergencyPower');
+                    if (restore && restore.isUnlocked && !isFinished(restore)) return 'restoreEmergencyPower';
+                } catch { /* ignore */ }
+                return null;
+            }
+            return SHIP_TILE_ACTIONS[key] || null;
+        };
+
         const isShipTileWithActionGate = (x, y) => {
-            const k = coordKey(x, y);
-            return !!SHIP_TILE_ACTIONS[k];
+            return !!getShipTileActionIdFor(x, y);
         };
 
         const isShipTileActionIncompleteForTile = (x, y) => {
             try {
-                const actionId = SHIP_TILE_ACTIONS[coordKey(x, y)] || null;
+                const actionId = getShipTileActionIdFor(x, y) || null;
                 if (!actionId) return false;
                 const a = salvageActions.find(z => z && z.id === actionId);
                 if (!a) return false;
@@ -1002,8 +1047,7 @@ export function setupCrashSiteSection(section) {
                 const dy = Math.abs(selY - playerY);
                 const dist = dx + dy;
                 const isDiagonal = (dx === 1 && dy === 1);
-                const key = coordKey(selX, selY);
-                const actionId = SHIP_TILE_ACTIONS[key] || null;
+                const actionId = getShipTileActionIdFor(selX, selY) || null;
 
                 // Allow interaction if adjacent (original behavior) OR if the tile is explored.
                 const canShow = !!(actionId && (!isDiagonal && dist === 1 || selectedExplored));
@@ -1362,6 +1406,36 @@ export function setupCrashSiteSection(section) {
                         const py = Number.isFinite(lm.y) ? lm.y : 8;
                         const dist = Math.abs(tx - px) + Math.abs(ty - py);
 
+                        // Double-click on the current tile: Sit down.
+                        if (tx === px && ty === py) {
+                            try {
+                                const sit = salvageActions.find(a => a && a.id === 'sitDown');
+                                if (sit && sit.isUnlocked) {
+                                    const capReason = getCapacityBlockReason(sit);
+                                    if (capReason) {
+                                        addLogEntry(capReason, LogType.INFO);
+                                        return;
+                                    }
+                                    const block = getBlockedStatus(sit.id, { actions: salvageActions, flags: gameFlags, characterState });
+                                    if (block.blocked) {
+                                        addLogEntry(block.reason, LogType.INFO);
+                                        return;
+                                    }
+                                    const shortfalls = getAffordabilityShortfalls(sit, resources);
+                                    if (shortfalls.length > 0) {
+                                        addLogEntry(`Cannot start "${sit.name}": ${shortfalls.join('; ')}`, LogType.INFO);
+                                        return;
+                                    }
+
+                                    const actionForHandler = Object.assign({}, sit, { uiInstanceId: `localmap:${String(sit.id)}` });
+                                    startAction(actionForHandler, host);
+                                    try { renderLocalMap(); } catch { /* ignore */ }
+                                    return;
+                                }
+                            } catch { /* ignore */ }
+                            return;
+                        }
+
                         // If the tile is already explored, double-click should attempt a Traverse
                         // using pathfinding (can be more than one step).
                         const isExplored = (() => {
@@ -1434,7 +1508,22 @@ export function setupCrashSiteSection(section) {
                             '7,4': 'searchPowerCore',
                         };
                         const tKey = `${tx},${ty}`;
-                        const tileActionId = tileActions[tKey] || null;
+                        let tileActionId = tileActions[tKey] || null;
+                        if (tKey === '7,4') {
+                            try {
+                                const core = salvageActions.find(a => a && a.id === 'searchPowerCore');
+                                if (core && core.isUnlocked && !isFinished(core)) {
+                                    tileActionId = 'searchPowerCore';
+                                } else {
+                                    const restore = salvageActions.find(a => a && a.id === 'restoreEmergencyPower');
+                                    if (restore && restore.isUnlocked && !isFinished(restore)) {
+                                        tileActionId = 'restoreEmergencyPower';
+                                    } else {
+                                        tileActionId = null;
+                                    }
+                                }
+                            } catch { /* ignore */ }
+                        }
                         if (tileActionId) {
                             const a = salvageActions.find(x => x && x.id === tileActionId);
                             const canStart = !!(a && a.isUnlocked && !isFinished(a));
@@ -1522,6 +1611,9 @@ export function setupCrashSiteSection(section) {
         });
         if (panes.map) panes.map.classList.toggle('active', key === 'map');
         if (panes.camp) panes.camp.classList.toggle('active', key === 'camp');
+
+        // Background cross-fade is handled purely by CSS.
+        try { applyCampsiteBackground(host, key === 'camp'); } catch { /* ignore */ }
         try { localStorage.setItem('crashSiteActiveTab', key); } catch { /* ignore */ }
     };
     tabs.forEach(t => {
@@ -1568,12 +1660,24 @@ export function setupCrashSiteSection(section) {
         'investigateBridge',
 
         // Ship interior room actions (tile-bound)
+        'exploreCafeteria',
+        'checkCrewQuarters',
         'searchLabs',
         'searchPowerCore',
+        'restoreEmergencyPower',
+
+        // Radio repair flow
+        'scavengeCommsPanel',
+        'fixLongRangeRadio',
+
+        // Beyond the Perimeter
+        'investigateDistantSmoke',
 
         // Resource gathering should be local-map-only
         'forageFood',
         'collectChemicals',
+        'scavengeCafeteriaSupplies',
+        'collectFabric',
     ]);
 
     const availableActions = salvageActions.filter(action => {
@@ -1695,7 +1799,8 @@ export function setupCrashSiteSection(section) {
         }
 
     // register a dynamic tooltip provider so the tooltip always reflects the current stage
-    setupTooltip(btn, () => tooltipDataForAction(action));
+    // (and any context-dependent description overrides)
+    setupTooltip(btn, () => tooltipDataForActionWithContext(action));
 
         const canAfford = canAffordAction(action, resources);
         btn.classList.toggle('unaffordable', !canAfford);
@@ -1739,63 +1844,7 @@ export function setupCrashSiteSection(section) {
     });
 
     // Campsite panels (Upgrades / Buildings / Jobs)
-    try {
-        const lm = characterState?.localMap;
-        const isCampsiteUnlocked = !!(lm && lm.baseCampEstablished === true);
-        const upHost = host.querySelector('#campsiteUpgrades');
-        const bHost = host.querySelector('#campsiteBuildings');
-        const jHost = host.querySelector('#campsiteJobs');
-
-        if (isCampsiteUnlocked) {
-            if (upHost) upHost.innerHTML = '';
-            if (bHost) bHost.innerHTML = '';
-            if (jHost) jHost.innerHTML = '';
-
-            // Upgrades
-            try {
-                const uGroup = document.createElement('div');
-                uGroup.className = 'button-group';
-                const upgradeActions = availableActions.filter(a => a && a.category === 'Upgrade');
-                upgradeActions.forEach(action => createActionButton(action, uGroup));
-                if (upHost) upHost.appendChild(uGroup);
-            } catch { /* ignore */ }
-
-            // Buildings
-            try {
-                const colonyUnlocked =
-                    (gameFlags && Number(gameFlags.chapter) >= 2) ||
-                    (typeof window !== 'undefined' && window.activatedSections && window.activatedSections.colonySection);
-                const buildGroup = document.createElement('div');
-                buildGroup.className = 'button-group';
-                if (!colonyUnlocked) {
-                    const siteBuildings = buildings.filter(b => SITE_BUILDING_NAMES.includes(b.name) && b.isUnlocked === true);
-                    siteBuildings.forEach(bld => {
-                        const btn = createBuildingButton(bld, buildGroup);
-                        rehydrateBuildingButton(btn, bld.name);
-                    });
-                } else {
-                    const note = document.createElement('div');
-                    note.style.opacity = '0.75';
-                    note.textContent = 'Construction moved to Colony.';
-                    buildGroup.appendChild(note);
-                }
-                if (typeof updateBuildingButtonsState === 'function') updateBuildingButtonsState();
-                if (bHost) bHost.appendChild(buildGroup);
-            } catch { /* ignore */ }
-
-            // Jobs
-            try {
-                if (jHost) {
-                    setupCrewManagementSection(jHost, { embedded: true });
-                    try { updateCrewSection(); } catch { /* ignore */ }
-                }
-            } catch { /* ignore */ }
-        } else {
-            if (upHost) upHost.innerHTML = '<div style="opacity:0.75">Establish a base camp to unlock this tab.</div>';
-            if (bHost) bHost.innerHTML = '<div style="opacity:0.75">Establish a base camp to unlock this tab.</div>';
-            if (jHost) jHost.innerHTML = '<div style="opacity:0.75">Establish a base camp to unlock this tab.</div>';
-        }
-    } catch { /* ignore */ }
+    try { renderCampsitePanels(host, { availableActions, createActionButton }); } catch { /* ignore */ }
 }
 
 // Start an action and set up UI/progress state
@@ -2226,8 +2275,14 @@ async function handleActionCompletion(section) {
 
     const original = salvageActions.find(a => a.id === completed.id || a.name === completed.name);
     if (original) {
-        original.completed = true;
-        const idx = original.stage || 0;
+        const idx = Number(original.stage || 0);
+        const total = Array.isArray(original.stages) ? original.stages.length : 0;
+        const willFullyCompleteNow = (total <= 0) ? true : ((idx + 1) >= total);
+
+        // Only treat multi-stage actions as completed once the final stage has finished.
+        // This is critical for ship-tile gated actions like Investigate Bridge / Search Power Core.
+        original.completed = !!(willFullyCompleteNow && !original.repeatable);
+
         const stage = (original.stages || [])[idx];
 
     // We'll defer showing any story popup until after we run completion handlers
@@ -2285,7 +2340,6 @@ async function handleActionCompletion(section) {
                 addLogEntry(stage.logText, LogType.STORY);
             }
 
-            const total = (original.stages || []).length;
             original.stage = Math.min(idx + 1, total);
             if (original.stage >= total) {
                 original.isUnlocked = !!original.repeatable;
@@ -2298,7 +2352,7 @@ async function handleActionCompletion(section) {
     const preUnlockedBuildings = new Set((typeof buildings !== 'undefined') ? buildings.filter(b => b.isUnlocked).map(b => b.name) : []);
 
     if (original && original.id === 'establishBaseCamp') {
-        try { outcome.unlocks.sections.push('Crew Management'); } catch (e) { /* ignore */ }
+        try { outcome.unlocks.sections.push('Campsite'); } catch (e) { /* ignore */ }
     }
 
     // Unlock Journal after the initial re-entry attempt, and surface it in the popup unlock list.

@@ -1,0 +1,177 @@
+/* Campsite tab (Crash Site -> Campsite) */
+
+/* Campsite layout (Jobs + Upgrades on top, Buildings below, actions list below) */
+.campsite-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+        "jobs upgrades"
+        "crafting crafting"
+        "buildings buildings";
+    gap: 12px;
+    align-items: stretch;
+}
+
+.campsite-card--jobs { grid-area: jobs; }
+.campsite-card--upgrades { grid-area: upgrades; }
+.campsite-card--buildings { grid-area: buildings; }
+.campsite-card--crafting { grid-area: crafting; }
+
+.campsite-card.is-hidden {
+    display: none;
+}
+
+.campsite-actions {
+    margin-top: 14px;
+}
+
+@media (max-width: 980px) {
+    .campsite-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "jobs"
+            "upgrades"
+            "crafting"
+            "buildings";
+        gap: 12px;
+    }
+}
+
+/* Campsite collapsible panels (chevron borrowed from Objectives styling) */
+.campsite-card .localmap-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.campsite-collapse-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 6px;
+    margin: -6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.campsite-collapse-btn .chevrons-icon {
+    width: 22px;
+    height: 16px;
+    stroke: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.95);
+    stroke-width: 2.5;
+    fill: none;
+    filter: drop-shadow(0 0 3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7));
+    transform-origin: 50% 50%;
+    transition: transform 140ms ease, filter 140ms ease;
+}
+
+.campsite-collapse-btn:hover .chevrons-icon,
+.campsite-collapse-btn:focus .chevrons-icon,
+.campsite-collapse-btn:focus-visible .chevrons-icon {
+    filter: drop-shadow(0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9));
+}
+
+.campsite-card.is-collapsed .campsite-collapse-btn .chevrons-icon {
+    transform: rotate(180deg);
+}
+
+.campsite-card.is-collapsed .localmap-card-body {
+    display: none;
+}
+
+/* Jobs table */
+.crew-jobs {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.crew-job {
+    display: grid;
+    grid-template-columns: 1fr 48px 120px 48px;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0);
+    border: 1px solid rgba(var(--glow-r),var(--glow-g),var(--glow-b),0.12);
+    box-shadow: 0 6px 18px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.04), inset 0 1px 0 rgba(255,255,255,0.02);
+    border-radius: 8px;
+    color: #EAEAEA;
+}
+
+.crew-job:not(.crew-header):not(.idle-row):hover {
+    box-shadow: 0 12px 30px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.crew-header {
+    font-size: 12px;
+    color: #cfcfcf;
+    background: transparent;
+    border: none;
+    padding: 4px 6px;
+    box-shadow: none;
+}
+
+.idle-row {
+    background: rgba(255,215,0,0.04);
+    color: #ffd700;
+    border-color: rgba(255,215,0,0.12);
+}
+
+.idle-row:hover {
+    background: rgba(255,215,0,0.06);
+}
+
+.idle-warning-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    border-radius: 999px;
+    background: rgba(255, 213, 74, 0.92);
+    color: rgba(0,0,0,0.92);
+    font-weight: 900;
+    font-size: 12px;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.35);
+    flex: 0 0 auto;
+}
+
+.arrow-button {
+    width: 36px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(0,0,0,0.45);
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 80ms ease, background 120ms ease;
+}
+.arrow-button:active { transform: translateY(1px); }
+.arrow-button[disabled] {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.job-count { text-align: center; font-weight: 600; color: #90EE90; }
+
+.job-name {
+    cursor: help;
+    user-select: none;
+    padding-right: 6px;
+}
+
+@media (max-width: 800px) {
+    .crew-job { grid-template-columns: 1fr 40px 120px 40px; }
+    .arrow-button { width: 32px; height: 26px; font-size: 16px; }
+}

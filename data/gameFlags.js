@@ -297,9 +297,17 @@ registerActionCompletionHandler('burnThornyWall', () => {
     try {
         if (characterState && characterState.localMap) {
             characterState.localMap.c5ThornWallBurned = true;
+            characterState.localMap.lastBurnAt = Date.now();
+            characterState.localMap.lastBurnX = 3;
+            characterState.localMap.lastBurnY = 5;
         }
         addLogEntry('You burn away the thorny wall, clearing a path.', LogType.INFO);
     } catch { /* ignore */ }
+
+    // Refresh Crash Site UI (including local map) so the burn effect appears immediately.
+    if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+        try { window.setupCrashSiteSection(); } catch { /* ignore */ }
+    }
 });
 
 // Investigate Nearby Sound (E5): unlock the base camp tile on the local map.
@@ -318,6 +326,21 @@ registerActionCompletionHandler('investigateSound', () => {
     } catch { /* ignore */ }
 
     // Refresh Crash Site UI (including local map) so the marker/unblock appears immediately.
+    if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+        try { window.setupCrashSiteSection(); } catch { /* ignore */ }
+    }
+});
+
+// Investigate Distant Smoke (J2): clear the always-visible map marker once completed.
+registerActionCompletionHandler('investigateDistantSmoke', () => {
+    try {
+        const st = characterState?.localMap;
+        if (st && typeof st === 'object') {
+            st.investigateDistantSmokeDone = true;
+        }
+    } catch { /* ignore */ }
+
+    // Refresh Crash Site UI (including local map) so the marker clears immediately.
     if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
         try { window.setupCrashSiteSection(); } catch { /* ignore */ }
     }
@@ -427,11 +450,35 @@ registerActionCompletionHandler('move', async () => {
                         }
                     } catch { /* ignore */ }
 
-                    // C6 (3,6): one-time story popup hinting at shelter to the west.
+                    // C6 (3,6): always hint about the thorn wall at C5 (once),
+                    // and only show the "Shelter" directional popup if the player hasn't been told yet.
                     try {
-                        if (st.x === 3 && st.y === 6 && !st.caveSpottedWest) {
+                        if (st.x === 3 && st.y === 6) {
+                            if (!st.c5ThornWallHintShown) {
+                                st.c5ThornWallHintShown = true;
+                                addLogEntry(
+                                    "To the north, a dense wall of thorns chokes the path at C5. It's too thick to push through — but it looks dry enough that a torch might burn it away.",
+                                    LogType.INFO
+                                );
+                            }
+
+                            if (!st.caveSpottedWest) {
+                                st.caveSpottedWest = true;
+                                const ev = storyEvents ? (storyEvents.caveSpottedWest || null) : null;
+                                if (ev) {
+                                    const { showStoryPopup } = await import('../ui/panels/popup.js');
+                                    showStoryPopup(ev, null);
+                                }
+                            }
+                        }
+                    } catch { /* ignore */ }
+
+                    // B7 (2,7): if the player reaches the camp area before C6,
+                    // show an alternate directional hint and enable the cave marker (B6).
+                    try {
+                        if (st.x === 2 && st.y === 7 && !st.caveSpottedWest) {
                             st.caveSpottedWest = true;
-                            const ev = storyEvents ? (storyEvents.caveSpottedWest || null) : null;
+                            const ev = storyEvents ? (storyEvents.caveSpottedNorth || null) : null;
                             if (ev) {
                                 const { showStoryPopup } = await import('../ui/panels/popup.js');
                                 showStoryPopup(ev, null);
@@ -582,13 +629,6 @@ registerActionCompletionHandler('move', async () => {
 
                             const { showStoryPopup } = await import('../ui/panels/popup.js');
                             const ev = storyEvents ? (storyEvents.shipInteriorJunction || null) : null;
-                            if (ev) {
-                                showStoryPopup(ev, null);
-                                try {
-                                    addLogEntry('The corridors branch ahead. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(ev, null) });
-                                } catch { /* ignore */ }
-                            }
-
                             const toUnlock = ['searchSouthCorridor', 'searchNorthCorridor', 'investigateBridge', 'investigateSound'];
                             for (const id of toUnlock) {
                                 const a = (salvageActions || []).find(x => x && (x.id === id || x.name === id));
@@ -600,6 +640,15 @@ registerActionCompletionHandler('move', async () => {
                                         addLogEntry(`${isUpgrade ? 'Upgrade available' : 'New action available'}: ${a.name}`, LogType.UNLOCK);
                                     }
                                 }
+                            }
+
+                            // Show the story popup with a consistent unlock listing (only the special "Investigate Nearby Sound" callout).
+                            const popupOutcome = { unlocks: { actions: ['investigateSound'] } };
+                            if (ev) {
+                                showStoryPopup(ev, popupOutcome);
+                                try {
+                                    addLogEntry('The corridors branch ahead. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(ev, popupOutcome) });
+                                } catch { /* ignore */ }
                             }
 
                             // Surface the new actions immediately in the Crash Site list.
@@ -736,7 +785,7 @@ registerActionCompletionHandler('installRainCatchers', () => {
 });
 
 registerActionCompletionHandler('establishBaseCamp', () => {
-    // Crew management is now embedded under the Crash Site -> Campsite tab.
+    // Campsite jobs are embedded under the Crash Site -> Campsite tab.
 
     const toUnlock = ['Foraging Camp', 'Water Station'];
     buildings.forEach(b => {
@@ -755,10 +804,10 @@ registerActionCompletionHandler('establishBaseCamp', () => {
             // some code paths expect a numeric slots value — use Infinity to denote unlimited
             scrapJob.slots = Number.POSITIVE_INFINITY;
             addLogEntry('New job unlocked: Scrap Collector (unlimited assignments)', LogType.UNLOCK);
-            // refresh crew UI where possible (avoid direct imports to prevent cycles)
+            // refresh Campsite jobs UI where possible (avoid direct imports to prevent cycles)
             if (typeof window !== 'undefined') {
-                if (typeof window.updateCrewSection === 'function') try { window.updateCrewSection(); } catch (e) {}
-                if (typeof window.setupCrewManagementSection === 'function') try { window.setupCrewManagementSection(document.querySelector('#crewSection')); } catch (e) {}
+                if (typeof window.updateCampsiteJobsPanel === 'function') try { window.updateCampsiteJobsPanel(); } catch (e) {}
+                if (typeof window.updateCampsiteIdleWarnings === 'function') try { window.updateCampsiteIdleWarnings(); } catch (e) {}
             }
         }
     } catch (e) { /* non-fatal */ }
@@ -807,7 +856,21 @@ registerActionCompletionHandler('establishBaseCamp', () => {
         const wireUpgrade = (upgradeActions || []).find(a => a && a.id === 'organizeWireScavenging');
         if (wireUpgrade && !wireUpgrade.isUnlocked) {
             wireUpgrade.isUnlocked = true;
+            wireUpgrade.uiNew = true;
             addLogEntry('Upgrade available: Organize Wire Scavenging', LogType.UNLOCK);
+            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                try { window.setupCrashSiteSection(); } catch (e) {}
+            }
+        }
+    } catch (e) { /* ignore */ }
+
+    // Unlock Workbench upgrade at Base Camp (enables Campsite -> Crafting panel)
+    try {
+        const wb = (upgradeActions || []).find(a => a && a.id === 'workbench');
+        if (wb && !wb.isUnlocked) {
+            wb.isUnlocked = true;
+            wb.uiNew = true;
+            addLogEntry('Upgrade available: Workbench', LogType.UNLOCK);
             if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
                 try { window.setupCrashSiteSection(); } catch (e) {}
             }
@@ -831,7 +894,8 @@ registerActionCompletionHandler('installPurificationUnit', () => {
         try {
             // update resource rows and related UI
             if (typeof window.updateResourceInfo === 'function') try { window.updateResourceInfo(); } catch (e) {}
-            if (typeof window.updateCrewSection === 'function') try { window.updateCrewSection(); } catch (e) {}
+            if (typeof window.updateCampsiteJobsPanel === 'function') try { window.updateCampsiteJobsPanel(); } catch (e) {}
+            if (typeof window.updateCampsiteIdleWarnings === 'function') try { window.updateCampsiteIdleWarnings(); } catch (e) {}
             if (typeof window.updateBuildingButtonsState === 'function') try { window.updateBuildingButtonsState(); } catch (e) {}
             if (typeof window.updateCrashSiteActionButtonsState === 'function') try { window.updateCrashSiteActionButtonsState(); } catch (e) {}
             if (typeof window.setupCrashSiteSection === 'function') try { window.setupCrashSiteSection(document.querySelector('.content-panel')); } catch (e) {}
@@ -839,6 +903,21 @@ registerActionCompletionHandler('installPurificationUnit', () => {
             try { window.dispatchEvent(new CustomEvent('gameFlagsChanged', { detail: { flag: 'purificationUnitInstalled' } })); } catch (e) {}
         } catch (e) { /* ignore non-fatal UI errors */ }
     }
+});
+
+// Workbench completion handler (enables Campsite -> Crafting panel)
+registerActionCompletionHandler('workbench', () => {
+    try {
+        if (characterState && characterState.localMap) {
+            // Nudge the Campsite tab badge so the player notices the new panel.
+            characterState.localMap.campsiteTabUiNew = true;
+        }
+    } catch { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+            window.setupCrashSiteSection(document.querySelector('.content-panel'));
+        }
+    } catch { /* ignore */ }
 });
 
 // Emergency power restore handler
@@ -912,11 +991,11 @@ registerActionCompletionHandler('checkCaptainsQuarters', () => {
             window.updateResourceInfo();
         }
         
-        // Re-render Crew Management section to update labels for Chapter 2
+        // Refresh Campsite jobs labels for Chapter 2
         try {
-            const crewSection = document.querySelector('#crewManagementSection');
-            if (crewSection && typeof window !== 'undefined' && typeof window.setupCrewManagementSection === 'function') {
-                window.setupCrewManagementSection(crewSection);
+            if (typeof window !== 'undefined') {
+                if (typeof window.updateCampsiteJobsPanel === 'function') window.updateCampsiteJobsPanel();
+                if (typeof window.updateCampsiteIdleWarnings === 'function') window.updateCampsiteIdleWarnings();
             }
         } catch (e) { /* ignore */ }
     } catch (e) { /* ignore */ }
@@ -928,7 +1007,8 @@ registerActionCompletionHandler('installScavengerKit', () => {
     addLogEntry('Scavenger Kit installed — Scrap Collector job +20%.', LogType.UNLOCK);
     if (typeof window !== 'undefined') {
         try {
-            if (typeof window.updateCrewSection === 'function') try { window.updateCrewSection(); } catch (e) {}
+            if (typeof window.updateCampsiteJobsPanel === 'function') try { window.updateCampsiteJobsPanel(); } catch (e) {}
+            if (typeof window.updateCampsiteIdleWarnings === 'function') try { window.updateCampsiteIdleWarnings(); } catch (e) {}
             if (typeof window.updateResourceInfo === 'function') try { window.updateResourceInfo(); } catch (e) {}
         } catch (e) { /* ignore */ }
     }
@@ -945,17 +1025,18 @@ registerActionCompletionHandler('organizeWireScavenging', () => {
             wireJob.unlimited = true;
             wireJob.slots = Number.POSITIVE_INFINITY;
             addLogEntry('New job unlocked: Wire Collector', LogType.UNLOCK);
-            // Refresh crew UI
+            // Refresh Campsite jobs UI
             if (typeof window !== 'undefined') {
-                if (typeof window.updateCrewSection === 'function') try { window.updateCrewSection(); } catch (e) {}
-                if (typeof window.setupCrewManagementSection === 'function') try { window.setupCrewManagementSection(document.querySelector('#crewSection')); } catch (e) {}
+                if (typeof window.updateCampsiteJobsPanel === 'function') try { window.updateCampsiteJobsPanel(); } catch (e) {}
+                if (typeof window.updateCampsiteIdleWarnings === 'function') try { window.updateCampsiteIdleWarnings(); } catch (e) {}
             }
         }
     } catch (e) { /* non-fatal */ }
     
     if (typeof window !== 'undefined') {
         try {
-            if (typeof window.updateCrewSection === 'function') try { window.updateCrewSection(); } catch (e) {}
+            if (typeof window.updateCampsiteJobsPanel === 'function') try { window.updateCampsiteJobsPanel(); } catch (e) {}
+            if (typeof window.updateCampsiteIdleWarnings === 'function') try { window.updateCampsiteIdleWarnings(); } catch (e) {}
             if (typeof window.updateResourceInfo === 'function') try { window.updateResourceInfo(); } catch (e) {}
         } catch (e) { /* ignore */ }
     }
@@ -968,7 +1049,8 @@ registerActionCompletionHandler('lightCampfire', () => {
     if (typeof window !== 'undefined') {
         try {
             if (typeof window.updateResourceInfo === 'function') try { window.updateResourceInfo(); } catch (e) {}
-            if (typeof window.updateCrewSection === 'function') try { window.updateCrewSection(); } catch (e) {}
+            if (typeof window.updateCampsiteJobsPanel === 'function') try { window.updateCampsiteJobsPanel(); } catch (e) {}
+            if (typeof window.updateCampsiteIdleWarnings === 'function') try { window.updateCampsiteIdleWarnings(); } catch (e) {}
         } catch (e) { /* ignore */ }
     }
 });

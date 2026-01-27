@@ -776,9 +776,13 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
     const tileMeta = (c, r) => getLocalMapTileAt(c, r, { scoutStage: stage, hasTriedReentry, localMapState: state });
 
+    const tilePanelCollapsed = (() => {
+        try { return localStorage.getItem('localMapTilePanelCollapsed') === 'true'; } catch { return false; }
+    })();
+
     container.innerHTML = `
         <div class="localmap-root">
-            <div class="localmap-layout">
+            <div class="localmap-layout ${tilePanelCollapsed ? 'is-tile-collapsed' : ''}">
                 <div class="localmap-mapwrap">
                     <div class="localmap-shell" style="--cols:${COLS}; --rows:${ROWS}; --zoom:${zoom}; --pan-x:${panX}px; --pan-y:${panY}px;">
                         <div class="localmap-corner" aria-hidden="true"></div>
@@ -803,9 +807,17 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                         </div>
                     </div>
                 </div>
-                <div class="localmap-infowrap" aria-live="polite">
+                <div class="localmap-infowrap ${tilePanelCollapsed ? 'is-collapsed' : ''}" aria-live="polite">
                     <div class="localmap-card localmap-info-card">
-                        <div class="localmap-card-header"><h3>Tile</h3></div>
+                        <div class="localmap-card-header">
+                            <h3>Tile</h3>
+                            <button type="button" class="localmap-info-collapse-btn" aria-label="${tilePanelCollapsed ? 'Expand Tile panel' : 'Collapse Tile panel'}" aria-expanded="${tilePanelCollapsed ? 'false' : 'true'}">
+                                <svg class="chevrons-icon" width="22" height="16" viewBox="0 0 24 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                    <path d="M3 12 L12 3 L21 12" stroke-linecap="round" />
+                                    <path d="M3 18 L12 9 L21 18" stroke-linecap="round" />
+                                </svg>
+                            </button>
+                        </div>
                         <div class="localmap-card-body" id="localMapInfoBody"></div>
                     </div>
                 </div>
@@ -816,6 +828,22 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             </div>
         </div>
     `;
+
+    // Tile panel collapse toggle
+    try {
+        const btn = container.querySelector('.localmap-info-collapse-btn');
+        if (btn && btn.dataset.wired !== 'true') {
+            btn.dataset.wired = 'true';
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                try {
+                    const next = !(localStorage.getItem('localMapTilePanelCollapsed') === 'true');
+                    localStorage.setItem('localMapTilePanelCollapsed', next ? 'true' : 'false');
+                } catch { /* ignore */ }
+                setupCrashSiteLocalMap(container, { scoutStage, totalStages, state });
+            });
+        }
+    } catch { /* ignore */ }
 
     const grid = container.querySelector('.localmap-grid');
     if (!grid) return;
@@ -1077,6 +1105,22 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
         }
     })();
 
+    // Burning animation (lightweight): briefly flicker a fire/ember overlay on the target tile.
+    // Values are written by the Burn Thorny Wall action completion handler.
+    const burnAnim = (() => {
+        try {
+            const at = Number(state && typeof state === 'object' ? state.lastBurnAt : 0);
+            if (!Number.isFinite(at) || at <= 0) return null;
+            if ((Date.now() - at) > 1400) return null;
+            const x = Number(state.lastBurnX);
+            const y = Number(state.lastBurnY);
+            if (![x, y].every(Number.isFinite)) return null;
+            return { x, y };
+        } catch {
+            return null;
+        }
+    })();
+
     // Build tiles
     const tiles = document.createDocumentFragment();
     for (let r = 1; r <= ROWS; r++) {
@@ -1097,6 +1141,14 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
             const meta = tileMeta(c, r);
             tile.classList.toggle('is-blocked', !!meta.blocked);
+
+            if (burnAnim && c === burnAnim.x && r === burnAnim.y) {
+                tile.classList.add('is-just-burned');
+                const burn = document.createElement('div');
+                burn.className = 'localmap-burn-overlay';
+                burn.setAttribute('aria-hidden', 'true');
+                tile.appendChild(burn);
+            }
 
             // Special-case: the alternate access "door" at C5↔D5 sits behind an exterior hull wall,
             // so D5 is not visible until the hull is opened. Still show the door edge while standing adjacent.
@@ -1130,23 +1182,42 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
             const showMarkers = markers.length && (discovered || !!meta.markerAlwaysVisible);
             if (showMarkers) {
-                const markersHost = document.createElement('div');
-                markersHost.className = 'localmap-markers';
-                markersHost.setAttribute('aria-hidden', 'true');
+                const alertMarkers = markers.filter(m => {
+                    try { return String(m?.kind || '') === 'alert'; } catch { return false; }
+                });
+                const cornerMarkers = markers.filter(m => {
+                    try { return String(m?.kind || '') !== 'alert'; } catch { return true; }
+                });
 
-                for (const m of markers) {
-                    const kind = (m && m.kind) ? String(m.kind) : 'alert';
-                    const marker = document.createElement('div');
-                    marker.className = `localmap-marker localmap-marker--${kind}`;
-                    marker.textContent = (m && m.text !== null && m.text !== undefined) ? String(m.text) : '';
-                    markersHost.appendChild(marker);
+                // Centered tile warning (matches the food/water depletion warning badge styling).
+                if (alertMarkers.length) {
+                    const alert = document.createElement('div');
+                    alert.className = 'localmap-tile-alert';
+                    alert.setAttribute('aria-hidden', 'true');
+                    alert.textContent = '!';
+                    tile.appendChild(alert);
+                }
+
+                // Corner icons for other markers (rest, berries, water, etc.)
+                if (cornerMarkers.length) {
+                    const markersHost = document.createElement('div');
+                    markersHost.className = 'localmap-markers';
+                    markersHost.setAttribute('aria-hidden', 'true');
+
+                    for (const m of cornerMarkers) {
+                        const kind = (m && m.kind) ? String(m.kind) : 'alert';
+                        const marker = document.createElement('div');
+                        marker.className = `localmap-marker localmap-marker--${kind}`;
+                        marker.textContent = (m && m.text !== null && m.text !== undefined) ? String(m.text) : '';
+                        markersHost.appendChild(marker);
+                    }
+
+                    tile.appendChild(markersHost);
                 }
 
                 if (meta.markerAlwaysVisible) {
                     tile.classList.add('has-always-marker');
                 }
-
-                tile.appendChild(markersHost);
             }
 
             // Non-crash POI points (e.g., established Base Camp)

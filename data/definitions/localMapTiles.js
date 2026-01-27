@@ -156,6 +156,9 @@ export const WATER_TILE = { x: 8, y: 8 };     // H8
 // Base camp tile (locked until Investigate Nearby Sound completes)
 export const BASE_CAMP_TILE = { x: 2, y: 7 }; // B7
 
+// Distant smoke investigation tile (Beyond the Perimeter)
+export const DISTANT_SMOKE_TILE = { x: 10, y: 2 }; // J2
+
 // Ship interior hint tiles (revealed after first stepping on E5)
 export const SHIP_INTERIOR_HINT_TILES = [
     { x: 5, y: 4 }, // E4
@@ -163,6 +166,29 @@ export const SHIP_INTERIOR_HINT_TILES = [
     { x: 5, y: 6 }, // E6
     { x: 6, y: 5 }, // F5
 ];
+
+// Tiles that become traversable once the Chapter II perimeter route is unlocked.
+// This is intentionally explicit so it can carve a path through otherwise-blocked regions.
+const PERIMETER_ROUTE_TILES = new Set([
+    // C4, C3, B3, B2, C2, C1, D1, D2, E1, F1, G1, H1, H2, I1, I2, J1, J2
+    '3,4',
+    '3,3',
+    '2,3',
+    '2,2',
+    '3,2',
+    '3,1',
+    '4,1',
+    '4,2',
+    '5,1',
+    '6,1',
+    '7,1',
+    '8,1',
+    '8,2',
+    '9,1',
+    '9,2',
+    '10,1',
+    '10,2',
+]);
 
 function edgeKey(ax, ay, bx, by) {
     const a = `${Number(ax)},${Number(ay)}`;
@@ -309,7 +335,7 @@ const OVERRIDES = {
     '8,8': { type: 'waterSource' },
 
     // Base camp area (B7) once established
-    '2,7': { type: 'clearing' },
+    '2,7': { type: 'clearing', description: 'This looks like a nice place to set up a camp.' },
 
     // C5 thorn wall (cleared later)
     '3,5': { type: 'thornWall' },
@@ -318,6 +344,16 @@ const OVERRIDES = {
 function getMarkersForCell(col, row, localMapState) {
     const c = Number(col);
     const r = Number(row);
+
+    // Beyond the Perimeter: once the route is unlocked, guide the player to J2.
+    // Keep this visible even under fog until the action is completed.
+    try {
+        const routeUnlocked = !!(localMapState && typeof localMapState === 'object' && localMapState.perimeterRouteUnlocked === true);
+        const smokeDone = !!(localMapState && typeof localMapState === 'object' && localMapState.investigateDistantSmokeDone === true);
+        if (routeUnlocked && !smokeDone && c === DISTANT_SMOKE_TILE.x && r === DISTANT_SMOKE_TILE.y) {
+            return [{ kind: 'alert', text: null, alwaysVisible: true }];
+        }
+    } catch { /* ignore */ }
 
     // Early-game onboarding: at game start, only show the ship-entrance pointer.
     // After re-entry has been attempted, reveal the other important pointers.
@@ -328,7 +364,13 @@ function getMarkersForCell(col, row, localMapState) {
             (c === BERRIES_TILE.x && r === BERRIES_TILE.y) ||
             (c === WATER_TILE.x && r === WATER_TILE.y)
         ) {
-            return [];
+            // Special-case: once the player is told about the cave to the west,
+            // allow the cave marker to appear even before re-entry is attempted.
+            if (c === CAVE_TILE.x && r === CAVE_TILE.y && localMapState && localMapState.caveSpottedWest === true) {
+                // Continue into the normal marker rules below.
+            } else {
+                return [];
+            }
         }
     }
 
@@ -342,11 +384,11 @@ function getMarkersForCell(col, row, localMapState) {
                     // (Unlike other hint tiles, this should remain visible even after the tile is visited.)
                     if (c === 5 && r === 5) {
                         if (localMapState.investigateSoundDone === true) return null;
-                        return [{ kind: 'alert', text: '!', alwaysVisible: true }];
+                        return [{ kind: 'alert', text: null, alwaysVisible: true }];
                     }
                     const key = `${t.x},${t.y}`;
                     const visited = !!(localMapState.visited && typeof localMapState.visited === 'object' && localMapState.visited[key] === true);
-                    if (!visited) return [{ kind: 'alert', text: '!' }];
+                    if (!visited) return [{ kind: 'alert', text: null }];
                     return [];
                 }
             }
@@ -362,7 +404,7 @@ function getMarkersForCell(col, row, localMapState) {
         const discovered = !!(localMapState && localMapState.discoveredBaseCamp === true);
         if (established) return [{ kind: 'camp', text: '⛺', alwaysVisible: true }];
         if (discovered) return [{ kind: 'camp', text: '⛺' }];
-        return [{ kind: 'alert', text: '!', alwaysVisible: true }];
+        return [{ kind: 'alert', text: null, alwaysVisible: true }];
     }
 
     // Cafeteria (D6): once reached, show food + water markers.
@@ -376,31 +418,38 @@ function getMarkersForCell(col, row, localMapState) {
     // Alternate access tile (D5): marker disappears once the hull is opened.
     if (c === POI_SAFE_TILE.x && r === POI_SAFE_TILE.y) {
         if (localMapState && localMapState.d5HullOpened === true) return [];
-        return [{ kind: 'alert', text: '!' }];
+        // Only show after the player has seen the "A Way In" story popup.
+        if (!(localMapState && localMapState.c5ShipOpeningSpotted === true)) return [];
+        // D5 can still be under fog (it's behind the hull edge), so keep this visible.
+        return [{ kind: 'alert', text: null, alwaysVisible: true }];
     }
 
     // Ship entrance: once re-entry has been attempted, the marker should disappear.
     if (c === SHIP_ENTRANCE.x && r === SHIP_ENTRANCE.y) {
         if (localMapState && localMapState.hasTriedReentry) return [];
-        return [{ kind: 'alert', text: '!' }];
+        return [{ kind: 'alert', text: null }];
     }
 
     // Cave
     if (c === CAVE_TILE.x && r === CAVE_TILE.y) {
         if (localMapState && localMapState.discoveredCave) return [{ kind: 'cave', text: '🛏️' }, { kind: 'water', text: '💧' }];
-        return [{ kind: 'alert', text: '!' }];
+        // Show the "!" only after the player has seen the "A Shelter to the West" hint.
+        if (localMapState && localMapState.caveSpottedWest === true) {
+            return [{ kind: 'alert', text: null, alwaysVisible: true }];
+        }
+        return [];
     }
 
     // Berries / food
     if (c === BERRIES_TILE.x && r === BERRIES_TILE.y) {
         if (localMapState && localMapState.discoveredBerries) return [{ kind: 'berries', text: '🍓' }];
-        return [{ kind: 'alert', text: '!' }];
+        return [{ kind: 'alert', text: null }];
     }
 
     // Water source
     if (c === WATER_TILE.x && r === WATER_TILE.y) {
         if (localMapState && localMapState.discoveredRiver) return [{ kind: 'water', text: '💧' }];
-        return [{ kind: 'alert', text: '!' }];
+        return [{ kind: 'alert', text: null }];
     }
 
     // Laboratory: once chemicals harvesting is available, show a marker.
@@ -416,7 +465,7 @@ function getMarkersForCell(col, row, localMapState) {
     }
 
     // Default important marker
-    if (isImportantCell(c, r)) return [{ kind: 'alert', text: '!' }];
+    if (isImportantCell(c, r)) return [{ kind: 'alert', text: null }];
     return [];
 }
 
@@ -477,6 +526,19 @@ export function getLocalMapTileAt(col, row, { scoutStage = 0, hasTriedReentry = 
 
     const type = LOCAL_MAP_TILE_TYPES[typeId] || LOCAL_MAP_TILE_TYPES.forest;
 
+    // Allow per-cell description overrides without needing a new type.
+    // For base camp (B7), only use the override text before the camp is established.
+    let description = type.description;
+    try {
+        if (ov && typeof ov.description === 'string') {
+            const isB7 = (c === BASE_CAMP_TILE.x && r === BASE_CAMP_TILE.y);
+            const established = !!(localMapState && localMapState.baseCampEstablished === true);
+            if (!(isB7 && established)) {
+                description = ov.description;
+            }
+        }
+    } catch { /* ignore */ }
+
     const minScoutStage = (ov && Number.isFinite(ov.minScoutStage)) ? ov.minScoutStage : null;
     const lockedByStage = (typeof minScoutStage === 'number') ? (Number(scoutStage) < minScoutStage) : false;
 
@@ -508,14 +570,29 @@ export function getLocalMapTileAt(col, row, { scoutStage = 0, hasTriedReentry = 
         globallyAllowed = false;
     }
 
+    // Chapter II: unlock an explicit corridor to reach the distant smoke (J2).
+    // This intentionally overrides the early progression blocks above.
+    try {
+        const routeUnlocked = !!(localMapState && typeof localMapState === 'object' && localMapState.perimeterRouteUnlocked === true);
+        if (routeUnlocked && PERIMETER_ROUTE_TILES.has(key)) {
+            globallyAllowed = true;
+        }
+    } catch { /* ignore */ }
+
     // Explicitly allow special tiles even if they are not near the POI.
     if (c === 2 && r === 6) {
         globallyAllowed = true; // B6 cave
     }
 
-    // Base camp tile (B7) is unlocked later.
-    if (c === BASE_CAMP_TILE.x && r === BASE_CAMP_TILE.y) {
-        globallyAllowed = !!(localMapState && localMapState.b7Unlocked === true);
+    // Explicitly allow the western camp route tiles from the start.
+    // (Markers/unlocks can still be gated via localMapState flags.)
+    if (
+        (c === BASE_CAMP_TILE.x && r === BASE_CAMP_TILE.y) // B7
+        || (c === 2 && r === 8) // B8
+        || (c === 3 && r === 8) // C8
+        || (c === 4 && r === 8) // D8
+    ) {
+        globallyAllowed = true;
     }
 
     // Explicitly allow C5 even though it's in the normally-blocked top band.
@@ -540,7 +617,7 @@ export function getLocalMapTileAt(col, row, { scoutStage = 0, hasTriedReentry = 
         row: r,
         typeId: type.id,
         label: type.label,
-        description: type.description,
+        description,
         poiLabel: (ov && ov.poiLabel) ? ov.poiLabel : (type.poiLabel || null),
         blocked,
         important: isImportantCell(col, row),

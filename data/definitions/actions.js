@@ -364,7 +364,7 @@ const initialSalvageActions = [
                 // Tooltip-only: some unlocks are applied elsewhere in game code; expose them here
                 // for the tooltip so players can see what this action will ultimately enable.
                 // Use internal ids (job ids, building names/ids or section ids) or plain labels.
-                tooltipUnlocks: ['???', 'scrap_collector'],
+                tooltipUnlocks: ['campsiteSection', 'scrap_collector'],
                 hideRewardPreview: true,
                 stage: 0,
                 stages: [
@@ -437,6 +437,8 @@ const initialSalvageActions = [
                     encounter: 'maintenance_drone_south_corridor',
                     // completing south corridor should allow restoring emergency power
                     unlocks: ['exploreCafeteria', 'checkCrewQuarters'],
+                    // These follow-up actions are now map/tile-bound; don't list them in the story popup.
+                    showUnlocks: false,
                     logText: 'A damaged maintenance drone ambushes you in the south corridor. After the fight, you push through to a junction leading to the mess hall and crew quarters. (Click to read)',
                     suppressGenericLog: true
                 }
@@ -478,6 +480,8 @@ const initialSalvageActions = [
             duration: 6,
             category: 'Exploration',
             isUnlocked: false,
+            // Map-bound; suppress noisy generic unlock logs.
+            suppressUnlockLog: true,
             cancelable: true,
             drain: [
                 { resource: 'Stamina', amount: 16 }
@@ -536,6 +540,8 @@ const initialSalvageActions = [
             duration: 5,
             category: 'Exploration',
             isUnlocked: false,
+            // Map-bound; suppress noisy generic unlock logs.
+            suppressUnlockLog: true,
             cancelable: true,
             drain: [
                 { resource: 'Stamina', amount: 12 }
@@ -812,7 +818,9 @@ const initialSalvageActions = [
                     {
                         // Stage 2: Return after restoring emergency power (narrative follow-up)
                         story: 'bridge_after_power',
-                        unlocks: ['fixLongRangeRadio'],
+                        // Unlock the bridge comms salvage step; actual radio repair happens back at base camp.
+                        unlocks: ['scavengeCommsPanel'],
+                        showUnlocks: false,
                         description: 'Emergency power is online: the lift cycles, granting limited access to the bridge. You can ride up and assess the situation.',
                         drain: [
                             { resource: 'Stamina', amount: 25 },
@@ -820,6 +828,36 @@ const initialSalvageActions = [
                             { resource: 'Food Rations', amount: 7 }
                         ],
                         logText: 'You reach the command deck. The bridge is a tomb — everyone you find is gone, and most equipment is beyond saving. One gutted comms panel might be salvageable. Your only chance is to scavenge it and try to rewire it to your last power cell to hail Starfleet Command. (Click to read)',
+                        suppressGenericLog: true
+                    }
+                ]
+            },
+
+            {
+                id: 'scavengeCommsPanel',
+                name: 'Scavenge Comms Panel',
+                description: 'Salvage a damaged comms panel from the bridge — you can attempt a repair back at base camp.',
+                duration: 6,
+                category: 'Exploration',
+                isUnlocked: false,
+                // Tile-bound bridge action; suppress noisy generic unlock logs.
+                suppressUnlockLog: true,
+                showUnlocks: false,
+                cancelable: true,
+                hideRewardPreview: true,
+                drain: [
+                    { resource: 'Stamina', amount: 18 },
+                    { resource: 'Food Rations', amount: 4 },
+                    { resource: 'Clean Water', amount: 4 }
+                ],
+                reward: [],
+                stage: 0,
+                stages: [
+                    {
+                        story: null,
+                        unlocks: ['fixLongRangeRadio'],
+                        showUnlocks: false,
+                        logText: 'You salvage a comms panel and intact components from the bridge. With the right materials, you can attempt a repair back at base camp.',
                         suppressGenericLog: true
                     }
                 ]
@@ -905,6 +943,9 @@ const initialSalvageActions = [
                 duration: 12,
                 category: 'Exploration',
                 isUnlocked: false,
+                // Tile-bound (base camp) action; suppress noisy generic unlock logs.
+                suppressUnlockLog: true,
+                showUnlocks: false,
                 cancelable: true,
                 hideRewardPreview: true,
                 drain: [ { resource: 'Stamina', amount: 50 } ],

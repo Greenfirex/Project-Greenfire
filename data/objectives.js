@@ -102,6 +102,11 @@ function hasCompletedAction(id) {
     return false;
 }
 
+function hasCompletedObjective(id) {
+    const s = status.find(o => o && o.id === id);
+    return !!(s && s.state === 'completed');
+}
+
 function getResourceAmount(name) {
     const r = (resources || []).find(x => x.name === name);
     return r ? Number(r.amount) : 0;
@@ -339,22 +344,22 @@ const defs = [
         complete: () => {
             return hasCompletedAction('searchSouthCorridor') && 
                    hasCompletedAction('searchNorthCorridor') && 
-                   hasCompletedAction('investigateBridge') && 
                    hasCompletedAction('exploreCafeteria') && 
                    hasCompletedAction('checkCrewQuarters') &&
                    hasCompletedAction('searchLabs') &&
-                   hasCompletedAction('searchPowerCore');
+                   hasCompletedAction('searchPowerCore') &&
+                   hasCompletedAction('restoreEmergencyPower');
         },
         reward: [{ resource: 'XP', amount: 75 }],
         priority: 7,
         steps: () => {
             const southDone = hasCompletedAction('searchSouthCorridor');
             const northDone = hasCompletedAction('searchNorthCorridor');
-            const bridgeDone = hasCompletedAction('investigateBridge');
             const cafeteriaDone = hasCompletedAction('exploreCafeteria');
             const crewQuartersDone = hasCompletedAction('checkCrewQuarters');
             const labsDone = hasCompletedAction('searchLabs');
             const powerCoreDone = hasCompletedAction('searchPowerCore');
+            const powerRestoredDone = hasCompletedAction('restoreEmergencyPower');
             
             const steps = [];
             
@@ -375,33 +380,71 @@ const defs = [
                     { id: 'search_power_core', label: '  ↳ Search Power Core', done: powerCoreDone }
                 );
             }
-            
-            // Bridge
-            steps.push({ id: 'investigate_bridge', label: 'Investigate Bridge', done: bridgeDone });
+
+            // Spoiler-free: only reveal once the action is unlocked (after breaching the power core).
+            const restoreUnlocked = !!findAction('restoreEmergencyPower')?.isUnlocked;
+            if (restoreUnlocked) {
+                steps.push({ id: 'restore_emergency_power', label: 'Restore Emergency Power', done: powerRestoredDone });
+            }
             
             return steps;
         }
     },
     {
         id: 'obj_fix_radio',
-        label: 'Fix long-range radio',
-        // Radio repair requires Fabric; ensure players have explored Crew Quarters first
-        start: () => !!findAction('fixLongRangeRadio')?.isUnlocked && hasCompletedAction('checkCrewQuarters'),
+        label: 'Restore long-range communications',
+        narrative: () => [
+            "The ship’s emergency systems are stable, but you’re still cut off. No beacon. No long-range uplink. No rescue.",
+            "If there’s any chance of contacting Command — or even finding out what hit you — you’ll need to salvage working comms hardware from the bridge and rebuild a transmitter at camp.",
+            "Get up to the bridge, recover what you can, then return to base camp and make the repair stick."
+        ].join('\n\n'),
+        // Starts immediately after "Deeper Into the Wreck" is completed.
+        start: () => hasCompletedObjective('obj_explore_deeper'),
         complete: () => hasCompletedAction('fixLongRangeRadio'),
         reward: [{ resource: 'XP', amount: 60 }],
         priority: 11,
-        steps: () => [
-            { id: 'explore_crew_quarters', label: 'Explore crew quarters (Fabric)', done: hasCompletedAction('checkCrewQuarters') },
-            { id: 'gather_fabric', label: 'Gather Fabric (6)', done: hasResource('Fabric', 6), progress: `${Math.floor(getResourceAmount('Fabric'))}/6` },
-            { id: 'gather_wire', label: 'Gather Wire (25)', done: hasResource('Wire', 25), progress: `${Math.floor(getResourceAmount('Wire'))}/25` },
-            { id: 'gather_power_cells', label: 'Gather Power Cells (1)', done: hasResource('Power Cells', 1), progress: `${Math.floor(getResourceAmount('Power Cells'))}/1` },
-            { id: 'repair_radio', label: 'Perform radio repair', done: hasCompletedAction('fixLongRangeRadio') }
-        ]
+        steps: () => {
+            const steps = [];
+
+            // Step 1: ride the lift up (Investigate Bridge powered stage).
+            const liftDone = hasCompletedAction('investigateBridge');
+            steps.push({ id: 'reach_upper_deck', label: 'Get the bridge lift working and ride up', done: liftDone });
+            if (!liftDone) return steps;
+
+            // Step 2: reach the bridge tile (H6 = 8,6).
+            const visitedBridge = (() => {
+                try {
+                    const lm = characterState?.localMap;
+                    return !!(lm && lm.visited && typeof lm.visited === 'object' && lm.visited['8,6'] === true);
+                } catch { return false; }
+            })();
+            steps.push({ id: 'reach_bridge', label: 'Reach the bridge', done: visitedBridge });
+            if (!visitedBridge) return steps;
+
+            // Step 3: scavenge the comms panel.
+            const scavenged = hasCompletedAction('scavengeCommsPanel');
+            steps.push({ id: 'scavenge_comms', label: 'Scavenge a comms panel', done: scavenged });
+            if (!scavenged) return steps;
+
+            // Step 4: return to base camp (B7 = 2,7).
+            const atBaseCamp = Number(characterState?.localMap?.x) === 2 && Number(characterState?.localMap?.y) === 7;
+            steps.push({ id: 'return_base_camp', label: 'Return to base camp', done: atBaseCamp });
+            if (!atBaseCamp) return steps;
+
+            // Step 5: perform the repair.
+            steps.push({ id: 'repair_radio', label: 'Fix the long-range radio', done: hasCompletedAction('fixLongRangeRadio') });
+            return steps;
+        }
     },
     
     {
         id: 'obj_improve_base_camp',
         label: 'Improve base camp',
+        narrative: () => [
+            "A camp that merely survives will eventually fail.",
+            "You need better tools, safer shelter, and more efficient routines so the crew can recover between expeditions — and so you can keep pushing outward.",
+            "Install upgrades that make camp life stable and sustainable."
+        ].join('\n\n'),
         start: () => hasCompletedAction('fixLongRangeRadio'),
         complete: () => {
             const upgradeIds = ['installForagingTools', 'lightCampfire', 'installScavengerKit', 'salvageCookingEquipment', 'makeTents', 'insulateShelters', 'installRainCatchers', 'installPurificationUnit'];
@@ -430,6 +473,11 @@ const defs = [
     {
         id: 'obj_hoard_supplies',
         label: 'Stockpile resources',
+        narrative: () => [
+            "If something comes for the camp — weather, predators, or something worse — you can’t afford to be running on fumes.",
+            "Build a reserve. Food, clean water, and salvage stockpiles give you options when conditions turn against you.",
+            "Gather enough supplies to withstand a long stretch without easy scavenging."
+        ].join('\n\n'),
         // Activate after fixing long-range radio
         start: () => hasCompletedAction('fixLongRangeRadio'),
         complete: () => {
@@ -471,6 +519,11 @@ const defs = [
     {
         id: 'obj_investigate_smoke',
         label: 'Beyond the Perimeter',
+        narrative: () => [
+            "You’ve seen signs that you aren’t alone on this world.",
+            "A distant smoke column suggests activity — maybe survivors, maybe something else.",
+            "Secure what you’ve built, then push beyond the familiar routes and learn what’s out there."
+        ].join('\n\n'),
         start: () => {
             const s1 = status.find(o => o.id === 'obj_improve_base_camp');
             const s2 = status.find(o => o.id === 'obj_hoard_supplies');
@@ -507,6 +560,11 @@ const defs = [
     {
         id: 'obj_research_crystals',
         label: 'Research & Crystal analysis',
+        narrative: () => [
+            "Command’s message makes one thing clear: this isn’t a simple crash site anymore — it’s an unknown world with unknown risks.",
+            "Your scientist insists the scattered crystals aren’t just debris. If you can analyze them, you may learn how to survive here… or how to defend the camp.",
+            "Set up a field lab, complete the research, then build a workshop to turn knowledge into capability."
+        ].join('\n\n'),
         // Begin immediately after the distant smoke chain finishes (captain's quarters checked)
         start: () => {
             const smoke = status.find(o => o.id === 'obj_investigate_smoke');
@@ -647,12 +705,18 @@ export function recomputeObjectives() {
                         try {
                             const evt = storyEvents.stockpile_complete_smoke_sighting;
                             if (evt && typeof showStoryPopup === 'function') {
-                                const payload = unlockedName ? { unlocks: { actions: [unlockedName] } } : null;
-                                showStoryPopup(evt, payload);
+                                try {
+                                    const lm = characterState?.localMap;
+                                    if (lm && typeof lm === 'object') lm.perimeterRouteUnlocked = true;
+                                } catch { /* ignore */ }
+
+                                const smokeDef = getObjectiveDefinition('obj_investigate_smoke');
+                                const outcome = smokeDef ? { objectives: { newlyActive: [smokeDef] } } : null;
+                                showStoryPopup(evt, outcome);
                                 addLogEntry(
                                     'In the distance, a thin pillar of smoke catches your eye. (Click to read)',
                                     LogType.STORY,
-                                    { onClick: () => showStoryPopup(evt, payload) }
+                                    { onClick: () => showStoryPopup(evt, outcome) }
                                 );
                                 gameFlags.smokeSightingShown = true;
                             }
@@ -665,9 +729,29 @@ export function recomputeObjectives() {
                     try {
                         const evtBaseCamp = storyEvents.base_camp_improved;
                         if (evtBaseCamp && typeof showStoryPopup === 'function') {
-                            showStoryPopup(evtBaseCamp);
+                            const completed = [getObjectiveDefinition(def.id)].filter(Boolean);
+
+                            // If stockpiles are already complete, this completion will also unlock the smoke objective.
+                            // Surface that in the popup so it matches other objective-completion popups.
+                            const newlyActive = [];
+                            try {
+                                const stock = status.find(s => s && s.id === 'obj_hoard_supplies');
+                                const smokeState = status.find(s => s && s.id === 'obj_investigate_smoke');
+                                const wouldUnlockSmoke = !!(stock && stock.state === 'completed' && smokeState && smokeState.state === 'locked');
+                                if (wouldUnlockSmoke) {
+                                    const smokeDef = getObjectiveDefinition('obj_investigate_smoke');
+                                    if (smokeDef) newlyActive.push(smokeDef);
+                                }
+                            } catch { /* ignore */ }
+
+                            const outcome = {
+                                objectives: { completed, newlyActive },
+                                rewards: def.reward || []
+                            };
+
+                            showStoryPopup(evtBaseCamp, outcome);
                             addLogEntry('The base camp infrastructure is now fully integrated. (Click to read)', LogType.STORY, {
-                                onClick: () => showStoryPopup(evtBaseCamp)
+                                onClick: () => showStoryPopup(evtBaseCamp, outcome)
                             });
                         }
                     } catch {}
@@ -700,12 +784,18 @@ export function recomputeObjectives() {
                         try {
                             const evt = storyEvents.stockpile_complete_smoke_sighting;
                             if (evt && typeof showStoryPopup === 'function') {
-                                const payload = unlockedName ? { unlocks: { actions: [unlockedName] } } : null;
-                                showStoryPopup(evt, payload);
+                                try {
+                                    const lm = characterState?.localMap;
+                                    if (lm && typeof lm === 'object') lm.perimeterRouteUnlocked = true;
+                                } catch { /* ignore */ }
+
+                                const smokeDef = getObjectiveDefinition('obj_investigate_smoke');
+                                const outcome = smokeDef ? { objectives: { newlyActive: [smokeDef] } } : null;
+                                showStoryPopup(evt, outcome);
                                 addLogEntry(
                                     'In the distance, a thin pillar of smoke catches your eye. (Click to read)',
                                     LogType.STORY,
-                                    { onClick: () => showStoryPopup(evt, payload) }
+                                    { onClick: () => showStoryPopup(evt, outcome) }
                                 );
                                 gameFlags.smokeSightingShown = true;
                             }
@@ -746,7 +836,7 @@ export function recomputeObjectives() {
             const defSmoke = defs.find(d => d.id === 'obj_investigate_smoke');
             if (defSmoke && objSmoke && objSmoke.state === 'locked' && defSmoke.start && defSmoke.start()) {
                 upsertStatus('obj_investigate_smoke', 'active');
-                addLogEntry('New objective (fallback): Investigate distant smoke', LogType.UNLOCK);
+                addLogEntry('New objective (fallback): Beyond the Perimeter', LogType.UNLOCK);
                 didChange = true;
             }
         }

@@ -8,7 +8,7 @@ import { setupManufacturingSection } from '../sections/manufacturing.js';
 import { setupShipyardSection } from '../sections/shipyard.js';
 import { setupGalaxyMapSection } from '../sections/galaxyMap.js';
 import { setupCrashSiteSection, updateCrashSiteActionButtonsState } from '../sections/crashSite.js';
-import { setupCrewManagementSection, updateCrewSection } from '../sections/crewManagement.js';
+import { setupCampsiteJobsPanel, updateCampsiteJobsPanel, updateCampsiteIdleWarnings } from '../sections/campsite.js';
 import { setupJournalSection } from '../sections/journal.js';
 import { setupCharacterSection } from '../sections/character.js';
 import { setupEncryptedDriveSection } from '../sections/encryptedDrive.js';
@@ -215,7 +215,8 @@ function startGame() {
             // --- UI Updates (call your existing update functions) ---
             updateResourceInfo();
             updateSurvivalDebuffBadge();
-            updateCrewSection();
+            updateCampsiteIdleWarnings();
+            updateCampsiteJobsPanel();
             checkConditions();
             // Keep action buttons accurate as resources change (affordability/drains)
             if (typeof updateCrashSiteActionButtonsState === 'function') updateCrashSiteActionButtonsState();
@@ -302,7 +303,6 @@ function startGame() {
 export function getInitialActivatedSections() {
     return {
         crashSiteSection: true,
-        crewManagementSection: false,
         characterSection: true,
         journalSection: false,
         colonySection: false,
@@ -322,10 +322,6 @@ export function setActivatedSections(sections) {
         ...defaults,
         ...(sections && typeof sections === 'object' ? sections : {})
     };
-
-    // Crew Management is now embedded under Crash Site -> Campsite.
-    // Keep the standalone section disabled even if older saves enabled it.
-    next.crewManagementSection = false;
 
     if (!activatedSections || typeof activatedSections !== 'object') {
         // Extremely defensive: rehydrate to an object if something went wrong.
@@ -506,7 +502,9 @@ export function enableSection(sectionId) {
 // Reuse existing unlock path from anywhere (e.g., action handlers)
 if (typeof window !== 'undefined') {
     window.enableSection = enableSection;
-    window.setupCrewManagementSection = setupCrewManagementSection;
+    window.setupCampsiteJobsPanel = setupCampsiteJobsPanel;
+    window.updateCampsiteJobsPanel = updateCampsiteJobsPanel;
+    window.updateCampsiteIdleWarnings = updateCampsiteIdleWarnings;
     window.activatedSections = activatedSections;
     window.setActivatedSections = setActivatedSections;
     window.applyActivatedSections = applyActivatedSections;

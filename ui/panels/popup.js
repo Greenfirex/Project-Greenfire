@@ -202,7 +202,9 @@ export function showStoryPopup(event, outcome = null) {
         title: event.title || id || 'Untitled',
         time: Date.now(),
         ingameTime: (function(){ try { return getIngameTimeObject(); } catch (e) { return null; } })(),
-        text
+        text,
+        // Optional: store outcome so Journal re-open can reproduce the same footer.
+        outcome: outcome || null,
     };
     // Deduplicate using DOM/localStorage is not necessary — addJournalEntry will append.
     // To preserve previous de-dupe behavior, check existing entries in localStorage first.
