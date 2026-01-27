@@ -253,9 +253,7 @@ const initialSalvageActions = [
                         { resource: 'Clean Water', amount: 7 } 
                     ],
                 reward: [
-                    { resource: 'Metal Parts', amount: [9, 18] },
-                    // 20% chance to find 1 Wire
-                    { resource: 'Wire', amount: 1, chance: 0.2 }
+                    { resource: 'Metal Parts', amount: [7, 8] }
                 ]
             },
 
@@ -419,6 +417,8 @@ const initialSalvageActions = [
             duration: 12,
             category: 'Exploration',
             isUnlocked: false,
+            // This action is map-bound; suppress noisy generic "New action available" unlock logs.
+            suppressUnlockLog: true,
             // Spoiler-free: keep the "?" badge until the player discovers the encounter (retreat/lose).
             spoilerFreeEncounter: true,
             encounterDiscovered: false,
@@ -591,6 +591,8 @@ const initialSalvageActions = [
             duration: 15,
             category: 'Exploration',
             isUnlocked: false,
+            // This action is map-bound; suppress noisy generic "New action available" unlock logs.
+            suppressUnlockLog: true,
             showUnlocks: false,
             cancelable: true,
             drain: [
@@ -788,6 +790,8 @@ const initialSalvageActions = [
                 duration: 8,
                 category: 'Exploration',
                 isUnlocked: false,
+                // This action is map-bound; suppress noisy generic "New action available" unlock logs.
+                suppressUnlockLog: true,
                 cancelable: true,
                 hideRewardPreview: true,
                 stage: 0,

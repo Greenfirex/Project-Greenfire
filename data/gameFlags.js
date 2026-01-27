@@ -127,7 +127,60 @@ export async function runActionCompletionHandlers(original, completed, section) 
 
 // --- Crash Site / Local Map handlers ---
 
-function applyPendingActionMove(expectedActionId) {
+async function maybeHandleFirstStepIntoD5(st) {
+    try {
+        if (!st || typeof st !== 'object') return;
+
+        // D5 (4,5): first interior step-in story + unlock Strip Wiring.
+        const isD5 = (Number(st.x) === 4 && Number(st.y) === 5);
+        if (!isD5) return;
+        if (st.d5InteriorWiresShown) return;
+
+        st.d5InteriorWiresShown = true;
+
+        let didUnlockStrip = false;
+        let stripWiringName = 'Strip Wiring';
+        try {
+            const strip = (salvageActions || []).find(a => a && a.id === 'stripWiring');
+            if (strip && strip.name) stripWiringName = strip.name;
+            if (strip && !strip.isUnlocked) {
+                strip.isUnlocked = true;
+                strip.uiNew = true;
+                didUnlockStrip = true;
+                addLogEntry('New action available: Strip Wiring', LogType.UNLOCK);
+            }
+        } catch { /* ignore */ }
+
+        // One-time reward: find intact bundles and salvage them immediately.
+        // Also show this as a Rewards footer in the story popup.
+        let wireReward = 0;
+        try {
+            const wire = (resources || []).find(r => r && r.name === 'Wire');
+            if (wire) {
+                wireReward = 10;
+                const cur = Number(wire.amount) || 0;
+                const next = cur + wireReward;
+                const cap = Number(wire.capacity);
+                wire.amount = (Number.isFinite(cap) && cap > 0) ? Math.min(cap, next) : next;
+            }
+        } catch { wireReward = 0; }
+
+        const ev = storyEvents ? (storyEvents.shipInteriorWires || null) : null;
+        if (ev) {
+            const { showStoryPopup } = await import('../ui/panels/popup.js');
+            const out = {
+                unlocks: didUnlockStrip ? { actions: [stripWiringName] } : { actions: [] },
+                rewards: wireReward > 0 ? [{ resource: 'Wire', amount: wireReward }] : [],
+            };
+            showStoryPopup(ev, out);
+            try {
+                addLogEntry('The ship’s interior is shattered — but the wiring might be useful. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(ev, out) });
+            } catch { /* ignore */ }
+        }
+    } catch { /* ignore */ }
+}
+
+async function applyPendingActionMove(expectedActionId) {
     try {
         const st = characterState?.localMap;
         if (!st || typeof st !== 'object') return;
@@ -163,6 +216,9 @@ function applyPendingActionMove(expectedActionId) {
         } catch { /* ignore */ }
 
         delete st.pendingActionMove;
+
+        // Treat queued post-action moves like real movement for tile-trigger unlocks.
+        try { await maybeHandleFirstStepIntoD5(st); } catch { /* ignore */ }
 
         try {
             const letter = String.fromCharCode('A'.charCodeAt(0) + (toX - 1));
@@ -228,7 +284,7 @@ registerActionCompletionHandler('createBasicTorch', () => {
 });
 
 // After prying open the hull, allow entering the Crash POI via D5.
-registerActionCompletionHandler('pryOpenHull', () => {
+registerActionCompletionHandler('pryOpenHull', async () => {
     try {
         if (characterState && characterState.localMap) {
             characterState.localMap.d5HullOpened = true;
@@ -271,20 +327,25 @@ registerActionCompletionHandler('investigateSound', () => {
 registerActionCompletionHandler('move', async () => {
     try {
         const st = characterState?.localMap;
-        if (!st || !Number.isFinite(st.x) || !Number.isFinite(st.y)) return;
+        if (!st || typeof st !== 'object') return;
 
-        const beforeX = st.x;
-        const beforeY = st.y;
-        const tx = Number.isFinite(st.selectedX) ? st.selectedX : st.x;
-        const ty = Number.isFinite(st.selectedY) ? st.selectedY : st.y;
-        const dist = Math.abs(tx - st.x) + Math.abs(ty - st.y);
+        // Be tolerant of saves/loads that may leave coords as strings.
+        const curX = Number(st.x);
+        const curY = Number(st.y);
+        if (!Number.isFinite(curX) || !Number.isFinite(curY)) return;
+
+        const beforeX = curX;
+        const beforeY = curY;
+        const tx = Number.isFinite(Number(st.selectedX)) ? Number(st.selectedX) : curX;
+        const ty = Number.isFinite(Number(st.selectedY)) ? Number(st.selectedY) : curY;
+        const dist = Math.abs(tx - curX) + Math.abs(ty - curY);
 
         // Enforce adjacency: move is a 1-tile step to the selected tile.
         if (dist !== 1) {
             addLogEntry('Select an adjacent tile to move there.', LogType.INFO);
         } else {
             // Gate: do not allow moving west until the H8 river encounter has been visited.
-            const movingWest = tx < st.x;
+            const movingWest = tx < curX;
             const blockedByWestGate = !!(movingWest && !st.riverCombatDone);
             if (blockedByWestGate) {
                 addLogEntry('You should first check out the east side.', LogType.INFO);
@@ -312,7 +373,7 @@ registerActionCompletionHandler('move', async () => {
                     }
                 } catch { /* ignore */ }
 
-                const blockedByCrashWall = isCrashWallBetween(st.x, st.y, tx, ty, { localMapState: st });
+                const blockedByCrashWall = isCrashWallBetween(curX, curY, tx, ty, { localMapState: st });
                 if (blockedByCrashWall) {
                     addLogEntry('Wreckage blocks the way.', LogType.INFO);
                     st.selectedX = tx;
@@ -347,6 +408,12 @@ registerActionCompletionHandler('move', async () => {
 
                     st.x = tx;
                     st.y = ty;
+
+                    // Mark as explored for fog/markers and to enable tile actions like Strip Wiring.
+                    try {
+                        if (!st.visited || typeof st.visited !== 'object') st.visited = {};
+                        st.visited[`${tx},${ty}`] = true;
+                    } catch { /* ignore */ }
 
                     // Keep selection synced so context actions appear immediately after moving.
                     st.selectedX = st.x;
@@ -385,33 +452,7 @@ registerActionCompletionHandler('move', async () => {
                     } catch { /* ignore */ }
 
                     // D5 (4,5): first interior step-in story + unlock Strip Wiring.
-                    try {
-                        const isD5 = (st.x === 4 && st.y === 5);
-                        if (isD5 && !st.d5InteriorWiresShown) {
-                            st.d5InteriorWiresShown = true;
-
-                            let didUnlockStrip = false;
-                            try {
-                                const strip = (salvageActions || []).find(a => a && a.id === 'stripWiring');
-                                if (strip && !strip.isUnlocked) {
-                                    strip.isUnlocked = true;
-                                    strip.uiNew = true;
-                                    didUnlockStrip = true;
-                                    addLogEntry('New action available: Strip Wiring', LogType.UNLOCK);
-                                }
-                            } catch { /* ignore */ }
-
-                            const ev = storyEvents ? (storyEvents.shipInteriorWires || null) : null;
-                            if (ev) {
-                                const { showStoryPopup } = await import('../ui/panels/popup.js');
-                                const out = didUnlockStrip ? { unlocks: { actions: ['stripWiring'] } } : null;
-                                showStoryPopup(ev, out);
-                                try {
-                                    addLogEntry('The ship’s interior is shattered — but the wiring might be useful. (Click to read)', LogType.STORY, { onClick: () => showStoryPopup(ev, out) });
-                                } catch { /* ignore */ }
-                            }
-                        }
-                    } catch { /* ignore */ }
+                    try { await maybeHandleFirstStepIntoD5(st); } catch { /* ignore */ }
 
                     // Map-driven discoveries: reuse Scout Surroundings stage unlocks on specific tiles.
                     try {

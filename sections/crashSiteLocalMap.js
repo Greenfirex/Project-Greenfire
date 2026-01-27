@@ -44,6 +44,10 @@ function ensurePathOverlay(container, grid) {
     const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
     svg.appendChild(poly);
 
+    const endDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    endDot.setAttribute('r', '0');
+    svg.appendChild(endDot);
+
     // Insert before tiles so it sits under markers.
     try {
         grid.insertBefore(svg, grid.firstChild);
@@ -53,6 +57,7 @@ function ensurePathOverlay(container, grid) {
 
     try {
         container._localMapPathOverlay = poly;
+        container._localMapPathOverlayEndDot = endDot;
     } catch { /* ignore */ }
 
     return svg;
@@ -65,7 +70,9 @@ export function updateCrashSiteLocalMapPathOverlay(container, preview = null) {
 
     const svg = ensurePathOverlay(container, grid);
     let poly = null;
+    let endDot = null;
     try { poly = container._localMapPathOverlay; } catch { poly = null; }
+    try { endDot = container._localMapPathOverlayEndDot; } catch { endDot = null; }
     if (!svg || !poly) return;
 
     const points = preview && Array.isArray(preview.points) ? preview.points : null;
@@ -73,6 +80,9 @@ export function updateCrashSiteLocalMapPathOverlay(container, preview = null) {
 
     if (!points || points.length < 2) {
         poly.setAttribute('points', '');
+        try {
+            if (endDot) endDot.setAttribute('r', '0');
+        } catch { /* ignore */ }
         svg.style.display = 'none';
         return;
     }
@@ -89,6 +99,19 @@ export function updateCrashSiteLocalMapPathOverlay(container, preview = null) {
     poly.setAttribute('points', svgPoints.join(' '));
     svg.dataset.kind = kind;
     svg.style.display = 'block';
+
+    // End-of-route marker (larger dot on target tile).
+    try {
+        const last = points[points.length - 1];
+        const lc = Number(last && (last.x ?? last.col));
+        const lr = Number(last && (last.y ?? last.row));
+        if (endDot && Number.isFinite(lc) && Number.isFinite(lr)) {
+            const sp = tileCenterToSvgPoint(lc, lr);
+            endDot.setAttribute('cx', sp.x.toFixed(3));
+            endDot.setAttribute('cy', sp.y.toFixed(3));
+            endDot.setAttribute('r', kind === 'traverse' ? '2.25' : '1.55');
+        }
+    } catch { /* ignore */ }
 }
 
 function startTravelDotAnimation(container, grid, moveAnim) {
@@ -1075,6 +1098,27 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             const meta = tileMeta(c, r);
             tile.classList.toggle('is-blocked', !!meta.blocked);
 
+            // Special-case: the alternate access "door" at C5↔D5 sits behind an exterior hull wall,
+            // so D5 is not visible until the hull is opened. Still show the door edge while standing adjacent.
+            try {
+                const isC5 = (c === 3 && r === 5);
+                const hullOpened = !!(state && typeof state === 'object' && state.d5HullOpened === true);
+                const openingKnown = !!(state && typeof state === 'object' && (state.c5ShipOpeningSpotted === true || state.c5ThornWallBurned === true));
+                const playerAdjacent = (
+                    (mapState.x === 3 && mapState.y === 5) // standing on C5
+                    || (mapState.x === 4 && mapState.y === 5) // standing on D5 (after opening)
+                );
+
+                if (isC5 && openingKnown && !hullOpened && playerAdjacent && discovered) {
+                    tile.classList.add('has-external-door', 'poi-door-right');
+                    const doorsOverlay = document.createElement('div');
+                    doorsOverlay.className = 'poi-doors-overlay';
+                    doorsOverlay.setAttribute('aria-hidden', 'true');
+                    doorsOverlay.innerHTML = `<div class="poi-door poi-door--right"></div>`;
+                    tile.appendChild(doorsOverlay);
+                }
+            } catch { /* ignore */ }
+
             // Tile markers
             // - Usually hidden under fog
             // - Some tutorial/guide markers can opt in to always-visible (e.g., newly-unlocked base camp tile)
@@ -1141,8 +1185,10 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                         // Render each door edge only once (canonical owner):
                         // - vertical edges: render on the lower tile as a "top" door
                         // - horizontal edges: render on the right tile as a "left" door
-                        if (isDiscoveredAt(c, r - 1) && hasInternalPoiDoorBetween(c, r, c, r - 1)) tile.classList.add('poi-door-top');
-                        if (isDiscoveredAt(c - 1, r) && hasInternalPoiDoorBetween(c, r, c - 1, r)) tile.classList.add('poi-door-left');
+                        //
+                        // Doors should be visible when standing next to them; do not require both tiles to be discovered.
+                        if (hasInternalPoiDoorBetween(c, r, c, r - 1, { localMapState: state })) tile.classList.add('poi-door-top');
+                        if (hasInternalPoiDoorBetween(c, r, c - 1, r, { localMapState: state })) tile.classList.add('poi-door-left');
                     } catch { /* ignore */ }
                 }
 

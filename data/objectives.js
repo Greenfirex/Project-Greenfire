@@ -140,7 +140,7 @@ function upsertStatus(id, nextState) {
 const defs = [
     {
         id: 'obj_entry',
-        label: 'Assess the Wreckage',
+        label: 'Survey the Wreckage',
         // Optional: narrative text shown in the Journal objective details pane (Markdown supported)
         narrative: () => [
             "The forward hull is a furnace of warped plating and thick smoke. Your first push back inside makes it brutally clear: whatever hit the ship left the structure unstable, and the obvious route is gone.",
@@ -152,19 +152,48 @@ const defs = [
         reward: [{ resource: 'XP', amount: 70 }],
         priority: 1,
         steps: () => {
-            const scout = findAction('scoutSurroundings');
-            const total = Array.isArray(scout?.stages) ? scout.stages.length : 3;
-            const stage = Math.min(scout?.stage || 0, total);
-            return [
-                { id: 'attempt_reentry', label: 'Attempt reentry into the ship', done: hasCompletedAction('attemptReentry') },
-                { id: 'scout_area', label: 'Scout surroundings', done: hasCompletedAction('scoutSurroundings'), progress: `${stage}/${total}` },
-                { id: 'alternate_access', label: 'Attempt alternate access', done: hasCompletedAction('attemptAlternateAccess') }
-            ];
+            const lm = characterState?.localMap;
+            const discoveredRiver = !!(lm && lm.discoveredRiver);
+            const discoveredBerries = !!(lm && lm.discoveredBerries);
+            const discoveredCave = !!(lm && lm.discoveredCave);
+
+            // Objective-specific ordered progress: H8 -> D7 -> B6
+            let scoutProgress = 0;
+            if (discoveredRiver) scoutProgress = 1;
+            if (scoutProgress >= 1 && discoveredBerries) scoutProgress = 2;
+            if (scoutProgress >= 2 && discoveredCave) scoutProgress = 3;
+
+            const craftTorchDone = !!findAction('createBasicTorch')?.completed;
+            const burnWallDone = !!(lm && lm.c5ThornWallBurned === true);
+            const atC5 = !!(lm && Number(lm.x) === 3 && Number(lm.y) === 5);
+
+            // Spoiler-free: reveal one step at a time.
+            const steps = [];
+
+            const stepAttemptReentryDone = hasCompletedAction('attemptReentry');
+            steps.push({ id: 'attempt_reentry', label: 'Attempt reentry into the ship', done: stepAttemptReentryDone });
+            if (!stepAttemptReentryDone) return steps;
+
+            const stepScoutDone = scoutProgress >= 3;
+            steps.push({ id: 'scout_area', label: 'Scout surroundings', done: stepScoutDone, progress: `${scoutProgress}/3` });
+            if (!stepScoutDone) return steps;
+
+            steps.push({ id: 'craft_torch', label: 'Craft Torch', done: craftTorchDone });
+            if (!craftTorchDone) return steps;
+
+            steps.push({ id: 'burn_thorns', label: 'Burn the thorny wall', done: burnWallDone });
+            if (!burnWallDone) return steps;
+
+            steps.push({ id: 'reach_c5', label: 'Explore further north', done: atC5 });
+            if (!atC5) return steps;
+
+            steps.push({ id: 'alternate_access', label: 'Attempt alternate reentry', done: hasCompletedAction('attemptAlternateAccess') });
+            return steps;
         }
     },
     {
         id: 'obj_enter',
-        label: 'Enter the wreck',
+        label: 'Clear a Path In',
         // Optional: narrative text shown in the Journal objective details pane (Markdown supported)
         narrative: () => [
             "The alternate route back to the ship is real — but it isn’t kind. A narrow conduit and a half-collapsed service corridor point toward intact compartments, yet the passage is choked with debris and jagged metal.",
@@ -182,54 +211,74 @@ const defs = [
             const prybarCrafted = hasCompletedAction('makeCrudePrybar');
             const scrapDone = !!gameFlags.hasReached15ScrapMetal;
             const returnedToCave = !!gameFlags.returnedToCaveAfter15Scrap;
-            const steps = [
-                { id: 'gather_scrap', label: 'Gather Metal Parts (15)', done: scrapDone, progress: scrapDone ? '15/15' : `${Math.floor(scrap)}/15` },
-            ];
 
-            if (scrapDone) {
-                steps.push(
-                    { id: 'return_to_cave', label: 'Return back to cave', done: returnedToCave, progress: returnedToCave ? 'Done' : 'B6' },
-                    { id: 'craft_prybar', label: 'Make Crude Prybar', done: prybarCrafted },
-                    { id: 'open_hull', label: 'Pry open hull', done: hasCompletedAction('pryOpenHull') }
-                );
-            }
+            // Spoiler-free: reveal one step at a time.
+            const steps = [];
+            steps.push({ id: 'gather_scrap', label: 'Gather Metal Parts (15)', done: scrapDone, progress: scrapDone ? '15/15' : `${Math.floor(scrap)}/15` });
+            if (!scrapDone) return steps;
 
+            steps.push({ id: 'return_to_cave', label: 'Return to the cave', done: returnedToCave });
+            if (!returnedToCave) return steps;
+
+            steps.push({ id: 'craft_prybar', label: 'Make Crude Prybar', done: prybarCrafted });
+            if (!prybarCrafted) return steps;
+
+            steps.push({ id: 'open_hull', label: 'Pry open the hull', done: hasCompletedAction('pryOpenHull') });
             return steps;
         }
     },
     {
         id: 'obj_survivors_basecamp',
         label: 'Check for survivors',
-        start: () => findAction('investigateSound')?.isUnlocked,
+        // Starts immediately after the hull is opened; the player continues inside manually.
+        start: () => hasCompletedAction('pryOpenHull'),
         complete: () => hasCompletedAction('investigateSound') && gameFlags.baseCampEstablished === true,
         reward: [{ resource: 'XP', amount: 80 }], // Combined XP reward (30 + 50)
-        priority: 5,
+        priority: 4,
+        narrative: () => [
+            "With the hull breached, the ship is no longer an obstacle — it’s a search site.",
+            "The interior is unstable and visibility is poor. If anyone survived, they’ll be deeper in… or outside, drawn by noise and smoke.",
+            "Move carefully, follow anything that looks like a sign of life, and be ready to set up a safer foothold once you find a workable spot."
+        ].join('\n\n'),
         steps: () => {
+            const lm = characterState?.localMap;
             const scrap = getResourceAmount('Metal Parts');
             const wire = getResourceAmount('Wire');
+
+            const deeperInside = (() => {
+                try {
+                    if (!lm || !lm.visited || typeof lm.visited !== 'object') return false;
+                    return lm.visited['5,5'] === true; // E5
+                } catch { return false; }
+            })();
+
             const investigatedSound = hasCompletedAction('investigateSound');
-            
-            // Show the first step always, but subsequent steps only after investigating sound
-            const steps = [
-                { id: 'investigate_sound', label: 'Investigate the sound', done: investigatedSound }
-            ];
-            
-            // Only show resource gathering and basecamp steps after investigating sound
-            if (investigatedSound) {
-                steps.push(
-                    { id: 'gather_scrap_basecamp', label: 'Gather Metal Parts (25)', done: scrap >= 25 || gameFlags.baseCampEstablished, progress: gameFlags.baseCampEstablished ? '25/25' : `${Math.floor(scrap)}/25` },
-                    { id: 'gather_wire_basecamp', label: 'Gather Wire (12)', done: wire >= 12 || gameFlags.baseCampEstablished, progress: gameFlags.baseCampEstablished ? '12/12' : `${Math.floor(wire)}/12` },
-                    { id: 'perform_basecamp', label: 'Establish base camp', done: gameFlags.baseCampEstablished === true }
-                );
-            }
-            
+
+            // Spoiler-free: reveal one step at a time.
+            const steps = [];
+            steps.push({ id: 'continue_inside', label: 'Continue inside the ship', done: deeperInside });
+            if (!deeperInside) return steps;
+
+            steps.push({ id: 'investigate_sound', label: 'Investigate the sound', done: investigatedSound });
+            if (!investigatedSound) return steps;
+
+            steps.push(
+                { id: 'gather_scrap_basecamp', label: 'Gather Metal Parts (25)', done: scrap >= 25 || gameFlags.baseCampEstablished, progress: gameFlags.baseCampEstablished ? '25/25' : `${Math.floor(scrap)}/25` },
+                { id: 'gather_wire_basecamp', label: 'Gather Wire (12)', done: wire >= 12 || gameFlags.baseCampEstablished, progress: gameFlags.baseCampEstablished ? '12/12' : `${Math.floor(wire)}/12` },
+                { id: 'perform_basecamp', label: 'Establish base camp', done: gameFlags.baseCampEstablished === true }
+            );
+
             return steps;
         }
     },
     {
         id: 'obj_tasks_survivors',
-        label: 'Tasks for survivors',
+        label: 'Stabilize the Camp',
         start: () => gameFlags.baseCampEstablished === true,
+        narrative: () => [
+            "The camp is standing, but it won’t last on hope alone.",
+            "Secure steady food and water, then put people to work so the group can recover — and you can go back in." 
+        ].join('\n\n'),
         complete: () => {
             // Check if we have built both buildings and assigned 3+ jobs total
             const foragingCamp = buildings.find(b => b.name === 'Foraging Camp');
@@ -254,17 +303,39 @@ const defs = [
             // Count total job assignments across all jobs
             const totalAssigned = jobs.reduce((sum, j) => sum + (j.assigned || 0), 0);
             
-            return [
-                { id: 'build_foraging_camp', label: 'Build Foraging Camp (8 Scrap)', done: foragingCampCount >= 1, progress: foragingCampCount >= 1 ? '1/1' : `${foragingCampCount}/1` },
-                { id: 'build_water_station', label: 'Build Water Station (10 Scrap)', done: waterStationCount >= 1, progress: waterStationCount >= 1 ? '1/1' : `${waterStationCount}/1` },
-                { id: 'assign_jobs', label: 'Assign jobs (any combination)', done: totalAssigned >= 3, progress: `${totalAssigned}/3` }
-            ];
+            // Spoiler-free: reveal one step at a time.
+            const steps = [];
+            const builtForaging = foragingCampCount >= 1;
+            const builtWater = waterStationCount >= 1;
+
+            steps.push({
+                id: 'build_foraging_camp',
+                label: 'Build Foraging Camp',
+                done: builtForaging,
+                progress: builtForaging ? '1/1' : `${foragingCampCount}/1`
+            });
+            if (!builtForaging) return steps;
+
+            steps.push({
+                id: 'build_water_station',
+                label: 'Build Water Station',
+                done: builtWater,
+                progress: builtWater ? '1/1' : `${waterStationCount}/1`
+            });
+            if (!builtWater) return steps;
+
+            steps.push({ id: 'assign_jobs', label: 'Assign jobs (any combination)', done: totalAssigned >= 3, progress: `${totalAssigned}/3` });
+            return steps;
         }
     },
     {
         id: 'obj_explore_deeper',
-        label: 'Explore deeper',
+        label: 'Deeper Into the Wreck',
         start: () => gameFlags.hasCompleted_tasksSurvivors === true,
+        narrative: () => [
+            "With the camp stabilized, you can afford to take bigger risks.",
+            "Push deeper into the ship, map what’s still accessible, and find anything — or anyone — that can’t be left behind."
+        ].join('\n\n'),
         complete: () => {
             return hasCompletedAction('searchSouthCorridor') && 
                    hasCompletedAction('searchNorthCorridor') && 

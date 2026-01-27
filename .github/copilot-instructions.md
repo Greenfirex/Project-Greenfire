@@ -4,6 +4,12 @@
 - If any requirement is ambiguous or could be implemented in multiple reasonable ways, ask short clarifying questions before making code changes.
 - If requirements are clear, implement directly without extra questions.
 
+## Keep changes lean (important)
+- Prefer the smallest change that solves the root cause.
+- When a fix supersedes an older attempt, **remove the old/unused code** (don’t leave dead helpers, stale branches, or duplicate pathways).
+- Avoid adding one-off special cases if there’s an existing mechanism that can be extended cleanly.
+- If a large file is touched (e.g., `sections/crashSite.js`), do a quick pass for obvious unused imports/helpers introduced by the change.
+
 ## Project shape (read this first)
 - Browser idle game; **ES modules loaded directly by `index.html`** (no bundler).
 - Main folders:

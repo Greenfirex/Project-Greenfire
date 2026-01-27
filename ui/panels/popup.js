@@ -2,9 +2,12 @@ import { getIngameTimeObject, getIngameTimeString } from '../../core/time.js';
 import { addJournalEntry } from '../../sections/journal.js';
 import { allActions as _allActions } from '../../data/definitions/allActions.js';
 import { getItemDefinition } from '../../data/definitions/items.js';
+import { getIsPaused, pauseGame, resumeGame } from '../footer.js';
 
 let activeStoryEvent = null;
 let activeOutcome = null; // optional footer content (rewards/unlocks)
+
+let pausedByThisStoryPopup = false;
 
 // Add a single Esc handler that is attached only while the popup is open
 let _popupEscHandler = null;
@@ -153,6 +156,15 @@ export function showStoryPopup(event, outcome = null) {
     activeStoryEvent = event;
     activeOutcome = outcome;
 
+    // Pause while the player is reading narrative.
+    try {
+        pausedByThisStoryPopup = false;
+        if (!getIsPaused()) {
+            pauseGame(false);
+            pausedByThisStoryPopup = true;
+        }
+    } catch { /* non-fatal */ }
+
     titleEl.textContent = activeStoryEvent.title;
 
     // Ensure popup and its overlay live directly under body so stacking contexts don't hide them
@@ -216,6 +228,14 @@ function hideStoryPopup() {
     activeStoryEvent = null;
     activeOutcome = null;
     try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ }
+
+    // Resume only if this popup caused the pause.
+    try {
+        if (pausedByThisStoryPopup && getIsPaused()) {
+            resumeGame(false);
+        }
+    } catch { /* non-fatal */ }
+    pausedByThisStoryPopup = false;
 }
 
 // setupPopup unchanged except it uses the existing elements

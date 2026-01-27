@@ -16,8 +16,8 @@ export function getInitialResources() {
         // Meta progression resource (hidden from info panel)
         { name: 'XP', amount: 0, isDiscovered: true, capacity: 9000000000, producible: false, integer: true, hidden: true },
         { name: 'Survivors', amount: 0, isDiscovered: false, capacity: 20, producible: false, integer: true },
-        { name: 'Food Rations', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.04 },
-        { name: 'Clean Water', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.06 },
+        { name: 'Food Rations', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.03 },
+        { name: 'Clean Water', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.045 },
         { name: 'Metal Parts', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
         { name: 'Wire', amount: 0, isDiscovered: false, capacity: 100, producible: false, integer: true },
         { name: 'Crude Prybar', amount: 0, isDiscovered: false, capacity: 5, producible: false, integer: true },
@@ -164,22 +164,14 @@ export function computeResourceRates(resourceName) {
         }
     }
 
-    // Stamina regeneration:
-    // - Chapter 1: +1/s once Base Camp is established, but only when not actively draining stamina.
-    // - Chapter 2+: +1/s always (resting becomes optional once Colony unlocks / Crash Site closes).
-    try {
-        const isChapter2OrLater =
-            (gameFlags && Number(gameFlags.chapter) >= 2) ||
-            (typeof window !== 'undefined' && window.activatedSections && window.activatedSections.colonySection);
-
-        if (resourceName === 'Stamina') {
-            if (isChapter2OrLater) {
-                totalProduction += 1;
-            } else if (activeDrainRate <= 1e-9 && gameFlags && gameFlags.baseCampEstablished) {
-                totalProduction += 1;
-            }
-        }
-    } catch (e) { /* ignore */ }
+    // Passive regeneration: keep consistent regardless of base camp/chapter.
+    // These are per-second rates.
+    if (resourceName === 'Stamina') {
+        totalProduction += 0.2;
+    }
+    if (resourceName === 'Health') {
+        totalProduction += 0.1;
+    }
 
     const totalConsumption = passiveConsumption + activeDrainRate;
 

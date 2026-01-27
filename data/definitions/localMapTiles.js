@@ -231,7 +231,7 @@ export function hasInternalPoiWallBetween(fromX, fromY, toX, toY) {
     return INTERNAL_POI_WALLS.has(edgeKey(fx, fy, tx, ty));
 }
 
-export function hasInternalPoiDoorBetween(fromX, fromY, toX, toY) {
+export function hasInternalPoiDoorBetween(fromX, fromY, toX, toY, { localMapState = null } = {}) {
     const fx = Number(fromX);
     const fy = Number(fromY);
     const tx = Number(toX);
@@ -239,6 +239,15 @@ export function hasInternalPoiDoorBetween(fromX, fromY, toX, toY) {
     if (![fx, fy, tx, ty].every(Number.isFinite)) return false;
     const dist = Math.abs(tx - fx) + Math.abs(ty - fy);
     if (dist !== 1) return false;
+
+    // After Pry Open Hull, the C5 <-> D5 edge is no longer a "door"; it's an open breach.
+    try {
+        const isAltAccess = INTERNAL_POI_DOORS.has(edgeKey(3, 5, 4, 5)) && edgeKey(fx, fy, tx, ty) === edgeKey(3, 5, 4, 5);
+        if (isAltAccess && localMapState && typeof localMapState === 'object' && localMapState.d5HullOpened === true) {
+            return false;
+        }
+    } catch { /* ignore */ }
+
     return INTERNAL_POI_DOORS.has(edgeKey(fx, fy, tx, ty));
 }
 

@@ -896,7 +896,7 @@ export function setupCrashSiteSection(section) {
         // Strip Wiring: available on any crash POI tile the player is standing on (once unlocked).
         try {
             const strip = salvageActions.find(a => a && a.id === 'stripWiring');
-            const here = getLocalMapTileAt(selX, selY, { scoutStage: stage, hasTriedReentry, localMapState: lm });
+            const here = getLocalMapTileAt(selX, selY, { scoutStage, hasTriedReentry, localMapState: lm });
             const isCorridorOnly = !!(here && here.typeId === 'corridor');
             if (strip && strip.isUnlocked && selectedExplored && isCorridorOnly) {
                 const lm = characterState?.localMap;
@@ -1047,7 +1047,7 @@ export function setupCrashSiteSection(section) {
                                         const idx = Number(a.stage || 0);
                                         const total = Array.isArray(a.stages) ? a.stages.length : 0;
                                         const willFinish = (total <= 0) ? true : ((idx + 1) >= total);
-                                        if (willFinish) {
+                                        if (willFinish && a.id !== 'pryOpenHull') {
                                             characterState.localMap.pendingActionMove = {
                                                 actionId: String(a.id),
                                                 fromX: playerX,
@@ -2338,12 +2338,25 @@ async function handleActionCompletion(section) {
         } catch {}
     }
 
+    const preLocalMapLastMoveAt = Number(characterState?.localMap?.lastMoveAt || 0);
+    const preLocalMapX = Number(characterState?.localMap?.x);
+    const preLocalMapY = Number(characterState?.localMap?.y);
+
     await runActionCompletionHandlers(original, completed, section);
 
-    // If movement updated local-map state, refresh the visible map UI.
-    if (completed && completed.id === 'move') {
-        refreshLocalMapIfVisible();
-    }
+    // If completion handlers changed local-map position/selection (e.g., Pry Open Hull auto-steps into D5),
+    // refresh the visible map UI so the action row stays in sync.
+    try {
+        const postLastMoveAt = Number(characterState?.localMap?.lastMoveAt || 0);
+        const postX = Number(characterState?.localMap?.x);
+        const postY = Number(characterState?.localMap?.y);
+        const movedViaHandler = (postLastMoveAt && postLastMoveAt !== preLocalMapLastMoveAt)
+            || (Number.isFinite(preLocalMapX) && Number.isFinite(preLocalMapY) && (postX !== preLocalMapX || postY !== preLocalMapY));
+
+        if (movedViaHandler || (completed && completed.id === 'move')) {
+            refreshLocalMapIfVisible();
+        }
+    } catch { /* ignore */ }
 
     // After handlers ran, include any newly unlocked actions (e.g., Base Camp upgrades) in the story payload
     try {

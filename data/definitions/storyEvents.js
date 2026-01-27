@@ -89,9 +89,8 @@ enteredShipChoices: {
     title: 'Hull Breached',
     pages: [
         "You wedge the prybar beneath the seam and heave. The hull groans; something gives. A scar of cold metal yawns open.",
-        "It takes several more brutal pulls to widen the gap enough to climb through. When you finally duck inside, the air is stale and hot, and every step echoes in the dead quiet.",
-        "Smoke hangs low in the wreck. Visibility is poor — you can only make out what’s directly beside you as you move, not the corners or the spaces beyond the next doorway.",
-        "For now, the important part is simple: you have a way back in."
+        "It takes several more brutal pulls to widen the gap enough to be able to climb through. Smoke hangs low in the wreck. Visibility is poor — you can only make out what’s directly beside you.",
+        "For now, the important part is simple: you now have a way back in."
     ]
 },
 
@@ -100,7 +99,7 @@ shipInteriorJunction: {
     pages: [
         "Deeper inside, the passage opens into a junction. Your light catches scorch marks on the walls and a scatter of debris that looks like it fell during the crash — but the route ahead is clear enough to move.",
         "The corridors branch. You can: (1) sweep the south corridor toward a junction that leads to the cafeteria and crew quarters; (2) take the north corridor toward the labs and the power core; or (3) head for the bridge to check communications and navigation systems.",
-        "Something else stirs in the dark — a faint sound nearby, like muffled movement or coughing. You can investigate it now, or focus on one of the three routes. Choose carefully — selecting an action will advance that path and reveal its findings."
+        "Something else stirs in the dark — a faint sound nearby, like muffled movement or coughing.\n\nAction unlocked: Investigate Nearby Sound.\n\nYou can investigate it now, or focus on one of the three routes. Choose carefully — selecting an action will advance that path and reveal its findings."
     ]
 },
 
@@ -109,7 +108,8 @@ shipInteriorWires: {
     pages: [
         "You duck through the gap and into the ship’s interior. The corridor is barely a corridor at all — plating buckled, bulkheads warped, and soot caked into every seam.",
         "Cold air leaks through hairline cracks. Somewhere above, torn cable trays hang like vines. Loose wires sway with each step, sparking faintly when they brush scorched metal.",
-        "The damage is massive, but one thing is clear: the wiring is everywhere. If you can strip the intact lengths, it could be invaluable for repairs — and for building anything that needs power back at camp."
+        "If you can strip the intact lengths, it could be invaluable for repairs or for crafting anything that needs flexible material.",
+        "Conviniently, several bundles of wire remain intact amid the wreckage. You gather what you can carry."
     ]
 },
 

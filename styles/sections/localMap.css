@@ -288,7 +288,7 @@
     grid-template-rows: repeat(var(--rows, 9), 1fr);
 
     /* Optional visual test layer: image under the grid/tiles */
-    background-image: url("../../assets/images/mapback.png");
+    background-image: url("../../assets/images/mapback2.png");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -315,13 +315,26 @@
 .localmap-path-overlay polyline {
     fill: none;
     stroke: rgba(80, 255, 140, 0.92);
-    stroke-width: 1.35;
+    stroke-width: 0.95;
     stroke-linecap: round;
     stroke-linejoin: round;
     /* Dotted/condensed route hint */
-    stroke-dasharray: 1 4;
+    stroke-dasharray: 0.35 1.15;
     filter: drop-shadow(0 0 2px rgba(80, 255, 140, 0.28));
     opacity: 0.9;
+}
+
+.localmap-path-overlay circle {
+    fill: rgba(80, 255, 140, 0.95);
+    stroke: rgba(0, 0, 0, 0.55);
+    stroke-width: 0.35;
+    filter: drop-shadow(0 0 2px rgba(80, 255, 140, 0.35));
+    opacity: 0.95;
+}
+
+.localmap-path-overlay[data-kind="traverse"] circle {
+    fill: rgba(90, 255, 150, 0.98);
+    filter: drop-shadow(0 0 3px rgba(80, 255, 140, 0.55));
 }
 
 .localmap-path-overlay[data-kind="traverse"] polyline {
@@ -669,6 +682,46 @@
     width: var(--door-thickness);
     transform: translateY(-50%);
     left: calc(0px - (var(--door-thickness) / 2));
+}
+
+/* External (non-POI) door marker support (used for the C5↔D5 alternate access edge) */
+.localmap-tile.has-external-door {
+    /* Match POI door sizing defaults (C5 is not a POI tile, so it won't inherit these vars). */
+    --door-length: 28px;
+    --door-thickness: 6px;
+    /* Allow the door to visually sit "between" tiles. */
+    z-index: 5;
+}
+
+.localmap-tile.has-external-door .poi-doors-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 6;
+}
+
+.localmap-tile.has-external-door .poi-door {
+    position: absolute;
+    display: none;
+    background: linear-gradient(180deg, rgba(40, 45, 55, 0.95), rgba(18, 20, 22, 0.95));
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow:
+        0 0 0 1px rgba(0,0,0,0.45),
+        0 6px 14px rgba(0,0,0,0.35);
+    border-radius: 3px;
+}
+
+.localmap-tile.has-external-door.poi-door-right .poi-door--right {
+    display: block;
+}
+
+.localmap-tile.has-external-door .poi-door--right {
+    top: 50%;
+    height: var(--door-length);
+    width: var(--door-thickness);
+    transform: translateY(-50%);
+    /* Center the door on the tile boundary (so it reads as connecting two tiles). */
+    right: calc(0px - (var(--door-thickness) / 2));
 }
 
 .localmap-tile.is-poi-area.poi-border-top .poi-wall-overlay { border-top: 4px solid rgba(12, 14, 16, 0.95); }

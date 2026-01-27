@@ -207,6 +207,19 @@ export function applyGameState(gameState) {
         }
     });
 
+    // Ensure design-time balance values are not pinned by older saves.
+    // (Older saves may have persisted `baseConsumption`.)
+    try {
+        const canonical = getInitialResources();
+        const canonicalByName = new Map(canonical.map(r => [r.name, r]));
+        defaultResources.forEach(r => {
+            const c = canonicalByName.get(r.name);
+            if (c && typeof c.baseConsumption === 'number') {
+                r.baseConsumption = c.baseConsumption;
+            }
+        });
+    } catch { /* non-fatal */ }
+
     // Migration/UI consistency: Insight + Crystal should display as whole numbers in the info panel.
     // Older saves may have persisted `integer:false` for these resources.
     try {
@@ -298,10 +311,15 @@ export function applyGameState(gameState) {
     }
 
     if (gameState.jobs) {
+        // Restore only runtime-mutating fields for jobs while preserving design-time balance.
+        const RUNTIME_JOB_KEYS = new Set(['assigned', 'slots', 'unlimited']);
         jobs.forEach(job => {
-            const savedJob = gameState.jobs.find(j => j.id === job.id || j.name === job.name);
-            if (savedJob) {
-                Object.assign(job, savedJob);
+            const savedJob = gameState.jobs.find(j => j && (j.id === job.id || j.name === job.name));
+            if (!savedJob) return;
+            for (const k of RUNTIME_JOB_KEYS) {
+                if (Object.prototype.hasOwnProperty.call(savedJob, k)) {
+                    job[k] = savedJob[k];
+                }
             }
         });
     }

@@ -8,7 +8,7 @@ export const jobs = [
         assigned: 0,
         // production: Food Rations per second per assigned crew
         produces: 'Food Rations',
-        rate: 0.09
+        rate: 0.08
     },
     {
         id: 'water_collection',
@@ -18,7 +18,7 @@ export const jobs = [
         assigned: 0,
         // production: Clean Water per second per assigned crew
         produces: 'Clean Water',
-        rate: 0.12
+        rate: 0.105
     },
     // Scrap Collector — unlocked by Establish Base Camp; unlimited assignments once unlocked
     {
