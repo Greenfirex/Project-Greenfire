@@ -52,6 +52,30 @@
   z-index: -1; 
 }
 
+/* Phone-landscape: let the center game area fill remaining space.
+     The right info panel becomes an overlay drawer, so the desktop width % rules would waste space. */
+@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+    #gameArea,
+    #gameArea.expanded-left,
+    #gameArea.expanded-right,
+    #gameArea.expanded-both {
+        width: auto;
+        flex: 1 1 auto;
+        transition: none;
+        padding-left: 0;
+        padding-right: 0;
+        box-sizing: border-box;
+    }
+
+    /* Inset the absolutely-positioned sections so the collapsed left/right rails
+       never cover section content (Local map already benefits from this). */
+    .game-section {
+        left: var(--edge-rail, 40px);
+        right: var(--edge-rail, 40px);
+        width: auto;
+    }
+}
+
 /* Shared content panel (centralized) */
 .content-panel {
     /* very dark, near-opaque panel for maximum readability over art */
@@ -68,6 +92,13 @@
 
     /* elevation / glow */
     box-shadow: 0 10px 34px rgba(0,0,0,0.75), 0 0 28px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.16);
+}
+
+/* Phone-landscape: reduce padding to maximize usable space */
+@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+    .content-panel {
+        padding: 6px;
+    }
 }
 
 /* progress bar used by image-button */

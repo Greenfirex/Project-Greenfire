@@ -22,6 +22,31 @@
   text-overflow: ellipsis; /* show ellipsis for very long text */
 }
 
+/* Phone-landscape compact footer: keep the banner readable in a 25px bar */
+@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+  .objectives-banner {
+    height: 25px;
+    padding: 0 22px 0 10px;
+    font-size: 11px;
+    line-height: 25px;
+  }
+
+  .objectives-banner .chevrons {
+    right: 6px;
+  }
+
+  /* The drawer sits just above the footer; footer is 25px in compact mode */
+  .objectives-drawer {
+    /* Slight overlap so there's no visible seam with the footer's top glow line */
+    bottom: calc(var(--footer-height, 25px) - 3px);
+    height: var(--objectives-drawer-height, 160px);
+  }
+
+  .objectives-drawer .objective-details {
+    padding: 12px 16px 14px 12px;
+  }
+}
+
 /* Double-chevron up icon with green glow */
 .objectives-banner .chevrons {
   display: inline-flex;
@@ -227,4 +252,34 @@
 }
 .objectives-drawer .objective-details::-webkit-scrollbar-thumb:hover {
     background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
+}
+
+/* Re-apply compact overrides AFTER base drawer rules.
+   The base .objectives-drawer block below overrides earlier media-query tweaks. */
+@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+  .objectives-drawer {
+    /* Ensure drawer is anchored to the compact footer (25px) */
+    bottom: calc(var(--footer-height, 25px) + 2px) !important;
+    /* Reduce drawer height ~half vs desktop */
+    --objectives-drawer-height: 176px;
+  }
+
+  .objectives-drawer .objective-details {
+    padding: 12px 16px 14px 12px !important;
+  }
+
+  /* Tighten row spacing so more steps fit */
+  .objective-step-item {
+    padding: 2px 2px;
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  .objective-steps {
+    margin-top: 6px;
+  }
+
+  .objective-step-item {
+    border-bottom-color: rgba(255,255,255,0.03);
+  }
 }

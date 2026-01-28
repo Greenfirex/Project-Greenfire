@@ -8,6 +8,24 @@ import { addLogEntry, LogType } from '../core/ingameLog.js';
 let isPaused = false;
 let mainLoopCallbacks = { start: null, stop: null };
 
+const MOBILE_SPEED_ORDER = [1, 2, 5, 10];
+
+function isCompactPhoneLandscape() {
+    try {
+        return window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px)').matches;
+    } catch {
+        return false;
+    }
+}
+
+function updateMobileSpeedButton() {
+    const btn = document.getElementById('mobileSpeedBtn');
+    if (!btn) return;
+    const s = Number(window.TIME_SCALE) || 1;
+    btn.textContent = `Speed ${s}x`;
+    btn.setAttribute('aria-label', `Game speed ${s}x. Tap to change.`);
+}
+
 // Debug resource gain multiplier (playtesting helper)
 // Exposed on window so other modules (resources, action handling) can read it.
 // 1 = normal, 10 = boosted. Survivors are explicitly excluded where applied.
@@ -36,6 +54,7 @@ function setGameSpeed(factor, announce = true) {
     document.querySelectorAll('.speed-btn').forEach(btn => {
         btn.classList.toggle('active', Number(btn.dataset.speed) === Number(window.TIME_SCALE));
     });
+    updateMobileSpeedButton();
     updateHUD();
     if (announce) addLogEntry(`Game speed set to ${window.TIME_SCALE}x.`, LogType.INFO);
 }
@@ -87,6 +106,57 @@ export function initFooter() {
     // Hook up DOM controls
     const pauseBtn = document.getElementById('pauseBtn');
     if (pauseBtn) pauseBtn.addEventListener('click', (e) => { e.preventDefault(); togglePause(); });
+
+    // Mobile compact speed control (single cycling button)
+    try {
+        const footerControls = document.getElementById('footerControls');
+        if (footerControls) {
+            let mobileBtn = document.getElementById('mobileSpeedBtn');
+            if (!mobileBtn) {
+                mobileBtn = document.createElement('button');
+                mobileBtn.type = 'button';
+                mobileBtn.id = 'mobileSpeedBtn';
+                mobileBtn.className = 'header-link mobile-speed-btn';
+                mobileBtn.title = 'Change speed';
+                mobileBtn.setAttribute('aria-label', 'Change game speed');
+                // Insert after Pause for compact layouts
+                footerControls.insertBefore(mobileBtn, footerControls.querySelector('.speed-buttons') || null);
+            }
+
+            const cycle = () => {
+                const current = Number(window.TIME_SCALE) || 1;
+                const idx = Math.max(0, MOBILE_SPEED_ORDER.indexOf(current));
+                const next = MOBILE_SPEED_ORDER[(idx + 1) % MOBILE_SPEED_ORDER.length];
+                setGameSpeed(next, true);
+            };
+
+            if (mobileBtn.dataset.wired !== 'true') {
+                mobileBtn.dataset.wired = 'true';
+                mobileBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    cycle();
+                });
+            }
+
+            // Show/hide handled by CSS; keep label updated.
+            updateMobileSpeedButton();
+
+            // If viewport changes between compact/desktop (dev tools), keep label fresh.
+            try {
+                const mql = window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px)');
+                if (mql && mobileBtn.dataset.mqlWired !== 'true') {
+                    mobileBtn.dataset.mqlWired = 'true';
+                    mql.addEventListener('change', () => updateMobileSpeedButton());
+                }
+            } catch { /* ignore */ }
+
+            // If we are not in compact mode, ensure button doesn't steal focus via tabbing.
+            try {
+                if (!isCompactPhoneLandscape()) mobileBtn.setAttribute('tabindex', '-1');
+                else mobileBtn.removeAttribute('tabindex');
+            } catch { /* ignore */ }
+        }
+    } catch { /* ignore */ }
     
     document.querySelectorAll('.speed-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {

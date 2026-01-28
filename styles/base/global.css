@@ -6,7 +6,9 @@ body {
     display: grid;
     grid-template-rows: auto 1fr auto; 
     gap: 3px;
-    overflow: visible;
+    /* Never let inner UI changes create page scrollbars.
+       Scroll should happen inside panels (e.g. .content-panel), not on <body>. */
+    overflow: hidden;
     
     /* Defines the glow color */
     --glow-r: 105;
@@ -57,9 +59,20 @@ body.reduce-motion * {
 
 #mainContainer {
     display: flex;
-    overflow: visible;
+    /* Constrain the game UI to the available grid row height */
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
     position: relative;
     gap: 3px;
+}
+
+/* Flex children need min-height: 0 so their internal scroll areas can work
+   without forcing the whole page to grow. */
+#mainMenu,
+#gameArea,
+#infoPanel {
+    min-height: 0;
 }
 
 

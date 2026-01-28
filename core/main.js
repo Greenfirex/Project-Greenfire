@@ -24,6 +24,7 @@ import { recomputeObjectives } from '../data/objectives.js';
 import { initFooter, getIsPaused, pauseGame, resumeGame, registerMainLoopCallbacks } from '../ui/footer.js';
 import '../ui/header.js';
 import '../ui/panelCollapse.js';
+import '../ui/mobileMenuIcons.js';
 import '../ui/panels/changelog.js';
 import '../ui/panels/objectivesPanel.js';
 import { MENU_SECTIONS, initMenuBadges, setMenuNewItemFlag, setColonyMenuNewItemFlag } from '../ui/menuBadges.js';

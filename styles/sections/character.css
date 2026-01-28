@@ -877,3 +877,15 @@
         --inv-slot-h: clamp(44px, 8vw, 58px);
     }
 }
+
+/* Phone-landscape: match Crash Site (Local map / Campsite) section padding */
+@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+    #characterSection {
+        padding: 2px;
+    }
+
+    #characterSection > .content-panel.character-panel {
+        padding: 6px;
+        box-sizing: border-box;
+    }
+}

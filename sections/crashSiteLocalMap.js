@@ -1022,6 +1022,8 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
         // - Once Scavenge Debris Field is unlocked, tiles adjacent to the crash POI are known to contain Metal Parts
         // - Everything else stays Unknown
         let resourcesValue = 'Unknown';
+        /** @type {string[] | null} */
+        let resourcesList = null;
         try {
             if (discovered) {
                 const isD7 = (Number(col) === 4 && Number(row) === 7);
@@ -1035,17 +1037,17 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                     if (debrisUnlocked && isOrthogonallyAdjacentToCrashPoi(col, row)) {
                         resources.push('Metal Parts');
                     }
-                    resourcesValue = resources.join(', ');
+                    resourcesList = resources;
                 } else if (isH8) {
-                    resourcesValue = 'Clean Water';
+                    resourcesList = ['Clean Water'];
                 } else if (isG3) {
                     const chem = (salvageActions || []).find(a => a && a.id === 'collectChemicals');
-                    if (chem && chem.isUnlocked) resourcesValue = 'Chemicals';
+                    if (chem && chem.isUnlocked) resourcesList = ['Chemicals'];
                 } else {
                 const debris = (salvageActions || []).find(a => a && a.id === 'scavengeDebris');
                 const debrisUnlocked = !!(debris && debris.isUnlocked);
                 if (debrisUnlocked && isOrthogonallyAdjacentToCrashPoi(col, row)) {
-                    resourcesValue = 'Metal Parts';
+                    resourcesList = ['Metal Parts'];
                 }
                 }
             }
@@ -1058,18 +1060,33 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 if (isD6) {
                     const used = Math.max(0, Math.floor(Number(state?.cafeteriaSuppliesByTile?.['4,6'] || 0)));
                     resourcesValue = (used >= 7) ? 'None' : 'Food Rations, Clean Water';
+                    if (resourcesValue !== 'None') resourcesList = ['Food Rations', 'Clean Water'];
                 } else if (meta && meta.typeId === 'crewQuarters') {
-                    resourcesValue = 'Fabric';
+                    resourcesList = ['Fabric'];
                 } else {
                     const key = `${Number(col)},${Number(row)}`;
                     if (meta && meta.typeId === 'corridor') {
                         const used = Math.max(0, Math.floor(Number(state?.wiringStrippedByTile?.[key] || 0)));
                         resourcesValue = (used >= 5) ? 'None' : 'Wire';
+                        if (resourcesValue !== 'None') resourcesList = ['Wire'];
                     }
                 }
             }
         } catch { /* ignore */ }
-        const resourcesRow = `<div class="localmap-info-row"><span class="k">Resources</span><span class="v">${resourcesValue}</span></div>`;
+
+        const resourcesHtml = (() => {
+            if (Array.isArray(resourcesList) && resourcesList.length) {
+                return resourcesList.map(s => String(s)).join('<br>');
+            }
+            const s = String(resourcesValue ?? 'Unknown');
+            if (s.includes(',')) {
+                const parts = s.split(',').map(p => p.trim()).filter(Boolean);
+                if (parts.length > 1) return parts.join('<br>');
+            }
+            return s;
+        })();
+
+        const resourcesRow = `<div class="localmap-info-row"><span class="k">Resources</span><span class="v">${resourcesHtml}</span></div>`;
         const noteText = !discovered
             ? 'Fog blocks detail. Scout more to reveal the area.'
             : (meta.description || (poiLabel

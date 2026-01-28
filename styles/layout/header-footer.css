@@ -158,6 +158,22 @@
     gap: 15px;
 }
 
+/* Mobile header menu button (injected by ui/header.js) */
+.header-menu-btn {
+    display: none;
+}
+
+/* Default: keep the overflow/menu button hidden.
+   (Needs stronger specificity because .header-link sets display:flex.) */
+#header .header-menu-btn {
+    display: none;
+}
+
+/* Mobile-only footer speed control (injected by ui/footer.js) */
+.mobile-speed-btn {
+    display: none;
+}
+
 .header-link {
     height: 30px;
     padding: 0 25px;
@@ -258,12 +274,176 @@
 
 @media (max-width: 700px) {
     .header-controls { display: none; }
-    .weather-widget { display: none; }
 }
 
 /* tweak responsiveness */
 @media (max-width: 700px) {
     .header-controls { display: none; } /* hide controls on very small screens */
+}
+
+/* Phone layout (portrait) AND phone-landscape (low height): tighten header and turn
+    Options/Save/Load into a dropdown.
+    Target device test: iPhone 12 Pro landscape ~844x390.
+    Desktop behavior remains unchanged because these rules only apply at phone-ish sizes. */
+@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+    :root {
+        --footer-height: 25px;
+        --edge-rail: 40px;
+    }
+
+    #header {
+        height: 25px;
+        padding: 1px 6px;
+        gap: 6px;
+        /* Keep center truly centered even when left/right widths differ */
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        /* Keep header UI (⋯ dropdown) above overlay drawers */
+        z-index: 220;
+    }
+
+    .header-left {
+        width: auto;
+        justify-content: flex-start;
+        justify-self: start;
+    }
+
+    #gameLogo {
+        height: 19px;
+    }
+
+    .header-center {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-width: 0;
+        justify-self: center;
+    }
+
+    .clock-display {
+        width: auto;
+        max-width: 38vw;
+        font-size: 11px;
+        padding: 0 8px;
+        height: 18px;
+        line-height: 18px;
+        margin-right: 0;
+        border-radius: 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .clock-display::before {
+        content: '';
+        display: none;
+    }
+
+    .weather-widget {
+        width: auto;
+        max-width: 38vw;
+        font-size: 11px;
+        padding: 0 8px;
+        height: 18px;
+        line-height: 18px;
+        margin-left: 0;
+        overflow: hidden;
+    }
+
+    .weather-widget .weather-temp { min-width: 0; }
+
+    .header-right {
+        width: auto;
+        position: relative;
+        gap: 6px;
+        align-items: center;
+        justify-self: end;
+    }
+
+    /* Override #header .header-menu-btn { display:none } */
+    #header .header-menu-btn {
+        display: inline-flex;
+        min-width: 34px;
+        padding: 0 10px;
+        font-size: 16px;
+        line-height: 1;
+        height: 20px;
+    }
+
+    /* Match footer to compact header height */
+    #footer {
+        height: 25px;
+        padding: 0 6px;
+        /* Widen objectives (middle) column further for phone-landscape */
+        grid-template-columns: 28% 44% 28%;
+    }
+
+    /* Keep footer content optically centered in the shorter bar */
+    .footer-column { align-items: center; }
+    #footerControls { height: 100%; align-items: center; transform: translateY(-1px); }
+
+    /* Make footer controls fit within 25px */
+    .footer-controls { gap: 6px; }
+
+    /* Replace speed button row with a single cycle button */
+    .footer-controls .speed-buttons { display: none; }
+    .footer-controls .mobile-speed-btn { display: inline-flex; }
+
+    .footer-controls .header-link {
+        height: 20px;
+        padding: 0 8px;
+        font-size: 10px;
+    }
+
+    .footer-controls .speed-btn {
+        height: 20px;
+        min-width: 30px;
+        padding: 0 6px;
+        font-size: 10px;
+    }
+
+    .footer-controls #pauseBtn { min-width: 58px; }
+
+    /* Version button (changelog) moves into the header ⋯ menu on mobile */
+    #changelogBtn { display: none; }
+
+    /* Objectives button in the middle footer column */
+    .objectives-toggle {
+        height: 20px;
+        font-size: 11px;
+        padding: 0 10px;
+        min-width: 0;
+    }
+
+    /* Hide the inline link row; show it as an anchored dropdown when open */
+    .header-links {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        flex-direction: column;
+        gap: 6px;
+        padding: 10px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.92);
+        border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.28);
+        box-shadow: 0 10px 26px rgba(0,0,0,0.45);
+        z-index: 230;
+    }
+
+    #header .header-right.is-menu-open .header-links {
+        display: flex;
+    }
+
+    /* Make dropdown items less wide than desktop buttons */
+    #header .header-links .header-link {
+        height: 28px;
+        padding: 0 14px;
+        font-size: 12px;
+        justify-content: flex-start;
+        min-width: 140px;
+    }
 }
 
 /* --- Objectives footer panel --- */

@@ -178,7 +178,7 @@
 .journal-tab {
     flex: 1 1 0;
     text-align: center;
-    background: linear-gradient(180deg, rgba(8,8,8,0.85), rgba(4,4,4,0.6));
+    background: linear-gradient(180deg, rgba(8,8,8,0.96), rgba(4,4,4,0.92));
     border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.38);
     border-bottom: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.58); /* create a stronger seam above content */
     color: #cfd8cf;
@@ -211,7 +211,6 @@
         box-shadow:
             0 0 0 1px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.14) inset,
             0 2px 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10);
-        opacity: 0.70;
 }
 
 /* Baseline glow removed - active tab connects directly to content */
@@ -535,4 +534,27 @@
 .objectives-history::-webkit-scrollbar-track { background: #111; }
 .objectives-history::-webkit-scrollbar-thumb { background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5); border-radius: 6px; border: 3px solid #111; }
 .objectives-history::-webkit-scrollbar-thumb:hover { background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8); }
+
+/* Phone-landscape: hide tabs and match Crash Site padding to maximize usable space. */
+@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+    #journalSection {
+        padding: 2px;
+    }
+
+    #journalSection .journal-tabs {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    #journalSection > .content-panel.journal-panel {
+        padding: 6px;
+        border-top-width: 1px !important;
+        border-top-style: solid !important;
+        border-top-left-radius: 6px;
+        border-top-right-radius: 6px;
+        margin-top: 0 !important;
+    }
+}
 

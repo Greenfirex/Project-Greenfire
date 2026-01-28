@@ -354,3 +354,57 @@
     max-width: none;
     min-width: 110px;
 }
+
+/* Phone-landscape (e.g., iPhone 12 Pro 844x390): tighten typography and spacing */
+@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+    .story-popup-overlay {
+        padding: 10px;
+    }
+
+    .story-popup-content:not(.confirm-popup-content) {
+        width: 94vw;
+        height: 88vh;
+        max-height: calc(100vh - 30px);
+        padding: 12px;
+    }
+
+    .story-popup-header {
+        padding: 8px 10px;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+    }
+
+    .story-popup-header h2 {
+        font-size: 18px;
+    }
+
+    .story-popup-body {
+        padding: 4px 0 8px 0;
+    }
+
+    .story-popup-text {
+        padding: 0 4px 10px 4px;
+    }
+
+    #popupMessage {
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .story-popup-nav {
+        margin-top: 8px;
+        padding-top: 6px;
+    }
+
+    .story-popup-nav .menu-button,
+    .story-nav-button {
+        height: 30px;
+        padding: 6px 10px;
+        font-size: 12px;
+        min-width: 66px;
+    }
+
+    .story-popup-nav #popupPaging {
+        font-size: 11px;
+    }
+}

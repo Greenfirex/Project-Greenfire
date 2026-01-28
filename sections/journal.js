@@ -22,17 +22,19 @@ function resolveStoryEventForEntry(entry) {
 
 export function setupJournalSection(section) {
     if (!section) return;
+
+    const initialTab = (section.dataset && section.dataset.journalActiveTab === 'journal') ? 'journal' : 'objectives';
     section.innerHTML = `
         <div class="journal-tabs" role="tablist" aria-label="Journal and Objectives">
-            <button class="journal-tab active" data-tab="objectives" role="tab" aria-selected="true">Objectives</button>
-            <button class="journal-tab" data-tab="journal" role="tab" aria-selected="false">Journal</button>
+            <button class="journal-tab ${initialTab === 'objectives' ? 'active' : ''}" data-tab="objectives" role="tab" aria-selected="${initialTab === 'objectives' ? 'true' : 'false'}">Objectives</button>
+            <button class="journal-tab ${initialTab === 'journal' ? 'active' : ''}" data-tab="journal" role="tab" aria-selected="${initialTab === 'journal' ? 'true' : 'false'}">Journal</button>
         </div>
         <div class="content-panel journal-panel">
             <div class="journal-tabpanes">
-                <div id="objectivesPane" class="journal-pane active" role="tabpanel" aria-labelledby="objectives-tab">
+                <div id="objectivesPane" class="journal-pane ${initialTab === 'objectives' ? 'active' : ''}" role="tabpanel" aria-labelledby="objectives-tab">
                     <div id="objectivesHistoryContainer" class="objectives-history"></div>
                 </div>
-                <div id="journalPane" class="journal-pane" role="tabpanel" aria-labelledby="journal-tab">
+                <div id="journalPane" class="journal-pane ${initialTab === 'journal' ? 'active' : ''}" role="tabpanel" aria-labelledby="journal-tab">
                     <div id="journalEntriesContainer" class="journal-entries"></div>
                 </div>
             </div>
@@ -41,13 +43,16 @@ export function setupJournalSection(section) {
 
     const journalContainer = section.querySelector('#journalEntriesContainer');
     if (journalContainer) renderJournalEntries(journalContainer);
-    renderObjectivesHistory(); // Render objectives first since it's the default tab
+    if (initialTab === 'objectives') {
+        renderObjectivesHistory();
+    }
 
     // Tab switching
     const tabs = Array.from(section.querySelectorAll('.journal-tab'));
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const target = tab.dataset.tab;
+            try { section.dataset.journalActiveTab = target === 'journal' ? 'journal' : 'objectives'; } catch { /* ignore */ }
             tabs.forEach(t => {
                 t.classList.toggle('active', t === tab);
                 t.setAttribute('aria-selected', t === tab ? 'true' : 'false');

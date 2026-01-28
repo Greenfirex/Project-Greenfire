@@ -1,5 +1,18 @@
 /* Local map tab (Crash Site) */
 
+/* The Local Map host must fill the pane so the grid has a definite height.
+   Otherwise the CSS grid rows size to content and the Actions panel can balloon. */
+#crashSiteLocalMapContainer {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+}
+
+#crashSiteLocalMapContainer > .localmap-root {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
 /* Layout: center the map within the tab */
 .crashsite-pane .localmap-root {
     height: 100%;
@@ -11,16 +24,21 @@
 }
 
 .localmap-layout {
+    /* Reserve a fixed bottom strip for Actions so the top row (map + tile)
+       never changes height when the Tile panel is collapsed/expanded. */
+    /* One-row target: header + a single row of buttons. */
+    /* Add a few pixels so hover/focus button effects don't cause scrollbar flicker. */
+    --localmap-actions-height: clamp(94px, 12vh, 112px);
     width: 100%;
     display: grid;
     /* Give the map more room; keep the Tile panel narrower */
-    grid-template-columns: minmax(0, 1fr) clamp(240px, 22vw, 320px);
+    grid-template-columns: minmax(0, 1fr) clamp(200px, 16vw, 260px);
     grid-template-areas:
         "map info"
         "actions actions";
-    /* Let the map/info row stretch to fill the available height */
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: 14px;
+    /* Fixed-height Actions row; top row takes the remaining space */
+    grid-template-rows: minmax(0, 1fr) var(--localmap-actions-height);
+    gap: 12px;
     align-items: stretch;
     justify-content: stretch;
     height: 100%;
@@ -35,9 +53,23 @@
 .localmap-mapwrap {
     grid-area: map;
     display: flex;
-    align-items: flex-start;
+    align-items: stretch;
     justify-content: stretch;
     min-height: 0;
+    min-width: 0;
+     /* IMPORTANT: grid items already stretch; avoid height:100% + padding (content-box)
+         which can make this column visually taller than the Tile panel. */
+     box-sizing: border-box;
+    /* Match the Tile panel card edge/shadow so both columns align visually.
+       The inner .localmap-shell is layout-only (no outer border/shadow). */
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
+    border-radius: 10px;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.25);
+    padding: 8px;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
 }
 
 .localmap-infowrap {
@@ -47,7 +79,10 @@
     align-items: stretch;
     justify-content: stretch;
     min-height: 0;
+    height: 100%;
+    box-sizing: border-box;
     position: relative;
+    z-index: 1;
 }
 
 .localmap-infowrap.is-collapsed .localmap-card-body {
@@ -131,6 +166,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    box-sizing: border-box;
 }
 
 /* Tile markers (small top-left corner icons) */
@@ -251,10 +287,14 @@
     line-height: 1.35;
     flex: 1 1 auto;
     min-height: 0;
+    overflow: auto;
 }
 
 .localmap-info-card {
     height: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+    box-sizing: border-box;
 }
 
 .localmap-info-row {
@@ -262,15 +302,23 @@
     justify-content: space-between;
     gap: 10px;
     padding: 2px 0;
+    min-width: 0;
 }
 
 .localmap-info-row .k {
     opacity: 0.75;
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .localmap-info-row .v {
     font-weight: 600;
     color: rgba(255,255,255,0.92);
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: right;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .localmap-divider {
@@ -287,20 +335,25 @@
 
 .localmap-shell {
     width: 100%;
-    /* Slightly taller than before so the grid reads bigger */
-    aspect-ratio: 4 / 3;
+    height: 100%;
+    max-height: 100%;
+    max-width: 100%;
+    /* Fixed height: do not let width changes (Tile collapse) affect height. */
+    aspect-ratio: auto;
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 auto;
     display: grid;
     grid-template-columns: 34px 1fr;
     /* Add a small bottom row for controls (zoom) */
     grid-template-rows: 26px minmax(0, 1fr) 34px;
     gap: 6px;
-    padding: 10px;
+    padding: 0;
 
-    background: rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
-    border-radius: 10px;
-    box-shadow:
-        0 10px 26px rgba(0,0,0,0.25);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
 
     position: relative;
     overflow: hidden;
@@ -353,6 +406,10 @@
     grid-column: 2;
     grid-row: 2;
 
+    /* Allow the viewport to shrink inside the fixed shell grid,
+       otherwise it can push the bottom controls off-screen and get clipped. */
+    min-height: 0;
+
     border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.22);
     border-radius: 8px;
     overflow: hidden;
@@ -375,6 +432,7 @@
 .localmap-grid-pan {
     width: 100%;
     height: 100%;
+    min-height: 0;
     transform: translate3d(var(--pan-x, 0px), var(--pan-y, 0px), 0);
     will-change: transform;
     display: block;
@@ -390,7 +448,8 @@
 
     /* Optional visual test layer: image under the grid/tiles */
     background-image: url("../../assets/images/mapback2.png");
-    background-size: cover;
+    /* Preserve the full backing image (avoid bottom cropping when layout aspect changes) */
+    background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
 
@@ -1024,6 +1083,18 @@
 
 .localmap-actions-card {
     grid-area: actions;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 2;
+    /* Make this strip more opaque so content behind (map) doesn't show through,
+       which otherwise looks like the map panel extends underneath it. */
+    background: rgba(0, 0, 0, 0.62);
+    /* Slightly tighter than the default card padding so a single row of actions
+       fits without triggering a pointless scrollbar in the reserved strip. */
+    padding: 10px 12px;
 }
 
 .localmap-actions-row {
@@ -1031,7 +1102,13 @@
     gap: 10px;
     flex-wrap: wrap;
     /* Ensure buttons sit visually below the header */
-    margin-top: 10px;
+    margin-top: 8px;
+    /* Keep Actions contained in the reserved bottom strip */
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    align-content: flex-start;
 }
 
 .localmap-actions-hint {

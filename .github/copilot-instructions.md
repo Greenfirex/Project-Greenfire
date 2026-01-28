@@ -1,5 +1,11 @@
 # Copilot instructions — Project Greenfire
 
+## Current focus: phone landscape UX (important)
+- We are actively optimizing the UI for phone gameplay in landscape.
+- Primary test target: iPhone 12 Pro emulation at 844 x 390 (Chrome device mode).
+- Keep desktop/PC behavior and layout unchanged; scope mobile changes behind responsive CSS (media queries) and minimal, additive JS.
+- Prefer incremental, top-to-bottom improvements (Header → main layout → panels → footer).
+
 ## Clarifying questions (always do this)
 - If any requirement is ambiguous or could be implemented in multiple reasonable ways, ask short clarifying questions before making code changes.
 - If requirements are clear, implement directly without extra questions.
@@ -24,6 +30,9 @@
 - Install: `npm install`
 - Run: `npm run start` (uses `http-server -c-1`) then open the printed URL.
 - No automated tests are configured (`npm test` exits 1).
+
+## Agent workflow (important)
+- Do NOT start the local dev server (e.g., don’t run `npm run start` / `http-server`). The user runs the game and verifies changes manually.
 
 ## Entrypoints + loops
 - Boot is in `core/main.js` on `DOMContentLoaded`.

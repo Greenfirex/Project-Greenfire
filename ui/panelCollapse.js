@@ -3,6 +3,14 @@
 let leftPanelCollapsed = false;
 let rightPanelCollapsed = false;
 
+function isCompactPhoneLandscape() {
+    try {
+        return window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px)').matches;
+    } catch {
+        return false;
+    }
+}
+
 function updateGameAreaSize() {
     const gameArea = document.getElementById('gameArea');
     if (!gameArea) return;
@@ -50,8 +58,21 @@ function toggleInfoPanelCollapse() {
 
 function initPanelCollapse() {
     // Restore saved state
-    const savedMainMenuCollapsed = localStorage.getItem('mainMenuCollapsed') === 'true';
-    const savedInfoPanelCollapsed = localStorage.getItem('infoPanelCollapsed') === 'true';
+    const mainMenuCollapsedRaw = localStorage.getItem('mainMenuCollapsed');
+    const infoPanelCollapsedRaw = localStorage.getItem('infoPanelCollapsed');
+
+    const savedMainMenuCollapsed = mainMenuCollapsedRaw === 'true';
+    let savedInfoPanelCollapsed = infoPanelCollapsedRaw === 'true';
+
+    // Phone-landscape default: collapse the right panel unless the player has already chosen otherwise.
+    if (isCompactPhoneLandscape() && infoPanelCollapsedRaw === null) {
+        savedInfoPanelCollapsed = true;
+        try {
+            localStorage.setItem('infoPanelCollapsed', 'true');
+        } catch {
+            /* ignore */
+        }
+    }
 
     if (savedMainMenuCollapsed) {
         leftPanelCollapsed = true;

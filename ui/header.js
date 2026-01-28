@@ -15,6 +15,100 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveLink = document.getElementById('saveLink');
     const loadLink = document.getElementById('loadLink');
 
+    // --- Mobile dropdown for Options/Save/Load ---
+    // Kept CSS-driven so desktop layout remains unchanged.
+    try {
+        const headerRight = document.querySelector('#header .header-right');
+        const headerLinks = headerRight?.querySelector('.header-links');
+
+        if (headerRight && headerLinks) {
+            let menuBtn = headerRight.querySelector('.header-menu-btn');
+            if (!menuBtn) {
+                menuBtn = document.createElement('button');
+                menuBtn.type = 'button';
+                menuBtn.className = 'header-link header-menu-btn';
+                menuBtn.id = 'headerMenuBtn';
+                menuBtn.title = 'Menu';
+                menuBtn.setAttribute('aria-label', 'Menu');
+                menuBtn.setAttribute('aria-expanded', 'false');
+                menuBtn.textContent = '⋯';
+                headerRight.insertBefore(menuBtn, headerLinks);
+            }
+
+            const closeMenu = () => {
+                headerRight.classList.remove('is-menu-open');
+                try { menuBtn.setAttribute('aria-expanded', 'false'); } catch { /* ignore */ }
+            };
+
+            const openMenu = () => {
+                headerRight.classList.add('is-menu-open');
+                try { menuBtn.setAttribute('aria-expanded', 'true'); } catch { /* ignore */ }
+            };
+
+            const toggleMenu = () => {
+                if (headerRight.classList.contains('is-menu-open')) closeMenu();
+                else openMenu();
+            };
+
+            menuBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleMenu();
+            });
+
+            // Close when selecting an item
+            headerLinks.addEventListener('click', (e) => {
+                const target = e.target && e.target.closest ? e.target.closest('a,button') : null;
+                if (target) closeMenu();
+            });
+
+            // Inject Changelog into the mobile dropdown (reuses existing footer popup)
+            try {
+                let changelogLink = document.getElementById('changelogLink');
+                if (!changelogLink) {
+                    changelogLink = document.createElement('a');
+                    changelogLink.href = '#';
+                    changelogLink.id = 'changelogLink';
+                    changelogLink.className = 'header-link';
+                    const existing = document.getElementById('changelogBtn');
+                    const label = (existing && existing.textContent && existing.textContent.trim()) ? existing.textContent.trim() : 'Changelog';
+                    changelogLink.textContent = label;
+                    headerLinks.appendChild(changelogLink);
+                }
+                if (changelogLink.dataset.wired !== 'true') {
+                    changelogLink.dataset.wired = 'true';
+                    changelogLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const btn = document.getElementById('changelogBtn');
+                        if (btn) btn.click();
+                    });
+                }
+            } catch { /* ignore */ }
+
+            // Close on outside click
+            document.addEventListener('click', (e) => {
+                if (!headerRight.contains(e.target)) closeMenu();
+            });
+
+            // Close on Escape (useful on desktop dev tools)
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeMenu();
+            });
+
+            // Also close if any of the header links run their handler
+            const closeOnActivate = (el) => {
+                try {
+                    el?.addEventListener('click', () => closeMenu());
+                } catch { /* ignore */ }
+            };
+            closeOnActivate(optionsLink);
+            closeOnActivate(saveLink);
+            closeOnActivate(loadLink);
+        }
+    } catch (e) {
+        /* ignore */
+    }
+
     function showOptionsMenu(event) {
         event.preventDefault();
         if (optionsMenu) {

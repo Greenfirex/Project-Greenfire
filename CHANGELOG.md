@@ -1,3 +1,19 @@
+# [0.2.5] - 2026-01-28
+
+### Changed
+
+- **Phone-landscape UX:** Side panels behave as overlay drawers and the center game area is inset so collapsed rails don’t cover section content.
+- **Crash Site / Journal tabs (mobile):** In-section tabs are hidden in compact mode and accessible via the left icon-rail popover.
+- **Popups (mobile):** Options popup layout and styling were tuned to match the story popup treatment and fit small landscape screens.
+- **Tab styling:** Crash Site and Journal tab buttons now render with a more opaque background.
+
+### Fixed
+
+- **Crash Site right edge:** Prevented the right drawer chevron tab from covering the Local Map tile panel / Campsite right-side content.
+- **Journal tab switching (mobile):** Selecting the Journal tab via the popover no longer flashes then snaps back to Objectives.
+
+---
+
 # [0.2.4] - 2026-01-27
 
 ### Added
