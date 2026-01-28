@@ -556,5 +556,143 @@
         border-top-right-radius: 6px;
         margin-top: 0 !important;
     }
+
+    /* --- Objectives (Journal -> Objectives tab): tighter list + smaller detail text --- */
+    .objectives-history,
+    .objectives-two-column,
+    .objectives-list-panel,
+    .objectives-detail-panel {
+        min-height: 0;
+    }
+
+    .objectives-two-column {
+        gap: 10px;
+        flex: 1 1 auto;
+    }
+
+    .objectives-list-panel {
+        padding-right: 6px;
+    }
+
+    .objectives-section-header {
+        margin: 0 0 6px 0;
+        padding: 4px 6px;
+        font-size: 11px;
+        letter-spacing: 0.4px;
+    }
+
+    .objectives-list {
+        margin: 0 0 12px 0;
+        gap: 2px;
+    }
+
+    .objectives-list-item {
+        gap: 8px;
+        padding: 6px 8px;
+        border-radius: 6px;
+    }
+
+    .objectives-list-item .objective-marker {
+        width: 16px;
+        font-size: 14px;
+    }
+
+    .objectives-list-item .objective-label {
+        font-size: 11px;
+        line-height: 1.2;
+    }
+
+    .objectives-list-item .objective-track-btn {
+        padding: 3px 8px;
+        font-size: 10px;
+        letter-spacing: 0.4px;
+    }
+
+    .objectives-detail-panel {
+        padding: 0 8px 0 6px;
+    }
+
+    .objective-detail-title {
+        margin: 0 0 8px 0;
+        font-size: 15px;
+    }
+
+    .objective-status-row {
+        margin-bottom: 12px;
+        gap: 6px;
+    }
+
+    .objective-status {
+        padding: 3px 10px;
+        font-size: 10px;
+    }
+
+    .objective-detail-narrative {
+        font-size: 11px;
+        line-height: 1.35;
+    }
+
+    .objective-detail-section-header {
+        margin: 12px 0 6px 0;
+        font-size: 12px;
+    }
+
+    .objective-detail-steps {
+        gap: 3px;
+    }
+
+    .objective-detail-step {
+        gap: 8px;
+        padding: 3px 0;
+    }
+
+    .objective-detail-step .step-marker {
+        width: 16px;
+        font-size: 12px;
+        line-height: 1.2;
+    }
+
+    .objective-detail-step .step-label {
+        font-size: 11px;
+        line-height: 1.25;
+    }
+
+    .objective-detail-reward {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+
+    .objective-detail-times {
+        font-size: 10px;
+        line-height: 1.35;
+    }
+
+    /* --- Journal entries: smaller, denser cards --- */
+    #journalSection .journal-header {
+        margin-bottom: 8px;
+    }
+
+    .journal-entry {
+        margin-bottom: 8px;
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    .journal-entry-title {
+        margin-bottom: 4px;
+        font-size: 13px;
+    }
+
+    .journal-entry-time {
+        margin-bottom: 6px;
+        font-size: 10px;
+        opacity: 0.85;
+    }
+
+    .journal-entry-body {
+        font-size: 12px;
+        line-height: 1.35;
+        color: #d6e3d6;
+    }
 }
 

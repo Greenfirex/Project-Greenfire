@@ -5,6 +5,7 @@ import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
 import { newBadgeHtml, wireClearUiNewBadge } from '../ui/components/contentNewBadges.js';
 import { setupCrashSiteLocalMap, updateCrashSiteLocalMapPathOverlay } from './crashSiteLocalMap.js';
 import { getLocalMapTileAt, isCrashPoi, isCrashWallBetween, SHIP_ENTRANCE } from '../data/definitions/localMapTiles.js';
+import { CRASH_SITE_MAP_BOUND_ACTION_IDS } from '../data/definitions/crashSiteMapBoundActionIds.js';
 import { findCrashSitePath } from '../data/localMapPathfinding.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
 import { showStoryPopup } from '../ui/panels/popup.js';
@@ -1633,56 +1634,9 @@ export function setupCrashSiteSection(section) {
 
     const actionsContainer = host.querySelector('#salvageActionsContainer');
 
-    // Actions that are rendered in the Local Map panel (tile-bound exploration), not in the main Crash Site list.
-    const MAP_BOUND_ACTION_IDS = new Set([
-        'move',
-        'sitDown',
-        'rest',
-        'drinkCaveWater',
-        'purifyWater',
-        'attemptReentry',
-        'attemptAlternateAccess',
-        'scavengeDebris',
-        'makeCrudePrybar',
-        'huntWildlife',
-        'createBasicTorch',
-        'craftMetalSpear',
-        'pryOpenHull',
-
-        // Map-tile actions (ship interior / base camp)
-        'stripWiring',
-        'investigateSound',
-        'establishBaseCamp',
-
-        // Ship interior tile actions (rendered on E4/E6/F5)
-        'searchNorthCorridor',
-        'searchSouthCorridor',
-        'investigateBridge',
-
-        // Ship interior room actions (tile-bound)
-        'exploreCafeteria',
-        'checkCrewQuarters',
-        'searchLabs',
-        'searchPowerCore',
-        'restoreEmergencyPower',
-
-        // Radio repair flow
-        'scavengeCommsPanel',
-        'fixLongRangeRadio',
-
-        // Beyond the Perimeter
-        'investigateDistantSmoke',
-
-        // Resource gathering should be local-map-only
-        'forageFood',
-        'collectChemicals',
-        'scavengeCafeteriaSupplies',
-        'collectFabric',
-    ]);
-
     const availableActions = salvageActions.filter(action => {
         if (!action) return false;
-        if (MAP_BOUND_ACTION_IDS.has(action.id)) return false;
+        if (CRASH_SITE_MAP_BOUND_ACTION_IDS.has(action.id)) return false;
         const stageIndex = action.stage || 0;
         const totalStages = (action.stages || []).length;
         if (totalStages > 0 && stageIndex >= totalStages) return !!action.repeatable && !!action.isUnlocked;

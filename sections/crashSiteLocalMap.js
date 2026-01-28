@@ -5,6 +5,24 @@ const COLS = 11; // A-K
 const ROWS = 9;  // 1-9
 const LETTERS = Array.from({ length: COLS }, (_, i) => String.fromCharCode('A'.charCodeAt(0) + i));
 
+const COMPACT_PHONE_LANDSCAPE_MQL = '(max-width: 600px), (max-width: 900px) and (max-height: 450px)';
+
+function isCompactPhoneLandscape() {
+    try {
+        return !!(window && window.matchMedia && window.matchMedia(COMPACT_PHONE_LANDSCAPE_MQL).matches);
+    } catch {
+        return false;
+    }
+}
+
+function hasCompactZoomTouched() {
+    try { return localStorage.getItem('localMapCompactZoomTouched') === 'true'; } catch { return false; }
+}
+
+function markCompactZoomTouched() {
+    try { localStorage.setItem('localMapCompactZoomTouched', 'true'); } catch { /* ignore */ }
+}
+
 function tileCenterToSvgPoint(col, row) {
     const c = Number(col);
     const r = Number(row);
@@ -374,9 +392,21 @@ function normalizeState(state) {
 }
 
 function normalizeZoom(state) {
-    const z = Number(state && typeof state === 'object' ? state.zoom : 1);
-    if (!Number.isFinite(z)) return 1;
-    return clamp(z, 0.6, 2.0);
+    const compact = isCompactPhoneLandscape();
+    const touched = compact ? hasCompactZoomTouched() : true;
+    const raw = Number(state && typeof state === 'object' ? state.zoom : NaN);
+
+    // Slightly zoom-in by default on compact phone-landscape so the map reads better.
+    // Only apply this when the player hasn't interacted with the zoom controls yet.
+    const compactDefault = 1.2;
+
+    if (Number.isFinite(raw)) {
+        if (compact && !touched && Math.abs(raw - 1) < 0.001) return compactDefault;
+        return clamp(raw, 0.6, 2.0);
+    }
+
+    if (compact && !touched) return compactDefault;
+    return 1;
 }
 
 function normalizePan(state, zoom) {
@@ -727,6 +757,14 @@ function buildLiftBoxPath() {
 export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages = 3, state = null } = {}) {
     if (!container) return;
 
+    // Touch UX: double-tap a tile to trigger the same behavior as desktop double-click.
+    // Persist these across rerenders by caching on the container.
+    try {
+        if (!container._localMapTapState) {
+            container._localMapTapState = { lastKey: null, lastAt: 0, suppressClickUntil: 0 };
+        }
+    } catch { /* ignore */ }
+
     // Allow the travel animation helper to clear state.inFlightTravel when it finishes.
     try { container._localMapStateRef = state; } catch { /* ignore */ }
 
@@ -974,6 +1012,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 if (!state || typeof state !== 'object') return;
+                if (isCompactPhoneLandscape()) markCompactZoomTouched();
                 const current = normalizeZoom(state);
                 const dir = btn.dataset.zoom;
                 const nextZoom = clamp(
@@ -1418,6 +1457,10 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
             tile.addEventListener('click', () => {
                 try {
+                    const ts = container._localMapTapState;
+                    if (ts && ts.suppressClickUntil && Date.now() < ts.suppressClickUntil) return;
+                } catch { /* ignore */ }
+                try {
                     if (drag.lastDragAt && (Date.now() - drag.lastDragAt) < 250) return;
                 } catch { /* ignore */ }
                 try {
@@ -1436,6 +1479,42 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                         bubbles: true,
                         detail: { x: c, y: r, coord: toCoordLabel(c, r) }
                     }));
+                } catch { /* ignore */ }
+            });
+
+            // Mobile double-tap: emulate dblclick.
+            tile.addEventListener('pointerup', (e) => {
+                try {
+                    if (!e || e.pointerType !== 'touch') return;
+                    if (drag.lastDragAt && (Date.now() - drag.lastDragAt) < 250) return;
+
+                    const ts = container._localMapTapState;
+                    if (!ts) return;
+                    const key = `${c},${r}`;
+                    const now = Date.now();
+                    const within = (ts.lastKey === key) && ((now - (Number(ts.lastAt) || 0)) <= 350);
+                    ts.lastKey = key;
+                    ts.lastAt = now;
+                    if (!within) return;
+
+                    // Prevent the follow-up click from running (some browsers still fire it).
+                    ts.suppressClickUntil = now + 450;
+
+                    try { e.preventDefault(); } catch { /* ignore */ }
+
+                    if (state && typeof state === 'object') {
+                        state.selectedX = c;
+                        state.selectedY = r;
+                    }
+
+                    setupCrashSiteLocalMap(container, { scoutStage, totalStages, state });
+
+                    try {
+                        container.dispatchEvent(new CustomEvent('local-map-tile-double-clicked', {
+                            bubbles: true,
+                            detail: { x: c, y: r, coord: toCoordLabel(c, r) }
+                        }));
+                    } catch { /* ignore */ }
                 } catch { /* ignore */ }
             });
 

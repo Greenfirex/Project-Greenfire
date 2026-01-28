@@ -55,6 +55,22 @@
 /* Phone-landscape: let the center game area fill remaining space.
      The right info panel becomes an overlay drawer, so the desktop width % rules would waste space. */
 @media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+    /* Keep the section/background full-bleed, but inset the *content panel*
+       so it doesn't sit under the collapsed drawer tabs.
+       (Classes are applied to <html> by ui/panelCollapse.js.) */
+    #mainContainer {
+        --content-edge-inset: 3px;
+    }
+
+    /* When a side is collapsed, use a symmetric inset so the content stays centered. */
+    html.left-panel-collapsed #mainContainer {
+        --content-edge-inset: 43px; /* 40px rail + 3px gap */
+    }
+
+    html.right-panel-collapsed #mainContainer {
+        --content-edge-inset: 43px; /* 40px rail + 3px gap */
+    }
+
     #gameArea,
     #gameArea.expanded-left,
     #gameArea.expanded-right,
@@ -67,12 +83,20 @@
         box-sizing: border-box;
     }
 
-    /* Inset the absolutely-positioned sections so the collapsed left/right rails
-       never cover section content (Local map already benefits from this). */
+    /* Ensure absolutely-positioned sections remain full-bleed in compact mode. */
     .game-section {
-        left: var(--edge-rail, 40px);
-        right: var(--edge-rail, 40px);
+        left: 0;
+        right: 0;
+        width: 100%;
+    }
+
+    /* Center the section's main panel and keep it clear of collapsed rails. */
+    .game-section .content-panel {
         width: auto;
+        align-self: stretch;
+        min-width: 0;
+        margin-left: var(--content-edge-inset, 8px);
+        margin-right: var(--content-edge-inset, 8px);
     }
 }
 

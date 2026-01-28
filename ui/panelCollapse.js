@@ -3,6 +3,14 @@
 let leftPanelCollapsed = false;
 let rightPanelCollapsed = false;
 
+function syncRootPanelClasses() {
+    const root = document.documentElement;
+    if (!root) return;
+
+    root.classList.toggle('left-panel-collapsed', leftPanelCollapsed);
+    root.classList.toggle('right-panel-collapsed', rightPanelCollapsed);
+}
+
 function isCompactPhoneLandscape() {
     try {
         return window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px)').matches;
@@ -34,6 +42,8 @@ function toggleMainMenuCollapse() {
     leftPanelCollapsed = !leftPanelCollapsed;
     mainMenu.classList.toggle('collapsed', leftPanelCollapsed);
     btn.title = leftPanelCollapsed ? 'Expand menu' : 'Collapse menu';
+
+    syncRootPanelClasses();
     
     updateGameAreaSize();
     
@@ -49,6 +59,8 @@ function toggleInfoPanelCollapse() {
     rightPanelCollapsed = !rightPanelCollapsed;
     infoPanel.classList.toggle('collapsed', rightPanelCollapsed);
     btn.title = rightPanelCollapsed ? 'Expand info panel' : 'Collapse info panel';
+
+    syncRootPanelClasses();
     
     updateGameAreaSize();
     
@@ -90,6 +102,7 @@ function initPanelCollapse() {
         if (btn) btn.title = 'Expand info panel';
     }
 
+    syncRootPanelClasses();
     updateGameAreaSize();
 
     // Attach event listeners

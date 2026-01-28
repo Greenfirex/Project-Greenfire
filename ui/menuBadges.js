@@ -2,6 +2,7 @@ import { buildings } from '../data/definitions/buildings.js';
 import { gameFlags } from '../data/gameFlags.js';
 import { technologies } from '../data/definitions/technologies.js';
 import { allActions as allActionsAggregate } from '../data/definitions/allActions.js';
+import { CRASH_SITE_MAP_BOUND_ACTION_IDS } from '../data/definitions/crashSiteMapBoundActionIds.js';
 
 const MENU_NEW_ITEM_PREFIX = 'uiMenuNew:';
 
@@ -112,7 +113,9 @@ function pollMenuNewBadges() {
 
     // Crash Site: any action flagged uiNew
     try {
-        if (current !== 'crashSiteSection' && Array.isArray(allActionsAggregate) && allActionsAggregate.some(a => a && a.uiNew)) {
+        const hasNonTileNewAction = Array.isArray(allActionsAggregate)
+            && allActionsAggregate.some(a => a && a.uiNew && !CRASH_SITE_MAP_BOUND_ACTION_IDS.has(String(a.id)));
+        if (current !== 'crashSiteSection' && hasNonTileNewAction) {
             setMenuNewItemFlag('crashSiteSection', true);
         }
     } catch {

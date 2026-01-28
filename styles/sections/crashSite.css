@@ -15,7 +15,7 @@
    and tighten padding to maximize usable area. */
 @media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
     #crashSiteSection {
-        padding: 2px;
+        padding: 1px;
     }
 
     #crashSiteSection .crashsite-tabs {
@@ -26,10 +26,7 @@
     }
 
     #crashSiteSection > .content-panel.crashsite-panel {
-        /* Extra right padding prevents the (wider) right drawer chevron tab from covering
-           Crash Site's right-side content (Tile panel / Campsite right column). */
-        padding: 6px;
-        padding-right: calc(6px + 18px);
+        padding: 1px;
         border-top-width: 1px !important;
         border-top-style: solid !important;
         border-top-left-radius: 6px;
@@ -81,6 +78,10 @@
     margin: 0;
     padding: 0;
     width: 100%;
+    align-self: stretch;
+    /* Visually attach tabs to the panel border below */
+    margin-bottom: -1px;
+    z-index: 4;
 }
 
 .crashsite-tab {
@@ -150,11 +151,12 @@
     /* Override shared .content-panel height:100% so it behaves well inside padded sections
        (prevents bottom edge from being clipped by the section's padding + overflow). */
     height: auto;
-    padding: 20px;
-    border-top-width: 0 !important;
-    border-top-style: none !important;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
+    /* Tighter inset so Local Map fills more of the panel */
+    padding: 12px;
+    /* The shared .content-panel uses scrollbar-gutter: stable, which can make the
+       right side look wider even when there's no scrollbar. Disable that here so
+       map/card spacing is symmetric. */
+    scrollbar-gutter: auto;
     box-shadow: none !important;
     margin-top: 0;
     position: relative;
@@ -189,3 +191,15 @@
 }
 
 /* .content-panel and shared UI styles have been moved to styles/base/game-area.css */
+
+/* FINAL OVERRIDES (must be last): phone-landscape spacing */
+@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+    /* Ensure compact padding wins over later base rules in this file */
+    #crashSiteSection {
+        padding: 1px !important;
+    }
+
+    #crashSiteSection > .content-panel.crashsite-panel {
+        padding: 1px !important;
+    }
+}

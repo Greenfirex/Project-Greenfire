@@ -158,7 +158,14 @@
 
     /* Bigger, easier-to-hit edge tab for the right drawer */
     .panel-collapse-btn.right-panel {
-        left: -18px;
+        left: 3px;
+        width: 34px;
+        height: 34px;
+    }
+
+    /* Match the right drawer: keep the left drawer button inside the collapsed rail */
+    .panel-collapse-btn.left-panel {
+        right: 3px;
         width: 34px;
         height: 34px;
     }
@@ -188,7 +195,7 @@
         padding: 0 14px;
         border-radius: 8px;
         border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
-        background: rgba(0,0,0,0.35);
+        background: #000;
         color: #eaffea;
         font-size: 12px;
         font-weight: 700;
@@ -202,7 +209,7 @@
 
     .mobile-menu-popover-item:hover {
         border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
-        background: rgba(0,0,0,0.50);
+        background: #111;
         color: #fff;
     }
 

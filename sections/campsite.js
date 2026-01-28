@@ -84,6 +84,32 @@ export function applyCampsiteBackground(host, isCamp) {
 export function wireCampsiteCollapsibles(host) {
     if (!host) return;
 
+    const syncJobsLayoutCollapsed = () => {
+        try {
+            const layout = host.querySelector('.campsite-layout');
+            const jobsCard = host.querySelector('.campsite-card[data-campsite-panel="jobs"]');
+            if (!layout || !jobsCard) return;
+            layout.classList.toggle('jobs-collapsed', jobsCard.classList.contains('is-collapsed'));
+        } catch { /* ignore */ }
+    };
+
+    const syncRightPanelRowCollapses = () => {
+        try {
+            const layout = host.querySelector('.campsite-layout');
+            if (!layout) return;
+            const upgrades = host.querySelector('.campsite-card[data-campsite-panel="upgrades"]');
+            const buildings = host.querySelector('.campsite-card[data-campsite-panel="buildings"]');
+            const crafting = host.querySelector('.campsite-card[data-campsite-panel="crafting"]');
+            const upCollapsed = !!(upgrades && upgrades.classList.contains('is-collapsed'));
+            const bCollapsed = !!(buildings && buildings.classList.contains('is-collapsed'));
+            const cCollapsed = !!(crafting && crafting.classList.contains('is-collapsed'));
+            layout.classList.toggle('upgrades-collapsed', upCollapsed);
+            layout.classList.toggle('buildings-collapsed', bCollapsed);
+            layout.classList.toggle('crafting-collapsed', cCollapsed);
+            layout.classList.toggle('all-right-collapsed', upCollapsed && bCollapsed && cCollapsed);
+        } catch { /* ignore */ }
+    };
+
     const getCollapseKey = (panelKey) => `campsitePanelCollapsed.${String(panelKey)}`;
     const readCollapsed = (panelKey) => {
         try { return localStorage.getItem(getCollapseKey(panelKey)) === 'true'; } catch { return false; }
@@ -121,8 +147,20 @@ export function wireCampsiteCollapsibles(host) {
                 btn.setAttribute('aria-label', `${nowCollapsed ? 'Expand' : 'Collapse'} ${labelBase} panel`);
             } catch { /* ignore */ }
             writeCollapsed(panelKey, nowCollapsed);
+
+            // Jobs panel collapses horizontally by shrinking the left column.
+            if (panelKey === 'jobs') syncJobsLayoutCollapsed();
+
+            // Right-side panels shrink their rows.
+            if (panelKey === 'upgrades' || panelKey === 'buildings' || panelKey === 'crafting') {
+                syncRightPanelRowCollapses();
+            }
         });
     }
+
+    // Apply layout state after restoring persisted collapses.
+    syncJobsLayoutCollapsed();
+    syncRightPanelRowCollapses();
 }
 
 export function renderCampsitePanels(host, { availableActions = [], createActionButton = null } = {}) {
@@ -319,6 +357,8 @@ export function setupCampsiteJobsPanel(sectionEl, { embedded = false } = {}) {
         jobsContainer.addEventListener('pointerdown', (e) => {
             const btn = e.target.closest('button');
             if (!btn || !jobsContainer.contains(btn)) return;
+            // Disabled buttons should not trigger job assignment logic.
+            if (btn.disabled) return;
             const jobId = btn.dataset.jobId;
             const action = btn.dataset.action; // 'inc' or 'dec'
             if (!jobId || !action) return;
@@ -527,7 +567,11 @@ function incrementJob(jobId) {
 
     if (idle <= 0) {
         const label = survivors?.name === 'Crew Members' ? 'crew members' : 'survivors';
-        addLogEntry(`No available ${label} to assign.`, LogType.ERROR);
+        if (totalAssigned > 0) {
+            addLogEntry(`All ${label} are currently assigned. Remove one from a job first.`, LogType.ERROR);
+        } else {
+            addLogEntry(`No available ${label} to assign.`, LogType.ERROR);
+        }
         return;
     }
     if (!(job.unlimited === true) && (typeof job.slots === 'number') && ((job.assigned || 0) >= (job.slots || 0))) {
