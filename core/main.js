@@ -23,6 +23,8 @@ import { initOptions, setGlowColor, setGlowIntensity, shouldRunInBackground } fr
 import { recomputeObjectives } from '../data/objectives.js';
 import { initFooter, getIsPaused, pauseGame, resumeGame, registerMainLoopCallbacks } from '../ui/footer.js';
 import '../ui/header.js';
+import '../ui/compactMode.js';
+import '../ui/pwa.js';
 import '../ui/panelCollapse.js';
 import '../ui/viewportFix.js';
 import '../ui/mobileMenuIcons.js';

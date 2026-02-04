@@ -4,20 +4,13 @@
 // - (XP display lives in Character stats)
 
 import { addLogEntry, LogType } from '../core/ingameLog.js';
+import { isCompactPhoneLandscape } from './compactMode.js';
 
 let isPaused = false;
 let mainLoopCallbacks = { start: null, stop: null };
 let pauseOverlayEl = null;
 
 const MOBILE_SPEED_ORDER = [1, 2, 5, 10];
-
-function isCompactPhoneLandscape() {
-    try {
-        return window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)').matches;
-    } catch {
-        return false;
-    }
-}
 
 function updateMobileSpeedButton() {
     const btn = document.getElementById('mobileSpeedBtn');
@@ -205,12 +198,22 @@ export function initFooter() {
             // Show/hide handled by CSS; keep label updated.
             updateMobileSpeedButton();
 
-            // If viewport changes between compact/desktop (dev tools), keep label fresh.
+            // Keep label/tab-focus correct when compact mode changes.
             try {
-                const mql = window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)');
-                if (mql && mobileBtn.dataset.mqlWired !== 'true') {
-                    mobileBtn.dataset.mqlWired = 'true';
-                    mql.addEventListener('change', () => updateMobileSpeedButton());
+                const applyCompactState = () => {
+                    try { updateMobileSpeedButton(); } catch { /* ignore */ }
+                    try {
+                        if (!isCompactPhoneLandscape()) mobileBtn.setAttribute('tabindex', '-1');
+                        else mobileBtn.removeAttribute('tabindex');
+                    } catch { /* ignore */ }
+                };
+
+                if (mobileBtn.dataset.compactWired !== 'true') {
+                    mobileBtn.dataset.compactWired = 'true';
+                    window.addEventListener('compactmodechange', applyCompactState);
+                    window.addEventListener('resize', applyCompactState, { passive: true });
+                    window.addEventListener('orientationchange', applyCompactState, { passive: true });
+                    window.visualViewport?.addEventListener('resize', applyCompactState, { passive: true });
                 }
             } catch { /* ignore */ }
 

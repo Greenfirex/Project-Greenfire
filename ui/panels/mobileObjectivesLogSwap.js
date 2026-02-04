@@ -11,7 +11,8 @@ import {
     getAllObjectivesWithState
 } from '../../data/objectives.js';
 
-const COMPACT_MQ = '(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)';
+import { isCompactPhoneLandscape } from '../compactMode.js';
+
 const BODY_CLASS = 'mobile-log-footer-swap';
 
 let compactMql = null;
@@ -38,11 +39,7 @@ let objectivesRefreshTimer = null;
 let outsidePointerDownHandler = null;
 
 function isCompactMode() {
-    try {
-        return !!window.matchMedia(COMPACT_MQ).matches;
-    } catch {
-        return false;
-    }
+    return !!isCompactPhoneLandscape();
 }
 
 function ensureFooterLogContainer() {
@@ -452,17 +449,19 @@ function syncForCurrentMode() {
 }
 
 function init() {
-    compactMql = window.matchMedia(COMPACT_MQ);
-
     syncForCurrentMode();
 
-    // React to viewport changes (rotate / resize)
+    // React to centralized compact-mode changes.
     try {
-        compactMql.addEventListener('change', () => syncForCurrentMode());
-    } catch {
-        // Safari/iOS fallback
-        try { compactMql.addListener(() => syncForCurrentMode()); } catch { /* ignore */ }
-    }
+        window.addEventListener('compactmodechange', () => syncForCurrentMode());
+    } catch { /* ignore */ }
+
+    // Fallback: some environments might miss the event.
+    try {
+        window.addEventListener('resize', () => syncForCurrentMode(), { passive: true });
+        window.addEventListener('orientationchange', () => syncForCurrentMode(), { passive: true });
+        window.visualViewport?.addEventListener('resize', () => syncForCurrentMode(), { passive: true });
+    } catch { /* ignore */ }
 
     // Keep objectives text in sync with model changes.
     window.addEventListener('objectivesChanged', () => {

@@ -1,0 +1,305 @@
+/* Force the phone-landscape compact layout when html.is-compact is set by ui/compactMode.js.
+   This is critical for iOS PWAs where Safari may report a desktop-ish layout viewport.
+
+   Desktop/PC remains unchanged because html.is-compact is only applied on touch devices
+   with a small short-side in landscape.
+*/
+
+html.is-compact {
+    --footer-height: 25px;
+    --edge-rail: 40px;
+}
+
+/* --- Header / Footer compact styling (mirrors the existing @media phone rules) --- */
+html.is-compact #header {
+    height: 25px;
+    padding: 1px 6px;
+    gap: 6px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    z-index: 220;
+}
+
+html.is-compact .header-left { width: auto; justify-content: flex-start; justify-self: start; }
+html.is-compact #gameLogo { height: 19px; }
+
+html.is-compact .header-center {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    justify-self: center;
+}
+
+html.is-compact .clock-display {
+    width: auto;
+    max-width: 38vw;
+    font-size: 11px;
+    padding: 0 8px;
+    height: 18px;
+    line-height: 18px;
+    margin-right: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+html.is-compact .clock-display::before { content: ''; display: none; }
+
+html.is-compact .weather-widget {
+    width: auto;
+    max-width: 38vw;
+    font-size: 11px;
+    padding: 0 8px;
+    height: 18px;
+    line-height: 18px;
+    margin-left: 0;
+    overflow: hidden;
+}
+
+html.is-compact .weather-widget .weather-temp { min-width: 0; }
+
+html.is-compact .header-right {
+    width: auto;
+    position: relative;
+    gap: 6px;
+    align-items: center;
+    justify-self: end;
+}
+
+html.is-compact #header .header-menu-btn {
+    display: inline-flex;
+    min-width: 34px;
+    padding: 0 10px;
+    font-size: 16px;
+    line-height: 1;
+    height: 20px;
+}
+
+html.is-compact #footer {
+    height: 25px;
+    padding: 0 6px;
+    grid-template-columns: 28% 44% 28%;
+}
+
+html.is-compact .footer-column { align-items: center; }
+html.is-compact #footerControls { height: 100%; align-items: center; transform: translateY(-1px); }
+html.is-compact .footer-controls { gap: 6px; }
+
+html.is-compact .footer-controls .speed-buttons { display: none; }
+html.is-compact .footer-controls .mobile-speed-btn { display: inline-flex; }
+
+html.is-compact .footer-controls .header-link {
+    height: 20px;
+    padding: 0 8px;
+    font-size: 10px;
+}
+
+html.is-compact .footer-controls .speed-btn {
+    height: 20px;
+    min-width: 30px;
+    padding: 0 6px;
+    font-size: 10px;
+}
+
+html.is-compact .footer-controls #pauseBtn { min-width: 58px; }
+html.is-compact #changelogBtn { display: none; }
+
+html.is-compact .objectives-toggle {
+    height: 20px;
+    font-size: 11px;
+    padding: 0 10px;
+    min-width: 0;
+}
+
+/* Header links become dropdown in compact mode */
+html.is-compact .header-links {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.92);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.28);
+    box-shadow: 0 10px 26px rgba(0,0,0,0.45);
+    z-index: 230;
+}
+
+html.is-compact #header .header-right.is-menu-open .header-links { display: flex; }
+
+html.is-compact #header .header-links .header-link {
+    height: 28px;
+    padding: 0 14px;
+    font-size: 12px;
+    justify-content: flex-start;
+    min-width: 140px;
+}
+
+/* --- Left menu compact drawer + icon rail (mirrors navigation-menu.css @media rules) --- */
+html.is-compact #mainMenu {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: auto;
+    width: min(280px, 78vw);
+    z-index: 60;
+    background-color: rgba(0, 0, 0, 0.68);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    box-shadow: 10px 0 28px rgba(0,0,0,0.65);
+}
+
+html.is-compact #mainMenu.collapsed { width: 40px; }
+html.is-compact #mainMenu:not(.collapsed) .menu-buttons-container { display: none; }
+html.is-compact #mainMenu.collapsed::before { content: none; display: none; }
+
+html.is-compact #mainMenu .mobile-menu-icons { display: none; }
+html.is-compact #mainMenu.collapsed .mobile-menu-icons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 8px 4px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    z-index: 130;
+    pointer-events: auto;
+}
+
+html.is-compact #mainMenu.collapsed .mobile-menu-icon-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.22);
+    background: rgba(0, 0, 0, 0.45);
+    color: #eaffea;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    display: grid;
+    place-items: center;
+    position: relative;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10) inset;
+}
+
+html.is-compact #mainMenu.collapsed .mobile-menu-icon {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    line-height: 1;
+}
+
+html.is-compact #mainMenu.collapsed .mobile-menu-icon svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+html.is-compact #mainMenu.collapsed .mobile-menu-icon-text {
+    font-weight: 900;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+}
+
+html.is-compact #mainMenu.collapsed .mobile-menu-icon-btn.active {
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.55);
+    box-shadow:
+        0 0 10px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.16),
+        0 0 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.14) inset;
+}
+
+html.is-compact #mainMenu.collapsed .mobile-menu-icon-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: rgba(255, 213, 74, 0.95);
+    color: rgba(0,0,0,0.92);
+    font-size: 11px;
+    font-weight: 900;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.55);
+    pointer-events: none;
+}
+
+/* --- Tooltip sizing in forced compact mode (mirrors global.css @media rules) --- */
+html.is-compact .tooltip {
+    min-width: 220px;
+    max-width: min(92vw, 360px);
+    padding: 8px;
+}
+
+html.is-compact .tooltip p { font-size: 0.85em; }
+
+/* --- Rotate-to-landscape overlay (shown when html.is-portrait on touch) --- */
+.rotate-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483590;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(6px) saturate(1.05) brightness(0.82);
+    -webkit-backdrop-filter: blur(6px) saturate(1.05) brightness(0.82);
+}
+
+.rotate-overlay.hidden { display: none; }
+
+.rotate-overlay-card {
+    width: min(520px, 92vw);
+    padding: 18px 18px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.32));
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow:
+        0 18px 50px rgba(0,0,0,0.70),
+        0 0 44px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
+    text-align: center;
+}
+
+.rotate-overlay-title {
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.98);
+    font-size: clamp(18px, 4.8vw, 30px);
+    margin-bottom: 6px;
+    text-shadow:
+        0 0 14px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.32),
+        0 4px 18px rgba(0,0,0,0.85);
+}
+
+.rotate-overlay-subtitle {
+    color: rgba(255,255,255,0.88);
+    font-size: 14px;
+    line-height: 1.35;
+    margin-bottom: 14px;
+}
+
+.rotate-overlay-btn {
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.25);
+    background: rgba(0, 0, 0, 0.35);
+    color: #eaffea;
+    font-weight: 800;
+    padding: 10px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.rotate-overlay-btn:active { transform: translateY(1px); }

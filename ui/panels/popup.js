@@ -3,6 +3,7 @@ import { addJournalEntry } from '../../sections/journal.js';
 import { allActions as _allActions } from '../../data/definitions/allActions.js';
 import { getItemDefinition } from '../../data/definitions/items.js';
 import { getIsPaused, pauseGame, resumeGame } from '../footer.js';
+import { isCompactPhoneLandscape } from '../compactMode.js';
 
 let activeStoryEvent = null;
 let activeOutcome = null; // optional footer content (rewards/unlocks)
@@ -10,14 +11,6 @@ let activeOutcome = null; // optional footer content (rewards/unlocks)
 let pausedByThisStoryPopup = false;
 
 let _scrollLock = null;
-
-function isCompactPhoneLandscape() {
-    try {
-        return window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)').matches;
-    } catch {
-        return false;
-    }
-}
 
 function lockBackgroundScroll() {
     if (_scrollLock) return;

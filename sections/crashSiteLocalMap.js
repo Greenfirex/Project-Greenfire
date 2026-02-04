@@ -1,19 +1,12 @@
 import { getLocalMapTileAt, isCrashPoi, hasInternalPoiWallBetween, hasInternalPoiDoorBetween, isCrashWallBetween } from '../data/definitions/localMapTiles.js';
 import { allActions as salvageActions } from '../data/definitions/allActions.js';
+import { isCompactPhoneLandscape } from '../ui/compactMode.js';
 
 const COLS = 11; // A-K
 const ROWS = 9;  // 1-9
 const LETTERS = Array.from({ length: COLS }, (_, i) => String.fromCharCode('A'.charCodeAt(0) + i));
 
-const COMPACT_PHONE_LANDSCAPE_MQL = '(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)';
-
-function isCompactPhoneLandscape() {
-    try {
-        return !!(window && window.matchMedia && window.matchMedia(COMPACT_PHONE_LANDSCAPE_MQL).matches);
-    } catch {
-        return false;
-    }
-}
+// isCompactPhoneLandscape is centralized in ui/compactMode.js
 
 function hasCompactZoomTouched() {
     try { return localStorage.getItem('localMapCompactZoomTouched') === 'true'; } catch { return false; }

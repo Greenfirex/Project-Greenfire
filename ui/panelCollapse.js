@@ -1,5 +1,7 @@
 // Panel Collapse/Expand functionality for main menu and info panel
 
+import { isCompactPhoneLandscape } from './compactMode.js';
+
 let leftPanelCollapsed = false;
 let rightPanelCollapsed = false;
 
@@ -9,14 +11,6 @@ function syncRootPanelClasses() {
 
     root.classList.toggle('left-panel-collapsed', leftPanelCollapsed);
     root.classList.toggle('right-panel-collapsed', rightPanelCollapsed);
-}
-
-function isCompactPhoneLandscape() {
-    try {
-        return window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)').matches;
-    } catch {
-        return false;
-    }
 }
 
 function updateGameAreaSize() {

@@ -2,7 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+
+<!-- PWA / home-screen install (iOS + Android) -->
+<link rel="manifest" href="app.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Project Greenfire">
+<link rel="apple-touch-icon" href="assets/images/logo.png">
 <!-- Base Styles -->
 <link rel="stylesheet" href="styles/base/global.css">
 <link rel="stylesheet" href="styles/base/game-area.css">
@@ -27,6 +36,9 @@
 <link rel="stylesheet" href="styles/sections/campsite.css">
 <link rel="stylesheet" href="styles/sections/encryptedDrive.css">
 <link rel="stylesheet" href="styles/sections/localMap.css">
+
+<!-- Forced compact-mode overrides (used for iOS PWA desktop-viewport quirks) -->
+<link rel="stylesheet" href="styles/base/compact-mode.css">
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
 	

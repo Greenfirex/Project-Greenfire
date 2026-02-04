@@ -2,12 +2,10 @@
 // - Shows a vertical icon rail when the left menu (#mainMenu) is collapsed
 // - Mirrors the existing unlocked menu buttons so players can switch sections without expanding
 
+import { isCompactPhoneLandscape as isCompactPhoneLandscapeShared } from './compactMode.js';
+
 function isCompactPhoneLandscape() {
-    try {
-           return window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)').matches;
-    } catch {
-        return false;
-    }
+    return !!isCompactPhoneLandscapeShared();
 }
 
 function abbrevFromLabel(label) {
@@ -332,8 +330,7 @@ function renderRail() {
 
     // Only do work in compact mode (landscape phones). CSS also gates visibility,
     // but this avoids unnecessary observers doing heavy work on desktop.
-        const mql = window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)');
-        if (!mql.matches) {
+    if (!isCompactPhoneLandscape()) {
         rail.innerHTML = '';
         return;
     }
@@ -481,10 +478,12 @@ function initMobileMenuIcons() {
             attributeFilter: ['class']
         });
 
-        // Also re-render on viewport changes (rotate, devtools)
+        // Re-render on compact-mode changes (rotate, PWA mode, etc)
         try {
-            const mql = window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)');
-            mql.addEventListener('change', () => renderRail());
+            window.addEventListener('compactmodechange', () => renderRail());
+            window.addEventListener('resize', () => renderRail(), { passive: true });
+            window.addEventListener('orientationchange', () => renderRail(), { passive: true });
+            window.visualViewport?.addEventListener('resize', () => renderRail(), { passive: true });
         } catch { /* ignore */ }
 
         // Re-render when collapsing/expanding (class changes on #mainMenu)
