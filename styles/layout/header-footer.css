@@ -15,6 +15,7 @@
     align-items: center;
     height: 100%; /* Ensure full height for positioning */
     position: relative; /* This is the anchor for the divider line */
+    min-width: 0; /* critical: allow grid items to shrink below min-content */
 }
 .footer-column:nth-child(2) {
     justify-content: center;
@@ -285,7 +286,9 @@
     Options/Save/Load into a dropdown.
     Target device test: iPhone 12 Pro landscape ~844x390.
     Desktop behavior remains unchanged because these rules only apply at phone-ish sizes. */
-@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
     :root {
         --footer-height: 25px;
         --edge-rail: 40px;

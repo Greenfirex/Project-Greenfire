@@ -76,6 +76,76 @@ function getResourceCategoryName(resourceName) {
     return RESOURCE_CATEGORIES[resourceName] || 'Other';
 }
 
+function buildResourceTooltipHtml(resourceName) {
+    const name = String(resourceName || '');
+
+    // Special tooltip for Survivors/Crew Members showing job assignments
+    if (name === 'Survivors' || name === 'Crew Members') {
+        const currentResource = resources.find(r => r.name === name);
+        const total = currentResource ? Math.floor(currentResource.amount) : 0;
+        const totalAssigned = jobs.reduce((sum, j) => sum + (j.assigned || 0), 0);
+        const idle = Math.max(0, total - totalAssigned);
+
+        const jobsList = [];
+        // Always show Idle first
+        jobsList.push(`<li class="bonus-item">Idle: ${idle}</li>`);
+
+        jobs.filter(j => j.assigned > 0).forEach(j => {
+            jobsList.push(`<li class="bonus-item">${j.name}: ${j.assigned}</li>`);
+        });
+
+        const jobsSection = jobsList.length
+            ? `<div class="tooltip-section"><h4>Job Assignments</h4><ul class="tooltip-bonuses">${jobsList.join('')}</ul></div>`
+            : '<div class="tooltip-section"><p class="tooltip-detail">No jobs assigned</p></div>';
+
+        return `
+            <h4>${name}</h4>
+            <p>Total: <strong>${total}</strong></p>
+            <p>Assigned: <strong>${totalAssigned}</strong></p>
+            ${jobsSection}
+        `;
+    }
+
+    // Standard resource tooltip
+    const rates = computeResourceRates(name);
+    if (!rates) return `<h4>${name}</h4><p>No data available.</p>`;
+
+    const { totalProduction, totalConsumption, netPerSecond, buildings, jobLines, passiveConsumption, activeDrainRate } = rates;
+
+    const productionHtml = [];
+    if (buildings && buildings.length) {
+        buildings.forEach(b => productionHtml.push(`<p class="tooltip-detail">+ ${formatNumber(b.amount)}/s from ${b.count}x ${b.name}</p>`));
+    }
+    if (jobLines.length) {
+        jobLines.forEach(j => productionHtml.push(`<p class="tooltip-detail">+ ${formatNumber(j.amount)}/s from ${j.assigned}x ${j.name}</p>`));
+    }
+
+    let consumptionDetailsHtml = '';
+    if (passiveConsumption > 0) {
+        consumptionDetailsHtml += `<p class="tooltip-detail">- ${formatNumber(passiveConsumption)}/s from ${resources.find(r=>r.name==='Survivors')?.amount || 0} survivor(s)</p>`;
+    }
+    if (activeDrainRate > 0) {
+        const activeAction = getActiveCrashSiteAction();
+        consumptionDetailsHtml += `<p class="tooltip-detail">- ${formatNumber(activeDrainRate)}/s from ${activeAction ? activeAction.name : 'active event'}</p>`;
+    }
+
+    const sign = netPerSecond >= 0 ? '+' : '';
+
+    return `
+        <h4>${name} Details</h4>
+        <div class="tooltip-section">
+            <p>Production: +${formatNumber(totalProduction)}/s</p>
+            ${productionHtml.join('')}
+        </div>
+        <div class="tooltip-section">
+            <p>Consumption: -${formatNumber(totalConsumption)}/s</p>
+            ${consumptionDetailsHtml}
+        </div>
+        <hr>
+        <p><strong>Net Change: ${sign}${formatNumber(netPerSecond)}/s</strong></p>
+    `;
+}
+
 export function computeResourceRates(resourceName) {
     const currentResource = resources.find(r => r.name === resourceName);
     if (!currentResource) return null;
@@ -315,74 +385,7 @@ export function setupInfoPanel() {
         // register the row with the shared tooltip system.
         setupTooltip(infoRow, () => {
             const resourceName = infoRow.dataset.resource;
-            
-            // Special tooltip for Survivors/Crew Members showing job assignments
-            if (resourceName === 'Survivors' || resourceName === 'Crew Members') {
-                const currentResource = resources.find(r => r.name === resourceName);
-                const total = currentResource ? Math.floor(currentResource.amount) : 0;
-                const totalAssigned = jobs.reduce((sum, j) => sum + (j.assigned || 0), 0);
-                const idle = Math.max(0, total - totalAssigned);
-                
-                const jobsList = [];
-                // Always show Idle first
-                jobsList.push(`<li class="bonus-item">Idle: ${idle}</li>`);
-                
-                jobs.filter(j => j.assigned > 0).forEach(j => {
-                    jobsList.push(`<li class="bonus-item">${j.name}: ${j.assigned}</li>`);
-                });
-                
-                const jobsSection = jobsList.length
-                    ? `<div class="tooltip-section"><h4>Job Assignments</h4><ul class="tooltip-bonuses">${jobsList.join('')}</ul></div>`
-                    : '<div class="tooltip-section"><p class="tooltip-detail">No jobs assigned</p></div>';
-                
-                return `
-                    <h4>${resourceName}</h4>
-                    <p>Total: <strong>${total}</strong></p>
-                    <p>Assigned: <strong>${totalAssigned}</strong></p>
-                    ${jobsSection}
-                `;
-            }
-            
-            // Standard resource tooltip
-            const rates = computeResourceRates(resourceName);
-            if (!rates) return `<h4>${resourceName}</h4><p>No data available.</p>`;
-
-            const { totalProduction, totalConsumption, netPerSecond, buildings, jobLines, passiveConsumption, activeDrainRate } = rates;
-
-            const productionHtml = [];
-            if (buildings && buildings.length) {
-                buildings.forEach(b => productionHtml.push(`<p class="tooltip-detail">+ ${formatNumber(b.amount)}/s from ${b.count}x ${b.name}</p>`));
-            }
-            if (jobLines.length) {
-                jobLines.forEach(j => productionHtml.push(`<p class="tooltip-detail">+ ${formatNumber(j.amount)}/s from ${j.assigned}x ${j.name}</p>`));
-            }
-
-            let consumptionDetailsHtml = '';
-            if (passiveConsumption > 0) {
-                // add a space after the '-' so it matches the '+ ' formatting used for production lines
-                consumptionDetailsHtml += `<p class="tooltip-detail">- ${formatNumber(passiveConsumption)}/s from ${resources.find(r=>r.name==='Survivors')?.amount || 0} survivor(s)</p>`;
-            }
-            if (activeDrainRate > 0) {
-                const activeAction = getActiveCrashSiteAction();
-                // add a space after the '-' so it matches the '+ ' formatting used for production lines
-                consumptionDetailsHtml += `<p class="tooltip-detail">- ${formatNumber(activeDrainRate)}/s from ${activeAction ? activeAction.name : 'active event'}</p>`;
-            }
-
-            const sign = netPerSecond >= 0 ? '+' : '';
-
-            return `
-                <h4>${resourceName} Details</h4>
-                <div class="tooltip-section">
-                    <p>Production: +${formatNumber(totalProduction)}/s</p>
-                    ${productionHtml.join('')}
-                </div>
-                <div class="tooltip-section">
-                    <p>Consumption: -${formatNumber(totalConsumption)}/s</p>
-                    ${consumptionDetailsHtml}
-                </div>
-                <hr>
-                <p><strong>Net Change: ${sign}${formatNumber(netPerSecond)}/s</strong></p>
-            `;
+            return buildResourceTooltipHtml(resourceName);
         });
 
         const cat = getResourceCategoryName(resource.name);
@@ -412,7 +415,93 @@ function shouldShowMoraleResource() {
     return (survivorsCount + crewCount) > 0;
 }
 
+function ensureCollapsedVitalsRail() {
+    const infoPanel = document.getElementById('infoPanel');
+    if (!infoPanel) return null;
+    let rail = infoPanel.querySelector('.info-vitals-icons');
+    if (!rail) {
+        rail = document.createElement('div');
+        rail.className = 'info-vitals-icons';
+        rail.setAttribute('aria-hidden', 'true');
+
+        const mk = (vitalKey) => {
+            const orb = document.createElement('div');
+            orb.className = 'info-vital-orb';
+            orb.dataset.vital = vitalKey;
+            orb.dataset.tooltipTouchTap = 'true';
+            orb.innerHTML = `
+                <div class="orb-text">
+                    <div class="orb-current"></div>
+                </div>
+            `;
+            rail.appendChild(orb);
+            return orb;
+        };
+
+        mk('health');
+        mk('stamina');
+        mk('water');
+        mk('food');
+
+        infoPanel.appendChild(rail);
+
+        // Wire tooltips for the orbs to match the info panel resource tooltips.
+        try {
+            const map = {
+                health: 'Health',
+                stamina: 'Stamina',
+                water: 'Clean Water',
+                food: 'Food Rations',
+            };
+            Object.entries(map).forEach(([key, resName]) => {
+                const orb = rail.querySelector(`.info-vital-orb[data-vital="${key}"]`);
+                if (!orb) return;
+                setupTooltip(orb, () => buildResourceTooltipHtml(resName));
+            });
+        } catch { /* ignore */ }
+    }
+    return rail;
+}
+
+function updateCollapsedVitalsRail() {
+    const rail = ensureCollapsedVitalsRail();
+    if (!rail) return;
+
+    const get = (name) => resources.find(r => r && r.name === name);
+    const resMap = {
+        health: get('Health'),
+        stamina: get('Stamina'),
+        water: get('Clean Water'),
+        food: get('Food Rations'),
+    };
+
+    for (const [key, res] of Object.entries(resMap)) {
+        const orb = rail.querySelector(`.info-vital-orb[data-vital="${key}"]`);
+        if (!orb) continue;
+
+        // Hide orb if the resource isn't present.
+        if (!res) {
+            orb.style.display = 'none';
+            continue;
+        }
+        orb.style.display = '';
+
+        const amt = res.integer ? Math.floor(Number(res.amount) || 0) : (Number(res.amount) || 0);
+        const cap = res.integer ? Math.floor(Number(res.capacity) || 0) : (Number(res.capacity) || 0);
+        const pct = (cap > 0) ? Math.max(0, Math.min(100, (amt / cap) * 100)) : 0;
+
+        try { orb.style.setProperty('--fill', `${pct}%`); } catch { /* ignore */ }
+
+        const curEl = orb.querySelector('.orb-current');
+        if (curEl) curEl.textContent = `${amt}`;
+    }
+}
+
 export function updateResourceInfo() {
+    // Keep collapsed (mobile) vitals rail in sync with resource amounts.
+    // (Shown/hidden purely via responsive CSS when #infoPanel is collapsed.)
+    try { updateCollapsedVitalsRail(); } catch {}
+
     const survivorResource = resources.find(r => r.name === 'Survivors');
     const survivorCount = survivorResource ? survivorResource.amount : 0;
     const activeAction = getActiveCrashSiteAction();

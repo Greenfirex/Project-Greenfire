@@ -128,6 +128,47 @@
     letter-spacing: 0.2px;
 }
 
+.combat-log-toggle {
+    position: absolute;
+    left: 50%;
+    top: 82%;
+    transform: translate(-50%, -50%);
+    pointer-events: auto;
+    display: none;
+    place-items: center;
+    min-width: 54px;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(230, 238, 247, 0.22);
+    background: rgba(0,0,0,0.34);
+    box-shadow: 0 10px 22px rgba(0,0,0,0.45);
+    cursor: pointer;
+    z-index: 6;
+    opacity: 0.32;
+    color: rgba(230, 238, 247, 0.9);
+    font-weight: 800;
+    letter-spacing: 0.2px;
+}
+
+.combat-log-toggle:hover {
+    border-color: rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.55);
+    opacity: 0.95;
+}
+
+.combat-log-toggle:focus-visible {
+    outline: 2px solid rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.85);
+    outline-offset: 2px;
+}
+
+.combat-log-toggle.active {
+    border-color: rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.75);
+    box-shadow:
+        0 12px 26px rgba(0,0,0,0.55),
+        0 0 22px rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.14);
+    opacity: 1;
+}
+
 .combat-speed-toggle:hover {
     border-color: rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.55);
     opacity: 0.95;
@@ -842,5 +883,198 @@
 
     .combat-popup-actions {
         margin-top: 12px;
+    }
+}
+
+/* Phone-landscape (primary target: iPhone 12 Pro landscape 844x390)
+   Goal: remove the header bar and compact everything so combat fits cleanly. */
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
+    .combat-popup-overlay {
+        padding: 10px;
+    }
+
+    #combatPopup .combat-popup-content.story-popup-content {
+        height: 92vh;
+        max-height: calc(100vh - 20px);
+        padding: 12px;
+    }
+
+    /* Remove the large header region entirely on mobile. */
+    #combatPopup .combat-popup-header {
+        display: none;
+    }
+
+    /* Save vertical space: move combatant names into the frame instead of a dedicated top row. */
+    #combatPopup .combat-bar-top {
+        display: none;
+    }
+
+    #combatPopup .combat-orbit::before {
+        content: attr(data-name);
+        position: absolute;
+        left: 50%;
+        bottom: 6px;
+        transform: translateX(-50%);
+        width: calc(100% - 20px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 700;
+        font-size: 12px;
+        color: rgba(230, 238, 247, 0.92);
+        text-shadow: 0 2px 10px rgba(0,0,0,0.85);
+        text-align: center;
+        pointer-events: none;
+        z-index: 5;
+    }
+
+    .combat-popup-body {
+        gap: 8px;
+    }
+
+    .combat-bars {
+        grid-template-columns: 1fr 54px 1fr;
+        gap: 10px;
+    }
+
+    .combat-bar-group {
+        padding: 6px;
+        border-radius: 9px;
+    }
+
+    .combat-bar-top {
+        margin-bottom: 6px;
+        min-height: 22px;
+    }
+
+    .combat-bar-overlay {
+        font-size: 10px;
+    }
+
+    .combat-orbit {
+        height: 122px;
+    }
+
+    .combat-portrait { height: 108px; }
+    .combat-portrait.enemy { height: 102px; }
+
+    .combat-stat-icon {
+        width: 38px;
+        height: 32px;
+        gap: 2px;
+        border-radius: 7px;
+    }
+
+    .combat-stat-icon .svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .combat-stat-icon .val {
+        font-size: 10px;
+    }
+
+    .combat-stat-icon.pos-tl { top: 10px; left: 10px; }
+    .combat-stat-icon.pos-tr { top: 10px; right: 10px; }
+    .combat-stat-icon.pos-ml { left: 10px; }
+    .combat-stat-icon.pos-mr { right: 10px; }
+    .combat-stat-icon.pos-bl { bottom: 10px; left: 10px; }
+    .combat-stat-icon.pos-br { bottom: 10px; right: 10px; }
+
+    .combat-ability-row {
+        margin-top: 8px;
+        gap: 8px;
+    }
+
+    .combat-ability-btn {
+        height: 30px;
+        min-width: 40px;
+        padding: 5px 8px;
+        border-radius: 9px;
+        font-size: 11px;
+    }
+
+    .combat-ability-row .combat-stim-icon {
+        padding: 5px 8px;
+    }
+
+    .combat-pause-toggle {
+        width: 44px;
+        height: 44px;
+    }
+
+    .combat-pause-icon {
+        width: 18px;
+        height: 18px;
+    }
+
+    .combat-pause-text {
+        display: none;
+    }
+
+    .combat-speed-toggle {
+        min-width: 44px;
+        height: 26px;
+        padding: 0 8px;
+        font-size: 12px;
+    }
+
+    .combat-log-toggle {
+        display: grid;
+        min-width: 44px;
+        height: 26px;
+        padding: 0 8px;
+        font-size: 12px;
+    }
+
+    .combat-log {
+        flex: 0 0 64px;
+        min-height: 56px;
+        max-height: 64px;
+        padding: 8px 10px;
+        font-size: 0.86em;
+        border-radius: 10px;
+    }
+
+    /* Expanded log overlay: show more rows without growing the popup. */
+    #combatPopup[data-log-expanded="1"] .combat-popup-body {
+        overflow: hidden;
+    }
+
+    #combatPopup[data-log-expanded="1"] .combat-bars {
+        opacity: 0.20;
+    }
+
+    #combatPopup[data-log-expanded="1"] .combat-log {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        flex: 0 0 auto;
+        min-height: 0;
+        max-height: none;
+        padding: 10px 12px;
+        font-size: 0.9em;
+        z-index: 20;
+        border-radius: 12px;
+        background: rgba(0,0,0,0.72);
+        border-color: rgba(255,255,255,0.12);
+        box-shadow: 0 16px 32px rgba(0,0,0,0.55);
+        backdrop-filter: blur(8px);
+    }
+
+    .combat-popup-actions {
+        margin-top: 10px;
+        padding-top: 8px;
+        gap: 8px;
+        border-top: 0;
+    }
+
+    .combat-popup-actions .combat-btn {
+        height: 32px;
+        padding: 6px 10px;
+        font-size: 13px;
+        min-width: 0;
     }
 }

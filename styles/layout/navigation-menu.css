@@ -43,7 +43,9 @@
 
 /* Phone-landscape: when the left menu is collapsed, show a tap-friendly icon rail
    so players can switch sections without expanding the panel. */
-@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
     /* Left menu becomes an overlay drawer in compact mode */
     #mainMenu {
         position: absolute;

@@ -24,9 +24,11 @@ import { recomputeObjectives } from '../data/objectives.js';
 import { initFooter, getIsPaused, pauseGame, resumeGame, registerMainLoopCallbacks } from '../ui/footer.js';
 import '../ui/header.js';
 import '../ui/panelCollapse.js';
+import '../ui/viewportFix.js';
 import '../ui/mobileMenuIcons.js';
 import '../ui/panels/changelog.js';
 import '../ui/panels/objectivesPanel.js';
+import '../ui/panels/mobileObjectivesLogSwap.js';
 import { MENU_SECTIONS, initMenuBadges, setMenuNewItemFlag, setColonyMenuNewItemFlag } from '../ui/menuBadges.js';
 
 window.debugResources = resources;
@@ -270,7 +272,7 @@ function startGame() {
             if (!shouldRunInBackground()) {
                 stopMainLoop();
                 stopAutosave();
-                window.dispatchEvent(new CustomEvent('game-pause'));
+                window.dispatchEvent(new CustomEvent('game-pause', { detail: { showOverlay: false, source: 'visibility' } }));
                 console.log('[visibility] game paused (tab hidden)');
             } else {
                 console.log('[visibility] run-in-background enabled — keeping game running');
@@ -278,7 +280,7 @@ function startGame() {
         } else if (document.visibilityState === 'visible') {
             startMainLoop();
             startAutosave();
-            window.dispatchEvent(new CustomEvent('game-resume'));
+            window.dispatchEvent(new CustomEvent('game-resume', { detail: { source: 'visibility' } }));
             console.log('[visibility] game resumed (tab visible)');
         }
     });

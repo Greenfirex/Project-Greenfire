@@ -117,7 +117,9 @@
 }
 
 /* Phone-landscape: when the left drawer is expanded, use it for the log (full height from top). */
-@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
     #mainMenu:not(.collapsed) #logSection {
         position: relative;
         left: auto;
@@ -127,5 +129,224 @@
         height: 100%;
         max-height: none;
         background-color: transparent;
+    }
+}
+
+/* --- Phone-landscape: swap log into footer middle drawer --- */
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
+    /* Only activate when JS sets the swap class (prevents breaking the UI if JS fails). */
+    body.mobile-log-footer-swap #mainMenu #logSection {
+        display: none;
+    }
+
+    #footerLogContainer {
+        display: none;
+        position: relative;
+        width: 100%;
+        min-width: 0;
+    }
+
+    body.mobile-log-footer-swap #footerLogContainer {
+        display: block;
+    }
+
+    .footer-log-banner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        height: 25px;
+        padding: 0 22px 0 10px;
+        color: #ffffff;
+        font-weight: 600;
+        font-size: 11px;
+        line-height: 25px;
+        letter-spacing: 0.2px;
+        background: transparent;
+        border: 0;
+        position: relative;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .footer-log-banner .footer-log-label {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
+    }
+
+    .footer-log-banner .footer-log-latest {
+        color: #90EE90;
+        font-style: normal;
+        font-weight: 600;
+        font-size: 10px;
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .footer-log-banner .chevrons {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+    }
+
+    .footer-log-banner .chevrons-icon {
+        width: 22px;
+        height: 16px;
+        stroke: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.95);
+        stroke-width: 2.5;
+        fill: none;
+        filter: drop-shadow(0 0 3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7));
+    }
+
+    .footer-log-banner:hover .chevrons-icon,
+    .footer-log-banner:focus .chevrons-icon,
+    .footer-log-banner:focus-within .chevrons-icon {
+        filter: drop-shadow(0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9));
+    }
+
+    .footer-log-drawer {
+        position: absolute;
+        left: 0;
+        bottom: calc(var(--footer-height, 25px) - 3px);
+        width: 100%;
+        box-sizing: border-box;
+        height: var(--log-drawer-height, 240px);
+        display: flex;
+        flex-direction: column;
+        background: #000;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(14px);
+        transition: opacity 200ms ease, transform 240ms ease;
+        pointer-events: none;
+        z-index: 600;
+        overflow: visible;
+    }
+
+    .footer-log-drawer.open {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+
+    .footer-log-drawer::before,
+    .footer-log-drawer::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        animation: pulse-glow 5s ease-in-out infinite;
+        z-index: 42;
+        pointer-events: none;
+    }
+    .footer-log-drawer::before { top: 0; }
+    .footer-log-drawer::after { bottom: 0; }
+
+    .footer-log-drawer .glow-vert {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        animation: pulse-glow 5s ease-in-out infinite;
+        z-index: 41;
+        pointer-events: none;
+    }
+    .footer-log-drawer .glow-left { left: -1.5px; }
+    .footer-log-drawer .glow-right { right: -1.5px; }
+
+    .footer-log-header {
+        position: relative;
+        padding: 10px;
+        background: #000;
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .footer-log-title {
+        margin: 0;
+        color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.95);
+        font-size: 1em;
+        font-weight: normal;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        filter: drop-shadow(0 0 4px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.55));
+    }
+
+    .footer-log-header .drawer-close {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: transparent;
+        border: 0;
+        padding: 2px;
+        cursor: pointer;
+        line-height: 1;
+        z-index: 1;
+    }
+
+    .footer-log-header .drawer-close .chevrons-icon {
+        width: 22px;
+        height: 16px;
+        stroke: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.95);
+        stroke-width: 2.5;
+        fill: none;
+        filter: drop-shadow(0 0 3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7));
+    }
+
+    .footer-log-header .drawer-close:hover .chevrons-icon,
+    .footer-log-header .drawer-close:focus .chevrons-icon {
+        filter: drop-shadow(0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9));
+    }
+
+    .footer-log-drawer-host {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    /* When the live log section is moved into the footer drawer, override its left-panel positioning rules. */
+    body.mobile-log-footer-swap #footerLogDrawerHost #logSection {
+        position: relative;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        top: auto;
+        height: 100%;
+        max-height: none;
+        background-color: #000;
+    }
+
+    /* Avoid double headers: the drawer header becomes the only header. */
+    body.mobile-log-footer-swap #footerLogDrawerHost #logSection::before {
+        display: none;
+    }
+    body.mobile-log-footer-swap #footerLogDrawerHost #logSection .log-header {
+        display: none;
     }
 }

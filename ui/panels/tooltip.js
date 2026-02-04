@@ -17,7 +17,117 @@ let docMouseMoveHandler = null;
 let tooltipsEnabled = true;
 let tooltipScopeRoot = null; // when set, tooltips only resolve within this subtree
 let tooltipAttributeObserver = null; // new: keep observer to strip native title attrs
+const touchConfirmRegistry = new WeakMap(); // element -> { armedUntil: number }
+let docTouchDismissHandlersInstalled = false;
 // removed tooltipLockUntil and per-element lock complexity
+
+function isCoarsePointerDevice() {
+    try {
+        if (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches) return true;
+    } catch { /* ignore */ }
+    try {
+        if (typeof navigator !== 'undefined' && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 0) return true;
+    } catch { /* ignore */ }
+    return false;
+}
+
+function shouldRequireTouchConfirm(element) {
+    if (!element || !(element instanceof HTMLElement)) return false;
+    // Only gate interactions for actual action/building buttons.
+    try {
+        if (String(element.dataset?.tooltipTouchConfirm || '').toLowerCase() === 'false') return false;
+    } catch { /* ignore */ }
+    try {
+        if (element.matches && element.matches('button[data-action-id], button[data-building]')) return true;
+    } catch { /* ignore */ }
+    return false;
+}
+
+function shouldEnableTouchTapTooltip(element) {
+    if (!element || !(element instanceof HTMLElement)) return false;
+    try {
+        const v = String(element.dataset?.tooltipTouchTap || '').toLowerCase();
+        if (v === 'true' || v === '1' || v === 'yes') return true;
+        if (v === 'false' || v === '0' || v === 'no') return false;
+    } catch { /* ignore */ }
+    try {
+        if (element.classList && element.classList.contains('info-vital-orb')) return true;
+    } catch { /* ignore */ }
+    return false;
+}
+
+function getRectAnchorEventForElement(element) {
+    try {
+        const r = element.getBoundingClientRect();
+        // Use the top-middle as an anchor so the tooltip tends to appear above/near the element.
+        return { clientX: Math.round(r.left + r.width / 2), clientY: Math.round(r.top) };
+    } catch {
+        return { clientX: Math.round(window.innerWidth / 2), clientY: Math.round(window.innerHeight / 2) };
+    }
+}
+
+function positionTooltipForElementAnchor(element, tooltip) {
+    if (!element || !tooltip) return;
+    const pad = 8;
+    const vw = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
+    const vh = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
+    let anchor;
+    try { anchor = element.getBoundingClientRect(); } catch { anchor = null; }
+
+    // Ensure tooltip is laid out to read its size.
+    tooltip.style.left = '0px';
+    tooltip.style.top = '0px';
+    tooltip.style.transform = 'none';
+    const tRect = tooltip.getBoundingClientRect();
+
+    let tx = Math.round((anchor ? (anchor.left + anchor.width / 2) : (vw / 2)) - tRect.width / 2);
+    let ty;
+
+    // Prefer above the element; fall back below if there's not enough room.
+    if (anchor) {
+        ty = Math.round(anchor.top - tRect.height - 10);
+        if (ty < pad) ty = Math.round(anchor.bottom + 10);
+    } else {
+        ty = Math.round(vh / 2 - tRect.height / 2);
+    }
+
+    // Clamp into viewport.
+    tx = Math.max(pad, Math.min(vw - tRect.width - pad, tx));
+    ty = Math.max(pad, Math.min(vh - tRect.height - pad, ty));
+
+    tooltip.style.left = `${tx}px`;
+    tooltip.style.top = `${ty}px`;
+    tooltip._fixedLeft = tooltip.style.left;
+    tooltip._fixedTop = tooltip.style.top;
+}
+
+function ensureDocTouchDismissHandlers() {
+    if (docTouchDismissHandlersInstalled) return;
+    docTouchDismissHandlersInstalled = true;
+
+    // Tap outside hides pinned tooltips on touch devices.
+    document.addEventListener('pointerdown', (e) => {
+        try {
+            if (!isCoarsePointerDevice()) return;
+            const tt = getOrCreateTooltip();
+            if (!tt || tt.style.visibility !== 'visible' || tt._pinnedByTouch !== true) return;
+
+            const target = e && e.target ? e.target : null;
+            const anchor = tt._anchorEl || currentTooltipElement;
+            if (anchor && target && anchor.contains && anchor.contains(target)) return;
+
+            hideTooltip();
+        } catch { /* ignore */ }
+    }, true);
+
+    // If the user scrolls a panel, hide pinned tooltip.
+    window.addEventListener('scroll', () => {
+        try {
+            const tt = getOrCreateTooltip();
+            if (tt && tt.style.visibility === 'visible' && tt._pinnedByTouch === true) hideTooltip();
+        } catch { /* ignore */ }
+    }, true);
+}
 
 // --- NEW: ensure a single persistent doc mousemove handler ----------------
 function ensureDocMouseMoveHandler() {
@@ -26,6 +136,11 @@ function ensureDocMouseMoveHandler() {
     docMouseMoveHandler = (moveEvent) => {
         // respect global suppression (popups/menus)
         if (!tooltipsEnabled) return;
+        // On touch devices, keep the tooltip pinned until dismissed.
+        try {
+            const tt = getOrCreateTooltip();
+            if (tt && tt._pinnedByTouch === true && isCoarsePointerDevice()) return;
+        } catch { /* ignore */ }
         const tt = getOrCreateTooltip();
         if (tt._hideTimeout) {
             clearTimeout(tt._hideTimeout);
@@ -142,6 +257,8 @@ export function hideTooltip() {
     const tooltip = getOrCreateTooltip();
     if (!tooltip) return;
     tooltip.classList.remove('visible');
+    tooltip._pinnedByTouch = false;
+    tooltip._anchorEl = null;
     if (tooltip._hideTimeout) {
         clearTimeout(tooltip._hideTimeout);
         tooltip._hideTimeout = null;
@@ -583,7 +700,11 @@ function renderTooltipForElement(regEl, event) {
 
     tooltip.style.visibility = 'visible';
     tooltip.classList.add('visible');
-    if (event && typeof updateTooltipPosition === 'function') updateTooltipPosition(event, tooltip);
+    if (tooltip._pinnedByTouch === true) {
+        positionTooltipForElementAnchor(tooltip._anchorEl || regEl, tooltip);
+    } else if (event && typeof updateTooltipPosition === 'function') {
+        updateTooltipPosition(event, tooltip);
+    }
 
     currentTooltipElement = regEl;
 
@@ -622,6 +743,7 @@ export function setupTooltip(element, tooltipData) {
 
     // ensure tooltip DOM + global mousemove handler exist so registered rows work immediately
     ensureDocMouseMoveHandler();
+    ensureDocTouchDismissHandlers();
     
     element.addEventListener('mouseenter', (e) => {
         const tooltip = getOrCreateTooltip();
@@ -646,6 +768,73 @@ export function setupTooltip(element, tooltipData) {
         const tt = getOrCreateTooltip();
         if (tt.style.visibility === 'visible') updateTooltipPosition(e, tt);
     });
+
+    // Touch/coarse pointer: require tooltip confirmation for action/building buttons.
+    // First tap shows tooltip + blocks click; second tap within a short window allows the click.
+    if (shouldRequireTouchConfirm(element)) {
+        element.addEventListener('click', (e) => {
+            try {
+                if (!isCoarsePointerDevice()) return;
+                if (!tooltipsEnabled) return;
+
+                const tt = getOrCreateTooltip();
+                const now = Date.now();
+                const state = touchConfirmRegistry.get(element);
+                const armed = !!(state && typeof state.armedUntil === 'number' && state.armedUntil > now);
+
+                // If this element's tooltip is already visible and we're within the armed window, let the click proceed.
+                if (armed && currentTooltipElement === element && tt && tt.style.visibility === 'visible') {
+                    // Clear the armed state so the *next* action requires confirmation again.
+                    touchConfirmRegistry.delete(element);
+                    return;
+                }
+
+                // Otherwise, consume the click and show/pin tooltip.
+                e.preventDefault();
+                e.stopPropagation();
+                try { e.stopImmediatePropagation(); } catch { /* ignore */ }
+
+                // Arm for a second tap.
+                touchConfirmRegistry.set(element, { armedUntil: now + 3500 });
+
+                // Mark tooltip as touch-pinned and anchor to the element rect.
+                tt._pinnedByTouch = true;
+                tt._anchorEl = element;
+                const anchorEvt = getRectAnchorEventForElement(element);
+                tt._lastEvent = anchorEvt;
+
+                renderTooltipForElement(element, anchorEvt);
+            } catch { /* ignore */ }
+        }, true);
+    }
+
+    // Touch/coarse pointer: tap-to-show tooltip (pinned) for display-only elements (e.g., vitals orbs).
+    if (shouldEnableTouchTapTooltip(element) && !shouldRequireTouchConfirm(element)) {
+        element.addEventListener('click', (e) => {
+            try {
+                if (!isCoarsePointerDevice()) return;
+                if (!tooltipsEnabled) return;
+
+                const tt = getOrCreateTooltip();
+                const isAlreadyPinnedHere = (tt && tt._pinnedByTouch === true && currentTooltipElement === element && tt.style.visibility === 'visible');
+                if (isAlreadyPinnedHere) {
+                    hideTooltip();
+                    return;
+                }
+
+                // Show pinned tooltip anchored to the element.
+                e.preventDefault();
+                e.stopPropagation();
+                try { e.stopImmediatePropagation(); } catch { /* ignore */ }
+
+                tt._pinnedByTouch = true;
+                tt._anchorEl = element;
+                const anchorEvt = getRectAnchorEventForElement(element);
+                tt._lastEvent = anchorEvt;
+                renderTooltipForElement(element, anchorEvt);
+            } catch { /* ignore */ }
+        }, true);
+    }
 }
 
 // Create/ensure the small debuff icon on the resource row and attach direct icon handlers
@@ -790,7 +979,9 @@ export function refreshCurrentTooltip() {
         tooltip.innerHTML = buildTooltipHTML(data);
 
         // reuse persisted coords where possible to avoid jumps
-        if (tooltip._fixedLeft && tooltip._fixedTop) {
+        if (tooltip._pinnedByTouch === true) {
+            positionTooltipForElementAnchor(tooltip._anchorEl || element, tooltip);
+        } else if (tooltip._fixedLeft && tooltip._fixedTop) {
             tooltip.style.left = tooltip._fixedLeft;
             tooltip.style.top = tooltip._fixedTop;
         } else if (tooltip._lastEvent && typeof updateTooltipPosition === 'function') {

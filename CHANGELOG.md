@@ -1,3 +1,23 @@
+# [0.2.6] - 2026-02-04
+
+### Added
+
+- **Character (mobile):** Touch drag-and-drop for moving/swapping items between Bag and Equipment.
+- **Character (mobile):** Double-tap quick actions: bag items auto-equip; equipped items auto-unequip to the first empty bag slot.
+
+### Changed
+
+- **Log Options popup:** Restyled to match the Options menu visual treatment and made the content scroll internally.
+- **Crash Site Local Map:** Fog-of-war is stricter; blocked tiles and crash-site interior visuals are no longer revealed through fog before discovery.
+- **Local Map Tile panel:** Added a clear tile status label and color-coding (Explored = green, Unexplored = yellow, Unknown/Blocked = red).
+
+### Fixed
+
+- **Mobile layout stability:** Prevented long footer “latest log” lines from widening the layout.
+- **Log Options popup (mobile):** Prevented overflow/clipping on small landscape screens.
+
+---
+
 # [0.2.5] - 2026-01-28
 
 ### Changed

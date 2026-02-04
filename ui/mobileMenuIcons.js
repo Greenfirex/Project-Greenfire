@@ -4,7 +4,7 @@
 
 function isCompactPhoneLandscape() {
     try {
-        return window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px)').matches;
+           return window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)').matches;
     } catch {
         return false;
     }
@@ -259,6 +259,35 @@ function selectJournalTab(tabKey) {
     requestAnimationFrame(tryClick);
 }
 
+function selectCharacterTab(tabKey) {
+    const wanted = tabKey === 'stats' ? 'stats' : 'gear';
+
+    // Persist desired tab so setupCharacterSection can initialize without flashing.
+    try {
+        const sectionEl = document.getElementById('characterSection');
+        if (sectionEl) sectionEl.dataset.characterActiveTab = wanted;
+    } catch { /* ignore */ }
+
+    // Ensure Character section is active first.
+    const characterBtn = document.querySelector('#mainMenu .menu-button[data-section="characterSection"]');
+    if (characterBtn) characterBtn.click();
+
+    // Tab buttons are built by setupCharacterSection(); only click after the re-render.
+    let attempts = 0;
+    const tryClick = () => {
+        attempts++;
+        const host = document.getElementById('characterSection');
+        const tab = host ? host.querySelector(`.character-tab[data-tab="${CSS.escape(wanted)}"]`) : null;
+        if (tab) {
+            if (tab.disabled) return;
+            tab.click();
+            return;
+        }
+        if (attempts < 8) requestAnimationFrame(tryClick);
+    };
+    requestAnimationFrame(tryClick);
+}
+
 function getJournalTabMeta() {
     const host = document.getElementById('journalSection');
     const objectivesTab = host ? host.querySelector('.journal-tab[data-tab="objectives"]') : null;
@@ -303,7 +332,8 @@ function renderRail() {
 
     // Only do work in compact mode (landscape phones). CSS also gates visibility,
     // but this avoids unnecessary observers doing heavy work on desktop.
-    if (!isCompactPhoneLandscape()) {
+        const mql = window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)');
+        if (!mql.matches) {
         rail.innerHTML = '';
         return;
     }
@@ -382,6 +412,16 @@ function renderRail() {
                 return;
             }
 
+            // Character now has in-section tabs (Gear / Stats). In compact mode we use
+            // the same popover mechanic as Crash Site + Journal.
+            if (item.sectionId === 'characterSection') {
+                openPopover(b, [
+                    { label: 'Gear', onSelect: () => selectCharacterTab('gear') },
+                    { label: 'Stats', onSelect: () => selectCharacterTab('stats') }
+                ]);
+                return;
+            }
+
             closePopover();
 
             const original = document.querySelector(`#mainMenu .menu-button[data-section="${CSS.escape(item.sectionId)}"]`);
@@ -443,7 +483,7 @@ function initMobileMenuIcons() {
 
         // Also re-render on viewport changes (rotate, devtools)
         try {
-            const mql = window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px)');
+            const mql = window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)');
             mql.addEventListener('change', () => renderRail());
         } catch { /* ignore */ }
 

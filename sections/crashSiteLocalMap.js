@@ -5,7 +5,7 @@ const COLS = 11; // A-K
 const ROWS = 9;  // 1-9
 const LETTERS = Array.from({ length: COLS }, (_, i) => String.fromCharCode('A'.charCodeAt(0) + i));
 
-const COMPACT_PHONE_LANDSCAPE_MQL = '(max-width: 600px), (max-width: 900px) and (max-height: 450px)';
+const COMPACT_PHONE_LANDSCAPE_MQL = '(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)';
 
 function isCompactPhoneLandscape() {
     try {
@@ -1044,15 +1044,19 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
         if (!infoBody) return;
         const meta = tileMeta(col, row);
         const label = toCoordLabel(col, row);
-        const status = visited
-            ? 'Explored'
-            : (discovered ? 'Unexplored' : 'Unknown (fog)');
+        const isBlocked = !!(discovered && meta && meta.blocked);
+        const statusKey = isBlocked
+            ? 'blocked'
+            : (visited ? 'explored' : (discovered ? 'unexplored' : 'unknown'));
+        const statusText = isBlocked
+            ? 'Blocked'
+            : (visited ? 'Explored' : (discovered ? 'Unexplored' : 'Unknown (fog)'));
         const poi = poiLabel ? `<div class="localmap-info-row"><span class="k">POI</span><span class="v">${poiLabel}</span></div>` : '';
         const typeRow = discovered
             ? `<div class="localmap-info-row"><span class="k">Type</span><span class="v">${meta.label}</span></div>`
             : '';
         const blockedRow = discovered && meta.blocked
-            ? `<div class="localmap-info-row"><span class="k">Access</span><span class="v">Blocked</span></div>`
+            ? `<div class="localmap-info-row"><span class="k">Access</span><span class="v status--blocked">Blocked</span></div>`
             : '';
 
         // Resources hinting:
@@ -1133,7 +1137,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 : 'Looks quiet.'));
         infoBody.innerHTML = `
             <div class="localmap-info-row"><span class="k">Coord</span><span class="v">${label}</span></div>
-            <div class="localmap-info-row"><span class="k">Status</span><span class="v">${status}</span></div>
+            <div class="localmap-info-row"><span class="k">Status</span><span class="v localmap-status status--${statusKey}">${statusText}</span></div>
             ${typeRow}
             ${poi}
             ${blockedRow}
@@ -1196,7 +1200,8 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             tile.classList.toggle('is-explored', !!visited);
 
             const meta = tileMeta(c, r);
-            tile.classList.toggle('is-blocked', !!meta.blocked);
+            // Do not reveal blocked tiles through fog-of-war.
+            tile.classList.toggle('is-blocked', !!(discovered && meta.blocked));
 
             if (burnAnim && c === burnAnim.x && r === burnAnim.y) {
                 tile.classList.add('is-just-burned');
@@ -1319,14 +1324,15 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                     } catch { /* ignore */ }
                 }
 
-                // POI hull wall overlay layer (styled in CSS). This keeps hull walls visible even when a tile is selected.
-                const wallOverlay = document.createElement('div');
-                wallOverlay.className = 'poi-wall-overlay';
-                wallOverlay.setAttribute('aria-hidden', 'true');
-                tile.appendChild(wallOverlay);
-
-                // Doors overlay (visual only; hidden under fog-of-war)
+                // Crash-site interior visuals should not show through fog-of-war.
                 if (discovered) {
+                    // POI hull wall overlay layer (styled in CSS). This keeps hull walls visible even when a tile is selected.
+                    const wallOverlay = document.createElement('div');
+                    wallOverlay.className = 'poi-wall-overlay';
+                    wallOverlay.setAttribute('aria-hidden', 'true');
+                    tile.appendChild(wallOverlay);
+
+                    // Doors overlay (visual only)
                     const doorsOverlay = document.createElement('div');
                     doorsOverlay.className = 'poi-doors-overlay';
                     doorsOverlay.setAttribute('aria-hidden', 'true');
@@ -1335,73 +1341,73 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                         <div class="poi-door poi-door--left"></div>
                     `;
                     tile.appendChild(doorsOverlay);
+
+                    // Corridor/room overlays (visual): draw inset outlines for interior tiles.
+                    try {
+                        const isCorridorLike = meta && (meta.typeId === 'corridor' || meta.typeId === 'elevator');
+                        const isRoom = meta && ['cafeteria', 'crewQuarters', 'laboratory', 'powerCore', 'captainsQuarters', 'bridge'].includes(meta.typeId);
+
+                        if (isCorridorLike) {
+                            tile.classList.add('poi-has-corridor');
+
+                            const canTraverseTo = (toC, toR) => {
+                                if (toC < 1 || toC > COLS || toR < 1 || toR > ROWS) return false;
+                                const nMeta = tileMeta(toC, toR);
+                                if (!nMeta || nMeta.blocked) return false;
+                                try {
+                                    if (isCrashWallBetween(c, r, toC, toR, { localMapState: state })) return false;
+                                } catch { /* ignore */ }
+                                return true;
+                            };
+
+                            const openTop = canTraverseTo(c, r - 1);
+                            const openBottom = canTraverseTo(c, r + 1);
+                            const openLeft = canTraverseTo(c - 1, r);
+                            const openRight = canTraverseTo(c + 1, r);
+
+                            const d = buildCorridorOutlinePath({ openTop, openBottom, openLeft, openRight, isPlayer: tile.classList.contains('is-player') });
+                            const liftBox = (meta.typeId === 'elevator') ? buildLiftBoxPath() : '';
+
+                            const overlay = document.createElement('div');
+                            overlay.className = 'poi-corridor-overlay';
+                            overlay.setAttribute('aria-hidden', 'true');
+                            overlay.innerHTML = d
+                                ? (meta.typeId === 'elevator'
+                                    ? `<svg class="poi-corridor-svg poi-elevator-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" /><path class="lift-box" d="${liftBox}" /></svg>`
+                                    : `<svg class="poi-corridor-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" /></svg>`)
+                                : '';
+                            tile.appendChild(overlay);
+                        }
+
+                        if (isRoom) {
+                            tile.classList.add('poi-has-room');
+
+                            const canTraverseTo = (toC, toR) => {
+                                if (toC < 1 || toC > COLS || toR < 1 || toR > ROWS) return false;
+                                const nMeta = tileMeta(toC, toR);
+                                if (!nMeta || nMeta.blocked) return false;
+                                try {
+                                    if (isCrashWallBetween(c, r, toC, toR, { localMapState: state })) return false;
+                                } catch { /* ignore */ }
+                                return true;
+                            };
+
+                            const openTop = canTraverseTo(c, r - 1);
+                            const openBottom = canTraverseTo(c, r + 1);
+                            const openLeft = canTraverseTo(c - 1, r);
+                            const openRight = canTraverseTo(c + 1, r);
+
+                            const dRoom = buildRoomOutlinePath({ openTop, openBottom, openLeft, openRight });
+                            const roomOverlay = document.createElement('div');
+                            roomOverlay.className = 'poi-room-overlay';
+                            roomOverlay.setAttribute('aria-hidden', 'true');
+                            roomOverlay.innerHTML = dRoom
+                                ? `<svg class="poi-room-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${dRoom}" /></svg>`
+                                : '';
+                            tile.appendChild(roomOverlay);
+                        }
+                    } catch { /* ignore */ }
                 }
-
-                // Corridor/room overlays (visual): draw inset outlines for interior tiles.
-                try {
-                    const isCorridorLike = meta && (meta.typeId === 'corridor' || meta.typeId === 'elevator');
-                    const isRoom = meta && ['cafeteria', 'crewQuarters', 'laboratory', 'powerCore', 'captainsQuarters', 'bridge'].includes(meta.typeId);
-
-                    if (isCorridorLike) {
-                        tile.classList.add('poi-has-corridor');
-
-                        const canTraverseTo = (toC, toR) => {
-                            if (toC < 1 || toC > COLS || toR < 1 || toR > ROWS) return false;
-                            const nMeta = tileMeta(toC, toR);
-                            if (!nMeta || nMeta.blocked) return false;
-                            try {
-                                if (isCrashWallBetween(c, r, toC, toR, { localMapState: state })) return false;
-                            } catch { /* ignore */ }
-                            return true;
-                        };
-
-                        const openTop = canTraverseTo(c, r - 1);
-                        const openBottom = canTraverseTo(c, r + 1);
-                        const openLeft = canTraverseTo(c - 1, r);
-                        const openRight = canTraverseTo(c + 1, r);
-
-                        const d = buildCorridorOutlinePath({ openTop, openBottom, openLeft, openRight, isPlayer: tile.classList.contains('is-player') });
-                        const liftBox = (meta.typeId === 'elevator') ? buildLiftBoxPath() : '';
-
-                        const overlay = document.createElement('div');
-                        overlay.className = 'poi-corridor-overlay';
-                        overlay.setAttribute('aria-hidden', 'true');
-                        overlay.innerHTML = d
-                            ? (meta.typeId === 'elevator'
-                                ? `<svg class="poi-corridor-svg poi-elevator-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" /><path class="lift-box" d="${liftBox}" /></svg>`
-                                : `<svg class="poi-corridor-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" /></svg>`)
-                            : '';
-                        tile.appendChild(overlay);
-                    }
-
-                    if (isRoom) {
-                        tile.classList.add('poi-has-room');
-
-                        const canTraverseTo = (toC, toR) => {
-                            if (toC < 1 || toC > COLS || toR < 1 || toR > ROWS) return false;
-                            const nMeta = tileMeta(toC, toR);
-                            if (!nMeta || nMeta.blocked) return false;
-                            try {
-                                if (isCrashWallBetween(c, r, toC, toR, { localMapState: state })) return false;
-                            } catch { /* ignore */ }
-                            return true;
-                        };
-
-                        const openTop = canTraverseTo(c, r - 1);
-                        const openBottom = canTraverseTo(c, r + 1);
-                        const openLeft = canTraverseTo(c - 1, r);
-                        const openRight = canTraverseTo(c + 1, r);
-
-                        const dRoom = buildRoomOutlinePath({ openTop, openBottom, openLeft, openRight });
-                        const roomOverlay = document.createElement('div');
-                        roomOverlay.className = 'poi-room-overlay';
-                        roomOverlay.setAttribute('aria-hidden', 'true');
-                        roomOverlay.innerHTML = dRoom
-                            ? `<svg class="poi-room-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${dRoom}" /></svg>`
-                            : '';
-                        tile.appendChild(roomOverlay);
-                    }
-                } catch { /* ignore */ }
             }
 
             const isSelected = (c === mapState.selectedX && r === mapState.selectedY);

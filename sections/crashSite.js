@@ -296,6 +296,30 @@ function scheduleTraverseAdvance(section) {
     } catch { /* ignore */ }
 }
 
+function computeAdjacentLocalMapBlockReason(fromX, fromY, toX, toY, { localMapState, scoutStage, hasTriedReentry } = {}) {
+    try {
+        const lm = localMapState;
+
+        const isEntrance = (toX === SHIP_ENTRANCE.x && toY === SHIP_ENTRANCE.y);
+        if (isEntrance && hasTriedReentry) return 'The way back inside collapsed — you will have to find another way in.';
+
+        const isC5 = (toX === 3 && toY === 5);
+        const isC5ThornWallBurned = !!(lm && lm.c5ThornWallBurned === true);
+        if (isC5 && !isC5ThornWallBurned) return 'A thick wall of thorns blocks the way. I may be able to burn it with a torch.';
+
+        const tile = getLocalMapTileAt(toX, toY, { scoutStage, hasTriedReentry, localMapState: lm });
+        if (tile && tile.blocked) return 'There is currently no need to go there.';
+
+        const blockedByCrashWall = isCrashWallBetween(fromX, fromY, toX, toY, { localMapState: lm });
+        if (blockedByCrashWall) return 'Wreckage blocks the way.';
+
+        const isMovingWest = toX < fromX;
+        const blockedByWestGate = !!(isMovingWest && !(lm && lm.riverCombatDone));
+        if (blockedByWestGate) return 'You should first check out the east side.';
+    } catch { /* ignore */ }
+    return '';
+}
+
 function getMaxRewardAmount(rewardEntry) {
     if (!rewardEntry) return 0;
     const amt = rewardEntry.amount;
@@ -1128,28 +1152,6 @@ export function setupCrashSiteSection(section) {
             const dy = Math.abs(selY - playerY);
             const dist = dx + dy;
 
-            const computeAdjacentExploreBlockReason = () => {
-                try {
-                    const isEntrance = (selX === SHIP_ENTRANCE.x && selY === SHIP_ENTRANCE.y);
-                    if (isEntrance && hasTriedReentry) return 'The way back inside collapsed — you will have to find another way in.';
-
-                    const isC5 = (selX === 3 && selY === 5);
-                    const isC5ThornWallBurned = !!(lm && lm.c5ThornWallBurned === true);
-                    if (isC5 && !isC5ThornWallBurned) return 'A thick wall of thorns blocks the way. I may be able to burn it with a torch.';
-
-                    const tile = getLocalMapTileAt(selX, selY, { scoutStage, hasTriedReentry, localMapState: lm });
-                    if (tile && tile.blocked) return 'There is currently no need to go there.';
-
-                    const blockedByCrashWall = isCrashWallBetween(playerX, playerY, selX, selY, { localMapState: lm });
-                    if (blockedByCrashWall) return 'Wreckage blocks the way.';
-
-                    const isMovingWest = selX < playerX;
-                    const blockedByWestGate = !!(isMovingWest && !(lm && lm.riverCombatDone));
-                    if (blockedByWestGate) return 'You should first check out the east side.';
-                } catch { /* ignore */ }
-                return '';
-            };
-
             // Explored tiles: Traverse is the only movement-style action.
             if (selectedExplored) {
                 const path = findCrashSitePath({
@@ -1166,7 +1168,7 @@ export function setupCrashSiteSection(section) {
                 const steps = hasPath ? Math.max(0, path.length - 1) : 0;
                 const disabledReason = hasPath
                     ? ''
-                    : ((dist === 1) ? (computeAdjacentExploreBlockReason() || 'No clear route to that tile.') : 'No clear route to that tile.');
+                    : ((dist === 1) ? (computeAdjacentLocalMapBlockReason(playerX, playerY, selX, selY, { localMapState: lm, scoutStage, hasTriedReentry }) || 'No clear route to that tile.') : 'No clear route to that tile.');
 
                 const traverseBtn = mkUtilityButton({
                     id: 'traverse',
@@ -1211,7 +1213,7 @@ export function setupCrashSiteSection(section) {
                 if (dist === 1) {
                     // Do not offer Explore onto ship interior gated tiles until their tile-action is complete.
                     if (!(isShipTileWithActionGate(selX, selY) && isShipTileActionIncompleteForTile(selX, selY))) {
-                        const blockReason = computeAdjacentExploreBlockReason();
+                        const blockReason = computeAdjacentLocalMapBlockReason(playerX, playerY, selX, selY, { localMapState: lm, scoutStage, hasTriedReentry });
                         const isAltAccessTile = (selX === 4 && selY === 5);
                         const pry = isAltAccessTile ? salvageActions.find(a => a && a.id === 'pryOpenHull') : null;
                         const pryDone = isAltAccessTile ? isFinished(pry) : false;
@@ -1466,7 +1468,10 @@ export function setupCrashSiteSection(section) {
                             });
 
                             if (!path || path.length < 2) {
-                                addLogEntry('No clear route to that tile.', LogType.INFO);
+                                const blockReason = (dist === 1)
+                                    ? computeAdjacentLocalMapBlockReason(px, py, tx, ty, { localMapState: lm, scoutStage: stage, hasTriedReentry })
+                                    : '';
+                                addLogEntry(blockReason || 'No clear route to that tile.', LogType.INFO);
                                 return;
                             }
 

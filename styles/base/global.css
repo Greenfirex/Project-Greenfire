@@ -1,5 +1,9 @@
 body {
     height: 100vh;
+    height: 100dvh;
+    /* Mobile safety: JS sets --app-vh based on visual viewport so layout stays full-height
+       even after reload/reset/orientation UI changes. */
+    height: calc(var(--app-vh, 1vh) * 100);
     margin: 0;
     background-color: #000;
     box-sizing: border-box;
@@ -50,6 +54,102 @@ body.glow-disabled * {
 /* Reduce motion: keep the glow styling, but stop pulsing animations. */
 body.reduce-motion * {
     animation: none !important;
+}
+
+/* --- Pause overlay --- */
+.pause-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.30);
+    backdrop-filter: blur(7px) saturate(1.1) brightness(0.78);
+    -webkit-backdrop-filter: blur(7px) saturate(1.1) brightness(0.78);
+}
+
+.pause-overlay-card {
+    padding: 18px 22px;
+    border-radius: 14px;
+    background:
+        linear-gradient(180deg, rgba(0,0,0,0.48), rgba(0,0,0,0.28));
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow:
+        0 18px 50px rgba(0,0,0,0.70),
+        0 0 44px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.22);
+    animation: pause-edge-glow 3.8s ease-in-out infinite;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Glowing edge effect (more visible than a static border) */
+.pause-overlay-card::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 16px;
+    background: radial-gradient(circle at 30% 20%,
+            rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.46),
+            rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10) 40%,
+            rgba(0,0,0,0) 70%);
+    filter: blur(10px);
+    opacity: 0.75;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.pause-overlay-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    box-shadow:
+        0 0 0 1px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20) inset,
+        0 0 26px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.26);
+    opacity: 0.85;
+    pointer-events: none;
+    z-index: 1;
+}
+
+@keyframes pause-edge-glow {
+    0%, 100% {
+        box-shadow:
+            0 18px 50px rgba(0,0,0,0.70),
+            0 0 40px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
+    }
+    50% {
+        box-shadow:
+            0 22px 62px rgba(0,0,0,0.75),
+            0 0 66px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.34);
+    }
+}
+
+.pause-overlay-title {
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.98);
+    text-shadow:
+        0 0 16px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.44),
+        0 0 44px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.26),
+        0 4px 18px rgba(0,0,0,0.85);
+    font-size: clamp(26px, 4.2vw, 60px);
+    line-height: 1;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    animation: pause-title-glow 3.2s ease-in-out infinite;
+}
+
+@keyframes pause-title-glow {
+    0%, 100% {
+        filter: drop-shadow(0 0 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.28));
+        opacity: 0.98;
+    }
+    50% {
+        filter: drop-shadow(0 0 18px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.55));
+        opacity: 1;
+    }
 }
 
 /* Universal font style */
@@ -161,6 +261,20 @@ body.reduce-motion * {
     opacity: 1;
     transform: translateY(0) scale(1);
     animation: pulse-glow 5s ease-in-out infinite;
+}
+
+/* Phone-landscape: make tooltips fit the smaller viewport without changing desktop sizing. */
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
+    .tooltip {
+        min-width: 220px;
+        max-width: min(92vw, 360px);
+        padding: 8px;
+    }
+    .tooltip p {
+        font-size: 0.85em;
+    }
 }
 
 .tooltip h4 {

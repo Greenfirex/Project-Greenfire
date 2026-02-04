@@ -13,7 +13,7 @@ function syncRootPanelClasses() {
 
 function isCompactPhoneLandscape() {
     try {
-        return window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px)').matches;
+        return window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)').matches;
     } catch {
         return false;
     }

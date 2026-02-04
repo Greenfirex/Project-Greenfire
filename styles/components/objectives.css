@@ -23,7 +23,9 @@
 }
 
 /* Phone-landscape compact footer: keep the banner readable in a 25px bar */
-@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
   .objectives-banner {
     height: 25px;
     padding: 0 22px 0 10px;
@@ -44,6 +46,117 @@
 
   .objectives-drawer .objective-details {
     padding: 12px 16px 14px 12px;
+  }
+}
+
+/* Phone-landscape: when the mobile log swap is active, the footer middle becomes the log banner/drawer. */
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
+  body.mobile-log-footer-swap #objectivesContainer {
+    display: none;
+  }
+}
+
+/* --- Phone-landscape: show current objective + steps inside the left slide-out menu --- */
+#mobileObjectivesMenu {
+  display: none;
+}
+
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
+  body.mobile-log-footer-swap #mainMenu:not(.collapsed) #mobileObjectivesMenu {
+    display: block;
+  }
+
+  body.mobile-log-footer-swap #mainMenu.collapsed #mobileObjectivesMenu {
+    display: none;
+  }
+
+  .mobile-objectives-menu {
+    position: relative;
+    padding: 10px 10px 12px 10px;
+    background: rgba(0, 0, 0, 0.55);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .mobile-objectives-menu::before,
+  .mobile-objectives-menu::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    animation: pulse-glow 5s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .mobile-objectives-menu::before { top: 0; }
+  .mobile-objectives-menu::after { bottom: 0; }
+
+  .mobile-objectives-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 8px;
+  }
+
+  .mobile-objectives-title em {
+    color: #90EE90;
+    font-style: normal;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-objectives-steps {
+    max-height: 160px;
+    overflow-y: auto;
+    padding-right: 6px;
+  }
+
+  .mobile-objectives-steps-list {
+    margin: 0;
+    padding-left: 18px;
+    color: #c9d7c9;
+    font-size: 12px;
+  }
+
+  .mobile-objectives-step {
+    margin: 3px 0;
+  }
+
+  .mobile-objectives-step.done {
+    opacity: 0.75;
+  }
+
+  .mobile-objectives-empty {
+    color: #d6e3d6;
+    font-size: 12px;
+  }
+
+  .mobile-objectives-steps::-webkit-scrollbar {
+    width: 10px;
+  }
+  .mobile-objectives-steps::-webkit-scrollbar-track {
+    background: #000;
+  }
+  .mobile-objectives-steps::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+    border-radius: 5px;
+    border: 2px solid #000;
+  }
+  .mobile-objectives-steps::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
   }
 }
 
@@ -256,7 +369,9 @@
 
 /* Re-apply compact overrides AFTER base drawer rules.
    The base .objectives-drawer block below overrides earlier media-query tweaks. */
-@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
   .objectives-drawer {
     /* Ensure drawer is anchored to the compact footer (25px) */
     bottom: calc(var(--footer-height, 25px) + 2px) !important;

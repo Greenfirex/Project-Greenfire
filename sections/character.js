@@ -43,10 +43,8 @@ export function setupCharacterSection(section) {
 
     installGlobalCharacterListeners();
 
+    const initialTab = (section.dataset && section.dataset.characterActiveTab === 'stats') ? 'stats' : 'gear';
     section.innerHTML = '';
-
-    const panel = document.createElement('div');
-    panel.className = 'content-panel character-panel';
 
     const { cols: bagCols } = getBagSize();
     const stats = computeCharacterStats(characterState);
@@ -55,72 +53,104 @@ export function setupCharacterSection(section) {
     const xp = getXPResourceSnapshot();
     const canSpendPoint = (xp?.statPoints?.unspent ?? 0) > 0;
 
-    panel.innerHTML = `
-        <div class="character-layout">
-            <div class="character-card equipment-card">
-                <div class="character-card-header">
-                    <h3>Equipment</h3>
-                </div>
+    section.innerHTML = `
+        <div class="character-tabs" role="tablist" aria-label="Character tabs">
+            <button class="character-tab ${initialTab === 'gear' ? 'active' : ''}" data-tab="gear" role="tab" aria-selected="${initialTab === 'gear' ? 'true' : 'false'}">Gear</button>
+            <button class="character-tab ${initialTab === 'stats' ? 'active' : ''}" data-tab="stats" role="tab" aria-selected="${initialTab === 'stats' ? 'true' : 'false'}">Stats</button>
+        </div>
+        <div class="content-panel character-panel">
+            <div class="character-tabpanes">
+                <div class="character-pane ${initialTab === 'gear' ? 'active' : ''}" data-pane="gear" role="tabpanel">
+                    <div class="character-layout character-layout-gear">
+                        <div class="character-card equipment-card">
+                            <div class="character-card-header">
+                                <h3>Equipment</h3>
+                            </div>
 
-                <div class="paperdoll" aria-label="Character silhouette and equipment">
-                    <img class="paperdoll-silhouette" src="assets/images/inventorycharacter.png" alt="" />
+                            <div class="paperdoll" aria-label="Character silhouette and equipment">
+                                <img class="paperdoll-silhouette" src="assets/images/inventorycharacter.png" alt="" />
 
-                    ${renderEquipmentSlot('head', 'Head', characterState?.equipment?.head)}
-                    ${renderEquipmentSlot('chest', 'Chest', characterState?.equipment?.chest)}
-                    ${renderEquipmentSlot('legs', 'Legs', characterState?.equipment?.legs)}
-                    ${renderEquipmentSlot('boots', 'Boots', characterState?.equipment?.boots)}
+                                ${renderEquipmentSlot('head', 'Head', characterState?.equipment?.head)}
+                                ${renderEquipmentSlot('chest', 'Chest', characterState?.equipment?.chest)}
+                                ${renderEquipmentSlot('legs', 'Legs', characterState?.equipment?.legs)}
+                                ${renderEquipmentSlot('boots', 'Boots', characterState?.equipment?.boots)}
 
-                    ${renderEquipmentSlot('weapon', 'Weapon', characterState?.equipment?.weapon)}
-                    ${renderEquipmentSlot('offhand', 'Offhand', characterState?.equipment?.offhand)}
+                                ${renderEquipmentSlot('weapon', 'Weapon', characterState?.equipment?.weapon)}
+                                ${renderEquipmentSlot('offhand', 'Offhand', characterState?.equipment?.offhand)}
 
-                    ${renderEquipmentSlot('accessory_1', 'Accessory 1', characterState?.equipment?.accessory_1)}
-                    ${renderEquipmentSlot('accessory_2', 'Accessory 2', characterState?.equipment?.accessory_2)}
-                </div>
-            </div>
+                                ${renderEquipmentSlot('accessory_1', 'Accessory 1', characterState?.equipment?.accessory_1)}
+                                ${renderEquipmentSlot('accessory_2', 'Accessory 2', characterState?.equipment?.accessory_2)}
+                            </div>
+                        </div>
 
-            <div class="character-card stats-card">
-                <div class="character-card-header">
-                    <h3>Stats</h3>
-                    <span class="stat-points-chip" data-stat-points-chip role="button" tabindex="0" aria-label="Stat points">
-                        Stat Points: <strong>${escapeHtml(String(xp?.statPoints?.unspent ?? 0))}</strong>
-                    </span>
-                </div>
+                        <div class="character-card inventory-card">
+                            <div class="character-card-header">
+                                <h3>Inventory</h3>
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <span class="character-card-hint">Bag ${bagRows}×${bagCols}</span>
+                                    <button type="button" class="inventory-trash-btn ${discardMode ? 'active' : ''}" data-inventory-trash title="Discard items" aria-label="Discard items">
+                                        ${renderTrashIcon()}
+                                    </button>
+                                </div>
+                            </div>
 
-                <div class="stats-list" aria-label="Character stats">
-                    ${renderXPRow()}
-                    ${renderHealthRow()}
-                    ${renderStaminaRow()}
-                    ${renderStatRow('Damage', formatDamageRange(stats))}
-                    ${renderUpgradeableStatRow('Attack Speed', formatAttackSpeed(stats.attackSpeed), { allocateKey: 'attackSpeed', canSpend: canSpendPoint })}
-                    ${renderUpgradeableStatRow('Hit Chance', `${Number(stats.hitChance ?? 0)}%`, { allocateKey: 'hitChance', canSpend: canSpendPoint }) }
-                    ${renderUpgradeableStatRow('Crit Chance', `${Number(stats.critChance ?? 0)}%`, { allocateKey: 'critChance', canSpend: canSpendPoint })}
-                    ${renderStatRow('Armor', String(stats.armor ?? 0))}
-                    ${renderUpgradeableStatRow('Evasion', `${Number(stats.evasion ?? 0)}%`, { allocateKey: 'evasion', canSpend: canSpendPoint })}
-                </div>
-            </div>
-
-            <div class="character-card inventory-card">
-                <div class="character-card-header">
-                    <h3>Inventory</h3>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <span class="character-card-hint">Bag ${bagRows}×${bagCols}</span>
-                        <button type="button" class="inventory-trash-btn ${discardMode ? 'active' : ''}" data-inventory-trash title="Discard items" aria-label="Discard items">
-                            ${renderTrashIcon()}
-                        </button>
+                            <div class="bag-grid" style="--bag-cols:${bagCols}; --bag-rows:${bagRows};" aria-label="Inventory bag">
+                                ${renderBagSlots()}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="bag-grid" style="--bag-cols:${bagCols}; --bag-rows:${bagRows};" aria-label="Inventory bag">
-                    ${renderBagSlots()}
+                <div class="character-pane ${initialTab === 'stats' ? 'active' : ''}" data-pane="stats" role="tabpanel">
+                    <div class="character-layout character-layout-stats">
+                        <div class="character-card stats-card">
+                            <div class="character-card-header">
+                                <h3>Stats</h3>
+                                <span class="stat-points-chip" data-stat-points-chip role="button" tabindex="0" aria-label="Stat points">
+                                    Stat Points: <strong>${escapeHtml(String(xp?.statPoints?.unspent ?? 0))}</strong>
+                                </span>
+                            </div>
+
+                            <div class="stats-list" aria-label="Character stats">
+                                ${renderXPRow()}
+                                ${renderHealthRow()}
+                                ${renderStaminaRow()}
+                                ${renderStatRow('Damage', formatDamageRange(stats))}
+                                ${renderUpgradeableStatRow('Attack Speed', formatAttackSpeed(stats.attackSpeed), { allocateKey: 'attackSpeed', canSpend: canSpendPoint })}
+                                ${renderUpgradeableStatRow('Hit Chance', `${Number(stats.hitChance ?? 0)}%`, { allocateKey: 'hitChance', canSpend: canSpendPoint }) }
+                                ${renderUpgradeableStatRow('Crit Chance', `${Number(stats.critChance ?? 0)}%`, { allocateKey: 'critChance', canSpend: canSpendPoint })}
+                                ${renderStatRow('Armor', String(stats.armor ?? 0))}
+                                ${renderUpgradeableStatRow('Evasion', `${Number(stats.evasion ?? 0)}%`, { allocateKey: 'evasion', canSpend: canSpendPoint })}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     `;
 
-    section.appendChild(panel);
+    const panel = section.querySelector('.character-panel');
 
     // Visual state for discard mode
     panel.classList.toggle('discard-mode', !!discardMode);
+
+    // Tab switching
+    const tabs = Array.from(section.querySelectorAll('.character-tab'));
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.tab === 'stats' ? 'stats' : 'gear';
+            try { section.dataset.characterActiveTab = target; } catch { /* ignore */ }
+            tabs.forEach(t => {
+                t.classList.toggle('active', t === tab);
+                t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+            });
+            const panes = Array.from(section.querySelectorAll('.character-pane'));
+            panes.forEach(p => {
+                const isMatch = String(p.dataset.pane || '') === target;
+                p.classList.toggle('active', isMatch);
+            });
+        });
+    });
 
     // Attach interactions after markup is in the DOM
     attachDnDHandlers(section);
@@ -892,6 +922,260 @@ function attachDnDHandlers(sectionRoot) {
             if (changed) commitCharacterChange(sectionRoot);
         });
     });
+
+    // Mobile/touch fallback: pointer-based drag/drop + double-tap equip/unequip.
+    attachTouchInventoryInteractions(sectionRoot);
+}
+
+function attachTouchInventoryInteractions(sectionRoot) {
+    const panel = sectionRoot.querySelector('.character-panel');
+    if (!panel) return;
+
+    // Avoid re-attaching global listeners on every re-render.
+    if (sectionRoot._touchInventoryInteractionsAttached) return;
+    sectionRoot._touchInventoryInteractionsAttached = true;
+
+    const state = {
+        activePointerId: null,
+        startX: 0,
+        startY: 0,
+        panelEl: null,
+        source: null,
+        itemId: null,
+        originKey: '',
+        originEl: null,
+        dragging: false,
+        payload: null,
+        hoverEl: null,
+        ghostEl: null,
+        lastTapTime: 0,
+        lastTapKey: '',
+    };
+    sectionRoot._touchInventoryState = state;
+
+    const isTouchLike = (e) => {
+        const pt = String(e?.pointerType || '');
+        return pt && pt !== 'mouse';
+    };
+
+    const keyForSource = (src) => {
+        if (!src) return '';
+        if (src.type === 'bag') return `bag:${String(src.index)}`;
+        if (src.type === 'equip') return `equip:${String(src.slot || '')}`;
+        return '';
+    };
+
+    const sourceFromSlotEl = (slotEl) => {
+        if (!slotEl || !slotEl.classList) return null;
+        if (slotEl.classList.contains('bag-slot')) {
+            const idx = Number(slotEl.dataset.slot);
+            if (!Number.isFinite(idx)) return null;
+            return { type: 'bag', index: idx };
+        }
+        if (slotEl.classList.contains('equipment-slot')) {
+            const slot = String(slotEl.dataset.slot || '');
+            if (!slot) return null;
+            return { type: 'equip', slot };
+        }
+        return null;
+    };
+
+    const targetFromSlotEl = (slotEl) => {
+        const src = sourceFromSlotEl(slotEl);
+        if (!src) return null;
+        // Rename to match expected target format.
+        if (src.type === 'bag') return { type: 'bag', index: Number(src.index) };
+        return { type: 'equip', slot: String(src.slot || '') };
+    };
+
+    const updateGhostPosition = (x, y) => {
+        const g = state.ghostEl;
+        if (!g) return;
+        g.style.left = `${Math.round(x)}px`;
+        g.style.top = `${Math.round(y)}px`;
+    };
+
+    const clearHover = () => {
+        if (state.hoverEl && state.hoverEl.classList) state.hoverEl.classList.remove('drop-hover');
+        state.hoverEl = null;
+    };
+
+    const cleanupDrag = () => {
+        state.dragging = false;
+        state.payload = null;
+        state.panelEl = null;
+        state.source = null;
+        state.itemId = null;
+        state.originKey = '';
+        state.originEl = null;
+        state.activePointerId = null;
+        clearHover();
+        currentDragPayload = null;
+        clearAllDropVisuals();
+        document.body.classList.remove('is-touch-dragging');
+        if (state.ghostEl && state.ghostEl.parentNode) state.ghostEl.parentNode.removeChild(state.ghostEl);
+        state.ghostEl = null;
+    };
+
+    const startTouchDrag = (clientX, clientY) => {
+        if (discardMode) return;
+        if (!state.source || !state.itemId) return;
+
+        state.dragging = true;
+        state.payload = { source: state.source, itemId: state.itemId };
+        currentDragPayload = state.payload;
+
+        // Show valid targets, like desktop drag.
+        highlightValidDropTargets(state.payload);
+        document.body.classList.add('is-touch-dragging');
+
+        // Create a lightweight ghost (icon + short label).
+        const ghost = document.createElement('div');
+        ghost.className = 'touch-drag-ghost';
+        const img = state.originEl ? state.originEl.querySelector('img.item-icon') : null;
+        const name = state.originEl ? (state.originEl.querySelector('.item-name')?.textContent || '') : '';
+        if (img && img.getAttribute) {
+            const src = img.getAttribute('src') || '';
+            ghost.innerHTML = `${src ? `<img class="item-icon" src="${escapeHtml(src)}" alt="" />` : ''}<span class="ghost-label">${escapeHtml(String(name || ''))}</span>`;
+        } else {
+            ghost.innerHTML = `<span class="ghost-label">${escapeHtml(String(name || ''))}</span>`;
+        }
+        document.body.appendChild(ghost);
+        state.ghostEl = ghost;
+        updateGhostPosition(clientX, clientY);
+    };
+
+    sectionRoot.addEventListener('pointerdown', (e) => {
+        try {
+            if (!isTouchLike(e)) return;
+            if (discardMode) return;
+            if (!e.isPrimary) return;
+
+            const panelEl = sectionRoot.querySelector('.character-panel');
+            if (!panelEl) return;
+
+            const slotEl = e.target && e.target.closest ? e.target.closest('.bag-slot, .equipment-slot') : null;
+            if (!slotEl || !panelEl.contains(slotEl)) return;
+
+            const src = sourceFromSlotEl(slotEl);
+            if (!src) return;
+
+            const itemId = getDragItemIdFromSource(src);
+
+            state.activePointerId = e.pointerId;
+            state.startX = Number(e.clientX) || 0;
+            state.startY = Number(e.clientY) || 0;
+            state.panelEl = panelEl;
+            state.source = src;
+            state.itemId = itemId;
+            state.originKey = keyForSource(src);
+            state.originEl = slotEl;
+            state.dragging = false;
+            state.payload = null;
+            clearHover();
+
+            // Don't prevent default here: allow scrolling unless a drag actually starts.
+        } catch { /* ignore */ }
+    }, { passive: true });
+
+    document.addEventListener('pointermove', (e) => {
+        try {
+            if (!isTouchLike(e)) return;
+            if (state.activePointerId == null || e.pointerId !== state.activePointerId) return;
+
+            const x = Number(e.clientX) || 0;
+            const y = Number(e.clientY) || 0;
+
+            if (!state.dragging) {
+                if (!state.itemId) return;
+                const dx = x - state.startX;
+                const dy = y - state.startY;
+                const dist = Math.hypot(dx, dy);
+                if (dist < 10) return;
+                startTouchDrag(x, y);
+            }
+
+            if (!state.dragging) return;
+
+            // Once dragging, suppress scrolling.
+            e.preventDefault();
+            updateGhostPosition(x, y);
+
+            const elAtPoint = document.elementFromPoint(x, y);
+            const slotEl = elAtPoint && elAtPoint.closest ? elAtPoint.closest('.bag-slot, .equipment-slot') : null;
+            if (slotEl && state.panelEl && !state.panelEl.contains(slotEl)) {
+                clearHover();
+                return;
+            }
+            const target = slotEl ? targetFromSlotEl(slotEl) : null;
+            const ok = target ? isDropAllowed(state.payload, target) : false;
+
+            clearHover();
+            if (slotEl && ok && slotEl.classList) {
+                slotEl.classList.add('drop-hover');
+                state.hoverEl = slotEl;
+            }
+        } catch { /* ignore */ }
+    }, { passive: false });
+
+    document.addEventListener('pointerup', (e) => {
+        try {
+            if (!isTouchLike(e)) return;
+            if (state.activePointerId == null || e.pointerId !== state.activePointerId) return;
+
+            const now = Date.now();
+
+            if (state.dragging && state.payload) {
+                e.preventDefault();
+                const dropEl = state.hoverEl;
+                const target = dropEl ? targetFromSlotEl(dropEl) : null;
+                const ok = target ? isDropAllowed(state.payload, target) : false;
+                const changed = ok ? performDrop(state.payload, target) : false;
+                cleanupDrag();
+                if (changed) commitCharacterChange(sectionRoot);
+                return;
+            }
+
+            // Not a drag: interpret as a potential double-tap.
+            const src = state.source;
+            const key = state.originKey;
+            const itemId = state.itemId;
+            state.activePointerId = null;
+            state.source = null;
+            state.itemId = null;
+            state.originKey = '';
+            state.originEl = null;
+
+            if (!src || !key || !itemId) return;
+
+            const isDouble = (state.lastTapKey === key) && (now - state.lastTapTime <= 380);
+            if (isDouble) {
+                // Prevent double-tap-to-zoom on mobile.
+                e.preventDefault();
+                state.lastTapKey = '';
+                state.lastTapTime = 0;
+
+                let changed = false;
+                if (src.type === 'bag') changed = autoEquipFromBag(Number(src.index));
+                if (src.type === 'equip') changed = autoUnequipToFirstEmptyBag(String(src.slot || ''));
+                if (changed) commitCharacterChange(sectionRoot);
+                return;
+            }
+
+            state.lastTapKey = key;
+            state.lastTapTime = now;
+        } catch {
+            cleanupDrag();
+        }
+    }, { passive: false });
+
+    document.addEventListener('pointercancel', (e) => {
+        try {
+            if (!isTouchLike(e)) return;
+            if (state.activePointerId == null || e.pointerId !== state.activePointerId) return;
+            cleanupDrag();
+        } catch { /* ignore */ }
+    }, { passive: true });
 }
 
 function onDragStart(event, source) {

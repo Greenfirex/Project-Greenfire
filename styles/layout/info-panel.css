@@ -44,7 +44,9 @@
 
 /* Phone-landscape: treat the info panel as an overlay drawer so it doesn't steal width.
    (Desktop/tablet layout remains unchanged.) */
-@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
     #infoPanel {
         position: absolute;
         top: 0;
@@ -69,6 +71,116 @@
     #infoPanel.collapsed::before {
         content: none;
         display: none;
+    }
+
+    /* When the right panel is collapsed in compact mode, show a small vitals rail
+       (mirrors the left-side mobile menu icon sizing and positioning). */
+    #infoPanel .info-vitals-icons {
+        display: none;
+    }
+
+    #infoPanel.collapsed .info-vitals-icons {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 6px;
+        padding: 8px 4px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        overflow: hidden;
+        z-index: 130;
+        pointer-events: auto;
+    }
+
+    #infoPanel.collapsed .info-vital-orb {
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.22);
+        position: relative;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        box-sizing: border-box;
+        box-shadow:
+            0 0 10px rgba(0,0,0,0.65),
+            0 0 10px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08) inset;
+
+        /* Diablo-like orb: dark base + highlight; actual fill is rendered by ::before */
+        --fill: 50%;
+        --orb-r: 255;
+        --orb-g: 255;
+        --orb-b: 255;
+        background:
+            radial-gradient(circle at 30% 28%, rgba(255,255,255,0.16), rgba(255,255,255,0.0) 60%),
+            radial-gradient(circle at 50% 55%, rgba(0,0,0,0.55), rgba(0,0,0,0.86) 70%);
+
+        cursor: pointer;
+        pointer-events: auto;
+    }
+
+    /* Filled portion (only the bottom part should be tinted). */
+    #infoPanel.collapsed .info-vital-orb::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: var(--fill);
+        background:
+            radial-gradient(circle at 35% 25%, rgba(255,255,255,0.10), rgba(255,255,255,0.0) 62%),
+            linear-gradient(to top,
+                rgba(var(--orb-r), var(--orb-g), var(--orb-b), 0.96) 0%,
+                rgba(var(--orb-r), var(--orb-g), var(--orb-b), 0.78) 100%);
+        filter: saturate(1.05);
+        pointer-events: none;
+        z-index: 1;
+        transition: height 140ms linear;
+    }
+
+    #infoPanel.collapsed .info-vital-orb::after {
+        content: '';
+        position: absolute;
+        inset: 2px;
+        border-radius: 999px;
+        box-shadow: 0 0 0 1px rgba(255,255,255,0.06) inset;
+        pointer-events: none;
+        z-index: 3;
+    }
+
+    #infoPanel.collapsed .info-vital-orb[data-vital="health"] { --orb-r: 231; --orb-g: 76;  --orb-b: 60; }
+    #infoPanel.collapsed .info-vital-orb[data-vital="stamina"] { --orb-r: 255; --orb-g: 215; --orb-b: 0; }
+    #infoPanel.collapsed .info-vital-orb[data-vital="water"] { --orb-r: 52;  --orb-g: 152; --orb-b: 219; }
+    #infoPanel.collapsed .info-vital-orb[data-vital="food"] { --orb-r: 240; --orb-g: 240; --orb-b: 240; }
+
+    #infoPanel.collapsed .info-vital-orb .orb-text {
+        position: relative;
+        z-index: 4;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        font-variant-numeric: tabular-nums;
+        text-shadow:
+            0 1px 2px rgba(0,0,0,0.92),
+            0 0 6px rgba(0,0,0,0.65);
+    }
+
+    #infoPanel.collapsed .info-vital-orb .orb-current {
+        font-size: 11px;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -0.2px;
+        color: rgba(0,0,0,0.92);
+        text-shadow:
+            0 1px 0 rgba(255,255,255,0.28),
+            0 0 6px rgba(255,255,255,0.18),
+            0 0 10px rgba(0,0,0,0.55);
     }
 }
 

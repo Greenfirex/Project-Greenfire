@@ -7,12 +7,13 @@ import { addLogEntry, LogType } from '../core/ingameLog.js';
 
 let isPaused = false;
 let mainLoopCallbacks = { start: null, stop: null };
+let pauseOverlayEl = null;
 
 const MOBILE_SPEED_ORDER = [1, 2, 5, 10];
 
 function isCompactPhoneLandscape() {
     try {
-        return window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px)').matches;
+        return window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)').matches;
     } catch {
         return false;
     }
@@ -46,6 +47,67 @@ function updateHUD() {
     if (hud) hud.textContent = isPaused ? 'Paused' : `${window.TIME_SCALE}x`;
 }
 
+function ensurePauseOverlay() {
+    if (pauseOverlayEl) return pauseOverlayEl;
+
+    const el = document.createElement('div');
+    el.id = 'pauseOverlay';
+    el.className = 'pause-overlay hidden';
+    el.setAttribute('aria-hidden', 'true');
+
+    el.innerHTML = `
+        <div class="pause-overlay-card" role="dialog" aria-modal="true">
+            <div class="pause-overlay-title">GAME PAUSED</div>
+        </div>
+    `;
+
+    const card = el.querySelector('.pause-overlay-card');
+    if (card) {
+        card.addEventListener('pointerdown', (e) => {
+            // Clicking the text itself should not resume.
+            e.stopPropagation();
+        });
+    }
+
+    el.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        // Tap/click outside the card resumes.
+        if (!isPaused) return;
+        const target = e.target;
+        if (card && target && card.contains(target)) return;
+        resumeGame(true);
+    }, { passive: false });
+
+    // Escape resumes (desktop convenience)
+    window.addEventListener('keydown', (e) => {
+        try {
+            if (!isPaused) return;
+            if (e && (e.key === 'Escape' || e.key === 'Esc')) {
+                e.preventDefault();
+                resumeGame(true);
+            }
+        } catch { /* ignore */ }
+    }, true);
+
+    document.body.appendChild(el);
+    pauseOverlayEl = el;
+    return pauseOverlayEl;
+}
+
+function showPauseOverlay() {
+    const el = ensurePauseOverlay();
+    if (!el) return;
+    el.classList.remove('hidden');
+    el.setAttribute('aria-hidden', 'false');
+}
+
+function hidePauseOverlay() {
+    const el = ensurePauseOverlay();
+    if (!el) return;
+    el.classList.add('hidden');
+    el.setAttribute('aria-hidden', 'true');
+}
+
 function setGameSpeed(factor, announce = true) {
     window.TIME_SCALE = Number(factor) || 1;
     // persist new value
@@ -63,9 +125,11 @@ function setGameSpeed(factor, announce = true) {
 function pauseGame(announce = true) {
     if (isPaused) return;
     isPaused = true;
+    // Hide any hover/touch tooltips while paused.
+    try { window.dispatchEvent(new Event('request-hide-tooltip')); } catch (e) {}
     // stop main loop and notify subsystems
     if (mainLoopCallbacks.stop) mainLoopCallbacks.stop();
-    window.dispatchEvent(new CustomEvent('game-pause'));
+    window.dispatchEvent(new CustomEvent('game-pause', { detail: { showOverlay: !!announce, source: announce ? 'user' : 'system' } }));
     const btn = document.getElementById('pauseBtn');
     if (btn) { btn.textContent = 'Resume'; btn.classList.add('active'); }
     // persist paused state
@@ -78,7 +142,7 @@ function resumeGame(announce = true) {
     if (!isPaused) return;
     isPaused = false;
     if (mainLoopCallbacks.start) mainLoopCallbacks.start();
-    window.dispatchEvent(new CustomEvent('game-resume'));
+    window.dispatchEvent(new CustomEvent('game-resume', { detail: { source: announce ? 'user' : 'system' } }));
     const btn = document.getElementById('pauseBtn');
     if (btn) { btn.textContent = 'Pause'; btn.classList.remove('active'); }
     try { localStorage.setItem('gamePaused', 'false'); } catch (e) {}
@@ -143,7 +207,7 @@ export function initFooter() {
 
             // If viewport changes between compact/desktop (dev tools), keep label fresh.
             try {
-                const mql = window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px)');
+                const mql = window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)');
                 if (mql && mobileBtn.dataset.mqlWired !== 'true') {
                     mobileBtn.dataset.mqlWired = 'true';
                     mql.addEventListener('change', () => updateMobileSpeedButton());
@@ -183,6 +247,19 @@ export function initFooter() {
 
     // Apply persisted settings
     setGameSpeed(window.TIME_SCALE, false);
+
+    // Pause overlay wiring: driven by the same global events used by time.js.
+    try {
+        ensurePauseOverlay();
+        window.addEventListener('game-pause', (e) => {
+            // Only show the overlay for player-initiated pauses.
+            if (!isPaused) return;
+            if (e && e.detail && e.detail.showOverlay === false) return;
+            showPauseOverlay();
+        });
+        window.addEventListener('game-resume', () => hidePauseOverlay());
+    } catch { /* ignore */ }
+
     if (savedPaused) {
         pauseGame(false);
     } else {
@@ -190,6 +267,7 @@ export function initFooter() {
         const pBtn = document.getElementById('pauseBtn');
         if (pBtn) { pBtn.textContent = 'Pause'; pBtn.classList.remove('active'); }
         updateHUD();
+        try { hidePauseOverlay(); } catch { /* ignore */ }
     }
 
     // Ensure debug button reflects current state on load

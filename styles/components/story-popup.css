@@ -12,6 +12,9 @@
     justify-content: center;
     padding: 20px;
     box-sizing: border-box;
+    /* Prevent overscroll chaining to the background on mobile */
+    overscroll-behavior: contain;
+    touch-action: none;
 }
 
 .story-popup-content {
@@ -28,7 +31,11 @@
     max-width: 900px;
     /* Match combat popup sizing (combat reuses story popup visuals) */
     height: 82vh;
+    height: 82dvh;
+    height: calc(var(--app-vh, 1vh) * 82);
     max-height: calc(100vh - 40px);
+    max-height: calc(100dvh - 40px);
+    max-height: calc((var(--app-vh, 1vh) * 100) - 40px);
     border-radius: 8px;
     position: relative;
     text-align: left;
@@ -44,7 +51,11 @@
     .story-popup-content:not(.confirm-popup-content) {
         width: 94vw;
         height: 86vh;
+        height: 86dvh;
+        height: calc(var(--app-vh, 1vh) * 86);
         max-height: calc(100vh - 40px);
+        max-height: calc(100dvh - 40px);
+        max-height: calc((var(--app-vh, 1vh) * 100) - 40px);
         padding: 16px;
     }
 
@@ -62,7 +73,11 @@
 @media (max-height: 760px) {
     .story-popup-content:not(.confirm-popup-content) {
         height: 90vh;
+        height: 90dvh;
+        height: calc(var(--app-vh, 1vh) * 90);
         max-height: calc(100vh - 40px);
+        max-height: calc(100dvh - 40px);
+        max-height: calc((var(--app-vh, 1vh) * 100) - 40px);
         padding: 16px;
     }
 
@@ -115,6 +130,10 @@
     overflow-x: hidden;
     flex: 1 1 0;
     min-height: 0;
+    /* iOS: allow smooth scrolling inside the popup */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
 }
 
 /* Custom scrollbar matching ingame log */
@@ -318,6 +337,8 @@
     max-width: 820px;
     height: auto;
     max-height: min(440px, 80vh);
+    max-height: min(440px, 80dvh);
+    max-height: min(440px, calc(var(--app-vh, 1vh) * 80));
     padding: 22px;
 }
 
@@ -356,7 +377,9 @@
 }
 
 /* Phone-landscape (e.g., iPhone 12 Pro 844x390): tighten typography and spacing */
-@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
     .story-popup-overlay {
         padding: 10px;
     }
@@ -364,7 +387,11 @@
     .story-popup-content:not(.confirm-popup-content) {
         width: 94vw;
         height: 88vh;
+        height: 88dvh;
+        height: calc(var(--app-vh, 1vh) * 88);
         max-height: calc(100vh - 30px);
+        max-height: calc(100dvh - 30px);
+        max-height: calc((var(--app-vh, 1vh) * 100) - 30px);
         padding: 12px;
     }
 

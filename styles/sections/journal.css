@@ -536,7 +536,9 @@
 .objectives-history::-webkit-scrollbar-thumb:hover { background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8); }
 
 /* Phone-landscape: hide tabs and match Crash Site padding to maximize usable space. */
-@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
     #journalSection {
         padding: 2px;
     }

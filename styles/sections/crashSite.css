@@ -13,7 +13,9 @@
 
 /* Phone-landscape: navigation moves to the left icon rail popover, so hide in-section tabs
    and tighten padding to maximize usable area. */
-@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
     #crashSiteSection {
         padding: 1px;
     }
@@ -193,7 +195,9 @@
 /* .content-panel and shared UI styles have been moved to styles/base/game-area.css */
 
 /* FINAL OVERRIDES (must be last): phone-landscape spacing */
-@media (max-width: 600px), (max-width: 900px) and (max-height: 450px) {
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
     /* Ensure compact padding wins over later base rules in this file */
     #crashSiteSection {
         padding: 1px !important;

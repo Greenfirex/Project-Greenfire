@@ -10,6 +10,26 @@ import { pauseGame, resumeGame, getIsPaused } from '../footer.js';
 let active = null;
 let _escHandler = null;
 
+function getPlayerDisplayNameFromFirstStoryEntry() {
+    try {
+        const raw = localStorage.getItem('storyLog');
+        if (!raw) return null;
+        const list = JSON.parse(raw);
+        if (!Array.isArray(list) || list.length === 0) return null;
+        const first = list[0] || null;
+        const text = String(first?.text || '').trim();
+        if (!text) return null;
+
+        // Heuristic: the intro story starts with "I am <name> — ..."
+        const m = text.match(/\bI\s+am\s+([^—,\.\n\r]{2,60})\s*(?:—|,|\.|\n|\r)/i);
+        const name = String(m?.[1] || '').trim();
+        if (!name) return null;
+        return name;
+    } catch {
+        return null;
+    }
+}
+
 function ensureOverlay() {
     let overlay = document.getElementById('combatPopup');
     if (overlay) return overlay;
@@ -85,6 +105,7 @@ function ensureOverlay() {
                             <span class="combat-pause-text" aria-hidden="true">Paused</span>
                         </button>
                         <button class="combat-speed-toggle" type="button" data-action="toggle-speed" aria-label="Toggle combat speed">1×</button>
+                        <button class="combat-log-toggle" type="button" data-action="toggle-log" aria-label="Toggle combat log" aria-pressed="false">Log</button>
                     </div>
                     <div class="combat-bar-group">
                         <div class="combat-bar-top">
@@ -298,6 +319,42 @@ function spawnCombatFloatText(overlay, text, opts = {}) {
 
     lane.appendChild(el);
 
+    const reduceMotion = (() => {
+        try { return !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
+    })();
+
+    if (reduceMotion) {
+        try {
+            el.style.animation = 'none';
+            el.style.opacity = '1';
+        } catch {}
+        setTimeout(() => {
+            try { el.remove(); } catch {}
+        }, 800);
+        return;
+    }
+
+    // Some mobile browsers/users end up suppressing CSS keyframe animations.
+    // Use WAAPI when available so damage numbers reliably appear.
+    if (el.animate) {
+        try {
+            el.style.animation = 'none';
+            const startY = 14;
+            const endY = -44;
+            const baseX = Number.parseFloat(String(el.style.getPropertyValue('--x') || '0').replace('px', '')) || 0;
+            const rot = String(el.style.getPropertyValue('--rot') || '0deg');
+            const anim = el.animate([
+                { opacity: 0, transform: `translate(calc(-50% + ${baseX}px), ${startY}px) rotate(${rot}) scale(0.98)` },
+                { opacity: 1, offset: 0.12, transform: `translate(calc(-50% + ${baseX}px), ${startY - 6}px) rotate(${rot}) scale(1.0)` },
+                { opacity: 0, transform: `translate(calc(-50% + ${baseX}px), ${endY}px) rotate(${rot}) scale(1.02)` },
+            ], { duration: 950, easing: 'cubic-bezier(0.18, 0.9, 0.2, 1)', fill: 'forwards' });
+            anim.addEventListener('finish', () => {
+                try { el.remove(); } catch {}
+            }, { once: true });
+            return;
+        } catch { /* fall through to CSS + timeout cleanup */ }
+    }
+
     const cleanup = () => {
         try { el.remove(); } catch {}
     };
@@ -309,6 +366,29 @@ function spawnCombatFloatText(overlay, text, opts = {}) {
 function triggerSilhouetteAttack(overlay, who) {
     const el = overlay.querySelector(`.combat-portrait[data-portrait="${who}"]`);
     if (!el) return;
+
+    const reduceMotion = (() => {
+        try { return !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
+    })();
+    if (reduceMotion) return;
+
+    // Prefer WAAPI so the lunge works reliably on mobile.
+    if (el.animate) {
+        try {
+            const dir = (who === 'enemy') ? -1 : 1;
+            const base = 'translate(-50%, -50%)';
+            const anim = el.animate([
+                { transform: `${base} translateX(0px)` },
+                { transform: `${base} translateX(${10 * dir}px)` , offset: 0.55 },
+                { transform: `${base} translateX(0px)` },
+            ], { duration: 220, easing: 'cubic-bezier(0.2, 0.9, 0.2, 1)', fill: 'both' });
+            anim.addEventListener('finish', () => {
+                try { el.style.transform = ''; } catch {}
+            }, { once: true });
+            return;
+        } catch { /* fall back to CSS class */ }
+    }
+
     el.classList.remove('attack');
     // Force reflow so re-adding restarts the animation.
     void el.offsetWidth;
@@ -487,11 +567,21 @@ export function showCombatPopup(encounterId, opts = {}) {
     const title = overlay.querySelector('.combat-title');
     const subtitle = overlay.querySelector('.combat-subtitle');
     const enemyLabel = overlay.querySelector('[data-enemy-label]');
+    const playerOrbit = overlay.querySelector('.combat-orbit[data-orbit="player"]');
+    const enemyOrbit = overlay.querySelector('.combat-orbit[data-orbit="enemy"]');
 
     if (title) title.textContent = 'Combat Encounter';
     if (subtitle) subtitle.textContent = '';
     if (enemyLabel) enemyLabel.textContent = def.name;
     if (content) content.classList.toggle('compact-header', true);
+
+    // Default combat UI state for each opening.
+    try { overlay.removeAttribute('data-log-expanded'); } catch { /* ignore */ }
+
+    // Used by mobile CSS to render names inside the combat frames.
+    const playerName = getPlayerDisplayNameFromFirstStoryEntry() || 'You';
+    try { if (playerOrbit) playerOrbit.setAttribute('data-name', playerName); } catch { /* ignore */ }
+    try { if (enemyOrbit) enemyOrbit.setAttribute('data-name', String(def?.name || 'Enemy')); } catch { /* ignore */ }
 
     // Portraits
     const playerPortrait = overlay.querySelector('[data-portrait="player"]');
@@ -702,6 +792,7 @@ export function showCombatPopup(encounterId, opts = {}) {
         const closeBtn = overlay.querySelector('button[data-action="close"]');
         const pauseBtn = overlay.querySelector('button[data-action="toggle-pause"]');
         const speedBtn = overlay.querySelector('button[data-action="toggle-speed"]');
+        const logBtn = overlay.querySelector('button[data-action="toggle-log"]');
         const heavyBtn = overlay.querySelector('button[data-action="heavy-strike"]');
         const placeholderBtn = overlay.querySelector('button[data-action="ability-placeholder"]');
 
@@ -791,6 +882,10 @@ export function showCombatPopup(encounterId, opts = {}) {
             raf = null;
             combatPaused = true;
             setPauseUi(overlay, true);
+            try {
+                const elapsedMs = performance.now() - combatStartPerf;
+                appendLogWithTime(overlay, elapsedMs, 'Game paused.', 'system');
+            } catch { /* ignore */ }
             try { syncAbilityButtons(); } catch (e) { /* ignore */ }
             // Reset scheduling so resume doesn't "catch up" on missed attacks.
             last = performance.now();
@@ -802,6 +897,10 @@ export function showCombatPopup(encounterId, opts = {}) {
             if (!active || finalOutcome) return;
             combatPaused = false;
             setPauseUi(overlay, false);
+            try {
+                const elapsedMs = performance.now() - combatStartPerf;
+                appendLogWithTime(overlay, elapsedMs, 'Game resumed.', 'system');
+            } catch { /* ignore */ }
             try { syncAbilityButtons(); } catch (e) { /* ignore */ }
             last = performance.now();
             nextPlayerAttackAt = last + effectivePlayerIntervalMs();
@@ -894,6 +993,23 @@ export function showCombatPopup(encounterId, opts = {}) {
                 // Allow speed toggle even while paused.
                 const next = (Math.max(1, Math.floor(combatSpeedMult) || 1) >= SPEED_FAST_MULT) ? 1 : SPEED_FAST_MULT;
                 applySpeed(next);
+            };
+        }
+
+        if (logBtn) {
+            const syncLogBtn = () => {
+                const expanded = overlay.hasAttribute('data-log-expanded');
+                logBtn.setAttribute('aria-pressed', expanded ? 'true' : 'false');
+                logBtn.classList.toggle('active', expanded);
+                logBtn.textContent = expanded ? 'Log' : 'Log';
+                logBtn.setAttribute('aria-label', expanded ? 'Hide expanded combat log' : 'Show expanded combat log');
+            };
+            syncLogBtn();
+            logBtn.onclick = (e) => {
+                e.preventDefault();
+                if (overlay.hasAttribute('data-log-expanded')) overlay.removeAttribute('data-log-expanded');
+                else overlay.setAttribute('data-log-expanded', '1');
+                syncLogBtn();
             };
         }
 

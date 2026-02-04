@@ -9,6 +9,71 @@ let activeOutcome = null; // optional footer content (rewards/unlocks)
 
 let pausedByThisStoryPopup = false;
 
+let _scrollLock = null;
+
+function isCompactPhoneLandscape() {
+    try {
+        return window.matchMedia('(max-width: 600px), (max-width: 900px) and (max-height: 450px), (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px)').matches;
+    } catch {
+        return false;
+    }
+}
+
+function lockBackgroundScroll() {
+    if (_scrollLock) return;
+    try {
+        const docEl = document.documentElement;
+        const body = document.body;
+        if (!docEl || !body) return;
+
+        _scrollLock = {
+            body: {
+                overflow: body.style.overflow,
+                overscrollBehavior: body.style.overscrollBehavior,
+                touchAction: body.style.touchAction,
+            },
+            html: {
+                overflow: docEl.style.overflow,
+                overscrollBehavior: docEl.style.overscrollBehavior,
+                touchAction: docEl.style.touchAction,
+            }
+        };
+
+        // Double safety: prevent rubber-banding/scroll chaining.
+        body.style.overflow = 'hidden';
+        docEl.style.overflow = 'hidden';
+        body.style.overscrollBehavior = 'none';
+        docEl.style.overscrollBehavior = 'none';
+        body.style.touchAction = 'none';
+        docEl.style.touchAction = 'none';
+    } catch {
+        /* ignore */
+    }
+}
+
+function unlockBackgroundScroll() {
+    if (!_scrollLock) return;
+    try {
+        const { body: prevBody, html: prevHtml } = _scrollLock;
+        _scrollLock = null;
+
+        const docEl = document.documentElement;
+        const body = document.body;
+        if (docEl && prevHtml) {
+            docEl.style.overflow = prevHtml.overflow;
+            docEl.style.overscrollBehavior = prevHtml.overscrollBehavior;
+            docEl.style.touchAction = prevHtml.touchAction;
+        }
+        if (body && prevBody) {
+            body.style.overflow = prevBody.overflow;
+            body.style.overscrollBehavior = prevBody.overscrollBehavior;
+            body.style.touchAction = prevBody.touchAction;
+        }
+    } catch {
+        /* ignore */
+    }
+}
+
 // Add a single Esc handler that is attached only while the popup is open
 let _popupEscHandler = null;
 function attachPopupEscHandler(overlayEl) {
@@ -156,6 +221,10 @@ export function showStoryPopup(event, outcome = null) {
     activeStoryEvent = event;
     activeOutcome = outcome;
 
+    // On mobile, opening a large modal can cause an immediate visual-viewport shift.
+    // Lock background scrolling before showing so the app grid doesn't jump.
+    lockBackgroundScroll();
+
     // Pause while the player is reading narrative.
     try {
         pausedByThisStoryPopup = false;
@@ -188,7 +257,10 @@ export function showStoryPopup(event, outcome = null) {
     try { window.dispatchEvent(new CustomEvent('popup-open')); } catch (e) { /* ignore */ }
     overlayEl.offsetHeight;
     overlayEl.setAttribute('tabindex', '-1');
-    try { overlayEl.focus({ preventScroll: true }); } catch (e) {}
+    // Avoid focus on phone-landscape: iOS Safari may scroll/jump when focusing fixed elements.
+    if (!isCompactPhoneLandscape()) {
+        try { overlayEl.focus({ preventScroll: true }); } catch (e) {}
+    }
 
     // attach Esc handler now that popup is visible
     attachPopupEscHandler(overlayEl);
@@ -230,6 +302,9 @@ function hideStoryPopup() {
     activeStoryEvent = null;
     activeOutcome = null;
     try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ }
+
+    // Restore background scroll/position after the overlay is hidden.
+    unlockBackgroundScroll();
 
     // Resume only if this popup caused the pause.
     try {

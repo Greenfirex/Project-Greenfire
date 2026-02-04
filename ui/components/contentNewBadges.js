@@ -27,6 +27,10 @@ export function newBadgeHtml(isNewValue) {
 export function wireClearUiNewBadge(el, { key, legacyObj, legacyProp = 'uiNew', selector = '.action-new-badge' } = {}) {
     if (!el) return;
 
+    // Avoid double-wiring if a renderer reuses DOM nodes.
+    if (el.dataset && el.dataset.uiNewClearWired === 'true') return;
+    try { if (el.dataset) el.dataset.uiNewClearWired = 'true'; } catch { /* ignore */ }
+
     const clear = () => {
         // Mark as seen (no-op currently, but kept for forward compatibility)
         if (key) markUiSeen(key);
@@ -43,7 +47,10 @@ export function wireClearUiNewBadge(el, { key, legacyObj, legacyProp = 'uiNew', 
         try { saveGameStateQuiet(); } catch { /* ignore */ }
     };
 
-    el.onmouseenter = clear;
-    el.onfocus = clear;
-    el.ontouchstart = clear;
+    // Use addEventListener so touch handlers can be passive.
+    // This removes Chrome's "Violation" warning about scroll-blocking listeners.
+    el.addEventListener('mouseenter', clear);
+    el.addEventListener('focus', clear);
+    el.addEventListener('pointerdown', clear, { passive: true });
+    el.addEventListener('touchstart', clear, { passive: true });
 }
