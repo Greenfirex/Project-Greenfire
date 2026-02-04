@@ -25,6 +25,25 @@ function isStandaloneDisplayMode() {
     }
 }
 
+function isLikelyMobileUserAgent() {
+    // UA is only used as a fallback signal for Android + device emulation,
+    // because some environments (desktop devtools) don't expose touch/coarse-pointer.
+    // Still gated by landscape + small short-side so desktop isn't affected.
+    try {
+        const uad = navigator?.userAgentData;
+        if (typeof uad?.mobile === 'boolean') return uad.mobile;
+    } catch {
+        /* ignore */
+    }
+
+    try {
+        const ua = String(navigator?.userAgent || '');
+        return /Android|iPhone|iPad|iPod/i.test(ua);
+    } catch {
+        return false;
+    }
+}
+
 function isTouchLikeDevice() {
     try {
         const mtp = Number(navigator?.maxTouchPoints || 0);
@@ -73,10 +92,11 @@ function computeIsLandscape() {
 }
 
 function computeIsCompactPhoneLandscape() {
-    // Intentionally not UA-based.
-    // We treat "compact" as: touch device, landscape, and small short-side.
+    // We treat "compact" as: (touch-like OR mobile-ish context), landscape,
+    // and small short-side.
     const touch = isTouchLikeDevice();
-    if (!touch) return false;
+    const standalone = isStandaloneDisplayMode();
+    const uaMobile = isLikelyMobileUserAgent();
 
     const { w: vw, h: vh } = getViewportDims();
     const { w: sw, h: sh } = getScreenDims();
@@ -91,7 +111,8 @@ function computeIsCompactPhoneLandscape() {
     // iOS reports a "desktop" layout viewport.
     const shortSideSmall = (shortV <= 450) || (shortS <= 450);
 
-    return !!(landscape && shortSideSmall);
+    const hasMobileSignal = touch || standalone || uaMobile;
+    return !!(hasMobileSignal && landscape && shortSideSmall);
 }
 
 let _state = {

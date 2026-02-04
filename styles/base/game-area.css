@@ -102,6 +102,45 @@
     }
 }
 
+/* Same compact behavior when ui/compactMode.js sets html.is-compact (covers wider phone-landscape viewports). */
+html.is-compact #mainContainer {
+    --content-edge-inset: 3px;
+}
+
+html.is-compact.left-panel-collapsed #mainContainer {
+    --content-edge-inset: 43px; /* 40px rail + 3px gap */
+}
+
+html.is-compact.right-panel-collapsed #mainContainer {
+    --content-edge-inset: 43px; /* 40px rail + 3px gap */
+}
+
+html.is-compact #gameArea,
+html.is-compact #gameArea.expanded-left,
+html.is-compact #gameArea.expanded-right,
+html.is-compact #gameArea.expanded-both {
+    width: auto;
+    flex: 1 1 auto;
+    transition: none;
+    padding-left: 0;
+    padding-right: 0;
+    box-sizing: border-box;
+}
+
+html.is-compact .game-section {
+    left: 0;
+    right: 0;
+    width: 100%;
+}
+
+html.is-compact .game-section .content-panel {
+    width: auto;
+    align-self: stretch;
+    min-width: 0;
+    margin-left: var(--content-edge-inset, 8px);
+    margin-right: var(--content-edge-inset, 8px);
+}
+
 /* Shared content panel (centralized) */
 .content-panel {
     /* very dark, near-opaque panel for maximum readability over art */
@@ -127,6 +166,10 @@
     .content-panel {
         padding: 6px;
     }
+}
+
+html.is-compact .content-panel {
+    padding: 6px;
 }
 
 /* progress bar used by image-button */

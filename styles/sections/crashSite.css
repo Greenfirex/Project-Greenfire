@@ -36,6 +36,25 @@
     }
 }
 
+html.is-compact #crashSiteSection {
+    padding: 1px;
+}
+
+html.is-compact #crashSiteSection .crashsite-tabs {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+html.is-compact #crashSiteSection > .content-panel.crashsite-panel {
+    padding: 1px;
+    border-top-width: 1px !important;
+    border-top-style: solid !important;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+}
+
 /* Cross-fade backgrounds between Crash Site and Campsite */
 #crashSiteSection::before,
 #crashSiteSection::after {

@@ -132,6 +132,17 @@
     }
 }
 
+html.is-compact #mainMenu:not(.collapsed) #logSection {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    top: auto;
+    height: 100%;
+    max-height: none;
+    background-color: transparent;
+}
+
 /* --- Phone-landscape: swap log into footer middle drawer --- */
 @media (max-width: 600px),
        (max-width: 900px) and (max-height: 450px),
@@ -349,4 +360,19 @@
     body.mobile-log-footer-swap #footerLogDrawerHost #logSection .log-header {
         display: none;
     }
+}
+
+html.is-compact body.mobile-log-footer-swap #mainMenu #logSection {
+    display: none;
+}
+
+html.is-compact #footerLogContainer {
+    display: none;
+    position: relative;
+    width: 100%;
+    min-width: 0;
+}
+
+html.is-compact body.mobile-log-footer-swap #footerLogContainer {
+    display: block;
 }

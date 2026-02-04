@@ -1197,6 +1197,29 @@ body.is-touch-dragging {
     }
 }
 
+html.is-compact #characterSection {
+    padding: 2px;
+    /* Slightly smaller paper-doll slots so the desktop layout fits comfortably */
+    --inv-slot-w: clamp(70px, 10.5vw, 88px);
+    --inv-slot-h: clamp(46px, 7.6vw, 54px);
+
+    /* Keep the paper-doll gaps consistent on phone-landscape */
+    --equip-head-top: 6px;
+    --equip-gap-y: 6px;
+    --equip-side-x: 6px;
+    --equip-side-top-offset: 24px;
+    --equip-row-step: calc(var(--inv-slot-h) + var(--equip-gap-y));
+}
+
+html.is-compact #characterSection .character-tabs {
+    display: none;
+}
+
+html.is-compact #characterSection > .content-panel.character-panel {
+    padding: 6px;
+    box-sizing: border-box;
+}
+
 /* Mobile-friendly layout: keep inventory usable on narrow screens.
    Use a container query so it triggers based on the actual Character section width. */
 @container character (max-width: 720px) {

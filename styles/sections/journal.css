@@ -698,3 +698,23 @@
     }
 }
 
+html.is-compact #journalSection {
+    padding: 2px;
+}
+
+html.is-compact #journalSection .journal-tabs {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+html.is-compact #journalSection > .content-panel.journal-panel {
+    padding: 6px;
+    border-top-width: 1px !important;
+    border-top-style: solid !important;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    margin-top: 0 !important;
+}
+
