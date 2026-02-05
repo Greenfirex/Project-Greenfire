@@ -1220,6 +1220,168 @@ html.is-compact #characterSection > .content-panel.character-panel {
     box-sizing: border-box;
 }
 
+/* Forced compact mode: mirror the phone-landscape Character layout so
+   iPhone (844px wide) and wider phones (e.g., 915px wide) match. */
+html.is-compact #characterSection .character-layout.character-layout-gear {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "equipment inventory";
+    grid-template-rows: minmax(0, 1fr);
+    gap: 10px;
+}
+
+html.is-compact #characterSection .equipment-card,
+html.is-compact #characterSection .inventory-card,
+html.is-compact #characterSection .stats-card {
+    min-height: 0;
+}
+
+html.is-compact #characterSection .equipment-card {
+    overflow: visible;
+}
+
+/* Equipment: prefer the desktop paper-doll layout in compact phone-landscape */
+html.is-compact #characterSection .paperdoll {
+    position: relative !important;
+    height: 300px;
+    overflow: hidden;
+    display: block !important;
+    padding: 0;
+}
+
+html.is-compact #characterSection .paperdoll-silhouette {
+    display: block;
+    height: 292px;
+    top: 54%;
+    opacity: 0.68;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot {
+    position: absolute !important;
+    width: var(--inv-slot-w);
+    height: var(--inv-slot-h);
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="head"] {
+    left: 50% !important;
+    top: var(--equip-head-top) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateX(-50%) !important;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="chest"] {
+    left: 50% !important;
+    top: calc(var(--equip-head-top) + var(--equip-row-step)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateX(-50%) !important;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="weapon"] {
+    left: var(--equip-side-x) !important;
+    top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-side-top-offset)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="offhand"] {
+    right: var(--equip-side-x) !important;
+    top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-side-top-offset)) !important;
+    left: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="legs"] {
+    left: 50% !important;
+    top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-row-step)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateX(-50%) !important;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="boots"] {
+    left: 50% !important;
+    top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-row-step) + var(--equip-row-step)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateX(-50%) !important;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="accessory_1"] {
+    left: var(--equip-side-x) !important;
+    top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-row-step) + var(--equip-row-step)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="accessory_2"] {
+    right: var(--equip-side-x) !important;
+    top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-row-step) + var(--equip-row-step)) !important;
+    left: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+}
+
+/* Stats compaction: reduce vertical padding + font sizes */
+html.is-compact #characterSection .character-card { padding: 10px; }
+html.is-compact #characterSection .character-card-header { margin-bottom: 8px; }
+html.is-compact #characterSection .character-card-header h3 { font-size: 13px; }
+html.is-compact #characterSection .stats-list { gap: 8px; }
+html.is-compact #characterSection .stat-row { padding: 7px 8px; border-radius: 9px; }
+html.is-compact #characterSection .stat-label { font-size: 11px; gap: 6px; }
+html.is-compact #characterSection .stat-value { font-size: 11px; }
+html.is-compact #characterSection .stat-bar { height: 12px; }
+html.is-compact #characterSection .stat-allocate-btn { width: 20px; height: 20px; border-radius: 6px; }
+html.is-compact #characterSection .stat-points-chip { font-size: 11px; padding: 2px 8px; }
+
+/* Inventory: fewer columns => more rows, so slots aren't thin */
+html.is-compact #characterSection .bag-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: none;
+    grid-auto-rows: clamp(52px, 10vh, 78px);
+    gap: 10px;
+    align-content: start;
+    justify-content: stretch;
+}
+
+html.is-compact #characterSection .bag-item {
+    left: 8px;
+    right: 8px;
+    top: 4px;
+    bottom: 4px;
+    gap: 4px;
+    justify-content: flex-start;
+}
+
+html.is-compact #characterSection .bag-item .item-icon {
+    --item-icon-size: 22px;
+    margin-top: 2px;
+}
+
+html.is-compact #characterSection .bag-item .item-name {
+    margin-top: auto;
+    font-size: 10px;
+    line-height: 1.12;
+    padding: 2px 4px 3px;
+    overflow: hidden;
+
+    background: rgba(0,0,0,0.45);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 7px;
+    width: 100%;
+    box-sizing: border-box;
+
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+
+    max-height: calc(2 * 1.12em + 0.35em);
+}
+
 /* Mobile-friendly layout: keep inventory usable on narrow screens.
    Use a container query so it triggers based on the actual Character section width. */
 @container character (max-width: 720px) {

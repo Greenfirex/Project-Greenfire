@@ -1,45 +1,132 @@
 .changelog-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
+    inset: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.85);
-    z-index: 1002;
+    background-color: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    z-index: 2147482000;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 .changelog-content {
     background-color: #1a1a1a;
+    background-image:
+        linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)),
+        url('../../assets/images/popupbackground.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     color: #fff;
-    padding: 20px 30px;
-    width: 90%;
-    max-width: 800px;
-    height: 70vh;
+    padding: 18px 20px;
+    width: min(700px, 92vw);
+    max-height: calc(100vh - 40px);
     border-radius: 8px;
     display: flex;
     flex-direction: column;
-	animation: pulse-glow 5s ease-in-out infinite;
+    gap: 16px;
+    animation: pulse-glow 5s ease-in-out infinite;
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.28);
+    box-shadow: 0 10px 34px rgba(0,0,0,0.70), 0 0 28px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.14);
+    box-sizing: border-box;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .changelog-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    padding: 10px 12px;
     flex-shrink: 0;
+    border-bottom: 2px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.4);
+    background: linear-gradient(90deg,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08) 0%,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.12) 50%,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08) 100%);
+    box-shadow: 0 2px 12px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.15);
+    border-radius: 4px;
+}
+
+.changelog-header h3 {
+    margin: 0;
+    flex: 1 1 auto;
+    text-align: center;
+    color: #90EE90;
+    font-size: 22px;
+    letter-spacing: 0.5px;
+    text-shadow:
+        0 0 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.6),
+        0 0 16px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.3);
 }
 
 .changelog-close { font-size: 28px; cursor: pointer; color: #888; }
 .changelog-close:hover { color: #fff; }
 
 #changelogBody {
-    overflow-y: auto;
     text-align: left;
+    padding: 4px 6px;
 }
 
 #changelogBody h1, #changelogBody h3 { color: #90EE90; }
 #changelogBody ul { list-style-type: '✨'; padding-left: 20px; }
 #changelogBody li { padding-bottom: 5px; }
+
+/* Phone-landscape: mirror Options menu sizing so the modal feels identical. */
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
+    .changelog-overlay {
+        padding: 10px;
+    }
+
+    .changelog-content {
+        width: 94vw;
+        max-height: calc(100vh - 30px);
+        height: 92vh;
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .changelog-header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        padding: 8px 10px;
+    }
+
+    .changelog-header h3 {
+        font-size: 16px;
+    }
+
+    .changelog-close {
+        font-size: 24px;
+    }
+}
+
+/* Forced compact mode: mirror phone-landscape sizing so wide phones in compact match iPhone behavior. */
+html.is-compact .changelog-overlay {
+    padding: 10px;
+}
+
+html.is-compact .changelog-content {
+    width: 94vw;
+    max-height: calc(100vh - 30px);
+    height: 92vh;
+    padding: 10px;
+    gap: 10px;
+}
+
+html.is-compact .changelog-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 8px 10px;
+}
+
+html.is-compact .changelog-header h3 { font-size: 16px; }
+html.is-compact .changelog-close { font-size: 24px; }

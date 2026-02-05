@@ -10,6 +10,34 @@ let elements = { container: null, banner: null, drawer: null, list: null, detail
 let refreshTimer = null;
 let popupActive = false;
 
+function setHiddenWithInert(el, hidden) {
+    if (!el) return;
+    try {
+        el.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+    } catch { /* ignore */ }
+
+    try {
+        el.inert = !!hidden;
+    } catch { /* ignore */ }
+    try {
+        if (hidden) el.setAttribute('inert', '');
+        else el.removeAttribute('inert');
+    } catch { /* ignore */ }
+}
+
+function ensureFocusOutside(el, preferredFocusTarget) {
+    try {
+        const active = document.activeElement;
+        if (!active || !el || !el.contains(active)) return;
+        if (preferredFocusTarget && typeof preferredFocusTarget.focus === 'function') {
+            try { preferredFocusTarget.focus({ preventScroll: true }); }
+            catch { try { preferredFocusTarget.focus(); } catch { /* ignore */ } }
+        } else {
+            try { active.blur?.(); } catch { /* ignore */ }
+        }
+    } catch { /* ignore */ }
+}
+
 function ensureContainer() {
     if (elements.container) return elements.container;
     const midCol = document.querySelector('#footer .footer-column:nth-child(2)');
@@ -38,7 +66,7 @@ function ensureContainer() {
     const drawer = document.createElement('div');
     drawer.id = 'objectivesDrawer';
     drawer.className = 'objectives-drawer';
-    drawer.setAttribute('aria-hidden', 'true');
+    setHiddenWithInert(drawer, true);
 
     // Fixed header section with objective title and chevron
     const header = document.createElement('div');
@@ -93,9 +121,15 @@ function ensureContainer() {
 
     function toggleOpen() {
         isOpen = !isOpen;
+
+        if (!isOpen) {
+            // Avoid Chrome a11y warning: don't aria-hide a focused subtree.
+            ensureFocusOutside(drawer, banner);
+        }
+
         drawer.classList.toggle('open', isOpen);
         banner.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        drawer.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+        setHiddenWithInert(drawer, !isOpen);
         
     // No backdrop activation; outside clicks interact with game and drawer stays open
         

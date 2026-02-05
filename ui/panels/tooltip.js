@@ -19,7 +19,130 @@ let tooltipScopeRoot = null; // when set, tooltips only resolve within this subt
 let tooltipAttributeObserver = null; // new: keep observer to strip native title attrs
 const touchConfirmRegistry = new WeakMap(); // element -> { armedUntil: number }
 let docTouchDismissHandlersInstalled = false;
+let dockLayoutObserverInstalled = false;
+let dockInfoPanelObserver = null;
 // removed tooltipLockUntil and per-element lock complexity
+
+function isDockedTooltipMode() {
+    try {
+        return !!(document?.documentElement?.classList && document.documentElement.classList.contains('is-compact'));
+    } catch {
+        return false;
+    }
+}
+
+function syncTooltipDockMode(tooltip) {
+    if (!tooltip || !tooltip.classList) return false;
+    const docked = isDockedTooltipMode();
+    tooltip.classList.toggle('tooltip-docked', docked);
+    if (!docked) {
+        try { tooltip.style.removeProperty('--tooltip-dock-right'); } catch { /* ignore */ }
+    }
+    return docked;
+}
+
+function computeRightDockOffsetPx() {
+    const infoPanel = document.getElementById('infoPanel');
+    if (!infoPanel) return 0;
+
+    const vw = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
+    try {
+        const r = infoPanel.getBoundingClientRect();
+        // If layout hasn't settled yet (common right after reload/reset), the rect can be 0,0,0,0.
+        // In that case, don't apply an offset (better to overlap than to push the tooltip off-screen).
+        if (!isFinite(r.width) || !isFinite(r.height) || r.width < 20 || r.height < 20) return 0;
+        if (!isFinite(r.left) || !isFinite(r.right) || r.right <= 0) return 0;
+
+        // amount of screen taken by the right panel (works for both collapsed and expanded)
+        const taken = Math.max(0, Math.round(vw - r.left));
+        // Sanity clamp: on phones the right panel should never consume ~the entire viewport.
+        const maxReasonable = Math.min(Math.round(vw * 0.75), 420);
+        if (taken > maxReasonable) return 0;
+        // include the column gap between panels if present
+        return taken + 3;
+    } catch {
+        return 0;
+    }
+}
+
+function updateTooltipDockOffset(tooltip) {
+    if (!tooltip || !tooltip.classList || !tooltip.classList.contains('tooltip-docked')) return;
+    try {
+        const right = computeRightDockOffsetPx();
+        tooltip.style.setProperty('--tooltip-dock-right', `${right}px`);
+    } catch {
+        /* ignore */
+    }
+}
+
+function wrapDockedTooltipHTML(innerHtml) {
+    return `<div class="tooltip-dock-body">${innerHtml || ''}</div>`;
+}
+
+function setTooltipContent(tooltip, data) {
+    if (!tooltip) return;
+    const inner = buildTooltipHTML(data);
+
+    if (tooltip.classList && tooltip.classList.contains('tooltip-docked')) {
+        const prevBody = tooltip.querySelector('.tooltip-dock-body');
+        const prevScrollTop = prevBody ? prevBody.scrollTop : 0;
+
+        tooltip.innerHTML = wrapDockedTooltipHTML(inner);
+
+        const nextBody = tooltip.querySelector('.tooltip-dock-body');
+        if (nextBody) nextBody.scrollTop = prevScrollTop;
+        return;
+    }
+
+    tooltip.innerHTML = inner;
+}
+
+function ensureDockLayoutObservers() {
+    if (dockLayoutObserverInstalled) return;
+    dockLayoutObserverInstalled = true;
+
+    const attach = () => {
+        const infoPanel = document.getElementById('infoPanel');
+        if (!infoPanel) return;
+
+        try {
+            dockInfoPanelObserver = new MutationObserver(() => {
+                const tt = globalTooltip;
+                if (!tt || tt.style.visibility !== 'visible' || !tt.classList.contains('tooltip-docked')) return;
+                // update immediately and after transition has likely finished
+                updateTooltipDockOffset(tt);
+                window.requestAnimationFrame(() => updateTooltipDockOffset(tt));
+                window.setTimeout(() => updateTooltipDockOffset(tt), 250);
+            });
+            dockInfoPanelObserver.observe(infoPanel, { attributes: true, attributeFilter: ['class', 'style'] });
+        } catch {
+            /* ignore */
+        }
+
+        window.addEventListener('resize', () => {
+            const tt = globalTooltip;
+            if (!tt || tt.style.visibility !== 'visible' || !tt.classList.contains('tooltip-docked')) return;
+            updateTooltipDockOffset(tt);
+        }, { passive: true });
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attach, { once: true });
+    } else {
+        attach();
+    }
+
+    // If compact mode toggles while a tooltip is visible, refresh it so layout switches cleanly.
+    window.addEventListener('compactmodechange', () => {
+        try {
+            const tt = globalTooltip;
+            if (!tt || tt.style.visibility !== 'visible') return;
+            refreshCurrentTooltip();
+        } catch {
+            /* ignore */
+        }
+    });
+}
 
 function isCoarsePointerDevice() {
     try {
@@ -68,6 +191,9 @@ function getRectAnchorEventForElement(element) {
 
 function positionTooltipForElementAnchor(element, tooltip) {
     if (!element || !tooltip) return;
+    try {
+        if (tooltip.classList && tooltip.classList.contains('tooltip-docked')) return;
+    } catch { /* ignore */ }
     const pad = 8;
     const vw = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
     const vh = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
@@ -113,6 +239,7 @@ function ensureDocTouchDismissHandlers() {
             if (!tt || tt.style.visibility !== 'visible' || tt._pinnedByTouch !== true) return;
 
             const target = e && e.target ? e.target : null;
+            if (target && tt.contains && tt.contains(target)) return;
             const anchor = tt._anchorEl || currentTooltipElement;
             if (anchor && target && anchor.contains && anchor.contains(target)) return;
 
@@ -245,11 +372,19 @@ export function getOrCreateTooltip() {
     if (globalTooltip) return globalTooltip;
     const t = document.createElement('div');
     t.className = 'tooltip';
+    try { t.setAttribute('role', 'tooltip'); } catch { /* ignore */ }
     // Some overlays (e.g., combat) use extremely high z-index values.
     // Keep tooltips above those overlays.
     try { t.style.zIndex = '2147483202'; } catch (e) { /* ignore */ }
+
     document.body.appendChild(t);
     globalTooltip = t;
+
+    // Keep dock offsets in sync with the right info panel.
+    ensureDockLayoutObservers();
+    syncTooltipDockMode(t);
+    updateTooltipDockOffset(t);
+
     return t;
 }
 
@@ -312,6 +447,9 @@ window.addEventListener('popup-close', () => {
 
 export function updateTooltipPosition(event, tooltip) {
     if (!tooltip) return;
+    try {
+        if (tooltip.classList && tooltip.classList.contains('tooltip-docked')) return;
+    } catch { /* ignore */ }
     const pad = 8; // keep tooltip away from edges
     const offset = 12; // cursor offset
     const vw = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
@@ -684,6 +822,9 @@ function buildTooltipHTML(data) {
 function renderTooltipForElement(regEl, event) {
     const tooltip = getOrCreateTooltip();
 
+    // If we're in compact mode, we dock the tooltip bottom-right.
+    syncTooltipDockMode(tooltip);
+
     if (tooltip._hideTimeout) {
         clearTimeout(tooltip._hideTimeout);
         tooltip._hideTimeout = null;
@@ -696,14 +837,19 @@ function renderTooltipForElement(regEl, event) {
     const data = (typeof tooltipData === 'function') ? tooltipData() : tooltipData;
 
     // build content and show
-    tooltip.innerHTML = buildTooltipHTML(data);
+    setTooltipContent(tooltip, data);
 
     tooltip.style.visibility = 'visible';
     tooltip.classList.add('visible');
-    if (tooltip._pinnedByTouch === true) {
-        positionTooltipForElementAnchor(tooltip._anchorEl || regEl, tooltip);
-    } else if (event && typeof updateTooltipPosition === 'function') {
-        updateTooltipPosition(event, tooltip);
+
+    if (tooltip.classList && tooltip.classList.contains('tooltip-docked')) {
+        updateTooltipDockOffset(tooltip);
+    } else {
+        if (tooltip._pinnedByTouch === true) {
+            positionTooltipForElementAnchor(tooltip._anchorEl || regEl, tooltip);
+        } else if (event && typeof updateTooltipPosition === 'function') {
+            updateTooltipPosition(event, tooltip);
+        }
     }
 
     currentTooltipElement = regEl;
@@ -766,6 +912,9 @@ export function setupTooltip(element, tooltipData) {
 
     element.addEventListener('mousemove', (e) => {
         const tt = getOrCreateTooltip();
+        try {
+            if (tt.classList && tt.classList.contains('tooltip-docked')) return;
+        } catch { /* ignore */ }
         if (tt.style.visibility === 'visible') updateTooltipPosition(e, tt);
     });
 
@@ -942,6 +1091,8 @@ export function refreshCurrentTooltip() {
     const tooltip = getOrCreateTooltip();
     if (!tooltip || tooltip.style.visibility !== 'visible') return;
 
+    syncTooltipDockMode(tooltip);
+
     // prefer the existing currentTooltipElement, but fall back to resolving a candidate
     let element = currentTooltipElement;
     if (!element || !tooltipRegistry.has(element)) {
@@ -976,16 +1127,20 @@ export function refreshCurrentTooltip() {
         const data = (typeof tooltipData === 'function') ? tooltipData() : tooltipData;
 
         // single immediate rebuild
-        tooltip.innerHTML = buildTooltipHTML(data);
+        setTooltipContent(tooltip, data);
 
         // reuse persisted coords where possible to avoid jumps
-        if (tooltip._pinnedByTouch === true) {
-            positionTooltipForElementAnchor(tooltip._anchorEl || element, tooltip);
-        } else if (tooltip._fixedLeft && tooltip._fixedTop) {
-            tooltip.style.left = tooltip._fixedLeft;
-            tooltip.style.top = tooltip._fixedTop;
-        } else if (tooltip._lastEvent && typeof updateTooltipPosition === 'function') {
-            updateTooltipPosition(tooltip._lastEvent, tooltip);
+        if (tooltip.classList && tooltip.classList.contains('tooltip-docked')) {
+            updateTooltipDockOffset(tooltip);
+        } else {
+            if (tooltip._pinnedByTouch === true) {
+                positionTooltipForElementAnchor(tooltip._anchorEl || element, tooltip);
+            } else if (tooltip._fixedLeft && tooltip._fixedTop) {
+                tooltip.style.left = tooltip._fixedLeft;
+                tooltip.style.top = tooltip._fixedTop;
+            } else if (tooltip._lastEvent && typeof updateTooltipPosition === 'function') {
+                updateTooltipPosition(tooltip._lastEvent, tooltip);
+            }
         }
 
         // ensure the single persistent auto-refresh is running
@@ -1015,14 +1170,19 @@ function ensureTooltipAutoRefresh(tooltip) {
 
             const td = tooltipRegistry.get(el);
             const d = (typeof td === 'function') ? td() : td;
-            tooltip.innerHTML = buildTooltipHTML(d);
+            syncTooltipDockMode(tooltip);
+            setTooltipContent(tooltip, d);
 
             // keep tooltip anchored: prefer persisted coords, else recompute
-            if (tooltip._fixedLeft && tooltip._fixedTop) {
-                tooltip.style.left = tooltip._fixedLeft;
-                tooltip.style.top = tooltip._fixedTop;
-            } else if (tooltip._lastEvent && typeof updateTooltipPosition === 'function') {
-                updateTooltipPosition(tooltip._lastEvent, tooltip);
+            if (tooltip.classList && tooltip.classList.contains('tooltip-docked')) {
+                updateTooltipDockOffset(tooltip);
+            } else {
+                if (tooltip._fixedLeft && tooltip._fixedTop) {
+                    tooltip.style.left = tooltip._fixedLeft;
+                    tooltip.style.top = tooltip._fixedTop;
+                } else if (tooltip._lastEvent && typeof updateTooltipPosition === 'function') {
+                    updateTooltipPosition(tooltip._lastEvent, tooltip);
+                }
             }
         } catch (e) {
             // swallow errors so the interval keeps running

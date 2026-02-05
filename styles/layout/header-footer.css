@@ -175,6 +175,20 @@
     display: none;
 }
 
+/* Desktop: use the single speed toggle button, not 4 discrete speed buttons. */
+html:not(.is-compact) .footer-controls .speed-buttons {
+    display: none;
+}
+
+html:not(.is-compact) .footer-controls .mobile-speed-btn {
+    display: inline-flex;
+}
+
+/* Desktop: hide the redundant footer version button (version is shown in the header). */
+html:not(.is-compact) #footer #changelogBtn {
+    display: none;
+}
+
 .header-link {
     height: 30px;
     padding: 0 25px;
@@ -290,13 +304,15 @@
        (max-width: 900px) and (max-height: 450px),
        (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
     :root {
-        --footer-height: 25px;
+        --footer-height: calc(25px + env(safe-area-inset-bottom));
         --edge-rail: 40px;
+        --reach-pad-x: 10px;
     }
 
     #header {
         height: 25px;
-        padding: 1px 6px;
+        box-sizing: border-box;
+        padding: calc(1px + env(safe-area-inset-top)) calc(var(--reach-pad-x, 10px) + env(safe-area-inset-right)) 1px calc(var(--reach-pad-x, 10px) + env(safe-area-inset-left));
         gap: 6px;
         /* Keep center truly centered even when left/right widths differ */
         display: grid;
@@ -367,19 +383,22 @@
     /* Override #header .header-menu-btn { display:none } */
     #header .header-menu-btn {
         display: inline-flex;
-        min-width: 34px;
-        padding: 0 10px;
-        font-size: 16px;
+        min-width: 42px;
+        padding: 0 12px;
+        font-size: 18px;
         line-height: 1;
         height: 20px;
     }
 
     /* Match footer to compact header height */
     #footer {
-        height: 25px;
-        padding: 0 6px;
+        height: var(--footer-height, 25px);
+        box-sizing: border-box;
+        padding: 0 calc(var(--reach-pad-x, 10px) + env(safe-area-inset-right)) env(safe-area-inset-bottom) calc(var(--reach-pad-x, 10px) + env(safe-area-inset-left));
         /* Widen objectives (middle) column further for phone-landscape */
         grid-template-columns: 28% 44% 28%;
+        /* Keep footer controls above overlay drawers (z-index 60) */
+        z-index: 210;
     }
 
     /* Keep footer content optically centered in the shorter bar */
@@ -426,9 +445,9 @@
         top: calc(100% + 6px);
         right: 0;
         flex-direction: column;
-        gap: 6px;
-        padding: 10px;
-        border-radius: 10px;
+        gap: 8px;
+        padding: 12px;
+        border-radius: 12px;
         background: rgba(0, 0, 0, 0.92);
         border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.28);
         box-shadow: 0 10px 26px rgba(0,0,0,0.45);
@@ -441,11 +460,11 @@
 
     /* Make dropdown items less wide than desktop buttons */
     #header .header-links .header-link {
-        height: 28px;
-        padding: 0 14px;
-        font-size: 12px;
+        height: 32px;
+        padding: 0 16px;
+        font-size: 13px;
         justify-content: flex-start;
-        min-width: 140px;
+        min-width: 170px;
     }
 }
 

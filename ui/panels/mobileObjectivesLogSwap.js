@@ -38,6 +38,186 @@ let menuClassObserver = null;
 let objectivesRefreshTimer = null;
 let outsidePointerDownHandler = null;
 
+let lastFooterLatestText = null;
+let typingTimer = null;
+let typingToken = 0;
+
+function setHiddenWithInert(el, hidden) {
+    if (!el) return;
+    try {
+        el.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+    } catch { /* ignore */ }
+
+    // Prefer `inert` to prevent focus/interaction when hidden.
+    // (Supported in modern Chromium + Safari; safe to no-op if unsupported.)
+    try {
+        el.inert = !!hidden;
+    } catch { /* ignore */ }
+    try {
+        if (hidden) el.setAttribute('inert', '');
+        else el.removeAttribute('inert');
+    } catch { /* ignore */ }
+}
+
+function ensureFocusOutside(el, preferredFocusTarget) {
+    try {
+        const active = document.activeElement;
+        if (!active || !el || !el.contains(active)) return;
+
+        // Move focus to something guaranteed visible.
+        if (preferredFocusTarget && typeof preferredFocusTarget.focus === 'function') {
+            try { preferredFocusTarget.focus({ preventScroll: true }); }
+            catch { try { preferredFocusTarget.focus(); } catch { /* ignore */ } }
+        } else {
+            try { document.body?.focus?.({ preventScroll: true }); } catch { /* ignore */ }
+            try { active.blur?.(); } catch { /* ignore */ }
+        }
+    } catch { /* ignore */ }
+}
+
+function prefersReducedMotion() {
+    try {
+        return !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch {
+        return false;
+    }
+}
+
+function clearTypingTimer() {
+    if (typingTimer) {
+        clearTimeout(typingTimer);
+        typingTimer = null;
+    }
+}
+
+function animateFooterLatestChange(nextText, nextColor) {
+    if (!footerEls.latestText) return;
+
+    const latestEl = footerEls.latestText;
+    const labelEl = latestEl.parentElement;
+
+    // If the DOM shape isn't what we expect, fall back to a simple update.
+    if (!labelEl) {
+        latestEl.textContent = nextText || '—';
+        try { latestEl.style.color = nextColor || ''; } catch { /* ignore */ }
+        return;
+    }
+
+    // Reduced motion: no animations, no typing.
+    if (prefersReducedMotion()) {
+        clearTypingTimer();
+        typingToken++;
+        latestEl.classList.remove('footer-log-latest--incoming');
+        latestEl.textContent = nextText || '—';
+        try { latestEl.style.color = nextColor || ''; } catch { /* ignore */ }
+        return;
+    }
+
+    const typewriterEnabled = (() => {
+        try {
+            return !document.body?.classList?.contains('log-typewriter-off');
+        } catch {
+            return true;
+        }
+    })();
+
+    const currentText = (latestEl.textContent || '').trim();
+    const next = (nextText || '—').trim() || '—';
+    if (currentText === next) {
+        try { latestEl.style.color = nextColor || ''; } catch { /* ignore */ }
+        return;
+    }
+
+    // Cancel any in-flight typing.
+    clearTypingTimer();
+    const token = ++typingToken;
+
+    const outgoingDurationMs = 240;
+
+    // Create an outgoing overlay that slides up and fades.
+    if (currentText) {
+        try {
+            const outgoing = latestEl.cloneNode(true);
+            outgoing.classList.add('footer-log-latest--outgoing');
+            outgoing.textContent = currentText;
+            // Keep the old color while it animates out.
+            try { outgoing.style.color = latestEl.style.color || ''; } catch { /* ignore */ }
+            labelEl.insertBefore(outgoing, latestEl);
+
+            const cleanup = () => {
+                try { outgoing.removeEventListener('animationend', cleanup); } catch { /* ignore */ }
+                try { outgoing.remove(); } catch { /* ignore */ }
+            };
+            outgoing.addEventListener('animationend', cleanup, { once: true });
+            // Fallback cleanup if animationend doesn't fire.
+            setTimeout(cleanup, outgoingDurationMs + 120);
+        } catch { /* ignore */ }
+    }
+
+    // Prepare incoming text.
+    latestEl.classList.remove('footer-log-latest--incoming');
+    // Force a reflow so re-adding the class restarts the animation.
+    try { void latestEl.offsetWidth; } catch { /* ignore */ }
+    latestEl.classList.add('footer-log-latest--incoming');
+    try { latestEl.style.color = nextColor || ''; } catch { /* ignore */ }
+
+    // If typewriter is disabled, just swap the full text after the outgoing line clears.
+    if (!typewriterEnabled) {
+        latestEl.textContent = '';
+        const startDelay = currentText ? outgoingDurationMs : 0;
+        typingTimer = setTimeout(() => {
+            if (token !== typingToken) return;
+            latestEl.textContent = next;
+            setTimeout(() => latestEl.classList.remove('footer-log-latest--incoming'), 180);
+        }, startDelay);
+        return;
+    }
+
+    // Typewriter effect (fast). If it's too long, set immediately.
+    const maxTypeLen = 140;
+    if (next.length > maxTypeLen) {
+        latestEl.textContent = next;
+        setTimeout(() => latestEl.classList.remove('footer-log-latest--incoming'), 220);
+        return;
+    }
+
+    latestEl.textContent = '';
+    const maxDurationMs = 320;
+    const minDelayMs = 8;
+    const maxDelayMs = 18;
+    const perCharDelay = Math.max(
+        minDelayMs,
+        Math.min(maxDelayMs, Math.round(maxDurationMs / Math.max(1, next.length)))
+    );
+
+    const startTyping = () => {
+        if (token !== typingToken) return;
+
+        let i = 0;
+        const step = () => {
+            if (token !== typingToken) return;
+
+            i++;
+            latestEl.textContent = next.slice(0, i);
+
+            if (i >= next.length) {
+                typingTimer = null;
+                setTimeout(() => latestEl.classList.remove('footer-log-latest--incoming'), 180);
+                return;
+            }
+
+            typingTimer = setTimeout(step, perCharDelay);
+        };
+
+        step();
+    };
+
+    // Start typing only after the outgoing line has fully moved up,
+    // so the new text appears on the correct row before letters begin.
+    const startDelay = currentText ? outgoingDurationMs : 0;
+    typingTimer = setTimeout(startTyping, startDelay);
+}
+
 function isCompactMode() {
     return !!isCompactPhoneLandscape();
 }
@@ -72,7 +252,7 @@ function ensureFooterLogContainer() {
     const drawer = document.createElement('div');
     drawer.id = 'footerLogDrawer';
     drawer.className = 'footer-log-drawer';
-    drawer.setAttribute('aria-hidden', 'true');
+    setHiddenWithInert(drawer, true);
 
     const header = document.createElement('div');
     header.className = 'footer-log-header';
@@ -101,9 +281,15 @@ function ensureFooterLogContainer() {
     midCol.appendChild(wrapper);
 
     function setOpen(nextOpen) {
-        drawer.classList.toggle('open', !!nextOpen);
-        banner.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
-        drawer.setAttribute('aria-hidden', nextOpen ? 'false' : 'true');
+        const willOpen = !!nextOpen;
+        if (!willOpen) {
+            // Avoid Chrome a11y warning: don't aria-hide a focused subtree.
+            ensureFocusOutside(drawer, banner);
+        }
+
+        drawer.classList.toggle('open', willOpen);
+        banner.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        setHiddenWithInert(drawer, !willOpen);
         if (nextOpen) {
             // Ensure the log stays scrolled to bottom when opened.
             try {
@@ -132,7 +318,8 @@ function ensureFooterLogContainer() {
         latestText: banner.querySelector('.footer-log-latest'),
         drawer,
         drawerHost: host,
-        header
+        header,
+        setOpen
     };
 
     return wrapper;
@@ -279,18 +466,42 @@ function updateFooterLatestFromLog() {
 
     const last = logContent.lastElementChild;
     if (!last) {
+        lastFooterLatestText = '—';
         footerEls.latestText.textContent = '—';
         return;
     }
 
     const text = (last.textContent || '').trim();
-    footerEls.latestText.textContent = text || '—';
+    const baseText = text || '—';
 
+    // If timestamps are enabled, include them in the footer preview too.
+    let nextText = baseText;
     try {
-        const color = last.style?.color;
-        footerEls.latestText.style.color = color || '';
+        const showTs = document.body?.classList?.contains('log-timestamps-on');
+        const t = last?.dataset?.time;
+        if (showTs && t) nextText = `[${t}] ${baseText}`;
     } catch { /* ignore */ }
+
+    let nextColor = '';
+    try { nextColor = last.style?.color || ''; } catch { /* ignore */ }
+
+    // Avoid reanimating the same string when unrelated mutations occur.
+    if (lastFooterLatestText === nextText) {
+        try { footerEls.latestText.style.color = nextColor || ''; } catch { /* ignore */ }
+        return;
+    }
+
+    lastFooterLatestText = nextText;
+    animateFooterLatestChange(nextText, nextColor);
 }
+
+// Refresh the footer preview when log settings change (e.g., timestamps toggled).
+try {
+    window.addEventListener('log-settings-updated', () => {
+        if (!isActive) return;
+        updateFooterLatestFromLog();
+    });
+} catch { /* ignore */ }
 
 function installLogObserver() {
     if (logObserver) return;
@@ -347,9 +558,16 @@ function moveLogSectionBackToMenu() {
 
 function closeFooterDrawer() {
     if (!footerEls.drawer || !footerEls.banner) return;
+    if (typeof footerEls.setOpen === 'function') {
+        footerEls.setOpen(false);
+        return;
+    }
+
+    // Fallback: maintain old behavior, but still try to keep focus safe.
+    ensureFocusOutside(footerEls.drawer, footerEls.banner);
     footerEls.drawer.classList.remove('open');
     footerEls.banner.setAttribute('aria-expanded', 'false');
-    footerEls.drawer.setAttribute('aria-hidden', 'true');
+    setHiddenWithInert(footerEls.drawer, true);
 }
 
 function ensureOutsideTapToClose() {

@@ -6,6 +6,21 @@
 - Keep desktop/PC behavior and layout unchanged; scope mobile changes behind responsive CSS (media queries) and minimal, additive JS.
 - Prefer incremental, top-to-bottom improvements (Header → main layout → panels → footer).
 
+## Compact mode (critical: cross-device consistency)
+- Compact phone-landscape UI is driven by a centralized detector in `ui/compactMode.js`.
+  - It toggles root classes on `<html>`, especially `html.is-compact`.
+  - `html.is-compact` is the *source of truth* for “phone landscape” layout because some devices/PWA contexts report desktop-ish viewports where legacy `max-width` queries fail.
+- Styling strategy:
+  - Put forced compact overrides in `styles/base/compact-mode.css` under `html.is-compact ...`.
+  - If you add/modify any phone-landscape `@media` rules, **mirror them under `html.is-compact`** (or refactor so `html.is-compact` is the only gate).
+  - Avoid using only `max-width` breakpoints to define “mobile”; wide phones in landscape (e.g. ~915px) may miss them.
+
+### Tooltips on mobile (docked)
+- In compact mode, tooltips are docked bottom-right (above footer, offset left of the right info panel) to avoid obstructing gameplay.
+  - Logic: `ui/panels/tooltip.js` (adds `.tooltip-docked`, computes right offset from `#infoPanel`).
+  - Styling: `styles/base/compact-mode.css` (rules for `.tooltip.tooltip-docked`, including scrollbar styling).
+- When touching tooltip placement, ensure resets/reloads don’t push the dock off-screen (layout can be transient right after reset).
+
 ## Clarifying questions (always do this)
 - If any requirement is ambiguous or could be implemented in multiple reasonable ways, ask short clarifying questions before making code changes.
 - If requirements are clear, implement directly without extra questions.

@@ -63,6 +63,47 @@ function toggleInfoPanelCollapse() {
 }
 
 function initPanelCollapse() {
+    const compact = isCompactPhoneLandscape();
+
+    // Desktop default: always start expanded.
+    // (Ignore any persisted collapse state so desktop layout is consistent.)
+    if (!compact) {
+        leftPanelCollapsed = false;
+        rightPanelCollapsed = false;
+
+        try {
+            localStorage.setItem('mainMenuCollapsed', 'false');
+            localStorage.setItem('infoPanelCollapsed', 'false');
+        } catch { /* ignore */ }
+
+        try {
+            const mainMenu = document.getElementById('mainMenu');
+            const infoPanel = document.getElementById('infoPanel');
+            const leftBtn = document.getElementById('mainMenuCollapseBtn');
+            const rightBtn = document.getElementById('infoPanelCollapseBtn');
+            if (mainMenu) mainMenu.classList.remove('collapsed');
+            if (infoPanel) infoPanel.classList.remove('collapsed');
+            if (leftBtn) leftBtn.title = 'Collapse menu';
+            if (rightBtn) rightBtn.title = 'Collapse info panel';
+        } catch { /* ignore */ }
+
+        syncRootPanelClasses();
+        updateGameAreaSize();
+
+        // Attach event listeners
+        const mainMenuBtn = document.getElementById('mainMenuCollapseBtn');
+        const infoPanelBtn = document.getElementById('infoPanelCollapseBtn');
+
+        if (mainMenuBtn) {
+            mainMenuBtn.addEventListener('click', toggleMainMenuCollapse);
+        }
+
+        if (infoPanelBtn) {
+            infoPanelBtn.addEventListener('click', toggleInfoPanelCollapse);
+        }
+        return;
+    }
+
     // Restore saved state
     const mainMenuCollapsedRaw = localStorage.getItem('mainMenuCollapsed');
     const infoPanelCollapsedRaw = localStorage.getItem('infoPanelCollapsed');
@@ -71,7 +112,7 @@ function initPanelCollapse() {
     let savedInfoPanelCollapsed = infoPanelCollapsedRaw === 'true';
 
     // Phone-landscape default: collapse the right panel unless the player has already chosen otherwise.
-    if (isCompactPhoneLandscape() && infoPanelCollapsedRaw === null) {
+    if (compact && infoPanelCollapsedRaw === null) {
         savedInfoPanelCollapsed = true;
         try {
             localStorage.setItem('infoPanelCollapsed', 'true');

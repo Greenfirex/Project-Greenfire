@@ -31,10 +31,10 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.appendChild(changelogPopup);
         }
 
-        // Bring to front and make visible
-        changelogPopup.style.zIndex = '2147483002';
-        changelogPopup.style.display = '';
+        // Make visible (CSS controls sizing/stacking)
         changelogPopup.classList.remove('hidden');
+        try { changelogPopup.style.removeProperty('display'); } catch { /* ignore */ }
+        try { changelogPopup.style.removeProperty('z-index'); } catch { /* ignore */ }
 
         // Force reflow so the browser paints it immediately
         // eslint-disable-next-line no-unused-expressions
@@ -52,14 +52,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     closeBtn?.addEventListener('click', () => {
         changelogPopup.classList.add('hidden');
-        changelogPopup.style.display = 'none';
+        try { changelogPopup.style.removeProperty('display'); } catch { /* ignore */ }
         try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ }
     });
 
     changelogPopup?.addEventListener('click', (e) => {
         if (e.target === changelogPopup) {
             changelogPopup.classList.add('hidden');
-            changelogPopup.style.display = 'none';
+            try { changelogPopup.style.removeProperty('display'); } catch { /* ignore */ }
             try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ }
         }
     });

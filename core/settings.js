@@ -17,6 +17,28 @@ const colorMap = {
     black:  '0, 0, 0'
 };
 
+function rgbCsvToHex(csv) {
+    const parts = String(csv || '').split(',').map(s => Number(String(s).trim()));
+    if (parts.length < 3) return null;
+    const [r, g, b] = parts;
+    if (![r, g, b].every(v => Number.isFinite(v))) return null;
+    const toHex = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0').toUpperCase();
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+const LOG_SWATCH_KEYS = [
+    'green','blue','purple','gold','cyan','teal','orange','red','pink','lime','white','black'
+];
+
+const LOG_SWATCH_HEX = (() => {
+    const out = {};
+    LOG_SWATCH_KEYS.forEach(k => {
+        const hex = rgbCsvToHex(colorMap[k]);
+        if (hex) out[k] = hex;
+    });
+    return out;
+})();
+
 const EXPORT_ENCRYPT_KEY = 'options.exportEncryptDefault';
 
 const COMBAT_START_PAUSED_KEY = 'options.combatStartPaused';
@@ -263,15 +285,22 @@ export function initOptions() {
 
 const defaultLogSettings = {
     colors: {
-        [LogType.INFO]: '#64B5F6',    [LogType.SUCCESS]: '#81C784',
-        [LogType.ERROR]: '#E57373',   [LogType.STORY]: '#BA68C8',
-        [LogType.ACTION]: '#9E9E9E',  [LogType.UNLOCK]: '#FFD54F'
+        [LogType.INFO]: (LOG_SWATCH_HEX.blue || '#40C4FF'),
+        [LogType.SUCCESS]: (LOG_SWATCH_HEX.green || '#69F0AE'),
+        [LogType.ERROR]: (LOG_SWATCH_HEX.red || '#FF5252'),
+        [LogType.STORY]: (LOG_SWATCH_HEX.purple || '#AB47BC'),
+        [LogType.ACTION]: (LOG_SWATCH_HEX.white || '#E0E0E0'),
+        [LogType.UNLOCK]: (LOG_SWATCH_HEX.gold || '#FFD700')
     },
     filters: {
         [LogType.INFO]: false, [LogType.SUCCESS]: false,
         [LogType.ERROR]: false, [LogType.STORY]: false,
         [LogType.ACTION]: false, [LogType.UNLOCK]: false
-    }
+    },
+    // Default: timestamps off (cleaner / more space).
+    showTimestamps: false,
+    // Default: typewriter on (compact footer latest-log effect).
+    typewriterMode: true
 };
 
 const exampleMessages = {
@@ -284,6 +313,12 @@ const exampleMessages = {
 };
 
 let logSettings;
+
+function normalizeHex(hex) {
+    const s = String(hex || '').trim();
+    if (!s) return '';
+    return s.toUpperCase();
+}
 
 function updateExampleLog(logType) {
     const exampleLog = document.getElementById('logExample');
@@ -315,19 +350,71 @@ function updateFilter(logType, isDisabled) {
 }
 
 function updateAllColorUI() {
-    const colorPickers = document.querySelectorAll('#logColorsContainer input[type="color"]');
-    colorPickers.forEach(picker => {
-        const logType = picker.dataset.logType;
-        if (logSettings.colors[logType]) {
-            picker.value = logSettings.colors[logType];
-        }
+    const rows = document.querySelectorAll('#logColorsContainer .log-color-row');
+    rows.forEach(row => {
+        const logType = row.dataset.logType;
+        const want = normalizeHex(logSettings.colors[logType]);
+        const swatches = row.querySelectorAll('button.color-swatch');
+        swatches.forEach(btn => {
+            const key = btn.dataset.color;
+            const hex = normalizeHex(LOG_SWATCH_HEX[key]);
+            btn.classList.toggle('selected', !!want && !!hex && want === hex);
+        });
     });
+
     for (const logType in logSettings.colors) {
         const exampleText = document.querySelector(`.log-filter-group[data-log-type="${logType}"] .log-filter-example`);
         if (exampleText) {
             exampleText.style.color = logSettings.colors[logType];
         }
     }
+}
+
+function renderLogColorSwatches() {
+    const colorsContainer = document.getElementById('logColorsContainer');
+    if (!colorsContainer) return;
+
+    colorsContainer.innerHTML = '';
+
+    const title = (s) => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
+    const types = Object.keys(logSettings.colors || {});
+
+    types.forEach((logType) => {
+        const row = document.createElement('div');
+        row.className = 'log-color-row';
+        row.dataset.logType = logType;
+
+        const label = document.createElement('div');
+        label.className = 'log-color-row-label';
+        label.textContent = title(logType);
+
+        const swatches = document.createElement('div');
+        swatches.className = 'log-color-swatches';
+
+        LOG_SWATCH_KEYS.forEach((key) => {
+            const hex = LOG_SWATCH_HEX[key];
+            if (!hex) return;
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'color-swatch';
+            btn.dataset.color = key;
+            btn.title = key;
+            btn.addEventListener('click', () => {
+                logSettings.colors[logType] = hex;
+                localStorage.setItem('logSettings', JSON.stringify(logSettings));
+                updateLogSettings(logSettings);
+                updateAllColorUI();
+                try { window.dispatchEvent(new CustomEvent('log-settings-updated')); } catch { /* ignore */ }
+            });
+            btn.addEventListener('mouseenter', () => updateExampleLog(logType));
+            swatches.appendChild(btn);
+        });
+
+        row.appendChild(label);
+        row.appendChild(swatches);
+        colorsContainer.appendChild(row);
+    });
 }
 
 function setupLogOptions() {
@@ -342,6 +429,12 @@ function setupLogOptions() {
         updateFilterButtonsUI();
         updateAllColorUI();
         updateExampleLog(LogType.INFO);
+
+        const tsToggle = document.getElementById('logTimestampsToggle');
+        if (tsToggle) tsToggle.checked = !!logSettings.showTimestamps;
+
+        const twToggle = document.getElementById('logTypewriterToggle');
+        if (twToggle) twToggle.checked = (logSettings.typewriterMode !== false);
     });
     closeButton?.addEventListener('click', () => { logOptionsMenu.classList.add('hidden'); try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ } });
     logOptionsMenu?.addEventListener('click', (e) => {
@@ -351,7 +444,37 @@ function setupLogOptions() {
     logSettings = JSON.parse(localStorage.getItem('logSettings')) || defaultLogSettings;
     logSettings.filters = { ...defaultLogSettings.filters, ...logSettings.filters };
     logSettings.colors = { ...defaultLogSettings.colors, ...logSettings.colors };
+    logSettings.showTimestamps = (typeof logSettings.showTimestamps === 'boolean')
+        ? logSettings.showTimestamps
+        : !!defaultLogSettings.showTimestamps;
+    logSettings.typewriterMode = (typeof logSettings.typewriterMode === 'boolean')
+        ? logSettings.typewriterMode
+        : !!defaultLogSettings.typewriterMode;
     updateLogSettings(logSettings);
+
+    // Timestamps toggle
+    const tsToggle = document.getElementById('logTimestampsToggle');
+    if (tsToggle) {
+        tsToggle.checked = !!logSettings.showTimestamps;
+        tsToggle.addEventListener('change', () => {
+            logSettings.showTimestamps = !!tsToggle.checked;
+            localStorage.setItem('logSettings', JSON.stringify(logSettings));
+            updateLogSettings(logSettings);
+            try { window.dispatchEvent(new CustomEvent('log-settings-updated')); } catch { /* ignore */ }
+        });
+    }
+
+    // Typewriter toggle (compact footer latest-log effect)
+    const twToggle = document.getElementById('logTypewriterToggle');
+    if (twToggle) {
+        twToggle.checked = (logSettings.typewriterMode !== false);
+        twToggle.addEventListener('change', () => {
+            logSettings.typewriterMode = !!twToggle.checked;
+            localStorage.setItem('logSettings', JSON.stringify(logSettings));
+            updateLogSettings(logSettings);
+            try { window.dispatchEvent(new CustomEvent('log-settings-updated')); } catch { /* ignore */ }
+        });
+    }
 
     const filterContainer = document.getElementById('logFiltersContainer');
     if (filterContainer) {
@@ -393,20 +516,8 @@ function setupLogOptions() {
         }
     }
 
-    const colorPickers = document.querySelectorAll('#logColorsContainer input[type="color"]');
-    colorPickers.forEach(picker => {
-        const logType = picker.dataset.logType;
-        picker.addEventListener('input', () => {
-            logSettings.colors[logType] = picker.value;
-            localStorage.setItem('logSettings', JSON.stringify(logSettings));
-            updateLogSettings(logSettings);
-            updateAllColorUI();
-        });
-        const colorOption = picker.closest('.log-color-option');
-        if (colorOption) {
-            colorOption.addEventListener('mouseenter', () => updateExampleLog(logType));
-        }
-    });
+    // Colors (swatches)
+    renderLogColorSwatches();
     
     const resetColorsBtn = document.getElementById('resetLogColorsBtn');
     if (resetColorsBtn) {
@@ -415,6 +526,7 @@ function setupLogOptions() {
             localStorage.setItem('logSettings', JSON.stringify(logSettings));
             updateLogSettings(logSettings);
             updateAllColorUI();
+            try { window.dispatchEvent(new CustomEvent('log-settings-updated')); } catch { /* ignore */ }
         });
     }
 

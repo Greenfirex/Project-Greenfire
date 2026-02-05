@@ -22,6 +22,7 @@ import { storyEvents } from '../data/definitions/storyEvents.js';
 import { initOptions, setGlowColor, setGlowIntensity, shouldRunInBackground } from './settings.js';
 import { recomputeObjectives } from '../data/objectives.js';
 import { initFooter, getIsPaused, pauseGame, resumeGame, registerMainLoopCallbacks } from '../ui/footer.js';
+import { initTitleScreen, showTitleScreen, hideTitleScreen } from '../ui/titleScreen.js';
 import '../ui/header.js';
 import '../ui/compactMode.js';
 import '../ui/pwa.js';
@@ -40,6 +41,7 @@ let lastUpdateTime = Date.now();
 let lastObjectivesCheck = 0;
 
 let lastKnownCharacterLevel = null;
+let hasStarted = false;
 
 function syncVitalCapsFromCharacter() {
     try {
@@ -73,30 +75,60 @@ function getCurrentCharacterLevel() {
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('preloader').classList.add('hidden');
-    startGame();
+
+    // Init the shell UI immediately so Title Screen buttons can reuse Settings/Changelog.
+    try { initOptions(); } catch { /* ignore */ }
+    try {
+        const savedColor = localStorage.getItem('glowColor') || 'green';
+        setGlowColor(savedColor);
+        const savedIntensity = localStorage.getItem('glowIntensity') || 70;
+        setGlowIntensity(savedIntensity);
+    } catch { /* ignore */ }
+
+    // Preserve old reset flow: reset triggers reload with isResetting flag.
+    try {
+        const isResetting = localStorage.getItem('isResetting');
+        if (isResetting) {
+            localStorage.removeItem('isResetting');
+            hideTitleScreen();
+            startGame({ mode: 'new' });
+            return;
+        }
+    } catch { /* ignore */ }
+
+    try {
+        initTitleScreen({
+            onContinue: () => startGame({ mode: 'continue' }),
+            onNewGame: () => startGame({ mode: 'new' }),
+        });
+        showTitleScreen();
+    } catch {
+        // Fallback: if Title Screen fails, start game like before.
+        startGame({ mode: 'continue' });
+    }
 });
 
 document.addEventListener('beforeunload', () => {
     saveGameState();
 });
 
-function startGame() {
-    initOptions();
+function startGame({ mode = 'continue' } = {}) {
+    if (hasStarted) return;
+    hasStarted = true;
+
+    try { hideTitleScreen(); } catch { /* ignore */ }
+
     initTooltips();
     // Load stored time immediately but do NOT start the time loop yet.
     // We'll start it after the saved game is applied so there are no visible
     // intermediate ticks showing a stale/zero clock value.
     initTimeManager(false);
-    const savedColor = localStorage.getItem('glowColor') || 'green';
-    setGlowColor(savedColor);
-    const savedIntensity = localStorage.getItem('glowIntensity') || 70;
-    setGlowIntensity(savedIntensity);
-    const isResetting = localStorage.getItem('isResetting');
-    if (!isResetting) {
-        loadGameState();
-    } else {
-        localStorage.removeItem('isResetting');
+
+    if (mode === 'new') {
+        try { localStorage.removeItem('isResetting'); } catch { /* ignore */ }
         resetToDefaultState();
+    } else {
+        loadGameState();
     }
 
     // Ensure max Health/Stamina reflect character progression/gear.

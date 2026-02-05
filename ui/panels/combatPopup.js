@@ -105,7 +105,6 @@ function ensureOverlay() {
                             <span class="combat-pause-text" aria-hidden="true">Paused</span>
                         </button>
                         <button class="combat-speed-toggle" type="button" data-action="toggle-speed" aria-label="Toggle combat speed">1×</button>
-                        <button class="combat-log-toggle" type="button" data-action="toggle-log" aria-label="Toggle combat log" aria-pressed="false">Log</button>
                     </div>
                     <div class="combat-bar-group">
                         <div class="combat-bar-top">
@@ -158,6 +157,7 @@ function ensureOverlay() {
 
             <div class="combat-popup-actions">
                 <button class="menu-button combat-btn" data-action="retreat">Retreat</button>
+                <button class="menu-button combat-btn combat-btn-log" type="button" data-action="toggle-log" aria-label="Show expanded combat log" aria-pressed="false">Show Log</button>
                 <button class="menu-button combat-btn combat-btn-primary" data-action="close" disabled aria-disabled="true">Close (Esc)</button>
             </div>
         </div>
@@ -792,7 +792,7 @@ export function showCombatPopup(encounterId, opts = {}) {
         const closeBtn = overlay.querySelector('button[data-action="close"]');
         const pauseBtn = overlay.querySelector('button[data-action="toggle-pause"]');
         const speedBtn = overlay.querySelector('button[data-action="toggle-speed"]');
-        const logBtn = overlay.querySelector('button[data-action="toggle-log"]');
+        const logBtns = Array.from(overlay.querySelectorAll('button[data-action="toggle-log"]'));
         const heavyBtn = overlay.querySelector('button[data-action="heavy-strike"]');
         const placeholderBtn = overlay.querySelector('button[data-action="ability-placeholder"]');
 
@@ -996,21 +996,26 @@ export function showCombatPopup(encounterId, opts = {}) {
             };
         }
 
-        if (logBtn) {
-            const syncLogBtn = () => {
+        if (logBtns.length) {
+            const syncLogBtns = () => {
                 const expanded = overlay.hasAttribute('data-log-expanded');
-                logBtn.setAttribute('aria-pressed', expanded ? 'true' : 'false');
-                logBtn.classList.toggle('active', expanded);
-                logBtn.textContent = expanded ? 'Log' : 'Log';
-                logBtn.setAttribute('aria-label', expanded ? 'Hide expanded combat log' : 'Show expanded combat log');
+                logBtns.forEach(btn => {
+                    if (!btn) return;
+                    btn.setAttribute('aria-pressed', expanded ? 'true' : 'false');
+                    btn.classList.toggle('active', expanded);
+                    btn.textContent = expanded ? 'Hide Log' : 'Show Log';
+                    btn.setAttribute('aria-label', expanded ? 'Hide expanded combat log' : 'Show expanded combat log');
+                });
             };
-            syncLogBtn();
-            logBtn.onclick = (e) => {
-                e.preventDefault();
-                if (overlay.hasAttribute('data-log-expanded')) overlay.removeAttribute('data-log-expanded');
-                else overlay.setAttribute('data-log-expanded', '1');
-                syncLogBtn();
-            };
+            syncLogBtns();
+            logBtns.forEach(btn => {
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    if (overlay.hasAttribute('data-log-expanded')) overlay.removeAttribute('data-log-expanded');
+                    else overlay.setAttribute('data-log-expanded', '1');
+                    syncLogBtns();
+                };
+            });
         }
 
         if (closeBtn) {

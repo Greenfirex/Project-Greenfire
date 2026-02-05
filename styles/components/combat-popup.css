@@ -802,6 +802,11 @@
     display: none;
 }
 
+/* Log toggle is a bottom action button on mobile/compact only. */
+.combat-popup-actions .combat-btn-log {
+    display: none;
+}
+
 .combat-btn-primary {
     border-color: rgba(var(--active-glow-r, 105), var(--active-glow-g, 240), var(--active-glow-b, 174), 0.7);
 }
@@ -832,7 +837,7 @@
     }
 
     .combat-popup-actions .combat-btn {
-        width: 48%;
+        width: auto;
         flex: 1 1 0;
         min-width: 0;
     }
@@ -1034,8 +1039,17 @@
         min-height: 56px;
         max-height: 64px;
         padding: 8px 10px;
-        font-size: 0.86em;
+        font-size: 0.78em;
+        line-height: 1.22;
         border-radius: 10px;
+    }
+
+    .combat-log-line {
+        padding: 2px 0;
+    }
+
+    .combat-log-time {
+        margin-right: 6px;
     }
 
     /* Expanded log overlay: show more rows without growing the popup. */
@@ -1055,7 +1069,8 @@
         min-height: 0;
         max-height: none;
         padding: 10px 12px;
-        font-size: 0.9em;
+        font-size: 0.82em;
+        line-height: 1.22;
         z-index: 20;
         border-radius: 12px;
         background: rgba(0,0,0,0.72);
@@ -1069,6 +1084,7 @@
         padding-top: 8px;
         gap: 8px;
         border-top: 0;
+        flex-wrap: nowrap;
     }
 
     .combat-popup-actions .combat-btn {
@@ -1076,5 +1092,42 @@
         padding: 6px 10px;
         font-size: 13px;
         min-width: 0;
+        flex: 1 1 0;
+        width: auto;
+        max-width: none;
     }
+
+    .combat-popup-actions .combat-btn-log {
+        display: inline-flex;
+    }
+}
+
+/* Forced compact mode: apply mobile comfort rules on wide landscape devices (e.g., ~915×412). */
+html.is-compact #combatPopup .combat-popup-actions {
+    flex-wrap: nowrap;
+}
+
+html.is-compact #combatPopup .combat-popup-actions .combat-btn {
+    flex: 1 1 0;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+}
+
+html.is-compact #combatPopup .combat-popup-actions .combat-btn-log {
+    display: inline-flex;
+}
+
+html.is-compact #combatPopup .combat-log {
+    font-size: 0.78em;
+    line-height: 1.22;
+}
+
+html.is-compact #combatPopup .combat-log-line {
+    padding: 2px 0;
+}
+
+html.is-compact #combatPopup[data-log-expanded="1"] .combat-log {
+    font-size: 0.82em;
+    line-height: 1.22;
 }

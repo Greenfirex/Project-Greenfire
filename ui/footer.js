@@ -176,8 +176,13 @@ export function initFooter() {
                 mobileBtn.className = 'header-link mobile-speed-btn';
                 mobileBtn.title = 'Change speed';
                 mobileBtn.setAttribute('aria-label', 'Change game speed');
-                // Insert after Pause for compact layouts
-                footerControls.insertBefore(mobileBtn, footerControls.querySelector('.speed-buttons') || null);
+                // Insert after Pause (used on both compact + desktop)
+                const pause = footerControls.querySelector('#pauseBtn');
+                if (pause && pause.parentElement === footerControls) {
+                    footerControls.insertBefore(mobileBtn, pause.nextSibling);
+                } else {
+                    footerControls.insertBefore(mobileBtn, footerControls.firstChild || null);
+                }
             }
 
             const cycle = () => {
@@ -202,10 +207,6 @@ export function initFooter() {
             try {
                 const applyCompactState = () => {
                     try { updateMobileSpeedButton(); } catch { /* ignore */ }
-                    try {
-                        if (!isCompactPhoneLandscape()) mobileBtn.setAttribute('tabindex', '-1');
-                        else mobileBtn.removeAttribute('tabindex');
-                    } catch { /* ignore */ }
                 };
 
                 if (mobileBtn.dataset.compactWired !== 'true') {
@@ -215,12 +216,6 @@ export function initFooter() {
                     window.addEventListener('orientationchange', applyCompactState, { passive: true });
                     window.visualViewport?.addEventListener('resize', applyCompactState, { passive: true });
                 }
-            } catch { /* ignore */ }
-
-            // If we are not in compact mode, ensure button doesn't steal focus via tabbing.
-            try {
-                if (!isCompactPhoneLandscape()) mobileBtn.setAttribute('tabindex', '-1');
-                else mobileBtn.removeAttribute('tabindex');
             } catch { /* ignore */ }
         }
     } catch { /* ignore */ }

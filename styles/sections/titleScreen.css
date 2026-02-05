@@ -1,0 +1,142 @@
+/* Title Screen overlay (shown before the game starts) */
+
+body.title-screen-active {
+    overflow: hidden;
+}
+
+body.title-screen-active #header,
+body.title-screen-active #mainContainer,
+body.title-screen-active #footer {
+    display: none;
+}
+
+.title-screen-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147481500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    box-sizing: border-box;
+
+    background: #000;
+}
+
+.title-screen-overlay.hidden {
+    display: none;
+}
+
+.title-screen-card {
+    width: min(520px, 92vw);
+    max-height: calc(100vh - 36px);
+    overflow: visible;
+    -webkit-overflow-scrolling: touch;
+
+    background: transparent;
+    backdrop-filter: none;
+
+    border-radius: 10px;
+    padding: 0;
+    box-sizing: border-box;
+
+    border: none;
+    box-shadow: none;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.title-screen-logo {
+    display: block;
+    width: min(560px, 92vw);
+    max-width: 560px;
+    height: auto;
+    margin: 0 auto 8px;
+    filter: none;
+}
+
+.title-screen-menu {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+
+    /* Keep buttons readable without a big outer card. */
+    width: min(420px, 86vw);
+    justify-items: stretch;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.012);
+}
+
+.title-screen-btn {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
+
+    background: linear-gradient(
+        180deg,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18),
+        rgba(0,0,0,0.62)
+    );
+
+    color: #E9FFF4;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 16px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    white-space: nowrap;
+
+    box-shadow:
+        0 0 10px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.12),
+        0 8px 20px rgba(0,0,0,0.45);
+
+    cursor: pointer;
+}
+
+.title-screen-btn:hover {
+    box-shadow:
+    0 0 12px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.16),
+        0 10px 26px rgba(0,0,0,0.52);
+}
+
+.title-screen-btn:active {
+    transform: translateY(1px);
+}
+
+.title-screen-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.title-screen-btn.secondary {
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.60));
+    color: #DDE9E3;
+}
+
+.title-screen-footer {
+    margin-top: 12px;
+    color: rgba(233, 255, 244, 0.70);
+    font-size: 12px;
+    line-height: 1.35;
+    text-align: center;
+}
+
+html.is-compact .title-screen-card {
+    width: min(520px, 94vw);
+    padding: 0;
+}
+
+html.is-compact .title-screen-btn {
+    font-size: 14px;
+    padding: 11px 12px;
+}
+
+html.is-compact .title-screen-logo {
+    width: min(520px, 94vw);
+    max-width: 520px;
+}

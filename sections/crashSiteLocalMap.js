@@ -818,10 +818,18 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                     <div class="localmap-shell" style="--cols:${COLS}; --rows:${ROWS}; --zoom:${zoom}; --pan-x:${panX}px; --pan-y:${panY}px;">
                         <div class="localmap-corner" aria-hidden="true"></div>
                         <div class="localmap-top" aria-hidden="true">
-                            ${LETTERS.map(l => `<div class="localmap-label">${l}</div>`).join('')}
+                            ${LETTERS.map((l, i) => {
+                                const col = i + 1;
+                                const isSelected = col === mapState.selectedX;
+                                return `<div class="localmap-label${isSelected ? ' is-selected-axis is-selected-col' : ''}" data-col="${col}"><span>${l}</span></div>`;
+                            }).join('')}
                         </div>
                         <div class="localmap-left" aria-hidden="true">
-                            ${Array.from({ length: ROWS }, (_, i) => `<div class="localmap-label">${i + 1}</div>`).join('')}
+                            ${Array.from({ length: ROWS }, (_, i) => {
+                                const row = i + 1;
+                                const isSelected = row === mapState.selectedY;
+                                return `<div class="localmap-label${isSelected ? ' is-selected-axis is-selected-row' : ''}" data-row="${row}"><span>${row}</span></div>`;
+                            }).join('')}
                         </div>
                         <div class="localmap-grid-viewport" aria-label="Local map grid (A-K / 1-9)">
                             <div class="localmap-grid-pan">
@@ -931,7 +939,140 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
         if (viewport && !viewport.dataset.boundPan) {
             viewport.dataset.boundPan = 'true';
 
+            const clampZoomRaw = (z) => clamp(Number(z) || 1, 0.6, 2.0);
+            const activePointers = new Map();
+            const pinch = {
+                active: false,
+                startDist: 0,
+                baseZoom: 1,
+                lastZoom: 1,
+                lastAt: 0,
+            };
+
+            const getViewportCenter = () => {
+                const rect = viewport.getBoundingClientRect();
+                return {
+                    cx: rect.left + rect.width / 2,
+                    cy: rect.top + rect.height / 2,
+                };
+            };
+
+            const dist2 = (a, b) => {
+                const dx = (a.x - b.x);
+                const dy = (a.y - b.y);
+                return Math.sqrt(dx * dx + dy * dy);
+            };
+
+            const applyPanZoomVars = () => {
+                if (!shell || !state || typeof state !== 'object') return;
+                const z = clampZoomRaw(state.zoom);
+                shell.style.setProperty('--zoom', `${z}`);
+                shell.style.setProperty('--pan-x', `${Number(state.panX) || 0}px`);
+                shell.style.setProperty('--pan-y', `${Number(state.panY) || 0}px`);
+            };
+
+            const suppressTileClicksBriefly = (ms = 450) => {
+                try {
+                    if (!container._localMapTapState) {
+                        container._localMapTapState = { lastKey: null, lastAt: 0, suppressClickUntil: 0 };
+                    }
+                    container._localMapTapState.suppressClickUntil = Date.now() + ms;
+                } catch { /* ignore */ }
+            };
+
+            const beginPinchIfReady = () => {
+                if (pinch.active) return;
+                if (!state || typeof state !== 'object') return;
+                if (activePointers.size !== 2) return;
+                const pts = Array.from(activePointers.values());
+                const d = dist2(pts[0], pts[1]);
+                if (!Number.isFinite(d) || d < 4) return;
+                pinch.active = true;
+                pinch.startDist = d;
+                pinch.baseZoom = clampZoomRaw(normalizeZoom(state));
+                pinch.lastZoom = pinch.baseZoom;
+                pinch.lastAt = Date.now();
+
+                // Only capture pointers once we know we're pinching.
+                // Capturing on every pointerdown can suppress tile click events on desktop.
+                try {
+                    for (const pointerId of activePointers.keys()) {
+                        try { viewport.setPointerCapture(pointerId); } catch { /* ignore */ }
+                    }
+                } catch { /* ignore */ }
+
+                if (isCompactPhoneLandscape()) markCompactZoomTouched();
+
+                // Pinch overrides panning.
+                drag.active = false;
+                drag.panning = false;
+                drag.pointerId = null;
+                setViewportClasses();
+                suppressTileClicksBriefly(650);
+            };
+
+            const updatePinch = () => {
+                if (!pinch.active) return;
+                if (!state || typeof state !== 'object') return;
+                if (activePointers.size < 2) return;
+                const pts = Array.from(activePointers.values());
+                const d = dist2(pts[0], pts[1]);
+                if (!Number.isFinite(d) || d < 4 || pinch.startDist < 4) return;
+
+                const ratio = d / pinch.startDist;
+                const nextZoom = clampZoomRaw(pinch.baseZoom * ratio);
+                const prevZoom = clampZoomRaw(pinch.lastZoom);
+
+                // Anchor zoom around the current pinch midpoint.
+                const midX = (pts[0].x + pts[1].x) / 2;
+                const midY = (pts[0].y + pts[1].y) / 2;
+                const { cx, cy } = getViewportCenter();
+                const vx = midX - cx;
+                const vy = midY - cy;
+
+                const panX = Number(state.panX) || 0;
+                const panY = Number(state.panY) || 0;
+                const scale = (prevZoom > 0.001) ? (nextZoom / prevZoom) : 1;
+
+                state.zoom = nextZoom;
+                state.panX = panX + (1 - scale) * (vx - panX);
+                state.panY = panY + (1 - scale) * (vy - panY);
+                pinch.lastZoom = nextZoom;
+                pinch.lastAt = Date.now();
+
+                clampPanToBounds();
+                applyPanZoomVars();
+                setViewportClasses();
+            };
+
+            const endPinch = () => {
+                if (!pinch.active) return;
+                pinch.active = false;
+                pinch.startDist = 0;
+                pinch.lastAt = Date.now();
+                drag.lastDragAt = Date.now();
+                suppressTileClicksBriefly(450);
+                setViewportClasses();
+
+                // Re-render once to ensure all derived UI stays consistent.
+                try {
+                    setTimeout(() => {
+                        try { setupCrashSiteLocalMap(container, { scoutStage, totalStages, state }); } catch { /* ignore */ }
+                    }, 0);
+                } catch { /* ignore */ }
+            };
+
             const onPointerDown = (e) => {
+                if (!viewport) return;
+                activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+                // Two-finger pinch can start even at zoom=1.
+                beginPinchIfReady();
+                if (pinch.active) {
+                    e.preventDefault();
+                    return;
+                }
+
                 const z = normalizeZoom(state);
                 if (z <= 1.01) return;
                 drag.active = true;
@@ -945,6 +1086,17 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             };
 
             const onPointerMove = (e) => {
+                if (!viewport) return;
+                if (activePointers.has(e.pointerId)) {
+                    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                }
+
+                if (pinch.active) {
+                    updatePinch();
+                    e.preventDefault();
+                    return;
+                }
+
                 if (!drag.active) return;
                 if (drag.pointerId !== null && e.pointerId !== drag.pointerId) return;
                 if (!state || typeof state !== 'object') return;
@@ -974,7 +1126,16 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 e.preventDefault();
             };
 
-            const endDrag = () => {
+            const endDrag = (e = null) => {
+                if (e && activePointers.has(e.pointerId)) {
+                    activePointers.delete(e.pointerId);
+                }
+
+                if (pinch.active) {
+                    if (activePointers.size < 2) endPinch();
+                    return;
+                }
+
                 if (!drag.active) return;
                 drag.active = false;
                 if (drag.panning) drag.lastDragAt = Date.now();
@@ -1037,6 +1198,20 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
         if (!infoBody) return;
         const meta = tileMeta(col, row);
         const label = toCoordLabel(col, row);
+        const coordHtml = (() => {
+            try {
+                const s = String(label || '');
+                const m = /^([A-Z]+)(\d+)$/.exec(s.trim());
+                if (!m) return `<span class="localmap-selected-coord">${s}</span>`;
+                return `
+                    <span class="localmap-selected-coord" aria-label="Selected coordinate ${s}">
+                        <span class="localmap-selected-coord__letters">${m[1]}</span><span class="localmap-selected-coord__numbers">${m[2]}</span>
+                    </span>
+                `;
+            } catch {
+                return `<span class="localmap-selected-coord">${label}</span>`;
+            }
+        })();
         const isBlocked = !!(discovered && meta && meta.blocked);
         const statusKey = isBlocked
             ? 'blocked'
@@ -1129,7 +1304,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 ? 'The wreckage looms over the area. There may be ways inside.'
                 : 'Looks quiet.'));
         infoBody.innerHTML = `
-            <div class="localmap-info-row"><span class="k">Coord</span><span class="v">${label}</span></div>
+            <div class="localmap-info-row"><span class="k">Coord</span><span class="v">${coordHtml}</span></div>
             <div class="localmap-info-row"><span class="k">Status</span><span class="v localmap-status status--${statusKey}">${statusText}</span></div>
             ${typeRow}
             ${poi}

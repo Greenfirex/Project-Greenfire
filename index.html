@@ -36,6 +36,7 @@
 <link rel="stylesheet" href="styles/sections/campsite.css">
 <link rel="stylesheet" href="styles/sections/encryptedDrive.css">
 <link rel="stylesheet" href="styles/sections/localMap.css">
+<link rel="stylesheet" href="styles/sections/titleScreen.css">
 
 <!-- Forced compact-mode overrides (used for iOS PWA desktop-viewport quirks) -->
 <link rel="stylesheet" href="styles/base/compact-mode.css">
@@ -52,6 +53,19 @@
 <div id="preloader">
         <div class="loader"></div>
         <p>Loading assets...</p>
+</div>
+
+<div id="titleScreen" class="title-screen-overlay hidden" aria-hidden="true">
+    <div class="title-screen-card" role="main" aria-label="Project Greenfire title screen">
+        <img class="title-screen-logo" src="assets/images/logo-header.png" alt="Project Greenfire">
+        <div class="title-screen-menu">
+            <button id="titleContinueBtn" class="title-screen-btn" type="button">Continue</button>
+            <button id="titleNewGameBtn" class="title-screen-btn" type="button">New Game</button>
+            <button id="titleSettingsBtn" class="title-screen-btn secondary" type="button">Settings</button>
+            <button id="titleChangelogBtn" class="title-screen-btn secondary" type="button">Changelog</button>
+            <button id="titleExitBtn" class="title-screen-btn secondary" type="button" hidden>Exit</button>
+        </div>
+    </div>
 </div>
 
 <div id="header">
@@ -102,12 +116,6 @@
     <div class="footer-column">
         <div id="footerControls" class="footer-controls" aria-hidden="false">
             <button id="pauseBtn" class="header-link" title="Pause / Resume game">Pause</button>
-            <div class="speed-buttons" role="tablist" aria-label="Game speed">
-                <button class="header-link speed-btn" data-speed="1" title="1x speed">1x</button>
-                <button class="header-link speed-btn" data-speed="2" title="2x speed">2x</button>
-                <button class="header-link speed-btn" data-speed="5" title="5x speed">5x</button>
-                <button class="header-link speed-btn active" data-speed="10" title="10x speed">10x</button>
-            </div>
             <!-- Temporary debug toggle for playtesting: multiplies resource gains (except Survivors) -->
             <button id="debugBtn" class="header-link" title="Toggle x10 resource gains for testing">Debug</button>
         </div>
@@ -116,7 +124,7 @@
         
     </div>
     <div class="footer-column">
-    <button id="changelogBtn" class="header-link">v0.2.0</button>
+        <button id="changelogBtn" class="header-link">v0.2.6</button>
     </div>
 </div>
 
@@ -207,43 +215,32 @@
             <span class="log-options-close">&times;</span>
         </div>
 
-        <div class="log-option-group">
-            <h4>Filters</h4>
-            <div id="logFiltersContainer"></div>
-        </div>
-
-        <div class="log-option-group">
-            <h4>Colors</h4>
-            <div id="logColorsContainer">
-                <div class="log-color-option">
-                    <label for="colorInfo">Info Messages</label>
-                    <input type="color" id="colorInfo" data-log-type="info">
+        <div class="log-options-body">
+            <div class="log-option-group">
+                <h4>Display</h4>
+                <div class="log-option-toggle">
+                    <label for="logTimestampsToggle">Show timestamps</label>
+                    <input type="checkbox" id="logTimestampsToggle">
                 </div>
-                <div class="log-color-option">
-                    <label for="colorSuccess">Success Messages</label>
-                    <input type="color" id="colorSuccess" data-log-type="success">
-                </div>
-                <div class="log-color-option">
-                    <label for="colorError">Error Messages</label>
-                    <input type="color" id="colorError" data-log-type="error">
-                </div>
-                <div class="log-color-option">
-                    <label for="colorStory">Story Messages</label>
-                    <input type="color" id="colorStory" data-log-type="story">
-                </div>
-                <div class="log-color-option">
-                    <label for="colorAction">Action Messages</label>
-                    <input type="color" id="colorAction" data-log-type="action">
-                </div>
-                <div class="log-color-option">
-                    <label for="colorUnlock">Unlock Messages</label>
-                    <input type="color" id="colorUnlock" data-log-type="unlock">
+                <div class="log-option-toggle">
+                    <label for="logTypewriterToggle">Typewriter effect</label>
+                    <input type="checkbox" id="logTypewriterToggle">
                 </div>
             </div>
-        </div>
 
-        <div class="log-option-group">
-            <button id="resetLogColorsBtn" class="log-option-button">Reset Colors to Default</button>
+            <div class="log-option-group">
+                <h4>Filters</h4>
+                <div id="logFiltersContainer"></div>
+            </div>
+
+            <div class="log-option-group span-all">
+                <h4>Colors</h4>
+                <div id="logColorsContainer"></div>
+            </div>
+
+            <div class="log-option-group span-all">
+                <button id="resetLogColorsBtn" class="log-option-button">Reset Colors to Default</button>
+            </div>
         </div>
     </div>
 </div>

@@ -435,3 +435,60 @@
         font-size: 11px;
     }
 }
+
+/* Forced compact mode: mirror the phone-landscape Story Popup tuning so wide phones
+   that still enter compact mode match iPhone behavior. */
+html.is-compact .story-popup-overlay {
+    padding: 10px;
+}
+
+html.is-compact .story-popup-content:not(.confirm-popup-content) {
+    width: 94vw;
+    height: 88vh;
+    height: 88dvh;
+    height: calc(var(--app-vh, 1vh) * 88);
+    max-height: calc(100vh - 30px);
+    max-height: calc(100dvh - 30px);
+    max-height: calc((var(--app-vh, 1vh) * 100) - 30px);
+    padding: 12px;
+}
+
+html.is-compact .story-popup-header {
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+}
+
+html.is-compact .story-popup-header h2 {
+    font-size: 18px;
+}
+
+html.is-compact .story-popup-body {
+    padding: 4px 0 8px 0;
+}
+
+html.is-compact .story-popup-text {
+    padding: 0 4px 10px 4px;
+}
+
+html.is-compact #popupMessage {
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+html.is-compact .story-popup-nav {
+    margin-top: 8px;
+    padding-top: 6px;
+}
+
+html.is-compact .story-popup-nav .menu-button,
+html.is-compact .story-nav-button {
+    height: 30px;
+    padding: 6px 10px;
+    font-size: 12px;
+    min-width: 66px;
+}
+
+html.is-compact .story-popup-nav #popupPaging {
+    font-size: 11px;
+}

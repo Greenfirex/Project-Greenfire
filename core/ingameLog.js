@@ -3,10 +3,15 @@ export const LogType = {
     STORY: 'story', ACTION: 'action', UNLOCK: 'unlock'
 };
 
-let logSettings = { colors: {}, filters: {} };
+let logSettings = { colors: {}, filters: {}, showTimestamps: false, typewriterMode: true };
 
 export function updateLogSettings(newSettings) {
-    logSettings = newSettings;
+    logSettings = newSettings || { colors: {}, filters: {}, showTimestamps: false, typewriterMode: true };
+    try {
+        document.body?.classList?.toggle('log-timestamps-on', !!logSettings.showTimestamps);
+        const twEnabled = (logSettings.typewriterMode !== false);
+        document.body?.classList?.toggle('log-typewriter-off', !twEnabled);
+    } catch { /* ignore */ }
 }
 
 export function addLogEntry(message, type, options = {}) {
@@ -17,9 +22,14 @@ export function addLogEntry(message, type, options = {}) {
     
     const logEntry = document.createElement('div');
     logEntry.className = 'log-entry';
-    
-    const timeString = `[${new Date().toLocaleTimeString()}]`;
-    logEntry.textContent = `${timeString} ${message}`;
+
+    // Store time separately; CSS renders it only when timestamps are enabled.
+    try {
+        const time = new Date().toLocaleTimeString();
+        logEntry.dataset.time = time;
+    } catch { /* ignore */ }
+
+    logEntry.textContent = `${message}`;
     logEntry.style.color = logSettings.colors[type] || 'white';
     
     if (options.onClick) {

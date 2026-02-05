@@ -87,6 +87,13 @@
     color: #90EE90; /* Default green color for readability */
 }
 
+/* Optional timestamps (disabled by default). Render via pseudo-element so timestamps
+   don't leak into `.textContent` reads (e.g., the compact footer latest-log banner). */
+body.log-timestamps-on .log-entry::before {
+    content: '[' attr(data-time) '] ';
+    color: rgba(230, 238, 247, 0.62);
+}
+
 /* Style for clickable log entries */
 .log-entry.clickable {
     cursor: pointer;
@@ -375,4 +382,211 @@ html.is-compact #footerLogContainer {
 
 html.is-compact body.mobile-log-footer-swap #footerLogContainer {
     display: block;
+}
+
+/* Forced compact mode: style the footer log banner/drawer even when legacy media queries don't match. */
+html.is-compact .footer-log-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 25px;
+    padding: 0 22px 0 10px;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 25px;
+    letter-spacing: 0.2px;
+    background: transparent;
+    border: 0;
+    position: relative;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    min-width: 0;
+}
+
+html.is-compact .footer-log-banner .footer-log-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    position: relative;
+}
+
+html.is-compact .footer-log-banner .footer-log-latest {
+    color: #90EE90;
+    font-style: normal;
+    font-weight: 600;
+    font-size: 10px;
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative;
+    z-index: 2;
+}
+
+html.is-compact .footer-log-banner .footer-log-latest--outgoing {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    z-index: 3;
+    pointer-events: none;
+    animation: footerLogSlideUp 240ms ease-out forwards;
+}
+
+html.is-compact .footer-log-banner .footer-log-latest--incoming {
+    animation: footerLogPopIn 180ms ease-out;
+}
+
+@keyframes footerLogSlideUp {
+    from { transform: translateY(0); opacity: 1; }
+    to { transform: translateY(-0.75em); opacity: 0; }
+}
+
+@keyframes footerLogPopIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.is-compact .footer-log-banner .footer-log-latest--outgoing,
+    html.is-compact .footer-log-banner .footer-log-latest--incoming {
+        animation: none !important;
+    }
+}
+
+html.is-compact .footer-log-banner .chevrons {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+}
+
+html.is-compact .footer-log-banner .chevrons-icon {
+    width: 22px;
+    height: 16px;
+    stroke: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.95);
+    stroke-width: 2.5;
+    fill: none;
+    filter: drop-shadow(0 0 3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7));
+}
+
+html.is-compact .footer-log-banner:hover .chevrons-icon,
+html.is-compact .footer-log-banner:focus .chevrons-icon,
+html.is-compact .footer-log-banner:focus-within .chevrons-icon {
+    filter: drop-shadow(0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9));
+}
+
+html.is-compact .footer-log-drawer {
+    position: absolute;
+    left: 0;
+    bottom: calc(var(--footer-height, 25px) - 3px);
+    width: 100%;
+    box-sizing: border-box;
+    height: var(--log-drawer-height, 240px);
+    display: flex;
+    flex-direction: column;
+    background: #000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(14px);
+    transition: opacity 200ms ease, transform 240ms ease;
+    pointer-events: none;
+    z-index: 600;
+    overflow: visible;
+}
+
+html.is-compact .footer-log-drawer.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+html.is-compact .footer-log-drawer::before,
+html.is-compact .footer-log-drawer::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    animation: pulse-glow 5s ease-in-out infinite;
+    z-index: 42;
+    pointer-events: none;
+}
+
+html.is-compact .footer-log-drawer::before { top: 0; }
+html.is-compact .footer-log-drawer::after { bottom: 0; }
+
+html.is-compact .footer-log-drawer .glow-vert {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    animation: pulse-glow 5s ease-in-out infinite;
+    z-index: 41;
+    pointer-events: none;
+}
+
+html.is-compact .footer-log-drawer .glow-left { left: -1.5px; }
+html.is-compact .footer-log-drawer .glow-right { right: -1.5px; }
+
+html.is-compact .footer-log-header {
+    position: relative;
+    padding: 10px;
+    background: #000;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+html.is-compact .footer-log-title {
+    margin: 0;
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.95);
+    font-size: 1em;
+    font-weight: normal;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    filter: drop-shadow(0 0 4px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.55));
+}
+
+html.is-compact .footer-log-drawer-host {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+html.is-compact body.mobile-log-footer-swap #footerLogDrawerHost #logSection {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    top: auto;
+    height: 100%;
+    max-height: none;
+    background-color: #000;
+}
+
+html.is-compact body.mobile-log-footer-swap #footerLogDrawerHost #logSection::before {
+    display: none;
+}
+
+html.is-compact body.mobile-log-footer-swap #footerLogDrawerHost #logSection .log-header {
+    display: none;
 }
