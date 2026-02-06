@@ -14,7 +14,8 @@ export const items = [
         name: 'Basic Armor',
         slot: 'chest',
         icon: 'assets/images/items/field_armor.svg',
-        stats: { armor: 2, stamina: -5 }
+        // Also increases personal carryable supplies (Food/Water) capacity.
+        stats: { armor: 2, stamina: -5, foodCapacity: 40, waterCapacity: 40 }
     },
     {
         id: 'utility_legs',
@@ -52,6 +53,14 @@ export const items = [
         icon: 'assets/images/items/stimpack.svg',
         // Consumables are used via UI buttons (e.g., combat popup)
         consumable: { type: 'heal', resource: 'Health', amount: 25 }
+    },
+    {
+        id: 'first_aid_kit',
+        name: 'First Aid Kit',
+        slot: 'consumable',
+        // Reuse existing consumable icon until unique art exists.
+        icon: 'assets/images/items/stimpack.svg',
+        consumable: { type: 'heal', resource: 'Health', amount: 15 }
     },
     {
         id: 'basic_torch',

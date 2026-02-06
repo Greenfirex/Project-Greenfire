@@ -93,7 +93,7 @@ export function getMorale() {
 
     // Hunger: Food depleted => -20%
     try {
-        const food = resources.find(r => r.name === 'Food Rations');
+        const food = resources.find(r => r.name === 'Provisions');
         if (food && Number(food.amount) <= 0) {
             percent -= 20;
             sources.push({ id: 'hunger', label: 'Hunger', deltaPercent: -20 });
@@ -102,7 +102,7 @@ export function getMorale() {
 
     // Thirst: Water depleted => -20%
     try {
-        const water = resources.find(r => r.name === 'Clean Water');
+        const water = resources.find(r => r.name === 'Water');
         if (water && Number(water.amount) <= 0) {
             percent -= 20;
             sources.push({ id: 'thirst', label: 'Thirst', deltaPercent: -20 });

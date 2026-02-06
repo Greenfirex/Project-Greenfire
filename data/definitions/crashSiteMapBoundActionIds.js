@@ -5,6 +5,7 @@ export const CRASH_SITE_MAP_BOUND_ACTION_IDS = new Set([
     'move',
     'sitDown',
     'rest',
+    'sleep',
     'drinkCaveWater',
     'purifyWater',
     'attemptReentry',
@@ -20,6 +21,10 @@ export const CRASH_SITE_MAP_BOUND_ACTION_IDS = new Set([
     'stripWiring',
     'investigateSound',
     'establishBaseCamp',
+    'refillCanteen',
+    'packRations',
+    'haulWater',
+    'haulBerries',
 
     // Ship interior tile actions (rendered on E4/E6/F5)
     'searchNorthCorridor',

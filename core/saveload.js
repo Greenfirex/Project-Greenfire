@@ -58,12 +58,17 @@ function reconcileActivatedSectionsAfterLoad() {
             next.crashSiteSection = false;
         }
 
-        // Research becomes available once the first Field Lab exists.
+        // Research (tab) becomes available once the first Field Lab exists.
         try {
             const fieldLab = Array.isArray(buildings) ? buildings.find(b => b && b.name === 'Field Lab') : null;
             const fieldLabCount = fieldLab ? Number(fieldLab.count) : 0;
             const hasFieldLab = fieldLabCount >= 1;
-            if (hasFieldLab) next.researchSection = true;
+            if (hasFieldLab) {
+                // New UX: Research is inside Crafting, so ensure the section exists.
+                next.craftingSection = true;
+                // Persist the Research tab unlock.
+                try { gameFlags.researchTabUnlocked = true; } catch { /* ignore */ }
+            }
 
             // Forward-compat: older saves won't have Scientist slots persisted.
             // Ensure the job has at least one slot per existing Field Lab.
@@ -436,7 +441,8 @@ export function applyGameState(gameState) {
     if (techName) {
         const tech = technologies.find(t => t.name === techName);
         if (tech) {
-            const cancelButton = document.querySelector('#researchSection .cancel-button');
+            const cancelButton =
+                document.querySelector('#craftingSection .cancel-button');
             // Prefer persisted scaled elapsed time; otherwise derive it from percent progress (back-compat).
             let elapsedSec = Number(getCurrentResearchElapsedSec());
             if (!(elapsedSec > 0)) {

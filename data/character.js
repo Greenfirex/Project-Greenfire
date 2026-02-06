@@ -95,6 +95,16 @@ export function swapBagSlots(fromIndex, toIndex) {
     const tmp = bag[fromIndex];
     bag[fromIndex] = bag[toIndex] ?? null;
     bag[toIndex] = tmp ?? null;
+
+    // Keep UI "new" flags attached to the item as it moves.
+    try {
+        if (Array.isArray(characterState.bagUiNew)) {
+            const t = !!characterState.bagUiNew[fromIndex];
+            characterState.bagUiNew[fromIndex] = !!characterState.bagUiNew[toIndex];
+            characterState.bagUiNew[toIndex] = t;
+        }
+    } catch { /* ignore */ }
+
     emitCharacterStateChanged('swapBagSlots');
     return true;
 }
@@ -111,6 +121,12 @@ export function moveBagItemToEquip(bagIndex, equipSlot) {
     const prevEquip = characterState.equipment[slot] ?? null;
     characterState.equipment[slot] = itemId;
     characterState.bag[bagIndex] = prevEquip;
+
+    // Item left the bag; clear "new" marker for that slot.
+    try {
+        if (Array.isArray(characterState.bagUiNew)) characterState.bagUiNew[bagIndex] = false;
+    } catch { /* ignore */ }
+
     emitCharacterStateChanged('moveBagItemToEquip');
     return true;
 }
@@ -126,6 +142,12 @@ export function moveEquipItemToBag(equipSlot, bagIndex) {
     const prevBag = characterState.bag[bagIndex] ?? null;
     characterState.bag[bagIndex] = itemId;
     characterState.equipment[slot] = prevBag;
+
+    // Moving an already-known equipped item back to bag should not mark it as "new".
+    try {
+        if (Array.isArray(characterState.bagUiNew)) characterState.bagUiNew[bagIndex] = false;
+    } catch { /* ignore */ }
+
     emitCharacterStateChanged('moveEquipItemToBag');
     return true;
 }
@@ -163,6 +185,9 @@ export function getInitialCharacterState() {
     const bagRows = DEFAULT_BAG_ROWS;
 
     const bag = makeEmptyBag(bagCols, bagRows);
+    // Per-slot UI "new" flags for bag items.
+    // This persists as part of characterState so "new" markers survive reloads.
+    const bagUiNew = Array.from({ length: bag.length }, () => false);
     // Starter consumable for combat prototype.
     if (bag.length > 0) bag[0] = 'stimpack';
 
@@ -179,10 +204,11 @@ export function getInitialCharacterState() {
     };
 
     return {
-        version: 3,
+        version: 4,
         bagCols,
         bagRows,
         bag,
+        bagUiNew,
         equipment,
         localMap: {
             // A-K / 1-9 grid coordinates (1-based)
@@ -249,6 +275,15 @@ export function applySavedCharacterState(saved) {
         if (typeof v !== 'string') return null;
         return getItemDefinition(v) ? v : null;
     });
+
+    // UI: per-slot "new" flags for bag items.
+    // Saved values may be missing (older saves) or mis-sized (bag upgrades).
+    try {
+        const savedUi = Array.isArray(saved.bagUiNew) ? saved.bagUiNew : [];
+        next.bagUiNew = Array.from({ length: desiredSize }, (_, i) => !!savedUi[i]);
+    } catch {
+        next.bagUiNew = Array.from({ length: desiredSize }, () => false);
+    }
 
     // Equipment
     const savedEq = saved.equipment && typeof saved.equipment === 'object' ? saved.equipment : {};
@@ -474,8 +509,13 @@ export function setBagRows(newRows) {
 
     const nextBag = Array.from({ length: nextSize }, (_, i) => current[i] ?? null);
 
+    // Keep UI "new" flags sized with the bag.
+    const currentUi = Array.isArray(characterState.bagUiNew) ? characterState.bagUiNew : [];
+    const nextUi = Array.from({ length: nextSize }, (_, i) => !!currentUi[i]);
+
     characterState.bagRows = rows;
     characterState.bag = nextBag;
+    characterState.bagUiNew = nextUi;
 }
 
 export function computeCharacterStats(state = characterState) {
@@ -554,6 +594,9 @@ export function consumeFirstItemFromBag(itemId, state = characterState) {
     const idx = bag.findIndex(v => v === itemId);
     if (idx < 0) return false;
     bag[idx] = null;
+    try {
+        if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[idx] = false;
+    } catch { /* ignore */ }
     if (state === characterState) emitCharacterStateChanged('consumeFirstItemFromBag');
     return true;
 }
@@ -564,6 +607,9 @@ export function discardBagItem(bagIndex, state = characterState) {
     if (!Number.isInteger(bagIndex) || bagIndex < 0 || bagIndex >= bag.length) return false;
     if (!bag[bagIndex]) return false;
     bag[bagIndex] = null;
+    try {
+        if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[bagIndex] = false;
+    } catch { /* ignore */ }
     if (state === characterState) emitCharacterStateChanged('discardBagItem');
     return true;
 }
@@ -617,6 +663,9 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
     const idx = bag.findIndex(v => !v);
     if (idx < 0) return { ok: false, placed: 'none' };
     bag[idx] = itemId;
+    try {
+        if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[idx] = true;
+    } catch { /* ignore */ }
     if (state === characterState) {
         emitCharacterStateChanged('grantItemToCharacter');
         try {

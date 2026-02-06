@@ -74,8 +74,8 @@ const initialBuildings = [
             { resource: 'Crystal', amount: 25 },
             { resource: 'Metal Parts', amount: 40 },
             { resource: 'Wire', amount: 20 },
-            { resource: 'Clean Water', amount: 20 },
-            { resource: 'Food Rations', amount: 20 }
+            { resource: 'Water', amount: 20 },
+            { resource: 'Provisions', amount: 20 }
         ],
         costMultiplier: 1.25,
         description: 'A basic fabrication and repair workspace. (Placeholder building — effects coming soon.)',
@@ -89,7 +89,7 @@ const initialBuildings = [
         effect: { type: 'job', jobId: 'foraging' },
         // Additional effects can be declared in an optional array
         effects: [
-            { type: 'storage', resource: 'Food Rations', value: 10 }
+            { type: 'storage', resource: 'Provisions', value: 10 }
         ],
         count: 0,
         cost: [{ resource: 'Metal Parts', amount: 8 }, { resource: 'Wire', amount: 4 }],
@@ -103,7 +103,7 @@ const initialBuildings = [
         // This building unlocks a "Water Collection" job slot per built station.
         effect: { type: 'job', jobId: 'water_collection' },
         effects: [
-            { type: 'storage', resource: 'Clean Water', value: 10 }
+            { type: 'storage', resource: 'Water', value: 10 }
         ],
         count: 0,
         cost: [{ resource: 'Metal Parts', amount: 10 }, { resource: 'Wire', amount: 6 }],
@@ -117,7 +117,7 @@ const initialBuildings = [
         count: 0,
         cost: [{ resource: 'Metal Parts', amount: 15 }, { resource: 'Wire', amount: 4 }],
         costMultiplier: 1.2,
-        effect: { type: 'storage', resource: 'Food Rations', value: 80 },
+        effect: { type: 'storage', resource: 'Provisions', value: 80 },
         description: 'A basic insulated larder that increases food storage capacity.',
 
         isUnlocked: false
@@ -127,14 +127,14 @@ const initialBuildings = [
         count: 0,
         cost: [{ resource: 'Metal Parts', amount: 18 }, { resource: 'Wire', amount: 6 }],
         costMultiplier: 1.2,
-        effect: { type: 'storage', resource: 'Clean Water', value: 100 },
+        effect: { type: 'storage', resource: 'Water', value: 100 },
         description: 'A small covered reservoir that increases water storage capacity.',
 
         isUnlocked: false
     },
     {
         name: 'Rain Tarp',
-        effect: { type: 'passive', resource: 'Clean Water', rate: 0.02 },
+        effect: { type: 'passive', resource: 'Water', rate: 0.02 },
         count: 0,
         cost: [{ resource: 'Fabric', amount: 6 }, { resource: 'Metal Parts', amount: 6 }],
         costMultiplier: 1.2,

@@ -36,6 +36,9 @@ const initialGameFlags = {
     stockpileMoraleBoostStartMinutes: 0,
     // Engineering/state flags
     emergencyPowerRestored: false,
+    // UI/Section unlocks
+    // Research is now a locked tab inside the Crafting section.
+    researchTabUnlocked: false,
     // Upgrades
     scavengerKitInstalled: false,
     campfireLit: false,
@@ -63,7 +66,7 @@ const initialGameFlags = {
     // UI-only persistence: which unlocks/buttons the player has already seen.
     // Keys are strings like "tech:Workforce", "building:Workshop", "action:assembleMakeshiftExplosive".
     uiSeen: {},
-    // Placeholder unlock for future Manufacturing usage
+    // Placeholder unlock for future Crafting usage
     workerDroneBlueprintUnlocked: false
 };
 
@@ -680,7 +683,7 @@ registerActionCompletionHandler('salvageCookingEquipment', () => {
 
 registerActionCompletionHandler('makeTents', () => {
     gameFlags.tentsInstalled = true;
-    addLogEntry('Tents constructed at base camp — resting yields +20% stamina.', LogType.UNLOCK);
+    addLogEntry('Tents constructed at base camp — sleeping yields +20% stamina.', LogType.UNLOCK);
 });
 
 // Strip Wiring: limited per ship tile (5 completions per tile)
@@ -754,7 +757,7 @@ registerActionCompletionHandler('searchLabs', () => {
 // Insulate shelters -> set flag and log (unlocked only after tents)
 registerActionCompletionHandler('insulateShelters', () => {
     gameFlags.sheltersInsulated = true;
-    addLogEntry('Shelters insulated — resting yields +10% stamina.', LogType.UNLOCK);
+    addLogEntry('Shelters insulated — sleeping yields +10% stamina.', LogType.UNLOCK);
 });
 
 // Crude Foraging Tools -> set flag and log
@@ -907,15 +910,22 @@ registerActionCompletionHandler('installPurificationUnit', () => {
 
 // Workbench completion handler (enables Campsite -> Crafting panel)
 registerActionCompletionHandler('workbench', () => {
-    try {
-        if (characterState && characterState.localMap) {
-            // Nudge the Campsite tab badge so the player notices the new panel.
-            characterState.localMap.campsiteTabUiNew = true;
-        }
-    } catch { /* ignore */ }
+    // Unlock Crafting as a main menu section.
     try {
         if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
             window.setupCrashSiteSection(document.querySelector('.content-panel'));
+        }
+    } catch { /* ignore */ }
+
+    try {
+        if (typeof window !== 'undefined' && typeof window.enableSection === 'function') {
+            window.enableSection('craftingSection');
+        }
+    } catch { /* ignore */ }
+
+    try {
+        if (typeof window !== 'undefined' && typeof window.setMenuNewItemFlag === 'function') {
+            window.setMenuNewItemFlag('craftingSection', true);
         }
     } catch { /* ignore */ }
 });

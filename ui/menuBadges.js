@@ -3,6 +3,8 @@ import { gameFlags } from '../data/gameFlags.js';
 import { technologies } from '../data/definitions/technologies.js';
 import { allActions as allActionsAggregate } from '../data/definitions/allActions.js';
 import { CRASH_SITE_MAP_BOUND_ACTION_IDS } from '../data/definitions/crashSiteMapBoundActionIds.js';
+import { characterState, getUnspentStatPoints } from '../data/character.js';
+import { resources } from '../core/resources.js';
 
 const MENU_NEW_ITEM_PREFIX = 'uiMenuNew:';
 
@@ -13,9 +15,8 @@ const LEGACY_COLONY_MENU_NEW_ITEM_KEY = 'uiColonyMenuNewItem';
 export const MENU_SECTIONS = [
     'crashSiteSection',
     'colonySection',
-    'manufacturingSection',
+    'craftingSection',
     'shipyardSection',
-    'researchSection',
     'galaxyMapSection',
     'encryptedDriveSection',
     'characterSection',
@@ -122,10 +123,11 @@ function pollMenuNewBadges() {
         /* ignore */
     }
 
-    // Research: any tech flagged uiNew
+    // Research (tabbed under Crafting): any tech flagged uiNew
     try {
-        if (current !== 'researchSection' && Array.isArray(technologies) && technologies.some(t => t && t.uiNew)) {
-            setMenuNewItemFlag('researchSection', true);
+        const researchUnlocked = !!(gameFlags && gameFlags.researchTabUnlocked === true);
+        if (researchUnlocked && current !== 'craftingSection' && Array.isArray(technologies) && technologies.some(t => t && t.uiNew)) {
+            setMenuNewItemFlag('craftingSection', true);
         }
     } catch {
         /* ignore */
@@ -137,6 +139,23 @@ function pollMenuNewBadges() {
         const hasColonyActionNew = !!gameFlags.cargoBayRouteUiNew;
         if (current !== 'colonySection' && (hasBuildingNew || hasColonyActionNew)) {
             setMenuNewItemFlag('colonySection', true);
+        }
+    } catch {
+        /* ignore */
+    }
+
+    // Character: any unseen inventory item (bagUiNew) OR unspent stat points.
+    try {
+        const hasNewInventory = !!(characterState && Array.isArray(characterState.bagUiNew) && characterState.bagUiNew.some(v => !!v));
+        let unspent = 0;
+        try {
+            const xp = Array.isArray(resources) ? resources.find(r => r && r.name === 'XP') : null;
+            const totalXp = xp ? Number(xp.amount) : 0;
+            unspent = getUnspentStatPoints(totalXp, characterState);
+        } catch { unspent = 0; }
+
+        if (current !== 'characterSection' && (hasNewInventory || unspent > 0)) {
+            setMenuNewItemFlag('characterSection', true);
         }
     } catch {
         /* ignore */

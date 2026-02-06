@@ -652,7 +652,7 @@ export function showCombatPopup(encounterId, opts = {}) {
     const stats = computeCharacterStats(characterState);
     // Survival debuffs also apply to combat.
     const foodRes = resources.find(r => r.name === 'Food Rations');
-    const waterRes = resources.find(r => r.name === 'Clean Water');
+    const waterRes = resources.find(r => r.name === 'Drinking Water');
     const isHungry = !!(foodRes && Number(foodRes.amount) <= 0);
     const isThirsty = !!(waterRes && Number(waterRes.amount) <= 0);
 

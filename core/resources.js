@@ -6,6 +6,9 @@ import { formatNumber } from './formatting.js';
 import { setupTooltip } from '../ui/panels/tooltip.js';
 import { getActiveCrashSiteAction } from '../data/activeActions.js';
 import { getMorale } from '../data/morale.js';
+import { characterState, computeCharacterStats } from '../data/character.js';
+
+const PERSONAL_SUPPLY_BASE_CAP = 10;
 
 export function getInitialResources() {
     return [
@@ -16,8 +19,15 @@ export function getInitialResources() {
         // Meta progression resource (hidden from info panel)
         { name: 'XP', amount: 0, isDiscovered: true, capacity: 9000000000, producible: false, integer: true, hidden: true },
         { name: 'Survivors', amount: 0, isDiscovered: false, capacity: 20, producible: false, integer: true },
-        { name: 'Food Rations', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.03 },
-        { name: 'Clean Water', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true, baseConsumption: 0.045 },
+
+        // Personal supplies (carried while exploring). Capacity is dynamic and can be increased by gear.
+        { name: 'Food Rations', amount: 50, isDiscovered: true, capacity: PERSONAL_SUPPLY_BASE_CAP, producible: false, integer: true },
+        { name: 'Drinking Water', amount: 50, isDiscovered: true, capacity: PERSONAL_SUPPLY_BASE_CAP, producible: false, integer: true },
+
+        // Camp stockpiles (used for buildings/upgrades/crafting). Produced via jobs/buildings.
+        { name: 'Provisions', amount: 0, isDiscovered: false, capacity: 50, producible: true, integer: true },
+        { name: 'Water', amount: 0, isDiscovered: false, capacity: 50, producible: true, integer: true },
+
         { name: 'Metal Parts', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
         { name: 'Wire', amount: 0, isDiscovered: false, capacity: 100, producible: false, integer: true },
         { name: 'Crude Prybar', amount: 0, isDiscovered: false, capacity: 5, producible: false, integer: true },
@@ -31,7 +41,7 @@ export function getInitialResources() {
         { name: 'Helion-3 Concentrate', amount: 0, isDiscovered: false, capacity: 25, producible: true, integer: false },
         { name: 'Cygnium Ore', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: false },
         { name: 'Sentient Mycelium', amount: 0, isDiscovered: false, capacity: 10, producible: true, integer: false },
-        // Placeholder: used later by Manufacturing once Workshop is built
+        // Placeholder: used later by Crafting once Workshop is built
         { name: 'Worker Drone Blueprint', amount: 0, isDiscovered: false, capacity: 1, producible: false, integer: true },
     ];
 }
@@ -43,10 +53,14 @@ const RESOURCE_CATEGORIES = {
     'Health': 'Essential',
     'Stamina': 'Essential',
     'Food Rations': 'Essential',
-    'Clean Water': 'Essential',
+    'Drinking Water': 'Essential',
     'Survivors': 'Essential',
     'Crew Members': 'Essential',
     'Morale': 'Essential',
+
+    // Camp stockpiles
+    'Provisions': 'Materials',
+    'Water': 'Materials',
 
     // Tools / utility
     'Crude Prybar': 'Tools',
@@ -110,7 +124,15 @@ function buildResourceTooltipHtml(resourceName) {
     const rates = computeResourceRates(name);
     if (!rates) return `<h4>${name}</h4><p>No data available.</p>`;
 
-    const { totalProduction, totalConsumption, netPerSecond, buildings, jobLines, passiveConsumption, activeDrainRate } = rates;
+    const { totalProduction, totalConsumption, netPerSecond, buildings, jobLines, jobConsumptionLines, activeDrainRate } = rates;
+
+    // Personalized tooltips for personal vitals/supplies (match tone/structure of Morale tooltip)
+    const isHealth = name === 'Health';
+    const isStamina = name === 'Stamina';
+    const isFood = name === 'Food Rations';
+    const isDrink = name === 'Drinking Water';
+    const isPersonalVital = isHealth || isStamina;
+    const isPersonalSupply = isFood || isDrink;
 
     const productionHtml = [];
     if (buildings && buildings.length) {
@@ -121,8 +143,10 @@ function buildResourceTooltipHtml(resourceName) {
     }
 
     let consumptionDetailsHtml = '';
-    if (passiveConsumption > 0) {
-        consumptionDetailsHtml += `<p class="tooltip-detail">- ${formatNumber(passiveConsumption)}/s from ${resources.find(r=>r.name==='Survivors')?.amount || 0} survivor(s)</p>`;
+    if (jobConsumptionLines && jobConsumptionLines.length) {
+        jobConsumptionLines.forEach(j => {
+            consumptionDetailsHtml += `<p class="tooltip-detail">- ${formatNumber(j.amount)}/s from ${j.assigned}x ${j.name}</p>`;
+        });
     }
     if (activeDrainRate > 0) {
         const activeAction = getActiveCrashSiteAction();
@@ -130,6 +154,39 @@ function buildResourceTooltipHtml(resourceName) {
     }
 
     const sign = netPerSecond >= 0 ? '+' : '';
+
+    if (isPersonalVital || isPersonalSupply) {
+        const res = resources.find(r => r && r.name === name);
+        const amt = res ? (res.integer ? Math.floor(Number(res.amount) || 0) : (Number(res.amount) || 0)) : 0;
+        const cap = res ? (res.integer ? Math.floor(Number(res.capacity) || 0) : (Number(res.capacity) || 0)) : 0;
+
+        let description = '';
+        if (isHealth) description = 'Your physical condition. Passively regenerates over time.';
+        if (isStamina) description = 'Your endurance. Passively regenerates over time.';
+        if (isFood) description = 'Personal rations carried while exploring. Depletion causes Hunger penalties.';
+        if (isDrink) description = 'Personal water carried while exploring. Depletion causes Thirst penalties.';
+
+        const regenLabel = isPersonalVital ? 'Regeneration' : 'Gains';
+        const drainLabel = isPersonalVital ? 'Drain' : 'Usage';
+
+        return `
+            <h4>${name}</h4>
+            <p class="tooltip-description">${description}</p>
+            <div class="tooltip-section">
+                <p>Current: <strong>${amt}${cap > 0 ? `/${cap}` : ''}</strong></p>
+            </div>
+            <div class="tooltip-section">
+                <p>${regenLabel}: +${formatNumber(totalProduction)}/s</p>
+                ${productionHtml.join('')}
+            </div>
+            <div class="tooltip-section">
+                <p>${drainLabel}: -${formatNumber(totalConsumption)}/s</p>
+                ${consumptionDetailsHtml}
+            </div>
+            <hr>
+            <p><strong>Net Change: ${sign}${formatNumber(netPerSecond)}/s</strong></p>
+        `;
+    }
 
     return `
         <h4>${name} Details</h4>
@@ -152,14 +209,11 @@ export function computeResourceRates(resourceName) {
 
     // --- Get Active States ---
     const activeAction = getActiveCrashSiteAction();
-    const survivorResource = resources.find(r => r.name === 'Survivors');
-    const survivorCount = survivorResource ? survivorResource.amount : 0;
-
     // --- Action debuff multiplier (match crashSite logic) ---
     // If food or water are depleted, actions take longer -> drain spreads over longer time.
     let actionDebuff = 1;
     const foodRes = resources.find(r => r.name === 'Food Rations');
-    const waterRes = resources.find(r => r.name === 'Clean Water');
+    const waterRes = resources.find(r => r.name === 'Drinking Water');
     const isHungry = !!(foodRes && Number(foodRes.amount) <= 0);
     const isThirsty = !!(waterRes && Number(waterRes.amount) <= 0);
     actionDebuff = 1 + (isHungry ? 0.5 : 0) + (isThirsty ? 0.5 : 0);
@@ -204,9 +258,9 @@ export function computeResourceRates(resourceName) {
         }
     });
 
-    // Purification Unit provides a global bonus to Clean Water production and collection
+    // Purification Unit provides a global bonus to camp Water production/collection.
     try {
-        if (resourceName === 'Clean Water' && gameFlags && gameFlags.purificationUnitInstalled) {
+        if (resourceName === 'Water' && gameFlags && gameFlags.purificationUnitInstalled) {
             bonusMultiplier += 0.20;
         }
     } catch (e) { /* ignore */ }
@@ -223,7 +277,30 @@ export function computeResourceRates(resourceName) {
     } catch (e) { /* ignore */ }
 
     // --- Consumption & Drain Calculation ---
-    const passiveConsumption = currentResource.baseConsumption ? currentResource.baseConsumption * survivorCount : 0;
+    const passiveConsumption = 0;
+
+    // Job upkeep / consumption (per-second), defined on job definitions as:
+    //   consumes: [{ resource: 'Water', rate: 0.003 }, ...]
+    // Rates are per assigned crew and are NOT modified by morale.
+    let jobConsumption = 0;
+    const jobConsumptionLines = [];
+    try {
+        if (Array.isArray(jobs)) {
+            for (const job of jobs) {
+                if (!job || !(job.assigned > 0)) continue;
+                const consumes = Array.isArray(job.consumes) ? job.consumes : [];
+                for (const c of consumes) {
+                    if (!c || c.resource !== resourceName) continue;
+                    const rate = Number(c.rate);
+                    if (!Number.isFinite(rate) || rate <= 0) continue;
+                    const amt = rate * Number(job.assigned || 0);
+                    if (!(amt > 0)) continue;
+                    jobConsumption += amt;
+                    jobConsumptionLines.push({ name: job.name, assigned: job.assigned, amount: amt });
+                }
+            }
+        }
+    } catch { /* ignore */ }
     let activeDrainRate = 0;
     if (activeAction && activeAction.drain) {
         const drainInfo = activeAction.drain.find(d => d.resource === resourceName);
@@ -243,7 +320,7 @@ export function computeResourceRates(resourceName) {
         totalProduction += 0.1;
     }
 
-    const totalConsumption = passiveConsumption + activeDrainRate;
+    const totalConsumption = passiveConsumption + jobConsumption + activeDrainRate;
 
     // (building passive effects were already included above in `baseProduction`)
     const netPerSecond = totalProduction - totalConsumption;
@@ -254,7 +331,7 @@ export function computeResourceRates(resourceName) {
 
     // Add Purification Unit as a visible bonus entry when active
     try {
-        if (resourceName === 'Clean Water' && gameFlags && gameFlags.purificationUnitInstalled) {
+        if (resourceName === 'Water' && gameFlags && gameFlags.purificationUnitInstalled) {
             bonuses.push({ name: 'Purification Unit', multiplier: 0.2 });
         }
     } catch (e) { /* ignore */ }
@@ -268,6 +345,8 @@ export function computeResourceRates(resourceName) {
         // job contribution lines and total
         jobLines,
         jobContribution,
+        jobConsumption,
+        jobConsumptionLines,
         // bonuses data
         bonusMultiplier: bonusMultiplier,
         bonuses,
@@ -277,6 +356,27 @@ export function computeResourceRates(resourceName) {
         passiveConsumption,
         activeDrainRate,
     };
+}
+
+function applyPersonalSupplyCapacities() {
+    try {
+        const stats = computeCharacterStats(characterState);
+
+        const foodCap = Math.max(0, PERSONAL_SUPPLY_BASE_CAP + (Number(stats?.foodCapacity) || 0));
+        const waterCap = Math.max(0, PERSONAL_SUPPLY_BASE_CAP + (Number(stats?.waterCapacity) || 0));
+
+        const food = resources.find(r => r && r.name === 'Food Rations');
+        if (food && Number.isFinite(foodCap) && foodCap > 0) {
+            food.capacity = foodCap;
+            food.amount = Math.min(Number(food.amount) || 0, food.capacity);
+        }
+
+        const water = resources.find(r => r && r.name === 'Drinking Water');
+        if (water && Number.isFinite(waterCap) && waterCap > 0) {
+            water.capacity = waterCap;
+            water.amount = Math.min(Number(water.amount) || 0, water.capacity);
+        }
+    } catch { /* non-fatal */ }
 }
 
 export function resetResources() {
@@ -450,7 +550,7 @@ function ensureCollapsedVitalsRail() {
             const map = {
                 health: 'Health',
                 stamina: 'Stamina',
-                water: 'Clean Water',
+                water: 'Drinking Water',
                 food: 'Food Rations',
             };
             Object.entries(map).forEach(([key, resName]) => {
@@ -471,7 +571,7 @@ function updateCollapsedVitalsRail() {
     const resMap = {
         health: get('Health'),
         stamina: get('Stamina'),
-        water: get('Clean Water'),
+        water: get('Drinking Water'),
         food: get('Food Rations'),
     };
 
@@ -498,6 +598,9 @@ function updateCollapsedVitalsRail() {
 }
 
 export function updateResourceInfo() {
+    // Keep personal supplies capacity in sync with equipment.
+    try { applyPersonalSupplyCapacities(); } catch {}
+
     // Keep collapsed (mobile) vitals rail in sync with resource amounts.
     // (Shown/hidden purely via responsive CSS when #infoPanel is collapsed.)
     try { updateCollapsedVitalsRail(); } catch {}
@@ -630,4 +733,10 @@ export function updateResourceInfo() {
     // Hide empty categories to avoid spoilers.
     updateResourceCategoryVisibility(document.getElementById('infoPanelContent') || document);
 
+}
+
+// Public: allow other UI surfaces (e.g., Campsite resource orbs) to reuse the exact
+// tooltip content from the info panel.
+export function getResourceTooltipHtml(resourceName) {
+    try { return buildResourceTooltipHtml(resourceName); } catch { return `<h4>${String(resourceName || '')}</h4>`; }
 }

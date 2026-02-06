@@ -13,9 +13,8 @@ const initialUpgradeActions = [
             { resource: 'Wire', amount: 10 }
         ],
         drain: [
-            { resource: 'Stamina', amount: 17 },
-            { resource: 'Food Rations', amount: 3 },
-            { resource: 'Clean Water', amount: 4 }
+            { resource: 'Provisions', amount: 4 },
+            { resource: 'Water', amount: 5 }
         ],
         repeatable: false,
         suppressGenericLog: true,
@@ -45,9 +44,8 @@ const initialUpgradeActions = [
             { resource: 'Wire', amount: 4 }
         ],
         drain: [
-            { resource: 'Stamina', amount: 15 },
-            { resource: 'Food Rations', amount: 2 },
-            { resource: 'Clean Water', amount: 3 }
+            { resource: 'Provisions', amount: 3 },
+            { resource: 'Water', amount: 4 }
         ],
         repeatable: false,
         hideRewardPreview: true,
@@ -77,9 +75,8 @@ const initialUpgradeActions = [
             { resource: 'Wire', amount: 4 }
         ],
         drain: [
-            { resource: 'Stamina', amount: 15 },
-            { resource: 'Food Rations', amount: 2 },
-            { resource: 'Clean Water', amount: 3 }
+            { resource: 'Provisions', amount: 3 },
+            { resource: 'Water', amount: 4 }
         ],
         repeatable: false,
         hideRewardPreview: true,
@@ -107,9 +104,8 @@ const initialUpgradeActions = [
             { resource: 'Metal Parts', amount: 5 }
         ],
         drain: [
-            { resource: 'Stamina', amount: 11 },
-            { resource: 'Food Rations', amount: 15 },
-            { resource: 'Clean Water', amount: 10 }
+            { resource: 'Provisions', amount: 19 },
+            { resource: 'Water', amount: 13 }
         ],
         repeatable: false,
         hideRewardPreview: true,
@@ -138,9 +134,8 @@ const initialUpgradeActions = [
             { resource: 'Metal Parts', amount: 12 }
         ],
         drain: [
-            { resource: 'Stamina', amount: 17 },
-            { resource: 'Food Rations', amount: 3 },
-            { resource: 'Clean Water', amount: 4 }
+            { resource: 'Provisions', amount: 4 },
+            { resource: 'Water', amount: 5 }
         ],
         repeatable: false,
         hideRewardPreview: true,
@@ -169,20 +164,19 @@ const initialUpgradeActions = [
             { resource: 'Wire', amount: 6 },
         ],
         drain: [
-            { resource: 'Stamina', amount: 19 },
-            { resource: 'Food Rations', amount: 3 },
-            { resource: 'Clean Water', amount: 3 }
+            { resource: 'Provisions', amount: 4 },
+            { resource: 'Water', amount: 4 }
         ],
         repeatable: false,
         hideRewardPreview: true,
         reward: [],
-        tooltipEffects: ['Unlocks Campsite panel: Crafting'],
+        tooltipEffects: ['Unlocks Crafting menu'],
         stage: 0,
         stages: [
             {
                 story: null,
                 unlocks: [],
-                logText: 'A sturdy workbench is assembled at base camp. Crafting options are now available in the Campsite tab.',
+                logText: 'A sturdy workbench is assembled at base camp. Crafting options are now available in the Crafting menu.',
                 suppressGenericLog: true
             }
         ]
@@ -200,9 +194,8 @@ const initialUpgradeActions = [
             { resource: 'Wire', amount: 12 }
         ],
         drain: [
-            { resource: 'Stamina', amount: 17 },
-            { resource: 'Food Rations', amount: 3 },
-            { resource: 'Clean Water', amount: 4 }
+            { resource: 'Provisions', amount: 4 },
+            { resource: 'Water', amount: 5 }
         ],
         repeatable: false,
         suppressGenericLog: true,
@@ -231,9 +224,8 @@ const initialUpgradeActions = [
             { resource: 'Crude Prybar', amount: 2 }
         ],
         drain: [
-            { resource: 'Stamina', amount: 23 },
-            { resource: 'Food Rations', amount: 5 },
-            { resource: 'Clean Water', amount: 6 }
+            { resource: 'Provisions', amount: 7 },
+            { resource: 'Water', amount: 8 }
         ],
         repeatable: false,
         hideRewardPreview: true,
@@ -255,7 +247,7 @@ const initialUpgradeActions = [
     {
         id: 'makeTents',
         name: 'Make Tents (Base Camp)',
-        description: 'Use salvaged fabric and parts to construct simple tents at the base camp. Increases effectiveness of resting.',
+        description: 'Use salvaged fabric and parts to construct simple tents at the base camp. Increases effectiveness of sleeping.',
         duration: 6,
         category: 'Upgrade',
         isUnlocked: false,
@@ -267,20 +259,19 @@ const initialUpgradeActions = [
             { resource: 'Crude Prybar', amount: 1 }
         ],
         drain: [
-            { resource: 'Stamina', amount: 23 },
-            { resource: 'Food Rations', amount: 4 },
-            { resource: 'Clean Water', amount: 5 }
+            { resource: 'Provisions', amount: 5 },
+            { resource: 'Water', amount: 7 }
         ],
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Rest: +20% Bonus'],
+    tooltipEffects: ['Sleep: +20% Bonus'],
         stage: 0,
         stages: [
             {
                 story: 'tents_installed',
                 unlocks: ['insulateShelters'],
-                logText: 'You construct several simple tents for the base camp. Resting will now be more effective. (Click to read)',
+                logText: 'You construct several simple tents for the base camp. Sleeping will now be more effective. (Click to read)',
                 suppressGenericLog: true
             }
         ]
@@ -288,7 +279,7 @@ const initialUpgradeActions = [
     {
         id: 'insulateShelters',
         name: 'Insulate Shelters',
-        description: 'Add insulation to tents to improve recovery during rest.',
+        description: 'Add insulation to tents to improve recovery during sleep.',
         duration: 4,
         category: 'Upgrade',
         isUnlocked: false,
@@ -299,20 +290,19 @@ const initialUpgradeActions = [
             { resource: 'Crude Prybar', amount: 2 }
         ],
         drain: [
-            { resource: 'Stamina', amount: 17 },
-            { resource: 'Food Rations', amount: 3 },
-            { resource: 'Clean Water', amount: 4 }
+            { resource: 'Provisions', amount: 4 },
+            { resource: 'Water', amount: 5 }
         ],
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Rest: +10% Bonus'],
+    tooltipEffects: ['Sleep: +10% Bonus'],
         stage: 0,
         stages: [
             {
                 story: 'shelter_insulated',
                 unlocks: [],
-                logText: 'You upgrade the tents with added insulation. Resting restores a bit more stamina now.',
+                logText: 'You upgrade the tents with added insulation. Sleeping restores a bit more stamina now.',
                 suppressGenericLog: true
             }
         ]
@@ -331,9 +321,8 @@ const initialUpgradeActions = [
             { resource: 'Wire', amount: 8 }
         ],
         drain: [
-            { resource: 'Stamina', amount: 19 },
-            { resource: 'Food Rations', amount: 3 },
-            { resource: 'Clean Water', amount: 4 }
+            { resource: 'Provisions', amount: 4 },
+            { resource: 'Water', amount: 5 }
         ],
         repeatable: false,
         hideRewardPreview: true,
@@ -364,9 +353,8 @@ const initialUpgradeActions = [
             { resource: 'Fabric', amount: 4 }
         ],
         drain: [
-            { resource: 'Stamina', amount: 23 },
-            { resource: 'Food Rations', amount: 4 },
-            { resource: 'Clean Water', amount: 5 }
+            { resource: 'Provisions', amount: 5 },
+            { resource: 'Water', amount: 7 }
         ],
         repeatable: false,
         hideRewardPreview: true,

@@ -192,8 +192,8 @@ export function setupColonySection(colonySection) {
                 <p class="tooltip-description">Your crew is digging a tunnel through collapsed bulkheads to reach the ship's Cargo Bay.</p>
                 <div class="tooltip-section"><h4>Progress</h4><p>${c}/5</p></div>
                 <div class="tooltip-section"><h4>Cost</h4>
-                    <p>Food Rations: <span class="reward-amount">-250</span></p>
-                    <p>Clean Water: <span class="reward-amount">-300</span></p>
+                    <p>Provisions: <span class="reward-amount">-250</span></p>
+                    <p>Water: <span class="reward-amount">-300</span></p>
                 </div>
                 <div class="tooltip-section"><p>Duration: 8s</p></div>
             `;
@@ -560,17 +560,17 @@ function completeSalvageVinea(button, bar, label) {
 }
 
 function canPayCargoBayCosts() {
-    const food = resources.find(r => r && r.name === 'Food Rations');
-    const water = resources.find(r => r && r.name === 'Clean Water');
+    const food = resources.find(r => r && r.name === 'Provisions');
+    const water = resources.find(r => r && r.name === 'Water');
     if (!food || !water) return { ok: false, reason: 'Missing required resources.' };
-    if ((Number(food.amount) || 0) < 250) return { ok: false, reason: 'Not enough Food Rations.' };
-    if ((Number(water.amount) || 0) < 300) return { ok: false, reason: 'Not enough Clean Water.' };
+    if ((Number(food.amount) || 0) < 250) return { ok: false, reason: 'Not enough Provisions.' };
+    if ((Number(water.amount) || 0) < 300) return { ok: false, reason: 'Not enough Water.' };
     return { ok: true };
 }
 
 function payCargoBayCosts() {
-    const food = resources.find(r => r && r.name === 'Food Rations');
-    const water = resources.find(r => r && r.name === 'Clean Water');
+    const food = resources.find(r => r && r.name === 'Provisions');
+    const water = resources.find(r => r && r.name === 'Water');
     if (food) food.amount = Math.max(0, (Number(food.amount) || 0) - 250);
     if (water) water.amount = Math.max(0, (Number(water.amount) || 0) - 300);
 }

@@ -3,8 +3,8 @@ import { buildings } from '../data/definitions/buildings.js';
 import { gameFlags } from '../data/gameFlags.js';
 import { setupColonySection } from '../sections/colony.js';
 import { updateBuildingButtonsState } from '../ui/components/buildingButtons.js';
-import { setupResearchSection, updateTechButtonsState } from '../sections/research.js';
-import { setupManufacturingSection } from '../sections/manufacturing.js';
+import { updateTechButtonsState } from '../sections/research.js';
+import { setupCraftingSection } from '../sections/crafting.js';
 import { setupShipyardSection } from '../sections/shipyard.js';
 import { setupGalaxyMapSection } from '../sections/galaxyMap.js';
 import { setupCrashSiteSection, updateCrashSiteActionButtonsState } from '../sections/crashSite.js';
@@ -23,6 +23,7 @@ import { initOptions, setGlowColor, setGlowIntensity, shouldRunInBackground } fr
 import { recomputeObjectives } from '../data/objectives.js';
 import { initFooter, getIsPaused, pauseGame, resumeGame, registerMainLoopCallbacks } from '../ui/footer.js';
 import { initTitleScreen, showTitleScreen, hideTitleScreen } from '../ui/titleScreen.js';
+import { jobs } from '../data/jobsManager.js';
 import '../ui/header.js';
 import '../ui/compactMode.js';
 import '../ui/pwa.js';
@@ -154,13 +155,9 @@ function startGame({ mode = 'continue' } = {}) {
     colonySection.id = 'colonySection';
     colonySection.classList.add('game-section');
 
-    const researchSection = document.createElement('div');
-    researchSection.id = 'researchSection';
-    researchSection.classList.add('game-section');
-
-    const manufacturingSection = document.createElement('div');
-    manufacturingSection.id = 'manufacturingSection';
-    manufacturingSection.classList.add('game-section');
+    const craftingSection = document.createElement('div');
+    craftingSection.id = 'craftingSection';
+    craftingSection.classList.add('game-section');
 	
 	const shipyardSection = document.createElement('div');
     shipyardSection.id = 'shipyardSection';
@@ -180,8 +177,8 @@ function startGame({ mode = 'continue' } = {}) {
     gameArea.appendChild(characterSection);
     gameArea.appendChild(journalSection);
     gameArea.appendChild(colonySection);
-    gameArea.appendChild(researchSection);
-    gameArea.appendChild(manufacturingSection);
+
+    gameArea.appendChild(craftingSection);
 	gameArea.appendChild(shipyardSection);
 	gameArea.appendChild(galaxyMapSection);
     gameArea.appendChild(encryptedDriveSection);
@@ -192,8 +189,7 @@ function startGame({ mode = 'continue' } = {}) {
     setupCharacterSection(characterSection);
     setupJournalSection(journalSection);
     setupColonySection(colonySection);
-    setupResearchSection(researchSection);
-    setupManufacturingSection(manufacturingSection);
+    setupCraftingSection(craftingSection);
 	setupShipyardSection(shipyardSection);
 	setupGalaxyMapSection(galaxyMapSection);
     setupEncryptedDriveSection(encryptedDriveSection);
@@ -234,6 +230,37 @@ function startGame({ mode = 'continue' } = {}) {
                 if (delta === 0) return;
                 res.amount = Math.max(0, Math.min(res.capacity, res.amount + delta));
             });
+
+            // --- Enforce job upkeep requirements (camp resources)
+            // If a job consumes a camp resource (e.g., Provisions/Water) and that resource is depleted,
+            // automatically unassign that job's workers back to Idle and log it.
+            try {
+                const EPS = 1e-9;
+                const resourceByName = new Map((resources || []).map(r => [r?.name, r]));
+                if (Array.isArray(jobs)) {
+                    for (const job of jobs) {
+                        if (!job || !(job.assigned > 0)) continue;
+                        const consumes = Array.isArray(job.consumes) ? job.consumes : [];
+                        if (consumes.length === 0) continue;
+
+                        const missing = consumes
+                            .filter(c => c && Number(c.rate) > 0)
+                            .map(c => String(c.resource || '').trim())
+                            .filter(name => {
+                                if (!name) return false;
+                                const res = resourceByName.get(name);
+                                return !res || Number(res.amount) <= EPS;
+                            });
+
+                        if (missing.length === 0) continue;
+
+                        const moved = Number(job.assigned || 0);
+                        job.assigned = 0;
+                        const missingText = missing.join(' / ');
+                        addLogEntry(`Job cancelled: ${job.name} (missing ${missingText}). ${moved} moved to Idle.`, LogType.ERROR);
+                    }
+                }
+            } catch { /* non-fatal */ }
 
             // --- Character level-up detection (UI badge) ---
             try {
@@ -343,8 +370,7 @@ export function getInitialActivatedSections() {
         characterSection: true,
         journalSection: false,
         colonySection: false,
-        researchSection: false,
-        manufacturingSection: false,
+        craftingSection: false,
         shipyardSection: false,
         galaxyMapSection: false,
         encryptedDriveSection: false,
@@ -355,10 +381,14 @@ export function setActivatedSections(sections) {
     // Keep a stable object reference (many modules store references via `window.activatedSections`).
     // Merge into defaults for forward compatibility when new sections are added.
     const defaults = getInitialActivatedSections();
-    const next = {
-        ...defaults,
-        ...(sections && typeof sections === 'object' ? sections : {})
-    };
+    const incoming = (sections && typeof sections === 'object') ? sections : {};
+    const next = { ...defaults };
+    // Only accept known section keys.
+    for (const key of Object.keys(defaults)) {
+        if (Object.prototype.hasOwnProperty.call(incoming, key)) {
+            next[key] = incoming[key];
+        }
+    }
 
     if (!activatedSections || typeof activatedSections !== 'object') {
         // Extremely defensive: rehydrate to an object if something went wrong.
@@ -380,6 +410,9 @@ export function setActivatedSections(sections) {
 }
 
 export let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || getInitialActivatedSections();
+
+// Normalize persisted activated sections (drops unknown keys, fills defaults).
+try { setActivatedSections(activatedSections); } catch { /* ignore */ }
 
 function setupMenuButtons() {
     // Order matters: keep Character above Journal
@@ -444,17 +477,9 @@ export function checkConditions() {
     
     // Legacy Laboratory auto-unlock disabled: we'll use a different unlock method.
 
-    // Legacy Manufacturing auto-unlock disabled: we'll use a different unlock method.
+    // Legacy section auto-unlock disabled: Crafting unlock is driven by the Workbench upgrade.
 
-    // New: Manufacturing unlocks once the first Workshop is built.
-    try {
-        const workshop = buildings.find(b => b && b.name === 'Workshop');
-        if (workshop && (Number(workshop.count) || 0) >= 1 && !activatedSections.manufacturingSection) {
-            enableSection('manufacturingSection');
-            try { addLogEntry('New menu section unlocked: Manufacturing', LogType.UNLOCK); } catch {}
-            try { setMenuNewItemFlag('manufacturingSection', true); } catch {}
-        }
-    } catch { /* non-fatal */ }
+    // Crafting unlock is driven by the Workbench upgrade completion.
 }
 
 // Tooltip implementation moved to tooltip.js (imports at top of file)
@@ -502,6 +527,13 @@ export function showSection(sectionId) {
         try {
             const sectionEl = document.getElementById('colonySection');
             if (sectionEl) setupColonySection(sectionEl);
+        } catch (e) { /* non-fatal */ }
+    }
+
+    if (sectionId === 'craftingSection') {
+        try {
+            const sectionEl = document.getElementById('craftingSection');
+            if (sectionEl) setupCraftingSection(sectionEl);
         } catch (e) { /* non-fatal */ }
     }
     

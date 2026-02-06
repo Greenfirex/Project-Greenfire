@@ -6,32 +6,27 @@
     /* Desktop: Jobs on the left, other panels stacked on the right.
        Jobs column is ~50% narrower than the right column (1:2 ratio). */
     grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    --campsite-row-camp: auto;
     --campsite-row-1: minmax(0, 1fr);
     --campsite-row-2: minmax(0, 1fr);
-    --campsite-row-3: minmax(0, 1fr);
     --campsite-collapsed-row: 44px;
-    --campsite-filler-row: 0px;
-    grid-template-rows: var(--campsite-row-1) var(--campsite-row-2) var(--campsite-row-3) var(--campsite-filler-row);
+    grid-template-rows: var(--campsite-row-camp) var(--campsite-row-1) var(--campsite-row-2);
     grid-template-areas:
+        "camp camp"
         "jobs upgrades"
-        "jobs buildings"
-        "jobs crafting"
-        "jobs .";
+        "jobs buildings";
     gap: 12px;
     align-items: stretch;
     flex: 1 1 auto;
     min-height: 0;
 }
 
-/* When all 3 right-side panels are collapsed, keep the grid filling the pane so Jobs reaches the bottom. */
-.campsite-layout.all-right-collapsed {
-    --campsite-filler-row: minmax(0, 1fr);
-}
+/* Camp Resources panel: when collapsed, shrink the top row like other panels */
+.campsite-layout.campresources-collapsed { --campsite-row-camp: var(--campsite-collapsed-row); }
 
 /* When a right-side panel is collapsed, shrink that grid row (desktop + mobile) */
 .campsite-layout.upgrades-collapsed { --campsite-row-1: var(--campsite-collapsed-row); }
 .campsite-layout.buildings-collapsed { --campsite-row-2: var(--campsite-collapsed-row); }
-.campsite-layout.crafting-collapsed { --campsite-row-3: var(--campsite-collapsed-row); }
 
 /* Collapsed right panels: vertically center the header within the shrunken row. */
 .campsite-card:not(.campsite-card--jobs).is-collapsed {
@@ -45,10 +40,10 @@
     min-height: 0;
 }
 
+.campsite-card--campresources { grid-area: camp; }
 .campsite-card--jobs { grid-area: jobs; }
 .campsite-card--upgrades { grid-area: upgrades; }
 .campsite-card--buildings { grid-area: buildings; }
-.campsite-card--crafting { grid-area: crafting; }
 
 /* Jobs panel: horizontal collapse (shrinks width instead of height) */
 .campsite-card--jobs {
@@ -98,9 +93,9 @@
         grid-template-columns: 1fr;
         grid-template-rows: auto;
         grid-template-areas:
+            "camp"
             "jobs"
             "upgrades"
-            "crafting"
             "buildings";
         gap: 12px;
     }
@@ -113,6 +108,129 @@
         content: none;
         display: none;
     }
+}
+
+/* Camp Resources row (orb-style storage indicators) */
+.campsite-campresources-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 4px 2px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.campsite-campres-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 2px;
+    min-width: 0;
+    width: 56px;
+}
+
+.campsite-campres-item.is-hidden {
+    display: none;
+}
+
+.campsite-campres-value {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    font-variant-numeric: tabular-nums;
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.92);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* Net change coloring: green (positive) / red (negative) / white (stale) */
+.campsite-campres-item.is-net-positive .campsite-campres-value,
+.campsite-campres-item.is-net-positive .campsite-campres-label {
+    color: #8FFFA0;
+}
+
+.campsite-campres-item.is-net-negative .campsite-campres-value,
+.campsite-campres-item.is-net-negative .campsite-campres-label {
+    color: #ff6b6b;
+}
+
+.campsite-campres-item.is-net-stale .campsite-campres-value,
+.campsite-campres-item.is-net-stale .campsite-campres-label {
+    color: #ffffff;
+}
+
+.campsite-campres-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.92);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+/* Camp Resources indicator: vertical fillable column (replaces orb look) */
+.campsite-resource-orb {
+    width: 12px;
+    height: 34px;
+    border-radius: 6px;
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.22);
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+    box-shadow:
+        0 0 10px rgba(0,0,0,0.65),
+        0 0 10px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08) inset;
+
+    --fill: 0%;
+    --orb-r: 255;
+    --orb-g: 255;
+    --orb-b: 255;
+    background:
+        linear-gradient(to bottom,
+            rgba(255,255,255,0.05) 0%,
+            rgba(0,0,0,0.60) 45%,
+            rgba(0,0,0,0.84) 100%);
+}
+
+.campsite-resource-orb::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--fill);
+    background:
+        linear-gradient(to top,
+            rgba(var(--orb-r), var(--orb-g), var(--orb-b), 0.96) 0%,
+            rgba(var(--orb-r), var(--orb-g), var(--orb-b), 0.72) 100%);
+    filter: saturate(1.05);
+    pointer-events: none;
+    z-index: 1;
+    transition: height 140ms linear;
+}
+
+.campsite-resource-orb::after {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: 4px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06) inset;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.campsite-resource-orb[data-vital="water"] { --orb-r: 52;  --orb-g: 152; --orb-b: 219; }
+.campsite-resource-orb[data-vital="food"] { --orb-r: 240; --orb-g: 240; --orb-b: 240; }
+
+/* Material orbs use the theme glow color (numbers) */
+.campsite-resource-orb[data-vital="material"] {
+    --orb-r: var(--glow-r);
+    --orb-g: var(--glow-g);
+    --orb-b: var(--glow-b);
 }
 
 /* Campsite collapsible panels (chevron borrowed from Objectives styling) */
@@ -269,15 +387,34 @@
 @media (max-width: 600px),
        (max-width: 900px) and (max-height: 450px),
        (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
+    .campsite-campresources-row {
+        gap: 10px;
+        padding: 2px 0;
+    }
+
+    .campsite-campres-item {
+        width: 50px;
+        gap: 1px;
+    }
+
+    .campsite-resource-orb {
+        width: 26px;
+        height: 26px;
+    }
+
+    .campsite-campres-label,
+    .campsite-campres-value {
+        font-size: 10px;
+    }
+
     .campsite-layout {
         --campsite-collapsed-row: 30px;
         grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-        grid-template-rows: var(--campsite-row-1) var(--campsite-row-2) var(--campsite-row-3) var(--campsite-filler-row);
+        grid-template-rows: var(--campsite-row-camp) var(--campsite-row-1) var(--campsite-row-2);
         grid-template-areas:
+            "camp camp"
             "jobs upgrades"
-            "jobs buildings"
-            "jobs crafting"
-            "jobs .";
+            "jobs buildings";
         gap: 6px;
     }
 
@@ -350,7 +487,7 @@
         stroke-width: 2.25;
     }
 
-    /* Button grids (Upgrades/Buildings/Crafting) */
+    /* Button grids (Upgrades/Buildings) */
     .campsite-card .button-group {
         gap: 4px;
     }
@@ -449,13 +586,32 @@
 html.is-compact .campsite-layout {
     --campsite-collapsed-row: 30px;
     grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-    grid-template-rows: var(--campsite-row-1) var(--campsite-row-2) var(--campsite-row-3) var(--campsite-filler-row);
+    grid-template-rows: var(--campsite-row-camp) var(--campsite-row-1) var(--campsite-row-2);
     grid-template-areas:
+        "camp camp"
         "jobs upgrades"
-        "jobs buildings"
-        "jobs crafting"
-        "jobs .";
+        "jobs buildings";
     gap: 6px;
+}
+
+html.is-compact .campsite-campresources-row {
+    gap: 10px;
+    padding: 2px 0;
+}
+
+html.is-compact .campsite-campres-item {
+    width: 50px;
+    gap: 1px;
+}
+
+html.is-compact .campsite-resource-orb {
+    width: 26px;
+    height: 26px;
+}
+
+html.is-compact .campsite-campres-label,
+html.is-compact .campsite-campres-value {
+    font-size: 10px;
 }
 
 html.is-compact .campsite-layout.jobs-collapsed {

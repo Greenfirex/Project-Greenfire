@@ -1,12 +1,12 @@
-import { resources } from '../core/resources.js';
+import { resources, getResourceTooltipHtml, computeResourceRates } from '../core/resources.js';
 import { addLogEntry, LogType } from '../core/ingameLog.js';
 
 import { buildings } from '../data/definitions/buildings.js';
 import { characterState } from '../data/character.js';
 import { gameFlags } from '../data/gameFlags.js';
 import { jobs, getJobById, getEffectiveJobRate } from '../data/jobsManager.js';
-import { upgradeEffects } from '../data/upgradeEffects.js';
 import { getMorale } from '../data/morale.js';
+import { computeRewardEffects } from '../data/upgradeEffects.js';
 
 import { updateBuildingButtonsState, createBuildingButton, rehydrateBuildingButton } from '../ui/components/buildingButtons.js';
 import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
@@ -21,6 +21,19 @@ export function getCampsitePaneHtml({ isUnlocked = false } = {}) {
     const lockedText = '<div style="opacity:0.75">Establish a base camp to unlock this tab.</div>';
     return `
         <div class="campsite-layout">
+            <div class="localmap-card campsite-card campsite-card--campresources" data-campsite-panel="campresources">
+                <div class="localmap-card-header">
+                    <h3>Camp Resources</h3>
+                    <button type="button" class="campsite-collapse-btn" aria-label="Collapse Camp Resources panel" aria-expanded="true">
+                        <svg class="chevrons-icon" width="22" height="16" viewBox="0 0 24 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path d="M3 12 L12 3 L21 12" stroke-linecap="round" />
+                            <path d="M3 18 L12 9 L21 18" stroke-linecap="round" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="localmap-card-body" id="campsiteCampResources">${isUnlocked ? '' : lockedText}</div>
+            </div>
+
             <div class="localmap-card campsite-card campsite-card--jobs" data-campsite-panel="jobs">
                 <div class="localmap-card-header">
                     <h3>Jobs</h3>
@@ -59,19 +72,6 @@ export function getCampsitePaneHtml({ isUnlocked = false } = {}) {
                 </div>
                 <div class="localmap-card-body" id="campsiteBuildings">${isUnlocked ? '' : lockedText}</div>
             </div>
-
-            <div class="localmap-card campsite-card campsite-card--crafting is-hidden" data-campsite-panel="crafting">
-                <div class="localmap-card-header">
-                    <h3>Crafting</h3>
-                    <button type="button" class="campsite-collapse-btn" aria-label="Collapse Crafting panel" aria-expanded="true">
-                        <svg class="chevrons-icon" width="22" height="16" viewBox="0 0 24 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                            <path d="M3 12 L12 3 L21 12" stroke-linecap="round" />
-                            <path d="M3 18 L12 9 L21 18" stroke-linecap="round" />
-                        </svg>
-                    </button>
-                </div>
-                <div class="localmap-card-body" id="campsiteCrafting">${isUnlocked ? '' : lockedText}</div>
-            </div>
         </div>
         <div id="salvageActionsContainer" class="campsite-actions"></div>
     `;
@@ -99,14 +99,20 @@ export function wireCampsiteCollapsibles(host) {
             if (!layout) return;
             const upgrades = host.querySelector('.campsite-card[data-campsite-panel="upgrades"]');
             const buildings = host.querySelector('.campsite-card[data-campsite-panel="buildings"]');
-            const crafting = host.querySelector('.campsite-card[data-campsite-panel="crafting"]');
             const upCollapsed = !!(upgrades && upgrades.classList.contains('is-collapsed'));
             const bCollapsed = !!(buildings && buildings.classList.contains('is-collapsed'));
-            const cCollapsed = !!(crafting && crafting.classList.contains('is-collapsed'));
             layout.classList.toggle('upgrades-collapsed', upCollapsed);
             layout.classList.toggle('buildings-collapsed', bCollapsed);
-            layout.classList.toggle('crafting-collapsed', cCollapsed);
-            layout.classList.toggle('all-right-collapsed', upCollapsed && bCollapsed && cCollapsed);
+            layout.classList.toggle('all-right-collapsed', upCollapsed && bCollapsed);
+        } catch { /* ignore */ }
+    };
+
+    const syncCampResourcesRowCollapse = () => {
+        try {
+            const layout = host.querySelector('.campsite-layout');
+            const campCard = host.querySelector('.campsite-card[data-campsite-panel="campresources"]');
+            if (!layout || !campCard) return;
+            layout.classList.toggle('campresources-collapsed', campCard.classList.contains('is-collapsed'));
         } catch { /* ignore */ }
     };
 
@@ -151,8 +157,11 @@ export function wireCampsiteCollapsibles(host) {
             // Jobs panel collapses horizontally by shrinking the left column.
             if (panelKey === 'jobs') syncJobsLayoutCollapsed();
 
+            // Camp resources shrinks the top row.
+            if (panelKey === 'campresources') syncCampResourcesRowCollapse();
+
             // Right-side panels shrink their rows.
-            if (panelKey === 'upgrades' || panelKey === 'buildings' || panelKey === 'crafting') {
+            if (panelKey === 'upgrades' || panelKey === 'buildings') {
                 syncRightPanelRowCollapses();
             }
         });
@@ -160,6 +169,7 @@ export function wireCampsiteCollapsibles(host) {
 
     // Apply layout state after restoring persisted collapses.
     syncJobsLayoutCollapsed();
+    syncCampResourcesRowCollapse();
     syncRightPanelRowCollapses();
 }
 
@@ -174,11 +184,8 @@ export function renderCampsitePanels(host, { availableActions = [], createAction
         const upHost = host.querySelector('#campsiteUpgrades');
         const bHost = host.querySelector('#campsiteBuildings');
         const jHost = host.querySelector('#campsiteJobs');
-        const cHost = host.querySelector('#campsiteCrafting');
-
-        const craftingCard = host.querySelector('.campsite-card[data-campsite-panel="crafting"]');
-        const workbench = (allActions || []).find(a => a && a.id === 'workbench');
-        const workbenchDone = !!(workbench && (workbench.completed === true || (Array.isArray(workbench.stages) && (workbench.stage || 0) >= workbench.stages.length)));
+        const cHost = host.querySelector('#campsiteCampResources');
+        // Crafting panel removed (Crafting is now its own section)
 
         if (!isCampsiteUnlocked) {
             const locked = '<div style="opacity:0.75">Establish a base camp to unlock this tab.</div>';
@@ -186,7 +193,6 @@ export function renderCampsitePanels(host, { availableActions = [], createAction
             if (bHost) bHost.innerHTML = locked;
             if (jHost) jHost.innerHTML = locked;
             if (cHost) cHost.innerHTML = locked;
-            if (craftingCard) craftingCard.classList.add('is-hidden');
             // Hide idle badge if tab is locked.
             updateCampsiteTabIdleWarning(0, { forceHide: true });
             return;
@@ -195,29 +201,9 @@ export function renderCampsitePanels(host, { availableActions = [], createAction
         if (upHost) upHost.innerHTML = '';
         if (bHost) bHost.innerHTML = '';
         if (jHost) jHost.innerHTML = '';
-        if (cHost) cHost.innerHTML = '';
 
-        if (craftingCard) {
-            const shouldHide = !workbenchDone;
-            const wasHidden = craftingCard.classList.contains('is-hidden');
-            craftingCard.classList.toggle('is-hidden', shouldHide);
-
-            // When Crafting first unlocks, ensure it starts expanded (not collapsed).
-            // Persist a small flag in localMap state so we only do this once per save.
-            try {
-                const shouldAutoExpand = !!(workbenchDone && wasHidden && lm && typeof lm === 'object' && lm.craftingPanelShown !== true);
-                if (shouldAutoExpand) {
-                    craftingCard.classList.remove('is-collapsed');
-                    const btn = craftingCard.querySelector('.campsite-collapse-btn');
-                    if (btn) {
-                        btn.setAttribute('aria-expanded', 'true');
-                        btn.setAttribute('aria-label', 'Collapse Crafting panel');
-                    }
-                    try { localStorage.setItem('campsitePanelCollapsed.crafting', 'false'); } catch { /* ignore */ }
-                    lm.craftingPanelShown = true;
-                }
-            } catch { /* ignore */ }
-        }
+        // Camp resources row (Water/Provisions snapshot)
+        try { updateCampsiteCampResourcesPanel(host); } catch { /* ignore */ }
 
         // Upgrades
         try {
@@ -268,50 +254,118 @@ export function renderCampsitePanels(host, { availableActions = [], createAction
             }
         } catch { /* ignore */ }
 
-        // Crafting (unlocked by Workbench upgrade)
-        try {
-            if (workbenchDone && cHost) {
-                const group = document.createElement('div');
-                group.className = 'button-group';
+    } catch { /* ignore */ }
+}
 
-                const craftingActionIds = [
-                    'createBasicTorch',
-                    'makeCrudePrybar',
-                    'craftMetalSpear',
-                    'fixLongRangeRadio',
-                ];
+export function updateCampsiteCampResourcesPanel(root = document) {
+    try {
+        const host = (root && typeof root.querySelector === 'function')
+            ? root.querySelector('#campsiteCampResources')
+            : null;
+        if (!host) return;
 
-                // Always show crafting buttons once unlocked.
-                // If the player is not standing on Base Camp (B7), block starting them and log a hint.
-                if (!atBaseCampTile) {
-                    group.addEventListener('click', (e) => {
-                        try {
-                            const btn = e.target && e.target.closest ? e.target.closest('button') : null;
-                            if (!btn || !group.contains(btn)) return;
-                            e.preventDefault();
-                            e.stopPropagation();
-                            try { e.stopImmediatePropagation(); } catch { /* ignore */ }
-                            addLogEntry('You need to be closer to perform this action.', LogType.INFO);
-                        } catch { /* ignore */ }
-                    }, true);
-                }
+        let row = host.querySelector('.campsite-campresources-row');
+        if (!row) {
+            row = document.createElement('div');
+            row.className = 'campsite-campresources-row';
+            host.innerHTML = '';
+            host.appendChild(row);
+        }
 
-                if (typeof createActionButton === 'function') {
-                    craftingActionIds.forEach(id => {
-                        const a = (allActions || []).find(x => x && x.id === id);
-                        if (!a || !a.isUnlocked) return;
-                        createActionButton(a, group);
-                    });
-                } else {
-                    const note = document.createElement('div');
-                    note.style.opacity = '0.75';
-                    note.textContent = 'Crafting unavailable (UI wiring missing).';
-                    group.appendChild(note);
-                }
+        const get = (name) => (resources || []).find(r => r && r.name === name);
+        const entries = [
+            // Always show camp stockpiles once the Campsite tab is unlocked.
+            { key: 'Water', resName: 'Water', label: 'Water', vital: 'water', requireDiscovered: false },
+            { key: 'Provisions', resName: 'Provisions', label: 'Provisions', vital: 'food', requireDiscovered: false },
 
-                cHost.appendChild(group);
+            // Show additional materials once discovered.
+            { key: 'Scrap', resName: 'Metal Parts', label: 'Scrap', vital: 'material', requireDiscovered: true },
+            { key: 'Wire', resName: 'Wire', label: 'Wire', vital: 'material', requireDiscovered: true },
+            { key: 'Chemicals', resName: 'Chemicals', label: 'Chemicals', vital: 'material', requireDiscovered: true },
+            { key: 'Fabric', resName: 'Fabric', label: 'Fabric', vital: 'material', requireDiscovered: true },
+        ];
+
+        // Ensure item nodes exist in the right order.
+        for (const entry of entries) {
+            let item = row.querySelector(`.campsite-campres-item[data-key="${entry.key}"]`);
+            if (!item) {
+                item = document.createElement('div');
+                item.className = 'campsite-campres-item';
+                item.dataset.key = entry.key;
+                item.innerHTML = `
+                    <div class="campsite-resource-orb" data-vital="${entry.vital}"></div>
+                    <div class="campsite-campres-value" aria-hidden="true"></div>
+                    <div class="campsite-campres-label"></div>
+                `;
+                row.appendChild(item);
             }
-        } catch { /* ignore */ }
+            const labelEl = item.querySelector('.campsite-campres-label');
+            if (labelEl) labelEl.textContent = entry.label;
+
+            // Tooltip: match info panel resource tooltips.
+            const orb = item.querySelector('.campsite-resource-orb');
+            if (orb && typeof setupTooltip === 'function' && orb.dataset.tooltipWired !== '1') {
+                orb.dataset.tooltipWired = '1';
+                try { setupTooltip(orb, () => getResourceTooltipHtml(entry.resName)); } catch { /* ignore */ }
+            }
+        }
+
+        const EPS = 1e-6;
+
+        for (const entry of entries) {
+            const item = row.querySelector(`.campsite-campres-item[data-key="${entry.key}"]`);
+            if (!item) continue;
+
+            const orb = item.querySelector('.campsite-resource-orb');
+            const valEl = item.querySelector('.campsite-campres-value');
+
+            const res = get(entry.resName);
+            const isDiscovered = !!(res && res.isDiscovered);
+            const shouldShow = !!res && (!entry.requireDiscovered || isDiscovered);
+            item.classList.toggle('is-hidden', !shouldShow);
+
+            // Net rate coloring (positive green / negative red / stale white)
+            item.classList.remove('is-net-positive', 'is-net-negative', 'is-net-stale');
+
+            if (!shouldShow) {
+                try { if (orb) orb.style.setProperty('--fill', `0%`); } catch { /* ignore */ }
+                if (valEl) valEl.textContent = '';
+                try { item.removeAttribute('title'); } catch { /* ignore */ }
+                continue;
+            }
+
+            const amt = res.integer ? Math.floor(Number(res.amount) || 0) : (Number(res.amount) || 0);
+            const cap = res.integer ? Math.floor(Number(res.capacity) || 0) : (Number(res.capacity) || 0);
+            const pct = (cap > 0) ? Math.max(0, Math.min(100, (amt / cap) * 100)) : 0;
+            try { if (orb) orb.style.setProperty('--fill', `${pct}%`); } catch { /* ignore */ }
+
+            if (valEl) valEl.textContent = `${amt}${cap > 0 ? `/${cap}` : ''}`;
+            // `title` is intentionally not used here; tooltips are handled by the shared tooltip system.
+
+            try {
+                const rates = computeResourceRates(entry.resName);
+                const net = Number(rates?.netPerSecond ?? 0);
+                const isCapped = (cap > 0) && (amt >= (cap - (res.integer ? 0 : EPS)));
+
+                let state = 'stale';
+                if (Number.isFinite(net)) {
+                    if (Math.abs(net) < EPS) {
+                        state = 'stale';
+                    } else if (net > 0 && isCapped) {
+                        // Not changing because storage is full.
+                        state = 'stale';
+                    } else if (net > 0) {
+                        state = 'positive';
+                    } else {
+                        state = 'negative';
+                    }
+                }
+
+                item.classList.toggle('is-net-positive', state === 'positive');
+                item.classList.toggle('is-net-negative', state === 'negative');
+                item.classList.toggle('is-net-stale', state === 'stale');
+            } catch { /* ignore */ }
+        }
     } catch { /* ignore */ }
 }
 
@@ -488,22 +542,13 @@ export function updateCampsiteJobsPanel() {
                 const assigned = job.assigned || 0;
                 const slots = (job.unlimited === true || job.slots === Number.POSITIVE_INFINITY) ? '∞' : (job.slots || 0);
                 const desc = job.description || '';
+                const consumes = Array.isArray(job.consumes) ? job.consumes : [];
 
-                const bonuses = [];
-                for (let i = 0; i < upgradeEffects.length; i++) {
-                    const eff = upgradeEffects[i];
-                    if (!eff || !eff.flag) continue;
-                    if (!gameFlags[eff.flag]) continue;
-                    if (!eff.resources || !eff.resources.includes(produces)) continue;
-                    if (!eff.actions || !Array.isArray(eff.actions) || eff.actions.length === 0) continue;
-                    const matches = eff.actions.some(a => {
-                        if (!a) return false;
-                        const av = String(a).toLowerCase().replace(/\s+/g, '');
-                        return av === String(job.id).toLowerCase().replace(/\s+/g, '');
-                    });
-                    if (!matches) continue;
-                    if (eff.label) bonuses.push(eff.label);
-                }
+                const bonusLabels = [];
+                try {
+                    const eff = computeRewardEffects(job.id, produces, gameFlags);
+                    if (eff && Array.isArray(eff.labels)) bonusLabels.push(...eff.labels);
+                } catch { /* ignore */ }
 
                 const lines = [];
                 lines.push(`<strong>${job.name}</strong>`);
@@ -513,13 +558,29 @@ export function updateCampsiteJobsPanel() {
                 const rateClass = isBoosted ? 'reward-amount boosted' : 'reward-amount';
                 lines.push(`<div><em>Per worker:</em> <span class="${rateClass}">${effectiveRate.toFixed(3)}</span>/s <small style="color:#bbb"> (base ${baseRate}/s)</small></div>`);
                 lines.push(`<div><em>Assigned:</em> ${assigned} / ${slots}</div>`);
+
+                // Job upkeep / consumption sink (per second)
+                try {
+                    const keep = consumes
+                        .map(c => ({ resource: c && c.resource ? String(c.resource) : null, rate: Number(c && c.rate) }))
+                        .filter(c => c.resource && Number.isFinite(c.rate) && c.rate > 0);
+                    if (keep.length) {
+                        lines.push(`<div style="margin-top:6px"><em>Consumes:</em></div>`);
+                        for (const c of keep) {
+                            const per = c.rate;
+                            const total = per * Math.max(0, Number(assigned) || 0);
+                            lines.push(`<div style="margin-left:10px">- ${c.resource}: <span class="reward-amount">${per.toFixed(3)}</span>/s per worker <small style="color:#bbb">(total ${total.toFixed(3)}/s)</small></div>`);
+                        }
+                    }
+                } catch { /* ignore */ }
+
                 try {
                     const m = getMorale();
                     const moraleDelta = Math.round((m && typeof m.percent === 'number' ? m.percent : 100) - 100);
                     const labels = [];
                     const sign = moraleDelta > 0 ? '+' : '';
                     labels.push(`Morale: ${sign}${moraleDelta}%`);
-                    for (const b of bonuses) labels.push(b);
+                    for (const b of bonusLabels) labels.push(b);
                     if (labels.length) {
                         lines.push(`<div class="tooltip-section"><h4>Modifiers</h4><ul class="tooltip-bonuses">${labels.map(l => `<li class="bonus-item">${l}</li>`).join('')}</ul></div>`);
                     }

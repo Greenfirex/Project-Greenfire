@@ -12,7 +12,7 @@ const initialSalvageActions = [
             drain: [ 
                 { resource: 'Stamina', amount: 13 },
                 { resource: 'Food Rations', amount: 4 },
-                { resource: 'Clean Water', amount: 5 }
+                { resource: 'Drinking Water', amount: 5 }
             ],
             stage: 0,
             stages: [
@@ -35,7 +35,7 @@ const initialSalvageActions = [
             drain: [
                 { resource: 'Stamina', amount: 25 },
                 { resource: 'Food Rations', amount: 9 },
-                { resource: 'Clean Water', amount: 15 },
+                { resource: 'Drinking Water', amount: 15 },
             ],
             stage: 0,
             stages: [
@@ -94,6 +94,36 @@ const initialSalvageActions = [
             },
 
             {
+                id: 'craftFirstAidKit',
+                name: 'Craft First Aid Kit',
+                description: 'Use fabric to assemble a basic first aid kit for treating injuries.',
+                duration: 3,
+                category: 'Crafting',
+                isUnlocked: false,
+                cancelable: true,
+                repeatable: true,
+                showUnlocks: false,
+                cost: [
+                    { resource: 'Fabric', amount: 3 }
+                ],
+                drain: [
+                    { resource: 'Stamina', amount: 6 }
+                ],
+                reward: [],
+                hideRewardPreview: true,
+                stage: 0,
+                stages: [
+                    {
+                        story: null,
+                        unlocks: [],
+                        grantItems: ['first_aid_kit'],
+                        grantItemsPreferEquip: false,
+                        logText: 'You assemble a first aid kit you can use later.'
+                    }
+                ]
+            },
+
+            {
                 id: 'burnThornyWall',
                 name: 'Burn Thorny Wall',
                 description: 'Use an equipped torch to burn through a dense wall of thorns and clear a path.',
@@ -144,7 +174,7 @@ const initialSalvageActions = [
                     { resource: 'Stamina', amount: 7 }
                 ],
                 reward: [ 
-                    { resource: 'Clean Water', amount: [25, 35] }
+                    { resource: 'Drinking Water', amount: [25, 35] }
                 ]
             },
             {
@@ -161,7 +191,7 @@ const initialSalvageActions = [
                 encounterFailLogText: 'You spend hours tracking signs, but find no prey.',
                 drain: [
                     { resource: 'Stamina', amount: 20 },
-                    { resource: 'Clean Water', amount: 10 },
+                    { resource: 'Drinking Water', amount: 10 },
                     { resource: 'Food Rations', amount: 6 }
                 ],
                 reward: [
@@ -192,6 +222,28 @@ const initialSalvageActions = [
             },
 
             {
+                id: 'sleep',
+                name: 'Sleep',
+                description: 'Rest inside your tent at base camp. You wake up feeling far more recovered than a quick break in the wild.',
+                duration: 2.5,
+                category: 'Survival',
+                isUnlocked: false,
+                repeatable: true,
+                reward: [
+                    { resource: 'Stamina', amount: [70, 95] },
+                    { resource: 'Health', amount: [10, 16] }
+                ],
+                stage: 0,
+                stages: [
+                    {
+                        story: null,
+                        unlocks: [],
+                        logText: 'You sleep in your tent and wake with renewed strength.'
+                    }
+                ]
+            },
+
+            {
                 id: 'drinkCaveWater',
                 name: 'Drink from Cave Stream',
                 description: 'Sip from a small underground stream running through the cave. It\'s not much, but it helps.',
@@ -205,7 +257,7 @@ const initialSalvageActions = [
                 ],
                 reward: [
                     // Smaller than the river-based water actions.
-                    { resource: 'Clean Water', amount: [4, 8] },
+                    { resource: 'Drinking Water', amount: [4, 8] },
                 ],
                 stage: 0,
                 stages: [
@@ -228,7 +280,7 @@ const initialSalvageActions = [
                 drain: [
                    { resource: 'Stamina', amount: 25 },
                    { resource: 'Food Rations', amount: 15 },
-                   { resource: 'Clean Water', amount: 20 }
+                   { resource: 'Drinking Water', amount: 20 }
                 ],
                 // single-stage action that triggers a story popup on completion
                 stage: 0,
@@ -250,7 +302,7 @@ const initialSalvageActions = [
                 isUnlocked: false, 
                 drain: [ { resource: 'Stamina', amount: 10 }, 
                         { resource: 'Food Rations', amount: 6 },
-                        { resource: 'Clean Water', amount: 7 } 
+                        { resource: 'Drinking Water', amount: 7 } 
                     ],
                 reward: [
                     { resource: 'Metal Parts', amount: [7, 8] }
@@ -273,7 +325,7 @@ const initialSalvageActions = [
                 drain: [
                     { resource: 'Stamina', amount: 10 },
                     { resource: 'Food Rations', amount: 3 },
-                    { resource: 'Clean Water', amount: 4 }
+                    { resource: 'Drinking Water', amount: 4 }
                 ],
                 reward: [
                     { resource: 'Crude Prybar', amount: 1 }
@@ -297,7 +349,7 @@ const initialSalvageActions = [
                 drain: [
                     { resource: 'Stamina', amount: 60 },
                     { resource: 'Food Rations', amount: 6 },
-                    { resource: 'Clean Water', amount: 7 } 
+                    { resource: 'Drinking Water', amount: 7 } 
                 ],
                 cost: [
                     { resource: 'Crude Prybar', amount: 1 }
@@ -358,7 +410,7 @@ const initialSalvageActions = [
                 drain: [
                     { resource: 'Stamina', amount: 28 },
                     { resource: 'Food Rations', amount: 7 },
-                    { resource: 'Clean Water', amount: 9 }
+                    { resource: 'Drinking Water', amount: 9 }
                 ],
                 reward: [],
                 // Tooltip-only: some unlocks are applied elsewhere in game code; expose them here
@@ -370,10 +422,82 @@ const initialSalvageActions = [
                 stages: [
                     {
                         story: 'basecamp_established', // matches new storyEvents entry
-                        unlocks: ['craftMetalSpear'],
+                        unlocks: ['craftMetalSpear', 'sleep', 'refillCanteen', 'packRations', 'haulWater', 'haulBerries'],
                         logText: 'You establish a small base camp. Survivors can be organized here. (Click to read)',
                         suppressGenericLog: true
                     }
+                ]
+            },
+
+            // Base camp utility actions (local-map tile actions at B7)
+            {
+                id: 'refillCanteen',
+                name: 'Refill Canteen',
+                description: 'Transfer camp Water into your canteen.',
+                duration: 1,
+                category: 'Survival',
+                isUnlocked: false,
+                cancelable: true,
+                repeatable: true,
+                cost: [
+                    { resource: 'Water', amount: 25 }
+                ],
+                reward: [
+                    { resource: 'Drinking Water', amount: 25 }
+                ]
+            },
+            {
+                id: 'packRations',
+                name: 'Pack Rations',
+                description: 'Transfer camp Provisions into your rations pack.',
+                duration: 1,
+                category: 'Survival',
+                isUnlocked: false,
+                cancelable: true,
+                repeatable: true,
+                cost: [
+                    { resource: 'Provisions', amount: 25 }
+                ],
+                reward: [
+                    { resource: 'Food Rations', amount: 25 }
+                ]
+            },
+
+            // Post-base-camp hauling actions (tile-bound; feeds camp storage)
+            {
+                id: 'haulWater',
+                name: 'Haul Water',
+                description: 'Fill containers at the river and haul the water back to camp storage.',
+                duration: 3,
+                category: 'Survival',
+                isUnlocked: false,
+                cancelable: true,
+                repeatable: true,
+                drain: [
+                    { resource: 'Stamina', amount: 12 },
+                    { resource: 'Food Rations', amount: 2 },
+                    { resource: 'Drinking Water', amount: 2 }
+                ],
+                reward: [
+                    { resource: 'Water', amount: [20, 35] }
+                ]
+            },
+            {
+                id: 'haulBerries',
+                name: 'Haul Berries',
+                description: 'Gather berries and haul them back to camp provisions stores.',
+                duration: 3,
+                category: 'Survival',
+                isUnlocked: false,
+                cancelable: true,
+                repeatable: true,
+                drain: [
+                    { resource: 'Stamina', amount: 10 },
+                    { resource: 'Food Rations', amount: 2 },
+                    { resource: 'Drinking Water', amount: 2 }
+                ],
+                reward: [
+                    { resource: 'Provisions', amount: [12, 20] }
                 ]
             },
 
@@ -394,7 +518,7 @@ const initialSalvageActions = [
                 drain: [
                     { resource: 'Stamina', amount: 12 },
                     { resource: 'Food Rations', amount: 3 },
-                    { resource: 'Clean Water', amount: 3 }
+                    { resource: 'Drinking Water', amount: 3 }
                 ],
                 reward: [],
                 hideRewardPreview: true,
@@ -426,7 +550,7 @@ const initialSalvageActions = [
             drain: [
                 { resource: 'Stamina', amount: 40 },
                 { resource: 'Food Rations', amount: 15 },
-                { resource: 'Clean Water', amount: 19 }
+                { resource: 'Drinking Water', amount: 19 }
             ],
             reward: [],
             hideRewardPreview: true,
@@ -457,7 +581,7 @@ const initialSalvageActions = [
             drain: [
                 { resource: 'Stamina', amount: 12 },
                 { resource: 'Food Rations', amount: 2 },
-                { resource: 'Clean Water', amount: 3 }
+                { resource: 'Drinking Water', amount: 3 }
             ],
             reward: [
                 { resource: 'Wire', amount: [6, 12] }
@@ -476,7 +600,7 @@ const initialSalvageActions = [
         {
             id: 'exploreCafeteria',
             name: 'Explore Cafeteria',
-            description: 'Search the ship\'s mess hall for usable food and clean water among the wreckage.',
+            description: 'Search the ship\'s mess hall for usable food and drinking water among the wreckage.',
             duration: 6,
             category: 'Exploration',
             isUnlocked: false,
@@ -488,7 +612,7 @@ const initialSalvageActions = [
             ],
             reward: [
                 { resource: 'Food Rations', amount: [15, 25] },
-                { resource: 'Clean Water', amount: [20, 40] },
+                { resource: 'Drinking Water', amount: [20, 40] },
                 { resource: 'Survivors', amount: 2 }
             ],
             hideRewardPreview: true,
@@ -519,7 +643,7 @@ const initialSalvageActions = [
             ],
             reward: [
                 { resource: 'Food Rations', amount: [2, 5] },
-                { resource: 'Clean Water', amount: [3, 7] }
+                { resource: 'Drinking Water', amount: [3, 7] }
             ],
             hideRewardPreview: false,
             stage: 0,
@@ -572,7 +696,7 @@ const initialSalvageActions = [
             drain: [
                 { resource: 'Stamina', amount: 12 },
                 { resource: 'Food Rations', amount: 2 },
-                { resource: 'Clean Water', amount: 3 }
+                { resource: 'Drinking Water', amount: 3 }
             ],
             reward: [
                 { resource: 'Fabric', amount: [2, 3] }
@@ -604,7 +728,7 @@ const initialSalvageActions = [
             drain: [
                 { resource: 'Stamina', amount: 30 },
                 { resource: 'Food Rations', amount: 14 },
-                { resource: 'Clean Water', amount: 16 }
+                { resource: 'Drinking Water', amount: 16 }
             ],
             reward: [
                  { resource: 'Survivors', amount: 1 }
@@ -642,7 +766,7 @@ const initialSalvageActions = [
                     drain: [
                         { resource: 'Stamina', amount: 20 },
                         { resource: 'Food Rations', amount: 25 },
-                        { resource: 'Clean Water', amount: 25 },
+                        { resource: 'Drinking Water', amount: 25 },
             ],
                 },
                 {
@@ -658,7 +782,7 @@ const initialSalvageActions = [
                     drain: [
                         { resource: 'Stamina', amount: 50 },
                         { resource: 'Food Rations', amount: 35 },
-                        { resource: 'Clean Water', amount: 30 },
+                        { resource: 'Drinking Water', amount: 30 },
                     ],
                     reward: [
                         { resource: 'Power Cells', amount: 3 },
@@ -707,7 +831,7 @@ const initialSalvageActions = [
             drain: [
                 { resource: 'Stamina', amount: 12 },
                 { resource: 'Food Rations', amount: 7 },
-                { resource: 'Clean Water', amount: 6 }
+                { resource: 'Drinking Water', amount: 6 }
             ],
             reward: [
                 { resource: 'Chemicals', amount: [2, 3] }
@@ -739,7 +863,7 @@ const initialSalvageActions = [
             drain: [
                 { resource: 'Stamina', amount: 28 },
                 { resource: 'Food Rations', amount: 5 },
-                { resource: 'Clean Water', amount: 6 }
+                { resource: 'Drinking Water', amount: 6 }
             ],
             reward: [],
             hideRewardPreview: true,
@@ -773,7 +897,7 @@ const initialSalvageActions = [
             drain: [
                 { resource: 'Stamina', amount: 13 },
                 { resource: 'Food Rations', amount: 3 },
-                { resource: 'Clean Water', amount: 3 }
+                { resource: 'Drinking Water', amount: 3 }
             ],
             reward: [
                 { resource: 'Makeshift Explosive', amount: 1 }
@@ -809,7 +933,7 @@ const initialSalvageActions = [
                         description: 'You reach the bridge access. Without emergency power the heavy lift is inert and blocks progress.',
                         drain: [
                             { resource: 'Stamina', amount: 15 },
-                            { resource: 'Clean Water', amount: 6 },
+                            { resource: 'Drinking Water', amount: 6 },
                             { resource: 'Food Rations', amount: 4 }
                         ],
                         logText: 'You reach the bridge access. A heavy lift blocks the way — dead without power. Blasting through is not an option. (Click to read)',
@@ -824,7 +948,7 @@ const initialSalvageActions = [
                         description: 'Emergency power is online: the lift cycles, granting limited access to the bridge. You can ride up and assess the situation.',
                         drain: [
                             { resource: 'Stamina', amount: 25 },
-                            { resource: 'Clean Water', amount: 8 },
+                            { resource: 'Drinking Water', amount: 8 },
                             { resource: 'Food Rations', amount: 7 }
                         ],
                         logText: 'You reach the command deck. The bridge is a tomb — everyone you find is gone, and most equipment is beyond saving. One gutted comms panel might be salvageable. Your only chance is to scavenge it and try to rewire it to your last power cell to hail Starfleet Command. (Click to read)',
@@ -848,7 +972,7 @@ const initialSalvageActions = [
                 drain: [
                     { resource: 'Stamina', amount: 18 },
                     { resource: 'Food Rations', amount: 4 },
-                    { resource: 'Clean Water', amount: 4 }
+                    { resource: 'Drinking Water', amount: 4 }
                 ],
                 reward: [],
                 stage: 0,
@@ -895,7 +1019,7 @@ const initialSalvageActions = [
                 hideRewardPreview: true,
                 drain: [
                     { resource: 'Stamina', amount: 18 },
-                    { resource: 'Clean Water', amount: 5 },
+                    { resource: 'Drinking Water', amount: 5 },
                     { resource: 'Food Rations', amount: 4 }
                 ],
                 reward: [],
@@ -921,7 +1045,7 @@ const initialSalvageActions = [
                 tooltipUnlocks: ['encryptedDriveSection', 'colonySection'],
                 drain: [
                     { resource: 'Stamina', amount: 25 },
-                    { resource: 'Clean Water', amount: 7 },
+                    { resource: 'Drinking Water', amount: 7 },
                     { resource: 'Food Rations', amount: 6 }
                 ],
                 reward: [],
@@ -941,7 +1065,7 @@ const initialSalvageActions = [
                 name: 'Fix Long-Range Radio',
                 description: 'Scavenge the damaged comms panel and rewire it to a power cell using insulated fabric and salvaged wiring to attempt contacting Starfleet Command.',
                 duration: 12,
-                category: 'Exploration',
+                category: 'Quest',
                 isUnlocked: false,
                 // Tile-bound (base camp) action; suppress noisy generic unlock logs.
                 suppressUnlockLog: true,

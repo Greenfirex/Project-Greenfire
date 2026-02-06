@@ -660,12 +660,13 @@ html.is-compact .localmap-zoom {
     grid-template-columns: repeat(var(--cols, 11), 1fr);
     grid-template-rows: repeat(var(--rows, 9), 1fr);
 
-    /* Optional visual test layer: image under the grid/tiles */
-    background-image: url("../../assets/images/mapback2.png");
-    /* Preserve the full backing image (avoid bottom cropping when layout aspect changes) */
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
+     /* Background image under the grid/tiles.
+         Use a full stretch so we don't show "letterbox" gaps that can look like the image is cut off,
+         especially when the map is zoomed/panned in compact phone-landscape. */
+     background-image: url("../../assets/images/mapback2.png");
+     background-size: 100% 100%;
+     background-position: center;
+     background-repeat: no-repeat;
 
     position: relative;
     z-index: 1;
@@ -767,6 +768,23 @@ html.is-compact .localmap-zoom {
     position: relative;
     background: rgba(0,0,0,0.12);
     cursor: pointer;
+}
+
+/* Base camp overlay art (shown after camp is established). */
+.localmap-basecamp-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: url("../../assets/images/basecamp.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    /* Stretch to fill the tile so it reads as "built here". */
+    background-size: 100% 100%;
+    /* Blend out the black matte and integrate with the map art. */
+    mix-blend-mode: screen;
+    opacity: 0.82;
+    filter: saturate(1.05) contrast(1.04);
+    pointer-events: none;
+    z-index: 1;
 }
 
 .localmap-tile.is-blocked {

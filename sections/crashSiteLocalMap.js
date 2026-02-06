@@ -764,6 +764,14 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
     const mapState = normalizeState(state);
     const zoom = normalizeZoom(state);
     const { panX, panY } = normalizePan(state, zoom);
+
+    // If we're not zoomed in, force pan to 0 so the background/grid can't look offset.
+    try {
+        if (state && typeof state === 'object' && zoom <= 1.01) {
+            state.panX = 0;
+            state.panY = 0;
+        }
+    } catch { /* ignore */ }
     const stage = clamp(Number(scoutStage) || 0, 0, Math.max(0, Number(totalStages) || 0));
     const radius = 1; // Always reveal one tile away from the player
 
@@ -1229,7 +1237,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
         // Resources hinting:
         // - D7 has Food Rations (berries/food source)
-        // - H8 has Clean Water (water source)
+        // - H8 has Drinking Water (water source)
         // - Once Scavenge Debris Field is unlocked, tiles adjacent to the crash POI are known to contain Metal Parts
         // - Everything else stays Unknown
         let resourcesValue = 'Unknown';
@@ -1250,7 +1258,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                     }
                     resourcesList = resources;
                 } else if (isH8) {
-                    resourcesList = ['Clean Water'];
+                    resourcesList = ['Drinking Water'];
                 } else if (isG3) {
                     const chem = (salvageActions || []).find(a => a && a.id === 'collectChemicals');
                     if (chem && chem.isUnlocked) resourcesList = ['Chemicals'];
@@ -1270,8 +1278,8 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 const isD6 = (Number(col) === 4 && Number(row) === 6);
                 if (isD6) {
                     const used = Math.max(0, Math.floor(Number(state?.cafeteriaSuppliesByTile?.['4,6'] || 0)));
-                    resourcesValue = (used >= 7) ? 'None' : 'Food Rations, Clean Water';
-                    if (resourcesValue !== 'None') resourcesList = ['Food Rations', 'Clean Water'];
+                    resourcesValue = (used >= 7) ? 'None' : 'Food Rations, Drinking Water';
+                    if (resourcesValue !== 'None') resourcesList = ['Food Rations', 'Drinking Water'];
                 } else if (meta && meta.typeId === 'crewQuarters') {
                     resourcesList = ['Fabric'];
                 } else {
@@ -1370,6 +1378,19 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             const meta = tileMeta(c, r);
             // Do not reveal blocked tiles through fog-of-war.
             tile.classList.toggle('is-blocked', !!(discovered && meta.blocked));
+
+            // Base Camp tile overlay (visual): once established, draw the camp art directly on the tile.
+            try {
+                const established = !!(state && typeof state === 'object' && state.baseCampEstablished === true);
+                const isBaseCamp = !!(meta && meta.typeId === 'baseCamp');
+                if (established && isBaseCamp) {
+                    tile.classList.add('has-basecamp-overlay');
+                    const campOverlay = document.createElement('div');
+                    campOverlay.className = 'localmap-basecamp-overlay';
+                    campOverlay.setAttribute('aria-hidden', 'true');
+                    tile.appendChild(campOverlay);
+                }
+            } catch { /* ignore */ }
 
             if (burnAnim && c === burnAnim.x && r === burnAnim.y) {
                 tile.classList.add('is-just-burned');

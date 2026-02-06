@@ -1,4 +1,5 @@
-#researchSection {
+#researchSection,
+.research-host {
     padding: 20px;
     color: white;
     display: flex;
@@ -15,7 +16,8 @@
 }
 
 /* Ensure the section's panel stretches to the bottom of the section */
-#researchSection > .content-panel {
+#researchSection > .content-panel,
+.research-host > .content-panel {
     flex: 1;
     width: 100%;
     align-self: stretch;
@@ -24,7 +26,8 @@
 }
 
 /* Research inner layout needs to be a flex column so the tech wrapper can grow */
-#researchSection .section-inner.research-section {
+#researchSection .section-inner.research-section,
+.research-host .section-inner.research-section {
     flex: 1;
     width: 100%;
     display: flex;

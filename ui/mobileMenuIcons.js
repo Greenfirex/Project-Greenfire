@@ -3,6 +3,12 @@
 // - Mirrors the existing unlocked menu buttons so players can switch sections without expanding
 
 import { isCompactPhoneLandscape as isCompactPhoneLandscapeShared } from './compactMode.js';
+import { characterState, getUnspentStatPoints } from '../data/character.js';
+import { resources } from '../core/resources.js';
+import { jobs } from '../data/jobsManager.js';
+import { buildings } from '../data/definitions/buildings.js';
+import { allActions } from '../data/definitions/allActions.js';
+import { gameFlags } from '../data/gameFlags.js';
 
 function isCompactPhoneLandscape() {
     return !!isCompactPhoneLandscapeShared();
@@ -36,7 +42,7 @@ function svgForSection(sectionId) {
     <path d="M6 10v10h12V10" />
     <path d="M10 20v-6h4v6" />
 </svg>`,
-                manufacturingSection: `
+                craftingSection: `
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M3 21V10l6 3V10l6 3V10l6 3v8H3z" />
     <path d="M7 21v-4" />
@@ -48,13 +54,6 @@ function svgForSection(sectionId) {
     <path d="M12 2l3 6 7 3-10 4-10-4 7-3 3-6z" />
     <path d="M2 15c2 2 5 3 10 3s8-1 10-3" />
     <path d="M4 19c2 2 4 3 8 3s6-1 8-3" />
-</svg>`,
-                researchSection: `
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <circle cx="11" cy="11" r="7" />
-    <path d="M21 21l-4.3-4.3" />
-    <path d="M8 11h6" />
-    <path d="M11 8v6" />
 </svg>`,
                 galaxyMapSection: `
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -140,7 +139,20 @@ function openPopover(anchorButton, items) {
         btn.type = 'button';
         btn.className = 'mobile-menu-popover-item';
         btn.setAttribute('role', 'menuitem');
-        btn.textContent = item.label;
+
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'mobile-menu-popover-item-label';
+        labelSpan.textContent = item.label;
+        btn.appendChild(labelSpan);
+
+        if (item.hasWarn) {
+            const badge = document.createElement('span');
+            badge.className = 'action-new-badge';
+            badge.textContent = '!';
+            badge.setAttribute('aria-hidden', 'true');
+            btn.appendChild(badge);
+        }
+
         btn.disabled = !!item.disabled;
         if (item.disabled && item.disabledReason) btn.title = item.disabledReason;
         btn.addEventListener('click', (e) => {
@@ -178,6 +190,59 @@ function openPopover(anchorButton, items) {
     try { anchorButton.setAttribute('aria-expanded', 'true'); } catch { /* ignore */ }
 }
 
+function getCharacterTabWarnMeta() {
+    let gearWarn = false;
+    let statsWarn = false;
+
+    try {
+        gearWarn = !!(characterState && Array.isArray(characterState.bagUiNew) && characterState.bagUiNew.some(v => !!v));
+    } catch { gearWarn = false; }
+
+    try {
+        const xp = Array.isArray(resources) ? resources.find(r => r && r.name === 'XP') : null;
+        const totalXp = xp ? Number(xp.amount) : 0;
+        const unspent = getUnspentStatPoints(totalXp, characterState);
+        statsWarn = unspent > 0;
+    } catch { statsWarn = false; }
+
+    return { gearWarn, statsWarn };
+}
+
+function getCrashSiteCampTabWarnMeta() {
+    // This badge is for the Crash Site > Campsite tab (not the standalone Colony section).
+    // Show it when there are idle workers to assign OR newly-unlocked camp buildings/upgrades.
+    let idleWarn = false;
+    let newBuildingWarn = false;
+    let newUpgradeWarn = false;
+
+    try {
+        const lm = characterState?.localMap;
+        const isCampsiteUnlocked = !!(lm && lm.baseCampEstablished === true);
+        if (!isCampsiteUnlocked) return { campWarn: false };
+
+        let survivors = Array.isArray(resources) ? resources.find(r => r && r.name === 'Survivors') : null;
+        if (!survivors) survivors = Array.isArray(resources) ? resources.find(r => r && r.name === 'Crew Members') : null;
+        const survivorsCount = survivors ? Math.max(0, Math.floor(Number(survivors.amount) || 0)) : 0;
+        const totalAssigned = Array.isArray(jobs) ? jobs.reduce((sum, j) => sum + (j?.assigned || 0), 0) : 0;
+        const idle = Math.max(0, survivorsCount - totalAssigned);
+        idleWarn = idle > 0;
+    } catch { idleWarn = false; }
+
+    try {
+        // Campsite shows a small subset of "site" buildings before Colony unlock.
+        const SITE_BUILDING_NAMES = ['Foraging Camp', 'Water Station', 'Rain Tarp', 'Food Larder', 'Water Reservoir'];
+        newBuildingWarn = Array.isArray(buildings)
+            && buildings.some(b => b && b.uiNew && b.isUnlocked === true && SITE_BUILDING_NAMES.includes(b.name));
+    } catch { newBuildingWarn = false; }
+
+    try {
+        newUpgradeWarn = Array.isArray(allActions)
+            && allActions.some(a => a && a.uiNew && a.isUnlocked === true && a.category === 'Upgrade');
+    } catch { newUpgradeWarn = false; }
+
+    return { campWarn: !!(idleWarn || newBuildingWarn || newUpgradeWarn) };
+}
+
 function selectCrashSiteTab(tabKey) {
     const wanted = tabKey === 'camp' ? 'camp' : 'map';
 
@@ -201,6 +266,31 @@ function selectCrashSiteTab(tabKey) {
         }
     };
     requestAnimationFrame(tryClick);
+}
+
+function getCraftingTabMeta() {
+    const researchUnlocked = !!(gameFlags && gameFlags.researchTabUnlocked === true);
+    return {
+        craftingLabel: 'Crafting',
+        researchLabel: researchUnlocked ? 'Research' : '???',
+        researchDisabled: !researchUnlocked
+    };
+}
+
+function selectCraftingTab(tabKey) {
+    closePopover();
+    try { localStorage.setItem('craftingActiveTab', String(tabKey)); } catch { /* ignore */ }
+
+    const btn = document.querySelector('#mainMenu .menu-button[data-section="craftingSection"]');
+    if (btn) btn.click();
+
+    try {
+        const sectionEl = document.getElementById('craftingSection');
+        if (sectionEl) sectionEl.dataset.craftingActiveTab = String(tabKey);
+        if (typeof window !== 'undefined' && typeof window.setupCraftingSection === 'function' && sectionEl) {
+            window.setupCraftingSection(sectionEl);
+        }
+    } catch { /* ignore */ }
 }
 
 function getCrashSiteTabMeta() {
@@ -376,12 +466,14 @@ function renderRail() {
             // maps to the existing Crash Site tab buttons (Local map / Campsite).
             if (item.sectionId === 'crashSiteSection') {
                 const meta = getCrashSiteTabMeta();
+                const warn = getCrashSiteCampTabWarnMeta();
                 openPopover(b, [
                     { label: meta.mapLabel || 'Local map', onSelect: () => selectCrashSiteTab('map') },
                     {
                         label: meta.campLabel || (meta.campDisabled ? '???' : 'Campsite'),
                         disabled: !!meta.campDisabled,
                         disabledReason: meta.campDisabled ? 'Locked' : '',
+                        hasWarn: !!(warn && warn.campWarn && !meta.campDisabled),
                         onSelect: () => selectCrashSiteTab('camp')
                     }
                 ]);
@@ -412,9 +504,25 @@ function renderRail() {
             // Character now has in-section tabs (Gear / Stats). In compact mode we use
             // the same popover mechanic as Crash Site + Journal.
             if (item.sectionId === 'characterSection') {
+                const meta = getCharacterTabWarnMeta();
                 openPopover(b, [
-                    { label: 'Gear', onSelect: () => selectCharacterTab('gear') },
-                    { label: 'Stats', onSelect: () => selectCharacterTab('stats') }
+                    { label: 'Gear', hasWarn: !!meta.gearWarn, onSelect: () => selectCharacterTab('gear') },
+                    { label: 'Stats', hasWarn: !!meta.statsWarn, onSelect: () => selectCharacterTab('stats') }
+                ]);
+                return;
+            }
+
+            // Crafting has in-section tabs (Crafting / Research). In compact mode, use the same popover mechanic.
+            if (item.sectionId === 'craftingSection') {
+                const meta = getCraftingTabMeta();
+                openPopover(b, [
+                    { label: meta.craftingLabel || 'Crafting', onSelect: () => selectCraftingTab('crafting') },
+                    {
+                        label: meta.researchLabel || 'Research',
+                        disabled: !!meta.researchDisabled,
+                        disabledReason: meta.researchDisabled ? 'Locked' : '',
+                        onSelect: () => selectCraftingTab('research')
+                    }
                 ]);
                 return;
             }

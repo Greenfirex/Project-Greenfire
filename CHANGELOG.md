@@ -1,3 +1,26 @@
+# [0.2.7] - 2026-02-06
+
+### Added
+
+- **Crafting:** Recipes are now grouped into categories (Weapons / Accessory / Armor / Quest / Consumables).
+- **Consumables:** New craftable item — **First Aid Kit** (unlocks after discovering **Fabric**).
+- **Compact header:** Added a compact-mode **Morale** pill with tooltip details.
+
+### Changed
+
+- **Crash Site Local Map:** Improved tile backing alignment and reduced edge cut-off issues.
+- **Base Camp tile (Local Map):** Base camp art is now blended/overlaid on the tile background (stretched, no black matte).
+- **Campsite economy:** Scrap/Wire collector jobs now consume upkeep resources (Provisions/Water) and auto-cancel when upkeep hits 0.
+- **Campsite resources UI:** Resource indicators now use a vertical fill column style.
+- **Phone-landscape (Crafting):** Crafting panel sizing/padding tuned so it doesn’t feel overly wide under collapsed rails; crafting buttons are smaller to match Campsite sizing.
+
+### Fixed
+
+- **Mobile (Campsite upgrades):** Fixed a bug where buying one upgrade could cause subsequent upgrades to stop responding until save+reload.
+- **Action start feedback:** Starting an action while another action is active now logs clear feedback instead of failing silently.
+
+---
+
 # [0.2.6] - 2026-02-04
 
 ### Added
@@ -319,7 +342,7 @@
 ## Changed
 
 - “Investigate Bridge” now has stage‑aware descriptions (pre‑power vs post‑emergency power) and tooltips reflect the current stage.
-- New upgrade: “Light Campfire” (+5% Morale) available after Base Camp; cost set to Scrap 5, Food 15, Clean Water 10; sets campfireLit flag on completion.
+- New upgrade: “Light Campfire” (+5% Morale) available after Base Camp; cost set to Scrap 5, Provisions 15, Water 10; sets campfireLit flag on completion.
 - “Install Rain Catchers” tooltip now explicitly lists the Rain Tarp building unlock.
 - HUD/UX refinements:
     - Moved Pause/Speed controls from header to footer; standardized active highlight that doesn’t grow/shrink buttons; ~20% smaller sizing.
@@ -369,7 +392,7 @@
 - Added: New resources — Chemicals and Makeshift Explosive (hidden until discovered).
 - Added: Repeatable “Collect Chemicals” action (unlocked by Labs).
 - Added: “Assemble Makeshift Explosive” craft action. Auto‑unlocks when both Fabric and Chemicals are discovered (via centralized unlock rules).
-- Added: Upgrade “Install Purification Unit” (+20% Clean Water from Purify Water; +20% Water Collection job). Unlocks after “Search: Labs”.
+- Added: Upgrade “Install Purification Unit” (+20% Drinking Water from Purify Water; +20% Water Collection job). Unlocks after “Search: Labs”.
 - Added: Central upgrade effects system (upgradeEffects.js) with:
   - computeRewardMultiplier and computeRewardEffects (math + labels).
   - Tooltips now use the same function as runtime, so previews match actual rewards.
@@ -383,7 +406,7 @@
 - Changed: Generic completion logging is now opt‑out via suppressGenericLog on actions or stages (used by Establish Base Camp, Purification Unit installs).
 
 - Fixed: Power Core stage 2 properly blocked without Makeshift Explosive and shows correct tooltip cost; cost is consumed on start.
-- Fixed: Purify Water and Clean Water job tooltips reflect the Purification Unit’s +20% bonus.
+- Fixed: Purify Water and Water Collection job tooltips reflect the Purification Unit’s +20% bonus.
 - Fixed: Removed duplicate green “complete/gained” log for actions that set suppressGenericLog.
 
 - Refactor: Split Upgrade actions into data/upgrades.js and added data/allActions.js aggregator; updated imports (Crash Site, Colony, Save/Load).
@@ -403,7 +426,7 @@
 - **Changed:** Tooltip rendering refactor — moved tooltip HTML generation into a single build function used for initial render and refresh.
 - **Changed:** Tooltip positioning — chosen screen coordinates are persisted on first layout and reused while refreshing to avoid jumps.
 - **Changed:** Resource display logic — per-second generation only shows when there is a non-zero production/consumption (avoids "0.0/s" noise) and uses explicit +/- formatting.
-- **Changed:** Scrap Metal resource flagged as non-producible by default to match Food/Clean Water layout and prevent misalignment.
+- **Changed:** Scrap Metal resource flagged as non-producible by default to match Food Rations/Drinking Water layout and prevent misalignment.
 - **Changed:** Action/button behavior — stopped using native title attributes for shortfall/blocked messages; messages are stored in data-* attributes and shown via the custom tooltip.
 
 - **Fixed:** Removed duplicate native tooltip by stripping title attributes and observing mutations on registered tooltip elements.
@@ -439,7 +462,7 @@ This update introduces the foundational elements of **Chapter 1: Fall From the S
 - **New "Crash Site" Section:** Replaces the initial "Colony" view as the starting area. Features unique actions focused on survival and salvaging.
 - **New Survival Mechanics:**
     - **Stamina Resource:** Added a new resource required for performing most actions. Drains over time during strenuous tasks.
-    - **Food Rations & Clean Water Costs:** Actions now consume Food and Water directly, representing the player's personal needs.
+    - **Food Rations & Drinking Water Costs:** Actions now consume Food and Water directly, representing the player's personal needs.
     - **New Survival Actions:** Added "Rest" (restores Stamina), "Forage for Food", and "Purify Water".
 - **New Salvage & Exploration Mechanics:**
     - **New Resources:** Added "Scrap Metal" and "Ship Components" gathered from the wreckage.

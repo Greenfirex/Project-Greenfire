@@ -475,14 +475,14 @@ const defs = [
         label: 'Stockpile resources',
         narrative: () => [
             "If something comes for the camp — weather, predators, or something worse — you can’t afford to be running on fumes.",
-            "Build a reserve. Food, clean water, and salvage stockpiles give you options when conditions turn against you.",
+            "Build a reserve. Provisions, water, and salvage stockpiles give you options when conditions turn against you.",
             "Gather enough supplies to withstand a long stretch without easy scavenging."
         ].join('\n\n'),
         // Activate after fixing long-range radio
         start: () => hasCompletedAction('fixLongRangeRadio'),
         complete: () => {
-            return getResourceAmount('Food Rations') >= 400 &&
-                getResourceAmount('Clean Water') >= 500 &&
+            return getResourceAmount('Provisions') >= 400 &&
+                getResourceAmount('Water') >= 500 &&
                 getResourceAmount('Metal Parts') >= 200 &&
                 getResourceAmount('Fabric') >= 20 &&
                 getResourceAmount('Chemicals') >= 20 &&
@@ -491,8 +491,8 @@ const defs = [
         reward: [{ resource: 'XP', amount: 80 }],
         priority: 14,
         steps: () => {
-            const foodAmt = getResourceAmount('Food Rations');
-            const waterAmt = getResourceAmount('Clean Water');
+            const foodAmt = getResourceAmount('Provisions');
+            const waterAmt = getResourceAmount('Water');
             const scrapAmt = getResourceAmount('Metal Parts');
             const fabricAmt = getResourceAmount('Fabric');
             const chemAmt = getResourceAmount('Chemicals');
@@ -502,8 +502,8 @@ const defs = [
             const guidanceNeeded = !crewQuartersDone || !cafeteriaDone;
 
             return [
-                { id: 'food_goal', label: 'Accumulate Food Rations (400)', done: foodAmt >= 400, progress: `${Math.floor(foodAmt)}/400` },
-                { id: 'water_goal', label: 'Accumulate Clean Water (500)', done: waterAmt >= 500, progress: `${Math.floor(waterAmt)}/500` },
+                { id: 'food_goal', label: 'Accumulate Provisions (400)', done: foodAmt >= 400, progress: `${Math.floor(foodAmt)}/400` },
+                { id: 'water_goal', label: 'Accumulate Water (500)', done: waterAmt >= 500, progress: `${Math.floor(waterAmt)}/500` },
                 { id: 'scrap_goal', label: 'Accumulate Metal Parts (200)', done: scrapAmt >= 200, progress: `${Math.floor(scrapAmt)}/200` },
                 { id: 'fabric_goal', label: 'Accumulate Fabric (20)', done: fabricAmt >= 20, progress: `${Math.floor(fabricAmt)}/20` },
                 { id: 'chem_goal', label: 'Accumulate Chemicals (20)', done: chemAmt >= 20, progress: `${Math.floor(chemAmt)}/20` },
@@ -755,8 +755,8 @@ export function recomputeObjectives() {
                             });
                         }
                     } catch {}
-                    const stockpileComplete = getResourceAmount('Food Rations') >= 400 &&
-                        getResourceAmount('Clean Water') >= 500 &&
+                    const stockpileComplete = getResourceAmount('Provisions') >= 400 &&
+                        getResourceAmount('Water') >= 500 &&
                         getResourceAmount('Metal Parts') >= 200 &&
                         getResourceAmount('Fabric') >= 20 &&
                         getResourceAmount('Chemicals') >= 20 &&

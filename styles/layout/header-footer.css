@@ -149,6 +149,27 @@
 .weather-widget .weather-label { color: #eaffea; font-weight: 600; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .weather-widget .weather-temp { color: #bfe6bf; flex: 0 0 auto; min-width: 5ch; text-align: right; }
 
+/* Morale pill (mobile/compact only; shown when discovered) */
+.morale-widget {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 10px;
+    border-radius: 16px;
+    background: rgba(20, 40, 20, 0.25);
+    border: 1px solid rgba(144, 238, 144, 0.18);
+    box-shadow: 0 0 8px rgba(144,238,144,0.12) inset;
+    margin: 0 6px;
+    width: 160px;
+    white-space: nowrap;
+    font-family: 'Roboto Mono', monospace;
+    justify-content: center;
+}
+
+.morale-widget .morale-label { color: #eaffea; font-weight: 600; }
+.morale-widget .morale-value { color: #bfe6bf; font-weight: 700; }
+.morale-widget .morale-icon { filter: drop-shadow(0 0 2px rgba(144,238,144,0.35)); }
+
 /* --- Header Link and Options Popup styles --- */
 .header-title {
     flex-grow: 1;
@@ -369,6 +390,20 @@ html:not(.is-compact) #footer #changelogBtn {
         margin-left: 0;
         overflow: hidden;
     }
+
+    .morale-widget {
+        width: auto;
+        max-width: 22vw;
+        font-size: 11px;
+        padding: 0 8px;
+        height: 18px;
+        line-height: 18px;
+        margin: 0;
+        overflow: hidden;
+        border-radius: 10px;
+    }
+
+    .morale-widget .morale-label { display: none; }
 
     .weather-widget .weather-temp { min-width: 0; }
 

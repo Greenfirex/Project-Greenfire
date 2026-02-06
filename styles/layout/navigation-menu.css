@@ -126,14 +126,14 @@
     #mainMenu.collapsed .mobile-menu-icon {
         display: grid;
         place-items: center;
-        width: 18px;
-        height: 18px;
+        width: 16px;
+        height: 16px;
         line-height: 1;
     }
 
     #mainMenu.collapsed .mobile-menu-icon svg {
-        width: 18px;
-        height: 18px;
+        width: 16px;
+        height: 16px;
         display: block;
     }
 
@@ -226,6 +226,27 @@
         align-items: center;
         justify-content: flex-start;
         min-width: 170px;
+        position: relative;
+    }
+
+    .mobile-menu-popover-item .action-new-badge {
+        position: absolute;
+        top: 6px;
+        right: 10px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        font-weight: 900;
+        line-height: 1;
+        color: #111;
+        background: #ffd84a;
+        box-shadow:
+            0 0 6px rgba(255, 216, 74, 0.85),
+            0 0 10px rgba(255, 216, 74, 0.45);
+        pointer-events: none;
     }
 
     .mobile-menu-popover-item:hover {

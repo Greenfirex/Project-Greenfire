@@ -21,6 +21,7 @@ const touchConfirmRegistry = new WeakMap(); // element -> { armedUntil: number }
 let docTouchDismissHandlersInstalled = false;
 let dockLayoutObserverInstalled = false;
 let dockInfoPanelObserver = null;
+let dockMainMenuObserver = null;
 // removed tooltipLockUntil and per-element lock complexity
 
 function isDockedTooltipMode() {
@@ -37,6 +38,8 @@ function syncTooltipDockMode(tooltip) {
     tooltip.classList.toggle('tooltip-docked', docked);
     if (!docked) {
         try { tooltip.style.removeProperty('--tooltip-dock-right'); } catch { /* ignore */ }
+        try { tooltip.style.removeProperty('--tooltip-dock-left'); } catch { /* ignore */ }
+        try { tooltip.classList.remove('tooltip-docked-left'); } catch { /* ignore */ }
     }
     return docked;
 }
@@ -65,11 +68,61 @@ function computeRightDockOffsetPx() {
     }
 }
 
+function computeLeftDockOffsetPx() {
+    const mainMenu = document.getElementById('mainMenu');
+    if (!mainMenu) return 0;
+
+    const vw = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
+    try {
+        const r = mainMenu.getBoundingClientRect();
+        if (!isFinite(r.width) || !isFinite(r.height) || r.width < 20 || r.height < 20) return 0;
+        if (!isFinite(r.left) || !isFinite(r.right) || r.right <= 0) return 0;
+
+        const taken = Math.max(0, Math.round(r.right));
+        const maxReasonable = Math.min(Math.round(vw * 0.75), 420);
+        if (taken > maxReasonable) return 0;
+        return taken + 3;
+    } catch {
+        return 0;
+    }
+}
+
+function setTooltipDockSide(tooltip, side) {
+    if (!tooltip || !tooltip.classList || !tooltip.classList.contains('tooltip-docked')) return;
+    const wantLeft = String(side) === 'left';
+    try { tooltip.classList.toggle('tooltip-docked-left', wantLeft); } catch { /* ignore */ }
+}
+
+function chooseTooltipDockSideForElement(element) {
+    try {
+        if (!element || !(element instanceof HTMLElement)) return 'right';
+
+        const infoPanel = document.getElementById('infoPanel');
+        if (infoPanel && infoPanel.contains(element)) return 'right';
+
+        const vw = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
+        const r = element.getBoundingClientRect();
+        const cx = r.left + (r.width / 2);
+
+        return (cx > (vw * 0.58)) ? 'left' : 'right';
+    } catch {
+        return 'right';
+    }
+}
+
 function updateTooltipDockOffset(tooltip) {
     if (!tooltip || !tooltip.classList || !tooltip.classList.contains('tooltip-docked')) return;
     try {
-        const right = computeRightDockOffsetPx();
-        tooltip.style.setProperty('--tooltip-dock-right', `${right}px`);
+        const isLeft = tooltip.classList.contains('tooltip-docked-left');
+        if (isLeft) {
+            const left = computeLeftDockOffsetPx();
+            tooltip.style.setProperty('--tooltip-dock-left', `${left}px`);
+            try { tooltip.style.removeProperty('--tooltip-dock-right'); } catch { /* ignore */ }
+        } else {
+            const right = computeRightDockOffsetPx();
+            tooltip.style.setProperty('--tooltip-dock-right', `${right}px`);
+            try { tooltip.style.removeProperty('--tooltip-dock-left'); } catch { /* ignore */ }
+        }
     } catch {
         /* ignore */
     }
@@ -103,26 +156,36 @@ function ensureDockLayoutObservers() {
 
     const attach = () => {
         const infoPanel = document.getElementById('infoPanel');
-        if (!infoPanel) return;
+        const mainMenu = document.getElementById('mainMenu');
 
-        try {
-            dockInfoPanelObserver = new MutationObserver(() => {
-                const tt = globalTooltip;
-                if (!tt || tt.style.visibility !== 'visible' || !tt.classList.contains('tooltip-docked')) return;
-                // update immediately and after transition has likely finished
-                updateTooltipDockOffset(tt);
-                window.requestAnimationFrame(() => updateTooltipDockOffset(tt));
-                window.setTimeout(() => updateTooltipDockOffset(tt), 250);
-            });
-            dockInfoPanelObserver.observe(infoPanel, { attributes: true, attributeFilter: ['class', 'style'] });
-        } catch {
-            /* ignore */
-        }
-
-        window.addEventListener('resize', () => {
+        const refresh = () => {
             const tt = globalTooltip;
             if (!tt || tt.style.visibility !== 'visible' || !tt.classList.contains('tooltip-docked')) return;
             updateTooltipDockOffset(tt);
+            window.requestAnimationFrame(() => updateTooltipDockOffset(tt));
+            window.setTimeout(() => updateTooltipDockOffset(tt), 250);
+        };
+
+        if (infoPanel) {
+            try {
+                dockInfoPanelObserver = new MutationObserver(refresh);
+                dockInfoPanelObserver.observe(infoPanel, { attributes: true, attributeFilter: ['class', 'style'] });
+            } catch {
+                /* ignore */
+            }
+        }
+
+        if (mainMenu) {
+            try {
+                dockMainMenuObserver = new MutationObserver(refresh);
+                dockMainMenuObserver.observe(mainMenu, { attributes: true, attributeFilter: ['class', 'style'] });
+            } catch {
+                /* ignore */
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            refresh();
         }, { passive: true });
     };
 
@@ -380,7 +443,36 @@ export function getOrCreateTooltip() {
     document.body.appendChild(t);
     globalTooltip = t;
 
-    // Keep dock offsets in sync with the right info panel.
+    // Mobile/compact UX: if a tooltip is pinned due to touch-confirm on an action button,
+    // the tooltip can overlap the button. Allow the user to tap the tooltip itself as
+    // the "second tap" to confirm and trigger the anchored click.
+    try {
+        t._touchConfirmForwardWired = true;
+        t.addEventListener('click', (e) => {
+            try {
+                if (!isCoarsePointerDevice()) return;
+                if (!t._pinnedByTouch || !t._anchorEl) return;
+                const anchor = t._anchorEl;
+                const state = touchConfirmRegistry.get(anchor);
+                const now = Date.now();
+                const armed = !!(state && typeof state.armedUntil === 'number' && state.armedUntil > now);
+                if (!armed) return;
+
+                // Allow the next click on the anchor element to pass through the touch-confirm gate.
+                t._allowClickEl = anchor;
+                t._allowClickUntil = now + 800;
+
+                e.preventDefault();
+                e.stopPropagation();
+                try { e.stopImmediatePropagation(); } catch { /* ignore */ }
+
+                // Forward an actual click to the anchor.
+                try { anchor.click(); } catch { /* ignore */ }
+            } catch { /* ignore */ }
+        }, true);
+    } catch { /* ignore */ }
+
+    // Keep dock offsets in sync with side panels (right info panel / left main menu).
     ensureDockLayoutObservers();
     syncTooltipDockMode(t);
     updateTooltipDockOffset(t);
@@ -752,8 +844,7 @@ function buildTooltipHTML(data) {
                                 campsiteSection: 'Campsite',
                                 crashSiteSection: 'Crash Site',
                                 colonySection: 'Colony',
-                                researchSection: 'Research',
-                                manufacturingSection: 'Manufacturing',
+                                craftingSection: 'Crafting',
                                 shipyardSection: 'Shipyard',
                                 galaxyMapSection: 'Galaxy Map',
                                 journalSection: 'Journal',
@@ -778,7 +869,7 @@ function buildTooltipHTML(data) {
         try {
             // Check for depleted survival resources and present clear player guidance.
             const food = resources.find(r => r.name === 'Food Rations');
-            const water = resources.find(r => r.name === 'Clean Water');
+            const water = resources.find(r => r.name === 'Drinking Water');
             const isHungry = !!(food && Number(food.amount) <= 0);
             const isThirsty = !!(water && Number(water.amount) <= 0);
             const effects = [];
@@ -843,6 +934,9 @@ function renderTooltipForElement(regEl, event) {
     tooltip.classList.add('visible');
 
     if (tooltip.classList && tooltip.classList.contains('tooltip-docked')) {
+        // Pick a dock side so the tooltip doesn't sit under the user's finger / block common taps.
+        const side = chooseTooltipDockSideForElement(tooltip._anchorEl || regEl);
+        setTooltipDockSide(tooltip, side);
         updateTooltipDockOffset(tooltip);
     } else {
         if (tooltip._pinnedByTouch === true) {
@@ -869,6 +963,12 @@ export function setupTooltip(element, tooltipData) {
     tooltipRegistry.set(element, tooltipData);
     try { element.dataset.tooltipRegistered = '1'; } catch (e) { /* ignore */ }
 
+    // Important: callers (notably Crash Site action rendering) may reuse existing button nodes
+    // across UI rebuilds and call setupTooltip() again. Avoid stacking duplicate listeners.
+    const alreadyWired = (() => {
+        try { return element && element.dataset && element.dataset.tooltipWired === 'true'; } catch { return false; }
+    })();
+
     // Remove any native title (browser tooltip) and ensure future title changes are stripped
     try {
         element.removeAttribute('title');
@@ -890,6 +990,9 @@ export function setupTooltip(element, tooltipData) {
     // ensure tooltip DOM + global mousemove handler exist so registered rows work immediately
     ensureDocMouseMoveHandler();
     ensureDocTouchDismissHandlers();
+
+    if (alreadyWired) return;
+    try { element.dataset.tooltipWired = 'true'; } catch { /* ignore */ }
     
     element.addEventListener('mouseenter', (e) => {
         const tooltip = getOrCreateTooltip();
@@ -928,11 +1031,24 @@ export function setupTooltip(element, tooltipData) {
 
                 const tt = getOrCreateTooltip();
                 const now = Date.now();
+
+                // If the tooltip forwarded a confirmation click for this element, let it proceed.
+                try {
+                    if (tt && tt._allowClickEl === element && typeof tt._allowClickUntil === 'number' && tt._allowClickUntil > now) {
+                        tt._allowClickEl = null;
+                        tt._allowClickUntil = 0;
+                        touchConfirmRegistry.delete(element);
+                        return;
+                    }
+                } catch { /* ignore */ }
+
                 const state = touchConfirmRegistry.get(element);
                 const armed = !!(state && typeof state.armedUntil === 'number' && state.armedUntil > now);
 
-                // If this element's tooltip is already visible and we're within the armed window, let the click proceed.
-                if (armed && currentTooltipElement === element && tt && tt.style.visibility === 'visible') {
+                // If we're within the armed window, let the click proceed.
+                // (Don't depend on currentTooltipElement/visibility; compact mode can dock/pin tooltips
+                // and some layouts may change focus/hover tracking between taps.)
+                if (armed) {
                     // Clear the armed state so the *next* action requires confirmation again.
                     touchConfirmRegistry.delete(element);
                     return;
@@ -1051,7 +1167,7 @@ function buildSurvivalDebuffTooltipHtml(kind) {
 // Public: update the small debuff icons on resource rows
 export function updateSurvivalDebuffBadge() {
     const food = resources.find(r => r.name === 'Food Rations');
-    const water = resources.find(r => r.name === 'Clean Water');
+    const water = resources.find(r => r.name === 'Drinking Water');
 
     const isHungry = !!(food && Number(food.amount) <= 0);
     const isThirsty = !!(water && Number(water.amount) <= 0);
@@ -1067,7 +1183,7 @@ export function updateSurvivalDebuffBadge() {
         }
     }
 
-    const waterIcon = ensureDebuffIcon('Clean Water');
+    const waterIcon = ensureDebuffIcon('Drinking Water');
     if (waterIcon) {
         if (isThirsty) {
             waterIcon.classList.add('active');

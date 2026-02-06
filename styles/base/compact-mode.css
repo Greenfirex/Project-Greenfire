@@ -61,6 +61,21 @@ html.is-compact .weather-widget {
     overflow: hidden;
 }
 
+html.is-compact .morale-widget {
+    display: inline-flex;
+    width: auto;
+    max-width: 22vw;
+    font-size: 11px;
+    padding: 0 8px;
+    height: 18px;
+    line-height: 18px;
+    margin: 0;
+    overflow: hidden;
+    border-radius: 10px;
+}
+
+html.is-compact .morale-widget .morale-label { display: none; }
+
 html.is-compact .weather-widget .weather-temp { min-width: 0; }
 
 html.is-compact .header-right {
@@ -211,15 +226,60 @@ html.is-compact #mainMenu.collapsed .mobile-menu-icon-btn:hover {
 html.is-compact #mainMenu.collapsed .mobile-menu-icon {
     display: grid;
     place-items: center;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     line-height: 1;
 }
 
 html.is-compact #mainMenu.collapsed .mobile-menu-icon svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     display: block;
+}
+
+/* --- Crafting compact tweaks --- */
+html.is-compact #craftingSection {
+    padding: 1px;
+}
+
+/* Crafting was forcing width:100% on its content panel, which breaks compact centering
+   (margins from styles/base/game-area.css) and can look "too wide" under the rails. */
+html.is-compact #craftingSection > .content-panel {
+    width: auto;
+}
+
+html.is-compact #craftingSection .crafting-category {
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+html.is-compact #craftingSection .crafting-category-title {
+    font-size: 12px;
+}
+
+html.is-compact #craftingSection .crafting-actions .button-group {
+    gap: 4px;
+}
+
+html.is-compact #craftingSection .crafting-actions .button-group .image-button {
+    width: 104px;
+    height: 32px;
+    padding: 0 7px;
+    gap: 5px;
+    font-size: 10px;
+    border-radius: 999px;
+}
+
+html.is-compact #craftingSection .crafting-actions .button-group .image-button .building-name {
+    font-size: 10px;
+    line-height: 1.05;
+    white-space: normal;
+    text-align: center;
+    overflow: hidden;
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 
 html.is-compact #mainMenu.collapsed .mobile-menu-icon-text {
@@ -276,6 +336,42 @@ html.is-compact .panel-collapse-btn.left-panel .collapse-chevron {
     height: 28px;
 }
 
+/* --- Right info panel (expanded) density tweaks for compact phone-landscape --- */
+html.is-compact #infoPanel:not(.collapsed) .info-category-header {
+    margin-top: 6px;
+    padding: 2px 0 1px 0;
+    font-size: 12px;
+    letter-spacing: 1px;
+}
+
+html.is-compact #infoPanel:not(.collapsed) .info-row {
+    height: 22px;
+    padding: 3px 8px;
+    gap: 8px;
+}
+
+html.is-compact #infoPanel:not(.collapsed) .info-row .infocolumn1 {
+    gap: 6px;
+}
+
+html.is-compact #infoPanel:not(.collapsed) .info-row span,
+html.is-compact #infoPanel:not(.collapsed) .info-row p {
+    font-size: 10px;
+}
+
+html.is-compact #infoPanel:not(.collapsed) .info-row.survivors [data-value-type="storage"] {
+    font-size: 11px;
+}
+
+/* Any small symbol/emoji badges injected into the resource name column */
+html.is-compact #infoPanel:not(.collapsed) .info-row .debuff-icon {
+    width: 12px;
+    height: 12px;
+    min-width: 12px;
+    font-size: 10px;
+    margin-right: 4px;
+}
+
 /* Popover used by the left icon rail (Crash Site: Local map / Campsite, Journal tabs, Character tabs) */
 html.is-compact .mobile-menu-popover {
     position: fixed;
@@ -321,6 +417,30 @@ html.is-compact .mobile-menu-popover-item:disabled {
     cursor: not-allowed;
 }
 
+html.is-compact .mobile-menu-popover-item {
+    position: relative;
+}
+
+html.is-compact .mobile-menu-popover-item .action-new-badge {
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+    color: #111;
+    background: #ffd84a;
+    box-shadow:
+        0 0 6px rgba(255, 216, 74, 0.85),
+        0 0 10px rgba(255, 216, 74, 0.45);
+    pointer-events: none;
+}
+
 /* --- Tooltip sizing in forced compact mode (mirrors global.css @media rules) --- */
 html.is-compact .tooltip {
     min-width: 220px;
@@ -360,6 +480,13 @@ html.is-compact .tooltip.tooltip-docked {
     box-shadow:
         0 14px 34px rgba(0,0,0,0.55),
         0 0 26px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.14);
+}
+
+/* Optional mirror dock: bottom-left (used when right docking would obstruct interaction) */
+html.is-compact .tooltip.tooltip-docked.tooltip-docked-left {
+    right: auto;
+    left: calc(env(safe-area-inset-left) + var(--tooltip-dock-left, 0px) + 10px);
+    transform-origin: bottom left;
 }
 
 html.is-compact .tooltip.tooltip-docked::before {

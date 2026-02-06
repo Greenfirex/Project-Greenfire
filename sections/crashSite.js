@@ -21,7 +21,7 @@ import { getBlockedStatus, evaluateEventUnlocks } from '../data/unlockRules.js';
 import { showCombatPopup } from '../ui/panels/combatPopup.js';
 import { characterState, grantItemToCharacter } from '../data/character.js';
 import { getItemDefinition } from '../data/definitions/items.js';
-import { getCampsitePaneHtml, wireCampsiteCollapsibles, renderCampsitePanels, applyCampsiteBackground } from './campsite.js';
+import { getCampsitePaneHtml, wireCampsiteCollapsibles, renderCampsitePanels, applyCampsiteBackground, updateCampsiteCampResourcesPanel } from './campsite.js';
 
 // Travel-dot animation duration in the local map renderer (keep in sync with crashSiteLocalMap.js).
 const LOCALMAP_TRAVEL_ANIM_MS = 320;
@@ -832,34 +832,52 @@ export function setupCrashSiteSection(section) {
             if (!selectedExplored) return;
             // Base camp (B7): once established, it becomes a small crafting hub.
             let ids = TILE_ACTIONS[coordKey(selX, selY)] || [];
+
+            // Cave (B6): once Workbench is built, remove early-game one-off crafting actions.
+            // Those items are handled by the Crafting menu after Workbench.
+            try {
+                const isCave = (selX === 2 && selY === 6);
+                if (isCave) {
+                    const wb = (salvageActions || []).find(a => a && a.id === 'workbench');
+                    const wbDone = !!(wb && isFinished(wb));
+                    if (wbDone && Array.isArray(ids) && ids.length) {
+                        ids = ids.filter(id => id !== 'createBasicTorch' && id !== 'makeCrudePrybar');
+                    }
+                }
+            } catch { /* ignore */ }
             try {
                 const isBaseCamp = (selX === 2 && selY === 7);
                 const established = !!(lm && lm.baseCampEstablished === true);
                 if (isBaseCamp && established) {
-                    const wb = salvageActions.find(a => a && a.id === 'workbench');
-                    const wbDone = !!(wb && (wb.completed === true || (Array.isArray(wb.stages) && (wb.stage || 0) >= wb.stages.length)));
+                    // After base camp is established, keep the tile simple:
+                    // - Sleep (better than Rest; flavor: inside your tent)
+                    // - Visit camp shortcut
+                    ids = ['sleep', 'refillCanteen', 'packRations'];
 
-                    if (!wbDone) {
-                        // Before the Workbench is built, keep the traditional base-camp tile actions.
-                        ids = ['rest', 'createBasicTorch', 'craftMetalSpear', 'makeCrudePrybar'];
-                        try {
-                            const fix = salvageActions.find(a => a && a.id === 'fixLongRangeRadio');
-                            if (fix && fix.isUnlocked) ids = ids.concat(['fixLongRangeRadio']);
-                        } catch { /* ignore */ }
-                    } else {
-                        // After Workbench, crafting moves into Campsite -> Crafting, but Rest stays on the tile.
-                        ids = ['rest'];
+                    mkUtilityButton({
+                        id: 'visitCamp',
+                        label: 'Visit camp',
+                        tooltipOverride: () => ({ id: 'visitCamp', name: 'Visit camp', description: 'Open the Campsite tab.' }),
+                        onClick: (e) => {
+                            e.preventDefault();
+                            try { setActive('camp'); } catch { /* ignore */ }
+                        }
+                    });
+                }
+            } catch { /* ignore */ }
 
-                        // Utility button: jump straight to the Campsite tab.
-                        mkUtilityButton({
-                            id: 'visitCamp',
-                            label: 'Visit camp',
-                            tooltipOverride: () => ({ id: 'visitCamp', name: 'Visit camp', description: 'Open the Campsite tab.' }),
-                            onClick: (e) => {
-                                e.preventDefault();
-                                try { setActive('camp'); } catch { /* ignore */ }
-                            }
-                        });
+            // After base camp is established, allow hauling to camp storage from key supply tiles.
+            try {
+                const established = !!(lm && lm.baseCampEstablished === true);
+                if (established) {
+                    const k = coordKey(selX, selY);
+                    if (k === '4,7') {
+                        // D7 berries
+                        if (!ids.includes('haulBerries')) ids = [...ids, 'haulBerries'];
+                    }
+                    if (k === '8,8') {
+                        // H8 river
+                        if (!ids.includes('haulWater')) ids = [...ids, 'haulWater'];
                     }
                 }
             } catch { /* ignore */ }
@@ -1203,6 +1221,13 @@ export function setupCrashSiteSection(section) {
                         tryStartNextTraverseStep(host);
                     }
                 });
+
+                // Ensure Traverse is always shown first when multiple actions are visible.
+                try {
+                    if (traverseBtn && actionsHost && actionsHost.firstChild && actionsHost.firstChild !== traverseBtn) {
+                        actionsHost.insertBefore(traverseBtn, actionsHost.firstChild);
+                    }
+                } catch { /* ignore */ }
 
                 if (traverseBtn && hasPath) {
                     traverseBtn.addEventListener('mouseenter', () => setRoutePreview(path, 'traverse'));
@@ -1807,9 +1832,13 @@ export function setupCrashSiteSection(section) {
 }
 
 // Start an action and set up UI/progress state
-function startAction(action, section) {
+    export function startAction(action, section) {
     const existing = getActiveCrashSiteAction();
-    if (existing) return;
+    if (existing) {
+        const runningName = existing && existing.name ? String(existing.name) : 'another action';
+        addLogEntry(`Cannot start "${action.name}" while "${runningName}" is in progress.`, LogType.INFO);
+        return;
+    }
     if (lsGet('gamePaused') === 'true') {
         addLogEntry(`Cannot start "${action.name}" while game is paused. Resume the game first.`, LogType.INFO);
         return;
@@ -2144,8 +2173,8 @@ async function handleActionCompletion(section) {
                     // Clear active action and refresh the crash site UI so the action can be restarted.
                     setActiveCrashSiteAction(null);
                     try {
-                        if (section) setupCrashSiteSection(section);
-                        else setupCrashSiteSection();
+                        const host = document.getElementById('crashSiteSection');
+                        if (host) setupCrashSiteSection(host);
                     } catch (e) { /* ignore */ }
                     return;
                 }
@@ -2163,9 +2192,7 @@ async function handleActionCompletion(section) {
 
     const refreshLocalMapIfVisible = () => {
         try {
-            const host = (section && typeof section.closest === 'function')
-                ? (section.closest('#crashSiteSection') || section.closest('.game-section'))
-                : document.getElementById('crashSiteSection');
+            const host = document.getElementById('crashSiteSection');
             if (!host) return;
             let activeTab = 'crash';
             try { activeTab = localStorage.getItem('crashSiteActiveTab') || 'crash'; } catch { /* ignore */ }
@@ -2464,7 +2491,10 @@ async function handleActionCompletion(section) {
 
     // If this completion unlocked new actions or enabled a section, rebuild the UI; otherwise update states in-place.
     if (didUnlock || (original && original.id === 'establishBaseCamp')) {
-        setupCrashSiteSection(section);
+        try {
+            const host = document.getElementById('crashSiteSection');
+            if (host) setupCrashSiteSection(host);
+        } catch { /* ignore */ }
     } else {
         const sel2 = completed && completed.uiInstanceId
             ? `[data-action-id="${completed.id}"][data-action-instance="${completed.uiInstanceId}"]`
@@ -2539,7 +2569,7 @@ async function handleActionCompletion(section) {
         if (ruleDidUnlock) {
             // Rebuild Crash Site UI immediately to surface newly unlocked actions/upgrades
             const container = document.querySelector('#salvageActionsContainer');
-            const targetSection = section || (container ? (container.closest('.content-panel') || container.parentElement) : null);
+            const targetSection = container ? (container.closest('.content-panel') || container.parentElement) : null;
             if (targetSection) setupCrashSiteSection(targetSection);
         }
     } catch (e) { /* ignore */ }
@@ -2617,6 +2647,21 @@ window.addEventListener('emergencyPowerRestored', () => {
 // Also normalize after loading saved state
 window.addEventListener('game-state-applied', () => {
     ensureBridgeStageAfterPower();
+
+    // Apply resource-discovery-based unlock rules against the *current* discovered resources,
+    // so older saves immediately receive new recipes/upgrades without requiring a fresh event.
+    try {
+        const unlocks = evaluateEventUnlocks({ type: 'resourceDiscovered' }, { resources, actions: salvageActions, buildings });
+        if (unlocks && Array.isArray(unlocks.actions) && unlocks.actions.length) {
+            for (const id of unlocks.actions) {
+                const a = salvageActions.find(x => x.id === id || x.name === id);
+                if (a && !a.isUnlocked) {
+                    a.isUnlocked = true;
+                    a.uiNew = true;
+                }
+            }
+        }
+    } catch { /* ignore */ }
 });
 
 // Listen for objectives changes and update action button states
@@ -2733,4 +2778,10 @@ export function updateCrashSiteActionButtonsState() {
 
     updateButtonsInContainer(document.querySelector('#salvageActionsContainer'));
     updateButtonsInContainer(document.querySelector('#crashSiteLocalMapActions'));
+    // Campsite tab embeds Upgrade-category action buttons.
+    // Keep these in sync so affordability updates immediately after building/crafting.
+    updateButtonsInContainer(document.querySelector('#campsiteUpgrades'));
+
+    // Keep the Campsite Camp Resources orbs in sync without requiring a full re-render.
+    try { updateCampsiteCampResourcesPanel(document); } catch { /* ignore */ }
 }

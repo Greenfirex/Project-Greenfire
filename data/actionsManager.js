@@ -106,7 +106,7 @@ export function canAffordAction(action, resources) {
 
 /**
  * Return human-readable shortfall messages for each missing/insufficient resource.
- * Example output: ["Clean Water: need 3 more", "Fabric missing (need 2)"]
+ * Example output: ["Drinking Water: need 3 more", "Fabric missing (need 2)"]
  * @param {object} action
  * @param {Array<{name:string, amount:number}>} resources
  * @returns {string[]}
@@ -128,7 +128,7 @@ export function getAffordabilityShortfalls(action, resources) {
 /**
  * Compute effective action duration factoring in survival debuffs.
  * - If Food Rations are 0 or less: +50% duration
- * - If Clean Water is 0 or less: +50% duration
+ * - If Drinking Water is 0 or less: +50% duration
  * Minimum returned duration is 0.001s to avoid divide-by-zero.
  * @param {object} action
  * @param {Array<{name:string, amount:number}>} resources
@@ -136,7 +136,7 @@ export function getAffordabilityShortfalls(action, resources) {
  */
 export function computeEffectiveDuration(action, resources) {
     const food = (resources || []).find(r => r.name === 'Food Rations');
-    const water = (resources || []).find(r => r.name === 'Clean Water');
+    const water = (resources || []).find(r => r.name === 'Drinking Water');
     const isHungry = !!(food && Number(food.amount) <= 0);
     const isThirsty = !!(water && Number(water.amount) <= 0);
     // Intuitive rule:

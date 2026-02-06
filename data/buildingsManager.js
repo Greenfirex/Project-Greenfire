@@ -6,6 +6,7 @@ import { addLogEntry, LogType } from '../core/ingameLog.js';
 import { getJobById } from './jobsManager.js';
 import { activatedSections, setActivatedSections, applyActivatedSections } from '../core/main.js';
 import { addSlotsForBuilding } from './jobsManager.js';
+import { gameFlags } from './gameFlags.js';
 
 // Active build states keyed by building name
 const buildingStates = new Map(); // name -> { startTime, lastTickTime, elapsedSec, durationSec }
@@ -147,12 +148,28 @@ function applyFirstBuildSideEffects(building) {
     }
   }
   if (building.name === 'Field Lab' && building.count === 1) {
-    if (!activatedSections.researchSection) {
-      activatedSections.researchSection = true;
-      setActivatedSections(activatedSections);
-      applyActivatedSections();
-      addLogEntry('The first Field Lab is operational. Research is now available.', LogType.UNLOCK);
-    }
+    // Research is now a locked tab inside the Crafting section.
+    try {
+      if (gameFlags) gameFlags.researchTabUnlocked = true;
+    } catch { /* ignore */ }
+
+    addLogEntry('The first Field Lab is operational. Research is now available.', LogType.UNLOCK);
+
+    try {
+      const current = localStorage.getItem('currentSection');
+      if (current === 'craftingSection' && typeof window !== 'undefined' && typeof window.setupCraftingSection === 'function') {
+        const el = document.getElementById('craftingSection');
+        if (el) window.setupCraftingSection(el);
+      }
+    } catch { /* ignore */ }
+
+    // Surface a menu badge so players notice the newly unlocked tab.
+    try {
+      if (typeof window !== 'undefined' && typeof window.setMenuNewItemFlag === 'function') {
+        const current = localStorage.getItem('currentSection');
+        if (current !== 'craftingSection') window.setMenuNewItemFlag('craftingSection', true);
+      }
+    } catch { /* ignore */ }
 
     // Unlock Scientist job messaging (slots are granted via the Field Lab's job effect)
     try {

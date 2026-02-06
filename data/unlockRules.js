@@ -192,6 +192,8 @@ export function evaluateEventUnlocks(event, state) {
         // New rules: When Fabric is discovered, unlock planning upgrades
         if (hasFabric) {
             const actions = (state.actions || []);
+            const firstAid = actions.find(a => a && a.id === 'craftFirstAidKit');
+            if (firstAid && !firstAid.isUnlocked && !firstAid.completed) result.actions.push('craftFirstAidKit');
             const planLarder = actions.find(a => a && a.id === 'planFoodLarder');
             if (planLarder && !planLarder.isUnlocked && !planLarder.completed) result.actions.push('planFoodLarder');
             const planReservoir = actions.find(a => a && a.id === 'planWaterReservoir');

@@ -20,6 +20,7 @@ import { getItemDefinition } from '../data/definitions/items.js';
 import { resources } from '../core/resources.js';
 import { setupTooltip } from '../ui/panels/tooltip.js';
 import { showConfirmPopup } from '../ui/panels/confirmPopup.js';
+import { newBadgeHtml } from '../ui/components/contentNewBadges.js';
 
 let listenersInstalled = false;
 let currentDragPayload = null;
@@ -52,11 +53,12 @@ export function setupCharacterSection(section) {
 
     const xp = getXPResourceSnapshot();
     const canSpendPoint = (xp?.statPoints?.unspent ?? 0) > 0;
+    const hasNewInventoryItems = hasAnyNewInventoryItems();
 
     section.innerHTML = `
         <div class="character-tabs" role="tablist" aria-label="Character tabs">
-            <button class="character-tab ${initialTab === 'gear' ? 'active' : ''}" data-tab="gear" role="tab" aria-selected="${initialTab === 'gear' ? 'true' : 'false'}">Gear</button>
-            <button class="character-tab ${initialTab === 'stats' ? 'active' : ''}" data-tab="stats" role="tab" aria-selected="${initialTab === 'stats' ? 'true' : 'false'}">Stats</button>
+            <button class="character-tab ${initialTab === 'gear' ? 'active' : ''}" data-tab="gear" role="tab" aria-selected="${initialTab === 'gear' ? 'true' : 'false'}">Gear${newBadgeHtml(!!hasNewInventoryItems)}</button>
+            <button class="character-tab ${initialTab === 'stats' ? 'active' : ''}" data-tab="stats" role="tab" aria-selected="${initialTab === 'stats' ? 'true' : 'false'}">Stats${newBadgeHtml(!!canSpendPoint)}</button>
         </div>
         <div class="content-panel character-panel">
             <div class="character-tabpanes">
@@ -160,6 +162,9 @@ export function setupCharacterSection(section) {
 
     // Attach tooltips after markup is in the DOM
     attachItemTooltips(section);
+
+    // Inventory "new" badges: clear on hover/touch.
+    attachInventoryNewBadges(section);
 
     // Stat tooltips (+ points breakdown)
     attachStatTooltips(section);
@@ -487,8 +492,10 @@ function renderBagSlots() {
         const hasItem = !!item;
         const label = hasItem ? item.name : '';
         const icon = (item && item.icon) ? String(item.icon) : '';
+        const showNew = hasItem && !!(characterState?.bagUiNew && characterState.bagUiNew[i]);
         return `
             <div class="bag-slot ${hasItem ? 'has-item' : ''}" data-slot="${i}" data-item-id="${hasItem ? escapeHtml(item.id) : ''}" ${hasItem ? 'draggable="true"' : ''} role="button" tabindex="0" aria-label="Bag slot ${i + 1}">
+                ${newBadgeHtml(showNew)}
                 ${hasItem ? `
                     <div class="bag-item">
                         ${icon ? `<img class="item-icon" src="${escapeHtml(icon)}" alt="" />` : ''}
@@ -498,6 +505,64 @@ function renderBagSlots() {
             </div>
         `;
     }).join('');
+}
+
+function hasAnyNewInventoryItems() {
+    try {
+        const flags = characterState && Array.isArray(characterState.bagUiNew) ? characterState.bagUiNew : [];
+        return flags.some(v => !!v);
+    } catch {
+        return false;
+    }
+}
+
+function attachInventoryNewBadges(sectionRoot) {
+    const panel = sectionRoot.querySelector('.character-panel');
+    if (!panel) return;
+
+    const slots = Array.from(panel.querySelectorAll('.bag-slot.has-item'));
+    if (!slots.length) return;
+
+    const clearForIndex = (slotEl, idx) => {
+        if (!Number.isInteger(idx) || idx < 0) return;
+        try {
+            if (characterState && Array.isArray(characterState.bagUiNew) && characterState.bagUiNew[idx]) {
+                characterState.bagUiNew[idx] = false;
+            } else {
+                return;
+            }
+        } catch { /* ignore */ }
+
+        try { slotEl.querySelector('.action-new-badge')?.remove(); } catch { /* ignore */ }
+
+        // If no more new inventory, remove the Gear tab badge.
+        try {
+            if (!hasAnyNewInventoryItems()) {
+                const gearTab = sectionRoot.querySelector('.character-tab[data-tab="gear"]');
+                gearTab?.querySelector('.action-new-badge')?.remove();
+            }
+        } catch { /* ignore */ }
+
+        // Persist quietly (avoid log spam)
+        import('../core/saveload.js').then(mod => {
+            try { mod?.saveGameStateQuiet?.(); } catch { /* ignore */ }
+        }).catch(() => {});
+    };
+
+    for (const slotEl of slots) {
+        const idx = Number(slotEl?.dataset?.slot);
+        if (!Number.isInteger(idx)) continue;
+        if (!(characterState && Array.isArray(characterState.bagUiNew) && characterState.bagUiNew[idx])) continue;
+
+        if (slotEl.dataset && slotEl.dataset.invUiNewWired === 'true') continue;
+        try { if (slotEl.dataset) slotEl.dataset.invUiNewWired = 'true'; } catch { /* ignore */ }
+
+        const clear = () => clearForIndex(slotEl, idx);
+        slotEl.addEventListener('mouseenter', clear);
+        slotEl.addEventListener('focus', clear);
+        slotEl.addEventListener('pointerdown', clear, { passive: true });
+        slotEl.addEventListener('touchstart', clear, { passive: true });
+    }
 }
 
 function attachItemTooltips(sectionRoot) {

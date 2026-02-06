@@ -6,8 +6,8 @@ export const jobs = [
         building: 'Foraging Camp',
         slots: 0,
         assigned: 0,
-        // production: Food Rations per second per assigned crew
-        produces: 'Food Rations',
+        // production: Provisions per second per assigned crew
+        produces: 'Provisions',
         rate: 0.08
     },
     {
@@ -16,8 +16,8 @@ export const jobs = [
         building: 'Water Station',
         slots: 0,
         assigned: 0,
-        // production: Clean Water per second per assigned crew
-        produces: 'Clean Water',
+        // production: Water per second per assigned crew
+        produces: 'Water',
         rate: 0.105
     },
     // Scrap Collector — unlocked by Establish Base Camp; unlimited assignments once unlocked
@@ -29,6 +29,11 @@ export const jobs = [
         assigned: 0,
         produces: 'Metal Parts',
         rate: 0.06,
+        // Camp upkeep per assigned crew (per second)
+        consumes: [
+            { resource: 'Provisions', rate: 0.04 },
+            { resource: 'Water', rate: 0.04 },
+        ],
         unlimited: false
     },
     // Wire Collector — unlocked by Organize Wire Scavenging upgrade; unlimited assignments once unlocked
@@ -40,6 +45,11 @@ export const jobs = [
         assigned: 0,
         produces: 'Wire',
         rate: 0.07,
+        // Camp upkeep per assigned crew (per second)
+        consumes: [
+            { resource: 'Provisions', rate: 0.04 },
+            { resource: 'Water', rate: 0.04 },
+        ],
         unlimited: false
     },
     // Scientist — unlocked once the first Field Lab is built

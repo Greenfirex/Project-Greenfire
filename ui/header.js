@@ -4,6 +4,8 @@ import { setupTooltip } from './panels/tooltip.js';
 import { getCurrentWeather } from '../data/weather.js';
 import { getConfirmOnLoad, getConfirmOnReset } from '../core/settings.js';
 import { showConfirmPopup } from './panels/confirmPopup.js';
+import { getMorale } from '../data/morale.js';
+import { gameFlags } from '../data/gameFlags.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -230,6 +232,44 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     } catch (e) { /* ignore */ }
+
+    // Setup morale pill tooltip (mobile/compact only; shown once discovered)
+    try {
+        const mEl = document.getElementById('moraleWidget');
+        if (mEl) {
+            setupTooltip(mEl, () => {
+                try {
+                    const m = getMorale();
+                    const pct = (m && typeof m.percent === 'number') ? m.percent : 100;
+                    const delta = Math.round(pct - 100);
+                    const sign = delta > 0 ? '+' : '';
+                    const mult = (m && typeof m.multiplier === 'number') ? m.multiplier : 1;
+
+                    const sources = Array.isArray(m?.sources) ? m.sources : [];
+                    const srcLines = sources.map(s => {
+                        const d = Number(s?.deltaPercent) || 0;
+                        const ds = d > 0 ? '+' : '';
+                        const rem = (typeof s?.remainingDays === 'number' && Number.isFinite(s.remainingDays))
+                            ? ` (${s.remainingDays}d)`
+                            : '';
+                        return `${s?.label || 'Unknown'}: ${ds}${d}%${rem}`;
+                    });
+
+                    return `
+                        <h4>Morale</h4>
+                        <p class="tooltip-description">Affects job output. Higher morale increases resource production from assigned workers.</p>
+                        <div class="tooltip-section">
+                            <p>Current: <strong>${pct}%</strong> (${sign}${delta}%)</p>
+                            <p class="tooltip-detail">Job multiplier: <strong>${mult.toFixed(2)}x</strong></p>
+                        </div>
+                        ${srcLines.length ? `<div class="tooltip-section"><h4>Sources</h4><ul class="tooltip-bonuses">${srcLines.map(l => `<li class="bonus-item">${l}</li>`).join('')}</ul></div>` : ''}
+                    `;
+                } catch {
+                    return `<h4>Morale</h4><p>—</p>`;
+                }
+            });
+        }
+    } catch { /* ignore */ }
 });
 
 // This handles the clock at the top of the screen
@@ -245,6 +285,30 @@ function updateTime() {
     if (clockEl) {
         clockEl.textContent = getIngameTimeString();
     }
+
+    // Morale pill between time and weather (compact only; shown once discovered)
+    const mEl = document.getElementById('moraleWidget');
+    if (mEl) {
+        try {
+            const isCompact = document.documentElement.classList.contains('is-compact');
+            const discovered = !!(gameFlags && gameFlags.baseCampEstablished);
+            if (!isCompact || !discovered) {
+                mEl.classList.add('hidden');
+            } else {
+                const m = getMorale();
+                const pct = (m && typeof m.percent === 'number') ? m.percent : 100;
+                mEl.innerHTML = `
+                    <span class="morale-icon">☺</span>
+                    <span class="morale-label">Morale</span>
+                    <span class="morale-value">${pct}%</span>
+                `;
+                mEl.classList.remove('hidden');
+            }
+        } catch {
+            mEl.classList.add('hidden');
+        }
+    }
+
     // Weather widget near the clock
     const wEl = document.getElementById('weatherWidget');
     if (wEl) {

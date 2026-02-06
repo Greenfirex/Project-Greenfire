@@ -127,7 +127,7 @@ investigate_sound_found: {
         "Sudden relief washes over their faces. They had given up hope of rescue until your light appeared in the gloom.",
         "You realize that securing these survivors is your top priority. With them safe, you can focus on stabilizing a base camp nearby and organizing further recovery efforts.",
         "There was a nice clear opening south of the cave — a good place to establish a camp.",
-        "NOTE: Survivors must be supplied with Food Rations and Clean Water. They can help you with this once you set up a camp."
+        "NOTE: Survivors must be supplied with Provisions and Water. They can help you with this once you set up a camp."
     ]
 },
 basecamp_established: {
@@ -143,7 +143,7 @@ cargo_bay_reached: {
         pages: [
             "The last slab of twisted plating gives way. Dust hangs in the air as your light spills into a wide compartment — the cargo bay.",
             "Most containers are shattered or fused shut, but not everything was ruined. Among the wreckage you recover a compact worker drone — scuffed, but intact — and a blueprint packet detailing its frame and control systems.",
-            "Back at camp, you repurpose the drone’s intact subsystems and routines into a dedicated helper. It counts as an additional crew member, and the blueprint will be usable once proper manufacturing is online." 
+            "Back at camp, you repurpose the drone’s intact subsystems and routines into a dedicated helper. It counts as an additional crew member, and the blueprint will be usable once proper crafting facilities are online." 
         ]
     },
 
@@ -161,7 +161,7 @@ base_camp_improved: {
     title: 'Base Camp — Systems Integrated',
     pages: [
         "Piece by piece the rough encampment has become a functioning base. Crude foraging tools boost gathering, a steady campfire lifts morale, scavenger rigs streamline scrap recovery, and a salvaged cooking unit turns raw finds into reliable sustenance.",
-        "Shelters are up — insulated tents break the worst of the chill — and rain catchers feed purification units that cycle clean water into storage. Survivors move with practiced rhythm now; tasks are understood, hand‑offs are smooth, and downtime actually restores strength.",
+        "Shelters are up — insulated tents break the worst of the chill — and rain catchers feed purification units that cycle water into storage. Survivors move with practiced rhythm now; tasks are understood, hand‑offs are smooth, and downtime actually restores strength.",
         "This is no longer a fragile staging area. It is a stable platform for longer operations and deeper exploration. You can afford broader objectives: stockpiling for endurance, investigating signals, and pushing into higher‑risk compartments. The wreck is still dangerous, but now you face it with infrastructure and purpose."
     ]
 },
@@ -180,7 +180,7 @@ south_corridor_entry: {
     title: 'South Corridor — New Access',
     pages: [
         "You pry and squeeze past collapsed plating and heat-scorched rails until a clearer path opens. Beyond the obstruction are two side compartments: a mess hall lined with crushed tables and a block of crew berths.",
-        "You can search these compartments for salvage and survivors — the cafeteria may hide food and water rations, and the crew quarters may contain parts that could aid survivors. Choose a location to investigate."
+        "You can search these compartments for salvage and survivors — the cafeteria may hide food rations and drinking water, and the crew quarters may contain parts that could aid survivors. Choose a location to investigate."
     ]
 },
 

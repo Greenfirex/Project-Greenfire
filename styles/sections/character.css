@@ -91,6 +91,23 @@
         0 2px 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10);
 }
 
+/* Tab-level NEW badge (Gear/Stats) */
+#characterSection .character-tab .action-new-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 10px;
+    border-radius: 999px;
+    background: rgba(255, 213, 74, 0.92);
+    color: rgba(0,0,0,0.92);
+    font-weight: 900;
+    font-size: 12px;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.35);
+    pointer-events: none;
+}
+
 #characterSection .character-tabpanes {
     flex: 1 1 auto;
     display: flex;
@@ -643,6 +660,26 @@
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
     position: relative;
     overflow: hidden;
+}
+
+/* Inventory-slot NEW badge */
+#characterSection .bag-slot .action-new-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+    color: rgba(0,0,0,0.92);
+    background: rgba(255, 216, 74, 0.95);
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.55);
+    z-index: 3;
+    pointer-events: none;
 }
 
 #characterSection .bag-item {
