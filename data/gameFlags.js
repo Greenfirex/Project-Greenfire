@@ -246,6 +246,15 @@ registerActionCompletionHandler('searchPowerCore', () => applyPendingActionMove(
 // Unlock Journal on the initial re-entry attempt and surface the menu "new" badge.
 registerActionCompletionHandler('attemptReentry', () => {
     if (typeof window === 'undefined') return;
+
+    // Local map: after the initial re-entry attempt, the entrance collapses.
+    // This flag is used by data/maps/crashSiteMap.js to block F7 and close the POI gap.
+    try {
+        if (characterState && characterState.localMap && typeof characterState.localMap === 'object') {
+            characterState.localMap.hasTriedReentry = true;
+        }
+    } catch { /* ignore */ }
+
     try {
         if (typeof window.enableSection === 'function') {
             window.enableSection('journalSection');
@@ -260,6 +269,13 @@ registerActionCompletionHandler('attemptReentry', () => {
             let current = null;
             try { current = localStorage.getItem('currentSection'); } catch { current = null; }
             if (current !== 'journalSection') window.setMenuNewItemFlag('journalSection', true);
+        }
+    } catch { /* ignore */ }
+
+    // Refresh Crash Site UI (including local map) so the collapse blocks the entrance immediately.
+    try {
+        if (typeof window.setupCrashSiteSection === 'function') {
+            window.setupCrashSiteSection();
         }
     } catch { /* ignore */ }
 });
@@ -572,19 +588,40 @@ registerActionCompletionHandler('move', async () => {
                         if (st.x === 8 && st.y === 8 && !st.discoveredRiver) {
                             st.discoveredRiver = true;
                             unlockFromScoutStage(2);
+                        }
 
-                            // One-time combat at the river.
-                            if (!st.riverCombatDone) {
-                                st.riverCombatDone = true;
-                                try {
-
-                                    // Base camp tile (B7): once unlocked, visiting it marks it as discovered (changes marker).
-                                    if (st.b7Unlocked === true && st.x === 2 && st.y === 7 && !st.discoveredBaseCamp) {
-                                        st.discoveredBaseCamp = true;
+                        // River combat: retryable until win. Retreat falls back to the previous tile.
+                        if (st.x === 8 && st.y === 8 && !st.riverCombatDone) {
+                            try {
+                                const result = await showCombatPopup('wildlife_river', { sourceActionId: 'scoutSurroundings', stageIndex: 2 });
+                                if (result && result.outcome === 'win') {
+                                    st.riverCombatDone = true;
+                                } else if (result && result.outcome === 'retreat') {
+                                    const fromX = Number(st.lastMoveFromX);
+                                    const fromY = Number(st.lastMoveFromY);
+                                    const toX = Number(st.lastMoveToX);
+                                    const toY = Number(st.lastMoveToY);
+                                    // If we arrived here via the normal local-map move, fall back one tile.
+                                    if ([fromX, fromY, toX, toY].every(Number.isFinite)
+                                        && Number(st.x) === toX && Number(st.y) === toY
+                                        && Math.abs(toX - fromX) + Math.abs(toY - fromY) === 1) {
+                                        st.lastMoveAt = Date.now();
+                                        st.lastMoveFromX = toX;
+                                        st.lastMoveFromY = toY;
+                                        st.lastMoveToX = fromX;
+                                        st.lastMoveToY = fromY;
+                                        st.x = fromX;
+                                        st.y = fromY;
+                                        st.selectedX = fromX;
+                                        st.selectedY = fromY;
+                                        try {
+                                            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                                                window.setupCrashSiteSection();
+                                            }
+                                        } catch { /* ignore */ }
                                     }
-                                    await showCombatPopup('wildlife_river', { sourceActionId: 'scoutSurroundings', stageIndex: 2 });
-                                } catch { /* ignore */ }
-                            }
+                                }
+                            } catch { /* ignore */ }
                         }
 
                         // G8 -> one-time story hint + tutorial weapon

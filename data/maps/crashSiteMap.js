@@ -301,7 +301,7 @@ export const IMPORTANT_CELLS = new Set([
 // - If minScoutStage is set and current scoutStage is lower, the tile is treated as blocked.
 const OVERRIDES = {
     // Ship entrance tile
-    '6,7': { type: 'crashSite' },
+    '6,7': { type: 'entrance' },
 
     // Ship interior rooms / corridors
     '4,5': { type: 'corridor' }, // D5
@@ -531,6 +531,17 @@ export function getLocalMapTileAt(col, row, { scoutStage = 0, hasTriedReentry = 
         }
     } catch { /* ignore */ }
 
+    // Contextual description for the ship entrance (F7): hint at a way in before the attempt,
+    // then reflect the permanent collapse after the attempt.
+    try {
+        if (c === SHIP_ENTRANCE.x && r === SHIP_ENTRANCE.y) {
+            const tried = !!(localMapState && typeof localMapState === 'object' && localMapState.hasTriedReentry === true);
+            description = tried
+                ? 'The forward section has collapsed. Twisted plating and burning debris have sealed this entrance permanently.'
+                : 'A jagged hull breach gapes here. It might be possible to force your way back inside — but it looks unstable.';
+        }
+    } catch { /* ignore */ }
+
     const minScoutStage = (ov && Number.isFinite(ov.minScoutStage)) ? ov.minScoutStage : null;
     const lockedByStage = (typeof minScoutStage === 'number') ? (Number(scoutStage) < minScoutStage) : false;
 
@@ -623,6 +634,25 @@ export function getLocalMapTileAt(col, row, { scoutStage = 0, hasTriedReentry = 
         minScoutStage,
         lockedByStage,
     };
+}
+
+// Optional UI hinting: return a short warning string if this tile is known to potentially
+// trigger a combat encounter when approached/explored.
+// The UI decides when to reveal this (e.g., only when adjacent to the player).
+export function getLocalMapEncounterHintAt(col, row, { localMapState = null } = {}) {
+    const c = Number(col);
+    const r = Number(row);
+    if (!Number.isFinite(c) || !Number.isFinite(r)) return null;
+
+    // River (H8): early-game wildlife encounter area until the player has resolved it.
+    try {
+        if (c === WATER_TILE.x && r === WATER_TILE.y) {
+            const done = !!(localMapState && typeof localMapState === 'object' && localMapState.riverCombatDone === true);
+            if (!done) return 'You hear movement and splashing nearby. Something could be lurking close to the water.';
+        }
+    } catch { /* ignore */ }
+
+    return null;
 }
 
 export function isCrashWallBetween(fromX, fromY, toX, toY, { localMapState = null } = {}) {

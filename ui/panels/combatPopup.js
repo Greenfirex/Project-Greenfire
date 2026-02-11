@@ -320,34 +320,34 @@ function spawnCombatFloatText(overlay, text, opts = {}) {
     lane.appendChild(el);
 
     const reduceMotion = (() => {
-        try { return !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
+        try {
+            const media = !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const cls = !!document.body && document.body.classList.contains('reduce-motion');
+            return media || cls;
+        } catch {
+            return !!document.body && document.body.classList.contains('reduce-motion');
+        }
     })();
 
-    if (reduceMotion) {
-        try {
-            el.style.animation = 'none';
-            el.style.opacity = '1';
-        } catch {}
-        setTimeout(() => {
-            try { el.remove(); } catch {}
-        }, 800);
-        return;
-    }
-
-    // Some mobile browsers/users end up suppressing CSS keyframe animations.
-    // Use WAAPI when available so damage numbers reliably appear.
+    // Prefer WAAPI when available: it's reliable even if CSS animations are disabled
+    // (e.g. body.reduce-motion sets animation:none !important).
     if (el.animate) {
         try {
             el.style.animation = 'none';
-            const startY = 14;
-            const endY = -44;
-            const baseX = Number.parseFloat(String(el.style.getPropertyValue('--x') || '0').replace('px', '')) || 0;
+            const startY = reduceMotion ? 10 : 16;
+            const endY = reduceMotion ? -52 : -92;
+            const baseXPx = Number.parseFloat(String(el.style.getPropertyValue('--x') || '0').replace('px', '')) || 0;
             const rot = String(el.style.getPropertyValue('--rot') || '0deg');
+            // Avoid `calc()` inside `transform` for WAAPI keyframes; some browsers treat it as invalid.
+            const t = (x, y, scale) => `translate(-50%, 0px) translateX(${x}px) translateY(${y}px) rotate(${rot}) scale(${scale})`;
+            const driftX = randIntInclusive(-10, 10);
+            const midY = Math.round((startY + endY) / 2);
             const anim = el.animate([
-                { opacity: 0, transform: `translate(calc(-50% + ${baseX}px), ${startY}px) rotate(${rot}) scale(0.98)` },
-                { opacity: 1, offset: 0.12, transform: `translate(calc(-50% + ${baseX}px), ${startY - 6}px) rotate(${rot}) scale(1.0)` },
-                { opacity: 0, transform: `translate(calc(-50% + ${baseX}px), ${endY}px) rotate(${rot}) scale(1.02)` },
-            ], { duration: 950, easing: 'cubic-bezier(0.18, 0.9, 0.2, 1)', fill: 'forwards' });
+                { opacity: 0, transform: t(baseXPx, startY, 0.97) },
+                { opacity: 1, offset: 0.12, transform: t(baseXPx + driftX, startY - 10, 1.0) },
+                { opacity: 1, offset: 0.65, transform: t(baseXPx + driftX, midY, 1.03) },
+                { opacity: 0, transform: t(baseXPx + driftX, endY, 1.06) },
+            ], { duration: reduceMotion ? 900 : 1050, easing: 'cubic-bezier(0.18, 0.9, 0.2, 1)', fill: 'forwards' });
             anim.addEventListener('finish', () => {
                 try { el.remove(); } catch {}
             }, { once: true });
@@ -367,24 +367,50 @@ function triggerSilhouetteAttack(overlay, who) {
     const el = overlay.querySelector(`.combat-portrait[data-portrait="${who}"]`);
     if (!el) return;
 
-    const reduceMotion = (() => {
-        try { return !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
-    })();
-    if (reduceMotion) return;
+    const orbitEl = overlay.querySelector(`.combat-orbit[data-orbit="${who}"]`);
 
-    // Prefer WAAPI so the lunge works reliably on mobile.
+    const reduceMotion = (() => {
+        try {
+            const media = !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const cls = !!document.body && document.body.classList.contains('reduce-motion');
+            return media || cls;
+        } catch {
+            return !!document.body && document.body.classList.contains('reduce-motion');
+        }
+    })();
+    // Prefer WAAPI when available: works even if CSS animations are disabled
+    // (e.g. body.reduce-motion sets animation:none !important).
     if (el.animate) {
         try {
             const dir = (who === 'enemy') ? -1 : 1;
             const base = 'translate(-50%, -50%)';
+            const dist = reduceMotion ? 8 : 12;
+            const scale = reduceMotion ? 1.02 : 1.03;
+            const duration = reduceMotion ? 200 : 220;
+            try { el.style.animation = 'none'; } catch {}
             const anim = el.animate([
-                { transform: `${base} translateX(0px)` },
-                { transform: `${base} translateX(${10 * dir}px)` , offset: 0.55 },
-                { transform: `${base} translateX(0px)` },
-            ], { duration: 220, easing: 'cubic-bezier(0.2, 0.9, 0.2, 1)', fill: 'both' });
+                { transform: `${base} translateX(0px) scale(1)`, filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.6)) contrast(1.05)' },
+                { transform: `${base} translateX(${dist * dir}px) scale(${scale})`, offset: 0.55, filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.7)) contrast(1.08)' },
+                { transform: `${base} translateX(0px) scale(1)`, filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.6)) contrast(1.05)' },
+            ], { duration, easing: 'cubic-bezier(0.2, 0.9, 0.2, 1)', fill: 'both' });
             anim.addEventListener('finish', () => {
                 try { el.style.transform = ''; } catch {}
+                try { el.style.filter = ''; } catch {}
             }, { once: true });
+
+            if (orbitEl?.animate) {
+                try {
+                    try { orbitEl.style.animation = 'none'; } catch {}
+                    const orbitAnim = orbitEl.animate([
+                        { transform: 'translateX(0px)' },
+                        { transform: `translateX(${Math.round((reduceMotion ? 4 : 6) * dir)}px)`, offset: 0.55 },
+                        { transform: 'translateX(0px)' },
+                    ], { duration, easing: 'cubic-bezier(0.2, 0.9, 0.2, 1)', fill: 'both' });
+                    orbitAnim.addEventListener('finish', () => {
+                        try { orbitEl.style.transform = ''; } catch {}
+                    }, { once: true });
+                } catch { /* ignore */ }
+            }
             return;
         } catch { /* fall back to CSS class */ }
     }
@@ -393,6 +419,14 @@ function triggerSilhouetteAttack(overlay, who) {
     // Force reflow so re-adding restarts the animation.
     void el.offsetWidth;
     el.classList.add('attack');
+
+    // Also pulse/lunge the whole frame so the cue is visible even if the portrait
+    // movement is subtle (blend-mode/masks can hide it).
+    if (orbitEl) {
+        orbitEl.classList.remove('is-attacking');
+        void orbitEl.offsetWidth;
+        orbitEl.classList.add('is-attacking');
+    }
 }
 
 function triggerEnemyDefeatedFx(overlay) {
@@ -733,10 +767,9 @@ export function showCombatPopup(encounterId, opts = {}) {
 
     appendLogWithTime(overlay, 0, `Engaged: ${def.name}.`, 'system');
 
-    // Optional slight stamina cost over time (does not block prototype)
-    const staminaCostPerSecond = 0.15;
     const HEAVY_STRIKE_STAMINA_COST = 25;
     const HEAVY_STRIKE_DAMAGE_MULT = 2.0;
+    const HEAVY_STRIKE_COOLDOWN_MS = 3000;
 
     let last = performance.now();
     let raf = null;
@@ -782,6 +815,8 @@ export function showCombatPopup(encounterId, opts = {}) {
         appendLogWithTime(overlay, elapsedMs, 'You retreat.', 'system');
         addLogEntry(`Retreated from combat: ${def.name}.`, LogType.INFO);
         finalOutcome = finish({ outcome: 'retreat' });
+            // Retreat is an explicit user action; close immediately.
+            closeAndResolve();
     };
 
     const promise = new Promise((resolve) => {
@@ -795,6 +830,14 @@ export function showCombatPopup(encounterId, opts = {}) {
         const logBtns = Array.from(overlay.querySelectorAll('button[data-action="toggle-log"]'));
         const heavyBtn = overlay.querySelector('button[data-action="heavy-strike"]');
         const placeholderBtn = overlay.querySelector('button[data-action="ability-placeholder"]');
+
+        if (retreatBtn) {
+            try {
+                setupTooltip(retreatBtn, 'Retreat: End combat immediately. No rewards. You may need to reposition before trying again.');
+            } catch {}
+        }
+
+        let heavyStrikeReadyAtPerf = 0;
 
         let combatPaused = false;
 
@@ -860,15 +903,29 @@ export function showCombatPopup(encounterId, opts = {}) {
             const curStamina = staminaRes ? Number(staminaRes.amount ?? 0) : 0;
             const hasStamina = !!staminaRes;
             const enough = hasStamina && curStamina >= HEAVY_STRIKE_STAMINA_COST - 1e-9;
+            const nowPerf = performance.now();
+            const heavyOnCooldown = Number.isFinite(heavyStrikeReadyAtPerf) && nowPerf < heavyStrikeReadyAtPerf;
+            const heavyCooldownLeftMs = heavyOnCooldown ? Math.max(0, heavyStrikeReadyAtPerf - nowPerf) : 0;
 
             if (heavyBtn) {
-                const shouldDisable = !active || !!finalOutcome || combatPaused || !enough;
+                const shouldDisable = !active || !!finalOutcome || combatPaused || !enough || heavyOnCooldown;
                 heavyBtn.disabled = shouldDisable;
                 heavyBtn.setAttribute('aria-disabled', shouldDisable ? 'true' : 'false');
+                try {
+                    if (heavyOnCooldown) {
+                        heavyBtn.dataset.cooldown = '1';
+                        const fill = HEAVY_STRIKE_COOLDOWN_MS > 0 ? (heavyCooldownLeftMs / HEAVY_STRIKE_COOLDOWN_MS) : 0;
+                        heavyBtn.style.setProperty('--cooldown-fill', String(Math.max(0, Math.min(1, fill))));
+                    } else {
+                        delete heavyBtn.dataset.cooldown;
+                        heavyBtn.style.removeProperty('--cooldown-fill');
+                    }
+                } catch {}
                 try {
                     setupTooltip(heavyBtn, () => {
                         if (!hasStamina) return 'Heavy Strike: requires Stamina.';
                         if (combatPaused) return 'Heavy Strike is unavailable while paused.';
+                        if (heavyOnCooldown) return `Heavy Strike cooldown: ${(heavyCooldownLeftMs / 1000).toFixed(1)}s`;
                         if (!enough) return `Heavy Strike: costs ${HEAVY_STRIKE_STAMINA_COST} Stamina. (Need ${Math.max(0, Math.ceil(HEAVY_STRIKE_STAMINA_COST - curStamina))} more)`;
                         return `Heavy Strike: costs ${HEAVY_STRIKE_STAMINA_COST} Stamina. Deals heavy damage.`;
                     });
@@ -936,10 +993,14 @@ export function showCombatPopup(encounterId, opts = {}) {
             if (combatPaused) return;
             if (!stamina) return;
 
+            const nowPerf = performance.now();
+            if (Number.isFinite(heavyStrikeReadyAtPerf) && nowPerf < heavyStrikeReadyAtPerf) return;
+
             const curStamina = Number(stamina.amount ?? 0);
             if (!Number.isFinite(curStamina) || curStamina < HEAVY_STRIKE_STAMINA_COST) return;
 
             stamina.amount = Math.max(0, curStamina - HEAVY_STRIKE_STAMINA_COST);
+            heavyStrikeReadyAtPerf = nowPerf + HEAVY_STRIKE_COOLDOWN_MS;
 
             const base = randIntInclusive(stats?.damageMin ?? 1, stats?.damageMax ?? 2);
             const raw = Math.max(0, Math.round(base * HEAVY_STRIKE_DAMAGE_MULT));
@@ -1143,11 +1204,6 @@ export function showCombatPopup(encounterId, opts = {}) {
                 }
 
                 safety++;
-            }
-
-            // Optional stamina drain
-            if (stamina) {
-                stamina.amount = Math.max(0, Number(stamina.amount ?? 0) - staminaCostPerSecond * dt);
             }
 
             setBar(overlay, 'player', playerHp, Math.max(1, playerMaxHp));

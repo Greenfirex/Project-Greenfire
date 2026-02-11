@@ -1483,9 +1483,9 @@ function onDrop(event, target, sectionRoot) {
 }
 
 function commitCharacterChange(sectionRoot) {
-    // Persist promptly (avoid static import cycles)
+    // Persist promptly, but quietly (avoid log spam + static import cycles)
     import('../core/saveload.js').then(mod => {
-        try { mod?.saveGameState?.(); } catch { /* non-fatal */ }
+        try { mod?.saveGameStateQuiet?.(); } catch { /* non-fatal */ }
     }).catch(() => {});
 
     // Re-render to reflect new state + stats

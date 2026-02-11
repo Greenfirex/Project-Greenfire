@@ -94,6 +94,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } catch { /* ignore */ }
 
+    // If the player clicked the header "Load" link, we reload the page to apply the saved state.
+    // In that case, skip the title screen and jump straight into the game.
+    try {
+        const autoContinue = localStorage.getItem('autoContinueAfterReload');
+        if (autoContinue) {
+            localStorage.removeItem('autoContinueAfterReload');
+            hideTitleScreen();
+            startGame({ mode: 'continue' });
+            return;
+        }
+    } catch { /* ignore */ }
+
     try {
         initTitleScreen({
             onContinue: () => startGame({ mode: 'continue' }),
@@ -211,6 +223,15 @@ function startGame({ mode = 'continue' } = {}) {
             let deltaTime = (now - lastUpdateTime) / 1000;
             lastUpdateTime = now;
 
+            // While combat is open, freeze Stamina so it is only affected by combat abilities.
+            // (The main loop keeps running even when the game is paused.)
+            const combatPopupOpen = (() => {
+                try {
+                    const el = document.getElementById('combatPopup');
+                    return !!(el && !el.classList.contains('hidden'));
+                } catch { return false; }
+            })();
+
                         // Apply temporary global time scale for debugging
             deltaTime *= (window.TIME_SCALE || 5);
 
@@ -221,6 +242,7 @@ function startGame({ mode = 'continue' } = {}) {
 
             // --- Resource rate application (use centralized computeResourceRates)
             resources.forEach(res => {
+                if (combatPopupOpen && res && res.name === 'Stamina') return;
                 const rates = computeResourceRates(res.name);
                 if (!rates) return;
                 const delta = rates.netPerSecond * deltaTime;

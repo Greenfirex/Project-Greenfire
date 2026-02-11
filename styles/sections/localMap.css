@@ -378,10 +378,85 @@ html.is-compact .localmap-zoom {
     color: #111;
     background: #ffd84a;
     box-shadow:
-        0 0 6px rgba(255, 216, 74, 0.85),
-        0 0 10px rgba(255, 216, 74, 0.45);
+        0 0 8px rgba(255, 216, 74, 0.92),
+        0 0 16px rgba(255, 216, 74, 0.60),
+        0 0 26px rgba(255, 216, 74, 0.32);
     z-index: 5;
     pointer-events: none;
+    animation: localmapTileAlertPulse 1600ms ease-in-out infinite;
+    will-change: transform, box-shadow;
+}
+
+@keyframes localmapTileAlertPulse {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        box-shadow:
+            0 0 8px rgba(255, 216, 74, 0.92),
+            0 0 16px rgba(255, 216, 74, 0.60),
+            0 0 26px rgba(255, 216, 74, 0.32);
+    }
+    50% {
+        transform: translate(-50%, -52%) scale(1.15);
+        box-shadow:
+            0 0 14px rgba(255, 216, 74, 0.98),
+            0 0 26px rgba(255, 216, 74, 0.72),
+            0 0 42px rgba(255, 216, 74, 0.40);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .localmap-tile .localmap-tile-alert {
+        animation: localmapTileAlertGlow 2200ms ease-in-out infinite;
+    }
+}
+
+@keyframes localmapTileAlertGlow {
+    0%, 100% {
+        box-shadow:
+            0 0 8px rgba(255, 216, 74, 0.85),
+            0 0 16px rgba(255, 216, 74, 0.52),
+            0 0 26px rgba(255, 216, 74, 0.28);
+        opacity: 0.92;
+    }
+    50% {
+        box-shadow:
+            0 0 14px rgba(255, 216, 74, 0.98),
+            0 0 26px rgba(255, 216, 74, 0.70),
+            0 0 42px rgba(255, 216, 74, 0.36);
+        opacity: 1;
+    }
+}
+
+/* Subtle motion for the corner alert marker variant too (if used). */
+.localmap-marker--alert {
+    animation: localmapCornerAlertPulse 1600ms ease-in-out infinite;
+    will-change: transform, box-shadow;
+}
+
+@keyframes localmapCornerAlertPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.10);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .localmap-marker--alert {
+        animation: localmapCornerAlertGlow 2200ms ease-in-out infinite;
+    }
+}
+
+@keyframes localmapCornerAlertGlow {
+    0%, 100% {
+        box-shadow: 0 0 0 1px rgba(0,0,0,0.55), 0 6px 14px rgba(0,0,0,0.55);
+        opacity: 0.92;
+    }
+    50% {
+        box-shadow: 0 0 0 1px rgba(0,0,0,0.55), 0 8px 18px rgba(0,0,0,0.58);
+        opacity: 1;
+    }
 }
 
 .localmap-tile .localmap-marker {
@@ -690,11 +765,11 @@ html.is-compact .localmap-zoom {
 .localmap-path-overlay polyline {
     fill: none;
     stroke: rgba(80, 255, 140, 0.92);
-    stroke-width: 0.95;
+    stroke-width: 0.75;
     stroke-linecap: round;
     stroke-linejoin: round;
     /* Dotted/condensed route hint */
-    stroke-dasharray: 0.35 1.15;
+    stroke-dasharray: 0.25 1.25;
     filter: drop-shadow(0 0 2px rgba(80, 255, 140, 0.28));
     opacity: 0.9;
 }
@@ -702,7 +777,7 @@ html.is-compact .localmap-zoom {
 .localmap-path-overlay circle {
     fill: rgba(80, 255, 140, 0.95);
     stroke: rgba(0, 0, 0, 0.55);
-    stroke-width: 0.35;
+    stroke-width: 0.30;
     filter: drop-shadow(0 0 2px rgba(80, 255, 140, 0.35));
     opacity: 0.95;
 }
@@ -931,6 +1006,7 @@ html.is-compact .localmap-zoom {
     border-radius: 50%;
     pointer-events: none;
     z-index: 6;
+    opacity: 0;
     background:
         radial-gradient(circle at 45% 55%, rgba(255, 226, 120, 0.95) 0%, rgba(255, 175, 60, 0.75) 22%, rgba(255, 96, 22, 0.45) 42%, rgba(0,0,0,0) 70%),
         radial-gradient(circle at 60% 40%, rgba(255, 255, 255, 0.35) 0%, rgba(255, 216, 74, 0.25) 18%, rgba(0,0,0,0) 55%);
@@ -938,6 +1014,7 @@ html.is-compact .localmap-zoom {
         0 0 14px rgba(255, 140, 40, 0.45),
         0 0 26px rgba(255, 216, 74, 0.20);
     animation: localmapBurnFlicker 1400ms ease-out 1;
+    animation-fill-mode: forwards;
 }
 
 .localmap-tile.is-move-from {

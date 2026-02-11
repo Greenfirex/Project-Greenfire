@@ -67,7 +67,7 @@ export const items = [
         name: 'Basic Torch',
         slot: 'accessory',
         icon: 'assets/images/items/basic_torch.svg',
-        stats: { evasion: 0 }
+        stats: { evasion: 0, hitChance: 1 }
     },
     {
         id: 'canteen',

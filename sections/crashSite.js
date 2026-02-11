@@ -519,7 +519,6 @@ let cancelTimeout = null;
 export function startCrashSiteLoop(section = null) {
     if (actionInterval) return;
     if (lsGet('gamePaused') === 'true') {
-        addLogEntry('Cannot resume crash site loop while game is paused.', LogType.INFO);
         return;
     }
 
@@ -1237,8 +1236,22 @@ export function setupCrashSiteSection(section) {
             const dy = Math.abs(selY - playerY);
             const dist = dx + dy;
 
+            // If the destination tile itself is blocked by map rules (e.g., collapsed entrance),
+            // do not show movement actions for it.
+            const selectedMeta = (() => {
+                try {
+                    return getLocalMapTileAt(selX, selY, { scoutStage, hasTriedReentry, localMapState: lm });
+                } catch { /* ignore */ }
+                return null;
+            })();
+            const selectedTileBlocked = !!(selectedMeta && selectedMeta.blocked);
+
+            if (selectedTileBlocked) {
+                // Intentionally show no Explore/Traverse button.
+            }
+
             // Explored tiles: Traverse is the only movement-style action.
-            if (selectedExplored) {
+            else if (selectedExplored) {
                 const path = findCrashSitePath({
                     fromX: playerX,
                     fromY: playerY,
@@ -2178,6 +2191,10 @@ async function handleActionCompletion(section) {
 
     const completed = getActiveCrashSiteAction();
     if (!completed) return;
+    const completedUiInstanceId = (() => {
+        try { return completed && completed.uiInstanceId ? String(completed.uiInstanceId) : ''; } catch { return ''; }
+    })();
+    const completedFromLocalMap = completedUiInstanceId.startsWith('localmap:');
     const actionDef = salvageActions.find(a => a.id === completed.id);
     const suppressGeneric = !!(actionDef && (actionDef.suppressGenericLog || ((actionDef.stages && actionDef.stages[(actionDef.stage || 0)] && actionDef.stages[(actionDef.stage || 0)].suppressGenericLog))));
 
@@ -2520,6 +2537,13 @@ async function handleActionCompletion(section) {
     // Clear active action and reset the UI for the completed action (in-place) unless we must rebuild
     setActiveCrashSiteAction(null);
 
+    // Local-map actions use dynamic labels (e.g. "(X left)"). The generic in-place completion UI update
+    // below would overwrite those labels, so instead we re-render the local map UI after clearing the action.
+    if (completedFromLocalMap) {
+        try { refreshLocalMapIfVisible(); } catch { /* ignore */ }
+        if (typeof updateCrashSiteActionButtonsState === 'function') updateCrashSiteActionButtonsState();
+    }
+
     // If this completion unlocked new actions or enabled a section, rebuild the UI; otherwise update states in-place.
     if (didUnlock || (original && original.id === 'establishBaseCamp')) {
         try {
@@ -2527,6 +2551,11 @@ async function handleActionCompletion(section) {
             if (host) setupCrashSiteSection(host);
         } catch { /* ignore */ }
     } else {
+        if (completedFromLocalMap) {
+            // Already refreshed above; do not clobber dynamic local-map button labels.
+            // (The local-map action row is rebuilt via local-map-selection-changed.)
+            // Continue on to unlock rules/story handling.
+        } else {
         const sel2 = completed && completed.uiInstanceId
             ? `[data-action-id="${completed.id}"][data-action-instance="${completed.uiInstanceId}"]`
             : `[data-action-id="${completed.id}"][data-action-instance="main"]`;
@@ -2574,6 +2603,7 @@ async function handleActionCompletion(section) {
         }
 
         if (typeof updateCrashSiteActionButtonsState === 'function') updateCrashSiteActionButtonsState();
+        }
     }
 
     // Check for unlocks triggered by resource discovery / narrative gates.

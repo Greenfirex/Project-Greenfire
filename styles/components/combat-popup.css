@@ -297,7 +297,7 @@
     }
     100% {
         opacity: 0;
-        transform: translate(calc(-50% + var(--x, 0px)), -44px) rotate(var(--rot, 0deg)) scale(1.02);
+        transform: translate(calc(-50% + var(--x, 0px)), -92px) rotate(var(--rot, 0deg)) scale(1.06);
     }
 }
 
@@ -476,6 +476,25 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Cooldown progress fill (used by Heavy Strike). Dark overlay shrinks to 0 as cooldown completes. */
+.combat-ability-btn[data-cooldown="1"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform-origin: left center;
+    transform: scaleX(var(--cooldown-fill, 0));
+    background:
+        linear-gradient(90deg,
+            rgba(0,0,0,0.46),
+            rgba(0,0,0,0.32) 55%,
+            rgba(0,0,0,0.18)
+        );
+    pointer-events: none;
+    z-index: 2;
 }
 
 .combat-ability-btn:hover {
@@ -600,11 +619,53 @@
 }
 
 .combat-portrait.player.attack {
-    animation-name: combat-lunge-right;
+    animation: combat-lunge-right 220ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
 }
 
 .combat-portrait.enemy.attack {
-    animation-name: combat-lunge-left;
+    animation: combat-lunge-left 220ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.combat-orbit.is-attacking {
+    will-change: transform;
+}
+
+.combat-orbit[data-orbit="player"].is-attacking {
+    animation: combat-orbit-lunge-right 220ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.combat-orbit[data-orbit="enemy"].is-attacking {
+    animation: combat-orbit-lunge-left 220ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+@keyframes combat-orbit-lunge-right {
+    0% {
+        transform: translateX(0);
+        box-shadow: 0 0 0 rgba(0,0,0,0);
+    }
+    55% {
+        transform: translateX(6px);
+        box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+    }
+    100% {
+        transform: translateX(0);
+        box-shadow: 0 0 0 rgba(0,0,0,0);
+    }
+}
+
+@keyframes combat-orbit-lunge-left {
+    0% {
+        transform: translateX(0);
+        box-shadow: 0 0 0 rgba(0,0,0,0);
+    }
+    55% {
+        transform: translateX(-6px);
+        box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+    }
+    100% {
+        transform: translateX(0);
+        box-shadow: 0 0 0 rgba(0,0,0,0);
+    }
 }
 
 @keyframes combat-lunge-right {

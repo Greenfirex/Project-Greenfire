@@ -174,6 +174,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 if (ok) {
                     localStorage.removeItem('isResetting');
+                    // When user triggers a load from inside the running game, we reload the page.
+                    // On the next boot, skip the title screen and jump straight into the loaded save.
+                    try { localStorage.setItem('autoContinueAfterReload', 'true'); } catch { /* ignore */ }
                     location.reload();
                 }
             })();

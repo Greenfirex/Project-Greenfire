@@ -1,4 +1,4 @@
-import { getLocalMapTileAt, isCrashPoi, hasInternalPoiDoorBetween, isCrashWallBetween } from '../data/maps/crashSiteMap.js';
+import { getLocalMapTileAt, getLocalMapEncounterHintAt, isCrashPoi, hasInternalPoiDoorBetween, isCrashWallBetween } from '../data/maps/crashSiteMap.js';
 import { allActions as salvageActions } from '../data/definitions/allActions.js';
 import { isCompactPhoneLandscape } from '../ui/compactMode.js';
 
@@ -120,7 +120,7 @@ export function updateCrashSiteLocalMapPathOverlay(container, preview = null) {
             const sp = tileCenterToSvgPoint(lc, lr);
             endDot.setAttribute('cx', sp.x.toFixed(3));
             endDot.setAttribute('cy', sp.y.toFixed(3));
-            endDot.setAttribute('r', kind === 'traverse' ? '2.25' : '1.55');
+            endDot.setAttribute('r', kind === 'traverse' ? '1.75' : '1.20');
         }
     } catch { /* ignore */ }
 }
@@ -422,6 +422,24 @@ function ensureVisited(state, x, y) {
     }
     const key = `${clamp(Number(x) || 1, 1, COLS)},${clamp(Number(y) || 1, 1, ROWS)}`;
     state.visited[key] = true;
+}
+
+function ensureSeen(state, x, y) {
+    if (!state || typeof state !== 'object') return;
+    if (!state.seen || typeof state.seen !== 'object' || Array.isArray(state.seen)) {
+        state.seen = {};
+    }
+    const key = `${clamp(Number(x) || 1, 1, COLS)},${clamp(Number(y) || 1, 1, ROWS)}`;
+    state.seen[key] = true;
+}
+
+function isSeen(state, col, row) {
+    try {
+        const key = `${Number(col)},${Number(row)}`;
+        return !!(state && typeof state === 'object' && state.seen && typeof state.seen === 'object' && state.seen[key] === true);
+    } catch {
+        return false;
+    }
 }
 
 function isVisited(state, col, row) {
@@ -786,6 +804,17 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
     // Use the POI footprint directly to avoid temporal dead zone errors.
     const insideCrashPoi = isCrashPoi(centerCol, centerRow);
     const visibleNow = computeVisibleTiles(centerCol, centerRow, radius, { localMapState: state, insideCrashPoi });
+
+    // Persist fog-of-war reveal: once a tile has been seen, keep it visible (as Unexplored)
+    // even after it leaves the current visibility radius.
+    try {
+        ensureSeen(state, centerCol, centerRow);
+        for (const k of visibleNow) {
+            const m = /^([0-9]+),([0-9]+)$/.exec(String(k));
+            if (!m) continue;
+            ensureSeen(state, Number(m[1]), Number(m[2]));
+        }
+    } catch { /* ignore */ }
 
     const hasTriedReentry = (() => {
         try {
@@ -1220,13 +1249,8 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 return `<span class="localmap-selected-coord">${label}</span>`;
             }
         })();
-        const isBlocked = !!(discovered && meta && meta.blocked);
-        const statusKey = isBlocked
-            ? 'blocked'
-            : (visited ? 'explored' : (discovered ? 'unexplored' : 'unknown'));
-        const statusText = isBlocked
-            ? 'Blocked'
-            : (visited ? 'Explored' : (discovered ? 'Unexplored' : 'Unknown (fog)'));
+        const statusKey = visited ? 'explored' : (discovered ? 'unexplored' : 'unknown');
+        const statusText = visited ? 'Explored' : (discovered ? 'Unexplored' : 'Unknown (fog)');
         const poi = poiLabel ? `<div class="localmap-info-row"><span class="k">POI</span><span class="v">${poiLabel}</span></div>` : '';
         const typeRow = discovered
             ? `<div class="localmap-info-row"><span class="k">Type</span><span class="v">${meta.label}</span></div>`
@@ -1257,7 +1281,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                         const key = `${Number(col)},${Number(row)}`;
                         const used = Math.max(0, Math.floor(Number(state?.debrisScavengedByTile?.[key] || 0)));
                         const remaining = Math.max(0, 3 - used);
-                        resources.push(`Metal Parts (${remaining} left)`);
+                        if (remaining > 0) resources.push(`Metal Parts (${remaining} left)`);
                     }
                     resourcesList = resources;
                 } else if (isH8) {
@@ -1272,7 +1296,12 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                     const key = `${Number(col)},${Number(row)}`;
                     const used = Math.max(0, Math.floor(Number(state?.debrisScavengedByTile?.[key] || 0)));
                     const remaining = Math.max(0, 3 - used);
-                    resourcesList = [`Metal Parts (${remaining} left)`];
+                    if (remaining > 0) {
+                        resourcesList = [`Metal Parts (${remaining} left)`];
+                    } else {
+                        resourcesValue = 'None';
+                        resourcesList = null;
+                    }
                 }
                 }
             }
@@ -1285,8 +1314,13 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 if (isD6) {
                     const used = Math.max(0, Math.floor(Number(state?.cafeteriaSuppliesByTile?.['4,6'] || 0)));
                     const remaining = Math.max(0, 7 - used);
-                    resourcesList = [`Food Rations (${remaining} left)`, `Drinking Water (${remaining} left)`];
-                    resourcesValue = remaining > 0 ? 'Food Rations, Drinking Water' : 'None';
+                    if (remaining > 0) {
+                        resourcesList = [`Food Rations (${remaining} left)`, `Drinking Water (${remaining} left)`];
+                        resourcesValue = 'Food Rations, Drinking Water';
+                    } else {
+                        resourcesList = null;
+                        resourcesValue = 'None';
+                    }
                 } else if (meta && meta.typeId === 'crewQuarters') {
                     resourcesList = ['Fabric'];
                 } else {
@@ -1294,8 +1328,13 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                     if (meta && meta.typeId === 'corridor') {
                         const used = Math.max(0, Math.floor(Number(state?.wiringStrippedByTile?.[key] || 0)));
                         const remaining = Math.max(0, 5 - used);
-                        resourcesList = [`Wire (${remaining} left)`];
-                        resourcesValue = remaining > 0 ? 'Wire' : 'None';
+                        if (remaining > 0) {
+                            resourcesList = [`Wire (${remaining} left)`];
+                            resourcesValue = 'Wire';
+                        } else {
+                            resourcesList = null;
+                            resourcesValue = 'None';
+                        }
                     }
                 }
             }
@@ -1314,6 +1353,24 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
         })();
 
         const resourcesRow = `<div class="localmap-info-row"><span class="k">Resources</span><span class="v">${resourcesHtml}</span></div>`;
+
+        const encounterHint = (() => {
+            try {
+                const c = Number(col);
+                const r = Number(row);
+                const px = Number(mapState && mapState.x);
+                const py = Number(mapState && mapState.y);
+                const adjacent = Number.isFinite(c) && Number.isFinite(r) && Number.isFinite(px) && Number.isFinite(py)
+                    && (Math.abs(c - px) + Math.abs(r - py) === 1);
+                if (!adjacent) return null;
+                return getLocalMapEncounterHintAt(c, r, { localMapState: state });
+            } catch {
+                return null;
+            }
+        })();
+        const dangerRow = encounterHint
+            ? `<div class="localmap-info-row"><span class="k">Danger</span><span class="v">${String(encounterHint)}</span></div>`
+            : '';
         const noteText = !discovered
             ? 'Fog blocks detail. Scout more to reveal the area.'
             : (meta.description || (poiLabel
@@ -1326,6 +1383,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             ${poi}
             ${blockedRow}
             ${resourcesRow}
+            ${dangerRow}
             <div class="localmap-divider" aria-hidden="true"></div>
             <div class="localmap-note">${noteText}</div>
         `;
@@ -1377,6 +1435,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
             const visited = isVisited(state, c, r);
             const discovered = visited
+                || isSeen(state, c, r)
                 || visibleNow.has(`${c},${r}`)
                 || (c === mapState.x && r === mapState.y);
             tile.classList.toggle('is-unknown', !discovered);
@@ -1616,6 +1675,10 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             // Player route hints: tiny arrows on the edges indicating reachable adjacent tiles.
             if (isPlayer) {
                 try {
+                    const hasTriedReentry = (() => {
+                        try { return !!(state && typeof state === 'object' && state.hasTriedReentry === true); } catch { return false; }
+                    })();
+
                     const arrowsHost = document.createElement('div');
                     arrowsHost.className = 'localmap-player-arrows';
 
@@ -1627,6 +1690,10 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                     ];
 
                     for (const d of dirs) {
+                        // Scripted game start: before re-entry is attempted, do not hint lateral movement.
+                        // (Keep other arrows like the entrance/up direction available.)
+                        if (!hasTriedReentry && (d.cls === 'left' || d.cls === 'right')) continue;
+
                         const nx = c + d.dx;
                         const ny = r + d.dy;
                         if (nx < 1 || nx > COLS || ny < 1 || ny > ROWS) continue;

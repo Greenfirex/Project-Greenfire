@@ -218,6 +218,9 @@ export function getInitialCharacterState() {
             selectedY: 8,
             // Persistent exploration hints
             visited: { '6,8': true },
+            // Fog-of-war reveal memory: tiles that have been seen at least once.
+            // (Visited tiles are always considered seen.)
+            seen: { '6,8': true },
             // Per-ship-tile depletion tracking (e.g., Strip Wiring). Keys are "x,y".
             wiringStrippedByTile: {},
             // Per-ship-tile depletion tracking for cafeteria supplies scavenging. Keys are "x,y".
@@ -319,7 +322,7 @@ export function applySavedCharacterState(saved) {
         const extra = {};
         if (lm && typeof lm === 'object') {
             for (const [k, v] of Object.entries(lm)) {
-                if (k === 'x' || k === 'y' || k === 'selectedX' || k === 'selectedY' || k === 'visited' || k === 'zoom') continue;
+            if (k === 'x' || k === 'y' || k === 'selectedX' || k === 'selectedY' || k === 'visited' || k === 'seen' || k === 'zoom') continue;
                 if (typeof k !== 'string' || k.length > 60) continue;
                 // Allow a small set of whitelisted structured local-map fields.
                 if (k === 'wiringStrippedByTile' && v && typeof v === 'object' && !Array.isArray(v)) {
@@ -388,6 +391,27 @@ export function applySavedCharacterState(saved) {
         // Always include the current player tile.
         visited[`${x},${y}`] = true;
 
+        // Seen tiles (fog-of-war memory). Stored as an object map or legacy array of coord strings.
+        const seen = {};
+        const acceptSeenKey = (key) => {
+            if (typeof key !== 'string') return;
+            const m = key.match(/^(\d+),(\d+)$/);
+            if (!m) return;
+            const c = clampInt(m[1], 1, 11);
+            const r = clampInt(m[2], 1, 9);
+            seen[`${c},${r}`] = true;
+        };
+        if (lm && typeof lm.seen === 'object' && lm.seen && !Array.isArray(lm.seen)) {
+            for (const [k, v] of Object.entries(lm.seen)) {
+                if (v !== true) continue;
+                acceptSeenKey(k);
+            }
+        } else if (Array.isArray(lm?.seen)) {
+            for (const key of lm.seen) acceptSeenKey(key);
+        }
+        // Visited tiles are always seen.
+        for (const k of Object.keys(visited)) seen[k] = true;
+
         const rawZoom = Number(lm?.zoom);
         const zoom = Number.isFinite(rawZoom)
             ? Math.min(2, Math.max(0.6, rawZoom))
@@ -409,6 +433,7 @@ export function applySavedCharacterState(saved) {
             selectedX,
             selectedY,
             visited,
+            seen,
             zoom,
             panX,
             panY,
