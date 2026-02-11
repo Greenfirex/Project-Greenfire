@@ -4,16 +4,14 @@ import { addLogEntry, LogType } from '../core/ingameLog.js';
 import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
 import { newBadgeHtml, wireClearUiNewBadge } from '../ui/components/contentNewBadges.js';
 import { setupCrashSiteLocalMap, updateCrashSiteLocalMapPathOverlay } from './crashSiteLocalMap.js';
-import { getLocalMapTileAt, isCrashPoi, isCrashWallBetween, SHIP_ENTRANCE } from '../data/definitions/localMapTiles.js';
-import { CRASH_SITE_MAP_BOUND_ACTION_IDS } from '../data/definitions/crashSiteMapBoundActionIds.js';
-import { findCrashSitePath } from '../data/localMapPathfinding.js';
+import { getLocalMapTileAt, isCrashPoi, isCrashWallBetween, SHIP_ENTRANCE, CRASH_SITE_MAP_BOUND_ACTION_IDS } from '../data/maps/crashSiteMap.js';
+import { findCrashSitePath } from '../data/maps/localMapPathfinding.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
 import { showStoryPopup } from '../ui/panels/popup.js';
 import { getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/activeActions.js';
 import { recomputeObjectives, getObjectivesStatus, getObjectiveDefinition } from '../data/objectives.js';
 import { getTotalIngameMinutes } from '../core/time.js';
 import { buildings } from '../data/definitions/buildings.js';
-import { createBuildingButton, updateBuildingButtonsState, rehydrateBuildingButton } from '../ui/components/buildingButtons.js';
 import { gameFlags, runActionCompletionHandlers } from '../data/gameFlags.js';
 import { computeRewardMultiplier } from '../data/upgradeEffects.js';
 import { lsGet, getCurrentStage, tooltipDataForAction, canAffordAction, getAffordabilityShortfalls, computeEffectiveDuration, getRandomInt } from '../data/actionsManager.js';
@@ -23,14 +21,41 @@ import { characterState, grantItemToCharacter } from '../data/character.js';
 import { getItemDefinition } from '../data/definitions/items.js';
 import { getCampsitePaneHtml, wireCampsiteCollapsibles, renderCampsitePanels, applyCampsiteBackground, updateCampsiteCampResourcesPanel } from './campsite.js';
 
+/*
+    crashSite.js organization
+
+    1) Local map helpers (selection, route preview, traverse)
+    2) Action gating helpers (capacity/blocked/afford)
+    3) Action loop control + progress ticking
+    4) Crash Site UI setup + render helpers (tabs, map pane, campsite pane)
+    5) UI refresh helpers (button states, badges)
+*/
+
 // Travel-dot animation duration in the local map renderer (keep in sync with crashSiteLocalMap.js).
 const LOCALMAP_TRAVEL_ANIM_MS = 320;
 
+/* =============================
+   Local map helpers
+   ============================= */
+
+function getCrashSiteLocalMapContainer(section) {
+    try {
+        if (section && typeof section.querySelector === 'function') {
+            const el = section.querySelector('#crashSiteLocalMapContainer');
+            if (el) return el;
+        }
+    } catch { /* ignore */ }
+
+    try {
+        return document.querySelector('#crashSiteLocalMapContainer');
+    } catch {
+        return null;
+    }
+}
+
 function clearLocalMapRoutePreview(section) {
     try {
-        const mapHost = (section && typeof section.querySelector === 'function')
-            ? section.querySelector('#crashSiteLocalMapContainer')
-            : document.querySelector('#crashSiteLocalMapContainer');
+        const mapHost = getCrashSiteLocalMapContainer(section);
         if (!mapHost) return;
         updateCrashSiteLocalMapPathOverlay(mapHost, null);
     } catch { /* ignore */ }
@@ -38,9 +63,7 @@ function clearLocalMapRoutePreview(section) {
 
 function refreshCrashSiteLocalMapUi(section) {
     try {
-        const mapHost = (section && typeof section.querySelector === 'function')
-            ? section.querySelector('#crashSiteLocalMapContainer')
-            : document.querySelector('#crashSiteLocalMapContainer');
+        const mapHost = getCrashSiteLocalMapContainer(section);
         if (!mapHost) return;
 
         const scout = salvageActions.find(a => a && a.id === 'scoutSurroundings');
@@ -214,9 +237,7 @@ function tryStartNextTraverseStep(section) {
 
     // Refresh the action row so the Move button exists/runs for this step.
     try {
-        const mapHost = (section && typeof section.querySelector === 'function')
-            ? section.querySelector('#crashSiteLocalMapContainer')
-            : document.querySelector('#crashSiteLocalMapContainer');
+        const mapHost = getCrashSiteLocalMapContainer(section);
         if (mapHost) mapHost.dispatchEvent(new CustomEvent('local-map-selection-changed'));
     } catch { /* ignore */ }
 
@@ -320,6 +341,10 @@ function computeAdjacentLocalMapBlockReason(fromX, fromY, toX, toY, { localMapSt
     return '';
 }
 
+/* =============================
+   Action gating (capacity/blocked/afford)
+   ============================= */
+
 function getMaxRewardAmount(rewardEntry) {
     if (!rewardEntry) return 0;
     const amt = rewardEntry.amount;
@@ -376,6 +401,10 @@ function getCapacityBlockReason(action) {
         return null;
     }
 }
+
+/* =============================
+   Stage normalization helpers
+   ============================= */
 
 // Ensure Investigate Bridge skips pre-power stage when emergency power is already restored
 function ensureBridgeStageAfterPower() {
@@ -437,6 +466,24 @@ function attachStartClickHandler(btn, action, section) {
             }
         } catch { /* ignore */ }
 
+        // Scavenge Debris Field is limited per tile.
+        try {
+            if (action && action.id === 'scavengeDebris') {
+                const lm = characterState?.localMap;
+                const x = Number.isFinite(lm?.x) ? lm.x : null;
+                const y = Number.isFinite(lm?.y) ? lm.y : null;
+                if (Number.isFinite(x) && Number.isFinite(y)) {
+                    const key = `${x},${y}`;
+                    const used = Number(lm?.debrisScavengedByTile?.[key] || 0);
+                    if (used >= 3) {
+                        e.preventDefault();
+                        addLogEntry('The debris here has been picked clean.', LogType.INFO);
+                        return;
+                    }
+                }
+            }
+        } catch { /* ignore */ }
+
         const block = getBlockedStatus(action.id, { actions: salvageActions, flags: gameFlags, characterState });
         if (block.blocked) {
             e.preventDefault();
@@ -464,6 +511,10 @@ let actionInterval = null;
 let isPendingCancel = null;
 let cancelTimeout = null;
 
+/* =============================
+   Crash Site loop control
+   ============================= */
+
 // Start the periodic crash-site progress loop
 export function startCrashSiteLoop(section = null) {
     if (actionInterval) return;
@@ -473,8 +524,7 @@ export function startCrashSiteLoop(section = null) {
     }
 
     if (!section) {
-        const container = document.querySelector('#salvageActionsContainer');
-        section = container ? container.closest('.content-panel') || container.parentElement : null;
+        section = document.getElementById('crashSiteSection') || document.body;
     }
     const activeAction = getActiveCrashSiteAction();
     if (!activeAction) return;
@@ -498,6 +548,10 @@ export function stopCrashSiteLoop() {
         activeAction.pauseStart = Date.now();
     }
 }
+
+/* =============================
+   Crash Site UI setup
+   ============================= */
 
 // Build crash-site section UI
 export function setupCrashSiteSection(section) {
@@ -528,12 +582,6 @@ export function setupCrashSiteSection(section) {
         try {
             const direct = document.getElementById('crashSiteSection');
             if (direct) return direct;
-        } catch { /* ignore */ }
-        try {
-            const container = document.querySelector('#salvageActionsContainer');
-            if (container && typeof container.closest === 'function') {
-                return container.closest('#crashSiteSection') || container.closest('.game-section') || container.parentElement;
-            }
         } catch { /* ignore */ }
         return null;
     })();
@@ -951,20 +999,37 @@ export function setupCrashSiteSection(section) {
         try {
             const debris = salvageActions.find(a => a && a.id === 'scavengeDebris');
             if (debris && debris.isUnlocked && selectedExplored && isOrthogonallyAdjacentToCrashPoi(selX, selY)) {
-                mkButton(debris, {
-                    ariaDisabled: !playerOnSelected,
-                    disabledReason: !playerOnSelected ? 'You need to be closer to perform this action.' : '',
-                    onClick: (e) => {
-                        if (!playerOnSelected) {
-                            e.preventDefault();
-                            logNeedCloser();
-                            return;
+                const lm = characterState?.localMap;
+                const key = `${selX},${selY}`;
+                const used = Math.max(0, Math.floor(Number(lm?.debrisScavengedByTile?.[key] || 0)));
+                const max = 3;
+                if (used < max) {
+                    const remaining = Math.max(0, max - used);
+                    mkButton(debris, {
+                        label: `${debris.name} (${remaining} left)`,
+                        ariaDisabled: !playerOnSelected,
+                        disabledReason: !playerOnSelected ? 'You need to be closer to perform this action.' : '',
+                        onClick: (e) => {
+                            if (!playerOnSelected) {
+                                e.preventDefault();
+                                logNeedCloser();
+                                return;
+                            }
+                            // Safety: prevent starting if depleted (can happen if state updates mid-render)
+                            try {
+                                const usedNow = Math.max(0, Math.floor(Number(characterState?.localMap?.debrisScavengedByTile?.[key] || 0)));
+                                if (usedNow >= max) {
+                                    e.preventDefault();
+                                    addLogEntry('The debris here has been picked clean.', LogType.INFO);
+                                    return;
+                                }
+                            } catch { /* ignore */ }
+                            const actionForHandler = Object.assign({}, debris, { uiInstanceId: `localmap:${String(debris.id)}` });
+                            startAction(actionForHandler, host);
+                            try { renderLocalMap(); } catch { /* ignore */ }
                         }
-                        const actionForHandler = Object.assign({}, debris, { uiInstanceId: `localmap:${String(debris.id)}` });
-                        startAction(actionForHandler, host);
-                        try { renderLocalMap(); } catch { /* ignore */ }
-                    }
-                });
+                    });
+                }
             }
         } catch { /* ignore */ }
 
@@ -979,8 +1044,9 @@ export function setupCrashSiteSection(section) {
                 const used = Math.max(0, Math.floor(Number(lm?.wiringStrippedByTile?.[key] || 0)));
                 const max = 5;
                 if (used < max) {
+                    const remaining = Math.max(0, max - used);
                     mkButton(strip, {
-                        label: `${strip.name} (${Math.min(max, used)}/${max})`,
+                        label: `${strip.name} (${remaining} left)`,
                         ariaDisabled: !playerOnSelected,
                         disabledReason: !playerOnSelected ? 'You need to be closer to perform this action.' : '',
                         onClick: (e) => {
@@ -1008,8 +1074,9 @@ export function setupCrashSiteSection(section) {
                 const used = Math.max(0, Math.floor(Number(lm?.cafeteriaSuppliesByTile?.[key] || 0)));
                 const max = 7;
                 if (used < max) {
+                    const remaining = Math.max(0, max - used);
                     mkButton(sup, {
-                        label: `${sup.name} (${Math.min(max, used)}/${max})`,
+                        label: `${sup.name} (${remaining} left)`,
                         ariaDisabled: !playerOnSelected,
                         disabledReason: !playerOnSelected ? 'You need to be closer to perform this action.' : '',
                         onClick: (e) => {
@@ -1662,8 +1729,6 @@ export function setupCrashSiteSection(section) {
     // Crash Site pane has been replaced by the Campsite tab layout.
     section = host.querySelector('#campsitePane') || host;
 
-    const actionsContainer = host.querySelector('#salvageActionsContainer');
-
     const availableActions = salvageActions.filter(action => {
         if (!action) return false;
         if (CRASH_SITE_MAP_BOUND_ACTION_IDS.has(action.id)) return false;
@@ -1673,8 +1738,8 @@ export function setupCrashSiteSection(section) {
         return !!action.isUnlocked;
     });
 
-    const categories = [...new Set(availableActions.map(a => a.category))]
-        .filter(c => c !== 'Construction' && c !== 'Upgrade');
+    // Campsite tab no longer renders a generic action list.
+    // All non-upgrade actions are either tile-bound (Local map) or live in the Crafting section.
 
     const createActionButton = (action, group) => {
         const getEncounterIdForActionNow = (a) => {
@@ -1810,22 +1875,6 @@ export function setupCrashSiteSection(section) {
 
         group.appendChild(btn);
     };
-
-    categories.forEach(category => {
-        const h = document.createElement('h3');
-        h.textContent = category;
-        h.className = 'category-heading';
-        actionsContainer.appendChild(h);
-
-        const group = document.createElement('div');
-        group.className = 'button-group';
-
-        availableActions.filter(a => a.category === category).forEach(action => {
-            createActionButton(action, group);
-        });
-
-        actionsContainer.appendChild(group);
-    });
 
     // Campsite panels (Upgrades / Buildings / Jobs)
     try { renderCampsitePanels(host, { availableActions, createActionButton }); } catch { /* ignore */ }
@@ -2356,23 +2405,15 @@ async function handleActionCompletion(section) {
     let didUnlock = false;
     if (Array.isArray((original && original.stages && original.stages[original.stage - 1])?.unlocks)) {
         try {
-            const container = document.querySelector('#salvageActionsContainer');
-            if (container) {
-                const presentIds = new Set(Array.from(container.querySelectorAll('.image-button[data-action-id]')).map(b => b.dataset.actionId));
-                for (const a of salvageActions) {
-                    if (a.isUnlocked && !presentIds.has(a.id)) { didUnlock = true; break; }
-                }
+            // With the generic Campsite action list removed, a safe trigger for full rebuild is:
+            // any newly-unlocked crash-site action or any newly-unlocked Crash Site building.
+            for (const a of (salvageActions || [])) {
+                if (a && a.isUnlocked && !preUnlockedActions.has(a.id)) { didUnlock = true; break; }
             }
-        } catch {}
-
-        try {
-            const container = document.querySelector('#salvageActionsContainer');
-            for (const name of SITE_BUILDING_NAMES) {
-                const b = (typeof buildings !== 'undefined') ? buildings.find(bb => bb.name === name) : null;
-                if (b && b.isUnlocked) {
-                    let exists = false;
-                    if (container) exists = !!container.querySelector(`.image-button[data-building="${name}"]`);
-                    if (!exists) { didUnlock = true; break; }
+            if (!didUnlock && (typeof buildings !== 'undefined')) {
+                for (const name of SITE_BUILDING_NAMES) {
+                    const b = buildings.find(bb => bb && bb.name === name);
+                    if (b && b.isUnlocked && !preUnlockedBuildings.has(b.name)) { didUnlock = true; break; }
                 }
             }
         } catch {}
@@ -2474,17 +2515,7 @@ async function handleActionCompletion(section) {
         }
     } catch {}
 
-    try {
-        const container = document.querySelector('#salvageActionsContainer');
-        for (const name of SITE_BUILDING_NAMES) {
-            const b = (typeof buildings !== 'undefined') ? buildings.find(bb => bb.name === name) : null;
-            if (b && b.isUnlocked) {
-                let exists = false;
-                if (container) exists = !!container.querySelector(`.image-button[data-building="${name}"]`);
-                if (!exists) { didUnlock = true; break; }
-            }
-        }
-    } catch {}
+    // (No DOM-based "exists" checks; Campsite no longer renders a generic list.)
 
     // Clear active action and reset the UI for the completed action (in-place) unless we must rebuild
     setActiveCrashSiteAction(null);
@@ -2568,9 +2599,8 @@ async function handleActionCompletion(section) {
         }
         if (ruleDidUnlock) {
             // Rebuild Crash Site UI immediately to surface newly unlocked actions/upgrades
-            const container = document.querySelector('#salvageActionsContainer');
-            const targetSection = container ? (container.closest('.content-panel') || container.parentElement) : null;
-            if (targetSection) setupCrashSiteSection(targetSection);
+            const host = document.getElementById('crashSiteSection');
+            if (host) setupCrashSiteSection(host);
         }
     } catch (e) { /* ignore */ }
 
@@ -2624,23 +2654,22 @@ window.addEventListener('game-pause', () => {
     if (active) stopCrashSiteLoop();
 });
 
+/* =============================
+   Event wiring
+   ============================= */
+
 window.addEventListener('game-resume', () => {
     const active = getActiveCrashSiteAction();
     if (!active) return;
-    const container = document.querySelector('#salvageActionsContainer');
-    const section = container ? container.closest('.content-panel') || container.parentElement : null;
-    startCrashSiteLoop(section);
+    startCrashSiteLoop(document.getElementById('crashSiteSection'));
 });
 
 // When emergency power is restored, advance Bridge stage and refresh the Crash Site UI
 window.addEventListener('emergencyPowerRestored', () => {
     ensureBridgeStageAfterPower();
     try {
-        const container = document.querySelector('#salvageActionsContainer');
-        if (container) {
-            const section = container.closest('.content-panel') || container.parentElement;
-            setupCrashSiteSection(section);
-        }
+        const host = document.getElementById('crashSiteSection');
+        if (host) setupCrashSiteSection(host);
     } catch (e) { /* ignore */ }
 });
 
@@ -2698,15 +2727,16 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
                 }
             }
             if (didUnlock) {
-                const container = document.querySelector('#salvageActionsContainer');
-                if (container) {
-                    const section = container.closest('.content-panel') || container.parentElement;
-                    setupCrashSiteSection(section);
-                }
+                const host = document.getElementById('crashSiteSection');
+                if (host) setupCrashSiteSection(host);
             }
         } catch (e) { /* ignore */ }
     });
 }
+
+/* =============================
+   Button state sync
+   ============================= */
 
 // Update action buttons' disabled/blocked state
 export function updateCrashSiteActionButtonsState() {
@@ -2776,7 +2806,6 @@ export function updateCrashSiteActionButtonsState() {
         });
     };
 
-    updateButtonsInContainer(document.querySelector('#salvageActionsContainer'));
     updateButtonsInContainer(document.querySelector('#crashSiteLocalMapActions'));
     // Campsite tab embeds Upgrade-category action buttons.
     // Keep these in sync so affordability updates immediately after building/crafting.

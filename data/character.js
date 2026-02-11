@@ -222,6 +222,8 @@ export function getInitialCharacterState() {
             wiringStrippedByTile: {},
             // Per-ship-tile depletion tracking for cafeteria supplies scavenging. Keys are "x,y".
             cafeteriaSuppliesByTile: {},
+            // Per-tile depletion tracking for Scavenge Debris Field. Keys are "x,y".
+            debrisScavengedByTile: {},
             // UI preference: local map zoom level
             zoom: 1,
             // UI preference: local map pan offsets (px)
@@ -344,6 +346,19 @@ export function applySavedCharacterState(saved) {
                         const n = Math.floor(Number(vv));
                         if (!Number.isFinite(n) || n < 0) continue;
                         cleaned[`${cx},${cy}`] = Math.min(7, n);
+                    }
+                    extra[k] = cleaned;
+                } else if (k === 'debrisScavengedByTile' && v && typeof v === 'object' && !Array.isArray(v)) {
+                    const cleaned = {};
+                    for (const [kk, vv] of Object.entries(v)) {
+                        if (typeof kk !== 'string') continue;
+                        const m = kk.match(/^(\d+),(\d+)$/);
+                        if (!m) continue;
+                        const cx = clampInt(m[1], 1, 11);
+                        const cy = clampInt(m[2], 1, 9);
+                        const n = Math.floor(Number(vv));
+                        if (!Number.isFinite(n) || n < 0) continue;
+                        cleaned[`${cx},${cy}`] = Math.min(3, n);
                     }
                     extra[k] = cleaned;
                 } else if (typeof v === 'boolean' || typeof v === 'number' || typeof v === 'string') {

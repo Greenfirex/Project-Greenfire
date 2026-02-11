@@ -1,5 +1,4 @@
 import { resources, updateResourceInfo, setupInfoPanel, computeResourceRates } from './resources.js';
-import { buildings } from '../data/definitions/buildings.js';
 import { gameFlags } from '../data/gameFlags.js';
 import { setupColonySection } from '../sections/colony.js';
 import { updateBuildingButtonsState } from '../ui/components/buildingButtons.js';
@@ -17,11 +16,9 @@ import { addLogEntry, LogType } from './ingameLog.js';
 import { updateSurvivalDebuffBadge, initTooltips } from '../ui/panels/tooltip.js';
 import { initTimeManager, startTimeManager } from './time.js';
 import { loadGameState, resetToDefaultState, saveGameState } from './saveload.js';
-import { showStoryPopup } from '../ui/panels/popup.js';
-import { storyEvents } from '../data/definitions/storyEvents.js';
 import { initOptions, setGlowColor, setGlowIntensity, shouldRunInBackground } from './settings.js';
 import { recomputeObjectives } from '../data/objectives.js';
-import { initFooter, getIsPaused, pauseGame, resumeGame, registerMainLoopCallbacks } from '../ui/footer.js';
+import { initFooter, getIsPaused, registerMainLoopCallbacks } from '../ui/footer.js';
 import { initTitleScreen, showTitleScreen, hideTitleScreen } from '../ui/titleScreen.js';
 import { jobs } from '../data/jobsManager.js';
 import '../ui/header.js';

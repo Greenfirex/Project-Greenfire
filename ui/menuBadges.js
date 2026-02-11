@@ -2,7 +2,7 @@ import { buildings } from '../data/definitions/buildings.js';
 import { gameFlags } from '../data/gameFlags.js';
 import { technologies } from '../data/definitions/technologies.js';
 import { allActions as allActionsAggregate } from '../data/definitions/allActions.js';
-import { CRASH_SITE_MAP_BOUND_ACTION_IDS } from '../data/definitions/crashSiteMapBoundActionIds.js';
+import { CRASH_SITE_MAP_BOUND_ACTION_IDS } from '../data/maps/crashSiteMap.js';
 import { characterState, getUnspentStatPoints } from '../data/character.js';
 import { resources } from '../core/resources.js';
 

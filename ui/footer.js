@@ -4,7 +4,6 @@
 // - (XP display lives in Character stats)
 
 import { addLogEntry, LogType } from '../core/ingameLog.js';
-import { isCompactPhoneLandscape } from './compactMode.js';
 
 let isPaused = false;
 let mainLoopCallbacks = { start: null, stop: null };

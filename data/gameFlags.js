@@ -7,7 +7,7 @@ import { resources } from '../core/resources.js';
 import { allActions as salvageActions } from './definitions/allActions.js';
 import { characterState, grantItemToCharacter, countItemInBag } from './character.js';
 import { storyEvents } from './definitions/storyEvents.js';
-import { getLocalMapTileAt, isCrashWallBetween } from './definitions/localMapTiles.js';
+import { getLocalMapTileAt, isCrashWallBetween } from './maps/crashSiteMap.js';
 
 const initialGameFlags = {
     // Narrative chapter marker (1 = Crash Site, 2 = Colony)
@@ -708,6 +708,36 @@ registerActionCompletionHandler('stripWiring', () => {
         }
 
         // Refresh so the per-tile counter updates and the button disappears at max.
+        try {
+            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                window.setupCrashSiteSection();
+            }
+        } catch { /* ignore */ }
+    } catch { /* ignore */ }
+});
+
+// Scavenge Debris Field: limited per tile (3 completions per tile)
+registerActionCompletionHandler('scavengeDebris', () => {
+    try {
+        const st = characterState?.localMap;
+        if (!st || typeof st !== 'object') return;
+        const x = Number(st.x);
+        const y = Number(st.y);
+        if (![x, y].every(Number.isFinite)) return;
+
+        const key = `${x},${y}`;
+        if (!st.debrisScavengedByTile || typeof st.debrisScavengedByTile !== 'object') {
+            st.debrisScavengedByTile = {};
+        }
+        const used = Number(st.debrisScavengedByTile[key] || 0);
+        const next = Math.min(3, Math.max(0, used) + 1);
+        st.debrisScavengedByTile[key] = next;
+
+        if (next >= 3) {
+            addLogEntry('The debris here has been picked clean.', LogType.INFO);
+        }
+
+        // Refresh so the per-tile counter and tile info panel update immediately.
         try {
             if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
                 window.setupCrashSiteSection();

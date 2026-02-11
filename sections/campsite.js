@@ -10,7 +10,6 @@ import { computeRewardEffects } from '../data/upgradeEffects.js';
 
 import { updateBuildingButtonsState, createBuildingButton, rehydrateBuildingButton } from '../ui/components/buildingButtons.js';
 import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
-import { allActions } from '../data/definitions/allActions.js';
 
 
 const SITE_BUILDING_NAMES = ['Foraging Camp', 'Water Station', 'Rain Tarp', 'Food Larder', 'Water Reservoir'];
@@ -73,7 +72,6 @@ export function getCampsitePaneHtml({ isUnlocked = false } = {}) {
                 <div class="localmap-card-body" id="campsiteBuildings">${isUnlocked ? '' : lockedText}</div>
             </div>
         </div>
-        <div id="salvageActionsContainer" class="campsite-actions"></div>
     `;
 }
 

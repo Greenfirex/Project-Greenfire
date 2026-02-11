@@ -4,7 +4,6 @@ import { buildings } from './definitions/buildings.js';
 import { allActions as salvageActions } from './definitions/allActions.js';
 import { addLogEntry, LogType } from '../core/ingameLog.js';
 import { getJobById } from './jobsManager.js';
-import { activatedSections, setActivatedSections, applyActivatedSections } from '../core/main.js';
 import { addSlotsForBuilding } from './jobsManager.js';
 import { gameFlags } from './gameFlags.js';
 

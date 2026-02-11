@@ -3,7 +3,7 @@ import { technologies } from '../data/definitions/technologies.js';
 import { activatedSections, setActivatedSections, applyActivatedSections, setColonyMenuNewItemFlag } from '../core/main.js';
 import { setupTooltip, hideTooltip } from '../ui/panels/tooltip.js';
 import { setupColonySection } from './colony.js';
-import { resources, computeResourceRates, updateResourceInfo } from '../core/resources.js';
+import { resources, updateResourceInfo } from '../core/resources.js';
 import { buildings } from '../data/definitions/buildings.js';
 import { gameFlags } from '../data/gameFlags.js';
 import { newBadgeHtml, wireClearUiNewBadge } from '../ui/components/contentNewBadges.js';

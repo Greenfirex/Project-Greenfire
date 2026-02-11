@@ -1,5 +1,7 @@
-// Local Map (Crash Site) tile definitions.
+// Crash Site map definition helpers.
 // Keep this module data-driven: map rendering lives in sections/crashSiteLocalMap.js.
+
+import { coordKey, edgeKey } from './gridHelpers.js';
 
 export const LOCAL_MAP_COLS = 11; // A-K
 export const LOCAL_MAP_ROWS = 9;  // 1-9
@@ -189,12 +191,6 @@ const PERIMETER_ROUTE_TILES = new Set([
     '10,1',
     '10,2',
 ]);
-
-function edgeKey(ax, ay, bx, by) {
-    const a = `${Number(ax)},${Number(ay)}`;
-    const b = `${Number(bx)},${Number(by)}`;
-    return a < b ? `${a}|${b}` : `${b}|${a}`;
-}
 
 // Internal ship corridor walls inside the crash POI.
 // Each entry is an edge between two orthogonally adjacent tiles.
@@ -469,10 +465,6 @@ function getMarkersForCell(col, row, localMapState) {
     return [];
 }
 
-function coordKey(col, row) {
-    return `${Number(col)},${Number(row)}`;
-}
-
 export function isCrashPoi(col, row) {
     return CRASH_POI_CELLS.has(coordKey(col, row));
 }
@@ -687,3 +679,56 @@ export function isCrashWallBetween(fromX, fromY, toX, toY, { localMapState = nul
     if (edge === 'bottom') return !isCrashPoi(inX, inY + 1);
     return false;
 }
+
+// Action IDs that are rendered via the Local Map (tile-bound), not as global Crash Site list actions.
+// Used to avoid treating tile-only actions as "new content" for section-level menu badges.
+export const CRASH_SITE_MAP_BOUND_ACTION_IDS = new Set([
+    'move',
+    'sitDown',
+    'rest',
+    'sleep',
+    'drinkCaveWater',
+    'purifyWater',
+    'attemptReentry',
+    'attemptAlternateAccess',
+    'scavengeDebris',
+    'makeCrudePrybar',
+    'huntWildlife',
+    'createBasicTorch',
+    'craftMetalSpear',
+    'pryOpenHull',
+
+    // Map-tile actions (ship interior / base camp)
+    'stripWiring',
+    'investigateSound',
+    'establishBaseCamp',
+    'refillCanteen',
+    'packRations',
+    'haulWater',
+    'haulBerries',
+
+    // Ship interior tile actions (rendered on E4/E6/F5)
+    'searchNorthCorridor',
+    'searchSouthCorridor',
+    'investigateBridge',
+
+    // Ship interior room actions (tile-bound)
+    'exploreCafeteria',
+    'checkCrewQuarters',
+    'searchLabs',
+    'searchPowerCore',
+    'restoreEmergencyPower',
+
+    // Radio repair flow
+    'scavengeCommsPanel',
+    'fixLongRangeRadio',
+
+    // Beyond the Perimeter
+    'investigateDistantSmoke',
+
+    // Resource gathering should be local-map-only
+    'forageFood',
+    'collectChemicals',
+    'scavengeCafeteriaSupplies',
+    'collectFabric',
+]);

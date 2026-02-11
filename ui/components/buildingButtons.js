@@ -2,7 +2,7 @@ import { setupTooltip, refreshCurrentTooltip } from '../panels/tooltip.js';
 import { buildings } from '../../data/definitions/buildings.js';
 import { startBuild, getCurrentBuildingCost, canAfford, getAffordabilityShortfalls, getProgress } from '../../data/buildingsManager.js';
 import { addLogEntry, LogType } from '../../core/ingameLog.js';
-import { resources, updateResourceInfo } from '../../core/resources.js';
+import { updateResourceInfo } from '../../core/resources.js';
 import { newBadgeHtml, wireClearUiNewBadge } from './contentNewBadges.js';
 
 // Create a building button and wire tooltip + click handler

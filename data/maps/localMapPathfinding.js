@@ -1,10 +1,7 @@
-import { getLocalMapTileAt, isCrashWallBetween } from './definitions/localMapTiles.js';
-
-const COLS = 11;
-const ROWS = 9;
+import { getLocalMapTileAt, isCrashWallBetween, LOCAL_MAP_COLS, LOCAL_MAP_ROWS } from './crashSiteMap.js';
 
 function inBounds(x, y) {
-    return Number.isFinite(x) && Number.isFinite(y) && x >= 1 && x <= COLS && y >= 1 && y <= ROWS;
+    return Number.isFinite(x) && Number.isFinite(y) && x >= 1 && x <= LOCAL_MAP_COLS && y >= 1 && y <= LOCAL_MAP_ROWS;
 }
 
 function isVisited(localMapState, x, y) {

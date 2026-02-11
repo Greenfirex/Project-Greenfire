@@ -20,9 +20,9 @@ import {
 
 const CRAFTING_CATEGORIES = [
     { key: 'weapons', label: 'Weapons', actionIds: ['craftMetalSpear'] },
-    { key: 'accessory', label: 'Accessory', actionIds: ['createBasicTorch'] },
+    { key: 'accessory', label: 'Accessory', actionIds: ['createBasicTorch', 'craftCanteen'] },
     { key: 'armor', label: 'Armor', actionIds: [] },
-    { key: 'quest', label: 'Quest', actionIds: ['makeCrudePrybar', 'fixLongRangeRadio'] },
+    { key: 'quest', label: 'Quest', actionIds: ['makeCrudePrybar', 'fixLongRangeRadio', 'assembleMakeshiftExplosive'] },
     { key: 'consumables', label: 'Consumables', actionIds: ['craftFirstAidKit'] },
 ];
 

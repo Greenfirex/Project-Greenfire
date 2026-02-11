@@ -1,4 +1,4 @@
-import { getIngameTimeObject, getIngameTimeString } from '../../core/time.js';
+import { getIngameTimeObject } from '../../core/time.js';
 import { addJournalEntry } from '../../sections/journal.js';
 import { allActions as _allActions } from '../../data/definitions/allActions.js';
 import { getItemDefinition } from '../../data/definitions/items.js';

@@ -21,6 +21,7 @@ import { showStoryPopup } from '../ui/panels/popup.js';
 import { resetIngameTime, getTotalIngameMinutes, setTotalIngameMinutes } from './time.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
 import { salvageActions, resetSalvageActions } from '../data/definitions/actions.js';
+import { recipeActions, resetRecipeActions } from '../data/definitions/recipes.js';
 import { upgradeActions, resetUpgradeActions } from '../data/definitions/upgrades.js';
 import { refreshAllActions } from '../data/definitions/allActions.js';
 import { jobs, resetJobs } from '../data/jobsManager.js';
@@ -125,6 +126,7 @@ export function getGameState() {
         activatedSections,
         buildings,
         salvageActions,
+        recipeActions,
         upgradeActions,
         gameFlags: { ...gameFlags },
         storyLog: Array.isArray(storyLog) ? storyLog : getInitialStoryLog(),
@@ -305,6 +307,40 @@ export function applyGameState(gameState) {
         } catch { /* non-fatal */ }
 
         // Keep aggregator in sync after applying saved action state
+        try { refreshAllActions(); } catch {}
+    }
+
+    if (gameState.recipeActions) {
+        // Restore runtime-mutating fields for recipe actions (crafting) while preserving definitions.
+        const RUNTIME_ACTION_KEYS = new Set([
+            'isUnlocked', 'stage', 'uses', 'maxUses', 'completed',
+            'startTime', 'lastTickTime', 'pauseStart',
+            'uiNew',
+            'encounterDiscovered'
+        ]);
+        recipeActions.forEach(defaultAction => {
+            const savedAction = gameState.recipeActions.find(a => a.id === defaultAction.id);
+            if (!savedAction) return;
+            for (const k of RUNTIME_ACTION_KEYS) {
+                if (Object.prototype.hasOwnProperty.call(savedAction, k)) {
+                    defaultAction[k] = savedAction[k];
+                }
+            }
+        });
+
+        // Same migration: multi-stage non-repeatable actions shouldn't be marked completed early.
+        try {
+            for (const a of recipeActions) {
+                if (!a || a.repeatable) continue;
+                const total = Array.isArray(a.stages) ? a.stages.length : 0;
+                if (total <= 1) continue;
+                const idx = Number(a.stage || 0);
+                if (Number.isFinite(idx) && idx < total) {
+                    a.completed = false;
+                }
+            }
+        } catch { /* non-fatal */ }
+
         try { refreshAllActions(); } catch {}
     }
 
@@ -500,6 +536,7 @@ export function resetToDefaultState() {
     resetBuildings();
     resetTechnologies();
     resetSalvageActions();
+    resetRecipeActions();
     resetUpgradeActions();
     // Keep the exported allActions aggregator in sync after resets
     refreshAllActions();

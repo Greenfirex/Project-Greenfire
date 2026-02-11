@@ -26,6 +26,30 @@ let listenersInstalled = false;
 let currentDragPayload = null;
 let discardMode = false;
 
+const EQUIP_SLOT_LABELS = {
+    head: 'Head',
+    chest: 'Chest',
+    legs: 'Legs',
+    boots: 'Boots',
+    weapon: 'Weapon',
+    offhand: 'Offhand',
+    accessory_1: 'Accessory 1',
+    accessory_2: 'Accessory 2',
+};
+
+const ITEM_STAT_LABELS = {
+    health: 'Health',
+    stamina: 'Stamina',
+    damage: 'Damage',
+    attackSpeed: 'Attack Speed',
+    armor: 'Armor',
+    critChance: 'Crit Chance',
+    hitChance: 'Hit Chance',
+    evasion: 'Evasion',
+    foodCapacity: 'Food Capacity',
+    waterCapacity: 'Water Capacity',
+};
+
 function refreshCharacterSectionIfVisible() {
     try {
         const sectionEl = document.getElementById('characterSection');
@@ -49,6 +73,7 @@ export function setupCharacterSection(section) {
 
     const { cols: bagCols } = getBagSize();
     const stats = computeCharacterStats(characterState);
+    const itemImpact = computeEquippedItemImpact(characterState);
     const bagRows = characterState?.bagRows ?? 2;
 
     const xp = getXPResourceSnapshot();
@@ -117,12 +142,12 @@ export function setupCharacterSection(section) {
                                 ${renderXPRow()}
                                 ${renderHealthRow()}
                                 ${renderStaminaRow()}
-                                ${renderStatRow('Damage', formatDamageRange(stats))}
-                                ${renderUpgradeableStatRow('Attack Speed', formatAttackSpeed(stats.attackSpeed), { allocateKey: 'attackSpeed', canSpend: canSpendPoint })}
-                                ${renderUpgradeableStatRow('Hit Chance', `${Number(stats.hitChance ?? 0)}%`, { allocateKey: 'hitChance', canSpend: canSpendPoint }) }
-                                ${renderUpgradeableStatRow('Crit Chance', `${Number(stats.critChance ?? 0)}%`, { allocateKey: 'critChance', canSpend: canSpendPoint })}
-                                ${renderStatRow('Armor', String(stats.armor ?? 0))}
-                                ${renderUpgradeableStatRow('Evasion', `${Number(stats.evasion ?? 0)}%`, { allocateKey: 'evasion', canSpend: canSpendPoint })}
+                                ${renderStatRow('Damage', formatDamageRange(stats), { itemImpact })}
+                                ${renderUpgradeableStatRow('Attack Speed', formatAttackSpeed(stats.attackSpeed), { allocateKey: 'attackSpeed', canSpend: canSpendPoint, itemImpact })}
+                                ${renderUpgradeableStatRow('Hit Chance', `${Number(stats.hitChance ?? 0)}%`, { allocateKey: 'hitChance', canSpend: canSpendPoint, itemImpact }) }
+                                ${renderUpgradeableStatRow('Crit Chance', `${Number(stats.critChance ?? 0)}%`, { allocateKey: 'critChance', canSpend: canSpendPoint, itemImpact })}
+                                ${renderStatRow('Armor', String(stats.armor ?? 0), { itemImpact })}
+                                ${renderUpgradeableStatRow('Evasion', `${Number(stats.evasion ?? 0)}%`, { allocateKey: 'evasion', canSpend: canSpendPoint, itemImpact })}
                             </div>
                         </div>
                     </div>
@@ -248,12 +273,13 @@ function renderEquipmentSlot(key, label, itemId) {
     `;
 }
 
-function renderStatRow(label, value) {
+function renderStatRow(label, value, opts = {}) {
     const safeKey = String(label).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
     const iconHtml = renderStatLabelIconHtml(safeKey);
+    const impactClass = getItemImpactClassForUiStatKey(safeKey, opts.itemImpact);
     return `
         <div class="stat-line" data-stat-line="${safeKey}">
-            <div class="stat-row" data-stat="${safeKey}">
+            <div class="stat-row ${impactClass}" data-stat="${safeKey}">
                 <span class="stat-label">${iconHtml}<span class="stat-label-text">${escapeHtml(String(label))}</span></span>
                 <span class="stat-value">${value}</span>
             </div>
@@ -320,18 +346,91 @@ function renderUpgradeableStatRow(label, value, opts = {}) {
     const allocateKey = opts.allocateKey ? String(opts.allocateKey) : '';
     const canSpend = !!opts.canSpend;
     const iconHtml = renderStatLabelIconHtml(safeKey);
+    const impactClass = getItemImpactClassForUiStatKey(safeKey, opts.itemImpact);
     const btn = allocateKey
         ? renderAllocateButtonHtml(allocateKey, { disabled: !canSpend, label: `Increase ${label} (cost: 1 stat point)` })
         : '';
     return `
         <div class="stat-line" data-stat-line="${safeKey}">
-            <div class="stat-row" data-stat="${safeKey}">
+            <div class="stat-row ${impactClass}" data-stat="${safeKey}">
                 <span class="stat-label">${iconHtml}<span class="stat-label-text">${escapeHtml(String(label))}</span></span>
                 <span class="stat-value">${value}</span>
             </div>
             ${btn}
         </div>
     `;
+}
+
+function computeEquippedItemImpact(state = characterState) {
+    const equipment = (state && state.equipment && typeof state.equipment === 'object') ? state.equipment : {};
+    const slots = Object.keys(EQUIP_SLOT_LABELS);
+
+    const byUiKey = {
+        damage: { total: 0, parts: [] },
+        attack_speed: { total: 0, parts: [] },
+        hit_chance: { total: 0, parts: [] },
+        crit_chance: { total: 0, parts: [] },
+        armor: { total: 0, parts: [] },
+        evasion: { total: 0, parts: [] },
+    };
+
+    const addPart = (uiKey, slotKey, itemId, itemName, delta, kind) => {
+        if (!byUiKey[uiKey]) byUiKey[uiKey] = { total: 0, parts: [] };
+        byUiKey[uiKey].total += delta;
+        byUiKey[uiKey].parts.push({ slotKey, slotLabel: EQUIP_SLOT_LABELS[slotKey] || slotKey, itemId, itemName, delta, kind });
+    };
+
+    for (const slotKey of slots) {
+        const itemId = equipment[slotKey];
+        if (!itemId) continue;
+        const def = getItemDefinition(itemId);
+        if (!def) continue;
+        const itemName = def.name || def.id || itemId;
+        const stats = (def.stats && typeof def.stats === 'object') ? def.stats : null;
+        if (!stats) continue;
+
+        for (const [k, raw] of Object.entries(stats)) {
+            const v = Number(raw);
+            if (!Number.isFinite(v) || v === 0) continue;
+
+            // UI stat keys are snake_case; item stat keys are camelCase.
+            if (k === 'damage') {
+                // Damage affects both ends equally; treat it as a single delta for coloring.
+                addPart('damage', slotKey, itemId, itemName, v, 'damage');
+                continue;
+            }
+            if (k === 'damageMin' || k === 'damageMax') {
+                // If any item ever uses explicit min/max, approximate the overall change.
+                addPart('damage', slotKey, itemId, itemName, v, k);
+                continue;
+            }
+
+            const uiKey = (
+                k === 'attackSpeed' ? 'attack_speed'
+                    : (k === 'hitChance' ? 'hit_chance'
+                        : (k === 'critChance' ? 'crit_chance'
+                            : k))
+            );
+
+            if (!byUiKey[uiKey]) continue;
+            addPart(uiKey, slotKey, itemId, itemName, v, k);
+        }
+    }
+
+    return byUiKey;
+}
+
+function getItemImpactClassForUiStatKey(uiStatKey, itemImpact) {
+    const key = String(uiStatKey || '').toLowerCase();
+    const impact = itemImpact && itemImpact[key];
+    if (!impact || !Number.isFinite(Number(impact.total)) || Number(impact.total) === 0) return '';
+
+    // For most stats: higher is better. For attack_speed (seconds per attack): lower is better.
+    const higherIsBetter = (key !== 'attack_speed');
+    const score = Number(impact.total) * (higherIsBetter ? 1 : -1);
+    if (score > 0) return 'is-item-positive';
+    if (score < 0) return 'is-item-negative';
+    return '';
 }
 
 function getXPResourceSnapshot() {
@@ -602,6 +701,7 @@ function attachStatTooltips(sectionRoot) {
 function buildStatTooltipHTML(statKey) {
     const key = String(statKey || '').toLowerCase();
     const stats = computeCharacterStats(characterState);
+    const itemImpact = computeEquippedItemImpact(characterState);
     const xp = getXPResourceSnapshot();
     const alloc = xp?.allocated || {};
 
@@ -675,13 +775,29 @@ function buildStatTooltipHTML(statKey) {
         case 'damage': {
             const min = Number(stats?.damageMin ?? 0);
             const max = Number(stats?.damageMax ?? min);
+
+            const parts = (itemImpact?.damage?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0);
+            const hasWeapon = !!(characterState?.equipment?.weapon);
+            const lines = [];
+            if (parts.length) {
+                for (const p of parts) {
+                    const sign = p.delta > 0 ? '+' : '';
+                    lines.push(`${p.slotLabel}: ${p.itemName} (${sign}${Math.abs(p.delta)} damage)`);
+                }
+            } else {
+                lines.push(hasWeapon ? 'No equipped items modify damage.' : 'No weapon equipped (damage is unmodified).');
+            }
             return `
                 <h4>Damage</h4>
                 <p>Shown as a range: <strong>${escapeHtml(String(Math.floor(min)))} - ${escapeHtml(String(Math.floor(max)))}</strong></p>
                 <div class="tooltip-section">
                     <h4>How It Works</h4>
                     <p>Higher damage increases your DPS in combat.</p>
-                    ${bullets(['Affected by your equipped weapon.'])}
+                    ${bullets(['Affected by your equipped weapon (and any other equipped items with damage modifiers).'])}
+                </div>
+                <div class="tooltip-section">
+                    <h4>Affected By Items</h4>
+                    ${bullets(lines)}
                 </div>
             `;
         }
@@ -689,6 +805,13 @@ function buildStatTooltipHTML(statKey) {
             const speed = Number(stats?.attackSpeed ?? 1);
             const pts = Math.max(0, Math.floor(Number(alloc.attackSpeed) || 0));
             const bonusDelta = pts > 0 ? (-(pts * 0.05)).toFixed(2) : '0.00';
+            const parts = (itemImpact?.attack_speed?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0);
+            const itemLines = parts.length
+                ? parts.map(p => {
+                    const sign = p.delta > 0 ? '+' : '';
+                    return `${p.slotLabel}: ${p.itemName} (${sign}${Number(p.delta).toFixed(2)}s)`;
+                })
+                : ['No equipped items modify attack speed.'];
             const b = bullets([
                 'Seconds per attack (lower is faster).',
                 'Minimum: 0.20s per attack.',
@@ -702,11 +825,22 @@ function buildStatTooltipHTML(statKey) {
                     <h4>How It Works</h4>
                     ${b}
                 </div>
+                <div class="tooltip-section">
+                    <h4>Affected By Items</h4>
+                    ${bullets(itemLines)}
+                </div>
             `;
         }
         case 'hit_chance': {
             const hit = Number(stats?.hitChance ?? 0);
             const pts = Math.max(0, Math.floor(Number(alloc.hitChance) || 0));
+            const parts = (itemImpact?.hit_chance?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0);
+            const itemLines = parts.length
+                ? parts.map(p => {
+                    const sign = p.delta > 0 ? '+' : '';
+                    return `${p.slotLabel}: ${p.itemName} (${sign}${Math.abs(p.delta)}% hit chance)`;
+                })
+                : ['No equipped items modify hit chance.'];
             const b = bullets([
                 'Chance to land an attack before evasion.',
                 'Capped at: 95%.',
@@ -721,11 +855,22 @@ function buildStatTooltipHTML(statKey) {
                     <h4>How It Works</h4>
                     ${b}
                 </div>
+                <div class="tooltip-section">
+                    <h4>Affected By Items</h4>
+                    ${bullets(itemLines)}
+                </div>
             `;
         }
         case 'crit_chance': {
             const crit = Number(stats?.critChance ?? 0);
             const pts = Math.max(0, Math.floor(Number(alloc.critChance) || 0));
+            const parts = (itemImpact?.crit_chance?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0);
+            const itemLines = parts.length
+                ? parts.map(p => {
+                    const sign = p.delta > 0 ? '+' : '';
+                    return `${p.slotLabel}: ${p.itemName} (${sign}${Math.abs(p.delta)}% crit chance)`;
+                })
+                : ['No equipped items modify crit chance.'];
             const b = bullets([
                 'Critical hits add +50% damage.',
                 'Capped at: 100%.',
@@ -739,10 +884,21 @@ function buildStatTooltipHTML(statKey) {
                     <h4>How It Works</h4>
                     ${b}
                 </div>
+                <div class="tooltip-section">
+                    <h4>Affected By Items</h4>
+                    ${bullets(itemLines)}
+                </div>
             `;
         }
         case 'armor': {
             const armor = Math.max(0, Number(stats?.armor ?? 0));
+            const parts = (itemImpact?.armor?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0);
+            const itemLines = parts.length
+                ? parts.map(p => {
+                    const sign = p.delta > 0 ? '+' : '';
+                    return `${p.slotLabel}: ${p.itemName} (${sign}${Math.abs(p.delta)} armor)`;
+                })
+                : ['No equipped items modify armor.'];
             const mitigation = armor / (armor + 20);
             const taken = 1 - mitigation;
             const b = bullets([
@@ -758,11 +914,22 @@ function buildStatTooltipHTML(statKey) {
                     <h4>How It Works</h4>
                     ${b}
                 </div>
+                <div class="tooltip-section">
+                    <h4>Affected By Items</h4>
+                    ${bullets(itemLines)}
+                </div>
             `;
         }
         case 'evasion': {
             const ev = Math.max(0, Number(stats?.evasion ?? 0));
             const pts = Math.max(0, Math.floor(Number(alloc.evasion) || 0));
+            const parts = (itemImpact?.evasion?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0);
+            const itemLines = parts.length
+                ? parts.map(p => {
+                    const sign = p.delta > 0 ? '+' : '';
+                    return `${p.slotLabel}: ${p.itemName} (${sign}${Math.abs(p.delta)}% evasion)`;
+                })
+                : ['No equipped items modify evasion.'];
             const b = bullets([
                 "Reduces the enemy's chance to hit you (multiplies by 1 − evasion).",
                 'Capped at: 75%.',
@@ -775,6 +942,10 @@ function buildStatTooltipHTML(statKey) {
                 <div class="tooltip-section">
                     <h4>How It Works</h4>
                     ${b}
+                </div>
+                <div class="tooltip-section">
+                    <h4>Affected By Items</h4>
+                    ${bullets(itemLines)}
                 </div>
             `;
         }

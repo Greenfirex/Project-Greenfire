@@ -1,4 +1,4 @@
-import { getLocalMapTileAt, isCrashPoi, hasInternalPoiWallBetween, hasInternalPoiDoorBetween, isCrashWallBetween } from '../data/definitions/localMapTiles.js';
+import { getLocalMapTileAt, isCrashPoi, hasInternalPoiDoorBetween, isCrashWallBetween } from '../data/maps/crashSiteMap.js';
 import { allActions as salvageActions } from '../data/definitions/allActions.js';
 import { isCompactPhoneLandscape } from '../ui/compactMode.js';
 
@@ -1254,7 +1254,10 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
                     const resources = ['Food Rations'];
                     if (debrisUnlocked && isOrthogonallyAdjacentToCrashPoi(col, row)) {
-                        resources.push('Metal Parts');
+                        const key = `${Number(col)},${Number(row)}`;
+                        const used = Math.max(0, Math.floor(Number(state?.debrisScavengedByTile?.[key] || 0)));
+                        const remaining = Math.max(0, 3 - used);
+                        resources.push(`Metal Parts (${remaining} left)`);
                     }
                     resourcesList = resources;
                 } else if (isH8) {
@@ -1266,7 +1269,10 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 const debris = (salvageActions || []).find(a => a && a.id === 'scavengeDebris');
                 const debrisUnlocked = !!(debris && debris.isUnlocked);
                 if (debrisUnlocked && isOrthogonallyAdjacentToCrashPoi(col, row)) {
-                    resourcesList = ['Metal Parts'];
+                    const key = `${Number(col)},${Number(row)}`;
+                    const used = Math.max(0, Math.floor(Number(state?.debrisScavengedByTile?.[key] || 0)));
+                    const remaining = Math.max(0, 3 - used);
+                    resourcesList = [`Metal Parts (${remaining} left)`];
                 }
                 }
             }
@@ -1278,16 +1284,18 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 const isD6 = (Number(col) === 4 && Number(row) === 6);
                 if (isD6) {
                     const used = Math.max(0, Math.floor(Number(state?.cafeteriaSuppliesByTile?.['4,6'] || 0)));
-                    resourcesValue = (used >= 7) ? 'None' : 'Food Rations, Drinking Water';
-                    if (resourcesValue !== 'None') resourcesList = ['Food Rations', 'Drinking Water'];
+                    const remaining = Math.max(0, 7 - used);
+                    resourcesList = [`Food Rations (${remaining} left)`, `Drinking Water (${remaining} left)`];
+                    resourcesValue = remaining > 0 ? 'Food Rations, Drinking Water' : 'None';
                 } else if (meta && meta.typeId === 'crewQuarters') {
                     resourcesList = ['Fabric'];
                 } else {
                     const key = `${Number(col)},${Number(row)}`;
                     if (meta && meta.typeId === 'corridor') {
                         const used = Math.max(0, Math.floor(Number(state?.wiringStrippedByTile?.[key] || 0)));
-                        resourcesValue = (used >= 5) ? 'None' : 'Wire';
-                        if (resourcesValue !== 'None') resourcesList = ['Wire'];
+                        const remaining = Math.max(0, 5 - used);
+                        resourcesList = [`Wire (${remaining} left)`];
+                        resourcesValue = remaining > 0 ? 'Wire' : 'None';
                     }
                 }
             }
@@ -1492,7 +1500,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
                 // Intentionally do NOT render thick "hull" wall edges inside the POI.
                 // The corridor/room outline visuals already communicate walls/doors well.
-                // Wall blocking still applies via localMapTiles.js logic.
+                // Wall blocking still applies via crashSiteMap.js logic.
 
                 // Visual doors (hide under fog-of-war)
                 const isDiscoveredAt = (dc, dr) => {

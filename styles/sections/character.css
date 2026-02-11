@@ -239,6 +239,15 @@
     border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.14);
 }
 
+/* Item-modified stat coloring (value only). */
+#characterSection .stat-row.is-item-positive .stat-value {
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.98);
+}
+
+#characterSection .stat-row.is-item-negative .stat-value {
+    color: rgba(231, 76, 60, 0.95);
+}
+
 #characterSection .stat-row.stat-row-bar {
     align-items: center;
     justify-content: flex-start;

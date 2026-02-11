@@ -68,6 +68,14 @@ export const items = [
         slot: 'accessory',
         icon: 'assets/images/items/basic_torch.svg',
         stats: { evasion: 0 }
+    },
+    {
+        id: 'canteen',
+        name: 'Canteen',
+        slot: 'accessory',
+        icon: 'assets/images/items/canteen.svg',
+        // Increases personal carryable Drinking Water capacity.
+        stats: { waterCapacity: 15 }
     }
 ];
 

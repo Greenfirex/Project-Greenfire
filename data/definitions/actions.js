@@ -78,52 +78,6 @@ const initialSalvageActions = [
                 ]
             },
             {
-                id: 'createBasicTorch',
-                name: 'Create Basic Torch',
-                description: 'Use dry materials from the shelter to assemble a simple torch you can carry into darker terrain.',
-                duration: 2,
-                category: 'Crafting',
-                isUnlocked: false,
-                cancelable: true,
-                repeatable: false,
-                drain: [
-                    { resource: 'Stamina', amount: 4 }
-                ],
-                reward: [],
-                suppressGenericLog: true,
-            },
-
-            {
-                id: 'craftFirstAidKit',
-                name: 'Craft First Aid Kit',
-                description: 'Use fabric to assemble a basic first aid kit for treating injuries.',
-                duration: 3,
-                category: 'Crafting',
-                isUnlocked: false,
-                cancelable: true,
-                repeatable: true,
-                showUnlocks: false,
-                cost: [
-                    { resource: 'Fabric', amount: 3 }
-                ],
-                drain: [
-                    { resource: 'Stamina', amount: 6 }
-                ],
-                reward: [],
-                hideRewardPreview: true,
-                stage: 0,
-                stages: [
-                    {
-                        story: null,
-                        unlocks: [],
-                        grantItems: ['first_aid_kit'],
-                        grantItemsPreferEquip: false,
-                        logText: 'You assemble a first aid kit you can use later.'
-                    }
-                ]
-            },
-
-            {
                 id: 'burnThornyWall',
                 name: 'Burn Thorny Wall',
                 description: 'Use an equipped torch to burn through a dense wall of thorns and clear a path.',
@@ -308,37 +262,6 @@ const initialSalvageActions = [
                     { resource: 'Metal Parts', amount: [7, 8] }
                 ]
             },
-
-                {
-                id: 'makeCrudePrybar',
-                name: 'Make Crude Prybar',
-                description: 'Use scavenged metal to fashion a crude prybar that can be used to lever open hull seams.',
-                duration: 4,
-                category: 'Crafting',
-                isUnlocked: false,
-                cancelable: true,
-                repeatable: true,
-                showUnlocks: false,
-                cost: [
-                    { resource: 'Metal Parts', amount: 15 }
-                ],
-                drain: [
-                    { resource: 'Stamina', amount: 10 },
-                    { resource: 'Food Rations', amount: 3 },
-                    { resource: 'Drinking Water', amount: 4 }
-                ],
-                reward: [
-                    { resource: 'Crude Prybar', amount: 1 }
-                ],
-                stage: 0,
-                stages: [
-                    {
-                        story: null,
-                        unlocks: ['pryOpenHull'],
-                        logText: 'You fashion a crude prybar from scavenged metal. This may let you lever open hull seams.'
-                    }
-                ],
-            },
             {
                 id: 'pryOpenHull',
                 name: 'Pry Open Hull Section',
@@ -422,7 +345,7 @@ const initialSalvageActions = [
                 stages: [
                     {
                         story: 'basecamp_established', // matches new storyEvents entry
-                        unlocks: ['craftMetalSpear', 'sleep', 'refillCanteen', 'packRations', 'haulWater', 'haulBerries'],
+                        unlocks: ['craftMetalSpear', 'craftCanteen', 'sleep', 'refillCanteen', 'packRations', 'haulWater', 'haulBerries'],
                         logText: 'You establish a small base camp. Survivors can be organized here. (Click to read)',
                         suppressGenericLog: true
                     }
@@ -500,40 +423,6 @@ const initialSalvageActions = [
                     { resource: 'Provisions', amount: [12, 20] }
                 ]
             },
-
-            {
-                id: 'craftMetalSpear',
-                name: 'Craft Metal Spear',
-                description: 'Use salvaged metal and wire to craft a sturdy spear — better than improvised weapons.',
-                duration: 5,
-                category: 'Crafting',
-                isUnlocked: false,
-                cancelable: true,
-                repeatable: true,
-                showUnlocks: false,
-                cost: [
-                    { resource: 'Metal Parts', amount: 12 },
-                    { resource: 'Wire', amount: 4 }
-                ],
-                drain: [
-                    { resource: 'Stamina', amount: 12 },
-                    { resource: 'Food Rations', amount: 3 },
-                    { resource: 'Drinking Water', amount: 3 }
-                ],
-                reward: [],
-                hideRewardPreview: true,
-                stage: 0,
-                stages: [
-                    {
-                        story: null,
-                        unlocks: [],
-                        grantItems: ['metal_spear'],
-                        grantItemsPreferEquip: true,
-                        logText: 'You lash a sharpened metal head onto a reinforced shaft. It feels balanced and reliable.'
-                    }
-                ]
-            },
-
             {
             id: 'searchSouthCorridor',
             name: 'Search: South Corridor',
@@ -877,40 +766,6 @@ const initialSalvageActions = [
                 }
             ]
         },
-
-        {
-            id: 'assembleMakeshiftExplosive',
-            name: 'Assemble Makeshift Explosive',
-            description: 'Combine salvaged chemicals and scrap into a makeshift explosive. Dangerous work — requires caution and materials.',
-            duration: 4,
-            category: 'Crafting',
-            isUnlocked: false,               
-            cancelable: true,
-            repeatable: true,
-            maxUses: 3,
-            uses: 0,
-            cost: [
-                { resource: 'Chemicals', amount: 5 },
-                { resource: 'Metal Parts', amount: 8 },
-                { resource: 'Wire', amount: 14 }
-            ],
-            drain: [
-                { resource: 'Stamina', amount: 13 },
-                { resource: 'Food Rations', amount: 3 },
-                { resource: 'Drinking Water', amount: 3 }
-            ],
-            reward: [
-                { resource: 'Makeshift Explosive', amount: 1 }
-            ],
-            stage: 0,
-            stages: [
-                {
-                    story: 'assembled_explosive',
-                    unlocks: [],
-                    logText: 'You carefully combine reagents and scrap into a crude explosive device. Handle with care.'
-                }
-            ]
-        },
         {
                 id: 'investigateBridge',
                 name: 'Investigate Bridge',
@@ -1060,34 +915,6 @@ const initialSalvageActions = [
                 ]
             },
 
-            {
-                id: 'fixLongRangeRadio',
-                name: 'Fix Long-Range Radio',
-                description: 'Scavenge the damaged comms panel and rewire it to a power cell using insulated fabric and salvaged wiring to attempt contacting Starfleet Command.',
-                duration: 12,
-                category: 'Quest',
-                isUnlocked: false,
-                // Tile-bound (base camp) action; suppress noisy generic unlock logs.
-                suppressUnlockLog: true,
-                showUnlocks: false,
-                cancelable: true,
-                hideRewardPreview: true,
-                drain: [ { resource: 'Stamina', amount: 50 } ],
-                cost: [
-                    { resource: 'Power Cells', amount: 1 },
-                    { resource: 'Wire', amount: 25 },
-                    { resource: 'Fabric', amount: 6 }
-                ],
-                stage: 0,
-                stages: [
-                    {
-                        story: 'comms_fixed_distress',
-                        unlocks: [],
-                        logText: '',
-                        suppressGenericLog: true
-                    }
-                ]
-            },
         ];
 
 // Live actions that will be mutated during gameplay

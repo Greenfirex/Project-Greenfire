@@ -1,4 +1,3 @@
-import { getIngameTimeString } from '../core/time.js';
 import { getAllObjectivesWithState, getObjectiveSteps, getTrackedObjectiveId, setTrackedObjective } from '../data/objectives.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
 import { showStoryPopup } from '../ui/panels/popup.js';
