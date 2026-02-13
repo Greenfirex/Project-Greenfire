@@ -2,6 +2,8 @@
 // - These functions are intentionally stateless and contain no DOM access.
 // - Callers should pass the current resources array where needed.
 
+import { getItemIdForResourceName, isInventoryAliasResourceName } from './inventoryAliases.js';
+
 /**
  * Safely read a value from localStorage.
  * Returns null if storage is unavailable (e.g., privacy mode) or access throws.
@@ -19,8 +21,10 @@ export function lsGet(key) {
  * @returns {object|undefined} current stage object or undefined if none
  */
 export function getCurrentStage(action) {
-    const idx = action && Number.isFinite(action.stage) ? action.stage : 0;
-    return (action && Array.isArray(action.stages)) ? action.stages[idx] : undefined;
+    if (!action || !Array.isArray(action.stages) || action.stages.length === 0) return undefined;
+    const raw = (action && Number.isFinite(action.stage)) ? action.stage : 0;
+    const idx = Math.max(0, Math.min(action.stages.length - 1, Math.floor(Number(raw) || 0)));
+    return action.stages[idx];
 }
 
 /**
@@ -87,6 +91,35 @@ export function computeRequiredResources(action) {
     return req;
 }
 
+function getItemCountFromCharacterState(itemId, characterState) {
+    if (!itemId || !characterState) return 0;
+    let count = 0;
+    try {
+        const bag = Array.isArray(characterState.bag) ? characterState.bag : [];
+        for (const entry of bag) {
+            if (!entry) continue;
+            if (typeof entry === 'string') {
+                if (entry === itemId) count += 1;
+            } else if (typeof entry === 'object' && typeof entry.id === 'string') {
+                if (entry.id !== itemId) continue;
+                const q = Math.floor(Number(entry.qty ?? 1));
+                count += (Number.isFinite(q) ? Math.max(1, q) : 1);
+            }
+        }
+    } catch { /* ignore */ }
+
+    try {
+        const eq = characterState.equipment && typeof characterState.equipment === 'object' ? characterState.equipment : null;
+        if (eq) {
+            for (const v of Object.values(eq)) {
+                if (typeof v === 'string' && v === itemId) count += 1;
+            }
+        }
+    } catch { /* ignore */ }
+
+    return count;
+}
+
 /**
  * Check if the provided resources can cover the action's immediate requirements.
  * Uses computeRequiredResources; callers should pass the current resources array.
@@ -94,12 +127,22 @@ export function computeRequiredResources(action) {
  * @param {Array<{name:string, amount:number}>} resources
  * @returns {boolean}
  */
-export function canAffordAction(action, resources) {
+export function canAffordAction(action, resources, characterState = null) {
     if (!action) return false;
     const required = computeRequiredResources(action);
     for (const resourceName in required) {
+        const need = required[resourceName];
+
+        // Inventory-backed "resource" aliases (e.g., Power Cells)
+        if (isInventoryAliasResourceName(resourceName)) {
+            const itemId = getItemIdForResourceName(resourceName);
+            const have = getItemCountFromCharacterState(itemId, characterState);
+            if (have < need) return false;
+            continue;
+        }
+
         const res = (resources || []).find(r => r.name === resourceName);
-        if (!res || res.amount < required[resourceName]) return false;
+        if (!res || res.amount < need) return false;
     }
     return true;
 }
@@ -111,14 +154,22 @@ export function canAffordAction(action, resources) {
  * @param {Array<{name:string, amount:number}>} resources
  * @returns {string[]}
  */
-export function getAffordabilityShortfalls(action, resources) {
+export function getAffordabilityShortfalls(action, resources, characterState = null) {
     const out = [];
     if (!action) return out;
     const required = computeRequiredResources(action);
     for (const resourceName in required) {
+        const need = required[resourceName];
+
+        if (isInventoryAliasResourceName(resourceName)) {
+            const itemId = getItemIdForResourceName(resourceName);
+            const have = getItemCountFromCharacterState(itemId, characterState);
+            if (have < need) out.push(`${resourceName}: need ${Math.ceil(need - have)} more`);
+            continue;
+        }
+
         const res = (resources || []).find(r => r.name === resourceName);
         const have = res ? res.amount : 0;
-        const need = required[resourceName];
         if (!res) out.push(`${resourceName} missing (need ${need})`);
         else if (have < need) out.push(`${resourceName}: need ${Math.ceil(need - have)} more`);
     }

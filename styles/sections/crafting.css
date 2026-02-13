@@ -10,6 +10,16 @@
     box-sizing: border-box;
     justify-content: flex-start;
     overflow: hidden;
+
+    background-image: url('../../assets/images/craftingbackground.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+#craftingSection .crafting-campresources {
+    width: 100%;
+    margin-bottom: 12px;
 }
 
 #craftingSection > .content-panel {
@@ -18,6 +28,10 @@
     align-self: stretch;
     display: flex;
     min-height: 0;
+
+    /* Match Crash Site/Campsite panel inset (tighter than global content-panel padding). */
+    padding: 12px;
+    scrollbar-gutter: auto;
 
     /* Tabs sit above the panel (journal-style). */
     border-top-width: 0 !important;
@@ -94,6 +108,7 @@ html.is-compact #craftingSection .journal-tabs {
 
     #craftingSection > .content-panel {
         width: auto;
+        padding: 1px;
     }
 
     #craftingSection .crafting-category {

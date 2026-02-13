@@ -18,13 +18,68 @@ import {
 } from '../data/character.js';
 import { getItemDefinition } from '../data/definitions/items.js';
 import { resources } from '../core/resources.js';
+import { getTotalIngameMinutes } from '../core/time.js';
 import { setupTooltip } from '../ui/panels/tooltip.js';
 import { showConfirmPopup } from '../ui/panels/confirmPopup.js';
 import { newBadgeHtml } from '../ui/components/contentNewBadges.js';
+import { useConsumableFromBag } from '../data/consumables.js';
 
 let listenersInstalled = false;
 let currentDragPayload = null;
 let discardMode = false;
+let selectedBagIndex = null;
+
+function getStaminaRegenBuffStatus(state = characterState) {
+    try {
+        const buff = state?.buffs?.staminaRegen;
+        const untilMinutes = Math.floor(Number(buff?.untilMinutes) || 0);
+        const bonusPerSec = Number(buff?.bonusPerSec) || 0;
+        const label = (typeof buff?.label === 'string' && buff.label.trim()) ? buff.label.trim() : 'Herb Tea';
+        const now = getTotalIngameMinutes();
+        const remainingMinutes = Math.max(0, untilMinutes - now);
+        const active = (bonusPerSec > 0) && (remainingMinutes > 0);
+        return { active, remainingMinutes, untilMinutes, bonusPerSec, label };
+    } catch {
+        return { active: false, remainingMinutes: 0, untilMinutes: 0, bonusPerSec: 0, label: 'Herb Tea' };
+    }
+}
+
+function formatRemainingMinutes(mins) {
+    const m = Math.max(0, Math.floor(Number(mins) || 0));
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    if (h <= 0) return `${mm}m`;
+    if (mm <= 0) return `${h}h`;
+    return `${h}h ${mm}m`;
+}
+
+function buildStaminaRegenBuffTooltipHtml() {
+    const st = getStaminaRegenBuffStatus(characterState);
+    if (!st.active) {
+        return `
+            <h4>Active Effects</h4>
+            <p>None</p>
+        `;
+    }
+
+    return `
+        <h4>Active Effects</h4>
+        <p><strong>${escapeHtml(st.label)}</strong></p>
+        <p class="tooltip-detail">Stamina regeneration: +${escapeHtml(String(st.bonusPerSec))}/s</p>
+        <p class="tooltip-detail">Time remaining: ${escapeHtml(formatRemainingMinutes(st.remainingMinutes))}</p>
+    `;
+}
+
+function renderActiveEffectIconHtml() {
+    const st = getStaminaRegenBuffStatus(characterState);
+    const tea = getItemDefinition('herb_tea');
+    const icon = tea && tea.icon ? String(tea.icon) : '';
+    return `
+        <button type="button" class="active-effect-btn ${st.active ? '' : 'hidden'}" data-active-effect="staminaRegen" data-tooltip-touch-tap="true" aria-label="Active effect: ${escapeHtml(st.label)}" title="${escapeHtml(st.label)}">
+            ${icon ? `<img class="active-effect-icon" src="${escapeHtml(icon)}" alt="" />` : '<span class="active-effect-fallback">+</span>'}
+        </button>
+    `;
+}
 
 const EQUIP_SLOT_LABELS = {
     head: 'Head',
@@ -68,7 +123,9 @@ export function setupCharacterSection(section) {
 
     installGlobalCharacterListeners();
 
-    const initialTab = (section.dataset && section.dataset.characterActiveTab === 'stats') ? 'stats' : 'gear';
+    const isCompact = document.documentElement.classList.contains('is-compact');
+
+    const initialTab = (isCompact && section.dataset && section.dataset.characterActiveTab === 'stats') ? 'stats' : 'gear';
     section.innerHTML = '';
 
     const { cols: bagCols } = getBagSize();
@@ -76,11 +133,94 @@ export function setupCharacterSection(section) {
     const itemImpact = computeEquippedItemImpact(characterState);
     const bagRows = characterState?.bagRows ?? 2;
 
+    // Keep selection sane across re-renders
+    try {
+        const bagLen = Array.isArray(characterState?.bag) ? characterState.bag.length : 0;
+        if (!Number.isInteger(selectedBagIndex) || selectedBagIndex < 0 || selectedBagIndex >= bagLen) selectedBagIndex = null;
+        const entry = (selectedBagIndex !== null && Array.isArray(characterState?.bag)) ? characterState.bag[selectedBagIndex] : null;
+        if (!entry) selectedBagIndex = null;
+    } catch { /* ignore */ }
+
+    const selectedEntry = (selectedBagIndex !== null && Array.isArray(characterState?.bag)) ? characterState.bag[selectedBagIndex] : null;
+    const selectedItemId = (typeof selectedEntry === 'string')
+        ? selectedEntry
+        : (selectedEntry && typeof selectedEntry === 'object' ? selectedEntry.id : null);
+    const selectedDef = selectedItemId ? getItemDefinition(selectedItemId) : null;
+    const canUseSelected = !!(selectedDef && selectedDef.consumable);
+
     const xp = getXPResourceSnapshot();
     const canSpendPoint = (xp?.statPoints?.unspent ?? 0) > 0;
     const hasNewInventoryItems = hasAnyNewInventoryItems();
 
-    section.innerHTML = `
+    const equipmentCardHtml = `
+        <div class="character-card equipment-card">
+            <div class="character-card-header">
+                <h3>Equipment</h3>
+            </div>
+
+            <div class="paperdoll" aria-label="Character silhouette and equipment">
+                ${renderActiveEffectIconHtml()}
+                <img class="paperdoll-silhouette" src="assets/images/inventorycharacter.png" alt="" />
+
+                ${renderEquipmentSlot('head', 'Head', characterState?.equipment?.head)}
+                ${renderEquipmentSlot('chest', 'Chest', characterState?.equipment?.chest)}
+                ${renderEquipmentSlot('legs', 'Legs', characterState?.equipment?.legs)}
+                ${renderEquipmentSlot('boots', 'Boots', characterState?.equipment?.boots)}
+
+                ${renderEquipmentSlot('weapon', 'Weapon', characterState?.equipment?.weapon)}
+                ${renderEquipmentSlot('offhand', 'Offhand', characterState?.equipment?.offhand)}
+
+                ${renderEquipmentSlot('accessory_1', 'Accessory 1', characterState?.equipment?.accessory_1)}
+                ${renderEquipmentSlot('accessory_2', 'Accessory 2', characterState?.equipment?.accessory_2)}
+            </div>
+        </div>
+    `;
+
+    const inventoryCardHtml = `
+        <div class="character-card inventory-card">
+            <div class="character-card-header">
+                <h3>Inventory</h3>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="character-card-hint">Bag ${bagRows}×${bagCols}</span>
+                    <button type="button" class="inventory-use-btn" data-inventory-use ${(!discardMode && canUseSelected) ? '' : 'disabled'} title="${(!discardMode && canUseSelected) ? 'Use selected consumable' : 'Select a consumable to use'}" aria-label="Use selected consumable">
+                        Use
+                    </button>
+                    <button type="button" class="inventory-trash-btn ${discardMode ? 'active' : ''}" data-inventory-trash title="Discard items" aria-label="Discard items">
+                        ${renderTrashIcon()}
+                    </button>
+                </div>
+            </div>
+
+            <div class="bag-grid" style="--bag-cols:${bagCols}; --bag-rows:${bagRows};" aria-label="Inventory bag">
+                ${renderBagSlots()}
+            </div>
+        </div>
+    `;
+
+    const statsCardHtml = `
+        <div class="character-card stats-card">
+            <div class="character-card-header">
+                <h3>Stats</h3>
+                <span class="stat-points-chip" data-stat-points-chip role="button" tabindex="0" aria-label="Stat points">
+                    Stat Points: <strong>${escapeHtml(String(xp?.statPoints?.unspent ?? 0))}</strong>
+                </span>
+            </div>
+
+            <div class="stats-list" aria-label="Character stats">
+                ${renderXPRow()}
+                ${renderHealthRow()}
+                ${renderStaminaRow()}
+                ${renderStatRow('Damage', formatDamageRange(stats), { itemImpact })}
+                ${renderUpgradeableStatRow('Attack Speed', formatAttackSpeed(stats.attackSpeed), { allocateKey: 'attackSpeed', canSpend: canSpendPoint, itemImpact })}
+                ${renderUpgradeableStatRow('Hit Chance', `${Number(stats.hitChance ?? 0)}%`, { allocateKey: 'hitChance', canSpend: canSpendPoint, itemImpact }) }
+                ${renderUpgradeableStatRow('Crit Chance', `${Number(stats.critChance ?? 0)}%`, { allocateKey: 'critChance', canSpend: canSpendPoint, itemImpact })}
+                ${renderStatRow('Armor', String(stats.armor ?? 0), { itemImpact })}
+                ${renderUpgradeableStatRow('Evasion', `${Number(stats.evasion ?? 0)}%`, { allocateKey: 'evasion', canSpend: canSpendPoint, itemImpact })}
+            </div>
+        </div>
+    `;
+
+    section.innerHTML = isCompact ? `
         <div class="character-tabs" role="tablist" aria-label="Character tabs">
             <button class="character-tab ${initialTab === 'gear' ? 'active' : ''}" data-tab="gear" role="tab" aria-selected="${initialTab === 'gear' ? 'true' : 'false'}">Gear${newBadgeHtml(!!hasNewInventoryItems)}</button>
             <button class="character-tab ${initialTab === 'stats' ? 'active' : ''}" data-tab="stats" role="tab" aria-selected="${initialTab === 'stats' ? 'true' : 'false'}">Stats${newBadgeHtml(!!canSpendPoint)}</button>
@@ -89,69 +229,23 @@ export function setupCharacterSection(section) {
             <div class="character-tabpanes">
                 <div class="character-pane ${initialTab === 'gear' ? 'active' : ''}" data-pane="gear" role="tabpanel">
                     <div class="character-layout character-layout-gear">
-                        <div class="character-card equipment-card">
-                            <div class="character-card-header">
-                                <h3>Equipment</h3>
-                            </div>
-
-                            <div class="paperdoll" aria-label="Character silhouette and equipment">
-                                <img class="paperdoll-silhouette" src="assets/images/inventorycharacter.png" alt="" />
-
-                                ${renderEquipmentSlot('head', 'Head', characterState?.equipment?.head)}
-                                ${renderEquipmentSlot('chest', 'Chest', characterState?.equipment?.chest)}
-                                ${renderEquipmentSlot('legs', 'Legs', characterState?.equipment?.legs)}
-                                ${renderEquipmentSlot('boots', 'Boots', characterState?.equipment?.boots)}
-
-                                ${renderEquipmentSlot('weapon', 'Weapon', characterState?.equipment?.weapon)}
-                                ${renderEquipmentSlot('offhand', 'Offhand', characterState?.equipment?.offhand)}
-
-                                ${renderEquipmentSlot('accessory_1', 'Accessory 1', characterState?.equipment?.accessory_1)}
-                                ${renderEquipmentSlot('accessory_2', 'Accessory 2', characterState?.equipment?.accessory_2)}
-                            </div>
-                        </div>
-
-                        <div class="character-card inventory-card">
-                            <div class="character-card-header">
-                                <h3>Inventory</h3>
-                                <div style="display:flex; align-items:center; gap:10px;">
-                                    <span class="character-card-hint">Bag ${bagRows}×${bagCols}</span>
-                                    <button type="button" class="inventory-trash-btn ${discardMode ? 'active' : ''}" data-inventory-trash title="Discard items" aria-label="Discard items">
-                                        ${renderTrashIcon()}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="bag-grid" style="--bag-cols:${bagCols}; --bag-rows:${bagRows};" aria-label="Inventory bag">
-                                ${renderBagSlots()}
-                            </div>
-                        </div>
+                        ${equipmentCardHtml}
+                        ${inventoryCardHtml}
                     </div>
                 </div>
-
                 <div class="character-pane ${initialTab === 'stats' ? 'active' : ''}" data-pane="stats" role="tabpanel">
                     <div class="character-layout character-layout-stats">
-                        <div class="character-card stats-card">
-                            <div class="character-card-header">
-                                <h3>Stats</h3>
-                                <span class="stat-points-chip" data-stat-points-chip role="button" tabindex="0" aria-label="Stat points">
-                                    Stat Points: <strong>${escapeHtml(String(xp?.statPoints?.unspent ?? 0))}</strong>
-                                </span>
-                            </div>
-
-                            <div class="stats-list" aria-label="Character stats">
-                                ${renderXPRow()}
-                                ${renderHealthRow()}
-                                ${renderStaminaRow()}
-                                ${renderStatRow('Damage', formatDamageRange(stats), { itemImpact })}
-                                ${renderUpgradeableStatRow('Attack Speed', formatAttackSpeed(stats.attackSpeed), { allocateKey: 'attackSpeed', canSpend: canSpendPoint, itemImpact })}
-                                ${renderUpgradeableStatRow('Hit Chance', `${Number(stats.hitChance ?? 0)}%`, { allocateKey: 'hitChance', canSpend: canSpendPoint, itemImpact }) }
-                                ${renderUpgradeableStatRow('Crit Chance', `${Number(stats.critChance ?? 0)}%`, { allocateKey: 'critChance', canSpend: canSpendPoint, itemImpact })}
-                                ${renderStatRow('Armor', String(stats.armor ?? 0), { itemImpact })}
-                                ${renderUpgradeableStatRow('Evasion', `${Number(stats.evasion ?? 0)}%`, { allocateKey: 'evasion', canSpend: canSpendPoint, itemImpact })}
-                            </div>
-                        </div>
+                        ${statsCardHtml}
                     </div>
                 </div>
+            </div>
+        </div>
+    ` : `
+        <div class="content-panel character-panel">
+            <div class="character-layout character-layout-desktop">
+                ${equipmentCardHtml}
+                ${statsCardHtml}
+                ${inventoryCardHtml}
             </div>
         </div>
     `;
@@ -161,29 +255,34 @@ export function setupCharacterSection(section) {
     // Visual state for discard mode
     panel.classList.toggle('discard-mode', !!discardMode);
 
-    // Tab switching
+    // Tab switching (compact mode only)
     const tabs = Array.from(section.querySelectorAll('.character-tab'));
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const target = tab.dataset.tab === 'stats' ? 'stats' : 'gear';
-            try { section.dataset.characterActiveTab = target; } catch { /* ignore */ }
-            tabs.forEach(t => {
-                t.classList.toggle('active', t === tab);
-                t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
-            });
-            const panes = Array.from(section.querySelectorAll('.character-pane'));
-            panes.forEach(p => {
-                const isMatch = String(p.dataset.pane || '') === target;
-                p.classList.toggle('active', isMatch);
+    if (tabs.length) {
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const target = tab.dataset.tab === 'stats' ? 'stats' : 'gear';
+                try { section.dataset.characterActiveTab = target; } catch { /* ignore */ }
+                tabs.forEach(t => {
+                    t.classList.toggle('active', t === tab);
+                    t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+                });
+                const panes = Array.from(section.querySelectorAll('.character-pane'));
+                panes.forEach(p => {
+                    const isMatch = String(p.dataset.pane || '') === target;
+                    p.classList.toggle('active', isMatch);
+                });
             });
         });
-    });
+    }
 
     // Attach interactions after markup is in the DOM
     attachDnDHandlers(section);
 
     // Attach discard behavior
     attachDiscardHandlers(section);
+
+    // Inventory selection + "Use" button
+    attachInventoryUseHandlers(section);
 
     // Attach tooltips after markup is in the DOM
     attachItemTooltips(section);
@@ -193,6 +292,9 @@ export function setupCharacterSection(section) {
 
     // Stat tooltips (+ points breakdown)
     attachStatTooltips(section);
+
+    // Active effect tooltip (Herb Tea)
+    attachActiveEffectTooltips(section);
 
     // Stat point allocation (+ buttons)
     attachStatAllocationHandlers(section);
@@ -231,7 +333,8 @@ function attachDiscardHandlers(sectionRoot) {
 
             const idx = Number(slotEl.dataset.slot);
             if (!Number.isInteger(idx)) return;
-            const itemId = Array.isArray(characterState?.bag) ? characterState.bag[idx] : null;
+            const entry = Array.isArray(characterState?.bag) ? characterState.bag[idx] : null;
+            const itemId = (typeof entry === 'string') ? entry : (entry && typeof entry === 'object' ? entry.id : null);
             if (!itemId) return;
 
             const def = getItemDefinition(itemId);
@@ -249,6 +352,51 @@ function attachDiscardHandlers(sectionRoot) {
             if (changed) commitCharacterChange(sectionRoot);
 
             // Keep discard mode enabled so the player can discard multiple items.
+            setupCharacterSection(sectionRoot);
+        });
+    }
+}
+
+function attachInventoryUseHandlers(sectionRoot) {
+    const panel = sectionRoot.querySelector('.character-panel');
+    if (!panel) return;
+
+    const useBtn = panel.querySelector('button[data-inventory-use]');
+    if (useBtn) {
+        useBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (discardMode) return;
+            if (!Number.isInteger(selectedBagIndex)) return;
+            const entry = Array.isArray(characterState?.bag) ? characterState.bag[selectedBagIndex] : null;
+            const itemId = (typeof entry === 'string') ? entry : (entry && typeof entry === 'object' ? entry.id : null);
+            if (!itemId) return;
+
+            const def = getItemDefinition(itemId);
+            if (!def || !def.consumable) return;
+
+            useConsumableFromBag(itemId, characterState);
+            commitCharacterChange(sectionRoot);
+        });
+    }
+
+    if (discardMode) return;
+
+    const bagSlots = Array.from(panel.querySelectorAll('.bag-slot'));
+    for (const slotEl of bagSlots) {
+        slotEl.addEventListener('click', (e) => {
+            // If we're dragging, ignore click selection.
+            if (currentDragPayload) return;
+            const idx = Number(slotEl.dataset.slot);
+            if (!Number.isInteger(idx)) return;
+            const entry = Array.isArray(characterState?.bag) ? characterState.bag[idx] : null;
+            if (!entry) {
+                selectedBagIndex = null;
+            } else {
+                selectedBagIndex = idx;
+                try {
+                    if (Array.isArray(characterState?.bagUiNew)) characterState.bagUiNew[idx] = false;
+                } catch { /* ignore */ }
+            }
             setupCharacterSection(sectionRoot);
         });
     }
@@ -586,19 +734,39 @@ function attachStatAllocationHandlers(sectionRoot) {
 
 function renderBagSlots() {
     const bag = Array.isArray(characterState?.bag) ? characterState.bag : [];
-    return bag.map((itemId, i) => {
+    const getEntryId = (entry) => {
+        if (!entry) return null;
+        if (typeof entry === 'string') return entry;
+        if (typeof entry === 'object' && typeof entry.id === 'string') return entry.id;
+        return null;
+    };
+    const getEntryQty = (entry) => {
+        if (!entry) return 0;
+        if (typeof entry === 'string') return 1;
+        if (typeof entry === 'object' && typeof entry.id === 'string') {
+            const q = Math.floor(Number(entry.qty ?? 1));
+            return Number.isFinite(q) ? Math.max(1, q) : 1;
+        }
+        return 0;
+    };
+
+    return bag.map((entry, i) => {
+        const itemId = getEntryId(entry);
+        const qty = getEntryQty(entry);
         const item = itemId ? getItemDefinition(itemId) : null;
         const hasItem = !!item;
         const label = hasItem ? item.name : '';
         const icon = (item && item.icon) ? String(item.icon) : '';
         const showNew = hasItem && !!(characterState?.bagUiNew && characterState.bagUiNew[i]);
+        const isSelected = Number.isInteger(selectedBagIndex) && selectedBagIndex === i && hasItem && !discardMode;
         return `
-            <div class="bag-slot ${hasItem ? 'has-item' : ''}" data-slot="${i}" data-item-id="${hasItem ? escapeHtml(item.id) : ''}" ${hasItem ? 'draggable="true"' : ''} role="button" tabindex="0" aria-label="Bag slot ${i + 1}">
+            <div class="bag-slot ${hasItem ? 'has-item' : ''} ${isSelected ? 'selected' : ''}" data-slot="${i}" data-item-id="${hasItem ? escapeHtml(item.id) : ''}" ${hasItem ? 'draggable="true"' : ''} role="button" tabindex="0" aria-label="Bag slot ${i + 1}">
                 ${newBadgeHtml(showNew)}
                 ${hasItem ? `
                     <div class="bag-item">
                         ${icon ? `<img class="item-icon" src="${escapeHtml(icon)}" alt="" />` : ''}
                         <span class="item-name">${escapeHtml(label)}</span>
+                        ${(qty && qty > 1) ? `<span class="item-qty">×${escapeHtml(String(qty))}</span>` : ''}
                     </div>
                 ` : ''}
             </div>
@@ -698,6 +866,19 @@ function attachStatTooltips(sectionRoot) {
     }
 }
 
+function attachActiveEffectTooltips(sectionRoot) {
+    const panel = sectionRoot.querySelector('.character-panel');
+    if (!panel) return;
+
+    const btn = panel.querySelector('[data-active-effect="staminaRegen"]');
+    if (!btn) return;
+
+    if (btn.dataset && btn.dataset.wiredTooltip === 'true') return;
+    try { if (btn.dataset) btn.dataset.wiredTooltip = 'true'; } catch { /* ignore */ }
+
+    setupTooltip(btn, () => buildStaminaRegenBuffTooltipHtml());
+}
+
 function buildStatTooltipHTML(statKey) {
     const key = String(statKey || '').toLowerCase();
     const stats = computeCharacterStats(characterState);
@@ -762,6 +943,11 @@ function buildStatTooltipHTML(statKey) {
                 '1 stat point: +5 max Stamina.',
                 `Allocated: ${pts} (total: +${pts * 5} max Stamina).`,
             ]);
+
+            const st = getStaminaRegenBuffStatus(characterState);
+            const activeEffectLine = st.active
+                ? `Active: ${st.label} (+${st.bonusPerSec}/s, ${formatRemainingMinutes(st.remainingMinutes)} left)`
+                : '';
             return `
                 <h4>Stamina</h4>
                 <p>Current: <strong>${escapeHtml(String(s.current))}</strong>${s.max > 0 ? ` / ${escapeHtml(String(s.max))}` : ''}</p>
@@ -769,6 +955,10 @@ function buildStatTooltipHTML(statKey) {
                     <h4>Notes</h4>
                     <p>Stamina is your short-term endurance.</p>
                     ${b}
+                    ${activeEffectLine ? `<p class="tooltip-detail">${escapeHtml(activeEffectLine)}</p>` : ''}
+                </div>
+                <div class="tooltip-section">
+                    ${buildStaminaRegenBuffTooltipHtml()}
                 </div>
             `;
         }
@@ -1026,6 +1216,27 @@ function buildItemTooltipHTML(slotEl) {
 
     html += `<div class="tooltip-section"><h4>Slot</h4><p>${escapeHtml(String(slotName || '—'))}</p></div>`;
 
+    // Consumable info
+    try {
+        const c = def.consumable;
+        if (c && typeof c === 'object') {
+            let useText = '';
+            if (c.type === 'heal') {
+                const amt = Math.floor(Number(c.amount) || 0);
+                const rn = String(c.resource || '').trim();
+                if (amt > 0 && rn) useText = `Restores ${amt} ${escapeHtml(rn)}.`;
+            } else if (c.type === 'buff' && String(c.buff) === 'staminaRegen') {
+                const bonus = Number(c.bonusPerSec) || 0;
+                const mins = Math.floor(Number(c.durationMinutes) || 0);
+                const hours = mins > 0 ? (mins / 60) : 0;
+                if (bonus > 0 && hours > 0) useText = `Increases Stamina regeneration by ${bonus}/s for ${hours} hours.`;
+            }
+            if (useText) {
+                html += `<div class="tooltip-section"><h4>Use</h4><p>${useText}</p></div>`;
+            }
+        }
+    } catch { /* ignore */ }
+
     if (lines.length) {
         html += `<div class="tooltip-section"><h4>Modifiers</h4><ul class="tooltip-bonuses">${lines.map(l => `<li class="bonus-item">${l}</li>`).join('')}</ul></div>`;
     } else {
@@ -1069,6 +1280,13 @@ function updateVitalRowsIfPresent(sectionRoot) {
     updateAllocateButtonsIfPresent(panel);
     updateSingleVitalRow(panel, 'stamina', getStaminaResourceSnapshot, 'Stamina');
     updateSingleVitalRow(panel, 'health', getHealthResourceSnapshot, 'Health');
+    updateActiveEffectsIfPresent(panel);
+}
+
+function updateActiveEffectsIfPresent(panelEl) {
+    const st = getStaminaRegenBuffStatus(characterState);
+    const btn = panelEl.querySelector('[data-active-effect="staminaRegen"]');
+    if (btn) btn.classList.toggle('hidden', !st.active);
 }
 
 function updateXPRowIfPresent(panelEl) {
@@ -1496,8 +1714,9 @@ function autoEquipFromBag(bagIndex) {
     if (!Array.isArray(characterState?.bag)) return false;
     if (!Number.isInteger(bagIndex) || bagIndex < 0 || bagIndex >= characterState.bag.length) return false;
 
-    const itemId = characterState.bag[bagIndex];
-    if (!itemId) return false;
+    const entry = characterState.bag[bagIndex];
+    if (!entry || typeof entry !== 'string') return false;
+    const itemId = entry;
 
     const def = getItemDefinition(itemId);
     if (!def) return false;
@@ -1577,7 +1796,11 @@ function getDragItemIdFromSource(source) {
     if (!source) return null;
     if (source.type === 'bag') {
         const idx = Number(source.index);
-        return (Array.isArray(characterState?.bag) ? characterState.bag[idx] : null) || null;
+        const entry = (Array.isArray(characterState?.bag) ? characterState.bag[idx] : null) || null;
+        if (!entry) return null;
+        if (typeof entry === 'string') return entry;
+        if (typeof entry === 'object' && typeof entry.id === 'string') return entry.id;
+        return null;
     }
     if (source.type === 'equip') {
         const slot = String(source.slot || '');

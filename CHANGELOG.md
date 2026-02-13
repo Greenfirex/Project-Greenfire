@@ -1,9 +1,14 @@
-# [0.2.7] - 2026-02-06
+# [0.2.7] - 2026-02-13
 
 ### Added
 
 - **Crafting:** Recipes are now grouped into categories (Weapons / Accessory / Armor / Quest / Consumables).
 - **Consumables:** New craftable item — **First Aid Kit** (unlocks after discovering **Fabric**).
+- **Consumables:** New craftable item — **Herb Tea** (available from the start). Grants a long-duration **stamina regeneration** buff.
+- **Inventory items:** **Crude Prybar**, **Makeshift Explosive**, and **Power Cells** are now true inventory items (not resource counters).
+- **Inventory UX:** Stackable items now show **quantity badges** where appropriate (e.g., Power Cells).
+- **Character:** Consumable items in your Bag now support a general **Use** flow.
+- **Character:** Active consumable effects can display as an icon overlay on the equipment panel.
 - **Compact header:** Added a compact-mode **Morale** pill with tooltip details.
 
 ### Changed
@@ -13,11 +18,18 @@
 - **Campsite economy:** Scrap/Wire collector jobs now consume upkeep resources (Provisions/Water) and auto-cancel when upkeep hits 0.
 - **Campsite resources UI:** Resource indicators now use a vertical fill column style.
 - **Phone-landscape (Crafting):** Crafting panel sizing/padding tuned so it doesn’t feel overly wide under collapsed rails; crafting buttons are smaller to match Campsite sizing.
+- **Crafting rewards:** Crafting/recipe actions now grant **inventory items** (and consume required items) instead of relying on legacy tool-like resources.
+- **Power Cells:** Added a craft recipe for **Power Cells** and integrated them as a stackable inventory item.
+- **Tooltips:** Action and item tooltips were updated to properly reflect inventory-item requirements and grants.
+- **Encrypted Drive:** Task actions were updated to work with the new inventory-item system.
+- **Assets:** Many item icons were migrated to **PNG** and obsolete icon assets were removed.
 
 ### Fixed
 
 - **Mobile (Campsite upgrades):** Fixed a bug where buying one upgrade could cause subsequent upgrades to stop responding until save+reload.
 - **Action start feedback:** Starting an action while another action is active now logs clear feedback instead of failing silently.
+- **Repeatable crafting:** Fixed repeatable recipes (e.g., Herb Tea / First Aid Kit) not granting items after the first craft on some saves.
+- **Save compatibility:** Existing saves now migrate legacy tool/resource counts (e.g., old Power Cells) into the new inventory items where applicable.
 
 ---
 

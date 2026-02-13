@@ -391,6 +391,21 @@ function getMarkersForCell(col, row, localMapState) {
         }
     } catch { /* ignore */ }
 
+    // Ship interior room markers: keep showing "!" on key rooms until the player completes
+    // the tile-gated exploration actions.
+    // - G4 (7,4): Search: Power Core (multi-stage; marker clears when fully completed)
+    // - H6 (8,6): Investigate Bridge (multi-stage; marker clears when fully completed)
+    try {
+        if (localMapState && localMapState.shipInteriorTileHints === true) {
+            if (c === 7 && r === 4 && localMapState.powerCoreExplored !== true) {
+                return [{ kind: 'alert', text: null }];
+            }
+            if (c === 8 && r === 6 && localMapState.bridgeExplored !== true) {
+                return [{ kind: 'alert', text: null }];
+            }
+        }
+    } catch { /* ignore */ }
+
     // Base camp: only becomes available after Investigate Nearby Sound.
     // Once unlocked, show a marker until the player visits the tile.
     if (c === BASE_CAMP_TILE.x && r === BASE_CAMP_TILE.y) {

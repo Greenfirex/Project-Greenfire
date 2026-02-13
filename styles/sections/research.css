@@ -23,6 +23,20 @@
     align-self: stretch;
     display: flex;
     min-height: 0;
+
+    /* Match Crash Site/Campsite panel inset (tighter than global content-panel padding). */
+    padding: 12px;
+    scrollbar-gutter: auto;
+}
+
+html.is-compact #researchSection,
+html.is-compact .research-host {
+    padding: 1px;
+}
+
+html.is-compact #researchSection > .content-panel,
+html.is-compact .research-host > .content-panel {
+    padding: 1px;
 }
 
 /* Research inner layout needs to be a flex column so the tech wrapper can grow */

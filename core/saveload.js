@@ -33,7 +33,84 @@ import { resetActiveActions, getActiveCrashSiteAction, setActiveCrashSiteAction 
 import { resetMoraleModifiers, listMoraleModifiers, setMoraleModifier } from '../data/morale.js';
 import { resetWeather } from '../data/weather.js';
 import { driveTasks, resetDriveTasks } from '../data/definitions/encryptedDriveTasks.js';
-import { characterState, applySavedCharacterState, getCharacterStateForSave, resetCharacterState } from '../data/character.js';
+import { characterState, applySavedCharacterState, getCharacterStateForSave, resetCharacterState, grantItemToCharacter, countItemInBag, computeCarryCapacity } from '../data/character.js';
+import { getItemDefinition } from '../data/definitions/items.js';
+import { getItemIdForResourceName } from '../data/inventoryAliases.js';
+
+function migrateLegacyToolResourcesToInventory() {
+    try {
+        if (!Array.isArray(resources) || !characterState) return;
+
+        const legacyNames = ['Power Cells', 'Crude Prybar', 'Makeshift Explosive'];
+        const migrations = legacyNames
+            .map(name => ({ name, itemId: getItemIdForResourceName(name) }))
+            .filter(x => !!x.itemId);
+        if (!migrations.length) return;
+
+        // Compute how many additional bag slots we might need (avoid losing items on load).
+        let requiredSlots = 0;
+        for (const m of migrations) {
+            const res = resources.find(r => r && r.name === m.name);
+            const amt = Math.max(0, Math.floor(Number(res?.amount) || 0));
+            if (!res || amt <= 0) continue;
+
+            const def = getItemDefinition(m.itemId);
+            const isStackable = !!def?.stackable;
+            if (isStackable) {
+                const have = countItemInBag(m.itemId, characterState);
+                if (have <= 0) requiredSlots += 1;
+            } else {
+                requiredSlots += amt;
+            }
+        }
+
+        if (requiredSlots > 0) {
+            const cap = computeCarryCapacity(characterState);
+            const free = Math.max(0, (cap.total ?? 0) - (cap.used ?? 0));
+            const missing = Math.max(0, requiredSlots - free);
+            if (missing > 0) {
+                const cols = Math.max(1, Math.floor(Number(characterState?.bagCols) || 1));
+                const rows = Math.max(1, Math.floor(Number(characterState?.bagRows) || 1));
+                const rowsToAdd = Math.ceil(missing / cols);
+                const nextRows = Math.min(12, rows + rowsToAdd);
+                const addedRows = Math.max(0, nextRows - rows);
+
+                if (addedRows > 0) {
+                    characterState.bagRows = nextRows;
+                    const nextTotal = cols * nextRows;
+                    const bag = Array.isArray(characterState.bag) ? characterState.bag : [];
+                    const uiNew = Array.isArray(characterState.bagUiNew) ? characterState.bagUiNew : [];
+                    while (bag.length < nextTotal) bag.push(null);
+                    while (uiNew.length < nextTotal) uiNew.push(false);
+                    characterState.bag = bag;
+                    characterState.bagUiNew = uiNew;
+                }
+            }
+        }
+
+        // Perform migration; keep any remainder as a last-resort fallback.
+        for (const m of migrations) {
+            const res = resources.find(r => r && r.name === m.name);
+            let remaining = Math.max(0, Math.floor(Number(res?.amount) || 0));
+            if (!res || remaining <= 0) continue;
+
+            const def = getItemDefinition(m.itemId);
+            const isStackable = !!def?.stackable;
+            if (isStackable) {
+                const placed = grantItemToCharacter(m.itemId, { preferEquip: false, amount: remaining }, characterState);
+                if (placed && placed.ok) remaining = 0;
+            } else {
+                while (remaining > 0) {
+                    const placed = grantItemToCharacter(m.itemId, { preferEquip: false, amount: 1 }, characterState);
+                    if (!placed || !placed.ok) break;
+                    remaining -= 1;
+                }
+            }
+
+            res.amount = remaining;
+        }
+    } catch { /* non-fatal */ }
+}
 
 function reconcileActivatedSectionsAfterLoad() {
     try {
@@ -239,6 +316,10 @@ export function applyGameState(gameState) {
     } catch { /* non-fatal */ }
     resources.length = 0;
     resources.push(...defaultResources);
+
+    // Migration: convert legacy "tool resources" to inventory items.
+    // (Power Cells / Crude Prybar / Makeshift Explosive are now true inventory items.)
+    migrateLegacyToolResourcesToInventory();
 
     const defaultBuildings = getInitialBuildings();
     if (gameState.buildings) {

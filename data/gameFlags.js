@@ -237,11 +237,29 @@ async function applyPendingActionMove(expectedActionId) {
 // Corridor/bridge/room actions: once finished, step onto the tile (when started from an adjacent tile).
 registerActionCompletionHandler('searchNorthCorridor', () => applyPendingActionMove('searchNorthCorridor'));
 registerActionCompletionHandler('searchSouthCorridor', () => applyPendingActionMove('searchSouthCorridor'));
-registerActionCompletionHandler('investigateBridge', () => applyPendingActionMove('investigateBridge'));
+registerActionCompletionHandler('investigateBridge', async (original) => {
+    try { await applyPendingActionMove('investigateBridge'); } catch { /* ignore */ }
+    try {
+        const st = characterState?.localMap;
+        const total = Array.isArray(original?.stages) ? original.stages.length : 0;
+        const stage = Number(original?.stage || 0);
+        const finished = (total > 0) ? (stage >= total) : true;
+        if (st && typeof st === 'object' && finished) st.bridgeExplored = true;
+    } catch { /* ignore */ }
+});
 registerActionCompletionHandler('exploreCafeteria', () => applyPendingActionMove('exploreCafeteria'));
 registerActionCompletionHandler('checkCrewQuarters', () => applyPendingActionMove('checkCrewQuarters'));
 registerActionCompletionHandler('searchLabs', () => applyPendingActionMove('searchLabs'));
-registerActionCompletionHandler('searchPowerCore', () => applyPendingActionMove('searchPowerCore'));
+registerActionCompletionHandler('searchPowerCore', async (original) => {
+    try { await applyPendingActionMove('searchPowerCore'); } catch { /* ignore */ }
+    try {
+        const st = characterState?.localMap;
+        const total = Array.isArray(original?.stages) ? original.stages.length : 0;
+        const stage = Number(original?.stage || 0);
+        const finished = (total > 0) ? (stage >= total) : true;
+        if (st && typeof st === 'object' && finished) st.powerCoreExplored = true;
+    } catch { /* ignore */ }
+});
 
 // Unlock Journal on the initial re-entry attempt and surface the menu "new" badge.
 registerActionCompletionHandler('attemptReentry', () => {

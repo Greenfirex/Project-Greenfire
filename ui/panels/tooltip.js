@@ -9,6 +9,8 @@ import { jobs } from '../../data/jobsManager.js';
 import { buildings } from '../../data/definitions/buildings.js';
 import { allActions as salvageActions } from '../../data/definitions/allActions.js';
 import { getBlockedStatus } from '../../data/unlockRules.js';
+import { characterState, countItemInBag } from '../../data/character.js';
+import { getItemIdForResourceName } from '../../data/inventoryAliases.js';
 
 let globalTooltip = null;
 const tooltipRegistry = new WeakMap();
@@ -606,6 +608,17 @@ function buildTooltipHTML(data) {
     function renderCostItems(arr, opts = {}) {
         if (!Array.isArray(arr) || !arr.length) return '';
         const parts = arr.map(item => {
+            const itemId = getItemIdForResourceName(item?.resource);
+            if (itemId) {
+                const have = countItemInBag(itemId, characterState);
+                const need = Number(item.amount || 0);
+                const totalLabel = opts.showTotal ? ' (Total)' : '';
+                if (have < need) {
+                    return `<p><span style="color:#ff6b6b">${item.resource}: ${need}${totalLabel} (missing ${formatNumber(need - have)})</span></p>`;
+                }
+                return `<p>${item.resource}: ${need}${totalLabel}</p>`;
+            }
+
             const res = resources.find(r => r.name === item.resource);
             const have = res ? Number(res.amount) : 0;
             const need = Number(item.amount || 0);

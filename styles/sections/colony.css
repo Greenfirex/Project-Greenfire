@@ -39,3 +39,17 @@
     color: #E74C3C;
     text-shadow: none;
 }
+
+#colonySection > .content-panel {
+    /* Match Crash Site/Campsite panel inset (tighter than global content-panel padding). */
+    padding: 12px;
+    scrollbar-gutter: auto;
+}
+
+html.is-compact #colonySection {
+    padding: 1px;
+}
+
+html.is-compact #colonySection > .content-panel {
+    padding: 1px;
+}

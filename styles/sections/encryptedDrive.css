@@ -14,7 +14,17 @@
 /* Make content-panel semi-transparent to show background through */
 #encryptedDriveSection .content-panel {
     background-color: rgba(6, 6, 6, 0.89);
-    padding: 20px;
+    /* Match Crash Site/Campsite panel inset (tighter than global content-panel padding). */
+    padding: 12px;
+    scrollbar-gutter: auto;
+}
+
+html.is-compact #encryptedDriveSection {
+    padding: 1px;
+}
+
+html.is-compact #encryptedDriveSection .content-panel {
+    padding: 1px;
 }
 
 /* Section header styling matching other panels */

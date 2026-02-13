@@ -661,7 +661,7 @@ const initialSalvageActions = [
                 {
                     // second attempt: requires and consumes a makeshift explosive to blast the lock
                     story: 'powercore_breached',
-                    unlocks: ['restoreEmergencyPower'], // whatever follows opening the core
+                    unlocks: ['restoreEmergencyPower', 'craftPowerCells'], // also unlock power-cell crafting after breach
                     description: 'Return to the power core with makeshift explosives and breach the reinforced lock. Dangerous — but necessary to access the core systems.',
                     logText: 'Now that all survivors are accounted for, you risk breaching the power core with the explosive. The blast blows the seal and you can access the core systems. (Click to read)',
                     // stage-specific cost: this stage requires 3 Makeshift Explosives and will consume them on completion
@@ -833,10 +833,10 @@ const initialSalvageActions = [
                 stage: 0,
                 stages: [
                     {
-                        story: null,
+                        story: 'scavenged_comms_panel',
                         unlocks: ['fixLongRangeRadio'],
                         showUnlocks: false,
-                        logText: 'You salvage a comms panel and intact components from the bridge. With the right materials, you can attempt a repair back at base camp.',
+                        logText: 'You salvage a comms panel and intact components from the bridge. Back at the workbench, you can attempt a repair. (Click to read)',
                         suppressGenericLog: true
                     }
                 ]

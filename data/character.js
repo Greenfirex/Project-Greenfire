@@ -68,6 +68,38 @@ function isValidBagIndex(index) {
     return Number.isInteger(index) && index >= 0 && index < (characterState?.bag?.length ?? 0);
 }
 
+function getBagEntryId(entry) {
+    if (!entry) return null;
+    if (typeof entry === 'string') return entry;
+    if (typeof entry === 'object' && typeof entry.id === 'string') return entry.id;
+    return null;
+}
+
+function getBagEntryQty(entry) {
+    if (!entry) return 0;
+    if (typeof entry === 'string') return 1;
+    if (typeof entry === 'object' && typeof entry.id === 'string') {
+        const q = Math.floor(Number(entry.qty ?? 1));
+        return Number.isFinite(q) ? Math.max(1, q) : 1;
+    }
+    return 0;
+}
+
+function isStackableItem(itemId) {
+    try {
+        const def = getItemDefinition(itemId);
+        return !!(def && def.stackable);
+    } catch {
+        return false;
+    }
+}
+
+function normalizeStackQty(qty) {
+    const q = Math.floor(Number(qty ?? 1));
+    if (!Number.isFinite(q)) return 1;
+    return Math.max(1, Math.min(9999, q));
+}
+
 function normalizeEquipSlot(slot) {
     const s = String(slot || '').toLowerCase();
     return EQUIPMENT_SLOTS.includes(s) ? s : null;
@@ -114,7 +146,10 @@ export function moveBagItemToEquip(bagIndex, equipSlot) {
     const slot = normalizeEquipSlot(equipSlot);
     if (!slot) return false;
 
-    const itemId = characterState.bag[bagIndex];
+    const entry = characterState.bag[bagIndex];
+    // Stacked entries (objects) are not equip-able.
+    if (!entry || typeof entry !== 'string') return false;
+    const itemId = entry;
     if (!itemId) return false;
     if (!canEquipItemToSlot(itemId, slot)) return false;
 
@@ -210,6 +245,10 @@ export function getInitialCharacterState() {
         bag,
         bagUiNew,
         equipment,
+        // Timed effects from consumables. Times are in total in-game minutes.
+        buffs: {
+            staminaRegen: null,
+        },
         localMap: {
             // A-K / 1-9 grid coordinates (1-based)
             x: 6,
@@ -277,8 +316,17 @@ export function applySavedCharacterState(saved) {
     next.bag = Array.from({ length: desiredSize }, (_, i) => {
         const v = savedBag[i] ?? null;
         if (v === null) return null;
-        if (typeof v !== 'string') return null;
-        return getItemDefinition(v) ? v : null;
+        if (typeof v === 'string') {
+            return getItemDefinition(v) ? v : null;
+        }
+        if (typeof v === 'object' && typeof v.id === 'string') {
+            const id = v.id;
+            if (!getItemDefinition(id)) return null;
+            const qty = normalizeStackQty(v.qty ?? 1);
+            // Persist as a stack object (even if qty === 1) to preserve intent.
+            return { id, qty };
+        }
+        return null;
     });
 
     // UI: per-slot "new" flags for bag items.
@@ -455,6 +503,25 @@ export function applySavedCharacterState(saved) {
         }
     } catch { /* non-fatal */ }
 
+    // Timed consumable buffs
+    try {
+        const savedBuffs = (saved && typeof saved.buffs === 'object' && saved.buffs) ? saved.buffs : null;
+        if (savedBuffs && typeof savedBuffs === 'object') {
+            const sr = savedBuffs.staminaRegen && typeof savedBuffs.staminaRegen === 'object' ? savedBuffs.staminaRegen : null;
+            if (sr && (typeof sr.untilMinutes !== 'undefined' || typeof sr.bonusPerSec !== 'undefined')) {
+                const untilMinutes = Math.max(0, Math.floor(Number(sr.untilMinutes) || 0));
+                const bonusPerSec = Math.max(0, Number(sr.bonusPerSec) || 0);
+                const label = (typeof sr.label === 'string' && sr.label.length <= 80) ? sr.label : 'Stamina Regen';
+                next.buffs = next.buffs && typeof next.buffs === 'object' ? next.buffs : {};
+                next.buffs.staminaRegen = (bonusPerSec > 0 && untilMinutes > 0)
+                    ? { untilMinutes, bonusPerSec, label }
+                    : null;
+            }
+        }
+    } catch {
+        // ignore
+    }
+
     characterState = next;
     emitCharacterStateChanged('applySavedCharacterState');
 }
@@ -621,31 +688,12 @@ export function computeCarryCapacity(state = characterState) {
     return { used, total };
 }
 
-export function countItemInBag(itemId, state = characterState) {
-    if (!itemId) return 0;
-    const bag = Array.isArray(state?.bag) ? state.bag : [];
-    return bag.reduce((n, v) => n + (v === itemId ? 1 : 0), 0);
-}
-
-export function consumeFirstItemFromBag(itemId, state = characterState) {
-    if (!itemId) return false;
-    const bag = Array.isArray(state?.bag) ? state.bag : null;
-    if (!bag) return false;
-    const idx = bag.findIndex(v => v === itemId);
-    if (idx < 0) return false;
-    bag[idx] = null;
-    try {
-        if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[idx] = false;
-    } catch { /* ignore */ }
-    if (state === characterState) emitCharacterStateChanged('consumeFirstItemFromBag');
-    return true;
-}
-
 export function discardBagItem(bagIndex, state = characterState) {
     const bag = Array.isArray(state?.bag) ? state.bag : null;
     if (!bag) return false;
     if (!Number.isInteger(bagIndex) || bagIndex < 0 || bagIndex >= bag.length) return false;
-    if (!bag[bagIndex]) return false;
+    const entry = bag[bagIndex];
+    if (!entry) return false;
     bag[bagIndex] = null;
     try {
         if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[bagIndex] = false;
@@ -658,6 +706,8 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
     if (!itemId) return { ok: false, placed: 'none' };
     const def = getItemDefinition(itemId);
     if (!def) return { ok: false, placed: 'none' };
+
+    const amount = normalizeStackQty(opts?.amount ?? 1);
 
     const preferEquip = opts && opts.preferEquip !== false;
 
@@ -700,9 +750,35 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
     // Otherwise place into first empty bag slot.
     const bag = Array.isArray(state?.bag) ? state.bag : null;
     if (!bag) return { ok: false, placed: 'none' };
+
+    // Stack into an existing slot for stackable items.
+    try {
+        if (amount > 0 && isStackableItem(itemId)) {
+            const idxStack = bag.findIndex(v => getBagEntryId(v) === itemId);
+            if (idxStack >= 0) {
+                const prev = bag[idxStack];
+                const prevQty = getBagEntryQty(prev);
+                bag[idxStack] = { id: itemId, qty: normalizeStackQty(prevQty + amount) };
+                try {
+                    if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[idxStack] = true;
+                } catch { /* ignore */ }
+                if (state === characterState) {
+                    emitCharacterStateChanged('grantItemToCharacter');
+                    try {
+                        window.dispatchEvent(new CustomEvent('inventory-item-added', {
+                            detail: { itemId, amount, placed: 'bag', index: idxStack, stacked: true }
+                        }));
+                    } catch (e) { /* non-fatal */ }
+                }
+                return { ok: true, placed: 'bag', index: idxStack, stacked: true };
+            }
+        }
+    } catch { /* ignore */ }
+
     const idx = bag.findIndex(v => !v);
     if (idx < 0) return { ok: false, placed: 'none' };
-    bag[idx] = itemId;
+    // For stackable items, represent as an object so quantity is persisted and visible.
+    bag[idx] = isStackableItem(itemId) ? { id: itemId, qty: amount } : itemId;
     try {
         if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[idx] = true;
     } catch { /* ignore */ }
@@ -710,9 +786,66 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
         emitCharacterStateChanged('grantItemToCharacter');
         try {
             window.dispatchEvent(new CustomEvent('inventory-item-added', {
-                detail: { itemId, placed: 'bag', index: idx }
+                detail: { itemId, amount, placed: 'bag', index: idx }
             }));
         } catch (e) { /* non-fatal */ }
     }
     return { ok: true, placed: 'bag', index: idx };
+}
+
+export function countItemInBag(itemId, state = characterState) {
+    if (!itemId) return 0;
+    const bag = Array.isArray(state?.bag) ? state.bag : [];
+    return bag.reduce((n, entry) => {
+        const id = getBagEntryId(entry);
+        if (id !== itemId) return n;
+        return n + getBagEntryQty(entry);
+    }, 0);
+}
+
+export function consumeItemQuantityFromBag(itemId, amount = 1, state = characterState) {
+    if (!itemId) return false;
+    const bag = Array.isArray(state?.bag) ? state.bag : null;
+    if (!bag) return false;
+    const need = Math.max(1, Math.floor(Number(amount) || 1));
+
+    let remaining = need;
+
+    // Consume from stacks first.
+    for (let i = 0; i < bag.length && remaining > 0; i++) {
+        const entry = bag[i];
+        const id = getBagEntryId(entry);
+        if (id !== itemId) continue;
+        if (typeof entry !== 'object') continue;
+        const haveQty = getBagEntryQty(entry);
+        const take = Math.min(haveQty, remaining);
+        const nextQty = haveQty - take;
+        remaining -= take;
+        if (nextQty <= 0) {
+            bag[i] = null;
+            try { if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[i] = false; } catch { /* ignore */ }
+        } else {
+            bag[i] = { id: itemId, qty: normalizeStackQty(nextQty) };
+        }
+    }
+
+    // Then consume individual instances.
+    for (let i = 0; i < bag.length && remaining > 0; i++) {
+        const entry = bag[i];
+        const id = getBagEntryId(entry);
+        if (id !== itemId) continue;
+        if (typeof entry === 'object') continue;
+        bag[i] = null;
+        remaining -= 1;
+        try { if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[i] = false; } catch { /* ignore */ }
+    }
+
+    const ok = remaining <= 0;
+    if (ok && state === characterState) emitCharacterStateChanged('consumeItemQuantityFromBag');
+    return ok;
+}
+
+// Backward-compatible helper used by legacy codepaths.
+export function consumeFirstItemFromBag(itemId, state = characterState) {
+    return consumeItemQuantityFromBag(itemId, 1, state);
 }

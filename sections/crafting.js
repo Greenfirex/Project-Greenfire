@@ -1,8 +1,10 @@
 import { addLogEntry, LogType } from '../core/ingameLog.js';
 import { resources } from '../core/resources.js';
-import { characterState } from '../data/character.js';
+import { characterState, countItemInBag, computeCarryCapacity } from '../data/character.js';
 import { gameFlags } from '../data/gameFlags.js';
 import { allActions } from '../data/definitions/allActions.js';
+import { getItemDefinition } from '../data/definitions/items.js';
+import { getItemIdForResourceName, isInventoryAliasResourceName } from '../data/inventoryAliases.js';
 import { newBadgeHtml, wireClearUiNewBadge } from '../ui/components/contentNewBadges.js';
 import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
 import {
@@ -17,13 +19,14 @@ import {
     setupResearchSection,
     getCurrentResearchingTech,
 } from './research.js';
+import { updateCampsiteCampResourcesPanel, wireCampsiteCollapsibles } from './campsite.js';
 
 const CRAFTING_CATEGORIES = [
     { key: 'weapons', label: 'Weapons', actionIds: ['craftMetalSpear'] },
     { key: 'accessory', label: 'Accessory', actionIds: ['createBasicTorch', 'craftCanteen'] },
     { key: 'armor', label: 'Armor', actionIds: [] },
-    { key: 'quest', label: 'Quest', actionIds: ['makeCrudePrybar', 'fixLongRangeRadio', 'assembleMakeshiftExplosive'] },
-    { key: 'consumables', label: 'Consumables', actionIds: ['craftFirstAidKit'] },
+    { key: 'quest', label: 'Quest', actionIds: ['makeCrudePrybar', 'fixLongRangeRadio', 'assembleMakeshiftExplosive', 'craftPowerCells'] },
+    { key: 'consumables', label: 'Consumables', actionIds: ['craftHerbTea', 'craftFirstAidKit'] },
 ];
 
 function isAtBaseCampTile() {
@@ -64,6 +67,30 @@ function getCapacityBlockReason(action) {
         if (!rewardEntries.length) return null;
 
         const cappedEntries = rewardEntries.filter(r => {
+            // Inventory-backed "resources" (e.g., Power Cells): check bag space.
+            if (isInventoryAliasResourceName(r.resource)) {
+                const itemId = getItemIdForResourceName(r.resource);
+                if (!itemId) return false;
+
+                const maxAmt = getMaxRewardAmount(r);
+                if (maxAmt <= 0) return false;
+
+                const def = getItemDefinition(itemId);
+                const isStackable = !!def?.stackable;
+                const have = countItemInBag(itemId, characterState);
+                const cap = computeCarryCapacity(characterState);
+                const emptySlots = Math.max(0, (cap.total ?? 0) - (cap.used ?? 0));
+
+                if (isStackable) {
+                    // Stackable: ok if we already have a stack, else need one empty slot.
+                    return !(have > 0 || emptySlots > 0);
+                }
+
+                // Non-stack: need one slot per item.
+                return emptySlots < maxAmt;
+            }
+
+            // Normal resource capacity check.
             const res = resources.find(x => x && x.name === r.resource);
             if (!res) return false;
             const cap = Number(res.capacity);
@@ -93,7 +120,7 @@ function updateCraftingButtonsState(root) {
         const action = (allActions || []).find(a => a && a.id === id);
         if (!action) return;
 
-        const canAfford = !!canAffordAction(action, resources);
+        const canAfford = !!canAffordAction(action, resources, characterState);
         const blockedMeta = getBlockedStatus(action.id, { actions: allActions, flags: gameFlags, characterState });
         const isBlocked = !!blockedMeta?.blocked;
         const blockedReason = blockedMeta?.reason || '';
@@ -106,7 +133,7 @@ function updateCraftingButtonsState(root) {
 
         if (!canAfford) {
             btn.setAttribute('aria-disabled', 'true');
-            btn.dataset.shortfall = getAffordabilityShortfalls(action, resources).join(', ');
+            btn.dataset.shortfall = getAffordabilityShortfalls(action, resources, characterState).join(', ');
         } else {
             delete btn.dataset.shortfall;
         }
@@ -166,6 +193,9 @@ export function setupCraftingSection(craftingSection) {
 
     const researchTabLabel = researchUnlocked ? 'Research' : '???';
 
+    const campUnlocked = !!(characterState?.localMap && characterState.localMap.baseCampEstablished === true);
+    const campLockedText = '<div style="opacity:0.75">Establish a base camp to view camp resources.</div>';
+
     craftingSection.innerHTML = `
         <div class="journal-tabs" role="tablist" aria-label="Crafting and Research">
             <button class="journal-tab ${activeTab === 'crafting' ? 'active' : ''}" data-tab="crafting" role="tab" aria-selected="${activeTab === 'crafting' ? 'true' : 'false'}">Crafting</button>
@@ -175,6 +205,20 @@ export function setupCraftingSection(craftingSection) {
             <div class="section-inner crafting-section">
                 <div class="crafting-tabpanes">
                     <div class="crafting-pane ${activeTab === 'crafting' ? 'active' : ''}" data-pane="crafting" role="tabpanel">
+                        <div class="crafting-campresources" aria-label="Camp Resources">
+                            <div class="localmap-card campsite-card campsite-card--campresources" data-campsite-panel="campresources">
+                                <div class="localmap-card-header">
+                                    <h3>Camp Resources</h3>
+                                    <button type="button" class="campsite-collapse-btn" aria-label="Collapse Camp Resources panel" aria-expanded="true">
+                                        <svg class="chevrons-icon" width="22" height="16" viewBox="0 0 24 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                            <path d="M3 12 L12 3 L21 12" stroke-linecap="round" />
+                                            <path d="M3 18 L12 9 L21 18" stroke-linecap="round" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="localmap-card-body" id="campsiteCampResources">${campUnlocked ? '' : campLockedText}</div>
+                            </div>
+                        </div>
                         <div class="crafting-actions" data-crafting-actions></div>
                     </div>
                     <div class="crafting-pane ${activeTab === 'research' ? 'active' : ''}" data-pane="research" role="tabpanel">
@@ -184,6 +228,10 @@ export function setupCraftingSection(craftingSection) {
             </div>
         </div>
     `;
+
+    // Camp resources panel (reuses Campsite UI + tooltips)
+    try { wireCampsiteCollapsibles(craftingSection); } catch { /* ignore */ }
+    try { if (campUnlocked) updateCampsiteCampResourcesPanel(craftingSection); } catch { /* ignore */ }
 
     // Tab switching
     const tabButtons = Array.from(craftingSection.querySelectorAll('.journal-tab[data-tab]'));
@@ -257,7 +305,7 @@ export function setupCraftingSection(craftingSection) {
                             return;
                         }
 
-                        if (!canAffordAction(actionDef, resources)) {
+                        if (!canAffordAction(actionDef, resources, characterState)) {
                             addLogEntry(`Not enough resources to begin: ${actionDef.name}.`, LogType.ERROR);
                             return;
                         }
@@ -341,6 +389,7 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
             const host = document.getElementById('craftingSection');
             if (!host) return;
             updateCraftingButtonsState(host);
+            try { updateCampsiteCampResourcesPanel(host); } catch { /* ignore */ }
         } catch { /* ignore */ }
     });
 }

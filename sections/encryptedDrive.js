@@ -4,6 +4,8 @@ import { formatNumber } from '../core/formatting.js';
 import { addLogEntry, LogType } from '../core/ingameLog.js';
 import { setupTooltip } from '../ui/panels/tooltip.js';
 import { driveTasks } from '../data/definitions/encryptedDriveTasks.js';
+import { characterState, countItemInBag, consumeItemQuantityFromBag } from '../data/character.js';
+import { getItemIdForResourceName } from '../data/inventoryAliases.js';
 
 function getResourceByName(name) {
     return (resources || []).find(r => r && r.name === name);
@@ -11,6 +13,11 @@ function getResourceByName(name) {
 
 function canAfford(cost = []) {
     return (cost || []).every(c => {
+        const itemId = getItemIdForResourceName(c?.resource);
+        if (itemId) {
+            const have = countItemInBag(itemId, characterState);
+            return have >= Number(c.amount || 0);
+        }
         const r = getResourceByName(c.resource);
         return r && Number(r.amount) >= Number(c.amount || 0);
     });
@@ -19,6 +26,13 @@ function canAfford(cost = []) {
 function getShortfalls(cost = []) {
     const lines = [];
     for (const c of (cost || [])) {
+        const itemId = getItemIdForResourceName(c?.resource);
+        if (itemId) {
+            const have = countItemInBag(itemId, characterState);
+            const need = Number(c.amount || 0);
+            if (have < need) lines.push(`${c.resource} (${formatNumber(need - have)} short)`);
+            continue;
+        }
         const r = getResourceByName(c.resource);
         const have = r ? Number(r.amount) : 0;
         const need = Number(c.amount || 0);
@@ -29,6 +43,11 @@ function getShortfalls(cost = []) {
 
 function deductCost(cost = []) {
     for (const c of cost) {
+        const itemId = getItemIdForResourceName(c?.resource);
+        if (itemId) {
+            try { consumeItemQuantityFromBag(itemId, Number(c.amount || 0), characterState); } catch { /* ignore */ }
+            continue;
+        }
         const r = getResourceByName(c.resource);
         if (!r) continue;
         r.amount = Math.max(0, Number(r.amount) - Number(c.amount || 0));

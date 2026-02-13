@@ -7,6 +7,7 @@ import { setupTooltip } from '../ui/panels/tooltip.js';
 import { getActiveCrashSiteAction } from '../data/activeActions.js';
 import { getMorale } from '../data/morale.js';
 import { characterState, computeCharacterStats } from '../data/character.js';
+import { getTotalIngameMinutes } from './time.js';
 
 const PERSONAL_SUPPLY_BASE_CAP = 10;
 
@@ -30,11 +31,14 @@ export function getInitialResources() {
 
         { name: 'Metal Parts', amount: 0, isDiscovered: false, capacity: 200, producible: false, integer: true },
         { name: 'Wire', amount: 0, isDiscovered: false, capacity: 100, producible: false, integer: true },
-        { name: 'Crude Prybar', amount: 0, isDiscovered: false, capacity: 5, producible: false, integer: true },
+        // Legacy: now an inventory item (kept hidden for save compatibility).
+        { name: 'Crude Prybar', amount: 0, isDiscovered: false, capacity: 5, producible: false, integer: true, hidden: true },
         { name: 'Fabric', amount: 0, isDiscovered: false, capacity: 20, producible: false, integer: true },
         { name: 'Chemicals', amount: 0, isDiscovered: false, capacity: 20, producible: false, integer: true },
-        { name: 'Makeshift Explosive', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true },
-        { name: 'Power Cells', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true },
+        // Legacy: now an inventory item (kept hidden for save compatibility).
+        { name: 'Makeshift Explosive', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true, hidden: true },
+        // Legacy: now an inventory item (kept hidden for save compatibility).
+        { name: 'Power Cells', amount: 0, isDiscovered: false, capacity: 10, producible: false, integer: true, hidden: true },
         { name: 'Insight', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: true },
         { name: 'Crystal', amount: 0, isDiscovered: false, capacity: 100, producible: true, integer: true },
         { name: 'Xylite', amount: 0, isDiscovered: false, capacity: 50, producible: true, integer: false },
@@ -315,6 +319,15 @@ export function computeResourceRates(resourceName) {
     // These are per-second rates.
     if (resourceName === 'Stamina') {
         totalProduction += 0.2;
+        try {
+            const buff = characterState?.buffs?.staminaRegen;
+            const until = Math.floor(Number(buff?.untilMinutes) || 0);
+            const bonus = Number(buff?.bonusPerSec) || 0;
+            if (bonus > 0) {
+                const now = getTotalIngameMinutes();
+                if (now < until) totalProduction += bonus;
+            }
+        } catch { /* non-fatal */ }
     }
     if (resourceName === 'Health') {
         totalProduction += 0.1;

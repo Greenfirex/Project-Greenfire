@@ -49,6 +49,38 @@ const initialRecipeActions = [
     },
 
     {
+        id: 'craftHerbTea',
+        name: 'Brew Herb Tea',
+        description: 'Brew a soothing herbal tea that helps your Stamina recover faster for several hours.',
+        duration: 2,
+        category: 'Crafting',
+        // Available immediately once the Crafting menu exists.
+        isUnlocked: true,
+        cancelable: true,
+        repeatable: true,
+        showUnlocks: false,
+        cost: [
+            { resource: 'Provisions', amount: 1 },
+            { resource: 'Water', amount: 1 }
+        ],
+        drain: [
+            { resource: 'Stamina', amount: 4 }
+        ],
+        reward: [],
+        hideRewardPreview: true,
+        stage: 0,
+        stages: [
+            {
+                story: null,
+                unlocks: [],
+                grantItems: ['herb_tea'],
+                grantItemsPreferEquip: false,
+                logText: 'You brew herb tea and bottle it for later.'
+            }
+        ]
+    },
+
+    {
         id: 'makeCrudePrybar',
         name: 'Make Crude Prybar',
         description: 'Use scavenged metal to fashion a crude prybar that can be used to lever open hull seams.',
@@ -63,8 +95,8 @@ const initialRecipeActions = [
         ],
         drain: [
             { resource: 'Stamina', amount: 10 },
-            { resource: 'Food Rations', amount: 3 },
-            { resource: 'Drinking Water', amount: 4 }
+            { resource: 'Provisions', amount: 3 },
+            { resource: 'Water', amount: 4 }
         ],
         reward: [
             { resource: 'Crude Prybar', amount: 1 }
@@ -95,8 +127,8 @@ const initialRecipeActions = [
         ],
         drain: [
             { resource: 'Stamina', amount: 12 },
-            { resource: 'Food Rations', amount: 3 },
-            { resource: 'Drinking Water', amount: 3 }
+            { resource: 'Provisions', amount: 3 },
+            { resource: 'Water', amount: 3 }
         ],
         reward: [],
         hideRewardPreview: true,
@@ -128,8 +160,8 @@ const initialRecipeActions = [
         ],
         drain: [
             { resource: 'Stamina', amount: 8 },
-            { resource: 'Food Rations', amount: 2 },
-            { resource: 'Drinking Water', amount: 2 }
+            { resource: 'Provisions', amount: 2 },
+            { resource: 'Water', amount: 2 }
         ],
         reward: [],
         hideRewardPreview: true,
@@ -163,8 +195,8 @@ const initialRecipeActions = [
         ],
         drain: [
             { resource: 'Stamina', amount: 13 },
-            { resource: 'Food Rations', amount: 3 },
-            { resource: 'Drinking Water', amount: 3 }
+            { resource: 'Provisions', amount: 3 },
+            { resource: 'Water', amount: 3 }
         ],
         reward: [
             { resource: 'Makeshift Explosive', amount: 1 }
@@ -204,6 +236,39 @@ const initialRecipeActions = [
                 unlocks: [],
                 logText: '',
                 suppressGenericLog: true
+            }
+        ]
+    },
+
+    {
+        id: 'craftPowerCells',
+        name: 'Craft Power Cells',
+        description: 'Rebuild damaged power cells using salvaged parts and chemical stabilizers. Expensive — but it can keep critical systems running.',
+        duration: 10,
+        category: 'Crafting',
+        isUnlocked: false,
+        cancelable: true,
+        repeatable: true,
+        showUnlocks: false,
+        cost: [
+            { resource: 'Metal Parts', amount: 40 },
+            { resource: 'Wire', amount: 60 },
+            { resource: 'Chemicals', amount: 12 }
+        ],
+        drain: [
+            { resource: 'Stamina', amount: 18 },
+            { resource: 'Provisions', amount: 4 },
+            { resource: 'Water', amount: 4 }
+        ],
+        reward: [
+            { resource: 'Power Cells', amount: 1 }
+        ],
+        stage: 0,
+        stages: [
+            {
+                story: null,
+                unlocks: [],
+                logText: 'You carefully rebuild a functional power cell from salvaged components.'
             }
         ]
     },

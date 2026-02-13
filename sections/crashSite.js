@@ -17,8 +17,9 @@ import { computeRewardMultiplier } from '../data/upgradeEffects.js';
 import { lsGet, getCurrentStage, tooltipDataForAction, canAffordAction, getAffordabilityShortfalls, computeEffectiveDuration, getRandomInt } from '../data/actionsManager.js';
 import { getBlockedStatus, evaluateEventUnlocks } from '../data/unlockRules.js';
 import { showCombatPopup } from '../ui/panels/combatPopup.js';
-import { characterState, grantItemToCharacter } from '../data/character.js';
+import { characterState, grantItemToCharacter, consumeItemQuantityFromBag, countItemInBag, computeCarryCapacity } from '../data/character.js';
 import { getItemDefinition } from '../data/definitions/items.js';
+import { getItemIdForResourceName, isInventoryAliasResourceName } from '../data/inventoryAliases.js';
 import { getCampsitePaneHtml, wireCampsiteCollapsibles, renderCampsitePanels, applyCampsiteBackground, updateCampsiteCampResourcesPanel } from './campsite.js';
 
 /*
@@ -252,7 +253,7 @@ function tryStartNextTraverseStep(section) {
         stopTraverseAndReselectPlayerTile(section, block.reason);
         return;
     }
-    const shortfalls = getAffordabilityShortfalls(moveAction, resources);
+    const shortfalls = getAffordabilityShortfalls(moveAction, resources, characterState);
     if (shortfalls.length > 0) {
         stopTraverseAndReselectPlayerTile(section, `Cannot start "${moveAction.name}": ${shortfalls.join('; ')}`);
         return;
@@ -371,6 +372,30 @@ function getCapacityBlockReason(action) {
         if (!rewardEntries.length) return null;
 
         const cappedEntries = rewardEntries.filter(r => {
+            // Inventory-backed "resources" (e.g., Power Cells): check bag space.
+            if (isInventoryAliasResourceName(r.resource)) {
+                const itemId = getItemIdForResourceName(r.resource);
+                if (!itemId) return false;
+
+                const maxAmt = getMaxRewardAmount(r);
+                if (maxAmt <= 0) return false;
+
+                const def = getItemDefinition(itemId);
+                const isStackable = !!def?.stackable;
+                const have = countItemInBag(itemId, characterState);
+                const cap = computeCarryCapacity(characterState);
+                const emptySlots = Math.max(0, (cap.total ?? 0) - (cap.used ?? 0));
+
+                if (isStackable) {
+                    // Stackable: ok if we already have a stack, else need one empty slot.
+                    return !(have > 0 || emptySlots > 0);
+                }
+
+                // Non-stack: need one slot per item.
+                return emptySlots < maxAmt;
+            }
+
+            // Normal resource capacity check.
             const res = resources.find(x => x && x.name === r.resource);
             if (!res) return false;
             const cap = Number(res.capacity);
@@ -490,7 +515,7 @@ function attachStartClickHandler(btn, action, section) {
             addLogEntry(block.reason, LogType.INFO);
             return;
         }
-        const shortfalls = getAffordabilityShortfalls(action, resources);
+        const shortfalls = getAffordabilityShortfalls(action, resources, characterState);
         if (shortfalls.length > 0) {
             e.preventDefault();
             addLogEntry(`Cannot start "${action.name}": ${shortfalls.join('; ')}`, LogType.INFO);
@@ -699,12 +724,12 @@ export function setupCrashSiteSection(section) {
             // Match Crash Site styling for unaffordable / capacity-blocked actions.
             // (We keep the button clickable unless it's truly disabled, so the click handler can explain why.)
             try {
-                const canAfford = canAffordAction(actionDef, resources);
+                const canAfford = canAffordAction(actionDef, resources, characterState);
                 btn.classList.toggle('unaffordable', !canAfford);
                 btn.dataset.affordable = canAfford ? 'true' : 'false';
                 if (!canAfford) {
                     btn.setAttribute('aria-disabled', 'true');
-                    const shortfalls = getAffordabilityShortfalls(actionDef, resources);
+                    const shortfalls = getAffordabilityShortfalls(actionDef, resources, characterState);
                     if (shortfalls.length) {
                         btn.dataset.shortfall = shortfalls.join(', ');
                         if (!btn.title) btn.title = `Cannot afford: ${shortfalls.join('; ')}`;
@@ -960,7 +985,7 @@ export function setupCrashSiteSection(section) {
                             addLogEntry(block.reason, LogType.INFO);
                             return;
                         }
-                        const shortfalls = getAffordabilityShortfalls(a, resources);
+                        const shortfalls = getAffordabilityShortfalls(a, resources, characterState);
                         if (shortfalls.length > 0) {
                             e.preventDefault();
                             addLogEntry(`Cannot start "${a.name}": ${shortfalls.join('; ')}`, LogType.INFO);
@@ -1114,6 +1139,8 @@ export function setupCrashSiteSection(section) {
             '7,3': 'searchLabs',
             // G4
             '7,4': 'searchPowerCore',
+            // G7
+            '7,7': 'checkCaptainsQuarters',
         };
 
         const SHIP_TILE_ACTIONS = Object.assign({}, SHIP_JUNCTION_TILE_ACTIONS, SHIP_ROOM_TILE_ACTIONS);
@@ -1186,7 +1213,7 @@ export function setupCrashSiteSection(section) {
                                     addLogEntry(block.reason, LogType.INFO);
                                     return;
                                 }
-                                const shortfalls = getAffordabilityShortfalls(a, resources);
+                                const shortfalls = getAffordabilityShortfalls(a, resources, characterState);
                                 if (shortfalls.length > 0) {
                                     e.preventDefault();
                                     addLogEntry(`Cannot start "${a.name}": ${shortfalls.join('; ')}`, LogType.INFO);
@@ -1316,6 +1343,33 @@ export function setupCrashSiteSection(section) {
             } else {
                 // Unexplored tiles: show Explore only when adjacent (one-step move into fog).
                 if (dist === 1) {
+                    // Captain's Quarters: forbid generic Explore until the narrative unlock occurs.
+                    // (This prevents players from bypassing the intended unlock gating by simply exploring the tile.)
+                    try {
+                        if (selX === 7 && selY === 7) {
+                            const cq = salvageActions.find(a => a && a.id === 'checkCaptainsQuarters');
+                            const cqUnlocked = !!(cq && cq.isUnlocked);
+                            if (!cqUnlocked) {
+                                const reason = "You’re pretty sure the captain’s body is still on the bridge — and you don’t feel like going through his stuff now.";
+                                const btn = mkButton(move, {
+                                    label: 'Explore',
+                                    ariaDisabled: true,
+                                    disabledReason: reason,
+                                    tooltipOverride: () => buildMoveStyleTooltipData(move, { mode: 'explore', steps: 1 }),
+                                    onClick: (e) => {
+                                        e.preventDefault();
+                                        addLogEntry(reason, LogType.INFO);
+                                    }
+                                });
+                                if (btn) {
+                                    btn.addEventListener('mouseenter', () => setRoutePreview([{ x: playerX, y: playerY }, { x: selX, y: selY }], 'move'));
+                                    btn.addEventListener('mouseleave', () => clearRoutePreview());
+                                }
+                                return;
+                            }
+                        }
+                    } catch { /* ignore */ }
+
                     // Do not offer Explore onto ship interior gated tiles until their tile-action is complete.
                     if (!(isShipTileWithActionGate(selX, selY) && isShipTileActionIncompleteForTile(selX, selY))) {
                         const blockReason = computeAdjacentLocalMapBlockReason(playerX, playerY, selX, selY, { localMapState: lm, scoutStage, hasTriedReentry });
@@ -1444,7 +1498,7 @@ export function setupCrashSiteSection(section) {
                                 return;
                             }
 
-                            const shortfalls = getAffordabilityShortfalls(burn, resources);
+                            const shortfalls = getAffordabilityShortfalls(burn, resources, characterState);
                             if (shortfalls.length > 0) {
                                 addLogEntry(`Cannot start "${burn.name}": ${shortfalls.join('; ')}`, LogType.INFO);
                                 return;
@@ -1529,7 +1583,7 @@ export function setupCrashSiteSection(section) {
                                         addLogEntry(block.reason, LogType.INFO);
                                         return;
                                     }
-                                    const shortfalls = getAffordabilityShortfalls(sit, resources);
+                                    const shortfalls = getAffordabilityShortfalls(sit, resources, characterState);
                                     if (shortfalls.length > 0) {
                                         addLogEntry(`Cannot start "${sit.name}": ${shortfalls.join('; ')}`, LogType.INFO);
                                         return;
@@ -1617,6 +1671,8 @@ export function setupCrashSiteSection(section) {
                             // Rooms
                             '7,3': 'searchLabs',
                             '7,4': 'searchPowerCore',
+                            // Captain's Quarters
+                            '7,7': 'checkCaptainsQuarters',
                         };
                         const tKey = `${tx},${ty}`;
                         let tileActionId = tileActions[tKey] || null;
@@ -1649,7 +1705,7 @@ export function setupCrashSiteSection(section) {
                                     addLogEntry(block.reason, LogType.INFO);
                                     return;
                                 }
-                                const shortfalls = getAffordabilityShortfalls(a, resources);
+                                const shortfalls = getAffordabilityShortfalls(a, resources, characterState);
                                 if (shortfalls.length > 0) {
                                     addLogEntry(`Cannot start "${a.name}": ${shortfalls.join('; ')}`, LogType.INFO);
                                     return;
@@ -1687,6 +1743,18 @@ export function setupCrashSiteSection(section) {
 
                         if (!move.isUnlocked) return;
 
+                        // Captain's Quarters: forbid generic Explore until the narrative unlock occurs.
+                        try {
+                            if (tx === 7 && ty === 7 && !isExplored) {
+                                const cq = salvageActions.find(a => a && a.id === 'checkCaptainsQuarters');
+                                const cqUnlocked = !!(cq && cq.isUnlocked);
+                                if (!cqUnlocked) {
+                                    addLogEntry("You’re pretty sure the captain’s body is still on the bridge — and you don’t feel like going through his stuff now.", LogType.INFO);
+                                    return;
+                                }
+                            }
+                        } catch { /* ignore */ }
+
                         const actionForHandler = Object.assign({}, move, {
                             uiInstanceId: `localmap:${String(move.id)}`,
                             name: isExplored ? 'Traverse' : 'Explore'
@@ -1701,7 +1769,7 @@ export function setupCrashSiteSection(section) {
                             addLogEntry(block.reason, LogType.INFO);
                             return;
                         }
-                        const shortfalls = getAffordabilityShortfalls(actionForHandler, resources);
+                        const shortfalls = getAffordabilityShortfalls(actionForHandler, resources, characterState);
                         if (shortfalls.length > 0) {
                             addLogEntry(`Cannot start "${actionForHandler.name}": ${shortfalls.join('; ')}`, LogType.INFO);
                             return;
@@ -1864,12 +1932,12 @@ export function setupCrashSiteSection(section) {
     // (and any context-dependent description overrides)
     setupTooltip(btn, () => tooltipDataForActionWithContext(action));
 
-        const canAfford = canAffordAction(action, resources);
+        const canAfford = canAffordAction(action, resources, characterState);
         btn.classList.toggle('unaffordable', !canAfford);
         btn.dataset.affordable = canAfford ? 'true' : 'false'; // Set initial value for state tracking
         if (!canAfford) {
             btn.setAttribute('aria-disabled', 'true');
-            btn.dataset.shortfall = getAffordabilityShortfalls(action, resources).join(', ');
+            btn.dataset.shortfall = getAffordabilityShortfalls(action, resources, characterState).join(', ');
         } else {
             btn.removeAttribute('aria-disabled');
             delete btn.dataset.shortfall;
@@ -1906,15 +1974,23 @@ export function setupCrashSiteSection(section) {
         return;
     }
 
-    if (!canAffordAction(action, resources)) {
+    if (!canAffordAction(action, resources, characterState)) {
         addLogEntry(`Not enough resources to begin: ${action.name}.`, LogType.ERROR);
         return;
     }
     const stage = getCurrentStage(action);
     const upfront = [...(action.cost || []), ...((stage && stage.cost) || [])];
     upfront.forEach(cost => {
-        const r = resources.find(x => x.name === cost.resource);
-        if (r) r.amount -= cost.amount;
+        const itemId = getItemIdForResourceName(cost?.resource);
+        const amt = Math.max(0, Math.floor(Number(cost?.amount) || 0));
+        if (itemId) {
+            // Consume inventory items.
+            try { consumeItemQuantityFromBag(itemId, amt, characterState); } catch { /* ignore */ }
+            return;
+        }
+
+        const r = resources.find(x => x && x.name === cost.resource);
+        if (r) r.amount -= amt;
     });
     refreshCurrentTooltip();
 
@@ -2096,9 +2172,20 @@ function cancelAction(section, message, force = false) {
     const refunds = [];
     if (a.cost) {
         for (const c of a.cost) {
-            const res = resources.find(r => r.name === c.resource);
-            const refund = Math.floor(c.amount * 0.5);
-            if (res && refund > 0) {
+            const refund = Math.floor(Number(c.amount || 0) * 0.5);
+            if (refund <= 0) continue;
+
+            const itemId = getItemIdForResourceName(c?.resource);
+            if (itemId) {
+                try {
+                    const placed = grantItemToCharacter(itemId, { preferEquip: false, amount: refund }, characterState);
+                    if (placed && placed.ok) refunds.push(`${refund} ${c.resource}`);
+                } catch { /* ignore */ }
+                continue;
+            }
+
+            const res = resources.find(r => r && r.name === c.resource);
+            if (res) {
                 res.amount = Math.min(res.amount + refund, res.capacity);
                 refunds.push(`${refund} ${res.name}`);
             }
@@ -2196,14 +2283,25 @@ async function handleActionCompletion(section) {
     })();
     const completedFromLocalMap = completedUiInstanceId.startsWith('localmap:');
     const actionDef = salvageActions.find(a => a.id === completed.id);
-    const suppressGeneric = !!(actionDef && (actionDef.suppressGenericLog || ((actionDef.stages && actionDef.stages[(actionDef.stage || 0)] && actionDef.stages[(actionDef.stage || 0)].suppressGenericLog))));
+    const suppressGeneric = (() => {
+        if (!actionDef) return false;
+        if (actionDef.suppressGenericLog) return true;
+        if (!Array.isArray(actionDef.stages) || actionDef.stages.length === 0) return false;
+        const raw = Number.isFinite(actionDef.stage) ? actionDef.stage : 0;
+        const idx = Math.max(0, Math.min(actionDef.stages.length - 1, Math.floor(Number(raw) || 0)));
+        return !!(actionDef.stages[idx] && actionDef.stages[idx].suppressGenericLog);
+    })();
 
     // If the current stage defines a combat encounter, run it BEFORE granting stage story/unlocks.
     // If the player loses/retreats, do not advance the stage so they can retry.
     let encounterOutcomeForCompletion = null;
     const originalForEncounter = salvageActions.find(a => a.id === completed.id || a.name === completed.name);
     if (originalForEncounter) {
-        const idx = originalForEncounter.stage || 0;
+        const totalStages = Array.isArray(originalForEncounter.stages) ? originalForEncounter.stages.length : 0;
+        const rawStage = Number.isFinite(originalForEncounter.stage) ? originalForEncounter.stage : (originalForEncounter.stage || 0);
+        const idx = (totalStages > 0)
+            ? Math.max(0, Math.min(totalStages - 1, Math.floor(Number(rawStage) || 0)))
+            : 0;
         const st = (originalForEncounter.stages || [])[idx];
         const encounterId = (st && st.encounter) || originalForEncounter.encounter;
         if (encounterId) {
@@ -2260,9 +2358,17 @@ async function handleActionCompletion(section) {
         try {
             const host = document.getElementById('crashSiteSection');
             if (!host) return;
-            let activeTab = 'crash';
-            try { activeTab = localStorage.getItem('crashSiteActiveTab') || 'crash'; } catch { /* ignore */ }
-            if (activeTab !== 'map') return;
+
+            // Be robust to missing/legacy stored tab state.
+            // If the map pane is currently visible, we should refresh it.
+            let activeTab = 'map';
+            try { activeTab = localStorage.getItem('crashSiteActiveTab') || 'map'; } catch { /* ignore */ }
+            if (activeTab === 'crash') activeTab = 'camp';
+            if (activeTab !== 'map' && activeTab !== 'camp') activeTab = 'map';
+
+            const localMapPane = host.querySelector('#localMapPane');
+            const isMapActive = (activeTab === 'map') || !!(localMapPane && localMapPane.classList.contains('active'));
+            if (!isMapActive) return;
 
             const scout = salvageActions.find(a => a && a.id === 'scoutSurroundings');
             const stage = Number(scout?.stage || 0);
@@ -2292,8 +2398,7 @@ async function handleActionCompletion(section) {
                 if (!(Math.random() < p)) return; // skip this reward this time
             }
 
-            const res = resources.find(r => r.name === rw.resource);
-            if (!res) return;
+            const itemId = getItemIdForResourceName(rw?.resource);
 
             const amt = Array.isArray(rw.amount) ? getRandomInt(rw.amount[0], rw.amount[1]) : rw.amount;
             // Apply upgrade-based reward multipliers via upgradeEffects
@@ -2304,6 +2409,25 @@ async function handleActionCompletion(section) {
                 if (typeof window !== 'undefined' && window.DEBUG_RESOURCE_GAIN === 10 && rw.resource !== 'Survivors') debugMul = 10;
             } catch (e) { /* ignore */ }
             let finalAmt = Math.floor(amt * rewardMul * debugMul);
+
+            if (itemId) {
+                // Grant inventory items.
+                try {
+                    const placed = grantItemToCharacter(itemId, { preferEquip: false, amount: finalAmt }, characterState);
+                    if (placed && placed.ok) {
+                        gains.push(`${finalAmt} ${rw.resource}`);
+                        try {
+                            outcome.items.push({ id: itemId, note: (placed.stacked ? 'Added to stack' : (placed.placed === 'bag' ? 'Added to bag' : 'Obtained')) });
+                        } catch { /* ignore */ }
+                    } else {
+                        addLogEntry(`Found ${rw.resource}, but your inventory is full.`, LogType.INFO);
+                    }
+                } catch { /* ignore */ }
+                return;
+            }
+
+            const res = resources.find(r => r && r.name === rw.resource);
+            if (!res) return;
             res.amount = Math.min(res.amount + finalAmt, res.capacity);
             gains.push(`${finalAmt} ${rw.resource}`);
             try { outcome.rewards.push({ resource: rw.resource, amount: finalAmt }); } catch (e) { /* ignore */ }
@@ -2326,9 +2450,19 @@ async function handleActionCompletion(section) {
     let pendingStoryLogText = null;
 
     const original = salvageActions.find(a => a.id === completed.id || a.name === completed.name);
+
+    // Capture unlock state BEFORE applying stage unlocks and completion handlers.
+    // This lets us decide later whether we must rebuild the Crash Site UI (e.g., to show newly unlocked Campsite buildings).
+    const preUnlockedActions = new Set((salvageActions || []).filter(a => a && a.isUnlocked).map(a => a.id));
+    const preUnlockedBuildings = new Set((typeof buildings !== 'undefined' && Array.isArray(buildings))
+        ? buildings.filter(b => b && b.isUnlocked).map(b => b.name)
+        : []);
     if (original) {
-        const idx = Number(original.stage || 0);
         const total = Array.isArray(original.stages) ? original.stages.length : 0;
+        const rawStage = Number.isFinite(original.stage) ? original.stage : (original.stage || 0);
+        const idx = (total > 0)
+            ? Math.max(0, Math.min(total - 1, Math.floor(Number(rawStage) || 0)))
+            : 0;
         const willFullyCompleteNow = (total <= 0) ? true : ((idx + 1) >= total);
 
         // Only treat multi-stage actions as completed once the final stage has finished.
@@ -2392,16 +2526,26 @@ async function handleActionCompletion(section) {
                 addLogEntry(stage.logText, LogType.STORY);
             }
 
-            original.stage = Math.min(idx + 1, total);
-            if (original.stage >= total) {
-                original.isUnlocked = !!original.repeatable;
+            const hasGrantItems = Array.isArray(stage.grantItems) && stage.grantItems.some(Boolean);
+            const hasUnlocks = Array.isArray(stage.unlocks) && stage.unlocks.length > 0;
+            const hasStory = !!stage.story;
+
+            // Some repeatable single-stage actions (notably Crafting recipes) use stage.grantItems
+            // as their primary effect, and should grant on every completion.
+            // But other repeatable actions use stages for one-time story/unlocks.
+            const repeatStageEffects = !!(original.repeatable && total === 1 && hasGrantItems && !hasUnlocks && !hasStory);
+
+            if (repeatStageEffects) {
+                original.stage = 0;
+                original.isUnlocked = true;
+            } else {
+                original.stage = Math.min(idx + 1, total);
+                if (original.stage >= total) {
+                    original.isUnlocked = !!original.repeatable;
+                }
             }
         }
     }
-
-    // Capture actions/buildings unlocked by completion handlers by diffing pre/post states
-    const preUnlockedActions = new Set((salvageActions || []).filter(a => a && a.isUnlocked).map(a => a.id));
-    const preUnlockedBuildings = new Set((typeof buildings !== 'undefined') ? buildings.filter(b => b.isUnlocked).map(b => b.name) : []);
 
     if (original && original.id === 'establishBaseCamp') {
         try { outcome.unlocks.sections.push('Campsite'); } catch (e) { /* ignore */ }
@@ -2418,29 +2562,28 @@ async function handleActionCompletion(section) {
         try { outcome.unlocks.sections.push('Colony'); } catch (e) { /* ignore */ }
     }
 
-    // Track whether unlocks require a full UI rebuild
+    // We'll decide whether unlocks require a full UI rebuild AFTER completion handlers run,
+    // since many unlocks happen there (e.g. planning upgrades unlocking buildings).
     let didUnlock = false;
-    if (Array.isArray((original && original.stages && original.stages[original.stage - 1])?.unlocks)) {
-        try {
-            // With the generic Campsite action list removed, a safe trigger for full rebuild is:
-            // any newly-unlocked crash-site action or any newly-unlocked Crash Site building.
-            for (const a of (salvageActions || [])) {
-                if (a && a.isUnlocked && !preUnlockedActions.has(a.id)) { didUnlock = true; break; }
-            }
-            if (!didUnlock && (typeof buildings !== 'undefined')) {
-                for (const name of SITE_BUILDING_NAMES) {
-                    const b = buildings.find(bb => bb && bb.name === name);
-                    if (b && b.isUnlocked && !preUnlockedBuildings.has(b.name)) { didUnlock = true; break; }
-                }
-            }
-        } catch {}
-    }
 
     const preLocalMapLastMoveAt = Number(characterState?.localMap?.lastMoveAt || 0);
     const preLocalMapX = Number(characterState?.localMap?.x);
     const preLocalMapY = Number(characterState?.localMap?.y);
 
     await runActionCompletionHandlers(original, completed, section);
+
+    // If completion handlers (or stage progression) unlocked new actions/buildings, rebuild UI.
+    // This ensures newly unlocked Campsite buildings (e.g. Food Larder) appear immediately.
+    try {
+        for (const a of (salvageActions || [])) {
+            if (a && a.isUnlocked && !preUnlockedActions.has(a.id)) { didUnlock = true; break; }
+        }
+        if (!didUnlock && (typeof buildings !== 'undefined') && Array.isArray(buildings)) {
+            for (const b of buildings) {
+                if (b && b.isUnlocked && !preUnlockedBuildings.has(b.name)) { didUnlock = true; break; }
+            }
+        }
+    } catch { /* ignore */ }
 
     // If completion handlers changed local-map position/selection (e.g., Pry Open Hull auto-steps into D5),
     // refresh the visible map UI so the action row stays in sync.
@@ -2779,7 +2922,7 @@ export function updateCrashSiteActionButtonsState() {
             const action = salvageActions.find(a => a && a.id === id);
             if (!action) return;
 
-            const canAfford = !!canAffordAction(action, resources);
+            const canAfford = !!canAffordAction(action, resources, characterState);
             const { blocked: isBlocked, reason } = getBlockedStatus(action.id, { actions: salvageActions, flags: gameFlags, characterState });
             const capReason = getCapacityBlockReason(action);
             const isCapBlocked = !!capReason;
@@ -2792,7 +2935,7 @@ export function updateCrashSiteActionButtonsState() {
                 btn.classList.toggle('unaffordable', !canAfford);
                 if (!canAfford) {
                     btn.setAttribute('aria-disabled', 'true');
-                    btn.dataset.shortfall = getAffordabilityShortfalls(action, resources).join(', ');
+                    btn.dataset.shortfall = getAffordabilityShortfalls(action, resources, characterState).join(', ');
                 } else {
                     // Only clear aria-disabled if it was set due to affordability.
                     // (Other gates use aria-disabled too.)

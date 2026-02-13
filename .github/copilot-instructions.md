@@ -23,7 +23,7 @@
 
 ## Clarifying questions (always do this)
 - If any requirement is ambiguous or could be implemented in multiple reasonable ways, ask short clarifying questions before making code changes.
-- If requirements are clear, implement directly without extra questions.
+- Alwazs ask for clarification if you’re unsure about the intent of a requirement or how to prioritize it against other work.
 
 ## Keep changes lean (important)
 - Prefer the smallest change that solves the root cause.

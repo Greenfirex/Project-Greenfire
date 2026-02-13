@@ -39,7 +39,9 @@
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
-    padding: 20px; /* restore uniform padding now that tabs sit outside */
+    /* Match Crash Site/Campsite panel inset (tighter than global content-panel padding). */
+    padding: 12px;
+    scrollbar-gutter: auto;
     box-sizing: border-box;
     border-top-width: 0 !important; /* force remove top border width */
     border-top-style: none !important; /* force remove top border style */
@@ -540,7 +542,7 @@
        (max-width: 900px) and (max-height: 450px),
        (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
     #journalSection {
-        padding: 2px;
+        padding: 1px;
     }
 
     #journalSection .journal-tabs {
@@ -551,7 +553,7 @@
     }
 
     #journalSection > .content-panel.journal-panel {
-        padding: 6px;
+        padding: 1px;
         border-top-width: 1px !important;
         border-top-style: solid !important;
         border-top-left-radius: 6px;
@@ -699,7 +701,7 @@
 }
 
 html.is-compact #journalSection {
-    padding: 2px;
+    padding: 1px;
 }
 
 html.is-compact #journalSection .journal-tabs {
@@ -710,7 +712,7 @@ html.is-compact #journalSection .journal-tabs {
 }
 
 html.is-compact #journalSection > .content-panel.journal-panel {
-    padding: 6px;
+    padding: 1px;
     border-top-width: 1px !important;
     border-top-style: solid !important;
     border-top-left-radius: 6px;

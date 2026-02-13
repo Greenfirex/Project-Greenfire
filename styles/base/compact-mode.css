@@ -246,6 +246,7 @@ html.is-compact #craftingSection {
    (margins from styles/base/game-area.css) and can look "too wide" under the rails. */
 html.is-compact #craftingSection > .content-panel {
     width: auto;
+    padding: 1px;
 }
 
 html.is-compact #craftingSection .crafting-category {
