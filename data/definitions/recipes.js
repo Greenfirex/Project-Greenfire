@@ -54,8 +54,8 @@ const initialRecipeActions = [
         description: 'Brew a soothing herbal tea that helps your Stamina recover faster for several hours.',
         duration: 2,
         category: 'Crafting',
-        // Available immediately once the Crafting menu exists.
-        isUnlocked: true,
+        // Unlocked after exploring the Cafeteria AND lighting the Campfire.
+        isUnlocked: false,
         cancelable: true,
         repeatable: true,
         showUnlocks: false,

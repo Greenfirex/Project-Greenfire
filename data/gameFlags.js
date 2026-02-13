@@ -308,6 +308,26 @@ async function runStepInTileCombatEncounter(st, encounterId, { sourceActionId = 
     }
 }
 
+function maybeUnlockHerbTeaRecipe({ log = false } = {}) {
+    try {
+        const st = characterState?.localMap;
+        const cafeteriaExplored = !!(st && typeof st === 'object' && st.cafeteriaExplored);
+        if (!cafeteriaExplored) return false;
+        if (!gameFlags.campfireLit) return false;
+
+        const herbTea = (salvageActions || []).find(a => a && a.id === 'craftHerbTea');
+        if (!herbTea || herbTea.isUnlocked) return false;
+
+        herbTea.isUnlocked = true;
+        herbTea.uiNew = true;
+
+        if (log) addLogEntry('New recipe unlocked: Brew Herb Tea', LogType.UNLOCK);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 // Corridor/bridge/room actions: once finished, step onto the tile (when started from an adjacent tile).
 registerActionCompletionHandler('searchNorthCorridor', () => applyPendingActionMove('searchNorthCorridor'));
 registerActionCompletionHandler('searchSouthCorridor', () => applyPendingActionMove('searchSouthCorridor'));
@@ -321,7 +341,19 @@ registerActionCompletionHandler('investigateBridge', async (original) => {
         if (st && typeof st === 'object' && finished) st.bridgeExplored = true;
     } catch { /* ignore */ }
 });
-registerActionCompletionHandler('exploreCafeteria', () => applyPendingActionMove('exploreCafeteria'));
+registerActionCompletionHandler('exploreCafeteria', async (original) => {
+    try { await applyPendingActionMove('exploreCafeteria'); } catch { /* ignore */ }
+    try {
+        const st = characterState?.localMap;
+        const total = Array.isArray(original?.stages) ? original.stages.length : 0;
+        const stage = Number(original?.stage || 0);
+        const finished = (total > 0) ? (stage >= total) : true;
+        if (st && typeof st === 'object' && finished) st.cafeteriaExplored = true;
+    } catch { /* ignore */ }
+
+    // If the Campfire is already lit, unlock the recipe now so the story popup can list it.
+    try { maybeUnlockHerbTeaRecipe({ log: false }); } catch { /* ignore */ }
+});
 registerActionCompletionHandler('checkCrewQuarters', () => applyPendingActionMove('checkCrewQuarters'));
 registerActionCompletionHandler('searchLabs', () => applyPendingActionMove('searchLabs'));
 registerActionCompletionHandler('searchPowerCore', async (original) => {
@@ -1054,7 +1086,8 @@ registerActionCompletionHandler('workbench', () => {
     // These used to be listed as unlocked at Base Camp establishment, but the intended
     // flow is: establish base camp -> build Workbench -> unlock crafting recipes.
     try {
-        const ids = ['craftMetalSpear', 'craftCanteen'];
+        // Note: Craft Canteen unlocks later (Crew Quarters) so it doesn't appear before Fabric exists.
+        const ids = ['craftMetalSpear'];
         for (const id of ids) {
             const act = (salvageActions || []).find(a => a && a.id === id);
             if (act && !act.isUnlocked) {
@@ -1210,6 +1243,10 @@ registerActionCompletionHandler('organizeWireScavenging', () => {
 registerActionCompletionHandler('lightCampfire', () => {
     gameFlags.campfireLit = true;
     addLogEntry('Campfire lit — Morale +5%.', LogType.UNLOCK);
+
+    // If the Cafeteria was already explored, unlock Herb Tea now and log it
+    // (no story popup will necessarily be shown for this path).
+    try { maybeUnlockHerbTeaRecipe({ log: true }); } catch { /* ignore */ }
     if (typeof window !== 'undefined') {
         try {
             if (typeof window.updateResourceInfo === 'function') try { window.updateResourceInfo(); } catch (e) {}

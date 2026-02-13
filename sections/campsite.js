@@ -277,7 +277,7 @@ export function updateCampsiteCampResourcesPanel(root = document) {
             { key: 'Provisions', resName: 'Provisions', label: 'Provisions', vital: 'food', requireDiscovered: false },
 
             // Show additional materials once discovered.
-            { key: 'Scrap', resName: 'Metal Parts', label: 'Scrap', vital: 'material', requireDiscovered: true },
+            { key: 'Scrap', resName: 'Metal Parts', label: 'Metal Parts', vital: 'material', requireDiscovered: true },
             { key: 'Wire', resName: 'Wire', label: 'Wire', vital: 'material', requireDiscovered: true },
             { key: 'Chemicals', resName: 'Chemicals', label: 'Chemicals', vital: 'material', requireDiscovered: true },
             { key: 'Fabric', resName: 'Fabric', label: 'Fabric', vital: 'material', requireDiscovered: true },
@@ -549,26 +549,46 @@ export function updateCampsiteJobsPanel() {
                 } catch { /* ignore */ }
 
                 const lines = [];
-                lines.push(`<strong>${job.name}</strong>`);
-                if (desc) lines.push(`<div style="margin-top:6px">${desc}</div>`);
-                lines.push(`<div style="margin-top:6px"><em>Produces:</em> ${produces}</div>`);
-                const isBoosted = (typeof effectiveRate === 'number' && typeof baseRate === 'number') ? (effectiveRate > baseRate + 1e-9) : false;
-                const rateClass = isBoosted ? 'reward-amount boosted' : 'reward-amount';
-                lines.push(`<div><em>Per worker:</em> <span class="${rateClass}">${effectiveRate.toFixed(3)}</span>/s <small style="color:#bbb"> (base ${baseRate}/s)</small></div>`);
-                lines.push(`<div><em>Assigned:</em> ${assigned} / ${slots}</div>`);
+                lines.push(`<h4>${job.name}</h4>`);
+                const briefDesc = String(desc || '').trim() || (produces && produces !== '—' ? `Produces ${produces} for the camp.` : 'Supports camp operations.');
+                lines.push(`<p class="tooltip-description">${briefDesc}</p>`);
+                lines.push(`<p>Assigned: ${assigned} / ${slots}</p>`);
 
-                // Job upkeep / consumption sink (per second)
+                // Produces
+                try {
+                    const perWorkerEffective = Number(effectiveRate) || 0;
+                    const perWorkerBase = Number(baseRate) || 0;
+                    const isBoosted = perWorkerEffective > perWorkerBase + 1e-9;
+                    const valueCls = `tooltip-amount-produces${isBoosted ? ' is-boosted' : ''}`;
+                    lines.push(`<div class="tooltip-section"><h4>Produces</h4><ul class="tooltip-bullets">`);
+                    if (produces && produces !== '—') {
+                        lines.push(
+                            `<li>${produces}: ` +
+                            `<span class="${valueCls}">${perWorkerEffective.toFixed(3)}</span>/s ` +
+                            `<span class="tooltip-muted">(base ${perWorkerBase.toFixed(3)}/s)</span>` +
+                            `</li>`
+                        );
+                    } else {
+                        lines.push(`<li>—</li>`);
+                    }
+                    lines.push(`</ul></div>`);
+                } catch { /* ignore */ }
+
+                // Consumes
                 try {
                     const keep = consumes
                         .map(c => ({ resource: c && c.resource ? String(c.resource) : null, rate: Number(c && c.rate) }))
                         .filter(c => c.resource && Number.isFinite(c.rate) && c.rate > 0);
                     if (keep.length) {
-                        lines.push(`<div style="margin-top:6px"><em>Consumes:</em></div>`);
+                        lines.push(`<div class="tooltip-section"><h4>Consumes</h4><ul class="tooltip-bullets">`);
                         for (const c of keep) {
-                            const per = c.rate;
-                            const total = per * Math.max(0, Number(assigned) || 0);
-                            lines.push(`<div style="margin-left:10px">- ${c.resource}: <span class="reward-amount">${per.toFixed(3)}</span>/s per worker <small style="color:#bbb">(total ${total.toFixed(3)}/s)</small></div>`);
+                            const perWorker = (Number(c.rate) || 0);
+                            lines.push(
+                                `<li>${c.resource}: ` +
+                                `<span class="tooltip-amount-consumes">${perWorker.toFixed(3)}</span>/s</li>`
+                            );
                         }
+                        lines.push(`</ul></div>`);
                     }
                 } catch { /* ignore */ }
 

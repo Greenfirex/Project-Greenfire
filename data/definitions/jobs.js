@@ -2,23 +2,25 @@
 export const jobs = [
     {
         id: 'foraging',
-        name: 'Foraging',
+        name: 'Forager',
         building: 'Foraging Camp',
         slots: 0,
         assigned: 0,
         // production: Provisions per second per assigned crew
         produces: 'Provisions',
-        rate: 0.08
+        rate: 0.08,
+        description: 'Gather edible supplies and basic camp provisions.'
     },
     {
         id: 'water_collection',
-        name: 'Water Collection',
+        name: 'Water Collector',
         building: 'Water Station',
         slots: 0,
         assigned: 0,
         // production: Water per second per assigned crew
         produces: 'Water',
-        rate: 0.105
+        rate: 0.105,
+        description: 'Collect and process clean water for the camp.'
     },
     // Scrap Collector — unlocked by Establish Base Camp; unlimited assignments once unlocked
     {
@@ -29,6 +31,7 @@ export const jobs = [
         assigned: 0,
         produces: 'Metal Parts',
         rate: 0.06,
+        description: 'Salvage useful metal parts from wreckage and debris.',
         // Camp upkeep per assigned crew (per second)
         consumes: [
             { resource: 'Provisions', rate: 0.04 },
@@ -45,6 +48,7 @@ export const jobs = [
         assigned: 0,
         produces: 'Wire',
         rate: 0.07,
+        description: 'Recover wire and cabling for repairs and construction.',
         // Camp upkeep per assigned crew (per second)
         consumes: [
             { resource: 'Provisions', rate: 0.04 },

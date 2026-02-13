@@ -140,21 +140,21 @@ function buildResourceTooltipHtml(resourceName) {
 
     const productionHtml = [];
     if (buildings && buildings.length) {
-        buildings.forEach(b => productionHtml.push(`<p class="tooltip-detail">+ ${formatNumber(b.amount)}/s from ${b.count}x ${b.name}</p>`));
+        buildings.forEach(b => productionHtml.push(`<p class="tooltip-detail">+ <span class="tooltip-amount-produces">${formatNumber(b.amount)}</span>/s from ${b.count}x ${b.name}</p>`));
     }
     if (jobLines.length) {
-        jobLines.forEach(j => productionHtml.push(`<p class="tooltip-detail">+ ${formatNumber(j.amount)}/s from ${j.assigned}x ${j.name}</p>`));
+        jobLines.forEach(j => productionHtml.push(`<p class="tooltip-detail">+ <span class="tooltip-amount-produces">${formatNumber(j.amount)}</span>/s from ${j.assigned}x ${j.name}</p>`));
     }
 
     let consumptionDetailsHtml = '';
     if (jobConsumptionLines && jobConsumptionLines.length) {
         jobConsumptionLines.forEach(j => {
-            consumptionDetailsHtml += `<p class="tooltip-detail">- ${formatNumber(j.amount)}/s from ${j.assigned}x ${j.name}</p>`;
+            consumptionDetailsHtml += `<p class="tooltip-detail">- <span class="tooltip-amount-consumes">${formatNumber(j.amount)}</span>/s from ${j.assigned}x ${j.name}</p>`;
         });
     }
     if (activeDrainRate > 0) {
         const activeAction = getActiveCrashSiteAction();
-        consumptionDetailsHtml += `<p class="tooltip-detail">- ${formatNumber(activeDrainRate)}/s from ${activeAction ? activeAction.name : 'active event'}</p>`;
+        consumptionDetailsHtml += `<p class="tooltip-detail">- <span class="tooltip-amount-consumes">${formatNumber(activeDrainRate)}</span>/s from ${activeAction ? activeAction.name : 'active event'}</p>`;
     }
 
     const sign = netPerSecond >= 0 ? '+' : '';
@@ -180,11 +180,11 @@ function buildResourceTooltipHtml(resourceName) {
                 <p>Current: <strong>${amt}${cap > 0 ? `/${cap}` : ''}</strong></p>
             </div>
             <div class="tooltip-section">
-                <p>${regenLabel}: +${formatNumber(totalProduction)}/s</p>
+                <p>${regenLabel}: +<span class="tooltip-amount-produces">${formatNumber(totalProduction)}</span>/s</p>
                 ${productionHtml.join('')}
             </div>
             <div class="tooltip-section">
-                <p>${drainLabel}: -${formatNumber(totalConsumption)}/s</p>
+                <p>${drainLabel}: -<span class="tooltip-amount-consumes">${formatNumber(totalConsumption)}</span>/s</p>
                 ${consumptionDetailsHtml}
             </div>
             <hr>
@@ -195,11 +195,11 @@ function buildResourceTooltipHtml(resourceName) {
     return `
         <h4>${name} Details</h4>
         <div class="tooltip-section">
-            <p>Production: +${formatNumber(totalProduction)}/s</p>
+            <p>Production: +<span class="tooltip-amount-produces">${formatNumber(totalProduction)}</span>/s</p>
             ${productionHtml.join('')}
         </div>
         <div class="tooltip-section">
-            <p>Consumption: -${formatNumber(totalConsumption)}/s</p>
+            <p>Consumption: -<span class="tooltip-amount-consumes">${formatNumber(totalConsumption)}</span>/s</p>
             ${consumptionDetailsHtml}
         </div>
         <hr>

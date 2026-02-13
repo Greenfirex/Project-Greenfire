@@ -286,6 +286,34 @@ body.reduce-motion * {
     color: #90EE90;
 }
 
+.tooltip .tooltip-muted {
+    color: #bbb;
+    font-size: 0.9em;
+}
+
+.tooltip .tooltip-produces {
+    color: #8FFFA0;
+}
+
+.tooltip .tooltip-consumes {
+    color: #ff6b6b;
+}
+
+.tooltip .tooltip-amount-produces {
+    color: #8FFFA0;
+    font-weight: 500;
+}
+
+.tooltip .tooltip-amount-consumes {
+    color: #ff6b6b;
+    font-weight: 500;
+}
+
+.tooltip .tooltip-amount-produces.is-boosted {
+    font-weight: 700;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.6);
+}
+
 .tooltip p {
     margin: 0 0 2px 0;
     font-size: 0.9em;

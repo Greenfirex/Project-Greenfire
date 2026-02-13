@@ -152,6 +152,7 @@ function renderPopupPage() {
                 // Split actions into Upgrades vs non-Upgrades using definitions
                 const actionsList = Array.isArray(activeOutcome.unlocks.actions) ? activeOutcome.unlocks.actions.slice() : [];
                 let upgradeNames = [];
+                let recipeNames = [];
                 let regularActionNames = [];
                 if (actionsList.length) {
                     const defs = Array.isArray(_allActions) ? _allActions : [];
@@ -159,15 +160,18 @@ function renderPopupPage() {
                     for (const val of actionsList) {
                         const def = byNameOrId(val);
                         if (def && def.category === 'Upgrade') upgradeNames.push(def.name || val);
+                        else if (def && def.category === 'Crafting') recipeNames.push(def.name || val);
                         else regularActionNames.push(def ? (def.name || val) : val);
                     }
                     // Remove duplicates in case of mixed inputs
                     const uniq = (arr) => Array.from(new Set(arr));
                     upgradeNames = uniq(upgradeNames);
+                    recipeNames = uniq(recipeNames);
                     regularActionNames = uniq(regularActionNames);
                 }
 
                 if (regularActionNames.length) blocks.push(`<div class="unlock-block"><h4>Actions Unlocked</h4><ul>${makeList(regularActionNames)}</ul></div>`);
+                if (recipeNames.length) blocks.push(`<div class="unlock-block"><h4>Recipes Unlocked</h4><ul>${makeList(recipeNames)}</ul></div>`);
                 if (upgradeNames.length) blocks.push(`<div class="unlock-block"><h4>Upgrades Unlocked</h4><ul>${makeList(upgradeNames)}</ul></div>`);
                 if (activeOutcome.unlocks.buildings && activeOutcome.unlocks.buildings.length) blocks.push(`<div class="unlock-block"><h4>Buildings Unlocked</h4><ul>${makeList(activeOutcome.unlocks.buildings)}</ul></div>`);
                 if (activeOutcome.unlocks.sections && activeOutcome.unlocks.sections.length) blocks.push(`<div class="unlock-block"><h4>Sections Unlocked</h4><ul>${makeList(activeOutcome.unlocks.sections)}</ul></div>`);

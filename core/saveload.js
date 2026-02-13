@@ -342,7 +342,9 @@ export function applyGameState(gameState) {
             // UI-only hint: show "new" badge until user hovers.
             'uiNew',
             // UI/runtime hint: if a spoiler-free encounter was discovered (retreat/lose), show combat badge.
-            'encounterDiscovered'
+            'encounterDiscovered',
+            // Prevent repeatable single-stage actions from re-spamming stage log text.
+            'stageLogShown'
         ]);
         salvageActions.forEach(defaultAction => {
             const savedAction = gameState.salvageActions.find(a => a.id === defaultAction.id);
@@ -391,7 +393,8 @@ export function applyGameState(gameState) {
             'startTime', 'lastTickTime', 'pauseStart',
             'savedProgress', 'savedProgressStage',
             'uiNew',
-            'encounterDiscovered'
+            'encounterDiscovered',
+            'stageLogShown'
         ]);
         recipeActions.forEach(defaultAction => {
             const savedAction = gameState.recipeActions.find(a => a.id === defaultAction.id);
@@ -427,6 +430,8 @@ export function applyGameState(gameState) {
             'savedProgress', 'savedProgressStage',
             'uiNew',
             'encounterDiscovered'
+            ,
+            'stageLogShown'
         ]);
         upgradeActions.forEach(defaultAction => {
             const savedAction = gameState.upgradeActions.find(a => a.id === defaultAction.id);

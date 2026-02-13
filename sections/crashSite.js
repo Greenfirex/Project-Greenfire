@@ -2666,11 +2666,30 @@ async function handleActionCompletion(section) {
                     }
                 });
             }
+            // Stage log text / story: for repeatable actions, avoid re-emitting one-time flavor logs.
+            // Some repeatable single-stage actions (e.g. Crafting recipes) keep stage at 0 so they can
+            // grant items every time; for those, treat stage.logText as a "log once" flavor line.
+            const shouldLogOnce = !!(original && original.repeatable === true && total === 1);
+            const hasLogged = !!(shouldLogOnce && original && original.stageLogShown && original.stageLogShown[String(idx)]);
+
             if (stage.story) {
-                pendingStoryEvent = storyEvents[stage.story] || null;
-                pendingStoryLogText = stage.logText || '';
+                // Story popups should already be one-time for repeatable actions because their stage
+                // advances beyond the available stage indices.
+                if (!hasLogged) {
+                    pendingStoryEvent = storyEvents[stage.story] || null;
+                    pendingStoryLogText = stage.logText || '';
+                }
             } else if (stage.logText) {
-                addLogEntry(stage.logText, LogType.STORY);
+                if (!hasLogged) {
+                    addLogEntry(stage.logText, LogType.STORY);
+                }
+            }
+
+            if (shouldLogOnce && !hasLogged) {
+                try {
+                    if (!original.stageLogShown || typeof original.stageLogShown !== 'object') original.stageLogShown = {};
+                    original.stageLogShown[String(idx)] = true;
+                } catch { /* ignore */ }
             }
 
             const hasGrantItems = Array.isArray(stage.grantItems) && stage.grantItems.some(Boolean);

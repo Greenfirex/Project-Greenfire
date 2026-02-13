@@ -23,7 +23,15 @@ export function lsGet(key) {
 export function getCurrentStage(action) {
     if (!action || !Array.isArray(action.stages) || action.stages.length === 0) return undefined;
     const raw = (action && Number.isFinite(action.stage)) ? action.stage : 0;
-    const idx = Math.max(0, Math.min(action.stages.length - 1, Math.floor(Number(raw) || 0)));
+    const n = action.stages.length;
+    const stageIndex = Math.floor(Number(raw) || 0);
+
+    // Repeatable actions often use stages for one-time story/unlocks/log text.
+    // Once stage is beyond the last index, do not clamp back down or we'd re-run
+    // those one-time effects every time the action is used.
+    if (action.repeatable === true && Number.isFinite(stageIndex) && stageIndex >= n) return undefined;
+
+    const idx = Math.max(0, Math.min(n - 1, stageIndex));
     return action.stages[idx];
 }
 

@@ -560,14 +560,15 @@ const initialSalvageActions = [
                 { resource: 'Stamina', amount: 12 }
             ],
             reward: [   
-                { resource: 'Fabric', amount: [1, 3] }
+                { resource: 'Fabric', amount: [1, 3] },
+                { resource: 'Survivors', amount: 1 }
             ],
             hideRewardPreview: true,
             stage: 0,
             stages: [
                 {
                     story: 'south_check_quarters',
-                    unlocks: ['makeTents', 'collectFabric'],
+                    unlocks: ['makeTents', 'collectFabric', 'craftFirstAidKit', 'craftCanteen'],
                     logText: 'You scavenge bunks and lockers; you find a few useful parts and personal items that might help survivors feel safer. (Click to read)'
                 }
             ]
