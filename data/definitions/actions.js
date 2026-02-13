@@ -345,7 +345,7 @@ const initialSalvageActions = [
                 stages: [
                     {
                         story: 'basecamp_established', // matches new storyEvents entry
-                        unlocks: ['craftMetalSpear', 'craftCanteen', 'sleep', 'refillCanteen', 'packRations', 'haulWater', 'haulBerries'],
+                        unlocks: ['sleep', 'refillCanteen', 'packRations', 'haulWater', 'haulBerries'],
                         logText: 'You establish a small base camp. Survivors can be organized here. (Click to read)',
                         suppressGenericLog: true
                     }

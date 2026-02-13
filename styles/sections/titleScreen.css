@@ -50,6 +50,7 @@ body.title-screen-active #footer {
 
 .title-screen-logo {
     display: block;
+    align-self: center;
     width: min(560px, 92vw);
     max-width: 560px;
     height: auto;
@@ -139,4 +140,17 @@ html.is-compact .title-screen-btn {
 html.is-compact .title-screen-logo {
     width: min(520px, 94vw);
     max-width: 520px;
+}
+
+/* Desktop: make the logo larger and keep it visually centered. */
+@media (min-width: 900px) {
+    html:not(.is-compact) .title-screen-card {
+        width: min(780px, 92vw);
+    }
+
+    html:not(.is-compact) .title-screen-logo {
+        width: min(740px, 86vw);
+        max-width: 740px;
+        margin-bottom: 12px;
+    }
 }

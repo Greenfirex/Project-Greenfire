@@ -201,7 +201,7 @@ const STAT_TOOLTIP_TEXT = {
     hit: 'Hit Chance — chance to land an attack before evasion.\nCapped at: 95%.',
     crit: 'Crit Chance — chance for a critical hit (+50% damage).\nCapped at: 100%.',
     evasion: 'Evasion — reduces the enemy\'s chance to hit you (multiplies by 1 − evasion).\nCapped at: 75%.',
-    armor: 'Armor — reduces damage taken with diminishing returns.\nDamage taken = round(damage × 20/(armor+20)).\nExamples: armor 0→100%, 10→67%, 20→50%, 40→33%.',
+    armor: 'Armor — reduces incoming damage by a flat amount.\nDamage taken = max(0, damage − armor).',
     damage: 'Damage — attack damage range.\nNo cap.',
     attackSpeed: 'Attack Speed — seconds per attack (lower is faster).\nMinimum: 0.20s per attack.',
 };
@@ -244,11 +244,9 @@ function randIntInclusive(min, max) {
 }
 
 function applyArmorMitigation(damage, armor) {
-    const dmg = Math.max(0, Number(damage) || 0);
-    const a = Math.max(0, Number(armor) || 0);
-    // Light mitigation curve: armor 0 => 100%; armor 10 => ~66%; armor 30 => ~40%
-    const mitigation = a / (a + 20);
-    return Math.max(0, Math.round(dmg * (1 - mitigation)));
+    const dmg = Math.max(0, Math.round(Number(damage) || 0));
+    const a = Math.max(0, Math.floor(Number(armor) || 0));
+    return Math.max(0, dmg - a);
 }
 
 function setBar(overlay, which, current, max, opts = {}) {
@@ -555,10 +553,10 @@ function computePlayerDps(stats) {
 }
 
 function computeDamageTakenPerSecond(enemyDps, armor) {
+    const dps = Math.max(0, Number(enemyDps) || 0);
     const a = Math.max(0, Number(armor) || 0);
-    // Light mitigation curve: armor 0 => 100%; armor 10 => ~66%; armor 30 => ~40%
-    const mitigation = a / (a + 20);
-    return Math.max(0, enemyDps * (1 - mitigation));
+    // Heuristic only (unused today): treat armor as a direct reduction against incoming DPS.
+    return Math.max(0, dps - a);
 }
 
 function clampPercentToChance(pct) {
@@ -689,13 +687,18 @@ export function showCombatPopup(encounterId, opts = {}) {
     const waterRes = resources.find(r => r.name === 'Drinking Water');
     const isHungry = !!(foodRes && Number(foodRes.amount) <= 0);
     const isThirsty = !!(waterRes && Number(waterRes.amount) <= 0);
+    const hungerDamageMult = isHungry ? 0.5 : 1;
 
     // attackSpeed is seconds per attack (lower is faster). Clamp to combat caps.
     let playerAttackSpeed = Math.max(COMBAT_CAPS.minAttackSpeedSec, Number(stats?.attackSpeed ?? 1));
     let playerHitChancePct = Number(stats?.hitChance ?? COMBAT_CAPS.defaultHitChancePct);
     if (isHungry) playerHitChancePct -= 10;
-    // Thirst slows attacks: increase time between attacks by ~17.6%.
-    if (isThirsty) playerAttackSpeed *= (1 / 0.85);
+    if (isThirsty) {
+        // Thirsty: slower attacks (attackSpeed is seconds per attack).
+        playerAttackSpeed += 0.50;
+        // Thirsty: harder to land hits.
+        playerHitChancePct -= 20;
+    }
 
     // Enforce caps after modifiers.
     playerAttackSpeed = Math.max(COMBAT_CAPS.minAttackSpeedSec, playerAttackSpeed);
@@ -752,7 +755,7 @@ export function showCombatPopup(encounterId, opts = {}) {
             crit: fmtPct01(clamp01((Number(stats?.critChance ?? 0)) / 100)),
             evasion: fmtPct01(evasionChance),
             armor: String(Math.max(0, Math.floor(Number(stats?.armor ?? 0)))),
-            damage: `${Math.floor(Number(stats?.damageMin ?? 0))}-${Math.floor(Number(stats?.damageMax ?? 0))}`,
+            damage: `${Math.floor(Math.round(Number(stats?.damageMin ?? 0) * hungerDamageMult))}-${Math.floor(Math.round(Number(stats?.damageMax ?? 0) * hungerDamageMult))}`,
             attackSpeed: `${playerAttackSpeed.toFixed(2)}s`,
         },
         enemy: {
@@ -1003,7 +1006,8 @@ export function showCombatPopup(encounterId, opts = {}) {
             heavyStrikeReadyAtPerf = nowPerf + HEAVY_STRIKE_COOLDOWN_MS;
 
             const base = randIntInclusive(stats?.damageMin ?? 1, stats?.damageMax ?? 2);
-            const raw = Math.max(0, Math.round(base * HEAVY_STRIKE_DAMAGE_MULT));
+            const rawDebuffed = Math.max(0, Math.round(base * hungerDamageMult));
+            const raw = Math.max(0, Math.round(rawDebuffed * HEAVY_STRIKE_DAMAGE_MULT));
             const dealt = applyArmorMitigation(raw, enemyArmor);
             enemyHp = Math.max(0, enemyHp - dealt);
 
@@ -1151,8 +1155,9 @@ export function showCombatPopup(encounterId, opts = {}) {
                     const hit = Math.random() < effectivePlayerHitChance;
                     const crit = hit && (Math.random() < playerCritChance);
                     if (hit) {
-                        const raw = randIntInclusive(stats?.damageMin ?? 1, stats?.damageMax ?? 2);
-                        const withCrit = crit ? Math.round(raw * 1.5) : raw;
+                        const rawBase = randIntInclusive(stats?.damageMin ?? 1, stats?.damageMax ?? 2);
+                        const rawDebuffed = Math.max(0, Math.round(rawBase * hungerDamageMult));
+                        const withCrit = crit ? Math.round(rawDebuffed * 1.5) : rawDebuffed;
                         const dealt = applyArmorMitigation(withCrit, enemyArmor);
                         enemyHp = Math.max(0, enemyHp - dealt);
                         appendLogWithTime(overlay, elapsedMs, crit ? `You CRIT for ${dealt} damage.` : `You hit for ${dealt} damage.`, crit ? 'player-crit' : 'player-hit');

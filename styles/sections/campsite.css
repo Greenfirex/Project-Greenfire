@@ -289,6 +289,13 @@
 }
 
 /* Jobs table */
+.campsite-card--jobs .localmap-card-body {
+    /* localMap.css uses overflow:auto, which creates an ugly horizontal scrollbar
+       in the Jobs panel from tiny layout overflow. Keep vertical scrolling only. */
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
 .crew-jobs {
     width: 100%;
     max-width: 600px;
@@ -299,15 +306,26 @@
 
 .crew-job {
     display: grid;
-    grid-template-columns: 1fr 48px 120px 48px;
+    /* 4-column grid: name | - | count | +
+       Keep the count column compact so job names get more space. */
+    grid-template-columns: minmax(0, 1fr) 36px minmax(64px, 92px) 36px;
     align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
+    gap: 4px;
+    padding: 6px 8px;
     background: rgba(255,255,255,0);
     border: 1px solid rgba(var(--glow-r),var(--glow-g),var(--glow-b),0.12);
     box-shadow: 0 6px 18px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.04), inset 0 1px 0 rgba(255,255,255,0.02);
     border-radius: 8px;
     color: #EAEAEA;
+}
+
+/* Pull the -/+ buttons in toward the count column */
+.crew-job:not(.crew-header) > .job-controls:nth-child(2) {
+    justify-content: flex-end;
+}
+
+.crew-job:not(.crew-header) > .job-controls:nth-child(4) {
+    justify-content: flex-start;
 }
 
 .crew-job:not(.crew-header):not(.idle-row):hover {
@@ -375,6 +393,10 @@
     cursor: help;
     user-select: none;
     padding-right: 6px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 @media (max-width: 800px) {
@@ -724,9 +746,10 @@ html.is-compact .crew-jobs {
 }
 
 html.is-compact .crew-job {
-    grid-template-columns: minmax(0, 1fr) 24px 58px 24px;
-    gap: 3px;
-    padding: 3px 4px;
+    /* Compact: keep controls tiny and give name maximum room */
+    grid-template-columns: minmax(0, 1fr) 22px minmax(44px, 56px) 22px;
+    gap: 2px;
+    padding: 3px 3px;
     border-radius: 8px;
     font-size: 10px;
     line-height: 1.15;

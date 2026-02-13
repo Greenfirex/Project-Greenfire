@@ -215,9 +215,34 @@ function startGame({ mode = 'continue' } = {}) {
     let gameLoopInterval = null;
     let autosaveInterval = null;
 
+    let wasHungry = null;
+    let wasThirsty = null;
+
+    function getSurvivalDebuffFlags() {
+        try {
+            const EPS = 1e-9;
+            const food = resources.find(r => r && r.name === 'Food Rations');
+            const water = resources.find(r => r && r.name === 'Drinking Water');
+            return {
+                hungry: !!(food && Number(food.amount) <= EPS),
+                thirsty: !!(water && Number(water.amount) <= EPS),
+            };
+        } catch {
+            return { hungry: false, thirsty: false };
+        }
+    }
+
     function startMainLoop() {
         if (gameLoopInterval) return;
         lastUpdateTime = Date.now();
+
+        // Initialize survival debuff tracking so we only log on transitions.
+        try {
+            const f = getSurvivalDebuffFlags();
+            wasHungry = f.hungry;
+            wasThirsty = f.thirsty;
+        } catch { /* ignore */ }
+
         gameLoopInterval = setInterval(() => {
             const now = Date.now();
             let deltaTime = (now - lastUpdateTime) / 1000;
@@ -249,6 +274,19 @@ function startGame({ mode = 'continue' } = {}) {
                 if (delta === 0) return;
                 res.amount = Math.max(0, Math.min(res.capacity, res.amount + delta));
             });
+
+            // --- Survival debuff transition logs (Food/Water reaching 0)
+            try {
+                const f = getSurvivalDebuffFlags();
+                if (wasHungry === false && f.hungry === true) {
+                    addLogEntry('You have run out of Food Rations. Hungry debuff active.', LogType.ERROR);
+                }
+                if (wasThirsty === false && f.thirsty === true) {
+                    addLogEntry('You have run out of Drinking Water. Thirsty debuff active.', LogType.ERROR);
+                }
+                wasHungry = f.hungry;
+                wasThirsty = f.thirsty;
+            } catch { /* non-fatal */ }
 
             // --- Enforce job upkeep requirements (camp resources)
             // If a job consumes a camp resource (e.g., Provisions/Water) and that resource is depleted,

@@ -147,6 +147,156 @@ export function canAffordAction(action, resources, characterState = null) {
     return true;
 }
 
+function computeStartRequirements(action) {
+    const cost = [];
+    const drain = [];
+    if (!action) return { cost, drain };
+
+    // Include stage overrides the same way tooltips do.
+    const st = getCurrentStage(action);
+    const add = (arr, src) => {
+        if (!Array.isArray(src)) return;
+        for (const entry of src) {
+            if (!entry || !entry.resource) continue;
+            const amount = Number(entry.amount || 0);
+            if (!Number.isFinite(amount) || amount <= 0) continue;
+            arr.push({ resource: entry.resource, amount });
+        }
+    };
+
+    add(cost, action.cost);
+    add(drain, action.drain);
+    if (st) {
+        add(cost, st.cost);
+        add(drain, st.drain);
+    }
+    return { cost, drain };
+}
+
+const SOFT_DRAIN_RESOURCES = new Set(['Food Rations', 'Drinking Water']);
+
+/**
+ * Start-eligibility check for Crash Site actions.
+ * Rules:
+ * - Upfront costs are hard-gated.
+ * - Food/Water drains never block starting (soft-gated).
+ * - Stamina drain requires:
+ *   - Move: full drain available (hard movement gate)
+ *   - Other actions: at least 1 stamina to begin
+ * - Other drains remain hard-gated.
+ */
+export function canStartAction(action, resources, characterState = null) {
+    if (!action) return false;
+    const { cost, drain } = computeStartRequirements(action);
+
+    // Hard-gate upfront costs.
+    for (const c of cost) {
+        const resourceName = c.resource;
+        const need = Number(c.amount || 0);
+        if (!Number.isFinite(need) || need <= 0) continue;
+
+        if (isInventoryAliasResourceName(resourceName)) {
+            const itemId = getItemIdForResourceName(resourceName);
+            const have = getItemCountFromCharacterState(itemId, characterState);
+            if (have < need) return false;
+            continue;
+        }
+
+        const res = (resources || []).find(r => r && r.name === resourceName);
+        const have = res ? Number(res.amount) : 0;
+        if (!(have >= need)) return false;
+    }
+
+    // Soft-gate select drains.
+    const isMove = String(action.id || '') === 'move';
+    for (const d of drain) {
+        const resourceName = d.resource;
+        const need = Number(d.amount || 0);
+        if (!Number.isFinite(need) || need <= 0) continue;
+
+        if (SOFT_DRAIN_RESOURCES.has(resourceName)) continue;
+
+        if (resourceName === 'Stamina') {
+            const res = (resources || []).find(r => r && r.name === 'Stamina');
+            const have = res ? Number(res.amount) : 0;
+            const minNeed = isMove ? need : 1;
+            if (!(have >= minNeed)) return false;
+            continue;
+        }
+
+        if (isInventoryAliasResourceName(resourceName)) {
+            const itemId = getItemIdForResourceName(resourceName);
+            const have = getItemCountFromCharacterState(itemId, characterState);
+            if (have < need) return false;
+            continue;
+        }
+
+        const res = (resources || []).find(r => r && r.name === resourceName);
+        const have = res ? Number(res.amount) : 0;
+        if (!(have >= need)) return false;
+    }
+
+    return true;
+}
+
+export function getStartActionShortfalls(action, resources, characterState = null) {
+    const out = [];
+    if (!action) return out;
+    const { cost, drain } = computeStartRequirements(action);
+
+    const pushMissing = (resourceName, need, have) => {
+        if (!Number.isFinite(need) || need <= 0) return;
+        if (!Number.isFinite(have)) have = 0;
+        if (have < need) out.push(`${resourceName}: need ${Math.ceil(need - have)} more`);
+    };
+
+    for (const c of cost) {
+        const resourceName = c.resource;
+        const need = Number(c.amount || 0);
+        if (!Number.isFinite(need) || need <= 0) continue;
+
+        if (isInventoryAliasResourceName(resourceName)) {
+            const itemId = getItemIdForResourceName(resourceName);
+            const have = getItemCountFromCharacterState(itemId, characterState);
+            if (have < need) out.push(`${resourceName}: need ${Math.ceil(need - have)} more`);
+            continue;
+        }
+        const res = (resources || []).find(r => r && r.name === resourceName);
+        const have = res ? Number(res.amount) : 0;
+        if (!res) out.push(`${resourceName} missing (need ${need})`);
+        else pushMissing(resourceName, need, have);
+    }
+
+    const isMove = String(action.id || '') === 'move';
+    for (const d of drain) {
+        const resourceName = d.resource;
+        const need = Number(d.amount || 0);
+        if (!Number.isFinite(need) || need <= 0) continue;
+        if (SOFT_DRAIN_RESOURCES.has(resourceName)) continue;
+
+        if (resourceName === 'Stamina') {
+            const res = (resources || []).find(r => r && r.name === 'Stamina');
+            const have = res ? Number(res.amount) : 0;
+            const minNeed = isMove ? need : 1;
+            if (have < minNeed) out.push(`${resourceName}: need ${Math.ceil(minNeed - have)} more`);
+            continue;
+        }
+
+        if (isInventoryAliasResourceName(resourceName)) {
+            const itemId = getItemIdForResourceName(resourceName);
+            const have = getItemCountFromCharacterState(itemId, characterState);
+            if (have < need) out.push(`${resourceName}: need ${Math.ceil(need - have)} more`);
+            continue;
+        }
+        const res = (resources || []).find(r => r && r.name === resourceName);
+        const have = res ? Number(res.amount) : 0;
+        if (!res) out.push(`${resourceName} missing (need ${need})`);
+        else pushMissing(resourceName, need, have);
+    }
+
+    return out;
+}
+
 /**
  * Return human-readable shortfall messages for each missing/insufficient resource.
  * Example output: ["Drinking Water: need 3 more", "Fabric missing (need 2)"]

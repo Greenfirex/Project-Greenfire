@@ -115,10 +115,14 @@ function pollMenuNewBadges() {
     // Crash Site: any action flagged uiNew
     try {
         const hasNonTileNewAction = Array.isArray(allActionsAggregate)
-            && allActionsAggregate.some(a => a && a.uiNew && !CRASH_SITE_MAP_BOUND_ACTION_IDS.has(String(a.id)));
-        if (current !== 'crashSiteSection' && hasNonTileNewAction) {
-            setMenuNewItemFlag('crashSiteSection', true);
-        }
+            && allActionsAggregate.some(a => a
+                && a.uiNew
+                && a.isUnlocked === true
+                && !CRASH_SITE_MAP_BOUND_ACTION_IDS.has(String(a.id)));
+
+        // Keep this badge “truthy” (set/clear) so it doesn't get stuck on.
+        // This also ensures tile-bound actions don't keep the menu lit.
+        setMenuNewItemFlag('crashSiteSection', current !== 'crashSiteSection' && hasNonTileNewAction);
     } catch {
         /* ignore */
     }

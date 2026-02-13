@@ -14,7 +14,7 @@ import { getTotalIngameMinutes } from '../core/time.js';
 import { buildings } from '../data/definitions/buildings.js';
 import { gameFlags, runActionCompletionHandlers } from '../data/gameFlags.js';
 import { computeRewardMultiplier } from '../data/upgradeEffects.js';
-import { lsGet, getCurrentStage, tooltipDataForAction, canAffordAction, getAffordabilityShortfalls, computeEffectiveDuration, getRandomInt } from '../data/actionsManager.js';
+import { lsGet, getCurrentStage, tooltipDataForAction, canStartAction, getStartActionShortfalls, computeEffectiveDuration, getRandomInt } from '../data/actionsManager.js';
 import { getBlockedStatus, evaluateEventUnlocks } from '../data/unlockRules.js';
 import { showCombatPopup } from '../ui/panels/combatPopup.js';
 import { characterState, grantItemToCharacter, consumeItemQuantityFromBag, countItemInBag, computeCarryCapacity } from '../data/character.js';
@@ -253,7 +253,7 @@ function tryStartNextTraverseStep(section) {
         stopTraverseAndReselectPlayerTile(section, block.reason);
         return;
     }
-    const shortfalls = getAffordabilityShortfalls(moveAction, resources, characterState);
+    const shortfalls = getStartActionShortfalls(moveAction, resources, characterState);
     if (shortfalls.length > 0) {
         stopTraverseAndReselectPlayerTile(section, `Cannot start "${moveAction.name}": ${shortfalls.join('; ')}`);
         return;
@@ -515,7 +515,7 @@ function attachStartClickHandler(btn, action, section) {
             addLogEntry(block.reason, LogType.INFO);
             return;
         }
-        const shortfalls = getAffordabilityShortfalls(action, resources, characterState);
+        const shortfalls = getStartActionShortfalls(action, resources, characterState);
         if (shortfalls.length > 0) {
             e.preventDefault();
             addLogEntry(`Cannot start "${action.name}": ${shortfalls.join('; ')}`, LogType.INFO);
@@ -535,6 +535,51 @@ function attachStartClickHandler(btn, action, section) {
 let actionInterval = null;
 let isPendingCancel = null;
 let cancelTimeout = null;
+
+const SOFT_DEPLETION_RESOURCES = new Set(['Food Rations', 'Drinking Water']);
+
+function getSavedProgressStageIndexForActionId(actionId) {
+    try {
+        const def = salvageActions.find(a => a && a.id === actionId);
+        const idx = Number(def?.stage || 0);
+        return Number.isFinite(idx) ? idx : 0;
+    } catch {
+        return 0;
+    }
+}
+
+function applySavedProgressToActionDef(actionId, { progress01, stageIndex } = {}) {
+    try {
+        const def = salvageActions.find(a => a && a.id === actionId);
+        if (!def) return;
+
+        const p = Number(progress01);
+        if (!Number.isFinite(p) || p <= 0) {
+            delete def.savedProgress;
+            delete def.savedProgressStage;
+            return;
+        }
+
+        def.savedProgress = Math.max(0, Math.min(1, p));
+        def.savedProgressStage = Number.isFinite(Number(stageIndex)) ? Number(stageIndex) : getSavedProgressStageIndexForActionId(actionId);
+    } catch { /* ignore */ }
+}
+
+function getSavedProgress01ForActionId(actionId) {
+    try {
+        const def = salvageActions.find(a => a && a.id === actionId);
+        if (!def) return null;
+        const stageIndex = getSavedProgressStageIndexForActionId(actionId);
+        const savedStage = Number(def?.savedProgressStage);
+        const okStage = Number.isFinite(savedStage) ? (savedStage === stageIndex) : true;
+        if (!okStage) return null;
+        const p = Number(def?.savedProgress);
+        if (!Number.isFinite(p) || p <= 0) return null;
+        return Math.max(0, Math.min(1, p));
+    } catch {
+        return null;
+    }
+}
 
 /* =============================
    Crash Site loop control
@@ -640,7 +685,6 @@ export function setupCrashSiteSection(section) {
             <button class="crashsite-tab ${activeTab === 'map' ? 'active' : ''}" data-tab="map" role="tab" aria-selected="${activeTab === 'map' ? 'true' : 'false'}">Local map</button>
             <button class="crashsite-tab ${activeTab === 'camp' ? 'active' : ''}" data-tab="camp" role="tab" aria-selected="${activeTab === 'camp' ? 'true' : 'false'}" ${isCampsiteUnlocked ? '' : 'disabled'}>
                 <span class="crashsite-tab-label">${campsiteTabLabel}</span>
-                ${newBadgeHtml(!!(lm && lm.campsiteTabUiNew === true))}
             </button>
         </div>
         <div class="content-panel crashsite-panel">
@@ -665,14 +709,6 @@ export function setupCrashSiteSection(section) {
         map: host.querySelector('#localMapPane'),
         camp: host.querySelector('#campsitePane')
     };
-
-    // Campsite tab "NEW" badge wiring
-    try {
-        const campTab = host.querySelector('.crashsite-tab[data-tab="camp"]');
-        if (campTab && lm && lm.campsiteTabUiNew === true) {
-            wireClearUiNewBadge(campTab, { legacyObj: lm, legacyProp: 'campsiteTabUiNew', selector: '.action-new-badge' });
-        }
-    } catch { /* ignore */ }
 
     const tooltipDataForActionWithContext = (action) => {
         const out = tooltipDataForAction(action);
@@ -713,6 +749,16 @@ export function setupCrashSiteSection(section) {
                 ${newBadgeHtml(!!actionDef.uiNew)}
                 <span class="cancel-text">Abort?</span>
             `;
+
+            // If this action previously paused due to Stamina depletion, keep its progress bar visible
+            // even when other actions complete and the local-map action list re-renders.
+            try {
+                if (!getActiveCrashSiteAction()) {
+                    const saved01 = getSavedProgress01ForActionId(actionDef.id);
+                    const bar = btn.querySelector('.action-progress-bar');
+                    if (bar) bar.style.width = (saved01 != null && saved01 > 0) ? `${Math.round(saved01 * 1000) / 10}%` : '';
+                }
+            } catch { /* ignore */ }
             if (actionDef.uiNew) {
                 wireClearUiNewBadge(btn, { legacyObj: actionDef, legacyProp: 'uiNew' });
             }
@@ -724,12 +770,12 @@ export function setupCrashSiteSection(section) {
             // Match Crash Site styling for unaffordable / capacity-blocked actions.
             // (We keep the button clickable unless it's truly disabled, so the click handler can explain why.)
             try {
-                const canAfford = canAffordAction(actionDef, resources, characterState);
-                btn.classList.toggle('unaffordable', !canAfford);
-                btn.dataset.affordable = canAfford ? 'true' : 'false';
-                if (!canAfford) {
+                const canStart = canStartAction(actionDef, resources, characterState);
+                btn.classList.toggle('unaffordable', !canStart);
+                btn.dataset.affordable = canStart ? 'true' : 'false';
+                if (!canStart) {
                     btn.setAttribute('aria-disabled', 'true');
-                    const shortfalls = getAffordabilityShortfalls(actionDef, resources, characterState);
+                    const shortfalls = getStartActionShortfalls(actionDef, resources, characterState);
                     if (shortfalls.length) {
                         btn.dataset.shortfall = shortfalls.join(', ');
                         if (!btn.title) btn.title = `Cannot afford: ${shortfalls.join('; ')}`;
@@ -985,7 +1031,7 @@ export function setupCrashSiteSection(section) {
                             addLogEntry(block.reason, LogType.INFO);
                             return;
                         }
-                        const shortfalls = getAffordabilityShortfalls(a, resources, characterState);
+                        const shortfalls = getStartActionShortfalls(a, resources, characterState);
                         if (shortfalls.length > 0) {
                             e.preventDefault();
                             addLogEntry(`Cannot start "${a.name}": ${shortfalls.join('; ')}`, LogType.INFO);
@@ -994,7 +1040,6 @@ export function setupCrashSiteSection(section) {
 
                         const actionForHandler = Object.assign({}, a, { uiInstanceId: `localmap:${String(a.id)}` });
                         startAction(actionForHandler, host);
-                        try { renderLocalMap(); } catch { /* ignore */ }
                     }
                 });
             }
@@ -1010,7 +1055,6 @@ export function setupCrashSiteSection(section) {
                     onClick: (e) => {
                         const actionForHandler = Object.assign({}, sit, { uiInstanceId: `localmap:${String(sit.id)}` });
                         startAction(actionForHandler, host);
-                        try { renderLocalMap(); } catch { /* ignore */ }
                     }
                 });
             }
@@ -1050,7 +1094,6 @@ export function setupCrashSiteSection(section) {
                             } catch { /* ignore */ }
                             const actionForHandler = Object.assign({}, debris, { uiInstanceId: `localmap:${String(debris.id)}` });
                             startAction(actionForHandler, host);
-                            try { renderLocalMap(); } catch { /* ignore */ }
                         }
                     });
                 }
@@ -1081,7 +1124,6 @@ export function setupCrashSiteSection(section) {
                             }
                             const actionForHandler = Object.assign({}, strip, { uiInstanceId: `localmap:${String(strip.id)}` });
                             startAction(actionForHandler, host);
-                            try { renderLocalMap(); } catch { /* ignore */ }
                         }
                     });
                 }
@@ -1111,7 +1153,6 @@ export function setupCrashSiteSection(section) {
                             }
                             const actionForHandler = Object.assign({}, sup, { uiInstanceId: `localmap:${String(sup.id)}` });
                             startAction(actionForHandler, host);
-                            try { renderLocalMap(); } catch { /* ignore */ }
                         }
                     });
                 }
@@ -1213,7 +1254,7 @@ export function setupCrashSiteSection(section) {
                                     addLogEntry(block.reason, LogType.INFO);
                                     return;
                                 }
-                                const shortfalls = getAffordabilityShortfalls(a, resources, characterState);
+                                const shortfalls = getStartActionShortfalls(a, resources, characterState);
                                 if (shortfalls.length > 0) {
                                     e.preventDefault();
                                     addLogEntry(`Cannot start "${a.name}": ${shortfalls.join('; ')}`, LogType.INFO);
@@ -1242,9 +1283,6 @@ export function setupCrashSiteSection(section) {
 
                                 const actionForHandler = Object.assign({}, a, { uiInstanceId: `localmap:${String(a.id)}` });
                                 startAction(actionForHandler, host);
-
-                                // Refresh action list in case any disabling text changes.
-                                try { renderLocalMap(); } catch { /* ignore */ }
                             }
                         });
                     }
@@ -1343,6 +1381,14 @@ export function setupCrashSiteSection(section) {
             } else {
                 // Unexplored tiles: show Explore only when adjacent (one-step move into fog).
                 if (dist === 1) {
+                    // C5 thorn wall: hide Explore until the wall is removed.
+                    // (Players should burn through it from C6; stepping onto C5 isn't allowed until then.)
+                    const shouldHideExploreForThornWall = !!(
+                        selX === 3
+                        && selY === 5
+                        && !(lm && lm.c5ThornWallBurned === true)
+                    );
+
                     // Captain's Quarters: forbid generic Explore until the narrative unlock occurs.
                     // (This prevents players from bypassing the intended unlock gating by simply exploring the tile.)
                     try {
@@ -1378,7 +1424,7 @@ export function setupCrashSiteSection(section) {
                         const pryDone = isAltAccessTile ? isFinished(pry) : false;
                         const shouldHideExploreForAltAccess = !!(isAltAccessTile && !pryDone);
 
-                        if (!shouldHideExploreForAltAccess) {
+                        if (!shouldHideExploreForAltAccess && !shouldHideExploreForThornWall) {
                             if (blockReason) {
                                 const btn = mkButton(move, {
                                     label: 'Explore',
@@ -1498,7 +1544,7 @@ export function setupCrashSiteSection(section) {
                                 return;
                             }
 
-                            const shortfalls = getAffordabilityShortfalls(burn, resources, characterState);
+                            const shortfalls = getStartActionShortfalls(burn, resources, characterState);
                             if (shortfalls.length > 0) {
                                 addLogEntry(`Cannot start "${burn.name}": ${shortfalls.join('; ')}`, LogType.INFO);
                                 return;
@@ -1506,13 +1552,10 @@ export function setupCrashSiteSection(section) {
 
                             const actionForHandler = Object.assign({}, burn, { uiInstanceId: `localmap:${String(burn.id)}` });
                             startAction(actionForHandler, host);
-
-                            try { renderLocalMap(); } catch { /* ignore */ }
                         },
                         tooltipOverride: () => {
-                            const base = tooltipDataForAction(burn);
-                            const desc = String(base.description || '');
-                            return Object.assign({}, base, { description: `${desc}\n\nRequires: Basic Torch equipped (accessory).` });
+                            // Requirements are already shown in the tooltip's Requirements section.
+                            return tooltipDataForAction(burn);
                         }
                     });
                 }
@@ -1583,7 +1626,7 @@ export function setupCrashSiteSection(section) {
                                         addLogEntry(block.reason, LogType.INFO);
                                         return;
                                     }
-                                    const shortfalls = getAffordabilityShortfalls(sit, resources, characterState);
+                                    const shortfalls = getStartActionShortfalls(sit, resources, characterState);
                                     if (shortfalls.length > 0) {
                                         addLogEntry(`Cannot start "${sit.name}": ${shortfalls.join('; ')}`, LogType.INFO);
                                         return;
@@ -1591,7 +1634,6 @@ export function setupCrashSiteSection(section) {
 
                                     const actionForHandler = Object.assign({}, sit, { uiInstanceId: `localmap:${String(sit.id)}` });
                                     startAction(actionForHandler, host);
-                                    try { renderLocalMap(); } catch { /* ignore */ }
                                     return;
                                 }
                             } catch { /* ignore */ }
@@ -1705,7 +1747,7 @@ export function setupCrashSiteSection(section) {
                                     addLogEntry(block.reason, LogType.INFO);
                                     return;
                                 }
-                                const shortfalls = getAffordabilityShortfalls(a, resources, characterState);
+                                const shortfalls = getStartActionShortfalls(a, resources, characterState);
                                 if (shortfalls.length > 0) {
                                     addLogEntry(`Cannot start "${a.name}": ${shortfalls.join('; ')}`, LogType.INFO);
                                     return;
@@ -1769,7 +1811,7 @@ export function setupCrashSiteSection(section) {
                             addLogEntry(block.reason, LogType.INFO);
                             return;
                         }
-                        const shortfalls = getAffordabilityShortfalls(actionForHandler, resources, characterState);
+                        const shortfalls = getStartActionShortfalls(actionForHandler, resources, characterState);
                         if (shortfalls.length > 0) {
                             addLogEntry(`Cannot start "${actionForHandler.name}": ${shortfalls.join('; ')}`, LogType.INFO);
                             return;
@@ -1918,6 +1960,16 @@ export function setupCrashSiteSection(section) {
             <span class="cancel-text">Abort?</span>
         `;
 
+        // If this action previously paused due to Stamina depletion, keep its progress bar visible
+        // even when other actions complete and the Campsite panels re-render their buttons.
+        try {
+            if (!getActiveCrashSiteAction()) {
+                const saved01 = getSavedProgress01ForActionId(action.id);
+                const bar = btn.querySelector('.action-progress-bar');
+                if (bar) bar.style.width = (saved01 != null && saved01 > 0) ? `${Math.round(saved01 * 1000) / 10}%` : '';
+            }
+        } catch { /* ignore */ }
+
         // Clear "new" badge after the player notices the button (persist quietly).
         if (action.uiNew) {
             wireClearUiNewBadge(btn, { legacyObj: action, legacyProp: 'uiNew' });
@@ -1932,12 +1984,12 @@ export function setupCrashSiteSection(section) {
     // (and any context-dependent description overrides)
     setupTooltip(btn, () => tooltipDataForActionWithContext(action));
 
-        const canAfford = canAffordAction(action, resources, characterState);
-        btn.classList.toggle('unaffordable', !canAfford);
-        btn.dataset.affordable = canAfford ? 'true' : 'false'; // Set initial value for state tracking
-        if (!canAfford) {
+        const canStart = canStartAction(action, resources, characterState);
+        btn.classList.toggle('unaffordable', !canStart);
+        btn.dataset.affordable = canStart ? 'true' : 'false'; // Set initial value for state tracking
+        if (!canStart) {
             btn.setAttribute('aria-disabled', 'true');
-            btn.dataset.shortfall = getAffordabilityShortfalls(action, resources, characterState).join(', ');
+            btn.dataset.shortfall = getStartActionShortfalls(action, resources, characterState).join(', ');
         } else {
             btn.removeAttribute('aria-disabled');
             delete btn.dataset.shortfall;
@@ -1974,8 +2026,10 @@ export function setupCrashSiteSection(section) {
         return;
     }
 
-    if (!canAffordAction(action, resources, characterState)) {
-        addLogEntry(`Not enough resources to begin: ${action.name}.`, LogType.ERROR);
+    if (!canStartAction(action, resources, characterState)) {
+        const shortfalls = getStartActionShortfalls(action, resources, characterState);
+        const msg = shortfalls.length ? shortfalls.join('; ') : 'Not enough resources.';
+        addLogEntry(`Cannot start "${action.name}": ${msg}`, LogType.INFO);
         return;
     }
     const stage = getCurrentStage(action);
@@ -2002,18 +2056,6 @@ export function setupCrashSiteSection(section) {
         const name = btn.querySelector('.building-name');
         if (name && !btn.dataset.originalLabel) btn.dataset.originalLabel = name.innerText;
         const bar = btn.querySelector('.action-progress-bar');
-        if (bar) {
-            // Reset instantly without transition so the bar doesn't visibly shrink from full to empty.
-            try {
-                bar.style.transition = 'none';
-                bar.style.width = '0%';
-                // force reflow to apply the width immediately
-                // eslint-disable-next-line no-unused-expressions
-                void bar.offsetWidth;
-                // restore to stylesheet-controlled transition (remove inline override)
-                bar.style.transition = '';
-            } catch (e) { bar.style.width = '0%'; }
-        }
         btn.classList.add('running');
         if (action.cancelable) {
             btn.onclick = () => requestCancel(action, section);
@@ -2039,13 +2081,46 @@ export function setupCrashSiteSection(section) {
         snapshot.reward = action.reward || [];
     }
 
+    // If this action previously paused due to Stamina depletion, resume from saved progress.
+    const savedProgress01 = getSavedProgress01ForActionId(snapshot.id);
+    const effectiveSecForResume = computeEffectiveDuration(snapshot, resources);
+    const resumeElapsed = (savedProgress01 != null)
+        ? Math.max(0, Math.min(effectiveSecForResume, savedProgress01 * effectiveSecForResume))
+        : 0;
+
+    // Consume saved progress once an action is restarted so Cancel truly aborts.
+    if (savedProgress01 != null) {
+        applySavedProgressToActionDef(snapshot.id, { progress01: 0, stageIndex: getSavedProgressStageIndexForActionId(snapshot.id) });
+    }
+
+    // Initialize bar/label before ticking so resume feels immediate.
+    if (btn) {
+        const bar = btn.querySelector('.action-progress-bar');
+        const label = btn.querySelector('.building-name');
+        const timeScale = (Number(window.TIME_SCALE || 1) > 0) ? Number(window.TIME_SCALE || 1) : 1;
+
+        if (bar) {
+            const pct = (effectiveSecForResume > 0) ? Math.min((resumeElapsed / effectiveSecForResume) * 100, 100) : 0;
+            try {
+                bar.style.transition = 'none';
+                bar.style.width = `${pct}%`;
+                void bar.offsetWidth;
+                bar.style.transition = '';
+            } catch { bar.style.width = `${pct}%`; }
+        }
+        if (label) {
+            const remainingRealSeconds = Math.max(0, (effectiveSecForResume - resumeElapsed) / timeScale);
+            label.innerText = `${remainingRealSeconds.toFixed(1)}s`;
+        }
+    }
+
     setActiveCrashSiteAction({
         ...snapshot,
         // Optional: used to locate the correct UI button when multiple instances exist.
         uiInstanceId: action && action.uiInstanceId ? action.uiInstanceId : undefined,
         startTime: Date.now(),
         lastTickTime: Date.now(),
-        elapsed: 0
+        elapsed: resumeElapsed
     });
 
     // Local map movement: start the travel-dot animation immediately and let it run
@@ -2122,12 +2197,81 @@ function updateActionProgress(section) {
     const effectiveDuration = computeEffectiveDuration(a, resources);
 
     // Drain is handled centrally by the main loop (computeResourceRates + main.js).
-    // Here we only check for depletion and cancel if the resource is exhausted.
+    // Here we only check for depletion:
+    // - Food/Water are soft-gated: allow reaching 0 without cancelling.
+    // - Stamina: if it hits 0 mid-action, pause with saved progress (requires click-to-resume).
     if (a.drain) {
         for (const d of a.drain) {
             const res = resources.find(r => r.name === d.resource);
             if (!res) continue;
             if (res.amount <= 0) {
+                if (SOFT_DEPLETION_RESOURCES.has(String(res.name))) {
+                    continue;
+                }
+
+                if (String(res.name) === 'Stamina') {
+                    const progress01 = (effectiveDuration > 0)
+                        ? Math.max(0, Math.min(1, Number(a.elapsed || 0) / effectiveDuration))
+                        : 0;
+
+                    // Persist progress on the action definition for resume and save/load.
+                    applySavedProgressToActionDef(a.id, {
+                        progress01,
+                        stageIndex: getSavedProgressStageIndexForActionId(a.id)
+                    });
+
+                    stopCrashSiteLoop();
+                    setActiveCrashSiteAction(null);
+                    addLogEntry(`Too exhausted to continue: ${a.name} paused.`, LogType.INFO);
+
+                    // Local-map actions use dynamic labels (e.g. "(X left)"). If the local-map action row
+                    // re-rendered while the action was running, the original DOM label can be lost.
+                    // Refresh the local-map UI on pause so labels are recomputed from tile state, while the
+                    // saved progress bar stays visible.
+                    try {
+                        const inst = String(a.uiInstanceId || '');
+                        if (inst.startsWith('localmap:')) {
+                            try { refreshCrashSiteLocalMapUi(section); } catch { /* ignore */ }
+                            if (typeof updateCrashSiteActionButtonsState === 'function') updateCrashSiteActionButtonsState();
+                            return;
+                        }
+                    } catch { /* ignore */ }
+
+                    // Restore the UI button to a non-running state but keep the progress bar where it is.
+                    const sel = a && a.uiInstanceId
+                        ? `[data-action-id="${a.id}"][data-action-instance="${a.uiInstanceId}"]`
+                        : `[data-action-id="${a.id}"][data-action-instance="main"]`;
+                    const btn = section ? section.querySelector(sel) : document.querySelector(sel);
+                    if (btn) {
+                        btn.classList.remove('running');
+                        btn.classList.remove('confirm-cancel');
+
+                        const nameSpan = btn.querySelector('.building-name');
+                        if (nameSpan) {
+                            if (btn.dataset.originalLabel) {
+                                nameSpan.textContent = btn.dataset.originalLabel;
+                            } else {
+                                const defForLabel = salvageActions.find(s => s.id === a.id) || a;
+                                nameSpan.textContent = (defForLabel && defForLabel.name) || '';
+                            }
+                        }
+                        delete btn.dataset.originalLabel;
+
+                        const actionDef = salvageActions.find(s => s.id === a.id);
+                        if (actionDef) {
+                            const inst = btn.dataset.actionInstance;
+                            const actionForHandler = (inst && inst !== 'main')
+                                ? Object.assign({}, actionDef, { uiInstanceId: inst })
+                                : actionDef;
+                            btn.disabled = false;
+                            attachStartClickHandler(btn, actionForHandler, section);
+                        }
+                    }
+
+                    if (typeof updateCrashSiteActionButtonsState === 'function') updateCrashSiteActionButtonsState();
+                    return;
+                }
+
                 cancelAction(section, `${a.name} cancelled: Ran out of ${res.name}.`, true);
                 return;
             }
@@ -2164,6 +2308,9 @@ function cancelAction(section, message, force = false) {
         addLogEntry(`${a.name} cannot be cancelled.`, LogType.INFO);
         return;
     }
+
+    // Cancelling an action should discard any prior paused progress.
+    try { applySavedProgressToActionDef(a.id, { progress01: 0, stageIndex: getSavedProgressStageIndexForActionId(a.id) }); } catch { /* ignore */ }
 
     stopCrashSiteLoop();
     if (cancelTimeout) { clearTimeout(cancelTimeout); cancelTimeout = null; }
@@ -2677,6 +2824,9 @@ async function handleActionCompletion(section) {
 
     // (No DOM-based "exists" checks; Campsite no longer renders a generic list.)
 
+    // Completing an action should clear any paused progress.
+    try { applySavedProgressToActionDef(completed.id, { progress01: 0, stageIndex: getSavedProgressStageIndexForActionId(completed.id) }); } catch { /* ignore */ }
+
     // Clear active action and reset the UI for the completed action (in-place) unless we must rebuild
     setActiveCrashSiteAction(null);
 
@@ -2922,7 +3072,7 @@ export function updateCrashSiteActionButtonsState() {
             const action = salvageActions.find(a => a && a.id === id);
             if (!action) return;
 
-            const canAfford = !!canAffordAction(action, resources, characterState);
+            const canStart = !!canStartAction(action, resources, characterState);
             const { blocked: isBlocked, reason } = getBlockedStatus(action.id, { actions: salvageActions, flags: gameFlags, characterState });
             const capReason = getCapacityBlockReason(action);
             const isCapBlocked = !!capReason;
@@ -2931,17 +3081,17 @@ export function updateCrashSiteActionButtonsState() {
             const wasBlocked = btn.dataset.blocked === 'true';
             const wasCapBlocked = btn.dataset.capacityBlocked === 'true';
 
-            if (wasAffordable !== canAfford) {
-                btn.classList.toggle('unaffordable', !canAfford);
-                if (!canAfford) {
+            if (wasAffordable !== canStart) {
+                btn.classList.toggle('unaffordable', !canStart);
+                if (!canStart) {
                     btn.setAttribute('aria-disabled', 'true');
-                    btn.dataset.shortfall = getAffordabilityShortfalls(action, resources, characterState).join(', ');
+                    btn.dataset.shortfall = getStartActionShortfalls(action, resources, characterState).join(', ');
                 } else {
                     // Only clear aria-disabled if it was set due to affordability.
                     // (Other gates use aria-disabled too.)
                     delete btn.dataset.shortfall;
                 }
-                btn.dataset.affordable = canAfford ? 'true' : 'false';
+                btn.dataset.affordable = canStart ? 'true' : 'false';
             }
 
             if (wasBlocked !== isBlocked) {
@@ -2967,7 +3117,7 @@ export function updateCrashSiteActionButtonsState() {
             } else if (isBlocked) {
                 btn.setAttribute('aria-disabled', 'true');
                 if (reason) btn.title = reason;
-            } else if (!canAfford) {
+            } else if (!canStart) {
                 btn.setAttribute('aria-disabled', 'true');
             } else {
                 // Clear only if there is no other disabled state.

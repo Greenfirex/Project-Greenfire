@@ -318,7 +318,10 @@ export function computeResourceRates(resourceName) {
     // Passive regeneration: keep consistent regardless of base camp/chapter.
     // These are per-second rates.
     if (resourceName === 'Stamina') {
-        totalProduction += 0.2;
+        // Thirst disables passive stamina regeneration.
+        if (!isThirsty) {
+            totalProduction += 0.2;
+        }
         try {
             const buff = characterState?.buffs?.staminaRegen;
             const until = Math.floor(Number(buff?.untilMinutes) || 0);
@@ -330,7 +333,10 @@ export function computeResourceRates(resourceName) {
         } catch { /* non-fatal */ }
     }
     if (resourceName === 'Health') {
-        totalProduction += 0.1;
+        // Hunger disables passive health regeneration.
+        if (!isHungry) {
+            totalProduction += 0.1;
+        }
     }
 
     const totalConsumption = passiveConsumption + jobConsumption + activeDrainRate;

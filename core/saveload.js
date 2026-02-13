@@ -120,15 +120,6 @@ function reconcileActivatedSectionsAfterLoad() {
         // Compatibility: older saves may still contain this legacy section flag.
         delete next.crewManagementSection;
 
-        // Forward-compat: if an older save already has Base Camp, show the Campsite tab as NEW once.
-        try {
-            if (gameFlags && gameFlags.baseCampEstablished && characterState && characterState.localMap) {
-                if (characterState.localMap.campsiteTabUiNew == null) {
-                    characterState.localMap.campsiteTabUiNew = true;
-                }
-            }
-        } catch { /* non-fatal */ }
-
         // Chapter 2+ implies Colony + Encrypted Drive are available, and Crash Site is hidden.
         if (gameFlags && Number(gameFlags.chapter) >= 2) {
             next.colonySection = true;
@@ -346,6 +337,8 @@ export function applyGameState(gameState) {
         const RUNTIME_ACTION_KEYS = new Set([
             'isUnlocked', 'stage', 'uses', 'maxUses', 'completed',
             'startTime', 'lastTickTime', 'pauseStart',
+            // If an action was paused mid-progress (e.g., Stamina ran out), allow resume.
+            'savedProgress', 'savedProgressStage',
             // UI-only hint: show "new" badge until user hovers.
             'uiNew',
             // UI/runtime hint: if a spoiler-free encounter was discovered (retreat/lose), show combat badge.
@@ -396,6 +389,7 @@ export function applyGameState(gameState) {
         const RUNTIME_ACTION_KEYS = new Set([
             'isUnlocked', 'stage', 'uses', 'maxUses', 'completed',
             'startTime', 'lastTickTime', 'pauseStart',
+            'savedProgress', 'savedProgressStage',
             'uiNew',
             'encounterDiscovered'
         ]);
@@ -430,6 +424,7 @@ export function applyGameState(gameState) {
         const RUNTIME_ACTION_KEYS = new Set([
             'isUnlocked', 'stage', 'uses', 'maxUses', 'completed',
             'startTime', 'lastTickTime', 'pauseStart',
+            'savedProgress', 'savedProgressStage',
             'uiNew',
             'encounterDiscovered'
         ]);
@@ -730,10 +725,12 @@ export async function exportSaveToClipboard() {
         if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(payload);
             addLogEntry('Save exported to clipboard.', LogType.SUCCESS);
+            return { method: 'clipboard' };
         } else {
             const importTextarea = document.getElementById('importSaveText');
             if (importTextarea) importTextarea.value = payload;
             addLogEntry('Save placed into import box (copy manually).', LogType.INFO);
+            return { method: 'importBox' };
         }
     } catch (e) {
         addLogEntry('Export failed: ' + (e.message || e), LogType.ERROR);
@@ -792,8 +789,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const importTextarea = document.getElementById('importSaveText');
 
     if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
-            exportSaveToClipboard().catch(() => {});
+        exportBtn.addEventListener('click', async () => {
+            const statusEl = document.getElementById('saveMgmtStatus');
+
+            try {
+                const result = await exportSaveToClipboard();
+                if (statusEl) {
+                    statusEl.textContent =
+                        result && result.method === 'clipboard'
+                            ? 'Exported to clipboard.'
+                            : 'Clipboard unavailable — save placed into the import box (copy manually).';
+                }
+            } catch {
+                if (statusEl) statusEl.textContent = 'Export failed.';
+            }
         });
     }
 

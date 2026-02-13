@@ -234,6 +234,80 @@ async function applyPendingActionMove(expectedActionId) {
     } catch { /* ignore */ }
 }
 
+function deleteVisitedTile(st, x, y) {
+    try {
+        if (!st || typeof st !== 'object') return;
+        const tx = Number(x);
+        const ty = Number(y);
+        if (![tx, ty].every(Number.isFinite)) return;
+        const key = `${Math.max(1, Math.min(11, tx))},${Math.max(1, Math.min(9, ty))}`;
+        if (st.visited && typeof st.visited === 'object' && !Array.isArray(st.visited)) {
+            delete st.visited[key];
+        }
+    } catch { /* ignore */ }
+}
+
+function rewindLastLocalMapStep(st) {
+    try {
+        if (!st || typeof st !== 'object') return false;
+        const fromX = Number(st.lastMoveFromX);
+        const fromY = Number(st.lastMoveFromY);
+        const toX = Number(st.lastMoveToX);
+        const toY = Number(st.lastMoveToY);
+        if (![fromX, fromY, toX, toY].every(Number.isFinite)) return false;
+
+        // Only rewind if the player is currently at the destination and it was a single-tile step.
+        if (Number(st.x) !== toX || Number(st.y) !== toY) return false;
+        if (Math.abs(toX - fromX) + Math.abs(toY - fromY) !== 1) return false;
+
+        st.lastMoveAt = Date.now();
+        st.lastMoveFromX = toX;
+        st.lastMoveFromY = toY;
+        st.lastMoveToX = fromX;
+        st.lastMoveToY = fromY;
+        st.x = fromX;
+        st.y = fromY;
+        st.selectedX = fromX;
+        st.selectedY = fromY;
+
+        try {
+            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                window.setupCrashSiteSection();
+            }
+        } catch { /* ignore */ }
+
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+async function runStepInTileCombatEncounter(st, encounterId, { sourceActionId = null, stageIndex = null, onWin = null } = {}) {
+    if (!st || typeof st !== 'object') return { outcome: 'error' };
+
+    try {
+        const { showCombatPopup } = await import('../ui/panels/combatPopup.js');
+        const result = await showCombatPopup(encounterId, { sourceActionId, stageIndex });
+
+        if (result && result.outcome === 'win') {
+            try {
+                if (typeof onWin === 'function') await onWin(result);
+            } catch { /* ignore */ }
+            return result;
+        }
+
+        // General rule: retreating from a step-in tile encounter should NOT mark the tile as explored.
+        if (result && result.outcome === 'retreat') {
+            deleteVisitedTile(st, st.lastMoveToX, st.lastMoveToY);
+            rewindLastLocalMapStep(st);
+        }
+
+        return result;
+    } catch {
+        return { outcome: 'error' };
+    }
+}
+
 // Corridor/bridge/room actions: once finished, step onto the tile (when started from an adjacent tile).
 registerActionCompletionHandler('searchNorthCorridor', () => applyPendingActionMove('searchNorthCorridor'));
 registerActionCompletionHandler('searchSouthCorridor', () => applyPendingActionMove('searchSouthCorridor'));
@@ -602,44 +676,28 @@ registerActionCompletionHandler('move', async () => {
                             unlockFromScoutStage(1);
                         }
 
-                        // H8 (water source) -> Scout stage 2 unlocks Purify Water (and related)
-                        if (st.x === 8 && st.y === 8 && !st.discoveredRiver) {
-                            st.discoveredRiver = true;
-                            unlockFromScoutStage(2);
-                        }
-
-                        // River combat: retryable until win. Retreat falls back to the previous tile.
+                        // River combat (H8): retryable until win.
+                        // Important: do NOT mark the tile as a completed discovery / unlock story content
+                        // until the encounter is actually resolved (win). Retreat should not count as exploring.
                         if (st.x === 8 && st.y === 8 && !st.riverCombatDone) {
-                            try {
-                                const result = await showCombatPopup('wildlife_river', { sourceActionId: 'scoutSurroundings', stageIndex: 2 });
-                                if (result && result.outcome === 'win') {
+                            const result = await runStepInTileCombatEncounter(st, 'wildlife_river', {
+                                sourceActionId: 'scoutSurroundings',
+                                stageIndex: 2,
+                                onWin: () => {
                                     st.riverCombatDone = true;
-                                } else if (result && result.outcome === 'retreat') {
-                                    const fromX = Number(st.lastMoveFromX);
-                                    const fromY = Number(st.lastMoveFromY);
-                                    const toX = Number(st.lastMoveToX);
-                                    const toY = Number(st.lastMoveToY);
-                                    // If we arrived here via the normal local-map move, fall back one tile.
-                                    if ([fromX, fromY, toX, toY].every(Number.isFinite)
-                                        && Number(st.x) === toX && Number(st.y) === toY
-                                        && Math.abs(toX - fromX) + Math.abs(toY - fromY) === 1) {
-                                        st.lastMoveAt = Date.now();
-                                        st.lastMoveFromX = toX;
-                                        st.lastMoveFromY = toY;
-                                        st.lastMoveToX = fromX;
-                                        st.lastMoveToY = fromY;
-                                        st.x = fromX;
-                                        st.y = fromY;
-                                        st.selectedX = fromX;
-                                        st.selectedY = fromY;
-                                        try {
-                                            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
-                                                window.setupCrashSiteSection();
-                                            }
-                                        } catch { /* ignore */ }
+                                    if (!st.discoveredRiver) {
+                                        st.discoveredRiver = true;
+                                        unlockFromScoutStage(2);
                                     }
                                 }
-                            } catch { /* ignore */ }
+                            });
+
+                            // If combat popup fails for any reason, fail open so players aren't hard-stuck.
+                            if (!result || result.outcome === 'error') {
+                                try {
+                                    st.riverCombatDone = true;
+                                } catch { /* ignore */ }
+                            }
                         }
 
                         // G8 -> one-time story hint + tutorial weapon
@@ -906,9 +964,6 @@ registerActionCompletionHandler('establishBaseCamp', () => {
         try {
             if (characterState && characterState.localMap) {
                 characterState.localMap.baseCampEstablished = true;
-                if (characterState.localMap.campsiteTabUiNew !== false) {
-                    characterState.localMap.campsiteTabUiNew = true;
-                }
             }
         } catch { /* ignore */ }
         // Start a temporary +10% morale boost that decays over 7 in-game days from this moment
@@ -995,6 +1050,20 @@ registerActionCompletionHandler('installPurificationUnit', () => {
 
 // Workbench completion handler (enables Campsite -> Crafting panel)
 registerActionCompletionHandler('workbench', () => {
+    // Unlock workbench-gated crafting recipes.
+    // These used to be listed as unlocked at Base Camp establishment, but the intended
+    // flow is: establish base camp -> build Workbench -> unlock crafting recipes.
+    try {
+        const ids = ['craftMetalSpear', 'craftCanteen'];
+        for (const id of ids) {
+            const act = (salvageActions || []).find(a => a && a.id === id);
+            if (act && !act.isUnlocked) {
+                act.isUnlocked = true;
+                act.uiNew = true;
+            }
+        }
+    } catch { /* ignore */ }
+
     // Unlock Crafting as a main menu section.
     try {
         if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {

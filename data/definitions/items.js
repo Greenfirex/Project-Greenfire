@@ -7,6 +7,7 @@ export const items = [
         name: 'Basic Helmet',
         slot: 'head',
         icon: 'assets/images/items/basic helmet.png',
+        description: 'Standard issue SFC armor. Light head protection for field duty.',
         stats: { armor: 1 }
     },
     {
@@ -14,6 +15,7 @@ export const items = [
         name: 'Basic Armor',
         slot: 'chest',
         icon: 'assets/images/items/basic chest armor.png',
+        description: 'Standard issue SFC armor with embedded space for water and food supply.',
         // Also increases personal carryable supplies (Food/Water) capacity.
         stats: { armor: 2, stamina: -5, foodCapacity: 40, waterCapacity: 40 }
     },
@@ -22,6 +24,7 @@ export const items = [
         name: 'Basic Legs',
         slot: 'legs',
         icon: 'assets/images/items/basic leg armor.png',
+        description: 'Utility legwear designed for long marches and rugged terrain.',
         stats: { stamina: 5 }
     },
     {
@@ -29,6 +32,7 @@ export const items = [
         name: 'Basic Boots',
         slot: 'boots',
         icon: 'assets/images/items/basic boots.png',
+        description: 'Reinforced boots with stable footing and quick movement.',
         stats: { evasion: 3 }
     },
     {
@@ -36,6 +40,7 @@ export const items = [
         name: 'Spiked Branch',
         slot: 'weapon',
         icon: 'assets/images/items/spiked branch.png',
+        description: 'A sharpened branch. Crude, but it gets the job done.',
         stats: { damage: 2, attackSpeed: 0.1 }
     },
     {
@@ -43,6 +48,7 @@ export const items = [
         name: 'Metal Spear',
         slot: 'weapon',
         icon: 'assets/images/items/metal spear.png',
+        description: 'A balanced spear with a metal tip. Reliable and easy to handle.',
         // Slightly better than Spiked Branch
         stats: { damage: 3, attackSpeed: 0.1 }
     },
@@ -51,6 +57,7 @@ export const items = [
         name: 'Stimpack',
         slot: 'consumable',
         icon: 'assets/images/items/stimpack.png',
+        description: 'A quick injector that restores health in a pinch.',
         // Consumables are used via UI buttons (e.g., combat popup)
         consumable: { type: 'heal', resource: 'Health', amount: 25 }
     },
@@ -59,6 +66,7 @@ export const items = [
         name: 'First Aid Kit',
         slot: 'consumable',
         icon: 'assets/images/items/first aid kit.png',
+        description: 'Bandages and meds for treating minor injuries.',
         consumable: { type: 'heal', resource: 'Health', amount: 15 }
     },
     {
@@ -66,7 +74,7 @@ export const items = [
         name: 'Herb Tea',
         slot: 'consumable',
         icon: 'assets/images/items/herb tea.png',
-        description: 'A warm herbal brew. Temporarily increases Stamina regeneration.',
+        description: 'A warm herbal brew that boosts Stamina regeneration for a while.',
         consumable: { type: 'buff', buff: 'staminaRegen', bonusPerSec: 0.2, durationMinutes: 720 }
     },
     {
@@ -74,6 +82,7 @@ export const items = [
         name: 'Basic Torch',
         slot: 'accessory',
         icon: 'assets/images/items/basic torch.png',
+        description: 'A simple torch for light and confidence in the dark.',
         stats: { evasion: 0, hitChance: 1 }
     },
     {
@@ -81,6 +90,7 @@ export const items = [
         name: 'Canteen',
         slot: 'accessory',
         icon: 'assets/images/items/canteen.png',
+        description: 'A durable canteen for carrying extra drinking water.',
         // Increases personal carryable Drinking Water capacity.
         stats: { waterCapacity: 15 }
     },
@@ -91,18 +101,21 @@ export const items = [
         name: 'Crude Prybar',
         slot: 'inventory',
         icon: 'assets/images/items/crude prybar.png',
+        description: 'A bent prybar for forcing stubborn hatches and crates.',
     },
     {
         id: 'makeshift_explosive',
         name: 'Makeshift Explosive',
         slot: 'inventory',
         icon: 'assets/images/items/makeshift explosive.png',
+        description: 'A volatile charge cobbled together from salvage and hope.',
     },
     {
         id: 'power_cell',
         name: 'Power Cell',
         slot: 'inventory',
         icon: 'assets/images/items/power cell.png',
+        description: 'A compact energy cell used to power damaged systems.',
         stackable: true,
     }
 ];

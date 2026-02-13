@@ -607,6 +607,7 @@ function buildTooltipHTML(data) {
     // Helper: render an array of cost/drain entries with affordability and ETA logic
     function renderCostItems(arr, opts = {}) {
         if (!Array.isArray(arr) || !arr.length) return '';
+        const soft = new Set(Array.isArray(opts.softGateResources) ? opts.softGateResources.map(String) : []);
         const parts = arr.map(item => {
             const itemId = getItemIdForResourceName(item?.resource);
             if (itemId) {
@@ -622,6 +623,11 @@ function buildTooltipHTML(data) {
             const res = resources.find(r => r.name === item.resource);
             const have = res ? Number(res.amount) : 0;
             const need = Number(item.amount || 0);
+            const isSoftGated = soft.has(String(item.resource));
+            if (isSoftGated) {
+                const totalLabel = opts.showTotal ? ' (Total)' : '';
+                return `<p>${item.resource}: ${need}${totalLabel}</p>`;
+            }
             if (have < need) {
                 // compute shortfall and ETA using computeResourceRates
                 let etaText = '';
@@ -709,7 +715,7 @@ function buildTooltipHTML(data) {
         } catch (e) { /* ignore block check errors */ }
 
         // Costs / drains — use the shared renderer so ETA/affordability is consistent
-        const costHtml = (renderCostItems(data.cost) || '') + (renderCostItems(data.drain) || '');
+        const costHtml = (renderCostItems(data.cost) || '') + (renderCostItems(data.drain, { softGateResources: ['Food Rations', 'Drinking Water'] }) || '');
         if (costHtml) html += `<div class="tooltip-section"><h4>Cost</h4>${costHtml}</div>`;
 
         // If this item/job produces a resource, show any active upgrade modifiers and Morale that affect
@@ -1166,8 +1172,16 @@ function buildSurvivalDebuffTooltipHtml(kind) {
     lines.push('Morale: -20%.');
     // Keep this phrasing general (not action-tooltip specific), while still conveying impact.
     lines.push('Task time: +50%.');
-    if (isHungry) lines.push('Combat: -10 hit chance.');
-    if (isThirsty) lines.push('Combat: +18% time between attacks.');
+    if (isHungry) {
+        lines.push('Health: passive regeneration disabled.');
+        lines.push('Combat: -50% damage.');
+        lines.push('Combat: -10 hit chance.');
+    }
+    if (isThirsty) {
+        lines.push('Stamina: passive regeneration disabled.');
+        lines.push('Combat: +0.50s attack speed (slower).');
+        lines.push('Combat: -20 hit chance.');
+    }
 
     return `
         <h4>${title}</h4>

@@ -94,9 +94,7 @@ const initialRecipeActions = [
             { resource: 'Metal Parts', amount: 15 }
         ],
         drain: [
-            { resource: 'Stamina', amount: 10 },
-            { resource: 'Provisions', amount: 3 },
-            { resource: 'Water', amount: 4 }
+            { resource: 'Stamina', amount: 10 }
         ],
         reward: [
             { resource: 'Crude Prybar', amount: 1 }

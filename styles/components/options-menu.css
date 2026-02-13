@@ -180,7 +180,7 @@
 }
 
 .save-management {
-    margin: 14px 0;
+    margin: 0;
     text-align: center;
 }
 
@@ -193,7 +193,7 @@
 }
 
 #importSaveText {
-    width: 95%;
+    width: 100%;
     height: 60px;
     background-color: #333;
     color: #fff;
@@ -201,17 +201,35 @@
     border-radius: 4px;
 }
 
-.save-management button {
-    padding: 8px 12px;
-    background-color: #555;
-    color: #fff;
-    border: 1px solid #777;
-    border-radius: 4px;
-    cursor: pointer;
+.save-controls {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
-.save-management button:hover {
-    background-color: #777;
+/* Reuse the game's shared button graphics (Button03/Button04) via .menu-button,
+   but size it appropriately for the Options modal. */
+.options-menu-content .options-menu-btn.menu-button {
+    width: min(210px, 46%);
+    height: 36px;
+    margin: 0;
+    font-size: 13px;
+}
+
+.options-menu-content .options-menu-btn.menu-button:hover {
+    /* In the modal, avoid the big scale-up used in the left nav */
+    transform: none;
+}
+
+.save-mgmt-status {
+    width: 100%;
+    text-align: left;
+    opacity: 0.75;
+    font-size: 12px;
+    line-height: 1.25;
 }
 
 #resetButton {

@@ -187,26 +187,28 @@
             <h4>Glow Intensity</h4>
             <input type="range" id="glowIntensitySlider" min="0" max="100" step="1" value="70">
         </div>
-<div class="save-management popup-span-all">
-    <h4>Save Management</h4>
 
-    <div class="export-row">
-        <button id="exportSaveButton">Export to Clipboard (encrypted)</button>
-    </div>
+        <div class="option-group save-management popup-span-all">
+            <h4>Save Management</h4>
 
-    <div id="importContainer">
-        <textarea id="importSaveText" placeholder="Paste exported save here"></textarea>
-        <div class="import-controls">
-            <button id="importSaveButton">Import</button>
+            <div id="importContainer">
+                <textarea id="importSaveText" placeholder="Paste exported save here"></textarea>
+                <div class="save-controls">
+                    <button id="exportSaveButton" class="menu-button options-menu-btn" type="button">Export to Clipboard</button>
+                    <button id="importSaveButton" class="menu-button options-menu-btn" type="button">Import</button>
+                </div>
+                <div id="saveMgmtStatus" class="save-mgmt-status" aria-live="polite">
+                    Export copies an encrypted save to your clipboard.
+                </div>
+            </div>
         </div>
-    <div class="option-group">
-    <h4>Reset Game data</h4>        
-    <div class="import-reset-row">
-        <button id="resetButton" class="danger">Reset Progress</button>
-    </div>
-    </div>    
-    </div>
-</div>
+
+        <div class="option-group popup-span-all">
+            <h4>Reset Game Data</h4>
+            <div class="import-reset-row">
+                <button id="resetButton" class="danger">Reset Progress</button>
+            </div>
+        </div>
 </div>
 </div>
 

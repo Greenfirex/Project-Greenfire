@@ -23,6 +23,9 @@
     --inv-slot-w: clamp(92px, 11vw, 132px);
     --inv-slot-h: clamp(56px, 8vw, 64px);
 
+    /* Desktop: inventory slots get a bit more height so item names never clip */
+    --bag-slot-h: calc(var(--inv-slot-h) + 12px);
+
     /* Allow responsive rules to key off the actual section width (important when side panels shrink game area). */
     container-type: inline-size;
     container-name: character;
@@ -198,6 +201,11 @@
     /* Allow the stats list to take remaining space in the stats card when height is constrained */
     flex: 1 1 auto;
     min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    /* Keep the scrollbar from crowding right-edge controls (like + buttons). */
+    padding-right: 12px;
+    scrollbar-gutter: stable;
 }
 
 /* Styled scrollbar (match in-game log look) */
@@ -258,6 +266,11 @@
 }
 
 #characterSection .stat-row.is-item-negative .stat-value {
+    color: rgba(231, 76, 60, 0.95);
+}
+
+/* Debuff-modified stat coloring (value only). */
+#characterSection .stat-row.is-debuff-negative .stat-value {
     color: rgba(231, 76, 60, 0.95);
 }
 
@@ -502,6 +515,17 @@
 }
 
 /* Active effects overlay (e.g., Herb Tea) */
+#characterSection .paperdoll .active-effects {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    z-index: 4;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
 #characterSection .paperdoll .active-effect-btn {
     position: absolute;
     right: 10px;
@@ -521,6 +545,13 @@
     justify-content: center;
 }
 
+/* When using the multi-icon wrapper, buttons should flow instead of overlapping. */
+#characterSection .paperdoll .active-effects .active-effect-btn {
+    position: static;
+    right: auto;
+    top: auto;
+}
+
 #characterSection .paperdoll .active-effect-btn.hidden {
     display: none;
 }
@@ -533,6 +564,18 @@
     width: 22px;
     height: 22px;
     object-fit: contain;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.55));
+}
+
+#characterSection .paperdoll .active-effect-svg {
+    width: 22px;
+    height: 22px;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.55));
+}
+
+#characterSection .paperdoll .active-effect-emoji {
+    font-size: 18px;
+    line-height: 1;
     filter: drop-shadow(0 2px 6px rgba(0,0,0,0.55));
 }
 
@@ -703,7 +746,7 @@
     /* Keep bag slots consistent with equipment slot sizing */
     /* Allow columns to shrink to fit (avoids horizontal scrolling in narrow game area) */
     grid-template-columns: repeat(var(--bag-cols, 6), minmax(0, var(--inv-slot-w)));
-    grid-template-rows: repeat(var(--bag-rows, 2), var(--inv-slot-h));
+    grid-template-rows: repeat(var(--bag-rows, 2), var(--bag-slot-h, var(--inv-slot-h)));
     gap: 10px;
     padding: 6px;
     box-sizing: border-box;
@@ -1250,11 +1293,11 @@ body.is-touch-dragging {
 
     /* Stats compaction: reduce vertical padding + font sizes */
     #characterSection .character-card {
-        padding: 10px;
+        padding: 8px;
     }
 
     #characterSection .character-card-header {
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
 
     #characterSection .character-card-header h3 {
@@ -1262,11 +1305,11 @@ body.is-touch-dragging {
     }
 
     #characterSection .stats-list {
-        gap: 8px;
+        gap: 6px;
     }
 
     #characterSection .stat-row {
-        padding: 7px 8px;
+        padding: 6px 7px;
         border-radius: 9px;
     }
 
@@ -1280,7 +1323,7 @@ body.is-touch-dragging {
     }
 
     #characterSection .stat-bar {
-        height: 12px;
+        height: 11px;
     }
 
     #characterSection .stat-allocate-btn {
@@ -1473,13 +1516,14 @@ html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="accessor
 
 /* Stats compaction: reduce vertical padding + font sizes */
 html.is-compact #characterSection .character-card { padding: 10px; }
-html.is-compact #characterSection .character-card-header { margin-bottom: 8px; }
+html.is-compact #characterSection .character-card { padding: 8px; }
+html.is-compact #characterSection .character-card-header { margin-bottom: 6px; }
 html.is-compact #characterSection .character-card-header h3 { font-size: 13px; }
-html.is-compact #characterSection .stats-list { gap: 8px; }
-html.is-compact #characterSection .stat-row { padding: 7px 8px; border-radius: 9px; }
+html.is-compact #characterSection .stats-list { gap: 6px; }
+html.is-compact #characterSection .stat-row { padding: 6px 7px; border-radius: 9px; }
 html.is-compact #characterSection .stat-label { font-size: 11px; gap: 6px; }
 html.is-compact #characterSection .stat-value { font-size: 11px; }
-html.is-compact #characterSection .stat-bar { height: 12px; }
+html.is-compact #characterSection .stat-bar { height: 11px; }
 html.is-compact #characterSection .stat-allocate-btn { width: 20px; height: 20px; border-radius: 6px; }
 html.is-compact #characterSection .stat-points-chip { font-size: 11px; padding: 2px 8px; }
 

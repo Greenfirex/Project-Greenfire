@@ -37,7 +37,7 @@ const STAT_POINT_EFFECTS = {
     hitChance: 1, // percent points
     critChance: 1, // percent points
     // attackSpeed is seconds between attacks; lower is faster.
-    attackSpeed: -0.05,
+    attackSpeed: -0.01,
     evasion: 1, // percent points
 };
 

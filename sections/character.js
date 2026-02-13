@@ -70,6 +70,99 @@ function buildStaminaRegenBuffTooltipHtml() {
     `;
 }
 
+function getSurvivalDebuffStatus() {
+    try {
+        const foodRes = resources.find(r => r && r.name === 'Food Rations');
+        const waterRes = resources.find(r => r && r.name === 'Drinking Water');
+        const hungry = !!(foodRes && Number(foodRes.amount) <= 0);
+        const thirsty = !!(waterRes && Number(waterRes.amount) <= 0);
+        return { hungry, thirsty };
+    } catch {
+        return { hungry: false, thirsty: false };
+    }
+}
+
+function applySurvivalDebuffsToStats(stats, { hungry = false, thirsty = false } = {}) {
+    const out = { ...(stats || {}) };
+
+    // Hit chance
+    const baseHitChance = Number(out.hitChance ?? 0);
+    let hitChance = baseHitChance;
+    if (hungry) hitChance -= 10;
+    if (thirsty) hitChance -= 20;
+    out.hitChance = Math.max(0, Math.min(100, Math.round(hitChance)));
+
+    // Attack speed (seconds per attack; higher is worse)
+    const baseAttackSpeed = Number(out.attackSpeed ?? 1);
+    if (Number.isFinite(baseAttackSpeed)) {
+        out.attackSpeed = baseAttackSpeed + (thirsty ? 0.50 : 0);
+    }
+
+    // Damage
+    if (hungry) {
+        const min = Number(out.damageMin ?? out.damage ?? 0);
+        const max = Number(out.damageMax ?? out.damage ?? min);
+        const m = 0.5;
+        out.damageMin = Math.max(0, Math.round(min * m));
+        out.damageMax = Math.max(out.damageMin ?? 0, Math.round(max * m));
+        out.damage = Math.round(((Number(out.damageMin) || 0) + (Number(out.damageMax) || 0)) / 2);
+    }
+
+    return out;
+}
+
+function getDebuffClassForUiStatKey(uiKey, { hungry = false, thirsty = false } = {}) {
+    const k = String(uiKey || '').toLowerCase();
+    if (k === 'attack_speed' && thirsty) return 'is-debuff-negative';
+    if (k === 'damage' && hungry) return 'is-debuff-negative';
+    if (k === 'hit_chance' && (hungry || thirsty)) return 'is-debuff-negative';
+    return '';
+}
+
+function buildSurvivalDebuffTooltipHtml(kind) {
+    const { hungry, thirsty } = getSurvivalDebuffStatus();
+    const k = String(kind || '').toLowerCase();
+
+    if (k === 'hungry') {
+        if (!hungry) {
+            return `
+                <h4>Survival</h4>
+                <p><strong>Hungry</strong></p>
+                <p>Inactive</p>
+            `;
+        }
+        return `
+            <h4>Survival</h4>
+            <p><strong>Hungry</strong></p>
+            <p class="tooltip-detail">Actions take <strong>50%</strong> longer.</p>
+            <p class="tooltip-detail">Health: passive regeneration is disabled.</p>
+            <p class="tooltip-detail">Combat: <strong>-50%</strong> damage and <strong>-10%</strong> Hit Chance.</p>
+        `;
+    }
+
+    if (k === 'thirsty') {
+        if (!thirsty) {
+            return `
+                <h4>Survival</h4>
+                <p><strong>Thirsty</strong></p>
+                <p>Inactive</p>
+            `;
+        }
+        return `
+            <h4>Survival</h4>
+            <p><strong>Thirsty</strong></p>
+            <p class="tooltip-detail">Actions take <strong>50%</strong> longer.</p>
+            <p class="tooltip-detail">Stamina: passive regeneration is disabled.</p>
+            <p class="tooltip-detail">Combat: <strong>+0.50s</strong> Attack Speed (slower) and <strong>-20%</strong> Hit Chance.</p>
+        `;
+    }
+
+    return `
+        <h4>Survival</h4>
+        <p>No active debuffs.</p>
+    `;
+}
+
 function renderActiveEffectIconHtml() {
     const st = getStaminaRegenBuffStatus(characterState);
     const tea = getItemDefinition('herb_tea');
@@ -78,6 +171,31 @@ function renderActiveEffectIconHtml() {
         <button type="button" class="active-effect-btn ${st.active ? '' : 'hidden'}" data-active-effect="staminaRegen" data-tooltip-touch-tap="true" aria-label="Active effect: ${escapeHtml(st.label)}" title="${escapeHtml(st.label)}">
             ${icon ? `<img class="active-effect-icon" src="${escapeHtml(icon)}" alt="" />` : '<span class="active-effect-fallback">+</span>'}
         </button>
+    `;
+}
+
+function renderSurvivalDebuffIconsHtml() {
+    const { hungry, thirsty } = getSurvivalDebuffStatus();
+
+    const hungryIcon = `<span class="active-effect-emoji" aria-hidden="true">🍗</span>`;
+    const thirstyIcon = `<span class="active-effect-emoji" aria-hidden="true">💧</span>`;
+
+    return `
+        <button type="button" class="active-effect-btn ${hungry ? '' : 'hidden'}" data-active-effect="hungry" data-tooltip-touch-tap="true" aria-label="Survival debuff: Hungry" title="Hungry">
+            ${hungryIcon}
+        </button>
+        <button type="button" class="active-effect-btn ${thirsty ? '' : 'hidden'}" data-active-effect="thirsty" data-tooltip-touch-tap="true" aria-label="Survival debuff: Thirsty" title="Thirsty">
+            ${thirstyIcon}
+        </button>
+    `;
+}
+
+function renderPaperdollStatusIconsHtml() {
+    return `
+        <div class="active-effects" aria-label="Active effects">
+            ${renderActiveEffectIconHtml()}
+            ${renderSurvivalDebuffIconsHtml()}
+        </div>
     `;
 }
 
@@ -130,6 +248,8 @@ export function setupCharacterSection(section) {
 
     const { cols: bagCols } = getBagSize();
     const stats = computeCharacterStats(characterState);
+    const survivalDebuffs = getSurvivalDebuffStatus();
+    const displayStats = applySurvivalDebuffsToStats(stats, survivalDebuffs);
     const itemImpact = computeEquippedItemImpact(characterState);
     const bagRows = characterState?.bagRows ?? 2;
 
@@ -159,7 +279,7 @@ export function setupCharacterSection(section) {
             </div>
 
             <div class="paperdoll" aria-label="Character silhouette and equipment">
-                ${renderActiveEffectIconHtml()}
+                ${renderPaperdollStatusIconsHtml()}
                 <img class="paperdoll-silhouette" src="assets/images/inventorycharacter.png" alt="" />
 
                 ${renderEquipmentSlot('head', 'Head', characterState?.equipment?.head)}
@@ -210,9 +330,9 @@ export function setupCharacterSection(section) {
                 ${renderXPRow()}
                 ${renderHealthRow()}
                 ${renderStaminaRow()}
-                ${renderStatRow('Damage', formatDamageRange(stats), { itemImpact })}
-                ${renderUpgradeableStatRow('Attack Speed', formatAttackSpeed(stats.attackSpeed), { allocateKey: 'attackSpeed', canSpend: canSpendPoint, itemImpact })}
-                ${renderUpgradeableStatRow('Hit Chance', `${Number(stats.hitChance ?? 0)}%`, { allocateKey: 'hitChance', canSpend: canSpendPoint, itemImpact }) }
+                ${renderStatRow('Damage', formatDamageRange(displayStats), { itemImpact, debuffClass: getDebuffClassForUiStatKey('damage', survivalDebuffs) })}
+                ${renderUpgradeableStatRow('Attack Speed', formatAttackSpeed(displayStats.attackSpeed), { allocateKey: 'attackSpeed', canSpend: canSpendPoint, itemImpact, debuffClass: getDebuffClassForUiStatKey('attack_speed', survivalDebuffs) })}
+                ${renderUpgradeableStatRow('Hit Chance', `${Number(displayStats.hitChance ?? 0)}%`, { allocateKey: 'hitChance', canSpend: canSpendPoint, itemImpact, debuffClass: getDebuffClassForUiStatKey('hit_chance', survivalDebuffs) }) }
                 ${renderUpgradeableStatRow('Crit Chance', `${Number(stats.critChance ?? 0)}%`, { allocateKey: 'critChance', canSpend: canSpendPoint, itemImpact })}
                 ${renderStatRow('Armor', String(stats.armor ?? 0), { itemImpact })}
                 ${renderUpgradeableStatRow('Evasion', `${Number(stats.evasion ?? 0)}%`, { allocateKey: 'evasion', canSpend: canSpendPoint, itemImpact })}
@@ -425,9 +545,10 @@ function renderStatRow(label, value, opts = {}) {
     const safeKey = String(label).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
     const iconHtml = renderStatLabelIconHtml(safeKey);
     const impactClass = getItemImpactClassForUiStatKey(safeKey, opts.itemImpact);
+    const debuffClass = opts.debuffClass ? String(opts.debuffClass) : '';
     return `
         <div class="stat-line" data-stat-line="${safeKey}">
-            <div class="stat-row ${impactClass}" data-stat="${safeKey}">
+            <div class="stat-row ${[impactClass, debuffClass].filter(Boolean).join(' ')}" data-stat="${safeKey}">
                 <span class="stat-label">${iconHtml}<span class="stat-label-text">${escapeHtml(String(label))}</span></span>
                 <span class="stat-value">${value}</span>
             </div>
@@ -495,12 +616,13 @@ function renderUpgradeableStatRow(label, value, opts = {}) {
     const canSpend = !!opts.canSpend;
     const iconHtml = renderStatLabelIconHtml(safeKey);
     const impactClass = getItemImpactClassForUiStatKey(safeKey, opts.itemImpact);
+    const debuffClass = opts.debuffClass ? String(opts.debuffClass) : '';
     const btn = allocateKey
         ? renderAllocateButtonHtml(allocateKey, { disabled: !canSpend, label: `Increase ${label} (cost: 1 stat point)` })
         : '';
     return `
         <div class="stat-line" data-stat-line="${safeKey}">
-            <div class="stat-row ${impactClass}" data-stat="${safeKey}">
+            <div class="stat-row ${[impactClass, debuffClass].filter(Boolean).join(' ')}" data-stat="${safeKey}">
                 <span class="stat-label">${iconHtml}<span class="stat-label-text">${escapeHtml(String(label))}</span></span>
                 <span class="stat-value">${value}</span>
             </div>
@@ -870,18 +992,28 @@ function attachActiveEffectTooltips(sectionRoot) {
     const panel = sectionRoot.querySelector('.character-panel');
     if (!panel) return;
 
-    const btn = panel.querySelector('[data-active-effect="staminaRegen"]');
-    if (!btn) return;
+    const buttons = Array.from(panel.querySelectorAll('[data-active-effect]'));
+    for (const btn of buttons) {
+        if (!btn) continue;
+        if (btn.dataset && btn.dataset.wiredTooltip === 'true') continue;
+        try { if (btn.dataset) btn.dataset.wiredTooltip = 'true'; } catch { /* ignore */ }
 
-    if (btn.dataset && btn.dataset.wiredTooltip === 'true') return;
-    try { if (btn.dataset) btn.dataset.wiredTooltip = 'true'; } catch { /* ignore */ }
-
-    setupTooltip(btn, () => buildStaminaRegenBuffTooltipHtml());
+        const kind = String(btn.dataset.activeEffect || '').trim();
+        if (kind === 'staminaRegen') {
+            setupTooltip(btn, () => buildStaminaRegenBuffTooltipHtml());
+        } else if (kind === 'hungry') {
+            setupTooltip(btn, () => buildSurvivalDebuffTooltipHtml('hungry'));
+        } else if (kind === 'thirsty') {
+            setupTooltip(btn, () => buildSurvivalDebuffTooltipHtml('thirsty'));
+        }
+    }
 }
 
 function buildStatTooltipHTML(statKey) {
     const key = String(statKey || '').toLowerCase();
     const stats = computeCharacterStats(characterState);
+    const survivalDebuffs = getSurvivalDebuffStatus();
+    const displayStats = applySurvivalDebuffsToStats(stats, survivalDebuffs);
     const itemImpact = computeEquippedItemImpact(characterState);
     const xp = getXPResourceSnapshot();
     const alloc = xp?.allocated || {};
@@ -963,8 +1095,8 @@ function buildStatTooltipHTML(statKey) {
             `;
         }
         case 'damage': {
-            const min = Number(stats?.damageMin ?? 0);
-            const max = Number(stats?.damageMax ?? min);
+            const min = Number(displayStats?.damageMin ?? 0);
+            const max = Number(displayStats?.damageMax ?? min);
 
             const parts = (itemImpact?.damage?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0);
             const hasWeapon = !!(characterState?.equipment?.weapon);
@@ -977,6 +1109,10 @@ function buildStatTooltipHTML(statKey) {
             } else {
                 lines.push(hasWeapon ? 'No equipped items modify damage.' : 'No weapon equipped (damage is unmodified).');
             }
+
+            if (survivalDebuffs?.hungry) {
+                lines.push('Hungry: −50% damage.');
+            }
             return `
                 <h4>Damage</h4>
                 <p>Shown as a range: <strong>${escapeHtml(String(Math.floor(min)))} - ${escapeHtml(String(Math.floor(max)))}</strong></p>
@@ -986,15 +1122,15 @@ function buildStatTooltipHTML(statKey) {
                     ${bullets(['Affected by your equipped weapon (and any other equipped items with damage modifiers).'])}
                 </div>
                 <div class="tooltip-section">
-                    <h4>Affected By Items</h4>
+                    <h4>Affected By:</h4>
                     ${bullets(lines)}
                 </div>
             `;
         }
         case 'attack_speed': {
-            const speed = Number(stats?.attackSpeed ?? 1);
+            const speed = Number(displayStats?.attackSpeed ?? 1);
             const pts = Math.max(0, Math.floor(Number(alloc.attackSpeed) || 0));
-            const bonusDelta = pts > 0 ? (-(pts * 0.05)).toFixed(2) : '0.00';
+            const bonusDelta = pts > 0 ? (-(pts * 0.01)).toFixed(2) : '0.00';
             const parts = (itemImpact?.attack_speed?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0);
             const itemLines = parts.length
                 ? parts.map(p => {
@@ -1002,10 +1138,11 @@ function buildStatTooltipHTML(statKey) {
                     return `${p.slotLabel}: ${p.itemName} (${sign}${Number(p.delta).toFixed(2)}s)`;
                 })
                 : ['No equipped items modify attack speed.'];
+            if (survivalDebuffs?.thirsty) itemLines.push('Thirsty: +0.50s per attack.');
             const b = bullets([
                 'Seconds per attack (lower is faster).',
                 'Minimum: 0.20s per attack.',
-                '1 stat point: −0.05s per attack.',
+                '1 stat point: −0.01s per attack.',
                 `Allocated: ${pts} (total: ${bonusDelta}s).`,
             ]);
             return `
@@ -1016,13 +1153,13 @@ function buildStatTooltipHTML(statKey) {
                     ${b}
                 </div>
                 <div class="tooltip-section">
-                    <h4>Affected By Items</h4>
+                    <h4>Affected By:</h4>
                     ${bullets(itemLines)}
                 </div>
             `;
         }
         case 'hit_chance': {
-            const hit = Number(stats?.hitChance ?? 0);
+            const hit = Number(displayStats?.hitChance ?? 0);
             const pts = Math.max(0, Math.floor(Number(alloc.hitChance) || 0));
             const parts = (itemImpact?.hit_chance?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0);
             const itemLines = parts.length
@@ -1031,6 +1168,8 @@ function buildStatTooltipHTML(statKey) {
                     return `${p.slotLabel}: ${p.itemName} (${sign}${Math.abs(p.delta)}% hit chance)`;
                 })
                 : ['No equipped items modify hit chance.'];
+            if (survivalDebuffs?.hungry) itemLines.push('Hungry: -10% hit chance.');
+            if (survivalDebuffs?.thirsty) itemLines.push('Thirsty: -20% hit chance.');
             const b = bullets([
                 'Chance to land an attack before evasion.',
                 'Capped at: 95%.',
@@ -1046,7 +1185,7 @@ function buildStatTooltipHTML(statKey) {
                     ${b}
                 </div>
                 <div class="tooltip-section">
-                    <h4>Affected By Items</h4>
+                    <h4>Affected By:</h4>
                     ${bullets(itemLines)}
                 </div>
             `;
@@ -1075,7 +1214,7 @@ function buildStatTooltipHTML(statKey) {
                     ${b}
                 </div>
                 <div class="tooltip-section">
-                    <h4>Affected By Items</h4>
+                    <h4>Affected By:</h4>
                     ${bullets(itemLines)}
                 </div>
             `;
@@ -1089,13 +1228,10 @@ function buildStatTooltipHTML(statKey) {
                     return `${p.slotLabel}: ${p.itemName} (${sign}${Math.abs(p.delta)} armor)`;
                 })
                 : ['No equipped items modify armor.'];
-            const mitigation = armor / (armor + 20);
-            const taken = 1 - mitigation;
             const b = bullets([
-                'Armor reduces damage taken with diminishing returns.',
-                'Damage taken = round(damage × 20/(armor+20)).',
-                'Examples: armor 0→100%, 10→67%, 20→50%, 40→33%.',
-                `Current: ~${Math.round(taken * 100)}% damage taken.`,
+                'Armor reduces incoming damage by a flat amount.',
+                'Damage taken = max(0, damage − armor).',
+                'Example: if you would take 10 damage and have 3 armor, you take 7.',
             ]);
             return `
                 <h4>Armor</h4>
@@ -1105,7 +1241,7 @@ function buildStatTooltipHTML(statKey) {
                     ${b}
                 </div>
                 <div class="tooltip-section">
-                    <h4>Affected By Items</h4>
+                    <h4>Affected By:</h4>
                     ${bullets(itemLines)}
                 </div>
             `;
@@ -1134,7 +1270,7 @@ function buildStatTooltipHTML(statKey) {
                     ${b}
                 </div>
                 <div class="tooltip-section">
-                    <h4>Affected By Items</h4>
+                    <h4>Affected By:</h4>
                     ${bullets(itemLines)}
                 </div>
             `;
@@ -1180,6 +1316,8 @@ function buildItemTooltipHTML(slotEl) {
         critChance: 'Crit Chance',
         hitChance: 'Hit Chance',
         evasion: 'Evasion',
+        foodCapacity: 'Food Capacity',
+        waterCapacity: 'Water Capacity',
     };
     const equipSlotLabels = {
         head: 'Head',
@@ -1287,6 +1425,12 @@ function updateActiveEffectsIfPresent(panelEl) {
     const st = getStaminaRegenBuffStatus(characterState);
     const btn = panelEl.querySelector('[data-active-effect="staminaRegen"]');
     if (btn) btn.classList.toggle('hidden', !st.active);
+
+    const { hungry, thirsty } = getSurvivalDebuffStatus();
+    const hungryBtn = panelEl.querySelector('[data-active-effect="hungry"]');
+    const thirstyBtn = panelEl.querySelector('[data-active-effect="thirsty"]');
+    if (hungryBtn) hungryBtn.classList.toggle('hidden', !hungry);
+    if (thirstyBtn) thirstyBtn.classList.toggle('hidden', !thirsty);
 }
 
 function updateXPRowIfPresent(panelEl) {
