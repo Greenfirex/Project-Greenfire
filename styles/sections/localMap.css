@@ -845,6 +845,28 @@ html.is-compact .localmap-zoom {
     cursor: pointer;
 }
 
+/* Interior focus: while selecting POI interior tiles (and the player is inside),
+   slightly darken exterior tiles to keep attention on the interior layout. */
+.localmap-root.dim-exterior .localmap-tile:not(.is-poi-area):not(.is-unknown)::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.42);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Exterior focus: while selecting exterior tiles (and the player is outside),
+   slightly darken POI tiles so the outside terrain reads cleanly. */
+.localmap-root.dim-poi .localmap-tile.is-poi-area:not(.is-unknown)::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.42);
+    pointer-events: none;
+    z-index: 1;
+}
+
 /* Base camp overlay art (shown after camp is established). */
 .localmap-basecamp-overlay {
     position: absolute;
@@ -858,6 +880,93 @@ html.is-compact .localmap-zoom {
     mix-blend-mode: screen;
     opacity: 0.82;
     filter: saturate(1.05) contrast(1.04);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Laboratory overlay art (G3) */
+.localmap-laboratory-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: url("../../assets/images/localmap/laboratory.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    /* Keep the border inside the tile. */
+    background-size: 90% 90%;
+    /* Render as-is so the black border reads intentional. */
+    mix-blend-mode: normal;
+    opacity: 0.80;
+    filter: none;
+    transform: rotate(180deg);
+    transform-origin: center;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Cafeteria overlay art (D6) */
+.localmap-cafeteria-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: url("../../assets/images/localmap/cafeteria.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 90% 90%;
+    mix-blend-mode: normal;
+    opacity: 0.80;
+    filter: none;
+    transform: rotate(180deg);
+    transform-origin: center;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Crew Quarters overlay art (F6) */
+.localmap-crewquarters-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: url("../../assets/images/localmap/crewquarters.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 90% 90%;
+    mix-blend-mode: normal;
+    opacity: 0.80;
+    filter: none;
+    transform: rotate(180deg);
+    transform-origin: center;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Power Core overlay art (H4) */
+.localmap-powercore-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: url("../../assets/images/localmap/powercore.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 90% 90%;
+    mix-blend-mode: normal;
+    opacity: 0.80;
+    filter: none;
+    transform: rotate(180deg);
+    transform-origin: center;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Captain's Quarters overlay art (G7) */
+.localmap-captainsquarters-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: url("../../assets/images/localmap/captainsquarters.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 90% 90%;
+    mix-blend-mode: normal;
+    opacity: 0.80;
+    filter: none;
+    transform: rotate(180deg);
+    transform-origin: center;
     pointer-events: none;
     z-index: 1;
 }
@@ -1048,6 +1157,8 @@ html.is-compact .localmap-zoom {
     pointer-events: none;
     box-sizing: border-box;
     z-index: 1;
+    /* Match exterior hull wall styling (C5↔D5) */
+    filter: drop-shadow(0 0 1px rgba(0,0,0,0.35));
 }
 
 /* POI corridor overlay (visual corridor walls inset from tile edges) */
@@ -1097,6 +1208,16 @@ html.is-compact .localmap-zoom {
     stroke-linejoin: round;
     stroke-linecap: square;
     vector-effect: non-scaling-stroke;
+    filter: drop-shadow(0 0 1px rgba(0,0,0,0.35));
+}
+
+/* Add a "filled" backing stroke behind corridor/room wall lines for extra body. */
+.localmap-tile.is-poi-area .poi-corridor-svg path.poi-wall-fill,
+.localmap-tile.is-poi-area .poi-room-svg path.poi-wall-fill {
+    stroke: rgba(12, 14, 16, 0.55);
+    stroke-width: 9;
+    stroke-linejoin: round;
+    stroke-linecap: square;
     filter: drop-shadow(0 0 1px rgba(0,0,0,0.35));
 }
 
@@ -1160,6 +1281,33 @@ html.is-compact .localmap-zoom {
     border-radius: 3px;
 }
 
+/* Door state styles */
+.localmap-tile.is-poi-area .poi-door.poi-door--locked {
+    background:
+        repeating-linear-gradient(135deg,
+            rgba(231, 76, 60, 0.10) 0px,
+            rgba(231, 76, 60, 0.10) 6px,
+            rgba(231, 76, 60, 0.22) 6px,
+            rgba(231, 76, 60, 0.22) 10px
+        );
+    border: 1px solid rgba(231, 76, 60, 0.45);
+    box-shadow:
+        0 0 0 1px rgba(0,0,0,0.45),
+        0 0 10px rgba(231, 76, 60, 0.25);
+}
+
+.localmap-tile.is-poi-area .poi-door.poi-door--open {
+    background: linear-gradient(180deg,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.55),
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.25)
+    );
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
+    box-shadow:
+        0 0 0 1px rgba(0,0,0,0.45),
+        0 0 10px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
+    opacity: 0.72;
+}
+
 .localmap-tile.is-poi-area.poi-door-top .poi-door--top,
 .localmap-tile.is-poi-area.poi-door-left .poi-door--left {
     display: block;
@@ -1221,6 +1369,50 @@ html.is-compact .localmap-zoom {
     right: calc(0px - (var(--door-thickness) / 2));
 }
 
+/* Exterior hull wall segment around the alternate access door (C5↔D5). */
+.localmap-tile.has-external-door .external-hull-wall-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.localmap-tile.has-external-door .external-hull-wall-overlay--right {
+    /* Draw a right-edge wall, with a gap where the door sits (centered). */
+    background:
+        linear-gradient(
+            to bottom,
+            rgba(12, 14, 16, 0.95) 0%,
+            rgba(12, 14, 16, 0.95) 41%,
+            rgba(0, 0, 0, 0) 41%,
+            rgba(0, 0, 0, 0) 59%,
+            rgba(12, 14, 16, 0.95) 59%,
+            rgba(12, 14, 16, 0.95) 100%
+        );
+    background-repeat: no-repeat;
+    background-position: right top;
+    background-size: 4px 100%;
+    filter: drop-shadow(0 0 1px rgba(0,0,0,0.35));
+}
+
+.localmap-tile .external-hull-wall-overlay--left {
+    /* Draw a left-edge wall, with a gap where the breach sits (centered). */
+    background:
+        linear-gradient(
+            to bottom,
+            rgba(12, 14, 16, 0.95) 0%,
+            rgba(12, 14, 16, 0.95) 41%,
+            rgba(0, 0, 0, 0) 41%,
+            rgba(0, 0, 0, 0) 59%,
+            rgba(12, 14, 16, 0.95) 59%,
+            rgba(12, 14, 16, 0.95) 100%
+        );
+    background-repeat: no-repeat;
+    background-position: left top;
+    background-size: 4px 100%;
+    filter: drop-shadow(0 0 1px rgba(0,0,0,0.35));
+}
+
 .localmap-tile.is-poi-area.poi-border-top .poi-wall-overlay { border-top: 4px solid rgba(12, 14, 16, 0.95); }
 .localmap-tile.is-poi-area.poi-border-bottom .poi-wall-overlay { border-bottom: 4px solid rgba(12, 14, 16, 0.95); }
 .localmap-tile.is-poi-area.poi-border-left .poi-wall-overlay { border-left: 4px solid rgba(12, 14, 16, 0.95); }
@@ -1236,86 +1428,38 @@ html.is-compact .localmap-zoom {
 .localmap-tile.is-poi-area.poi-border-bottom .poi-wall-overlay,
 .localmap-tile.is-poi-area.poi-border-left .poi-wall-overlay,
 .localmap-tile.is-poi-area.poi-border-right .poi-wall-overlay {
-    box-shadow: inset 0 0 0 1px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10);
+    /* Keep borders crisp/dark (no teal glow) to match exterior hull walls. */
+    box-shadow: none;
 }
 
-.localmap-tile.is-poi-area.poi-border-top {
-    box-shadow: inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
+/* Exterior mode: hide interior overlays unless an interior tile is selected (see crashSiteLocalMap.js). */
+.localmap-root.is-exterior .localmap-tile.is-poi-area {
+    /* Match default tile treatment so the background crash art reads cleanly. */
+    background: rgba(0,0,0,0.12);
+    box-shadow: none;
 }
 
-.localmap-tile.is-poi-area.poi-border-bottom {
-    box-shadow: inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
+.localmap-root.is-exterior .localmap-tile.is-poi-area .poi-corridor-overlay,
+.localmap-root.is-exterior .localmap-tile.is-poi-area .poi-room-overlay,
+.localmap-root.is-exterior .localmap-tile.is-poi-area .poi-doors-overlay {
+    opacity: 0;
 }
 
-.localmap-tile.is-poi-area.poi-border-left {
-    box-shadow: inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
+/* Keep a faint ship silhouette without the internal corridor clutter. */
+.localmap-root.is-exterior .localmap-tile.is-poi-area .poi-wall-overlay {
+    opacity: 0.28;
 }
 
-.localmap-tile.is-poi-area.poi-border-right {
-    box-shadow: inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
+/* Interior room art (e.g., laboratory) should only read in interior mode. */
+.localmap-root.is-exterior .localmap-tile.is-poi-area .localmap-laboratory-overlay {
+    opacity: 0;
 }
 
-/* Combine border shadows when multiple edges apply */
-.localmap-tile.is-poi-area.poi-border-top.poi-border-left {
-    box-shadow:
-        inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
-}
-.localmap-tile.is-poi-area.poi-border-top.poi-border-right {
-    box-shadow:
-        inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
-}
-.localmap-tile.is-poi-area.poi-border-bottom.poi-border-left {
-    box-shadow:
-        inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
-}
-.localmap-tile.is-poi-area.poi-border-bottom.poi-border-right {
-    box-shadow:
-        inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
-}
-.localmap-tile.is-poi-area.poi-border-top.poi-border-bottom {
-    box-shadow:
-        inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
-}
-.localmap-tile.is-poi-area.poi-border-left.poi-border-right {
-    box-shadow:
-        inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
-}
-.localmap-tile.is-poi-area.poi-border-top.poi-border-bottom.poi-border-left {
-    box-shadow:
-        inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
-}
-.localmap-tile.is-poi-area.poi-border-top.poi-border-bottom.poi-border-right {
-    box-shadow:
-        inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
-}
-.localmap-tile.is-poi-area.poi-border-top.poi-border-left.poi-border-right {
-    box-shadow:
-        inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
-}
-.localmap-tile.is-poi-area.poi-border-bottom.poi-border-left.poi-border-right {
-    box-shadow:
-        inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
-}
-.localmap-tile.is-poi-area.poi-border-top.poi-border-bottom.poi-border-left.poi-border-right {
-    box-shadow:
-        inset 0 2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset 0 -2px 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset 2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35),
-        inset -2px 0 0 rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
+.localmap-root.is-exterior .localmap-tile.is-poi-area .localmap-cafeteria-overlay,
+.localmap-root.is-exterior .localmap-tile.is-poi-area .localmap-crewquarters-overlay,
+.localmap-root.is-exterior .localmap-tile.is-poi-area .localmap-powercore-overlay,
+.localmap-root.is-exterior .localmap-tile.is-poi-area .localmap-captainsquarters-overlay {
+    opacity: 0;
 }
 
 /* Seen (in vision radius) but not stepped on yet */
@@ -1553,7 +1697,8 @@ html.is-compact .localmap-zoom {
         -webkit-box-orient: vertical;
     }
 
-    .localmap-actions-row .image-button .action-new-badge {
+    .localmap-actions-row .image-button .action-new-badge,
+    .localmap-actions-row .image-button .action-hint-badge {
         top: 4px;
         right: 6px;
         width: 14px;

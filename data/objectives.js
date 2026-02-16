@@ -10,7 +10,8 @@ import { allActions } from './definitions/allActions.js';
 import { buildings } from './definitions/buildings.js';
 import { technologies } from './definitions/technologies.js';
 import { jobs } from './jobsManager.js';
-import { characterState } from './character.js';
+import { characterState, countItemInBag } from './character.js';
+import { getItemIdForResourceName } from './inventoryAliases.js';
 import { addLogEntry, LogType } from '../core/ingameLog.js';
 import { getTotalIngameMinutes } from '../core/time.js';
 import { showStoryPopup } from '../ui/panels/popup.js';
@@ -116,6 +117,16 @@ function hasResource(name, target) {
     return getResourceAmount(name) >= target;
 }
 
+function getInventoryCountForResourceName(resourceName) {
+    try {
+        const itemId = getItemIdForResourceName(resourceName);
+        if (!itemId) return 0;
+        return countItemInBag(itemId, characterState);
+    } catch {
+        return 0;
+    }
+}
+
 function grantRewards(rewards) {
     if (!Array.isArray(rewards) || rewards.length === 0) return;
     const lines = [];
@@ -168,9 +179,26 @@ const defs = [
             if (scoutProgress >= 1 && discoveredBerries) scoutProgress = 2;
             if (scoutProgress >= 2 && discoveredCave) scoutProgress = 3;
 
-            const craftTorchDone = !!findAction('createBasicTorch')?.completed;
+            const hasTorch = (() => {
+                try {
+                    return (
+                        characterState?.equipment?.accessory_1 === 'basic_torch'
+                        || characterState?.equipment?.accessory_2 === 'basic_torch'
+                        || (countItemInBag('basic_torch', characterState) > 0)
+                    );
+                } catch { return false; }
+            })();
+
+            const craftTorchDone = hasTorch || !!findAction('createBasicTorch')?.completed;
             const burnWallDone = !!(lm && lm.c5ThornWallBurned === true);
-            const atC5 = !!(lm && Number(lm.x) === 3 && Number(lm.y) === 5);
+            const atC5 = (() => {
+                try {
+                    if (!lm || typeof lm !== 'object') return false;
+                    // Treat the step as complete once the tile has been entered at least once.
+                    // (Some movement modes/animations can temporarily desync lm.x/lm.y from the last visited tile.)
+                    return !!(lm.visited && typeof lm.visited === 'object' && lm.visited['3,5'] === true);
+                } catch { return false; }
+            })();
 
             // Spoiler-free: reveal one step at a time.
             const steps = [];
@@ -213,7 +241,11 @@ const defs = [
         priority: 3,
         steps: () => {
             const scrap = getResourceAmount('Metal Parts');
-            const prybarCrafted = hasCompletedAction('makeCrudePrybar');
+            // "Make Crude Prybar" is repeatable and may pause mid-action (stamina).
+            // Treat the step as complete once the player actually has at least one prybar.
+            const prybarCrafted = (getInventoryCountForResourceName('Crude Prybar') >= 1)
+                // Back-compat: older saves/actions may still represent it as a legacy hidden resource.
+                || (getResourceAmount('Crude Prybar') >= 1);
             const scrapDone = !!gameFlags.hasReached15ScrapMetal;
             const returnedToCave = !!gameFlags.returnedToCaveAfter15Scrap;
 
@@ -278,38 +310,46 @@ const defs = [
     },
     {
         id: 'obj_tasks_survivors',
-        label: 'Stabilize the Camp',
+        label: 'Establish the Camp',
         start: () => gameFlags.baseCampEstablished === true,
         narrative: () => [
             "The camp is standing, but it won’t last on hope alone.",
-            "Secure steady food and water, then put people to work so the group can recover — and you can go back in." 
+            "Set up a workbench so you can build basic infrastructure, then secure steady food and water and put people to work so the group can recover — and you can go back in."
         ].join('\n\n'),
         complete: () => {
-            // Check if we have built both buildings and assigned 3+ jobs total
+            const workbenchDone = hasCompletedAction('workbench');
+            // Check if we have built key buildings and assigned the three core jobs
             const foragingCamp = buildings.find(b => b.name === 'Foraging Camp');
             const waterStation = buildings.find(b => b.name === 'Water Station');
             
             const hasBothBuildings = (foragingCamp?.count || 0) >= 1 && (waterStation?.count || 0) >= 1;
-            
-            // Count total job assignments across all jobs
-            const totalAssigned = jobs.reduce((sum, j) => sum + (j.assigned || 0), 0);
-            
-            return hasBothBuildings && totalAssigned >= 3;
+
+            const hasForager = (jobs.find(j => j.id === 'foraging')?.assigned || 0) >= 1;
+            const hasWaterCollector = (jobs.find(j => j.id === 'water_collection')?.assigned || 0) >= 1;
+            const hasScrapCollector = (jobs.find(j => j.id === 'scrap_collector')?.assigned || 0) >= 1;
+
+            return workbenchDone && hasBothBuildings && hasForager && hasWaterCollector && hasScrapCollector;
         },
         reward: [{ resource: 'XP', amount: 50 }],
         priority: 6,
         steps: () => {
+            const workbenchDone = hasCompletedAction('workbench');
             const foragingCamp = buildings.find(b => b.name === 'Foraging Camp');
             const waterStation = buildings.find(b => b.name === 'Water Station');
             
             const foragingCampCount = foragingCamp?.count || 0;
             const waterStationCount = waterStation?.count || 0;
-            
-            // Count total job assignments across all jobs
-            const totalAssigned = jobs.reduce((sum, j) => sum + (j.assigned || 0), 0);
+
+            const foragerAssigned = jobs.find(j => j.id === 'foraging')?.assigned || 0;
+            const waterCollectorAssigned = jobs.find(j => j.id === 'water_collection')?.assigned || 0;
+            const scrapCollectorAssigned = jobs.find(j => j.id === 'scrap_collector')?.assigned || 0;
             
             // Spoiler-free: reveal one step at a time.
             const steps = [];
+
+            steps.push({ id: 'craft_workbench', label: 'Craft Workbench', done: workbenchDone });
+            if (!workbenchDone) return steps;
+
             const builtForaging = foragingCampCount >= 1;
             const builtWater = waterStationCount >= 1;
 
@@ -329,7 +369,13 @@ const defs = [
             });
             if (!builtWater) return steps;
 
-            steps.push({ id: 'assign_jobs', label: 'Assign jobs (any combination)', done: totalAssigned >= 3, progress: `${totalAssigned}/3` });
+            steps.push({ id: 'assign_forager', label: 'Assign Forager', done: foragerAssigned >= 1, progress: `${Math.min(1, Math.floor(foragerAssigned))}/1` });
+            if (foragerAssigned < 1) return steps;
+
+            steps.push({ id: 'assign_water_collector', label: 'Assign Water Collector', done: waterCollectorAssigned >= 1, progress: `${Math.min(1, Math.floor(waterCollectorAssigned))}/1` });
+            if (waterCollectorAssigned < 1) return steps;
+
+            steps.push({ id: 'assign_scrap_collector', label: 'Assign Scrap Collector', done: scrapCollectorAssigned >= 1, progress: `${Math.min(1, Math.floor(scrapCollectorAssigned))}/1` });
             return steps;
         }
     },

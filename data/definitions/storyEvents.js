@@ -101,6 +101,13 @@ enteredShipChoices: {
     ]
 },
 
+workbenchUnlocks: {
+    title: 'Workbench Complete',
+    pages: [
+        "With a sturdy workbench assembled, you can finally start building the kind of infrastructure a camp needs to last."
+    ]
+},
+
 shipInteriorJunction: {
     title: 'Three Ways Forward',
     pages: [
@@ -275,8 +282,18 @@ emergency_power_restored: {
 bridge_after_power: {
     title: 'Bridge — Access Regained',
     pages: [
-        "You return to the bridge access. The lift panel glows weakly now; you call it down and the doors grind open. Inside, debris and soot coat the floor, but the car moves.",
-        "At the bridge level, emergency lighting draws long shadows across dead consoles. Some subsystems respond to touch. You can begin the long work of bringing systems back."
+        "You return to the bridge access. The lift panel glows weakly now; you call it down and the doors grind open. It takes an agonizing moment, but the car answers.",
+        "Emergency lighting paints the command deck in cold, uneven strips. The bridge is ruined — but at least the route is open again.",
+        "Somewhere deeper in the ship, metal scrapes against metal. A slow, deliberate clanking carries through the corridors. Something is still moving down here."
+    ]
+},
+
+bridge_explore_damage: {
+    title: 'Bridge — Wreckage and Warnings',
+    pages: [
+        "The bridge is a tomb of scorched consoles and shattered glass. A section of the command stations has been ripped open, wiring flayed like nerves and bulkhead plating bowed inward.",
+        "Most systems are beyond saving, but not all of it is scrap. One comms panel — gutted, but not pulverized — still has intact connectors and a few usable boards.",
+        "You can’t repair anything here. If you want a chance at a distress call, you’ll have to scavenge the comms components and take them back to your workbench."
     ]
 },
 

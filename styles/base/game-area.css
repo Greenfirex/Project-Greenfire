@@ -249,8 +249,9 @@ html.is-compact .content-panel {
     z-index: 4;
 }
 
-/* "New" badge for newly unlocked actions/buildings */
-.image-button .action-new-badge {
+/* "New" badge for newly unlocked actions/buildings (and hint badges that reuse the same visual) */
+.image-button .action-new-badge,
+.image-button .action-hint-badge {
     position: absolute;
     top: 8px;
     right: 10px;
@@ -382,6 +383,11 @@ html.is-compact .content-panel {
     filter: grayscale(60%);
     opacity: 0.7;
     cursor: not-allowed;
+}
+
+/* Building buttons: avoid filter on the whole button (it blurs text on some browsers). */
+.image-button.unaffordable[data-building] {
+    filter: none;
 }
 
 /* Make the text color red for unaffordable items */

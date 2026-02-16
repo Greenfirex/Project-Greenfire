@@ -76,7 +76,7 @@ export function getBlockedStatus(actionId, state) {
         const sy = lm && Number.isFinite(lm.selectedY) ? lm.selectedY : null;
         const required = (actionId === 'searchLabs')
             ? { x: 7, y: 3, label: 'G3 (Laboratory)' }
-            : { x: 7, y: 4, label: 'G4 (Power Core)' };
+            : { x: 8, y: 4, label: 'H4 (Power Core)' };
 
         const selectingTarget = (sx === required.x && sy === required.y);
         const standingOnTarget = (x === required.x && y === required.y);
@@ -86,7 +86,7 @@ export function getBlockedStatus(actionId, state) {
 
         const ok = selectingTarget && (standingOnTarget || adjacentToTarget);
         if (!ok) {
-            return { blocked: true, reason: `Move next to ${required.label} and select it to do that.` };
+            return { blocked: true, reason: `Select ${required.label} while standing on or next to it.` };
         }
     }
 
@@ -109,7 +109,7 @@ export function getBlockedStatus(actionId, state) {
 
     if (!isInvestigateDone) return { blocked: true, reason: 'Investigate Nearby Sound first — someone might be alive nearby.' };
     if (!isBasecampDone) return { blocked: true, reason: 'You found survivors — secure a base camp first before exploring deeper.' };
-    if (!flags.hasCompleted_tasksSurvivors) return { blocked: true, reason: 'Complete Objective: "Tasks for survivors" before exploring deeper areas of the ship.' };
+    if (!flags.hasCompleted_tasksSurvivors) return { blocked: true, reason: 'Complete Objective: "Establish the Camp" before exploring deeper areas of the ship.' };
 
     // Power Core stage 2 gate: must explore cafeteria and crew quarters first (survivor safety)
     if (actionId === 'searchPowerCore' && totalStages > 1 && currentStage >= 1) {

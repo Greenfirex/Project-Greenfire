@@ -43,16 +43,16 @@ export const combatEncounters = [
         enemy: {
             // Slightly tougher than early wildlife; tuned for post-entry ship exploration.
             maxHp: 60,
-            hitChance: 82,
+            hitChance: 60,
             portrait: 'assets/images/enemies/maintenance_drone.svg',
             portraitScale: 0.9,
             stats: {
-                hitChance: 82,
+                hitChance: 60,
                 critChance: 3,
                 evasion: 4,
                 armor: 2,
-                damageMin: 6,
-                damageMax: 8,
+                damageMin: 5,
+                damageMax: 7,
                 // seconds per attack
                 attackSpeed: 1.05,
             },

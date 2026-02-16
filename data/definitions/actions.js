@@ -798,8 +798,8 @@ const initialSalvageActions = [
                     {
                         // Stage 2: Return after restoring emergency power (narrative follow-up)
                         story: 'bridge_after_power',
-                        // Unlock the bridge comms salvage step; actual radio repair happens back at base camp.
-                        unlocks: ['scavengeCommsPanel'],
+                        // Unlock the bridge exploration step (tile action on H6).
+                        unlocks: ['exploreBridge'],
                         showUnlocks: false,
                         description: 'Emergency power is online: the lift cycles, granting limited access to the bridge. You can ride up and assess the situation.',
                         drain: [
@@ -807,7 +807,37 @@ const initialSalvageActions = [
                             { resource: 'Drinking Water', amount: 8 },
                             { resource: 'Food Rations', amount: 7 }
                         ],
-                        logText: 'You reach the command deck. The bridge is a tomb — everyone you find is gone, and most equipment is beyond saving. One gutted comms panel might be salvageable. Your only chance is to scavenge it and try to rewire it to your last power cell to hail Starfleet Command. (Click to read)',
+                        logText: 'Emergency power lets the bridge lift cycle again. You regain access to the command deck — but something is moving somewhere in the dark. (Click to read)',
+                        suppressGenericLog: true
+                    }
+                ]
+            },
+
+            {
+                id: 'exploreBridge',
+                name: 'Explore the Bridge',
+                description: 'Step onto the command deck and assess what can be salvaged — especially anything communications-related.',
+                duration: 7,
+                category: 'Exploration',
+                isUnlocked: false,
+                // Tile-bound bridge action; suppress noisy generic unlock logs.
+                suppressUnlockLog: true,
+                showUnlocks: false,
+                cancelable: true,
+                hideRewardPreview: true,
+                drain: [
+                    { resource: 'Stamina', amount: 20 },
+                    { resource: 'Food Rations', amount: 4 },
+                    { resource: 'Drinking Water', amount: 4 }
+                ],
+                reward: [],
+                stage: 0,
+                stages: [
+                    {
+                        story: 'bridge_explore_damage',
+                        unlocks: ['scavengeCommsPanel'],
+                        showUnlocks: false,
+                        logText: 'You pick through the bridge wreckage and spot a comms panel that might still be salvageable. (Click to read)',
                         suppressGenericLog: true
                     }
                 ]

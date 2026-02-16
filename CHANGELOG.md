@@ -1,3 +1,27 @@
+# [0.2.8] - 2026-02-16
+
+### Added
+
+- **Crash Site Local Map:** New ship interior room overlays (Cafeteria, Crew Quarters, Power Core, Captain’s Quarters) with improved visibility.
+- **Bridge:** New tile action — **Explore the Bridge** — unlocked after emergency power restores bridge access.
+- **Ship interior (G5):** Added a step-in combat encounter (mirrors the south corridor drone fight).
+
+### Changed
+
+- **Story:** Updated “Bridge — Access Regained” to focus on lift access returning and foreshadowing movement in the ship.
+- **Crash Site Local Map:** Improved POI wall styling consistency and added stronger corridor/room wall “fill” readability.
+- **Crash Site Local Map:** Improved focus dimming behavior when selecting interior/exterior tiles.
+
+### Fixed
+
+- **Story popups:** Standardized unlock listing for the Workbench completion popup (including “Sections Unlocked: Crafting”).
+- **Guidance markers:**
+    - Power Core “!” now persists until **Restore Emergency Power** is completed.
+    - Bridge “!” now persists until **Scavenge Comms Panel** is completed.
+- **Save/load:** Synced local-map marker state so the above “!” markers clear reliably across reloads.
+
+---
+
 # [0.2.7] - 2026-02-13
 
 ### Added

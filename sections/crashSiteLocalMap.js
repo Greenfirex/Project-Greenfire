@@ -905,6 +905,26 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
         </div>
     `;
 
+    // Interior/exterior mode (visual):
+    // - When selecting an interior (Crash Site POI) tile, show corridor/room overlays.
+    // - When selecting an exterior tile, hide those overlays so the crash background art reads cleanly.
+    try {
+        const root = container.querySelector('.localmap-root');
+        if (root) {
+            const selectedInCrash = !!isCrashPoi(mapState.selectedX, mapState.selectedY);
+            root.classList.toggle('is-interior', selectedInCrash);
+            root.classList.toggle('is-exterior', !selectedInCrash);
+
+            // Focus mode: when the player is currently inside the crash-site POI and the user
+            // is selecting interior tiles, slightly dim exterior tiles to differentiate inside/outside.
+            root.classList.toggle('dim-exterior', insideCrashPoi && selectedInCrash);
+
+            // Complementary focus mode: when the player is outside the POI and the user is selecting
+            // exterior tiles, slightly dim the POI footprint so the outside terrain reads cleanly.
+            root.classList.toggle('dim-poi', !insideCrashPoi && !selectedInCrash);
+        }
+    } catch { /* ignore */ }
+
     // Tile panel collapse toggle
     try {
         const btn = container.querySelector('.localmap-info-collapse-btn');
@@ -1459,6 +1479,67 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 }
             } catch { /* ignore */ }
 
+            // Laboratory tile overlay (visual): draw the lab art on the tile once it is discovered.
+            // Keep it hidden under fog-of-war by gating on `discovered`.
+            try {
+                const isLaboratory = !!(meta && meta.typeId === 'laboratory');
+                if (discovered && isLaboratory) {
+                    tile.classList.add('has-laboratory-overlay');
+                    const labOverlay = document.createElement('div');
+                    labOverlay.className = 'localmap-laboratory-overlay';
+                    labOverlay.setAttribute('aria-hidden', 'true');
+                    tile.appendChild(labOverlay);
+                }
+            } catch { /* ignore */ }
+
+            // Cafeteria tile overlay (visual): D6.
+            try {
+                const isCafeteria = !!(meta && meta.typeId === 'cafeteria');
+                if (discovered && isCafeteria) {
+                    tile.classList.add('has-cafeteria-overlay');
+                    const overlay = document.createElement('div');
+                    overlay.className = 'localmap-cafeteria-overlay';
+                    overlay.setAttribute('aria-hidden', 'true');
+                    tile.appendChild(overlay);
+                }
+            } catch { /* ignore */ }
+
+            // Crew Quarters tile overlay (visual): F6.
+            try {
+                const isCrewQuarters = !!(meta && meta.typeId === 'crewQuarters');
+                if (discovered && isCrewQuarters) {
+                    tile.classList.add('has-crewquarters-overlay');
+                    const overlay = document.createElement('div');
+                    overlay.className = 'localmap-crewquarters-overlay';
+                    overlay.setAttribute('aria-hidden', 'true');
+                    tile.appendChild(overlay);
+                }
+            } catch { /* ignore */ }
+
+            // Power Core tile overlay (visual): H4.
+            try {
+                const isPowerCore = !!(meta && meta.typeId === 'powerCore');
+                if (discovered && isPowerCore) {
+                    tile.classList.add('has-powercore-overlay');
+                    const overlay = document.createElement('div');
+                    overlay.className = 'localmap-powercore-overlay';
+                    overlay.setAttribute('aria-hidden', 'true');
+                    tile.appendChild(overlay);
+                }
+            } catch { /* ignore */ }
+
+            // Captain's Quarters tile overlay (visual): G7.
+            try {
+                const isCaptains = !!(meta && meta.typeId === 'captainsQuarters');
+                if (discovered && isCaptains) {
+                    tile.classList.add('has-captainsquarters-overlay');
+                    const overlay = document.createElement('div');
+                    overlay.className = 'localmap-captainsquarters-overlay';
+                    overlay.setAttribute('aria-hidden', 'true');
+                    tile.appendChild(overlay);
+                }
+            } catch { /* ignore */ }
+
             if (burnAnim && c === burnAnim.x && r === burnAnim.y) {
                 tile.classList.add('is-just-burned');
                 const burn = document.createElement('div');
@@ -1480,6 +1561,12 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
                 if (isC5 && openingKnown && !hullOpened && playerAdjacent && discovered) {
                     tile.classList.add('has-external-door', 'poi-door-right');
+
+                    const hullOverlay = document.createElement('div');
+                    hullOverlay.className = 'external-hull-wall-overlay external-hull-wall-overlay--right';
+                    hullOverlay.setAttribute('aria-hidden', 'true');
+                    tile.appendChild(hullOverlay);
+
                     const doorsOverlay = document.createElement('div');
                     doorsOverlay.className = 'poi-doors-overlay';
                     doorsOverlay.setAttribute('aria-hidden', 'true');
@@ -1551,6 +1638,20 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 tile.dataset.poi = meta.poiLabel || 'Crash Site';
                 tile.title = tile.dataset.poi;
 
+                // D5 hull breach: after opening the hull, keep a visible outer wall edge with a gap
+                // so the perimeter still reads while the breach remains passable.
+                try {
+                    const isD5 = (c === 4 && r === 5);
+                    const hullOpened = !!(state && typeof state === 'object' && state.d5HullOpened === true);
+                    if (isD5 && hullOpened) {
+                        tile.classList.add('has-external-door');
+                        const hullOverlay = document.createElement('div');
+                        hullOverlay.className = 'external-hull-wall-overlay external-hull-wall-overlay--left';
+                        hullOverlay.setAttribute('aria-hidden', 'true');
+                        tile.appendChild(hullOverlay);
+                    }
+                } catch { /* ignore */ }
+
                 // Outline the footprint perimeter (always visible).
                 if (!isCrashPoi(c, r - 1) && !shouldSkipCrashWallEdge(c, r, 'top')) tile.classList.add('poi-border-top');
                 if (!isCrashPoi(c, r + 1) && !shouldSkipCrashWallEdge(c, r, 'bottom')) tile.classList.add('poi-border-bottom');
@@ -1566,6 +1667,86 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                     if (dc < 1 || dc > COLS || dr < 1 || dr > ROWS) return false;
                     const v = isVisited(state, dc, dr);
                     return v || visibleNow.has(`${dc},${dr}`) || (dc === mapState.x && dr === mapState.y);
+                };
+
+                const isFinishedAction = (actionId) => {
+                    try {
+                        const id = String(actionId || '');
+                        if (!id) return false;
+                        const a = (salvageActions || []).find(x => x && x.id === id);
+                        if (!a) return false;
+                        if (a.repeatable === true) return false;
+                        if (a.completed === true) return true;
+                        const idx = Number(a.stage || 0);
+                        const total = Array.isArray(a.stages) ? a.stages.length : 0;
+                        if (total > 0 && idx >= total) return true;
+                        return false;
+                    } catch { /* ignore */ }
+                    return false;
+                };
+
+                // Door state is derived from the corresponding tile-gated action.
+                // - locked: gate action incomplete
+                // - open: gate action completed
+                // - neutral: just a visual door, no gating
+                const getDoorStateBetween = (ax, ay, bx, by) => {
+                    const x1 = Number(ax); const y1 = Number(ay);
+                    const x2 = Number(bx); const y2 = Number(by);
+
+                    // Labs (G3)
+                    if ((x1 === 7 && y1 === 3) || (x2 === 7 && y2 === 3)) {
+                        const open = !!(state && typeof state === 'object' && state.labsExplored === true) || isFinishedAction('searchLabs');
+                        return open ? 'open' : 'locked';
+                    }
+
+                    // Power Core (H4)
+                    if ((x1 === 8 && y1 === 4) || (x2 === 8 && y2 === 4)) {
+                        const open = !!(state && typeof state === 'object' && state.powerCoreExplored === true) || isFinishedAction('searchPowerCore');
+                        return open ? 'open' : 'locked';
+                    }
+
+                    // Cafeteria (D6)
+                    if ((x1 === 4 && y1 === 6) || (x2 === 4 && y2 === 6)) {
+                        const open = !!(state && typeof state === 'object' && state.cafeteriaExplored === true) || isFinishedAction('exploreCafeteria');
+                        return open ? 'open' : 'locked';
+                    }
+
+                    // Crew Quarters (F6)
+                    if ((x1 === 6 && y1 === 6) || (x2 === 6 && y2 === 6)) {
+                        const open = !!(state && typeof state === 'object' && state.crewQuartersExplored === true) || isFinishedAction('checkCrewQuarters');
+                        return open ? 'open' : 'locked';
+                    }
+
+                    // Captain's Quarters (G7)
+                    if ((x1 === 7 && y1 === 7) || (x2 === 7 && y2 === 7)) {
+                        const open = !!(state && typeof state === 'object' && state.captainsQuartersExplored === true) || isFinishedAction('checkCaptainsQuarters');
+                        return open ? 'open' : 'locked';
+                    }
+
+                    // Junction-gated corridor tiles
+                    // E4
+                    if ((x1 === 5 && y1 === 4) || (x2 === 5 && y2 === 4)) {
+                        const open = !!(state && typeof state === 'object' && state.northCorridorExplored === true) || isFinishedAction('searchNorthCorridor');
+                        return open ? 'open' : 'locked';
+                    }
+                    // E6
+                    if ((x1 === 5 && y1 === 6) || (x2 === 5 && y2 === 6)) {
+                        const open = !!(state && typeof state === 'object' && state.southCorridorExplored === true) || isFinishedAction('searchSouthCorridor');
+                        return open ? 'open' : 'locked';
+                    }
+                    // F5 (bridge approach)
+                    if ((x1 === 6 && y1 === 5) || (x2 === 6 && y2 === 5)) {
+                        const open = !!(state && typeof state === 'object' && state.bridgeExplored === true) || isFinishedAction('investigateBridge');
+                        return open ? 'open' : 'locked';
+                    }
+
+                    // Bridge room (H6) entry from G6
+                    if ((x1 === 8 && y1 === 6) || (x2 === 8 && y2 === 6)) {
+                        const open = !!(state && typeof state === 'object' && state.bridgeExplored === true) || isFinishedAction('investigateBridge');
+                        return open ? 'open' : 'locked';
+                    }
+
+                    return 'neutral';
                 };
 
                 if (discovered) {
@@ -1592,9 +1773,19 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                     const doorsOverlay = document.createElement('div');
                     doorsOverlay.className = 'poi-doors-overlay';
                     doorsOverlay.setAttribute('aria-hidden', 'true');
+
+                    const topState = tile.classList.contains('poi-door-top')
+                        ? getDoorStateBetween(c, r, c, r - 1)
+                        : 'neutral';
+                    const leftState = tile.classList.contains('poi-door-left')
+                        ? getDoorStateBetween(c, r, c - 1, r)
+                        : 'neutral';
+
+                    const topCls = (topState === 'locked') ? 'poi-door--locked' : ((topState === 'open') ? 'poi-door--open' : '');
+                    const leftCls = (leftState === 'locked') ? 'poi-door--locked' : ((leftState === 'open') ? 'poi-door--open' : '');
                     doorsOverlay.innerHTML = `
-                        <div class="poi-door poi-door--top"></div>
-                        <div class="poi-door poi-door--left"></div>
+                        <div class="poi-door poi-door--top ${topCls}"></div>
+                        <div class="poi-door poi-door--left ${leftCls}"></div>
                     `;
                     tile.appendChild(doorsOverlay);
 
@@ -1629,8 +1820,8 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                             overlay.setAttribute('aria-hidden', 'true');
                             overlay.innerHTML = d
                                 ? (meta.typeId === 'elevator'
-                                    ? `<svg class="poi-corridor-svg poi-elevator-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" /><path class="lift-box" d="${liftBox}" /></svg>`
-                                    : `<svg class="poi-corridor-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" /></svg>`)
+                                    ? `<svg class="poi-corridor-svg poi-elevator-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path class="poi-wall-fill" d="${d}" /><path d="${d}" /><path class="lift-box" d="${liftBox}" /></svg>`
+                                    : `<svg class="poi-corridor-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path class="poi-wall-fill" d="${d}" /><path d="${d}" /></svg>`)
                                 : '';
                             tile.appendChild(overlay);
                         }
@@ -1658,7 +1849,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                             roomOverlay.className = 'poi-room-overlay';
                             roomOverlay.setAttribute('aria-hidden', 'true');
                             roomOverlay.innerHTML = dRoom
-                                ? `<svg class="poi-room-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${dRoom}" /></svg>`
+                                ? `<svg class="poi-room-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path class="poi-wall-fill" d="${dRoom}" /><path d="${dRoom}" /></svg>`
                                 : '';
                             tile.appendChild(roomOverlay);
                         }

@@ -108,12 +108,7 @@ export function updateBuildingButtonsState(scope = document) {
       btn.setAttribute('aria-disabled', 'true');
       // Only disable if not currently building
       if (!isActuallyRunning) btn.disabled = true;
-      if (nameEl2) {
-        nameEl2.classList.add('unaffordable');
-        nameEl2.style.color = '#E74C3C';
-        nameEl2.style.textShadow = '0 0 6px rgba(231, 76, 60, 0.6)';
-        nameEl2.style.fontWeight = '600';
-      }
+      if (nameEl2) nameEl2.style.fontWeight = '600';
       btn.dataset.shortfall = getAffordabilityShortfalls(b.name).join(', ');
     } else {
       btn.removeAttribute('aria-disabled');
@@ -122,9 +117,6 @@ export function updateBuildingButtonsState(scope = document) {
         btn.disabled = false;
       }
       if (nameEl2) {
-        nameEl2.classList.remove('unaffordable');
-        nameEl2.style.color = '';
-        nameEl2.style.textShadow = '';
         nameEl2.style.fontWeight = '';
       }
       delete btn.dataset.shortfall;

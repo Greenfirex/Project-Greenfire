@@ -56,6 +56,40 @@ export const jobs = [
         ],
         unlimited: false
     },
+
+    // Labs Scavenger — unlocked when Chemicals are first discovered; unlimited assignments once unlocked
+    {
+        id: 'labs_scavenger',
+        name: 'Labs Scavenger',
+        building: 'Base Camp',
+        slots: 0,
+        assigned: 0,
+        produces: 'Chemicals',
+        rate: 0.02,
+        description: 'Scavenge lab reagents and usable compounds from the wreckage.',
+        consumes: [
+            { resource: 'Provisions', rate: 0.03 },
+            { resource: 'Water', rate: 0.03 },
+        ],
+        unlimited: false
+    },
+
+    // Textile Salvager — unlocked when Fabric is first discovered; unlimited assignments once unlocked
+    {
+        id: 'textile_salvager',
+        name: 'Textile Salvager',
+        building: 'Base Camp',
+        slots: 0,
+        assigned: 0,
+        produces: 'Fabric',
+        rate: 0.025,
+        description: 'Recover usable cloth and textiles for repairs and shelter building.',
+        consumes: [
+            { resource: 'Provisions', rate: 0.03 },
+            { resource: 'Water', rate: 0.03 },
+        ],
+        unlimited: false
+    },
     // Scientist — unlocked once the first Field Lab is built
     {
         id: 'scientist',

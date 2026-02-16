@@ -150,7 +150,18 @@ function renderPopupPage() {
                 const blocks = [];
 
                 // Split actions into Upgrades vs non-Upgrades using definitions
-                const actionsList = Array.isArray(activeOutcome.unlocks.actions) ? activeOutcome.unlocks.actions.slice() : [];
+                const actionsListRaw = Array.isArray(activeOutcome.unlocks.actions) ? activeOutcome.unlocks.actions.slice() : [];
+
+                // Tile-bound actions are discoverable by simply moving to the tile; don't list them as unlocks.
+                const TILE_BOUND_ACTION_IDS = new Set(['searchLabs', 'searchPowerCore', 'exploreCafeteria', 'checkCrewQuarters']);
+                const TILE_BOUND_ACTION_NAMES = new Set(['Search: Labs', 'Search: Power Core', 'Explore Cafeteria', 'Check Crew Quarters']);
+                const actionsList = actionsListRaw.filter(v => {
+                    const s = String(v || '').trim();
+                    if (!s) return false;
+                    if (TILE_BOUND_ACTION_IDS.has(s)) return false;
+                    if (TILE_BOUND_ACTION_NAMES.has(s)) return false;
+                    return true;
+                });
                 let upgradeNames = [];
                 let recipeNames = [];
                 let regularActionNames = [];

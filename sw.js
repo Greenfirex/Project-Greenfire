@@ -3,7 +3,7 @@
    - Stale-while-revalidate for same-origin static assets (css/js/images).
 */
 
-const SW_VERSION = 'greenfire-sw-v1';
+const SW_VERSION = 'greenfire-sw-v2';
 const STATIC_CACHE = `${SW_VERSION}-static`;
 const RUNTIME_CACHE = `${SW_VERSION}-runtime`;
 
@@ -69,6 +69,18 @@ function isSameOrigin(url) {
   }
 }
 
+function isDevHost() {
+  try {
+    const h = String(self.location.hostname || '').toLowerCase();
+    if (h === 'localhost' || h === '127.0.0.1') return true;
+    // Treat plain HTTP as dev by default (production should be HTTPS).
+    if (String(self.location.protocol || '').toLowerCase() === 'http:') return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function isNavigationRequest(request) {
   return request.mode === 'navigate' || (request.destination === 'document');
 }
@@ -115,6 +127,10 @@ async function staleWhileRevalidate(request) {
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
+
+  // Dev ergonomics: do not cache on localhost / non-https.
+  // This prevents stale cached JS/CSS after edits (Ctrl+F5 doesn't always bypass the SW cache).
+  if (isDevHost()) return;
 
   const url = new URL(request.url);
   if (!isSameOrigin(url)) return;

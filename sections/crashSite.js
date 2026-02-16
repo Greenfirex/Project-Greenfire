@@ -9,7 +9,7 @@ import { findCrashSitePath } from '../data/maps/localMapPathfinding.js';
 import { storyEvents } from '../data/definitions/storyEvents.js';
 import { showStoryPopup } from '../ui/panels/popup.js';
 import { getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/activeActions.js';
-import { recomputeObjectives, getObjectivesStatus, getObjectiveDefinition } from '../data/objectives.js';
+import { recomputeObjectives, getObjectivesStatus, getObjectiveSteps } from '../data/objectives.js';
 import { getTotalIngameMinutes } from '../core/time.js';
 import { buildings } from '../data/definitions/buildings.js';
 import { gameFlags, runActionCompletionHandlers } from '../data/gameFlags.js';
@@ -597,6 +597,42 @@ export function startCrashSiteLoop(section = null) {
     }
     const activeAction = getActiveCrashSiteAction();
     if (!activeAction) return;
+
+    // If an action was restored from save/load, ensure its UI reflects a running state
+    // before we start ticking.
+    try {
+        const a = activeAction;
+        const effectiveDuration = computeEffectiveDuration(a, resources);
+        const timeScale = (Number(window.TIME_SCALE || 1) > 0) ? Number(window.TIME_SCALE || 1) : 1;
+        const elapsed = Math.max(0, Math.min(Number(a.elapsed || 0), Number.isFinite(effectiveDuration) ? effectiveDuration : 0));
+        const sel = a && a.uiInstanceId
+            ? `[data-action-id="${a.id}"][data-action-instance="${a.uiInstanceId}"]`
+            : `[data-action-id="${a.id}"][data-action-instance="main"]`;
+        const host = section || document;
+        const btn = host && host.querySelector ? host.querySelector(sel) : null;
+        if (btn) {
+            const name = btn.querySelector('.building-name');
+            if (name && !btn.dataset.originalLabel) btn.dataset.originalLabel = name.innerText;
+            btn.classList.add('running');
+            btn.classList.remove('confirm-cancel');
+            if (a.cancelable) {
+                btn.onclick = () => requestCancel(a, section);
+                btn.disabled = false;
+            } else {
+                btn.onclick = null;
+                btn.disabled = true;
+            }
+            const bar = btn.querySelector('.action-progress-bar');
+            if (bar && effectiveDuration > 0) {
+                bar.style.width = `${Math.min((elapsed / effectiveDuration) * 100, 100)}%`;
+            }
+            if (name && effectiveDuration > 0) {
+                const remainingRealSeconds = Math.max(0, (effectiveDuration - elapsed) / timeScale);
+                name.innerText = `${remainingRealSeconds.toFixed(1)}s`;
+            }
+        }
+    } catch { /* ignore */ }
+
     if (activeAction.pauseStart) {
         const pausedDuration = Date.now() - activeAction.pauseStart;
         activeAction.startTime = (activeAction.startTime || Date.now()) + pausedDuration;
@@ -933,14 +969,14 @@ export function setupCrashSiteSection(section) {
             // Ship interior rooms
             // G3 (7,3)
             '7,3': ['searchLabs', 'collectChemicals'],
-            // G4 (7,4)
-            '7,4': ['searchPowerCore'],
+            // H4 (8,4)
+            '8,4': ['searchPowerCore'],
 
             // F6 (6,6)
             '6,6': ['collectFabric'],
 
             // H6 (8,6) - bridge: salvage comms components after lift access
-            '8,6': ['scavengeCommsPanel'],
+            '8,6': ['exploreBridge', 'scavengeCommsPanel'],
 
             // J2 (10,2) - distant smoke investigation
             '10,2': ['investigateDistantSmoke'],
@@ -950,6 +986,17 @@ export function setupCrashSiteSection(section) {
             if (!selectedExplored) return;
             // Base camp (B7): once established, it becomes a small crafting hub.
             let ids = TILE_ACTIONS[coordKey(selX, selY)] || [];
+
+            // Avoid showing completed one-off actions on tiles.
+            try {
+                if (Array.isArray(ids) && ids.length) {
+                    ids = ids.filter(id => {
+                        const a = salvageActions.find(x => x && x.id === id);
+                        if (!a) return false;
+                        return !isFinished(a);
+                    });
+                }
+            } catch { /* ignore */ }
 
             // Cave (B6): once Workbench is built, remove early-game one-off crafting actions.
             // Those items are handled by the Crafting menu after Workbench.
@@ -1178,8 +1225,8 @@ export function setupCrashSiteSection(section) {
             '6,6': 'checkCrewQuarters',
             // G3
             '7,3': 'searchLabs',
-            // G4
-            '7,4': 'searchPowerCore',
+            // H4
+            '8,4': 'searchPowerCore',
             // G7
             '7,7': 'checkCaptainsQuarters',
         };
@@ -1188,7 +1235,7 @@ export function setupCrashSiteSection(section) {
 
         const getShipTileActionIdFor = (x, y) => {
             const key = coordKey(x, y);
-            if (key === '7,4') {
+            if (key === '8,4') {
                 try {
                     const core = salvageActions.find(a => a && a.id === 'searchPowerCore');
                     if (core && core.isUnlocked && !isFinished(core)) return 'searchPowerCore';
@@ -1227,7 +1274,15 @@ export function setupCrashSiteSection(section) {
                 const actionId = getShipTileActionIdFor(selX, selY) || null;
 
                 // Allow interaction if adjacent (original behavior) OR if the tile is explored.
-                const canShow = !!(actionId && (!isDiagonal && dist === 1 || selectedExplored));
+                let canShow = !!(actionId && ((!isDiagonal && dist === 1) || selectedExplored));
+
+                // Investigate Bridge (F5) is only startable from E5.
+                // F4 and F6 are intentionally walled off even though they are adjacent.
+                if (actionId === 'investigateBridge') {
+                    const fromE5 = (playerX === 5 && playerY === 5);
+                    const isF5 = (selX === 6 && selY === 5);
+                    canShow = !!(fromE5 && isF5 && !isDiagonal && dist === 1);
+                }
                 if (canShow && actionId) {
                     const a = salvageActions.find(x => x && x.id === actionId);
                     // Once the action is finished, the tile becomes traversable like normal (Move comes back).
@@ -1236,7 +1291,10 @@ export function setupCrashSiteSection(section) {
                             ariaDisabled: !(dist === 1 || playerOnSelected),
                             disabledReason: !(dist === 1 || playerOnSelected) ? 'You need to be closer to perform this action.' : '',
                             onClick: (e) => {
-                                if (!(dist === 1 || playerOnSelected)) {
+                                const okDistance = (a.id === 'investigateBridge')
+                                    ? (playerX === 5 && playerY === 5 && selX === 6 && selY === 5 && dist === 1)
+                                    : (dist === 1 || playerOnSelected);
+                                if (!okDistance) {
                                     e.preventDefault();
                                     logNeedCloser();
                                     return;
@@ -1712,13 +1770,13 @@ export function setupCrashSiteSection(section) {
                             '6,6': 'checkCrewQuarters',
                             // Rooms
                             '7,3': 'searchLabs',
-                            '7,4': 'searchPowerCore',
+                            '8,4': 'searchPowerCore',
                             // Captain's Quarters
                             '7,7': 'checkCaptainsQuarters',
                         };
                         const tKey = `${tx},${ty}`;
                         let tileActionId = tileActions[tKey] || null;
-                        if (tKey === '7,4') {
+                        if (tKey === '8,4') {
                             try {
                                 const core = salvageActions.find(a => a && a.id === 'searchPowerCore');
                                 if (core && core.isUnlocked && !isFinished(core)) {
@@ -2035,6 +2093,15 @@ export function setupCrashSiteSection(section) {
     const stage = getCurrentStage(action);
     const upfront = [...(action.cost || []), ...((stage && stage.cost) || [])];
     upfront.forEach(cost => {
+        // Some "costs" are effectively tool requirements and should not be consumed.
+        // Example: Pry Open Hull requires a prybar, but restarting after Stamina depletion
+        // should not force crafting additional prybars.
+        try {
+            const actionId = String(action?.id || '');
+            const resName = String(cost?.resource || '');
+            if (actionId === 'pryOpenHull' && resName === 'Crude Prybar') return;
+        } catch { /* ignore */ }
+
         const itemId = getItemIdForResourceName(cost?.resource);
         const amt = Math.max(0, Math.floor(Number(cost?.amount) || 0));
         if (itemId) {
@@ -3019,6 +3086,42 @@ window.addEventListener('emergencyPowerRestored', () => {
 window.addEventListener('game-state-applied', () => {
     ensureBridgeStageAfterPower();
 
+    // Keep local-map state in sync for marker logic.
+    try {
+        if (gameFlags?.emergencyPowerRestored === true) {
+            const st = characterState?.localMap;
+            if (st && typeof st === 'object') st.emergencyPowerRestored = true;
+        }
+    } catch { /* ignore */ }
+
+    // If the comms panel was already scavenged in the action state, ensure the marker clears on older saves.
+    try {
+        const st = characterState?.localMap;
+        if (st && typeof st === 'object') {
+            const comms = (salvageActions || []).find(a => a && a.id === 'scavengeCommsPanel');
+            const total = Array.isArray(comms?.stages) ? comms.stages.length : 0;
+            const stage = Number(comms?.stage || 0);
+            const finished = (comms?.completed === true) || (total > 0 && stage >= total);
+            if (finished) st.commsPanelScavenged = true;
+        }
+    } catch { /* ignore */ }
+
+    // If a Crash Site action was restored from save, it must resume ticking.
+    // Otherwise it will block starting new actions without making progress.
+    try {
+        const active = getActiveCrashSiteAction();
+        if (active) {
+            const def = salvageActions.find(a => a && a.id === active.id);
+            if (!def || isFinished(def)) {
+                setActiveCrashSiteAction(null);
+            } else {
+                active.lastTickTime = Date.now();
+                const host = document.getElementById('crashSiteSection') || document.body;
+                startCrashSiteLoop(host);
+            }
+        }
+    } catch { /* ignore */ }
+
     // Apply resource-discovery-based unlock rules against the *current* discovered resources,
     // so older saves immediately receive new recipes/upgrades without requiring a fresh event.
     try {
@@ -3047,6 +3150,13 @@ window.addEventListener('objectivesChanged', () => {
 if (typeof window !== 'undefined') {
     window.setupCrashSiteSection = setupCrashSiteSection;
 }
+
+// Expose for the main loop (core/main.js) which calls this by global name.
+try {
+    if (typeof window !== 'undefined') {
+        window.updateCrashSiteActionButtonsState = updateCrashSiteActionButtonsState;
+    }
+} catch { /* ignore */ }
 
 // Listen for resource discoveries and evaluate centralized unlock rules
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
@@ -3152,6 +3262,207 @@ export function updateCrashSiteActionButtonsState() {
     // Campsite tab embeds Upgrade-category action buttons.
     // Keep these in sync so affordability updates immediately after building/crafting.
     updateButtonsInContainer(document.querySelector('#campsiteUpgrades'));
+
+    // Objective-driven hints:
+    // - Clear a Path In: when the current step is "Make Crude Prybar", show a persistent "!" on the action button
+    //   and on the B6 cave tile (one-time; clears as soon as the step is completed).
+    // - Survey the Wreckage: when the current step is "Burn the thorny wall", show a "!" on C5 until done.
+    try {
+        const pryAction = salvageActions.find(a => a && a.id === 'makeCrudePrybar');
+
+        const getResAmount = (name) => {
+            try {
+                const r = resources.find(x => x && x.name === name);
+                return Number.isFinite(r?.amount) ? Number(r.amount) : 0;
+            } catch { return 0; }
+        };
+
+        const metalParts = getResAmount('Metal Parts');
+
+        let requiredMetal = 15;
+        try {
+            const entry = Array.isArray(pryAction?.cost)
+                ? pryAction.cost.find(c => c && c.resource === 'Metal Parts')
+                : null;
+            if (entry && Number.isFinite(Number(entry.amount))) requiredMetal = Number(entry.amount);
+        } catch { /* ignore */ }
+
+        const isObjectiveStepActive = (objectiveId, stepId) => {
+            try {
+                // Drive hints from the same step list the objectives panel uses.
+                const steps = getObjectiveSteps(objectiveId);
+                const step = Array.isArray(steps) ? steps.find(x => x && x.id === stepId) : null;
+                if (!step) return false;
+                // Optional: if status is known, require the objective to be active.
+                try {
+                    const st = (getObjectivesStatus() || []).find(s => s && s.id === objectiveId);
+                    if (st && st.state && st.state !== 'active') return false;
+                } catch { /* ignore */ }
+                return step.done !== true;
+            } catch { return false; }
+        };
+
+        const prybarStepActive = isObjectiveStepActive('obj_enter', 'craft_prybar');
+        const returnToCaveStepActive = isObjectiveStepActive('obj_enter', 'return_to_cave');
+        const torchStepActive = isObjectiveStepActive('obj_entry', 'craft_torch');
+        const burnWallStepActive = isObjectiveStepActive('obj_entry', 'burn_thorns');
+
+        const hasPrybar = (() => {
+            try {
+                const itemId = getItemIdForResourceName('Crude Prybar');
+                if (itemId) return countItemInBag(itemId, characterState) >= 1;
+            } catch { /* ignore */ }
+            // Back-compat: older saves/actions may still represent it as a legacy hidden resource.
+            return getResAmount('Crude Prybar') >= 1;
+        })();
+
+        const hasTorch = (() => {
+            try {
+                return (
+                    characterState?.equipment?.accessory_1 === 'basic_torch'
+                    || characterState?.equipment?.accessory_2 === 'basic_torch'
+                    || (countItemInBag('basic_torch', characterState) > 0)
+                );
+            } catch { return false; }
+        })();
+
+        const activeId = (() => {
+            try { return String(getActiveCrashSiteAction()?.id || ''); } catch { return ''; }
+        })();
+        const prybarInProgress = activeId === 'makeCrudePrybar';
+        const prybarSavedProgress = (() => {
+            try {
+                const p = getSavedProgress01ForActionId('makeCrudePrybar');
+                return Number.isFinite(p) ? p : 0;
+            } catch { return 0; }
+        })();
+
+        const prybarHintActive = !!(
+            pryAction
+            && pryAction.isUnlocked
+            && prybarStepActive
+            && !hasPrybar
+            // Keep the hint visible even after starting (Metal Parts are consumed at start).
+            && (metalParts >= requiredMetal || prybarInProgress || prybarSavedProgress > 0)
+        );
+
+        const torchAction = salvageActions.find(a => a && a.id === 'createBasicTorch');
+        const torchHintActive = !!(
+            torchAction
+            && torchAction.isUnlocked
+            && torchStepActive
+            && !hasTorch
+        );
+
+        // 1) Action button hint badge (works for both local-map and any other UI that renders the action)
+        try {
+            const buttons = document.querySelectorAll('.image-button[data-action-id="makeCrudePrybar"]');
+            for (const btn of buttons) {
+                if (!btn) continue;
+
+                const hasNew = !!btn.querySelector('.action-new-badge');
+                const existing = btn.querySelector('.action-hint-badge');
+                const shouldShow = prybarHintActive && !hasNew;
+
+                if (shouldShow && !existing) {
+                    const badge = document.createElement('span');
+                    badge.className = 'action-hint-badge';
+                    badge.setAttribute('aria-hidden', 'true');
+                    badge.textContent = '!';
+                    btn.appendChild(badge);
+                } else if (!shouldShow && existing) {
+                    existing.remove();
+                }
+            }
+        } catch { /* ignore */ }
+
+        // 1b) Torch action button hint badge (Survey the Wreckage -> Craft Torch)
+        try {
+            const buttons = document.querySelectorAll('.image-button[data-action-id="createBasicTorch"]');
+            for (const btn of buttons) {
+                if (!btn) continue;
+
+                const hasNew = !!btn.querySelector('.action-new-badge');
+                const existing = btn.querySelector('.action-hint-badge');
+                const shouldShow = torchHintActive && !hasNew;
+
+                if (shouldShow && !existing) {
+                    const badge = document.createElement('span');
+                    badge.className = 'action-hint-badge';
+                    badge.setAttribute('aria-hidden', 'true');
+                    badge.textContent = '!';
+                    btn.appendChild(badge);
+                } else if (!shouldShow && existing) {
+                    existing.remove();
+                }
+            }
+        } catch { /* ignore */ }
+
+        // 2) B6 cave tile hint marker (center "!" overlay)
+        try {
+            const lm = characterState?.localMap;
+            const knowsCave = !!(
+                lm
+                && typeof lm === 'object'
+                && (
+                    lm.discoveredCave === true
+                    || lm.caveSpottedWest === true
+                    || (lm.seen && lm.seen['2,6'] === true)
+                    || (lm.visited && lm.visited['2,6'] === true)
+                )
+            );
+
+            const tile = document.querySelector('.localmap-tile[data-col="2"][data-row="6"]');
+            if (tile) {
+                const marker = tile.querySelector('.localmap-tile-alert[data-hint="prybar"], .localmap-tile-alert[data-hint="torch"]');
+
+                // Prefer the earlier Survey objective hint over the later Prybar hint.
+                const shouldShowTorch = !!(torchStepActive && knowsCave && !hasTorch);
+                const shouldShowPrybar = !!(returnToCaveStepActive && knowsCave);
+                const desiredHint = shouldShowTorch ? 'torch' : (shouldShowPrybar ? 'prybar' : null);
+
+                if (desiredHint) {
+                    if (!marker) {
+                        // If a normal alert marker already exists on the tile, don't stack another one.
+                        if (!tile.querySelector('.localmap-tile-alert')) {
+                            const el = document.createElement('div');
+                            el.className = 'localmap-tile-alert';
+                            el.dataset.hint = desiredHint;
+                            el.setAttribute('aria-hidden', 'true');
+                            el.textContent = '!';
+                            tile.appendChild(el);
+                        }
+                    } else if (marker.dataset.hint !== desiredHint) {
+                        marker.dataset.hint = desiredHint;
+                    }
+                } else if (marker) {
+                    marker.remove();
+                }
+            }
+        } catch { /* ignore */ }
+
+        // 3) C5 thorn wall objective marker (center "!" overlay)
+        try {
+            const tile = document.querySelector('.localmap-tile[data-col="3"][data-row="5"]');
+            if (tile) {
+                const marker = tile.querySelector('.localmap-tile-alert[data-hint="burnWall"]');
+                const shouldShow = !!burnWallStepActive;
+
+                if (shouldShow && !marker) {
+                    if (!tile.querySelector('.localmap-tile-alert')) {
+                        const el = document.createElement('div');
+                        el.className = 'localmap-tile-alert';
+                        el.dataset.hint = 'burnWall';
+                        el.setAttribute('aria-hidden', 'true');
+                        el.textContent = '!';
+                        tile.appendChild(el);
+                    }
+                } else if (!shouldShow && marker) {
+                    marker.remove();
+                }
+            }
+        } catch { /* ignore */ }
+    } catch { /* ignore */ }
 
     // Keep the Campsite Camp Resources orbs in sync without requiring a full re-render.
     try { updateCampsiteCampResourcesPanel(document); } catch { /* ignore */ }

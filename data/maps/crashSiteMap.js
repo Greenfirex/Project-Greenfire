@@ -203,8 +203,6 @@ const INTERNAL_POI_WALLS = new Set([
     edgeKey(6, 5, 6, 6),
 
     // Requested corridor walls
-    // G3 <-> G4 (separate Laboratory from Power Core)
-    edgeKey(7, 3, 7, 4),
     // G4 <-> G5
     edgeKey(7, 4, 7, 5),
     // F6 <-> G6
@@ -215,13 +213,15 @@ const INTERNAL_POI_WALLS = new Set([
 
 // Visual-only door edges inside the crash POI (may or may not also be blocking walls).
 const INTERNAL_POI_DOORS = new Set([
-    // Lab/Power Core entrances from the main corridors
-    // F3 <-> G3
-    edgeKey(6, 3, 7, 3),
-    // F4 <-> G4
-    edgeKey(6, 4, 7, 4),
-
-    // Alternate access opening at D5 (left edge)
+    // Room entrances from the main corridors
+    // G4 <-> G3 (Labs entry from below)
+    edgeKey(7, 4, 7, 3),
+    // H4 <-> G4 (Power Core entry from the west)
+    edgeKey(8, 4, 7, 4),
+    // E6 <-> D6 (Cafeteria entry)
+    edgeKey(5, 6, 4, 6),
+    // F6 <-> E6 (Crew Quarters entry)
+    edgeKey(6, 6, 5, 6),
     // C5 <-> D5
     edgeKey(3, 5, 4, 5),
 
@@ -280,11 +280,11 @@ export const CRASH_POI_CELLS = new Set([
     // E column
     '5,4', '5,5', '5,6',
     // F column
-    '6,3', '6,4', '6,5', '6,6', '6,7',
+    '6,4', '6,5', '6,6', '6,7',
     // G column
     '7,3', '7,4', '7,5', '7,6', '7,7',
     // H column
-    '8,6',
+    '8,4', '8,6',
 ]);
 
 // Important markers to draw on the map UI.
@@ -308,7 +308,6 @@ const OVERRIDES = {
     '5,4': { type: 'corridor' }, // E4
     '5,5': { type: 'corridor' }, // E5
     '5,6': { type: 'corridor' }, // E6
-    '6,3': { type: 'corridor' }, // F3
     '6,4': { type: 'corridor' }, // F4
     '6,5': { type: 'elevator' }, // F5
     '6,6': { type: 'crewQuarters' }, // F6
@@ -319,7 +318,8 @@ const OVERRIDES = {
 
     '4,6': { type: 'cafeteria' }, // D6
     '7,3': { type: 'laboratory' }, // G3
-    '7,4': { type: 'powerCore' }, // G4
+    '7,4': { type: 'corridor' }, // G4
+    '8,4': { type: 'powerCore' }, // H4
     '7,7': { type: 'captainsQuarters' }, // G7
     '8,6': { type: 'bridge' }, // H6
 
@@ -393,14 +393,18 @@ function getMarkersForCell(col, row, localMapState) {
 
     // Ship interior room markers: keep showing "!" on key rooms until the player completes
     // the tile-gated exploration actions.
-    // - G4 (7,4): Search: Power Core (multi-stage; marker clears when fully completed)
-    // - H6 (8,6): Investigate Bridge (multi-stage; marker clears when fully completed)
+    // - G3 (7,3): Search: Labs (marker clears when fully completed)
+    // - H4 (8,4): Power Core (marker clears when emergency power is restored)
+    // - H6 (8,6): Bridge (marker clears when Scavenge Comms Panel fully completes)
     try {
         if (localMapState && localMapState.shipInteriorTileHints === true) {
-            if (c === 7 && r === 4 && localMapState.powerCoreExplored !== true) {
+            if (c === 7 && r === 3 && localMapState.labsExplored !== true) {
                 return [{ kind: 'alert', text: null }];
             }
-            if (c === 8 && r === 6 && localMapState.bridgeExplored !== true) {
+            if (c === 8 && r === 4 && localMapState.emergencyPowerRestored !== true) {
+                return [{ kind: 'alert', text: null }];
+            }
+            if (c === 8 && r === 6 && localMapState.commsPanelScavenged !== true) {
                 return [{ kind: 'alert', text: null }];
             }
         }
@@ -756,6 +760,9 @@ export const CRASH_SITE_MAP_BOUND_ACTION_IDS = new Set([
     'searchNorthCorridor',
     'searchSouthCorridor',
     'investigateBridge',
+
+    // Bridge follow-up (tile-bound)
+    'exploreBridge',
 
     // Ship interior room actions (tile-bound)
     'exploreCafeteria',

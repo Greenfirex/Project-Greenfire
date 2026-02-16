@@ -160,12 +160,8 @@ const initialUpgradeActions = [
         isUnlocked: false, // unlocked after Base Camp is established
         cancelable: true,
         cost: [
-            { resource: 'Metal Parts', amount: 10 },
-            { resource: 'Wire', amount: 6 },
-        ],
-        drain: [
-            { resource: 'Provisions', amount: 4 },
-            { resource: 'Water', amount: 4 }
+            { resource: 'Metal Parts', amount: 6 },
+            { resource: 'Wire', amount: 3 },
         ],
         repeatable: false,
         hideRewardPreview: true,

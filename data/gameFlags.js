@@ -329,8 +329,26 @@ function maybeUnlockHerbTeaRecipe({ log = false } = {}) {
 }
 
 // Corridor/bridge/room actions: once finished, step onto the tile (when started from an adjacent tile).
-registerActionCompletionHandler('searchNorthCorridor', () => applyPendingActionMove('searchNorthCorridor'));
-registerActionCompletionHandler('searchSouthCorridor', () => applyPendingActionMove('searchSouthCorridor'));
+registerActionCompletionHandler('searchNorthCorridor', async (original) => {
+    try { await applyPendingActionMove('searchNorthCorridor'); } catch { /* ignore */ }
+    try {
+        const st = characterState?.localMap;
+        const total = Array.isArray(original?.stages) ? original.stages.length : 0;
+        const stage = Number(original?.stage || 0);
+        const finished = (total > 0) ? (stage >= total) : true;
+        if (st && typeof st === 'object' && finished) st.northCorridorExplored = true;
+    } catch { /* ignore */ }
+});
+registerActionCompletionHandler('searchSouthCorridor', async (original) => {
+    try { await applyPendingActionMove('searchSouthCorridor'); } catch { /* ignore */ }
+    try {
+        const st = characterState?.localMap;
+        const total = Array.isArray(original?.stages) ? original.stages.length : 0;
+        const stage = Number(original?.stage || 0);
+        const finished = (total > 0) ? (stage >= total) : true;
+        if (st && typeof st === 'object' && finished) st.southCorridorExplored = true;
+    } catch { /* ignore */ }
+});
 registerActionCompletionHandler('investigateBridge', async (original) => {
     try { await applyPendingActionMove('investigateBridge'); } catch { /* ignore */ }
     try {
@@ -340,6 +358,30 @@ registerActionCompletionHandler('investigateBridge', async (original) => {
         const finished = (total > 0) ? (stage >= total) : true;
         if (st && typeof st === 'object' && finished) st.bridgeExplored = true;
     } catch { /* ignore */ }
+});
+
+registerActionCompletionHandler('exploreBridge', () => {
+    try {
+        const st = characterState?.localMap;
+        if (st && typeof st === 'object') st.bridgeExplored = true;
+    } catch { /* ignore */ }
+
+    // Refresh Crash Site UI so any tile actions/markers update immediately.
+    if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+        try { window.setupCrashSiteSection(); } catch { /* ignore */ }
+    }
+});
+
+registerActionCompletionHandler('scavengeCommsPanel', () => {
+    try {
+        const st = characterState?.localMap;
+        if (st && typeof st === 'object') st.commsPanelScavenged = true;
+    } catch { /* ignore */ }
+
+    // Refresh Crash Site UI so the bridge "!" marker clears immediately.
+    if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+        try { window.setupCrashSiteSection(); } catch { /* ignore */ }
+    }
 });
 registerActionCompletionHandler('exploreCafeteria', async (original) => {
     try { await applyPendingActionMove('exploreCafeteria'); } catch { /* ignore */ }
@@ -354,8 +396,26 @@ registerActionCompletionHandler('exploreCafeteria', async (original) => {
     // If the Campfire is already lit, unlock the recipe now so the story popup can list it.
     try { maybeUnlockHerbTeaRecipe({ log: false }); } catch { /* ignore */ }
 });
-registerActionCompletionHandler('checkCrewQuarters', () => applyPendingActionMove('checkCrewQuarters'));
-registerActionCompletionHandler('searchLabs', () => applyPendingActionMove('searchLabs'));
+registerActionCompletionHandler('checkCrewQuarters', async (original) => {
+    try { await applyPendingActionMove('checkCrewQuarters'); } catch { /* ignore */ }
+    try {
+        const st = characterState?.localMap;
+        const total = Array.isArray(original?.stages) ? original.stages.length : 0;
+        const stage = Number(original?.stage || 0);
+        const finished = (total > 0) ? (stage >= total) : true;
+        if (st && typeof st === 'object' && finished) st.crewQuartersExplored = true;
+    } catch { /* ignore */ }
+});
+registerActionCompletionHandler('searchLabs', async (original) => {
+    try { await applyPendingActionMove('searchLabs'); } catch { /* ignore */ }
+    try {
+        const st = characterState?.localMap;
+        const total = Array.isArray(original?.stages) ? original.stages.length : 0;
+        const stage = Number(original?.stage || 0);
+        const finished = (total > 0) ? (stage >= total) : true;
+        if (st && typeof st === 'object' && finished) st.labsExplored = true;
+    } catch { /* ignore */ }
+});
 registerActionCompletionHandler('searchPowerCore', async (original) => {
     try { await applyPendingActionMove('searchPowerCore'); } catch { /* ignore */ }
     try {
@@ -584,6 +644,21 @@ registerActionCompletionHandler('move', async () => {
                     // Keep selection synced so context actions appear immediately after moving.
                     st.selectedX = st.x;
                     st.selectedY = st.y;
+
+                    // G5 (7,5): ship interior ambush encounter (one-time; retreat rewinds the step).
+                    // Uses the same encounter data as the south corridor action encounter.
+                    try {
+                        if (st.x === 7 && st.y === 5 && !st.g5CombatDone) {
+                            const result = await runStepInTileCombatEncounter(st, 'maintenance_drone_south_corridor', {
+                                onWin: () => {
+                                    st.g5CombatDone = true;
+                                }
+                            });
+
+                            // If combat rewound the move (retreat), don't continue running step-in tile discovery logic.
+                            if (result && result.outcome === 'retreat') return;
+                        }
+                    } catch { /* ignore */ }
 
                     // H7 (8,7): one-time log note about the blocked eastern path.
                     try {
@@ -965,15 +1040,6 @@ registerActionCompletionHandler('installRainCatchers', () => {
 registerActionCompletionHandler('establishBaseCamp', () => {
     // Campsite jobs are embedded under the Crash Site -> Campsite tab.
 
-    const toUnlock = ['Foraging Camp', 'Water Station'];
-    buildings.forEach(b => {
-        if (toUnlock.includes(b.name) && !b.isUnlocked) {
-            b.isUnlocked = true;
-                b.uiNew = true; // Mark as new for UI
-            addLogEntry(`New building available: ${b.name}`, LogType.UNLOCK);
-        }
-    });
-
     // Unlock the Scrap Collector job and make it effectively unlimited
     try {
         const scrapJob = (jobs || []).find(j => j.id === 'scrap_collector');
@@ -1097,6 +1163,48 @@ registerActionCompletionHandler('workbench', () => {
         }
     } catch { /* ignore */ }
 
+    // Unlock base-camp infrastructure buildings now that the Workbench is operational.
+    try {
+        const toUnlock = ['Foraging Camp', 'Water Station'];
+        for (const name of toUnlock) {
+            const b = (buildings || []).find(x => x && x.name === name);
+            if (b && !b.isUnlocked) {
+                b.isUnlocked = true;
+                b.uiNew = true;
+            }
+        }
+    } catch { /* ignore */ }
+
+    // Story popup: surface the new unlocks clearly.
+    try {
+        const ev = storyEvents.workbenchUnlocks;
+        if (ev) {
+            const popupOutcome = {
+                unlocks: {
+                    buildings: ['Foraging Camp', 'Water Station'],
+                    actions: ['craftMetalSpear'],
+                    sections: ['Crafting'],
+                },
+            };
+            import('../ui/panels/popup.js').then(({ showStoryPopup }) => {
+                try { showStoryPopup(ev, popupOutcome); } catch { /* ignore */ }
+            }).catch(() => {});
+        }
+    } catch { /* ignore */ }
+
+    // Best-effort UI refresh so new building buttons appear immediately.
+    try {
+        if (typeof window !== 'undefined') {
+            if (typeof window.updateBuildingButtonsState === 'function') window.updateBuildingButtonsState();
+            if (typeof window.setupColonySection === 'function') {
+                try { window.setupColonySection(document.getElementById('colonySection')); } catch { /* ignore */ }
+            }
+            if (typeof window.setupCrashSiteSection === 'function') {
+                try { window.setupCrashSiteSection(document.querySelector('.content-panel')); } catch { /* ignore */ }
+            }
+        }
+    } catch { /* ignore */ }
+
     // Unlock Crafting as a main menu section.
     try {
         if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
@@ -1120,6 +1228,10 @@ registerActionCompletionHandler('workbench', () => {
 // Emergency power restore handler
 registerActionCompletionHandler('restoreEmergencyPower', () => {
     gameFlags.emergencyPowerRestored = true;
+    try {
+        const st = characterState?.localMap;
+        if (st && typeof st === 'object') st.emergencyPowerRestored = true;
+    } catch { /* ignore */ }
     addLogEntry('Emergency power restored — lift access is now available.', LogType.UNLOCK);
     // best-effort UI refresh so blocked actions update immediately
     if (typeof window !== 'undefined') {
@@ -1134,6 +1246,11 @@ registerActionCompletionHandler('restoreEmergencyPower', () => {
 
 // Check captain's quarters handler - unlock encrypted drive section
 registerActionCompletionHandler('checkCaptainsQuarters', () => {
+    try {
+        const st = characterState?.localMap;
+        if (st && typeof st === 'object') st.captainsQuartersExplored = true;
+    } catch { /* ignore */ }
+
     gameFlags.chapter = 2;
     
     // Hide Crash Site section and show Colony/Encrypted Drive sections
@@ -1238,6 +1355,56 @@ registerActionCompletionHandler('organizeWireScavenging', () => {
         } catch (e) { /* ignore */ }
     }
 });
+
+function ensureDiscoveredResourceJobsUnlocked({ log = false } = {}) {
+    try {
+        const fabric = (resources || []).find(r => r && r.name === 'Fabric');
+        const chemicals = (resources || []).find(r => r && r.name === 'Chemicals');
+
+        if (chemicals && chemicals.isDiscovered === true) {
+            const job = (jobs || []).find(j => j && j.id === 'labs_scavenger');
+            if (job && !job.unlimited) {
+                job.unlimited = true;
+                job.slots = Number.POSITIVE_INFINITY;
+                if (log) addLogEntry('New job unlocked: Labs Scavenger (unlimited assignments)', LogType.UNLOCK);
+            }
+        }
+
+        if (fabric && fabric.isDiscovered === true) {
+            const job = (jobs || []).find(j => j && j.id === 'textile_salvager');
+            if (job && !job.unlimited) {
+                job.unlimited = true;
+                job.slots = Number.POSITIVE_INFINITY;
+                if (log) addLogEntry('New job unlocked: Textile Salvager (unlimited assignments)', LogType.UNLOCK);
+            }
+        }
+
+        // Refresh Campsite jobs UI where possible (avoid direct imports to prevent cycles)
+        try {
+            if (typeof window !== 'undefined') {
+                if (typeof window.updateCampsiteJobsPanel === 'function') try { window.updateCampsiteJobsPanel(); } catch (e) {}
+                if (typeof window.updateCampsiteIdleWarnings === 'function') try { window.updateCampsiteIdleWarnings(); } catch (e) {}
+            }
+        } catch { /* ignore */ }
+    } catch { /* ignore */ }
+}
+
+// Discoveries should unlock their corresponding QoL jobs immediately.
+try {
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        window.addEventListener('resourceDiscovered', (e) => {
+            const name = String(e?.detail?.name || '');
+            if (name === 'Fabric' || name === 'Chemicals') {
+                ensureDiscoveredResourceJobsUnlocked({ log: true });
+            }
+        });
+
+        // Also apply on load, since older saves may already have these resources discovered.
+        window.addEventListener('game-state-applied', () => {
+            ensureDiscoveredResourceJobsUnlocked({ log: false });
+        });
+    }
+} catch { /* ignore */ }
 
 // Light Campfire completion handler
 registerActionCompletionHandler('lightCampfire', () => {

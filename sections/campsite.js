@@ -482,6 +482,10 @@ export function updateCampsiteJobsPanel() {
         // Hide Wire Collector job until the upgrade is completed
         if (job.id === 'wire_collector' && !gameFlags.wireScavengingOrganized) return;
 
+        // Hide resource-discovery QoL jobs until they are unlocked
+        if (job.id === 'labs_scavenger' && job.unlimited !== true) return;
+        if (job.id === 'textile_salvager' && job.unlimited !== true) return;
+
         // Hide Scientist job until at least one Field Lab is built.
         if (job.id === 'scientist') {
             const hasFieldLab = Array.isArray(buildings) && buildings.some(b => b && b.name === 'Field Lab' && Number(b.count) > 0);
