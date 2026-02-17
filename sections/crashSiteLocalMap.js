@@ -1332,11 +1332,16 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             if (resourcesValue === 'Unknown' && visited && isCrashPoi(Number(col), Number(row))) {
                 const isD6 = (Number(col) === 4 && Number(row) === 6);
                 if (isD6) {
-                    const used = Math.max(0, Math.floor(Number(state?.cafeteriaSuppliesByTile?.['4,6'] || 0)));
-                    const remaining = Math.max(0, 7 - used);
-                    if (remaining > 0) {
-                        resourcesList = [`Food Rations (${remaining} left)`, `Drinking Water (${remaining} left)`];
-                        resourcesValue = 'Food Rations, Drinking Water';
+                    const usedWater = Math.max(0, Math.floor(Number(state?.cafeteriaBottledWaterByTile?.['4,6'] || 0)));
+                    const usedFood = Math.max(0, Math.floor(Number(state?.cafeteriaPackagedFoodByTile?.['4,6'] || 0)));
+                    const remainingWater = Math.max(0, 7 - usedWater);
+                    const remainingFood = Math.max(0, 7 - usedFood);
+                    const list = [];
+                    if (remainingFood > 0) list.push(`Packaged Food (${remainingFood} left)`);
+                    if (remainingWater > 0) list.push(`Bottled Water (${remainingWater} left)`);
+                    if (list.length) {
+                        resourcesList = list;
+                        resourcesValue = list.map(s => String(s).replace(/\s*\(.*\)\s*$/, '')).join(', ');
                     } else {
                         resourcesList = null;
                         resourcesValue = 'None';
@@ -1938,7 +1943,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 try {
                     container.dispatchEvent(new CustomEvent('local-map-selection-changed', {
                         bubbles: true,
-                        detail: { x: c, y: r, coord: toCoordLabel(c, r) }
+                        detail: { source: 'user', x: c, y: r, coord: toCoordLabel(c, r) }
                     }));
                 } catch { /* ignore */ }
             });

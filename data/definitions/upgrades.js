@@ -370,6 +370,64 @@ const initialUpgradeActions = [
     }
 ];
 
+function mergeResourceEntries(primary = [], secondary = []) {
+    const out = [];
+    const byRes = new Map();
+    const order = [];
+
+    const add = (entry) => {
+        if (!entry || !entry.resource) return;
+        const resource = String(entry.resource);
+        const amount = Number(entry.amount || 0);
+        if (!Number.isFinite(amount) || amount <= 0) return;
+
+        if (!byRes.has(resource)) {
+            byRes.set(resource, 0);
+            order.push(resource);
+        }
+        byRes.set(resource, byRes.get(resource) + amount);
+    };
+
+    (Array.isArray(primary) ? primary : []).forEach(add);
+    (Array.isArray(secondary) ? secondary : []).forEach(add);
+
+    for (const resource of order) {
+        out.push({ resource, amount: byRes.get(resource) });
+    }
+    return out;
+}
+
+function normalizeUpgradeAction(action) {
+    if (!action || action.category !== 'Upgrade') return;
+
+    // Spec: upgrades are always quick, non-cancelable actions.
+    action.duration = 2;
+    action.cancelable = false;
+
+    // Spec: all costs are upfront (no per-action drains shown/ticked).
+    if (Array.isArray(action.drain) && action.drain.length) {
+        action.cost = mergeResourceEntries(action.cost, action.drain);
+        action.drain = [];
+    } else {
+        if (!Array.isArray(action.cost)) action.cost = [];
+        action.drain = [];
+    }
+
+    // Defensive: stage overrides should not reintroduce drains or durations.
+    if (Array.isArray(action.stages)) {
+        for (const st of action.stages) {
+            if (!st || typeof st !== 'object') continue;
+            st.duration = 2;
+            if (Array.isArray(st.drain) && st.drain.length) {
+                st.cost = mergeResourceEntries(st.cost, st.drain);
+                st.drain = [];
+            }
+        }
+    }
+}
+
+for (const a of initialUpgradeActions) normalizeUpgradeAction(a);
+
 // Live actions that will be mutated during gameplay
 export let upgradeActions = JSON.parse(JSON.stringify(initialUpgradeActions));
 

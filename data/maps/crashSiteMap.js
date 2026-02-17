@@ -426,8 +426,16 @@ function getMarkersForCell(col, row, localMapState) {
     if (c === 4 && r === 6) {
         const key = '4,6';
         const visited = !!(localMapState && localMapState.visited && typeof localMapState.visited === 'object' && localMapState.visited[key] === true);
-        const used = Math.max(0, Math.floor(Number(localMapState?.cafeteriaSuppliesByTile?.[key] || 0)));
-        if (visited && used < 7) return [{ kind: 'food', text: '🍗' }, { kind: 'water', text: '💧' }];
+        const usedFood = Math.max(0, Math.floor(Number(localMapState?.cafeteriaPackagedFoodByTile?.[key] || 0)));
+        const usedWater = Math.max(0, Math.floor(Number(localMapState?.cafeteriaBottledWaterByTile?.[key] || 0)));
+        const remainingFood = Math.max(0, 7 - usedFood);
+        const remainingWater = Math.max(0, 7 - usedWater);
+        if (visited && (remainingFood > 0 || remainingWater > 0)) {
+            const out = [];
+            if (remainingFood > 0) out.push({ kind: 'food', text: '🍗' });
+            if (remainingWater > 0) out.push({ kind: 'water', text: '💧' });
+            return out;
+        }
     }
 
     // Alternate access tile (D5): marker disappears once the hull is opened.
@@ -781,6 +789,7 @@ export const CRASH_SITE_MAP_BOUND_ACTION_IDS = new Set([
     // Resource gathering should be local-map-only
     'forageFood',
     'collectChemicals',
-    'scavengeCafeteriaSupplies',
+    'scavengeCafeteriaWater',
+    'scavengeCafeteriaFood',
     'collectFabric',
 ]);

@@ -26,7 +26,7 @@ const CRAFTING_CATEGORIES = [
     { key: 'accessory', label: 'Accessory', actionIds: ['createBasicTorch', 'craftCanteen'] },
     { key: 'armor', label: 'Armor', actionIds: [] },
     { key: 'quest', label: 'Quest', actionIds: ['makeCrudePrybar', 'fixLongRangeRadio', 'assembleMakeshiftExplosive', 'craftPowerCells'] },
-    { key: 'consumables', label: 'Consumables', actionIds: ['craftHerbTea', 'craftFirstAidKit'] },
+    { key: 'consumables', label: 'Consumables', actionIds: ['craftHerbTea', 'craftFirstAidKit', 'craftBottledWater', 'craftPackagedFood'] },
 ];
 
 function isAtBaseCampTile() {

@@ -262,7 +262,10 @@ export function getInitialCharacterState() {
             seen: { '6,8': true },
             // Per-ship-tile depletion tracking (e.g., Strip Wiring). Keys are "x,y".
             wiringStrippedByTile: {},
-            // Per-ship-tile depletion tracking for cafeteria supplies scavenging. Keys are "x,y".
+            // Per-ship-tile depletion tracking for cafeteria scavenging (independent pools). Keys are "x,y".
+            cafeteriaBottledWaterByTile: {},
+            cafeteriaPackagedFoodByTile: {},
+            // Legacy shared pool (kept for backward compatibility; no longer used).
             cafeteriaSuppliesByTile: {},
             // Per-tile depletion tracking for Scavenge Debris Field. Keys are "x,y".
             debrisScavengedByTile: {},
@@ -386,7 +389,7 @@ export function applySavedCharacterState(saved) {
                         cleaned[`${cx},${cy}`] = Math.min(5, n);
                     }
                     extra[k] = cleaned;
-                } else if (k === 'cafeteriaSuppliesByTile' && v && typeof v === 'object' && !Array.isArray(v)) {
+                } else if ((k === 'cafeteriaBottledWaterByTile' || k === 'cafeteriaPackagedFoodByTile' || k === 'cafeteriaSuppliesByTile') && v && typeof v === 'object' && !Array.isArray(v)) {
                     const cleaned = {};
                     for (const [kk, vv] of Object.entries(v)) {
                         if (typeof kk !== 'string') continue;
@@ -486,6 +489,27 @@ export function applySavedCharacterState(saved) {
             panX,
             panY,
         };
+
+        // Migration: older saves used a shared cafeteria supplies counter.
+        // Seed both independent pools to avoid restoring extra uses.
+        try {
+            const legacy = next.localMap?.cafeteriaSuppliesByTile;
+            if (legacy && typeof legacy === 'object' && !Array.isArray(legacy)) {
+                if (!next.localMap.cafeteriaBottledWaterByTile || typeof next.localMap.cafeteriaBottledWaterByTile !== 'object') {
+                    next.localMap.cafeteriaBottledWaterByTile = {};
+                }
+                if (!next.localMap.cafeteriaPackagedFoodByTile || typeof next.localMap.cafeteriaPackagedFoodByTile !== 'object') {
+                    next.localMap.cafeteriaPackagedFoodByTile = {};
+                }
+                for (const [k, v] of Object.entries(legacy)) {
+                    if (typeof k !== 'string') continue;
+                    const n = Math.max(0, Math.min(7, Math.floor(Number(v))));
+                    if (!Number.isFinite(n)) continue;
+                    if (typeof next.localMap.cafeteriaBottledWaterByTile[k] !== 'number') next.localMap.cafeteriaBottledWaterByTile[k] = n;
+                    if (typeof next.localMap.cafeteriaPackagedFoodByTile[k] !== 'number') next.localMap.cafeteriaPackagedFoodByTile[k] = n;
+                }
+            }
+        } catch { /* ignore */ }
     } catch {
         // leave defaults
     }

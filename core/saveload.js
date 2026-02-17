@@ -522,7 +522,13 @@ export function applyGameState(gameState) {
 
     // Restore active crash site action
     if (gameState.activeCrashSiteAction) {
-        setActiveCrashSiteAction(gameState.activeCrashSiteAction);
+        // Migration: this action was split into two new actions.
+        // If an older save restores it mid-progress, clear it to avoid orphaned UI/state.
+        if (gameState.activeCrashSiteAction.id === 'scavengeCafeteriaSupplies') {
+            setActiveCrashSiteAction(null);
+        } else {
+            setActiveCrashSiteAction(gameState.activeCrashSiteAction);
+        }
     }
 
     // Restore morale modifiers
@@ -823,7 +829,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     // Fallback: hide the options menu element directly
                     const optionsMenuEl = document.getElementById('optionsMenu');
-                    if (optionsMenuEl) optionsMenuEl.style.display = 'none';
+                    if (optionsMenuEl) {
+                        try { optionsMenuEl.classList.add('hidden'); } catch { /* ignore */ }
+                        try { optionsMenuEl.hidden = true; } catch { /* ignore */ }
+                        try { optionsMenuEl.style.display = ''; } catch { /* ignore */ }
+                        try { window.dispatchEvent(new CustomEvent('popup-close')); } catch { /* ignore */ }
+                    }
                 }
 
                 // Give UI a short moment to settle, then reload to apply imported state cleanly

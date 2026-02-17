@@ -11,6 +11,34 @@ import { getTotalIngameMinutes } from './time.js';
 
 const PERSONAL_SUPPLY_BASE_CAP = 10;
 
+// Recovery action regen (per second). Used both by resource rate computation and tooltips.
+const RECOVERY_ACTION_REGEN_BONUSES_PER_SEC = {
+    sitDown: { staminaPerSec: 2.0, healthPerSec: 0.5 },
+    rest: { staminaPerSec: 3.0, healthPerSec: 0.8 },
+    sleep: { staminaPerSec: 5.0, healthPerSec: 1.2 },
+};
+
+// Channeled yield bonuses (per second). Yield is reduced when hungry/thirsty.
+const CHANNELED_YIELD_BONUSES_PER_SEC = {
+    forageFood: { resource: 'Food Rations', amountPerSec: 0.75 },
+    purifyWater: { resource: 'Drinking Water', amountPerSec: 1.25 },
+    drinkCaveWater: { resource: 'Drinking Water', amountPerSec: 0.5 },
+};
+
+export function getRecoveryActionRegenBonusesPerSec(actionId) {
+    try {
+        const id = String(actionId || '');
+        const b = RECOVERY_ACTION_REGEN_BONUSES_PER_SEC[id];
+        if (!b) return null;
+        return {
+            staminaPerSec: Number(b.staminaPerSec) || 0,
+            healthPerSec: Number(b.healthPerSec) || 0,
+        };
+    } catch {
+        return null;
+    }
+}
+
 export function getInitialResources() {
     return [
         { name: 'Health', amount: 65, isDiscovered: true, capacity: 100, producible: false, integer: true },
@@ -310,7 +338,13 @@ export function computeResourceRates(resourceName) {
         const drainInfo = activeAction.drain.find(d => d.resource === resourceName);
         if (drainInfo) {
             // spread the drain across the effective duration (accounting for hunger/thirst debuff)
-            const effectiveDuration = Math.max(0.0001, (activeAction.duration || 1) * actionDebuff);
+            // NOTE: some actions are explicitly exempt from hunger/thirst duration changes.
+            const id = (() => {
+                try { return String(activeAction?.id || ''); } catch { return ''; }
+            })();
+            const exemptFromDurationDebuff = (id === 'sitDown' || id === 'rest' || id === 'sleep' || id === 'forageFood' || id === 'purifyWater' || id === 'drinkCaveWater');
+            const durationMultiplier = exemptFromDurationDebuff ? 1 : actionDebuff;
+            const effectiveDuration = Math.max(0.0001, (activeAction.duration || 1) * durationMultiplier);
             activeDrainRate = drainInfo.amount / effectiveDuration;
         }
     }
@@ -322,6 +356,16 @@ export function computeResourceRates(resourceName) {
         if (!isThirsty) {
             totalProduction += 0.2;
         }
+
+        // Recovery actions still restore stamina even if thirsty.
+        try {
+            const id = String(activeAction?.id || '');
+            const bonus = getRecoveryActionRegenBonusesPerSec(id);
+            if (bonus && Number.isFinite(bonus.staminaPerSec) && bonus.staminaPerSec > 0) {
+                totalProduction += Number(bonus.staminaPerSec);
+            }
+        } catch { /* non-fatal */ }
+
         try {
             const buff = characterState?.buffs?.staminaRegen;
             const until = Math.floor(Number(buff?.untilMinutes) || 0);
@@ -337,7 +381,32 @@ export function computeResourceRates(resourceName) {
         if (!isHungry) {
             totalProduction += 0.1;
         }
+
+        // Recovery actions still restore health even if hungry.
+        try {
+            const id = String(activeAction?.id || '');
+            const bonus = getRecoveryActionRegenBonusesPerSec(id);
+            if (bonus && Number.isFinite(bonus.healthPerSec) && bonus.healthPerSec > 0) {
+                totalProduction += Number(bonus.healthPerSec);
+            }
+        } catch { /* non-fatal */ }
     }
+
+    // Channeled yields for select survival actions.
+    // Hunger/Thirst reduce yield (not duration) via the same debuff multiplier:
+    // - Hunger: /1.5
+    // - Thirst: /1.5
+    // - Both: /2
+    try {
+        const y = getChanneledActionYieldBonusesPerSec(activeAction?.id);
+        if (y && y.resource === resourceName) {
+            const base = Number(y.amountPerSec) || 0;
+            if (base > 0) {
+                const yieldMultiplier = (actionDebuff > 0) ? (1 / actionDebuff) : 1;
+                totalProduction += base * yieldMultiplier;
+            }
+        }
+    } catch { /* non-fatal */ }
 
     const totalConsumption = passiveConsumption + jobConsumption + activeDrainRate;
 
@@ -758,4 +827,18 @@ export function updateResourceInfo() {
 // tooltip content from the info panel.
 export function getResourceTooltipHtml(resourceName) {
     try { return buildResourceTooltipHtml(resourceName); } catch { return `<h4>${String(resourceName || '')}</h4>`; }
+}
+
+export function getChanneledActionYieldBonusesPerSec(actionId) {
+    try {
+        const id = String(actionId || '');
+        const entry = CHANNELED_YIELD_BONUSES_PER_SEC[id];
+        if (!entry) return null;
+        return {
+            resource: String(entry.resource || ''),
+            amountPerSec: Number(entry.amountPerSec) || 0,
+        };
+    } catch {
+        return null;
+    }
 }

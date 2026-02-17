@@ -422,7 +422,9 @@ function setupLogOptions() {
     const closeButton = logOptionsMenu?.querySelector('.log-options-close');
 
     logOptionsBtn?.addEventListener('click', () => {
+        try { logOptionsMenu.hidden = false; } catch { /* ignore */ }
         logOptionsMenu.classList.remove('hidden');
+        try { logOptionsMenu.style.display = ''; } catch { /* ignore */ }
         try { window.dispatchEvent(new CustomEvent('popup-open')); } catch (e) { /* ignore */ }
         // Refresh the UI every time the popup is opened
         updateFilterButtonsUI();
@@ -435,9 +437,19 @@ function setupLogOptions() {
         const twToggle = document.getElementById('logTypewriterToggle');
         if (twToggle) twToggle.checked = (logSettings.typewriterMode !== false);
     });
-    closeButton?.addEventListener('click', () => { logOptionsMenu.classList.add('hidden'); try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ } });
+    closeButton?.addEventListener('click', () => {
+        logOptionsMenu.classList.add('hidden');
+        try { logOptionsMenu.hidden = true; } catch { /* ignore */ }
+        try { logOptionsMenu.style.display = ''; } catch { /* ignore */ }
+        try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ }
+    });
     logOptionsMenu?.addEventListener('click', (e) => {
-        if (e.target === logOptionsMenu) { logOptionsMenu.classList.add('hidden'); try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ } }
+        if (e.target === logOptionsMenu) {
+            logOptionsMenu.classList.add('hidden');
+            try { logOptionsMenu.hidden = true; } catch { /* ignore */ }
+            try { logOptionsMenu.style.display = ''; } catch { /* ignore */ }
+            try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ }
+        }
     });
 
     logSettings = JSON.parse(localStorage.getItem('logSettings')) || defaultLogSettings;

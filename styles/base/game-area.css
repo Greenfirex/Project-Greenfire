@@ -2,6 +2,11 @@
     display: none !important;
 }
 
+/* Ensure native `hidden` stays non-rendered even if author CSS sets `display`. */
+[hidden] {
+    display: none !important;
+}
+
 .game-section:not(.hidden) {
     z-index: 2; /* Add this line */
 }

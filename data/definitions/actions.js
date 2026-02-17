@@ -65,17 +65,14 @@ const initialSalvageActions = [
             {
                 id: 'sitDown',
                 name: 'Sit down',
-                description: 'Catch your breath for a moment and recover a little stamina.',
-                duration: 1,
+                description: 'Catch your breath. While resting, you recover stamina and health over time.',
+                duration: 60,
                 category: 'Survival',
                 isUnlocked: true,
                 repeatable: true,
-                cancelable: false,
+                cancelable: true,
                 drain: [],
-                reward: [
-                    { resource: 'Stamina', amount: [3, 6] },
-                    { resource: 'Health', amount: [1, 2] }
-                ]
+                reward: []
             },
             {
                 id: 'burnThornyWall',
@@ -104,32 +101,32 @@ const initialSalvageActions = [
             {
                 id: 'forageFood',
                 name: 'Forage for Food',
-                description: 'Search the surrounding area for edible plants.',
-                duration: 2,
+                description: 'Search the surrounding area for edible plants. Food is gathered gradually while you forage.',
+                duration: 60,
                 category: 'Survival',
                 isUnlocked: false,
+                repeatable: true,
+                cancelable: true,
                 // ADDED: This action now drains Stamina over time
                 drain: [
-                    { resource: 'Stamina', amount: 7 }
+                    { resource: 'Stamina', amount: 20 }
                 ],
-                reward: [ 
-                    { resource: 'Food Rations', amount: [7, 13] }
-                ]
+                reward: []
             },
             {
                 id: 'purifyWater',
                 name: 'Purify Water',
-                description: 'Boil and filter water from a nearby stream.',
-                duration: 2,
+                description: 'Boil and filter water from a nearby stream. Clean water is produced gradually while you work.',
+                duration: 60,
                 category: 'Survival',
                 isUnlocked: false,
+                repeatable: true,
+                cancelable: true,
                 // ADDED: This action now drains Stamina over time
                 drain: [
-                    { resource: 'Stamina', amount: 7 }
+                    { resource: 'Stamina', amount: 20 }
                 ],
-                reward: [ 
-                    { resource: 'Drinking Water', amount: [25, 35] }
-                ]
+                reward: []
             },
             {
                 id: 'huntWildlife',
@@ -153,40 +150,38 @@ const initialSalvageActions = [
                 ]
             },
             {
-            id: 'rest',
-            name: 'Rest',
-            description: 'Take a quick break to recover stamina and patch yourself up.',
-            duration: 2,
-            category: 'Survival',
-            isUnlocked: false, // make available by default
-            repeatable: true, // allow infinite uses (stages run only once)
-            reward: [
-                { resource: 'Stamina', amount: [40, 60] },
-                { resource: 'Health', amount: [6, 10] }
-            ],
-            // stage kept so completing Rest can unlock follow-ups, but action remains usable
-            stage: 0,
-            stages: [
-                {
-                    story: null,
-                    unlocks: [],
-                    logText: 'Having rested, you feel ready to press on. Maybe there\'s another way into the ship. Lets try to find it.'
-                }
-            ]
+                id: 'rest',
+                name: 'Rest',
+                description: 'Take a break. While resting, you recover stamina and health over time.',
+                duration: 60,
+                category: 'Survival',
+                isUnlocked: false,
+                repeatable: true,
+                cancelable: true,
+                drain: [],
+                reward: [],
+                // stage kept so completing Rest can unlock follow-ups, but action remains usable
+                stage: 0,
+                stages: [
+                    {
+                        story: null,
+                        unlocks: [],
+                        logText: 'Having rested, you feel ready to press on. Maybe there\'s another way into the ship. Lets try to find it.'
+                    }
+                ]
             },
 
             {
                 id: 'sleep',
                 name: 'Sleep',
                 description: 'Rest inside your tent at base camp. You wake up feeling far more recovered than a quick break in the wild.',
-                duration: 2.5,
+                duration: 60,
                 category: 'Survival',
                 isUnlocked: false,
                 repeatable: true,
-                reward: [
-                    { resource: 'Stamina', amount: [70, 95] },
-                    { resource: 'Health', amount: [10, 16] }
-                ],
+                cancelable: true,
+                drain: [],
+                reward: [],
                 stage: 0,
                 stages: [
                     {
@@ -200,19 +195,16 @@ const initialSalvageActions = [
             {
                 id: 'drinkCaveWater',
                 name: 'Drink from Cave Stream',
-                description: 'Sip from a small underground stream running through the cave. It\'s not much, but it helps.',
-                duration: 1.2,
+                description: 'Sip from a small underground stream running through the cave. Drinking water is gathered gradually while you drink.',
+                duration: 60,
                 category: 'Survival',
                 isUnlocked: false,
                 cancelable: true,
                 repeatable: true,
                 drain: [
-                    { resource: 'Stamina', amount: 2 },
+                    { resource: 'Stamina', amount: 10 },
                 ],
-                reward: [
-                    // Smaller than the river-based water actions.
-                    { resource: 'Drinking Water', amount: [4, 8] },
-                ],
+                reward: [],
                 stage: 0,
                 stages: [
                     {
@@ -500,8 +492,8 @@ const initialSalvageActions = [
                 { resource: 'Stamina', amount: 16 }
             ],
             reward: [
-                { resource: 'Food Rations', amount: [15, 25] },
-                { resource: 'Drinking Water', amount: [20, 40] },
+                { resource: 'Packaged Food', amount: 1 },
+                { resource: 'Bottled Water', amount: 1 },
                 { resource: 'Survivors', amount: 2 }
             ],
             hideRewardPreview: true,
@@ -509,16 +501,16 @@ const initialSalvageActions = [
             stages: [
                 {
                     story: 'south_explore_cafeteria',
-                    unlocks: ['salvageCookingEquipment', 'scavengeCafeteriaSupplies'],
+                    unlocks: ['salvageCookingEquipment', 'scavengeCafeteriaWater', 'scavengeCafeteriaFood', 'craftBottledWater'],
                     logText: 'In the mess hall you find preserved rations and salvageable water among the wreckage. (Click to read)'
                 }
             ]
         },
 
         {
-            id: 'scavengeCafeteriaSupplies',
-            name: 'Scavenge Kitchen Supplies',
-            description: 'Search the kitchen and storage areas for any remaining usable food and drinkable water.',
+            id: 'scavengeCafeteriaWater',
+            name: 'Scavenge Bottled Water',
+            description: 'Search the kitchen and storage areas for any remaining bottled water.',
             duration: 3,
             category: 'Materials',
             isUnlocked: false,
@@ -531,8 +523,7 @@ const initialSalvageActions = [
                 { resource: 'Stamina', amount: 8 }
             ],
             reward: [
-                { resource: 'Food Rations', amount: [2, 5] },
-                { resource: 'Drinking Water', amount: [3, 7] }
+                { resource: 'Bottled Water', amount: 1 }
             ],
             hideRewardPreview: false,
             stage: 0,
@@ -540,7 +531,36 @@ const initialSalvageActions = [
                 {
                     story: null,
                     unlocks: [],
-                    logText: 'You pry open lockers, crawl through debris, and salvage what you can from the mess hall stores.'
+                    logText: 'You pry open lockers and salvage intact bottled water from the wreckage.'
+                }
+            ]
+        },
+
+        {
+            id: 'scavengeCafeteriaFood',
+            name: 'Scavenge Packaged Food',
+            description: 'Search the kitchen and storage areas for any remaining packaged rations.',
+            duration: 3,
+            category: 'Materials',
+            isUnlocked: false,
+            // Map-bound, tile-limited action: show on the cafeteria tile only.
+            suppressUnlockLog: true,
+            showUnlocks: false,
+            cancelable: true,
+            repeatable: true,
+            drain: [
+                { resource: 'Stamina', amount: 8 }
+            ],
+            reward: [
+                { resource: 'Packaged Food', amount: 1 }
+            ],
+            hideRewardPreview: false,
+            stage: 0,
+            stages: [
+                {
+                    story: null,
+                    unlocks: [],
+                    logText: 'You salvage sealed packaged rations from crushed storage bins.'
                 }
             ]
         },
@@ -568,7 +588,7 @@ const initialSalvageActions = [
             stages: [
                 {
                     story: 'south_check_quarters',
-                    unlocks: ['makeTents', 'collectFabric', 'craftFirstAidKit', 'craftCanteen'],
+                    unlocks: ['makeTents', 'collectFabric', 'craftFirstAidKit', 'craftCanteen', 'craftPackagedFood'],
                     logText: 'You scavenge bunks and lockers; you find a few useful parts and personal items that might help survivors feel safer. (Click to read)'
                 }
             ]

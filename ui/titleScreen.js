@@ -68,6 +68,7 @@ export function showTitleScreen() {
     const overlay = document.getElementById('titleScreen');
     if (!overlay) return;
 
+    try { overlay.hidden = false; } catch { /* ignore */ }
     overlay.classList.remove('hidden');
     document.body.classList.add(BODY_CLASS);
 
@@ -99,6 +100,7 @@ export function hideTitleScreen() {
     if (!overlay) return;
 
     overlay.classList.add('hidden');
+    try { overlay.hidden = true; } catch { /* ignore */ }
     setHiddenWithInert(overlay, true);
 
     document.body.classList.remove(BODY_CLASS);
@@ -118,6 +120,8 @@ export function initTitleScreen({
     if (!overlay) return;
 
     // Start hidden by default; caller decides when to show.
+    try { overlay.hidden = true; } catch { /* ignore */ }
+    try { overlay.classList.add('hidden'); } catch { /* ignore */ }
     setHiddenWithInert(overlay, true);
 
     const continueBtn = document.getElementById('titleContinueBtn');
@@ -167,7 +171,9 @@ export function initTitleScreen({
             e.preventDefault();
             const menu = document.getElementById('optionsMenu');
             if (menu) {
+                try { menu.hidden = false; } catch { /* ignore */ }
                 menu.classList.remove('hidden');
+                try { menu.style.display = ''; } catch { /* ignore */ }
                 try { window.dispatchEvent(new CustomEvent('popup-open')); } catch { /* ignore */ }
             }
         });

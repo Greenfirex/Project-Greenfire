@@ -344,6 +344,15 @@ export function getAffordabilityShortfalls(action, resources, characterState = n
  * @returns {number} seconds
  */
 export function computeEffectiveDuration(action, resources) {
+    // Recovery actions are intended to be a fixed one-minute channel.
+    // Do not apply hunger/thirst duration debuffs to them.
+    try {
+        const id = String(action?.id || '');
+        if (id === 'sitDown' || id === 'rest' || id === 'sleep' || id === 'forageFood' || id === 'purifyWater' || id === 'drinkCaveWater') {
+            return Math.max(0.001, (action?.duration || 1));
+        }
+    } catch { /* ignore */ }
+
     const food = (resources || []).find(r => r.name === 'Food Rations');
     const water = (resources || []).find(r => r.name === 'Drinking Water');
     const isHungry = !!(food && Number(food.amount) <= 0);

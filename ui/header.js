@@ -114,7 +114,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function showOptionsMenu(event) {
         event.preventDefault();
         if (optionsMenu) {
+            try { optionsMenu.hidden = false; } catch { /* ignore */ }
             optionsMenu.classList.remove('hidden');
+            try { optionsMenu.style.display = ''; } catch { /* ignore */ }
             try { window.dispatchEvent(new CustomEvent('popup-open')); } catch (e) { /* ignore */ }
         }
     }
@@ -122,6 +124,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function hideOptionsMenu() {
         if (optionsMenu) {
             optionsMenu.classList.add('hidden');
+            try { optionsMenu.hidden = true; } catch { /* ignore */ }
+            try { optionsMenu.style.display = ''; } catch { /* ignore */ }
             try { window.dispatchEvent(new CustomEvent('popup-close')); } catch (e) { /* ignore */ }
         }
     }

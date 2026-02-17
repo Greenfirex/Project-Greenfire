@@ -79,7 +79,9 @@ function refreshCrashSiteLocalMapUi(section) {
 
         // This event is wired (once) in renderLocalMap() to call renderLocalMapActions().
         try {
-            mapHost.dispatchEvent(new CustomEvent('local-map-selection-changed'));
+            mapHost.dispatchEvent(new CustomEvent('local-map-selection-changed', {
+                detail: { source: 'ui-refresh' }
+            }));
         } catch { /* ignore */ }
     } catch { /* ignore */ }
 }
@@ -154,6 +156,7 @@ function clearTraverseState(lm) {
     try {
         delete lm.traverseQueue;
         delete lm.traverseQueuedDestination;
+        delete lm.traverseUiSelection;
     } catch { /* ignore */ }
 }
 
@@ -206,8 +209,19 @@ function tryStartNextTraverseStep(section) {
     const lm = characterState?.localMap;
     if (!lm || !Array.isArray(lm.traverseQueue) || lm.traverseQueue.length === 0) return;
 
-    // Never start a new action while one is active.
-    if (getActiveCrashSiteAction()) return;
+    // Traverse is allowed to interrupt channeled actions.
+    const existing = getActiveCrashSiteAction();
+    if (existing) {
+        const existingId = (() => {
+            try { return String(existing?.id || ''); } catch { return ''; }
+        })();
+        const interruptible = (existingId === 'sitDown' || existingId === 'rest' || existingId === 'sleep' || existingId === 'forageFood' || existingId === 'purifyWater' || existingId === 'drinkCaveWater');
+        if (interruptible) {
+            cancelAction(section, `${existing.name} interrupted.`, true);
+        } else {
+            return;
+        }
+    }
 
     const moveAction = getLocalMapMoveActionInstance({ nameOverride: 'Traverse' });
     if (!moveAction || !moveAction.isUnlocked) {
@@ -239,7 +253,11 @@ function tryStartNextTraverseStep(section) {
     // Refresh the action row so the Move button exists/runs for this step.
     try {
         const mapHost = getCrashSiteLocalMapContainer(section);
-        if (mapHost) mapHost.dispatchEvent(new CustomEvent('local-map-selection-changed'));
+        if (mapHost) {
+            mapHost.dispatchEvent(new CustomEvent('local-map-selection-changed', {
+                detail: { source: 'traverse-step' }
+            }));
+        }
     } catch { /* ignore */ }
 
     // Preflight checks mirror attachStartClickHandler.
@@ -362,6 +380,21 @@ function getCapacityBlockReason(action) {
         // Special-case: hunting is allowed even if Food Rations are full (you might be hunting for XP/other outcomes).
         if (action && (action.id === 'huntWildlife' || action.name === 'Hunt for Wildlife')) return null;
 
+        // Channeled yield actions have no end-of-action reward entries, so they need explicit capacity gating.
+        // If the produced resource is already full, starting the action should be blocked.
+        const id = String(action?.id || '');
+        const produced = (id === 'forageFood') ? 'Food Rations'
+            : (id === 'purifyWater' || id === 'drinkCaveWater') ? 'Drinking Water'
+                : '';
+        if (produced) {
+            const res = resources.find(r => r && r.name === produced);
+            const cap = Number(res?.capacity);
+            const amount = Number(res?.amount);
+            if (res && Number.isFinite(cap) && cap !== Number.POSITIVE_INFINITY && Number.isFinite(amount) && amount >= cap - 1e-9) {
+                return `Storage full: ${produced}.`;
+            }
+        }
+
         const stage = getCurrentStage(action);
         const reward = []
             .concat(Array.isArray(action?.reward) ? action.reward : [])
@@ -473,15 +506,18 @@ function attachStartClickHandler(btn, action, section) {
             }
         } catch { /* ignore */ }
 
-        // Cafeteria supplies scavenging is limited per tile.
+        // Cafeteria scavenging is limited per tile (independent pools).
         try {
-            if (action && action.id === 'scavengeCafeteriaSupplies') {
+            if (action && (action.id === 'scavengeCafeteriaWater' || action.id === 'scavengeCafeteriaFood')) {
                 const lm = characterState?.localMap;
                 const x = Number.isFinite(lm?.x) ? lm.x : null;
                 const y = Number.isFinite(lm?.y) ? lm.y : null;
                 if (Number.isFinite(x) && Number.isFinite(y)) {
                     const key = `${x},${y}`;
-                    const used = Number(lm?.cafeteriaSuppliesByTile?.[key] || 0);
+                    const pool = (action.id === 'scavengeCafeteriaWater')
+                        ? lm?.cafeteriaBottledWaterByTile
+                        : lm?.cafeteriaPackagedFoodByTile;
+                    const used = Number(pool?.[key] || 0);
                     if (used >= 7) {
                         e.preventDefault();
                         addLogEntry('There is nothing usable left to scavenge here.', LogType.INFO);
@@ -614,7 +650,8 @@ export function startCrashSiteLoop(section = null) {
             const name = btn.querySelector('.building-name');
             if (name && !btn.dataset.originalLabel) btn.dataset.originalLabel = name.innerText;
             btn.classList.add('running');
-            btn.classList.remove('confirm-cancel');
+            if (isPendingCancel === a.id) btn.classList.add('confirm-cancel');
+            else btn.classList.remove('confirm-cancel');
             if (a.cancelable) {
                 btn.onclick = () => requestCancel(a, section);
                 btn.disabled = false;
@@ -759,9 +796,21 @@ export function setupCrashSiteSection(section) {
         return out;
     };
 
-    const renderLocalMapActions = () => {
+    const renderLocalMapActions = (ev = null) => {
         const actionsHost = host.querySelector('#crashSiteLocalMapActions');
         if (!actionsHost) return;
+
+        const lm = characterState?.localMap;
+        const traverseActive = isTraverseActive(lm);
+        const source = (() => {
+            try { return String(ev?.detail?.source || ''); } catch { return ''; }
+        })();
+
+        // While auto-traversing, suppress action-row refreshes triggered by internal step updates.
+        // The player should not see tile actions churn for each intermediate step.
+        if (traverseActive && (source === 'traverse-step' || source === 'ui-refresh')) {
+            return;
+        }
 
         actionsHost.innerHTML = '';
 
@@ -793,6 +842,46 @@ export function setupCrashSiteSection(section) {
                     const saved01 = getSavedProgress01ForActionId(actionDef.id);
                     const bar = btn.querySelector('.action-progress-bar');
                     if (bar) bar.style.width = (saved01 != null && saved01 > 0) ? `${Math.round(saved01 * 1000) / 10}%` : '';
+                }
+            } catch { /* ignore */ }
+
+            // If this action is currently running, immediately rehydrate the running UI state.
+            try {
+                const running = getActiveCrashSiteAction();
+                const runningInstance = running && running.uiInstanceId ? String(running.uiInstanceId) : 'main';
+                if (running && running.id === actionDef.id && runningInstance === localMapInstanceId) {
+                    const bar = btn.querySelector('.action-progress-bar');
+                    const labelEl = btn.querySelector('.building-name');
+                    const effectiveDuration = computeEffectiveDuration(running, resources);
+                    const timeScale = (Number(window.TIME_SCALE || 1) > 0) ? Number(window.TIME_SCALE || 1) : 1;
+                    const pct = (effectiveDuration > 0) ? Math.min((Number(running.elapsed || 0) / effectiveDuration) * 100, 100) : 0;
+
+                    btn.classList.add('running');
+                    if (labelEl) {
+                        if (!btn.dataset.originalLabel) btn.dataset.originalLabel = labelEl.innerText;
+                        const remainingRealSeconds = Math.max(0, (effectiveDuration - Number(running.elapsed || 0)) / timeScale);
+                        labelEl.innerText = `${remainingRealSeconds.toFixed(1)}s`;
+                    }
+                    if (bar) {
+                        try {
+                            bar.style.transition = 'none';
+                            bar.style.width = `${pct}%`;
+                            void bar.offsetWidth;
+                            bar.style.transition = '';
+                        } catch { bar.style.width = `${pct}%`; }
+                    }
+
+                    if (running.cancelable) {
+                        const actionForCancel = Object.assign({}, actionDef, { uiInstanceId: localMapInstanceId });
+                        btn.onclick = () => requestCancel(actionForCancel, host);
+                        btn.disabled = false;
+                    } else {
+                        btn.onclick = null;
+                        btn.disabled = true;
+                    }
+
+                    if (isPendingCancel === actionDef.id) btn.classList.add('confirm-cancel');
+                    else btn.classList.remove('confirm-cancel');
                 }
             } catch { /* ignore */ }
             if (actionDef.uiNew) {
@@ -840,8 +929,13 @@ export function setupCrashSiteSection(section) {
             if (typeof onClick === 'function') {
                 btn.onclick = onClick;
             } else {
-                const actionForThisButton = Object.assign({}, actionDef, { uiInstanceId: localMapInstanceId });
-                attachStartClickHandler(btn, actionForThisButton, host);
+                const running = getActiveCrashSiteAction();
+                const runningInstance = running && running.uiInstanceId ? String(running.uiInstanceId) : 'main';
+                const isRunningThisButton = !!(running && running.id === actionDef.id && runningInstance === localMapInstanceId);
+                if (!isRunningThisButton) {
+                    const actionForThisButton = Object.assign({}, actionDef, { uiInstanceId: localMapInstanceId });
+                    attachStartClickHandler(btn, actionForThisButton, host);
+                }
             }
             actionsHost.appendChild(btn);
             didAddAction = true;
@@ -875,7 +969,7 @@ export function setupCrashSiteSection(section) {
             return btn;
         };
 
-        const lm = characterState?.localMap;
+        // NOTE: lm is read above (for traverse suppression) but we keep the local reference for the rest of the renderer.
         const visualPos = getVisualLocalMapPlayerPos(lm);
         const playerX = Number.isFinite(visualPos?.x) ? visualPos.x : (Number.isFinite(lm?.x) ? lm.x : 6);
         const playerY = Number.isFinite(visualPos?.y) ? visualPos.y : (Number.isFinite(lm?.y) ? lm.y : 8);
@@ -1177,31 +1271,42 @@ export function setupCrashSiteSection(section) {
             }
         } catch { /* ignore */ }
 
-        // Cafeteria supplies scavenging: only on D6, limited.
+        // Cafeteria scavenging: only on D6, limited (independent pools).
         try {
-            const sup = salvageActions.find(a => a && a.id === 'scavengeCafeteriaSupplies');
+            const water = salvageActions.find(a => a && a.id === 'scavengeCafeteriaWater');
+            const food = salvageActions.find(a => a && a.id === 'scavengeCafeteriaFood');
             const isD6 = (selX === 4 && selY === 6);
-            if (sup && sup.isUnlocked && selectedExplored && isD6) {
+            const anyUnlocked = !!((water && water.isUnlocked) || (food && food.isUnlocked));
+            if (anyUnlocked && selectedExplored && isD6) {
                 const lm = characterState?.localMap;
                 const key = '4,6';
-                const used = Math.max(0, Math.floor(Number(lm?.cafeteriaSuppliesByTile?.[key] || 0)));
                 const max = 7;
-                if (used < max) {
-                    const remaining = Math.max(0, max - used);
-                    mkButton(sup, {
-                        label: `${sup.name} (${remaining} left)`,
-                        ariaDisabled: !playerOnSelected,
-                        disabledReason: !playerOnSelected ? 'You need to be closer to perform this action.' : '',
-                        onClick: (e) => {
-                            if (!playerOnSelected) {
-                                e.preventDefault();
-                                logNeedCloser();
-                                return;
+                const usedWater = Math.max(0, Math.floor(Number(lm?.cafeteriaBottledWaterByTile?.[key] || 0)));
+                const usedFood = Math.max(0, Math.floor(Number(lm?.cafeteriaPackagedFoodByTile?.[key] || 0)));
+                const remainingWater = Math.max(0, max - usedWater);
+                const remainingFood = Math.max(0, max - usedFood);
+                if (remainingWater > 0 || remainingFood > 0) {
+                    const mk = (a) => {
+                        if (!a || !a.isUnlocked) return;
+                        const remaining = (a.id === 'scavengeCafeteriaWater') ? remainingWater : remainingFood;
+                        if (remaining <= 0) return;
+                        mkButton(a, {
+                            label: `${a.name} (${remaining} left)`,
+                            ariaDisabled: !playerOnSelected,
+                            disabledReason: !playerOnSelected ? 'You need to be closer to perform this action.' : '',
+                            onClick: (e) => {
+                                if (!playerOnSelected) {
+                                    e.preventDefault();
+                                    logNeedCloser();
+                                    return;
+                                }
+                                const actionForHandler = Object.assign({}, a, { uiInstanceId: `localmap:${String(a.id)}` });
+                                startAction(actionForHandler, host);
                             }
-                            const actionForHandler = Object.assign({}, sup, { uiInstanceId: `localmap:${String(sup.id)}` });
-                            startAction(actionForHandler, host);
-                        }
-                    });
+                        });
+                    };
+                    mk(water);
+                    mk(food);
                 }
             }
         } catch { /* ignore */ }
@@ -1407,17 +1512,28 @@ export function setupCrashSiteSection(section) {
 
                         const active = getActiveCrashSiteAction();
                         if (active) {
-                            // Queue the destination to re-path after the current step.
-                            try {
-                                if (lm) lm.traverseQueuedDestination = { x: selX, y: selY };
-                                addLogEntry('Traverse updated.', LogType.INFO);
-                            } catch { /* ignore */ }
-                            return;
+                            const activeId = (() => {
+                                try { return String(active?.id || ''); } catch { return ''; }
+                            })();
+                            const interruptible = (activeId === 'sitDown' || activeId === 'rest' || activeId === 'sleep' || activeId === 'forageFood' || activeId === 'purifyWater' || activeId === 'drinkCaveWater');
+
+                            if (!interruptible) {
+                                // Queue the destination to re-path after the current step.
+                                try {
+                                    if (lm) lm.traverseQueuedDestination = { x: selX, y: selY };
+                                    if (lm) lm.traverseUiSelection = { x: selX, y: selY };
+                                    addLogEntry('Traverse updated.', LogType.INFO);
+                                } catch { /* ignore */ }
+                                return;
+                            }
+
+                            cancelAction(host, `${active.name} interrupted.`, true);
                         }
 
                         try {
                             lm.traverseQueue = path.slice(1);
                             delete lm.traverseQueuedDestination;
+                            lm.traverseUiSelection = { x: selX, y: selY };
                         } catch { /* ignore */ }
 
                         clearRoutePreview();
@@ -1648,8 +1764,8 @@ export function setupCrashSiteSection(section) {
             try {
                 if (mapHost && !mapHost.dataset.boundLocalMapSelection) {
                     mapHost.dataset.boundLocalMapSelection = 'true';
-                    mapHost.addEventListener('local-map-selection-changed', () => {
-                        renderLocalMapActions();
+                    mapHost.addEventListener('local-map-selection-changed', (ev) => {
+                        renderLocalMapActions(ev);
                     });
                 }
             } catch { /* ignore */ }
@@ -1736,12 +1852,20 @@ export function setupCrashSiteSection(section) {
 
                             const active = getActiveCrashSiteAction();
                             if (active) {
-                                // Queue the destination to re-path after the current step.
-                                try {
-                                    lm.traverseQueuedDestination = { x: tx, y: ty };
-                                } catch { /* ignore */ }
-                                addLogEntry('Traverse updated.', LogType.INFO);
-                                return;
+                                const activeId = (() => {
+                                    try { return String(active?.id || ''); } catch { return ''; }
+                                })();
+                                const interruptible = (activeId === 'sitDown' || activeId === 'rest' || activeId === 'sleep' || activeId === 'forageFood' || activeId === 'purifyWater' || activeId === 'drinkCaveWater');
+                                if (!interruptible) {
+                                    // Queue the destination to re-path after the current step.
+                                    try {
+                                        lm.traverseQueuedDestination = { x: tx, y: ty };
+                                    } catch { /* ignore */ }
+                                    addLogEntry('Traverse updated.', LogType.INFO);
+                                    return;
+                                }
+
+                                cancelAction(host, `${active.name} interrupted.`, true);
                             }
 
                             try {
@@ -2028,6 +2152,45 @@ export function setupCrashSiteSection(section) {
             }
         } catch { /* ignore */ }
 
+        // If this action is currently running, immediately rehydrate the running UI state.
+        try {
+            const running = getActiveCrashSiteAction();
+            const runningInstance = running && running.uiInstanceId ? String(running.uiInstanceId) : 'main';
+            if (running && running.id === action.id && runningInstance === 'main') {
+                const bar = btn.querySelector('.action-progress-bar');
+                const labelEl = btn.querySelector('.building-name');
+                const effectiveDuration = computeEffectiveDuration(running, resources);
+                const timeScale = (Number(window.TIME_SCALE || 1) > 0) ? Number(window.TIME_SCALE || 1) : 1;
+                const pct = (effectiveDuration > 0) ? Math.min((Number(running.elapsed || 0) / effectiveDuration) * 100, 100) : 0;
+
+                btn.classList.add('running');
+                if (labelEl) {
+                    if (!btn.dataset.originalLabel) btn.dataset.originalLabel = labelEl.innerText;
+                    const remainingRealSeconds = Math.max(0, (effectiveDuration - Number(running.elapsed || 0)) / timeScale);
+                    labelEl.innerText = `${remainingRealSeconds.toFixed(1)}s`;
+                }
+                if (bar) {
+                    try {
+                        bar.style.transition = 'none';
+                        bar.style.width = `${pct}%`;
+                        void bar.offsetWidth;
+                        bar.style.transition = '';
+                    } catch { bar.style.width = `${pct}%`; }
+                }
+
+                if (running.cancelable) {
+                    btn.onclick = () => requestCancel(action, section);
+                    btn.disabled = false;
+                } else {
+                    btn.onclick = null;
+                    btn.disabled = true;
+                }
+
+                if (isPendingCancel === action.id) btn.classList.add('confirm-cancel');
+                else btn.classList.remove('confirm-cancel');
+            }
+        } catch { /* ignore */ }
+
         // Clear "new" badge after the player notices the button (persist quietly).
         if (action.uiNew) {
             wireClearUiNewBadge(btn, { legacyObj: action, legacyProp: 'uiNew' });
@@ -2052,7 +2215,16 @@ export function setupCrashSiteSection(section) {
             btn.removeAttribute('aria-disabled');
             delete btn.dataset.shortfall;
         }
-        attachStartClickHandler(btn, action, section);
+        try {
+            const running = getActiveCrashSiteAction();
+            const runningInstance = running && running.uiInstanceId ? String(running.uiInstanceId) : 'main';
+            const isRunningThisButton = !!(running && running.id === action.id && runningInstance === 'main');
+            if (!isRunningThisButton) {
+                attachStartClickHandler(btn, action, section);
+            }
+        } catch {
+            attachStartClickHandler(btn, action, section);
+        }
 
         const capReason = getCapacityBlockReason(action);
         btn.classList.toggle('capacity-blocked', !!capReason);
@@ -2075,12 +2247,27 @@ export function setupCrashSiteSection(section) {
     export function startAction(action, section) {
     const existing = getActiveCrashSiteAction();
     if (existing) {
-        const runningName = existing && existing.name ? String(existing.name) : 'another action';
-        addLogEntry(`Cannot start "${action.name}" while "${runningName}" is in progress.`, LogType.INFO);
-        return;
+        const existingId = (() => {
+            try { return String(existing?.id || ''); } catch { return ''; }
+        })();
+
+            // Special-case: channeled actions are always interruptible.
+    		if (existingId === 'sitDown' || existingId === 'rest' || existingId === 'sleep' || existingId === 'forageFood' || existingId === 'purifyWater' || existingId === 'drinkCaveWater') {
+            cancelAction(section, `${existing.name} interrupted.`, true);
+        } else {
+            const runningName = existing && existing.name ? String(existing.name) : 'another action';
+            addLogEntry(`Cannot start "${action.name}" while "${runningName}" is in progress.`, LogType.INFO);
+            return;
+        }
     }
     if (lsGet('gamePaused') === 'true') {
         addLogEntry(`Cannot start "${action.name}" while game is paused. Resume the game first.`, LogType.INFO);
+        return;
+    }
+
+    const capReason = getCapacityBlockReason(action);
+    if (capReason) {
+        addLogEntry(capReason, LogType.INFO);
         return;
     }
 
@@ -2243,16 +2430,95 @@ function requestCancel(action, section) {
     const btn = section.querySelector(sel);
     if (btn) btn.classList.add('confirm-cancel');
     cancelTimeout = setTimeout(() => {
+        try {
+            const sel2 = action && action.uiInstanceId
+                ? `[data-action-id="${action.id}"][data-action-instance="${action.uiInstanceId}"]`
+                : `[data-action-id="${action.id}"][data-action-instance="main"]`;
+            const btn2 = section && section.querySelector ? section.querySelector(sel2) : null;
+            if (btn2) btn2.classList.remove('confirm-cancel');
+        } catch { /* ignore */ }
         if (btn) btn.classList.remove('confirm-cancel');
         isPendingCancel = null;
         cancelTimeout = null;
     }, 2000);
 }
 
+function isChanneledYieldActionId(actionId) {
+    return (actionId === 'forageFood' || actionId === 'purifyWater' || actionId === 'drinkCaveWater');
+}
+
+function channeledYieldIsFull(actionId) {
+    try {
+        const produced = (actionId === 'forageFood') ? 'Food Rations'
+            : (actionId === 'purifyWater' || actionId === 'drinkCaveWater') ? 'Drinking Water'
+                : '';
+        if (!produced) return false;
+        const res = resources.find(r => r && r.name === produced);
+        const cap = Number(res?.capacity);
+        const amount = Number(res?.amount);
+        if (!res || !Number.isFinite(cap) || cap === Number.POSITIVE_INFINITY || !Number.isFinite(amount)) return false;
+        return amount >= cap - 1e-9;
+    } catch {
+        return false;
+    }
+}
+
+function stopActionNoRefund(section, message) {
+    const a = getActiveCrashSiteAction();
+    if (!a) return;
+
+    try { applySavedProgressToActionDef(a.id, { progress01: 0, stageIndex: getSavedProgressStageIndexForActionId(a.id) }); } catch { /* ignore */ }
+
+    stopCrashSiteLoop();
+    if (cancelTimeout) { clearTimeout(cancelTimeout); cancelTimeout = null; }
+    isPendingCancel = null;
+
+    setActiveCrashSiteAction(null);
+    refreshCurrentTooltip();
+    addLogEntry(String(message || `${a.name} stopped.`), LogType.INFO);
+
+    const sel = a && a.uiInstanceId
+        ? `[data-action-id="${a.id}"][data-action-instance="${a.uiInstanceId}"]`
+        : `[data-action-id="${a.id}"][data-action-instance="main"]`;
+    const btn = section && section.querySelector ? section.querySelector(sel) : null;
+    if (btn) {
+        btn.classList.remove('running');
+        btn.classList.remove('confirm-cancel');
+        const bar = btn.querySelector('.action-progress-bar');
+        if (bar) {
+            try {
+                bar.style.transition = 'none';
+                bar.style.width = '0%';
+                void bar.offsetWidth;
+                bar.style.transition = '';
+            } catch { bar.style.width = '0%'; }
+        }
+        const nameSpan = btn.querySelector('.building-name');
+        if (nameSpan && btn.dataset.originalLabel) {
+            nameSpan.textContent = btn.dataset.originalLabel;
+        }
+        delete btn.dataset.originalLabel;
+    }
+
+    try {
+        if (typeof updateCrashSiteActionButtonsState === 'function') updateCrashSiteActionButtonsState();
+        refreshCrashSiteLocalMapUi(section);
+    } catch { /* ignore */ }
+}
+
 // Progress and complete actions based on time scale and drains
 function updateActionProgress(section) {
     const a = getActiveCrashSiteAction();
     if (!a) return;
+
+    // Channeled yield actions: stop once the produced resource is full.
+    try {
+        if (isChanneledYieldActionId(a.id) && channeledYieldIsFull(a.id)) {
+            const produced = (a.id === 'forageFood') ? 'Food Rations' : 'Drinking Water';
+            stopActionNoRefund(section, `${a.name} stopped: ${produced} storage is full.`);
+            return;
+        }
+    } catch { /* ignore */ }
 
     const now = Date.now();
     const rawDelta = Math.max(0, Math.min((now - (a.lastTickTime || now)) / 1000, 0.25));

@@ -81,6 +81,68 @@ const initialRecipeActions = [
     },
 
     {
+        id: 'craftBottledWater',
+        name: 'Refill Bottled Water',
+        description: 'You found empty bottles in the cafeteria. Refill them at camp so you can take extra water with you.',
+        duration: 2,
+        category: 'Crafting',
+        isUnlocked: false,
+        cancelable: true,
+        repeatable: true,
+        showUnlocks: false,
+        cost: [
+            // Camp resource -> item (1:1)
+            { resource: 'Water', amount: 25 }
+        ],
+        drain: [
+            { resource: 'Stamina', amount: 4 }
+        ],
+        reward: [],
+        hideRewardPreview: true,
+        stage: 0,
+        stages: [
+            {
+                story: null,
+                unlocks: [],
+                grantItems: ['bottled_water'],
+                grantItemsPreferEquip: false,
+                logText: 'You rinse and refill a bottle, packing it for the next trip.'
+            }
+        ]
+    },
+
+    {
+        id: 'craftPackagedFood',
+        name: 'Assemble Packaged Food',
+        description: 'Portion out provisions and wrap them securely so you can carry durable food on longer trips.',
+        duration: 2,
+        category: 'Crafting',
+        isUnlocked: false,
+        cancelable: true,
+        repeatable: true,
+        showUnlocks: false,
+        cost: [
+            { resource: 'Provisions', amount: 25 },
+            { resource: 'Fabric', amount: 1 }
+        ],
+        drain: [
+            { resource: 'Stamina', amount: 6 }
+        ],
+        reward: [],
+        hideRewardPreview: true,
+        stage: 0,
+        stages: [
+            {
+                story: null,
+                unlocks: [],
+                grantItems: ['packaged_food'],
+                grantItemsPreferEquip: false,
+                logText: 'You wrap and seal a durable ration pack for later.'
+            }
+        ]
+    },
+
+    {
         id: 'makeCrudePrybar',
         name: 'Make Crude Prybar',
         description: 'Use scavenged metal to fashion a crude prybar that can be used to lever open hull seams.',

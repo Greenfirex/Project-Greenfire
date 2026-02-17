@@ -6,6 +6,8 @@ export const INVENTORY_RESOURCE_ALIASES = Object.freeze({
     'Crude Prybar': 'crude_prybar',
     'Makeshift Explosive': 'makeshift_explosive',
     'Power Cells': 'power_cell',
+    'Bottled Water': 'bottled_water',
+    'Packaged Food': 'packaged_food',
 });
 
 export function getItemIdForResourceName(resourceName) {

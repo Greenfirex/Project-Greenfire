@@ -260,6 +260,7 @@ export function showStoryPopup(event, outcome = null) {
     if (contentEl) contentEl.style.zIndex = '2147483001';
 
     // Make visible
+    try { overlayEl.hidden = false; } catch { /* ignore */ }
     overlayEl.classList.remove('hidden');
     overlayEl.style.display = '';
     try { window.dispatchEvent(new CustomEvent('popup-open')); } catch (e) { /* ignore */ }
@@ -305,6 +306,7 @@ function hideStoryPopup() {
     const storyPopup = document.getElementById('storyPopup');
     if (storyPopup) {
         storyPopup.classList.add('hidden');
+        try { storyPopup.hidden = true; } catch { /* ignore */ }
         storyPopup.style.display = 'none';
     }
     activeStoryEvent = null;

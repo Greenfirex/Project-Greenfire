@@ -1,6 +1,6 @@
 // Tooltip + debuff-icon module
 
-import { resources, computeResourceRates } from '../../core/resources.js';
+import { resources, computeResourceRates, getRecoveryActionRegenBonusesPerSec, getChanneledActionYieldBonusesPerSec } from '../../core/resources.js';
 import { formatNumber } from '../../core/formatting.js';
 import { gameFlags } from '../../data/gameFlags.js';
 import { computeRewardEffects, upgradeEffects } from '../../data/upgradeEffects.js';
@@ -587,6 +587,36 @@ function buildTooltipHTML(data) {
     // string builder
     let html = '';
 
+    function isChanneledActionId(actionId) {
+        if (!actionId) return false;
+        try {
+            return !!(getRecoveryActionRegenBonusesPerSec(actionId) || getChanneledActionYieldBonusesPerSec(actionId));
+        } catch {
+            return false;
+        }
+    }
+
+    function renderActionTags(actionData) {
+        if (!actionData || !actionData.id) return '';
+        const tags = [];
+        const isUpgrade = (actionData.category === 'Upgrade' || actionData.category === 'Upgrades');
+        if (isUpgrade) {
+            tags.push('<span class="tooltip-tag is-upgrade">Upgrade</span>');
+        }
+        const isChanneled = isChanneledActionId(actionData.id);
+        if (isChanneled) {
+            tags.push('<span class="tooltip-tag is-channeled">Channeled</span>');
+        } else if (actionData.repeatable) {
+            tags.push('<span class="tooltip-tag is-repeatable">Repeatable</span>');
+        }
+        if (!tags.length) return '';
+        return `<div class="tooltip-tags">${tags.join('')}</div>`;
+    }
+
+    function renderBuildingTags() {
+        return '<div class="tooltip-tags"><span class="tooltip-tag is-building">Building</span></div>';
+    }
+
     // Helper: format seconds into human ETA (reused for both actions and buildings)
     function formatETA(seconds) {
         if (!isFinite(seconds) || seconds <= 0) return null;
@@ -672,6 +702,7 @@ function buildTooltipHTML(data) {
 
     if (data && typeof data.count !== 'undefined') {
         // This is a building tooltip; internal fields like buildTime are excluded from display
+        html += `<div class="tooltip-header-row"><h4>${data.name || 'Building'}</h4>${renderBuildingTags()}</div>`;
         if (data.description) html += `<p class="tooltip-description">${data.description}</p>`;
         if (data.cost && data.cost.length > 0) html += `<div class="tooltip-section"><h4>Cost</h4>${renderCostItems(data.cost)}</div>`;
         if (data.produces) html += `<div class="tooltip-section"><h4>Generation</h4><p>${data.produces}: +${data.rate}/s</p></div>`;
@@ -702,7 +733,7 @@ function buildTooltipHTML(data) {
     }
 
     if (data && data.id) {
-        html += `<h4>${data.name}</h4>`;
+        html += `<div class="tooltip-header-row"><h4>${data.name}</h4>${renderActionTags(data)}</div>`;
         if (data.description) html += `<p class="tooltip-description">${data.description}</p>`;
 
         // If the action is currently blocked, surface the reason prominently
@@ -714,8 +745,27 @@ function buildTooltipHTML(data) {
             }
         } catch (e) { /* ignore block check errors */ }
 
-        // Costs / drains — use the shared renderer so ETA/affordability is consistent
-        const costHtml = (renderCostItems(data.cost) || '') + (renderCostItems(data.drain, { softGateResources: ['Food Rations', 'Drinking Water'] }) || '');
+        // Costs / drains — use the shared renderer so ETA/affordability is consistent.
+        // Channeled actions: show drain per-second (instead of total per duration).
+        const isChanneled = isChanneledActionId(data.id);
+        const durationSec = Math.max(1, Number(data.duration || 0));
+        const costOnlyHtml = renderCostItems(data.cost) || '';
+        let drainHtml = '';
+        if (Array.isArray(data.drain) && data.drain.length) {
+            if (isChanneled) {
+                const parts = data.drain.map(item => {
+                    const resName = item?.resource;
+                    const total = Number(item?.amount || 0);
+                    const perSec = total / durationSec;
+                    if (!resName || !isFinite(perSec) || perSec <= 0) return '';
+                    return `<p>${resName}: <span class="tooltip-amount-consumes">-${formatNumber(perSec)}/s</span></p>`;
+                }).filter(Boolean);
+                drainHtml = parts.join('');
+            } else {
+                drainHtml = renderCostItems(data.drain, { softGateResources: ['Food Rations', 'Drinking Water'] }) || '';
+            }
+        }
+        const costHtml = costOnlyHtml + drainHtml;
         if (costHtml) html += `<div class="tooltip-section"><h4>Cost</h4>${costHtml}</div>`;
 
         // If this item/job produces a resource, show any active upgrade modifiers and Morale that affect
@@ -789,6 +839,34 @@ function buildTooltipHTML(data) {
             }
         } catch (e) { /* ignore effect rendering errors */ }
 
+        // Recovery (channeled actions)
+        try {
+            const regen = getRecoveryActionRegenBonusesPerSec(data?.id);
+            const hasRegen = !!(regen && (regen.staminaPerSec > 0 || regen.healthPerSec > 0));
+            if (hasRegen) {
+                const lines = [];
+                if (regen.staminaPerSec > 0) {
+                    lines.push(`<p>Stamina: <span class="reward-amount">+${formatNumber(regen.staminaPerSec)}/s</span></p>`);
+                }
+                if (regen.healthPerSec > 0) {
+                    lines.push(`<p>Health: <span class="reward-amount">+${formatNumber(regen.healthPerSec)}/s</span></p>`);
+                }
+
+                html += `<div class="tooltip-section"><h4>Recovery</h4>${lines.join('')}</div>`;
+            }
+        } catch { /* ignore */ }
+
+        // Yield (channeled actions)
+        try {
+            const y = getChanneledActionYieldBonusesPerSec(data?.id);
+            const hasYield = !!(y && y.resource && y.amountPerSec > 0);
+            if (hasYield) {
+                html += `<div class="tooltip-section"><h4>Yield</h4>` +
+                    `<p>${y.resource}: <span class="reward-amount">+${formatNumber(y.amountPerSec)}/s</span></p>` +
+                    `</div>`;
+            }
+        } catch { /* ignore */ }
+
         // Rewards (may be hidden for certain actions)
         if (data.reward && data.reward.length > 0) {
             const hideReward = !!data.hideRewardPreview || data.id === 'investigateSound';
@@ -828,9 +906,11 @@ function buildTooltipHTML(data) {
             }
         }
 
+                const isUpgrade = (data.category === 'Upgrade' || data.category === 'Upgrades');
+
                 // Duration and conditional modifiers (e.g. hunger/thirst debuffs)
-        const baseDurationText = (typeof data.duration === 'number') ? `${data.duration}s` : (data.duration || '—');
-        let durationHtml = `<p>Duration: ${baseDurationText}</p>`;
+                const baseDurationText = (typeof data.duration === 'number') ? `${data.duration}s` : (data.duration || '—');
+                let durationHtml = isUpgrade ? '' : `<p>Duration: ${baseDurationText}</p>`;
 
                 // --- Optional: Unlocks section (only shown when this item actually unlocks things) ---
                 try {
@@ -891,29 +971,62 @@ function buildTooltipHTML(data) {
             const water = resources.find(r => r.name === 'Drinking Water');
             const isHungry = !!(food && Number(food.amount) <= 0);
             const isThirsty = !!(water && Number(water.amount) <= 0);
-            const effects = [];
-            if (isHungry && isThirsty) {
-                effects.push('<span style="color:#ff6b6b">Hunger &amp; Thirst — actions take 2× as long.</span>');
-            } else {
-                if (isHungry) effects.push('<span style="color:#ff6b6b">Hunger — actions take 50% longer.</span>');
-                if (isThirsty) effects.push('<span style="color:#ff6b6b">Thirst — actions take 50% longer.</span>');
-            }
 
-            if (effects.length) {
-                // compute effective duration if base numeric
-                if (typeof data.duration === 'number') {
-                    const multiplier = 1 + (isHungry ? 0.5 : 0) + (isThirsty ? 0.5 : 0);
-                    const effective = Math.ceil(data.duration * multiplier);
-                    // mark effective duration with a class so it can be highlighted via CSS
-                    durationHtml = `<p>Duration: ${baseDurationText}</p><p><strong class="effective-duration">Effective duration: ${effective}s</strong></p>`;
+            const actionId = (() => {
+                try { return String(data?.id || ''); } catch { return ''; }
+            })();
+
+            const isRecoveryExempt = (actionId === 'sitDown' || actionId === 'rest' || actionId === 'sleep');
+            const isYieldChanneled = (actionId === 'forageFood' || actionId === 'purifyWater' || actionId === 'drinkCaveWater');
+
+            // Recovery actions are exempt from hunger/thirst debuffs.
+            if (!isRecoveryExempt) {
+                const effects = [];
+
+                if (isYieldChanneled) {
+                    // For channeled yields, hunger/thirst reduce yield rather than increasing duration.
+                    if (isHungry || isThirsty) {
+                        const multiplier = 1 + (isHungry ? 0.5 : 0) + (isThirsty ? 0.5 : 0);
+                        const yieldMul = (multiplier > 0) ? (1 / multiplier) : 1;
+
+                        if (isHungry && isThirsty) {
+                            effects.push(`<span style="color:#ff6b6b">Hunger &amp; Thirst — yields reduced (×${yieldMul.toFixed(2)}).</span>`);
+                        } else {
+                            if (isHungry) effects.push(`<span style="color:#ff6b6b">Hunger — yields reduced (×${yieldMul.toFixed(2)}).</span>`);
+                            if (isThirsty) effects.push(`<span style="color:#ff6b6b">Thirst — yields reduced (×${yieldMul.toFixed(2)}).</span>`);
+                        }
+                    }
+                } else {
+                    // Default behavior: hunger/thirst increase action duration.
+                    if (isHungry && isThirsty) {
+                        effects.push('<span style="color:#ff6b6b">Hunger &amp; Thirst — actions take 2× as long.</span>');
+                    } else {
+                        if (isHungry) effects.push('<span style="color:#ff6b6b">Hunger — actions take 50% longer.</span>');
+                        if (isThirsty) effects.push('<span style="color:#ff6b6b">Thirst — actions take 50% longer.</span>');
+                    }
+
+                    if (effects.length) {
+                        // compute effective duration if base numeric
+                        if (typeof data.duration === 'number') {
+                            const multiplier = 1 + (isHungry ? 0.5 : 0) + (isThirsty ? 0.5 : 0);
+                            const effective = Math.ceil(data.duration * multiplier);
+                            // mark effective duration with a class so it can be highlighted via CSS
+                            if (!isUpgrade) {
+                                durationHtml = `<p>Duration: ${baseDurationText}</p><p><strong class="effective-duration">Effective duration: ${effective}s</strong></p>`;
+                            }
+                        }
+                    }
                 }
-                html += `<div class="tooltip-section"><h4>Current Conditions</h4><p>${effects.join('<br>')}</p></div>`;
+
+                if (effects.length) {
+                    html += `<div class="tooltip-section"><h4>Current Conditions</h4><p>${effects.join('<br>')}</p></div>`;
+                }
             }
         } catch (err) {
             // don't break tooltip rendering on errors
         }
 
-        html += `<div class="tooltip-section">${durationHtml}</div>`;
+        if (durationHtml) html += `<div class="tooltip-section">${durationHtml}</div>`;
         return html;
     }
 

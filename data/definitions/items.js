@@ -118,6 +118,25 @@ export const items = [
         description: 'A compact energy cell used to power damaged systems.',
         stackable: true,
     }
+    ,
+    {
+        id: 'bottled_water',
+        name: 'Bottled Water',
+        slot: 'consumable',
+        icon: 'assets/images/items/bottled water.png',
+        description: 'A sealed bottle of clean drinking water.',
+        stackable: true,
+        consumable: { type: 'heal', resource: 'Drinking Water', amount: 25 }
+    },
+    {
+        id: 'packaged_food',
+        name: 'Packaged Food',
+        slot: 'consumable',
+        icon: 'assets/images/items/packaged food.png',
+        description: 'Packaged rations, safe to eat.',
+        stackable: true,
+        consumable: { type: 'heal', resource: 'Food Rations', amount: 25 }
+    }
 ];
 
 export function getItemDefinition(id) {

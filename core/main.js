@@ -150,35 +150,35 @@ function startGame({ mode = 'continue' } = {}) {
     // --- Create all game section elements ---
     const crashSiteSection = document.createElement('div');
     crashSiteSection.id = 'crashSiteSection';
-    crashSiteSection.classList.add('game-section');
+    crashSiteSection.classList.add('game-section', 'hidden');
 
     const journalSection = document.createElement('div'); 
     journalSection.id = 'journalSection';
-    journalSection.classList.add('game-section');
+    journalSection.classList.add('game-section', 'hidden');
 
     const characterSection = document.createElement('div');
     characterSection.id = 'characterSection';
-    characterSection.classList.add('game-section');
+    characterSection.classList.add('game-section', 'hidden');
 
     const colonySection = document.createElement('div');
     colonySection.id = 'colonySection';
-    colonySection.classList.add('game-section');
+    colonySection.classList.add('game-section', 'hidden');
 
     const craftingSection = document.createElement('div');
     craftingSection.id = 'craftingSection';
-    craftingSection.classList.add('game-section');
+    craftingSection.classList.add('game-section', 'hidden');
 	
 	const shipyardSection = document.createElement('div');
     shipyardSection.id = 'shipyardSection';
-    shipyardSection.classList.add('game-section');
+    shipyardSection.classList.add('game-section', 'hidden');
 
     const galaxyMapSection = document.createElement('div');
     galaxyMapSection.id = 'galaxyMapSection';
-    galaxyMapSection.classList.add('game-section');
+    galaxyMapSection.classList.add('game-section', 'hidden');
 
     const encryptedDriveSection = document.createElement('div');
     encryptedDriveSection.id = 'encryptedDriveSection';
-    encryptedDriveSection.classList.add('game-section');
+    encryptedDriveSection.classList.add('game-section', 'hidden');
 
     // --- Append all sections to the game area ---
     const gameArea = document.getElementById('gameArea');

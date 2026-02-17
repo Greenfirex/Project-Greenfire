@@ -966,8 +966,8 @@ registerActionCompletionHandler('scavengeDebris', () => {
     } catch { /* ignore */ }
 });
 
-// Cafeteria supplies: limited per tile (7 completions per tile)
-registerActionCompletionHandler('scavengeCafeteriaSupplies', () => {
+// Cafeteria scavenging: limited per tile (7 completions per tile, independent pools)
+const onCafeteriaBottledWaterScavenged = () => {
     try {
         const st = characterState?.localMap;
         if (!st || typeof st !== 'object') return;
@@ -976,15 +976,15 @@ registerActionCompletionHandler('scavengeCafeteriaSupplies', () => {
         if (![x, y].every(Number.isFinite)) return;
 
         const key = `${x},${y}`;
-        if (!st.cafeteriaSuppliesByTile || typeof st.cafeteriaSuppliesByTile !== 'object') {
-            st.cafeteriaSuppliesByTile = {};
+        if (!st.cafeteriaBottledWaterByTile || typeof st.cafeteriaBottledWaterByTile !== 'object') {
+            st.cafeteriaBottledWaterByTile = {};
         }
-        const used = Number(st.cafeteriaSuppliesByTile[key] || 0);
+        const used = Number(st.cafeteriaBottledWaterByTile[key] || 0);
         const next = Math.min(7, Math.max(0, used) + 1);
-        st.cafeteriaSuppliesByTile[key] = next;
+        st.cafeteriaBottledWaterByTile[key] = next;
 
         if (next >= 7) {
-            addLogEntry('You\'ve scavenged all the usable food and water you could find here.', LogType.INFO);
+            addLogEntry('You\'ve scavenged all the usable bottled water you could find here.', LogType.INFO);
         }
 
         // Refresh so the per-tile counters, info panel resources, and map emojis update immediately.
@@ -994,7 +994,45 @@ registerActionCompletionHandler('scavengeCafeteriaSupplies', () => {
             }
         } catch { /* ignore */ }
     } catch { /* ignore */ }
+};
+
+const onCafeteriaPackagedFoodScavenged = () => {
+    try {
+        const st = characterState?.localMap;
+        if (!st || typeof st !== 'object') return;
+        const x = Number(st.x);
+        const y = Number(st.y);
+        if (![x, y].every(Number.isFinite)) return;
+
+        const key = `${x},${y}`;
+        if (!st.cafeteriaPackagedFoodByTile || typeof st.cafeteriaPackagedFoodByTile !== 'object') {
+            st.cafeteriaPackagedFoodByTile = {};
+        }
+        const used = Number(st.cafeteriaPackagedFoodByTile[key] || 0);
+        const next = Math.min(7, Math.max(0, used) + 1);
+        st.cafeteriaPackagedFoodByTile[key] = next;
+
+        if (next >= 7) {
+            addLogEntry('You\'ve scavenged all the usable packaged food you could find here.', LogType.INFO);
+        }
+
+        // Refresh so the per-tile counters, info panel resources, and map emojis update immediately.
+        try {
+            if (typeof window !== 'undefined' && typeof window.setupCrashSiteSection === 'function') {
+                window.setupCrashSiteSection();
+            }
+        } catch { /* ignore */ }
+    } catch { /* ignore */ }
+};
+
+// Back-compat: older combined action increments both pools.
+registerActionCompletionHandler('scavengeCafeteriaSupplies', () => {
+    try { onCafeteriaBottledWaterScavenged(); } catch { /* ignore */ }
+    try { onCafeteriaPackagedFoodScavenged(); } catch { /* ignore */ }
 });
+
+registerActionCompletionHandler('scavengeCafeteriaWater', onCafeteriaBottledWaterScavenged);
+registerActionCompletionHandler('scavengeCafeteriaFood', onCafeteriaPackagedFoodScavenged);
 
 // Labs searched -> enable lab marker on the local map
 registerActionCompletionHandler('searchLabs', () => {
