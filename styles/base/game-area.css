@@ -401,6 +401,11 @@ html.is-compact .content-panel {
     text-shadow: none;
 }
 
+.image-button.unaffordable .building-count {
+    color: #E74C3C;
+    text-shadow: none;
+}
+
 /* Storage full (reward would be wasted) */
 .image-button.capacity-blocked {
     filter: grayscale(55%);

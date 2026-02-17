@@ -9,19 +9,18 @@ const initialUpgradeActions = [
         cancelable: true,
         cost: [
             { resource: 'Metal Parts', amount: 6 },
-            { resource: 'Crude Prybar', amount: 1 },
             { resource: 'Wire', amount: 10 }
         ],
         drain: [
-            { resource: 'Provisions', amount: 4 },
-            { resource: 'Water', amount: 5 }
+            { resource: 'Provisions', amount: 3 },
+            { resource: 'Water', amount: 4 }
         ],
         repeatable: false,
         suppressGenericLog: true,
         hideRewardPreview: true,
     reward: [],
     // Tooltip-only effects for clarity
-    tooltipEffects: ['Foraging job: +25% permanent bonus'],
+    tooltipEffects: ['Forager job: +25% bonus'],
         stage: 0,
         stages: [
             {
@@ -104,8 +103,8 @@ const initialUpgradeActions = [
             { resource: 'Metal Parts', amount: 5 }
         ],
         drain: [
-            { resource: 'Provisions', amount: 19 },
-            { resource: 'Water', amount: 13 }
+            { resource: 'Provisions', amount: 10 },
+            { resource: 'Water', amount: 10 }
         ],
         repeatable: false,
         hideRewardPreview: true,
@@ -130,17 +129,17 @@ const initialUpgradeActions = [
         isUnlocked: false, // will unlock after Base Camp is established
         cancelable: true,
         cost: [
-            { resource: 'Wire', amount: 16 },
-            { resource: 'Metal Parts', amount: 12 }
+            { resource: 'Wire', amount: 6 },
+            { resource: 'Metal Parts', amount: 10 }
         ],
         drain: [
-            { resource: 'Provisions', amount: 4 },
+            { resource: 'Provisions', amount: 5 },
             { resource: 'Water', amount: 5 }
         ],
         repeatable: false,
         hideRewardPreview: true,
         reward: [],
-        tooltipEffects: ['Scrap Collector job: +20% Permanent Bonus'],
+        tooltipEffects: ['Scrap Collector job: +20% Bonus'],
         stage: 0,
         stages: [
             {
@@ -160,8 +159,8 @@ const initialUpgradeActions = [
         isUnlocked: false, // unlocked after Base Camp is established
         cancelable: true,
         cost: [
-            { resource: 'Metal Parts', amount: 6 },
-            { resource: 'Wire', amount: 3 },
+            { resource: 'Metal Parts', amount: 4 },
+            { resource: 'Wire', amount: 2 },
         ],
         repeatable: false,
         hideRewardPreview: true,
@@ -187,11 +186,11 @@ const initialUpgradeActions = [
         cancelable: true,
         cost: [
             { resource: 'Metal Parts', amount: 8 },
-            { resource: 'Wire', amount: 12 }
+            { resource: 'Wire', amount: 2 }
         ],
         drain: [
-            { resource: 'Provisions', amount: 4 },
-            { resource: 'Water', amount: 5 }
+            { resource: 'Provisions', amount: 6 },
+            { resource: 'Water', amount: 7 }
         ],
         repeatable: false,
         suppressGenericLog: true,
@@ -211,13 +210,14 @@ const initialUpgradeActions = [
     {
         id: 'salvageCookingEquipment',
         name: 'Salvage Cooking Equipment',
-        description: 'We could salvage working cooking equipment if we can manage to take it out of the wreckage. This would help provide food and water for the crew at the base camp.',
+        description: 'Salvage working cafeteria equipment if we can manage to take it out of the wreckage.',
         duration: 8,
         category: 'Upgrade',
         isUnlocked: false,
         cancelable: true,
         cost: [
-            { resource: 'Crude Prybar', amount: 2 }
+            { resource: 'Metal Parts', amount: 20 },
+            { resource: 'Wire', amount: 10 }             
         ],
         drain: [
             { resource: 'Provisions', amount: 7 },
@@ -242,7 +242,7 @@ const initialUpgradeActions = [
     },
     {
         id: 'makeTents',
-        name: 'Make Tents (Base Camp)',
+        name: 'Personal tents',
         description: 'Use salvaged fabric and parts to construct simple tents at the base camp. Increases effectiveness of sleeping.',
         duration: 6,
         category: 'Upgrade',
@@ -252,7 +252,7 @@ const initialUpgradeActions = [
         cost: [
             { resource: 'Fabric', amount: 6 },
             { resource: 'Metal Parts', amount: 4 },
-            { resource: 'Crude Prybar', amount: 1 }
+            { resource: 'Wire', amount: 2 }
         ],
         drain: [
             { resource: 'Provisions', amount: 5 },
@@ -314,7 +314,7 @@ const initialUpgradeActions = [
         cost: [
             { resource: 'Fabric', amount: 4 },
             { resource: 'Metal Parts', amount: 4 },
-            { resource: 'Wire', amount: 8 }
+            { resource: 'Wire', amount: 4 }
         ],
         drain: [
             { resource: 'Provisions', amount: 4 },
@@ -323,7 +323,7 @@ const initialUpgradeActions = [
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Water Collection job: +25% Bonus'],
+    tooltipEffects: ['Water Collector job: +25% Bonus'],
         tooltipUnlocks: ['Rain Tarp'],
         stage: 0,
         stages: [
@@ -345,17 +345,17 @@ const initialUpgradeActions = [
         cancelable: true,
         cost: [
             { resource: 'Metal Parts', amount: 12 },
-            { resource: 'Chemicals', amount: 6 },
-            { resource: 'Fabric', amount: 4 }
+            { resource: 'Chemicals', amount: 8 },
+            { resource: 'Fabric', amount: 2 }
         ],
         drain: [
             { resource: 'Provisions', amount: 5 },
-            { resource: 'Water', amount: 7 }
+            { resource: 'Water', amount: 15 }
         ],
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Water Collection job: +25% Bonus',
+    tooltipEffects: ['Water Collector job: +25% Bonus',
                      'Purify Water: +20% Bonus'
     ],
         stage: 0,

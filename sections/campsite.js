@@ -7,6 +7,7 @@ import { gameFlags } from '../data/gameFlags.js';
 import { jobs, getJobById, getEffectiveJobRate } from '../data/jobsManager.js';
 import { getMorale } from '../data/morale.js';
 import { computeRewardEffects } from '../data/upgradeEffects.js';
+import { allActions } from '../data/definitions/allActions.js';
 
 import { updateBuildingButtonsState, createBuildingButton, rehydrateBuildingButton } from '../ui/components/buildingButtons.js';
 import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
@@ -15,6 +16,15 @@ import { setupTooltip, refreshCurrentTooltip } from '../ui/panels/tooltip.js';
 const SITE_BUILDING_NAMES = ['Foraging Camp', 'Water Station', 'Rain Tarp', 'Food Larder', 'Water Reservoir'];
 
 let _jobsRootEl = null;
+
+function isWorkbenchDone() {
+    try {
+        const workbench = (allActions || []).find(a => a && a.id === 'workbench');
+        return !!(workbench && (workbench.completed === true || (Array.isArray(workbench.stages) && (workbench.stage || 0) >= workbench.stages.length)));
+    } catch {
+        return false;
+    }
+}
 
 export function getCampsitePaneHtml({ isUnlocked = false } = {}) {
     const lockedText = '<div style="opacity:0.75">Establish a base camp to unlock this tab.</div>';
@@ -71,6 +81,21 @@ export function getCampsitePaneHtml({ isUnlocked = false } = {}) {
                 </div>
                 <div class="localmap-card-body" id="campsiteBuildings">${isUnlocked ? '' : lockedText}</div>
             </div>
+
+            <div class="localmap-card campsite-card campsite-card--actions" data-campsite-panel="actions" aria-label="Actions">
+                <div class="localmap-card-header">
+                    <h3>Actions</h3>
+                    <button type="button" class="campsite-collapse-btn" aria-label="Collapse Actions panel" aria-expanded="true">
+                        <svg class="chevrons-icon" width="22" height="16" viewBox="0 0 24 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path d="M3 12 L12 3 L21 12" stroke-linecap="round" />
+                            <path d="M3 18 L12 9 L21 18" stroke-linecap="round" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="localmap-card-body">
+                    <div class="campsite-actions" id="campsiteActions">${isUnlocked ? '' : lockedText}</div>
+                </div>
+            </div>
         </div>
     `;
 }
@@ -97,11 +122,14 @@ export function wireCampsiteCollapsibles(host) {
             if (!layout) return;
             const upgrades = host.querySelector('.campsite-card[data-campsite-panel="upgrades"]');
             const buildings = host.querySelector('.campsite-card[data-campsite-panel="buildings"]');
+            const actions = host.querySelector('.campsite-card[data-campsite-panel="actions"]');
             const upCollapsed = !!(upgrades && upgrades.classList.contains('is-collapsed'));
             const bCollapsed = !!(buildings && buildings.classList.contains('is-collapsed'));
+            const aCollapsed = !!(actions && actions.classList.contains('is-collapsed'));
             layout.classList.toggle('upgrades-collapsed', upCollapsed);
             layout.classList.toggle('buildings-collapsed', bCollapsed);
-            layout.classList.toggle('all-right-collapsed', upCollapsed && bCollapsed);
+            layout.classList.toggle('actions-collapsed', aCollapsed);
+            layout.classList.toggle('all-right-collapsed', upCollapsed && bCollapsed && aCollapsed);
         } catch { /* ignore */ }
     };
 
@@ -159,7 +187,7 @@ export function wireCampsiteCollapsibles(host) {
             if (panelKey === 'campresources') syncCampResourcesRowCollapse();
 
             // Right-side panels shrink their rows.
-            if (panelKey === 'upgrades' || panelKey === 'buildings') {
+            if (panelKey === 'upgrades' || panelKey === 'buildings' || panelKey === 'actions') {
                 syncRightPanelRowCollapses();
             }
         });
@@ -183,6 +211,7 @@ export function renderCampsitePanels(host, { availableActions = [], createAction
         const bHost = host.querySelector('#campsiteBuildings');
         const jHost = host.querySelector('#campsiteJobs');
         const cHost = host.querySelector('#campsiteCampResources');
+        const aHost = host.querySelector('#campsiteActions');
         // Crafting panel removed (Crafting is now its own section)
 
         if (!isCampsiteUnlocked) {
@@ -191,6 +220,7 @@ export function renderCampsitePanels(host, { availableActions = [], createAction
             if (bHost) bHost.innerHTML = locked;
             if (jHost) jHost.innerHTML = locked;
             if (cHost) cHost.innerHTML = locked;
+            if (aHost) aHost.innerHTML = locked;
             // Hide idle badge if tab is locked.
             updateCampsiteTabIdleWarning(0, { forceHide: true });
             return;
@@ -199,6 +229,7 @@ export function renderCampsitePanels(host, { availableActions = [], createAction
         if (upHost) upHost.innerHTML = '';
         if (bHost) bHost.innerHTML = '';
         if (jHost) jHost.innerHTML = '';
+        if (aHost) aHost.innerHTML = '';
 
         // Camp resources row (Water/Provisions snapshot)
         try { updateCampsiteCampResourcesPanel(host); } catch { /* ignore */ }
@@ -249,6 +280,67 @@ export function renderCampsitePanels(host, { availableActions = [], createAction
             if (jHost) {
                 setupCampsiteJobsPanel(jHost, { embedded: true });
                 try { updateCampsiteJobsPanel(); } catch { /* ignore */ }
+            }
+        } catch { /* ignore */ }
+
+        // Actions strip (navigation shortcuts)
+        try {
+            if (aHost) {
+                const group = document.createElement('div');
+                group.className = 'button-group';
+
+                const mkStripButton = ({ id, label, description, onClick }) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'image-button';
+                    btn.dataset.actionId = String(id || 'utility');
+                    btn.dataset.actionInstance = `campsite:utility:${String(id || 'utility')}`;
+                    btn.innerHTML = `
+                        <div class="action-progress-bar"></div>
+                        <span class="building-name">${String(label || '')}</span>
+                        <span class="cancel-text">Abort?</span>
+                    `;
+                    setupTooltip(btn, () => ({ id: String(id || 'utility'), name: String(label || ''), description: String(description || '') }));
+                    if (typeof onClick === 'function') btn.addEventListener('click', onClick);
+                    group.appendChild(btn);
+                    return btn;
+                };
+
+                const clickCrashSiteTab = (tabKey) => {
+                    try { localStorage.setItem('crashSiteActiveTab', tabKey); } catch { /* ignore */ }
+                    try {
+                        const crashHost = host.closest('#crashSiteSection') || document.getElementById('crashSiteSection');
+                        const tabBtn = crashHost ? crashHost.querySelector(`.crashsite-tab[data-tab="${tabKey}"]`) : null;
+                        if (tabBtn && !tabBtn.disabled) tabBtn.click();
+                    } catch { /* ignore */ }
+                };
+
+                mkStripButton({
+                    id: 'leaveCamp',
+                    label: 'Leave camp',
+                    description: 'Return to the local map.',
+                    onClick: (e) => {
+                        e.preventDefault();
+                        clickCrashSiteTab('map');
+                    }
+                });
+
+                if (isWorkbenchDone()) {
+                    mkStripButton({
+                        id: 'useWorkbench',
+                        label: 'Use workbench',
+                        description: 'Open the Crafting section.',
+                        onClick: (e) => {
+                            e.preventDefault();
+                            try {
+                                const btn = document.querySelector('.menu-button[data-section="craftingSection"]');
+                                if (btn) btn.click();
+                            } catch { /* ignore */ }
+                        }
+                    });
+                }
+
+                aHost.appendChild(group);
             }
         } catch { /* ignore */ }
 

@@ -13,16 +13,16 @@ const PERSONAL_SUPPLY_BASE_CAP = 10;
 
 // Recovery action regen (per second). Used both by resource rate computation and tooltips.
 const RECOVERY_ACTION_REGEN_BONUSES_PER_SEC = {
-    sitDown: { staminaPerSec: 2.0, healthPerSec: 0.5 },
-    rest: { staminaPerSec: 3.0, healthPerSec: 0.8 },
-    sleep: { staminaPerSec: 5.0, healthPerSec: 1.2 },
+    sitDown: { staminaPerSec: 3.0, healthPerSec: 0.5 },
+    rest: { staminaPerSec: 5.0, healthPerSec: 0.8 },
+    sleep: { staminaPerSec: 6.0, healthPerSec: 1.4 },
 };
 
 // Channeled yield bonuses (per second). Yield is reduced when hungry/thirsty.
 const CHANNELED_YIELD_BONUSES_PER_SEC = {
-    forageFood: { resource: 'Food Rations', amountPerSec: 0.75 },
-    purifyWater: { resource: 'Drinking Water', amountPerSec: 1.25 },
-    drinkCaveWater: { resource: 'Drinking Water', amountPerSec: 0.5 },
+    forageFood: { resource: 'Food Rations', amountPerSec: 1.35 },
+    purifyWater: { resource: 'Drinking Water', amountPerSec: 1.75 },
+    drinkCaveWater: { resource: 'Drinking Water', amountPerSec: 0.85 },
 };
 
 export function getRecoveryActionRegenBonusesPerSec(actionId) {

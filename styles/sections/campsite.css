@@ -9,12 +9,14 @@
     --campsite-row-camp: auto;
     --campsite-row-1: minmax(0, 1fr);
     --campsite-row-2: minmax(0, 1fr);
+    --campsite-row-3: auto;
     --campsite-collapsed-row: 44px;
-    grid-template-rows: var(--campsite-row-camp) var(--campsite-row-1) var(--campsite-row-2);
+    grid-template-rows: var(--campsite-row-camp) var(--campsite-row-1) var(--campsite-row-2) var(--campsite-row-3);
     grid-template-areas:
         "camp camp"
         "jobs upgrades"
-        "jobs buildings";
+        "jobs buildings"
+        "jobs actions";
     gap: 12px;
     align-items: stretch;
     flex: 1 1 auto;
@@ -27,6 +29,7 @@
 /* When a right-side panel is collapsed, shrink that grid row (desktop + mobile) */
 .campsite-layout.upgrades-collapsed { --campsite-row-1: var(--campsite-collapsed-row); }
 .campsite-layout.buildings-collapsed { --campsite-row-2: var(--campsite-collapsed-row); }
+.campsite-layout.actions-collapsed { --campsite-row-3: var(--campsite-collapsed-row); }
 
 /* Collapsed right panels: vertically center the header within the shrunken row. */
 .campsite-card:not(.campsite-card--jobs).is-collapsed {
@@ -44,6 +47,16 @@
 .campsite-card--jobs { grid-area: jobs; }
 .campsite-card--upgrades { grid-area: upgrades; }
 .campsite-card--buildings { grid-area: buildings; }
+.campsite-card--actions { grid-area: actions; }
+
+/* Actions strip: keep it compact and avoid hover scrollbars */
+.campsite-card--actions .localmap-card-body {
+    overflow: hidden;
+}
+
+.campsite-card--actions .campsite-actions {
+    margin-top: 0;
+}
 
 /* Jobs panel: horizontal collapse (shrinks width instead of height) */
 .campsite-card--jobs {
@@ -96,7 +109,8 @@
             "camp"
             "jobs"
             "upgrades"
-            "buildings";
+            "buildings"
+            "actions";
         gap: 12px;
     }
 
@@ -432,11 +446,12 @@
     .campsite-layout {
         --campsite-collapsed-row: 30px;
         grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-        grid-template-rows: var(--campsite-row-camp) var(--campsite-row-1) var(--campsite-row-2);
+        grid-template-rows: var(--campsite-row-camp) var(--campsite-row-1) var(--campsite-row-2) var(--campsite-row-3);
         grid-template-areas:
             "camp camp"
             "jobs upgrades"
-            "jobs buildings";
+            "jobs buildings"
+            "jobs actions";
         gap: 6px;
     }
 
@@ -608,11 +623,12 @@
 html.is-compact .campsite-layout {
     --campsite-collapsed-row: 30px;
     grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-    grid-template-rows: var(--campsite-row-camp) var(--campsite-row-1) var(--campsite-row-2);
+    grid-template-rows: var(--campsite-row-camp) var(--campsite-row-1) var(--campsite-row-2) var(--campsite-row-3);
     grid-template-areas:
         "camp camp"
         "jobs upgrades"
-        "jobs buildings";
+        "jobs buildings"
+        "jobs actions";
     gap: 6px;
 }
 

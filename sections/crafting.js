@@ -220,6 +220,20 @@ export function setupCraftingSection(craftingSection) {
                             </div>
                         </div>
                         <div class="crafting-actions" data-crafting-actions></div>
+                        <div class="localmap-card campsite-card campsite-card--actions" data-campsite-panel="actions" aria-label="Actions">
+                            <div class="localmap-card-header">
+                                <h3>Actions</h3>
+                                <button type="button" class="campsite-collapse-btn" aria-label="Collapse Actions panel" aria-expanded="true">
+                                    <svg class="chevrons-icon" width="22" height="16" viewBox="0 0 24 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <path d="M3 12 L12 3 L21 12" stroke-linecap="round" />
+                                        <path d="M3 18 L12 9 L21 18" stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="localmap-card-body">
+                                <div class="campsite-actions" data-crafting-nav-actions></div>
+                            </div>
+                        </div>
                     </div>
                     <div class="crafting-pane ${activeTab === 'research' ? 'active' : ''}" data-pane="research" role="tabpanel">
                         <div class="research-host" data-research-host></div>
@@ -362,6 +376,57 @@ export function setupCraftingSection(craftingSection) {
 
                 updateCraftingButtonsState(craftingSection);
             }
+        }
+    } catch { /* ignore */ }
+
+    // Navigation actions strip (Visit/Leave Camp)
+    try {
+        const navHost = craftingSection.querySelector('[data-crafting-nav-actions]');
+        if (navHost) {
+            navHost.innerHTML = '';
+            const group = document.createElement('div');
+            group.className = 'button-group';
+
+            const mkNavBtn = ({ id, label, description, onClick }) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'image-button';
+                btn.dataset.actionId = String(id || 'utility');
+                btn.dataset.actionInstance = `crafting:utility:${String(id || 'utility')}`;
+                btn.innerHTML = `
+                    <div class="action-progress-bar"></div>
+                    <span class="building-name">${String(label || '')}</span>
+                    <span class="cancel-text">Abort?</span>
+                `;
+                setupTooltip(btn, () => ({ id: String(id || 'utility'), name: String(label || ''), description: String(description || '') }));
+                if (typeof onClick === 'function') btn.addEventListener('click', onClick);
+                group.appendChild(btn);
+                return btn;
+            };
+
+            const openCrashSite = (tabKey) => {
+                try { localStorage.setItem('crashSiteActiveTab', tabKey); } catch { /* ignore */ }
+                try {
+                    const btn = document.querySelector('.menu-button[data-section="crashSiteSection"]');
+                    if (btn) btn.click();
+                } catch { /* ignore */ }
+            };
+
+            mkNavBtn({
+                id: 'visitCamp',
+                label: 'Visit camp',
+                description: 'Open the Campsite tab.',
+                onClick: (e) => { e.preventDefault(); openCrashSite('camp'); }
+            });
+
+            mkNavBtn({
+                id: 'leaveCamp',
+                label: 'Leave camp',
+                description: 'Return to the local map.',
+                onClick: (e) => { e.preventDefault(); openCrashSite('map'); }
+            });
+
+            navHost.appendChild(group);
         }
     } catch { /* ignore */ }
 
