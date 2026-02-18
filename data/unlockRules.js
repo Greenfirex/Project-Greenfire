@@ -31,6 +31,15 @@ export function getBlockedStatus(actionId, state) {
         if (hasMetalSpear) return { blocked: true, reason: 'You already have a Metal Spear.' };
     }
 
+    if (actionId === 'makeCrudePrybar') {
+        const ch = (state && (state.characterState || state.character)) || null;
+        const equippedWeapon = ch && ch.equipment ? ch.equipment.weapon : null;
+        const bag = (ch && Array.isArray(ch.bag)) ? ch.bag : [];
+        const hasPrybar = equippedWeapon === 'crude_prybar'
+            || bag.some(v => v === 'crude_prybar' || (v && typeof v === 'object' && v.id === 'crude_prybar'));
+        if (hasPrybar) return { blocked: true, reason: 'You already have a Crude Prybar.' };
+    }
+
     if (actionId === 'createBasicTorch') {
         const ch = (state && (state.characterState || state.character)) || null;
         const eq = ch && ch.equipment ? ch.equipment : null;
@@ -62,6 +71,22 @@ export function getBlockedStatus(actionId, state) {
         const torchEquipped = !!(eq && (eq.accessory_1 === 'basic_torch' || eq.accessory_2 === 'basic_torch'));
         if (!torchEquipped) {
             return { blocked: true, reason: 'Equip a Basic Torch in an accessory slot to burn the thorns.' };
+        }
+    }
+
+    // Tool requirement: prying open the hull requires the prybar equipped in hands.
+    if (actionId === 'pryOpenHull') {
+        const ch = (state && (state.characterState || state.character)) || null;
+        const eq = ch && ch.equipment ? ch.equipment : null;
+        const bag = (ch && Array.isArray(ch.bag)) ? ch.bag : [];
+
+        const prybarEquipped = !!(eq && eq.weapon === 'crude_prybar');
+        if (!prybarEquipped) {
+            const hasPrybarInBag = bag.some(v => v === 'crude_prybar' || (v && typeof v === 'object' && v.id === 'crude_prybar'));
+            const hint = hasPrybarInBag
+                ? 'Equip a Crude Prybar as your weapon to pry open the hull.'
+                : 'You need a Crude Prybar equipped as a weapon to pry open the hull.';
+            return { blocked: true, reason: hint };
         }
     }
 
@@ -121,6 +146,31 @@ export function getBlockedStatus(actionId, state) {
         if (!hasCafeteria || !hasCrewQuarters) {
             return { blocked: true, reason: 'Blasting the power core risks structural damage and survivor casualties. Search the cafeteria and crew quarters first to ensure all survivors are accounted for.' };
         }
+
+        // Inventory requirement: must have 3 Makeshift Explosives available.
+        // These are consumed on completion (not on start).
+        try {
+            const ch = (state && (state.characterState || state.character)) || null;
+            const bag = (ch && Array.isArray(ch.bag)) ? ch.bag : [];
+            const have = bag.reduce((n, entry) => {
+                try {
+                    if (!entry) return n;
+                    if (typeof entry === 'string') return n + (entry === 'makeshift_explosive' ? 1 : 0);
+                    if (typeof entry === 'object' && entry.id === 'makeshift_explosive') {
+                        const q = Math.floor(Number(entry.qty ?? 1));
+                        const add = Number.isFinite(q) ? Math.max(1, q) : 1;
+                        return n + add;
+                    }
+                } catch { /* ignore */ }
+                return n;
+            }, 0);
+
+            const need = 3;
+            if (have < need) {
+                const suffix = have > 0 ? ` (you have ${have}/${need}).` : '.';
+                return { blocked: true, reason: `Requires ${need} Makeshift Explosives in your inventory${suffix} They will be consumed on completion.` };
+            }
+        } catch { /* ignore */ }
     }
 
     // Additional stage-specific gate: Investigate Bridge stage 2 requires emergency power restored
@@ -163,9 +213,7 @@ export function evaluateEventUnlocks(event, state) {
 
         if (knowsExplosivesAreNeeded && hasChem && hasMetal && hasWire) {
             const assemble = actions.find(a => a && a.id === 'assembleMakeshiftExplosive');
-            // Don't re-unlock if already used 3 times
-            const hasReachedLimit = assemble && typeof assemble.uses === 'number' && typeof assemble.maxUses === 'number' && assemble.uses >= assemble.maxUses;
-            if (assemble && !assemble.isUnlocked && !assemble.completed && !hasReachedLimit) {
+            if (assemble && !assemble.isUnlocked && !assemble.completed) {
                 result.actions.push('assembleMakeshiftExplosive');
             }
         }

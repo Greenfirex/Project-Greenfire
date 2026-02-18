@@ -165,7 +165,7 @@ const initialRecipeActions = [
         stages: [
             {
                 story: null,
-                unlocks: ['pryOpenHull'],
+                unlocks: [],
                 logText: 'You fashion a crude prybar from scavenged metal. This may let you lever open hull seams.'
             }
         ],
@@ -246,8 +246,6 @@ const initialRecipeActions = [
         isUnlocked: false,
         cancelable: true,
         repeatable: true,
-        maxUses: 3,
-        uses: 0,
         cost: [
             { resource: 'Chemicals', amount: 5 },
             { resource: 'Metal Parts', amount: 8 },

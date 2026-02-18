@@ -99,9 +99,10 @@ export const items = [
     {
         id: 'crude_prybar',
         name: 'Crude Prybar',
-        slot: 'inventory',
+        slot: 'weapon',
         icon: 'assets/images/items/crude prybar.png',
         description: 'A bent prybar for forcing stubborn hatches and crates.',
+        stats: { damage: 3, attackSpeed: 0.2 }
     },
     {
         id: 'makeshift_explosive',

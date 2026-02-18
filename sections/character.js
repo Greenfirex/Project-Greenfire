@@ -882,7 +882,7 @@ function renderBagSlots() {
         const showNew = hasItem && !!(characterState?.bagUiNew && characterState.bagUiNew[i]);
         const isSelected = Number.isInteger(selectedBagIndex) && selectedBagIndex === i && hasItem && !discardMode;
         return `
-            <div class="bag-slot ${hasItem ? 'has-item' : ''} ${isSelected ? 'selected' : ''}" data-slot="${i}" data-item-id="${hasItem ? escapeHtml(item.id) : ''}" ${hasItem ? 'draggable="true"' : ''} role="button" tabindex="0" aria-label="Bag slot ${i + 1}">
+            <div class="bag-slot ${hasItem ? 'has-item' : ''} ${showNew ? 'has-new-badge' : ''} ${isSelected ? 'selected' : ''}" data-slot="${i}" data-item-id="${hasItem ? escapeHtml(item.id) : ''}" ${hasItem ? 'draggable="true"' : ''} role="button" tabindex="0" aria-label="Bag slot ${i + 1}">
                 ${newBadgeHtml(showNew)}
                 ${hasItem ? `
                     <div class="bag-item">
@@ -1346,7 +1346,28 @@ function buildItemTooltipHTML(slotEl) {
         ? 'Accessory'
         : (equipSlotLabels[String(def.slot || '')] || String(def.slot || ''));
 
-    let html = `<h4>${escapeHtml(def.name || def.id || 'Item')}</h4>`;
+    // Stack tags (e.g., 1/5) for consumable stacks.
+    let stackTagHtml = '';
+    try {
+        if (!isEquip && def && def.stackable && def.consumable) {
+            const idx = Math.floor(Number(slotEl.dataset.slot));
+            const entry = Number.isInteger(idx) && Array.isArray(characterState?.bag) ? characterState.bag[idx] : null;
+            const qty = (() => {
+                if (!entry) return 1;
+                if (typeof entry === 'string') return 1;
+                if (typeof entry === 'object' && typeof entry.id === 'string') {
+                    const q = Math.floor(Number(entry.qty ?? 1));
+                    return Number.isFinite(q) ? Math.max(1, q) : 1;
+                }
+                return 1;
+            })();
+            stackTagHtml = `<span class="tooltip-tag">${escapeHtml(String(qty))}/${escapeHtml(String(5))}</span>`;
+        }
+    } catch { /* ignore */ }
+
+    let html = stackTagHtml
+        ? `<div class="tooltip-header-row"><h4>${escapeHtml(def.name || def.id || 'Item')}</h4><div class="tooltip-tags">${stackTagHtml}</div></div>`
+        : `<h4>${escapeHtml(def.name || def.id || 'Item')}</h4>`;
 
     if (def.description) {
         html += `<p class="tooltip-description">${escapeHtml(String(def.description))}</p>`;

@@ -851,7 +851,7 @@
 #characterSection .bag-item .item-qty {
     position: absolute;
     right: 6px;
-    bottom: 6px;
+    top: 6px;
     font-size: 11px;
     font-weight: 900;
     letter-spacing: 0.2px;
@@ -862,6 +862,11 @@
     border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.22);
     box-shadow: 0 1px 0 rgba(0,0,0,0.4);
     pointer-events: none;
+}
+
+/* When a NEW badge is present, nudge qty down so both remain readable. */
+#characterSection .bag-slot.has-new-badge .bag-item .item-qty {
+    top: 26px;
 }
 
 /* Drag & drop feedback */

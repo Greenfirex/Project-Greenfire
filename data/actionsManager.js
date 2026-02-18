@@ -83,19 +83,50 @@ export function tooltipDataForAction(action) {
  * @returns {Record<string, number>} resourceName -> required amount
  */
 export function computeRequiredResources(action) {
+    return computeRequiredResourcesInternal(action, { includeCost: true, includeDrain: true });
+}
+
+function getCurrentStageIndex(action) {
+    const raw = (action && Number.isFinite(action.stage)) ? action.stage : 0;
+    const idx = Math.floor(Number(raw) || 0);
+    return Number.isFinite(idx) ? idx : 0;
+}
+
+// When an action pauses due to Stamina hitting 0, crashSite.js stores resume progress
+// directly on the live action definition as { savedProgress, savedProgressStage }.
+// If those match the current stage, we treat the action as resumable and DO NOT
+// re-require or re-consume upfront costs.
+function actionHasResumeProgress(action) {
+    try {
+        if (!action) return false;
+        const p = Number(action.savedProgress);
+        if (!Number.isFinite(p) || p <= 0) return false;
+
+        const savedStage = Number(action.savedProgressStage);
+        if (!Number.isFinite(savedStage)) return true;
+        return savedStage === getCurrentStageIndex(action);
+    } catch {
+        return false;
+    }
+}
+
+function computeRequiredResourcesInternal(action, { includeCost = true, includeDrain = true } = {}) {
     const req = {};
     if (!action) return req;
-    (action.cost || []).forEach(c => { req[c.resource] = (req[c.resource] || 0) + c.amount; });
-    (action.drain || []).forEach(d => { req[d.resource] = (req[d.resource] || 0) + d.amount; });
+
+    if (includeCost) (action.cost || []).forEach(c => { req[c.resource] = (req[c.resource] || 0) + c.amount; });
+    if (includeDrain) (action.drain || []).forEach(d => { req[d.resource] = (req[d.resource] || 0) + d.amount; });
+
     const st = getCurrentStage(action);
     if (st) {
-        if (Array.isArray(st.cost)) {
+        if (includeCost && Array.isArray(st.cost)) {
             st.cost.forEach(c => { req[c.resource] = (req[c.resource] || 0) + c.amount; });
         }
-        if (Array.isArray(st.drain)) {
+        if (includeDrain && Array.isArray(st.drain)) {
             st.drain.forEach(d => { req[d.resource] = (req[d.resource] || 0) + d.amount; });
         }
     }
+
     return req;
 }
 
@@ -137,7 +168,8 @@ function getItemCountFromCharacterState(itemId, characterState) {
  */
 export function canAffordAction(action, resources, characterState = null) {
     if (!action) return false;
-    const required = computeRequiredResources(action);
+    const isResuming = actionHasResumeProgress(action);
+    const required = computeRequiredResourcesInternal(action, { includeCost: !isResuming, includeDrain: true });
     for (const resourceName in required) {
         const need = required[resourceName];
 
@@ -197,22 +229,26 @@ export function canStartAction(action, resources, characterState = null) {
     if (!action) return false;
     const { cost, drain } = computeStartRequirements(action);
 
-    // Hard-gate upfront costs.
-    for (const c of cost) {
-        const resourceName = c.resource;
-        const need = Number(c.amount || 0);
-        if (!Number.isFinite(need) || need <= 0) continue;
+    const isResuming = actionHasResumeProgress(action);
 
-        if (isInventoryAliasResourceName(resourceName)) {
-            const itemId = getItemIdForResourceName(resourceName);
-            const have = getItemCountFromCharacterState(itemId, characterState);
-            if (have < need) return false;
-            continue;
+    // Hard-gate upfront costs (unless resuming from a Stamina pause).
+    if (!isResuming) {
+        for (const c of cost) {
+            const resourceName = c.resource;
+            const need = Number(c.amount || 0);
+            if (!Number.isFinite(need) || need <= 0) continue;
+
+            if (isInventoryAliasResourceName(resourceName)) {
+                const itemId = getItemIdForResourceName(resourceName);
+                const have = getItemCountFromCharacterState(itemId, characterState);
+                if (have < need) return false;
+                continue;
+            }
+
+            const res = (resources || []).find(r => r && r.name === resourceName);
+            const have = res ? Number(res.amount) : 0;
+            if (!(have >= need)) return false;
         }
-
-        const res = (resources || []).find(r => r && r.name === resourceName);
-        const have = res ? Number(res.amount) : 0;
-        if (!(have >= need)) return false;
     }
 
     // Soft-gate select drains.
@@ -252,27 +288,31 @@ export function getStartActionShortfalls(action, resources, characterState = nul
     if (!action) return out;
     const { cost, drain } = computeStartRequirements(action);
 
+    const isResuming = actionHasResumeProgress(action);
+
     const pushMissing = (resourceName, need, have) => {
         if (!Number.isFinite(need) || need <= 0) return;
         if (!Number.isFinite(have)) have = 0;
         if (have < need) out.push(`${resourceName}: need ${Math.ceil(need - have)} more`);
     };
 
-    for (const c of cost) {
-        const resourceName = c.resource;
-        const need = Number(c.amount || 0);
-        if (!Number.isFinite(need) || need <= 0) continue;
+    if (!isResuming) {
+        for (const c of cost) {
+            const resourceName = c.resource;
+            const need = Number(c.amount || 0);
+            if (!Number.isFinite(need) || need <= 0) continue;
 
-        if (isInventoryAliasResourceName(resourceName)) {
-            const itemId = getItemIdForResourceName(resourceName);
-            const have = getItemCountFromCharacterState(itemId, characterState);
-            if (have < need) out.push(`${resourceName}: need ${Math.ceil(need - have)} more`);
-            continue;
+            if (isInventoryAliasResourceName(resourceName)) {
+                const itemId = getItemIdForResourceName(resourceName);
+                const have = getItemCountFromCharacterState(itemId, characterState);
+                if (have < need) out.push(`${resourceName}: need ${Math.ceil(need - have)} more`);
+                continue;
+            }
+            const res = (resources || []).find(r => r && r.name === resourceName);
+            const have = res ? Number(res.amount) : 0;
+            if (!res) out.push(`${resourceName} missing (need ${need})`);
+            else pushMissing(resourceName, need, have);
         }
-        const res = (resources || []).find(r => r && r.name === resourceName);
-        const have = res ? Number(res.amount) : 0;
-        if (!res) out.push(`${resourceName} missing (need ${need})`);
-        else pushMissing(resourceName, need, have);
     }
 
     const isMove = String(action.id || '') === 'move';
@@ -315,7 +355,8 @@ export function getStartActionShortfalls(action, resources, characterState = nul
 export function getAffordabilityShortfalls(action, resources, characterState = null) {
     const out = [];
     if (!action) return out;
-    const required = computeRequiredResources(action);
+    const isResuming = actionHasResumeProgress(action);
+    const required = computeRequiredResourcesInternal(action, { includeCost: !isResuming, includeDrain: true });
     for (const resourceName in required) {
         const need = required[resourceName];
 

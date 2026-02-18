@@ -406,6 +406,17 @@ export function applyGameState(gameState) {
             }
         });
 
+        // Migration: Assemble Makeshift Explosive used to be limited-use (3x) and then hidden.
+        // It is now unlimited, so clear the retired/limit fields.
+        try {
+            const a = recipeActions.find(x => x && x.id === 'assembleMakeshiftExplosive');
+            if (a) {
+                delete a.uses;
+                delete a.maxUses;
+                a.completed = false;
+            }
+        } catch { /* non-fatal */ }
+
         // Same migration: multi-stage non-repeatable actions shouldn't be marked completed early.
         try {
             for (const a of recipeActions) {

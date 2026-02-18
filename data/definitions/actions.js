@@ -266,9 +266,6 @@ const initialSalvageActions = [
                     { resource: 'Food Rations', amount: 6 },
                     { resource: 'Drinking Water', amount: 7 } 
                 ],
-                cost: [
-                    { resource: 'Crude Prybar', amount: 1 }
-                ],
                 reward: [],
                 hideRewardPreview: true,
                 stage: 0,
@@ -693,10 +690,8 @@ const initialSalvageActions = [
                     unlocks: ['restoreEmergencyPower', 'craftPowerCells'], // also unlock power-cell crafting after breach
                     description: 'Return to the power core with makeshift explosives and breach the reinforced lock. Dangerous — but necessary to access the core systems.',
                     logText: 'Now that all survivors are accounted for, you risk breaching the power core with the explosive. The blast blows the seal and you can access the core systems. (Click to read)',
-                    // stage-specific cost: this stage requires 3 Makeshift Explosives and will consume them on completion
-                    cost: [
-                        { resource: 'Makeshift Explosive', amount: 3 }
-                    ],
+                    // Requirement handled via unlockRules (must have 3 Makeshift Explosives in inventory).
+                    // They are consumed on completion via gameFlags completion handler.
                     drain: [
                         { resource: 'Stamina', amount: 50 },
                         { resource: 'Food Rations', amount: 35 },

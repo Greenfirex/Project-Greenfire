@@ -5,7 +5,7 @@ import { upgradeActions } from './definitions/upgrades.js';
 import { getTotalIngameMinutes } from '../core/time.js';
 import { resources } from '../core/resources.js';
 import { allActions as salvageActions } from './definitions/allActions.js';
-import { characterState, grantItemToCharacter, countItemInBag } from './character.js';
+import { characterState, grantItemToCharacter, countItemInBag, consumeItemQuantityFromBag } from './character.js';
 import { storyEvents } from './definitions/storyEvents.js';
 import { getLocalMapTileAt, isCrashWallBetween } from './maps/crashSiteMap.js';
 
@@ -423,6 +423,14 @@ registerActionCompletionHandler('searchPowerCore', async (original) => {
         const total = Array.isArray(original?.stages) ? original.stages.length : 0;
         const stage = Number(original?.stage || 0);
         const finished = (total > 0) ? (stage >= total) : true;
+
+        // Stage 2: breach the reinforced lock.
+        // Requirement is checked before starting; consume explosives only when the action fully completes.
+        if (finished) {
+            try {
+                consumeItemQuantityFromBag('makeshift_explosive', 3, characterState);
+            } catch { /* ignore */ }
+        }
         if (st && typeof st === 'object' && finished) st.powerCoreExplored = true;
     } catch { /* ignore */ }
 });
@@ -1491,29 +1499,4 @@ registerActionCompletionHandler('planWaterReservoir', () => {
     } catch (e) { /* ignore */ }
 });
 
-registerActionCompletionHandler('assembleMakeshiftExplosive', (original) => {
-    try {
-        if (!original) return;
-        // Increment uses counter (persisted by save system via smart-merge)
-        if (typeof original.uses !== 'number') original.uses = 0;
-        if (typeof original.maxUses !== 'number') original.maxUses = 3;
-        
-        original.uses = Math.max(0, original.uses) + 1;
-        
-        // After 3 completions, mark completed and hide from UI
-        if (original.uses >= original.maxUses) {
-            original.completed = true; // prevents re-unlock
-            original.isUnlocked = false; // hides from UI
-            addLogEntry('Three makeshift explosives should be enough to blast the power core seal.', LogType.INFO);
-            
-            // Refresh crash site UI so button disappears
-            if (typeof window !== 'undefined') {
-                try {
-                    if (typeof window.setupCrashSiteSection === 'function') {
-                        window.setupCrashSiteSection(document.querySelector('.content-panel'));
-                    }
-                } catch (e) { /* ignore */ }
-            }
-        }
-    } catch (e) { /* non-fatal */ }
-});
+// Assemble Makeshift Explosive is unlimited.

@@ -678,6 +678,48 @@ function buildTooltipHTML(data) {
         return parts.join('');
     }
 
+    function actionHasResumeProgress(actionData) {
+        try {
+            if (!actionData || !actionData.id) return false;
+            const p = Number(actionData.savedProgress);
+            if (!Number.isFinite(p) || p <= 0) return false;
+
+            const stageIndex = Number.isFinite(actionData.stage) ? Math.floor(Number(actionData.stage) || 0) : 0;
+            const savedStage = Number(actionData.savedProgressStage);
+            if (!Number.isFinite(savedStage)) return true;
+            return savedStage === stageIndex;
+        } catch {
+            return false;
+        }
+    }
+
+    function getResumeProgress01(actionData) {
+        try {
+            if (!actionHasResumeProgress(actionData)) return 0;
+            const p = Number(actionData.savedProgress);
+            return Math.max(0, Math.min(1, p));
+        } catch {
+            return 0;
+        }
+    }
+
+    function roundRemainingAmount(resourceName, amount) {
+        const n = Number(amount);
+        if (!Number.isFinite(n) || n <= 0) return 0;
+
+        try {
+            const res = (resources || []).find(r => r && r.name === resourceName);
+            const isInt = !!(res && res.integer === true);
+            if (isInt) {
+                // Round up for integer resources so the player isn't told "0" when there's
+                // still a fractional amount to drain.
+                return Math.max(0, Math.ceil(n - 1e-9));
+            }
+        } catch { /* ignore */ }
+
+        return Math.max(0, Math.round(n * 100) / 100);
+    }
+
     if (data && typeof data.totalProduction !== 'undefined') {
         html = `
             <h4>Production Breakdown</h4>
@@ -736,37 +778,95 @@ function buildTooltipHTML(data) {
         html += `<div class="tooltip-header-row"><h4>${data.name}</h4>${renderActionTags(data)}</div>`;
         if (data.description) html += `<p class="tooltip-description">${data.description}</p>`;
 
-        // If the action is currently blocked, surface the reason prominently
+        // Requirements
         try {
+            const requirementLines = [];
+
+            // If the action is currently blocked, surface the reason prominently.
             const block = getBlockedStatus(data.id, { actions: salvageActions, flags: gameFlags, characterState });
             if (block && block.blocked) {
                 const reason = String(block.reason || 'Currently unavailable').trim();
-                html += `<div class="tooltip-section"><h4>Requirements</h4><p style="color:#ff6b6b;margin-left:0">${reason}</p></div>`;
+                if (reason) requirementLines.push(`<p style="color:#ff6b6b;margin-left:0">${escapeHtml(reason)}</p>`);
             }
-        } catch (e) { /* ignore block check errors */ }
+
+            // Search: Power Core (stage 2) requires explosives in inventory (consumed on completion).
+            try {
+                const actionId = String(data.id || '');
+                const totalStages = Array.isArray(data.stages) ? data.stages.length : 0;
+                const stageRaw = Math.floor(Number(data.stage || 0));
+                // Use the same clamped stage index logic as tooltipDataForAction/getCurrentStage,
+                // so this matches whatever stage description the tooltip is actually showing.
+                const stageShown = (totalStages > 0) ? Math.max(0, Math.min(totalStages - 1, stageRaw)) : stageRaw;
+                if (actionId === 'searchPowerCore' && totalStages > 1 && stageShown === 1) {
+                    const need = 3;
+                    const have = countItemInBag('makeshift_explosive', characterState);
+                    requirementLines.push(`<p>Makeshift Explosive: <strong>${escapeHtml(String(have))}/${escapeHtml(String(need))}</strong> (in inventory, consumed on completion)</p>`);
+                }
+            } catch { /* ignore */ }
+
+            if (requirementLines.length) {
+                html += `<div class="tooltip-section"><h4>Requirements</h4>${requirementLines.join('')}</div>`;
+            }
+        } catch (e) { /* ignore requirement rendering errors */ }
 
         // Costs / drains — use the shared renderer so ETA/affordability is consistent.
         // Channeled actions: show drain per-second (instead of total per duration).
         const isChanneled = isChanneledActionId(data.id);
+        const isResuming = actionHasResumeProgress(data);
         const durationSec = Math.max(1, Number(data.duration || 0));
-        const costOnlyHtml = renderCostItems(data.cost) || '';
-        let drainHtml = '';
-        if (Array.isArray(data.drain) && data.drain.length) {
-            if (isChanneled) {
-                const parts = data.drain.map(item => {
-                    const resName = item?.resource;
-                    const total = Number(item?.amount || 0);
-                    const perSec = total / durationSec;
-                    if (!resName || !isFinite(perSec) || perSec <= 0) return '';
-                    return `<p>${resName}: <span class="tooltip-amount-consumes">-${formatNumber(perSec)}/s</span></p>`;
-                }).filter(Boolean);
-                drainHtml = parts.join('');
-            } else {
-                drainHtml = renderCostItems(data.drain, { softGateResources: ['Food Rations', 'Drinking Water'] }) || '';
+
+        // When an action is resumable (paused from Stamina depletion), show a Remaining Cost
+        // section instead of a full Cost section. Upfront cost is assumed already paid.
+        let costSectionTitle = 'Cost';
+        let costSectionBody = '';
+
+        if (isResuming) {
+            costSectionTitle = 'Remaining Cost';
+            const progress01 = getResumeProgress01(data);
+            const remainingItems = [];
+
+            // Remaining upfront costs: normally zero on resume, so omit unless a future action
+            // introduces truly staged upfront costs.
+            // (Intentionally do not add 0 entries.)
+
+            // Remaining drains: show remaining totals, rounded, and omit any 0 entries.
+            try {
+                for (const d of (Array.isArray(data.drain) ? data.drain : [])) {
+                    const resourceName = String(d?.resource || '');
+                    if (!resourceName) continue;
+                    const total = Number(d?.amount || 0);
+                    if (!Number.isFinite(total) || total <= 0) continue;
+                    const remainingRaw = total * (1 - progress01);
+                    const remaining = roundRemainingAmount(resourceName, remainingRaw);
+                    if (remaining <= 0) continue;
+                    remainingItems.push({ resource: resourceName, amount: remaining });
+                }
+            } catch { /* ignore */ }
+
+            if (remainingItems.length) {
+                costSectionBody = renderCostItems(remainingItems, { softGateResources: ['Food Rations', 'Drinking Water'] }) || '';
             }
+        } else {
+            const costOnlyHtml = (Array.isArray(data.cost) && data.cost.length) ? (renderCostItems(data.cost) || '') : '';
+            let drainHtml = '';
+            if (Array.isArray(data.drain) && data.drain.length) {
+                if (isChanneled) {
+                    const parts = data.drain.map(item => {
+                        const resName = item?.resource;
+                        const total = Number(item?.amount || 0);
+                        const perSec = total / durationSec;
+                        if (!resName || !isFinite(perSec) || perSec <= 0) return '';
+                        return `<p>${resName}: <span class="tooltip-amount-consumes">-${formatNumber(perSec)}/s</span></p>`;
+                    }).filter(Boolean);
+                    drainHtml = parts.join('');
+                } else {
+                    drainHtml = renderCostItems(data.drain, { softGateResources: ['Food Rations', 'Drinking Water'] }) || '';
+                }
+            }
+            costSectionBody = costOnlyHtml + drainHtml;
         }
-        const costHtml = costOnlyHtml + drainHtml;
-        if (costHtml) html += `<div class="tooltip-section"><h4>Cost</h4>${costHtml}</div>`;
+
+        if (costSectionBody) html += `<div class="tooltip-section"><h4>${costSectionTitle}</h4>${costSectionBody}</div>`;
 
         // If this item/job produces a resource, show any active upgrade modifiers and Morale that affect
         // that production (e.g., Rain Tarp, Purification Unit, Morale). This uses the same matching

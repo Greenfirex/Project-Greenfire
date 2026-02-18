@@ -3,6 +3,8 @@ import { getItemDefinition } from './definitions/items.js';
 const DEFAULT_BAG_COLS = 6;
 const DEFAULT_BAG_ROWS = 2;
 
+const CONSUMABLE_STACK_MAX = 5;
+
 const EQUIPMENT_SLOTS = [
     'head',
     'chest',
@@ -92,6 +94,25 @@ function isStackableItem(itemId) {
     } catch {
         return false;
     }
+}
+
+function getMaxStackQty(itemId) {
+    try {
+        const def = getItemDefinition(itemId);
+        if (!def || !def.stackable) return 1;
+        // Only cap consumables; other stackable items keep legacy large stacks.
+        if (def.consumable) return CONSUMABLE_STACK_MAX;
+        return 9999;
+    } catch {
+        return 1;
+    }
+}
+
+function normalizeStackQtyForItem(itemId, qty) {
+    const q = Math.floor(Number(qty ?? 1));
+    if (!Number.isFinite(q)) return 1;
+    const max = getMaxStackQty(itemId);
+    return Math.max(1, Math.min(max, q));
 }
 
 function normalizeStackQty(qty) {
@@ -316,21 +337,52 @@ export function applySavedCharacterState(saved) {
 
     const desiredSize = bagCols * bagRows;
     const savedBag = Array.isArray(saved.bag) ? saved.bag : [];
-    next.bag = Array.from({ length: desiredSize }, (_, i) => {
+
+    // Normalize stacks on load:
+    // - Consumable stacks cap at 5 per slot.
+    // - Overflow is placed into later empty slots if available.
+    next.bag = Array.from({ length: desiredSize }, () => null);
+    const overflow = [];
+
+    for (let i = 0; i < desiredSize; i++) {
         const v = savedBag[i] ?? null;
-        if (v === null) return null;
+        if (v === null) continue;
+
         if (typeof v === 'string') {
-            return getItemDefinition(v) ? v : null;
+            next.bag[i] = getItemDefinition(v) ? v : null;
+            continue;
         }
+
         if (typeof v === 'object' && typeof v.id === 'string') {
             const id = v.id;
-            if (!getItemDefinition(id)) return null;
-            const qty = normalizeStackQty(v.qty ?? 1);
+            if (!getItemDefinition(id)) continue;
+
+            const qtyRaw = normalizeStackQty(v.qty ?? 1);
+            const max = getMaxStackQty(id);
+            const qtyHere = normalizeStackQtyForItem(id, qtyRaw);
             // Persist as a stack object (even if qty === 1) to preserve intent.
-            return { id, qty };
+            next.bag[i] = { id, qty: qtyHere };
+
+            if (isStackableItem(id) && qtyRaw > max) {
+                overflow.push({ id, qty: qtyRaw - max });
+            }
         }
-        return null;
-    });
+    }
+
+    // Place overflow into empty slots.
+    for (const o of overflow) {
+        let remaining = normalizeStackQty(o.qty ?? 1);
+        const id = o.id;
+        const max = getMaxStackQty(id);
+
+        while (remaining > 0) {
+            const idxEmpty = next.bag.findIndex(x => !x);
+            if (idxEmpty < 0) break;
+            const take = Math.min(remaining, max);
+            next.bag[idxEmpty] = { id, qty: normalizeStackQtyForItem(id, take) };
+            remaining -= take;
+        }
+    }
 
     // UI: per-slot "new" flags for bag items.
     // Saved values may be missing (older saves) or mis-sized (bag upgrades).
@@ -775,14 +827,77 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
     const bag = Array.isArray(state?.bag) ? state.bag : null;
     if (!bag) return { ok: false, placed: 'none' };
 
-    // Stack into an existing slot for stackable items.
+    const isStackable = isStackableItem(itemId);
+    const maxStack = isStackable ? getMaxStackQty(itemId) : 1;
+
+    // Stackable items: fill existing stacks (up to max per slot), then spill into new stacks.
+    if (amount > 0 && isStackable && maxStack > 1) {
+        const existingFree = bag.reduce((sum, entry) => {
+            const id = getBagEntryId(entry);
+            if (id !== itemId) return sum;
+            const have = getBagEntryQty(entry);
+            return sum + Math.max(0, maxStack - have);
+        }, 0);
+        const emptySlots = bag.reduce((n, v) => n + (v ? 0 : 1), 0);
+        const totalCapacity = existingFree + (emptySlots * maxStack);
+        if (totalCapacity < amount) return { ok: false, placed: 'none' };
+
+        let remaining = amount;
+        let firstIndex = null;
+        let stackedAny = false;
+
+        // Fill existing stacks first.
+        for (let i = 0; i < bag.length && remaining > 0; i++) {
+            const entry = bag[i];
+            const id = getBagEntryId(entry);
+            if (id !== itemId) continue;
+
+            const have = getBagEntryQty(entry);
+            const free = Math.max(0, maxStack - have);
+            if (free <= 0) continue;
+
+            const add = Math.min(remaining, free);
+            bag[i] = { id: itemId, qty: normalizeStackQtyForItem(itemId, have + add) };
+            remaining -= add;
+            stackedAny = true;
+            if (firstIndex === null) firstIndex = i;
+            try {
+                if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[i] = true;
+            } catch { /* ignore */ }
+        }
+
+        // Then place new stacks.
+        while (remaining > 0) {
+            const idxEmpty = bag.findIndex(v => !v);
+            if (idxEmpty < 0) break;
+            const take = Math.min(remaining, maxStack);
+            bag[idxEmpty] = { id: itemId, qty: normalizeStackQtyForItem(itemId, take) };
+            remaining -= take;
+            if (firstIndex === null) firstIndex = idxEmpty;
+            try {
+                if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[idxEmpty] = true;
+            } catch { /* ignore */ }
+        }
+
+        if (state === characterState) {
+            emitCharacterStateChanged('grantItemToCharacter');
+            try {
+                window.dispatchEvent(new CustomEvent('inventory-item-added', {
+                    detail: { itemId, amount, placed: 'bag', index: firstIndex ?? 0, stacked: stackedAny, split: true }
+                }));
+            } catch (e) { /* non-fatal */ }
+        }
+        return { ok: true, placed: 'bag', index: firstIndex ?? 0, stacked: stackedAny, split: true };
+    }
+
+    // Stack into an existing slot for stackable items (legacy: non-consumable stacks remain large).
     try {
-        if (amount > 0 && isStackableItem(itemId)) {
+        if (amount > 0 && isStackable) {
             const idxStack = bag.findIndex(v => getBagEntryId(v) === itemId);
             if (idxStack >= 0) {
                 const prev = bag[idxStack];
                 const prevQty = getBagEntryQty(prev);
-                bag[idxStack] = { id: itemId, qty: normalizeStackQty(prevQty + amount) };
+                bag[idxStack] = { id: itemId, qty: normalizeStackQtyForItem(itemId, prevQty + amount) };
                 try {
                     if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[idxStack] = true;
                 } catch { /* ignore */ }
@@ -802,7 +917,7 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
     const idx = bag.findIndex(v => !v);
     if (idx < 0) return { ok: false, placed: 'none' };
     // For stackable items, represent as an object so quantity is persisted and visible.
-    bag[idx] = isStackableItem(itemId) ? { id: itemId, qty: amount } : itemId;
+    bag[idx] = isStackable ? { id: itemId, qty: normalizeStackQtyForItem(itemId, amount) } : itemId;
     try {
         if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[idx] = true;
     } catch { /* ignore */ }
@@ -849,7 +964,7 @@ export function consumeItemQuantityFromBag(itemId, amount = 1, state = character
             bag[i] = null;
             try { if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[i] = false; } catch { /* ignore */ }
         } else {
-            bag[i] = { id: itemId, qty: normalizeStackQty(nextQty) };
+            bag[i] = { id: itemId, qty: normalizeStackQtyForItem(itemId, nextQty) };
         }
     }
 

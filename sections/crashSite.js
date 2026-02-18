@@ -2277,18 +2277,16 @@ export function setupCrashSiteSection(section) {
         addLogEntry(`Cannot start "${action.name}": ${msg}`, LogType.INFO);
         return;
     }
+
+    // If this action previously paused due to Stamina depletion, it has saved progress.
+    // In that case, costs were already paid at the original start and should NOT be
+    // charged again on resume.
+    const savedProgress01 = getSavedProgress01ForActionId(action.id);
+    const isResumingFromPause = savedProgress01 != null;
+
     const stage = getCurrentStage(action);
     const upfront = [...(action.cost || []), ...((stage && stage.cost) || [])];
-    upfront.forEach(cost => {
-        // Some "costs" are effectively tool requirements and should not be consumed.
-        // Example: Pry Open Hull requires a prybar, but restarting after Stamina depletion
-        // should not force crafting additional prybars.
-        try {
-            const actionId = String(action?.id || '');
-            const resName = String(cost?.resource || '');
-            if (actionId === 'pryOpenHull' && resName === 'Crude Prybar') return;
-        } catch { /* ignore */ }
-
+    if (!isResumingFromPause) upfront.forEach(cost => {
         const itemId = getItemIdForResourceName(cost?.resource);
         const amt = Math.max(0, Math.floor(Number(cost?.amount) || 0));
         if (itemId) {
@@ -2336,7 +2334,6 @@ export function setupCrashSiteSection(section) {
     }
 
     // If this action previously paused due to Stamina depletion, resume from saved progress.
-    const savedProgress01 = getSavedProgress01ForActionId(snapshot.id);
     const effectiveSecForResume = computeEffectiveDuration(snapshot, resources);
     const resumeElapsed = (savedProgress01 != null)
         ? Math.max(0, Math.min(effectiveSecForResume, savedProgress01 * effectiveSecForResume))

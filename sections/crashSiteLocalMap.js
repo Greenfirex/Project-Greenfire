@@ -844,6 +844,22 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
     const tileMeta = (c, r) => getLocalMapTileAt(c, r, { scoutStage: stage, hasTriedReentry, localMapState: state });
 
+    const isFinishedAction = (actionId) => {
+        try {
+            const id = String(actionId || '');
+            if (!id) return false;
+            const a = (salvageActions || []).find(x => x && x.id === id);
+            if (!a) return false;
+            if (a.repeatable === true) return false;
+            if (a.completed === true) return true;
+            const idx = Number(a.stage || 0);
+            const total = Array.isArray(a.stages) ? a.stages.length : 0;
+            if (total > 0 && idx >= total) return true;
+            return false;
+        } catch { /* ignore */ }
+        return false;
+    };
+
     const tilePanelCollapsed = (() => {
         try { return localStorage.getItem('localMapTilePanelCollapsed') === 'true'; } catch { return false; }
     })();
@@ -1583,11 +1599,29 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
             // Tile markers
             // - Usually hidden under fog
             // - Some tutorial/guide markers can opt in to always-visible (e.g., newly-unlocked base camp tile)
-            const markers = Array.isArray(meta.markers) && meta.markers.length
+            let markers = Array.isArray(meta.markers) && meta.markers.length
                 ? meta.markers
                 : ((meta.markerKind !== null && meta.markerKind !== undefined)
                     ? [{ kind: meta.markerKind, text: meta.markerText, alwaysVisible: meta.markerAlwaysVisible }]
                     : []);
+
+            // Crash-site interior guide markers: show a persistent "!" on specific tiles
+            // until the corresponding tile-gated action is completed.
+            try {
+                const hasAlert = markers.some(m => {
+                    try { return String(m?.kind || '') === 'alert'; } catch { return false; }
+                });
+                if (discovered && meta && meta.typeId === 'cafeteria') {
+                    const done = !!(state && typeof state === 'object' && state.cafeteriaExplored === true)
+                        || isFinishedAction('exploreCafeteria');
+                    if (!done && !hasAlert) markers = [...markers, { kind: 'alert' }];
+                }
+                if (discovered && meta && meta.typeId === 'crewQuarters') {
+                    const done = !!(state && typeof state === 'object' && state.crewQuartersExplored === true)
+                        || isFinishedAction('checkCrewQuarters');
+                    if (!done && !hasAlert) markers = [...markers, { kind: 'alert' }];
+                }
+            } catch { /* ignore */ }
 
             const showMarkers = markers.length && (discovered || !!meta.markerAlwaysVisible);
             if (showMarkers) {
@@ -1672,22 +1706,6 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                     if (dc < 1 || dc > COLS || dr < 1 || dr > ROWS) return false;
                     const v = isVisited(state, dc, dr);
                     return v || visibleNow.has(`${dc},${dr}`) || (dc === mapState.x && dr === mapState.y);
-                };
-
-                const isFinishedAction = (actionId) => {
-                    try {
-                        const id = String(actionId || '');
-                        if (!id) return false;
-                        const a = (salvageActions || []).find(x => x && x.id === id);
-                        if (!a) return false;
-                        if (a.repeatable === true) return false;
-                        if (a.completed === true) return true;
-                        const idx = Number(a.stage || 0);
-                        const total = Array.isArray(a.stages) ? a.stages.length : 0;
-                        if (total > 0 && idx >= total) return true;
-                        return false;
-                    } catch { /* ignore */ }
-                    return false;
                 };
 
                 // Door state is derived from the corresponding tile-gated action.

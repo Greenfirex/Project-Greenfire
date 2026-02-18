@@ -218,6 +218,31 @@ function startGame({ mode = 'continue' } = {}) {
     let wasHungry = null;
     let wasThirsty = null;
 
+    function getEffectiveTimeScale() {
+        // TIME_SCALE is used for gameplay speed; treat 0/NaN as 1 to avoid
+        // unexpected jumps when the value is absent or invalid.
+        try {
+            const s = Number(window.TIME_SCALE);
+            return Number.isFinite(s) && s > 0 ? s : 1;
+        } catch {
+            return 1;
+        }
+    }
+
+    function applyResourceRates(deltaTimeSeconds, { combatPopupOpen = false } = {}) {
+        if (!Number.isFinite(deltaTimeSeconds) || deltaTimeSeconds <= 0) return;
+
+        // --- Resource rate application (use centralized computeResourceRates)
+        resources.forEach(res => {
+            if (combatPopupOpen && res && res.name === 'Stamina') return;
+            const rates = computeResourceRates(res.name);
+            if (!rates) return;
+            const delta = rates.netPerSecond * deltaTimeSeconds;
+            if (delta === 0) return;
+            res.amount = Math.max(0, Math.min(res.capacity, res.amount + delta));
+        });
+    }
+
     function getSurvivalDebuffFlags() {
         try {
             const EPS = 1e-9;
@@ -257,23 +282,15 @@ function startGame({ mode = 'continue' } = {}) {
                 } catch { return false; }
             })();
 
-                        // Apply temporary global time scale for debugging
-            deltaTime *= (window.TIME_SCALE || 5);
+            // Apply gameplay time scale
+            deltaTime *= getEffectiveTimeScale();
 
             // If run-in-background is disabled and we woke after a long sleep, avoid giant jumps
             if (!shouldRunInBackground() && deltaTime > 2) {
                 deltaTime = 0;
             }
 
-            // --- Resource rate application (use centralized computeResourceRates)
-            resources.forEach(res => {
-                if (combatPopupOpen && res && res.name === 'Stamina') return;
-                const rates = computeResourceRates(res.name);
-                if (!rates) return;
-                const delta = rates.netPerSecond * deltaTime;
-                if (delta === 0) return;
-                res.amount = Math.max(0, Math.min(res.capacity, res.amount + delta));
-            });
+            applyResourceRates(deltaTime, { combatPopupOpen });
 
             // --- Survival debuff transition logs (Food/Water reaching 0)
             try {
@@ -396,6 +413,39 @@ function startGame({ mode = 'continue' } = {}) {
                 console.log('[visibility] run-in-background enabled — keeping game running');
             }
         } else if (document.visibilityState === 'visible') {
+            // If the user paused the game, don't auto-resume just because the tab became visible.
+            if (getIsPaused()) {
+                console.log('[visibility] tab visible but game is paused — not resuming');
+                return;
+            }
+
+            // If the browser suspended timers while hidden (common on mobile/iOS), we may not
+            // have gotten interval ticks. When run-in-background is enabled, apply a one-time
+            // catch-up tick before resuming normal updates.
+            try {
+                if (shouldRunInBackground() && gameLoopInterval) {
+                    const now = Date.now();
+                    let wakeDelta = (now - lastUpdateTime) / 1000;
+                    wakeDelta *= getEffectiveTimeScale();
+                    // Avoid absurd jumps if the tab was backgrounded for a very long time.
+                    // Keep this generous; it's just a safety rail.
+                    wakeDelta = Math.min(wakeDelta, 60 * 60);
+
+                    const combatPopupOpen = (() => {
+                        try {
+                            const el = document.getElementById('combatPopup');
+                            return !!(el && !el.classList.contains('hidden'));
+                        } catch { return false; }
+                    })();
+
+                    if (wakeDelta > 0.01) {
+                        applyResourceRates(wakeDelta, { combatPopupOpen });
+                        lastUpdateTime = now;
+                        try { updateResourceInfo(); } catch { /* ignore */ }
+                    }
+                }
+            } catch { /* non-fatal */ }
+
             startMainLoop();
             startAutosave();
             window.dispatchEvent(new CustomEvent('game-resume', { detail: { source: 'visibility' } }));
