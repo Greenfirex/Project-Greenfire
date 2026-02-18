@@ -356,14 +356,20 @@ registerActionCompletionHandler('investigateBridge', async (original) => {
         const total = Array.isArray(original?.stages) ? original.stages.length : 0;
         const stage = Number(original?.stage || 0);
         const finished = (total > 0) ? (stage >= total) : true;
-        if (st && typeof st === 'object' && finished) st.bridgeExplored = true;
+        // Note: do not mark the bridge room as explored here.
+        // The actual Bridge room (H6) is gated by Explore the Bridge.
+        // We still rely on the action's completion for narrative progression.
     } catch { /* ignore */ }
 });
 
-registerActionCompletionHandler('exploreBridge', () => {
+registerActionCompletionHandler('exploreBridge', async (original) => {
+    try { await applyPendingActionMove('exploreBridge'); } catch { /* ignore */ }
     try {
         const st = characterState?.localMap;
-        if (st && typeof st === 'object') st.bridgeExplored = true;
+        const total = Array.isArray(original?.stages) ? original.stages.length : 0;
+        const stage = Number(original?.stage || 0);
+        const finished = (total > 0) ? (stage >= total) : true;
+        if (st && typeof st === 'object' && finished) st.bridgeExplored = true;
     } catch { /* ignore */ }
 
     // Refresh Crash Site UI so any tile actions/markers update immediately.
@@ -906,7 +912,7 @@ registerActionCompletionHandler('move', async () => {
 // --- Built-in handlers (minimal, no saving) ---
 registerActionCompletionHandler('salvageCookingEquipment', () => {
     gameFlags.cafeteriaCookerInstalled = true;
-    addLogEntry('Installed: Salvaged Cooking Equipment — food & water gathering yields improved.', LogType.UNLOCK);
+    addLogEntry('Installed: Salvaged Cooking Equipment — outdoor yields improved, and Forager/Water Collector jobs are +10%.', LogType.UNLOCK);
 });
 
 registerActionCompletionHandler('makeTents', () => {
@@ -1053,7 +1059,7 @@ registerActionCompletionHandler('searchLabs', () => {
 // Insulate shelters -> set flag and log (unlocked only after tents)
 registerActionCompletionHandler('insulateShelters', () => {
     gameFlags.sheltersInsulated = true;
-    addLogEntry('Shelters insulated — sleeping yields +10% stamina.', LogType.UNLOCK);
+    addLogEntry('Shelters insulated — Sleep recovery +10% and Morale +5%.', LogType.UNLOCK);
 });
 
 // Crude Foraging Tools -> set flag and log
@@ -1175,7 +1181,7 @@ registerActionCompletionHandler('establishBaseCamp', () => {
 // Purification Unit completion handler
 registerActionCompletionHandler('installPurificationUnit', () => {
     gameFlags.purificationUnitInstalled = true;
-    addLogEntry('Purification Unit installed — Purify Water now rewards +20% more and Water Collection job is +20% more effective.', LogType.UNLOCK);
+    addLogEntry('Water Purification Unit installed — Purify Water now rewards +20% more and Water Collection job is +15% more effective.', LogType.UNLOCK);
     // best-effort UI refresh: call known update functions where available
     if (typeof window !== 'undefined') {
         try {
@@ -1199,7 +1205,7 @@ registerActionCompletionHandler('workbench', () => {
     // flow is: establish base camp -> build Workbench -> unlock crafting recipes.
     try {
         // Note: Craft Canteen unlocks later (Crew Quarters) so it doesn't appear before Fabric exists.
-        const ids = ['craftMetalSpear'];
+        const ids = ['craftMetalSpear', 'craftScrapshield'];
         for (const id of ids) {
             const act = (salvageActions || []).find(a => a && a.id === id);
             if (act && !act.isUnlocked) {
@@ -1268,6 +1274,13 @@ registerActionCompletionHandler('workbench', () => {
         if (typeof window !== 'undefined' && typeof window.setMenuNewItemFlag === 'function') {
             window.setMenuNewItemFlag('craftingSection', true);
         }
+    } catch { /* ignore */ }
+});
+
+// Fix Long-Range Radio consumes the salvaged comms panel item.
+registerActionCompletionHandler('fixLongRangeRadio', () => {
+    try {
+        consumeItemQuantityFromBag('scavenged_comms_panel', 1, characterState);
     } catch { /* ignore */ }
 });
 

@@ -35,10 +35,12 @@ export function getEffectiveJobRate(jobOrId) {
     if (!job) return 0;
     let multiplier = 1.0;
     if (job.id === 'foraging' && gameFlags.improvedForagingTools) multiplier *= 1.25;
+    // Salvaged cooking equipment slightly improves camp foraging/water collection efficiency.
+    if ((job.id === 'foraging' || job.id === 'water_collection') && gameFlags.cafeteriaCookerInstalled) multiplier *= 1.10;
     // Rain catchers boost water collection job
     if (job.id === 'water_collection' && gameFlags.rainCatchersInstalled) multiplier *= 1.10;
     // Purification Unit further boosts water collection
-    if (job.id === 'water_collection' && gameFlags.purificationUnitInstalled) multiplier *= 1.20;
+    if (job.id === 'water_collection' && gameFlags.purificationUnitInstalled) multiplier *= 1.15;
     // Scavenger Kit improves scrap collection
     if (job.id === 'scrap_collector' && gameFlags.scavengerKitInstalled) multiplier *= 1.20;
     // Global Morale affects all job outputs (but not passive consumption or action drains)

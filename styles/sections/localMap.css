@@ -971,6 +971,40 @@ html.is-compact .localmap-zoom {
     z-index: 1;
 }
 
+/* Bridge overlay art (H6) */
+.localmap-bridge-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: url("../../assets/images/localmap/bridge.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 90% 90%;
+    mix-blend-mode: normal;
+    opacity: 0.80;
+    filter: none;
+    transform: rotate(180deg);
+    transform-origin: center;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Cave entry overlay art (B6) */
+.localmap-caveentry-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: url("../../assets/images/localmap/caveentry.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    /* Stretch to fill the tile so it reads as "built here". */
+    background-size: 100% 100%;
+    /* Blend out the black matte and integrate with the map art. */
+    mix-blend-mode: screen;
+    opacity: 0.82;
+    filter: saturate(1.05) contrast(1.04);
+    pointer-events: none;
+    z-index: 1;
+}
+
 .localmap-tile.is-blocked {
     cursor: not-allowed;
 }

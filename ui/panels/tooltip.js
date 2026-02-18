@@ -587,6 +587,19 @@ function buildTooltipHTML(data) {
     // string builder
     let html = '';
 
+    function escapeHtml(value) {
+        try {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        } catch {
+            return '';
+        }
+    }
+
     function isChanneledActionId(actionId) {
         if (!actionId) return false;
         try {
@@ -781,12 +794,16 @@ function buildTooltipHTML(data) {
         // Requirements
         try {
             const requirementLines = [];
+            let blockedReasonText = '';
 
             // If the action is currently blocked, surface the reason prominently.
             const block = getBlockedStatus(data.id, { actions: salvageActions, flags: gameFlags, characterState });
             if (block && block.blocked) {
                 const reason = String(block.reason || 'Currently unavailable').trim();
-                if (reason) requirementLines.push(`<p style="color:#ff6b6b;margin-left:0">${escapeHtml(reason)}</p>`);
+                if (reason) {
+                    blockedReasonText = reason;
+                    requirementLines.push(`<p style="color:#ff6b6b;margin-left:0">${escapeHtml(reason)}</p>`);
+                }
             }
 
             // Search: Power Core (stage 2) requires explosives in inventory (consumed on completion).
@@ -797,9 +814,35 @@ function buildTooltipHTML(data) {
                 // Use the same clamped stage index logic as tooltipDataForAction/getCurrentStage,
                 // so this matches whatever stage description the tooltip is actually showing.
                 const stageShown = (totalStages > 0) ? Math.max(0, Math.min(totalStages - 1, stageRaw)) : stageRaw;
-                if (actionId === 'searchPowerCore' && totalStages > 1 && stageShown === 1) {
+
+                // Robust gate: show the requirement when the tooltip is actually showing the
+                // explosives-return text (this avoids stage bookkeeping edge cases).
+                const desc = (typeof data.description === 'string') ? data.description : '';
+                const showsExplosivesText = /makeshift\s+explosives?/i.test(desc);
+
+                const blockedForExplosives = /makeshift\s+explosives?/i.test(String(blockedReasonText || ''));
+                if (actionId === 'searchPowerCore' && totalStages > 1 && (stageShown === 1 || showsExplosivesText) && !blockedForExplosives) {
                     const need = 3;
-                    const have = countItemInBag('makeshift_explosive', characterState);
+                    let have = 0;
+                    try {
+                        // Prefer the shared helper.
+                        have = countItemInBag('makeshift_explosive', characterState);
+                    } catch {
+                        // Fallback: count directly from bag (supports stack objects).
+                        try {
+                            const bag = Array.isArray(characterState?.bag) ? characterState.bag : [];
+                            have = bag.reduce((n, entry) => {
+                                if (!entry) return n;
+                                if (typeof entry === 'string') return n + (entry === 'makeshift_explosive' ? 1 : 0);
+                                if (typeof entry === 'object' && entry.id === 'makeshift_explosive') {
+                                    const q = Math.floor(Number(entry.qty ?? 1));
+                                    const add = Number.isFinite(q) ? Math.max(1, q) : 1;
+                                    return n + add;
+                                }
+                                return n;
+                            }, 0);
+                        } catch { /* ignore */ }
+                    }
                     requirementLines.push(`<p>Makeshift Explosive: <strong>${escapeHtml(String(have))}/${escapeHtml(String(need))}</strong> (in inventory, consumed on completion)</p>`);
                 }
             } catch { /* ignore */ }
@@ -945,14 +988,33 @@ function buildTooltipHTML(data) {
             const hasRegen = !!(regen && (regen.staminaPerSec > 0 || regen.healthPerSec > 0));
             if (hasRegen) {
                 const lines = [];
+                const isBoosted = !!(Array.isArray(regen.modifiers) && regen.modifiers.length);
+                const amtCls = isBoosted ? 'reward-amount boosted' : 'reward-amount';
                 if (regen.staminaPerSec > 0) {
-                    lines.push(`<p>Stamina: <span class="reward-amount">+${formatNumber(regen.staminaPerSec)}/s</span></p>`);
+                    lines.push(`<p>Stamina: <span class="${amtCls}">+${formatNumber(regen.staminaPerSec)}/s</span></p>`);
                 }
                 if (regen.healthPerSec > 0) {
-                    lines.push(`<p>Health: <span class="reward-amount">+${formatNumber(regen.healthPerSec)}/s</span></p>`);
+                    lines.push(`<p>Health: <span class="${amtCls}">+${formatNumber(regen.healthPerSec)}/s</span></p>`);
                 }
 
-                html += `<div class="tooltip-section"><h4>Recovery</h4>${lines.join('')}</div>`;
+                let modHtml = '';
+                if (isBoosted) {
+                    const modLines = regen.modifiers.map(m => {
+                        const label = String(m?.label || 'Bonus');
+                        const perSec = Number(m?.deltaPerSec);
+                        if (!Number.isNaN(perSec) && perSec !== 0) {
+                            const sign = (perSec >= 0) ? '+' : '';
+                            return `${label}: ${sign}${formatNumber(perSec)}/s`;
+                        }
+
+                        const pct = Number(m?.deltaPercent || 0);
+                        const sign = (pct >= 0) ? '+' : '';
+                        return `${label}: ${sign}${pct}%`;
+                    });
+                    modHtml = `<ul class="tooltip-bonuses">${modLines.map(l => `<li class="bonus-item">${escapeHtml(l)}</li>`).join('')}</ul>`;
+                }
+
+                html += `<div class="tooltip-section"><h4>Recovery</h4>${lines.join('')}${modHtml}</div>`;
             }
         } catch { /* ignore */ }
 
@@ -961,8 +1023,21 @@ function buildTooltipHTML(data) {
             const y = getChanneledActionYieldBonusesPerSec(data?.id);
             const hasYield = !!(y && y.resource && y.amountPerSec > 0);
             if (hasYield) {
+                const isBoosted = !!(Array.isArray(y.modifiers) && y.modifiers.length);
+                const amtCls = isBoosted ? 'reward-amount boosted' : 'reward-amount';
+                let modHtml = '';
+                if (isBoosted) {
+                    const modLines = y.modifiers.map(m => {
+                        const label = String(m?.label || 'Bonus');
+                        const pct = Number(m?.deltaPercent || 0);
+                        const sign = (pct >= 0) ? '+' : '';
+                        return `${label}: ${sign}${pct}%`;
+                    });
+                    modHtml = `<ul class="tooltip-bonuses">${modLines.map(l => `<li class="bonus-item">${escapeHtml(l)}</li>`).join('')}</ul>`;
+                }
                 html += `<div class="tooltip-section"><h4>Yield</h4>` +
-                    `<p>${y.resource}: <span class="reward-amount">+${formatNumber(y.amountPerSec)}/s</span></p>` +
+                    `<p>${y.resource}: <span class="${amtCls}">+${formatNumber(y.amountPerSec)}/s</span></p>` +
+                    `${modHtml}` +
                     `</div>`;
             }
         } catch { /* ignore */ }

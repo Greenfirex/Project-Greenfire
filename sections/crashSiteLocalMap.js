@@ -860,6 +860,23 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
         return false;
     };
 
+    const shouldMarkBaseCampReturnForRadio = (() => {
+        try {
+            const atBaseCamp = Number(mapState?.x) === 2 && Number(mapState?.y) === 7;
+            if (atBaseCamp) return false;
+
+            const commsDone = !!(state && typeof state === 'object' && state.commsPanelScavenged === true)
+                || isFinishedAction('scavengeCommsPanel');
+            if (!commsDone) return false;
+
+            const radioFixed = isFinishedAction('fixLongRangeRadio');
+            if (radioFixed) return false;
+
+            return true;
+        } catch { /* ignore */ }
+        return false;
+    })();
+
     const tilePanelCollapsed = (() => {
         try { return localStorage.getItem('localMapTilePanelCollapsed') === 'true'; } catch { return false; }
     })();
@@ -1561,6 +1578,30 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                 }
             } catch { /* ignore */ }
 
+            // Bridge tile overlay (visual): H6.
+            try {
+                const isBridge = !!(meta && meta.typeId === 'bridge');
+                if (discovered && isBridge) {
+                    tile.classList.add('has-bridge-overlay');
+                    const overlay = document.createElement('div');
+                    overlay.className = 'localmap-bridge-overlay';
+                    overlay.setAttribute('aria-hidden', 'true');
+                    tile.appendChild(overlay);
+                }
+            } catch { /* ignore */ }
+
+            // Cave tile overlay (visual): B6.
+            try {
+                const isCave = !!(meta && meta.typeId === 'cave');
+                if (discovered && isCave) {
+                    tile.classList.add('has-caveentry-overlay');
+                    const overlay = document.createElement('div');
+                    overlay.className = 'localmap-caveentry-overlay';
+                    overlay.setAttribute('aria-hidden', 'true');
+                    tile.appendChild(overlay);
+                }
+            } catch { /* ignore */ }
+
             if (burnAnim && c === burnAnim.x && r === burnAnim.y) {
                 tile.classList.add('is-just-burned');
                 const burn = document.createElement('div');
@@ -1620,6 +1661,12 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                     const done = !!(state && typeof state === 'object' && state.crewQuartersExplored === true)
                         || isFinishedAction('checkCrewQuarters');
                     if (!done && !hasAlert) markers = [...markers, { kind: 'alert' }];
+                }
+
+                // Objective guidance: once the comms panel is scavenged, guide the player back to Base Camp (B7)
+                // until they step onto the tile (and before the radio is fixed).
+                if (shouldMarkBaseCampReturnForRadio && c === 2 && r === 7) {
+                    if (!hasAlert) markers = [...markers, { kind: 'alert' }];
                 }
             } catch { /* ignore */ }
 
@@ -1765,7 +1812,7 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
 
                     // Bridge room (H6) entry from G6
                     if ((x1 === 8 && y1 === 6) || (x2 === 8 && y2 === 6)) {
-                        const open = !!(state && typeof state === 'object' && state.bridgeExplored === true) || isFinishedAction('investigateBridge');
+                        const open = !!(state && typeof state === 'object' && state.bridgeExplored === true) || isFinishedAction('exploreBridge');
                         return open ? 'open' : 'locked';
                     }
 

@@ -302,7 +302,7 @@ scavenged_comms_panel: {
     pages: [
         "You tear out the least-destroyed section of the bridge comms stack and strip it down to what still matters: a scorched frame, a handful of intact connectors, and enough circuitry to attempt a rebuild.",
         "It won’t work here. The bridge is too damaged, too exposed — and you don’t have the time. You pack the panel and components and make for base camp. If it can be repaired at all, it will be at your workbench.",
-        "New crafting recipe unlocked: Fix Long-Range Radio."
+        ""
     ]
 },
 

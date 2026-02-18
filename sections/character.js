@@ -460,6 +460,21 @@ function attachDiscardHandlers(sectionRoot) {
             const def = getItemDefinition(itemId);
             const name = def?.name || itemId;
 
+            // Quest items cannot be discarded.
+            try {
+                const tags = Array.isArray(def?.tags) ? def.tags : [];
+                const isQuest = def?.quest === true || tags.some(t => String(t || '').toLowerCase() === 'quest');
+                if (isQuest) {
+                    await showConfirmPopup({
+                        title: 'Quest Item',
+                        message: 'Quest items cannot be discarded.',
+                        confirmText: 'OK',
+                        cancelText: 'OK',
+                    });
+                    return;
+                }
+            } catch { /* ignore */ }
+
             const ok = await showConfirmPopup({
                 title: 'Discard Item',
                 message: `Discard ${name}? This cannot be undone.`,
@@ -1347,7 +1362,7 @@ function buildItemTooltipHTML(slotEl) {
         : (equipSlotLabels[String(def.slot || '')] || String(def.slot || ''));
 
     // Stack tags (e.g., 1/5) for consumable stacks.
-    let stackTagHtml = '';
+    const tagHtmlParts = [];
     try {
         if (!isEquip && def && def.stackable && def.consumable) {
             const idx = Math.floor(Number(slotEl.dataset.slot));
@@ -1361,12 +1376,20 @@ function buildItemTooltipHTML(slotEl) {
                 }
                 return 1;
             })();
-            stackTagHtml = `<span class="tooltip-tag">${escapeHtml(String(qty))}/${escapeHtml(String(5))}</span>`;
+            tagHtmlParts.push(`<span class="tooltip-tag">${escapeHtml(String(qty))}/${escapeHtml(String(5))}</span>`);
         }
     } catch { /* ignore */ }
 
-    let html = stackTagHtml
-        ? `<div class="tooltip-header-row"><h4>${escapeHtml(def.name || def.id || 'Item')}</h4><div class="tooltip-tags">${stackTagHtml}</div></div>`
+    // Quest tag
+    try {
+        const tags = Array.isArray(def?.tags) ? def.tags : [];
+        const isQuest = def?.quest === true || tags.some(t => String(t || '').toLowerCase() === 'quest');
+        if (isQuest) tagHtmlParts.push('<span class="tooltip-tag">Quest</span>');
+    } catch { /* ignore */ }
+
+    const tagsHtml = tagHtmlParts.join('');
+    let html = tagsHtml
+        ? `<div class="tooltip-header-row"><h4>${escapeHtml(def.name || def.id || 'Item')}</h4><div class="tooltip-tags">${tagsHtml}</div></div>`
         : `<h4>${escapeHtml(def.name || def.id || 'Item')}</h4>`;
 
     if (def.description) {
@@ -1393,6 +1416,15 @@ function buildItemTooltipHTML(slotEl) {
             if (useText) {
                 html += `<div class="tooltip-section"><h4>Use</h4><p>${useText}</p></div>`;
             }
+        }
+    } catch { /* ignore */ }
+
+    // Item-specific tooltip modifiers (non-stat effects)
+    try {
+        const extra = Array.isArray(def?.tooltipModifiers) ? def.tooltipModifiers : [];
+        for (const s of extra) {
+            const txt = String(s || '').trim();
+            if (txt) lines.push(escapeHtml(txt));
         }
     } catch { /* ignore */ }
 

@@ -23,8 +23,8 @@ import { updateCampsiteCampResourcesPanel, wireCampsiteCollapsibles } from './ca
 
 const CRAFTING_CATEGORIES = [
     { key: 'weapons', label: 'Weapons', actionIds: ['craftMetalSpear'] },
-    { key: 'accessory', label: 'Accessory', actionIds: ['createBasicTorch', 'craftCanteen'] },
-    { key: 'armor', label: 'Armor', actionIds: [] },
+    { key: 'accessory', label: 'Accessory', actionIds: ['createBasicTorch', 'craftCanteen', 'craftFoldableChair'] },
+    { key: 'armor', label: 'Armor', actionIds: ['craftScrapshield'] },
     { key: 'quest', label: 'Quest', actionIds: ['makeCrudePrybar', 'fixLongRangeRadio', 'decryptRadioMessage', 'assembleMakeshiftExplosive', 'craftPowerCells'] },
     { key: 'consumables', label: 'Consumables', actionIds: ['craftHerbTea', 'craftFirstAidKit', 'craftBottledWater', 'craftPackagedFood'] },
 ];
@@ -52,6 +52,19 @@ function getMaxRewardAmount(rewardEntry) {
     }
     const n = Number(amt);
     return Number.isFinite(n) ? n : 0;
+}
+
+function isActionCompleted(action) {
+    try {
+        if (!action) return false;
+        if (action.completed === true) return true;
+        const idx = Number(action.stage || 0);
+        const total = Array.isArray(action.stages) ? action.stages.length : 0;
+        if (total > 0 && idx >= total) return true;
+        return false;
+    } catch {
+        return false;
+    }
 }
 
 function getCapacityBlockReason(action) {
@@ -219,7 +232,20 @@ export function setupCraftingSection(craftingSection) {
                                 <div class="localmap-card-body" id="campsiteCampResources">${campUnlocked ? '' : campLockedText}</div>
                             </div>
                         </div>
-                        <div class="crafting-actions" data-crafting-actions></div>
+                        <div class="localmap-card campsite-card campsite-card--crafting" data-campsite-panel="crafting" aria-label="Crafting">
+                            <div class="localmap-card-header">
+                                <h3>Crafting</h3>
+                                <button type="button" class="campsite-collapse-btn" aria-label="Collapse Crafting panel" aria-expanded="true">
+                                    <svg class="chevrons-icon" width="22" height="16" viewBox="0 0 24 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <path d="M3 12 L12 3 L21 12" stroke-linecap="round" />
+                                        <path d="M3 18 L12 9 L21 18" stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="localmap-card-body">
+                                <div class="crafting-actions" data-crafting-actions></div>
+                            </div>
+                        </div>
                         <div class="localmap-card campsite-card campsite-card--actions" data-campsite-panel="actions" aria-label="Actions">
                             <div class="localmap-card-header">
                                 <h3>Actions</h3>
@@ -350,6 +376,8 @@ export function setupCraftingSection(craftingSection) {
                     for (const id of (cat.actionIds || [])) {
                         const actionDef = (allActions || []).find(a => a && a.id === id);
                         if (!actionDef || !actionDef.isUnlocked) continue;
+                        // One-time quest recipes should disappear once completed.
+                        if (actionDef.repeatable !== true && isActionCompleted(actionDef)) continue;
                         group.appendChild(makeActionButton(actionDef));
                     }
 
@@ -455,6 +483,25 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
             if (!host) return;
             updateCraftingButtonsState(host);
             try { updateCampsiteCampResourcesPanel(host); } catch { /* ignore */ }
+        } catch { /* ignore */ }
+    });
+
+    // Ensure the crafting recipe list updates as actions complete (e.g., one-time quest recipes disappearing).
+    window.addEventListener('action-completed', () => {
+        try {
+            const host = document.getElementById('craftingSection');
+            if (!host) return;
+            if (host.classList.contains('hidden')) return;
+
+            const actionsHost = host.querySelector('[data-crafting-actions]');
+            const prevScrollTop = actionsHost ? Number(actionsHost.scrollTop || 0) : 0;
+
+            setupCraftingSection(host);
+
+            const nextActionsHost = host.querySelector('[data-crafting-actions]');
+            if (nextActionsHost) {
+                nextActionsHost.scrollTop = Math.max(0, Math.min(prevScrollTop, nextActionsHost.scrollHeight || 0));
+            }
         } catch { /* ignore */ }
     });
 }

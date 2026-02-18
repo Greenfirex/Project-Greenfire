@@ -3,13 +3,17 @@
 // actions: null = any action; otherwise array of action ids to limit effect to specific actions.
 export const upgradeEffects = [
     { flag: 'cafeteriaCookerInstalled', label: 'Cooking Equipment: +40%', multiplier: 1.4, resources: ['Food Rations', 'Drinking Water'], actions: null },
+    // Salvaged cooking equipment also improves camp job efficiency slightly.
+    { flag: 'cafeteriaCookerInstalled', label: 'Cooking Equipment: +10%', multiplier: 1.10, resources: ['Provisions'], actions: ['foraging'] },
+    { flag: 'cafeteriaCookerInstalled', label: 'Cooking Equipment: +10%', multiplier: 1.10, resources: ['Water'], actions: ['water_collection'] },
     { flag: 'tentsInstalled',             label: 'Tents: +20%',                 multiplier: 1.2, resources: ['Stamina'],                 actions: ['rest', 'sleep'] },
     { flag: 'sheltersInsulated',          label: 'Insulation: +10%',            multiplier: 1.1, resources: ['Stamina'],                 actions: ['rest', 'sleep'] },
     // Crude Foraging Tools: affects both personal foraging (Food Rations) and camp foraging job (Provisions)
     { flag: 'improvedForagingTools',      label: 'Crude Foraging Tools: +25%',        multiplier: 1.25, resources: ['Food Rations'],          actions: ['forageFood'] },
     { flag: 'improvedForagingTools',      label: 'Crude Foraging Tools: +25%',        multiplier: 1.25, resources: ['Provisions'],           actions: ['foraging'] },
     { flag: 'rainCatchersInstalled',     label: 'Rain Tarp: +10%',            multiplier: 1.10, resources: ['Water'],                 actions: null },
-    { flag: 'purificationUnitInstalled',  label: 'Purification Unit: +20%',     multiplier: 1.20, resources: ['Drinking Water'],         actions: ['purifyWater'] },
+    { flag: 'purificationUnitInstalled',  label: 'Water Purification Unit: +20%',     multiplier: 1.20, resources: ['Drinking Water'],         actions: ['purifyWater'] },
+    { flag: 'purificationUnitInstalled',  label: 'Water Purification Unit: +15%',     multiplier: 1.15, resources: ['Water'],                 actions: ['water_collection'] },
     // Display label for Scrap Collector boost on job/tooltips
     { flag: 'scavengerKitInstalled',      label: 'Scavenger Kit: +20%',         multiplier: 1.20, resources: ['Metal Parts'],           actions: ['scrap_collector'] }
 ];

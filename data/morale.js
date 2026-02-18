@@ -133,6 +133,14 @@ export function getMorale() {
         }
     } catch {}
 
+    // Persistent comfort boost (+5%) once shelters are insulated
+    try {
+        if (gameFlags && gameFlags.sheltersInsulated) {
+            percent += 5;
+            sources.push({ id: 'insulated_shelters', label: 'Insulated Shelters', deltaPercent: +5 });
+        }
+    } catch {}
+
     // Clamp and compute multiplier
     percent = Math.max(0, Math.min(200, percent));
     const multiplier = percent / 100;

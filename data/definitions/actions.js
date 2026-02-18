@@ -890,6 +890,8 @@ const initialSalvageActions = [
                     {
                         story: 'scavenged_comms_panel',
                         unlocks: ['fixLongRangeRadio'],
+                        grantItems: ['scavenged_comms_panel'],
+                        grantItemsPreferEquip: false,
                         showUnlocks: false,
                         logText: 'You salvage a comms panel and intact components from the bridge. Back at the workbench, you can attempt a repair. (Click to read)',
                         suppressGenericLog: true

@@ -70,9 +70,25 @@
 
 .crafting-actions {
     width: 100%;
-    flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
+}
+
+/* Crafting panel should consume remaining space between Camp Resources and Actions. */
+#craftingSection .campsite-card--crafting {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#craftingSection .campsite-card--crafting .localmap-card-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .crafting-category {

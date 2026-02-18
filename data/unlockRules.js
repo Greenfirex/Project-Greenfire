@@ -48,6 +48,23 @@ export function getBlockedStatus(actionId, state) {
         if (hasTorch) return { blocked: true, reason: 'You already have a Basic Torch.' };
     }
 
+    // Crafting unique: avoid producing duplicate scrapshields.
+    if (actionId === 'craftScrapshield') {
+        const ch = (state && (state.characterState || state.character)) || null;
+        const equipped = ch && ch.equipment ? ch.equipment.offhand : null;
+        const bag = (ch && Array.isArray(ch.bag)) ? ch.bag : [];
+        const has = equipped === 'scrapshield' || bag.some(v => v === 'scrapshield' || (v && typeof v === 'object' && v.id === 'scrapshield'));
+        if (has) return { blocked: true, reason: 'You already have a Scrapshield.' };
+    }
+
+    // Quest recipe requirement: Fix Long-Range Radio requires the salvaged comms panel.
+    if (actionId === 'fixLongRangeRadio') {
+        const ch = (state && (state.characterState || state.character)) || null;
+        const bag = (ch && Array.isArray(ch.bag)) ? ch.bag : [];
+        const hasPanel = bag.some(v => v === 'scavenged_comms_panel' || (v && typeof v === 'object' && v.id === 'scavenged_comms_panel'));
+        if (!hasPanel) return { blocked: true, reason: 'Requires a Scavenged Comms Panel in your inventory.' };
+    }
+
     // Local map gate: burning the thorny wall requires standing at C6 and selecting C5.
     if (actionId === 'burnThornyWall') {
         const ch = (state && (state.characterState || state.character)) || null;
@@ -86,6 +103,22 @@ export function getBlockedStatus(actionId, state) {
             const hint = hasPrybarInBag
                 ? 'Equip a Crude Prybar as your weapon to pry open the hull.'
                 : 'You need a Crude Prybar equipped as a weapon to pry open the hull.';
+            return { blocked: true, reason: hint };
+        }
+    }
+
+    // Tool requirement: salvaging the bridge comms panel requires the prybar equipped in hands.
+    if (actionId === 'scavengeCommsPanel') {
+        const ch = (state && (state.characterState || state.character)) || null;
+        const eq = ch && ch.equipment ? ch.equipment : null;
+        const bag = (ch && Array.isArray(ch.bag)) ? ch.bag : [];
+
+        const prybarEquipped = !!(eq && eq.weapon === 'crude_prybar');
+        if (!prybarEquipped) {
+            const hasPrybarInBag = bag.some(v => v === 'crude_prybar' || (v && typeof v === 'object' && v.id === 'crude_prybar'));
+            const hint = hasPrybarInBag
+                ? 'Equip a Crude Prybar as your weapon to scavenge the comms panel.'
+                : 'You need a Crude Prybar equipped as a weapon to scavenge the comms panel.';
             return { blocked: true, reason: hint };
         }
     }
@@ -242,6 +275,10 @@ export function evaluateEventUnlocks(event, state) {
             const actions = (state.actions || []);
             const firstAid = actions.find(a => a && a.id === 'craftFirstAidKit');
             if (firstAid && !firstAid.isUnlocked && !firstAid.completed) result.actions.push('craftFirstAidKit');
+
+            const chair = actions.find(a => a && a.id === 'craftFoldableChair');
+            if (chair && !chair.isUnlocked && !chair.completed) result.actions.push('craftFoldableChair');
+
             const planLarder = actions.find(a => a && a.id === 'planFoodLarder');
             if (planLarder && !planLarder.isUnlocked && !planLarder.completed) result.actions.push('planFoodLarder');
             const planReservoir = actions.find(a => a && a.id === 'planWaterReservoir');

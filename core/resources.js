@@ -30,9 +30,46 @@ export function getRecoveryActionRegenBonusesPerSec(actionId) {
         const id = String(actionId || '');
         const b = RECOVERY_ACTION_REGEN_BONUSES_PER_SEC[id];
         if (!b) return null;
+
+        // Sleep bonuses from camp upgrades.
+        // Sleep is treated like a channeled recovery action (per-second regen),
+        // so upgrades must scale the per-second rates rather than one-time totals.
+        let sleepMultiplier = 1;
+        const modifiers = [];
+        try {
+            if (id === 'sleep') {
+                if (gameFlags?.tentsInstalled) {
+                    sleepMultiplier += 0.20;
+                    modifiers.push({ id: 'tents', label: 'Personal tents', deltaPercent: 20 });
+                }
+                if (gameFlags?.sheltersInsulated) {
+                    sleepMultiplier += 0.10;
+                    modifiers.push({ id: 'insulated', label: 'Insulate Shelters', deltaPercent: 10 });
+                }
+            }
+        } catch { /* ignore */ }
+
+        // Foldable Chair: improves Sit down stamina recovery (+1/sec).
+        let chairStaminaBonus = 0;
+        try {
+            if (id === 'sitDown') {
+                const eq = characterState?.equipment;
+                const hasChair = !!(eq && (eq.accessory_1 === 'foldable_chair' || eq.accessory_2 === 'foldable_chair'));
+                if (hasChair) {
+                    chairStaminaBonus = 1;
+                    modifiers.push({ id: 'foldableChair', label: 'Foldable Chair', deltaPerSec: 1 });
+                }
+            }
+        } catch { /* ignore */ }
+
+        const baseStamina = Number(b.staminaPerSec) || 0;
+        const baseHealth = Number(b.healthPerSec) || 0;
+
         return {
-            staminaPerSec: Number(b.staminaPerSec) || 0,
-            healthPerSec: Number(b.healthPerSec) || 0,
+            staminaPerSec: (baseStamina * sleepMultiplier) + chairStaminaBonus,
+            healthPerSec: baseHealth * sleepMultiplier,
+            base: { staminaPerSec: baseStamina, healthPerSec: baseHealth },
+            modifiers,
         };
     } catch {
         return null;
@@ -289,13 +326,6 @@ export function computeResourceRates(resourceName) {
             bonusMultiplier += t.bonus.multiplier;
         }
     });
-
-    // Purification Unit provides a global bonus to camp Water production/collection.
-    try {
-        if (resourceName === 'Water' && gameFlags && gameFlags.purificationUnitInstalled) {
-            bonusMultiplier += 0.20;
-        }
-    } catch (e) { /* ignore */ }
 
     let totalProduction = (baseProduction + jobContribution) * (1 + bonusMultiplier);
 
@@ -834,9 +864,25 @@ export function getChanneledActionYieldBonusesPerSec(actionId) {
         const id = String(actionId || '');
         const entry = CHANNELED_YIELD_BONUSES_PER_SEC[id];
         if (!entry) return null;
+        const baseAmount = Number(entry.amountPerSec) || 0;
+        let amountMultiplier = 1;
+        const modifiers = [];
+
+        // Salvaged cooking equipment: boosts outdoor food/water channeled yields.
+        // (Forage Food + Purify Water)
+        try {
+            const isOutdoorYield = (id === 'forageFood' || id === 'purifyWater');
+            if (isOutdoorYield && gameFlags?.cafeteriaCookerInstalled) {
+                amountMultiplier += 0.40;
+                modifiers.push({ id: 'cooking', label: 'Salvage Cooking Equipment', deltaPercent: 40 });
+            }
+        } catch { /* ignore */ }
+
         return {
             resource: String(entry.resource || ''),
-            amountPerSec: Number(entry.amountPerSec) || 0,
+            amountPerSec: baseAmount * amountMultiplier,
+            base: { amountPerSec: baseAmount },
+            modifiers,
         };
     } catch {
         return null;

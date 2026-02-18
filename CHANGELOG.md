@@ -1,3 +1,28 @@
+# [0.2.9] - 2026-02-18
+
+### Added
+
+- **Items:** New inventory/equipment items:
+    - **Scavenged Comms Panel** (Quest item).
+    - **Foldable Chair** (Accessory): improves **Sit down** stamina recovery.
+    - **Scrapshield** (Offhand): **+1 Armor**.
+- **Crafting:** New recipes for **Foldable Chair** (unlocks on **Fabric** discovery) and **Scrapshield** (unlocks after **Workbench**).
+
+### Changed
+
+- **Crafting UI:** All recipe categories/buttons now live inside a dedicated collapsible **Crafting** panel (with internal scrolling).
+- **Unlock UX:** Recipe unlocks are now listed under **Recipes Unlocked** in story popups (instead of being mixed into Actions).
+- **Bridge:** **Explore the Bridge** can now be started from an adjacent tile.
+
+### Fixed
+
+- **Crafting completion:** One-time recipes (e.g., **Fix Long-Range Radio**, **Decrypt Radio Message**) now disappear after completion.
+- **Crafting refresh:** Crafting now re-renders reliably after action completion so the UI immediately reflects completed/updated recipes.
+- **Quest items:** Quest-tagged items now show a **Quest** tag in item tooltips and cannot be discarded (preventing accidental loss).
+- **Tooltip clarity:** Foldable Chair’s item tooltip now calls out its **Sit down: +1 Stamina/s** modifier.
+
+---
+
 # [0.2.8] - 2026-02-16
 
 ### Added

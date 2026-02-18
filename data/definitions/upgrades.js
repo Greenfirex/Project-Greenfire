@@ -3,7 +3,6 @@ const initialUpgradeActions = [
         id: 'installForagingTools',
         name: 'Crude Foraging Tools',
         description: 'Equip foragers with improved crude tools to increase yield.',
-        duration: 5,
         category: 'Upgrade',
         isUnlocked: false,
         cancelable: true,
@@ -33,7 +32,6 @@ const initialUpgradeActions = [
         id: 'planFoodLarder',
         name: 'Plan Food Larder',
         description: 'Design storage layout and salvage parts to enable building a Food Larder.',
-        duration: 4,
         category: 'Upgrade',
         isUnlocked: false, // unlocked when Fabric is discovered
         cancelable: true,
@@ -64,7 +62,6 @@ const initialUpgradeActions = [
         id: 'planWaterReservoir',
         name: 'Plan Water Reservoir',
         description: 'Draft reservoir layout and fittings so a Water Reservoir can be constructed.',
-        duration: 4,
         category: 'Upgrade',
         isUnlocked: false, // unlocked when Fabric is discovered
         cancelable: true,
@@ -95,7 +92,6 @@ const initialUpgradeActions = [
         id: 'lightCampfire',
         name: 'Light Campfire',
         description: 'Build and tend a safe campfire at base camp to lift spirits and morale.',
-        duration: 4,
         category: 'Upgrade',
         isUnlocked: false, // unlocked after Base Camp is established
         cancelable: true,
@@ -124,7 +120,6 @@ const initialUpgradeActions = [
         id: 'installScavengerKit',
         name: 'Scavenger Kit',
         description: 'Harnesses, ties, and cable trays to organize salvage runs and improve scrap recovery.',
-        duration: 5,
         category: 'Upgrade',
         isUnlocked: false, // will unlock after Base Camp is established
         cancelable: true,
@@ -154,7 +149,6 @@ const initialUpgradeActions = [
         id: 'workbench',
         name: 'Workbench',
         description: 'Assemble a sturdy workbench at base camp so you can craft and repair equipment more reliably.',
-        duration: 6,
         category: 'Upgrade',
         isUnlocked: false, // unlocked after Base Camp is established
         cancelable: true,
@@ -180,13 +174,11 @@ const initialUpgradeActions = [
         id: 'organizeWireScavenging',
         name: 'Organize Wire Scavenging',
         description: 'Establish systematic wire salvage operations. Train survivors to identify and extract usable wire from wreckage efficiently.',
-        duration: 5,
         category: 'Upgrade',
         isUnlocked: false, // Will be unlocked by Base Camp establishment
         cancelable: true,
         cost: [
             { resource: 'Metal Parts', amount: 8 },
-            { resource: 'Wire', amount: 2 }
         ],
         drain: [
             { resource: 'Provisions', amount: 6 },
@@ -210,8 +202,7 @@ const initialUpgradeActions = [
     {
         id: 'salvageCookingEquipment',
         name: 'Salvage Cooking Equipment',
-        description: 'Salvage working cafeteria equipment if we can manage to take it out of the wreckage.',
-        duration: 8,
+        description: 'Salvage working cafeteria equipment which will make food and water gathering operations more effective.',
         category: 'Upgrade',
         isUnlocked: false,
         cancelable: true,
@@ -227,8 +218,9 @@ const initialUpgradeActions = [
         hideRewardPreview: true,
     reward: [],
     tooltipEffects: [
-        'Forage for Food: +40% Bonus',
-        'Purify Water: +40% Bonus'
+        'Outdoor yields: +40% (Food & Water channeled actions)',
+        'Forager job: +10% bonus',
+        'Water Collector job: +10% bonus'
     ],
         stage: 0,
         stages: [
@@ -244,7 +236,6 @@ const initialUpgradeActions = [
         id: 'makeTents',
         name: 'Personal tents',
         description: 'Use salvaged fabric and parts to construct simple tents at the base camp. Increases effectiveness of sleeping.',
-        duration: 6,
         category: 'Upgrade',
         isUnlocked: false,
         showUnlocks: false,
@@ -261,7 +252,7 @@ const initialUpgradeActions = [
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Sleep: +20% Bonus'],
+    tooltipEffects: ['Sleep Recovery: +20%'],
         stage: 0,
         stages: [
             {
@@ -275,15 +266,13 @@ const initialUpgradeActions = [
     {
         id: 'insulateShelters',
         name: 'Insulate Shelters',
-        description: 'Add insulation to tents to improve recovery during sleep.',
-        duration: 4,
+        description: 'Add insulation to tents to improve recovery during sleep and improve crew morale.',
         category: 'Upgrade',
         isUnlocked: false,
         cancelable: true,
         cost: [
             { resource: 'Fabric', amount: 20 },
             { resource: 'Metal Parts', amount: 6 },
-            { resource: 'Crude Prybar', amount: 2 }
         ],
         drain: [
             { resource: 'Provisions', amount: 4 },
@@ -292,13 +281,13 @@ const initialUpgradeActions = [
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Sleep: +10% Bonus'],
+    tooltipEffects: ['Sleep Recovery: +10%', 'Morale: +5%'],
         stage: 0,
         stages: [
             {
                 story: 'shelter_insulated',
                 unlocks: [],
-                logText: 'You upgrade the tents with added insulation. Sleeping restores a bit more stamina now.',
+                logText: 'You upgrade the tents with added insulation. Spirits are lifted and sleeping will now be more effective.',
                 suppressGenericLog: true
             }
         ]
@@ -306,8 +295,7 @@ const initialUpgradeActions = [
     {
         id: 'installRainCatchers',
         name: 'Install Rain Catchers',
-        description: 'Set up tarps and channels to collect rain and funnel it to storage.',
-        duration: 5,
+        description: 'Set up improvised tarps to collect rain and funnel it to storage.',
         category: 'Upgrade',
         isUnlocked: false, // unlocked when Water Station built AND Fabric is discovered
         cancelable: true,
@@ -337,9 +325,8 @@ const initialUpgradeActions = [
     },
     {
         id: 'installPurificationUnit',
-        name: 'Install Purification Unit',
+        name: 'Water Purification Unit',
         description: 'Set up a compact chemical purification unit to improve water purification and recycling efficiency.',
-        duration: 6,
         category: 'Upgrade',
         isUnlocked: false,
         cancelable: true,
@@ -355,15 +342,13 @@ const initialUpgradeActions = [
         repeatable: false,
         hideRewardPreview: true,
     reward: [],
-    tooltipEffects: ['Water Collector job: +25% Bonus',
-                     'Purify Water: +20% Bonus'
-    ],
+    tooltipEffects: ['Water Collector job: +15% Bonus'],
         stage: 0,
         stages: [
             {
                 story: 'purification_unit_installed',
                 unlocks: [],
-                logText: 'A small purification unit is installed. Water purification results are improved and water collection is more effective.',
+                logText: 'A small water purification unit is installed. Water purification results are improved and water collection is more effective.',
                 suppressGenericLog: true
             }
         ]

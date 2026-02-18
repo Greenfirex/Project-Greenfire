@@ -1,6 +1,7 @@
 import { getIngameTimeObject } from '../../core/time.js';
 import { addJournalEntry } from '../../sections/journal.js';
 import { allActions as _allActions } from '../../data/definitions/allActions.js';
+import { recipeActions as _recipeActions } from '../../data/definitions/recipes.js';
 import { getItemDefinition } from '../../data/definitions/items.js';
 import { getIsPaused, pauseGame, resumeGame } from '../footer.js';
 import { isCompactPhoneLandscape } from '../compactMode.js';
@@ -167,12 +168,27 @@ function renderPopupPage() {
                 let regularActionNames = [];
                 if (actionsList.length) {
                     const defs = Array.isArray(_allActions) ? _allActions : [];
+                    const recipeDefs = Array.isArray(_recipeActions) ? _recipeActions : [];
+                    const recipeKeys = new Set();
+                    for (const r of recipeDefs) {
+                        try {
+                            if (r && r.id) recipeKeys.add(String(r.id));
+                            if (r && r.name) recipeKeys.add(String(r.name));
+                        } catch { /* ignore */ }
+                    }
                     const byNameOrId = (val) => defs.find(a => a && (a.name === val || a.id === val));
                     for (const val of actionsList) {
                         const def = byNameOrId(val);
                         if (def && def.category === 'Upgrade') upgradeNames.push(def.name || val);
-                        else if (def && def.category === 'Crafting') recipeNames.push(def.name || val);
-                        else regularActionNames.push(def ? (def.name || val) : val);
+                        else {
+                            const isRecipe = !!(
+                                (def && def.category === 'Crafting')
+                                || (def && (recipeKeys.has(String(def.id)) || recipeKeys.has(String(def.name || ''))))
+                                || recipeKeys.has(String(val || ''))
+                            );
+                            if (isRecipe) recipeNames.push(def ? (def.name || val) : val);
+                            else regularActionNames.push(def ? (def.name || val) : val);
+                        }
                     }
                     // Remove duplicates in case of mixed inputs
                     const uniq = (arr) => Array.from(new Set(arr));

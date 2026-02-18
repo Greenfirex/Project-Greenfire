@@ -137,6 +137,36 @@ export const items = [
         description: 'Packaged rations, safe to eat.',
         stackable: true,
         consumable: { type: 'heal', resource: 'Food Rations', amount: 25 }
+    },
+
+    // Quest / salvage items
+    {
+        id: 'scavenged_comms_panel',
+        name: 'Scavenged Comms Panel',
+        slot: 'inventory',
+        icon: 'assets/images/items/commspanel.png',
+        description: 'A battered comms panel with enough intact components to attempt a rebuild at the workbench.',
+        quest: true,
+        tags: ['Quest'],
+    },
+
+    // Craftable equipment
+    {
+        id: 'foldable_chair',
+        name: 'Foldable Chair',
+        slot: 'accessory',
+        icon: 'assets/images/items/foldablechair.png',
+        description: 'A lightweight chair. Makes short recovery breaks more effective.',
+        stats: {},
+        tooltipModifiers: ['Sit down: +1 Stamina/s'],
+    },
+    {
+        id: 'scrapshield',
+        name: 'Scrapshield',
+        slot: 'offhand',
+        icon: 'assets/images/items/scrapshield.png',
+        description: 'A rough shield bolted together from scrap. Better than nothing.',
+        stats: { armor: 1 }
     }
 ];
 

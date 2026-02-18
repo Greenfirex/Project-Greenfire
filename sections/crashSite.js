@@ -1334,6 +1334,8 @@ export function setupCrashSiteSection(section) {
             '8,4': 'searchPowerCore',
             // G7
             '7,7': 'checkCaptainsQuarters',
+            // H6
+            '8,6': 'exploreBridge',
         };
 
         const SHIP_TILE_ACTIONS = Object.assign({}, SHIP_JUNCTION_TILE_ACTIONS, SHIP_ROOM_TILE_ACTIONS);
@@ -1388,6 +1390,13 @@ export function setupCrashSiteSection(section) {
                     const isF5 = (selX === 6 && selY === 5);
                     canShow = !!(fromE5 && isF5 && !isDiagonal && dist === 1);
                 }
+
+                // Explore the Bridge (H6) is only startable from G6.
+                if (actionId === 'exploreBridge') {
+                    const fromG6 = (playerX === 7 && playerY === 6);
+                    const isH6 = (selX === 8 && selY === 6);
+                    canShow = !!(fromG6 && isH6 && !isDiagonal && dist === 1);
+                }
                 if (canShow && actionId) {
                     const a = salvageActions.find(x => x && x.id === actionId);
                     // Once the action is finished, the tile becomes traversable like normal (Move comes back).
@@ -1398,7 +1407,9 @@ export function setupCrashSiteSection(section) {
                             onClick: (e) => {
                                 const okDistance = (a.id === 'investigateBridge')
                                     ? (playerX === 5 && playerY === 5 && selX === 6 && selY === 5 && dist === 1)
-                                    : (dist === 1 || playerOnSelected);
+                                    : (a.id === 'exploreBridge')
+                                        ? (playerX === 7 && playerY === 6 && selX === 8 && selY === 6 && dist === 1)
+                                        : (dist === 1 || playerOnSelected);
                                 if (!okDistance) {
                                     e.preventDefault();
                                     logNeedCloser();
@@ -3317,6 +3328,16 @@ async function handleActionCompletion(section) {
                 scheduleTraverseAdvance(section);
             }
         }
+    } catch { /* ignore */ }
+
+    // Notify other sections (e.g., Crafting) that action state changed.
+    try {
+        window.dispatchEvent(new CustomEvent('action-completed', {
+            detail: {
+                actionId: completed?.id || null,
+                uiInstanceId: completed?.uiInstanceId || null,
+            }
+        }));
     } catch { /* ignore */ }
 }
 

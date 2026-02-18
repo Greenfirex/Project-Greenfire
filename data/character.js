@@ -770,6 +770,16 @@ export function discardBagItem(bagIndex, state = characterState) {
     if (!Number.isInteger(bagIndex) || bagIndex < 0 || bagIndex >= bag.length) return false;
     const entry = bag[bagIndex];
     if (!entry) return false;
+
+    // Quest items cannot be discarded.
+    try {
+        const itemId = (typeof entry === 'string') ? entry : (entry && typeof entry === 'object' ? entry.id : null);
+        const def = itemId ? getItemDefinition(itemId) : null;
+        const tags = Array.isArray(def?.tags) ? def.tags : [];
+        const isQuest = def?.quest === true || tags.some(t => String(t || '').toLowerCase() === 'quest');
+        if (isQuest) return false;
+    } catch { /* ignore */ }
+
     bag[bagIndex] = null;
     try {
         if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[bagIndex] = false;

@@ -238,6 +238,72 @@ const initialRecipeActions = [
     },
 
     {
+        id: 'craftFoldableChair',
+        name: 'Craft Foldable Chair',
+        description: 'Assemble a lightweight chair you can carry. Makes short recovery breaks more effective.',
+        duration: 3,
+        category: 'Crafting',
+        isUnlocked: false,
+        cancelable: true,
+        repeatable: true,
+        showUnlocks: false,
+        cost: [
+            { resource: 'Fabric', amount: 4 },
+            { resource: 'Metal Parts', amount: 4 }
+        ],
+        drain: [
+            { resource: 'Stamina', amount: 10 },
+            { resource: 'Provisions', amount: 2 },
+            { resource: 'Water', amount: 2 }
+        ],
+        reward: [],
+        hideRewardPreview: true,
+        stage: 0,
+        stages: [
+            {
+                story: null,
+                unlocks: [],
+                grantItems: ['foldable_chair'],
+                grantItemsPreferEquip: true,
+                logText: 'You assemble a foldable chair — a small comfort that makes recovery breaks easier.'
+            }
+        ]
+    },
+
+    {
+        id: 'craftScrapshield',
+        name: 'Craft Scrapshield',
+        description: 'Bolt together a rough shield from scrap and wire. It won’t be pretty, but it will stop something.',
+        duration: 4,
+        category: 'Crafting',
+        isUnlocked: false,
+        cancelable: true,
+        repeatable: true,
+        showUnlocks: false,
+        cost: [
+            { resource: 'Metal Parts', amount: 10 },
+            { resource: 'Wire', amount: 6 }
+        ],
+        drain: [
+            { resource: 'Stamina', amount: 12 },
+            { resource: 'Provisions', amount: 3 },
+            { resource: 'Water', amount: 3 }
+        ],
+        reward: [],
+        hideRewardPreview: true,
+        stage: 0,
+        stages: [
+            {
+                story: null,
+                unlocks: [],
+                grantItems: ['scrapshield'],
+                grantItemsPreferEquip: true,
+                logText: 'You lash scrap plates into a crude shield. It feels solid enough to matter.'
+            }
+        ]
+    },
+
+    {
         id: 'assembleMakeshiftExplosive',
         name: 'Assemble Makeshift Explosive',
         description: 'Combine salvaged chemicals and scrap into a makeshift explosive. Dangerous work — requires caution and materials.',
