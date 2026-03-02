@@ -25,6 +25,69 @@ function tileCenterToSvgPoint(col, row) {
     return { x, y };
 }
 
+function prefersReducedMotion() {
+    try {
+        if (document && document.body && document.body.classList) {
+            // Game-level setting (see styles/base/global.css)
+            if (document.body.classList.contains('reduce-motion')) return true;
+        }
+    } catch { /* ignore */ }
+
+    try {
+        return !!(window && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    } catch {
+        return false;
+    }
+}
+
+function stopMarchingAnts(container) {
+    try {
+        const poly = container && container._localMapPathOverlay;
+        if (poly && poly.querySelector) {
+            const a = poly.querySelector('animate[data-ants="true"]');
+            if (a) a.remove();
+        }
+    } catch { /* ignore */ }
+}
+
+function startMarchingAnts(container, poly) {
+    if (!container || !poly) return;
+    if (prefersReducedMotion()) {
+        stopMarchingAnts(container);
+        return;
+    }
+
+    // Idempotent: if the SMIL animate element exists, we're done.
+    try {
+        const existing = poly.querySelector('animate[data-ants="true"]');
+        if (existing) return;
+    } catch { /* ignore */ }
+
+    // Match the stylesheet dash pattern so the animation is consistent.
+    const dash = 0.55;
+    const gap = 1.55;
+    const patternLen = dash + gap;
+
+    try {
+        poly.style.setProperty('stroke-dasharray', `${dash} ${gap}`);
+        poly.style.setProperty('stroke-dashoffset', '0');
+    } catch { /* ignore */ }
+
+    // Use SMIL animate for maximum reliability.
+    // Chrome supports this; if a browser ignores it, the line will remain a dotted hint (still acceptable).
+    try {
+        const anim = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+        anim.setAttribute('data-ants', 'true');
+        anim.setAttribute('attributeName', 'stroke-dashoffset');
+        anim.setAttribute('from', '0');
+        anim.setAttribute('to', String(-patternLen));
+        anim.setAttribute('dur', '700ms');
+        anim.setAttribute('repeatCount', 'indefinite');
+        anim.setAttribute('calcMode', 'linear');
+        poly.appendChild(anim);
+    } catch { /* ignore */ }
+}
+
 function ensurePathOverlay(container, grid) {
     if (!container || !grid) return null;
     try {
@@ -33,6 +96,13 @@ function ensurePathOverlay(container, grid) {
             // If the map DOM was re-rendered, the cached overlay may be detached.
             // Only reuse it if it is still connected and inside the current grid.
             if (svg && svg.isConnected && grid.contains(svg)) {
+                // Back-compat cleanup: older builds inserted a "back" polyline for contrast.
+                // It can look like an overlapping static line, so remove it.
+                try {
+                    const back = svg.querySelector('polyline.localmap-path-polyline--back');
+                    if (back) back.remove();
+                } catch { /* ignore */ }
+                try { delete container._localMapPathOverlayBack; } catch { /* ignore */ }
                 return svg;
             }
             try { delete container._localMapPathOverlay; } catch { /* ignore */ }
@@ -89,6 +159,11 @@ export function updateCrashSiteLocalMapPathOverlay(container, preview = null) {
     const points = preview && Array.isArray(preview.points) ? preview.points : null;
     const kind = preview && preview.kind ? String(preview.kind) : 'move';
 
+    // Remember last preview so we can re-apply it when motion settings change.
+    try {
+        container._localMapLastPreview = (points && points.length >= 2) ? { points, kind } : null;
+    } catch { /* ignore */ }
+
     if (!points || points.length < 2) {
         poly.setAttribute('points', '');
         try {
@@ -111,6 +186,9 @@ export function updateCrashSiteLocalMapPathOverlay(container, preview = null) {
     svg.dataset.kind = kind;
     svg.style.display = 'block';
 
+    // Drive a reliable marching-ants effect even when CSS animations are globally disabled.
+    try { startMarchingAnts(container, poly); } catch { /* ignore */ }
+
     // End-of-route marker (larger dot on target tile).
     try {
         const last = points[points.length - 1];
@@ -120,7 +198,8 @@ export function updateCrashSiteLocalMapPathOverlay(container, preview = null) {
             const sp = tileCenterToSvgPoint(lc, lr);
             endDot.setAttribute('cx', sp.x.toFixed(3));
             endDot.setAttribute('cy', sp.y.toFixed(3));
-            endDot.setAttribute('r', kind === 'traverse' ? '1.75' : '1.20');
+            // Keep the end marker subtle; styling is handled in CSS.
+            endDot.setAttribute('r', kind === 'traverse' ? '1.05' : '0.85');
         }
     } catch { /* ignore */ }
 }
@@ -977,6 +1056,20 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
     const grid = container.querySelector('.localmap-grid');
     if (!grid) return;
 
+    // Motion setting changes (Options menu): re-apply the current route overlay so
+    // marching-ants starts/stops immediately without requiring a tile click.
+    try {
+        if (container && !container.dataset.boundReduceMotionRefresh) {
+            container.dataset.boundReduceMotionRefresh = 'true';
+            window.addEventListener('reduce-motion-updated', () => {
+                try {
+                    const last = container._localMapLastPreview;
+                    updateCrashSiteLocalMapPathOverlay(container, last);
+                } catch { /* ignore */ }
+            });
+        }
+    } catch { /* ignore */ }
+
     const viewport = container.querySelector('.localmap-grid-viewport');
     const shell = container.querySelector('.localmap-shell');
 
@@ -1597,6 +1690,20 @@ export function setupCrashSiteLocalMap(container, { scoutStage = 0, totalStages 
                     tile.classList.add('has-caveentry-overlay');
                     const overlay = document.createElement('div');
                     overlay.className = 'localmap-caveentry-overlay';
+                    overlay.setAttribute('aria-hidden', 'true');
+                    tile.appendChild(overlay);
+                }
+            } catch { /* ignore */ }
+
+            // Thorny wall overlay art (C5): show until the wall is burned away.
+            // Keep it hidden under fog-of-war by gating on `discovered`.
+            try {
+                const isC5 = (c === 3 && r === 5);
+                const burned = !!(state && typeof state === 'object' && state.c5ThornWallBurned === true);
+                if (discovered && isC5 && !burned) {
+                    tile.classList.add('has-thornwall-overlay');
+                    const overlay = document.createElement('div');
+                    overlay.className = 'localmap-thornwall-overlay';
                     overlay.setAttribute('aria-hidden', 'true');
                     tile.appendChild(overlay);
                 }

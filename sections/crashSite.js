@@ -1559,9 +1559,10 @@ export function setupCrashSiteSection(section) {
                     }
                 } catch { /* ignore */ }
 
-                if (traverseBtn && hasPath) {
-                    traverseBtn.addEventListener('mouseenter', () => setRoutePreview(path, 'traverse'));
-                    traverseBtn.addEventListener('mouseleave', () => clearRoutePreview());
+                // Always show the traverse route hint when traversal is actually possible.
+                // (Previously this was hover-only on the Traverse button.)
+                if (hasPath) {
+                    setRoutePreview(path, 'traverse');
                 }
             } else {
                 // Unexplored tiles: show Explore only when adjacent (one-step move into fog).

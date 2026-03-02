@@ -14,6 +14,12 @@ export const LOCAL_MAP_TILE_TYPES = {
         description: 'Dense alien forest. Visibility is limited and the ground is uneven.',
         blocked: false,
     },
+    cliff: {
+        id: 'cliff',
+        label: 'Cliff',
+        description: 'A steep cliff face. The drop looks dangerous and the rock is difficult to climb.',
+        blocked: false,
+    },
     darkForest: {
         id: 'darkForest',
         label: 'Dark Forest',
@@ -242,6 +248,19 @@ const INTERNAL_POI_DOORS = new Set([
     edgeKey(7, 6, 7, 7),
 ]);
 
+// Exterior (non-POI) blocked edges that act like walls but should not render as doors/walls.
+// Used to shape navigation without adding visible map affordances.
+const EXTERIOR_INVISIBLE_WALLS = new Set([
+    // A6 <-> B6, A7 <-> B7, A8 <-> B8
+    edgeKey(1, 6, 2, 6),
+    edgeKey(1, 7, 2, 7),
+    edgeKey(1, 8, 2, 8),
+    // B5 <-> B6
+    edgeKey(2, 5, 2, 6),
+    // B5 <-> C5
+    edgeKey(2, 5, 3, 5),
+]);
+
 export function hasInternalPoiWallBetween(fromX, fromY, toX, toY) {
     const fx = Number(fromX);
     const fy = Number(fromY);
@@ -335,6 +354,12 @@ const OVERRIDES = {
 
     // C5 thorn wall (cleared later)
     '3,5': { type: 'thornWall' },
+
+    // Cliff tiles (unreachable for now)
+    '1,5': { type: 'cliff' },
+    '1,6': { type: 'cliff' },
+    '1,7': { type: 'cliff' },
+    '1,8': { type: 'cliff' },
 };
 
 function getMarkersForCell(col, row, localMapState) {
@@ -614,6 +639,11 @@ export function getLocalMapTileAt(col, row, { scoutStage = 0, hasTriedReentry = 
         globallyAllowed = true; // B6 cave
     }
 
+    // Explicitly allow A5-A8 cliff tiles even though they are outside the early walkable ring.
+    if (c === 1 && r >= 5 && r <= 8) {
+        globallyAllowed = true;
+    }
+
     // Explicitly allow the western camp route tiles from the start.
     // (Markers/unlocks can still be gated via localMapState flags.)
     if (
@@ -695,6 +725,11 @@ export function isCrashWallBetween(fromX, fromY, toX, toY, { localMapState = nul
 
     const dist = Math.abs(tx - fx) + Math.abs(ty - fy);
     if (dist !== 1) return false;
+
+    // Exterior invisible walls (apply regardless of POI boundary logic).
+    try {
+        if (EXTERIOR_INVISIBLE_WALLS.has(edgeKey(fx, fy, tx, ty))) return true;
+    } catch { /* ignore */ }
 
     const fromIn = isCrashPoi(fx, fy);
     const toIn = isCrashPoi(tx, ty);

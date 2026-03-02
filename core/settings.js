@@ -219,6 +219,8 @@ export function initOptions() {
 			const next = !!reduceMotionToggle.checked;
 			try { localStorage.setItem(REDUCE_MOTION_KEY, JSON.stringify(next)); } catch (e) {}
 			document.body.classList.toggle('reduce-motion', next);
+            // Let active screens refresh any motion-sensitive UI immediately.
+            try { window.dispatchEvent(new CustomEvent('reduce-motion-updated', { detail: { enabled: next } })); } catch { /* ignore */ }
 		});
 	}
 	
