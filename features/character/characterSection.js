@@ -15,14 +15,14 @@ import {
     moveEquipItemToBag,
     moveEquipItemToEquip,
     swapBagSlots,
-} from '../data/character.js';
-import { getItemDefinition } from '../data/definitions/items.js';
-import { resources } from '../core/resources.js';
-import { getTotalIngameMinutes } from '../core/time.js';
-import { setupTooltip } from '../ui/panels/tooltip.js';
-import { showConfirmPopup } from '../ui/panels/confirmPopup.js';
-import { newBadgeHtml } from '../ui/components/contentNewBadges.js';
-import { useConsumableFromBag } from '../data/consumables.js';
+} from './character.js';
+import { getItemDefinition } from './items.js';
+import { resources } from '../../core/resources.js';
+import { getTotalIngameMinutes } from '../../core/time.js';
+import { setupTooltip } from '../../ui/panels/tooltip.js';
+import { showConfirmPopup } from '../../ui/panels/confirmPopup.js';
+import { newBadgeHtml } from '../../ui/components/contentNewBadges.js';
+import { useConsumableFromBag } from './consumables.js';
 
 let listenersInstalled = false;
 let currentDragPayload = null;

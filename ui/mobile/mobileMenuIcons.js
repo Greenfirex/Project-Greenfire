@@ -3,12 +3,14 @@
 // - Mirrors the existing unlocked menu buttons so players can switch sections without expanding
 
 import { isCompactPhoneLandscape as isCompactPhoneLandscapeShared } from './compactMode.js';
-import { characterState, getUnspentStatPoints } from '../data/character.js';
-import { resources } from '../core/resources.js';
-import { jobs } from '../data/jobsManager.js';
-import { buildings } from '../data/definitions/buildings.js';
-import { allActions } from '../data/definitions/allActions.js';
-import { gameFlags } from '../data/gameFlags.js';
+import { characterState, getUnspentStatPoints } from '../../features/character/character.js';
+import { resources } from '../../core/resources.js';
+
+// --- Stubs for systems moved to backup during refactor ---
+const jobs = [];
+const buildings = [];
+const allActions = [];
+const gameFlags = {};
 
 function isCompactPhoneLandscape() {
     return !!isCompactPhoneLandscapeShared();
@@ -36,37 +38,12 @@ function svgForSection(sectionId) {
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" />
 </svg>`,
-                colonySection: `
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M4 12l8-8 8 8" />
-    <path d="M6 10v10h12V10" />
-    <path d="M10 20v-6h4v6" />
-</svg>`,
                 craftingSection: `
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M3 21V10l6 3V10l6 3V10l6 3v8H3z" />
     <path d="M7 21v-4" />
     <path d="M11 21v-4" />
     <path d="M15 21v-4" />
-</svg>`,
-                shipyardSection: `
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M12 2l3 6 7 3-10 4-10-4 7-3 3-6z" />
-    <path d="M2 15c2 2 5 3 10 3s8-1 10-3" />
-    <path d="M4 19c2 2 4 3 8 3s6-1 8-3" />
-</svg>`,
-                galaxyMapSection: `
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M12 2v20" />
-    <path d="M2 12h20" />
-    <path d="M4.5 7.5c4.5-4.5 10.5-4.5 15 0" />
-    <path d="M4.5 16.5c4.5 4.5 10.5 4.5 15 0" />
-</svg>`,
-                encryptedDriveSection: `
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <rect x="5" y="11" width="14" height="10" rx="2" />
-    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-    <path d="M12 16v2" />
 </svg>`,
                 characterSection: `
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -269,11 +246,8 @@ function selectCrashSiteTab(tabKey) {
 }
 
 function getCraftingTabMeta() {
-    const researchUnlocked = !!(gameFlags && gameFlags.researchTabUnlocked === true);
     return {
-        craftingLabel: 'Crafting',
-        researchLabel: researchUnlocked ? 'Research' : '???',
-        researchDisabled: !researchUnlocked
+        craftingLabel: 'Crafting'
     };
 }
 
@@ -462,21 +436,10 @@ function renderRail() {
         b.addEventListener('click', (e) => {
             e.preventDefault();
 
-            // Special mobile UX: Crash Site icon opens a small popover that
-            // maps to the existing Crash Site tab buttons (Local map / Campsite).
+            // Crash Site has no tabs now.
             if (item.sectionId === 'crashSiteSection') {
-                const meta = getCrashSiteTabMeta();
-                const warn = getCrashSiteCampTabWarnMeta();
-                openPopover(b, [
-                    { label: meta.mapLabel || 'Local map', onSelect: () => selectCrashSiteTab('map') },
-                    {
-                        label: meta.campLabel || (meta.campDisabled ? '???' : 'Campsite'),
-                        disabled: !!meta.campDisabled,
-                        disabledReason: meta.campDisabled ? 'Locked' : '',
-                        hasWarn: !!(warn && warn.campWarn && !meta.campDisabled),
-                        onSelect: () => selectCrashSiteTab('camp')
-                    }
-                ]);
+                const btn = document.querySelector('#mainMenu .menu-button[data-section="crashSiteSection"]');
+                if (btn) btn.click();
                 return;
             }
 
@@ -512,18 +475,9 @@ function renderRail() {
                 return;
             }
 
-            // Crafting has in-section tabs (Crafting / Research). In compact mode, use the same popover mechanic.
+            // Crafting has no tabs now.
             if (item.sectionId === 'craftingSection') {
-                const meta = getCraftingTabMeta();
-                openPopover(b, [
-                    { label: meta.craftingLabel || 'Crafting', onSelect: () => selectCraftingTab('crafting') },
-                    {
-                        label: meta.researchLabel || 'Research',
-                        disabled: !!meta.researchDisabled,
-                        disabledReason: meta.researchDisabled ? 'Locked' : '',
-                        onSelect: () => selectCraftingTab('research')
-                    }
-                ]);
+                selectCraftingTab('crafting');
                 return;
             }
 

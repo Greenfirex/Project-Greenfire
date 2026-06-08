@@ -1,6 +1,6 @@
 // Panel Collapse/Expand functionality for main menu and info panel
 
-import { isCompactPhoneLandscape } from './compactMode.js';
+import { isCompactPhoneLandscape } from '../mobile/compactMode.js';
 
 let leftPanelCollapsed = false;
 let rightPanelCollapsed = false;

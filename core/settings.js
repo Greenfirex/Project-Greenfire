@@ -1,4 +1,5 @@
 import { LogType, updateLogSettings } from './ingameLog.js';
+import { getSelectedLanguage, setLanguage } from './localization.js';
 
 // A single, unified map for all color options
 const colorMap = {
@@ -191,7 +192,23 @@ export function initOptions() {
         });
     });
 
-	
+    const languageSelect = document.getElementById('languageSelect');
+    if (languageSelect) {
+        // Populate dropdown dynamically from available languages
+        const available = getAvailableLanguages();
+        languageSelect.innerHTML = available.map(l =>
+            `<option value="${l.code}">${l.label}</option>`
+        ).join('');
+
+        const currentLanguage = getSelectedLanguage();
+        languageSelect.value = currentLanguage;
+        setLanguage(currentLanguage);
+        languageSelect.addEventListener('change', () => {
+            const next = String(languageSelect.value || 'en');
+            setLanguage(next);
+        });
+    }
+
 	const glowSlider = document.getElementById('glowIntensitySlider');
     if (glowSlider) {
         // Set the slider's initial position from localStorage (defaulting to 70)

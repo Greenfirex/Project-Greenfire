@@ -28,15 +28,11 @@
 <link rel="stylesheet" href="styles/components/log-options.css">
 <link rel="stylesheet" href="styles/components/changelog.css">
 <!-- Section Styles -->
-<link rel="stylesheet" href="styles/sections/research.css">
 <link rel="stylesheet" href="styles/sections/crafting.css">
-<link rel="stylesheet" href="styles/sections/colony.css">
 <link rel="stylesheet" href="styles/sections/crashSite.css">
 <link rel="stylesheet" href="styles/sections/journal.css">
 <link rel="stylesheet" href="styles/sections/character.css">
-<link rel="stylesheet" href="styles/sections/campsite.css">
-<link rel="stylesheet" href="styles/sections/encryptedDrive.css">
-<link rel="stylesheet" href="styles/sections/localMap.css">
+<!-- localMap.css intentionally omitted during refactor -->
 <link rel="stylesheet" href="styles/sections/titleScreen.css">
 
 <!-- Forced compact-mode overrides (used for iOS PWA desktop-viewport quirks) -->
@@ -59,6 +55,10 @@
 <div id="titleScreen" class="title-screen-overlay hidden" aria-hidden="true" hidden>
     <div class="title-screen-card" role="main" aria-label="Project Greenfire title screen">
         <img class="title-screen-logo" src="assets/images/logo-header.png" alt="Project Greenfire">
+        <div class="title-screen-flags">
+            <button id="titleLangEn" class="title-screen-flag" type="button" data-lang="en" title="English">🇬🇧</button>
+            <button id="titleLangCs" class="title-screen-flag" type="button" data-lang="cs" title="Čeština">🇨🇿</button>
+        </div>
         <div class="title-screen-menu">
             <button id="titleContinueBtn" class="title-screen-btn" type="button">Continue</button>
             <button id="titleNewGameBtn" class="title-screen-btn" type="button">New Game</button>
@@ -75,13 +75,12 @@
     </div>
     <div class="header-center">
         <span id="headerClock" class="clock-display"></span>
-        <div id="moraleWidget" class="morale-widget hidden"></div>
-        <div id="weatherWidget" class="weather-widget"></div>
     </div>
     <div class="header-right">
         <div class="header-links">
             <a href="#" id="optionsLink" class="header-link">Options</a>
             <a href="#" id="saveLink" class="header-link">Save</a>
+            <a href="#" id="titleLink" class="header-link">Title</a>
             <a href="#" id="loadLink" class="header-link">Load</a>
         </div>
     </div>
@@ -126,7 +125,7 @@
         
     </div>
     <div class="footer-column">
-        <button id="changelogBtn" class="header-link">v0.2.8</button>
+<button id="changelogBtn" class="header-link">v0.1.0</button>
     </div>
 </div>
 
@@ -186,6 +185,15 @@
         <div class="option-group popup-span-all">
             <h4>Glow Intensity</h4>
             <input type="range" id="glowIntensitySlider" min="0" max="100" step="1" value="70">
+        </div>
+
+        <div class="option-group">
+            <h4>Language</h4>
+            <label for="languageSelect">Select language</label>
+            <select id="languageSelect">
+                <option value="en">English</option>
+                <option value="es">Español</option>
+            </select>
         </div>
 
         <div class="option-group save-management popup-span-all">

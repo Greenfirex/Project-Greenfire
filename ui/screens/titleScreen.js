@@ -1,6 +1,21 @@
-import { showConfirmPopup } from './panels/confirmPopup.js';
+import { showConfirmPopup } from '../panels/confirmPopup.js';
+import { getSelectedLanguage, setLanguage } from '../../core/localization.js';
 
 const BODY_CLASS = 'title-screen-active';
+
+function updateTitleScreenText() {
+    import('../../core/localization.js').then(({ t: translate }) => {
+        const set = (id, key, fb) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = translate(key, fb);
+        };
+        set('titleContinueBtn', 'continue', 'Continue');
+        set('titleNewGameBtn', 'newGame', 'New Game');
+        set('titleSettingsBtn', 'settings', 'Settings');
+        set('titleChangelogBtn', 'changelog', 'Changelog');
+        set('titleExitBtn', 'exit', 'Exit');
+    }).catch(() => {});
+}
 
 function setHiddenWithInert(el, hidden) {
     if (!el) return;
@@ -187,6 +202,38 @@ export function initTitleScreen({
             if (btn) btn.click();
         });
     }
+
+    // Language flag buttons
+    const langEnBtn = document.getElementById('titleLangEn');
+    const langCsBtn = document.getElementById('titleLangCs');
+
+    function updateFlagActiveState() {
+        const lang = getSelectedLanguage();
+        if (langEnBtn) langEnBtn.classList.toggle('active', lang === 'en');
+        if (langCsBtn) langCsBtn.classList.toggle('active', lang === 'cs');
+    }
+
+    if (langEnBtn && langEnBtn.dataset.wired !== 'true') {
+        langEnBtn.dataset.wired = 'true';
+        langEnBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            setLanguage('en');
+            updateFlagActiveState();
+            updateTitleScreenText();
+        });
+    }
+
+    if (langCsBtn && langCsBtn.dataset.wired !== 'true') {
+        langCsBtn.dataset.wired = 'true';
+        langCsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            setLanguage('cs');
+            updateFlagActiveState();
+            updateTitleScreenText();
+        });
+    }
+
+    updateFlagActiveState();
 
     if (exitBtn && exitBtn.dataset.wired !== 'true') {
         exitBtn.dataset.wired = 'true';

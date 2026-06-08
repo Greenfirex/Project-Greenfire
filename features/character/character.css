@@ -1,0 +1,1671 @@
+/* Character Section (v1 scaffold)
+   Keep styling consistent with existing section panels.
+*/
+
+#characterSection {
+    /* Match Journal / Crash Site section layout: background + padding + inner content-panel */
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+
+    padding: 20px;
+    box-sizing: border-box;
+
+    background-image: url('../../assets/images/inventorybackground.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
+    /* Shared slot sizing (bag + equipment) so drag previews feel consistent */
+    --inv-slot-w: clamp(92px, 11vw, 132px);
+    --inv-slot-h: clamp(56px, 8vw, 64px);
+
+    /* Desktop: inventory slots get a bit more height so item names never clip */
+    --bag-slot-h: calc(var(--inv-slot-h) + 12px);
+
+    /* Allow responsive rules to key off the actual section width (important when side panels shrink game area). */
+    container-type: inline-size;
+    container-name: character;
+}
+
+/* Override shared .content-panel height:100% so it behaves well inside padded sections */
+#characterSection > .content-panel.character-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+
+    /* Match Crash Site/Campsite panel inset (tighter than global content-panel padding). */
+    padding: 12px;
+    scrollbar-gutter: auto;
+}
+
+/* --- Character Tabs (Gear / Stats) --- */
+#characterSection .character-panel { position: relative; }
+
+#characterSection .character-tabs {
+    position: relative;
+    display: flex;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+#characterSection .character-tabs::after,
+#characterSection .character-tabs::before {
+    content: none;
+}
+
+#characterSection .character-tab {
+    flex: 1 1 0;
+    text-align: center;
+    background: linear-gradient(180deg, rgba(8,8,8,0.96), rgba(4,4,4,0.92));
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.38);
+    border-bottom: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.58);
+    color: #cfd8cf;
+    padding: 12px 28px;
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    cursor: pointer;
+    font-size: 15px;
+    letter-spacing: 0.6px;
+    position: relative;
+    transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+#characterSection .character-tab:hover {
+    color: #fff;
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
+}
+
+#characterSection .character-tab.active {
+    background: rgba(6, 6, 6, 0.89);
+    color: #ffffff;
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.60);
+    border-bottom: none;
+    box-shadow: none;
+    z-index: 2;
+}
+
+#characterSection .character-tab:not(.active) {
+    box-shadow:
+        0 0 0 1px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.14) inset,
+        0 2px 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10);
+}
+
+/* Tab-level NEW badge (Gear/Stats) */
+#characterSection .character-tab .action-new-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 10px;
+    border-radius: 999px;
+    background: rgba(255, 213, 74, 0.92);
+    color: rgba(0,0,0,0.92);
+    font-weight: 900;
+    font-size: 12px;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.35);
+    pointer-events: none;
+}
+
+#characterSection .character-tabpanes {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#characterSection .character-pane {
+    display: none;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+#characterSection .character-pane.active {
+    display: flex;
+    flex-direction: column;
+}
+
+#characterSection .character-subtitle {
+    margin: 0 0 16px 0;
+    color: #c9d7c9;
+    font-size: 13px;
+}
+
+#characterSection .character-layout {
+    display: grid;
+    grid-template-columns: 0.95fr 1.05fr;
+    grid-template-areas:
+        "equipment stats"
+        "inventory inventory";
+    /* Let the inventory row take remaining height (so the bag can scroll inside it) */
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 14px;
+    flex: 1 1 auto;
+    min-height: 0;
+    /* Avoid nested scrollbars; scrolling happens inside the bag (and stats list when needed) */
+    overflow: hidden;
+}
+
+#characterSection .equipment-card { grid-area: equipment; }
+#characterSection .stats-card { grid-area: stats; }
+#characterSection .inventory-card { grid-area: inventory; }
+
+/* Tab-specific layouts */
+#characterSection .character-layout.character-layout-gear {
+    grid-template-columns: 0.95fr 1.05fr;
+    grid-template-areas: "equipment inventory";
+    grid-template-rows: minmax(0, 1fr);
+}
+
+/* Desktop: show Stats as a panel under Equipment (Inventory stays on the right). */
+#characterSection .character-layout.character-layout-desktop {
+    grid-template-columns: 0.95fr 1.05fr;
+    grid-template-areas:
+        "equipment inventory"
+        "stats inventory";
+    grid-template-rows: auto minmax(0, 1fr);
+}
+
+/* (mid portrait divider removed) */
+
+#characterSection .character-layout.character-layout-stats {
+    grid-template-columns: 1fr;
+    grid-template-areas: "stats";
+    grid-template-rows: minmax(0, 1fr);
+}
+
+#characterSection .character-card {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.25);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Stats */
+#characterSection .stats-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    /* Allow the stats list to take remaining space in the stats card when height is constrained */
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    /* Keep the scrollbar from crowding right-edge controls (like + buttons). */
+    padding-right: 12px;
+    scrollbar-gutter: stable;
+}
+
+/* Styled scrollbar (match in-game log look) */
+#characterSection .stats-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.6) #111;
+}
+
+#characterSection .stats-list::-webkit-scrollbar {
+    width: 12px;
+}
+
+#characterSection .stats-list::-webkit-scrollbar-track {
+    background: #111;
+}
+
+#characterSection .stats-list::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+    border-radius: 6px;
+    border: 3px solid #111;
+}
+
+#characterSection .stats-list::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
+}
+
+#characterSection .stat-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#characterSection .stat-line .stat-row {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+#characterSection .stat-allocate-spacer {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+}
+
+#characterSection .stat-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 10px;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.22);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.14);
+}
+
+/* Item-modified stat coloring (value only). */
+#characterSection .stat-row.is-item-positive .stat-value {
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.98);
+}
+
+#characterSection .stat-row.is-item-negative .stat-value {
+    color: rgba(231, 76, 60, 0.95);
+}
+
+/* Debuff-modified stat coloring (value only). */
+#characterSection .stat-row.is-debuff-negative .stat-value {
+    color: rgba(231, 76, 60, 0.95);
+}
+
+#characterSection .stat-row.stat-row-bar {
+    align-items: center;
+    justify-content: flex-start;
+}
+
+#characterSection .stat-row.stat-row-bar .stat-label {
+    flex: 0 0 84px;
+}
+
+#characterSection .stat-row.stat-row-bar .stat-value {
+    flex: 0 0 auto;
+    margin-left: 10px;
+}
+
+#characterSection .stat-allocate-btn {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    margin-left: 6px;
+    border-radius: 7px;
+    border: 1px solid rgba(255,255,255,0.20);
+    background: rgba(0,0,0,0.18);
+    color: rgba(255,255,255,0.90);
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
+}
+
+/* When the + is outside the stat row, don't add extra inner spacing. */
+#characterSection .stat-line .stat-allocate-btn {
+    margin-left: 0;
+}
+
+#characterSection .stat-allocate-btn:hover:not(:disabled) {
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.55);
+    box-shadow: 0 0 12px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
+}
+
+#characterSection .stat-allocate-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+#characterSection .stat-bar {
+    position: relative;
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 16px;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+#characterSection .stat-bar-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    background: linear-gradient(90deg,
+        rgba(255, 214, 80, 0.55),
+        rgba(255, 214, 80, 0.95)
+    );
+    box-shadow: 0 0 12px rgba(255, 214, 80, 0.22);
+}
+
+/* Health is red, Stamina is yellow */
+#characterSection .stat-row[data-stat="health"] .stat-bar-fill {
+    background: linear-gradient(90deg,
+        rgba(231, 76, 60, 0.55),
+        rgba(231, 76, 60, 0.95)
+    );
+    box-shadow: 0 0 12px rgba(231, 76, 60, 0.22);
+}
+
+/* XP gets a distinct cool tone */
+#characterSection .stat-row[data-stat="xp"] .stat-bar-fill {
+    background: linear-gradient(90deg,
+        rgba(84, 132, 255, 0.55),
+        rgba(84, 132, 255, 0.95)
+    );
+    box-shadow: 0 0 12px rgba(84, 132, 255, 0.22);
+}
+
+
+#characterSection .stat-label {
+    color: rgba(255,255,255,0.85);
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+#characterSection .stat-label-icon {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.88);
+    opacity: 0.95;
+}
+
+#characterSection .stat-label-icon svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+
+#characterSection .stat-label-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#characterSection .stat-value {
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+#characterSection .character-card-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+#characterSection .stat-points-chip {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: rgba(20, 40, 20, 0.25);
+    border: 1px solid rgba(144, 238, 144, 0.18);
+    box-shadow: 0 0 8px rgba(144,238,144,0.12) inset;
+    color: #eaffea;
+    font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: help;
+    user-select: none;
+}
+
+#characterSection .stat-points-chip strong {
+    color: #ffffff;
+    font-weight: 900;
+}
+
+#characterSection .character-card-header h3 {
+    margin: 0;
+    font-size: 14px;
+    color: #90EE90;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+#characterSection .character-card-hint {
+    color: rgba(255,255,255,0.55);
+    font-size: 12px;
+}
+
+#characterSection .inventory-trash-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(0,0,0,0.20);
+    color: rgba(255,255,255,0.75);
+    cursor: pointer;
+}
+
+#characterSection .inventory-use-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(0,0,0,0.20);
+    color: rgba(255,255,255,0.82);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+}
+
+#characterSection .inventory-use-btn:hover:not(:disabled) {
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.45);
+    color: rgba(255,255,255,0.95);
+}
+
+#characterSection .inventory-use-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+#characterSection .inventory-trash-btn:hover {
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.45);
+    color: rgba(255,255,255,0.92);
+}
+
+#characterSection .inventory-trash-btn.active {
+    border-color: rgba(231, 76, 60, 0.65);
+    color: rgba(231, 76, 60, 0.95);
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.14);
+}
+
+#characterSection .inventory-trash-icon {
+    width: 18px;
+    height: 18px;
+    display: block;
+}
+
+/* Equipment (Paper Doll) */
+#characterSection .paperdoll {
+    position: relative;
+    height: 470px;
+    border-radius: 12px;
+    background: radial-gradient(circle at 50% 25%, rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10), rgba(0,0,0,0) 60%),
+                rgba(0,0,0,0.18);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.14);
+    overflow: hidden;
+}
+
+/* Active effects overlay (e.g., Herb Tea) */
+#characterSection .paperdoll .active-effects {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    z-index: 4;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#characterSection .paperdoll .active-effect-btn {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    z-index: 4;
+
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 10px;
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.22);
+    background: rgba(0,0,0,0.25);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* When using the multi-icon wrapper, buttons should flow instead of overlapping. */
+#characterSection .paperdoll .active-effects .active-effect-btn {
+    position: static;
+    right: auto;
+    top: auto;
+}
+
+#characterSection .paperdoll .active-effect-btn.hidden {
+    display: none;
+}
+
+#characterSection .paperdoll .active-effect-btn:hover {
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.45);
+}
+
+#characterSection .paperdoll .active-effect-icon {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.55));
+}
+
+#characterSection .paperdoll .active-effect-svg {
+    width: 22px;
+    height: 22px;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.55));
+}
+
+#characterSection .paperdoll .active-effect-emoji {
+    font-size: 18px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.55));
+}
+
+#characterSection .paperdoll .active-effect-fallback {
+    color: rgba(255,255,255,0.88);
+    font-weight: 900;
+}
+
+#characterSection .paperdoll-silhouette {
+    position: absolute;
+    left: 50%;
+    top: 52%;
+    transform: translate(-50%, -50%);
+    height: 460px;
+    width: auto;
+    opacity: 0.72;
+    pointer-events: none;
+    z-index: 1;
+    image-rendering: auto;
+    /* The source image has a dark/black background; blend + mask it so it doesn't look like a hard rectangle. */
+    mix-blend-mode: screen;
+    -webkit-mask-image: radial-gradient(ellipse at 50% 46%, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 80%);
+    mask-image: radial-gradient(ellipse at 50% 46%, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 80%);
+    filter: drop-shadow(0 16px 28px rgba(0,0,0,0.65)) contrast(1.05) brightness(0.95);
+}
+
+#characterSection .equipment-slot {
+    position: relative;
+    height: 76px;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    cursor: default;
+    overflow: hidden;
+}
+
+/* Paper-doll slots are positioned around the silhouette */
+#characterSection .paperdoll .equipment-slot {
+    position: absolute;
+    width: var(--inv-slot-w);
+    height: var(--inv-slot-h);
+    background: linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0.35));
+    backdrop-filter: blur(2px);
+    z-index: 2;
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="head"] {
+    left: 50%;
+    top: 28px;
+    transform: translateX(-50%);
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="chest"] {
+    left: 50%;
+    top: 132px;
+    transform: translateX(-50%);
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="legs"] {
+    left: 50%;
+    top: 256px;
+    transform: translateX(-50%);
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="boots"] {
+    left: 50%;
+    top: 354px;
+    transform: translateX(-50%);
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="weapon"] {
+    left: 8px;
+    top: 186px;
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="offhand"] {
+    right: 8px;
+    top: 186px;
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="accessory_1"] {
+    left: 8px;
+    top: 354px;
+}
+
+#characterSection .paperdoll .equipment-slot[data-slot="accessory_2"] {
+    right: 8px;
+    top: 354px;
+}
+
+#characterSection .equipment-slot .slot-frame {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10), rgba(0,0,0,0));
+    pointer-events: none;
+}
+
+#characterSection .equipment-slot .slot-label {
+    position: absolute;
+    left: 10px;
+    bottom: 8px;
+    color: #ffffff;
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+#characterSection .equipment-slot.has-item .slot-label {
+    display: none;
+}
+
+/* When the label is hidden (equipped slots), let the item content use that space. */
+#characterSection .equipment-slot.has-item .slot-item {
+    bottom: 8px;
+}
+
+#characterSection .slot-item {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    top: 6px;
+    bottom: 24px;
+    color: #eaffea;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-width: 0;
+    text-align: center;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+}
+
+#characterSection .slot-item .item-name {
+    min-width: 0;
+    white-space: normal;
+    overflow: hidden;
+    max-width: 100%;
+    line-height: 1.2;
+    max-height: 2.6em; /* ~2 lines; avoids descender clipping */
+    word-break: break-word;
+    hyphens: auto;
+}
+
+#characterSection .item-icon {
+    --item-icon-size: 30px;
+    width: var(--item-icon-size);
+    height: var(--item-icon-size);
+    flex: 0 0 auto;
+    filter: drop-shadow(0 1px 0 rgba(0,0,0,0.55));
+}
+
+/* Slightly larger icons on the paper-doll slots */
+#characterSection .paperdoll .equipment-slot .item-icon {
+    --item-icon-size: 34px;
+}
+
+/* Bag */
+#characterSection .inventory-card {
+    min-height: 230px;
+}
+
+#characterSection .bag-grid {
+    display: grid;
+    /* Keep bag slots consistent with equipment slot sizing */
+    /* Allow columns to shrink to fit (avoids horizontal scrolling in narrow game area) */
+    grid-template-columns: repeat(var(--bag-cols, 6), minmax(0, var(--inv-slot-w)));
+    grid-template-rows: repeat(var(--bag-rows, 2), var(--bag-slot-h, var(--inv-slot-h)));
+    gap: 10px;
+    padding: 6px;
+    box-sizing: border-box;
+    overflow: auto;
+    overflow-x: hidden;
+    flex: 1 1 auto;
+    min-height: 0;
+    justify-content: start;
+    align-content: start;
+}
+
+/* Styled scrollbar (match in-game log look) */
+#characterSection .bag-grid {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.6) #111;
+}
+
+#characterSection .bag-grid::-webkit-scrollbar {
+    width: 12px;
+}
+
+#characterSection .bag-grid::-webkit-scrollbar-track {
+    background: #111;
+}
+
+#characterSection .bag-grid::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
+    border-radius: 6px;
+    border: 3px solid #111;
+}
+
+#characterSection .bag-grid::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
+}
+
+#characterSection .bag-slot {
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.22);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.16);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Inventory-slot NEW badge */
+#characterSection .bag-slot .action-new-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+    color: rgba(0,0,0,0.92);
+    background: rgba(255, 216, 74, 0.95);
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.55);
+    z-index: 3;
+    pointer-events: none;
+}
+
+#characterSection .bag-item {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    top: 6px;
+    bottom: 6px;
+    color: rgba(255,255,255,0.90);
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    text-align: center;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.6);
+}
+
+/* Bag slots are smaller; slightly reduce icon size so text never clips */
+#characterSection .bag-item .item-icon {
+    --item-icon-size: 26px;
+}
+
+#characterSection .bag-item .item-name {
+    min-width: 0;
+    white-space: normal;
+    overflow: hidden;
+    max-width: 100%;
+    line-height: 1.2;
+    max-height: 2.6em; /* ~2 lines; avoids descender clipping */
+    word-break: break-word;
+    hyphens: auto;
+}
+
+#characterSection .bag-item .item-qty {
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.2px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    color: rgba(255,255,255,0.92);
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.22);
+    box-shadow: 0 1px 0 rgba(0,0,0,0.4);
+    pointer-events: none;
+}
+
+/* When a NEW badge is present, nudge qty down so both remain readable. */
+#characterSection .bag-slot.has-new-badge .bag-item .item-qty {
+    top: 26px;
+}
+
+/* Drag & drop feedback */
+#characterSection .bag-slot.drop-ok,
+#characterSection .equipment-slot.drop-ok {
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.75);
+    box-shadow: 0 0 0 2px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18), inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+/* Touch drag: emphasize the current hovered target */
+#characterSection .bag-slot.drop-hover,
+#characterSection .equipment-slot.drop-hover {
+    box-shadow:
+        0 0 0 3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.28),
+        0 0 18px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.14),
+        inset 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+#characterSection .bag-slot.drop-bad,
+#characterSection .equipment-slot.drop-bad {
+    border-color: rgba(231, 76, 60, 0.65);
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.18), inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+/* Touch drag ghost element */
+.touch-drag-ghost {
+    position: fixed;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -60%);
+    pointer-events: none;
+    z-index: 2147483201; /* just under tooltip */
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.72);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+    max-width: min(240px, 70vw);
+}
+
+.touch-drag-ghost .item-icon {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.55));
+}
+
+.touch-drag-ghost .ghost-label {
+    color: rgba(255,255,255,0.92);
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+body.is-touch-dragging {
+    user-select: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+    /* Prevent double-tap zoom; keep scroll/pan in containers. */
+    #characterSection .bag-slot,
+    #characterSection .equipment-slot {
+        touch-action: manipulation;
+    }
+}
+
+#characterSection .bag-slot:focus {
+    outline: none;
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.55);
+    box-shadow: 0 0 0 2px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
+}
+
+#characterSection .bag-slot.selected {
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.62);
+    box-shadow: 0 0 0 2px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
+}
+
+/* Discard mode affordance */
+#characterSection .character-panel.discard-mode .bag-slot.has-item {
+    cursor: pointer;
+}
+
+#characterSection .character-panel.discard-mode .bag-slot.has-item:hover {
+    border-color: rgba(231, 76, 60, 0.65);
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.14), inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+@media (max-width: 900px) {
+    #characterSection .character-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "equipment"
+            "stats"
+            "inventory";
+        /* Keep Stats + Inventory visible; they share remaining height and can scroll internally */
+        grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    #characterSection .character-layout.character-layout-gear {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "equipment"
+            "inventory";
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    #characterSection .character-layout.character-layout-stats {
+        grid-template-columns: 1fr;
+        grid-template-areas: "stats";
+        grid-template-rows: minmax(0, 1fr);
+    }
+}
+
+/* Match the same stacking behavior based on the actual Character section width
+   (important when the viewport is wide but side panels make the game area narrow). */
+@container character (max-width: 1100px) {
+    /* Before we stack, shrink slots a bit so the 2-column layout can stay usable. */
+    #characterSection {
+        --inv-slot-w: clamp(76px, 10vw, 116px);
+        --inv-slot-h: clamp(52px, 7vw, 64px);
+    }
+
+    /* When the viewport is wide but side panels make the section narrow, vw doesn't shrink.
+       Prefer container query units when supported. */
+    @supports (width: 1cqw) {
+        #characterSection {
+            --inv-slot-w: clamp(76px, 10cqw, 116px);
+            --inv-slot-h: clamp(52px, 7cqw, 64px);
+        }
+    }
+
+    #characterSection .bag-grid {
+        gap: 8px;
+    }
+
+    #characterSection .paperdoll {
+        height: 420px;
+    }
+
+    #characterSection .paperdoll-silhouette {
+        height: 410px;
+    }
+}
+
+@container character (max-width: 900px) {
+    #characterSection {
+        --equip-slot-h: clamp(44px, 7.5vw, 56px);
+    }
+
+    @supports (width: 1cqw) {
+        #characterSection {
+            /* Aggressive shrink so equipment always fits when height is tight. */
+            --equip-slot-h: clamp(34px, 5.5cqw, 44px);
+        }
+    }
+
+    #characterSection .character-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "equipment"
+            "stats"
+            "inventory";
+        /* Ultra-small layouts: cap equipment growth and reserve minimum space
+           so at least one stat row + one inventory row remain visible. */
+        --character-stats-min-h: 170px;
+        --character-inv-min-h: calc(var(--inv-slot-h) + 92px);
+        /* Equipment should always fully show; Stats/Inventory use the remaining space and can scroll internally */
+        grid-template-rows:
+            auto
+            minmax(var(--character-stats-min-h), 1fr)
+            minmax(var(--character-inv-min-h), 1fr);
+    }
+
+    #characterSection .character-layout.character-layout-gear {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "equipment"
+            "inventory";
+        --character-inv-min-h: calc(var(--inv-slot-h) + 92px);
+        grid-template-rows:
+            auto
+            minmax(var(--character-inv-min-h), 1fr);
+    }
+
+    #characterSection .character-layout.character-layout-stats {
+        grid-template-columns: 1fr;
+        grid-template-areas: "stats";
+        grid-template-rows: minmax(0, 1fr);
+    }
+
+    /* Keep equipment visible without scrolling: shrink slots instead */
+    #characterSection .equipment-card {
+        overflow: hidden;
+    }
+
+    #characterSection .paperdoll {
+        gap: 8px;
+    }
+
+    #characterSection .paperdoll .equipment-slot {
+        height: var(--equip-slot-h);
+    }
+
+    #characterSection .equipment-slot .slot-label {
+        left: 10px;
+        bottom: 7px;
+        font-size: 11px;
+    }
+
+    /* When the section is narrow (often due to side panels), switch to the compact equipment grid
+       so all equipment slots remain visible without needing to scroll past a large paperdoll. */
+    #characterSection .paperdoll {
+        height: auto;
+        min-height: 0;
+        display: grid;
+        /* 4 columns keeps all 8 slots in 2 rows, preventing accessory slots from being clipped */
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        padding: 6px;
+    }
+
+    #characterSection .paperdoll-silhouette {
+        display: none;
+    }
+
+    #characterSection .paperdoll .equipment-slot {
+        position: relative;
+        width: 100%;
+        height: var(--equip-slot-h, var(--inv-slot-h));
+        left: auto !important;
+        right: auto !important;
+        top: auto !important;
+        bottom: auto !important;
+        transform: none !important;
+    }
+
+    /* Reduce inner padding so icons/text fit in shorter slots */
+    #characterSection .paperdoll .equipment-slot .slot-item {
+        left: 8px;
+        right: 8px;
+        top: 4px;
+        bottom: 16px;
+        gap: 4px;
+        box-sizing: border-box;
+        padding-bottom: 2px;
+    }
+
+    #characterSection .paperdoll .equipment-slot.has-item .slot-item {
+        bottom: 8px;
+    }
+
+    #characterSection .paperdoll .equipment-slot .item-icon {
+        --item-icon-size: 28px;
+    }
+
+    /* Avoid max-height rounding/descender clipping in tight slots: clamp to 2 lines instead. */
+    #characterSection .paperdoll .equipment-slot .slot-item .item-name {
+        line-height: 1.3;
+        padding-bottom: 0.15em;
+        overflow: hidden;
+
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+
+        /* Fallback for non-line-clamp engines */
+        max-height: calc(2 * 1.3em + 0.2em);
+    }
+
+    /* If stats exceed available height, scroll within the stats list (not the whole page) */
+    #characterSection .stats-list {
+        overflow: auto;
+        overscroll-behavior: contain;
+        min-height: 0;
+    }
+
+    /* Let the inventory card shrink so the bag becomes the main scroll area */
+    #characterSection .inventory-card {
+        min-height: 0;
+    }
+}
+
+/* Phone-landscape: hide in-section tabs and switch via the left-menu popover (like Journal).
+   Also: Gear tab becomes 2 columns (Equipment | Inventory) and Stats is more compact. */
+@media (max-width: 600px),
+       (max-width: 900px) and (max-height: 450px),
+       (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
+    #characterSection {
+        padding: 2px;
+        /* Slightly smaller paper-doll slots so the desktop layout fits comfortably */
+        --inv-slot-w: clamp(70px, 10.5vw, 88px);
+        --inv-slot-h: clamp(46px, 7.6vw, 54px);
+
+        /* Keep the paper-doll gaps consistent on phone-landscape */
+        --equip-head-top: 6px;
+        --equip-gap-y: 6px;
+        --equip-side-x: 6px;
+        --equip-side-top-offset: 24px;
+        --equip-row-step: calc(var(--inv-slot-h) + var(--equip-gap-y));
+    }
+
+    #characterSection .character-tabs {
+        display: none;
+    }
+
+    #characterSection > .content-panel.character-panel {
+        padding: 6px;
+        box-sizing: border-box;
+    }
+
+    /* Gear: two columns like a split view */
+    #characterSection .character-layout.character-layout-gear {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-areas: "equipment inventory";
+        grid-template-rows: minmax(0, 1fr);
+        gap: 10px;
+    }
+
+    #characterSection .equipment-card,
+    #characterSection .inventory-card,
+    #characterSection .stats-card {
+        min-height: 0;
+    }
+
+    /* The container-query layout sets overflow:hidden to prevent scrolling.
+       In phone-landscape Gear view, we want the paperdoll to fully fit without being clipped. */
+    #characterSection .equipment-card {
+        overflow: visible;
+    }
+
+    #characterSection .inventory-card {
+        min-height: 0;
+    }
+
+    /* Equipment: use the desktop paper-doll layout on phone-landscape (it fits in 2-column gear view) */
+    #characterSection .paperdoll {
+        position: relative !important;
+        height: 300px;
+        overflow: hidden;
+        display: block !important;
+        padding: 0;
+    }
+
+    #characterSection .paperdoll-silhouette {
+        display: block;
+        height: 292px;
+        top: 54%;
+        opacity: 0.68;
+    }
+
+    #characterSection .paperdoll .equipment-slot {
+        position: absolute !important;
+        width: var(--inv-slot-w);
+        height: var(--inv-slot-h);
+    }
+
+    /* Override the compact-grid reset rules (from container queries) with explicit positions */
+    #characterSection .paperdoll .equipment-slot[data-slot="head"] {
+        left: 50% !important;
+        top: var(--equip-head-top) !important;
+        right: auto !important;
+        bottom: auto !important;
+        transform: translateX(-50%) !important;
+    }
+
+    #characterSection .paperdoll .equipment-slot[data-slot="chest"] {
+        left: 50% !important;
+        top: calc(var(--equip-head-top) + var(--equip-row-step)) !important;
+        right: auto !important;
+        bottom: auto !important;
+        transform: translateX(-50%) !important;
+    }
+
+    #characterSection .paperdoll .equipment-slot[data-slot="weapon"] {
+        left: var(--equip-side-x) !important;
+        top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-side-top-offset)) !important;
+        right: auto !important;
+        bottom: auto !important;
+        transform: none !important;
+    }
+
+    #characterSection .paperdoll .equipment-slot[data-slot="offhand"] {
+        right: var(--equip-side-x) !important;
+        top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-side-top-offset)) !important;
+        left: auto !important;
+        bottom: auto !important;
+        transform: none !important;
+    }
+
+    #characterSection .paperdoll .equipment-slot[data-slot="legs"] {
+        left: 50% !important;
+        top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-row-step)) !important;
+        right: auto !important;
+        bottom: auto !important;
+        transform: translateX(-50%) !important;
+    }
+
+    #characterSection .paperdoll .equipment-slot[data-slot="boots"] {
+        left: 50% !important;
+        top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-row-step) + var(--equip-row-step)) !important;
+        right: auto !important;
+        bottom: auto !important;
+        transform: translateX(-50%) !important;
+    }
+
+    #characterSection .paperdoll .equipment-slot[data-slot="accessory_1"] {
+        left: var(--equip-side-x) !important;
+        top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-row-step) + var(--equip-row-step)) !important;
+        right: auto !important;
+        bottom: auto !important;
+        transform: none !important;
+    }
+
+    #characterSection .paperdoll .equipment-slot[data-slot="accessory_2"] {
+        right: var(--equip-side-x) !important;
+        top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-row-step) + var(--equip-row-step)) !important;
+        left: auto !important;
+        bottom: auto !important;
+        transform: none !important;
+    }
+
+    /* Stats compaction: reduce vertical padding + font sizes */
+    #characterSection .character-card {
+        padding: 8px;
+    }
+
+    #characterSection .character-card-header {
+        margin-bottom: 6px;
+    }
+
+    #characterSection .character-card-header h3 {
+        font-size: 13px;
+    }
+
+    #characterSection .stats-list {
+        gap: 6px;
+    }
+
+    #characterSection .stat-row {
+        padding: 6px 7px;
+        border-radius: 9px;
+    }
+
+    #characterSection .stat-label {
+        font-size: 11px;
+        gap: 6px;
+    }
+
+    #characterSection .stat-value {
+        font-size: 11px;
+    }
+
+    #characterSection .stat-bar {
+        height: 11px;
+    }
+
+    #characterSection .stat-allocate-btn {
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+    }
+
+    #characterSection .stat-points-chip {
+        font-size: 11px;
+        padding: 2px 8px;
+    }
+
+    /* Inventory: fewer columns => more rows, so slots aren't thin */
+    #characterSection .bag-grid {
+        /* Prefer 4 columns on phone-landscape; this turns a 6×2 bag into ~4×3 visually */
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-rows: none;
+        grid-auto-rows: clamp(52px, 10vh, 78px);
+        gap: 10px;
+        align-content: start;
+        justify-content: stretch;
+    }
+
+    /* Inventory: make icon + name fit and keep the name readable */
+    #characterSection .bag-item {
+        left: 8px;
+        right: 8px;
+        top: 4px;
+        bottom: 4px;
+        gap: 4px;
+        justify-content: flex-start;
+    }
+
+    #characterSection .bag-item .item-icon {
+        --item-icon-size: 22px;
+        margin-top: 2px;
+    }
+
+    /* Prevent mobile text descender clipping in tight bag slots */
+    #characterSection .bag-item .item-name {
+        margin-top: auto;
+        font-size: 10px;
+        line-height: 1.12;
+        padding: 2px 4px 3px;
+        overflow: hidden;
+
+        background: rgba(0,0,0,0.45);
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 7px;
+        width: 100%;
+        box-sizing: border-box;
+
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+
+        max-height: calc(2 * 1.12em + 0.35em);
+    }
+}
+
+html.is-compact #characterSection {
+    padding: 1px;
+    /* Slightly smaller paper-doll slots so the desktop layout fits comfortably */
+    --inv-slot-w: clamp(70px, 10.5vw, 88px);
+    --inv-slot-h: clamp(46px, 7.6vw, 54px);
+
+    /* Keep the paper-doll gaps consistent on phone-landscape */
+    --equip-head-top: 6px;
+    --equip-gap-y: 6px;
+    --equip-side-x: 6px;
+    --equip-side-top-offset: 24px;
+    --equip-row-step: calc(var(--inv-slot-h) + var(--equip-gap-y));
+}
+
+html.is-compact #characterSection .character-tabs {
+    display: none;
+}
+
+html.is-compact #characterSection > .content-panel.character-panel {
+    padding: 1px;
+    box-sizing: border-box;
+}
+
+/* Forced compact mode: mirror the phone-landscape Character layout so
+   iPhone (844px wide) and wider phones (e.g., 915px wide) match. */
+html.is-compact #characterSection .character-layout.character-layout-gear {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "equipment inventory";
+    grid-template-rows: minmax(0, 1fr);
+    gap: 10px;
+}
+
+html.is-compact #characterSection .equipment-card,
+html.is-compact #characterSection .inventory-card,
+html.is-compact #characterSection .stats-card {
+    min-height: 0;
+}
+
+html.is-compact #characterSection .equipment-card {
+    overflow: visible;
+}
+
+/* Equipment: prefer the desktop paper-doll layout in compact phone-landscape */
+html.is-compact #characterSection .paperdoll {
+    position: relative !important;
+    height: 300px;
+    overflow: hidden;
+    display: block !important;
+    padding: 0;
+}
+
+html.is-compact #characterSection .paperdoll-silhouette {
+    display: block;
+    height: 292px;
+    top: 54%;
+    opacity: 0.68;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot {
+    position: absolute !important;
+    width: var(--inv-slot-w);
+    height: var(--inv-slot-h);
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="head"] {
+    left: 50% !important;
+    top: var(--equip-head-top) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateX(-50%) !important;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="chest"] {
+    left: 50% !important;
+    top: calc(var(--equip-head-top) + var(--equip-row-step)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateX(-50%) !important;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="weapon"] {
+    left: var(--equip-side-x) !important;
+    top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-side-top-offset)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="offhand"] {
+    right: var(--equip-side-x) !important;
+    top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-side-top-offset)) !important;
+    left: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="legs"] {
+    left: 50% !important;
+    top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-row-step)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateX(-50%) !important;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="boots"] {
+    left: 50% !important;
+    top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-row-step) + var(--equip-row-step)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateX(-50%) !important;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="accessory_1"] {
+    left: var(--equip-side-x) !important;
+    top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-row-step) + var(--equip-row-step)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+}
+
+html.is-compact #characterSection .paperdoll .equipment-slot[data-slot="accessory_2"] {
+    right: var(--equip-side-x) !important;
+    top: calc(var(--equip-head-top) + var(--equip-row-step) + var(--equip-row-step) + var(--equip-row-step)) !important;
+    left: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+}
+
+/* Stats compaction: reduce vertical padding + font sizes */
+html.is-compact #characterSection .character-card { padding: 10px; }
+html.is-compact #characterSection .character-card { padding: 8px; }
+html.is-compact #characterSection .character-card-header { margin-bottom: 6px; }
+html.is-compact #characterSection .character-card-header h3 { font-size: 13px; }
+html.is-compact #characterSection .stats-list { gap: 6px; }
+html.is-compact #characterSection .stat-row { padding: 6px 7px; border-radius: 9px; }
+html.is-compact #characterSection .stat-label { font-size: 11px; gap: 6px; }
+html.is-compact #characterSection .stat-value { font-size: 11px; }
+html.is-compact #characterSection .stat-bar { height: 11px; }
+html.is-compact #characterSection .stat-allocate-btn { width: 20px; height: 20px; border-radius: 6px; }
+html.is-compact #characterSection .stat-points-chip { font-size: 11px; padding: 2px 8px; }
+
+/* Inventory: fewer columns => more rows, so slots aren't thin */
+html.is-compact #characterSection .bag-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: none;
+    grid-auto-rows: clamp(52px, 10vh, 78px);
+    gap: 10px;
+    align-content: start;
+    justify-content: stretch;
+}
+
+html.is-compact #characterSection .bag-item {
+    left: 8px;
+    right: 8px;
+    top: 4px;
+    bottom: 4px;
+    gap: 4px;
+    justify-content: flex-start;
+}
+
+html.is-compact #characterSection .bag-item .item-icon {
+    --item-icon-size: 22px;
+    margin-top: 2px;
+}
+
+html.is-compact #characterSection .bag-item .item-name {
+    margin-top: auto;
+    font-size: 10px;
+    line-height: 1.12;
+    padding: 2px 4px 3px;
+    overflow: hidden;
+
+    background: rgba(0,0,0,0.45);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 7px;
+    width: 100%;
+    box-sizing: border-box;
+
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+
+    max-height: calc(2 * 1.12em + 0.35em);
+}
+
+/* Mobile-friendly layout: keep inventory usable on narrow screens.
+   Use a container query so it triggers based on the actual Character section width. */
+@container character (max-width: 720px) {
+    #characterSection {
+        padding: 12px;
+        /* Smaller shared slot sizing on mobile */
+        --inv-slot-w: clamp(72px, 18vw, 96px);
+        --inv-slot-h: clamp(52px, 14vw, 64px);
+    }
+
+    #characterSection .character-card {
+        padding: 10px;
+    }
+
+    /* Paperdoll becomes a simple grid so equipment remains tappable */
+    /* Inventory grid wraps to the available width (no sideways scrolling) */
+    #characterSection .bag-grid {
+        grid-template-columns: repeat(auto-fill, minmax(var(--inv-slot-w), 1fr));
+        grid-template-rows: none;
+        grid-auto-rows: var(--inv-slot-h);
+        gap: 8px;
+        padding: 4px;
+        overflow-x: hidden;
+    }
+
+    #characterSection .stat-row {
+        padding: 8px 8px;
+    }
+}
+
+@container character (max-width: 420px) {
+    /* Extremely narrow screens: prioritize icons over text inside bag slots */
+    #characterSection {
+        padding: 10px;
+        --inv-slot-w: clamp(64px, 18vw, 84px);
+        --inv-slot-h: clamp(44px, 12vw, 56px);
+    }
+
+    #characterSection .character-card {
+        padding: 9px;
+    }
+
+    #characterSection .paperdoll {
+        gap: 8px;
+        padding: 4px;
+    }
+
+    /* Extra shrink for equipment so all slots remain visible */
+    #characterSection {
+        --equip-slot-h: clamp(38px, 10vw, 48px);
+    }
+
+    @supports (width: 1cqw) {
+        #characterSection {
+            --equip-slot-h: clamp(30px, 7cqw, 40px);
+        }
+    }
+
+    #characterSection .equipment-slot .slot-label {
+        font-size: 10px;
+        bottom: 6px;
+    }
+
+    #characterSection .bag-grid {
+        gap: 6px;
+    }
+
+    #characterSection .bag-item .item-name {
+        display: none;
+    }
+
+    #characterSection .bag-item .item-icon {
+        --item-icon-size: 28px;
+    }
+}
+
+@container character (max-width: 520px) {
+    /* If the section gets very narrow, 4 columns becomes too cramped; fall back to 2 columns. */
+    #characterSection .paperdoll {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* Short screens: shrink minimum reservations slightly so layout stays balanced */
+@media (max-height: 700px) {
+    #characterSection {
+        --inv-slot-w: clamp(64px, 12vw, 96px);
+        --inv-slot-h: clamp(44px, 8vw, 58px);
+    }
+}
+
+/* (phone-landscape rules merged above) */

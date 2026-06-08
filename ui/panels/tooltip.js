@@ -1,16 +1,21 @@
 // Tooltip + debuff-icon module
 
-import { resources, computeResourceRates, getRecoveryActionRegenBonusesPerSec, getChanneledActionYieldBonusesPerSec } from '../../core/resources.js';
+import { resources, computeResourceRates } from '../../core/resources.js';
 import { formatNumber } from '../../core/formatting.js';
-import { gameFlags } from '../../data/gameFlags.js';
-import { computeRewardEffects, upgradeEffects } from '../../data/upgradeEffects.js';
-import { getMorale } from '../../data/morale.js';
-import { jobs } from '../../data/jobsManager.js';
-import { buildings } from '../../data/definitions/buildings.js';
-import { allActions as salvageActions } from '../../data/definitions/allActions.js';
-import { getBlockedStatus } from '../../data/unlockRules.js';
-import { characterState, countItemInBag } from '../../data/character.js';
-import { getItemIdForResourceName } from '../../data/inventoryAliases.js';
+import { characterState, countItemInBag } from '../../features/character/character.js';
+
+// --- Stubs for systems moved to backup during refactor ---
+const gameFlags = {};
+const upgradeEffects = [];
+const jobs = [];
+const buildings = [];
+const salvageActions = [];
+const getBlockedStatus = () => ({ blocked: false, reason: '' });
+const getMorale = () => ({ percent: 100, multiplier: 1, sources: [] });
+const getItemIdForResourceName = () => null;
+function getRecoveryActionRegenBonusesPerSec() { return null; }
+function getChanneledActionYieldBonusesPerSec() { return null; }
+function computeRewardEffects() { return { labels: [], multiplier: 1 }; }
 
 let globalTooltip = null;
 const tooltipRegistry = new WeakMap();

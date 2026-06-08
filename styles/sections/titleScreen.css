@@ -58,6 +58,40 @@ body.title-screen-active #footer {
     filter: none;
 }
 
+.title-screen-flags {
+    display: flex;
+    gap: 12px;
+    margin: 8px auto 0;
+    justify-content: center;
+}
+
+.title-screen-flag {
+    width: 56px;
+    height: 42px;
+    border-radius: 6px;
+    border: 2px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s, background 0.2s;
+    padding: 0;
+}
+
+.title-screen-flag:hover {
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08);
+}
+
+.title-screen-flag.active {
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.65);
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.15);
+    box-shadow: 0 0 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.2);
+}
+
 .title-screen-menu {
     display: grid;
     gap: 10px;

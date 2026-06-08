@@ -11,7 +11,7 @@ import {
     getAllObjectivesWithState
 } from '../../data/objectives.js';
 
-import { isCompactPhoneLandscape } from '../compactMode.js';
+import { isCompactPhoneLandscape } from './compactMode.js';
 
 const BODY_CLASS = 'mobile-log-footer-swap';
 

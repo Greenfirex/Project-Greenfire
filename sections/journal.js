@@ -1,23 +1,4 @@
 import { getAllObjectivesWithState, getObjectiveSteps, getTrackedObjectiveId, setTrackedObjective } from '../data/objectives.js';
-import { storyEvents } from '../data/definitions/storyEvents.js';
-import { showStoryPopup } from '../ui/panels/popup.js';
-
-function resolveStoryEventForEntry(entry) {
-    if (!entry) return null;
-    const id = entry.id;
-    if (id && storyEvents && storyEvents[id]) return storyEvents[id];
-
-    // Back-compat: older saves may have stored `id` as the title.
-    // Try best-effort lookup by matching titles.
-    try {
-        const wantedTitle = String(entry.title || entry.id || '').trim();
-        if (!wantedTitle) return null;
-        for (const ev of Object.values(storyEvents || {})) {
-            if (ev && String(ev.title || '').trim() === wantedTitle) return ev;
-        }
-    } catch { /* ignore */ }
-    return null;
-}
 
 export function setupJournalSection(section) {
     if (!section) return;
@@ -68,33 +49,33 @@ export function setupJournalSection(section) {
     });
 }
 
-// Minimal, data-style API for the journal (mirror pattern used by data/buildings.js and data/gameFlags.js)
 export function getInitialStoryLog() {
-    // Return the canonical initial journal entries (empty by default).
     return [];
 }
 
-// live storyLog array that other modules can import and mutate
 export let storyLog = getInitialStoryLog();
 
-// Reset the live story log back to defaults (keeps same reference)
 export function resetStoryLog() {
     storyLog.length = 0;
     storyLog.push(...getInitialStoryLog());
 }
 
-// Apply saved story log (replace contents of live array)
 export function applySavedStoryLog(savedEntries) {
     storyLog.length = 0;
     if (Array.isArray(savedEntries)) storyLog.push(...savedEntries);
 }
 
-// Ensure renderJournalEntries is exported so saveload can refresh the UI after loading
 export function renderJournalEntries(container) {
     if (!container) return;
     container.innerHTML = '';
-    // Render newest first to match previous behavior (reverse chronological)
     const entriesToRender = (storyLog || []).slice().reverse();
+    if (entriesToRender.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'objectives-empty';
+        empty.textContent = 'No journal entries yet.';
+        container.appendChild(empty);
+        return;
+    }
     entriesToRender.forEach(entry => {
         const el = document.createElement('div');
         el.className = 'journal-entry';
@@ -102,23 +83,6 @@ export function renderJournalEntries(container) {
         const titleEl = document.createElement('div');
         titleEl.className = 'journal-entry-title';
         titleEl.textContent = entry.title || 'Untitled';
-
-        // Allow reopening story popups from Journal when possible.
-        const ev = resolveStoryEventForEntry(entry);
-        if (ev) {
-            titleEl.classList.add('is-clickable');
-            titleEl.tabIndex = 0;
-            titleEl.setAttribute('role', 'button');
-            titleEl.setAttribute('aria-label', 'Open story entry');
-            const open = (e) => {
-                e.preventDefault();
-                try { showStoryPopup(ev, entry && entry.outcome ? entry.outcome : null); } catch { /* ignore */ }
-            };
-            titleEl.addEventListener('click', open);
-            titleEl.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') open(e);
-            });
-        }
 
         const timeEl = document.createElement('div');
         timeEl.className = 'journal-entry-time';
@@ -141,16 +105,13 @@ export function renderJournalEntries(container) {
     });
 }
 
-// Track selected objective
 let selectedObjectiveId = null;
 
-// Render objectives history (active + completed + locked optionally hidden)
 export function renderObjectivesHistory() {
     const host = document.getElementById('objectivesHistoryContainer');
     if (!host) return;
     host.innerHTML = '';
     const all = getAllObjectivesWithState();
-    // Separate by state
     const active = all.filter(o => o.state === 'active');
     const completed = all.filter(o => o.state === 'completed').sort((a,b) => (b.doneAt||0)-(a.doneAt||0));
     const allObjectives = [...active, ...completed];
@@ -163,22 +124,11 @@ export function renderObjectivesHistory() {
         return;
     }
     
-    // If a new objective just unlocked while the player was elsewhere, auto-select it
-    // the next time they open the Journal.
-    try {
-        const pending = localStorage.getItem('journalAutoSelectObjectiveId');
-        if (pending && allObjectives.find(o => String(o.id) === String(pending))) {
-            selectedObjectiveId = pending;
-        }
-        if (pending) localStorage.removeItem('journalAutoSelectObjectiveId');
-    } catch { /* ignore */ }
-
-    // Auto-select first objective if none selected or selected is not in list
+    // Auto-select first objective if none selected
     if (!selectedObjectiveId || !allObjectives.find(o => o.id === selectedObjectiveId)) {
         selectedObjectiveId = allObjectives[0].id;
     }
     
-    // Create two-column layout
     const container = document.createElement('div');
     container.className = 'objectives-two-column';
     
@@ -186,7 +136,6 @@ export function renderObjectivesHistory() {
     const leftPanel = document.createElement('div');
     leftPanel.className = 'objectives-list-panel';
     
-    // Active objectives section
     if (active.length > 0) {
         const activeHeader = document.createElement('h3');
         activeHeader.className = 'objectives-section-header';
@@ -201,7 +150,6 @@ export function renderObjectivesHistory() {
         leftPanel.appendChild(activeList);
     }
     
-    // Completed objectives section
     if (completed.length > 0) {
         const completedHeader = document.createElement('h3');
         completedHeader.className = 'objectives-section-header';
@@ -216,7 +164,6 @@ export function renderObjectivesHistory() {
         leftPanel.appendChild(completedList);
     }
     
-    // Right column: details of selected objective
     const rightPanel = document.createElement('div');
     rightPanel.className = 'objectives-detail-panel';
     renderObjectiveDetails(rightPanel, allObjectives);
@@ -234,13 +181,12 @@ function createObjectiveListItem(obj) {
     
     const marker = document.createElement('span');
     marker.className = 'objective-marker';
-    marker.textContent = obj.state === 'completed' ? '✓' : '•';
+    marker.textContent = obj.state === 'completed' ? '\u2713' : '\u2022';
     
     const label = document.createElement('span');
     label.className = 'objective-label';
     label.textContent = obj.label;
     
-    // Track button (only for active objectives)
     if (obj.state === 'active') {
         const trackedId = getTrackedObjectiveId();
         const isTracked = trackedId === obj.id;
@@ -282,13 +228,11 @@ function renderObjectiveDetails(panel, allObjectives) {
     const selected = allObjectives.find(o => o.id === selectedObjectiveId);
     if (!selected) return;
     
-    // Objective title
     const title = document.createElement('h3');
     title.className = 'objective-detail-title';
     title.textContent = selected.label;
     panel.appendChild(title);
     
-    // Status badges row
     const statusRow = document.createElement('div');
     statusRow.className = 'objective-status-row';
     
@@ -298,7 +242,6 @@ function renderObjectiveDetails(panel, allObjectives) {
     if (selected.state === 'completed') status.classList.add('completed');
     statusRow.appendChild(status);
     
-    // Tracked indicator for active objectives
     if (selected.state === 'active') {
         const trackedId = getTrackedObjectiveId();
         const isTracked = trackedId === selected.id;
@@ -313,13 +256,10 @@ function renderObjectiveDetails(panel, allObjectives) {
     
     panel.appendChild(statusRow);
 
-    // Narrative (optional, supports Markdown)
     const narrative = (selected && typeof selected.narrative === 'string') ? selected.narrative.trim() : '';
     if (narrative) {
         const narrativeWrap = document.createElement('div');
         narrativeWrap.className = 'objective-detail-narrative';
-
-        // Prefer the global `marked` (loaded in index.html). Fallback to simple paragraphs.
         const markedGlobal = (typeof window !== 'undefined') ? window.marked : null;
         if (markedGlobal && typeof markedGlobal.parse === 'function') {
             narrativeWrap.innerHTML = markedGlobal.parse(narrative);
@@ -331,11 +271,9 @@ function renderObjectiveDetails(panel, allObjectives) {
                 narrativeWrap.appendChild(p);
             });
         }
-
         panel.appendChild(narrativeWrap);
     }
     
-    // Steps
     const steps = getObjectiveSteps(selected.id);
     if (steps.length > 0) {
         const stepsHeader = document.createElement('h4');
@@ -352,7 +290,7 @@ function renderObjectiveDetails(panel, allObjectives) {
             
             const marker = document.createElement('span');
             marker.className = 'step-marker';
-            marker.textContent = st.done ? '✓' : '•';
+            marker.textContent = st.done ? '\u2713' : '\u2022';
             
             const label = document.createElement('span');
             label.className = 'step-label';
@@ -365,7 +303,6 @@ function renderObjectiveDetails(panel, allObjectives) {
         panel.appendChild(stepsList);
     }
     
-    // Reward
     if (Array.isArray(selected.reward) && selected.reward.length) {
         const rewardHeader = document.createElement('h4');
         rewardHeader.className = 'objective-detail-section-header';
@@ -378,7 +315,6 @@ function renderObjectiveDetails(panel, allObjectives) {
         panel.appendChild(rewardEl);
     }
     
-    // Timestamps
     const timeBits = [];
     if (typeof selected.firstAt === 'number') timeBits.push(`Started: Day ${Math.floor(selected.firstAt/60/24)}, ${Math.floor((selected.firstAt/60)%24)}h ${selected.firstAt%60}m`);
     if (typeof selected.doneAt === 'number') timeBits.push(`Completed: Day ${Math.floor(selected.doneAt/60/24)}, ${Math.floor((selected.doneAt/60)%24)}h ${selected.doneAt%60}m`);
@@ -399,27 +335,24 @@ function renderObjectiveDetails(panel, allObjectives) {
     }
 }
 
-// New helper: add a journal entry (updates live storyLog, localStorage, and UI)
 export function addJournalEntry(entry) {
     if (!entry || typeof entry !== 'object') return;
     storyLog.push(entry);
     if (typeof localStorage !== 'undefined') {
         localStorage.setItem('storyLog', JSON.stringify(storyLog));
     }
-        try {
-            window.dispatchEvent(new CustomEvent('journal-entry-added', { detail: { entry } }));
-        } catch (e) {}
+    try {
+        window.dispatchEvent(new CustomEvent('journal-entry-added', { detail: { entry } }));
+    } catch (e) {}
     const container = document.getElementById('journalEntriesContainer');
     if (container) renderJournalEntries(container);
 }
 
-// wire main-menu button
 document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('journalBtn');
     if (btn) btn.addEventListener('click', (e) => { e.preventDefault(); openJournal(); });
 });
 
-// Refresh journal when the game is reset (keeps UI in sync)
 window.addEventListener('gameReset', () => {
     const sec = document.getElementById('journalSection');
     if (!sec) return;

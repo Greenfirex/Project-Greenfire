@@ -1,4 +1,4 @@
-import { getItemDefinition } from './definitions/items.js';
+import { getItemDefinition } from './items.js';
 
 const DEFAULT_BAG_COLS = 6;
 const DEFAULT_BAG_ROWS = 2;
@@ -32,15 +32,12 @@ const UPGRADEABLE_STATS = [
 ];
 
 const STAT_POINT_EFFECTS = {
-    // Max vitals
     health: 5,
     stamina: 5,
-    // Combat
-    hitChance: 1, // percent points
-    critChance: 1, // percent points
-    // attackSpeed is seconds between attacks; lower is faster.
+    hitChance: 1,
+    critChance: 1,
     attackSpeed: -0.01,
-    evasion: 1, // percent points
+    evasion: 1,
 };
 
 const BASE_STATS = {
@@ -48,13 +45,10 @@ const BASE_STATS = {
     stamina: 100,
     damageMin: 1,
     damageMax: 2,
-    // attackSpeed is seconds between attacks.
     attackSpeed: 1.0,
-    // Percent chance for an attack to land. Used by combat.
     hitChance: 75,
     armor: 0,
     critChance: 5,
-    // Percent chance to evade an incoming attack.
     evasion: 0,
 };
 
@@ -100,7 +94,6 @@ function getMaxStackQty(itemId) {
     try {
         const def = getItemDefinition(itemId);
         if (!def || !def.stackable) return 1;
-        // Only cap consumables; other stackable items keep legacy large stacks.
         if (def.consumable) return CONSUMABLE_STACK_MAX;
         return 9999;
     } catch {
@@ -134,7 +127,6 @@ export function canEquipItemToSlot(itemId, equipSlot) {
     const def = getItemDefinition(itemId);
     if (!def) return false;
 
-    // Accessories can go into either accessory slot.
     if (def.slot === 'accessory') {
         return slot === 'accessory_1' || slot === 'accessory_2';
     }
@@ -149,7 +141,6 @@ export function swapBagSlots(fromIndex, toIndex) {
     bag[fromIndex] = bag[toIndex] ?? null;
     bag[toIndex] = tmp ?? null;
 
-    // Keep UI "new" flags attached to the item as it moves.
     try {
         if (Array.isArray(characterState.bagUiNew)) {
             const t = !!characterState.bagUiNew[fromIndex];
@@ -168,7 +159,6 @@ export function moveBagItemToEquip(bagIndex, equipSlot) {
     if (!slot) return false;
 
     const entry = characterState.bag[bagIndex];
-    // Stacked entries (objects) are not equip-able.
     if (!entry || typeof entry !== 'string') return false;
     const itemId = entry;
     if (!itemId) return false;
@@ -178,7 +168,6 @@ export function moveBagItemToEquip(bagIndex, equipSlot) {
     characterState.equipment[slot] = itemId;
     characterState.bag[bagIndex] = prevEquip;
 
-    // Item left the bag; clear "new" marker for that slot.
     try {
         if (Array.isArray(characterState.bagUiNew)) characterState.bagUiNew[bagIndex] = false;
     } catch { /* ignore */ }
@@ -199,7 +188,6 @@ export function moveEquipItemToBag(equipSlot, bagIndex) {
     characterState.bag[bagIndex] = itemId;
     characterState.equipment[slot] = prevBag;
 
-    // Moving an already-known equipped item back to bag should not mark it as "new".
     try {
         if (Array.isArray(characterState.bagUiNew)) characterState.bagUiNew[bagIndex] = false;
     } catch { /* ignore */ }
@@ -241,13 +229,9 @@ export function getInitialCharacterState() {
     const bagRows = DEFAULT_BAG_ROWS;
 
     const bag = makeEmptyBag(bagCols, bagRows);
-    // Per-slot UI "new" flags for bag items.
-    // This persists as part of characterState so "new" markers survive reloads.
     const bagUiNew = Array.from({ length: bag.length }, () => false);
-    // Starter consumable for combat prototype.
     if (bag.length > 0) bag[0] = 'stimpack';
 
-    // Starter loadout: equipped by default.
     const equipment = {
         head: 'basic_helmet',
         chest: 'field_armor',
@@ -266,33 +250,22 @@ export function getInitialCharacterState() {
         bag,
         bagUiNew,
         equipment,
-        // Timed effects from consumables. Times are in total in-game minutes.
         buffs: {
             staminaRegen: null,
         },
         localMap: {
-            // A-K / 1-9 grid coordinates (1-based)
             x: 6,
             y: 8,
             selectedX: 6,
             selectedY: 8,
-            // Persistent exploration hints
             visited: { '6,8': true },
-            // Fog-of-war reveal memory: tiles that have been seen at least once.
-            // (Visited tiles are always considered seen.)
             seen: { '6,8': true },
-            // Per-ship-tile depletion tracking (e.g., Strip Wiring). Keys are "x,y".
             wiringStrippedByTile: {},
-            // Per-ship-tile depletion tracking for cafeteria scavenging (independent pools). Keys are "x,y".
             cafeteriaBottledWaterByTile: {},
             cafeteriaPackagedFoodByTile: {},
-            // Legacy shared pool (kept for backward compatibility; no longer used).
             cafeteriaSuppliesByTile: {},
-            // Per-tile depletion tracking for Scavenge Debris Field. Keys are "x,y".
             debrisScavengedByTile: {},
-            // UI preference: local map zoom level
             zoom: 1,
-            // UI preference: local map pan offsets (px)
             panX: 0,
             panY: 0,
         },
@@ -317,7 +290,6 @@ export function resetCharacterState() {
 }
 
 export function getCharacterStateForSave() {
-    // Ensure we only persist JSON-safe data
     return JSON.parse(JSON.stringify(characterState));
 }
 
@@ -329,7 +301,6 @@ export function applySavedCharacterState(saved) {
 
     const next = getInitialCharacterState();
 
-    // Bag sizing (allows future upgrades to expand rows/cols)
     const bagCols = clampInt(saved.bagCols ?? next.bagCols, 1, 12);
     const bagRows = clampInt(saved.bagRows ?? next.bagRows, 1, 12);
     next.bagCols = bagCols;
@@ -338,9 +309,6 @@ export function applySavedCharacterState(saved) {
     const desiredSize = bagCols * bagRows;
     const savedBag = Array.isArray(saved.bag) ? saved.bag : [];
 
-    // Normalize stacks on load:
-    // - Consumable stacks cap at 5 per slot.
-    // - Overflow is placed into later empty slots if available.
     next.bag = Array.from({ length: desiredSize }, () => null);
     const overflow = [];
 
@@ -360,7 +328,6 @@ export function applySavedCharacterState(saved) {
             const qtyRaw = normalizeStackQty(v.qty ?? 1);
             const max = getMaxStackQty(id);
             const qtyHere = normalizeStackQtyForItem(id, qtyRaw);
-            // Persist as a stack object (even if qty === 1) to preserve intent.
             next.bag[i] = { id, qty: qtyHere };
 
             if (isStackableItem(id) && qtyRaw > max) {
@@ -369,7 +336,6 @@ export function applySavedCharacterState(saved) {
         }
     }
 
-    // Place overflow into empty slots.
     for (const o of overflow) {
         let remaining = normalizeStackQty(o.qty ?? 1);
         const id = o.id;
@@ -384,8 +350,6 @@ export function applySavedCharacterState(saved) {
         }
     }
 
-    // UI: per-slot "new" flags for bag items.
-    // Saved values may be missing (older saves) or mis-sized (bag upgrades).
     try {
         const savedUi = Array.isArray(saved.bagUiNew) ? saved.bagUiNew : [];
         next.bagUiNew = Array.from({ length: desiredSize }, (_, i) => !!savedUi[i]);
@@ -393,7 +357,6 @@ export function applySavedCharacterState(saved) {
         next.bagUiNew = Array.from({ length: desiredSize }, () => false);
     }
 
-    // Equipment
     const savedEq = saved.equipment && typeof saved.equipment === 'object' ? saved.equipment : {};
     EQUIPMENT_SLOTS.forEach(slot => {
         const v = savedEq[slot] ?? null;
@@ -408,79 +371,37 @@ export function applySavedCharacterState(saved) {
         next.equipment[slot] = getItemDefinition(v) ? v : null;
     });
 
-    // Local map state (prototype)
+    // Local map state (prototype) — preserved for save compatibility
     try {
         const lm = (saved && typeof saved.localMap === 'object') ? saved.localMap : null;
-        const clampInt = (v, min, max) => {
+        const clampIntLocal = (v, min, max) => {
             const n = Math.floor(Number(v));
             if (!Number.isFinite(n)) return min;
             return Math.min(max, Math.max(min, n));
         };
-        const x = clampInt(lm?.x ?? next.localMap.x, 1, 11);
-        const y = clampInt(lm?.y ?? next.localMap.y, 1, 9);
-        const selectedX = clampInt(lm?.selectedX ?? x, 1, 11);
-        const selectedY = clampInt(lm?.selectedY ?? y, 1, 9);
+        const x = clampIntLocal(lm?.x ?? next.localMap.x, 1, 11);
+        const y = clampIntLocal(lm?.y ?? next.localMap.y, 1, 9);
+        const selectedX = clampIntLocal(lm?.selectedX ?? x, 1, 11);
+        const selectedY = clampIntLocal(lm?.selectedY ?? y, 1, 9);
 
-        // Preserve extra prototype fields so content/markers remain consistent after load.
         const extra = {};
         if (lm && typeof lm === 'object') {
             for (const [k, v] of Object.entries(lm)) {
-            if (k === 'x' || k === 'y' || k === 'selectedX' || k === 'selectedY' || k === 'visited' || k === 'seen' || k === 'zoom') continue;
+                if (k === 'x' || k === 'y' || k === 'selectedX' || k === 'selectedY' || k === 'visited' || k === 'seen' || k === 'zoom') continue;
                 if (typeof k !== 'string' || k.length > 60) continue;
-                // Allow a small set of whitelisted structured local-map fields.
-                if (k === 'wiringStrippedByTile' && v && typeof v === 'object' && !Array.isArray(v)) {
-                    const cleaned = {};
-                    for (const [kk, vv] of Object.entries(v)) {
-                        if (typeof kk !== 'string') continue;
-                        const m = kk.match(/^(\d+),(\d+)$/);
-                        if (!m) continue;
-                        const cx = clampInt(m[1], 1, 11);
-                        const cy = clampInt(m[2], 1, 9);
-                        const n = Math.floor(Number(vv));
-                        if (!Number.isFinite(n) || n < 0) continue;
-                        cleaned[`${cx},${cy}`] = Math.min(5, n);
-                    }
-                    extra[k] = cleaned;
-                } else if ((k === 'cafeteriaBottledWaterByTile' || k === 'cafeteriaPackagedFoodByTile' || k === 'cafeteriaSuppliesByTile') && v && typeof v === 'object' && !Array.isArray(v)) {
-                    const cleaned = {};
-                    for (const [kk, vv] of Object.entries(v)) {
-                        if (typeof kk !== 'string') continue;
-                        const m = kk.match(/^(\d+),(\d+)$/);
-                        if (!m) continue;
-                        const cx = clampInt(m[1], 1, 11);
-                        const cy = clampInt(m[2], 1, 9);
-                        const n = Math.floor(Number(vv));
-                        if (!Number.isFinite(n) || n < 0) continue;
-                        cleaned[`${cx},${cy}`] = Math.min(7, n);
-                    }
-                    extra[k] = cleaned;
-                } else if (k === 'debrisScavengedByTile' && v && typeof v === 'object' && !Array.isArray(v)) {
-                    const cleaned = {};
-                    for (const [kk, vv] of Object.entries(v)) {
-                        if (typeof kk !== 'string') continue;
-                        const m = kk.match(/^(\d+),(\d+)$/);
-                        if (!m) continue;
-                        const cx = clampInt(m[1], 1, 11);
-                        const cy = clampInt(m[2], 1, 9);
-                        const n = Math.floor(Number(vv));
-                        if (!Number.isFinite(n) || n < 0) continue;
-                        cleaned[`${cx},${cy}`] = Math.min(3, n);
-                    }
-                    extra[k] = cleaned;
-                } else if (typeof v === 'boolean' || typeof v === 'number' || typeof v === 'string') {
+                if (typeof v === 'boolean' || typeof v === 'number' || typeof v === 'string') {
                     extra[k] = v;
                 }
             }
         }
 
-        // Visited tiles (stored as an object map or legacy array of coord strings)
         const visited = {};
         const acceptVisitedKey = (key) => {
             if (typeof key !== 'string') return;
             const m = key.match(/^(\d+),(\d+)$/);
             if (!m) return;
-            const c = clampInt(m[1], 1, 11);
-            const r = clampInt(m[2], 1, 9);
+            const c = clampIntLocal(m[1], 1, 11);
+            const r = clampIntLocal(m[2], 1, 9);
             visited[`${c},${r}`] = true;
         };
         if (lm && typeof lm.visited === 'object' && lm.visited && !Array.isArray(lm.visited)) {
@@ -491,28 +412,9 @@ export function applySavedCharacterState(saved) {
         } else if (Array.isArray(lm?.visited)) {
             for (const key of lm.visited) acceptVisitedKey(key);
         }
-        // Always include the current player tile.
         visited[`${x},${y}`] = true;
 
-        // Seen tiles (fog-of-war memory). Stored as an object map or legacy array of coord strings.
         const seen = {};
-        const acceptSeenKey = (key) => {
-            if (typeof key !== 'string') return;
-            const m = key.match(/^(\d+),(\d+)$/);
-            if (!m) return;
-            const c = clampInt(m[1], 1, 11);
-            const r = clampInt(m[2], 1, 9);
-            seen[`${c},${r}`] = true;
-        };
-        if (lm && typeof lm.seen === 'object' && lm.seen && !Array.isArray(lm.seen)) {
-            for (const [k, v] of Object.entries(lm.seen)) {
-                if (v !== true) continue;
-                acceptSeenKey(k);
-            }
-        } else if (Array.isArray(lm?.seen)) {
-            for (const key of lm.seen) acceptSeenKey(key);
-        }
-        // Visited tiles are always seen.
         for (const k of Object.keys(visited)) seen[k] = true;
 
         const rawZoom = Number(lm?.zoom);
@@ -541,27 +443,6 @@ export function applySavedCharacterState(saved) {
             panX,
             panY,
         };
-
-        // Migration: older saves used a shared cafeteria supplies counter.
-        // Seed both independent pools to avoid restoring extra uses.
-        try {
-            const legacy = next.localMap?.cafeteriaSuppliesByTile;
-            if (legacy && typeof legacy === 'object' && !Array.isArray(legacy)) {
-                if (!next.localMap.cafeteriaBottledWaterByTile || typeof next.localMap.cafeteriaBottledWaterByTile !== 'object') {
-                    next.localMap.cafeteriaBottledWaterByTile = {};
-                }
-                if (!next.localMap.cafeteriaPackagedFoodByTile || typeof next.localMap.cafeteriaPackagedFoodByTile !== 'object') {
-                    next.localMap.cafeteriaPackagedFoodByTile = {};
-                }
-                for (const [k, v] of Object.entries(legacy)) {
-                    if (typeof k !== 'string') continue;
-                    const n = Math.max(0, Math.min(7, Math.floor(Number(v))));
-                    if (!Number.isFinite(n)) continue;
-                    if (typeof next.localMap.cafeteriaBottledWaterByTile[k] !== 'number') next.localMap.cafeteriaBottledWaterByTile[k] = n;
-                    if (typeof next.localMap.cafeteriaPackagedFoodByTile[k] !== 'number') next.localMap.cafeteriaPackagedFoodByTile[k] = n;
-                }
-            }
-        } catch { /* ignore */ }
     } catch {
         // leave defaults
     }
@@ -579,7 +460,6 @@ export function applySavedCharacterState(saved) {
         }
     } catch { /* non-fatal */ }
 
-    // Timed consumable buffs
     try {
         const savedBuffs = (saved && typeof saved.buffs === 'object' && saved.buffs) ? saved.buffs : null;
         if (savedBuffs && typeof savedBuffs === 'object') {
@@ -594,9 +474,7 @@ export function applySavedCharacterState(saved) {
                     : null;
             }
         }
-    } catch {
-        // ignore
-    }
+    } catch { /* ignore */ }
 
     characterState = next;
     emitCharacterStateChanged('applySavedCharacterState');
@@ -604,10 +482,6 @@ export function applySavedCharacterState(saved) {
 
 export function computeLevelFromXp(totalXp) {
     const xp = Math.max(0, Math.floor(Number(totalXp) || 0));
-
-    // Total XP required to reach Level L is:
-    //   T(L) = 100 * (L-1) * L / 2
-    // Solve for L where T(L) <= xp < T(L+1)
     const a = XP_PER_LEVEL_FACTOR;
     const scaled = xp / a;
     const approx = Math.floor((1 + Math.sqrt(1 + 8 * scaled)) / 2);
@@ -686,16 +560,11 @@ export function getBagSize() {
 export function setBagRows(newRows) {
     const rows = clampInt(newRows, 1, 12);
     const cols = clampInt(characterState.bagCols, 1, 12);
-
     const nextSize = cols * rows;
     const current = Array.isArray(characterState.bag) ? characterState.bag : [];
-
     const nextBag = Array.from({ length: nextSize }, (_, i) => current[i] ?? null);
-
-    // Keep UI "new" flags sized with the bag.
     const currentUi = Array.isArray(characterState.bagUiNew) ? characterState.bagUiNew : [];
     const nextUi = Array.from({ length: nextSize }, (_, i) => !!currentUi[i]);
-
     characterState.bagRows = rows;
     characterState.bag = nextBag;
     characterState.bagUiNew = nextUi;
@@ -704,7 +573,6 @@ export function setBagRows(newRows) {
 export function computeCharacterStats(state = characterState) {
     const stats = { ...BASE_STATS };
 
-    // Apply stat point allocations first (treated as base progression).
     try {
         const alloc = state?.progression?.allocated && typeof state.progression.allocated === 'object'
             ? state.progression.allocated
@@ -719,7 +587,6 @@ export function computeCharacterStats(state = characterState) {
 
         stats.health += hpPts * (STAT_POINT_EFFECTS.health || 0);
         stats.stamina += stamPts * (STAT_POINT_EFFECTS.stamina || 0);
-
         stats.hitChance += hitPts * (STAT_POINT_EFFECTS.hitChance || 0);
         stats.critChance += critPts * (STAT_POINT_EFFECTS.critChance || 0);
         stats.attackSpeed += speedPts * (STAT_POINT_EFFECTS.attackSpeed || 0);
@@ -734,7 +601,6 @@ export function computeCharacterStats(state = characterState) {
         if (!def || !def.stats) continue;
         for (const [k, v] of Object.entries(def.stats)) {
             if (typeof v !== 'number') continue;
-            // Support damage as either a scalar (applies to both ends) or explicit min/max keys.
             if (k === 'damage') {
                 stats.damageMin = (stats.damageMin ?? 0) + v;
                 stats.damageMax = (stats.damageMax ?? 0) + v;
@@ -744,13 +610,10 @@ export function computeCharacterStats(state = characterState) {
         }
     }
 
-    // Compatibility convenience field for any legacy UI usage.
-    // Prefer using damageMin/damageMax for display.
     if (typeof stats.damage !== 'number') {
         stats.damage = Math.round(((Number(stats.damageMin) || 0) + (Number(stats.damageMax) || 0)) / 2);
     }
 
-    // Clamp percent-type stats to sensible bounds.
     stats.hitChance = Math.max(0, Math.min(100, Number(stats.hitChance ?? 0)));
     stats.critChance = Math.max(0, Math.min(100, Number(stats.critChance ?? 0)));
     stats.evasion = Math.max(0, Math.min(95, Number(stats.evasion ?? 0)));
@@ -771,7 +634,6 @@ export function discardBagItem(bagIndex, state = characterState) {
     const entry = bag[bagIndex];
     if (!entry) return false;
 
-    // Quest items cannot be discarded.
     try {
         const itemId = (typeof entry === 'string') ? entry : (entry && typeof entry === 'object' ? entry.id : null);
         const def = itemId ? getItemDefinition(itemId) : null;
@@ -794,10 +656,8 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
     if (!def) return { ok: false, placed: 'none' };
 
     const amount = normalizeStackQty(opts?.amount ?? 1);
-
     const preferEquip = opts && opts.preferEquip !== false;
 
-    // Try to equip directly when possible (helps scripted tutorials).
     if (preferEquip && state && state.equipment) {
         const trySlots = [];
         if (def.slot === 'accessory') {
@@ -810,8 +670,6 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
             const slot = normalizeEquipSlot(s);
             if (!slot) continue;
 
-            // If a save contains an old/removed item ID, treat that slot as empty.
-            // This keeps the game from getting stuck with invisible/invalid equipment.
             const currentId = state.equipment[slot];
             if (currentId) {
                 const currentDef = getItemDefinition(currentId);
@@ -833,14 +691,12 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
         }
     }
 
-    // Otherwise place into first empty bag slot.
     const bag = Array.isArray(state?.bag) ? state.bag : null;
     if (!bag) return { ok: false, placed: 'none' };
 
     const isStackable = isStackableItem(itemId);
     const maxStack = isStackable ? getMaxStackQty(itemId) : 1;
 
-    // Stackable items: fill existing stacks (up to max per slot), then spill into new stacks.
     if (amount > 0 && isStackable && maxStack > 1) {
         const existingFree = bag.reduce((sum, entry) => {
             const id = getBagEntryId(entry);
@@ -856,7 +712,6 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
         let firstIndex = null;
         let stackedAny = false;
 
-        // Fill existing stacks first.
         for (let i = 0; i < bag.length && remaining > 0; i++) {
             const entry = bag[i];
             const id = getBagEntryId(entry);
@@ -876,7 +731,6 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
             } catch { /* ignore */ }
         }
 
-        // Then place new stacks.
         while (remaining > 0) {
             const idxEmpty = bag.findIndex(v => !v);
             if (idxEmpty < 0) break;
@@ -900,7 +754,6 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
         return { ok: true, placed: 'bag', index: firstIndex ?? 0, stacked: stackedAny, split: true };
     }
 
-    // Stack into an existing slot for stackable items (legacy: non-consumable stacks remain large).
     try {
         if (amount > 0 && isStackable) {
             const idxStack = bag.findIndex(v => getBagEntryId(v) === itemId);
@@ -926,7 +779,6 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
 
     const idx = bag.findIndex(v => !v);
     if (idx < 0) return { ok: false, placed: 'none' };
-    // For stackable items, represent as an object so quantity is persisted and visible.
     bag[idx] = isStackable ? { id: itemId, qty: normalizeStackQtyForItem(itemId, amount) } : itemId;
     try {
         if (state && Array.isArray(state.bagUiNew)) state.bagUiNew[idx] = true;
@@ -960,7 +812,6 @@ export function consumeItemQuantityFromBag(itemId, amount = 1, state = character
 
     let remaining = need;
 
-    // Consume from stacks first.
     for (let i = 0; i < bag.length && remaining > 0; i++) {
         const entry = bag[i];
         const id = getBagEntryId(entry);
@@ -978,7 +829,6 @@ export function consumeItemQuantityFromBag(itemId, amount = 1, state = character
         }
     }
 
-    // Then consume individual instances.
     for (let i = 0; i < bag.length && remaining > 0; i++) {
         const entry = bag[i];
         const id = getBagEntryId(entry);
@@ -994,7 +844,6 @@ export function consumeItemQuantityFromBag(itemId, amount = 1, state = character
     return ok;
 }
 
-// Backward-compatible helper used by legacy codepaths.
 export function consumeFirstItemFromBag(itemId, state = characterState) {
     return consumeItemQuantityFromBag(itemId, 1, state);
 }
