@@ -40,28 +40,34 @@
     flex-shrink: 0;
 }
 
-/* Header language flag indicator */
+/* Header language flag indicator (display-only, switching is in Options menu) */
 .header-lang-flag {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 30px;
     height: 20px;
-    margin-right: 10px;
-    cursor: pointer;
+    margin-left: 14px;
     border-radius: 3px;
     opacity: 0.85;
     transition: opacity 0.2s;
-}
-
-.header-lang-flag:hover {
-    opacity: 1;
+    flex-shrink: 0;
+    align-self: center;
 }
 
 .header-lang-flag .flag-icon {
     width: 28px;
     height: 18px;
     border-radius: 2px;
+}
+
+/* Disabled/grayed-out flag buttons (all locations) */
+button.flag-disabled,
+button.flag-disabled:hover {
+    opacity: 0.35 !important;
+    cursor: not-allowed !important;
+    filter: grayscale(0.6);
+    pointer-events: none;
 }
 
 /* Removed old dropdown styles */

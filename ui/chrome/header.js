@@ -141,7 +141,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 cancelText: t('confirm_reset_cancel')
             });
             if (ok) {
-                localStorage.setItem('isResetting', 'true');
+                // Clear ALL save data so the game boots to title screen with no saved state.
+                try {
+                    localStorage.removeItem('gameState');
+                    localStorage.removeItem('characterStateV1');
+                    localStorage.removeItem('logSettings');
+                    localStorage.removeItem('activatedSections');
+                    localStorage.removeItem('currentSection');
+                    localStorage.removeItem('objectivesStatus');
+                    localStorage.removeItem('isResetting');
+                    localStorage.removeItem('autoContinueAfterReload');
+                    // Keep user preferences (language, glow, settings).
+                } catch { /* ignore */ }
                 location.reload();
             }
         });
@@ -165,8 +176,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = document.getElementById(id);
         if (!btn || btn.dataset.wired === 'true') return;
         btn.dataset.wired = 'true';
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
             e.preventDefault();
+            const ok = await showConfirmPopup({
+                title: t('confirm_lang_change_title'),
+                message: t('confirm_lang_change_msg'),
+                confirmText: t('confirm_lang_change_confirm'),
+                cancelText: t('confirm_lang_change_cancel')
+            });
+            if (!ok) return;
+            // Set auto-continue so in-game language switch resumes the game, not title screen.
+            try { localStorage.setItem('autoContinueAfterReload', 'true'); } catch { /* ignore */ }
             import('../../locales/locales.js').then(m => {
                 m.setLanguage(lang);
                 updateAllFlagStates();
@@ -176,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
     wireLangFlagButton('optLangEn', 'en');
     wireLangFlagButton('optLangCs', 'cs');
 
-    // Header language flag indicator
+    // Header language flag — display only (switching is done in Options menu)
     const headerFlag = document.getElementById('headerLangFlag');
     const FLAG_SVGS = {
         en: '<svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="40" fill="#012169"/><path d="M0 0l60 40M60 0L0 40" stroke="#fff" stroke-width="6"/><path d="M0 0l60 40M60 0L0 40" stroke="#C8102E" stroke-width="3"/><rect width="18" height="40" fill="#012169" x="21"/><rect width="60" height="14" fill="#012169" y="13"/><path d="M30 0v40M0 20h60" stroke="#fff" stroke-width="10"/><path d="M30 0v40M0 20h60" stroke="#C8102E" stroke-width="4"/></svg>',
@@ -198,28 +218,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const b = document.getElementById(id);
             if (b) b.classList.toggle('active', b.dataset.lang === lang);
         });
-        // Header flag indicator
+        // Header flag indicator (display only, no click action)
         if (headerFlag) {
             headerFlag.innerHTML = FLAG_SVGS[lang] || '';
             headerFlag.title = lang === 'en' ? 'English' : 'Čeština';
         }
     }
     updateAllFlagStates();
-    window.addEventListener('language-changed', updateAllFlagStates);
-    if (headerFlag && headerFlag.dataset.wired !== 'true') {
-        headerFlag.dataset.wired = 'true';
-        headerFlag.addEventListener('click', () => {
-            const lang = (() => {
-                try { const ls = localStorage.getItem('gameLanguage'); return ls && (ls === 'en' || ls === 'cs') ? ls : 'en'; }
-                catch { return 'en'; }
-            })();
-            const next = lang === 'en' ? 'cs' : 'en';
-            import('../../locales/locales.js').then(m => {
-                m.setLanguage(next);
-                updateAllFlagStates();
-            }).catch(() => {});
-        });
-    }
+    window.addEventListener('language-changed', () => {
+        updateAllFlagStates();
+        refreshHeaderLabels();
+        refreshLogHeader();
+        refreshLocaleElements();
+    });
+    // Header flag is display-only — no click handler needed.
 
     if (saveLink) {
         saveLink.addEventListener('click', (e) => {

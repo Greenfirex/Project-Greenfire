@@ -99,6 +99,7 @@
     width: 20%;
     display: flex;
     justify-content: flex-end;
+    position: relative;
 }
 
 /* Style for the logo */

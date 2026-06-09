@@ -1,4 +1,5 @@
 import { resources, updateResourceInfo, setupInfoPanel, computeResourceRates } from './resources.js';
+import { preloader } from '../ui/system/preloader.js';
 import { gameFlags } from '../data/gameFlags.js';
 import { setupCrashSiteSection, updateCrashSiteActionButtonsState } from '../sections/crashSiteActionLoop.js';
 import { setupJournalSection } from '../sections/journal.js';
@@ -61,7 +62,16 @@ function getCurrentCharacterLevel() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('preloader').classList.add('hidden');
+    // Register preloader categories.
+    preloader.register('images', 30);
+    preloader.register('core', 20);
+    preloader.register('titleScreen', 30);
+
+    // Start auto-discovering and preloading images from DOM + CSS.
+    preloader.startImagePreloading();
+
+    // Core subsystems are loaded (module imports resolved, DOM ready).
+    preloader.progress('core', 0.5, 'Initializing...');
 
     try { initOptions(); } catch { /* ignore */ }
     try {
@@ -71,12 +81,30 @@ document.addEventListener('DOMContentLoaded', () => {
         setGlowIntensity(savedIntensity);
     } catch { /* ignore */ }
 
+    // Helper: wait for translations to be ready, then start the game.
+    // Prevents rendering the game UI with fallback English before Czech loads.
+    async function startWhenTranslationsReady(mode) {
+        const { isInitComplete } = await import('../locales/locales.js');
+        if (isInitComplete()) {
+            // Translations fully loaded and applied.
+            startGame({ mode });
+        } else {
+            // Wait for async translations (e.g. Czech JSON fetch).
+            window.addEventListener('language-changed', () => {
+                startGame({ mode });
+            }, { once: true });
+        }
+    }
+
     try {
         const isResetting = localStorage.getItem('isResetting');
         if (isResetting) {
             localStorage.removeItem('isResetting');
+            // Mark preloader complete since we're skipping the title screen.
+            preloader.progress('core', 1);
+            preloader.progress('titleScreen', 1);
             hideTitleScreen();
-            startGame({ mode: 'new' });
+            startWhenTranslationsReady('new');
             return;
         }
     } catch { /* ignore */ }
@@ -85,8 +113,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const autoContinue = localStorage.getItem('autoContinueAfterReload');
         if (autoContinue) {
             localStorage.removeItem('autoContinueAfterReload');
+            // Mark preloader complete since we're skipping the title screen.
+            preloader.progress('core', 1);
+            preloader.progress('titleScreen', 1);
             hideTitleScreen();
-            startGame({ mode: 'continue' });
+            startWhenTranslationsReady('continue');
             return;
         }
     } catch { /* ignore */ }
@@ -100,6 +131,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch {
         startGame({ mode: 'continue' });
     }
+
+    // Core subsystems fully initialized.
+    preloader.progress('core', 1, 'Ready.');
 });
 
 document.addEventListener('beforeunload', () => {

@@ -49,7 +49,7 @@
 <body>
 <div id="preloader">
         <div class="loader"></div>
-        <p>Loading assets...</p>
+        <p class="preloader-text">Loading assets...</p>
 </div>
 
 <div id="titleScreen" class="title-screen-overlay hidden" aria-hidden="true" hidden>
@@ -61,6 +61,15 @@
             </button>
             <button id="titleLangCs" class="title-screen-flag" type="button" data-lang="cs" title="Čeština">
                 <svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="20" fill="#fff"/><rect y="20" width="60" height="20" fill="#D7141A"/><polygon points="0,0 25,20 0,40" fill="#11457E"/></svg> Čeština
+            </button>
+            <button class="title-screen-flag flag-disabled" type="button" disabled title="Coming soon">
+                <svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="40" fill="#444"/></svg> ???
+            </button>
+            <button class="title-screen-flag flag-disabled" type="button" disabled title="Coming soon">
+                <svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="40" fill="#444"/></svg> ???
+            </button>
+            <button class="title-screen-flag flag-disabled" type="button" disabled title="Coming soon">
+                <svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="40" fill="#444"/></svg> ???
             </button>
         </div>
         <div class="title-screen-menu">
@@ -81,12 +90,12 @@
         <span id="headerClock" class="clock-display"></span>
     </div>
     <div class="header-right">
-        <span id="headerLangFlag" class="header-lang-flag" title="Language"></span>
         <div class="header-links">
             <a href="#" id="optionsLink" class="header-link" data-locale="header_options">Options</a>
             <a href="#" id="saveLink" class="header-link" data-locale="header_save">Save</a>
             <a href="#" id="loadLink" class="header-link" data-locale="header_load">Load</a>
         </div>
+        <span id="headerLangFlag" class="header-lang-flag" title="Language"></span>
     </div>
 </div>
 
@@ -136,40 +145,40 @@
 <div id="optionsMenu" class="options-menu-overlay hidden" hidden>
     <div class="options-menu-content">
         <div class="options-menu-header">
-            <h3>Options</h3>
+            <h3 data-locale="options_title">Options</h3>
             <span class="options-menu-close">&times;</span>
         </div>
 
         <div class="option-group" id="optionsSettingsGroup">
-            <h4>Settings</h4>
+            <h4 data-locale="options_settings">Settings</h4>
             <div class="option-toggle">
-                <label for="backgroundToggle">Run in background</label>
+                <label for="backgroundToggle" data-locale="options_run_background">Run in background</label>
                 <input type="checkbox" id="backgroundToggle">
             </div>
             <div class="option-toggle">
-                <label for="glowToggle">Enable UI Glow Effects</label>
+                <label for="glowToggle" data-locale="options_glow_effects">Enable UI Glow Effects</label>
                 <input type="checkbox" id="glowToggle">
             </div>
             <div class="option-toggle">
-                <label for="reduceMotionToggle">Reduce motion</label>
+                <label for="reduceMotionToggle" data-locale="options_reduce_motion">Reduce motion</label>
                 <input type="checkbox" id="reduceMotionToggle">
             </div>
             <div class="option-toggle">
-                <label for="combatStartPausedToggle">Combat starts paused</label>
+                <label for="combatStartPausedToggle" data-locale="options_combat_start_paused">Combat starts paused</label>
                 <input type="checkbox" id="combatStartPausedToggle">
             </div>
             <div class="option-toggle">
-                <label for="confirmLoadToggle">Confirm before load</label>
+                <label for="confirmLoadToggle" data-locale="options_confirm_load">Confirm before load</label>
                 <input type="checkbox" id="confirmLoadToggle">
             </div>
             <div class="option-toggle">
-                <label for="confirmResetToggle">Confirm before reset</label>
+                <label for="confirmResetToggle" data-locale="options_confirm_reset">Confirm before reset</label>
                 <input type="checkbox" id="confirmResetToggle">
             </div>
         </div>
 
         <div class="option-group" id="optionsGlowColorGroup">
-            <h4>UI Glow Color</h4>
+            <h4 data-locale="options_glow_color">UI Glow Color</h4>
             <div id="colorPickerContainer">
 				<button class="color-swatch" data-color="green" title="Sci-Fi Green"></button>
                 <button class="color-swatch" data-color="blue" title="Cyber Blue"></button>
@@ -187,7 +196,7 @@
         </div>
 
         <div class="option-group popup-span-all">
-            <h4>Glow Intensity</h4>
+            <h4 data-locale="options_glow_intensity">Glow Intensity</h4>
             <input type="range" id="glowIntensitySlider" min="0" max="100" step="1" value="70">
         </div>
 
@@ -202,11 +211,23 @@
                     <svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="20" fill="#fff"/><rect y="20" width="60" height="20" fill="#D7141A"/><polygon points="0,0 25,20 0,40" fill="#11457E"/></svg>
                     <span>Čeština</span>
                 </button>
+                <button class="language-flag-btn flag-disabled" type="button" disabled title="Coming soon">
+                    <svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="40" fill="#444"/></svg>
+                    <span>???</span>
+                </button>
+                <button class="language-flag-btn flag-disabled" type="button" disabled title="Coming soon">
+                    <svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="40" fill="#444"/></svg>
+                    <span>???</span>
+                </button>
+                <button class="language-flag-btn flag-disabled" type="button" disabled title="Coming soon">
+                    <svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="40" fill="#444"/></svg>
+                    <span>???</span>
+                </button>
             </div>
         </div>
 
         <div class="option-group save-management popup-span-all">
-            <h4>Save Management</h4>
+            <h4 data-locale="options_save_management">Save Management</h4>
 
             <div id="importContainer">
                 <textarea id="importSaveText" placeholder="Paste exported save here"></textarea>
@@ -224,6 +245,12 @@
             <h4 data-locale="options_title_return">Other</h4>
             <div class="import-reset-row" style="display:flex;flex-direction:column;gap:10px">
                 <button id="optionsTitleBtn" class="menu-button options-menu-btn" type="button" data-locale="header_title">Title</button>
+            </div>
+        </div>
+
+        <div class="option-group popup-span-all">
+            <h4 data-locale="options_reset_progress">Reset Progress</h4>
+            <div style="display:flex;flex-direction:column;gap:10px">
                 <button id="resetButton" class="danger" data-locale="options_reset_progress">Reset Progress</button>
             </div>
         </div>
@@ -233,35 +260,35 @@
 <div id="logOptionsMenu" class="log-options-overlay hidden" hidden>
     <div class="log-options-content">
         <div class="log-options-header">
-            <h3>Log Options</h3>
+            <h3 data-locale="log_title">Log Options</h3>
             <span class="log-options-close">&times;</span>
         </div>
 
         <div class="log-options-body">
             <div class="log-option-group">
-                <h4>Display</h4>
+                <h4 data-locale="log_display">Display</h4>
                 <div class="log-option-toggle">
-                    <label for="logTimestampsToggle">Show timestamps</label>
+                    <label for="logTimestampsToggle" data-locale="log_show_timestamps">Show timestamps</label>
                     <input type="checkbox" id="logTimestampsToggle">
                 </div>
                 <div class="log-option-toggle">
-                    <label for="logTypewriterToggle">Typewriter effect</label>
+                    <label for="logTypewriterToggle" data-locale="log_typewriter_effect">Typewriter effect</label>
                     <input type="checkbox" id="logTypewriterToggle">
                 </div>
             </div>
 
             <div class="log-option-group">
-                <h4>Filters</h4>
+                <h4 data-locale="log_filters">Filters</h4>
                 <div id="logFiltersContainer"></div>
             </div>
 
             <div class="log-option-group span-all">
-                <h4>Colors</h4>
+                <h4 data-locale="log_colors">Colors</h4>
                 <div id="logColorsContainer"></div>
             </div>
 
             <div class="log-option-group span-all">
-                <button id="resetLogColorsBtn" class="log-option-button">Reset Colors to Default</button>
+                <button id="resetLogColorsBtn" class="log-option-button" data-locale="log_reset_colors">Reset Colors to Default</button>
             </div>
         </div>
     </div>

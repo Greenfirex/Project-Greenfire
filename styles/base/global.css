@@ -203,6 +203,37 @@ body.reduce-motion * {
     pointer-events: none;
 }
 
+#preloader.preloader-done {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease-out;
+}
+
+/* Progress bar inside preloader (created by preloader.js) */
+.preloader-bar {
+    width: 280px;
+    max-width: 70vw;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    margin-top: 24px;
+    overflow: hidden;
+}
+
+.preloader-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, rgba(105, 155, 100, 0.85), #90EE90);
+    border-radius: 3px;
+}
+
+.preloader-status {
+    margin-top: 10px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.55);
+    min-height: 18px;
+}
+
 .loader {
     border: 8px solid #333;
     border-top: 8px solid #90EE90;

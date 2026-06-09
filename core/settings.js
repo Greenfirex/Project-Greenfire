@@ -202,7 +202,6 @@ export function initOptions() {
 
         const currentLanguage = getSelectedLanguage();
         languageSelect.value = currentLanguage;
-        setLanguage(currentLanguage);
         languageSelect.addEventListener('change', () => {
             const next = String(languageSelect.value || 'en');
             setLanguage(next);

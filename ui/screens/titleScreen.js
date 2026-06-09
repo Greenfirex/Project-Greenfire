@@ -1,5 +1,6 @@
 import { showConfirmPopup } from '../panels/confirmPopup.js';
-import { getSelectedLanguage, setLanguage, t } from '../../locales/locales.js';
+import { getSelectedLanguage, setLanguage, t, isReady } from '../../locales/locales.js';
+import { preloader } from '../system/preloader.js';
 
 const BODY_CLASS = 'title-screen-active';
 
@@ -93,6 +94,18 @@ export function showTitleScreen() {
     } catch { /* ignore */ }
 
     setHiddenWithInert(overlay, false);
+
+    // Translate button text (always, so they're correct after a language-switch reload).
+    updateTitleScreenText();
+
+    // Signal title screen is partially ready (needs translations to be fully ready).
+    preloader.progress('titleScreen', 0.5, 'Preparing title...');
+
+    // If translations are already done (e.g. language-changed fired before we attached
+    // the listener), mark the title screen fully ready now so the preloader can dismiss.
+    if (isReady()) {
+        preloader.progress('titleScreen', 1);
+    }
 
     // Update button states.
     const continueBtn = document.getElementById('titleContinueBtn');
@@ -213,8 +226,15 @@ export function initTitleScreen({
 
     if (langEnBtn && langEnBtn.dataset.wired !== 'true') {
         langEnBtn.dataset.wired = 'true';
-        langEnBtn.addEventListener('click', (e) => {
+        langEnBtn.addEventListener('click', async (e) => {
             e.preventDefault();
+            const ok = await showConfirmPopup({
+                title: t('confirm_lang_change_title'),
+                message: t('confirm_lang_change_msg'),
+                confirmText: t('confirm_lang_change_confirm'),
+                cancelText: t('confirm_lang_change_cancel')
+            });
+            if (!ok) return;
             setLanguage('en');
             updateFlagActiveState();
             updateTitleScreenText();
@@ -223,8 +243,15 @@ export function initTitleScreen({
 
     if (langCsBtn && langCsBtn.dataset.wired !== 'true') {
         langCsBtn.dataset.wired = 'true';
-        langCsBtn.addEventListener('click', (e) => {
+        langCsBtn.addEventListener('click', async (e) => {
             e.preventDefault();
+            const ok = await showConfirmPopup({
+                title: t('confirm_lang_change_title'),
+                message: t('confirm_lang_change_msg'),
+                confirmText: t('confirm_lang_change_confirm'),
+                cancelText: t('confirm_lang_change_cancel')
+            });
+            if (!ok) return;
             setLanguage('cs');
             updateFlagActiveState();
             updateTitleScreenText();
@@ -232,6 +259,14 @@ export function initTitleScreen({
     }
 
     updateFlagActiveState();
+
+    // Re-translate title buttons whenever translations finish loading asynchronously
+    // (e.g. Czech JSON files arrive after the title screen is already visible).
+    window.addEventListener('language-changed', () => {
+        updateTitleScreenText();
+        // Title screen is now fully ready with correct translations.
+        preloader.progress('titleScreen', 1, 'Title screen ready');
+    });
 
     if (exitBtn && exitBtn.dataset.wired !== 'true') {
         exitBtn.dataset.wired = 'true';
