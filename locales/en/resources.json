@@ -1,0 +1,23 @@
+{
+  "res_health": "Health",
+  "res_health_desc": "Your physical condition. Passively regenerates over time.",
+  "res_stamina": "Stamina",
+  "res_stamina_desc": "Your endurance. Passively regenerates over time.",
+  "res_xp": "XP",
+  "res_food": "Food Rations",
+  "res_food_desc": "Personal rations carried while exploring. Depletion causes Hunger penalties.",
+  "res_water": "Drinking Water",
+  "res_water_desc": "Personal water carried while exploring. Depletion causes Thirst penalties.",
+  "res_category_essential": "Essential",
+  "res_category_materials": "Materials",
+  "res_category_tools": "Tools",
+  "res_category_science": "Science",
+  "res_category_other": "Other",
+  "res_no_data": "No data available.",
+
+  "resource_regen": "Regeneration",
+  "resource_gains": "Gains",
+  "resource_drain": "Drain",
+  "resource_usage": "Usage",
+  "resource_net_change": "Net Change"
+}

@@ -1,0 +1,36 @@
+{
+  "stat_health": "Health",
+  "stat_stamina": "Stamina",
+  "stat_damage": "Damage",
+  "stat_attack_speed": "Attack Speed",
+  "stat_hit_chance": "Hit Chance",
+  "stat_crit_chance": "Crit Chance",
+  "stat_armor": "Armor",
+  "stat_evasion": "Evasion",
+  "stat_points": "Stat Points",
+  "stat_level": "Level",
+
+  "equip_head": "Head",
+  "equip_chest": "Chest",
+  "equip_legs": "Legs",
+  "equip_boots": "Boots",
+  "equip_weapon": "Weapon",
+  "equip_offhand": "Offhand",
+  "equip_accessory": "Accessory",
+  "equip_accessory_1": "Accessory 1",
+  "equip_accessory_2": "Accessory 2",
+
+  "inventory_use_btn": "Use",
+  "inventory_discard_btn": "Discard items",
+  "inventory_bag_size": "Bag {rows}×{cols}",
+
+  "buff_stamina_regen": "Stamina Regen",
+  "buff_none": "None",
+  "buff_herb_tea": "Herb Tea",
+
+  "debuff_hungry": "Hungry",
+  "debuff_thirsty": "Thirsty",
+  "debuff_hunger": "Hunger",
+  "debuff_thirst": "Thirst",
+  "debuff_inactive": "Inactive"
+}

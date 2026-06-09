@@ -1,5 +1,5 @@
 import { LogType, updateLogSettings } from './ingameLog.js';
-import { getSelectedLanguage, setLanguage } from './localization.js';
+import { getSelectedLanguage, setLanguage, getAvailableLanguages } from '../locales/locales.js';
 
 // A single, unified map for all color options
 const colorMap = {
@@ -206,6 +206,15 @@ export function initOptions() {
         languageSelect.addEventListener('change', () => {
             const next = String(languageSelect.value || 'en');
             setLanguage(next);
+        });
+
+        // Re-populate dropdown when new languages load (e.g. Czech after fetch)
+        window.addEventListener('language-changed', () => {
+            const available = getAvailableLanguages();
+            languageSelect.innerHTML = available.map(l =>
+                `<option value="${l.code}">${l.label}</option>`
+            ).join('');
+            languageSelect.value = getSelectedLanguage();
         });
     }
 

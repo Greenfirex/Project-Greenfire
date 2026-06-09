@@ -1,0 +1,17 @@
+{
+  "action_investigate": "Investigate",
+  "action_investigate_desc": "Spend energy to study the loop signature and learn from it.",
+  "action_stabilize": "Stabilize",
+  "action_stabilize_desc": "Use supplies to keep the loop from fragmenting.",
+  "action_scan": "Scan",
+  "action_scan_desc": "Analyze incoming anomalies and gain experience.",
+
+  "action_drain": "Drain: {drains}",
+  "action_duration": "Duration: {duration}s",
+  "action_status_ready": "Loop {loop} — Ready for next action.",
+  "action_status_active": "Active: {action} — {pct}% complete",
+
+  "log_action_completed": "Completed {action}. Gained {xp} XP.",
+  "log_loop_started": "Loop {loop} started. Resources have been partially restored.",
+  "log_loop_triggered": "Loop triggered: {resources} depleted."
+}

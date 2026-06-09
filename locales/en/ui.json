@@ -1,0 +1,56 @@
+{
+  "lang_en": "English",
+  "lang_cs": "Čeština",
+
+  "title_continue": "Continue",
+  "title_new_game": "New Game",
+  "title_settings": "Settings",
+  "title_changelog": "Changelog",
+  "title_exit": "Exit",
+
+  "header_options": "Options",
+  "header_save": "Save",
+  "header_title": "Title",
+  "header_load": "Load",
+
+  "footer_pause": "Pause",
+  "footer_resume": "Resume",
+  "footer_pause_title": "Pause / Resume game",
+  "footer_debug_title": "Toggle x10 resource gains for testing",
+
+  "menu_crash_site": "Crash Site",
+  "menu_character": "Character",
+  "menu_journal": "Journal",
+
+  "options_language": "Language",
+  "options_language_select": "Select language",
+  "options_run_background": "Run in background",
+  "options_glow_effects": "Enable UI Glow Effects",
+  "options_reduce_motion": "Reduce motion",
+  "options_confirm_load": "Confirm before load",
+  "options_confirm_reset": "Confirm before reset",
+  "options_save_management": "Save Management",
+  "options_reset_progress": "Reset Progress",
+
+  "log_entries": "Log entries:",
+  "log_options": "Log Options",
+
+  "info_no_entries": "No journal entries yet.",
+  "info_no_objectives": "No objectives available yet.",
+  "journal_objectives": "Objectives",
+  "journal_journal": "Journal",
+
+  "character_equipment": "Equipment",
+  "character_inventory": "Inventory",
+  "character_stats": "Stats",
+  "character_bag": "Bag",
+  "character_use": "Use",
+
+  "objectives_current": "Current Objective",
+  "objectives_no_current": "No current objective",
+  "objectives_no_steps": "No detailed steps available.",
+
+  "clock_title": "In-game Time",
+  "clock_elapsed": "Elapsed since crash",
+  "clock_speed": "At current speed ({scale}x): 1 real sec = {minsPerSec} in-game min | 1 real min = {hoursPerMin} in-game hr"
+}

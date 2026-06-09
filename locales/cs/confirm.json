@@ -1,0 +1,30 @@
+{
+  "confirm_new_game_title": "Nová hra",
+  "confirm_new_game_msg": "Začít novou hru? Tím přepíšete aktuální uloženou pozici.",
+  "confirm_new_game_confirm": "Nová hra",
+  "confirm_new_game_cancel": "Zrušit",
+
+  "confirm_load_title": "Načíst uloženou hru",
+  "confirm_load_msg": "Načíst poslední uloženou hru? Neuložený postup bude ztracen.",
+  "confirm_load_confirm": "Načíst",
+  "confirm_load_cancel": "Zrušit",
+
+  "confirm_reset_title": "Reset postupu",
+  "confirm_reset_msg": "Opravdu chcete resetovat veškerý postup? Tuto akci nelze vrátit zpět.",
+  "confirm_reset_confirm": "Reset",
+  "confirm_reset_cancel": "Zrušit",
+
+  "confirm_discard_title": "Zahodit předmět",
+  "confirm_discard_msg": "Zahodit {item}? Tuto akci nelze vrátit zpět.",
+  "confirm_discard_confirm": "Ano",
+  "confirm_discard_cancel": "Zrušit",
+
+  "confirm_quest_title": "Úkolový předmět",
+  "confirm_quest_msg": "Úkolové předměty nelze zahodit.",
+  "confirm_quest_ok": "OK",
+
+  "confirm_exit_title": "Konec",
+  "confirm_exit_msg": "Ukončit hru?",
+  "confirm_exit_confirm": "Ukončit",
+  "confirm_exit_cancel": "Zrušit"
+}

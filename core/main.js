@@ -21,6 +21,7 @@ import '../ui/panels/changelog.js';
 import '../ui/panels/objectivesPanel.js';
 import '../ui/mobile/mobileObjectivesLogSwap.js';
 import { MENU_SECTIONS, initMenuBadges, setMenuNewItemFlag } from '../ui/chrome/menuBadges.js';
+import { t } from '../locales/locales.js';
 
 window.debugResources = resources;
 window.TIME_SCALE = Number(localStorage.getItem('gameTimeScale')) || 1;
@@ -288,7 +289,7 @@ export function getInitialActivatedSections() {
     return {
         crashSiteSection: true,
         characterSection: true,
-        journalSection: false,
+        journalSection: true,
     };
 }
 
@@ -321,6 +322,12 @@ export function setActivatedSections(sections) {
 export let activatedSections = JSON.parse(localStorage.getItem('activatedSections')) || getInitialActivatedSections();
 try { setActivatedSections(activatedSections); } catch { /* ignore */ }
 
+const SECTION_KEYS = {
+    crashSiteSection: 'menu_crash_site',
+    characterSection: 'menu_character',
+    journalSection: 'menu_journal',
+};
+
 function setupMenuButtons() {
     const sections = MENU_SECTIONS;
     const container = document.querySelector('.menu-buttons-container');
@@ -329,14 +336,10 @@ function setupMenuButtons() {
         const button = document.createElement('button');
         button.className = 'menu-button';
         button.dataset.section = section;
-        
-        const baseName = section.replace('Section', '');
-        const formattedName = baseName.replace(/([A-Z])/g, ' $1');
-        const displayName = formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
 
         const label = document.createElement('span');
         label.className = 'menu-button-label';
-        label.textContent = displayName;
+        label.textContent = t(SECTION_KEYS[section] || section);
 
         const warning = document.createElement('span');
         warning.className = 'menu-button-warning is-hidden';

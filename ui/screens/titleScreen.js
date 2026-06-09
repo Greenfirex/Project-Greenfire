@@ -1,20 +1,18 @@
 import { showConfirmPopup } from '../panels/confirmPopup.js';
-import { getSelectedLanguage, setLanguage } from '../../core/localization.js';
+import { getSelectedLanguage, setLanguage, t } from '../../locales/locales.js';
 
 const BODY_CLASS = 'title-screen-active';
 
-function updateTitleScreenText() {
-    import('../../core/localization.js').then(({ t: translate }) => {
-        const set = (id, key, fb) => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = translate(key, fb);
-        };
-        set('titleContinueBtn', 'continue', 'Continue');
-        set('titleNewGameBtn', 'newGame', 'New Game');
-        set('titleSettingsBtn', 'settings', 'Settings');
-        set('titleChangelogBtn', 'changelog', 'Changelog');
-        set('titleExitBtn', 'exit', 'Exit');
-    }).catch(() => {});
+export function updateTitleScreenText() {
+    const set = (id, key) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = t(key);
+    };
+    set('titleContinueBtn', 'title_continue');
+    set('titleNewGameBtn', 'title_new_game');
+    set('titleSettingsBtn', 'title_settings');
+    set('titleChangelogBtn', 'title_changelog');
+    set('titleExitBtn', 'title_exit');
 }
 
 function setHiddenWithInert(el, hidden) {
@@ -168,10 +166,10 @@ export function initTitleScreen({
         newBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             const ok = await showConfirmPopup({
-                title: 'New Game',
-                message: 'Start a new game? This will overwrite your current save.',
-                confirmText: 'New Game',
-                cancelText: 'Cancel',
+                title: t('confirm_new_game_title'),
+                message: t('confirm_new_game_msg'),
+                confirmText: t('confirm_new_game_confirm'),
+                cancelText: t('confirm_new_game_cancel'),
             });
             if (!ok) return;
             lockButtons(true);
@@ -240,10 +238,10 @@ export function initTitleScreen({
         exitBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             const ok = await showConfirmPopup({
-                title: 'Exit',
-                message: 'Exit the game?',
-                confirmText: 'Exit',
-                cancelText: 'Cancel',
+                title: t('confirm_exit_title'),
+                message: t('confirm_exit_msg'),
+                confirmText: t('confirm_exit_confirm'),
+                cancelText: t('confirm_exit_cancel'),
             });
             if (!ok) return;
 

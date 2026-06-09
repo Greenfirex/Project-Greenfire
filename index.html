@@ -56,8 +56,12 @@
     <div class="title-screen-card" role="main" aria-label="Project Greenfire title screen">
         <img class="title-screen-logo" src="assets/images/logo-header.png" alt="Project Greenfire">
         <div class="title-screen-flags">
-            <button id="titleLangEn" class="title-screen-flag" type="button" data-lang="en" title="English">🇬🇧</button>
-            <button id="titleLangCs" class="title-screen-flag" type="button" data-lang="cs" title="Čeština">🇨🇿</button>
+            <button id="titleLangEn" class="title-screen-flag" type="button" data-lang="en" title="English">
+                <svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="40" fill="#012169"/><path d="M0 0l60 40M60 0L0 40" stroke="#fff" stroke-width="6"/><path d="M0 0l60 40M60 0L0 40" stroke="#C8102E" stroke-width="3"/><rect width="18" height="40" fill="#012169" x="21"/><rect width="60" height="14" fill="#012169" y="13"/><path d="M30 0v40M0 20h60" stroke="#fff" stroke-width="10"/><path d="M30 0v40M0 20h60" stroke="#C8102E" stroke-width="4"/></svg> English
+            </button>
+            <button id="titleLangCs" class="title-screen-flag" type="button" data-lang="cs" title="Čeština">
+                <svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="20" fill="#fff"/><rect y="20" width="60" height="20" fill="#D7141A"/><polygon points="0,0 25,20 0,40" fill="#11457E"/></svg> Čeština
+            </button>
         </div>
         <div class="title-screen-menu">
             <button id="titleContinueBtn" class="title-screen-btn" type="button">Continue</button>
@@ -77,11 +81,11 @@
         <span id="headerClock" class="clock-display"></span>
     </div>
     <div class="header-right">
+        <span id="headerLangFlag" class="header-lang-flag" title="Language"></span>
         <div class="header-links">
-            <a href="#" id="optionsLink" class="header-link">Options</a>
-            <a href="#" id="saveLink" class="header-link">Save</a>
-            <a href="#" id="titleLink" class="header-link">Title</a>
-            <a href="#" id="loadLink" class="header-link">Load</a>
+            <a href="#" id="optionsLink" class="header-link" data-locale="header_options">Options</a>
+            <a href="#" id="saveLink" class="header-link" data-locale="header_save">Save</a>
+            <a href="#" id="loadLink" class="header-link" data-locale="header_load">Load</a>
         </div>
     </div>
 </div>
@@ -97,7 +101,7 @@
 <div class="menu-buttons-container"></div>
 <div id="logSection">
     <div class="log-header">
-        <h3>Log entries:</h3>
+        <h3 id="logHeaderTitle">Log entries:</h3>
 		<button id="logOptionsBtn" title="Log Options">⚙️</button>
     </div>
     <div id="logContent"></div> </div>
@@ -188,12 +192,17 @@
         </div>
 
         <div class="option-group">
-            <h4>Language</h4>
-            <label for="languageSelect">Select language</label>
-            <select id="languageSelect">
-                <option value="en">English</option>
-                <option value="es">Español</option>
-            </select>
+            <h4 data-locale="options_language">Language</h4>
+            <div class="language-flags">
+                <button id="optLangEn" class="language-flag-btn" type="button" data-lang="en" title="English">
+                    <svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="40" fill="#012169"/><path d="M0 0l60 40M60 0L0 40" stroke="#fff" stroke-width="6"/><path d="M0 0l60 40M60 0L0 40" stroke="#C8102E" stroke-width="3"/><rect width="18" height="40" fill="#012169" x="21"/><rect width="60" height="14" fill="#012169" y="13"/><path d="M30 0v40M0 20h60" stroke="#fff" stroke-width="10"/><path d="M30 0v40M0 20h60" stroke="#C8102E" stroke-width="4"/></svg>
+                    <span>English</span>
+                </button>
+                <button id="optLangCs" class="language-flag-btn" type="button" data-lang="cs" title="Čeština">
+                    <svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="20" fill="#fff"/><rect y="20" width="60" height="20" fill="#D7141A"/><polygon points="0,0 25,20 0,40" fill="#11457E"/></svg>
+                    <span>Čeština</span>
+                </button>
+            </div>
         </div>
 
         <div class="option-group save-management popup-span-all">
@@ -212,9 +221,10 @@
         </div>
 
         <div class="option-group popup-span-all">
-            <h4>Reset Game Data</h4>
-            <div class="import-reset-row">
-                <button id="resetButton" class="danger">Reset Progress</button>
+            <h4 data-locale="options_title_return">Other</h4>
+            <div class="import-reset-row" style="display:flex;flex-direction:column;gap:10px">
+                <button id="optionsTitleBtn" class="menu-button options-menu-btn" type="button" data-locale="header_title">Title</button>
+                <button id="resetButton" class="danger" data-locale="options_reset_progress">Reset Progress</button>
             </div>
         </div>
 </div>

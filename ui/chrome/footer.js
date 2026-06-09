@@ -4,6 +4,7 @@
 // - (XP display lives in Character stats)
 
 import { addLogEntry, LogType } from '../../core/ingameLog.js';
+import { t } from '../../locales/locales.js';
 
 let isPaused = false;
 let mainLoopCallbacks = { start: null, stop: null };
@@ -123,7 +124,7 @@ function pauseGame(announce = true) {
     if (mainLoopCallbacks.stop) mainLoopCallbacks.stop();
     window.dispatchEvent(new CustomEvent('game-pause', { detail: { showOverlay: !!announce, source: announce ? 'user' : 'system' } }));
     const btn = document.getElementById('pauseBtn');
-    if (btn) { btn.textContent = 'Resume'; btn.classList.add('active'); }
+    if (btn) { btn.textContent = t('footer_resume'); btn.classList.add('active'); }
     // persist paused state
     try { localStorage.setItem('gamePaused', 'true'); } catch (e) {}
     updateHUD();
@@ -136,7 +137,7 @@ function resumeGame(announce = true) {
     if (mainLoopCallbacks.start) mainLoopCallbacks.start();
     window.dispatchEvent(new CustomEvent('game-resume', { detail: { source: announce ? 'user' : 'system' } }));
     const btn = document.getElementById('pauseBtn');
-    if (btn) { btn.textContent = 'Pause'; btn.classList.remove('active'); }
+    if (btn) { btn.textContent = t('footer_pause'); btn.classList.remove('active'); }
     try { localStorage.setItem('gamePaused', 'false'); } catch (e) {}
     updateHUD();
     if (announce) addLogEntry(`Game resumed at ${window.TIME_SCALE}x.`, LogType.INFO);
@@ -262,13 +263,14 @@ export function initFooter() {
     } else {
         isPaused = false;
         const pBtn = document.getElementById('pauseBtn');
-        if (pBtn) { pBtn.textContent = 'Pause'; pBtn.classList.remove('active'); }
+        if (pBtn) { pBtn.textContent = t('footer_pause'); pBtn.classList.remove('active'); }
         updateHUD();
         try { hidePauseOverlay(); } catch { /* ignore */ }
     }
 
     // Ensure debug button reflects current state on load
     if (debugBtn) debugBtn.classList.toggle('active', window.DEBUG_RESOURCE_GAIN === 10);
+
 }
 
 // Export pause/resume functions and registration for core to use

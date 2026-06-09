@@ -1,32 +1,41 @@
 import { resources } from '../core/resources.js';
 import { addLogEntry, LogType } from '../core/ingameLog.js';
+import { t } from '../locales/locales.js';
 
-const LOOP_ACTIONS = [
+const LOOP_ACTIONS_BASE = [
     {
         id: 'investigate',
-        name: 'Investigate',
-        description: 'Spend energy to study the loop signature and learn from it.',
+        nameKey: 'action_investigate',
+        descKey: 'action_investigate_desc',
         drain: [{ resource: 'Stamina', amount: 6 }],
         durationSeconds: 5,
         xp: 10
     },
     {
         id: 'stabilize',
-        name: 'Stabilize',
-        description: 'Use supplies to keep the loop from fragmenting.',
+        nameKey: 'action_stabilize',
+        descKey: 'action_stabilize_desc',
         drain: [{ resource: 'Stamina', amount: 4 }, { resource: 'Food Rations', amount: 1 }],
         durationSeconds: 4,
         xp: 8
     },
     {
         id: 'scan',
-        name: 'Scan',
-        description: 'Analyze incoming anomalies and gain experience.',
+        nameKey: 'action_scan',
+        descKey: 'action_scan_desc',
         drain: [{ resource: 'Stamina', amount: 3 }],
         durationSeconds: 3,
         xp: 5
     }
 ];
+
+function getLocalizedActions() {
+    return LOOP_ACTIONS_BASE.map(a => ({
+        ...a,
+        name: t(a.nameKey),
+        description: t(a.descKey)
+    }));
+}
 
 let activeAction = null;
 let actionTimer = null;
@@ -75,7 +84,7 @@ function resetLoopState() {
     const water = getResourceByName('Drinking Water');
     if (water) water.amount = Math.max(2, Math.min(water.capacity || 10, 6));
 
-    addLogEntry(`Loop ${loopCount} started. Resources have been partially restored.`, LogType.INFO);
+    addLogEntry(t('log_loop_started', { loop: loopCount }), LogType.INFO);
     updateStatus();
     updateActionButtons();
 }
@@ -84,7 +93,7 @@ function checkLoopTrigger() {
     const drained = resources.filter(r => r && Number.isFinite(Number(r.amount)) && Number(r.amount) <= 0 && r.name !== 'XP');
     if (drained.length === 0) return false;
     const names = drained.map(r => r.name).join(', ');
-    addLogEntry(`Loop triggered: ${names} depleted.`, LogType.ERROR);
+    addLogEntry(t('log_loop_triggered', { resources: names }), LogType.ERROR);
     resetLoopState();
     return true;
 }
@@ -94,7 +103,7 @@ function completeActiveAction() {
     if (!action) return;
     applyActionDrain(action);
     addActionXp(action.xp);
-    addLogEntry(`Completed ${action.name}. Gained ${action.xp} XP.`, LogType.ACTION);
+    addLogEntry(t('log_action_completed', { action: action.name, xp: action.xp }), LogType.ACTION);
     activeAction = null;
     actionProgress = 0;
     clearInterval(actionTimer);
@@ -106,7 +115,8 @@ function completeActiveAction() {
 
 function startAction(actionId) {
     if (activeAction) return;
-    const action = LOOP_ACTIONS.find(a => a.id === actionId);
+    const actions = getLocalizedActions();
+    const action = actions.find(a => a.id === actionId);
     if (!action || !canAffordAction(action)) return;
     activeAction = action;
     actionProgress = 0;
@@ -131,17 +141,19 @@ function updateStatus() {
     const statusEl = document.querySelector('#crashSiteLoopStatus');
     if (!statusEl) return;
     if (activeAction) {
-        statusEl.textContent = `Active: ${activeAction.name} — ${Math.min(100, Math.round((actionProgress / activeAction.durationSeconds) * 100))}% complete`;
+        const pct = Math.min(100, Math.round((actionProgress / activeAction.durationSeconds) * 100));
+        statusEl.textContent = t('action_status_active', { action: activeAction.name, pct });
     } else {
-        statusEl.textContent = `Loop ${loopCount} — Ready for next action.`;
+        statusEl.textContent = t('action_status_ready', { loop: loopCount });
     }
 }
 
 function updateActionButtons() {
+    const actions = getLocalizedActions();
     const buttons = document.querySelectorAll('.loop-action-button');
     buttons.forEach(button => {
         const actionId = button.dataset.actionId;
-        const action = LOOP_ACTIONS.find(a => a.id === actionId);
+        const action = actions.find(a => a.id === actionId);
         if (!action) return;
         button.disabled = !!activeAction || !canAffordAction(action);
     });
@@ -153,15 +165,16 @@ export function updateCrashSiteActionButtonsState() {
 }
 
 function renderActionList() {
+    const actions = getLocalizedActions();
     const actionsHost = document.querySelector('#crashSiteActionList');
     if (!actionsHost) return;
-    actionsHost.innerHTML = LOOP_ACTIONS.map(action => {
+    actionsHost.innerHTML = actions.map(action => {
         const drains = action.drain.map(d => `${d.amount} ${d.resource}`).join(', ');
         return `<div class="loop-action-card">
                 <h3>${action.name}</h3>
                 <p>${action.description}</p>
-                <p class="loop-action-details">Drain: ${drains}</p>
-                <p class="loop-action-details">Duration: ${action.durationSeconds}s</p>
+                <p class="loop-action-details">` + t('action_drain', { drains }) + `</p>
+                <p class="loop-action-details">` + t('action_duration', { duration: action.durationSeconds }) + `</p>
                 <button type="button" class="loop-action-button" data-action-id="${action.id}">Start</button>
             </div>`;
     }).join('');
@@ -175,12 +188,14 @@ function renderActionList() {
 
 export function setupCrashSiteSection(section) {
     section.innerHTML = `
-        <div class="crashsite-action-loop">
-            <div class="crashsite-action-loop__header">
-                <h2>Time Loop Hub</h2>
-                <p id="crashSiteLoopStatus">Initializing...</p>
+        <div class="content-panel">
+            <div class="crashsite-action-loop">
+                <div class="crashsite-action-loop__header">
+                    <h2>Time Loop Hub</h2>
+                    <p id="crashSiteLoopStatus">Initializing...</p>
+                </div>
+                <div id="crashSiteActionList" class="loop-action-list"></div>
             </div>
-            <div id="crashSiteActionList" class="loop-action-list"></div>
         </div>
     `;
 

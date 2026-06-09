@@ -4,6 +4,7 @@
 // - Read-only (no clicks)
 
 import { getVisibleObjectives, recomputeObjectives, getObjectiveSteps, getTrackedObjectiveId, getAllObjectivesWithState } from '../../data/objectives.js';
+import { t } from '../../locales/locales.js';
 
 let isOpen = false;
 let elements = { container: null, banner: null, drawer: null, list: null, details: null };
@@ -54,14 +55,14 @@ function ensureContainer() {
     banner.setAttribute('tabindex', '0');
     banner.setAttribute('aria-expanded', 'false');
     banner.title = 'Show current objective details';
-    banner.innerHTML = `
+banner.innerHTML = `
         <span class="chevrons" aria-hidden="true">
             <svg class="chevrons-icon" width="22" height="16" viewBox="0 0 24 18" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M3 12 L12 3 L21 12" stroke-linecap="round" />
                 <path d="M3 18 L12 9 L21 18" stroke-linecap="round" />
             </svg>
         </span>
-        <span class="current-objective-label">Current Objective: <em class="current-objective-text">—</em></span>`;
+        <span class="current-objective-label"><span class="current-objective-label-text">Current Objective:</span> <em class="current-objective-text">—</em></span>`;
 
     const drawer = document.createElement('div');
     drawer.id = 'objectivesDrawer';
@@ -185,7 +186,7 @@ function renderDetails() {
     const headerTitle = elements.drawer.querySelector('.objective-title');
     const current = pickCurrentObjective();
     if (headerTitle) {
-        headerTitle.textContent = current ? current.label : 'No current objective';
+        headerTitle.textContent = current ? current.label : t('objectives_no_current');
     }
     
     // Clear and populate scrollable content
@@ -195,7 +196,7 @@ function renderDetails() {
     if (steps.length === 0) {
         const empty = document.createElement('p');
         empty.className = 'objective-steps-empty';
-        empty.textContent = 'No detailed steps available.';
+        empty.textContent = t('objectives_no_steps');
         elements.details.appendChild(empty);
     } else {
         const list = document.createElement('ul');
@@ -228,6 +229,14 @@ function refreshIfOpen() {
     try { recomputeObjectives(); } catch {}
     renderBannerText();
     if (isOpen) renderDetails();
+
+    // Update banner label text on language change
+    function refreshBannerLabel() {
+        const labelSpan = elements.banner?.querySelector('.current-objective-label-text');
+        if (labelSpan) labelSpan.textContent = t('objectives_current') + ':';
+    }
+    refreshBannerLabel();
+    window.addEventListener('language-changed', refreshBannerLabel);
 }
 
 // Public-ish re-render hook

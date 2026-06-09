@@ -1,0 +1,23 @@
+{
+  "res_health": "Zdraví",
+  "res_health_desc": "Tvůj fyzický stav. Pasivně se obnovuje v průběhu času.",
+  "res_stamina": "Výdrž",
+  "res_stamina_desc": "Tvoje odolnost. Pasivně se obnovuje v průběhu času.",
+  "res_xp": "XP",
+  "res_food": "Příděly jídla",
+  "res_food_desc": "Osobní zásoby jídla. Vyčerpání způsobuje postih Hladu.",
+  "res_water": "Pitná voda",
+  "res_water_desc": "Osobní zásoby vody. Vyčerpání způsobuje postih Žízně.",
+  "res_category_essential": "Životní",
+  "res_category_materials": "Materiály",
+  "res_category_tools": "Nástroje",
+  "res_category_science": "Věda",
+  "res_category_other": "Ostatní",
+  "res_no_data": "Žádná data k dispozici.",
+
+  "resource_regen": "Regenerace",
+  "resource_gains": "Zisky",
+  "resource_drain": "Spotřeba",
+  "resource_usage": "Využití",
+  "resource_net_change": "Čistá změna"
+}

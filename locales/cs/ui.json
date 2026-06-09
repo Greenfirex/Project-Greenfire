@@ -1,0 +1,56 @@
+{
+  "lang_en": "English",
+  "lang_cs": "Čeština",
+
+  "title_continue": "Pokračovat",
+  "title_new_game": "Nová hra",
+  "title_settings": "Nastavení",
+  "title_changelog": "Seznam změn",
+  "title_exit": "Konec",
+
+  "header_options": "Možnosti",
+  "header_save": "Uložit",
+  "header_title": "Titulka",
+  "header_load": "Načíst",
+
+  "footer_pause": "Pauza",
+  "footer_resume": "Pokračovat",
+  "footer_pause_title": "Pauza / Pokračování hry",
+  "footer_debug_title": "Přepnout x10 zisky zdrojů",
+
+  "menu_crash_site": "Místo havárie",
+  "menu_character": "Postava",
+  "menu_journal": "Deník",
+
+  "options_language": "Jazyk",
+  "options_language_select": "Vyberte jazyk",
+  "options_run_background": "Běh na pozadí",
+  "options_glow_effects": "Zapnout vizuální efekty",
+  "options_reduce_motion": "Omezit animace",
+  "options_confirm_load": "Potvrdit před načtením",
+  "options_confirm_reset": "Potvrdit před resetem",
+  "options_save_management": "Správa uložených her",
+  "options_reset_progress": "Reset postupu",
+
+  "log_entries": "Záznamy:",
+  "log_options": "Možnosti logu",
+
+  "info_no_entries": "Zatím žádné záznamy v deníku.",
+  "info_no_objectives": "Zatím žádné úkoly.",
+  "journal_objectives": "Úkoly",
+  "journal_journal": "Deník",
+
+  "character_equipment": "Vybavení",
+  "character_inventory": "Inventář",
+  "character_stats": "Statistiky",
+  "character_bag": "Batoh",
+  "character_use": "Použít",
+
+  "objectives_current": "Aktuální úkol",
+  "objectives_no_current": "Žádný aktuální úkol",
+  "objectives_no_steps": "Žádné podrobné kroky k dispozici.",
+
+  "clock_title": "Herní čas",
+  "clock_elapsed": "Uplynulo od havárie",
+  "clock_speed": "Při aktuální rychlosti ({scale}x): 1 reálná s = {minsPerSec} herních min | 1 reálná min = {hoursPerMin} herních hod"
+}

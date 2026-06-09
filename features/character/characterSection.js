@@ -23,6 +23,7 @@ import { setupTooltip } from '../../ui/panels/tooltip.js';
 import { showConfirmPopup } from '../../ui/panels/confirmPopup.js';
 import { newBadgeHtml } from '../../ui/components/contentNewBadges.js';
 import { useConsumableFromBag } from './consumables.js';
+import { t } from '../../locales/locales.js';
 
 let listenersInstalled = false;
 let currentDragPayload = null;
@@ -466,20 +467,20 @@ function attachDiscardHandlers(sectionRoot) {
                 const isQuest = def?.quest === true || tags.some(t => String(t || '').toLowerCase() === 'quest');
                 if (isQuest) {
                     await showConfirmPopup({
-                        title: 'Quest Item',
-                        message: 'Quest items cannot be discarded.',
-                        confirmText: 'OK',
-                        cancelText: 'OK',
+                        title: t('confirm_quest_title'),
+                        message: t('confirm_quest_msg'),
+                        confirmText: t('confirm_quest_ok'),
+                        cancelText: t('confirm_quest_ok'),
                     });
                     return;
                 }
             } catch { /* ignore */ }
 
             const ok = await showConfirmPopup({
-                title: 'Discard Item',
-                message: `Discard ${name}? This cannot be undone.`,
-                confirmText: 'Yes',
-                cancelText: 'Cancel',
+                title: t('confirm_discard_title'),
+                message: t('confirm_discard_msg', { item: name }),
+                confirmText: t('confirm_discard_confirm'),
+                cancelText: t('confirm_discard_cancel'),
             });
             if (!ok) return;
 

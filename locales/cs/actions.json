@@ -1,0 +1,17 @@
+{
+  "action_investigate": "Prozkoumat",
+  "action_investigate_desc": "Využij energii ke studiu signatury smyčky a pouč se z ní.",
+  "action_stabilize": "Stabilizovat",
+  "action_stabilize_desc": "Použij zásoby, aby se smyčka neroztříštila.",
+  "action_scan": "Skenovat",
+  "action_scan_desc": "Analyzuj přicházející anomálie a získej zkušenosti.",
+
+  "action_drain": "Cena: {drains}",
+  "action_duration": "Trvání: {duration}s",
+  "action_status_ready": "Smyčka {loop} — Připraven k další akci.",
+  "action_status_active": "Aktivní: {action} — {pct}% dokončeno",
+
+  "log_action_completed": "Dokončeno: {action}. Získáno {xp} XP.",
+  "log_loop_started": "Smyčka {loop} zahájena. Zdroje byly částečně obnoveny.",
+  "log_loop_triggered": "Smyčka spuštěna: {resources} vyčerpány."
+}

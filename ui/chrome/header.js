@@ -3,6 +3,7 @@ import { getIngameTimeString, getTotalIngameMinutes } from '../../core/time.js';
 import { setupTooltip } from '../panels/tooltip.js';
 import { getConfirmOnLoad, getConfirmOnReset } from '../../core/settings.js';
 import { showConfirmPopup } from '../panels/confirmPopup.js';
+import { t } from '../../locales/locales.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -11,7 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeButton = optionsMenu?.querySelector('.options-menu-close');
     const resetButton = document.getElementById('resetButton');
     const saveLink = document.getElementById('saveLink');
-    const titleLink = document.getElementById('titleLink');
     const loadLink = document.getElementById('loadLink');
 
     // --- Mobile dropdown for Options/Save/Load ---
@@ -135,10 +135,10 @@ document.addEventListener('DOMContentLoaded', () => {
         resetButton.addEventListener('click', async () => {
             const needsConfirm = getConfirmOnReset();
             const ok = !needsConfirm || await showConfirmPopup({
-                title: 'Reset Progress',
-                message: 'Are you sure you want to reset your progress? This cannot be undone.',
-                confirmText: 'Reset',
-                cancelText: 'Cancel'
+                title: t('confirm_reset_title'),
+                message: t('confirm_reset_msg'),
+                confirmText: t('confirm_reset_confirm'),
+                cancelText: t('confirm_reset_cancel')
             });
             if (ok) {
                 localStorage.setItem('isResetting', 'true');
@@ -146,21 +146,85 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    // Title button in options menu
+    const optionsTitleBtn = document.getElementById('optionsTitleBtn');
+    if (optionsTitleBtn && optionsTitleBtn.dataset.wired !== 'true') {
+        optionsTitleBtn.dataset.wired = 'true';
+        optionsTitleBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                hideOptionsMenu();
+                const mod = await import('../screens/titleScreen.js');
+                mod.showTitleScreen();
+            } catch { /* ignore */ }
+        });
+    }
+
+    // Language flag buttons in options menu
+    function wireLangFlagButton(id, lang) {
+        const btn = document.getElementById(id);
+        if (!btn || btn.dataset.wired === 'true') return;
+        btn.dataset.wired = 'true';
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            import('../../locales/locales.js').then(m => {
+                m.setLanguage(lang);
+                updateAllFlagStates();
+            }).catch(() => {});
+        });
+    }
+    wireLangFlagButton('optLangEn', 'en');
+    wireLangFlagButton('optLangCs', 'cs');
+
+    // Header language flag indicator
+    const headerFlag = document.getElementById('headerLangFlag');
+    const FLAG_SVGS = {
+        en: '<svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="40" fill="#012169"/><path d="M0 0l60 40M60 0L0 40" stroke="#fff" stroke-width="6"/><path d="M0 0l60 40M60 0L0 40" stroke="#C8102E" stroke-width="3"/><rect width="18" height="40" fill="#012169" x="21"/><rect width="60" height="14" fill="#012169" y="13"/><path d="M30 0v40M0 20h60" stroke="#fff" stroke-width="10"/><path d="M30 0v40M0 20h60" stroke="#C8102E" stroke-width="4"/></svg>',
+        cs: '<svg viewBox="0 0 60 40" class="flag-icon"><rect width="60" height="20" fill="#fff"/><rect y="20" width="60" height="20" fill="#D7141A"/><polygon points="0,0 25,20 0,40" fill="#11457E"/></svg>'
+    };
+
+    function updateAllFlagStates() {
+        const lang = (() => {
+            try { const ls = localStorage.getItem('gameLanguage'); return ls && (ls === 'en' || ls === 'cs') ? ls : 'en'; }
+            catch { return 'en'; }
+        })();
+        // Options menu flag buttons
+        ['optLangEn','optLangCs'].forEach(id => {
+            const b = document.getElementById(id);
+            if (b) b.classList.toggle('active', b.dataset.lang === lang);
+        });
+        // Title screen flag buttons
+        ['titleLangEn','titleLangCs'].forEach(id => {
+            const b = document.getElementById(id);
+            if (b) b.classList.toggle('active', b.dataset.lang === lang);
+        });
+        // Header flag indicator
+        if (headerFlag) {
+            headerFlag.innerHTML = FLAG_SVGS[lang] || '';
+            headerFlag.title = lang === 'en' ? 'English' : 'Čeština';
+        }
+    }
+    updateAllFlagStates();
+    window.addEventListener('language-changed', updateAllFlagStates);
+    if (headerFlag && headerFlag.dataset.wired !== 'true') {
+        headerFlag.dataset.wired = 'true';
+        headerFlag.addEventListener('click', () => {
+            const lang = (() => {
+                try { const ls = localStorage.getItem('gameLanguage'); return ls && (ls === 'en' || ls === 'cs') ? ls : 'en'; }
+                catch { return 'en'; }
+            })();
+            const next = lang === 'en' ? 'cs' : 'en';
+            import('../../locales/locales.js').then(m => {
+                m.setLanguage(next);
+                updateAllFlagStates();
+            }).catch(() => {});
+        });
+    }
+
     if (saveLink) {
         saveLink.addEventListener('click', (e) => {
             e.preventDefault();
             saveGameState();
-        });
-    }
-    if (titleLink) {
-        titleLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            (async () => {
-                try {
-                    const mod = await import('../screens/titleScreen.js');
-                    mod.showTitleScreen();
-                } catch { /* ignore */ }
-            })();
         });
     }
     if (loadLink) {
@@ -169,10 +233,10 @@ document.addEventListener('DOMContentLoaded', () => {
             (async () => {
                 const needsConfirm = getConfirmOnLoad();
                 const ok = !needsConfirm || await showConfirmPopup({
-                    title: 'Load Last Save',
-                    message: 'Load your last save? Any unsaved progress will be lost.',
-                    confirmText: 'Load',
-                    cancelText: 'Cancel'
+                    title: t('confirm_load_title'),
+                    message: t('confirm_load_msg'),
+                    confirmText: t('confirm_load_confirm'),
+                    cancelText: t('confirm_load_cancel')
                 });
                 if (ok) {
                     localStorage.removeItem('isResetting');
@@ -182,6 +246,31 @@ document.addEventListener('DOMContentLoaded', () => {
             })();
         });
     }
+
+    // Update header link labels
+    function refreshHeaderLabels() {
+        if (optionsLink) optionsLink.textContent = t('header_options');
+        if (saveLink) saveLink.textContent = t('header_save');
+        if (loadLink) loadLink.textContent = t('header_load');
+    }
+    refreshHeaderLabels();
+
+    // Translate log header
+    function refreshLogHeader() {
+        const logTitle = document.getElementById('logHeaderTitle');
+        if (logTitle) logTitle.textContent = t('log_entries');
+    }
+    refreshLogHeader();
+
+    // Scan and translate all [data-locale] elements
+    function refreshLocaleElements() {
+        document.querySelectorAll('[data-locale]').forEach(el => {
+            const key = el.dataset.locale;
+            if (key) el.textContent = t(key);
+        });
+    }
+    refreshLocaleElements();
+
 
     // Setup tooltip for clock
     try {
@@ -198,12 +287,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const minsPerSec = 5 * scale;
                 const hoursPerMin = 5 * scale;
                 return `
-                    <h4>In-game Time</h4>
+                    <h4>${t('clock_title')}</h4>
                     <p><strong>${timeStr}</strong></p>
                     <div class="tooltip-section">
-                        <p>Elapsed since crash: <strong>${d}d ${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m</strong></p>
-                        <p class="tooltip-detail">At current speed (${scale}x): 1 real sec = ${minsPerSec} in-game min</p>
-                        <p class="tooltip-detail">At current speed (${scale}x): 1 real min = ${hoursPerMin} in-game hr</p>
+                        <p>${t('clock_elapsed')}: <strong>${d}d ${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m</strong></p>
+                        <p class="tooltip-detail">${t('clock_speed', { scale, minsPerSec, hoursPerMin })}</p>
                     </div>
                 `;
             });

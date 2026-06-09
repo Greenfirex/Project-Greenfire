@@ -1,0 +1,36 @@
+{
+  "stat_health": "Zdraví",
+  "stat_stamina": "Výdrž",
+  "stat_damage": "Poškození",
+  "stat_attack_speed": "Rychlost útoku",
+  "stat_hit_chance": "Šance na zásah",
+  "stat_crit_chance": "Šance na kritický",
+  "stat_armor": "Zbroj",
+  "stat_evasion": "Úhyb",
+  "stat_points": "Body statistik",
+  "stat_level": "Úroveň",
+
+  "equip_head": "Hlava",
+  "equip_chest": "Hruď",
+  "equip_legs": "Nohy",
+  "equip_boots": "Boty",
+  "equip_weapon": "Zbraň",
+  "equip_offhand": "Levá ruka",
+  "equip_accessory": "Doplněk",
+  "equip_accessory_1": "Doplněk 1",
+  "equip_accessory_2": "Doplněk 2",
+
+  "inventory_use_btn": "Použít",
+  "inventory_discard_btn": "Zahodit předměty",
+  "inventory_bag_size": "Batoh {rows}×{cols}",
+
+  "buff_stamina_regen": "Regenerace výdrže",
+  "buff_none": "Žádné",
+  "buff_herb_tea": "Bylinkový čaj",
+
+  "debuff_hungry": "Hladový",
+  "debuff_thirsty": "Žíznivý",
+  "debuff_hunger": "Hlad",
+  "debuff_thirst": "Žízeň",
+  "debuff_inactive": "Neaktivní"
+}

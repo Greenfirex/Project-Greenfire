@@ -1,5 +1,21 @@
 import { formatNumber } from './formatting.js';
 import { setupTooltip } from '../ui/panels/tooltip.js';
+import { t } from '../locales/locales.js';
+
+const RESOURCE_LOCALE_KEYS = {
+    'Health': 'res_health',
+    'Stamina': 'res_stamina',
+    'XP': 'res_xp',
+    'Food Rations': 'res_food',
+    'Drinking Water': 'res_water',
+};
+
+const RESOURCE_DESC_KEYS = {
+    'Health': 'res_health_desc',
+    'Stamina': 'res_stamina_desc',
+    'Food Rations': 'res_food_desc',
+    'Drinking Water': 'res_water_desc',
+};
 
 export function getInitialResources() {
     return [
@@ -21,7 +37,8 @@ const RESOURCE_CATEGORIES = {
 };
 
 function getResourceCategoryName(resourceName) {
-    return RESOURCE_CATEGORIES[resourceName] || 'Other';
+    const cat = RESOURCE_CATEGORIES[resourceName] || 'Other';
+    return t('res_category_' + cat.toLowerCase()) || cat;
 }
 
 function buildResourceTooltipHtml(resourceName) {
@@ -38,11 +55,7 @@ function buildResourceTooltipHtml(resourceName) {
     const amt = res ? (res.integer ? Math.floor(Number(res.amount) || 0) : (Number(res.amount) || 0)) : 0;
     const cap = res ? (res.integer ? Math.floor(Number(res.capacity) || 0) : (Number(res.capacity) || 0)) : 0;
 
-    let description = '';
-    if (name === 'Health') description = 'Your physical condition. Passively regenerates over time.';
-    if (name === 'Stamina') description = 'Your endurance. Passively regenerates over time.';
-    if (name === 'Food Rations') description = 'Personal rations carried while exploring. Depletion causes Hunger penalties.';
-    if (name === 'Drinking Water') description = 'Personal water carried while exploring. Depletion causes Thirst penalties.';
+    let description = t(RESOURCE_DESC_KEYS[name] || '') || '';
 
     const sign = netPerSecond >= 0 ? '+' : '';
     const regenLabel = (name === 'Health' || name === 'Stamina') ? 'Regeneration' : 'Gains';
@@ -150,9 +163,10 @@ export function setupInfoPanel() {
         infoRow.classList.add('hidden');
         infoRow.classList.toggle('non-producible', !resource.producible);
 
+        const displayName = t(RESOURCE_LOCALE_KEYS[resource.name] || resource.name);
         infoRow.innerHTML = `
             <div class="resource-progress-bar"></div>
-            <div class="infocolumn1"><span>${resource.name}</span></div>
+            <div class="infocolumn1"><span>${displayName}</span></div>
             <div class="infocolumn2"><p data-value-type="storage"></p></div>
             <div class="infocolumn3"><p data-value-type="generation"></p></div>
         `;
