@@ -69,5 +69,20 @@
 
   "clock_title": "Herní čas",
   "clock_elapsed": "Uplynulo od havárie",
-  "clock_speed": "Při aktuální rychlosti ({scale}x): 1 reálná s = {minsPerSec} herních min | 1 reálná min = {hoursPerMin} herních hod"
+  "clock_speed": "Při aktuální rychlosti ({scale}x): 1 reálná s = {minsPerSec} herních min | 1 reálná min = {hoursPerMin} herních hod",
+
+  "obj_first_steps_label": "První kroky",
+  "obj_first_steps_narrative": "Přežil jsi havárii. Loď je v troskách a jsi sám — nebo se to tak alespoň prozatím zdá.\n\nTvé okamžité priority jsou jasné: zhodnoť své okolí, porozuměj svým zdrojům a začni pracovat na přežití.\n\nZačni tím, že se seznámíš s dostupnými sekcemi a panely. Deník bude sledovat tvé úkoly, zatímco Místo havárie a Postava budou tvými hlavními nástroji.",
+  "obj_first_steps_step1": "Otevři Deník a prohlédni si své úkoly",
+  "obj_first_steps_step2": "Prozkoumej sekci Místo havárie",
+  "obj_first_steps_step3": "Zkontroluj své zdroje v informačním panelu",
+
+  "popup_welcome_title": "Project Greenfire — Probuzení",
+  "popup_welcome_page1": "Tma. Pak bolest — ostrá a horká přes žebra. Vzduch chutná po ozónu a spálených obvodech. Alarmy kvílí kdesi daleko, tlumené zhroucenými přepážkami.",
+  "popup_welcome_page2": "Jsi naživu. Loď ne. Skrz roztržený otvor v trupu vidíš cizí oblohu — bledě jantarovou, pruhovanou neznámými oblaky. Nic venku nevypadá jako domov.",
+  "popup_welcome_page3": "Tvé jméno je Lieutenant Commander. Záznamy o misi jsou poškozené. Stav posádky je neznámý. Ale stále dýcháš — a to znamená, že je před tebou práce.\n\nNajdi přeživší. Zajisti zdroje. Zjisti, co tě sem přivedlo. A hlavně: přežij.",
+
+  "objectives_new_log": "Nový úkol: {name}",
+  "objectives_completed_log": "Úkol dokončen: {name}",
+  "objectives_reward_log": "Odměna za úkol: {rewards}"
 }

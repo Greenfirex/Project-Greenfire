@@ -1,10 +1,15 @@
-// Minimal game flags for the timeloop reset game.
-// This is a lightweight replacement; the legacy file was moved to backup/data/.
-export const gameFlags = {};
+// Game flags for the timeloop reset game.
+// Lightweight replacement; the legacy file was moved to backup/data/.
+
+const initialGameFlags = {
+    firstObjectiveComplete: false,
+};
 
 export function getInitialGameFlags() {
-    return {};
+    return JSON.parse(JSON.stringify(initialGameFlags));
 }
+
+export const gameFlags = getInitialGameFlags();
 
 export function resetGameFlags() {
     Object.keys(gameFlags).forEach(k => delete gameFlags[k]);

@@ -151,6 +151,18 @@ function startGame({ mode = 'continue' } = {}) {
     if (mode === 'new') {
         try { localStorage.removeItem('isResetting'); } catch { /* ignore */ }
         resetToDefaultState();
+        // Activate first objective and show welcome popup
+        try { recomputeObjectives(); } catch {}
+        try {
+            import('../ui/panels/storyPopup.js').then(mod => {
+                mod.showStoryPopup({
+                    id: 'welcome_intro',
+                    title: t('popup_welcome_title'),
+                    pages: [t('popup_welcome_page1'), t('popup_welcome_page2'), t('popup_welcome_page3')]
+                });
+            });
+            addLogEntry(t('objectives_new_log', { name: t('obj_first_steps_label') }), LogType.UNLOCK);
+        } catch {}
     } else {
         loadGameState();
     }

@@ -156,7 +156,25 @@ loaded['en'] = {
   "debuff_thirsty": "Thirsty",
   "debuff_hunger": "Hunger",
   "debuff_thirst": "Thirst",
-  "debuff_inactive": "Inactive"
+  "debuff_inactive": "Inactive",
+  "objectives_current": "Current Objective",
+  "objectives_no_current": "No current objective",
+  "objectives_no_steps": "No detailed steps available.",
+  "clock_title": "In-game Time",
+  "clock_elapsed": "Elapsed since crash",
+  "clock_speed": "At current speed ({scale}x): 1 real sec = {minsPerSec} in-game min | 1 real min = {hoursPerMin} in-game hr",
+  "obj_first_steps_label": "First Steps",
+  "obj_first_steps_narrative": "You have survived the crash. The ship is in ruins, and you are alone — or so it seems for now.\\n\\nYour immediate priorities are clear: assess your surroundings, understand your resources, and begin the work of survival.\\n\\nStart by familiarizing yourself with the available sections and panels. The Journal will track your objectives, while the Crash Site and Character screens will be your primary tools for action.",
+  "obj_first_steps_step1": "Open the Journal to view your objectives",
+  "obj_first_steps_step2": "Explore the Crash Site section",
+  "obj_first_steps_step3": "Review your resources in the info panel",
+  "popup_welcome_title": "Project Greenfire — Awakening",
+  "popup_welcome_page1": "Darkness. Then pain — sharp and hot across your ribs. The air tastes of ozone and burned circuitry. Alarms warble somewhere far away, muffled by collapsed bulkheads.",
+  "popup_welcome_page2": "You are alive. The ship is not. Through a jagged tear in the hull you can see alien sky — pale amber, streaked with unfamiliar cloud patterns. Nothing outside looks like home.",
+  "popup_welcome_page3": "Your name is Lieutenant Commander. Your mission logs are corrupted. Your crew status is unknown. But you are still breathing — and that means there is work to do.\\n\\nFind survivors. Secure resources. Learn what brought you here. And above all: survive.",
+  "objectives_new_log": "New objective: {name}",
+  "objectives_completed_log": "Objective completed: {name}",
+  "objectives_reward_log": "Objective reward: {rewards}"
 };
 
 // ==========================================================================
