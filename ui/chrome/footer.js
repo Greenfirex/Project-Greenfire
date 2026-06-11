@@ -3,7 +3,7 @@
 // - Speed control buttons (1x, 2x, 5x, 10x)
 // - (XP display lives in Character stats)
 
-import { addLogEntry, LogType } from '../../core/ingameLog.js';
+import { addLogEntry, LogType } from '../../engine/ingameLog.js';
 import { t } from '../../locales/locales.js';
 
 let isPaused = false;

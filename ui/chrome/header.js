@@ -1,7 +1,7 @@
-import { saveGameState } from '../../core/saveload.js';
-import { getIngameTimeString, getTotalIngameMinutes } from '../../core/time.js';
+import { saveGameState } from '../../engine/saveload.js';
+import { getIngameTimeString, getTotalIngameMinutes } from '../../engine/time.js';
 import { setupTooltip } from '../panels/tooltip.js';
-import { getConfirmOnLoad, getConfirmOnReset } from '../../core/settings.js';
+import { getConfirmOnLoad, getConfirmOnReset } from '../../engine/settings.js';
 import { showConfirmPopup } from '../panels/confirmPopup.js';
 import { t } from '../../locales/locales.js';
 

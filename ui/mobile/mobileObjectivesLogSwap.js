@@ -9,7 +9,7 @@ import {
     getObjectiveSteps,
     getTrackedObjectiveId,
     getAllObjectivesWithState
-} from '../../data/objectives.js';
+} from '../../engine/objectives.js';
 
 import { isCompactPhoneLandscape } from './compactMode.js';
 

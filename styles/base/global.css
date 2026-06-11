@@ -527,3 +527,158 @@ body.reduce-motion * {
     z-index: 1;
 }
 
+/* Hide popups during UI assembly; they'll animate in once assembly completes.
+   Sets the hidden state for CSS transitions on .story-popup-content.
+   Also suppresses the overlay background/blur to keep the game UI crisp. */
+body.ui-assembling .story-popup-overlay {
+    pointer-events: none;
+    background-color: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+body.ui-assembling .story-popup-content {
+    opacity: 0;
+    transform: scale(0.92);
+    filter: brightness(2);
+}
+
+/* ==========================================================================
+   Power-on assembly animation — triggers when title screen hides
+   (body gets class 'game-show' from hideTitleScreen() in ui/screens/titleScreen.js)
+   ========================================================================== */
+
+@keyframes power-slide-down {
+    0% {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    30% {
+        opacity: 0.5;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes power-slide-left {
+    0% {
+        transform: translateX(-100%) perspective(600px) rotateY(8deg);
+        opacity: 0;
+    }
+    40% {
+        opacity: 0.5;
+        transform: translateX(-10%) perspective(600px) rotateY(1deg);
+    }
+    100% {
+        transform: translateX(0) perspective(600px) rotateY(0deg);
+        opacity: 1;
+    }
+}
+
+@keyframes power-slide-right {
+    0% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    30% {
+        opacity: 0.4;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes power-fade-in {
+    0% {
+        opacity: 0;
+        transform: scale(0.94);
+        filter: brightness(1.8);
+    }
+    40% {
+        opacity: 0.4;
+        filter: brightness(1.3);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        filter: brightness(1);
+    }
+}
+
+@keyframes power-rise-up {
+    0% {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    50% {
+        opacity: 0.5;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes power-menu-btn {
+    0% {
+        opacity: 0;
+        transform: translateY(20px) scale(0.85);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ==========================================================================
+   Hide game UI when title screen is active (so animation starts from hidden)
+   ========================================================================== */
+
+body.title-screen-active #header,
+body.title-screen-active #mainContainer,
+body.title-screen-active #footer {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ==========================================================================
+   Trigger animations when body has .game-show class
+   Slowed ~1.5x for a deliberate, cinematic feel
+   ========================================================================== */
+
+body.game-show #header,
+body.game-show #mainContainer,
+body.game-show #footer {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+body.game-show #header {
+    animation: power-slide-down 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+body.game-show #mainMenu {
+    animation: power-slide-left 0.8s 0.15s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+body.game-show #infoPanel {
+    animation: power-slide-right 0.8s 0.25s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+body.game-show #gameArea {
+    animation: power-fade-in 0.9s 0.35s ease-out both;
+}
+
+body.game-show #footer {
+    animation: power-rise-up 0.7s 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+body.game-show .menu-button {
+    animation: power-menu-btn 0.5s ease-out both;
+}
+body.game-show .menu-button:nth-child(1) { animation-delay: 0.6s; }
+body.game-show .menu-button:nth-child(2) { animation-delay: 0.72s; }
+body.game-show .menu-button:nth-child(3) { animation-delay: 0.84s; }
+

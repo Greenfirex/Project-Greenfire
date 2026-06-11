@@ -78,6 +78,78 @@ async function tryExitApp() {
     return false;
 }
 
+// ==========================================================================
+// Power-on assembly animation via Web Animations API
+// ==========================================================================
+
+const POWER_EASING = 'cubic-bezier(0.22, 0.61, 0.36, 1)';
+
+function animateElement(el, keyframes, options) {
+    if (!el || !el.animate) return;
+    try {
+        el.animate(keyframes, { fill: 'both', easing: POWER_EASING, ...options });
+    } catch { /* ignore */ }
+}
+
+function playPowerOnAssembly() {
+    // Header slides down
+    animateElement(document.getElementById('header'), [
+        { transform: 'translateY(-100%)', opacity: 0 },
+        { transform: 'translateY(0)', opacity: 1, offset: 0.3 },
+        { transform: 'translateY(0)', opacity: 1 }
+    ], { duration: 1400 });
+
+    // Main menu slides from left with 3D tilt
+    animateElement(document.getElementById('mainMenu'), [
+        { transform: 'translateX(-100%) perspective(600px) rotateY(8deg)', opacity: 0 },
+        { transform: 'translateX(-10%) perspective(600px) rotateY(1deg)', opacity: 0.5, offset: 0.4 },
+        { transform: 'translateX(0) perspective(600px) rotateY(0deg)', opacity: 1 }
+    ], { duration: 1600, delay: 300 });
+
+    // Info panel slides from right
+    animateElement(document.getElementById('infoPanel'), [
+        { transform: 'translateX(100%)', opacity: 0 },
+        { transform: 'translateX(0)', opacity: 0.4, offset: 0.3 },
+        { transform: 'translateX(0)', opacity: 1 }
+    ], { duration: 1600, delay: 500 });
+
+    // Footer rises up (before game area)
+    animateElement(document.getElementById('footer'), [
+        { transform: 'translateY(100%)', opacity: 0 },
+        { transform: 'translateY(0)', opacity: 0.5, offset: 0.5 },
+        { transform: 'translateY(0)', opacity: 1 }
+    ], { duration: 1400, delay: 700 });
+
+    // Game area — "Terminal Boot" effect (CRT power-on)
+    animateElement(document.getElementById('gameArea'), [
+        { opacity: 0, transform: 'scale(0.97)', filter: 'brightness(0)' },
+        { filter: 'brightness(2.5)', offset: 0.15 },
+        { opacity: 0.2, filter: 'brightness(0.6)', offset: 0.35 },
+        { opacity: 1, transform: 'scale(1)', filter: 'brightness(1)' }
+    ], { duration: 1800, delay: 1600, easing: 'ease-out' });
+
+    // Menu buttons stagger in
+    const menuBtns = document.querySelectorAll('.menu-button');
+    menuBtns.forEach((btn, i) => {
+        animateElement(btn, [
+            { opacity: 0, transform: 'translateY(20px) scale(0.85)' },
+            { opacity: 1, transform: 'translateY(0) scale(1)' }
+        ], { duration: 1000, delay: 1200 + i * 240, easing: 'ease-out' });
+    });
+
+    // Prevent popups from appearing during assembly. CSS hides them under this class.
+    document.body.classList.add('ui-assembling');
+
+    // After assembly finishes (~3.8s), remove the lock so popups animate in.
+    setTimeout(() => {
+        document.body.classList.remove('ui-assembling');
+    }, 3800);
+}
+
+// ==========================================================================
+// Public API
+// ==========================================================================
+
 export function showTitleScreen() {
     const overlay = document.getElementById('titleScreen');
     if (!overlay) return;
@@ -131,11 +203,20 @@ export function hideTitleScreen() {
 
     document.body.classList.remove(BODY_CLASS);
 
+    // Force a style recalculation so the game UI elements are at their natural
+    // state (visible, no transforms) before we animate them.
+    void document.body.offsetWidth;
+
+    // Reveal game UI for accessibility/focus.
     try {
         setHiddenWithInert(document.getElementById('header'), false);
         setHiddenWithInert(document.getElementById('mainContainer'), false);
         setHiddenWithInert(document.getElementById('footer'), false);
     } catch { /* ignore */ }
+
+    // Play the power-on assembly animation using Web Animations API.
+    // This bypasses browser class-change batching and guarantees playback.
+    playPowerOnAssembly();
 }
 
 export function initTitleScreen({
@@ -282,7 +363,7 @@ export function initTitleScreen({
 
             const exited = await tryExitApp();
             if (!exited) {
-                // Web/PWA fallback: we can’t reliably close the app.
+                // Web/PWA fallback: we can't reliably close the app.
                 await showConfirmPopup({
                     title: 'Exit not available',
                     message: 'On web/PWA, the game cannot close itself. Please close the tab or swipe away the app.',

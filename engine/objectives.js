@@ -4,10 +4,10 @@
 // - Up to 5 visible in footer drawer
 // - Minor resource rewards on completion
 
-import { resources } from '../core/resources.js';
+import { resources } from './resources.js';
 import { gameFlags } from './gameFlags.js';
-import { addLogEntry, LogType } from '../core/ingameLog.js';
-import { getTotalIngameMinutes } from '../core/time.js';
+import { addLogEntry, LogType } from './ingameLog.js';
+import { getTotalIngameMinutes } from './time.js';
 import { t } from '../locales/locales.js';
 
 const STORAGE_KEY = 'objectivesStatusV1';

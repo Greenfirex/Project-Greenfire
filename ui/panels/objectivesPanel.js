@@ -3,7 +3,7 @@
 // - Shows up to 5 terse, spoiler-lite items
 // - Read-only (no clicks)
 
-import { getVisibleObjectives, recomputeObjectives, getObjectiveSteps, getTrackedObjectiveId, getAllObjectivesWithState } from '../../data/objectives.js';
+import { getVisibleObjectives, recomputeObjectives, getObjectiveSteps, getTrackedObjectiveId, getAllObjectivesWithState } from '../../engine/objectives.js';
 import { t } from '../../locales/locales.js';
 
 let isOpen = false;

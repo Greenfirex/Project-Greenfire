@@ -3,8 +3,8 @@
 // - Mirrors the existing unlocked menu buttons so players can switch sections without expanding
 
 import { isCompactPhoneLandscape as isCompactPhoneLandscapeShared } from './compactMode.js';
-import { characterState, getUnspentStatPoints } from '../../features/character/character.js';
-import { resources } from '../../core/resources.js';
+import { characterState, getUnspentStatPoints } from '../../sections/character/character.js';
+import { resources } from '../../engine/resources.js';
 
 // --- Stubs for systems moved to backup during refactor ---
 const jobs = [];

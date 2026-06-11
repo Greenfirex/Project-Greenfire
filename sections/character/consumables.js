@@ -1,7 +1,7 @@
 // Minimal consumables module for the timeloop reset game.
 // Legacy file was moved to backup/data/.
 import { getItemDefinition } from './items.js';
-import { getTotalIngameMinutes } from '../../core/time.js';
+import { getTotalIngameMinutes } from '../../engine/time.js';
 
 export function useConsumableFromBag(itemId, state) {
     if (!itemId || !state) return false;

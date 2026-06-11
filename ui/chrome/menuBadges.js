@@ -1,5 +1,5 @@
-import { characterState, getUnspentStatPoints } from '../../features/character/character.js';
-import { resources } from '../../core/resources.js';
+import { characterState, getUnspentStatPoints } from '../../sections/character/character.js';
+import { resources } from '../../engine/resources.js';
 
 const MENU_NEW_ITEM_PREFIX = 'uiMenuNew:';
 

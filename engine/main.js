@@ -1,15 +1,15 @@
 import { resources, updateResourceInfo, setupInfoPanel, computeResourceRates } from './resources.js';
 import { preloader } from '../ui/system/preloader.js';
-import { gameFlags } from '../data/gameFlags.js';
-import { setupCrashSiteSection, updateCrashSiteActionButtonsState } from '../sections/crashSiteActionLoop.js';
-import { setupJournalSection } from '../sections/journal.js';
-import { setupCharacterSection } from '../features/character/characterSection.js';
-import { characterState, computeCharacterStats, computeLevelFromXp } from '../features/character/character.js';
+import { gameFlags } from './gameFlags.js';
+import { setupLocationSection, updateLocationActionButtonsState } from '../sections/locations/locationEngine.js';
+import { setupJournalSection } from '../sections/journal/journal.js';
+import { setupCharacterSection } from '../sections/character/characterSection.js';
+import { characterState, computeCharacterStats, computeLevelFromXp } from '../sections/character/character.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { initTimeManager, startTimeManager } from './time.js';
 import { loadGameState, resetToDefaultState, saveGameState } from './saveload.js';
 import { initOptions, setGlowColor, setGlowIntensity, shouldRunInBackground } from './settings.js';
-import { recomputeObjectives } from '../data/objectives.js';
+import { recomputeObjectives } from './objectives.js';
 import { initFooter, getIsPaused, registerMainLoopCallbacks } from '../ui/chrome/footer.js';
 import { initTitleScreen, showTitleScreen, hideTitleScreen } from '../ui/screens/titleScreen.js';
 import '../ui/chrome/header.js';
@@ -192,7 +192,7 @@ function startGame({ mode = 'continue' } = {}) {
 
     // Setup sections
     setupInfoPanel();
-    setupCrashSiteSection(crashSiteSection);
+    setupLocationSection(crashSiteSection);
     setupCharacterSection(characterSection);
     setupJournalSection(journalSection);
 
@@ -250,7 +250,7 @@ function startGame({ mode = 'continue' } = {}) {
             checkConditions();
 
             // Update action button states
-            if (typeof updateCrashSiteActionButtonsState === 'function') updateCrashSiteActionButtonsState();
+            if (typeof updateLocationActionButtonsState === 'function') updateLocationActionButtonsState();
 
             // Periodic objectives check
             try { recomputeObjectives(); } catch (e) { /* non-fatal */ }
@@ -369,7 +369,7 @@ export let activatedSections = JSON.parse(localStorage.getItem('activatedSection
 try { setActivatedSections(activatedSections); } catch { /* ignore */ }
 
 const SECTION_KEYS = {
-    crashSiteSection: 'menu_crash_site',
+    crashSiteSection: 'menu_local_area',
     characterSection: 'menu_character',
     journalSection: 'menu_journal',
 };
@@ -446,7 +446,7 @@ export function showSection(sectionId) {
     }
 
     if (sectionId === 'journalSection') {
-        import('../sections/journal.js').then(mod => {
+        import('../sections/journal/journal.js').then(mod => {
             const sectionEl = document.getElementById('journalSection');
             if (sectionEl && typeof mod.setupJournalSection === 'function') {
                 mod.setupJournalSection(sectionEl);

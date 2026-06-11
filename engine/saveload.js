@@ -2,11 +2,14 @@ import { resources, getInitialResources, resetResources } from './resources.js';
 import { activatedSections, setActivatedSections, getInitialActivatedSections } from './main.js';
 import { resetIngameTime, getTotalIngameMinutes, setTotalIngameMinutes } from './time.js';
 import { addLogEntry, LogType } from './ingameLog.js';
-import { gameFlags, resetGameFlags, applySavedGameFlags } from '../data/gameFlags.js';
-import { storyLog, getInitialStoryLog } from '../data/objectives.js';
-import { resetActiveActions, getActiveCrashSiteAction, setActiveCrashSiteAction } from '../data/activeActions.js';
-import { characterState, applySavedCharacterState, getCharacterStateForSave, resetCharacterState } from '../features/character/character.js';
-import { getObjectivesStatus, setObjectivesStatus, resetObjectives } from '../data/objectives.js';
+import { gameFlags, resetGameFlags, applySavedGameFlags } from './gameFlags.js';
+import { storyLog, getInitialStoryLog } from './objectives.js';
+// Legacy activeActions module no longer exists — stubbed out during refactor.
+const resetActiveActions = () => {};
+const getActiveCrashSiteAction = () => null;
+const setActiveCrashSiteAction = () => {};
+import { characterState, applySavedCharacterState, getCharacterStateForSave, resetCharacterState } from '../sections/character/character.js';
+import { getObjectivesStatus, setObjectivesStatus, resetObjectives } from './objectives.js';
 
 function reconcileActivatedSectionsAfterLoad() {
     try {

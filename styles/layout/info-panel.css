@@ -429,6 +429,12 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
     background-color: rgba(231, 76, 60, 0.20);
 }
 
+/* Color-coded progress bar fills (applied by JS bar-* classes) */
+.resource-progress-bar.bar-stamina { background-color: rgba(255, 215, 0, 0.35); }
+.resource-progress-bar.bar-food    { background-color: rgba(255, 140, 66, 0.35); }
+.resource-progress-bar.bar-water   { background-color: rgba(79, 195, 247, 0.35); }
+.resource-progress-bar.bar-health  { background-color: rgba(231, 76, 60, 0.35); }
+
 /* Morale row: always full bar; color tint varies by level */
 .info-row.morale .resource-progress-bar {
     width: 100% !important;

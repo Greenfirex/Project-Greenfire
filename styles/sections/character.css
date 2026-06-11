@@ -42,6 +42,14 @@
     /* Match Crash Site/Campsite panel inset (tighter than global content-panel padding). */
     padding: 12px;
     scrollbar-gutter: auto;
+    border-top-width: 0 !important;
+    border-top-style: none !important;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    box-shadow: none !important;
+    margin-top: 0px;
+    position: relative;
+    z-index: 3;
 }
 
 /* --- Character Tabs (Gear / Stats) --- */
@@ -54,6 +62,9 @@
     margin: 0;
     padding: 0;
     width: 100%;
+    align-self: stretch;
+    margin-bottom: -1px;
+    z-index: 4;
 }
 
 #characterSection .character-tabs::after,
@@ -141,45 +152,23 @@
 
 #characterSection .character-layout {
     display: grid;
-    grid-template-columns: 0.95fr 1.05fr;
-    grid-template-areas:
-        "equipment stats"
-        "inventory inventory";
-    /* Let the inventory row take remaining height (so the bag can scroll inside it) */
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
     gap: 14px;
     flex: 1 1 auto;
     min-height: 0;
-    /* Avoid nested scrollbars; scrolling happens inside the bag (and stats list when needed) */
     overflow: hidden;
 }
 
-#characterSection .equipment-card { grid-area: equipment; }
-#characterSection .stats-card { grid-area: stats; }
-#characterSection .inventory-card { grid-area: inventory; }
-
-/* Tab-specific layouts */
-#characterSection .character-layout.character-layout-gear {
-    grid-template-columns: 0.95fr 1.05fr;
-    grid-template-areas: "equipment inventory";
-    grid-template-rows: minmax(0, 1fr);
-}
-
-/* Desktop: show Stats as a panel under Equipment (Inventory stays on the right). */
-#characterSection .character-layout.character-layout-desktop {
-    grid-template-columns: 0.95fr 1.05fr;
-    grid-template-areas:
-        "equipment inventory"
-        "stats inventory";
-    grid-template-rows: auto minmax(0, 1fr);
-}
-
-/* (mid portrait divider removed) */
-
-#characterSection .character-layout.character-layout-stats {
-    grid-template-columns: 1fr;
-    grid-template-areas: "stats";
-    grid-template-rows: minmax(0, 1fr);
+/* New two-column layout used by both tabs */
+#characterSection .character-layout.character-layout-two-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+    gap: 14px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
 }
 
 #characterSection .character-card {

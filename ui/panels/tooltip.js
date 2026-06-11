@@ -1,8 +1,8 @@
 // Tooltip + debuff-icon module
 
-import { resources, computeResourceRates } from '../../core/resources.js';
-import { formatNumber } from '../../core/formatting.js';
-import { characterState, countItemInBag } from '../../features/character/character.js';
+import { resources, computeResourceRates } from '../../engine/resources.js';
+import { formatNumber } from '../../engine/formatting.js';
+import { characterState, countItemInBag } from '../../sections/character/character.js';
 
 // --- Stubs for systems moved to backup during refactor ---
 const gameFlags = {};

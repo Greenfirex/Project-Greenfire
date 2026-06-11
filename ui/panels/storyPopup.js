@@ -2,9 +2,9 @@
 // Uses existing #storyPopup DOM from index.html
 // Archives entries to journal via addJournalEntry()
 
-import { addJournalEntry } from '../../sections/journal.js';
+import { addJournalEntry } from '../../sections/journal/journal.js';
 import { getIsPaused, pauseGame, resumeGame } from '../chrome/footer.js';
-import { getIngameTimeObject } from '../../core/time.js';
+import { getIngameTimeObject } from '../../engine/time.js';
 
 let activeStoryEvent = null;
 let pausedByThisStoryPopup = false;
@@ -148,4 +148,8 @@ function setupPopup() {
     if (xBtn) xBtn.addEventListener('click', hideStoryPopup);
 }
 
-document.addEventListener('DOMContentLoaded', setupPopup);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupPopup);
+} else {
+    setupPopup();
+}

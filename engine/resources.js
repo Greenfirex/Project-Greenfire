@@ -22,12 +22,20 @@ export function getInitialResources() {
         { name: 'Health', amount: 65, isDiscovered: true, capacity: 100, producible: false, integer: true },
         { name: 'Stamina', amount: 70, isDiscovered: true, capacity: 100, producible: false, integer: true },
         { name: 'XP', amount: 0, isDiscovered: true, capacity: 9000000000, producible: false, integer: true, hidden: true },
-        { name: 'Food Rations', amount: 50, isDiscovered: true, capacity: 10, producible: false, integer: true },
-        { name: 'Drinking Water', amount: 50, isDiscovered: true, capacity: 10, producible: false, integer: true },
+        { name: 'Food Rations', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true },
+        { name: 'Drinking Water', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true },
     ];
 }
 
 export let resources = getInitialResources();
+
+// Active drain rates set by the location engine during actions.
+// Map of resource name → net drain per second (negative = drain, positive = restore).
+let _activeDrainRates = null;
+
+export function setActiveDrainRates(rates) {
+    _activeDrainRates = rates ? { ...rates } : null;
+}
 
 const RESOURCE_CATEGORIES = {
     'Health': 'Essential',
@@ -102,6 +110,16 @@ export function computeResourceRates(resourceName) {
     }
     if (resourceName === 'Health') {
         totalProduction += 0.1;
+    }
+
+    // Active drain rates from running action (e.g., Visit Workshop drains Food/Water).
+    if (_activeDrainRates && _activeDrainRates[resourceName] !== undefined) {
+        const activeRate = Number(_activeDrainRates[resourceName]);
+        if (activeRate < 0) {
+            totalConsumption += Math.abs(activeRate);
+        } else {
+            totalProduction += activeRate;
+        }
     }
 
     const netPerSecond = totalProduction - totalConsumption;
@@ -237,6 +255,14 @@ export function updateResourceInfo() {
 
         const progressBar = infoRow.querySelector('.resource-progress-bar');
         progressBar.style.width = `${Math.min((resource.amount / resource.capacity) * 100, 100)}%`;
+
+        // Color-code the progress bar matching drain cost colors.
+        const rn = String(resource.name || '');
+        progressBar.classList.remove('bar-stamina', 'bar-food', 'bar-water', 'bar-health');
+        if (/stamina/i.test(rn)) progressBar.classList.add('bar-stamina');
+        else if (/food/i.test(rn)) progressBar.classList.add('bar-food');
+        else if (/water/i.test(rn)) progressBar.classList.add('bar-water');
+        else if (/health/i.test(rn)) progressBar.classList.add('bar-health');
 
         infoRow.classList.toggle('capped', isCapped);
     });

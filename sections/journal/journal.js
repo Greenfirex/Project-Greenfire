@@ -1,4 +1,4 @@
-import { getAllObjectivesWithState, getObjectiveSteps, getTrackedObjectiveId, setTrackedObjective } from '../data/objectives.js';
+import { getAllObjectivesWithState, getObjectiveSteps, getTrackedObjectiveId, setTrackedObjective } from '../../engine/objectives.js';
 
 export function setupJournalSection(section) {
     if (!section) return;
