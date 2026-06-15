@@ -14,7 +14,7 @@ export const crewQuarters = {
             nameKey: 'action_search_bunks',
             descKey: 'action_search_bunks_desc',
             drain: [{ resource: 'Stamina', amount: 4 }],
-            durationSeconds: 4,
+            durationSeconds: 20,
             oneTime: true,
             resultKey: 'result_search_bunks'
         },
@@ -23,7 +23,7 @@ export const crewQuarters = {
             nameKey: 'action_check_terminal',
             descKey: 'action_check_terminal_desc',
             drain: [{ resource: 'Stamina', amount: 3 }],
-            durationSeconds: 3,
+            durationSeconds: 15,
             oneTime: true,
             resultKey: 'result_check_terminal'
         },
@@ -32,7 +32,7 @@ export const crewQuarters = {
             nameKey: 'action_rest',
             descKey: 'action_rest_desc',
             drain: [{ resource: 'Stamina', amount: -5 }],
-            durationSeconds: 3,
+            durationSeconds: 15,
             repeatable: true
         },
         {
@@ -40,12 +40,8 @@ export const crewQuarters = {
             nameKey: 'action_go_workshop',
             descKey: 'action_go_workshop_desc',
             targetLocation: 'workshop',
-            drain: [
-                { resource: 'Stamina', amount: 4 },
-                { resource: 'Food Rations', amount: 3 },
-                { resource: 'Drinking Water', amount: 3 }
-            ],
-            durationSeconds: 3,
+            drain: [{ resource: 'Stamina', amount: 4 }],
+            durationSeconds: 15,
             repeatable: true
         }
     ]

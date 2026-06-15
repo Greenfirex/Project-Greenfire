@@ -1,4 +1,4 @@
-import { resources, updateResourceInfo, setupInfoPanel, computeResourceRates } from './resources.js';
+import { resources, updateResourceInfo, setupInfoPanel } from './resources.js';
 import { preloader } from '../ui/system/preloader.js';
 import { gameFlags } from './gameFlags.js';
 import { setupLocationSection, updateLocationActionButtonsState } from '../sections/locations/locationEngine.js';
@@ -6,7 +6,7 @@ import { setupJournalSection } from '../sections/journal/journal.js';
 import { setupCharacterSection } from '../sections/character/characterSection.js';
 import { characterState, computeCharacterStats, computeLevelFromXp } from '../sections/character/character.js';
 import { addLogEntry, LogType } from './ingameLog.js';
-import { initTimeManager, startTimeManager } from './time.js';
+import { initTimeManager } from './time.js';
 import { loadGameState, resetToDefaultState, saveGameState } from './saveload.js';
 import { initOptions, setGlowColor, setGlowIntensity, shouldRunInBackground } from './settings.js';
 import { recomputeObjectives } from './objectives.js';
@@ -62,15 +62,11 @@ function getCurrentCharacterLevel() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Register preloader categories.
     preloader.register('images', 30);
     preloader.register('core', 20);
     preloader.register('titleScreen', 30);
 
-    // Start auto-discovering and preloading images from DOM + CSS.
     preloader.startImagePreloading();
-
-    // Core subsystems are loaded (module imports resolved, DOM ready).
     preloader.progress('core', 0.5, 'Initializing...');
 
     try { initOptions(); } catch { /* ignore */ }
@@ -81,15 +77,11 @@ document.addEventListener('DOMContentLoaded', () => {
         setGlowIntensity(savedIntensity);
     } catch { /* ignore */ }
 
-    // Helper: wait for translations to be ready, then start the game.
-    // Prevents rendering the game UI with fallback English before Czech loads.
     async function startWhenTranslationsReady(mode) {
         const { isInitComplete } = await import('../locales/locales.js');
         if (isInitComplete()) {
-            // Translations fully loaded and applied.
             startGame({ mode });
         } else {
-            // Wait for async translations (e.g. Czech JSON fetch).
             window.addEventListener('language-changed', () => {
                 startGame({ mode });
             }, { once: true });
@@ -100,7 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const isResetting = localStorage.getItem('isResetting');
         if (isResetting) {
             localStorage.removeItem('isResetting');
-            // Mark preloader complete since we're skipping the title screen.
             preloader.progress('core', 1);
             preloader.progress('titleScreen', 1);
             hideTitleScreen();
@@ -113,7 +104,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const autoContinue = localStorage.getItem('autoContinueAfterReload');
         if (autoContinue) {
             localStorage.removeItem('autoContinueAfterReload');
-            // Mark preloader complete since we're skipping the title screen.
             preloader.progress('core', 1);
             preloader.progress('titleScreen', 1);
             hideTitleScreen();
@@ -132,7 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
         startGame({ mode: 'continue' });
     }
 
-    // Core subsystems fully initialized.
     preloader.progress('core', 1, 'Ready.');
 });
 
@@ -146,12 +135,11 @@ function startGame({ mode = 'continue' } = {}) {
 
     try { hideTitleScreen(); } catch { /* ignore */ }
 
-    initTimeManager(false);
+    initTimeManager();
 
     if (mode === 'new') {
         try { localStorage.removeItem('isResetting'); } catch { /* ignore */ }
         resetToDefaultState();
-        // Activate first objective and show welcome popup
         try { recomputeObjectives(); } catch {}
         try {
             import('../ui/panels/storyPopup.js').then(mod => {
@@ -165,6 +153,17 @@ function startGame({ mode = 'continue' } = {}) {
         } catch {}
     } else {
         loadGameState();
+        // Restore saved action progress if any
+        try {
+            const savedGameState = JSON.parse(localStorage.getItem('gameState'));
+            if (savedGameState && savedGameState.activeActionState) {
+                setTimeout(() => {
+                    if (typeof window.__resumeSavedAction === 'function') {
+                        window.__resumeSavedAction(savedGameState.activeActionState);
+                    }
+                }, 100); // small delay to let sections setup first
+            }
+        } catch { /* ignore */ }
     }
 
     syncVitalCapsFromCharacter();
@@ -172,7 +171,6 @@ function startGame({ mode = 'continue' } = {}) {
         window.addEventListener('character-state-changed', () => syncVitalCapsFromCharacter());
     } catch { /* non-fatal */ }
 
-    // Create game section elements
     const crashSiteSection = document.createElement('div');
     crashSiteSection.id = 'crashSiteSection';
     crashSiteSection.classList.add('game-section', 'hidden');
@@ -190,7 +188,6 @@ function startGame({ mode = 'continue' } = {}) {
     gameArea.appendChild(characterSection);
     gameArea.appendChild(journalSection);
 
-    // Setup sections
     setupInfoPanel();
     setupLocationSection(crashSiteSection);
     setupCharacterSection(characterSection);
@@ -207,55 +204,19 @@ function startGame({ mode = 'continue' } = {}) {
     let gameLoopInterval = null;
     let autosaveInterval = null;
 
-    function getEffectiveTimeScale() {
-        try {
-            const s = Number(window.TIME_SCALE);
-            return Number.isFinite(s) && s > 0 ? s : 1;
-        } catch {
-            return 1;
-        }
-    }
-
-    function applyResourceRates(deltaTimeSeconds) {
-        if (!Number.isFinite(deltaTimeSeconds) || deltaTimeSeconds <= 0) return;
-
-        resources.forEach(res => {
-            const rates = computeResourceRates(res.name);
-            if (!rates) return;
-            const delta = rates.netPerSecond * deltaTimeSeconds;
-            if (delta === 0) return;
-            res.amount = Math.max(0, Math.min(res.capacity, res.amount + delta));
-        });
-    }
-
     function startMainLoop() {
         if (gameLoopInterval) return;
         lastUpdateTime = Date.now();
 
         gameLoopInterval = setInterval(() => {
             const now = Date.now();
-            let deltaTime = (now - lastUpdateTime) / 1000;
             lastUpdateTime = now;
 
-            deltaTime *= getEffectiveTimeScale();
-
-            if (!shouldRunInBackground() && deltaTime > 2) {
-                deltaTime = 0;
-            }
-
-            applyResourceRates(deltaTime);
             updateResourceInfo();
-
-            // Check conditions / unlock things
             checkConditions();
 
-            // Update action button states
-            if (typeof updateLocationActionButtonsState === 'function') updateLocationActionButtonsState();
-
-            // Periodic objectives check
             try { recomputeObjectives(); } catch (e) { /* non-fatal */ }
 
-            // Emit resource change event
             try {
                 window.dispatchEvent(new CustomEvent('resources-updated', {
                     detail: {
@@ -278,7 +239,7 @@ function startGame({ mode = 'continue' } = {}) {
         if (autosaveInterval) return;
         autosaveInterval = setInterval(() => {
             saveGameState();
-        }, 300000); // Autosave every 5 minutes
+        }, 300000);
     }
 
     function stopAutosave() {
@@ -288,7 +249,6 @@ function startGame({ mode = 'continue' } = {}) {
         }
     }
 
-    // Visibility handler
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden') {
             if (!shouldRunInBackground()) {
@@ -298,22 +258,6 @@ function startGame({ mode = 'continue' } = {}) {
             }
         } else if (document.visibilityState === 'visible') {
             if (getIsPaused()) return;
-
-            try {
-                if (shouldRunInBackground() && gameLoopInterval) {
-                    const now = Date.now();
-                    let wakeDelta = (now - lastUpdateTime) / 1000;
-                    wakeDelta *= getEffectiveTimeScale();
-                    wakeDelta = Math.min(wakeDelta, 60 * 60);
-
-                    if (wakeDelta > 0.01) {
-                        applyResourceRates(wakeDelta);
-                        lastUpdateTime = now;
-                        try { updateResourceInfo(); } catch { /* ignore */ }
-                    }
-                }
-            } catch { /* non-fatal */ }
-
             startMainLoop();
             startAutosave();
             window.dispatchEvent(new CustomEvent('game-resume', { detail: { source: 'visibility' } }));
@@ -322,10 +266,6 @@ function startGame({ mode = 'continue' } = {}) {
 
     registerMainLoopCallbacks(startMainLoop, stopMainLoop);
     initFooter();
-
-    if (!getIsPaused()) {
-        try { startTimeManager(); } catch (e) { /* ignore */ }
-    }
 
     if (!getIsPaused()) startMainLoop();
     startAutosave();
@@ -437,7 +377,6 @@ export function showSection(sectionId) {
         activeSection.classList.remove('hidden');
     }
 
-    // Re-render Character on show so inventory/equipment changes are reflected.
     if (sectionId === 'characterSection') {
         try {
             const sectionEl = document.getElementById('characterSection');

@@ -22,19 +22,20 @@ export function getInitialResources() {
         { name: 'Health', amount: 65, isDiscovered: true, capacity: 100, producible: false, integer: true },
         { name: 'Stamina', amount: 70, isDiscovered: true, capacity: 100, producible: false, integer: true },
         { name: 'XP', amount: 0, isDiscovered: true, capacity: 9000000000, producible: false, integer: true, hidden: true },
-        { name: 'Food Rations', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true },
-        { name: 'Drinking Water', amount: 50, isDiscovered: true, capacity: 50, producible: false, integer: true },
+        { name: 'Food Rations', amount: 25, isDiscovered: true, capacity: 25, producible: false, integer: true },
+        { name: 'Drinking Water', amount: 25, isDiscovered: true, capacity: 25, producible: false, integer: true },
     ];
 }
 
 export let resources = getInitialResources();
 
-// Active drain rates set by the location engine during actions.
-// Map of resource name → net drain per second (negative = drain, positive = restore).
+// Active drain rates and their source descriptions for tooltips.
 let _activeDrainRates = null;
+let _activeDrainSources = null; // { resourceName: [{ rate, label }] }
 
-export function setActiveDrainRates(rates) {
+export function setActiveDrainRates(rates, sources) {
     _activeDrainRates = rates ? { ...rates } : null;
+    _activeDrainSources = sources || null;
 }
 
 const RESOURCE_CATEGORIES = {
@@ -57,25 +58,38 @@ function buildResourceTooltipHtml(resourceName) {
     const rates = computeResourceRates(name);
     if (!rates) return `<h4>${name}</h4><p>No data available.</p>`;
 
-    const { totalProduction, totalConsumption, netPerSecond } = rates;
-
     const res = resources.find(r => r && r.name === name);
     const amt = res ? (res.integer ? Math.floor(Number(res.amount) || 0) : (Number(res.amount) || 0)) : 0;
     const cap = res ? (res.integer ? Math.floor(Number(res.capacity) || 0) : (Number(res.capacity) || 0)) : 0;
 
     let description = t(RESOURCE_DESC_KEYS[name] || '') || '';
 
-    const sign = netPerSecond >= 0 ? '+' : '';
+    const sign = rates.netPerMinute >= 0 ? '+' : '-';
     const regenLabel = (name === 'Health' || name === 'Stamina') ? 'Regeneration' : 'Gains';
     const drainLabel = (name === 'Health' || name === 'Stamina') ? 'Drain' : 'Usage';
 
-    let productionHtml = '';
-    if (totalProduction > 0) {
-        productionHtml = `<p class="tooltip-detail">+ ${formatNumber(totalProduction)}/s passive</p>`;
+    let sectionsHtml = '';
+
+    // Show Gains/Regeneration section with source bullet points
+    if (rates.totalProduction > 1e-9) {
+        const sourceLines = (rates.productionSources && rates.productionSources.length)
+            ? rates.productionSources.map(s => `<p class="tooltip-detail">• ${s.label}</p>`).join('')
+            : '';
+        sectionsHtml += `<div class="tooltip-section">
+            <p>${regenLabel}: +<span class="tooltip-amount-produces">${formatNumber(rates.totalProduction)}</span>/min</p>
+            ${sourceLines}
+        </div>`;
     }
-    let consumptionHtml = '';
-    if (totalConsumption > 0) {
-        consumptionHtml = `<p class="tooltip-detail">- ${formatNumber(totalConsumption)}/s active</p>`;
+
+    // Show Usage/Drain section with source bullet points
+    if (rates.totalConsumption > 1e-9) {
+        const sourceLines = (rates.consumptionSources && rates.consumptionSources.length)
+            ? rates.consumptionSources.map(s => `<p class="tooltip-detail">• ${s.label}</p>`).join('')
+            : '';
+        sectionsHtml += `<div class="tooltip-section">
+            <p>${drainLabel}: -<span class="tooltip-amount-consumes">${formatNumber(rates.totalConsumption)}</span>/min</p>
+            ${sourceLines}
+        </div>`;
     }
 
     return `
@@ -84,16 +98,9 @@ function buildResourceTooltipHtml(resourceName) {
         <div class="tooltip-section">
             <p>Current: <strong>${amt}${cap > 0 ? `/${cap}` : ''}</strong></p>
         </div>
-        <div class="tooltip-section">
-            <p>${regenLabel}: +<span class="tooltip-amount-produces">${formatNumber(totalProduction)}</span>/s</p>
-            ${productionHtml}
-        </div>
-        <div class="tooltip-section">
-            <p>${drainLabel}: -<span class="tooltip-amount-consumes">${formatNumber(totalConsumption)}</span>/s</p>
-            ${consumptionHtml}
-        </div>
+        ${sectionsHtml}
         <hr>
-        <p><strong>Net Change: ${sign}${formatNumber(netPerSecond)}/s</strong></p>
+        <p><strong>Net Change: ${sign}${formatNumber(Math.abs(rates.netPerMinute))}/min</strong></p>
     `;
 }
 
@@ -103,32 +110,50 @@ export function computeResourceRates(resourceName) {
 
     let totalProduction = 0;
     let totalConsumption = 0;
+    const productionSources = [];
+    const consumptionSources = [];
 
-    // Passive regeneration
-    if (resourceName === 'Stamina') {
-        totalProduction += 0.2;
-    }
+    // Passive rates with source labels
     if (resourceName === 'Health') {
         totalProduction += 0.1;
+        productionSources.push({ rate: 0.1, label: t('res_health_desc') });
+    }
+    if (resourceName === 'Food Rations') {
+        totalConsumption += 0.1;
+        consumptionSources.push({ rate: 0.1, label: t('res_food_desc') });
+    }
+    if (resourceName === 'Drinking Water') {
+        totalConsumption += 0.1;
+        consumptionSources.push({ rate: 0.1, label: t('res_water_desc') });
     }
 
-    // Active drain rates from running action (e.g., Visit Workshop drains Food/Water).
+    // Active drain rates from running action (Stamina costs/gains during actions)
     if (_activeDrainRates && _activeDrainRates[resourceName] !== undefined) {
         const activeRate = Number(_activeDrainRates[resourceName]);
         if (activeRate < 0) {
-            totalConsumption += Math.abs(activeRate);
+            const absRate = Math.abs(activeRate);
+            totalConsumption += absRate;
+            // Use the source label if available
+            if (_activeDrainSources && _activeDrainSources[resourceName]) {
+                consumptionSources.push(..._activeDrainSources[resourceName]);
+            }
         } else {
             totalProduction += activeRate;
+            if (_activeDrainSources && _activeDrainSources[resourceName]) {
+                productionSources.push(..._activeDrainSources[resourceName]);
+            }
         }
     }
 
-    const netPerSecond = totalProduction - totalConsumption;
+    const netPerMinute = totalProduction - totalConsumption;
 
     return {
         resource: currentResource,
         totalProduction,
         totalConsumption,
-        netPerSecond,
+        netPerMinute,
+        productionSources,
+        consumptionSources,
     };
 }
 
@@ -240,15 +265,15 @@ export function updateResourceInfo() {
         const rates = computeResourceRates(resource.name);
         if (!rates) return;
 
-        const { netPerSecond } = rates;
+        const { netPerMinute } = rates;
         const isCapped = (resource.capacity > 0) ? (resource.amount >= resource.capacity) : false;
-        generationEl.classList.toggle('negative-rate', netPerSecond < 0 && !isCapped);
+        generationEl.classList.toggle('negative-rate', netPerMinute < 0 && !isCapped);
 
         const EPS = 1e-9;
-        if (Math.abs(netPerSecond) > EPS) {
-            const sign = netPerSecond >= 0 ? '+' : '-';
-            const value = formatNumber(Math.abs(netPerSecond));
-            generationEl.textContent = `${sign}${value}/s`;
+        if (Math.abs(netPerMinute) > EPS) {
+            const sign = netPerMinute >= 0 ? '+' : '-';
+            const value = formatNumber(Math.abs(netPerMinute));
+            generationEl.textContent = `${sign}${value}/min`;
         } else {
             generationEl.textContent = '';
         }
@@ -256,7 +281,6 @@ export function updateResourceInfo() {
         const progressBar = infoRow.querySelector('.resource-progress-bar');
         progressBar.style.width = `${Math.min((resource.amount / resource.capacity) * 100, 100)}%`;
 
-        // Color-code the progress bar matching drain cost colors.
         const rn = String(resource.name || '');
         progressBar.classList.remove('bar-stamina', 'bar-food', 'bar-water', 'bar-health');
         if (/stamina/i.test(rn)) progressBar.classList.add('bar-stamina');
@@ -270,15 +294,29 @@ export function updateResourceInfo() {
     updateResourceCategoryVisibility(document.getElementById('infoPanelContent') || document);
 }
 
-// Stub exports needed by tooltip.js (recovery/channeled action systems moved to backup)
-export function getRecoveryActionRegenBonusesPerSec(actionId) {
-    return null;
-}
+/**
+ * Apply passive resource changes driven by time passing,
+ * including active drain rates from ongoing actions.
+ * @param {number} realSeconds — amount of real time that passed
+ */
+export function applyTimePassiveDrain(realSeconds) {
+    if (!Number.isFinite(realSeconds) || realSeconds <= 0) return;
 
-export function getChanneledActionYieldBonusesPerSec(actionId) {
-    return null;
-}
+    // Per-minute rates for Food, Water, Health
+    resources.forEach(res => {
+        let perMinRate = 0;
+        if (res.name === 'Food Rations') perMinRate = -0.1;
+        else if (res.name === 'Drinking Water') perMinRate = -0.1;
+        else if (res.name === 'Health') perMinRate = 0.1;
 
-export function getResourceTooltipHtml(resourceName) {
-    try { return buildResourceTooltipHtml(resourceName); } catch { return `<h4>${String(resourceName || '')}</h4>`; }
+        // Also apply active drain rates (Stamina from actions)
+        if (_activeDrainRates && _activeDrainRates[res.name] !== undefined) {
+            perMinRate += Number(_activeDrainRates[res.name]);
+        }
+
+        if (perMinRate === 0) return;
+        const delta = perMinRate * realSeconds;
+        if (delta === 0) return;
+        res.amount = Math.max(0, Math.min(res.capacity, res.amount + delta));
+    });
 }

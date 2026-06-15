@@ -198,7 +198,17 @@ loaded['en'] = {
   "result_search_bunks": "You search through the crew bunks. Among scattered personal effects, you find a few useful items and a tattered logbook. The entries stop abruptly — mid-sentence.",
   "result_check_terminal": "The terminal flickers to life. Ship status: CRITICAL. Crew complement: 3 survivors detected in Gamma Site. Navigation logs are corrupted. A looping distress signal plays on repeat.",
   "result_scavenge_tools": "You rummage through the workshop. Several toolkits are still intact. You salvage what you can — a plasma cutter and some spare power cells.",
-  "result_repair_kit": "Using scavenged parts, you manage to repair a damaged enviro-suit. It's not perfect, but it'll hold for now."
+  "result_repair_kit": "Using scavenged parts, you manage to repair a damaged enviro-suit. It's not perfect, but it'll hold for now.",
+  "log_game_saved": "Game saved.",
+  "log_game_loaded": "Game state loaded.",
+  "log_new_game_started": "New game started.",
+  "log_game_paused": "Game paused.",
+  "log_game_resumed": "Game resumed at {speed}x.",
+  "log_game_speed_set": "Game speed set to {speed}x.",
+  "clock_time_format": "Day {day}, {hour}:{minute}",
+  "action_duration_label": "{minutes} min",
+  "pause_overlay_title": "GAME PAUSED",
+  "footer_status_paused": "Paused"
 };
 
 // ==========================================================================

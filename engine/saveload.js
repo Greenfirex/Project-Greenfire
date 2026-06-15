@@ -10,6 +10,7 @@ const getActiveCrashSiteAction = () => null;
 const setActiveCrashSiteAction = () => {};
 import { characterState, applySavedCharacterState, getCharacterStateForSave, resetCharacterState } from '../sections/character/character.js';
 import { getObjectivesStatus, setObjectivesStatus, resetObjectives } from './objectives.js';
+import { t } from '../locales/locales.js';
 
 function reconcileActivatedSectionsAfterLoad() {
     try {
@@ -27,7 +28,7 @@ function reconcileActivatedSectionsAfterLoad() {
 export function saveGameState() {
     const gameState = getGameState();
     localStorage.setItem('gameState', JSON.stringify(gameState));
-    addLogEntry('Game saved.', LogType.INFO);
+    addLogEntry(t('log_game_saved'), LogType.INFO);
 }
 
 export function saveGameStateQuiet() {
@@ -46,12 +47,13 @@ export function getGameState() {
         timeScale: window.TIME_SCALE ? Number(window.TIME_SCALE) : 1,
         paused: localStorage.getItem('gamePaused') === 'true',
         activeCrashSiteAction: getActiveCrashSiteAction(),
+        activeActionState: (function(){ try { return typeof window.__getActiveActionState === 'function' ? window.__getActiveActionState() : null; } catch { return null; } })(),
         characterState: (function(){ try { return getCharacterStateForSave(); } catch { return null; } })(),
         objectivesStatus: (function(){ try { return getObjectivesStatus(); } catch { return []; } })()
     };
 }
 
-const SAVE_VERSION = 2; // Increment this when save format changes incompatibly
+const SAVE_VERSION = 3; // Incremented for action progress persistence
 
 export function applyGameState(gameState) {
     if (!gameState) return;
@@ -166,14 +168,14 @@ export function loadGameState() {
             resetToDefaultState();
             return;
         }
-        addLogEntry('Game state loaded.', LogType.INFO);
+        addLogEntry(t('log_game_loaded'), LogType.INFO);
     } else {
         resetToDefaultState();
     }
 }
 
 export function resetToDefaultState() {
-    addLogEntry('New game started.', LogType.INFO);
+    addLogEntry(t('log_new_game_started'), LogType.INFO);
 
     localStorage.removeItem('storyLog');
     localStorage.removeItem('logEntries');

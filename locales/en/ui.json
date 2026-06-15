@@ -67,5 +67,20 @@
 
   "objectives_new_log": "New objective: {name}",
   "objectives_completed_log": "Objective completed: {name}",
-  "objectives_reward_log": "Objective reward: {rewards}"
+  "objectives_reward_log": "Objective reward: {rewards}",
+
+  "menu_local_area": "Explore",
+
+  "log_game_saved": "Game saved.",
+  "log_game_loaded": "Game state loaded.",
+  "log_new_game_started": "New game started.",
+  "log_game_paused": "Game paused.",
+  "log_game_resumed": "Game resumed at {speed}x.",
+  "log_game_speed_set": "Game speed set to {speed}x.",
+
+  "clock_time_format": "Day {day}, {hour}:{minute}",
+  "action_duration_label": "{minutes} min",
+
+  "pause_overlay_title": "GAME PAUSED",
+  "footer_status_paused": "Paused"
 }

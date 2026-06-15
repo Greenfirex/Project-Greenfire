@@ -21,6 +21,7 @@
   "menu_crash_site": "Místo havárie",
   "menu_character": "Postava",
   "menu_journal": "Deník",
+  "menu_local_area": "Prozkoumat",
 
   "options_language": "Jazyk",
   "options_language_select": "Vyberte jazyk",
@@ -70,6 +71,8 @@
   "clock_title": "Herní čas",
   "clock_elapsed": "Uplynulo od havárie",
   "clock_speed": "Při aktuální rychlosti ({scale}x): 1 reálná s = {minsPerSec} herních min | 1 reálná min = {hoursPerMin} herních hod",
+  "clock_time_format": "Den {day}, {hour}:{minute}",
+  "action_duration_label": "{minutes} min",
 
   "obj_first_steps_label": "První kroky",
   "obj_first_steps_narrative": "Přežil jsi havárii. Loď je v troskách a jsi sám — nebo se to tak alespoň prozatím zdá.\n\nTvé okamžité priority jsou jasné: zhodnoť své okolí, porozuměj svým zdrojům a začni pracovat na přežití.\n\nZačni tím, že se seznámíš s dostupnými sekcemi a panely. Deník bude sledovat tvé úkoly, zatímco Místo havárie a Postava budou tvými hlavními nástroji.",
@@ -85,6 +88,17 @@
   "objectives_new_log": "Nový úkol: {name}",
   "objectives_completed_log": "Úkol dokončen: {name}",
   "objectives_reward_log": "Odměna za úkol: {rewards}",
+
+  "log_game_saved": "Hra uložena.",
+  "log_game_loaded": "Hra načtena.",
+  "log_new_game_started": "Nová hra zahájena.",
+  "log_game_paused": "Hra pozastavena.",
+  "log_game_resumed": "Hra obnovena ({speed}x).",
+  "log_game_speed_set": "Rychlost hry nastavena na {speed}x.",
+
+  "pause_overlay_title": "HRA POZASTAVENA",
+  "footer_status_paused": "Pozastaveno",
+
   "crash_details": "Detaily",
   "crash_actions": "Akce",
   "loc_crew_quarters": "Ubikace posádky",

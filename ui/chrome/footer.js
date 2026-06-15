@@ -37,7 +37,7 @@ function registerMainLoopCallbacks(startFn, stopFn) {
 
 function updateHUD() {
     const hud = document.getElementById('gameStatusHUD');
-    if (hud) hud.textContent = isPaused ? 'Paused' : `${window.TIME_SCALE}x`;
+    if (hud) hud.textContent = isPaused ? t('footer_status_paused') : `${window.TIME_SCALE}x`;
 }
 
 function ensurePauseOverlay() {
@@ -50,7 +50,7 @@ function ensurePauseOverlay() {
 
     el.innerHTML = `
         <div class="pause-overlay-card" role="dialog" aria-modal="true">
-            <div class="pause-overlay-title">GAME PAUSED</div>
+            <div class="pause-overlay-title">${t('pause_overlay_title')}</div>
         </div>
     `;
 
@@ -90,6 +90,9 @@ function ensurePauseOverlay() {
 function showPauseOverlay() {
     const el = ensurePauseOverlay();
     if (!el) return;
+    // Refresh the overlay text in case language changed
+    const titleEl = el.querySelector('.pause-overlay-title');
+    if (titleEl) titleEl.textContent = t('pause_overlay_title');
     el.classList.remove('hidden');
     el.setAttribute('aria-hidden', 'false');
 }
@@ -111,7 +114,7 @@ function setGameSpeed(factor, announce = true) {
     });
     updateMobileSpeedButton();
     updateHUD();
-    if (announce) addLogEntry(`Game speed set to ${window.TIME_SCALE}x.`, LogType.INFO);
+    if (announce) addLogEntry(t('log_game_speed_set', { speed: window.TIME_SCALE }), LogType.INFO);
 }
 
 // Pause/resume helpers
@@ -128,7 +131,7 @@ function pauseGame(announce = true) {
     // persist paused state
     try { localStorage.setItem('gamePaused', 'true'); } catch (e) {}
     updateHUD();
-    if (announce) addLogEntry('Game paused.', LogType.INFO);
+    if (announce) addLogEntry(t('log_game_paused'), LogType.INFO);
 }
 
 function resumeGame(announce = true) {
@@ -140,7 +143,7 @@ function resumeGame(announce = true) {
     if (btn) { btn.textContent = t('footer_pause'); btn.classList.remove('active'); }
     try { localStorage.setItem('gamePaused', 'false'); } catch (e) {}
     updateHUD();
-    if (announce) addLogEntry(`Game resumed at ${window.TIME_SCALE}x.`, LogType.INFO);
+    if (announce) addLogEntry(t('log_game_resumed', { speed: window.TIME_SCALE }), LogType.INFO);
 }
 
 function togglePause() {
