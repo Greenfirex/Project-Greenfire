@@ -34,7 +34,7 @@ function svgForSection(sectionId) {
         // Inline SVG icons (stroke-based, uses currentColor)
         // Keep them tiny/simple; these are constants (no user input).
         const icons = {
-                crashSiteSection: `
+                locationsSection: `
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" />
 </svg>`,
@@ -223,16 +223,16 @@ function getCrashSiteCampTabWarnMeta() {
 function selectCrashSiteTab(tabKey) {
     const wanted = tabKey === 'camp' ? 'camp' : 'map';
 
-    // Ensure Crash Site section is active first.
-    const crashBtn = document.querySelector('#mainMenu .menu-button[data-section="crashSiteSection"]');
-    if (crashBtn) crashBtn.click();
+    // Ensure Locations section is active first.
+    const locationsBtn = document.querySelector('#mainMenu .menu-button[data-section="locationsSection"]');
+    if (locationsBtn) locationsBtn.click();
 
     // Tab buttons are built by setupCrashSiteSection(); give it a frame.
     let attempts = 0;
     const tryClick = () => {
         attempts++;
-        const host = document.getElementById('crashSiteSection');
-        const tab = host ? host.querySelector(`.crashsite-tab[data-tab="${CSS.escape(wanted)}"]`) : null;
+        const host = document.getElementById('locationsSection');
+        const tab = host ? host.querySelector(`.location-tab[data-tab="${CSS.escape(wanted)}"]`) : null;
         if (tab) {
             if (tab.disabled) return;
             tab.click();
@@ -267,10 +267,10 @@ function selectCraftingTab(tabKey) {
     } catch { /* ignore */ }
 }
 
-function getCrashSiteTabMeta() {
-    const host = document.getElementById('crashSiteSection');
-    const campTab = host ? host.querySelector('.crashsite-tab[data-tab="camp"]') : null;
-    const mapTab = host ? host.querySelector('.crashsite-tab[data-tab="map"]') : null;
+function getLocationTabMeta() {
+    const host = document.getElementById('locationsSection');
+    const campTab = host ? host.querySelector('.location-tab[data-tab="camp"]') : null;
+    const mapTab = host ? host.querySelector('.location-tab[data-tab="map"]') : null;
 
     const mapLabel = mapTab ? (mapTab.textContent || 'Local map').trim() : 'Local map';
 
@@ -278,7 +278,7 @@ function getCrashSiteTabMeta() {
     let campDisabled = false;
     if (campTab) {
         campDisabled = !!campTab.disabled;
-        const labelEl = campTab.querySelector('.crashsite-tab-label');
+        const labelEl = campTab.querySelector('.location-tab-label');
         campLabel = (labelEl ? labelEl.textContent : campTab.textContent || 'Campsite').trim();
     }
 
@@ -436,9 +436,9 @@ function renderRail() {
         b.addEventListener('click', (e) => {
             e.preventDefault();
 
-            // Crash Site has no tabs now.
-            if (item.sectionId === 'crashSiteSection') {
-                const btn = document.querySelector('#mainMenu .menu-button[data-section="crashSiteSection"]');
+            // Locations section has no tabs now.
+            if (item.sectionId === 'locationsSection') {
+                const btn = document.querySelector('#mainMenu .menu-button[data-section="locationsSection"]');
                 if (btn) btn.click();
                 return;
             }

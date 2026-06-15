@@ -181,6 +181,23 @@ export function resetToDefaultState() {
     localStorage.removeItem('logEntries');
     localStorage.removeItem('objectivesStatusV1');
     localStorage.removeItem('characterStateV1');
+    localStorage.removeItem('loopCount');
+    localStorage.removeItem('ingameTimeMinutes');
+    localStorage.removeItem('activatedSections');
+    localStorage.removeItem('currentSection');
+    localStorage.removeItem('crashSiteActiveTab');
+    localStorage.removeItem('craftingActiveTab');
+    localStorage.removeItem('researchState');
+
+    // Clear all location-specific cached data
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('poiCollapse_') || key.startsWith('unlocks_'))) {
+            keysToRemove.push(key);
+        }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
 
     resetIngameTime();
     resetResources();
@@ -193,7 +210,7 @@ export function resetToDefaultState() {
 
     setActivatedSections(getInitialActivatedSections());
 
-    saveGameState();
+    saveGameStateQuiet();
     window.dispatchEvent(new CustomEvent('gameReset'));
 }
 

@@ -39,7 +39,7 @@ export const workshop = {
             id: 'go_crew_quarters',
             nameKey: 'action_go_crew_quarters',
             descKey: 'action_go_crew_quarters_desc',
-            targetLocation: 'crew_quarters',
+            targetLocation: 'gamma_crew_quarters',
             drain: [{ resource: 'Stamina', amount: 4 }],
             durationSeconds: 15,
             repeatable: true

@@ -4,7 +4,7 @@ import { resources } from '../../engine/resources.js';
 const MENU_NEW_ITEM_PREFIX = 'uiMenuNew:';
 
 export const MENU_SECTIONS = [
-    'crashSiteSection',
+    'locationsSection',
     'characterSection',
     'journalSection'
 ];

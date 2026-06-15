@@ -245,15 +245,16 @@ export function refreshObjectivesPanel() {
     refreshIfOpen();
 }
 
-// Init on DOM ready or immediately if DOM is already available
+// Init on DOM ready or immediately if DOM is already available.
+// Do NOT recompute objectives here — wait for game-start lifecycle events
+// (gameReset / game-state-applied) or the main loop to drive recomputation.
+// Early recomputation would log "New objective" before the player starts a game.
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         ensureContainer();
-        try { recomputeObjectives(); } catch {}
     });
 } else {
     ensureContainer();
-    try { recomputeObjectives(); } catch {}
 }
 
 // Listen for model changes

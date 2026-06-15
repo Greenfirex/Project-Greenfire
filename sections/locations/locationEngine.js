@@ -7,6 +7,9 @@ import { addLogEntry, LogType } from '../../engine/ingameLog.js';
 import { t } from '../../locales/locales.js';
 import { getCurrentLocationId, switchToLocation, getLocation } from './locationData.js';
 import { advanceIngameTimeBySeconds, getIngameTimeString } from '../../engine/time.js';
+import { playActionStart } from '../../engine/audio.js';
+import { gameFlags, isActionNew, flagActionAsNew, markActionSeen } from '../../engine/gameFlags.js';
+import { newBadgeHtml, wireClearUiNewBadge } from '../../ui/components/contentNewBadges.js';
 
 let activeAction = null;
 let activeActionId = null;
@@ -73,6 +76,24 @@ function completeActiveAction() {
     if (action.resultKey) addLogEntry(t(action.resultKey), LogType.SUCCESS);
     else addLogEntry(`${action._displayName || action.id} completed.`, LogType.INFO);
     if (action.oneTime && !action.repeatable) { action._completed = true; _fullRebuildNeeded = true; }
+    
+    // Handle action unlocks
+    if (action.unlocksAll) {
+        const location = getLocation(getCurrentLocationId());
+        if (location) {
+            const unlockState = getUnlockState(location.id);
+            unlockState[action.id] = true;
+            setUnlockState(location.id, unlockState);
+            // Flag all newly unlocked actions as "new" so badges appear
+            (location.actions || []).forEach(a => {
+                if (a.id !== action.id && a.unlockedBy === action.id) {
+                    flagActionAsNew(a.id);
+                }
+            });
+            _fullRebuildNeeded = true;
+        }
+    }
+    
     try { updateResourceInfo(); } catch { /* ignore */ }
     const targetLoc = action.targetLocation;
     clearActionTimer();
@@ -135,7 +156,7 @@ export function updateLocationActionButtonsState() { refreshUI(); }
 
 document.addEventListener('click', (e) => {
     try {
-        const actionsTile = document.getElementById('crashSiteActionsTile');
+        const actionsTile = document.getElementById('locationsActionsTile');
         if (actionsTile && !actionsTile.contains(e.target) && selectedActionId) {
             selectedActionId = null; _fullRebuildNeeded = true; refreshUI();
         }
@@ -143,8 +164,8 @@ document.addEventListener('click', (e) => {
 });
 
 function renderLocationTile(location) {
-    const imgHtml = location.image ? `<div class="crashsite-location-image" style="max-height:none;flex:1 1 auto;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="${location.image}" alt="${t(location.nameKey)}" style="width:100%;height:100%;object-fit:contain;" /></div>` : '';
-    return `<div class="crashsite-card crashsite-card-location"><div class="crashsite-card-header"><h3>${t(location.nameKey)}</h3></div>${imgHtml}</div>`;
+    const imgHtml = location.image ? `<div class="location-location-image" style="max-height:none;flex:1 1 auto;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="${location.image}" alt="${t(location.nameKey)}" style="width:100%;height:100%;object-fit:contain;" /></div>` : '';
+    return `<div class="location-card location-card-location"><div class="location-card-header"><h3>${t(location.nameKey)}</h3></div>${imgHtml}</div>`;
 }
 
 function renderDetailsTile() {
@@ -157,14 +178,60 @@ function renderDetailsTile() {
                 return `<p><span class="${amt < 0 ? 'drain-gain' : 'drain-cost'}">${sign}${Math.abs(amt)} ${d.resource}</span></p>`;
             }).join('') : '';
             const durationMins = Math.round(action.durationSeconds || 0);
-            return `<div class="crashsite-card crashsite-card-details"><div class="crashsite-card-header"><h3>${t(action.nameKey)}</h3></div><p class="crashsite-location-desc">${t(action.descKey)}</p>${durationMins > 0 ? `<div class="crashsite-action-meta"><span class="crashsite-action-btn-cost drain-time">&#9201; ${t('action_duration_label', { minutes: durationMins })}</span></div>` : ''}${drainHtml ? `<div class="crashsite-action-meta">${drainHtml}</div>` : ''}</div>`;
+            return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t(action.nameKey)}</h3></div><p class="location-location-desc">${t(action.descKey)}</p>${durationMins > 0 ? `<div class="location-action-meta"><span class="location-action-btn-cost drain-time">&#9201; ${t('action_duration_label', { minutes: durationMins })}</span></div>` : ''}${drainHtml ? `<div class="location-action-meta">${drainHtml}</div>` : ''}</div>`;
         }
     }
-    return `<div class="crashsite-card crashsite-card-details"><div class="crashsite-card-header"><h3>${t('crash_details')}</h3></div><p class="crashsite-location-desc" id="crashsiteDetailDesc"></p></div>`;
+    
+    // Show location description with colored POI names
+    if (location) {
+        let descText = t(location.descriptionKey);
+        
+        // Color-code POI names in the description
+        if (location.pois) {
+            location.pois.forEach(poi => {
+                const poiName = t(poi.nameKey);
+                // Replace POI names with colored versions
+                const regex = new RegExp(`\\b${poiName}\\b`, 'g');
+                descText = descText.replace(regex, `<span style="color: rgb(var(--glow-r), var(--glow-g), var(--glow-b)); font-weight: bold;">${poiName}</span>`);
+            });
+        }
+        
+        return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t('crash_details')}</h3></div><p class="location-location-desc" id="locationsDetailDesc">${descText}</p></div>`;
+    }
+    
+    return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t('crash_details')}</h3></div><p class="location-location-desc" id="locationsDetailDesc"></p></div>`;
 }
 
 function renderActionsTile(location) {
-    const actions = (location.actions || []).filter(a => !a._completed);
+    // Load unlock state for this location
+    const unlockState = getUnlockState(location.id);
+    
+    // Filter actions based on unlock state
+    let actions = (location.actions || []).filter(a => {
+        if (a._completed) return false;
+        // Only show actions that are unlocked (no unlockedBy = always available)
+        if (a.unlockedBy && !unlockState[a.unlockedBy]) return false;
+        return true;
+    });
+    
+    // Auto-flag actions that have never been tracked in uiSeen as "new"
+    // (covers initial visit to a location and newly visible actions without unlockedBy)
+    actions.forEach(a => {
+        const key = `action:${a.id}`;
+        if (!gameFlags.uiSeen || !Object.prototype.hasOwnProperty.call(gameFlags.uiSeen, key)) {
+            flagActionAsNew(a.id);
+        }
+    });
+    
+    // DEBUG: Log unlock state
+    console.log(`Location: ${location.id}, Unlock State:`, unlockState, `Filtered Actions:`, actions.map(a => a.id));
+    
+    // Check if location has POIs
+    if (location.pois && location.pois.length > 0) {
+        return renderActionsTileWithPOIs(location, actions);
+    }
+    
+    // Legacy rendering without POIs
     const buttons = actions.map(action => {
         const actionId = action.id;
         const isRunning = activeActionId === actionId && !action._completed;
@@ -175,42 +242,201 @@ function renderActionsTile(location) {
         const cannotAfford = action.drain && !canAffordAction(action);
         const otherRunning = !!activeAction && activeActionId !== actionId;
         let tagHtml = '';
-        if (action.repeatable) tagHtml = '<span class="crashsite-action-tag tag-repeatable">&#x21BB;</span>';
-        else if (action.oneTime) tagHtml = '<span class="crashsite-action-tag tag-onetime">1&#x00D7;</span>';
-        const durationLabel = durationMins > 0 ? `<span class="crashsite-action-btn-cost drain-time">&#9201; ${t('action_duration_label', { minutes: durationMins })}</span>` : '';
+        if (action.repeatable) tagHtml = '<span class="location-action-tag tag-repeatable">&#x21BB;</span>';
+        else if (action.oneTime) tagHtml = '<span class="location-action-tag tag-onetime">1&#x00D7;</span>';
+        const durationLabel = durationMins > 0 ? `<span class="location-action-btn-cost drain-time">&#9201; ${t('action_duration_label', { minutes: durationMins })}</span>` : '';
         const drainCostsHtml = (action.drain && action.drain.length) ? action.drain.map(d => drainCostHtml(d)).join(' ') : '';
         let playPauseHtml = '';
-        if (!isRunning) playPauseHtml = `<span class="crashsite-play-icon" data-action-play="${actionId}">&#9654;</span>`;
-        else if (isPaused) playPauseHtml = `<span class="crashsite-play-icon" data-action-play="${actionId}">&#9654;</span>`;
-        else if (isSelected && isRunning && !isPaused) playPauseHtml = `<span class="crashsite-pause-icon" data-action-pause="${actionId}">&#9208;</span>`;
+        if (!isRunning) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;
+        else if (isPaused) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;
+        else if (isRunning && !isPaused) playPauseHtml = `<span class="location-pause-icon" data-action-pause="${actionId}">&#9208;</span>`;
         let progressHtml = '';
         if (isRunning) {
             const remaining = Math.max(0, (action.durationSeconds || 1) - actionProgress);
-            progressHtml = `<div class="crashsite-action-progress" style="--progress:${pct}%"></div><span class="crashsite-action-remaining">${remaining.toFixed(1)}s</span>`;
+            progressHtml = `<div class="location-action-progress" style="--progress:${pct}%"></div><span class="location-action-remaining">${remaining.toFixed(1)}s</span>`;
         }
-        const costsRowHtml = (durationLabel || drainCostsHtml) ? `<span class="crashsite-action-costs-row">${durationLabel}${drainCostsHtml ? ' ' + drainCostsHtml : ''}</span>` : '';
+        const costsRowHtml = (durationLabel || drainCostsHtml) ? `<span class="location-action-costs-row">${durationLabel}${drainCostsHtml ? ' ' + drainCostsHtml : ''}</span>` : '';
         const disabled = (otherRunning || cannotAfford) && !isRunning;
-        return `<button type="button" class="crashsite-action-btn${isSelected ? ' is-selected' : ''}${isRunning ? ' is-running' : ''}${isPaused ? ' is-paused' : ''}${action.oneTime && !action.repeatable ? ' btn-onetime' : ''}${action.repeatable ? ' btn-repeatable' : ''}" data-action-id="${actionId}"${disabled ? ' disabled' : ''}><span class="crashsite-action-btn-name">${tagHtml}${t(action.nameKey)}</span>${costsRowHtml}${progressHtml}${playPauseHtml}</button>`;
+        return `<button type="button" class="location-action-btn${isSelected ? ' is-selected' : ''}${isRunning ? ' is-running' : ''}${isPaused ? ' is-paused' : ''}${action.oneTime && !action.repeatable ? ' btn-onetime' : ''}${action.repeatable ? ' btn-repeatable' : ''}" data-action-id="${actionId}"${disabled ? ' disabled' : ''}><span class="location-action-btn-name">${tagHtml}${t(action.nameKey)}</span>${costsRowHtml}${progressHtml}${playPauseHtml}</button>`;
     }).join('');
-    return `<div class="crashsite-card crashsite-card-actions"><div class="crashsite-card-header"><h3>${t('crash_actions')}</h3></div><div class="crashsite-actions-list">${buttons}</div></div>`;
+    return `<div class="location-card location-card-actions"><div class="location-card-header"><h3>${t('crash_actions')}</h3></div><div class="location-actions-list">${buttons}</div></div>`;
+}
+
+function renderActionsTileWithPOIs(location, actions) {
+    const pois = location.pois || [];
+    const poiCollapseState = getPoiCollapseState(location.id);
+    
+    // Group actions by POI - check POI definitions to assign actions correctly
+    const actionsByPoi = {};
+    const ungroupedActions = [];
+    
+    pois.forEach(poi => {
+        actionsByPoi[poi.id] = [];
+    });
+    
+    actions.forEach(action => {
+        let assigned = false;
+        // Check all POIs to find which one contains this action
+        for (const poi of pois) {
+            if (poi.actions && poi.actions.includes(action.id)) {
+                actionsByPoi[poi.id].push(action);
+                assigned = true;
+                break;
+            }
+        }
+        // If not assigned to any POI, it's ungrouped
+        if (!assigned) {
+            ungroupedActions.push(action);
+        }
+    });
+    
+    // Render POI sections
+    let poisHtml = '';
+    pois.forEach(poi => {
+        const poiActions = actionsByPoi[poi.id] || [];
+        
+        // TRAVEL POI: only render if it has actions
+        if (poi.id === 'travel') {
+            if (poiActions.length === 0) return;
+            const isCollapsed = poiCollapseState[poi.id] === true;
+            const collapseIcon = isCollapsed ? '▶' : '▼';
+            const buttonsHtml = poiActions.map(action => renderActionButton(action)).join('');
+            poisHtml += `
+                <div class="location-poi-section${isCollapsed ? ' poi-collapsed' : ''}" data-poi-id="${poi.id}">
+                    <div class="location-poi-header" data-poi-id="${poi.id}" style="background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.12); border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);">
+                        <span class="location-poi-icon">${collapseIcon}</span>
+                        <span class="location-poi-name" style="color: rgb(var(--glow-r), var(--glow-g), var(--glow-b));">${t(poi.nameKey)}</span>
+                    </div>
+                    <div class="location-poi-actions">
+                        ${buttonsHtml}
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        // Skip other POIs if they have no actions
+        if (poiActions.length === 0) return;
+        
+        const isCollapsed = poiCollapseState[poi.id] === true;
+        const collapseIcon = isCollapsed ? '▶' : '▼';
+        
+        const buttonsHtml = poiActions.map(action => renderActionButton(action)).join('');
+        
+        poisHtml += `
+            <div class="location-poi-section${isCollapsed ? ' poi-collapsed' : ''}" data-poi-id="${poi.id}">
+                <div class="location-poi-header" data-poi-id="${poi.id}">
+                    <span class="location-poi-icon">${collapseIcon}</span>
+                    <span class="location-poi-name" style="color: rgb(var(--glow-r), var(--glow-g), var(--glow-b));">${t(poi.nameKey)}</span>
+                </div>
+                <div class="location-poi-actions">
+                    ${buttonsHtml}
+                </div>
+            </div>
+        `;
+    });
+    
+    // Render ungrouped actions if any
+    let ungroupedHtml = '';
+    if (ungroupedActions.length > 0) {
+        const buttonsHtml = ungroupedActions.map(action => renderActionButton(action)).join('');
+        ungroupedHtml = `
+            <div class="location-poi-section location-poi-other">
+                <div class="location-poi-header">
+                    <span class="location-poi-name">${t('poi_other_actions')}</span>
+                </div>
+                <div class="location-poi-actions">
+                    ${buttonsHtml}
+                </div>
+            </div>
+        `;
+    }
+    
+    return `<div class="location-card location-card-actions"><div class="location-card-header"><h3>${t('crash_actions')}</h3></div><div class="location-actions-list location-actions-with-pois">${poisHtml}${ungroupedHtml}</div></div>`;
+}
+
+function renderActionButton(action) {
+    const actionId = action.id;
+    const isRunning = activeActionId === actionId && !action._completed;
+    const isSelected = selectedActionId === actionId;
+    const isPaused = isRunning && actionPaused;
+    const pct = isRunning ? Math.min(100, Math.round((actionProgress / (action.durationSeconds || 1)) * 100)) : 0;
+    const durationMins = Math.round(action.durationSeconds || 0);
+    const cannotAfford = action.drain && !canAffordAction(action);
+    const otherRunning = !!activeAction && activeActionId !== actionId;
+    let tagHtml = '';
+    if (action.repeatable) tagHtml = '<span class="location-action-tag tag-repeatable">&#x21BB;</span>';
+    else if (action.oneTime) tagHtml = '<span class="location-action-tag tag-onetime">1&#x00D7;</span>';
+    const durationLabel = durationMins > 0 ? `<span class="location-action-btn-cost drain-time">&#9201; ${t('action_duration_label', { minutes: durationMins })}</span>` : '';
+    const drainCostsHtml = (action.drain && action.drain.length) ? action.drain.map(d => drainCostHtml(d)).join(' ') : '';
+    let playPauseHtml = '';
+    if (!isRunning) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;
+    else if (isPaused) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;
+    else if (isRunning && !isPaused) playPauseHtml = `<span class="location-pause-icon" data-action-pause="${actionId}">&#9208;</span>`;
+    let progressHtml = '';
+    if (isRunning) {
+        const remaining = Math.max(0, (action.durationSeconds || 1) - actionProgress);
+        progressHtml = `<div class="location-action-progress" style="--progress:${pct}%"></div><span class="location-action-remaining">${remaining.toFixed(1)}s</span>`;
+    }
+    const costsRowHtml = (durationLabel || drainCostsHtml) ? `<span class="location-action-costs-row">${durationLabel}${drainCostsHtml ? ' ' + drainCostsHtml : ''}</span>` : '';
+    const disabled = (otherRunning || cannotAfford) && !isRunning;
+    // Show "!" badge if action is newly unlocked and not yet seen by the player
+    const showNewBadge = isActionNew(actionId);
+    return `<button type="button" class="location-action-btn${isSelected ? ' is-selected' : ''}${isRunning ? ' is-running' : ''}${isPaused ? ' is-paused' : ''}${action.oneTime && !action.repeatable ? ' btn-onetime' : ''}${action.repeatable ? ' btn-repeatable' : ''}${showNewBadge ? ' has-new-badge' : ''}" data-action-id="${actionId}"${disabled ? ' disabled' : ''}>${newBadgeHtml(showNewBadge)}<span class="location-action-btn-name">${tagHtml}${t(action.nameKey)}</span>${costsRowHtml}${progressHtml}${playPauseHtml}</button>`;
+}
+
+function getPoiCollapseState(locationId) {
+    try {
+        const saved = localStorage.getItem(`poiCollapse_${locationId}`);
+        return saved ? JSON.parse(saved) : {};
+    } catch {
+        return {};
+    }
+}
+
+function setPoiCollapseState(locationId, poiId, collapsed) {
+    try {
+        const state = getPoiCollapseState(locationId);
+        state[poiId] = collapsed;
+        localStorage.setItem(`poiCollapse_${locationId}`, JSON.stringify(state));
+    } catch {
+        // ignore
+    }
+}
+
+function getUnlockState(locationId) {
+    try {
+        const saved = localStorage.getItem(`unlocks_${locationId}`);
+        return saved ? JSON.parse(saved) : {};
+    } catch {
+        return {};
+    }
+}
+
+function setUnlockState(locationId, state) {
+    try {
+        localStorage.setItem(`unlocks_${locationId}`, JSON.stringify(state));
+    } catch {
+        // ignore
+    }
 }
 
 function drainCostHtml(d) {
     const rn = String(d.resource || ''); const amt = Number(d.amount || 0); let cls = 'drain-other';
     if (/stamina/i.test(rn)) cls = 'drain-stamina'; else if (/food/i.test(rn)) cls = 'drain-food'; else if (/water/i.test(rn)) cls = 'drain-water';
     const sign = amt < 0 ? '+' : '-';
-    return `<span class="crashsite-action-btn-cost ${cls}">${sign}${Math.abs(amt)} ${rn}</span>`;
+    return `<span class="location-action-btn-cost ${cls}">${sign}${Math.abs(amt)} ${rn}</span>`;
 }
 
 function refreshUI() {
     _fullRebuildNeeded = false;
     const location = getLocation(getCurrentLocationId());
     if (!location) return;
-    const locationHost = document.querySelector('#crashSiteLocationTile');
-    const detailsHost = document.querySelector('#crashSiteDetailsTile');
-    const actionsHost = document.querySelector('#crashSiteActionsTile');
+    const locationHost = document.querySelector('#locationsLocationTile');
+    const detailsHost = document.querySelector('#locationsDetailsTile');
+    const actionsHost = document.querySelector('#locationsActionsTile');
     if (locationHost && (!locationHost.dataset.renderedId || locationHost.dataset.renderedId !== location.id)) { locationHost.innerHTML = renderLocationTile(location); locationHost.dataset.renderedId = location.id; }
-    if (detailsHost) { detailsHost.innerHTML = renderDetailsTile(); if (!selectedActionId || selectedActionId === activeActionId) { const descEl = detailsHost.querySelector('#crashsiteDetailDesc') || document.getElementById('crashsiteDetailDesc'); if (descEl) descEl.textContent = t(location.descriptionKey); } }
+    if (detailsHost) { detailsHost.innerHTML = renderDetailsTile(); }
     if (actionsHost) { actionsHost.innerHTML = renderActionsTile(location); wireActionButtons(actionsHost); }
 }
 
@@ -218,16 +444,39 @@ function wireActionButtons(actionsHost) {
     if (!actionsHost.dataset.wired) {
         actionsHost.dataset.wired = '1';
         actionsHost.addEventListener('click', (e) => {
-            const list = actionsHost.querySelector('.crashsite-actions-list');
-            if (list && (e.target === list || e.target.closest('.crashsite-actions-list') === e.target)) {
+            const list = actionsHost.querySelector('.location-actions-list');
+            if (list && (e.target === list || e.target.closest('.location-actions-list') === e.target)) {
                 selectedActionId = null; _fullRebuildNeeded = true; refreshUI();
             }
         });
     }
-    actionsHost.querySelectorAll('.crashsite-action-btn').forEach(btn => { btn.addEventListener('click', (e) => {
+    
+    // Wire POI collapse headers
+    actionsHost.querySelectorAll('.location-poi-header').forEach(header => {
+        header.addEventListener('click', (e) => {
+            const poiId = header.dataset.poiId;
+            if (!poiId) return;
+            
+            const location = getLocation(getCurrentLocationId());
+            if (!location) return;
+            
+            const poiSection = header.closest('.location-poi-section');
+            if (!poiSection) return;
+            
+            const isCurrentlyCollapsed = poiSection.classList.contains('poi-collapsed');
+            setPoiCollapseState(location.id, poiId, !isCurrentlyCollapsed);
+            
+            _fullRebuildNeeded = true;
+            refreshUI();
+        });
+    });
+    
+    actionsHost.querySelectorAll('.location-action-btn').forEach(btn => { btn.addEventListener('click', (e) => {
         const actionId = btn.dataset.actionId;
-        const playIcon = e.target.closest('.crashsite-play-icon'); const pauseIcon = e.target.closest('.crashsite-pause-icon');
-        if (playIcon) { e.stopPropagation(); e.preventDefault(); if (activeActionId === actionId && actionPaused) resumeAction(); else startAction(actionId); return; }
+        // Clear "new" badge on any interaction with this button
+        if (actionId) { markActionSeen(actionId, true); }
+        const playIcon = e.target.closest('.location-play-icon'); const pauseIcon = e.target.closest('.location-pause-icon');
+        if (playIcon) { e.stopPropagation(); e.preventDefault(); playActionStart(); if (activeActionId === actionId && actionPaused) resumeAction(); else startAction(actionId); return; }
         if (pauseIcon) { e.stopPropagation(); e.preventDefault(); pauseAction(); return; }
         e.stopPropagation();
         if (selectedActionId === actionId && activeActionId !== actionId) selectedActionId = null;
@@ -235,25 +484,29 @@ function wireActionButtons(actionsHost) {
         else selectedActionId = actionId;
         _fullRebuildNeeded = true; refreshUI();
     }); });
+    // Wire hover to clear "!" badges (persists so badges don't reappear on rebuild)
+    actionsHost.querySelectorAll('.location-action-btn.has-new-badge').forEach(btn => {
+        wireClearUiNewBadge(btn, { actionId: btn.dataset.actionId });
+    });
 }
 
 function updateActionButtonsDynamic() {
     if (_fullRebuildNeeded) { refreshUI(); return; }
     const location = getLocation(getCurrentLocationId()); if (!location) return;
-    const actionsHost = document.querySelector('#crashSiteActionsTile'); if (!actionsHost) return;
-    actionsHost.querySelectorAll('.crashsite-action-btn').forEach(btn => {
+    const actionsHost = document.querySelector('#locationsActionsTile'); if (!actionsHost) return;
+    actionsHost.querySelectorAll('.location-action-btn').forEach(btn => {
         const actionId = btn.dataset.actionId; const action = location.actions.find(a => a.id === actionId); if (!action) return;
         const isRunning = activeActionId === actionId && !action._completed; const isSelected = selectedActionId === actionId; const isPaused = isRunning && actionPaused;
         btn.classList.toggle('is-selected', !!isSelected); btn.classList.toggle('is-running', !!isRunning); btn.classList.toggle('is-paused', !!isPaused);
         const cannotAfford = action.drain && !canAffordAction(action); const otherRunning = !!activeAction && activeActionId !== actionId;
         btn.disabled = ((otherRunning || cannotAfford) && !isRunning) ? true : false;
-        const progBar = btn.querySelector('.crashsite-action-progress');
+        const progBar = btn.querySelector('.location-action-progress');
         if (progBar) { if (isRunning) { const pct = Math.min(100, Math.round((actionProgress / (action.durationSeconds || 1)) * 100)); progBar.style.setProperty('--progress', `${pct}%`); progBar.style.display = ''; } else progBar.style.display = 'none'; }
-        const remainingEl = btn.querySelector('.crashsite-action-remaining');
+        const remainingEl = btn.querySelector('.location-action-remaining');
         if (remainingEl) { if (isRunning) { const remaining = Math.max(0, (action.durationSeconds || 1) - actionProgress); remainingEl.textContent = `${remaining.toFixed(1)}s`; remainingEl.style.display = ''; } else remainingEl.style.display = 'none'; }
-        const playIcon = btn.querySelector('.crashsite-play-icon'); const pauseIcon = btn.querySelector('.crashsite-pause-icon');
+        const playIcon = btn.querySelector('.location-play-icon'); const pauseIcon = btn.querySelector('.location-pause-icon');
         if (playIcon) { const show = !isRunning || isPaused; playIcon.style.display = show ? '' : 'none'; }
-        if (pauseIcon) pauseIcon.style.display = (isSelected && isRunning && !isPaused) ? '' : 'none';
+        if (pauseIcon) pauseIcon.style.display = (isRunning && !isPaused) ? '' : 'none';
     });
 }
 
@@ -317,6 +570,6 @@ if (typeof window !== 'undefined') {
 }
 
 export function setupLocationSection(section) {
-    section.innerHTML = `<div class="content-panel crashsite-panel"><div class="crashsite-layout"><div id="crashSiteLocationTile" class="crashsite-tile crashsite-tile-location"></div><div id="crashSiteDetailsTile" class="crashsite-tile crashsite-tile-details"></div><div id="crashSiteActionsTile" class="crashsite-tile crashsite-tile-actions"></div></div></div>`;
+    section.innerHTML = `<div class="content-panel location-panel"><div class="location-layout"><div id="locationsLocationTile" class="location-tile location-tile-location"></div><div id="locationsDetailsTile" class="location-tile location-tile-details"></div><div id="locationsActionsTile" class="location-tile location-tile-actions"></div></div></div>`;
     _fullRebuildNeeded = true; refreshUI();
 }

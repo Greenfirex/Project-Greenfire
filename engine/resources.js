@@ -116,15 +116,15 @@ export function computeResourceRates(resourceName) {
     // Passive rates with source labels
     if (resourceName === 'Health') {
         totalProduction += 0.1;
-        productionSources.push({ rate: 0.1, label: t('res_health_desc') });
+        productionSources.push({ rate: 0.1, label: 'Passive regeneration' });
     }
     if (resourceName === 'Food Rations') {
         totalConsumption += 0.1;
-        consumptionSources.push({ rate: 0.1, label: t('res_food_desc') });
+        consumptionSources.push({ rate: 0.1, label: 'Hunger' });
     }
     if (resourceName === 'Drinking Water') {
         totalConsumption += 0.1;
-        consumptionSources.push({ rate: 0.1, label: t('res_water_desc') });
+        consumptionSources.push({ rate: 0.1, label: 'Thirst' });
     }
 
     // Active drain rates from running action (Stamina costs/gains during actions)
@@ -270,7 +270,9 @@ export function updateResourceInfo() {
         generationEl.classList.toggle('negative-rate', netPerMinute < 0 && !isCapped);
 
         const EPS = 1e-9;
-        if (Math.abs(netPerMinute) > EPS) {
+        if (!_activeDrainRates) {
+            generationEl.textContent = '';
+        } else if (Math.abs(netPerMinute) > EPS) {
             const sign = netPerMinute >= 0 ? '+' : '-';
             const value = formatNumber(Math.abs(netPerMinute));
             generationEl.textContent = `${sign}${value}/min`;

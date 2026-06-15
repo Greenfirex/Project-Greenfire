@@ -99,11 +99,11 @@ function playPowerOnAssembly() {
         { transform: 'translateY(0)', opacity: 1 }
     ], { duration: 1400 });
 
-    // Main menu slides from left with 3D tilt
+    // Main menu slides from left
     animateElement(document.getElementById('mainMenu'), [
-        { transform: 'translateX(-100%) perspective(600px) rotateY(8deg)', opacity: 0 },
-        { transform: 'translateX(-10%) perspective(600px) rotateY(1deg)', opacity: 0.5, offset: 0.4 },
-        { transform: 'translateX(0) perspective(600px) rotateY(0deg)', opacity: 1 }
+        { transform: 'translateX(-100%)', opacity: 0 },
+        { transform: 'translateX(0)', opacity: 0.4, offset: 0.3 },
+        { transform: 'translateX(0)', opacity: 1 }
     ], { duration: 1600, delay: 300 });
 
     // Info panel slides from right
@@ -111,7 +111,7 @@ function playPowerOnAssembly() {
         { transform: 'translateX(100%)', opacity: 0 },
         { transform: 'translateX(0)', opacity: 0.4, offset: 0.3 },
         { transform: 'translateX(0)', opacity: 1 }
-    ], { duration: 1600, delay: 500 });
+    ], { duration: 1600, delay: 300 });
 
     // Footer rises up (before game area)
     animateElement(document.getElementById('footer'), [
@@ -120,12 +120,10 @@ function playPowerOnAssembly() {
         { transform: 'translateY(0)', opacity: 1 }
     ], { duration: 1400, delay: 700 });
 
-    // Game area — "Terminal Boot" effect (CRT power-on)
+    // Game area — grow-in effect
     animateElement(document.getElementById('gameArea'), [
-        { opacity: 0, transform: 'scale(0.97)', filter: 'brightness(0)' },
-        { filter: 'brightness(2.5)', offset: 0.15 },
-        { opacity: 0.2, filter: 'brightness(0.6)', offset: 0.35 },
-        { opacity: 1, transform: 'scale(1)', filter: 'brightness(1)' }
+        { opacity: 0, transform: 'scale(0.97)' },
+        { opacity: 1, transform: 'scale(1)' }
     ], { duration: 1800, delay: 1600, easing: 'ease-out' });
 
     // Menu buttons stagger in

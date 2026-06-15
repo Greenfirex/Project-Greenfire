@@ -8,7 +8,10 @@
 //   3. Add locale keys (EN + CS)
 // ==========================================================================
 
-import { crewQuarters } from './definitions/gammaSite/crewQuarters.js';
+import { scoutShipCrewQuarters } from './definitions/scoutShip/scoutShipCrewQuarters.js';
+import { scoutShipMainArea } from './definitions/scoutShip/mainArea.js';
+import { scoutShipBridge } from './definitions/scoutShip/bridge.js';
+import { gammaCrewQuarters } from './definitions/gammaSite/gammaCrewQuarters.js';
 import { workshop } from './definitions/gammaSite/workshop.js';
 
 const locations = {};
@@ -34,7 +37,7 @@ export function getAllLocations() {
 // Current location state
 // ==========================================================================
 
-let _currentLocationId = 'crew_quarters';
+let _currentLocationId = 'scout_ship_crew_quarters';
 
 export function getCurrentLocationId() {
     return _currentLocationId;
@@ -52,5 +55,8 @@ export function switchToLocation(id) {
 // Auto-register all known locations
 // ==========================================================================
 
-registerLocation(crewQuarters);
+registerLocation(scoutShipCrewQuarters);
+registerLocation(scoutShipMainArea);
+registerLocation(scoutShipBridge);
+registerLocation(gammaCrewQuarters);
 registerLocation(workshop);

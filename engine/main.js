@@ -149,7 +149,6 @@ function startGame({ mode = 'continue' } = {}) {
                     pages: [t('popup_welcome_page1'), t('popup_welcome_page2'), t('popup_welcome_page3')]
                 });
             });
-            addLogEntry(t('objectives_new_log', { name: t('obj_first_steps_label') }), LogType.UNLOCK);
         } catch {}
     } else {
         loadGameState();
@@ -171,9 +170,9 @@ function startGame({ mode = 'continue' } = {}) {
         window.addEventListener('character-state-changed', () => syncVitalCapsFromCharacter());
     } catch { /* non-fatal */ }
 
-    const crashSiteSection = document.createElement('div');
-    crashSiteSection.id = 'crashSiteSection';
-    crashSiteSection.classList.add('game-section', 'hidden');
+    const locationsSection = document.createElement('div');
+    locationsSection.id = 'locationsSection';
+    locationsSection.classList.add('game-section', 'hidden');
 
     const journalSection = document.createElement('div'); 
     journalSection.id = 'journalSection';
@@ -184,12 +183,12 @@ function startGame({ mode = 'continue' } = {}) {
     characterSection.classList.add('game-section', 'hidden');
 
     const gameArea = document.getElementById('gameArea');
-    gameArea.appendChild(crashSiteSection);
+    gameArea.appendChild(locationsSection);
     gameArea.appendChild(characterSection);
     gameArea.appendChild(journalSection);
 
     setupInfoPanel();
-    setupLocationSection(crashSiteSection);
+    setupLocationSection(locationsSection);
     setupCharacterSection(characterSection);
     setupJournalSection(journalSection);
 
@@ -273,7 +272,7 @@ function startGame({ mode = 'continue' } = {}) {
 
 export function getInitialActivatedSections() {
     return {
-        crashSiteSection: true,
+        locationsSection: true,
         characterSection: true,
         journalSection: true,
     };
@@ -309,7 +308,7 @@ export let activatedSections = JSON.parse(localStorage.getItem('activatedSection
 try { setActivatedSections(activatedSections); } catch { /* ignore */ }
 
 const SECTION_KEYS = {
-    crashSiteSection: 'menu_local_area',
+    locationsSection: 'menu_local_area',
     characterSection: 'menu_character',
     journalSection: 'menu_journal',
 };
@@ -398,7 +397,7 @@ export function showSection(sectionId) {
 
 function loadCurrentSection() {
     const savedSection = localStorage.getItem('currentSection');
-    const defaultSection = 'crashSiteSection';
+    const defaultSection = 'locationsSection';
 
     if (savedSection && activatedSections[savedSection]) {
         showSection(savedSection);
