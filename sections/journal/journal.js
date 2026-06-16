@@ -1,4 +1,5 @@
 import { getAllObjectivesWithState, getObjectiveSteps, getTrackedObjectiveId, setTrackedObjective } from '../../engine/objectives.js';
+import { saveGameStateQuiet } from '../../engine/saveload.js';
 
 export function setupJournalSection(section) {
     if (!section) return;
@@ -341,6 +342,8 @@ export function addJournalEntry(entry) {
     if (typeof localStorage !== 'undefined') {
         localStorage.setItem('storyLog', JSON.stringify(storyLog));
     }
+    // Sync gameState so journal entries survive language-change reloads
+    try { saveGameStateQuiet(); } catch (e) { /* non-fatal */ }
     try {
         window.dispatchEvent(new CustomEvent('journal-entry-added', { detail: { entry } }));
     } catch (e) {}

@@ -19,8 +19,8 @@ const RESOURCE_DESC_KEYS = {
 
 export function getInitialResources() {
     return [
-        { name: 'Health', amount: 65, isDiscovered: true, capacity: 100, producible: false, integer: true },
-        { name: 'Stamina', amount: 70, isDiscovered: true, capacity: 100, producible: false, integer: true },
+        { name: 'Health', amount: 100, isDiscovered: true, capacity: 100, producible: false, integer: true },
+        { name: 'Stamina', amount: 100, isDiscovered: true, capacity: 100, producible: false, integer: true },
         { name: 'XP', amount: 0, isDiscovered: true, capacity: 9000000000, producible: false, integer: true, hidden: true },
         { name: 'Food Rations', amount: 25, isDiscovered: true, capacity: 25, producible: false, integer: true },
         { name: 'Drinking Water', amount: 25, isDiscovered: true, capacity: 25, producible: false, integer: true },

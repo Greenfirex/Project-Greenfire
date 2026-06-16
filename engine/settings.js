@@ -41,30 +41,8 @@ const LOG_SWATCH_HEX = (() => {
 
 const EXPORT_ENCRYPT_KEY = 'options.exportEncryptDefault';
 
-const COMBAT_START_PAUSED_KEY = 'options.combatStartPaused';
-
-const REDUCE_MOTION_KEY = 'options.reduceMotion';
 const CONFIRM_LOAD_KEY = 'options.confirmBeforeLoad';
 const CONFIRM_RESET_KEY = 'options.confirmBeforeReset';
-
-export function getCombatStartPaused() {
-    try {
-        const raw = localStorage.getItem(COMBAT_START_PAUSED_KEY);
-        // Default to true (safer for new players).
-        return raw === null ? true : !!JSON.parse(raw);
-    } catch (e) {
-        return true;
-    }
-}
-
-export function getReduceMotionEnabled() {
-    try {
-        const raw = localStorage.getItem(REDUCE_MOTION_KEY);
-        return raw === null ? false : !!JSON.parse(raw);
-    } catch (e) {
-        return false;
-    }
-}
 
 export function getConfirmOnLoad() {
     try {
@@ -81,14 +59,6 @@ export function getConfirmOnReset() {
         return raw === null ? true : !!JSON.parse(raw);
     } catch (e) {
         return true;
-    }
-}
-
-function setCombatStartPaused(value) {
-    try {
-        localStorage.setItem(COMBAT_START_PAUSED_KEY, JSON.stringify(!!value));
-    } catch (e) {
-        console.warn('Could not persist combat-start-paused option', e);
     }
 }
 
@@ -234,20 +204,6 @@ export function initOptions() {
         });
     }
 
-	// --- Reduce Motion Toggle ---
-	const reduceMotionToggle = document.getElementById('reduceMotionToggle');
-	if (reduceMotionToggle) {
-		const enabled = getReduceMotionEnabled();
-		reduceMotionToggle.checked = enabled;
-		document.body.classList.toggle('reduce-motion', enabled);
-		reduceMotionToggle.addEventListener('change', () => {
-			const next = !!reduceMotionToggle.checked;
-			try { localStorage.setItem(REDUCE_MOTION_KEY, JSON.stringify(next)); } catch (e) {}
-			document.body.classList.toggle('reduce-motion', next);
-            // Let active screens refresh any motion-sensitive UI immediately.
-            try { window.dispatchEvent(new CustomEvent('reduce-motion-updated', { detail: { enabled: next } })); } catch { /* ignore */ }
-		});
-	}
 	
 	// --- Glow Toggle ---
     const glowToggle = document.getElementById('glowToggle');
@@ -277,14 +233,6 @@ export function initOptions() {
         });
     }
 
-    // --- Combat starts paused Toggle ---
-    const combatStartPausedToggle = document.getElementById('combatStartPausedToggle');
-    if (combatStartPausedToggle) {
-        combatStartPausedToggle.checked = getCombatStartPaused();
-        combatStartPausedToggle.addEventListener('change', () => {
-            setCombatStartPaused(combatStartPausedToggle.checked);
-        });
-    }
 	
 
     // --- Confirm before load/reset ---

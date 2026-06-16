@@ -75,9 +75,12 @@ export const scoutShipCrewQuarters = {
             id: 'rest',
             nameKey: 'action_rest',
             descKey: 'action_rest_desc',
-            drain: [{ resource: 'Stamina', amount: -5 }],
-            durationSeconds: 15,
+            category: 'rest',
+            drain: [],
+            rewards: [{ type: 'resource', name: 'Stamina', amount: 5 }],
+            durationSeconds: 0,
             repeatable: true,
+            cancellable: true,
             unlockedBy: 'wake_up'
         },
         {

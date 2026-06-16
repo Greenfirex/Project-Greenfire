@@ -14,10 +14,10 @@ import { newBadgeHtml, wireClearUiNewBadge } from './contentNewBadges.js';
 export function createBuildingButton(building, container) {
   if (!building) return null;
   let btn = document.createElement('button');
-  btn.className = 'image-button';
-  btn.dataset.building = building.name;
-
   const showNew = !!building.uiNew;
+
+  btn.className = 'image-button' + (showNew ? ' has-new-badge' : '');
+  btn.dataset.building = building.name;
 
   btn.innerHTML = `
     <div class="action-progress-bar"></div>

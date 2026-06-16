@@ -25,8 +25,7 @@
   "options_language": "Language",
   "options_language_select": "Select language",
   "options_run_background": "Run in background",
-  "options_glow_effects": "Enable UI Glow Effects",
-  "options_reduce_motion": "Reduce motion",
+  "options_glow_effects": "Enable glow effects on panels",
   "options_confirm_load": "Confirm before load",
   "options_confirm_reset": "Confirm before reset",
   "options_save_management": "Save Management",
@@ -61,9 +60,9 @@
   "obj_first_steps_step3": "Review your resources in the info panel",
 
   "popup_welcome_title": "Project Greenfire — Awakening",
-  "popup_welcome_page1": "Darkness. Then pain — sharp and hot across your ribs. The air tastes of ozone and burned circuitry. Alarms warble somewhere far away, muffled by collapsed bulkheads.",
-  "popup_welcome_page2": "You are alive. The ship is not. Through a jagged tear in the hull you can see alien sky — pale amber, streaked with unfamiliar cloud patterns. Nothing outside looks like home.",
-  "popup_welcome_page3": "Your name is Lieutenant Commander. Your mission logs are corrupted. Your crew status is unknown. But you are still breathing — and that means there is work to do.\n\nFind survivors. Secure resources. Learn what brought you here. And above all: survive.",
+  "popup_welcome_page1": "You were deep asleep in your cramped crew quarters aboard the scout ship, drifting through restless dreams of distant stars and forgotten missions. The hum of the ship's systems was a steady lullaby — until it wasn't.\n\nA piercing alarm shatters the silence, its shrill wail cutting through the darkness like a blade. Red emergency lights strobe violently across the metal walls, casting jagged shadows that dance and flicker with each pulse. The ship groans around you — a deep, metallic moan that vibrates through the deck plates and into your bones. Something is terribly wrong.\n\nYour eyes snap open. Disoriented, heart pounding, you struggle to make sense of the chaos erupting around you. The air is thick with the acrid stench of ozone and smoldering circuitry. Muffled explosions rumble somewhere deep within the ship's superstructure. Status displays on the wall flicker erratically, their readouts a jumble of crimson warning glyphs you can barely process.",
+  "popup_welcome_page2": "You swing your legs over the edge of the bunk, your body protesting with every movement. How long were you out? Hours? Days? The chronometer on the wall is frozen at an impossible reading. Nothing about this feels right.\n\nThrough the reinforced viewport across the compartment, an unfamiliar vista fills the frame — a pale amber sky streaked with undulating bands of cloud in colors you've never seen outside a spectrograph. A massive, ochre-colored planet looms on the horizon, its surface scarred by what look like ancient impact craters. This is not your destination. This is not even on your star charts.\n\nThe ship shudders again. A console across the room sparks violently, showering the deck with embers. You need to move. You need to understand what happened — why the alarms are screaming, where the rest of your crew is, and most pressingly, whether the ship is going to hold together long enough for you to figure any of it out.",
+  "popup_welcome_page3": "Your name is Lieutenant Commander. That much you remember — though fragments of your mission briefing slip through your mind like water through fingers. You were sent to investigate anomalous readings in an uncharted sector. A gravitational anomaly. A pull — something vast and inexplicable dragging your ship off course. Then... nothing. A gap in your memory the size of a star system.\n\nThe ship around you is damaged but still breathing, much like yourself. Life support is online, barely. Power levels are critical but not catastrophic. Your crew — three souls registered in the ship's manifest — are unaccounted for. The silence from the corridors is perhaps more alarming than the alarms themselves.\n\nBut you are alive. And as long as you are breathing, there is work to do. Your training didn't prepare you for this specific scenario — but it did teach you one immutable truth: assess the situation, secure your resources, and survive. The answers will come. They have to.\n\nFor now, get up. Move. The galaxy isn't going to wait.",
 
   "objectives_new_log": "New objective: {name}",
   "objectives_completed_log": "Objective completed: {name}",
@@ -80,6 +79,19 @@
 
   "clock_time_format": "Day {day}, {hour}:{minute}",
   "action_duration_label": "{minutes} min",
+  "action_progress_ongoing": "Ongoing\u2026",
+  "action_duration_ongoing": "Ongoing",
+  "cat_taxing": "Taxing Action",
+  "cat_simple": "Simple Action",
+  "cat_rest": "Rest",
+  "cat_refresh": "Refresh",
+  "detail_duration": "Duration",
+  "detail_costs": "Costs",
+  "detail_gains": "Gains",
+  "detail_rewards": "Rewards",
+  "tag_repeatable": "Repeatable",
+  "tag_onetime": "One-time",
+  "tag_remaining": "remaining",
 
   "pause_overlay_title": "GAME PAUSED",
   "footer_status_paused": "Paused",
@@ -109,6 +121,8 @@
   "action_check_terminal_desc": "Access the flickering terminal for ship status and crew records.",
   "action_rest": "Rest",
   "action_rest_desc": "Take a brief rest to recover stamina.",
+  "action_drink_water": "Drink Water",
+  "action_drink_water_desc": "Hydrate yourself to recover drinking water.",
   "action_scavenge_tools": "Scavenge Tools",
   "action_scavenge_tools_desc": "Search the workshop for usable tools and components.",
   "action_repair_kit": "Repair Equipment",
@@ -168,5 +182,11 @@
   "poi_travel_desc": "Exit points to other sections of the ship.",
 
   "log_loop_started": "--- Loop Started ({loop}) ---",
-  "log_loop_triggered": "Critical resources depleted: {resources}. Starting new loop..."
+  "log_loop_triggered": "Critical resources depleted: {resources}. Starting new loop...",
+  "log_rest_full": "You are already fully rested.",
+  "log_water_full": "You are not thirsty right now.",
+  "log_rest_cap": "You feel fully rested.",
+  "log_water_cap": "You are no longer thirsty.",
+  "log_action_stopped": "You stop {action}.",
+  "log_action_cancelled": "You cancel {action}."
 }

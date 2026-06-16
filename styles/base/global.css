@@ -54,11 +54,6 @@ body.glow-disabled * {
     box-shadow: none !important;
 }
 
-/* Reduce motion: keep the glow styling, but stop pulsing animations. */
-body.reduce-motion * {
-    animation: none !important;
-}
-
 /* --- Pause overlay --- */
 .pause-overlay {
     position: fixed;

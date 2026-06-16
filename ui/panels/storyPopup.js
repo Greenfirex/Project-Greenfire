@@ -5,6 +5,7 @@
 import { addJournalEntry } from '../../sections/journal/journal.js';
 import { getIsPaused, pauseGame, resumeGame } from '../chrome/footer.js';
 import { getIngameTimeObject } from '../../engine/time.js';
+import { addLogEntry, LogType } from '../../engine/ingameLog.js';
 
 let activeStoryEvent = null;
 let pausedByThisStoryPopup = false;
@@ -114,6 +115,7 @@ export function showStoryPopup(event) {
 
     if (!existing) {
         addJournalEntry(entry);
+        addLogEntry(`New journal entry: ${entry.title}`, LogType.STORY);
     }
 }
 

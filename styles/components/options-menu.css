@@ -134,15 +134,14 @@ button.flag-disabled:hover {
     max-height: calc(100vh - 40px);
     border-radius: 8px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px 18px;
+    grid-template-columns: 1fr;
+    gap: 4px 0;
     align-items: start;
     animation: pulse-glow 5s ease-in-out infinite;
     border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.28);
     box-shadow: 0 10px 34px rgba(0,0,0,0.70), 0 0 28px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.14);
     box-sizing: border-box;
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden;
 }
 
 .options-menu-header {
@@ -191,6 +190,15 @@ button.flag-disabled:hover {
 
 .option-group {
     text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+}
+
+.option-group:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
 }
 
 .option-group h4 {
@@ -367,17 +375,14 @@ button.flag-disabled:hover {
         max-height: calc(100vh - 30px);
         height: 92vh;
         padding: 10px;
-        gap: 10px;
-        grid-template-columns: 1fr 1fr;
+        gap: 4px 0;
+        grid-template-columns: 1fr;
     }
 
-    /* Make most blocks span full width; Settings + Glow Color use the two columns */
+    /* All blocks span full width in mobile */
     .options-menu-content > .option-group {
         grid-column: 1 / -1;
     }
-
-    #optionsSettingsGroup { grid-column: 1; }
-    #optionsGlowColorGroup { grid-column: 2; }
 
     .options-menu-header {
         position: sticky;
@@ -444,16 +449,13 @@ html.is-compact .options-menu-content {
     max-height: calc(100vh - 30px);
     height: 92vh;
     padding: 10px;
-    gap: 10px;
-    grid-template-columns: 1fr 1fr;
+    gap: 4px 0;
+    grid-template-columns: 1fr;
 }
 
 html.is-compact .options-menu-content > .option-group {
     grid-column: 1 / -1;
 }
-
-html.is-compact #optionsSettingsGroup { grid-column: 1; }
-html.is-compact #optionsGlowColorGroup { grid-column: 2; }
 
 html.is-compact .options-menu-header {
     position: sticky;

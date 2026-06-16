@@ -12,7 +12,7 @@ export const scoutShipMainArea = {
         {
             id: 'cafeteria',
             nameKey: 'poi_cafeteria',
-            actions: ['get_food', 'rest']
+            actions: ['get_food', 'rest', 'drink_water']
         },
         {
             id: 'communications',
@@ -39,9 +39,23 @@ export const scoutShipMainArea = {
             id: 'rest',
             nameKey: 'action_rest',
             descKey: 'action_rest_desc',
-            drain: [{ resource: 'Stamina', amount: -5 }],
-            durationSeconds: 15,
-            repeatable: true
+            category: 'rest',
+            drain: [],
+            rewards: [{ type: 'resource', name: 'Stamina', amount: 5 }],
+            durationSeconds: 0,
+            repeatable: true,
+            cancellable: true
+        },
+        {
+            id: 'drink_water',
+            nameKey: 'action_drink_water',
+            descKey: 'action_drink_water_desc',
+            category: 'refresh',
+            drain: [],
+            rewards: [{ type: 'resource', name: 'Drinking Water', amount: 5 }],
+            durationSeconds: 0,
+            repeatable: true,
+            cancellable: true
         },
         {
             id: 'check_comms',
