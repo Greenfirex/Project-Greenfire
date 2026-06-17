@@ -20,7 +20,17 @@ body.title-screen-active #footer {
     padding: 18px;
     box-sizing: border-box;
 
-    background: #000;
+    background:
+        linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.65)),
+        url('../../assets/images/background3.jpg') center / cover no-repeat,
+        #000;
+}
+
+/* Fade out the intro background when game UI takes over */
+.title-screen-overlay.intro-bg-fading {
+    transition: opacity 0.8s ease-out;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .title-screen-overlay.hidden {
@@ -181,6 +191,23 @@ html.is-compact .title-screen-btn {
 html.is-compact .title-screen-logo {
     width: min(520px, 94vw);
     max-width: 520px;
+}
+
+/* Title card exit animation on New Game */
+.title-screen-card.card-exiting {
+    animation: titleCardExit 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    pointer-events: none;
+}
+
+@keyframes titleCardExit {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.92) translateY(-30px);
+    }
 }
 
 /* Desktop: make the logo larger and keep it visually centered. */

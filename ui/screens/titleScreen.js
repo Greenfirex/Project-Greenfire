@@ -3,6 +3,7 @@ import { getSelectedLanguage, setLanguage, t, isReady } from '../../locales/loca
 import { preloader } from '../system/preloader.js';
 
 const BODY_CLASS = 'title-screen-active';
+const EXIT_ANIM_DURATION = 600; // matches CSS card-exiting animation
 
 export function updateTitleScreenText() {
     const set = (id, key) => {
@@ -91,7 +92,15 @@ function animateElement(el, keyframes, options) {
     } catch { /* ignore */ }
 }
 
-function playPowerOnAssembly() {
+/**
+ * Play the assembly animation and optionally dismiss intro background.
+ * @param {Object} [opts]
+ * @param {boolean} [opts.dismissIntroBg=false] - fade out the intro background during assembly
+ * @param {Function} [opts.onComplete] - callback after assembly done (~3.8s)
+ */
+function playPowerOnAssembly(opts = {}) {
+    const { dismissIntroBg = false, onComplete } = opts;
+
     // Header slides down
     animateElement(document.getElementById('header'), [
         { transform: 'translateY(-100%)', opacity: 0 },
@@ -135,13 +144,121 @@ function playPowerOnAssembly() {
         ], { duration: 1000, delay: 1200 + i * 240, easing: 'ease-out' });
     });
 
-    // Prevent popups from appearing during assembly. CSS hides them under this class.
+    // --- Panel content animations (staggered within assembly window) ---
+
+    // Log section — fade in + slide up
+    animateElement(document.getElementById('logSection'), [
+        { opacity: 0, transform: 'translateY(12px)' },
+        { opacity: 1, transform: 'translateY(0)' }
+    ], { duration: 600, delay: 1000, easing: 'ease-out' });
+
+    // Info sub-panels (Resources, Effects, Queue) — staggered
+    const infoSubPanels = document.querySelectorAll('#infoPanelContent .info-sub-panel');
+    infoSubPanels.forEach((panel, i) => {
+        animateElement(panel, [
+            { opacity: 0, transform: 'translateY(8px)' },
+            { opacity: 1, transform: 'translateY(0)' }
+        ], { duration: 500, delay: 1800 + i * 250, easing: 'ease-out' });
+    });
+
+    // Location tiles — staggered entrance
+    const locationTiles = document.querySelectorAll('[id^="locations"][id$="Tile"]');
+    locationTiles.forEach((tile, i) => {
+        animateElement(tile, [
+            { opacity: 0, transform: 'translateY(16px)' },
+            { opacity: 1, transform: 'translateY(0)' }
+        ], { duration: 550, delay: 2000 + i * 200, easing: 'ease-out' });
+    });
+
+    // Action buttons — staggered after location tiles
+    const actionBtns = document.querySelectorAll('.location-action-btn');
+    actionBtns.forEach((btn, i) => {
+        animateElement(btn, [
+            { opacity: 0, transform: 'translateY(10px) scale(0.95)' },
+            { opacity: 1, transform: 'translateY(0) scale(1)' }
+        ], { duration: 400, delay: 2500 + i * 65, easing: 'ease-out' });
+    });
+
+    // Footer action buttons — fade in + slide up
+    const footerBtns = document.querySelectorAll('#footerControls .header-link');
+    footerBtns.forEach((btn, i) => {
+        animateElement(btn, [
+            { opacity: 0, transform: 'translateY(8px)' },
+            { opacity: 1, transform: 'translateY(0)' }
+        ], { duration: 450, delay: 2700 + i * 100, easing: 'ease-out' });
+    });
+
+    // Prevent popups from appearing during assembly.
     document.body.classList.add('ui-assembling');
 
-    // After assembly finishes (~3.8s), remove the lock so popups animate in.
+    const assemblyDuration = 5000;
+
+    if (dismissIntroBg) {
+        // Start the overlay fade-out immediately
+        const overlay = document.getElementById('titleScreen');
+        if (overlay) overlay.classList.add('intro-bg-fading');
+
+        // Fully hide the overlay after the fade-out transition completes (0.8s via CSS)
+        setTimeout(() => {
+            const overlay = document.getElementById('titleScreen');
+            if (overlay) {
+                overlay.classList.add('hidden');
+                try { overlay.hidden = true; } catch { /* ignore */ }
+                setHiddenWithInert(overlay, true);
+                overlay.classList.remove('intro-bg-fading');
+            }
+            document.body.classList.remove(BODY_CLASS);
+        }, 900);
+    }
+
+    // After assembly finishes, remove the lock and fire callback
     setTimeout(() => {
         document.body.classList.remove('ui-assembling');
-    }, 3800);
+        if (typeof onComplete === 'function') {
+            onComplete();
+        }
+    }, assemblyDuration);
+}
+
+// ==========================================================================
+// Panel activation stagger (called after startGame initializes UI)
+// ==========================================================================
+
+/**
+ * Stagger-activate the info sub-panels for a polished intro.
+ * Called after startGame() has fully rendered all sections.
+ */
+export function playPanelActivationSequence() {
+    const panelContent = document.getElementById('infoPanelContent');
+    if (!panelContent) return;
+
+    const sections = panelContent.querySelectorAll('.info-sub-panel');
+    sections.forEach((section, i) => {
+        // Start hidden
+        section.style.opacity = '0';
+        section.style.transform = 'translateY(12px)';
+        section.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
+
+        setTimeout(() => {
+            section.style.opacity = '1';
+            section.style.transform = 'translateY(0)';
+        }, i * 200);
+    });
+
+    // Stagger the location action buttons too
+    setTimeout(() => {
+        const actionBtns = document.querySelectorAll('.location-action-btn');
+        actionBtns.forEach((btn, i) => {
+            btn.style.opacity = '0';
+            btn.style.transform = 'translateY(10px) scale(0.95)';
+            btn.style.transition = 'opacity 0.35s ease-out, transform 0.35s ease-out';
+
+            setTimeout(() => {
+                btn.style.opacity = '';
+                btn.style.transform = '';
+            }, i * 60);
+        });
+    }, 400);
 }
 
 // ==========================================================================
@@ -171,8 +288,7 @@ export function showTitleScreen() {
     // Signal title screen is partially ready (needs translations to be fully ready).
     preloader.progress('titleScreen', 0.5, 'Preparing title...');
 
-    // If translations are already done (e.g. language-changed fired before we attached
-    // the listener), mark the title screen fully ready now so the preloader can dismiss.
+    // If translations are already done, mark the title screen fully ready.
     if (isReady()) {
         preloader.progress('titleScreen', 1);
     }
@@ -191,6 +307,9 @@ export function showTitleScreen() {
     } catch { /* ignore */ }
 }
 
+/**
+ * Standard hide — used for Continue mode (old behavior: hide overlay, play assembly, fire callback).
+ */
 export function hideTitleScreen() {
     const overlay = document.getElementById('titleScreen');
     if (!overlay) return;
@@ -212,9 +331,95 @@ export function hideTitleScreen() {
         setHiddenWithInert(document.getElementById('footer'), false);
     } catch { /* ignore */ }
 
-    // Play the power-on assembly animation using Web Animations API.
-    // This bypasses browser class-change batching and guarantees playback.
+    // Play the power-on assembly animation.
     playPowerOnAssembly();
+}
+
+/**
+ * Orchestrated new game intro:
+ *   1. Card exits with animation (background stays)
+ *   2. Story popup shows over the intro background
+ *   3. Player reads & clicks Close
+ *   4. Assembly animation plays (background fades out)
+ *   5. startGame() fires via callback (no race condition possible)
+ *
+ * @param {Object} opts
+ * @param {Function} opts.onStartGame - called after assembly to init the game
+ */
+async function playNewGameIntroSequence({ onStartGame }) {
+    const overlay = document.getElementById('titleScreen');
+    const card = overlay ? overlay.querySelector('.title-screen-card') : null;
+
+    // 1. Exit card animation (overlay already shows background3.jpg by default)
+    if (card) {
+        card.classList.add('card-exiting');
+    }
+    await new Promise(r => setTimeout(r, EXIT_ANIM_DURATION));
+
+    // 2. Hide the card
+    if (card) {
+        card.style.display = 'none';
+    }
+
+    // 3. Initialize the game silently behind the overlay.
+    //    The overlay still covers everything (display:flex, z-index 2147481500),
+    //    so the player cannot interact with action buttons yet.
+    //    But game DOM is now populated — assembly will animate real content.
+    if (typeof onStartGame === 'function') {
+        onStartGame();
+    }
+
+    // Small delay to let sections render before showing popup
+    await new Promise(r => setTimeout(r, 150));
+
+    // 4. Show story popup over the background image (transparentBg so image shows through)
+    try {
+        const popupMod = await import('../panels/storyPopup.js');
+        await new Promise((resolve) => {
+            popupMod.showStoryPopup({
+                id: 'welcome_intro',
+                title: t('popup_welcome_title'),
+                pages: [t('popup_welcome_page1'), t('popup_welcome_page2'), t('popup_welcome_page3')],
+                transparentBg: true,
+                onClose: () => resolve(),
+            });
+        });
+    } catch {
+        // If popup fails, still proceed with assembly
+    }
+
+    // 5. Reveal game UI and play assembly
+    //    Set inline starting states so elements don't flash visible before animation.
+    const header = document.getElementById('header');
+    const mainContainer = document.getElementById('mainContainer');
+    const footer = document.getElementById('footer');
+    const gameArea = document.getElementById('gameArea');
+    const infoPanel = document.getElementById('infoPanel');
+    const mainMenu = document.getElementById('mainMenu');
+    const menuBtns = document.querySelectorAll('.menu-button');
+
+    if (header) { header.style.opacity = '0'; header.style.transform = 'translateY(-100%)'; }
+    if (mainMenu) { mainMenu.style.opacity = '0'; mainMenu.style.transform = 'translateX(-100%)'; }
+    if (infoPanel) { infoPanel.style.opacity = '0'; infoPanel.style.transform = 'translateX(100%)'; }
+    if (footer) { footer.style.opacity = '0'; footer.style.transform = 'translateY(100%)'; }
+    if (gameArea) { gameArea.style.opacity = '0'; gameArea.style.transform = 'scale(0.97)'; }
+    menuBtns.forEach(btn => { btn.style.opacity = '0'; btn.style.transform = 'translateY(20px) scale(0.85)'; });
+
+    // Now remove title-screen-active so elements are rendered (but invisible via inline styles)
+    document.body.classList.remove(BODY_CLASS);
+    try {
+        setHiddenWithInert(header, false);
+        setHiddenWithInert(mainContainer, false);
+        setHiddenWithInert(footer, false);
+    } catch { /* ignore */ }
+
+    // Force style recalculation so Web Animations API picks up the inline starting states
+    void document.body.offsetWidth;
+
+    // Play assembly — animates from the inline-hidden states to visible
+    playPowerOnAssembly({
+        dismissIntroBg: true,
+    });
 }
 
 export function initTitleScreen({
@@ -265,8 +470,9 @@ export function initTitleScreen({
             });
             if (!ok) return;
             lockButtons(true);
-            try { hideTitleScreen(); } catch { /* ignore */ }
-            try { onNewGame?.(); } catch { /* ignore */ }
+            try {
+                playNewGameIntroSequence({ onStartGame: onNewGame });
+            } catch { /* ignore */ }
         });
     }
 
@@ -339,11 +545,9 @@ export function initTitleScreen({
 
     updateFlagActiveState();
 
-    // Re-translate title buttons whenever translations finish loading asynchronously
-    // (e.g. Czech JSON files arrive after the title screen is already visible).
+    // Re-translate title buttons whenever translations finish loading asynchronously.
     window.addEventListener('language-changed', () => {
         updateTitleScreenText();
-        // Title screen is now fully ready with correct translations.
         preloader.progress('titleScreen', 1, 'Title screen ready');
     });
 
@@ -361,7 +565,6 @@ export function initTitleScreen({
 
             const exited = await tryExitApp();
             if (!exited) {
-                // Web/PWA fallback: we can't reliably close the app.
                 await showConfirmPopup({
                     title: 'Exit not available',
                     message: 'On web/PWA, the game cannot close itself. Please close the tab or swipe away the app.',

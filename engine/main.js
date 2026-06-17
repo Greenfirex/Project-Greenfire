@@ -136,7 +136,12 @@ function startGame({ mode = 'continue' } = {}) {
     if (hasStarted) return;
     hasStarted = true;
 
-    try { hideTitleScreen(); } catch { /* ignore */ }
+    // For continue/reset/autoContinue: hide title screen and play assembly.
+    // New game mode: title screen dismissal + assembly is handled by the
+    // orchestrated intro sequence in titleScreen.js (playNewGameIntroSequence).
+    if (mode !== 'new') {
+        try { hideTitleScreen(); } catch { /* ignore */ }
+    }
 
     initTimeManager();
 
@@ -145,15 +150,9 @@ function startGame({ mode = 'continue' } = {}) {
         resetToDefaultState();
         initEffects();
         try { recomputeObjectives(); } catch {}
-        try {
-            import('../ui/panels/storyPopup.js').then(mod => {
-                mod.showStoryPopup({
-                    id: 'welcome_intro',
-                    title: t('popup_welcome_title'),
-                    pages: [t('popup_welcome_page1'), t('popup_welcome_page2'), t('popup_welcome_page3')]
-                });
-            });
-        } catch {}
+        // Story popup is now shown by titleScreen.js during the intro sequence,
+        // before assembly animation — eliminating the race condition where
+        // players could click actions before the popup appeared.
     } else {
         loadGameState();
         // Restore saved action progress if any
@@ -272,6 +271,9 @@ function startGame({ mode = 'continue' } = {}) {
 
     if (!getIsPaused()) startMainLoop();
     startAutosave();
+
+    // Panel activation is now part of the assembly animation (playPowerOnAssembly).
+    // No separate stagger needed here.
 }
 
 export function getInitialActivatedSections() {

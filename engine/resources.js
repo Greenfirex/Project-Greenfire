@@ -12,6 +12,14 @@ const RESOURCE_LOCALE_KEYS = {
     'Drinking Water': 'res_water',
 };
 
+export const RESOURCE_EMOJIS = {
+    'Health': '❤️',
+    'Stamina': '⚡',
+    'XP': '⭐',
+    'Food Rations': '🥩',
+    'Drinking Water': '💧',
+};
+
 const RESOURCE_DESC_KEYS = {
     'Health': 'res_health_desc',
     'Stamina': 'res_stamina_desc',
@@ -222,7 +230,8 @@ export function setupInfoPanel() {
         infoRow.classList.add('hidden');
         infoRow.classList.toggle('non-producible', !resource.producible);
 
-        const displayName = t(RESOURCE_LOCALE_KEYS[resource.name] || resource.name);
+        const emoji = RESOURCE_EMOJIS[resource.name] || '';
+        const displayName = emoji ? `${emoji} ${t(RESOURCE_LOCALE_KEYS[resource.name] || resource.name)}` : t(RESOURCE_LOCALE_KEYS[resource.name] || resource.name);
         infoRow.innerHTML = `
             <div class="resource-progress-bar"></div>
             <div class="infocolumn1"><span>${displayName}</span></div>
@@ -335,7 +344,6 @@ export function applyTimePassiveDrain(realSeconds) {
         if (perMinRate === 0) return;
         const delta = parseFloat((perMinRate * realSeconds).toFixed(10));
         if (delta === 0) return;
-        res.amount = Math.max(0, Math.min(res.capacity, res.amount + delta));
-        roundResourceAmount(res);
+        res.amount = parseFloat(Math.max(0, Math.min(res.capacity, res.amount + delta)).toFixed(10));
     });
 }

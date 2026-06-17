@@ -2,7 +2,7 @@
 // Location Engine
 // ==========================================================================
 
-import { resources, updateResourceInfo, setActiveDrainRates, applyTimePassiveDrain, roundResourceAmount } from '../../engine/resources.js';
+import { resources, updateResourceInfo, setActiveDrainRates, applyTimePassiveDrain, roundResourceAmount, RESOURCE_EMOJIS } from '../../engine/resources.js';
 import { addLogEntry, LogType } from '../../engine/ingameLog.js';
 import { t } from '../../locales/locales.js';
 import { getCurrentLocationId, switchToLocation, getLocation } from './locationData.js';
@@ -10,8 +10,9 @@ import { advanceIngameTimeBySeconds, getIngameTimeString } from '../../engine/ti
 import { playActionStart } from '../../engine/audio.js';
 import { gameFlags, isActionNew, flagActionAsNew, markActionSeen } from '../../engine/gameFlags.js';
 import { newBadgeHtml, wireClearUiNewBadge } from '../../ui/components/contentNewBadges.js';
-import { getEffectDebuffs, hasEffect, removeEffect } from '../../engine/effects.js';
+import { getEffectDebuffs, getEffectDebuffDetails, hasEffect, removeEffect } from '../../engine/effects.js';
 import { addToQueue, startNextQueuedAction } from '../../engine/queue.js';
+import { setupTooltip } from '../../ui/panels/tooltip.js';
 
 const DEFAULT_DRAIN = { 'Stamina': 0.20, 'Food Rations': 0.10, 'Drinking Water': 0.10 };
 const TAXING_MULT = 2.0;
@@ -267,7 +268,7 @@ function startAction(actionId) {
         if (!activeAction) { clearActionTimer(); return; }
         if (actionPaused) return;
         const tickSecs = TICK_SECONDS * getGameSpeed();
-        actionProgress += tickSecs;
+        actionProgress = parseFloat((actionProgress + tickSecs).toFixed(10));
         advanceIngameTimeBySeconds(tickSecs);
         applyTimePassiveDrain(tickSecs);
         updateClockDisplay();
@@ -386,8 +387,11 @@ function renderDetailsTile() {
                     const rate = baseRate * rateMultiplier;
                     const totalCost = rate * costDurationMins;
                     const remain = isActionRunning ? totalCost * (1 - Math.min(1, actionProgress / (action.durationSeconds || 1))) : totalCost;
+                    const emoji = RESOURCE_EMOJIS[resName] || '';
+                    const displayName = emoji ? `${emoji} ${resName}` : resName;
+
                     const cssClass = /stamina/i.test(resName) ? 'detail-cost-stamina' : (/food/i.test(resName) ? 'detail-cost-food' : 'detail-cost-water');
-                    return `<div class="detail-cost ${cssClass}${isDebuffed ? ' detail-cost-debuffed' : ''}"><span class="detail-cost-label">${resName}</span><span class="detail-cost-remain" data-cost-res="${resName}" data-cost-total="${totalCost.toFixed(2)}">${remain.toFixed(2)}</span><span class="detail-cost-rate">[-${rate.toFixed(2)}/min]</span>${isDebuffed ? '<span class="detail-cost-debuff-badge">&#x26A0;</span>' : ''}</div>`;
+                    return `<div class="detail-cost ${cssClass}${isDebuffed ? ' detail-cost-has-debuff' : ''}"><span class="detail-cost-label">${displayName}</span><span class="detail-cost-remain" data-cost-res="${resName}" data-cost-total="${totalCost.toFixed(2)}">${remain.toFixed(2)}</span><span class="detail-cost-rate${isDebuffed ? ' detail-cost-debuffed-rate' : ''}">[-${rate.toFixed(2)}/min]</span></div>`;
                 }).join('');
             const costsHtml = costItems ? `<div class="detail-section"><div class="detail-section-label"><span style="color:#f44336;">&#x2B07;</span> ${t('detail_costs')}</div>${costItems}</div>` : '';
             
@@ -655,7 +659,30 @@ function drainCostHtml(d) {
     const rn = String(d.resource || ''); const amt = Number(d.amount || 0); let cls = 'drain-other';
     if (/stamina/i.test(rn)) cls = 'drain-stamina'; else if (/food/i.test(rn)) cls = 'drain-food'; else if (/water/i.test(rn)) cls = 'drain-water';
     const sign = amt < 0 ? '+' : '-';
-    return `<span class="location-action-btn-cost ${cls}">${sign}${Math.abs(amt)} ${rn}</span>`;
+    const emoji = RESOURCE_EMOJIS[rn] || '';
+    const displayName = emoji ? `${emoji} ${rn}` : rn;
+    return `<span class="location-action-btn-cost ${cls}">${sign}${Math.abs(amt)} ${displayName}</span>`;
+}
+
+function wireDebuffTooltips(detailsHost) {
+    detailsHost.querySelectorAll('.detail-cost-debuffed-rate').forEach(span => {
+        setupTooltip(span, () => {
+            const details = getEffectDebuffDetails();
+            if (!details.length) return '<p>No active debuffs.</p>';
+            let html = '<h4>Active Debuffs</h4>';
+            details.forEach(d => {
+                const name = t(d.nameKey);
+                const parts = [];
+                if (d.staminaMult) parts.push(`Stamina ×${d.staminaMult}`);
+                if (d.foodMult) parts.push(`Food ×${d.foodMult}`);
+                if (d.waterMult) parts.push(`Water ×${d.waterMult}`);
+                html += `<div class="tooltip-section"><p><strong>${d.icon} ${name}</strong></p>`;
+                parts.forEach(p => { html += `<p class="tooltip-detail">• ${p}</p>`; });
+                html += '</div>';
+            });
+            return html;
+        });
+    });
 }
 
 function refreshUI() {
@@ -666,7 +693,7 @@ function refreshUI() {
     const detailsHost = document.querySelector('#locationsDetailsTile');
     const actionsHost = document.querySelector('#locationsActionsTile');
     if (locationHost && (!locationHost.dataset.renderedId || locationHost.dataset.renderedId !== location.id)) { locationHost.innerHTML = renderLocationTile(location); locationHost.dataset.renderedId = location.id; }
-    if (detailsHost) { detailsHost.innerHTML = renderDetailsTile(); }
+    if (detailsHost) { detailsHost.innerHTML = renderDetailsTile(); wireDebuffTooltips(detailsHost); }
     if (actionsHost) { actionsHost.innerHTML = renderActionsTile(location); wireActionButtons(actionsHost); }
 }
 

@@ -87,7 +87,20 @@ export function showStoryPopup(event) {
 
     renderPopupPage();
 
+    // Entrance animation: add grow-in class, remove after animation completes
+    const contentEl = overlayEl.querySelector('.story-popup-content');
+    if (contentEl) {
+        contentEl.classList.add('popup-entering');
+        contentEl.addEventListener('animationend', function onEnd() {
+            contentEl.classList.remove('popup-entering');
+            contentEl.removeEventListener('animationend', onEnd);
+        }, { once: true });
+    }
+
     overlayEl.style.zIndex = '2147483000';
+    if (event.transparentBg) {
+        overlayEl.classList.add('intro-transparent-bg');
+    }
     try { overlayEl.hidden = false; } catch { /* ignore */ }
     overlayEl.classList.remove('hidden');
     overlayEl.style.display = '';
@@ -119,11 +132,13 @@ export function showStoryPopup(event) {
     }
 }
 
-function hideStoryPopup() {
+export function hideStoryPopup() {
     detachPopupEscHandler();
 
+    const onClose = activeStoryEvent?.onClose;
     const overlayEl = document.getElementById('storyPopup');
     if (overlayEl) {
+        overlayEl.classList.remove('intro-transparent-bg');
         overlayEl.classList.add('hidden');
         try { overlayEl.hidden = true; } catch { /* ignore */ }
         overlayEl.style.display = 'none';
@@ -137,6 +152,11 @@ function hideStoryPopup() {
         }
     } catch { /* non-fatal */ }
     pausedByThisStoryPopup = false;
+
+    // Fire the onClose callback if one was provided
+    if (typeof onClose === 'function') {
+        onClose();
+    }
 }
 
 function setupPopup() {

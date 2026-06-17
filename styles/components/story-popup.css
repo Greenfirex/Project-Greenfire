@@ -17,6 +17,28 @@
     touch-action: none;
 }
 
+/* Lighter transparency for intro popup (background image visible through it) */
+.story-popup-overlay.intro-transparent-bg {
+    background-color: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(2px);
+}
+
+/* Entrance animation: popup content grows in */
+.story-popup-content.popup-entering {
+    animation: popupGrowIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes popupGrowIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.82) translateY(18px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
 .story-popup-content {
     background-color: #1a1a1a;
     background-image: 

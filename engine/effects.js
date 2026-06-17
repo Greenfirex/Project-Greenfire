@@ -6,6 +6,7 @@
 // ==========================================================================
 
 import { t } from '../locales/locales.js';
+import { addLogEntry, LogType } from './ingameLog.js';
 
 export let activeEffects = [];
 
@@ -60,6 +61,34 @@ export function getEffectDebuffs() {
         if (effect.debuffs.waterCostMultiplier) waterMult *= effect.debuffs.waterCostMultiplier;
     }
     return { staminaMultiplier: staminaMult, foodMultiplier: foodMult, waterMultiplier: waterMult };
+}
+
+/**
+ * Get detailed debuff info for tooltip display.
+ * Returns an array of active effects that modify costs.
+ */
+export function getEffectDebuffDetails() {
+    const details = [];
+    for (const effect of activeEffects) {
+        const d = {};
+        if (effect.debuffs.staminaCostMultiplier && effect.debuffs.staminaCostMultiplier !== 1) {
+            d.staminaMult = effect.debuffs.staminaCostMultiplier;
+        }
+        if (effect.debuffs.foodCostMultiplier && effect.debuffs.foodCostMultiplier !== 1) {
+            d.foodMult = effect.debuffs.foodCostMultiplier;
+        }
+        if (effect.debuffs.waterCostMultiplier && effect.debuffs.waterCostMultiplier !== 1) {
+            d.waterMult = effect.debuffs.waterCostMultiplier;
+        }
+        if (Object.keys(d).length > 0) {
+            details.push({
+                nameKey: effect.nameKey,
+                icon: effect.icon || '',
+                ...d,
+            });
+        }
+    }
+    return details;
 }
 
 /**
@@ -171,13 +200,20 @@ export function updateEffectsUI() {
  */
 export function initEffects() {
     clearAllEffects();
-    addEffect({
-        id: 'alarm',
-        nameKey: 'effect_alarm',
-        descKey: 'effect_alarm_desc',
-        icon: '🔔',
-        progress: 0,
-        maxProgress: Infinity,
-        debuffs: { staminaCostMultiplier: 1.5 },
-    });
+    // Delay the alarm effect so it pops out visibly after the game UI is fully presented
+    setTimeout(() => {
+        addEffect({
+            id: 'alarm',
+            nameKey: 'effect_alarm',
+            descKey: 'effect_alarm_desc',
+            icon: '🔔',
+            progress: 0,
+            maxProgress: Infinity,
+            debuffs: { staminaCostMultiplier: 1.5 },
+        });
+        try {
+            const name = t('effect_alarm');
+            addLogEntry(`⚠ ${name} is active! Stamina costs increased.`, LogType.WARNING);
+        } catch { /* ignore */ }
+    }, 4000);
 }
