@@ -99,9 +99,12 @@
   "crash_details": "Details",
   "crash_actions": "Actions",
   "loc_scout_ship_crew_quarters": "Scout Ship — Crew Quarters",
-  "loc_scout_ship_crew_quarters_desc": "You wake in the cramped crew quarters of your scout ship. Emergency lighting casts long shadows across the small compartment. The hum of failing systems fills the air. Against the wall stands your BUNK — the last safe corner in this wreck. Ahead, a TERMINAL flickers with urgent warnings, its screen casting an otherworldly glow. Against the far wall, a sealed STORAGE LOCKER holds emergency supplies. In the corner, a dim TRAVEL panel marks the route to other sections of the ship.",
+  "loc_scout_ship_crew_quarters_desc": "You wake in the cramped crew quarters of your scout ship. Emergency lighting casts long shadows across the small compartment. The hum of failing systems fills the air. Against the wall stands your <span class=\"poi-highlight\">BUNK</span> — the last safe corner in this wreck. Ahead, a <span class=\"poi-highlight\">TERMINAL</span> flickers with urgent warnings, its screen casting an otherworldly glow. Against the far wall, a sealed <span class=\"poi-highlight\">STORAGE LOCKER</span> holds emergency supplies.",
   "action_wake_up": "Wake Up",
   "action_wake_up_desc": "Shake off the grogginess and climb out of the bunk. Time to assess the situation.",
+  "action_disable_alarm": "Disable Alarm",
+  "action_disable_alarm_desc": "Access the terminal overrides and disable the blaring emergency alarm.",
+  "result_disable_alarm": "You key in the override codes. The wailing alarm sputters and dies. Blessed silence fills the compartment. The ringing in your ears will fade — eventually.",
   "result_wake_up": "You push yourself up, body aching. Emergency lights flash overhead. You are alive and the ship is still intact — barely. Time to figure out what happened.",
   "loc_crew_quarters": "Crew Quarters",
   "loc_gamma_crew_quarters": "Gamma Site — Crew Quarters",
@@ -146,7 +149,7 @@
   "result_repair_kit": "Using the salvaged components you manage to repair a damaged enviro-suit. It's not perfect, but it will hold for now.",
 
   "loc_scout_ship_main_area": "Scout Ship — Main Area",
-  "loc_scout_ship_main_area_desc": "The ship's main gathering area. Tables and chairs are overturned from the crash. Emergency lights pulse dimly along the ceiling. A CAFETERIA counter sits against one wall, and a COMMUNICATIONS station occupies the corner.",
+  "loc_scout_ship_main_area_desc": "The ship's main gathering area. Tables and chairs are overturned from the crash. Emergency lights pulse dimly along the ceiling. A <span class=\"poi-highlight\">CAFETERIA</span> counter sits against one wall, and a <span class=\"poi-highlight\">COMMUNICATIONS</span> station occupies the corner.",
   "action_get_food": "Get Food",
   "action_get_food_desc": "Search the cafeteria stores for edible rations.",
   "action_check_comms": "Check Communications",
@@ -157,7 +160,7 @@
   "result_check_comms": "You power up the comms station. Static fills most channels, but a faint beacon repeats on loop — a pre-recorded distress signal from the ship itself.",
 
   "loc_scout_ship_bridge": "Scout Ship — Bridge",
-  "loc_scout_ship_bridge_desc": "The bridge of the scout ship, dark and silent. Consoles line the curved walls, most of them dark. The main viewport is cracked but intact, revealing the pale amber sky outside. A NAVIGATION console pulses weakly, while the CAPTAIN'S CHAIR sits empty at center.",
+  "loc_scout_ship_bridge_desc": "The bridge of the scout ship, dark and silent. Consoles line the curved walls, most of them dark. The main viewport is cracked but intact, revealing the pale amber sky outside. A <span class=\"poi-highlight\">NAVIGATION</span> console pulses weakly, while the <span class=\"poi-highlight\">CAPTAIN'S CHAIR</span> sits empty at center.",
   "action_review_navigation": "Review Navigation",
   "action_review_navigation_desc": "Access the navigation console and review flight data.",
   "action_send_distress": "Send Distress Call",
@@ -188,5 +191,11 @@
   "log_rest_cap": "You feel fully rested.",
   "log_water_cap": "You are no longer thirsty.",
   "log_action_stopped": "You stop {action}.",
-  "log_action_cancelled": "You cancel {action}."
+  "log_action_cancelled": "You cancel {action}.",
+  "log_effect_removed": "Effect removed: {effect}",
+  "queue_title": "Action Queue",
+  "queue_action_queued": "Queued: {action}",
+  "queue_action_removed": "Removed from queue: {action}",
+  "queue_remove_tooltip": "Remove from queue",
+  "queue_empty": "Queue empty"
 }

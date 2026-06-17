@@ -251,7 +251,43 @@ loaded['en'] = {
   "clock_time_format": "Day {day}, {hour}:{minute}",
   "action_duration_label": "{minutes} min",
   "pause_overlay_title": "GAME PAUSED",
-  "footer_status_paused": "Paused"
+  "footer_status_paused": "Paused",
+  "options_title": "Options",
+  "options_settings": "Settings",
+  "options_title_return": "Other",
+  "options_glow_color": "UI Glow Color",
+  "options_glow_intensity": "Glow Intensity",
+  "confirm_lang_change_title": "Change Language",
+  "confirm_lang_change_msg": "Changing language will reload the page. Any unsaved progress will be lost. Continue?",
+  "confirm_lang_change_confirm": "Change",
+  "confirm_lang_change_cancel": "Cancel",
+  "log_title": "Log Options",
+  "log_display": "Display",
+  "log_show_timestamps": "Show timestamps",
+  "log_typewriter_effect": "Typewriter effect",
+  "log_filters": "Filters",
+  "log_colors": "Colors",
+  "log_reset_colors": "Reset Colors to Default",
+  "action_disable_alarm": "Disable Alarm",
+  "action_disable_alarm_desc": "Access the terminal overrides and disable the blaring emergency alarm.",
+  "result_disable_alarm": "You key in the override codes. The wailing alarm sputters and dies. Blessed silence fills the compartment. The ringing in your ears will fade — eventually.",
+  "action_drink_water": "Drink Water",
+  "action_drink_water_desc": "Hydrate yourself to recover drinking water.",
+  "action_scavenge_tools": "Scavenge Tools",
+  "action_scavenge_tools_desc": "Search the workshop for usable tools and components.",
+  "action_repair_kit": "Repair Equipment",
+  "action_repair_kit_desc": "Attempt to repair damaged equipment found in the workshop.",
+  "action_survey_area": "Survey Area",
+  "action_survey_area_desc": "Carefully examine the workshop layout for hidden caches.",
+  "log_effect_removed": "Effect removed: {effect}",
+  "queue_title": "Action Queue",
+  "queue_action_queued": "Queued: {action}",
+  "queue_action_removed": "Removed from queue: {action}",
+  "queue_remove_tooltip": "Remove from queue",
+  "queue_empty": "Queue empty",
+  "effects_title": "Active Effects",
+  "effect_alarm": "Emergency Alarm",
+  "effect_alarm_desc": "The ship's alarm is blaring — the noise is disorienting and makes actions harder. Check the terminal and disable the alarm to restore normal conditions."
 };
 
 // ==========================================================================
@@ -333,7 +369,7 @@ if (saved !== DEFAULT_LANGUAGE) {
 }
 
 async function loadLanguage(code) {
-    const files = ['ui', 'confirm', 'actions', 'resources', 'character'];
+    const files = ['ui', 'confirm', 'actions', 'resources', 'character', 'effects'];
     const dict = {};
 
     for (const file of files) {

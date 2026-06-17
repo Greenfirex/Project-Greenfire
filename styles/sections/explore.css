@@ -100,6 +100,11 @@
     margin: 0;
 }
 
+.poi-highlight {
+    color: rgb(var(--glow-r), var(--glow-g), var(--glow-b));
+    font-weight: bold;
+}
+
 
 .location-details-loop {
     color: rgba(255,255,255,0.65);
@@ -268,6 +273,18 @@
 .detail-cost-food .detail-cost-label { color: #FF8C42; }
 .detail-cost-water { color: #4FC3F7; }
 .detail-cost-water .detail-cost-label { color: #4FC3F7; }
+
+/* Debuffed cost — red warning tint on costs inflated by active effects */
+.detail-cost-debuffed .detail-cost-label { color: #ff6b6b !important; }
+.detail-cost-debuffed .detail-cost-remain { color: #ff6b6b; }
+.detail-cost-debuffed .detail-cost-rate { color: #ff6b6b; }
+.detail-cost-debuff-badge {
+    margin-left: 4px;
+    font-size: 12px;
+    color: #ffd84a;
+    font-weight: 900;
+    text-shadow: 0 0 4px rgba(255, 216, 74, 0.6);
+}
 
 .location-actions-list {
     display: flex;

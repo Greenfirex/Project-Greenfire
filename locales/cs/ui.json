@@ -113,9 +113,12 @@
   "crash_details": "Detaily",
   "crash_actions": "Akce",
   "loc_scout_ship_crew_quarters": "Průzkumná loď — Ubikace posádky",
-  "loc_scout_ship_crew_quarters_desc": "Probouzíš se v těsných ubikacích své průzkumné lodi. Nouzové osvětlení vrhá dlouhé stíny přes malý prostor. Hum selhávajících systémů vyplňuje vzduch. U stěny stojí PALANDA — tvé lůžko, tvůj poslední bezpečný kout. Vpředu bliká TERMINÁL s naléhavými varováními, jeho obrazovka vrhá zvláštní záři. Podél vzdálené stěny je UZAMČENÁ ÚSCHOVNÁ SKŘÍŇ s nouzovými zásobami. V rohu slabě svítí orientační panel CESTOVÁNÍ — značí cestu do dalších částí lodi.",
+  "loc_scout_ship_crew_quarters_desc": "Probouzíš se v těsných ubikacích své průzkumné lodi. Nouzové osvětlení vrhá dlouhé stíny přes malý prostor. Hum selhávajících systémů vyplňuje vzduch. U stěny stojí <span class=\"poi-highlight\">PALANDA</span> — tvé lůžko, tvůj poslední bezpečný kout. Vpředu bliká <span class=\"poi-highlight\">TERMINÁL</span> s naléhavými varováními, jeho obrazovka vrhá zvláštní záři. Podél vzdálené stěny je UZAMČENÁ <span class=\"poi-highlight\">ÚSCHOVNÁ SKŘÍŇ</span> s nouzovými zásobami.",
   "action_wake_up": "Probudit se",
   "action_wake_up_desc": "Setřes ospalost a vylezz z palandy. Je čas zhodnotit situaci.",
+  "action_disable_alarm": "Vypnout alarm",
+  "action_disable_alarm_desc": "Přistup k terminálu a vypni vyjící nouzový alarm.",
+  "result_disable_alarm": "Zadáváš přepisovací kódy. Kvílivý alarm zakašle a utichne. Prostorem se rozhostí požehnané ticho. Zvonění v uších odezní — časem.",
   "result_wake_up": "Zvedneš se, tvé tělo bolí. Nouzové světla blikají nad hlavou. Jsi naživu a loď je stále neporušená — sotva. Je čas zjistit, co se stalo.",
   "loc_crew_quarters": "Ubikace posádky",
   "loc_gamma_crew_quarters": "Gamma Site — Ubikace posádky",
@@ -165,5 +168,11 @@
   "log_rest_cap": "Cítíš se plně odpočatý.",
   "log_water_cap": "Už nemáš žízeň.",
   "log_action_stopped": "Přestáváš {action}.",
-  "log_action_cancelled": "Rušíš {action}."
+  "log_action_cancelled": "Rušíš {action}.",
+  "log_effect_removed": "Efekt odebrán: {effect}",
+  "queue_title": "Fronta Akcí",
+  "queue_action_queued": "Zařazeno do fronty: {action}",
+  "queue_action_removed": "Odebráno z fronty: {action}",
+  "queue_remove_tooltip": "Odebrat z fronty",
+  "queue_empty": "Fronta je prázdná"
 }

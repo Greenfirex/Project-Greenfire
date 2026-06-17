@@ -6,7 +6,7 @@ export const scoutShipBridge = {
     id: 'scout_ship_bridge',
     siteId: 'scout_ship',
     nameKey: 'loc_scout_ship_bridge',
-    image: 'assets/images/localmap/crewquarters.png',
+    image: 'assets/images/localmap/cockpit.png',
     descriptionKey: 'loc_scout_ship_bridge_desc',
     pois: [
         {

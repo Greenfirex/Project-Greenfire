@@ -1,4 +1,4 @@
-import { resources, updateResourceInfo, setupInfoPanel } from './resources.js';
+import { resources, updateResourceInfo, setupInfoPanel, roundResourceAmount } from './resources.js';
 import { preloader } from '../ui/system/preloader.js';
 import { gameFlags } from './gameFlags.js';
 import { setupLocationSection, updateLocationActionButtonsState } from '../sections/locations/locationEngine.js';
@@ -23,6 +23,7 @@ import '../ui/panels/objectivesPanel.js';
 import '../ui/mobile/mobileObjectivesLogSwap.js';
 import { MENU_SECTIONS, initMenuBadges, setMenuNewItemFlag } from '../ui/chrome/menuBadges.js';
 import { t } from '../locales/locales.js';
+import { initEffects } from './effects.js';
 
 window.debugResources = resources;
 window.TIME_SCALE = Number(localStorage.getItem('gameTimeScale')) || 1;
@@ -42,11 +43,13 @@ function syncVitalCapsFromCharacter() {
             const nextCap = Math.max(1, Math.floor(Number(stats?.health ?? hp.capacity ?? 0)));
             hp.capacity = nextCap;
             hp.amount = Math.min(Number(hp.amount ?? 0), nextCap);
+            roundResourceAmount(hp);
         }
         if (stam) {
             const nextCap = Math.max(1, Math.floor(Number(stats?.stamina ?? stam.capacity ?? 0)));
             stam.capacity = nextCap;
             stam.amount = Math.min(Number(stam.amount ?? 0), nextCap);
+            roundResourceAmount(stam);
         }
     } catch { /* non-fatal */ }
 }
@@ -140,6 +143,7 @@ function startGame({ mode = 'continue' } = {}) {
     if (mode === 'new') {
         try { localStorage.removeItem('isResetting'); } catch { /* ignore */ }
         resetToDefaultState();
+        initEffects();
         try { recomputeObjectives(); } catch {}
         try {
             import('../ui/panels/storyPopup.js').then(mod => {

@@ -2,7 +2,7 @@
 // Location Engine
 // ==========================================================================
 
-import { resources, updateResourceInfo, setActiveDrainRates, applyTimePassiveDrain } from '../../engine/resources.js';
+import { resources, updateResourceInfo, setActiveDrainRates, applyTimePassiveDrain, roundResourceAmount } from '../../engine/resources.js';
 import { addLogEntry, LogType } from '../../engine/ingameLog.js';
 import { t } from '../../locales/locales.js';
 import { getCurrentLocationId, switchToLocation, getLocation } from './locationData.js';
@@ -10,6 +10,8 @@ import { advanceIngameTimeBySeconds, getIngameTimeString } from '../../engine/ti
 import { playActionStart } from '../../engine/audio.js';
 import { gameFlags, isActionNew, flagActionAsNew, markActionSeen } from '../../engine/gameFlags.js';
 import { newBadgeHtml, wireClearUiNewBadge } from '../../ui/components/contentNewBadges.js';
+import { getEffectDebuffs, hasEffect, removeEffect } from '../../engine/effects.js';
+import { addToQueue, startNextQueuedAction } from '../../engine/queue.js';
 
 const DEFAULT_DRAIN = { 'Stamina': 0.20, 'Food Rations': 0.10, 'Drinking Water': 0.10 };
 const TAXING_MULT = 2.0;
@@ -31,13 +33,18 @@ function getResourceByName(name) {
 function canAffordAction(action) {
     if (!action) return true;
     const durationMins = (action.durationSeconds || 1) / 60;
+    const debuffs = getEffectDebuffs();
     const mult = action.category === 'taxing' ? TAXING_MULT : 1;
     for (const [resName, baseRate] of Object.entries(DEFAULT_DRAIN)) {
         // Rest actions gain Stamina — skip Stamina affordability check
         if (action.category === 'rest' && resName === 'Stamina') continue;
         // Refresh actions gain Drinking Water — skip Water affordability check
         if (action.category === 'refresh' && resName === 'Drinking Water') continue;
-        const rateMultiplier = resName === 'Stamina' ? mult : 1;
+        let rateMultiplier = resName === 'Stamina' ? mult : 1;
+        // Apply effect debuffs to cost
+        if (resName === 'Stamina') rateMultiplier *= (debuffs.staminaMultiplier || 1);
+        else if (/food/i.test(resName)) rateMultiplier *= (debuffs.foodMultiplier || 1);
+        else if (/water/i.test(resName)) rateMultiplier *= (debuffs.waterMultiplier || 1);
         const totalCost = baseRate * rateMultiplier * durationMins;
         const resource = getResourceByName(resName);
         if (!resource) continue;
@@ -76,7 +83,7 @@ function applyActionDrainCosts(action) {
         const resource = getResourceByName(d.resource);
         if (!resource) return;
         const amount = Number(d.amount) || 0;
-        if (amount > 0) resource.amount = Math.max(0, resource.amount - amount);
+        if (amount > 0) { resource.amount = Math.max(0, resource.amount - amount); roundResourceAmount(resource); }
     });
 }
 
@@ -85,7 +92,7 @@ function applyActionRewards(action) {
     action.rewards.forEach(r => {
         if (r.type === 'resource') {
             const resource = getResourceByName(r.name);
-            if (resource) resource.amount = (Number(resource.amount) || 0) + (Number(r.amount) || 0);
+            if (resource) { resource.amount = (Number(resource.amount) || 0) + (Number(r.amount) || 0); roundResourceAmount(resource); }
         }
         // item rewards handled by inventory system when wired
     });
@@ -119,6 +126,12 @@ function completeActiveAction(opts = {}) {
     } else {
         addLogEntry(`${action._displayName || action.id} completed.`, LogType.INFO);
     }
+    // Remove effect if this action removes one
+    if (action.removesEffect) {
+        removeEffect(action.removesEffect);
+        addLogEntry(t('log_effect_removed', { effect: t('effect_' + action.removesEffect) }), LogType.SUCCESS);
+    }
+    
     if (action.oneTime && !action.repeatable) { action._completed = true; _fullRebuildNeeded = true; }
     if (typeof action.repeatLimit === 'number' && action.repeatLimit > 0) {
         action._repeatCount = (action._repeatCount || 0) + 1;
@@ -149,6 +162,7 @@ function completeActiveAction(opts = {}) {
     selectedActionId = null; _infoUpdateCounter = 0; _fullRebuildNeeded = true;
     if (targetLoc && switchToLocation(targetLoc)) addLogEntry(`Arrived at ${t(getLocation(targetLoc)?.nameKey || targetLoc)}.`, LogType.INFO);
     refreshUI();
+    startNextQueuedAction();
     checkLoopTrigger();
 }
 
@@ -233,7 +247,12 @@ function startAction(actionId) {
             sources[resName].push({ rate: perMin, label: displayName });
             continue;
         }
-        const rateMultiplier = resName === 'Stamina' ? mult : 1;
+        let rateMultiplier = resName === 'Stamina' ? mult : 1;
+        // Apply effect debuffs to drain rate
+        const debuffs = getEffectDebuffs();
+        if (resName === 'Stamina') rateMultiplier *= (debuffs.staminaMultiplier || 1);
+        else if (/food/i.test(resName)) rateMultiplier *= (debuffs.foodMultiplier || 1);
+        else if (/water/i.test(resName)) rateMultiplier *= (debuffs.waterMultiplier || 1);
         const perMin = baseRate * rateMultiplier;
         drainRates[resName] = -perMin;
         if (!sources[resName]) sources[resName] = [];
@@ -358,12 +377,17 @@ function renderDetailsTile() {
                     return true;
                 })
                 .map(([resName, baseRate]) => {
-                    const rateMultiplier = resName === 'Stamina' ? mult : 1;
+                    const debuffs = getEffectDebuffs();
+                    let rateMultiplier = resName === 'Stamina' ? mult : 1;
+                    if (resName === 'Stamina') rateMultiplier *= (debuffs.staminaMultiplier || 1);
+                    else if (/food/i.test(resName)) rateMultiplier *= (debuffs.foodMultiplier || 1);
+                    else if (/water/i.test(resName)) rateMultiplier *= (debuffs.waterMultiplier || 1);
+                    const isDebuffed = rateMultiplier > (resName === 'Stamina' ? mult : 1);
                     const rate = baseRate * rateMultiplier;
                     const totalCost = rate * costDurationMins;
                     const remain = isActionRunning ? totalCost * (1 - Math.min(1, actionProgress / (action.durationSeconds || 1))) : totalCost;
                     const cssClass = /stamina/i.test(resName) ? 'detail-cost-stamina' : (/food/i.test(resName) ? 'detail-cost-food' : 'detail-cost-water');
-                    return `<div class="detail-cost ${cssClass}"><span class="detail-cost-label">${resName}</span><span class="detail-cost-remain" data-cost-res="${resName}" data-cost-total="${totalCost.toFixed(2)}">${remain.toFixed(2)}</span><span class="detail-cost-rate">[-${rate.toFixed(2)}/min]</span></div>`;
+                    return `<div class="detail-cost ${cssClass}${isDebuffed ? ' detail-cost-debuffed' : ''}"><span class="detail-cost-label">${resName}</span><span class="detail-cost-remain" data-cost-res="${resName}" data-cost-total="${totalCost.toFixed(2)}">${remain.toFixed(2)}</span><span class="detail-cost-rate">[-${rate.toFixed(2)}/min]</span>${isDebuffed ? '<span class="detail-cost-debuff-badge">&#x26A0;</span>' : ''}</div>`;
                 }).join('');
             const costsHtml = costItems ? `<div class="detail-section"><div class="detail-section-label"><span style="color:#f44336;">&#x2B07;</span> ${t('detail_costs')}</div>${costItems}</div>` : '';
             
@@ -388,21 +412,9 @@ function renderDetailsTile() {
         }
     }
     
-    // Show location description with colored POI names
+    // Show location description with POI names already highlighted via <span class="poi-highlight"> in locale strings
     if (location) {
-        let descText = t(location.descriptionKey);
-        
-        // Color-code POI names in the description
-        if (location.pois) {
-            location.pois.forEach(poi => {
-                const poiName = t(poi.nameKey);
-                // Replace POI names with colored versions
-                const regex = new RegExp(`\\b${poiName}\\b`, 'g');
-                descText = descText.replace(regex, `<span style="color: rgb(var(--glow-r), var(--glow-g), var(--glow-b)); font-weight: bold;">${poiName}</span>`);
-            });
-        }
-        
-        return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t('crash_details')}</h3></div><p class="location-location-desc" id="locationsDetailDesc">${descText}</p></div>`;
+        return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t('crash_details')}</h3></div><p class="location-location-desc" id="locationsDetailDesc">${t(location.descriptionKey)}</p></div>`;
     }
     
     return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t('crash_details')}</h3></div><p class="location-location-desc" id="locationsDetailDesc"></p></div>`;
@@ -468,7 +480,7 @@ function renderActionsTile(location) {
         progressHtml = `<span class="location-action-ongoing">${t('action_progress_ongoing')}</span>`;
     }
         const costsRowHtml = durationLabel ? `<span class="location-action-costs-row">${durationLabel}</span>` : '';
-        const disabled = (otherRunning || cannotAfford) && !isRunning;
+        const disabled = cannotAfford && !isRunning;
         return `<button type="button" class="location-action-btn${isSelected ? ' is-selected' : ''}${isRunning ? ' is-running' : ''}${isPaused ? ' is-paused' : ''}${action.oneTime && !action.repeatable ? ' btn-onetime' : ''}${action.repeatable ? ' btn-repeatable' : ''}" data-action-id="${actionId}"${disabled ? ' disabled' : ''}><span class="location-action-btn-name">${tagHtml}${t(action.nameKey)}</span>${costsRowHtml}${progressHtml}${playPauseHtml}</button>`;
     }).join('');
     return `<div class="location-card location-card-actions"><div class="location-card-header"><h3>${t('crash_actions')}</h3></div><div class="location-actions-list">${buttons}</div></div>`;
@@ -597,7 +609,7 @@ function renderActionButton(action) {
         progressHtml = `<span class="location-action-ongoing">${t('action_progress_ongoing')}</span>`;
     }
     const costsRowHtml = durationLabel ? `<span class="location-action-costs-row">${durationLabel}</span>` : '';
-    const disabled = (otherRunning || cannotAfford) && !isRunning;
+    const disabled = cannotAfford && !isRunning;
     // Show "!" badge if action is newly unlocked and not yet seen by the player
     const showNewBadge = isActionNew(actionId);
     return `<button type="button" class="location-action-btn${isSelected ? ' is-selected' : ''}${isRunning ? ' is-running' : ''}${isPaused ? ' is-paused' : ''}${action.oneTime && !action.repeatable ? ' btn-onetime' : ''}${action.repeatable ? ' btn-repeatable' : ''}${showNewBadge ? ' has-new-badge' : ''}" data-action-id="${actionId}"${disabled ? ' disabled' : ''}>${newBadgeHtml(showNewBadge)}<span class="location-action-btn-name">${tagHtml}${t(action.nameKey)}</span>${costsRowHtml}${progressHtml}${playPauseHtml}</button>`;
@@ -694,7 +706,27 @@ function wireActionButtons(actionsHost) {
         // Clear "new" badge on any interaction with this button
         if (actionId) { markActionSeen(actionId, true); }
         const playIcon = e.target.closest('.location-play-icon'); const pauseIcon = e.target.closest('.location-pause-icon'); const stopIcon = e.target.closest('.location-stop-icon');
-        if (playIcon) { e.stopPropagation(); e.preventDefault(); playActionStart(); if (activeActionId === actionId && actionPaused) resumeAction(); else startAction(actionId); return; }
+        if (playIcon) {
+            e.stopPropagation(); e.preventDefault();
+            // If another action is running, queue this one instead of blocking
+            if (activeAction && !activeAction._completed && activeActionId !== actionId) {
+                const loc = getLocation(getCurrentLocationId());
+                const act = loc?.actions?.find(a => a.id === actionId);
+                if (act) {
+                    addToQueue({
+                        actionId: act.id,
+                        locationId: getCurrentLocationId(),
+                        nameKey: act.nameKey,
+                        durationSeconds: act.durationSeconds || 0,
+                    });
+                }
+                return;
+            }
+            playActionStart();
+            if (activeActionId === actionId && actionPaused) resumeAction();
+            else startAction(actionId);
+            return;
+        }
         if (pauseIcon) { e.stopPropagation(); e.preventDefault(); pauseAction(); return; }
         if (stopIcon) { e.stopPropagation(); e.preventDefault(); cancelActiveAction(); return; }
         e.stopPropagation();
@@ -730,7 +762,7 @@ function updateActionButtonsDynamic() {
         const isRunning = activeActionId === actionId && !action._completed; const isSelected = selectedActionId === actionId; const isPaused = isRunning && actionPaused;
         btn.classList.toggle('is-selected', !!isSelected); btn.classList.toggle('is-running', !!isRunning); btn.classList.toggle('is-paused', !!isPaused);
         const cannotAfford = !canAffordAction(action); const otherRunning = !!activeAction && activeActionId !== actionId;
-        btn.disabled = ((otherRunning || cannotAfford) && !isRunning) ? true : false;
+        btn.disabled = (cannotAfford && !isRunning) ? true : false;
         const progBar = btn.querySelector('.location-action-progress');
         if (progBar) { if (isRunning) { const pct = Math.min(100, Math.round((actionProgress / (action.durationSeconds || 1)) * 100)); progBar.style.setProperty('--progress', `${pct}%`); progBar.style.display = ''; } else progBar.style.display = 'none'; }
         const remainingEl = btn.querySelector('.location-action-remaining');
@@ -827,6 +859,19 @@ export function resumeSavedAction(state) {
 if (typeof window !== 'undefined') {
     window.__getActiveActionState = getActiveActionState;
     window.__resumeSavedAction = resumeSavedAction;
+}
+
+/**
+ * Called by queue engine to start a queued action.
+ * Handles location switching if needed.
+ */
+export function startQueuedAction(queueItem) {
+    if (!queueItem) return;
+    // Switch location if queued action is in a different location
+    if (queueItem.locationId && queueItem.locationId !== getCurrentLocationId()) {
+        switchToLocation(queueItem.locationId);
+    }
+    startAction(queueItem.actionId);
 }
 
 export function setupLocationSection(section) {

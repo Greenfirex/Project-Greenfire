@@ -6,7 +6,7 @@ export const scoutShipMainArea = {
     id: 'scout_ship_main_area',
     siteId: 'scout_ship',
     nameKey: 'loc_scout_ship_main_area',
-    image: 'assets/images/localmap/crewquarters.png',
+    image: 'assets/images/localmap/mainarea.png',
     descriptionKey: 'loc_scout_ship_main_area_desc',
     pois: [
         {

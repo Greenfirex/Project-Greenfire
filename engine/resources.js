@@ -1,6 +1,8 @@
 import { formatNumber } from './formatting.js';
 import { setupTooltip } from '../ui/panels/tooltip.js';
 import { t } from '../locales/locales.js';
+import { setupEffectsUI, getEffectDebuffs } from './effects.js';
+import { setupQueueUI } from './queue.js';
 
 const RESOURCE_LOCALE_KEYS = {
     'Health': 'res_health',
@@ -29,6 +31,12 @@ export function getInitialResources() {
 
 export let resources = getInitialResources();
 
+export function roundResourceAmount(resource) {
+    if (resource && Number.isFinite(resource.amount)) {
+        resource.amount = parseFloat(resource.amount.toFixed(2));
+    }
+}
+
 // Active drain rates and their source descriptions for tooltips.
 let _activeDrainRates = null;
 let _activeDrainSources = null; // { resourceName: [{ rate, label }] }
@@ -46,8 +54,7 @@ const RESOURCE_CATEGORIES = {
 };
 
 function getResourceCategoryName(resourceName) {
-    const cat = RESOURCE_CATEGORIES[resourceName] || 'Other';
-    return t('res_category_' + cat.toLowerCase()) || cat;
+    return RESOURCE_CATEGORIES[resourceName] || 'Essential';
 }
 
 function buildResourceTooltipHtml(resourceName) {
@@ -118,14 +125,6 @@ export function computeResourceRates(resourceName) {
         totalProduction += 0.1;
         productionSources.push({ rate: 0.1, label: 'Passive regeneration' });
     }
-    if (resourceName === 'Food Rations') {
-        totalConsumption += 0.1;
-        consumptionSources.push({ rate: 0.1, label: 'Hunger' });
-    }
-    if (resourceName === 'Drinking Water') {
-        totalConsumption += 0.1;
-        consumptionSources.push({ rate: 0.1, label: 'Thirst' });
-    }
 
     // Active drain rates from running action (Stamina costs/gains during actions)
     if (_activeDrainRates && _activeDrainRates[resourceName] !== undefined) {
@@ -168,6 +167,23 @@ export function setupInfoPanel() {
     if (!infoPanelContent) return;
     infoPanelContent.innerHTML = '';
 
+    // Three equal sub-panels
+    const resourcesPanel = document.createElement('div');
+    resourcesPanel.className = 'info-sub-panel';
+    resourcesPanel.id = 'infoResourcesPanel';
+
+    const effectsPanel = document.createElement('div');
+    effectsPanel.className = 'info-sub-panel';
+    effectsPanel.id = 'infoEffectsPanel';
+
+    const queuePanel = document.createElement('div');
+    queuePanel.className = 'info-sub-panel';
+    queuePanel.id = 'infoQueuePanel';
+
+    infoPanelContent.appendChild(resourcesPanel);
+    infoPanelContent.appendChild(effectsPanel);
+    infoPanelContent.appendChild(queuePanel);
+
     const infoSection = document.createElement('div');
     infoSection.className = 'info-section';
 
@@ -187,7 +203,7 @@ export function setupInfoPanel() {
 
         const header = document.createElement('div');
         header.className = 'info-category-header';
-        header.textContent = cat.title;
+        header.textContent = t('res_category_' + cat.id.toLowerCase());
 
         const body = document.createElement('div');
         body.className = 'info-category-body';
@@ -222,8 +238,10 @@ export function setupInfoPanel() {
         (categoryContainers.get(cat) || categoryContainers.get('Other') || infoSection).appendChild(infoRow);
     });
 
-    infoPanelContent.appendChild(infoSection);
+    resourcesPanel.appendChild(infoSection);
     updateResourceCategoryVisibility(infoPanelContent);
+    setupQueueUI(queuePanel);
+    setupEffectsUI(effectsPanel);
 }
 
 function updateResourceCategoryVisibility(root = document) {
@@ -254,7 +272,7 @@ export function updateResourceInfo() {
 
         const rawAmountNum = Number(resource.amount);
         const isZero = !(isFinite(rawAmountNum)) ? false : (rawAmountNum <= 0);
-        const amountDisplay = resource.integer ? Math.floor(resource.amount).toLocaleString() : formatNumber(resource.amount);
+        const amountDisplay = formatNumber(resource.amount, 2);
         const capacityDisplay = Math.floor(resource.capacity).toLocaleString();
 
         storageEl.textContent = `${amountDisplay} / ${capacityDisplay}`;
@@ -307,9 +325,7 @@ export function applyTimePassiveDrain(realSeconds) {
     // Per-minute rates for Food, Water, Health
     resources.forEach(res => {
         let perMinRate = 0;
-        if (res.name === 'Food Rations') perMinRate = -0.1;
-        else if (res.name === 'Drinking Water') perMinRate = -0.1;
-        else if (res.name === 'Health') perMinRate = 0.1;
+        if (res.name === 'Health') perMinRate = 0.1;
 
         // Also apply active drain rates (Stamina from actions)
         if (_activeDrainRates && _activeDrainRates[res.name] !== undefined) {
@@ -317,8 +333,9 @@ export function applyTimePassiveDrain(realSeconds) {
         }
 
         if (perMinRate === 0) return;
-        const delta = perMinRate * realSeconds;
+        const delta = parseFloat((perMinRate * realSeconds).toFixed(10));
         if (delta === 0) return;
         res.amount = Math.max(0, Math.min(res.capacity, res.amount + delta));
+        roundResourceAmount(res);
     });
 }

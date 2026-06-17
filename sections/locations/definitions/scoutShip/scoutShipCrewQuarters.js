@@ -12,7 +12,7 @@ export const scoutShipCrewQuarters = {
         {
             id: 'terminal',
             nameKey: 'poi_terminal',
-            actions: ['check_terminal', 'access_logs']
+            actions: ['check_terminal', 'access_logs', 'disable_alarm']
         },
         {
             id: 'bunks',
@@ -81,6 +81,17 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 0,
             repeatable: true,
             cancellable: true,
+            unlockedBy: 'wake_up'
+        },
+        {
+            id: 'disable_alarm',
+            nameKey: 'action_disable_alarm',
+            descKey: 'action_disable_alarm_desc',
+            drain: [{ resource: 'Stamina', amount: 4 }],
+            durationSeconds: 12,
+            oneTime: true,
+            resultKey: 'result_disable_alarm',
+            removesEffect: 'alarm',
             unlockedBy: 'wake_up'
         },
         {
