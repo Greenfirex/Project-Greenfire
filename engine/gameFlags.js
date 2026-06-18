@@ -3,6 +3,12 @@
 
 const initialGameFlags = {
     firstObjectiveComplete: false,
+    loopCount: 0,
+    // Persistent action progress that survives death loops.
+    // Keys are action IDs, values are seconds of progress accumulated.
+    persistentProgress: {},
+    // Track which loop-stage story popups have been shown (by stage number key).
+    loopStoryShown: {},
     // UI-only persistence: which action/upgrade IDs the player has already seen.
     // Keys are strings like "action:go_to_main_area", "action:check_storage", etc.
     uiSeen: {}

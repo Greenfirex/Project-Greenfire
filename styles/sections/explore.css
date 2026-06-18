@@ -197,6 +197,11 @@
     border: 1px solid rgba(105, 240, 174, 0.35);
     background: rgba(105, 240, 174, 0.06);
 }
+.detail-category-persistent {
+    color: #4da6ff;
+    border: 1px solid rgba(77, 166, 255, 0.35);
+    background: rgba(77, 166, 255, 0.06);
+}
 .detail-category-rest {
     color: #FFD700;
     border: 1px solid rgba(255, 215, 0, 0.35);
@@ -228,9 +233,9 @@
     border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 .detail-section-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.55);
+    color: rgba(255, 255, 255, 0.85);
     margin-bottom: 4px;
     text-transform: uppercase;
     letter-spacing: 0.3px;
@@ -252,27 +257,55 @@
 .detail-cost {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: baseline;
     padding: 2px 0;
+    gap: 0;
 }
 .detail-cost-label {
     font-weight: 600;
-    margin-right: 8px;
+    margin-right: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.detail-cost-dots {
+    flex: 1 1 auto;
+    min-width: 8px;
+    height: 12px;
+    overflow: hidden;
+    align-self: baseline;
+    border-bottom: 1px dotted rgba(255, 255, 255, 0.22);
+    margin: 0 4px;
+}
+.detail-cost-right {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 .detail-cost-remain {
-    flex: 1;
+    font-weight: 700;
+    font-size: 12px;
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
 }
 .detail-cost-rate {
     font-size: 11px;
-    opacity: 0.7;
+    font-weight: 600;
+    opacity: 1;
     white-space: nowrap;
 }
 .detail-cost-stamina { color: #FFD700; }
 .detail-cost-stamina .detail-cost-label { color: #FFD700; }
+.detail-cost-stamina .detail-cost-remain { text-shadow: 0 0 8px rgba(255, 215, 0, 0.3), 0 0 2px rgba(0,0,0,0.6); }
 .detail-cost-food { color: #FF8C42; }
 .detail-cost-food .detail-cost-label { color: #FF8C42; }
+.detail-cost-food .detail-cost-remain { text-shadow: 0 0 8px rgba(255, 140, 66, 0.3), 0 0 2px rgba(0,0,0,0.6); }
 .detail-cost-water { color: #4FC3F7; }
 .detail-cost-water .detail-cost-label { color: #4FC3F7; }
+.detail-cost-water .detail-cost-remain { text-shadow: 0 0 8px rgba(79, 195, 247, 0.3), 0 0 2px rgba(0,0,0,0.6); }
+.detail-cost-health { color: #e74c3c; }
+.detail-cost-health .detail-cost-label { color: #e74c3c; }
+.detail-cost-health .detail-cost-remain { text-shadow: 0 0 8px rgba(231, 76, 60, 0.3), 0 0 2px rgba(0,0,0,0.6); }
 
 /* Debuffed cost — red warning tint on costs inflated by active effects */
 .detail-cost-debuffed .detail-cost-label { color: #ff6b6b !important; }
@@ -423,20 +456,34 @@
 .tag-repeatable { color: #90EE90; }
 .tag-onetime  { color: #FFD700; }
 
-/* One-time action border tint — subtle golden */
+/* One-time action border tint — golden */
 .location-action-btn.btn-onetime {
-    border-color: rgba(255, 215, 0, 0.25);
+    border-color: rgba(255, 215, 0, 0.35);
+    border-left: 3px solid rgba(255, 215, 0, 0.6);
 }
 .location-action-btn.btn-onetime:hover:not(:disabled) {
-    border-color: rgba(255, 215, 0, 0.5);
+    border-color: rgba(255, 215, 0, 0.55);
+    border-left-color: rgba(255, 215, 0, 0.85);
 }
 
-/* Repeatable action border tint — subtle green */
+/* Repeatable action border tint — green */
 .location-action-btn.btn-repeatable {
-    border-color: rgba(105, 240, 174, 0.25);
+    border-color: rgba(105, 240, 174, 0.30);
+    border-left: 3px solid rgba(105, 240, 174, 0.55);
 }
 .location-action-btn.btn-repeatable:hover:not(:disabled) {
-    border-color: rgba(105, 240, 174, 0.5);
+    border-color: rgba(105, 240, 174, 0.50);
+    border-left-color: rgba(105, 240, 174, 0.80);
+}
+
+/* Persistent action border tint — blue */
+.location-action-btn.btn-persistent {
+    border-color: rgba(77, 166, 255, 0.35);
+    border-left: 3px solid rgba(77, 166, 255, 0.6);
+}
+.location-action-btn.btn-persistent:hover:not(:disabled) {
+    border-color: rgba(77, 166, 255, 0.55);
+    border-left-color: rgba(77, 166, 255, 0.85);
 }
 
 /* Phone-landscape: navigation moves to the left icon rail popover, so hide in-section tabs
@@ -499,7 +546,7 @@ html.is-compact #locationsSection > .content-panel.location-panel {
 
 /* Default (Local map): crash background visible */
 #locationsSection::before {
-    background-image: url('../../assets/images/crashbackground.png');
+    background-image: url('../../assets/images/logo.png');
     opacity: 1;
 }
 

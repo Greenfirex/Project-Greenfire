@@ -3,6 +3,7 @@ import { activatedSections, setActivatedSections, getInitialActivatedSections } 
 import { resetIngameTime, getTotalIngameMinutes, setTotalIngameMinutes } from './time.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { gameFlags, resetGameFlags, applySavedGameFlags } from './gameFlags.js';
+import { getCurrentLocationId, switchToLocation } from '../sections/locations/locationData.js';
 import { storyLog, getInitialStoryLog } from './objectives.js';
 // Legacy activeActions module no longer exists — stubbed out during refactor.
 const resetActiveActions = () => {};
@@ -49,7 +50,8 @@ export function getGameState() {
         activeCrashSiteAction: getActiveCrashSiteAction(),
         activeActionState: (function(){ try { return typeof window.__getActiveActionState === 'function' ? window.__getActiveActionState() : null; } catch { return null; } })(),
         characterState: (function(){ try { return getCharacterStateForSave(); } catch { return null; } })(),
-        objectivesStatus: (function(){ try { return getObjectivesStatus(); } catch { return []; } })()
+        objectivesStatus: (function(){ try { return getObjectivesStatus(); } catch { return []; } })(),
+        currentLocationId: (function(){ try { return getCurrentLocationId(); } catch { return 'scout_ship_crew_quarters'; } })()
     };
 }
 
@@ -131,6 +133,13 @@ export function applyGameState(gameState) {
         if (Array.isArray(gameState.objectivesStatus)) {
             setObjectivesStatus(gameState.objectivesStatus);
             localStorage.setItem('objectivesStatusV1', JSON.stringify(gameState.objectivesStatus));
+        }
+    } catch { /* non-fatal */ }
+
+    // Restore current location
+    try {
+        if (gameState.currentLocationId) {
+            switchToLocation(gameState.currentLocationId);
         }
     } catch { /* non-fatal */ }
 

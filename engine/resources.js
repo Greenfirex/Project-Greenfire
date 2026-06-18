@@ -1,8 +1,13 @@
 import { formatNumber } from './formatting.js';
 import { setupTooltip } from '../ui/panels/tooltip.js';
 import { t } from '../locales/locales.js';
-import { setupEffectsUI, getEffectDebuffs } from './effects.js';
+import { setupEffectsUI, getEffectDebuffs, addEffect, removeEffect, hasEffect, updateEffectsUI, EFFECT_HUNGRY, EFFECT_THIRSTY, EFFECT_EXHAUSTED, clearAllEffects } from './effects.js';
 import { setupQueueUI } from './queue.js';
+import { gameFlags } from './gameFlags.js';
+import { switchToLocation } from '../sections/locations/locationData.js';
+import { clearQueue } from './queue.js';
+import { showStoryPopup } from '../ui/panels/storyPopup.js';
+import { addLogEntry, LogType } from './ingameLog.js';
 
 const RESOURCE_LOCALE_KEYS = {
     'Health': 'res_health',
@@ -64,6 +69,17 @@ const RESOURCE_CATEGORIES = {
 function getResourceCategoryName(resourceName) {
     return RESOURCE_CATEGORIES[resourceName] || 'Essential';
 }
+
+// Per-minute passive rates (no action running)
+const PASSIVE_PER_MIN = {
+    'Health': 0.1,
+    'Stamina': 0,
+    'Food Rations': 0,
+    'Drinking Water': 0,
+};
+
+// Health drain rate when Exhausted (per minute)
+const EXHAUSTED_HEALTH_DRAIN = -1.0;
 
 function buildResourceTooltipHtml(resourceName) {
     const name = String(resourceName || '');
@@ -130,8 +146,11 @@ export function computeResourceRates(resourceName) {
 
     // Passive rates with source labels
     if (resourceName === 'Health') {
-        totalProduction += 0.1;
-        productionSources.push({ rate: 0.1, label: 'Passive regeneration' });
+        // Health only regens if NOT exhausted
+        if (!hasEffect('exhausted')) {
+            totalProduction += 0.1;
+            productionSources.push({ rate: 0.1, label: 'Passive regeneration' });
+        }
     }
 
     // Active drain rates from running action (Stamina costs/gains during actions)
@@ -167,7 +186,7 @@ export function computeResourceRates(resourceName) {
 export function resetResources() {
     const initial = getInitialResources();
     resources.length = 0;
-    initial.forEach(res => resources.push({...res}));
+    initial.forEach(res => resources.push({ ...res }));
 }
 
 export function setupInfoPanel() {
@@ -300,9 +319,14 @@ export function updateResourceInfo() {
         if (!_activeDrainRates) {
             generationEl.textContent = '';
         } else if (Math.abs(netPerMinute) > EPS) {
-            const sign = netPerMinute >= 0 ? '+' : '-';
-            const value = formatNumber(Math.abs(netPerMinute));
-            generationEl.textContent = `${sign}${value}/min`;
+            // Don't show negative drain rate when resource is already depleted
+            if (netPerMinute < 0 && resource.amount <= 0) {
+                generationEl.textContent = '';
+            } else {
+                const sign = netPerMinute >= 0 ? '+' : '-';
+                const value = formatNumber(Math.abs(netPerMinute));
+                generationEl.textContent = `${sign}${value}/min`;
+            }
         } else {
             generationEl.textContent = '';
         }
@@ -323,27 +347,259 @@ export function updateResourceInfo() {
     updateResourceCategoryVisibility(document.getElementById('infoPanelContent') || document);
 }
 
+// ==========================================================================
+// NEW: Cascading Survival System
+// ==========================================================================
+
+/**
+ * Reset all action state across all locations — clears unlocks, completion flags, and repeat counts.
+ * Called on death loop so only wake_up remains available.
+ */
+function resetAllActionState() {
+    try {
+        // Clear all unlock state from localStorage
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('unlocks_')) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+    } catch { /* ignore */ }
+    
+    // Clear completed/one-time flags from all registered location actions
+    try {
+        import('../sections/locations/locationData.js').then(({ getAllLocations }) => {
+            const allLocations = getAllLocations();
+            Object.values(allLocations).forEach(loc => {
+                if (loc && Array.isArray(loc.actions)) {
+                    loc.actions.forEach(action => {
+                        delete action._completed;
+                        delete action._repeatCount;
+                    });
+                }
+            });
+        });
+    } catch { /* ignore */ }
+}
+
+let _deathLoopHandled = false; // prevent re-entry
+
+function getResourceByName(name) {
+    return resources.find(res => res && String(res.name) === String(name));
+}
+
+/**
+ * Update survival effects based on current resource levels.
+ * Hungry = Food ≤ 0, Thirsty = Water ≤ 0, Exhausted = Stamina ≤ 0.
+ */
+function syncSurvivalEffects() {
+    const food = getResourceByName('Food Rations');
+    const water = getResourceByName('Drinking Water');
+    const stamina = getResourceByName('Stamina');
+
+    // Hungry
+    if (food && food.amount <= 0) {
+        if (!hasEffect('hungry')) {
+            addEffect({ ...EFFECT_HUNGRY });
+            addLogEntry(t('log_effect_added', { effect: t('effect_hungry_name') }), LogType.WARNING);
+        }
+    } else {
+        if (hasEffect('hungry')) {
+            removeEffect('hungry');
+        }
+    }
+
+    // Thirsty
+    if (water && water.amount <= 0) {
+        if (!hasEffect('thirsty')) {
+            addEffect({ ...EFFECT_THIRSTY });
+            addLogEntry(t('log_effect_added', { effect: t('effect_thirsty_name') }), LogType.WARNING);
+        }
+    } else {
+        if (hasEffect('thirsty')) {
+            removeEffect('thirsty');
+        }
+    }
+
+    // Exhausted
+    if (stamina && stamina.amount <= 0) {
+        if (!hasEffect('exhausted')) {
+            addEffect({ ...EFFECT_EXHAUSTED });
+            addLogEntry(t('log_effect_added', { effect: t('effect_exhausted_name') }), LogType.WARNING);
+        }
+    } else {
+        if (hasEffect('exhausted')) {
+            removeEffect('exhausted');
+        }
+    }
+}
+
+/**
+ * Handle death and loop reset when Health reaches 0.
+ * Shows a story popup whose content varies by loopCount,
+ * increments the loop counter, and resets all resources to full default values.
+ */
+function handleDeathAndLoop() {
+    if (_deathLoopHandled) return;
+    _deathLoopHandled = true;
+
+    // Cancel any running action (we signal via clearing active drain rates)
+    setActiveDrainRates(null, null);
+    try { window.dispatchEvent(new CustomEvent('force-cancel-action')); } catch { /* ignore */ }
+
+    // Move player back to Crew Quarters and reset all action state
+    try { switchToLocation('scout_ship_crew_quarters'); } catch { /* ignore */ }
+    resetAllActionState();
+
+    // Clear the action queue
+    try { clearQueue(); } catch { /* ignore */ }
+
+    // Increment loop count
+    gameFlags.loopCount = (gameFlags.loopCount || 0) + 1;
+    const loop = gameFlags.loopCount;
+
+    try {
+        const state = JSON.parse(localStorage.getItem('gameState') || '{}');
+        if (!state.gameFlags) state.gameFlags = {};
+        state.gameFlags.loopCount = loop;
+        localStorage.setItem('gameState', JSON.stringify(state));
+    } catch { /* ignore */ }
+
+    addLogEntry(`💀 You have died. Health reached 0.`, LogType.ERROR);
+
+    // Determine story popup content based on loop stage
+    let titleKey, pagesKey;
+    if (loop === 1) {
+        titleKey = 'death_title_1';
+        pagesKey = 'death_pages_1';
+    } else if (loop === 2) {
+        titleKey = 'death_title_2';
+        pagesKey = 'death_pages_2';
+    } else if (loop === 3) {
+        titleKey = 'death_title_3';
+        pagesKey = 'death_pages_3';
+    } else {
+        titleKey = 'death_title_loop';
+        pagesKey = 'death_pages_loop';
+    }
+
+    const title = t(titleKey, { loop });
+    const pagesText = t(pagesKey, { loop });
+    const pages = (pagesText || '').split('\n\n').filter(p => p.trim());
+
+    // Clear all survival effects for the fresh loop
+    clearAllEffects();
+
+    // Reset resources to full defaults
+    resetResources();
+
+    // Show the story popup with a game area pulse animation on close
+    showStoryPopup({
+        id: `death_loop_${loop}`,
+        title,
+        pages,
+        onClose: () => {
+            // Pulse the game area to signal the reset
+            try {
+                const gameArea = document.getElementById('gameArea');
+                if (gameArea) {
+                    gameArea.style.transition = 'opacity 0.3s ease';
+                    gameArea.style.opacity = '0';
+                    setTimeout(() => {
+                        gameArea.style.opacity = '1';
+                    }, 350);
+                }
+            } catch { /* ignore */ }
+        },
+    });
+
+    // Reset the guard after a short delay
+    setTimeout(() => {
+        _deathLoopHandled = false;
+    }, 1000);
+
+    // Force UI refresh
+    try { updateResourceInfo(); } catch { /* ignore */ }
+}
+
 /**
  * Apply passive resource changes driven by time passing,
  * including active drain rates from ongoing actions.
+ * Cascade: Food/Water = 0 → Hungry/Thirsty → Stamina drain ↑
+ *          Stamina = 0 → Exhausted → Health drains
+ *          Health = 0 → Death → Loop reset
  * @param {number} realSeconds — amount of real time that passed
  */
 export function applyTimePassiveDrain(realSeconds) {
     if (!Number.isFinite(realSeconds) || realSeconds <= 0) return;
 
-    // Per-minute rates for Food, Water, Health
+    // First, compute the per-minute base rates for each resource.
+    // This combines passive rates + active drain rates from running actions.
+    const perMinRates = {};
     resources.forEach(res => {
-        let perMinRate = 0;
-        if (res.name === 'Health') perMinRate = 0.1;
+        let perMinRate = PASSIVE_PER_MIN[res.name] || 0;
 
-        // Also apply active drain rates (Stamina from actions)
+        // Active drain rates from running actions
         if (_activeDrainRates && _activeDrainRates[res.name] !== undefined) {
             perMinRate += Number(_activeDrainRates[res.name]);
         }
 
+        // If exhausted, Health drains instead of regens
+        if (res.name === 'Health' && hasEffect('exhausted')) {
+            perMinRate = EXHAUSTED_HEALTH_DRAIN;
+            // Still apply action drain on top if any
+            if (_activeDrainRates && _activeDrainRates['Health'] !== undefined) {
+                perMinRate += Number(_activeDrainRates['Health']);
+            }
+        }
+
+        perMinRates[res.name] = perMinRate;
+    });
+
+    // Apply the delta for the passed time
+    resources.forEach(res => {
+        const perMinRate = perMinRates[res.name] || 0;
         if (perMinRate === 0) return;
         const delta = parseFloat((perMinRate * realSeconds).toFixed(10));
         if (delta === 0) return;
         res.amount = parseFloat(Math.max(0, Math.min(res.capacity, res.amount + delta)).toFixed(10));
     });
+
+    // Sync survival effects based on current resource levels
+    syncSurvivalEffects();
+
+    // Check for death
+    const health = getResourceByName('Health');
+    if (health && health.amount <= 0) {
+        health.amount = 0;
+        if (!_deathLoopHandled) {
+            _deathLoopHandled = true;
+            // Use setTimeout to break out of any interval context safely
+            setTimeout(() => {
+                _deathLoopHandled = false;
+                handleDeathAndLoop();
+            }, 0);
+        }
+    }
+}
+
+// ==========================================================================
+// Expose for external callers (locationEngine, etc.)
+// ==========================================================================
+
+/**
+ * Check if the player has died (health ≤ 0) and trigger loop if so.
+ * Called after action completion to catch death from lump-sum costs.
+ */
+export function checkDeathAndLoop() {
+    const health = getResourceByName('Health');
+    if (!health) return;
+    // Sync effects first in case resources went to 0 from lump-sum costs
+    syncSurvivalEffects();
+    if (health.amount <= 0) {
+        health.amount = 0;
+        handleDeathAndLoop();
+    }
 }

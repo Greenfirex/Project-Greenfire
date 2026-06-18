@@ -1,6 +1,7 @@
 import { saveGameState } from '../../engine/saveload.js';
 import { getIngameTimeString, getTotalIngameMinutes } from '../../engine/time.js';
 import { setupTooltip } from '../panels/tooltip.js';
+import { gameFlags } from '../../engine/gameFlags.js';
 import { getConfirmOnLoad, getConfirmOnReset } from '../../engine/settings.js';
 import { showConfirmPopup } from '../panels/confirmPopup.js';
 import { t } from '../../locales/locales.js';
@@ -290,20 +291,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (clockEl) {
             setupTooltip(clockEl, () => {
                 const timeStr = getIngameTimeString();
-                const total = getTotalIngameMinutes();
-                const elapsed = Math.max(0, Math.floor(total - 60));
-                const d = Math.floor(elapsed / (60 * 24));
-                const h = Math.floor((elapsed % (60 * 24)) / 60);
-                const m = elapsed % 60;
+                const total = Math.max(0, getTotalIngameMinutes());
+                const d = Math.floor(total / (60 * 24));
+                const h = Math.floor((total % (60 * 24)) / 60);
+                const m = total % 60;
+                const loop = (gameFlags && Number.isFinite(gameFlags.loopCount)) ? gameFlags.loopCount : 0;
                 const scale = Number(window.TIME_SCALE || localStorage.getItem('gameTimeScale') || 1) || 1;
-                const minsPerSec = 5 * scale;
-                const hoursPerMin = 5 * scale;
+                const speedText = t('clock_speed', { scale });
+                const loopHtml = loop > 0 ? `<p>${t('clock_loop')}: <strong>${loop}</strong></p>` : '';
                 return `
                     <h4>${t('clock_title')}</h4>
                     <p><strong>${timeStr}</strong></p>
                     <div class="tooltip-section">
                         <p>${t('clock_elapsed')}: <strong>${d}d ${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m</strong></p>
-                        <p class="tooltip-detail">${t('clock_speed', { scale, minsPerSec, hoursPerMin })}</p>
+                        ${loopHtml}
+                        <p class="tooltip-detail">${speedText}</p>
                     </div>
                 `;
             });

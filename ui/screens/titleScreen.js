@@ -361,32 +361,41 @@ async function playNewGameIntroSequence({ onStartGame }) {
         card.style.display = 'none';
     }
 
-    // 3. Initialize the game silently behind the overlay.
-    //    The overlay still covers everything (display:flex, z-index 2147481500),
-    //    so the player cannot interact with action buttons yet.
-    //    But game DOM is now populated — assembly will animate real content.
-    if (typeof onStartGame === 'function') {
-        onStartGame();
-    }
-
-    // Small delay to let sections render before showing popup
-    await new Promise(r => setTimeout(r, 150));
-
-    // 4. Show story popup over the background image (transparentBg so image shows through)
+    // 3. Show story popup over the background image (transparentBg so image shows through)
+    //    Defer the in-game log entry since the log DOM doesn't exist yet.
+    const popupEvent = {
+        id: 'welcome_intro',
+        title: t('popup_welcome_title'),
+        pages: [t('popup_welcome_page1'), t('popup_welcome_page2'), t('popup_welcome_page3')],
+        transparentBg: true,
+        deferLog: true,
+    };
     try {
         const popupMod = await import('../panels/storyPopup.js');
         await new Promise((resolve) => {
-            popupMod.showStoryPopup({
-                id: 'welcome_intro',
-                title: t('popup_welcome_title'),
-                pages: [t('popup_welcome_page1'), t('popup_welcome_page2'), t('popup_welcome_page3')],
-                transparentBg: true,
-                onClose: () => resolve(),
-            });
+            popupEvent.onClose = () => resolve();
+            popupMod.showStoryPopup(popupEvent);
         });
     } catch {
         // If popup fails, still proceed with assembly
     }
+
+    // 4. Initialize the game now that the player has finished reading.
+    if (typeof onStartGame === 'function') {
+        onStartGame();
+    }
+
+    // Log the journal entry now that the game UI (including log) is built
+    if (popupEvent._deferredLogTitle) {
+        try {
+            const { addLogEntry, LogType } = await import('../../engine/ingameLog.js');
+            const { t: translate } = await import('../../locales/locales.js');
+            addLogEntry(translate('log_story_entry', { title: popupEvent._deferredLogTitle }), LogType.STORY);
+        } catch { /* ignore */ }
+    }
+
+    // Small delay to let sections render before assembly
+    await new Promise(r => setTimeout(r, 150));
 
     // 5. Reveal game UI and play assembly
     //    Set inline starting states so elements don't flash visible before animation.

@@ -2,7 +2,7 @@
 // Location Engine
 // ==========================================================================
 
-import { resources, updateResourceInfo, setActiveDrainRates, applyTimePassiveDrain, roundResourceAmount, RESOURCE_EMOJIS } from '../../engine/resources.js';
+import { resources, updateResourceInfo, setActiveDrainRates, applyTimePassiveDrain, roundResourceAmount, RESOURCE_EMOJIS, checkDeathAndLoop } from '../../engine/resources.js';
 import { addLogEntry, LogType } from '../../engine/ingameLog.js';
 import { t } from '../../locales/locales.js';
 import { getCurrentLocationId, switchToLocation, getLocation } from './locationData.js';
@@ -10,11 +10,11 @@ import { advanceIngameTimeBySeconds, getIngameTimeString } from '../../engine/ti
 import { playActionStart } from '../../engine/audio.js';
 import { gameFlags, isActionNew, flagActionAsNew, markActionSeen } from '../../engine/gameFlags.js';
 import { newBadgeHtml, wireClearUiNewBadge } from '../../ui/components/contentNewBadges.js';
-import { getEffectDebuffs, getEffectDebuffDetails, hasEffect, removeEffect } from '../../engine/effects.js';
-import { addToQueue, startNextQueuedAction } from '../../engine/queue.js';
+import { getEffectDebuffs, getEffectDebuffDetails, hasEffect, removeEffect, addEffect } from '../../engine/effects.js';
+import { addToQueue, startNextQueuedAction, updateQueueActive, isInQueue } from '../../engine/queue.js';
 import { setupTooltip } from '../../ui/panels/tooltip.js';
 
-const DEFAULT_DRAIN = { 'Stamina': 0.20, 'Food Rations': 0.10, 'Drinking Water': 0.10 };
+const DEFAULT_DRAIN = { 'Stamina': 0.20, 'Food Rations': 0.08, 'Drinking Water': 0.12 };
 const TAXING_MULT = 2.0;
 
 let activeAction = null;
@@ -23,7 +23,6 @@ let actionTimer = null;
 let actionProgress = 0;
 let selectedActionId = null;
 let actionPaused = false;
-let loopCount = Number(localStorage.getItem('loopCount') || 0);
 let _infoUpdateCounter = 0;
 let _fullRebuildNeeded = true;
 
@@ -52,29 +51,6 @@ function canAffordAction(action) {
         if (totalCost <= 0) continue;
         if (!Number.isFinite(Number(resource.amount)) || Number(resource.amount) < totalCost) return false;
     }
-    return true;
-}
-
-function resetLoopState() {
-    loopCount += 1;
-    try { localStorage.setItem('loopCount', String(loopCount)); } catch { /* ignore */ }
-    const stamina = getResourceByName('Stamina');
-    if (stamina) stamina.amount = Math.max(5, Math.min(stamina.capacity || 20, 12));
-    const food = getResourceByName('Food Rations');
-    if (food) food.amount = Math.max(2, Math.min(food.capacity || 10, 6));
-    const water = getResourceByName('Drinking Water');
-    if (water) water.amount = Math.max(2, Math.min(water.capacity || 10, 6));
-    addLogEntry(t('log_loop_started', { loop: loopCount }), LogType.INFO);
-    _fullRebuildNeeded = true;
-    refreshUI();
-}
-
-function checkLoopTrigger() {
-    const drained = resources.filter(r => r && Number.isFinite(Number(r.amount)) && Number(r.amount) <= 0 && r.name !== 'XP');
-    if (drained.length === 0) return false;
-    const names = drained.map(r => r.name).join(', ');
-    addLogEntry(t('log_loop_triggered', { resources: names }), LogType.ERROR);
-    resetLoopState();
     return true;
 }
 
@@ -133,6 +109,26 @@ function completeActiveAction(opts = {}) {
         addLogEntry(t('log_effect_removed', { effect: t('effect_' + action.removesEffect) }), LogType.SUCCESS);
     }
     
+    // Add effect if this action adds one
+    if (action.addsEffect) {
+        const effectDef = {
+            id: action.addsEffect,
+            nameKey: 'effect_' + action.addsEffect,
+            descKey: 'effect_' + action.addsEffect + '_desc',
+        };
+        // Apply known effect presets
+        if (action.addsEffect === 'alarm') {
+            Object.assign(effectDef, { icon: '🔔', progress: 0, maxProgress: Infinity, debuffs: { staminaCostMultiplier: 1.5 } });
+        }
+        addEffect(effectDef);
+        addLogEntry(t('log_effect_added', { effect: t(effectDef.nameKey) }), LogType.WARNING);
+    }
+    
+    // Clear persistent progress on completion
+    if (action.category === 'persistent' && action.id && gameFlags.persistentProgress) {
+        delete gameFlags.persistentProgress[action.id];
+    }
+    
     if (action.oneTime && !action.repeatable) { action._completed = true; _fullRebuildNeeded = true; }
     if (typeof action.repeatLimit === 'number' && action.repeatLimit > 0) {
         action._repeatCount = (action._repeatCount || 0) + 1;
@@ -160,11 +156,13 @@ function completeActiveAction(opts = {}) {
     const targetLoc = action.targetLocation;
     clearActionTimer();
     activeAction = null; activeActionId = null; actionProgress = 0; actionPaused = false;
-    selectedActionId = null; _infoUpdateCounter = 0; _fullRebuildNeeded = true;
+    // Keep selectedActionId so the details panel persists after completion
+    _infoUpdateCounter = 0; _fullRebuildNeeded = true;
     if (targetLoc && switchToLocation(targetLoc)) addLogEntry(`Arrived at ${t(getLocation(targetLoc)?.nameKey || targetLoc)}.`, LogType.INFO);
+    updateQueueActive(null);
     refreshUI();
     startNextQueuedAction();
-    checkLoopTrigger();
+    try { checkDeathAndLoop(); } catch { /* ignore */ }
 }
 
 /**
@@ -173,6 +171,11 @@ function completeActiveAction(opts = {}) {
 function cancelActiveAction() {
     const action = activeAction;
     if (!action) return;
+    // Save persistent progress before stopping so player can resume later
+    if (action.category === 'persistent' && action.id) {
+        if (!gameFlags.persistentProgress) gameFlags.persistentProgress = {};
+        gameFlags.persistentProgress[action.id] = actionProgress;
+    }
     setActiveDrainRates(null, null);
     addLogEntry(t('log_action_cancelled', { action: action._displayName || t(action.nameKey) }), LogType.INFO);
     try { updateResourceInfo(); } catch { /* ignore */ }
@@ -198,7 +201,7 @@ function startAction(actionId) {
     if (!location) return;
     const action = location.actions.find(a => a.id === actionId);
     if (!action) return;
-    if (!canAffordAction(action)) return;
+    // No affordability gate — player can always attempt actions even when hungry/thirsty/exhausted
     if (activeActionId === actionId && !actionPaused) return;
     // Set drain rates from default action costs (per-minute rates)
     const mult = action.category === 'taxing' ? TAXING_MULT : 1;
@@ -260,7 +263,20 @@ function startAction(actionId) {
         sources[resName].push({ rate: perMin, label: displayName });
     }
     setActiveDrainRates(drainRates, sources);
-    if (activeActionId !== actionId) { activeActionId = actionId; activeAction = action; activeAction._displayName = t(action.nameKey); actionProgress = 0; }
+    // Save old persistent progress before switching to a different action
+    if (activeAction && activeAction.category === 'persistent' && activeAction.id && activeActionId !== actionId) {
+        if (!gameFlags.persistentProgress) gameFlags.persistentProgress = {};
+        gameFlags.persistentProgress[activeAction.id] = actionProgress;
+    }
+    if (activeActionId !== actionId) {
+        activeActionId = actionId; activeAction = action; activeAction._displayName = t(action.nameKey);
+        // Restore persistent progress from previous loops
+        if (action.category === 'persistent' && action.id && gameFlags.persistentProgress) {
+            actionProgress = Number(gameFlags.persistentProgress[action.id]) || 0;
+        } else {
+            actionProgress = 0;
+        }
+    }
     actionPaused = false; _infoUpdateCounter = 0; _fullRebuildNeeded = true; refreshUI();
     const TICK_SECONDS = 0.1; clearActionTimer();
     const isInfinite = !action.durationSeconds || action.durationSeconds <= 0;
@@ -268,11 +284,36 @@ function startAction(actionId) {
         if (!activeAction) { clearActionTimer(); return; }
         if (actionPaused) return;
         const tickSecs = TICK_SECONDS * getGameSpeed();
+        // Recalculate Stamina drain rate to reflect current debuff multipliers
+        if (activeAction && activeAction.category !== 'rest' && activeAction.category !== 'refresh') {
+            const currentDebuffs = getEffectDebuffs();
+            const mult = activeAction.category === 'taxing' ? TAXING_MULT : 1;
+            const newStaminaMult = mult * (currentDebuffs.staminaMultiplier || 1);
+            const newStaminaDrain = -(DEFAULT_DRAIN['Stamina'] * newStaminaMult);
+            // Rebuild food/water drains with current debuff multipliers
+            const foodMult = currentDebuffs.foodMultiplier || 1;
+            const waterMult = currentDebuffs.waterMultiplier || 1;
+            const newDrainRates = {
+                'Stamina': newStaminaDrain,
+                'Food Rations': -(DEFAULT_DRAIN['Food Rations'] * foodMult),
+                'Drinking Water': -(DEFAULT_DRAIN['Drinking Water'] * waterMult),
+            };
+            setActiveDrainRates(newDrainRates, null);
+        }
         actionProgress = parseFloat((actionProgress + tickSecs).toFixed(10));
         advanceIngameTimeBySeconds(tickSecs);
         applyTimePassiveDrain(tickSecs);
         updateClockDisplay();
         updateActionButtonsDynamic();
+        // Update queue panel with live active action progress
+        if (activeAction && !activeAction._completed) {
+            updateQueueActive({
+                id: activeAction.id,
+                nameKey: activeAction.nameKey,
+                progress: actionProgress,
+                durationSeconds: activeAction.durationSeconds || 0,
+            });
+        }
         _infoUpdateCounter++;
         if (_infoUpdateCounter >= 5) { try { updateResourceInfo(); } catch { /* ignore */ } _infoUpdateCounter = 0; }
 
@@ -289,6 +330,12 @@ function startAction(actionId) {
             }
         }
 
+        // Save persistent progress every tick to survive death loops
+        if (activeAction && activeAction.category === 'persistent' && activeAction.id) {
+            if (!gameFlags.persistentProgress) gameFlags.persistentProgress = {};
+            gameFlags.persistentProgress[activeAction.id] = actionProgress;
+        }
+
         // Normal duration-based completion (only for finite actions)
         if (!isInfinite && actionProgress >= (activeAction.durationSeconds || 1)) {
             completeActiveAction();
@@ -296,7 +343,21 @@ function startAction(actionId) {
     }, 100);
 }
 
-function pauseAction() { actionPaused = true; _fullRebuildNeeded = true; refreshUI(); }
+function pauseAction() {
+    // Persistent actions: save progress + release slot so queue can proceed
+    if (activeAction && activeAction.category === 'persistent' && activeAction.id) {
+        if (!gameFlags.persistentProgress) gameFlags.persistentProgress = {};
+        gameFlags.persistentProgress[activeAction.id] = actionProgress;
+        setActiveDrainRates(null, null);
+        clearActionTimer();
+        activeAction = null; activeActionId = null; actionProgress = 0; actionPaused = false;
+        _fullRebuildNeeded = true; refreshUI();
+        updateQueueActive(null);
+        startNextQueuedAction();
+        return;
+    }
+    actionPaused = true; _fullRebuildNeeded = true; refreshUI();
+}
 function resumeAction() { if (!activeAction || activeAction._completed) return; startAction(activeAction.id); }
 
 export function updateLocationActionButtonsState() { refreshUI(); }
@@ -337,6 +398,7 @@ function renderDetailsTile() {
             let catClass = '';
             if (action.category === 'taxing') { catLabel = t('cat_taxing'); catClass = 'detail-category-taxing'; }
             else if (action.category === 'simple') { catLabel = t('cat_simple'); catClass = 'detail-category-simple'; }
+            else if (action.category === 'persistent') { catLabel = t('cat_persistent'); catClass = 'detail-category-persistent'; }
             else if (action.category === 'rest') { catLabel = t('cat_rest'); catClass = 'detail-category-rest'; }
             else if (action.category === 'refresh') { catLabel = t('cat_refresh'); catClass = 'detail-category-refresh'; }
             if (catLabel) tagItems.push(`<span class="detail-category detail-tag ${catClass}">${catLabel}</span>`);
@@ -344,16 +406,25 @@ function renderDetailsTile() {
 
             // Duration
             const isInfiniteAction = !action.durationSeconds || action.durationSeconds <= 0;
+            const isActionRunning = activeActionId === selectedActionId && !action._completed;
+            // Get saved persistent progress (survives death loops and stop/cancel)
+            const savedProgress = (action.category === 'persistent' && action.id && gameFlags.persistentProgress)
+                ? (Number(gameFlags.persistentProgress[action.id]) || 0)
+                : 0;
+            const effectiveTotalSecs = Math.max(1, action.durationSeconds || 0);
+            const effectiveProgress = isActionRunning ? actionProgress : savedProgress;
+            const effectiveRemainingSecs = Math.max(0, effectiveTotalSecs - effectiveProgress);
+            const effectiveProgressPct = effectiveTotalSecs > 0 ? Math.min(100, Math.round((effectiveProgress / effectiveTotalSecs) * 100)) : 0;
+
             let durationHtml = '';
             if (isInfiniteAction) {
                 durationHtml = `<div class="detail-section"><div class="detail-section-label">&#x23F1; ${t('detail_duration')}</div><div class="detail-section-value">${t('action_duration_ongoing')}</div></div>`;
-            } else if (action.durationSeconds > 0) {
-                const durationMins = Math.round(action.durationSeconds || 0);
-                durationHtml = `<div class="detail-section"><div class="detail-section-label">&#x23F1; ${t('detail_duration')}</div><div class="detail-section-value">${t('action_duration_label', { minutes: durationMins })}</div></div>`;
+            } else {
+                const remainingMins = Math.round(effectiveRemainingSecs || 0);
+                durationHtml = `<div class="detail-section"><div class="detail-section-label">&#x23F1; ${t('detail_duration')}</div><div class="detail-section-value">${t('action_duration_label', { minutes: remainingMins })}</div></div>`;
             }
             
             // Costs — resource name + remaining count (dynamic during running)
-            const isActionRunning = activeActionId === selectedActionId && !action._completed;
             const costDurationMins = action.durationSeconds > 0 ? Math.max(1, Math.round(action.durationSeconds || 0)) : 1;
             const mult = action.category === 'taxing' ? TAXING_MULT : 1;
             const isRest = action.category === 'rest';
@@ -375,6 +446,12 @@ function renderDetailsTile() {
                     // Skip resource being gained in costs display
                     if (isRest && resName === 'Stamina') return false;
                     if (isRefresh && resName === 'Drinking Water') return false;
+                    // Hide costs when resource is depleted, but keep Stamina when exhausted (shown as Health)
+                    const r = getResourceByName(resName);
+                    if (r && r.amount <= 0) {
+                        if (resName === 'Stamina' && hasEffect('exhausted')) return true;
+                        return false;
+                    }
                     return true;
                 })
                 .map(([resName, baseRate]) => {
@@ -386,12 +463,19 @@ function renderDetailsTile() {
                     const isDebuffed = rateMultiplier > (resName === 'Stamina' ? mult : 1);
                     const rate = baseRate * rateMultiplier;
                     const totalCost = rate * costDurationMins;
-                    const remain = isActionRunning ? totalCost * (1 - Math.min(1, actionProgress / (action.durationSeconds || 1))) : totalCost;
-                    const emoji = RESOURCE_EMOJIS[resName] || '';
-                    const displayName = emoji ? `${emoji} ${resName}` : resName;
+                    const progressPct = Math.min(1, effectiveProgress / Math.max(1, effectiveTotalSecs));
+                    const remain = totalCost * (1 - progressPct);
+                    
+                    // If exhausted, Stamina cost becomes Health cost
+                    const isExhausted = (resName === 'Stamina' && hasEffect('exhausted'));
+                    const displayResName = isExhausted ? 'Health' : resName;
+                    const emoji = RESOURCE_EMOJIS[displayResName] || '';
+                    const displayName = emoji ? `${emoji} ${displayResName}` : displayResName;
+                    const cssSuffix = isExhausted ? 'health' : (/stamina/i.test(resName) ? 'stamina' : (/food/i.test(resName) ? 'food' : 'water'));
+                    const cssClass = `detail-cost-${cssSuffix}`;
+                    const debuffBadge = isDebuffed ? '<span class="detail-cost-debuff-badge">&#x26A0;</span>' : '';
 
-                    const cssClass = /stamina/i.test(resName) ? 'detail-cost-stamina' : (/food/i.test(resName) ? 'detail-cost-food' : 'detail-cost-water');
-                    return `<div class="detail-cost ${cssClass}${isDebuffed ? ' detail-cost-has-debuff' : ''}"><span class="detail-cost-label">${displayName}</span><span class="detail-cost-remain" data-cost-res="${resName}" data-cost-total="${totalCost.toFixed(2)}">${remain.toFixed(2)}</span><span class="detail-cost-rate${isDebuffed ? ' detail-cost-debuffed-rate' : ''}">[-${rate.toFixed(2)}/min]</span></div>`;
+                    return `<div class="detail-cost ${cssClass}${isDebuffed ? ' detail-cost-debuffed' : ''}"><span class="detail-cost-label">${displayName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-remain" data-cost-res="${resName}" data-cost-total="${totalCost.toFixed(2)}">${remain.toFixed(2)}</span> <span class="detail-cost-rate">[-${rate.toFixed(2)}/min]</span>${debuffBadge}</span></div>`;
                 }).join('');
             const costsHtml = costItems ? `<div class="detail-section"><div class="detail-section-label"><span style="color:#f44336;">&#x2B07;</span> ${t('detail_costs')}</div>${costItems}</div>` : '';
             
@@ -399,7 +483,7 @@ function renderDetailsTile() {
             let gainsHtml = '';
             if (gainResourceName && gainPerSecRate > 0) {
                 const gainCssClass = /stamina/i.test(gainResourceName) ? 'detail-cost-stamina' : (/food/i.test(gainResourceName) ? 'detail-cost-food' : 'detail-cost-water');
-                gainsHtml = `<div class="detail-section"><div class="detail-section-label" style="color:#4caf50;">&#x2B06; ${t('detail_gains')}</div><div class="detail-cost detail-cost-gain ${gainCssClass}"><span class="detail-cost-label">${gainResourceName}</span><span class="detail-cost-rate" style="color:#4caf50;">[+${gainPerSecRate.toFixed(2)}/min]</span></div></div>`;
+                gainsHtml = `<div class="detail-section"><div class="detail-section-label" style="color:#4caf50;">&#x2B06; ${t('detail_gains')}</div><div class="detail-cost detail-cost-gain ${gainCssClass}"><span class="detail-cost-label">${gainResourceName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate" style="color:#4caf50;">[+${gainPerSecRate.toFixed(2)}/min]</span></span></div></div>`;
             }
             
             // Rewards (hidden for rest/refresh since gains show the continuous rate)
@@ -458,7 +542,6 @@ function renderActionsTile(location) {
         const actionId = action.id;
         const isRunning = activeActionId === actionId && !action._completed;
         const isSelected = selectedActionId === actionId;
-        const isPaused = isRunning && actionPaused;
         const pct = isRunning ? Math.min(100, Math.round((actionProgress / (action.durationSeconds || 1)) * 100)) : 0;
         const durationMins = Math.round(action.durationSeconds || 0);
         const cannotAfford = !canAffordAction(action);
@@ -470,10 +553,9 @@ function renderActionsTile(location) {
         const durationLabel = durationMins > 0 ? `<span class="location-action-btn-cost drain-time">&#x23F1; ${durationMins}m</span>` : (isInfiniteAction ? `<span class="location-action-btn-cost drain-time">&#x221E;</span>` : '');
     let playPauseHtml = '';
     if (!isRunning) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;
-    else if (isPaused) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;
-    else if (isRunning && !isPaused) playPauseHtml = `<span class="location-pause-icon" data-action-pause="${actionId}">&#9208;</span>`;
+    else playPauseHtml = `<span class="location-pause-icon" data-action-pause="${actionId}">&#9208;</span>`;
     // Stop button for cancellable running actions (default: cancellable unless explicitly false)
-    if (isRunning && action.cancellable !== false) {
+    if (isRunning && action.cancellable !== false && action.category !== 'persistent') {
         playPauseHtml += `<span class="location-stop-icon" data-action-stop="${actionId}">&#9209;</span>`;
     }
     let progressHtml = '';
@@ -484,8 +566,8 @@ function renderActionsTile(location) {
         progressHtml = `<span class="location-action-ongoing">${t('action_progress_ongoing')}</span>`;
     }
         const costsRowHtml = durationLabel ? `<span class="location-action-costs-row">${durationLabel}</span>` : '';
-        const disabled = cannotAfford && !isRunning;
-        return `<button type="button" class="location-action-btn${isSelected ? ' is-selected' : ''}${isRunning ? ' is-running' : ''}${isPaused ? ' is-paused' : ''}${action.oneTime && !action.repeatable ? ' btn-onetime' : ''}${action.repeatable ? ' btn-repeatable' : ''}" data-action-id="${actionId}"${disabled ? ' disabled' : ''}><span class="location-action-btn-name">${tagHtml}${t(action.nameKey)}</span>${costsRowHtml}${progressHtml}${playPauseHtml}</button>`;
+        // Actions are never disabled — player can always attempt them even when exhausted
+        return `<button type="button" class="location-action-btn${isSelected ? ' is-selected' : ''}${isRunning ? ' is-running' : ''}${action.oneTime && !action.repeatable ? ' btn-onetime' : ''}${action.repeatable ? ' btn-repeatable' : ''}${action.category === 'persistent' ? ' btn-persistent' : ''}" data-action-id="${actionId}"><span class="location-action-btn-name">${tagHtml}${t(action.nameKey)}</span>${costsRowHtml}${progressHtml}${playPauseHtml}</button>`;
     }).join('');
     return `<div class="location-card location-card-actions"><div class="location-card-header"><h3>${t('crash_actions')}</h3></div><div class="location-actions-list">${buttons}</div></div>`;
 }
@@ -587,7 +669,6 @@ function renderActionButton(action) {
     const actionId = action.id;
     const isRunning = activeActionId === actionId && !action._completed;
     const isSelected = selectedActionId === actionId;
-    const isPaused = isRunning && actionPaused;
     const pct = isRunning ? Math.min(100, Math.round((actionProgress / (action.durationSeconds || 1)) * 100)) : 0;
     const durationMins = Math.round(action.durationSeconds || 0);
     const cannotAfford = !canAffordAction(action);
@@ -599,24 +680,30 @@ function renderActionButton(action) {
     const durationLabel = durationMins > 0 ? `<span class="location-action-btn-cost drain-time">&#x23F1; ${durationMins}m</span>` : (isInfiniteAction ? `<span class="location-action-btn-cost drain-time">&#x221E;</span>` : '');
     let playPauseHtml = '';
     if (!isRunning) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;
-    else if (isPaused) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;
-    else if (isRunning && !isPaused) playPauseHtml = `<span class="location-pause-icon" data-action-pause="${actionId}">&#9208;</span>`;
-    // Stop button for cancellable running actions (default: cancellable unless explicitly false)
-    if (isRunning && action.cancellable !== false) {
+    else playPauseHtml = `<span class="location-pause-icon" data-action-pause="${actionId}">&#9208;</span>`;
+    // Stop button for cancellable running actions (persistent actions hide stop — pause saves progress)
+    if (isRunning && action.cancellable !== false && action.category !== 'persistent') {
         playPauseHtml += `<span class="location-stop-icon" data-action-stop="${actionId}">&#9209;</span>`;
     }
+    // Saved persistent progress for progress bar even when not running
+    const savedPersistentProgress = (action.category === 'persistent' && action.id && gameFlags.persistentProgress)
+        ? (Number(gameFlags.persistentProgress[action.id]) || 0)
+        : 0;
     let progressHtml = '';
     if (isRunning && !isInfiniteAction) {
         const remaining = Math.max(0, (action.durationSeconds || 1) - actionProgress);
         progressHtml = `<div class="location-action-progress" style="--progress:${pct}%"></div><span class="location-action-remaining">${remaining.toFixed(1)}s</span>`;
     } else if (isRunning && isInfiniteAction) {
         progressHtml = `<span class="location-action-ongoing">${t('action_progress_ongoing')}</span>`;
+    } else if (!isRunning && savedPersistentProgress > 0 && !isInfiniteAction) {
+        const savedPct = Math.min(100, Math.round((savedPersistentProgress / (action.durationSeconds || 1)) * 100));
+        const remaining = Math.max(0, (action.durationSeconds || 1) - savedPersistentProgress);
+        progressHtml = `<div class="location-action-progress" style="--progress:${savedPct}%"></div><span class="location-action-remaining">${remaining.toFixed(1)}s</span>`;
     }
     const costsRowHtml = durationLabel ? `<span class="location-action-costs-row">${durationLabel}</span>` : '';
-    const disabled = cannotAfford && !isRunning;
     // Show "!" badge if action is newly unlocked and not yet seen by the player
     const showNewBadge = isActionNew(actionId);
-    return `<button type="button" class="location-action-btn${isSelected ? ' is-selected' : ''}${isRunning ? ' is-running' : ''}${isPaused ? ' is-paused' : ''}${action.oneTime && !action.repeatable ? ' btn-onetime' : ''}${action.repeatable ? ' btn-repeatable' : ''}${showNewBadge ? ' has-new-badge' : ''}" data-action-id="${actionId}"${disabled ? ' disabled' : ''}>${newBadgeHtml(showNewBadge)}<span class="location-action-btn-name">${tagHtml}${t(action.nameKey)}</span>${costsRowHtml}${progressHtml}${playPauseHtml}</button>`;
+    return `<button type="button" class="location-action-btn${isSelected ? ' is-selected' : ''}${isRunning ? ' is-running' : ''}${action.oneTime && !action.repeatable ? ' btn-onetime' : ''}${action.repeatable ? ' btn-repeatable' : ''}${action.category === 'persistent' ? ' btn-persistent' : ''}${showNewBadge ? ' has-new-badge' : ''}" data-action-id="${actionId}">${newBadgeHtml(showNewBadge)}<span class="location-action-btn-name">${tagHtml}${t(action.nameKey)}</span>${costsRowHtml}${progressHtml}${playPauseHtml}</button>`;
 }
 
 function getPoiCollapseState(locationId) {
@@ -665,8 +752,8 @@ function drainCostHtml(d) {
 }
 
 function wireDebuffTooltips(detailsHost) {
-    detailsHost.querySelectorAll('.detail-cost-debuffed-rate').forEach(span => {
-        setupTooltip(span, () => {
+    detailsHost.querySelectorAll('.detail-cost-debuff-badge').forEach(badge => {
+        setupTooltip(badge, () => {
             const details = getEffectDebuffDetails();
             if (!details.length) return '<p>No active debuffs.</p>';
             let html = '<h4>Active Debuffs</h4>';
@@ -740,6 +827,12 @@ function wireActionButtons(actionsHost) {
                 const loc = getLocation(getCurrentLocationId());
                 const act = loc?.actions?.find(a => a.id === actionId);
                 if (act) {
+                    // Don't queue one-time actions more than once — just select to review
+                    if (act.oneTime && isInQueue(actionId)) {
+                        selectedActionId = actionId;
+                        _fullRebuildNeeded = true; refreshUI();
+                        return;
+                    }
                     addToQueue({
                         actionId: act.id,
                         locationId: getCurrentLocationId(),
@@ -786,17 +879,35 @@ function updateActionButtonsDynamic() {
     
     actionsHost.querySelectorAll('.location-action-btn').forEach(btn => {
         const actionId = btn.dataset.actionId; const action = location.actions.find(a => a.id === actionId); if (!action) return;
-        const isRunning = activeActionId === actionId && !action._completed; const isSelected = selectedActionId === actionId; const isPaused = isRunning && actionPaused;
-        btn.classList.toggle('is-selected', !!isSelected); btn.classList.toggle('is-running', !!isRunning); btn.classList.toggle('is-paused', !!isPaused);
+        const isRunning = activeActionId === actionId && !action._completed; const isSelected = selectedActionId === actionId;
+        btn.classList.toggle('is-selected', !!isSelected); btn.classList.toggle('is-running', !!isRunning);
         const cannotAfford = !canAffordAction(action); const otherRunning = !!activeAction && activeActionId !== actionId;
-        btn.disabled = (cannotAfford && !isRunning) ? true : false;
+        // Buttons stay enabled — player can always attempt actions
         const progBar = btn.querySelector('.location-action-progress');
-        if (progBar) { if (isRunning) { const pct = Math.min(100, Math.round((actionProgress / (action.durationSeconds || 1)) * 100)); progBar.style.setProperty('--progress', `${pct}%`); progBar.style.display = ''; } else progBar.style.display = 'none'; }
+        if (progBar) {
+            if (isRunning) {
+                const pct = Math.min(100, Math.round((actionProgress / (action.durationSeconds || 1)) * 100));
+                progBar.style.setProperty('--progress', `${pct}%`);
+                progBar.style.display = '';
+            } else {
+                // Keep visible for persistent actions with saved progress
+                const savedProgress = (action.category === 'persistent' && action.id && gameFlags.persistentProgress)
+                    ? (Number(gameFlags.persistentProgress[action.id]) || 0)
+                    : 0;
+                if (savedProgress > 0) {
+                    const savedPct = Math.min(100, Math.round((savedProgress / (action.durationSeconds || 1)) * 100));
+                    progBar.style.setProperty('--progress', `${savedPct}%`);
+                    progBar.style.display = '';
+                } else {
+                    progBar.style.display = 'none';
+                }
+            }
+        }
         const remainingEl = btn.querySelector('.location-action-remaining');
         if (remainingEl) { if (isRunning) { const remaining = Math.max(0, (action.durationSeconds || 1) - actionProgress); remainingEl.textContent = `${remaining.toFixed(1)}s`; remainingEl.style.display = ''; } else remainingEl.style.display = 'none'; }
         const playIcon = btn.querySelector('.location-play-icon'); const pauseIcon = btn.querySelector('.location-pause-icon');
-        if (playIcon) { const show = !isRunning || isPaused; playIcon.style.display = show ? '' : 'none'; }
-        if (pauseIcon) pauseIcon.style.display = (isRunning && !isPaused) ? '' : 'none';
+        if (playIcon) { const show = !isRunning; playIcon.style.display = show ? '' : 'none'; }
+        if (pauseIcon) pauseIcon.style.display = isRunning ? '' : 'none';
     });
 }
 
@@ -881,6 +992,21 @@ export function resumeSavedAction(state) {
     _fullRebuildNeeded = true;
     refreshUI();
 }
+
+// Listen for death-loop cancellation
+try {
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        window.addEventListener('force-cancel-action', () => {
+            if (activeAction) {
+                setActiveDrainRates(null, null);
+                clearActionTimer();
+                activeAction = null; activeActionId = null; actionProgress = 0; actionPaused = false;
+                _fullRebuildNeeded = true;
+                try { refreshUI(); } catch { /* ignore */ }
+            }
+        });
+    }
+} catch { /* ignore */ }
 
 // Expose for save/load system (avoids circular imports)
 if (typeof window !== 'undefined') {

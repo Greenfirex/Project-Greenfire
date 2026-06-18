@@ -3,12 +3,10 @@
 // Archives entries to journal via addJournalEntry()
 
 import { addJournalEntry } from '../../sections/journal/journal.js';
-import { getIsPaused, pauseGame, resumeGame } from '../chrome/footer.js';
 import { getIngameTimeObject } from '../../engine/time.js';
 import { addLogEntry, LogType } from '../../engine/ingameLog.js';
 
 let activeStoryEvent = null;
-let pausedByThisStoryPopup = false;
 let _popupEscHandler = null;
 
 function attachPopupEscHandler(overlayEl) {
@@ -71,14 +69,7 @@ export function showStoryPopup(event) {
 
     activeStoryEvent = event;
 
-    // Pause while the player reads
-    try {
-        pausedByThisStoryPopup = false;
-        if (!getIsPaused()) {
-            pauseGame(false);
-            pausedByThisStoryPopup = true;
-        }
-    } catch { /* non-fatal */ }
+    // Game time only advances during actions — no need to pause for popups
 
     // Ensure popup lives directly under body
     if (overlayEl.parentElement !== document.body) {
@@ -128,7 +119,12 @@ export function showStoryPopup(event) {
 
     if (!existing) {
         addJournalEntry(entry);
-        addLogEntry(`New journal entry: ${entry.title}`, LogType.STORY);
+        if (event.deferLog) {
+            // Store the title so the caller can log it after UI is ready
+            event._deferredLogTitle = entry.title;
+        } else {
+            addLogEntry(t('log_story_entry', { title: entry.title }), LogType.STORY);
+        }
     }
 }
 
@@ -146,12 +142,6 @@ export function hideStoryPopup() {
     activeStoryEvent = null;
     try { window.dispatchEvent(new CustomEvent('popup-close')); } catch { /* ignore */ }
 
-    try {
-        if (pausedByThisStoryPopup && getIsPaused()) {
-            resumeGame(false);
-        }
-    } catch { /* non-fatal */ }
-    pausedByThisStoryPopup = false;
 
     // Fire the onClose callback if one was provided
     if (typeof onClose === 'function') {

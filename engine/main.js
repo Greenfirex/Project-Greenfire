@@ -10,7 +10,7 @@ import { initTimeManager } from './time.js';
 import { loadGameState, resetToDefaultState, saveGameState } from './saveload.js';
 import { initOptions, setGlowColor, setGlowIntensity, shouldRunInBackground } from './settings.js';
 import { recomputeObjectives } from './objectives.js';
-import { initFooter, getIsPaused, registerMainLoopCallbacks } from '../ui/chrome/footer.js';
+import { initFooter, registerMainLoopCallbacks } from '../ui/chrome/footer.js';
 import { initTitleScreen, showTitleScreen, hideTitleScreen } from '../ui/screens/titleScreen.js';
 import '../ui/chrome/header.js';
 import '../ui/mobile/compactMode.js';
@@ -259,7 +259,6 @@ function startGame({ mode = 'continue' } = {}) {
                 window.dispatchEvent(new CustomEvent('game-pause', { detail: { showOverlay: false, source: 'visibility' } }));
             }
         } else if (document.visibilityState === 'visible') {
-            if (getIsPaused()) return;
             startMainLoop();
             startAutosave();
             window.dispatchEvent(new CustomEvent('game-resume', { detail: { source: 'visibility' } }));
@@ -269,7 +268,7 @@ function startGame({ mode = 'continue' } = {}) {
     registerMainLoopCallbacks(startMainLoop, stopMainLoop);
     initFooter();
 
-    if (!getIsPaused()) startMainLoop();
+    startMainLoop();
     startAutosave();
 
     // Panel activation is now part of the assembly animation (playPowerOnAssembly).

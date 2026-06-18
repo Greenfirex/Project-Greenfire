@@ -17,7 +17,7 @@ export const scoutShipCrewQuarters = {
         {
             id: 'bunks',
             nameKey: 'poi_bunks',
-            actions: ['wake_up', 'search_bunks', 'rest']
+            actions: ['wake_up', 'search_bunks', 'rest', 'read_book']
         },
         {
             id: 'storage',
@@ -39,7 +39,8 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 5,
             oneTime: true,
             resultKey: 'result_wake_up',
-            unlocksAll: true
+            unlocksAll: true,
+            addsEffect: 'alarm'
         },
         {
             id: 'check_terminal',
@@ -102,6 +103,17 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 12,
             oneTime: true,
             resultKey: 'result_check_storage',
+            unlockedBy: 'wake_up'
+        },
+        {
+            id: 'read_book',
+            nameKey: 'action_read_book',
+            descKey: 'action_read_book_desc',
+            category: 'persistent',
+            drain: [],
+            durationSeconds: 180,
+            oneTime: true,
+            resultKey: 'result_read_book',
             unlockedBy: 'wake_up'
         },
         {

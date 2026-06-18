@@ -1,5 +1,11 @@
 {
   "effects_title": "Aktivní Efekty",
   "effect_alarm": "Nouzový Alarm",
-  "effect_alarm_desc": "Lodní alarm vyje — hluk je dezorientující a ztěžuje akce. Zkontroluj terminál a vypni alarm pro obnovení normálních podmínek."
+  "effect_alarm_desc": "Lodní alarm vyje — hluk je dezorientující a ztěžuje akce. Zkontroluj terminál a vypni alarm pro obnovení normálních podmínek.",
+  "effect_hungry_name": "Hladový",
+  "effect_hungry_desc": "Tvé zásoby jídla jsou vyčerpány. Náklady na výdrž jsou drasticky zvýšeny.",
+  "effect_thirsty_name": "Žíznivý",
+  "effect_thirsty_desc": "Nemáš žádnou pitnou vodu. Náklady na výdrž jsou výrazně zvýšeny.",
+  "effect_exhausted_name": "Vyčerpaný",
+  "effect_exhausted_desc": "Zcela bez energie. Tvé zdraví se nyní zhoršuje."
 }

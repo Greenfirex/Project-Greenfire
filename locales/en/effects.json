@@ -1,5 +1,11 @@
 {
   "effects_title": "Active Effects",
   "effect_alarm": "Emergency Alarm",
-  "effect_alarm_desc": "The ship's alarm is blaring — the noise is disorienting and makes actions harder. Check the terminal and disable the alarm to restore normal conditions."
+  "effect_alarm_desc": "The ship's alarm is blaring — the noise is disorienting and makes actions harder. Check the terminal and disable the alarm to restore normal conditions.",
+  "effect_hungry_name": "Hungry",
+  "effect_hungry_desc": "Your food supplies are depleted. Stamina costs are drastically increased.",
+  "effect_thirsty_name": "Thirsty",
+  "effect_thirsty_desc": "You have no drinking water left. Stamina costs are severely increased.",
+  "effect_exhausted_name": "Exhausted",
+  "effect_exhausted_desc": "Completely drained of energy. Your health is now deteriorating."
 }

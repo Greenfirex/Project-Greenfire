@@ -10,6 +10,31 @@ import { addLogEntry, LogType } from './ingameLog.js';
 
 export let activeEffects = [];
 
+// Predefined survival effect definitions
+export const EFFECT_HUNGRY = {
+    id: 'hungry',
+    nameKey: 'effect_hungry_name',
+    descKey: 'effect_hungry_desc',
+    icon: '🥩',
+    debuffs: { staminaCostMultiplier: 3 },
+};
+
+export const EFFECT_THIRSTY = {
+    id: 'thirsty',
+    nameKey: 'effect_thirsty_name',
+    descKey: 'effect_thirsty_desc',
+    icon: '💧',
+    debuffs: { staminaCostMultiplier: 4 },
+};
+
+export const EFFECT_EXHAUSTED = {
+    id: 'exhausted',
+    nameKey: 'effect_exhausted_name',
+    descKey: 'effect_exhausted_desc',
+    icon: '😵',
+    debuffs: {},
+};
+
 /**
  * Add a new effect. Ignored if an effect with the same id already exists.
  * @param {{ id: string, nameKey: string, descKey: string, icon?: string, 
@@ -146,13 +171,12 @@ export function updateEffectsUI() {
     const body = _effectsHost.querySelector('.effects-body');
     if (!body) return;
     
+    _effectsHost.classList.remove('hidden');
+    
     if (activeEffects.length === 0) {
-        _effectsHost.classList.add('hidden');
-        body.innerHTML = '';
+        body.innerHTML = `<div class="effect-empty">${t('effects_empty')}</div>`;
         return;
     }
-    
-    _effectsHost.classList.remove('hidden');
     
     body.innerHTML = activeEffects.map(effect => {
         const name = t(effect.nameKey);
@@ -200,20 +224,6 @@ export function updateEffectsUI() {
  */
 export function initEffects() {
     clearAllEffects();
-    // Delay the alarm effect so it pops out visibly after the game UI is fully presented
-    setTimeout(() => {
-        addEffect({
-            id: 'alarm',
-            nameKey: 'effect_alarm',
-            descKey: 'effect_alarm_desc',
-            icon: '🔔',
-            progress: 0,
-            maxProgress: Infinity,
-            debuffs: { staminaCostMultiplier: 1.5 },
-        });
-        try {
-            const name = t('effect_alarm');
-            addLogEntry(`⚠ ${name} is active! Stamina costs increased.`, LogType.WARNING);
-        } catch { /* ignore */ }
-    }, 4000);
+    // Alarm is now triggered by completing the "wake_up" action (addsEffect: 'alarm')
+    // via completeActiveAction in locationEngine.js
 }
