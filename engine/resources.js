@@ -8,6 +8,9 @@ import { switchToLocation } from '../sections/locations/locationData.js';
 import { clearQueue } from './queue.js';
 import { showStoryPopup } from '../ui/panels/storyPopup.js';
 import { addLogEntry, LogType } from './ingameLog.js';
+import { getAutoConsumeSettings, countItemInBag } from '../sections/character/character.js';
+import { resetCharacterState } from '../sections/character/character.js';
+import { getItemDefinition } from '../sections/character/items.js';
 
 const RESOURCE_LOCALE_KEYS = {
     'Health': 'res_health',
@@ -449,8 +452,6 @@ function handleDeathAndLoop() {
     setActiveDrainRates(null, null);
     try { window.dispatchEvent(new CustomEvent('force-cancel-action')); } catch { /* ignore */ }
 
-    // Move player back to Crew Quarters and reset all action state
-    try { switchToLocation('scout_ship_crew_quarters'); } catch { /* ignore */ }
     resetAllActionState();
 
     // Clear the action queue
@@ -492,8 +493,12 @@ function handleDeathAndLoop() {
     // Clear all survival effects for the fresh loop
     clearAllEffects();
 
-    // Reset resources to full defaults
+    // Reset resources and character inventory to full defaults
     resetResources();
+    resetCharacterState();
+
+    // Move player back to Crew Quarters
+    switchToLocation('scout_ship_crew_quarters');
 
     // Show the story popup with a game area pulse animation on close
     showStoryPopup({
@@ -532,6 +537,58 @@ function handleDeathAndLoop() {
  *          Health = 0 → Death → Loop reset
  * @param {number} realSeconds — amount of real time that passed
  */
+const AUTO_CONSUME_THRESHOLD_PCT = 0.25; // 25% of capacity
+
+function tickAutoConsume() {
+    try {
+        const autoSettings = getAutoConsumeSettings();
+        const waterRes = getResourceByName('Drinking Water');
+        const foodRes = getResourceByName('Food Rations');
+        
+        // Auto-drink bottled_water when below 25%
+        if (autoSettings.bottled_water && waterRes) {
+            const threshold = waterRes.capacity * AUTO_CONSUME_THRESHOLD_PCT;
+            if (waterRes.amount >= 0 && waterRes.amount < threshold) {
+                const count = countItemInBag('bottled_water');
+                if (count > 0) {
+                    const def = getItemDefinition('bottled_water');
+                    if (def && def.consumable && def.consumable.amount) {
+                        // Dynamically import to avoid circular dependency at module init
+                        import('../sections/character/character.js').then(({ consumeItemQuantityFromBag }) => {
+                            if (consumeItemQuantityFromBag('bottled_water', 1)) {
+                                waterRes.amount = Math.min(waterRes.capacity, waterRes.amount + def.consumable.amount);
+                                addLogEntry(`Auto-drink: Used Bottled Water (+${def.consumable.amount} Water)`, LogType.INFO);
+                            }
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Auto-eat packaged_food when below 25%
+        if (autoSettings.packaged_food && foodRes) {
+            const threshold = foodRes.capacity * AUTO_CONSUME_THRESHOLD_PCT;
+            if (foodRes.amount >= 0 && foodRes.amount < threshold) {
+                const count = countItemInBag('packaged_food');
+                if (count > 0) {
+                    const def = getItemDefinition('packaged_food');
+                    if (def && def.consumable && def.consumable.amount) {
+                        import('../sections/character/character.js').then(({ consumeItemQuantityFromBag }) => {
+                            if (consumeItemQuantityFromBag('packaged_food', 1)) {
+                                foodRes.amount = Math.min(foodRes.capacity, foodRes.amount + def.consumable.amount);
+                                addLogEntry(`Auto-eat: Used Packaged Food (+${def.consumable.amount} Food)`, LogType.INFO);
+                            }
+                        });
+                    }
+                }
+            }
+        }
+    } catch { /* ignore */ }
+}
+
+// Throttle auto-consume to once per 10 seconds
+let _lastAutoConsumeTick = 0;
+
 export function applyTimePassiveDrain(realSeconds) {
     if (!Number.isFinite(realSeconds) || realSeconds <= 0) return;
 
@@ -567,6 +624,13 @@ export function applyTimePassiveDrain(realSeconds) {
         res.amount = parseFloat(Math.max(0, Math.min(res.capacity, res.amount + delta)).toFixed(10));
     });
 
+    // Auto-consume supplies (throttled to once per 10s)
+    const now = Date.now();
+    if (now - _lastAutoConsumeTick > 10000) {
+        _lastAutoConsumeTick = now;
+        tickAutoConsume();
+    }
+    
     // Sync survival effects based on current resource levels
     syncSurvivalEffects();
 

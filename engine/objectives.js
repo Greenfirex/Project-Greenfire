@@ -9,6 +9,7 @@ import { gameFlags } from './gameFlags.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { getTotalIngameMinutes } from './time.js';
 import { t } from '../locales/locales.js';
+import { getLocation } from '../sections/locations/locationData.js';
 
 const STORAGE_KEY = 'objectivesStatusV1';
 const TRACKED_KEY = 'trackedObjectiveV1';
@@ -40,24 +41,38 @@ const defs = [
         reward: [{ resource: 'XP', amount: 50 }],
         priority: 1,
         steps: () => {
+            const loc = getLocation('scout_ship_crew_quarters');
+            const findAction = (id) => loc?.actions?.find(a => a.id === id);
             const steps = [];
-            // Step 1: Open the Journal to read objectives
+            // Step 1: Wake up and assess your surroundings
             steps.push({
-                id: 'open_journal',
+                id: 'step_wake_up',
                 label: t('obj_first_steps_step1'),
-                done: false, // This is informational - no flag tracking yet
+                done: !!(findAction('wake_up')?._completed),
             });
-            // Step 2: Check the Crash Site section
+            // Step 2: Disable the blaring alarm (optional)
             steps.push({
-                id: 'check_crash_site',
+                id: 'step_disable_alarm',
                 label: t('obj_first_steps_step2'),
-                done: false,
+                done: !!(findAction('disable_alarm')?._completed),
             });
-            // Step 3: Review resources in info panel
+            // Step 3: Check the terminal for ship status
             steps.push({
-                id: 'review_resources',
+                id: 'step_check_terminal',
                 label: t('obj_first_steps_step3'),
-                done: false,
+                done: !!(findAction('check_terminal')?._completed),
+            });
+            // Step 4: Search the storage locker for supplies
+            steps.push({
+                id: 'step_check_storage',
+                label: t('obj_first_steps_step4'),
+                done: !!(findAction('check_storage')?._completed),
+            });
+            // Step 5: Find your way to the bridge
+            steps.push({
+                id: 'step_visit_bridge',
+                label: t('obj_first_steps_step5'),
+                done: false, // temp placeholder
             });
             return steps;
         }

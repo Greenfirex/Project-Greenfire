@@ -106,20 +106,27 @@ body.log-timestamps-on .log-entry::before {
     filter: brightness(1.5);
 }
 
-/* Custom Scrollbar, now applied to #logContent */
-#logContent::-webkit-scrollbar {
+/* Reusable game scrollbar — applies to log content, info sub-panels (effects/queue), and any element with .game-scrollbar class */
+#logContent::-webkit-scrollbar,
+.info-sub-panel::-webkit-scrollbar,
+.game-scrollbar::-webkit-scrollbar {
     width: 12px;
 }
-#logContent::-webkit-scrollbar-track {
+#logContent::-webkit-scrollbar-track,
+.info-sub-panel::-webkit-scrollbar-track,
+.game-scrollbar::-webkit-scrollbar-track {
     background: #111;
 }
-#logContent::-webkit-scrollbar-thumb {
-    /* Use the CSS variable for your glow color */
+#logContent::-webkit-scrollbar-thumb,
+.info-sub-panel::-webkit-scrollbar-thumb,
+.game-scrollbar::-webkit-scrollbar-thumb {
     background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
     border-radius: 6px;
     border: 3px solid #111;
 }
-#logContent::-webkit-scrollbar-thumb:hover {
+#logContent::-webkit-scrollbar-thumb:hover,
+.info-sub-panel::-webkit-scrollbar-thumb:hover,
+.game-scrollbar::-webkit-scrollbar-thumb:hover {
     background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
 }
 

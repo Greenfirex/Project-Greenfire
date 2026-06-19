@@ -1,49 +1,45 @@
-// Minimal consumables module for the timeloop reset game.
-// Legacy file was moved to backup/data/.
+// Consumables module for the timeloop reset game.
+// Generic handler — reads consumable effects from item definitions.
 import { getItemDefinition } from './items.js';
+import { consumeItemQuantityFromBag } from './character.js';
+import { resources } from '../../engine/resources.js';
 import { getTotalIngameMinutes } from '../../engine/time.js';
 
+/**
+ * Use one unit of a consumable from the character's bag.
+ * Handles both 'heal' (restore resource) and 'buff' (apply timed buff) types.
+ * @param {string} itemId - Item ID
+ * @param {object} state - Character state (must have .bag and .buffs)
+ * @returns {boolean} - true if the consumable was used successfully
+ */
 export function useConsumableFromBag(itemId, state) {
     if (!itemId || !state) return false;
     const def = getItemDefinition(itemId);
     if (!def || !def.consumable) return false;
 
-    // Apply consumable effect
-    if (itemId === 'stimpack') {
-        // Heal 30 health
-        const health = (typeof window !== 'undefined' && window.debugResources)
-            ? window.debugResources.find(r => r && r.name === 'Health')
-            : null;
-        if (health) {
-            health.amount = Math.min(health.capacity, Number(health.amount || 0) + 30);
+    const { type, resource, amount, buff, bonusPerSec, durationMinutes } = def.consumable;
+
+    // Remove one from bag first — if removal fails, don't apply the effect
+    if (!consumeItemQuantityFromBag(itemId, 1, state)) return false;
+
+    // Apply the consumable effect
+    if (type === 'heal' && resource && Number.isFinite(amount) && amount > 0) {
+        const res = resources.find(r => r && r.name === resource);
+        if (res) {
+            res.amount = Math.min(res.capacity, Number(res.amount || 0) + amount);
         }
-    } else if (itemId === 'herb_tea') {
-        // Apply stamina regen buff for 120 in-game minutes
-        if (state && state.buffs) {
-            const until = getTotalIngameMinutes() + 120;
-            state.buffs.staminaRegen = {
+    } else if (type === 'buff' && buff && state.buffs) {
+        const bps = Number.isFinite(bonusPerSec) ? bonusPerSec : 0;
+        const dur = Number.isFinite(durationMinutes) ? durationMinutes : 0;
+        if (bps > 0 && dur > 0) {
+            const until = getTotalIngameMinutes() + dur;
+            state.buffs[buff] = {
                 untilMinutes: until,
-                bonusPerSec: 1.0,
-                label: 'Herb Tea'
+                bonusPerSec: bps,
+                label: def.name || buff,
             };
         }
     }
 
-    // Remove the consumable from bag
-    const bag = Array.isArray(state.bag) ? state.bag : [];
-    for (let i = 0; i < bag.length; i++) {
-        const entry = bag[i];
-        if (!entry) continue;
-        const id = typeof entry === 'string' ? entry : (entry && typeof entry === 'object' ? entry.id : null);
-        if (id !== itemId) continue;
-
-        if (typeof entry === 'object' && entry.qty > 1) {
-            entry.qty -= 1;
-            if (entry.qty <= 0) bag[i] = null;
-        } else {
-            bag[i] = null;
-        }
-        return true;
-    }
-    return false;
+    return true;
 }

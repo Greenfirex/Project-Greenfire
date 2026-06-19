@@ -9,9 +9,5 @@
   "action_drain": "Drain: {drains}",
   "action_duration": "Duration: {duration}s",
   "action_status_ready": "Loop {loop} — Ready for next action.",
-  "action_status_active": "Active: {action} — {pct}% complete",
-
-  "log_action_completed": "Completed {action}. Gained {xp} XP.",
-  "log_loop_started": "Loop {loop} started. Resources have been partially restored.",
-  "log_loop_triggered": "Loop triggered: {resources} depleted."
+  "action_status_active": "Active: {action} — {pct}% complete"
 }

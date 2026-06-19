@@ -8,18 +8,18 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 12px; /* adjusted for better vertical centering */
+  padding: 10px 12px;
   color: #ffffff;
   font-weight: 600;
-  font-size: 13px; /* reduced font size to prevent wrapping */
+  font-size: 13px;
   letter-spacing: 0.2px;
-  line-height: 1.2; /* tighter line height for better centering */
+  line-height: 1.2;
   background: transparent;
   border: 0;
-  position: relative; /* allow right-aligned chevrons */
-  white-space: nowrap; /* prevent text wrapping */
-  overflow: hidden; /* hide overflow if text is too long */
-  text-overflow: ellipsis; /* show ellipsis for very long text */
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Phone-landscape compact footer: keep the banner readable in a 25px bar */
@@ -37,10 +37,7 @@
     right: 6px;
   }
 
-  /* The drawer sits just above the footer; footer is 25px in compact mode */
   .objectives-drawer {
-    /* Slight overlap so there's no visible seam with the footer's top glow line */
-    bottom: calc(var(--footer-height, 25px) - 3px);
     height: var(--objectives-drawer-height, 160px);
   }
 
@@ -62,7 +59,6 @@ html.is-compact .objectives-banner .chevrons {
 }
 
 html.is-compact .objectives-drawer {
-  bottom: calc(var(--footer-height, 25px) - 3px);
   height: var(--objectives-drawer-height, 160px);
 }
 
@@ -255,66 +251,43 @@ html.is-compact .mobile-objectives-title em {
   stroke-width: 2.5;
   fill: none;
   filter: drop-shadow(0 0 3px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.7));
-  transform: translateY(0); /* ensure chevron is centered */
+  transform: translateY(0);
 }
-.objectives-banner[aria-expanded="true"] .chevrons-icon { transform: translateY(0); } /* keep centered when open */
-/* Increase glow on hover/focus for opener */
+.objectives-banner[aria-expanded="true"] .chevrons-icon { transform: translateY(0); }
 .objectives-banner:hover .chevrons-icon,
 .objectives-banner:focus .chevrons-icon,
 .objectives-banner:focus-within .chevrons-icon {
   filter: drop-shadow(0 0 5px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.9));
 }
 
-.objectives-drawer {
-  transition: opacity 200ms ease, transform 240ms ease;
-  opacity: 0;
-  transform: translateY(14px);
-  pointer-events: none; /* don't block clicks when hidden */
-  /* allow side glow to extend to column boundary while still clipping height */
-  overflow-x: visible;
-  overflow-y: hidden;
-  border-top: 1px solid rgba(255,255,255,0.12);
-  border-bottom: 1px solid rgba(255,255,255,0.12);
-  background: rgba(0,0,0,0.35);
-  backdrop-filter: blur(2px);
-}
-
 .objectives-container { position: relative; }
 
-/* Backdrop removed to allow interaction with underlying UI while drawer open */
-
+/* Drawer — position: fixed, placed dynamically by JS relative to the middle footer column */
 .objectives-drawer {
-  position: absolute;
+  position: fixed;
   left: 0;
-  bottom: 40px; /* just above footer */
-  width: 100%;
-  box-sizing: border-box;
+  bottom: 0;
   opacity: 0;
-  visibility: hidden; /* fully remove from hit-testing when closed */
+  visibility: hidden;
   transform: translateY(14px);
-  overflow: visible; /* allow glow lines to extend */
+  transition: opacity 200ms ease, transform 240ms ease;
+  overflow: hidden;
   background: #000;
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  z-index: 600; /* beneath modal overlays (>=1000) so they always win */
+  z-index: 600;
   height: var(--objectives-drawer-height, 320px);
   display: flex;
   flex-direction: column;
-  pointer-events: none; /* always start with no pointer events */
+  pointer-events: none;
 }
 
 .objectives-drawer.open {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
-  pointer-events: auto; /* enable interactions when open */
-}
-
-/* Ensure entire drawer blocks mouse events when open */
-.objectives-drawer.open::before,
-.objectives-drawer.open::after {
-  pointer-events: auto; /* glow lines also block when open */
+  pointer-events: auto;
 }
 
 /* Fixed header section with objective title and chevron */
@@ -327,7 +300,7 @@ html.is-compact .mobile-objectives-title em {
   align-items: center;
   justify-content: center;
   text-align: center;
-  pointer-events: auto; /* block events to elements below */
+  pointer-events: auto;
 }
 
 .objectives-drawer .objective-header::after {
@@ -362,10 +335,10 @@ html.is-compact .mobile-objectives-title em {
   background: #000;
   padding: 14px 22px 18px 22px;
   box-sizing: border-box;
-  pointer-events: auto; /* explicitly block events to elements below */
+  pointer-events: auto;
 }
 
-/* Glowing divider lines (top & bottom) - fixed, don't scroll */
+/* Glowing divider lines (top & bottom) */
 .objectives-drawer::before,
 .objectives-drawer::after {
   content: '';
@@ -374,15 +347,13 @@ html.is-compact .mobile-objectives-title em {
   width: 100%;
   height: 3px;
   animation: pulse-glow 5s ease-in-out infinite;
-  z-index: 42; /* above scrollbar */
+  z-index: 42;
   pointer-events: none;
 }
 .objectives-drawer::before { top: 0; }
 .objectives-drawer::after { bottom: 0; }
 
-/* No need for duplicate .open rule - already defined above */
-
-/* Drawer close control - positioned on right side like log options button */
+/* Drawer close control */
 .objectives-drawer .drawer-close {
   position: absolute;
   right: 15px;
@@ -410,20 +381,18 @@ html.is-compact .mobile-objectives-title em {
 /* Vertical glow lines */
 .objectives-drawer .glow-vert {
   position: absolute;
-  /* Align flush with top/bottom rails for perfect corner joins */
   top: 0;
   bottom: 0;
-  width: 3px; /* thicker for perceived parity with horizontal rail */
+  width: 3px;
   animation: pulse-glow 5s ease-in-out infinite;
   z-index: 41;
   pointer-events: none;
 }
-.objectives-drawer .glow-left { left: -1.5px; } /* extend to match horizontal glow */
-.objectives-drawer .glow-right { right: -1.5px; } /* extend to match horizontal glow */
+.objectives-drawer .glow-left { left: -1.5px; }
+.objectives-drawer .glow-right { right: -1.5px; }
 
 .objectives-list { display: none; }
 
-/* Styling for objective content (no h4 - that's in the header now) */
 .objectives-drawer .objective-details p { margin: 0 0 8px 0; color: #d6e3d6; font-size: 13px; pointer-events: auto; }
 .objectives-drawer .objective-details ul { margin: 0 0 12px 0; padding-left: 18px; color: #c9d7c9; pointer-events: auto; }
 .objectives-drawer .objective-details li { margin: 2px 0; pointer-events: auto; }
@@ -445,15 +414,11 @@ html.is-compact .mobile-objectives-title em {
     background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8);
 }
 
-/* Re-apply compact overrides AFTER base drawer rules.
-   The base .objectives-drawer block below overrides earlier media-query tweaks. */
+/* Compact overrides */
 @media (max-width: 600px),
        (max-width: 900px) and (max-height: 450px),
        (hover: none) and (pointer: coarse) and (max-width: 900px) and (max-height: 600px) {
   .objectives-drawer {
-    /* Ensure drawer is anchored to the compact footer (25px) */
-    bottom: calc(var(--footer-height, 25px) + 2px) !important;
-    /* Reduce drawer height ~half vs desktop */
     --objectives-drawer-height: 176px;
   }
 
@@ -461,7 +426,6 @@ html.is-compact .mobile-objectives-title em {
     padding: 12px 16px 14px 12px !important;
   }
 
-  /* Tighten row spacing so more steps fit */
   .objective-step-item {
     padding: 2px 2px;
     gap: 6px;

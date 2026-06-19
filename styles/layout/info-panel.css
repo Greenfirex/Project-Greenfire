@@ -723,6 +723,47 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
     font-style: italic;
 }
 
+@keyframes effect-enter {
+    0% {
+        opacity: 0;
+        transform: translateY(-8px);
+        border-color: rgba(255, 107, 107, 0.8);
+        box-shadow: 0 0 18px rgba(255, 60, 60, 0.35);
+        background: rgba(255, 60, 60, 0.08);
+    }
+    40% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+        border-color: rgba(255, 107, 107, 0.2);
+        box-shadow: none;
+        background: rgba(0,0,0,0.3);
+    }
+}
+
+@keyframes effect-pulse {
+    0%, 100% {
+        border-color: rgba(255, 107, 107, 0.20);
+        box-shadow: 0 0 4px rgba(255, 60, 60, 0.0);
+    }
+    50% {
+        border-color: rgba(255, 107, 107, 0.35);
+        box-shadow: 0 0 8px rgba(255, 60, 60, 0.06);
+    }
+}
+
+@keyframes effect-icon-breathe {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.15);
+    }
+}
+
 .effect-row {
     display: flex;
     gap: 8px;
@@ -731,6 +772,15 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
     border: 1px solid rgba(255, 107, 107, 0.2);
     border-radius: 4px;
     align-items: flex-start;
+    animation: effect-pulse 3s ease-in-out infinite;
+}
+
+.effect-row.effect-enter {
+    animation: effect-enter 0.6s ease-out forwards, effect-pulse 3s ease-in-out 0.6s infinite;
+}
+
+.effect-row .effect-icon {
+    animation: effect-icon-breathe 2.5s ease-in-out infinite;
 }
 
 .effect-icon {

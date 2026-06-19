@@ -16,6 +16,10 @@ import {
     moveEquipItemToBag,
     moveEquipItemToEquip,
     swapBagSlots,
+    getConsumablesFromBag,
+    getConsumableTotalValue,
+    getAutoConsumeSettings,
+    toggleAutoConsume,
 } from './character.js';
 import { getItemDefinition } from './items.js';
 import { resources } from '../../engine/resources.js';
@@ -44,6 +48,61 @@ function getStaminaRegenBuffStatus(state = characterState) {
     } catch {
         return { active: false, remainingMinutes: 0, untilMinutes: 0, bonusPerSec: 0, label: 'Herb Tea' };
     }
+}
+
+function renderConsumablesPanel(consumables, state) {
+    if (!consumables || consumables.length === 0) {
+        return `<div class="character-card consumables-card">
+            <div class="character-card-header"><h3>Supplies</h3></div>
+            <p class="character-card-hint" style="text-align:center;padding:12px 0;">No consumable supplies found.</p>
+        </div>`;
+    }
+    const autoSettings = getAutoConsumeSettings(state);
+    // Get current resource drain rates to estimate time
+    let waterDrainPerMin = 0;
+    let foodDrainPerMin = 0;
+    try {
+        const waterRes = resources.find(r => r && r.name === 'Drinking Water');
+        const foodRes = resources.find(r => r && r.name === 'Food Rations');
+        waterDrainPerMin = waterRes?._drainRate != null ? -Number(waterRes._drainRate) : 0.12;
+        foodDrainPerMin = foodRes?._drainRate != null ? -Number(foodRes._drainRate) : 0.08;
+    } catch { /* ignore */ }
+
+    const rows = consumables.map(c => {
+        const totalValue = getConsumableTotalValue(c.itemId, c.count);
+        const isWater = c.consumable.resource === 'Drinking Water';
+        const isFood = c.consumable.resource === 'Food Rations';
+        const isHealing = c.consumable.resource === 'Health';
+        const drainRate = isWater ? waterDrainPerMin : (isFood ? foodDrainPerMin : 0);
+        const minutesEstimate = drainRate > 0 ? Math.round(totalValue / drainRate) : 0;
+        
+        let estimateHtml = '';
+        if (drainRate > 0 && minutesEstimate > 0) {
+            const h = Math.floor(minutesEstimate / 60);
+            const m = minutesEstimate % 60;
+            const timeStr = h > 0 ? `~${h}h ${m}m` : `~${m}m`;
+            estimateHtml = `<span class="consumables-estimate">Lasts ${timeStr}</span>`;
+        }
+        
+        const autoEnabled = !!autoSettings[c.itemId];
+        const isAutoable = isWater || isFood;
+        
+        return `<div class="consumable-row">
+            <div class="consumable-row-info">
+                <span class="consumable-name">${escapeHtml(c.name)} ×${c.count}</span>
+                ${totalValue > 0 ? `<span class="consumable-total">Restores ${totalValue} ${escapeHtml(c.consumable.resource)} total</span>` : ''}
+                ${estimateHtml}
+            </div>
+            <div class="consumable-row-actions">
+                ${isAutoable ? `<button type="button" class="consumable-auto-btn ${autoEnabled ? 'active' : ''}" data-auto-consumable="${escapeHtml(c.itemId)}" title="${autoEnabled ? 'Auto-use enabled' : 'Auto-use disabled'}">${autoEnabled ? '✓ Auto' : 'Auto'}</button>` : `<button type="button" class="consumable-use-btn" data-consumable-use="${escapeHtml(c.itemId)}" title="Use ${escapeHtml(c.name)}">Use</button>`}
+            </div>
+        </div>`;
+    }).join('');
+
+    return `<div class="character-card consumables-card">
+        <div class="character-card-header"><h3>Supplies</h3></div>
+        <div class="consumables-list">${rows}</div>
+    </div>`;
 }
 
 function formatRemainingMinutes(mins) {
@@ -173,6 +232,7 @@ export function setupCharacterSection(section) {
     const xp = getXPResourceSnapshot();
     const canSpendPoint = (xp?.statPoints?.unspent ?? 0) > 0;
     const hasNewInventoryItems = hasAnyNewInventoryItems();
+    const consumables = getConsumablesFromBag(characterState);
 
     const equipmentCardHtml = `<div class="character-card equipment-card">
         <div class="character-card-header"><h3>Equipment</h3></div>
@@ -198,6 +258,8 @@ export function setupCharacterSection(section) {
                 <button type="button" class="inventory-trash-btn ${discardMode ? 'active' : ''}" data-inventory-trash title="Discard items" aria-label="Discard items">${renderTrashIcon()}</button>
             </div></div>
         <div class="bag-grid" style="--bag-cols:${bagCols}; --bag-rows:${bagRows};" aria-label="Inventory bag">${renderBagSlots()}</div></div>`;
+
+    const consumablesCardHtml = renderConsumablesPanel(consumables, characterState);
 
     const statsCardHtml = `<div class="character-card stats-card">
         <div class="character-card-header">
@@ -229,8 +291,12 @@ export function setupCharacterSection(section) {
     <div class="content-panel character-panel">
         <div class="character-tabpanes">
             <div class="character-pane ${initialTab === 'inventory' ? 'active' : ''}" data-pane="inventory" role="tabpanel">
-                <div class="character-layout character-layout-two-column">
-                    ${equipmentCardHtml}${inventoryCardHtml}
+                <div class="character-layout character-layout-inventory">
+                    <div class="character-left-col">${equipmentCardHtml}</div>
+                    <div class="character-right-col">
+                        ${inventoryCardHtml}
+                        ${consumablesCardHtml}
+                    </div>
                 </div></div>
             <div class="character-pane ${initialTab === 'statsSkills' ? 'active' : ''}" data-pane="statsSkills" role="tabpanel">
                 <div class="character-layout character-layout-two-column">
@@ -260,6 +326,10 @@ export function setupCharacterSection(section) {
     attachStatTooltips(section);
     attachActiveEffectTooltips(section);
     attachStatAllocationHandlers(section);
+    setTimeout(() => {
+        const panel = section.querySelector('.character-panel');
+        if (panel) attachConsumableHandlers(panel, section);
+    }, 0);
 }
 
 function renderTrashIcon() {
@@ -646,5 +716,26 @@ function getCurrentPayload(event) { if (currentDragPayload) return currentDragPa
 function getDragItemIdFromSource(source) { if (!source) return null; if (source.type === 'bag') { const entry = characterState?.bag?.[Number(source.index)]; if (!entry) return null; return typeof entry === 'string' ? entry : entry?.id || null; } if (source.type === 'equip') { const s = String(source.slot || ''); return characterState?.equipment?.[s] || null; } return null; }
 function isDropAllowed(payload, target) { if (!payload?.source || !payload.itemId || !target) return false; if (target.type === 'bag') return Number.isInteger(target.index) && target.index >= 0; if (target.type === 'equip') return canEquipItemToSlot(payload.itemId, target.slot); return false; }
 function performDrop(payload, target) { const src = payload.source; if (!src) return false; if (src.type === 'bag' && target.type === 'bag') return swapBagSlots(Number(src.index), Number(target.index)); if (src.type === 'bag' && target.type === 'equip') return moveBagItemToEquip(Number(src.index), target.slot); if (src.type === 'equip' && target.type === 'bag') return moveEquipItemToBag(src.slot, Number(target.index)); if (src.type === 'equip' && target.type === 'equip') return moveEquipItemToEquip(src.slot, target.slot); return false; }
+
+function attachConsumableHandlers(panel, sectionRoot) {
+    panel.querySelectorAll('[data-auto-consumable]').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.preventDefault();
+            const itemId = btn.dataset.autoConsumable;
+            if (!itemId) return;
+            toggleAutoConsume(itemId, characterState);
+            commitCharacterChange(sectionRoot);
+        });
+    });
+    panel.querySelectorAll('[data-consumable-use]').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.preventDefault();
+            const itemId = btn.dataset.consumableUse;
+            if (!itemId) return;
+            useConsumableFromBag(itemId, characterState);
+            commitCharacterChange(sectionRoot);
+        });
+    });
+}
 
 function escapeHtml(text) { return String(text).replaceAll('&', '&').replaceAll('<', '<').replaceAll('>', '>').replaceAll('"', '"').replaceAll("'", '&#39;'); }

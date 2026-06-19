@@ -44,6 +44,9 @@ function startTypewriter(el, fullText) {
         }
         index++;
         el.textContent = fullText.slice(0, index);
+        // Scroll log to bottom on every character reveal so it stays pinned
+        const logContent = document.getElementById('logContent');
+        if (logContent) logContent.scrollTop = logContent.scrollHeight;
         if (index >= fullText.length) {
             clearInterval(_typewriterTimer);
             _typewriterTimer = null;

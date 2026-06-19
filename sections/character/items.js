@@ -127,7 +127,7 @@ export const items = [
         icon: 'assets/images/items/bottled water.png',
         description: 'A sealed bottle of clean drinking water.',
         stackable: true,
-        consumable: { type: 'heal', resource: 'Drinking Water', amount: 25 }
+        consumable: { type: 'heal', resource: 'Drinking Water', amount: 15 }
     },
     {
         id: 'packaged_food',

@@ -230,13 +230,12 @@ export function getInitialCharacterState() {
 
     const bag = makeEmptyBag(bagCols, bagRows);
     const bagUiNew = Array.from({ length: bag.length }, () => false);
-    if (bag.length > 0) bag[0] = 'stimpack';
 
     const equipment = {
-        head: 'basic_helmet',
-        chest: 'field_armor',
-        legs: 'utility_legs',
-        boots: 'basic_boots',
+        head: null,
+        chest: null,
+        legs: null,
+        boots: null,
         weapon: null,
         offhand: null,
         accessory_1: null,
@@ -846,4 +845,47 @@ export function consumeItemQuantityFromBag(itemId, amount = 1, state = character
 
 export function consumeFirstItemFromBag(itemId, state = characterState) {
     return consumeItemQuantityFromBag(itemId, 1, state);
+}
+
+export function getConsumablesFromBag(state = characterState) {
+    const bag = Array.isArray(state?.bag) ? state.bag : [];
+    const result = [];
+    for (const entry of bag) {
+        if (!entry) continue;
+        const itemId = getBagEntryId(entry);
+        if (!itemId) continue;
+        const def = getItemDefinition(itemId);
+        if (!def || !def.consumable) continue;
+        const qty = getBagEntryQty(entry);
+        const existing = result.find(c => c.itemId === itemId);
+        if (existing) {
+            existing.count += qty;
+        } else {
+            result.push({
+                itemId,
+                name: def.name || itemId,
+                icon: def.icon || '',
+                count: qty,
+                consumable: def.consumable,
+            });
+        }
+    }
+    return result;
+}
+
+export function getConsumableTotalValue(itemId, count) {
+    const def = getItemDefinition(itemId);
+    if (!def || !def.consumable || !def.consumable.amount) return 0;
+    return def.consumable.amount * count;
+}
+
+export function getAutoConsumeSettings(state = characterState) {
+    if (!state.autoConsume) state.autoConsume = {};
+    return state.autoConsume;
+}
+
+export function toggleAutoConsume(itemId, state = characterState) {
+    if (!state.autoConsume) state.autoConsume = {};
+    state.autoConsume[itemId] = !state.autoConsume[itemId];
+    return state.autoConsume[itemId];
 }

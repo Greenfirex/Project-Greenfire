@@ -13,6 +13,7 @@ import { newBadgeHtml, wireClearUiNewBadge } from '../../ui/components/contentNe
 import { getEffectDebuffs, getEffectDebuffDetails, hasEffect, removeEffect, addEffect } from '../../engine/effects.js';
 import { addToQueue, startNextQueuedAction, updateQueueActive, isInQueue } from '../../engine/queue.js';
 import { setupTooltip } from '../../ui/panels/tooltip.js';
+import { grantItemToCharacter } from '../character/character.js';
 
 const DEFAULT_DRAIN = { 'Stamina': 0.20, 'Food Rations': 0.08, 'Drinking Water': 0.12 };
 const TAXING_MULT = 2.0;
@@ -70,8 +71,15 @@ function applyActionRewards(action) {
         if (r.type === 'resource') {
             const resource = getResourceByName(r.name);
             if (resource) { resource.amount = (Number(resource.amount) || 0) + (Number(r.amount) || 0); roundResourceAmount(resource); }
+        } else if (r.type === 'item') {
+            const itemId = String(r.name || '').toLowerCase().replace(/\s+/g, '_');
+            if (itemId) {
+                const result = grantItemToCharacter(itemId, { amount: Number(r.amount) || 1 });
+                if (result.ok) {
+                    addLogEntry(`Received: ${r.name || itemId}`, LogType.UNLOCK);
+                }
+            }
         }
-        // item rewards handled by inventory system when wired
     });
 }
 
@@ -129,7 +137,12 @@ function completeActiveAction(opts = {}) {
         delete gameFlags.persistentProgress[action.id];
     }
     
-    if (action.oneTime && !action.repeatable) { action._completed = true; _fullRebuildNeeded = true; }
+    if (action.oneTime && !action.repeatable) {
+        action._completed = true;
+        _fullRebuildNeeded = true;
+        // Deselect so the details panel falls back to location description
+        if (selectedActionId === action.id) selectedActionId = null;
+    }
     if (typeof action.repeatLimit === 'number' && action.repeatLimit > 0) {
         action._repeatCount = (action._repeatCount || 0) + 1;
         if (action._repeatCount >= action.repeatLimit) { action._completed = true; _fullRebuildNeeded = true; }
@@ -214,7 +227,9 @@ function startAction(actionId) {
             if (r.type === 'resource') {
                 const res = getResourceByName(r.name);
                 if (res && res.capacity > 0 && Number(res.amount) >= Number(res.capacity)) {
+                    const isGainingFood = r.name === 'Food Rations';
                     if (isRest) addLogEntry(t('log_rest_full'), LogType.INFO);
+                    else if (isRefresh && isGainingFood) addLogEntry(t('log_rest_full'), LogType.INFO);
                     else if (isRefresh) addLogEntry(t('log_water_full'), LogType.INFO);
                     return;
                 }
@@ -235,16 +250,8 @@ function startAction(actionId) {
         }
     }
     for (const [resName, baseRate] of Object.entries(DEFAULT_DRAIN)) {
-        // Rest: Stamina gains instead of drains; Food/Water still drain
-        if (isRest && resName === 'Stamina') {
-            const perMin = rewardPerSecRate;
-            drainRates[resName] = perMin;
-            if (!sources[resName]) sources[resName] = [];
-            sources[resName].push({ rate: perMin, label: displayName });
-            continue;
-        }
-        // Refresh: Water gains instead of drains; Stamina/Food still drain
-        if (isRefresh && resName === 'Drinking Water') {
+        // Rest/Refresh: reward resource gains instead of drains; other resources still drain
+        if ((isRest || isRefresh) && rewardResourceName === resName) {
             const perMin = rewardPerSecRate;
             drainRates[resName] = perMin;
             if (!sources[resName]) sources[resName] = [];
@@ -383,7 +390,9 @@ function renderDetailsTile() {
         if (action) {
             // Tags row (below action name, shows repeatable/oneTime + category)
             const tagItems = [];
-            if (action.repeatable) {
+            if (action.targetLocation) {
+                tagItems.push('<span class="detail-tag tag-travel">&#x2192; ' + t('tag_travel') + '</span>');
+            } else if (action.repeatable) {
                 if (typeof action.repeatLimit === 'number' && action.repeatLimit > 0) {
                     const remain = Math.max(0, action.repeatLimit - (action._repeatCount || 0));
                     tagItems.push(`<span class="detail-tag tag-repeatable">&#x21BB; ${remain}&#x00D7; ${t('tag_remaining')}</span>`);
@@ -674,7 +683,8 @@ function renderActionButton(action) {
     const cannotAfford = !canAffordAction(action);
     const otherRunning = !!activeAction && activeActionId !== actionId;
     let tagHtml = '';
-    if (action.repeatable) tagHtml = '<span class="location-action-tag tag-repeatable">&#x21BB;</span>';
+    if (action.targetLocation) tagHtml = '<span class="location-action-tag tag-travel">&#x2192;</span>';
+    else if (action.repeatable) tagHtml = '<span class="location-action-tag tag-repeatable">&#x21BB;</span>';
     else if (action.oneTime) tagHtml = '<span class="location-action-tag tag-onetime">1&#x00D7;</span>';
     const isInfiniteAction = !action.durationSeconds || action.durationSeconds <= 0;
     const durationLabel = durationMins > 0 ? `<span class="location-action-btn-cost drain-time">&#x23F1; ${durationMins}m</span>` : (isInfiniteAction ? `<span class="location-action-btn-cost drain-time">&#x221E;</span>` : '');
@@ -703,7 +713,7 @@ function renderActionButton(action) {
     const costsRowHtml = durationLabel ? `<span class="location-action-costs-row">${durationLabel}</span>` : '';
     // Show "!" badge if action is newly unlocked and not yet seen by the player
     const showNewBadge = isActionNew(actionId);
-    return `<button type="button" class="location-action-btn${isSelected ? ' is-selected' : ''}${isRunning ? ' is-running' : ''}${action.oneTime && !action.repeatable ? ' btn-onetime' : ''}${action.repeatable ? ' btn-repeatable' : ''}${action.category === 'persistent' ? ' btn-persistent' : ''}${showNewBadge ? ' has-new-badge' : ''}" data-action-id="${actionId}">${newBadgeHtml(showNewBadge)}<span class="location-action-btn-name">${tagHtml}${t(action.nameKey)}</span>${costsRowHtml}${progressHtml}${playPauseHtml}</button>`;
+    return `<button type="button" class="location-action-btn${isSelected ? ' is-selected' : ''}${isRunning ? ' is-running' : ''}${action.targetLocation ? ' btn-travel' : ''}${action.oneTime && !action.repeatable && !action.targetLocation ? ' btn-onetime' : ''}${action.repeatable && !action.targetLocation ? ' btn-repeatable' : ''}${action.category === 'persistent' ? ' btn-persistent' : ''}${showNewBadge ? ' has-new-badge' : ''}" data-action-id="${actionId}">${newBadgeHtml(showNewBadge)}<span class="location-action-btn-name">${tagHtml}${t(action.nameKey)}</span>${costsRowHtml}${progressHtml}${playPauseHtml}</button>`;
 }
 
 function getPoiCollapseState(locationId) {

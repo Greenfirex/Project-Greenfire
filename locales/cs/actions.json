@@ -9,9 +9,5 @@
   "action_drain": "Cena: {drains}",
   "action_duration": "Trvání: {duration}s",
   "action_status_ready": "Smyčka {loop} — Připraven k další akci.",
-  "action_status_active": "Aktivní: {action} — {pct}% dokončeno",
-
-  "log_action_completed": "Dokončeno: {action}. Získáno {xp} XP.",
-  "log_loop_started": "Smyčka {loop} zahájena. Zdroje byly částečně obnoveny.",
-  "log_loop_triggered": "Smyčka spuštěna: {resources} vyčerpány."
+  "action_status_active": "Aktivní: {action} — {pct}% dokončeno"
 }

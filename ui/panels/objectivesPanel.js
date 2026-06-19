@@ -116,9 +116,23 @@ banner.innerHTML = `
     // Backdrop removed: allow normal interaction with rest of UI while drawer is open.
 
     wrapper.appendChild(banner);
-    // Drawer now stays scoped to middle footer column only
-    wrapper.appendChild(drawer);
     midCol.appendChild(wrapper);
+
+    // Drawer must live on body, not inside footer.
+    // The footer has a power-rise-up CSS animation with 'transform' which creates
+    // a new containing block for position:fixed children, breaking viewport positioning.
+    document.body.appendChild(drawer);
+
+    function positionDrawer() {
+        const midCol = document.querySelector('#footer .footer-column:nth-child(2)');
+        if (!midCol) return;
+        const rect = midCol.getBoundingClientRect();
+        const footerRect = document.getElementById('footer')?.getBoundingClientRect();
+        if (!footerRect) return;
+        drawer.style.left = rect.left + 'px';
+        drawer.style.width = rect.width + 'px';
+        drawer.style.bottom = (window.innerHeight - footerRect.top) + 'px';
+    }
 
     function toggleOpen() {
         isOpen = !isOpen;
@@ -126,6 +140,8 @@ banner.innerHTML = `
         if (!isOpen) {
             // Avoid Chrome a11y warning: don't aria-hide a focused subtree.
             ensureFocusOutside(drawer, banner);
+        } else {
+            positionDrawer();
         }
 
         drawer.classList.toggle('open', isOpen);

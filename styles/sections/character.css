@@ -782,6 +782,155 @@
     overflow: hidden;
 }
 
+/* Inventory tab — left/right split: equipment left, bag+consumables right */
+#characterSection .character-layout.character-layout-inventory {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+    gap: 14px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#characterSection .character-left-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#characterSection .character-left-col .character-card {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+#characterSection .character-right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#characterSection .character-right-col .inventory-card {
+    flex: 0 0 auto;
+    min-height: 180px;
+    max-height: 55%;
+}
+
+#characterSection .character-right-col .consumables-card {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Consumables / Supplies panel */
+#characterSection .consumables-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.4) #111;
+}
+
+#characterSection .consumables-list::-webkit-scrollbar {
+    width: 10px;
+}
+
+#characterSection .consumables-list::-webkit-scrollbar-track {
+    background: #111;
+}
+
+#characterSection .consumables-list::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.4);
+    border-radius: 5px;
+    border: 2px solid #111;
+}
+
+#characterSection .consumable-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.12);
+    border-radius: 8px;
+    min-height: 44px;
+}
+
+#characterSection .consumable-row-info {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+#characterSection .consumable-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.90);
+}
+
+#characterSection .consumable-total {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.50);
+}
+
+#characterSection .consumables-estimate {
+    font-size: 10px;
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.80);
+    font-weight: 600;
+}
+
+#characterSection .consumable-row-actions {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 6px;
+}
+
+#characterSection .consumable-auto-btn,
+#characterSection .consumable-use-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(0, 0, 0, 0.22);
+    color: rgba(255, 255, 255, 0.65);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    font-family: inherit;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+#characterSection .consumable-auto-btn:hover,
+#characterSection .consumable-use-btn:hover {
+    border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.45);
+    color: rgba(255, 255, 255, 0.90);
+}
+
+#characterSection .consumable-auto-btn.active {
+    border-color: rgba(105, 240, 174, 0.50);
+    background: rgba(105, 240, 174, 0.12);
+    color: #90EE90;
+}
+
+#characterSection .consumable-auto-btn.active:hover {
+    border-color: rgba(105, 240, 174, 0.70);
+    background: rgba(105, 240, 174, 0.18);
+}
+
 /* Inventory-slot NEW badge */
 #characterSection .bag-slot .action-new-badge {
     position: absolute;

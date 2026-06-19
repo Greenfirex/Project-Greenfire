@@ -50,7 +50,8 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 15,
             oneTime: true,
             resultKey: 'result_check_terminal',
-            unlockedBy: 'wake_up'
+            unlockedBy: 'wake_up',
+            unlocksAll: true
         },
         {
             id: 'access_logs',
@@ -60,7 +61,7 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 10,
             oneTime: true,
             resultKey: 'result_access_logs',
-            unlockedBy: 'wake_up'
+            unlockedBy: 'check_terminal'
         },
         {
             id: 'search_bunks',
@@ -70,7 +71,8 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 20,
             oneTime: true,
             resultKey: 'result_search_bunks',
-            unlockedBy: 'wake_up'
+            unlockedBy: 'wake_up',
+            unlocksAll: true
         },
         {
             id: 'rest',
@@ -93,7 +95,7 @@ export const scoutShipCrewQuarters = {
             oneTime: true,
             resultKey: 'result_disable_alarm',
             removesEffect: 'alarm',
-            unlockedBy: 'wake_up'
+            unlockedBy: 'check_terminal'
         },
         {
             id: 'check_storage',
@@ -103,6 +105,7 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 12,
             oneTime: true,
             resultKey: 'result_check_storage',
+            rewards: [{ type: 'item', name: 'Bottled Water', amount: 1 }],
             unlockedBy: 'wake_up'
         },
         {
@@ -114,7 +117,7 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 180,
             oneTime: true,
             resultKey: 'result_read_book',
-            unlockedBy: 'wake_up'
+            unlockedBy: 'search_bunks'
         },
         {
             id: 'go_to_main_area',

@@ -181,6 +181,7 @@ export function updateEffectsUI() {
     body.innerHTML = activeEffects.map(effect => {
         const name = t(effect.nameKey);
         const desc = t(effect.descKey);
+        const isNew = effect._addedAt && (Date.now() - effect._addedAt < 800);
         
         let progressBarHtml = '';
         if (effect.maxProgress !== Infinity && effect.maxProgress > 0) {
@@ -206,7 +207,7 @@ export function updateEffectsUI() {
         }
         
         return `
-            <div class="effect-row" data-effect-id="${effect.id}">
+            <div class="effect-row${isNew ? ' effect-enter' : ''}" data-effect-id="${effect.id}">
                 <div class="effect-icon">${effect.icon || '⚠'}</div>
                 <div class="effect-info">
                     <div class="effect-name">${name}</div>
