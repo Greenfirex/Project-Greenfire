@@ -11,7 +11,11 @@ const initialGameFlags = {
     loopStoryShown: {},
     // UI-only persistence: which action/upgrade IDs the player has already seen.
     // Keys are strings like "action:go_to_main_area", "action:check_storage", etc.
-    uiSeen: {}
+    uiSeen: {},
+    // Knowledge that persists across death loops — player remembers things.
+    loopKnowledge: {
+        terminalLogin: false,
+    }
 };
 
 export function getInitialGameFlags() {

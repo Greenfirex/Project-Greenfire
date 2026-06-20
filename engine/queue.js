@@ -109,7 +109,7 @@ export function setupQueueUI(container) {
     _queueHost = document.createElement('div');
     _queueHost.className = 'queue-section';
     _queueHost.innerHTML = `
-        <div class="queue-header">${t('queue_title')}</div>
+        <div class="panel-section-header">${t('queue_title')}</div>
         <div class="queue-body"></div>
     `;
     

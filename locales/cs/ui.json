@@ -18,6 +18,7 @@
   "footer_pause_title": "Pauza / Pokračování hry",
   "footer_debug_title": "Přepnout x10 zisky zdrojů",
 
+  "menu_main_menu": "Hlavní menu",
   "menu_crash_site": "Místo havárie",
   "menu_character": "Postava",
   "menu_journal": "Deník",
@@ -100,7 +101,7 @@
   "obj_first_steps_step4": "Prohledej úschovnou skříň",
   "obj_first_steps_step5": "Najdi cestu na můstek",
 
-  "popup_welcome_title": "Project Greenfire — Probuzení",
+  "popup_welcome_title": "Probuzení",
   "popup_welcome_page1": "Píše se rok 2249. Za zločiny, které jsi nespáchal, tě odsoudili k doživotní těžké práci v trestanecké kolonii Katarnis VII — zmrzlé skále obíhající umírajícího plynného obra na samém okraji zmapovaného vesmíru. Soud byl jen formalita. Tvoje chudoba byla tvou vinou.\n\nAle odmítl ses zlomit. Během měsíců tichého pozorování jsi odhalil každou trhlinu v rutině kolonie. Stráže zlenivěly. Dozorci zlhostejněli. Jedné noci, během střídání směn, se naskytla příležitost — osamělý průzkumný člun SFC-47 Vagabond, ponechaný na okamžik bez dozoru poblíž servisního doku.\n\nJen s ukradenou přístupovou kartou a celým životem zoufalství jsi nastoupil na palubu, zažehl motory a vymrštil se do prázdnoty, dřív než kdokoli stačil spustit poplach.",
   "popup_welcome_page2": "Svoboda neměla chutnat tak křehce. Vagabond je lehký průzkumný člun — osekaný, rychlý, nikdy nestavěný pro mezihvězdné lety. Jeho navigační data byla vymazána bezpečnostními protokoly kolonie. Jeho systémy vypovídají službu jeden po druhém a ty nemáš výcvik, abys je opravil. Každé výstražné světlo je jazyk, který tě nikdy nenaučili číst.\n\nJsi sám. Žádné mapy. Žádný kurz. Jen chladný hukot umírající lodi a tiché hvězdy za průzorem.\n\nZásoby se tenčí. Palubní úschovná skříň obsahuje zásoby jídla a vody na pár dní — sotva na přežití. Každé tvé rozhodnutí odteď bude otázkou života a smrti.",
   "popup_welcome_page3": "A přesto se kdesi v temnotě před tebou cosi probouzí. Gravitační anomálie. Energetická signatura, která neodpovídá ničemu v poničených paměťových bankách lodi. Táhne Vagabonda jako neviditelný proud — jemný, ale neodbytný. Jako by něco čekalo.\n\nNedokážeš si to vysvětlit. Možná je loď příliš rozbitá na přesné údaje. Možná ti vyčerpání zatemňuje úsudek. Ale hluboko v kostech to cítíš: tohle není náhoda. Tohle je místo, kam jsi měl celou dobu dorazit.\n\nJsi uprchlík na ukradené lodi, umírajícím plavidle, bez plánu. Ale cokoli tě čeká v tomhle nezmapovaném sektoru — zapamatuje si tvé jméno.\n\nVstaň. Hýbej se. Přežij. Hvězdy čekají.",
@@ -138,11 +139,19 @@
   "queue_remove_tooltip": "Odebrat z fronty",
   "queue_empty": "Fronta je prázdná",
 
+  "personal_resources": "Osobní",
+  "area_supplies": "Zásoby oblasti",
+
+  "area_food": "Zásoby jídla",
+  "area_water": "Zásoby vody",
+
+  "info_resources": "Suroviny",
+
   "crash_details": "Detaily",
   "crash_actions": "Akce",
 
   "death_title_1": "Jen Zlý Sen",
-  "death_pages_1": "Prudce se probouzíš ve své kajutě, promočený studeným potem.\n\nPřipadalo to tak skutečné... to vyčerpání, ten hlad, ta tma, která se přibližovala. Ale jsi zpátky ve své posteli.\n\nJen noční můra. Musela to být jen noční můra.",
+  "death_pages_1": "Prudce se probouzíš ve své kajutě, promočený studeným potem. Alarm ječí.\n\nTys... umřel? Alespoň to tak vypadalo. To vyčerpání, ten hlad, ta tma, která se přibližovala — bylo to tak skutečné. Ale jsi zpátky ve své posteli.\n\nByl to jen sen? Musel to být jen sen... že jo?",
   "death_title_2": "Déjà Vu",
   "death_pages_2": "Alarm. Znovu. Stejná posloupnost událostí.\n\nPamatuješ si, že jsi zemřel. Pamatuješ si, že už ses tu jednou probudil. To nemůže být náhoda.\n\nNěco je velmi špatně.",
   "death_title_3": "Smyčka",
@@ -182,8 +191,21 @@
   "result_search_bunks": "Prohledáváš palandy posádky, prohrabáváš se rozházenými osobními věcmi. Pod polštářem tvé prsty narazí na něco povědomého — ošoupanou brožovanou knihu, kterou jsi tam kdysi zastrčil a úplně na ni zapomněl. Její popraskaný hřbet a ohnuté rohy stránek působí v tvých rukou konejšivě.",
 
   "action_check_terminal": "Zkontrolovat terminál",
-  "action_check_terminal_desc": "Přistoupit k blikajícímu terminálu pro stav lodi a záznamy posádky.",
-  "result_check_terminal": "Klepneš na konzoli a obrazovka zabliká k životu, žádá přihlašovací údaje. Svalová paměť zabere — tvé prsty tančí po klávesnici a zadávají velitelské kódy. Zamykací obrazovka se rozplyne s tichým pípnutím. Jsi uvnitř. Stav lodi: KRITICKÝ. Posádka: 3 přeživší detekováni v Gamma Site. Navigační záznamy jsou poškozené. Smyčka tísňového signálu se přehrává dokola.",
+  "action_check_terminal_desc": "Pokusit se přihlásit k terminálu, odtud by snad měl jít vypnout ten otravný alarm a připadně i zjistit proč se spustil.",
+  "result_check_terminal": "Klepneš na konzoli a obrazovka zabliká k životu, žádá přihlašovací údaje. Zkusil si několik náhodných hesel, ale bez úspěchu. Naštěstí máš trochu zkušeností s tímhle operačním systémem a měl bys být schopný se do terminálu hacknout, ale chvilku to potrvá. Jo a taky sis všiml nalepeného lístečku na monitoru — \"dílna\". Je možné, že se login dá najít někde tam?",
+  "result_check_terminal_known": "Klepneš na konzoli. Tentokrát si heslo pamatuješ — svalová paměť z minulé smyčky. Zamykací obrazovka se rozplyne s tichým pípnutím. Jsi uvnitř.",
+
+  "action_hack_terminal": "Hacknout terminál",
+  "action_hack_terminal_desc": "Strávit čas obcházením zabezpečení terminálu. Dlouhý, soustředěný úkol, který nakonec poskytne plný přístup.",
+  "result_hack_terminal": "Po úmorném zkoušení a omylech konečně prolomíš autentizaci terminálu. Systém tě přivítá tichým pípnutím. Jsi uvnitř — a teď už heslo nezapomeneš.",
+
+  "action_use_terminal_login": "Použít lísteček s heslem",
+  "action_use_terminal_login_desc": "Použít nalezené přihlašovací údaje k okamžitému přístupu do terminálu.",
+  "result_use_terminal_login": "Zadáváš údaje z lístečku. Zamykací obrazovka se okamžitě rozplyne. Jsi uvnitř — přístup do terminálu získán.",
+
+  "action_search_for_login_note": "Hledat lísteček s heslem",
+  "action_search_for_login_note_desc": "Prohledat pracovní stůl a hledat lísteček s přihlašovacími údaji k terminálu.",
+  "result_search_for_login_note": "Prohrabáváš se harampádím na pracovním stole. Pod plánkem s fleky od kafe nacházíš nalepený lísteček: \"terminál — user: crew01 / pass: vagabond47\". To by se mohlo hodit zpátky v ubikacích u terminálu.",
 
   "action_access_logs": "Přístup k záznamům",
   "action_access_logs_desc": "Prohlédni si záznamy lodi a seznamy posádky uložené v terminálu.",
@@ -203,9 +225,17 @@
   "action_read_book_desc": "Vezmeš ošoupanou brožovanou knihu z palandy a ztratíš se v jejích stránkách. Dlouhá, klidná činnost, která krátí čas.",
   "result_read_book": "Obrátíš poslední stránku a zavřeš knihu. Tvá mysl je o něco bystřejší, o něco klidnější navzdory všemu.",
 
+  "action_grab_bottled_water": "Sebrat láhev s vodou",
+  "action_grab_bottled_water_desc": "Sebrat zapečetěnou láhev vody ze zásob jídelny.",
+  "result_grab_bottled_water": "Bereš si zapečetěnou láhev vody z pultu jídelny. Čistá a chladná — bude se hodit.",
+
   "action_get_food": "Vzít si jídlo",
   "action_get_food_desc": "Prohledat zásoby jídelny a najít jedlé příděly.",
   "result_get_food": "Nacházíš několik konzervovaných přídělů za pultem. Nejsou lákavé, ale jsou poživatelné.",
+
+  "action_assess_supplies": "Zhodnotit zásoby",
+  "action_assess_supplies_desc": "Zhodnotit zbývající zásoby jídla a vody v jídelně.",
+  "result_assess_supplies": "Prohlížíš si zásoby v jídelně. Přídělové balíčky jsou naskládány ledabyle, ale rychle je spočítáš — jídla je dost na nějakou dobu. Měřič na dávkovači vody ukazuje slušnou rezervu. Není to hojnost, ale udrží tě to při životě.",
 
   "action_check_comms": "Zkontrolovat komunikaci",
   "action_check_comms_desc": "Přistup ke komunikační stanici a prohledej signály nebo tísňová volání.",

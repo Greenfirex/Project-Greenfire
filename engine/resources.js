@@ -6,6 +6,7 @@ import { setupQueueUI } from './queue.js';
 import { gameFlags } from './gameFlags.js';
 import { switchToLocation } from '../sections/locations/locationData.js';
 import { clearQueue } from './queue.js';
+import { resetIngameTime } from './time.js';
 import { showStoryPopup } from '../ui/panels/storyPopup.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { getAutoConsumeSettings, countItemInBag } from '../sections/character/character.js';
@@ -46,6 +47,119 @@ export function getInitialResources() {
 }
 
 export let resources = getInitialResources();
+
+// ==========================================================================
+// Area Resources — location-based supply stocks
+// ==========================================================================
+
+export const areaResources = {};
+
+const AREA_EMOJIS = {
+    'area_food': '🥫',
+    'area_water': '💦',
+};
+
+const AREA_LOCALE_KEYS = {
+    'area_food': 'area_food',
+    'area_water': 'area_water',
+};
+
+const AREA_DESC_KEYS = {
+    'area_food': 'area_food',
+    'area_water': 'area_water',
+};
+
+/**
+ * Initialize area resources for a location. Called when player first enters or assess_supplies completes.
+ */
+export function initAreaResources(locationId) {
+    if (areaResources[locationId]) return; // already initialized
+    if (locationId === 'scout_ship_main_area') {
+        areaResources[locationId] = [
+            { name: 'area_food', amount: 12, capacity: 99 },
+            { name: 'area_water', amount: 15, capacity: 99 },
+        ];
+    }
+}
+
+/**
+ * Drain an area resource by amount. Returns true if successful.
+ */
+export function drainAreaResource(locationId, resourceName, amount) {
+    const list = areaResources[locationId];
+    if (!list) return false;
+    const res = list.find(r => r.name === resourceName);
+    if (!res) return false;
+    if (res.amount < amount) return false;
+    res.amount -= amount;
+    if (res.amount < 0) res.amount = 0;
+    updateAreaResourcesUI();
+    return true;
+}
+
+/**
+ * Get the current amount of an area resource.
+ */
+export function getAreaResourceAmount(locationId, resourceName) {
+    const list = areaResources[locationId];
+    if (!list) return 0;
+    const res = list.find(r => r.name === resourceName);
+    return res ? res.amount : 0;
+}
+
+let _areaSectionHost = null;
+
+function buildAreaResourceTooltipHtml(resourceName) {
+    const list = (typeof window !== 'undefined' && window._currentAreaResourceList) ? window._currentAreaResourceList : null;
+    if (!list) return '';
+    const res = list.find(r => r.name === resourceName);
+    if (!res) return '';
+    const name = t(AREA_LOCALE_KEYS[resourceName] || resourceName);
+    const desc = t(AREA_DESC_KEYS[resourceName] || '');
+    return `<h4>${name}</h4><p class="tooltip-description">${desc}</p><p>Remaining: <strong>${Math.floor(res.amount)}</strong></p>`;
+}
+
+export function showAreaSuppliesPanel() {
+    if (_areaSectionHost) {
+        _areaSectionHost.classList.remove('hidden');
+    }
+    updateAreaResourcesUI();
+}
+
+export function updateAreaResourcesUI() {
+    if (!_areaSectionHost) {
+        _areaSectionHost = document.getElementById('areaResourcesSection');
+    }
+    if (!_areaSectionHost) return;
+    
+    const list = [];
+    // Try to find the current area resources from window global set by locationEngine
+    if (typeof window !== 'undefined' && window._currentAreaResourceList) {
+        list.push(...window._currentAreaResourceList);
+    }
+    
+    const body = _areaSectionHost.querySelector('.area-resources-body');
+    if (!body) return;
+    
+    if (list.length === 0) {
+        body.innerHTML = '';
+        return;
+    }
+    
+    body.innerHTML = list.map(res => {
+        const emoji = AREA_EMOJIS[res.name] || '';
+        const name = t(AREA_LOCALE_KEYS[res.name] || res.name);
+        const amt = Math.floor(res.amount);
+        const cap = Math.floor(res.capacity);
+        const pct = cap > 0 ? Math.min(100, (amt / cap) * 100) : 0;
+        const isZero = amt <= 0;
+        return `<div class="area-resource-row">
+            <div class="area-resource-bar" style="width:${pct}%"></div>
+            <span class="area-resource-name">${emoji} ${name}</span>
+            <span class="area-resource-amount${isZero ? ' zero-amount' : ''}">${amt} / ${cap}</span>
+        </div>`;
+    }).join('');
+}
 
 export function roundResourceAmount(resource) {
     if (resource && Number.isFinite(resource.amount)) {
@@ -214,6 +328,13 @@ export function setupInfoPanel() {
     infoPanelContent.appendChild(effectsPanel);
     infoPanelContent.appendChild(queuePanel);
 
+    // Add unified section header above resources
+    const resourcesHeader = document.createElement('div');
+    resourcesHeader.className = 'panel-section-header';
+    resourcesHeader.setAttribute('data-locale', 'personal_resources');
+    resourcesHeader.textContent = t('personal_resources');
+    resourcesPanel.appendChild(resourcesHeader);
+
     const infoSection = document.createElement('div');
     infoSection.className = 'info-section';
 
@@ -270,6 +391,18 @@ export function setupInfoPanel() {
     });
 
     resourcesPanel.appendChild(infoSection);
+
+    // Area Supplies section (below Personal, initially hidden)
+    const areaSection = document.createElement('div');
+    areaSection.className = 'area-section hidden';
+    areaSection.id = 'areaResourcesSection';
+    areaSection.innerHTML = `
+        <div class="panel-section-header" data-locale="area_supplies">${t('area_supplies')}</div>
+        <div class="area-resources-body"></div>
+    `;
+    resourcesPanel.appendChild(areaSection);
+    _areaSectionHost = areaSection;
+
     updateResourceCategoryVisibility(infoPanelContent);
     setupQueueUI(queuePanel);
     setupEffectsUI(effectsPanel);
@@ -457,6 +590,9 @@ function handleDeathAndLoop() {
     // Clear the action queue
     try { clearQueue(); } catch { /* ignore */ }
 
+    // Reset in-game time to Day 0 but keep total played time
+    try { resetIngameTime(); } catch { /* ignore */ }
+
     // Increment loop count
     gameFlags.loopCount = (gameFlags.loopCount || 0) + 1;
     const loop = gameFlags.loopCount;
@@ -517,6 +653,8 @@ function handleDeathAndLoop() {
                     }, 350);
                 }
             } catch { /* ignore */ }
+            // Force UI refresh so actions panel shows Wake Up immediately
+            try { window.dispatchEvent(new CustomEvent('death-loop-reset')); } catch { /* ignore */ }
         },
     });
 

@@ -35,6 +35,7 @@ loaded['en'] = {
   "footer_pause_title": "Pause / Resume game",
   "footer_debug_title": "Toggle x10 resource gains for testing",
 
+  "menu_main_menu": "Main Menu",
   "menu_crash_site": "Crash Site",
   "menu_character": "Character",
   "menu_journal": "Journal",
@@ -132,16 +133,18 @@ loaded['en'] = {
   "tag_onetime": "One-time",
   "tag_remaining": "remaining",
 
-  "obj_first_steps_label": "First Steps",
-  "obj_first_steps_narrative": "You have survived the crash. The ship is in ruins, and you are alone — or so it seems for now.\\n\\nYour immediate priorities are clear: assess your surroundings, understand your resources, and begin the work of survival.\\n\\nStart by familiarizing yourself with the available sections and panels. The Journal will track your objectives, while the Crash Site and Character screens will be your primary tools for action.",
-  "obj_first_steps_step1": "Open the Journal to view your objectives",
-  "obj_first_steps_step2": "Explore the Crash Site section",
-  "obj_first_steps_step3": "Review your resources in the info panel",
+  "obj_first_steps_label": "Escape Into the Unknown",
+  "obj_first_steps_narrative": "You did it. Against all odds, the Vagabond is yours — a stolen scout ship carrying you away from Katarnis VII and a lifetime of unjust labor. But freedom has come at a steep price.\\n\\nThe ship is barely holding together. Systems are failing, navigation data is wiped, and you lack the training to fix any of it. Somewhere in the blackness ahead, a gravitational anomaly tugs at the hull — as if something has been waiting.\\n\\nYour first priority is simple: get your bearings and survive the next hour.",
+  "obj_first_steps_step1": "Wake up and assess your surroundings",
+  "obj_first_steps_step2": "Disable the blaring alarm (optional)",
+  "obj_first_steps_step3": "Check the terminal for ship status",
+  "obj_first_steps_step4": "Search the storage locker for supplies",
+  "obj_first_steps_step5": "Find your way to the bridge",
 
-  "popup_welcome_title": "Project Greenfire — Awakening",
-  "popup_welcome_page1": "You were deep asleep in your cramped crew quarters aboard the scout ship, drifting through restless dreams of distant stars and forgotten missions. The hum of the ship's systems was a steady lullaby — until it wasn't.\\n\\nA piercing alarm shatters the silence, its shrill wail cutting through the darkness like a blade. Red emergency lights strobe violently across the metal walls, casting jagged shadows that dance and flicker with each pulse. The ship groans around you — a deep, metallic moan that vibrates through the deck plates and into your bones. Something is terribly wrong.\\n\\nYour eyes snap open. Disoriented, heart pounding, you struggle to make sense of the chaos erupting around you. The air is thick with the acrid stench of ozone and smoldering circuitry. Muffled explosions rumble somewhere deep within the ship's superstructure. Status displays on the wall flicker erratically, their readouts a jumble of crimson warning glyphs you can barely process.",
-  "popup_welcome_page2": "You swing your legs over the edge of the bunk, your body protesting with every movement. How long were you out? Hours? Days? The chronometer on the wall is frozen at an impossible reading. Nothing about this feels right.\\n\\nThrough the reinforced viewport across the compartment, an unfamiliar vista fills the frame — a pale amber sky streaked with undulating bands of cloud in colors you've never seen outside a spectrograph. A massive, ochre-colored planet looms on the horizon, its surface scarred by what look like ancient impact craters. This is not your destination. This is not even on your star charts.\\n\\nThe ship shudders again. A console across the room sparks violently, showering the deck with embers. You need to move. You need to understand what happened — why the alarms are screaming, where the rest of your crew is, and most pressingly, whether the ship is going to hold together long enough for you to figure any of it out.",
-  "popup_welcome_page3": "Your name is Lieutenant Commander. That much you remember — though fragments of your mission briefing slip through your mind like water through fingers. You were sent to investigate anomalous readings in an uncharted sector. A gravitational anomaly. A pull — something vast and inexplicable dragging your ship off course. Then... nothing. A gap in your memory the size of a star system.\\n\\nThe ship around you is damaged but still breathing, much like yourself. Life support is online, barely. Power levels are critical but not catastrophic. Your crew — three souls registered in the ship's manifest — are unaccounted for. The silence from the corridors is perhaps more alarming than the alarms themselves.\\n\\nBut you are alive. And as long as you are breathing, there is work to do. Your training didn't prepare you for this specific scenario — but it did teach you one immutable truth: assess the situation, secure your resources, and survive. The answers will come. They have to.\\n\\nFor now, get up. Move. The galaxy isn't going to wait.",
+  "popup_welcome_title": "Awakening",
+  "popup_welcome_page1": "The year is 2249. For crimes you did not commit, you were sentenced to a lifetime of hard labor in the Katarnis VII mining colony — a frozen rock circling a dying gas giant on the edge of charted space. The trial was a formality. Your poverty was your guilt.\\n\\nBut you refused to break. Over months of quiet observation, you learned every crack in the colony's routines. The guards grew indifferent. The supervisors lazy. One night, during a shift change, the opportunity came — a lone scout vessel, the SFC-47 Vagabond, left briefly unguarded near the maintenance bay.\\n\\nWith nothing but a stolen access card and a lifetime of desperation, you boarded her, fired her engines, and hurled yourself into the void before anyone could raise the alarm.",
+  "popup_welcome_page2": "Freedom was never meant to feel this fragile. The Vagabond is a light reconnaissance ship — stripped-down, fast, and never designed for deep-space travel. Her navigational data was wiped by colony security protocols. Her systems are failing one by one, and you lack the training to repair them. Every warning light is a language you were never taught to read.\\n\\nYou are alone. No charts. No heading. Only the cold hum of a dying ship and the silent stars beyond the viewport.\\n\\nSupplies are already running thin. The onboard storage locker holds a few days' worth of rations and water — barely enough to survive. Every decision you make from here will be a matter of life and death.",
+  "popup_welcome_page3": "And yet, somewhere in the blackness ahead, something stirs. A gravitational anomaly. An energy signature that matches nothing in the ship's corrupted memory banks. It pulls at the Vagabond like an invisible current — gentle, but insistent. As if something has been waiting.\\n\\nYou can't explain it. Perhaps the ship is too broken to give you accurate readings. Perhaps exhaustion is clouding your judgment. But deep in your bones, you feel it: this is not an accident. This is where you were meant to be.\\n\\nYou are a fugitive on a stolen ship, a dying vessel, and no plan. But whatever lies ahead in this uncharted sector — it will remember your name.\\n\\nGet up. Move. Survive. The stars are waiting.",
 
   "objectives_new_log": "New objective: {name}",
   "objectives_completed_log": "Objective completed: {name}",
@@ -176,11 +179,19 @@ loaded['en'] = {
   "queue_remove_tooltip": "Remove from queue",
   "queue_empty": "Queue empty",
 
+  "personal_resources": "Personal",
+  "area_supplies": "Area Supplies",
+
+  "area_food": "Food Stock",
+  "area_water": "Water Stock",
+
+  "info_resources": "Resources",
+
   "crash_details": "Details",
   "crash_actions": "Actions",
 
   "death_title_1": "Just a Bad Dream",
-  "death_pages_1": "You jolt awake in your quarters, drenched in cold sweat. The alarm is blaring.\\n\\nIt felt so real... the exhaustion, the hunger, the darkness closing in. But here you are, back in your bunk.\\n\\nJust a nightmare. It had to be.",
+  "death_pages_1": "You jolt awake in your quarters, drenched in cold sweat. The alarm is blaring.\\n\\nYou... died? At least it seemed like it. The exhaustion, the hunger, the darkness closing in — it was so real. But here you are, back in your bunk.\\n\\nWas that just a dream? It had to be... right?",
   "death_title_2": "Déjà Vu",
   "death_pages_2": "The alarm. Again. The same sequence of events.\\n\\nYou remember dying. You remember waking up here before. This can't be a coincidence.\\n\\nSomething is very wrong.",
   "death_title_3": "The Loop",
@@ -220,8 +231,21 @@ loaded['en'] = {
   "result_search_bunks": "You search the crew bunks, rummaging through scattered personal effects. Beneath a pillow, your fingers brush against something familiar — a worn paperback you'd tucked away and completely forgotten about. Its cracked spine and dog-eared pages feel comforting in your hands.",
 
   "action_check_terminal": "Check Terminal",
-  "action_check_terminal_desc": "Access the flickering terminal for ship status and crew records.",
-  "result_check_terminal": "You tap the console and the screen flickers to life, demanding credentials. Muscle memory kicks in — your fingers dance across the keyboard, entering your command codes. The lock screen dissolves with a soft chime. You're in. Ship status: CRITICAL. Crew: 3 survivors detected at Gamma Site. Navigation logs are corrupted. A distress beacon loop plays on repeat.",
+  "action_check_terminal_desc": "Try to log into the terminal. From there you should be able to disable that annoying alarm and maybe figure out why it went off.",
+  "result_check_terminal": "You tap the console and the screen flickers to life, demanding credentials. You tried a few random passwords but no luck. Fortunately, you have some experience with this operating system and should be able to hack into the terminal — it'll just take a while. Oh, and you noticed a sticky note on the monitor — \"workshop\". Maybe the login can be found there?",
+  "result_check_terminal_known": "You tap the console. This time you remember the login — muscle memory from the last loop. The lock screen dissolves with a soft chime. You're in.",
+
+  "action_hack_terminal": "Hack Terminal",
+  "action_hack_terminal_desc": "Spend time bypassing the terminal's security. A long, focused task that will eventually grant full access.",
+  "result_hack_terminal": "After painstaking trial and error, you finally crack the terminal's authentication. The system welcomes you with a soft chime. You're in — and you won't forget the login now.",
+
+  "action_use_terminal_login": "Use Login Note",
+  "action_use_terminal_login_desc": "Use the found login credentials to access the terminal immediately.",
+  "result_use_terminal_login": "You enter the credentials from the sticky note. The lock screen dissolves instantly. You're in — terminal access granted.",
+
+  "action_search_for_login_note": "Search for Login Note",
+  "action_search_for_login_note_desc": "Search the workbench area for a sticky note with terminal login credentials.",
+  "result_search_for_login_note": "You rummage through the clutter on the workbench. Tucked under a coffee-stained schematic, you find a sticky note: \"terminal — user: crew01 / pass: vagabond47\". This could be useful back at the crew quarters terminal.",
 
   "action_access_logs": "Access Logs",
   "action_access_logs_desc": "Browse the ship's logs and crew manifests stored on the terminal.",
@@ -241,9 +265,17 @@ loaded['en'] = {
   "action_read_book_desc": "Pick up a worn paperback from the bunk and lose yourself in its pages. A long, quiet activity that passes the time.",
   "result_read_book": "You turn the final page and close the book. Your mind feels a little sharper, a little more at ease despite everything.",
 
+  "action_grab_bottled_water": "Grab Water Bottle",
+  "action_grab_bottled_water_desc": "Snatch a sealed bottle of water from the cafeteria supplies.",
+  "result_grab_bottled_water": "You grab a sealed bottle of water from the cafeteria counter. Clean and cool — it will come in handy.",
+
   "action_get_food": "Get Food",
   "action_get_food_desc": "Search the cafeteria stores for edible rations.",
   "result_get_food": "You find some preserved ration packs behind the counter. Not appetizing, but edible.",
+
+  "action_assess_supplies": "Assess Supplies",
+  "action_assess_supplies_desc": "Take stock of the cafeteria's remaining food and water reserves.",
+  "result_assess_supplies": "You survey the cafeteria stores. Ration packs are stacked haphazardly, but you count them quickly — enough meals for a while. The water dispenser gauge shows a decent reserve. Not abundant, but it'll keep you going.",
 
   "action_check_comms": "Check Communications",
   "action_check_comms_desc": "Access the comms station and scan for signals or distress calls.",

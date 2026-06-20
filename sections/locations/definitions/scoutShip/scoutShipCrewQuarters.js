@@ -12,7 +12,7 @@ export const scoutShipCrewQuarters = {
         {
             id: 'terminal',
             nameKey: 'poi_terminal',
-            actions: ['check_terminal', 'access_logs', 'disable_alarm']
+            actions: ['check_terminal', 'hack_terminal', 'use_terminal_login', 'access_logs', 'disable_alarm']
         },
         {
             id: 'bunks',
@@ -49,9 +49,35 @@ export const scoutShipCrewQuarters = {
             drain: [{ resource: 'Stamina', amount: 3 }],
             durationSeconds: 15,
             oneTime: true,
-            resultKey: 'result_check_terminal',
+            // resultKey is now dynamic (set in locationEngine.startAction based on loopKnowledge)
             unlockedBy: 'wake_up',
-            unlocksAll: true
+            // unlocksAll removed — handled in completeActiveAction special case
+        },
+        {
+            id: 'hack_terminal',
+            nameKey: 'action_hack_terminal',
+            descKey: 'action_hack_terminal_desc',
+            category: 'persistent',
+            drain: [],
+            durationSeconds: 180,
+            oneTime: true,
+            resultKey: 'result_hack_terminal',
+            unlockedBy: 'check_terminal',
+            // On completion: locationEngine sets loopKnowledge.terminalLogin = true
+            // and unlocks access_logs + disable_alarm
+        },
+        {
+            id: 'use_terminal_login',
+            nameKey: 'action_use_terminal_login',
+            descKey: 'action_use_terminal_login_desc',
+            drain: [{ resource: 'Stamina', amount: 1 }],
+            durationSeconds: 3,
+            oneTime: true,
+            resultKey: 'result_use_terminal_login',
+            unlockedBy: 'check_terminal',
+            requiresItem: 'terminal_login_note',
+            // On completion: locationEngine sets loopKnowledge.terminalLogin = true
+            // and unlocks access_logs + disable_alarm
         },
         {
             id: 'access_logs',
@@ -61,7 +87,7 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 10,
             oneTime: true,
             resultKey: 'result_access_logs',
-            unlockedBy: 'check_terminal'
+            unlockedBy: ['hack_terminal', 'use_terminal_login']
         },
         {
             id: 'search_bunks',
@@ -95,7 +121,7 @@ export const scoutShipCrewQuarters = {
             oneTime: true,
             resultKey: 'result_disable_alarm',
             removesEffect: 'alarm',
-            unlockedBy: 'check_terminal'
+            unlockedBy: ['hack_terminal', 'use_terminal_login']
         },
         {
             id: 'check_storage',

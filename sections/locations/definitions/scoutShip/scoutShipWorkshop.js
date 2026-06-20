@@ -12,7 +12,7 @@ export const scoutShipWorkshop = {
         {
             id: 'workbench',
             nameKey: 'poi_workbench',
-            actions: ['repair_ship_systems']
+            actions: ['repair_ship_systems', 'search_for_login_note']
         },
         {
             id: 'prototype_bench',
@@ -41,6 +41,16 @@ export const scoutShipWorkshop = {
             durationSeconds: 30,
             repeatable: true,
             resultKey: 'result_repair_ship_systems'
+        },
+        {
+            id: 'search_for_login_note',
+            nameKey: 'action_search_for_login_note',
+            descKey: 'action_search_for_login_note_desc',
+            drain: [{ resource: 'Stamina', amount: 2 }],
+            rewards: [{ type: 'item', name: 'Terminal Login Note', amount: 1 }],
+            durationSeconds: 10,
+            oneTime: true,
+            resultKey: 'result_search_for_login_note'
         },
         {
             id: 'tinker_device',

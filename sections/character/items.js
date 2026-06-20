@@ -139,6 +139,17 @@ export const items = [
         consumable: { type: 'heal', resource: 'Food Rations', amount: 25 }
     },
 
+    // Quest items
+    {
+        id: 'terminal_login_note',
+        name: 'Terminal Login Note',
+        slot: 'inventory',
+        icon: 'assets/images/items/stickynote.png',
+        description: 'A sticky note with scribbled login credentials. "Workshop terminal — user: crew01 / pass: vagabond47"',
+        quest: true,
+        tags: ['Quest'],
+    },
+
     // Quest / salvage items
     {
         id: 'scavenged_comms_panel',

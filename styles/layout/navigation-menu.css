@@ -316,6 +316,77 @@
     transform: rotate(180deg);
 }
 
+/* Unified panel section header — centered, matches log-header */
+.panel-section-header {
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.85);
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    text-shadow:
+        0 0 2px rgba(0,0,0,0.85),
+        0 0 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.25);
+    padding: 0 10px;
+    margin: 0;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    flex: 0 0 40px;
+    min-height: 40px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.menu-panel-header {
+    position: relative;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+/* Glowing line above the menu header */
+.menu-panel-header::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 4px;
+    right: 4px;
+    height: 2px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08) 15%,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35) 50%,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08) 85%,
+        transparent 100%
+    );
+    box-shadow: 0 0 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.12);
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* Glowing line under the menu header */
+.menu-panel-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 4px;
+    right: 4px;
+    height: 2px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08) 15%,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35) 50%,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08) 85%,
+        transparent 100%
+    );
+    box-shadow: 0 0 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.12);
+    pointer-events: none;
+    z-index: 5;
+}
+
 .menu-buttons-container {
     padding-top: 10px;
     width: 100%;

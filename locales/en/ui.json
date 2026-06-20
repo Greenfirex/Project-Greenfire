@@ -18,6 +18,7 @@
   "footer_pause_title": "Pause / Resume game",
   "footer_debug_title": "Toggle x10 resource gains for testing",
 
+  "menu_main_menu": "Main Menu",
   "menu_crash_site": "Crash Site",
   "menu_character": "Character",
   "menu_journal": "Journal",
@@ -100,7 +101,7 @@
   "obj_first_steps_step4": "Search the storage locker for supplies",
   "obj_first_steps_step5": "Find your way to the bridge",
 
-  "popup_welcome_title": "Project Greenfire — Awakening",
+  "popup_welcome_title": "Awakening",
   "popup_welcome_page1": "The year is 2249. For crimes you did not commit, you were sentenced to a lifetime of hard labor in the Katarnis VII mining colony — a frozen rock circling a dying gas giant on the edge of charted space. The trial was a formality. Your poverty was your guilt.\n\nBut you refused to break. Over months of quiet observation, you learned every crack in the colony's routines. The guards grew indifferent. The supervisors lazy. One night, during a shift change, the opportunity came — a lone scout vessel, the SFC-47 Vagabond, left briefly unguarded near the maintenance bay.\n\nWith nothing but a stolen access card and a lifetime of desperation, you boarded her, fired her engines, and hurled yourself into the void before anyone could raise the alarm.",
   "popup_welcome_page2": "Freedom was never meant to feel this fragile. The Vagabond is a light reconnaissance ship — stripped-down, fast, and never designed for deep-space travel. Her navigational data was wiped by colony security protocols. Her systems are failing one by one, and you lack the training to repair them. Every warning light is a language you were never taught to read.\n\nYou are alone. No charts. No heading. Only the cold hum of a dying ship and the silent stars beyond the viewport.\n\nSupplies are already running thin. The onboard storage locker holds a few days' worth of rations and water — barely enough to survive. Every decision you make from here will be a matter of life and death.",
   "popup_welcome_page3": "And yet, somewhere in the blackness ahead, something stirs. A gravitational anomaly. An energy signature that matches nothing in the ship's corrupted memory banks. It pulls at the Vagabond like an invisible current — gentle, but insistent. As if something has been waiting.\n\nYou can't explain it. Perhaps the ship is too broken to give you accurate readings. Perhaps exhaustion is clouding your judgment. But deep in your bones, you feel it: this is not an accident. This is where you were meant to be.\n\nYou are a fugitive on a stolen ship, a dying vessel, and no plan. But whatever lies ahead in this uncharted sector — it will remember your name.\n\nGet up. Move. Survive. The stars are waiting.",
@@ -138,11 +139,19 @@
   "queue_remove_tooltip": "Remove from queue",
   "queue_empty": "Queue empty",
 
+  "personal_resources": "Personal",
+  "area_supplies": "Area Supplies",
+
+  "area_food": "Food Stock",
+  "area_water": "Water Stock",
+
+  "info_resources": "Resources",
+
   "crash_details": "Details",
   "crash_actions": "Actions",
 
   "death_title_1": "Just a Bad Dream",
-  "death_pages_1": "You jolt awake in your quarters, drenched in cold sweat.\n\nIt felt so real... the exhaustion, the hunger, the darkness closing in. But here you are, back in your bunk.\n\nJust a nightmare. It had to be.",
+  "death_pages_1": "You jolt awake in your quarters, drenched in cold sweat. The alarm is blaring.\n\nYou... died? At least it seemed like it. The exhaustion, the hunger, the darkness closing in — it was so real. But here you are, back in your bunk.\n\nWas that just a dream? It had to be... right?",
   "death_title_2": "Déjà Vu",
   "death_pages_2": "The alarm. Again. The same sequence of events.\n\nYou remember dying. You remember waking up here before. This can't be a coincidence.\n\nSomething is very wrong.",
   "death_title_3": "The Loop",
@@ -182,8 +191,21 @@
   "result_search_bunks": "You search the crew bunks, rummaging through scattered personal effects. Beneath a pillow, your fingers brush against something familiar — a worn paperback you'd tucked away and completely forgotten about. Its cracked spine and dog-eared pages feel comforting in your hands.",
 
   "action_check_terminal": "Check Terminal",
-  "action_check_terminal_desc": "Access the flickering terminal for ship status and crew records.",
-  "result_check_terminal": "You tap the console and the screen flickers to life, demanding credentials. Muscle memory kicks in — your fingers dance across the keyboard, entering your command codes. The lock screen dissolves with a soft chime. You're in. Ship status: CRITICAL. Crew: 3 survivors detected at Gamma Site. Navigation logs are corrupted. A distress beacon loop plays on repeat.",
+  "action_check_terminal_desc": "Try to log into the terminal. From there you should be able to disable that annoying alarm and maybe figure out why it went off.",
+  "result_check_terminal": "You tap the console and the screen flickers to life, demanding credentials. You tried a few random passwords but no luck. Fortunately, you have some experience with this operating system and should be able to hack into the terminal — it'll just take a while. Oh, and you noticed a sticky note on the monitor — \"workshop\". Maybe the login can be found there?",
+  "result_check_terminal_known": "You tap the console. This time you remember the login — muscle memory from the last loop. The lock screen dissolves with a soft chime. You're in.",
+
+  "action_hack_terminal": "Hack Terminal",
+  "action_hack_terminal_desc": "Spend time bypassing the terminal's security. A long, focused task that will eventually grant full access.",
+  "result_hack_terminal": "After painstaking trial and error, you finally crack the terminal's authentication. The system welcomes you with a soft chime. You're in — and you won't forget the login now.",
+
+  "action_use_terminal_login": "Use Login Note",
+  "action_use_terminal_login_desc": "Use the found login credentials to access the terminal immediately.",
+  "result_use_terminal_login": "You enter the credentials from the sticky note. The lock screen dissolves instantly. You're in — terminal access granted.",
+
+  "action_search_for_login_note": "Search for Login Note",
+  "action_search_for_login_note_desc": "Search the workbench area for a sticky note with terminal login credentials.",
+  "result_search_for_login_note": "You rummage through the clutter on the workbench. Tucked under a coffee-stained schematic, you find a sticky note: \"terminal — user: crew01 / pass: vagabond47\". This could be useful back at the crew quarters terminal.",
 
   "action_access_logs": "Access Logs",
   "action_access_logs_desc": "Browse the ship's logs and crew manifests stored on the terminal.",
@@ -203,9 +225,17 @@
   "action_read_book_desc": "Pick up a worn paperback from the bunk and lose yourself in its pages. A long, quiet activity that passes the time.",
   "result_read_book": "You turn the final page and close the book. Your mind feels a little sharper, a little more at ease despite everything.",
 
+  "action_grab_bottled_water": "Grab Water Bottle",
+  "action_grab_bottled_water_desc": "Snatch a sealed bottle of water from the cafeteria supplies.",
+  "result_grab_bottled_water": "You grab a sealed bottle of water from the cafeteria counter. Clean and cool — it will come in handy.",
+
   "action_get_food": "Get Food",
   "action_get_food_desc": "Search the cafeteria stores for edible rations.",
   "result_get_food": "You find some preserved ration packs behind the counter. Not appetizing, but edible.",
+
+  "action_assess_supplies": "Assess Supplies",
+  "action_assess_supplies_desc": "Take stock of the cafeteria's remaining food and water reserves.",
+  "result_assess_supplies": "You survey the cafeteria stores. Ration packs are stacked haphazardly, but you count them quickly — enough meals for a while. The water dispenser gauge shows a decent reserve. Not abundant, but it'll keep you going.",
 
   "action_check_comms": "Check Communications",
   "action_check_comms_desc": "Access the comms station and scan for signals or distress calls.",

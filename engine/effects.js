@@ -153,7 +153,7 @@ export function setupEffectsUI(container) {
     _effectsHost = document.createElement('div');
     _effectsHost.className = 'effects-section hidden';
     _effectsHost.innerHTML = `
-        <div class="effects-header">${t('effects_title')}</div>
+        <div class="panel-section-header">${t('effects_title')}</div>
         <div class="effects-body"></div>
     `;
     

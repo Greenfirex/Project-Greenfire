@@ -12,7 +12,7 @@ export const scoutShipMainArea = {
         {
             id: 'cafeteria',
             nameKey: 'poi_cafeteria',
-            actions: ['get_food', 'drink_water', 'grab_bottled_water']
+            actions: ['assess_supplies', 'get_food', 'drink_water', 'grab_bottled_water']
         },
         {
             id: 'communications',
@@ -27,15 +27,28 @@ export const scoutShipMainArea = {
     ],
     actions: [
         {
+            id: 'assess_supplies',
+            nameKey: 'action_assess_supplies',
+            descKey: 'action_assess_supplies_desc',
+            category: 'simple',
+            drain: [{ resource: 'Stamina', amount: 2 }],
+            durationSeconds: 10,
+            oneTime: true,
+            resultKey: 'result_assess_supplies',
+            revealsAreaSupplies: true
+        },
+        {
             id: 'get_food',
             nameKey: 'action_get_food',
             descKey: 'action_get_food_desc',
             category: 'refresh',
             drain: [],
-            rewards: [{ type: 'resource', name: 'Food Rations', amount: 2 }],
+            rewards: [{ type: 'resource', name: 'Food Rations', amount: 1 }],
             durationSeconds: 0,
             repeatable: true,
-            cancellable: true
+            cancellable: true,
+            drainsAreaResource: { resource: 'area_food', amount: 1 },
+            requiresAreaResource: 'area_food'
         },
         {
             id: 'drink_water',
@@ -43,10 +56,12 @@ export const scoutShipMainArea = {
             descKey: 'action_drink_water_desc',
             category: 'refresh',
             drain: [],
-            rewards: [{ type: 'resource', name: 'Drinking Water', amount: 2 }],
+            rewards: [{ type: 'resource', name: 'Drinking Water', amount: 1 }],
             durationSeconds: 0,
             repeatable: true,
-            cancellable: true
+            cancellable: true,
+            drainsAreaResource: { resource: 'area_water', amount: 1 },
+            requiresAreaResource: 'area_water'
         },
         {
             id: 'grab_bottled_water',
@@ -87,8 +102,8 @@ export const scoutShipMainArea = {
         },
         {
             id: 'go_to_workshop',
-            nameKey: 'action_go_to_workshop',
-            descKey: 'action_go_to_workshop_desc',
+            nameKey: 'action_go_workshop',
+            descKey: 'action_go_workshop_desc',
             drain: [],
             durationSeconds: 3,
             repeatable: true,

@@ -17,11 +17,20 @@
 #logSection::before {
     content: '';
     position: absolute;
-    left: 0;
+    left: 4px;
+    right: 4px;
     top: 0;
-    width: 100%;
+    width: auto;
     height: 2px;
-    animation: pulse-glow 5s ease-in-out infinite;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08) 15%,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35) 50%,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08) 85%,
+        transparent 100%
+    );
+    box-shadow: 0 0 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.12);
     z-index: 5;
 }
 
@@ -56,20 +65,34 @@
 
 .log-header h3 {
     margin: 0;
-    font-size: 1em;
-    font-weight: normal;
-    color: white; /* Ensure title text is visible */
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.85);
+    text-shadow:
+        0 0 2px rgba(0,0,0,0.85),
+        0 0 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.25);
 }
 
 /* This is the glowing line below the title */
 .log-header::after {
     content: '';
     position: absolute;
-    left: 0;
+    left: 4px;
+    right: 4px;
     bottom: 0;
-    width: 100%;
+    width: auto;
     height: 2px;
-    animation: pulse-glow 5s ease-in-out infinite;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08) 15%,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35) 50%,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08) 85%,
+        transparent 100%
+    );
+    box-shadow: 0 0 8px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.12);
     z-index: 5;
 }
 

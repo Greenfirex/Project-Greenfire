@@ -2,7 +2,7 @@
 // Location Engine
 // ==========================================================================
 
-import { resources, updateResourceInfo, setActiveDrainRates, applyTimePassiveDrain, roundResourceAmount, RESOURCE_EMOJIS, checkDeathAndLoop } from '../../engine/resources.js';
+import { resources, updateResourceInfo, setActiveDrainRates, applyTimePassiveDrain, roundResourceAmount, RESOURCE_EMOJIS, checkDeathAndLoop, initAreaResources, drainAreaResource, getAreaResourceAmount, showAreaSuppliesPanel, areaResources } from '../../engine/resources.js';
 import { addLogEntry, LogType } from '../../engine/ingameLog.js';
 import { t } from '../../locales/locales.js';
 import { getCurrentLocationId, switchToLocation, getLocation } from './locationData.js';
@@ -13,7 +13,8 @@ import { newBadgeHtml, wireClearUiNewBadge } from '../../ui/components/contentNe
 import { getEffectDebuffs, getEffectDebuffDetails, hasEffect, removeEffect, addEffect } from '../../engine/effects.js';
 import { addToQueue, startNextQueuedAction, updateQueueActive, isInQueue } from '../../engine/queue.js';
 import { setupTooltip } from '../../ui/panels/tooltip.js';
-import { grantItemToCharacter } from '../character/character.js';
+import { grantItemToCharacter, consumeItemQuantityFromBag, countItemInBag } from '../character/character.js';
+import { getItemDefinition } from '../character/items.js';
 
 const DEFAULT_DRAIN = { 'Stamina': 0.20, 'Food Rations': 0.08, 'Drinking Water': 0.12 };
 const TAXING_MULT = 2.0;
@@ -106,8 +107,8 @@ function completeActiveAction(opts = {}) {
         else addLogEntry(`${action._displayName || action.id} completed.`, LogType.SUCCESS);
     } else if (reason === 'manual') {
         addLogEntry(t('log_action_stopped', { action: action._displayName || t(action.nameKey) }), LogType.INFO);
-    } else if (action.resultKey) {
-        addLogEntry(t(action.resultKey), LogType.SUCCESS);
+    } else if (action._resultKey || action.resultKey) {
+        addLogEntry(t(action._resultKey || action.resultKey), LogType.SUCCESS);
     } else {
         addLogEntry(`${action._displayName || action.id} completed.`, LogType.INFO);
     }
@@ -149,6 +150,104 @@ function completeActiveAction(opts = {}) {
     }
     
     // Handle action unlocks
+    // --- Special case: check_terminal branches based on loopKnowledge.terminalLogin ---
+    if (action.id === 'check_terminal') {
+        const loc = getLocation(getCurrentLocationId());
+        if (loc) {
+            const unlockState = getUnlockState(loc.id);
+            unlockState['check_terminal'] = true;
+            if (gameFlags.loopKnowledge && gameFlags.loopKnowledge.terminalLogin) {
+                // Player remembers login → directly unlock access_logs + disable_alarm
+                unlockState['check_terminal_known'] = true;
+                // Mark the two actions as unlocked (they use ['hack_terminal','use_terminal_login'] as unlockedBy)
+                // but since we're bypassing, set both as unlockers
+                unlockState['hack_terminal'] = true;
+                unlockState['use_terminal_login'] = true;
+            } else {
+                // First time → unlock hack_terminal + use_terminal_login
+                // (these are the two new actions the player must complete)
+            }
+            setUnlockState(loc.id, unlockState);
+            // Flag newly unlocked actions as "new" — handle string and array unlockedBy
+            (loc.actions || []).forEach(a => {
+                if (a.id === action.id) return;
+                if (!a.unlockedBy) return;
+                let shouldFlag = false;
+                if (gameFlags.loopKnowledge && gameFlags.loopKnowledge.terminalLogin) {
+                    // If known, flag access_logs + disable_alarm (their unlockedBy is ['hack_terminal','use_terminal_login'])
+                    if (a.id === 'access_logs' || a.id === 'disable_alarm') shouldFlag = true;
+                } else {
+                    // If not known, flag hack_terminal + use_terminal_login (unlockedBy: 'check_terminal')
+                    if (a.unlockedBy === 'check_terminal') shouldFlag = true;
+                }
+                if (shouldFlag) flagActionAsNew(a.id);
+            });
+            _fullRebuildNeeded = true;
+        }
+    }
+    
+    // --- Special case: hack_terminal / use_terminal_login grant terminalLogin knowledge + unlock access_logs/disable_alarm ---
+    if (action.id === 'hack_terminal' || action.id === 'use_terminal_login') {
+        // Grant persistent loop knowledge
+        if (!gameFlags.loopKnowledge) gameFlags.loopKnowledge = {};
+        gameFlags.loopKnowledge.terminalLogin = true;
+        // Persist to gameState
+        try {
+            const state = JSON.parse(localStorage.getItem('gameState') || '{}');
+            if (!state.gameFlags) state.gameFlags = {};
+            if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = {};
+            state.gameFlags.loopKnowledge.terminalLogin = true;
+            localStorage.setItem('gameState', JSON.stringify(state));
+        } catch { /* ignore */ }
+        // Unlock access_logs + disable_alarm
+        const loc = getLocation(getCurrentLocationId());
+        if (loc) {
+            const unlockState = getUnlockState(loc.id);
+            unlockState[action.id] = true;
+            setUnlockState(loc.id, unlockState);
+            (loc.actions || []).forEach(a => {
+                if (a.id !== action.id && a.unlockedBy && Array.isArray(a.unlockedBy) && a.unlockedBy.includes(action.id)) {
+                    flagActionAsNew(a.id);
+                }
+            });
+            // Mutual exclusion: mark the opposing login action as completed
+            const opposingId = action.id === 'hack_terminal' ? 'use_terminal_login' : 'hack_terminal';
+            const opposing = (loc.actions || []).find(a => a.id === opposingId);
+            if (opposing) opposing._completed = true;
+            _fullRebuildNeeded = true;
+        }
+        // Also hide search_for_login_note in workshop — player already knows the login
+        try {
+            const wsLoc = getLocation('scout_ship_workshop');
+            if (wsLoc && Array.isArray(wsLoc.actions)) {
+                const noteAction = wsLoc.actions.find(a => a.id === 'search_for_login_note');
+                if (noteAction) noteAction._completed = true;
+            }
+        } catch { /* ignore */ }
+    }
+    
+    // --- Area resource drains ---
+    if (action.drainsAreaResource) {
+        const locId = getCurrentLocationId();
+        const dr = action.drainsAreaResource;
+        drainAreaResource(locId, dr.resource, dr.amount || 1);
+        // Set window global so resources.js can find the current list
+        if (typeof window !== 'undefined') {
+            window._currentAreaResourceList = areaResources[locId] || [];
+        }
+    }
+    
+    // --- Reveal area supplies panel ---
+    if (action.revealsAreaSupplies) {
+        const locId = getCurrentLocationId();
+        initAreaResources(locId);
+        if (typeof window !== 'undefined') {
+            window._currentAreaResourceList = areaResources[locId] || [];
+        }
+        showAreaSuppliesPanel();
+    }
+    
+    // --- Generic unlocksAll handler (also covers array unlockedBy now) ---
     if (action.unlocksAll) {
         const location = getLocation(getCurrentLocationId());
         if (location) {
@@ -157,7 +256,10 @@ function completeActiveAction(opts = {}) {
             setUnlockState(location.id, unlockState);
             // Flag all newly unlocked actions as "new" so badges appear
             (location.actions || []).forEach(a => {
-                if (a.id !== action.id && a.unlockedBy === action.id) {
+                if (a.id === action.id) return;
+                if (a.unlockedBy === action.id) {
+                    flagActionAsNew(a.id);
+                } else if (Array.isArray(a.unlockedBy) && a.unlockedBy.includes(action.id)) {
                     flagActionAsNew(a.id);
                 }
             });
@@ -216,6 +318,26 @@ function startAction(actionId) {
     if (!action) return;
     // No affordability gate — player can always attempt actions even when hungry/thirsty/exhausted
     if (activeActionId === actionId && !actionPaused) return;
+    // Check requiresItem — consume the item before starting
+    if (action.requiresItem) {
+        const itemDef = getItemDefinition(action.requiresItem);
+        if (!itemDef) {
+            addLogEntry(`Error: unknown required item "${action.requiresItem}".`, LogType.ERROR);
+            return;
+        }
+        const hasItem = countItemInBag(action.requiresItem) > 0;
+        if (!hasItem) {
+            addLogEntry(`You need ${itemDef.name} to do this.`, LogType.INFO);
+            return;
+        }
+        // Consume exactly 1 of the required item
+        const consumed = consumeItemQuantityFromBag(action.requiresItem, 1);
+        if (!consumed) {
+            addLogEntry(`Failed to use ${itemDef.name}.`, LogType.ERROR);
+            return;
+        }
+        addLogEntry(`Used: ${itemDef.name}.`, LogType.INFO);
+    }
     // Set drain rates from default action costs (per-minute rates)
     const mult = action.category === 'taxing' ? TAXING_MULT : 1;
     const drainRates = {}; const sources = {}; const displayName = t(action.nameKey);
@@ -277,6 +399,14 @@ function startAction(actionId) {
     }
     if (activeActionId !== actionId) {
         activeActionId = actionId; activeAction = action; activeAction._displayName = t(action.nameKey);
+        // Dynamic resultKey for check_terminal based on loop knowledge
+        if (action.id === 'check_terminal') {
+            if (gameFlags.loopKnowledge && gameFlags.loopKnowledge.terminalLogin) {
+                activeAction._resultKey = 'result_check_terminal_known';
+            } else {
+                activeAction._resultKey = 'result_check_terminal';
+            }
+        }
         // Restore persistent progress from previous loops
         if (action.category === 'persistent' && action.id && gameFlags.persistentProgress) {
             actionProgress = Number(gameFlags.persistentProgress[action.id]) || 0;
@@ -495,6 +625,15 @@ function renderDetailsTile() {
                 gainsHtml = `<div class="detail-section"><div class="detail-section-label" style="color:#4caf50;">&#x2B06; ${t('detail_gains')}</div><div class="detail-cost detail-cost-gain ${gainCssClass}"><span class="detail-cost-label">${gainResourceName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate" style="color:#4caf50;">[+${gainPerSecRate.toFixed(2)}/min]</span></span></div></div>`;
             }
             
+            // Requirements section (item prerequisite)
+            let requirementsHtml = '';
+            if (action.requiresItem) {
+                const reqItemDef = getItemDefinition(action.requiresItem);
+                if (reqItemDef) {
+                    requirementsHtml = `<div class="detail-section"><div class="detail-section-label">&#x1F4CB; Requirements</div><div class="detail-cost detail-cost-requirement"><span class="detail-cost-label">${reqItemDef.name}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate" style="color:#ff9800;">[quest item]</span></span></div></div>`;
+                }
+            }
+            
             // Rewards (hidden for rest/refresh since gains show the continuous rate)
             let rewardsHtml = '';
             if (action.rewards && action.rewards.length && !isRest && !isRefresh) {
@@ -505,7 +644,7 @@ function renderDetailsTile() {
                 rewardsHtml = `<div class="detail-section"><div class="detail-section-label">&#x1F381; ${t('detail_rewards')}</div>${rewardItems}</div>`;
             }
             
-            return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t(action.nameKey)}</h3></div>${tagsHtml}<p class="location-location-desc">${t(action.descKey)}</p>${durationHtml}${gainsHtml}${costsHtml}${rewardsHtml}</div>`;
+            return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t(action.nameKey)}</h3></div>${tagsHtml}<p class="location-location-desc">${t(action.descKey)}</p>${durationHtml}${gainsHtml}${costsHtml}${requirementsHtml}${rewardsHtml}</div>`;
         }
     }
     
@@ -525,7 +664,18 @@ function renderActionsTile(location) {
     let actions = (location.actions || []).filter(a => {
         if (a._completed) return false;
         // Only show actions that are unlocked (no unlockedBy = always available)
-        if (a.unlockedBy && !unlockState[a.unlockedBy]) return false;
+        if (a.unlockedBy) {
+            if (Array.isArray(a.unlockedBy)) {
+                if (!a.unlockedBy.some(id => unlockState[id])) return false;
+            } else {
+                if (!unlockState[a.unlockedBy]) return false;
+            }
+        }
+        // Hide action if it requires an area resource that is depleted
+        if (a.requiresAreaResource) {
+            const locId = getCurrentLocationId();
+            if (getAreaResourceAmount(locId, a.requiresAreaResource) <= 0) return false;
+        }
         return true;
     });
     
@@ -1011,9 +1161,15 @@ try {
                 setActiveDrainRates(null, null);
                 clearActionTimer();
                 activeAction = null; activeActionId = null; actionProgress = 0; actionPaused = false;
+                updateQueueActive(null);
                 _fullRebuildNeeded = true;
                 try { refreshUI(); } catch { /* ignore */ }
             }
+        });
+        // Refresh UI after death loop popup closes
+        window.addEventListener('death-loop-reset', () => {
+            _fullRebuildNeeded = true;
+            try { refreshUI(); } catch { /* ignore */ }
         });
     }
 } catch { /* ignore */ }
