@@ -336,6 +336,17 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
     flex-direction: column;
 }
 
+/* Resources=40%, Effects=30%, Queue=30% */
+#infoResourcesPanel {
+    flex: 1.6 1 0;
+}
+#infoEffectsPanel {
+    flex: 1.2 1 0;
+}
+#infoQueuePanel {
+    flex: 1.2 1 0;
+}
+
 .info-section {
     flex: 1 1 auto;
     min-height: 0;
@@ -345,6 +356,28 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
     flex-direction: column;
     gap: 2px;
     padding-top: 6px;
+}
+
+/* Resources panel: 50/50 split between personal resources and area supplies */
+#infoResourcesPanel .info-section {
+    flex: 1 1 40%;
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: 0;
+}
+
+#infoResourcesPanel .area-section {
+    flex: 1 1 60%;
+    min-height: 0;
+    overflow-y: auto;
+    margin-top: 8px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08);
+}
+
+#infoResourcesPanel .area-section.no-resources {
+    flex: 0 0 auto;
+    display: none;
 }
 
 .info-category {
@@ -748,14 +781,43 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
     top: 0;
     left: 0;
     height: 100%;
+    border-radius: 0 2px 2px 0;
+    z-index: 1;
+    transition: width 0.25s ease-out;
     background: linear-gradient(
         90deg,
         rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18) 0%,
         rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.09) 100%
     );
-    border-radius: 0 2px 2px 0;
-    z-index: 1;
-    transition: width 0.25s ease-out;
+}
+/* Color-coded area resource bars */
+.area-resource-bar.bar-food {
+    background: linear-gradient(90deg,
+        rgba(255, 140, 66, 0.52) 0%,
+        rgba(200, 100, 30, 0.32) 100%
+    );
+    box-shadow: 0 0 6px rgba(255, 140, 66, 0.12);
+}
+.area-resource-bar.bar-water {
+    background: linear-gradient(90deg,
+        rgba(79, 195, 247, 0.48) 0%,
+        rgba(40, 140, 200, 0.30) 100%
+    );
+    box-shadow: 0 0 6px rgba(79, 195, 247, 0.12);
+}
+.area-resource-bar.bar-fuel {
+    background: linear-gradient(90deg,
+        rgba(255, 215, 0, 0.50) 0%,
+        rgba(200, 160, 0, 0.30) 100%
+    );
+    box-shadow: 0 0 6px rgba(255, 215, 0, 0.14);
+}
+.area-resource-bar.bar-o2 {
+    background: linear-gradient(90deg,
+        rgba(0, 230, 230, 0.48) 0%,
+        rgba(0, 170, 170, 0.28) 100%
+    );
+    box-shadow: 0 0 6px rgba(0, 230, 230, 0.12);
 }
 .area-resource-name {
     z-index: 2;
@@ -829,12 +891,14 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
 
 @keyframes effect-pulse {
     0%, 100% {
-        border-color: rgba(255, 107, 107, 0.20);
-        box-shadow: 0 0 4px rgba(255, 60, 60, 0.0);
+        border-color: rgba(255, 107, 107, 0.12);
+        box-shadow: 0 0 8px rgba(255, 40, 40, 0.0);
+        background: rgba(0, 0, 0, 0.30);
     }
     50% {
-        border-color: rgba(255, 107, 107, 0.35);
-        box-shadow: 0 0 8px rgba(255, 60, 60, 0.06);
+        border-color: rgba(255, 80, 80, 0.55);
+        box-shadow: 0 0 14px rgba(255, 40, 40, 0.22), 0 0 28px rgba(255, 40, 40, 0.08);
+        background: rgba(255, 40, 40, 0.04);
     }
 }
 
@@ -849,17 +913,17 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
 
 .effect-row {
     display: flex;
-    gap: 8px;
-    padding: 6px 8px;
+    gap: 5px;
+    padding: 3px 6px;
     background: rgba(0,0,0,0.3);
     border: 1px solid rgba(255, 107, 107, 0.2);
     border-radius: 4px;
-    align-items: flex-start;
-    animation: effect-pulse 3s ease-in-out infinite;
+    align-items: center;
+    min-height: 24px;
 }
 
 .effect-row.effect-enter {
-    animation: effect-enter 0.6s ease-out forwards, effect-pulse 3s ease-in-out 0.6s infinite;
+    animation: effect-enter 0.6s ease-out forwards;
 }
 
 .effect-row .effect-icon {
@@ -867,56 +931,59 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
 }
 
 .effect-icon {
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1;
     flex-shrink: 0;
-    margin-top: 1px;
 }
 
 .effect-info {
     display: flex;
-    flex-direction: column;
-    gap: 3px;
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
     flex: 1;
     min-width: 0;
 }
 
 .effect-name {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     color: #ff6b6b;
+    flex-shrink: 0;
+    cursor: help;
 }
 
 .effect-desc {
-    font-size: 10px;
-    color: rgba(255,255,255,0.55);
-    line-height: 1.3;
+    display: none; /* moved to tooltip */
 }
 
 .effect-debuffs {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 2px;
+    gap: 3px;
+    flex: 1;
+    min-width: 0;
 }
 
 .effect-debuff-tag {
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 700;
-    padding: 1px 5px;
+    padding: 1px 4px;
     border-radius: 2px;
     background: rgba(255, 107, 107, 0.12);
     color: #ff6b6b;
     border: 1px solid rgba(255, 107, 107, 0.25);
+    white-space: nowrap;
 }
 
 .effect-progress {
     position: relative;
-    height: 14px;
+    height: 10px;
     background: rgba(255,255,255,0.06);
     border-radius: 3px;
     overflow: hidden;
-    margin-top: 4px;
+    margin-top: 2px;
+    width: 100%;
 }
 
 .effect-progress-bar {
@@ -932,7 +999,7 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
 .effect-progress-text {
     position: relative;
     z-index: 2;
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 700;
     color: rgba(255,255,255,0.8);
     display: flex;

@@ -5,6 +5,7 @@
 import { addJournalEntry } from '../../sections/journal/journal.js';
 import { getIngameTimeObject } from '../../engine/time.js';
 import { addLogEntry, LogType } from '../../engine/ingameLog.js';
+import { storyLog } from '../../engine/objectives.js';
 
 let activeStoryEvent = null;
 let _popupEscHandler = null;
@@ -110,14 +111,14 @@ export function showStoryPopup(event) {
         textKeys: event.pageKeys || null,
     };
 
-    // Check for existing entry with same id to avoid duplicates
-    const existing = (function () {
-        try {
-            const raw = localStorage.getItem('storyLog');
-            const list = raw ? JSON.parse(raw) : [];
-            return entry.id ? list.find(x => x.id === entry.id) : null;
-        } catch { return null; }
-    })();
+    // Check for existing entry with same id to avoid duplicates.
+    // Use in-memory storyLog (not localStorage) to avoid a stale-data race:
+    // on New Game, showStoryPopup fires before resetToDefaultState() clears
+    // localStorage, so the old storyLog would still be there and cause a
+    // false-positive dedup match, skipping addJournalEntry entirely.
+    const existing = (entry.id && Array.isArray(storyLog))
+        ? storyLog.find(x => x && x.id === entry.id) || null
+        : null;
 
     if (!existing) {
         addJournalEntry(entry);

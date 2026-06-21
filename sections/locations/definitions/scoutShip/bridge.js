@@ -12,7 +12,7 @@ export const scoutShipBridge = {
         {
             id: 'navigation',
             nameKey: 'poi_navigation',
-            actions: ['check_navigation', 'scan_systems']
+            actions: ['check_navigation', 'check_reactor_status']
         },
         {
             id: 'controls',
@@ -36,13 +36,14 @@ export const scoutShipBridge = {
             resultKey: 'result_check_navigation'
         },
         {
-            id: 'scan_systems',
-            nameKey: 'action_scan_systems',
-            descKey: 'action_scan_systems_desc',
+            id: 'check_reactor_status',
+            nameKey: 'action_check_reactor_status',
+            descKey: 'action_check_reactor_status_desc',
             drain: [{ resource: 'Stamina', amount: 3 }],
             durationSeconds: 15,
-            repeatable: true,
-            resultKey: 'result_scan_systems'
+            oneTime: true,
+            revealsAreaSupplies: true,
+            // resultKey is dynamic — set in locationEngine based on loopKnowledge.fuelScanned
         },
         {
             id: 'check_status',

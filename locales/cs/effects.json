@@ -7,5 +7,9 @@
   "effect_thirsty_name": "Žíznivý",
   "effect_thirsty_desc": "Nemáš žádnou pitnou vodu. Náklady na výdrž jsou výrazně zvýšeny.",
   "effect_exhausted_name": "Vyčerpaný",
-  "effect_exhausted_desc": "Zcela bez energie. Tvé zdraví se nyní zhoršuje."
+  "effect_exhausted_desc": "Zcela bez energie. Tvé zdraví se nyní zhoršuje.",
+  "effect_life_support_failure_name": "Selhání podpory života",
+  "effect_life_support_failure_desc": "Palivo reaktoru vyčerpáno. Systémy podpory života běží na rezervu — hladina kyslíku klesá.",
+  "effect_oxygen_depleted_name": "Bez kyslíku",
+  "effect_oxygen_depleted_desc": "Žádný dýchatelný vzduch. Tvé zdraví se rapidně zhoršuje."
 }

@@ -1,8 +1,8 @@
 /* --- In-Game Log Section Styles --- */
 #logSection {
     width: 100%;
-    height: calc(50% + 20px);
-    max-height: calc(50% + 20px); /* clamp: never grow beyond intended size */
+    height: 60%;
+    max-height: 60%;             /* clamp: never grow beyond intended size */
     min-height: 0;               /* allow flex item to be smaller than content */
     background-color: #000;
     box-sizing: border-box;

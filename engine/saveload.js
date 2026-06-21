@@ -12,6 +12,9 @@ const setActiveCrashSiteAction = () => {};
 import { characterState, applySavedCharacterState, getCharacterStateForSave, resetCharacterState } from '../sections/character/character.js';
 import { getObjectivesStatus, setObjectivesStatus, resetObjectives } from './objectives.js';
 import { t } from '../locales/locales.js';
+import { clearAllEffects, getActiveEffectsForSave, setActiveEffects } from './effects.js';
+import { getQueueForSave, setQueueFromSave, clearQueue } from './queue.js';
+import { areaResources, getAreaResourcesForSave, setAreaResourcesFromSave } from './resources.js';
 
 function reconcileActivatedSectionsAfterLoad() {
     try {
@@ -51,7 +54,10 @@ export function getGameState() {
         activeActionState: (function(){ try { return typeof window.__getActiveActionState === 'function' ? window.__getActiveActionState() : null; } catch { return null; } })(),
         characterState: (function(){ try { return getCharacterStateForSave(); } catch { return null; } })(),
         objectivesStatus: (function(){ try { return getObjectivesStatus(); } catch { return []; } })(),
-        currentLocationId: (function(){ try { return getCurrentLocationId(); } catch { return 'scout_ship_crew_quarters'; } })()
+        currentLocationId: (function(){ try { return getCurrentLocationId(); } catch { return 'scout_ship_crew_quarters'; } })(),
+        activeEffects: (function(){ try { return getActiveEffectsForSave(); } catch { return []; } })(),
+        actionQueue: (function(){ try { return getQueueForSave(); } catch { return []; } })(),
+        areaResources: (function(){ try { return getAreaResourcesForSave(); } catch { return {}; } })()
     };
 }
 
@@ -143,6 +149,27 @@ export function applyGameState(gameState) {
         }
     } catch { /* non-fatal */ }
 
+    // Restore active effects (alarm, debuffs, etc.)
+    try {
+        if (Array.isArray(gameState.activeEffects)) {
+            setActiveEffects(gameState.activeEffects);
+        }
+    } catch { /* non-fatal */ }
+
+    // Restore action queue
+    try {
+        if (Array.isArray(gameState.actionQueue)) {
+            setQueueFromSave(gameState.actionQueue);
+        }
+    } catch { /* non-fatal */ }
+
+    // Restore area resources
+    try {
+        if (gameState.areaResources && typeof gameState.areaResources === 'object') {
+            setAreaResourcesFromSave(gameState.areaResources);
+        }
+    } catch { /* non-fatal */ }
+
     // Restore active crash site action
     if (gameState.activeCrashSiteAction) {
         setActiveCrashSiteAction(gameState.activeCrashSiteAction);
@@ -216,6 +243,12 @@ export function resetToDefaultState() {
     resetActiveActions();
     resetCharacterState();
     resetObjectives();
+    clearAllEffects();
+    clearQueue();
+    // Clear area resources
+    for (const key of Object.keys(areaResources)) {
+        delete areaResources[key];
+    }
 
     setActivatedSections(getInitialActivatedSections());
 

@@ -143,6 +143,8 @@
   "area_supplies": "Area Supplies",
 
   "area_food": "Food Stock",
+  "area_fuel": "Reactor Fuel",
+  "area_o2": "Oxygen Reserve",
   "area_water": "Water Stock",
 
   "info_resources": "Resources",
@@ -245,9 +247,14 @@
   "action_check_navigation_desc": "Review the navigation systems and current position.",
   "result_check_navigation": "The navigation systems show your current position near an uncharted planet. All long-range communications are offline.",
 
-  "action_scan_systems": "Scan Systems",
-  "action_scan_systems_desc": "Run a full diagnostic scan of ship systems.",
-  "result_scan_systems": "The diagnostic scan reveals multiple system failures. Life support is at 87%, power reserves at 45%. You need to be careful.",
+  "action_check_reactor_status": "Check Reactor Status",
+  "action_check_reactor_status_desc": "Run a detailed diagnostic of the ship's reactor and power systems.",
+  "result_check_reactor_status": "The reactor scan reveals critical fuel depletion — only {fuel} units remain. At current burn rate you have roughly {minutes} minutes before the reactor goes cold. Without power, life support will fail and oxygen reserves will drain rapidly.",
+  "result_check_reactor_status_known": "Just like in that dream… was it ever a dream? Everything is exactly the same — the readings, the fuel gauge, the sinking feeling in your chest. This isn't possible. And yet here you are, staring at the same numbers. You have {minutes} minutes before the reactor dies. Again.",
+  "log_fuel_depleted": "The reactor runs dry. Lights flicker and die. Life support switches to reserve power — oxygen levels begin dropping.",
+  "log_o2_depleted": "Oxygen reserves depleted. No breathable air remains.",
+  "log_fuel_depletion_same_time": "The reactor died at exactly the same time as before. Down to the minute. This can't be coincidence.",
+  "log_oxygen_same_time_warning": "Oxygen reserves are draining… just like last time. You have {minutes} minutes of air remaining — same as the previous loop.",
 
   "action_check_status": "Check Status",
   "action_check_status_desc": "Check the overall status of the ship.",

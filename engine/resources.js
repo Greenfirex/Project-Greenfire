@@ -57,16 +57,22 @@ export const areaResources = {};
 const AREA_EMOJIS = {
     'area_food': '🥫',
     'area_water': '💦',
+    'area_fuel': '⛽',
+    'area_o2': '🫁',
 };
 
 const AREA_LOCALE_KEYS = {
     'area_food': 'area_food',
     'area_water': 'area_water',
+    'area_fuel': 'area_fuel',
+    'area_o2': 'area_o2',
 };
 
 const AREA_DESC_KEYS = {
     'area_food': 'area_food',
     'area_water': 'area_water',
+    'area_fuel': 'area_fuel',
+    'area_o2': 'area_o2',
 };
 
 /**
@@ -78,6 +84,11 @@ export function initAreaResources(locationId) {
         areaResources[locationId] = [
             { name: 'area_food', amount: 12, capacity: 99 },
             { name: 'area_water', amount: 15, capacity: 99 },
+        ];
+    } else if (locationId === 'scout_ship_bridge') {
+        areaResources[locationId] = [
+            { name: 'area_fuel', amount: 600, capacity: 999 },
+            { name: 'area_o2', amount: 300, capacity: 999 },
         ];
     }
 }
@@ -119,6 +130,30 @@ function buildAreaResourceTooltipHtml(resourceName) {
     return `<h4>${name}</h4><p class="tooltip-description">${desc}</p><p>Remaining: <strong>${Math.floor(res.amount)}</strong></p>`;
 }
 
+/**
+ * Deep-clone areaResources for save persistence.
+ */
+export function getAreaResourcesForSave() {
+    try {
+        return JSON.parse(JSON.stringify(areaResources));
+    } catch { return {}; }
+}
+
+/**
+ * Replace areaResources from saved data (used during load).
+ */
+export function setAreaResourcesFromSave(saved) {
+    if (!saved || typeof saved !== 'object') return;
+    // Clear existing keys
+    for (const key of Object.keys(areaResources)) {
+        delete areaResources[key];
+    }
+    // Repopulate from saved data
+    Object.assign(areaResources, saved);
+    // Refresh UI if area supplies panel is visible
+    showAreaSuppliesPanel();
+}
+
 export function showAreaSuppliesPanel() {
     if (_areaSectionHost) {
         _areaSectionHost.classList.remove('hidden');
@@ -132,16 +167,26 @@ export function updateAreaResourcesUI() {
     }
     if (!_areaSectionHost) return;
     
+    // Merge ALL area resources from all locations, not just the current one
     const list = [];
-    // Try to find the current area resources from window global set by locationEngine
-    if (typeof window !== 'undefined' && window._currentAreaResourceList) {
-        list.push(...window._currentAreaResourceList);
+    for (const locId of Object.keys(areaResources)) {
+        if (Array.isArray(areaResources[locId])) {
+            for (const res of areaResources[locId]) {
+                if (res.amount > 0 || !areaResources[locId].every(r => r.amount <= 0)) {
+                    list.push(res);
+                }
+            }
+        }
     }
+    
+    // Show/hide the area section based on whether any area resources exist
+    const hasAnyResources = list.length > 0;
+    _areaSectionHost.classList.toggle('no-resources', !hasAnyResources);
     
     const body = _areaSectionHost.querySelector('.area-resources-body');
     if (!body) return;
     
-    if (list.length === 0) {
+    if (!hasAnyResources) {
         body.innerHTML = '';
         return;
     }
@@ -153,12 +198,35 @@ export function updateAreaResourcesUI() {
         const cap = Math.floor(res.capacity);
         const pct = cap > 0 ? Math.min(100, (amt / cap) * 100) : 0;
         const isZero = amt <= 0;
-        return `<div class="area-resource-row">
-            <div class="area-resource-bar" style="width:${pct}%"></div>
+        // Color code: food=orange, water=blue, fuel=yellow/amber, o2=cyan
+        let barClass = '';
+        if (/area_food/i.test(res.name)) barClass = 'bar-food';
+        else if (/area_water/i.test(res.name)) barClass = 'bar-water';
+        else if (/area_fuel/i.test(res.name)) barClass = 'bar-fuel';
+        else if (/area_o2/i.test(res.name)) barClass = 'bar-o2';
+        
+        return `<div class="area-resource-row" data-resource="${res.name}">
+            <div class="area-resource-bar ${barClass}" style="width:${pct}%"></div>
             <span class="area-resource-name">${emoji} ${name}</span>
             <span class="area-resource-amount${isZero ? ' zero-amount' : ''}">${amt} / ${cap}</span>
         </div>`;
     }).join('');
+    
+    // Wire tooltips on area resource rows
+    try {
+        const rows = body.querySelectorAll('.area-resource-row');
+        rows.forEach(row => {
+            if (row.dataset.tooltipWired) return;
+            row.dataset.tooltipWired = '1';
+            const resName = row.dataset.resource;
+            setupTooltip(row, () => {
+                const res = list.find(r => r.name === resName);
+                if (!res) return '';
+                const descKey = AREA_DESC_KEYS[resName] || '';
+                return `<h4>${t(AREA_LOCALE_KEYS[resName] || resName)}</h4><p>Remaining: <strong>${Math.floor(res.amount)}</strong> / ${Math.floor(res.capacity)}</p>`;
+            });
+        });
+    } catch { /* ignore */ }
 }
 
 export function roundResourceAmount(resource) {
@@ -406,6 +474,9 @@ export function setupInfoPanel() {
     updateResourceCategoryVisibility(infoPanelContent);
     setupQueueUI(queuePanel);
     setupEffectsUI(effectsPanel);
+
+    // Show any area resources that were loaded from a saved game
+    updateAreaResourcesUI();
 }
 
 function updateResourceCategoryVisibility(root = document) {
@@ -769,6 +840,52 @@ export function applyTimePassiveDrain(realSeconds) {
         tickAutoConsume();
     }
     
+    // --- Area resource passive drains (ship fuel → O2 cascade) ---
+    // Ship fuel drains over time (~1 unit per second)
+    const FUEL_DRAIN_PER_MIN = 6; // 1 per 10 real sec at 1x speed → 6/min
+    const O2_DRAIN_PER_MIN = 4; // O2 drains slower than fuel
+
+    const bridgeList = areaResources['scout_ship_bridge'];
+    if (bridgeList && Array.isArray(bridgeList)) {
+        const fuel = bridgeList.find(r => r.name === 'area_fuel');
+        const o2 = bridgeList.find(r => r.name === 'area_o2');
+
+        // Drain ship fuel
+        if (fuel && fuel.amount > 0) {
+            const fuelDelta = (FUEL_DRAIN_PER_MIN * realSeconds);
+            fuel.amount = Math.max(0, fuel.amount - fuelDelta);
+
+            // Fuel just ran out
+            if (fuel.amount <= 0) {
+                fuel.amount = 0;
+                if (!hasEffect('life_support_failure')) {
+                    addEffect({ ...EFFECT_LIFE_SUPPORT_FAILURE });
+                    addLogEntry(t('log_fuel_depleted'), LogType.WARNING);
+                    addLogEntry(t('log_effect_added', { effect: t('effect_life_support_failure_name') }), LogType.WARNING);
+                }
+            }
+        }
+
+        // Drain O2 only when life support failed
+        if (o2 && hasEffect('life_support_failure') && o2.amount > 0) {
+            const o2Delta = (O2_DRAIN_PER_MIN * realSeconds);
+            o2.amount = Math.max(0, o2.amount - o2Delta);
+
+            // O2 just ran out
+            if (o2.amount <= 0) {
+                o2.amount = 0;
+                if (!hasEffect('oxygen_depleted')) {
+                    addEffect({ ...EFFECT_OXYGEN_DEPLETED });
+                    addLogEntry(t('log_o2_depleted'), LogType.ERROR);
+                    addLogEntry(t('log_effect_added', { effect: t('effect_oxygen_depleted_name') }), LogType.ERROR);
+                }
+            }
+        }
+    }
+
+    // Refresh area resources UI if fuel/O2 changed
+    updateAreaResourcesUI();
+
     // Sync survival effects based on current resource levels
     syncSurvivalEffects();
 

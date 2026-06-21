@@ -96,6 +96,23 @@ export function startNextQueuedAction() {
     return true;
 }
 
+/**
+ * Return a save-safe snapshot of the action queue.
+ */
+export function getQueueForSave() {
+    return actionQueue.slice();
+}
+
+/**
+ * Replace the action queue from saved data (used during load).
+ */
+export function setQueueFromSave(saved) {
+    if (!Array.isArray(saved)) return;
+    actionQueue.length = 0;
+    actionQueue.push(...saved);
+    updateQueueUI();
+}
+
 // UI
 
 let _queueHost = null;

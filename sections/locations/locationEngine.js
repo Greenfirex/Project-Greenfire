@@ -94,6 +94,20 @@ function completeActiveAction(opts = {}) {
     const action = activeAction;
     if (!action) return;
     setActiveDrainRates(null, null);
+    // Consume required item now that the action completed successfully.
+    // Item consumption was deferred from startAction() so that stopping/cancelling
+    // the action does not permanently destroy the quest item.
+    if (action._pendingItem) {
+        try {
+            const itemDef = getItemDefinition(action._pendingItem);
+            const consumed = consumeItemQuantityFromBag(action._pendingItem, 1);
+            if (consumed) {
+                addLogEntry(`Used: ${itemDef?.name || action._pendingItem}.`, LogType.INFO);
+            }
+            delete action._pendingItem;
+        } catch { /* ignore */ }
+    }
+
     // Rest/refresh actions gain resources continuously via drain rate;
     // skip lump-sum reward to avoid double-dipping.
     if (action.category !== 'rest' && action.category !== 'refresh') {
@@ -148,6 +162,19 @@ function completeActiveAction(opts = {}) {
         action._repeatCount = (action._repeatCount || 0) + 1;
         if (action._repeatCount >= action.repeatLimit) { action._completed = true; _fullRebuildNeeded = true; }
     }
+    // Universal persistence: mirror any _completed=true to unlockState so it survives reload.
+    // This covers one-time, repeat-limited, and any future completion types without
+    // requiring developers to remember unlocksAll flags or special-case handlers.
+    if (action._completed) {
+        const loc = getLocation(getCurrentLocationId());
+        if (loc) {
+            const us = getUnlockState(loc.id);
+            if (!us[action.id]) {
+                us[action.id] = true;
+                setUnlockState(loc.id, us);
+            }
+        }
+    }
     
     // Handle action unlocks
     // --- Special case: check_terminal branches based on loopKnowledge.terminalLogin ---
@@ -186,6 +213,41 @@ function completeActiveAction(opts = {}) {
         }
     }
     
+    // --- Special case: check_reactor_status reveals fuel countdown, varies by loopKnowledge.fuelScanned ---
+    if (action.id === 'check_reactor_status') {
+        if (!gameFlags.loopKnowledge) gameFlags.loopKnowledge = {};
+        const scannedBefore = gameFlags.loopKnowledge.fuelScanned || 0;
+        gameFlags.loopKnowledge.fuelScanned = scannedBefore + 1;
+
+        // Read current fuel level dynamically so the log shows accurate values
+        const bridgeList = areaResources['scout_ship_bridge'];
+        const fuel = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_fuel') : null;
+        const currentFuel = fuel ? Math.round(fuel.amount) : 0;
+        const FUEL_DRAIN_PER_MIN = 6;
+        const projectedMins = Math.round(currentFuel / FUEL_DRAIN_PER_MIN);
+
+        // On first scan, store the projected fuel depletion time for same-time detection in next loop
+        if (scannedBefore === 0 && currentFuel > 0) {
+            gameFlags.loopKnowledge.fuelDepletionMinute = (gameFlags.loopCount || 0) * 10000 + projectedMins;
+        }
+
+        // Override the result log with dynamic fuel/minute values
+        const resultKey = scannedBefore >= 1 ? 'result_check_reactor_status_known' : 'result_check_reactor_status';
+        addLogEntry(t(resultKey, { fuel: currentFuel, minutes: projectedMins }), LogType.SUCCESS);
+
+        // Persist to gameState
+        try {
+            const state = JSON.parse(localStorage.getItem('gameState') || '{}');
+            if (!state.gameFlags) state.gameFlags = {};
+            if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = {};
+            state.gameFlags.loopKnowledge.fuelScanned = gameFlags.loopKnowledge.fuelScanned;
+            if (typeof gameFlags.loopKnowledge.fuelDepletionMinute === 'number') {
+                state.gameFlags.loopKnowledge.fuelDepletionMinute = gameFlags.loopKnowledge.fuelDepletionMinute;
+            }
+            localStorage.setItem('gameState', JSON.stringify(state));
+        } catch { /* ignore */ }
+    }
+
     // --- Special case: hack_terminal / use_terminal_login grant terminalLogin knowledge + unlock access_logs/disable_alarm ---
     if (action.id === 'hack_terminal' || action.id === 'use_terminal_login') {
         // Grant persistent loop knowledge
@@ -213,7 +275,12 @@ function completeActiveAction(opts = {}) {
             // Mutual exclusion: mark the opposing login action as completed
             const opposingId = action.id === 'hack_terminal' ? 'use_terminal_login' : 'hack_terminal';
             const opposing = (loc.actions || []).find(a => a.id === opposingId);
-            if (opposing) opposing._completed = true;
+            if (opposing) {
+                opposing._completed = true;
+                // Persist to unlockState so opposition survives reload
+                unlockState[opposingId] = true;
+                setUnlockState(loc.id, unlockState);
+            }
             _fullRebuildNeeded = true;
         }
         // Also hide search_for_login_note in workshop — player already knows the login
@@ -221,7 +288,13 @@ function completeActiveAction(opts = {}) {
             const wsLoc = getLocation('scout_ship_workshop');
             if (wsLoc && Array.isArray(wsLoc.actions)) {
                 const noteAction = wsLoc.actions.find(a => a.id === 'search_for_login_note');
-                if (noteAction) noteAction._completed = true;
+                if (noteAction) {
+                    noteAction._completed = true;
+                    // Persist to workshop's unlockState so cross-location completion survives reload
+                    const wsUs = getUnlockState('scout_ship_workshop');
+                    wsUs['search_for_login_note'] = true;
+                    setUnlockState('scout_ship_workshop', wsUs);
+                }
             }
         } catch { /* ignore */ }
     }
@@ -318,7 +391,9 @@ function startAction(actionId) {
     if (!action) return;
     // No affordability gate — player can always attempt actions even when hungry/thirsty/exhausted
     if (activeActionId === actionId && !actionPaused) return;
-    // Check requiresItem — consume the item before starting
+    // Check requiresItem — validate the item exists but do NOT consume yet.
+    // Consumption is deferred to completeActiveAction() so that stopping/cancelling
+    // the action does not permanently destroy the quest item.
     if (action.requiresItem) {
         const itemDef = getItemDefinition(action.requiresItem);
         if (!itemDef) {
@@ -330,13 +405,8 @@ function startAction(actionId) {
             addLogEntry(`You need ${itemDef.name} to do this.`, LogType.INFO);
             return;
         }
-        // Consume exactly 1 of the required item
-        const consumed = consumeItemQuantityFromBag(action.requiresItem, 1);
-        if (!consumed) {
-            addLogEntry(`Failed to use ${itemDef.name}.`, LogType.ERROR);
-            return;
-        }
-        addLogEntry(`Used: ${itemDef.name}.`, LogType.INFO);
+        // Stash the item requirement for completion
+        action._pendingItem = action.requiresItem;
     }
     // Set drain rates from default action costs (per-minute rates)
     const mult = action.category === 'taxing' ? TAXING_MULT : 1;
@@ -405,6 +475,15 @@ function startAction(actionId) {
                 activeAction._resultKey = 'result_check_terminal_known';
             } else {
                 activeAction._resultKey = 'result_check_terminal';
+            }
+        }
+        // Dynamic resultKey for check_reactor_status based on fuelScanned
+        if (action.id === 'check_reactor_status') {
+            const scanned = (gameFlags.loopKnowledge && gameFlags.loopKnowledge.fuelScanned) || 0;
+            if (scanned >= 1) {
+                activeAction._resultKey = 'result_check_reactor_status_known';
+            } else {
+                activeAction._resultKey = 'result_check_reactor_status';
             }
         }
         // Restore persistent progress from previous loops
@@ -662,7 +741,7 @@ function renderActionsTile(location) {
     
     // Filter actions based on unlock state
     let actions = (location.actions || []).filter(a => {
-        if (a._completed) return false;
+        if (a._completed || unlockState[a.id]) return false;
         // Only show actions that are unlocked (no unlockedBy = always available)
         if (a.unlockedBy) {
             if (Array.isArray(a.unlockedBy)) {

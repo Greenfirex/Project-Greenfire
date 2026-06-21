@@ -35,6 +35,22 @@ export const EFFECT_EXHAUSTED = {
     debuffs: {},
 };
 
+export const EFFECT_LIFE_SUPPORT_FAILURE = {
+    id: 'life_support_failure',
+    nameKey: 'effect_life_support_failure_name',
+    descKey: 'effect_life_support_failure_desc',
+    icon: '⚠️',
+    debuffs: {},
+};
+
+export const EFFECT_OXYGEN_DEPLETED = {
+    id: 'oxygen_depleted',
+    nameKey: 'effect_oxygen_depleted_name',
+    descKey: 'effect_oxygen_depleted_desc',
+    icon: '🫁',
+    debuffs: {},
+};
+
 /**
  * Add a new effect. Ignored if an effect with the same id already exists.
  * @param {{ id: string, nameKey: string, descKey: string, icon?: string, 
@@ -207,17 +223,32 @@ export function updateEffectsUI() {
         }
         
         return `
-            <div class="effect-row${isNew ? ' effect-enter' : ''}" data-effect-id="${effect.id}">
+            <div class="effect-row${isNew ? ' effect-enter' : ''}" data-effect-id="${effect.id}" data-effect-tooltip="${effect.nameKey}">
                 <div class="effect-icon">${effect.icon || '⚠'}</div>
                 <div class="effect-info">
                     <div class="effect-name">${name}</div>
-                    ${desc ? `<div class="effect-desc">${desc}</div>` : ''}
                     ${debuffTags.length ? `<div class="effect-debuffs">${debuffTags.join(' ')}</div>` : ''}
                     ${progressBarHtml ? `<div class="effect-progress">${progressBarHtml}</div>` : ''}
                 </div>
             </div>
         `;
     }).join('');
+    
+    // Wire tooltips on effect rows (description shown on hover instead of inline).
+    // Use dynamic import to avoid circular dependency at module init.
+    body.querySelectorAll('.effect-row').forEach(row => {
+        if (row._effectTooltipWired) return;
+        row._effectTooltipWired = true;
+        const effectId = row.dataset.effectId;
+        const effect = activeEffects.find(e => e.id === effectId);
+        if (!effect) return;
+        import('../ui/panels/tooltip.js').then(({ setupTooltip }) => {
+            if (typeof setupTooltip !== 'function') return;
+            setupTooltip(row, () => {
+                return `<h4>${t(effect.nameKey)}</h4><p>${t(effect.descKey)}</p>`;
+            });
+        }).catch(() => {});
+    });
 }
 
 /**
@@ -227,4 +258,32 @@ export function initEffects() {
     clearAllEffects();
     // Alarm is now triggered by completing the "wake_up" action (addsEffect: 'alarm')
     // via completeActiveAction in locationEngine.js
+}
+
+/**
+ * Return a save-safe snapshot of active effects (no transient _addedAt).
+ */
+export function getActiveEffectsForSave() {
+    return activeEffects.map(e => {
+        const { _addedAt, ...rest } = e;
+        return rest;
+    });
+}
+
+/**
+ * Replace active effects from saved data (used during load).
+ * Re-renders UI if effects changed.
+ */
+export function setActiveEffects(saved) {
+    if (!Array.isArray(saved)) return;
+    activeEffects.length = 0;
+    activeEffects.push(...saved.map(e => ({
+        ...e,
+        _addedAt: Date.now(),
+        progress: e.progress ?? 0,
+        maxProgress: e.maxProgress ?? Infinity,
+        isCountdown: e.isCountdown ?? false,
+        debuffs: e.debuffs || {},
+    })));
+    updateEffectsUI();
 }

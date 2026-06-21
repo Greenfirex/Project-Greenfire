@@ -7,5 +7,9 @@
   "effect_thirsty_name": "Thirsty",
   "effect_thirsty_desc": "You have no drinking water left. Stamina costs are severely increased.",
   "effect_exhausted_name": "Exhausted",
-  "effect_exhausted_desc": "Completely drained of energy. Your health is now deteriorating."
+  "effect_exhausted_desc": "Completely drained of energy. Your health is now deteriorating.",
+  "effect_life_support_failure_name": "Life Support Failure",
+  "effect_life_support_failure_desc": "Reactor fuel depleted. Life support systems are running on reserve — oxygen levels are dropping.",
+  "effect_oxygen_depleted_name": "Oxygen Depleted",
+  "effect_oxygen_depleted_desc": "No breathable air remains. Your health is rapidly deteriorating."
 }

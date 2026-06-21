@@ -143,6 +143,8 @@
   "area_supplies": "Zásoby oblasti",
 
   "area_food": "Zásoby jídla",
+  "area_fuel": "Palivo reaktoru",
+  "area_o2": "Kyslíková rezerva",
   "area_water": "Zásoby vody",
 
   "info_resources": "Suroviny",
@@ -245,9 +247,14 @@
   "action_check_navigation_desc": "Zkontroluj navigační systémy a aktuální pozici.",
   "result_check_navigation": "Navigační systémy ukazují tvou aktuální pozici poblíž nezmapované planety. Veškerá dálková komunikace je offline.",
 
-  "action_scan_systems": "Skenovat systémy",
-  "action_scan_systems_desc": "Spusť úplnou diagnostickou prověrku lodních systémů.",
-  "result_scan_systems": "Diagnostická prověrka odhaluje mnohonásobná selhání systémů. Podpora života na 87 %, energetické rezervy na 45 %. Musíš být opatrný.",
+  "action_check_reactor_status": "Zkontrolovat stav reaktoru",
+  "action_check_reactor_status_desc": "Spustit detailní diagnostiku lodního reaktoru a energetických systémů.",
+  "result_check_reactor_status": "Skenování reaktoru odhaluje kritický úbytek paliva — zbývá pouze {fuel} jednotek. Při současné rychlosti spalování máš zhruba {minutes} minut než reaktor vyhasne. Bez energie selže podpora života a zásoby kyslíku se rychle vyčerpají.",
+  "result_check_reactor_status_known": "Stejně jako v tom snu... byl to vůbec sen? Všechno je naprosto stejné — hodnoty, palivoměr, ten tísnivý pocit v hrudi. To není možné. A přesto tu jsi, zíráš na stejná čísla. Máš {minutes} minut než reaktor zemře. Znovu.",
+  "log_fuel_depleted": "Reaktor vyhasíná. Světla zablikají a zhasnou. Podpora života se přepne na rezervní energii — hladina kyslíku začíná klesat.",
+  "log_o2_depleted": "Zásoby kyslíku vyčerpány. Žádný dýchatelný vzduch nezůstává.",
+  "log_fuel_depletion_same_time": "Reaktor vyhasl v přesně stejný čas jako minule. Na minutu přesně. To nemůže být náhoda.",
+  "log_oxygen_same_time_warning": "Zásoby kyslíku se tenčí... stejně jako minule. Zbývá {minutes} minut vzduchu — stejně jako v předchozí smyčce.",
 
   "action_check_status": "Zkontrolovat stav",
   "action_check_status_desc": "Zkontroluj celkový stav lodi.",
