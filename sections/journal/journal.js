@@ -1,5 +1,6 @@
-import { getAllObjectivesWithState, getObjectiveSteps, getTrackedObjectiveId, setTrackedObjective } from '../../engine/objectives.js';
+import { storyLog, getInitialStoryLog, getAllObjectivesWithState, getObjectiveSteps, getTrackedObjectiveId, setTrackedObjective } from '../../engine/objectives.js';
 import { saveGameStateQuiet } from '../../engine/saveload.js';
+import { t } from '../../locales/locales.js';
 
 export function setupJournalSection(section) {
     if (!section) return;
@@ -50,22 +51,6 @@ export function setupJournalSection(section) {
     });
 }
 
-export function getInitialStoryLog() {
-    return [];
-}
-
-export let storyLog = getInitialStoryLog();
-
-export function resetStoryLog() {
-    storyLog.length = 0;
-    storyLog.push(...getInitialStoryLog());
-}
-
-export function applySavedStoryLog(savedEntries) {
-    storyLog.length = 0;
-    if (Array.isArray(savedEntries)) storyLog.push(...savedEntries);
-}
-
 export function renderJournalEntries(container) {
     if (!container) return;
     container.innerHTML = '';
@@ -83,7 +68,7 @@ export function renderJournalEntries(container) {
 
         const titleEl = document.createElement('div');
         titleEl.className = 'journal-entry-title';
-        titleEl.textContent = entry.title || 'Untitled';
+        titleEl.textContent = entry.titleKey ? t(entry.titleKey) : (entry.title || 'Untitled');
 
         const timeEl = document.createElement('div');
         timeEl.className = 'journal-entry-time';
@@ -97,7 +82,7 @@ export function renderJournalEntries(container) {
 
         const body = document.createElement('div');
         body.className = 'journal-entry-body';
-        body.textContent = entry.text || '';
+        body.textContent = entry.textKeys ? entry.textKeys.map(k => t(k)).join('\n\n') : (entry.text || '');
 
         el.appendChild(titleEl);
         if (timeEl.textContent) el.appendChild(timeEl);

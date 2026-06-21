@@ -7,9 +7,9 @@ import { setupCharacterSection } from '../sections/character/characterSection.js
 import { characterState, computeCharacterStats, computeLevelFromXp } from '../sections/character/character.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { initTimeManager } from './time.js';
-import { loadGameState, resetToDefaultState, saveGameState } from './saveload.js';
+import { loadGameState, resetToDefaultState, saveGameState, saveGameStateQuiet } from './saveload.js';
 import { initOptions, setGlowColor, setGlowIntensity, shouldRunInBackground } from './settings.js';
-import { recomputeObjectives } from './objectives.js';
+import { recomputeObjectives, storyLog } from './objectives.js';
 import { initFooter, registerMainLoopCallbacks } from '../ui/chrome/footer.js';
 import { initTitleScreen, showTitleScreen, hideTitleScreen } from '../ui/screens/titleScreen.js';
 import '../ui/chrome/header.js';
@@ -147,7 +147,14 @@ function startGame({ mode = 'continue' } = {}) {
 
     if (mode === 'new') {
         try { localStorage.removeItem('isResetting'); } catch { /* ignore */ }
+        // Preserve journal entries added by intro popup (popup fires before startGame)
+        const preservedStoryLog = Array.isArray(storyLog) ? storyLog.slice() : [];
         resetToDefaultState();
+        if (preservedStoryLog.length > 0) {
+            storyLog.length = 0;
+            storyLog.push(...preservedStoryLog);
+            saveGameStateQuiet(); // Persist restored journal entries so language reload picks them up
+        }
         initEffects();
         try { recomputeObjectives(); } catch {}
         // Story popup is now shown by titleScreen.js during the intro sequence,

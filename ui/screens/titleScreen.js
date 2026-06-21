@@ -366,7 +366,9 @@ async function playNewGameIntroSequence({ onStartGame }) {
     const popupEvent = {
         id: 'welcome_intro',
         title: t('popup_welcome_title'),
+        titleKey: 'popup_welcome_title',
         pages: [t('popup_welcome_page1'), t('popup_welcome_page2'), t('popup_welcome_page3')],
+        pageKeys: ['popup_welcome_page1', 'popup_welcome_page2', 'popup_welcome_page3'],
         transparentBg: true,
         deferLog: true,
     };

@@ -103,9 +103,11 @@ export function showStoryPopup(event) {
     const entry = {
         id: event.id || event.title || null,
         title: event.title || event.id || 'Untitled',
+        titleKey: event.titleKey || null,
         time: Date.now(),
         ingameTime: (function () { try { return getIngameTimeObject(); } catch { return null; } })(),
         text: (Array.isArray(event.pages) ? event.pages.join('\n\n') : (event.pages || '')) || '',
+        textKeys: event.pageKeys || null,
     };
 
     // Check for existing entry with same id to avoid duplicates
