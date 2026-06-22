@@ -154,6 +154,13 @@ function completeActiveAction(opts = {}) {
     if (typeof action.repeatLimit === 'number' && action.repeatLimit > 0) {
         action._repeatCount = (action._repeatCount || 0) + 1;
         if (action._repeatCount >= action.repeatLimit) { action._completed = true; _fullRebuildNeeded = true; }
+        // Persist repeat count so it survives reload
+        const loc = getLocation(getCurrentLocationId());
+        if (loc) {
+            const us = getUnlockState(loc.id);
+            us[action.id + '_repeatCount'] = action._repeatCount;
+            setUnlockState(loc.id, us);
+        }
     }
     // Universal persistence: mirror any _completed=true to unlockState so it survives reload.
     // This covers one-time, repeat-limited, and any future completion types without
@@ -206,6 +213,66 @@ function completeActiveAction(opts = {}) {
         }
     }
     
+    // --- Special case: wake_up in loop 2+ reveals fuel/O2 and sets loop knowledge ---
+    if (action.id === 'wake_up') {
+        const loop = gameFlags.loopCount || 0;
+        if (loop >= 2) {
+            if (!gameFlags.loopKnowledge) gameFlags.loopKnowledge = {};
+            // Read current fuel level dynamically
+            const bridgeList = areaResources['scout_ship_bridge'];
+            const fuel = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_fuel') : null;
+            const currentFuel = fuel ? Math.round(fuel.amount) : 0;
+            const FUEL_DRAIN_PER_MIN = 1.8;
+            const projectedMins = Math.round(currentFuel / FUEL_DRAIN_PER_MIN);
+
+            // Set fuelScanned so check_reactor_status knows fuel was already revealed
+            if (!gameFlags.loopKnowledge.fuelScanned || gameFlags.loopKnowledge.fuelScanned < 1) {
+                gameFlags.loopKnowledge.fuelScanned = 1;
+            }
+
+            // Override the result log with dynamic fuel/minute values
+            const resultKey = loop >= 3 ? 'result_wake_up_loop3' : 'result_wake_up_loop2';
+            addLogEntry(t(resultKey, { fuel: currentFuel, minutes: projectedMins }), LogType.SUCCESS);
+
+            // Reveal bridge area resources (fuel + O2) — done directly here
+            // instead of via action.revealsAreaSupplies because that targets
+            // the current location (Crew Quarters), not the Bridge.
+            initAreaResources('scout_ship_bridge');
+            revealAreaResources('scout_ship_bridge');
+            if (typeof window !== 'undefined') {
+                window._currentAreaResourceList = areaResources['scout_ship_bridge'] || [];
+            }
+            showAreaSuppliesPanel();
+
+            // Loop 3+: persist check_reactor_status as completed in bridge unlockState
+            if (loop >= 3) {
+                const bridgeLoc = getLocation('scout_ship_bridge');
+                if (bridgeLoc) {
+                    const bridgeUs = getUnlockState('scout_ship_bridge');
+                    bridgeUs['check_reactor_status'] = true;
+                    setUnlockState('scout_ship_bridge', bridgeUs);
+                    // Also mark the action itself as _completed in the location data
+                    const crsAction = (bridgeLoc.actions || []).find(a => a.id === 'check_reactor_status');
+                    if (crsAction) {
+                        crsAction._completed = true;
+                    }
+                }
+            }
+
+            // Persist to gameState
+            try {
+                const state = JSON.parse(localStorage.getItem('gameState') || '{}');
+                if (!state.gameFlags) state.gameFlags = {};
+                if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = {};
+                state.gameFlags.loopKnowledge.fuelScanned = gameFlags.loopKnowledge.fuelScanned;
+                localStorage.setItem('gameState', JSON.stringify(state));
+            } catch { /* ignore */ }
+
+            // Force rebuild so bridge actions reflect check_reactor_status completion
+            _fullRebuildNeeded = true;
+        }
+    }
+
     // --- Special case: check_reactor_status reveals fuel countdown, varies by loopKnowledge.fuelScanned ---
     if (action.id === 'check_reactor_status') {
         if (!gameFlags.loopKnowledge) gameFlags.loopKnowledge = {};
@@ -216,7 +283,7 @@ function completeActiveAction(opts = {}) {
         const bridgeList = areaResources['scout_ship_bridge'];
         const fuel = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_fuel') : null;
         const currentFuel = fuel ? Math.round(fuel.amount) : 0;
-        const FUEL_DRAIN_PER_MIN = 6;
+        const FUEL_DRAIN_PER_MIN = 1.8;
         const projectedMins = Math.round(currentFuel / FUEL_DRAIN_PER_MIN);
 
         // On first scan, store the projected fuel depletion time for same-time detection in next loop
@@ -224,8 +291,15 @@ function completeActiveAction(opts = {}) {
             gameFlags.loopKnowledge.fuelDepletionMinute = (gameFlags.loopCount || 0) * 10000 + projectedMins;
         }
 
-        // Override the result log with dynamic fuel/minute values
-        const resultKey = scannedBefore >= 1 ? 'result_check_reactor_status_known' : 'result_check_reactor_status';
+        // Choose result key based on how many times fuel has been scanned
+        let resultKey;
+        if (scannedBefore === 0) {
+            resultKey = 'result_check_reactor_status';
+        } else if (scannedBefore === 1) {
+            resultKey = 'result_check_reactor_status_loop2';
+        } else {
+            resultKey = 'result_check_reactor_status_known';
+        }
         addLogEntry(t(resultKey, { fuel: currentFuel, minutes: projectedMins }), LogType.SUCCESS);
 
         // Persist to gameState
@@ -463,8 +537,10 @@ function startAction(actionId) {
         activeActionId = actionId; activeAction = action; activeAction._displayName = t(action.nameKey);
         // Dynamic resultKey for wake_up based on loop count
         if (action.id === 'wake_up') {
-            if ((gameFlags.loopCount || 0) >= 2) {
-                activeAction._resultKey = 'result_wake_up_loop2';
+            if ((gameFlags.loopCount || 0) >= 3) {
+                activeAction._resultKey = null; // handled in completeActiveAction with fuel/minutes
+            } else if ((gameFlags.loopCount || 0) >= 2) {
+                activeAction._resultKey = null; // handled in completeActiveAction with fuel/minutes
             } else if ((gameFlags.loopCount || 0) >= 1) {
                 activeAction._resultKey = 'result_wake_up_loop1';
             }
@@ -483,14 +559,11 @@ function startAction(actionId) {
                 activeAction._resultKey = 'result_check_terminal';
             }
         }
-        // Dynamic resultKey for check_reactor_status based on fuelScanned
+        // Dynamic resultKey for check_reactor_status — always set to null
+        // because the completion handler in completeActiveAction computes
+        // fuel/minute values dynamically and chooses the right resultKey.
         if (action.id === 'check_reactor_status') {
-            const scanned = (gameFlags.loopKnowledge && gameFlags.loopKnowledge.fuelScanned) || 0;
-            if (scanned >= 1) {
-                activeAction._resultKey = 'result_check_reactor_status_known';
-            } else {
-                activeAction._resultKey = 'result_check_reactor_status';
-            }
+            activeAction._resultKey = null;
         }
         // Restore persistent progress from previous loops
         if (action.category === 'persistent' && action.id && gameFlags.persistentProgress) {
@@ -706,7 +779,17 @@ function renderDetailsTile() {
                     healthCostHtml = `<div class="detail-cost detail-cost-health"><span class="detail-cost-label">${healthDisplayName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-remain" data-cost-res="Health" data-cost-total="${healthTotalCost.toFixed(2)}" style="font-weight:bold;">${healthRemain.toFixed(2)}</span> <span class="detail-cost-rate" style="color:#E74C3C;">[-${healthRate.toFixed(2)}/min]</span><span class="detail-cost-debuff-badge" data-debuff-for="Health">&#x26A0;</span></span></div>`;
                 }
             }
-            const costsHtml = (costItems || healthCostHtml) ? `<div class="detail-section"><div class="detail-section-label"><span style="color:#f44336;">&#x2B07;</span> ${t('detail_costs')}</div>${costItems}${healthCostHtml}</div>` : '';
+            // Area resource drain (e.g., area_water used by drink_water)
+            let areaDrainHtml = '';
+            if (action.drainsAreaResource) {
+                const dr = action.drainsAreaResource;
+                const areaName = dr.resource || '';
+                const areaLabel = t('area_' + areaName.replace('area_', '')) || areaName;
+                const drainAmt = dr.amount || 1;
+                const drainPerMin = drainAmt / Math.max(1, action.durationSeconds || 0);
+                areaDrainHtml = `<div class="detail-cost detail-cost-water"><span class="detail-cost-label">💦 ${areaLabel}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate" style="color:#E74C3C;">[-${drainPerMin.toFixed(2)}/min]</span></span></div>`;
+            }
+            const costsHtml = (costItems || healthCostHtml || areaDrainHtml) ? `<div class="detail-section"><div class="detail-section-label"><span style="color:#f44336;">&#x2B07;</span> ${t('detail_costs')}</div>${costItems}${areaDrainHtml}${healthCostHtml}</div>` : '';
             
             // Gains section for rest/refresh actions (matches costs row structure)
             let gainsHtml = '';
@@ -737,7 +820,14 @@ function renderDetailsTile() {
             let rewardsHtml = '';
             if (action.rewards && action.rewards.length && !isRest && !isRefresh) {
                 const rewardItems = action.rewards.map(r => {
-                    if (r.type === 'item') return `<div class="detail-reward">+1 ${r.name} (item)</div>`;
+                    if (r.type === 'item') {
+                        const itemId = String(r.name || '').toLowerCase().replace(/\s+/g, '_');
+                        const itemDef = getItemDefinition(itemId);
+                        const itemName = itemDef ? itemDef.name : r.name;
+                        const itemIcon = itemDef ? itemDef.icon : '';
+                        const imgTag = itemIcon ? `<img src="${itemIcon}" alt="${itemName}" class="detail-reward-icon" />` : '';
+                        return `<div class="detail-reward">${imgTag}<span>+${r.amount || 1} ${itemName}</span></div>`;
+                    }
                     return `<div class="detail-reward">+${r.amount || 0} ${r.name}</div>`;
                 }).join('');
                 rewardsHtml = `<div class="detail-section"><div class="detail-section-label">&#x1F381; ${t('detail_rewards')}</div>${rewardItems}</div>`;
@@ -758,6 +848,14 @@ function renderDetailsTile() {
 function renderActionsTile(location) {
     // Load unlock state for this location
     const unlockState = getUnlockState(location.id);
+    
+    // Restore _repeatCount from persisted unlock state
+    (location.actions || []).forEach(a => {
+        const rcKey = a.id + '_repeatCount';
+        if (unlockState[rcKey] !== undefined && a.repeatLimit > 0) {
+            a._repeatCount = Number(unlockState[rcKey]) || 0;
+        }
+    });
     
     // Filter actions based on unlock state
     let actions = (location.actions || []).filter(a => {

@@ -12,7 +12,7 @@ export const scoutShipMainArea = {
         {
             id: 'cafeteria',
             nameKey: 'poi_cafeteria',
-            actions: ['assess_supplies', 'get_food', 'drink_water', 'grab_bottled_water']
+            actions: ['assess_supplies', 'grab_proviant', 'grab_bottled_water', 'drink_water']
         },
         {
             id: 'communications',
@@ -35,20 +35,30 @@ export const scoutShipMainArea = {
             durationSeconds: 10,
             oneTime: true,
             resultKey: 'result_assess_supplies',
-            revealsAreaSupplies: true
+            revealsAreaSupplies: true,
+            unlocksAll: true
         },
         {
-            id: 'get_food',
-            nameKey: 'action_get_food',
-            descKey: 'action_get_food_desc',
-            category: 'refresh',
-            drain: [],
-            rewards: [{ type: 'resource', name: 'Food Rations', amount: 1 }],
-            durationSeconds: 0,
+            id: 'grab_proviant',
+            nameKey: 'action_grab_proviant',
+            descKey: 'action_grab_proviant_desc',
+            drain: [{ resource: 'Stamina', amount: 1 }],
+            rewards: [{ type: 'item', name: 'Packaged Food', amount: 1 }],
+            durationSeconds: 5,
             repeatable: true,
-            cancellable: true,
-            drainsAreaResource: { resource: 'area_food', amount: 1 },
-            requiresAreaResource: 'area_food'
+            repeatLimit: 2,
+            unlockedBy: 'assess_supplies'
+        },
+        {
+            id: 'grab_bottled_water',
+            nameKey: 'action_grab_bottled_water',
+            descKey: 'action_grab_bottled_water_desc',
+            drain: [{ resource: 'Stamina', amount: 1 }],
+            rewards: [{ type: 'item', name: 'Bottled Water', amount: 1 }],
+            durationSeconds: 5,
+            repeatable: true,
+            repeatLimit: 2,
+            unlockedBy: 'assess_supplies'
         },
         {
             id: 'drink_water',
@@ -62,16 +72,6 @@ export const scoutShipMainArea = {
             cancellable: true,
             drainsAreaResource: { resource: 'area_water', amount: 1 },
             requiresAreaResource: 'area_water'
-        },
-        {
-            id: 'grab_bottled_water',
-            nameKey: 'action_grab_bottled_water',
-            descKey: 'action_grab_bottled_water_desc',
-            drain: [{ resource: 'Stamina', amount: 1 }],
-            rewards: [{ type: 'item', name: 'Bottled Water', amount: 1 }],
-            durationSeconds: 8,
-            oneTime: true,
-            resultKey: 'result_grab_bottled_water'
         },
         {
             id: 'check_comms',

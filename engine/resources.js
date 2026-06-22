@@ -111,7 +111,6 @@ export function initAreaResources(locationId) {
     if (areaResources[locationId]) return; // already initialized
     if (locationId === 'scout_ship_main_area') {
         areaResources[locationId] = [
-            { name: 'area_food', amount: 12, capacity: 99 },
             { name: 'area_water', amount: 15, capacity: 99 },
         ];
     } else if (locationId === 'scout_ship_bridge') {
@@ -179,6 +178,13 @@ export function setAreaResourcesFromSave(saved) {
     }
     // Repopulate from saved data
     Object.assign(areaResources, saved);
+    // Auto-reveal any locations that have area resources in the save
+    // (covers old saves that lack revealedAreaLocations, and edge cases)
+    for (const locId of Object.keys(areaResources)) {
+        if (Array.isArray(areaResources[locId]) && areaResources[locId].length > 0) {
+            _revealedAreaLocations.add(locId);
+        }
+    }
     // Refresh UI if area supplies panel is visible
     showAreaSuppliesPanel();
 }
@@ -220,6 +226,9 @@ export function updateAreaResourcesUI() {
     // Show/hide the area section based on whether any area resources exist
     const hasAnyResources = list.length > 0;
     _areaSectionHost.classList.toggle('no-resources', !hasAnyResources);
+    if (hasAnyResources) {
+        _areaSectionHost.classList.remove('hidden');
+    }
     
     const body = _areaSectionHost.querySelector('.area-resources-body');
     if (!body) return;
@@ -232,8 +241,8 @@ export function updateAreaResourcesUI() {
     body.innerHTML = list.map(res => {
         const emoji = AREA_EMOJIS[res.name] || '';
         const name = t(AREA_LOCALE_KEYS[res.name] || res.name);
-        const amt = Math.floor(res.amount);
-        const cap = Math.floor(res.capacity);
+        const amt = parseFloat(res.amount).toFixed(2);
+        const cap = parseFloat(res.capacity).toFixed(2);
         const pct = cap > 0 ? Math.min(100, (amt / cap) * 100) : 0;
         const isZero = amt <= 0;
         // Color code: food=orange, water=blue, fuel=yellow/amber, o2=cyan
@@ -716,7 +725,7 @@ function syncSurvivalEffects() {
  * Shows a story popup whose content varies by loopCount,
  * increments the loop counter, and resets all resources to full default values.
  */
-function handleDeathAndLoop() {
+function handleDeathAndLoop(opts = {}) {
     if (_deathLoopHandled) return;
     _deathLoopHandled = true;
 
@@ -763,7 +772,26 @@ function handleDeathAndLoop() {
 
     const title = t(titleKey, { loop });
     const pagesText = t(pagesKey, { loop });
-    const pages = (pagesText || '').split('\n\n').filter(p => p.trim());
+    let pages = (pagesText || '').split('\n\n').filter(p => p.trim());
+
+    // If this was a manual reset and the player hasn't seen the manual-reset
+    // flavour page yet, append it once — then mark it seen forever.
+    if (opts.isManual) {
+        if (!gameFlags.loopKnowledge) gameFlags.loopKnowledge = {};
+        if (!gameFlags.loopKnowledge._manualResetSeen) {
+            gameFlags.loopKnowledge._manualResetSeen = true;
+            // Persist immediately so it survives reloads
+            try {
+                const state = JSON.parse(localStorage.getItem('gameState') || '{}');
+                if (!state.gameFlags) state.gameFlags = {};
+                if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = {};
+                state.gameFlags.loopKnowledge._manualResetSeen = true;
+                localStorage.setItem('gameState', JSON.stringify(state));
+            } catch { /* ignore */ }
+            const extraPage = t('death_pages_manual_reset');
+            if (extraPage) pages.push(extraPage);
+        }
+    }
 
     // Clear all survival effects for the fresh loop
     clearAllEffects();
@@ -1011,4 +1039,18 @@ export function checkDeathAndLoop() {
         health.amount = 0;
         handleDeathAndLoop();
     }
+}
+
+/**
+ * Manually trigger a loop reset (End Loop button).
+ * Sets health to 0 and invokes the standard death-and-loop handler.
+ */
+export function triggerManualLoopReset() {
+    const health = getResourceByName('Health');
+    if (health) {
+        health.amount = 0;
+    }
+    // Dispatch force-cancel so any running action is stopped first
+    try { window.dispatchEvent(new CustomEvent('force-cancel-action')); } catch { /* ignore */ }
+    handleDeathAndLoop({ isManual: true });
 }

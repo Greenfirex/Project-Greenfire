@@ -12,6 +12,83 @@ import { gameFlags } from './gameFlags.js';
 export let actionQueue = [];
 let _activeAction = null; // { id, nameKey, progress, durationSeconds }
 
+// End Loop button state
+let _endLoopActive = false; // prevent double-clicks while confirm popup is open
+
+function initEndLoopButton() {
+    const btn = document.getElementById('endLoopBtn');
+    if (!btn) return;
+
+    // Update visibility based on loop count
+    function updateEndLoopVisibility() {
+        const loop = gameFlags.loopCount || 0;
+        if (loop >= 3) {
+            btn.classList.remove('hidden');
+            btn.textContent = t('action_end_loop');
+        } else {
+            btn.classList.add('hidden');
+        }
+    }
+
+    // Reset state on death-loop-reset
+    window.addEventListener('death-loop-reset', () => {
+        _endLoopActive = false;
+        updateEndLoopVisibility();
+    });
+
+    // Also update when queue UI is first set up
+    updateEndLoopVisibility();
+
+    // Wire click on End Loop button
+    btn.addEventListener('click', async () => {
+        if (_endLoopActive) return; // prevent double-clicks
+
+        const loop = gameFlags.loopCount || 0;
+        const hintSeen = gameFlags.loopKnowledge && gameFlags.loopKnowledge._endLoopHintSeen;
+
+        if (!hintSeen) {
+            // First ever click — show narrative hint in log
+            if (!gameFlags.loopKnowledge) gameFlags.loopKnowledge = {};
+            gameFlags.loopKnowledge._endLoopHintSeen = true;
+            try {
+                const state = JSON.parse(localStorage.getItem('gameState') || '{}');
+                if (!state.gameFlags) state.gameFlags = {};
+                if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = {};
+                state.gameFlags.loopKnowledge._endLoopHintSeen = true;
+                localStorage.setItem('gameState', JSON.stringify(state));
+            } catch { /* ignore */ }
+            addLogEntry(t('log_end_loop_hint'), LogType.STORY);
+            return;
+        }
+
+        // Show confirmation popup (same style as title screen)
+        _endLoopActive = true;
+        const { showConfirmPopup } = await import('../ui/panels/confirmPopup.js');
+        const confirmed = await showConfirmPopup({
+            title: t('action_end_loop'),
+            message: t('action_end_loop_confirm'),
+            confirmText: t('action_end_loop_confirm_ok'),
+            cancelText: t('action_end_loop_confirm_cancel'),
+        });
+        _endLoopActive = false;
+
+        if (confirmed) {
+            import('../engine/resources.js').then(mod => {
+                if (typeof mod.triggerManualLoopReset === 'function') {
+                    mod.triggerManualLoopReset();
+                }
+            });
+        }
+    });
+}
+
+// Call init when module loads (DOM should already be ready since queue loads from main.js)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initEndLoopButton);
+} else {
+    initEndLoopButton();
+}
+
 /**
  * Set the currently running action for live progress display.
  * Pass null to clear.
@@ -132,6 +209,16 @@ export function setupQueueUI(container) {
     
     container.appendChild(_queueHost);
     updateQueueUI();
+    
+    // Refresh end-loop button visibility (game state might have loaded after init)
+    const btn = document.getElementById('endLoopBtn');
+    if (btn) {
+        const loop = gameFlags.loopCount || 0;
+        if (loop >= 3) {
+            btn.classList.remove('hidden');
+            btn.textContent = t('action_end_loop');
+        }
+    }
 }
 
 function renderProgressBar(current, total) {

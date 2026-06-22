@@ -6,6 +6,7 @@
     padding: 0 10px;
     box-sizing: border-box;
     display: flex;
+    flex-direction: column;
     transition: width 0.3s ease, transform 0.3s ease;
     overflow: visible;
 }
@@ -1179,4 +1180,12 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
     text-align: center;
     padding: 8px 0;
     font-style: italic;
+}
+
+/* End Loop button (loop 3+) — sits at the bottom of the info panel below queue */
+.end-loop-btn {
+    margin-top: auto;
+    width: 100%;
+    box-sizing: border-box;
+    flex-shrink: 0;
 }

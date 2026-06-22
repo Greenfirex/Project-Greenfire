@@ -184,15 +184,16 @@
   "action_wake_up_desc": "Shake off the grogginess and climb out of the bunk. Time to assess the situation.",
   "result_wake_up": "You push yourself up, body aching. You are alive and the ship is still intact — barely. However just as you put your feet on the ground from the bed a loud red alert started howling across the ship, time to check what is happening.",
   "result_wake_up_loop1": "You push yourself up, body aching... but something feels off. The alarm — it started at exactly the same moment, just as your feet touched the floor. A strange sense of familiarity you can't explain. You shake it off. Time to figure out what happened.",
-  "result_wake_up_loop2": "You bolt upright, heart racing before the alarm even sounds — and right on cue, it blares. Exactly when you expected. This can't be coincidence. The same ship. The same moment. You're trapped in something. But what?",
+  "result_wake_up_loop2": "You bolt upright, heart racing before the alarm even sounds — and right on cue, it blares. Exactly when you expected. This can't be coincidence. The same ship. The same moment. If this day is repeating itself, you realize the reactor died at the exact same instant every time. If I'm truly trapped in some kind of time loop, I have exactly {minutes} minutes before it happens again. I'll have to figure out a solution or go insane.",
+  "result_wake_up_loop3": "You bolt upright. There's no point in checking the fuel status anymore, you know exactly how it looks. {fuel} units of fuel, {minutes} minutes until the reactor dies. Every time the same. Every time the same end.",
 
   "action_disable_alarm": "Disable Alarm",
   "action_disable_alarm_desc": "Access the terminal overrides and disable the blaring emergency alarm.",
   "result_disable_alarm": "You key in the override codes. The wailing alarm sputters and dies. Blessed silence fills the compartment. The ringing in your ears will fade — eventually.",
 
-  "action_search_bunks": "Search Bunks",
-  "action_search_bunks_desc": "Search the crew bunks for supplies and personal logs.",
-  "result_search_bunks": "You search the crew bunks, rummaging through scattered personal effects. Beneath a pillow, your fingers brush against something familiar — a worn paperback you'd tucked away and completely forgotten about. Its cracked spine and dog-eared pages feel comforting in your hands.",
+  "action_search_bunks": "Search Bunk",
+  "action_search_bunks_desc": "Search your bunk and the surrounding area — maybe something useful can be found.",
+  "result_search_bunks": "You rummage through the bunk. Beneath the pillow, your fingers brush against something unexpected — a worn repair manual. 'Scout Ship Maintenance for Complete Idiots.' Someone from the crew must have left it here. This could come in handy.",
 
   "action_check_terminal": "Check Terminal",
   "action_check_terminal_desc": "Try to log into the terminal. From there you should be able to disable that annoying alarm and maybe figure out why it went off.",
@@ -229,7 +230,7 @@
   "action_rest_desc": "Take a brief rest to recover stamina.",
 
   "action_drink_water": "Drink Water",
-  "action_drink_water_desc": "Hydrate yourself to recover drinking water.",
+  "action_drink_water_desc": "Drink the water that's left in the broken recycler. Not clean, but it'll quench your thirst.",
 
   "action_read_book": "Read Book",
   "action_read_book_desc": "Pick up a worn paperback from the bunk and lose yourself in its pages. A long, quiet activity that passes the time.",
@@ -239,13 +240,9 @@
   "action_grab_bottled_water_desc": "Snatch a sealed bottle of water from the cafeteria supplies.",
   "result_grab_bottled_water": "You grab a sealed bottle of water from the cafeteria counter. Clean and cool — it will come in handy.",
 
-  "action_get_food": "Get Food",
-  "action_get_food_desc": "Search the cafeteria stores for edible rations.",
-  "result_get_food": "You find some preserved ration packs behind the counter. Not appetizing, but edible.",
-
   "action_assess_supplies": "Assess Supplies",
   "action_assess_supplies_desc": "Take stock of the cafeteria's remaining food and water reserves.",
-  "result_assess_supplies": "You survey the cafeteria stores. Ration packs are stacked haphazardly, but you count them quickly — enough meals for a while. The water dispenser gauge shows a decent reserve. Not abundant, but it'll keep you going.",
+  "result_assess_supplies": "You take stock of the cafeteria supplies. Food has almost completely run out — barely a few ration packs remain. The water recycler is dead. In the fridge, however, you find two sealed bottles of clean water. At least something.",
 
   "action_check_comms": "Check Communications",
   "action_check_comms_desc": "Access the comms station and scan for signals or distress calls.",
@@ -258,6 +255,7 @@
   "action_check_reactor_status": "Check Reactor Status",
   "action_check_reactor_status_desc": "Run a detailed diagnostic of the ship's reactor and power systems.",
   "result_check_reactor_status": "The reactor scan reveals critical fuel depletion — only {fuel} units remain. At current burn rate you have roughly {minutes} minutes before the reactor goes cold. Without power, life support will fail and oxygen reserves will drain rapidly.",
+  "result_check_reactor_status_loop2": "Unfortunately your prediction came true, the fuel status is exactly what you thought. {fuel} units of fuel, {minutes} minutes until darkness. You knew it before you even got out of bed.",
   "result_check_reactor_status_known": "Just like in that dream… was it ever a dream? Everything is exactly the same — the readings, the fuel gauge, the sinking feeling in your chest. This isn't possible. And yet here you are, staring at the same numbers. You have {minutes} minutes before the reactor dies. Again.",
   "log_fuel_depleted": "The reactor runs dry. Lights flicker and die. Life support switches to reserve power — oxygen levels begin dropping.",
   "log_o2_depleted": "Oxygen reserves depleted. No breathable air remains.",
@@ -311,7 +309,7 @@
   "action_survey_area_desc": "Carefully examine the workshop layout for hidden caches.",
 
   "poi_terminal": "TERMINAL",
-  "poi_bunks": "BUNKS",
+  "poi_bunks": "BUNK",
   "poi_storage": "STORAGE LOCKER",
   "poi_travel": "TRAVEL",
   "poi_other_actions": "Other Actions",
@@ -323,5 +321,16 @@
   "poi_bunks_desc": "Your bunk area. Rest, search for supplies, and recover.",
   "poi_terminal_desc": "The ship's data terminal. Check systems and access logs.",
   "poi_storage_desc": "A sealed storage locker. Contains emergency supplies.",
-  "poi_travel_desc": "Exit points to other sections of the ship."
+  "poi_travel_desc": "Exit points to other sections of the ship.",
+
+  "action_end_loop": "End Loop",
+  "log_end_loop_hint": "Yeah... you've thought about it too, haven't you? Why not just end it on your own terms? Maybe you'll get out of this mess. Maybe you won't wake up at all. Press again if you're ready to risk it.",
+  "action_end_loop_confirm": "Really end this loop?",
+  "action_end_loop_confirm_ok": "End",
+  "action_end_loop_confirm_cancel": "Cancel",
+
+  "death_pages_manual_reset": "But not this time either... your own choice changed nothing. You close your eyes hoping it's over — and then open them in the same quarters. Again. Right back to the beginning.",
+
+  "action_grab_proviant": "Grab Provisions",
+  "action_grab_proviant_desc": "Grab a few remaining ration packs from the cafeteria. There isn't much left."
 }

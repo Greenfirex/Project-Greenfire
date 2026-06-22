@@ -153,7 +153,7 @@
   "crash_actions": "Akce",
 
   "death_title_1": "Jen Zlý Sen",
-  "death_pages_1": "Prudce se probouzíš ve své kajutě, promočený studeným potem. Alarm ječí.\n\nTys... umřel? Alespoň to tak vypadalo. To vyčerpání, ten hlad, ta tma, která se přibližovala — bylo to tak skutečné. Ale jsi zpátky ve své posteli.\n\nByl to jen sen? Musel to být jen sen... že jo?",
+  "death_pages_1": "Prudce se probouzíš ve své kajutě, promočený studeným potem. \n\nTys... umřel? Alespoň to tak vypadalo. To vyčerpání, ten hlad, ta tma, která se přibližovala — bylo to tak skutečné. Ale jsi zpátky ve své posteli.\n\nByl to jen sen? Musel to být jen sen... že jo?",
   "death_title_2": "Déjà Vu",
   "death_pages_2": "Alarm. Znovu. Stejná posloupnost událostí.\n\nPamatuješ si, že jsi zemřel. Pamatuješ si, že už ses tu jednou probudil. To nemůže být náhoda.\n\nNěco je velmi špatně.",
   "death_title_3": "Smyčka",
@@ -182,17 +182,18 @@
 
   "action_wake_up": "Probudit se",
   "action_wake_up_desc": "Setřes ospalost a vylez z palandy. Je čas zhodnotit situaci.",
-  "result_wake_up": "Zvedneš se, tvé tělo bolí. Jsi naživu a loď je stále neporušená — sotva. Jenže sotva jsi položil nohy na zem z postele, začal se lodí rozléhat hlasitý červený alarm, je na čase zjistit, co se děje.",
+  "result_wake_up": "Zvedneš se, tvé tělo bolí. Jsi naživu a loď je stále funkční, což je zázrak. Jenže sotva jsi položil nohy na zem z postele, začal se lodí rozléhat hlasitý alarm. Je na čase zjistit, co se děje.",
   "result_wake_up_loop1": "Zvedneš se, tvé tělo bolí… ale něco je jinak. Alarm — spustil se přesně ve stejný okamžik, právě když se tvé nohy dotkly podlahy. Zvláštní pocit povědomosti, který nedokážeš vysvětlit. Setřeseš to. Je čas zjistit, co se stalo.",
-  "result_wake_up_loop2": "Vymrštíš se do sedu, srdce bije ještě než alarm vůbec zazní — a přesně na povel, zařve. Přesně kdy jsi to čekal. To nemůže být náhoda. Ta samá loď. Ten samý okamžik. Jsi v tom uvězněn. Ale v čem?",
+  "result_wake_up_loop2": "Vymrštíš se do sedu, srdce bije ještě než alarm vůbec zazní — a přesně na povel, zařve. Přesně kdy jsi to čekal. To nemůže být náhoda. Ta samá loď. Ten samý okamžik. Jestli se tento den zase opakuje, tak si uvědomuješ že reaktor vyhořel pokaždé v úplně stejný okamžik. Pokud jsem opravdu uvězněný v nějaké časové smyčce tak mám od teď přesně {minutes} minut než se tak stane znova. Budu muset vymyslet nějaké řešení nebo se zblázním.",
+  "result_wake_up_loop3": "Vymrštíš se do sedu. Už nemá smysl kontrolovat stav paliva, je ti úplně jasné jak to vypadá. {fuel} jednotek paliva, {minutes} minut do vyhasnutí reaktoru. Pokaždé stejně. Pokaždé stejný konec.",
 
   "action_disable_alarm": "Vypnout alarm",
   "action_disable_alarm_desc": "Přistup k terminálu a vypni vyjící nouzový alarm.",
   "result_disable_alarm": "Zadáváš přepisovací kódy. Kvílivý alarm zakašle a utichne. Prostorem se rozhostí požehnané ticho. Zvonění v uších odezní — časem.",
 
-  "action_search_bunks": "Prohledat palandy",
-  "action_search_bunks_desc": "Prohledat palandy posádky a hledat zásoby a osobní záznamy.",
-  "result_search_bunks": "Prohledáváš palandy posádky, prohrabáváš se rozházenými osobními věcmi. Pod polštářem tvé prsty narazí na něco povědomého — ošoupanou brožovanou knihu, kterou jsi tam kdysi zastrčil a úplně na ni zapomněl. Její popraskaný hřbet a ohnuté rohy stránek působí v tvých rukou konejšivě.",
+  "action_search_bunks": "Prohledat palandu",
+  "action_search_bunks_desc": "Prohledat svoji palandu a okolí — třeba se tu dá najít něco užitečného.",
+  "result_search_bunks": "Prohrabáváš palandu. Pod polštářem tvé prsty narazí na něco neočekávaného — ohmataný opravářský manuál. 'Údržba průzkumných člunů pro naprosté idioty.' Někdo z posádky si ho tu musel nechat. Tohle by se mohlo hodit.",
 
   "action_check_terminal": "Zkontrolovat terminál",
   "action_check_terminal_desc": "Pokusit se přihlásit k terminálu, odtud by snad měl jít vypnout ten otravný alarm a připadně i zjistit proč se spustil.",
@@ -229,7 +230,7 @@
   "action_rest_desc": "Krátce si odpočinout a obnovit výdrž.",
 
   "action_drink_water": "Napít se vody",
-  "action_drink_water_desc": "Hydratovat se a obnovit pitnou vodu.",
+  "action_drink_water_desc": "Napít se vody ze zbytku, co zbyl v rozbitém recyklátoru. Není to čisté, ale žízeň to zažene.",
 
   "action_read_book": "Číst knihu",
   "action_read_book_desc": "Vezmeš ošoupanou brožovanou knihu z palandy a ztratíš se v jejích stránkách. Dlouhá, klidná činnost, která krátí čas.",
@@ -239,13 +240,9 @@
   "action_grab_bottled_water_desc": "Sebrat zapečetěnou láhev vody ze zásob jídelny.",
   "result_grab_bottled_water": "Bereš si zapečetěnou láhev vody z pultu jídelny. Čistá a chladná — bude se hodit.",
 
-  "action_get_food": "Vzít si jídlo",
-  "action_get_food_desc": "Prohledat zásoby jídelny a najít jedlé příděly.",
-  "result_get_food": "Nacházíš několik konzervovaných přídělů za pultem. Nejsou lákavé, ale jsou poživatelné.",
-
   "action_assess_supplies": "Zhodnotit zásoby",
   "action_assess_supplies_desc": "Zhodnotit zbývající zásoby jídla a vody v jídelně.",
-  "result_assess_supplies": "Prohlížíš si zásoby v jídelně. Přídělové balíčky jsou naskládány ledabyle, ale rychle je spočítáš — jídla je dost na nějakou dobu. Měřič na dávkovači vody ukazuje slušnou rezervu. Není to hojnost, ale udrží tě to při životě.",
+  "result_assess_supplies": "Procházíš zásoby v jídelně. Jídlo už téměř úplně došlo — zbývá sotva pár porcí proviantu. Recyklátor na vodu je rozbitý. V lednici ale nacházíš dvě zapečetěné láhve čisté vody. Aspoň něco.",
 
   "action_check_comms": "Zkontrolovat komunikaci",
   "action_check_comms_desc": "Přistup ke komunikační stanici a prohledej signály nebo tísňová volání.",
@@ -258,8 +255,9 @@
   "action_check_reactor_status": "Zkontrolovat stav reaktoru",
   "action_check_reactor_status_desc": "Spustit detailní diagnostiku lodního reaktoru a energetických systémů.",
   "result_check_reactor_status": "Skenování reaktoru odhaluje kritický úbytek paliva — zbývá pouze {fuel} jednotek. Při současné rychlosti spalování máš zhruba {minutes} minut než reaktor vyhasne. Bez energie selže podpora života a zásoby kyslíku se rychle vyčerpají.",
+  "result_check_reactor_status_loop2": "Bohužel tvůj odhad se naplnil, stav paliva je přesně tak jak sis myslel. {fuel} jednotek paliva, {minutes} minut do tmy. Věděl jsi to dřív, než jsi vůbec vstal z postele.",
   "result_check_reactor_status_known": "Stejně jako v tom snu... byl to vůbec sen? Všechno je naprosto stejné — hodnoty, palivoměr, ten tísnivý pocit v hrudi. To není možné. A přesto tu jsi, zíráš na stejná čísla. Máš {minutes} minut než reaktor zemře. Znovu.",
-  "log_fuel_depleted": "Reaktor vyhasíná. Světla zablikají a zhasnou. Podpora života se přepne na rezervní energii — hladina kyslíku začíná klesat.",
+  "log_fuel_depleted": "Reaktor vyhasíná. Světla zablikají a zhasnou. Svítí pouze nouzová světla. Najednou je úplné ticho. Systém podpory života přestane zcela fungovat — hladina kyslíku začíná klesat.",
   "log_o2_depleted": "Zásoby kyslíku vyčerpány. Žádný dýchatelný vzduch nezůstává.",
   "log_fuel_depletion_same_time": "Reaktor vyhasl v přesně stejný čas jako minule. Na minutu přesně. To nemůže být náhoda.",
   "log_oxygen_same_time_warning": "Zásoby kyslíku se tenčí... stejně jako minule. Zbývá {minutes} minut vzduchu — stejně jako v předchozí smyčce.",
@@ -311,7 +309,7 @@
   "action_survey_area_desc": "Pečlivě prozkoumat rozložení dílny a hledat skryté úkryty.",
 
   "poi_terminal": "TERMINÁL",
-  "poi_bunks": "PALANDY",
+  "poi_bunks": "PALANDA",
   "poi_storage": "ÚSCHOVNÁ SKŘÍŇ",
   "poi_travel": "PŘESUN",
   "poi_other_actions": "Ostatní akce",
@@ -323,5 +321,16 @@
   "poi_bunks_desc": "Prostor tvé palandy. Odpočiň si, hledej zásoby a zotav se.",
   "poi_terminal_desc": "Datový terminál lodi. Zkontroluj systémy a přistup k záznamům.",
   "poi_storage_desc": "Zapečetěná úschovná skříň. Obsahuje nouzové zásoby.",
-  "poi_travel_desc": "Východy do dalších částí lodi."
+  "poi_travel_desc": "Východy do dalších částí lodi.",
+
+  "action_end_loop": "Ukončit smyčku",
+  "log_end_loop_hint": "Ano... taky už tě to napadlo, že jo? Co to prostě zkusit ukončit po svém? Třeba se z tohohle průseru dostaneš a už se možná neprobudíš. Stiskni znovu, pokud jsi připravený to risknout.",
+  "action_end_loop_confirm": "Opravdu ukončit tuto smyčku?",
+  "action_end_loop_confirm_ok": "Ukončit",
+  "action_end_loop_confirm_cancel": "Zrušit",
+
+  "death_pages_manual_reset": "Ale ani tentokrát... tvoje vlastní volba na tom nic nezměnila. Zavíráš oči s nadějí, že už je konec — a pak otevřeš oči v té samé kajutě. Znovu. Zase od začátku.",
+
+  "action_grab_proviant": "Sebrat proviant",
+  "action_grab_proviant_desc": "Sebrat pár zbývajících balíčků s proviantem z jídelny. Už toho moc nezbývá."
 }
