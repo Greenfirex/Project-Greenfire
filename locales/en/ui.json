@@ -143,8 +143,8 @@
   "area_supplies": "Area Supplies",
 
   "area_food": "Food Stock",
-  "area_fuel": "Reactor Fuel",
-  "area_o2": "Oxygen Reserve",
+  "area_fuel": "Fuel",
+  "area_o2": "O2",
   "area_water": "Water Stock",
 
   "info_resources": "Resources",
@@ -182,7 +182,9 @@
 
   "action_wake_up": "Wake Up",
   "action_wake_up_desc": "Shake off the grogginess and climb out of the bunk. Time to assess the situation.",
-  "result_wake_up": "You push yourself up, body aching. Emergency lights flash overhead. A piercing alarm tears through the silence. You are alive and the ship is still intact — barely. Time to figure out what's going on.",
+  "result_wake_up": "You push yourself up, body aching. You are alive and the ship is still intact — barely. However just as you put your feet on the ground from the bed a loud red alert started howling across the ship, time to check what is happening.",
+  "result_wake_up_loop1": "You push yourself up, body aching... but something feels off. The alarm — it started at exactly the same moment, just as your feet touched the floor. A strange sense of familiarity you can't explain. You shake it off. Time to figure out what happened.",
+  "result_wake_up_loop2": "You bolt upright, heart racing before the alarm even sounds — and right on cue, it blares. Exactly when you expected. This can't be coincidence. The same ship. The same moment. You're trapped in something. But what?",
 
   "action_disable_alarm": "Disable Alarm",
   "action_disable_alarm_desc": "Access the terminal overrides and disable the blaring emergency alarm.",
@@ -196,6 +198,8 @@
   "action_check_terminal_desc": "Try to log into the terminal. From there you should be able to disable that annoying alarm and maybe figure out why it went off.",
   "result_check_terminal": "You tap the console and the screen flickers to life, demanding credentials. You tried a few random passwords but no luck. Fortunately, you have some experience with this operating system and should be able to hack into the terminal — it'll just take a while. Oh, and you noticed a sticky note on the monitor — \"workshop\". Maybe the login can be found there?",
   "result_check_terminal_known": "You tap the console. This time you remember the login — muscle memory from the last loop. The lock screen dissolves with a soft chime. You're in.",
+  "result_check_terminal_loop1": "You tap the console… and freeze. Your fingers move before your mind catches up — you already know the password. You don't know how you know. A chill runs through you as the lock screen dissolves.",
+  "result_check_terminal_loop2": "You don't even hesitate. The password is already beneath your fingertips. The lock screen gives way with the same soft chime you've heard before — you've lost count of how many times. The routine is becoming unsettling. You're in.",
 
   "action_hack_terminal": "Hack Terminal",
   "action_hack_terminal_desc": "Spend time bypassing the terminal's security. A long, focused task that will eventually grant full access.",
@@ -212,6 +216,10 @@
   "action_access_logs": "Access Logs",
   "action_access_logs_desc": "Browse the ship's logs and crew manifests stored on the terminal.",
   "result_access_logs": "You access the ship's logs. Most records are corrupted, but fragments remain: coordinates, crew assignments, and a cryptic reference to 'Gamma Site' on the planet below.",
+
+  "action_debug_taxing": "Debug Taxing Action",
+  "action_debug_taxing_desc": "10-second taxing action to test resource drains.",
+  "result_debug_taxing": "Debug taxing action complete.",
 
   "action_check_storage": "Check Storage",
   "action_check_storage_desc": "Search the storage locker for emergency supplies.",

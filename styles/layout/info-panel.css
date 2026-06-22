@@ -336,15 +336,15 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
     flex-direction: column;
 }
 
-/* Resources=40%, Effects=30%, Queue=30% */
+/* Resources=45%, Effects=27.5%, Queue=27.5% */
 #infoResourcesPanel {
-    flex: 1.6 1 0;
+    flex: 1.8 1 0;
 }
 #infoEffectsPanel {
-    flex: 1.2 1 0;
+    flex: 1.0 1 0;
 }
 #infoQueuePanel {
-    flex: 1.2 1 0;
+    flex: 1.0 1 0;
 }
 
 .info-section {
@@ -763,32 +763,48 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
 .area-resource-row {
     position: relative;
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 6fr 7fr 5fr;
     align-items: center;
-    padding: 4px 10px;
-    color: #EAEAEA;
-    gap: 6px;
-    background-color: rgba(17,17,17,0.5);
-    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10);
-    border-radius: 4px;
+    padding: 4px 6px;
+    min-height: 24px;
+    border-radius: 3px;
+    background-color: rgba(0, 0, 0, 0.2);
+    margin-bottom: 1px;
     overflow: hidden;
-    height: 26px;
+    color: #EAEAEA;
     font-size: 11px;
     font-weight: 600;
+}
+.area-resource-row:hover {
+    background-color: #2a2a2a;
 }
 .area-resource-bar {
     position: absolute;
     top: 0;
     left: 0;
     height: 100%;
-    border-radius: 0 2px 2px 0;
     z-index: 1;
+    border-radius: 0 2px 2px 0;
     transition: width 0.25s ease-out;
     background: linear-gradient(
         90deg,
         rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18) 0%,
         rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.09) 100%
     );
+}
+
+/* Glossy top highlight on area bars — match personal resource bars */
+.area-resource-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 35%;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.10), transparent);
+    border-radius: 0 2px 0 0;
+    pointer-events: none;
+    z-index: 2;
 }
 /* Color-coded area resource bars */
 .area-resource-bar.bar-food {
@@ -821,20 +837,28 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
 }
 .area-resource-name {
     z-index: 2;
+    font-weight: bold;
+    padding: 0 4px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .area-resource-amount {
     z-index: 2;
+    text-align: right;
+    padding: 0 4px;
     white-space: nowrap;
-    flex-shrink: 0;
     color: rgba(255,255,255,0.7);
 }
 .area-resource-amount.zero-amount {
     color: #E74C3C;
 }
-
+.area-resource-rate {
+    font-size: 11px;
+    text-align: right;
+    padding: 0 4px;
+    z-index: 2;
+}
 
 /* Hide the first category header ("ESSENTIAL") — section header replaces it */
 .info-category:first-child .info-category-header {
@@ -940,6 +964,7 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
     display: flex;
     flex-direction: row;
     align-items: center;
+    justify-content: space-between;
     gap: 5px;
     flex: 1;
     min-width: 0;
@@ -961,6 +986,7 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
     display: flex;
     flex-wrap: wrap;
     gap: 3px;
+    justify-content: flex-end;
     flex: 1;
     min-width: 0;
 }

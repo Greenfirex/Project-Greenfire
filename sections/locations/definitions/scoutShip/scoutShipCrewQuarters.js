@@ -106,7 +106,10 @@ export const scoutShipCrewQuarters = {
             descKey: 'action_rest_desc',
             category: 'rest',
             drain: [],
-            rewards: [{ type: 'resource', name: 'Stamina', amount: 5 }],
+            rewards: [
+                { type: 'resource', name: 'Stamina', amount: 5 },
+                { type: 'resource', name: 'Health', amount: 1 }
+            ],
             durationSeconds: 0,
             repeatable: true,
             cancellable: true,
@@ -144,6 +147,16 @@ export const scoutShipCrewQuarters = {
             oneTime: true,
             resultKey: 'result_read_book',
             unlockedBy: 'search_bunks'
+        },
+        {
+            id: 'debug_taxing',
+            nameKey: 'action_debug_taxing',
+            descKey: 'action_debug_taxing_desc',
+            category: 'taxing',
+            drain: [],
+            durationSeconds: 10,
+            repeatable: true,
+            resultKey: 'result_debug_taxing'
         },
         {
             id: 'go_to_main_area',

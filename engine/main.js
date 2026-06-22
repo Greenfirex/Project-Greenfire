@@ -1,4 +1,4 @@
-import { resources, updateResourceInfo, setupInfoPanel, roundResourceAmount } from './resources.js';
+import { resources, updateResourceInfo, setupInfoPanel, roundResourceAmount, initAreaResources } from './resources.js';
 import { preloader } from '../ui/system/preloader.js';
 import { gameFlags } from './gameFlags.js';
 import { setupLocationSection, updateLocationActionButtonsState } from '../sections/locations/locationEngine.js';
@@ -198,6 +198,8 @@ function startGame({ mode = 'continue' } = {}) {
     gameArea.appendChild(journalSection);
 
     setupInfoPanel();
+    // Initialize bridge area resources so fuel drains from game start
+    initAreaResources('scout_ship_bridge');
     setupLocationSection(locationsSection);
     setupCharacterSection(characterSection);
     setupJournalSection(journalSection);

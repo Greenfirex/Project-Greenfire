@@ -16,7 +16,7 @@ export const EFFECT_HUNGRY = {
     nameKey: 'effect_hungry_name',
     descKey: 'effect_hungry_desc',
     icon: '🥩',
-    debuffs: { staminaCostMultiplier: 3 },
+    debuffs: { 'Stamina': -0.3 },
 };
 
 export const EFFECT_THIRSTY = {
@@ -24,7 +24,7 @@ export const EFFECT_THIRSTY = {
     nameKey: 'effect_thirsty_name',
     descKey: 'effect_thirsty_desc',
     icon: '💧',
-    debuffs: { staminaCostMultiplier: 4 },
+    debuffs: { 'Stamina': -0.4 },
 };
 
 export const EFFECT_EXHAUSTED = {
@@ -32,7 +32,7 @@ export const EFFECT_EXHAUSTED = {
     nameKey: 'effect_exhausted_name',
     descKey: 'effect_exhausted_desc',
     icon: '😵',
-    debuffs: {},
+    debuffs: { 'Health': -1.0 },
 };
 
 export const EFFECT_LIFE_SUPPORT_FAILURE = {
@@ -48,7 +48,7 @@ export const EFFECT_OXYGEN_DEPLETED = {
     nameKey: 'effect_oxygen_depleted_name',
     descKey: 'effect_oxygen_depleted_desc',
     icon: '🫁',
-    debuffs: {},
+    debuffs: { 'Health': -2.0 },
 };
 
 /**
@@ -89,43 +89,40 @@ export function hasEffect(id) {
 }
 
 /**
- * Get combined debuff multipliers for action cost calculations.
- * Returns { staminaMultiplier, foodMultiplier, waterMultiplier }
+ * Get combined flat per-minute debuff drains from all active effects.
+ * Returns { resourceName: totalFlatPerMin }
+ */
+export function getEffectDrains() {
+    const drains = {};
+    for (const effect of activeEffects) {
+        if (effect.debuffs) {
+            for (const [resName, rate] of Object.entries(effect.debuffs)) {
+                drains[resName] = (drains[resName] || 0) + rate;
+            }
+        }
+    }
+    return drains;
+}
+
+/**
+ * Get combined flat per-minute debuff drains (alias for getEffectDrains).
  */
 export function getEffectDebuffs() {
-    let staminaMult = 1;
-    let foodMult = 1;
-    let waterMult = 1;
-    for (const effect of activeEffects) {
-        if (effect.debuffs.staminaCostMultiplier) staminaMult *= effect.debuffs.staminaCostMultiplier;
-        if (effect.debuffs.foodCostMultiplier) foodMult *= effect.debuffs.foodCostMultiplier;
-        if (effect.debuffs.waterCostMultiplier) waterMult *= effect.debuffs.waterCostMultiplier;
-    }
-    return { staminaMultiplier: staminaMult, foodMultiplier: foodMult, waterMultiplier: waterMult };
+    return getEffectDrains();
 }
 
 /**
  * Get detailed debuff info for tooltip display.
- * Returns an array of active effects that modify costs.
+ * Returns an array of active effects with flat debuff rates.
  */
 export function getEffectDebuffDetails() {
     const details = [];
     for (const effect of activeEffects) {
-        const d = {};
-        if (effect.debuffs.staminaCostMultiplier && effect.debuffs.staminaCostMultiplier !== 1) {
-            d.staminaMult = effect.debuffs.staminaCostMultiplier;
-        }
-        if (effect.debuffs.foodCostMultiplier && effect.debuffs.foodCostMultiplier !== 1) {
-            d.foodMult = effect.debuffs.foodCostMultiplier;
-        }
-        if (effect.debuffs.waterCostMultiplier && effect.debuffs.waterCostMultiplier !== 1) {
-            d.waterMult = effect.debuffs.waterCostMultiplier;
-        }
-        if (Object.keys(d).length > 0) {
+        if (effect.debuffs && Object.keys(effect.debuffs).length > 0) {
             details.push({
                 nameKey: effect.nameKey,
                 icon: effect.icon || '',
-                ...d,
+                debuffs: { ...effect.debuffs },
             });
         }
     }
@@ -211,15 +208,16 @@ export function updateEffectsUI() {
             `;
         }
         
+        // Show flat debuff rates. When exhausted, Stamina-targeted debuffs redirect to Health.
         const debuffTags = [];
-        if (effect.debuffs.staminaCostMultiplier && effect.debuffs.staminaCostMultiplier !== 1) {
-            debuffTags.push(`<span class="effect-debuff-tag">Stamina ×${effect.debuffs.staminaCostMultiplier}</span>`);
-        }
-        if (effect.debuffs.foodCostMultiplier && effect.debuffs.foodCostMultiplier !== 1) {
-            debuffTags.push(`<span class="effect-debuff-tag">Food ×${effect.debuffs.foodCostMultiplier}</span>`);
-        }
-        if (effect.debuffs.waterCostMultiplier && effect.debuffs.waterCostMultiplier !== 1) {
-            debuffTags.push(`<span class="effect-debuff-tag">Water ×${effect.debuffs.waterCostMultiplier}</span>`);
+        if (effect.debuffs) {
+            for (const [resName, rate] of Object.entries(effect.debuffs)) {
+                const sign = rate >= 0 ? '+' : '';
+                const isStaminaDebuff = resName === 'Stamina';
+                const showAsHealth = isStaminaDebuff && hasEffect('exhausted');
+                const displayResName = showAsHealth ? 'Health' : resName;
+                debuffTags.push(`<span class="effect-debuff-tag">${displayResName} ${sign}${rate.toFixed(1)}/min</span>`);
+            }
         }
         
         return `

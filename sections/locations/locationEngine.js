@@ -2,7 +2,7 @@
 // Location Engine
 // ==========================================================================
 
-import { resources, updateResourceInfo, setActiveDrainRates, applyTimePassiveDrain, roundResourceAmount, RESOURCE_EMOJIS, checkDeathAndLoop, initAreaResources, drainAreaResource, getAreaResourceAmount, showAreaSuppliesPanel, areaResources } from '../../engine/resources.js';
+import { resources, updateResourceInfo, setActiveDrainRates, applyTimePassiveDrain, roundResourceAmount, RESOURCE_EMOJIS, checkDeathAndLoop, initAreaResources, drainAreaResource, getAreaResourceAmount, showAreaSuppliesPanel, areaResources, revealAreaResources } from '../../engine/resources.js';
 import { addLogEntry, LogType } from '../../engine/ingameLog.js';
 import { t } from '../../locales/locales.js';
 import { getCurrentLocationId, switchToLocation, getLocation } from './locationData.js';
@@ -10,7 +10,7 @@ import { advanceIngameTimeBySeconds, getIngameTimeString } from '../../engine/ti
 import { playActionStart } from '../../engine/audio.js';
 import { gameFlags, isActionNew, flagActionAsNew, markActionSeen } from '../../engine/gameFlags.js';
 import { newBadgeHtml, wireClearUiNewBadge } from '../../ui/components/contentNewBadges.js';
-import { getEffectDebuffs, getEffectDebuffDetails, hasEffect, removeEffect, addEffect } from '../../engine/effects.js';
+import { getEffectDebuffs, getEffectDrains, getEffectDebuffDetails, hasEffect, removeEffect, addEffect } from '../../engine/effects.js';
 import { addToQueue, startNextQueuedAction, updateQueueActive, isInQueue } from '../../engine/queue.js';
 import { setupTooltip } from '../../ui/panels/tooltip.js';
 import { grantItemToCharacter, consumeItemQuantityFromBag, countItemInBag } from '../character/character.js';
@@ -35,18 +35,11 @@ function getResourceByName(name) {
 function canAffordAction(action) {
     if (!action) return true;
     const durationMins = (action.durationSeconds || 1) / 60;
-    const debuffs = getEffectDebuffs();
     const mult = action.category === 'taxing' ? TAXING_MULT : 1;
     for (const [resName, baseRate] of Object.entries(DEFAULT_DRAIN)) {
-        // Rest actions gain Stamina — skip Stamina affordability check
         if (action.category === 'rest' && resName === 'Stamina') continue;
-        // Refresh actions gain Drinking Water — skip Water affordability check
         if (action.category === 'refresh' && resName === 'Drinking Water') continue;
-        let rateMultiplier = resName === 'Stamina' ? mult : 1;
-        // Apply effect debuffs to cost
-        if (resName === 'Stamina') rateMultiplier *= (debuffs.staminaMultiplier || 1);
-        else if (/food/i.test(resName)) rateMultiplier *= (debuffs.foodMultiplier || 1);
-        else if (/water/i.test(resName)) rateMultiplier *= (debuffs.waterMultiplier || 1);
+        const rateMultiplier = resName === 'Stamina' ? mult : 1;
         const totalCost = baseRate * rateMultiplier * durationMins;
         const resource = getResourceByName(resName);
         if (!resource) continue;
@@ -129,7 +122,7 @@ function completeActiveAction(opts = {}) {
     // Remove effect if this action removes one
     if (action.removesEffect) {
         removeEffect(action.removesEffect);
-        addLogEntry(t('log_effect_removed', { effect: t('effect_' + action.removesEffect) }), LogType.SUCCESS);
+        addLogEntry(t('log_effect_removed', { effect: t('effect_' + action.removesEffect) }), LogType.ERROR);
     }
     
     // Add effect if this action adds one
@@ -141,10 +134,10 @@ function completeActiveAction(opts = {}) {
         };
         // Apply known effect presets
         if (action.addsEffect === 'alarm') {
-            Object.assign(effectDef, { icon: '🔔', progress: 0, maxProgress: Infinity, debuffs: { staminaCostMultiplier: 1.5 } });
+            Object.assign(effectDef, { icon: '🔔', progress: 0, maxProgress: Infinity, debuffs: { 'Stamina': -0.2 } });
         }
         addEffect(effectDef);
-        addLogEntry(t('log_effect_added', { effect: t(effectDef.nameKey) }), LogType.WARNING);
+        addLogEntry(t('log_effect_added', { effect: t(effectDef.nameKey) }), LogType.ERROR);
     }
     
     // Clear persistent progress on completion
@@ -314,6 +307,7 @@ function completeActiveAction(opts = {}) {
     if (action.revealsAreaSupplies) {
         const locId = getCurrentLocationId();
         initAreaResources(locId);
+        revealAreaResources(locId);
         if (typeof window !== 'undefined') {
             window._currentAreaResourceList = areaResources[locId] || [];
         }
@@ -370,7 +364,9 @@ function cancelActiveAction() {
     clearActionTimer();
     activeAction = null; activeActionId = null; actionProgress = 0; actionPaused = false;
     selectedActionId = null; _infoUpdateCounter = 0; _fullRebuildNeeded = true;
+    updateQueueActive(null);
     refreshUI();
+    startNextQueuedAction();
 }
 
 function clearActionTimer() { if (actionTimer) { clearInterval(actionTimer); actionTimer = null; } }
@@ -413,18 +409,19 @@ function startAction(actionId) {
     const drainRates = {}; const sources = {}; const displayName = t(action.nameKey);
     const isRest = action.category === 'rest';
     const isRefresh = action.category === 'refresh';
-    // Block starting rest/refresh if the gained resource is already at capacity
+    // Block starting rest/refresh only if ALL gained resources are at capacity.
+    // If at least one gained resource still has room, allow the action to proceed.
     if (isRest || isRefresh) {
-        for (const r of (action.rewards || [])) {
-            if (r.type === 'resource') {
+        const resourceRewards = (action.rewards || []).filter(r => r.type === 'resource');
+        if (resourceRewards.length > 0) {
+            const allFull = resourceRewards.every(r => {
                 const res = getResourceByName(r.name);
-                if (res && res.capacity > 0 && Number(res.amount) >= Number(res.capacity)) {
-                    const isGainingFood = r.name === 'Food Rations';
-                    if (isRest) addLogEntry(t('log_rest_full'), LogType.INFO);
-                    else if (isRefresh && isGainingFood) addLogEntry(t('log_rest_full'), LogType.INFO);
-                    else if (isRefresh) addLogEntry(t('log_water_full'), LogType.INFO);
-                    return;
-                }
+                return res && res.capacity > 0 && Number(res.amount) >= Number(res.capacity);
+            });
+            if (allFull) {
+                if (isRest) addLogEntry(t('log_rest_full'), LogType.INFO);
+                else if (isRefresh) addLogEntry(t('log_water_full'), LogType.INFO);
+                return;
             }
         }
     }
@@ -450,12 +447,7 @@ function startAction(actionId) {
             sources[resName].push({ rate: perMin, label: displayName });
             continue;
         }
-        let rateMultiplier = resName === 'Stamina' ? mult : 1;
-        // Apply effect debuffs to drain rate
-        const debuffs = getEffectDebuffs();
-        if (resName === 'Stamina') rateMultiplier *= (debuffs.staminaMultiplier || 1);
-        else if (/food/i.test(resName)) rateMultiplier *= (debuffs.foodMultiplier || 1);
-        else if (/water/i.test(resName)) rateMultiplier *= (debuffs.waterMultiplier || 1);
+        const rateMultiplier = resName === 'Stamina' ? mult : 1;
         const perMin = baseRate * rateMultiplier;
         drainRates[resName] = -perMin;
         if (!sources[resName]) sources[resName] = [];
@@ -469,10 +461,24 @@ function startAction(actionId) {
     }
     if (activeActionId !== actionId) {
         activeActionId = actionId; activeAction = action; activeAction._displayName = t(action.nameKey);
-        // Dynamic resultKey for check_terminal based on loop knowledge
+        // Dynamic resultKey for wake_up based on loop count
+        if (action.id === 'wake_up') {
+            if ((gameFlags.loopCount || 0) >= 2) {
+                activeAction._resultKey = 'result_wake_up_loop2';
+            } else if ((gameFlags.loopCount || 0) >= 1) {
+                activeAction._resultKey = 'result_wake_up_loop1';
+            }
+        }
+        // Dynamic resultKey for check_terminal based on loop knowledge + count
         if (action.id === 'check_terminal') {
             if (gameFlags.loopKnowledge && gameFlags.loopKnowledge.terminalLogin) {
-                activeAction._resultKey = 'result_check_terminal_known';
+                if ((gameFlags.loopCount || 0) >= 2) {
+                    activeAction._resultKey = 'result_check_terminal_loop2';
+                } else if ((gameFlags.loopCount || 0) >= 1) {
+                    activeAction._resultKey = 'result_check_terminal_loop1';
+                } else {
+                    activeAction._resultKey = 'result_check_terminal_known';
+                }
             } else {
                 activeAction._resultKey = 'result_check_terminal';
             }
@@ -500,22 +506,6 @@ function startAction(actionId) {
         if (!activeAction) { clearActionTimer(); return; }
         if (actionPaused) return;
         const tickSecs = TICK_SECONDS * getGameSpeed();
-        // Recalculate Stamina drain rate to reflect current debuff multipliers
-        if (activeAction && activeAction.category !== 'rest' && activeAction.category !== 'refresh') {
-            const currentDebuffs = getEffectDebuffs();
-            const mult = activeAction.category === 'taxing' ? TAXING_MULT : 1;
-            const newStaminaMult = mult * (currentDebuffs.staminaMultiplier || 1);
-            const newStaminaDrain = -(DEFAULT_DRAIN['Stamina'] * newStaminaMult);
-            // Rebuild food/water drains with current debuff multipliers
-            const foodMult = currentDebuffs.foodMultiplier || 1;
-            const waterMult = currentDebuffs.waterMultiplier || 1;
-            const newDrainRates = {
-                'Stamina': newStaminaDrain,
-                'Food Rations': -(DEFAULT_DRAIN['Food Rations'] * foodMult),
-                'Drinking Water': -(DEFAULT_DRAIN['Drinking Water'] * waterMult),
-            };
-            setActiveDrainRates(newDrainRates, null);
-        }
         actionProgress = parseFloat((actionProgress + tickSecs).toFixed(10));
         advanceIngameTimeBySeconds(tickSecs);
         applyTimePassiveDrain(tickSecs);
@@ -673,35 +663,65 @@ function renderDetailsTile() {
                     return true;
                 })
                 .map(([resName, baseRate]) => {
-                    const debuffs = getEffectDebuffs();
-                    let rateMultiplier = resName === 'Stamina' ? mult : 1;
-                    if (resName === 'Stamina') rateMultiplier *= (debuffs.staminaMultiplier || 1);
-                    else if (/food/i.test(resName)) rateMultiplier *= (debuffs.foodMultiplier || 1);
-                    else if (/water/i.test(resName)) rateMultiplier *= (debuffs.waterMultiplier || 1);
-                    const isDebuffed = rateMultiplier > (resName === 'Stamina' ? mult : 1);
-                    const rate = baseRate * rateMultiplier;
+                    const effectDrains = getEffectDrains();
+                    const rateMultiplier = resName === 'Stamina' ? mult : 1;
+                    const baseActionRate = baseRate * rateMultiplier;
+                    const effectDrainRate = effectDrains[resName] || 0;
+                    // If exhausted, Stamina-targeted effect drains redirect to Health — include
+                    // both the direct Stamina debuffs AND the exhausted -1.0 Health drain.
+                    const isExhausted = (resName === 'Stamina' && hasEffect('exhausted'));
+                    let extraHealthDrain = 0;
+                    if (isExhausted) {
+                        extraHealthDrain = Math.abs(effectDrains['Health'] || 0);
+                    }
+                    const rate = baseActionRate + Math.abs(effectDrainRate) + extraHealthDrain;
+                    const isDebuffed = effectDrains[resName] && effectDrains[resName] < 0;
                     const totalCost = rate * costDurationMins;
                     const progressPct = Math.min(1, effectiveProgress / Math.max(1, effectiveTotalSecs));
                     const remain = totalCost * (1 - progressPct);
                     
                     // If exhausted, Stamina cost becomes Health cost
-                    const isExhausted = (resName === 'Stamina' && hasEffect('exhausted'));
                     const displayResName = isExhausted ? 'Health' : resName;
                     const emoji = RESOURCE_EMOJIS[displayResName] || '';
                     const displayName = emoji ? `${emoji} ${displayResName}` : displayResName;
                     const cssSuffix = isExhausted ? 'health' : (/stamina/i.test(resName) ? 'stamina' : (/food/i.test(resName) ? 'food' : 'water'));
                     const cssClass = `detail-cost-${cssSuffix}`;
-                    const debuffBadge = isDebuffed ? '<span class="detail-cost-debuff-badge">&#x26A0;</span>' : '';
+                    const debuffBadge = isDebuffed ? `<span class="detail-cost-debuff-badge" data-debuff-for="${displayResName}">&#x26A0;</span>` : '';
 
-                    return `<div class="detail-cost ${cssClass}${isDebuffed ? ' detail-cost-debuffed' : ''}"><span class="detail-cost-label">${displayName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-remain" data-cost-res="${resName}" data-cost-total="${totalCost.toFixed(2)}">${remain.toFixed(2)}</span> <span class="detail-cost-rate">[-${rate.toFixed(2)}/min]</span>${debuffBadge}</span></div>`;
+                    return `<div class="detail-cost ${cssClass}"><span class="detail-cost-label">${displayName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-remain" data-cost-res="${resName}" data-cost-total="${totalCost.toFixed(2)}" style="font-weight:bold;">${remain.toFixed(2)}</span> <span class="detail-cost-rate"${isDebuffed ? ' style="color:#E74C3C;"' : ''}>[-${rate.toFixed(2)}/min]</span>${debuffBadge}</span></div>`;
                 }).join('');
-            const costsHtml = costItems ? `<div class="detail-section"><div class="detail-section-label"><span style="color:#f44336;">&#x2B07;</span> ${t('detail_costs')}</div>${costItems}</div>` : '';
+            // If Health-draining effects are active AND player is NOT exhausted,
+            // show a separate Health cost row. When exhausted, the Stamina row absorbs Health.
+            let healthCostHtml = '';
+            if (!hasEffect('exhausted')) {
+                const effectDrains = getEffectDrains();
+                const healthEffectDrain = effectDrains['Health'];
+                if (healthEffectDrain !== undefined && healthEffectDrain < 0) {
+                    const healthRate = Math.abs(healthEffectDrain);
+                    const healthTotalCost = healthRate * costDurationMins;
+                    const healthProgressPct = Math.min(1, effectiveProgress / Math.max(1, effectiveTotalSecs));
+                    const healthRemain = healthTotalCost * (1 - healthProgressPct);
+                    const healthEmoji = RESOURCE_EMOJIS['Health'] || '';
+                    const healthDisplayName = healthEmoji ? `${healthEmoji} Health` : 'Health';
+                    healthCostHtml = `<div class="detail-cost detail-cost-health"><span class="detail-cost-label">${healthDisplayName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-remain" data-cost-res="Health" data-cost-total="${healthTotalCost.toFixed(2)}" style="font-weight:bold;">${healthRemain.toFixed(2)}</span> <span class="detail-cost-rate" style="color:#E74C3C;">[-${healthRate.toFixed(2)}/min]</span><span class="detail-cost-debuff-badge" data-debuff-for="Health">&#x26A0;</span></span></div>`;
+                }
+            }
+            const costsHtml = (costItems || healthCostHtml) ? `<div class="detail-section"><div class="detail-section-label"><span style="color:#f44336;">&#x2B07;</span> ${t('detail_costs')}</div>${costItems}${healthCostHtml}</div>` : '';
             
             // Gains section for rest/refresh actions (matches costs row structure)
             let gainsHtml = '';
-            if (gainResourceName && gainPerSecRate > 0) {
-                const gainCssClass = /stamina/i.test(gainResourceName) ? 'detail-cost-stamina' : (/food/i.test(gainResourceName) ? 'detail-cost-food' : 'detail-cost-water');
-                gainsHtml = `<div class="detail-section"><div class="detail-section-label" style="color:#4caf50;">&#x2B06; ${t('detail_gains')}</div><div class="detail-cost detail-cost-gain ${gainCssClass}"><span class="detail-cost-label">${gainResourceName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate" style="color:#4caf50;">[+${gainPerSecRate.toFixed(2)}/min]</span></span></div></div>`;
+            if ((isRest || isRefresh) && Array.isArray(action.rewards)) {
+                const gainRows = action.rewards
+                    .filter(r => r.type === 'resource')
+                    .map(r => {
+                        const gainName = r.name;
+                        const gainRate = (Number(r.amount) || 0) / Math.max(1, action.durationSeconds || 1);
+                        const gainCssClass = /stamina/i.test(gainName) ? 'detail-cost-stamina' : (/food/i.test(gainName) ? 'detail-cost-food' : (/water/i.test(gainName) ? 'detail-cost-water' : 'detail-cost-health'));
+                        return `<div class="detail-cost detail-cost-gain ${gainCssClass}"><span class="detail-cost-label">${gainName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate" style="color:#4caf50;">[+${gainRate.toFixed(2)}/min]</span></span></div>`;
+                    }).join('');
+                if (gainRows) {
+                    gainsHtml = `<div class="detail-section"><div class="detail-section-label" style="color:#4caf50;">&#x2B06; ${t('detail_gains')}</div>${gainRows}</div>`;
+                }
             }
             
             // Requirements section (item prerequisite)
@@ -790,7 +810,8 @@ function renderActionsTile(location) {
         const isInfiniteAction = !action.durationSeconds || action.durationSeconds <= 0;
         const durationLabel = durationMins > 0 ? `<span class="location-action-btn-cost drain-time">&#x23F1; ${durationMins}m</span>` : (isInfiniteAction ? `<span class="location-action-btn-cost drain-time">&#x221E;</span>` : '');
     let playPauseHtml = '';
-    if (!isRunning) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;
+    const isPaused = isRunning && actionPaused;
+    if (!isRunning || isPaused) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;
     else playPauseHtml = `<span class="location-pause-icon" data-action-pause="${actionId}">&#9208;</span>`;
     // Stop button for cancellable running actions (default: cancellable unless explicitly false)
     if (isRunning && action.cancellable !== false && action.category !== 'persistent') {
@@ -918,7 +939,8 @@ function renderActionButton(action) {
     const isInfiniteAction = !action.durationSeconds || action.durationSeconds <= 0;
     const durationLabel = durationMins > 0 ? `<span class="location-action-btn-cost drain-time">&#x23F1; ${durationMins}m</span>` : (isInfiniteAction ? `<span class="location-action-btn-cost drain-time">&#x221E;</span>` : '');
     let playPauseHtml = '';
-    if (!isRunning) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;
+    const isPaused = isRunning && actionPaused;
+    if (!isRunning || isPaused) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;
     else playPauseHtml = `<span class="location-pause-icon" data-action-pause="${actionId}">&#9208;</span>`;
     // Stop button for cancellable running actions (persistent actions hide stop — pause saves progress)
     if (isRunning && action.cancellable !== false && action.category !== 'persistent') {
@@ -992,20 +1014,39 @@ function drainCostHtml(d) {
 
 function wireDebuffTooltips(detailsHost) {
     detailsHost.querySelectorAll('.detail-cost-debuff-badge').forEach(badge => {
+        const targetResource = badge.dataset.debuffFor || 'Stamina';
+        const contextExhausted = hasEffect('exhausted');
         setupTooltip(badge, () => {
             const details = getEffectDebuffDetails();
             if (!details.length) return '<p>No active debuffs.</p>';
-            let html = '<h4>Active Debuffs</h4>';
+            let html = '<h4>Active Effects</h4>';
+            let hasRelevant = false;
             details.forEach(d => {
-                const name = t(d.nameKey);
+                if (!d.debuffs) return;
                 const parts = [];
-                if (d.staminaMult) parts.push(`Stamina ×${d.staminaMult}`);
-                if (d.foodMult) parts.push(`Food ×${d.foodMult}`);
-                if (d.waterMult) parts.push(`Water ×${d.waterMult}`);
-                html += `<div class="tooltip-section"><p><strong>${d.icon} ${name}</strong></p>`;
-                parts.forEach(p => { html += `<p class="tooltip-detail">• ${p}</p>`; });
-                html += '</div>';
+                const isStaminaEffect = Object.keys(d.debuffs).some(k => k === 'Stamina');
+                const isHealthEffect = Object.keys(d.debuffs).some(k => k === 'Health');
+                // Filter: Health row shows Health effects + Stamina effects (when exhausted, Stamina redirects to Health)
+                // Stamina row shows own Stamina effects only (not Health)
+                const isRelevant = (targetResource === 'Health' && (isHealthEffect || (contextExhausted && isStaminaEffect)))
+                    || (targetResource === 'Stamina' && isStaminaEffect && !contextExhausted);
+                if (!isRelevant) return;
+                hasRelevant = true;
+                for (const [resName, rate] of Object.entries(d.debuffs)) {
+                    const sign = rate >= 0 ? '+' : '';
+                    // When exhausted and showing for Health, rename Stamina effects to Health
+                    const showAsHealth = (resName === 'Stamina' && contextExhausted && targetResource === 'Health');
+                    const displayResName = showAsHealth ? 'Health' : resName;
+                    parts.push(`${displayResName} ${sign}${rate.toFixed(1)}/min`);
+                }
+                if (parts.length) {
+                    const name = t(d.nameKey);
+                    html += `<div class="tooltip-section"><p><strong>${d.icon} ${name}</strong></p>`;
+                    parts.forEach(p => { html += `<p class="tooltip-detail">• ${p}</p>`; });
+                    html += '</div>';
+                }
             });
+            if (!hasRelevant) return '<p>No active debuffs for this resource.</p>';
             return html;
         });
     });
@@ -1145,8 +1186,9 @@ function updateActionButtonsDynamic() {
         const remainingEl = btn.querySelector('.location-action-remaining');
         if (remainingEl) { if (isRunning) { const remaining = Math.max(0, (action.durationSeconds || 1) - actionProgress); remainingEl.textContent = `${remaining.toFixed(1)}s`; remainingEl.style.display = ''; } else remainingEl.style.display = 'none'; }
         const playIcon = btn.querySelector('.location-play-icon'); const pauseIcon = btn.querySelector('.location-pause-icon');
-        if (playIcon) { const show = !isRunning; playIcon.style.display = show ? '' : 'none'; }
-        if (pauseIcon) pauseIcon.style.display = isRunning ? '' : 'none';
+        const isPaused = isRunning && actionPaused;
+        if (playIcon) { const show = !isRunning || isPaused; playIcon.style.display = show ? '' : 'none'; }
+        if (pauseIcon) pauseIcon.style.display = (isRunning && !isPaused) ? '' : 'none';
     });
 }
 

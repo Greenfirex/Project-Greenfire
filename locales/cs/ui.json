@@ -143,8 +143,8 @@
   "area_supplies": "Zásoby oblasti",
 
   "area_food": "Zásoby jídla",
-  "area_fuel": "Palivo reaktoru",
-  "area_o2": "Kyslíková rezerva",
+  "area_fuel": "Palivo",
+  "area_o2": "O2",
   "area_water": "Zásoby vody",
 
   "info_resources": "Suroviny",
@@ -182,7 +182,9 @@
 
   "action_wake_up": "Probudit se",
   "action_wake_up_desc": "Setřes ospalost a vylez z palandy. Je čas zhodnotit situaci.",
-  "result_wake_up": "Zvedneš se, tvé tělo bolí. Nouzová světla blikají nad hlavou. Do ticha se zařezává pronikavý alarm. Jsi naživu a loď je stále neporušená — sotva. Je čas zjistit, co se děje.",
+  "result_wake_up": "Zvedneš se, tvé tělo bolí. Jsi naživu a loď je stále neporušená — sotva. Jenže sotva jsi položil nohy na zem z postele, začal se lodí rozléhat hlasitý červený alarm, je na čase zjistit, co se děje.",
+  "result_wake_up_loop1": "Zvedneš se, tvé tělo bolí… ale něco je jinak. Alarm — spustil se přesně ve stejný okamžik, právě když se tvé nohy dotkly podlahy. Zvláštní pocit povědomosti, který nedokážeš vysvětlit. Setřeseš to. Je čas zjistit, co se stalo.",
+  "result_wake_up_loop2": "Vymrštíš se do sedu, srdce bije ještě než alarm vůbec zazní — a přesně na povel, zařve. Přesně kdy jsi to čekal. To nemůže být náhoda. Ta samá loď. Ten samý okamžik. Jsi v tom uvězněn. Ale v čem?",
 
   "action_disable_alarm": "Vypnout alarm",
   "action_disable_alarm_desc": "Přistup k terminálu a vypni vyjící nouzový alarm.",
@@ -196,6 +198,8 @@
   "action_check_terminal_desc": "Pokusit se přihlásit k terminálu, odtud by snad měl jít vypnout ten otravný alarm a připadně i zjistit proč se spustil.",
   "result_check_terminal": "Klepneš na konzoli a obrazovka zabliká k životu, žádá přihlašovací údaje. Zkusil si několik náhodných hesel, ale bez úspěchu. Naštěstí máš trochu zkušeností s tímhle operačním systémem a měl bys být schopný se do terminálu hacknout, ale chvilku to potrvá. Jo a taky sis všiml nalepeného lístečku na monitoru — \"dílna\". Je možné, že se login dá najít někde tam?",
   "result_check_terminal_known": "Klepneš na konzoli. Tentokrát si heslo pamatuješ — svalová paměť z minulé smyčky. Zamykací obrazovka se rozplyne s tichým pípnutím. Jsi uvnitř.",
+  "result_check_terminal_loop1": "Klepneš na konzoli… a ztuhneš. Tvé prsty se pohnou dřív, než to tvé mysli dojde — ty už heslo znáš. Nevíš, jak to víš. Projede tebou chlad, zatímco se zamykací obrazovka rozplyne.",
+  "result_check_terminal_loop2": "Ani na vteřinu nezaváháš. Heslo už je pod konečky tvých prstů. Zamykací obrazovka povolí se stejným tichým pípnutím, jaké jsi slyšel už tolikrát — ani to nespočítáš. Ta rutina začíná být znepokojivá. Jsi uvnitř.",
 
   "action_hack_terminal": "Hacknout terminál",
   "action_hack_terminal_desc": "Strávit čas obcházením zabezpečení terminálu. Dlouhý, soustředěný úkol, který nakonec poskytne plný přístup.",
@@ -212,6 +216,10 @@
   "action_access_logs": "Přístup k záznamům",
   "action_access_logs_desc": "Prohlédni si záznamy lodi a seznamy posádky uložené v terminálu.",
   "result_access_logs": "Přistupuješ k záznamům lodi. Většina záznamů je poškozena, ale zbývají fragmenty: souřadnice, přiřazení posádky a tajemná zmínka o 'Gamma Site' na planetě níže.",
+
+  "action_debug_taxing": "Debug Taxing Action",
+  "action_debug_taxing_desc": "10vteřinová náročná akce pro testování úbytků zdrojů.",
+  "result_debug_taxing": "Debug náročná akce dokončena.",
 
   "action_check_storage": "Zkontrolovat úschovnu",
   "action_check_storage_desc": "Prohledej úschovnou skříň pro nouzové zásoby.",

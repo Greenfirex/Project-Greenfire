@@ -14,7 +14,7 @@ import { getObjectivesStatus, setObjectivesStatus, resetObjectives } from './obj
 import { t } from '../locales/locales.js';
 import { clearAllEffects, getActiveEffectsForSave, setActiveEffects } from './effects.js';
 import { getQueueForSave, setQueueFromSave, clearQueue } from './queue.js';
-import { areaResources, getAreaResourcesForSave, setAreaResourcesFromSave } from './resources.js';
+import { areaResources, getAreaResourcesForSave, setAreaResourcesFromSave, getRevealedAreaLocationsForSave, setRevealedAreaLocationsFromSave } from './resources.js';
 
 function reconcileActivatedSectionsAfterLoad() {
     try {
@@ -57,7 +57,8 @@ export function getGameState() {
         currentLocationId: (function(){ try { return getCurrentLocationId(); } catch { return 'scout_ship_crew_quarters'; } })(),
         activeEffects: (function(){ try { return getActiveEffectsForSave(); } catch { return []; } })(),
         actionQueue: (function(){ try { return getQueueForSave(); } catch { return []; } })(),
-        areaResources: (function(){ try { return getAreaResourcesForSave(); } catch { return {}; } })()
+        areaResources: (function(){ try { return getAreaResourcesForSave(); } catch { return {}; } })(),
+        revealedAreaLocations: (function(){ try { return getRevealedAreaLocationsForSave(); } catch { return []; } })()
     };
 }
 
@@ -167,6 +168,13 @@ export function applyGameState(gameState) {
     try {
         if (gameState.areaResources && typeof gameState.areaResources === 'object') {
             setAreaResourcesFromSave(gameState.areaResources);
+        }
+    } catch { /* non-fatal */ }
+
+    // Restore revealed area locations
+    try {
+        if (Array.isArray(gameState.revealedAreaLocations)) {
+            setRevealedAreaLocationsFromSave(gameState.revealedAreaLocations);
         }
     } catch { /* non-fatal */ }
 

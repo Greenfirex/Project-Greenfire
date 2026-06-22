@@ -2,6 +2,7 @@
 // Uses existing #storyPopup DOM from index.html
 // Archives entries to journal via addJournalEntry()
 
+import { t } from '../../locales/locales.js';
 import { addJournalEntry } from '../../sections/journal/journal.js';
 import { getIngameTimeObject } from '../../engine/time.js';
 import { addLogEntry, LogType } from '../../engine/ingameLog.js';

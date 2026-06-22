@@ -1,7 +1,7 @@
 import { formatNumber } from './formatting.js';
 import { setupTooltip } from '../ui/panels/tooltip.js';
 import { t } from '../locales/locales.js';
-import { setupEffectsUI, getEffectDebuffs, addEffect, removeEffect, hasEffect, updateEffectsUI, EFFECT_HUNGRY, EFFECT_THIRSTY, EFFECT_EXHAUSTED, clearAllEffects } from './effects.js';
+import { setupEffectsUI, getEffectDebuffs, getEffectDrains, getEffectDebuffDetails, addEffect, removeEffect, hasEffect, updateEffectsUI, EFFECT_HUNGRY, EFFECT_THIRSTY, EFFECT_EXHAUSTED, EFFECT_LIFE_SUPPORT_FAILURE, EFFECT_OXYGEN_DEPLETED, clearAllEffects } from './effects.js';
 import { setupQueueUI } from './queue.js';
 import { gameFlags } from './gameFlags.js';
 import { switchToLocation } from '../sections/locations/locationData.js';
@@ -54,6 +54,35 @@ export let resources = getInitialResources();
 
 export const areaResources = {};
 
+// Track which locations have had their area resources revealed to the player.
+// Resources can be initialized early (e.g. for drain mechanics) but remain
+// hidden from the UI until the appropriate reveal action is completed.
+const _revealedAreaLocations = new Set();
+
+export function revealAreaResources(locationId) {
+    _revealedAreaLocations.add(locationId);
+    updateAreaResourcesUI();
+}
+
+export function isAreaRevealed(locationId) {
+    return _revealedAreaLocations.has(locationId);
+}
+
+export function getRevealedAreaLocationsForSave() {
+    return Array.from(_revealedAreaLocations);
+}
+
+export function setRevealedAreaLocationsFromSave(saved) {
+    _revealedAreaLocations.clear();
+    if (Array.isArray(saved)) {
+        saved.forEach(id => _revealedAreaLocations.add(id));
+    }
+}
+
+export function resetRevealedAreaLocations() {
+    _revealedAreaLocations.clear();
+}
+
 const AREA_EMOJIS = {
     'area_food': '🥫',
     'area_water': '💦',
@@ -87,8 +116,8 @@ export function initAreaResources(locationId) {
         ];
     } else if (locationId === 'scout_ship_bridge') {
         areaResources[locationId] = [
-            { name: 'area_fuel', amount: 600, capacity: 999 },
-            { name: 'area_o2', amount: 300, capacity: 999 },
+            { name: 'area_fuel', amount: 300, capacity: 600 },
+            { name: 'area_o2', amount: 200, capacity: 200 },
         ];
     }
 }
@@ -161,15 +190,24 @@ export function showAreaSuppliesPanel() {
     updateAreaResourcesUI();
 }
 
+function getAreaResourceDrainRate(resourceName) {
+    if (resourceName === 'area_fuel') return '-1.8/min';
+    if (resourceName === 'area_o2' && hasEffect('life_support_failure')) return '-4/min';
+    return '';
+}
+
 export function updateAreaResourcesUI() {
     if (!_areaSectionHost) {
         _areaSectionHost = document.getElementById('areaResourcesSection');
     }
     if (!_areaSectionHost) return;
     
-    // Merge ALL area resources from all locations, not just the current one
+    // Merge area resources only from locations that have been revealed to the player.
+    // Resources can be initialized early for drain mechanics but stay hidden until
+    // the appropriate reveal action (e.g. assess_supplies, check_reactor_status) completes.
     const list = [];
     for (const locId of Object.keys(areaResources)) {
+        if (!_revealedAreaLocations.has(locId)) continue;
         if (Array.isArray(areaResources[locId])) {
             for (const res of areaResources[locId]) {
                 if (res.amount > 0 || !areaResources[locId].every(r => r.amount <= 0)) {
@@ -205,10 +243,13 @@ export function updateAreaResourcesUI() {
         else if (/area_fuel/i.test(res.name)) barClass = 'bar-fuel';
         else if (/area_o2/i.test(res.name)) barClass = 'bar-o2';
         
+        const drainRate = getAreaResourceDrainRate(res.name);
+        const hasDrain = drainRate !== '';
         return `<div class="area-resource-row" data-resource="${res.name}">
             <div class="area-resource-bar ${barClass}" style="width:${pct}%"></div>
             <span class="area-resource-name">${emoji} ${name}</span>
-            <span class="area-resource-amount${isZero ? ' zero-amount' : ''}">${amt} / ${cap}</span>
+            <span class="area-resource-amount${isZero ? ' zero-amount' : ''}${hasDrain ? ' negative-rate' : ''}">${amt} / ${cap}</span>
+            ${hasDrain ? `<span class="area-resource-rate negative-rate">${drainRate}</span>` : ''}
         </div>`;
     }).join('');
     
@@ -257,7 +298,7 @@ function getResourceCategoryName(resourceName) {
 
 // Per-minute passive rates (no action running)
 const PASSIVE_PER_MIN = {
-    'Health': 0.1,
+    'Health': 0,
     'Stamina': 0,
     'Food Rations': 0,
     'Drinking Water': 0,
@@ -330,13 +371,7 @@ export function computeResourceRates(resourceName) {
     const consumptionSources = [];
 
     // Passive rates with source labels
-    if (resourceName === 'Health') {
-        // Health only regens if NOT exhausted
-        if (!hasEffect('exhausted')) {
-            totalProduction += 0.1;
-            productionSources.push({ rate: 0.1, label: 'Passive regeneration' });
-        }
-    }
+    // (Health no longer regens passively — use Rest action instead)
 
     // Active drain rates from running action (Stamina costs/gains during actions)
     if (_activeDrainRates && _activeDrainRates[resourceName] !== undefined) {
@@ -344,7 +379,6 @@ export function computeResourceRates(resourceName) {
         if (activeRate < 0) {
             const absRate = Math.abs(activeRate);
             totalConsumption += absRate;
-            // Use the source label if available
             if (_activeDrainSources && _activeDrainSources[resourceName]) {
                 consumptionSources.push(..._activeDrainSources[resourceName]);
             }
@@ -352,6 +386,40 @@ export function computeResourceRates(resourceName) {
             totalProduction += activeRate;
             if (_activeDrainSources && _activeDrainSources[resourceName]) {
                 productionSources.push(..._activeDrainSources[resourceName]);
+            }
+        }
+    }
+
+    // Static effect drains (e.g., hungry -0.3 Stamina/min, oxygen_depleted -2.0 Health/min)
+    const effectDrains = getEffectDrains();
+    if (effectDrains[resourceName]) {
+        totalConsumption += Math.abs(effectDrains[resourceName]);
+        // Add effect drain sources
+        const details = getEffectDebuffDetails();
+        for (const d of details) {
+            if (d.debuffs && d.debuffs[resourceName]) {
+                consumptionSources.push({ rate: Math.abs(d.debuffs[resourceName]), label: t(d.nameKey) });
+            }
+        }
+    }
+
+    // When exhausted, Stamina-targeted effect drains (hungry, thirsty, alarm) redirect to Health.
+    // Also redirect the action's own active Stamina drain rate.
+    // Include them in Health's consumption rate so the tooltip reflects actual health drain.
+    if (resourceName === 'Health' && hasEffect('exhausted')) {
+        if (effectDrains['Stamina']) {
+            totalConsumption += Math.abs(effectDrains['Stamina']);
+            const details = getEffectDebuffDetails();
+            for (const d of details) {
+                if (d.debuffs && d.debuffs['Stamina']) {
+                    consumptionSources.push({ rate: Math.abs(d.debuffs['Stamina']), label: t(d.nameKey) });
+                }
+            }
+        }
+        if (_activeDrainRates && _activeDrainRates['Stamina']) {
+            totalConsumption += Math.abs(_activeDrainRates['Stamina']);
+            if (_activeDrainSources && _activeDrainSources['Stamina']) {
+                consumptionSources.push(..._activeDrainSources['Stamina'].map(s => ({ ...s })));
             }
         }
     }
@@ -610,7 +678,7 @@ function syncSurvivalEffects() {
     if (food && food.amount <= 0) {
         if (!hasEffect('hungry')) {
             addEffect({ ...EFFECT_HUNGRY });
-            addLogEntry(t('log_effect_added', { effect: t('effect_hungry_name') }), LogType.WARNING);
+            addLogEntry(t('log_effect_added', { effect: t('effect_hungry_name') }), LogType.ERROR);
         }
     } else {
         if (hasEffect('hungry')) {
@@ -622,7 +690,7 @@ function syncSurvivalEffects() {
     if (water && water.amount <= 0) {
         if (!hasEffect('thirsty')) {
             addEffect({ ...EFFECT_THIRSTY });
-            addLogEntry(t('log_effect_added', { effect: t('effect_thirsty_name') }), LogType.WARNING);
+            addLogEntry(t('log_effect_added', { effect: t('effect_thirsty_name') }), LogType.ERROR);
         }
     } else {
         if (hasEffect('thirsty')) {
@@ -634,7 +702,7 @@ function syncSurvivalEffects() {
     if (stamina && stamina.amount <= 0) {
         if (!hasEffect('exhausted')) {
             addEffect({ ...EFFECT_EXHAUSTED });
-            addLogEntry(t('log_effect_added', { effect: t('effect_exhausted_name') }), LogType.WARNING);
+            addLogEntry(t('log_effect_added', { effect: t('effect_exhausted_name') }), LogType.ERROR);
         }
     } else {
         if (hasEffect('exhausted')) {
@@ -703,6 +771,17 @@ function handleDeathAndLoop() {
     // Reset resources and character inventory to full defaults
     resetResources();
     resetCharacterState();
+
+    // Reset area resources and hide the area supplies panel
+    for (const key of Object.keys(areaResources)) {
+        delete areaResources[key];
+    }
+    _revealedAreaLocations.clear();
+    // Re-initialize bridge area resources so fuel drain begins counting down again
+    initAreaResources('scout_ship_bridge');
+    if (_areaSectionHost) {
+        _areaSectionHost.classList.add('hidden');
+    }
 
     // Move player back to Crew Quarters
     switchToLocation('scout_ship_crew_quarters');
@@ -802,7 +881,8 @@ export function applyTimePassiveDrain(realSeconds) {
     if (!Number.isFinite(realSeconds) || realSeconds <= 0) return;
 
     // First, compute the per-minute base rates for each resource.
-    // This combines passive rates + active drain rates from running actions.
+    // This combines passive rates + active drain rates from running actions + effect drains.
+    const effectDrains = getEffectDrains();
     const perMinRates = {};
     resources.forEach(res => {
         let perMinRate = PASSIVE_PER_MIN[res.name] || 0;
@@ -812,12 +892,29 @@ export function applyTimePassiveDrain(realSeconds) {
             perMinRate += Number(_activeDrainRates[res.name]);
         }
 
-        // If exhausted, Health drains instead of regens
-        if (res.name === 'Health' && hasEffect('exhausted')) {
-            perMinRate = EXHAUSTED_HEALTH_DRAIN;
-            // Still apply action drain on top if any
-            if (_activeDrainRates && _activeDrainRates['Health'] !== undefined) {
-                perMinRate += Number(_activeDrainRates['Health']);
+        // Static effect drains (only applied when action is running)
+        if (_activeDrainRates && effectDrains[res.name]) {
+            // Cascade: if Stamina is depleted and effect drains Stamina, redirect to Health
+            if (res.name === 'Stamina' && res.amount <= 0) {
+                // Don't apply stamina drain; will be redirected to health
+            } else if (res.name === 'Health') {
+                // Redirect Stamina-targeted effect debuffs to Health if stamina is depleted
+                if (effectDrains['Stamina']) {
+                    const stamina = getResourceByName('Stamina');
+                    if (stamina && stamina.amount <= 0) {
+                        perMinRate -= Math.abs(effectDrains['Stamina']);
+                    }
+                }
+                // Also redirect the action's own active Stamina drain rate to Health
+                if (_activeDrainRates && _activeDrainRates['Stamina']) {
+                    const stamina = getResourceByName('Stamina');
+                    if (stamina && stamina.amount <= 0) {
+                        perMinRate -= Math.abs(_activeDrainRates['Stamina']);
+                    }
+                }
+                perMinRate += effectDrains[res.name];
+            } else {
+                perMinRate += effectDrains[res.name];
             }
         }
 
@@ -842,7 +939,7 @@ export function applyTimePassiveDrain(realSeconds) {
     
     // --- Area resource passive drains (ship fuel → O2 cascade) ---
     // Ship fuel drains over time (~1 unit per second)
-    const FUEL_DRAIN_PER_MIN = 6; // 1 per 10 real sec at 1x speed → 6/min
+    const FUEL_DRAIN_PER_MIN = 1.8; // 6/min reduced by 70% → 1.8/min
     const O2_DRAIN_PER_MIN = 4; // O2 drains slower than fuel
 
     const bridgeList = areaResources['scout_ship_bridge'];
@@ -861,7 +958,7 @@ export function applyTimePassiveDrain(realSeconds) {
                 if (!hasEffect('life_support_failure')) {
                     addEffect({ ...EFFECT_LIFE_SUPPORT_FAILURE });
                     addLogEntry(t('log_fuel_depleted'), LogType.WARNING);
-                    addLogEntry(t('log_effect_added', { effect: t('effect_life_support_failure_name') }), LogType.WARNING);
+                    addLogEntry(t('log_effect_added', { effect: t('effect_life_support_failure_name') }), LogType.ERROR);
                 }
             }
         }
@@ -893,14 +990,7 @@ export function applyTimePassiveDrain(realSeconds) {
     const health = getResourceByName('Health');
     if (health && health.amount <= 0) {
         health.amount = 0;
-        if (!_deathLoopHandled) {
-            _deathLoopHandled = true;
-            // Use setTimeout to break out of any interval context safely
-            setTimeout(() => {
-                _deathLoopHandled = false;
-                handleDeathAndLoop();
-            }, 0);
-        }
+        handleDeathAndLoop();
     }
 }
 
