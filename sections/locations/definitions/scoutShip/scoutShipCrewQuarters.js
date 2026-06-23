@@ -110,7 +110,7 @@ export const scoutShipCrewQuarters = {
                 { type: 'resource', name: 'Stamina', amount: 5 },
                 { type: 'resource', name: 'Health', amount: 1 }
             ],
-            durationSeconds: 0,
+            durationSeconds: 15,
             repeatable: true,
             cancellable: true,
             unlockedBy: 'wake_up'

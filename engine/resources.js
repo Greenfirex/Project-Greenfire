@@ -196,9 +196,18 @@ export function showAreaSuppliesPanel() {
     updateAreaResourcesUI();
 }
 
+// Active area drain rates set by locationEngine during actions
+let _activeAreaDrainRates = null;
+
+export function setActiveAreaDrainRates(rates) {
+    _activeAreaDrainRates = rates || null;
+    updateAreaResourcesUI();
+}
+
 function getAreaResourceDrainRate(resourceName) {
-    if (resourceName === 'area_fuel') return '-1.8/min';
-    if (resourceName === 'area_o2' && hasEffect('life_support_failure')) return '-4/min';
+    if (_activeAreaDrainRates && _activeAreaDrainRates[resourceName] !== undefined) {
+        return _activeAreaDrainRates[resourceName];
+    }
     return '';
 }
 
@@ -1008,8 +1017,11 @@ export function applyTimePassiveDrain(realSeconds) {
         }
     }
 
-    // Refresh area resources UI if fuel/O2 changed
-    updateAreaResourcesUI();
+    // Set area drain rates for passive fuel/O2 drain display
+    const areaRates = {};
+    if (fuel && fuel.amount > 0) areaRates['area_fuel'] = '-1.80/min';
+    if (o2 && hasEffect('life_support_failure') && o2.amount > 0) areaRates['area_o2'] = '-4.00/min';
+    setActiveAreaDrainRates(Object.keys(areaRates).length > 0 ? areaRates : null);
 
     // Sync survival effects based on current resource levels
     syncSurvivalEffects();

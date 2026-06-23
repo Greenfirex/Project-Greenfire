@@ -2,37 +2,35 @@
 // Location Engine
 // ==========================================================================
 
-import { resources, updateResourceInfo, setActiveDrainRates, applyTimePassiveDrain, roundResourceAmount, RESOURCE_EMOJIS, checkDeathAndLoop, initAreaResources, drainAreaResource, getAreaResourceAmount, showAreaSuppliesPanel, areaResources, revealAreaResources } from '../../engine/resources.js';
+import { resources, updateResourceInfo, setActiveDrainRates, setActiveAreaDrainRates, applyTimePassiveDrain, roundResourceAmount, checkDeathAndLoop, initAreaResources, drainAreaResource, showAreaSuppliesPanel, areaResources, revealAreaResources } from '../../engine/resources.js';
 import { addLogEntry, LogType } from '../../engine/ingameLog.js';
 import { t } from '../../locales/locales.js';
 import { getCurrentLocationId, switchToLocation, getLocation } from './locationData.js';
 import { advanceIngameTimeBySeconds, getIngameTimeString } from '../../engine/time.js';
-import { playActionStart } from '../../engine/audio.js';
-import { gameFlags, isActionNew, flagActionAsNew, markActionSeen } from '../../engine/gameFlags.js';
-import { newBadgeHtml, wireClearUiNewBadge } from '../../ui/components/contentNewBadges.js';
-import { getEffectDebuffs, getEffectDrains, getEffectDebuffDetails, hasEffect, removeEffect, addEffect } from '../../engine/effects.js';
-import { addToQueue, startNextQueuedAction, updateQueueActive, isInQueue } from '../../engine/queue.js';
-import { setupTooltip } from '../../ui/panels/tooltip.js';
+import { gameFlags, flagActionAsNew } from '../../engine/gameFlags.js';
+import { hasEffect, removeEffect, addEffect } from '../../engine/effects.js';
+import { startNextQueuedAction, updateQueueActive } from '../../engine/queue.js';
 import { grantItemToCharacter, consumeItemQuantityFromBag, countItemInBag } from '../character/character.js';
 import { getItemDefinition } from '../character/items.js';
+import { refreshUI, updateActionButtonsDynamic } from './locationUi.js';
 
 const DEFAULT_DRAIN = { 'Stamina': 0.20, 'Food Rations': 0.08, 'Drinking Water': 0.12 };
 const TAXING_MULT = 2.0;
 
-let activeAction = null;
-let activeActionId = null;
+export let activeAction = null;
+export let activeActionId = null;
+export let actionProgress = 0;
+export let selectedActionId = null;
+export let actionPaused = false;
+export let _fullRebuildNeeded = true;
 let actionTimer = null;
-let actionProgress = 0;
-let selectedActionId = null;
-let actionPaused = false;
 let _infoUpdateCounter = 0;
-let _fullRebuildNeeded = true;
 
-function getResourceByName(name) {
+export function getResourceByName(name) {
     return resources.find(res => res && String(res.name) === String(name));
 }
 
-function canAffordAction(action) {
+export function canAffordAction(action) {
     if (!action) return true;
     const durationMins = (action.durationSeconds || 1) / 60;
     const mult = action.category === 'taxing' ? TAXING_MULT : 1;
@@ -87,6 +85,7 @@ function completeActiveAction(opts = {}) {
     const action = activeAction;
     if (!action) return;
     setActiveDrainRates(null, null);
+    setActiveAreaDrainRates(null);
     // Consume required item now that the action completed successfully.
     // Item consumption was deferred from startAction() so that stopping/cancelling
     // the action does not permanently destroy the quest item.
@@ -424,7 +423,7 @@ function completeActiveAction(opts = {}) {
 /**
  * Cancel the active action — revert without rewards, completion flags, or repeat count.
  */
-function cancelActiveAction() {
+export function cancelActiveAction() {
     const action = activeAction;
     if (!action) return;
     // Save persistent progress before stopping so player can resume later
@@ -433,6 +432,7 @@ function cancelActiveAction() {
         gameFlags.persistentProgress[action.id] = actionProgress;
     }
     setActiveDrainRates(null, null);
+    setActiveAreaDrainRates(null);
     addLogEntry(t('log_action_cancelled', { action: action._displayName || t(action.nameKey) }), LogType.INFO);
     try { updateResourceInfo(); } catch { /* ignore */ }
     clearActionTimer();
@@ -454,7 +454,7 @@ function updateClockDisplay() {
     if (clockEl) clockEl.textContent = getIngameTimeString();
 }
 
-function startAction(actionId) {
+export function startAction(actionId) {
     const location = getLocation(getCurrentLocationId());
     if (!location) return;
     const action = location.actions.find(a => a.id === actionId);
@@ -528,6 +528,12 @@ function startAction(actionId) {
         sources[resName].push({ rate: perMin, label: displayName });
     }
     setActiveDrainRates(drainRates, sources);
+    // Set area drain rate for area panel display (same pattern as personal drain rates)
+    if (action.drainsAreaResource) {
+        const adr = action.drainsAreaResource;
+        const areaPerSec = (adr.amount || 1) / Math.max(1, action.durationSeconds || 1);
+        setActiveAreaDrainRates({ [adr.resource]: `-${areaPerSec.toFixed(2)}/min` });
+    }
     // Save old persistent progress before switching to a different action
     if (activeAction && activeAction.category === 'persistent' && activeAction.id && activeActionId !== actionId) {
         if (!gameFlags.persistentProgress) gameFlags.persistentProgress = {};
@@ -596,15 +602,32 @@ function startAction(actionId) {
         _infoUpdateCounter++;
         if (_infoUpdateCounter >= 5) { try { updateResourceInfo(); } catch { /* ignore */ } _infoUpdateCounter = 0; }
 
-        // Cap detection for rest/refresh infinite actions
-        if (isInfinite && (activeAction.category === 'rest' || activeAction.category === 'refresh')) {
-            for (const r of (activeAction.rewards || [])) {
+        // Cap detection for rest/refresh actions (auto-stop when resource hits capacity)
+        if ((activeAction.category === 'rest' || activeAction.category === 'refresh') && Array.isArray(activeAction.rewards)) {
+            for (const r of activeAction.rewards) {
                 if (r.type === 'resource') {
-                    const res = getResourceByName(r.name);
+                    const res = resources.find(rr => rr && String(rr.name) === String(r.name));
                     if (res && res.capacity > 0 && Number(res.amount) >= Number(res.capacity)) {
                         completeActiveAction({ reason: 'cap' });
                         return;
                     }
+                }
+            }
+        }
+
+        // Area resource drain (same pattern as personal resource drain above)
+        if (activeAction.drainsAreaResource) {
+            const dr = activeAction.drainsAreaResource;
+            const areaPerSec = (dr.amount || 1) / Math.max(1, activeAction.durationSeconds || 1);
+            const areaList = areaResources[getCurrentLocationId()];
+            const areaRes = areaList && Array.isArray(areaList) ? areaList.find(r => r.name === dr.resource) : null;
+            if (areaRes) {
+                areaRes.amount -= areaPerSec * tickSecs;
+                roundResourceAmount(areaRes);
+                if (areaRes.amount <= 0) {
+                    areaRes.amount = 0;
+                    completeActiveAction({ reason: 'depleted' });
+                    return;
                 }
             }
         }
@@ -615,14 +638,14 @@ function startAction(actionId) {
             gameFlags.persistentProgress[activeAction.id] = actionProgress;
         }
 
-        // Normal duration-based completion (only for finite actions)
-        if (!isInfinite && actionProgress >= (activeAction.durationSeconds || 1)) {
+        // Duration-based completion
+        if (actionProgress >= (activeAction.durationSeconds || 1)) {
             completeActiveAction();
         }
     }, 100);
 }
 
-function pauseAction() {
+export function pauseAction() {
     // Persistent actions: save progress + release slot so queue can proceed
     if (activeAction && activeAction.category === 'persistent' && activeAction.id) {
         if (!gameFlags.persistentProgress) gameFlags.persistentProgress = {};
@@ -637,7 +660,7 @@ function pauseAction() {
     }
     actionPaused = true; _fullRebuildNeeded = true; refreshUI();
 }
-function resumeAction() { if (!activeAction || activeAction._completed) return; startAction(activeAction.id); }
+export function resumeAction() { if (!activeAction || activeAction._completed) return; startAction(activeAction.id); }
 
 export function updateLocationActionButtonsState() { refreshUI(); }
 
@@ -650,422 +673,10 @@ document.addEventListener('click', (e) => {
     } catch { /* ignore */ }
 });
 
-function renderLocationTile(location) {
-    const imgHtml = location.image ? `<div class="location-location-image" style="max-height:none;flex:1 1 auto;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="${location.image}" alt="${t(location.nameKey)}" style="width:100%;height:100%;object-fit:contain;" /></div>` : '';
-    return `<div class="location-card location-card-location"><div class="location-card-header"><h3>${t(location.nameKey)}</h3></div>${imgHtml}</div>`;
-}
-
-function renderDetailsTile() {
-    const location = getLocation(getCurrentLocationId());
-    if (selectedActionId) {
-        const action = (location && location.actions) ? location.actions.find(a => a.id === selectedActionId) : null;
-        if (action) {
-            // Tags row (below action name, shows repeatable/oneTime + category)
-            const tagItems = [];
-            if (action.targetLocation) {
-                tagItems.push('<span class="detail-tag tag-travel">&#x2192; ' + t('tag_travel') + '</span>');
-            } else if (action.repeatable) {
-                if (typeof action.repeatLimit === 'number' && action.repeatLimit > 0) {
-                    const remain = Math.max(0, action.repeatLimit - (action._repeatCount || 0));
-                    tagItems.push(`<span class="detail-tag tag-repeatable">&#x21BB; ${remain}&#x00D7; ${t('tag_remaining')}</span>`);
-                } else {
-                    tagItems.push('<span class="detail-tag tag-repeatable">&#x21BB; ' + t('tag_repeatable') + '</span>');
-                }
-            } else if (action.oneTime) {
-                tagItems.push('<span class="detail-tag tag-onetime">&#x26A1; ' + t('tag_onetime') + '</span>');
-            }
-            // Category as a tag
-            let catLabel = '';
-            let catClass = '';
-            if (action.category === 'taxing') { catLabel = t('cat_taxing'); catClass = 'detail-category-taxing'; }
-            else if (action.category === 'simple') { catLabel = t('cat_simple'); catClass = 'detail-category-simple'; }
-            else if (action.category === 'persistent') { catLabel = t('cat_persistent'); catClass = 'detail-category-persistent'; }
-            else if (action.category === 'rest') { catLabel = t('cat_rest'); catClass = 'detail-category-rest'; }
-            else if (action.category === 'refresh') { catLabel = t('cat_refresh'); catClass = 'detail-category-refresh'; }
-            if (catLabel) tagItems.push(`<span class="detail-category detail-tag ${catClass}">${catLabel}</span>`);
-            const tagsHtml = tagItems.length > 0 ? `<div class="detail-tags">${tagItems.join('')}</div>` : '';
-
-            // Duration
-            const isInfiniteAction = !action.durationSeconds || action.durationSeconds <= 0;
-            const isActionRunning = activeActionId === selectedActionId && !action._completed;
-            // Get saved persistent progress (survives death loops and stop/cancel)
-            const savedProgress = (action.category === 'persistent' && action.id && gameFlags.persistentProgress)
-                ? (Number(gameFlags.persistentProgress[action.id]) || 0)
-                : 0;
-            const effectiveTotalSecs = Math.max(1, action.durationSeconds || 0);
-            const effectiveProgress = isActionRunning ? actionProgress : savedProgress;
-            const effectiveRemainingSecs = Math.max(0, effectiveTotalSecs - effectiveProgress);
-            const effectiveProgressPct = effectiveTotalSecs > 0 ? Math.min(100, Math.round((effectiveProgress / effectiveTotalSecs) * 100)) : 0;
-
-            let durationHtml = '';
-            if (isInfiniteAction) {
-                durationHtml = `<div class="detail-section"><div class="detail-section-label">&#x23F1; ${t('detail_duration')}</div><div class="detail-section-value">${t('action_duration_ongoing')}</div></div>`;
-            } else {
-                const remainingMins = Math.round(effectiveRemainingSecs || 0);
-                durationHtml = `<div class="detail-section"><div class="detail-section-label">&#x23F1; ${t('detail_duration')}</div><div class="detail-section-value">${t('action_duration_label', { minutes: remainingMins })}</div></div>`;
-            }
-            
-            // Costs — resource name + remaining count (dynamic during running)
-            const costDurationMins = action.durationSeconds > 0 ? Math.max(1, Math.round(action.durationSeconds || 0)) : 1;
-            const mult = action.category === 'taxing' ? TAXING_MULT : 1;
-            const isRest = action.category === 'rest';
-            const isRefresh = action.category === 'refresh';
-            // Compute per-second gain rate (1 real sec = 1 in-game min)
-            let gainPerSecRate = 0;
-            let gainResourceName = null;
-            if ((isRest || isRefresh) && Array.isArray(action.rewards)) {
-                for (const r of action.rewards) {
-                    if (r.type === 'resource') {
-                        gainResourceName = r.name;
-                        gainPerSecRate = (Number(r.amount) || 0) / Math.max(1, action.durationSeconds || 1);
-                        break;
-                    }
-                }
-            }
-            const costItems = Object.entries(DEFAULT_DRAIN)
-                .filter(([resName]) => {
-                    // Skip resource being gained in costs display
-                    if (isRest && resName === 'Stamina') return false;
-                    if (isRefresh && resName === 'Drinking Water') return false;
-                    // Hide costs when resource is depleted, but keep Stamina when exhausted (shown as Health)
-                    const r = getResourceByName(resName);
-                    if (r && r.amount <= 0) {
-                        if (resName === 'Stamina' && hasEffect('exhausted')) return true;
-                        return false;
-                    }
-                    return true;
-                })
-                .map(([resName, baseRate]) => {
-                    const effectDrains = getEffectDrains();
-                    const rateMultiplier = resName === 'Stamina' ? mult : 1;
-                    const baseActionRate = baseRate * rateMultiplier;
-                    const effectDrainRate = effectDrains[resName] || 0;
-                    // If exhausted, Stamina-targeted effect drains redirect to Health — include
-                    // both the direct Stamina debuffs AND the exhausted -1.0 Health drain.
-                    const isExhausted = (resName === 'Stamina' && hasEffect('exhausted'));
-                    let extraHealthDrain = 0;
-                    if (isExhausted) {
-                        extraHealthDrain = Math.abs(effectDrains['Health'] || 0);
-                    }
-                    const rate = baseActionRate + Math.abs(effectDrainRate) + extraHealthDrain;
-                    const isDebuffed = effectDrains[resName] && effectDrains[resName] < 0;
-                    const totalCost = rate * costDurationMins;
-                    const progressPct = Math.min(1, effectiveProgress / Math.max(1, effectiveTotalSecs));
-                    const remain = totalCost * (1 - progressPct);
-                    
-                    // If exhausted, Stamina cost becomes Health cost
-                    const displayResName = isExhausted ? 'Health' : resName;
-                    const emoji = RESOURCE_EMOJIS[displayResName] || '';
-                    const displayName = emoji ? `${emoji} ${displayResName}` : displayResName;
-                    const cssSuffix = isExhausted ? 'health' : (/stamina/i.test(resName) ? 'stamina' : (/food/i.test(resName) ? 'food' : 'water'));
-                    const cssClass = `detail-cost-${cssSuffix}`;
-                    const debuffBadge = isDebuffed ? `<span class="detail-cost-debuff-badge" data-debuff-for="${displayResName}">&#x26A0;</span>` : '';
-
-                    return `<div class="detail-cost ${cssClass}"><span class="detail-cost-label">${displayName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-remain" data-cost-res="${resName}" data-cost-total="${totalCost.toFixed(2)}" style="font-weight:bold;">${remain.toFixed(2)}</span> <span class="detail-cost-rate"${isDebuffed ? ' style="color:#E74C3C;"' : ''}>[-${rate.toFixed(2)}/min]</span>${debuffBadge}</span></div>`;
-                }).join('');
-            // If Health-draining effects are active AND player is NOT exhausted,
-            // show a separate Health cost row. When exhausted, the Stamina row absorbs Health.
-            let healthCostHtml = '';
-            if (!hasEffect('exhausted')) {
-                const effectDrains = getEffectDrains();
-                const healthEffectDrain = effectDrains['Health'];
-                if (healthEffectDrain !== undefined && healthEffectDrain < 0) {
-                    const healthRate = Math.abs(healthEffectDrain);
-                    const healthTotalCost = healthRate * costDurationMins;
-                    const healthProgressPct = Math.min(1, effectiveProgress / Math.max(1, effectiveTotalSecs));
-                    const healthRemain = healthTotalCost * (1 - healthProgressPct);
-                    const healthEmoji = RESOURCE_EMOJIS['Health'] || '';
-                    const healthDisplayName = healthEmoji ? `${healthEmoji} Health` : 'Health';
-                    healthCostHtml = `<div class="detail-cost detail-cost-health"><span class="detail-cost-label">${healthDisplayName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-remain" data-cost-res="Health" data-cost-total="${healthTotalCost.toFixed(2)}" style="font-weight:bold;">${healthRemain.toFixed(2)}</span> <span class="detail-cost-rate" style="color:#E74C3C;">[-${healthRate.toFixed(2)}/min]</span><span class="detail-cost-debuff-badge" data-debuff-for="Health">&#x26A0;</span></span></div>`;
-                }
-            }
-            // Area resource drain (e.g., area_water used by drink_water)
-            let areaDrainHtml = '';
-            if (action.drainsAreaResource) {
-                const dr = action.drainsAreaResource;
-                const areaName = dr.resource || '';
-                const areaLabel = t('area_' + areaName.replace('area_', '')) || areaName;
-                const drainAmt = dr.amount || 1;
-                const drainPerMin = drainAmt / Math.max(1, action.durationSeconds || 0);
-                areaDrainHtml = `<div class="detail-cost detail-cost-water"><span class="detail-cost-label">💦 ${areaLabel}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate" style="color:#E74C3C;">[-${drainPerMin.toFixed(2)}/min]</span></span></div>`;
-            }
-            const costsHtml = (costItems || healthCostHtml || areaDrainHtml) ? `<div class="detail-section"><div class="detail-section-label"><span style="color:#f44336;">&#x2B07;</span> ${t('detail_costs')}</div>${costItems}${areaDrainHtml}${healthCostHtml}</div>` : '';
-            
-            // Gains section for rest/refresh actions (matches costs row structure)
-            let gainsHtml = '';
-            if ((isRest || isRefresh) && Array.isArray(action.rewards)) {
-                const gainRows = action.rewards
-                    .filter(r => r.type === 'resource')
-                    .map(r => {
-                        const gainName = r.name;
-                        const gainRate = (Number(r.amount) || 0) / Math.max(1, action.durationSeconds || 1);
-                        const gainCssClass = /stamina/i.test(gainName) ? 'detail-cost-stamina' : (/food/i.test(gainName) ? 'detail-cost-food' : (/water/i.test(gainName) ? 'detail-cost-water' : 'detail-cost-health'));
-                        return `<div class="detail-cost detail-cost-gain ${gainCssClass}"><span class="detail-cost-label">${gainName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate" style="color:#4caf50;">[+${gainRate.toFixed(2)}/min]</span></span></div>`;
-                    }).join('');
-                if (gainRows) {
-                    gainsHtml = `<div class="detail-section"><div class="detail-section-label" style="color:#4caf50;">&#x2B06; ${t('detail_gains')}</div>${gainRows}</div>`;
-                }
-            }
-            
-            // Requirements section (item prerequisite)
-            let requirementsHtml = '';
-            if (action.requiresItem) {
-                const reqItemDef = getItemDefinition(action.requiresItem);
-                if (reqItemDef) {
-                    requirementsHtml = `<div class="detail-section"><div class="detail-section-label">&#x1F4CB; Requirements</div><div class="detail-cost detail-cost-requirement"><span class="detail-cost-label">${reqItemDef.name}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate" style="color:#ff9800;">[quest item]</span></span></div></div>`;
-                }
-            }
-            
-            // Rewards (hidden for rest/refresh since gains show the continuous rate)
-            let rewardsHtml = '';
-            if (action.rewards && action.rewards.length && !isRest && !isRefresh) {
-                const rewardItems = action.rewards.map(r => {
-                    if (r.type === 'item') {
-                        const itemId = String(r.name || '').toLowerCase().replace(/\s+/g, '_');
-                        const itemDef = getItemDefinition(itemId);
-                        const itemName = itemDef ? itemDef.name : r.name;
-                        const itemIcon = itemDef ? itemDef.icon : '';
-                        const imgTag = itemIcon ? `<img src="${itemIcon}" alt="${itemName}" class="detail-reward-icon" />` : '';
-                        return `<div class="detail-reward">${imgTag}<span>+${r.amount || 1} ${itemName}</span></div>`;
-                    }
-                    return `<div class="detail-reward">+${r.amount || 0} ${r.name}</div>`;
-                }).join('');
-                rewardsHtml = `<div class="detail-section"><div class="detail-section-label">&#x1F381; ${t('detail_rewards')}</div>${rewardItems}</div>`;
-            }
-            
-            return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t(action.nameKey)}</h3></div>${tagsHtml}<p class="location-location-desc">${t(action.descKey)}</p>${durationHtml}${gainsHtml}${costsHtml}${requirementsHtml}${rewardsHtml}</div>`;
-        }
-    }
-    
-    // Show location description with POI names already highlighted via <span class="poi-highlight"> in locale strings
-    if (location) {
-        return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t('crash_details')}</h3></div><p class="location-location-desc" id="locationsDetailDesc">${t(location.descriptionKey)}</p></div>`;
-    }
-    
-    return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t('crash_details')}</h3></div><p class="location-location-desc" id="locationsDetailDesc"></p></div>`;
-}
-
-function renderActionsTile(location) {
-    // Load unlock state for this location
-    const unlockState = getUnlockState(location.id);
-    
-    // Restore _repeatCount from persisted unlock state
-    (location.actions || []).forEach(a => {
-        const rcKey = a.id + '_repeatCount';
-        if (unlockState[rcKey] !== undefined && a.repeatLimit > 0) {
-            a._repeatCount = Number(unlockState[rcKey]) || 0;
-        }
-    });
-    
-    // Filter actions based on unlock state
-    let actions = (location.actions || []).filter(a => {
-        if (a._completed || unlockState[a.id]) return false;
-        // Only show actions that are unlocked (no unlockedBy = always available)
-        if (a.unlockedBy) {
-            if (Array.isArray(a.unlockedBy)) {
-                if (!a.unlockedBy.some(id => unlockState[id])) return false;
-            } else {
-                if (!unlockState[a.unlockedBy]) return false;
-            }
-        }
-        // Hide action if it requires an area resource that is depleted
-        if (a.requiresAreaResource) {
-            const locId = getCurrentLocationId();
-            if (getAreaResourceAmount(locId, a.requiresAreaResource) <= 0) return false;
-        }
-        return true;
-    });
-    
-    // Auto-flag actions that have never been tracked in uiSeen as "new"
-    // (covers initial visit to a location and newly visible actions without unlockedBy)
-    actions.forEach(a => {
-        const key = `action:${a.id}`;
-        if (!gameFlags.uiSeen || !Object.prototype.hasOwnProperty.call(gameFlags.uiSeen, key)) {
-            flagActionAsNew(a.id);
-        }
-    });
-    
-    // DEBUG: Log unlock state
-    console.log(`Location: ${location.id}, Unlock State:`, unlockState, `Filtered Actions:`, actions.map(a => a.id));
-    
-    // Check if location has POIs
-    if (location.pois && location.pois.length > 0) {
-        return renderActionsTileWithPOIs(location, actions);
-    }
-    
-    // Legacy rendering without POIs
-    const buttons = actions.map(action => {
-        const actionId = action.id;
-        const isRunning = activeActionId === actionId && !action._completed;
-        const isSelected = selectedActionId === actionId;
-        const pct = isRunning ? Math.min(100, Math.round((actionProgress / (action.durationSeconds || 1)) * 100)) : 0;
-        const durationMins = Math.round(action.durationSeconds || 0);
-        const cannotAfford = !canAffordAction(action);
-        const otherRunning = !!activeAction && activeActionId !== actionId;
-        let tagHtml = '';
-        if (action.repeatable) tagHtml = '<span class="location-action-tag tag-repeatable">&#x21BB;</span>';
-        else if (action.oneTime) tagHtml = '<span class="location-action-tag tag-onetime">1&#x00D7;</span>';
-        const isInfiniteAction = !action.durationSeconds || action.durationSeconds <= 0;
-        const durationLabel = durationMins > 0 ? `<span class="location-action-btn-cost drain-time">&#x23F1; ${durationMins}m</span>` : (isInfiniteAction ? `<span class="location-action-btn-cost drain-time">&#x221E;</span>` : '');
-    let playPauseHtml = '';
-    const isPaused = isRunning && actionPaused;
-    if (!isRunning || isPaused) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;
-    else playPauseHtml = `<span class="location-pause-icon" data-action-pause="${actionId}">&#9208;</span>`;
-    // Stop button for cancellable running actions (default: cancellable unless explicitly false)
-    if (isRunning && action.cancellable !== false && action.category !== 'persistent') {
-        playPauseHtml += `<span class="location-stop-icon" data-action-stop="${actionId}">&#9209;</span>`;
-    }
-    let progressHtml = '';
-    if (isRunning && !isInfiniteAction) {
-        const remaining = Math.max(0, (action.durationSeconds || 1) - actionProgress);
-        progressHtml = `<div class="location-action-progress" style="--progress:${pct}%"></div><span class="location-action-remaining">${remaining.toFixed(1)}s</span>`;
-    } else if (isRunning && isInfiniteAction) {
-        progressHtml = `<span class="location-action-ongoing">${t('action_progress_ongoing')}</span>`;
-    }
-        const costsRowHtml = durationLabel ? `<span class="location-action-costs-row">${durationLabel}</span>` : '';
-        // Actions are never disabled — player can always attempt them even when exhausted
-        return `<button type="button" class="location-action-btn${isSelected ? ' is-selected' : ''}${isRunning ? ' is-running' : ''}${action.oneTime && !action.repeatable ? ' btn-onetime' : ''}${action.repeatable ? ' btn-repeatable' : ''}${action.category === 'persistent' ? ' btn-persistent' : ''}" data-action-id="${actionId}"><span class="location-action-btn-name">${tagHtml}${t(action.nameKey)}</span>${costsRowHtml}${progressHtml}${playPauseHtml}</button>`;
-    }).join('');
-    return `<div class="location-card location-card-actions"><div class="location-card-header"><h3>${t('crash_actions')}</h3></div><div class="location-actions-list">${buttons}</div></div>`;
-}
-
-function renderActionsTileWithPOIs(location, actions) {
-    const pois = location.pois || [];
-    const poiCollapseState = getPoiCollapseState(location.id);
-    
-    // Group actions by POI - check POI definitions to assign actions correctly
-    const actionsByPoi = {};
-    const ungroupedActions = [];
-    
-    pois.forEach(poi => {
-        actionsByPoi[poi.id] = [];
-    });
-    
-    actions.forEach(action => {
-        let assigned = false;
-        // Check all POIs to find which one contains this action
-        for (const poi of pois) {
-            if (poi.actions && poi.actions.includes(action.id)) {
-                actionsByPoi[poi.id].push(action);
-                assigned = true;
-                break;
-            }
-        }
-        // If not assigned to any POI, it's ungrouped
-        if (!assigned) {
-            ungroupedActions.push(action);
-        }
-    });
-    
-    // Render POI sections
-    let poisHtml = '';
-    pois.forEach(poi => {
-        const poiActions = actionsByPoi[poi.id] || [];
-        
-        // TRAVEL POI: only render if it has actions
-        if (poi.id === 'travel') {
-            if (poiActions.length === 0) return;
-            const isCollapsed = poiCollapseState[poi.id] === true;
-            const collapseIcon = isCollapsed ? '▶' : '▼';
-            const buttonsHtml = poiActions.map(action => renderActionButton(action)).join('');
-            poisHtml += `
-                <div class="location-poi-section${isCollapsed ? ' poi-collapsed' : ''}" data-poi-id="${poi.id}">
-                    <div class="location-poi-header" data-poi-id="${poi.id}" style="background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.12); border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.35);">
-                        <span class="location-poi-icon">${collapseIcon}</span>
-                        <span class="location-poi-name" style="color: rgb(var(--glow-r), var(--glow-g), var(--glow-b));">${t(poi.nameKey)}</span>
-                    </div>
-                    <div class="location-poi-actions">
-                        ${buttonsHtml}
-                    </div>
-                </div>
-            `;
-            return;
-        }
-        
-        // Skip other POIs if they have no actions
-        if (poiActions.length === 0) return;
-        
-        const isCollapsed = poiCollapseState[poi.id] === true;
-        const collapseIcon = isCollapsed ? '▶' : '▼';
-        
-        const buttonsHtml = poiActions.map(action => renderActionButton(action)).join('');
-        
-        poisHtml += `
-            <div class="location-poi-section${isCollapsed ? ' poi-collapsed' : ''}" data-poi-id="${poi.id}">
-                <div class="location-poi-header" data-poi-id="${poi.id}">
-                    <span class="location-poi-icon">${collapseIcon}</span>
-                    <span class="location-poi-name" style="color: rgb(var(--glow-r), var(--glow-g), var(--glow-b));">${t(poi.nameKey)}</span>
-                </div>
-                <div class="location-poi-actions">
-                    ${buttonsHtml}
-                </div>
-            </div>
-        `;
-    });
-    
-    // Render ungrouped actions if any
-    let ungroupedHtml = '';
-    if (ungroupedActions.length > 0) {
-        const buttonsHtml = ungroupedActions.map(action => renderActionButton(action)).join('');
-        ungroupedHtml = `
-            <div class="location-poi-section location-poi-other">
-                <div class="location-poi-header">
-                    <span class="location-poi-name">${t('poi_other_actions')}</span>
-                </div>
-                <div class="location-poi-actions">
-                    ${buttonsHtml}
-                </div>
-            </div>
-        `;
-    }
-    
-    return `<div class="location-card location-card-actions"><div class="location-card-header"><h3>${t('crash_actions')}</h3></div><div class="location-actions-list location-actions-with-pois">${poisHtml}${ungroupedHtml}</div></div>`;
-}
-
-function renderActionButton(action) {
-    const actionId = action.id;
-    const isRunning = activeActionId === actionId && !action._completed;
-    const isSelected = selectedActionId === actionId;
-    const pct = isRunning ? Math.min(100, Math.round((actionProgress / (action.durationSeconds || 1)) * 100)) : 0;
-    const durationMins = Math.round(action.durationSeconds || 0);
-    const cannotAfford = !canAffordAction(action);
-    const otherRunning = !!activeAction && activeActionId !== actionId;
-    let tagHtml = '';
-    if (action.targetLocation) tagHtml = '<span class="location-action-tag tag-travel">&#x2192;</span>';
-    else if (action.repeatable) tagHtml = '<span class="location-action-tag tag-repeatable">&#x21BB;</span>';
-    else if (action.oneTime) tagHtml = '<span class="location-action-tag tag-onetime">1&#x00D7;</span>';
-    const isInfiniteAction = !action.durationSeconds || action.durationSeconds <= 0;
-    const durationLabel = durationMins > 0 ? `<span class="location-action-btn-cost drain-time">&#x23F1; ${durationMins}m</span>` : (isInfiniteAction ? `<span class="location-action-btn-cost drain-time">&#x221E;</span>` : '');
-    let playPauseHtml = '';
-    const isPaused = isRunning && actionPaused;
-    if (!isRunning || isPaused) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;
-    else playPauseHtml = `<span class="location-pause-icon" data-action-pause="${actionId}">&#9208;</span>`;
-    // Stop button for cancellable running actions (persistent actions hide stop — pause saves progress)
-    if (isRunning && action.cancellable !== false && action.category !== 'persistent') {
-        playPauseHtml += `<span class="location-stop-icon" data-action-stop="${actionId}">&#9209;</span>`;
-    }
-    // Saved persistent progress for progress bar even when not running
-    const savedPersistentProgress = (action.category === 'persistent' && action.id && gameFlags.persistentProgress)
-        ? (Number(gameFlags.persistentProgress[action.id]) || 0)
-        : 0;
-    let progressHtml = '';
-    if (isRunning && !isInfiniteAction) {
-        const remaining = Math.max(0, (action.durationSeconds || 1) - actionProgress);
-        progressHtml = `<div class="location-action-progress" style="--progress:${pct}%"></div><span class="location-action-remaining">${remaining.toFixed(1)}s</span>`;
-    } else if (isRunning && isInfiniteAction) {
-        progressHtml = `<span class="location-action-ongoing">${t('action_progress_ongoing')}</span>`;
-    } else if (!isRunning && savedPersistentProgress > 0 && !isInfiniteAction) {
-        const savedPct = Math.min(100, Math.round((savedPersistentProgress / (action.durationSeconds || 1)) * 100));
-        const remaining = Math.max(0, (action.durationSeconds || 1) - savedPersistentProgress);
-        progressHtml = `<div class="location-action-progress" style="--progress:${savedPct}%"></div><span class="location-action-remaining">${remaining.toFixed(1)}s</span>`;
-    }
-    const costsRowHtml = durationLabel ? `<span class="location-action-costs-row">${durationLabel}</span>` : '';
-    // Show "!" badge if action is newly unlocked and not yet seen by the player
-    const showNewBadge = isActionNew(actionId);
-    return `<button type="button" class="location-action-btn${isSelected ? ' is-selected' : ''}${isRunning ? ' is-running' : ''}${action.targetLocation ? ' btn-travel' : ''}${action.oneTime && !action.repeatable && !action.targetLocation ? ' btn-onetime' : ''}${action.repeatable && !action.targetLocation ? ' btn-repeatable' : ''}${action.category === 'persistent' ? ' btn-persistent' : ''}${showNewBadge ? ' has-new-badge' : ''}" data-action-id="${actionId}">${newBadgeHtml(showNewBadge)}<span class="location-action-btn-name">${tagHtml}${t(action.nameKey)}</span>${costsRowHtml}${progressHtml}${playPauseHtml}</button>`;
-}
-
-function getPoiCollapseState(locationId) {
+// ==========================================================================
+// POI collapse state persistence
+// ==========================================================================
+export function getPoiCollapseState(locationId) {
     try {
         const saved = localStorage.getItem(`poiCollapse_${locationId}`);
         return saved ? JSON.parse(saved) : {};
@@ -1073,8 +684,7 @@ function getPoiCollapseState(locationId) {
         return {};
     }
 }
-
-function setPoiCollapseState(locationId, poiId, collapsed) {
+export function setPoiCollapseState(locationId, poiId, collapsed) {
     try {
         const state = getPoiCollapseState(locationId);
         state[poiId] = collapsed;
@@ -1084,7 +694,10 @@ function setPoiCollapseState(locationId, poiId, collapsed) {
     }
 }
 
-function getUnlockState(locationId) {
+// ==========================================================================
+// Action unlock state persistence
+// ==========================================================================
+export function getUnlockState(locationId) {
     try {
         const saved = localStorage.getItem(`unlocks_${locationId}`);
         return saved ? JSON.parse(saved) : {};
@@ -1092,202 +705,12 @@ function getUnlockState(locationId) {
         return {};
     }
 }
-
-function setUnlockState(locationId, state) {
+export function setUnlockState(locationId, state) {
     try {
         localStorage.setItem(`unlocks_${locationId}`, JSON.stringify(state));
     } catch {
         // ignore
     }
-}
-
-function drainCostHtml(d) {
-    const rn = String(d.resource || ''); const amt = Number(d.amount || 0); let cls = 'drain-other';
-    if (/stamina/i.test(rn)) cls = 'drain-stamina'; else if (/food/i.test(rn)) cls = 'drain-food'; else if (/water/i.test(rn)) cls = 'drain-water';
-    const sign = amt < 0 ? '+' : '-';
-    const emoji = RESOURCE_EMOJIS[rn] || '';
-    const displayName = emoji ? `${emoji} ${rn}` : rn;
-    return `<span class="location-action-btn-cost ${cls}">${sign}${Math.abs(amt)} ${displayName}</span>`;
-}
-
-function wireDebuffTooltips(detailsHost) {
-    detailsHost.querySelectorAll('.detail-cost-debuff-badge').forEach(badge => {
-        const targetResource = badge.dataset.debuffFor || 'Stamina';
-        const contextExhausted = hasEffect('exhausted');
-        setupTooltip(badge, () => {
-            const details = getEffectDebuffDetails();
-            if (!details.length) return '<p>No active debuffs.</p>';
-            let html = '<h4>Active Effects</h4>';
-            let hasRelevant = false;
-            details.forEach(d => {
-                if (!d.debuffs) return;
-                const parts = [];
-                const isStaminaEffect = Object.keys(d.debuffs).some(k => k === 'Stamina');
-                const isHealthEffect = Object.keys(d.debuffs).some(k => k === 'Health');
-                // Filter: Health row shows Health effects + Stamina effects (when exhausted, Stamina redirects to Health)
-                // Stamina row shows own Stamina effects only (not Health)
-                const isRelevant = (targetResource === 'Health' && (isHealthEffect || (contextExhausted && isStaminaEffect)))
-                    || (targetResource === 'Stamina' && isStaminaEffect && !contextExhausted);
-                if (!isRelevant) return;
-                hasRelevant = true;
-                for (const [resName, rate] of Object.entries(d.debuffs)) {
-                    const sign = rate >= 0 ? '+' : '';
-                    // When exhausted and showing for Health, rename Stamina effects to Health
-                    const showAsHealth = (resName === 'Stamina' && contextExhausted && targetResource === 'Health');
-                    const displayResName = showAsHealth ? 'Health' : resName;
-                    parts.push(`${displayResName} ${sign}${rate.toFixed(1)}/min`);
-                }
-                if (parts.length) {
-                    const name = t(d.nameKey);
-                    html += `<div class="tooltip-section"><p><strong>${d.icon} ${name}</strong></p>`;
-                    parts.forEach(p => { html += `<p class="tooltip-detail">• ${p}</p>`; });
-                    html += '</div>';
-                }
-            });
-            if (!hasRelevant) return '<p>No active debuffs for this resource.</p>';
-            return html;
-        });
-    });
-}
-
-function refreshUI() {
-    _fullRebuildNeeded = false;
-    const location = getLocation(getCurrentLocationId());
-    if (!location) return;
-    const locationHost = document.querySelector('#locationsLocationTile');
-    const detailsHost = document.querySelector('#locationsDetailsTile');
-    const actionsHost = document.querySelector('#locationsActionsTile');
-    if (locationHost && (!locationHost.dataset.renderedId || locationHost.dataset.renderedId !== location.id)) { locationHost.innerHTML = renderLocationTile(location); locationHost.dataset.renderedId = location.id; }
-    if (detailsHost) { detailsHost.innerHTML = renderDetailsTile(); wireDebuffTooltips(detailsHost); }
-    if (actionsHost) { actionsHost.innerHTML = renderActionsTile(location); wireActionButtons(actionsHost); }
-}
-
-function wireActionButtons(actionsHost) {
-    if (!actionsHost.dataset.wired) {
-        actionsHost.dataset.wired = '1';
-        actionsHost.addEventListener('click', (e) => {
-            const list = actionsHost.querySelector('.location-actions-list');
-            if (list && (e.target === list || e.target.closest('.location-actions-list') === e.target)) {
-                selectedActionId = null; _fullRebuildNeeded = true; refreshUI();
-            }
-        });
-    }
-    
-    // Wire POI collapse headers
-    actionsHost.querySelectorAll('.location-poi-header').forEach(header => {
-        header.addEventListener('click', (e) => {
-            const poiId = header.dataset.poiId;
-            if (!poiId) return;
-            
-            const location = getLocation(getCurrentLocationId());
-            if (!location) return;
-            
-            const poiSection = header.closest('.location-poi-section');
-            if (!poiSection) return;
-            
-            const isCurrentlyCollapsed = poiSection.classList.contains('poi-collapsed');
-            setPoiCollapseState(location.id, poiId, !isCurrentlyCollapsed);
-            
-            _fullRebuildNeeded = true;
-            refreshUI();
-        });
-    });
-    
-    actionsHost.querySelectorAll('.location-action-btn').forEach(btn => { btn.addEventListener('click', (e) => {
-        const actionId = btn.dataset.actionId;
-        // Clear "new" badge on any interaction with this button
-        if (actionId) { markActionSeen(actionId, true); }
-        const playIcon = e.target.closest('.location-play-icon'); const pauseIcon = e.target.closest('.location-pause-icon'); const stopIcon = e.target.closest('.location-stop-icon');
-        if (playIcon) {
-            e.stopPropagation(); e.preventDefault();
-            // If another action is running, queue this one instead of blocking
-            if (activeAction && !activeAction._completed && activeActionId !== actionId) {
-                const loc = getLocation(getCurrentLocationId());
-                const act = loc?.actions?.find(a => a.id === actionId);
-                if (act) {
-                    // Don't queue one-time actions more than once — just select to review
-                    if (act.oneTime && isInQueue(actionId)) {
-                        selectedActionId = actionId;
-                        _fullRebuildNeeded = true; refreshUI();
-                        return;
-                    }
-                    addToQueue({
-                        actionId: act.id,
-                        locationId: getCurrentLocationId(),
-                        nameKey: act.nameKey,
-                        durationSeconds: act.durationSeconds || 0,
-                    });
-                }
-                return;
-            }
-            playActionStart();
-            if (activeActionId === actionId && actionPaused) resumeAction();
-            else startAction(actionId);
-            return;
-        }
-        if (pauseIcon) { e.stopPropagation(); e.preventDefault(); pauseAction(); return; }
-        if (stopIcon) { e.stopPropagation(); e.preventDefault(); cancelActiveAction(); return; }
-        e.stopPropagation();
-        if (selectedActionId === actionId && activeActionId !== actionId) selectedActionId = null;
-        else if (activeActionId === actionId && actionPaused) selectedActionId = actionId;
-        else selectedActionId = actionId;
-        _fullRebuildNeeded = true; refreshUI();
-    }); });
-    // Wire hover to clear "!" badges (persists so badges don't reappear on rebuild)
-    actionsHost.querySelectorAll('.location-action-btn.has-new-badge').forEach(btn => {
-        wireClearUiNewBadge(btn, { actionId: btn.dataset.actionId });
-    });
-}
-
-function updateActionButtonsDynamic() {
-    if (_fullRebuildNeeded) { refreshUI(); return; }
-    const location = getLocation(getCurrentLocationId()); if (!location) return;
-    const actionsHost = document.querySelector('#locationsActionsTile'); if (!actionsHost) return;
-    
-    // Live-update cost remaining spans in details panel
-    if (activeAction && activeActionId && !activeAction._completed) {
-        const totalSecs = activeAction.durationSeconds || 1;
-        const pct = Math.min(1, actionProgress / totalSecs);
-        document.querySelectorAll('.detail-cost-remain[data-cost-res]').forEach(span => {
-            const total = parseFloat(span.dataset.costTotal) || 0;
-            const remain = total * (1 - pct);
-            span.textContent = remain.toFixed(2);
-        });
-    }
-    
-    actionsHost.querySelectorAll('.location-action-btn').forEach(btn => {
-        const actionId = btn.dataset.actionId; const action = location.actions.find(a => a.id === actionId); if (!action) return;
-        const isRunning = activeActionId === actionId && !action._completed; const isSelected = selectedActionId === actionId;
-        btn.classList.toggle('is-selected', !!isSelected); btn.classList.toggle('is-running', !!isRunning);
-        const cannotAfford = !canAffordAction(action); const otherRunning = !!activeAction && activeActionId !== actionId;
-        // Buttons stay enabled — player can always attempt actions
-        const progBar = btn.querySelector('.location-action-progress');
-        if (progBar) {
-            if (isRunning) {
-                const pct = Math.min(100, Math.round((actionProgress / (action.durationSeconds || 1)) * 100));
-                progBar.style.setProperty('--progress', `${pct}%`);
-                progBar.style.display = '';
-            } else {
-                // Keep visible for persistent actions with saved progress
-                const savedProgress = (action.category === 'persistent' && action.id && gameFlags.persistentProgress)
-                    ? (Number(gameFlags.persistentProgress[action.id]) || 0)
-                    : 0;
-                if (savedProgress > 0) {
-                    const savedPct = Math.min(100, Math.round((savedProgress / (action.durationSeconds || 1)) * 100));
-                    progBar.style.setProperty('--progress', `${savedPct}%`);
-                    progBar.style.display = '';
-                } else {
-                    progBar.style.display = 'none';
-                }
-            }
-        }
-        const remainingEl = btn.querySelector('.location-action-remaining');
-        if (remainingEl) { if (isRunning) { const remaining = Math.max(0, (action.durationSeconds || 1) - actionProgress); remainingEl.textContent = `${remaining.toFixed(1)}s`; remainingEl.style.display = ''; } else remainingEl.style.display = 'none'; }
-        const playIcon = btn.querySelector('.location-play-icon'); const pauseIcon = btn.querySelector('.location-pause-icon');
-        const isPaused = isRunning && actionPaused;
-        if (playIcon) { const show = !isRunning || isPaused; playIcon.style.display = show ? '' : 'none'; }
-        if (pauseIcon) pauseIcon.style.display = (isRunning && !isPaused) ? '' : 'none';
-    });
 }
 
 // ==========================================================================
@@ -1378,6 +801,7 @@ try {
         window.addEventListener('force-cancel-action', () => {
             if (activeAction) {
                 setActiveDrainRates(null, null);
+                setActiveAreaDrainRates(null);
                 clearActionTimer();
                 activeAction = null; activeActionId = null; actionProgress = 0; actionPaused = false;
                 updateQueueActive(null);
@@ -1416,3 +840,9 @@ export function setupLocationSection(section) {
     section.innerHTML = `<div class="content-panel location-panel"><div class="location-layout"><div id="locationsLocationTile" class="location-tile location-tile-location"></div><div id="locationsDetailsTile" class="location-tile location-tile-details"></div><div id="locationsActionsTile" class="location-tile location-tile-actions"></div></div></div>`;
     _fullRebuildNeeded = true; refreshUI();
 }
+
+// Setters for locationUi.js (ES module imports are read-only)
+export function setSelectedActionId(v) { selectedActionId = v; }
+export function setFullRebuildNeeded(v) { _fullRebuildNeeded = v; }
+
+export { DEFAULT_DRAIN, TAXING_MULT };

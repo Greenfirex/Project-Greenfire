@@ -593,6 +593,10 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
     font-weight: 600; /* unify with other values */
 }
 
+.area-resource-rate.negative-rate {
+    color: #E74C3C;
+}
+
 .info-row.insight-resource {
     color: #FFD700;
 }

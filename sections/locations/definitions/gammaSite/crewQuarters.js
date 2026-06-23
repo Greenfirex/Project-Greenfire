@@ -37,7 +37,7 @@ export const crewQuarters = {
             category: 'rest',
             drain: [],
             rewards: [{ type: 'resource', name: 'Stamina', amount: 5 }],
-            durationSeconds: 0,
+            durationSeconds: 15,
             repeatable: true,
             cancellable: true
         },

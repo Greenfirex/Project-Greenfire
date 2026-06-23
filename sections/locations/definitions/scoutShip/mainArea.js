@@ -67,7 +67,7 @@ export const scoutShipMainArea = {
             category: 'refresh',
             drain: [],
             rewards: [{ type: 'resource', name: 'Drinking Water', amount: 1 }],
-            durationSeconds: 0,
+            durationSeconds: 5,
             repeatable: true,
             cancellable: true,
             drainsAreaResource: { resource: 'area_water', amount: 1 },
