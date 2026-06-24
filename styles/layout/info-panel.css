@@ -1,7 +1,7 @@
 #infoPanel {
     position: relative;
     width: 20%;
-    background-color: black;
+background-color: rgba(0, 0, 0, 0.72);
     height: 100%;
     padding: 0 10px;
     box-sizing: border-box;
@@ -692,6 +692,7 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
 
 /* Sub-panels use this for their section header */
 .info-sub-panel .panel-section-header {
+    background-color: #000;
     display: flex;
     align-items: center;
     justify-content: center;

@@ -50,33 +50,7 @@ html.is-compact .clock-display {
 
 html.is-compact .clock-display::before { content: ''; display: none; }
 
-html.is-compact .weather-widget {
-    width: auto;
-    max-width: 38vw;
-    font-size: 11px;
-    padding: 0 8px;
-    height: 18px;
-    line-height: 18px;
-    margin-left: 0;
-    overflow: hidden;
-}
-
-html.is-compact .morale-widget {
-    display: inline-flex;
-    width: auto;
-    max-width: 22vw;
-    font-size: 11px;
-    padding: 0 8px;
-    height: 18px;
-    line-height: 18px;
-    margin: 0;
-    overflow: hidden;
-    border-radius: 10px;
-}
-
-html.is-compact .morale-widget .morale-label { display: none; }
-
-html.is-compact .weather-widget .weather-temp { min-width: 0; }
+/* weather/morale compact rules removed — widgets not in current build */
 
 html.is-compact .header-right {
     width: auto;
@@ -237,51 +211,7 @@ html.is-compact #mainMenu.collapsed .mobile-menu-icon svg {
     display: block;
 }
 
-/* --- Crafting compact tweaks --- */
-html.is-compact #craftingSection {
-    padding: 1px;
-}
-
-/* Crafting was forcing width:100% on its content panel, which breaks compact centering
-   (margins from styles/base/game-area.css) and can look "too wide" under the rails. */
-html.is-compact #craftingSection > .content-panel {
-    width: auto;
-    padding: 1px;
-}
-
-html.is-compact #craftingSection .crafting-category {
-    gap: 6px;
-    margin-bottom: 10px;
-}
-
-html.is-compact #craftingSection .crafting-category-title {
-    font-size: 12px;
-}
-
-html.is-compact #craftingSection .crafting-actions .button-group {
-    gap: 4px;
-}
-
-html.is-compact #craftingSection .crafting-actions .button-group .image-button {
-    width: 104px;
-    height: 32px;
-    padding: 0 7px;
-    gap: 5px;
-    font-size: 10px;
-    border-radius: 999px;
-}
-
-html.is-compact #craftingSection .crafting-actions .button-group .image-button .building-name {
-    font-size: 10px;
-    line-height: 1.05;
-    white-space: normal;
-    text-align: center;
-    overflow: hidden;
-    display: -webkit-box;
-    line-clamp: 2;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-}
+/* Crafting compact rules removed — crafting system moved to backup */
 
 html.is-compact #mainMenu.collapsed .mobile-menu-icon-text {
     font-weight: 900;
@@ -607,59 +537,6 @@ html.is-compact .tooltip.tooltip-docked hr {
     opacity: 0.9;
 }
 
-/* --- Rotate-to-landscape overlay (shown when html.is-portrait on touch) --- */
-.rotate-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 2147483590;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(6px) saturate(1.05) brightness(0.82);
-    -webkit-backdrop-filter: blur(6px) saturate(1.05) brightness(0.82);
-}
+/* Rotate-to-landscape overlay removed */
 
-.rotate-overlay.hidden { display: none; }
 
-.rotate-overlay-card {
-    width: min(520px, 92vw);
-    padding: 18px 18px;
-    border-radius: 14px;
-    background: linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.32));
-    border: 1px solid rgba(255,255,255,0.06);
-    box-shadow:
-        0 18px 50px rgba(0,0,0,0.70),
-        0 0 44px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
-    text-align: center;
-}
-
-.rotate-overlay-title {
-    font-weight: 900;
-    letter-spacing: 1px;
-    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.98);
-    font-size: clamp(18px, 4.8vw, 30px);
-    margin-bottom: 6px;
-    text-shadow:
-        0 0 14px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.32),
-        0 4px 18px rgba(0,0,0,0.85);
-}
-
-.rotate-overlay-subtitle {
-    color: rgba(255,255,255,0.88);
-    font-size: 14px;
-    line-height: 1.35;
-    margin-bottom: 14px;
-}
-
-.rotate-overlay-btn {
-    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.25);
-    background: rgba(0, 0, 0, 0.35);
-    color: #eaffea;
-    font-weight: 800;
-    padding: 10px 14px;
-    border-radius: 10px;
-    cursor: pointer;
-}
-
-.rotate-overlay-btn:active { transform: translateY(1px); }

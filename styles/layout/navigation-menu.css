@@ -1,6 +1,6 @@
 #mainMenu {
     width: 20%;
-    background-color: #000;
+    background-color: rgba(0, 0, 0, 0.72);
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -55,7 +55,7 @@
         height: auto;
         width: min(280px, 78vw);
         z-index: 60;
-        background-color: rgba(0, 0, 0, 0.68);
+        background-color: rgba(11, 16, 24, 0.68);
         backdrop-filter: blur(2px);
         -webkit-backdrop-filter: blur(2px);
         box-shadow: 10px 0 28px rgba(0,0,0,0.65);
@@ -102,7 +102,7 @@
         height: 32px;
         border-radius: 10px;
         border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
-        background-color: rgba(0, 0, 0, 0.85);
+        background-color: rgba(11, 16, 24, 0.85);
         color: #fff;
         font-weight: 800;
         font-size: 12px;
@@ -200,7 +200,7 @@
         gap: 8px;
         padding: 12px;
         border-radius: 12px;
-        background: rgba(0, 0, 0, 0.92);
+        background: rgba(11, 16, 24, 0.92);
         border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.28);
         box-shadow: 0 10px 26px rgba(0,0,0,0.45);
         z-index: 215;
@@ -318,6 +318,7 @@
 
 /* Unified panel section header — centered, matches log-header */
 .panel-section-header {
+    background-color: #000;
     color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.85);
     font-size: 14px;
     font-weight: 800;
@@ -393,7 +394,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    background-color: #000;
+    background-color: rgba(0, 0, 0, 0.72);
     flex-grow: 0;
     flex-shrink: 0;
     /* Reserve space for the absolutely-positioned log at the bottom */

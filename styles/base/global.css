@@ -10,6 +10,10 @@ body {
     height: calc(var(--app-vh, 1vh) * 100);
     margin: 0;
     background-color: #000;
+    background-image: url('../../assets/images/background3.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
     box-sizing: border-box;
     display: grid;
     grid-template-rows: auto 1fr auto; 
@@ -249,7 +253,7 @@ body.glow-disabled * {
     left: 0;
     top: 0;
     visibility: hidden;
-    background-color: #111;
+    background-color: #161a20;
     color: #fff;
     border-radius: 6px;
     padding: 10px;
@@ -260,7 +264,7 @@ body.glow-disabled * {
     pointer-events: none;
 
     border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
-    background: linear-gradient(180deg, rgba(18,18,18,0.98), rgba(10,10,10,0.92));
+    background: linear-gradient(180deg, rgba(20,22,28,0.98), rgba(14,17,22,0.92));
     box-shadow:
         0 4px 18px rgba(0,0,0,0.65),
         0 0 20px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.08);

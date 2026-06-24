@@ -75,7 +75,7 @@
 #characterSection .character-tab {
     flex: 1 1 0;
     text-align: center;
-    background: linear-gradient(180deg, rgba(8,8,8,0.96), rgba(4,4,4,0.92));
+    background: linear-gradient(180deg, rgba(14,17,22,0.96), rgba(11,16,24,0.92));
     border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.38);
     border-bottom: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.58);
     color: #cfd8cf;
@@ -95,7 +95,7 @@
 }
 
 #characterSection .character-tab.active {
-    background: rgba(6, 6, 6, 0.89);
+    background: rgba(14, 17, 22, 0.89);
     color: #ffffff;
     border-color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.60);
     border-bottom: none;

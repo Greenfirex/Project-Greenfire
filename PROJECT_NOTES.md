@@ -153,3 +153,52 @@ Call this after modifying `ctx.gameFlags.loopKnowledge` fields that should survi
 |---|---|---|---|
 | `scout_ship_main_area` | `area_water` (15, cap 99) | `assess_supplies` | `assess_supplies` |
 | `scout_ship_bridge` | `area_fuel` (300, cap 600), `area_o2` (200, cap 200) | `wake_up` (loop 2+) | `wake_up` (loop 2+) |
+
+## MCP Server (`mcp-server/`)
+
+Cline MCP server pro automatickou validaci projektu. Poskytuje 4 nástroje.
+
+### Nástroje
+
+| Nástroj | Popis |
+|---|---|
+| `validate_locales` | Porovná `cs/ui.json` ↔ `en/ui.json` a embedovanou EN v `locales.js`. Najde chybějící klíče a prázdné hodnoty. |
+| `validate_actions` | Zkontroluje definice akcí — povinná pole, podezřelé `durationSeconds`, chybějící locale klíče. |
+| `find_hardcoded` | Najde hardcodované anglické stringy v JS/HTML, které by měly používat `t()`. |
+| `check_engine` | Ověří, že `locationEngine.js` neobsahuje zakázané `if (action.id === ...)`. |
+
+### Setup na novém stroji
+
+```bash
+cd mcp-server
+npm install
+```
+
+Pak v Cline MCP settings (`cline_mcp_settings.json`) přidat:
+
+```json
+{
+  "mcpServers": {
+    "project-greenfire": {
+      "command": "node",
+      "args": ["<cesta_k_projektu>\\mcp-server\\index.js"],
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+### Sync embedované EN dictionary
+
+Embedovaná EN dictionary v `locales.js` (řádky `loaded['en'] = {...}`) se musí ručně synchornizovat s `locales/en/ui.json`. K tomu slouží:
+
+```bash
+node mcp-server/sync_embed.js
+```
+
+Tento skript přepíše celou embedovanou dictionary podle aktuálního `en/ui.json`.
+
+### `.gitignore`
+
+`mcp-server/node_modules/` je v `.gitignore` — po `git clone` je potřeba `npm install`.

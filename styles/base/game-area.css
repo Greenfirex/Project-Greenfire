@@ -150,7 +150,7 @@ html.is-compact .game-section .content-panel {
 .content-panel {
     /* very dark, near-opaque panel for maximum readability over art */
     position: relative;
-    background-color: rgba(6, 6, 6, 0.89);
+background-color: rgba(0, 0, 0, 0.72);
     border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.56);
     border-radius: 6px;
     width: 100%;
@@ -223,15 +223,7 @@ html.is-compact .content-panel {
     transition: transform 0.15s ease;
 }
 
-/* Allow the combat badge to sit slightly outside the button */
-.image-button.action-has-combat {
-    overflow: visible;
-}
-
-/* Allow the unknown badge to sit slightly outside the button */
-.image-button.action-has-unknown {
-    overflow: visible;
-}
+/* Combat and unknown badges removed — not in current build */
 
 .image-button:hover {
     background-image: url('../../assets/images/PNG/Button04.png');
@@ -287,61 +279,7 @@ html.is-compact .content-panel {
     overflow: visible;
 }
 
-/* Combat badge for actions that will start an encounter */
-.image-button.action-has-combat .action-combat-badge {
-    position: absolute;
-    top: -14px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 22px;
-    height: 22px;
-    display: grid;
-    place-items: center;
-    color: rgba(255, 85, 85, 0.98);
-    background: rgba(8, 8, 8, 0.72);
-    border: 1px solid rgba(255, 85, 85, 0.78);
-    border-radius: 999px;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.75);
-    box-shadow:
-        0 2px 10px rgba(0,0,0,0.55),
-        0 0 10px rgba(255, 85, 85, 0.22);
-    z-index: 3;
-    pointer-events: none;
-}
-
-.image-button.action-has-combat .action-combat-badge svg {
-    width: 16px;
-    height: 16px;
-    display: block;
-}
-
-/* Unknown-outcome badge for exploration/search actions */
-.image-button.action-has-unknown .action-unknown-badge {
-    position: absolute;
-    top: -14px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 22px;
-    height: 22px;
-    display: grid;
-    place-items: center;
-    color: rgba(255, 216, 74, 0.98);
-    background: rgba(8, 8, 8, 0.72);
-    border: 1px solid rgba(255, 216, 74, 0.78);
-    border-radius: 999px;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.75);
-    box-shadow:
-        0 2px 10px rgba(0,0,0,0.55),
-        0 0 10px rgba(255, 216, 74, 0.22);
-    z-index: 3;
-    pointer-events: none;
-}
-
-.image-button.action-has-unknown .action-unknown-badge svg {
-    width: 18px;
-    height: 18px;
-    display: block;
-}
+/* Combat/unknown badge styles removed — not in current build */
 
 /* hidden "Abort?" text behavior shared by sections */
 .image-button .cancel-text {
@@ -367,7 +305,7 @@ html.is-compact .content-panel {
 
 /* small utility to indicate a visually-blocked action */
 .content-panel::-webkit-scrollbar { width: 12px; }
-.content-panel::-webkit-scrollbar-track { background: #0b0b0b; }
+.content-panel::-webkit-scrollbar-track { background: #14181e; }
 .content-panel::-webkit-scrollbar-thumb {
     background-color: rgba(136,136,136,0.9);
     border-radius: 6px;
