@@ -2,7 +2,7 @@
 // Location Engine
 // ==========================================================================
 
-import { resources, updateResourceInfo, setActiveDrainRates, setActiveAreaDrainRates, applyTimePassiveDrain, roundResourceAmount, checkDeathAndLoop, initAreaResources, drainAreaResource, showAreaSuppliesPanel, areaResources, revealAreaResources } from '../../engine/resources.js';
+import { resources, updateResourceInfo, setActiveDrainRates, setActiveAreaDrainRates, setActionAreaDrainRates, applyTimePassiveDrain, roundResourceAmount, checkDeathAndLoop, initAreaResources, drainAreaResource, showAreaSuppliesPanel, areaResources, revealAreaResources } from '../../engine/resources.js';
 import { addLogEntry, LogType } from '../../engine/ingameLog.js';
 import { t } from '../../locales/locales.js';
 import { getCurrentLocationId, switchToLocation, getLocation } from './locationData.js';
@@ -68,27 +68,50 @@ function applyActionRewards(action) {
             if (itemId) {
                 const result = grantItemToCharacter(itemId, { amount: Number(r.amount) || 1 });
                 if (result.ok) {
-                    addLogEntry(`Received: ${r.name || itemId}`, LogType.UNLOCK);
+                    addLogEntry(t('log_received_item', { item: r.name || itemId }), LogType.UNLOCK);
                 }
             }
         }
     });
 }
 
-/**
- * Complete the active action.
- * @param {Object} [opts] - Completion options.
- * @param {'auto'|'cap'|'manual'} [opts.reason='auto'] - Why the action ended.
- */
+// ==========================================================================
+// Action callback context — passed to onStart / onComplete / getResultKey
+// ==========================================================================
+
+/** Build the callback context object for action hooks. */
+function buildActionCtx(action) {
+    return {
+        gameFlags,
+        action,
+        addLogEntry,
+        LogType,
+        t,
+        areaResources,
+        getLocation,
+        getCurrentLocationId,
+        getUnlockState,
+        setUnlockState,
+        flagActionAsNew,
+        initAreaResources,
+        revealAreaResources,
+        showAreaSuppliesPanel,
+        refreshUI,
+        setFullRebuildNeeded(v) { _fullRebuildNeeded = v; },
+    };
+}
+
+// ==========================================================================
+// Action completion
+// ==========================================================================
+
 function completeActiveAction(opts = {}) {
     const reason = opts.reason || 'auto';
     const action = activeAction;
     if (!action) return;
     setActiveDrainRates(null, null);
-    setActiveAreaDrainRates(null);
+    setActionAreaDrainRates(null);
     // Consume required item now that the action completed successfully.
-    // Item consumption was deferred from startAction() so that stopping/cancelling
-    // the action does not permanently destroy the quest item.
     if (action._pendingItem) {
         try {
             const itemDef = getItemDefinition(action._pendingItem);
@@ -101,7 +124,6 @@ function completeActiveAction(opts = {}) {
     }
 
     // Rest/refresh actions gain resources continuously via drain rate;
-    // skip lump-sum reward to avoid double-dipping.
     if (action.category !== 'rest' && action.category !== 'refresh') {
         applyActionRewards(action);
     }
@@ -131,7 +153,6 @@ function completeActiveAction(opts = {}) {
             nameKey: 'effect_' + action.addsEffect,
             descKey: 'effect_' + action.addsEffect + '_desc',
         };
-        // Apply known effect presets
         if (action.addsEffect === 'alarm') {
             Object.assign(effectDef, { icon: '🔔', progress: 0, maxProgress: Infinity, debuffs: { 'Stamina': -0.2 } });
         }
@@ -147,13 +168,11 @@ function completeActiveAction(opts = {}) {
     if (action.oneTime && !action.repeatable) {
         action._completed = true;
         _fullRebuildNeeded = true;
-        // Deselect so the details panel falls back to location description
         if (selectedActionId === action.id) selectedActionId = null;
     }
     if (typeof action.repeatLimit === 'number' && action.repeatLimit > 0) {
         action._repeatCount = (action._repeatCount || 0) + 1;
         if (action._repeatCount >= action.repeatLimit) { action._completed = true; _fullRebuildNeeded = true; }
-        // Persist repeat count so it survives reload
         const loc = getLocation(getCurrentLocationId());
         if (loc) {
             const us = getUnlockState(loc.id);
@@ -161,9 +180,6 @@ function completeActiveAction(opts = {}) {
             setUnlockState(loc.id, us);
         }
     }
-    // Universal persistence: mirror any _completed=true to unlockState so it survives reload.
-    // This covers one-time, repeat-limited, and any future completion types without
-    // requiring developers to remember unlocksAll flags or special-case handlers.
     if (action._completed) {
         const loc = getLocation(getCurrentLocationId());
         if (loc) {
@@ -175,202 +191,15 @@ function completeActiveAction(opts = {}) {
         }
     }
     
-    // Handle action unlocks
-    // --- Special case: check_terminal branches based on loopKnowledge.terminalLogin ---
-    if (action.id === 'check_terminal') {
-        const loc = getLocation(getCurrentLocationId());
-        if (loc) {
-            const unlockState = getUnlockState(loc.id);
-            unlockState['check_terminal'] = true;
-            if (gameFlags.loopKnowledge && gameFlags.loopKnowledge.terminalLogin) {
-                // Player remembers login → directly unlock access_logs + disable_alarm
-                unlockState['check_terminal_known'] = true;
-                // Mark the two actions as unlocked (they use ['hack_terminal','use_terminal_login'] as unlockedBy)
-                // but since we're bypassing, set both as unlockers
-                unlockState['hack_terminal'] = true;
-                unlockState['use_terminal_login'] = true;
-            } else {
-                // First time → unlock hack_terminal + use_terminal_login
-                // (these are the two new actions the player must complete)
-            }
-            setUnlockState(loc.id, unlockState);
-            // Flag newly unlocked actions as "new" — handle string and array unlockedBy
-            (loc.actions || []).forEach(a => {
-                if (a.id === action.id) return;
-                if (!a.unlockedBy) return;
-                let shouldFlag = false;
-                if (gameFlags.loopKnowledge && gameFlags.loopKnowledge.terminalLogin) {
-                    // If known, flag access_logs + disable_alarm (their unlockedBy is ['hack_terminal','use_terminal_login'])
-                    if (a.id === 'access_logs' || a.id === 'disable_alarm') shouldFlag = true;
-                } else {
-                    // If not known, flag hack_terminal + use_terminal_login (unlockedBy: 'check_terminal')
-                    if (a.unlockedBy === 'check_terminal') shouldFlag = true;
-                }
-                if (shouldFlag) flagActionAsNew(a.id);
-            });
-            _fullRebuildNeeded = true;
-        }
-    }
-    
-    // --- Special case: wake_up in loop 2+ reveals fuel/O2 and sets loop knowledge ---
-    if (action.id === 'wake_up') {
-        const loop = gameFlags.loopCount || 0;
-        if (loop >= 2) {
-            if (!gameFlags.loopKnowledge) gameFlags.loopKnowledge = {};
-            // Read current fuel level dynamically
-            const bridgeList = areaResources['scout_ship_bridge'];
-            const fuel = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_fuel') : null;
-            const currentFuel = fuel ? Math.round(fuel.amount) : 0;
-            const FUEL_DRAIN_PER_MIN = 1.8;
-            const projectedMins = Math.round(currentFuel / FUEL_DRAIN_PER_MIN);
-
-            // Set fuelScanned so check_reactor_status knows fuel was already revealed
-            if (!gameFlags.loopKnowledge.fuelScanned || gameFlags.loopKnowledge.fuelScanned < 1) {
-                gameFlags.loopKnowledge.fuelScanned = 1;
-            }
-
-            // Override the result log with dynamic fuel/minute values
-            const resultKey = loop >= 3 ? 'result_wake_up_loop3' : 'result_wake_up_loop2';
-            addLogEntry(t(resultKey, { fuel: currentFuel, minutes: projectedMins }), LogType.SUCCESS);
-
-            // Reveal bridge area resources (fuel + O2) — done directly here
-            // instead of via action.revealsAreaSupplies because that targets
-            // the current location (Crew Quarters), not the Bridge.
-            initAreaResources('scout_ship_bridge');
-            revealAreaResources('scout_ship_bridge');
-            if (typeof window !== 'undefined') {
-                window._currentAreaResourceList = areaResources['scout_ship_bridge'] || [];
-            }
-            showAreaSuppliesPanel();
-
-            // Loop 3+: persist check_reactor_status as completed in bridge unlockState
-            if (loop >= 3) {
-                const bridgeLoc = getLocation('scout_ship_bridge');
-                if (bridgeLoc) {
-                    const bridgeUs = getUnlockState('scout_ship_bridge');
-                    bridgeUs['check_reactor_status'] = true;
-                    setUnlockState('scout_ship_bridge', bridgeUs);
-                    // Also mark the action itself as _completed in the location data
-                    const crsAction = (bridgeLoc.actions || []).find(a => a.id === 'check_reactor_status');
-                    if (crsAction) {
-                        crsAction._completed = true;
-                    }
-                }
-            }
-
-            // Persist to gameState
-            try {
-                const state = JSON.parse(localStorage.getItem('gameState') || '{}');
-                if (!state.gameFlags) state.gameFlags = {};
-                if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = {};
-                state.gameFlags.loopKnowledge.fuelScanned = gameFlags.loopKnowledge.fuelScanned;
-                localStorage.setItem('gameState', JSON.stringify(state));
-            } catch { /* ignore */ }
-
-            // Force rebuild so bridge actions reflect check_reactor_status completion
-            _fullRebuildNeeded = true;
-        }
-    }
-
-    // --- Special case: check_reactor_status reveals fuel countdown, varies by loopKnowledge.fuelScanned ---
-    if (action.id === 'check_reactor_status') {
-        if (!gameFlags.loopKnowledge) gameFlags.loopKnowledge = {};
-        const scannedBefore = gameFlags.loopKnowledge.fuelScanned || 0;
-        gameFlags.loopKnowledge.fuelScanned = scannedBefore + 1;
-
-        // Read current fuel level dynamically so the log shows accurate values
-        const bridgeList = areaResources['scout_ship_bridge'];
-        const fuel = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_fuel') : null;
-        const currentFuel = fuel ? Math.round(fuel.amount) : 0;
-        const FUEL_DRAIN_PER_MIN = 1.8;
-        const projectedMins = Math.round(currentFuel / FUEL_DRAIN_PER_MIN);
-
-        // On first scan, store the projected fuel depletion time for same-time detection in next loop
-        if (scannedBefore === 0 && currentFuel > 0) {
-            gameFlags.loopKnowledge.fuelDepletionMinute = (gameFlags.loopCount || 0) * 10000 + projectedMins;
-        }
-
-        // Choose result key based on how many times fuel has been scanned
-        let resultKey;
-        if (scannedBefore === 0) {
-            resultKey = 'result_check_reactor_status';
-        } else if (scannedBefore === 1) {
-            resultKey = 'result_check_reactor_status_loop2';
-        } else {
-            resultKey = 'result_check_reactor_status_known';
-        }
-        addLogEntry(t(resultKey, { fuel: currentFuel, minutes: projectedMins }), LogType.SUCCESS);
-
-        // Persist to gameState
-        try {
-            const state = JSON.parse(localStorage.getItem('gameState') || '{}');
-            if (!state.gameFlags) state.gameFlags = {};
-            if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = {};
-            state.gameFlags.loopKnowledge.fuelScanned = gameFlags.loopKnowledge.fuelScanned;
-            if (typeof gameFlags.loopKnowledge.fuelDepletionMinute === 'number') {
-                state.gameFlags.loopKnowledge.fuelDepletionMinute = gameFlags.loopKnowledge.fuelDepletionMinute;
-            }
-            localStorage.setItem('gameState', JSON.stringify(state));
-        } catch { /* ignore */ }
-    }
-
-    // --- Special case: hack_terminal / use_terminal_login grant terminalLogin knowledge + unlock access_logs/disable_alarm ---
-    if (action.id === 'hack_terminal' || action.id === 'use_terminal_login') {
-        // Grant persistent loop knowledge
-        if (!gameFlags.loopKnowledge) gameFlags.loopKnowledge = {};
-        gameFlags.loopKnowledge.terminalLogin = true;
-        // Persist to gameState
-        try {
-            const state = JSON.parse(localStorage.getItem('gameState') || '{}');
-            if (!state.gameFlags) state.gameFlags = {};
-            if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = {};
-            state.gameFlags.loopKnowledge.terminalLogin = true;
-            localStorage.setItem('gameState', JSON.stringify(state));
-        } catch { /* ignore */ }
-        // Unlock access_logs + disable_alarm
-        const loc = getLocation(getCurrentLocationId());
-        if (loc) {
-            const unlockState = getUnlockState(loc.id);
-            unlockState[action.id] = true;
-            setUnlockState(loc.id, unlockState);
-            (loc.actions || []).forEach(a => {
-                if (a.id !== action.id && a.unlockedBy && Array.isArray(a.unlockedBy) && a.unlockedBy.includes(action.id)) {
-                    flagActionAsNew(a.id);
-                }
-            });
-            // Mutual exclusion: mark the opposing login action as completed
-            const opposingId = action.id === 'hack_terminal' ? 'use_terminal_login' : 'hack_terminal';
-            const opposing = (loc.actions || []).find(a => a.id === opposingId);
-            if (opposing) {
-                opposing._completed = true;
-                // Persist to unlockState so opposition survives reload
-                unlockState[opposingId] = true;
-                setUnlockState(loc.id, unlockState);
-            }
-            _fullRebuildNeeded = true;
-        }
-        // Also hide search_for_login_note in workshop — player already knows the login
-        try {
-            const wsLoc = getLocation('scout_ship_workshop');
-            if (wsLoc && Array.isArray(wsLoc.actions)) {
-                const noteAction = wsLoc.actions.find(a => a.id === 'search_for_login_note');
-                if (noteAction) {
-                    noteAction._completed = true;
-                    // Persist to workshop's unlockState so cross-location completion survives reload
-                    const wsUs = getUnlockState('scout_ship_workshop');
-                    wsUs['search_for_login_note'] = true;
-                    setUnlockState('scout_ship_workshop', wsUs);
-                }
-            }
-        } catch { /* ignore */ }
-    }
+    // --- On-complete callback (replaces all special-case if blocks) ---
+    const ctx = buildActionCtx(action);
+    try { if (typeof action.onComplete === 'function') action.onComplete(ctx); } catch { /* ignore */ }
     
     // --- Area resource drains ---
     if (action.drainsAreaResource) {
         const locId = getCurrentLocationId();
         const dr = action.drainsAreaResource;
         drainAreaResource(locId, dr.resource, dr.amount || 1);
-        // Set window global so resources.js can find the current list
         if (typeof window !== 'undefined') {
             window._currentAreaResourceList = areaResources[locId] || [];
         }
@@ -387,14 +216,13 @@ function completeActiveAction(opts = {}) {
         showAreaSuppliesPanel();
     }
     
-    // --- Generic unlocksAll handler (also covers array unlockedBy now) ---
+    // --- Generic unlocksAll handler ---
     if (action.unlocksAll) {
         const location = getLocation(getCurrentLocationId());
         if (location) {
             const unlockState = getUnlockState(location.id);
             unlockState[action.id] = true;
             setUnlockState(location.id, unlockState);
-            // Flag all newly unlocked actions as "new" so badges appear
             (location.actions || []).forEach(a => {
                 if (a.id === action.id) return;
                 if (a.unlockedBy === action.id) {
@@ -411,7 +239,6 @@ function completeActiveAction(opts = {}) {
     const targetLoc = action.targetLocation;
     clearActionTimer();
     activeAction = null; activeActionId = null; actionProgress = 0; actionPaused = false;
-    // Keep selectedActionId so the details panel persists after completion
     _infoUpdateCounter = 0; _fullRebuildNeeded = true;
     if (targetLoc && switchToLocation(targetLoc)) addLogEntry(`Arrived at ${t(getLocation(targetLoc)?.nameKey || targetLoc)}.`, LogType.INFO);
     updateQueueActive(null);
@@ -420,19 +247,19 @@ function completeActiveAction(opts = {}) {
     try { checkDeathAndLoop(); } catch { /* ignore */ }
 }
 
-/**
- * Cancel the active action — revert without rewards, completion flags, or repeat count.
- */
+// ==========================================================================
+// Cancel action
+// ==========================================================================
+
 export function cancelActiveAction() {
     const action = activeAction;
     if (!action) return;
-    // Save persistent progress before stopping so player can resume later
     if (action.category === 'persistent' && action.id) {
         if (!gameFlags.persistentProgress) gameFlags.persistentProgress = {};
         gameFlags.persistentProgress[action.id] = actionProgress;
     }
     setActiveDrainRates(null, null);
-    setActiveAreaDrainRates(null);
+    setActionAreaDrainRates(null);
     addLogEntry(t('log_action_cancelled', { action: action._displayName || t(action.nameKey) }), LogType.INFO);
     try { updateResourceInfo(); } catch { /* ignore */ }
     clearActionTimer();
@@ -454,16 +281,27 @@ function updateClockDisplay() {
     if (clockEl) clockEl.textContent = getIngameTimeString();
 }
 
+// ==========================================================================
+// Start action
+// ==========================================================================
+
 export function startAction(actionId) {
     const location = getLocation(getCurrentLocationId());
     if (!location) return;
     const action = location.actions.find(a => a.id === actionId);
     if (!action) return;
-    // No affordability gate — player can always attempt actions even when hungry/thirsty/exhausted
     if (activeActionId === actionId && !actionPaused) return;
-    // Check requiresItem — validate the item exists but do NOT consume yet.
-    // Consumption is deferred to completeActiveAction() so that stopping/cancelling
-    // the action does not permanently destroy the quest item.
+
+    // --- Generic onStart callback (replaces all special-case gate blocks) ---
+    const ctx = buildActionCtx(action);
+    try {
+        if (typeof action.onStart === 'function') {
+            const result = action.onStart(ctx);
+            if (result && result.block) return;
+        }
+    } catch { /* ignore */ }
+
+    // Check requiresItem
     if (action.requiresItem) {
         const itemDef = getItemDefinition(action.requiresItem);
         if (!itemDef) {
@@ -472,10 +310,9 @@ export function startAction(actionId) {
         }
         const hasItem = countItemInBag(action.requiresItem) > 0;
         if (!hasItem) {
-            addLogEntry(`You need ${itemDef.name} to do this.`, LogType.INFO);
+            addLogEntry(t('log_need_item', { item: itemDef.name }), LogType.ERROR);
             return;
         }
-        // Stash the item requirement for completion
         action._pendingItem = action.requiresItem;
     }
     // Set drain rates from default action costs (per-minute rates)
@@ -483,8 +320,6 @@ export function startAction(actionId) {
     const drainRates = {}; const sources = {}; const displayName = t(action.nameKey);
     const isRest = action.category === 'rest';
     const isRefresh = action.category === 'refresh';
-    // Block starting rest/refresh only if ALL gained resources are at capacity.
-    // If at least one gained resource still has room, allow the action to proceed.
     if (isRest || isRefresh) {
         const resourceRewards = (action.rewards || []).filter(r => r.type === 'resource');
         if (resourceRewards.length > 0) {
@@ -499,8 +334,6 @@ export function startAction(actionId) {
             }
         }
     }
-    // Compute per-second reward rate for rest/refresh actions
-    // rate = rewardAmount / durationSeconds (1 real sec = 1 in-game min)
     let rewardPerSecRate = 0;
     let rewardResourceName = null;
     if ((isRest || isRefresh) && Array.isArray(action.rewards)) {
@@ -513,7 +346,6 @@ export function startAction(actionId) {
         }
     }
     for (const [resName, baseRate] of Object.entries(DEFAULT_DRAIN)) {
-        // Rest/Refresh: reward resource gains instead of drains; other resources still drain
         if ((isRest || isRefresh) && rewardResourceName === resName) {
             const perMin = rewardPerSecRate;
             drainRates[resName] = perMin;
@@ -528,49 +360,25 @@ export function startAction(actionId) {
         sources[resName].push({ rate: perMin, label: displayName });
     }
     setActiveDrainRates(drainRates, sources);
-    // Set area drain rate for area panel display (same pattern as personal drain rates)
+    // Set area drain rate for area panel display
     if (action.drainsAreaResource) {
         const adr = action.drainsAreaResource;
         const areaPerSec = (adr.amount || 1) / Math.max(1, action.durationSeconds || 1);
-        setActiveAreaDrainRates({ [adr.resource]: `-${areaPerSec.toFixed(2)}/min` });
+        setActionAreaDrainRates({ [adr.resource]: `-${areaPerSec.toFixed(2)}/min` });
     }
-    // Save old persistent progress before switching to a different action
+    // Save old persistent progress before switching
     if (activeAction && activeAction.category === 'persistent' && activeAction.id && activeActionId !== actionId) {
         if (!gameFlags.persistentProgress) gameFlags.persistentProgress = {};
         gameFlags.persistentProgress[activeAction.id] = actionProgress;
     }
     if (activeActionId !== actionId) {
         activeActionId = actionId; activeAction = action; activeAction._displayName = t(action.nameKey);
-        // Dynamic resultKey for wake_up based on loop count
-        if (action.id === 'wake_up') {
-            if ((gameFlags.loopCount || 0) >= 3) {
-                activeAction._resultKey = null; // handled in completeActiveAction with fuel/minutes
-            } else if ((gameFlags.loopCount || 0) >= 2) {
-                activeAction._resultKey = null; // handled in completeActiveAction with fuel/minutes
-            } else if ((gameFlags.loopCount || 0) >= 1) {
-                activeAction._resultKey = 'result_wake_up_loop1';
+        // --- Dynamic resultKey via callback (replaces all special-case if blocks) ---
+        try {
+            if (typeof action.getResultKey === 'function') {
+                activeAction._resultKey = action.getResultKey(ctx);
             }
-        }
-        // Dynamic resultKey for check_terminal based on loop knowledge + count
-        if (action.id === 'check_terminal') {
-            if (gameFlags.loopKnowledge && gameFlags.loopKnowledge.terminalLogin) {
-                if ((gameFlags.loopCount || 0) >= 2) {
-                    activeAction._resultKey = 'result_check_terminal_loop2';
-                } else if ((gameFlags.loopCount || 0) >= 1) {
-                    activeAction._resultKey = 'result_check_terminal_loop1';
-                } else {
-                    activeAction._resultKey = 'result_check_terminal_known';
-                }
-            } else {
-                activeAction._resultKey = 'result_check_terminal';
-            }
-        }
-        // Dynamic resultKey for check_reactor_status — always set to null
-        // because the completion handler in completeActiveAction computes
-        // fuel/minute values dynamically and chooses the right resultKey.
-        if (action.id === 'check_reactor_status') {
-            activeAction._resultKey = null;
-        }
+        } catch { /* ignore */ }
         // Restore persistent progress from previous loops
         if (action.category === 'persistent' && action.id && gameFlags.persistentProgress) {
             actionProgress = Number(gameFlags.persistentProgress[action.id]) || 0;
@@ -590,7 +398,6 @@ export function startAction(actionId) {
         applyTimePassiveDrain(tickSecs);
         updateClockDisplay();
         updateActionButtonsDynamic();
-        // Update queue panel with live active action progress
         if (activeAction && !activeAction._completed) {
             updateQueueActive({
                 id: activeAction.id,
@@ -602,7 +409,7 @@ export function startAction(actionId) {
         _infoUpdateCounter++;
         if (_infoUpdateCounter >= 5) { try { updateResourceInfo(); } catch { /* ignore */ } _infoUpdateCounter = 0; }
 
-        // Cap detection for rest/refresh actions (auto-stop when resource hits capacity)
+        // Cap detection for rest/refresh actions
         if ((activeAction.category === 'rest' || activeAction.category === 'refresh') && Array.isArray(activeAction.rewards)) {
             for (const r of activeAction.rewards) {
                 if (r.type === 'resource') {
@@ -615,7 +422,7 @@ export function startAction(actionId) {
             }
         }
 
-        // Area resource drain (same pattern as personal resource drain above)
+        // Area resource drain
         if (activeAction.drainsAreaResource) {
             const dr = activeAction.drainsAreaResource;
             const areaPerSec = (dr.amount || 1) / Math.max(1, activeAction.durationSeconds || 1);
@@ -632,13 +439,12 @@ export function startAction(actionId) {
             }
         }
 
-        // Save persistent progress every tick to survive death loops
+        // Save persistent progress
         if (activeAction && activeAction.category === 'persistent' && activeAction.id) {
             if (!gameFlags.persistentProgress) gameFlags.persistentProgress = {};
             gameFlags.persistentProgress[activeAction.id] = actionProgress;
         }
 
-        // Duration-based completion
         if (actionProgress >= (activeAction.durationSeconds || 1)) {
             completeActiveAction();
         }
@@ -646,11 +452,11 @@ export function startAction(actionId) {
 }
 
 export function pauseAction() {
-    // Persistent actions: save progress + release slot so queue can proceed
     if (activeAction && activeAction.category === 'persistent' && activeAction.id) {
         if (!gameFlags.persistentProgress) gameFlags.persistentProgress = {};
         gameFlags.persistentProgress[activeAction.id] = actionProgress;
         setActiveDrainRates(null, null);
+        setActionAreaDrainRates(null);
         clearActionTimer();
         activeAction = null; activeActionId = null; actionProgress = 0; actionPaused = false;
         _fullRebuildNeeded = true; refreshUI();
@@ -677,46 +483,32 @@ document.addEventListener('click', (e) => {
 // POI collapse state persistence
 // ==========================================================================
 export function getPoiCollapseState(locationId) {
-    try {
-        const saved = localStorage.getItem(`poiCollapse_${locationId}`);
-        return saved ? JSON.parse(saved) : {};
-    } catch {
-        return {};
-    }
+    try { return JSON.parse(localStorage.getItem(`poiCollapse_${locationId}`) || '{}'); }
+    catch { return {}; }
 }
 export function setPoiCollapseState(locationId, poiId, collapsed) {
     try {
         const state = getPoiCollapseState(locationId);
         state[poiId] = collapsed;
         localStorage.setItem(`poiCollapse_${locationId}`, JSON.stringify(state));
-    } catch {
-        // ignore
-    }
+    } catch { /* ignore */ }
 }
 
 // ==========================================================================
 // Action unlock state persistence
 // ==========================================================================
 export function getUnlockState(locationId) {
-    try {
-        const saved = localStorage.getItem(`unlocks_${locationId}`);
-        return saved ? JSON.parse(saved) : {};
-    } catch {
-        return {};
-    }
+    try { return JSON.parse(localStorage.getItem(`unlocks_${locationId}`) || '{}'); }
+    catch { return {}; }
 }
 export function setUnlockState(locationId, state) {
-    try {
-        localStorage.setItem(`unlocks_${locationId}`, JSON.stringify(state));
-    } catch {
-        // ignore
-    }
+    try { localStorage.setItem(`unlocks_${locationId}`, JSON.stringify(state)); }
+    catch { /* ignore */ }
 }
 
 // ==========================================================================
-// Save/Load helpers — export action progress for persistence
+// Save/Load helpers
 // ==========================================================================
-
 export function getActiveActionState() {
     if (!activeAction || activeAction._completed) return null;
     return {
@@ -733,26 +525,18 @@ export function resumeSavedAction(state) {
     if (!location) return;
     const action = location.actions.find(a => a.id === state.actionId);
     if (!action || action._completed) return;
-
-    // Switch to the correct location if needed
     if (state.locationId && state.locationId !== getCurrentLocationId()) {
         switchToLocation(state.locationId);
     }
-
-    // Restore action state
     activeActionId = state.actionId;
     activeAction = action;
     activeAction._displayName = t(action.nameKey);
     actionProgress = state.progress || 0;
-    actionPaused = state.paused !== false; // default to paused for safety
-
-    // Set up drain rates from default action costs (per-second rates)
-    // 1 real sec = 1 in-game min
+    actionPaused = state.paused !== false;
     const mult = action.category === 'taxing' ? TAXING_MULT : 1;
     const drainRates = {}; const sources = {}; const displayName = t(action.nameKey);
     const isRest = action.category === 'rest';
     const isRefresh = action.category === 'refresh';
-    // Compute per-second reward rate for rest/refresh actions
     let rewardPerSecRate = 0;
     let rewardResourceName = null;
     if ((isRest || isRefresh) && Array.isArray(action.rewards)) {
@@ -765,7 +549,6 @@ export function resumeSavedAction(state) {
         }
     }
     for (const [resName, baseRate] of Object.entries(DEFAULT_DRAIN)) {
-        // Rest: Stamina gains instead of drains; Food/Water still drain
         if (isRest && resName === 'Stamina') {
             const perMin = rewardPerSecRate;
             drainRates[resName] = perMin;
@@ -773,7 +556,6 @@ export function resumeSavedAction(state) {
             sources[resName].push({ rate: perMin, label: displayName });
             continue;
         }
-        // Refresh: Water gains instead of drains; Stamina/Food still drain
         if (isRefresh && resName === 'Drinking Water') {
             const perMin = rewardPerSecRate;
             drainRates[resName] = perMin;
@@ -788,8 +570,6 @@ export function resumeSavedAction(state) {
         sources[resName].push({ rate: perMin, label: displayName });
     }
     setActiveDrainRates(drainRates, sources);
-
-    // Don't auto-start — player must click Play to resume
     selectedActionId = state.actionId;
     _fullRebuildNeeded = true;
     refreshUI();
@@ -801,7 +581,7 @@ try {
         window.addEventListener('force-cancel-action', () => {
             if (activeAction) {
                 setActiveDrainRates(null, null);
-                setActiveAreaDrainRates(null);
+                setActionAreaDrainRates(null);
                 clearActionTimer();
                 activeAction = null; activeActionId = null; actionProgress = 0; actionPaused = false;
                 updateQueueActive(null);
@@ -809,7 +589,6 @@ try {
                 try { refreshUI(); } catch { /* ignore */ }
             }
         });
-        // Refresh UI after death loop popup closes
         window.addEventListener('death-loop-reset', () => {
             _fullRebuildNeeded = true;
             try { refreshUI(); } catch { /* ignore */ }
@@ -817,19 +596,13 @@ try {
     }
 } catch { /* ignore */ }
 
-// Expose for save/load system (avoids circular imports)
 if (typeof window !== 'undefined') {
     window.__getActiveActionState = getActiveActionState;
     window.__resumeSavedAction = resumeSavedAction;
 }
 
-/**
- * Called by queue engine to start a queued action.
- * Handles location switching if needed.
- */
 export function startQueuedAction(queueItem) {
     if (!queueItem) return;
-    // Switch location if queued action is in a different location
     if (queueItem.locationId && queueItem.locationId !== getCurrentLocationId()) {
         switchToLocation(queueItem.locationId);
     }
@@ -841,7 +614,6 @@ export function setupLocationSection(section) {
     _fullRebuildNeeded = true; refreshUI();
 }
 
-// Setters for locationUi.js (ES module imports are read-only)
 export function setSelectedActionId(v) { selectedActionId = v; }
 export function setFullRebuildNeeded(v) { _fullRebuildNeeded = v; }
 

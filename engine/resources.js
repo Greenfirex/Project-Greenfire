@@ -198,13 +198,23 @@ export function showAreaSuppliesPanel() {
 
 // Active area drain rates set by locationEngine during actions
 let _activeAreaDrainRates = null;
+let _actionAreaDrainRates = null;
 
 export function setActiveAreaDrainRates(rates) {
     _activeAreaDrainRates = rates || null;
     updateAreaResourcesUI();
 }
 
+export function setActionAreaDrainRates(rates) {
+    _actionAreaDrainRates = rates || null;
+    updateAreaResourcesUI();
+}
+
 function getAreaResourceDrainRate(resourceName) {
+    // Action-specific drain takes priority over passive drain.
+    if (_actionAreaDrainRates && _actionAreaDrainRates[resourceName] !== undefined) {
+        return _actionAreaDrainRates[resourceName];
+    }
     if (_activeAreaDrainRates && _activeAreaDrainRates[resourceName] !== undefined) {
         return _activeAreaDrainRates[resourceName];
     }
@@ -980,9 +990,11 @@ export function applyTimePassiveDrain(realSeconds) {
     const O2_DRAIN_PER_MIN = 4; // O2 drains slower than fuel
 
     const bridgeList = areaResources['scout_ship_bridge'];
+    let fuel = null;
+    let o2 = null;
     if (bridgeList && Array.isArray(bridgeList)) {
-        const fuel = bridgeList.find(r => r.name === 'area_fuel');
-        const o2 = bridgeList.find(r => r.name === 'area_o2');
+        fuel = bridgeList.find(r => r.name === 'area_fuel');
+        o2 = bridgeList.find(r => r.name === 'area_o2');
 
         // Drain ship fuel
         if (fuel && fuel.amount > 0) {
@@ -1017,10 +1029,23 @@ export function applyTimePassiveDrain(realSeconds) {
         }
     }
 
+    // --- Area resource passive regeneration (recycler fixed → water regen) ---
+    if (gameFlags.recyclerFixed) {
+        const mainList = areaResources['scout_ship_main_area'];
+        if (mainList && Array.isArray(mainList)) {
+            const areaWater = mainList.find(r => r.name === 'area_water');
+            if (areaWater) {
+                const regenDelta = (0.50 * realSeconds);
+                areaWater.amount = Math.min(areaWater.capacity, areaWater.amount + regenDelta);
+            }
+        }
+    }
+
     // Set area drain rates for passive fuel/O2 drain display
     const areaRates = {};
     if (fuel && fuel.amount > 0) areaRates['area_fuel'] = '-1.80/min';
     if (o2 && hasEffect('life_support_failure') && o2.amount > 0) areaRates['area_o2'] = '-4.00/min';
+    if (gameFlags.recyclerFixed) areaRates['area_water'] = '+0.50/min';
     setActiveAreaDrainRates(Object.keys(areaRates).length > 0 ? areaRates : null);
 
     // Sync survival effects based on current resource levels

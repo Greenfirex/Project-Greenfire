@@ -46,7 +46,7 @@ function renderPopupPage() {
 
     const pages = activeStoryEvent.pages || [];
     const combinedHTML = pages.map(page =>
-        `<p>${(page || '').replace(/\n/g, '<br><br>')}</p>`
+        `<p>${(page || '').replace(/\n/g, '<br>')}</p>`
     ).join('');
 
     messageEl.innerHTML = combinedHTML;

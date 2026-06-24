@@ -193,8 +193,6 @@ export function updateEffectsUI() {
     
     body.innerHTML = activeEffects.map(effect => {
         const name = t(effect.nameKey);
-        const desc = t(effect.descKey);
-        const isNew = effect._addedAt && (Date.now() - effect._addedAt < 800);
         
         let progressBarHtml = '';
         if (effect.maxProgress !== Infinity && effect.maxProgress > 0) {
@@ -221,7 +219,7 @@ export function updateEffectsUI() {
         }
         
         return `
-            <div class="effect-row${isNew ? ' effect-enter' : ''}" data-effect-id="${effect.id}" data-effect-tooltip="${effect.nameKey}">
+            <div class="effect-row" data-effect-id="${effect.id}" data-effect-tooltip="${effect.nameKey}">
                 <div class="effect-icon">${effect.icon || '⚠'}</div>
                 <div class="effect-info">
                     <div class="effect-name">${name}</div>
@@ -246,6 +244,17 @@ export function updateEffectsUI() {
                 return `<h4>${t(effect.nameKey)}</h4><p>${t(effect.descKey)}</p>`;
             });
         }).catch(() => {});
+    });
+
+    // Trigger enter animation for newly added effects, then remove class so pulse takes over.
+    const now = Date.now();
+    body.querySelectorAll('.effect-row').forEach(row => {
+        const effectId = row.dataset.effectId;
+        const effect = activeEffects.find(e => e.id === effectId);
+        if (!effect || !effect._addedAt) return;
+        if (now - effect._addedAt >= 800) return;
+        row.classList.add('effect-enter');
+        setTimeout(() => row.classList.remove('effect-enter'), 600);
     });
 }
 
@@ -277,7 +286,7 @@ export function setActiveEffects(saved) {
     activeEffects.length = 0;
     activeEffects.push(...saved.map(e => ({
         ...e,
-        _addedAt: Date.now(),
+        _addedAt: 0,
         progress: e.progress ?? 0,
         maxProgress: e.maxProgress ?? Infinity,
         isCountdown: e.isCountdown ?? false,

@@ -2,6 +2,16 @@
 // Location: Scout Ship — Main Area / Cafeteria
 // ==========================================================================
 
+function persistLoopKnowledge(ctx) {
+    try {
+        const state = JSON.parse(localStorage.getItem('gameState') || '{}');
+        if (!state.gameFlags) state.gameFlags = {};
+        if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = {};
+        state.gameFlags.loopKnowledge = { ...ctx.gameFlags.loopKnowledge };
+        localStorage.setItem('gameState', JSON.stringify(state));
+    } catch { /* ignore */ }
+}
+
 export const scoutShipMainArea = {
     id: 'scout_ship_main_area',
     siteId: 'scout_ship',
@@ -12,7 +22,7 @@ export const scoutShipMainArea = {
         {
             id: 'cafeteria',
             nameKey: 'poi_cafeteria',
-            actions: ['assess_supplies', 'grab_proviant', 'grab_bottled_water', 'drink_water']
+            actions: ['assess_supplies', 'grab_proviant', 'grab_bottled_water', 'drink_water', 'repair_recycler']
         },
         {
             id: 'communications',
@@ -99,6 +109,49 @@ export const scoutShipMainArea = {
             durationSeconds: 3,
             repeatable: true,
             targetLocation: 'scout_ship_bridge'
+        },
+        {
+            id: 'repair_recycler',
+            nameKey: 'action_repair_recycler',
+            descKey: 'action_repair_recycler_desc',
+            drain: [{ resource: 'Stamina', amount: 4 }],
+            durationSeconds: 20,
+            oneTime: true,
+            repeatable: false,
+            requiresItem: 'repair_tools',
+            unlockedBy: 'assess_supplies',
+            onStart(ctx) {
+                if (!ctx.gameFlags.loopKnowledge) ctx.gameFlags.loopKnowledge = {};
+                // Mark attempt on first click — needed to unlock grab_tools in workshop
+                if (!ctx.gameFlags.loopKnowledge.recyclerAttempted) {
+                    ctx.gameFlags.loopKnowledge.recyclerAttempted = true;
+                    persistLoopKnowledge(ctx);
+                    ctx.setFullRebuildNeeded(true);
+                    ctx.refreshUI();
+                }
+                const bookRead = ctx.gameFlags.loopKnowledge.bookRead;
+                if (!bookRead) {
+                    ctx.addLogEntry(ctx.t('log_recycler_no_idea'), ctx.LogType.SUCCESS);
+                    return { block: true };
+                }
+                // Adjust duration for repeat repairs
+                const repairCount = ctx.gameFlags.loopKnowledge.recyclerRepairCount || 0;
+                if (repairCount > 0) {
+                    ctx.action.durationSeconds = 10;
+                    ctx.addLogEntry(ctx.t('log_recycler_remember'), ctx.LogType.INFO);
+                }
+            },
+            getResultKey(ctx) {
+                const repairCount = (ctx.gameFlags.loopKnowledge && ctx.gameFlags.loopKnowledge.recyclerRepairCount) || 0;
+                return repairCount > 0 ? 'result_repair_recycler_remember' : 'result_repair_recycler_first';
+            },
+            onComplete(ctx) {
+                if (!ctx.gameFlags.loopKnowledge) ctx.gameFlags.loopKnowledge = {};
+                const repairCount = (ctx.gameFlags.loopKnowledge.recyclerRepairCount || 0) + 1;
+                ctx.gameFlags.loopKnowledge.recyclerRepairCount = repairCount;
+                ctx.gameFlags.recyclerFixed = true;
+                persistLoopKnowledge(ctx);
+            }
         },
         {
             id: 'go_to_workshop',

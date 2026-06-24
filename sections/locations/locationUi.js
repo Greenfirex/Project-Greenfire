@@ -26,6 +26,18 @@ import {
 // Tile rendering
 // ==========================================================================
 
+let _hoverActionId = null;
+
+export function setHoveredActionId(actionId) {
+    _hoverActionId = actionId;
+    // Only update Details tile — don't full-rebuild
+    const detailsHost = document.querySelector('#locationsDetailsTile');
+    if (detailsHost) {
+        detailsHost.innerHTML = renderDetailsTile();
+        wireDebuffTooltips(detailsHost);
+    }
+}
+
 export function renderLocationTile(location) {
     const imgHtml = location.image ? `<div class="location-location-image" style="max-height:none;flex:1 1 auto;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="${location.image}" alt="${t(location.nameKey)}" style="width:100%;height:100%;object-fit:contain;" /></div>` : '';
     return `<div class="location-card location-card-location"><div class="location-card-header"><h3>${t(location.nameKey)}</h3></div>${imgHtml}</div>`;
@@ -33,8 +45,10 @@ export function renderLocationTile(location) {
 
 export function renderDetailsTile() {
     const location = getLocation(getCurrentLocationId());
-    if (selectedActionId) {
-        const action = (location && location.actions) ? location.actions.find(a => a.id === selectedActionId) : null;
+    // Priority: hover > selected > active running action
+    const effectiveId = _hoverActionId || selectedActionId || (activeActionId && activeAction && !activeAction._completed ? activeActionId : null);
+    if (effectiveId) {
+        const action = (location && location.actions) ? location.actions.find(a => a.id === effectiveId) : null;
         if (action) {
             // Tags row (below action name, shows repeatable/oneTime + category)
             const tagItems = [];
@@ -63,7 +77,7 @@ export function renderDetailsTile() {
 
             // Duration
             const isInfiniteAction = !action.durationSeconds || action.durationSeconds <= 0;
-            const isActionRunning = activeActionId === selectedActionId && !action._completed;
+            const isActionRunning = activeActionId === effectiveId && !action._completed;
             // Get saved persistent progress (survives death loops and stop/cancel)
             const savedProgress = (action.category === 'persistent' && action.id && gameFlags.persistentProgress)
                 ? (Number(gameFlags.persistentProgress[action.id]) || 0)
@@ -252,6 +266,11 @@ export function renderActionsTile(location) {
         if (a.requiresAreaResource) {
             const locId = getCurrentLocationId();
             if (getAreaResourceAmount(locId, a.requiresAreaResource) <= 0) return false;
+        }
+        // Dynamic unlock: grab_tools only appears after player has attempted repair and read the book
+        if (a.id === 'grab_tools') {
+            const lk = gameFlags.loopKnowledge || {};
+            if (!lk.recyclerAttempted || !lk.bookRead) return false;
         }
         return true;
     });
@@ -497,7 +516,16 @@ function wireActionButtons(actionsHost) {
         });
     });
 
-    actionsHost.querySelectorAll('.location-action-btn').forEach(btn => { btn.addEventListener('click', (e) => {
+    actionsHost.querySelectorAll('.location-action-btn').forEach(btn => {
+        // Hover shows action details in Details tile
+        btn.addEventListener('mouseenter', () => {
+            const actionId = btn.dataset.actionId;
+            if (actionId) setHoveredActionId(actionId);
+        });
+        btn.addEventListener('mouseleave', () => {
+            setHoveredActionId(null);
+        });
+        btn.addEventListener('click', (e) => {
         const actionId = btn.dataset.actionId;
         // Clear "new" badge on any interaction with this button
         if (actionId) { markActionSeen(actionId, true); }
@@ -538,8 +566,18 @@ function wireActionButtons(actionsHost) {
         setFullRebuildNeeded(true); refreshUI();
     }); });
     // Wire hover to clear "!" badges (persists so badges don't reappear on rebuild)
-    actionsHost.querySelectorAll('.location-action-btn.has-new-badge').forEach(btn => {
+    const newBadgeBtns = actionsHost.querySelectorAll('.location-action-btn.has-new-badge');
+    newBadgeBtns.forEach(btn => {
         wireClearUiNewBadge(btn, { actionId: btn.dataset.actionId });
+        // Staggered unlock animation for newly revealed actions
+        const index = Array.from(newBadgeBtns).indexOf(btn);
+        btn.classList.add('action-unlocking');
+        btn.style.animationDelay = `${index * 80}ms`;
+        btn.addEventListener('animationend', function onAnimEnd() {
+            btn.classList.remove('action-unlocking');
+            btn.style.animationDelay = '';
+            btn.removeEventListener('animationend', onAnimEnd);
+        }, { once: true });
     });
 }
 
@@ -548,8 +586,10 @@ export function updateActionButtonsDynamic() {
     const location = getLocation(getCurrentLocationId()); if (!location) return;
     const actionsHost = document.querySelector('#locationsActionsTile'); if (!actionsHost) return;
 
-    // Live-update cost remaining spans in details panel
-    if (activeAction && activeActionId && !activeAction._completed) {
+    // Live-update cost remaining spans in details panel when:
+    // - NOT hovering any action (showing selected/active), OR
+    // - hovering the currently running action
+    if ((!_hoverActionId || _hoverActionId === activeActionId) && activeAction && activeActionId && !activeAction._completed) {
         const totalSecs = activeAction.durationSeconds || 1;
         const pct = Math.min(1, actionProgress / totalSecs);
         document.querySelectorAll('.detail-cost-remain[data-cost-res]').forEach(span => {

@@ -234,7 +234,7 @@
 
   "action_read_book": "Read Book",
   "action_read_book_desc": "Pick up a worn paperback from the bunk and lose yourself in its pages. A long, quiet activity that passes the time.",
-  "result_read_book": "You turn the final page and close the book. Your mind feels a little sharper, a little more at ease despite everything.",
+  "result_read_book": "You turn the final page and close the book. You've picked up some basic repair techniques. Maybe you could handle small fixes now.",
 
   "action_grab_bottled_water": "Grab Water Bottle",
   "action_grab_bottled_water_desc": "Snatch a sealed bottle of water from the cafeteria supplies.",
@@ -332,5 +332,21 @@
   "death_pages_manual_reset": "But not this time either... your own choice changed nothing. You close your eyes hoping it's over — and then open them in the same quarters. Again. Right back to the beginning.",
 
   "action_grab_proviant": "Grab Provisions",
-  "action_grab_proviant_desc": "Grab a few remaining ration packs from the cafeteria. There isn't much left."
+  "action_grab_proviant_desc": "Grab a few remaining ration packs from the cafeteria. There isn't much left.",
+
+  "action_repair_recycler": "Repair Recycler",
+  "action_repair_recycler_desc": "The water recycler in the cafeteria is broken. If you could fix it, it might replenish the water supply.",
+  "result_repair_recycler_first": "After twenty minutes of tinkering inside the machine, a quiet hum finally starts. Water begins to drip from the spout — slowly at first, then a steady stream. The recycler is working again.",
+  "result_repair_recycler_remember": "Familiar routine. Your hands remember every step. In half the time, the recycler is back online.",
+
+  "action_grab_tools": "Grab Tools",
+  "action_grab_tools_desc": "Take a basic set of repair tools from the workshop.",
+  "result_grab_tools": "You rummage through the workbench and find a set of repair tools. Exactly what you needed.",
+
+  "log_recycler_no_idea": "You examine the recycler from every angle. It's a complex machine and you have no idea where to start. Maybe a manual would help...",
+  "log_recycler_need_tools": "You know what to do now, but you'll need proper tools. Time to find a basic repair kit.",
+  "log_recycler_remember": "You remember exactly how this works. Last time it took forever, but now you know what you're doing.",
+
+  "log_need_item": "You need {item} to do this.",
+  "log_received_item": "Received: {item}"
 }

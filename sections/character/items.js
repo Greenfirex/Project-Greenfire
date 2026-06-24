@@ -149,6 +149,15 @@ export const items = [
         quest: true,
         tags: ['Quest'],
     },
+    {
+        id: 'repair_tools',
+        name: 'Repair Tools',
+        slot: 'inventory',
+        icon: 'assets/images/items/toolbox.png',
+        description: 'A basic set of repair tools. Useful for fixing ship systems.',
+        quest: true,
+        tags: ['Quest'],
+    },
 
     // Quest / salvage items
     {

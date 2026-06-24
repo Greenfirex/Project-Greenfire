@@ -397,7 +397,7 @@
     flex-grow: 0;
     flex-shrink: 0;
     /* Reserve space for the absolutely-positioned log at the bottom */
-    padding-bottom: calc(50% + 20px);
+    padding-bottom: calc(33% + 4px);
     box-sizing: border-box;
 }
 
@@ -410,15 +410,30 @@
     align-items: center;
     justify-content: center;
     position: relative;
-    background-image: url('../../assets/images/PNG/Button03.png');
-    background-size: 100% 100%;
-    color: #EAEAEA;
-    font-size: 16px;
+
+    background: linear-gradient(
+        180deg,
+        rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18),
+        rgba(0,0,0,0.62)
+    );
+
+    color: #E9FFF4;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
     font-weight: bold;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
     text-shadow: 1px 1px 2px #000;
-    border: none;
+
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
+    border-radius: 8px;
+
+    box-shadow:
+        0 0 10px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.12),
+        0 8px 20px rgba(0,0,0,0.45);
+
     cursor: pointer;
-    transition: all 0.2s ease-in-out;
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
 }
 
 .menu-button-label {
@@ -455,10 +470,24 @@
     display: none;
 }
 .menu-button:hover {
-    background-image: url('../../assets/images/PNG/Button04.png');
+    transform: scale(1.03);
+    box-shadow:
+        0 0 16px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.24),
+        0 0 32px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10),
+        0 10px 26px rgba(0,0,0,0.52);
+    text-shadow: 0 0 10px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
     color: #FFF;
-    transform: scale(1.05);
 }
+
+.menu-button:active {
+    transform: scale(0.98) translateY(1px);
+}
+
+.menu-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 .menu-button.active {
     color: #FFF;
     box-shadow: 0 0 12px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.8), 

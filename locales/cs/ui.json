@@ -22,7 +22,7 @@
   "menu_crash_site": "Místo havárie",
   "menu_character": "Postava",
   "menu_journal": "Deník",
-  "menu_local_area": "Prozkoumat",
+  "menu_local_area": "Průzkum",
 
   "options_language": "Jazyk",
   "options_language_select": "Vyberte jazyk",
@@ -234,7 +234,7 @@
 
   "action_read_book": "Číst knihu",
   "action_read_book_desc": "Vezmeš ošoupanou brožovanou knihu z palandy a ztratíš se v jejích stránkách. Dlouhá, klidná činnost, která krátí čas.",
-  "result_read_book": "Obrátíš poslední stránku a zavřeš knihu. Tvá mysl je o něco bystřejší, o něco klidnější navzdory všemu.",
+  "result_read_book": "Obrátíš poslední stránku a zavřeš knihu. Naučil ses pár základních opravářských postupů. Třeba teď zvládneš i nějaké drobné opravy.",
 
   "action_grab_bottled_water": "Sebrat láhev s vodou",
   "action_grab_bottled_water_desc": "Sebrat zapečetěnou láhev vody ze zásob jídelny.",
@@ -332,5 +332,21 @@
   "death_pages_manual_reset": "Ale ani tentokrát... tvoje vlastní volba na tom nic nezměnila. Zavíráš oči s nadějí, že už je konec — a pak otevřeš oči v té samé kajutě. Znovu. Zase od začátku.",
 
   "action_grab_proviant": "Sebrat proviant",
-  "action_grab_proviant_desc": "Sebrat pár zbývajících balíčků s proviantem z jídelny. Už toho moc nezbývá."
+  "action_grab_proviant_desc": "Sebrat pár zbývajících balíčků s proviantem z jídelny. Už toho moc nezbývá.",
+
+  "action_repair_recycler": "Opravit recyklátor",
+  "action_repair_recycler_desc": "Recyklátor vody v jídelně je rozbitý. Kdyby se ho podařilo zprovoznit, mohl by doplňovat zásoby vody.",
+  "result_repair_recycler_first": "Po dvaceti minutách šťourání se v útrobách stroje konečně ozve tiché bzučení. Z kohoutku začne kapat voda — nejdřív pomalu, pak stálým proudem. Recyklátor opět funguje.",
+  "result_repair_recycler_remember": "Známá rutina. Tvoje ruce si pamatují každý krok. Za poloviční dobu je recyklátor opět v provozu.",
+
+  "action_grab_tools": "Sebrat nářadí",
+  "action_grab_tools_desc": "Vezmeš si základní opravářské nářadí z dílny.",
+  "result_grab_tools": "Prohledáváš pracovní stůl a nacházíš sadu opravářského nářadí. Přesně to, co potřebuješ.",
+
+  "log_recycler_no_idea": "Zkoumáš recyklátor ze všech stran. Je to složitý stroj a ty nemáš tušení, kde začít. Možná by pomohla nějaká příručka...",
+  "log_recycler_need_tools": "Už víš jak na to, ale bez pořádného nářadí to nepůjde. Potřebuješ sehnat základní sadu opravářského nářadí.",
+  "log_recycler_remember": "Pamatuješ si přesně jak na to. Minule ti to trvalo věčnost, ale teď už víš co děláš.",
+
+  "log_need_item": "Potřebuješ {item}, abys to mohl udělat.",
+  "log_received_item": "Získal jsi: {item}"
 }

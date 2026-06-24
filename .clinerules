@@ -1,0 +1,137 @@
+# ===== VŽDY PRVNÍ KROK =====
+
+- Před jakoukoliv změnou kódu si přečti PROJECT_NOTES.md
+- Přečti si PROJECT_NOTES.md při prvním tool callu — neptej se na povolení
+
+# ===== ARCHITEKTURA =====
+
+- **NIKDY NEPŘIDÁVEJ** `if (action.id === '...')` bloky do `sections/locations/locationEngine.js`
+  → VŽDY použij callbacky `onStart` / `getResultKey` / `onComplete` v definici akce
+- Nové akce přidávej do `sections/locations/definitions/scoutShip/<lokace>.js`
+- `locationEngine.js` zůstává **generický** — neobsahuje speciální logiku pro konkrétní akce
+- Rozdělení zodpovědnosti:
+  - `locationUi.js` → UI rendering a event wiring
+  - `locationEngine.js` → herní logika (start/complete akcí, drain raty, timing)
+  - `sections/locations/definitions/` → data akcí + callback logika
+  - `engine/resources.js` → resource state, pasivní drain, info panel
+
+# ===== ČASOVÝ SYSTÉM =====
+
+- **1 reálná sekunda = 1 herní minuta** (definováno v `engine/time.js`)
+- `durationSeconds` v definicích akcí znamená **reálné sekundy**
+  Příklad: akce na 20 herních minut → `durationSeconds: 20`
+- `TICK_SECONDS = 0.1` — progress akce se aktualizuje každých 100ms
+- **Pravidlo pro výpočet**: X herních minut = X reálných sekund. 20 minut ≠ 1200 sekund!
+
+# ===== LOKALIZACE =====
+
+- **VŠECHNY** user-facing stringy MUSÍ používat `t()` lokalizační funkci
+- Lokalizační klíče přidávej **vždy do OBOU** souborů:
+  - `locales/cs/ui.json`
+  - `locales/en/ui.json`
+- **Nikdy** nepoužívej hardcoded anglické stringy v JS/HTML jako:
+  - `"You need X to do this"`
+  - `"Received: X"`
+  - `"X completed."`
+  - Místo toho: `t('log_need_item', { item: ... })`, `t('log_received_item', { item: ... })`
+- Konvence pojmenování klíčů:
+  - Akce: `action_<id>`, `action_<id>_desc`, `result_<id>`
+  - Log hlášky: `log_<popis>`
+  - Itemy: `item_<id>` (pokud nemají `name` přímo v `items.js`)
+
+# ===== DEFINIČNÍ SOUBORY AKCÍ =====
+
+- Struktura akce:
+  ```js
+  {
+    id: 'action_id',
+    nameKey: 'action_...',
+    descKey: 'action_..._desc',
+    drain: [{ resource: 'Stamina', amount: 4 }],
+    rewards: [{ type: 'item', name: 'Item Name', amount: 1 }],
+    durationSeconds: 20,
+    oneTime: true,         // jednorázová akce
+    repeatable: true,      // opakovatelná akce
+    unlockedBy: '...',     // string nebo array stringů
+    requiresItem: '...',   // quest item id (z items.js)
+    targetLocation: '...', // pro přesuny
+    drainsAreaResource: { resource: 'area_water', amount: 1 },
+    revealsAreaSupplies: true,
+    category: 'taxing',    // 'simple' | 'taxing' | 'rest' | 'refresh' | 'persistent'
+    // Volitelné callbacky:
+    onStart(ctx) { ... },       // gate logika — vrátí { block: true } pro zastavení
+    getResultKey(ctx) { ... },  // dynamický resultKey — vrátí string nebo null
+    onComplete(ctx) { ... },    // side effects po dokončení — void
+  }
+  ```
+- **ctx** objekt předávaný callbackům obsahuje:
+  `gameFlags`, `action`, `addLogEntry`, `LogType`, `t`, `areaResources`,
+  `getLocation`, `getCurrentLocationId`, `getUnlockState`, `setUnlockState`,
+  `flagActionAsNew`, `initAreaResources`, `revealAreaResources`,
+  `showAreaSuppliesPanel`, `refreshUI`, `setFullRebuildNeeded`
+
+# ===== HERNÍ DATA =====
+
+- **Quest itemy** → `sections/character/items.js`
+  ```js
+  { id: 'item_id', name: 'Display Name', slot: 'inventory',
+    icon: 'assets/images/items/...', description: '...', quest: true, tags: ['Quest'] }
+  ```
+- **Per-loop stav** → `gameFlags.něco` (resetuje se při smrti v `handleDeathAndLoop()`)
+- **Persistentní znalosti** → `gameFlags.loopKnowledge.něco` (přežije smrt, persistuje se do localStorage)
+  → Po změně `loopKnowledge` VŽDY zavolat `persistLoopKnowledge(ctx)`
+- **Area resources**:
+  - `initAreaResources()` vytvoří data (volá se v `engine/resources.js`)
+  - `revealAreaResources()` zobrazí v UI
+  - Definovány v `engine/resources.js` → `initAreaResources()`
+  - `scout_ship_main_area`: `area_water` (15, cap 99)
+  - `scout_ship_bridge`: `area_fuel` (300, cap 600) + `area_o2` (200, cap 200)
+
+# ===== RESOURCE A DRAIN SYSTÉM =====
+
+- `DEFAULT_DRAIN` sazby jsou **per-sekundové** (ne per-minutu!):
+  - `Stamina: 0.20/s`, `Food Rations: 0.08/s`, `Drinking Water: 0.12/s`
+- Kategorie akcí a drain:
+  - `simple` — všechny zdroje drainují podle DEFAULT_DRAIN
+  - `taxing` — Stamina drain ×2 (`TAXING_MULT`)
+  - `rest` — Stamina **GAINS** (pozitivní rate z rewards), Food/Water drain normálně
+  - `refresh` — Drinking Water **GAINS** (pozitivní rate z rewards), Stamina/Food drain normálně
+  - `persistent` — žádný drain (prázdné `drain: []`)
+- `rate = rewardAmount / durationSeconds`
+  Příklad: Rest dává 5 Stamina za 15s → rate = 5/15 = 0.33/s
+- **Pasivní area resource změny** → `applyTimePassiveDrain()` v `engine/resources.js`
+  - Pokud přidáváš pasivní drain/gain pro area resource, přidej i odpovídající areaRates řádek pro zobrazení v UI
+
+# ===== LOG TYPY (ingameLog.js) =====
+
+| LogType | Barva | Použití |
+|---|---|---|
+| `LogType.ERROR` | Červená | Varování, chyby, negativní efekty, chybějící item |
+| `LogType.SUCCESS` | Zelená | Výsledky akcí, informativní hlášky |
+| `LogType.INFO` | Modrá/bílá | Neutrální zprávy |
+| `LogType.UNLOCK` | Fialová | Získání itemů, odměn |
+
+# ===== CSS STYLOVÁNÍ =====
+
+- In-game log: `styles/components/ingamelog.css`
+- Info panel (resources/effects/queue): `styles/layout/info-panel.css`
+- Header/footer: `styles/layout/header-footer.css`
+- Navigační menu: `styles/layout/navigation-menu.css`
+- Game area: `styles/base/game-area.css`
+- Globální styly: `styles/base/global.css`
+- Objectives: `styles/components/objectives.css`
+- Location/Explore: `styles/sections/explore.css`
+- Character: `styles/sections/character.css`
+
+# ===== KONTROLNÍ SEZNAM PŘED DOKONČENÍM =====
+
+- [ ] Přidány locale klíče do **obou** `cs/ui.json` a `en/ui.json`
+- [ ] **Žádné** hardcoded stringy v JS/HTML (vše přes `t()`)
+- [ ] `durationSeconds` = reálné sekundy, ne minuty! (20 min = 20s, ne 1200s)
+- [ ] Nová akce používá **callbacky** (`onStart`/`onComplete`/`getResultKey`), ne `if` bloky v engine
+- [ ] `loopKnowledge` změny persistovány přes `persistLoopKnowledge(ctx)`
+- [ ] Nové itemy přidány do `sections/character/items.js`
+- [ ] Nové area resources inicializovány v `engine/resources.js` → `initAreaResources()`
+- [ ] **Žádné změny v `locationEngine.js`** pokud přidáváš jen akci s custom logikou
+- [ ] `_fullRebuildNeeded = true` a `refreshUI()` volány při změně viditelnosti akcí
+- [ ] `gameFlags.recyclerFixed` a další per-loop flagy resetovány v `handleDeathAndLoop()`

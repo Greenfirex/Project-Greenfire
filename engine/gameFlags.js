@@ -12,9 +12,14 @@ const initialGameFlags = {
     // UI-only persistence: which action/upgrade IDs the player has already seen.
     // Keys are strings like "action:go_to_main_area", "action:check_storage", etc.
     uiSeen: {},
+    // Resets on death loop — per-loop state.
+    recyclerFixed: false,
     // Knowledge that persists across death loops — player remembers things.
     loopKnowledge: {
         terminalLogin: false,
+        bookRead: false,
+        recyclerRepairCount: 0,
+        recyclerAttempted: false,
     }
 };
 

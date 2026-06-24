@@ -151,9 +151,12 @@ body.title-screen-active #footer {
 }
 
 .title-screen-btn:hover {
+    transform: scale(1.03);
     box-shadow:
-    0 0 12px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.16),
+        0 0 16px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.24),
+        0 0 32px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10),
         0 10px 26px rgba(0,0,0,0.52);
+    text-shadow: 0 0 10px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.5);
 }
 
 .title-screen-btn:active {
