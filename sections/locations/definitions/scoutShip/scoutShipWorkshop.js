@@ -2,6 +2,18 @@
 // Location: Scout Ship — Workshop
 // ==========================================================================
 
+import { hasLogin, setMilestone, hasMilestone } from '../../../../engine/gameFlags.js';
+
+function persistLoopKnowledge(ctx) {
+    try {
+        const state = JSON.parse(localStorage.getItem('gameState') || '{}');
+        if (!state.gameFlags) state.gameFlags = {};
+        if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = { milestones: {} };
+        state.gameFlags.loopKnowledge = { milestones: { ...ctx.gameFlags.loopKnowledge?.milestones } };
+        localStorage.setItem('gameState', JSON.stringify(state));
+    } catch { /* ignore */ }
+}
+
 export const scoutShipWorkshop = {
     id: 'scout_ship_workshop',
     siteId: 'scout_ship',
@@ -50,7 +62,32 @@ export const scoutShipWorkshop = {
             rewards: [{ type: 'item', name: 'Terminal Login Note', amount: 1 }],
             durationSeconds: 10,
             oneTime: true,
-            resultKey: 'result_search_for_login_note'
+            resultKey: 'result_search_for_login_note',
+            onComplete(ctx) {
+                setMilestone('login_note_found', () => persistLoopKnowledge(ctx));
+                // If terminals were already examined, retroactively unhide "Use Login Note"
+                try {
+                    const crewLoc = ctx.getLocation('scout_ship_crew_quarters');
+                    if (crewLoc) {
+                        const crewUs = ctx.getUnlockState('scout_ship_crew_quarters');
+                        if (crewUs['check_terminal']) {
+                            const useA = (crewLoc.actions || []).find(a => a.id === 'use_terminal_login');
+                            if (useA && useA._completed) { useA._completed = false; ctx.flagActionAsNew('use_terminal_login'); }
+                        }
+                    }
+                } catch { /* ignore */ }
+                try {
+                    const bridgeLoc = ctx.getLocation('scout_ship_bridge');
+                    if (bridgeLoc) {
+                        const bridgeUs = ctx.getUnlockState('scout_ship_bridge');
+                        if (bridgeUs['check_bridge_terminal']) {
+                            const useA = (bridgeLoc.actions || []).find(a => a.id === 'use_bridge_terminal_login');
+                            if (useA && useA._completed) { useA._completed = false; ctx.flagActionAsNew('use_bridge_terminal_login'); }
+                        }
+                    }
+                } catch { /* ignore */ }
+                ctx.setFullRebuildNeeded(true);
+            }
         },
         {
             id: 'tinker_device',
@@ -81,7 +118,8 @@ export const scoutShipWorkshop = {
             rewards: [{ type: 'item', name: 'Repair Tools', amount: 1 }],
             durationSeconds: 5,
             oneTime: true,
-            resultKey: 'result_grab_tools'
+            resultKey: 'result_grab_tools',
+            unlockedBy: '__recycler_attempted__'
         },
         {
             id: 'go_to_main_area',
@@ -90,7 +128,8 @@ export const scoutShipWorkshop = {
             drain: [],
             durationSeconds: 3,
             repeatable: true,
-            targetLocation: 'scout_ship_main_area'
+            targetLocation: 'scout_ship_main_area',
+            resultKey: 'result_go_to_main_area'
         }
     ]
 };

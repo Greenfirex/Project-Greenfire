@@ -168,7 +168,7 @@
   "loc_scout_ship_main_area_desc": "The ship's main gathering area. Tables and chairs are overturned from the crash. Emergency lights pulse dimly along the ceiling. A <span class=\"poi-highlight\">CAFETERIA</span> counter sits against one wall, and a <span class=\"poi-highlight\">COMMUNICATIONS</span> station occupies the corner.",
 
   "loc_scout_ship_bridge": "Scout Ship — Bridge",
-  "loc_scout_ship_bridge_desc": "The bridge of the scout ship, dark and silent. Consoles line the curved walls, most of them dark. The main viewport is cracked but intact, revealing the pale amber sky outside. A <span class=\"poi-highlight\">NAVIGATION</span> console pulses weakly, while the <span class=\"poi-highlight\">CONTROLS</span> panel sits within arm's reach at center.",
+  "loc_scout_ship_bridge_desc": "The bridge of the scout ship, dark and silent. Consoles line the curved walls, most of them dark. The main viewport is cracked but intact, revealing the pale amber sky outside. A <span class=\"poi-highlight\">NAVIGATION</span> console pulses weakly, while the <span class=\"poi-highlight\">CONTROLS</span> panel sits within arm's reach at center. At the rear, an access hatch leads to <span class=\"poi-highlight\">ENGINEERING</span> — the heart of the ship's systems.",
 
   "loc_scout_ship_workshop": "Scout Ship — Workshop",
   "loc_scout_ship_workshop_desc": "A cramped engineering bay tucked behind the main corridor. A sturdy <span class=\"poi-highlight\">WORKBENCH</span> dominates the center, tools scattered across its surface. Against the far wall, a cluttered <span class=\"poi-highlight\">PROTOTYPE BENCH</span> holds half-finished projects. In the corner, a small <span class=\"poi-highlight\">FABRICATOR</span> hums with residual power, ready to synthesize components.",
@@ -198,7 +198,8 @@
   "action_check_terminal": "Check Terminal",
   "action_check_terminal_desc": "Try to log into the terminal. From there you should be able to disable that annoying alarm and maybe figure out why it went off.",
   "result_check_terminal": "You tap the console and the screen flickers to life, demanding credentials. You tried a few random passwords but no luck. Fortunately, you have some experience with this operating system and should be able to hack into the terminal — it'll just take a while. Oh, and you noticed a sticky note on the monitor — \"workshop\". Maybe the login can be found there?",
-  "result_check_terminal_known": "You tap the console. This time you remember the login — muscle memory from the last loop. The lock screen dissolves with a soft chime. You're in.",
+  "result_check_terminal_known": "You tap the console. You already know the password — you type it in with confidence. The screen dissolves with a soft chime. You're in.",
+  "result_check_terminal_first_has_login": "You tap the unfamiliar console. The login screen looks identical to the other terminal — the password you already have might work. You enter it. The screen dissolves with a soft chime. You're in.",
   "result_check_terminal_loop1": "You tap the console… and freeze. Your fingers move before your mind catches up — you already know the password. You don't know how you know. A chill runs through you as the lock screen dissolves.",
   "result_check_terminal_loop2": "You don't even hesitate. The password is already beneath your fingertips. The lock screen gives way with the same soft chime you've heard before — you've lost count of how many times. The routine is becoming unsettling. You're in.",
 
@@ -209,10 +210,13 @@
   "action_use_terminal_login": "Use Login Note",
   "action_use_terminal_login_desc": "Use the found login credentials to access the terminal immediately.",
   "result_use_terminal_login": "You enter the credentials from the sticky note. The lock screen dissolves instantly. You're in — terminal access granted.",
+  "action_enter_known_credentials": "Log In (Known Password)",
+  "action_enter_known_credentials_desc": "Enter the password you already know from using it on the other terminal.",
+  "result_enter_known_credentials": "You enter the known password and the screen dissolves with a soft chime. You're in — the password works on this terminal too.",
 
   "action_search_for_login_note": "Search for Login Note",
   "action_search_for_login_note_desc": "Search the workbench area for a sticky note with terminal login credentials.",
-  "result_search_for_login_note": "You rummage through the clutter on the workbench. Tucked under a coffee-stained schematic, you find a sticky note: \"terminal — user: crew01 / pass: vagabond47\". This could be useful back at the crew quarters terminal.",
+  "result_search_for_login_note": "You rummage through the clutter on the workbench. Tucked under a coffee-stained schematic, you find a sticky note: \"terminal — user: crew01 / pass: vagabond47\". This could be useful back at terminal.",
 
   "action_access_logs": "Access Logs",
   "action_access_logs_desc": "Browse the ship's logs and crew manifests stored on the terminal.",
@@ -317,6 +321,7 @@
   "poi_communications": "COMMUNICATIONS",
   "poi_navigation": "NAVIGATION",
   "poi_controls": "CONTROLS",
+  "poi_engineering": "ENGINEERING",
 
   "poi_bunks_desc": "Your bunk area. Rest, search for supplies, and recover.",
   "poi_terminal_desc": "The ship's data terminal. Check systems and access logs.",
@@ -347,6 +352,48 @@
   "log_recycler_need_tools": "You know what to do now, but you'll need proper tools. Time to find a basic repair kit.",
   "log_recycler_remember": "You remember exactly how this works. Last time it took forever, but now you know what you're doing.",
 
+  "log_death": "💀 You have died. Health reached 0.",
+  "log_used_item": "Used: {item}.",
+  "log_auto_drink": "Auto-drink: Used Bottled Water (+{amount} Water)",
+  "log_auto_eat": "Auto-eat: Used Packaged Food (+{amount} Food)",
+
   "log_need_item": "You need {item} to do this.",
-  "log_received_item": "Received: {item}"
+  "log_received_item": "Received: {item}",
+  "log_need_terminal_login": "You need terminal access to make the necessary system changes. Without it, you can't reconfigure the reactor.",
+  "log_reactor_terminal_hint": "As you work, you realize — this interface isn't tied to a specific console. Next time you could do this from any terminal on the ship.",
+
+  "result_go_to_main_area": "You head to the main area.",
+  "result_go_to_crew_quarters": "You return to the crew quarters.",
+  "result_go_to_bridge": "You head to the ship's bridge.",
+  "result_go_to_workshop": "You head to the workshop.",
+
+  "log_action_completed": "{action} completed.",
+
+  "action_optimize_reactor": "Optimize Reactor",
+  "action_optimize_reactor_desc": "Shut down non-essential systems and reconfigure power distribution to reduce fuel consumption. Requires terminal access.",
+  "result_optimize_reactor": "You sit at the engineering console and scroll through the list of active systems. Section by section, you shut down everything that isn't absolutely critical — cabin heating for empty quarters, backup comms arrays, lab equipment. Fuel consumption drops visibly. You've bought precious extra time.",
+  "result_optimize_reactor_known": "You know exactly what to look for. In seconds you flip the necessary switches. Fuel consumption drops once again.",
+
+  "action_check_bridge_terminal": "Check Terminal",
+  "action_check_bridge_terminal_desc": "Try to log into the engineering terminal on the bridge.",
+  "result_check_bridge_terminal": "You tap the engineering console. The screen flickers to the ship system login screen. Without credentials you can't proceed. Maybe you could try hacking it.",
+  "result_check_bridge_terminal_known": "You tap the console. You enter the credentials with confidence — you know them by now. The system lets you in with a soft chime.",
+  "result_check_bridge_terminal_first_has_login": "You tap the engineering console. The login screen looks familiar — you try the password you already know. It works. The system lets you in.",
+  "result_check_bridge_terminal_loop1": "You tap the console… and freeze. Your fingers move before your mind catches up — you already know the password. You don't know how you know. A chill runs through you as the login screen dissolves.",
+  "result_check_bridge_terminal_loop2": "You don't even hesitate. The password is already beneath your fingertips. The login screen gives way with the same soft chime as always. You're in.",
+
+  "action_hack_bridge_terminal": "Hack Terminal",
+  "action_hack_bridge_terminal_desc": "Spend time bypassing the engineering terminal's security on the bridge.",
+  "result_hack_bridge_terminal": "After painstaking trial and error, you finally crack the engineering terminal's authentication. The system welcomes you with a soft chime — and you won't forget the login now.",
+
+  "action_use_bridge_terminal_login": "Use Login Note",
+  "action_use_bridge_terminal_login_desc": "Use the found login credentials to access the engineering terminal on the bridge.",
+  "result_use_bridge_terminal_login": "You enter the credentials from the sticky note into the engineering console. The lock screen dissolves instantly. You're in.",
+  "action_enter_known_credentials_bridge": "Log In (Known Password)",
+  "action_enter_known_credentials_bridge_desc": "Enter the password you already know from the crew quarters terminal.",
+  "result_enter_known_credentials_bridge": "You enter the known password. The login screen dissolves instantly — access granted.",
+
+  "action_optimize_reactor_remote": "Optimize Reactor Remotely",
+  "action_optimize_reactor_remote_desc": "You already know the reactor is dying. Through the terminal in your quarters you can run the optimization — you know the right parameters by heart.",
+  "result_optimize_reactor_remote": "You log into the terminal and enter the familiar commands. Even remotely, you can tell the fuel consumption dropped — the display indicators confirm it."
 }

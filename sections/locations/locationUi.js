@@ -112,7 +112,8 @@ export function renderDetailsTile() {
                     }
                 }
             }
-            const costItems = Object.entries(DEFAULT_DRAIN)
+            const baseRates = action.drainRates || DEFAULT_DRAIN;
+            const costItems = Object.entries(baseRates)
                 .filter(([resName]) => {
                     // Skip resource being gained in costs display
                     if (isRest && resName === 'Stamina') return false;

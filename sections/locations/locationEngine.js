@@ -34,7 +34,8 @@ export function canAffordAction(action) {
     if (!action) return true;
     const durationMins = (action.durationSeconds || 1) / 60;
     const mult = action.category === 'taxing' ? TAXING_MULT : 1;
-    for (const [resName, baseRate] of Object.entries(DEFAULT_DRAIN)) {
+    const baseRates = action.drainRates || DEFAULT_DRAIN;
+    for (const [resName, baseRate] of Object.entries(baseRates)) {
         if (action.category === 'rest' && resName === 'Stamina') continue;
         if (action.category === 'refresh' && resName === 'Drinking Water') continue;
         const rateMultiplier = resName === 'Stamina' ? mult : 1;
@@ -117,7 +118,7 @@ function completeActiveAction(opts = {}) {
             const itemDef = getItemDefinition(action._pendingItem);
             const consumed = consumeItemQuantityFromBag(action._pendingItem, 1);
             if (consumed) {
-                addLogEntry(`Used: ${itemDef?.name || action._pendingItem}.`, LogType.INFO);
+                addLogEntry(t('log_used_item', { item: itemDef?.name || action._pendingItem }), LogType.INFO);
             }
             delete action._pendingItem;
         } catch { /* ignore */ }
@@ -138,7 +139,7 @@ function completeActiveAction(opts = {}) {
     } else if (action._resultKey || action.resultKey) {
         addLogEntry(t(action._resultKey || action.resultKey), LogType.SUCCESS);
     } else {
-        addLogEntry(`${action._displayName || action.id} completed.`, LogType.INFO);
+        addLogEntry(t('log_action_completed', { action: action._displayName || t(action.nameKey) }), LogType.INFO);
     }
     // Remove effect if this action removes one
     if (action.removesEffect) {
@@ -240,7 +241,9 @@ function completeActiveAction(opts = {}) {
     clearActionTimer();
     activeAction = null; activeActionId = null; actionProgress = 0; actionPaused = false;
     _infoUpdateCounter = 0; _fullRebuildNeeded = true;
-    if (targetLoc && switchToLocation(targetLoc)) addLogEntry(`Arrived at ${t(getLocation(targetLoc)?.nameKey || targetLoc)}.`, LogType.INFO);
+    if (targetLoc && switchToLocation(targetLoc)) {
+        // Movement completion is now handled via resultKey — skip duplicated "Arrived at"
+    }
     updateQueueActive(null);
     refreshUI();
     startNextQueuedAction();
@@ -345,7 +348,8 @@ export function startAction(actionId) {
             }
         }
     }
-    for (const [resName, baseRate] of Object.entries(DEFAULT_DRAIN)) {
+    const baseRates2 = action.drainRates || DEFAULT_DRAIN;
+    for (const [resName, baseRate] of Object.entries(baseRates2)) {
         if ((isRest || isRefresh) && rewardResourceName === resName) {
             const perMin = rewardPerSecRate;
             drainRates[resName] = perMin;
@@ -353,6 +357,7 @@ export function startAction(actionId) {
             sources[resName].push({ rate: perMin, label: displayName });
             continue;
         }
+        // Use drainRates if defined, otherwise DEFAULT_DRAIN
         const rateMultiplier = resName === 'Stamina' ? mult : 1;
         const perMin = baseRate * rateMultiplier;
         drainRates[resName] = -perMin;
@@ -497,6 +502,45 @@ export function setPoiCollapseState(locationId, poiId, collapsed) {
 // ==========================================================================
 // Action unlock state persistence
 // ==========================================================================
+
+/**
+ * Collect all _completed flags from all registered locations.
+ * Returns { [locId]: [actionId, ...] }
+ */
+export function getActionCompletionState() {
+    const state = {};
+    try {
+        // Known location IDs — iterate and collect _completed flags
+        const knownIds = ['scout_ship_crew_quarters', 'scout_ship_main_area', 'scout_ship_bridge', 'scout_ship_workshop', 'gamma_crew_quarters', 'workshop'];
+        for (const locId of knownIds) {
+            const loc = getLocation(locId);
+            if (!loc || !Array.isArray(loc.actions)) continue;
+            const completed = loc.actions.filter(a => a._completed).map(a => a.id);
+            if (completed.length > 0) state[locId] = completed;
+        }
+    } catch { /* ignore */ }
+    return state;
+}
+
+/**
+ * Restore _completed flags from saved state.
+ * @param {object} savedState - { [locId]: [actionId, ...] }
+ */
+export function restoreActionCompletionState(savedState) {
+    if (!savedState || typeof savedState !== 'object') return;
+    try {
+        for (const [locId, actionIds] of Object.entries(savedState)) {
+            if (!Array.isArray(actionIds)) continue;
+            const loc = getLocation(locId);
+            if (!loc || !Array.isArray(loc.actions)) continue;
+            for (const actionId of actionIds) {
+                const action = loc.actions.find(a => a.id === actionId);
+                if (action) action._completed = true;
+            }
+        }
+    } catch { /* ignore */ }
+}
+
 export function getUnlockState(locationId) {
     try { return JSON.parse(localStorage.getItem(`unlocks_${locationId}`) || '{}'); }
     catch { return {}; }
@@ -548,7 +592,8 @@ export function resumeSavedAction(state) {
             }
         }
     }
-    for (const [resName, baseRate] of Object.entries(DEFAULT_DRAIN)) {
+    const baseRates3 = action.drainRates || DEFAULT_DRAIN;
+    for (const [resName, baseRate] of Object.entries(baseRates3)) {
         if (isRest && resName === 'Stamina') {
             const perMin = rewardPerSecRate;
             drainRates[resName] = perMin;

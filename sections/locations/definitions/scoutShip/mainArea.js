@@ -2,12 +2,14 @@
 // Location: Scout Ship — Main Area / Cafeteria
 // ==========================================================================
 
+import { hasLogin, setMilestone, hasMilestone } from '../../../../engine/gameFlags.js';
+
 function persistLoopKnowledge(ctx) {
     try {
         const state = JSON.parse(localStorage.getItem('gameState') || '{}');
         if (!state.gameFlags) state.gameFlags = {};
-        if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = {};
-        state.gameFlags.loopKnowledge = { ...ctx.gameFlags.loopKnowledge };
+        if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = { milestones: {} };
+        state.gameFlags.loopKnowledge = { milestones: { ...ctx.gameFlags.loopKnowledge?.milestones } };
         localStorage.setItem('gameState', JSON.stringify(state));
     } catch { /* ignore */ }
 }
@@ -99,7 +101,8 @@ export const scoutShipMainArea = {
             drain: [],
             durationSeconds: 3,
             repeatable: true,
-            targetLocation: 'scout_ship_crew_quarters'
+            targetLocation: 'scout_ship_crew_quarters',
+            resultKey: 'result_go_to_crew_quarters'
         },
         {
             id: 'go_to_bridge',
@@ -108,7 +111,8 @@ export const scoutShipMainArea = {
             drain: [],
             durationSeconds: 3,
             repeatable: true,
-            targetLocation: 'scout_ship_bridge'
+            targetLocation: 'scout_ship_bridge',
+            resultKey: 'result_go_to_bridge'
         },
         {
             id: 'repair_recycler',
@@ -121,36 +125,34 @@ export const scoutShipMainArea = {
             requiresItem: 'repair_tools',
             unlockedBy: 'assess_supplies',
             onStart(ctx) {
-                if (!ctx.gameFlags.loopKnowledge) ctx.gameFlags.loopKnowledge = {};
                 // Mark attempt on first click — needed to unlock grab_tools in workshop
-                if (!ctx.gameFlags.loopKnowledge.recyclerAttempted) {
-                    ctx.gameFlags.loopKnowledge.recyclerAttempted = true;
-                    persistLoopKnowledge(ctx);
+                if (!hasMilestone('recycler_attempted')) {
+                    setMilestone('recycler_attempted', () => persistLoopKnowledge(ctx));
+                    try {
+                        const wsUs = ctx.getUnlockState('scout_ship_workshop');
+                        wsUs['__recycler_attempted__'] = true;
+                        ctx.setUnlockState('scout_ship_workshop', wsUs);
+                        ctx.flagActionAsNew('grab_tools');
+                    } catch { /* ignore */ }
                     ctx.setFullRebuildNeeded(true);
                     ctx.refreshUI();
                 }
-                const bookRead = ctx.gameFlags.loopKnowledge.bookRead;
-                if (!bookRead) {
+                if (!hasMilestone('book_read')) {
                     ctx.addLogEntry(ctx.t('log_recycler_no_idea'), ctx.LogType.SUCCESS);
                     return { block: true };
                 }
                 // Adjust duration for repeat repairs
-                const repairCount = ctx.gameFlags.loopKnowledge.recyclerRepairCount || 0;
-                if (repairCount > 0) {
+                if (hasMilestone('recycler_repaired')) {
                     ctx.action.durationSeconds = 10;
                     ctx.addLogEntry(ctx.t('log_recycler_remember'), ctx.LogType.INFO);
                 }
             },
             getResultKey(ctx) {
-                const repairCount = (ctx.gameFlags.loopKnowledge && ctx.gameFlags.loopKnowledge.recyclerRepairCount) || 0;
-                return repairCount > 0 ? 'result_repair_recycler_remember' : 'result_repair_recycler_first';
+                return hasMilestone('recycler_repaired') ? 'result_repair_recycler_remember' : 'result_repair_recycler_first';
             },
             onComplete(ctx) {
-                if (!ctx.gameFlags.loopKnowledge) ctx.gameFlags.loopKnowledge = {};
-                const repairCount = (ctx.gameFlags.loopKnowledge.recyclerRepairCount || 0) + 1;
-                ctx.gameFlags.loopKnowledge.recyclerRepairCount = repairCount;
                 ctx.gameFlags.recyclerFixed = true;
-                persistLoopKnowledge(ctx);
+                setMilestone('recycler_repaired', () => persistLoopKnowledge(ctx));
             }
         },
         {
@@ -160,7 +162,8 @@ export const scoutShipMainArea = {
             drain: [],
             durationSeconds: 3,
             repeatable: true,
-            targetLocation: 'scout_ship_workshop'
+            targetLocation: 'scout_ship_workshop',
+            resultKey: 'result_go_to_workshop'
         }
     ]
 };

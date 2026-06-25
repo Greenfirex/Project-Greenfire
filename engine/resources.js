@@ -3,7 +3,7 @@ import { setupTooltip } from '../ui/panels/tooltip.js';
 import { t } from '../locales/locales.js';
 import { setupEffectsUI, getEffectDebuffs, getEffectDrains, getEffectDebuffDetails, addEffect, removeEffect, hasEffect, updateEffectsUI, EFFECT_HUNGRY, EFFECT_THIRSTY, EFFECT_EXHAUSTED, EFFECT_LIFE_SUPPORT_FAILURE, EFFECT_OXYGEN_DEPLETED, clearAllEffects } from './effects.js';
 import { setupQueueUI } from './queue.js';
-import { gameFlags } from './gameFlags.js';
+import { gameFlags, flagActionAsNew } from './gameFlags.js';
 import { switchToLocation } from '../sections/locations/locationData.js';
 import { clearQueue } from './queue.js';
 import { resetIngameTime } from './time.js';
@@ -771,7 +771,7 @@ function handleDeathAndLoop(opts = {}) {
         localStorage.setItem('gameState', JSON.stringify(state));
     } catch { /* ignore */ }
 
-    addLogEntry(`💀 You have died. Health reached 0.`, LogType.ERROR);
+    addLogEntry(t('log_death'), LogType.ERROR);
 
     // Determine story popup content based on loop stage
     let titleKey, pagesKey;
@@ -811,6 +811,47 @@ function handleDeathAndLoop(opts = {}) {
             if (extraPage) pages.push(extraPage);
         }
     }
+
+    // Reset per-loop game flags
+    gameFlags.recyclerFixed = false;
+    gameFlags.reactorOptimized = false;
+
+    // --- loopAvailable callback: akce si řeknou, kdy mají být vidět ---
+    try {
+        Promise.all([
+            import('../sections/locations/locationData.js'),
+            import('../sections/locations/locationEngine.js')
+        ]).then(([{ getAllLocations }, { getUnlockState: getUs, setUnlockState: setUs }]) => {
+            const allLocations = getAllLocations();
+            Object.values(allLocations).forEach(loc => {
+                if (!loc || !Array.isArray(loc.actions)) return;
+                const us = getUs(loc.id);
+                let changed = false;
+                loc.actions.forEach(action => {
+                    if (typeof action.loopAvailable === 'function') {
+                        try {
+                            const available = action.loopAvailable({ gameFlags });
+                            if (available) {
+                                if (!us[action.id]) {
+                                    us[action.id] = true;
+                                    changed = true;
+                                    flagActionAsNew(action.id);
+                                }
+                                // Dynamically add to target POI
+                                if (action.loopAvailablePoi) {
+                                    const poi = (loc.pois || []).find(p => p.id === action.loopAvailablePoi);
+                                    if (poi && !poi.actions.includes(action.id)) {
+                                        poi.actions.push(action.id);
+                                    }
+                                }
+                            }
+                        } catch { /* ignore */ }
+                    }
+                });
+                if (changed) setUs(loc.id, us);
+            });
+        });
+    } catch { /* ignore */ }
 
     // Clear all survival effects for the fresh loop
     clearAllEffects();
@@ -892,7 +933,7 @@ function tickAutoConsume() {
                         import('../sections/character/character.js').then(({ consumeItemQuantityFromBag }) => {
                             if (consumeItemQuantityFromBag('bottled_water', 1)) {
                                 waterRes.amount = Math.min(waterRes.capacity, waterRes.amount + def.consumable.amount);
-                                addLogEntry(`Auto-drink: Used Bottled Water (+${def.consumable.amount} Water)`, LogType.INFO);
+                                addLogEntry(t('log_auto_drink', { amount: def.consumable.amount }), LogType.INFO);
                             }
                         });
                     }
@@ -911,7 +952,7 @@ function tickAutoConsume() {
                         import('../sections/character/character.js').then(({ consumeItemQuantityFromBag }) => {
                             if (consumeItemQuantityFromBag('packaged_food', 1)) {
                                 foodRes.amount = Math.min(foodRes.capacity, foodRes.amount + def.consumable.amount);
-                                addLogEntry(`Auto-eat: Used Packaged Food (+${def.consumable.amount} Food)`, LogType.INFO);
+                                addLogEntry(t('log_auto_eat', { amount: def.consumable.amount }), LogType.INFO);
                             }
                         });
                     }
@@ -986,7 +1027,7 @@ export function applyTimePassiveDrain(realSeconds) {
     
     // --- Area resource passive drains (ship fuel → O2 cascade) ---
     // Ship fuel drains over time (~1 unit per second)
-    const FUEL_DRAIN_PER_MIN = 1.8; // 6/min reduced by 70% → 1.8/min
+    const FUEL_DRAIN_PER_MIN = gameFlags.reactorOptimized ? 1.20 : 1.80;
     const O2_DRAIN_PER_MIN = 4; // O2 drains slower than fuel
 
     const bridgeList = areaResources['scout_ship_bridge'];
@@ -1043,7 +1084,7 @@ export function applyTimePassiveDrain(realSeconds) {
 
     // Set area drain rates for passive fuel/O2 drain display
     const areaRates = {};
-    if (fuel && fuel.amount > 0) areaRates['area_fuel'] = '-1.80/min';
+    if (fuel && fuel.amount > 0) areaRates['area_fuel'] = `-${FUEL_DRAIN_PER_MIN.toFixed(2)}/min`;
     if (o2 && hasEffect('life_support_failure') && o2.amount > 0) areaRates['area_o2'] = '-4.00/min';
     if (gameFlags.recyclerFixed) areaRates['area_water'] = '+0.50/min';
     setActiveAreaDrainRates(Object.keys(areaRates).length > 0 ? areaRates : null);

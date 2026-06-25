@@ -168,7 +168,7 @@
   "loc_scout_ship_main_area_desc": "Hlavní shromažďovací prostor lodi. Stoly a židle jsou převrácené po havárii. Nouzová světla slabě pulzují podél stropu. Pult <span class=\"poi-highlight\">JÍDELNY</span> stojí u jedné stěny a <span class=\"poi-highlight\">KOMUNIKAČNÍ</span> stanice zabírá roh místnosti.",
 
   "loc_scout_ship_bridge": "Průzkumná loď — Můstek",
-  "loc_scout_ship_bridge_desc": "Můstek průzkumné lodi, temný a tichý. Konzole lemují zakřivené stěny, většina z nich je zhaslá. Hlavní průzor je prasklý, ale neporušený, odhaluje bledě jantarovou oblohu venku. <span class=\"poi-highlight\">NAVIGAČNÍ</span> konzole slabě pulzuje, zatímco panel <span class=\"poi-highlight\">OVLÁDÁNÍ</span> je na dosah ruky uprostřed místnosti.",
+  "loc_scout_ship_bridge_desc": "Můstek průzkumné lodi, temný a tichý. Konzole lemují zakřivené stěny, většina z nich je zhaslá. Hlavní průzor je prasklý, ale neporušený, odhaluje bledě jantarovou oblohu venku. <span class=\"poi-highlight\">NAVIGAČNÍ</span> konzole slabě pulzuje, zatímco panel <span class=\"poi-highlight\">OVLÁDÁNÍ</span> je na dosah ruky uprostřed místnosti. V zadní části se nachází přístup k <span class=\"poi-highlight\">STROJOVNĚ</span> — srdci lodních systémů.",
 
   "loc_scout_ship_workshop": "Průzkumná loď — Dílna",
   "loc_scout_ship_workshop_desc": "Stísněný technický prostor zastrčený za hlavní chodbou. Uprostřed dominuje pevný <span class=\"poi-highlight\">PRACOVNÍ STŮL</span> s nářadím rozházeným po jeho ploše. U protější stěny stojí přeplněný <span class=\"poi-highlight\">PROTOTYPOVÝ STŮL</span> s nedokončenými projekty. V rohu tiše bzučí malý <span class=\"poi-highlight\">FABRIKÁTOR</span> se zbytkovou energií, připravený syntetizovat součástky.",
@@ -198,7 +198,8 @@
   "action_check_terminal": "Zkontrolovat terminál",
   "action_check_terminal_desc": "Pokusit se přihlásit k terminálu, odtud by snad měl jít vypnout ten otravný alarm a připadně i zjistit proč se spustil.",
   "result_check_terminal": "Klepneš na konzoli a obrazovka zabliká k životu, žádá přihlašovací údaje. Zkusil si několik náhodných hesel, ale bez úspěchu. Naštěstí máš trochu zkušeností s tímhle operačním systémem a měl bys být schopný se do terminálu hacknout, ale chvilku to potrvá. Jo a taky sis všiml nalepeného lístečku na monitoru — \"dílna\". Je možné, že se login dá najít někde tam?",
-  "result_check_terminal_known": "Klepneš na konzoli. Tentokrát si heslo pamatuješ — svalová paměť z minulé smyčky. Zamykací obrazovka se rozplyne s tichým pípnutím. Jsi uvnitř.",
+  "result_check_terminal_known": "Klepneš na konzoli. Heslo už znáš — zadáváš ho s jistotou. Obrazovka se rozplyne s tichým pípnutím. Jsi uvnitř.",
+  "result_check_terminal_first_has_login": "Klepneš na neznámou konzoli. Přihlašovací obrazovka je stejná jako na druhém terminálu — heslo, které už znáš, by mohlo fungovat. Zadáš ho. Obrazovka se rozplyne s tichým pípnutím. Jsi uvnitř.",
   "result_check_terminal_loop1": "Klepneš na konzoli… a ztuhneš. Tvé prsty se pohnou dřív, než to tvé mysli dojde — ty už heslo znáš. Nevíš, jak to víš. Projede tebou chlad, zatímco se zamykací obrazovka rozplyne.",
   "result_check_terminal_loop2": "Ani na vteřinu nezaváháš. Heslo už je pod konečky tvých prstů. Zamykací obrazovka povolí se stejným tichým pípnutím, jaké jsi slyšel už tolikrát — ani to nespočítáš. Ta rutina začíná být znepokojivá. Jsi uvnitř.",
 
@@ -209,10 +210,13 @@
   "action_use_terminal_login": "Použít lísteček s heslem",
   "action_use_terminal_login_desc": "Použít nalezené přihlašovací údaje k okamžitému přístupu do terminálu.",
   "result_use_terminal_login": "Zadáváš údaje z lístečku. Zamykací obrazovka se okamžitě rozplyne. Jsi uvnitř — přístup do terminálu získán.",
+  "action_enter_known_credentials": "Přihlásit se (známé heslo)",
+  "action_enter_known_credentials_desc": "Zadáš heslo, které už znáš z předchozího použití na jiném terminálu.",
+  "result_enter_known_credentials": "Zadáš známé heslo a obrazovka se rozplyne s tichým pípnutím. Jsi uvnitř — heslo pasuje i na tenhle terminál.",
 
   "action_search_for_login_note": "Hledat lísteček s heslem",
   "action_search_for_login_note_desc": "Prohledat pracovní stůl a hledat lísteček s přihlašovacími údaji k terminálu.",
-  "result_search_for_login_note": "Prohrabáváš se harampádím na pracovním stole. Pod plánkem s fleky od kafe nacházíš nalepený lísteček: \"terminál — user: crew01 / pass: vagabond47\". To by se mohlo hodit zpátky v ubikacích u terminálu.",
+  "result_search_for_login_note": "Prohrabáváš se harampádím na pracovním stole. Pod plánkem s fleky od kafe nacházíš nalepený lísteček: \"terminál — user: crew01 / pass: vagabond47\". To by se mohlo hodit u terminálu.",
 
   "action_access_logs": "Přístup k záznamům",
   "action_access_logs_desc": "Prohlédni si záznamy lodi a seznamy posádky uložené v terminálu.",
@@ -317,6 +321,7 @@
   "poi_communications": "KOMUNIKACE",
   "poi_navigation": "NAVIGACE",
   "poi_controls": "OVLÁDÁNÍ",
+  "poi_engineering": "STROJOVNA",
 
   "poi_bunks_desc": "Prostor tvé palandy. Odpočiň si, hledej zásoby a zotav se.",
   "poi_terminal_desc": "Datový terminál lodi. Zkontroluj systémy a přistup k záznamům.",
@@ -347,6 +352,48 @@
   "log_recycler_need_tools": "Už víš jak na to, ale bez pořádného nářadí to nepůjde. Potřebuješ sehnat základní sadu opravářského nářadí.",
   "log_recycler_remember": "Pamatuješ si přesně jak na to. Minule ti to trvalo věčnost, ale teď už víš co děláš.",
 
+  "log_death": "💀 Zemřel jsi. Zdraví kleslo na 0.",
+  "log_used_item": "Použito: {item}.",
+  "log_auto_drink": "Automatické pití: Použita Láhev s vodou (+{amount} Vody)",
+  "log_auto_eat": "Automatické jídlo: Použito Balené jídlo (+{amount} Jídla)",
+
   "log_need_item": "Potřebuješ {item}, abys to mohl udělat.",
-  "log_received_item": "Získal jsi: {item}"
+  "log_received_item": "Získal jsi: {item}",
+  "log_need_terminal_login": "Potřebuješ přístup k lodnímu terminálu. Bez něj nedokážeš provést potřebné změny v systému.",
+  "log_reactor_terminal_hint": "Při práci si uvědomuješ — tohle rozhraní není vázané na konkrétní konzoli. Příště bys to mohl udělat z jakéhokoliv terminálu na lodi.",
+
+  "result_go_to_main_area": "Vydáváš se do hlavního prostoru.",
+  "result_go_to_crew_quarters": "Vracíš se zpět do ubikací.",
+  "result_go_to_bridge": "Vydáváš se na lodní můstek.",
+  "result_go_to_workshop": "Vydáváš se do dílny.",
+
+  "log_action_completed": "{action} dokončena.",
+
+  "action_optimize_reactor": "Optimalizovat reaktor",
+  "action_optimize_reactor_desc": "Vypnout nepotřebné systémy a překonfigurovat distribuci energie pro snížení spotřeby paliva. Vyžaduje přístup k lodnímu terminálu.",
+  "result_optimize_reactor": "Sedáš si k inženýrské konzoli a procházíš seznam běžících systémů. Sekce za sekcí vypínáš všechno, co není nezbytně nutné — vyhřívání neobydlených kajut, záložní komunikační pole, laboratorní zařízení. Spotřeba paliva viditelně klesá. Získal jsi drahocenný čas navíc.",
+  "result_optimize_reactor_known": "Už přesně víš, co hledat. Během pár vteřin překlikáš potřebné přepínače. Spotřeba paliva opět klesá.",
+
+  "action_check_bridge_terminal": "Zkontrolovat terminál",
+  "action_check_bridge_terminal_desc": "Pokusit se přihlásit k inženýrskému terminálu na můstku.",
+  "result_check_bridge_terminal": "Klepneš na inženýrskou konzoli. Obrazovka naběhne do přihlašovací obrazovky lodního systému. Bez přístupových údajů se dál nedostaneš. Možná bys to mohl zkusit hacknout.",
+  "result_check_bridge_terminal_known": "Klepneš na konzoli. Přihlašovací údaje zadáváš s jistotou — už je znáš. Systém tě pustí dál s tichým pípnutím.",
+  "result_check_bridge_terminal_first_has_login": "Klepneš na inženýrskou konzoli. Přihlašovací obrazovka je povědomá — vyzkoušíš heslo co už znáš. Funguje. Systém tě pustí dál.",
+  "result_check_bridge_terminal_loop1": "Klepneš na konzoli… a ztuhneš. Tvé prsty se pohnou dřív, než to tvé mysli dojde — ty už heslo znáš. Nevíš, jak to víš. Projede tebou chlad, zatímco se přihlašovací obrazovka rozplyne.",
+  "result_check_bridge_terminal_loop2": "Ani na vteřinu nezaváháš. Heslo už je pod konečky tvých prstů. Přihlašovací obrazovka povolí se stejným tichým pípnutím jako vždy. Jsi uvnitř.",
+
+  "action_hack_bridge_terminal": "Hacknout terminál",
+  "action_hack_bridge_terminal_desc": "Strávit čas obcházením zabezpečení inženýrského terminálu na můstku.",
+  "result_hack_bridge_terminal": "Po úmorném zkoušení a omylech konečně prolomíš autentizaci inženýrského terminálu. Systém tě přivítá tichým pípnutím — a teď už heslo nezapomeneš.",
+
+  "action_use_bridge_terminal_login": "Použít lísteček s heslem",
+  "action_use_bridge_terminal_login_desc": "Použít nalezený lísteček s přihlašovacími údaji k přístupu do inženýrského terminálu na můstku.",
+  "result_use_bridge_terminal_login": "Zadáváš údaje z lístečku do inženýrské konzole. Přihlašovací obrazovka se okamžitě rozplyne. Máš přístup.",
+  "action_enter_known_credentials_bridge": "Přihlásit se (známé heslo)",
+  "action_enter_known_credentials_bridge_desc": "Zadáš heslo, které už znáš z terminálu v ubikacích.",
+  "result_enter_known_credentials_bridge": "Zadáš známé heslo. Přihlašovací obrazovka se okamžitě rozplyne — přístup získán.",
+
+  "action_optimize_reactor_remote": "Optimalizovat reaktor na dálku",
+  "action_optimize_reactor_remote_desc": "Už víš, že reaktor je na tom špatně. Přes terminál v ubikacích dokážeš provést optimalizaci, protože už znáš správné parametry.",
+  "result_optimize_reactor_remote": "Přihlašuješ se k terminálu a zadáváš známé příkazy. I na dálku jde poznat, že spotřeba paliva klesla — indikátory na displeji to potvrzují."
 }

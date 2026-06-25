@@ -10,6 +10,7 @@ const resetActiveActions = () => {};
 const getActiveCrashSiteAction = () => null;
 const setActiveCrashSiteAction = () => {};
 import { characterState, applySavedCharacterState, getCharacterStateForSave, resetCharacterState } from '../sections/character/character.js';
+import { getActionCompletionState, restoreActionCompletionState } from '../sections/locations/locationEngine.js';
 import { getObjectivesStatus, setObjectivesStatus, resetObjectives } from './objectives.js';
 import { t } from '../locales/locales.js';
 import { clearAllEffects, getActiveEffectsForSave, setActiveEffects } from './effects.js';
@@ -58,7 +59,8 @@ export function getGameState() {
         activeEffects: (function(){ try { return getActiveEffectsForSave(); } catch { return []; } })(),
         actionQueue: (function(){ try { return getQueueForSave(); } catch { return []; } })(),
         areaResources: (function(){ try { return getAreaResourcesForSave(); } catch { return {}; } })(),
-        revealedAreaLocations: (function(){ try { return getRevealedAreaLocationsForSave(); } catch { return []; } })()
+        revealedAreaLocations: (function(){ try { return getRevealedAreaLocationsForSave(); } catch { return []; } })(),
+        actionCompletion: (function(){ try { return getActionCompletionState(); } catch { return {}; } })()
     };
 }
 
@@ -175,6 +177,13 @@ export function applyGameState(gameState) {
     try {
         if (Array.isArray(gameState.revealedAreaLocations)) {
             setRevealedAreaLocationsFromSave(gameState.revealedAreaLocations);
+        }
+    } catch { /* non-fatal */ }
+
+    // Restore action completion state (one-time actions marked _completed)
+    try {
+        if (gameState.actionCompletion && typeof gameState.actionCompletion === 'object') {
+            restoreActionCompletionState(gameState.actionCompletion);
         }
     } catch { /* non-fatal */ }
 
