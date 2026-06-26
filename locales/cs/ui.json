@@ -87,6 +87,7 @@
   "detail_duration": "Trvání",
   "detail_costs": "Cena",
   "detail_gains": "Zisk",
+  "detail_requirements": "Požadavky",
   "detail_rewards": "Odměny",
   "tag_travel": "Přesun",
   "tag_repeatable": "Opakovatelné",
@@ -291,8 +292,9 @@
   "result_repair_ship_systems": "Strávíš několik minut po lokty v kabelových svazcích a obvodových deskách. Několik varovných indikátorů zabliká z červené na oranžovou. Není to opravené — ale je to lepší.",
 
   "action_tinker_device": "Vrtat se v prototypu",
-  "action_tinker_device_desc": "Ztratit se v nedokončeném přístroji na prototypovém stole. Dlouhý, pohlcující projekt, který pročistí mysl.",
-  "result_tinker_device": "Hodiny ubíhají, zatímco ladíš, pájíš a překalibrováváš. Zařízení ještě nefunguje, ale soustředěná práce zbystřila tvou koncentraci a zanechala tě zvláštně osvěženého.",
+  "action_tinker_device_desc": "Prozkoumat nedokončený přístroj na prototypovém stole. Netušíš k čemu slouží, ale vypadá to, že má v sobě funkční energetický článek.",
+  "result_tinker_device": "Nemáš tušení, k čemu ten přístroj slouží — změť drátů, čoček a obvodů. Ale jedno poznáš: má v sobě funkční energetický článek. S pomocí nářadí se ti ho podaří vypáčit, aniž bys zbytek přístroje zničil.",
+  "result_tinker_device_known": "Už víš přesně kam sáhnout. Pár cvaknutí a energetický článek je venku.",
 
   "action_fabricate_parts": "Vyrobit součástky",
   "action_fabricate_parts_desc": "Použít fabrikátor k syntéze náhradních komponent ze surového materiálu.",
@@ -355,10 +357,57 @@
 
   "log_death": "💀 Zemřel jsi. Zdraví kleslo na 0.",
   "log_used_item": "Použito: {item}.",
+  "item_terminal_login_note": "Poznámka s přihlašovacími údaji",
+  "item_functional_comms_panel": "Opravený komunikační panel",
+  "item_power_cell": "Energetický článek",
+  "item_scavenged_comms_panel": "Poničený komunikační panel",
+  "item_repair_tools": "Opravářské nářadí",
+  "item_signal_amplifier": "Zesilovač signálu",
+
+  "result_check_comms_v2": "Zapneš stanici. Jen statika. Panel je prázdný — vidíš jen trčící kabely. Není poškozený od havárie. Ty sis ho vytrhl. Při útěku jsi ho vytrhl z konzole a praštil s ním někde v dílně, aby tě nemohli vystopovat. Prohlédneš ho zběžně: spálený zesilovač signálu, vytržený napájecí článek, ohnutý konektor. Budeš potřebovat fabrikátor na nový zesilovač, energetický článek na napájení a pořádné nářadí. To bys měl najít v dílně.",
+  "result_check_comms_loop2": "Zapneš stanici. Panel je tady — jako by se nic nestalo. Ale ty přece víš, žes ho včera... nebo to byl jen sen? Ne — ty závady si pamatuješ přesně. Vytržený článek, spálený zesilovač, ohnutý konektor. Ať už to byl sen nebo ne, víš co s tím.",
+  "result_check_comms_loop3": "Zapneš stanici. Už se nedivíš, že panel je zase tady. Už se nedivíš ničemu. Víš co je zač a co s ním.",
+
+  "action_search_workbench": "Prohledat pracovní stůl",
+  "action_search_workbench_desc": "Prohledat pracovní stůl v dílně — možná se tu najde něco užitečného.",
+  "result_search_workbench": "Prohrabáváš harampádí na pracovním stole. Pod plánkem s fleky od kafe nacházíš nalepený lísteček s přihlašovacími údaji. V šuplíku objevuješ i sadu opravářského nářadí — přesně to, co by se mohlo hodit.",
+  "action_grab_login_note": "Sebrat lísteček s heslem",
+  "action_grab_login_note_desc": "Vzít si nalezený lísteček s přihlašovacími údaji k terminálu.",
+  "result_grab_login_note": "Bereš si lísteček. \"terminál — user: crew01 / pass: vagabond47\". To by se mohlo hodit.",
+
+  "action_fabricate_amplifier": "Vyrobit zesilovač signálu",
+  "action_fabricate_amplifier_desc": "Použít fabrikátor k výrobě nového zesilovače signálu.",
+  "result_fabricate_amplifier": "Zadáváš parametry do fabrikátoru. První pokus selže — zesilovač neprojde kalibrací. Druhý taky. Nakonec po úmorném ladění nacházíš správnou konfiguraci. Fabrikátor bzučí a vysune čistý, funkční zesilovač.",
+  "result_fabricate_amplifier_known": "Tvé prsty automaticky vyťukají správnou sekvenci. Fabrikátor ani nestihne pořádně nadechnout a už chrlí hotový díl.",
+  "result_fabricate_amplifier_book": "Díky opravářskému manuálu přesně víš, jaké parametry zadat. Fabrikátor bzučí a po chvíli vysune čistý, funkční zesilovač.",
+
+  "action_assemble_comms": "Sestavit komunikační panel",
+  "action_assemble_comms_desc": "Složit opravené díly dohromady — vyměnit zesilovač, zapojit energetický článek, narovnat konektor.",
+  "result_assemble_comms": "S cvaknutím zapadne poslední součástka na místo. Panel zabliká kontrolkou — poprvé od havárie. Držíš v rukou funkční komunikační zařízení. Stejné, které jsi kdysi zničil, abys unikl. Ironie.",
+  "result_assemble_comms_known": "Ruce si pamatují každý krok. Během chvilky je panel složený — rutina.",
+
+  "action_install_comms": "Nainstalovat komunikační panel",
+  "action_install_comms_desc": "Zacvaknout opravený panel zpátky do komunikační stanice.",
+  "result_install_comms": "Zasunuješ panel do konzole. Na vteřinu se nic neděje... pak obrazovka naskočí. Žádná statika. Čistý signál. Komunikační systém lodi žije.",
+
+  "action_send_distress_signal": "Odeslat tísňový signál",
+  "action_send_distress_signal_desc": "Nahrát zprávu a vyslat volání o pomoc.",
+  "result_send_distress_signal": "Nahráváš zprávu. 'Tady SFC-47 Vagabond. Havarijní stav. Žádám o pomoc.' Signál odeslán. Minuty ubíhají. Odpověď nepřichází. Reaktor vyhasíná — nestihl jsi to. Příště tomu musíš dát absolutní prioritu. Odeslat signál hned, jak to půjde, a doufat.",
+
+  "action_listen_for_response": "Poslouchat odpověď",
+  "action_listen_for_response_desc": "Naladit frekvenci a čekat na odpověď na tísňový signál.",
+  "result_listen_for_response_loop2": "Hodiny čekání. A pak — na vteřinu, možná dvě — něco prolomí šum. Není to hlas, spíš... dojem hlasu. Jako když ve větru zaslechneš vlastní jméno. Jedno slovo možná: 'Gamma'? Nebo se ti to jen zdálo? Jsi vyčerpaný. Třeba si to sugeruješ. Ale někde hluboko cítíš, že to nebyla jen tvoje hlava.",
+  "result_listen_for_response_loop3": "Tentokrát jsi připravený. Čekáš. A ono to přijde — slabý, ale nepopiratelný hlas, překrytý statikou: '...Gamma Site Research... evakuace selhala... anomálie...' Zpráva se rozpadne. Ale už to není iluze. Někdo tam dole byl — a varoval.",
+  "result_listen_for_response_loop4": "Přesně ve správný okamžik zesílíš příjem. Hlas je čistší: '...Gamma Site Research Station, sektor 7-Gamma. Opakuji souřadnice: 47.3—' Statika. Pak znovu: '...časová anomálie aktivní. Gamma Site končí vysílání.' Teď už víš všechno. Kde to je. A že tam na tebe něco čeká.",
+
+  "action_set_course_gamma": "Zadat kurz — Gamma Site",
+  "action_set_course_gamma_desc": "Zadat souřadnice Gamma Site do navigačního systému a zamířit k výzkumné stanici.",
+  "result_set_course_gamma": "Zadáváš souřadnice. Navigační počítač chvíli přemýšlí, pak zabliká potvrzením. Vagabond mění kurz. Gamma Site. Ať už tam dole čeká cokoliv — jdeš tomu naproti.",
   "log_auto_drink": "Automatické pití: Použita Láhev s vodou (+{amount} Vody)",
   "log_auto_eat": "Automatické jídlo: Použito Balené jídlo (+{amount} Jídla)",
 
   "log_need_item": "Potřebuješ {item}, abys to mohl udělat.",
+  "log_need_items": "Potřebuješ {items}, abys to mohl udělat.",
   "log_received_item": "Získal jsi: {item}",
   "log_need_terminal_login": "Potřebuješ přístup k lodnímu terminálu. Bez něj nedokážeš provést potřebné změny v systému.",
   "log_reactor_terminal_hint": "Při práci si uvědomuješ — tohle rozhraní není vázané na konkrétní konzoli. Příště bys to mohl udělat z jakéhokoliv terminálu na lodi.",

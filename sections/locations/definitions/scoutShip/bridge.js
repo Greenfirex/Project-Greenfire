@@ -24,7 +24,7 @@ export const scoutShipBridge = {
         {
             id: 'navigation',
             nameKey: 'poi_navigation',
-            actions: ['check_navigation']
+            actions: ['check_navigation', 'set_course_gamma']
         },
         {
             id: 'controls',
@@ -115,6 +115,7 @@ export const scoutShipBridge = {
             drain: [{ resource: 'Stamina', amount: 3 }],
             durationSeconds: 15,
             oneTime: true,
+            suppressCompletionLog: true,
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 return ['hack_bridge_terminal', 'use_bridge_terminal_login', 'enter_known_credentials_bridge'].some(id => us[id]);
@@ -318,6 +319,23 @@ export const scoutShipBridge = {
             durationSeconds: 8,
             repeatable: true,
             resultKey: 'result_check_status'
+        },
+        {
+            id: 'set_course_gamma',
+            nameKey: 'action_set_course_gamma',
+            descKey: 'action_set_course_gamma_desc',
+            category: 'taxing',
+            drain: [{ resource: 'Stamina', amount: 6 }],
+            durationSeconds: 120,
+            oneTime: true,
+            resultKey: 'result_set_course_gamma',
+            isAvailable(ctx) {
+                const m = ctx.gameFlags.loopKnowledge?.milestones || {};
+                if (!m.gamma_coordinates_known) return false;
+                // Must have terminal access
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return ['hack_bridge_terminal', 'use_bridge_terminal_login', 'enter_known_credentials_bridge'].some(id => us[id]);
+            }
         },
         {
             id: 'go_to_main_area',

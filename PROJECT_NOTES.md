@@ -6,6 +6,61 @@
 - Time advances only during actions, not passively
 - `TICK_SECONDS = 0.1` in the action timer
 
+## Časová smyčka — narativní uvědomování
+
+Hráč si **není hned jistý**, že je v časové smyčce. Uvědomění přichází postupně:
+
+| Loop | Název smrti | Psychologie hráče | Jak se to propisuje do akcí |
+|---|---|---|---|
+| **1** | — (první život) | Plné uvědomění, vše je nové | Objevuje, tápe, učí se |
+| **2** | „Jen zlý sen" | Nejsilnější pochyby — byl to sen? | Pamatuje si věci, ale nedůvěřuje tomu. Texty: „Možná se ti to zdálo...", „Byl to vůbec sen?" |
+| **3** | „Déjà Vu" | Silné podezření — něco je špatně | Začíná věřit svým vzpomínkám. Texty: „Už se nedivíš...", „To nemůže být náhoda." |
+| **4+** | „Smyčka" | Jistota — toto se opakuje | Plná důvěra ve znalosti, racionální jednání. Texty: „Už víš.", rutina. |
+
+**Důsledek pro design:**
+- Loop 2 → `getResultKey`/`onComplete` texty by měly reflektovat pochyby („asi", „možná", „zdálo se ti")
+- Loop 3 → přechod k jistotě („To není náhoda.", „Už víš.")
+- Loop 4+ → rutina, žádné pochyby
+- `loopCount` (z `ctx.gameFlags`) určuje, ve kterém loopu se hráč nachází
+- Loop-aware texty už existují např. v `wake_up` (`result_wake_up_loop1`, `result_wake_up_loop2`, `result_wake_up_loop3`) a `check_terminal` — používej stejný pattern
+
+## Memory vs Time-Reset — dvě kategorie stavu
+
+| Kategorie | Kde | Přežije smrt | Význam | Příklady |
+|---|---|---|---|---|
+| **Memory** | `loopKnowledge.milestones` | ✅ Ano | Co hráč **VÍ** — znalosti, vzpomínky, objevy | `comms_diagnosed`, `book_read`, `login_note_found`, `gamma_coordinates_known` |
+| **Time-Reset** | `gameFlags.X` | ❌ Ne | Co se **STALO** v aktuálním loopu — fyzické stavy | `reactorOptimized`, `recyclerFixed`, `commsInstalled`, `distressSignalSent` |
+
+### Pravidlo
+- **Zavzpomínal sis / zjistil jsi něco** → `setMilestone()` → v `loopKnowledge`
+- **Fyzicky jsi něco nainstalovat / opravil / odeslal** → `ctx.gameFlags.X = true` → resetuje se při smrti
+
+**Nikdy nepoužívej `hasMilestone()` pro řízení viditelnosti akcí, které závisí na fyzickém stavu v aktuálním loopu.**
+
+### Implementace v `engine/gameFlags.js`
+
+Flagy jsou rozděleny do dvou objektů:
+
+```js
+const INITIAL_PERSISTENT_FLAGS = {
+    firstObjectiveComplete, loopCount, persistentProgress,
+    loopStoryShown, uiSeen, loopKnowledge
+};
+
+const INITIAL_PER_LOOP_FLAGS = {
+    recyclerFixed, reactorOptimized, recyclerAttempted,
+    commsInstalled, distressSignalSent
+};
+```
+
+`applySavedGameFlags()` obnovuje **pouze** persistent flagy — prochází `Object.keys(INITIAL_PERSISTENT_FLAGS)`. Per-loop flagy zůstanou vždy na výchozí hodnotě.
+
+**Když přidáváš nový flag:**
+- Resetuje se smrtí? → do `INITIAL_PER_LOOP_FLAGS`. Hotovo.
+- Přežije smrt? → do `INITIAL_PERSISTENT_FLAGS`. Hotovo.
+
+Žádné whitelisty, žádný manuální reset kód. Nic jiného neměň.
+
 ## Resource Drain/Gain Rates
 
 - `DEFAULT_DRAIN` rates are **per real second** (e.g., `Stamina: 0.20` means 0.20 drained per real second)

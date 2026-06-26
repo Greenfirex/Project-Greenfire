@@ -3,6 +3,12 @@
 - Před jakoukoliv změnou kódu si přečti PROJECT_NOTES.md
 - Přečti si PROJECT_NOTES.md při prvním tool callu — neptej se na povolení
 
+# ===== KOMUNIKACE =====
+
+- Pokud je zadání nejasné, neúplné nebo si nejsi jistý co přesně implementovat → **ZEJTEJ SE**
+- Je lepší se zeptat a vyjasnit si zadání, než něco nakódovat špatně a pak to předělávat
+- Pokud navrhuješ víc variant řešení, vždy se zeptej kterou chce uživatel použít
+
 # ===== ARCHITEKTURA =====
 
 - **NIKDY NEPŘIDÁVEJ** `if (action.id === '...')` bloky do `sections/locations/locationEngine.js`

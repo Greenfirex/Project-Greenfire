@@ -69,7 +69,9 @@ function applyActionRewards(action) {
             if (itemId) {
                 const result = grantItemToCharacter(itemId, { amount: Number(r.amount) || 1 });
                 if (result.ok) {
-                    addLogEntry(t('log_received_item', { item: r.name || itemId }), LogType.UNLOCK);
+                    const itemDefForName = getItemDefinition(itemId);
+                    const itemDisplayName = (itemDefForName?.nameKey && t(itemDefForName.nameKey)) || r.name || itemId;
+                    addLogEntry(t('log_received_item', { item: itemDisplayName }), LogType.UNLOCK);
                 }
             }
         }
@@ -98,6 +100,8 @@ function buildActionCtx(action) {
         revealAreaResources,
         showAreaSuppliesPanel,
         refreshUI,
+        countItemInBag,
+        consumeItemQuantityFromBag,
         setFullRebuildNeeded(v) { _fullRebuildNeeded = v; },
     };
 }
@@ -118,7 +122,8 @@ function completeActiveAction(opts = {}) {
             const itemDef = getItemDefinition(action._pendingItem);
             const consumed = consumeItemQuantityFromBag(action._pendingItem, 1);
             if (consumed) {
-                addLogEntry(t('log_used_item', { item: itemDef?.name || action._pendingItem }), LogType.INFO);
+                const itemDisplayName = (itemDef?.nameKey && t(itemDef.nameKey)) || itemDef?.name || action._pendingItem;
+                addLogEntry(t('log_used_item', { item: itemDisplayName }), LogType.UNLOCK);
             }
             delete action._pendingItem;
         } catch { /* ignore */ }
@@ -130,16 +135,18 @@ function completeActiveAction(opts = {}) {
     }
 
     // Log appropriate completion message
-    if (reason === 'cap') {
-        if (action.category === 'rest') addLogEntry(t('log_rest_cap'), LogType.SUCCESS);
-        else if (action.category === 'refresh') addLogEntry(t('log_water_cap'), LogType.SUCCESS);
-        else addLogEntry(`${action._displayName || action.id} completed.`, LogType.SUCCESS);
-    } else if (reason === 'manual') {
-        addLogEntry(t('log_action_stopped', { action: action._displayName || t(action.nameKey) }), LogType.INFO);
-    } else if (action._resultKey || action.resultKey) {
-        addLogEntry(t(action._resultKey || action.resultKey), LogType.SUCCESS);
-    } else {
-        addLogEntry(t('log_action_completed', { action: action._displayName || t(action.nameKey) }), LogType.INFO);
+    if (!action.suppressCompletionLog) {
+        if (reason === 'cap') {
+            if (action.category === 'rest') addLogEntry(t('log_rest_cap'), LogType.SUCCESS);
+            else if (action.category === 'refresh') addLogEntry(t('log_water_cap'), LogType.SUCCESS);
+            else addLogEntry(`${action._displayName || action.id} completed.`, LogType.SUCCESS);
+        } else if (reason === 'manual') {
+            addLogEntry(t('log_action_stopped', { action: action._displayName || t(action.nameKey) }), LogType.INFO);
+        } else if (action._resultKey || action.resultKey) {
+            addLogEntry(t(action._resultKey || action.resultKey), LogType.SUCCESS);
+        } else {
+            addLogEntry(t('log_action_completed', { action: action._displayName || t(action.nameKey) }), LogType.INFO);
+        }
     }
     // Remove effect if this action removes one
     if (action.removesEffect) {
@@ -313,7 +320,8 @@ export function startAction(actionId) {
         }
         const hasItem = countItemInBag(action.requiresItem) > 0;
         if (!hasItem) {
-            addLogEntry(t('log_need_item', { item: itemDef.name }), LogType.ERROR);
+            const itemDisplayName = (itemDef.nameKey && t(itemDef.nameKey)) || itemDef.name;
+            addLogEntry(t('log_need_item', { item: itemDisplayName }), LogType.ERROR);
             return;
         }
         action._pendingItem = action.requiresItem;

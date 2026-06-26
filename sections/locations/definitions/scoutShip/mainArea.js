@@ -29,7 +29,7 @@ export const scoutShipMainArea = {
         {
             id: 'communications',
             nameKey: 'poi_communications',
-            actions: ['check_comms']
+            actions: ['check_comms', 'install_comms', 'send_distress_signal', 'listen_for_response']
         },
         {
             id: 'travel',
@@ -91,15 +91,107 @@ export const scoutShipMainArea = {
             drainsAreaResource: { resource: 'area_water', amount: 1 },
             requiresAreaResource: 'area_water'
         },
+
+        // ==========================================================================
+        // Communications — reworked with comms panel chain
+        // ==========================================================================
+
         {
             id: 'check_comms',
             nameKey: 'action_check_comms',
             descKey: 'action_check_comms_desc',
             drain: [{ resource: 'Stamina', amount: 2 }],
             durationSeconds: 10,
-            repeatable: true,
-            resultKey: 'result_check_comms'
+            oneTime: true,
+            isAvailable(ctx) {
+                // Hidden if comms already installed in this loop
+                if (ctx.gameFlags.commsInstalled) return false;
+                return true;
+            },
+            getResultKey(ctx) {
+                const loop = ctx.gameFlags.loopCount || 0;
+                const knowsDamage = hasMilestone('comms_diagnosed');
+                // loopCount = 0 for first life, 1 after first death, 2 after second...
+                if (knowsDamage && loop >= 2) return 'result_check_comms_loop3';
+                if (knowsDamage && loop >= 1) return 'result_check_comms_loop2';
+                return 'result_check_comms_v2';
+            },
+            rewards: [{ type: 'item', name: 'Scavenged Comms Panel', amount: 1 }],
+            onComplete(ctx) {
+                setMilestone('comms_diagnosed', () => persistLoopKnowledge(ctx));
+                ctx.flagActionAsNew('fabricate_amplifier');
+                ctx.setFullRebuildNeeded(true);
+            }
         },
+        {
+            id: 'install_comms',
+            nameKey: 'action_install_comms',
+            descKey: 'action_install_comms_desc',
+            drain: [{ resource: 'Stamina', amount: 2 }],
+            durationSeconds: 20,
+            oneTime: true,
+            requiresItem: 'functional_comms_panel',
+            resultKey: 'result_install_comms',
+            isAvailable(ctx) {
+                if (ctx.gameFlags.commsInstalled) return false;
+                if (!hasMilestone('comms_diagnosed')) return false;
+                return true;
+            },
+            onComplete(ctx) {
+                ctx.gameFlags.commsInstalled = true;
+                ctx.setFullRebuildNeeded(true);
+            }
+        },
+        {
+            id: 'send_distress_signal',
+            nameKey: 'action_send_distress_signal',
+            descKey: 'action_send_distress_signal_desc',
+            drain: [{ resource: 'Stamina', amount: 1 }],
+            durationSeconds: 15,
+            oneTime: true,
+            resultKey: 'result_send_distress_signal',
+            isAvailable(ctx) {
+                return ctx.gameFlags.commsInstalled;
+            },
+            onComplete(ctx) {
+                ctx.gameFlags.distressSignalSent = true;
+                ctx.setFullRebuildNeeded(true);
+            }
+        },
+        {
+            id: 'listen_for_response',
+            nameKey: 'action_listen_for_response',
+            descKey: 'action_listen_for_response_desc',
+            drain: [{ resource: 'Stamina', amount: 1 }],
+            durationSeconds: 8,
+            oneTime: true,
+            suppressCompletionLog: true,
+            isAvailable(ctx) {
+                if (!ctx.gameFlags.distressSignalSent) return false;
+                return true;
+            },
+            getResultKey(ctx) {
+                return null; // handled in onComplete
+            },
+            onComplete(ctx) {
+                const loop = ctx.gameFlags.loopCount || 0;
+                if (loop >= 3) {
+                    // Loop 4+: Clear coordinates
+                    ctx.addLogEntry(ctx.t('result_listen_for_response_loop4'), ctx.LogType.SUCCESS);
+                    setMilestone('gamma_coordinates_known', () => persistLoopKnowledge(ctx));
+                } else if (loop >= 2) {
+                    // Loop 3: Confirmed fragment
+                    ctx.addLogEntry(ctx.t('result_listen_for_response_loop3'), ctx.LogType.SUCCESS);
+                    setMilestone('gamma_site_confirmed', () => persistLoopKnowledge(ctx));
+                } else {
+                    // Loop 2: Whisper — uncertain
+                    ctx.addLogEntry(ctx.t('result_listen_for_response_loop2'), ctx.LogType.SUCCESS);
+                    setMilestone('gamma_site_heard', () => persistLoopKnowledge(ctx));
+                }
+                ctx.setFullRebuildNeeded(true);
+            }
+        },
+
         {
             id: 'go_to_crew_quarters',
             nameKey: 'action_go_to_crew_quarters',
@@ -128,12 +220,16 @@ export const scoutShipMainArea = {
             durationSeconds: 20,
             oneTime: true,
             repeatable: false,
-            requiresItem: 'repair_tools',
+            requiredItems: ['repair_tools'],
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 return !!us['assess_supplies'];
             },
             onStart(ctx) {
+                if (!ctx.countItemInBag('repair_tools')) {
+                    ctx.addLogEntry(ctx.t('log_need_item', { item: ctx.t('item_repair_tools') }), ctx.LogType.ERROR);
+                    return { block: true };
+                }
                 // Mark attempt on first click — needed to unlock grab_tools in workshop
                 if (!ctx.gameFlags.recyclerAttempted) {
                     ctx.gameFlags.recyclerAttempted = true;

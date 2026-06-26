@@ -1,7 +1,19 @@
 // Game flags for the timeloop reset game.
 // Lightweight replacement; the legacy file was moved to backup/data/.
+//
+// ==========================================================================
+// FLAG SYSTEM — two categories
+// ==========================================================================
+// PERSISTENT FLAGS  → survive death, saved/loaded from localStorage
+// PER-LOOP FLAGS    → reset on death, always start at initial value
+//
+// When you add a new flag:
+//   - Survives death? → put it in INITIAL_PERSISTENT_FLAGS
+//   - Resets on death? → put it in INITIAL_PER_LOOP_FLAGS
+// That's it. Nothing else to change. No whitelists. No manual reset code.
+// ==========================================================================
 
-const initialGameFlags = {
+const INITIAL_PERSISTENT_FLAGS = {
     firstObjectiveComplete: false,
     loopCount: 0,
     // Persistent action progress that survives death loops.
@@ -10,16 +22,22 @@ const initialGameFlags = {
     loopStoryShown: {},
     // UI-only persistence: which action/upgrade IDs the player has already seen.
     uiSeen: {},
-    // Resets on death loop — per-loop state.
+    // Knowledge that persists across death loops — player remembers things.
+    loopKnowledge: {
+        milestones: {},
+    },
+};
+
+const INITIAL_PER_LOOP_FLAGS = {
     recyclerFixed: false,
     reactorOptimized: false,
     recyclerAttempted: false,
-    // Knowledge that persists across death loops — player remembers things.
-    // Uses milestones instead of binary flags for robust context-aware messaging.
-    loopKnowledge: {
-        milestones: {},
-    }
+    commsInstalled: false,
+    distressSignalSent: false,
 };
+
+// Combined for backward compatibility — both objects merged.
+const initialGameFlags = Object.assign({}, INITIAL_PERSISTENT_FLAGS, INITIAL_PER_LOOP_FLAGS);
 
 /** Check if player has terminal login access. */
 export function hasLogin(milestones = {}) {
@@ -30,7 +48,7 @@ export function hasLogin(milestones = {}) {
 }
 
 export function getInitialGameFlags() {
-    return JSON.parse(JSON.stringify(initialGameFlags));
+    return Object.assign({}, INITIAL_PERSISTENT_FLAGS, INITIAL_PER_LOOP_FLAGS);
 }
 
 export const gameFlags = getInitialGameFlags();
@@ -41,18 +59,21 @@ export function resetGameFlags() {
 }
 
 export function applySavedGameFlags(savedFlags = {}) {
+    // Start fresh — both persistent and per-loop at defaults.
     Object.keys(gameFlags).forEach(k => delete gameFlags[k]);
     Object.assign(gameFlags, getInitialGameFlags());
-    Object.keys(savedFlags).forEach(k => {
+
+    // Restore ONLY persistent flags — per-loop flags stay at their initial defaults.
+    Object.keys(INITIAL_PERSISTENT_FLAGS).forEach(k => {
         if (Object.prototype.hasOwnProperty.call(savedFlags, k)) {
             gameFlags[k] = savedFlags[k];
         }
     });
-    // Ensure uiSeen is always an object
+
+    // Ensure nested objects exist even if save data was incomplete.
     if (!gameFlags.uiSeen || typeof gameFlags.uiSeen !== 'object') {
         gameFlags.uiSeen = {};
     }
-    // Ensure loopKnowledge and milestones exist
     if (!gameFlags.loopKnowledge || typeof gameFlags.loopKnowledge !== 'object') {
         gameFlags.loopKnowledge = { milestones: {} };
     }

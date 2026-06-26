@@ -87,6 +87,7 @@
   "detail_duration": "Duration",
   "detail_costs": "Costs",
   "detail_gains": "Gains",
+  "detail_requirements": "Requirements",
   "detail_rewards": "Rewards",
   "tag_travel": "Travel",
   "tag_repeatable": "Repeatable",
@@ -291,8 +292,9 @@
   "result_repair_ship_systems": "You spend several minutes elbow-deep in wiring harnesses and circuit boards. Several warning indicators flicker from red to amber. Not fixed — but improved.",
 
   "action_tinker_device": "Tinker with Prototype",
-  "action_tinker_device_desc": "Lose yourself in the half-finished gadget on the prototype bench. A long, absorbing project that clears your mind.",
-  "result_tinker_device": "Hours slip by as you tweak, solder, and recalibrate. The device isn't functional yet, but the focused work has sharpened your concentration and left you oddly refreshed.",
+  "action_tinker_device_desc": "Examine the half-finished gadget on the prototype bench. You have no idea what it does, but it looks like it has a working power cell inside.",
+  "result_tinker_device": "You have no idea what this device is for — a mess of wires, lenses and circuits. But one thing's clear: there's a functional power cell inside. With the help of your tools, you manage to pry it out without destroying the rest.",
+  "result_tinker_device_known": "You know exactly where to reach. A few clicks and the power cell is out.",
 
   "action_fabricate_parts": "Fabricate Parts",
   "action_fabricate_parts_desc": "Use the fabricator to synthesize replacement components from raw stock.",
@@ -355,10 +357,57 @@
 
   "log_death": "💀 You have died. Health reached 0.",
   "log_used_item": "Used: {item}.",
+  "item_terminal_login_note": "Terminal Login Note",
+  "item_functional_comms_panel": "Functional Comms Panel",
+  "item_power_cell": "Power Cell",
+  "item_scavenged_comms_panel": "Scavenged Comms Panel",
+  "item_repair_tools": "Repair Tools",
+  "item_signal_amplifier": "Signal Amplifier",
+
+  "result_check_comms_v2": "You power up the station. Nothing but static. The panel is gone — just bare wires where the comms module should be. This isn't crash damage. You ripped it out. During your escape, you tore it from the console and threw it somewhere in the workshop so they couldn't track you. You give it a quick inspection: fried signal amplifier, missing power cell, bent connector. You'll need the fabricator for a new amplifier, a power cell, and proper tools. You should be able to find that in the workshop.",
+  "result_check_comms_loop2": "You power up the station. The panel is here — as if nothing happened. But you know you ripped it out yesterday... or was that just a dream? No — you remember the damage exactly. Missing power cell, fried amplifier, bent connector. Dream or not, you know what to do.",
+  "result_check_comms_loop3": "You power up the station. You're not even surprised the panel is back anymore. You're not surprised by anything. You know what it is and what to do with it.",
+
+  "action_search_workbench": "Search Workbench",
+  "action_search_workbench_desc": "Search the workshop workbench — maybe something useful can be found.",
+  "result_search_workbench": "You rummage through the clutter on the workbench. Under a coffee-stained schematic you find a sticky note with login credentials. In the drawer you also discover a set of repair tools — exactly what you might need.",
+  "action_grab_login_note": "Take Login Note",
+  "action_grab_login_note_desc": "Take the found sticky note with terminal login credentials.",
+  "result_grab_login_note": "You take the sticky note. \"terminal — user: crew01 / pass: vagabond47\". This could come in handy.",
+
+  "action_fabricate_amplifier": "Fabricate Signal Amplifier",
+  "action_fabricate_amplifier_desc": "Use the fabricator to produce a new signal amplifier.",
+  "result_fabricate_amplifier": "You enter parameters into the fabricator. First attempt fails — the amplifier won't pass calibration. Second one too. Eventually, after painstaking adjustments, you find the right configuration. The fabricator hums and ejects a clean, functional amplifier.",
+  "result_fabricate_amplifier_known": "Your fingers automatically tap in the correct sequence. The fabricator barely has time to spin up before spitting out a finished part.",
+  "result_fabricate_amplifier_book": "Thanks to the repair manual, you know exactly what parameters to enter. The fabricator whirs and soon ejects a clean, functional amplifier.",
+
+  "action_assemble_comms": "Assemble Comms Panel",
+  "action_assemble_comms_desc": "Put the repaired parts together — replace the amplifier, insert the power cell, straighten the connector.",
+  "result_assemble_comms": "The last component clicks into place. The panel's indicator blinks — for the first time since the crash. You're holding a functional comms unit. The very device you destroyed to escape. The irony is not lost on you.",
+  "result_assemble_comms_known": "Your hands remember every step. In moments the panel is assembled — routine.",
+
+  "action_install_comms": "Install Comms Panel",
+  "action_install_comms_desc": "Slot the repaired panel back into the communications station.",
+  "result_install_comms": "You slide the panel into the console. For a second, nothing... then the screen lights up. No static. A clean signal. The ship's communications system is alive.",
+
+  "action_send_distress_signal": "Send Distress Signal",
+  "action_send_distress_signal_desc": "Record a message and broadcast a call for help.",
+  "result_send_distress_signal": "You record the message. 'This is SFC-47 Vagabond. Emergency situation. Requesting assistance.' Signal sent. Minutes tick by. No response comes. The reactor dies first — you didn't make it. Next time, this has to be your absolute top priority. Send the signal as soon as possible, and hope.",
+
+  "action_listen_for_response": "Listen for Response",
+  "action_listen_for_response_desc": "Tune in and wait for a response to the distress signal.",
+  "result_listen_for_response_loop2": "Hours of waiting. And then — for a second, maybe two — something breaks through the static. Not a voice, more like... the impression of a voice. Like hearing your own name in the wind. One word, perhaps: 'Gamma'? Or did you imagine it? You're exhausted. Maybe you're hearing things. But somewhere deep down, you feel it wasn't just your head.",
+  "result_listen_for_response_loop3": "This time you're ready. You wait. And it comes — faint but unmistakable, a voice cutting through the static: '...Gamma Site Research... evacuation failed... anomaly...' The message fragments. But it's no longer an illusion. Someone down there was there — and they warned.",
+  "result_listen_for_response_loop4": "Right at the exact moment you amplify the signal. The voice is clearer: '...Gamma Site Research Station, sector 7-Gamma. Repeating coordinates: 47.3—' Static. Then again: '...temporal anomaly active. Gamma Site ending transmission.' Now you know everything. Where it is. And that something is waiting for you there.",
+
+  "action_set_course_gamma": "Set Course — Gamma Site",
+  "action_set_course_gamma_desc": "Enter Gamma Site coordinates into the navigation system and set a course for the research station.",
+  "result_set_course_gamma": "You enter the coordinates. The nav computer thinks for a moment, then blinks confirmation. Vagabond alters course. Gamma Site. Whatever waits down there — you're heading toward it.",
   "log_auto_drink": "Auto-drink: Used Bottled Water (+{amount} Water)",
   "log_auto_eat": "Auto-eat: Used Packaged Food (+{amount} Food)",
 
   "log_need_item": "You need {item} to do this.",
+  "log_need_items": "You need {items} to do this.",
   "log_received_item": "Received: {item}",
   "log_need_terminal_login": "You need terminal access to make the necessary system changes. Without it, you can't reconfigure the reactor.",
   "log_reactor_terminal_hint": "As you work, you realize — this interface isn't tied to a specific console. Next time you could do this from any terminal on the ship.",

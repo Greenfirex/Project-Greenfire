@@ -235,9 +235,8 @@ export function updateAreaResourcesUI() {
         if (!_revealedAreaLocations.has(locId)) continue;
         if (Array.isArray(areaResources[locId])) {
             for (const res of areaResources[locId]) {
-                if (res.amount > 0 || !areaResources[locId].every(r => r.amount <= 0)) {
-                    list.push(res);
-                }
+                // Always show all revealed area resources — even when depleted
+                list.push(res);
             }
         }
     }

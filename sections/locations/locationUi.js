@@ -192,7 +192,9 @@ export function renderDetailsTile() {
                         const gainName = r.name;
                         const gainRate = (Number(r.amount) || 0) / Math.max(1, action.durationSeconds || 1);
                         const gainCssClass = /stamina/i.test(gainName) ? 'detail-cost-stamina' : (/food/i.test(gainName) ? 'detail-cost-food' : (/water/i.test(gainName) ? 'detail-cost-water' : 'detail-cost-health'));
-                        return `<div class="detail-cost detail-cost-gain ${gainCssClass}"><span class="detail-cost-label">${gainName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate" style="color:#4caf50;">[+${gainRate.toFixed(2)}/min]</span></span></div>`;
+                        const gainEmoji = RESOURCE_EMOJIS[gainName] || '';
+                        const gainDisplay = gainEmoji ? `${gainEmoji} ${gainName}` : gainName;
+                        return `<div class="detail-cost detail-cost-gain ${gainCssClass}"><span class="detail-cost-label">${gainDisplay}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate" style="color:#4caf50;">[+${gainRate.toFixed(2)}/min]</span></span></div>`;
                     }).join('');
                 if (gainRows) {
                     gainsHtml = `<div class="detail-section"><div class="detail-section-label" style="color:#4caf50;">&#x2B06; ${t('detail_gains')}</div>${gainRows}</div>`;
@@ -201,11 +203,23 @@ export function renderDetailsTile() {
 
             // Requirements section (item prerequisite)
             let requirementsHtml = '';
-            if (action.requiresItem) {
-                const reqItemDef = getItemDefinition(action.requiresItem);
-                if (reqItemDef) {
-                    requirementsHtml = `<div class="detail-section"><div class="detail-section-label">&#x1F4CB; Requirements</div><div class="detail-cost detail-cost-requirement"><span class="detail-cost-label">${reqItemDef.name}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate" style="color:#ff9800;">[quest item]</span></span></div></div>`;
-                }
+            const requiredIds = [];
+            if (action.requiredItems && Array.isArray(action.requiredItems)) {
+                requiredIds.push(...action.requiredItems);
+            } else if (action.requiresItem) {
+                requiredIds.push(action.requiresItem);
+            }
+            if (requiredIds.length > 0) {
+                const rows = requiredIds.map(id => {
+                    const def = getItemDefinition(id);
+                    if (!def) return '';
+                    const name = (def.nameKey && t(def.nameKey)) || def.name;
+                    const has = countItemInBag(id) > 0;
+                    const color = has ? '#4caf50' : '#ff9800';
+                    const label = has ? `✓ ${name}` : `✗ ${name}`;
+                    return `<div class="detail-cost detail-cost-requirement"><span class="detail-cost-label" style="color:${color};">${label}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate">[Quest]</span></span></div>`;
+                }).join('');
+                requirementsHtml = `<div class="detail-section"><div class="detail-section-label">&#x1F4CB; ${t('detail_requirements')}</div>${rows}</div>`;
             }
 
             // Rewards (hidden for rest/refresh since gains show the continuous rate)
@@ -222,7 +236,7 @@ export function renderDetailsTile() {
                     }
                     return `<div class="detail-reward">+${r.amount || 0} ${r.name}</div>`;
                 }).join('');
-                rewardsHtml = `<div class="detail-section"><div class="detail-section-label">&#x1F381; ${t('detail_rewards')}</div>${rewardItems}</div>`;
+                rewardsHtml = `<div class="detail-section"><div class="detail-section-label">&#x2B50; ${t('detail_rewards')}</div>${rewardItems}</div>`;
             }
 
             return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t(action.nameKey)}</h3></div>${tagsHtml}<p class="location-location-desc">${t(action.descKey)}</p>${durationHtml}${gainsHtml}${costsHtml}${requirementsHtml}${rewardsHtml}</div>`;
