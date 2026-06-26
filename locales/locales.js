@@ -32,6 +32,10 @@ loaded['en'] = {
     "action_end_loop_confirm": "Really end this loop?",
     "action_end_loop_confirm_cancel": "Cancel",
     "action_end_loop_confirm_ok": "End",
+    "action_enter_known_credentials": "Log In (Known Password)",
+    "action_enter_known_credentials_bridge": "Log In (Known Password)",
+    "action_enter_known_credentials_bridge_desc": "Enter the password you already know from the crew quarters terminal.",
+    "action_enter_known_credentials_desc": "Enter the password you already know from using it on the other terminal.",
     "action_fabricate_parts": "Fabricate Parts",
     "action_fabricate_parts_desc": "Use the fabricator to synthesize replacement components from raw stock.",
     "action_go_crew_quarters": "Return to Crew Quarters",
@@ -275,6 +279,10 @@ loaded['en'] = {
     "result_assess_supplies": "You take stock of the cafeteria supplies. Food has almost completely run out — barely a few ration packs remain. The water recycler is dead. In the fridge, however, you find two sealed bottles of clean water. At least something.",
     "result_debug_taxing": "Debug taxing action complete.",
     "result_disable_alarm": "You key in the override codes. The wailing alarm sputters and dies. Blessed silence fills the compartment. The ringing in your ears will fade — eventually.",
+    "result_enter_known_credentials": "You enter the known password and the screen dissolves with a soft chime. You're in — the password works on this terminal too.",
+    "result_enter_known_credentials_bridge": "You enter the known password. The login screen dissolves instantly — access granted.",
+    "result_enter_known_credentials_bridge_loop2": "You type in the password without thinking. It's become muscle memory at this point. The login screen dissolves instantly — access granted.",
+    "result_enter_known_credentials_loop2": "You type in the password without thinking. It's become muscle memory at this point. The screen dissolves with a soft chime. You're in.",
     "result_fabricate_parts": "The fabricator whirs to life, layering polymer and alloy into precise shapes. A tray of fresh components slides out — exactly what you'd need for field repairs.",
     "result_go_to_bridge": "You head to the ship's bridge.",
     "result_go_to_crew_quarters": "You return to the crew quarters.",
@@ -285,9 +293,10 @@ loaded['en'] = {
     "result_hack_bridge_terminal": "After painstaking trial and error, you finally crack the engineering terminal's authentication. The system welcomes you with a soft chime — and you won't forget the login now.",
     "result_hack_terminal": "After painstaking trial and error, you finally crack the terminal's authentication. The system welcomes you with a soft chime. You're in — and you won't forget the login now.",
     "result_check_bridge_terminal": "You tap the engineering console. The screen flickers to the ship system login screen. Without credentials you can't proceed. Maybe you could try hacking it.",
+    "result_check_bridge_terminal_first_has_login": "You tap the engineering console. The login screen looks familiar — you try the password you already know. It works. The system lets you in.",
     "result_check_bridge_terminal_known": "You tap the console. You enter the credentials with confidence — you know them by now. The system lets you in with a soft chime.",
-    "result_check_bridge_terminal_loop1": "You tap the console… and freeze. Your fingers move before your mind catches up — you already know the password. You don't know how you know. A chill runs through you as the login screen dissolves.",
-    "result_check_bridge_terminal_loop2": "You don't even hesitate. The password is already beneath your fingertips. The login screen gives way with the same soft chime as always. You're in.",
+    "result_check_bridge_terminal_loop1": "You tap the console… and freeze. Your fingers move before your mind catches up — you already know the password. You don't know how you know. A chill runs through you. Better just type it in.",
+    "result_check_bridge_terminal_loop2": "You don't even hesitate. The password is already beneath your fingertips — you've done this so many times it's automatic. All that's left is to type it in.",
     "result_check_comms": "You power up the comms station. Static fills most channels, but a faint beacon repeats on loop — a pre-recorded distress signal from the ship itself.",
     "result_check_navigation": "The navigation systems show your current position near an uncharted planet. All long-range communications are offline.",
     "result_check_reactor_status": "The reactor scan reveals critical fuel depletion — only {fuel} units remain. At current burn rate you have roughly {minutes} minutes before the reactor goes cold. Without power, life support will fail and oxygen reserves will drain rapidly.",
@@ -296,9 +305,10 @@ loaded['en'] = {
     "result_check_status": "Overall ship status: CRITICAL. Multiple systems are failing, but the core structure is intact. You have time, but not much.",
     "result_check_storage": "The storage locker contains emergency rations, a med-kit, and a portable scanner. Standard issue for exploration missions.",
     "result_check_terminal": "You tap the console and the screen flickers to life, demanding credentials. You tried a few random passwords but no luck. Fortunately, you have some experience with this operating system and should be able to hack into the terminal — it'll just take a while. Oh, and you noticed a sticky note on the monitor — \"workshop\". Maybe the login can be found there?",
+    "result_check_terminal_first_has_login": "You tap the unfamiliar console. The login screen looks identical to the other terminal — the password you already have might work. You enter it. The screen dissolves with a soft chime. You're in.",
     "result_check_terminal_known": "You tap the console. You already know the password — you type it in with confidence. The screen dissolves with a soft chime. You're in.",
-    "result_check_terminal_loop1": "You tap the console… and freeze. Your fingers move before your mind catches up — you already know the password. You don't know how you know. A chill runs through you as the lock screen dissolves.",
-    "result_check_terminal_loop2": "You don't even hesitate. The password is already beneath your fingertips. The lock screen gives way with the same soft chime you've heard before — you've lost count of how many times. The routine is becoming unsettling. You're in.",
+    "result_check_terminal_loop1": "You tap the console… and freeze. Your fingers move before your mind catches up — you already know the password. You don't know how you know. A chill runs through you. Better just type it in.",
+    "result_check_terminal_loop2": "You don't even hesitate. The password is already beneath your fingertips — you've done this so many times the routine is automatic. All that's left is to type it in.",
     "result_optimize_reactor": "You sit at the engineering console and scroll through the list of active systems. Section by section, you shut down everything that isn't absolutely critical — cabin heating for empty quarters, backup comms arrays, lab equipment. Fuel consumption drops visibly. You've bought precious extra time.",
     "result_optimize_reactor_known": "You know exactly what to look for. In seconds you flip the necessary switches. Fuel consumption drops once again.",
     "result_optimize_reactor_remote": "You log into the terminal and enter the familiar commands. Even remotely, you can tell the fuel consumption dropped — the display indicators confirm it.",
@@ -326,7 +336,7 @@ loaded['en'] = {
     "title_changelog": "Changelog",
     "title_new_game": "New Game",
     "title_settings": "Settings"
-};;;;;;;;
+};;;;;;;;;
 
 // ==========================================================================
 // Public API

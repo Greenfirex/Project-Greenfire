@@ -13,6 +13,7 @@ const initialGameFlags = {
     // Resets on death loop — per-loop state.
     recyclerFixed: false,
     reactorOptimized: false,
+    recyclerAttempted: false,
     // Knowledge that persists across death loops — player remembers things.
     // Uses milestones instead of binary flags for robust context-aware messaging.
     loopKnowledge: {

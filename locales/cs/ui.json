@@ -200,8 +200,8 @@
   "result_check_terminal": "Klepneš na konzoli a obrazovka zabliká k životu, žádá přihlašovací údaje. Zkusil si několik náhodných hesel, ale bez úspěchu. Naštěstí máš trochu zkušeností s tímhle operačním systémem a měl bys být schopný se do terminálu hacknout, ale chvilku to potrvá. Jo a taky sis všiml nalepeného lístečku na monitoru — \"dílna\". Je možné, že se login dá najít někde tam?",
   "result_check_terminal_known": "Klepneš na konzoli. Heslo už znáš — zadáváš ho s jistotou. Obrazovka se rozplyne s tichým pípnutím. Jsi uvnitř.",
   "result_check_terminal_first_has_login": "Klepneš na neznámou konzoli. Přihlašovací obrazovka je stejná jako na druhém terminálu — heslo, které už znáš, by mohlo fungovat. Zadáš ho. Obrazovka se rozplyne s tichým pípnutím. Jsi uvnitř.",
-  "result_check_terminal_loop1": "Klepneš na konzoli… a ztuhneš. Tvé prsty se pohnou dřív, než to tvé mysli dojde — ty už heslo znáš. Nevíš, jak to víš. Projede tebou chlad, zatímco se zamykací obrazovka rozplyne.",
-  "result_check_terminal_loop2": "Ani na vteřinu nezaváháš. Heslo už je pod konečky tvých prstů. Zamykací obrazovka povolí se stejným tichým pípnutím, jaké jsi slyšel už tolikrát — ani to nespočítáš. Ta rutina začíná být znepokojivá. Jsi uvnitř.",
+  "result_check_terminal_loop1": "Klepneš na konzoli… a ztuhneš. Tvé prsty se pohnou dřív, než to tvé mysli dojde — ty už heslo znáš. Nevíš, jak to víš. Projede tebou chlad. Budeš ho muset zadat.",
+  "result_check_terminal_loop2": "Ani na vteřinu nezaváháš. Heslo už je pod konečky tvých prstů — dělal jsi to už tolikrát, že je to automatické. Zbývá ho jen zadat.",
 
   "action_hack_terminal": "Hacknout terminál",
   "action_hack_terminal_desc": "Strávit čas obcházením zabezpečení terminálu. Dlouhý, soustředěný úkol, který nakonec poskytne plný přístup.",
@@ -213,6 +213,7 @@
   "action_enter_known_credentials": "Přihlásit se (známé heslo)",
   "action_enter_known_credentials_desc": "Zadáš heslo, které už znáš z předchozího použití na jiném terminálu.",
   "result_enter_known_credentials": "Zadáš známé heslo a obrazovka se rozplyne s tichým pípnutím. Jsi uvnitř — heslo pasuje i na tenhle terminál.",
+  "result_enter_known_credentials_loop2": "Napíšeš heslo bez přemýšlení. Už je to svalová paměť. Obrazovka se rozplyne s tichým pípnutím. Jsi uvnitř.",
 
   "action_search_for_login_note": "Hledat lísteček s heslem",
   "action_search_for_login_note_desc": "Prohledat pracovní stůl a hledat lísteček s přihlašovacími údaji k terminálu.",
@@ -379,8 +380,8 @@
   "result_check_bridge_terminal": "Klepneš na inženýrskou konzoli. Obrazovka naběhne do přihlašovací obrazovky lodního systému. Bez přístupových údajů se dál nedostaneš. Možná bys to mohl zkusit hacknout.",
   "result_check_bridge_terminal_known": "Klepneš na konzoli. Přihlašovací údaje zadáváš s jistotou — už je znáš. Systém tě pustí dál s tichým pípnutím.",
   "result_check_bridge_terminal_first_has_login": "Klepneš na inženýrskou konzoli. Přihlašovací obrazovka je povědomá — vyzkoušíš heslo co už znáš. Funguje. Systém tě pustí dál.",
-  "result_check_bridge_terminal_loop1": "Klepneš na konzoli… a ztuhneš. Tvé prsty se pohnou dřív, než to tvé mysli dojde — ty už heslo znáš. Nevíš, jak to víš. Projede tebou chlad, zatímco se přihlašovací obrazovka rozplyne.",
-  "result_check_bridge_terminal_loop2": "Ani na vteřinu nezaváháš. Heslo už je pod konečky tvých prstů. Přihlašovací obrazovka povolí se stejným tichým pípnutím jako vždy. Jsi uvnitř.",
+  "result_check_bridge_terminal_loop1": "Klepneš na konzoli… a ztuhneš. Tvé prsty se pohnou dřív, než to tvé mysli dojde — ty už heslo znáš. Nevíš, jak to víš. Projede tebou chlad. Budeš ho muset zadat.",
+  "result_check_bridge_terminal_loop2": "Ani na vteřinu nezaváháš. Heslo už je pod konečky tvých prstů — dělal jsi to už tolikrát, že je to automatické. Zbývá ho jen zadat.",
 
   "action_hack_bridge_terminal": "Hacknout terminál",
   "action_hack_bridge_terminal_desc": "Strávit čas obcházením zabezpečení inženýrského terminálu na můstku.",
@@ -392,6 +393,7 @@
   "action_enter_known_credentials_bridge": "Přihlásit se (známé heslo)",
   "action_enter_known_credentials_bridge_desc": "Zadáš heslo, které už znáš z terminálu v ubikacích.",
   "result_enter_known_credentials_bridge": "Zadáš známé heslo. Přihlašovací obrazovka se okamžitě rozplyne — přístup získán.",
+  "result_enter_known_credentials_bridge_loop2": "Napíšeš heslo bez přemýšlení. Už je to svalová paměť. Přihlašovací obrazovka se okamžitě rozplyne — přístup získán.",
 
   "action_optimize_reactor_remote": "Optimalizovat reaktor na dálku",
   "action_optimize_reactor_remote_desc": "Už víš, že reaktor je na tom špatně. Přes terminál v ubikacích dokážeš provést optimalizaci, protože už znáš správné parametry.",

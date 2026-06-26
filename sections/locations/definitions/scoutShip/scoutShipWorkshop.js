@@ -119,7 +119,12 @@ export const scoutShipWorkshop = {
             durationSeconds: 5,
             oneTime: true,
             resultKey: 'result_grab_tools',
-            unlockedBy: '__recycler_attempted__'
+            isAvailable(ctx) {
+                // Requires: player attempted recycler repair AND read the book
+                if (!ctx.gameFlags.recyclerAttempted) return false;
+                if (!hasMilestone('book_read')) return false;
+                return true;
+            }
         },
         {
             id: 'go_to_main_area',

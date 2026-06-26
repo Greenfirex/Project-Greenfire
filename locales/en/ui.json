@@ -200,8 +200,8 @@
   "result_check_terminal": "You tap the console and the screen flickers to life, demanding credentials. You tried a few random passwords but no luck. Fortunately, you have some experience with this operating system and should be able to hack into the terminal — it'll just take a while. Oh, and you noticed a sticky note on the monitor — \"workshop\". Maybe the login can be found there?",
   "result_check_terminal_known": "You tap the console. You already know the password — you type it in with confidence. The screen dissolves with a soft chime. You're in.",
   "result_check_terminal_first_has_login": "You tap the unfamiliar console. The login screen looks identical to the other terminal — the password you already have might work. You enter it. The screen dissolves with a soft chime. You're in.",
-  "result_check_terminal_loop1": "You tap the console… and freeze. Your fingers move before your mind catches up — you already know the password. You don't know how you know. A chill runs through you as the lock screen dissolves.",
-  "result_check_terminal_loop2": "You don't even hesitate. The password is already beneath your fingertips. The lock screen gives way with the same soft chime you've heard before — you've lost count of how many times. The routine is becoming unsettling. You're in.",
+  "result_check_terminal_loop1": "You tap the console… and freeze. Your fingers move before your mind catches up — you already know the password. You don't know how you know. A chill runs through you. Better just type it in.",
+  "result_check_terminal_loop2": "You don't even hesitate. The password is already beneath your fingertips — you've done this so many times the routine is automatic. All that's left is to type it in.",
 
   "action_hack_terminal": "Hack Terminal",
   "action_hack_terminal_desc": "Spend time bypassing the terminal's security. A long, focused task that will eventually grant full access.",
@@ -213,6 +213,7 @@
   "action_enter_known_credentials": "Log In (Known Password)",
   "action_enter_known_credentials_desc": "Enter the password you already know from using it on the other terminal.",
   "result_enter_known_credentials": "You enter the known password and the screen dissolves with a soft chime. You're in — the password works on this terminal too.",
+  "result_enter_known_credentials_loop2": "You type in the password without thinking. It's become muscle memory at this point. The screen dissolves with a soft chime. You're in.",
 
   "action_search_for_login_note": "Search for Login Note",
   "action_search_for_login_note_desc": "Search the workbench area for a sticky note with terminal login credentials.",
@@ -379,8 +380,8 @@
   "result_check_bridge_terminal": "You tap the engineering console. The screen flickers to the ship system login screen. Without credentials you can't proceed. Maybe you could try hacking it.",
   "result_check_bridge_terminal_known": "You tap the console. You enter the credentials with confidence — you know them by now. The system lets you in with a soft chime.",
   "result_check_bridge_terminal_first_has_login": "You tap the engineering console. The login screen looks familiar — you try the password you already know. It works. The system lets you in.",
-  "result_check_bridge_terminal_loop1": "You tap the console… and freeze. Your fingers move before your mind catches up — you already know the password. You don't know how you know. A chill runs through you as the login screen dissolves.",
-  "result_check_bridge_terminal_loop2": "You don't even hesitate. The password is already beneath your fingertips. The login screen gives way with the same soft chime as always. You're in.",
+  "result_check_bridge_terminal_loop1": "You tap the console… and freeze. Your fingers move before your mind catches up — you already know the password. You don't know how you know. A chill runs through you. Better just type it in.",
+  "result_check_bridge_terminal_loop2": "You don't even hesitate. The password is already beneath your fingertips — you've done this so many times it's automatic. All that's left is to type it in.",
 
   "action_hack_bridge_terminal": "Hack Terminal",
   "action_hack_bridge_terminal_desc": "Spend time bypassing the engineering terminal's security on the bridge.",
@@ -392,6 +393,7 @@
   "action_enter_known_credentials_bridge": "Log In (Known Password)",
   "action_enter_known_credentials_bridge_desc": "Enter the password you already know from the crew quarters terminal.",
   "result_enter_known_credentials_bridge": "You enter the known password. The login screen dissolves instantly — access granted.",
+  "result_enter_known_credentials_bridge_loop2": "You type in the password without thinking. It's become muscle memory at this point. The login screen dissolves instantly — access granted.",
 
   "action_optimize_reactor_remote": "Optimize Reactor Remotely",
   "action_optimize_reactor_remote_desc": "You already know the reactor is dying. Through the terminal in your quarters you can run the optimization — you know the right parameters by heart.",

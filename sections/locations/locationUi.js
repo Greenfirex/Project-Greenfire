@@ -4,7 +4,7 @@
 
 import { t } from '../../locales/locales.js';
 import { getCurrentLocationId, getLocation } from './locationData.js';
-import { gameFlags, isActionNew, flagActionAsNew, markActionSeen } from '../../engine/gameFlags.js';
+import { gameFlags, isActionNew, flagActionAsNew, markActionSeen, hasLogin, hasMilestone } from '../../engine/gameFlags.js';
 import { newBadgeHtml, wireClearUiNewBadge } from '../../ui/components/contentNewBadges.js';
 import { setupTooltip } from '../../ui/panels/tooltip.js';
 import { getEffectDrains, getEffectDebuffDetails, hasEffect } from '../../engine/effects.js';
@@ -12,6 +12,7 @@ import { addToQueue, isInQueue } from '../../engine/queue.js';
 import { playActionStart } from '../../engine/audio.js';
 import { getItemDefinition } from '../character/items.js';
 import { RESOURCE_EMOJIS, getAreaResourceAmount } from '../../engine/resources.js';
+import { countItemInBag } from '../character/character.js';
 import {
     activeAction, activeActionId, actionProgress, selectedActionId,
     actionPaused, _fullRebuildNeeded,
@@ -252,27 +253,30 @@ export function renderActionsTile(location) {
         }
     });
 
-    // Filter actions based on unlock state
+    // Build availability context for isAvailable callbacks
+    const availCtx = {
+        gameFlags,
+        getCurrentLocationId,
+        getUnlockState,
+        hasLogin,
+        hasMilestone,
+        countItemInBag,
+        t,
+    };
+
+    // Filter actions — isAvailable callback is the single source of truth for visibility
     const actions = (location.actions || []).filter(a => {
         if (a._completed || unlockState[a.id]) return false;
-        // Only show actions that are unlocked (no unlockedBy = always available)
-        if (a.unlockedBy) {
-            if (Array.isArray(a.unlockedBy)) {
-                if (!a.unlockedBy.some(id => unlockState[id])) return false;
-            } else {
-                if (!unlockState[a.unlockedBy]) return false;
-            }
-        }
         // Hide action if it requires an area resource that is depleted
         if (a.requiresAreaResource) {
             const locId = getCurrentLocationId();
             if (getAreaResourceAmount(locId, a.requiresAreaResource) <= 0) return false;
         }
-        // Dynamic unlock: grab_tools only appears after player has attempted repair and read the book
-        if (a.id === 'grab_tools') {
-            const lk = gameFlags.loopKnowledge || {};
-            if (!lk.recyclerAttempted || !lk.bookRead) return false;
+        // Delegate to isAvailable callback if defined
+        if (typeof a.isAvailable === 'function') {
+            try { return a.isAvailable(availCtx); } catch { /* ignore */ }
         }
+        // Explicit no-callback = always visible
         return true;
     });
 

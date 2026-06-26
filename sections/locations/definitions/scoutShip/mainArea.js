@@ -59,7 +59,10 @@ export const scoutShipMainArea = {
             durationSeconds: 5,
             repeatable: true,
             repeatLimit: 2,
-            unlockedBy: 'assess_supplies'
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return !!us['assess_supplies'];
+            }
         },
         {
             id: 'grab_bottled_water',
@@ -70,7 +73,10 @@ export const scoutShipMainArea = {
             durationSeconds: 5,
             repeatable: true,
             repeatLimit: 2,
-            unlockedBy: 'assess_supplies'
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return !!us['assess_supplies'];
+            }
         },
         {
             id: 'drink_water',
@@ -123,17 +129,15 @@ export const scoutShipMainArea = {
             oneTime: true,
             repeatable: false,
             requiresItem: 'repair_tools',
-            unlockedBy: 'assess_supplies',
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return !!us['assess_supplies'];
+            },
             onStart(ctx) {
                 // Mark attempt on first click — needed to unlock grab_tools in workshop
-                if (!hasMilestone('recycler_attempted')) {
-                    setMilestone('recycler_attempted', () => persistLoopKnowledge(ctx));
-                    try {
-                        const wsUs = ctx.getUnlockState('scout_ship_workshop');
-                        wsUs['__recycler_attempted__'] = true;
-                        ctx.setUnlockState('scout_ship_workshop', wsUs);
-                        ctx.flagActionAsNew('grab_tools');
-                    } catch { /* ignore */ }
+                if (!ctx.gameFlags.recyclerAttempted) {
+                    ctx.gameFlags.recyclerAttempted = true;
+                    ctx.flagActionAsNew('grab_tools');
                     ctx.setFullRebuildNeeded(true);
                     ctx.refreshUI();
                 }

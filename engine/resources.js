@@ -4,7 +4,7 @@ import { t } from '../locales/locales.js';
 import { setupEffectsUI, getEffectDebuffs, getEffectDrains, getEffectDebuffDetails, addEffect, removeEffect, hasEffect, updateEffectsUI, EFFECT_HUNGRY, EFFECT_THIRSTY, EFFECT_EXHAUSTED, EFFECT_LIFE_SUPPORT_FAILURE, EFFECT_OXYGEN_DEPLETED, clearAllEffects } from './effects.js';
 import { setupQueueUI } from './queue.js';
 import { gameFlags, flagActionAsNew } from './gameFlags.js';
-import { switchToLocation } from '../sections/locations/locationData.js';
+import { switchToLocation, getAllLocations } from '../sections/locations/locationData.js';
 import { clearQueue } from './queue.js';
 import { resetIngameTime } from './time.js';
 import { showStoryPopup } from '../ui/panels/storyPopup.js';
@@ -671,18 +671,16 @@ function resetAllActionState() {
         keysToRemove.forEach(key => localStorage.removeItem(key));
     } catch { /* ignore */ }
     
-    // Clear completed/one-time flags from all registered location actions
+    // Clear completed/one-time flags from all registered location actions (synchronous)
     try {
-        import('../sections/locations/locationData.js').then(({ getAllLocations }) => {
-            const allLocations = getAllLocations();
-            Object.values(allLocations).forEach(loc => {
-                if (loc && Array.isArray(loc.actions)) {
-                    loc.actions.forEach(action => {
-                        delete action._completed;
-                        delete action._repeatCount;
-                    });
-                }
-            });
+        const allLocations = getAllLocations();
+        Object.values(allLocations).forEach(loc => {
+            if (loc && Array.isArray(loc.actions)) {
+                loc.actions.forEach(action => {
+                    delete action._completed;
+                    delete action._repeatCount;
+                });
+            }
         });
     } catch { /* ignore */ }
 }
@@ -815,43 +813,7 @@ function handleDeathAndLoop(opts = {}) {
     // Reset per-loop game flags
     gameFlags.recyclerFixed = false;
     gameFlags.reactorOptimized = false;
-
-    // --- loopAvailable callback: akce si řeknou, kdy mají být vidět ---
-    try {
-        Promise.all([
-            import('../sections/locations/locationData.js'),
-            import('../sections/locations/locationEngine.js')
-        ]).then(([{ getAllLocations }, { getUnlockState: getUs, setUnlockState: setUs }]) => {
-            const allLocations = getAllLocations();
-            Object.values(allLocations).forEach(loc => {
-                if (!loc || !Array.isArray(loc.actions)) return;
-                const us = getUs(loc.id);
-                let changed = false;
-                loc.actions.forEach(action => {
-                    if (typeof action.loopAvailable === 'function') {
-                        try {
-                            const available = action.loopAvailable({ gameFlags });
-                            if (available) {
-                                if (!us[action.id]) {
-                                    us[action.id] = true;
-                                    changed = true;
-                                    flagActionAsNew(action.id);
-                                }
-                                // Dynamically add to target POI
-                                if (action.loopAvailablePoi) {
-                                    const poi = (loc.pois || []).find(p => p.id === action.loopAvailablePoi);
-                                    if (poi && !poi.actions.includes(action.id)) {
-                                        poi.actions.push(action.id);
-                                    }
-                                }
-                            }
-                        } catch { /* ignore */ }
-                    }
-                });
-                if (changed) setUs(loc.id, us);
-            });
-        });
-    } catch { /* ignore */ }
+    gameFlags.recyclerAttempted = false;
 
     // Clear all survival effects for the fresh loop
     clearAllEffects();

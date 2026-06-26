@@ -24,7 +24,7 @@ export const scoutShipCrewQuarters = {
         {
             id: 'terminal',
             nameKey: 'poi_terminal',
-            actions: ['check_terminal', 'hack_terminal', 'use_terminal_login', 'enter_known_credentials', 'access_logs', 'disable_alarm']
+            actions: ['check_terminal', 'hack_terminal', 'use_terminal_login', 'enter_known_credentials', 'access_logs', 'disable_alarm', 'optimize_reactor_remote']
         },
         {
             id: 'bunks',
@@ -61,12 +61,50 @@ export const scoutShipCrewQuarters = {
             },
             onComplete(ctx) {
                 const loop = ctx.gameFlags.loopCount || 0;
+                const m = ctx.gameFlags.loopKnowledge?.milestones || {};
+                const loginKnown = hasLogin(m);
+
+                if (loop >= 2) {
+                    // Loop 2+: skip check_terminal, directly offer enter_known_credentials
+                    const loc = ctx.getLocation(ctx.getCurrentLocationId());
+                    if (loc) {
+                        const us = ctx.getUnlockState(loc.id);
+                        us['check_terminal'] = true;
+                        ctx.setUnlockState(loc.id, us);
+                        const checkA = (loc.actions || []).find(a => a.id === 'check_terminal');
+                        if (checkA) checkA._completed = true;
+                        const hackA = (loc.actions || []).find(a => a.id === 'hack_terminal');
+                        if (hackA) hackA._completed = true;
+                        const useA = (loc.actions || []).find(a => a.id === 'use_terminal_login');
+                        if (useA) useA._completed = true;
+                    }
+                    // Same for bridge
+                    try {
+                        const bridgeLoc = ctx.getLocation('scout_ship_bridge');
+                        if (bridgeLoc) {
+                            const bus = ctx.getUnlockState('scout_ship_bridge');
+                            bus['check_bridge_terminal'] = true;
+                            ctx.setUnlockState('scout_ship_bridge', bus);
+                            const bCheckA = (bridgeLoc.actions || []).find(a => a.id === 'check_bridge_terminal');
+                            if (bCheckA) bCheckA._completed = true;
+                            const bHackA = (bridgeLoc.actions || []).find(a => a.id === 'hack_bridge_terminal');
+                            if (bHackA) bHackA._completed = true;
+                            const bUseA = (bridgeLoc.actions || []).find(a => a.id === 'use_bridge_terminal_login');
+                            if (bUseA) bUseA._completed = true;
+                        }
+                    } catch { /* ignore */ }
+                    // Show terminal login actions
+                    ctx.flagActionAsNew('enter_known_credentials');
+                    ctx.flagActionAsNew('enter_known_credentials_bridge');
+                    ctx.setFullRebuildNeeded(true);
+                }
+
+                // Fuel/O2 reveal (loop 2+)
                 if (loop < 2) return;
                 const bridgeList = ctx.areaResources['scout_ship_bridge'];
                 const fuel = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_fuel') : null;
                 const currentFuel = fuel ? Math.round(fuel.amount) : 0;
                 const projectedMins = Math.round(currentFuel / 1.8);
-                const m = ctx.gameFlags.loopKnowledge?.milestones || {};
                 if (!m.fuel_scanned) {
                     setMilestone('fuel_scanned', () => persistLoopKnowledge(ctx));
                 }
@@ -99,7 +137,10 @@ export const scoutShipCrewQuarters = {
             drain: [{ resource: 'Stamina', amount: 3 }],
             durationSeconds: 15,
             oneTime: true,
-            unlockedBy: 'wake_up',
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return !!us['wake_up'];
+            },
             getResultKey(ctx) {
                 const m = ctx.gameFlags.loopKnowledge?.milestones || {};
                 const loop = ctx.gameFlags.loopCount || 0;
@@ -138,7 +179,6 @@ export const scoutShipCrewQuarters = {
                     if (hackA) hackA._completed = true;
                     if (useA)  useA._completed = true;
                     if (enterA) ctx.flagActionAsNew('enter_known_credentials');
-                    // Downstream actions unlock via engine when enter_known_credentials completes
                 } else if (noteFound) {
                     if (enterA) enterA._completed = true;
                     ctx.flagActionAsNew('use_terminal_login');
@@ -160,7 +200,10 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 180,
             oneTime: true,
             resultKey: 'result_hack_terminal',
-            unlockedBy: 'check_terminal',
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return !!us['check_terminal'];
+            },
             onComplete(ctx) {
                 setMilestone('crew_terminal_hacked', () => persistLoopKnowledge(ctx));
                 const loc = ctx.getLocation(ctx.getCurrentLocationId());
@@ -203,8 +246,11 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 3,
             oneTime: true,
             resultKey: 'result_use_terminal_login',
-            unlockedBy: 'check_terminal',
             requiresItem: 'terminal_login_note',
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return !!us['check_terminal'];
+            },
             onComplete(ctx) {
                 setMilestone('crew_terminal_note_used', () => persistLoopKnowledge(ctx));
                 const loc = ctx.getLocation(ctx.getCurrentLocationId());
@@ -246,8 +292,15 @@ export const scoutShipCrewQuarters = {
             drain: [{ resource: 'Stamina', amount: 1 }],
             durationSeconds: 3,
             oneTime: true,
-            resultKey: 'result_enter_known_credentials',
-            unlockedBy: 'check_terminal',
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return !!us['check_terminal'];
+            },
+            getResultKey(ctx) {
+                const loop = ctx.gameFlags.loopCount || 0;
+                if (loop >= 2) return 'result_enter_known_credentials_loop2';
+                return 'result_enter_known_credentials';
+            },
             onComplete(ctx) {
                 const loc = ctx.getLocation(ctx.getCurrentLocationId());
                 if (loc) {
@@ -270,7 +323,10 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 10,
             oneTime: true,
             resultKey: 'result_access_logs',
-            unlockedBy: ['hack_terminal', 'use_terminal_login', 'enter_known_credentials']
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return ['hack_terminal', 'use_terminal_login', 'enter_known_credentials'].some(id => us[id]);
+            }
         },
         {
             id: 'search_bunks',
@@ -280,7 +336,10 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 20,
             oneTime: true,
             resultKey: 'result_search_bunks',
-            unlockedBy: 'wake_up',
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return !!us['wake_up'];
+            },
             unlocksAll: true
         },
         {
@@ -296,7 +355,10 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 15,
             repeatable: true,
             cancellable: true,
-            unlockedBy: 'wake_up'
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return !!us['wake_up'];
+            }
         },
         {
             id: 'disable_alarm',
@@ -307,7 +369,10 @@ export const scoutShipCrewQuarters = {
             oneTime: true,
             resultKey: 'result_disable_alarm',
             removesEffect: 'alarm',
-            unlockedBy: ['hack_terminal', 'use_terminal_login', 'enter_known_credentials']
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return ['hack_terminal', 'use_terminal_login', 'enter_known_credentials'].some(id => us[id]);
+            }
         },
         {
             id: 'check_storage',
@@ -318,7 +383,10 @@ export const scoutShipCrewQuarters = {
             oneTime: true,
             resultKey: 'result_check_storage',
             rewards: [{ type: 'item', name: 'Bottled Water', amount: 1 }],
-            unlockedBy: 'wake_up'
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return !!us['wake_up'];
+            }
         },
         {
             id: 'read_book',
@@ -329,7 +397,10 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 90,
             oneTime: true,
             resultKey: 'result_read_book',
-            unlockedBy: 'search_bunks',
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return !!us['search_bunks'];
+            },
             onComplete(ctx) {
                 setMilestone('book_read', () => persistLoopKnowledge(ctx));
             }
@@ -351,14 +422,16 @@ export const scoutShipCrewQuarters = {
             drain: [{ resource: 'Stamina', amount: 2 }],
             durationSeconds: 8,
             oneTime: true,
-            unlockedBy: '__loop_memory__',
-            loopAvailablePoi: 'terminal',
-            loopAvailable(ctx) {
+            isAvailable(ctx) {
                 const m = ctx.gameFlags.loopKnowledge?.milestones || {};
                 const loop = ctx.gameFlags.loopCount || 0;
                 if (loop < 2) return false;
+                // Must be logged in on THIS terminal
+                const us = ctx.getUnlockState('scout_ship_crew_quarters');
+                if (!us['enter_known_credentials']) return false;
                 if (!hasLogin(m)) return false;
                 if (!hasMilestone('reactor_optimized')) return false;
+                if (!hasMilestone('reactor_remote_hint_seen')) return false;
                 if (ctx.gameFlags.reactorOptimized) return false;
                 return true;
             },
@@ -393,7 +466,10 @@ export const scoutShipCrewQuarters = {
             repeatable: true,
             targetLocation: 'scout_ship_main_area',
             resultKey: 'result_go_to_main_area',
-            unlockedBy: 'wake_up'
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return !!us['wake_up'];
+            }
         }
     ]
 };

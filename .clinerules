@@ -87,6 +87,32 @@
   - `scout_ship_main_area`: `area_water` (15, cap 99)
   - `scout_ship_bridge`: `area_fuel` (300, cap 600) + `area_o2` (200, cap 200)
 
+# ===== isAvailable SYSTÉM (refactored Jun 2026) =====
+
+- **JEDINÝ mechanismus viditelnosti akcí je `isAvailable(ctx)` callback v definici akce**
+- `isAvailable` se volá při každém `refreshUI()` — vždy aktuální
+- `ctx` obsahuje: `gameFlags`, `getCurrentLocationId`, `getUnlockState`, `hasLogin`, `hasMilestone`, `countItemInBag`, `t`
+- **NEPOUŽÍVEJ** `unlockedBy` pro řízení viditelnosti — slouží už jen pro `unlocksAll` "new" badge
+- **NEPOUŽÍVEJ** `loopAvailable` / `loopAvailablePoi` — jsou odstraněny
+- **NEPOUŽÍVEJ** fiktivní klíče jako `'__loop_memory__'` nebo `'__recycler_attempted__'`
+- **NIKDY NEPŘIDÁVEJ** `if (action.id === '...')` bloky do `locationUi.js` — VŽDY použij `isAvailable`
+- Akce bez `isAvailable` jsou vždy viditelné (pokud nejsou `_completed`)
+- `_completed` flagy a `unlockState[id]` jsou univerzální — engine je spravuje automaticky
+
+**Příklad:**
+```js
+{
+  id: 'nova_akce',
+  isAvailable(ctx) {
+    const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+    if (!us['wake_up']) return false;            // závislost na jiné akci
+    if (ctx.gameFlags.loopCount < 2) return false; // loop-aware
+    if (!hasMilestone('nejaky_milestone')) return false; // milestone
+    return true;
+  },
+}
+```
+
 # ===== RESOURCE A DRAIN SYSTÉM =====
 
 - `DEFAULT_DRAIN` sazby jsou **per-sekundové** (ne per-minutu!):
