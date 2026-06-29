@@ -999,3 +999,10 @@ html.is-compact #locationsSection > .content-panel.location-panel {
         padding: 1px !important;
     }
 }
+
+/* Duration remembered — green highlight for actions the player knows from previous loops */
+.drain-time-remembered {
+    color: #5ae05a !important;
+    /* slightly greener shade of the theme glow */
+}
+

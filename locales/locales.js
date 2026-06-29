@@ -377,7 +377,7 @@ loaded['en'] = {
     "title_changelog": "Changelog",
     "title_new_game": "New Game",
     "title_settings": "Settings"
-};;;;;;;;;;;;;;;;;;;;;
+};;;;;;;;;;;;;;;;;;;;;;
 
 // ==========================================================================
 // Public API

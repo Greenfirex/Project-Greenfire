@@ -3,7 +3,7 @@ import { setupTooltip } from '../ui/panels/tooltip.js';
 import { t } from '../locales/locales.js';
 import { setupEffectsUI, getEffectDebuffs, getEffectDrains, getEffectDebuffDetails, addEffect, removeEffect, hasEffect, updateEffectsUI, EFFECT_HUNGRY, EFFECT_THIRSTY, EFFECT_EXHAUSTED, EFFECT_LIFE_SUPPORT_FAILURE, EFFECT_OXYGEN_DEPLETED, clearAllEffects } from './effects.js';
 import { setupQueueUI } from './queue.js';
-import { gameFlags, flagActionAsNew } from './gameFlags.js';
+import { gameFlags, flagActionAsNew, resetPerLoopFlags } from './gameFlags.js';
 import { switchToLocation, getAllLocations } from '../sections/locations/locationData.js';
 import { clearQueue } from './queue.js';
 import { resetIngameTime } from './time.js';
@@ -809,10 +809,8 @@ function handleDeathAndLoop(opts = {}) {
         }
     }
 
-    // Reset per-loop game flags
-    gameFlags.recyclerFixed = false;
-    gameFlags.reactorOptimized = false;
-    gameFlags.recyclerAttempted = false;
+    // Reset per-loop game flags (single source of truth: INITIAL_PER_LOOP_FLAGS)
+    resetPerLoopFlags();
 
     // Clear all survival effects for the fresh loop
     clearAllEffects();

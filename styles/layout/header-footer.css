@@ -256,18 +256,6 @@ html:not(.is-compact) #footer #changelogBtn {
     text-shadow: 0 1px 0 rgba(0,0,0,0.45);
 }
 
-/* Apply the same active highlight to the Pause button when paused */
-.footer-controls #pauseBtn.active {
-    background: linear-gradient(180deg, rgba(34,139,34,0.22), rgba(0,100,0,0.18));
-    color: #eaffea;
-    border: 1px solid rgba(144,238,144,0.45);
-    box-shadow: 0 8px 22px rgba(0,160,80,0.14), 0 0 10px rgba(144,238,144,0.18) inset;
-    /* Keep size consistent when highlighted */
-    transform: none;
-    font-weight: 700;
-    text-shadow: 0 1px 0 rgba(0,0,0,0.45);
-}
-
 /* Apply the same active highlight to the Debug button when enabled */
 .footer-controls #debugBtn.active {
     background: linear-gradient(180deg, rgba(34,139,34,0.22), rgba(0,100,0,0.18));
@@ -278,9 +266,6 @@ html:not(.is-compact) #footer #changelogBtn {
     font-weight: 700;
     text-shadow: 0 1px 0 rgba(0,0,0,0.45);
 }
-
-/* Keep Pause/Resume width stable to avoid layout shift */
-.footer-controls #pauseBtn { min-width: 72px; text-align: center; }
 
 /* keep header-link look but slightly smaller for these controls */
 .header-controls .header-link, .footer-controls .header-link {
@@ -419,8 +404,6 @@ html:not(.is-compact) #footer #changelogBtn {
         padding: 0 6px;
         font-size: 10px;
     }
-
-    .footer-controls #pauseBtn { min-width: 58px; }
 
     /* Version button (changelog) moves into the header ⋯ menu on mobile */
     #changelogBtn { display: none; }

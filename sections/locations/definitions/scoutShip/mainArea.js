@@ -134,7 +134,8 @@ export const scoutShipMainArea = {
             resultKey: 'result_install_comms',
             isAvailable(ctx) {
                 if (ctx.gameFlags.commsInstalled) return false;
-                if (!hasMilestone('comms_diagnosed')) return false;
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                if (!us['check_comms']) return false;
                 return true;
             },
             onComplete(ctx) {
@@ -218,9 +219,11 @@ export const scoutShipMainArea = {
             descKey: 'action_repair_recycler_desc',
             drain: [{ resource: 'Stamina', amount: 4 }],
             durationSeconds: 20,
+            durationIfRemembered: 10,
             oneTime: true,
             repeatable: false,
             requiredItems: ['repair_tools'],
+            remembersCondition(ctx) { return hasMilestone('recycler_repaired'); },
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 return !!us['assess_supplies'];
@@ -243,7 +246,7 @@ export const scoutShipMainArea = {
                 }
                 // Adjust duration for repeat repairs
                 if (hasMilestone('recycler_repaired')) {
-                    ctx.action.durationSeconds = 10;
+                    ctx.action.durationSeconds = ctx.action.durationIfRemembered;
                     ctx.addLogEntry(ctx.t('log_recycler_remember'), ctx.LogType.INFO);
                 }
             },

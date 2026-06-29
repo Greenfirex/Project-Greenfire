@@ -5,10 +5,6 @@ import { addLogEntry, LogType } from './ingameLog.js';
 import { gameFlags, resetGameFlags, applySavedGameFlags } from './gameFlags.js';
 import { getCurrentLocationId, switchToLocation } from '../sections/locations/locationData.js';
 import { storyLog, getInitialStoryLog } from './objectives.js';
-// Legacy activeActions module no longer exists — stubbed out during refactor.
-const resetActiveActions = () => {};
-const getActiveCrashSiteAction = () => null;
-const setActiveCrashSiteAction = () => {};
 import { characterState, applySavedCharacterState, getCharacterStateForSave, resetCharacterState } from '../sections/character/character.js';
 import { getActionCompletionState, restoreActionCompletionState } from '../sections/locations/locationEngine.js';
 import { getObjectivesStatus, setObjectivesStatus, resetObjectives } from './objectives.js';
@@ -50,8 +46,6 @@ export function getGameState() {
         storyLog: Array.isArray(storyLog) ? storyLog : getInitialStoryLog(),
         ingameTimeMinutes: getTotalIngameMinutes(),
         timeScale: window.TIME_SCALE ? Number(window.TIME_SCALE) : 1,
-        paused: localStorage.getItem('gamePaused') === 'true',
-        activeCrashSiteAction: getActiveCrashSiteAction(),
         activeActionState: (function(){ try { return typeof window.__getActiveActionState === 'function' ? window.__getActiveActionState() : null; } catch { return null; } })(),
         characterState: (function(){ try { return getCharacterStateForSave(); } catch { return null; } })(),
         objectivesStatus: (function(){ try { return getObjectivesStatus(); } catch { return []; } })(),
@@ -130,10 +124,6 @@ export function applyGameState(gameState) {
     if (typeof gameState.timeScale !== 'undefined') {
         localStorage.setItem('gameTimeScale', String(gameState.timeScale));
     }
-    if (typeof gameState.paused !== 'undefined') {
-        localStorage.setItem('gamePaused', gameState.paused ? 'true' : 'false');
-    }
-
     setActivatedSections(gameState.activatedSections ?? getInitialActivatedSections());
     reconcileActivatedSectionsAfterLoad();
 
@@ -187,11 +177,6 @@ export function applyGameState(gameState) {
         }
     } catch { /* non-fatal */ }
 
-    // Restore active crash site action
-    if (gameState.activeCrashSiteAction) {
-        setActiveCrashSiteAction(gameState.activeCrashSiteAction);
-    }
-
     // Notify subsystems
     window.dispatchEvent(new CustomEvent('game-state-applied'));
 
@@ -238,15 +223,13 @@ export function resetToDefaultState() {
     localStorage.removeItem('ingameTimeMinutes');
     localStorage.removeItem('activatedSections');
     localStorage.removeItem('currentSection');
-    localStorage.removeItem('crashSiteActiveTab');
-    localStorage.removeItem('craftingActiveTab');
     localStorage.removeItem('researchState');
 
     // Clear all location-specific cached data
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && (key.startsWith('poiCollapse_') || key.startsWith('unlocks_'))) {
+        if (key && (key.startsWith('poiCollapse_') || key.startsWith('unlocks_') || key.startsWith('uiMenuNew:'))) {
             keysToRemove.push(key);
         }
     }
@@ -257,7 +240,6 @@ export function resetToDefaultState() {
     resetGameFlags();
     storyLog.length = 0;
     storyLog.push(...getInitialStoryLog());
-    resetActiveActions();
     resetCharacterState();
     resetObjectives();
     clearAllEffects();

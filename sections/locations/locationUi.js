@@ -83,17 +83,23 @@ export function renderDetailsTile() {
             const savedProgress = (action.category === 'persistent' && action.id && gameFlags.persistentProgress)
                 ? (Number(gameFlags.persistentProgress[action.id]) || 0)
                 : 0;
-            const effectiveTotalSecs = Math.max(1, action.durationSeconds || 0);
+            // If the player remembers this action, use the shorter remembered duration
+            const isRememberedDetail = !!(action.durationIfRemembered && typeof action.remembersCondition === 'function' && action.remembersCondition({
+                gameFlags, getCurrentLocationId, getUnlockState, hasLogin: function(){}, hasMilestone: function(n){ return !!(gameFlags?.loopKnowledge?.milestones?.[n]); }, countItemInBag: function(){ return 0; }, t
+            }));
+            const baseDurationSeconds = isRememberedDetail ? (action.durationIfRemembered || action.durationSeconds) : (action.durationSeconds || 0);
+            const effectiveTotalSecs = Math.max(1, baseDurationSeconds);
             const effectiveProgress = isActionRunning ? actionProgress : savedProgress;
             const effectiveRemainingSecs = Math.max(0, effectiveTotalSecs - effectiveProgress);
             const effectiveProgressPct = effectiveTotalSecs > 0 ? Math.min(100, Math.round((effectiveProgress / effectiveTotalSecs) * 100)) : 0;
 
+            const detailRemainingMins = Math.round(effectiveRemainingSecs || 0);
+            const rememberedClass = isRememberedDetail ? ' drain-time-remembered' : '';
             let durationHtml = '';
             if (isInfiniteAction) {
                 durationHtml = `<div class="detail-section"><div class="detail-section-label">&#x23F1; ${t('detail_duration')}</div><div class="detail-section-value">${t('action_duration_ongoing')}</div></div>`;
             } else {
-                const remainingMins = Math.round(effectiveRemainingSecs || 0);
-                durationHtml = `<div class="detail-section"><div class="detail-section-label">&#x23F1; ${t('detail_duration')}</div><div class="detail-section-value">${t('action_duration_label', { minutes: remainingMins })}</div></div>`;
+                durationHtml = `<div class="detail-section"><div class="detail-section-label">&#x23F1; ${t('detail_duration')}</div><div class="detail-section-value${rememberedClass}">${t('action_duration_label', { minutes: detailRemainingMins })}</div></div>`;
             }
 
             // Costs — resource name + remaining count (dynamic during running)
@@ -408,13 +414,19 @@ export function renderActionButton(action) {
     const isRunning = activeActionId === actionId && !action._completed;
     const isSelected = selectedActionId === actionId;
     const pct = isRunning ? Math.min(100, Math.round((actionProgress / (action.durationSeconds || 1)) * 100)) : 0;
-    const durationMins = Math.round(action.durationSeconds || 0);
+    // If the player remembers this action from a previous loop, show the shorter duration
+    const isRemembered = !!(action.durationIfRemembered && typeof action.remembersCondition === 'function' && action.remembersCondition({
+        gameFlags, getCurrentLocationId, getUnlockState, hasLogin: function(){}, hasMilestone: function(n){ return !!(gameFlags?.loopKnowledge?.milestones?.[n]); }, countItemInBag: function(){ return 0; }, t
+    }));
+    const effectiveDuration = isRemembered ? (action.durationIfRemembered || action.durationSeconds) : (action.durationSeconds || 0);
+    const durationMins = Math.round(effectiveDuration);
     let tagHtml = '';
     if (action.targetLocation) tagHtml = '<span class="location-action-tag tag-travel">&#x2192;</span>';
     else if (action.repeatable) tagHtml = '<span class="location-action-tag tag-repeatable">&#x21BB;</span>';
     else if (action.oneTime) tagHtml = '<span class="location-action-tag tag-onetime">1&#x00D7;</span>';
     const isInfiniteAction = !action.durationSeconds || action.durationSeconds <= 0;
-    const durationLabel = durationMins > 0 ? `<span class="location-action-btn-cost drain-time">&#x23F1; ${durationMins}m</span>` : (isInfiniteAction ? `<span class="location-action-btn-cost drain-time">&#x221E;</span>` : '');
+    const rememberedClass = isRemembered ? ' drain-time-remembered' : '';
+    const durationLabel = durationMins > 0 ? `<span class="location-action-btn-cost drain-time${rememberedClass}">&#x23F1; ${durationMins}m</span>` : (isInfiniteAction ? `<span class="location-action-btn-cost drain-time">&#x221E;</span>` : '');
     let playPauseHtml = '';
     const isPaused = isRunning && actionPaused;
     if (!isRunning || isPaused) playPauseHtml = `<span class="location-play-icon" data-action-play="${actionId}">&#9654;</span>`;

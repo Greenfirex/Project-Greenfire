@@ -29,7 +29,7 @@ export const scoutShipCrewQuarters = {
         {
             id: 'bunks',
             nameKey: 'poi_bunks',
-            actions: ['wake_up', 'search_bunks', 'rest', 'read_book']
+            actions: ['wake_up', 'search_bunks', 'rest', 'read_book', 'debug_taxing']
         },
         {
             id: 'storage',
@@ -413,7 +413,10 @@ export const scoutShipCrewQuarters = {
             drainRates: { 'Stamina': 1.00, 'Food Rations': 0.40, 'Drinking Water': 0.60 },
             durationSeconds: 10,
             repeatable: true,
-            resultKey: 'result_debug_taxing'
+            resultKey: 'result_debug_taxing',
+            isAvailable(ctx) {
+                return !!window.DEBUG_TAXING_VISIBLE;
+            }
         },
         {
             id: 'optimize_reactor_remote',

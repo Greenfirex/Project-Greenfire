@@ -16,10 +16,9 @@ function updateMobileSpeedButton() {
     btn.setAttribute('aria-label', `Game speed ${s}x. Tap to change.`);
 }
 
-// Debug resource gain multiplier (playtesting helper)
-if (typeof window !== 'undefined' && typeof window.DEBUG_RESOURCE_GAIN === 'undefined') {
-    const savedDebug = localStorage.getItem('debugResourceGain');
-    window.DEBUG_RESOURCE_GAIN = savedDebug === '10' ? 10 : 1;
+// Debug taxing action visibility toggle
+if (typeof window !== 'undefined' && typeof window.DEBUG_TAXING_VISIBLE === 'undefined') {
+    window.DEBUG_TAXING_VISIBLE = false;
 }
 
 // Allow main.js to register its loop control functions
@@ -101,17 +100,15 @@ export function initFooter() {
         });
     });
 
-    // Debug toggle button
+    // Debug toggle button — shows/hides the debug_taxing action in Crew Quarters
     const debugBtn = document.getElementById('debugBtn');
     if (debugBtn) {
         debugBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            const enabled = window.DEBUG_RESOURCE_GAIN === 10;
-            window.DEBUG_RESOURCE_GAIN = enabled ? 1 : 10;
-            debugBtn.classList.toggle('active', !enabled);
-            try { localStorage.setItem('debugResourceGain', String(window.DEBUG_RESOURCE_GAIN)); } catch {}
-            const stateLabel = window.DEBUG_RESOURCE_GAIN === 10 ? 'ENABLED' : 'disabled';
-            addLogEntry(`Debug resource multiplier ${stateLabel}.`, LogType.INFO);
+            window.DEBUG_TAXING_VISIBLE = !window.DEBUG_TAXING_VISIBLE;
+            debugBtn.classList.toggle('active', window.DEBUG_TAXING_VISIBLE);
+            // Force refresh of location UI so isAvailable is re-evaluated
+            try { window.dispatchEvent(new CustomEvent('death-loop-reset')); } catch { /* ignore */ }
         });
     }
 
@@ -119,5 +116,5 @@ export function initFooter() {
     setGameSpeed(window.TIME_SCALE, false);
 
     // Ensure debug button reflects current state on load
-    if (debugBtn) debugBtn.classList.toggle('active', window.DEBUG_RESOURCE_GAIN === 10);
+    if (debugBtn) debugBtn.classList.toggle('active', window.DEBUG_TAXING_VISIBLE);
 }

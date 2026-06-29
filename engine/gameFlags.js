@@ -58,6 +58,15 @@ export function resetGameFlags() {
     Object.assign(gameFlags, getInitialGameFlags());
 }
 
+/**
+ * Reset only per-loop flags to their initial values.
+ * Uses INITIAL_PER_LOOP_FLAGS as the single source of truth.
+ * Does NOT affect persistent flags (loopCount, loopKnowledge, uiSeen, etc.).
+ */
+export function resetPerLoopFlags() {
+    Object.assign(gameFlags, INITIAL_PER_LOOP_FLAGS);
+}
+
 export function applySavedGameFlags(savedFlags = {}) {
     // Start fresh — both persistent and per-loop at defaults.
     Object.keys(gameFlags).forEach(k => delete gameFlags[k]);

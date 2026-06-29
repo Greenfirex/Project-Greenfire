@@ -24,7 +24,7 @@ export const scoutShipWorkshop = {
         {
             id: 'workbench',
             nameKey: 'poi_workbench',
-            actions: ['repair_ship_systems', 'search_workbench', 'grab_login_note', 'grab_tools', 'assemble_comms']
+            actions: ['search_workbench', 'grab_login_note', 'grab_tools', 'assemble_comms']
         },
         {
             id: 'prototype_bench',
@@ -34,7 +34,7 @@ export const scoutShipWorkshop = {
         {
             id: 'fabricator',
             nameKey: 'poi_fabricator',
-            actions: ['fabricate_parts', 'fabricate_amplifier']
+            actions: ['fabricate_amplifier']
         },
         {
             id: 'travel',
@@ -43,17 +43,6 @@ export const scoutShipWorkshop = {
         }
     ],
     actions: [
-        {
-            id: 'repair_ship_systems',
-            nameKey: 'action_repair_ship_systems',
-            descKey: 'action_repair_ship_systems_desc',
-            category: 'taxing',
-            drain: [{ resource: 'Stamina', amount: 6 }],
-            rewards: [{ type: 'resource', name: 'Food Rations', amount: 1 }, { type: 'resource', name: 'Drinking Water', amount: 1 }],
-            durationSeconds: 30,
-            repeatable: true,
-            resultKey: 'result_repair_ship_systems'
-        },
         // ==========================================================================
         // Workbench search → login note + tools
         // ==========================================================================
@@ -134,8 +123,10 @@ export const scoutShipWorkshop = {
             category: 'simple',
             drain: [{ resource: 'Stamina', amount: 3 }],
             durationSeconds: 30,
+            durationIfRemembered: 10,
             oneTime: true,
             requiredItems: ['repair_tools'],
+            remembersCondition(ctx) { return !!(ctx.gameFlags.loopKnowledge?.milestones?.tinkered_device); },
             rewards: [{ type: 'item', name: 'Power Cell', amount: 1 }],
             onStart(ctx) {
                 if (!ctx.countItemInBag('repair_tools')) {
@@ -144,7 +135,7 @@ export const scoutShipWorkshop = {
                 }
                 const m = ctx.gameFlags.loopKnowledge?.milestones || {};
                 if (m.tinkered_device) {
-                    ctx.action.durationSeconds = 10;
+                    ctx.action.durationSeconds = ctx.action.durationIfRemembered;
                 }
             },
             getResultKey(ctx) {
@@ -154,17 +145,6 @@ export const scoutShipWorkshop = {
             onComplete(ctx) {
                 setMilestone('tinkered_device', () => persistLoopKnowledge(ctx));
             }
-        },
-        {
-            id: 'fabricate_parts',
-            nameKey: 'action_fabricate_parts',
-            descKey: 'action_fabricate_parts_desc',
-            category: 'simple',
-            drain: [{ resource: 'Stamina', amount: 4 }],
-            rewards: [{ type: 'resource', name: 'Food Rations', amount: 2 }],
-            durationSeconds: 20,
-            oneTime: true,
-            resultKey: 'result_fabricate_parts'
         },
 
         // ==========================================================================
@@ -178,13 +158,15 @@ export const scoutShipWorkshop = {
             category: 'simple',
             drain: [{ resource: 'Stamina', amount: 3 }],
             durationSeconds: 45,
+            durationIfRemembered: 15,
             oneTime: true,
+            remembersCondition(ctx) { return hasMilestone('comms_repaired'); },
             isAvailable(ctx) {
                 return hasMilestone('comms_diagnosed');
             },
             onStart(ctx) {
                 if (hasMilestone('comms_repaired')) {
-                    ctx.action.durationSeconds = 15;
+                    ctx.action.durationSeconds = ctx.action.durationIfRemembered;
                 }
             },
             getResultKey(ctx) {
@@ -202,15 +184,17 @@ export const scoutShipWorkshop = {
             drain: [{ resource: 'Stamina', amount: 4 }],
             rewards: [{ type: 'item', name: 'Functional Comms Panel', amount: 1 }],
             durationSeconds: 30,
+            durationIfRemembered: 20,
             oneTime: true,
             requiresItem: 'scavenged_comms_panel',
             requiredItems: ['scavenged_comms_panel', 'signal_amplifier', 'power_cell', 'repair_tools'],
+            remembersCondition(ctx) { return hasMilestone('comms_repaired'); },
             isAvailable(ctx) {
                 return hasMilestone('comms_diagnosed');
             },
             onStart(ctx) {
                 if (hasMilestone('comms_repaired')) {
-                    ctx.action.durationSeconds = 20;
+                    ctx.action.durationSeconds = ctx.action.durationIfRemembered;
                 }
                 // Check for all required parts — collect all missing
                 const missing = [];

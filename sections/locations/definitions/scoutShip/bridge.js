@@ -270,7 +270,9 @@ export const scoutShipBridge = {
             category: 'taxing',
             drain: [{ resource: 'Stamina', amount: 4 }],
             durationSeconds: 30,
+            durationIfRemembered: 10,
             oneTime: true,
+            remembersCondition(ctx) { return hasMilestone('reactor_optimized'); },
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 return !!us['check_reactor_status'];
@@ -283,7 +285,7 @@ export const scoutShipBridge = {
                 }
                 if (ctx.gameFlags.reactorOptimized) return { block: true };
                 if (hasMilestone('reactor_optimized')) {
-                    ctx.action.durationSeconds = 10;
+                    ctx.action.durationSeconds = ctx.action.durationIfRemembered;
                 }
             },
             getResultKey(ctx) {

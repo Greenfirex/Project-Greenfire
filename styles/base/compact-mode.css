@@ -98,7 +98,6 @@ html.is-compact .footer-controls .speed-btn {
     font-size: 10px;
 }
 
-html.is-compact .footer-controls #pauseBtn { min-width: 58px; }
 html.is-compact #changelogBtn { display: none; }
 
 html.is-compact .objectives-toggle {

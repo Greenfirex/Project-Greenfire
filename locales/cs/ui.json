@@ -287,18 +287,12 @@
   "action_go_to_crew_quarters": "Zpět do ubikací",
   "action_go_to_crew_quarters_desc": "Vrátit se zpět do ubikací posádky.",
 
-  "action_repair_ship_systems": "Opravit lodní systémy",
-  "action_repair_ship_systems_desc": "Spustit diagnostiku a opravit poškozené systémy na pracovním stole. Náročný, ale odměňující úkol.",
-  "result_repair_ship_systems": "Strávíš několik minut po lokty v kabelových svazcích a obvodových deskách. Několik varovných indikátorů zabliká z červené na oranžovou. Není to opravené — ale je to lepší.",
 
   "action_tinker_device": "Vrtat se v prototypu",
   "action_tinker_device_desc": "Prozkoumat nedokončený přístroj na prototypovém stole. Netušíš k čemu slouží, ale vypadá to, že má v sobě funkční energetický článek.",
   "result_tinker_device": "Nemáš tušení, k čemu ten přístroj slouží — změť drátů, čoček a obvodů. Ale jedno poznáš: má v sobě funkční energetický článek. S pomocí nářadí se ti ho podaří vypáčit, aniž bys zbytek přístroje zničil.",
   "result_tinker_device_known": "Už víš přesně kam sáhnout. Pár cvaknutí a energetický článek je venku.",
 
-  "action_fabricate_parts": "Vyrobit součástky",
-  "action_fabricate_parts_desc": "Použít fabrikátor k syntéze náhradních komponent ze surového materiálu.",
-  "result_fabricate_parts": "Fabrikátor se s bzučením probouzí k životu, vrství polymer a slitinu do přesných tvarů. Vysune se tác s čerstvými součástkami — přesně to, co bys potřeboval na polní opravy.",
 
   "poi_workbench": "PRACOVNÍ STŮL",
   "poi_prototype_bench": "PROTOTYPOVÝ STŮL",
