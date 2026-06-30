@@ -3,6 +3,7 @@
 // ==========================================================================
 
 import { gameFlags, hasLogin, setMilestone, hasMilestone, flagActionAsNew } from '../../../../engine/gameFlags.js';
+import { hasEffect } from '../../../../engine/effects.js';
 
 function persistLoopKnowledge(ctx) {
     try {
@@ -29,7 +30,7 @@ export const scoutShipCrewQuarters = {
         {
             id: 'bunks',
             nameKey: 'poi_bunks',
-            actions: ['wake_up', 'search_bunks', 'rest', 'read_book', 'debug_taxing']
+            actions: ['wake_up', 'search_bunks', 'rest', 'read_book', 'grab_uniform', 'debug_taxing']
         },
         {
             id: 'storage',
@@ -349,8 +350,8 @@ export const scoutShipCrewQuarters = {
             category: 'rest',
             drain: [],
             rewards: [
-                { type: 'resource', name: 'Stamina', amount: 5 },
-                { type: 'resource', name: 'Health', amount: 1 }
+                { type: 'resource', name: 'Stamina', amount: 30 },
+                { type: 'resource', name: 'Health', amount: 8 }
             ],
             durationSeconds: 15,
             repeatable: true,
@@ -457,6 +458,55 @@ export const scoutShipCrewQuarters = {
                     const a = (crewLoc.actions || []).find(a => a.id === 'optimize_reactor_remote');
                     if (a) a._completed = true;
                 }
+                ctx.setFullRebuildNeeded(true);
+            }
+        },
+        {
+            id: 'grab_uniform',
+            nameKey: 'action_grab_uniform',
+            descKey: 'action_grab_uniform_desc',
+            category: 'simple',
+            drain: [{ resource: 'Stamina', amount: 2 }],
+            durationSeconds: 8,
+            durationIfRemembered: 4,
+            oneTime: true,
+            remembersCondition(ctx) { return hasMilestone('uniform_remembered'); },
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                if (!us['wake_up']) return false;
+                if (ctx.gameFlags.uniformGrabbed) return false;
+                return true;
+            },
+            onStart(ctx) {
+                if (ctx.gameFlags.uniformGrabbed) return { block: true };
+                const loop = ctx.gameFlags.loopCount || 0;
+                const lifeSupportFailed = hasEffect('life_support_failure');
+                if (loop < 1 && !lifeSupportFailed) {
+                    ctx.gameFlags.uniformNoticed = true;
+                    ctx.addLogEntry(ctx.t('log_uniform_no_reason'), ctx.LogType.INFO);
+                    return { block: true };
+                }
+                // Shorter duration when you remember how to put it on
+                if (hasMilestone('uniform_remembered')) {
+                    ctx.action.durationSeconds = ctx.action.durationIfRemembered;
+                }
+            },
+            getResultKey(ctx) {
+                const loop = ctx.gameFlags.loopCount || 0;
+                if (loop >= 2) return 'result_grab_uniform_loop2';
+                if (loop >= 1) return 'result_grab_uniform_loop1';
+                if (ctx.gameFlags.uniformNoticed) return 'result_grab_uniform_tried';
+                return 'result_grab_uniform';
+            },
+            rewards: [
+                { type: 'item', name: 'Basic Helmet', amount: 1 },
+                { type: 'item', name: 'Basic Armor', amount: 1 },
+                { type: 'item', name: 'Basic Legs', amount: 1 },
+                { type: 'item', name: 'Basic Boots', amount: 1 },
+            ],
+            onComplete(ctx) {
+                ctx.gameFlags.uniformGrabbed = true;
+                setMilestone('uniform_remembered', () => persistLoopKnowledge(ctx));
                 ctx.setFullRebuildNeeded(true);
             }
         },

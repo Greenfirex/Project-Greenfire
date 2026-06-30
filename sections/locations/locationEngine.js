@@ -422,15 +422,21 @@ export function startAction(actionId) {
         _infoUpdateCounter++;
         if (_infoUpdateCounter >= 5) { try { updateResourceInfo(); } catch { /* ignore */ } _infoUpdateCounter = 0; }
 
-        // Cap detection for rest/refresh actions
+        // Cap detection for rest/refresh actions — only stop when ALL reward resources are capped
         if ((activeAction.category === 'rest' || activeAction.category === 'refresh') && Array.isArray(activeAction.rewards)) {
-            for (const r of activeAction.rewards) {
-                if (r.type === 'resource') {
+            const rewardResources = activeAction.rewards.filter(r => r.type === 'resource');
+            if (rewardResources.length > 0) {
+                let allCapped = true;
+                for (const r of rewardResources) {
                     const res = resources.find(rr => rr && String(rr.name) === String(r.name));
-                    if (res && res.capacity > 0 && Number(res.amount) >= Number(res.capacity)) {
-                        completeActiveAction({ reason: 'cap' });
-                        return;
+                    if (res && res.capacity > 0 && Number(res.amount) < Number(res.capacity)) {
+                        allCapped = false;
+                        break;
                     }
+                }
+                if (allCapped) {
+                    completeActiveAction({ reason: 'cap' });
+                    return;
                 }
             }
         }

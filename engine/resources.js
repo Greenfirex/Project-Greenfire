@@ -9,7 +9,7 @@ import { clearQueue } from './queue.js';
 import { resetIngameTime } from './time.js';
 import { showStoryPopup } from '../ui/panels/storyPopup.js';
 import { addLogEntry, LogType } from './ingameLog.js';
-import { getAutoConsumeSettings, countItemInBag } from '../sections/character/character.js';
+import { getAutoConsumeSettings, countItemInBag, characterState } from '../sections/character/character.js';
 import { resetCharacterState } from '../sections/character/character.js';
 import { getItemDefinition } from '../sections/character/items.js';
 
@@ -19,6 +19,7 @@ const RESOURCE_LOCALE_KEYS = {
     'XP': 'res_xp',
     'Food Rations': 'res_food',
     'Drinking Water': 'res_water',
+    'Oxygen': 'res_oxygen',
 };
 
 export const RESOURCE_EMOJIS = {
@@ -27,6 +28,7 @@ export const RESOURCE_EMOJIS = {
     'XP': '⭐',
     'Food Rations': '🥩',
     'Drinking Water': '💧',
+    'Oxygen': '🫧',
 };
 
 const RESOURCE_DESC_KEYS = {
@@ -34,6 +36,7 @@ const RESOURCE_DESC_KEYS = {
     'Stamina': 'res_stamina_desc',
     'Food Rations': 'res_food_desc',
     'Drinking Water': 'res_water_desc',
+    'Oxygen': 'res_oxygen_desc',
 };
 
 export function getInitialResources() {
@@ -43,10 +46,77 @@ export function getInitialResources() {
         { name: 'XP', amount: 0, isDiscovered: true, capacity: 9000000000, producible: false, integer: true, hidden: true },
         { name: 'Food Rations', amount: 25, isDiscovered: true, capacity: 25, producible: false, integer: true },
         { name: 'Drinking Water', amount: 25, isDiscovered: true, capacity: 25, producible: false, integer: true },
+        { name: 'Oxygen', amount: 0, capacity: 0, isDiscovered: false, producible: false, integer: true },
     ];
 }
 
 export let resources = getInitialResources();
+
+// ==========================================================================
+// Uniform Set Bonus — Personal Oxygen
+// ==========================================================================
+
+const UNIFORM_ITEM_IDS = ['basic_helmet', 'basic_armor', 'basic_legs', 'basic_boots'];
+const UNIFORM_O2_CAPACITY = 120;
+const UNIFORM_O2_DRAIN_PER_MIN = 4; // same rate as area_o2 when oxygen_depleted
+
+/**
+ * Sync personal Oxygen resource based on whether the full uniform set is equipped.
+ * Called on equipment changes and during passive drain ticks.
+ */
+export function syncUniformOxygen() {
+    const oxygen = getResourceByName('Oxygen');
+    if (!oxygen) return;
+
+    const equipped = characterState?.equipment || {};
+    const equippedIds = Object.values(equipped).filter(Boolean);
+    const hasFullSet = UNIFORM_ITEM_IDS.every(id => equippedIds.includes(id));
+
+    if (hasFullSet) {
+        if (oxygen.capacity === 0) {
+            // First equipping — initialize from saved state or full tank
+            oxygen.capacity = UNIFORM_O2_CAPACITY;
+            const saved = (typeof characterState.uniformOxygen === 'number' && characterState.uniformOxygen >= 0)
+                ? characterState.uniformOxygen : UNIFORM_O2_CAPACITY;
+            oxygen.amount = Math.min(saved, UNIFORM_O2_CAPACITY);
+            oxygen.isDiscovered = true;
+            oxygen.hidden = false;
+            // If oxygen_depleted was active, uniform now protects — remove effect
+            if (hasEffect('oxygen_depleted')) {
+                removeEffect('oxygen_depleted');
+                addLogEntry(t('log_effect_removed', { effect: t('effect_oxygen_depleted_name') }), LogType.ERROR);
+            }
+        }
+    } else {
+        if (oxygen.capacity > 0) {
+            // Save current amount to characterState before hiding
+            characterState.uniformOxygen = oxygen.amount;
+            oxygen.amount = 0;
+            oxygen.capacity = 0;
+            oxygen.isDiscovered = false;
+            oxygen.hidden = true;
+            // Reinstate oxygen_depleted if conditions warrant it
+            if (hasEffect('life_support_failure') && !hasEffect('oxygen_depleted')) {
+                const bridgeList = areaResources['scout_ship_bridge'];
+                const areaO2 = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_o2') : null;
+                if (!areaO2 || areaO2.amount <= 0) {
+                    addEffect({ ...EFFECT_OXYGEN_DEPLETED });
+                    addLogEntry(t('log_effect_added', { effect: t('effect_oxygen_depleted_name') }), LogType.ERROR);
+                }
+            }
+        }
+    }
+}
+
+// Listen for equipment changes to sync uniform O2
+if (typeof window !== 'undefined') {
+    try {
+        window.addEventListener('character-state-changed', () => {
+            syncUniformOxygen();
+            updateResourceInfo();
+        });
+    } catch { /* ignore */ }
+}
 
 // ==========================================================================
 // Area Resources — location-based supply stocks
@@ -87,7 +157,7 @@ const AREA_EMOJIS = {
     'area_food': '🥫',
     'area_water': '💦',
     'area_fuel': '⛽',
-    'area_o2': '🫁',
+    'area_o2': '🫧',
 };
 
 const AREA_LOCALE_KEYS = {
@@ -317,6 +387,7 @@ const RESOURCE_CATEGORIES = {
     'Stamina': 'Essential',
     'Food Rations': 'Essential',
     'Drinking Water': 'Essential',
+    'Oxygen': 'Essential',
 };
 
 function getResourceCategoryName(resourceName) {
@@ -447,6 +518,18 @@ export function computeResourceRates(resourceName) {
             totalConsumption += Math.abs(_activeDrainRates['Stamina']);
             if (_activeDrainSources && _activeDrainSources['Stamina']) {
                 consumptionSources.push(..._activeDrainSources['Stamina'].map(s => ({ ...s })));
+            }
+        }
+    }
+
+    // Personal Oxygen drain from uniform — only when life support failed AND area O2 is empty
+    if (resourceName === 'Oxygen' && currentResource.capacity > 0 && hasEffect('life_support_failure')) {
+        const bridgeList = areaResources['scout_ship_bridge'];
+        const areaO2 = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_o2') : null;
+        if (!areaO2 || areaO2.amount <= 0) {
+            if (currentResource.amount > 0) {
+                totalConsumption += UNIFORM_O2_DRAIN_PER_MIN;
+                consumptionSources.push({ rate: UNIFORM_O2_DRAIN_PER_MIN, label: t('res_oxygen_desc') });
             }
         }
     }
@@ -618,7 +701,9 @@ export function updateResourceInfo() {
         generationEl.classList.toggle('negative-rate', netPerMinute < 0 && !isCapped);
 
         const EPS = 1e-9;
-        if (!_activeDrainRates) {
+        // Oxygen drain rate is passive (not driven by _activeDrainRates) — always show if non-zero
+        const isOxygen = (resource.name === 'Oxygen');
+        if (!_activeDrainRates && !isOxygen) {
             generationEl.textContent = '';
         } else if (Math.abs(netPerMinute) > EPS) {
             // Don't show negative drain rate when resource is already depleted
@@ -637,11 +722,12 @@ export function updateResourceInfo() {
         progressBar.style.width = `${Math.min((resource.amount / resource.capacity) * 100, 100)}%`;
 
         const rn = String(resource.name || '');
-        progressBar.classList.remove('bar-stamina', 'bar-food', 'bar-water', 'bar-health');
+        progressBar.classList.remove('bar-stamina', 'bar-food', 'bar-water', 'bar-health', 'bar-oxygen');
         if (/stamina/i.test(rn)) progressBar.classList.add('bar-stamina');
         else if (/food/i.test(rn)) progressBar.classList.add('bar-food');
         else if (/water/i.test(rn)) progressBar.classList.add('bar-water');
         else if (/health/i.test(rn)) progressBar.classList.add('bar-health');
+        else if (/oxygen/i.test(rn)) progressBar.classList.add('bar-oxygen');
 
         infoRow.classList.toggle('capped', isCapped);
     });
@@ -924,6 +1010,61 @@ function tickAutoConsume() {
 // Throttle auto-consume to once per 10 seconds
 let _lastAutoConsumeTick = 0;
 
+// Low resource warning cooldowns — timestamp-based, no persistent flags needed
+const WARNING_COOLDOWN_MS = 60000; // 1 minute between repeated warnings
+const LOW_RESOURCE_THRESHOLD = 0.25; // warn below 25%
+let _lastWaterWarning = 0;
+let _lastFoodWarning = 0;
+let _lastStaminaWarning = 0;
+
+/** Smart low-resource warnings with inventory context. Uses timestamp cooldown. */
+function syncLowResourceWarnings() {
+    const now = Date.now();
+
+    // --- Drinking Water ---
+    const water = getResourceByName('Drinking Water');
+    if (water && water.capacity > 0 && water.amount > 0
+        && water.amount < water.capacity * LOW_RESOURCE_THRESHOLD
+        && now - _lastWaterWarning > WARNING_COOLDOWN_MS) {
+        _lastWaterWarning = now;
+        const hasWater = countItemInBag('bottled_water') > 0;
+        const autoOn = getAutoConsumeSettings()['bottled_water'];
+        if (hasWater && !autoOn) {
+            addLogEntry(t('log_water_low_has_auto_hint'), LogType.WARNING);
+        } else if (hasWater) {
+            addLogEntry(t('log_water_low_has'), LogType.WARNING);
+        } else {
+            addLogEntry(t('log_water_low_none'), LogType.WARNING);
+        }
+    }
+
+    // --- Food Rations ---
+    const food = getResourceByName('Food Rations');
+    if (food && food.capacity > 0 && food.amount > 0
+        && food.amount < food.capacity * LOW_RESOURCE_THRESHOLD
+        && now - _lastFoodWarning > WARNING_COOLDOWN_MS) {
+        _lastFoodWarning = now;
+        const hasFood = countItemInBag('packaged_food') > 0;
+        const autoOn = getAutoConsumeSettings()['packaged_food'];
+        if (hasFood && !autoOn) {
+            addLogEntry(t('log_food_low_has_auto_hint'), LogType.WARNING);
+        } else if (hasFood) {
+            addLogEntry(t('log_food_low_has'), LogType.WARNING);
+        } else {
+            addLogEntry(t('log_food_low_none'), LogType.WARNING);
+        }
+    }
+
+    // --- Stamina ---
+    const stamina = getResourceByName('Stamina');
+    if (stamina && stamina.capacity > 0 && stamina.amount > 0
+        && stamina.amount < stamina.capacity * LOW_RESOURCE_THRESHOLD
+        && now - _lastStaminaWarning > WARNING_COOLDOWN_MS) {
+        _lastStaminaWarning = now;
+        addLogEntry(t('log_stamina_low'), LogType.WARNING);
+    }
+}
+
 export function applyTimePassiveDrain(realSeconds) {
     if (!Number.isFinite(realSeconds) || realSeconds <= 0) return;
 
@@ -972,6 +1113,7 @@ export function applyTimePassiveDrain(realSeconds) {
     resources.forEach(res => {
         const perMinRate = perMinRates[res.name] || 0;
         if (perMinRate === 0) return;
+        if (res.name === 'Oxygen') return; // Oxygen handled separately above
         const delta = parseFloat((perMinRate * realSeconds).toFixed(10));
         if (delta === 0) return;
         res.amount = parseFloat(Math.max(0, Math.min(res.capacity, res.amount + delta)).toFixed(10));
@@ -1006,24 +1148,64 @@ export function applyTimePassiveDrain(realSeconds) {
                 fuel.amount = 0;
                 if (!hasEffect('life_support_failure')) {
                     addEffect({ ...EFFECT_LIFE_SUPPORT_FAILURE });
-                    addLogEntry(t('log_fuel_depleted'), LogType.WARNING);
+                    addLogEntry(t('log_fuel_depleted'), LogType.ERROR);
                     addLogEntry(t('log_effect_added', { effect: t('effect_life_support_failure_name') }), LogType.ERROR);
+                    // Uniform hint — only if player doesn't already have it
+                    if (!gameFlags.uniformGrabbed) {
+                        if (gameFlags.uniformNoticed) {
+                            addLogEntry(t('log_lifesupport_uniform_hint_tried'), LogType.UNLOCK);
+                        } else {
+                            addLogEntry(t('log_lifesupport_uniform_hint_first'), LogType.UNLOCK);
+                        }
+                    }
                 }
             }
         }
 
-        // Drain O2 only when life support failed
+        // Drain area O2 first — only when life support failed
         if (o2 && hasEffect('life_support_failure') && o2.amount > 0) {
             const o2Delta = (O2_DRAIN_PER_MIN * realSeconds);
             o2.amount = Math.max(0, o2.amount - o2Delta);
 
-            // O2 just ran out
+            // Area O2 just ran out — cascade to personal or health
             if (o2.amount <= 0) {
                 o2.amount = 0;
-                if (!hasEffect('oxygen_depleted')) {
-                    addEffect({ ...EFFECT_OXYGEN_DEPLETED });
-                    addLogEntry(t('log_o2_depleted'), LogType.ERROR);
-                    addLogEntry(t('log_effect_added', { effect: t('effect_oxygen_depleted_name') }), LogType.ERROR);
+                // Check if uniform provides personal oxygen
+                const oxygenRes = getResourceByName('Oxygen');
+                if (oxygenRes && oxygenRes.capacity > 0 && oxygenRes.amount > 0) {
+                    // Uniform protects — hide oxygen_depleted effect, drain personal O2 instead
+                    if (hasEffect('oxygen_depleted')) {
+                        removeEffect('oxygen_depleted');
+                        addLogEntry(t('log_effect_removed', { effect: t('effect_oxygen_depleted_name') }), LogType.ERROR);
+                    }
+                } else {
+                    // No personal O2 — health drains via oxygen_depleted effect
+                    if (!hasEffect('oxygen_depleted')) {
+                        addEffect({ ...EFFECT_OXYGEN_DEPLETED });
+                        addLogEntry(t('log_o2_depleted'), LogType.ERROR);
+                        addLogEntry(t('log_effect_added', { effect: t('effect_oxygen_depleted_name') }), LogType.ERROR);
+                    }
+                }
+            }
+        }
+
+        // Drain personal O2 when life support failed and area O2 is empty
+        if (hasEffect('life_support_failure') && o2 && o2.amount <= 0) {
+            const oxygenRes = getResourceByName('Oxygen');
+            if (oxygenRes && oxygenRes.capacity > 0 && oxygenRes.amount > 0) {
+                const o2DrainRate = -(UNIFORM_O2_DRAIN_PER_MIN);
+                const o2Delta = parseFloat((o2DrainRate * realSeconds).toFixed(10));
+                oxygenRes.amount = parseFloat(Math.max(0, Math.min(oxygenRes.capacity, oxygenRes.amount + o2Delta)).toFixed(10));
+                characterState.uniformOxygen = oxygenRes.amount;
+                // Personal O2 just ran out — reinstate oxygen_depleted effect
+                if (oxygenRes.amount <= 0) {
+                    oxygenRes.amount = 0;
+                    characterState.uniformOxygen = 0;
+                    addLogEntry(t('log_personal_o2_depleted'), LogType.ERROR);
+                    if (!hasEffect('oxygen_depleted')) {
+                        addEffect({ ...EFFECT_OXYGEN_DEPLETED });
+                        addLogEntry(t('log_effect_added', { effect: t('effect_oxygen_depleted_name') }), LogType.ERROR);
+                    }
                 }
             }
         }
@@ -1047,6 +1229,9 @@ export function applyTimePassiveDrain(realSeconds) {
     if (o2 && hasEffect('life_support_failure') && o2.amount > 0) areaRates['area_o2'] = '-4.00/min';
     if (gameFlags.recyclerFixed) areaRates['area_water'] = '+0.50/min';
     setActiveAreaDrainRates(Object.keys(areaRates).length > 0 ? areaRates : null);
+
+    // Low resource warnings with smart context (cooldown-based, no flag spam)
+    syncLowResourceWarnings();
 
     // Sync survival effects based on current resource levels
     syncSurvivalEffects();

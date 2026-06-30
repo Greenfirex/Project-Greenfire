@@ -265,6 +265,16 @@
   "result_check_reactor_status_known": "Stejně jako v tom snu... byl to vůbec sen? Všechno je naprosto stejné — hodnoty, palivoměr, ten tísnivý pocit v hrudi. To není možné. A přesto tu jsi, zíráš na stejná čísla. Máš {minutes} minut než reaktor zemře. Znovu.",
   "log_fuel_depleted": "Reaktor vyhasíná. Světla zablikají a zhasnou. Svítí pouze nouzová světla. Najednou je úplné ticho. Systém podpory života přestane zcela fungovat — hladina kyslíku začíná klesat.",
   "log_o2_depleted": "Zásoby kyslíku vyčerpány. Žádný dýchatelný vzduch nezůstává.",
+
+  "log_water_low_has_auto_hint": "Dochází ti voda. V inventáři máš balenou vodu — zapni automatickou konzumaci v nastavení inventáře.",
+  "log_water_low_has": "Dochází ti voda. Naštěstí máš u sebe balenou vodu.",
+  "log_water_low_none": "Dochází ti voda! Jsi vyprahlý — měl bys nějakou najít, než zkolabuješ.",
+
+  "log_food_low_has_auto_hint": "Dochází ti jídlo. V inventáři máš balené jídlo — zapni automatickou konzumaci v nastavení inventáře.",
+  "log_food_low_has": "Dochází ti jídlo. Naštěstí máš u sebe balené jídlo.",
+  "log_food_low_none": "Dochází ti jídlo! Kručí ti v břiše — měl bys nějaké najít, než zkolabuješ.",
+
+  "log_stamina_low": "Cítíš se vyčerpaný. Možná by sis měl na chvíli odpočinout na palandě.",
   "log_fuel_depletion_same_time": "Reaktor vyhasl v přesně stejný čas jako minule. Na minutu přesně. To nemůže být náhoda.",
   "log_oxygen_same_time_warning": "Zásoby kyslíku se tenčí... stejně jako minule. Zbývá {minutes} minut vzduchu — stejně jako v předchozí smyčce.",
 
@@ -440,5 +450,20 @@
 
   "action_optimize_reactor_remote": "Optimalizovat reaktor na dálku",
   "action_optimize_reactor_remote_desc": "Už víš, že reaktor je na tom špatně. Přes terminál v ubikacích dokážeš provést optimalizaci, protože už znáš správné parametry.",
-  "result_optimize_reactor_remote": "Přihlašuješ se k terminálu a zadáváš známé příkazy. I na dálku jde poznat, že spotřeba paliva klesla — indikátory na displeji to potvrzují."
+  "result_optimize_reactor_remote": "Přihlašuješ se k terminálu a zadáváš známé příkazy. I na dálku jde poznat, že spotřeba paliva klesla — indikátory na displeji to potvrzují.",
+
+  "action_grab_uniform": "Sebrat leteckou uniformu",
+  "action_grab_uniform_desc": "Na zdi u tvé palandy visí tvá letecká uniforma SFC. Integrovaný kyslíkový systém, hermetické těsnění — plná výbava.",
+  "result_grab_uniform": "Nasazuješ si oblek s vlastní malou zásobou kyslíku. To ti dává drahocený čas navíc.",
+  "result_grab_uniform_tried": "Najednou ti vedro a omezená pohyblivost zase tolik nevadí, hlavně že budeš mít šanci se nadechnout. Nasazuješ si oblek s vlastní malou zásobou kyslíku. To ti dává drahocený čas navíc.",
+  "result_grab_uniform_loop1": "Minule se ti do ní nechtělo — přišlo ti to zbytečný. Ale teď máš divnej pocit... jako bys tušil, co přijde. Radši si ji vezmeš rovnou. Nacvakneš hermetický těsnění a systém tiše pípne.",
+  "result_grab_uniform_loop2": "Už víš, co tě čeká. Uniforma jde na tebe automaticky — je to rutina. Během pár vteřin jsi oblečený a připravený.",
+  "log_uniform_no_reason": "Uniforma visí na zdi u tvé palandy — čistá, připravená. Ale proč by sis ji bral? Na lodi je stabilní prostředí, jen by ti v ní bylo vedro a omezovala by pohyb. Necháš ji být.",
+
+  "log_lifesupport_uniform_hint_tried": "Teď už ti ten oblek nepřipadá jako tak špatnej nápad, co? V ubikacích u palandy visí tvoje letecká uniforma — s vlastní zásobou kyslíku.",
+  "log_lifesupport_uniform_hint_first": "V ubikacích u tvé palandy visí tvoje letecká uniforma. Má integrovanou zásobu kyslíku — teď by se mohla hodit.",
+
+  "log_personal_o2_depleted": "Tvůj osobní kyslík došel! Uniforma už tě nemůže chránit.",
+  "res_oxygen": "Kyslík",
+  "res_oxygen_desc": "Osobní zásoba kyslíku z letecké uniformy. Chrání tě před účinky vyčerpaného lodního kyslíku."
 }

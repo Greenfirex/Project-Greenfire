@@ -265,6 +265,16 @@
   "result_check_reactor_status_known": "Just like in that dream… was it ever a dream? Everything is exactly the same — the readings, the fuel gauge, the sinking feeling in your chest. This isn't possible. And yet here you are, staring at the same numbers. You have {minutes} minutes before the reactor dies. Again.",
   "log_fuel_depleted": "The reactor runs dry. Lights flicker and die. Life support switches to reserve power — oxygen levels begin dropping.",
   "log_o2_depleted": "Oxygen reserves depleted. No breathable air remains.",
+
+  "log_water_low_has_auto_hint": "You're running low on water. You have bottled water in your inventory — enable auto-consume in the inventory settings.",
+  "log_water_low_has": "You're running low on water. Luckily you have some bottled water with you.",
+  "log_water_low_none": "You're running low on water! You're parched — find some before you collapse.",
+
+  "log_food_low_has_auto_hint": "You're running low on food. You have packaged food in your inventory — enable auto-consume in the inventory settings.",
+  "log_food_low_has": "You're running low on food. Luckily you have some packaged food with you.",
+  "log_food_low_none": "You're running low on food! Your stomach is growling — find some before you collapse.",
+
+  "log_stamina_low": "You feel exhausted. Maybe you should take a moment to rest at your bunk.",
   "log_fuel_depletion_same_time": "The reactor died at exactly the same time as before. Down to the minute. This can't be coincidence.",
   "log_oxygen_same_time_warning": "Oxygen reserves are draining… just like last time. You have {minutes} minutes of air remaining — same as the previous loop.",
 
@@ -446,5 +456,20 @@
 
   "action_optimize_reactor_remote": "Optimize Reactor Remotely",
   "action_optimize_reactor_remote_desc": "You already know the reactor is dying. Through the terminal in your quarters you can run the optimization — you know the right parameters by heart.",
-  "result_optimize_reactor_remote": "You log into the terminal and enter the familiar commands. Even remotely, you can tell the fuel consumption dropped — the display indicators confirm it."
+  "result_optimize_reactor_remote": "You log into the terminal and enter the familiar commands. Even remotely, you can tell the fuel consumption dropped — the display indicators confirm it.",
+
+  "action_grab_uniform": "Grab Flight Uniform",
+  "action_grab_uniform_desc": "Your SFC flight uniform hangs on the wall by your bunk. Integrated oxygen system, hermetic seals — full survival kit.",
+  "result_grab_uniform": "You put on the suit with its own small oxygen supply. It buys you precious extra time.",
+  "result_grab_uniform_tried": "Suddenly the heat and restricted movement don't bother you so much — what matters is you'll have a chance to breathe. You put on the suit with its own small oxygen supply. It buys you precious extra time.",
+  "result_grab_uniform_loop1": "Last time you didn't bother — it seemed pointless. But now you've got a weird feeling... like you know what's coming. Better grab it right away. You click the hermetic seals and the system beeps quietly.",
+  "result_grab_uniform_loop2": "You know exactly what awaits. The uniform goes on automatically — pure routine. In seconds you're suited up and ready.",
+  "log_uniform_no_reason": "The uniform hangs on the wall by your bunk — clean, ready. But why would you wear it? The ship has stable atmosphere. It'd just make you hot and restrict your movement. You leave it be.",
+
+  "log_lifesupport_uniform_hint_tried": "That suit isn't sounding like such a bad idea now, is it? Your flight uniform is hanging by the bunk in crew quarters — with its own oxygen supply.",
+  "log_lifesupport_uniform_hint_first": "Your flight uniform hangs by the bunk in crew quarters. It has an integrated oxygen supply — might come in handy now.",
+
+  "log_personal_o2_depleted": "Your personal oxygen has run out! The uniform can no longer protect you.",
+  "res_oxygen": "O2",
+  "res_oxygen_desc": "Personal oxygen supply from the flight uniform. Protects you from the effects of depleted ship oxygen."
 }

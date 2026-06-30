@@ -34,6 +34,8 @@ const INITIAL_PER_LOOP_FLAGS = {
     recyclerAttempted: false,
     commsInstalled: false,
     distressSignalSent: false,
+    uniformGrabbed: false,
+    uniformNoticed: false,
 };
 
 // Combined for backward compatibility — both objects merged.

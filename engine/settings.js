@@ -263,13 +263,13 @@ const defaultLogSettings = {
         [LogType.SUCCESS]: (LOG_SWATCH_HEX.green || '#69F0AE'),
         [LogType.ERROR]: (LOG_SWATCH_HEX.red || '#FF5252'),
         [LogType.STORY]: (LOG_SWATCH_HEX.purple || '#AB47BC'),
-        [LogType.ACTION]: (LOG_SWATCH_HEX.white || '#E0E0E0'),
+        [LogType.WARNING]: (LOG_SWATCH_HEX.orange || '#FF9800'),
         [LogType.UNLOCK]: (LOG_SWATCH_HEX.gold || '#FFD700')
     },
     filters: {
         [LogType.INFO]: false, [LogType.SUCCESS]: false,
         [LogType.ERROR]: false, [LogType.STORY]: false,
-        [LogType.ACTION]: false, [LogType.UNLOCK]: false
+        [LogType.WARNING]: false, [LogType.UNLOCK]: false
     },
     // Default: timestamps off (cleaner / more space).
     showTimestamps: false,
@@ -282,7 +282,7 @@ const exampleMessages = {
     [LogType.SUCCESS]: 'Built a new Quarry!',
     [LogType.ERROR]: 'Not enough Crystal.',
     [LogType.STORY]: 'A new journey begins...',
-    [LogType.ACTION]: 'Mined 1 Crystal.',
+    [LogType.WARNING]: 'You feel exhausted. Rest at your bunk.',
     [LogType.UNLOCK]: 'Research unlocked.'
 };
 

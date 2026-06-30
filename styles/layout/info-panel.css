@@ -359,16 +359,16 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
     padding-top: 6px;
 }
 
-/* Resources panel: 50/50 split between personal resources and area supplies */
+/* Resources panel: 60/40 split — personal larger, area smaller */
 #infoResourcesPanel .info-section {
-    flex: 1 1 40%;
+    flex: 1 1 60%;
     min-height: 0;
     overflow-y: auto;
     padding-top: 0;
 }
 
 #infoResourcesPanel .area-section {
-    flex: 1 1 60%;
+    flex: 1 1 40%;
     min-height: 0;
     overflow-y: auto;
     margin-top: 8px;
@@ -476,7 +476,7 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
 }
 
 /* Default glow-tinted bar (used for non-vital resources) */
-.resource-progress-bar:not(.bar-stamina):not(.bar-food):not(.bar-water):not(.bar-health) {
+.resource-progress-bar:not(.bar-stamina):not(.bar-food):not(.bar-water):not(.bar-health):not(.bar-oxygen) {
     background: linear-gradient(
         90deg,
         rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.32) 0%,
@@ -520,6 +520,14 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
         rgba(40, 140, 200, 0.38) 100%
     );
     box-shadow: 0 0 8px rgba(79, 195, 247, 0.18), inset 0 1px 0 rgba(255,255,255,0.10);
+}
+.resource-progress-bar.bar-oxygen {
+    background: linear-gradient(
+        90deg,
+        rgba(220, 220, 230, 0.55) 0%,
+        rgba(180, 180, 200, 0.35) 100%
+    );
+    box-shadow: 0 0 8px rgba(220, 220, 230, 0.15), inset 0 1px 0 rgba(255,255,255,0.10);
 }
 .resource-progress-bar.bar-health {
     background: linear-gradient(

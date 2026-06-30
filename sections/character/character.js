@@ -243,7 +243,7 @@ export function getInitialCharacterState() {
     };
 
     return {
-        version: 4,
+        version: 5,
         bagCols,
         bagRows,
         bag,
@@ -252,6 +252,7 @@ export function getInitialCharacterState() {
         buffs: {
             staminaRegen: null,
         },
+        uniformOxygen: 120,
         localMap: {
             x: 6,
             y: 8,

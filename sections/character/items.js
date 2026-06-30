@@ -7,33 +7,32 @@ export const items = [
         name: 'Basic Helmet',
         slot: 'head',
         icon: 'assets/images/items/basic helmet.png',
-        description: 'Standard issue SFC armor. Light head protection for field duty.',
-        stats: { armor: 1 }
+        description: 'Standard issue SFC headgear with integrated oxygen sensor and HUD.',
+        tags: ['Uniform'],
     },
     {
-        id: 'field_armor',
+        id: 'basic_armor',
         name: 'Basic Armor',
         slot: 'chest',
         icon: 'assets/images/items/basic chest armor.png',
-        description: 'Standard issue SFC armor with embedded space for water and food supply.',
-        // Also increases personal carryable supplies (Food/Water) capacity.
-        stats: { armor: 2, stamina: -5, foodCapacity: 40, waterCapacity: 40 }
+        description: 'Standard issue SFC chestpiece with embedded oxygen regulator and supply connectors.',
+        tags: ['Uniform'],
     },
     {
-        id: 'utility_legs',
+        id: 'basic_legs',
         name: 'Basic Legs',
         slot: 'legs',
         icon: 'assets/images/items/basic leg armor.png',
-        description: 'Utility legwear designed for long marches and rugged terrain.',
-        stats: { stamina: 5 }
+        description: 'Standard issue SFC legwear with integrated oxygen circulation system.',
+        tags: ['Uniform'],
     },
     {
         id: 'basic_boots',
         name: 'Basic Boots',
         slot: 'boots',
         icon: 'assets/images/items/basic boots.png',
-        description: 'Reinforced boots with stable footing and quick movement.',
-        stats: { evasion: 3 }
+        description: 'Standard issue SFC boots with magnetic soles and oxygen reserve tanks.',
+        tags: ['Uniform'],
     },
     {
         id: 'spiked_branch',
