@@ -6,10 +6,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 
 const localesJsPath = path.join(root, 'locales', 'locales.js');
-const enUiPath = path.join(root, 'locales', 'en', 'ui.json');
+const enDir = path.join(root, 'locales', 'en');
 
-// Načti en/ui.json
-const enData = JSON.parse(fs.readFileSync(enUiPath, 'utf-8'));
+// Načti všechny EN JSON soubory a sluč je (pozdější soubory přepisují dřívější)
+const files = ['ui', 'confirm', 'actions', 'resources', 'character', 'effects'];
+const enData = {};
+for (const file of files) {
+    const filePath = path.join(enDir, `${file}.json`);
+    if (fs.existsSync(filePath)) {
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        Object.assign(enData, data);
+    }
+}
 
 // Vygeneruj novou embedded dictionary
 const indent = '    ';
@@ -75,5 +83,5 @@ fs.writeFileSync(localesJsPath, newContent, 'utf-8');
 
 // Zkontroluj
 const enKeys = Object.keys(enData).length;
-console.log(`Synchornizovano: ${enKeys} klíčů z en/ui.json do locales.js embedded EN`);
+console.log(`Synchornizovano: ${enKeys} klíčů ze vsech EN JSON souboru do locales.js embedded EN`);
 console.log('Hotovo.');

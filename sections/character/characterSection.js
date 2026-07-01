@@ -20,6 +20,9 @@ import {
     getConsumableTotalValue,
     getAutoConsumeSettings,
     toggleAutoConsume,
+    SKILLS,
+    getSkillTier,
+    getSkillDefinition,
 } from './character.js';
 import { getItemDefinition } from './items.js';
 import { resources } from '../../engine/resources.js';
@@ -131,27 +134,10 @@ function getSurvivalDebuffStatus() {
 }
 
 function applySurvivalDebuffsToStats(stats, { hungry = false, thirsty = false } = {}) {
-    const out = { ...(stats || {}) };
-    const baseHitChance = Number(out.hitChance ?? 0);
-    if (hungry) out.hitChance = Math.max(0, Math.min(100, baseHitChance - 10));
-    if (thirsty) out.hitChance = Math.max(0, Math.min(100, (out.hitChance ?? baseHitChance) - 20));
-    const baseAttackSpeed = Number(out.attackSpeed ?? 1);
-    if (thirsty && Number.isFinite(baseAttackSpeed)) out.attackSpeed = baseAttackSpeed + 0.50;
-    if (hungry) {
-        const min = Number(out.damageMin ?? out.damage ?? 0);
-        const max = Number(out.damageMax ?? out.damage ?? min);
-        out.damageMin = Math.max(0, Math.round(min * 0.5));
-        out.damageMax = Math.max(out.damageMin ?? 0, Math.round(max * 0.5));
-        out.damage = Math.round(((Number(out.damageMin) || 0) + (Number(out.damageMax) || 0)) / 2);
-    }
-    return out;
+    return { ...(stats || {}) };
 }
 
 function getDebuffClassForUiStatKey(uiKey, { hungry = false, thirsty = false } = {}) {
-    const k = String(uiKey || '').toLowerCase();
-    if (k === 'attack_speed' && thirsty) return 'is-debuff-negative';
-    if (k === 'damage' && hungry) return 'is-debuff-negative';
-    if (k === 'hit_chance' && (hungry || thirsty)) return 'is-debuff-negative';
     return '';
 }
 
@@ -194,7 +180,7 @@ function renderPaperdollStatusIconsHtml() {
 }
 
 const EQUIP_SLOT_LABELS = { head: 'Head', chest: 'Chest', legs: 'Legs', boots: 'Boots', weapon: 'Weapon', offhand: 'Offhand', accessory_1: 'Accessory 1', accessory_2: 'Accessory 2' };
-const ITEM_STAT_LABELS = { health: 'Health', stamina: 'Stamina', damage: 'Damage', attackSpeed: 'Attack Speed', armor: 'Armor', critChance: 'Crit Chance', hitChance: 'Hit Chance', evasion: 'Evasion', foodCapacity: 'Food Capacity', waterCapacity: 'Water Capacity' };
+const ITEM_STAT_LABELS = { health: 'Health', stamina: 'Stamina', foodCapacity: 'Food Capacity', waterCapacity: 'Water Capacity' };
 
 function refreshCharacterSectionIfVisible() {
     try {
@@ -268,20 +254,9 @@ export function setupCharacterSection(section) {
         </div>
         <div class="stats-list" aria-label="Character stats">
             ${renderXPRow()}${renderHealthRow()}${renderStaminaRow()}
-            ${renderStatRow('Damage', formatDamageRange(displayStats), { itemImpact, debuffClass: getDebuffClassForUiStatKey('damage', survivalDebuffs) })}
-            ${renderUpgradeableStatRow('Attack Speed', formatAttackSpeed(displayStats.attackSpeed), { allocateKey: 'attackSpeed', canSpend: canSpendPoint, itemImpact, debuffClass: getDebuffClassForUiStatKey('attack_speed', survivalDebuffs) })}
-            ${renderUpgradeableStatRow('Hit Chance', `${Number(displayStats.hitChance ?? 0)}%`, { allocateKey: 'hitChance', canSpend: canSpendPoint, itemImpact, debuffClass: getDebuffClassForUiStatKey('hit_chance', survivalDebuffs) }) }
-            ${renderUpgradeableStatRow('Crit Chance', `${Number(stats.critChance ?? 0)}%`, { allocateKey: 'critChance', canSpend: canSpendPoint, itemImpact })}
-            ${renderStatRow('Armor', String(stats.armor ?? 0), { itemImpact })}
-            ${renderUpgradeableStatRow('Evasion', `${Number(stats.evasion ?? 0)}%`, { allocateKey: 'evasion', canSpend: canSpendPoint, itemImpact })}
         </div></div>`;
 
-    const skillsCardHtml = `<div class="character-card skills-card">
-        <div class="character-card-header"><h3>${t('character_skills')}</h3></div>
-        <div class="skills-placeholder">
-            <p>No skills available yet.</p>
-            <p class="character-card-hint">Skills will be unlocked through exploration and combat.</p>
-        </div></div>`;
+    const skillsCardHtml = renderSkillsCard();
 
     // Always show tabs — same pattern as Journal.
     section.innerHTML = `<div class="character-tabs" role="tablist" aria-label="Character tabs">
@@ -299,7 +274,7 @@ export function setupCharacterSection(section) {
                     </div>
                 </div></div>
             <div class="character-pane ${initialTab === 'statsSkills' ? 'active' : ''}" data-pane="statsSkills" role="tabpanel">
-                <div class="character-layout character-layout-two-column">
+                <div class="character-layout character-layout-stacked">
                     ${statsCardHtml}${skillsCardHtml}
                 </div></div></div></div>`;
 
@@ -454,24 +429,7 @@ function renderUpgradeableStatRow(label, value, opts = {}) {
 }
 
 function computeEquippedItemImpact(state = characterState) {
-    const equipment = state?.equipment || {};
-    const slots = Object.keys(EQUIP_SLOT_LABELS);
-    const byUiKey = { damage: { total: 0, parts: [] }, attack_speed: { total: 0, parts: [] }, hit_chance: { total: 0, parts: [] }, crit_chance: { total: 0, parts: [] }, armor: { total: 0, parts: [] }, evasion: { total: 0, parts: [] } };
-    const addPart = (uiKey, slotKey, itemId, itemName, delta, kind) => { if (!byUiKey[uiKey]) byUiKey[uiKey] = { total: 0, parts: [] }; byUiKey[uiKey].total += delta; byUiKey[uiKey].parts.push({ slotKey, slotLabel: EQUIP_SLOT_LABELS[slotKey] || slotKey, itemId, itemName, delta, kind }); };
-    for (const slotKey of slots) {
-        const itemId = equipment[slotKey]; if (!itemId) continue;
-        const def = getItemDefinition(itemId); if (!def) continue;
-        const itemName = def.name || def.id || itemId;
-        const stats = def?.stats; if (!stats) continue;
-        for (const [k, raw] of Object.entries(stats)) {
-            const v = Number(raw); if (!Number.isFinite(v) || v === 0) continue;
-            if (k === 'damage') { addPart('damage', slotKey, itemId, itemName, v, 'damage'); continue; }
-            if (k === 'damageMin' || k === 'damageMax') { addPart('damage', slotKey, itemId, itemName, v, k); continue; }
-            const uiKey = k === 'attackSpeed' ? 'attack_speed' : (k === 'hitChance' ? 'hit_chance' : (k === 'critChance' ? 'crit_chance' : k));
-            if (byUiKey[uiKey]) addPart(uiKey, slotKey, itemId, itemName, v, k);
-        }
-    }
-    return byUiKey;
+    return {};
 }
 
 function getItemImpactClassForUiStatKey(uiStatKey, itemImpact) {
@@ -597,25 +555,54 @@ function buildStatTooltipHTML(statKey) {
         case 'stat_points': { const pts = xp?.statPoints || { unspent: 0, total: 0, spent: 0 }; return `<h4>Stat Points</h4><p>Available: <strong>${pts.unspent}</strong></p><p class="tooltip-detail">Spent: ${pts.spent} / ${pts.total}</p><div class="tooltip-section"><h4>How It Works</h4><p>You gain 3 points each Level. Spend them using the + buttons.</p></div>`; }
         case 'health': { const h = getHealthResourceSnapshot(); const pts = Math.max(0, Math.floor(Number(alloc.health) || 0)); return `<h4>Health</h4><p>Current: <strong>${h.current}${h.max > 0 ? ` / ${h.max}` : ''}</strong></p><div class="tooltip-section"><h4>Notes</h4><p>Health is your HP in combat.</p>${bullets([`1 stat point: +5 max Health.`, `Allocated: ${pts} (total: +${pts * 5} max Health).`])}</div>`; }
         case 'stamina': { const s = getStaminaResourceSnapshot(); const pts = Math.max(0, Math.floor(Number(alloc.stamina) || 0)); const st = getStaminaRegenBuffStatus(characterState); return `<h4>Stamina</h4><p>Current: <strong>${s.current}${s.max > 0 ? ` / ${s.max}` : ''}</strong></p><div class="tooltip-section"><h4>Notes</h4><p>Stamina is your short-term endurance.</p>${bullets([`1 stat point: +5 max Stamina.`, `Allocated: ${pts} (total: +${pts * 5} max Stamina).`])}${st.active ? `<p class="tooltip-detail">Active: ${st.label} (+${st.bonusPerSec}/s, ${formatRemainingMinutes(st.remainingMinutes)} left)</p>` : ''}</div><div class="tooltip-section">${buildStaminaRegenBuffTooltipHtml()}</div>`; }
-        case 'damage': { const min = Number(displayStats?.damageMin ?? 0); const max = Number(displayStats?.damageMax ?? min); const parts = (itemImpact?.damage?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0); const hasWeapon = !!(characterState?.equipment?.weapon); const lines = parts.length ? parts.map(p => { const sign = p.delta > 0 ? '+' : ''; return `${p.slotLabel}: ${p.itemName} (${sign}${Math.abs(p.delta)} damage)`; }) : [hasWeapon ? 'No equipped items modify damage.' : 'No weapon equipped.']; if (survivalDebuffs?.hungry) lines.push('Hungry: −50% damage.'); return `<h4>Damage</h4><p>Range: <strong>${Math.floor(min)} - ${Math.floor(max)}</strong></p><div class="tooltip-section"><h4>How It Works</h4><p>Higher damage increases your DPS in combat.</p></div><div class="tooltip-section"><h4>Affected By:</h4>${bullets(lines)}</div>`; }
-        case 'attack_speed': { const speed = Number(displayStats?.attackSpeed ?? 1); const pts = Math.max(0, Math.floor(Number(alloc.attackSpeed) || 0)); const parts = (itemImpact?.attack_speed?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0); const itemLines = parts.length ? parts.map(p => { const sign = p.delta > 0 ? '+' : ''; return `${p.slotLabel}: ${p.itemName} (${sign}${Number(p.delta).toFixed(2)}s)`; }) : ['No equipped items modify attack speed.']; if (survivalDebuffs?.thirsty) itemLines.push('Thirsty: +0.50s per attack.'); return `<h4>Attack Speed</h4><p>Time between attacks: <strong>${formatAttackSpeed(speed)}</strong></p><div class="tooltip-section"><h4>How It Works</h4>${bullets(['Seconds per attack (lower is faster).', 'Minimum: 0.20s per attack.', `1 stat point: −0.01s per attack.`, `Allocated: ${pts} (total: ${pts > 0 ? (-(pts * 0.01)).toFixed(2) : '0.00'}s).`])}</div><div class="tooltip-section"><h4>Affected By:</h4>${bullets(itemLines)}</div>`; }
-        case 'hit_chance': { const hit = Number(displayStats?.hitChance ?? 0); const pts = Math.max(0, Math.floor(Number(alloc.hitChance) || 0)); const parts = (itemImpact?.hit_chance?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0); const itemLines = parts.length ? parts.map(p => { const sign = p.delta > 0 ? '+' : ''; return `${p.slotLabel}: ${p.itemName} (${sign}${Math.abs(p.delta)}% hit chance)`; }) : ['No equipped items modify hit chance.']; if (survivalDebuffs?.hungry) itemLines.push('Hungry: -10% hit chance.'); if (survivalDebuffs?.thirsty) itemLines.push('Thirsty: -20% hit chance.'); return `<h4>Hit Chance</h4><p>Chance to land: <strong>${hit}%</strong></p><div class="tooltip-section"><h4>How It Works</h4>${bullets(['Chance before evasion.', 'Capped at: 95%.', `1 stat point: +1% hit chance.`, `Allocated: ${pts} (total: +${pts}% hit chance).`])}</div><div class="tooltip-section"><h4>Affected By:</h4>${bullets(itemLines)}</div>`; }
-        case 'crit_chance': { const crit = Number(stats?.critChance ?? 0); const pts = Math.max(0, Math.floor(Number(alloc.critChance) || 0)); const parts = (itemImpact?.crit_chance?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0); const itemLines = parts.length ? parts.map(p => { const sign = p.delta > 0 ? '+' : ''; return `${p.slotLabel}: ${p.itemName} (${sign}${Math.abs(p.delta)}% crit chance)`; }) : ['No equipped items modify crit chance.']; return `<h4>Crit Chance</h4><p>Chance: <strong>${crit}%</strong></p><div class="tooltip-section"><h4>How It Works</h4>${bullets(['Critical hits add +50% damage.', 'Capped at: 100%.', `1 stat point: +1% crit chance.`, `Allocated: ${pts} (total: +${pts}% crit chance).`])}</div><div class="tooltip-section"><h4>Affected By:</h4>${bullets(itemLines)}</div>`; }
-        case 'armor': { const armor = Math.max(0, Number(stats?.armor ?? 0)); const parts = (itemImpact?.armor?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0); const itemLines = parts.length ? parts.map(p => { const sign = p.delta > 0 ? '+' : ''; return `${p.slotLabel}: ${p.itemName} (${sign}${Math.abs(p.delta)} armor)`; }) : ['No equipped items modify armor.']; return `<h4>Armor</h4><p>Value: <strong>${Math.floor(armor)}</strong></p><div class="tooltip-section"><h4>How It Works</h4>${bullets(['Reduces incoming damage by a flat amount.', 'Damage taken = max(0, damage − armor).'])}</div><div class="tooltip-section"><h4>Affected By:</h4>${bullets(itemLines)}</div>`; }
-        case 'evasion': { const ev = Math.max(0, Number(stats?.evasion ?? 0)); const pts = Math.max(0, Math.floor(Number(alloc.evasion) || 0)); const parts = (itemImpact?.evasion?.parts || []).filter(p => Number.isFinite(Number(p.delta)) && Number(p.delta) !== 0); const itemLines = parts.length ? parts.map(p => { const sign = p.delta > 0 ? '+' : ''; return `${p.slotLabel}: ${p.itemName} (${sign}${Math.abs(p.delta)}% evasion)`; }) : ['No equipped items modify evasion.']; return `<h4>Evasion</h4><p>Chance to avoid: <strong>${ev}%</strong></p><div class="tooltip-section"><h4>How It Works</h4>${bullets(["Reduces enemy's hit chance by (1 − evasion).", 'Capped at: 75%.', `1 stat point: +1% evasion.`, `Allocated: ${pts} (total: +${pts}% evasion).`])}</div><div class="tooltip-section"><h4>Affected By:</h4>${bullets(itemLines)}</div>`; }
         default: return `<h4>${escapeHtml(statKey)}</h4><p class="tooltip-detail">No tooltip available.</p>`;
     }
 }
 
-function formatAttackSpeed(value) { const n = Number(value); return Number.isFinite(n) ? `${n.toFixed(2)}s` : '1.00s'; }
-function formatDamageRange(stats) { const min = Number(stats?.damageMin), max = Number(stats?.damageMax); const smin = Number.isFinite(min) ? min : 0, smax = Number.isFinite(max) ? max : smin; const isInt = Number.isInteger(smin) && Number.isInteger(smax); const fmt = n => isInt ? String(Math.floor(n)) : Number(n).toFixed(1); return `${fmt(smin)} - ${fmt(smax)}`; }
+
+function renderSkillsCard() {
+    const geoIcon = `<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>`;
+
+    const items = SKILLS.map(skill => {
+        const tier = getSkillTier(skill.id);
+        const def = getSkillDefinition(skill.id);
+        const unlocked = tier > 0;
+        const currentTier = def.tiers.find(t => t.tier === tier);
+        const name = currentTier ? t(currentTier.nameKey) : (def.tiers[0] ? t(def.tiers[0].nameKey) : skill.id);
+        const desc = currentTier ? t(currentTier.descKey) : '';
+        const tierLabel = unlocked ? t('skill_tier_label', { tier: toRoman(tier) }) : '';
+        const nextTier = def.tiers.find(t => t.tier === tier + 1);
+        const lockedHint = !unlocked && nextTier && nextTier.milestone ? 'Locked' : '';
+
+        return `<div class="skill-item ${unlocked ? 'skill-acquired' : 'skill-locked'}">
+            <div class="skill-icon">${geoIcon}</div>
+            <div class="skill-info">
+                <div class="skill-name-row">
+                    <span class="skill-name">${escapeHtml(name)}</span>
+                    ${unlocked ? `<span class="skill-tier-badge">${escapeHtml(tierLabel)}</span>` : `<span class="skill-tier-badge skill-tier-locked">🔒</span>`}
+                </div>
+                ${desc ? `<p class="skill-desc">${escapeHtml(desc)}</p>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+
+    return `<div class="character-card skills-card">
+        <div class="character-card-header"><h3>${t('character_skills')}</h3></div>
+        <div class="skills-list">${items}</div>
+    </div>`;
+}
+
+function toRoman(num) {
+    const map = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V' };
+    return map[num] || String(num);
+}
 
 function buildItemTooltipHTML(slotEl) {
     if (!slotEl?.dataset) return ''; const itemId = String(slotEl.dataset.itemId || ''); if (!itemId) return '';
     const def = getItemDefinition(itemId); if (!def) return '';
-    const lines = []; const statLabels = { health: 'Health', stamina: 'Stamina', damage: 'Damage', attackSpeed: 'Attack Speed', armor: 'Armor', critChance: 'Crit Chance', hitChance: 'Hit Chance', evasion: 'Evasion', foodCapacity: 'Food Capacity', waterCapacity: 'Water Capacity' };
+    const lines = []; const statLabels = { health: 'Health', stamina: 'Stamina', foodCapacity: 'Food Capacity', waterCapacity: 'Water Capacity' };
     const equipSlotLabels = { head: 'Head', chest: 'Chest', legs: 'Legs', boots: 'Boots', weapon: 'Weapon', offhand: 'Offhand', accessory_1: 'Accessory 1', accessory_2: 'Accessory 2' };
-    if (def.stats) for (const [k, v] of Object.entries(def.stats)) { if (typeof v !== 'number' || !Number.isFinite(v) || v === 0) continue; const l = statLabels[k] || k; const s = v > 0 ? '+' : ''; const sfx = (k === 'critChance' || k === 'hitChance' || k === 'evasion') ? '%' : (k === 'attackSpeed' ? 's' : ''); lines.push(`${escapeHtml(l)}: ${s}${escapeHtml(String(v))}${sfx}`); }
+    if (def.stats) for (const [k, v] of Object.entries(def.stats)) { if (typeof v !== 'number' || !Number.isFinite(v) || v === 0) continue; const l = statLabels[k] || k; const s = v > 0 ? '+' : ''; lines.push(`${escapeHtml(l)}: ${s}${escapeHtml(String(v))}`); }
     const slotName = def.slot === 'accessory' ? 'Accessory' : (equipSlotLabels[String(def.slot || '')] || String(def.slot || ''));
     const tagsHtml = []; try { if (def?.stackable && def?.consumable) { const idx = Math.floor(Number(slotEl.dataset.slot)); const e = Number.isInteger(idx) ? characterState?.bag?.[idx] : null; const q = !e ? 1 : (typeof e === 'string' ? 1 : (e?.id ? Math.max(1, Math.floor(Number(e.qty ?? 1)) || 1) : 1)); tagsHtml.push(`<span class="tooltip-tag">${q}/5</span>`); } } catch { /* ignore */ }
     try { if (def?.quest || (Array.isArray(def?.tags) && def.tags.some(t => String(t).toLowerCase() === 'quest'))) tagsHtml.push('<span class="tooltip-tag">Quest</span>'); } catch { /* ignore */ }

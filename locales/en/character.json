@@ -1,12 +1,6 @@
 {
   "stat_health": "Health",
   "stat_stamina": "Stamina",
-  "stat_damage": "Damage",
-  "stat_attack_speed": "Attack Speed",
-  "stat_hit_chance": "Hit Chance",
-  "stat_crit_chance": "Crit Chance",
-  "stat_armor": "Armor",
-  "stat_evasion": "Evasion",
   "stat_points": "Stat Points",
   "stat_level": "Level",
 
@@ -27,6 +21,12 @@
   "buff_stamina_regen": "Stamina Regen",
   "buff_none": "None",
   "buff_herb_tea": "Herb Tea",
+
+  "skill_engineering_t1_name": "Engineering",
+  "skill_engineering_t1_desc": "Basic knowledge of ship systems gained from studying technical manuals.",
+  "skill_engineering_t2_name": "Engineering II",
+  "skill_engineering_t2_desc": "Advanced knowledge gained through practical repairs — enables more complex system modifications.",
+  "skill_tier_label": "Tier {tier}",
 
   "debuff_hungry": "Hungry",
   "debuff_thirsty": "Thirsty",

@@ -11,5 +11,9 @@
   "effect_life_support_failure_name": "Selhání podpory života",
   "effect_life_support_failure_desc": "Palivo reaktoru vyčerpáno. Systémy podpory života běží na rezervu — hladina kyslíku klesá.",
   "effect_oxygen_depleted_name": "Bez kyslíku",
-  "effect_oxygen_depleted_desc": "Žádný dýchatelný vzduch. Tvé zdraví se rapidně zhoršuje."
+  "effect_oxygen_depleted_desc": "Žádný dýchatelný vzduch. Tvé zdraví se rapidně zhoršuje.",
+  "effect_waiting_ping": "Čekání na ping",
+  "effect_waiting_ping_desc": "Ping byl odeslán do okolí. Odpověď může dorazit každou chvíli.",
+  "effect_waiting_ping_targeted": "Čekání na cílený ping",
+  "effect_waiting_ping_targeted_desc": "Cílený ping na Gamma Site byl odeslán. Odpověď by měla dorazit brzy."
 }

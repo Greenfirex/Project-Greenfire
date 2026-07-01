@@ -24,7 +24,7 @@ export const scoutShipBridge = {
         {
             id: 'navigation',
             nameKey: 'poi_navigation',
-            actions: ['check_navigation', 'set_course_gamma']
+            actions: ['check_navigation', 'scan_planet_surface', 'scan_gamma_site', 'set_course_gamma']
         },
         {
             id: 'controls',
@@ -48,9 +48,59 @@ export const scoutShipBridge = {
             nameKey: 'action_check_navigation',
             descKey: 'action_check_navigation_desc',
             drain: [{ resource: 'Stamina', amount: 2 }],
-            durationSeconds: 12,
-            repeatable: true,
-            resultKey: 'result_check_navigation'
+            durationSeconds: 8,
+            oneTime: true,
+            getResultKey(ctx) {
+                const m = ctx.gameFlags.loopKnowledge?.milestones || {};
+                if (m.gamma_coordinates_known) return 'result_check_navigation_coords';
+                if (hasMilestone('planet_scanned')) return 'result_check_navigation_known';
+                if (hasMilestone('navigation_checked')) return 'result_check_navigation_loop';
+                return 'result_check_navigation_first';
+            },
+            onComplete(ctx) {
+                if (!hasMilestone('navigation_checked')) {
+                    setMilestone('navigation_checked', () => persistLoopKnowledge(ctx));
+                    ctx.flagActionAsNew('scan_planet_surface');
+                    ctx.setFullRebuildNeeded(true);
+                }
+            },
+        },
+        {
+            id: 'scan_planet_surface',
+            nameKey: 'action_scan_planet_surface',
+            descKey: 'action_scan_planet_surface_desc',
+            category: 'persistent',
+            drain: [],
+            durationSeconds: 120,
+            oneTime: true,
+            isAvailable(ctx) {
+                const m = ctx.gameFlags.loopKnowledge?.milestones || {};
+                if (m.gamma_coordinates_known) return false;
+                return hasMilestone('navigation_checked') && !hasMilestone('planet_scanned');
+            },
+            resultKey: 'result_scan_planet_surface',
+            onComplete(ctx) {
+                setMilestone('planet_scanned', () => persistLoopKnowledge(ctx));
+                ctx.setFullRebuildNeeded(true);
+            },
+        },
+        {
+            id: 'scan_gamma_site',
+            nameKey: 'action_scan_gamma_site',
+            descKey: 'action_scan_gamma_site_desc',
+            category: 'persistent',
+            drain: [],
+            durationSeconds: 60,
+            oneTime: true,
+            isAvailable(ctx) {
+                const m = ctx.gameFlags.loopKnowledge?.milestones || {};
+                return !!m.gamma_coordinates_known && !hasMilestone('gamma_site_confirmed_on_scanner');
+            },
+            resultKey: 'result_scan_gamma_site',
+            onComplete(ctx) {
+                setMilestone('gamma_site_confirmed_on_scanner', () => persistLoopKnowledge(ctx));
+                ctx.setFullRebuildNeeded(true);
+            },
         },
         {
             id: 'check_bridge_terminal',

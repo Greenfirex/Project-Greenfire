@@ -335,11 +335,20 @@ export const scoutShipCrewQuarters = {
             descKey: 'action_search_bunks_desc',
             drain: [{ resource: 'Stamina', amount: 4 }],
             durationSeconds: 20,
+            durationIfRemembered: 10,
             oneTime: true,
-            resultKey: 'result_search_bunks',
+            remembersCondition(ctx) { return hasMilestone('bunk_searched'); },
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 return !!us['wake_up'];
+            },
+            getResultKey(ctx) {
+                if (hasMilestone('book_read')) return 'result_search_bunks_bookread';
+                if (hasMilestone('bunk_searched')) return 'result_search_bunks_loop';
+                return 'result_search_bunks';
+            },
+            onComplete(ctx) {
+                setMilestone('bunk_searched', () => persistLoopKnowledge(ctx));
             },
             unlocksAll: true
         },

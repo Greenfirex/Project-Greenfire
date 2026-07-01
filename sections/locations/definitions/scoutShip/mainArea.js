@@ -3,6 +3,8 @@
 // ==========================================================================
 
 import { hasLogin, setMilestone, hasMilestone } from '../../../../engine/gameFlags.js';
+import { hasSkill } from '../../../character/character.js';
+import { hasEffect, removeEffect, activeEffects } from '../../../../engine/effects.js';
 
 function persistLoopKnowledge(ctx) {
     try {
@@ -29,7 +31,7 @@ export const scoutShipMainArea = {
         {
             id: 'communications',
             nameKey: 'poi_communications',
-            actions: ['check_comms', 'install_comms', 'send_distress_signal', 'listen_for_response']
+            actions: ['check_comms', 'install_comms', 'send_ping', 'send_targeted_ping', 'check_ping_results']
         },
         {
             id: 'travel',
@@ -144,53 +146,92 @@ export const scoutShipMainArea = {
             }
         },
         {
-            id: 'send_distress_signal',
-            nameKey: 'action_send_distress_signal',
-            descKey: 'action_send_distress_signal_desc',
+            id: 'send_ping',
+            nameKey: 'action_send_ping',
+            descKey: 'action_send_ping_desc',
             drain: [{ resource: 'Stamina', amount: 1 }],
-            durationSeconds: 15,
+            durationSeconds: 5,
             oneTime: true,
-            resultKey: 'result_send_distress_signal',
+            addsEffect: 'waiting_ping',
             isAvailable(ctx) {
-                return ctx.gameFlags.commsInstalled;
-            },
-            onComplete(ctx) {
-                ctx.gameFlags.distressSignalSent = true;
-                ctx.setFullRebuildNeeded(true);
-            }
-        },
-        {
-            id: 'listen_for_response',
-            nameKey: 'action_listen_for_response',
-            descKey: 'action_listen_for_response_desc',
-            drain: [{ resource: 'Stamina', amount: 1 }],
-            durationSeconds: 8,
-            oneTime: true,
-            suppressCompletionLog: true,
-            isAvailable(ctx) {
-                if (!ctx.gameFlags.distressSignalSent) return false;
+                if (!ctx.gameFlags.commsInstalled) return false;
+                if (hasMilestone('gamma_site_heard')) return false;
                 return true;
             },
             getResultKey(ctx) {
-                return null; // handled in onComplete
+                const loop = ctx.gameFlags.loopCount || 0;
+                if (loop >= 2) return 'result_send_ping_loop';
+                return 'result_send_ping';
             },
             onComplete(ctx) {
+                setMilestone('ping_sent', () => persistLoopKnowledge(ctx));
+                ctx.setFullRebuildNeeded(true);
+            },
+        },
+        {
+            id: 'send_targeted_ping',
+            nameKey: 'action_send_targeted_ping',
+            descKey: 'action_send_targeted_ping_desc',
+            drain: [{ resource: 'Stamina', amount: 1 }],
+            durationSeconds: 5,
+            oneTime: true,
+            addsEffect: 'waiting_ping_targeted',
+            isAvailable(ctx) {
+                if (!ctx.gameFlags.commsInstalled) return false;
+                if (!hasMilestone('gamma_site_heard')) return false;
+                if (hasMilestone('gamma_coordinates_known')) return false;
+                return true;
+            },
+            getResultKey(ctx) {
                 const loop = ctx.gameFlags.loopCount || 0;
-                if (loop >= 3) {
-                    // Loop 4+: Clear coordinates
-                    ctx.addLogEntry(ctx.t('result_listen_for_response_loop4'), ctx.LogType.SUCCESS);
+                if (loop >= 2) return 'result_send_targeted_ping_loop';
+                return 'result_send_targeted_ping';
+            },
+            onComplete(ctx) {
+                setMilestone('targeted_ping_sent', () => persistLoopKnowledge(ctx));
+                ctx.setFullRebuildNeeded(true);
+            },
+        },
+        {
+            id: 'check_ping_results',
+            nameKey: 'action_check_ping_results',
+            descKey: 'action_check_ping_results_desc',
+            category: 'persistent',
+            drain: [],
+            durationSeconds: 15,
+            oneTime: false,
+            repeatable: true,
+            isAvailable(ctx) {
+                if (!ctx.gameFlags.commsInstalled) return false;
+                const m = ctx.gameFlags.loopKnowledge?.milestones || {};
+                if (m.gamma_coordinates_known) return false;
+                try {
+                    const hasWaitingPing = hasEffect('waiting_ping');
+                    const hasWaitingTargeted = hasEffect('waiting_ping_targeted');
+                    const pingEff = activeEffects.find(e => e.id === 'waiting_ping');
+                    const targetedEff = activeEffects.find(e => e.id === 'waiting_ping_targeted');
+                    if (hasWaitingPing && pingEff && (pingEff.progress >= pingEff.maxProgress)) return true;
+                    if (hasWaitingTargeted && targetedEff && (targetedEff.progress >= targetedEff.maxProgress)) return true;
+                } catch { /* ignore */ }
+                return false;
+            },
+            getResultKey(ctx) {
+                const m = ctx.gameFlags.loopKnowledge?.milestones || {};
+                if (m.gamma_site_heard) return 'result_check_ping_results_targeted';
+                return 'result_check_ping_results_first';
+            },
+            onComplete(ctx) {
+                const m = ctx.gameFlags.loopKnowledge?.milestones || {};
+                if (hasEffect('waiting_ping_targeted')) {
+                    removeEffect('waiting_ping_targeted');
                     setMilestone('gamma_coordinates_known', () => persistLoopKnowledge(ctx));
-                } else if (loop >= 2) {
-                    // Loop 3: Confirmed fragment
-                    ctx.addLogEntry(ctx.t('result_listen_for_response_loop3'), ctx.LogType.SUCCESS);
-                    setMilestone('gamma_site_confirmed', () => persistLoopKnowledge(ctx));
-                } else {
-                    // Loop 2: Whisper — uncertain
-                    ctx.addLogEntry(ctx.t('result_listen_for_response_loop2'), ctx.LogType.SUCCESS);
+                } else if (hasEffect('waiting_ping')) {
+                    removeEffect('waiting_ping');
                     setMilestone('gamma_site_heard', () => persistLoopKnowledge(ctx));
+                    ctx.flagActionAsNew('send_targeted_ping');
                 }
                 ctx.setFullRebuildNeeded(true);
-            }
+            },
         },
 
         {
@@ -223,14 +264,25 @@ export const scoutShipMainArea = {
             oneTime: true,
             repeatable: false,
             requiredItems: ['repair_tools'],
+            requiredSkill: { skill: 'engineering', tier: 1 },
             remembersCondition(ctx) { return hasMilestone('recycler_repaired'); },
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 return !!us['assess_supplies'];
             },
             onStart(ctx) {
-                if (!ctx.countItemInBag('repair_tools')) {
+                const hasTools = ctx.countItemInBag('repair_tools') > 0;
+                const hasEngSkill = hasSkill('engineering', 1);
+                if (!hasTools && !hasEngSkill) {
                     ctx.addLogEntry(ctx.t('log_need_item', { item: ctx.t('item_repair_tools') }), ctx.LogType.ERROR);
+                    return { block: true };
+                }
+                if (!hasTools) {
+                    ctx.addLogEntry(ctx.t('log_need_item', { item: ctx.t('item_repair_tools') }), ctx.LogType.ERROR);
+                    return { block: true };
+                }
+                if (!hasEngSkill) {
+                    ctx.addLogEntry(ctx.t('log_need_skill', { skill: ctx.t('skill_engineering_t1_name') }), ctx.LogType.ERROR);
                     return { block: true };
                 }
                 // Mark attempt on first click — needed to unlock grab_tools in workshop
@@ -239,10 +291,6 @@ export const scoutShipMainArea = {
                     ctx.flagActionAsNew('grab_tools');
                     ctx.setFullRebuildNeeded(true);
                     ctx.refreshUI();
-                }
-                if (!hasMilestone('book_read')) {
-                    ctx.addLogEntry(ctx.t('log_recycler_no_idea'), ctx.LogType.SUCCESS);
-                    return { block: true };
                 }
                 // Adjust duration for repeat repairs
                 if (hasMilestone('recycler_repaired')) {

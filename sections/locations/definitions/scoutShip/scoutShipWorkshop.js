@@ -3,6 +3,7 @@
 // ==========================================================================
 
 import { setMilestone, hasMilestone } from '../../../../engine/gameFlags.js';
+import { hasSkill } from '../../../character/character.js';
 
 function persistLoopKnowledge(ctx) {
     try {
@@ -126,11 +127,22 @@ export const scoutShipWorkshop = {
             durationIfRemembered: 10,
             oneTime: true,
             requiredItems: ['repair_tools'],
+            requiredSkill: { skill: 'engineering', tier: 1 },
             remembersCondition(ctx) { return !!(ctx.gameFlags.loopKnowledge?.milestones?.tinkered_device); },
             rewards: [{ type: 'item', name: 'Power Cell', amount: 1 }],
             onStart(ctx) {
-                if (!ctx.countItemInBag('repair_tools')) {
+                const hasTools = ctx.countItemInBag('repair_tools') > 0;
+                const hasEngSkill = hasSkill('engineering', 1);
+                if (!hasTools && !hasEngSkill) {
                     ctx.addLogEntry(ctx.t('log_need_item', { item: ctx.t('item_repair_tools') }), ctx.LogType.ERROR);
+                    return { block: true };
+                }
+                if (!hasTools) {
+                    ctx.addLogEntry(ctx.t('log_need_item', { item: ctx.t('item_repair_tools') }), ctx.LogType.ERROR);
+                    return { block: true };
+                }
+                if (!hasEngSkill) {
+                    ctx.addLogEntry(ctx.t('log_need_skill', { skill: ctx.t('skill_engineering_t1_name') }), ctx.LogType.ERROR);
                     return { block: true };
                 }
                 const m = ctx.gameFlags.loopKnowledge?.milestones || {};

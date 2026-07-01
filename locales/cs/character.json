@@ -1,12 +1,6 @@
 {
   "stat_health": "Zdraví",
   "stat_stamina": "Výdrž",
-  "stat_damage": "Poškození",
-  "stat_attack_speed": "Rychlost útoku",
-  "stat_hit_chance": "Šance na zásah",
-  "stat_crit_chance": "Šance na kritický",
-  "stat_armor": "Zbroj",
-  "stat_evasion": "Úhyb",
   "stat_points": "Body statistik",
   "stat_level": "Úroveň",
 
@@ -27,6 +21,12 @@
   "buff_stamina_regen": "Regenerace výdrže",
   "buff_none": "Žádné",
   "buff_herb_tea": "Bylinkový čaj",
+
+  "skill_engineering_t1_name": "Inženýrství",
+  "skill_engineering_t1_desc": "Základní znalosti lodních systémů získané studiem technických manuálů.",
+  "skill_engineering_t2_name": "Inženýrství II",
+  "skill_engineering_t2_desc": "Pokročilé znalosti získané praktickými opravami — umožňuje složitější úpravy systémů.",
+  "skill_tier_label": "Úroveň {tier}",
 
   "debuff_hungry": "Hladový",
   "debuff_thirsty": "Žíznivý",

@@ -238,8 +238,8 @@
   "action_drink_water": "Drink Water",
   "action_drink_water_desc": "Drink the water that's left in the broken recycler. Not clean, but it'll quench your thirst.",
 
-  "action_read_book": "Read Book",
-  "action_read_book_desc": "Pick up a worn paperback from the bunk and lose yourself in its pages. A long, quiet activity that passes the time.",
+  "action_read_book": "Read Repair Manual",
+  "action_read_book_desc": "Study the repair manual you found under your pillow. Learn basic scout ship maintenance procedures.",
   "result_read_book": "You turn the final page and close the book. You've picked up some basic repair techniques. Maybe you could handle small fixes now.",
 
   "action_grab_bottled_water": "Grab Water Bottle",
@@ -255,8 +255,17 @@
   "result_check_comms": "You power up the comms station. Static fills most channels, but a faint beacon repeats on loop — a pre-recorded distress signal from the ship itself.",
 
   "action_check_navigation": "Check Navigation",
-  "action_check_navigation_desc": "Review the navigation systems and current position.",
-  "result_check_navigation": "The navigation systems show your current position near an uncharted planet. All long-range communications are offline.",
+  "action_check_navigation_desc": "Power up the navigation console and determine your current position.",
+  "result_check_navigation_first": "The navigation console flickers to life after a brief struggle. According to the data, there's a planet within the ship's sensor range. Initial estimates suggest it could theoretically be habitable — similar temperature, signs of an atmosphere... But honestly, you've passed dozens of planets like this on your journey. Nothing special. For peace of mind, you could prep a probe and have it scan the surface for anomalies.",
+  "result_check_navigation_loop": "You approach the navigation console and a strange feeling washes over you — like you already know exactly what you'll see. That planet... have you scanned it before? Or was it just a dream? Something tells you launching a probe would be a waste of time. But you're not certain.",
+  "result_check_navigation_known": "You approach the navigation console and a memory surfaces — you've done this before. That planet below? Empty. You spent hours calibrating the probe just for it to tell you what you already suspected. No anomalies, unbreathable atmosphere. A waste of time. You're not wasting another probe on that.",
+  "result_check_navigation_coords": "Navigation systems confirm your position. Gamma Site is directly below — the coordinates match down to the meter. All that's left now is to set a course.",
+  "action_scan_planet_surface": "Scan Planet Surface",
+  "action_scan_planet_surface_desc": "Prep a probe and have it perform a detailed surface scan. Sensor calibration requires maximum focus — every parameter must be precise.",
+  "result_scan_planet_surface": "The probe completes its scan. The results are... unremarkable. No signs of civilization, no anomalies. The atmosphere is barely suitable for humans — high CO₂, low oxygen. This won't be your new home. Further scanning would just be a waste of time.",
+  "action_scan_gamma_site": "Target Probe at Gamma Site",
+  "action_scan_gamma_site_desc": "This time you know exactly where to look. Focus the probe on the specific coordinates obtained from the distress signal.",
+  "result_scan_gamma_site": "You enter the precise coordinates of Gamma Site. The probe locks onto a single point on the surface — and the results are immediate. A research station. It's there. Damaged, abandoned, but still standing. And the sensors detect a faint energy signature — something down there is still operational.",
 
   "action_check_reactor_status": "Check Reactor Status",
   "action_check_reactor_status_desc": "Run a detailed diagnostic of the ship's reactor and power systems.",
@@ -374,7 +383,7 @@
   "item_repair_tools": "Repair Tools",
   "item_signal_amplifier": "Signal Amplifier",
 
-  "result_check_comms_v2": "You power up the station. Nothing but static. The panel is gone — just bare wires where the comms module should be. This isn't crash damage. You ripped it out. During your escape, you tore it from the console and threw it somewhere in the workshop so they couldn't track you. You give it a quick inspection: fried signal amplifier, missing power cell, bent connector. You'll need the fabricator for a new amplifier, a power cell, and proper tools. You should be able to find that in the workshop.",
+  "result_check_comms_v2": "You power up the station. Nothing but static. The panel is gone — just bare wires where the comms module should be. During your escape, you tore it from the console and threw it on the ground so they couldn't track you. You give it a quick inspection: fried signal amplifier, missing power cell, bent connector. You'll need the fabricator for a new amplifier, a power cell, and proper tools. You should be able to find that in the workshop.",
   "result_check_comms_loop2": "You power up the station. The panel is here — as if nothing happened. But you know you ripped it out yesterday... or was that just a dream? No — you remember the damage exactly. Missing power cell, fried amplifier, bent connector. Dream or not, you know what to do.",
   "result_check_comms_loop3": "You power up the station. You're not even surprised the panel is back anymore. You're not surprised by anything. You know what it is and what to do with it.",
 
@@ -417,6 +426,8 @@
   "log_auto_eat": "Auto-eat: Used Packaged Food (+{amount} Food)",
 
   "log_need_item": "You need {item} to do this.",
+  "log_need_skill": "This is way over your head. Maybe a repair manual would help...",
+  "detail_skill_tag": "Skill",
   "log_need_items": "You need {items} to do this.",
   "log_received_item": "Received: {item}",
   "log_need_terminal_login": "You need terminal access to make the necessary system changes. Without it, you can't reconfigure the reactor.",

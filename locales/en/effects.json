@@ -11,5 +11,9 @@
   "effect_life_support_failure_name": "Life Support Failure",
   "effect_life_support_failure_desc": "Reactor fuel depleted. Life support systems are running on reserve — oxygen levels are dropping.",
   "effect_oxygen_depleted_name": "Oxygen Depleted",
-  "effect_oxygen_depleted_desc": "No breathable air remains. Your health is rapidly deteriorating."
+  "effect_oxygen_depleted_desc": "No breathable air remains. Your health is rapidly deteriorating.",
+  "effect_waiting_ping": "Waiting for Ping",
+  "effect_waiting_ping_desc": "A ping has been sent into the surroundings. A response could arrive at any moment.",
+  "effect_waiting_ping_targeted": "Waiting for Targeted Ping",
+  "effect_waiting_ping_targeted_desc": "A targeted ping to Gamma Site has been sent. Response should arrive shortly."
 }

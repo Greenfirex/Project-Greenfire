@@ -12,7 +12,7 @@ import { addToQueue, isInQueue } from '../../engine/queue.js';
 import { playActionStart } from '../../engine/audio.js';
 import { getItemDefinition } from '../character/items.js';
 import { RESOURCE_EMOJIS, getAreaResourceAmount } from '../../engine/resources.js';
-import { countItemInBag } from '../character/character.js';
+import { countItemInBag, getSkillDefinition, hasSkill, getSkillTier } from '../character/character.js';
 import {
     activeAction, activeActionId, actionProgress, selectedActionId,
     actionPaused, _fullRebuildNeeded,
@@ -215,17 +215,32 @@ export function renderDetailsTile() {
             } else if (action.requiresItem) {
                 requiredIds.push(action.requiresItem);
             }
+            const rows = [];
             if (requiredIds.length > 0) {
-                const rows = requiredIds.map(id => {
+                requiredIds.forEach(id => {
                     const def = getItemDefinition(id);
-                    if (!def) return '';
+                    if (!def) return;
                     const name = (def.nameKey && t(def.nameKey)) || def.name;
                     const has = countItemInBag(id) > 0;
                     const color = has ? '#4caf50' : '#ff9800';
                     const label = has ? `✓ ${name}` : `✗ ${name}`;
-                    return `<div class="detail-cost detail-cost-requirement"><span class="detail-cost-label" style="color:${color};">${label}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate">[Quest]</span></span></div>`;
-                }).join('');
-                requirementsHtml = `<div class="detail-section"><div class="detail-section-label">&#x1F4CB; ${t('detail_requirements')}</div>${rows}</div>`;
+                    rows.push(`<div class="detail-cost detail-cost-requirement"><span class="detail-cost-label" style="color:${color};">${label}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate">[Quest]</span></span></div>`);
+                });
+            }
+            // Skill requirement
+            if (action.requiredSkill) {
+                const { skill: skillId, tier } = action.requiredSkill;
+                const def = getSkillDefinition(skillId);
+                const tierDef = def?.tiers.find(t => t.tier === tier);
+                const skillName = tierDef ? t(tierDef.nameKey) : skillId;
+                const satisfied = hasSkill(skillId, tier);
+                const color = satisfied ? '#4caf50' : '#ff9800';
+                const label = satisfied ? `✓ ${skillName}` : `✗ ${skillName}`;
+                const tierLabel = t('skill_tier_label', { tier: toRoman(tier) });
+                rows.push(`<div class="detail-cost detail-cost-requirement"><span class="detail-cost-label" style="color:${color};">${label}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate">[${t('detail_skill_tag')}] [${tierLabel}]</span></span></div>`);
+            }
+            if (rows.length > 0) {
+                requirementsHtml = `<div class="detail-section"><div class="detail-section-label">&#x1F4CB; ${t('detail_requirements')}</div>${rows.join('')}</div>`;
             }
 
             // Rewards (hidden for rest/refresh since gains show the continuous rate)
@@ -265,8 +280,9 @@ export function renderActionsTile(location) {
     // Load unlock state for this location
     const unlockState = getUnlockState(location.id);
 
-    // Restore _repeatCount from persisted unlock state
+    // Restore _completed and _repeatCount from persisted unlock state
     (location.actions || []).forEach(a => {
+        if (unlockState[a.id]) a._completed = true;
         const rcKey = a.id + '_repeatCount';
         if (unlockState[rcKey] !== undefined && a.repeatLimit > 0) {
             a._repeatCount = Number(unlockState[rcKey]) || 0;
@@ -610,6 +626,11 @@ function wireActionButtons(actionsHost) {
             btn.removeEventListener('animationend', onAnimEnd);
         }, { once: true });
     });
+}
+
+function toRoman(num) {
+    const map = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V' };
+    return map[num] || String(num);
 }
 
 export function updateActionButtonsDynamic() {

@@ -40,7 +40,6 @@ export const items = [
         slot: 'weapon',
         icon: 'assets/images/items/spiked branch.png',
         description: 'A sharpened branch. Crude, but it gets the job done.',
-        stats: { damage: 2, attackSpeed: 0.1 }
     },
     {
         id: 'metal_spear',
@@ -48,8 +47,6 @@ export const items = [
         slot: 'weapon',
         icon: 'assets/images/items/metal spear.png',
         description: 'A balanced spear with a metal tip. Reliable and easy to handle.',
-        // Slightly better than Spiked Branch
-        stats: { damage: 3, attackSpeed: 0.1 }
     },
     {
         id: 'stimpack',
@@ -82,7 +79,6 @@ export const items = [
         slot: 'accessory',
         icon: 'assets/images/items/basic torch.png',
         description: 'A simple torch for light and confidence in the dark.',
-        stats: { evasion: 0, hitChance: 1 }
     },
     {
         id: 'canteen',
@@ -101,7 +97,6 @@ export const items = [
         slot: 'weapon',
         icon: 'assets/images/items/crude prybar.png',
         description: 'A bent prybar for forcing stubborn hatches and crates.',
-        stats: { damage: 3, attackSpeed: 0.2 }
     },
     {
         id: 'makeshift_explosive',
@@ -209,7 +204,6 @@ export const items = [
         slot: 'offhand',
         icon: 'assets/images/items/scrapshield.png',
         description: 'A rough shield bolted together from scrap. Better than nothing.',
-        stats: { armor: 1 }
     }
 ];
 

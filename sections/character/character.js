@@ -1,4 +1,5 @@
 import { getItemDefinition } from './items.js';
+import { hasMilestone } from '../../engine/gameFlags.js';
 
 const DEFAULT_BAG_COLS = 6;
 const DEFAULT_BAG_ROWS = 2;
@@ -25,31 +26,16 @@ const STAT_POINTS_PER_LEVEL = 3;
 const UPGRADEABLE_STATS = [
     'health',
     'stamina',
-    'hitChance',
-    'critChance',
-    'attackSpeed',
-    'evasion',
 ];
 
 const STAT_POINT_EFFECTS = {
     health: 5,
     stamina: 5,
-    hitChance: 1,
-    critChance: 1,
-    attackSpeed: -0.01,
-    evasion: 1,
 };
 
 const BASE_STATS = {
     health: 100,
     stamina: 100,
-    damageMin: 1,
-    damageMax: 2,
-    attackSpeed: 1.0,
-    hitChance: 75,
-    armor: 0,
-    critChance: 5,
-    evasion: 0,
 };
 
 function emitCharacterStateChanged(reason = 'unknown') {
@@ -273,10 +259,6 @@ export function getInitialCharacterState() {
             allocated: {
                 health: 0,
                 stamina: 0,
-                hitChance: 0,
-                critChance: 0,
-                attackSpeed: 0,
-                evasion: 0,
             }
         },
     };
@@ -580,43 +562,10 @@ export function computeCharacterStats(state = characterState) {
 
         const hpPts = Math.max(0, Math.floor(Number(alloc.health) || 0));
         const stamPts = Math.max(0, Math.floor(Number(alloc.stamina) || 0));
-        const hitPts = Math.max(0, Math.floor(Number(alloc.hitChance) || 0));
-        const critPts = Math.max(0, Math.floor(Number(alloc.critChance) || 0));
-        const speedPts = Math.max(0, Math.floor(Number(alloc.attackSpeed) || 0));
-        const evasionPts = Math.max(0, Math.floor(Number(alloc.evasion) || 0));
 
         stats.health += hpPts * (STAT_POINT_EFFECTS.health || 0);
         stats.stamina += stamPts * (STAT_POINT_EFFECTS.stamina || 0);
-        stats.hitChance += hitPts * (STAT_POINT_EFFECTS.hitChance || 0);
-        stats.critChance += critPts * (STAT_POINT_EFFECTS.critChance || 0);
-        stats.attackSpeed += speedPts * (STAT_POINT_EFFECTS.attackSpeed || 0);
-        stats.evasion += evasionPts * (STAT_POINT_EFFECTS.evasion || 0);
     } catch { /* non-fatal */ }
-
-    const eq = state && state.equipment ? state.equipment : {};
-    for (const slot of EQUIPMENT_SLOTS) {
-        const itemId = eq[slot];
-        if (!itemId) continue;
-        const def = getItemDefinition(itemId);
-        if (!def || !def.stats) continue;
-        for (const [k, v] of Object.entries(def.stats)) {
-            if (typeof v !== 'number') continue;
-            if (k === 'damage') {
-                stats.damageMin = (stats.damageMin ?? 0) + v;
-                stats.damageMax = (stats.damageMax ?? 0) + v;
-                continue;
-            }
-            stats[k] = (stats[k] ?? 0) + v;
-        }
-    }
-
-    if (typeof stats.damage !== 'number') {
-        stats.damage = Math.round(((Number(stats.damageMin) || 0) + (Number(stats.damageMax) || 0)) / 2);
-    }
-
-    stats.hitChance = Math.max(0, Math.min(100, Number(stats.hitChance ?? 0)));
-    stats.critChance = Math.max(0, Math.min(100, Number(stats.critChance ?? 0)));
-    stats.evasion = Math.max(0, Math.min(95, Number(stats.evasion ?? 0)));
 
     return stats;
 }
@@ -792,6 +741,40 @@ export function grantItemToCharacter(itemId, opts = {}, state = characterState) 
         } catch (e) { /* non-fatal */ }
     }
     return { ok: true, placed: 'bag', index: idx };
+}
+
+// ==========================================================================
+// Skill System
+// ==========================================================================
+
+export const SKILLS = [
+    {
+        id: 'engineering',
+        tiers: [
+            { tier: 1, milestone: 'book_read', nameKey: 'skill_engineering_t1_name', descKey: 'skill_engineering_t1_desc' },
+            { tier: 2, milestone: null, nameKey: 'skill_engineering_t2_name', descKey: 'skill_engineering_t2_desc' },
+        ]
+    },
+];
+
+export function getSkillDefinition(skillId) {
+    return SKILLS.find(s => s.id === skillId) || null;
+}
+
+export function getSkillTier(skillId) {
+    const def = getSkillDefinition(skillId);
+    if (!def) return 0;
+    let highest = 0;
+    for (const t of def.tiers) {
+        if (t.milestone && hasMilestone(t.milestone)) {
+            highest = Math.max(highest, t.tier);
+        }
+    }
+    return highest;
+}
+
+export function hasSkill(skillId, minTier = 1) {
+    return getSkillTier(skillId) >= minTier;
 }
 
 export function countItemInBag(itemId, state = characterState) {

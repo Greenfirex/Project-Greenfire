@@ -163,6 +163,8 @@ function completeActiveAction(opts = {}) {
         };
         if (action.addsEffect === 'alarm') {
             Object.assign(effectDef, { icon: '🔔', progress: 0, maxProgress: Infinity, debuffs: { 'Stamina': -0.2 } });
+        } else if (action.addsEffect === 'waiting_ping' || action.addsEffect === 'waiting_ping_targeted') {
+            Object.assign(effectDef, { icon: '📡', progress: 0, maxProgress: 120, isCountdown: true });
         }
         addEffect(effectDef);
         addLogEntry(t('log_effect_added', { effect: t(effectDef.nameKey) }), LogType.ERROR);
