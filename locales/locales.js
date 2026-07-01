@@ -74,6 +74,8 @@ loaded['en'] = {
     "action_check_comms_desc": "Access the comms station and scan for signals or distress calls.",
     "action_check_navigation": "Check Navigation",
     "action_check_navigation_desc": "Power up the navigation console and determine your current position.",
+    "action_check_ping_results": "Check Ping Results",
+    "action_check_ping_results_desc": "Analyze returned data.",
     "action_check_reactor_status": "Check Reactor Status",
     "action_check_reactor_status_desc": "Run a detailed diagnostic of the ship's reactor and power systems.",
     "action_check_status": "Check Status",
@@ -119,6 +121,10 @@ loaded['en'] = {
     "action_search_workbench_desc": "Search the workshop workbench — maybe something useful can be found.",
     "action_send_distress_signal": "Send Distress Signal",
     "action_send_distress_signal_desc": "Record a message and broadcast a call for help.",
+    "action_send_ping": "Send Ping",
+    "action_send_ping_desc": "Send a signal into the surroundings.",
+    "action_send_targeted_ping": "Send Targeted Ping",
+    "action_send_targeted_ping_desc": "Aim at the fragmented coordinates.",
     "action_set_course_gamma": "Set Course — Gamma Site",
     "action_set_course_gamma_desc": "Enter Gamma Site coordinates into the navigation system and set a course for the research station.",
     "action_stabilize": "Stabilize",
@@ -450,6 +456,8 @@ loaded['en'] = {
     "result_check_navigation_first": "The navigation console flickers to life after a brief struggle. According to the data, there's a planet within the ship's sensor range. Initial estimates suggest it could theoretically be habitable — similar temperature, signs of an atmosphere... But honestly, you've passed dozens of planets like this on your journey. Nothing special. For peace of mind, you could prep a probe and have it scan the surface for anomalies.",
     "result_check_navigation_known": "You approach the navigation console and a memory surfaces — you've done this before. That planet below? Empty. You spent hours calibrating the probe just for it to tell you what you already suspected. No anomalies, unbreathable atmosphere. A waste of time. You're not wasting another probe on that.",
     "result_check_navigation_loop": "You approach the navigation console and a strange feeling washes over you — like you already know exactly what you'll see. That planet... have you scanned it before? Or was it just a dream? Something tells you launching a probe would be a waste of time. But you're not certain.",
+    "result_check_ping_results_first": "Faint signal, fragment coords.",
+    "result_check_ping_results_targeted": "Complete coordinates.",
     "result_check_reactor_status": "The reactor scan reveals critical fuel depletion — only {fuel} units remain. At current burn rate you have roughly {minutes} minutes before the reactor goes cold. Without power, life support will fail and oxygen reserves will drain rapidly.",
     "result_check_reactor_status_known": "Just like in that dream… was it ever a dream? Everything is exactly the same — the readings, the fuel gauge, the sinking feeling in your chest. This isn't possible. And yet here you are, staring at the same numbers. You have {minutes} minutes before the reactor dies. Again.",
     "result_check_reactor_status_loop2": "Unfortunately your prediction came true, the fuel status is exactly what you thought. {fuel} units of fuel, {minutes} minutes until darkness. You knew it before you even got out of bed.",
@@ -481,6 +489,10 @@ loaded['en'] = {
     "result_search_for_login_note": "You rummage through the clutter on the workbench. Tucked under a coffee-stained schematic, you find a sticky note: \"terminal — user: crew01 / pass: vagabond47\". This could be useful back at terminal.",
     "result_search_workbench": "You rummage through the clutter on the workbench. Under a coffee-stained schematic you find a sticky note with login credentials. In the drawer you also discover a set of repair tools — exactly what you might need.",
     "result_send_distress_signal": "You record the message. 'This is SFC-47 Vagabond. Emergency situation. Requesting assistance.' Signal sent. Minutes tick by. No response comes. The reactor dies first — you didn't make it. Next time, this has to be your absolute top priority. Send the signal as soon as possible, and hope.",
+    "result_send_ping": "Ping sent. Now wait.",
+    "result_send_ping_loop": "Deja vu. Ping sent.",
+    "result_send_targeted_ping": "Targeted ping sent.",
+    "result_send_targeted_ping_loop": "Targeted ping, routine.",
     "result_set_course_gamma": "You enter the coordinates. The nav computer thinks for a moment, then blinks confirmation. Vagabond alters course. Gamma Site. Whatever waits down there — you're heading toward it.",
     "result_tinker_device": "You have no idea what this device is for — a mess of wires, lenses and circuits. But one thing's clear: there's a functional power cell inside. With the help of your tools, you manage to pry it out without destroying the rest.",
     "result_tinker_device_known": "You know exactly where to reach. A few clicks and the power cell is out.",
@@ -508,7 +520,7 @@ loaded['en'] = {
     "title_changelog": "Changelog",
     "title_new_game": "New Game",
     "title_settings": "Settings"
-};;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+};;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 // ==========================================================================
 // Public API
