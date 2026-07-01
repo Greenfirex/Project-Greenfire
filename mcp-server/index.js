@@ -11,6 +11,7 @@ import {
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { validateActionChain } from './validate_action_chain.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -491,7 +492,7 @@ function validateStateCoverage() {
 const server = new Server(
   {
     name: 'project-greenfire-validator',
-    version: '1.0.0',
+    version: '1.1.0',
   },
   {
     capabilities: {
@@ -547,6 +548,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: [],
       },
     },
+    {
+      name: 'validate_action_chain',
+      description: 'Hloubková validace logiky akcí — ověří isAvailable podmínky, onComplete reference na existující akce, getResultKey result varianty, statické fieldy (unlockedBy, targetLocation, rewards, efekty, skilly, area resources), detekuje cyklické závislosti a dead code. Vrací i actionMap s přehledem viditelnosti a posloupnosti každé akce.',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
   ],
 }));
 
@@ -581,6 +591,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     case 'validate_state_coverage': {
       const result = validateStateCoverage();
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    }
+    case 'validate_action_chain': {
+      const result = validateActionChain(PROJECT_ROOT);
       return {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       };

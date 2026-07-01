@@ -2,7 +2,7 @@
 // Location: Scout Ship — Workshop
 // ==========================================================================
 
-import { setMilestone, hasMilestone } from '../../../../engine/gameFlags.js';
+import { setMilestone, hasMilestone, hasLogin } from '../../../../engine/gameFlags.js';
 import { hasSkill } from '../../../character/character.js';
 
 export const scoutShipWorkshop = {
@@ -66,7 +66,9 @@ export const scoutShipWorkshop = {
             oneTime: true,
             resultKey: 'result_grab_login_note',
             isAvailable(ctx) {
-                return hasMilestone('workbench_searched');
+                if (!hasMilestone('workbench_searched')) return false;
+                if (hasLogin(ctx.gameFlags.loopKnowledge?.milestones || {})) return false;
+                return true;
             },
             onComplete(ctx) {
                 setMilestone('login_note_found', () => ctx.persistLoopKnowledge());

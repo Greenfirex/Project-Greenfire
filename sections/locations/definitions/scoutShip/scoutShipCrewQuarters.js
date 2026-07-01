@@ -223,7 +223,7 @@ export const scoutShipCrewQuarters = {
                 try {
                     const wsLoc = ctx.getLocation('scout_ship_workshop');
                     if (wsLoc && Array.isArray(wsLoc.actions)) {
-                        const noteAction = wsLoc.actions.find(a => a.id === 'search_for_login_note');
+                        const noteAction = wsLoc.actions.find(a => a.id === 'grab_login_note');
                         if (noteAction) noteAction._completed = true;
                     }
                 } catch { /* ignore */ }
@@ -240,7 +240,9 @@ export const scoutShipCrewQuarters = {
             requiresItem: 'terminal_login_note',
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
-                return !!us['check_terminal'];
+                if (!us['check_terminal']) return false;
+                if (hasLogin(ctx.gameFlags.loopKnowledge?.milestones || {})) return false;
+                return true;
             },
             onComplete(ctx) {
                 setMilestone('crew_terminal_note_used', () => ctx.persistLoopKnowledge());
@@ -270,7 +272,7 @@ export const scoutShipCrewQuarters = {
                 try {
                     const wsLoc = ctx.getLocation('scout_ship_workshop');
                     if (wsLoc && Array.isArray(wsLoc.actions)) {
-                        const noteAction = wsLoc.actions.find(a => a.id === 'search_for_login_note');
+                        const noteAction = wsLoc.actions.find(a => a.id === 'grab_login_note');
                         if (noteAction) noteAction._completed = true;
                     }
                 } catch { /* ignore */ }
