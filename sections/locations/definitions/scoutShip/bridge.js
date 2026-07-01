@@ -4,16 +4,6 @@
 
 import { hasLogin, setMilestone, hasMilestone } from '../../../../engine/gameFlags.js';
 
-function persistLoopKnowledge(ctx) {
-    try {
-        const state = JSON.parse(localStorage.getItem('gameState') || '{}');
-        if (!state.gameFlags) state.gameFlags = {};
-        if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = { milestones: {} };
-        state.gameFlags.loopKnowledge = { milestones: { ...ctx.gameFlags.loopKnowledge?.milestones } };
-        localStorage.setItem('gameState', JSON.stringify(state));
-    } catch { /* ignore */ }
-}
-
 export const scoutShipBridge = {
     id: 'scout_ship_bridge',
     siteId: 'scout_ship',
@@ -59,7 +49,7 @@ export const scoutShipBridge = {
             },
             onComplete(ctx) {
                 if (!hasMilestone('navigation_checked')) {
-                    setMilestone('navigation_checked', () => persistLoopKnowledge(ctx));
+                    setMilestone('navigation_checked', () => ctx.persistLoopKnowledge());
                     ctx.flagActionAsNew('scan_planet_surface');
                     ctx.setFullRebuildNeeded(true);
                 }
@@ -80,7 +70,7 @@ export const scoutShipBridge = {
             },
             resultKey: 'result_scan_planet_surface',
             onComplete(ctx) {
-                setMilestone('planet_scanned', () => persistLoopKnowledge(ctx));
+                setMilestone('planet_scanned', () => ctx.persistLoopKnowledge());
                 ctx.setFullRebuildNeeded(true);
             },
         },
@@ -98,7 +88,7 @@ export const scoutShipBridge = {
             },
             resultKey: 'result_scan_gamma_site',
             onComplete(ctx) {
-                setMilestone('gamma_site_confirmed_on_scanner', () => persistLoopKnowledge(ctx));
+                setMilestone('gamma_site_confirmed_on_scanner', () => ctx.persistLoopKnowledge());
                 ctx.setFullRebuildNeeded(true);
             },
         },
@@ -124,7 +114,7 @@ export const scoutShipBridge = {
                 return 'result_check_bridge_terminal_known';
             },
             onComplete(ctx) {
-                setMilestone('bridge_terminal_checked', () => persistLoopKnowledge(ctx));
+                setMilestone('bridge_terminal_checked', () => ctx.persistLoopKnowledge());
                 const loc = ctx.getLocation(ctx.getCurrentLocationId());
                 if (!loc) return;
                 const unlockState = ctx.getUnlockState(loc.id);
@@ -175,7 +165,7 @@ export const scoutShipBridge = {
                 return null;
             },
             onComplete(ctx) {
-                setMilestone('fuel_scanned', () => persistLoopKnowledge(ctx));
+                setMilestone('fuel_scanned', () => ctx.persistLoopKnowledge());
                 const bridgeList = ctx.areaResources['scout_ship_bridge'];
                 const fuel = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_fuel') : null;
                 const currentFuel = fuel ? Math.round(fuel.amount) : 0;
@@ -205,7 +195,7 @@ export const scoutShipBridge = {
                 return !!us['check_bridge_terminal'];
             },
             onComplete(ctx) {
-                setMilestone('bridge_terminal_hacked', () => persistLoopKnowledge(ctx));
+                setMilestone('bridge_terminal_hacked', () => ctx.persistLoopKnowledge());
                 const loc = ctx.getLocation(ctx.getCurrentLocationId());
                 if (loc) {
                     const unlockState = ctx.getUnlockState(loc.id);
@@ -251,7 +241,7 @@ export const scoutShipBridge = {
                 return !!us['check_bridge_terminal'];
             },
             onComplete(ctx) {
-                setMilestone('bridge_terminal_note_used', () => persistLoopKnowledge(ctx));
+                setMilestone('bridge_terminal_note_used', () => ctx.persistLoopKnowledge());
                 const loc = ctx.getLocation(ctx.getCurrentLocationId());
                 if (loc) {
                     const unlockState = ctx.getUnlockState(loc.id);
@@ -344,10 +334,10 @@ export const scoutShipBridge = {
             onComplete(ctx) {
                 ctx.gameFlags.reactorOptimized = true;
                 const alreadyKnew = hasMilestone('reactor_optimized');
-                setMilestone('reactor_optimized', () => persistLoopKnowledge(ctx));
+                setMilestone('reactor_optimized', () => ctx.persistLoopKnowledge());
                 if (alreadyKnew) {
                     // Player has done this before — they realize they can do it from any terminal
-                    setMilestone('reactor_remote_hint_seen', () => persistLoopKnowledge(ctx));
+                    setMilestone('reactor_remote_hint_seen', () => ctx.persistLoopKnowledge());
                     ctx.addLogEntry(ctx.t('log_reactor_terminal_hint'), ctx.LogType.UNLOCK);
                 }
                 const bridgeLoc = ctx.getLocation('scout_ship_bridge');

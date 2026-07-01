@@ -20,8 +20,9 @@ import {
     getResourceByName, canAffordAction,
     getUnlockState, setUnlockState, getPoiCollapseState, setPoiCollapseState,
     startAction, pauseAction, resumeAction, cancelActiveAction,
-    setSelectedActionId, setFullRebuildNeeded
+    setSelectedActionId, setFullRebuildNeeded, safeInvokeActionCallback
 } from './locationEngine.js';
+
 
 // ==========================================================================
 // Tile rendering
@@ -310,10 +311,11 @@ export function renderActionsTile(location) {
         }
         // Delegate to isAvailable callback if defined
         if (typeof a.isAvailable === 'function') {
-            try { return a.isAvailable(availCtx); } catch { /* ignore */ }
+            return !!safeInvokeActionCallback(a.isAvailable, availCtx, a, 'isAvailable');
         }
         // Explicit no-callback = always visible
         return true;
+
     });
 
     // Auto-flag actions that have never been tracked in uiSeen as "new"

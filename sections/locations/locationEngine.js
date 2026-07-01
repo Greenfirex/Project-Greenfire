@@ -5,9 +5,9 @@
 import { resources, updateResourceInfo, setActiveDrainRates, setActiveAreaDrainRates, setActionAreaDrainRates, applyTimePassiveDrain, roundResourceAmount, checkDeathAndLoop, initAreaResources, drainAreaResource, showAreaSuppliesPanel, areaResources, revealAreaResources } from '../../engine/resources.js';
 import { addLogEntry, LogType } from '../../engine/ingameLog.js';
 import { t } from '../../locales/locales.js';
-import { getCurrentLocationId, switchToLocation, getLocation } from './locationData.js';
+import { getCurrentLocationId, switchToLocation, getLocation, getAllLocations } from './locationData.js';
 import { advanceIngameTimeBySeconds, getIngameTimeString } from '../../engine/time.js';
-import { gameFlags, flagActionAsNew } from '../../engine/gameFlags.js';
+import { gameFlags, flagActionAsNew, persistLoopKnowledge } from '../../engine/gameFlags.js';
 import { hasEffect, removeEffect, addEffect } from '../../engine/effects.js';
 import { startNextQueuedAction, updateQueueActive } from '../../engine/queue.js';
 import { grantItemToCharacter, consumeItemQuantityFromBag, countItemInBag } from '../character/character.js';
@@ -102,9 +102,34 @@ function buildActionCtx(action) {
         refreshUI,
         countItemInBag,
         consumeItemQuantityFromBag,
+        persistLoopKnowledge,
         setFullRebuildNeeded(v) { _fullRebuildNeeded = v; },
     };
 }
+
+// ==========================================================================
+// Debug-mode safe callback invocation
+// ==========================================================================
+// Action definition callbacks (onStart/getResultKey/onComplete/isAvailable)
+// run inside try/catch so a bug in one action's callback never crashes the
+// whole engine. By default failures are silently swallowed (production-safe).
+// Set `window.DEBUG_ACTIONS = true` in the console to log the action id,
+// callback name, and error to the console instead of silently ignoring it —
+// this is the fastest way to catch "result text was wrong after a loop"
+// style bugs caused by a thrown exception inside a callback.
+export function safeInvokeActionCallback(fn, ctx, action, callbackName) {
+    try {
+        return fn(ctx);
+    } catch (err) {
+        try {
+            if (typeof window !== 'undefined' && window.DEBUG_ACTIONS) {
+                console.warn(`[action:${action?.id || '?'}] ${callbackName}() threw:`, err);
+            }
+        } catch { /* ignore */ }
+        return undefined;
+    }
+}
+
 
 // ==========================================================================
 // Action completion
@@ -203,7 +228,8 @@ function completeActiveAction(opts = {}) {
     
     // --- On-complete callback (replaces all special-case if blocks) ---
     const ctx = buildActionCtx(action);
-    try { if (typeof action.onComplete === 'function') action.onComplete(ctx); } catch { /* ignore */ }
+    if (typeof action.onComplete === 'function') safeInvokeActionCallback(action.onComplete, ctx, action, 'onComplete');
+
     
     // --- Area resource drains ---
     if (action.drainsAreaResource) {
@@ -306,12 +332,11 @@ export function startAction(actionId) {
 
     // --- Generic onStart callback (replaces all special-case gate blocks) ---
     const ctx = buildActionCtx(action);
-    try {
-        if (typeof action.onStart === 'function') {
-            const result = action.onStart(ctx);
-            if (result && result.block) return;
-        }
-    } catch { /* ignore */ }
+    if (typeof action.onStart === 'function') {
+        const result = safeInvokeActionCallback(action.onStart, ctx, action, 'onStart');
+        if (result && result.block) return;
+    }
+
 
     // Check requiresItem
     if (action.requiresItem) {
@@ -389,11 +414,10 @@ export function startAction(actionId) {
     if (activeActionId !== actionId) {
         activeActionId = actionId; activeAction = action; activeAction._displayName = t(action.nameKey);
         // --- Dynamic resultKey via callback (replaces all special-case if blocks) ---
-        try {
-            if (typeof action.getResultKey === 'function') {
-                activeAction._resultKey = action.getResultKey(ctx);
-            }
-        } catch { /* ignore */ }
+        if (typeof action.getResultKey === 'function') {
+            activeAction._resultKey = safeInvokeActionCallback(action.getResultKey, ctx, action, 'getResultKey');
+        }
+
         // Restore persistent progress from previous loops
         if (action.category === 'persistent' && action.id && gameFlags.persistentProgress) {
             actionProgress = Number(gameFlags.persistentProgress[action.id]) || 0;
@@ -526,10 +550,11 @@ export function setPoiCollapseState(locationId, poiId, collapsed) {
 export function getActionCompletionState() {
     const state = {};
     try {
-        // Known location IDs — iterate and collect _completed flags
-        const knownIds = ['scout_ship_crew_quarters', 'scout_ship_main_area', 'scout_ship_bridge', 'scout_ship_workshop', 'gamma_crew_quarters', 'workshop'];
-        for (const locId of knownIds) {
-            const loc = getLocation(locId);
+        // Iterate all registered locations (single source of truth: locationData.js registry)
+        // instead of a hardcoded list — new locations are automatically covered.
+        const allLocations = getAllLocations();
+        for (const locId of Object.keys(allLocations)) {
+            const loc = allLocations[locId];
             if (!loc || !Array.isArray(loc.actions)) continue;
             const completed = loc.actions.filter(a => a._completed).map(a => a.id);
             if (completed.length > 0) state[locId] = completed;
@@ -537,6 +562,7 @@ export function getActionCompletionState() {
     } catch { /* ignore */ }
     return state;
 }
+
 
 /**
  * Restore _completed flags from saved state.

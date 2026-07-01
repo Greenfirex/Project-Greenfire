@@ -371,6 +371,8 @@
   "result_scan_planet_surface": "Sonda dokončila skenování. Výsledky jsou… nezajímavé. Žádné známky civilizace, žádné anomálie. Atmosféra je téměř nevhodná pro člověka — vysoký obsah CO₂, nízký kyslík. Tohle nebude tvůj nový domov. Další skenování by byla jen ztráta času.",
   "result_scavenge_tools": "Prohledáváš dílnu. Několik sad nářadí je stále neporušených. Zachraňuješ, co můžeš — plazmovou řezačku a několik náhradních článků.",
   "result_search_bunks": "Prohrabáváš palandu. Pod polštářem tvé prsty narazí na něco neočekávaného — ohmataný opravářský manuál. 'Údržba průzkumných člunů pro naprosté idioty.' Někdo z posádky si ho tu musel nechat. Tohle by se mohlo hodit.",
+  "result_search_bunks_bookread": "Prohledano znovu",
+  "result_search_bunks_loop": "Dejavu prohledani",
   "result_search_for_login_note": "Prohrabáváš se harampádím na pracovním stole. Pod plánkem s fleky od kafe nacházíš nalepený lísteček: \"terminál — user: crew01 / pass: vagabond47\". To by se mohlo hodit u terminálu.",
   "result_search_workbench": "Prohrabáváš harampádí na pracovním stole. Pod plánkem s fleky od kafe nacházíš nalepený lísteček s přihlašovacími údaji. V šuplíku objevuješ i sadu opravářského nářadí — přesně to, co by se mohlo hodit.",
   "result_send_distress_signal": "Nahráváš zprávu. 'Tady SFC-47 Vagabond. Havarijní stav. Žádám o pomoc.' Signál odeslán. Minuty ubíhají. Odpověď nepřichází. Reaktor vyhasíná — nestihl jsi to. Příště tomu musíš dát absolutní prioritu. Odeslat signál hned, jak to půjde, a doufat.",

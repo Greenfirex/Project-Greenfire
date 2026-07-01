@@ -94,6 +94,21 @@ export function applySavedGameFlags(savedFlags = {}) {
 }
 
 /**
+ * Persist gameFlags.loopKnowledge (milestones etc.) to localStorage immediately.
+ * This is the single source of truth for saving persistent loop knowledge —
+ * action definition callbacks should call ctx.persistLoopKnowledge() instead
+ * of maintaining their own ad-hoc localStorage read/write logic.
+ */
+export function persistLoopKnowledge() {
+    try {
+        const state = JSON.parse(localStorage.getItem('gameState') || '{}');
+        if (!state.gameFlags) state.gameFlags = {};
+        state.gameFlags.loopKnowledge = { milestones: { ...gameFlags.loopKnowledge?.milestones } };
+        localStorage.setItem('gameState', JSON.stringify(state));
+    } catch { /* ignore */ }
+}
+
+/**
  * Set a milestone in loopKnowledge and persist.
  */
 export function setMilestone(name, persistFn) {
@@ -102,6 +117,7 @@ export function setMilestone(name, persistFn) {
     gameFlags.loopKnowledge.milestones[name] = true;
     if (typeof persistFn === 'function') persistFn();
 }
+
 
 /**
  * Check if a milestone has been reached.

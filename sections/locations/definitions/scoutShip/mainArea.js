@@ -6,16 +6,6 @@ import { hasLogin, setMilestone, hasMilestone } from '../../../../engine/gameFla
 import { hasSkill } from '../../../character/character.js';
 import { hasEffect, removeEffect, activeEffects } from '../../../../engine/effects.js';
 
-function persistLoopKnowledge(ctx) {
-    try {
-        const state = JSON.parse(localStorage.getItem('gameState') || '{}');
-        if (!state.gameFlags) state.gameFlags = {};
-        if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = { milestones: {} };
-        state.gameFlags.loopKnowledge = { milestones: { ...ctx.gameFlags.loopKnowledge?.milestones } };
-        localStorage.setItem('gameState', JSON.stringify(state));
-    } catch { /* ignore */ }
-}
-
 export const scoutShipMainArea = {
     id: 'scout_ship_main_area',
     siteId: 'scout_ship',
@@ -120,7 +110,7 @@ export const scoutShipMainArea = {
             },
             rewards: [{ type: 'item', name: 'Scavenged Comms Panel', amount: 1 }],
             onComplete(ctx) {
-                setMilestone('comms_diagnosed', () => persistLoopKnowledge(ctx));
+                setMilestone('comms_diagnosed', () => ctx.persistLoopKnowledge());
                 ctx.flagActionAsNew('fabricate_amplifier');
                 ctx.setFullRebuildNeeded(true);
             }
@@ -164,7 +154,7 @@ export const scoutShipMainArea = {
                 return 'result_send_ping';
             },
             onComplete(ctx) {
-                setMilestone('ping_sent', () => persistLoopKnowledge(ctx));
+                setMilestone('ping_sent', () => ctx.persistLoopKnowledge());
                 ctx.setFullRebuildNeeded(true);
             },
         },
@@ -188,7 +178,7 @@ export const scoutShipMainArea = {
                 return 'result_send_targeted_ping';
             },
             onComplete(ctx) {
-                setMilestone('targeted_ping_sent', () => persistLoopKnowledge(ctx));
+                setMilestone('targeted_ping_sent', () => ctx.persistLoopKnowledge());
                 ctx.setFullRebuildNeeded(true);
             },
         },
@@ -224,10 +214,10 @@ export const scoutShipMainArea = {
                 const m = ctx.gameFlags.loopKnowledge?.milestones || {};
                 if (hasEffect('waiting_ping_targeted')) {
                     removeEffect('waiting_ping_targeted');
-                    setMilestone('gamma_coordinates_known', () => persistLoopKnowledge(ctx));
+                    setMilestone('gamma_coordinates_known', () => ctx.persistLoopKnowledge());
                 } else if (hasEffect('waiting_ping')) {
                     removeEffect('waiting_ping');
-                    setMilestone('gamma_site_heard', () => persistLoopKnowledge(ctx));
+                    setMilestone('gamma_site_heard', () => ctx.persistLoopKnowledge());
                     ctx.flagActionAsNew('send_targeted_ping');
                 }
                 ctx.setFullRebuildNeeded(true);
@@ -303,7 +293,7 @@ export const scoutShipMainArea = {
             },
             onComplete(ctx) {
                 ctx.gameFlags.recyclerFixed = true;
-                setMilestone('recycler_repaired', () => persistLoopKnowledge(ctx));
+                setMilestone('recycler_repaired', () => ctx.persistLoopKnowledge());
             }
         },
         {

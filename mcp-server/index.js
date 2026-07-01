@@ -416,8 +416,77 @@ function checkEngine() {
 }
 
 // ==========================================================================
+// Tool: validate_state_coverage
+// ==========================================================================
+// Ověří, že všechny locations definované v definitions/**/*.js jsou skutečně
+// zaregistrovány (importovány + registerLocation()) v locationData.js.
+// Nahrazuje potřebu ručně udržovaného hardcoded seznamu locId, který byl
+// dříve zdrojem bugů typu "getActionCompletionState() nezná novou lokaci".
+
+function extractLocationId(filePath) {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  // Najdi export const X = { id: 'location_id', ... siteId: ...
+  const match = content.match(/export\s+const\s+\w+\s*=\s*\{[^}]*?\bid\s*:\s*['"]([^'"]+)['"]/s);
+  return match ? match[1] : null;
+}
+
+function validateStateCoverage() {
+  const defsDir = path.join(PROJECT_ROOT, 'sections', 'locations', 'definitions');
+  const locationDataPath = path.join(PROJECT_ROOT, 'sections', 'locations', 'locationData.js');
+  const jsFiles = findFiles(defsDir, ['.js']);
+
+  const locationDataContent = fs.existsSync(locationDataPath)
+    ? fs.readFileSync(locationDataPath, 'utf-8')
+    : '';
+
+  const issues = [];
+  const definedLocations = [];
+
+  for (const filePath of jsFiles) {
+    const relPath = path.relative(PROJECT_ROOT, filePath);
+    const locId = extractLocationId(filePath);
+    if (!locId) continue; // soubor bez top-level location definice (např. helper)
+
+    definedLocations.push({ id: locId, file: relPath });
+
+    // Najdi jméno exportované proměnné pro tento soubor
+    const exportMatch = fs.readFileSync(filePath, 'utf-8').match(/export\s+const\s+(\w+)\s*=/);
+    const exportName = exportMatch ? exportMatch[1] : null;
+
+    const isImported = exportName && new RegExp(`import\\s*\\{[^}]*\\b${exportName}\\b[^}]*\\}\\s*from`).test(locationDataContent);
+    const isRegistered = exportName && new RegExp(`registerLocation\\(\\s*${exportName}\\s*\\)`).test(locationDataContent);
+
+    if (!isImported) {
+      issues.push({
+        type: 'not_imported',
+        locationId: locId,
+        exportName,
+        file: relPath,
+        message: `Lokace "${locId}" (export "${exportName}") není importována v locationData.js`,
+      });
+    }
+    if (!isRegistered) {
+      issues.push({
+        type: 'not_registered',
+        locationId: locId,
+        exportName,
+        file: relPath,
+        message: `Lokace "${locId}" (export "${exportName}") není zaregistrována přes registerLocation() v locationData.js`,
+      });
+    }
+  }
+
+  return {
+    summary: `Nalezeno ${definedLocations.length} lokací, ${issues.length} problémů s registrací`,
+    definedLocations,
+    issues,
+  };
+}
+
+// ==========================================================================
 // MCP Server
 // ==========================================================================
+
 
 const server = new Server(
   {
@@ -469,8 +538,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: [],
       },
     },
+    {
+      name: 'validate_state_coverage',
+      description: 'Ověří, že všechny location definice v sections/locations/definitions/**/*.js jsou importovány a zaregistrovány (registerLocation) v locationData.js. Zabraňuje bugům, kdy engine kód iteruje jen přes hardcoded seznam lokací a nová lokace zůstane nepokrytá.',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
   ],
 }));
+
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name } = request.params;
@@ -500,7 +579,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       };
     }
+    case 'validate_state_coverage': {
+      const result = validateStateCoverage();
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    }
     default:
+
       throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
   }
 });

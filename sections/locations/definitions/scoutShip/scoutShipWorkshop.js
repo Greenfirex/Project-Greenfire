@@ -5,16 +5,6 @@
 import { setMilestone, hasMilestone } from '../../../../engine/gameFlags.js';
 import { hasSkill } from '../../../character/character.js';
 
-function persistLoopKnowledge(ctx) {
-    try {
-        const state = JSON.parse(localStorage.getItem('gameState') || '{}');
-        if (!state.gameFlags) state.gameFlags = {};
-        if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = { milestones: {} };
-        state.gameFlags.loopKnowledge = { milestones: { ...ctx.gameFlags.loopKnowledge?.milestones } };
-        localStorage.setItem('gameState', JSON.stringify(state));
-    } catch { /* ignore */ }
-}
-
 export const scoutShipWorkshop = {
     id: 'scout_ship_workshop',
     siteId: 'scout_ship',
@@ -60,7 +50,7 @@ export const scoutShipWorkshop = {
             },
             resultKey: 'result_search_workbench',
             onComplete(ctx) {
-                setMilestone('workbench_searched', () => persistLoopKnowledge(ctx));
+                setMilestone('workbench_searched', () => ctx.persistLoopKnowledge());
                 ctx.flagActionAsNew('grab_login_note');
                 ctx.flagActionAsNew('grab_tools');
                 ctx.setFullRebuildNeeded(true);
@@ -79,7 +69,7 @@ export const scoutShipWorkshop = {
                 return hasMilestone('workbench_searched');
             },
             onComplete(ctx) {
-                setMilestone('login_note_found', () => persistLoopKnowledge(ctx));
+                setMilestone('login_note_found', () => ctx.persistLoopKnowledge());
                 // If terminals were already examined, retroactively unhide "Use Login Note"
                 try {
                     const crewLoc = ctx.getLocation('scout_ship_crew_quarters');
@@ -155,7 +145,7 @@ export const scoutShipWorkshop = {
                 return m.tinkered_device ? 'result_tinker_device_known' : 'result_tinker_device';
             },
             onComplete(ctx) {
-                setMilestone('tinkered_device', () => persistLoopKnowledge(ctx));
+                setMilestone('tinkered_device', () => ctx.persistLoopKnowledge());
             }
         },
 
@@ -223,7 +213,7 @@ export const scoutShipWorkshop = {
                 return hasMilestone('comms_repaired') ? 'result_assemble_comms_known' : 'result_assemble_comms';
             },
             onComplete(ctx) {
-                setMilestone('comms_repaired', () => persistLoopKnowledge(ctx));
+                setMilestone('comms_repaired', () => ctx.persistLoopKnowledge());
                 // Consume parts used in assembly
                 ctx.consumeItemQuantityFromBag('signal_amplifier', 1);
                 ctx.consumeItemQuantityFromBag('power_cell', 1);

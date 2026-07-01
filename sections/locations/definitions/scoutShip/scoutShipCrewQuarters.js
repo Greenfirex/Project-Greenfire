@@ -5,16 +5,6 @@
 import { gameFlags, hasLogin, setMilestone, hasMilestone, flagActionAsNew } from '../../../../engine/gameFlags.js';
 import { hasEffect } from '../../../../engine/effects.js';
 
-function persistLoopKnowledge(ctx) {
-    try {
-        const state = JSON.parse(localStorage.getItem('gameState') || '{}');
-        if (!state.gameFlags) state.gameFlags = {};
-        if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = { milestones: {} };
-        state.gameFlags.loopKnowledge = { milestones: { ...ctx.gameFlags.loopKnowledge?.milestones } };
-        localStorage.setItem('gameState', JSON.stringify(state));
-    } catch { /* ignore */ }
-}
-
 export const scoutShipCrewQuarters = {
     id: 'scout_ship_crew_quarters',
     siteId: 'scout_ship',
@@ -107,7 +97,7 @@ export const scoutShipCrewQuarters = {
                 const currentFuel = fuel ? Math.round(fuel.amount) : 0;
                 const projectedMins = Math.round(currentFuel / 1.8);
                 if (!m.fuel_scanned) {
-                    setMilestone('fuel_scanned', () => persistLoopKnowledge(ctx));
+                    setMilestone('fuel_scanned', () => ctx.persistLoopKnowledge());
                 }
                 const resultKey = loop >= 3 ? 'result_wake_up_loop3' : 'result_wake_up_loop2';
                 ctx.addLogEntry(ctx.t(resultKey, { fuel: currentFuel, minutes: projectedMins }), ctx.LogType.SUCCESS);
@@ -127,7 +117,7 @@ export const scoutShipCrewQuarters = {
                         if (crsAction) crsAction._completed = true;
                     }
                 }
-                persistLoopKnowledge(ctx);
+                ctx.persistLoopKnowledge();
                 ctx.setFullRebuildNeeded(true);
             }
         },
@@ -157,7 +147,7 @@ export const scoutShipCrewQuarters = {
                 return 'result_check_terminal_known';
             },
             onComplete(ctx) {
-                setMilestone('crew_terminal_checked', () => persistLoopKnowledge(ctx));
+                setMilestone('crew_terminal_checked', () => ctx.persistLoopKnowledge());
                 const loc = ctx.getLocation(ctx.getCurrentLocationId());
                 if (!loc) return;
                 const unlockState = ctx.getUnlockState(loc.id);
@@ -206,7 +196,7 @@ export const scoutShipCrewQuarters = {
                 return !!us['check_terminal'];
             },
             onComplete(ctx) {
-                setMilestone('crew_terminal_hacked', () => persistLoopKnowledge(ctx));
+                setMilestone('crew_terminal_hacked', () => ctx.persistLoopKnowledge());
                 const loc = ctx.getLocation(ctx.getCurrentLocationId());
                 if (loc) {
                     const unlockState = ctx.getUnlockState(loc.id);
@@ -253,7 +243,7 @@ export const scoutShipCrewQuarters = {
                 return !!us['check_terminal'];
             },
             onComplete(ctx) {
-                setMilestone('crew_terminal_note_used', () => persistLoopKnowledge(ctx));
+                setMilestone('crew_terminal_note_used', () => ctx.persistLoopKnowledge());
                 const loc = ctx.getLocation(ctx.getCurrentLocationId());
                 if (loc) {
                     const unlockState = ctx.getUnlockState(loc.id);
@@ -348,7 +338,7 @@ export const scoutShipCrewQuarters = {
                 return 'result_search_bunks';
             },
             onComplete(ctx) {
-                setMilestone('bunk_searched', () => persistLoopKnowledge(ctx));
+                setMilestone('bunk_searched', () => ctx.persistLoopKnowledge());
             },
             unlocksAll: true
         },
@@ -409,10 +399,12 @@ export const scoutShipCrewQuarters = {
             resultKey: 'result_read_book',
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
-                return !!us['search_bunks'];
+                if (!us['search_bunks']) return false;
+                if (ctx.hasMilestone('book_read')) return false;
+                return true;
             },
             onComplete(ctx) {
-                setMilestone('book_read', () => persistLoopKnowledge(ctx));
+                setMilestone('book_read', () => ctx.persistLoopKnowledge());
             }
         },
         {
@@ -456,7 +448,7 @@ export const scoutShipCrewQuarters = {
             },
             onComplete(ctx) {
                 ctx.gameFlags.reactorOptimized = true;
-                setMilestone('reactor_optimized', () => persistLoopKnowledge(ctx));
+                setMilestone('reactor_optimized', () => ctx.persistLoopKnowledge());
                 const bridgeLoc = ctx.getLocation('scout_ship_bridge');
                 if (bridgeLoc) {
                     const a = (bridgeLoc.actions || []).find(a => a.id === 'optimize_reactor');
@@ -515,7 +507,7 @@ export const scoutShipCrewQuarters = {
             ],
             onComplete(ctx) {
                 ctx.gameFlags.uniformGrabbed = true;
-                setMilestone('uniform_remembered', () => persistLoopKnowledge(ctx));
+                setMilestone('uniform_remembered', () => ctx.persistLoopKnowledge());
                 ctx.setFullRebuildNeeded(true);
             }
         },

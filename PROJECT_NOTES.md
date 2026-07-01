@@ -138,23 +138,52 @@ All engine dependencies are passed via `ctx` so definition files don't need impo
 | `ctx.refreshUI()` | function | Force UI rebuild |
 | `ctx.setFullRebuildNeeded(v)` | function | Set `_fullRebuildNeeded` flag |
 
-### Helper: persistLoopKnowledge(ctx)
+### Helper: ctx.persistLoopKnowledge() (refactored — single source of truth)
 
-A helper function defined in each definition file that persists `loopKnowledge` to localStorage:
+**Dříve** měl každý definiční soubor (`scoutShipCrewQuarters.js`, `bridge.js`, `mainArea.js`, `scoutShipWorkshop.js`)
+svou vlastní lokální kopii funkce `persistLoopKnowledge(ctx)`. To bylo riziko — 4 kopie stejné logiky,
+snadno se rozjedou, snadno se na jednu zapomene při refaktoru.
+
+**Nyní** je `persistLoopKnowledge()` jediná exportovaná funkce v `engine/gameFlags.js` a je součástí `ctx`
+objektu, který dostávají všechny action callbacky. Definiční soubory ji volají jako `ctx.persistLoopKnowledge()`
+— **žádnou lokální kopii už nikdy nepřidávej.**
 
 ```js
-function persistLoopKnowledge(ctx) {
+// engine/gameFlags.js
+export function persistLoopKnowledge() {
     try {
         const state = JSON.parse(localStorage.getItem('gameState') || '{}');
         if (!state.gameFlags) state.gameFlags = {};
-        if (!state.gameFlags.loopKnowledge) state.gameFlags.loopKnowledge = {};
-        state.gameFlags.loopKnowledge = { ...ctx.gameFlags.loopKnowledge };
+        state.gameFlags.loopKnowledge = { milestones: { ...gameFlags.loopKnowledge?.milestones } };
         localStorage.setItem('gameState', JSON.stringify(state));
     } catch { /* ignore */ }
 }
 ```
 
-Call this after modifying `ctx.gameFlags.loopKnowledge` fields that should survive death loops.
+Použití v definici akce:
+```js
+onComplete(ctx) {
+    setMilestone('book_read', () => ctx.persistLoopKnowledge());
+}
+```
+
+Volej po každé změně `gameFlags.loopKnowledge` polí, která mají přežít smrt loop.
+
+### Debug-mode logging pro action callbacky (safeInvokeActionCallback)
+
+Všechny callbacky (`onStart`, `getResultKey`, `onComplete`, `isAvailable`) se volají přes
+`safeInvokeActionCallback(fn, ctx, action, callbackName)` v `locationEngine.js`. Chyba uvnitř callbacku
+se odchytí a **neshodí celý engine** — ale ve výchozím stavu se tiše ignoruje (produkční chování).
+
+Pokud řešíš bug typu *„po loopu mi to vypsalo špatný text"* nebo *„akce se nezobrazila, i když měla"*,
+zapni v konzoli:
+```js
+window.DEBUG_ACTIONS = true;
+```
+Od tohoto okamžiku se každý thrown error uvnitř `onStart`/`getResultKey`/`onComplete`/`isAvailable`
+vypíše do konzole i s ID akce a jménem callbacku — `[action:wake_up] onComplete() threw: ...`.
+Toto je nejrychlejší způsob, jak odhalit tiché selhání callbacku, které by jinak vypadalo jako "engine bug".
+
 
 ### Current callback distribution
 
@@ -168,7 +197,36 @@ Call this after modifying `ctx.gameFlags.loopKnowledge` fields that should survi
 | `check_reactor_status` | `bridge.js` | — | ✅ (null) | ✅ (fuel scan, resultKey in log) |
 | `repair_recycler` | `mainArea.js` | ✅ (gate + log) | ✅ | ✅ (recyclerFixed, repairCount) |
 
+## isAvailable systém — jediný zdroj pravdy pro viditelnost akcí (refactored Jun 2026)
+
+**Viditelnost akce v UI řídí VÝHRADNĚ `isAvailable(ctx)` callback** v definici akce.
+Volá se při každém `refreshUI()`, takže je vždy aktuální — žádné zastaralé cache.
+
+```js
+{
+  id: 'nova_akce',
+  isAvailable(ctx) {
+    const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+    if (!us['wake_up']) return false;
+    if (ctx.gameFlags.loopCount < 2) return false;
+    if (!ctx.hasMilestone('nejaky_milestone')) return false;
+    return true;
+  },
+}
+```
+
+`ctx` pro `isAvailable` obsahuje: `gameFlags`, `getCurrentLocationId`, `getUnlockState`, `hasLogin`,
+`hasMilestone`, `countItemInBag`, `t`.
+
+- **Akce bez `isAvailable`** jsou vždy viditelné (pokud nejsou `_completed`).
+- **NEPOUŽÍVEJ** `unlockedBy` pro řízení viditelnosti — slouží jen pro `unlocksAll` "new" badge.
+- **NEPOUŽÍVEJ** `loopAvailable` / `loopAvailablePoi` — byly odstraněny.
+- **NIKDY NEPŘIDÁVEJ** `if (action.id === '...')` bloky do `locationUi.js`.
+- `isAvailable` se volá přes `safeInvokeActionCallback` — chyba uvnitř nezhroutí render, jen se
+  (v debug módu) zaloguje a akce se v tom tiku bude chovat jako neviditelná (`false`).
+
 ## Locations Module Structure
+
 
 | File | Purpose |
 |------|---------|
@@ -211,7 +269,7 @@ Call this after modifying `ctx.gameFlags.loopKnowledge` fields that should survi
 
 ## MCP Server (`mcp-server/`)
 
-Cline MCP server pro automatickou validaci projektu. Poskytuje 4 nástroje.
+Cline MCP server pro automatickou validaci projektu. Poskytuje 5 nástrojů.
 
 ### Nástroje
 
@@ -221,6 +279,8 @@ Cline MCP server pro automatickou validaci projektu. Poskytuje 4 nástroje.
 | `validate_actions` | Zkontroluje definice akcí — povinná pole, podezřelé `durationSeconds`, chybějící locale klíče. |
 | `find_hardcoded` | Najde hardcodované anglické stringy v JS/HTML, které by měly používat `t()`. |
 | `check_engine` | Ověří, že `locationEngine.js` neobsahuje zakázané `if (action.id === ...)`. |
+| `validate_state_coverage` | **(nový)** Ověří, že každá location definice v `definitions/**/*.js` je skutečně importovaná a zaregistrovaná (`registerLocation()`) v `locationData.js`. Odhalilo to reálný osiřelý soubor `gammaSite/crewQuarters.js` (nahrazen `gammaCrewQuarters.js`, ale nikdy nesmazán) — nyní smazán. Spouštěj po každém přidání nové lokace. |
+
 
 ### Setup na novém stroji
 
