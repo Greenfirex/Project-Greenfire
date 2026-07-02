@@ -43,6 +43,12 @@ background-color: rgba(0, 0, 0, 0.72);
     pointer-events: none;
 }
 
+/* Hide mobile-only vitals/effects strips by default (desktop) */
+#infoPanel .info-vitals-icons,
+#infoPanel .info-effects-strip {
+    display: none;
+}
+
 /* Phone-landscape: treat the info panel as an overlay drawer so it doesn't steal width.
    (Desktop/tablet layout remains unchanged.) */
 @media (max-width: 600px),
@@ -98,8 +104,8 @@ background-color: rgba(0, 0, 0, 0.72);
     }
 
     #infoPanel.collapsed .info-vital-orb {
-        width: 30px;
-        height: 30px;
+        width: 26px;
+        height: 26px;
         border-radius: 999px;
         border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.22);
         position: relative;
@@ -155,8 +161,9 @@ background-color: rgba(0, 0, 0, 0.72);
 
     #infoPanel.collapsed .info-vital-orb[data-vital="health"] { --orb-r: 231; --orb-g: 76;  --orb-b: 60; }
     #infoPanel.collapsed .info-vital-orb[data-vital="stamina"] { --orb-r: 255; --orb-g: 215; --orb-b: 0; }
-    #infoPanel.collapsed .info-vital-orb[data-vital="water"] { --orb-r: 52;  --orb-g: 152; --orb-b: 219; }
-    #infoPanel.collapsed .info-vital-orb[data-vital="food"] { --orb-r: 240; --orb-g: 240; --orb-b: 240; }
+    #infoPanel.collapsed .info-vital-orb[data-vital="water"] { --orb-r: 79;  --orb-g: 195; --orb-b: 247; }
+    #infoPanel.collapsed .info-vital-orb[data-vital="food"] { --orb-r: 255; --orb-g: 140; --orb-b: 66; }
+    #infoPanel.collapsed .info-vital-orb[data-vital="oxygen"] { --orb-r: 220; --orb-g: 220; --orb-b: 230; }
 
     #infoPanel.collapsed .info-vital-orb .orb-text {
         position: relative;
@@ -173,15 +180,80 @@ background-color: rgba(0, 0, 0, 0.72);
     }
 
     #infoPanel.collapsed .info-vital-orb .orb-current {
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 900;
         line-height: 1;
         letter-spacing: -0.2px;
-        color: rgba(0,0,0,0.92);
+        color: rgba(255,255,255,0.95);
         text-shadow:
-            0 1px 0 rgba(255,255,255,0.28),
-            0 0 6px rgba(255,255,255,0.18),
-            0 0 10px rgba(0,0,0,0.55);
+            0 1px 2px rgba(0,0,0,0.95),
+            0 0 8px rgba(0,0,0,0.8);
+    }
+
+    #infoPanel.collapsed .info-vital-orb .orb-max {
+        font-size: 8px;
+        font-weight: 700;
+        line-height: 1;
+        color: rgba(255,255,255,0.75);
+        text-shadow:
+            0 1px 2px rgba(0,0,0,0.9),
+            0 0 6px rgba(0,0,0,0.7);
+    }
+
+    #infoPanel.collapsed .info-vitals-icons {
+        gap: 4px;
+        padding: 6px 3px;
+    }
+
+    /* Effects warning strip — below vitals orbs in collapsed panel */
+    #infoPanel .info-effects-strip {
+        display: none;
+    }
+
+    #infoPanel.collapsed .info-effects-strip {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        position: absolute;
+        bottom: 32px;
+        left: 0;
+        right: 0;
+        z-index: 135;
+        pointer-events: auto;
+    }
+
+    #infoPanel.collapsed .info-effects-strip.hidden {
+        display: none;
+    }
+
+    #infoPanel.collapsed .info-effect-dot {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 80, 80, 0.35);
+        background: rgba(0, 0, 0, 0.75);
+        display: grid;
+        place-items: center;
+        font-size: 10px;
+        line-height: 1;
+        cursor: pointer;
+        animation: effect-dot-pulse 2.5s ease-in-out infinite;
+        box-shadow: 0 0 6px rgba(255, 40, 40, 0.18);
+    }
+
+    #infoPanel.collapsed .info-effect-overflow {
+        border-color: rgba(255, 213, 74, 0.4);
+        font-size: 9px;
+        font-weight: 900;
+        color: #ffd84a;
+        animation: none;
+        box-shadow: 0 0 6px rgba(255, 213, 74, 0.15);
+    }
+
+    @keyframes effect-dot-pulse {
+        0%, 100% { border-color: rgba(255, 80, 80, 0.35); box-shadow: 0 0 6px rgba(255, 40, 40, 0.18); }
+        50% { border-color: rgba(255, 80, 80, 0.7); box-shadow: 0 0 12px rgba(255, 40, 40, 0.35); }
     }
 }
 
@@ -256,8 +328,8 @@ html.is-compact #infoPanel.collapsed .info-vital-orb {
 
     cursor: pointer;
     pointer-events: auto;
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
 }
 
 /* Filled portion (only the bottom part should be tinted). */
@@ -291,8 +363,9 @@ html.is-compact #infoPanel.collapsed .info-vital-orb::after {
 
 html.is-compact #infoPanel.collapsed .info-vital-orb[data-vital="health"] { --orb-r: 231; --orb-g: 76;  --orb-b: 60; }
 html.is-compact #infoPanel.collapsed .info-vital-orb[data-vital="stamina"] { --orb-r: 255; --orb-g: 215; --orb-b: 0; }
-html.is-compact #infoPanel.collapsed .info-vital-orb[data-vital="water"] { --orb-r: 52;  --orb-g: 152; --orb-b: 219; }
-html.is-compact #infoPanel.collapsed .info-vital-orb[data-vital="food"] { --orb-r: 240; --orb-g: 240; --orb-b: 240; }
+html.is-compact #infoPanel.collapsed .info-vital-orb[data-vital="water"] { --orb-r: 79;  --orb-g: 195; --orb-b: 247; }
+html.is-compact #infoPanel.collapsed .info-vital-orb[data-vital="food"] { --orb-r: 255; --orb-g: 140; --orb-b: 66; }
+html.is-compact #infoPanel.collapsed .info-vital-orb[data-vital="oxygen"] { --orb-r: 220; --orb-g: 220; --orb-b: 230; }
 
 html.is-compact #infoPanel.collapsed .info-vital-orb .orb-text {
     position: relative;
@@ -309,15 +382,75 @@ html.is-compact #infoPanel.collapsed .info-vital-orb .orb-text {
 }
 
 html.is-compact #infoPanel.collapsed .info-vital-orb .orb-current {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 900;
     line-height: 1;
     letter-spacing: -0.2px;
-    color: rgba(0,0,0,0.92);
+    color: rgba(255,255,255,0.95);
     text-shadow:
-        0 1px 0 rgba(255,255,255,0.28),
-        0 0 6px rgba(255,255,255,0.18),
-        0 0 10px rgba(0,0,0,0.55);
+        0 1px 2px rgba(0,0,0,0.95),
+        0 0 8px rgba(0,0,0,0.8);
+}
+
+html.is-compact #infoPanel.collapsed .info-vital-orb .orb-max {
+    font-size: 8px;
+    font-weight: 700;
+    line-height: 1;
+    color: rgba(255,255,255,0.75);
+    text-shadow:
+        0 1px 2px rgba(0,0,0,0.9),
+        0 0 6px rgba(0,0,0,0.7);
+}
+
+html.is-compact #infoPanel.collapsed .info-vitals-icons {
+    gap: 4px;
+    padding: 6px 3px;
+}
+
+/* Effects warning strip in forced compact mode */
+html.is-compact #infoPanel .info-effects-strip {
+    display: none;
+}
+
+html.is-compact #infoPanel.collapsed .info-effects-strip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    position: absolute;
+    bottom: 32px;
+    left: 0;
+    right: 0;
+    z-index: 135;
+    pointer-events: auto;
+}
+
+html.is-compact #infoPanel.collapsed .info-effects-strip.hidden {
+    display: none;
+}
+
+html.is-compact #infoPanel.collapsed .info-effect-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 80, 80, 0.35);
+    background: rgba(0, 0, 0, 0.75);
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    animation: effect-dot-pulse 2.5s ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(255, 40, 40, 0.18);
+}
+
+html.is-compact #infoPanel.collapsed .info-effect-overflow {
+    border-color: rgba(255, 213, 74, 0.4);
+    font-size: 9px;
+    font-weight: 900;
+    color: #ffd84a;
+    animation: none;
+    box-shadow: 0 0 6px rgba(255, 213, 74, 0.15);
 }
 
 #infoPanelContent {

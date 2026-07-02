@@ -11,7 +11,7 @@ import { getEffectDrains, getEffectDebuffDetails, hasEffect } from '../../engine
 import { addToQueue, isInQueue } from '../../engine/queue.js';
 import { playActionStart } from '../../engine/audio.js';
 import { getItemDefinition } from '../character/items.js';
-import { RESOURCE_EMOJIS, getAreaResourceAmount } from '../../engine/resources.js';
+import { RESOURCE_EMOJIS, RESOURCE_LOCALE_KEYS, getAreaResourceAmount } from '../../engine/resources.js';
 import { countItemInBag, getSkillDefinition, hasSkill, getSkillTier } from '../character/character.js';
 import {
     activeAction, activeActionId, actionProgress, selectedActionId,
@@ -40,9 +40,13 @@ export function setHoveredActionId(actionId) {
     }
 }
 
+export function clearHoverState() {
+    _hoverActionId = null;
+}
+
 export function renderLocationTile(location) {
     const imgHtml = location.image ? `<div class="location-location-image" style="max-height:none;flex:1 1 auto;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="${location.image}" alt="${t(location.nameKey)}" style="width:100%;height:100%;object-fit:contain;" /></div>` : '';
-    return `<div class="location-card location-card-location"><div class="location-card-header"><h3>${t(location.nameKey)}</h3></div>${imgHtml}</div>`;
+    return `<div class="location-card location-card-location game-scrollbar"><div class="location-card-header"><h3>${t(location.nameKey)}</h3></div>${imgHtml}</div>`;
 }
 
 export function renderDetailsTile() {
@@ -154,8 +158,9 @@ export function renderDetailsTile() {
 
                     // If exhausted, Stamina cost becomes Health cost
                     const displayResName = isExhausted ? 'Health' : resName;
+                    const displayNameLocale = t((RESOURCE_LOCALE_KEYS || {})[displayResName] || displayResName);
                     const emoji = RESOURCE_EMOJIS[displayResName] || '';
-                    const displayName = emoji ? `${emoji} ${displayResName}` : displayResName;
+                    const displayName = emoji ? `${emoji} ${displayNameLocale}` : displayNameLocale;
                     const cssSuffix = isExhausted ? 'health' : (/stamina/i.test(resName) ? 'stamina' : (/food/i.test(resName) ? 'food' : 'water'));
                     const cssClass = `detail-cost-${cssSuffix}`;
                     const debuffBadge = isDebuffed ? `<span class="detail-cost-debuff-badge" data-debuff-for="${displayResName}">&#x26A0;</span>` : '';
@@ -173,8 +178,9 @@ export function renderDetailsTile() {
                     const healthTotalCost = healthRate * costDurationMins;
                     const healthProgressPct = Math.min(1, effectiveProgress / Math.max(1, effectiveTotalSecs));
                     const healthRemain = healthTotalCost * (1 - healthProgressPct);
+                    const healthLoc = t((RESOURCE_LOCALE_KEYS || {})['Health'] || 'Health');
                     const healthEmoji = RESOURCE_EMOJIS['Health'] || '';
-                    const healthDisplayName = healthEmoji ? `${healthEmoji} Health` : 'Health';
+                    const healthDisplayName = healthEmoji ? `${healthEmoji} ${healthLoc}` : healthLoc;
                     healthCostHtml = `<div class="detail-cost detail-cost-health"><span class="detail-cost-label">${healthDisplayName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-remain" data-cost-res="Health" data-cost-total="${healthTotalCost.toFixed(2)}" style="font-weight:bold;">${healthRemain.toFixed(2)}</span> <span class="detail-cost-rate" style="color:#E74C3C;">[-${healthRate.toFixed(2)}/min]</span><span class="detail-cost-debuff-badge" data-debuff-for="Health">&#x26A0;</span></span></div>`;
                 }
             }
@@ -197,10 +203,11 @@ export function renderDetailsTile() {
                     .filter(r => r.type === 'resource')
                     .map(r => {
                         const gainName = r.name;
+                        const gainNameLoc = t((RESOURCE_LOCALE_KEYS || {})[gainName] || gainName);
                         const gainRate = (Number(r.amount) || 0) / Math.max(1, action.durationSeconds || 1);
                         const gainCssClass = /stamina/i.test(gainName) ? 'detail-cost-stamina' : (/food/i.test(gainName) ? 'detail-cost-food' : (/water/i.test(gainName) ? 'detail-cost-water' : 'detail-cost-health'));
                         const gainEmoji = RESOURCE_EMOJIS[gainName] || '';
-                        const gainDisplay = gainEmoji ? `${gainEmoji} ${gainName}` : gainName;
+                        const gainDisplay = gainEmoji ? `${gainEmoji} ${gainNameLoc}` : gainNameLoc;
                         return `<div class="detail-cost detail-cost-gain ${gainCssClass}"><span class="detail-cost-label">${gainDisplay}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-rate" style="color:#4caf50;">[+${gainRate.toFixed(2)}/min]</span></span></div>`;
                     }).join('');
                 if (gainRows) {
@@ -261,16 +268,16 @@ export function renderDetailsTile() {
                 rewardsHtml = `<div class="detail-section"><div class="detail-section-label">&#x2B50; ${t('detail_rewards')}</div>${rewardItems}</div>`;
             }
 
-            return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t(action.nameKey)}</h3></div>${tagsHtml}<p class="location-location-desc">${t(action.descKey)}</p>${durationHtml}${gainsHtml}${costsHtml}${requirementsHtml}${rewardsHtml}</div>`;
+            return `<div class="location-card location-card-details game-scrollbar"><div class="location-card-header"><h3>${t(action.nameKey)}</h3></div>${tagsHtml}<p class="location-location-desc">${t(action.descKey)}</p>${durationHtml}${gainsHtml}${costsHtml}${requirementsHtml}${rewardsHtml}</div>`;
         }
     }
 
     // Show location description with POI names already highlighted via <span class="poi-highlight"> in locale strings
     if (location) {
-        return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t('crash_details')}</h3></div><p class="location-location-desc" id="locationsDetailDesc">${t(location.descriptionKey)}</p></div>`;
+        return `<div class="location-card location-card-details game-scrollbar"><div class="location-card-header"><h3>${t('crash_details')}</h3></div><p class="location-location-desc" id="locationsDetailDesc">${t(location.descriptionKey)}</p></div>`;
     }
 
-    return `<div class="location-card location-card-details"><div class="location-card-header"><h3>${t('crash_details')}</h3></div><p class="location-location-desc" id="locationsDetailDesc"></p></div>`;
+    return `<div class="location-card location-card-details game-scrollbar"><div class="location-card-header"><h3>${t('crash_details')}</h3></div><p class="location-location-desc" id="locationsDetailDesc"></p></div>`;
 }
 
 // ==========================================================================
@@ -420,7 +427,7 @@ function renderActionsTileWithPOIs(location, actions) {
         `;
     }
 
-    return `<div class="location-card location-card-actions"><div class="location-card-header"><h3>${t('crash_actions')}</h3></div><div class="location-actions-list location-actions-with-pois">${poisHtml}${ungroupedHtml}</div></div>`;
+    return `<div class="location-card location-card-actions game-scrollbar"><div class="location-card-header"><h3>${t('crash_actions')}</h3></div><div class="location-actions-list location-actions-with-pois">${poisHtml}${ungroupedHtml}</div></div>`;
 }
 
 // ==========================================================================
@@ -480,6 +487,11 @@ export function renderActionButton(action) {
 
 export function wireDebuffTooltips(detailsHost) {
     detailsHost.querySelectorAll('.detail-cost-debuff-badge').forEach(badge => {
+        // Enable touch-tap tooltips on mobile so the debuff badge shows its
+        // tooltip without triggering deselection.
+        badge.dataset.tooltipTouchTap = 'true';
+        // Stop click from bubbling to deselection handlers on the parent panel.
+        badge.addEventListener('click', (e) => { e.stopPropagation(); });
         const targetResource = badge.dataset.debuffFor || 'Stamina';
         const contextExhausted = hasEffect('exhausted');
         setupTooltip(badge, () => {
@@ -529,9 +541,67 @@ export function refreshUI() {
     const locationHost = document.querySelector('#locationsLocationTile');
     const detailsHost = document.querySelector('#locationsDetailsTile');
     const actionsHost = document.querySelector('#locationsActionsTile');
-    if (locationHost && (!locationHost.dataset.renderedId || locationHost.dataset.renderedId !== location.id)) { locationHost.innerHTML = renderLocationTile(location); locationHost.dataset.renderedId = location.id; }
+    if (locationHost && (!locationHost.dataset.renderedId || locationHost.dataset.renderedId !== location.id)) {
+        locationHost.innerHTML = renderLocationTile(location);
+        locationHost.dataset.renderedId = location.id;
+
+        // On compact/mobile, set location image as background (replaces logo via CSS variable).
+        // Must use absolute URL because CSS variables in external files resolve relative to the CSS file.
+        try {
+            const ls = document.getElementById('locationsSection');
+            if (ls && location.image) {
+                const imgUrl = new URL(location.image, window.location.href).href;
+                ls.style.setProperty('--location-bg', `url(${imgUrl})`);
+            }
+        } catch { /* ignore */ }
+    }
     if (detailsHost) { detailsHost.innerHTML = renderDetailsTile(); wireDebuffTooltips(detailsHost); }
-    if (actionsHost) { actionsHost.innerHTML = renderActionsTile(location); wireActionButtons(actionsHost); }
+
+    // Click/tap on details panel deselects action (return to location description).
+    if (detailsHost) {
+        if (detailsHost._deselectHandler) {
+            detailsHost.removeEventListener('click', detailsHost._deselectHandler);
+        }
+        detailsHost._deselectHandler = (e) => {
+            if (e.target.closest('.tooltip, button, a, input, .debuff-icon, .detail-cost-debuff-badge')) return;
+            if (selectedActionId !== null) {
+                _hoverActionId = null;
+                setSelectedActionId(null);
+                setFullRebuildNeeded(true);
+                refreshUI();
+            }
+        };
+        detailsHost.addEventListener('click', detailsHost._deselectHandler);
+    }
+
+    if (actionsHost) {
+        // Preserve scroll position before rebuild (prevents mobile tap-to-select from jumping to top)
+        const actionsCard = actionsHost.querySelector('.location-card-actions');
+        const scrollTop = actionsCard ? actionsCard.scrollTop : 0;
+
+        actionsHost.innerHTML = renderActionsTile(location);
+        wireActionButtons(actionsHost);
+
+        if (scrollTop > 0) {
+            const newCard = actionsHost.querySelector('.location-card-actions');
+            if (newCard) newCard.scrollTop = scrollTop;
+        }
+    }
+
+    // Tap anywhere on game area (outside action buttons) deselects action.
+    const gameArea = document.getElementById('gameArea');
+    if (gameArea && !gameArea.dataset.wiredDeselect) {
+        gameArea.dataset.wiredDeselect = '1';
+        gameArea.addEventListener('click', (e) => {
+            if (e.target.closest('.location-action-btn, .tooltip, button, a, input, .debuff-icon, .detail-cost-debuff-badge')) return;
+            if (selectedActionId !== null) {
+                _hoverActionId = null;
+                setSelectedActionId(null);
+                setFullRebuildNeeded(true);
+                refreshUI();
+            }
+        });
+    }
 }
 
 function wireActionButtons(actionsHost) {

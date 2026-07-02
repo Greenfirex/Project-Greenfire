@@ -276,17 +276,21 @@ html.is-compact #mainMenu:not(.collapsed) #logSection {
         bottom: calc(var(--footer-height, 25px) - 3px);
         width: 100%;
         box-sizing: border-box;
-        height: var(--log-drawer-height, 240px);
-    display: flex;
-    flex-direction: column;
-    background: #0b1018;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(14px);
-    transition: opacity 200ms ease, transform 240ms ease;
-    pointer-events: none;
-    z-index: 600;
-    overflow: visible;
+        height: var(--log-drawer-height, min(55vh, 420px));
+        display: flex;
+        flex-direction: column;
+        background: rgba(0, 0, 0, 0.94);
+        border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
+        border-bottom: none;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(14px);
+        transition: opacity 200ms ease, transform 240ms ease;
+        pointer-events: none;
+        z-index: 600;
+        overflow: visible;
     }
 
     .footer-log-drawer.open {
@@ -325,12 +329,14 @@ html.is-compact #mainMenu:not(.collapsed) #logSection {
     .footer-log-header {
         position: relative;
         padding: 10px;
-        background: #0b1018;
+        background: #000;
         flex: 0 0 auto;
         display: flex;
         align-items: center;
         justify-content: center;
         text-align: center;
+        flex-shrink: 0;
+        min-height: 36px;
     }
 
     .footer-log-title {
@@ -388,7 +394,11 @@ html.is-compact #mainMenu:not(.collapsed) #logSection {
         top: auto;
         height: 100%;
         max-height: none;
-        background-color: #000;
+        background-color: rgba(0, 0, 0, 0.94);
+    }
+
+    body.mobile-log-footer-swap #footerLogDrawerHost #logSection #logContent .log-entry {
+        font-size: 11px;
     }
 
     /* Avoid double headers: the drawer header becomes the only header. */
@@ -525,10 +535,14 @@ html.is-compact .footer-log-drawer {
     bottom: calc(var(--footer-height, 25px) - 3px);
     width: 100%;
     box-sizing: border-box;
-    height: var(--log-drawer-height, 240px);
+    height: var(--log-drawer-height, min(55vh, 420px));
     display: flex;
     flex-direction: column;
-    background: #0b1018;
+    background: rgba(0, 0, 0, 0.94);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
+    border-bottom: none;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
     opacity: 0;
     visibility: hidden;
     transform: translateY(14px);
@@ -576,7 +590,7 @@ html.is-compact .footer-log-drawer .glow-right { right: -1.5px; }
 html.is-compact .footer-log-header {
     position: relative;
     padding: 10px;
-    background: #0b1018;
+    background: #000;
     flex: 0 0 auto;
     display: flex;
     align-items: center;
@@ -611,7 +625,11 @@ html.is-compact body.mobile-log-footer-swap #footerLogDrawerHost #logSection {
     top: auto;
     height: 100%;
     max-height: none;
-    background-color: #0b1018;
+    background-color: rgba(0, 0, 0, 0.94);
+}
+
+html.is-compact body.mobile-log-footer-swap #footerLogDrawerHost #logSection #logContent .log-entry {
+    font-size: 11px;
 }
 
 html.is-compact body.mobile-log-footer-swap #footerLogDrawerHost #logSection::before {

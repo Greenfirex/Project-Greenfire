@@ -8,8 +8,8 @@ export function setupJournalSection(section) {
     const initialTab = (section.dataset && section.dataset.journalActiveTab === 'journal') ? 'journal' : 'objectives';
     section.innerHTML = `
         <div class="journal-tabs" role="tablist" aria-label="Journal and Objectives">
-            <button class="journal-tab ${initialTab === 'objectives' ? 'active' : ''}" data-tab="objectives" role="tab" aria-selected="${initialTab === 'objectives' ? 'true' : 'false'}">Objectives</button>
-            <button class="journal-tab ${initialTab === 'journal' ? 'active' : ''}" data-tab="journal" role="tab" aria-selected="${initialTab === 'journal' ? 'true' : 'false'}">Journal</button>
+            <button class="journal-tab ${initialTab === 'objectives' ? 'active' : ''}" data-tab="objectives" role="tab" aria-selected="${initialTab === 'objectives' ? 'true' : 'false'}">${t('journal_tab_objectives')}</button>
+            <button class="journal-tab ${initialTab === 'journal' ? 'active' : ''}" data-tab="journal" role="tab" aria-selected="${initialTab === 'journal' ? 'true' : 'false'}">${t('journal_tab_journal')}</button>
         </div>
         <div class="content-panel journal-panel">
             <div class="journal-tabpanes">
@@ -125,7 +125,7 @@ export function renderObjectivesHistory() {
     if (active.length > 0) {
         const activeHeader = document.createElement('h3');
         activeHeader.className = 'objectives-section-header';
-        activeHeader.textContent = 'Active';
+        activeHeader.textContent = t('objectives_active');
         leftPanel.appendChild(activeHeader);
         
         const activeList = document.createElement('ul');
@@ -179,7 +179,7 @@ function createObjectiveListItem(obj) {
         
         const trackBtn = document.createElement('button');
         trackBtn.className = 'objective-track-btn';
-        trackBtn.textContent = 'Track';
+        trackBtn.textContent = t('objectives_track');
         trackBtn.title = isTracked ? 'Untrack objective' : 'Track objective';
         if (isTracked) trackBtn.classList.add('tracked');
         
@@ -224,7 +224,7 @@ function renderObjectiveDetails(panel, allObjectives) {
     
     const status = document.createElement('div');
     status.className = 'objective-status';
-    status.textContent = selected.state === 'completed' ? 'Completed' : 'In Progress';
+    status.textContent = selected.state === 'completed' ? t('objectives_completed') : t('objectives_in_progress');
     if (selected.state === 'completed') status.classList.add('completed');
     statusRow.appendChild(status);
     
@@ -235,7 +235,7 @@ function renderObjectiveDetails(panel, allObjectives) {
         if (isTracked) {
             const trackedBadge = document.createElement('div');
             trackedBadge.className = 'objective-status tracked-badge';
-            trackedBadge.textContent = 'Tracked';
+            trackedBadge.textContent = t('objectives_tracked');
             statusRow.appendChild(trackedBadge);
         }
     }

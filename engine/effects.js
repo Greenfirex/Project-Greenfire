@@ -267,6 +267,18 @@ export function initEffects() {
     // via completeActiveAction in locationEngine.js
 }
 
+// ==========================================================================
+// Defensive re-render after game-state-applied
+// ==========================================================================
+// setActiveEffects() calls updateEffectsUI() during load, but _effectsHost may
+// not exist yet (setupInfoPanel runs later in startGame). This listener ensures
+// effects are rendered once the full UI is assembled.
+if (typeof window !== 'undefined') {
+    window.addEventListener('game-state-applied', () => {
+        updateEffectsUI();
+    });
+}
+
 /**
  * Return a save-safe snapshot of active effects (no transient _addedAt).
  */

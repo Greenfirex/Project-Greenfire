@@ -2,7 +2,7 @@
 // Location: Scout Ship — Workshop
 // ==========================================================================
 
-import { setMilestone, hasMilestone, hasLogin } from '../../../../engine/gameFlags.js';
+import { setMilestone, hasMilestone } from '../../../../engine/gameFlags.js';
 import { hasSkill } from '../../../character/character.js';
 
 export const scoutShipWorkshop = {
@@ -61,15 +61,30 @@ export const scoutShipWorkshop = {
             durationSeconds: 3,
             oneTime: true,
             resultKey: 'result_grab_login_note',
-            isAvailable(ctx) {
-                if (!hasMilestone('workbench_searched')) return false;
-                if (hasLogin(ctx.gameFlags.loopKnowledge?.milestones || {})) return false;
-                return true;
-            },
-            // Cross-location unlocks — retroactively show "use login" on terminals
-            unlocks: ['use_terminal_login', 'use_bridge_terminal_login'],
+            isAvailable(ctx) { return hasMilestone('workbench_searched'); },
             onComplete(ctx) {
                 setMilestone('login_note_found', () => ctx.persistLoopKnowledge());
+                // If terminals were already examined, retroactively unhide "Use Login Note"
+                try {
+                    const crewLoc = ctx.getLocation('scout_ship_crew_quarters');
+                    if (crewLoc) {
+                        const crewUs = ctx.getUnlockState('scout_ship_crew_quarters');
+                        if (crewUs['check_terminal']) {
+                            const useA = (crewLoc.actions || []).find(a => a.id === 'use_terminal_login');
+                            if (useA && useA._completed) { useA._completed = false; ctx.flagActionAsNew('use_terminal_login'); }
+                        }
+                    }
+                } catch { /* ignore */ }
+                try {
+                    const bridgeLoc = ctx.getLocation('scout_ship_bridge');
+                    if (bridgeLoc) {
+                        const bridgeUs = ctx.getUnlockState('scout_ship_bridge');
+                        if (bridgeUs['check_bridge_terminal']) {
+                            const useA = (bridgeLoc.actions || []).find(a => a.id === 'use_bridge_terminal_login');
+                            if (useA && useA._completed) { useA._completed = false; ctx.flagActionAsNew('use_bridge_terminal_login'); }
+                        }
+                    }
+                } catch { /* ignore */ }
                 ctx.setFullRebuildNeeded(true);
             },
         },
@@ -171,12 +186,25 @@ export const scoutShipWorkshop = {
                 if (hasMilestone('comms_repaired')) {
                     ctx.action.durationSeconds = ctx.action.durationIfRemembered;
                 }
+                // Check for all required parts — collect all missing
+                const missing = [];
+                if (!ctx.countItemInBag('signal_amplifier')) missing.push(ctx.t('item_signal_amplifier'));
+                if (!ctx.countItemInBag('power_cell')) missing.push(ctx.t('item_power_cell'));
+                if (!ctx.countItemInBag('repair_tools')) missing.push(ctx.t('item_repair_tools'));
+                if (missing.length > 0) {
+                    ctx.addLogEntry(ctx.t('log_need_items', { items: missing.join(', ') }), ctx.LogType.ERROR);
+                    return { block: true };
+                }
+                // repair_tools is already covered by requiresItem
             },
             getResultKey(ctx) {
                 return hasMilestone('comms_repaired') ? 'result_assemble_comms_known' : 'result_assemble_comms';
             },
             onComplete(ctx) {
                 setMilestone('comms_repaired', () => ctx.persistLoopKnowledge());
+                // Consume parts used in assembly
+                ctx.consumeItemQuantityFromBag('signal_amplifier', 1);
+                ctx.consumeItemQuantityFromBag('power_cell', 1);
             },
         },
 

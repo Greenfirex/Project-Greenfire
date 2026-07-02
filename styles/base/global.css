@@ -681,3 +681,57 @@ body.game-show .menu-button:nth-child(1) { animation-delay: 0.6s; }
 body.game-show .menu-button:nth-child(2) { animation-delay: 0.72s; }
 body.game-show .menu-button:nth-child(3) { animation-delay: 0.84s; }
 
+/* ==========================================================================
+   Rotate-to-landscape overlay (injected by ui/mobile/compactMode.js)
+   ========================================================================== */
+
+.rotate-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483640;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.rotate-overlay.hidden {
+    display: none;
+}
+
+.rotate-overlay-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    padding: 32px 28px;
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.60), rgba(0,0,0,0.35));
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.22);
+    box-shadow:
+        0 18px 50px rgba(0,0,0,0.70),
+        0 0 44px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18);
+    animation: pulse-glow 4s ease-in-out infinite;
+    text-align: center;
+}
+
+.rotate-overlay-title {
+    font-weight: 900;
+    letter-spacing: 3px;
+    font-size: clamp(22px, 5vw, 36px);
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.98);
+    text-shadow:
+        0 0 16px rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.40),
+        0 4px 18px rgba(0,0,0,0.85);
+}
+
+.rotate-overlay-subtitle {
+    font-size: clamp(13px, 3vw, 16px);
+    color: rgba(255,255,255,0.72);
+    max-width: 280px;
+    line-height: 1.45;
+}
+
+

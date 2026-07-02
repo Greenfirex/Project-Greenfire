@@ -3,6 +3,8 @@
 // Goal: keep desktop unchanged while making iPhone/Android installed-app behavior
 // reliably enter the phone-landscape compact layout.
 
+import { t } from '../../locales/locales.js';
+
 const ROTATE_OVERLAY_ID = 'rotateToLandscapeOverlay';
 
 function safeMatchMedia(query) {
@@ -138,35 +140,25 @@ function ensureRotateOverlay() {
     if (!document?.body) return null;
 
     let el = document.getElementById(ROTATE_OVERLAY_ID);
-    if (el) return el;
+    if (!el) {
+        el = document.createElement('div');
+        el.id = ROTATE_OVERLAY_ID;
+        el.className = 'rotate-overlay hidden';
+        el.setAttribute('aria-hidden', 'true');
 
-    el = document.createElement('div');
-    el.id = ROTATE_OVERLAY_ID;
-    el.className = 'rotate-overlay hidden';
-    el.setAttribute('aria-hidden', 'true');
-
-    el.innerHTML = `
-        <div class="rotate-overlay-card" role="dialog" aria-modal="true" aria-label="Rotate device">
-            <div class="rotate-overlay-title">Rotate to Landscape</div>
-            <div class="rotate-overlay-subtitle">This game is optimized for phone landscape.</div>
-            <button type="button" class="rotate-overlay-btn">Try again</button>
-        </div>
-    `;
-
-    const btn = el.querySelector('.rotate-overlay-btn');
-    if (btn) {
-        btn.addEventListener('click', async (e) => {
-            e.preventDefault();
+        // Any tap on the overlay tries to lock orientation (Android installed PWAs)
+        el.addEventListener('pointerdown', async () => {
             await requestLandscapeLock();
-            // Recompute immediately after a user gesture.
-            refreshUiModeSoon();
-        });
+        }, { passive: true });
     }
 
-    // Any tap on the overlay also tries to lock (Android installed PWAs)
-    el.addEventListener('pointerdown', async () => {
-        await requestLandscapeLock();
-    }, { passive: true });
+    // Always update content for language changes
+    el.innerHTML = `
+        <div class="rotate-overlay-card" role="dialog" aria-modal="true" aria-label="${t('rotate_title')}">
+            <div class="rotate-overlay-title">${t('rotate_title')}</div>
+            <div class="rotate-overlay-subtitle">${t('rotate_subtitle')}</div>
+        </div>
+    `;
 
     document.body.appendChild(el);
     return el;
@@ -267,6 +259,13 @@ try {
 } catch {
     /* ignore */
 }
+
+// Rebuild overlay on language change (translations may not be ready at init)
+try {
+    window.addEventListener('language-changed', () => {
+        ensureRotateOverlay();
+    });
+} catch { /* ignore */ }
 
 // Keep in sync.
 try {

@@ -12,6 +12,7 @@ import {
 } from '../../engine/objectives.js';
 
 import { isCompactPhoneLandscape } from './compactMode.js';
+import { t } from '../../locales/locales.js';
 
 const BODY_CLASS = 'mobile-log-footer-swap';
 
@@ -223,7 +224,14 @@ function isCompactMode() {
 }
 
 function ensureFooterLogContainer() {
-    if (footerEls.container) return footerEls.container;
+    // Always update header in case language changed
+    if (footerEls.container) {
+        if (footerEls.header) {
+            const title = footerEls.header.querySelector('.footer-log-title');
+            if (title) title.textContent = t('log_entries');
+        }
+        return footerEls.container;
+    }
 
     const midCol = document.querySelector('#footer .footer-column:nth-child(2)');
     if (!midCol) return null;
@@ -259,7 +267,7 @@ function ensureFooterLogContainer() {
 
     const headerTitle = document.createElement('h4');
     headerTitle.className = 'footer-log-title';
-    headerTitle.textContent = 'Log entries:';
+    headerTitle.textContent = t('log_entries');
     header.appendChild(headerTitle);
 
     const host = document.createElement('div');
@@ -471,7 +479,9 @@ function updateFooterLatestFromLog() {
         return;
     }
 
-    const text = (last.textContent || '').trim();
+    // Read _fullText (set by typewriter before clearing) so we get the full
+    // text even while the typewriter is mid-animation.
+    const text = (last._fullText || last.textContent || '').trim();
     const baseText = text || '—';
 
     // If timestamps are enabled, include them in the footer preview too.

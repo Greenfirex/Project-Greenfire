@@ -12,7 +12,7 @@ import { hasEffect, removeEffect, addEffect } from '../../engine/effects.js';
 import { startNextQueuedAction, updateQueueActive } from '../../engine/queue.js';
 import { grantItemToCharacter, consumeItemQuantityFromBag, countItemInBag } from '../character/character.js';
 import { getItemDefinition } from '../character/items.js';
-import { refreshUI, updateActionButtonsDynamic } from './locationUi.js';
+import { refreshUI, updateActionButtonsDynamic, clearHoverState } from './locationUi.js';
 
 const DEFAULT_DRAIN = { 'Stamina': 0.20, 'Food Rations': 0.08, 'Drinking Water': 0.12 };
 const TAXING_MULT = 2.0;
@@ -302,7 +302,7 @@ function completeActiveAction(opts = {}) {
     try { updateResourceInfo(); } catch { /* ignore */ }
     const targetLoc = action.targetLocation;
     clearActionTimer();
-    activeAction = null; activeActionId = null; actionProgress = 0; actionPaused = false;
+    activeAction = null; activeActionId = null; actionProgress = 0; actionPaused = false; selectedActionId = null; clearHoverState();
     _infoUpdateCounter = 0; _fullRebuildNeeded = true;
     if (targetLoc && switchToLocation(targetLoc)) {
         // Movement completion is now handled via resultKey — skip duplicated "Arrived at"

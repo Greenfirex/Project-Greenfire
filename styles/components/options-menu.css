@@ -377,6 +377,7 @@ button.flag-disabled:hover {
         padding: 10px;
         gap: 4px 0;
         grid-template-columns: 1fr;
+        overflow-y: auto;
     }
 
     /* All blocks span full width in mobile */
@@ -451,6 +452,7 @@ html.is-compact .options-menu-content {
     padding: 10px;
     gap: 4px 0;
     grid-template-columns: 1fr;
+    overflow-y: auto;
 }
 
 html.is-compact .options-menu-content > .option-group {

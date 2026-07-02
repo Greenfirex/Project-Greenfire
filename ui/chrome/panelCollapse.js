@@ -63,7 +63,13 @@ function toggleInfoPanelCollapse() {
 }
 
 function initPanelCollapse() {
-    const compact = isCompactPhoneLandscape();
+    let compact = false;
+    try { compact = isCompactPhoneLandscape(); } catch { /* ignore */ }
+
+    // Fallback: treat small-height viewports as compact even if JS detection fails
+    if (!compact && window.innerHeight <= 800) {
+        compact = true;
+    }
 
     // Desktop default: always start expanded.
     // (Ignore any persisted collapse state so desktop layout is consistent.)

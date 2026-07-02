@@ -5,6 +5,7 @@
 import { isCompactPhoneLandscape as isCompactPhoneLandscapeShared } from './compactMode.js';
 import { characterState, getUnspentStatPoints } from '../../sections/character/character.js';
 import { resources } from '../../engine/resources.js';
+import { t } from '../../locales/locales.js';
 
 // --- Stubs for systems moved to backup during refactor ---
 const jobs = [];
@@ -322,7 +323,7 @@ function selectJournalTab(tabKey) {
 }
 
 function selectCharacterTab(tabKey) {
-    const wanted = tabKey === 'stats' ? 'stats' : 'gear';
+    const wanted = tabKey === 'statsSkills' ? 'statsSkills' : 'inventory';
 
     // Persist desired tab so setupCharacterSection can initialize without flashing.
     try {
@@ -411,6 +412,7 @@ function renderRail() {
         b.setAttribute('aria-label', item.label || item.sectionId);
         b.title = item.label || '';
 
+        // SVG icon in main menu button style
         const svg = svgForSection(item.sectionId);
         const iconWrap = document.createElement('span');
         iconWrap.className = 'mobile-menu-icon';
@@ -464,13 +466,13 @@ function renderRail() {
                 return;
             }
 
-            // Character now has in-section tabs (Gear / Stats). In compact mode we use
+            // Character now has in-section tabs (Inventory / Skills). In compact mode we use
             // the same popover mechanic as Crash Site + Journal.
             if (item.sectionId === 'characterSection') {
                 const meta = getCharacterTabWarnMeta();
                 openPopover(b, [
-                    { label: 'Gear', hasWarn: !!meta.gearWarn, onSelect: () => selectCharacterTab('gear') },
-                    { label: 'Stats', hasWarn: !!meta.statsWarn, onSelect: () => selectCharacterTab('stats') }
+                    { label: t('character_inventory'), hasWarn: !!meta.gearWarn, onSelect: () => selectCharacterTab('inventory') },
+                    { label: t('character_skills'), hasWarn: !!meta.statsWarn, onSelect: () => selectCharacterTab('statsSkills') }
                 ]);
                 return;
             }

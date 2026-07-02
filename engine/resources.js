@@ -3,6 +3,7 @@ import { setupTooltip } from '../ui/panels/tooltip.js';
 import { t } from '../locales/locales.js';
 import { setupEffectsUI, getEffectDebuffs, getEffectDrains, getEffectDebuffDetails, addEffect, removeEffect, hasEffect, updateEffectsUI, EFFECT_HUNGRY, EFFECT_THIRSTY, EFFECT_EXHAUSTED, EFFECT_LIFE_SUPPORT_FAILURE, EFFECT_OXYGEN_DEPLETED, clearAllEffects } from './effects.js';
 import { setupQueueUI } from './queue.js';
+import { setupInfoVitals, updateInfoVitals, updateEffectsStrip } from '../ui/chrome/infoVitals.js';
 import { gameFlags, flagActionAsNew, resetPerLoopFlags } from './gameFlags.js';
 import { switchToLocation, getAllLocations } from '../sections/locations/locationData.js';
 import { clearQueue } from './queue.js';
@@ -13,7 +14,7 @@ import { getAutoConsumeSettings, countItemInBag, characterState } from '../secti
 import { resetCharacterState } from '../sections/character/character.js';
 import { getItemDefinition } from '../sections/character/items.js';
 
-const RESOURCE_LOCALE_KEYS = {
+export const RESOURCE_LOCALE_KEYS = {
     'Health': 'res_health',
     'Stamina': 'res_stamina',
     'XP': 'res_xp',
@@ -407,11 +408,12 @@ const EXHAUSTED_HEALTH_DRAIN = -1.0;
 
 function buildResourceTooltipHtml(resourceName) {
     const name = String(resourceName || '');
+    const displayName = t(RESOURCE_LOCALE_KEYS[name] || name);
     const currentResource = resources.find(r => r.name === name);
-    if (!currentResource) return `<h4>${name}</h4><p>No data available.</p>`;
+    if (!currentResource) return `<h4>${displayName}</h4><p>No data available.</p>`;
 
     const rates = computeResourceRates(name);
-    if (!rates) return `<h4>${name}</h4><p>No data available.</p>`;
+    if (!rates) return `<h4>${displayName}</h4><p>No data available.</p>`;
 
     const res = resources.find(r => r && r.name === name);
     const amt = res ? (res.integer ? Math.floor(Number(res.amount) || 0) : (Number(res.amount) || 0)) : 0;
@@ -448,7 +450,7 @@ function buildResourceTooltipHtml(resourceName) {
     }
 
     return `
-        <h4>${name}</h4>
+        <h4>${displayName}</h4>
         <p class="tooltip-description">${description}</p>
         <div class="tooltip-section">
             <p>Current: <strong>${amt}${cap > 0 ? `/${cap}` : ''}</strong></p>
@@ -655,6 +657,10 @@ export function setupInfoPanel() {
 
     // Show any area resources that were loaded from a saved game
     updateAreaResourcesUI();
+
+    // Mobile compact vitals orbs — rendered into #infoPanel (outside infoPanelContent)
+    const infoPanel = document.getElementById('infoPanel');
+    if (infoPanel) setupInfoVitals(infoPanel);
 }
 
 function updateResourceCategoryVisibility(root = document) {
@@ -733,6 +739,10 @@ export function updateResourceInfo() {
     });
 
     updateResourceCategoryVisibility(document.getElementById('infoPanelContent') || document);
+
+    // Update mobile compact vitals orbs and effects strip
+    updateInfoVitals();
+    updateEffectsStrip();
 }
 
 // ==========================================================================

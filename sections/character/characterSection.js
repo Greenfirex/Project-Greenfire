@@ -221,18 +221,18 @@ export function setupCharacterSection(section) {
     const consumables = getConsumablesFromBag(characterState);
 
     const equipmentCardHtml = `<div class="character-card equipment-card">
-        <div class="character-card-header"><h3>Equipment</h3></div>
+        <div class="character-card-header"><h3>${t('character_equipment')}</h3></div>
         <div class="paperdoll" aria-label="Character silhouette and equipment">
             ${renderPaperdollStatusIconsHtml()}
             <img class="paperdoll-silhouette" src="assets/images/inventorycharacter.png" alt="" />
-            ${renderEquipmentSlot('head', 'Head', characterState?.equipment?.head)}
-            ${renderEquipmentSlot('chest', 'Chest', characterState?.equipment?.chest)}
-            ${renderEquipmentSlot('legs', 'Legs', characterState?.equipment?.legs)}
-            ${renderEquipmentSlot('boots', 'Boots', characterState?.equipment?.boots)}
-            ${renderEquipmentSlot('weapon', 'Weapon', characterState?.equipment?.weapon)}
-            ${renderEquipmentSlot('offhand', 'Offhand', characterState?.equipment?.offhand)}
-            ${renderEquipmentSlot('accessory_1', 'Accessory 1', characterState?.equipment?.accessory_1)}
-            ${renderEquipmentSlot('accessory_2', 'Accessory 2', characterState?.equipment?.accessory_2)}
+            ${renderEquipmentSlot('head', t('equip_slot_head'), characterState?.equipment?.head)}
+            ${renderEquipmentSlot('chest', t('equip_slot_chest'), characterState?.equipment?.chest)}
+            ${renderEquipmentSlot('legs', t('equip_slot_legs'), characterState?.equipment?.legs)}
+            ${renderEquipmentSlot('boots', t('equip_slot_boots'), characterState?.equipment?.boots)}
+            ${renderEquipmentSlot('weapon', t('equip_slot_weapon'), characterState?.equipment?.weapon)}
+            ${renderEquipmentSlot('offhand', t('equip_slot_offhand'), characterState?.equipment?.offhand)}
+            ${renderEquipmentSlot('accessory_1', t('equip_slot_accessory_1'), characterState?.equipment?.accessory_1)}
+            ${renderEquipmentSlot('accessory_2', t('equip_slot_accessory_2'), characterState?.equipment?.accessory_2)}
         </div></div>`;
 
     const inventoryCardHtml = `<div class="character-card inventory-card">

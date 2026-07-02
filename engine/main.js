@@ -2,6 +2,7 @@ import { resources, updateResourceInfo, setupInfoPanel, roundResourceAmount, ini
 import { preloader } from '../ui/system/preloader.js';
 import { gameFlags } from './gameFlags.js';
 import { setupLocationSection, updateLocationActionButtonsState } from '../sections/locations/locationEngine.js';
+import { refreshUI } from '../sections/locations/locationUi.js';
 import { setupJournalSection } from '../sections/journal/journal.js';
 import { setupCharacterSection } from '../sections/character/characterSection.js';
 import { characterState, computeCharacterStats, computeLevelFromXp } from '../sections/character/character.js';
@@ -282,6 +283,11 @@ function startGame({ mode = 'continue' } = {}) {
 
     // Panel activation is now part of the assembly animation (playPowerOnAssembly).
     // No separate stagger needed here.
+
+    // Defensive: ensure effects are re-rendered after full UI assembly.
+    // During load, setActiveEffects() calls updateEffectsUI() before _effectsHost
+    // exists (setupInfoPanel runs afterward). This guarantees a final render.
+    import('./effects.js').then(({ updateEffectsUI }) => updateEffectsUI());
 }
 
 export function getInitialActivatedSections() {
@@ -388,6 +394,12 @@ export function showSection(sectionId) {
     const activeSection = document.getElementById(sectionId);
     if (activeSection) {
         activeSection.classList.remove('hidden');
+    }
+
+    if (sectionId === 'locationsSection') {
+        try {
+            refreshUI();
+        } catch (e) { /* non-fatal */ }
     }
 
     if (sectionId === 'characterSection') {

@@ -187,10 +187,11 @@ html:not(.is-compact) #footer #changelogBtn {
     text-decoration: none;
     border-radius: 8px;
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.20);
+    line-height: 1;
     background: linear-gradient(
         180deg,
         rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.18),
@@ -376,7 +377,7 @@ html:not(.is-compact) #footer #changelogBtn {
         box-sizing: border-box;
         padding: 0 calc(var(--reach-pad-x, 10px) + env(safe-area-inset-right)) env(safe-area-inset-bottom) calc(var(--reach-pad-x, 10px) + env(safe-area-inset-left));
         /* Widen objectives (middle) column further for phone-landscape */
-        grid-template-columns: 28% 44% 28%;
+        grid-template-columns: 22% 56% 22%;
         /* Keep footer controls above overlay drawers (z-index 60) */
         z-index: 210;
     }

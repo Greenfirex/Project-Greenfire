@@ -998,6 +998,177 @@ html.is-compact #locationsSection > .content-panel.location-panel {
     #locationsSection > .content-panel.location-panel {
         padding: 1px !important;
     }
+
+    /* --- Mobile: hide location image to save vertical space --- */
+    .location-location-image {
+        display: none;
+    }
+
+    /* --- Mobile: smaller card padding --- */
+    .location-card {
+        padding: 8px;
+    }
+
+    /* --- Mobile: smaller headers --- */
+    .location-card-header h3 {
+        font-size: 12px;
+    }
+
+    /* --- Mobile: smaller description text --- */
+    .location-location-desc {
+        font-size: 11px;
+        line-height: 1.35;
+    }
+
+    /* --- Mobile: smaller action button name --- */
+    .location-action-btn-name {
+        font-size: 12px;
+    }
+
+    /* --- Mobile: tighter action button padding --- */
+    .location-action-btn {
+        padding: 6px 8px;
+        gap: 2px;
+    }
+
+    /* --- Mobile: smaller cost rows --- */
+    .location-action-costs-row {
+        font-size: 10px;
+        gap: 3px;
+    }
+
+    .location-action-btn-cost {
+        font-size: 10px;
+    }
+
+    /* --- Mobile: smaller detail costs/rewards --- */
+    .detail-cost,
+    .detail-reward {
+        font-size: 10px;
+    }
+
+    .detail-section-label {
+        font-size: 10px;
+    }
+
+    .detail-section-value {
+        font-size: 11px;
+    }
+
+    /* --- Mobile: smaller POI headers --- */
+    .location-poi-name {
+        font-size: 11px;
+    }
+
+    .location-poi-header {
+        padding: 6px 8px;
+    }
+
+    /* --- Mobile: smaller grid gap --- */
+    .location-layout {
+        gap: 8px;
+        grid-template-rows: auto 1fr !important;
+    }
+
+    /* --- Mobile: make details card scrollable --- */
+    .location-card-details {
+        overflow-y: auto;
+    }
+
+    /* --- Mobile: make actions card scrollable --- */
+    .location-card-actions {
+        overflow-y: auto;
+    }
+
+    .location-actions-list {
+        overflow-y: visible;
+    }
+}
+
+/* Compact layout for small-height viewports — triggers via CSS MQ so layout works
+   immediately without waiting for JS compact-mode detection.
+   max-height: 800px covers all phone landscape (iPhone 12 Pro ~390px) without affecting desktop (~1080px+). */
+@media (max-height: 800px) {
+    .location-location-image {
+        display: none !important;
+    }
+
+    .location-card {
+        padding: 8px !important;
+    }
+
+    /* Location tile: only show name, hide description to save space */
+    .location-card-location {
+        flex: 0 0 auto !important;
+    }
+
+    .location-card-location .location-card-header {
+        margin-bottom: 0;
+    }
+
+    .location-location-desc {
+        font-size: 11px;
+        line-height: 1.35;
+    }
+
+    .location-card-header h3 {
+        font-size: 12px;
+    }
+
+    .location-action-btn-name {
+        font-size: 12px;
+    }
+
+    .location-action-btn {
+        padding: 6px 8px;
+        gap: 2px;
+    }
+
+    .location-action-costs-row {
+        font-size: 10px;
+        gap: 3px;
+    }
+
+    .location-action-btn-cost {
+        font-size: 10px;
+    }
+
+    .detail-cost,
+    .detail-reward {
+        font-size: 10px;
+    }
+
+    .detail-section-label {
+        font-size: 10px;
+    }
+
+    .detail-section-value {
+        font-size: 11px;
+    }
+
+    .location-poi-name {
+        font-size: 11px;
+    }
+
+    .location-poi-header {
+        padding: 6px 8px;
+    }
+
+    .location-layout {
+        gap: 8px;
+    }
+
+    .location-card-details {
+        overflow-y: auto !important;
+    }
+
+    .location-card-actions {
+        overflow-y: auto !important;
+    }
+
+    .location-actions-list {
+        overflow-y: visible;
+    }
 }
 
 /* Duration remembered — green highlight for actions the player knows from previous loops */
