@@ -44,17 +44,13 @@ export const scoutShipWorkshop = {
             drain: [{ resource: 'Stamina', amount: 2 }],
             durationSeconds: 10,
             oneTime: true,
-            isAvailable(ctx) {
-                if (hasMilestone('workbench_searched')) return false;
-                return true;
-            },
+            isAvailable(ctx) { return !hasMilestone('workbench_searched'); },
             resultKey: 'result_search_workbench',
+            unlocks: ['grab_login_note', 'grab_tools'],
             onComplete(ctx) {
                 setMilestone('workbench_searched', () => ctx.persistLoopKnowledge());
-                ctx.flagActionAsNew('grab_login_note');
-                ctx.flagActionAsNew('grab_tools');
                 ctx.setFullRebuildNeeded(true);
-            }
+            },
         },
         {
             id: 'grab_login_note',
@@ -70,31 +66,12 @@ export const scoutShipWorkshop = {
                 if (hasLogin(ctx.gameFlags.loopKnowledge?.milestones || {})) return false;
                 return true;
             },
+            // Cross-location unlocks — retroactively show "use login" on terminals
+            unlocks: ['use_terminal_login', 'use_bridge_terminal_login'],
             onComplete(ctx) {
                 setMilestone('login_note_found', () => ctx.persistLoopKnowledge());
-                // If terminals were already examined, retroactively unhide "Use Login Note"
-                try {
-                    const crewLoc = ctx.getLocation('scout_ship_crew_quarters');
-                    if (crewLoc) {
-                        const crewUs = ctx.getUnlockState('scout_ship_crew_quarters');
-                        if (crewUs['check_terminal']) {
-                            const useA = (crewLoc.actions || []).find(a => a.id === 'use_terminal_login');
-                            if (useA && useA._completed) { useA._completed = false; ctx.flagActionAsNew('use_terminal_login'); }
-                        }
-                    }
-                } catch { /* ignore */ }
-                try {
-                    const bridgeLoc = ctx.getLocation('scout_ship_bridge');
-                    if (bridgeLoc) {
-                        const bridgeUs = ctx.getUnlockState('scout_ship_bridge');
-                        if (bridgeUs['check_bridge_terminal']) {
-                            const useA = (bridgeLoc.actions || []).find(a => a.id === 'use_bridge_terminal_login');
-                            if (useA && useA._completed) { useA._completed = false; ctx.flagActionAsNew('use_bridge_terminal_login'); }
-                        }
-                    }
-                } catch { /* ignore */ }
                 ctx.setFullRebuildNeeded(true);
-            }
+            },
         },
         {
             id: 'grab_tools',
@@ -105,9 +82,7 @@ export const scoutShipWorkshop = {
             durationSeconds: 5,
             oneTime: true,
             resultKey: 'result_grab_tools',
-            isAvailable(ctx) {
-                return hasMilestone('workbench_searched');
-            }
+            isAvailable(ctx) { return hasMilestone('workbench_searched'); },
         },
         {
             id: 'tinker_device',
@@ -148,7 +123,7 @@ export const scoutShipWorkshop = {
             },
             onComplete(ctx) {
                 setMilestone('tinkered_device', () => ctx.persistLoopKnowledge());
-            }
+            },
         },
 
         // ==========================================================================
@@ -165,9 +140,7 @@ export const scoutShipWorkshop = {
             durationIfRemembered: 15,
             oneTime: true,
             remembersCondition(ctx) { return hasMilestone('comms_repaired'); },
-            isAvailable(ctx) {
-                return hasMilestone('comms_diagnosed');
-            },
+            isAvailable(ctx) { return hasMilestone('comms_diagnosed'); },
             onStart(ctx) {
                 if (hasMilestone('comms_repaired')) {
                     ctx.action.durationSeconds = ctx.action.durationIfRemembered;
@@ -193,34 +166,23 @@ export const scoutShipWorkshop = {
             requiresItem: 'scavenged_comms_panel',
             requiredItems: ['scavenged_comms_panel', 'signal_amplifier', 'power_cell', 'repair_tools'],
             remembersCondition(ctx) { return hasMilestone('comms_repaired'); },
-            isAvailable(ctx) {
-                return hasMilestone('comms_diagnosed');
-            },
+            isAvailable(ctx) { return hasMilestone('comms_diagnosed'); },
             onStart(ctx) {
                 if (hasMilestone('comms_repaired')) {
                     ctx.action.durationSeconds = ctx.action.durationIfRemembered;
                 }
-                // Check for all required parts — collect all missing
-                const missing = [];
-                if (!ctx.countItemInBag('signal_amplifier')) missing.push(ctx.t('item_signal_amplifier'));
-                if (!ctx.countItemInBag('power_cell')) missing.push(ctx.t('item_power_cell'));
-                if (!ctx.countItemInBag('repair_tools')) missing.push(ctx.t('item_repair_tools'));
-                if (missing.length > 0) {
-                    ctx.addLogEntry(ctx.t('log_need_items', { items: missing.join(', ') }), ctx.LogType.ERROR);
-                    return { block: true };
-                }
-                // repair_tools is already covered by requiresItem
             },
             getResultKey(ctx) {
                 return hasMilestone('comms_repaired') ? 'result_assemble_comms_known' : 'result_assemble_comms';
             },
             onComplete(ctx) {
                 setMilestone('comms_repaired', () => ctx.persistLoopKnowledge());
-                // Consume parts used in assembly
-                ctx.consumeItemQuantityFromBag('signal_amplifier', 1);
-                ctx.consumeItemQuantityFromBag('power_cell', 1);
-            }
+            },
         },
+
+        // ==========================================================================
+        // Travel
+        // ==========================================================================
 
         {
             id: 'go_to_main_area',

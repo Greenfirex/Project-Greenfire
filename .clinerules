@@ -45,9 +45,9 @@
   - Log hlášky: `log_<popis>`
   - Itemy: `item_<id>` (pokud nemají `name` přímo v `items.js`)
 
-# ===== DEFINIČNÍ SOUBORY AKCÍ =====
+# ===== DEFINIČNÍ SOUBORY AKCÍ (refactored Jul 2026) =====
 
-- Struktura akce:
+- **PREFERUJ deklarativní fieldy** před manuálním voláním `flagActionAsNew` / `_completed` v callbackách:
   ```js
   {
     id: 'action_id',
@@ -56,25 +56,47 @@
     drain: [{ resource: 'Stamina', amount: 4 }],
     rewards: [{ type: 'item', name: 'Item Name', amount: 1 }],
     durationSeconds: 20,
-    oneTime: true,         // jednorázová akce
-    repeatable: true,      // opakovatelná akce
-    unlockedBy: '...',     // string nebo array stringů
-    requiresItem: '...',   // quest item id (z items.js)
-    targetLocation: '...', // pro přesuny
-    drainsAreaResource: { resource: 'area_water', amount: 1 },
-    revealsAreaSupplies: true,
+    oneTime: true,
     category: 'taxing',    // 'simple' | 'taxing' | 'rest' | 'refresh' | 'persistent'
-    // Volitelné callbacky:
-    onStart(ctx) { ... },       // gate logika — vrátí { block: true } pro zastavení
-    getResultKey(ctx) { ... },  // dynamický resultKey — vrátí string nebo null
-    onComplete(ctx) { ... },    // side effects po dokončení — void
+
+    // === DEKLARATIVNÍ UNLOCKS/HIDES (PREFEROVANÉ) ===
+    unlocks: ['next_action'],              // flagActionAsNew — automaticky
+    unlocksLoop2: ['shortcut_action'],     // jen loop 2+
+    unlocksLoop3: ['skip_action'],         // jen loop 3+
+    hides: ['old_action'],                 // _completed = true — automaticky (aktuální lokace)
+    hidesLoop2: ['tutorial_action'],       // jen loop 2+
+    hidesLoop3: ['obsolete_action'],       // jen loop 3+
+
+    // === LOOP-AWARE RESULTS (PREFEROVANÉ nad getResultKey) ===
+    results: {
+      default: 'result_action',            // loop 0 (první život)
+      loop1: 'result_action_loop1',        // loop 1 (pochyby)
+      loop2: 'result_action_loop2',        // loop 2+ (jistota)
+    },
+
+    // === CALLBACKY ===
+    isAvailable(ctx) { ... },            // viditelnost — JEDINÝ zdroj pravdy
+    onStart(ctx) { ... },                // gate logika — { block: true } pro zastavení
+    getResultKey(ctx) { ... },           // (legacy) — použij `results` objekt
+    onComplete(ctx) { ... },             // side effects — VŠECHNY loopy
+    onCompleteLoop1(ctx) { ... },        // jen loop 1+ (pochyby)
+    onCompleteLoop2(ctx) { ... },        // jen loop 2+ (jistota — zkratky)
+    onCompleteLoop3(ctx) { ... },        // jen loop 3+ (maximum awareness)
   }
   ```
+
+- **Pravidlo pro unlocks/hides:**
+  - Pokud akce odemyká/skrývá jinou akci VE STEJNÉ LOKACI → použij `unlocks`/`hides` pole
+  - Pokud akce odemyká/skrývá akci v JINÉ LOKACI → musíš to udělat manuálně v `onComplete` (cross-location)
+  - `unlocksLoop2`/`hidesLoop2` se aplikují automaticky jen když `gameFlags.loopCount >= 2`
+
 - **ctx** objekt předávaný callbackům obsahuje:
   `gameFlags`, `action`, `addLogEntry`, `LogType`, `t`, `areaResources`,
   `getLocation`, `getCurrentLocationId`, `getUnlockState`, `setUnlockState`,
   `flagActionAsNew`, `initAreaResources`, `revealAreaResources`,
-  `showAreaSuppliesPanel`, `refreshUI`, `setFullRebuildNeeded`
+  `showAreaSuppliesPanel`, `refreshUI`, `setFullRebuildNeeded`,
+  `persistLoopKnowledge`, `countItemInBag`, `consumeItemQuantityFromBag`,
+  `hasLogin` (přes `gameFlags`), `hasMilestone` (přes `gameFlags`)
 
 # ===== HERNÍ DATA =====
 

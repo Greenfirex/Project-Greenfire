@@ -226,10 +226,38 @@ function completeActiveAction(opts = {}) {
         }
     }
     
-    // --- On-complete callback (replaces all special-case if blocks) ---
+    // --- On-complete callback ---
     const ctx = buildActionCtx(action);
     if (typeof action.onComplete === 'function') safeInvokeActionCallback(action.onComplete, ctx, action, 'onComplete');
 
+    // === NOVÝ SYSTÉM: Loop-aware onComplete ===
+    const loop = gameFlags.loopCount || 0;
+    if (loop >= 3 && typeof action.onCompleteLoop3 === 'function') safeInvokeActionCallback(action.onCompleteLoop3, ctx, action, 'onCompleteLoop3');
+    if (loop >= 2 && typeof action.onCompleteLoop2 === 'function') safeInvokeActionCallback(action.onCompleteLoop2, ctx, action, 'onCompleteLoop2');
+    if (loop >= 1 && typeof action.onCompleteLoop1 === 'function') safeInvokeActionCallback(action.onCompleteLoop1, ctx, action, 'onCompleteLoop1');
+
+    // === NOVÝ SYSTÉM: Deklarativní unlocks ===
+    if (Array.isArray(action.unlocks)) {
+        action.unlocks.forEach(id => { flagActionAsNew(id); });
+    }
+    if (loop >= 2 && Array.isArray(action.unlocksLoop2)) {
+        action.unlocksLoop2.forEach(id => { flagActionAsNew(id); });
+    }
+    if (loop >= 3 && Array.isArray(action.unlocksLoop3)) {
+        action.unlocksLoop3.forEach(id => { flagActionAsNew(id); });
+    }
+
+    // === NOVÝ SYSTÉM: Deklarativní hides (aktuální lokace) ===
+    const currentLoc = getLocation(getCurrentLocationId());
+    const hideAction = (id) => {
+        if (currentLoc && Array.isArray(currentLoc.actions)) {
+            const target = currentLoc.actions.find(a => a.id === id);
+            if (target) target._completed = true;
+        }
+    };
+    if (Array.isArray(action.hides)) action.hides.forEach(hideAction);
+    if (loop >= 2 && Array.isArray(action.hidesLoop2)) action.hidesLoop2.forEach(hideAction);
+    if (loop >= 3 && Array.isArray(action.hidesLoop3)) action.hidesLoop3.forEach(hideAction);
     
     // --- Area resource drains ---
     if (action.drainsAreaResource) {
@@ -413,7 +441,15 @@ export function startAction(actionId) {
     }
     if (activeActionId !== actionId) {
         activeActionId = actionId; activeAction = action; activeAction._displayName = t(action.nameKey);
-        // --- Dynamic resultKey via callback (replaces all special-case if blocks) ---
+        // --- NOVÝ SYSTÉM: results objekt (loop-aware result key) ---
+        if (action.results) {
+            const loop = gameFlags.loopCount || 0;
+            if (loop >= 3 && action.results.loop3) activeAction._resultKey = action.results.loop3;
+            else if (loop >= 2 && action.results.loop2) activeAction._resultKey = action.results.loop2;
+            else if (loop >= 1 && action.results.loop1) activeAction._resultKey = action.results.loop1;
+            else if (action.results.default) activeAction._resultKey = action.results.default;
+        }
+        // --- Legacy: Dynamic resultKey via callback ---
         if (typeof action.getResultKey === 'function') {
             activeAction._resultKey = safeInvokeActionCallback(action.getResultKey, ctx, action, 'getResultKey');
         }

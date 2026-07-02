@@ -173,11 +173,39 @@ function extractMilestoneNames(code) {
     return names;
 }
 
-function extractActionIdRefs(code) {
+/** Najde akce, které tento kód skrývá — přes `proměnná._completed = true`. */
+function extractHiddenActions(code) {
     const ids = new Set();
-    const regex = /\.id\s*===?\s*['"]([^'"]+)['"]/g;
+    // Najdi všechny proměnné, které se nastavují na _completed = true
+    const completedRegex = /(\w+)\._completed\s*=\s*true/g;
     let m;
-    while ((m = regex.exec(code)) !== null) ids.add(m[1]);
+    while ((m = completedRegex.exec(code)) !== null) {
+        const varName = m[1];
+        // Dohledej, jakou akci tato proměnná reprezentuje:
+        // const hackA = (loc.actions || []).find(a => a.id === 'hack_terminal');
+        const declRegex = new RegExp(`const\\s+${varName}\\s*=\\s*\\([^)]*\\)\\.find\\s*\\(\\s*a\\s*=>\\s*a\\.id\\s*===?\\s*['"]([^'"]+)['"]\\s*\\)`);
+        const declMatch = code.match(declRegex);
+        if (declMatch) {
+            ids.add(declMatch[1]);
+        }
+    }
+    // Najdi i přímé nastavení bez proměnné: action._completed = true
+    const directRegex = /(\w+)\._completed\s*=\s*true\s*;/g;
+    // Už pokryto výše, ale přidej fallback pro nepojmenované cases
+    
+    // Fallback: najdi .find(a => a.id === 'XYZ') v kontextu, kde se pak nastavuje _completed
+    // Tohle pokryje případy jako:
+    //   const a = (loc.actions || []).find(a => a.id === 'optimize_reactor');
+    //   if (a) a._completed = true;
+    const findRegex = /const\s+(\w+)\s*=\s*\([^)]*\)\.find\s*\([^)]*\.id\s*===?\s*['"]([^'"]+)['"]\s*\)/g;
+    while ((m = findRegex.exec(code)) !== null) {
+        const varName = m[1];
+        const actionId = m[2];
+        // Ověř, že se tato proměnná pak používá s _completed = true
+        if (new RegExp(`\\b${varName}\\._completed\\s*=\\s*true`).test(code)) {
+            ids.add(actionId);
+        }
+    }
     return ids;
 }
 
@@ -195,6 +223,46 @@ function extractUnlockStateKeys(code) {
     let m;
     while ((m = bracketRegex.exec(code)) !== null) keys.add(m[1]);
     return keys;
+}
+
+/** Extrahuje jednotlivé top-level objekty z JSON-like pole stringu (např. "[{...},{...}]"). */
+function extractTopLevelObjects(arrayStr) {
+    const objects = [];
+    let i = 1; // přeskočit '['
+    while (i < arrayStr.length - 1) {
+        while (i < arrayStr.length && /\s/.test(arrayStr[i])) i++;
+        if (i >= arrayStr.length - 1) break;
+        if (arrayStr[i] === ',') { i++; continue; }
+        if (arrayStr[i] === '{') {
+            let depth = 1;
+            const start = i;
+            i++;
+            while (i < arrayStr.length && depth > 0) {
+                const ch = arrayStr[i];
+                if (ch === '{') depth++;
+                else if (ch === '}') depth--;
+                else if (ch === '"' || ch === "'" || ch === '`') {
+                    const quote = ch; i++;
+                    while (i < arrayStr.length && arrayStr[i] !== quote) {
+                        if (arrayStr[i] === '\\') i++;
+                        i++;
+                    }
+                }
+                i++;
+            }
+            objects.push(arrayStr.substring(start, i));
+        } else if (arrayStr[i] === '"' || arrayStr[i] === "'" || arrayStr[i] === '`') {
+            const quote = arrayStr[i]; i++;
+            while (i < arrayStr.length && arrayStr[i] !== quote) {
+                if (arrayStr[i] === '\\') i++;
+                i++;
+            }
+            i++;
+        } else {
+            i++;
+        }
+    }
+    return objects;
 }
 
 function extractActionsArrayFromFile(filePath) {
@@ -218,15 +286,16 @@ function extractActionsArrayFromFile(filePath) {
             i++;
         }
         if (depth !== 0) continue;
-        try {
-            const fn = new Function('return ' + arrayStr);
-            const arr = fn();
-            if (Array.isArray(arr)) {
-                for (const item of arr) {
-                    if (typeof item === 'object' && item !== null && item.id) allItems.push({ item, content, filePath });
+        // Extrahuj jednotlivé objekty akcí — každý parsuj zvlášť, abychom měli jeho přesný text pro extrakci callbacků
+        for (const objStr of extractTopLevelObjects(arrayStr)) {
+            try {
+                const fn = new Function('return ' + objStr);
+                const item = fn();
+                if (typeof item === 'object' && item !== null && item.id) {
+                    allItems.push({ item, actionStr: objStr, filePath });
                 }
-            }
-        } catch { /* skip */ }
+            } catch { /* skip */ }
+        }
     }
     return allItems;
 }
@@ -254,7 +323,7 @@ function validateActionChain(projectRoot) {
 
     for (const filePath of jsFiles) {
         const relPath = path.relative(projectRoot, filePath);
-        for (const { item: action, content } of extractActionsArrayFromFile(filePath)) {
+        for (const { item: action, actionStr } of extractActionsArrayFromFile(filePath)) {
             const id = action.id;
             const mapEntry = { id, file: relPath, conditions: [], hides: [], shows: [], milestones: [] };
 
@@ -306,7 +375,7 @@ function validateActionChain(projectRoot) {
             }
 
             // isAvailable
-            const isAvailCode = extractCallbackBody(content, 'isAvailable');
+            const isAvailCode = extractCallbackBody(actionStr, 'isAvailable');
             if (isAvailCode) {
                 for (const uk of extractUnlockStateKeys(isAvailCode)) {
                     if (!allActionIds.has(uk) && !uk.endsWith('_repeatCount') && !allActionIds.has(uk.replace(/_repeatCount$/, ''))) issues.push({ type: 'isAvailable_bad_unlock_key', action: id, ref: uk, file: relPath, message: `isAvailable používá unlockState klíč "${uk}", který neodpovídá žádné akci` });
@@ -315,13 +384,15 @@ function validateActionChain(projectRoot) {
                 if (/\bctx\.gameFlags\.loopCount\b/.test(isAvailCode)) mapEntry.conditions.push('Závislé na loopCount');
                 if (/\bhasLogin\s*\(/.test(isAvailCode)) mapEntry.conditions.push('hasLogin');
                 if (/\bhasMilestone\s*\(/.test(isAvailCode)) mapEntry.conditions.push(`Milestone: ${[...extractMilestoneNames(isAvailCode)].join(', ')}`);
-            } else mapEntry.conditions.push('Vždy viditelná');
+            } else {
+                mapEntry.conditions.push('Vždy viditelná');
+            }
 
             // onComplete
-            const onCompleteCode = extractCallbackBody(content, 'onComplete');
+            const onCompleteCode = extractCallbackBody(actionStr, 'onComplete');
             if (onCompleteCode) {
                 for (const ms of extractMilestoneNames(onCompleteCode)) mapEntry.milestones.push(ms);
-                for (const refId of extractActionIdRefs(onCompleteCode)) {
+                for (const refId of extractHiddenActions(onCompleteCode)) {
                     if (!allActionIds.has(refId)) issues.push({ type: 'onComplete_bad_action_ref', action: id, ref: refId, file: relPath, message: `onComplete odkazuje na neexistující akci "${refId}"` });
                     else if (refId !== id) mapEntry.hides.push(refId);
                 }
@@ -333,20 +404,59 @@ function validateActionChain(projectRoot) {
             }
 
             // getResultKey
-            const getResultKeyCode = extractCallbackBody(content, 'getResultKey');
+            const getResultKeyCode = extractCallbackBody(actionStr, 'getResultKey');
             if (getResultKeyCode) {
                 for (const sm of getResultKeyCode.matchAll(/['"](result_\w+)['"]/g)) { if (!localeKeys.has(sm[1])) issues.push({ type: 'getResultKey_missing_locale', action: id, ref: sm[1], file: relPath, message: `getResultKey používá "${sm[1]}", ale chybí v locale` }); }
                 for (const sm of getResultKeyCode.matchAll(/return\s+['"]([^'"]+)['"]/g)) { if (sm[1].startsWith('result_') && !localeKeys.has(sm[1])) issues.push({ type: 'getResultKey_missing_locale', action: id, ref: sm[1], file: relPath, message: `getResultKey vrací "${sm[1]}", ale chybí v locale` }); }
             }
 
             // onStart
-            const onStartCode = extractCallbackBody(content, 'onStart');
+            const onStartCode = extractCallbackBody(actionStr, 'onStart');
             if (onStartCode) {
                 for (const lk of extractTLocaleKeys(onStartCode)) { if (!localeKeys.has(lk)) issues.push({ type: 'onStart_missing_locale', action: id, ref: lk, file: relPath, message: `onStart používá t('${lk}'), ale klíč chybí v locale` }); }
             }
 
             // static resultKey
             if (action.resultKey && typeof action.resultKey === 'string' && !localeKeys.has(action.resultKey)) issues.push({ type: 'resultKey_missing_locale', action: id, ref: action.resultKey, file: relPath, message: `resultKey "${action.resultKey}" chybí v locale` });
+
+            // === NOVÝ SYSTÉM: Validate results object ===
+            if (action.results) {
+                for (const [loopKey, resultKey] of Object.entries(action.results)) {
+                    if (typeof resultKey === 'string' && !localeKeys.has(resultKey)) {
+                        issues.push({ type: 'results_missing_locale', action: id, ref: resultKey, file: relPath, message: `results.${loopKey} "${resultKey}" chybí v locale` });
+                    }
+                }
+            }
+
+            // === NOVÝ SYSTÉM: Validate deklarativní unlocks/hides ===
+            const unlockFields = ['unlocks', 'unlocksLoop2', 'unlocksLoop3'];
+            const hideFields = ['hides', 'hidesLoop2', 'hidesLoop3'];
+            
+            for (const field of unlockFields) {
+                if (Array.isArray(action[field])) {
+                    action[field].forEach(refId => {
+                        if (refId !== id) mapEntry.shows.push(refId);
+                        if (!allActionIds.has(refId)) issues.push({ type: `${field}_bad_ref`, action: id, ref: refId, file: relPath, message: `${field} odkazuje na neexistující akci "${refId}"` });
+                    });
+                }
+            }
+            for (const field of hideFields) {
+                if (Array.isArray(action[field])) {
+                    action[field].forEach(refId => {
+                        if (refId !== id) mapEntry.hides.push(refId);
+                        if (!allActionIds.has(refId)) issues.push({ type: `${field}_bad_ref`, action: id, ref: refId, file: relPath, message: `${field} odkazuje na neexistující akci "${refId}"` });
+                    });
+                }
+            }
+
+            // === NOVÝ SYSTÉM: Validate new callbacks ===
+            for (const cbName of ['onCompleteLoop1', 'onCompleteLoop2', 'onCompleteLoop3']) {
+                const cbCode = extractCallbackBody(actionStr, cbName);
+                if (cbCode) {
+                    for (const lk of extractTLocaleKeys(cbCode)) { if (!localeKeys.has(lk)) issues.push({ type: `${cbName}_missing_locale`, action: id, ref: lk, file: relPath, message: `${cbName} používá t('${lk}'), ale klíč chybí v locale` }); }
+                    for (const ms of extractMilestoneNames(cbCode)) mapEntry.milestones.push(ms);
+                }
+            }
 
             actionMap[id] = mapEntry;
         }

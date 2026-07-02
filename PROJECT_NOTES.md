@@ -79,41 +79,76 @@ Example: Rest gives 5 Stamina over 15s → rate = 5/15 = 0.33/sec (displayed as 
 - `rest`: Stamina **gains** (positive rate from rewards), Food/Water drain normally
 - `refresh`: Drinking Water **gains** (positive rate from rewards), Stamina/Food drain normally
 
-## Action Callback System (refactored Jun 2026)
+## Action Declaration System (refactored Jul 2026)
 
 **DO NOT add `if (action.id === 'xyz')` blocks to `locationEngine.js`.**
 
-Instead, action-specific logic lives **in the action definition** via three optional callbacks:
+Action-specific logic lives **in the action definition** via callbacks + declarative fields:
+
+### Callbacks
 
 | Callback | When it runs | Return value |
 |---|---|---|
 | `onStart(ctx)` | Early in `startAction()`, before `requiresItem` check | `{ block: true }` to stop the action |
-| `getResultKey(ctx)` | When setting `activeAction._resultKey` | A locale key string or `null` |
-| `onComplete(ctx)` | In `completeActiveAction()`, after unlockAll/repeatLimit, before areaResourceDrain | Nothing |
+| `getResultKey(ctx)` | When setting `activeAction._resultKey` (legacy) | A locale key string or `null` |
+| `onComplete(ctx)` | In `completeActiveAction()`, all loops | Nothing |
+| `onCompleteLoop1(ctx)` | Loop 1+ (první smrt — pochyby) | Nothing |
+| `onCompleteLoop2(ctx)` | Loop 2+ (jistota smyčky — zkratky) | Nothing |
+| `onCompleteLoop3(ctx)` | Loop 3+ (maximum awareness) | Nothing |
 
-### Where to add new action logic
+### Deklarativní fieldy (PREFEROVANÉ pro unlocks/hides)
 
-Go to `sections/locations/definitions/scoutShip/<location>.js` and add callbacks directly to the action object:
+| Field | Typ | Co dělá |
+|---|---|---|
+| `results` | `{ default, loop1, loop2, loop3 }` | Loop-aware result key — nahrazuje `getResultKey` |
+| `unlocks` | `string[]` | `flagActionAsNew()` — odemkne akce (všechny loopy) |
+| `unlocksLoop2` | `string[]` | `flagActionAsNew()` — jen loop 2+ |
+| `unlocksLoop3` | `string[]` | `flagActionAsNew()` — jen loop 3+ |
+| `hides` | `string[]` | `_completed = true` — skryje akce v aktuální lokaci (všechny loopy) |
+| `hidesLoop2` | `string[]` | `_completed = true` — jen loop 2+ |
+| `hidesLoop3` | `string[]` | `_completed = true` — jen loop 3+ |
+
+### Vzorová akce (nový formát)
 
 ```js
 {
   id: 'new_action',
   nameKey: 'action_new_action',
-  // ...
-  onStart(ctx) {
-    // gate logic — return { block: true } to prevent starting
+  descKey: 'action_new_action_desc',
+  drain: [{ resource: 'Stamina', amount: 3 }],
+  durationSeconds: 15,
+  oneTime: true,
+
+  // === VIDITELNOST ===
+  isAvailable(ctx) {
+    return !!ctx.getUnlockState(ctx.getCurrentLocationId())['wake_up'];
   },
-  getResultKey(ctx) {
-    // return dynamic locale key for completion message (or null)
-    return someCondition ? 'result_variant_a' : 'result_variant_b';
+
+  // === LOOP-AWARE VÝSLEDKY ===
+  results: {
+    default: 'result_new_action',       // loop 0 (první život)
+    loop1: 'result_new_action_loop1',   // loop 1 (pochyby)
+    loop2: 'result_new_action_loop2',   // loop 2+ (jistota)
   },
-  onComplete(ctx) {
-    // side effects after completion (flags, unlocks, UI rebuilds)
-  }
+
+  // === CO ODEMKNE / SKRYJE (deklarativně) ===
+  unlocks: ['next_action'],              // odemknout po dokončení
+  hides: ['old_action'],                 // skrýt po dokončení
+  unlocksLoop2: ['shortcut_action'],     // odemknout až od loop 2+
+  hidesLoop2: ['tutorial_action'],       // skrýt od loop 2+
+
+  // === SIDE EFFECTY ===
+  onComplete(ctx) {                      // VŠECHNY loopy
+    setMilestone('new_action_done', () => ctx.persistLoopKnowledge());
+    ctx.setFullRebuildNeeded(true);
+  },
+  onCompleteLoop2(ctx) {                 // JEN loop 2+
+    ctx.addLogEntry(ctx.t('log_new_action_loop2'), LogType.SUCCESS);
+  },
 }
 ```
 
-**No changes to `locationEngine.js` are needed** when adding new actions with custom logic.
+**No changes to `locationEngine.js` are needed** when adding new actions.
 
 ### Context object (ctx) fields
 
