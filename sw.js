@@ -3,7 +3,7 @@
    - Stale-while-revalidate for same-origin static assets (css/js/images).
 */
 
-const SW_VERSION = 'greenfire-sw-v2';
+const SW_VERSION = 'greenfire-sw-v3';
 const STATIC_CACHE = `${SW_VERSION}-static`;
 const RUNTIME_CACHE = `${SW_VERSION}-runtime`;
 
@@ -21,19 +21,14 @@ const PRECACHE_URLS = [
   './styles/components/objectives.css',
   './styles/components/ingamelog.css',
   './styles/components/story-popup.css',
-  './styles/components/combat-popup.css',
   './styles/components/options-menu.css',
   './styles/components/log-options.css',
   './styles/components/changelog.css',
-  './styles/sections/research.css',
-  './styles/sections/colony.css',
-  './styles/sections/crashSite.css',
-  './styles/sections/journal.css',
+  './styles/sections/explore.css',
   './styles/sections/character.css',
-  './styles/sections/campsite.css',
-  './styles/sections/encryptedDrive.css',
-  './styles/sections/localMap.css',
-  './core/main.js',
+  './styles/sections/journal.css',
+  './styles/sections/titleScreen.css',
+  './engine/main.js',
   './assets/images/logo.png',
   './assets/images/logo-header.png'
 ];

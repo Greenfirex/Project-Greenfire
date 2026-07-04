@@ -23,6 +23,7 @@ let imagesTotal = 0;
 let imagesLoaded = 0;
 let _showTime = Date.now();
 const ANIM_DURATION_MS = 1500; // bar fills over 1.5s for a smooth experience
+const MIN_SHOW_MS = 600;       // minimum time the preloader stays visible
 let _animStarted = false;
 let _animStartTime = 0;
 let _animFrame = null;
@@ -195,9 +196,20 @@ function startSmoothAnimation() {
 }
 
 function doDismiss() {
+    if (dismissed) return;
+
+    // Enforce minimum show time so the preloader is visible even on fast loads.
+    const elapsed = Date.now() - _showTime;
+    if (elapsed < MIN_SHOW_MS) {
+        if (!_dismissTimer) {
+            _dismissTimer = setTimeout(() => doDismiss(), MIN_SHOW_MS - elapsed);
+        }
+        return;
+    }
+
     if (_animFrame) { cancelAnimationFrame(_animFrame); _animFrame = null; }
     const pl = getPreloaderEl();
-    if (dismissed || !pl) return;
+    if (!pl) return;
     dismissed = true;
 
     // Ensure bar reads 100%.

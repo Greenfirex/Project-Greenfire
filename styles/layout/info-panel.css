@@ -57,7 +57,7 @@ background-color: rgba(0, 0, 0, 0.72);
     #infoPanel {
         position: absolute;
         top: 0;
-        right: env(safe-area-inset-right, 0px);
+        right: 0;
         bottom: 0;
         height: auto;
         width: min(280px, 78vw);
@@ -262,7 +262,7 @@ background-color: rgba(0, 0, 0, 0.72);
 html.is-compact #infoPanel {
     position: absolute;
     top: 0;
-    right: env(safe-area-inset-right, 0px);
+    right: 0;
     bottom: 0;
     height: auto;
     width: min(280px, 78vw);

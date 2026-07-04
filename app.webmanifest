@@ -1,7 +1,7 @@
 {
   "name": "Project Greenfire",
-  "short_name": "Greenfire",
-  "start_url": "./index.html",
+  "short_name": "Project Greenfire",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#000000",
@@ -11,6 +11,12 @@
     {
       "src": "assets/images/logo.png",
       "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/images/logo.png",
+      "sizes": "256x256",
       "type": "image/png",
       "purpose": "any"
     },
