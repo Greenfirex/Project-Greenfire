@@ -394,8 +394,6 @@ function pickCurrentObjective() {
 function renderMobileObjectives() {
     if (!menuEls.container) return;
 
-    try { recomputeObjectives(); } catch { /* non-fatal */ }
-
     const current = pickCurrentObjective();
     const currentTextEl = menuEls.title?.querySelector('.mobile-objectives-current');
     if (currentTextEl) currentTextEl.textContent = current ? current.label : '—';
@@ -505,11 +503,160 @@ function updateFooterLatestFromLog() {
     animateFooterLatestChange(nextText, nextColor);
 }
 
+// ==========================================================================
+// Log toast overlay — shows recent log entries as stackable toasts above footer
+// ==========================================================================
+
+let _logToastContainer = null;
+const MAX_TOASTS = 5;
+
+function ensureLogToastContainer() {
+    if (_logToastContainer && document.body.contains(_logToastContainer)) return _logToastContainer;
+
+    const container = document.createElement('div');
+    container.className = 'log-toast-container';
+    document.body.appendChild(container);
+    _logToastContainer = container;
+    return container;
+}
+
+function getLogToastColor(logEntry) {
+    try {
+        const color = logEntry.style?.color || '';
+        if (color) return color;
+    } catch { /* ignore */ }
+    return 'rgba(255,255,255,0.9)';
+}
+
+function getLogToastType(logEntry) {
+    try {
+        const color = (logEntry.style?.color || '').toLowerCase();
+        // Map common log colors to toast types
+        if (color.includes('192') || color.includes('c04040') || color.includes('231, 76, 60')) return 'error';
+        if (color.includes('144, 238, 144') || color.includes('106, 154, 106') || color.includes('green')) return 'success';
+        if (color.includes('192, 160, 64') || color.includes('c0a040') || color.includes('gold')) return 'unlock';
+        if (color.includes('171, 71, 188') || color.includes('purple')) return 'story';
+    } catch { /* ignore */ }
+    return 'info';
+}
+
+function showLogToast(text, logEntry) {
+    if (!isActive) return;
+    const container = ensureLogToastContainer();
+    if (!container) return;
+
+    // Hide toasts when drawer is open
+    const syncDrawerState = () => {
+        const drawerOpen = !!(
+            footerEls.drawer && footerEls.drawer.classList.contains('open')
+        );
+        container.classList.toggle('drawer-open', drawerOpen);
+    };
+    syncDrawerState();
+
+    const color = getLogToastColor(logEntry);
+    const type = getLogToastType(logEntry);
+
+    // Limit max toasts — dismiss oldest
+    while (container.children.length >= MAX_TOASTS) {
+        const oldest = container.lastElementChild;
+        if (oldest) dismissToast(oldest);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `log-toast toast-${type}`;
+    toast.style.color = color;
+
+    // Close button
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'log-toast-close';
+    closeBtn.textContent = '✕';
+    closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dismissToast(toast);
+    });
+
+    toast.appendChild(closeBtn);
+
+    // Text element for typewriter
+    const textEl = document.createElement('span');
+    textEl.className = 'log-toast-text';
+    toast.appendChild(textEl);
+
+    // Tap anywhere on toast to dismiss
+    toast.addEventListener('click', () => dismissToast(toast));
+
+    // Insert at the top (container uses column-reverse, so "first" = bottom)
+    container.insertBefore(toast, container.firstChild);
+
+    // Typewriter effect — always typed, no cutoff
+    const fullText = String(text || '');
+    if (!fullText) return;
+    // Dynamic speed: shorter texts get slower per-character, longer texts faster.
+    // Range: 8ms (fast, for 60+ chars) to 18ms (slow, for short texts).
+    const delayPerChar = Math.max(8, Math.min(18, Math.round(500 / Math.max(1, fullText.length))));
+    let i = 0;
+    const typeNext = () => {
+        i++;
+        textEl.textContent = fullText.slice(0, i);
+        if (i < fullText.length) {
+            setTimeout(typeNext, delayPerChar);
+        }
+    };
+    // Small delay so the slide-up animation finishes before typing begins
+    setTimeout(typeNext, 60);
+}
+
+function dismissToast(toast) {
+    if (!toast || toast.classList.contains('toast-dismissing')) return;
+    toast.classList.add('toast-dismissing');
+    toast.addEventListener('animationend', () => {
+        try { toast.remove(); } catch { /* ignore */ }
+    }, { once: true });
+    // Fallback cleanup
+    setTimeout(() => {
+        try { toast.remove(); } catch { /* ignore */ }
+    }, 300);
+}
+
+function updateLogToastsFromContent() {
+    if (!isActive) return;
+    // Defer by one microtask so the typewriter has time to set entry._fullText
+    // before we try to read it. Without this, MutationObserver fires after
+    // appendChild but before startTypewriter() fills in the text.
+    setTimeout(() => {
+        const logContent = document.getElementById('logContent');
+        if (!logContent) return;
+
+        // Get last N entries, show as toasts
+        const entries = logContent.querySelectorAll('.log-entry');
+        if (entries.length === 0) return;
+
+        // Only show toasts for new entries (last 3)
+        const recentEntries = Array.from(entries).slice(-3);
+        recentEntries.forEach(entry => {
+            if (entry.dataset.toasted) return;
+            entry.dataset.toasted = '1';
+
+            const text = (entry._fullText || entry.textContent || '').trim();
+            if (!text) return;
+            showLogToast(text, entry);
+        });
+    }, 0);
+}
+
+function clearAllToasts() {
+    const container = _logToastContainer;
+    if (!container) return;
+    Array.from(container.children).forEach(t => dismissToast(t));
+}
+
 // Refresh the footer preview when log settings change (e.g., timestamps toggled).
 try {
     window.addEventListener('log-settings-updated', () => {
         if (!isActive) return;
         updateFooterLatestFromLog();
+        updateLogToastsFromContent();
     });
 } catch { /* ignore */ }
 
@@ -521,6 +668,7 @@ function installLogObserver() {
 
     logObserver = new MutationObserver(() => {
         updateFooterLatestFromLog();
+        updateLogToastsFromContent();
     });
 
     logObserver.observe(logContent, { childList: true, subtree: false });
