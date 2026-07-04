@@ -71,11 +71,11 @@
 
     /* When a side is collapsed, use a symmetric inset so the content stays centered. */
     html.left-panel-collapsed #mainContainer {
-        --content-edge-inset: 43px; /* 40px rail + 3px gap */
+        --content-edge-inset: calc(40px + env(safe-area-inset-left, 0px));
     }
 
     html.right-panel-collapsed #mainContainer {
-        --content-edge-inset: 43px; /* 40px rail + 3px gap */
+        --content-edge-inset: calc(40px + env(safe-area-inset-right, 0px));
     }
 
     #gameArea,
@@ -113,11 +113,11 @@ html.is-compact #mainContainer {
 }
 
 html.is-compact.left-panel-collapsed #mainContainer {
-    --content-edge-inset: 43px; /* 40px rail + 3px gap */
+    --content-edge-inset: calc(40px + env(safe-area-inset-left, 0px));
 }
 
 html.is-compact.right-panel-collapsed #mainContainer {
-    --content-edge-inset: 43px; /* 40px rail + 3px gap */
+    --content-edge-inset: calc(40px + env(safe-area-inset-right, 0px));
 }
 
 html.is-compact #gameArea,

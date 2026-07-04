@@ -11,6 +11,13 @@ html.is-compact {
     --reach-pad-x: 10px;
 }
 
+/* Safe-area body padding — respects iPhone notch/home indicator on all sides.
+   env() returns 0 on desktop, so this has zero effect outside of notched iOS. */
+html.is-compact body {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+}
+
 /* --- Header / Footer compact styling (mirrors the existing @media phone rules) --- */
 html.is-compact #header {
     height: 25px;
