@@ -6,7 +6,7 @@
 // ==========================================================================
 
 import { t } from '../../locales/locales.js';
-import { resources, RESOURCE_EMOJIS } from '../../engine/resources.js';
+import { resources, RESOURCE_EMOJIS, areaResources, isAreaRevealed } from '../../engine/resources.js';
 import { activeEffects } from '../../engine/effects.js';
 import { setupTooltip } from '../panels/tooltip.js';
 
@@ -131,11 +131,22 @@ export function setupInfoVitals(panelEl) {
 
     panelEl.appendChild(container);
 
-    // Effects warning strip (below vitals orbs)
-    setupEffectsStrip(panelEl);
+    // Glowing separator line between personal and area vitals in collapsed panel
+    const separator = document.createElement('div');
+    separator.className = 'info-vitals-separator';
+    panelEl.appendChild(separator);
+
+    // Area resource orbs container (collapsed panel, bottom half)
+    const areaContainer = document.createElement('div');
+    areaContainer.className = 'info-area-vitals';
+    panelEl.appendChild(areaContainer);
+
+    // Effects warning strip in footer (compact mode)
+    setupEffectsStripInFooter();
 
     updateInfoVitals();
     updateEffectsStrip();
+    updateAreaVitals();
 }
 
 // ==========================================================================
@@ -162,18 +173,16 @@ function setupEffectsStrip(panelEl) {
     panelEl.appendChild(strip);
 }
 
-export function updateEffectsStrip() {
-    const strip = document.querySelector('#infoPanel .info-effects-strip');
-    if (!strip) return;
-
-    strip.innerHTML = '';
+function renderEffectsDots(container) {
+    if (!container) return;
+    container.innerHTML = '';
 
     if (!activeEffects || activeEffects.length === 0) {
-        strip.classList.add('hidden');
+        container.classList.add('hidden');
         return;
     }
 
-    strip.classList.remove('hidden');
+    container.classList.remove('hidden');
 
     const visible = activeEffects.slice(0, MAX_VISIBLE_EFFECTS);
     const overflow = activeEffects.length - MAX_VISIBLE_EFFECTS;
@@ -186,10 +195,17 @@ export function updateEffectsStrip() {
         setupTooltip(dot, () => {
             const name = t(effect.nameKey);
             const desc = t(effect.descKey);
-            return `<h4>${name}</h4><p>${desc}</p>`;
+            let tagsHtml = '';
+            if (effect.debuffs) {
+                tagsHtml = Object.entries(effect.debuffs).map(([resName, rate]) => {
+                    const sign = rate >= 0 ? '+' : '';
+                    return `<span class="effect-debuff-tag">${resName} ${sign}${Number(rate).toFixed(1)}/min</span>`;
+                }).join('');
+            }
+            return `<h4>${name}</h4><p>${desc}</p>${tagsHtml ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">${tagsHtml}</div>` : ''}`;
         });
 
-        strip.appendChild(dot);
+        container.appendChild(dot);
     });
 
     if (overflow > 0) {
@@ -200,6 +216,101 @@ export function updateEffectsStrip() {
         const names = activeEffects.slice(MAX_VISIBLE_EFFECTS).map(e => t(e.nameKey)).join(', ');
         setupTooltip(overflowDot, () => `<h4>+${overflow} more</h4><p>${names}</p>`);
 
-        strip.appendChild(overflowDot);
+        container.appendChild(overflowDot);
     }
+}
+
+export function updateEffectsStrip() {
+    // Panel strip (compact mode hides this via CSS)
+    const panelStrip = document.querySelector('#infoPanel .info-effects-strip');
+    if (panelStrip) renderEffectsDots(panelStrip);
+
+    // Footer strip (compact mode shows this instead)
+    const footerStrip = document.querySelector('#footer .footer-effects-strip');
+    if (footerStrip) renderEffectsDots(footerStrip);
+}
+
+// ==========================================================================
+// Effects strip in footer (compact mode)
+// ==========================================================================
+
+function setupEffectsStripInFooter() {
+    const footerCol = document.querySelector('#footer .footer-column:nth-child(3)');
+    if (!footerCol) return;
+
+    const existing = footerCol.querySelector('.footer-effects-strip');
+    if (existing) existing.remove();
+
+    const strip = document.createElement('div');
+    strip.className = 'footer-effects-strip hidden';
+    footerCol.appendChild(strip);
+}
+
+// ==========================================================================
+// Area resource orbs (collapsed panel, below separator)
+// ==========================================================================
+
+const AREA_VITAL_ORDER = ['area_fuel', 'area_o2', 'area_water'];
+const AREA_VITAL_ATTR = {
+    'area_fuel': 'fuel',
+    'area_o2': 'oxygen',
+    'area_water': 'water',
+};
+const AREA_ICONS = {
+    'area_fuel': '⛽',
+    'area_o2': '🫧',
+    'area_water': '💦',
+};
+
+export function updateAreaVitals() {
+    // Collect all revealed area resources across locations
+    // Only show resources from locations that have been revealed via game actions
+    const revealedResources = [];
+    for (const locId of Object.keys(areaResources)) {
+        if (!isAreaRevealed(locId)) continue;
+        const list = areaResources[locId];
+        if (!Array.isArray(list)) continue;
+        for (const res of list) {
+            // Deduplicate by name
+            if (!revealedResources.find(r => r.name === res.name)) {
+                revealedResources.push(res);
+            }
+        }
+    }
+
+    const areaContainer = document.querySelector('#infoPanel .info-area-vitals');
+    if (!areaContainer) return;
+
+    // Rebuild area orbs
+    areaContainer.innerHTML = '';
+
+    if (revealedResources.length === 0) return;
+
+    revealedResources.forEach(res => {
+        const orb = document.createElement('div');
+        orb.className = 'info-vital-orb';
+        orb.dataset.vital = AREA_VITAL_ATTR[res.name] || '';
+        orb.dataset.vitalName = res.name;
+
+        const max = Number(res.capacity) || 1;
+        const amount = Math.floor(Number(res.amount) || 0);
+        const pct = Math.min(100, Math.round((amount / max) * 100));
+        orb.style.setProperty('--fill', `${pct}%`);
+
+        const text = document.createElement('div');
+        text.className = 'orb-text';
+        text.innerHTML = `
+            <span class="orb-current">${amount}</span>
+            <span class="orb-max">${max}</span>
+        `;
+        orb.appendChild(text);
+        areaContainer.appendChild(orb);
+
+        // Tooltip
+        setupTooltip(orb, () => {
+            const emoji = AREA_ICONS[res.name] || '';
+            const locName = t('area_' + res.name.replace('area_', '')) || res.name;
+            return `<h4>${emoji} ${locName}</h4><p>${amount} / ${max} (${pct}%)</p>`;
+        });
+    });
 }

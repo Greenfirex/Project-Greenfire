@@ -110,38 +110,22 @@ function initPanelCollapse() {
         return;
     }
 
-    // Restore saved state
-    const mainMenuCollapsedRaw = localStorage.getItem('mainMenuCollapsed');
-    const infoPanelCollapsedRaw = localStorage.getItem('infoPanelCollapsed');
+    // Phone-landscape: always start with both panels collapsed.
+    // Toggle functions persist player preference to localStorage;
+    // we respect that on reload, not the init default.
+    leftPanelCollapsed = true;
+    rightPanelCollapsed = true;
 
-    const savedMainMenuCollapsed = mainMenuCollapsedRaw === 'true';
-    let savedInfoPanelCollapsed = infoPanelCollapsedRaw === 'true';
-
-    // Phone-landscape default: collapse the right panel unless the player has already chosen otherwise.
-    if (compact && infoPanelCollapsedRaw === null) {
-        savedInfoPanelCollapsed = true;
-        try {
-            localStorage.setItem('infoPanelCollapsed', 'true');
-        } catch {
-            /* ignore */
-        }
-    }
-
-    if (savedMainMenuCollapsed) {
-        leftPanelCollapsed = true;
+    try {
         const mainMenu = document.getElementById('mainMenu');
-        const btn = document.getElementById('mainMenuCollapseBtn');
-        if (mainMenu) mainMenu.classList.add('collapsed');
-        if (btn) btn.title = 'Expand menu';
-    }
-
-    if (savedInfoPanelCollapsed) {
-        rightPanelCollapsed = true;
         const infoPanel = document.getElementById('infoPanel');
-        const btn = document.getElementById('infoPanelCollapseBtn');
+        const leftBtn = document.getElementById('mainMenuCollapseBtn');
+        const rightBtn = document.getElementById('infoPanelCollapseBtn');
+        if (mainMenu) mainMenu.classList.add('collapsed');
         if (infoPanel) infoPanel.classList.add('collapsed');
-        if (btn) btn.title = 'Expand info panel';
-    }
+        if (leftBtn) leftBtn.title = 'Expand menu';
+        if (rightBtn) rightBtn.title = 'Expand info panel';
+    } catch { /* ignore */ }
 
     syncRootPanelClasses();
     updateGameAreaSize();

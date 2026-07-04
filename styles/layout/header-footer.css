@@ -33,6 +33,61 @@
     align-self: center;
 }
 
+/* Effects strip in footer right column (compact mode) */
+.footer-effects-strip {
+    display: none;
+    flex-direction: row;
+    align-items: center;
+    gap: 3px;
+    padding-left: 8px;
+}
+
+/* Red pulsing animation for effect dots — unikátní jméno aby nekolidovalo s info-panel.css */
+@keyframes footer-effect-dot-pulse {
+    0%, 100% { border-color: rgba(255, 80, 80, 0.35); box-shadow: 0 0 6px rgba(255, 40, 40, 0.18); }
+    50% { border-color: rgba(255, 80, 80, 0.7); box-shadow: 0 0 12px rgba(255, 40, 40, 0.35); }
+}
+
+.footer-effects-strip .info-effect-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 80, 80, 0.35);
+    background: rgba(0, 0, 0, 0.75);
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    animation: footer-effect-dot-pulse 2.5s ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(255, 40, 40, 0.18);
+}
+
+.footer-effects-strip .info-effect-overflow {
+    border-color: rgba(255, 213, 74, 0.4);
+    font-size: 9px;
+    font-weight: 900;
+    color: #ffd84a;
+    animation: none;
+    box-shadow: 0 0 6px rgba(255, 213, 74, 0.15);
+}
+
+/* Show footer effects only in compact mode, aligned left-to-right */
+body.mobile-log-footer-swap .footer-effects-strip {
+    display: flex;
+    justify-content: flex-start;
+}
+
+/* In compact mode, right footer column aligns content left instead of right */
+body.mobile-log-footer-swap .footer-column:nth-child(3) {
+    justify-content: flex-start;
+}
+
+/* Hide the info-panel effects strip in compact mode */
+body.mobile-log-footer-swap #infoPanel .info-effects-strip {
+    display: none !important;
+}
+
 /* --- Horizontal Line Above Footer --- */
 #footer::before {
     content: '';
@@ -126,6 +181,17 @@
     white-space: nowrap;
     justify-content: center;
 }
+/* Center footer log text in compact mode */
+body.mobile-log-footer-swap .footer-log-label {
+    text-align: center;
+    width: 100%;
+}
+
+body.mobile-log-footer-swap .footer-log-latest {
+    text-align: center;
+    width: 100%;
+}
+
 .clock-display::before {
     content: '🕒';
     filter: drop-shadow(0 0 2px rgba(144,238,144,0.35));

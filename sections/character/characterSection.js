@@ -38,21 +38,6 @@ let currentDragPayload = null;
 let discardMode = false;
 let selectedBagIndex = null;
 
-function getStaminaRegenBuffStatus(state = characterState) {
-    try {
-        const buff = state?.buffs?.staminaRegen;
-        const untilMinutes = Math.floor(Number(buff?.untilMinutes) || 0);
-        const bonusPerSec = Number(buff?.bonusPerSec) || 0;
-        const label = (typeof buff?.label === 'string' && buff.label.trim()) ? buff.label.trim() : 'Herb Tea';
-        const now = getTotalIngameMinutes();
-        const remainingMinutes = Math.max(0, untilMinutes - now);
-        const active = (bonusPerSec > 0) && (remainingMinutes > 0);
-        return { active, remainingMinutes, untilMinutes, bonusPerSec, label };
-    } catch {
-        return { active: false, remainingMinutes: 0, untilMinutes: 0, bonusPerSec: 0, label: 'Herb Tea' };
-    }
-}
-
 function renderConsumablesPanel(consumables, state) {
     if (!consumables || consumables.length === 0) {
         return `<div class="character-card consumables-card">
@@ -61,7 +46,6 @@ function renderConsumablesPanel(consumables, state) {
         </div>`;
     }
     const autoSettings = getAutoConsumeSettings(state);
-    // Get current resource drain rates to estimate time
     let waterDrainPerMin = 0;
     let foodDrainPerMin = 0;
     try {
@@ -75,7 +59,6 @@ function renderConsumablesPanel(consumables, state) {
         const totalValue = getConsumableTotalValue(c.itemId, c.count);
         const isWater = c.consumable.resource === 'Drinking Water';
         const isFood = c.consumable.resource === 'Food Rations';
-        const isHealing = c.consumable.resource === 'Health';
         const drainRate = isWater ? waterDrainPerMin : (isFood ? foodDrainPerMin : 0);
         const minutesEstimate = drainRate > 0 ? Math.round(totalValue / drainRate) : 0;
         
@@ -108,77 +91,6 @@ function renderConsumablesPanel(consumables, state) {
     </div>`;
 }
 
-function formatRemainingMinutes(mins) {
-    const m = Math.max(0, Math.floor(Number(mins) || 0));
-    const h = Math.floor(m / 60);
-    const mm = m % 60;
-    if (h <= 0) return `${mm}m`;
-    if (mm <= 0) return `${h}h`;
-    return `${h}h ${mm}m`;
-}
-
-function buildStaminaRegenBuffTooltipHtml() {
-    const st = getStaminaRegenBuffStatus(characterState);
-    if (!st.active) return `<h4>Active Effects</h4><p>None</p>`;
-    return `<h4>Active Effects</h4><p><strong>${escapeHtml(st.label)}</strong></p>
-        <p class="tooltip-detail">Stamina regeneration: +${escapeHtml(String(st.bonusPerSec))}/s</p>
-        <p class="tooltip-detail">Time remaining: ${escapeHtml(formatRemainingMinutes(st.remainingMinutes))}</p>`;
-}
-
-function getSurvivalDebuffStatus() {
-    try {
-        const foodRes = resources.find(r => r && r.name === 'Food Rations');
-        const waterRes = resources.find(r => r && r.name === 'Drinking Water');
-        return { hungry: !!(foodRes && Number(foodRes.amount) <= 0), thirsty: !!(waterRes && Number(waterRes.amount) <= 0) };
-    } catch { return { hungry: false, thirsty: false }; }
-}
-
-function applySurvivalDebuffsToStats(stats, { hungry = false, thirsty = false } = {}) {
-    return { ...(stats || {}) };
-}
-
-function getDebuffClassForUiStatKey(uiKey, { hungry = false, thirsty = false } = {}) {
-    return '';
-}
-
-function buildSurvivalDebuffTooltipHtml(kind) {
-    const { hungry, thirsty } = getSurvivalDebuffStatus();
-    const k = String(kind || '').toLowerCase();
-    if (k === 'hungry') {
-        if (!hungry) return `<h4>Survival</h4><p><strong>Hungry</strong></p><p>Inactive</p>`;
-        return `<h4>Survival</h4><p><strong>Hungry</strong></p>
-            <p class="tooltip-detail">Actions take <strong>50%</strong> longer.</p>
-            <p class="tooltip-detail">Health: passive regeneration is disabled.</p>
-            <p class="tooltip-detail">Combat: <strong>-50%</strong> damage and <strong>-10%</strong> Hit Chance.</p>`;
-    }
-    if (k === 'thirsty') {
-        if (!thirsty) return `<h4>Survival</h4><p><strong>Thirsty</strong></p><p>Inactive</p>`;
-        return `<h4>Survival</h4><p><strong>Thirsty</strong></p>
-            <p class="tooltip-detail">Actions take <strong>50%</strong> longer.</p>
-            <p class="tooltip-detail">Stamina: passive regeneration is disabled.</p>
-            <p class="tooltip-detail">Combat: <strong>+0.50s</strong> Attack Speed (slower) and <strong>-20%</strong> Hit Chance.</p>`;
-    }
-    return `<h4>Survival</h4><p>No active debuffs.</p>`;
-}
-
-function renderActiveEffectIconHtml() {
-    const st = getStaminaRegenBuffStatus(characterState);
-    const tea = getItemDefinition('herb_tea');
-    const icon = tea && tea.icon ? String(tea.icon) : '';
-    return `<button type="button" class="active-effect-btn ${st.active ? '' : 'hidden'}" data-active-effect="staminaRegen" data-tooltip-touch-tap="true" aria-label="Active effect: ${escapeHtml(st.label)}" title="${escapeHtml(st.label)}">
-        ${icon ? `<img class="active-effect-icon" src="${escapeHtml(icon)}" alt="" />` : '<span class="active-effect-fallback">+</span>'}</button>`;
-}
-
-function renderSurvivalDebuffIconsHtml() {
-    const { hungry, thirsty } = getSurvivalDebuffStatus();
-    return `<button type="button" class="active-effect-btn ${hungry ? '' : 'hidden'}" data-active-effect="hungry" data-tooltip-touch-tap="true" aria-label="Survival debuff: Hungry" title="Hungry"><span class="active-effect-emoji" aria-hidden="true">🍗</span></button>
-        <button type="button" class="active-effect-btn ${thirsty ? '' : 'hidden'}" data-active-effect="thirsty" data-tooltip-touch-tap="true" aria-label="Survival debuff: Thirsty" title="Thirsty"><span class="active-effect-emoji" aria-hidden="true">💧</span></button>`;
-}
-
-function renderPaperdollStatusIconsHtml() {
-    return `<div class="active-effects" aria-label="Active effects">${renderActiveEffectIconHtml()}${renderSurvivalDebuffIconsHtml()}</div>`;
-}
-
 const EQUIP_SLOT_LABELS = { head: 'Head', chest: 'Chest', legs: 'Legs', boots: 'Boots', weapon: 'Weapon', offhand: 'Offhand', accessory_1: 'Accessory 1', accessory_2: 'Accessory 2' };
 const ITEM_STAT_LABELS = { health: 'Health', stamina: 'Stamina', foodCapacity: 'Food Capacity', waterCapacity: 'Water Capacity' };
 
@@ -199,9 +111,6 @@ export function setupCharacterSection(section) {
     section.innerHTML = '';
 
     const { cols: bagCols } = getBagSize();
-    const stats = computeCharacterStats(characterState);
-    const survivalDebuffs = getSurvivalDebuffStatus();
-    const displayStats = applySurvivalDebuffsToStats(stats, survivalDebuffs);
     const itemImpact = computeEquippedItemImpact(characterState);
     const bagRows = characterState?.bagRows ?? 2;
 
@@ -223,7 +132,6 @@ export function setupCharacterSection(section) {
     const equipmentCardHtml = `<div class="character-card equipment-card">
         <div class="character-card-header"><h3>${t('character_equipment')}</h3></div>
         <div class="paperdoll" aria-label="Character silhouette and equipment">
-            ${renderPaperdollStatusIconsHtml()}
             <img class="paperdoll-silhouette" src="assets/images/inventorycharacter.png" alt="" />
             ${renderEquipmentSlot('head', t('equip_slot_head'), characterState?.equipment?.head)}
             ${renderEquipmentSlot('chest', t('equip_slot_chest'), characterState?.equipment?.chest)}
@@ -258,7 +166,6 @@ export function setupCharacterSection(section) {
 
     const skillsCardHtml = renderSkillsCard();
 
-    // Always show tabs — same pattern as Journal.
     section.innerHTML = `<div class="character-tabs" role="tablist" aria-label="Character tabs">
         <button class="character-tab ${initialTab === 'inventory' ? 'active' : ''}" data-tab="inventory" role="tab" aria-selected="${initialTab === 'inventory'}">${t('character_inventory_tab')}${newBadgeHtml(!!hasNewInventoryItems)}</button>
         <button class="character-tab ${initialTab === 'statsSkills' ? 'active' : ''}" data-tab="statsSkills" role="tab" aria-selected="${initialTab === 'statsSkills'}">${t('character_stats_skills_tab')}${newBadgeHtml(!!canSpendPoint)}</button>
@@ -281,7 +188,6 @@ export function setupCharacterSection(section) {
     const panel = section.querySelector('.character-panel');
     panel.classList.toggle('discard-mode', !!discardMode);
 
-    // Tab switching
     const tabs = Array.from(section.querySelectorAll('.character-tab'));
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
@@ -299,7 +205,6 @@ export function setupCharacterSection(section) {
     attachItemTooltips(section);
     attachInventoryNewBadges(section);
     attachStatTooltips(section);
-    attachActiveEffectTooltips(section);
     attachStatAllocationHandlers(section);
     setTimeout(() => {
         const panel = section.querySelector('.character-panel');
@@ -418,16 +323,6 @@ function renderAllocateButtonHtml(allocateKey, opts = {}) {
 
 function renderAllocateSpacerHtml() { return '<span class="stat-allocate-spacer" aria-hidden="true"></span>'; }
 
-function renderUpgradeableStatRow(label, value, opts = {}) {
-    const safeKey = String(label).toLowerCase().replace(/[^a-z0-9_]+/g, '_');
-    const iconHtml = renderStatLabelIconHtml(safeKey);
-    const impactClass = getItemImpactClassForUiStatKey(safeKey, opts.itemImpact);
-    const debuffClass = opts.debuffClass ? String(opts.debuffClass) : '';
-    const btn = opts.allocateKey ? renderAllocateButtonHtml(opts.allocateKey, { disabled: !opts.canSpend, label: `Increase ${label}` }) : '';
-    return `<div class="stat-line" data-stat-line="${safeKey}"><div class="stat-row ${[impactClass, debuffClass].filter(Boolean).join(' ')}" data-stat="${safeKey}">
-        <span class="stat-label">${iconHtml}<span class="stat-label-text">${escapeHtml(label)}</span></span><span class="stat-value">${value}</span></div>${btn}</div>`;
-}
-
 function computeEquippedItemImpact(state = characterState) {
     return {};
 }
@@ -534,31 +429,18 @@ function attachStatTooltips(sectionRoot) {
     const chip = panel.querySelector('[data-stat-points-chip]'); if (chip) setupTooltip(chip, () => buildStatTooltipHTML('stat_points'));
 }
 
-function attachActiveEffectTooltips(sectionRoot) {
-    const panel = sectionRoot.querySelector('.character-panel'); if (!panel) return;
-    panel.querySelectorAll('[data-active-effect]').forEach(btn => {
-        if (!btn || btn.dataset?.wiredTooltip === 'true') return; try { btn.dataset.wiredTooltip = 'true'; } catch { /* ignore */ }
-        const kind = String(btn.dataset.activeEffect || '').trim();
-        if (kind === 'staminaRegen') setupTooltip(btn, () => buildStaminaRegenBuffTooltipHtml());
-        else if (kind === 'hungry') setupTooltip(btn, () => buildSurvivalDebuffTooltipHtml('hungry'));
-        else if (kind === 'thirsty') setupTooltip(btn, () => buildSurvivalDebuffTooltipHtml('thirsty'));
-    });
-}
-
 function buildStatTooltipHTML(statKey) {
     const key = String(statKey || '').toLowerCase(); const stats = computeCharacterStats(characterState);
-    const survivalDebuffs = getSurvivalDebuffStatus(); const displayStats = applySurvivalDebuffsToStats(stats, survivalDebuffs);
     const itemImpact = computeEquippedItemImpact(characterState); const xp = getXPResourceSnapshot(); const alloc = xp?.allocated || {};
     const bullets = items => { const clean = (Array.isArray(items) ? items : []).filter(Boolean).map(String); if (!clean.length) return ''; return `<ul class="tooltip-bullets">${clean.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>`; };
     switch (key) {
         case 'xp': return `<h4>Level</h4><p>Current Level: <strong>${xp.level}</strong></p><p class="tooltip-detail">XP to next level: ${xp.progress} / ${xp.max}</p><div class="tooltip-section"><h4>How It Works</h4><p>Level is derived from total XP. Each level gained grants <strong>3 stat points</strong>.</p><p class="tooltip-detail">Formula: XP to next level = 100 × current level.</p><p class="tooltip-detail">Total XP: ${xp.total.toLocaleString()}</p></div>`;
         case 'stat_points': { const pts = xp?.statPoints || { unspent: 0, total: 0, spent: 0 }; return `<h4>Stat Points</h4><p>Available: <strong>${pts.unspent}</strong></p><p class="tooltip-detail">Spent: ${pts.spent} / ${pts.total}</p><div class="tooltip-section"><h4>How It Works</h4><p>You gain 3 points each Level. Spend them using the + buttons.</p></div>`; }
         case 'health': { const h = getHealthResourceSnapshot(); const pts = Math.max(0, Math.floor(Number(alloc.health) || 0)); return `<h4>Health</h4><p>Current: <strong>${h.current}${h.max > 0 ? ` / ${h.max}` : ''}</strong></p><div class="tooltip-section"><h4>Notes</h4><p>Health is your HP in combat.</p>${bullets([`1 stat point: +5 max Health.`, `Allocated: ${pts} (total: +${pts * 5} max Health).`])}</div>`; }
-        case 'stamina': { const s = getStaminaResourceSnapshot(); const pts = Math.max(0, Math.floor(Number(alloc.stamina) || 0)); const st = getStaminaRegenBuffStatus(characterState); return `<h4>Stamina</h4><p>Current: <strong>${s.current}${s.max > 0 ? ` / ${s.max}` : ''}</strong></p><div class="tooltip-section"><h4>Notes</h4><p>Stamina is your short-term endurance.</p>${bullets([`1 stat point: +5 max Stamina.`, `Allocated: ${pts} (total: +${pts * 5} max Stamina).`])}${st.active ? `<p class="tooltip-detail">Active: ${st.label} (+${st.bonusPerSec}/s, ${formatRemainingMinutes(st.remainingMinutes)} left)</p>` : ''}</div><div class="tooltip-section">${buildStaminaRegenBuffTooltipHtml()}</div>`; }
+        case 'stamina': { const s = getStaminaResourceSnapshot(); const pts = Math.max(0, Math.floor(Number(alloc.stamina) || 0)); return `<h4>Stamina</h4><p>Current: <strong>${s.current}${s.max > 0 ? ` / ${s.max}` : ''}</strong></p><div class="tooltip-section"><h4>Notes</h4><p>Stamina is your short-term endurance.</p>${bullets([`1 stat point: +5 max Stamina.`, `Allocated: ${pts} (total: +${pts * 5} max Stamina).`])}</div>`; }
         default: return `<h4>${escapeHtml(statKey)}</h4><p class="tooltip-detail">No tooltip available.</p>`;
     }
 }
-
 
 function renderSkillsCard() {
     const geoIcon = `<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>`;
@@ -571,8 +453,6 @@ function renderSkillsCard() {
         const name = currentTier ? t(currentTier.nameKey) : (def.tiers[0] ? t(def.tiers[0].nameKey) : skill.id);
         const desc = currentTier ? t(currentTier.descKey) : '';
         const tierLabel = unlocked ? t('skill_tier_label', { tier: toRoman(tier) }) : '';
-        const nextTier = def.tiers.find(t => t.tier === tier + 1);
-        const lockedHint = !unlocked && nextTier && nextTier.milestone ? 'Locked' : '';
 
         return `<div class="skill-item ${unlocked ? 'skill-acquired' : 'skill-locked'}">
             <div class="skill-icon">${geoIcon}</div>
@@ -628,14 +508,6 @@ function updateVitalRowsIfPresent(sectionRoot) {
     const panel = sectionRoot.querySelector('.character-panel'); if (!panel) return;
     updateXPRowIfPresent(panel); updateStatPointsChipIfPresent(panel); updateAllocateButtonsIfPresent(panel);
     ['stamina', 'health'].forEach(k => updateSingleVitalRow(panel, k, k === 'stamina' ? getStaminaResourceSnapshot : getHealthResourceSnapshot, k === 'stamina' ? 'Stamina' : 'Health'));
-    updateActiveEffectsIfPresent(panel);
-}
-
-function updateActiveEffectsIfPresent(panelEl) {
-    const st = getStaminaRegenBuffStatus(characterState); const btn = panelEl.querySelector('[data-active-effect="staminaRegen"]'); if (btn) btn.classList.toggle('hidden', !st.active);
-    const { hungry, thirsty } = getSurvivalDebuffStatus();
-    const hb = panelEl.querySelector('[data-active-effect="hungry"]'); if (hb) hb.classList.toggle('hidden', !hungry);
-    const tb = panelEl.querySelector('[data-active-effect="thirsty"]'); if (tb) tb.classList.toggle('hidden', !thirsty);
 }
 
 function updateXPRowIfPresent(panelEl) { const row = panelEl.querySelector('.stat-row[data-stat="xp"]'); if (!row) return; const xp = getXPResourceSnapshot(); const fill = row.querySelector('.stat-bar-fill'); if (fill) fill.style.width = `${Math.round(xp.percent * 100)}%`; const text = row.querySelector('.stat-value'); if (text) text.textContent = `Lv ${xp.level}`; }
