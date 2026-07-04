@@ -151,7 +151,7 @@ html.is-compact #mainMenu {
 html.is-compact #mainMenu.collapsed {
     width: 40px;
     left: env(safe-area-inset-left, 0px);
-    overflow: hidden;
+    overflow: visible;
 }
 html.is-compact #mainMenu:not(.collapsed) .menu-buttons-container { display: none; }
 html.is-compact #mainMenu.collapsed::before { content: none; display: none; }

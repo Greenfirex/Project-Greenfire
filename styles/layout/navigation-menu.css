@@ -64,7 +64,7 @@
     #mainMenu.collapsed {
         width: 40px;
         left: env(safe-area-inset-left, 0px);
-        overflow: hidden;
+        overflow: visible;
     }
 
     /* When expanded in compact mode, use the drawer for the log (icons handle navigation) */

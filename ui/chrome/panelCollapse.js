@@ -162,4 +162,87 @@ function initPanelCollapse() {
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', initPanelCollapse);
 
+// ==========================================================================
+// Swipe gestures for compact mode (phone-landscape)
+// ==========================================================================
+
+let _swipeStartX = 0;
+let _swipeStartY = 0;
+const SWIPE_THRESHOLD = 50;   // minimum horizontal distance for swipe
+const SWIPE_EDGE_ZONE = 0.20; // 20% from screen edge
+
+function onTouchStart(e) {
+    if (e.touches.length !== 1) return;
+    let compact = false;
+    try { compact = isCompactPhoneLandscape(); } catch { /* ignore */ }
+    if (!compact) return;
+    _swipeStartX = e.touches[0].clientX;
+    _swipeStartY = e.touches[0].clientY;
+}
+
+function onTouchEnd(e) {
+    let compact = false;
+    try { compact = isCompactPhoneLandscape(); } catch { /* ignore */ }
+    if (!compact) return;
+    if (!_swipeStartX) return;
+
+    const dx = (e.changedTouches[0]?.clientX || 0) - _swipeStartX;
+    const dy = (e.changedTouches[0]?.clientY || 0) - _swipeStartY;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    // Must be primarily horizontal
+    if (absDx < SWIPE_THRESHOLD || absDx < absDy * 1.5) return;
+
+    const vw = window.innerWidth;
+    const startFraction = _swipeStartX / vw;
+
+    // Swipe right from left edge → expand left panel
+    if (dx > 0 && startFraction < SWIPE_EDGE_ZONE) {
+        if (leftPanelCollapsed) {
+            e.preventDefault();
+            toggleMainMenuCollapse();
+        }
+    }
+
+    // Swipe left from right edge → expand right panel
+    if (dx < 0 && startFraction > (1 - SWIPE_EDGE_ZONE)) {
+        if (rightPanelCollapsed) {
+            e.preventDefault();
+            toggleInfoPanelCollapse();
+        }
+    }
+
+    // Swipe left on expanded left panel → collapse
+    if (dx < 0 && !leftPanelCollapsed) {
+        const mainMenu = document.getElementById('mainMenu');
+        if (mainMenu && !mainMenu.classList.contains('collapsed')) {
+            // Only if touch started within the expanded panel
+            const menuRect = mainMenu.getBoundingClientRect();
+            if (_swipeStartX >= menuRect.left && _swipeStartX <= menuRect.right) {
+                e.preventDefault();
+                toggleMainMenuCollapse();
+            }
+        }
+    }
+
+    // Swipe right on expanded right panel → collapse
+    if (dx > 0 && !rightPanelCollapsed) {
+        const infoPanel = document.getElementById('infoPanel');
+        if (infoPanel && !infoPanel.classList.contains('collapsed')) {
+            const panelRect = infoPanel.getBoundingClientRect();
+            if (_swipeStartX >= panelRect.left && _swipeStartX <= panelRect.right) {
+                e.preventDefault();
+                toggleInfoPanelCollapse();
+            }
+        }
+    }
+
+    _swipeStartX = 0;
+    _swipeStartY = 0;
+}
+
+document.addEventListener('touchstart', onTouchStart, { passive: false });
+document.addEventListener('touchend', onTouchEnd, { passive: false });
+
 export { initPanelCollapse, toggleMainMenuCollapse, toggleInfoPanelCollapse };
