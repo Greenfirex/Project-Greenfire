@@ -50,7 +50,7 @@
     #mainMenu {
         position: absolute;
         top: 0;
-        left: 0;
+        left: env(safe-area-inset-left, 0px);
         bottom: 0;
         height: auto;
         width: min(280px, 78vw);
@@ -90,9 +90,8 @@
         height: 34px;
     }
 
-    /* Match the right drawer: keep the left drawer button offset past safe area */
     .panel-collapse-btn.left-panel {
-        right: calc(3px + env(safe-area-inset-left, 0px));
+        right: 3px;
         width: 34px;
         height: 34px;
     }

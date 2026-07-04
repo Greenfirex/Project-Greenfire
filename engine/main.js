@@ -2,6 +2,8 @@ import { resources, updateResourceInfo, setupInfoPanel, roundResourceAmount, ini
 import { preloader } from '../ui/system/preloader.js';
 import { gameFlags } from './gameFlags.js';
 import { setupLocationSection, updateLocationActionButtonsState } from '../sections/locations/locationEngine.js';
+import { getAllLocations } from '../sections/locations/locationData.js';
+import { items } from '../sections/character/items.js';
 import { refreshUI } from '../sections/locations/locationUi.js';
 import { setupJournalSection } from '../sections/journal/journal.js';
 import { setupCharacterSection } from '../sections/character/characterSection.js';
@@ -71,6 +73,23 @@ document.addEventListener('DOMContentLoaded', () => {
     preloader.register('titleScreen', 30);
 
     preloader.startImagePreloading();
+
+    // Preload all location images so they're cached during preloader phase.
+    // This prevents black flash when entering a location on mobile.
+    try {
+        const locs = getAllLocations();
+        const imageUrls = Object.values(locs)
+            .filter(l => l.image)
+            .map(l => new URL(l.image, window.location.href).href);
+        preloader.preloadUrls(imageUrls);
+
+        // Preload all item icons so they're cached before Character panel opens.
+        const itemIconUrls = items
+            .filter(item => item.icon)
+            .map(item => new URL(item.icon, window.location.href).href);
+        preloader.preloadUrls(itemIconUrls);
+    } catch { /* preload is best-effort */ }
+
     preloader.progress('core', 0.5, 'Initializing...');
 
     try { initOptions(); } catch { /* ignore */ }

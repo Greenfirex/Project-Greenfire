@@ -30,6 +30,7 @@ let _animFrame = null;
 let _displayedProgress = 0;  // what the user sees (lerps toward real progress)
 let _dismissTimer = null;
 let _allReady = false;
+let _dismissPending = false;
 
 // ==========================================================================
 // Auto-discover all image assets used in the page
@@ -195,15 +196,22 @@ function startSmoothAnimation() {
     _animFrame = requestAnimationFrame(tick);
 }
 
+function isPortrait() {
+    try {
+        const vv = window.visualViewport;
+        const w = vv?.width || window.innerWidth || 0;
+        const h = vv?.height || window.innerHeight || 0;
+        return w > 0 && h > 0 && w < h;
+    } catch { return false; }
+}
+
 function doDismiss() {
     if (dismissed) return;
 
-    // Enforce minimum show time so the preloader is visible even on fast loads.
-    const elapsed = Date.now() - _showTime;
-    if (elapsed < MIN_SHOW_MS) {
-        if (!_dismissTimer) {
-            _dismissTimer = setTimeout(() => doDismiss(), MIN_SHOW_MS - elapsed);
-        }
+    // If still portrait, don't dismiss — wait for landscape.
+    // This keeps the preloader as a curtain until the user rotates.
+    if (isPortrait()) {
+        _dismissPending = true;
         return;
     }
 
@@ -305,6 +313,33 @@ export const preloader = {
     startImagePreloading() {
         preloadAllImages();
     },
+
+    /**
+     * Preload specific URLs (e.g. location images) so they're cached before the game starts.
+     * Each URL is loaded via new Image() and counted toward the 'images' category.
+     * @param {string[]} urls - Array of absolute or relative image URLs.
+     */
+    preloadUrls(urls) {
+        if (!Array.isArray(urls) || urls.length === 0) return;
+        if (!categories.has('images')) {
+            this.register('images', 20);
+        }
+        const cat = categories.get('images');
+        imagesTotal += urls.length;
+
+        urls.forEach(url => {
+            const img = new Image();
+            const onDone = () => {
+                imagesLoaded++;
+                const fraction = imagesTotal > 0 ? imagesLoaded / imagesTotal : 1;
+                const label = `Images (${imagesLoaded}/${imagesTotal})`;
+                preloader.progress('images', fraction, label);
+            };
+            img.onload = onDone;
+            img.onerror = onDone;
+            img.src = url;
+        });
+    },
 };
 
 // ==========================================================================
@@ -342,6 +377,20 @@ export const preloader = {
         const loaderText = pl.querySelector('.preloader-text');
         if (loaderText) loaderText.style.display = 'none';
     }
+
+    // Listen for orientation changes — if preloader is waiting in portrait,
+    // retry dismiss when user rotates to landscape.
+    const tryDismissOnLandscape = () => {
+        if (_dismissPending && !dismissed && !isPortrait()) {
+            _dismissPending = false;
+            doDismiss();
+        }
+    };
+    window.addEventListener('resize', tryDismissOnLandscape, { passive: true });
+    window.addEventListener('orientationchange', tryDismissOnLandscape, { passive: true });
+    try {
+        window.visualViewport?.addEventListener('resize', tryDismissOnLandscape, { passive: true });
+    } catch { /* ignore */ }
 
     // Safety fallback: if no progress is reported within 200ms,
     // start the animation anyway so the bar always fills.

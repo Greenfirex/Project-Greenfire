@@ -150,17 +150,23 @@ function ensureRotateOverlay() {
         el.addEventListener('pointerdown', async () => {
             await requestLandscapeLock();
         }, { passive: true });
+
+        document.body.appendChild(el);
     }
 
-    // Always update content for language changes
-    el.innerHTML = `
-        <div class="rotate-overlay-card" role="dialog" aria-modal="true" aria-label="${t('rotate_title')}">
-            <div class="rotate-overlay-title">${t('rotate_title')}</div>
-            <div class="rotate-overlay-subtitle">${t('rotate_subtitle')}</div>
-        </div>
-    `;
+    // Only update innerHTML on first create or when language changes.
+    // We detect language change by checking whether the title differs.
+    const currentTitle = el.querySelector('.rotate-overlay-title')?.textContent || '';
+    const newTitle = t('rotate_title');
+    if (currentTitle !== newTitle) {
+        el.innerHTML = `
+            <div class="rotate-overlay-card" role="dialog" aria-modal="true" aria-label="${newTitle}">
+                <div class="rotate-overlay-title">${newTitle}</div>
+                <div class="rotate-overlay-subtitle">${t('rotate_subtitle')}</div>
+            </div>
+        `;
+    }
 
-    document.body.appendChild(el);
     return el;
 }
 
