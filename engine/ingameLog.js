@@ -99,7 +99,9 @@ function flushLogBatch() {
 
     // Build all entries
     const fragments = [];
-    for (const { message, type, options } of entries) {
+    const entryCount = entries.length;
+    for (let i = 0; i < entryCount; i++) {
+        const { message, type, options } = entries[i];
         if (logSettings.filters[type]) continue;
 
         const logEntry = document.createElement('div');
@@ -120,7 +122,7 @@ function flushLogBatch() {
         // Determine if this entry should be typewriter-animated.
         // Only animate the LAST entry in a batch (if any), and only
         // when no typewriter is already running.
-        const isLast = (entry === entries[entries.length - 1]);
+        const isLast = (i === entryCount - 1);
         const shouldAnimate = isLast && logSettings.typewriterMode !== false && !_typewriterTarget;
 
         if (shouldAnimate) {
