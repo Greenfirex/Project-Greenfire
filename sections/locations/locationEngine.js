@@ -25,6 +25,18 @@ export let actionPaused = false;
 export let _fullRebuildNeeded = true;
 let actionTimer = null;
 let _infoUpdateCounter = 0;
+// True while the tab/app is backgrounded (visibilitychange). The action tick
+// interval keeps running (setInterval isn't cleared) but skips doing any work,
+// so no queued callbacks pile up and fire in a burst when focus returns.
+let _actionTimerSuspended = false;
+try {
+    if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+            _actionTimerSuspended = document.visibilityState === 'hidden';
+        });
+    }
+} catch { /* ignore */ }
+
 
 export function getResourceByName(name) {
     return resources.find(res => res && String(res.name) === String(name));
@@ -467,10 +479,20 @@ export function startAction(actionId) {
     actionTimer = setInterval(() => {
         if (!activeAction) { clearActionTimer(); return; }
         if (actionPaused) return;
+        // Skip ticking while the tab/app is backgrounded — prevents a burst of
+        // queued setInterval callbacks (and their cascading DOM/log updates)
+        // from firing all at once when the tab regains focus, which is what
+        // caused the mobile freeze after returning from background.
+        if (_actionTimerSuspended) return;
+
         const tickSecs = TICK_SECONDS * getGameSpeed();
         actionProgress = parseFloat((actionProgress + tickSecs).toFixed(10));
         advanceIngameTimeBySeconds(tickSecs);
         applyTimePassiveDrain(tickSecs);
+        // Akce mohla být zrušena během drainu — smrt hráče
+        // dispatchnuje 'force-cancel-action', cancelActiveAction()
+        // nastaví activeAction = null uprostřed tohoto ticku.
+        if (!activeAction) { clearActionTimer(); return; }
         updateClockDisplay();
         updateActionButtonsDynamic();
         if (activeAction && !activeAction._completed) {

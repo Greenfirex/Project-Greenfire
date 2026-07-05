@@ -33,6 +33,7 @@ function getResource(name) {
 
 /**
  * Update all vitals orbs with current resource values.
+ * Uses in-place textContent + CSS variable updates — no innerHTML.
  */
 export function updateInfoVitals() {
     const orbs = document.querySelectorAll('.info-vital-orb');
@@ -173,16 +174,30 @@ function setupEffectsStrip(panelEl) {
     panelEl.appendChild(strip);
 }
 
+/**
+ * In-place update: only rebuilds effects dots when the set of active effects
+ * actually changes. Otherwise skips DOM entirely.
+ */
+let _lastEffectIds = '';
+
 function renderEffectsDots(container) {
     if (!container) return;
-    container.innerHTML = '';
 
     if (!activeEffects || activeEffects.length === 0) {
         container.classList.add('hidden');
+        _lastEffectIds = '';
         return;
     }
 
+    // Fast check: has the set of effect IDs changed?
+    const currentIds = activeEffects.map(e => e.id).join(',');
+    if (currentIds === _lastEffectIds) return; // no change — skip DOM
+
+    _lastEffectIds = currentIds;
     container.classList.remove('hidden');
+
+    // Only rebuild when effects changed (rare — only on effect add/remove)
+    container.innerHTML = '';
 
     const visible = activeEffects.slice(0, MAX_VISIBLE_EFFECTS);
     const overflow = activeEffects.length - MAX_VISIBLE_EFFECTS;
@@ -199,24 +214,20 @@ function renderEffectsDots(container) {
             if (effect.debuffs) {
                 tagsHtml = Object.entries(effect.debuffs).map(([resName, rate]) => {
                     const sign = rate >= 0 ? '+' : '';
-                    return `<span class="effect-debuff-tag">${resName} ${sign}${Number(rate).toFixed(1)}/min</span>`;
-                }).join('');
+                    return `<span class="effect-debuff-tag">${resName} ${sign}${rate.toFixed(1)}/min</span>`;
+                }).join(' ');
             }
-            return `<h4>${name}</h4><p>${desc}</p>${tagsHtml ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">${tagsHtml}</div>` : ''}`;
+            return `<h4>${effect.icon || ''} ${name}</h4><p>${desc}</p>${tagsHtml ? `<div class="effect-debuffs">${tagsHtml}</div>` : ''}`;
         });
 
         container.appendChild(dot);
     });
 
     if (overflow > 0) {
-        const overflowDot = document.createElement('span');
-        overflowDot.className = 'info-effect-dot info-effect-overflow';
-        overflowDot.textContent = `+${overflow}`;
-
-        const names = activeEffects.slice(MAX_VISIBLE_EFFECTS).map(e => t(e.nameKey)).join(', ');
-        setupTooltip(overflowDot, () => `<h4>+${overflow} more</h4><p>${names}</p>`);
-
-        container.appendChild(overflowDot);
+        const more = document.createElement('span');
+        more.className = 'info-effect-dot effect-more';
+        more.textContent = `+${overflow}`;
+        container.appendChild(more);
     }
 }
 
@@ -262,16 +273,20 @@ const AREA_ICONS = {
     'area_water': '💦',
 };
 
+/**
+ * Update area vitals in-place — no innerHTML wipe.
+ * Only rebuilds the DOM when the set of revealed resources changes.
+ */
+let _lastAreaResourceIds = '';
+
 export function updateAreaVitals() {
     // Collect all revealed area resources across locations
-    // Only show resources from locations that have been revealed via game actions
     const revealedResources = [];
     for (const locId of Object.keys(areaResources)) {
         if (!isAreaRevealed(locId)) continue;
         const list = areaResources[locId];
         if (!Array.isArray(list)) continue;
         for (const res of list) {
-            // Deduplicate by name
             if (!revealedResources.find(r => r.name === res.name)) {
                 revealedResources.push(res);
             }
@@ -281,36 +296,67 @@ export function updateAreaVitals() {
     const areaContainer = document.querySelector('#infoPanel .info-area-vitals');
     if (!areaContainer) return;
 
-    // Rebuild area orbs
-    areaContainer.innerHTML = '';
+    // Fast check: has the set of revealed resources changed?
+    const currentIds = revealedResources.map(r => r.name).join(',');
+    if (currentIds !== _lastAreaResourceIds) {
+        _lastAreaResourceIds = currentIds;
+        // Full rebuild only when resources are added/removed (rare)
+        areaContainer.innerHTML = '';
 
-    if (revealedResources.length === 0) return;
+        if (revealedResources.length === 0) return;
 
-    revealedResources.forEach(res => {
-        const orb = document.createElement('div');
-        orb.className = 'info-vital-orb';
-        orb.dataset.vital = AREA_VITAL_ATTR[res.name] || '';
-        orb.dataset.vitalName = res.name;
+        revealedResources.forEach(res => {
+            const orb = document.createElement('div');
+            orb.className = 'info-vital-orb';
+            orb.dataset.vital = AREA_VITAL_ATTR[res.name] || '';
+            orb.dataset.vitalName = res.name;
 
-        const max = Number(res.capacity) || 1;
+            const max = Number(res.capacity) || 1;
+            const amount = Math.floor(Number(res.amount) || 0);
+            const pct = Math.min(100, Math.round((amount / max) * 100));
+            orb.style.setProperty('--fill', `${pct}%`);
+
+            const text = document.createElement('div');
+            text.className = 'orb-text';
+            text.innerHTML = `
+                <span class="orb-current">${amount}</span>
+                <span class="orb-max">${max}</span>
+            `;
+            orb.appendChild(text);
+            areaContainer.appendChild(orb);
+
+            // Tooltip (set once on creation)
+            setupTooltip(orb, () => {
+                const emoji = AREA_ICONS[res.name] || '';
+                const locName = t('area_' + res.name.replace('area_', '')) || res.name;
+                const curAmt = Math.floor(Number(res.amount) || 0);
+                const curMax = Number(res.capacity) || 1;
+                const curPct = Math.min(100, Math.round((curAmt / curMax) * 100));
+                return `<h4>${emoji} ${locName}</h4><p>${curAmt} / ${curMax} (${curPct}%)</p>`;
+            });
+        });
+        return;
+    }
+
+    // In-place update: only CSS vars and textContent (fast path, called 10×/s)
+    const orbs = areaContainer.querySelectorAll('.info-vital-orb');
+    orbs.forEach(orb => {
+        const vitalName = orb.dataset.vitalName;
+        if (!vitalName) return;
+
+        const res = revealedResources.find(r => r.name === vitalName);
+        if (!res) return;
+
         const amount = Math.floor(Number(res.amount) || 0);
+        const max = Number(res.capacity) || 1;
         const pct = Math.min(100, Math.round((amount / max) * 100));
+
         orb.style.setProperty('--fill', `${pct}%`);
 
-        const text = document.createElement('div');
-        text.className = 'orb-text';
-        text.innerHTML = `
-            <span class="orb-current">${amount}</span>
-            <span class="orb-max">${max}</span>
-        `;
-        orb.appendChild(text);
-        areaContainer.appendChild(orb);
+        const currentEl = orb.querySelector('.orb-current');
+        if (currentEl) currentEl.textContent = amount;
 
-        // Tooltip
-        setupTooltip(orb, () => {
-            const emoji = AREA_ICONS[res.name] || '';
-            const locName = t('area_' + res.name.replace('area_', '')) || res.name;
-            return `<h4>${emoji} ${locName}</h4><p>${amount} / ${max} (${pct}%)</p>`;
-        });
+        const maxEl = orb.querySelector('.orb-max');
+        if (maxEl) maxEl.textContent = max;
     });
 }

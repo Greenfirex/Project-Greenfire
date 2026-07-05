@@ -540,6 +540,72 @@ function getLogToastType(logEntry) {
     return 'info';
 }
 
+// Global toast-typewriter coordination: only ONE typewriter animation runs at
+// a time across all toasts (rAF-driven, token-based). This prevents dozens of
+// overlapping setTimeout chains from piling up on the main thread when many
+// log entries arrive in quick succession (the root cause of the mobile freeze
+// after several completed actions).
+let _toastTypewriterToken = 0;
+let _toastTypewriterRafId = null;
+
+function cancelToastTypewriter() {
+    _toastTypewriterToken++;
+    if (_toastTypewriterRafId !== null) {
+        cancelAnimationFrame(_toastTypewriterRafId);
+        _toastTypewriterRafId = null;
+    }
+}
+
+/** Finish any in-flight toast typewriter instantly (used before starting a new one). */
+function finishInFlightToastTypewriter() {
+    if (_toastTypewriterActiveEl && _toastTypewriterActiveText) {
+        try { _toastTypewriterActiveEl.textContent = _toastTypewriterActiveText; } catch { /* ignore */ }
+    }
+    _toastTypewriterActiveEl = null;
+    _toastTypewriterActiveText = null;
+    cancelToastTypewriter();
+}
+
+let _toastTypewriterActiveEl = null;
+let _toastTypewriterActiveText = null;
+
+function startToastTypewriter(toast, textEl, fullText) {
+    // Only one typewriter animation runs at a time — finish whatever was
+    // previously animating instantly, then start the new one.
+    finishInFlightToastTypewriter();
+
+    const token = ++_toastTypewriterToken;
+    _toastTypewriterActiveEl = textEl;
+    _toastTypewriterActiveText = fullText;
+
+    const CHARS_PER_FRAME_MS = 14; // ~1 char per 14ms, driven by rAF (throttles naturally when tab backgrounded)
+    let lastCharTime = 0;
+    let i = 0;
+
+    const step = (now) => {
+        if (token !== _toastTypewriterToken) return; // superseded or cancelled
+        if (!document.body.contains(toast)) { return; }
+        if (!lastCharTime) lastCharTime = now;
+
+        if (now - lastCharTime >= CHARS_PER_FRAME_MS) {
+            i++;
+            textEl.textContent = fullText.slice(0, i);
+            lastCharTime = now;
+        }
+
+        if (i < fullText.length) {
+            _toastTypewriterRafId = requestAnimationFrame(step);
+        } else {
+            _toastTypewriterRafId = null;
+            if (_toastTypewriterActiveEl === textEl) {
+                _toastTypewriterActiveEl = null;
+                _toastTypewriterActiveText = null;
+            }
+        }
+    };
+    _toastTypewriterRafId = requestAnimationFrame(step);
+}
+
 function showLogToast(text, logEntry) {
     if (!isActive) return;
     const container = ensureLogToastContainer();
@@ -566,8 +632,6 @@ function showLogToast(text, logEntry) {
     const toast = document.createElement('div');
     toast.className = `log-toast toast-${type}`;
     toast.style.color = color;
-    // Token-based cancel: increment on dismiss, check before each typewriter tick.
-    toast._twToken = 0;
 
     // Close button
     const closeBtn = document.createElement('span');
@@ -594,35 +658,28 @@ function showLogToast(text, logEntry) {
     // Ensure pointer-events are active while toasts exist
     container.style.pointerEvents = 'auto';
 
-    // Typewriter effect — token-based cancel + DOM existence check
     const fullText = String(text || '');
     if (!fullText) return;
-    // Dynamic speed: shorter texts get slower per-character, longer texts faster.
-    // Range: 8ms (fast, for 60+ chars) to 18ms (slow, for short texts).
-    const delayPerChar = Math.max(8, Math.min(18, Math.round(500 / Math.max(1, fullText.length))));
-    let i = 0;
-    const tokenAtStart = toast._twToken;
-    const typeNext = () => {
-        // Abort if toast was dismissed or token changed
-        if (toast._twToken !== tokenAtStart) return;
-        if (!document.body.contains(toast)) return;
-        i++;
-        textEl.textContent = fullText.slice(0, i);
-        if (i < fullText.length) {
-            setTimeout(typeNext, delayPerChar);
-        }
-    };
-    // Small delay so the slide-up animation finishes before typing begins
-    setTimeout(typeNext, 60);
+
+    // Only the single newest toast gets the animated typewriter effect (rAF-driven,
+    // globally coordinated — see startToastTypewriter). Any older toast that was still
+    // animating is finished instantly. This guarantees at most one active typewriter
+    // loop at any time, regardless of how many actions complete in quick succession.
+    startToastTypewriter(toast, textEl, fullText);
 }
 
 function dismissToast(toast) {
     if (!toast || toast.classList.contains('toast-dismissing')) return;
-    // Cancel any in-flight typewriter by incrementing the token.
-    toast._twToken = (toast._twToken || 0) + 1;
+    // If this toast's text was still being typed, finish it instantly and free the slot.
+    if (_toastTypewriterActiveEl && toast.contains(_toastTypewriterActiveEl)) {
+        finishInFlightToastTypewriter();
+    }
     toast.classList.add('toast-dismissing');
 
+    let cleaned = false;
     const cleanup = () => {
+        if (cleaned) return;
+        cleaned = true;
         try { toast.remove(); } catch { /* ignore */ }
         // When container becomes empty, disable pointer-events so the layer doesn't block clicks.
         try {
@@ -631,21 +688,10 @@ function dismissToast(toast) {
         } catch { /* ignore */ }
     };
 
-    toast.addEventListener('animationend', () => cleanup(), { once: true });
+    toast.addEventListener('animationend', cleanup, { once: true });
 
-    // rAF double-check: after 2 frames, if the toast is still in DOM (animation didn't fire on iOS), force remove.
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            if (toast.classList.contains('toast-dismissing') && document.body.contains(toast)) {
-                cleanup();
-            }
-        });
-    });
-
-    // 300ms absolute safety net (fallback if rAF also stalls on iOS).
-    setTimeout(() => {
-        try { if (document.body.contains(toast)) cleanup(); } catch { /* ignore */ }
-    }, 300);
+    // Single safety-net timeout (covers iOS cases where animationend doesn't fire).
+    setTimeout(cleanup, 320);
 }
 
 function updateLogToastsFromContent() {

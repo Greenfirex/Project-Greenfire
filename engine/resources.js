@@ -271,26 +271,14 @@ export function showAreaSuppliesPanel() {
 let _activeAreaDrainRates = null;
 let _actionAreaDrainRates = null;
 
-// --- Defer area resources UI updates to a single rAF tick ---
-let _areaRafId = null;
-
-function scheduleAreaResourcesUIUpdate() {
-    if (!_areaRafId) {
-        _areaRafId = requestAnimationFrame(() => {
-            _areaRafId = null;
-            updateAreaResourcesUI();
-        });
-    }
-}
-
 export function setActiveAreaDrainRates(rates) {
     _activeAreaDrainRates = rates || null;
-    scheduleAreaResourcesUIUpdate();
+    updateAreaResourcesUI();
 }
 
 export function setActionAreaDrainRates(rates) {
     _actionAreaDrainRates = rates || null;
-    scheduleAreaResourcesUIUpdate();
+    updateAreaResourcesUI();
 }
 
 function getAreaResourceDrainRate(resourceName) {
