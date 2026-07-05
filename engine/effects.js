@@ -58,6 +58,34 @@ export const EFFECT_OXYGEN_DEPLETED = {
  *           debuffs?: { staminaCostMultiplier?: number, foodCostMultiplier?: number, waterCostMultiplier?: number }
  * }} effect
  */
+// --- Defer effects UI updates to a single rAF tick ---
+let _effectsDirty = false;
+let _effectsRafId = null;
+
+function scheduleEffectsUIUpdate() {
+    if (_effectsDirty) return;
+    _effectsDirty = true;
+    if (!_effectsRafId) {
+        _effectsRafId = requestAnimationFrame(() => {
+            _effectsRafId = null;
+            _effectsDirty = false;
+            updateEffectsUI();
+        });
+    }
+}
+
+/**
+ * Immediately flush pending effects UI update (used during load/setup).
+ */
+function flushEffectsUI() {
+    if (_effectsRafId) {
+        cancelAnimationFrame(_effectsRafId);
+        _effectsRafId = null;
+    }
+    _effectsDirty = false;
+    updateEffectsUI();
+}
+
 export function addEffect(effect) {
     if (activeEffects.some(e => e.id === effect.id)) return;
     activeEffects.push({
@@ -68,7 +96,7 @@ export function addEffect(effect) {
         debuffs: effect.debuffs || {},
         _addedAt: Date.now(),
     });
-    updateEffectsUI();
+    scheduleEffectsUIUpdate();
 }
 
 /**
@@ -78,7 +106,7 @@ export function removeEffect(id) {
     const idx = activeEffects.findIndex(e => e.id === id);
     if (idx === -1) return;
     activeEffects.splice(idx, 1);
-    updateEffectsUI();
+    scheduleEffectsUIUpdate();
 }
 
 /**
@@ -140,7 +168,7 @@ export function advanceEffectProgress(deltaSeconds) {
         effect.progress = Math.min(effect.maxProgress, (effect.progress || 0) + deltaSeconds);
         changed = true;
     }
-    if (changed) updateEffectsUI();
+    if (changed) scheduleEffectsUIUpdate();
 }
 
 /**
@@ -148,7 +176,7 @@ export function advanceEffectProgress(deltaSeconds) {
  */
 export function clearAllEffects() {
     activeEffects.length = 0;
-    updateEffectsUI();
+    scheduleEffectsUIUpdate();
 }
 
 /**
