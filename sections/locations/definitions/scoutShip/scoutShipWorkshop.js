@@ -2,7 +2,7 @@
 // Location: Scout Ship — Workshop
 // ==========================================================================
 
-import { setMilestone, hasMilestone } from '../../../../engine/gameFlags.js';
+import { setMilestone, hasMilestone, hasLogin } from '../../../../engine/gameFlags.js';
 import { hasSkill } from '../../../character/character.js';
 
 export const scoutShipWorkshop = {
@@ -25,7 +25,17 @@ export const scoutShipWorkshop = {
         {
             id: 'fabricator',
             nameKey: 'poi_fabricator',
-            actions: ['fabricate_amplifier']
+            actions: ['learn_fabricator', 'fabricate_amplifier']
+        },
+        {
+            id: 'garage',
+            nameKey: 'poi_garage',
+            actions: ['inspect_rover', 'inspect_bikes']
+        },
+        {
+            id: 'workshop_terminal',
+            nameKey: 'poi_workshop_terminal',
+            actions: ['inspect_workshop_terminal', 'read_vehicle_manual']
         },
         {
             id: 'travel',
@@ -61,7 +71,11 @@ export const scoutShipWorkshop = {
             durationSeconds: 3,
             oneTime: true,
             resultKey: 'result_grab_login_note',
-            isAvailable(ctx) { return hasMilestone('workbench_searched'); },
+            isAvailable(ctx) {
+                if (!hasMilestone('workbench_searched')) return false;
+                if (hasLogin(ctx.gameFlags.loopKnowledge?.milestones || {})) return false;
+                return true;
+            },
             onComplete(ctx) {
                 setMilestone('login_note_found', () => ctx.persistLoopKnowledge());
                 // If terminals were already examined, retroactively unhide "Use Login Note"
@@ -142,9 +156,30 @@ export const scoutShipWorkshop = {
         },
 
         // ==========================================================================
-        // Comms Panel Repair Chain
+        // Fabricator — learn + comms panel repair chain
         // ==========================================================================
 
+        {
+            id: 'learn_fabricator',
+            nameKey: 'action_learn_fabricator',
+            descKey: 'action_learn_fabricator_desc',
+            category: 'persistent',
+            drain: [],
+            durationSeconds: 30,
+            oneTime: true,
+            isAvailable(ctx) {
+                if (hasMilestone('fabricator_learned')) return false;
+                return true;
+            },
+            getResultKey(ctx) {
+                if (hasMilestone('comms_diagnosed')) return 'result_learn_fabricator_hint';
+                return 'result_learn_fabricator';
+            },
+            onComplete(ctx) {
+                setMilestone('fabricator_learned', () => ctx.persistLoopKnowledge());
+                ctx.setFullRebuildNeeded(true);
+            },
+        },
         {
             id: 'fabricate_amplifier',
             nameKey: 'action_fabricate_amplifier',
@@ -155,7 +190,11 @@ export const scoutShipWorkshop = {
             durationIfRemembered: 15,
             oneTime: true,
             remembersCondition(ctx) { return hasMilestone('comms_repaired'); },
-            isAvailable(ctx) { return hasMilestone('comms_diagnosed'); },
+            isAvailable(ctx) {
+                if (!hasMilestone('fabricator_learned')) return false;
+                if (!hasMilestone('comms_diagnosed')) return false;
+                return true;
+            },
             onStart(ctx) {
                 if (hasMilestone('comms_repaired')) {
                     ctx.action.durationSeconds = ctx.action.durationIfRemembered;
@@ -205,6 +244,118 @@ export const scoutShipWorkshop = {
                 // Consume parts used in assembly
                 ctx.consumeItemQuantityFromBag('signal_amplifier', 1);
                 ctx.consumeItemQuantityFromBag('power_cell', 1);
+            },
+        },
+
+        // ==========================================================================
+        // Terminal & Manual
+        // ==========================================================================
+
+        {
+            id: 'inspect_workshop_terminal',
+            nameKey: 'action_inspect_workshop_terminal',
+            descKey: 'action_inspect_workshop_terminal_desc',
+            category: 'simple',
+            drain: [{ resource: 'Stamina', amount: 1 }],
+            durationSeconds: 5,
+            oneTime: true,
+            getResultKey(ctx) {
+                const loop = ctx.gameFlags.loopCount || 0;
+                if (loop >= 1) return 'result_inspect_workshop_terminal_loop1';
+                return 'result_inspect_workshop_terminal';
+            },
+            onComplete(ctx) {
+                setMilestone('workshop_terminal_inspected', () => ctx.persistLoopKnowledge());
+                ctx.setFullRebuildNeeded(true);
+            },
+        },
+        {
+            id: 'read_vehicle_manual',
+            nameKey: 'action_read_vehicle_manual',
+            descKey: 'action_read_vehicle_manual_desc',
+            category: 'persistent',
+            drain: [],
+            durationSeconds: 90,
+            oneTime: true,
+            resultKey: 'result_read_vehicle_manual',
+            isAvailable(ctx) {
+                if (!hasMilestone('workshop_terminal_inspected')) return false;
+                if (hasMilestone('vehicle_manual_read')) return false;
+                return true;
+            },
+            onComplete(ctx) {
+                setMilestone('vehicle_manual_read', () => ctx.persistLoopKnowledge());
+                ctx.addLogEntry(ctx.t('log_skill_learned', { skill: ctx.t('skill_mechanics_t1_name') }), ctx.LogType.UNLOCK);
+                ctx.setFullRebuildNeeded(true);
+            },
+        },
+
+        // ==========================================================================
+        // Garage — inspect vehicles (loop-aware + skill-aware)
+        // ==========================================================================
+
+        {
+            id: 'inspect_rover',
+            nameKey: 'action_inspect_rover',
+            descKey: 'action_inspect_rover_desc',
+            category: 'simple',
+            drain: [{ resource: 'Stamina', amount: 2 }],
+            requiredSkill: { skill: 'mechanics', tier: 1 },
+            durationSeconds: 8,
+            durationIfRemembered: 3,
+            oneTime: true,
+            onStart(ctx) {
+                const skilled = hasSkill('mechanics', 1);
+                if (!skilled) {
+                    ctx.addLogEntry(ctx.t('log_need_vehicle_manual'), ctx.LogType.INFO);
+                    return { block: true };
+                }
+                if (hasMilestone('rover_inspected')) {
+                    ctx.action.durationSeconds = ctx.action.durationIfRemembered;
+                }
+            },
+            getResultKey(ctx) {
+                const loop = ctx.gameFlags.loopCount || 0;
+                const done = hasMilestone('rover_inspected');
+                if (done && loop >= 2) return 'result_inspect_rover_loop2';
+                if (done && loop >= 1) return 'result_inspect_rover_loop1';
+                return 'result_inspect_rover_skilled';
+            },
+            onComplete(ctx) {
+                setMilestone('rover_inspected', () => ctx.persistLoopKnowledge());
+                ctx.setFullRebuildNeeded(true);
+            },
+        },
+        {
+            id: 'inspect_bikes',
+            nameKey: 'action_inspect_bikes',
+            descKey: 'action_inspect_bikes_desc',
+            category: 'simple',
+            drain: [{ resource: 'Stamina', amount: 1 }],
+            requiredSkill: { skill: 'mechanics', tier: 1 },
+            durationSeconds: 6,
+            durationIfRemembered: 2,
+            oneTime: true,
+            onStart(ctx) {
+                const skilled = hasSkill('mechanics', 1);
+                if (!skilled) {
+                    ctx.addLogEntry(ctx.t('log_need_vehicle_manual'), ctx.LogType.INFO);
+                    return { block: true };
+                }
+                if (hasMilestone('bikes_inspected')) {
+                    ctx.action.durationSeconds = ctx.action.durationIfRemembered;
+                }
+            },
+            getResultKey(ctx) {
+                const loop = ctx.gameFlags.loopCount || 0;
+                const done = hasMilestone('bikes_inspected');
+                if (done && loop >= 2) return 'result_inspect_bikes_loop2';
+                if (done && loop >= 1) return 'result_inspect_bikes_loop1';
+                return 'result_inspect_bikes_skilled';
+            },
+            onComplete(ctx) {
+                setMilestone('bikes_inspected', () => ctx.persistLoopKnowledge());
+                ctx.setFullRebuildNeeded(true);
             },
         },
 

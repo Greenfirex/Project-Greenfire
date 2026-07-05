@@ -363,6 +363,7 @@ export const scoutShipCrewQuarters = {
             },
             onComplete(ctx) {
                 setMilestone('book_read', () => ctx.persistLoopKnowledge());
+                ctx.addLogEntry(ctx.t('log_skill_learned', { skill: ctx.t('skill_engineering_t1_name') }), ctx.LogType.UNLOCK);
             }
         },
         {

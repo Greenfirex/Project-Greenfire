@@ -755,6 +755,12 @@ export const SKILLS = [
             { tier: 2, milestone: null, nameKey: 'skill_engineering_t2_name', descKey: 'skill_engineering_t2_desc' },
         ]
     },
+    {
+        id: 'mechanics',
+        tiers: [
+            { tier: 1, milestone: 'vehicle_manual_read', nameKey: 'skill_mechanics_t1_name', descKey: 'skill_mechanics_t1_desc' },
+        ]
+    },
 ];
 
 export function getSkillDefinition(skillId) {
