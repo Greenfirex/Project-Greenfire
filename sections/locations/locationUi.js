@@ -44,6 +44,36 @@ export function clearHoverState() {
     _hoverActionId = null;
 }
 
+/**
+ * Lightweight action selection — only toggles CSS classes and updates details.
+ * Avoids full innerHTML rebuild (expensive on mobile).
+ * @param {string|null} actionId - action to select, or null to deselect
+ */
+function selectActionLight(actionId) {
+    const prevId = selectedActionId;
+    setSelectedActionId(actionId);
+
+    // Update button CSS classes — remove is-selected from old, add to new
+    const actionsHost = document.querySelector('#locationsActionsTile');
+    if (actionsHost) {
+        if (prevId) {
+            const prevBtn = actionsHost.querySelector(`.location-action-btn[data-action-id="${prevId}"]`);
+            if (prevBtn) prevBtn.classList.remove('is-selected');
+        }
+        if (actionId) {
+            const newBtn = actionsHost.querySelector(`.location-action-btn[data-action-id="${actionId}"]`);
+            if (newBtn) newBtn.classList.add('is-selected');
+        }
+    }
+
+    // Update details tile content
+    const detailsHost = document.querySelector('#locationsDetailsTile');
+    if (detailsHost) {
+        detailsHost.innerHTML = renderDetailsTile();
+        wireDebuffTooltips(detailsHost);
+    }
+}
+
 export function renderLocationTile(location) {
     const imgHtml = location.image ? `<div class="location-location-image" style="max-height:none;flex:1 1 auto;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="${location.image}" alt="${t(location.nameKey)}" style="width:100%;height:100%;object-fit:contain;" /></div>` : '';
     return `<div class="location-card location-card-location game-scrollbar"><div class="location-card-header"><h3>${t(location.nameKey)}</h3></div>${imgHtml}</div>`;
@@ -333,9 +363,6 @@ export function renderActionsTile(location) {
         }
     });
 
-    // DEBUG: Log unlock state
-    console.log(`Location: ${location.id}, Unlock State:`, unlockState, `Filtered Actions:`, actions.map(a => a.id));
-
     return renderActionsTileWithPOIs(location, actions);
 }
 
@@ -566,9 +593,7 @@ export function refreshUI() {
             if (e.target.closest('.tooltip, button, a, input, .debuff-icon, .detail-cost-debuff-badge')) return;
             if (selectedActionId !== null) {
                 _hoverActionId = null;
-                setSelectedActionId(null);
-                setFullRebuildNeeded(true);
-                refreshUI();
+                selectActionLight(null);
             }
         };
         detailsHost.addEventListener('click', detailsHost._deselectHandler);
@@ -658,8 +683,7 @@ function wireActionButtons(actionsHost) {
                 if (act) {
                     // Don't queue one-time actions more than once — just select to review
                     if (act.oneTime && isInQueue(actionId)) {
-                        setSelectedActionId(actionId);
-                        setFullRebuildNeeded(true); refreshUI();
+                        selectActionLight(actionId);
                         return;
                     }
                     addToQueue({
@@ -679,10 +703,9 @@ function wireActionButtons(actionsHost) {
         if (pauseIcon) { e.stopPropagation(); e.preventDefault(); pauseAction(); return; }
         if (stopIcon) { e.stopPropagation(); e.preventDefault(); cancelActiveAction(); return; }
         e.stopPropagation();
-        if (selectedActionId === actionId && activeActionId !== actionId) setSelectedActionId(null);
-        else if (activeActionId === actionId && actionPaused) setSelectedActionId(actionId);
-        else setSelectedActionId(actionId);
-        setFullRebuildNeeded(true); refreshUI();
+        if (selectedActionId === actionId && activeActionId !== actionId) selectActionLight(null);
+        else if (activeActionId === actionId && actionPaused) selectActionLight(actionId);
+        else selectActionLight(actionId);
     }); });
     // Wire hover to clear "!" badges (persists so badges don't reappear on rebuild)
     const newBadgeBtns = actionsHost.querySelectorAll('.location-action-btn.has-new-badge');

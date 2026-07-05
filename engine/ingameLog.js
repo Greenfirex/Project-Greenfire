@@ -105,9 +105,14 @@ export function addLogEntry(message, type, options = {}) {
     logContent.scrollTop = logContent.scrollHeight;
 
     // Typewriter effect or instant text.
-    if (logSettings.typewriterMode !== false) {
+    // Skip animation when a previous typewriter is still running (prevents
+    // stuttering on mobile when multiple log entries arrive rapidly, e.g.,
+    // action start + effect + resource warnings all in the same tick).
+    if (logSettings.typewriterMode !== false && !_typewriterTarget) {
         startTypewriter(logEntry, String(message));
     } else {
+        // If another typewriter was active, cancel it and show text instantly
+        if (_typewriterTarget) cancelTypewriter();
         logEntry.textContent = String(message);
     }
 }

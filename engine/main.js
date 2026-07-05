@@ -239,11 +239,20 @@ function startGame({ mode = 'continue' } = {}) {
         if (gameLoopInterval) return;
         lastUpdateTime = Date.now();
 
+        let _lastResourceHash = '';
+
         gameLoopInterval = setInterval(() => {
             const now = Date.now();
             lastUpdateTime = now;
 
-            updateResourceInfo();
+            // Only update resource info if values actually changed (avoids wasted DOM writes)
+            // Hash is computed from amounts only — fast string concat, no JSON.stringify
+            const hash = resources.map(r => (r && Number.isFinite(r.amount)) ? r.amount.toFixed(4) : '0').join('|');
+            if (hash !== _lastResourceHash) {
+                _lastResourceHash = hash;
+                updateResourceInfo();
+            }
+
             checkConditions();
 
             try { recomputeObjectives(); } catch (e) { /* non-fatal */ }
