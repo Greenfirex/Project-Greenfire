@@ -409,7 +409,7 @@ function attachInventoryNewBadges(sectionRoot) {
         if (!characterState?.bagUiNew?.[idx]) return;
         if (slotEl.dataset?.invUiNewWired === 'true') return;
         try { slotEl.dataset.invUiNewWired = 'true'; } catch { /* ignore */ }
-        const clear = () => { try { if (characterState.bagUiNew?.[idx]) { characterState.bagUiNew[idx] = false; slotEl.querySelector('.action-new-badge')?.remove(); if (!hasAnyNewInventoryItems()) sectionRoot.querySelector('.character-tab[data-tab="inventory"]')?.querySelector('.action-new-badge')?.remove(); import('../engine/saveload.js').then(m => m?.saveGameStateQuiet?.()); } } catch { /* ignore */ } };
+        const clear = () => { try { if (characterState.bagUiNew?.[idx]) { characterState.bagUiNew[idx] = false; slotEl.querySelector('.action-new-badge')?.remove(); if (!hasAnyNewInventoryItems()) sectionRoot.querySelector('.character-tab[data-tab="inventory"]')?.querySelector('.action-new-badge')?.remove(); import('../../engine/saveload.js').then(m => m?.saveGameStateQuiet?.()); } } catch { /* ignore */ } };
         slotEl.addEventListener('mouseenter', clear); slotEl.addEventListener('focus', clear);
         slotEl.addEventListener('pointerdown', clear, { passive: true }); slotEl.addEventListener('touchstart', clear, { passive: true });
     });
@@ -576,7 +576,7 @@ function onDragEnd() { currentDragPayload = null; clearAllDropVisuals(); }
 function onDragOver(event, target) { const payload = getCurrentPayload(event); if (!payload) return; if (isDropAllowed(payload, target)) event.preventDefault(); event.currentTarget?.classList?.toggle('drop-ok', isDropAllowed(payload, target)); }
 function onDrop(event, target, sectionRoot) { const payload = getCurrentPayload(event); if (!payload) return; event.preventDefault(); clearDropVisual(event.currentTarget); if (!isDropAllowed(payload, target)) return; if (performDrop(payload, target)) { currentDragPayload = null; commitCharacterChange(sectionRoot); } else { currentDragPayload = null; clearAllDropVisuals(); } }
 
-function commitCharacterChange(sectionRoot) { import('../engine/saveload.js').then(m => m?.saveGameStateQuiet?.()); setupCharacterSection(sectionRoot); }
+function commitCharacterChange(sectionRoot) { import('../../engine/saveload.js').then(m => m?.saveGameStateQuiet?.()); setupCharacterSection(sectionRoot); }
 function autoEquipFromBag(bagIndex) { if (!Array.isArray(characterState?.bag) || !Number.isInteger(bagIndex) || bagIndex < 0 || bagIndex >= characterState.bag.length) return false; const entry = characterState.bag[bagIndex]; if (!entry || typeof entry !== 'string') return false; const def = getItemDefinition(entry); if (!def) return false; let targetSlot = def.slot === 'accessory' ? (!characterState?.equipment?.accessory_1 ? 'accessory_1' : (!characterState?.equipment?.accessory_2 ? 'accessory_2' : 'accessory_1')) : def.slot; return canEquipItemToSlot(entry, targetSlot) && moveBagItemToEquip(bagIndex, targetSlot); }
 function autoUnequipToFirstEmptyBag(equipSlot) { const s = String(equipSlot || ''); const eq = characterState?.equipment?.[s]; if (!eq) return false; const bag = characterState?.bag; if (!Array.isArray(bag)) return false; const empty = bag.findIndex(x => !x); return empty >= 0 && moveEquipItemToBag(s, empty); }
 
