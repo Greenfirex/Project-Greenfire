@@ -501,7 +501,14 @@ function installGlobalCharacterListeners() {
     window.addEventListener('character-state-changed', () => refreshCharacterSectionIfVisible());
     window.addEventListener('game-state-applied', () => { const s = document.getElementById('characterSection'); if (s) setupCharacterSection(s); });
     window.addEventListener('gameReset', () => { const s = document.getElementById('characterSection'); if (s) setupCharacterSection(s); });
-    window.addEventListener('resources-updated', () => { const s = document.getElementById('characterSection'); if (s) updateVitalRowsIfPresent(s); });
+    // Only update vital rows when characterSection is visible to avoid wasted DOM work.
+    window.addEventListener('resources-updated', () => {
+        try {
+            const s = document.getElementById('characterSection');
+            if (!s || s.classList.contains('hidden')) return;
+            updateVitalRowsIfPresent(s);
+        } catch { /* ignore */ }
+    });
 }
 
 function updateVitalRowsIfPresent(sectionRoot) {
@@ -525,6 +532,11 @@ function updateSingleVitalRow(panelEl, statKey, getSnapshotFn, label) {
 
 function attachDnDHandlers(sectionRoot) {
     const panel = sectionRoot.querySelector('.character-panel'); if (!panel) return;
+    // Skip re-attachment if we already wired this section (prevents event listener leaks
+    // when setupCharacterSection is called repeatedly on tab switches).
+    // NOTE: flag is on sectionRoot, NOT panel, because panel is wiped by section.innerHTML = ''.
+    if (sectionRoot.dataset.dndWired === 'true') return;
+    sectionRoot.dataset.dndWired = 'true';
     panel.querySelectorAll('.bag-slot').forEach(slotEl => {
         slotEl.addEventListener('dragstart', e => onDragStart(e, { type: 'bag', index: Number(slotEl.dataset.slot) }));
         slotEl.addEventListener('dragend', onDragEnd); slotEl.addEventListener('dragover', e => onDragOver(e, { type: 'bag', index: Number(slotEl.dataset.slot) }));
