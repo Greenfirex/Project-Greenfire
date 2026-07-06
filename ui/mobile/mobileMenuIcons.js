@@ -542,12 +542,24 @@ function initMobileMenuIcons() {
             attributeFilter: ['class']
         });
 
-        // Re-render on compact-mode changes (rotate, PWA mode, etc)
+        // Re-render on compact-mode changes (rotate, PWA mode, etc).
+        // Throttled via rAF because iOS Safari fires resize events at ~60Hz
+        // during scroll (URL bar hide/show), which would cause innerHTML rebuilds
+        // every 16ms and freeze the game on mobile.
+        let _railResizeRaf = null;
+        function renderRailThrottled() {
+            if (!_railResizeRaf) {
+                _railResizeRaf = requestAnimationFrame(() => {
+                    _railResizeRaf = null;
+                    try { renderRail(); } catch { /* ignore */ }
+                });
+            }
+        }
         try {
-            window.addEventListener('compactmodechange', () => renderRail());
-            window.addEventListener('resize', () => renderRail(), { passive: true });
-            window.addEventListener('orientationchange', () => renderRail(), { passive: true });
-            window.visualViewport?.addEventListener('resize', () => renderRail(), { passive: true });
+            window.addEventListener('compactmodechange', () => renderRailThrottled());
+            window.addEventListener('resize', () => renderRailThrottled(), { passive: true });
+            window.addEventListener('orientationchange', () => renderRailThrottled(), { passive: true });
+            window.visualViewport?.addEventListener('resize', () => renderRailThrottled(), { passive: true });
         } catch { /* ignore */ }
 
         // Re-render when collapsing/expanding (class changes on #mainMenu)

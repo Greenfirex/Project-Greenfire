@@ -177,23 +177,23 @@ function setupEffectsStrip(panelEl) {
 /**
  * In-place update: only rebuilds effects dots when the set of active effects
  * actually changes. Otherwise skips DOM entirely.
+ * Uses container.dataset to cache per-container (fixes shared-cache bug
+ * where panel strip would consume the cache and hide updates from footer strip).
  */
-let _lastEffectIds = '';
-
 function renderEffectsDots(container) {
     if (!container) return;
 
     if (!activeEffects || activeEffects.length === 0) {
         container.classList.add('hidden');
-        _lastEffectIds = '';
+        delete container.dataset._lastIds;
         return;
     }
 
-    // Fast check: has the set of effect IDs changed?
+    // Fast check: has the set of effect IDs changed for THIS container?
     const currentIds = activeEffects.map(e => e.id).join(',');
-    if (currentIds === _lastEffectIds) return; // no change — skip DOM
+    if (currentIds === container.dataset._lastIds) return; // no change — skip DOM
 
-    _lastEffectIds = currentIds;
+    container.dataset._lastIds = currentIds;
     container.classList.remove('hidden');
 
     // Only rebuild when effects changed (rare — only on effect add/remove)

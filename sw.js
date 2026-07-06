@@ -3,7 +3,7 @@
    - Stale-while-revalidate for same-origin static assets (css/js/images).
 */
 
-const SW_VERSION = 'greenfire-sw-v3';
+const SW_VERSION = 'greenfire-sw-v5';
 const STATIC_CACHE = `${SW_VERSION}-static`;
 const RUNTIME_CACHE = `${SW_VERSION}-runtime`;
 

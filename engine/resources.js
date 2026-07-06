@@ -743,7 +743,8 @@ export function updateResourceInfo() {
     // Update mobile compact vitals orbs and effects strip
     updateInfoVitals();
     updateAreaVitals();
-    updateEffectsStrip();
+    // updateEffectsStrip() is now called from addEffect/removeEffect/clearAllEffects
+    // in engine/effects.js — no need to poll it 10×/s from game loop
 }
 
 // ==========================================================================
