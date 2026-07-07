@@ -2,7 +2,7 @@
 // Location: Scout Ship — Crew Quarters (starting location)
 // ==========================================================================
 
-import { gameFlags, hasLogin, setMilestone, hasMilestone, flagActionAsNew } from '../../../../engine/gameFlags.js';
+import { gameFlags, setMilestone, hasMilestone, flagActionAsNew } from '../../../../engine/gameFlags.js';
 import { hasEffect } from '../../../../engine/effects.js';
 
 export const scoutShipCrewQuarters = {
@@ -47,12 +47,10 @@ export const scoutShipCrewQuarters = {
             results: {
                 default: 'result_wake_up',
                 loop1: 'result_wake_up_loop1',
-                // loop 2+ = null (suppressed — log handled in onCompleteLoop2)
             },
             hidesLoop2: ['check_terminal', 'hack_terminal', 'use_terminal_login'],
             unlocksLoop2: ['enter_known_credentials'],
             onCompleteLoop2(ctx) {
-                // Cross-location hides (bridge terminál)
                 const bridgeLoc = ctx.getLocation('scout_ship_bridge');
                 if (bridgeLoc) {
                     const bus = ctx.getUnlockState('scout_ship_bridge');
@@ -63,10 +61,7 @@ export const scoutShipCrewQuarters = {
                         if (a) a._completed = true;
                     });
                 }
-                // Cross-location unlock
                 ctx.flagActionAsNew('enter_known_credentials_bridge');
-
-                // Fuel/O2 reveal
                 const bridgeList = ctx.areaResources['scout_ship_bridge'];
                 const fuel = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_fuel') : null;
                 const currentFuel = fuel ? Math.round(fuel.amount) : 0;
@@ -88,7 +83,6 @@ export const scoutShipCrewQuarters = {
                 ctx.setFullRebuildNeeded(true);
             },
             onCompleteLoop3(ctx) {
-                // Loop 3+: skip check_reactor_status
                 const bridgeLoc = ctx.getLocation('scout_ship_bridge');
                 if (bridgeLoc) {
                     const bridgeUs = ctx.getUnlockState('scout_ship_bridge');
@@ -109,16 +103,18 @@ export const scoutShipCrewQuarters = {
             oneTime: true,
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
-                return !!us['wake_up'];
+                if (!us['wake_up']) return false;
+                if (hasMilestone('crew_terminal_access')) return false;
+                return true;
             },
             getResultKey(ctx) {
                 const m = ctx.gameFlags.loopKnowledge?.milestones || {};
                 const loop = ctx.gameFlags.loopCount || 0;
                 const alreadyChecked = m.crew_terminal_checked;
-                const knowsLogin = hasLogin(m);
+                const known = hasMilestone('bridge_terminal_access');
 
                 if (!alreadyChecked) {
-                    if (knowsLogin) return 'result_check_terminal_first_has_login';
+                    if (known) return 'result_check_terminal_first_has_login';
                     return 'result_check_terminal';
                 }
                 if (loop >= 2) return 'result_check_terminal_loop2';
@@ -132,32 +128,6 @@ export const scoutShipCrewQuarters = {
                 const unlockState = ctx.getUnlockState(loc.id);
                 unlockState['check_terminal'] = true;
                 ctx.setUnlockState(loc.id, unlockState);
-                const m = ctx.gameFlags.loopKnowledge?.milestones || {};
-                const loginKnown = hasLogin(m);
-                const noteFound = hasMilestone('login_note_found');
-
-                const hackA = (loc.actions || []).find(a => a.id === 'hack_terminal');
-                const useA  = (loc.actions || []).find(a => a.id === 'use_terminal_login');
-                const enterA = (loc.actions || []).find(a => a.id === 'enter_known_credentials');
-
-                // Reset all, then hide as needed
-                if (hackA) delete hackA._completed;
-                if (useA)  delete useA._completed;
-                if (enterA) delete enterA._completed;
-
-                if (loginKnown) {
-                    if (hackA) hackA._completed = true;
-                    if (useA)  useA._completed = true;
-                    if (enterA) ctx.flagActionAsNew('enter_known_credentials');
-                } else if (noteFound) {
-                    if (enterA) enterA._completed = true;
-                    ctx.flagActionAsNew('use_terminal_login');
-                } else {
-                    if (useA)  useA._completed = true;
-                    if (enterA) enterA._completed = true;
-                }
-                if (hackA && !hackA._completed) ctx.flagActionAsNew('hack_terminal');
-
                 ctx.setFullRebuildNeeded(true);
             }
         },
@@ -172,32 +142,21 @@ export const scoutShipCrewQuarters = {
             resultKey: 'result_hack_terminal',
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
-                return !!us['check_terminal'];
+                if (!us['check_terminal']) return false;
+                if (hasMilestone('crew_terminal_access')) return false;
+                return true;
             },
             hides: ['use_terminal_login', 'enter_known_credentials'],
-            // Cross-location: unlocks credentials on bridge
-            unlocks: ['enter_known_credentials_bridge'],
             onComplete(ctx) {
                 setMilestone('crew_terminal_hacked', () => ctx.persistLoopKnowledge());
+                setMilestone('crew_terminal_access', () => ctx.persistLoopKnowledge());
                 const loc = ctx.getLocation(ctx.getCurrentLocationId());
                 if (loc) {
                     const us = ctx.getUnlockState(loc.id);
                     us['hack_terminal'] = true;
                     ctx.setUnlockState(loc.id, us);
-                    ctx.setFullRebuildNeeded(true);
                 }
-                // Cross-location: hide bridge hack/use, unhide bridge credentials
-                try {
-                    const bridgeLoc = ctx.getLocation('scout_ship_bridge');
-                    if (bridgeLoc) {
-                        const hackA = (bridgeLoc.actions || []).find(a => a.id === 'hack_bridge_terminal');
-                        if (hackA) hackA._completed = true;
-                        const useA = (bridgeLoc.actions || []).find(a => a.id === 'use_bridge_terminal_login');
-                        if (useA) useA._completed = true;
-                        const enterA = (bridgeLoc.actions || []).find(a => a.id === 'enter_known_credentials_bridge');
-                        if (enterA && enterA._completed) { enterA._completed = false; ctx.flagActionAsNew('enter_known_credentials_bridge'); }
-                    }
-                } catch { /* ignore */ }
+                ctx.setFullRebuildNeeded(true);
             },
         },
         {
@@ -211,31 +170,23 @@ export const scoutShipCrewQuarters = {
             requiresItem: 'terminal_login_note',
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
-                return !!us['check_terminal'];
+                if (!us['check_terminal']) return false;
+                if (!hasMilestone('login_note_found')) return false;
+                if (hasMilestone('crew_terminal_access')) return false;
+                if (hasMilestone('bridge_terminal_access')) return false;
+                return true;
             },
             hides: ['hack_terminal', 'enter_known_credentials'],
-            unlocks: ['enter_known_credentials_bridge'],
             onComplete(ctx) {
                 setMilestone('crew_terminal_note_used', () => ctx.persistLoopKnowledge());
+                setMilestone('crew_terminal_access', () => ctx.persistLoopKnowledge());
                 const loc = ctx.getLocation(ctx.getCurrentLocationId());
                 if (loc) {
                     const us = ctx.getUnlockState(loc.id);
                     us['use_terminal_login'] = true;
                     ctx.setUnlockState(loc.id, us);
-                    ctx.setFullRebuildNeeded(true);
                 }
-                // Cross-location: hide bridge hack/use, unhide bridge credentials
-                try {
-                    const bridgeLoc = ctx.getLocation('scout_ship_bridge');
-                    if (bridgeLoc) {
-                        const hackA = (bridgeLoc.actions || []).find(a => a.id === 'hack_bridge_terminal');
-                        if (hackA) hackA._completed = true;
-                        const useA = (bridgeLoc.actions || []).find(a => a.id === 'use_bridge_terminal_login');
-                        if (useA) useA._completed = true;
-                        const enterA = (bridgeLoc.actions || []).find(a => a.id === 'enter_known_credentials_bridge');
-                        if (enterA && enterA._completed) { enterA._completed = false; ctx.flagActionAsNew('enter_known_credentials_bridge'); }
-                    }
-                } catch { /* ignore */ }
+                ctx.setFullRebuildNeeded(true);
             },
         },
         {
@@ -247,7 +198,11 @@ export const scoutShipCrewQuarters = {
             oneTime: true,
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
-                return !!us['check_terminal'];
+                if (!us['check_terminal']) return false;
+                // Visible when player already has bridge access (knows the password from bridge)
+                if (!hasMilestone('bridge_terminal_access')) return false;
+                if (hasMilestone('crew_terminal_access')) return false;
+                return true;
             },
             results: {
                 default: 'result_enter_known_credentials',
@@ -255,6 +210,7 @@ export const scoutShipCrewQuarters = {
             },
             hides: ['hack_terminal', 'use_terminal_login'],
             onComplete(ctx) {
+                setMilestone('crew_terminal_access', () => ctx.persistLoopKnowledge());
                 const loc = ctx.getLocation(ctx.getCurrentLocationId());
                 if (loc) {
                     const us = ctx.getUnlockState(loc.id);
@@ -273,8 +229,7 @@ export const scoutShipCrewQuarters = {
             oneTime: true,
             resultKey: 'result_access_logs',
             isAvailable(ctx) {
-                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
-                return ['hack_terminal', 'use_terminal_login', 'enter_known_credentials'].some(id => us[id]);
+                return hasMilestone('crew_terminal_access');
             }
         },
         {
@@ -328,8 +283,7 @@ export const scoutShipCrewQuarters = {
             resultKey: 'result_disable_alarm',
             removesEffect: 'alarm',
             isAvailable(ctx) {
-                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
-                return ['hack_terminal', 'use_terminal_login', 'enter_known_credentials'].some(id => us[id]);
+                return hasMilestone('crew_terminal_access');
             }
         },
         {
@@ -358,7 +312,7 @@ export const scoutShipCrewQuarters = {
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 if (!us['search_bunks']) return false;
-                if (ctx.hasMilestone('book_read')) return false;
+                if (hasMilestone('book_read')) return false;
                 return true;
             },
             onComplete(ctx) {
@@ -387,12 +341,9 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 8,
             oneTime: true,
             isAvailable(ctx) {
-                const m = ctx.gameFlags.loopKnowledge?.milestones || {};
                 const loop = ctx.gameFlags.loopCount || 0;
                 if (loop < 2) return false;
-                const us = ctx.getUnlockState('scout_ship_crew_quarters');
-                if (!us['enter_known_credentials']) return false;
-                if (!hasLogin(m)) return false;
+                if (!hasMilestone('crew_terminal_access')) return false;
                 if (!hasMilestone('reactor_optimized')) return false;
                 if (!hasMilestone('reactor_remote_hint_seen')) return false;
                 if (ctx.gameFlags.reactorOptimized) return false;
@@ -442,7 +393,7 @@ export const scoutShipCrewQuarters = {
                 const lifeSupportFailed = hasEffect('life_support_failure');
                 if (loop < 1 && !lifeSupportFailed) {
                     ctx.gameFlags.uniformNoticed = true;
-                    ctx.addLogEntry(ctx.t('log_uniform_no_reason'), ctx.LogType.INFO);
+                    ctx.addLogEntry(ctx.t('log_uniform_no_reason'), ctx.LogType.SUCCESS);
                     return { block: true };
                 }
                 if (hasMilestone('uniform_remembered')) {

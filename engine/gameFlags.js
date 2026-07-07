@@ -41,14 +41,6 @@ const INITIAL_PER_LOOP_FLAGS = {
 // Combined for backward compatibility — both objects merged.
 const initialGameFlags = Object.assign({}, INITIAL_PERSISTENT_FLAGS, INITIAL_PER_LOOP_FLAGS);
 
-/** Check if player has terminal login access. */
-export function hasLogin(milestones = {}) {
-    return !!(milestones.crew_terminal_hacked ||
-              milestones.crew_terminal_note_used ||
-              milestones.bridge_terminal_hacked ||
-              milestones.bridge_terminal_note_used);
-}
-
 export function getInitialGameFlags() {
     return Object.assign({}, INITIAL_PERSISTENT_FLAGS, INITIAL_PER_LOOP_FLAGS);
 }

@@ -1,11 +1,12 @@
 // Narrative Objectives Engine
-// - First objective available immediately after game start
-// - All user-visible text uses locale keys via t()
+// - Main quest "Survive" acts as a hub — each step unlocks a side quest
+// - Side quests have spoiler-free steps (only done + next revealed)
+// - Objectives track persistent milestones (loopKnowledge) — survive death
 // - Up to 5 visible in footer drawer
 // - Minor resource rewards on completion
 
 import { resources } from './resources.js';
-import { gameFlags } from './gameFlags.js';
+import { gameFlags, hasMilestone } from './gameFlags.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { getTotalIngameMinutes } from './time.js';
 import { t } from '../locales/locales.js';
@@ -28,52 +29,380 @@ export function getInitialStoryLog() {
 export let storyLog = getInitialStoryLog();
 
 // ---------------------------------------------------------------------------
+// Helpers — action completion & milestone checks
+// ---------------------------------------------------------------------------
+
+function isActionCompleted(locationId, actionId) {
+    const loc = getLocation(locationId);
+    if (!loc) return false;
+    const a = (loc.actions || []).find(x => x.id === actionId);
+    return !!(a && a._completed);
+}
+
+function isActionAvailable(locationId, actionId) {
+    const loc = getLocation(locationId);
+    if (!loc) return false;
+    const a = (loc.actions || []).find(x => x.id === actionId);
+    if (!a) return false;
+    // If _completed, still "available" for step purposes
+    if (a._completed) return true;
+    // Check isAvailable if present
+    if (typeof a.isAvailable === 'function') {
+        try {
+            const ctx = {
+                gameFlags,
+                getCurrentLocationId: () => locationId,
+                getUnlockState: (id) => {
+                    try {
+                        const raw = localStorage.getItem('unlockState_' + id);
+                        return raw ? JSON.parse(raw) : {};
+                    } catch { return {}; }
+                },
+                hasMilestone,
+                countItemInBag: () => 0,
+                t
+            };
+            return a.isAvailable(ctx);
+        } catch { return false; }
+    }
+    // No isAvailable → visible by default
+    return true;
+}
+
+/** Check if the recycler has been repaired in a past loop (persistent knowledge). */
+function isRecyclerRepaired() {
+    return hasMilestone('recycler_repaired');
+}
+
+/** Check if terminal access has been gained in either location (persistent knowledge). */
+function hasTerminalAccess() {
+    return hasMilestone('crew_terminal_access') || hasMilestone('bridge_terminal_access');
+}
+
+// ---------------------------------------------------------------------------
 // Objective definitions
 // ---------------------------------------------------------------------------
 
 const defs = [
+    // ======================================================================
+    // MAIN QUEST: Survive
+    // ======================================================================
     {
-        id: 'obj_first_steps',
-        label: () => t('obj_first_steps_label'),
-        narrative: () => t('obj_first_steps_narrative'),
+        id: 'obj_survive',
+        label: () => t('obj_survive_label'),
+        narrative: () => {
+            const loop = gameFlags.loopCount || 0;
+            if (loop >= 2) return t('obj_survive_narrative_loop2');
+            if (loop >= 1) return t('obj_survive_narrative_loop1');
+            return t('obj_survive_narrative');
+        },
         start: () => true, // available immediately
-        complete: () => gameFlags.firstObjectiveComplete === true,
-        reward: [{ resource: 'XP', amount: 50 }],
+        complete: () => {
+            // All 5 steps done
+            return isActionCompleted('scout_ship_crew_quarters', 'wake_up')
+                && hasTerminalAccess()
+                && isRecyclerRepaired()
+                && hasMilestone('gamma_site_heard')
+                && hasMilestone('reactor_optimized');
+        },
+        reward: [{ resource: 'XP', amount: 250 }],
         priority: 1,
         steps: () => {
-            const loc = getLocation('scout_ship_crew_quarters');
-            const findAction = (id) => loc?.actions?.find(a => a.id === id);
+            // All steps visible immediately — they complete via side quests in any order
             const steps = [];
-            // Step 1: Wake up and assess your surroundings
+
             steps.push({
                 id: 'step_wake_up',
-                label: t('obj_first_steps_step1'),
-                done: !!(findAction('wake_up')?._completed),
+                label: t('obj_survive_step1'),
+                done: isActionCompleted('scout_ship_crew_quarters', 'wake_up'),
             });
-            // Step 2: Disable the blaring alarm (optional)
+
             steps.push({
-                id: 'step_disable_alarm',
-                label: t('obj_first_steps_step2'),
-                done: !!(findAction('disable_alarm')?._completed),
+                id: 'step_terminal',
+                label: t('obj_survive_step2'),
+                done: hasTerminalAccess(),
             });
-            // Step 3: Check the terminal for ship status
+
+            steps.push({
+                id: 'step_water',
+                label: t('obj_survive_step3'),
+                done: isRecyclerRepaired(),
+            });
+
+            steps.push({
+                id: 'step_comms',
+                label: t('obj_survive_step4'),
+                done: hasMilestone('gamma_site_heard'),
+            });
+
+            steps.push({
+                id: 'step_reactor',
+                label: t('obj_survive_step5'),
+                done: hasMilestone('reactor_optimized'),
+            });
+
+            return steps;
+        }
+    },
+
+    // ======================================================================
+    // SIDE QUEST: Disable the Alarm
+    // ======================================================================
+    {
+        id: 'obj_disable_alarm',
+        label: () => t('obj_disable_alarm_label'),
+        narrative: () => t('obj_disable_alarm_narrative'),
+        start: () => isActionCompleted('scout_ship_crew_quarters', 'check_terminal'),
+        complete: () => isActionCompleted('scout_ship_crew_quarters', 'disable_alarm'),
+        reward: [{ resource: 'XP', amount: 75 }],
+        priority: 2,
+        steps: () => {
+            const steps = [];
+
+            // Step 1: Examine terminal — always done (quest starts with it)
             steps.push({
                 id: 'step_check_terminal',
-                label: t('obj_first_steps_step3'),
-                done: !!(findAction('check_terminal')?._completed),
+                label: t('obj_disable_alarm_step1'),
+                done: true,
             });
-            // Step 4: Search the storage locker for supplies
+
+            // Step 2: Gain access — use terminal_access_gained milestone
+            // (check_terminal.onComplete sets _completed on use_terminal_login / enter_known_credentials
+            //  to *hide* them — not because they are done. hasTerminalAccess() is the real check.)
+            const accessDone = hasTerminalAccess();
             steps.push({
-                id: 'step_check_storage',
-                label: t('obj_first_steps_step4'),
-                done: !!(findAction('check_storage')?._completed),
+                id: 'step_get_access',
+                label: t('obj_disable_alarm_step2'),
+                done: accessDone,
             });
-            // Step 5: Find your way to the bridge
+            if (!accessDone) return steps;
+
+            // Step 3: Disable the alarm (required)
+            const alarmDone = isActionCompleted('scout_ship_crew_quarters', 'disable_alarm');
             steps.push({
-                id: 'step_visit_bridge',
-                label: t('obj_first_steps_step5'),
-                done: false, // temp placeholder
+                id: 'step_disable_alarm',
+                label: t('obj_disable_alarm_step3'),
+                done: alarmDone,
             });
+
+            return steps;
+        }
+    },
+
+    // ======================================================================
+    // SIDE QUEST: Repair Recycler
+    // ======================================================================
+    {
+        id: 'obj_repair_recycler',
+        label: () => t('obj_repair_recycler_label'),
+        narrative: () => t('obj_repair_recycler_narrative'),
+        start: () => isActionCompleted('scout_ship_main_area', 'assess_supplies'),
+        complete: () => isRecyclerRepaired(),
+        reward: [{ resource: 'XP', amount: 75 }, { resource: 'Drinking Water', amount: 10 }],
+        priority: 3,
+        steps: () => {
+            const steps = [];
+
+            // Step 1: Assess supplies
+            const assessed = isActionCompleted('scout_ship_main_area', 'assess_supplies');
+            steps.push({
+                id: 'step_assess_supplies',
+                label: t('obj_repair_recycler_step1'),
+                done: assessed,
+            });
+            if (!assessed) return steps;
+
+            // Step 2: Scavenge repair tools
+            // The player needs repair_tools in bag or has already repaired
+            const repaired = isRecyclerRepaired();
+            const hasTools = isActionCompleted('scout_ship_workshop', 'grab_tools') ||
+                (typeof window !== 'undefined' && window._hasRepairToolsInBag);
+            steps.push({
+                id: 'step_get_tools',
+                label: t('obj_repair_recycler_step2'),
+                done: hasTools || repaired,
+            });
+            if (!hasTools && !repaired) return steps;
+
+            // Step 3: Repair recycler
+            steps.push({
+                id: 'step_repair',
+                label: t('obj_repair_recycler_step3'),
+                done: repaired,
+            });
+
+            return steps;
+        }
+    },
+
+    // ======================================================================
+    // SIDE QUEST: Establish Contact
+    // ======================================================================
+    {
+        id: 'obj_establish_contact',
+        label: () => t('obj_establish_contact_label'),
+        narrative: () => t('obj_establish_contact_narrative'),
+        start: () => isActionCompleted('scout_ship_main_area', 'check_comms'),
+        complete: () => hasMilestone('gamma_site_heard'),
+        reward: [{ resource: 'XP', amount: 100 }],
+        priority: 4,
+        steps: () => {
+            const steps = [];
+
+            // Step 1: Inspect comms panel
+            const checked = isActionCompleted('scout_ship_main_area', 'check_comms');
+            steps.push({
+                id: 'step_check_comms',
+                label: t('obj_establish_contact_step1'),
+                done: checked,
+            });
+            if (!checked) return steps;
+
+            // Step 2: Fabricate amplifier
+            const fabDone = isActionCompleted('scout_ship_workshop', 'fabricate_amplifier');
+            steps.push({
+                id: 'step_fab_amplifier',
+                label: t('obj_establish_contact_step2'),
+                done: fabDone,
+            });
+            if (!fabDone) return steps;
+
+            // Step 3: Install comms
+            const installed = gameFlags.commsInstalled;
+            steps.push({
+                id: 'step_install_comms',
+                label: t('obj_establish_contact_step3'),
+                done: installed,
+            });
+            if (!installed) return steps;
+
+            // Step 4: Send ping
+            const pinged = hasMilestone('ping_sent');
+            steps.push({
+                id: 'step_send_ping',
+                label: t('obj_establish_contact_step4'),
+                done: pinged,
+            });
+            if (!pinged) return steps;
+
+            // Step 5: Evaluate results
+            const heard = hasMilestone('gamma_site_heard');
+            steps.push({
+                id: 'step_check_results',
+                label: t('obj_establish_contact_step5'),
+                done: heard,
+            });
+
+            return steps;
+        }
+    },
+
+    // ======================================================================
+    // SIDE QUEST: Reactor Status
+    // ======================================================================
+    {
+        id: 'obj_reactor_status',
+        label: () => t('obj_reactor_status_label'),
+        narrative: () => t('obj_reactor_status_narrative'),
+        start: () => {
+            // Start when the player has checked the bridge terminal
+            // (or in loop 2+, fuel_scanned is already known)
+            return isActionCompleted('scout_ship_bridge', 'check_bridge_terminal')
+                || hasMilestone('fuel_scanned');
+        },
+        complete: () => hasMilestone('reactor_optimized'),
+        reward: [{ resource: 'XP', amount: 100 }],
+        priority: 5,
+        steps: () => {
+            const steps = [];
+            const hasAccess = hasTerminalAccess();
+
+            // Step 1: Get to bridge — examine terminal
+            const termChecked = isActionCompleted('scout_ship_bridge', 'check_bridge_terminal');
+            // In loop 2+, check_bridge_terminal is hidden, so count it as done
+            const termSkipped = termChecked ||
+                !isActionAvailable('scout_ship_bridge', 'check_bridge_terminal');
+            steps.push({
+                id: 'step_reach_bridge',
+                label: t('obj_reactor_status_step1'),
+                done: termSkipped,
+            });
+
+            if (hasAccess) {
+                // === BRANCH A: Player already has terminal access ===
+                if (!termSkipped) return steps;
+
+                // Step 2: Log in with credentials
+                const loggedIn = isActionCompleted('scout_ship_bridge', 'enter_known_credentials_bridge');
+                // In loop 2+, enter_known_credentials_bridge may be hidden (mutual exclusion)
+                const loginAvailable = isActionAvailable('scout_ship_bridge', 'enter_known_credentials_bridge');
+                if (loginAvailable || loggedIn) {
+                    steps.push({
+                        id: 'step_login',
+                        label: t('obj_reactor_status_step3'),
+                        done: loggedIn,
+                    });
+                    if (!loggedIn && loginAvailable) return steps;
+                }
+
+                // Step 3: Check reactor status
+                const reactorChecked = hasMilestone('fuel_scanned') ||
+                    isActionCompleted('scout_ship_bridge', 'check_reactor_status');
+                const reactorAvailable = isActionAvailable('scout_ship_bridge', 'check_reactor_status');
+                if (reactorAvailable || reactorChecked) {
+                    steps.push({
+                        id: 'step_check_reactor',
+                        label: t('obj_reactor_status_step2'),
+                        done: reactorChecked,
+                    });
+                    if (!reactorChecked && reactorAvailable) return steps;
+                }
+
+                // Step 4: Optimize reactor
+                const optimized = hasMilestone('reactor_optimized');
+                steps.push({
+                    id: 'step_optimize',
+                    label: t('obj_reactor_status_step4'),
+                    done: optimized,
+                });
+            } else {
+                // === BRANCH B: Player needs to gain terminal access ===
+                if (!termSkipped) return steps;
+
+                // Step 2: Gain terminal access
+                const hacked = isActionCompleted('scout_ship_bridge', 'hack_bridge_terminal');
+                const usedLogin = isActionCompleted('scout_ship_bridge', 'use_bridge_terminal_login');
+                const enteredCreds = isActionCompleted('scout_ship_bridge', 'enter_known_credentials_bridge');
+                const accessDone = hacked || usedLogin || enteredCreds;
+                steps.push({
+                    id: 'step_get_access',
+                    label: t('obj_reactor_status_step2b'),
+                    done: accessDone,
+                });
+                if (!accessDone) return steps;
+
+                // Step 3: Check reactor status
+                const reactorChecked = hasMilestone('fuel_scanned') ||
+                    isActionCompleted('scout_ship_bridge', 'check_reactor_status');
+                const reactorAvailable = isActionAvailable('scout_ship_bridge', 'check_reactor_status');
+                if (reactorAvailable || reactorChecked) {
+                    steps.push({
+                        id: 'step_check_reactor_b',
+                        label: t('obj_reactor_status_step3b'),
+                        done: reactorChecked,
+                    });
+                    if (!reactorChecked && reactorAvailable) return steps;
+                }
+
+                // Step 4: Optimize reactor
+                const optimized = hasMilestone('reactor_optimized');
+                steps.push({
+                    id: 'step_optimize_b',
+                    label: t('obj_reactor_status_step4b'),
+                    done: optimized,
+                });
+            }
+
             return steps;
         }
     }
@@ -176,6 +505,7 @@ export function recomputeObjectives() {
 
     defs.sort((a, b) => a.priority - b.priority).forEach(def => {
         const s = getOrCreateStateFor(def.id);
+
         const shouldStart = !!def.start?.();
         const isComplete = !!def.complete?.();
         const prev = s.state;

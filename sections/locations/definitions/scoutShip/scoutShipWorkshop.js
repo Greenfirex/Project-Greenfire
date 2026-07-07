@@ -2,7 +2,7 @@
 // Location: Scout Ship — Workshop
 // ==========================================================================
 
-import { setMilestone, hasMilestone, hasLogin } from '../../../../engine/gameFlags.js';
+import { setMilestone, hasMilestone } from '../../../../engine/gameFlags.js';
 import { hasSkill } from '../../../character/character.js';
 
 export const scoutShipWorkshop = {
@@ -73,7 +73,7 @@ export const scoutShipWorkshop = {
             resultKey: 'result_grab_login_note',
             isAvailable(ctx) {
                 if (!hasMilestone('workbench_searched')) return false;
-                if (hasLogin(ctx.gameFlags.loopKnowledge?.milestones || {})) return false;
+                if (hasMilestone('crew_terminal_access') || hasMilestone('bridge_terminal_access')) return false;
                 return true;
             },
             onComplete(ctx) {
@@ -307,7 +307,7 @@ export const scoutShipWorkshop = {
             onStart(ctx) {
                 const skilled = hasSkill('mechanics', 1);
                 if (!skilled) {
-                    ctx.addLogEntry(ctx.t('log_need_vehicle_manual'), ctx.LogType.INFO);
+                    ctx.addLogEntry(ctx.t('log_need_vehicle_manual_rover'), ctx.LogType.SUCCESS);
                     return { block: true };
                 }
                 if (hasMilestone('rover_inspected')) {
@@ -339,7 +339,7 @@ export const scoutShipWorkshop = {
             onStart(ctx) {
                 const skilled = hasSkill('mechanics', 1);
                 if (!skilled) {
-                    ctx.addLogEntry(ctx.t('log_need_vehicle_manual'), ctx.LogType.INFO);
+                    ctx.addLogEntry(ctx.t('log_need_vehicle_manual_bikes'), ctx.LogType.SUCCESS);
                     return { block: true };
                 }
                 if (hasMilestone('bikes_inspected')) {

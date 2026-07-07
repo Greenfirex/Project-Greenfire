@@ -4,7 +4,7 @@
 
 import { t } from '../../locales/locales.js';
 import { getCurrentLocationId, getLocation } from './locationData.js';
-import { gameFlags, isActionNew, flagActionAsNew, markActionSeen, hasLogin, hasMilestone } from '../../engine/gameFlags.js';
+import { gameFlags, isActionNew, flagActionAsNew, markActionSeen, hasMilestone } from '../../engine/gameFlags.js';
 import { newBadgeHtml, wireClearUiNewBadge } from '../../ui/components/contentNewBadges.js';
 import { setupTooltip } from '../../ui/panels/tooltip.js';
 import { getEffectDrains, getEffectDebuffDetails, hasEffect } from '../../engine/effects.js';
@@ -332,7 +332,6 @@ export function renderActionsTile(location) {
         gameFlags,
         getCurrentLocationId,
         getUnlockState,
-        hasLogin,
         hasMilestone,
         countItemInBag,
         t,
