@@ -34,6 +34,8 @@
   "action_end_loop_confirm_cancel": "Zrušit",
   "action_end_loop_confirm_ok": "Ukončit",
   "action_enter_known_credentials": "Zkusit heslo z můstku",
+  "action_enter_known_credentials_name": "Zkusit známé heslo",
+  "action_enter_known_credentials_name_desc": "Přihlásit se k terminálu pomocí přihlašovacích údajů, které už znáš.",
   "action_enter_known_credentials_bridge": "Zkusit heslo z ubikací",
   "action_enter_known_credentials_bridge_desc": "Vyzkoušet přihlašovací údaje, které znáš z ubikací, na terminálu na můstku.",
   "action_enter_known_credentials_desc": "Vyzkoušet přihlašovací údaje, které znáš z můstku, na terminálu v ubikacích.",
@@ -246,7 +248,7 @@
   "log_options": "Možnosti logu",
   "log_oxygen_same_time_warning": "Zásoby kyslíku se tenčí... stejně jako minule. Zbývá {minutes} minut vzduchu — stejně jako v předchozí smyčce.",
   "log_personal_o2_depleted": "Tvůj osobní kyslík došel! Uniforma už tě nemůže chránit.",
-  "log_reactor_terminal_hint": "Při práci si uvědomuješ — tohle rozhraní není vázané na konkrétní konzoli. Příště bys to mohl udělat z jakéhokoliv terminálu na lodi.",
+  "log_reactor_terminal_hint": "Při práci si uvědomuješ — pokud znáš parametry reaktoru, mělo by být možné ho optimalizovat na dálku. I z tohoto terminálu.",
   "log_received_item": "Získal jsi: {item}",
   "log_recycler_need_tools": "Už víš jak na to, ale bez pořádného nářadí to nepůjde. Potřebuješ sehnat základní sadu opravářského nářadí.",
   "log_recycler_no_idea": "Zkoumáš recyklátor ze všech stran. Je to složitý stroj a ty nemáš tušení, kde začít. Možná by pomohla nějaká příručka...",
@@ -361,7 +363,7 @@
   "result_check_terminal_loop2": "Ani na vteřinu nezaváháš. Heslo už je pod konečky tvých prstů — dělal jsi to už tolikrát, že je to automatické. Zbývá ho jen zadat.",
   "result_debug_taxing": "Debug náročná akce dokončena.",
   "result_disable_alarm": "Zadáváš přepisovací kódy. Kvílivý alarm zakašle a utichne. Prostorem se rozhostí požehnané ticho. Zvonění v uších odezní — časem.",
-  "result_enter_known_credentials": "Zadáš známé heslo a obrazovka se rozplyne s tichým pípnutím. Jsi uvnitř — heslo pasuje i na tenhle terminál.",
+  "result_enter_known_credentials": "Zadáš známé heslo a obrazovka se rozplyne s tichým pípnutím. Jsi uvnitř.",
   "result_enter_known_credentials_bridge": "Zadáš přihlašovací údaje z ubikací. Fungují. Systém tě pustí dál.",
   "result_enter_known_credentials_bridge_loop2": "Přihlašovací údaje píšeš zpaměti. Už je to rutina. Systém tě pustí dál.",
   "result_enter_known_credentials_loop2": "Napíšeš heslo bez přemýšlení. Už je to svalová paměť. Obrazovka se rozplyne s tichým pípnutím. Jsi uvnitř.",
@@ -397,7 +399,7 @@
   "result_listen_for_response_loop4": "Přesně ve správný okamžik zesílíš příjem. Hlas je čistší: '...Gamma Site Research Station, sektor 7-Gamma. Opakuji souřadnice: 47.3—' Statika. Pak znovu: '...časová anomálie aktivní. Gamma Site končí vysílání.' Teď už víš všechno. Kde to je. A že tam na tebe něco čeká.",
   "result_optimize_reactor": "Sedáš si k inženýrské konzoli a procházíš seznam běžících systémů. Sekce za sekcí vypínáš všechno, co není nezbytně nutné — vyhřívání neobydlených kajut, záložní komunikační pole, laboratorní zařízení. Spotřeba paliva viditelně klesá. Získal jsi drahocenný čas navíc.",
   "result_optimize_reactor_known": "Už přesně víš, co hledat. Během pár vteřin překlikáš potřebné přepínače. Spotřeba paliva opět klesá.",
-  "result_optimize_reactor_remote": "Přihlašuješ se k terminálu a zadáváš známé příkazy. I na dálku jde poznat, že spotřeba paliva klesla — indikátory na displeji to potvrzují.",
+  "result_optimize_reactor_remote": "Procházíš známé konfigurační panely a vypínáš všechno nepodstatné. Spotřeba paliva viditelně klesá — získal jsi drahocenný čas navíc.",
   "result_read_book": "Obrátíš poslední stránku a zavřeš knihu. Naučil ses pár základních opravářských postupů. Třeba teď zvládneš i nějaké drobné opravy.",
   "result_read_vehicle_manual": "Obrátíš poslední stránku. Manuál byl psaný pro úplné idioty — ideální. Teď už chápeš základy pohonu terénních vozidel, diagnostiku závad a hlavně: jak funguje palivový systém roverů třídy SFC.",
   "result_repair_kit": "Za použití nalezených součástek se ti podaří opravit poškozený enviro-oblek. Není dokonalý, ale prozatím poslouží.",
@@ -474,5 +476,41 @@
   "obj_disable_alarm_step2": "Získej přístup (hackni nebo se přihlaš heslem)",
   "obj_disable_alarm_step3": "Vypni alarm",
   "log_need_vehicle_manual_rover": "Bez manuálu netušíš, co s tou mechanickou obludou je. Možná by pomohlo podívat se na terminál v dílně.",
-  "log_need_vehicle_manual_bikes": "Lehké průzkumné stroje — ale bez manuálu se do jejich diagnostiky nepustíš. Zkus terminál v dílně."
+  "log_need_vehicle_manual_bikes": "Lehké průzkumné stroje — ale bez manuálu se do jejich diagnostiky nepustíš. Zkus terminál v dílně.",
+  "action_extract_rover_fuel_cell": "Vytěžit palivový článek z roveru",
+  "action_extract_rover_fuel_cell_desc": "Otevřít servisní panel roveru a opatrně vyjmout vysokokapacitní palivový článek. Bude to chtít zručnost i sílu.",
+  "result_extract_rover_fuel_cell": "Po chvíli zápasení se servisním panelem a pár ztuhlých šroubech se ti podaří vyjmout palivový článek. Je těžší, než vypadá, a je stále nabitý — mohl by posloužit jako nouzový zdroj energie pro loď.",
+  "result_extract_rover_fuel_cell_known": "Už víš, jak na to — pár rychlých pohybů a palivový článek je venku.",
+  "result_extract_rover_fuel_cell_loop2": "Rutina. Servisní panel, šrouby, článek ven. Ani se nezapotíš.",
+
+  "action_study_ship_manual": "Prostudovat manuál k lodi",
+  "action_study_ship_manual_desc": "Projít technická schémata a dokumentaci průzkumné lodi třídy Vagabond na terminálu v dílně. Někde tady musí být popis energetického systému.",
+  "result_study_ship_manual": "Hodinu procházíš schémata za schématy. Konečně nacházíš sekci o napájení — včetně schématu, jak napojit externí zdroj do hlavního reaktoru. Teď už víš přesně, jak ten palivový článek zapojit.",
+
+  "action_remove_engine_panel": "Demontovat panel strojovny",
+  "action_remove_engine_panel_desc": "Sundat přístupový panel k hlavnímu reaktoru. Těžké kovové pláty, ale se správným nářadím to půjde.",
+  "result_remove_engine_panel": "Pár zapocených minut a panel je dole. Otevírá se před tebou útroby strojovny — hlavní reaktor tiše bzučí, ale jasně vidíš přípojný bod pro externí zdroj. Netušíš ale, jak přesně to zapojit... v hlavě ti vytane vzpomínka na technická schémata uložená na terminálu v dílně.",
+  "result_remove_engine_panel_known": "Panel znáš nazpaměť — dolů s ním za pár vteřin.",
+
+  "action_install_rover_fuel_cell": "Nainstalovat palivový článek z roveru",
+  "action_install_rover_fuel_cell_desc": "Zapojit palivový článek z roveru přímo do hlavního reaktoru lodi. Díky schématům z dílny víš přesně jak.",
+  "result_install_rover_fuel_cell": "S napětím zapojuješ poslední konektor. Ozve se tiché hučení, jak reaktor nasává energii z článku. Palubní deska ukazuje nárůst o 300 jednotek — loď má teď víc paliva než předtím.",
+  "result_install_rover_fuel_cell_known": "Už jsi to dělal. Článek zapadne na své místo jako by tam patřil — +300 paliva.",
+  "result_install_rover_fuel_cell_loop2": "Konektory cvaknou na první pokus. Loď vděčně přivítá příděl paliva.",
+
+  "item_rover_fuel_cell": "Palivový článek z roveru",
+
+  "log_need_skills_rover": "Na tuhle práci potřebuješ jak znalost strojařiny, tak inženýrské znalosti. Bez manuálu k vozidlu a bez základů inženýrství se do toho radši nepouštíš.",
+  "log_need_ship_manual": "Netušíš, jak přesně ten článek zapojit. Potřebuješ technická schémata — zkus terminál v dílně.",
+  "log_lifesupport_restored": "Reaktor ožívá. Světla zablikají a stabilizují se. Podpora života je zpět online — kyslíkové systémy se restartují.",
+
+  "obj_survive_step6": "Prohledej garáž",
+
+  "obj_rover_fuel_label": "Palivové rezervy",
+  "obj_rover_fuel_narrative": "Při prohlídce roveru jsi objevil nepoškozený palivový článek. Pokud se ti ho podaří vytěžit a napojit na hlavní reaktor, loď získá drahocennou energii navíc. Bude to ale chtít nářadí, znalosti a přístup do strojovny.",
+  "obj_rover_fuel_step1": "Prohlédni rover",
+  "obj_rover_fuel_step2": "Vytěž palivový článek",
+  "obj_rover_fuel_step3": "Demontuj panel strojovny",
+  "obj_rover_fuel_step4": "Prostuduj manuál k lodi",
+  "obj_rover_fuel_step5": "Nainstaluj palivový článek"
 }

@@ -127,6 +127,33 @@
 - Akce bez `isAvailable` jsou vždy viditelné (pokud nejsou `_completed`)
 - `_completed` flagy a `unlockState[id]` jsou univerzální — engine je spravuje automaticky
 
+### Parent-flag rule (CRITICAL — zabraňuje předčasnému zobrazení akcí po smrti)
+
+Pokud akce **Y závisí na dokončení akce X** (ve stejné lokaci), NESTAČÍ kontrolovat persistentní milestone v `isAvailable` — ten přežije smrt a Y by se po loopu zobrazila současně s X.
+
+**VŽDY použij per-loop guard flag:**
+
+```js
+// Rodičovská akce X:
+onComplete(ctx) {
+    ctx.gameFlags.X_done_this_loop = true;  // per-loop flag
+    // Odemknout Y
+    const loc = ctx.getLocation(ctx.getCurrentLocationId());
+    const yA = (loc.actions || []).find(a => a.id === 'Y');
+    if (yA) { yA._completed = false; ctx.flagActionAsNew('Y'); }
+    ctx.setFullRebuildNeeded(true);
+}
+
+// Dětská akce Y:
+isAvailable(ctx) {
+    if (!ctx.gameFlags.X_done_this_loop) return false;  // ← GUARD
+    // ... další podmínky (milestony, itemy v bagu atd.)
+}
+```
+
+Po smrti: `X_done_this_loop === false` → Y je automaticky skrytá, dokud X znovu neproběhne.
+**Nikdy nepoužívej pouze persistentní milestone jako jedinou podmínku pro `isAvailable` dětské akce.**
+
 **Příklad:**
 ```js
 {

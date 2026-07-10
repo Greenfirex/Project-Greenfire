@@ -134,7 +134,18 @@ export const items = [
         consumable: { type: 'heal', resource: 'Food Rations', amount: 25 }
     },
 
-    // Quest items
+    // Quest items — Rover fuel cell chain
+    {
+        id: 'rover_fuel_cell',
+        name: 'Rover Fuel Cell',
+        nameKey: 'item_rover_fuel_cell',
+        slot: 'inventory',
+        icon: 'assets/images/items/power cell.png',
+        description: 'A high-capacity fuel cell salvaged from the rover. Could be used to supplement the ship\'s fuel reserves.',
+        quest: true,
+        stackable: true,
+        tags: ['Quest'],
+    },
     {
         id: 'terminal_login_note',
         name: 'Terminal Login Note',

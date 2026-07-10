@@ -36,6 +36,11 @@ const INITIAL_PER_LOOP_FLAGS = {
     distressSignalSent: false,
     uniformGrabbed: false,
     uniformNoticed: false,
+    crewTerminalAccessThisLoop: false,
+    roverInspectedThisLoop: false,
+    roverFuelCellExtracted: false,
+    enginePanelRemoved: false,
+    roverFuelCellInstalled: false,
 };
 
 // Combined for backward compatibility — both objects merged.

@@ -3,6 +3,7 @@
 // ==========================================================================
 
 import { setMilestone, hasMilestone } from '../../../../engine/gameFlags.js';
+import { hasEffect, removeEffect } from '../../../../engine/effects.js';
 
 export const scoutShipBridge = {
     id: 'scout_ship_bridge',
@@ -24,7 +25,7 @@ export const scoutShipBridge = {
         {
             id: 'engineering',
             nameKey: 'poi_engineering',
-            actions: ['check_bridge_terminal', 'check_reactor_status', 'optimize_reactor', 'hack_bridge_terminal', 'use_bridge_terminal_login', 'enter_known_credentials_bridge']
+            actions: ['check_bridge_terminal', 'check_reactor_status', 'optimize_reactor', 'remove_engine_panel', 'install_rover_fuel_cell', 'hack_bridge_terminal', 'use_bridge_terminal_login', 'enter_known_credentials_bridge']
         },
         {
             id: 'travel',
@@ -193,6 +194,7 @@ export const scoutShipBridge = {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 if (!us['check_bridge_terminal']) return false;
                 if (!hasMilestone('login_note_found')) return false;
+                if (ctx.countItemInBag('terminal_login_note') <= 0) return false;
                 if (hasMilestone('bridge_terminal_access')) return false;
                 if (hasMilestone('crew_terminal_access')) return false;
                 return true;
@@ -293,6 +295,108 @@ export const scoutShipBridge = {
             durationSeconds: 8,
             repeatable: true,
             resultKey: 'result_check_status'
+        },
+        // ==========================================================================
+        // Rover fuel cell chain — bridge side
+        // ==========================================================================
+
+        {
+            id: 'remove_engine_panel',
+            nameKey: 'action_remove_engine_panel',
+            descKey: 'action_remove_engine_panel_desc',
+            category: 'simple',
+            drain: [{ resource: 'Stamina', amount: 3 }],
+            durationSeconds: 20,
+            durationIfRemembered: 8,
+            oneTime: true,
+            requiredItems: ['repair_tools'],
+            remembersCondition(ctx) { return hasMilestone('engine_panel_removed'); },
+            isAvailable(ctx) {
+                if (!hasMilestone('bridge_terminal_access')) return false;
+                if (!ctx.gameFlags.roverFuelCellExtracted) return false;
+                if (ctx.gameFlags.enginePanelRemoved) return false;
+                return true;
+            },
+            onStart(ctx) {
+                const hasTools = ctx.countItemInBag('repair_tools') > 0;
+                if (!hasTools) {
+                    ctx.addLogEntry(ctx.t('log_need_item', { item: ctx.t('item_repair_tools') }), ctx.LogType.ERROR);
+                    return { block: true };
+                }
+                if (hasMilestone('engine_panel_removed')) {
+                    ctx.action.durationSeconds = ctx.action.durationIfRemembered;
+                }
+            },
+            getResultKey(ctx) {
+                return hasMilestone('engine_panel_removed') ? 'result_remove_engine_panel_known' : 'result_remove_engine_panel';
+            },
+            unlocks: ['install_rover_fuel_cell'],
+            onComplete(ctx) {
+                ctx.gameFlags.enginePanelRemoved = true;
+                setMilestone('engine_panel_removed', () => ctx.persistLoopKnowledge());
+                // Cross-location: study_ship_manual is in workshop — must be unlocked manually
+                const workshopLoc = ctx.getLocation('scout_ship_workshop');
+                if (workshopLoc) {
+                    const studyA = (workshopLoc.actions || []).find(a => a.id === 'study_ship_manual');
+                    if (studyA) {
+                        studyA._completed = false;
+                        ctx.flagActionAsNew('study_ship_manual');
+                    }
+                }
+                ctx.setFullRebuildNeeded(true);
+            },
+        },
+        {
+            id: 'install_rover_fuel_cell',
+            nameKey: 'action_install_rover_fuel_cell',
+            descKey: 'action_install_rover_fuel_cell_desc',
+            category: 'taxing',
+            drain: [{ resource: 'Stamina', amount: 5 }],
+            durationSeconds: 30,
+            durationIfRemembered: 12,
+            oneTime: true,
+            requiresItem: 'rover_fuel_cell',
+            remembersCondition(ctx) { return hasMilestone('rover_fuel_cell_installed'); },
+            isAvailable(ctx) {
+                if (!ctx.gameFlags.enginePanelRemoved) return false;
+                if (ctx.gameFlags.roverFuelCellInstalled) return false;
+                return true;
+            },
+            onStart(ctx) {
+                if (!hasMilestone('ship_manual_studied')) {
+                    ctx.addLogEntry(ctx.t('log_need_ship_manual'), ctx.LogType.ERROR);
+                    return { block: true };
+                }
+                if (hasMilestone('rover_fuel_cell_installed')) {
+                    ctx.action.durationSeconds = ctx.action.durationIfRemembered;
+                }
+            },
+            getResultKey(ctx) {
+                const loop = ctx.gameFlags.loopCount || 0;
+                if (loop >= 2 && hasMilestone('rover_fuel_cell_installed')) return 'result_install_rover_fuel_cell_loop2';
+                return hasMilestone('rover_fuel_cell_installed') ? 'result_install_rover_fuel_cell_known' : 'result_install_rover_fuel_cell';
+            },
+            onComplete(ctx) {
+                ctx.gameFlags.roverFuelCellInstalled = true;
+                setMilestone('rover_fuel_cell_installed', () => ctx.persistLoopKnowledge());
+                // Add 300 fuel to bridge area_fuel
+                const bridgeList = ctx.areaResources['scout_ship_bridge'];
+                if (bridgeList && Array.isArray(bridgeList)) {
+                    const fuel = bridgeList.find(r => r.name === 'area_fuel');
+                    if (fuel) {
+                        fuel.amount = Math.min(fuel.capacity, fuel.amount + 300);
+                    }
+                }
+                // Restore life support if it was down
+                if (hasEffect('life_support_failure')) {
+                    removeEffect('life_support_failure');
+                }
+                if (hasEffect('oxygen_depleted')) {
+                    removeEffect('oxygen_depleted');
+                }
+                ctx.addLogEntry(ctx.t('log_lifesupport_restored'), ctx.LogType.SUCCESS);
+                ctx.setFullRebuildNeeded(true);
+            },
         },
         {
             id: 'set_course_gamma',

@@ -98,12 +98,13 @@ const defs = [
         },
         start: () => true, // available immediately
         complete: () => {
-            // All 5 steps done
+            // All steps done
             return isActionCompleted('scout_ship_crew_quarters', 'wake_up')
                 && hasTerminalAccess()
                 && isRecyclerRepaired()
                 && hasMilestone('gamma_site_heard')
-                && hasMilestone('reactor_optimized');
+                && hasMilestone('reactor_optimized')
+                && hasMilestone('rover_inspected');
         },
         reward: [{ resource: 'XP', amount: 250 }],
         priority: 1,
@@ -139,6 +140,12 @@ const defs = [
                 id: 'step_reactor',
                 label: t('obj_survive_step5'),
                 done: hasMilestone('reactor_optimized'),
+            });
+
+            steps.push({
+                id: 'step_garage',
+                label: t('obj_survive_step6'),
+                done: hasMilestone('rover_inspected'),
             });
 
             return steps;
@@ -402,6 +409,72 @@ const defs = [
                     done: optimized,
                 });
             }
+
+            return steps;
+        }
+    },
+
+    // ======================================================================
+    // SIDE QUEST: Fuel Reserves
+    // ======================================================================
+    {
+        id: 'obj_rover_fuel',
+        label: () => t('obj_rover_fuel_label'),
+        narrative: () => t('obj_rover_fuel_narrative'),
+        start: () => hasMilestone('rover_inspected'),
+        complete: () => hasMilestone('rover_fuel_cell_installed'),
+        reward: [{ resource: 'XP', amount: 150 }],
+        priority: 6,
+        steps: () => {
+            const steps = [];
+
+            // Step 1: Inspect rover
+            const inspected = isActionCompleted('scout_ship_workshop', 'inspect_rover');
+            steps.push({
+                id: 'step_inspect_rover',
+                label: t('obj_rover_fuel_step1'),
+                done: inspected,
+            });
+            if (!inspected) return steps;
+
+            // Step 2: Extract rover fuel cell
+            const extracted = isActionCompleted('scout_ship_workshop', 'extract_rover_fuel_cell')
+                || hasMilestone('rover_fuel_cell_extracted');
+            steps.push({
+                id: 'step_extract_fuel_cell',
+                label: t('obj_rover_fuel_step2'),
+                done: extracted,
+            });
+            if (!extracted) return steps;
+
+            // Step 3: Remove engine panel
+            const panelRemoved = isActionCompleted('scout_ship_bridge', 'remove_engine_panel')
+                || hasMilestone('engine_panel_removed');
+            steps.push({
+                id: 'step_remove_panel',
+                label: t('obj_rover_fuel_step3'),
+                done: panelRemoved,
+            });
+            if (!panelRemoved) return steps;
+
+            // Step 4: Study ship manual (persistent — may already be done)
+            const manualStudied = isActionCompleted('scout_ship_workshop', 'study_ship_manual')
+                || hasMilestone('ship_manual_studied');
+            steps.push({
+                id: 'step_study_manual',
+                label: t('obj_rover_fuel_step4'),
+                done: manualStudied,
+            });
+            if (!manualStudied) return steps;
+
+            // Step 5: Install rover fuel cell
+            const installed = isActionCompleted('scout_ship_bridge', 'install_rover_fuel_cell')
+                || hasMilestone('rover_fuel_cell_installed');
+            steps.push({
+                id: 'step_install_cell',
+                label: t('obj_rover_fuel_step5'),
+                done: installed,
+            });
 
             return steps;
         }

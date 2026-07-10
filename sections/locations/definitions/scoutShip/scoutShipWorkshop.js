@@ -30,12 +30,12 @@ export const scoutShipWorkshop = {
         {
             id: 'garage',
             nameKey: 'poi_garage',
-            actions: ['inspect_rover', 'inspect_bikes']
+            actions: ['inspect_rover', 'inspect_bikes', 'extract_rover_fuel_cell']
         },
         {
             id: 'workshop_terminal',
             nameKey: 'poi_workshop_terminal',
-            actions: ['inspect_workshop_terminal', 'read_vehicle_manual']
+            actions: ['inspect_workshop_terminal', 'read_vehicle_manual', 'study_ship_manual']
         },
         {
             id: 'travel',
@@ -275,7 +275,7 @@ export const scoutShipWorkshop = {
             descKey: 'action_read_vehicle_manual_desc',
             category: 'persistent',
             drain: [],
-            durationSeconds: 90,
+            durationSeconds: 60,
             oneTime: true,
             resultKey: 'result_read_vehicle_manual',
             isAvailable(ctx) {
@@ -323,6 +323,13 @@ export const scoutShipWorkshop = {
             },
             onComplete(ctx) {
                 setMilestone('rover_inspected', () => ctx.persistLoopKnowledge());
+                ctx.gameFlags.roverInspectedThisLoop = true;
+                // Unlock extract_rover_fuel_cell in current loop
+                const loc = ctx.getLocation(ctx.getCurrentLocationId());
+                if (loc) {
+                    const eA = (loc.actions || []).find(a => a.id === 'extract_rover_fuel_cell');
+                    if (eA) { eA._completed = false; ctx.flagActionAsNew('extract_rover_fuel_cell'); }
+                }
                 ctx.setFullRebuildNeeded(true);
             },
         },
@@ -355,6 +362,90 @@ export const scoutShipWorkshop = {
             },
             onComplete(ctx) {
                 setMilestone('bikes_inspected', () => ctx.persistLoopKnowledge());
+                ctx.setFullRebuildNeeded(true);
+            },
+        },
+
+        // ==========================================================================
+        // Rover fuel cell chain
+        // ==========================================================================
+
+        {
+            id: 'extract_rover_fuel_cell',
+            nameKey: 'action_extract_rover_fuel_cell',
+            descKey: 'action_extract_rover_fuel_cell_desc',
+            category: 'taxing',
+            drain: [{ resource: 'Stamina', amount: 5 }],
+            durationSeconds: 40,
+            durationIfRemembered: 20,
+            oneTime: true,
+            requiredItems: ['repair_tools'],
+            requiredSkill: { skill: 'engineering', tier: 1 },
+            remembersCondition(ctx) { return hasMilestone('rover_fuel_cell_extracted'); },
+            isAvailable(ctx) {
+                if (!hasMilestone('rover_inspected')) return false;
+                if (!ctx.gameFlags.roverInspectedThisLoop) return false;
+                if (ctx.gameFlags.roverFuelCellExtracted) return false;
+                return true;
+            },
+            onStart(ctx) {
+                const hasTools = ctx.countItemInBag('repair_tools') > 0;
+                const hasEngSkill = hasSkill('engineering', 1);
+                const hasMechSkill = hasSkill('mechanics', 1);
+                if (!hasTools) {
+                    ctx.addLogEntry(ctx.t('log_need_item', { item: ctx.t('item_repair_tools') }), ctx.LogType.ERROR);
+                    return { block: true };
+                }
+                if (!hasEngSkill && !hasMechSkill) {
+                    ctx.addLogEntry(ctx.t('log_need_skills_rover'), ctx.LogType.ERROR);
+                    return { block: true };
+                }
+                if (!hasEngSkill) {
+                    ctx.addLogEntry(ctx.t('log_need_skill', { skill: ctx.t('skill_engineering_t1_name') }), ctx.LogType.ERROR);
+                    return { block: true };
+                }
+                if (!hasMechSkill) {
+                    ctx.addLogEntry(ctx.t('log_need_skill', { skill: ctx.t('skill_mechanics_t1_name') }), ctx.LogType.ERROR);
+                    return { block: true };
+                }
+                if (hasMilestone('rover_fuel_cell_extracted')) {
+                    ctx.action.durationSeconds = ctx.action.durationIfRemembered;
+                }
+            },
+            getResultKey(ctx) {
+                const loop = ctx.gameFlags.loopCount || 0;
+                if (loop >= 2 && hasMilestone('rover_fuel_cell_extracted')) return 'result_extract_rover_fuel_cell_loop2';
+                return hasMilestone('rover_fuel_cell_extracted') ? 'result_extract_rover_fuel_cell_known' : 'result_extract_rover_fuel_cell';
+            },
+            rewards: [{ type: 'item', name: 'Rover Fuel Cell', amount: 1 }],
+            onComplete(ctx) {
+                ctx.gameFlags.roverFuelCellExtracted = true;
+                setMilestone('rover_fuel_cell_extracted', () => ctx.persistLoopKnowledge());
+                ctx.setFullRebuildNeeded(true);
+            },
+        },
+
+        // ==========================================================================
+        // Ship manual study (persistent — skip in later loops)
+        // ==========================================================================
+
+        {
+            id: 'study_ship_manual',
+            nameKey: 'action_study_ship_manual',
+            descKey: 'action_study_ship_manual_desc',
+            category: 'persistent',
+            drain: [],
+            durationSeconds: 60,
+            oneTime: true,
+            isAvailable(ctx) {
+                if (!hasMilestone('workshop_terminal_inspected')) return false;
+                if (!ctx.gameFlags.enginePanelRemoved) return false;
+                if (hasMilestone('ship_manual_studied')) return false;
+                return true;
+            },
+            resultKey: 'result_study_ship_manual',
+            onComplete(ctx) {
+                setMilestone('ship_manual_studied', () => ctx.persistLoopKnowledge());
                 ctx.setFullRebuildNeeded(true);
             },
         },

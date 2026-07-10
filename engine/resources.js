@@ -1235,10 +1235,31 @@ export function applyTimePassiveDrain(realSeconds) {
         }
     }
 
+    // --- O2 regeneration when reactor is running ---
+    const O2_REGEN_PER_MIN = 2.0;
+    if (fuel && fuel.amount > 0 && o2 && !hasEffect('life_support_failure')) {
+        if (o2.amount < o2.capacity) {
+            // Fill area O2 first
+            const regenDelta = (O2_REGEN_PER_MIN * realSeconds);
+            o2.amount = Math.min(o2.capacity, o2.amount + regenDelta);
+        } else {
+            // Area O2 full — recharge personal O2
+            const oxygenRes = getResourceByName('Oxygen');
+            if (oxygenRes && oxygenRes.capacity > 0 && oxygenRes.amount < oxygenRes.capacity) {
+                const regenDelta = (O2_REGEN_PER_MIN * realSeconds);
+                oxygenRes.amount = Math.min(oxygenRes.capacity, oxygenRes.amount + regenDelta);
+                characterState.uniformOxygen = oxygenRes.amount;
+            }
+        }
+    }
+
     // Set area drain rates for passive fuel/O2 drain display
     const areaRates = {};
     if (fuel && fuel.amount > 0) areaRates['area_fuel'] = `-${FUEL_DRAIN_PER_MIN.toFixed(2)}/min`;
     if (o2 && hasEffect('life_support_failure') && o2.amount > 0) areaRates['area_o2'] = '-4.00/min';
+    if (o2 && fuel && fuel.amount > 0 && !hasEffect('life_support_failure') && o2.amount < o2.capacity) {
+        areaRates['area_o2'] = `+${O2_REGEN_PER_MIN.toFixed(2)}/min`;
+    }
     if (gameFlags.recyclerFixed) areaRates['area_water'] = '+0.50/min';
     setActiveAreaDrainRates(Object.keys(areaRates).length > 0 ? areaRates : null);
 

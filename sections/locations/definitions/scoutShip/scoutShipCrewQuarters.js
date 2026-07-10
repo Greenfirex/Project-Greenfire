@@ -42,14 +42,12 @@ export const scoutShipCrewQuarters = {
             durationSeconds: 5,
             oneTime: true,
             resultKey: 'result_wake_up',
-            unlocksAll: true,
             addsEffect: 'alarm',
             results: {
                 default: 'result_wake_up',
                 loop1: 'result_wake_up_loop1',
+                loop2: 'result_wake_up_loop2',
             },
-            hidesLoop2: ['check_terminal', 'hack_terminal', 'use_terminal_login'],
-            unlocksLoop2: ['enter_known_credentials'],
             onCompleteLoop2(ctx) {
                 const bridgeLoc = ctx.getLocation('scout_ship_bridge');
                 if (bridgeLoc) {
@@ -70,9 +68,6 @@ export const scoutShipCrewQuarters = {
                 if (!m.fuel_scanned) {
                     setMilestone('fuel_scanned', () => ctx.persistLoopKnowledge());
                 }
-                const loop = ctx.gameFlags.loopCount || 0;
-                const resultKey = loop >= 3 ? 'result_wake_up_loop3' : 'result_wake_up_loop2';
-                ctx.addLogEntry(ctx.t(resultKey, { fuel: currentFuel, minutes: projectedMins }), ctx.LogType.SUCCESS);
                 ctx.initAreaResources('scout_ship_bridge');
                 ctx.revealAreaResources('scout_ship_bridge');
                 if (typeof window !== 'undefined') {
@@ -82,17 +77,6 @@ export const scoutShipCrewQuarters = {
                 ctx.persistLoopKnowledge();
                 ctx.setFullRebuildNeeded(true);
             },
-            onCompleteLoop3(ctx) {
-                const bridgeLoc = ctx.getLocation('scout_ship_bridge');
-                if (bridgeLoc) {
-                    const bridgeUs = ctx.getUnlockState('scout_ship_bridge');
-                    bridgeUs['check_reactor_status'] = true;
-                    ctx.setUnlockState('scout_ship_bridge', bridgeUs);
-                    const crsAction = (bridgeLoc.actions || []).find(a => a.id === 'check_reactor_status');
-                    if (crsAction) crsAction._completed = true;
-                }
-                ctx.setFullRebuildNeeded(true);
-            },
         },
         {
             id: 'check_terminal',
@@ -100,12 +84,18 @@ export const scoutShipCrewQuarters = {
             descKey: 'action_check_terminal_desc',
             drain: [{ resource: 'Stamina', amount: 3 }],
             durationSeconds: 15,
+            durationIfRemembered: 5,
             oneTime: true,
+            remembersCondition(ctx) { return hasMilestone('crew_terminal_checked'); },
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 if (!us['wake_up']) return false;
-                if (hasMilestone('crew_terminal_access')) return false;
                 return true;
+            },
+            onStart(ctx) {
+                if (hasMilestone('crew_terminal_checked')) {
+                    ctx.action.durationSeconds = ctx.action.durationIfRemembered;
+                }
             },
             getResultKey(ctx) {
                 const m = ctx.gameFlags.loopKnowledge?.milestones || {};
@@ -121,6 +111,7 @@ export const scoutShipCrewQuarters = {
                 if (loop >= 1) return 'result_check_terminal_loop1';
                 return 'result_check_terminal_known';
             },
+            unlocks: ['enter_known_credentials'],
             onComplete(ctx) {
                 setMilestone('crew_terminal_checked', () => ctx.persistLoopKnowledge());
                 const loc = ctx.getLocation(ctx.getCurrentLocationId());
@@ -156,6 +147,7 @@ export const scoutShipCrewQuarters = {
                     us['hack_terminal'] = true;
                     ctx.setUnlockState(loc.id, us);
                 }
+                ctx.gameFlags.crewTerminalAccessThisLoop = true;
                 ctx.setFullRebuildNeeded(true);
             },
         },
@@ -172,6 +164,7 @@ export const scoutShipCrewQuarters = {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 if (!us['check_terminal']) return false;
                 if (!hasMilestone('login_note_found')) return false;
+                if (ctx.countItemInBag('terminal_login_note') <= 0) return false;
                 if (hasMilestone('crew_terminal_access')) return false;
                 if (hasMilestone('bridge_terminal_access')) return false;
                 return true;
@@ -186,22 +179,21 @@ export const scoutShipCrewQuarters = {
                     us['use_terminal_login'] = true;
                     ctx.setUnlockState(loc.id, us);
                 }
+                ctx.gameFlags.crewTerminalAccessThisLoop = true;
                 ctx.setFullRebuildNeeded(true);
             },
         },
         {
             id: 'enter_known_credentials',
-            nameKey: 'action_enter_known_credentials',
-            descKey: 'action_enter_known_credentials_desc',
+            nameKey: 'action_enter_known_credentials_name',
+            descKey: 'action_enter_known_credentials_name_desc',
             drain: [{ resource: 'Stamina', amount: 1 }],
             durationSeconds: 3,
             oneTime: true,
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 if (!us['check_terminal']) return false;
-                // Visible when player already has bridge access (knows the password from bridge)
-                if (!hasMilestone('bridge_terminal_access')) return false;
-                if (hasMilestone('crew_terminal_access')) return false;
+                if (!hasMilestone('bridge_terminal_access') && !hasMilestone('crew_terminal_access')) return false;
                 return true;
             },
             results: {
@@ -209,6 +201,7 @@ export const scoutShipCrewQuarters = {
                 loop2: 'result_enter_known_credentials_loop2',
             },
             hides: ['hack_terminal', 'use_terminal_login'],
+            unlocks: ['access_logs', 'disable_alarm'],
             onComplete(ctx) {
                 setMilestone('crew_terminal_access', () => ctx.persistLoopKnowledge());
                 const loc = ctx.getLocation(ctx.getCurrentLocationId());
@@ -216,8 +209,14 @@ export const scoutShipCrewQuarters = {
                     const us = ctx.getUnlockState(loc.id);
                     us['enter_known_credentials'] = true;
                     ctx.setUnlockState(loc.id, us);
-                    ctx.setFullRebuildNeeded(true);
                 }
+                ctx.gameFlags.crewTerminalAccessThisLoop = true;
+                // Hint about remote reactor optimization (loop 2+ only)
+                const loop = ctx.gameFlags.loopCount || 0;
+                if (loop >= 2 && hasMilestone('reactor_optimized') && !ctx.gameFlags.reactorOptimized) {
+                    ctx.addLogEntry(ctx.t('log_reactor_terminal_hint'), ctx.LogType.UNLOCK);
+                }
+                ctx.setFullRebuildNeeded(true);
             }
         },
         {
@@ -229,6 +228,7 @@ export const scoutShipCrewQuarters = {
             oneTime: true,
             resultKey: 'result_access_logs',
             isAvailable(ctx) {
+                if (!ctx.gameFlags.crewTerminalAccessThisLoop) return false;
                 return hasMilestone('crew_terminal_access');
             }
         },
@@ -279,12 +279,20 @@ export const scoutShipCrewQuarters = {
             descKey: 'action_disable_alarm_desc',
             drain: [{ resource: 'Stamina', amount: 4 }],
             durationSeconds: 12,
+            durationIfRemembered: 6,
             oneTime: true,
             resultKey: 'result_disable_alarm',
             removesEffect: 'alarm',
+            remembersCondition(ctx) { return hasMilestone('crew_terminal_access') && ctx.gameFlags.loopCount >= 1; },
             isAvailable(ctx) {
+                if (!ctx.gameFlags.crewTerminalAccessThisLoop) return false;
                 return hasMilestone('crew_terminal_access');
-            }
+            },
+            onStart(ctx) {
+                if (hasMilestone('crew_terminal_access') && ctx.gameFlags.loopCount >= 1) {
+                    ctx.action.durationSeconds = ctx.action.durationIfRemembered;
+                }
+            },
         },
         {
             id: 'check_storage',
@@ -306,7 +314,7 @@ export const scoutShipCrewQuarters = {
             descKey: 'action_read_book_desc',
             category: 'persistent',
             drain: [],
-            durationSeconds: 90,
+            durationSeconds: 60,
             oneTime: true,
             resultKey: 'result_read_book',
             isAvailable(ctx) {
@@ -343,9 +351,8 @@ export const scoutShipCrewQuarters = {
             isAvailable(ctx) {
                 const loop = ctx.gameFlags.loopCount || 0;
                 if (loop < 2) return false;
-                if (!hasMilestone('crew_terminal_access')) return false;
+                if (!ctx.gameFlags.crewTerminalAccessThisLoop) return false;
                 if (!hasMilestone('reactor_optimized')) return false;
-                if (!hasMilestone('reactor_remote_hint_seen')) return false;
                 if (ctx.gameFlags.reactorOptimized) return false;
                 return true;
             },
