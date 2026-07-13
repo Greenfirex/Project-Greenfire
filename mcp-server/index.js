@@ -12,6 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { validateActionChain } from './validate_action_chain.js';
+import { reorganizeLocales } from './reorganize_locales.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -100,66 +101,87 @@ function extractActionsArray(filePath) {
 // Tool: validate_locales
 // ==========================================================================
 
-function validateLocales() {
-  const localesDir = path.join(PROJECT_ROOT, 'locales');
-  const localeFiles = findFiles(localesDir, ['.json'], []).filter(f => {
-    const name = path.basename(f);
-    return name === 'ui.json';
+const DOMAIN_FILES = ['ui', 'actions', 'game'];
+
+function loadAllLocaleKeys(localesDir) {
+  const result = {};
+  const langs = fs.readdirSync(localesDir).filter(f => {
+    const full = path.join(localesDir, f);
+    return fs.statSync(full).isDirectory() && !f.startsWith('.');
   });
 
-  const issues = [];
-  const langFiles = {};
+  for (const lang of langs) {
+    result[lang] = {};
+    const langDir = path.join(localesDir, lang);
+    for (const domain of DOMAIN_FILES) {
+      const filePath = path.join(langDir, `${domain}.json`);
+      const data = readJson(filePath);
+      if (data) {
+        for (const [key, value] of Object.entries(data)) {
+          // Sleduj, ze kterého souboru klíč pochází (pro přesnější chybové hlášky)
+          if (!result[lang][key]) {
+            result[lang][key] = { value, domain };
+          }
+        }
+      }
+    }
+  }
+  return result;
+}
 
-  for (const filePath of localeFiles) {
-    const parentDir = path.basename(path.dirname(filePath));
-    const data = readJson(filePath);
-    if (data) {
-      langFiles[parentDir] = { path: filePath, keys: data };
-    } else {
-      issues.push({ type: 'parse_error', lang: parentDir, file: filePath });
+function validateLocales() {
+  const localesDir = path.join(PROJECT_ROOT, 'locales');
+  const langKeys = loadAllLocaleKeys(localesDir);
+  const issues = [];
+
+  const langs = Object.keys(langKeys);
+  if (langs.length < 2) {
+    return { issues, summary: `Nalezeno pouze ${langs.length} jazyků.` };
+  }
+
+  // Seber všechny unikátní klíče napříč jazyky
+  const allUniqueKeys = new Set();
+  for (const lang of langs) {
+    for (const key of Object.keys(langKeys[lang])) {
+      allUniqueKeys.add(key);
     }
   }
 
-  const langs = Object.keys(langFiles);
-  if (langs.length < 2) {
-    return { issues, summary: `Nalezeno pouze ${langs.length} locale souborů.` };
-  }
-
-  // Porovnej všechny kombinace
-  const allKeys = {};
-  for (const [lang, info] of Object.entries(langFiles)) {
-    allKeys[lang] = new Set(Object.keys(info.keys));
-  }
-
-  const allUniqueKeys = new Set();
-  for (const keySet of Object.values(allKeys)) {
-    for (const k of keySet) allUniqueKeys.add(k);
-  }
-
+  // Zkontroluj každý klíč v každém jazyce
   for (const key of [...allUniqueKeys].sort()) {
-    for (const [lang, info] of Object.entries(langFiles)) {
-      if (!allKeys[lang].has(key)) {
+    for (const lang of langs) {
+      const entry = langKeys[lang][key];
+      if (!entry) {
         issues.push({
           type: 'missing_key',
           lang,
           key,
-          message: `Klíč "${key}" chybí v ${lang}/ui.json`,
+          message: `Klíč "${key}" chybí ve všech souborech pro ${lang}`,
         });
-      } else if (info.keys[key] === '' || info.keys[key] === null) {
+      } else if (entry.value === '' || entry.value === null) {
         issues.push({
           type: 'empty_value',
           lang,
           key,
-          message: `Klíč "${key}" v ${lang}/ui.json má prázdnou hodnotu`,
+          domain: entry.domain,
+          message: `Klíč "${key}" v ${lang}/${entry.domain}.json má prázdnou hodnotu`,
         });
       }
     }
   }
 
+  // Zjisti počet klíčů na jazyk
+  const keyCounts = {};
+  for (const lang of langs) {
+    keyCounts[lang] = Object.keys(langKeys[lang]).length;
+  }
+
   return {
-    summary: `${langs.join(' vs ')}: ${allUniqueKeys.size} unikátních klíčů, ${issues.length} problémů`,
+    summary: `${langs.join(' vs ')}: ${allUniqueKeys.size} unikátních klíčů celkem, ${issues.length} problémů`,
     languages: langs,
-    totalKeys: allUniqueKeys.size,
+    totalUniqueKeys: allUniqueKeys.size,
+    keyCounts,
+    domainFiles: DOMAIN_FILES,
     issues,
   };
 }
@@ -168,14 +190,28 @@ function validateLocales() {
 // Tool: validate_actions
 // ==========================================================================
 
+function buildLocaleKeySet(localesDir, lang) {
+  const keys = new Set();
+  const langDir = path.join(localesDir, lang);
+  for (const domain of DOMAIN_FILES) {
+    const filePath = path.join(langDir, `${domain}.json`);
+    const data = readJson(filePath);
+    if (data) {
+      for (const key of Object.keys(data)) {
+        keys.add(key);
+      }
+    }
+  }
+  return keys;
+}
+
 function validateActions() {
   const defsDir = path.join(PROJECT_ROOT, 'sections', 'locations', 'definitions');
   const jsFiles = findFiles(defsDir, ['.js']);
 
-  const csUiPath = path.join(PROJECT_ROOT, 'locales', 'cs', 'ui.json');
-  const enUiPath = path.join(PROJECT_ROOT, 'locales', 'en', 'ui.json');
-  const csKeys = new Set(Object.keys(readJson(csUiPath) || {}));
-  const enKeys = new Set(Object.keys(readJson(enUiPath) || {}));
+  const localesDir = path.join(PROJECT_ROOT, 'locales');
+  const csKeys = buildLocaleKeySet(localesDir, 'cs');
+  const enKeys = buildLocaleKeySet(localesDir, 'en');
 
   const issues = [];
   const allActions = [];
@@ -557,6 +593,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: [],
       },
     },
+    {
+      name: 'reorganize_locales',
+      description: 'Analyzuje nebo provede reorganizaci locale souborů podle prefixových doménových pravidel. V režimu analyze_only vrátí report duplicit a kategorizaci klíčů. V režimu migrate přesune klíče do správných doménových souborů (actions, character, effects, resources, confirm, ui).',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          mode: { type: 'string', description: '"analyze_only" pro report nebo "migrate" pro provedení změn' },
+        },
+        required: ['mode'],
+      },
+    },
   ],
 }));
 
@@ -597,6 +644,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     case 'validate_action_chain': {
       const result = validateActionChain(PROJECT_ROOT);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    }
+    case 'reorganize_locales': {
+      const result = reorganizeLocales(request.params.mode || 'analyze_only');
       return {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       };

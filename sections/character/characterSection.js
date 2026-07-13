@@ -42,7 +42,7 @@ function renderConsumablesPanel(consumables, state) {
     if (!consumables || consumables.length === 0) {
         return `<div class="character-card consumables-card">
             <div class="character-card-header"><h3>Supplies</h3></div>
-            <p class="character-card-hint" style="text-align:center;padding:12px 0;">No consumable supplies found.</p>
+            <p class="character-card-hint" style="text-align:center;padding:12px 0;">${t('character_no_consumables')}</p>
         </div>`;
     }
     const autoSettings = getAutoConsumeSettings(state);
@@ -86,7 +86,7 @@ function renderConsumablesPanel(consumables, state) {
     }).join('');
 
     return `<div class="character-card consumables-card">
-        <div class="character-card-header"><h3>Supplies</h3></div>
+        <div class="character-card-header"><h3>${t('character_supplies')}</h3></div>
         <div class="consumables-list">${rows}</div>
     </div>`;
 }
@@ -145,9 +145,9 @@ export function setupCharacterSection(section) {
 
     const inventoryCardHtml = `<div class="character-card inventory-card">
         <div class="character-card-header">
-            <h3>Inventory</h3>
+            <h3>${t('character_inventory')}</h3>
             <div style="display:flex; align-items:center; gap:10px;">
-                <span class="character-card-hint">Bag ${bagRows}×${bagCols}</span>
+                <span class="character-card-hint">${t('character_bag_size', { rows: String(bagRows), cols: String(bagCols) })}</span>
                 <button type="button" class="inventory-use-btn" data-inventory-use ${(!discardMode && canUseSelected) ? '' : 'disabled'} title="${(!discardMode && canUseSelected) ? 'Use selected consumable' : 'Select a consumable to use'}" aria-label="Use selected consumable">Use</button>
                 <button type="button" class="inventory-trash-btn ${discardMode ? 'active' : ''}" data-inventory-trash title="Discard items" aria-label="Discard items">${renderTrashIcon()}</button>
             </div></div>
@@ -157,8 +157,8 @@ export function setupCharacterSection(section) {
 
     const statsCardHtml = `<div class="character-card stats-card">
         <div class="character-card-header">
-            <h3>Stats</h3>
-            <span class="stat-points-chip" data-stat-points-chip role="button" tabindex="0" aria-label="Stat points">Stat Points: <strong>${escapeHtml(String(xp?.statPoints?.unspent ?? 0))}</strong></span>
+            <h3>${t('character_stats')}</h3>
+            <span class="stat-points-chip" data-stat-points-chip role="button" tabindex="0" aria-label="Stat points">${t('character_stat_points')}: <strong>${escapeHtml(String(xp?.statPoints?.unspent ?? 0))}</strong></span>
         </div>
         <div class="stats-list" aria-label="Character stats">
             ${renderXPRow()}${renderHealthRow()}${renderStaminaRow()}

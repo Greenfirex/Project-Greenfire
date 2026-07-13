@@ -146,7 +146,55 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     preloader.progress('core', 1, 'Ready.');
+
+    // Wait for preloader to finish before showing game UI.
+    // This guarantees users always see the progress bar, even on fast machines.
+    if (!preloader.isDone) return;
 });
+
+// Listen for preloader completion. When it fires, resume with the actual game start.
+window.addEventListener('preloader-ready', () => {
+    try {
+        const isResetting = localStorage.getItem('isResetting');
+        if (isResetting) {
+            localStorage.removeItem('isResetting');
+            hideTitleScreen();
+            startWhenTranslationsReadyAux('new');
+            return;
+        }
+    } catch { /* ignore */ }
+
+    try {
+        const autoContinue = localStorage.getItem('autoContinueAfterReload');
+        if (autoContinue) {
+            localStorage.removeItem('autoContinueAfterReload');
+            hideTitleScreen();
+            startWhenTranslationsReadyAux('continue');
+            return;
+        }
+    } catch { /* ignore */ }
+
+    try {
+        const ts = document.getElementById('titleScreen');
+        if (!ts || ts.classList.contains('hidden')) {
+            startGame({ mode: 'continue' });
+        }
+    } catch {
+        startGame({ mode: 'continue' });
+    }
+}, { once: true });
+
+async function startWhenTranslationsReadyAux(mode) {
+    const { isInitComplete } = await import('../locales/locales.js');
+    if (isInitComplete()) {
+        startGame({ mode });
+    } else {
+        window.addEventListener('language-changed', () => {
+            startGame({ mode });
+        }, { once: true });
+    }
+}
+
 
 document.addEventListener('beforeunload', () => {
     saveGameState();

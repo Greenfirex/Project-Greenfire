@@ -23,7 +23,7 @@ let imagesTotal = 0;
 let imagesLoaded = 0;
 let _showTime = Date.now();
 const ANIM_DURATION_MS = 1500; // bar fills over 1.5s for a smooth experience
-const MIN_SHOW_MS = 600;       // minimum time the preloader stays visible
+const MIN_SHOW_MS = 800;       // minimum time the preloader stays visible after everything is ready
 let _animStarted = false;
 let _animStartTime = 0;
 let _animFrame = null;
@@ -189,10 +189,19 @@ function isPortrait() {
     } catch { return false; }
 }
 
+let _readyTime = 0;
+
 function doDismiss() {
     // Cancel safety net — we're dismissing normally.
     if (_safetyTimer) { clearTimeout(_safetyTimer); _safetyTimer = null; }
     if (dismissed) return;
+
+    // Enforce minimum show time after everything became ready.
+    const elapsedSinceReady = _readyTime > 0 ? Date.now() - _readyTime : 0;
+    if (elapsedSinceReady < MIN_SHOW_MS) {
+        setTimeout(doDismiss, MIN_SHOW_MS - elapsedSinceReady);
+        return;
+    }
 
     // If still portrait, defer dismissal.
     if (isPortrait()) { _dismissPending = true; return; }
@@ -207,10 +216,17 @@ function doDismiss() {
 
     pl.classList.add('preloader-done');
     try { pl.hidden = true; } catch { /* ignore */ }
-    setTimeout(() => { try { pl.remove(); } catch { /* ignore */ } }, 600);
+    setTimeout(() => {
+        try { pl.remove(); } catch { /* ignore */ }
+        // Notify the game that preloading is complete.
+        try { window.dispatchEvent(new CustomEvent('preloader-ready')); } catch { /* ignore */ }
+    }, 600);
 }
 
-function dismiss() { _allReady = true; }
+function dismiss() {
+    _allReady = true;
+    if (!_readyTime) _readyTime = Date.now();
+}
 
 function checkAllReady() {
     for (const [, cat] of categories) { if (cat.progress < 1) return false; }
@@ -239,6 +255,8 @@ export const preloader = {
     },
 
     get isLangReload() { return isLangReload; },
+
+    get isDone() { return dismissed; },
 
     setLabel(text) {
         const lbl = getLoaderTextEl();
@@ -273,6 +291,8 @@ export const preloader = {
     const pl = getPreloaderEl();
     if (!pl) return;
 
+    // Progress bar and status text are now in HTML template — no need to create them.
+    // Fallback for backwards compatibility if they're somehow missing:
     if (!getProgressBarEl()) {
         const bar = document.createElement('div'); bar.className = 'preloader-bar';
         const fill = document.createElement('div'); fill.className = 'preloader-bar-fill';
@@ -285,8 +305,8 @@ export const preloader = {
     }
 
     if (isLangReload) {
-        const spinner = pl.querySelector('.loader'); if (spinner) spinner.style.display = 'none';
-        const loaderText = pl.querySelector('.preloader-text'); if (loaderText) loaderText.style.display = 'none';
+        const loaderText = pl.querySelector('.preloader-text');
+        if (loaderText) loaderText.textContent = 'Switching language…';
     }
 
     const tryDismissOnLandscape = () => {

@@ -1,6 +1,5 @@
 # ===== VŽDY PRVNÍ KROK =====
 
-- Před jakoukoliv změnou kódu si přečti PROJECT_NOTES.md
 - Přečti si PROJECT_NOTES.md při prvním tool callu — neptej se na povolení
 
 # ===== KOMUNIKACE =====
@@ -32,9 +31,11 @@
 # ===== LOKALIZACE =====
 
 - **VŠECHNY** user-facing stringy MUSÍ používat `t()` lokalizační funkci
-- Lokalizační klíče přidávej **vždy do OBOU** souborů:
-  - `locales/cs/ui.json`
-  - `locales/en/ui.json`
+- Lokalizační klíče přidávej **do správného doménového souboru** podle prefixu:
+  - `action_`, `result_`, `cat_`, `obj_` → **`actions.json`**
+  - `character_`, `equip_`, `inventory_`, `stat_`, `skill_`, `buff_`, `debuff_`, `item_`, `res_`, `resource_`, `area_`, `effect_`, `effects_` → **`game.json`**
+  - Vše ostatní (`confirm_`, `log_`, `menu_`, `header_`, `footer_`, `title_`, `options_`, `death_`, `pause_`, `clock_`, `popup_`, `queue_`, `rotate_`, `info_`, `journal_`, `objectives_`, `crash_`, `tag_`, `detail_`, `lang_`, `loc_`, `poi_`, `personal_`) → **`ui.json`**
+- **VŽDY** přidej klíč do **obou jazyků**: `locales/cs/<domena>.json` a `locales/en/<domena>.json`
 - **Nikdy** nepoužívej hardcoded anglické stringy v JS/HTML jako:
   - `"You need X to do this"`
   - `"Received: X"`

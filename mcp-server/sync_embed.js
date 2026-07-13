@@ -9,7 +9,7 @@ const localesJsPath = path.join(root, 'locales', 'locales.js');
 const enDir = path.join(root, 'locales', 'en');
 
 // Načti všechny EN JSON soubory a sluč je (pozdější soubory přepisují dřívější)
-const files = ['ui', 'confirm', 'actions', 'resources', 'character', 'effects'];
+const files = ['ui', 'actions', 'game'];
 const enData = {};
 for (const file of files) {
     const filePath = path.join(enDir, `${file}.json`);
