@@ -175,21 +175,9 @@ function _flushBuffer() {
     // Sync toast drawer state
     try { _syncToastDrawerState(_toastContainer); } catch { /* ignore */ }
 
-    // Auto-dismiss oldest log entries if buffer backlog
-    while (_mobileBuffer.length > 0 && logContent.children.length >= MOBILE_MAX_VISIBLE) {
-        const oldest = logContent.firstElementChild;
-        if (oldest) {
-            if (oldest === _typewriterTarget) cancelTypewriter();
-            try { oldest.remove(); } catch { /* ignore */ }
-        } else { break; }
-    }
-
-    // Cap toast container to same limit
+    // Cap toast container (oldest first) — mobile toast UX limit
     try {
         const tc = _ensureToastContainer();
-        // _dismissToast() doesn't immediately remove the element (waits for
-        // animationend), so we must NOT use a while() here — it would loop
-        // forever on the same toast! Use an if() and find a non-dismissing one.
         if (tc.children.length >= MOBILE_MAX_VISIBLE) {
             for (let i = tc.children.length - 1; i >= 0; i--) {
                 if (!tc.children[i].classList.contains('toast-dismissing')) {
@@ -200,8 +188,9 @@ function _flushBuffer() {
         }
     } catch { /* ignore */ }
 
-    // Show up to MOBILE_MAX_VISIBLE from buffer
-    while (_mobileBuffer.length > 0 && logContent.children.length < MOBILE_MAX_VISIBLE) {
+    // Show all buffered entries — DO NOT limit logContent children count;
+    // log history must persist (only capped by MAX_LOG_ENTRIES below).
+    while (_mobileBuffer.length > 0) {
         const { message, type, options } = _mobileBuffer.shift();
         if (logSettings.filters[type]) continue;
 
@@ -219,23 +208,9 @@ function _flushBuffer() {
         // On mobile: instant text for log entries, typewriter only on toasts
         logEntry.textContent = String(message);
 
-        // Pointerdown dismisses log entry
-        const dismissLog = () => {
-            try {
-                if (logEntry.parentNode) logEntry.remove();
-                _flushBuffer();
-            } catch { /* ignore */ }
-        };
-        logEntry.addEventListener('pointerdown', (e) => {
-            if (options.onClick) return;
-            e.preventDefault();
-            dismissLog();
-        });
-        setTimeout(() => { try { if (logEntry.parentNode) dismissLog(); } catch { /* ignore */ } }, 8000);
-
         logContent.appendChild(logEntry);
 
-        // Cap DOM
+        // Cap DOM (preserves history, drops oldest when over limit)
         while (logContent.children.length > MAX_LOG_ENTRIES) {
             const oldest = logContent.firstElementChild;
             if (oldest) {
@@ -244,7 +219,19 @@ function _flushBuffer() {
             } else { break; }
         }
 
-        // --- Toast (created from same buffer entry) ---
+        // Pointerdown dismisses log entry (mobile: tap to dismiss)
+        const dismissLog = () => {
+            try {
+                if (logEntry.parentNode) logEntry.remove();
+            } catch { /* ignore */ }
+        };
+        logEntry.addEventListener('pointerdown', (e) => {
+            if (options.onClick) return;
+            e.preventDefault();
+            dismissLog();
+        });
+
+        // --- Toast (created from same buffer entry, auto-dismiss after 8s) ---
         _createToast(logEntry, message);
     }
 

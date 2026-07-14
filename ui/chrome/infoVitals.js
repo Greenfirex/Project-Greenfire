@@ -6,7 +6,7 @@
 // ==========================================================================
 
 import { t } from '../../locales/locales.js';
-import { resources, RESOURCE_EMOJIS, areaResources, isAreaRevealed } from '../../engine/resources.js';
+import { resources, RESOURCE_EMOJIS, areaResources, isAreaRevealed, buildResourceTooltipHtml, buildAreaResourceTooltipHtml } from '../../engine/resources.js';
 import { activeEffects } from '../../engine/effects.js';
 import { setupTooltip } from '../panels/tooltip.js';
 
@@ -38,6 +38,9 @@ function getResource(name) {
 export function updateInfoVitals() {
     const orbs = document.querySelectorAll('.info-vital-orb');
     orbs.forEach(orb => {
+        // Skip area resource orbs — they belong to updateAreaVitals()
+        if (orb.closest('.info-area-vitals')) return;
+
         const vitalName = orb.dataset.vitalName;
         if (!vitalName) return;
 
@@ -103,31 +106,8 @@ export function setupInfoVitals(panelEl) {
         orb.appendChild(text);
         container.appendChild(orb);
 
-        // Tooltip with resource info
-        setupTooltip(orb, () => {
-            const res = getResource(name);
-            if (!res) return `<h4>${name}</h4>`;
-
-            const emoji = RESOURCE_ICONS[name] || '';
-            const amount = Math.floor(Number(res.amount) || 0);
-            const cap = Number(res.capacity) || 0;
-            const pct = cap > 0 ? Math.round((amount / cap) * 100) : 0;
-
-            // Get current rate from dataset or compute
-            let rateHtml = '';
-            try {
-                const rateEl = document.querySelector(`.info-row[data-resource="${name.replace(/"/g, '\\"')}"] .infocolumn3 span`);
-                if (rateEl) {
-                    rateHtml = `<div style="font-size:10px;margin-top:2px;opacity:0.7">${rateEl.textContent}</div>`;
-                }
-            } catch { /* ignore */ }
-
-            return `
-                <h4>${emoji} ${t(RESOURCE_ICONS[name] ? name : name)}</h4>
-                <p>${amount} / ${cap} (${pct}%)</p>
-                ${rateHtml}
-            `;
-        });
+        // Tooltip — uses the same buildResourceTooltipHtml as desktop info bars
+        setupTooltip(orb, () => buildResourceTooltipHtml(name));
     });
 
     panelEl.appendChild(container);
@@ -325,15 +305,8 @@ export function updateAreaVitals() {
             orb.appendChild(text);
             areaContainer.appendChild(orb);
 
-            // Tooltip (set once on creation)
-            setupTooltip(orb, () => {
-                const emoji = AREA_ICONS[res.name] || '';
-                const locName = t('area_' + res.name.replace('area_', '')) || res.name;
-                const curAmt = Math.floor(Number(res.amount) || 0);
-                const curMax = Number(res.capacity) || 1;
-                const curPct = Math.min(100, Math.round((curAmt / curMax) * 100));
-                return `<h4>${emoji} ${locName}</h4><p>${curAmt} / ${curMax} (${curPct}%)</p>`;
-            });
+            // Tooltip — uses same buildAreaResourceTooltipHtml as desktop area bars
+            setupTooltip(orb, () => buildAreaResourceTooltipHtml(res.name));
         });
         return;
     }

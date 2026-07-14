@@ -291,16 +291,27 @@ function attachInventoryUseHandlers(sectionRoot) {
         commitCharacterChange(sectionRoot);
     });
     if (discardMode) return;
+    let bagClickTimer = null;
     panel.querySelectorAll('.bag-slot').forEach(slotEl => {
         slotEl.addEventListener('click', e => {
             if (currentDragPayload) return;
+            // Delay re-render by 300ms so double-click and drag-and-drop can
+            // complete before the DOM is destroyed by setupCharacterSection().
+            if (bagClickTimer) {
+                clearTimeout(bagClickTimer);
+                bagClickTimer = null;
+                return;
+            }
             const idx = Number(slotEl.dataset.slot);
             if (!Number.isInteger(idx)) return;
             const entry = characterState?.bag?.[idx];
-            if (!entry) { selectedBagIndex = null; setupCharacterSection(sectionRoot); return; }
-            selectedBagIndex = idx;
-            try { if (characterState.bagUiNew?.[idx]) characterState.bagUiNew[idx] = false; } catch { /* ignore */ }
-            setupCharacterSection(sectionRoot);
+            bagClickTimer = setTimeout(() => {
+                bagClickTimer = null;
+                if (!entry) { selectedBagIndex = null; setupCharacterSection(sectionRoot); return; }
+                selectedBagIndex = idx;
+                try { if (characterState.bagUiNew?.[idx]) characterState.bagUiNew[idx] = false; } catch { /* ignore */ }
+                setupCharacterSection(sectionRoot);
+            }, 300);
         });
     });
 }

@@ -193,9 +193,9 @@ export function renderDetailsTile() {
                     const displayName = emoji ? `${emoji} ${displayNameLocale}` : displayNameLocale;
                     const cssSuffix = isExhausted ? 'health' : (/stamina/i.test(resName) ? 'stamina' : (/food/i.test(resName) ? 'food' : 'water'));
                     const cssClass = `detail-cost-${cssSuffix}`;
-                    const debuffBadge = isDebuffed ? `<span class="detail-cost-debuff-badge" data-debuff-for="${displayResName}">&#x26A0;</span>` : '';
+                    const debuffAttr = isDebuffed ? ` data-debuff-for="${displayResName}"` : '';
 
-                    return `<div class="detail-cost ${cssClass}"><span class="detail-cost-label">${displayName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-remain" data-cost-res="${resName}" data-cost-total="${totalCost.toFixed(2)}" style="font-weight:bold;">${remain.toFixed(2)}</span> <span class="detail-cost-rate"${isDebuffed ? ' style="color:#E74C3C;"' : ''}>[-${rate.toFixed(2)}/min]</span>${debuffBadge}</span></div>`;
+                    return `<div class="detail-cost ${cssClass}"><span class="detail-cost-label">${displayName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-remain" data-cost-res="${resName}" data-cost-total="${totalCost.toFixed(2)}" style="font-weight:bold;">${remain.toFixed(2)}</span> <span class="detail-cost-rate"${isDebuffed ? ' style="color:#E74C3C;"' : ''}${debuffAttr}>[-${rate.toFixed(2)}/min]</span></span></div>`;
                 }).join('');
             // If Health-draining effects are active AND player is NOT exhausted,
             // show a separate Health cost row. When exhausted, the Stamina row absorbs Health.
@@ -211,7 +211,7 @@ export function renderDetailsTile() {
                     const healthLoc = t((RESOURCE_LOCALE_KEYS || {})['Health'] || 'Health');
                     const healthEmoji = RESOURCE_EMOJIS['Health'] || '';
                     const healthDisplayName = healthEmoji ? `${healthEmoji} ${healthLoc}` : healthLoc;
-                    healthCostHtml = `<div class="detail-cost detail-cost-health"><span class="detail-cost-label">${healthDisplayName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-remain" data-cost-res="Health" data-cost-total="${healthTotalCost.toFixed(2)}" style="font-weight:bold;">${healthRemain.toFixed(2)}</span> <span class="detail-cost-rate" style="color:#E74C3C;">[-${healthRate.toFixed(2)}/min]</span><span class="detail-cost-debuff-badge" data-debuff-for="Health">&#x26A0;</span></span></div>`;
+                    healthCostHtml = `<div class="detail-cost detail-cost-health"><span class="detail-cost-label">${healthDisplayName}</span><span class="detail-cost-dots"></span><span class="detail-cost-right"><span class="detail-cost-remain" data-cost-res="Health" data-cost-total="${healthTotalCost.toFixed(2)}" style="font-weight:bold;">${healthRemain.toFixed(2)}</span> <span class="detail-cost-rate" style="color:#E74C3C;" data-debuff-for="Health">[-${healthRate.toFixed(2)}/min]</span></span></div>`;
                 }
             }
             // Area resource drain (e.g., area_water used by drink_water)
@@ -512,15 +512,13 @@ export function renderActionButton(action) {
 // ==========================================================================
 
 export function wireDebuffTooltips(detailsHost) {
-    detailsHost.querySelectorAll('.detail-cost-debuff-badge').forEach(badge => {
-        // Enable touch-tap tooltips on mobile so the debuff badge shows its
-        // tooltip without triggering deselection.
-        badge.dataset.tooltipTouchTap = 'true';
-        // Stop click from bubbling to deselection handlers on the parent panel.
-        badge.addEventListener('click', (e) => { e.stopPropagation(); });
-        const targetResource = badge.dataset.debuffFor || 'Stamina';
+    detailsHost.querySelectorAll('.detail-cost-rate[data-debuff-for]').forEach(rateEl => {
+        // Enable touch-tap tooltips on mobile so the rate value shows its
+        // debuff tooltip without triggering deselection.
+        rateEl.dataset.tooltipTouchTap = 'true';
+        const targetResource = rateEl.dataset.debuffFor || 'Stamina';
         const contextExhausted = hasEffect('exhausted');
-        setupTooltip(badge, () => {
+        setupTooltip(rateEl, () => {
             const details = getEffectDebuffDetails();
             if (!details.length) return '<p>No active debuffs.</p>';
             let html = '<h4>Active Effects</h4>';

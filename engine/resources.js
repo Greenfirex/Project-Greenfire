@@ -169,10 +169,10 @@ const AREA_LOCALE_KEYS = {
 };
 
 const AREA_DESC_KEYS = {
-    'area_food': 'area_food',
-    'area_water': 'area_water',
-    'area_fuel': 'area_fuel',
-    'area_o2': 'area_o2',
+    'area_food': 'area_food_desc',
+    'area_water': 'area_water_desc',
+    'area_fuel': 'area_fuel_desc',
+    'area_o2': 'area_o2_desc',
 };
 
 /**
@@ -219,14 +219,24 @@ export function getAreaResourceAmount(locationId, resourceName) {
 
 let _areaSectionHost = null;
 
-function buildAreaResourceTooltipHtml(resourceName) {
-    const list = (typeof window !== 'undefined' && window._currentAreaResourceList) ? window._currentAreaResourceList : null;
-    if (!list) return '';
+export function buildAreaResourceTooltipHtml(resourceName) {
+    // Collect current list from area resources (same logic as updateAreaResourcesUI)
+    const list = [];
+    for (const locId of Object.keys(areaResources)) {
+        if (!_revealedAreaLocations.has(locId)) continue;
+        if (Array.isArray(areaResources[locId])) {
+            for (const res of areaResources[locId]) {
+                if (!list.find(r => r.name === res.name)) list.push(res);
+            }
+        }
+    }
     const res = list.find(r => r.name === resourceName);
     if (!res) return '';
     const name = t(AREA_LOCALE_KEYS[resourceName] || resourceName);
-    const desc = t(AREA_DESC_KEYS[resourceName] || '');
-    return `<h4>${name}</h4><p class="tooltip-description">${desc}</p><p>Remaining: <strong>${Math.floor(res.amount)}</strong></p>`;
+    const desc = t(AREA_DESC_KEYS[resourceName] || '') || '';
+    const amt = Math.floor(Number(res.amount) || 0);
+    const cap = Math.floor(Number(res.capacity) || 0);
+    return `<h4>${name}</h4><p class="tooltip-description">${desc}</p><p>${t('tt_remaining')}: <strong>${amt} / ${cap}</strong></p>`;
 }
 
 /**
@@ -358,12 +368,7 @@ export function updateAreaResourcesUI() {
             if (row.dataset.tooltipWired) return;
             row.dataset.tooltipWired = '1';
             const resName = row.dataset.resource;
-            setupTooltip(row, () => {
-                const res = list.find(r => r.name === resName);
-                if (!res) return '';
-                const descKey = AREA_DESC_KEYS[resName] || '';
-                return `<h4>${t(AREA_LOCALE_KEYS[resName] || resName)}</h4><p>Remaining: <strong>${Math.floor(res.amount)}</strong> / ${Math.floor(res.capacity)}</p>`;
-            });
+            setupTooltip(row, () => buildAreaResourceTooltipHtml(resName));
         });
     } catch { /* ignore */ }
 }
@@ -406,14 +411,14 @@ const PASSIVE_PER_MIN = {
 // Health drain rate when Exhausted (per minute)
 const EXHAUSTED_HEALTH_DRAIN = -1.0;
 
-function buildResourceTooltipHtml(resourceName) {
+export function buildResourceTooltipHtml(resourceName) {
     const name = String(resourceName || '');
     const displayName = t(RESOURCE_LOCALE_KEYS[name] || name);
     const currentResource = resources.find(r => r.name === name);
-    if (!currentResource) return `<h4>${displayName}</h4><p>No data available.</p>`;
+    if (!currentResource) return `<h4>${displayName}</h4><p>${t('res_no_data')}</p>`;
 
     const rates = computeResourceRates(name);
-    if (!rates) return `<h4>${displayName}</h4><p>No data available.</p>`;
+    if (!rates) return `<h4>${displayName}</h4><p>${t('res_no_data')}</p>`;
 
     const res = resources.find(r => r && r.name === name);
     const amt = res ? (res.integer ? Math.floor(Number(res.amount) || 0) : (Number(res.amount) || 0)) : 0;
@@ -422,8 +427,9 @@ function buildResourceTooltipHtml(resourceName) {
     let description = t(RESOURCE_DESC_KEYS[name] || '') || '';
 
     const sign = rates.netPerMinute >= 0 ? '+' : '-';
-    const regenLabel = (name === 'Health' || name === 'Stamina') ? 'Regeneration' : 'Gains';
-    const drainLabel = (name === 'Health' || name === 'Stamina') ? 'Drain' : 'Usage';
+    const isRegenType = (name === 'Health' || name === 'Stamina');
+    const regenLabel = t(isRegenType ? 'resource_regen' : 'resource_gains');
+    const drainLabel = t(isRegenType ? 'resource_drain' : 'resource_usage');
 
     let sectionsHtml = '';
 
@@ -453,11 +459,11 @@ function buildResourceTooltipHtml(resourceName) {
         <h4>${displayName}</h4>
         <p class="tooltip-description">${description}</p>
         <div class="tooltip-section">
-            <p>Current: <strong>${amt}${cap > 0 ? `/${cap}` : ''}</strong></p>
+            <p>${t('tt_current')}: <strong>${amt}${cap > 0 ? `/${cap}` : ''}</strong></p>
         </div>
         ${sectionsHtml}
         <hr>
-        <p><strong>Net Change: ${sign}${formatNumber(Math.abs(rates.netPerMinute))}/min</strong></p>
+        <p><strong>${t('resource_net_change')}: ${sign}${formatNumber(Math.abs(rates.netPerMinute))}/min</strong></p>
     `;
 }
 
