@@ -146,10 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     preloader.progress('core', 1, 'Ready.');
-
-    // Wait for preloader to finish before showing game UI.
-    // This guarantees users always see the progress bar, even on fast machines.
-    if (!preloader.isDone) return;
+    preloader.progress('titleScreen', 1, 'Title ready.');
 });
 
 // Listen for preloader completion. When it fires, resume with the actual game start.

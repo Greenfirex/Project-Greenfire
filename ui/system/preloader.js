@@ -158,13 +158,9 @@ function startSmoothAnimation() {
         const eased = easeOutQuad(animFraction);
         const real = computeTotalProgress();
         let visual;
-        if (real >= 0.99) {
-            visual = _displayedProgress + (1 - _displayedProgress) * 0.12;
-            if (visual > 0.985) visual = 1;
-        } else {
-            visual = real * 0.7 + eased * 0.3;
-            visual = Math.max(_displayedProgress, visual);
-        }
+        const floor = eased * 0.3;
+        visual = Math.max(real, floor);
+        visual = Math.max(_displayedProgress, visual);
         _displayedProgress = Math.min(1, visual);
 
         bar.style.width = `${Math.round(_displayedProgress * 100)}%`;
