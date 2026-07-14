@@ -210,5 +210,6 @@
   "title_continue": "Pokračovat",
   "title_exit": "Konec",
   "title_new_game": "Nová hra",
-  "title_settings": "Nastavení"
+  "title_settings": "Nastavení",
+  "log_canteen_drink": "Napil ses {amount} jednotek vody z kantýny. Kantýna: {canteen}/{max}. Pitná voda: {water}/{cap}."
 }

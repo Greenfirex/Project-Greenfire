@@ -103,5 +103,12 @@
   "stat_health": "Zdraví",
   "stat_level": "Úroveň",
   "stat_points": "Body statistik",
-  "stat_stamina": "Výdrž"
+  "stat_stamina": "Výdrž",
+  "item_canteen_name": "Kantýna",
+  "item_canteen_water_label": "Voda",
+  "item_canteen_water_value": "{water} / 50",
+  "item_canteen_use_desc": "Napít se až 10 jednotek vody z kantýny.",
+  "item_canteen_supplies_status": "Voda: {water} / 50",
+  "item_canteen_use_title": "Napít se z kantýny (max 10)",
+  "item_canteen_desc": "Odolná kantýna, aktuálně prázdná. Pojme až 50 jednotek vody."
 }

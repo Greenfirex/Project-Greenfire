@@ -103,5 +103,12 @@
   "stat_health": "Health",
   "stat_level": "Level",
   "stat_points": "Stat Points",
-  "stat_stamina": "Stamina"
+  "stat_stamina": "Stamina",
+  "item_canteen_name": "Canteen",
+  "item_canteen_water_label": "Water",
+  "item_canteen_water_value": "{water} / 50",
+  "item_canteen_use_desc": "Drink up to 10 water from the canteen.",
+  "item_canteen_supplies_status": "Water: {water} / 50",
+  "item_canteen_use_title": "Drink from canteen (max 10)",
+  "item_canteen_desc": "A durable canteen, currently empty. Can hold up to 50 units of water."
 }

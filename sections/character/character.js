@@ -113,6 +113,9 @@ export function canEquipItemToSlot(itemId, equipSlot) {
     const def = getItemDefinition(itemId);
     if (!def) return false;
 
+    if (Array.isArray(def.equipSlots) && def.equipSlots.length > 0) {
+        return def.equipSlots.includes(slot);
+    }
     if (def.slot === 'accessory') {
         return slot === 'accessory_1' || slot === 'accessory_2';
     }
@@ -878,4 +881,9 @@ export function toggleAutoConsume(itemId, state = characterState) {
     if (!state.autoConsume) state.autoConsume = {};
     state.autoConsume[itemId] = !state.autoConsume[itemId];
     return state.autoConsume[itemId];
+}
+
+// Debug test
+if (typeof window !== 'undefined') {
+    window.__canEquip = canEquipItemToSlot;
 }

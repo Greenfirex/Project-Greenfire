@@ -32,6 +32,8 @@ import { showConfirmPopup } from '../../ui/panels/confirmPopup.js';
 import { newBadgeHtml } from '../../ui/components/contentNewBadges.js';
 import { useConsumableFromBag } from './consumables.js';
 import { t } from '../../locales/locales.js';
+import { gameFlags } from '../../engine/gameFlags.js';
+
 
 let listenersInstalled = false;
 let currentDragPayload = null;
@@ -39,10 +41,36 @@ let discardMode = false;
 let selectedBagIndex = null;
 
 function renderConsumablesPanel(consumables, state) {
-    if (!consumables || consumables.length === 0) {
+    const hasCanteen = characterState?.bag?.some(e => {
+        const id = typeof e === 'string' ? e : e?.id;
+        return id === 'canteen';
+    }) || characterState?.equipment?.accessory_1 === 'canteen' || characterState?.equipment?.accessory_2 === 'canteen' || false;
+
+    let canteenRowHtml = '';
+    if (hasCanteen) {
+        const cw = gameFlags.canteenWater || 0;
+        canteenRowHtml = `<div class="consumable-row">
+            <div class="consumable-row-info">
+                <span class="consumable-name">${escapeHtml(t('item_canteen_name'))}</span>
+                <span class="consumable-total">${escapeHtml(t('item_canteen_supplies_status', { water: String(cw) }))}</span>
+            </div>
+            <div class="consumable-row-actions">
+                <button type="button" class="consumable-use-btn" data-consumable-use="canteen" title="${escapeHtml(t('item_canteen_use_title'))}" ${cw <= 0 ? 'disabled' : ''}>Use</button>
+            </div>
+        </div>`;
+    }
+
+    const hasConsumables = consumables && consumables.length > 0;
+    if (!hasConsumables && !hasCanteen) {
         return `<div class="character-card consumables-card">
             <div class="character-card-header"><h3>Supplies</h3></div>
             <p class="character-card-hint" style="text-align:center;padding:12px 0;">${t('character_no_consumables')}</p>
+        </div>`;
+    }
+    if (!hasConsumables && hasCanteen) {
+        return `<div class="character-card consumables-card">
+            <div class="character-card-header"><h3>${t('character_supplies')}</h3></div>
+            <div class="consumables-list">${canteenRowHtml}</div>
         </div>`;
     }
     const autoSettings = getAutoConsumeSettings(state);
@@ -55,7 +83,7 @@ function renderConsumablesPanel(consumables, state) {
         foodDrainPerMin = foodRes?._drainRate != null ? -Number(foodRes._drainRate) : 0.08;
     } catch { /* ignore */ }
 
-    const rows = consumables.map(c => {
+    const rows = consumables.filter(c => c.itemId !== 'canteen').map(c => {
         const totalValue = getConsumableTotalValue(c.itemId, c.count);
         const isWater = c.consumable.resource === 'Drinking Water';
         const isFood = c.consumable.resource === 'Food Rations';
@@ -87,7 +115,7 @@ function renderConsumablesPanel(consumables, state) {
 
     return `<div class="character-card consumables-card">
         <div class="character-card-header"><h3>${t('character_supplies')}</h3></div>
-        <div class="consumables-list">${rows}</div>
+        <div class="consumables-list">${canteenRowHtml}${rows}</div>
     </div>`;
 }
 
@@ -282,8 +310,9 @@ function renderEquipmentSlot(key, label, itemId) {
     const item = itemId ? getItemDefinition(itemId) : null;
     const hasItem = !!item;
     const icon = item?.icon ? String(item.icon) : '';
+    const itemName = item ? (t(item.nameKey) || item.name) : '';
     return `<div class="equipment-slot ${hasItem ? 'has-item' : ''}" data-slot="${safeKey}" data-item-id="${hasItem ? escapeHtml(item.id) : ''}" ${hasItem ? 'draggable="true"' : ''} role="button" tabindex="0" aria-label="${label} slot">
-        <div class="slot-frame"></div>${hasItem ? `<div class="slot-item">${icon ? `<img class="item-icon" src="${escapeHtml(icon)}" alt="" />` : ''}<span class="item-name">${escapeHtml(item.name)}</span></div>` : ''}
+        <div class="slot-frame"></div>${hasItem ? `<div class="slot-item">${icon ? `<img class="item-icon" src="${escapeHtml(icon)}" alt="" />` : ''}<span class="item-name">${escapeHtml(itemName)}</span></div>` : ''}
         <div class="slot-label">${label}</div></div>`;
 }
 
@@ -396,7 +425,7 @@ function renderBagSlots() {
         const showNew = hasItem && !!(characterState?.bagUiNew?.[i]);
         const isSelected = Number.isInteger(selectedBagIndex) && selectedBagIndex === i && hasItem && !discardMode;
         return `<div class="bag-slot ${hasItem ? 'has-item' : ''} ${showNew ? 'has-new-badge' : ''} ${isSelected ? 'selected' : ''}" data-slot="${i}" data-item-id="${hasItem ? escapeHtml(item.id) : ''}" ${hasItem ? 'draggable="true"' : ''} role="button" tabindex="0" aria-label="Bag slot ${i + 1}">
-            ${newBadgeHtml(showNew)}${hasItem ? `<div class="bag-item">${item.icon ? `<img class="item-icon" src="${escapeHtml(item.icon)}" alt="" />` : ''}<span class="item-name">${escapeHtml(item.name)}</span>${qty > 1 ? `<span class="item-qty">×${String(qty)}</span>` : ''}</div>` : ''}</div>`;
+            ${newBadgeHtml(showNew)}${hasItem ? `<div class="bag-item">${item.icon ? `<img class="item-icon" src="${escapeHtml(item.icon)}" alt="" />` : ''}<span class="item-name">${escapeHtml(t(item.nameKey) || item.name)}</span>${qty > 1 ? `<span class="item-qty">×${String(qty)}</span>` : ''}</div>` : ''}</div>`;
     }).join('');
 }
 
@@ -487,12 +516,16 @@ function buildItemTooltipHTML(slotEl) {
     const tagsHtml = []; try { if (def?.stackable && def?.consumable) { const idx = Math.floor(Number(slotEl.dataset.slot)); const e = Number.isInteger(idx) ? characterState?.bag?.[idx] : null; const q = !e ? 1 : (typeof e === 'string' ? 1 : (e?.id ? Math.max(1, Math.floor(Number(e.qty ?? 1)) || 1) : 1)); tagsHtml.push(`<span class="tooltip-tag">${q}/5</span>`); } } catch { /* ignore */ }
     try { if (def?.quest || (Array.isArray(def?.tags) && def.tags.some(t => String(t).toLowerCase() === 'quest'))) tagsHtml.push('<span class="tooltip-tag">Quest</span>'); } catch { /* ignore */ }
     const tags = tagsHtml.join('');
-    let html = tags ? `<div class="tooltip-header-row"><h4>${escapeHtml(def.name || def.id)}</h4><div class="tooltip-tags">${tags}</div></div>` : `<h4>${escapeHtml(def.name || def.id)}</h4>`;
-    if (def.description) html += `<p class="tooltip-description">${escapeHtml(String(def.description))}</p>`;
+    let html = tags ? `<div class="tooltip-header-row"><h4>${escapeHtml(t(def.nameKey) || def.name || def.id)}</h4><div class="tooltip-tags">${tags}</div></div>` : `<h4>${escapeHtml(t(def.nameKey) || def.name || def.id)}</h4>`;
+    if (def.descKey || def.description) html += `<p class="tooltip-description">${escapeHtml(String(t(def.descKey) || def.description || ''))}</p>`;
     html += `<div class="tooltip-section"><h4>Slot</h4><p>${escapeHtml(slotName || '—')}</p></div>`;
-    try { if (def.consumable) { let t = ''; if (def.consumable.type === 'heal') { const a = Math.floor(Number(def.consumable.amount) || 0); const r = String(def.consumable.resource || '').trim(); if (a > 0 && r) t = `Restores ${a} ${escapeHtml(r)}.`; } else if (def.consumable.type === 'buff' && String(def.consumable.buff) === 'staminaRegen') { const b = Number(def.consumable.bonusPerSec) || 0; const m = Math.floor(Number(def.consumable.durationMinutes) || 0); if (b > 0 && m > 0) t = `Stamina regen +${b}/s for ${m / 60}h.`; } if (t) html += `<div class="tooltip-section"><h4>Use</h4><p>${t}</p></div>`; } } catch { /* ignore */ }
+    // Canteen water level in tooltip
+    if (itemId === 'canteen') {
+        const cw = gameFlags.canteenWater || 0;
+        html += `<div class="tooltip-section"><h4>${escapeHtml(t('item_canteen_water_label'))}</h4><p>${escapeHtml(t('item_canteen_water_value', { water: String(cw) }))}</p></div>`;
+    }
+    try { if (def.consumable) { let t = ''; if (def.consumable.type === 'heal') { const a = Math.floor(Number(def.consumable.amount) || 0); const r = String(def.consumable.resource || '').trim(); if (a > 0 && r) t = `Restores ${a} ${escapeHtml(r)}.`; } else if (def.consumable.type === 'buff' && String(def.consumable.buff) === 'staminaRegen') { const b = Number(def.consumable.bonusPerSec) || 0; const m = Math.floor(Number(def.consumable.durationMinutes) || 0); if (b > 0 && m > 0) t = `Stamina regen +${b}/s for ${m / 60}h.`; } else if (def.consumable.type === 'canteen_drink') { t = t('item_canteen_use_desc'); } if (t) html += `<div class="tooltip-section"><h4>Use</h4><p>${t}</p></div>`; } } catch { /* ignore */ }
     if (lines.length) html += `<div class="tooltip-section"><h4>Modifiers</h4><ul class="tooltip-bonuses">${lines.map(l => `<li class="bonus-item">${l}</li>`).join('')}</ul></div>`;
-    else html += `<div class="tooltip-section"><h4>Modifiers</h4><p>None</p></div>`;
     return html;
 }
 
@@ -577,7 +610,8 @@ function onDragOver(event, target) { const payload = getCurrentPayload(event); i
 function onDrop(event, target, sectionRoot) { const payload = getCurrentPayload(event); if (!payload) return; event.preventDefault(); clearDropVisual(event.currentTarget); if (!isDropAllowed(payload, target)) return; if (performDrop(payload, target)) { currentDragPayload = null; commitCharacterChange(sectionRoot); } else { currentDragPayload = null; clearAllDropVisuals(); } }
 
 function commitCharacterChange(sectionRoot) { import('../../engine/saveload.js').then(m => m?.saveGameStateQuiet?.()); setupCharacterSection(sectionRoot); }
-function autoEquipFromBag(bagIndex) { if (!Array.isArray(characterState?.bag) || !Number.isInteger(bagIndex) || bagIndex < 0 || bagIndex >= characterState.bag.length) return false; const entry = characterState.bag[bagIndex]; if (!entry || typeof entry !== 'string') return false; const def = getItemDefinition(entry); if (!def) return false; let targetSlot = def.slot === 'accessory' ? (!characterState?.equipment?.accessory_1 ? 'accessory_1' : (!characterState?.equipment?.accessory_2 ? 'accessory_2' : 'accessory_1')) : def.slot; return canEquipItemToSlot(entry, targetSlot) && moveBagItemToEquip(bagIndex, targetSlot); }
+function autoEquipFromBag(bagIndex) { if (!Array.isArray(characterState?.bag) || !Number.isInteger(bagIndex) || bagIndex < 0 || bagIndex >= characterState.bag.length) return false; const entry = characterState.bag[bagIndex]; if (!entry || typeof entry !== 'string') return false; const def = getItemDefinition(entry); if (!def) return false; let targetSlots = []; if (Array.isArray(def.equipSlots) && def.equipSlots.length > 0) { targetSlots = def.equipSlots; } else if (def.slot === 'accessory') { targetSlots = ['accessory_1', 'accessory_2']; } else { targetSlots = [def.slot]; } for (const s of targetSlots) { if (canEquipItemToSlot(entry, s) && !characterState?.equipment?.[s]) { return moveBagItemToEquip(bagIndex, s); } } return false; }
+if (typeof window !== 'undefined') { window.__autoEquip = autoEquipFromBag; }
 function autoUnequipToFirstEmptyBag(equipSlot) { const s = String(equipSlot || ''); const eq = characterState?.equipment?.[s]; if (!eq) return false; const bag = characterState?.bag; if (!Array.isArray(bag)) return false; const empty = bag.findIndex(x => !x); return empty >= 0 && moveEquipItemToBag(s, empty); }
 
 function clearDropVisual(el) { el?.classList?.remove('drop-ok', 'drop-bad'); }
@@ -585,7 +619,7 @@ function clearAllDropVisuals() { document.querySelectorAll('.bag-slot.drop-ok, .
 function highlightValidDropTargets(payload) { clearAllDropVisuals(); if (!payload) return; document.querySelectorAll('.bag-slot, .equipment-slot').forEach(el => { if (!el?.dataset) return; let t = null; if (el.classList.contains('bag-slot')) t = { type: 'bag', index: Number(el.dataset.slot) }; else if (el.classList.contains('equipment-slot')) t = { type: 'equip', slot: String(el.dataset.slot || '') }; if (t && isDropAllowed(payload, t)) el.classList.add('drop-ok'); }); }
 function getCurrentPayload(event) { if (currentDragPayload) return currentDragPayload; try { const txt = event?.dataTransfer?.getData('text/plain'); if (txt) { const p = JSON.parse(txt); if (p?.source && p.itemId) return p; } } catch { /* ignore */ } return null; }
 function getDragItemIdFromSource(source) { if (!source) return null; if (source.type === 'bag') { const entry = characterState?.bag?.[Number(source.index)]; if (!entry) return null; return typeof entry === 'string' ? entry : entry?.id || null; } if (source.type === 'equip') { const s = String(source.slot || ''); return characterState?.equipment?.[s] || null; } return null; }
-function isDropAllowed(payload, target) { if (!payload?.source || !payload.itemId || !target) return false; if (target.type === 'bag') return Number.isInteger(target.index) && target.index >= 0; if (target.type === 'equip') return canEquipItemToSlot(payload.itemId, target.slot); return false; }
+function isDropAllowed(payload, target) { if (!payload?.source || !payload.itemId || !target) return false; if (target.type === 'bag') return Number.isInteger(target.index) && target.index >= 0; if (target.type === 'equip') { const ok = canEquipItemToSlot(payload.itemId, target.slot); console.log('[isDropAllowed] equip target:', payload.itemId, '->', target.slot, '=', ok); return ok; } return false; }
 function performDrop(payload, target) { const src = payload.source; if (!src) return false; if (src.type === 'bag' && target.type === 'bag') return swapBagSlots(Number(src.index), Number(target.index)); if (src.type === 'bag' && target.type === 'equip') return moveBagItemToEquip(Number(src.index), target.slot); if (src.type === 'equip' && target.type === 'bag') return moveEquipItemToBag(src.slot, Number(target.index)); if (src.type === 'equip' && target.type === 'equip') return moveEquipItemToEquip(src.slot, target.slot); return false; }
 
 function attachConsumableHandlers(panel, sectionRoot) {

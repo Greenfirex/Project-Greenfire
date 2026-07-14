@@ -4,6 +4,8 @@ import { getItemDefinition } from './items.js';
 import { consumeItemQuantityFromBag } from './character.js';
 import { resources } from '../../engine/resources.js';
 import { getTotalIngameMinutes } from '../../engine/time.js';
+import { gameFlags } from '../../engine/gameFlags.js';
+import { t } from '../../locales/locales.js';
 
 /**
  * Use one unit of a consumable from the character's bag.
@@ -18,6 +20,35 @@ export function useConsumableFromBag(itemId, state) {
     if (!def || !def.consumable) return false;
 
     const { type, resource, amount, buff, bonusPerSec, durationMinutes } = def.consumable;
+
+    // Canteen special handling — don't remove the item from bag
+    if (type === 'canteen_drink') {
+        if (gameFlags.canteenWater <= 0) return false;
+        const drinkAmount = Math.min(amount || 10, gameFlags.canteenWater);
+        const waterRes = resources.find(r => r && r.name === 'Drinking Water');
+        if (waterRes) {
+            const space = Math.max(0, waterRes.capacity - waterRes.amount);
+            const actuallyDrink = Math.min(drinkAmount, space);
+            if (actuallyDrink > 0) {
+                waterRes.amount += actuallyDrink;
+                gameFlags.canteenWater -= actuallyDrink;
+            }
+            if (actuallyDrink < drinkAmount) {
+                // Cannot overfill — leftover stays in canteen
+            }
+            try {
+                const msg = t('log_canteen_drink', {
+                    amount: String(actuallyDrink),
+                    canteen: String(gameFlags.canteenWater),
+                    max: '50',
+                    water: String(Math.round(waterRes.amount)),
+                    cap: String(Math.round(waterRes.capacity))
+                });
+                window.dispatchEvent(new CustomEvent('ingame-log', { detail: { message: msg, type: 'success' } }));
+            } catch { /* ignore */ }
+        }
+        return true;
+    }
 
     // Remove one from bag first — if removal fails, don't apply the effect
     if (!consumeItemQuantityFromBag(itemId, 1, state)) return false;
@@ -39,6 +70,8 @@ export function useConsumableFromBag(itemId, state) {
                 label: def.name || buff,
             };
         }
+    } else {
+        return false;
     }
 
     return true;

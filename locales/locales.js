@@ -290,6 +290,13 @@ loaded['en'] = {
     "inventory_bag_size": "Bag {rows}×{cols}",
     "inventory_discard_btn": "Discard items",
     "inventory_use_btn": "Use",
+    "item_canteen_desc": "A durable canteen, currently empty. Can hold up to 50 units of water.",
+    "item_canteen_name": "Canteen",
+    "item_canteen_supplies_status": "Water: {water} / 50",
+    "item_canteen_use_desc": "Drink up to 10 water from the canteen.",
+    "item_canteen_use_title": "Drink from canteen (max 10)",
+    "item_canteen_water_label": "Water",
+    "item_canteen_water_value": "{water} / 50",
     "item_functional_comms_panel": "Functional Comms Panel",
     "item_power_cell": "Power Cell",
     "item_repair_tools": "Repair Tools",
@@ -321,6 +328,7 @@ loaded['en'] = {
     "log_action_stopped": "You stop {action}.",
     "log_auto_drink": "Auto-drink: Used Bottled Water (+{amount} Water)",
     "log_auto_eat": "Auto-eat: Used Packaged Food (+{amount} Food)",
+    "log_canteen_drink": "You drink {amount} water from the canteen. Canteen: {canteen}/{max}. Drinking Water: {water}/{cap}.",
     "log_colors": "Colors",
     "log_death": "💀 You have died. Health reached 0.",
     "log_display": "Display",
@@ -551,7 +559,9 @@ loaded['en'] = {
     "result_check_reactor_status_known": "Just like in that dream… was it ever a dream? Everything is exactly the same — the readings, the fuel gauge, the sinking feeling in your chest. This isn't possible. And yet here you are, staring at the same numbers. You have {minutes} minutes before the reactor dies. Again.",
     "result_check_reactor_status_loop2": "Unfortunately your prediction came true, the fuel status is exactly what you thought. {fuel} units of fuel, {minutes} minutes until darkness. You knew it before you even got out of bed.",
     "result_check_status": "Overall ship status: CRITICAL. Multiple systems are failing, but the core structure is intact. You have time, but not much.",
-    "result_check_storage": "The storage locker contains emergency rations, a med-kit, and a portable scanner. Standard issue for exploration missions.",
+    "result_check_storage": "The storage locker contains emergency rations, a med-kit, a portable scanner, and an empty canteen. Standard issue for exploration missions.",
+    "result_check_storage_loop1": "Maybe it was a dream, but you've searched this locker before. And the canteen was there — empty, ready for use. You take it.",
+    "result_check_storage_loop2": "Exactly as you remember — an empty canteen lies in the storage locker. You grab it without hesitation.",
     "result_check_terminal": "You tap the console and the screen flickers to life, demanding credentials. You tried a few random passwords but no luck. Fortunately, you have some experience with this operating system and should be able to hack into the terminal — it'll just take a while. Oh, and you noticed a sticky note on the monitor — \"workshop\". Maybe the login can be found there?",
     "result_check_terminal_first_has_login": "You tap the console. The login screen looks familiar — same system as the bridge terminal. The password you already have might work here too.",
     "result_check_terminal_known": "You tap the console. You already know the password — you type it in with confidence. The screen dissolves with a soft chime. You're in.",
@@ -630,7 +640,7 @@ loaded['en'] = {
     "title_changelog": "Changelog",
     "title_new_game": "New Game",
     "title_settings": "Settings"
-};;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+};;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 // ==========================================================================
 // Public API

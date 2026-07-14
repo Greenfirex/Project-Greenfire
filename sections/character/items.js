@@ -83,11 +83,13 @@ export const items = [
     {
         id: 'canteen',
         name: 'Canteen',
-        slot: 'accessory',
+        nameKey: 'item_canteen_name',
+        slot: 'inventory',
+        equipSlots: ['accessory_1', 'accessory_2'],
         icon: 'assets/images/items/canteen.png',
-        description: 'A durable canteen for carrying extra drinking water.',
-        // Increases personal carryable Drinking Water capacity.
-        stats: { waterCapacity: 15 }
+        description: 'A durable canteen, currently empty. Can hold up to 50 units of water.',
+        descKey: 'item_canteen_desc',
+        consumable: { type: 'canteen_drink', amount: 10 }
     },
 
     // Chapter 1 tools / quest items (stored in inventory, not resources)
@@ -221,4 +223,16 @@ export const items = [
 export function getItemDefinition(id) {
     if (!id) return null;
     return items.find(x => x && x.id === id) || null;
+}
+
+// Debug test — spusť v konzoli: __testCanteenEquip()
+if (typeof window !== 'undefined') {
+    window.__testCanteenEquip = function () {
+        const def = getItemDefinition('canteen');
+        if (!def) { console.log('CANTEEN NOT FOUND in items!'); return; }
+        console.log('canteen def:', JSON.stringify(def, null, 2));
+        console.log('slot:', def.slot);
+        console.log('equipSlots:', def.equipSlots);
+        console.log('has consumable:', !!def.consumable);
+    };
 }

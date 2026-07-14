@@ -41,6 +41,7 @@ const INITIAL_PER_LOOP_FLAGS = {
     roverFuelCellExtracted: false,
     enginePanelRemoved: false,
     roverFuelCellInstalled: false,
+    canteenWater: 0,
 };
 
 // Combined for backward compatibility — both objects merged.

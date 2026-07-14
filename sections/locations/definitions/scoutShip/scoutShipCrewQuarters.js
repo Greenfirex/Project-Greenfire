@@ -300,12 +300,26 @@ export const scoutShipCrewQuarters = {
             descKey: 'action_check_storage_desc',
             drain: [{ resource: 'Stamina', amount: 3 }],
             durationSeconds: 12,
+            durationIfRemembered: 6,
             oneTime: true,
-            resultKey: 'result_check_storage',
-            rewards: [{ type: 'item', name: 'Bottled Water', amount: 1 }],
+            rewards: [{ type: 'item', name: 'Canteen', amount: 1 }],
+            remembersCondition(ctx) { return hasMilestone('storage_checked'); },
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 return !!us['wake_up'];
+            },
+            onStart(ctx) {
+                if (hasMilestone('storage_checked')) {
+                    ctx.action.durationSeconds = ctx.action.durationIfRemembered;
+                }
+            },
+            results: {
+                default: 'result_check_storage',
+                loop1: 'result_check_storage_loop1',
+                loop2: 'result_check_storage_loop2',
+            },
+            onComplete(ctx) {
+                setMilestone('storage_checked', () => ctx.persistLoopKnowledge());
             }
         },
         {

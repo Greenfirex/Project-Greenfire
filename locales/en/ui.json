@@ -210,5 +210,6 @@
   "title_continue": "Continue",
   "title_exit": "Exit",
   "title_new_game": "New Game",
-  "title_settings": "Settings"
+  "title_settings": "Settings",
+  "log_canteen_drink": "You drink {amount} water from the canteen. Canteen: {canteen}/{max}. Drinking Water: {water}/{cap}."
 }
