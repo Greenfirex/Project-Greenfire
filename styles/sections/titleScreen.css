@@ -175,6 +175,8 @@ body.title-screen-active #footer {
 .title-screen-btn:disabled {
     opacity: 0.45;
     cursor: not-allowed;
+    filter: grayscale(95%);
+    pointer-events: none;
 }
 
 .title-screen-btn.secondary {

@@ -431,7 +431,6 @@ export const scoutShipCrewQuarters = {
             rewards: [
                 { type: 'item', name: 'Basic Helmet', amount: 1 },
                 { type: 'item', name: 'Basic Armor', amount: 1 },
-                { type: 'item', name: 'Basic Legs', amount: 1 },
                 { type: 'item', name: 'Basic Boots', amount: 1 },
             ],
             onComplete(ctx) {

@@ -5,80 +5,62 @@ export const items = [
     {
         id: 'basic_helmet',
         name: 'Basic Helmet',
+        nameKey: 'item_basic_helmet',
         slot: 'head',
         icon: 'assets/images/items/basic helmet.png',
         description: 'Standard issue SFC headgear with integrated oxygen sensor and HUD.',
+        descKey: 'item_basic_helmet_desc',
         tags: ['Uniform'],
     },
     {
         id: 'basic_armor',
         name: 'Basic Armor',
+        nameKey: 'item_basic_armor',
         slot: 'chest',
         icon: 'assets/images/items/basic chest armor.png',
         description: 'Standard issue SFC chestpiece with embedded oxygen regulator and supply connectors.',
-        tags: ['Uniform'],
-    },
-    {
-        id: 'basic_legs',
-        name: 'Basic Legs',
-        slot: 'legs',
-        icon: 'assets/images/items/basic leg armor.png',
-        description: 'Standard issue SFC legwear with integrated oxygen circulation system.',
+        descKey: 'item_basic_armor_desc',
         tags: ['Uniform'],
     },
     {
         id: 'basic_boots',
         name: 'Basic Boots',
+        nameKey: 'item_basic_boots',
         slot: 'boots',
         icon: 'assets/images/items/basic boots.png',
         description: 'Standard issue SFC boots with magnetic soles and oxygen reserve tanks.',
+        descKey: 'item_basic_boots_desc',
         tags: ['Uniform'],
-    },
-    {
-        id: 'spiked_branch',
-        name: 'Spiked Branch',
-        slot: 'weapon',
-        icon: 'assets/images/items/spiked branch.png',
-        description: 'A sharpened branch. Crude, but it gets the job done.',
-    },
-    {
-        id: 'metal_spear',
-        name: 'Metal Spear',
-        slot: 'weapon',
-        icon: 'assets/images/items/metal spear.png',
-        description: 'A balanced spear with a metal tip. Reliable and easy to handle.',
     },
     {
         id: 'stimpack',
         name: 'Stimpack',
+        nameKey: 'item_stimpack',
         slot: 'consumable',
         icon: 'assets/images/items/stimpack.png',
         description: 'A quick injector that restores health in a pinch.',
-        // Consumables are used via UI buttons (e.g., combat popup)
+        descKey: 'item_stimpack_desc',
         consumable: { type: 'heal', resource: 'Health', amount: 25 }
     },
     {
         id: 'first_aid_kit',
         name: 'First Aid Kit',
+        nameKey: 'item_first_aid_kit',
         slot: 'consumable',
         icon: 'assets/images/items/first aid kit.png',
         description: 'Bandages and meds for treating minor injuries.',
+        descKey: 'item_first_aid_kit_desc',
         consumable: { type: 'heal', resource: 'Health', amount: 15 }
     },
     {
         id: 'herb_tea',
         name: 'Herb Tea',
+        nameKey: 'item_herb_tea',
         slot: 'consumable',
         icon: 'assets/images/items/herb tea.png',
         description: 'A warm herbal brew that boosts Stamina regeneration for a while.',
+        descKey: 'item_herb_tea_desc',
         consumable: { type: 'buff', buff: 'staminaRegen', bonusPerSec: 0.2, durationMinutes: 720 }
-    },
-    {
-        id: 'basic_torch',
-        name: 'Basic Torch',
-        slot: 'accessory',
-        icon: 'assets/images/items/basic torch.png',
-        description: 'A simple torch for light and confidence in the dark.',
     },
     {
         id: 'canteen',
@@ -91,22 +73,6 @@ export const items = [
         descKey: 'item_canteen_desc',
         consumable: { type: 'canteen_drink', amount: 10 }
     },
-
-    // Chapter 1 tools / quest items (stored in inventory, not resources)
-    {
-        id: 'crude_prybar',
-        name: 'Crude Prybar',
-        slot: 'weapon',
-        icon: 'assets/images/items/crude prybar.png',
-        description: 'A bent prybar for forcing stubborn hatches and crates.',
-    },
-    {
-        id: 'makeshift_explosive',
-        name: 'Makeshift Explosive',
-        slot: 'inventory',
-        icon: 'assets/images/items/makeshift explosive.png',
-        description: 'A volatile charge cobbled together from salvage and hope.',
-    },
     {
         id: 'power_cell',
         name: 'Power Cell',
@@ -115,28 +81,31 @@ export const items = [
         icon: 'assets/images/items/power cell.png',
         description: 'A compact energy cell used to power damaged systems.',
         stackable: true,
-    }
-    ,
+    },
     {
         id: 'bottled_water',
         name: 'Bottled Water',
+        nameKey: 'item_bottled_water',
         slot: 'consumable',
         icon: 'assets/images/items/bottled water.png',
         description: 'A sealed bottle of clean drinking water.',
+        descKey: 'item_bottled_water_desc',
         stackable: true,
         consumable: { type: 'heal', resource: 'Drinking Water', amount: 15 }
     },
     {
         id: 'packaged_food',
         name: 'Packaged Food',
+        nameKey: 'item_packaged_food',
         slot: 'consumable',
         icon: 'assets/images/items/packaged food.png',
         description: 'Packaged rations, safe to eat.',
+        descKey: 'item_packaged_food_desc',
         stackable: true,
         consumable: { type: 'heal', resource: 'Food Rations', amount: 25 }
     },
 
-    // Quest items — Rover fuel cell chain
+    // Quest items
     {
         id: 'rover_fuel_cell',
         name: 'Rover Fuel Cell',
@@ -168,8 +137,6 @@ export const items = [
         quest: true,
         tags: ['Quest'],
     },
-
-    // Quest / salvage items
     {
         id: 'scavenged_comms_panel',
         name: 'Scavenged Comms Panel',
@@ -200,24 +167,6 @@ export const items = [
         quest: true,
         tags: ['Quest'],
     },
-
-    // Craftable equipment
-    {
-        id: 'foldable_chair',
-        name: 'Foldable Chair',
-        slot: 'accessory',
-        icon: 'assets/images/items/foldablechair.png',
-        description: 'A lightweight chair. Makes short recovery breaks more effective.',
-        stats: {},
-        tooltipModifiers: ['Sit down: +1 Stamina/s'],
-    },
-    {
-        id: 'scrapshield',
-        name: 'Scrapshield',
-        slot: 'offhand',
-        icon: 'assets/images/items/scrapshield.png',
-        description: 'A rough shield bolted together from scrap. Better than nothing.',
-    }
 ];
 
 export function getItemDefinition(id) {

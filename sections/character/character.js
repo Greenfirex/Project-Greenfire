@@ -9,7 +9,6 @@ const CONSUMABLE_STACK_MAX = 5;
 const EQUIPMENT_SLOTS = [
     'head',
     'chest',
-    'legs',
     'boots',
     'weapon',
     'offhand',

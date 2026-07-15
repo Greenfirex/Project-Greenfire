@@ -122,6 +122,12 @@ function renderConsumablesPanel(consumables, state) {
 const EQUIP_SLOT_LABELS = { head: 'Head', chest: 'Chest', legs: 'Legs', boots: 'Boots', weapon: 'Weapon', offhand: 'Offhand', accessory_1: 'Accessory 1', accessory_2: 'Accessory 2' };
 const ITEM_STAT_LABELS = { health: 'Health', stamina: 'Stamina', foodCapacity: 'Food Capacity', waterCapacity: 'Water Capacity' };
 
+function getItemDisplayName(def) {
+    if (!def) return '';
+    if (def.nameKey) return t(def.nameKey);
+    return def.name || def.id || '';
+}
+
 function refreshCharacterSectionIfVisible() {
     try {
         const sectionEl = document.getElementById('characterSection');
@@ -163,7 +169,6 @@ export function setupCharacterSection(section) {
             <img class="paperdoll-silhouette" src="assets/images/inventorycharacter.png" alt="" />
             ${renderEquipmentSlot('head', t('equip_slot_head'), characterState?.equipment?.head)}
             ${renderEquipmentSlot('chest', t('equip_slot_chest'), characterState?.equipment?.chest)}
-            ${renderEquipmentSlot('legs', t('equip_slot_legs'), characterState?.equipment?.legs)}
             ${renderEquipmentSlot('boots', t('equip_slot_boots'), characterState?.equipment?.boots)}
             ${renderEquipmentSlot('weapon', t('equip_slot_weapon'), characterState?.equipment?.weapon)}
             ${renderEquipmentSlot('offhand', t('equip_slot_offhand'), characterState?.equipment?.offhand)}
@@ -202,10 +207,12 @@ export function setupCharacterSection(section) {
         <div class="character-tabpanes">
             <div class="character-pane ${initialTab === 'inventory' ? 'active' : ''}" data-pane="inventory" role="tabpanel">
                 <div class="character-layout character-layout-inventory">
-                    <div class="character-left-col">${equipmentCardHtml}</div>
+                    <div class="character-left-col">
+                        ${equipmentCardHtml}
+                        ${consumablesCardHtml}
+                    </div>
                     <div class="character-right-col">
                         ${inventoryCardHtml}
-                        ${consumablesCardHtml}
                     </div>
                 </div></div>
             <div class="character-pane ${initialTab === 'statsSkills' ? 'active' : ''}" data-pane="statsSkills" role="tabpanel">
@@ -321,9 +328,9 @@ function renderEquipmentSlot(key, label, itemId) {
     const item = itemId ? getItemDefinition(itemId) : null;
     const hasItem = !!item;
     const icon = item?.icon ? String(item.icon) : '';
-    const itemName = item ? (t(item.nameKey) || item.name) : '';
+    const itemName = item ? getItemDisplayName(item) : '';
     return `<div class="equipment-slot ${hasItem ? 'has-item' : ''}" data-slot="${safeKey}" data-item-id="${hasItem ? escapeHtml(item.id) : ''}" ${hasItem ? 'draggable="true"' : ''} role="button" tabindex="0" aria-label="${label} slot">
-        <div class="slot-frame"></div>${hasItem ? `<div class="slot-item">${icon ? `<img class="item-icon" src="${escapeHtml(icon)}" alt="" />` : ''}<span class="item-name">${escapeHtml(itemName)}</span></div>` : ''}
+        <div class="slot-frame"></div>${hasItem ? `<div class="equip-item"><div class="item-icon-area">${icon ? `<img class="item-icon" src="${escapeHtml(icon)}" alt="" />` : ''}</div><div class="item-label-area"><span class="item-name">${escapeHtml(itemName)}</span></div></div>` : ''}
         <div class="slot-label">${label}</div></div>`;
 }
 
@@ -436,7 +443,7 @@ function renderBagSlots() {
         const showNew = hasItem && !!(characterState?.bagUiNew?.[i]);
         const isSelected = Number.isInteger(selectedBagIndex) && selectedBagIndex === i && hasItem && !discardMode;
         return `<div class="bag-slot ${hasItem ? 'has-item' : ''} ${showNew ? 'has-new-badge' : ''} ${isSelected ? 'selected' : ''}" data-slot="${i}" data-item-id="${hasItem ? escapeHtml(item.id) : ''}" ${hasItem ? 'draggable="true"' : ''} role="button" tabindex="0" aria-label="Bag slot ${i + 1}">
-            ${newBadgeHtml(showNew)}${hasItem ? `<div class="bag-item">${item.icon ? `<img class="item-icon" src="${escapeHtml(item.icon)}" alt="" />` : ''}<span class="item-name">${escapeHtml(t(item.nameKey) || item.name)}</span>${qty > 1 ? `<span class="item-qty">×${String(qty)}</span>` : ''}</div>` : ''}</div>`;
+            ${newBadgeHtml(showNew)}${hasItem ? `<div class="bag-item"><div class="item-icon-area">${item.icon ? `<img class="item-icon" src="${escapeHtml(item.icon)}" alt="" />` : ''}${qty > 1 ? `<span class="item-qty">×${String(qty)}</span>` : ''}</div><div class="item-label-area"><span class="item-name">${escapeHtml(getItemDisplayName(item))}</span></div></div>` : ''}</div>`;
     }).join('');
 }
 
@@ -527,8 +534,10 @@ function buildItemTooltipHTML(slotEl) {
     const tagsHtml = []; try { if (def?.stackable && def?.consumable) { const idx = Math.floor(Number(slotEl.dataset.slot)); const e = Number.isInteger(idx) ? characterState?.bag?.[idx] : null; const q = !e ? 1 : (typeof e === 'string' ? 1 : (e?.id ? Math.max(1, Math.floor(Number(e.qty ?? 1)) || 1) : 1)); tagsHtml.push(`<span class="tooltip-tag">${q}/5</span>`); } } catch { /* ignore */ }
     try { if (def?.quest || (Array.isArray(def?.tags) && def.tags.some(t => String(t).toLowerCase() === 'quest'))) tagsHtml.push('<span class="tooltip-tag">Quest</span>'); } catch { /* ignore */ }
     const tags = tagsHtml.join('');
-    let html = tags ? `<div class="tooltip-header-row"><h4>${escapeHtml(t(def.nameKey) || def.name || def.id)}</h4><div class="tooltip-tags">${tags}</div></div>` : `<h4>${escapeHtml(t(def.nameKey) || def.name || def.id)}</h4>`;
-    if (def.descKey || def.description) html += `<p class="tooltip-description">${escapeHtml(String(t(def.descKey) || def.description || ''))}</p>`;
+    const displayName = getItemDisplayName(def);
+    let html = tags ? `<div class="tooltip-header-row"><h4>${escapeHtml(displayName)}</h4><div class="tooltip-tags">${tags}</div></div>` : `<h4>${escapeHtml(displayName)}</h4>`;
+    const descText = (def.descKey ? t(def.descKey) : null) || def.description || '';
+    if (descText) html += `<p class="tooltip-description">${escapeHtml(String(descText))}</p>`;
     html += `<div class="tooltip-section"><h4>Slot</h4><p>${escapeHtml(slotName || '—')}</p></div>`;
     // Canteen water level in tooltip
     if (itemId === 'canteen') {
@@ -576,11 +585,8 @@ function updateSingleVitalRow(panelEl, statKey, getSnapshotFn, label) {
 
 function attachDnDHandlers(sectionRoot) {
     const panel = sectionRoot.querySelector('.character-panel'); if (!panel) return;
-    // Skip re-attachment if we already wired this section (prevents event listener leaks
-    // when setupCharacterSection is called repeatedly on tab switches).
-    // NOTE: flag is on sectionRoot, NOT panel, because panel is wiped by section.innerHTML = ''.
-    if (sectionRoot.dataset.dndWired === 'true') return;
-    sectionRoot.dataset.dndWired = 'true';
+    // DOM is always rebuilt via innerHTML — old handlers are destroyed with old elements,
+    // so we re-attach every time. No guard needed.
     panel.querySelectorAll('.bag-slot').forEach(slotEl => {
         slotEl.addEventListener('dragstart', e => onDragStart(e, { type: 'bag', index: Number(slotEl.dataset.slot) }));
         slotEl.addEventListener('dragend', onDragEnd); slotEl.addEventListener('dragover', e => onDragOver(e, { type: 'bag', index: Number(slotEl.dataset.slot) }));
@@ -598,8 +604,13 @@ function attachDnDHandlers(sectionRoot) {
 
 function attachTouchInventoryInteractions(sectionRoot) {
     const panel = sectionRoot.querySelector('.character-panel'); if (!panel) return;
-    if (sectionRoot._touchInventoryInteractionsAttached) return; sectionRoot._touchInventoryInteractionsAttached = true;
-    const state = { activePointerId: null, startX: 0, startY: 0, panelEl: null, source: null, itemId: null, originKey: '', originEl: null, dragging: false, payload: null, hoverEl: null, ghostEl: null, lastTapTime: 0, lastTapKey: '' };
+    // Always refresh panelEl — DOM is rebuilt every setupCharacterSection call
+    if (sectionRoot._touchInventoryState) {
+        sectionRoot._touchInventoryState.panelEl = panel;
+    }
+    if (sectionRoot._touchInventoryInteractionsAttached) return;
+    sectionRoot._touchInventoryInteractionsAttached = true;
+    const state = { activePointerId: null, startX: 0, startY: 0, panelEl: panel, source: null, itemId: null, originKey: '', originEl: null, dragging: false, payload: null, hoverEl: null, ghostEl: null, lastTapTime: 0, lastTapKey: '' };
     sectionRoot._touchInventoryState = state;
     const isTouchLike = e => { const pt = String(e?.pointerType || ''); return pt && pt !== 'mouse'; };
     const keyForSource = src => !src ? '' : (src.type === 'bag' ? `bag:${src.index}` : `equip:${src.slot || ''}`);
