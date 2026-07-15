@@ -85,6 +85,14 @@ function installMenuBadgeListeners() {
         setMenuNewItemFlag('characterSection', true);
     });
 
+    window.addEventListener('objectivesDiscovered', () => {
+        try {
+            const current = getCurrentSectionId();
+            if (current === 'journalSection') return;
+        } catch { /* ignore */ }
+        setMenuNewItemFlag('journalSection', true);
+    });
+
     _listenersInstalled = true;
 }
 

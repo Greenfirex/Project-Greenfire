@@ -89,6 +89,7 @@ const defs = [
     // ======================================================================
     {
         id: 'obj_survive',
+        type: 'main',
         label: () => t('obj_survive_label'),
         narrative: () => {
             const loop = gameFlags.loopCount || 0;
@@ -157,6 +158,7 @@ const defs = [
     // ======================================================================
     {
         id: 'obj_disable_alarm',
+        type: 'side',
         label: () => t('obj_disable_alarm_label'),
         narrative: () => t('obj_disable_alarm_narrative'),
         start: () => isActionCompleted('scout_ship_crew_quarters', 'check_terminal'),
@@ -201,6 +203,7 @@ const defs = [
     // ======================================================================
     {
         id: 'obj_repair_recycler',
+        type: 'side',
         label: () => t('obj_repair_recycler_label'),
         narrative: () => t('obj_repair_recycler_narrative'),
         start: () => isActionCompleted('scout_ship_main_area', 'assess_supplies'),
@@ -247,6 +250,7 @@ const defs = [
     // ======================================================================
     {
         id: 'obj_establish_contact',
+        type: 'side',
         label: () => t('obj_establish_contact_label'),
         narrative: () => t('obj_establish_contact_narrative'),
         start: () => isActionCompleted('scout_ship_main_area', 'check_comms'),
@@ -309,6 +313,7 @@ const defs = [
     // ======================================================================
     {
         id: 'obj_reactor_status',
+        type: 'side',
         label: () => t('obj_reactor_status_label'),
         narrative: () => t('obj_reactor_status_narrative'),
         start: () => {
@@ -419,6 +424,7 @@ const defs = [
     // ======================================================================
     {
         id: 'obj_rover_fuel',
+        type: 'side',
         label: () => t('obj_rover_fuel_label'),
         narrative: () => t('obj_rover_fuel_narrative'),
         start: () => hasMilestone('rover_inspected'),
@@ -607,6 +613,12 @@ export function recomputeObjectives() {
     if (didChange) {
         saveStatus();
         try { window.dispatchEvent(new CustomEvent('objectivesChanged')); } catch {}
+        if (result.newlyActive.length > 0) {
+            result.newlyActive.forEach(id => {
+                try { localStorage.setItem('uiObjectiveNew:' + id, 'true'); } catch {}
+            });
+            try { window.dispatchEvent(new CustomEvent('objectivesDiscovered', { detail: { ids: result.newlyActive } })); } catch {}
+        }
     }
 
     return result;
@@ -649,6 +661,7 @@ export function getObjectiveDefinition(id) {
     if (!def) return null;
     return {
         id: def.id,
+        type: def.type || 'side',
         label: (typeof def.label === 'function') ? def.label() : def.label,
         narrative: (typeof def.narrative === 'function') ? def.narrative() : (def.narrative || ''),
         reward: Array.isArray(def.reward) ? def.reward.map(r => ({ resource: r.resource, amount: r.amount })) : [],
@@ -662,6 +675,7 @@ export function getAllObjectivesWithState() {
         const st = byId.get(def.id) || { state: 'locked' };
         return {
             id: def.id,
+            type: def.type || 'side',
             label: (typeof def.label === 'function') ? def.label() : def.label,
             narrative: (typeof def.narrative === 'function') ? def.narrative() : (def.narrative || ''),
             state: st.state || 'locked',

@@ -27,6 +27,7 @@ function reconcileActivatedSectionsAfterLoad() {
 }
 
 export function saveGameState() {
+    try { if (localStorage.getItem('isResetting') === 'true') return; } catch {}
     const gameState = getGameState();
     localStorage.setItem('gameState', JSON.stringify(gameState));
     addLogEntry(t('log_game_saved'), LogType.INFO);

@@ -33,6 +33,7 @@ window.TIME_SCALE = Number(localStorage.getItem('gameTimeScale')) || 1;
 
 let lastUpdateTime = Date.now();
 let hasStarted = false;
+let _pendingTitleScreen = true;
 
 let lastKnownCharacterLevel = null;
 
@@ -74,20 +75,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     preloader.startImagePreloading();
 
-    // Preload all location images so they're cached during preloader phase.
-    // This prevents black flash when entering a location on mobile.
+    // Preload all images that the browser may defer (hidden elements, CSS backgrounds).
+    // This prevents pop-in / black flash when opening sections on mobile.
     try {
-        const locs = getAllLocations();
-        const imageUrls = Object.values(locs)
-            .filter(l => l.image)
-            .map(l => new URL(l.image, window.location.href).href);
-        preloader.preloadUrls(imageUrls);
-
-        // Preload all item icons so they're cached before Character panel opens.
-        const itemIconUrls = items
-            .filter(item => item.icon)
-            .map(item => new URL(item.icon, window.location.href).href);
-        preloader.preloadUrls(itemIconUrls);
+        const preloadUrls = [
+            // Location images
+            ...Object.values(getAllLocations())
+                .filter(l => l.image)
+                .map(l => l.image),
+            // Item icons
+            ...items.filter(item => item.icon).map(item => item.icon),
+            // Section backgrounds (CSS background-image — prohlížeč často odkládá)
+            'assets/images/journalbackground.png',
+            'assets/images/inventorybackground.png',
+            'assets/images/logo.png',
+            'assets/images/crewbackground.png'
+        ].map(u => new URL(u, window.location.href).href);
+        preloader.preloadUrls(preloadUrls);
     } catch { /* preload is best-effort */ }
 
     preloader.progress('core', 0.5, 'Initializing...');
@@ -112,18 +116,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-        const isResetting = localStorage.getItem('isResetting');
-        if (isResetting) {
-            localStorage.removeItem('isResetting');
-            preloader.progress('core', 1);
-            preloader.progress('titleScreen', 1);
-            hideTitleScreen();
-            startWhenTranslationsReady('new');
-            return;
-        }
-    } catch { /* ignore */ }
-
-    try {
         const autoContinue = localStorage.getItem('autoContinueAfterReload');
         if (autoContinue) {
             localStorage.removeItem('autoContinueAfterReload');
@@ -135,32 +127,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } catch { /* ignore */ }
 
+    // Defer title screen until preloader finishes, so progress bar can fill.
+    _pendingTitleScreen = true;
     try {
         initTitleScreen({
             onContinue: () => startGame({ mode: 'continue' }),
             onNewGame: () => startGame({ mode: 'new' }),
         });
-        showTitleScreen();
-    } catch {
-        startGame({ mode: 'continue' });
-    }
+    } catch { /* will auto-start below */ }
 
     preloader.progress('core', 1, 'Ready.');
     preloader.progress('titleScreen', 1, 'Title ready.');
+
+    // If preloader already fired (rare edge case), show title screen now.
+    if (preloader.isDone) {
+        _pendingTitleScreen = false;
+        try { showTitleScreen(); } catch { startGame({ mode: 'continue' }); }
+    }
+    // Otherwise, preloader-ready listener will handle it.
 });
 
 // Listen for preloader completion. When it fires, resume with the actual game start.
 window.addEventListener('preloader-ready', () => {
-    try {
-        const isResetting = localStorage.getItem('isResetting');
-        if (isResetting) {
-            localStorage.removeItem('isResetting');
-            hideTitleScreen();
-            startWhenTranslationsReadyAux('new');
-            return;
-        }
-    } catch { /* ignore */ }
-
     try {
         const autoContinue = localStorage.getItem('autoContinueAfterReload');
         if (autoContinue) {
@@ -171,13 +159,20 @@ window.addEventListener('preloader-ready', () => {
         }
     } catch { /* ignore */ }
 
-    try {
-        const ts = document.getElementById('titleScreen');
-        if (!ts || ts.classList.contains('hidden')) {
+    // Show title screen now that preloader is done (if it hasn't been shown yet).
+    if (_pendingTitleScreen) {
+        _pendingTitleScreen = false;
+        try { showTitleScreen(); } catch { /* ignore */ }
+    } else {
+        // Fallback: title was already shown (edge case), auto-start game.
+        try {
+            const ts = document.getElementById('titleScreen');
+            if (!ts || ts.classList.contains('hidden')) {
+                startGame({ mode: 'continue' });
+            }
+        } catch {
             startGame({ mode: 'continue' });
         }
-    } catch {
-        startGame({ mode: 'continue' });
     }
 }, { once: true });
 
@@ -200,6 +195,26 @@ document.addEventListener('beforeunload', () => {
 function startGame({ mode = 'continue' } = {}) {
     if (hasStarted) return;
     hasStarted = true;
+
+    // Force-dismiss preloader in case it's still visible (stuck on image loading).
+    try {
+        const pl = document.getElementById('preloader');
+        if (pl) {
+            pl.classList.add('preloader-done');
+            try { pl.hidden = true; } catch {}
+            setTimeout(() => { try { pl.remove(); } catch {} }, 600);
+        }
+    } catch {}
+
+    // Reveal game layout (hidden in HTML until game starts).
+    try {
+        const header = document.getElementById('header');
+        const main = document.getElementById('mainContainer');
+        const footer = document.getElementById('footer');
+        if (header) header.classList.remove('hidden');
+        if (main) main.classList.remove('hidden');
+        if (footer) footer.classList.remove('hidden');
+    } catch {}
 
     // For continue/reset/autoContinue: hide title screen and play assembly.
     // New game mode: title screen dismissal + assembly is handled by the

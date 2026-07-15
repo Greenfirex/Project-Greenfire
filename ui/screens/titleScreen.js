@@ -269,6 +269,16 @@ export function showTitleScreen() {
     const overlay = document.getElementById('titleScreen');
     if (!overlay) return;
 
+    // Set initial states for smooth simultaneous entrance.
+    const logo = overlay.querySelector('.title-screen-logo');
+    const flags = Array.from(overlay.querySelectorAll('.title-screen-flag'));
+    const menuBtns = Array.from(overlay.querySelectorAll('.title-screen-btn'));
+    const allElements = [logo, ...flags, ...menuBtns].filter(Boolean);
+
+    allElements.forEach(el => {
+        el.style.opacity = '0';
+    });
+
     try { overlay.hidden = false; } catch { /* ignore */ }
     overlay.classList.remove('hidden');
     document.body.classList.add(BODY_CLASS);
@@ -281,6 +291,16 @@ export function showTitleScreen() {
     } catch { /* ignore */ }
 
     setHiddenWithInert(overlay, false);
+
+    // Smooth simultaneous fade-in for all title screen elements.
+    allElements.forEach(el => {
+        try {
+            el.animate([
+                { opacity: 0 },
+                { opacity: 1 }
+            ], { duration: 500, delay: 100, fill: 'forwards', easing: 'ease-out' });
+        } catch { /* ignore */ }
+    });
 
     // Translate button text (always, so they're correct after a language-switch reload).
     updateTitleScreenText();

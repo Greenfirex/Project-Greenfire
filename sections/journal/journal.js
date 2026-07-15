@@ -1,6 +1,7 @@
 import { storyLog, getInitialStoryLog, getAllObjectivesWithState, getObjectiveSteps, getTrackedObjectiveId, setTrackedObjective } from '../../engine/objectives.js';
 import { saveGameStateQuiet } from '../../engine/saveload.js';
 import { t } from '../../locales/locales.js';
+import { newBadgeHtml } from '../../ui/components/contentNewBadges.js';
 
 export function setupJournalSection(section) {
     if (!section) return;
@@ -173,6 +174,23 @@ function createObjectiveListItem(obj) {
     label.className = 'objective-label';
     label.textContent = obj.label;
     
+    // "!" badge for newly discovered objectives
+    const newKey = 'uiObjectiveNew:' + obj.id;
+    const hasNewBadge = (() => { try { return localStorage.getItem(newKey) === 'true'; } catch { return false; } })();
+    if (hasNewBadge) {
+        li.classList.add('has-new-badge');
+        li.insertAdjacentHTML('beforeend', newBadgeHtml(true));
+        const clearBadge = () => {
+            try { localStorage.removeItem(newKey); } catch {}
+            const badge = li.querySelector('.action-new-badge');
+            if (badge) badge.remove();
+            li.classList.remove('has-new-badge');
+        };
+        li.addEventListener('mouseenter', clearBadge, { once: true });
+        li.addEventListener('focus', clearBadge, { once: true });
+        li.addEventListener('click', clearBadge, { once: true });
+    }
+    
     if (obj.state === 'active') {
         const trackedId = getTrackedObjectiveId();
         const isTracked = trackedId === obj.id;
@@ -221,6 +239,14 @@ function renderObjectiveDetails(panel, allObjectives) {
     
     const statusRow = document.createElement('div');
     statusRow.className = 'objective-status-row';
+    
+    // Type tag (Hlavní úkol / Vedlejší úkol)
+    if (selected.type === 'main' || selected.type === 'side') {
+        const typeTag = document.createElement('div');
+        typeTag.className = 'objective-type-tag ' + selected.type;
+        typeTag.textContent = t(selected.type === 'main' ? 'objectives_tag_main' : 'objectives_tag_side');
+        statusRow.appendChild(typeTag);
+    }
     
     const status = document.createElement('div');
     status.className = 'objective-status';

@@ -152,6 +152,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.removeItem('objectivesStatus');
                     localStorage.removeItem('isResetting');
                     localStorage.removeItem('autoContinueAfterReload');
+                    // Prevent beforeunload from re-saving the now-deleted state.
+                    localStorage.setItem('isResetting', 'true');
                     // Keep user preferences (language, glow, settings).
                 } catch { /* ignore */ }
                 location.reload();
