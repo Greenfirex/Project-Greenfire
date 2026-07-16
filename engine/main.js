@@ -474,14 +474,29 @@ export function showSection(sectionId) {
         newActiveButton.classList.add('active');
     }
 
-    const sections = document.querySelectorAll('.game-section');
-    sections.forEach(section => {
-        section.classList.add('hidden');
-    });
+    // Find currently visible section (not hidden)
+    const currentVisible = document.querySelector('.game-section:not(.hidden)');
+    const newSection = document.getElementById(sectionId);
 
-    const activeSection = document.getElementById(sectionId);
-    if (activeSection) {
-        activeSection.classList.remove('hidden');
+    if (currentVisible === newSection) return; // already showing
+
+    if (currentVisible && newSection) {
+        // Cross-fade: both sections visible, old fades out while new fades in
+        newSection.style.opacity = '0';
+        newSection.style.pointerEvents = 'none';
+        newSection.classList.remove('hidden');
+        void newSection.offsetWidth; // force reflow
+        currentVisible.classList.add('section-fading');
+        newSection.style.opacity = '';
+
+        setTimeout(() => {
+            currentVisible.classList.add('hidden');
+            currentVisible.classList.remove('section-fading');
+            newSection.style.pointerEvents = '';
+        }, 220);
+    } else if (newSection) {
+        // No current section — just show new one without animation
+        newSection.classList.remove('hidden');
     }
 
     if (sectionId === 'locationsSection') {

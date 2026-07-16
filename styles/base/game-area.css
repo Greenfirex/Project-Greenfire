@@ -21,7 +21,13 @@
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
-	color: white;
+    color: white;
+    transition: opacity 0.2s ease;
+}
+
+.game-section.section-fading {
+    opacity: 0;
+    pointer-events: none;
 }
 
 #gameArea {

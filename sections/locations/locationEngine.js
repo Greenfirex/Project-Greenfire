@@ -8,7 +8,7 @@ import { t } from '../../locales/locales.js';
 import { getCurrentLocationId, switchToLocation, getLocation, getAllLocations } from './locationData.js';
 import { advanceIngameTimeBySeconds, getIngameTimeString } from '../../engine/time.js';
 import { gameFlags, flagActionAsNew, persistLoopKnowledge } from '../../engine/gameFlags.js';
-import { hasEffect, removeEffect, addEffect } from '../../engine/effects.js';
+import { hasEffect, removeEffect, addEffect, advanceEffectProgress } from '../../engine/effects.js';
 import { startNextQueuedAction, updateQueueActive } from '../../engine/queue.js';
 import { grantItemToCharacter, consumeItemQuantityFromBag, countItemInBag } from '../character/character.js';
 import { getItemDefinition } from '../character/items.js';
@@ -202,6 +202,8 @@ function completeActiveAction(opts = {}) {
             Object.assign(effectDef, { icon: '🔔', progress: 0, maxProgress: Infinity, debuffs: { 'Stamina': -0.2 } });
         } else if (action.addsEffect === 'waiting_ping' || action.addsEffect === 'waiting_ping_targeted') {
             Object.assign(effectDef, { icon: '📡', progress: 0, maxProgress: 120, isCountdown: true });
+        } else if (action.addsEffect === 'on_route_gamma') {
+            Object.assign(effectDef, { icon: '🚀', progress: 0, maxProgress: 240, isCountdown: true, debuffs: { 'area_fuel': -2.0 } });
         }
         addEffect(effectDef);
         addLogEntry(t('log_effect_added', { effect: t(effectDef.nameKey) }), LogType.ERROR);
@@ -489,6 +491,7 @@ export function startAction(actionId) {
         actionProgress = parseFloat((actionProgress + tickSecs).toFixed(10));
         advanceIngameTimeBySeconds(tickSecs);
         applyTimePassiveDrain(tickSecs);
+        advanceEffectProgress(tickSecs);
         // Akce mohla být zrušena během drainu — smrt hráče
         // dispatchnuje 'force-cancel-action', cancelActiveAction()
         // nastaví activeAction = null uprostřed tohoto ticku.

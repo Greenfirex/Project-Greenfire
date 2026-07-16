@@ -7,6 +7,8 @@
 
 import { t } from '../locales/locales.js';
 import { addLogEntry, LogType } from './ingameLog.js';
+import { areaResources } from './resources.js';
+import { hasMilestone } from './gameFlags.js';
 
 export let activeEffects = [];
 
@@ -155,8 +157,43 @@ export function advanceEffectProgress(deltaSeconds) {
     let changed = false;
     for (const effect of activeEffects) {
         if (effect.maxProgress === Infinity || effect.maxProgress <= 0) continue;
-        effect.progress = Math.min(effect.maxProgress, (effect.progress || 0) + deltaSeconds);
+
+        // on_route_gamma: drain fuel while flying, pause when depleted
+        if (effect.id === 'on_route_gamma') {
+            const bridgeList = areaResources['scout_ship_bridge'];
+            const fuel = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_fuel') : null;
+            if (fuel) {
+                // Drain fuel during flight — 2.0 per second (same as debuff rate)
+                const drainRate = 2.0;
+                fuel.amount = Math.max(0, fuel.amount - drainRate * deltaSeconds);
+
+                if (fuel.amount <= 0) {
+                    fuel.amount = 0;
+                    if (!effect._paused) {
+                        effect._paused = true;
+                        addLogEntry(t('log_gamma_route_no_fuel'), LogType.ERROR);
+                        if (!hasMilestone('rover_fuel_cell_installed')) {
+                            addLogEntry(t('log_gamma_route_rover_hint'), LogType.UNLOCK);
+                        }
+                    }
+                    continue; // don't advance progress while out of fuel
+                } else if (effect._paused) {
+                    effect._paused = false;
+                    addLogEntry(t('log_gamma_route_resumed'), LogType.SUCCESS);
+                }
+            }
+        }
+
+        const prev = effect.progress || 0;
+        effect.progress = Math.min(effect.maxProgress, prev + deltaSeconds);
         changed = true;
+        // Mark countdown effects as ready when they expire (don't remove — check_ping_results needs them)
+        if (effect.isCountdown && effect.progress >= effect.maxProgress && prev < effect.maxProgress) {
+            effect._expired = true;
+            if (effect.id === 'waiting_ping' || effect.id === 'waiting_ping_targeted') {
+                addLogEntry(t('log_ping_response_ready'), LogType.UNLOCK);
+            }
+        }
     }
     if (changed) updateEffectsUI();
 }
@@ -223,15 +260,22 @@ export function updateEffectsUI() {
             const name = t(effect.nameKey);
 
             let progressBarHtml = '';
+            let countdownTag = '';
             if (effect.maxProgress !== Infinity && effect.maxProgress > 0) {
-                const pct = Math.min(100, Math.round(((effect.progress || 0) / effect.maxProgress) * 100));
-                const remaining = effect.isCountdown
-                    ? Math.max(0, effect.maxProgress - (effect.progress || 0))
-                    : effect.progress;
-                progressBarHtml = `
-                    <div class="effect-progress-bar" style="width:${pct}%"></div>
-                    <span class="effect-progress-text">${Math.ceil(remaining)}s</span>
-                `;
+                if (effect.isCountdown) {
+                    if (effect._expired) {
+                        countdownTag = `<span class="effect-countdown-tag effect-countdown-tag-ready">READY</span>`;
+                    } else {
+                        const remaining = Math.max(0, effect.maxProgress - (effect.progress || 0));
+                        countdownTag = `<span class="effect-countdown-tag">ETA ${Math.ceil(remaining)}s</span>`;
+                    }
+                } else {
+                    const pct = Math.min(100, Math.round(((effect.progress || 0) / effect.maxProgress) * 100));
+                    progressBarHtml = `
+                        <div class="effect-progress-bar" style="width:${pct}%"></div>
+                        <span class="effect-progress-text">${Math.min(pct, 100)}%</span>
+                    `;
+                }
             }
 
             const debuffTags = [];
@@ -245,12 +289,14 @@ export function updateEffectsUI() {
                 }
             }
 
+            const expiredClass = effect._expired ? ' effect-expired' : '';
             return `
-                <div class="effect-row" data-effect-id="${effect.id}" data-effect-tooltip="${effect.nameKey}">
+                <div class="effect-row${expiredClass}" data-effect-id="${effect.id}" data-effect-tooltip="${effect.nameKey}">
                     <div class="effect-icon">${effect.icon || '⚠'}</div>
                     <div class="effect-info">
                         <div class="effect-name">${name}</div>
                         ${debuffTags.length ? `<div class="effect-debuffs">${debuffTags.join(' ')}</div>` : ''}
+                        ${countdownTag}
                         ${progressBarHtml ? `<div class="effect-progress">${progressBarHtml}</div>` : ''}
                     </div>
                 </div>
@@ -294,31 +340,58 @@ export function updateEffectsUI() {
         if (!effect) return;
 
         // Update progress bar
-        if (effect.maxProgress !== Infinity && effect.maxProgress > 0) {
-            const pct = Math.min(100, Math.round(((effect.progress || 0) / effect.maxProgress) * 100));
-            const remaining = effect.isCountdown
-                ? Math.max(0, effect.maxProgress - (effect.progress || 0))
-                : effect.progress;
-
-            let bar = row.querySelector('.effect-progress-bar');
-            let textEl = row.querySelector('.effect-progress-text');
-            let progressWrap = row.querySelector('.effect-progress');
-
-            if (!progressWrap) {
-                // Progress bar didn't exist before, add it
-                progressWrap = document.createElement('div');
-                progressWrap.className = 'effect-progress';
-                bar = document.createElement('div');
-                bar.className = 'effect-progress-bar';
-                textEl = document.createElement('span');
-                textEl.className = 'effect-progress-text';
-                progressWrap.appendChild(bar);
-                progressWrap.appendChild(textEl);
-                row.querySelector('.effect-info')?.appendChild(progressWrap);
+        // Update expired visual state
+        if (effect._expired) {
+            row.classList.add('effect-expired');
+            const tag = row.querySelector('.effect-countdown-tag');
+            if (tag) {
+                tag.textContent = 'READY';
+                tag.classList.add('effect-countdown-tag-ready');
             }
+        } else {
+            row.classList.remove('effect-expired');
+        }
 
-            if (bar) bar.style.width = `${pct}%`;
-            if (textEl) textEl.textContent = `${Math.ceil(remaining)}s`;
+        if (effect.maxProgress !== Infinity && effect.maxProgress > 0) {
+            if (effect.isCountdown) {
+                // Update countdown tag
+                const remaining = Math.max(0, effect.maxProgress - (effect.progress || 0));
+                let tag = row.querySelector('.effect-countdown-tag');
+                if (!tag) {
+                    tag = document.createElement('span');
+                    tag.className = 'effect-countdown-tag';
+                    const info = row.querySelector('.effect-info');
+                    const nameEl = info ? info.querySelector('.effect-name') : null;
+                    if (nameEl && nameEl.nextSibling) {
+                        info.insertBefore(tag, nameEl.nextSibling);
+                    } else if (info) {
+                        info.appendChild(tag);
+                    }
+                }
+                tag.textContent = `ETA ${Math.ceil(remaining)}s`;
+            } else {
+                const pct = Math.min(100, Math.round(((effect.progress || 0) / effect.maxProgress) * 100));
+
+                let bar = row.querySelector('.effect-progress-bar');
+                let textEl = row.querySelector('.effect-progress-text');
+                let progressWrap = row.querySelector('.effect-progress');
+
+                if (!progressWrap) {
+                    // Progress bar didn't exist before, add it
+                    progressWrap = document.createElement('div');
+                    progressWrap.className = 'effect-progress';
+                    bar = document.createElement('div');
+                    bar.className = 'effect-progress-bar';
+                    textEl = document.createElement('span');
+                    textEl.className = 'effect-progress-text';
+                    progressWrap.appendChild(bar);
+                    progressWrap.appendChild(textEl);
+                    row.querySelector('.effect-info')?.appendChild(progressWrap);
+                }
+
+                if (bar) bar.style.width = `${pct}%`;
+                if (textEl) textEl.textContent = `${pct}%`;
+            }
         }
 
         // Update debuff tags — Stamina→Health redirect when exhausted state changes

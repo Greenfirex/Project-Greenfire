@@ -402,17 +402,19 @@ export const scoutShipBridge = {
             id: 'set_course_gamma',
             nameKey: 'action_set_course_gamma',
             descKey: 'action_set_course_gamma_desc',
-            category: 'taxing',
-            drain: [{ resource: 'Stamina', amount: 6 }],
-            durationSeconds: 120,
+            category: 'simple',
+            drain: [{ resource: 'Stamina', amount: 1 }],
+            durationSeconds: 5,
             oneTime: true,
             resultKey: 'result_set_course_gamma',
-            isAvailable(ctx) {
-                const m = ctx.gameFlags.loopKnowledge?.milestones || {};
-                if (!m.gamma_coordinates_known) return false;
-                if (!hasMilestone('bridge_terminal_access')) return false;
-                return true;
-            }
+            addsEffect: 'on_route_gamma',
+        isAvailable(ctx) {
+            const m = ctx.gameFlags.loopKnowledge?.milestones || {};
+            if (!m.gamma_coordinates_known) return false;
+            if (!hasMilestone('gamma_site_confirmed_on_scanner')) return false;
+            if (!hasMilestone('bridge_terminal_access')) return false;
+            return true;
+        }
         },
         {
             id: 'go_to_main_area',

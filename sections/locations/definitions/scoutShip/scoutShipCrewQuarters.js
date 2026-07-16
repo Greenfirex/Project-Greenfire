@@ -245,10 +245,14 @@ export const scoutShipCrewQuarters = {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 return !!us['wake_up'];
             },
+            results: {
+                default: 'result_search_bunks',
+                loop1: 'result_search_bunks_loop1',
+                loop2: 'result_search_bunks_loop2',
+            },
             getResultKey(ctx) {
                 if (hasMilestone('book_read')) return 'result_search_bunks_bookread';
-                if (hasMilestone('bunk_searched')) return 'result_search_bunks_loop';
-                return 'result_search_bunks';
+                return null;
             },
             onComplete(ctx) {
                 setMilestone('bunk_searched', () => ctx.persistLoopKnowledge());

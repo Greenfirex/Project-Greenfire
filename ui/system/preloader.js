@@ -114,6 +114,28 @@ function preloadAllImages() {
         img.onerror = onDone;
         img.src = url;
     });
+
+    // Warm CSS background-image cache so they don't "pop in" on section switches
+    warmBackgroundImageCache(urls);
+}
+
+/** Create hidden divs for CSS background-image URLs to force browser decode + GPU cache */
+function warmBackgroundImageCache(urls) {
+    const bgUrls = urls.filter(u => u.includes('background') || u.includes('journalbackground') || u.includes('inventorybackground') || u.includes('crewbackground') || u.includes('localmap') || !u.includes('icon') && !u.includes('logo') && !u.includes('PNG'));
+    if (bgUrls.length === 0) bgUrls.push(...urls.filter(u => u.includes('.png') || u.includes('.jpg')));
+
+    const container = document.createElement('div');
+    container.setAttribute('aria-hidden', 'true');
+    container.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;overflow:hidden;pointer-events:none;z-index:-9999;';
+
+    bgUrls.forEach(url => {
+        const div = document.createElement('div');
+        div.style.cssText = `width:1px;height:1px;background-image:url(${JSON.stringify(url).slice(1,-1)});background-size:cover;`;
+        container.appendChild(div);
+    });
+
+    document.body.appendChild(container);
+    setTimeout(() => { try { container.remove(); } catch { /* ignore */ } }, 200);
 }
 
 try { if (sessionStorage.getItem('langReload')) { isLangReload = true; sessionStorage.removeItem('langReload'); } } catch { /* ignore */ }

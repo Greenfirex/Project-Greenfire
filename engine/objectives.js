@@ -11,6 +11,7 @@ import { addLogEntry, LogType } from './ingameLog.js';
 import { getTotalIngameMinutes } from './time.js';
 import { t } from '../locales/locales.js';
 import { getLocation } from '../sections/locations/locationData.js';
+import { activeEffects } from './effects.js';
 
 const STORAGE_KEY = 'objectivesStatusV1';
 const TRACKED_KEY = 'trackedObjectiveV1';
@@ -149,6 +150,54 @@ const defs = [
                 done: hasMilestone('rover_inspected'),
             });
 
+            return steps;
+        }
+    },
+
+    // ======================================================================
+    // MAIN QUEST: Reach Gamma Site
+    // ======================================================================
+    {
+        id: 'obj_reach_gamma_site',
+        type: 'main',
+        label: () => t('obj_reach_gamma_site_label'),
+        narrative: () => t('obj_reach_gamma_site_narrative'),
+        start: () => hasMilestone('gamma_site_heard'),
+        complete: () => isActionCompleted('scout_ship_bridge', 'set_course_gamma'),
+        reward: [{ resource: 'XP', amount: 200 }],
+        priority: 10,
+        steps: () => {
+            const steps = [];
+            steps.push({
+                id: 'step_get_coords',
+                label: t('obj_reach_gamma_step1'),
+                done: hasMilestone('gamma_coordinates_known'),
+            });
+            steps.push({
+                id: 'step_bridge_access',
+                label: t('obj_reach_gamma_step2'),
+                done: hasMilestone('bridge_terminal_access'),
+            });
+            steps.push({
+                id: 'step_confirm_scanner',
+                label: t('obj_reach_gamma_step3'),
+                done: hasMilestone('gamma_site_confirmed_on_scanner'),
+            });
+            steps.push({
+                id: 'step_set_course',
+                label: t('obj_reach_gamma_step4'),
+                done: isActionCompleted('scout_ship_bridge', 'set_course_gamma'),
+            });
+            steps.push({
+                id: 'step_survive_journey',
+                label: t('obj_reach_gamma_step5'),
+                done: (() => {
+                    try {
+                        const eff = activeEffects.find(e => e.id === 'on_route_gamma');
+                        return !!(eff && eff._expired);
+                    } catch { return false; }
+                })(),
+            });
             return steps;
         }
     },

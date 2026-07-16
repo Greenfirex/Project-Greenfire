@@ -199,26 +199,28 @@ export function setupCharacterSection(section) {
 
     const skillsCardHtml = renderSkillsCard();
 
-    section.innerHTML = `<div class="character-tabs" role="tablist" aria-label="Character tabs">
-        <button class="character-tab ${initialTab === 'inventory' ? 'active' : ''}" data-tab="inventory" role="tab" aria-selected="${initialTab === 'inventory'}">${t('character_inventory_tab')}${newBadgeHtml(!!hasNewInventoryItems)}</button>
-        <button class="character-tab ${initialTab === 'statsSkills' ? 'active' : ''}" data-tab="statsSkills" role="tab" aria-selected="${initialTab === 'statsSkills'}">${t('character_stats_skills_tab')}${newBadgeHtml(!!canSpendPoint)}</button>
-    </div>
-    <div class="content-panel character-panel">
-        <div class="character-tabpanes">
-            <div class="character-pane ${initialTab === 'inventory' ? 'active' : ''}" data-pane="inventory" role="tabpanel">
-                <div class="character-layout character-layout-inventory">
-                    <div class="character-left-col">
-                        ${equipmentCardHtml}
-                        ${consumablesCardHtml}
-                    </div>
-                    <div class="character-right-col">
-                        ${inventoryCardHtml}
-                    </div>
-                </div></div>
-            <div class="character-pane ${initialTab === 'statsSkills' ? 'active' : ''}" data-pane="statsSkills" role="tabpanel">
-                <div class="character-layout character-layout-stacked">
-                    ${statsCardHtml}${skillsCardHtml}
-                </div></div></div></div>`;
+     section.innerHTML = `<div class="character-tabs" role="tablist" aria-label="Character tabs">
+         <button class="character-tab ${initialTab === 'inventory' ? 'active' : ''}" data-tab="inventory" role="tab" aria-selected="${initialTab === 'inventory'}">${t('character_inventory_tab')}${newBadgeHtml(!!hasNewInventoryItems)}</button>
+         <button class="character-tab ${initialTab === 'statsSkills' ? 'active' : ''}" data-tab="statsSkills" role="tab" aria-selected="${initialTab === 'statsSkills'}">${t('character_stats_skills_tab')}${newBadgeHtml(!!canSpendPoint)}</button>
+     </div>
+     <div class="content-panel character-panel">
+         <div class="character-tabpanes">
+             <div class="character-pane ${initialTab === 'inventory' ? 'active' : ''}" data-pane="inventory" role="tabpanel">
+                 <div class="character-layout character-layout-inventory">
+                     <div class="character-top-left">
+                         ${equipmentCardHtml}
+                     </div>
+                     <div class="character-top-right">
+                         ${consumablesCardHtml}
+                     </div>
+                     <div class="character-bottom-row">
+                         ${inventoryCardHtml}
+                     </div>
+                 </div></div>
+             <div class="character-pane ${initialTab === 'statsSkills' ? 'active' : ''}" data-pane="statsSkills" role="tabpanel">
+                 <div class="character-layout character-layout-stacked">
+                     ${statsCardHtml}${skillsCardHtml}
+                 </div></div></div></div>`;
 
     const panel = section.querySelector('.character-panel');
     panel.classList.toggle('discard-mode', !!discardMode);

@@ -57,7 +57,7 @@ export let resources = getInitialResources();
 // Uniform Set Bonus — Personal Oxygen
 // ==========================================================================
 
-const UNIFORM_ITEM_IDS = ['basic_helmet', 'basic_armor', 'basic_legs', 'basic_boots'];
+const UNIFORM_ITEM_IDS = ['basic_helmet', 'basic_armor', 'basic_boots'];
 const UNIFORM_O2_CAPACITY = 120;
 const UNIFORM_O2_DRAIN_PER_MIN = 4; // same rate as area_o2 when oxygen_depleted
 

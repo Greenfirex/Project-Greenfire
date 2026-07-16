@@ -1195,6 +1195,42 @@ html.is-compact #infoPanel.collapsed .info-effect-overflow {
     white-space: nowrap;
 }
 
+.effect-countdown-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 5px;
+    border-radius: 3px;
+    background: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.10);
+    color: rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.90);
+    border: 1px solid rgba(var(--glow-r), var(--glow-g), var(--glow-b), 0.25);
+    white-space: nowrap;
+}
+
+.effect-countdown-tag.effect-countdown-tag-ready {
+    background: rgba(79, 195, 247, 0.15);
+    color: #4fc3f7;
+    border: 1px solid rgba(79, 195, 247, 0.40);
+}
+
+.effect-row.effect-expired {
+    animation-name: effect-pulse-expired;
+    border-color: rgba(79, 195, 247, 0.25);
+    background: rgba(0, 0, 0, 0.30);
+}
+
+@keyframes effect-pulse-expired {
+    0%, 100% {
+        border-color: rgba(79, 195, 247, 0.25);
+        box-shadow: 0 0 8px rgba(79, 195, 247, 0.0);
+        background: rgba(0, 0, 0, 0.30);
+    }
+    50% {
+        border-color: rgba(79, 195, 247, 0.65);
+        box-shadow: 0 0 14px rgba(79, 195, 247, 0.22), 0 0 28px rgba(79, 195, 247, 0.08);
+        background: rgba(79, 195, 247, 0.04);
+    }
+}
+
 .effect-progress {
     position: relative;
     height: 10px;
