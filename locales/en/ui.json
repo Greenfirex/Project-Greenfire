@@ -213,5 +213,7 @@
   "title_exit": "Exit",
   "title_new_game": "New Game",
   "title_settings": "Settings",
-  "log_canteen_drink": "You drink {amount} water from the canteen. Canteen: {canteen}/{max}. Drinking Water: {water}/{cap}."
+  "log_canteen_drink": "You drink {amount} water from the canteen. Canteen: {canteen}/{max}. Drinking Water: {water}/{cap}.",
+  "log_gamma_route_fuel_warning": "You realize the fuel might not be enough to reach the target coordinates... Now that you know exactly where to go, you should focus exclusively on this journey right after waking up next time — optimize the reactor, salvage the rover's fuel cell, and set out as soon as possible. With a bit of luck, it might just work out.",
+  "log_gamma_route_no_fuel": "Fuel depleted! The journey has stopped. Without fuel, you cannot continue."
 }

@@ -2,7 +2,7 @@
 // Location Engine
 // ==========================================================================
 
-import { resources, updateResourceInfo, setActiveDrainRates, setActiveAreaDrainRates, setActionAreaDrainRates, applyTimePassiveDrain, roundResourceAmount, checkDeathAndLoop, initAreaResources, drainAreaResource, showAreaSuppliesPanel, areaResources, revealAreaResources } from '../../engine/resources.js';
+import { resources, updateResourceInfo, setActiveDrainRates, setActiveAreaDrainRates, setActionAreaDrainRates, applyTimePassiveDrain, roundResourceAmount, checkDeathAndLoop, initAreaResources, drainAreaResource, showAreaSuppliesPanel, areaResources, revealAreaResources, computeAndApplyAreaRates } from '../../engine/resources.js';
 import { addLogEntry, LogType } from '../../engine/ingameLog.js';
 import { t } from '../../locales/locales.js';
 import { getCurrentLocationId, switchToLocation, getLocation, getAllLocations } from './locationData.js';
@@ -203,7 +203,7 @@ function completeActiveAction(opts = {}) {
         } else if (action.addsEffect === 'waiting_ping' || action.addsEffect === 'waiting_ping_targeted') {
             Object.assign(effectDef, { icon: '📡', progress: 0, maxProgress: 120, isCountdown: true });
         } else if (action.addsEffect === 'on_route_gamma') {
-            Object.assign(effectDef, { icon: '🚀', progress: 0, maxProgress: 240, isCountdown: true, debuffs: { 'area_fuel': -2.0 } });
+            Object.assign(effectDef, { icon: '🚀', progress: 0, maxProgress: 240, isCountdown: true, debuffs: { 'area_fuel': -0.50 } });
         }
         addEffect(effectDef);
         addLogEntry(t('log_effect_added', { effect: t(effectDef.nameKey) }), LogType.ERROR);
@@ -314,6 +314,8 @@ function completeActiveAction(opts = {}) {
     }
     
     try { updateResourceInfo(); } catch { /* ignore */ }
+    // Refresh area resource display rates immediately (don't wait for next tick)
+    try { computeAndApplyAreaRates(); } catch { /* ignore */ }
     const targetLoc = action.targetLocation;
     clearActionTimer();
     activeAction = null; activeActionId = null; actionProgress = 0; actionPaused = false; selectedActionId = null; clearHoverState();

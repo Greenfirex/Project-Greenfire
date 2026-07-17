@@ -7,7 +7,7 @@
 
 import { t } from '../locales/locales.js';
 import { addLogEntry, LogType } from './ingameLog.js';
-import { areaResources } from './resources.js';
+import { areaResources, computeAndApplyAreaRates } from './resources.js';
 import { hasMilestone } from './gameFlags.js';
 
 export let activeEffects = [];
@@ -163,8 +163,8 @@ export function advanceEffectProgress(deltaSeconds) {
             const bridgeList = areaResources['scout_ship_bridge'];
             const fuel = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_fuel') : null;
             if (fuel) {
-                // Drain fuel during flight — 2.0 per second (same as debuff rate)
-                const drainRate = 2.0;
+                // Drain fuel during flight — 0.50 per second
+                const drainRate = 0.50;
                 fuel.amount = Math.max(0, fuel.amount - drainRate * deltaSeconds);
 
                 if (fuel.amount <= 0) {
@@ -181,12 +181,25 @@ export function advanceEffectProgress(deltaSeconds) {
                     effect._paused = false;
                     addLogEntry(t('log_gamma_route_resumed'), LogType.SUCCESS);
                 }
+                // Refresh area fuel display rate immediately
+                try { computeAndApplyAreaRates(); } catch { /* ignore */ }
             }
         }
 
-        const prev = effect.progress || 0;
-        effect.progress = Math.min(effect.maxProgress, prev + deltaSeconds);
-        changed = true;
+        // on_route_gamma: fuel warning at halfway point
+        if (effect.id === 'on_route_gamma' && !effect._fuelWarningShown) {
+            const prev = effect.progress || 0;
+            effect.progress = Math.min(effect.maxProgress, prev + deltaSeconds);
+            if (prev < 120 && effect.progress >= 120) {
+                effect._fuelWarningShown = true;
+                addLogEntry(t('log_gamma_route_fuel_warning'), LogType.WARNING);
+            }
+            changed = true;
+        } else {
+            const prev = effect.progress || 0;
+            effect.progress = Math.min(effect.maxProgress, prev + deltaSeconds);
+            changed = true;
+        }
         // Mark countdown effects as ready when they expire (don't remove — check_ping_results needs them)
         if (effect.isCountdown && effect.progress >= effect.maxProgress && prev < effect.maxProgress) {
             effect._expired = true;

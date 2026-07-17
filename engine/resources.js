@@ -302,6 +302,43 @@ function getAreaResourceDrainRate(resourceName) {
     return '';
 }
 
+/**
+ * Compute area resource drain/gain display rates and apply them via setActiveAreaDrainRates.
+ * Exportable so callers (locationEngine after action complete, effects during on_route_gamma)
+ * can refresh area rates immediately without waiting for the next applyTimePassiveDrain tick.
+ */
+export function computeAndApplyAreaRates() {
+    const FUEL_DRAIN_PER_MIN = gameFlags.reactorOptimized ? 1.20 : 1.80;
+    const O2_DRAIN_PER_MIN = 4;
+    const O2_REGEN_PER_MIN = 2.0;
+    const ON_ROUTE_FUEL_DRAIN = 0.50;
+
+    const bridgeList = areaResources['scout_ship_bridge'];
+    const fuel = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_fuel') : null;
+    const o2 = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_o2') : null;
+
+    const areaRates = {};
+
+    // Fuel drain (passive + optional on_route_gamma)
+    if (fuel && fuel.amount > 0) {
+        let totalFuelDrain = FUEL_DRAIN_PER_MIN;
+        if (hasEffect('on_route_gamma')) totalFuelDrain += ON_ROUTE_FUEL_DRAIN;
+        areaRates['area_fuel'] = `-${totalFuelDrain.toFixed(2)}/min`;
+    }
+
+    // O2 drain/regen
+    if (o2 && hasEffect('life_support_failure') && o2.amount > 0) {
+        areaRates['area_o2'] = '-4.00/min';
+    } else if (o2 && fuel && fuel.amount > 0 && !hasEffect('life_support_failure') && o2.amount < o2.capacity) {
+        areaRates['area_o2'] = `+${O2_REGEN_PER_MIN.toFixed(2)}/min`;
+    }
+
+    // Recycler water regen
+    if (gameFlags.recyclerFixed) areaRates['area_water'] = '+0.50/min';
+
+    setActiveAreaDrainRates(Object.keys(areaRates).length > 0 ? areaRates : null);
+}
+
 export function updateAreaResourcesUI() {
     if (!_areaSectionHost) {
         _areaSectionHost = document.getElementById('areaResourcesSection');
@@ -353,11 +390,13 @@ export function updateAreaResourcesUI() {
         
         const drainRate = getAreaResourceDrainRate(res.name);
         const hasDrain = drainRate !== '';
+        const isPositive = typeof drainRate === 'string' && drainRate.startsWith('+');
+        const rateClass = isPositive ? 'positive-rate' : 'negative-rate';
         return `<div class="area-resource-row" data-resource="${res.name}">
             <div class="area-resource-bar ${barClass}" style="width:${pct}%"></div>
             <span class="area-resource-name">${emoji} ${name}</span>
-            <span class="area-resource-amount${isZero ? ' zero-amount' : ''}${hasDrain ? ' negative-rate' : ''}">${amt} / ${cap}</span>
-            ${hasDrain ? `<span class="area-resource-rate negative-rate">${drainRate}</span>` : ''}
+            <span class="area-resource-amount${isZero ? ' zero-amount' : ''}${hasDrain ? ` ${rateClass}` : ''}">${amt} / ${cap}</span>
+            ${hasDrain ? `<span class="area-resource-rate ${rateClass}">${drainRate}</span>` : ''}
         </div>`;
     }).join('');
     
@@ -1259,15 +1298,8 @@ export function applyTimePassiveDrain(realSeconds) {
         }
     }
 
-    // Set area drain rates for passive fuel/O2 drain display
-    const areaRates = {};
-    if (fuel && fuel.amount > 0) areaRates['area_fuel'] = `-${FUEL_DRAIN_PER_MIN.toFixed(2)}/min`;
-    if (o2 && hasEffect('life_support_failure') && o2.amount > 0) areaRates['area_o2'] = '-4.00/min';
-    if (o2 && fuel && fuel.amount > 0 && !hasEffect('life_support_failure') && o2.amount < o2.capacity) {
-        areaRates['area_o2'] = `+${O2_REGEN_PER_MIN.toFixed(2)}/min`;
-    }
-    if (gameFlags.recyclerFixed) areaRates['area_water'] = '+0.50/min';
-    setActiveAreaDrainRates(Object.keys(areaRates).length > 0 ? areaRates : null);
+    // Compute and apply area resource display rates
+    computeAndApplyAreaRates();
 
     // Low resource warnings with smart context (cooldown-based, no flag spam)
     syncLowResourceWarnings();

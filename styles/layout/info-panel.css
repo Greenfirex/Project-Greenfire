@@ -783,6 +783,10 @@ html.is-compact #infoPanel.collapsed .info-effect-overflow {
     color: #E74C3C;
 }
 
+.area-resource-rate.positive-rate {
+    color: #4caf50;
+}
+
 .info-row.insight-resource {
     color: #FFD700;
 }

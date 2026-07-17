@@ -213,5 +213,7 @@
   "title_exit": "Konec",
   "title_new_game": "Nová hra",
   "title_settings": "Nastavení",
-  "log_canteen_drink": "Napil ses {amount} jednotek vody z kantýny. Kantýna: {canteen}/{max}. Pitná voda: {water}/{cap}."
+  "log_canteen_drink": "Napil ses {amount} jednotek vody z kantýny. Kantýna: {canteen}/{max}. Pitná voda: {water}/{cap}.",
+  "log_gamma_route_fuel_warning": "Uvědomuješ si, že palivo možná nemusí vystačit na dolet k cílovým souřadnicím... Když teď přesně víš kam letět, měl by ses příště hned po probuzení zaměřit výhradně na tuhle cestu — zoptimalizovat reaktor, získat palivový článek z roveru a vyrazit co nejdřív. S trochou štěstí by to mohlo vyjít.",
+  "log_gamma_route_no_fuel": "Palivo došlo! Let se zastavil. Bez paliva nemůžeš pokračovat."
 }
