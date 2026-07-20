@@ -15,7 +15,7 @@ export const scoutShipBridge = {
         {
             id: 'navigation',
             nameKey: 'poi_navigation',
-            actions: ['check_navigation', 'scan_planet_surface', 'scan_gamma_site', 'set_course_gamma']
+            actions: ['check_navigation', 'scan_planet_surface', 'scan_gamma_site', 'set_course_gamma', 'land_ship']
         },
         {
             id: 'controls',
@@ -425,6 +425,39 @@ export const scoutShipBridge = {
             repeatable: true,
             targetLocation: 'scout_ship_main_area',
             resultKey: 'result_go_to_main_area'
+        },
+        // ==========================================================================
+        // Land ship — manual landing after on_route_gamma countdown expires
+        // ==========================================================================
+        {
+            id: 'land_ship',
+            nameKey: 'action_land_ship',
+            descKey: 'action_land_ship_desc',
+            category: 'taxing',
+            drain: [{ resource: 'Stamina', amount: 5 }],
+            durationSeconds: 20,
+            oneTime: true,
+            isAvailable(ctx) {
+                return hasMilestone('arrived_at_gamma');
+            },
+            getResultKey(ctx) {
+                return hasMilestone('ship_landed') ? 'result_land_ship_again' : 'result_land_ship';
+            },
+            onComplete(ctx) {
+                setMilestone('ship_landed', () => ctx.persistLoopKnowledge());
+                // Remove the on_route_gamma effect (stops fuel drain)
+                try { removeEffect('on_route_gamma'); } catch { /* ignore */ }
+                // Unlock exit_ship in mainArea (cross-location unlock)
+                const mainLoc = ctx.getLocation('scout_ship_main_area');
+                if (mainLoc) {
+                    const exitA = (mainLoc.actions || []).find(a => a.id === 'exit_ship');
+                    if (exitA) {
+                        exitA._completed = false;
+                        ctx.flagActionAsNew('exit_ship');
+                    }
+                }
+                ctx.setFullRebuildNeeded(true);
+            },
         }
     ]
 };

@@ -26,7 +26,7 @@ export const scoutShipMainArea = {
         {
             id: 'travel',
             nameKey: 'poi_travel',
-            actions: ['go_to_crew_quarters', 'go_to_bridge', 'go_to_workshop']
+            actions: ['go_to_crew_quarters', 'go_to_bridge', 'go_to_workshop', 'exit_ship']
         }
     ],
     actions: [
@@ -311,6 +311,30 @@ export const scoutShipMainArea = {
             repeatable: true,
             targetLocation: 'scout_ship_workshop',
             resultKey: 'result_go_to_workshop'
+        },
+        // ==========================================================================
+        // Exit ship — leave the Vagabond after landing
+        // ==========================================================================
+        {
+            id: 'exit_ship',
+            nameKey: 'action_exit_ship',
+            descKey: 'action_exit_ship_desc',
+            drain: [],
+            durationSeconds: 5,
+            oneTime: true,
+            repeatable: true,
+            targetLocation: 'gamma_site_landing_site',
+            isAvailable(ctx) {
+                return hasMilestone('ship_landed');
+            },
+            getResultKey(ctx) {
+                return hasMilestone('exited_ship_before') ? 'result_exit_ship_again' : 'result_exit_ship_first';
+            },
+            onComplete(ctx) {
+                if (!hasMilestone('exited_ship_before')) {
+                    setMilestone('exited_ship_before', () => ctx.persistLoopKnowledge());
+                }
+            }
         }
     ]
 };

@@ -127,5 +127,12 @@
   "item_bottled_water": "Bottled Water",
   "item_bottled_water_desc": "A sealed bottle of clean drinking water.",
   "item_packaged_food": "Packaged Food",
-  "item_packaged_food_desc": "Packaged rations, safe to eat."
+  "item_packaged_food_desc": "Sealed rations, safe to consume.",
+  "loc_gamma_site_landing_site": "Landing Site — Gamma Site",
+  "loc_gamma_site_landing_site_desc": "Vagabond has settled onto a small forest clearing — the only spot for miles where the vegetation is not thick enough to tear the hull apart. Before you, a deep RAVINE runs along the eastern edge of the clearing — at its bottom you spot what looks like a man-made path, partially swallowed by vegetation. Beyond a shallow river in the distance, several buildings rise — GAMMA SITE. Overgrown, abandoned, but real. Someone — or something — was here once. You can try heading WEST deeper into the forest, or circle around to the EAST.",
+  "poi_vagabond": "VAGABOND",
+  "poi_ravine": "RAVINE",
+  "poi_gamma_site": "GAMMA SITE",
+  "poi_western_forest": "WESTERN FOREST",
+  "poi_eastern_path": "EASTERN PATH"
 }

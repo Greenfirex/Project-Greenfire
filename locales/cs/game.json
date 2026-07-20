@@ -127,5 +127,12 @@
   "item_bottled_water": "Balíček vody",
   "item_bottled_water_desc": "Zapečetěná láhev čisté pitné vody.",
   "item_packaged_food": "Balíček jídla",
-  "item_packaged_food_desc": "Zabalené příděly, bezpečné ke konzumaci."
+  "item_packaged_food_desc": "Zabalené příděly, bezpečné ke konzumaci.",
+  "loc_gamma_site_landing_site": "Místo přistání — Gamma Site",
+  "loc_gamma_site_landing_site_desc": "Vagabond dosedl na malou lesní mýtinu — jediné místo v širokém okolí, kde vegetace není tak hustá, že by roztrhala trup. Před tebou se podél východního okraje mýtiny táhne hluboká <span class=\"poi-highlight\">ROKLE</span> — na jejím dně spatřuješ něco, co vypadá jako uměle vytvořená cesta, zčásti pohlcená vegetací. Za mělkou řekou v dálce se tyčí několik budov — <span class=\"poi-highlight\">GAMMA SITE</span>. Jsou zarostlé, opuštěné, ale je to reálné místo. Někdo — nebo něco — tam kdysi bylo. Můžeš se pokusit vydat na <span class=\"poi-highlight\">ZÁPAD</span> hlouběji do lesa, nebo to zkusit obejít směrem na <span class=\"poi-highlight\">VÝCHOD</span>.",
+  "poi_vagabond": "VAGABOND",
+  "poi_ravine": "ROKLE",
+  "poi_gamma_site": "GAMMA SITE",
+  "poi_western_forest": "ZÁPADNÍ LES",
+  "poi_eastern_path": "VÝCHODNÍ CESTA"
 }

@@ -8,7 +8,7 @@
 import { t } from '../locales/locales.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { areaResources, computeAndApplyAreaRates } from './resources.js';
-import { hasMilestone } from './gameFlags.js';
+import { hasMilestone, setMilestone, flagActionAsNew } from './gameFlags.js';
 
 export let activeEffects = [];
 
@@ -158,6 +158,8 @@ export function advanceEffectProgress(deltaSeconds) {
     for (const effect of activeEffects) {
         if (effect.maxProgress === Infinity || effect.maxProgress <= 0) continue;
 
+        const prev = effect.progress || 0;
+
         // on_route_gamma: drain fuel while flying, pause when depleted
         if (effect.id === 'on_route_gamma') {
             const bridgeList = areaResources['scout_ship_bridge'];
@@ -171,9 +173,12 @@ export function advanceEffectProgress(deltaSeconds) {
                     fuel.amount = 0;
                     if (!effect._paused) {
                         effect._paused = true;
-                        addLogEntry(t('log_gamma_route_no_fuel'), LogType.ERROR);
-                        if (!hasMilestone('rover_fuel_cell_installed')) {
-                            addLogEntry(t('log_gamma_route_rover_hint'), LogType.UNLOCK);
+                        if (hasMilestone('rover_fuel_cell_installed')) {
+                            // Rover fuel cell already used — no more options, hint restart
+                            try { addLogEntry(t('log_gamma_route_no_fuel_final'), LogType.ERROR); } catch { /* ignore */ }
+                        } else {
+                            try { addLogEntry(t('log_gamma_route_no_fuel'), LogType.ERROR); } catch { /* ignore */ }
+                            try { addLogEntry(t('log_gamma_route_rover_hint'), LogType.UNLOCK); } catch { /* ignore */ }
                         }
                     }
                     continue; // don't advance progress while out of fuel
@@ -188,7 +193,6 @@ export function advanceEffectProgress(deltaSeconds) {
 
         // on_route_gamma: fuel warning at halfway point
         if (effect.id === 'on_route_gamma' && !effect._fuelWarningShown) {
-            const prev = effect.progress || 0;
             effect.progress = Math.min(effect.maxProgress, prev + deltaSeconds);
             if (prev < 120 && effect.progress >= 120) {
                 effect._fuelWarningShown = true;
@@ -196,7 +200,6 @@ export function advanceEffectProgress(deltaSeconds) {
             }
             changed = true;
         } else {
-            const prev = effect.progress || 0;
             effect.progress = Math.min(effect.maxProgress, prev + deltaSeconds);
             changed = true;
         }
@@ -204,7 +207,26 @@ export function advanceEffectProgress(deltaSeconds) {
         if (effect.isCountdown && effect.progress >= effect.maxProgress && prev < effect.maxProgress) {
             effect._expired = true;
             if (effect.id === 'waiting_ping' || effect.id === 'waiting_ping_targeted') {
-                addLogEntry(t('log_ping_response_ready'), LogType.UNLOCK);
+                try { addLogEntry(t('log_ping_response_ready'), LogType.UNLOCK); } catch { /* ignore */ }
+            }
+            if (effect.id === 'on_route_gamma') {
+                try {
+                    setMilestone('arrived_at_gamma');
+                    addLogEntry(t('log_gamma_route_arrived'), LogType.SUCCESS);
+                } catch { /* ignore */ }
+                // Unlock land_ship action on bridge via lazy import
+                try {
+                    import('../sections/locations/locationData.js').then(mod => {
+                        const bridgeLoc = mod.getLocation('scout_ship_bridge');
+                        if (bridgeLoc) {
+                            const a = (bridgeLoc.actions || []).find(a => a.id === 'land_ship');
+                            if (a) a._completed = false;
+                        }
+                        flagActionAsNew('land_ship');
+                        // Trigger UI rebuild
+                        try { mod.refreshUI?.(); } catch {}
+                    }).catch(() => {});
+                } catch { /* ignore */ }
             }
         }
     }

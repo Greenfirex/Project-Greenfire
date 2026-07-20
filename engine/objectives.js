@@ -163,20 +163,20 @@ const defs = [
         label: () => t('obj_reach_gamma_site_label'),
         narrative: () => t('obj_reach_gamma_site_narrative'),
         start: () => hasMilestone('gamma_site_heard'),
-        complete: () => isActionCompleted('scout_ship_bridge', 'set_course_gamma'),
-        reward: [{ resource: 'XP', amount: 200 }],
+        complete: () => hasMilestone('ship_landed'),
+        reward: [{ resource: 'XP', amount: 250 }],
         priority: 10,
         steps: () => {
             const steps = [];
             steps.push({
-                id: 'step_get_coords',
+                id: 'step_send_targeted_ping',
                 label: t('obj_reach_gamma_step1'),
-                done: hasMilestone('gamma_coordinates_known'),
+                done: hasMilestone('targeted_ping_sent'),
             });
             steps.push({
-                id: 'step_bridge_access',
+                id: 'step_get_coords',
                 label: t('obj_reach_gamma_step2'),
-                done: hasMilestone('bridge_terminal_access'),
+                done: hasMilestone('gamma_coordinates_known'),
             });
             steps.push({
                 id: 'step_confirm_scanner',
@@ -189,14 +189,9 @@ const defs = [
                 done: isActionCompleted('scout_ship_bridge', 'set_course_gamma'),
             });
             steps.push({
-                id: 'step_survive_journey',
+                id: 'step_land_ship',
                 label: t('obj_reach_gamma_step5'),
-                done: (() => {
-                    try {
-                        const eff = activeEffects.find(e => e.id === 'on_route_gamma');
-                        return !!(eff && eff._expired);
-                    } catch { return false; }
-                })(),
+                done: hasMilestone('ship_landed'),
             });
             return steps;
         }

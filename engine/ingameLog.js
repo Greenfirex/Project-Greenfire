@@ -1,6 +1,10 @@
 export const LogType = {
-    INFO: 'info', SUCCESS: 'success', ERROR: 'error', WARNING: 'warning',
-    STORY: 'story', UNLOCK: 'unlock'
+    INFO: 'info',
+    SUCCESS: 'success',
+    ERROR: 'error',
+    WARNING: 'warning',
+    STORY: 'story',
+    UNLOCK: 'unlock'
 };
 
 let logSettings = { colors: {}, filters: {}, showTimestamps: false, typewriterMode: true };

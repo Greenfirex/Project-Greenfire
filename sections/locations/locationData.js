@@ -14,6 +14,7 @@ import { scoutShipBridge } from './definitions/scoutShip/bridge.js';
 import { scoutShipWorkshop } from './definitions/scoutShip/scoutShipWorkshop.js';
 import { gammaCrewQuarters } from './definitions/gammaSite/gammaCrewQuarters.js';
 import { workshop } from './definitions/gammaSite/workshop.js';
+import { gammaSiteLandingSite } from './definitions/gammaSite/landingSite.js';
 
 const locations = {};
 
@@ -62,3 +63,4 @@ registerLocation(scoutShipBridge);
 registerLocation(scoutShipWorkshop);
 registerLocation(gammaCrewQuarters);
 registerLocation(workshop);
+registerLocation(gammaSiteLandingSite);

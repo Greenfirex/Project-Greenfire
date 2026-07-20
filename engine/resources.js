@@ -4,8 +4,8 @@ import { t } from '../locales/locales.js';
 import { setupEffectsUI, getEffectDebuffs, getEffectDrains, getEffectDebuffDetails, addEffect, removeEffect, hasEffect, updateEffectsUI, EFFECT_HUNGRY, EFFECT_THIRSTY, EFFECT_EXHAUSTED, EFFECT_LIFE_SUPPORT_FAILURE, EFFECT_OXYGEN_DEPLETED, clearAllEffects } from './effects.js';
 import { setupQueueUI } from './queue.js';
 import { setupInfoVitals, updateInfoVitals, updateEffectsStrip, updateAreaVitals } from '../ui/chrome/infoVitals.js';
-import { gameFlags, flagActionAsNew, resetPerLoopFlags } from './gameFlags.js';
-import { switchToLocation, getAllLocations } from '../sections/locations/locationData.js';
+import { gameFlags, flagActionAsNew, resetPerLoopFlags, hasMilestone } from './gameFlags.js';
+import { switchToLocation, getAllLocations, getCurrentLocationId } from '../sections/locations/locationData.js';
 import { clearQueue } from './queue.js';
 import { resetIngameTime } from './time.js';
 import { showStoryPopup } from '../ui/panels/storyPopup.js';
@@ -348,22 +348,28 @@ export function updateAreaResourcesUI() {
     // Merge area resources only from locations that have been revealed to the player.
     // Resources can be initialized early for drain mechanics but stay hidden until
     // the appropriate reveal action (e.g. assess_supplies, check_reactor_status) completes.
+    const currentLocId = getCurrentLocationId();
+    const isOnShip = typeof currentLocId === 'string' && currentLocId.startsWith('scout_ship_');
     const list = [];
-    for (const locId of Object.keys(areaResources)) {
-        if (!_revealedAreaLocations.has(locId)) continue;
-        if (Array.isArray(areaResources[locId])) {
-            for (const res of areaResources[locId]) {
-                // Always show all revealed area resources — even when depleted
-                list.push(res);
+    if (isOnShip) {
+        for (const locId of Object.keys(areaResources)) {
+            if (!_revealedAreaLocations.has(locId)) continue;
+            if (Array.isArray(areaResources[locId])) {
+                for (const res of areaResources[locId]) {
+                    // Always show all revealed area resources — even when depleted
+                    list.push(res);
+                }
             }
         }
     }
     
     // Show/hide the area section based on whether any area resources exist
     const hasAnyResources = list.length > 0;
-    _areaSectionHost.classList.toggle('no-resources', !hasAnyResources);
     if (hasAnyResources) {
         _areaSectionHost.classList.remove('hidden');
+        _areaSectionHost.classList.remove('no-resources');
+    } else {
+        _areaSectionHost.classList.add('hidden');
     }
     
     const body = _areaSectionHost.querySelector('.area-resources-body');
@@ -933,6 +939,12 @@ function handleDeathAndLoop(opts = {}) {
     const pagesText = t(pagesKey, { loop });
     let pages = (pagesText || '').split('\n\n').filter(p => p.trim());
 
+    // If player has landed on Gamma Site (ship_landed), append a narrative page
+    if (hasMilestone('ship_landed')) {
+        const extraPage = t('death_pages_landed');
+        if (extraPage) pages.push(extraPage);
+    }
+
     // If this was a manual reset and the player hasn't seen the manual-reset
     // flavour page yet, append it once — then mark it seen forever.
     if (opts.isManual) {
@@ -1184,6 +1196,10 @@ export function applyTimePassiveDrain(realSeconds) {
     }
     
     // --- Area resource passive drains (ship fuel → O2 cascade) ---
+    // Ship fuel drains over time while the reactor is running.
+    // After landing (ship_landed), the engine is off — no passive fuel/O2 drain.
+    if (hasMilestone('ship_landed')) return;
+
     // Ship fuel drains over time (~1 unit per second)
     const FUEL_DRAIN_PER_MIN = gameFlags.reactorOptimized ? 1.20 : 1.80;
     const O2_DRAIN_PER_MIN = 4; // O2 drains slower than fuel
