@@ -16,7 +16,7 @@ export const scoutShipMainArea = {
         {
             id: 'cafeteria',
             nameKey: 'poi_cafeteria',
-            actions: ['assess_supplies', 'grab_proviant', 'grab_bottled_water', 'drink_water', 'repair_recycler']
+            actions: ['assess_supplies', 'grab_proviant', 'grab_bottled_water', 'drink_water', 'fill_canteen', 'repair_recycler']
         },
         {
             id: 'communications',
@@ -82,6 +82,31 @@ export const scoutShipMainArea = {
             cancellable: true,
             drainsAreaResource: { resource: 'area_water', amount: 5 },
             requiresAreaResource: 'area_water'
+        },
+        {
+            id: 'fill_canteen',
+            nameKey: 'action_fill_canteen',
+            descKey: 'action_fill_canteen_desc',
+            category: 'simple',
+            drain: [{ resource: 'Stamina', amount: 1 }],
+            durationSeconds: 5,
+            repeatable: true,
+            cancellable: true,
+            requiresAreaResource: 'area_water',
+            drainsAreaResource: { resource: 'area_water', amount: 10 },
+            isAvailable(ctx) {
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                if (!us['assess_supplies']) return false;
+                const cw = ctx.gameFlags.canteenWater || 0;
+                if (cw >= 50) return false;
+                const hasCanteen = ctx.countItemInBag('canteen') > 0;
+                if (!hasCanteen) return false;
+                return true;
+            },
+            resultKey: 'result_fill_canteen',
+            onComplete(ctx) {
+                ctx.gameFlags.canteenWater = Math.min(50, (ctx.gameFlags.canteenWater || 0) + 10);
+            }
         },
 
         // ==========================================================================

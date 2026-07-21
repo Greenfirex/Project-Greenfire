@@ -137,6 +137,7 @@ export const scoutShipBridge = {
             oneTime: true,
             suppressCompletionLog: true,
             isAvailable(ctx) {
+                if (ctx.gameFlags.loopCount >= 2) return false;
                 return hasMilestone('bridge_terminal_access');
             },
             revealsAreaSupplies: true,
@@ -249,6 +250,10 @@ export const scoutShipBridge = {
             oneTime: true,
             remembersCondition(ctx) { return hasMilestone('reactor_optimized'); },
             isAvailable(ctx) {
+                if (ctx.gameFlags.loopCount >= 2) {
+                    if (!hasMilestone('fuel_scanned')) return false;
+                    return !ctx.gameFlags.reactorOptimized;
+                }
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 return !!us['check_reactor_status'];
             },
