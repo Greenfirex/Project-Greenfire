@@ -101,22 +101,20 @@ export const scoutShipBridge = {
             durationSeconds: 15,
             oneTime: true,
             isAvailable(ctx) {
-                if (hasMilestone('bridge_terminal_access')) return false;
-                return true;
+                const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                return !us['check_bridge_terminal'];
             },
             getResultKey(ctx) {
-                const m = ctx.gameFlags.loopKnowledge?.milestones || {};
                 const loop = ctx.gameFlags.loopCount || 0;
-                const alreadyChecked = m.bridge_terminal_checked;
-                const known = hasMilestone('crew_terminal_access');
+                const knowsPassword = hasMilestone('bridge_terminal_access') || hasMilestone('crew_terminal_access');
 
-                if (!alreadyChecked) {
-                    if (known) return 'result_check_bridge_terminal_first_has_login';
-                    return 'result_check_bridge_terminal';
+                if (knowsPassword) {
+                    if (loop >= 2) return 'result_check_bridge_terminal_loop2';
+                    if (loop >= 1) return 'result_check_bridge_terminal_loop1';
+                    return 'result_check_bridge_terminal_known';
                 }
-                if (loop >= 2) return 'result_check_bridge_terminal_loop2';
-                if (loop >= 1) return 'result_check_bridge_terminal_loop1';
-                return 'result_check_bridge_terminal_known';
+                // Doesn't know password — default/first-time text
+                return 'result_check_bridge_terminal';
             },
             onComplete(ctx) {
                 setMilestone('bridge_terminal_checked', () => ctx.persistLoopKnowledge());
@@ -251,6 +249,8 @@ export const scoutShipBridge = {
             remembersCondition(ctx) { return hasMilestone('reactor_optimized'); },
             isAvailable(ctx) {
                 if (ctx.gameFlags.loopCount >= 2) {
+                    const us = ctx.getUnlockState(ctx.getCurrentLocationId());
+                    if (!us['check_bridge_terminal']) return false;
                     if (!hasMilestone('fuel_scanned')) return false;
                     return !ctx.gameFlags.reactorOptimized;
                 }

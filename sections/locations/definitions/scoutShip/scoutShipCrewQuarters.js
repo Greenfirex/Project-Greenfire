@@ -49,16 +49,6 @@ export const scoutShipCrewQuarters = {
                 loop2: 'result_wake_up_loop2',
             },
             onCompleteLoop2(ctx) {
-                const bridgeLoc = ctx.getLocation('scout_ship_bridge');
-                if (bridgeLoc) {
-                    const bus = ctx.getUnlockState('scout_ship_bridge');
-                    bus['check_bridge_terminal'] = true;
-                    ctx.setUnlockState('scout_ship_bridge', bus);
-                    ['check_bridge_terminal', 'hack_bridge_terminal', 'use_bridge_terminal_login'].forEach(id => {
-                        const a = (bridgeLoc.actions || []).find(x => x.id === id);
-                        if (a) a._completed = true;
-                    });
-                }
                 ctx.flagActionAsNew('enter_known_credentials_bridge');
                 const bridgeList = ctx.areaResources['scout_ship_bridge'];
                 const fuel = bridgeList && Array.isArray(bridgeList) ? bridgeList.find(r => r.name === 'area_fuel') : null;

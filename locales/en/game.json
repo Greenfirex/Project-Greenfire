@@ -49,6 +49,7 @@
   "equip_chest": "Chest",
   "equip_head": "Head",
   "equip_offhand": "Offhand",
+  "log_water_stock_depleted": "Ship water reserves are depleted!",
   "equip_slot_accessory_1": "Accessory 1",
   "equip_slot_accessory_2": "Accessory 2",
   "equip_slot_boots": "Boots",

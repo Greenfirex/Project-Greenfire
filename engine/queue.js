@@ -8,6 +8,10 @@
 import { t } from '../locales/locales.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { gameFlags } from './gameFlags.js';
+import { advanceIngameTimeBySeconds, getIngameTimeString } from './time.js';
+import { applyTimePassiveDrain, checkDeathAndLoop, setActiveDrainRates } from './resources.js';
+import { advanceEffectProgress } from './effects.js';
+import { setupTooltip } from '../ui/panels/tooltip.js';
 
 export let actionQueue = [];
 let _activeAction = null; // { id, nameKey, progress, durationSeconds }
@@ -18,6 +22,9 @@ let _endLoopActive = false; // prevent double-clicks while confirm popup is open
 function initEndLoopButton() {
     const btn = document.getElementById('endLoopBtn');
     if (!btn) return;
+
+    // Wire tooltip
+    setupTooltip(btn, () => `<p style="font-size:var(--font-size-small)">${t('queue_end_loop_desc')}</p>`);
 
     // Update visibility based on loop count
     function updateEndLoopVisibility() {
@@ -84,9 +91,99 @@ function initEndLoopButton() {
 
 // Call init when module loads (DOM should already be ready since queue loads from main.js)
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initEndLoopButton);
+    document.addEventListener('DOMContentLoaded', () => {
+        initEndLoopButton();
+        initPassTimeButton();
+    });
 } else {
     initEndLoopButton();
+    initPassTimeButton();
+}
+
+// ==========================================================================
+// Pass Time Button
+// ==========================================================================
+
+let _passTimeTimer = null;
+let _passTimeActive = false;
+
+// Default idle drain rates (per second) — same as DEFAULT_DRAIN in locationEngine.js
+const IDLE_DRAIN_RATES = { 'Stamina': -0.20, 'Food Rations': -0.08, 'Drinking Water': -0.12 };
+
+function initPassTimeButton() {
+    const btn = document.getElementById('passTimeBtn');
+    if (!btn) return;
+
+    // Always visible
+    btn.classList.remove('hidden');
+    btn.textContent = t('queue_pass_time');
+
+    // Wire tooltip
+    setupTooltip(btn, () => `<p style="font-size:var(--font-size-small)">${t('queue_pass_time_desc')}</p>`);
+
+    function updateClockDisplay() {
+        const clockEl = document.getElementById('headerClock');
+        if (clockEl) clockEl.textContent = getIngameTimeString();
+    }
+
+    function stopPassTime() {
+        if (_passTimeTimer) {
+            clearInterval(_passTimeTimer);
+            _passTimeTimer = null;
+        }
+        _passTimeActive = false;
+        btn.textContent = t('queue_pass_time');
+        btn.classList.remove('pass-time-active');
+        // Restore previous drain rates (or null if no action was running)
+        try {
+            const state = window.__getActiveActionState ? window.__getActiveActionState() : null;
+            if (!state) setActiveDrainRates(null, null);
+        } catch { setActiveDrainRates(null, null); }
+    }
+
+    function startPassTime() {
+        if (_passTimeTimer) return;
+        _passTimeActive = true;
+        btn.textContent = t('queue_pass_time_stop');
+        btn.classList.add('pass-time-active');
+
+        // Apply idle drain rates so stamina/food/water drain while waiting
+        const hasActiveAction = (() => {
+            try { return !!(window.__getActiveActionState && window.__getActiveActionState()); }
+            catch { return false; }
+        })();
+        if (!hasActiveAction) {
+            setActiveDrainRates(IDLE_DRAIN_RATES, { 'Stamina': [{ rate: 0.20, label: 'Wait' }], 'Food Rations': [{ rate: 0.08, label: 'Wait' }], 'Drinking Water': [{ rate: 0.12, label: 'Wait' }] });
+        }
+
+        const TICK_SECONDS = 0.1;
+        const gameSpeed = () => {
+            try { const s = Number(window.TIME_SCALE); return Number.isFinite(s) && s > 0 ? s : 1; }
+            catch { return 1; }
+        };
+
+        _passTimeTimer = setInterval(() => {
+            if (!_passTimeActive) { stopPassTime(); return; }
+            const tickSecs = TICK_SECONDS * gameSpeed();
+            advanceIngameTimeBySeconds(tickSecs);
+            applyTimePassiveDrain(tickSecs);
+            advanceEffectProgress(tickSecs);
+            updateClockDisplay();
+            try { checkDeathAndLoop(); } catch { /* ignore */ }
+        }, 100);
+    }
+
+    btn.addEventListener('click', () => {
+        if (_passTimeActive) {
+            stopPassTime();
+        } else {
+            startPassTime();
+        }
+    });
+
+    // Stop on death/reset
+    window.addEventListener('force-cancel-action', () => stopPassTime());
+    window.addEventListener('game-pause', () => stopPassTime());
 }
 
 /**

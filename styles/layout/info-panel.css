@@ -1414,10 +1414,22 @@ html.is-compact #infoPanel.collapsed .info-effect-overflow {
     font-style: italic;
 }
 
-/* End Loop button (loop 3+) — sits at the bottom of the info panel below queue */
-.end-loop-btn {
+/* Bottom button row (Wait + End Loop) — sits at the bottom of the info panel */
+.info-panel-bottom-btns {
+    display: flex;
+    gap: 4px;
     margin-top: auto;
-    width: 100%;
-    box-sizing: border-box;
     flex-shrink: 0;
+}
+
+.info-panel-bottom-btns .end-loop-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+    box-sizing: border-box;
+}
+
+.pass-time-active {
+    background: var(--color-error-bg, #3a1a1a) !important;
+    border-color: var(--color-error-border, #5a2d2d) !important;
 }

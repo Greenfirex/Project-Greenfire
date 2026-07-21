@@ -31,7 +31,7 @@ export function useConsumableFromBag(itemId, state) {
             const actuallyDrink = Math.min(drinkAmount, space);
             if (actuallyDrink > 0) {
                 waterRes.amount += actuallyDrink;
-                gameFlags.canteenWater -= actuallyDrink;
+                gameFlags.canteenWater = Math.max(0, Math.round(gameFlags.canteenWater - actuallyDrink));
             }
             if (actuallyDrink < drinkAmount) {
                 // Cannot overfill — leftover stays in canteen

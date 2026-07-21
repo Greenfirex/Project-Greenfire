@@ -51,7 +51,7 @@ loaded['en'] = {
     "action_fabricate_parts": "Fabricate Parts",
     "action_fabricate_parts_desc": "Use the fabricator to synthesize replacement components from raw stock.",
     "action_fill_canteen": "Fill Canteen",
-    "action_fill_canteen_desc": "Draw water from the ship's reserves into the canteen. Consumes 10 units of ship water.",
+    "action_fill_canteen_desc": "Draw water from the ship's reserves into the canteen. Consumes 50 units of ship water.",
     "action_go_crew_quarters": "Return to Crew Quarters",
     "action_go_crew_quarters_desc": "Head back to the crew quarters.",
     "action_go_to_bridge": "Go to Bridge",
@@ -431,6 +431,7 @@ loaded['en'] = {
     "log_water_low_has": "You're running low on water. Luckily you have some bottled water with you.",
     "log_water_low_has_auto_hint": "You're running low on water. You have bottled water in your inventory — enable auto-consume in the inventory settings.",
     "log_water_low_none": "You're running low on water! You're parched — find some before you collapse.",
+    "log_water_stock_depleted": "Ship water reserves are depleted!",
     "menu_crash_site": "Crash Site",
     "menu_character": "Character",
     "menu_journal": "Journal",
@@ -545,6 +546,10 @@ loaded['en'] = {
     "queue_action_queued": "Queued: {action}",
     "queue_action_removed": "Removed from queue: {action}",
     "queue_empty": "Queue empty",
+    "queue_end_loop_desc": "Voluntarily end the current loop. You will wake up in your quarters — physical changes reset, but memories and knowledge remain.",
+    "queue_pass_time": "Wait",
+    "queue_pass_time_desc": "Fast-forward time. Passive effects and resource drain continue while waiting.",
+    "queue_pass_time_stop": "Stop",
     "queue_remove_tooltip": "Remove from queue",
     "queue_title": "Action Queue",
     "res_category_essential": "Essential",
@@ -588,7 +593,8 @@ loaded['en'] = {
     "result_fabricate_amplifier_book": "Thanks to the repair manual, you know exactly what parameters to enter. The fabricator whirs and soon ejects a clean, functional amplifier.",
     "result_fabricate_amplifier_known": "Your fingers automatically tap in the correct sequence. The fabricator barely has time to spin up before spitting out a finished part.",
     "result_fabricate_parts": "The fabricator whirs to life, layering polymer and alloy into precise shapes. A tray of fresh components slides out — exactly what you'd need for field repairs.",
-    "result_fill_canteen": "You filled the canteen with 10 units of water.",
+    "result_fill_canteen_full": "You filled the canteen to maximum (50 units).",
+    "result_fill_canteen_partial": "Ship water reserves ran out! You only filled {amount} units.",
     "result_go_to_bridge": "You head to the ship's bridge.",
     "result_go_to_crew_quarters": "You return to the crew quarters.",
     "result_go_to_main_area": "You head to the main area.",
@@ -712,7 +718,7 @@ loaded['en'] = {
     "title_settings": "Settings",
     "tt_current": "Current",
     "tt_remaining": "Remaining"
-};;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+};;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 // ==========================================================================
 // Public API

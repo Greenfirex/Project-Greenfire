@@ -93,7 +93,7 @@ export const scoutShipMainArea = {
             repeatable: true,
             cancellable: true,
             requiresAreaResource: 'area_water',
-            drainsAreaResource: { resource: 'area_water', amount: 10 },
+            suppressCompletionLog: true,
             isAvailable(ctx) {
                 const us = ctx.getUnlockState(ctx.getCurrentLocationId());
                 if (!us['assess_supplies']) return false;
@@ -103,9 +103,28 @@ export const scoutShipMainArea = {
                 if (!hasCanteen) return false;
                 return true;
             },
-            resultKey: 'result_fill_canteen',
+            getResultKey(ctx) {
+                const filled = ctx.action._filledAmount || 0;
+                return filled >= 50 ? 'result_fill_canteen_full' : 'result_fill_canteen_partial';
+            },
             onComplete(ctx) {
-                ctx.gameFlags.canteenWater = Math.min(50, (ctx.gameFlags.canteenWater || 0) + 10);
+                const list = ctx.areaResources['scout_ship_main_area'];
+                const areaWater = list && Array.isArray(list) ? list.find(r => r.name === 'area_water') : null;
+                const available = areaWater ? Math.max(0, areaWater.amount) : 0;
+                const space = 50 - (ctx.gameFlags.canteenWater || 0);
+                const filled = Math.min(space, available);
+                if (areaWater && filled > 0) {
+                    areaWater.amount = Math.max(0, areaWater.amount - filled);
+                }
+                ctx.gameFlags.canteenWater = Math.min(50, Math.round((ctx.gameFlags.canteenWater || 0) + filled));
+                ctx.action._filledAmount = filled;
+                // Log result
+                const resultKey = filled >= 50 ? 'result_fill_canteen_full' : 'result_fill_canteen_partial';
+                ctx.addLogEntry(ctx.t(resultKey, { amount: String(filled) }), ctx.LogType.SUCCESS);
+                // Check if area water just ran out
+                if (areaWater && areaWater.amount <= 0 && available > 0) {
+                    ctx.addLogEntry(ctx.t('log_water_stock_depleted'), ctx.LogType.ERROR);
+                }
             }
         },
 

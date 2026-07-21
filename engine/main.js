@@ -195,6 +195,7 @@ document.addEventListener('beforeunload', () => {
 function startGame({ mode = 'continue' } = {}) {
     if (hasStarted) return;
     hasStarted = true;
+    _pendingTitleScreen = false;
 
     // Force-dismiss preloader in case it's still visible (stuck on image loading).
     try {
