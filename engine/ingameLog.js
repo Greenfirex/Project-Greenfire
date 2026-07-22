@@ -1,3 +1,5 @@
+import { playLogEntry } from './audio.js';
+
 export const LogType = {
     INFO: 'info',
     SUCCESS: 'success',
@@ -252,6 +254,9 @@ function _flushBuffer() {
 export function addLogEntry(message, type, options = {}) {
     if (typeof window !== 'undefined' && window.__LOGGING_OFF) return;
     if (logSettings.filters[type]) return;
+
+    // --- Audio: log entry sound ---
+    try { playLogEntry(type); } catch { /* ignore */ }
 
     const logContent = document.getElementById('logContent');
     if (!logContent) return;

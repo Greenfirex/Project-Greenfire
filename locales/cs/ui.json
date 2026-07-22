@@ -207,6 +207,8 @@
   "queue_pass_time_stop": "Zastavit",
   "queue_pass_time_desc": "Urychlí plynutí času. Během čekání probíhají pasivní efekty a spotřeba zdrojů.",
   "queue_end_loop_desc": "Dobrovolně ukončí aktuální smyčku. Probudíš se znovu ve svých ubikacích — fyzické změny se resetují, ale vzpomínky a znalosti zůstanou.",
+  "options_audio": "Zvuk",
+  "options_audio_volume": "Hlasitost zvuku",
   "rotate_subtitle": "Hra je optimalizovaná pro landscape režim.",
   "rotate_title": "Otoč na šířku",
   "tag_onetime": "Jednorázové",

@@ -15,6 +15,7 @@ import { scoutShipWorkshop } from './definitions/scoutShip/scoutShipWorkshop.js'
 import { gammaCrewQuarters } from './definitions/gammaSite/gammaCrewQuarters.js';
 import { workshop } from './definitions/gammaSite/workshop.js';
 import { gammaSiteLandingSite } from './definitions/gammaSite/landingSite.js';
+import { playTravel, startAmbient, stopAmbient } from '../../engine/audio.js';
 
 const locations = {};
 
@@ -47,7 +48,13 @@ export function getCurrentLocationId() {
 
 export function switchToLocation(id) {
     if (locations[id]) {
+        // Audio: travel sound + ambient switch
+        if (_currentLocationId !== id) {
+            try { playTravel(); } catch { /* ignore */ }
+            try { stopAmbient(); } catch { /* ignore */ }
+        }
         _currentLocationId = id;
+        try { startAmbient(id); } catch { /* ignore */ }
         return true;
     }
     return false;

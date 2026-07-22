@@ -1,5 +1,6 @@
 import { LogType, updateLogSettings } from './ingameLog.js';
 import { getSelectedLanguage, setLanguage, getAvailableLanguages } from '../locales/locales.js';
+import { setMasterVolume, getMasterVolume, setMuted, isMuted } from './audio.js';
 
 // A single, unified map for all color options
 const colorMap = {
@@ -234,6 +235,34 @@ export function initOptions() {
     }
 
 	
+
+    // --- Audio: mute toggle ---
+    const audioToggle = document.getElementById('audioToggle');
+    if (audioToggle) {
+        const savedMuted = localStorage.getItem('audioMuted') === 'true';
+        setMuted(savedMuted);
+        audioToggle.checked = !savedMuted;
+        audioToggle.addEventListener('change', () => {
+            const muted = !audioToggle.checked;
+            setMuted(muted);
+            try { localStorage.setItem('audioMuted', String(muted)); } catch { /* ignore */ }
+        });
+    }
+
+    const audioVolumeSlider = document.getElementById('audioVolumeSlider');
+    if (audioVolumeSlider) {
+        const savedVol = localStorage.getItem('audioVolume');
+        let vol = savedVol !== null ? parseFloat(savedVol) : 0.5;
+        if (!isFinite(vol)) vol = 0.5;
+        vol = Math.max(0, Math.min(1, vol));
+        setMasterVolume(vol);
+        audioVolumeSlider.value = String(Math.round(vol * 100));
+        audioVolumeSlider.addEventListener('input', () => {
+            const v = parseInt(audioVolumeSlider.value, 10) / 100;
+            setMasterVolume(v);
+            try { localStorage.setItem('audioVolume', String(v)); } catch { /* ignore */ }
+        });
+    }
 
     // --- Confirm before load/reset ---
     const confirmLoadToggle = document.getElementById('confirmLoadToggle');

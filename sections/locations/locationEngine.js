@@ -13,6 +13,7 @@ import { startNextQueuedAction, updateQueueActive } from '../../engine/queue.js'
 import { grantItemToCharacter, consumeItemQuantityFromBag, countItemInBag } from '../character/character.js';
 import { getItemDefinition } from '../character/items.js';
 import { refreshUI, updateActionButtonsDynamic, clearHoverState } from './locationUi.js';
+import { playActionComplete } from '../../engine/audio.js';
 
 const DEFAULT_DRAIN = { 'Stamina': 0.20, 'Food Rations': 0.08, 'Drinking Water': 0.12 };
 const TAXING_MULT = 2.0;
@@ -214,6 +215,11 @@ function completeActiveAction(opts = {}) {
         delete gameFlags.persistentProgress[action.id];
     }
     
+    // --- Audio: action complete sound ---
+    if (reason !== 'manual') {
+        try { playActionComplete(); } catch { /* ignore */ }
+    }
+
     if (action.oneTime && !action.repeatable) {
         action._completed = true;
         _fullRebuildNeeded = true;

@@ -48,8 +48,6 @@ loaded['en'] = {
     "action_extract_rover_fuel_cell_desc": "Open the rover's service panel and carefully remove the high-capacity fuel cell. This will take both skill and strength.",
     "action_fabricate_amplifier": "Fabricate Signal Amplifier",
     "action_fabricate_amplifier_desc": "Use the fabricator to produce a new signal amplifier.",
-    "action_fabricate_parts": "Fabricate Parts",
-    "action_fabricate_parts_desc": "Use the fabricator to synthesize replacement components from raw stock.",
     "action_fill_canteen": "Fill Canteen",
     "action_fill_canteen_desc": "Draw water from the ship's reserves into the canteen. Consumes 50 units of ship water.",
     "action_go_crew_quarters": "Return to Crew Quarters",
@@ -133,8 +131,6 @@ loaded['en'] = {
     "action_repair_kit_desc": "Attempt to repair damaged equipment found in the workshop.",
     "action_repair_recycler": "Repair Recycler",
     "action_repair_recycler_desc": "The water recycler in the cafeteria is broken. If you could fix it, it might replenish the water supply.",
-    "action_repair_ship_systems": "Repair Ship Systems",
-    "action_repair_ship_systems_desc": "Run diagnostics and patch damaged systems from the workbench. A taxing but rewarding task.",
     "action_rest": "Rest",
     "action_rest_desc": "Take a brief rest to recover stamina.",
     "action_scan": "Scan",
@@ -592,7 +588,6 @@ loaded['en'] = {
     "result_fabricate_amplifier": "You enter parameters into the fabricator. First attempt fails — the amplifier won't pass calibration. Second one too. Eventually, after painstaking adjustments, you find the right configuration. The fabricator hums and ejects a clean, functional amplifier.",
     "result_fabricate_amplifier_book": "Thanks to the repair manual, you know exactly what parameters to enter. The fabricator whirs and soon ejects a clean, functional amplifier.",
     "result_fabricate_amplifier_known": "Your fingers automatically tap in the correct sequence. The fabricator barely has time to spin up before spitting out a finished part.",
-    "result_fabricate_parts": "The fabricator whirs to life, layering polymer and alloy into precise shapes. A tray of fresh components slides out — exactly what you'd need for field repairs.",
     "result_fill_canteen_full": "You filled the canteen to maximum (50 units).",
     "result_fill_canteen_partial": "Ship water reserves ran out! You only filled {amount} units.",
     "result_go_to_bridge": "You head to the ship's bridge.",
@@ -668,7 +663,6 @@ loaded['en'] = {
     "result_repair_kit": "Using the salvaged components you manage to repair a damaged enviro-suit. It's not perfect, but it will hold for now.",
     "result_repair_recycler_first": "After twenty minutes of tinkering inside the machine, a quiet hum finally starts. Water begins to drip from the spout — slowly at first, then a steady stream. The recycler is working again.",
     "result_repair_recycler_remember": "Familiar routine. Your hands remember every step. In half the time, the recycler is back online.",
-    "result_repair_ship_systems": "You spend several minutes elbow-deep in wiring harnesses and circuit boards. Several warning indicators flicker from red to amber. Not fixed — but improved.",
     "result_scan_gamma_site": "You enter the precise coordinates of Gamma Site. The probe locks onto a single point on the surface — and the results are immediate. A research station. It's there. Damaged, abandoned, but still standing. And the sensors detect a faint energy signature — something down there is still operational.",
     "result_scan_planet_surface": "The probe completes its scan. The results are... unremarkable. No signs of civilization, no anomalies. The atmosphere is barely suitable for humans — high CO₂, low oxygen. This won't be your new home. Further scanning would just be a waste of time.",
     "result_scavenge_tools": "You scour the workshop. Several toolkits are still intact. You salvage what you can — a plasma cutter and some spare power cells.",
@@ -752,8 +746,13 @@ export function setLanguage(language) {
     try {
         sessionStorage.setItem('langReload', '1');
     } catch { /* ignore */ }
+    // Only auto-continue if there's a saved game — language switch from
+    // title screen should return to title screen after reload.
     try {
-        localStorage.setItem('autoContinueAfterReload', '1');
+        const hasSave = !!localStorage.getItem('gameState');
+        if (hasSave) {
+            localStorage.setItem('autoContinueAfterReload', '1');
+        }
     } catch { /* ignore */ }
     location.reload();
     return active;

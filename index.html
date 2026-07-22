@@ -158,6 +158,10 @@
                 <input type="checkbox" id="glowToggle">
             </div>
             <div class="option-toggle">
+                <label for="audioToggle" data-locale="options_audio">Audio</label>
+                <input type="checkbox" id="audioToggle" checked>
+            </div>
+            <div class="option-toggle">
                 <label for="confirmLoadToggle" data-locale="options_confirm_load">Confirm before load</label>
                 <input type="checkbox" id="confirmLoadToggle">
             </div>
@@ -188,6 +192,11 @@
         <div class="option-group popup-span-all">
             <h4 data-locale="options_glow_intensity">Glow Intensity</h4>
             <input type="range" id="glowIntensitySlider" min="0" max="100" step="1" value="70">
+        </div>
+
+        <div class="option-group popup-span-all">
+            <h4 data-locale="options_audio_volume">Audio Volume</h4>
+            <input type="range" id="audioVolumeSlider" min="0" max="100" step="5" value="50">
         </div>
 
         <div class="option-group popup-span-all">

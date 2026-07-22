@@ -9,6 +9,7 @@ import { t } from '../locales/locales.js';
 import { addLogEntry, LogType } from './ingameLog.js';
 import { areaResources, computeAndApplyAreaRates } from './resources.js';
 import { hasMilestone, setMilestone, flagActionAsNew } from './gameFlags.js';
+import { playEffectAdded, playEffectRemoved, playAlarm, stopAlarm } from './audio.js';
 
 export let activeEffects = [];
 
@@ -86,6 +87,8 @@ export function addEffect(effect) {
         debuffs: effect.debuffs || {},
         _addedAt: Date.now(),
     });
+    // Audio: effect added sound
+    try { playEffectAdded(effect.id); } catch { /* ignore */ }
     updateEffectsUI();
     _notifyEffectsChanged();
 }
@@ -97,6 +100,8 @@ export function removeEffect(id) {
     const idx = activeEffects.findIndex(e => e.id === id);
     if (idx === -1) return;
     activeEffects.splice(idx, 1);
+    // Audio: effect removed sound
+    try { playEffectRemoved(id); } catch { /* ignore */ }
     updateEffectsUI();
     _notifyEffectsChanged();
 }
