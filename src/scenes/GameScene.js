@@ -47,6 +47,10 @@ export default class GameScene {
     this.setupSave();
     this.registerHudEvents();
 
+    this.buildSystem.onMachineReady = (record, node) => {
+      for (const child of node.getChildMeshes()) this.shadowGenerator.addShadowCaster(child);
+    };
+
     this.engine.runRenderLoop(() => this.s.render());
     this.hud.setMachine(getMachine(this.currentMachine).displayName);
   }
@@ -145,12 +149,19 @@ export default class GameScene {
   doLoad() {
     const ok = this.saveSystem.load();
     this.hud.setCount(this.buildSystem.count);
+    this.refreshShadowCasters();
+    this.hud.setSaveHint(ok ? 'Načteno ✓' : 'Žádný save');
+  }
+
+  refreshShadowCasters() {
     this.shadowGenerator.getShadowMap().renderList = [];
     for (const record of this.buildSystem.machines.values()) {
-      this.shadowGenerator.addShadowCaster(record.mesh);
+      if (record.node) {
+        for (const child of record.node.getChildMeshes()) this.shadowGenerator.addShadowCaster(child);
+      } else {
+        this.shadowGenerator.addShadowCaster(record.mesh);
+      }
     }
-    for (const mesh of this.s.meshes) mesh.receiveShadows = true;
-    this.hud.setSaveHint(ok ? 'Načteno ✓' : 'Žádný save');
   }
 
   onResize() {

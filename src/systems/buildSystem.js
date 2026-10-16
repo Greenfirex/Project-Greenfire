@@ -1,5 +1,5 @@
 // Stavba strojů — položení modelu na buňku, evidence postavených strojů a obnova ze savu.
-// Zatím kreslí jednoduchý box podle katalogu; Kenney model se přidá později.
+// Stroj se objeví hned jako box, model z Kenney kitu se doplní, jakmile se načte.
 import '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
@@ -7,6 +7,7 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { cellToWorldCoords, cellKey } from '../utils/gridMath.js';
 import { getMachine } from '../data/catalogs/machines.js';
+import { loadModel, instantiateModel } from '../utils/assetLoader.js';
 
 export default class BuildSystem {
 
@@ -14,6 +15,7 @@ export default class BuildSystem {
     this.s = scene;
     this.machines = new Map();
     this.nextId = 1;
+    this.onMachineReady = null;
   }
 
   isOccupied(cx, cz) {
@@ -41,9 +43,25 @@ export default class BuildSystem {
       cx,
       cz,
       mesh,
+      node: null,
     };
     this.machines.set(cellKey(cx, cz), record);
+
+    if (def.model) this.attachModel(record, def);
     return record;
+  }
+
+  async attachModel(record, def) {
+    const template = await loadModel(this.s, def.model);
+    if (!template) return;
+    if (this.machines.get(cellKey(record.cx, record.cz)) !== record) return;
+
+    const node = instantiateModel(this.s, template, `model_${record.id}`);
+    node.position = new Vector3(record.mesh.position.x, 0, record.mesh.position.z);
+    record.node = node;
+    record.mesh.setEnabled(false);
+
+    if (this.onMachineReady) this.onMachineReady(record, node);
   }
 
   createPlaceholderMesh(def, machineKey, cx, cz) {
@@ -66,6 +84,7 @@ export default class BuildSystem {
 
   removeAll() {
     for (const record of this.machines.values()) {
+      if (record.node) record.node.dispose(false, false);
       record.mesh.material?.dispose();
       record.mesh.dispose();
     }
