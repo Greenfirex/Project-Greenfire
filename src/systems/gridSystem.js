@@ -1,5 +1,8 @@
 // Mřížka světa — podlaha, viditelné linky buněk a zvýraznění cílové buňky.
 // Drží jediný overlay mesh pro hover, který se jen posouvá a zobrazuje/skrývá.
+import '@babylonjs/core/Meshes/Builders/boxBuilder';
+import '@babylonjs/core/Meshes/Builders/groundBuilder';
+import '@babylonjs/core/Meshes/Builders/linesBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';

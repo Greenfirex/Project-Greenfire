@@ -1,10 +1,13 @@
 // Herní scéna — orchestrátor. Drží stav světa, deleguje na systémy a řídí HUD.
 // Systémy dostávají scénu v konstruktoru a přistupují k ní přes this.s.
+import '@babylonjs/core/Lights/hemisphericLight';
+import '@babylonjs/core/Lights/directionalLight';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
+import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
 
 import CameraSystem from '../systems/cameraSystem.js';
 import GridSystem from '../systems/gridSystem.js';

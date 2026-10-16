@@ -1,4 +1,6 @@
 // Vstupní bod hry — nastartuje Babylon engine, plátno a herní scénu.
+import '@babylonjs/core/Engines/Extensions/engine.dynamicTexture';
+import '@babylonjs/core/Engines/Extensions/engine.rawTexture';
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { Scene } from '@babylonjs/core/scene';
 import { Color4 } from '@babylonjs/core/Maths/math.color';

@@ -1,5 +1,6 @@
 // Stavba strojů — položení modelu na buňku, evidence postavených strojů a obnova ze savu.
 // Zatím kreslí jednoduchý box podle katalogu; Kenney model se přidá později.
+import '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';

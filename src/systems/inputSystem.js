@@ -1,5 +1,6 @@
 // Zpracování vstupu — rotace kamery tažením, zoom kolečkem, klik a hover na zemi.
 // Vystavuje callbacky do scény, sám nezná stav hry.
+import '@babylonjs/core/Culling/ray';
 import { PointerEventTypes } from '@babylonjs/core/Events/pointerEvents';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { worldToCellCoords } from '../utils/gridMath.js';

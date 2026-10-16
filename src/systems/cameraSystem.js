@@ -1,5 +1,6 @@
 // Izometrická kamera — orthografická projekce s pevným úhlem a zoomem.
 // Drží cílový bod pohledu a nabízí plynulé přepočty ortho rozsahu při zoomu.
+import '@babylonjs/core/Cameras/arcRotateCamera';
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 import { Camera } from '@babylonjs/core/Cameras/camera';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
