@@ -1,0 +1,63 @@
+/* Styl HUD panelů — ovládání, stav stavby, budoucí build menu. */
+.hud-panel {
+  position: absolute;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
+}
+
+#hud-help {
+  top: 12px;
+  left: 12px;
+  max-width: 240px;
+}
+
+#hud-status {
+  top: 12px;
+  right: 12px;
+  text-align: right;
+  min-width: 160px;
+}
+
+.hud-panel h2 {
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--glow-accent);
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+
+.hud-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-dim);
+}
+
+.hud-row strong {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.hud-key {
+  display: inline-block;
+  min-width: 16px;
+  padding: 0 4px;
+  border: 1px solid var(--border-glow);
+  border-radius: 3px;
+  color: var(--glow-warm);
+  text-align: center;
+  font-weight: 600;
+}
+
+.hud-hint {
+  margin-top: 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+}

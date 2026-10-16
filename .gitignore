@@ -1,0 +1,17 @@
+# Závislosti a build
+node_modules
+dist
+.env
+.env.*
+*.log
+
+# Dočasné pracovní soubory
+tools/_temp/
+
+# Zálohy
+*.bak
+_backup/
+
+# OS
+.DS_Store
+Thumbs.db

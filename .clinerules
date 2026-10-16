@@ -1,0 +1,68 @@
+# ===== ROZSAH PROJEKTU =====
+
+- Pracuj VÝHRADNĚ v `Project-Greenfactory/` (Babylon.js 3D tovární hra).
+- NIKDY nelež do `Greenfire-Isometric/`, `Greenfire-idle/`,
+  `Project-Greenfire/` ani do rootu `Repository1/`. Ty patří JINÝM projektům.
+- `.clinerules` v `Greenfire-Isometric/` se tohoto projektu NETÝKA.
+
+# ===== VÝVOJOVÝ WORKFLOW =====
+
+- Uživatel má otevřený dev server (Vite) a změny vizuálně kontroluje a potvrzuje.
+- Po úpravě kódu NEKONTROLUJ build, NEspouštěj dev server, NEdělej screenshoty.
+- Napiš kód, stručně řekni CO a KDE se změnilo, a čekej na potvrzení uživatele.
+- Vizuální kontrola = uživatel, ne agent.
+
+# ===== PRŮZKUM =====
+
+- Čti POUZE soubory, které k zadanému úkolu přímo potřebuješ (typicky 1–3).
+- ZAKÁZÁNO: plošné inventury projektu, grep přes celý strom, čtení „pro jistotu".
+- Když něco nevím a je to potřeba, ZEPTEJ SE místo hádání.
+
+# ===== ARCHITEKTURA (Babylon.js) =====
+
+- `src/scenes/GameScene.js` = jediné místo, které zná celý stav scény;
+  drží delegáty ve tvaru `foo(bar) { return this.someSystem.foo(bar); }`.
+- Systémy jsou třídy v `src/systems/` (konstruktor dostane `scene`,
+  přístup přes `this.s`), data v `src/data/catalogs/`, utility v `src/utils/`,
+  DOM HUD v `src/ui/`.
+- Import z `@babylonjs/core` dělej po částech (tree-shaking), ne celý balík.
+- DOM HUD je nad canvasem a NIKDY nezasahuje do scény přímo — jen přes callbacky.
+
+# ===== SIMULACE (do budoucna) =====
+
+- Herní logika (stroje, pásy, toky) je ODDĚLENÁ od renderu.
+- Simulace běží v pevném ticku (např. 10× za sekundu), ne každý frame.
+- Render pouze vizualizuje stav, nikdy ho nemění.
+
+# ===== KOMENTÁŘE =====
+
+- Na ZAČÁTKU každého souboru je POVOLENÝ (a žádoucí) hlavičkový komentář:
+  1–3 řádky, laicky, k čemu soubor slouží. Bez JSDoc, bez dekorativních rámečků.
+- Uvnitř kódu komentáře NEPIŠ. Žádné `//`, žádné `/* */`, žádné JSDoc bloky,
+  žádné sekční oddělovače `// ===...`.
+
+# ===== MRTVÝ KÓD =====
+
+- Nepoužívaný kód se MAŽE, nezakomentovává a nenechává „pro jistotu".
+- Platí pro: nepoužívané funkce, konstanty, importy, exporty, soubory, assety.
+
+# ===== PRACOVNÍ SOUBORY (tools/_temp) =====
+
+- VŠECHNY dočasné soubory patří výhradně do `tools/_temp/` (náhledy, logy,
+  scratch skripty, výstupy jednorázových skriptů).
+- NIKDY nezakládej pracovní soubory v rootu projektu ani vedle kódu.
+- Root obsahuje jen projektové soubory (`.clinerules`, `.gitignore`,
+  `README.md`, `index.html`, `package.json`, `package-lock.json`,
+  `vite.config.js`).
+- `tools/_temp/` je v `.gitignore` — nikdy se necommituje.
+
+# ===== SAVE SYSTÉM =====
+
+- Ve hře existuje obecný save systém (`src/systems/saveSystem.js`) — sběrač
+  stavu nad registrovanými vlastníky.
+- KAŽDÝ nový trvalý stav hry se MUSÍ zaregistrovat přes
+  `saveSystem.registerState(key, { serialize, apply, order })`.
+- `apply(data)` MUSÍ být tolerantní k chybějícím/částečným datům.
+- Výchozí hodnoty stavu patří do `src/data/catalogs/saveSchema.js`.
+- Při změně formátu savu bumpni `SAVE_VERSION` v `saveSchema.js`.
+- Save systém zůstává OBECNÝ — nesmí znát obsah konkrétních stavů.

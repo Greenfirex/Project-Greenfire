@@ -1,0 +1,53 @@
+/* Globální styl hry — barvy, pozadí, plátno. */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;600;700&display=swap');
+
+:root {
+  --bg-dark: #0d1014;
+  --bg-panel: rgba(16, 22, 28, 0.88);
+  --border-glow: rgba(90, 200, 170, 0.35);
+  --glow-accent: #5ac8aa;
+  --glow-warm: #e0a458;
+  --text-main: #d6e2e0;
+  --text-dim: #7d8f8c;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-dark);
+  overflow: hidden;
+  font-family: 'Roboto Mono', monospace;
+  color: var(--text-main);
+}
+
+#game-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#render-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+  touch-action: none;
+}
+
+#hud-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+#hud-layer > * {
+  pointer-events: auto;
+}

@@ -1,0 +1,19 @@
+{
+  "name": "project-greenfactory",
+  "private": true,
+  "version": "0.1.0",
+  "description": "3D tovární hra ve stylu Satisfactory — Babylon.js, běží ve webu.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@babylonjs/core": "^8.0.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.2"
+  }
+}
