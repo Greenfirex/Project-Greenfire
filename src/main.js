@@ -7,7 +7,12 @@ import { Color4 } from '@babylonjs/core/Maths/math.color';
 import GameScene from './scenes/GameScene.js';
 
 const canvas = document.getElementById('render-canvas');
-const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+const engine = new Engine(canvas, true, {
+  preserveDrawingBuffer: true,
+  stencil: true,
+  disableWebGL2Support: false,
+  adaptToDeviceRatio: true,
+});
 
 const scene = new Scene(engine);
 scene.clearColor = new Color4(0.05, 0.06, 0.08, 1);
