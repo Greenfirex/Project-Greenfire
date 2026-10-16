@@ -12,6 +12,18 @@
 - Napiš kód, stručně řekni CO a KDE se změnilo, a čekej na potvrzení uživatele.
 - Vizuální kontrola = uživatel, ne agent.
 
+# ===== TESTOVÁNÍ A ZÁVISLOSTI =====
+
+- NIKDY nic neinstaluj bez výslovného souhlasu uživatele (`npm install`,
+  `npm i <balíček>`, `npm uninstall`, `pip install`, cokoli dalšího).
+  Když nová závislost vypadá jako nutná, nejdřív se ZEPTEJ a vysvětli proč.
+- Testy a validaci NESPOUŠTĚJ sám — výstup ověřuje uživatel ručně v dev serveru.
+- Když test spustíš (jen na výslovný pokyn), spouštěj ho na POPŘEDÍ v rámci
+  jednoho volání příkazu, bez pozadových procesů.
+- NIKDY `Start-Process` bez `-WindowStyle Hidden`; v Node skriptech vždy
+  `windowsHide: true` u `spawn`/`exec`. Uživateli se nesmí objevit žádné
+  prázdné cmd okno.
+
 # ===== PRŮZKUM =====
 
 - Čti POUZE soubory, které k zadanému úkolu přímo potřebuješ (typicky 1–3).
