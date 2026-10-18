@@ -7,7 +7,7 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { cellToWorldCoords, cellKey } from '../utils/gridMath.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { loadModel, instantiateModel } from '../utils/assetLoader.js';
-import { tintTemplate } from '../utils/decoTint.js';
+import { tintTemplate, forgetTints } from '../utils/decoTint.js';
 
 const PATH_LIFT = 0.002;
 const WATER_LIFT = 0.003;
@@ -31,6 +31,7 @@ export default class DecoSystem {
   }
 
   create(layout, colors) {
+    forgetTints();
     this.dispose();
     this.blocked.clear();
     this.columnTop.clear();
@@ -49,17 +50,17 @@ export default class DecoSystem {
   }
 
   buildPath() {
-    for (const entry of this.layout?.path || []) this.place(withLift(entry, PATH_LIFT), this.pathNodes);
+    for (const entry of this.layout?.path || []) this.place(withLift(entry, PATH_LIFT), this.pathNodes, 'path');
     for (const entry of this.layout?.manual || []) this.placePathManual(entry);
   }
 
   buildWater() {
-    for (const entry of this.layout?.water || []) this.place(withLift(entry, WATER_LIFT), this.waterNodes);
+    for (const entry of this.layout?.water || []) this.place(withLift(entry, WATER_LIFT), this.waterNodes, 'water');
   }
 
   placePathManual(entry) {
     if (!getDecoration(entry.key)) return;
-    this.place(withLift(entry, PATH_LIFT), this.pathNodes);
+    this.place(withLift(entry, PATH_LIFT), this.pathNodes, 'path');
   }
 
   updatePath(layout) {
@@ -85,7 +86,7 @@ export default class DecoSystem {
     this.snapshot = shapeSignature(editorLayout);
   }
 
-  place(entry, bucket = this.nodes) {
+  applyEntry(entry) {
     const def = getDecoration(entry.key);
     if (!def) return;
 
@@ -96,14 +97,20 @@ export default class DecoSystem {
     const current = this.columnTop.get(key);
     if (!current) {
       this.columnTop.set(key, { block: walkable ? lift : top, surface: walkable ? top : lift });
-    } else {
-      if (!walkable) current.block = Math.max(current.block, top);
-      current.surface = Math.max(current.surface, walkable ? top : lift);
+      return;
     }
+    if (!walkable) current.block = Math.max(current.block, top);
+    current.surface = Math.max(current.surface, walkable ? top : lift);
+  }
 
+  place(entry, bucket = this.nodes, section = 'deco') {
+    const def = getDecoration(entry.key);
+    if (!def) return;
+
+    this.applyEntry(entry);
     const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
     const anchor = this.createAnchor(entry, def, x, z, bucket);
-    this.attachModel(anchor, def, entry);
+    this.attachModel(anchor, def, entry, section);
   }
 
   topAt(cx, cz) {
@@ -135,7 +142,7 @@ export default class DecoSystem {
     this.waterNodes.length = 0;
   }
 
-  async attachModel(anchor, def, entry) {
+  async attachModel(anchor, def, entry, section) {
     const template = await loadModel(this.s, def.model);
     if (!template || anchor.isDisposed()) return;
 
@@ -143,7 +150,7 @@ export default class DecoSystem {
     node.parent = anchor;
     node.position = new Vector3(0, 0, 0);
     node.scaling = new Vector3(def.scale, def.scale, def.scale);
-    tintTemplate(node, def, this.colors);
+    tintTemplate(node, def, this.colors, section);
 
     if (this.onDecoReady) this.onDecoReady(anchor, node, def);
   }

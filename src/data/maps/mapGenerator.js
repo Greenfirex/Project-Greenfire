@@ -14,7 +14,7 @@ import {
 } from './cliffShape.js';
 
 const PATH_GAP = 4;
-const ORE_LIFT = -0.199;
+const ORE_LIFT = 0.002;
 
 function makeEntry(key, cx, cz, rng, extra = {}) {
   const jitterX = Math.round(rng() * 100) / 100 - 0.5;

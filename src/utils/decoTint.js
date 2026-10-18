@@ -1,46 +1,66 @@
 // Obarvení načteného modelu podle druhu dekorace (tráva, kámen, dřevo…).
+// Barvičky se počítají jednou pro celou mapu, ne pro každý kus krajiny zvlášť.
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+import '@babylonjs/core/Materials/standardMaterial';
 
 const TINT_KINDS = { floor: 'floorTile', path: 'floorTile', cliff: 'cliffTile', water: 'water' };
-let tintSerial = 0;
+const bySection = new Map();
+const shadeSerial = new Map();
 
-export function tintTemplate(template, def, colors) {
+export function tintTemplate(template, def, colors, section = 'deco') {
   if (def.noTint || !colors) return;
+  const key = `${section}|${def.kind}|${def.tintColor ? def.tintColor.join(',') : ''}|${def.tintShade ? def.tintShade.join(',') : ''}`;
+  let cached = bySection.get(key);
+  if (!cached) {
+    cached = new Map();
+    bySection.set(key, cached);
+  }
+
+  for (const child of template.getChildMeshes()) {
+    const source = child.material;
+    if (!source) continue;
+    let built = cached.get(source);
+    if (!built) {
+      built = makeTinted(source, def, colors, key);
+      cached.set(source, built);
+    }
+    child.material = built;
+  }
+}
+
+export function forgetTints() {
+  bySection.clear();
+}
+
+function makeTinted(source, def, colors, key) {
+  const mat = source.clone(`${source.name}_tint`);
   if (def.tintColor) {
-    paintTemplate(template, def.tintColor, def.tintShade);
-    return;
+    const [r, g, b] = def.tintColor;
+    const levels = def.tintShade && def.tintShade.length > 1 ? def.tintShade : [1];
+    const strength = 0.55;
+    const base = new Color3(
+      1 - strength + r * strength,
+      1 - strength + g * strength,
+      1 - strength + b * strength,
+    );
+    const step = shadeSerial.get(key) || 0;
+    shadeSerial.set(key, step + 1);
+    paint(mat, base.scale(levels[step % levels.length]));
+    return mat;
   }
+
   const colorKey = TINT_KINDS[def.kind];
-  if (!colorKey || !colors[colorKey]) return;
+  const rgb = colors && colors[colorKey];
+  if (!rgb) return source;
 
-  const rgb = colors[colorKey];
   const strength = colors.tintStrength ?? 1;
-  const tint = new Color3(rgb[0] * strength, rgb[1] * strength, rgb[2] * strength);
-
-  for (const child of template.getChildMeshes()) {
-    if (!child.material) continue;
-    const mat = child.material.clone(`${child.material.name}_${def.kind}_${tintSerial++}`);
-    mat.diffuseColor = tint;
-    mat.specularColor = new Color3(0.02, 0.02, 0.02);
-    mat.ambientColor = tint.scale(0.15);
-    child.material = mat;
-  }
+  paint(mat, new Color3(rgb[0] * strength, rgb[1] * strength, rgb[2] * strength));
+  return mat;
 }
 
-function paintTemplate(template, rgb, shade) {
-  const color = new Color3(rgb[0], rgb[1], rgb[2]);
-  const levels = shade && shade.length > 1 ? shade : [1];
-  const strength = 0.55;
-  const base = new Color3(1 - strength + color.r * strength, 1 - strength + color.g * strength, 1 - strength + color.b * strength);
-  let index = 0;
-
-  for (const child of template.getChildMeshes()) {
-    if (!child.material) continue;
-    const mat = child.material.clone(`${child.material.name}_paint_${tintSerial++}`);
-    mat.diffuseColor = base.scale(levels[index % levels.length]);
-    mat.specularColor = new Color3(0.02, 0.02, 0.02);
-    mat.ambientColor = base.scale(0.15);
-    child.material = mat;
-    index++;
-  }
+function paint(mat, tint) {
+  mat.diffuseColor = tint;
+  mat.specularColor = new Color3(0.02, 0.02, 0.02);
+  mat.ambientColor = tint.scale(0.15);
 }
+

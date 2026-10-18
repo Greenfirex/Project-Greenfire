@@ -62,4 +62,3 @@ export function instantiateModel(scene, template, name) {
   return node;
 }
 
-
