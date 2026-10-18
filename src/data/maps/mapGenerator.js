@@ -5,7 +5,8 @@ import { getBrush } from '../catalogs/brushes.js';
 import { createRng, seedFor } from '../../utils/rng.js';
 import { fillZone } from '../../utils/zoneFill.js';
 import { pathKeyAt } from '../../utils/pathTiles.js';
-import { cellKey, deriveBlocked, unitCells, heightMap, pathOverrideAt } from './layoutStore.js';
+import { waterPlan } from '../../utils/waterTiles.js';
+import { cellKey, deriveBlocked, unitCells, heightMap, pathOverrideAt, waterOverrideAt } from './layoutStore.js';
 import {
   surfaceHeight, blockStack, cornerCells, faceTile,
   pieceTurn, edgeDepth, pathDistance, rampPlan,
@@ -13,6 +14,7 @@ import {
 } from './cliffShape.js';
 
 const PATH_GAP = 4;
+const ORE_LIFT = -0.199;
 
 function makeEntry(key, cx, cz, rng, extra = {}) {
   const jitterX = Math.round(rng() * 100) / 100 - 0.5;
@@ -202,6 +204,7 @@ export function generateLayout(mapKey, layout) {
 
   const pathCells = new Set();
   const pathStyleCells = new Map();
+  const waterCells = new Set();
   const decorationCells = new Set();
   const decorations = [];
 
@@ -224,6 +227,16 @@ export function generateLayout(mapKey, layout) {
       const id = cellKey(cell.cx, cell.cz);
       pathCells.add(id);
       pathStyleCells.set(id, style);
+    }
+  }
+
+  for (const zone of contentZones) {
+    if (zone.brush !== 'water') continue;
+    const cells = zone.cells.map(([cx, cz]) => cellKey(cx, cz)).filter((k) => !excluded.has(k));
+    if (!cells.length) continue;
+    const makeRng = zoneRngFactory(layout.seed, zone.brush);
+    for (const cell of fillZone(makeRng, getBrush(zone.brush), cells, occupied)) {
+      waterCells.add(cellKey(cell.cx, cell.cz));
     }
   }
 
@@ -273,6 +286,26 @@ export function generateLayout(mapKey, layout) {
     path.push(entry);
   }
 
+  const water = [];
+  const waterTiles = waterPlan(waterCells);
+  for (const key of waterCells) {
+    if (overrides.has(key)) continue;
+    const [cx, cz] = key.split(',').map(Number);
+    const override = waterOverrideAt(layout, cx, cz);
+    const tile = override ? { key: override.key, rotation: override.rotation } : waterTiles.get(key);
+    const entry = makeTile(tile.key, cx, cz, tile.rotation);
+    entry.blocks = false;
+    water.push(entry);
+  }
+
+  for (const override of layout.waterOverrides || []) {
+    if (waterCells.has(cellKey(override.cx, override.cz))) continue;
+    if (overrides.has(cellKey(override.cx, override.cz))) continue;
+    const entry = makeTile(override.key, override.cx, override.cz, override.rotation);
+    entry.blocks = false;
+    water.push(entry);
+  }
+
   const blocked = [];
   for (const item of layout.manual || []) {
     decorations.push({ ...item, offsetX: item.offsetX || 0, offsetZ: item.offsetZ || 0, rotation: item.rotation || 0 });
@@ -309,7 +342,10 @@ export function generateLayout(mapKey, layout) {
     if (!cells.length) continue;
 
     const spec = zone.opts ? { ...brush, opts: zone.opts } : brush;
+    const pool = spec.poolByStyle ? spec.poolByStyle[zone.opts?.style || ''] : null;
+    if (pool) spec.pool = pool;
     const makeRng = zoneRngFactory(layout.seed, zone.brush);
+    const scatterBrush = Boolean(brush.scatter);
     for (const cell of fillZone(makeRng, spec, cells, occupied)) {
       const key = cellKey(cell.cx, cell.cz);
       if (!cell.key) {
@@ -318,13 +354,19 @@ export function generateLayout(mapKey, layout) {
       }
       if (decorationCells.has(`${key}|${cell.key}`)) continue;
       decorationCells.add(`${key}|${cell.key}`);
-      occupied.add(key);
+      if (!scatterBrush) occupied.add(key);
       const extra = {};
       if (cell.rotation) extra.rotation = cell.rotation;
       if (cell.liftY) extra.liftY = cell.liftY;
-      decorations.push(makeEntry(cell.key, cell.cx, cell.cz, makeRng(key), extra));
+      const entry = makeEntry(cell.key, cell.cx, cell.cz, makeRng(key), extra);
+      if (cell.key.startsWith('ore_')) {
+        entry.offsetX = 0;
+        entry.offsetZ = 0;
+        entry.liftY = ORE_LIFT;
+      }
+      decorations.push(entry);
     }
   }
 
-  return { floor, path, clearing: [], decorations, blocked: blocked.concat(deriveBlocked(decorations)) };
+  return { floor, path, water, clearing: [], decorations, blocked: blocked.concat(deriveBlocked(decorations)) };
 }

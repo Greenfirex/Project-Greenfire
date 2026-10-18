@@ -4,7 +4,7 @@ import { getBrush } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { makeDraggable } from './draggable.js';
 
-const STYLE_LABELS = { dirt: 'Hlína', stone: 'Kámen', wood: 'Dřevo' };
+const STYLE_LABELS = { dirt: 'Hlína', stone: 'Kámen', wood: 'Dřevo', iron: 'Železo', copper: 'Měď' };
 
 export default class BrushPanel {
 
@@ -21,10 +21,14 @@ export default class BrushPanel {
     this.onTile = null;
     this.onThumbnail = null;
     this.onManualMode = null;
+    this.onErase = null;
+    this.onUndo = null;
     this.brushKey = null;
     this.tileKey = null;
     this.pathStyle = 'dirt';
     this.manualMode = false;
+    this.draftMode = 'add';
+    this.countValue = 0;
   }
 
   mount() {
@@ -42,6 +46,10 @@ export default class BrushPanel {
         <button type="button" data-mode="manual" title="Ruční kladení dílků">Ručně</button>
       </div>
       <div class="brush-panel__palette is-hidden"></div>
+      <div class="brush-panel__tools">
+        <button type="button" class="brush-panel__erase" title="Mazat (X)">Mazat</button>
+        <button type="button" class="brush-panel__undo" title="Vrátit poslední úpravu (Z)">Zpět</button>
+      </div>
       <div class="brush-panel__count">Vybráno: 0 buněk</div>
       <div class="brush-panel__actions">
         <button type="button" class="brush-panel__apply" title="Aplikovat zónu (Enter)">Aplikovat</button>
@@ -65,6 +73,12 @@ export default class BrushPanel {
 
     root.querySelector('.brush-panel__apply').addEventListener('click', () => {
       if (this.onApply) this.onApply();
+    });
+    root.querySelector('.brush-panel__erase').addEventListener('click', () => {
+      if (this.onErase) this.onErase();
+    });
+    root.querySelector('.brush-panel__undo').addEventListener('click', () => {
+      if (this.onUndo) this.onUndo();
     });
     const cancel = () => {
       if (this.onCancel) this.onCancel();
@@ -92,7 +106,7 @@ export default class BrushPanel {
   }
 
   buildModes(brush) {
-    const visible = Boolean(brush && brush.poolByStyle);
+    const visible = Boolean(brush && brush.poolByStyle && brush.manual);
     this.modes.classList.toggle('is-hidden', !visible);
   }
 
@@ -107,11 +121,28 @@ export default class BrushPanel {
     this.buildPalette(getBrush(this.brushKey));
   }
 
+  setDraftMode(mode) {
+    this.draftMode = mode === 'remove' ? 'remove' : 'add';
+    this.setErasing(this.draftMode === 'remove');
+    this.refreshCount();
+  }
+
+  setUndoEnabled(on) {
+    const undo = this.root && this.root.querySelector('.brush-panel__undo');
+    if (undo) undo.disabled = !on;
+  }
+
+  setErasing(on) {
+    if (!this.root) return;
+    this.root.classList.toggle('is-erasing', Boolean(on));
+    const erase = this.root.querySelector('.brush-panel__erase');
+    if (erase) erase.classList.toggle('is-active', Boolean(on));
+  }
+
   styleList(brush) {
     if (!brush) return [];
-    if (brush.styles) return brush.styles;
-    if (brush.poolByStyle) return Object.keys(brush.poolByStyle);
-    return [];
+    const list = brush.styles || (brush.poolByStyle ? Object.keys(brush.poolByStyle) : []);
+    return list.length > 1 ? list : [];
   }
 
   buildStyles(brush) {
@@ -181,9 +212,16 @@ export default class BrushPanel {
   }
 
   setCount(count) {
-    if (!this.root) return;
-    const n = count || 0;
-    this.count.textContent = `Vybráno: ${n} ${n === 1 ? 'buňka' : n < 5 ? 'buňky' : 'buněk'}`;
+    this.countValue = count || 0;
+    this.refreshCount();
+  }
+
+  refreshCount() {
+    if (!this.root || !this.count) return;
+    const n = this.countValue || 0;
+    const word = n === 1 ? 'buňka' : n < 5 ? 'buňky' : 'buněk';
+    const prefix = this.draftMode === 'remove' ? 'Ke smazání' : 'Vybráno';
+    this.count.textContent = `${prefix}: ${n} ${word}`;
     const apply = this.root.querySelector('.brush-panel__apply');
     if (apply) apply.disabled = n === 0;
   }

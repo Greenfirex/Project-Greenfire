@@ -3,7 +3,13 @@
 import { getDecoration } from '../catalogs/decorations.js';
 import { getBrush } from '../catalogs/brushes.js';
 
-export const LAYOUT_VERSION = 4;
+export const LAYOUT_VERSION = 5;
+
+const RENAMED_BRUSHES = { pond: 'water', stream: 'water' };
+
+export function migrateBrushKey(brushKey) {
+  return RENAMED_BRUSHES[brushKey] || brushKey;
+}
 
 export const MAX_HEIGHT = 4;
 
@@ -15,6 +21,7 @@ export function emptyLayout(seed = 1) {
     zones: [],
     manual: [],
     pathOverrides: [],
+    waterOverrides: [],
     exclude: [],
     height: [],
   };
@@ -29,11 +36,13 @@ export function normalizeLayout(raw, fallbackSeed = 1) {
     spawn: raw.spawn && Number.isFinite(raw.spawn.cx) ? raw.spawn : base.spawn,
     zones: Array.isArray(raw.zones)
       ? raw.zones
+        .map((z) => (z && typeof z === 'object' ? { ...z, brush: migrateBrushKey(z.brush) } : z))
         .filter((z) => z && getBrush(z.brush) && Array.isArray(z.cells))
         .map((z) => (z.opts && typeof z.opts === 'object' ? { ...z, opts: { ...z.opts } } : z))
       : [],
     manual: Array.isArray(raw.manual) ? raw.manual.filter((m) => m && getDecoration(m.key)) : [],
     pathOverrides: normalizePathOverrides(raw.pathOverrides),
+    waterOverrides: normalizePathOverrides(raw.waterOverrides),
     exclude: Array.isArray(raw.exclude) ? raw.exclude : [],
     height: normalizeHeight(raw.height),
   };
@@ -122,12 +131,17 @@ export function addZoneCell(layout, brushKey, cx, cz, opts) {
 
 export function removeZoneCell(layout, cx, cz) {
   const key = cellKey(cx, cz);
+  let removed = false;
   for (const zone of layout.zones) {
     const index = zone.cells.findIndex(([ox, oz]) => cellKey(ox, oz) === key);
-    if (index >= 0) zone.cells.splice(index, 1);
+    if (index >= 0) {
+      zone.cells.splice(index, 1);
+      removed = true;
+    }
   }
   layout.zones = layout.zones.filter((z) => z.cells.length > 0 || isImplicit(getBrush(z.brush)));
   clearPathOverride(layout, cx, cz);
+  return removed;
 }
 
 function isImplicit(brush) {
@@ -204,6 +218,34 @@ export function clearPathOverride(layout, cx, cz) {
 
 export function rotatePathOverrideAt(layout, cx, cz, delta = 1) {
   const entry = pathOverrideAt(layout, cx, cz);
+  if (!entry) return false;
+  entry.rotation = clampRotation((entry.rotation || 0) + delta);
+  return true;
+}
+
+export function waterOverrideAt(layout, cx, cz) {
+  const list = layout.waterOverrides || [];
+  for (const item of list) if (item.cx === cx && item.cz === cz) return item;
+  return null;
+}
+
+export function setWaterOverride(layout, cx, cz, key, rotation = 0) {
+  if (!getDecoration(key)) return null;
+  const entry = { cx, cz, key, rotation: clampRotation(rotation) };
+  layout.waterOverrides = (layout.waterOverrides || []).filter((m) => m.cx !== cx || m.cz !== cz);
+  layout.waterOverrides.push(entry);
+  removeManualAt(layout, cx, cz);
+  return entry;
+}
+
+export function clearWaterOverride(layout, cx, cz) {
+  const before = (layout.waterOverrides || []).length;
+  layout.waterOverrides = (layout.waterOverrides || []).filter((m) => m.cx !== cx || m.cz !== cz);
+  return layout.waterOverrides.length !== before;
+}
+
+export function rotateWaterOverrideAt(layout, cx, cz, delta = 1) {
+  const entry = waterOverrideAt(layout, cx, cz);
   if (!entry) return false;
   entry.rotation = clampRotation((entry.rotation || 0) + delta);
   return true;

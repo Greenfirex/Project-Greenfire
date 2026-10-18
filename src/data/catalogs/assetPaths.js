@@ -8,6 +8,7 @@ export const ASSET_DIRS = {
   water: 'assets/nature/water/',
   cliffs: 'assets/nature/cliffs/',
   ground: 'assets/nature/ground/',
+  ores: 'assets/nature/ores/',
   props: 'assets/props/',
   machines: 'assets/machines/',
   characters: 'assets/characters/',

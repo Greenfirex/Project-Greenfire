@@ -10,14 +10,13 @@ export default class EditorHud {
   constructor() {
     this.root = null;
     this.onBrush = null;
-    this.onErase = null;
-    this.onUndo = null;
     this.onClose = null;
     this.onMode = null;
     this.onHeightLevel = null;
     this.onHeightStep = null;
     this.onSmooth = null;
     this.onBrushOpts = null;
+    this.onSaveMap = null;
     this.activeBrush = null;
     this.brushOpts = {};
     this.erasing = false;
@@ -72,11 +71,10 @@ export default class EditorHud {
         <button type="button" data-step="-1" title="Ubrat 1 m (E)">−1</button>
         <button type="button" data-tool="smooth" title="Vyhladit schody">✦ Vyhladit</button>
       </div>
-      <div class="editor-panel__tools">
-        <button type="button" data-tool="erase">Mazat (X)</button>
-        <button type="button" data-tool="undo">Zpět (Z)</button>
-      </div>
       <div class="editor-panel__readout">–</div>
+      <div class="editor-panel__save-row">
+        <button type="button" class="editor-panel__save" title="Uložit mapu (přežije obnovení stránky)">Uložit mapu</button>
+      </div>
     `;
     document.body.appendChild(root);
     this.root = root;
@@ -126,15 +124,10 @@ export default class EditorHud {
     root.querySelector('[data-tool="smooth"]').addEventListener('click', () => {
       if (this.onSmooth) this.onSmooth();
     });
+    root.querySelector('.editor-panel__save').addEventListener('click', () => {
+      if (this.onSaveMap) this.onSaveMap();
+    });
 
-    root.querySelector('[data-tool="erase"]').addEventListener('click', () => {
-      this.erasing = !this.erasing;
-      this.refresh();
-      if (this.onErase) this.onErase(this.erasing);
-    });
-    root.querySelector('[data-tool="undo"]').addEventListener('click', () => {
-      if (this.onUndo) this.onUndo();
-    });
     root.querySelector('.editor-panel__close').addEventListener('click', () => {
       if (this.onClose) this.onClose();
     });
@@ -204,6 +197,7 @@ export default class EditorHud {
 
   setMode(mode) {
     this.mode = mode === 'height' ? 'height' : 'zone';
+    this.erasing = false;
     if (this.root) this.root.dataset.mode = this.mode;
     this.refresh();
   }
@@ -224,8 +218,6 @@ export default class EditorHud {
     for (const btn of this.root.querySelectorAll('[data-brush]')) {
       btn.classList.toggle('is-active', !this.erasing && btn.dataset.brush === this.activeBrush);
     }
-    const erase = this.root.querySelector('[data-tool="erase"]');
-    if (erase) erase.classList.toggle('is-active', this.erasing);
     this.syncBrushOpts();
   }
 

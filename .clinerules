@@ -78,3 +78,60 @@
 - Výchozí hodnoty stavu patří do `src/data/catalogs/saveSchema.js`.
 - Při změně formátu savu bumpni `SAVE_VERSION` v `saveSchema.js`.
 - Save systém zůstává OBECNÝ — nesmí znát obsah konkrétních stavů.
+
+# ===== GIT =====
+
+- Commity NIKDY nedělej sám. `git add`, `git commit`, `git push`, `git merge`,
+  `git rebase`, `git reset` a jakékoli jiné měnící git operace provádí
+  VÝHRADNĚ uživatel.
+- Agent smí jen ČÍST: `git status`, `git log`, `git diff`, `git show`,
+  `git remote -v`, `git ls-files` a `git check-ignore`.
+- Když je potřeba něco commitnout, jen navrhni commit message a vypiš, které
+  soubory do commitu patří — a čekej, až to uživatel udělá sám.
+
+# ===== REVERT („revertni to") =====
+
+- „Revertni to" znamená: vrať POUZE změny z posledního tasku, které jsem
+  v projektu udělal já (agent). NIC víc.
+- NIKDY kvůli tomu nesahej na celý soubor a NIKDY nepoužívej
+  `git checkout -- <soubor>`, `git restore <soubor>`, `git stash` ani
+  `git reset` — ty smažou i všechnu ostatní neuloženou práci uživatele.
+- Postup: vezmi přesně ty řádky, které jsi v posledním tasku přidal nebo
+  změnil, a vrať je zpět na původní podobu (odstranit přidané, vrátit
+  přepsané). Ostatní obsah souboru nech být.
+- Když si nejsi jistý, co přesně jsi měnil, NEHÁDEJ a nejdřív se ZEPTEJ
+  (např. vypiš seznam změn a nech uživatele potvrdit rozsah).
+- Po revertu napiš, co přesně se vrátilo a co v souboru zůstalo.
+
+# ===== JAK MLUVIT S UŽIVATELEM =====
+
+- Piš LIDSKY, ne technicky. Uživatel není programátor a nezná zkratky.
+- Místo názvů metod, souborů a cizích slov použij popis toho,
+  co se v aplikaci stane (příklad: místo „clearZoneCells se nevolá"
+  napiš „smaže se jen označení, samotná zóna zůstane").
+- Když musíš použít odborný termín, VŽDY ho hned v závorce vysvětli
+  běžnými slovy (příklad: „cache (paměť, která si pamatuje stará data)").
+- Každý bod začni TÍM, CO TO UDĚLÁ V HRÁTCE. Až potom (nebo vůbec)
+  řekni, jak je to udělané v kódu.
+- Vysvětluj PŘÍČINU, ne jen výsledek. Uživatel chce vědět, PROČ to
+  dřív nefungovalo, ne jak vypadá nový příkaz.
+- Nepiš názvy souborů a cest, pokud to není potřeba k něčemu konkrétnímu
+  (např. „upravil jsem GameScene.js"). Když stačí říct „opravil jsem
+  načítání mapy", řekni to tak.
+- Žádné tabulky pravidel, žádné názvy funkcí, žádný kód v odpovědi,
+  pokud o něj uživatel sám nepožádá.
+- Nejdřív shrnutí výsledku v 1–2 větách, pak teprve podrobnosti.
+  Když je výsledek nudný a jednoduchý, stačí jen ty dvě věty.
+
+## Příklad špatně
+
+> `undo()` teď začíná kontrolou `this.draft.cells.size`. Pokud je
+> nenulová, provede `cells.clear()` a `return true`, aniž by došlo
+> k `history.pop()`. `canUndo` kontroluje `history.length > 0`.
+
+## Příklad dobře
+
+> Tlačítko Zpět teď funguje na jedno kliknutí. Dřív se první kliknutí
+> „spotřebovalo" na zrušení rozpracovaného výběru, takže jsi musel
+> kliknout dvakrát. Teď se výběr při vrácení prostě uklidí bokem
+> a rovnou se vrátí poslední skutečná změna mapy.

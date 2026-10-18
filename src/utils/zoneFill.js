@@ -59,6 +59,9 @@ function fillBlob(makeRng, brush, cells, occupied) {
   const free = cells.filter((k) => !occupied.has(k));
   if (!free.length) return [];
 
+  const pool = brush.pool && brush.pool.length
+    ? brush.pool
+    : [...new Set(Object.values(brush.poolByStyle || {}).flat())];
   const scatter = Boolean(opts.scatter);
   const blur = scatter && Boolean(opts.blur);
   const density = scatter ? (opts.fill ?? 1) : 1;
@@ -72,11 +75,10 @@ function fillBlob(makeRng, brush, cells, occupied) {
     out.push({ cx, cz });
   }
 
-  const palette = brush.pool && brush.pool.length ? brush.pool : [];
-  if (!palette.length) return out;
+  if (!pool.length) return out;
   return out.map((cell) => {
     const local = cellRng(makeRng, key(cell.cx, cell.cz));
-    return { ...cell, key: pick(local, palette) };
+    return { ...cell, key: pick(local, pool) };
   });
 }
 
@@ -135,6 +137,13 @@ function fillPerimeter(makeRng, brush, cells) {
 }
 
 function fillOutline(makeRng, brush, cells) {
+  if (!brush.bed && !brush.inner && !brush.edge) {
+    return cells.map((k) => {
+      const [cx, cz] = parse(k);
+      return { cx, cz };
+    });
+  }
+
   const set = new Set(cells);
   const edge = new Set(edgeCells(cells));
   const out = [];

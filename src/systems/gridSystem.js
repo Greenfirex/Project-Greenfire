@@ -22,8 +22,10 @@ export default class GridSystem {
     this.zonesMasters = [];
     this.zonesMaterials = [];
     this.zonesPool = [];
-    this.draftLinesMaster = null;
-    this.draftEdgePool = [];
+    this.draftLinesAdd = null;
+    this.draftAddPool = [];
+    this.draftLinesRemove = null;
+    this.draftRemovePool = [];
   }
 
   create() {
@@ -208,19 +210,30 @@ export default class GridSystem {
     }
   }
 
-  showDraftCells(cells, surfaceAt) {
-    if (!this.draftLinesMaster) {
-      this.draftLinesMaster = MeshBuilder.CreateLines('draftEdgeMaster', {
+  showDraftCells(cells, surfaceAt, mode = 'add') {
+    const remove = mode === 'remove';
+    if (!this.draftLinesAdd) {
+      this.draftLinesAdd = MeshBuilder.CreateLines('draftEdgeAdd', {
         points: this.cellSquare(),
       }, this.s);
-      this.draftLinesMaster.color = new Color3(0.75, 1, 0.95);
-      this.draftLinesMaster.alpha = 1;
-      this.draftLinesMaster.isPickable = false;
-      this.draftLinesMaster.setEnabled(false);
-      this.draftEdgePool = [];
+      this.draftLinesAdd.color = new Color3(0.75, 1, 0.95);
+      this.draftLinesAdd.alpha = 1;
+      this.draftLinesAdd.isPickable = false;
+      this.draftLinesAdd.setEnabled(false);
+      this.draftAddPool = [];
+      this.draftLinesRemove = MeshBuilder.CreateLines('draftEdgeRemove', {
+        points: this.cellSquare(),
+      }, this.s);
+      this.draftLinesRemove.color = new Color3(1, 0.35, 0.3);
+      this.draftLinesRemove.alpha = 1;
+      this.draftLinesRemove.isPickable = false;
+      this.draftLinesRemove.setEnabled(false);
+      this.draftRemovePool = [];
     }
 
-    for (const line of this.draftEdgePool) line.setEnabled(false);
+    const master = remove ? this.draftLinesRemove : this.draftLinesAdd;
+    const pool = remove ? this.draftRemovePool : this.draftAddPool;
+    for (const line of pool) line.setEnabled(false);
     let used = 0;
     let masterUsed = false;
 
@@ -229,28 +242,30 @@ export default class GridSystem {
       const z = cz * CELL_SIZE;
       const y = surfaceAt(cx, cz) + 0.07;
       if (!masterUsed) {
-        this.draftLinesMaster.position = new Vector3(x, y, z);
-        this.draftLinesMaster.setEnabled(true);
+        master.position = new Vector3(x, y, z);
+        master.setEnabled(true);
         masterUsed = true;
         continue;
       }
-      if (used >= this.draftEdgePool.length) {
-        const line = this.draftLinesMaster.clone(`draftEdge_${this.draftEdgePool.length}`);
+      if (used >= pool.length) {
+        const line = master.clone(`${remove ? 'draftRemove' : 'draftAdd'}_${pool.length}`);
         line.isPickable = false;
-        this.draftEdgePool.push(line);
+        pool.push(line);
       }
-      const line = this.draftEdgePool[used];
+      const line = pool[used];
       line.position = new Vector3(x, y, z);
       line.setEnabled(true);
       used++;
     }
 
-    if (!masterUsed) this.draftLinesMaster.setEnabled(false);
+    if (!masterUsed) master.setEnabled(false);
   }
 
   clearDraftCells() {
-    for (const line of this.draftEdgePool || []) line.setEnabled(false);
-    if (this.draftLinesMaster) this.draftLinesMaster.setEnabled(false);
+    for (const line of this.draftAddPool || []) line.setEnabled(false);
+    for (const line of this.draftRemovePool || []) line.setEnabled(false);
+    if (this.draftLinesAdd) this.draftLinesAdd.setEnabled(false);
+    if (this.draftLinesRemove) this.draftLinesRemove.setEnabled(false);
   }
 
   cellSquare() {

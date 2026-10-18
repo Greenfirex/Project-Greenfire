@@ -1,5 +1,5 @@
-// Stavba dekorací krajiny z dat mapy — dlaždice půdy, cesty, stromy, skály.
-// Drží jen postavené meshe a blokované buňky; rozvržení si bere z data mapy.
+// Stavba dekoraci krajiny z dat mapy - dlazdice pudy, cesty, stromy, skaly.
+// Drzi jen postavene meshe a blokovane bunky; rozvrzeni si bere z data mapy.
 import '@babylonjs/core/Meshes/transformNode';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Meshes/mesh';
@@ -8,7 +8,14 @@ import { cellToWorldCoords, cellKey } from '../utils/gridMath.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { loadModel, instantiateModel } from '../utils/assetLoader.js';
 import { tintTemplate } from '../utils/decoTint.js';
-import { createWaterPlane } from './waterSystem.js';
+
+const PATH_LIFT = 0.002;
+const WATER_LIFT = 0.003;
+
+function withLift(entry, lift) {
+  const base = entry.liftY || 0;
+  return base > lift ? entry : { ...entry, liftY: lift };
+}
 
 export default class DecoSystem {
 
@@ -17,10 +24,10 @@ export default class DecoSystem {
     this.blocked = new Map();
     this.columnTop = new Map();
     this.onDecoReady = null;
-    this.tinted = new Set();
     this.colors = null;
     this.nodes = [];
     this.pathNodes = [];
+    this.waterNodes = [];
   }
 
   create(layout, colors) {
@@ -32,6 +39,7 @@ export default class DecoSystem {
 
     for (const entry of layout.floor || []) this.place(entry);
     this.buildPath();
+    this.buildWater();
     for (const entry of layout.clearing || []) this.place(entry);
     for (const entry of layout.decorations || []) this.place(entry);
 
@@ -41,13 +49,17 @@ export default class DecoSystem {
   }
 
   buildPath() {
-    for (const entry of this.layout?.path || []) this.place(entry, this.pathNodes);
+    for (const entry of this.layout?.path || []) this.place(withLift(entry, PATH_LIFT), this.pathNodes);
     for (const entry of this.layout?.manual || []) this.placePathManual(entry);
+  }
+
+  buildWater() {
+    for (const entry of this.layout?.water || []) this.place(withLift(entry, WATER_LIFT), this.waterNodes);
   }
 
   placePathManual(entry) {
     if (!getDecoration(entry.key)) return;
-    this.place({ ...entry, liftY: 0 }, this.pathNodes);
+    this.place(withLift(entry, PATH_LIFT), this.pathNodes);
   }
 
   updatePath(layout) {
@@ -55,6 +67,13 @@ export default class DecoSystem {
     for (const node of this.pathNodes) if (node && !node.isDisposed()) node.dispose(false, false);
     this.pathNodes.length = 0;
     this.buildPath();
+  }
+
+  updateWater(layout) {
+    this.layout = layout;
+    for (const node of this.waterNodes) if (node && !node.isDisposed()) node.dispose(false, false);
+    this.waterNodes.length = 0;
+    this.buildWater();
   }
 
   canUpdatePath(editorLayout) {
@@ -110,34 +129,23 @@ export default class DecoSystem {
   dispose() {
     for (const node of this.nodes) if (node && !node.isDisposed()) node.dispose(false, false);
     for (const node of this.pathNodes) if (node && !node.isDisposed()) node.dispose(false, false);
+    for (const node of this.waterNodes) if (node && !node.isDisposed()) node.dispose(false, false);
     this.nodes.length = 0;
     this.pathNodes.length = 0;
+    this.waterNodes.length = 0;
   }
 
   async attachModel(anchor, def, entry) {
-    if (def.procedural === 'water') {
-      const rgb = this.colors?.water || [0.09, 0.28, 0.34];
-      const plane = createWaterPlane(this.s, `water_${entry.cx}_${entry.cz}`, rgb);
-      plane.parent = anchor;
-      if (this.onDecoReady) this.onDecoReady(anchor, plane, def);
-      return;
-    }
-
-    const template = await loadModel(this.s, def.model, (root) => this.tintTemplate(root, def));
+    const template = await loadModel(this.s, def.model);
     if (!template || anchor.isDisposed()) return;
 
     const node = instantiateModel(this.s, template, `decoModel_${entry.key}_${entry.cx}_${entry.cz}`);
     node.parent = anchor;
     node.position = new Vector3(0, 0, 0);
     node.scaling = new Vector3(def.scale, def.scale, def.scale);
+    tintTemplate(node, def, this.colors);
 
     if (this.onDecoReady) this.onDecoReady(anchor, node, def);
-  }
-
-  tintTemplate(template, def) {
-    if (this.tinted.has(def.model)) return;
-    this.tinted.add(def.model);
-    tintTemplate(template, def, this.colors);
   }
 
   isBlocked(cx, cz) {

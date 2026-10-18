@@ -102,7 +102,13 @@ export default class BuildSystem {
 
   async attachModel(record, def) {
     const template = await loadModel(this.s, def.model);
-    if (!template) return;
+    if (!template) {
+      console.error(
+        `[build] Stroj "${record.type}" na buňce ${record.cx},${record.cz} `
+        + `nemá model (${def.model}) — zůstává placeholder box.`,
+      );
+      return;
+    }
     if (this.machines.get(cellKey(record.cx, record.cz)) !== record) return;
 
     const node = instantiateModel(this.s, template, `model_${record.id}`);

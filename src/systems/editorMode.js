@@ -7,6 +7,7 @@ import {
   cloneLayout, cellKey, MAX_HEIGHT,
   addManualEntry, removeManualAt, rotateManualAt,
   pathOverrideAt, setPathOverride, clearPathOverride, rotatePathOverrideAt,
+  waterOverrideAt, setWaterOverride, clearWaterOverride, rotateWaterOverrideAt,
 } from '../data/maps/layoutStore.js';
 
 const HISTORY_LIMIT = 100;
@@ -44,7 +45,6 @@ export default class EditorMode {
 
   toggle() {
     this.active = !this.active;
-    if (this.active) this.pushHistory();
     if (this.onChange) this.onChange(this.active);
     return this.active;
   }
@@ -56,21 +56,24 @@ export default class EditorMode {
   }
 
   undo() {
-    if (!this.history.length) return false;
     if (this.draft) {
-      this.draft = null;
-      if (this.onDraftChange) this.onDraftChange(null);
+      this.draft.cells.clear();
+      if (this.onDraftChange) this.onDraftChange(this.draft);
     }
+    if (!this.history.length) return false;
     this.layout = this.history.pop();
     this.repaint();
     return true;
+  }
+
+  get canUndo() {
+    return this.history.length > 0;
   }
 
   setBrush(key) {
     if (!BRUSHES[key]) return;
     if (this.brushKey !== key && this.draft) this.cancelDraft();
     this.brushKey = key;
-    this.erasing = false;
     this.manualMode = false;
     this.pathStyle = this.styleFor(key);
     this.syncTileKey();
@@ -95,7 +98,7 @@ export default class EditorMode {
 
   isManualBrush(brushKey = this.brushKey) {
     const brush = BRUSHES[brushKey];
-    return Boolean(brush && this.manualMode && brush.poolByStyle && this.mode !== 'height');
+    return Boolean(brush && brush.manual && this.manualMode && brush.poolByStyle && this.mode !== 'height');
   }
 
   setManualMode(on) {
@@ -150,7 +153,13 @@ export default class EditorMode {
   styleFor(brushKey) {
     const opts = this.brushOpts[brushKey];
     const brush = BRUSHES[brushKey];
-    return (opts && opts.style) || (brush && brush.style) || 'dirt';
+    if (opts && opts.style) return opts.style;
+    if (brush && brush.style) return brush.style;
+    if (brush && brush.poolByStyle) {
+      const keys = Object.keys(brush.poolByStyle);
+      if (keys.length) return keys[0];
+    }
+    return 'dirt';
   }
 
   placeAt(cx, cz, rotation = 0) {
@@ -158,7 +167,8 @@ export default class EditorMode {
     if (!this.isManualBrush()) return false;
     if (!this.tileKey || !getDecoration(this.tileKey)) return false;
     this.pushHistory();
-    if (this.isPathCell(cx, cz)) setPathOverride(this.layout, cx, cz, this.tileKey, rotation);
+    if (this.isWaterCell(cx, cz)) setWaterOverride(this.layout, cx, cz, this.tileKey, rotation);
+    else if (this.isPathCell(cx, cz)) setPathOverride(this.layout, cx, cz, this.tileKey, rotation);
     else addManualEntry(this.layout, this.tileKey, cx, cz, rotation);
     this.scheduleRegenerate();
     return true;
@@ -166,6 +176,13 @@ export default class EditorMode {
 
   rotateAt(cx, cz, delta = 1) {
     if (!this.active || !this.layout) return false;
+    const water = waterOverrideAt(this.layout, cx, cz);
+    if (water) {
+      this.pushHistory();
+      rotateWaterOverrideAt(this.layout, cx, cz, delta);
+      this.scheduleRegenerate();
+      return true;
+    }
     const override = pathOverrideAt(this.layout, cx, cz);
     if (override) {
       this.pushHistory();
@@ -183,14 +200,21 @@ export default class EditorMode {
   deleteAt(cx, cz) {
     if (!this.active || !this.layout) return false;
     this.pushHistory();
+    const hadWater = clearWaterOverride(this.layout, cx, cz);
     const hadOverride = clearPathOverride(this.layout, cx, cz);
     const hadManual = removeManualAt(this.layout, cx, cz);
-    if (!hadOverride && !hadManual) {
+    if (!hadWater && !hadOverride && !hadManual) {
       this.history.pop();
       return false;
     }
     this.scheduleRegenerate();
     return true;
+  }
+
+  isWaterCell(cx, cz) {
+    if (!this.layout) return false;
+    if (waterOverrideAt(this.layout, cx, cz)) return true;
+    return brushAt(this.layout, cx, cz) === 'water';
   }
 
   isPathCell(cx, cz) {
@@ -238,11 +262,27 @@ export default class EditorMode {
       return;
     }
     if (this.draft) this.cancelDraft();
-    this.pushHistory();
-    this.draft = { brushKey, cells: new Set() };
+    this.draft = { brushKey, cells: new Set(), mode: this.erasing ? 'remove' : 'add' };
     if (opts) this.draft.opts = { ...opts };
-    this.erasing = false;
     if (this.onDraftChange) this.onDraftChange(this.draft);
+  }
+
+  setDraftMode(mode) {
+    const next = mode === 'remove' ? 'remove' : 'add';
+    if (this.erasing === (next === 'remove')) {
+      if (this.draft && this.draft.mode !== next) {
+        this.draft.mode = next;
+        this.draft.cells.clear();
+        if (this.onDraftChange) this.onDraftChange(this.draft);
+      }
+      return;
+    }
+    this.erasing = next === 'remove';
+    if (this.draft) {
+      this.draft.mode = next;
+      this.draft.cells.clear();
+      if (this.onDraftChange) this.onDraftChange(this.draft);
+    }
   }
 
   setDraftOpts(opts) {
@@ -255,21 +295,29 @@ export default class EditorMode {
     return Boolean(this.draft);
   }
 
+  get draftMode() {
+    return this.draft ? this.draft.mode : (this.erasing ? 'remove' : 'add');
+  }
+
+  canDraftCell(cx, cz) {
+    if (!this.draft) return false;
+    if (this.draft.mode === 'remove') return Boolean(brushAt(this.layout, cx, cz));
+    return true;
+  }
+
   draftCell(cx, cz) {
     if (!this.draft) return false;
-    const key = cellKey(cx, cz);
-    if (this.erasing) this.draft.cells.delete(key);
-    else this.draft.cells.add(key);
+    if (!this.canDraftCell(cx, cz)) return false;
+    this.draft.cells.add(cellKey(cx, cz));
     if (this.onDraftChange) this.onDraftChange(this.draft);
     return true;
   }
 
   draftRun(from, to) {
-    if (!this.draft) return false;
+    if (!this.draft) return true;
     for (const [cx, cz] of bresenham(from.cx, from.cz, to.cx, to.cz)) {
-      const key = cellKey(cx, cz);
-      if (this.erasing) this.draft.cells.delete(key);
-      else this.draft.cells.add(key);
+      if (!this.canDraftCell(cx, cz)) continue;
+      this.draft.cells.add(cellKey(cx, cz));
     }
     if (this.onDraftChange) this.onDraftChange(this.draft);
     return true;
@@ -277,14 +325,20 @@ export default class EditorMode {
 
   applyDraft() {
     if (!this.draft) return 0;
-    const { brushKey, cells, opts } = this.draft;
+    const { brushKey, cells, opts, mode } = this.draft;
+    if (!cells.size) {
+      if (this.onDraftChange) this.onDraftChange(this.draft);
+      return 0;
+    }
+    this.pushHistory();
     for (const key of cells) {
       const [cx, cz] = key.split(',').map(Number);
-      addZoneCell(this.layout, brushKey, cx, cz, opts);
+      if (mode === 'remove') removeZoneCell(this.layout, cx, cz);
+      else addZoneCell(this.layout, brushKey, cx, cz, opts);
     }
     const count = cells.size;
-    this.draft = null;
-    if (this.onDraftChange) this.onDraftChange(null);
+    this.draft.cells.clear();
+    if (this.onDraftChange) this.onDraftChange(this.draft);
     this.scheduleRegenerate();
     return count;
   }

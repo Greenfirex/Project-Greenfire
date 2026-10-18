@@ -26,11 +26,12 @@ import TileThumbnails from '../ui/tileThumbnails.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
 import { getBrush } from '../data/catalogs/brushes.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
-import { SAVE_DEFAULTS } from '../data/catalogs/saveSchema.js';
+import { SAVE_DEFAULTS, SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
 import { buildGladeLayout } from '../data/maps/glade.js';
 import gladeLayoutData from '../data/maps/glade/layout.json';
-import { normalizeLayout } from '../data/maps/layoutStore.js';
+import { normalizeLayout, cloneLayout } from '../data/maps/layoutStore.js';
 import { generateLayout } from '../data/maps/mapGenerator.js';
+import { readJSON } from '../utils/storage.js';
 
 export default class GameScene {
 
@@ -138,20 +139,21 @@ export default class GameScene {
       this.openBrushPanel(key);
     };
     this.editorHud.onBrush = (key) => this.editorMode.setBrush(key);
-    this.editorHud.onErase = (on) => { this.editorMode.erasing = on; };
-    this.editorHud.onUndo = () => this.undoEditor();
     this.editorHud.onMode = (mode) => this.editorMode.setMode(mode);
     this.editorHud.onHeightLevel = (level) => this.editorMode.setHeightLevel(level);
     this.editorHud.onHeightStep = (delta) => this.editorMode.stepHeightLevel(delta);
     this.editorHud.onSmooth = () => this.editorMode.smoothHeights();
     this.editorHud.onClose = () => this.exitEditor();
     this.editorHud.onBrushOpts = (key, opts) => this.setBrushOpts(key, opts);
+    this.editorHud.onSaveMap = () => this.saveMapLayout();
     this.brushPanel.onThumbnail = (key, img) => this.fillThumbnail(key, img);
     this.brushPanel.onApply = () => this.applyBrushDraft();
     this.brushPanel.onCancel = () => this.cancelBrushDraft();
     this.brushPanel.onStyle = (brushKey, styleKey) => this.editorMode.setStyle(styleKey);
     this.brushPanel.onTile = (key) => this.editorMode.setTileKey(key);
     this.brushPanel.onManualMode = (on) => this.editorMode.setManualMode(on);
+    this.brushPanel.onErase = () => this.setEraseMode(!this.editorMode.erasing);
+    this.brushPanel.onUndo = () => this.undoEdit();
     this.editorMode.onManualModeChange = () => this.openBrushPanel(this.editorMode.brushKey);
   }
 
@@ -172,6 +174,16 @@ export default class GameScene {
     });
   }
 
+  setEraseMode(on) {
+    this.editorMode.setDraftMode(on ? 'remove' : 'add');
+    this.editorHud.erasing = this.editorMode.erasing;
+    this.editorHud.refresh();
+    this.brushPanel.setDraftMode(this.editorMode.draftMode);
+    this.refreshUndoButton();
+    this.refreshZoneOverlay();
+    this.handleHover(this.hoverCell);
+  }
+
   openBrushPanel(brushKey) {
     const brush = getBrush(brushKey);
     const manual = Boolean(brush && brush.poolByStyle) && this.editorMode.manualMode;
@@ -188,6 +200,8 @@ export default class GameScene {
       manual ? this.editorMode.tileKey : null,
       manual,
     );
+    this.brushPanel.setDraftMode(this.editorMode.draftMode);
+    this.refreshUndoButton();
     this.refreshZoneOverlay();
     this.handleHover(this.hoverCell);
   }
@@ -200,11 +214,14 @@ export default class GameScene {
   }
 
   applyBrushDraft() {
+    const removing = this.editorMode.draftMode === 'remove';
     const count = this.editorMode.applyDraft();
-    this.brushPanel.close();
-    this.editorHud.clearBrushSelection();
+    if (count) this.editorHud.setReadout((removing ? 'Smazáno ' : 'Aplikováno ') + count + ' buněk');
+    else this.editorHud.setReadout(removing ? 'Nic ke smazání' : 'Prázdná zóna');
+    this.brushPanel.setDraftMode(this.editorMode.draftMode);
+    this.refreshUndoButton();
     this.refreshZoneOverlay();
-    this.editorHud.setReadout(count ? `Aplikováno ${count} buněk` : 'Prázdná zóna');
+    this.handleHover(this.hoverCell);
   }
 
   cancelBrushDraft() {
@@ -215,20 +232,50 @@ export default class GameScene {
     this.handleHover(this.hoverCell);
   }
 
+  undoEdit() {
+    if (!this.editorMode.undo()) {
+      this.refreshUndoButton();
+      this.handleHover(this.hoverCell);
+      return false;
+    }
+    this.ensureDraft();
+    this.refreshUndoButton();
+    this.handleHover(this.hoverCell);
+    return true;
+  }
+
+  ensureDraft() {
+    if (this.editorMode.draft) return;
+    if (!this.brushPanel.isOpen) return;
+    if (this.editorMode.manualMode) return;
+    const brushKey = this.editorMode.brushKey;
+    if (!brushKey) return;
+    this.editorMode.beginDraft(brushKey);
+  }
+
+  refreshUndoButton() {
+    this.brushPanel.setUndoEnabled(this.editorMode.canUndo);
+  }
+
   undoEditor() {
     this.editorMode.undo();
     this.brushPanel.close();
     this.editorHud.clearBrushSelection();
+    this.setEraseMode(false);
+    this.editorMode.setManualMode(false);
     this.refreshZoneOverlay();
   }
 
   updateDraftView(draft) {
     if (!draft) {
-      this.brushPanel.close();
+      this.brushPanel.setCount(0);
+      this.refreshUndoButton();
       this.refreshZoneOverlay();
       return;
     }
+    this.brushPanel.setDraftMode(draft.mode);
     this.brushPanel.setCount(draft.cells.size);
+    this.refreshUndoButton();
     this.refreshZoneOverlay();
   }
 
@@ -239,11 +286,12 @@ export default class GameScene {
       return;
     }
     const draft = this.editorMode.draft;
+    const removing = draft.mode === 'remove';
     const surfaceAt = (cx, cz) => this.decoSystem.surfaceAt(cx, cz);
     const same = [];
     const other = [];
     for (const zone of this.mapLayout.zones) {
-      if (zone.brush === draft.brushKey) same.push(...zone.cells);
+      if (!removing && zone.brush === draft.brushKey) same.push(...zone.cells);
       else other.push(...zone.cells);
     }
 
@@ -270,14 +318,14 @@ export default class GameScene {
       },
       {
         cells: draftCells,
-        color: new Color3(0.15, 1, 0.85),
-        glow: new Color3(0.2, 0.95, 0.8),
+        color: removing ? new Color3(1, 0.3, 0.25) : new Color3(0.15, 1, 0.85),
+        glow: removing ? new Color3(0.95, 0.25, 0.2) : new Color3(0.2, 0.95, 0.8),
         alpha: 0.72,
         lift: 0.055,
       },
     ], surfaceAt);
 
-    this.gridSystem.showDraftCells(draftCells, surfaceAt);
+    this.gridSystem.showDraftCells(draftCells, surfaceAt, draft.mode);
   }
 
   renderMapLayout(editorLayout) {
@@ -286,6 +334,8 @@ export default class GameScene {
     const layout = generateLayout(this.mapKey, editorLayout);
     if (this.decoSystem.canUpdatePath(editorLayout)) {
       this.decoSystem.updatePath(layout);
+      this.decoSystem.updateWater(layout);
+      this.decoSystem.rememberLayout(editorLayout);
       return;
     }
     this.decoSystem.create(layout, map.colors);
@@ -316,12 +366,21 @@ export default class GameScene {
 
   buildMapLayout() {
     const map = getMap(this.mapKey);
-    const data = this.mapKey === 'glade' ? gladeLayoutData : null;
+    const saved = this.loadSavedLayout();
+    const data = saved || (this.mapKey === 'glade' ? gladeLayoutData : null);
     this.mapLayout = data
       ? normalizeLayout(data, map.seed)
       : normalizeLayout(buildGladeLayout(this.mapKey), map.seed);
     this.editorMode.attach(this.mapLayout);
     return generateLayout(this.mapKey, this.mapLayout);
+  }
+
+  loadSavedLayout() {
+    const payload = readJSON(SAVE_STORAGE_KEY);
+    if (!payload || payload.version !== SAVE_VERSION || !payload.state) return null;
+    const maps = payload.state.mapLayouts;
+    if (!maps || typeof maps !== 'object') return null;
+    return maps[this.mapKey] || null;
   }
 
   mapColor(mapKey, key) {
@@ -397,6 +456,19 @@ export default class GameScene {
       },
       order: 20,
     });
+    this.saveSystem.registerState('mapLayouts', {
+      serialize: () => ({ [this.mapKey]: cloneLayout(this.mapLayout) }),
+      apply: (data) => {
+        const raw = data && typeof data === 'object' ? data[this.mapKey] : null;
+        if (!raw) return;
+        const map = getMap(this.mapKey);
+        this.mapLayout = normalizeLayout(raw, map.seed);
+        this.editorMode.attach(this.mapLayout);
+        this.renderMapLayout(this.mapLayout);
+        this.decoSystem.rememberLayout(this.mapLayout);
+      },
+      order: 1,
+    });
   }
 
   registerHudEvents() {
@@ -418,8 +490,8 @@ export default class GameScene {
     if (this.editorMode.active) {
       if (evt.key === 'Escape' && this.editorMode.hasDraft) { this.cancelBrushDraft(); evt.preventDefault(); return; }
       if (evt.key === 'Enter' && this.editorMode.hasDraft) { this.applyBrushDraft(); evt.preventDefault(); return; }
-      if (evt.key === 'x' || evt.key === 'X') { this.editorMode.erasing = !this.editorMode.erasing; evt.preventDefault(); this.handleHover(this.hoverCell); return; }
-      if (evt.key === 'z' || evt.key === 'Z') { this.editorMode.undo(); evt.preventDefault(); return; }
+      if (evt.key === 'x' || evt.key === 'X') { this.setEraseMode(!this.editorMode.erasing); evt.preventDefault(); return; }
+      if (evt.key === 'z' || evt.key === 'Z') { this.undoEdit(); evt.preventDefault(); return; }
       if (evt.key === 'h' || evt.key === 'H') {
         this.editorMode.setMode(this.editorMode.mode === 'height' ? 'zone' : 'height');
         evt.preventDefault();
@@ -502,7 +574,7 @@ export default class GameScene {
     if (this.editorMode.active) {
       this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
       if (this.editorMode.mode === 'height') this.editorMode.paint(cell.cx, cell.cz);
-      else if (this.editorMode.isManualBrush()) this.editorMode.placeAt(cell.cx, cell.cz);
+      else if (this.editorMode.isManualBrush()) this.paintManual(cell);
       else this.editorMode.draftCell(cell.cx, cell.cz);
       this.handleHover(cell);
       return;
@@ -515,7 +587,7 @@ export default class GameScene {
     if (this.editorMode.active) {
       const from = this.lastPaintCell || cell;
       if (this.editorMode.mode === 'height') this.editorMode.paintRun(from, cell);
-      else if (this.editorMode.isManualBrush()) this.editorMode.placeAt(cell.cx, cell.cz);
+      else if (this.editorMode.isManualBrush()) this.paintManual(cell);
       else this.editorMode.draftRun(from, cell);
       this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
       this.handleHover(cell);
@@ -524,6 +596,11 @@ export default class GameScene {
 
   handlePaintEnd() {
     this.lastPaintCell = null;
+  }
+
+  paintManual(cell) {
+    if (this.editorMode.erasing) this.editorMode.deleteAt(cell.cx, cell.cz);
+    else this.editorMode.placeAt(cell.cx, cell.cz);
   }
 
   moveGridHighlight(cell) {
@@ -615,6 +692,12 @@ export default class GameScene {
   doSave() {
     const ok = this.saveSystem.save();
     this.hud.setSaveHint(ok ? 'Uloženo ✓' : 'Uložení selhalo');
+  }
+
+  saveMapLayout() {
+    const ok = this.saveSystem.save();
+    this.editorHud.setReadout(ok ? 'Mapa uložena ✓' : 'Uložení selhalo');
+    return ok;
   }
 
   doLoad() {

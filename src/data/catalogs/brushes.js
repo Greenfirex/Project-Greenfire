@@ -41,6 +41,7 @@ export const BRUSHES = {
     label: 'Cesta',
     shape: 'line',
     style: 'dirt',
+    manual: true,
     styles: ['dirt', 'stone', 'wood'],
     poolByStyle: {
       dirt: [
@@ -74,20 +75,27 @@ export const BRUSHES = {
     shape: 'blob',
     height: 4,
   },
-  pond: {
-    label: 'Jezírko',
+  water: {
+    label: 'Voda',
     shape: 'outline_fill',
-    bed: { pool: ['river_open'], liftY: 0 },
-    inner: { pool: ['water_pool'], liftY: 0.005 },
-    edge: { pool: ['river_side_open'], rotateToDry: true, liftY: 0.005 },
-    scatter: { pool: ['lily_large', 'lily_small'], fill: 0.25, liftY: 0.02 },
+    poolByStyle: {
+      water: [
+        'river_tile', 'river_open', 'river_side_open', 'river_straight', 'river_corner', 'river_corner_small',
+        'river_bend', 'river_bend_bank', 'river_cross', 'river_end',
+        'river_end_closed', 'river_split', 'river_corner_bank', 'river_side', 'river_rocks',
+      ],
+    },
   },
-  stream: {
-    label: 'Potok',
-    shape: 'outline_fill',
-    bed: { pool: ['river_open'], liftY: 0 },
-    inner: { pool: ['water_pool'], liftY: 0.005 },
-    edge: { pool: ['river_side_open'], rotateToDry: true, liftY: 0.005 },
+  ore: {
+    label: 'Ruda',
+    shape: 'blob',
+    style: 'iron',
+    scatter: true,
+    styles: ['iron', 'copper'],
+    poolByStyle: {
+      iron: ['ore_iron'],
+      copper: ['ore_copper'],
+    },
   },
   camp: {
     label: 'Tábor',

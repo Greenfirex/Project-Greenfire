@@ -41,7 +41,7 @@ export default class TileThumbnails {
     const def = getDecoration(key);
     if (!def || !def.model) return null;
 
-    const template = await loadModel(this.s, def.model, (root) => tintTemplate(root, def, this.colors));
+    const template = await loadModel(this.s, def.model);
     if (!template) return null;
 
     const holder = instantiateModel(this.s, template, `thumb_${key}`);
@@ -50,8 +50,8 @@ export default class TileThumbnails {
     const sc = def.scale ?? 1;
     holder.scaling = holder.scaling.scale(sc);
     holder.setEnabled(true);
+    tintTemplate(holder, def, this.colors);
     for (const child of holder.getChildMeshes()) child.isVisible = true;
-
     const url = await this.capture(holder);
     holder.dispose(false, false);
     if (!url) return null;
