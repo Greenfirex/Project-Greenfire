@@ -1,0 +1,511 @@
+/* Styl editačního panelu — paleta brushů, paleta výšek a nástroje pro malování zón. */
+.editor-panel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 210px;
+  display: none;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
+  z-index: 20;
+  user-select: none;
+  cursor: grab;
+}
+
+.editor-panel.is-dragging {
+  cursor: grabbing;
+  z-index: 24;
+}
+
+.editor-panel.is-open {
+  display: block;
+}
+
+.editor-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.editor-panel__title {
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--glow-accent);
+  font-weight: 700;
+}
+
+.editor-panel__close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.editor-panel__close:hover {
+  color: var(--text-main);
+}
+
+.editor-panel__hint {
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.editor-panel__modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.editor-panel__modes button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  padding: 5px 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.editor-panel__modes button:hover {
+  border-color: rgba(90, 200, 170, 0.45);
+  color: var(--text-main);
+}
+
+.editor-panel__modes button.is-active {
+  background: rgba(90, 200, 170, 0.18);
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+.brush-panel__palette {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.brush-panel__palette.is-hidden {
+  display: none;
+}
+
+.brush-panel__palette button {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.brush-panel__palette button:hover {
+  border-color: rgba(90, 200, 170, 0.45);
+}
+
+.brush-panel__palette button.is-active {
+  border-color: var(--glow-accent);
+  box-shadow: 0 0 8px rgba(90, 200, 170, 0.35);
+  background: rgba(90, 200, 170, 0.12);
+}
+
+.brush-panel__palette img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.brush-panel__palette img[data-state='idle'],
+.brush-panel__palette img[data-state='loading'] {
+  opacity: 0.35;
+}
+
+.brush-panel__palette img[data-state='missing'] {
+  visibility: hidden;
+}
+
+.brush-panel__modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.brush-panel__modes.is-hidden {
+  display: none;
+}
+
+.brush-panel__modes button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 10px;
+  padding: 5px 2px;
+  cursor: pointer;
+}
+
+.brush-panel__modes button:hover {
+  border-color: rgba(90, 200, 170, 0.45);
+  color: var(--text-main);
+}
+
+.brush-panel__modes button.is-active {
+  background: rgba(90, 200, 170, 0.18);
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+.brush-panel.is-manual .brush-panel__count,
+.brush-panel.is-manual .brush-panel__actions {
+  display: none;
+}
+
+.editor-panel__heights {
+  display: none;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.editor-panel[data-mode="height"] .editor-panel__heights {
+  display: grid;
+}
+
+.editor-panel[data-mode="height"] .editor-panel__grid {
+  display: none;
+}
+
+.editor-panel__brush-opts {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(90, 200, 170, 0.14);
+}
+
+.editor-panel[data-mode="height"] .editor-panel__brush-opts,
+.editor-panel__brush-opts.is-opts-hidden {
+  display: none;
+}
+
+.editor-panel__check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.editor-panel__check input {
+  accent-color: var(--glow-accent);
+  margin: 0;
+  cursor: pointer;
+}
+
+.editor-panel__check:hover {
+  color: var(--text-main);
+}
+
+.editor-panel__note {
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1.35;
+  opacity: 0.75;
+}
+
+.editor-panel__opt-fields {
+  display: none;
+  gap: 8px;
+}
+
+.editor-panel.is-scatter .editor-panel__opt-fields {
+  display: grid;
+}
+
+.editor-panel__opt {
+  display: grid;
+  gap: 2px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.editor-panel__opt span {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.editor-panel__opt output {
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.editor-panel__opt input[type="range"] {
+  width: 100%;
+  accent-color: var(--glow-accent);
+  margin: 0;
+  cursor: pointer;
+}
+
+.editor-panel__opt small {
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1.35;
+  opacity: 0.75;
+}
+
+.editor-panel__label {
+  grid-column: 1 / -1;
+  color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.editor-panel__heights button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  padding: 5px 2px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.editor-panel__heights button:hover {
+  border-color: rgba(90, 200, 170, 0.45);
+  color: var(--text-main);
+}
+
+.editor-panel__heights button.is-active {
+  background: rgba(90, 200, 170, 0.18);
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+.editor-panel__heights [data-step],
+.editor-panel__heights [data-tool="smooth"] {
+  grid-column: span 1;
+  font-size: 10px;
+}
+
+.editor-panel__heights [data-tool="smooth"] {
+  grid-column: 1 / -1;
+}
+
+.editor-panel__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.editor-panel__grid button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  padding: 5px 4px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.editor-panel__grid button:hover {
+  border-color: rgba(90, 200, 170, 0.45);
+  color: var(--text-main);
+}
+
+.editor-panel__grid button.is-active {
+  background: rgba(90, 200, 170, 0.18);
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+.editor-panel__tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.editor-panel__tools button {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  padding: 5px 4px;
+  cursor: pointer;
+}
+
+.editor-panel__tools button:hover {
+  color: var(--text-main);
+  border-color: rgba(90, 200, 170, 0.45);
+}
+
+.editor-panel__tools button.is-active {
+  background: rgba(220, 90, 90, 0.2);
+  border-color: #d06060;
+  color: var(--text-main);
+}
+
+.editor-panel__readout {
+  color: var(--text-dim);
+  font-size: 10px;
+  border-top: 1px solid rgba(90, 200, 170, 0.15);
+  padding-top: 6px;
+  min-height: 14px;
+}
+
+.brush-panel {
+  position: absolute;
+  top: 12px;
+  left: 234px;
+  width: 300px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  display: none;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
+  z-index: 21;
+  user-select: none;
+  cursor: grab;
+}
+
+.brush-panel.is-dragging {
+  cursor: grabbing;
+  z-index: 25;
+}
+
+.brush-panel.is-open {
+  display: block;
+}
+
+.brush-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.brush-panel__title {
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: var(--glow-accent);
+  font-weight: 700;
+}
+
+.brush-panel__close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.brush-panel__close:hover {
+  color: var(--text-main);
+}
+
+.brush-panel__count {
+  color: var(--text-dim);
+  font-size: 10px;
+  margin-bottom: 8px;
+}
+
+.brush-panel__styles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.brush-panel__styles.is-hidden {
+  display: none;
+}
+
+.brush-panel__styles button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 10px;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+
+.brush-panel__styles button:hover {
+  border-color: rgba(90, 200, 170, 0.45);
+  color: var(--text-main);
+}
+
+.brush-panel__styles button.is-active {
+  background: rgba(90, 200, 170, 0.18);
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+.brush-panel__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.brush-panel__actions button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  padding: 5px 4px;
+  cursor: pointer;
+}
+
+.brush-panel__actions button:hover {
+  border-color: rgba(90, 200, 170, 0.45);
+  color: var(--text-main);
+}
+
+.brush-panel__apply {
+  background: rgba(90, 200, 170, 0.18);
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+.brush-panel__apply:disabled {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(90, 200, 170, 0.12);
+  color: var(--text-dim);
+  cursor: default;
+  opacity: 0.5;
+}

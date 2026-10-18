@@ -1,6 +1,8 @@
 // Deklarace typu strojů, které jde postavit.
 // Drží jen deklarace (velikost, barva, model) a resolve helpery, žádnou logiku.
-const MODEL_DIR = 'assets/kenney_factory-kit_3.0/Models/GLB format/';
+import { ASSET_DIRS } from './assetPaths.js';
+
+const MODEL_DIR = ASSET_DIRS.machines;
 
 export const MACHINE_TYPES = {
   miner: {

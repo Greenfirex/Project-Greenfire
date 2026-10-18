@@ -1,6 +1,5 @@
-// Mřížka světa — podlaha, viditelné linky buněk a zvýraznění cílové buňky.
-// Drží jediný overlay mesh pro hover, který se jen posouvá a zobrazuje/skrývá.
-import '@babylonjs/core/Meshes/Builders/boxBuilder';
+// Mřížka světa — zvýraznění cílové buňky a označení stroje vybraného k bourání.
+// Podlahu a linky buněk kreslí terrainSystem; tenhle systém řeší jen kurzor.
 import '@babylonjs/core/Meshes/Builders/groundBuilder';
 import '@babylonjs/core/Meshes/Builders/linesBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
@@ -9,85 +8,275 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CELL_SIZE } from '../utils/gridMath.js';
 
-const GRID_WIDTH = 28;
-const GRID_DEPTH = 28;
-
 export default class GridSystem {
 
   constructor(scene) {
     this.s = scene;
-    this.ground = null;
-    this.gridLines = null;
     this.highlight = null;
+    this.highlightEdge = null;
     this.highlightMaterial = null;
+    this.mark = null;
+    this.brushMaster = null;
+    this.brushMaterial = null;
+    this.brushInstances = [];
+    this.zonesMasters = [];
+    this.zonesMaterials = [];
+    this.zonesPool = [];
+    this.draftLinesMaster = null;
+    this.draftEdgePool = [];
   }
 
   create() {
-    const width = GRID_WIDTH * CELL_SIZE;
-    const depth = GRID_DEPTH * CELL_SIZE;
-
-    this.ground = MeshBuilder.CreateGround('gridGround', { width, height: depth }, this.s);
-    this.ground.position = new Vector3(0, 0, 0);
-    this.ground.isPickable = true;
-
-    const groundMat = new StandardMaterial('gridGroundMat', this.s);
-    groundMat.diffuseColor = new Color3(0.11, 0.14, 0.16);
-    groundMat.specularColor = new Color3(0.05, 0.05, 0.05);
-    this.ground.material = groundMat;
-
-    this.gridLines = this.createGridLines(width, depth);
-
     this.highlight = MeshBuilder.CreateGround('cellHighlight', {
       width: CELL_SIZE * 0.96,
       height: CELL_SIZE * 0.96,
     }, this.s);
     this.highlightMaterial = new StandardMaterial('cellHighlightMat', this.s);
-    this.highlightMaterial.diffuseColor = new Color3(0.35, 0.78, 0.67);
-    this.highlightMaterial.emissiveColor = new Color3(0.22, 0.5, 0.42);
-    this.highlightMaterial.alpha = 0.35;
+    this.highlightMaterial.diffuseColor = new Color3(0.35, 0.95, 0.8);
+    this.highlightMaterial.emissiveColor = new Color3(0.3, 0.78, 0.65);
+    this.highlightMaterial.alpha = 0.55;
     this.highlight.material = this.highlightMaterial;
     this.highlight.position = new Vector3(0, 0.02, 0);
     this.highlight.isPickable = false;
     this.highlight.setEnabled(false);
 
-    return this.ground;
+    this.highlightEdge = MeshBuilder.CreateLines('cellHighlightEdge', {
+      points: [
+        new Vector3(-CELL_SIZE / 2, 0, -CELL_SIZE / 2),
+        new Vector3(CELL_SIZE / 2, 0, -CELL_SIZE / 2),
+        new Vector3(CELL_SIZE / 2, 0, CELL_SIZE / 2),
+        new Vector3(-CELL_SIZE / 2, 0, CELL_SIZE / 2),
+        new Vector3(-CELL_SIZE / 2, 0, -CELL_SIZE / 2),
+      ],
+    }, this.s);
+    this.highlightEdge.color = new Color3(0.75, 1, 0.92);
+    this.highlightEdge.alpha = 0.95;
+    this.highlightEdge.position = new Vector3(0, 0.03, 0);
+    this.highlightEdge.isPickable = false;
+    this.highlightEdge.setEnabled(false);
+
+    this.mark = MeshBuilder.CreateGround('cellMark', {
+      width: CELL_SIZE * 0.96,
+      height: CELL_SIZE * 0.96,
+    }, this.s);
+    const markMat = new StandardMaterial('cellMarkMat', this.s);
+    markMat.diffuseColor = new Color3(0.85, 0.22, 0.18);
+    markMat.emissiveColor = new Color3(0.6, 0.12, 0.1);
+    markMat.alpha = 0.45;
+    this.mark.material = markMat;
+    this.mark.position = new Vector3(0, 0.03, 0);
+    this.mark.isPickable = false;
+    this.mark.setEnabled(false);
+
+    return this.highlight;
   }
 
-  createGridLines(width, depth) {
-    const halfW = width / 2;
-    const halfD = depth / 2;
-    const points = [];
-
-    for (let x = -halfW; x <= halfW + 0.001; x += CELL_SIZE) {
-      points.push([new Vector3(x, 0.01, -halfD), new Vector3(x, 0.01, halfD)]);
-    }
-    for (let z = -halfD; z <= halfD + 0.001; z += CELL_SIZE) {
-      points.push([new Vector3(-halfW, 0.01, z), new Vector3(halfW, 0.01, z)]);
-    }
-
-    const lines = MeshBuilder.CreateLineSystem('gridLines', { lines: points }, this.s);
-    lines.color = new Color3(0.28, 0.4, 0.38);
-    lines.isPickable = false;
-    lines.alpha = 0.55;
-    return lines;
-  }
-
-  setHighlight(cx, cz) {
-    this.highlight.position = new Vector3(cx * CELL_SIZE, 0.02, cz * CELL_SIZE);
+  setHighlight(cx, cz, topY = 0) {
+    const x = cx * CELL_SIZE;
+    const z = cz * CELL_SIZE;
+    this.highlight.position = new Vector3(x, topY + 0.02, z);
     this.highlight.setEnabled(true);
+    this.highlightEdge.position = new Vector3(x, topY + 0.05, z);
+    this.highlightEdge.setEnabled(true);
   }
 
   hideHighlight() {
     this.highlight.setEnabled(false);
+    this.highlightEdge.setEnabled(false);
   }
 
   setHighlightValid(isValid) {
     if (isValid) {
-      this.highlightMaterial.diffuseColor = new Color3(0.35, 0.78, 0.67);
-      this.highlightMaterial.emissiveColor = new Color3(0.22, 0.5, 0.42);
+      this.highlightMaterial.diffuseColor = new Color3(0.35, 0.95, 0.8);
+      this.highlightMaterial.emissiveColor = new Color3(0.3, 0.78, 0.65);
+      this.highlightEdge.color = new Color3(0.75, 1, 0.92);
     } else {
-      this.highlightMaterial.diffuseColor = new Color3(0.8, 0.32, 0.28);
-      this.highlightMaterial.emissiveColor = new Color3(0.5, 0.18, 0.15);
+      this.highlightMaterial.diffuseColor = new Color3(0.95, 0.38, 0.32);
+      this.highlightMaterial.emissiveColor = new Color3(0.72, 0.24, 0.2);
+      this.highlightEdge.color = new Color3(1, 0.7, 0.62);
     }
+  }
+
+  showBrush(cells, surfaceAt, erasing) {
+    if (!this.brushMaster) {
+      this.brushMaster = MeshBuilder.CreateGround('brushMaster', {
+        width: CELL_SIZE * 0.92,
+        height: CELL_SIZE * 0.92,
+      }, this.s);
+      const mat = new StandardMaterial('brushMasterMat', this.s);
+      mat.diffuseColor = new Color3(0.35, 0.95, 0.8);
+      mat.emissiveColor = new Color3(0.3, 0.78, 0.65);
+      mat.alpha = 0.42;
+      this.brushMaster.material = mat;
+      this.brushMaster.isPickable = false;
+      this.brushMaster.setEnabled(false);
+      this.brushMaterial = mat;
+      this.brushInstances = [];
+    }
+    const tint = erasing ? new Color3(0.95, 0.38, 0.32) : new Color3(0.35, 0.95, 0.8);
+    const glow = erasing ? new Color3(0.72, 0.24, 0.2) : new Color3(0.3, 0.78, 0.65);
+    this.brushMaterial.diffuseColor = tint;
+    this.brushMaterial.emissiveColor = glow;
+
+    for (const inst of this.brushInstances) inst.dispose();
+    this.brushInstances = [];
+
+    let first = true;
+    for (const [cx, cz] of cells) {
+      const x = cx * CELL_SIZE;
+      const z = cz * CELL_SIZE;
+      const y = surfaceAt(cx, cz) + 0.04;
+      if (first) {
+        this.brushMaster.position = new Vector3(x, y, z);
+        this.brushMaster.setEnabled(true);
+        first = false;
+        continue;
+      }
+      const inst = this.brushMaster.createInstance(`brush_${cx}_${cz}`);
+      inst.position = new Vector3(x, y, z);
+      inst.isPickable = false;
+      this.brushInstances.push(inst);
+    }
+    if (first) this.brushMaster.setEnabled(false);
+  }
+
+  clearBrush() {
+    for (const inst of this.brushInstances || []) inst.dispose();
+    this.brushInstances = [];
+    if (this.brushMaster) this.brushMaster.setEnabled(false);
+  }
+
+  showZones(groups, surfaceAt) {
+    if (!this.zonesMasters.length) {
+      for (let slot = 0; slot < 3; slot++) {
+        const master = MeshBuilder.CreateGround(`zonesMaster_${slot}`, {
+          width: CELL_SIZE * 0.9,
+          height: CELL_SIZE * 0.9,
+        }, this.s);
+        const mat = new StandardMaterial(`zonesMaterial_${slot}`, this.s);
+        mat.disableLighting = true;
+        master.material = mat;
+        master.isPickable = false;
+        master.setEnabled(false);
+        this.zonesMasters[slot] = master;
+        this.zonesMaterials[slot] = mat;
+        this.zonesPool[slot] = [];
+      }
+    }
+
+    for (const master of this.zonesMasters) master.setEnabled(false);
+    for (const pool of this.zonesPool) {
+      for (const inst of pool) inst.setEnabled(false);
+    }
+
+    let slot = 0;
+    for (const group of groups || []) {
+      const cells = group.cells || [];
+      if (!cells.length) continue;
+
+      const master = this.zonesMasters[slot];
+      const mat = this.zonesMaterials[slot];
+      const pool = this.zonesPool[slot];
+
+      mat.diffuseColor = group.color;
+      mat.emissiveColor = group.glow;
+      mat.alpha = group.alpha === undefined ? 0.38 : group.alpha;
+
+      let used = 0;
+      let masterUsed = false;
+      for (const [cx, cz] of cells) {
+        const x = cx * CELL_SIZE;
+        const z = cz * CELL_SIZE;
+        const y = surfaceAt(cx, cz) + group.lift;
+        if (!masterUsed) {
+          master.position = new Vector3(x, y, z);
+          master.setEnabled(true);
+          masterUsed = true;
+          continue;
+        }
+        if (used >= pool.length) {
+          const inst = master.createInstance(`zone_${slot}_${pool.length}`);
+          inst.isPickable = false;
+          pool.push(inst);
+        }
+        const inst = pool[used];
+        inst.position = new Vector3(x, y, z);
+        inst.setEnabled(true);
+        used++;
+      }
+      slot++;
+    }
+  }
+
+  showDraftCells(cells, surfaceAt) {
+    if (!this.draftLinesMaster) {
+      this.draftLinesMaster = MeshBuilder.CreateLines('draftEdgeMaster', {
+        points: this.cellSquare(),
+      }, this.s);
+      this.draftLinesMaster.color = new Color3(0.75, 1, 0.95);
+      this.draftLinesMaster.alpha = 1;
+      this.draftLinesMaster.isPickable = false;
+      this.draftLinesMaster.setEnabled(false);
+      this.draftEdgePool = [];
+    }
+
+    for (const line of this.draftEdgePool) line.setEnabled(false);
+    let used = 0;
+    let masterUsed = false;
+
+    for (const [cx, cz] of cells || []) {
+      const x = cx * CELL_SIZE;
+      const z = cz * CELL_SIZE;
+      const y = surfaceAt(cx, cz) + 0.07;
+      if (!masterUsed) {
+        this.draftLinesMaster.position = new Vector3(x, y, z);
+        this.draftLinesMaster.setEnabled(true);
+        masterUsed = true;
+        continue;
+      }
+      if (used >= this.draftEdgePool.length) {
+        const line = this.draftLinesMaster.clone(`draftEdge_${this.draftEdgePool.length}`);
+        line.isPickable = false;
+        this.draftEdgePool.push(line);
+      }
+      const line = this.draftEdgePool[used];
+      line.position = new Vector3(x, y, z);
+      line.setEnabled(true);
+      used++;
+    }
+
+    if (!masterUsed) this.draftLinesMaster.setEnabled(false);
+  }
+
+  clearDraftCells() {
+    for (const line of this.draftEdgePool || []) line.setEnabled(false);
+    if (this.draftLinesMaster) this.draftLinesMaster.setEnabled(false);
+  }
+
+  cellSquare() {
+    const h = CELL_SIZE * 0.45;
+    return [
+      new Vector3(-h, 0, -h),
+      new Vector3(h, 0, -h),
+      new Vector3(h, 0, h),
+      new Vector3(-h, 0, h),
+      new Vector3(-h, 0, -h),
+    ];
+  }
+
+  clearZones() {
+    for (const master of this.zonesMasters || []) master.setEnabled(false);
+    for (const pool of this.zonesPool || []) {
+      for (const inst of pool) inst.setEnabled(false);
+    }
+  }
+
+  setMark(cx, cz) {
+    this.mark.position = new Vector3(cx * CELL_SIZE, 0.03, cz * CELL_SIZE);
+    this.mark.setEnabled(true);
+  }
+
+  clearMark() {
+    this.mark.setEnabled(false);
   }
 }

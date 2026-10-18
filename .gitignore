@@ -8,6 +8,9 @@ dist
 # Dočasné pracovní soubory
 tools/_temp/
 
+# Zdrojové Kenney packy (mimo build, necommitují se)
+_sources/
+
 # Zálohy
 *.bak
 _backup/

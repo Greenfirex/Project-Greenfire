@@ -13,6 +13,7 @@ npm run dev      # http://localhost:5174
 
 | Vstup | Akce |
 |---|---|
+| **W A S D / šipky** | Pohyb postavy (vzhledem ke kameře) |
 | **Tažení levým tlačítkem** | Rotace kamery |
 | **Kolečko** | Zoom |
 | **Klik na zem** | Postavení stroje na buňku mřížky |
@@ -26,7 +27,7 @@ npm run dev      # http://localhost:5174
 src/
   main.js                    engine, plátno, render loop
   scenes/GameScene.js        orchestrátor — stav světa, delegace na systémy
-  systems/                   camera, grid, input, build, save
+  systems/                   camera, grid, input, build, save, player
   data/catalogs/             machines, items, saveSchema (jen deklarace)
   ui/hud.js                  DOM HUD nad plátnem
   utils/                     gridMath, storage
@@ -40,6 +41,7 @@ src/
 ## Stav projektu
 
 Funkční: izometrická ortho kamera, mřížka, hover zvýraznění, stavba strojů
-(placeholder boxy), ukládání/načítání do localStorage.
+(placeholder boxy), hratelná postava s animacemi idle/run (WASD/šipky),
+ukládání/načítání do localStorage.
 
 Další kroky: Kenney modely místo boxů, pásy, recepty, tick-based simulace.

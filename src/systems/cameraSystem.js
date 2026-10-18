@@ -62,6 +62,20 @@ export default class CameraSystem {
     this.camera.alpha += alphaDelta;
   }
 
+  follow(x, z, dt) {
+    if (!this.camera) return;
+    const k = 1 - Math.pow(0.001, Math.min(0.25, Math.max(0, dt)));
+    this.target.x += (x - this.target.x) * k;
+    this.target.z += (z - this.target.z) * k;
+    this.target.y += (0 - this.target.y) * k;
+    this.camera.setTarget(this.target);
+  }
+
+  snapTo(x, z) {
+    this.target.set(x, 0, z);
+    if (this.camera) this.camera.setTarget(this.target);
+  }
+
   onResize() {
     this.applyOrtho();
   }

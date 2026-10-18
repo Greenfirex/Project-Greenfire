@@ -1,8 +1,7 @@
-// Zpracování vstupu — rotace kamery tažením, zoom kolečkem, klik a hover na zemi.
-// Vystavuje callbacky do scény, sám nezná stav hry.
+// Zpracování vstupu — rotace kamery středním tlačítkem, zoom kolečkem, klik a tažení na zemi.
+// Levá klávesa kreslí (editor) nebo kliká (hra), pravá maže, kontextové menu prohlížeče potlačujeme.
 import '@babylonjs/core/Culling/ray';
 import { PointerEventTypes } from '@babylonjs/core/Events/pointerEvents';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { worldToCellCoords } from '../utils/gridMath.js';
 
 const ROTATE_SPEED = 0.006;
@@ -12,11 +11,16 @@ export default class InputSystem {
 
   constructor(scene) {
     this.s = scene;
-    this.dragging = false;
-    this.dragMoved = false;
+    this.rotating = false;
+    this.painting = false;
     this.lastX = 0;
+    this.lastCell = null;
     this.onHoverCell = null;
-    this.onCellClick = null;
+    this.onCellRightClick = null;
+    this.onPaintStart = null;
+    this.onPaintMove = null;
+    this.onPaintEnd = null;
+    this.groundPredicate = null;
   }
 
   attach(camera) {
@@ -27,32 +31,54 @@ export default class InputSystem {
       const type = info.type;
 
       if (type === PointerEventTypes.POINTERDOWN) {
+        if (evt.button === 2) {
+          this.handleRightClick();
+          return;
+        }
+        if (evt.button === 1) {
+          this.rotating = true;
+          this.lastX = evt.clientX;
+          evt.preventDefault();
+          return;
+        }
         if (evt.button !== 0) return;
-        this.dragging = true;
-        this.dragMoved = false;
-        this.lastX = evt.clientX;
+        this.painting = true;
+        this.lastCell = null;
+        const cell = this.cellAtPointer();
+        if (cell) {
+          this.lastCell = cell;
+          if (this.onPaintStart) this.onPaintStart(cell);
+        }
         return;
       }
 
       if (type === PointerEventTypes.POINTERUP) {
+        if (evt.button === 1) {
+          this.rotating = false;
+          return;
+        }
         if (evt.button !== 0) return;
-        const wasDrag = this.dragMoved;
-        this.dragging = false;
-        this.dragMoved = false;
-        if (!wasDrag) this.handleClick();
+        this.painting = false;
+        this.lastCell = null;
+        if (this.onPaintEnd) this.onPaintEnd();
         return;
       }
 
       if (type === PointerEventTypes.POINTERMOVE) {
-        if (this.dragging) {
+        if (this.rotating) {
           const dx = evt.clientX - this.lastX;
           this.lastX = evt.clientX;
-          if (Math.abs(dx) > 0) {
-            this.dragMoved = this.dragMoved || Math.abs(dx) >= DRAG_THRESHOLD;
-            this.camera.alpha += dx * ROTATE_SPEED;
+          if (Math.abs(dx) >= DRAG_THRESHOLD) this.camera.alpha += dx * ROTATE_SPEED;
+        }
+        const cell = this.cellAtPointer();
+        if (this.painting && cell && this.onPaintMove) {
+          const same = this.lastCell && this.lastCell.cx === cell.cx && this.lastCell.cz === cell.cz;
+          if (!same) {
+            this.lastCell = cell;
+            this.onPaintMove(cell);
           }
         }
-        this.handleHover();
+        if (this.onHoverCell) this.onHoverCell(cell);
         return;
       }
 
@@ -63,28 +89,25 @@ export default class InputSystem {
     });
   }
 
-  pickGround() {
-    const pick = this.s.pick(this.s.pointerX, this.s.pointerY, (mesh) => {
-      return mesh.name === 'gridGround';
-    });
+  suppressContextMenu(canvas) {
+    canvas.addEventListener('contextmenu', (evt) => evt.preventDefault());
+  }
+
+  pickGround(predicate) {
+    const pick = this.s.pick(this.s.pointerX, this.s.pointerY, predicate);
     if (!pick || !pick.hit || !pick.pickedPoint) return null;
     return pick.pickedPoint;
   }
 
-  handleHover() {
-    const point = this.pickGround();
-    if (!point) {
-      if (this.onHoverCell) this.onHoverCell(null);
-      return;
-    }
+  cellAtPointer() {
+    const point = this.pickGround(this.groundPredicate);
+    if (!point) return null;
     const { cx, cz } = worldToCellCoords(point.x, point.z);
-    if (this.onHoverCell) this.onHoverCell({ cx, cz, point });
+    return { cx, cz, point };
   }
 
-  handleClick() {
-    const point = this.pickGround();
-    if (!point) return;
-    const { cx, cz } = worldToCellCoords(point.x, point.z);
-    if (this.onCellClick) this.onCellClick({ cx, cz, point });
+  handleRightClick() {
+    const cell = this.cellAtPointer();
+    if (this.onCellRightClick) this.onCellRightClick(cell);
   }
 }

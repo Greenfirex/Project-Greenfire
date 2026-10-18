@@ -1,4 +1,4 @@
-// Načítání a cache 3D modelů strojů (Kenney GLB).
+// Načítání a cache 3D modelů (Kenney GLB).
 // Každý model se stáhne jednou, do scény se vkládá jeho klon.
 import '@babylonjs/core/Meshes/mesh';
 import '@babylonjs/core/Meshes/abstractMesh';
@@ -13,12 +13,13 @@ registerBuiltInLoaders();
 const MODEL_SCALE = CELL_SIZE;
 const cache = new Map();
 
-export function loadModel(scene, url) {
+export function loadModel(scene, url, onTemplate) {
   if (!cache.has(url)) {
     const promise = ImportMeshAsync(url, scene, { meshNames: null }).then((result) => {
       const root = new TransformNode('tplModel', scene);
       const kids = result.meshes.filter((m) => m.getTotalVertices && m.getTotalVertices() > 0);
       for (const mesh of kids) mesh.parent = root;
+      if (onTemplate) onTemplate(root);
       root.setEnabled(false);
       return root;
     }).catch((err) => {
@@ -36,6 +37,7 @@ export function instantiateModel(scene, template, name) {
   node.setEnabled(true);
   node.scaling = node.scaling.scale(MODEL_SCALE);
   for (const child of node.getChildMeshes()) {
+    child.setEnabled(true);
     child.isPickable = false;
     child.receiveShadows = true;
   }
