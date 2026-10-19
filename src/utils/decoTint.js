@@ -6,6 +6,7 @@ import '@babylonjs/core/Materials/standardMaterial';
 const TINT_KINDS = { floor: 'floorTile', path: 'floorTile', cliff: 'cliffTile', water: 'water' };
 const bySection = new Map();
 const shadeSerial = new Map();
+const builtMaterials = new Set();
 
 export function tintTemplate(template, def, colors, section = 'deco') {
   if (def.noTint || !colors) return;
@@ -30,10 +31,14 @@ export function tintTemplate(template, def, colors, section = 'deco') {
 
 export function forgetTints() {
   bySection.clear();
+  shadeSerial.clear();
+  for (const mat of builtMaterials) mat.dispose();
+  builtMaterials.clear();
 }
 
 function makeTinted(source, def, colors, key) {
   const mat = source.clone(`${source.name}_tint`);
+  builtMaterials.add(mat);
   if (def.tintColor) {
     const [r, g, b] = def.tintColor;
     const levels = def.tintShade && def.tintShade.length > 1 ? def.tintShade : [1];

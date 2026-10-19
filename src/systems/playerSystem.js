@@ -20,6 +20,9 @@ const ANIM_NAMES = {
   jump: 'Jump_Full_Short',
 };
 const ANIM_BLEND = 0.25;
+const BODY_RADIUS = 0.3;
+const SLIDE_LOOKAHEAD = 0.7;
+const SLIDE_MIN = 0.12;
 const MOVE_SPEED = 4.5;
 const WALK_SPEED = 2.4;
 const TURN_SPEED = 12;
@@ -47,6 +50,7 @@ export default class PlayerSystem {
     this.input = { forward: false, back: false, left: false, right: false, sprint: false };
     this.facing = 0;
     this.blockedTest = null;
+    this.decoSystem = null;
     this.ready = false;
   }
 
@@ -85,7 +89,6 @@ export default class PlayerSystem {
       if (node) nodeByName.set(bone.name, node);
     }
 
-    const speedRatio = 1 / this.s.getAnimationRatio();
     for (const url of ANIM_SOURCES) {
       const result = await ImportMeshAsync(url, this.s);
       for (const [key, name] of Object.entries(ANIM_NAMES)) {
@@ -96,7 +99,6 @@ export default class PlayerSystem {
         group.weight = 1;
         group.enableBlending = true;
         group.blendingSpeed = ANIM_BLEND;
-        group.speedRatio = speedRatio;
         this.anims[key] = group;
       }
       for (const group of result.animationGroups) group.stop();
@@ -110,20 +112,22 @@ export default class PlayerSystem {
   play(key) {
     const group = this.anims[key];
     if (!group || this.currentKey === key) return;
-    this.clearPose(group);
+    if (this.current && this.current !== group) this.current.stop();
+    for (const [otherKey, other] of Object.entries(this.anims)) {
+      if (otherKey === key) continue;
+      for (const animatable of other.animatables) {
+        for (const runtime of animatable.getAnimations()) runtime.stop(false);
+      }
+    }
     group.start(true, group.speedRatio, group.from, group.to);
     this.current = group;
     this.currentKey = key;
   }
 
-  clearPose(keep) {
-    for (const group of Object.values(this.anims)) {
-      if (group === keep) continue;
-      if (group.isStarted) group.stop();
-      for (const animatable of group.animatables) {
-        for (const runtime of animatable.getAnimations()) runtime.stop(false);
-      }
-    }
+  ensurePlaying() {
+    const group = this.current;
+    if (!group || group.isStarted) return;
+    group.restart();
   }
 
   bindKeys() {
@@ -139,13 +143,55 @@ export default class PlayerSystem {
     this.input[action] = down;
   }
 
-  canStand(x, z) {
-    if (this.blockedTest && this.blockedTest(x, z)) return false;
+  free(x, z) {
+    const { cx, cz } = worldToCellCoords(x, z);
+    if (this.blockedTest && this.blockedTest(cx, cz)) return false;
+    if (this.decoSystem && this.decoSystem.overlaps(x, z, BODY_RADIUS)) return false;
     return true;
+  }
+
+  tryMove(x, z, dirX, dirZ, step) {
+    if (this.free(x, z)) {
+      this.root.position = new Vector3(x, 0, z);
+      return true;
+    }
+    const startX = this.root.position.x;
+    const startZ = this.root.position.z;
+    if (!this.decoSystem) return false;
+    const contact = this.decoSystem.nearestContact(startX, startZ, BODY_RADIUS, SLIDE_LOOKAHEAD);
+    if (!contact) return false;
+    const dot = dirX * contact.nx + dirZ * contact.nz;
+    if (dot >= 0) return false;
+    const slideX = dirX - contact.nx * dot;
+    const slideZ = dirZ - contact.nz * dot;
+    const length = Math.sqrt(slideX * slideX + slideZ * slideZ);
+    if (length < SLIDE_MIN) return false;
+    const sx = slideX / length;
+    const sz = slideZ / length;
+    for (const scale of [1, 0.8, 0.6, 0.4]) {
+      const ax = startX + sx * step * scale;
+      const az = startZ + sz * step * scale;
+      if (this.free(ax, az)) {
+        this.root.position = new Vector3(ax, 0, az);
+        return true;
+      }
+    }
+    if (!this.free(startX, startZ)) return false;
+    for (const scale of [1, 0.8, 0.6, 0.4]) {
+      const ax = startX + sx * step * scale;
+      const az = startZ + sz * step * scale;
+      const next = this.decoSystem.nearestContact(ax, az, BODY_RADIUS, 0);
+      if (!next || next.gap >= contact.gap - 0.001) {
+        this.root.position = new Vector3(ax, 0, az);
+        return true;
+      }
+    }
+    return false;
   }
 
   update(dt) {
     if (!this.ready || !this.root) return;
+    this.ensurePlaying();
 
     const camera = this.s.activeCamera;
     const forward = this.cameraForward(camera);
@@ -164,16 +210,8 @@ export default class PlayerSystem {
 
     move.normalize();
     const sprint = this.input.sprint;
-    const speed = sprint ? MOVE_SPEED : WALK_SPEED;
-    const step = speed * dt;
-    const pos = this.root.position;
-    const nextX = pos.x + move.x * step;
-    const nextZ = pos.z + move.z * step;
-
-    const { cx, cz } = worldToCellCoords(nextX, nextZ);
-    if (this.canStand(cx, cz)) {
-      this.root.position = new Vector3(nextX, 0, nextZ);
-    }
+    const step = (sprint ? MOVE_SPEED : WALK_SPEED) * dt;
+    this.tryMove(this.root.position.x + move.x * step, this.root.position.z + move.z * step, move.x, move.z, step);
 
     const target = Math.atan2(move.x, move.z);
     this.facing = turnToward(this.facing, target, TURN_SPEED * dt);

@@ -4,7 +4,7 @@ import '@babylonjs/core/Meshes/transformNode';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Meshes/mesh';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { cellToWorldCoords, cellKey } from '../utils/gridMath.js';
+import { cellToWorldCoords, cellKey, CELL_SIZE } from '../utils/gridMath.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { loadModel, instantiateModel } from '../utils/assetLoader.js';
 import { tintTemplate, forgetTints } from '../utils/decoTint.js';
@@ -31,22 +31,22 @@ export default class DecoSystem {
   }
 
   create(layout, colors) {
-    forgetTints();
     this.dispose();
+    forgetTints();
     this.blocked.clear();
     this.columnTop.clear();
     this.colors = colors || null;
-    this.layout = layout;
+    this.applyLayout(layout);
+  }
 
+  applyLayout(layout) {
+    this.layout = layout;
     for (const entry of layout.floor || []) this.place(entry);
     this.buildPath();
     this.buildWater();
     for (const entry of layout.clearing || []) this.place(entry);
     for (const entry of layout.decorations || []) this.place(entry);
-
-    for (const cell of layout.blocked || []) {
-      this.blocked.set(cellKey(cell.cx, cell.cz), cell.radius);
-    }
+    this.refreshBlocked(layout);
   }
 
   buildPath() {
@@ -63,11 +63,19 @@ export default class DecoSystem {
     this.place(withLift(entry, PATH_LIFT), this.pathNodes, 'path');
   }
 
+  refreshBlocked(layout) {
+    this.blocked.clear();
+    for (const cell of layout.blocked || []) {
+      this.blocked.set(cellKey(cell.cx, cell.cz), cell.radius || CELL_SIZE / 2);
+    }
+  }
+
   updatePath(layout) {
     this.layout = layout;
     for (const node of this.pathNodes) if (node && !node.isDisposed()) node.dispose(false, false);
     this.pathNodes.length = 0;
     this.buildPath();
+    this.refreshBlocked(layout);
   }
 
   updateWater(layout) {
@@ -128,18 +136,24 @@ export default class DecoSystem {
     const anchor = new TransformNode(`deco_${entry.key}_${entry.cx}_${entry.cz}`, this.s);
     anchor.position = new Vector3(x + entry.offsetX, entry.liftY || 0, z + entry.offsetZ);
     anchor.rotation.y = (Math.PI / 2) * entry.rotation;
-    anchor.metadata = { key: entry.key, def };
+    anchor.metadata = { key: entry.key, def, bucket };
     bucket.push(anchor);
     return anchor;
   }
 
   dispose() {
-    for (const node of this.nodes) if (node && !node.isDisposed()) node.dispose(false, false);
-    for (const node of this.pathNodes) if (node && !node.isDisposed()) node.dispose(false, false);
-    for (const node of this.waterNodes) if (node && !node.isDisposed()) node.dispose(false, false);
+    for (const node of this.s.transformNodes.slice()) this.disposeAnchor(node);
     this.nodes.length = 0;
     this.pathNodes.length = 0;
     this.waterNodes.length = 0;
+  }
+
+  disposeAnchor(node) {
+    if (!node || node.isDisposed() || !node.name?.startsWith('deco_')) return;
+    const bucket = node.metadata?.bucket;
+    const index = bucket ? bucket.indexOf(node) : -1;
+    if (index >= 0) bucket.splice(index, 1);
+    node.dispose(false, false);
   }
 
   async attachModel(anchor, def, entry, section) {
@@ -157,6 +171,41 @@ export default class DecoSystem {
 
   isBlocked(cx, cz) {
     return this.blocked.has(cellKey(cx, cz));
+  }
+
+  overlaps(x, z, bodyRadius) {
+    const cx = Math.round(x / CELL_SIZE);
+    const cz = Math.round(z / CELL_SIZE);
+    for (let ix = cx - 1; ix <= cx + 1; ix++) {
+      for (let iz = cz - 1; iz <= cz + 1; iz++) {
+        const radius = this.blocked.get(cellKey(ix, iz));
+        if (radius === undefined) continue;
+        const dx = x - ix * CELL_SIZE;
+        const dz = z - iz * CELL_SIZE;
+        const reach = radius + bodyRadius;
+        if (dx * dx + dz * dz < reach * reach) return true;
+      }
+    }
+    return false;
+  }
+
+  nearestContact(x, z, bodyRadius, reachOut) {
+    const cx = Math.floor(x / CELL_SIZE);
+    const cz = Math.floor(z / CELL_SIZE);
+    let best = null;
+    for (let ix = cx - 2; ix <= cx + 2; ix++) {
+      for (let iz = cz - 2; iz <= cz + 2; iz++) {
+        const radius = this.blocked.get(cellKey(ix, iz));
+        if (radius === undefined) continue;
+        const dx = x - ix * CELL_SIZE;
+        const dz = z - iz * CELL_SIZE;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        const gap = dist - radius - bodyRadius;
+        if (gap > reachOut) continue;
+        if (!best || gap < best.gap) best = { nx: dx / (dist || 1), nz: dz / (dist || 1), radius, gap };
+      }
+    }
+    return best;
   }
 }
 

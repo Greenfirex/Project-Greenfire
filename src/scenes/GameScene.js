@@ -107,6 +107,11 @@ export default class GameScene {
     this.registerHudEvents();
 
     this.buildSystem.onMachineReady = (record, node) => {
+      const placeholder = record.mesh;
+      if (placeholder) {
+        const index = this.shadowCasters.indexOf(placeholder);
+        if (index >= 0) this.shadowCasters.splice(index, 1);
+      }
       for (const child of node.getChildMeshes()) this.addShadowCaster(child);
     };
 
@@ -127,15 +132,24 @@ export default class GameScene {
   }
 
   followPointer() {
-    if (!this.options.highlights || !this.decoHighlight.hasEntries()) return;
-    const cell = this.inputSystem.pointerInside()
-      ? this.inputSystem.cellAtPointer()
-      : null;
-    this.decoHighlight.setHover(cell);
+    if (!this.options.highlights) return;
+    if (!this.inputSystem.takeMoved()) return;
+    const inside = this.inputSystem.pointerInside();
+    if (!inside) {
+      this.decoHighlight.setHover(null);
+      return;
+    }
+    const pointer = this.inputSystem.lastCell;
+    if (pointer && this.decoHighlight.hasEntry(pointer.cx, pointer.cz)) {
+      this.decoHighlight.setHover(pointer);
+      return;
+    }
+    this.decoHighlight.setHover(this.inputSystem.cellAtPointer());
   }
 
   async setupPlayer() {
     this.playerSystem.blockedTest = (cx, cz) => this.buildSystem.isOccupied(cx, cz);
+    this.playerSystem.decoSystem = this.decoSystem;
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z);
     const root = await this.playerSystem.create();
     if (!root) return;
@@ -485,6 +499,16 @@ export default class GameScene {
     if (!mesh || this.shadowCasters.includes(mesh)) return;
     this.shadowCasters.push(mesh);
     if (this.options.shadows) this.shadowGenerator.addShadowCaster(mesh);
+  }
+
+  removeShadowCaster(mesh) {
+    const index = this.shadowCasters.indexOf(mesh);
+    if (index < 0) return;
+    this.shadowCasters.splice(index, 1);
+    const renderList = this.shadowGenerator.getShadowMap().renderList;
+    const listIndex = renderList ? renderList.indexOf(mesh) : -1;
+    if (listIndex >= 0) renderList.splice(listIndex, 1);
+    this.shadowGenerator.removeShadowCaster(mesh);
   }
 
   applyOptions() {
@@ -864,8 +888,7 @@ export default class GameScene {
     this.clearMark();
     const record = this.buildSystem.build(this.currentMachine, cell.cx, cell.cz, this.previewRotation);
     if (!record) return;
-    for (const child of record.mesh.getChildMeshes()) this.addShadowCaster(child);
-    this.addShadowCaster(record.mesh);
+    if (!record.node) this.addShadowCaster(record.mesh);
     record.mesh.receiveShadows = true;
     this.hud.setCount(this.buildSystem.count);
     this.hud.setSaveHint('Neuloženo');
@@ -894,7 +917,7 @@ export default class GameScene {
 
     if (result.removed) {
       this.gridSystem.clearMark();
-      this.refreshShadowCasters();
+      this.dropShadowCasters(result.removed);
       this.hud.setCount(this.buildSystem.count);
       this.hud.setSaveHint(`Zbouráno: ${getMachine(result.removed.type).displayName}`);
       this.handleHover(this.hoverCell);
@@ -937,19 +960,20 @@ export default class GameScene {
     this.hud.setSaveHint(ok ? 'Načteno ✓' : 'Žádný save');
   }
 
-  refreshShadowCasters() {
-    if (this.shadowCasters.length) {
-      this.shadowGenerator.getShadowMap().renderList = this.options.shadows ? this.shadowCasters.slice() : [];
-      return;
+  dropShadowCasters(record) {
+    const meshes = record.node ? record.node.getChildMeshes() : [record.mesh];
+    for (const mesh of meshes) {
+      const caster = this.shadowCasters.find((item) => item === mesh);
+      if (caster) this.removeShadowCaster(caster);
     }
-    for (const record of this.buildSystem.machines.values()) {
-      if (record.node) {
-        for (const child of record.node.getChildMeshes()) this.shadowGenerator.addShadowCaster(child);
-      } else {
-        this.shadowGenerator.addShadowCaster(record.mesh);
-      }
-    }
+    this.refreshShadowCasters();
   }
+
+  refreshShadowCasters() {
+    this.shadowCasters = this.shadowCasters.filter((mesh) => mesh && !mesh.isDisposed());
+    this.shadowGenerator.getShadowMap().renderList = this.options.shadows ? this.shadowCasters.slice() : [];
+  }
+
 
   onResize() {
     this.cameraSystem.onResize();

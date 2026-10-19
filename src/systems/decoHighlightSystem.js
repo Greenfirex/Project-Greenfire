@@ -35,6 +35,8 @@ export default class DecoHighlightSystem {
     const cfg = def && def.highlight;
     if (!cfg) return;
     const key = cellKey(entry.cx, entry.cz);
+    const existing = this.records.get(key);
+    if (existing) this.disposeRecord(existing);
     const ring = this.createRing(`hl_${entry.key}_${entry.cx}_${entry.cz}`, cfg);
     const record = {
       ring,
@@ -73,8 +75,8 @@ export default class DecoHighlightSystem {
     return disc;
   }
 
-  hasEntries() {
-    return this.records.size > 0;
+  hasEntry(cx, cz) {
+    return this.records.has(cellKey(cx, cz));
   }
 
   setHover(cell) {
@@ -116,8 +118,13 @@ export default class DecoHighlightSystem {
   }
 
   clear() {
-    for (const record of this.records.values()) record.ring.dispose();
+    for (const record of this.records.values()) this.disposeRecord(record);
     this.records.clear();
     this.hoverCell = null;
+  }
+
+  disposeRecord(record) {
+    if (record.ringMaterial) record.ringMaterial.dispose();
+    record.ring.dispose();
   }
 }

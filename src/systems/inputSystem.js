@@ -21,6 +21,9 @@ export default class InputSystem {
     this.onPaintMove = null;
     this.onPaintEnd = null;
     this.groundPredicate = null;
+    this.pointerMoved = true;
+    this.lastMoveX = null;
+    this.lastMoveY = null;
   }
 
   attach(camera) {
@@ -65,6 +68,11 @@ export default class InputSystem {
       }
 
       if (type === PointerEventTypes.POINTERMOVE) {
+        if (this.lastMoveX !== evt.clientX || this.lastMoveY !== evt.clientY) {
+          this.lastMoveX = evt.clientX;
+          this.lastMoveY = evt.clientY;
+          this.pointerMoved = true;
+        }
         if (this.rotating) {
           const dx = evt.clientX - this.lastX;
           this.lastX = evt.clientX;
@@ -91,6 +99,12 @@ export default class InputSystem {
 
   suppressContextMenu(canvas) {
     canvas.addEventListener('contextmenu', (evt) => evt.preventDefault());
+  }
+
+  takeMoved() {
+    const moved = this.pointerMoved;
+    this.pointerMoved = false;
+    return moved;
   }
 
   pickGround(predicate) {
