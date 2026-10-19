@@ -20,6 +20,9 @@ export default class InputSystem {
     this.onPaintStart = null;
     this.onPaintMove = null;
     this.onPaintEnd = null;
+    this.onLeftDown = null;
+    this.onLeftUp = null;
+    this.leftDown = false;
     this.groundPredicate = null;
     this.pointerMoved = true;
     this.lastMoveX = null;
@@ -47,6 +50,8 @@ export default class InputSystem {
         if (evt.button !== 0) return;
         this.painting = true;
         this.lastCell = null;
+        this.leftDown = true;
+        if (this.onLeftDown) this.onLeftDown();
         const cell = this.cellAtPointer();
         if (cell) {
           this.lastCell = cell;
@@ -63,6 +68,8 @@ export default class InputSystem {
         if (evt.button !== 0) return;
         this.painting = false;
         this.lastCell = null;
+        this.leftDown = false;
+        if (this.onLeftUp) this.onLeftUp();
         if (this.onPaintEnd) this.onPaintEnd();
         return;
       }

@@ -117,6 +117,14 @@ export default class DecoHighlightSystem {
     }
   }
 
+  remove(cx, cz) {
+    const key = cellKey(cx, cz);
+    const existing = this.records.get(key);
+    if (existing) this.disposeRecord(existing);
+    this.records.delete(key);
+    if (this.hoverCell === key) this.hoverCell = null;
+  }
+
   clear() {
     for (const record of this.records.values()) this.disposeRecord(record);
     this.records.clear();

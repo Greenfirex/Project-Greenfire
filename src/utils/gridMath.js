@@ -2,6 +2,10 @@
 // Jediné místo, které zná velikost buňky — zbytek kódu se ptá tady.
 export const CELL_SIZE = 2;
 
+function cellIndex(value) {
+  return Math.floor(value / CELL_SIZE);
+}
+
 export function worldToCell(value) {
   return Math.round(value / CELL_SIZE);
 }
@@ -16,6 +20,10 @@ export function snapToCell(value) {
 
 export function worldToCellCoords(x, z) {
   return { cx: worldToCell(x), cz: worldToCell(z) };
+}
+
+export function indexToCellCoords(x, z) {
+  return { cx: cellIndex(x), cz: cellIndex(z) };
 }
 
 export function cellToWorldCoords(cx, cz) {

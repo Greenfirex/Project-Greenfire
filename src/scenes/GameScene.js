@@ -20,6 +20,11 @@ import InputSystem from '../systems/inputSystem.js';
 import PlayerSystem from '../systems/playerSystem.js';
 import BuildSystem from '../systems/buildSystem.js';
 import SaveSystem from '../systems/saveSystem.js';
+import GatherSystem from '../systems/gatherSystem.js';
+import InventorySystem from '../systems/inventorySystem.js';
+import HeldItemSystem from '../systems/heldItemSystem.js';
+import AudioSystem from '../systems/audioSystem.js';
+import InventoryPanel from '../ui/inventoryPanel.js';
 import Hud from '../ui/hud.js';
 import Hotbar from '../ui/hotbar.js';
 import EditorMode from '../systems/editorMode.js';
@@ -27,7 +32,8 @@ import EditorHud from '../ui/editorHud.js';
 import BrushPanel from '../ui/brushPanel.js';
 import TileThumbnails from '../ui/tileThumbnails.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
-import { worldToCellCoords } from '../utils/gridMath.js';
+import { HOTBAR_ITEMS } from '../data/catalogs/items.js';
+import { worldToCellCoords, worldToCell } from '../utils/gridMath.js';
 import { getBrush } from '../data/catalogs/brushes.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { SAVE_DEFAULTS, SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
@@ -45,7 +51,15 @@ const AUTOTUNE_HIGH_FPS = 57;
 const AUTOTUNE_MIN_SCALE = 0.7;
 const AUTOTUNE_STEP = 0.1;
 const BUILD_RANGE_CELLS = 2;
+const IMPACT_DELAY = 0.28;
 
+
+function surfaceStepSound(key) {
+  const name = String(key || '').toLowerCase();
+  if (/wood|plank|bridge|deck|board/.test(name)) return 'stepWood';
+  if (/path|stone|rock|cobble|brick|tile|pavement|gravel/.test(name)) return 'stepStone';
+  return 'stepGrass';
+}
 
 export default class GameScene {
 
@@ -65,9 +79,13 @@ export default class GameScene {
     this.inputSystem = new InputSystem(scene);
     this.playerSystem = new PlayerSystem(scene);
     this.buildSystem = new BuildSystem(scene);
+    this.gatherSystem = new GatherSystem(scene);
+    this.audioSystem = new AudioSystem(scene);
+    this.inventorySystem = new InventorySystem();
     this.saveSystem = new SaveSystem(this);
     this.hud = new Hud();
     this.hotbar = new Hotbar();
+    this.inventoryPanel = new InventoryPanel();
     this.editorMode = new EditorMode();
     this.lastPaintCell = null;
     this.editorHud = new EditorHud();
@@ -86,12 +104,19 @@ export default class GameScene {
     this.shadowGenerator = null;
     this.currentMachine = DEFAULT_MACHINE;
     this.previewRotation = 0;
-    this.heldTool = null;
+    this.heldItemSystem = new HeldItemSystem();
+    this.heldItemSystem.onChange = () => this.onHeldItemChange();
+    this.playerSystem.onStep = (x, z, sprint) => this.onPlayerStep(x, z, sprint);
+    this.unlockAudio = () => this.audioSystem.unlock();
+    window.addEventListener('pointerdown', this.unlockAudio);
+    window.addEventListener('keydown', this.unlockAudio, { once: true });
     this.hoverCell = null;
     this.mapLayout = null;
+    this.impactTimer = 0;
   }
 
   start() {
+    this.audioSystem.load();
     this.setupLighting();
     this.camera = this.cameraSystem.create();
     this.setupTerrain();
@@ -105,6 +130,8 @@ export default class GameScene {
     this.setupInput();
     this.setupSave();
     this.registerHudEvents();
+    this.heldItemSystem.apply(SAVE_DEFAULTS.heldItem);
+    if (this.saveSystem.load()) this.heldItemSystem.set(this.heldItemSystem.key || SAVE_DEFAULTS.heldItem.key);
 
     this.buildSystem.onMachineReady = (record, node) => {
       const placeholder = record.mesh;
@@ -121,6 +148,7 @@ export default class GameScene {
       this.followPointer();
       this.decoHighlight.update(dt);
       this.playerSystem.update(dt);
+      this.updateGathering(dt);
       const root = this.playerSystem.root;
       if (root) this.cameraSystem.follow(root.position.x, root.position.z, dt);
       this.autoTune(dt);
@@ -128,7 +156,8 @@ export default class GameScene {
 
     this.engine.runRenderLoop(() => this.s.render());
     this.hud.setMachine(getMachine(this.currentMachine).displayName);
-    this.hotbar.setHeld(this.heldTool);
+    this.hotbar.setSelected(this.heldItemSystem.key);
+    this.inventoryPanel.update(this.inventorySystem);
   }
 
   followPointer() {
@@ -147,10 +176,93 @@ export default class GameScene {
     this.decoHighlight.setHover(this.inputSystem.cellAtPointer());
   }
 
+  updateGathering(dt) {
+    const active = !this.editorMode.active && !this.isBuilding();
+    this.gatherSystem.setPlayer(active ? this.playerSystem : null);
+    this.gatherSystem.setTool(this.heldItemSystem.tool());
+    this.gatherSystem.update(dt, this.playerSystem);
+    if (active) this.holdStrikeReady();
+    this.updateGatherImpact(dt);
+    const target = active ? this.gatherSystem.target : null;
+    this.hotbar.setPrompt(target ? this.describeGatherTarget(target) : '');
+  }
+
+  updateGatherImpact(dt) {
+    const pending = this.gatherSystem.pending;
+    if (!pending) {
+      this.impactTimer = 0;
+      return;
+    }
+    this.impactTimer += dt;
+    if (this.impactTimer < (pending.delay || IMPACT_DELAY)) return;
+    this.impactTimer = 0;
+    const impact = this.gatherSystem.resolvePending();
+    if (impact) this.onGatherImpact(impact);
+  }
+
+  updateGatherTarget() {
+    this.gatherSystem.setPlayer(this.playerSystem);
+    this.gatherSystem.setTool(this.heldItemSystem.tool());
+    this.gatherSystem.update(0, this.playerSystem);
+  }
+
+  handleLeftDown() {
+    if (this.editorMode.active || this.isBuilding()) return;
+    this.updateGatherTarget();
+    if (!this.gatherSystem.target) return;
+    this.strikeGather();
+  }
+
+  describeGatherTarget(target) {
+    const verb = target.def.kind === 'tree' ? 'kácet' : 'těžit';
+    if (target.def.kind === 'ore') return `Levé tlačítko — ${verb} ${target.def.displayName} (${target.left} úderů)`;
+    return `Levé tlačítko — ${verb} ${target.def.displayName} (${target.left}/${target.total})`;
+  }
+
+  strikeGather() {
+    const pick = this.s.pick(this.s.pointerX, this.s.pointerY, (mesh) => mesh === this.terrainSystem.ground);
+    if (pick && !pick.hit) return false;
+    return this.gatherSystem.beginHit();
+  }
+
+  holdStrikeReady() {
+    if (!this.inputSystem.leftDown || this.isBuilding() || this.editorMode.active) return false;
+    const gather = this.gatherSystem;
+    if (!gather.target || gather.cooldown > 0 || gather.pending) return false;
+    return this.strikeGather();
+  }
+
+  onPlayerStep(x, z, sprint) {
+    const key = this.decoSystem.surfaceKeyAt(worldToCell(x), worldToCell(z)) || '';
+    this.audioSystem.play(surfaceStepSound(key), { gain: sprint ? 1.35 : 1 });
+  }
+
+  onGatherImpact(result) {
+    this.audioSystem.play(result.sound);
+    if (!result.exhausted) return;
+    const cell = { cx: result.item.entry.cx, cz: result.item.entry.cz };
+    const yields = this.gatherSystem.takeYield();
+    if (!yields) return;
+    if (result.item.def.kind === 'tree') this.audioSystem.play('fall');
+    this.releaseGatherCell(cell);
+    for (const { itemKey, amount } of yields) this.inventorySystem.add(itemKey, amount);
+    this.inventoryPanel.update(this.inventorySystem);
+  }
+
+  releaseGatherCell(cell) {
+    this.decoHighlight.remove(cell.cx, cell.cz);
+    this.decoSystem.releaseCell(cell.cx, cell.cz);
+    if (this.inputSystem.lastCell && this.inputSystem.lastCell.cx === cell.cx && this.inputSystem.lastCell.cz === cell.cz) {
+      this.decoHighlight.setHover(null);
+    }
+  }
+
   async setupPlayer() {
     this.playerSystem.blockedTest = (cx, cz) => this.buildSystem.isOccupied(cx, cz);
     this.playerSystem.decoSystem = this.decoSystem;
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z);
+    await this.playerSystem.loadTools();
+    this.playerSystem.setHeldTool(this.heldItemSystem.key);
     const root = await this.playerSystem.create();
     if (!root) return;
     for (const child of root.getChildMeshes()) this.addShadowCaster(child);
@@ -184,6 +296,7 @@ export default class GameScene {
         if (def.castsShadow) this.addShadowCaster(child);
       }
       this.decoHighlight.add(entry, node, def);
+      this.gatherSystem.addEntry(entry, def, anchor);
     };
 
     this.editorMode.onRegenerate = (editorLayout) => this.renderMapLayout(editorLayout);
@@ -392,18 +505,44 @@ export default class GameScene {
   }
 
   renderMapLayout(editorLayout) {
+    const exhausted = this.gatherSystem.exhaustedCells();
+    this.gatherSystem.clear();
     const map = getMap(this.mapKey);
     this.mapLayout = editorLayout;
+    this.editorMode.layout = editorLayout;
     const layout = generateLayout(this.mapKey, editorLayout);
     if (this.decoSystem.canUpdatePath(editorLayout)) {
-      this.decoSystem.updatePath(layout);
-      this.decoSystem.updateWater(layout);
-      this.decoSystem.rememberLayout(editorLayout);
+      this.restoreGatherEntries(exhausted);
       return;
     }
     this.decoHighlight.clear();
     this.decoSystem.create(layout, map.colors);
     this.decoSystem.rememberLayout(editorLayout);
+    this.restoreGatherEntries(exhausted);
+  }
+
+  restoreExhaustedGather() {
+    for (const cell of this.gatherSystem.exhaustedCells()) {
+      const anchor = this.findDecoAnchor(cell.cx, cell.cz);
+      if (anchor && !anchor.isDisposed()) anchor.setEnabled(false);
+    }
+  }
+
+  restoreGatherEntries(exhausted) {
+    for (const cell of exhausted) {
+      const anchor = this.findDecoAnchor(cell.cx, cell.cz);
+      if (anchor && !anchor.isDisposed()) anchor.setEnabled(false);
+    }
+  }
+
+  findDecoAnchor(cx, cz) {
+    for (const node of this.decoSystem.nodes) {
+      if (!node.metadata || !node.metadata.def?.gather) continue;
+      if (worldToCell(node.position.x) !== cx) continue;
+      if (worldToCell(node.position.z) !== cz) continue;
+      return node;
+    }
+    return null;
   }
 
   toggleEditorPanel(active) {
@@ -581,27 +720,34 @@ export default class GameScene {
     this.hud.setCount(this.buildSystem.count);
     this.hud.setStatusVisible(false);
     this.hotbar.mount();
-    this.hotbar.onSelect = (key) => this.setHeldTool(key);
-    this.hotbar.setHeld(this.heldTool);
+    this.hotbar.onSelect = (key) => this.heldItemSystem.set(key);
+    this.hotbar.setSelected(this.heldItemSystem.key);
+    this.inventoryPanel.update(this.inventorySystem);
   }
 
-  setHeldTool(key) {
-    this.heldTool = key || null;
-    this.hud.setStatusVisible(Boolean(this.heldTool));
-    this.hotbar.setHeld(this.heldTool);
-    if (!this.heldTool) {
+  onHeldItemChange() {
+    this.hud.setStatusVisible(this.isBuilding());
+    this.hotbar.setSelected(this.heldItemSystem.key);
+    this.playerSystem.setHeldTool(this.heldItemSystem.key);
+    this.gatherSystem.setTool(this.heldItemSystem.tool());
+    if (!this.isBuilding()) {
+      this.hoverCell = null;
       this.gridSystem.hideHighlight();
       this.gridSystem.hideHologram();
-      this.clearMark();
     } else if (this.hoverCell) {
       this.handleHover(this.hoverCell);
     }
+  }
+
+  isBuilding() {
+    return this.heldItemSystem.holds('build');
   }
 
   setupInput() {
     this.inputSystem.suppressContextMenu(this.canvas);
     this.inputSystem.groundPredicate = (mesh) => mesh === this.terrainSystem.ground;
     this.inputSystem.attach(this.camera);
+    this.inputSystem.onLeftDown = () => this.handleLeftDown();
     this.inputSystem.onHoverCell = (cell) => this.handleHover(cell);
     this.inputSystem.onCellRightClick = (cell) => this.handleCellRightClick(cell);
     this.inputSystem.onPaintStart = (cell) => this.handlePaintStart(cell);
@@ -618,6 +764,20 @@ export default class GameScene {
       serialize: () => this.playerSystem.serialize(),
       apply: (data) => this.playerSystem.apply(data),
       order: 5,
+    });
+    this.saveSystem.registerState('inventory', {
+      serialize: () => this.inventorySystem.serialize(),
+      apply: (data) => {
+        this.inventorySystem.apply(data);
+        this.inventoryPanel.update(this.inventorySystem);
+        this.restoreExhaustedGather();
+      },
+      order: 6,
+    });
+    this.saveSystem.registerState('heldItem', {
+      serialize: () => this.heldItemSystem.serialize(),
+      apply: (data) => this.heldItemSystem.apply(data),
+      order: 7,
     });
     this.saveSystem.registerState('machines', {
       serialize: () => this.buildSystem.serialize(),
@@ -652,6 +812,7 @@ export default class GameScene {
         this.mapLayout = normalizeLayout(raw, map.seed);
         this.editorMode.attach(this.mapLayout);
         this.renderMapLayout(this.mapLayout);
+        this.restoreExhaustedGather();
         this.decoSystem.rememberLayout(this.mapLayout);
       },
       order: 1,
@@ -716,10 +877,14 @@ export default class GameScene {
         return;
       }
     }
-    if (evt.key === 'b' || evt.key === 'B') {
+    if (/^[1-5]$/.test(evt.key)) {
       if (evt.ctrlKey || evt.metaKey || evt.altKey || typing) return;
+      const key = HOTBAR_ITEMS[Number(evt.key) - 1];
+      if (!key) return;
+      if (this.editorMode.active) return;
       evt.preventDefault();
-      this.setHeldTool(this.heldTool ? null : 'builder');
+      if (this.heldItemSystem.key === key) this.heldItemSystem.set(null);
+      else this.heldItemSystem.set(key);
       return;
     }
     if (evt.key === 'm' || evt.key === 'M') this.cycleMachine();
@@ -740,7 +905,7 @@ export default class GameScene {
   }
 
   cycleMachine() {
-    if (!this.heldTool) return;
+    if (!this.isBuilding()) return;
     const index = MACHINE_KEYS.indexOf(this.currentMachine);
     this.currentMachine = MACHINE_KEYS[(index + 1) % MACHINE_KEYS.length];
     this.previewRotation = 0;
@@ -749,7 +914,7 @@ export default class GameScene {
   }
 
   rotateHovered() {
-    if (!this.heldTool) return;
+    if (!this.isBuilding()) return;
     const record = this.hoverCell ? this.buildSystem.getAt(this.hoverCell.cx, this.hoverCell.cz) : null;
     if (record) {
       const rotated = this.buildSystem.rotate(this.hoverCell.cx, this.hoverCell.cz);
@@ -763,7 +928,7 @@ export default class GameScene {
   }
 
   refreshHoverPreview() {
-    if (!this.hoverCell || !this.heldTool || this.editorMode.active) return;
+    if (!this.hoverCell || !this.isBuilding() || this.editorMode.active) return;
     const { cx, cz } = this.hoverCell;
     const topY = this.decoSystem.topAt(cx, cz);
     this.refreshHologram(this.hoverCell, topY, this.buildSystem.canBuild(cx, cz));
@@ -833,7 +998,7 @@ export default class GameScene {
   }
 
   moveGridHighlight(cell) {
-    if (!cell || !this.heldTool) {
+    if (!cell || !this.isBuilding()) {
       this.hoverCell = null;
       this.gridSystem.hideHighlight();
       this.gridSystem.hideHologram();
@@ -855,7 +1020,7 @@ export default class GameScene {
   }
 
   refreshHologram(cell, topY, valid) {
-    if (!this.heldTool || this.editorMode.active || !this.currentMachine) {
+    if (!this.isBuilding() || this.editorMode.active || !this.currentMachine) {
       this.gridSystem.hideHologram();
       return;
     }
@@ -880,7 +1045,7 @@ export default class GameScene {
   }
 
   handleCellClick(cell) {
-    if (!cell || !this.heldTool) return;
+    if (!cell || !this.isBuilding()) return;
     if (this.editorMode.active) {
       this.editorMode.paint(cell.cx, cell.cz);
       return;
@@ -896,7 +1061,7 @@ export default class GameScene {
   }
 
   handleCellRightClick(cell) {
-    if (!cell || !this.heldTool) return;
+    if (!cell || !this.isBuilding()) return;
     if (this.editorMode.active) {
       if (this.editorMode.isManualBrush()) {
         this.editorMode.deleteAt(cell.cx, cell.cz);
@@ -947,6 +1112,7 @@ export default class GameScene {
   saveMapLayout() {
     const ok = this.saveSystem.save();
     this.editorHud.setReadout(ok ? 'Mapa uložena ✓' : 'Uložení selhalo');
+    this.hud.setSaveHint(ok ? 'Mapa uložena ✓' : 'Uložení mapy selhalo');
     return ok;
   }
 
@@ -954,7 +1120,7 @@ export default class GameScene {
     const ok = this.saveSystem.load();
     this.gridSystem.clearMark();
     this.hud.setCount(this.buildSystem.count);
-    this.hud.setStatusVisible(Boolean(this.heldTool));
+    this.hud.setStatusVisible(this.isBuilding());
     this.refreshShadowCasters();
     this.refreshClock();
     this.hud.setSaveHint(ok ? 'Načteno ✓' : 'Žádný save');

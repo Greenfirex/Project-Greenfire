@@ -10,6 +10,8 @@ export const ASSET_DIRS = {
   ground: 'assets/nature/ground/',
   ores: 'assets/nature/ores/',
   props: 'assets/props/',
+  tools: 'assets/props/KayKit_RPGToolsBits/',
   machines: 'assets/machines/',
   characters: 'assets/characters/',
+  audio: 'assets/audio/',
 };

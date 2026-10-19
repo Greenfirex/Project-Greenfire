@@ -61,7 +61,7 @@ export default class EditorMode {
       if (this.onDraftChange) this.onDraftChange(this.draft);
     }
     if (!this.history.length) return false;
-    this.layout = this.history.pop();
+    this.restoreLayout(this.history.pop());
     this.repaint();
     return true;
   }
@@ -401,6 +401,11 @@ export default class EditorMode {
   repaint() {
     this.pending = false;
     if (this.onRegenerate) this.onRegenerate(this.layout);
+  }
+
+  restoreLayout(next) {
+    this.layout = next;
+    this.history = this.history.map((entry) => (entry === next ? cloneLayout(next) : entry));
   }
 
   regenerate() {

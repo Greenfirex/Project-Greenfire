@@ -1,6 +1,6 @@
 // Formát mapy — zóny (co vyplnit), ruční položky (co je napevno) a ruční výšky terénu.
 // Načítání, normalizace a odvození blokovaných buněk z katalogu; nezná scénu.
-import { getDecoration } from '../catalogs/decorations.js';
+import { getDecoration, decoRadius, decoFootprint } from '../catalogs/decorations.js';
 import { getBrush } from '../catalogs/brushes.js';
 
 export const LAYOUT_VERSION = 5;
@@ -257,7 +257,11 @@ export function deriveBlocked(entries) {
     if (entry.blocks === false) continue;
     const def = getDecoration(entry.key);
     if (!def || def.blocks === false) continue;
-    out.push({ cx: entry.cx, cz: entry.cz, radius: def.radius || 0.8 });
+    const footprint = decoFootprint(def);
+    const shape = footprint
+      ? { footprint, turn: entry.rotation || 0 }
+      : { radius: decoRadius(def) };
+    out.push({ cx: entry.cx, cz: entry.cz, offsetX: entry.offsetX || 0, offsetZ: entry.offsetZ || 0, ...shape });
   }
   return out;
 }

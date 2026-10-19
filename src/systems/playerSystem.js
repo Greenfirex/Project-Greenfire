@@ -8,20 +8,44 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { worldToCellCoords } from '../utils/gridMath.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
+import { TOOL_TYPES } from '../data/catalogs/items.js';
+import { loadModel, instantiateModel } from '../utils/assetLoader.js';
 
 const CHARACTER_DIR = `${ASSET_DIRS.characters}KayKit_Adventurers_2.0_FREE/`;
 const MODEL_URL = `${CHARACTER_DIR}Characters/gltf/Ranger.glb`;
 const ANIM_DIR = `${CHARACTER_DIR}Animations/gltf/Rig_Medium/`;
-const ANIM_SOURCES = [`${ANIM_DIR}Rig_Medium_General.glb`, `${ANIM_DIR}Rig_Medium_MovementBasic.glb`];
+const ANIM_SOURCES = [
+  `${ANIM_DIR}Rig_Medium_General.glb`,
+  `${ANIM_DIR}Rig_Medium_MovementBasic.glb`,
+  `${ANIM_DIR}Rig_Medium_Tools.glb`,
+];
 const ANIM_NAMES = {
   idle: 'Idle_A',
   walk: 'Walking_A',
   run: 'Running_A',
   jump: 'Jump_Full_Short',
+  chop: 'Chopping',
+  mine: 'Pickaxing',
+  chopBare: 'Use_Item',
+  holdTool: 'Holding_A',
 };
 const ANIM_BLEND = 0.25;
+const STRIKE_SHARE = {
+  chop: 0.55,
+  mine: 0.3,
+  chopBare: 0.55,
+};
+const STRIKE_HOLD = 0.12;
+const STEP_DISTANCE = 1.5;
+const HAND_BONE = 'handslot.r';
+const TOOL_SCALE = 0.95;
+const TOOL_POSITION = new Vector3(-0.12, 0.12, 0.04);
+const TOOL_ROTATION = new Vector3(0, Math.PI, -0.45);
+const PLAN_POSITION = new Vector3(0, -0.02, 0.14);
+const PLAN_ROTATION = new Vector3(Math.PI / 2, 0, 0);
 const BODY_RADIUS = 0.3;
-const SLIDE_LOOKAHEAD = 0.7;
+const BODY_MARGIN = 0.08;
+const SLIDE_LOOKAHEAD = 1.2;
 const SLIDE_MIN = 0.12;
 const MOVE_SPEED = 4.5;
 const WALK_SPEED = 2.4;
@@ -52,6 +76,14 @@ export default class PlayerSystem {
     this.blockedTest = null;
     this.decoSystem = null;
     this.ready = false;
+    this.toolTemplates = {};
+    this.heldToolKey = null;
+    this.toolNode = null;
+    this.handSlot = null;
+    this.strikeTimer = 0;
+    this.strikeAnim = 'chopBare';
+    this.travelled = 0;
+    this.onStep = null;
   }
 
   async create() {
@@ -74,10 +106,86 @@ export default class PlayerSystem {
     this.root.position = new Vector3(SPAWN.x, 0, SPAWN.z);
 
     await this.loadAnimations();
+    await this.attachToolNode();
     this.play('idle');
     this.bindKeys();
     this.ready = true;
     return this.root;
+  }
+
+  async loadTools() {
+    if (this.toolsLoaded) return;
+    this.toolsLoaded = true;
+    for (const tool of Object.values(TOOL_TYPES)) {
+      if (!tool.model) continue;
+      this.toolTemplates[tool.model] = await loadModel(this.s, `${ASSET_DIRS.tools}${tool.model}.gltf`);
+    }
+  }
+
+  async attachToolNode() {
+    const skeleton = this.mesh && this.mesh.skeleton;
+    if (!skeleton) return;
+    const bone = skeleton.bones.find((b) => b.name === HAND_BONE);
+    const hand = bone && bone.getTransformNode();
+    if (!hand) return;
+    this.handSlot = new TransformNode('playerHandSlot', this.s);
+    this.handSlot.parent = hand;
+    this.handSlot.position = Vector3.Zero();
+    this.handSlot.rotation = Vector3.Zero();
+    this.handSlot.scaling = new Vector3(TOOL_SCALE, TOOL_SCALE, TOOL_SCALE);
+    this.refreshToolNode();
+  }
+
+  refreshToolNode() {
+    if (this.toolNode) {
+      this.toolNode.setEnabled(false);
+      this.toolNode.dispose(false, false);
+      this.toolNode = null;
+    }
+    if (!this.handSlot) return;
+    const tool = TOOL_TYPES[this.heldToolKey];
+    if (!tool || !tool.model) return;
+    const template = this.toolTemplates[tool.model];
+    this.toolNode = instantiateModel(this.s, template, `playerHeld_${tool.model}`);
+    if (!this.toolNode) return;
+    this.toolNode.parent = this.handSlot;
+    const plan = tool.mode === 'build';
+    this.toolNode.scaling = new Vector3(TOOL_SCALE, TOOL_SCALE, TOOL_SCALE);
+    this.toolNode.position = plan ? PLAN_POSITION.scale(TOOL_SCALE) : TOOL_POSITION.scale(TOOL_SCALE);
+    this.toolNode.rotation = plan ? PLAN_ROTATION : TOOL_ROTATION;
+  }
+
+  setHeldTool(key) {
+    if (this.heldToolKey === key) return;
+    this.heldToolKey = key || null;
+    this.refreshToolNode();
+  }
+
+  strike() {
+    this.strikeAnim = this.heldToolKey === 'pickaxe' ? 'mine' : (TOOL_TYPES[this.heldToolKey] && TOOL_TYPES[this.heldToolKey].mode === 'gather' ? 'chop' : 'chopBare');
+    const group = this.anims[this.strikeAnim];
+    const length = group ? group.getLength() / group.speedRatio : 0.5;
+    const share = STRIKE_SHARE[this.strikeAnim] || 0.6;
+    this.strikeTimer = Math.max(0.15, length * share + STRIKE_HOLD);
+    this.play(this.strikeAnim, true);
+    return this.strikeTimer;
+  }
+
+  strikeImpactTime() {
+    return this.strikeTimer * STRIKE_SHARE[this.strikeAnim] || 0.3;
+  }
+
+  strikeDuration() {
+    return this.strikeTimer;
+  }
+
+  faceTo(x, z) {
+    if (!this.root) return;
+    const dx = x - this.root.position.x;
+    const dz = z - this.root.position.z;
+    if (dx * dx + dz * dz < 0.0001) return;
+    this.facing = Math.atan2(dx, dz);
+    this.root.rotation.y = this.facing;
   }
 
   async loadAnimations() {
@@ -109,9 +217,13 @@ export default class PlayerSystem {
     }
   }
 
-  play(key) {
+  play(key, restart = false) {
     const group = this.anims[key];
-    if (!group || this.currentKey === key) return;
+    if (!group) return;
+    if (this.currentKey === key) {
+      if (restart) group.start(true, group.speedRatio, group.from, group.to);
+      return;
+    }
     if (this.current && this.current !== group) this.current.stop();
     for (const [otherKey, other] of Object.entries(this.anims)) {
       if (otherKey === key) continue;
@@ -146,11 +258,28 @@ export default class PlayerSystem {
   free(x, z) {
     const { cx, cz } = worldToCellCoords(x, z);
     if (this.blockedTest && this.blockedTest(cx, cz)) return false;
-    if (this.decoSystem && this.decoSystem.overlaps(x, z, BODY_RADIUS)) return false;
+    if (this.decoSystem && this.decoSystem.overlaps(x, z, BODY_RADIUS + BODY_MARGIN)) return false;
     return true;
   }
 
+  pushOut() {
+    if (!this.decoSystem || !this.root) return false;
+    for (let i = 0; i < 8; i++) {
+      const x = this.root.position.x;
+      const z = this.root.position.z;
+      if (this.blockedTest) {
+        const { cx, cz } = worldToCellCoords(x, z);
+        if (this.blockedTest(cx, cz)) return false;
+      }
+      const contact = this.decoSystem.nearestContact(x, z, BODY_RADIUS + BODY_MARGIN, 0);
+      if (!contact) return i > 0;
+      this.root.position = new Vector3(x + contact.nx * (0.02 - contact.gap), 0, z + contact.nz * (0.02 - contact.gap));
+    }
+    return !this.decoSystem.overlaps(this.root.position.x, this.root.position.z, BODY_RADIUS + BODY_MARGIN);
+  }
+
   tryMove(x, z, dirX, dirZ, step) {
+    if (!this.free(this.root.position.x, this.root.position.z)) this.pushOut();
     if (this.free(x, z)) {
       this.root.position = new Vector3(x, 0, z);
       return true;
@@ -176,22 +305,19 @@ export default class PlayerSystem {
         return true;
       }
     }
-    if (!this.free(startX, startZ)) return false;
-    for (const scale of [1, 0.8, 0.6, 0.4]) {
-      const ax = startX + sx * step * scale;
-      const az = startZ + sz * step * scale;
-      const next = this.decoSystem.nearestContact(ax, az, BODY_RADIUS, 0);
-      if (!next || next.gap >= contact.gap - 0.001) {
-        this.root.position = new Vector3(ax, 0, az);
-        return true;
-      }
-    }
     return false;
   }
 
   update(dt) {
     if (!this.ready || !this.root) return;
     this.ensurePlaying();
+    if (this.strikeTimer > 0) {
+      this.strikeTimer -= dt;
+      this.play(this.strikeAnim);
+      if (this.strikeTimer > 0) return;
+      const done = this.anims[this.strikeAnim];
+      if (done) done.pause();
+    }
 
     const camera = this.s.activeCamera;
     const forward = this.cameraForward(camera);
@@ -212,11 +338,21 @@ export default class PlayerSystem {
     const sprint = this.input.sprint;
     const step = (sprint ? MOVE_SPEED : WALK_SPEED) * dt;
     this.tryMove(this.root.position.x + move.x * step, this.root.position.z + move.z * step, move.x, move.z, step);
+    this.updateSteps(sprint, step);
 
     const target = Math.atan2(move.x, move.z);
     this.facing = turnToward(this.facing, target, TURN_SPEED * dt);
     this.root.rotation.y = this.facing + MODEL_YAW;
     this.play(sprint ? 'run' : 'walk');
+  }
+
+  updateSteps(sprint, step) {
+    this.travelled += step;
+    if (this.travelled < STEP_DISTANCE) return;
+    this.travelled = 0;
+    if (!this.onStep) return;
+    const pos = this.root.position;
+    this.onStep(pos.x, pos.z, sprint);
   }
 
   cameraForward(camera) {

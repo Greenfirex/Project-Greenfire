@@ -50,6 +50,7 @@
 }
 
 .hotbar__slot {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -96,6 +97,16 @@
 .hotbar__icon {
   font-size: 18px;
   line-height: 1;
+}
+
+.hotbar__key {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--glow-warm);
+  opacity: 0.75;
 }
 
 .hotbar__name {
@@ -149,6 +160,93 @@
 .hud-hint {
   margin-top: 6px;
   color: var(--text-dim);
+  font-size: 11px;
+}
+
+/* Hláška nad lištou nástrojů — co je zrovna nablízku ke sběru. */
+.gather-prompt {
+  position: absolute;
+  bottom: 104px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(90, 200, 170, 0.25);
+  border-radius: 5px;
+  color: var(--glow-warm);
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.gather-prompt.is-open {
+  display: block;
+}
+
+/* Panel batohu vlevo dole — suroviny hráče a recepty, které jdou udělat. */
+#hud-inventory {
+  bottom: 12px;
+  left: 12px;
+  min-width: 178px;
+  max-width: 210px;
+}
+
+.inv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inv-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-dim);
+}
+
+.inv-row strong {
+  margin-left: auto;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.inv-row__icon {
+  width: 14px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.inv-empty {
+  color: var(--text-dim);
+  opacity: 0.7;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.inv-craft {
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(90, 200, 170, 0.18);
+}
+
+.inv-craft__label {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--glow-accent);
+}
+
+.inv-recipes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inv-recipe {
+  color: var(--glow-warm);
   font-size: 11px;
 }
 

@@ -4,6 +4,7 @@ import { ASSET_DIRS } from './assetPaths.js';
 
 export const DECORATION_TYPES = {
   tree_pine_tall: {
+    gather: { wood: 8 },
     displayName: 'Vysoká borovice',
     model: `${ASSET_DIRS.trees}tree_pineTallA_detailed.glb`,
     scale: 2.4,
@@ -13,6 +14,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_pine_tall_b: {
+    gather: { wood: 6 },
     displayName: 'Borovice',
     model: `${ASSET_DIRS.trees}tree_pineTallB.glb`,
     scale: 2.2,
@@ -22,6 +24,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_pine_tall_c: {
+    gather: { wood: 6 },
     displayName: 'Štíhlá borovice',
     model: `${ASSET_DIRS.trees}tree_pineTallC.glb`,
     scale: 2.3,
@@ -31,6 +34,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_pine_round: {
+    gather: { wood: 6 },
     displayName: 'Kulatá borovice',
     model: `${ASSET_DIRS.trees}tree_pineRoundA.glb`,
     scale: 2.1,
@@ -40,6 +44,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_pine_round_c: {
+    gather: { wood: 6 },
     displayName: 'Kulatá borovice',
     model: `${ASSET_DIRS.trees}tree_pineRoundC.glb`,
     scale: 2.0,
@@ -49,6 +54,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_pine_small: {
+    gather: { wood: 4 },
     displayName: 'Mladá borovice',
     model: `${ASSET_DIRS.trees}tree_pineSmallA.glb`,
     scale: 1.8,
@@ -58,6 +64,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_default: {
+    gather: { wood: 6 },
     displayName: 'Temný smrk',
     model: `${ASSET_DIRS.trees}tree_default_dark.glb`,
     scale: 2.5,
@@ -67,6 +74,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_oak: {
+    gather: { wood: 7 },
     displayName: 'Temný dub',
     model: `${ASSET_DIRS.trees}tree_oak_dark.glb`,
     scale: 2.4,
@@ -76,6 +84,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_thin: {
+    gather: { wood: 4 },
     displayName: 'Štíhlý strom',
     model: `${ASSET_DIRS.trees}tree_thin_dark.glb`,
     scale: 2.2,
@@ -85,6 +94,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_fat: {
+    gather: { wood: 7 },
     displayName: 'Hustý strom',
     model: `${ASSET_DIRS.trees}tree_fat_darkh.glb`,
     scale: 2.3,
@@ -94,6 +104,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_cone: {
+    gather: { wood: 5 },
     displayName: 'Temný jehličnan',
     model: `${ASSET_DIRS.trees}tree_cone_dark.glb`,
     scale: 2.3,
@@ -103,6 +114,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_detailed: {
+    gather: { wood: 6 },
     displayName: 'Rozložitý strom',
     model: `${ASSET_DIRS.trees}tree_detailed_dark.glb`,
     scale: 2.4,
@@ -112,6 +124,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_blocks: {
+    gather: { wood: 5 },
     displayName: 'Hranatý strom',
     model: `${ASSET_DIRS.trees}tree_blocks_dark.glb`,
     scale: 2.2,
@@ -121,6 +134,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_plateau: {
+    gather: { wood: 5 },
     displayName: 'Plochý strom',
     model: `${ASSET_DIRS.trees}tree_plateau_dark.glb`,
     scale: 2.2,
@@ -130,6 +144,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_simple: {
+    gather: { wood: 4 },
     displayName: 'Prostý strom',
     model: `${ASSET_DIRS.trees}tree_simple_dark.glb`,
     scale: 2.1,
@@ -139,6 +154,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_small: {
+    gather: { wood: 3 },
     displayName: 'Nízký strom',
     model: `${ASSET_DIRS.trees}tree_small_dark.glb`,
     scale: 1.9,
@@ -148,6 +164,7 @@ export const DECORATION_TYPES = {
     kind: 'tree',
   },
   tree_tall: {
+    gather: { wood: 6 },
     displayName: 'Vysoký smrk',
     model: `${ASSET_DIRS.trees}tree_tall_dark.glb`,
     scale: 2.6,
@@ -229,6 +246,7 @@ export const DECORATION_TYPES = {
     kind: 'ground',
   },
   stump: {
+    gather: { wood: 3 },
     displayName: 'Pařez',
     model: `${ASSET_DIRS.wood}stump_round.glb`,
     scale: 2.0,
@@ -238,6 +256,7 @@ export const DECORATION_TYPES = {
     kind: 'prop',
   },
   stump_old: {
+    gather: { wood: 2 },
     displayName: 'Starý pařez',
     model: `${ASSET_DIRS.wood}stump_old.glb`,
     scale: 2.0,
@@ -247,6 +266,7 @@ export const DECORATION_TYPES = {
     kind: 'prop',
   },
   rock_small: {
+    gather: { stone: 2 },
     displayName: 'Kámen',
     model: `${ASSET_DIRS.rocks}rock_smallA.glb`,
     scale: 2.0,
@@ -256,6 +276,7 @@ export const DECORATION_TYPES = {
     kind: 'ground',
   },
   rock_small_flat: {
+    gather: { stone: 2 },
     displayName: 'Plochý kámen',
     model: `${ASSET_DIRS.rocks}rock_smallFlatA.glb`,
     scale: 2.0,
@@ -265,6 +286,7 @@ export const DECORATION_TYPES = {
     kind: 'ground',
   },
   rock_large: {
+    gather: { stone: 6 },
     displayName: 'Velký balvan',
     model: `${ASSET_DIRS.rocks}rock_largeA.glb`,
     scale: 2.2,
@@ -274,6 +296,7 @@ export const DECORATION_TYPES = {
     kind: 'prop',
   },
   rock_large_c: {
+    gather: { stone: 6 },
     displayName: 'Velký balvan',
     model: `${ASSET_DIRS.rocks}rock_largeC.glb`,
     scale: 2.2,
@@ -283,6 +306,7 @@ export const DECORATION_TYPES = {
     kind: 'prop',
   },
   rock_tall: {
+    gather: { stone: 5 },
     displayName: 'Vysoký kámen',
     model: `${ASSET_DIRS.rocks}rock_tallA.glb`,
     scale: 2.2,
@@ -292,6 +316,7 @@ export const DECORATION_TYPES = {
     kind: 'prop',
   },
   log: {
+    gather: { wood: 2 },
     displayName: 'Kmen',
     model: `${ASSET_DIRS.wood}log.glb`,
     scale: 2.0,
@@ -301,6 +326,7 @@ export const DECORATION_TYPES = {
     kind: 'prop',
   },
   log_stack: {
+    gather: { wood: 4 },
     displayName: 'Sklad kmenů',
     model: `${ASSET_DIRS.wood}log_stack.glb`,
     scale: 2.0,
@@ -555,7 +581,8 @@ export const DECORATION_TYPES = {
     model: `${ASSET_DIRS.cliffs}cliff_large_rock.glb`,
     scale: 2.0,
     height: 2,
-    radius: 0,
+    radius: 1.15,
+    footprint: { kind: 'edge', depth: 0.21 },
     blocks: true,
     castsShadow: true,
     kind: 'cliff',
@@ -565,7 +592,8 @@ export const DECORATION_TYPES = {
     model: `${ASSET_DIRS.cliffs}cliff_half_rock.glb`,
     scale: 2.0,
     height: 1,
-    radius: 0,
+    radius: 1.15,
+    footprint: { kind: 'edge', depth: 0.21 },
     blocks: true,
     castsShadow: true,
     kind: 'cliff',
@@ -575,7 +603,8 @@ export const DECORATION_TYPES = {
     model: `${ASSET_DIRS.cliffs}cliff_cornerLarge_rock.glb`,
     scale: 2.0,
     height: 2,
-    radius: 0,
+    radius: 1.5,
+    footprint: { kind: 'corner', depth: 0.5 },
     blocks: true,
     castsShadow: true,
     kind: 'cliff',
@@ -585,7 +614,8 @@ export const DECORATION_TYPES = {
     model: `${ASSET_DIRS.cliffs}cliff_cornerTop_rock.glb`,
     scale: 2.0,
     height: 2,
-    radius: 0,
+    radius: 1.5,
+    footprint: { kind: 'corner', depth: 0.27 },
     blocks: true,
     castsShadow: true,
     kind: 'cliff',
@@ -595,7 +625,8 @@ export const DECORATION_TYPES = {
     model: `${ASSET_DIRS.cliffs}cliff_halfCorner_rock.glb`,
     scale: 2.0,
     height: 1,
-    radius: 0,
+    radius: 1.5,
+    footprint: { kind: 'corner', depth: 0.5 },
     blocks: true,
     castsShadow: true,
     kind: 'cliff',
@@ -605,7 +636,8 @@ export const DECORATION_TYPES = {
     model: `${ASSET_DIRS.cliffs}cliff_top_rock.glb`,
     scale: 2.0,
     height: 2,
-    radius: 0,
+    radius: 1.15,
+    footprint: { kind: 'edge', depth: 0.35 },
     blocks: true,
     castsShadow: true,
     kind: 'cliff',
@@ -615,7 +647,7 @@ export const DECORATION_TYPES = {
     model: `${ASSET_DIRS.cliffs}cliff_steps_rock.glb`,
     scale: 2.0,
     height: 2,
-    radius: 0,
+    radius: 1.3,
     blocks: false,
     castsShadow: true,
     kind: 'cliff',
@@ -625,7 +657,7 @@ export const DECORATION_TYPES = {
     model: `${ASSET_DIRS.cliffs}cliff_blockSlope_rock.glb`,
     scale: 2.0,
     height: 2,
-    radius: 0,
+    radius: 1.3,
     blocks: false,
     castsShadow: true,
     kind: 'cliff',
@@ -635,7 +667,7 @@ export const DECORATION_TYPES = {
     model: `${ASSET_DIRS.cliffs}cliff_blockSlopeWalls_rock.glb`,
     scale: 2.0,
     height: 2,
-    radius: 0,
+    radius: 1.3,
     blocks: false,
     castsShadow: true,
     kind: 'cliff',
@@ -815,7 +847,7 @@ export const DECORATION_TYPES = {
     model: `${ASSET_DIRS.cliffs}cliff_blockHalf_rock.glb`,
     scale: 2.0,
     height: 1,
-    radius: 0,
+    radius: 1.0,
     blocks: true,
     castsShadow: true,
     kind: 'cliff',
@@ -825,7 +857,7 @@ export const DECORATION_TYPES = {
     model: `${ASSET_DIRS.cliffs}cliff_block_rock.glb`,
     scale: 2.0,
     height: 2,
-    radius: 0,
+    radius: 1.0,
     blocks: true,
     castsShadow: true,
     kind: 'cliff',
@@ -839,6 +871,7 @@ export const DECORATION_TYPES = {
     castsShadow: false,
     kind: 'ore',
     tintColor: [0.28, 0.52, 0.85],
+    gather: { iron_ore: 3 },
     highlight: {
       ringColor: [0.55, 0.85, 1.0],
       ringSize: 1.7,
@@ -856,6 +889,7 @@ export const DECORATION_TYPES = {
     castsShadow: false,
     kind: 'ore',
     tintColor: [1.0, 0.42, 0.1],
+    gather: { copper_ore: 3 },
     highlight: {
       ringColor: [1.0, 0.72, 0.35],
       ringSize: 1.7,
@@ -879,9 +913,24 @@ export function getDecoration(key) {
   return highlight ? { ...def, highlight } : def;
 }
 
+export function decoRadius(def) {
+  if (def.blocks === false) return 0;
+  if (def.radius) return def.radius;
+  return def.kind === 'cliff' ? 0.8 : 0;
+}
+
+export function decoFootprint(def) {
+  return def.footprint || null;
+}
+
+export function decoHeight(def) {
+  if (def.blocks === false) return 0;
+  return def.height || 0;
+}
+
 function genericHighlight(def) {
   if (def.kind === 'tree') return { ringColor: [0.55, 0.95, 0.5], ringSize: ringFor(def.radius, 0.9) };
-  if (def.kind === 'prop' || def.kind === 'cliff') return { ringColor: [0.85, 0.85, 0.55], ringSize: ringFor(def.radius, 0.8) };
+  if (def.kind === 'prop') return { ringColor: [0.85, 0.85, 0.55], ringSize: ringFor(def.radius, 0.8) };
   return null;
 }
 

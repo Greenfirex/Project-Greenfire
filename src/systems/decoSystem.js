@@ -4,8 +4,8 @@ import '@babylonjs/core/Meshes/transformNode';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Meshes/mesh';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { cellToWorldCoords, cellKey, CELL_SIZE } from '../utils/gridMath.js';
-import { getDecoration } from '../data/catalogs/decorations.js';
+import { cellToWorldCoords, cellKey, indexToCellCoords, CELL_SIZE } from '../utils/gridMath.js';
+import { getDecoration, decoHeight } from '../data/catalogs/decorations.js';
 import { loadModel, instantiateModel } from '../utils/assetLoader.js';
 import { tintTemplate, forgetTints } from '../utils/decoTint.js';
 
@@ -17,12 +17,35 @@ function withLift(entry, lift) {
   return base > lift ? entry : { ...entry, liftY: lift };
 }
 
+const SKIRT_KEYS = new Set([
+  'cliff_large', 'cliff_half', 'cliff_top', 'cliff_cornerLarge', 'cliff_cornerTop', 'cliff_halfCorner',
+]);
+
+function isSkirt(key) {
+  return SKIRT_KEYS.has(key);
+}
+
+function cellGap(shape, x, z) {
+  if (shape.footprint) {
+    const t = shape.turn || 0;
+    const edge = CELL_SIZE / 2;
+    const along = t % 2 === 0 ? Math.abs(x) : Math.abs(z);
+    const across = t % 2 === 0 ? Math.abs(z) : Math.abs(x);
+    if (shape.footprint.kind === 'corner') return Math.max(along, across) - edge;
+    const depth = edge * shape.footprint.depth;
+    return Math.max(Math.max(along, across) - edge, across - (edge - depth));
+  }
+  const limit = shape.radius || CELL_SIZE / 2;
+  return Math.hypot(x, z) - limit;
+}
+
 export default class DecoSystem {
 
   constructor(scene) {
     this.s = scene;
     this.blocked = new Map();
     this.columnTop = new Map();
+    this.surfaceKeys = new Map();
     this.onDecoReady = null;
     this.colors = null;
     this.nodes = [];
@@ -35,6 +58,7 @@ export default class DecoSystem {
     forgetTints();
     this.blocked.clear();
     this.columnTop.clear();
+    this.surfaceKeys.clear();
     this.colors = colors || null;
     this.applyLayout(layout);
   }
@@ -66,7 +90,19 @@ export default class DecoSystem {
   refreshBlocked(layout) {
     this.blocked.clear();
     for (const cell of layout.blocked || []) {
-      this.blocked.set(cellKey(cell.cx, cell.cz), cell.radius || CELL_SIZE / 2);
+      const key = cellKey(cell.cx, cell.cz);
+      const list = this.blocked.get(key);
+      const shape = {
+        cx: cell.cx,
+        cz: cell.cz,
+        radius: cell.radius || 0,
+        footprint: cell.footprint || null,
+        turn: cell.turn || 0,
+        offsetX: cell.offsetX || 0,
+        offsetZ: cell.offsetZ || 0,
+      };
+      if (list) list.push(shape);
+      else this.blocked.set(key, [shape]);
     }
   }
 
@@ -94,28 +130,30 @@ export default class DecoSystem {
     this.snapshot = shapeSignature(editorLayout);
   }
 
-  applyEntry(entry) {
+  applyEntry(entry, section = 'deco') {
     const def = getDecoration(entry.key);
     if (!def) return;
 
     const lift = entry.liftY || 0;
-    const top = lift + (def.height || 0);
+    const top = lift + decoHeight(def);
     const key = cellKey(entry.cx, entry.cz);
-    const walkable = entry.blocks === false || def.blocks === false;
+    const solid = def.blocks !== false;
+    if (isSkirt(entry.key)) return;
+    if (section === 'path') this.surfaceKeys.set(key, entry.key);
     const current = this.columnTop.get(key);
     if (!current) {
-      this.columnTop.set(key, { block: walkable ? lift : top, surface: walkable ? top : lift });
+      this.columnTop.set(key, solid ? { block: top, surface: 0 } : { block: 0, surface: top });
       return;
     }
-    if (!walkable) current.block = Math.max(current.block, top);
-    current.surface = Math.max(current.surface, walkable ? top : lift);
+    if (solid) current.block = Math.max(current.block, top);
+    else current.surface = Math.max(current.surface, top);
   }
 
   place(entry, bucket = this.nodes, section = 'deco') {
     const def = getDecoration(entry.key);
     if (!def) return;
 
-    this.applyEntry(entry);
+    this.applyEntry(entry, section);
     const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
     const anchor = this.createAnchor(entry, def, x, z, bucket);
     this.attachModel(anchor, def, entry, section);
@@ -130,6 +168,10 @@ export default class DecoSystem {
   surfaceAt(cx, cz) {
     const cell = this.columnTop.get(cellKey(cx, cz));
     return cell ? cell.surface : 0;
+  }
+
+  surfaceKeyAt(cx, cz) {
+    return this.surfaceKeys.get(cellKey(cx, cz)) || null;
   }
 
   createAnchor(entry, def, x, z, bucket = this.nodes) {
@@ -173,36 +215,44 @@ export default class DecoSystem {
     return this.blocked.has(cellKey(cx, cz));
   }
 
+  releaseCell(cx, cz) {
+    const key = cellKey(cx, cz);
+    this.blocked.delete(key);
+    this.columnTop.delete(key);
+  }
+
   overlaps(x, z, bodyRadius) {
-    const cx = Math.round(x / CELL_SIZE);
-    const cz = Math.round(z / CELL_SIZE);
-    for (let ix = cx - 1; ix <= cx + 1; ix++) {
-      for (let iz = cz - 1; iz <= cz + 1; iz++) {
-        const radius = this.blocked.get(cellKey(ix, iz));
-        if (radius === undefined) continue;
-        const dx = x - ix * CELL_SIZE;
-        const dz = z - iz * CELL_SIZE;
-        const reach = radius + bodyRadius;
-        if (dx * dx + dz * dz < reach * reach) return true;
+    const { cx, cz } = indexToCellCoords(x, z);
+    for (let ix = cx - 2; ix <= cx + 2; ix++) {
+      for (let iz = cz - 2; iz <= cz + 2; iz++) {
+        const shapes = this.blocked.get(cellKey(ix, iz));
+        if (!shapes) continue;
+        for (const shape of shapes) {
+          const dx = x - shape.cx * CELL_SIZE - shape.offsetX;
+          const dz = z - shape.cz * CELL_SIZE - shape.offsetZ;
+          if (cellGap(shape, dx, dz) < bodyRadius) return true;
+        }
       }
     }
     return false;
   }
 
   nearestContact(x, z, bodyRadius, reachOut) {
-    const cx = Math.floor(x / CELL_SIZE);
-    const cz = Math.floor(z / CELL_SIZE);
+    const { cx, cz } = indexToCellCoords(x, z);
     let best = null;
     for (let ix = cx - 2; ix <= cx + 2; ix++) {
       for (let iz = cz - 2; iz <= cz + 2; iz++) {
-        const radius = this.blocked.get(cellKey(ix, iz));
-        if (radius === undefined) continue;
-        const dx = x - ix * CELL_SIZE;
-        const dz = z - iz * CELL_SIZE;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        const gap = dist - radius - bodyRadius;
-        if (gap > reachOut) continue;
-        if (!best || gap < best.gap) best = { nx: dx / (dist || 1), nz: dz / (dist || 1), radius, gap };
+        const shapes = this.blocked.get(cellKey(ix, iz));
+        if (!shapes) continue;
+        for (const shape of shapes) {
+          const dx = x - shape.cx * CELL_SIZE - shape.offsetX;
+          const dz = z - shape.cz * CELL_SIZE - shape.offsetZ;
+          const gap = cellGap(shape, dx, dz) - bodyRadius;
+          if (gap > reachOut) continue;
+          if (best && gap >= best.gap) continue;
+          const dist = Math.hypot(dx, dz);
+          best = { nx: dx / (dist || 1), nz: dz / (dist || 1), gap };
+        }
       }
     }
     return best;
