@@ -28,6 +28,17 @@ const SPEED_OPTIONS = [
   { value: '5', label: '5×' },
 ];
 
+function clampPercent(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.max(0, Math.min(100, Math.round(number)));
+}
+
+const VOLUMES = [
+  { key: 'sfxVolume', label: 'Zvuky hry', note: 'Sekání, kroky, těžba a padající stromy.' },
+  { key: 'ambientVolume', label: 'Zvuky prostředí', note: 'Hučení lesa na pozadí, ve dne jiné než v noci.' },
+];
+
 const PRESETS = [
   { value: 'high', label: 'Vysoká', title: 'Plná kvalita, stíny a zvýrazňování' },
   { value: 'balanced', label: 'Vyvážená', title: 'Střední kvalita a 60 snímků' },
@@ -78,6 +89,7 @@ export default class OptionsPanel {
         <div class="options-panel__choices" data-group="fpsCap"></div>
       </div>
       <small class="options-panel__note">Nižší číslo = chladnější počítač.</small>
+      <div class="options-panel__volumes"></div>
       <div class="options-panel__toggles"></div>
       <button type="button" class="options-panel__reset">Obnovit výchozí</button>
     `;
@@ -102,6 +114,23 @@ export default class OptionsPanel {
     this.buildChoices(root, 'quality', QUALITIES);
     this.buildChoices(root, 'fpsCap', FPS_OPTIONS);
     this.buildChoices(root, 'gameSpeed', SPEED_OPTIONS);
+
+    const volumes = root.querySelector('.options-panel__volumes');
+    for (const volume of VOLUMES) {
+      const row = document.createElement('label');
+      row.className = 'options-panel__volume';
+      row.innerHTML = `
+        <span class="options-panel__volume-head">
+          <span class="options-panel__label">${volume.label}</span>
+          <span class="options-panel__volume-value" data-value="${volume.key}"></span>
+        </span>
+        <input type="range" min="0" max="100" step="5" data-volume="${volume.key}">
+        <small class="options-panel__sound-note">${volume.note}</small>
+      `;
+      const input = row.querySelector('input');
+      input.addEventListener('input', () => this.patch({ [volume.key]: Number(input.value) }));
+      volumes.appendChild(row);
+    }
 
     const toggles = root.querySelector('.options-panel__toggles');
     for (const toggle of TOGGLES) {
@@ -179,6 +208,13 @@ export default class OptionsPanel {
     }
     for (const input of this.root.querySelectorAll('[data-toggle]')) {
       input.checked = Boolean(this.values[input.dataset.toggle]);
+    }
+    for (const input of this.root.querySelectorAll('[data-volume]')) {
+      const value = clampPercent(this.values[input.dataset.volume]);
+      input.value = String(value);
+      input.style.setProperty('--fill', `${value}%`);
+      const label = this.root.querySelector(`[data-value="${input.dataset.volume}"]`);
+      if (label) label.textContent = `${value} %`;
     }
     for (const btn of this.root.querySelectorAll('[data-preset]')) {
       const preset = PRESET_OPTIONS[btn.dataset.preset];

@@ -9,6 +9,8 @@ export const OPTION_DEFAULTS = {
   dayCycle: true,
   autoTune: false,
   gameSpeed: 1,
+  sfxVolume: 70,
+  ambientVolume: 25,
 };
 
 export const QUALITY_SCALES = { high: 1, medium: 0.8, low: 0.65 };

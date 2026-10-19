@@ -107,7 +107,10 @@ export default class GameScene {
     this.heldItemSystem = new HeldItemSystem();
     this.heldItemSystem.onChange = () => this.onHeldItemChange();
     this.playerSystem.onStep = (x, z, sprint) => this.onPlayerStep(x, z, sprint);
-    this.unlockAudio = () => this.audioSystem.unlock();
+    this.unlockAudio = () => {
+      this.audioSystem.unlock();
+      this.audioSystem.startAmbient();
+    };
     window.addEventListener('pointerdown', this.unlockAudio);
     window.addEventListener('keydown', this.unlockAudio, { once: true });
     this.hoverCell = null;
@@ -129,6 +132,7 @@ export default class GameScene {
     this.setupOptions();
     this.setupInput();
     this.setupSave();
+    this.refreshAmbient();
     this.registerHudEvents();
     this.heldItemSystem.apply(SAVE_DEFAULTS.heldItem);
     if (this.saveSystem.load()) this.heldItemSystem.set(this.heldItemSystem.key || SAVE_DEFAULTS.heldItem.key);
@@ -152,6 +156,7 @@ export default class GameScene {
       const root = this.playerSystem.root;
       if (root) this.cameraSystem.follow(root.position.x, root.position.z, dt);
       this.autoTune(dt);
+      this.audioSystem.update(dt);
     });
 
     this.engine.runRenderLoop(() => this.s.render());
@@ -660,6 +665,8 @@ export default class GameScene {
     this.refreshClock();
     this.shadowGenerator.getShadowMap().renderList = this.options.shadows ? this.shadowCasters.slice() : [];
     this.decoHighlight.setVisible(this.options.highlights);
+    this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);
+    this.audioSystem.setAmbientVolume(this.options.ambientVolume / 100);
   }
 
   autoTune(dt) {
@@ -688,6 +695,7 @@ export default class GameScene {
   setupSimulation() {
     this.simSystem.subscribe((tick) => {
       if (this.options.dayCycle) this.dayNightSystem.update(tick);
+      this.refreshAmbient();
     });
     this.simSystem.onTick = () => this.refreshClock();
     this.simSystem.setSpeed(this.options.gameSpeed);
@@ -703,6 +711,11 @@ export default class GameScene {
     this.hud.setClockText(`${hh}:${mm}`);
     this.hud.setClockPhase(this.describeDayPhase(time, cfg));
     this.hud.setClockSpeed(this.simSystem.isPaused(), this.simSystem.speed);
+  }
+
+  refreshAmbient() {
+    const dayness = this.dayNightSystem.config ? this.dayNightSystem.dayness(this.dayNightSystem.getTime()) : 1;
+    this.audioSystem.setDayness(this.options.dayCycle ? dayness : 1);
   }
 
   describeDayPhase(time, cfg) {

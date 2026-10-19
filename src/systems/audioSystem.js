@@ -1,5 +1,5 @@
 // Zvuky hry — načte je jednou při startu a přehrává náhodné varianty bez vrstvení přes sebe.
-// Když prohlížeč zvuk odmítne (hra bez kliknutí), systém tiše mlčí a hra pokračuje.
+// Zvlášť k tomu drží zvuk lesa na pozadí, který se plynule přeladí mezi dnem a nocí.
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 
 const CLIPS = {
@@ -22,6 +22,10 @@ const VOICES = {
   stepStone: { volume: 0.08, voices: 3, pitch: 0.08 },
 };
 
+const AMBIENT_LAYERS = ['forest_day', 'forest_night'];
+const AMBIENT_FADE_SECONDS = 6;
+const AMBIENT_LEVEL = 0.25;
+
 export default class AudioSystem {
 
   constructor(scene) {
@@ -30,6 +34,13 @@ export default class AudioSystem {
     this.buffers = {};
     this.cursors = {};
     this.available = true;
+    this.master = null;
+    this.masterVolume = 1;
+    this.ambient = null;
+    this.ambientVolume = 0;
+    this.ambientBoost = AMBIENT_LEVEL;
+    this.ambientMix = { forest_day: 1, forest_night: 0 };
+    this.ambientTarget = { forest_day: 1, forest_night: 0 };
   }
 
   unlock() {
@@ -41,12 +52,16 @@ export default class AudioSystem {
     if (!this.ctx) {
       try {
         this.ctx = new Ctx();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = this.masterVolume;
+        this.master.connect(this.ctx.destination);
       } catch {
         this.disable();
         return;
       }
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
+    this.resumeAmbient();
   }
 
   load() {
@@ -58,20 +73,20 @@ export default class AudioSystem {
       this.buffers[key] = pool;
       this.cursors[key] = 0;
       for (let i = 0; i < cfg.voices; i += 1) {
-        this.fetchClip(key, names[i % names.length], i);
+        const url = `${ASSET_DIRS.audio}${names[i % names.length]}.ogg`;
+        this.fetchClip(url, (buffer) => { pool[i] = buffer; });
       }
     }
+    this.startAmbient();
   }
 
-  async fetchClip(key, name, index) {
-    const pool = this.buffers[key];
-    const url = `${ASSET_DIRS.audio}${name}.ogg`;
+  async fetchClip(url, onDone) {
     try {
       const response = await fetch(url);
       if (!response.ok) throw new Error(String(response.status));
       const data = await response.arrayBuffer();
       const buffer = await this.ctx.decodeAudioData(data);
-      if (pool) pool[index] = buffer;
+      if (onDone) onDone(buffer);
     } catch {
       this.disable();
     }
@@ -80,6 +95,91 @@ export default class AudioSystem {
   disable() {
     this.available = false;
     this.buffers = {};
+    this.stopAmbient();
+  }
+
+  startAmbient() {
+    if (!this.ctx || this.ambient) return;
+    this.ambient = {};
+    for (const key of AMBIENT_LAYERS) {
+      const gain = this.ctx.createGain();
+      gain.gain.value = 0;
+      gain.connect(this.master);
+      this.ambient[key] = { gain, source: null, buffer: null };
+      this.fetchClip(`${ASSET_DIRS.audio}${key}.ogg`, (buffer) => this.playLayer(key, buffer));
+    }
+    this.resumeAmbient();
+  }
+
+  resumeAmbient() {
+    if (!this.ambient) return;
+    for (const key of AMBIENT_LAYERS) {
+      const layer = this.ambient[key];
+      if (layer && !layer.source && layer.buffer) this.playLayer(key, layer.buffer);
+    }
+  }
+
+  playLayer(key, buffer) {
+    const layer = this.ambient && this.ambient[key];
+    if (!layer || !this.ctx || layer.source) return;
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.connect(layer.gain);
+    source.start();
+    layer.source = source;
+    layer.buffer = buffer;
+    this.applyLayerGains();
+  }
+
+  stopAmbient() {
+    if (!this.ambient) return;
+    for (const layer of Object.values(this.ambient)) {
+      if (layer.source) layer.source.stop();
+      layer.source = null;
+    }
+    this.ambient = null;
+  }
+
+  setMasterVolume(value) {
+    this.masterVolume = Math.max(0, Math.min(1, value));
+    if (this.master) this.master.gain.value = this.masterVolume;
+  }
+
+  setAmbientVolume(value) {
+    this.ambientVolume = Math.max(0, Math.min(1, value));
+    this.applyLayerGains();
+  }
+
+  setDayness(dayness) {
+    const t = Math.max(0, Math.min(1, dayness));
+    this.ambientTarget = { forest_day: t, forest_night: 1 - t };
+  }
+
+  applyLayerGains() {
+    if (!this.ambient || !this.ctx) return;
+    const level = this.ambientVolume * this.ambientBoost;
+    for (const key of AMBIENT_LAYERS) {
+      const layer = this.ambient[key];
+      if (!layer) continue;
+      layer.gain.gain.setTargetAtTime(this.ambientMix[key] * level, this.ctx.currentTime, AMBIENT_FADE_SECONDS / 3);
+    }
+  }
+
+  update(dt) {
+    if (!this.ambient) return;
+    const step = Math.min(1, dt / AMBIENT_FADE_SECONDS);
+    let changed = false;
+    for (const key of AMBIENT_LAYERS) {
+      const diff = this.ambientTarget[key] - this.ambientMix[key];
+      if (Math.abs(diff) < 0.005) {
+        this.ambientMix[key] = this.ambientTarget[key];
+        continue;
+      }
+      this.ambientMix[key] += diff * step;
+      changed = true;
+    }
+    if (changed) this.applyLayerGains();
   }
 
   play(key, options = {}) {
@@ -94,7 +194,7 @@ export default class AudioSystem {
     if (this.ctx.state === 'suspended') this.ctx.resume();
     const gain = this.ctx.createGain();
     gain.gain.value = cfg.volume * (options.gain || 1);
-    gain.connect(this.ctx.destination);
+    gain.connect(this.master || this.ctx.destination);
     const source = this.ctx.createBufferSource();
     source.buffer = buffer;
     source.playbackRate.value = 1 + (Math.random() * 2 - 1) * cfg.pitch;
