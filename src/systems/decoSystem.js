@@ -152,7 +152,7 @@ export default class DecoSystem {
     node.scaling = new Vector3(def.scale, def.scale, def.scale);
     tintTemplate(node, def, this.colors, section);
 
-    if (this.onDecoReady) this.onDecoReady(anchor, node, def);
+    if (this.onDecoReady) this.onDecoReady(anchor, node, def, entry);
   }
 
   isBlocked(cx, cz) {

@@ -18,10 +18,100 @@
 }
 
 #hud-status {
-  top: 12px;
+  display: none;
+  bottom: 12px;
   right: 12px;
   text-align: right;
   min-width: 160px;
+}
+
+#hud-status.is-open {
+  display: block;
+}
+
+/* Hotbar dole uprostřed — sloty pro předměty, které má hráč v ruce. */
+.hotbar {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 10px 6px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
+  user-select: none;
+}
+
+.hotbar__slots {
+  display: flex;
+  gap: 6px;
+}
+
+.hotbar__slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 62px;
+  padding: 6px 4px 4px;
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text-dim);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.hotbar__slot:hover {
+  border-color: rgba(90, 200, 170, 0.45);
+  color: var(--text-main);
+}
+
+.hotbar__slot.is-active {
+  border-color: var(--glow-accent);
+  background: rgba(90, 200, 170, 0.16);
+  color: var(--text-main);
+  box-shadow: 0 0 8px rgba(90, 200, 170, 0.35);
+}
+
+.hotbar__slot.is-empty {
+  border-style: dashed;
+  border-color: rgba(90, 200, 170, 0.12);
+  background: rgba(0, 0, 0, 0.18);
+  cursor: default;
+}
+
+.hotbar__slot.is-empty .hotbar__icon,
+.hotbar__slot.is-empty .hotbar__name {
+  opacity: 0.35;
+}
+
+.hotbar__slot.is-empty:hover {
+  border-color: rgba(90, 200, 170, 0.12);
+  color: var(--text-dim);
+}
+
+.hotbar__icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.hotbar__name {
+  white-space: nowrap;
+}
+
+.hotbar__hint {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.hotbar.is-armed .hotbar__hint {
+  color: var(--glow-accent);
 }
 
 .hud-panel h2 {
@@ -60,4 +150,230 @@
   margin-top: 6px;
   color: var(--text-dim);
   font-size: 11px;
+}
+
+/* Hodiny v HUD — aktuální herní čas, fáze dne a rychlost simulace. */
+#hud-clock {
+  top: 12px;
+  right: 12px;
+  min-width: 96px;
+  text-align: right;
+  padding: 6px 10px;
+}
+
+.hud-clock__time {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.hud-clock__meta {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+#hud-clock-speed {
+  color: var(--glow-warm);
+  font-weight: 600;
+}
+
+#hud-clock.is-paused .hud-clock__time {
+  color: var(--text-dim);
+}
+
+#hud-clock.is-paused #hud-clock-speed {
+  color: var(--glow-accent);
+}
+
+
+.options-toggle {
+  position: absolute;
+  top: 12px;
+  left: 300px;
+  height: 32px;
+  padding: 0 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  color: var(--glow-accent);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 12;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
+}
+
+.options-toggle:hover,
+.options-toggle.is-open {
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+.options-panel {
+  position: absolute;
+  top: 52px;
+  left: 300px;
+  width: 270px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
+  z-index: 22;
+  user-select: none;
+  cursor: grab;
+  display: none;
+}
+
+.options-panel.is-open {
+  display: block;
+}
+
+.options-panel.is-dragging {
+  cursor: grabbing;
+  z-index: 26;
+}
+
+.options-panel__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.options-panel__title {
+  color: var(--glow-accent);
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.options-panel__close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.options-panel__close:hover {
+  color: var(--text-main);
+}
+
+.options-panel__presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.options-panel__presets button,
+.options-panel__choices button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 5px 4px;
+  cursor: pointer;
+}
+
+.options-panel__presets button:hover,
+.options-panel__choices button:hover {
+  border-color: rgba(90, 200, 170, 0.45);
+  color: var(--text-main);
+}
+
+.options-panel__presets button.is-active,
+.options-panel__choices button.is-active {
+  background: rgba(90, 200, 170, 0.18);
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+.options-panel__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.options-panel__label {
+  color: var(--text-dim);
+}
+
+.options-panel__choices {
+  display: flex;
+  gap: 3px;
+}
+
+.options-panel__note {
+  display: block;
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+
+.options-panel__toggles {
+  border-top: 1px solid rgba(90, 200, 170, 0.18);
+  padding-top: 8px;
+  margin-bottom: 10px;
+}
+
+.options-panel__toggle {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 3px 0;
+  cursor: pointer;
+}
+
+.options-panel__toggle input {
+  margin-top: 3px;
+  accent-color: var(--glow-accent);
+  cursor: pointer;
+}
+
+.options-panel__toggle-text {
+  display: flex;
+  flex-direction: column;
+  color: var(--text-main);
+}
+
+.options-panel__toggle-text small {
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.options-panel__reset {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(224, 164, 88, 0.35);
+  border-radius: 4px;
+  color: var(--glow-warm);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 6px 4px;
+  cursor: pointer;
+}
+
+.options-panel__reset:hover {
+  border-color: var(--glow-warm);
+  color: var(--text-main);
 }

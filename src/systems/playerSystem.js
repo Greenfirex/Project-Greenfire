@@ -1,33 +1,38 @@
-// Hratelná postava — načtení modelu se skinem, animace a pohyb po světě.
+// Hratelná postava — načtení modelu s vlastní texturou, animace z vedlejších souborů a pohyb po světě.
 // WASD/šipky posouvají postavu relativně ke kameře, kolize drží mimo dekorace a stroje.
 import '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Animations/animatable';
 import '@babylonjs/core/Materials/PBR/pbrMaterial';
-import '@babylonjs/core/Materials/Textures/texture';
 import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { worldToCellCoords } from '../utils/gridMath.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 
-const CHARACTER_DIR = ASSET_DIRS.characters;
-const MODEL_URL = `${CHARACTER_DIR}characterMedium.glb`;
-const SKIN_URL = `${CHARACTER_DIR}survivorMaleB.png`;
-const ANIM_URLS = {
-  idle: `${CHARACTER_DIR}idle.glb`,
-  run: `${CHARACTER_DIR}run.glb`,
-  jump: `${CHARACTER_DIR}jump.glb`,
+const CHARACTER_DIR = `${ASSET_DIRS.characters}KayKit_Adventurers_2.0_FREE/`;
+const MODEL_URL = `${CHARACTER_DIR}Characters/gltf/Ranger.glb`;
+const ANIM_DIR = `${CHARACTER_DIR}Animations/gltf/Rig_Medium/`;
+const ANIM_SOURCES = [`${ANIM_DIR}Rig_Medium_General.glb`, `${ANIM_DIR}Rig_Medium_MovementBasic.glb`];
+const ANIM_NAMES = {
+  idle: 'Idle_A',
+  walk: 'Walking_A',
+  run: 'Running_A',
+  jump: 'Jump_Full_Short',
 };
+const ANIM_BLEND = 0.25;
 const MOVE_SPEED = 4.5;
+const WALK_SPEED = 2.4;
 const TURN_SPEED = 12;
-const MODEL_SCALE = 0.45;
+const MODEL_HEIGHT = 1.75;
+const MODEL_BASE_HEIGHT = 2.27;
+const MODEL_YAW = 0;
 const SPAWN = { x: 0, z: 0 };
 const MOVE_KEYS = {
   KeyW: 'forward', ArrowUp: 'forward',
   KeyS: 'back', ArrowDown: 'back',
   KeyA: 'left', ArrowLeft: 'left',
   KeyD: 'right', ArrowRight: 'right',
+  ShiftLeft: 'sprint', ShiftRight: 'sprint',
 };
 
 export default class PlayerSystem {
@@ -39,7 +44,7 @@ export default class PlayerSystem {
     this.anims = {};
     this.current = null;
     this.currentKey = null;
-    this.input = { forward: false, back: false, left: false, right: false };
+    this.input = { forward: false, back: false, left: false, right: false, sprint: false };
     this.facing = 0;
     this.blockedTest = null;
     this.ready = false;
@@ -50,15 +55,18 @@ export default class PlayerSystem {
     const root = new TransformNode('playerRoot', this.s);
     for (const mesh of result.meshes) {
       if (mesh.getTotalVertices && mesh.getTotalVertices() > 0) {
-        this.mesh = mesh;
-        mesh.parent = root;
+        if (!this.mesh) this.mesh = mesh;
         mesh.isPickable = false;
         mesh.receiveShadows = true;
       }
     }
+    if (!this.mesh) return null;
+    this.rig = this.mesh.parent;
+    if (this.rig) this.rig.parent = root;
     this.root = root;
-    this.applySkin();
-    root.scaling = new Vector3(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+    const scale = MODEL_HEIGHT / MODEL_BASE_HEIGHT;
+    root.scaling = new Vector3(scale, scale, scale);
+    root.rotation.y = MODEL_YAW;
     this.root.position = new Vector3(SPAWN.x, 0, SPAWN.z);
 
     await this.loadAnimations();
@@ -66,21 +74,6 @@ export default class PlayerSystem {
     this.bindKeys();
     this.ready = true;
     return this.root;
-  }
-
-  applySkin() {
-    const mat = this.mesh && this.mesh.material;
-    if (!mat) return;
-    const texture = new Texture(SKIN_URL, this.s);
-    if ('albedoTexture' in mat) {
-      mat.albedoTexture = texture;
-      mat.albedoColor.set(1, 1, 1);
-      if ('metallic' in mat) mat.metallic = 0;
-      if ('roughness' in mat) mat.roughness = 0.9;
-    } else {
-      mat.diffuseTexture = texture;
-    }
-    this.mesh.useVertexColors = false;
   }
 
   async loadAnimations() {
@@ -92,19 +85,21 @@ export default class PlayerSystem {
       if (node) nodeByName.set(bone.name, node);
     }
 
-    for (const [key, url] of Object.entries(ANIM_URLS)) {
+    const speedRatio = 1 / this.s.getAnimationRatio();
+    for (const url of ANIM_SOURCES) {
       const result = await ImportMeshAsync(url, this.s);
-      const source = result.animationGroups.find((g) => !g.name.includes('Targeting'));
-      if (!source) continue;
-      source.stop();
-      const group = source.clone(`player_${key}`, (target) => nodeByName.get(target.name) || target);
-      group.weight = 1;
-      group.enableBlending = true;
-      group.blendingSpeed = 0.08;
-      const last = Math.max(...group.targetedAnimations.map((t) => t.animation.getKeys().at(-1).frame));
-      group.from = 0;
-      group.to = last;
-      this.anims[key] = group;
+      for (const [key, name] of Object.entries(ANIM_NAMES)) {
+        const source = result.animationGroups.find((g) => g.name === name);
+        if (!source) continue;
+        source.stop();
+        const group = source.clone(`player_${key}`, (target) => nodeByName.get(target.name) || null);
+        group.weight = 1;
+        group.enableBlending = true;
+        group.blendingSpeed = ANIM_BLEND;
+        group.speedRatio = speedRatio;
+        this.anims[key] = group;
+      }
+      for (const group of result.animationGroups) group.stop();
       for (const mesh of result.meshes) {
         if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0) continue;
         mesh.setEnabled(false);
@@ -115,10 +110,20 @@ export default class PlayerSystem {
   play(key) {
     const group = this.anims[key];
     if (!group || this.currentKey === key) return;
-    if (this.current) this.current.stop();
+    this.clearPose(group);
+    group.start(true, group.speedRatio, group.from, group.to);
     this.current = group;
     this.currentKey = key;
-    group.start(true, 1.0);
+  }
+
+  clearPose(keep) {
+    for (const group of Object.values(this.anims)) {
+      if (group === keep) continue;
+      if (group.isStarted) group.stop();
+      for (const animatable of group.animatables) {
+        for (const runtime of animatable.getAnimations()) runtime.stop(false);
+      }
+    }
   }
 
   bindKeys() {
@@ -158,7 +163,9 @@ export default class PlayerSystem {
     }
 
     move.normalize();
-    const step = MOVE_SPEED * dt;
+    const sprint = this.input.sprint;
+    const speed = sprint ? MOVE_SPEED : WALK_SPEED;
+    const step = speed * dt;
     const pos = this.root.position;
     const nextX = pos.x + move.x * step;
     const nextZ = pos.z + move.z * step;
@@ -170,8 +177,8 @@ export default class PlayerSystem {
 
     const target = Math.atan2(move.x, move.z);
     this.facing = turnToward(this.facing, target, TURN_SPEED * dt);
-    this.root.rotation.y = this.facing;
-    this.play('run');
+    this.root.rotation.y = this.facing + MODEL_YAW;
+    this.play(sprint ? 'run' : 'walk');
   }
 
   cameraForward(camera) {

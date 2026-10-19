@@ -839,6 +839,13 @@ export const DECORATION_TYPES = {
     castsShadow: false,
     kind: 'ore',
     tintColor: [0.28, 0.52, 0.85],
+    highlight: {
+      ringColor: [0.55, 0.85, 1.0],
+      ringSize: 1.7,
+      lift: 0.02,
+      spin: 0.9,
+      pulse: 1.6,
+    },
   },
   ore_copper: {
     displayName: 'Měděná ruda',
@@ -849,6 +856,13 @@ export const DECORATION_TYPES = {
     castsShadow: false,
     kind: 'ore',
     tintColor: [1.0, 0.42, 0.1],
+    highlight: {
+      ringColor: [1.0, 0.72, 0.35],
+      ringSize: 1.7,
+      lift: 0.02,
+      spin: 0.9,
+      pulse: 1.6,
+    },
   },
 };
 
@@ -859,5 +873,18 @@ export const TREE_KEYS = DECORATION_KEYS.filter((key) => DECORATION_TYPES[key].k
 export const CLIFF_KEYS = DECORATION_KEYS.filter((key) => DECORATION_TYPES[key].kind === 'cliff');
 
 export function getDecoration(key) {
-  return DECORATION_TYPES[key] || null;
+  const def = DECORATION_TYPES[key];
+  if (!def || def.highlight) return def;
+  const highlight = genericHighlight(def);
+  return highlight ? { ...def, highlight } : def;
+}
+
+function genericHighlight(def) {
+  if (def.kind === 'tree') return { ringColor: [0.55, 0.95, 0.5], ringSize: ringFor(def.radius, 0.9) };
+  if (def.kind === 'prop' || def.kind === 'cliff') return { ringColor: [0.85, 0.85, 0.55], ringSize: ringFor(def.radius, 0.8) };
+  return null;
+}
+
+function ringFor(radius, fallback) {
+  return Math.round(Math.max(1.2, (radius || fallback) * 2.2) * 100) / 100;
 }

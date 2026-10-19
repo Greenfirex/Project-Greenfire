@@ -9,6 +9,10 @@ export default class Hud {
     this.countEl = null;
     this.cellEl = null;
     this.underEl = null;
+    this.clockEl = null;
+    this.clockTimeEl = null;
+    this.clockPhaseEl = null;
+    this.clockSpeedEl = null;
     this.onSave = null;
     this.onLoad = null;
     this.onToggleMachine = null;
@@ -22,14 +26,18 @@ export default class Hud {
       <h2>Ovládání</h2>
       <div class="hud-row"><span>Rotace kamery</span><strong>tažení myší</strong></div>
       <div class="hud-row"><span>Zoom</span><strong>kolečko</strong></div>
+      <div class="hud-row"><span>Nástroj v ruce</span><span class="hud-key">B</span></div>
       <div class="hud-row"><span>Stavět</span><strong>klik na zem</strong></div>
+      <div class="hud-row"><span>Dosah stavby</span><strong>2 buňky</strong></div>
       <div class="hud-row"><span>Změna stroje</span><span class="hud-key">M</span></div>
       <div class="hud-row"><span>Otočit stroj</span><span class="hud-key">R</span></div>
       <div class="hud-row"><span>Bourat</span><strong>pravé tlačítko ×2</strong></div>
       <div class="hud-row"><span>Zrušit výběr</span><span class="hud-key">Esc</span></div>
       <div class="hud-row"><span>Uložit</span><span class="hud-key">F5</span></div>
       <div class="hud-row"><span>Načíst</span><span class="hud-key">F9</span></div>
-      <div class="hud-hint">Bourání je dvoukrokové: první pravé tlačítko stroj označí, druhé ho zbourá.</div>
+      <div class="hud-row"><span>Možnosti</span><span class="hud-key">O</span></div>
+      <div class="hud-row"><span>Pauza / pokračovat</span><span class="hud-key">mezerník</span></div>
+      <div class="hud-hint">Bourání je dvoukrokové: první pravé tlačítko stroj označí, druhé ho zbourá. Stavět a bourat lze jen s kladivem v ruce.</div>
     `;
     this.layer.appendChild(this.helpEl);
 
@@ -53,6 +61,22 @@ export default class Hud {
     this.heightEl = this.statusEl.querySelector('#hud-height');
     this.underEl = this.statusEl.querySelector('#hud-under');
     this.saveHintEl = this.statusEl.querySelector('#hud-savehint');
+
+    this.clockEl = document.createElement('div');
+    this.clockEl.className = 'hud-panel';
+    this.clockEl.id = 'hud-clock';
+    this.clockEl.innerHTML = `
+      <div class="hud-clock__time" id="hud-clock-time">--:--</div>
+      <div class="hud-clock__meta">
+        <span id="hud-clock-phase">—</span>
+        <span id="hud-clock-speed">1×</span>
+      </div>
+    `;
+    this.layer.appendChild(this.clockEl);
+
+    this.clockTimeEl = this.clockEl.querySelector('#hud-clock-time');
+    this.clockPhaseEl = this.clockEl.querySelector('#hud-clock-phase');
+    this.clockSpeedEl = this.clockEl.querySelector('#hud-clock-speed');
   }
 
   setMachine(name) {
@@ -88,5 +112,26 @@ export default class Hud {
 
   setSaveHint(text) {
     if (this.saveHintEl) this.saveHintEl.textContent = text;
+  }
+
+  setStatusVisible(visible) {
+    if (this.statusEl) this.statusEl.classList.toggle('is-open', visible);
+  }
+
+  setClockText(text) {
+    if (!this.clockTimeEl || this.clockTimeEl.textContent === text) return;
+    this.clockTimeEl.textContent = text;
+  }
+
+  setClockPhase(text) {
+    if (!this.clockPhaseEl || this.clockPhaseEl.textContent === text) return;
+    this.clockPhaseEl.textContent = text;
+  }
+
+  setClockSpeed(paused, speed) {
+    if (!this.clockSpeedEl) return;
+    const text = paused ? 'Pauza' : `${speed}×`;
+    if (this.clockSpeedEl.textContent !== text) this.clockSpeedEl.textContent = text;
+    this.clockEl.classList.toggle('is-paused', paused);
   }
 }

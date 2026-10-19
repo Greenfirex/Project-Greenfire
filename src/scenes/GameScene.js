@@ -13,17 +13,21 @@ import CameraSystem from '../systems/cameraSystem.js';
 import GridSystem from '../systems/gridSystem.js';
 import TerrainSystem from '../systems/terrainSystem.js';
 import DecoSystem from '../systems/decoSystem.js';
+import DecoHighlightSystem from '../systems/decoHighlightSystem.js';
 import DayNightSystem from '../systems/dayNightSystem.js';
+import SimSystem from '../systems/simSystem.js';
 import InputSystem from '../systems/inputSystem.js';
 import PlayerSystem from '../systems/playerSystem.js';
 import BuildSystem from '../systems/buildSystem.js';
 import SaveSystem from '../systems/saveSystem.js';
 import Hud from '../ui/hud.js';
+import Hotbar from '../ui/hotbar.js';
 import EditorMode from '../systems/editorMode.js';
 import EditorHud from '../ui/editorHud.js';
 import BrushPanel from '../ui/brushPanel.js';
 import TileThumbnails from '../ui/tileThumbnails.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
+import { worldToCellCoords } from '../utils/gridMath.js';
 import { getBrush } from '../data/catalogs/brushes.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { SAVE_DEFAULTS, SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
@@ -31,7 +35,17 @@ import { buildGladeLayout } from '../data/maps/glade.js';
 import gladeLayoutData from '../data/maps/glade/layout.json';
 import { normalizeLayout, cloneLayout } from '../data/maps/layoutStore.js';
 import { generateLayout } from '../data/maps/mapGenerator.js';
-import { readJSON } from '../utils/storage.js';
+import { readJSON, writeJSON } from '../utils/storage.js';
+import { OPTION_DEFAULTS, OPTIONS_STORAGE_KEY, QUALITY_SCALES } from '../data/catalogs/optionsSchema.js';
+import OptionsPanel from '../ui/optionsPanel.js';
+
+const AUTOTUNE_WINDOW_MS = 2000;
+const AUTOTUNE_LOW_FPS = 45;
+const AUTOTUNE_HIGH_FPS = 57;
+const AUTOTUNE_MIN_SCALE = 0.7;
+const AUTOTUNE_STEP = 0.1;
+const BUILD_RANGE_CELLS = 2;
+
 
 export default class GameScene {
 
@@ -45,21 +59,34 @@ export default class GameScene {
     this.gridSystem = new GridSystem(scene);
     this.terrainSystem = new TerrainSystem(scene);
     this.decoSystem = new DecoSystem(scene);
+    this.decoHighlight = new DecoHighlightSystem(scene);
     this.dayNightSystem = new DayNightSystem(scene);
+    this.simSystem = new SimSystem(scene);
     this.inputSystem = new InputSystem(scene);
     this.playerSystem = new PlayerSystem(scene);
     this.buildSystem = new BuildSystem(scene);
     this.saveSystem = new SaveSystem(this);
     this.hud = new Hud();
+    this.hotbar = new Hotbar();
     this.editorMode = new EditorMode();
     this.lastPaintCell = null;
     this.editorHud = new EditorHud();
     this.brushPanel = new BrushPanel();
+    this.optionsPanel = new OptionsPanel();
+    this.options = { ...OPTION_DEFAULTS };
+    this.renderScale = 1;
+    this.autoScale = 1;
+    this.autoWindowStart = 0;
+    this.autoWindowFrames = 0;
+    this.shadowCasters = [];
+
     this.tileThumbs = null;
 
     this.camera = null;
     this.shadowGenerator = null;
     this.currentMachine = DEFAULT_MACHINE;
+    this.previewRotation = 0;
+    this.heldTool = null;
     this.hoverCell = null;
     this.mapLayout = null;
   }
@@ -71,26 +98,40 @@ export default class GameScene {
     this.setupDecorations();
     this.gridSystem.create();
     this.setupShadowCasters();
+    this.setupSimulation();
     this.setupPlayer();
     this.setupHud();
+    this.setupOptions();
     this.setupInput();
     this.setupSave();
     this.registerHudEvents();
 
     this.buildSystem.onMachineReady = (record, node) => {
-      for (const child of node.getChildMeshes()) this.shadowGenerator.addShadowCaster(child);
+      for (const child of node.getChildMeshes()) this.addShadowCaster(child);
     };
 
     this.s.onBeforeRenderObservable.add(() => {
       const dt = this.engine.getDeltaTime() / 1000;
-      this.dayNightSystem.update(dt);
+      this.simSystem.update(dt);
+      this.followPointer();
+      this.decoHighlight.update(dt);
       this.playerSystem.update(dt);
       const root = this.playerSystem.root;
       if (root) this.cameraSystem.follow(root.position.x, root.position.z, dt);
+      this.autoTune(dt);
     });
 
     this.engine.runRenderLoop(() => this.s.render());
     this.hud.setMachine(getMachine(this.currentMachine).displayName);
+    this.hotbar.setHeld(this.heldTool);
+  }
+
+  followPointer() {
+    if (!this.options.highlights || !this.decoHighlight.hasEntries()) return;
+    const cell = this.inputSystem.pointerInside()
+      ? this.inputSystem.cellAtPointer()
+      : null;
+    this.decoHighlight.setHover(cell);
   }
 
   async setupPlayer() {
@@ -98,7 +139,7 @@ export default class GameScene {
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z);
     const root = await this.playerSystem.create();
     if (!root) return;
-    for (const child of root.getChildMeshes()) this.shadowGenerator.addShadowCaster(child);
+    for (const child of root.getChildMeshes()) this.addShadowCaster(child);
     this.cameraSystem.snapTo(root.position.x, root.position.z);
   }
 
@@ -112,15 +153,23 @@ export default class GameScene {
   setupDecorations() {
     const map = getMap(this.mapKey);
     const layout = this.buildMapLayout();
+    this.decoHighlight.clear();
+    this.decoHighlight.create((cx, cz) => this.decoSystem.surfaceAt(cx, cz));
     this.decoSystem.create(layout, map.colors);
     this.decoSystem.rememberLayout(this.mapLayout);
     this.tileThumbs = new TileThumbnails(this.s, map.colors);
     this.buildSystem.blockedTest = (cx, cz) => this.decoSystem.isBlocked(cx, cz);
-    this.decoSystem.onDecoReady = (anchor, node, def) => {
+    this.buildSystem.rangeTest = (cx, cz) => this.withinBuildRange(cx, cz);
+    this.gridSystem.onHologramReady = (machineKey) => {
+      if (machineKey !== this.currentMachine) return;
+      this.refreshHoverPreview();
+    };
+    this.decoSystem.onDecoReady = (anchor, node, def, entry) => {
       for (const child of node.getChildMeshes()) {
         child.isPickable = false;
-        if (def.castsShadow) this.shadowGenerator.addShadowCaster(child);
+        if (def.castsShadow) this.addShadowCaster(child);
       }
+      this.decoHighlight.add(entry, node, def);
     };
 
     this.editorMode.onRegenerate = (editorLayout) => this.renderMapLayout(editorLayout);
@@ -338,6 +387,7 @@ export default class GameScene {
       this.decoSystem.rememberLayout(editorLayout);
       return;
     }
+    this.decoHighlight.clear();
     this.decoSystem.create(layout, map.colors);
     this.decoSystem.rememberLayout(editorLayout);
   }
@@ -416,9 +466,112 @@ export default class GameScene {
     if (ground) ground.receiveShadows = true;
   }
 
+  setupOptions() {
+    const saved = readJSON(OPTIONS_STORAGE_KEY);
+    this.optionsPanel.values = { ...OPTION_DEFAULTS, ...(saved || {}) };
+    this.options = { ...this.optionsPanel.values };
+    this.applyOptions();
+    this.optionsPanel.mount();
+    this.optionsPanel.render();
+    this.optionsPanel.onChange = (values) => {
+      this.options = { ...values };
+      this.autoScale = 1;
+      writeJSON(OPTIONS_STORAGE_KEY, values);
+      this.applyOptions();
+    };
+  }
+
+  addShadowCaster(mesh) {
+    if (!mesh || this.shadowCasters.includes(mesh)) return;
+    this.shadowCasters.push(mesh);
+    if (this.options.shadows) this.shadowGenerator.addShadowCaster(mesh);
+  }
+
+  applyOptions() {
+    const qualityScale = QUALITY_SCALES[this.options.quality] ?? 1;
+    this.renderScale = qualityScale;
+    this.engine.setHardwareScalingLevel(1 / (qualityScale * this.autoScale));
+    this.cameraSystem.applyOrtho();
+    this.engine.maxFPS = this.options.fpsCap > 0 ? this.options.fpsCap : undefined;
+    this.simSystem.setSpeed(this.options.gameSpeed);
+    this.refreshClock();
+    this.shadowGenerator.getShadowMap().renderList = this.options.shadows ? this.shadowCasters.slice() : [];
+    this.decoHighlight.setVisible(this.options.highlights);
+  }
+
+  autoTune(dt) {
+    if (!this.options.autoTune) {
+      this.autoWindowFrames = 0;
+      return;
+    }
+    if (this.options.fpsCap > 0 && this.options.fpsCap <= AUTOTUNE_LOW_FPS) {
+      this.autoWindowFrames = 0;
+      return;
+    }
+    this.autoWindowStart += dt * 1000;
+    this.autoWindowFrames += 1;
+    if (this.autoWindowStart < AUTOTUNE_WINDOW_MS) return;
+    const fps = this.autoWindowFrames / (this.autoWindowStart / 1000);
+    this.autoWindowStart = 0;
+    this.autoWindowFrames = 0;
+    let next = this.autoScale;
+    if (fps < AUTOTUNE_LOW_FPS) next = Math.max(AUTOTUNE_MIN_SCALE, this.autoScale - AUTOTUNE_STEP);
+    else if (fps > AUTOTUNE_HIGH_FPS) next = Math.min(1, this.autoScale + AUTOTUNE_STEP);
+    if (Math.abs(next - this.autoScale) < 0.001) return;
+    this.autoScale = next;
+    this.applyOptions();
+  }
+
+  setupSimulation() {
+    this.simSystem.subscribe((tick) => {
+      if (this.options.dayCycle) this.dayNightSystem.update(tick);
+    });
+    this.simSystem.onTick = () => this.refreshClock();
+    this.simSystem.setSpeed(this.options.gameSpeed);
+    this.refreshClock();
+  }
+
+  refreshClock() {
+    const cfg = this.dayNightSystem.config;
+    const time = this.dayNightSystem.getTime();
+    const minutes = Math.floor(time * 24 * 60) % (24 * 60);
+    const hh = String(Math.floor(minutes / 60)).padStart(2, '0');
+    const mm = String(minutes % 60).padStart(2, '0');
+    this.hud.setClockText(`${hh}:${mm}`);
+    this.hud.setClockPhase(this.describeDayPhase(time, cfg));
+    this.hud.setClockSpeed(this.simSystem.isPaused(), this.simSystem.speed);
+  }
+
+  describeDayPhase(time, cfg) {
+    if (!cfg) return 'Bez denního cyklu';
+    if (!this.options.dayCycle) return 'Den a noc vypnutý';
+    if (time < cfg.dawnTime || time > cfg.duskTime) return 'Noc';
+    const t = (time - cfg.dawnTime) / (cfg.duskTime - cfg.dawnTime);
+    if (t < 0.2) return 'Svitání';
+    if (t > 0.8) return 'Soumrak';
+    return 'Den';
+  }
+
   setupHud() {
     this.hud.mount();
     this.hud.setCount(this.buildSystem.count);
+    this.hud.setStatusVisible(false);
+    this.hotbar.mount();
+    this.hotbar.onSelect = (key) => this.setHeldTool(key);
+    this.hotbar.setHeld(this.heldTool);
+  }
+
+  setHeldTool(key) {
+    this.heldTool = key || null;
+    this.hud.setStatusVisible(Boolean(this.heldTool));
+    this.hotbar.setHeld(this.heldTool);
+    if (!this.heldTool) {
+      this.gridSystem.hideHighlight();
+      this.gridSystem.hideHologram();
+      this.clearMark();
+    } else if (this.hoverCell) {
+      this.handleHover(this.hoverCell);
+    }
   }
 
   setupInput() {
@@ -456,6 +609,16 @@ export default class GameScene {
       },
       order: 20,
     });
+    this.saveSystem.registerState('sim', {
+      serialize: () => ({ time: this.simSystem.time }),
+      apply: (data) => {
+        const time = data && typeof data.time === 'number' && Number.isFinite(data.time) && data.time >= 0
+          ? data.time
+          : SAVE_DEFAULTS.sim.time;
+        this.simSystem.time = time;
+      },
+      order: 25,
+    });
     this.saveSystem.registerState('mapLayouts', {
       serialize: () => ({ [this.mapKey]: cloneLayout(this.mapLayout) }),
       apply: (data) => {
@@ -473,9 +636,27 @@ export default class GameScene {
 
   registerHudEvents() {
     window.addEventListener('keydown', (evt) => this.handleKey(evt));
+    window.addEventListener('blur', () => this.simSystem.resetAccumulator());
+  }
+
+  togglePause() {
+    const paused = this.simSystem.isPaused();
+    this.optionsPanel.patch({ gameSpeed: paused ? 1 : 0 });
   }
 
   handleKey(evt) {
+    const typing = evt.target && (evt.target.tagName === 'INPUT' || evt.target.tagName === 'TEXTAREA' || evt.target.isContentEditable);
+    if (evt.key === ' ' && !typing) {
+      evt.preventDefault();
+      this.togglePause();
+      return;
+    }
+    if ((evt.key === 'o' || evt.key === 'O') && !typing) {
+      if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+      evt.preventDefault();
+      this.optionsPanel.toggle();
+      return;
+    }
     if (evt.key === 'F1') {
       evt.preventDefault();
       const active = this.editorMode.toggle();
@@ -511,6 +692,12 @@ export default class GameScene {
         return;
       }
     }
+    if (evt.key === 'b' || evt.key === 'B') {
+      if (evt.ctrlKey || evt.metaKey || evt.altKey || typing) return;
+      evt.preventDefault();
+      this.setHeldTool(this.heldTool ? null : 'builder');
+      return;
+    }
     if (evt.key === 'm' || evt.key === 'M') this.cycleMachine();
     if (evt.key === 'r' || evt.key === 'R') this.rotateHovered();
     if (evt.key === 'Escape') this.clearMark();
@@ -529,23 +716,41 @@ export default class GameScene {
   }
 
   cycleMachine() {
+    if (!this.heldTool) return;
     const index = MACHINE_KEYS.indexOf(this.currentMachine);
     this.currentMachine = MACHINE_KEYS[(index + 1) % MACHINE_KEYS.length];
+    this.previewRotation = 0;
     this.hud.setMachine(getMachine(this.currentMachine).displayName);
+    this.refreshHoverPreview();
   }
 
   rotateHovered() {
-    if (!this.hoverCell) return;
-    const record = this.buildSystem.rotate(this.hoverCell.cx, this.hoverCell.cz);
-    if (!record) return;
-    const def = getMachine(record.type);
-    this.hud.setSaveHint(`${def.displayName}: ${record.rotation * 90}°`);
+    if (!this.heldTool) return;
+    const record = this.hoverCell ? this.buildSystem.getAt(this.hoverCell.cx, this.hoverCell.cz) : null;
+    if (record) {
+      const rotated = this.buildSystem.rotate(this.hoverCell.cx, this.hoverCell.cz);
+      if (!rotated) return;
+      const def = getMachine(rotated.type);
+      this.hud.setSaveHint(`${def.displayName}: ${rotated.rotation * 90}°`);
+      return;
+    }
+    this.previewRotation = (this.previewRotation + 1) % 4;
+    this.refreshHoverPreview();
+  }
+
+  refreshHoverPreview() {
+    if (!this.hoverCell || !this.heldTool || this.editorMode.active) return;
+    const { cx, cz } = this.hoverCell;
+    const topY = this.decoSystem.topAt(cx, cz);
+    this.refreshHologram(this.hoverCell, topY, this.buildSystem.canBuild(cx, cz));
   }
 
   handleHover(cell) {
     this.hoverCell = cell;
+    if (cell) this.decoHighlight.setHover(cell);
     if (this.editorMode.active) {
       this.gridSystem.hideHighlight();
+      this.gridSystem.hideHologram();
       if (!cell) {
         this.gridSystem.clearBrush();
         this.editorHud.setReadout('–');
@@ -604,9 +809,10 @@ export default class GameScene {
   }
 
   moveGridHighlight(cell) {
-    if (!cell) {
+    if (!cell || !this.heldTool) {
       this.hoverCell = null;
       this.gridSystem.hideHighlight();
+      this.gridSystem.hideHologram();
       this.hud.setCell(null, null, true);
       this.hud.setHeight(null);
       return;
@@ -617,10 +823,29 @@ export default class GameScene {
     this.hoverCell = cell;
     this.gridSystem.setHighlight(cell.cx, cell.cz, topY);
     this.gridSystem.setHighlightValid(valid);
+    this.refreshHologram(cell, topY, valid);
     this.hud.setCell(cell.cx, cell.cz, valid);
     this.hud.setHeight(topY);
     if (occupied) this.hud.setCellOccupied(this.describeMachine(cell.cx, cell.cz));
     else this.hud.setCellOccupied(null);
+  }
+
+  refreshHologram(cell, topY, valid) {
+    if (!this.heldTool || this.editorMode.active || !this.currentMachine) {
+      this.gridSystem.hideHologram();
+      return;
+    }
+    const def = getMachine(this.currentMachine);
+    if (!def) return;
+    this.gridSystem.showHologram(this.currentMachine, def, cell.cx, cell.cz, topY, this.previewRotation, valid);
+  }
+
+  withinBuildRange(cx, cz) {
+    const root = this.playerSystem.root;
+    if (!root) return true;
+    const { cx: pcx, cz: pcz } = worldToCellCoords(root.position.x, root.position.z);
+    if (cx === pcx && cz === pcz) return false;
+    return Math.max(Math.abs(cx - pcx), Math.abs(cz - pcz)) <= BUILD_RANGE_CELLS;
   }
 
   describeMachine(cx, cz) {
@@ -631,22 +856,24 @@ export default class GameScene {
   }
 
   handleCellClick(cell) {
-    if (!cell) return;
+    if (!cell || !this.heldTool) return;
     if (this.editorMode.active) {
       this.editorMode.paint(cell.cx, cell.cz);
       return;
     }
     this.clearMark();
-    const record = this.buildSystem.build(this.currentMachine, cell.cx, cell.cz);
+    const record = this.buildSystem.build(this.currentMachine, cell.cx, cell.cz, this.previewRotation);
     if (!record) return;
-    this.shadowGenerator.addShadowCaster(record.mesh);
+    for (const child of record.mesh.getChildMeshes()) this.addShadowCaster(child);
+    this.addShadowCaster(record.mesh);
     record.mesh.receiveShadows = true;
     this.hud.setCount(this.buildSystem.count);
     this.hud.setSaveHint('Neuloženo');
+    this.handleHover(cell);
   }
 
   handleCellRightClick(cell) {
-    if (!cell) return;
+    if (!cell || !this.heldTool) return;
     if (this.editorMode.active) {
       if (this.editorMode.isManualBrush()) {
         this.editorMode.deleteAt(cell.cx, cell.cz);
@@ -704,12 +931,17 @@ export default class GameScene {
     const ok = this.saveSystem.load();
     this.gridSystem.clearMark();
     this.hud.setCount(this.buildSystem.count);
+    this.hud.setStatusVisible(Boolean(this.heldTool));
     this.refreshShadowCasters();
+    this.refreshClock();
     this.hud.setSaveHint(ok ? 'Načteno ✓' : 'Žádný save');
   }
 
   refreshShadowCasters() {
-    this.shadowGenerator.getShadowMap().renderList = [];
+    if (this.shadowCasters.length) {
+      this.shadowGenerator.getShadowMap().renderList = this.options.shadows ? this.shadowCasters.slice() : [];
+      return;
+    }
     for (const record of this.buildSystem.machines.values()) {
       if (record.node) {
         for (const child of record.node.getChildMeshes()) this.shadowGenerator.addShadowCaster(child);

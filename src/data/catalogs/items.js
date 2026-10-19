@@ -29,6 +29,21 @@ export const ITEM_TYPES = {
 
 export const ITEM_KEYS = Object.keys(ITEM_TYPES);
 
+export const TOOL_TYPES = {
+  builder: {
+    displayName: 'Stavební kladivo',
+    shortName: 'Kladivo',
+    icon: '⚒',
+    kind: 'tool',
+  },
+};
+
+export const HOTBAR_ITEMS = ['builder'];
+
+export function getTool(toolKey) {
+  return TOOL_TYPES[toolKey] || null;
+}
+
 export function getItem(itemKey) {
   return ITEM_TYPES[itemKey] || null;
 }

@@ -106,6 +106,12 @@ export default class InputSystem {
     return { cx, cz, point };
   }
 
+  pointerInside() {
+    const x = Number.isFinite(this.s.pointerX) ? this.s.pointerX : -1;
+    const y = Number.isFinite(this.s.pointerY) ? this.s.pointerY : -1;
+    return x >= 0 && y >= 0;
+  }
+
   handleRightClick() {
     const cell = this.cellAtPointer();
     if (this.onCellRightClick) this.onCellRightClick(cell);

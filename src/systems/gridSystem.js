@@ -1,12 +1,17 @@
-// Mřížka světa — zvýraznění cílové buňky a označení stroje vybraného k bourání.
+// Mřížka světa — zvýraznění cílové buňky, náhled stavěného stroje a označení k bourání.
 // Podlahu a linky buněk kreslí terrainSystem; tenhle systém řeší jen kurzor.
 import '@babylonjs/core/Meshes/Builders/groundBuilder';
 import '@babylonjs/core/Meshes/Builders/linesBuilder';
+import '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CELL_SIZE } from '../utils/gridMath.js';
+import { loadModel, instantiateModel } from '../utils/assetLoader.js';
+
+const HOLOGRAM_ALPHA = 0.45;
+
 
 export default class GridSystem {
 
@@ -26,6 +31,12 @@ export default class GridSystem {
     this.draftAddPool = [];
     this.draftLinesRemove = null;
     this.draftRemovePool = [];
+    this.hologramKey = '';
+    this.hologramNode = null;
+    this.hologramOwnMaterials = [];
+    this.hologramToken = 0;
+    this.hologramValid = true;
+    this.onHologramReady = null;
   }
 
   create() {
@@ -36,7 +47,7 @@ export default class GridSystem {
     this.highlightMaterial = new StandardMaterial('cellHighlightMat', this.s);
     this.highlightMaterial.diffuseColor = new Color3(0.35, 0.95, 0.8);
     this.highlightMaterial.emissiveColor = new Color3(0.3, 0.78, 0.65);
-    this.highlightMaterial.alpha = 0.55;
+    this.highlightMaterial.alpha = 0.3;
     this.highlight.material = this.highlightMaterial;
     this.highlight.position = new Vector3(0, 0.02, 0);
     this.highlight.isPickable = false;
@@ -88,6 +99,7 @@ export default class GridSystem {
   }
 
   setHighlightValid(isValid) {
+    this.hologramValid = isValid;
     if (isValid) {
       this.highlightMaterial.diffuseColor = new Color3(0.35, 0.95, 0.8);
       this.highlightMaterial.emissiveColor = new Color3(0.3, 0.78, 0.65);
@@ -97,6 +109,67 @@ export default class GridSystem {
       this.highlightMaterial.emissiveColor = new Color3(0.72, 0.24, 0.2);
       this.highlightEdge.color = new Color3(1, 0.7, 0.62);
     }
+    this.tintHologram(isValid);
+  }
+
+  showHologram(machineKey, def, cx, cz, topY, rotation, valid) {
+    if (this.hologramKey !== machineKey) this.requestHologram(machineKey, def);
+    if (!this.hologramNode) return;
+
+    this.hologramNode.position.set(cx * CELL_SIZE, topY, cz * CELL_SIZE);
+    this.hologramNode.rotation.y = (Math.PI / 2) * rotation;
+    this.hologramNode.setEnabled(true);
+    this.tintHologram(valid);
+  }
+
+  requestHologram(machineKey, def) {
+    this.hologramKey = machineKey;
+    this.disposeHologram();
+    this.hologramToken += 1;
+    const token = this.hologramToken;
+    loadModel(this.s, def.model).then((template) => {
+      if (token !== this.hologramToken || this.hologramKey !== machineKey) return;
+      const node = instantiateModel(this.s, template, 'hologramModel');
+      if (!node) return;
+      this.hologramOwnMaterials = node.getChildMeshes().map((mesh) => {
+        const mat = new StandardMaterial(`hologramMat_${mesh.name}`, this.s);
+        const source = mesh.material;
+        if (source && source.alphaTexture) mat.opacityTexture = source.alphaTexture;
+        mat.diffuseColor = new Color3(0.35, 0.95, 0.8);
+        mat.emissiveColor = new Color3(0.21, 0.57, 0.48);
+        mat.specularColor = new Color3(0, 0, 0);
+        mat.alpha = HOLOGRAM_ALPHA;
+        mat.backFaceCulling = false;
+        mesh.material = mat;
+        mesh.receiveShadows = false;
+        return mat;
+      });
+      this.hologramNode = node;
+      node.setEnabled(false);
+      if (typeof this.onHologramReady === 'function') this.onHologramReady(machineKey);
+    });
+  }
+
+  disposeHologram() {
+    if (this.hologramNode) {
+      this.hologramNode.dispose(false, false);
+      this.hologramNode = null;
+    }
+    for (const mat of this.hologramOwnMaterials) mat.dispose();
+    this.hologramOwnMaterials = [];
+  }
+
+  tintHologram(isValid) {
+    this.hologramValid = isValid;
+    const base = isValid ? new Color3(0.35, 0.95, 0.8) : new Color3(0.95, 0.38, 0.32);
+    for (const mat of this.hologramOwnMaterials) {
+      mat.diffuseColor = base;
+      mat.emissiveColor = base.scale(0.6);
+    }
+  }
+
+  hideHologram() {
+    if (this.hologramNode) this.hologramNode.setEnabled(false);
   }
 
   showBrush(cells, surfaceAt, erasing) {

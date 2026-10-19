@@ -8,6 +8,28 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { cellToWorldCoords, cellKey } from '../utils/gridMath.js';
 import { getMachine } from '../data/catalogs/machines.js';
 import { loadModel, instantiateModel } from '../utils/assetLoader.js';
+import { MACHINE_STATE_DEFAULT } from '../data/catalogs/saveSchema.js';
+
+function sanitizeCounts(source) {
+  const result = {};
+  if (!source || typeof source !== 'object') return result;
+  for (const [key, value] of Object.entries(source)) {
+    if (typeof key !== 'string' || typeof value !== 'number' || !Number.isFinite(value) || value <= 0) continue;
+    result[key] = value;
+  }
+  return result;
+}
+
+export function normalizeMachineState(data) {
+  const progress = data && typeof data.progress === 'number' && Number.isFinite(data.progress)
+    ? data.progress
+    : MACHINE_STATE_DEFAULT.progress;
+  return {
+    input: sanitizeCounts(data && data.input),
+    output: sanitizeCounts(data && data.output),
+    progress: Math.min(1, Math.max(0, progress)),
+  };
+}
 
 export default class BuildSystem {
 
@@ -19,6 +41,7 @@ export default class BuildSystem {
     this.markedCell = null;
     this.buildLimit = 13;
     this.blockedTest = null;
+    this.rangeTest = null;
   }
 
   isOccupied(cx, cz) {
@@ -32,11 +55,12 @@ export default class BuildSystem {
   canBuild(cx, cz) {
     if (this.isOccupied(cx, cz)) return false;
     if (this.blockedTest && this.blockedTest(cx, cz)) return false;
+    if (this.rangeTest && !this.rangeTest(cx, cz)) return false;
     const limit = this.buildLimit;
     return cx >= -limit && cx <= limit && cz >= -limit && cz <= limit;
   }
 
-  build(machineKey, cx, cz, rotation = 0) {
+  build(machineKey, cx, cz, rotation = 0, state = null) {
     if (!this.canBuild(cx, cz)) return null;
     const def = getMachine(machineKey);
     if (!def) return null;
@@ -51,6 +75,7 @@ export default class BuildSystem {
       cx,
       cz,
       rotation: normalizeRotation(rotation),
+      state: normalizeMachineState(state),
       mesh,
       node: null,
     };
@@ -169,6 +194,7 @@ export default class BuildSystem {
       cx: r.cx,
       cz: r.cz,
       rotation: r.rotation,
+      state: { ...r.state, input: { ...r.state.input }, output: { ...r.state.output } },
     }));
   }
 
@@ -178,7 +204,7 @@ export default class BuildSystem {
     for (const entry of data) {
       if (!entry || typeof entry.type !== 'string') continue;
       if (typeof entry.cx !== 'number' || typeof entry.cz !== 'number') continue;
-      this.build(entry.type, entry.cx, entry.cz, entry.rotation);
+      this.build(entry.type, entry.cx, entry.cz, entry.rotation, entry.state);
     }
   }
 
