@@ -14,6 +14,8 @@ import GridSystem from '../systems/gridSystem.js';
 import TerrainSystem from '../systems/terrainSystem.js';
 import DecoSystem from '../systems/decoSystem.js';
 import DecoHighlightSystem from '../systems/decoHighlightSystem.js';
+import CampfireSystem from '../systems/campfireSystem.js';
+import GlowSystem from '../systems/glowSystem.js';
 import DayNightSystem from '../systems/dayNightSystem.js';
 import SimSystem from '../systems/simSystem.js';
 import InputSystem from '../systems/inputSystem.js';
@@ -52,6 +54,7 @@ const AUTOTUNE_MIN_SCALE = 0.7;
 const AUTOTUNE_STEP = 0.1;
 const BUILD_RANGE_CELLS = 2;
 const IMPACT_DELAY = 0.28;
+const TIME_SKIP = { hours: 6 };
 
 
 function surfaceStepSound(key) {
@@ -73,6 +76,8 @@ export default class GameScene {
     this.gridSystem = new GridSystem(scene);
     this.terrainSystem = new TerrainSystem(scene);
     this.decoSystem = new DecoSystem(scene);
+    this.campfireSystem = new CampfireSystem(scene);
+    this.glowSystem = new GlowSystem(scene);
     this.decoHighlight = new DecoHighlightSystem(scene);
     this.dayNightSystem = new DayNightSystem(scene);
     this.simSystem = new SimSystem(scene);
@@ -120,6 +125,9 @@ export default class GameScene {
 
   start() {
     this.audioSystem.load();
+    this.campfireSystem.onIgniteStart = (item) => this.playerSystem.igniteAt(item.x, item.z);
+    this.campfireSystem.onIgnite = () => this.audioSystem.play('ignite');
+    this.setupGlow();
     this.setupLighting();
     this.camera = this.cameraSystem.create();
     this.setupTerrain();
@@ -152,17 +160,43 @@ export default class GameScene {
       this.followPointer();
       this.decoHighlight.update(dt);
       this.playerSystem.update(dt);
+      this.glowSystem.retryPending();
       this.updateGathering(dt);
       const root = this.playerSystem.root;
+      this.campfireSystem.update(dt, root);
+      this.updateCampfireSound(root);
       if (root) this.cameraSystem.follow(root.position.x, root.position.z, dt);
       this.autoTune(dt);
       this.audioSystem.update(dt);
+      this.playerSystem.updateFire();
     });
 
     this.engine.runRenderLoop(() => this.s.render());
     this.hud.setMachine(getMachine(this.currentMachine).displayName);
     this.hotbar.setSelected(this.heldItemSystem.key);
     this.inventoryPanel.update(this.inventorySystem);
+  }
+
+  setupGlow() {
+    this.glowSystem.create();
+    this.campfireSystem.onFireAdded = (fire) => this.glowSystem.addSource(fire);
+    this.campfireSystem.onFireRemoved = (fire) => this.glowSystem.removeSource(fire);
+    this.playerSystem.setTorchGlow(this.glowSystem);
+    this.playerSystem.syncTorchGlow();
+    this.s.onAfterRenderObservable.addOnce(() => {
+      for (const item of this.campfireSystem.fires) this.glowSystem.addSource(item.fire);
+      this.playerSystem.syncTorchGlow();
+    });
+  }
+
+  updateCampfireSound(root) {
+    const burning = root ? this.campfireSystem.nearestBurning(root.position.x, root.position.z) : null;
+    this.audioSystem.setFire(burning !== null, burning ? burning.distance : Infinity);
+  }
+
+  cancelCampfireIgnite() {
+    if (!this.campfireSystem.cancel()) return;
+    this.playerSystem.cancelIgnite();
   }
 
   followPointer() {
@@ -189,7 +223,15 @@ export default class GameScene {
     if (active) this.holdStrikeReady();
     this.updateGatherImpact(dt);
     const target = active ? this.gatherSystem.target : null;
-    this.hotbar.setPrompt(target ? this.describeGatherTarget(target) : '');
+    this.hotbar.setPrompt(this.gatherPrompt(target));
+  }
+
+  gatherPrompt(target) {
+    if (target) return this.describeGatherTarget(target);
+    if (this.editorMode.active || this.isBuilding()) return '';
+    if (this.campfireSystem.pending) return 'Zapaluji táborák…';
+    if (this.campfireSystem.nearest) return 'E — zapálit Táborák';
+    return '';
   }
 
   updateGatherImpact(dt) {
@@ -213,9 +255,19 @@ export default class GameScene {
 
   handleLeftDown() {
     if (this.editorMode.active || this.isBuilding()) return;
+    if (this.campfireSystem.pending) {
+      this.cancelCampfireIgnite();
+      return;
+    }
     this.updateGatherTarget();
-    if (!this.gatherSystem.target) return;
-    this.strikeGather();
+    if (this.gatherSystem.target) {
+      this.strikeGather();
+      return;
+    }
+    const cell = this.inputSystem.lastCell;
+    if (cell && this.campfireSystem.nearest && this.campfireSystem.has(cell.cx, cell.cz)) {
+      this.campfireSystem.ignite(cell);
+    }
   }
 
   describeGatherTarget(target) {
@@ -232,6 +284,7 @@ export default class GameScene {
 
   holdStrikeReady() {
     if (!this.inputSystem.leftDown || this.isBuilding() || this.editorMode.active) return false;
+    if (this.campfireSystem.pending) return false;
     const gather = this.gatherSystem;
     if (!gather.target || gather.cooldown > 0 || gather.pending) return false;
     return this.strikeGather();
@@ -288,6 +341,7 @@ export default class GameScene {
     this.decoHighlight.create((cx, cz) => this.decoSystem.surfaceAt(cx, cz));
     this.decoSystem.create(layout, map.colors);
     this.decoSystem.rememberLayout(this.mapLayout);
+    this.campfireSystem.sync(layout.decorations || []);
     this.tileThumbs = new TileThumbnails(this.s, map.colors);
     this.buildSystem.blockedTest = (cx, cz) => this.decoSystem.isBlocked(cx, cz);
     this.buildSystem.rangeTest = (cx, cz) => this.withinBuildRange(cx, cz);
@@ -302,6 +356,7 @@ export default class GameScene {
       }
       this.decoHighlight.add(entry, node, def);
       this.gatherSystem.addEntry(entry, def, anchor);
+      this.campfireSystem.add(entry, def, anchor.position.y);
     };
 
     this.editorMode.onRegenerate = (editorLayout) => this.renderMapLayout(editorLayout);
@@ -523,6 +578,7 @@ export default class GameScene {
     this.decoHighlight.clear();
     this.decoSystem.create(layout, map.colors);
     this.decoSystem.rememberLayout(editorLayout);
+    this.campfireSystem.sync(layout.decorations || []);
     this.restoreGatherEntries(exhausted);
   }
 
@@ -665,6 +721,7 @@ export default class GameScene {
     this.refreshClock();
     this.shadowGenerator.getShadowMap().renderList = this.options.shadows ? this.shadowCasters.slice() : [];
     this.decoHighlight.setVisible(this.options.highlights);
+    this.glowSystem.setEnabled(this.options.fireGlow);
     this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);
     this.audioSystem.setAmbientVolume(this.options.ambientVolume / 100);
   }
@@ -715,7 +772,10 @@ export default class GameScene {
 
   refreshAmbient() {
     const dayness = this.dayNightSystem.config ? this.dayNightSystem.dayness(this.dayNightSystem.getTime()) : 1;
-    this.audioSystem.setDayness(this.options.dayCycle ? dayness : 1);
+    const value = this.options.dayCycle ? dayness : 1;
+    this.audioSystem.setDayness(value);
+    if (this.playerSystem.torchFire) this.playerSystem.torchFire.setDayness(value);
+    this.campfireSystem.setDayness(value);
   }
 
   describeDayPhase(time, cfg) {
@@ -797,6 +857,11 @@ export default class GameScene {
       apply: (data) => this.buildSystem.apply(data),
       order: 10,
     });
+    this.saveSystem.registerState('campfires', {
+      serialize: () => this.campfireSystem.serializeState(),
+      apply: (data) => this.campfireSystem.restoreState(data),
+      order: 12,
+    });
     this.saveSystem.registerState('dayNight', {
       serialize: () => ({ time: this.dayNightSystem.getTime() }),
       apply: (data) => {
@@ -866,6 +931,11 @@ export default class GameScene {
       evt.preventDefault();
       return;
     }
+    if ((evt.key === 'n' || evt.key === 'N') && !evt.ctrlKey && !evt.metaKey && !evt.altKey && !typing) {
+      if (!evt.repeat) this.toggleNight();
+      evt.preventDefault();
+      return;
+    }
     if (this.editorMode.active) {
       if (evt.key === 'Escape' && this.editorMode.hasDraft) { this.cancelBrushDraft(); evt.preventDefault(); return; }
       if (evt.key === 'Enter' && this.editorMode.hasDraft) { this.applyBrushDraft(); evt.preventDefault(); return; }
@@ -901,6 +971,19 @@ export default class GameScene {
       return;
     }
     if (evt.key === 'm' || evt.key === 'M') this.cycleMachine();
+    if (evt.key === 'e' || evt.key === 'E') {
+      if (evt.ctrlKey || evt.metaKey || evt.altKey || typing) return;
+      if (this.campfireSystem.pending) {
+        evt.preventDefault();
+        this.cancelCampfireIgnite();
+        return;
+      }
+      const fire = this.campfireSystem.nearest;
+      if (!fire) return;
+      evt.preventDefault();
+      this.campfireSystem.ignite(fire.entry);
+      return;
+    }
     if (evt.key === 'r' || evt.key === 'R') this.rotateHovered();
     if (evt.key === 'Escape') this.clearMark();
     if (evt.key === 'F5') {
@@ -915,6 +998,17 @@ export default class GameScene {
 
   toggleGrid() {
     return this.terrainSystem.toggleGrid();
+  }
+
+  toggleNight() {
+    const time = (this.dayNightSystem.getTime() + TIME_SKIP.hours / 24) % 1;
+    this.dayNightSystem.setTime(time);
+    this.refreshAmbient();
+    this.refreshClock();
+    const minutes = Math.floor(time * 24 * 60) % (24 * 60);
+    const hh = String(Math.floor(minutes / 60)).padStart(2, '0');
+    const mm = String(minutes % 60).padStart(2, '0');
+    this.hud.flashClock(`+${TIME_SKIP.hours} h → ${hh}:${mm}`);
   }
 
   cycleMachine() {

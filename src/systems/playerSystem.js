@@ -10,6 +10,7 @@ import { worldToCellCoords } from '../utils/gridMath.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import { TOOL_TYPES } from '../data/catalogs/items.js';
 import { loadModel, instantiateModel } from '../utils/assetLoader.js';
+import TorchFire from '../effects/torchFire.js';
 
 const CHARACTER_DIR = `${ASSET_DIRS.characters}KayKit_Adventurers_2.0_FREE/`;
 const MODEL_URL = `${CHARACTER_DIR}Characters/gltf/Ranger.glb`;
@@ -28,6 +29,7 @@ const ANIM_NAMES = {
   mine: 'Pickaxing',
   chopBare: 'Use_Item',
   holdTool: 'Holding_A',
+  ignite: 'Interact',
 };
 const ANIM_BLEND = 0.25;
 const STRIKE_SHARE = {
@@ -36,6 +38,9 @@ const STRIKE_SHARE = {
   chopBare: 0.55,
 };
 const STRIKE_HOLD = 0.12;
+const IGNITE_SHARE = 0.55;
+const IGNITE_HOLD = 0.35;
+const IGNITE_FALLBACK = 0.75;
 const STEP_DISTANCE = 1.5;
 const HAND_BONE = 'handslot.r';
 const TOOL_SCALE = 0.95;
@@ -79,9 +84,12 @@ export default class PlayerSystem {
     this.toolTemplates = {};
     this.heldToolKey = null;
     this.toolNode = null;
+    this.torchFire = null;
     this.handSlot = null;
     this.strikeTimer = 0;
     this.strikeAnim = 'chopBare';
+    this.igniteTimer = 0;
+    this.igniteImpactAt = 0;
     this.travelled = 0;
     this.onStep = null;
   }
@@ -137,6 +145,12 @@ export default class PlayerSystem {
   }
 
   refreshToolNode() {
+    if (this.torchFire) {
+      this.torchFire.detach();
+      this.torchFire.dispose();
+      this.torchFire = null;
+      this.syncTorchGlow();
+    }
     if (this.toolNode) {
       this.toolNode.setEnabled(false);
       this.toolNode.dispose(false, false);
@@ -153,12 +167,34 @@ export default class PlayerSystem {
     this.toolNode.scaling = new Vector3(TOOL_SCALE, TOOL_SCALE, TOOL_SCALE);
     this.toolNode.position = plan ? PLAN_POSITION.scale(TOOL_SCALE) : TOOL_POSITION.scale(TOOL_SCALE);
     this.toolNode.rotation = plan ? PLAN_ROTATION : TOOL_ROTATION;
+    if (tool.model !== 'torch') return;
+    this.torchFire = new TorchFire(this.s);
+    this.torchFire.attach(this.toolNode);
+    this.syncTorchGlow();
   }
 
   setHeldTool(key) {
     if (this.heldToolKey === key) return;
     this.heldToolKey = key || null;
     this.refreshToolNode();
+  }
+
+  updateFire() {
+    const fire = this.torchFire;
+    if (!fire) return;
+    const frame = this.s.getEngine().getDeltaTime() / 1000;
+    fire.update(Number.isFinite(frame) && frame > 0 ? Math.min(frame, 0.1) : 0.016);
+  }
+
+  setTorchGlow(glow) {
+    this.torchGlow = glow;
+  }
+
+  syncTorchGlow() {
+    if (!this.torchGlow) return;
+    if (this.torchFire) this.torchGlow.addSource(this.torchFire);
+    else this.torchGlow.removeSource(this.torchFireSource);
+    this.torchFireSource = this.torchFire;
   }
 
   strike() {
@@ -177,6 +213,25 @@ export default class PlayerSystem {
 
   strikeDuration() {
     return this.strikeTimer;
+  }
+
+  igniteAt(x, z) {
+    this.faceTo(x, z);
+    this.strikeTimer = 0;
+    const group = this.anims.ignite;
+    const length = group ? group.getLength() / group.speedRatio : IGNITE_FALLBACK;
+    this.igniteTimer = Math.max(0.35, length * IGNITE_SHARE + IGNITE_HOLD);
+    this.igniteImpactAt = Math.max(0.15, this.igniteTimer * IGNITE_SHARE);
+    this.play('ignite', true);
+    return this.igniteTimer;
+  }
+
+  cancelIgnite() {
+    if (this.igniteTimer <= 0) return false;
+    this.igniteTimer = 0;
+    this.igniteImpactAt = 0;
+    this.play('idle');
+    return true;
   }
 
   faceTo(x, z) {
@@ -317,6 +372,17 @@ export default class PlayerSystem {
       if (this.strikeTimer > 0) return;
       const done = this.anims[this.strikeAnim];
       if (done) done.pause();
+    }
+    if (this.igniteTimer > 0) {
+      this.igniteTimer -= dt;
+      this.igniteImpactAt -= dt;
+      if (this.igniteTimer > 0) {
+        this.play('ignite');
+        return;
+      }
+      const finished = this.anims.ignite;
+      if (finished) finished.pause();
+      this.igniteImpactAt = 0;
     }
 
     const camera = this.s.activeCamera;

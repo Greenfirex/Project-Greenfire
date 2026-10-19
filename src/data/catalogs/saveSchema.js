@@ -1,7 +1,7 @@
 // Výchozí hodnoty ukládaného stavu a identifikace savu.
 // Verze savu se bumpne při každé změně formátu (staré savy se ignorují).
-export const SAVE_VERSION = 7;
-export const SAVE_STORAGE_KEY = 'greenfactory.save.v7';
+export const SAVE_VERSION = 8;
+export const SAVE_STORAGE_KEY = 'greenfactory.save.v8';
 
 export const MACHINE_STATE_DEFAULT = {
   input: {},
@@ -16,4 +16,5 @@ export const SAVE_DEFAULTS = {
   dayNight: { time: 0.35 },
   sim: { time: 0 },
   mapLayouts: {},
+  campfires: { lit: [] },
 };

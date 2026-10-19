@@ -288,6 +288,23 @@
   color: var(--glow-accent);
 }
 
+.hud-clock__flash {
+  max-height: 0;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--glow-warm);
+  opacity: 0;
+  transition: max-height 0.2s ease, opacity 0.2s ease, margin-top 0.2s ease;
+}
+
+#hud-clock.is-flashing .hud-clock__flash {
+  max-height: 18px;
+  margin-top: 2px;
+  opacity: 1;
+}
+
 
 .options-toggle {
   position: absolute;

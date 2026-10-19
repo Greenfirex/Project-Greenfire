@@ -337,12 +337,14 @@ export const DECORATION_TYPES = {
   },
   campfire: {
     displayName: 'Táborák',
-    model: `${ASSET_DIRS.props}campfire_stones.glb`,
-    scale: 2.0,
+    model: `${ASSET_DIRS.props}campfire_pit.glb`,
+    scale: 4.0,
     radius: 0.8,
     blocks: true,
     castsShadow: true,
-    kind: 'prop',
+    kind: 'campfire',
+    tintColor: [0.95, 0.93, 0.9],
+    flame: { y: 0.2, size: 1.8 },
   },
   crate: {
     displayName: 'Bedna',

@@ -10,6 +10,7 @@ const CLIPS = {
   stepGrass: ['dirtstep_1', 'dirtstep_2', 'dirtstep_3'],
   stepWood: ['woodstep_1', 'woodstep_2', 'woodstep_3'],
   stepStone: ['stonestep_1', 'stonestep_2', 'stonestep_3'],
+  ignite: ['ignite_1', 'ignite_2'],
 };
 
 const VOICES = {
@@ -20,11 +21,17 @@ const VOICES = {
   stepGrass: { volume: 0.07, voices: 3, pitch: 0.08 },
   stepWood: { volume: 0.08, voices: 3, pitch: 0.08 },
   stepStone: { volume: 0.08, voices: 3, pitch: 0.08 },
+  ignite: { volume: 0.6, voices: 2, pitch: 0.05 },
 };
 
 const AMBIENT_LAYERS = ['forest_day', 'forest_night'];
 const AMBIENT_FADE_SECONDS = 6;
 const AMBIENT_LEVEL = 0.25;
+
+const FIRE_LOOP = 'torch_loop';
+const FIRE_FADE_SECONDS = 0.5;
+const FIRE_HEARING = 12;
+const FIRE_LEVELS = [0.3, 0.2, 0.12, 0.05];
 
 export default class AudioSystem {
 
@@ -41,6 +48,9 @@ export default class AudioSystem {
     this.ambientBoost = AMBIENT_LEVEL;
     this.ambientMix = { forest_day: 1, forest_night: 0 };
     this.ambientTarget = { forest_day: 1, forest_night: 0 };
+    this.fire = null;
+    this.fireOn = false;
+    this.fireDistance = Infinity;
   }
 
   unlock() {
@@ -62,6 +72,7 @@ export default class AudioSystem {
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
     this.resumeAmbient();
+    this.resumeFire();
   }
 
   load() {
@@ -96,6 +107,7 @@ export default class AudioSystem {
     this.available = false;
     this.buffers = {};
     this.stopAmbient();
+    this.fire = null;
   }
 
   startAmbient() {
@@ -139,6 +151,63 @@ export default class AudioSystem {
       layer.source = null;
     }
     this.ambient = null;
+  }
+
+  setFire(burning, distance) {
+    const on = Boolean(burning);
+    if (on !== this.fireOn) {
+      this.fireOn = on;
+      if (on && this.s.engine) this.s.engine.unlockAudio();
+    }
+    this.fireDistance = Number.isFinite(distance) ? distance : Infinity;
+    if (!on && !this.fire) return;
+    if (!this.fire) {
+      this.startFire();
+      return;
+    }
+    if (on && !this.fire.source && this.fire.buffer && this.ctx.state !== 'suspended') {
+      this.playFire(this.fire.buffer);
+    }
+    this.applyFireGain();
+  }
+
+  fireLevel() {
+    if (!this.fireOn) return 0;
+    const step = Math.min(FIRE_LEVELS.length - 1, Math.floor(this.fireDistance / (FIRE_HEARING / FIRE_LEVELS.length)));
+    return Math.max(0, FIRE_LEVELS[step]);
+  }
+
+  startFire() {
+    if (!this.ctx || this.fire) return;
+    const gain = this.ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(this.master || this.ctx.destination);
+    this.fire = { gain, source: null, buffer: null };
+    this.fetchClip(`${ASSET_DIRS.audio}${FIRE_LOOP}.ogg`, (buffer) => this.playFire(buffer));
+  }
+
+  playFire(buffer) {
+    if (!this.fire || !this.ctx || this.fire.source) return;
+    if (!this.fireOn) return;
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.connect(this.fire.gain);
+    source.start();
+    this.fire.source = source;
+    this.fire.buffer = buffer;
+    this.applyFireGain();
+  }
+
+  resumeFire() {
+    if (!this.fire || !this.fireOn || this.fire.source || !this.fire.buffer) return;
+    if (this.ctx.state === 'suspended') return;
+    this.playFire(this.fire.buffer);
+  }
+
+  applyFireGain() {
+    if (!this.fire || !this.ctx) return;
+    this.fire.gain.gain.setTargetAtTime(this.fireLevel(), this.ctx.currentTime, FIRE_FADE_SECONDS / 3);
   }
 
   setMasterVolume(value) {

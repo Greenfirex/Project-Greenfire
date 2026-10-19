@@ -18,6 +18,7 @@ export default class DayNightSystem {
     this.skyLight = null;
     this.time = 0;
     this.dayColor = null;
+    this.sunDiffuse = null;
   }
 
   create(map) {
@@ -62,8 +63,18 @@ export default class DayNightSystem {
     this.sunLight.direction = new Vector3(-x, -Math.abs(y) - 2, -z).normalize();
     this.sunLight.intensity = this.light.sunIntensity * dayness + cfg.moonIntensity * (1 - dayness);
 
+    const moon = cfg.moonTint || [1, 1, 1];
+    this.sunDiffuse = this.sunDiffuse || this.sunLight.diffuse.clone();
+    const sun = this.sunDiffuse;
+    this.sunLight.diffuse.set(
+      sun.r + (moon[0] - sun.r) * (1 - dayness),
+      sun.g + (moon[1] - sun.g) * (1 - dayness),
+      sun.b + (moon[2] - sun.b) * (1 - dayness)
+    );
+
     if (this.skyLight) {
-      this.skyLight.intensity = this.light.hemiIntensity * (0.35 + 0.65 * dayness);
+      const floor = cfg.nightLight ?? 0.35;
+      this.skyLight.intensity = this.light.hemiIntensity * (floor + (1 - floor) * dayness);
     }
 
     const sky = this.skyColor(dayness);

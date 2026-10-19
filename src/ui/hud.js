@@ -71,12 +71,15 @@ export default class Hud {
         <span id="hud-clock-phase">—</span>
         <span id="hud-clock-speed">1×</span>
       </div>
+      <div class="hud-clock__flash" id="hud-clock-flash"></div>
     `;
     this.layer.appendChild(this.clockEl);
 
     this.clockTimeEl = this.clockEl.querySelector('#hud-clock-time');
     this.clockPhaseEl = this.clockEl.querySelector('#hud-clock-phase');
     this.clockSpeedEl = this.clockEl.querySelector('#hud-clock-speed');
+    this.clockFlashEl = this.clockEl.querySelector('#hud-clock-flash');
+    this.clockFlashTimer = 0;
   }
 
   setMachine(name) {
@@ -133,5 +136,15 @@ export default class Hud {
     const text = paused ? 'Pauza' : `${speed}×`;
     if (this.clockSpeedEl.textContent !== text) this.clockSpeedEl.textContent = text;
     this.clockEl.classList.toggle('is-paused', paused);
+  }
+
+  flashClock(text) {
+    if (!this.clockFlashEl) return;
+    this.clockFlashEl.textContent = text;
+    this.clockEl.classList.add('is-flashing');
+    clearTimeout(this.clockFlashTimer);
+    this.clockFlashTimer = setTimeout(() => {
+      this.clockEl.classList.remove('is-flashing');
+    }, 1800);
   }
 }

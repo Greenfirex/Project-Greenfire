@@ -1,4 +1,4 @@
-// Jediné místo s adresáři assetů ve hře — kategorie modelů pod public/assets.
+// Jediné místo s adresáři assetů ve hře — kategorie modelů a efektů pod public/assets.
 export const ASSET_DIRS = {
   trees: 'assets/nature/trees/',
   plants: 'assets/nature/plants/',
@@ -14,4 +14,5 @@ export const ASSET_DIRS = {
   machines: 'assets/machines/',
   characters: 'assets/characters/',
   audio: 'assets/audio/',
+  effects: 'assets/effects/',
 };
