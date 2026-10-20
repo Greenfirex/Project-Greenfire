@@ -22,6 +22,12 @@ const FPS_OPTIONS = [
   { value: '30', label: '30' },
 ];
 
+const GRASS_LEVELS = [
+  { value: 'off', label: 'Vypnutá', title: 'Žádná divoká tráva, jen holá zem' },
+  { value: 'medium', label: 'Střední', title: 'Řidší tráva pro slabší počítače' },
+  { value: 'high', label: 'Hustá', title: 'Plná tráva, doporučeno' },
+];
+
 function clampPercent(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
@@ -78,6 +84,11 @@ export default class OptionsPanel {
         <div class="options-panel__choices" data-group="fpsCap"></div>
       </div>
       <small class="options-panel__note">Nižší číslo = chladnější počítač.</small>
+      <div class="options-panel__row">
+        <span class="options-panel__label">Divoká tráva</span>
+        <div class="options-panel__choices" data-group="grass"></div>
+      </div>
+      <small class="options-panel__note">Hustá tráva vypadá nejlíp, střední šetří výkon.</small>
       <div class="options-panel__volumes"></div>
       <div class="options-panel__toggles"></div>
       <button type="button" class="options-panel__reset">Obnovit výchozí</button>
@@ -102,6 +113,7 @@ export default class OptionsPanel {
 
     this.buildChoices(root, 'quality', QUALITIES);
     this.buildChoices(root, 'fpsCap', FPS_OPTIONS);
+    this.buildChoices(root, 'grass', GRASS_LEVELS);
 
     const volumes = root.querySelector('.options-panel__volumes');
     for (const volume of VOLUMES) {
@@ -148,7 +160,7 @@ export default class OptionsPanel {
       btn.dataset.value = item.value;
       btn.textContent = item.label;
       btn.addEventListener('click', () => {
-        this.patch({ [group]: group === 'quality' ? item.value : Number(item.value) });
+        this.patch({ [group]: group === 'fpsCap' ? Number(item.value) : item.value });
       });
       host.appendChild(btn);
     }
@@ -190,6 +202,9 @@ export default class OptionsPanel {
     }
     for (const btn of this.root.querySelectorAll('[data-group="fpsCap"] button')) {
       btn.classList.toggle('is-active', String(this.values.fpsCap) === btn.dataset.value);
+    }
+    for (const btn of this.root.querySelectorAll('[data-group="grass"] button')) {
+      btn.classList.toggle('is-active', String(this.values.grass) === btn.dataset.value);
     }
     for (const input of this.root.querySelectorAll('[data-toggle]')) {
       input.checked = Boolean(this.values[input.dataset.toggle]);

@@ -15,6 +15,7 @@ export const MAPS = {
       sky: [0.035, 0.045, 0.055],
       floorTile: [0.19, 0.28, 0.17],
       cliffTile: [0.28, 0.29, 0.30],
+      surfaceTint: [0.42, 0.5, 0.36],
       tintStrength: 0.85,
     },
     light: {
@@ -23,6 +24,7 @@ export const MAPS = {
       sunIntensity: 0.72,
       sunDirection: [-0.62, -0.72, 0.32],
       sunPosition: [26, 19, -14],
+      sunColor: [1, 0.95, 0.86],
       shadowBlur: 32,
     },
     dayNight: {

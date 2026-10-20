@@ -4,6 +4,7 @@ export const ASSET_DIRS = {
   plants: 'assets/nature/plants/',
   rocks: 'assets/nature/rocks/',
   wood: 'assets/nature/wood/',
+  textures: 'assets/nature/textures/',
   paths: 'assets/nature/paths/',
   water: 'assets/nature/water/',
   cliffs: 'assets/nature/cliffs/',

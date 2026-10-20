@@ -8,11 +8,13 @@ import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
+import { Scene } from '@babylonjs/core/scene';
 
 import CameraSystem from '../systems/cameraSystem.js';
 import GridSystem from '../systems/gridSystem.js';
 import TerrainSystem from '../systems/terrainSystem.js';
 import DecoSystem from '../systems/decoSystem.js';
+import FloraSystem from '../systems/floraSystem.js';
 import DecoHighlightSystem from '../systems/decoHighlightSystem.js';
 import CampfireSystem from '../systems/campfireSystem.js';
 import GlowSystem from '../systems/glowSystem.js';
@@ -87,6 +89,7 @@ export default class GameScene {
     this.gridSystem = new GridSystem(scene);
     this.terrainSystem = new TerrainSystem(scene);
     this.decoSystem = new DecoSystem(scene);
+    this.floraSystem = new FloraSystem(scene);
     this.campfireSystem = new CampfireSystem(scene);
     this.glowSystem = new GlowSystem(scene);
     this.decoHighlight = new DecoHighlightSystem(scene);
@@ -239,6 +242,7 @@ export default class GameScene {
     this.loader.beginFloat('Připravuji postavu…');
     await this.setupPlayer();
     this.loader.endFloat();
+    this.floraSystem.create(this.decoSystem, this.options.grass);
     this.decoSystem.rememberLayout(this.mapLayout);
     this.refreshShadowCasters();
     await this.waitForWorld();
@@ -815,6 +819,7 @@ updateGatherTarget() {
     this.decoHighlight.clear();
     this.decoSystem.create(layout, map.colors);
     this.decoSystem.rememberLayout(editorLayout);
+    this.floraSystem.create(this.decoSystem, this.options.grass);
     this.gatherSystem.syncFromDeco();
     this.campfireSystem.sync(layout.decorations || []);
     this.restoreGatherEntries(exhausted);
@@ -884,14 +889,27 @@ updateGatherTarget() {
     const dir = new DirectionalLight('sunLight', new Vector3(light.sunDirection[0], light.sunDirection[1], light.sunDirection[2]), this.s);
     dir.position = new Vector3(light.sunPosition[0], light.sunPosition[1], light.sunPosition[2]);
     dir.intensity = light.sunIntensity;
+    if (light.sunColor) dir.diffuse = new Color3(light.sunColor[0], light.sunColor[1], light.sunColor[2]);
 
     this.shadowGenerator = new ShadowGenerator(1024, dir);
     this.shadowGenerator.useBlurExponentialShadowMap = true;
     this.shadowGenerator.blurKernel = light.shadowBlur;
 
+    this.setupFog(map);
+
     this.dayNightSystem.create(map);
     this.dayNightSystem.attach(dir, hemi);
     this.dayNightSystem.apply();
+  }
+
+  setupFog(map) {
+    const fog = map.fog;
+    if (!fog) return;
+    this.s.fogMode = Scene.FOGMODE_LINEAR;
+    this.s.fogStart = fog.start;
+    this.s.fogEnd = fog.end;
+    this.s.fogColor = new Color3(fog.color[0], fog.color[1], fog.color[2]);
+    this.dayNightSystem.fogColor = this.s.fogColor;
   }
 
   setupShadowCasters() {
@@ -960,6 +978,7 @@ updateGatherTarget() {
     this.shadowGenerator.getShadowMap().renderList = this.options.shadows ? this.shadowCasters.slice() : [];
     this.decoHighlight.setVisible(this.options.highlights);
     this.glowSystem.setEnabled(this.options.fireGlow);
+    this.floraSystem.setDensity(this.options.grass);
     if (this.isLoading) return;
     this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);
     this.audioSystem.setAmbientVolume(this.options.ambientVolume / 100);

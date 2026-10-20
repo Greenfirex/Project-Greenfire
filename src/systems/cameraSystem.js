@@ -79,4 +79,12 @@ export default class CameraSystem {
   onResize() {
     this.applyOrtho();
   }
+
+  viewCenter() {
+    return this.target;
+  }
+
+  viewHeight() {
+    return this.zoom;
+  }
 }

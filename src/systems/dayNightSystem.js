@@ -19,6 +19,7 @@ export default class DayNightSystem {
     this.time = 0;
     this.dayColor = null;
     this.sunDiffuse = null;
+    this.fogColor = null;
   }
 
   create(map) {
@@ -79,6 +80,11 @@ export default class DayNightSystem {
 
     const sky = this.skyColor(dayness);
     this.s.clearColor = new Color4(sky[0], sky[1], sky[2], 1);
+    if (this.fogColor) {
+      const scale = 0.55 + 0.75 * dayness;
+      this.fogColor.set(sky[0] * scale, sky[1] * scale, sky[2] * scale);
+      this.s.fogColor = this.fogColor;
+    }
   }
 
   dayness(time) {

@@ -231,6 +231,43 @@ export default class DecoSystem {
     return this.surfaceKeys.get(cellKey(cx, cz)) || null;
   }
 
+  nearBlocked(cx, cz, radius) {
+    const reach = Math.ceil(radius);
+    for (let dx = -reach; dx <= reach; dx += 1) {
+      for (let dz = -reach; dz <= reach; dz += 1) {
+        if (!this.isBlocked(cx + dx, cz + dz)) continue;
+        if (Math.hypot(dx, dz) <= radius) return true;
+      }
+    }
+    return false;
+  }
+
+  fieldDistance(cx, cz) {
+    const bounds = this.boundsOfCells();
+    if (!bounds) return 0;
+    return Math.min(cx - bounds.minX, bounds.maxX - cx, cz - bounds.minZ, bounds.maxZ - cz);
+  }
+
+  boundsOfCells() {
+    if (!this.layout) return null;
+    const entries = [].concat(
+      this.layout.floor || [],
+      this.layout.path || [],
+      this.layout.water || [],
+      this.layout.clearing || [],
+      this.layout.decorations || [],
+    );
+    if (!entries.length) return null;
+    const box = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
+    for (const entry of entries) {
+      box.minX = Math.min(box.minX, entry.cx);
+      box.maxX = Math.max(box.maxX, entry.cx);
+      box.minZ = Math.min(box.minZ, entry.cz);
+      box.maxZ = Math.max(box.maxZ, entry.cz);
+    }
+    return box;
+  }
+
   createAnchor(entry, def, x, z, bucket = this.nodes) {
     const anchor = new TransformNode(`deco_${entry.key}_${entry.cx}_${entry.cz}`, this.s);
     anchor.position = new Vector3(x + entry.offsetX, entry.liftY || 0, z + entry.offsetZ);

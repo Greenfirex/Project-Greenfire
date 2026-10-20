@@ -101,6 +101,10 @@ function notifyWaiters() {
   waiters.clear();
 }
 
+export function getLoadedModels() {
+  return Array.from(cache, ([path, promise]) => ({ path, promise }));
+}
+
 export function instantiateModel(scene, template, name) {
   if (!template) return null;
   const node = template.clone(name, null, false);

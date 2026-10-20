@@ -9,6 +9,7 @@ export const OPTION_DEFAULTS = {
   highlights: true,
   dayCycle: true,
   autoTune: false,
+  grass: 'high',
   sfxVolume: 70,
   ambientVolume: 25,
 };
