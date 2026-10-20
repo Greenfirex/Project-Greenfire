@@ -6,12 +6,12 @@ const BARE_KINDS = ['tree'];
 const BARE_SOUND = 'bare';
 const BARE_YIELDS = { wood: 1 };
 const SWAY_KINDS = ['tree'];
-const ORE_HITS = 100;
+const ORE_HITS = 10;
+const FALLBACK_DURATION = 0.5;
 const IMPACT_SHARE = 0.62;
 const SWAY_AMPLITUDE = 0.055;
 const SWAY_DECAY = 6.5;
 const SWAY_SPEED = 16;
-const PIVOT_HEIGHT = 1.6;
 
 export default class GatherSystem {
 
@@ -25,6 +25,7 @@ export default class GatherSystem {
     this.pending = null;
     this.swayTime = 0;
     this.tool = null;
+    this.decoSystem = null;
   }
 
   clear() {
@@ -46,8 +47,6 @@ export default class GatherSystem {
       anchor,
       x: anchor.position.x,
       z: anchor.position.z,
-      baseX: anchor.position.x,
-      baseZ: anchor.position.z,
       total,
       left: total,
       hits: 0,
@@ -55,6 +54,15 @@ export default class GatherSystem {
       axisX: 0,
       axisZ: 1,
     });
+  }
+
+  syncFromDeco() {
+    const deco = this.decoSystem;
+    if (!deco || !deco.readyEntries) return;
+    for (const item of deco.readyEntries()) {
+      if (item.entry && this.hasEntry(item.entry.cx, item.entry.cz)) continue;
+      this.addEntry(item.entry, item.def, item.anchor);
+    }
   }
 
   hasEntry(cx, cz) {
@@ -120,16 +128,18 @@ export default class GatherSystem {
     }
     if (this.player && this.player.faceTo) this.player.faceTo(item.x, item.z);
     const duration = this.startSwing(item);
-    this.pending.delay = this.player && this.player.strikeImpactTime ? this.player.strikeImpactTime() : duration * IMPACT_SHARE;
+    const impact = this.player && this.player.strikeImpactTime ? this.player.strikeImpactTime() : 0;
+    const fallback = duration > 0 ? duration * IMPACT_SHARE : FALLBACK_DURATION * IMPACT_SHARE;
+    this.pending.delay = Number.isFinite(impact) && impact > 0 ? impact : fallback;
     return true;
   }
 
   startSwing(item) {
     if (!item) return;
     this.pending = { item };
-    const duration = this.player && this.player.strike ? this.player.strike() : 0;
-    const hold = Math.max(this.hitCooldown, duration || 0);
-    this.cooldown = hold;
+    const swing = this.player && this.player.strike ? this.player.strike() : 0;
+    const duration = Number.isFinite(swing) && swing > 0 ? swing : FALLBACK_DURATION;
+    this.cooldown = Math.max(this.hitCooldown, duration);
     return duration;
   }
 
@@ -199,11 +209,7 @@ export default class GatherSystem {
       if (!item.anchor || item.anchor.isDisposed()) continue;
       const angleX = item.axisZ * bend * item.sway;
       const angleZ = -item.axisX * bend * item.sway;
-      const liftX = Math.sin(angleX) * PIVOT_HEIGHT;
-      const liftZ = Math.sin(angleZ) * PIVOT_HEIGHT;
       item.anchor.rotation.set(angleX, item.anchor.rotation.y, angleZ);
-      item.anchor.position.x = item.baseX - liftX;
-      item.anchor.position.z = item.baseZ + liftZ;
     }
   }
 

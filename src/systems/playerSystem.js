@@ -6,20 +6,12 @@ import '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { worldToCellCoords } from '../utils/gridMath.js';
-import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
+import { worldToCellCoords, cellToWorldCoords } from '../utils/gridMath.js';
 import { TOOL_TYPES } from '../data/catalogs/items.js';
+import { toolModelUrl, PLAYER_MODEL, PLAYER_ANIMS } from '../data/catalogs/modelCatalog.js';
 import { loadModel, instantiateModel } from '../utils/assetLoader.js';
 import TorchFire from '../effects/torchFire.js';
 
-const CHARACTER_DIR = `${ASSET_DIRS.characters}KayKit_Adventurers_2.0_FREE/`;
-const MODEL_URL = `${CHARACTER_DIR}Characters/gltf/Ranger.glb`;
-const ANIM_DIR = `${CHARACTER_DIR}Animations/gltf/Rig_Medium/`;
-const ANIM_SOURCES = [
-  `${ANIM_DIR}Rig_Medium_General.glb`,
-  `${ANIM_DIR}Rig_Medium_MovementBasic.glb`,
-  `${ANIM_DIR}Rig_Medium_Tools.glb`,
-];
 const ANIM_NAMES = {
   idle: 'Idle_A',
   walk: 'Walking_A',
@@ -80,9 +72,12 @@ export default class PlayerSystem {
     this.facing = 0;
     this.blockedTest = null;
     this.decoSystem = null;
+    this.spawnCell = null;
     this.ready = false;
     this.toolTemplates = {};
     this.heldToolKey = null;
+    this.loadStep = null;
+    this.keysBound = false;
     this.toolNode = null;
     this.torchFire = null;
     this.handSlot = null;
@@ -95,39 +90,64 @@ export default class PlayerSystem {
   }
 
   async create() {
-    const result = await ImportMeshAsync(MODEL_URL, this.s);
-    const root = new TransformNode('playerRoot', this.s);
-    for (const mesh of result.meshes) {
-      if (mesh.getTotalVertices && mesh.getTotalVertices() > 0) {
-        if (!this.mesh) this.mesh = mesh;
-        mesh.isPickable = false;
-        mesh.receiveShadows = true;
+    this.beginStep();
+    try {
+      const result = await ImportMeshAsync(PLAYER_MODEL, this.s);
+      const root = new TransformNode('playerRoot', this.s);
+      for (const mesh of result.meshes) {
+        if (mesh.getTotalVertices && mesh.getTotalVertices() > 0) {
+          if (!this.mesh) this.mesh = mesh;
+          mesh.isPickable = false;
+          mesh.receiveShadows = true;
+        }
       }
-    }
-    if (!this.mesh) return null;
-    this.rig = this.mesh.parent;
-    if (this.rig) this.rig.parent = root;
-    this.root = root;
-    const scale = MODEL_HEIGHT / MODEL_BASE_HEIGHT;
-    root.scaling = new Vector3(scale, scale, scale);
-    root.rotation.y = MODEL_YAW;
-    this.root.position = new Vector3(SPAWN.x, 0, SPAWN.z);
+      if (!this.mesh) return null;
+      this.rig = this.mesh.parent;
+      if (this.rig) this.rig.parent = root;
+      this.root = root;
+      const scale = MODEL_HEIGHT / MODEL_BASE_HEIGHT;
+      root.scaling = new Vector3(scale, scale, scale);
+      root.rotation.y = MODEL_YAW;
+      const start = this.spawnCell ? cellToWorldCoords(this.spawnCell.cx, this.spawnCell.cz) : SPAWN;
+      this.root.position = new Vector3(start.x, 0, start.z);
 
-    await this.loadAnimations();
-    await this.attachToolNode();
-    this.play('idle');
-    this.bindKeys();
-    this.ready = true;
-    return this.root;
+      await this.loadAnimations();
+      await this.attachToolNode();
+      this.play('idle');
+      this.bindKeys();
+      this.ready = true;
+      return this.root;
+    } finally {
+      this.endStep();
+    }
   }
 
   async loadTools() {
     if (this.toolsLoaded) return;
     this.toolsLoaded = true;
-    for (const tool of Object.values(TOOL_TYPES)) {
-      if (!tool.model) continue;
-      this.toolTemplates[tool.model] = await loadModel(this.s, `${ASSET_DIRS.tools}${tool.model}.gltf`);
+    const urls = Object.values(TOOL_TYPES)
+      .filter((tool) => tool.model)
+      .map((tool) => toolModelUrl(tool));
+    this.beginStep();
+    try {
+      const templates = await Promise.all(urls.map((url) => loadModel(this.s, url)));
+      Object.values(TOOL_TYPES).forEach((tool, index) => {
+        if (this.toolTemplates[tool.model] === undefined) this.toolTemplates[tool.model] = templates[index];
+      });
+    } finally {
+      this.endStep();
     }
+  }
+
+  beginStep() {
+    const loader = this.s.loader;
+    this.loadStep = loader ? loader.attach(1) : null;
+  }
+
+  endStep() {
+    const loader = this.s.loader;
+    if (loader && this.loadStep) loader.detach(this.loadStep);
+    this.loadStep = null;
   }
 
   async attachToolNode() {
@@ -252,22 +272,27 @@ export default class PlayerSystem {
       if (node) nodeByName.set(bone.name, node);
     }
 
-    for (const url of ANIM_SOURCES) {
-      const result = await ImportMeshAsync(url, this.s);
-      for (const [key, name] of Object.entries(ANIM_NAMES)) {
-        const source = result.animationGroups.find((g) => g.name === name);
-        if (!source) continue;
-        source.stop();
-        const group = source.clone(`player_${key}`, (target) => nodeByName.get(target.name) || null);
-        group.weight = 1;
-        group.enableBlending = true;
-        group.blendingSpeed = ANIM_BLEND;
-        this.anims[key] = group;
-      }
-      for (const group of result.animationGroups) group.stop();
-      for (const mesh of result.meshes) {
-        if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0) continue;
-        mesh.setEnabled(false);
+    for (const url of PLAYER_ANIMS) {
+      this.beginStep();
+      try {
+        const result = await ImportMeshAsync(url, this.s);
+        for (const [key, name] of Object.entries(ANIM_NAMES)) {
+          const source = result.animationGroups.find((g) => g.name === name);
+          if (!source) continue;
+          source.stop();
+          const group = source.clone(`player_${key}`, (target) => nodeByName.get(target.name) || null);
+          group.weight = 1;
+          group.enableBlending = true;
+          group.blendingSpeed = ANIM_BLEND;
+          this.anims[key] = group;
+        }
+        for (const group of result.animationGroups) group.stop();
+        for (const mesh of result.meshes) {
+          if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0) continue;
+          mesh.setEnabled(false);
+        }
+      } finally {
+        this.endStep();
       }
     }
   }
@@ -298,8 +323,19 @@ export default class PlayerSystem {
   }
 
   bindKeys() {
+    if (this.keysBound) return;
+    this.keysBound = true;
     window.addEventListener('keydown', (evt) => this.setKey(evt, true));
     window.addEventListener('keyup', (evt) => this.setKey(evt, false));
+    window.addEventListener('blur', () => this.releaseKeys());
+  }
+
+  releaseKeys() {
+    this.input.forward = false;
+    this.input.back = false;
+    this.input.left = false;
+    this.input.right = false;
+    this.input.sprint = false;
   }
 
   setKey(evt, down) {

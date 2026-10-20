@@ -26,18 +26,23 @@ export default class Hud {
       <h2>Ovládání</h2>
       <div class="hud-row"><span>Rotace kamery</span><strong>tažení myší</strong></div>
       <div class="hud-row"><span>Zoom</span><strong>kolečko</strong></div>
-      <div class="hud-row"><span>Nástroj v ruce</span><span class="hud-key">B</span></div>
-      <div class="hud-row"><span>Stavět</span><strong>klik na zem</strong></div>
+      <div class="hud-row"><span>Nástroj v ruce</span><span class="hud-key">1</span>–<span class="hud-key">5</span></div>
+      <div class="hud-row"><span>Postavit</span><strong>klik na zem s plánem</strong></div>
       <div class="hud-row"><span>Dosah stavby</span><strong>2 buňky</strong></div>
       <div class="hud-row"><span>Změna stroje</span><span class="hud-key">M</span></div>
       <div class="hud-row"><span>Otočit stroj</span><span class="hud-key">R</span></div>
       <div class="hud-row"><span>Bourat</span><strong>pravé tlačítko ×2</strong></div>
+      <div class="hud-row"><span>Zapálit táborák</span><span class="hud-key">E</span></div>
+      <div class="hud-row"><span>Mřížka</span><span class="hud-key">G</span></div>
+      <div class="hud-row"><span>Přesunout den</span><span class="hud-key">N</span></div>
+      <div class="hud-row"><span>Editor mapy</span><span class="hud-key">F1</span></div>
       <div class="hud-row"><span>Zrušit výběr</span><span class="hud-key">Esc</span></div>
       <div class="hud-row"><span>Uložit</span><span class="hud-key">F5</span></div>
       <div class="hud-row"><span>Načíst</span><span class="hud-key">F9</span></div>
       <div class="hud-row"><span>Možnosti</span><span class="hud-key">O</span></div>
-      <div class="hud-row"><span>Pauza / pokračovat</span><span class="hud-key">mezerník</span></div>
-      <div class="hud-hint">Bourání je dvoukrokové: první pravé tlačítko stroj označí, druhé ho zbourá. Stavět a bourat lze jen s kladivem v ruce.</div>
+      <div class="hud-row"><span>Vývojářské nástroje</span><span class="hud-key">F2</span></div>
+      <div class="hud-row"><span>Pauza / pokračovat</span><span class="hud-key">P</span></div>
+      <div class="hud-hint">Stavět a bourat lze jen s plánem v ruce. Bourání je dvoukrokové: první pravé tlačítko stroj označí, druhé ho zbourá.</div>
     `;
     this.layer.appendChild(this.helpEl);
 

@@ -22,13 +22,6 @@ const FPS_OPTIONS = [
   { value: '30', label: '30' },
 ];
 
-const SPEED_OPTIONS = [
-  { value: '0', label: 'Pauza' },
-  { value: '1', label: '1×' },
-  { value: '2', label: '2×' },
-  { value: '5', label: '5×' },
-];
-
 function clampPercent(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
@@ -76,11 +69,6 @@ export default class OptionsPanel {
       </div>
       <div class="options-panel__presets"></div>
       <div class="options-panel__row">
-        <span class="options-panel__label">Rychlost hry</span>
-        <div class="options-panel__choices" data-group="gameSpeed"></div>
-      </div>
-      <small class="options-panel__note">Pauza zastaví den i všechny stroje.</small>
-      <div class="options-panel__row">
         <span class="options-panel__label">Kvalita obrazu</span>
         <div class="options-panel__choices" data-group="quality"></div>
       </div>
@@ -114,7 +102,6 @@ export default class OptionsPanel {
 
     this.buildChoices(root, 'quality', QUALITIES);
     this.buildChoices(root, 'fpsCap', FPS_OPTIONS);
-    this.buildChoices(root, 'gameSpeed', SPEED_OPTIONS);
 
     const volumes = root.querySelector('.options-panel__volumes');
     for (const volume of VOLUMES) {
@@ -203,9 +190,6 @@ export default class OptionsPanel {
     }
     for (const btn of this.root.querySelectorAll('[data-group="fpsCap"] button')) {
       btn.classList.toggle('is-active', String(this.values.fpsCap) === btn.dataset.value);
-    }
-    for (const btn of this.root.querySelectorAll('[data-group="gameSpeed"] button')) {
-      btn.classList.toggle('is-active', String(this.values.gameSpeed) === btn.dataset.value);
     }
     for (const input of this.root.querySelectorAll('[data-toggle]')) {
       input.checked = Boolean(this.values[input.dataset.toggle]);

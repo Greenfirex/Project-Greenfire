@@ -29,25 +29,35 @@ export default class InputSystem {
     this.lastMoveY = null;
   }
 
+  hitsUi(evt) {
+    if (!evt || typeof evt.clientX !== 'number') return false;
+    const el = document.elementFromPoint(evt.clientX, evt.clientY);
+    return Boolean(el && el.closest('#hud-layer'));
+  }
+
   attach(camera) {
     this.camera = camera;
 
     this.s.onPointerObservable.add((info) => {
       const evt = info.event;
       const type = info.type;
+      const onUi = type === PointerEventTypes.POINTERDOWN && (this.s.paused || !this.s.loaded || this.hitsUi(evt));
 
       if (type === PointerEventTypes.POINTERDOWN) {
         if (evt.button === 2) {
+          if (onUi) return;
           this.handleRightClick();
           return;
         }
         if (evt.button === 1) {
+          if (onUi) return;
           this.rotating = true;
           this.lastX = evt.clientX;
           evt.preventDefault();
           return;
         }
         if (evt.button !== 0) return;
+        if (onUi) return;
         this.painting = true;
         this.lastCell = null;
         this.leftDown = true;

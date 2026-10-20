@@ -2,7 +2,7 @@
 // Mechaniky se hlásí přes subscribe(); simulace o jejich obsahu nic neví.
 const TICK_SECONDS = 0.1;
 const MAX_TICKS_PER_FRAME = 5;
-const SPEEDS = [0, 1, 2, 5];
+const SPEEDS = [1, 2, 5, 10];
 
 export default class SimSystem {
 
@@ -12,6 +12,7 @@ export default class SimSystem {
     this.time = 0;
     this.tickCount = 0;
     this.speed = 1;
+    this.halted = false;
     this.subscribers = [];
     this.onTick = null;
   }
@@ -26,17 +27,18 @@ export default class SimSystem {
     this.acc = 0;
   }
 
+  setHalted(on) {
+    this.halted = Boolean(on);
+    this.acc = 0;
+  }
+
   resetAccumulator() {
     this.acc = 0;
   }
 
-  isPaused() {
-    return this.speed === 0;
-  }
-
   update(deltaSeconds) {
     if (!Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return;
-    if (this.speed === 0) return;
+    if (this.halted) return;
     this.acc += deltaSeconds * this.speed;
     let ticks = 0;
     while (this.acc >= TICK_SECONDS && ticks < MAX_TICKS_PER_FRAME) {

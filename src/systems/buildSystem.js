@@ -7,7 +7,7 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { cellToWorldCoords, cellKey } from '../utils/gridMath.js';
 import { getMachine } from '../data/catalogs/machines.js';
-import { loadModel, instantiateModel } from '../utils/assetLoader.js';
+import { loadModel, instantiateModel, whenModelsIdle } from '../utils/assetLoader.js';
 import { MACHINE_STATE_DEFAULT } from '../data/catalogs/saveSchema.js';
 
 function sanitizeCounts(source) {
@@ -39,8 +39,8 @@ export default class BuildSystem {
     this.nextId = 1;
     this.onMachineReady = null;
     this.markedCell = null;
-    this.buildLimit = 13;
     this.blockedTest = null;
+    this.heightTest = null;
     this.rangeTest = null;
   }
 
@@ -55,9 +55,9 @@ export default class BuildSystem {
   canBuild(cx, cz) {
     if (this.isOccupied(cx, cz)) return false;
     if (this.blockedTest && this.blockedTest(cx, cz)) return false;
+    if (this.heightTest && this.heightTest(cx, cz)) return false;
     if (this.rangeTest && !this.rangeTest(cx, cz)) return false;
-    const limit = this.buildLimit;
-    return cx >= -limit && cx <= limit && cz >= -limit && cz <= limit;
+    return true;
   }
 
   build(machineKey, cx, cz, rotation = 0, state = null) {
@@ -126,6 +126,7 @@ export default class BuildSystem {
   }
 
   async attachModel(record, def) {
+    if (this.s.isLoading) await whenModelsIdle();
     const template = await loadModel(this.s, def.model);
     if (!template) {
       console.error(

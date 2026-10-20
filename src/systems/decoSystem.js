@@ -6,6 +6,7 @@ import '@babylonjs/core/Meshes/mesh';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { cellToWorldCoords, cellKey, indexToCellCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { getDecoration, decoHeight } from '../data/catalogs/decorations.js';
+import { deriveBlocked } from '../data/maps/layoutStore.js';
 import { loadModel, instantiateModel } from '../utils/assetLoader.js';
 import { tintTemplate, forgetTints } from '../utils/decoTint.js';
 
@@ -47,6 +48,7 @@ export default class DecoSystem {
     this.columnTop = new Map();
     this.surfaceKeys = new Map();
     this.onDecoReady = null;
+    this.onPlaced = null;
     this.colors = null;
     this.nodes = [];
     this.pathNodes = [];
@@ -73,6 +75,29 @@ export default class DecoSystem {
     this.refreshBlocked(layout);
   }
 
+  beginStages(layout, colors) {
+    this.dispose();
+    forgetTints();
+    this.blocked.clear();
+    this.columnTop.clear();
+    this.surfaceKeys.clear();
+    this.colors = colors || null;
+    this.layout = layout;
+  }
+
+  buildStage(stage) {
+    const layout = this.layout || {};
+    if (stage === 'floor') for (const entry of layout.floor || []) this.place(entry);
+    if (stage === 'path') this.buildPath();
+    if (stage === 'water') this.buildWater();
+    if (stage === 'ground') for (const entry of layout.clearing || []) this.place(entry);
+    if (stage === 'deco') for (const entry of layout.decorations || []) this.place(entry);
+  }
+
+  finishStages() {
+    this.refreshBlocked(this.layout || {});
+  }
+
   buildPath() {
     for (const entry of this.layout?.path || []) this.place(withLift(entry, PATH_LIFT), this.pathNodes, 'path');
     for (const entry of this.layout?.manual || []) this.placePathManual(entry);
@@ -89,21 +114,31 @@ export default class DecoSystem {
 
   refreshBlocked(layout) {
     this.blocked.clear();
-    for (const cell of layout.blocked || []) {
-      const key = cellKey(cell.cx, cell.cz);
-      const list = this.blocked.get(key);
-      const shape = {
-        cx: cell.cx,
-        cz: cell.cz,
-        radius: cell.radius || 0,
-        footprint: cell.footprint || null,
-        turn: cell.turn || 0,
-        offsetX: cell.offsetX || 0,
-        offsetZ: cell.offsetZ || 0,
-      };
-      if (list) list.push(shape);
-      else this.blocked.set(key, [shape]);
-    }
+    const entries = [].concat(
+      layout.floor || [],
+      layout.path || [],
+      layout.water || [],
+      layout.clearing || [],
+      layout.decorations || [],
+    );
+    for (const shape of deriveBlocked(entries)) this.addBlockedShape(shape);
+    for (const cell of layout.blocked || []) this.addBlockedShape(cell);
+  }
+
+  addBlockedShape(cell) {
+    const key = cellKey(cell.cx, cell.cz);
+    const list = this.blocked.get(key);
+    const shape = {
+      cx: cell.cx,
+      cz: cell.cz,
+      radius: cell.radius || 0,
+      footprint: cell.footprint || null,
+      turn: cell.turn || 0,
+      offsetX: cell.offsetX || 0,
+      offsetZ: cell.offsetZ || 0,
+    };
+    if (list) list.push(shape);
+    else this.blocked.set(key, [shape]);
   }
 
   updatePath(layout) {
@@ -153,10 +188,14 @@ export default class DecoSystem {
     const def = getDecoration(entry.key);
     if (!def) return;
 
+    const loader = this.s.loader;
+    const handle = loader && this.s.isLoading ? loader.attach(1) : null;
     this.applyEntry(entry, section);
     const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
     const anchor = this.createAnchor(entry, def, x, z, bucket);
-    this.attachModel(anchor, def, entry, section);
+    const work = this.attachModel(anchor, def, entry, section);
+    if (handle) Promise.resolve(work).catch(() => {}).then(() => loader.detach(handle));
+    if (this.onPlaced) this.onPlaced(entry);
   }
 
   topAt(cx, cz) {
@@ -178,7 +217,7 @@ export default class DecoSystem {
     const anchor = new TransformNode(`deco_${entry.key}_${entry.cx}_${entry.cz}`, this.s);
     anchor.position = new Vector3(x + entry.offsetX, entry.liftY || 0, z + entry.offsetZ);
     anchor.rotation.y = (Math.PI / 2) * entry.rotation;
-    anchor.metadata = { key: entry.key, def, bucket };
+    anchor.metadata = { key: entry.key, def, bucket, entry };
     bucket.push(anchor);
     return anchor;
   }
@@ -209,6 +248,18 @@ export default class DecoSystem {
     tintTemplate(node, def, this.colors, section);
 
     if (this.onDecoReady) this.onDecoReady(anchor, node, def, entry);
+  }
+
+  readyEntries() {
+    const out = [];
+    for (const node of this.nodes) {
+      const entry = node.metadata?.entry;
+      const def = node.metadata?.def;
+      if (!entry || !def || !def.gather) continue;
+      if (!node.getChildMeshes().length) continue;
+      out.push({ anchor: node, def, entry });
+    }
+    return out;
   }
 
   isBlocked(cx, cz) {

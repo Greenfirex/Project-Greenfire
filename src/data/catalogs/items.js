@@ -70,8 +70,6 @@ export const RECIPES = {
   },
 };
 
-export const RECIPE_KEYS = Object.keys(RECIPES);
-
 export const TOOL_TYPES = {
   plan: {
     displayName: 'Stavební plán',
@@ -109,19 +107,8 @@ export const TOOL_TYPES = {
   },
 };
 
-export const HAND_TOOLS = TOOL_TYPES;
-
 export const HOTBAR_ITEMS = ['plan', 'axe', 'pickaxe', 'torch'];
-
-export function isHolding(toolKey, mode) {
-  const tool = TOOL_TYPES[toolKey];
-  return Boolean(tool && tool.mode === mode);
-}
 
 export function getTool(toolKey) {
   return TOOL_TYPES[toolKey] || null;
-}
-
-export function getItem(itemKey) {
-  return ITEM_TYPES[itemKey] || null;
 }

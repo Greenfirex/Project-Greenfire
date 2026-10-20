@@ -9,7 +9,6 @@ export const OPTION_DEFAULTS = {
   highlights: true,
   dayCycle: true,
   autoTune: false,
-  gameSpeed: 1,
   sfxVolume: 70,
   ambientVolume: 25,
 };

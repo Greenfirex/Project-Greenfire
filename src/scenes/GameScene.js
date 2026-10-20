@@ -33,16 +33,22 @@ import EditorMode from '../systems/editorMode.js';
 import EditorHud from '../ui/editorHud.js';
 import BrushPanel from '../ui/brushPanel.js';
 import TileThumbnails from '../ui/tileThumbnails.js';
+import DevPanel from '../ui/devPanel.js';
+import PauseScreen from '../ui/pauseScreen.js';
+import LoadingScreen from '../ui/loadingScreen.js';
+import { whenModelsIdle, takeModelError, preloadModels, releaseFrame } from '../utils/assetLoader.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
 import { HOTBAR_ITEMS } from '../data/catalogs/items.js';
 import { worldToCellCoords, worldToCell } from '../utils/gridMath.js';
 import { getBrush } from '../data/catalogs/brushes.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { SAVE_DEFAULTS, SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
-import { buildGladeLayout } from '../data/maps/glade.js';
-import gladeLayoutData from '../data/maps/glade/layout.json';
-import { normalizeLayout, cloneLayout } from '../data/maps/layoutStore.js';
-import { generateLayout } from '../data/maps/mapGenerator.js';
+import { collectModelUrls } from '../data/catalogs/modelCatalog.js';
+import MAP_FILE from '../data/maps/glade/map.json';
+import { mapFileFromLayout } from '../data/catalogs/mapFile.js';
+import { normalizeLayout } from '../data/maps/layoutStore.js';
+import { generateLayout } from '../data/maps/mapRules.js';
+import { describeWorld } from '../data/catalogs/worldStages.js';
 import { readJSON, writeJSON } from '../utils/storage.js';
 import { OPTION_DEFAULTS, OPTIONS_STORAGE_KEY, QUALITY_SCALES } from '../data/catalogs/optionsSchema.js';
 import OptionsPanel from '../ui/optionsPanel.js';
@@ -85,6 +91,7 @@ export default class GameScene {
     this.playerSystem = new PlayerSystem(scene);
     this.buildSystem = new BuildSystem(scene);
     this.gatherSystem = new GatherSystem(scene);
+    this.gatherSystem.decoSystem = this.decoSystem;
     this.audioSystem = new AudioSystem(scene);
     this.inventorySystem = new InventorySystem();
     this.saveSystem = new SaveSystem(this);
@@ -96,6 +103,14 @@ export default class GameScene {
     this.editorHud = new EditorHud();
     this.brushPanel = new BrushPanel();
     this.optionsPanel = new OptionsPanel();
+    this.devPanel = new DevPanel();
+    this.pauseScreen = new PauseScreen();
+    this.paused = false;
+    this.loader = new LoadingScreen();
+    this.loader.onHiddenCallback = () => this.onLoadingHidden();
+    this.isLoading = true;
+    this.loaded = false;
+    this.defaultMaxFPS = undefined;
     this.options = { ...OPTION_DEFAULTS };
     this.renderScale = 1;
     this.autoScale = 1;
@@ -124,26 +139,54 @@ export default class GameScene {
   }
 
   start() {
+    this.loader.mount();
+    this.startPreload();
+  }
+
+  async startPreload() {
+    const urls = collectModelUrls();
+    this.loader.beginAssets(urls.length);
+    const result = await preloadModels(this.s, urls, (done, total, url, failed) => {
+      this.loader.assetLoaded(total, done, url, failed);
+    });
+    this.loader.endAssets();
+    if (result.missing.length) {
+      console.warn(`[start] Nenačteno ${result.missing.length} modelů: ${result.missing.join(', ')}`);
+    }
+    this.startWorld();
+  }
+
+  async startWorld() {
     this.audioSystem.load();
+    this.refreshAmbient();
     this.campfireSystem.onIgniteStart = (item) => this.playerSystem.igniteAt(item.x, item.z);
     this.campfireSystem.onIgnite = () => this.audioSystem.play('ignite');
     this.setupGlow();
     this.setupLighting();
     this.camera = this.cameraSystem.create();
     this.setupTerrain();
+    if (takeModelError()) console.warn('[start] Některé modely se nepodařilo načíst — hra pokračuje bez nich.');
+    const layout = this.buildMapLayout();
+    const stages = describeWorld(this.mapFile || {});
+    this.loader.beginWorld(stages);
+    this.wireDecoReady();
+    this.decoHighlight.clear();
+    this.decoHighlight.create((cx, cz) => this.decoSystem.surfaceAt(cx, cz));
+    const map = getMap(this.mapKey);
+    if (stages.length) this.decoSystem.beginStages(layout, map.colors);
+    else this.decoSystem.create(layout, map.colors);
     this.setupDecorations();
     this.gridSystem.create();
     this.setupShadowCasters();
     this.setupSimulation();
-    this.setupPlayer();
     this.setupHud();
     this.setupOptions();
     this.setupInput();
-    this.setupSave();
-    this.refreshAmbient();
+    this.setupDevPanel();
     this.registerHudEvents();
     this.heldItemSystem.apply(SAVE_DEFAULTS.heldItem);
-    if (this.saveSystem.load()) this.heldItemSystem.set(this.heldItemSystem.key || SAVE_DEFAULTS.heldItem.key);
+    const restored = this.saveSystem.load();
+    if (restored) this.heldItemSystem.set(this.heldItemSystem.key || SAVE_DEFAULTS.heldItem.key);
 
     this.buildSystem.onMachineReady = (record, node) => {
       const placeholder = record.mesh;
@@ -156,9 +199,18 @@ export default class GameScene {
 
     this.s.onBeforeRenderObservable.add(() => {
       const dt = this.engine.getDeltaTime() / 1000;
+      if (this.paused) {
+        this.refreshClock();
+        return;
+      }
       this.simSystem.update(dt);
-      this.followPointer();
       this.decoHighlight.update(dt);
+      if (this.isLoading) {
+        this.audioSystem.update(dt);
+        this.refreshClock();
+        return;
+      }
+      this.followPointer();
       this.playerSystem.update(dt);
       this.glowSystem.retryPending();
       this.updateGathering(dt);
@@ -169,12 +221,56 @@ export default class GameScene {
       this.autoTune(dt);
       this.audioSystem.update(dt);
       this.playerSystem.updateFire();
+      this.refreshClock();
     });
 
     this.engine.runRenderLoop(() => this.s.render());
     this.hud.setMachine(getMachine(this.currentMachine).displayName);
     this.hotbar.setSelected(this.heldItemSystem.key);
     this.inventoryPanel.update(this.inventorySystem);
+    await this.prepareGame();
+  }
+
+  async prepareGame() {
+    await this.buildWorld();
+    const character = this.loader.addStep('Připravuji postavu a nástroje…');
+    this.setupSave();
+    await this.setupPlayer();
+    this.loader.stepDone(character);
+    const game = this.loader.addStep('Připravuji hru…');
+    this.decoSystem.rememberLayout(this.mapLayout);
+    this.loader.stepDone(game);
+    await this.waitForWorld();
+  }
+
+  async waitForWorld() {
+    for (let i = 0; i < 3000; i += 1) {
+      await whenModelsIdle();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      if (this.loader.pending === 0) {
+        this.loader.closeAllSteps();
+        this.loader.finish();
+        return;
+      }
+    }
+    console.warn(`[start] dokončení světa trvá příliš dlouho — zbývá ${this.loader.pending} kroků.`);
+    this.loader.closeAllSteps();
+    this.loader.finish();
+  }
+
+  async buildWorld() {
+    await this.buildWorldStages();
+    this.loader.closeWorldSteps();
+  }
+  onLoadingHidden() {
+    if (!this.isLoading) return;
+    this.isLoading = false;
+    this.loaded = true;
+    this.playerSystem.bindKeys();
+    this.simSystem.resetAccumulator();
+    this.refreshAmbient();
+    this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);
+    this.audioSystem.setAmbientVolume(this.options.ambientVolume / 100);
   }
 
   setupGlow() {
@@ -247,7 +343,7 @@ export default class GameScene {
     if (impact) this.onGatherImpact(impact);
   }
 
-  updateGatherTarget() {
+updateGatherTarget() {
     this.gatherSystem.setPlayer(this.playerSystem);
     this.gatherSystem.setTool(this.heldItemSystem.tool());
     this.gatherSystem.update(0, this.playerSystem);
@@ -277,8 +373,6 @@ export default class GameScene {
   }
 
   strikeGather() {
-    const pick = this.s.pick(this.s.pointerX, this.s.pointerY, (mesh) => mesh === this.terrainSystem.ground);
-    if (pick && !pick.hit) return false;
     return this.gatherSystem.beginHit();
   }
 
@@ -319,6 +413,7 @@ export default class GameScene {
     this.playerSystem.blockedTest = (cx, cz) => this.buildSystem.isOccupied(cx, cz);
     this.playerSystem.decoSystem = this.decoSystem;
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z);
+    this.playerSystem.spawnCell = this.mapLayout.spawn;
     await this.playerSystem.loadTools();
     this.playerSystem.setHeldTool(this.heldItemSystem.key);
     const root = await this.playerSystem.create();
@@ -330,25 +425,10 @@ export default class GameScene {
   setupTerrain() {
     const ground = this.terrainSystem.create(this.mapKey);
     if (ground) this.s.clearColor = this.mapColor(this.mapKey, 'sky');
-    const map = getMap(this.mapKey);
-    if (map) this.buildSystem.buildLimit = map.buildLimit;
   }
 
-  setupDecorations() {
-    const map = getMap(this.mapKey);
-    const layout = this.buildMapLayout();
-    this.decoHighlight.clear();
-    this.decoHighlight.create((cx, cz) => this.decoSystem.surfaceAt(cx, cz));
-    this.decoSystem.create(layout, map.colors);
-    this.decoSystem.rememberLayout(this.mapLayout);
-    this.campfireSystem.sync(layout.decorations || []);
-    this.tileThumbs = new TileThumbnails(this.s, map.colors);
-    this.buildSystem.blockedTest = (cx, cz) => this.decoSystem.isBlocked(cx, cz);
-    this.buildSystem.rangeTest = (cx, cz) => this.withinBuildRange(cx, cz);
-    this.gridSystem.onHologramReady = (machineKey) => {
-      if (machineKey !== this.currentMachine) return;
-      this.refreshHoverPreview();
-    };
+  wireDecoReady() {
+    this.gatherSystem.clear();
     this.decoSystem.onDecoReady = (anchor, node, def, entry) => {
       for (const child of node.getChildMeshes()) {
         child.isPickable = false;
@@ -357,6 +437,41 @@ export default class GameScene {
       this.decoHighlight.add(entry, node, def);
       this.gatherSystem.addEntry(entry, def, anchor);
       this.campfireSystem.add(entry, def, anchor.position.y);
+    };
+  }
+
+  async buildWorldStages() {
+    const stages = describeWorld(this.mapFile || {});
+    if (!stages.length) {
+      this.decoSystem.finishStages();
+      return;
+    }
+    for (const stage of stages) {
+      const keys = new Set(stage.keys);
+      this.decoSystem.onPlaced = (entry) => {
+        if (keys.has(entry.key)) this.loader.stageProgress(1);
+      };
+      for (const part of stage.parts) this.decoSystem.buildStage(part);
+      this.loader.endStage();
+      await releaseFrame();
+    }
+    this.decoSystem.onPlaced = null;
+    this.decoSystem.finishStages();
+  }
+
+  setupDecorations() {
+    const map = getMap(this.mapKey);
+    const layout = this.buildMapLayout();
+    this.decoSystem.rememberLayout(this.mapLayout);
+    this.gatherSystem.syncFromDeco();
+    this.campfireSystem.sync(layout.decorations || []);
+    this.tileThumbs = new TileThumbnails(this.s, map.colors);
+    this.buildSystem.blockedTest = (cx, cz) => this.decoSystem.isBlocked(cx, cz);
+    this.buildSystem.heightTest = (cx, cz) => this.decoSystem.topAt(cx, cz) > 0;
+    this.buildSystem.rangeTest = (cx, cz) => this.withinBuildRange(cx, cz);
+    this.gridSystem.onHologramReady = (machineKey) => {
+      if (machineKey !== this.currentMachine) return;
+      this.refreshHoverPreview();
     };
 
     this.editorMode.onRegenerate = (editorLayout) => this.renderMapLayout(editorLayout);
@@ -570,6 +685,7 @@ export default class GameScene {
     const map = getMap(this.mapKey);
     this.mapLayout = editorLayout;
     this.editorMode.layout = editorLayout;
+    this.markMapDirty();
     const layout = generateLayout(this.mapKey, editorLayout);
     if (this.decoSystem.canUpdatePath(editorLayout)) {
       this.restoreGatherEntries(exhausted);
@@ -578,19 +694,14 @@ export default class GameScene {
     this.decoHighlight.clear();
     this.decoSystem.create(layout, map.colors);
     this.decoSystem.rememberLayout(editorLayout);
+    this.gatherSystem.syncFromDeco();
     this.campfireSystem.sync(layout.decorations || []);
     this.restoreGatherEntries(exhausted);
   }
 
-  restoreExhaustedGather() {
-    for (const cell of this.gatherSystem.exhaustedCells()) {
-      const anchor = this.findDecoAnchor(cell.cx, cell.cz);
-      if (anchor && !anchor.isDisposed()) anchor.setEnabled(false);
-    }
-  }
-
   restoreGatherEntries(exhausted) {
-    for (const cell of exhausted) {
+    const cells = exhausted || this.gatherSystem.exhaustedCells();
+    for (const cell of cells) {
       const anchor = this.findDecoAnchor(cell.cx, cell.cz);
       if (anchor && !anchor.isDisposed()) anchor.setEnabled(false);
     }
@@ -607,6 +718,7 @@ export default class GameScene {
   }
 
   toggleEditorPanel(active) {
+    if (!active && this.mapDirty) this.warnUnsavedMap();
     if (active) {
       this.editorHud.show();
       this.editorHud.setMode(this.editorMode.mode);
@@ -615,6 +727,7 @@ export default class GameScene {
       this.editorHud.hide();
       this.gridSystem.clearBrush();
     }
+    this.devPanel.setEditorActive(Boolean(active));
   }
 
   exitEditor() {
@@ -626,25 +739,15 @@ export default class GameScene {
     this.gridSystem.clearZones();
     this.gridSystem.clearDraftCells();
     this.toggleEditorPanel(false);
+    this.devPanel.setEditorActive(false);
   }
 
   buildMapLayout() {
     const map = getMap(this.mapKey);
-    const saved = this.loadSavedLayout();
-    const data = saved || (this.mapKey === 'glade' ? gladeLayoutData : null);
-    this.mapLayout = data
-      ? normalizeLayout(data, map.seed)
-      : normalizeLayout(buildGladeLayout(this.mapKey), map.seed);
+    this.mapFile = MAP_FILE;
+    this.mapLayout = normalizeLayout(MAP_FILE.recipe || MAP_FILE, map.seed);
     this.editorMode.attach(this.mapLayout);
-    return generateLayout(this.mapKey, this.mapLayout);
-  }
-
-  loadSavedLayout() {
-    const payload = readJSON(SAVE_STORAGE_KEY);
-    if (!payload || payload.version !== SAVE_VERSION || !payload.state) return null;
-    const maps = payload.state.mapLayouts;
-    if (!maps || typeof maps !== 'object') return null;
-    return maps[this.mapKey] || null;
+    return MAP_FILE;
   }
 
   mapColor(mapKey, key) {
@@ -693,6 +796,25 @@ export default class GameScene {
       writeJSON(OPTIONS_STORAGE_KEY, values);
       this.applyOptions();
     };
+    window.addEventListener('beforeunload', (event) => {
+      if (!this.mapDirty) return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
+  }
+
+  setupDevPanel() {
+    this.devPanel.onSpeed = (speed) => this.setSimSpeed(speed);
+    this.devPanel.onHalt = (on) => this.setTimeHalted(on);
+    this.devPanel.onToggleEditor = () => this.toggleEditorMode();
+    this.devPanel.mount();
+    this.devPanel.show();
+    this.devPanel.setSpeed(this.simSystem.speed);
+    this.devPanel.setHalted(this.simSystem.halted);
+    this.devPanel.setEditorActive(this.editorMode.active);
+    this.pauseScreen.onResume = () => this.togglePause();
+    this.pauseScreen.mount();
+    this.pauseScreen.setSpeed(this.simSystem.speed);
   }
 
   addShadowCaster(mesh) {
@@ -712,16 +834,17 @@ export default class GameScene {
   }
 
   applyOptions() {
+    this.defaultMaxFPS = this.options.fpsCap > 0 ? this.options.fpsCap : undefined;
     const qualityScale = QUALITY_SCALES[this.options.quality] ?? 1;
     this.renderScale = qualityScale;
     this.engine.setHardwareScalingLevel(1 / (qualityScale * this.autoScale));
     this.cameraSystem.applyOrtho();
-    this.engine.maxFPS = this.options.fpsCap > 0 ? this.options.fpsCap : undefined;
-    this.simSystem.setSpeed(this.options.gameSpeed);
+    this.engine.maxFPS = this.paused ? 60 : this.defaultMaxFPS;
     this.refreshClock();
     this.shadowGenerator.getShadowMap().renderList = this.options.shadows ? this.shadowCasters.slice() : [];
     this.decoHighlight.setVisible(this.options.highlights);
     this.glowSystem.setEnabled(this.options.fireGlow);
+    if (this.isLoading) return;
     this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);
     this.audioSystem.setAmbientVolume(this.options.ambientVolume / 100);
   }
@@ -754,9 +877,9 @@ export default class GameScene {
       if (this.options.dayCycle) this.dayNightSystem.update(tick);
       this.refreshAmbient();
     });
-    this.simSystem.onTick = () => this.refreshClock();
-    this.simSystem.setSpeed(this.options.gameSpeed);
+    this.simSystem.onTick = null;
     this.refreshClock();
+    this.hud.setClockSpeed(this.simSystem.speed, false);
   }
 
   refreshClock() {
@@ -767,7 +890,7 @@ export default class GameScene {
     const mm = String(minutes % 60).padStart(2, '0');
     this.hud.setClockText(`${hh}:${mm}`);
     this.hud.setClockPhase(this.describeDayPhase(time, cfg));
-    this.hud.setClockSpeed(this.simSystem.isPaused(), this.simSystem.speed);
+    this.hud.setClockSpeed(this.simSystem.speed, this.paused || this.simSystem.halted);
   }
 
   refreshAmbient() {
@@ -833,6 +956,7 @@ export default class GameScene {
   }
 
   setupSave() {
+    this.dropLegacyLayout();
     this.saveSystem.registerState('player', {
       serialize: () => this.playerSystem.serialize(),
       apply: (data) => this.playerSystem.apply(data),
@@ -843,7 +967,7 @@ export default class GameScene {
       apply: (data) => {
         this.inventorySystem.apply(data);
         this.inventoryPanel.update(this.inventorySystem);
-        this.restoreExhaustedGather();
+        this.restoreGatherEntries();
       },
       order: 6,
     });
@@ -882,19 +1006,19 @@ export default class GameScene {
       order: 25,
     });
     this.saveSystem.registerState('mapLayouts', {
-      serialize: () => ({ [this.mapKey]: cloneLayout(this.mapLayout) }),
-      apply: (data) => {
-        const raw = data && typeof data === 'object' ? data[this.mapKey] : null;
-        if (!raw) return;
-        const map = getMap(this.mapKey);
-        this.mapLayout = normalizeLayout(raw, map.seed);
-        this.editorMode.attach(this.mapLayout);
-        this.renderMapLayout(this.mapLayout);
-        this.restoreExhaustedGather();
-        this.decoSystem.rememberLayout(this.mapLayout);
-      },
+      serialize: () => ({}),
+      apply: () => {},
       order: 1,
     });
+  }
+
+  dropLegacyLayout() {
+    const payload = readJSON(SAVE_STORAGE_KEY);
+    if (!payload || !payload.state) return;
+    const maps = payload.state.mapLayouts;
+    if (!maps || typeof maps !== 'object' || !Object.keys(maps).length) return;
+    payload.state.mapLayouts = {};
+    writeJSON(SAVE_STORAGE_KEY, payload);
   }
 
   registerHudEvents() {
@@ -903,15 +1027,61 @@ export default class GameScene {
   }
 
   togglePause() {
-    const paused = this.simSystem.isPaused();
-    this.optionsPanel.patch({ gameSpeed: paused ? 1 : 0 });
+    this.setPaused(!this.paused);
+  }
+
+  setPaused(on) {
+    const paused = Boolean(on);
+    if (paused === this.paused) return;
+    this.paused = paused;
+    this.simSystem.setHalted(paused);
+    this.engine.maxFPS = paused ? 60 : this.defaultMaxFPS;
+    if (paused) {
+      this.pauseScreen.setSpeed(this.simSystem.speed);
+      this.pauseScreen.show();
+    } else {
+      this.pauseScreen.hide();
+      this.simSystem.resetAccumulator();
+    }
+    this.refreshClock();
+  }
+
+  setSimSpeed(speed) {
+    this.simSystem.setSpeed(speed);
+    this.devPanel.setSpeed(this.simSystem.speed);
+    this.pauseScreen.setSpeed(this.simSystem.speed);
+    this.refreshClock();
+  }
+
+  setTimeHalted(on) {
+    this.simSystem.setHalted(Boolean(on));
+    this.devPanel.setHalted(this.simSystem.halted);
+    this.refreshClock();
+  }
+
+  toggleEditorMode() {
+    const active = this.editorMode.toggle();
+    if (active) this.editorHud.setBrush(this.editorMode.brushKey);
+    this.devPanel.setEditorActive(this.editorMode.active);
+    return active;
   }
 
   handleKey(evt) {
+    if (!this.loaded) return;
     const typing = evt.target && (evt.target.tagName === 'INPUT' || evt.target.tagName === 'TEXTAREA' || evt.target.isContentEditable);
-    if (evt.key === ' ' && !typing) {
+    if ((evt.key === 'p' || evt.key === 'P') && !typing && !evt.ctrlKey && !evt.metaKey && !evt.altKey) {
+      if (evt.repeat) return;
       evt.preventDefault();
       this.togglePause();
+      return;
+    }
+    if (evt.key === 'F2') {
+      evt.preventDefault();
+      this.devPanel.toggle();
+      return;
+    }
+    if (this.paused) {
+      if (evt.key !== 'Escape') evt.preventDefault();
       return;
     }
     if ((evt.key === 'o' || evt.key === 'O') && !typing) {
@@ -922,8 +1092,7 @@ export default class GameScene {
     }
     if (evt.key === 'F1') {
       evt.preventDefault();
-      const active = this.editorMode.toggle();
-      if (active) this.editorHud.setBrush(this.editorMode.brushKey);
+      this.toggleEditorMode();
       return;
     }
     if (evt.key === 'g' || evt.key === 'G') {
@@ -1216,11 +1385,39 @@ export default class GameScene {
     this.hud.setSaveHint(ok ? 'Uloženo ✓' : 'Uložení selhalo');
   }
 
+  warnUnsavedMap() {
+    this.hud.setSaveHint('Máš neuložený nákres mapy — dokud ho nestáhneš, po obnovení stránky zmizí');
+  }
+
+  markMapDirty() {
+    if (this.mapDirty) return;
+    this.mapDirty = true;
+    this.editorHud.setReadout('● Neuložené změny');
+  }
+
+  clearMapDirty() {
+    this.mapDirty = false;
+    this.editorHud.setReadout('Uloženo ✓');
+  }
+
   saveMapLayout() {
-    const ok = this.saveSystem.save();
-    this.editorHud.setReadout(ok ? 'Mapa uložena ✓' : 'Uložení selhalo');
-    this.hud.setSaveHint(ok ? 'Mapa uložena ✓' : 'Uložení mapy selhalo');
-    return ok;
+    const file = mapFileFromLayout(this.mapKey, this.mapLayout);
+    if (!file) {
+      this.editorHud.setReadout('Mapu nejde složit');
+      return false;
+    }
+    const name = `${this.mapKey}-map.json`;
+    const blob = new Blob([JSON.stringify(file)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    this.mapFile = file;
+    this.clearMapDirty();
+    this.hud.setSaveHint(`Mapa stažena jako ${name} — polož ji do projektu`);
+    return true;
   }
 
   doLoad() {

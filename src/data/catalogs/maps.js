@@ -3,8 +3,7 @@
 export const MAPS = {
   glade: {
     displayName: 'Temný hvozd',
-    groundSize: 32,
-    buildLimit: 15,
+    groundSize: 26,
     seed: 20261016,
     clearingRadius: 8,
     clearingCenter: { cx: 3, cz: -2 },

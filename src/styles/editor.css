@@ -1,8 +1,8 @@
 /* Styl editačního panelu — paleta brushů, paleta výšek a nástroje pro malování zón. */
 .editor-panel {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: 60px;
+  right: 14px;
   width: 210px;
   display: none;
   background: var(--bg-panel);

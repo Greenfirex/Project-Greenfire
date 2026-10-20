@@ -1,4 +1,4 @@
-// Generátor mapy — zóny a ruční položky převede na konkrétní dekorace pro scénu.
+// Pravidla mapy — jak se ze zadaných zón a ručních položek stanou konkrétní objekty.
 // Deterministický: stejný seed + stejné zóny = stejná mapa.
 import { getMap } from '../catalogs/maps.js';
 import { getBrush } from '../catalogs/brushes.js';

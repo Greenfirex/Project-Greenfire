@@ -332,6 +332,213 @@
   color: var(--text-main);
 }
 
+/* Lišta nahoře uprostřed — otevření vývojářských nástrojů a editoru mapy. */
+.dev-bar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 11;
+}
+
+.dev-bar__btn {
+  height: 32px;
+  padding: 0 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
+}
+
+.dev-bar__btn:hover,
+.dev-bar__btn.is-open {
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+/* Panel vývojářských nástrojů — otevřený hned po startu, technický vzhled. */
+.dev-panel {
+  position: absolute;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  width: 260px;
+  padding: 10px 12px;
+  background: var(--bg-panel);
+  border: 1px solid rgba(224, 164, 88, 0.35);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 14px rgba(224, 164, 88, 0.08);
+  z-index: 21;
+  user-select: none;
+  cursor: grab;
+}
+
+.dev-panel.is-open {
+  display: block;
+}
+
+.dev-panel.is-dragging {
+  cursor: grabbing;
+  z-index: 24;
+}
+
+.dev-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.dev-panel__title {
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--glow-warm);
+  font-weight: 700;
+}
+
+.dev-panel__close {
+  background: none;
+  border: 1px solid rgba(224, 164, 88, 0.35);
+  border-radius: 4px;
+  color: var(--glow-warm);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+
+.dev-panel__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.dev-panel__label {
+  color: var(--text-dim);
+}
+
+.dev-panel__choices {
+  display: flex;
+  gap: 4px;
+}
+
+.dev-panel__choices button,
+.dev-panel__halt {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(224, 164, 88, 0.3);
+  border-radius: 4px;
+  color: var(--glow-warm);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 7px;
+  cursor: pointer;
+}
+
+.dev-panel__choices button:hover,
+.dev-panel__halt:hover {
+  border-color: var(--glow-warm);
+  color: var(--text-main);
+}
+
+.dev-panel__choices button.is-active,
+.dev-panel__halt.is-active {
+  border-color: var(--glow-warm);
+  background: rgba(224, 164, 88, 0.18);
+  color: var(--text-main);
+}
+
+.dev-panel__note {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+/* Obrazovka pauzy — ztmaví celou hru a uprostřed nechá kartu s pokračováním. */
+.pause-screen {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 7, 10, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 40;
+}
+
+.pause-screen.is-open {
+  display: flex;
+}
+
+.pause-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 260px;
+  padding: 22px 28px 18px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 8px;
+  box-shadow: 0 0 24px rgba(90, 200, 170, 0.12);
+  user-select: none;
+}
+
+.pause-card__title {
+  font-size: 26px;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: var(--glow-accent);
+  font-weight: 700;
+}
+
+.pause-card__speed {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.pause-card__speed strong {
+  color: var(--text-main);
+}
+
+.pause-card__resume {
+  margin-top: 4px;
+  padding: 7px 22px;
+  background: rgba(90, 200, 170, 0.12);
+  border: 1px solid var(--border-glow);
+  border-radius: 5px;
+  color: var(--glow-accent);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+
+.pause-card__resume:hover {
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+.pause-card__keys {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
 .options-panel {
   position: absolute;
   top: 52px;
@@ -558,4 +765,94 @@
 .options-panel__reset:hover {
   border-color: var(--glow-warm);
   color: var(--text-main);
+}
+
+/* Obrazovka načítání — kryje celou hru, dokud nedoběhnou modely, postava a animace. */
+.loading-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-dark);
+  z-index: 60;
+  opacity: 1;
+  transition: opacity 400ms ease;
+}
+
+.loading-screen.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 320px;
+  padding: 20px 22px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 8px;
+  box-shadow: 0 0 24px rgba(90, 200, 170, 0.1);
+  user-select: none;
+}
+
+.loading-title {
+  font-size: 14px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--glow-accent);
+  font-weight: 700;
+}
+
+.loading-bar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.loading-bar__fill {
+  width: 0;
+  height: 100%;
+  background: var(--glow-accent);
+  transition: width 120ms linear;
+}
+
+.loading-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+}
+
+.loading-label {
+  color: var(--text-dim);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.loading-count {
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.loading-detail {
+  min-height: 14px;
+  font-size: 11px;
+  color: var(--text-dim);
+  opacity: 0.75;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.loading-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }

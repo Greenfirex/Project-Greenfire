@@ -1,5 +1,7 @@
 // Výška terénu na okraji mapy — útesový rám se odvozuje z polohy buňky.
-// Deterministické: stejná buňka = stejná výška, bez ohledu na zóny.
+// Skála je jen na dvou protilehlých stranách (západ a východ), sever a jih zůstávají otevřené.
+const CLIFF_AXIS = 'x';
+
 const SIDES = [
   { dx: 0, dz: 1, dir: 2 },
   { dx: 1, dz: 0, dir: 3 },
@@ -17,12 +19,20 @@ function cellHash(cx, cz, salt) {
 export function edgeProjection(cx, cz, limit) {
   const kx = limit - Math.abs(cx);
   const kz = limit - Math.abs(cz);
-  if (kx <= kz) return { ex: cx > 0 ? limit : -limit, ez: cz, k: kx };
+  if (CLIFF_AXIS === 'x') return { ex: cx > 0 ? limit : -limit, ez: cz, k: kx };
   return { ex: cx, ez: cz > 0 ? limit : -limit, k: kz };
 }
 
 export function edgeDepth(ex, ez) {
-  return 3 + (cellHash(ex, ez, 6) % 3);
+  return 4 + (cellHash(ex, ez, 6) % 4);
+}
+
+function stepDrop(roll, i, k) {
+  if (i === 1) return roll >= 62 ? 2 : 1;
+  const room = k - i;
+  if (roll >= 90 && room >= 3) return 3;
+  if (roll >= 55) return 2;
+  return 1;
 }
 
 export function surfaceHeight(cx, cz, limit, carve = 0, pathCells = null, overrides = null) {
@@ -32,7 +42,7 @@ export function surfaceHeight(cx, cz, limit, carve = 0, pathCells = null, overri
     if (forced !== undefined) return forced;
   }
   const { ex, ez, k } = edgeProjection(cx, cz, limit);
-  const top = cellHash(ex, ez, 5) < 55 ? 4 : 3;
+  const top = cellHash(ex, ez, 5) < 45 ? 5 : 4;
   if (k >= edgeDepth(ex, ez)) return 0;
 
   const along = Math.abs(ex) === limit ? cz : cx;
@@ -40,7 +50,9 @@ export function surfaceHeight(cx, cz, limit, carve = 0, pathCells = null, overri
 
   let height = top;
   for (let i = 1; i <= k; i++) {
-    height -= cellHash(along, i * 7 + salt, 33) >= 62 ? 2 : 1;
+    const roll = cellHash(along, i * 7 + salt, 33);
+    const drop = stepDrop(roll, i, k);
+    height -= drop;
     if (height <= 0) return 0;
   }
 
