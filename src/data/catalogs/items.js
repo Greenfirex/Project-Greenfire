@@ -86,7 +86,7 @@ export const TOOL_TYPES = {
     kind: 'tool',
     model: 'axe',
     mode: 'gather',
-    harvest: { kinds: ['tree'], cooldown: 0.95 },
+    harvest: { kinds: ['tree', 'log'], cooldown: 0.95 },
   },
   pickaxe: {
     displayName: 'Krumpáč',

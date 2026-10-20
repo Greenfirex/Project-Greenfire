@@ -63,20 +63,10 @@ export function loadModel(scene, url) {
   return cache.get(url);
 }
 
-export async function preloadModels(scene, urls, onProgress) {
-  const list = [...new Set(urls)];
-  const missing = [];
-  let done = 0;
-  for (const url of list) {
-    const root = await withTimeout(loadModel(scene, url), MODEL_TIMEOUT_MS);
-    if (!root) {
-      missing.push(url);
-      console.warn(`[asset] Model se nepodařilo načíst do ${MODEL_TIMEOUT_MS / 1000} s: ${url}`);
-    }
-    done += 1;
-    if (onProgress) onProgress(done, list.length, url, !root);
-  }
-  return { total: list.length, missing };
+export async function preloadModel(scene, url) {
+  const root = await withTimeout(loadModel(scene, url), MODEL_TIMEOUT_MS);
+  if (!root) console.warn(`[asset] Model se nepodařilo načíst do ${MODEL_TIMEOUT_MS / 1000} s: ${url}`);
+  return root;
 }
 
 function withTimeout(promise, ms) {

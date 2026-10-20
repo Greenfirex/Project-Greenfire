@@ -1,5 +1,5 @@
 // Hratelná postava — načtení modelu s vlastní texturou, animace z vedlejších souborů a pohyb po světě.
-// WASD/šipky posouvají postavu relativně ke kameře, kolize drží mimo dekorace a stroje.
+// Model i animace se stahují najednou; nástroj teprve ve chvíli, kdy ho hráč poprvé vezme do ruky.
 import '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Animations/animatable';
 import '@babylonjs/core/Materials/PBR/pbrMaterial';
@@ -30,6 +30,7 @@ const STRIKE_SHARE = {
   chopBare: 0.55,
 };
 const STRIKE_HOLD = 0.12;
+const STRIKE_FALLBACK = 0.5;
 const IGNITE_SHARE = 0.55;
 const IGNITE_HOLD = 0.35;
 const IGNITE_FALLBACK = 0.75;
@@ -75,6 +76,7 @@ export default class PlayerSystem {
     this.spawnCell = null;
     this.ready = false;
     this.toolTemplates = {};
+    this.toolLoading = {};
     this.heldToolKey = null;
     this.loadStep = null;
     this.keysBound = false;
@@ -87,12 +89,19 @@ export default class PlayerSystem {
     this.igniteImpactAt = 0;
     this.travelled = 0;
     this.onStep = null;
+    this.onProgress = null;
+    this.progressTotal = 1 + PLAYER_ANIMS.length + 1;
   }
 
   async create() {
     this.beginStep();
     try {
-      const result = await ImportMeshAsync(PLAYER_MODEL, this.s);
+      const loaded = await Promise.all([
+        ImportMeshAsync(PLAYER_MODEL, this.s),
+        ...PLAYER_ANIMS.map((url) => ImportMeshAsync(url, this.s)),
+      ]);
+      this.reportProgress(1);
+      const result = loaded[0];
       const root = new TransformNode('playerRoot', this.s);
       for (const mesh of result.meshes) {
         if (mesh.getTotalVertices && mesh.getTotalVertices() > 0) {
@@ -111,7 +120,8 @@ export default class PlayerSystem {
       const start = this.spawnCell ? cellToWorldCoords(this.spawnCell.cx, this.spawnCell.cz) : SPAWN;
       this.root.position = new Vector3(start.x, 0, start.z);
 
-      await this.loadAnimations();
+      this.loadAnimations(loaded.slice(1));
+      this.reportProgress(3);
       await this.attachToolNode();
       this.play('idle');
       this.bindKeys();
@@ -122,21 +132,23 @@ export default class PlayerSystem {
     }
   }
 
-  async loadTools() {
-    if (this.toolsLoaded) return;
-    this.toolsLoaded = true;
-    const urls = Object.values(TOOL_TYPES)
-      .filter((tool) => tool.model)
-      .map((tool) => toolModelUrl(tool));
-    this.beginStep();
-    try {
-      const templates = await Promise.all(urls.map((url) => loadModel(this.s, url)));
-      Object.values(TOOL_TYPES).forEach((tool, index) => {
-        if (this.toolTemplates[tool.model] === undefined) this.toolTemplates[tool.model] = templates[index];
-      });
-    } finally {
-      this.endStep();
-    }
+  reportProgress(count) {
+    if (this.onProgress) this.onProgress(count, this.progressTotal);
+  }
+
+  prefetchTool(key) {
+    const tool = TOOL_TYPES[key];
+    if (!tool || !tool.model || this.toolTemplates[tool.model] !== undefined) return;
+    if (this.toolLoading && this.toolLoading[tool.model]) return;
+    if (!this.toolLoading) this.toolLoading = {};
+    this.toolLoading[tool.model] = true;
+    loadModel(this.s, toolModelUrl(tool)).then((template) => {
+      this.toolTemplates[tool.model] = template;
+      this.toolLoading[tool.model] = false;
+      if (this.heldToolKey === key) this.refreshToolNode();
+    }).catch(() => {
+      this.toolLoading[tool.model] = false;
+    });
   }
 
   beginStep() {
@@ -180,6 +192,10 @@ export default class PlayerSystem {
     const tool = TOOL_TYPES[this.heldToolKey];
     if (!tool || !tool.model) return;
     const template = this.toolTemplates[tool.model];
+    if (template === undefined) {
+      this.prefetchTool(this.heldToolKey);
+      return;
+    }
     this.toolNode = instantiateModel(this.s, template, `playerHeld_${tool.model}`);
     if (!this.toolNode) return;
     this.toolNode.parent = this.handSlot;
@@ -217,10 +233,22 @@ export default class PlayerSystem {
     this.torchFireSource = this.torchFire;
   }
 
+  animLength(key, fallback) {
+    const group = this.anims[key];
+    if (!group) return fallback;
+    let length = 0;
+    try {
+      length = group.getLength(group.from, group.to) / (group.speedRatio || 1);
+      if (!length) length = (group.to - group.from) / (group.targetedAnimations[0]?.animation.framePerSecond || 0);
+    } catch {
+      length = 0;
+    }
+    return Number.isFinite(length) && length > 0 ? length : fallback;
+  }
+
   strike() {
     this.strikeAnim = this.heldToolKey === 'pickaxe' ? 'mine' : (TOOL_TYPES[this.heldToolKey] && TOOL_TYPES[this.heldToolKey].mode === 'gather' ? 'chop' : 'chopBare');
-    const group = this.anims[this.strikeAnim];
-    const length = group ? group.getLength() / group.speedRatio : 0.5;
+    const length = this.animLength(this.strikeAnim, STRIKE_FALLBACK);
     const share = STRIKE_SHARE[this.strikeAnim] || 0.6;
     this.strikeTimer = Math.max(0.15, length * share + STRIKE_HOLD);
     this.play(this.strikeAnim, true);
@@ -228,7 +256,9 @@ export default class PlayerSystem {
   }
 
   strikeImpactTime() {
-    return this.strikeTimer * STRIKE_SHARE[this.strikeAnim] || 0.3;
+    const share = STRIKE_SHARE[this.strikeAnim] || 0.6;
+    const impact = this.strikeTimer * share;
+    return impact > 0 ? impact : STRIKE_FALLBACK * share;
   }
 
   strikeDuration() {
@@ -238,8 +268,7 @@ export default class PlayerSystem {
   igniteAt(x, z) {
     this.faceTo(x, z);
     this.strikeTimer = 0;
-    const group = this.anims.ignite;
-    const length = group ? group.getLength() / group.speedRatio : IGNITE_FALLBACK;
+    const length = this.animLength('ignite', IGNITE_FALLBACK);
     this.igniteTimer = Math.max(0.35, length * IGNITE_SHARE + IGNITE_HOLD);
     this.igniteImpactAt = Math.max(0.15, this.igniteTimer * IGNITE_SHARE);
     this.play('ignite', true);
@@ -263,7 +292,7 @@ export default class PlayerSystem {
     this.root.rotation.y = this.facing;
   }
 
-  async loadAnimations() {
+  loadAnimations(sources) {
     const skeleton = this.mesh && this.mesh.skeleton;
     if (!skeleton) return;
     const nodeByName = new Map();
@@ -272,27 +301,21 @@ export default class PlayerSystem {
       if (node) nodeByName.set(bone.name, node);
     }
 
-    for (const url of PLAYER_ANIMS) {
-      this.beginStep();
-      try {
-        const result = await ImportMeshAsync(url, this.s);
-        for (const [key, name] of Object.entries(ANIM_NAMES)) {
-          const source = result.animationGroups.find((g) => g.name === name);
-          if (!source) continue;
-          source.stop();
-          const group = source.clone(`player_${key}`, (target) => nodeByName.get(target.name) || null);
-          group.weight = 1;
-          group.enableBlending = true;
-          group.blendingSpeed = ANIM_BLEND;
-          this.anims[key] = group;
-        }
-        for (const group of result.animationGroups) group.stop();
-        for (const mesh of result.meshes) {
-          if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0) continue;
-          mesh.setEnabled(false);
-        }
-      } finally {
-        this.endStep();
+    for (const result of sources || []) {
+      for (const [key, name] of Object.entries(ANIM_NAMES)) {
+        const source = result.animationGroups.find((g) => g.name === name);
+        if (!source) continue;
+        source.stop();
+        const group = source.clone(`player_${key}`, (target) => nodeByName.get(target.name) || null);
+        group.weight = 1;
+        group.enableBlending = true;
+        group.blendingSpeed = ANIM_BLEND;
+        this.anims[key] = group;
+      }
+      for (const group of result.animationGroups) group.stop();
+      for (const mesh of result.meshes) {
+        if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0) continue;
+        mesh.setEnabled(false);
       }
     }
   }

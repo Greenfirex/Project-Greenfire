@@ -293,7 +293,7 @@ export const DECORATION_TYPES = {
     radius: 0.9,
     blocks: true,
     castsShadow: true,
-    kind: 'prop',
+    kind: 'rock',
   },
   rock_large_c: {
     gather: { stone: 6 },
@@ -303,7 +303,7 @@ export const DECORATION_TYPES = {
     radius: 0.9,
     blocks: true,
     castsShadow: true,
-    kind: 'prop',
+    kind: 'rock',
   },
   rock_tall: {
     gather: { stone: 5 },
@@ -313,7 +313,7 @@ export const DECORATION_TYPES = {
     radius: 0.6,
     blocks: true,
     castsShadow: true,
-    kind: 'prop',
+    kind: 'rock',
   },
   log: {
     gather: { wood: 2 },
@@ -323,7 +323,7 @@ export const DECORATION_TYPES = {
     radius: 0.6,
     blocks: true,
     castsShadow: true,
-    kind: 'prop',
+    kind: 'log',
   },
   log_stack: {
     gather: { wood: 4 },
@@ -333,7 +333,7 @@ export const DECORATION_TYPES = {
     radius: 0.9,
     blocks: true,
     castsShadow: true,
-    kind: 'prop',
+    kind: 'log',
   },
   campfire: {
     displayName: 'Táborák',
@@ -933,6 +933,7 @@ export function decoHeight(def) {
 function genericHighlight(def) {
   if (def.kind === 'tree') return { ringColor: [0.55, 0.95, 0.5], ringSize: ringFor(def.radius, 0.9) };
   if (def.kind === 'prop') return { ringColor: [0.85, 0.85, 0.55], ringSize: ringFor(def.radius, 0.8) };
+  if (def.kind === 'rock' || def.kind === 'ore' || def.kind === 'log') return { ringColor: [0.8, 0.82, 0.9], ringSize: ringFor(def.radius, 0.8) };
   return null;
 }
 

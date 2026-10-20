@@ -1,8 +1,23 @@
-// Obrazovka načítání — jedna společná fronta kroků: modely, příprava hry a stavba světa.
-// Ukazuje název běžícího kroku, postup uvnitř něj a celkový postup celé hry.
+// Obrazovka načítání — pruh má tři úseky za sebou: modely, stavba světa a postava.
+// Každý úsek počítá jen svůj postup, celek se za chodu nikdy nepřepočítává.
 const MIN_VISIBLE_MS = 600;
 const MIN_AFTER_FIRST_MS = 300;
 const FADE_MS = 400;
+const ASSET_LANES = 4;
+const MODELS_END = 15;
+const WORLD_START = MODELS_END;
+const WORLD_END = 95;
+const FLOAT_START = WORLD_END;
+const FLOAT_END = 100;
+
+function releaseFrame() {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+function shortName(url) {
+  const parts = url.split('/');
+  return parts[parts.length - 1] || url;
+}
 
 export default class LoadingScreen {
 
@@ -10,15 +25,14 @@ export default class LoadingScreen {
     this.root = null;
     this.barEl = null;
     this.labelEl = null;
-    this.countEl = null;
     this.detailEl = null;
     this.attachHandles = new Set();
-    this.steps = [];
     this.assetStep = null;
-    this.stageIndex = -1;
+    this.stageStep = null;
+    this.floatStep = null;
+    this.stageClosed = 0;
+    this.stageCount = 0;
     this.missing = 0;
-    this.doneTotal = 0;
-    this.allTotal = 0;
     this.startedAt = 0;
     this.lastProgressAt = 0;
     this.hideTimer = 0;
@@ -34,8 +48,7 @@ export default class LoadingScreen {
         <div class="loading-title">Project Greenfactory</div>
         <div class="loading-bar"><div class="loading-bar__fill"></div></div>
         <div class="loading-row">
-          <span class="loading-label">Připravuji svět…</span>
-          <span class="loading-count"></span>
+          <span class="loading-label"></span>
         </div>
         <div class="loading-detail"></div>
       </div>
@@ -44,146 +57,155 @@ export default class LoadingScreen {
     this.root = root;
     this.barEl = root.querySelector('.loading-bar__fill');
     this.labelEl = root.querySelector('.loading-label');
-    this.countEl = root.querySelector('.loading-count');
     this.detailEl = root.querySelector('.loading-detail');
     this.startedAt = performance.now();
     this.lastProgressAt = this.startedAt;
-    this.render();
+    this.paint();
   }
 
   plan(count) {
-    this.assetStep = { label: 'Načítám modely…', total: Math.max(count, 1), done: 0, note: '', weight: 15 };
-    this.steps.push(this.assetStep);
-  }
-
-  addStep(label, total = 1) {
-    const step = { label, total, done: 0, note: '', weight: 1 };
-    this.steps.push(step);
-    this.recount();
-    this.render();
-    return step;
-  }
-
-  beginAssets(total) {
+    if (this.assetStep) return;
+    this.assetStep = { label: 'Načítám modely…', total: Math.max(count, 1), done: 0, note: '' };
     this.mount();
-    if (!this.assetStep) this.plan(total);
-    this.plannedTotal = Math.max(this.plannedTotal || 0, 100);
-    this.recount();
-    if (this.hideTimer) this.cancelHide();
-    this.render();
+    this.paint();
   }
 
   assetLoaded(total, done, url, failed) {
     const step = this.assetStep;
     if (!step) return;
+    step.total = Math.max(total, 1);
     step.done = Math.min(done, step.total);
-    step.label = done >= step.total ? 'Modely načteny' : 'Načítám modely…';
-    if (failed) {
-      this.missing += 1;
-      step.note = `${this.missing} modelů se nenačetlo — hra pokračuje bez nich`;
-    } else if (url && done < step.total) {
-      step.note = shortName(url);
-    }
+    if (failed) this.missing += 1;
+    step.note = this.missing
+      ? `${this.missing} modelů se nenačetlo — hra pokračuje bez nich`
+      : step.done < step.total && url ? shortName(url) : '';
+    if (step.done >= step.total) step.label = 'Modely načteny';
     this.lastProgressAt = performance.now();
-    this.recount();
-    this.render();
+    this.paint();
   }
 
   endAssets() {
     const step = this.assetStep;
     if (step) step.note = this.missing ? `${this.missing} modelů se nenačetlo — hra pokračuje bez nich` : '';
-    this.recount();
-    this.render();
+    this.paint();
   }
 
-  beginWorld(stages) {
+  async runAssets(urls, load) {
+    const queue = urls.slice();
+    const total = queue.length;
+    this.plan(total);
+    let done = 0;
+    let failed = 0;
+    const worker = async () => {
+      while (queue.length) {
+        const url = queue.shift();
+        const ok = await load(url);
+        done += 1;
+        if (!ok) failed += 1;
+        this.assetLoaded(total, done, url, !ok);
+        await releaseFrame();
+      }
+    };
+    const lanes = [];
+    for (let i = 0; i < ASSET_LANES; i += 1) lanes.push(worker());
+    await Promise.all(lanes);
+    this.endAssets();
+    return { done, failed };
+  }
+
+  beginWorld(count) {
     this.mount();
-    const sum = stages.reduce((total, stage) => total + Math.max(stage.total, 1), 0);
-    const share = sum > 0 ? 70 / sum : 0;
-    for (const stage of stages) {
-      const total = Math.max(stage.total, 1);
-      this.steps.push({
-        label: `${stage.label}…`,
-        total,
-        done: 0,
-        note: '',
-        world: true,
-        weight: total * share,
-      });
+    this.stageCount = Math.max(count, 1);
+    this.stageClosed = 0;
+    if (this.assetStep && this.assetStep.done >= this.assetStep.total) {
+      this.assetStep.label = 'Modely načteny';
+      this.assetStep.note = '';
     }
-    this.stageIndex = 0;
-    this.recount();
     if (this.hideTimer) this.cancelHide();
-    this.render();
+    this.paint();
+  }
+
+  openStage(label) {
+    this.stageStep = { label: `${label}…`, done: 0, total: 1, note: '' };
+    this.paint();
+  }
+
+  stageTotal(total) {
+    if (!this.stageStep) return;
+    this.stageStep.total = Math.max(total, 1);
   }
 
   stageProgress(count = 1) {
-    const step = this.stage;
-    if (!step) return;
-    step.done = Math.min(step.done + count, step.total);
+    const step = this.stageStep;
+    if (!step || count <= 0) return;
+    step.done += count;
+    step.note = '';
     this.lastProgressAt = performance.now();
-    this.recount();
-    this.render();
+    this.paint();
+  }
+
+  note(text) {
+    const step = this.stageStep;
+    if (!step) return;
+    step.note = text || '';
+    this.paint();
   }
 
   endStage() {
-    const step = this.stage;
+    this.stageClosed += 1;
+    this.stageStep = null;
+    this.paint();
+  }
+
+  endWorld() {
+    this.stageClosed = this.stageCount;
+    this.stageStep = null;
+    this.paint();
+  }
+
+  beginFloat(label) {
+    this.floatStep = { label, done: 0, total: 1, note: '' };
+    this.lastProgressAt = performance.now();
+    this.paint();
+  }
+
+  floatProgress(done, total = 1) {
+    const step = this.floatStep;
     if (!step) return;
-    this.closeStep(step);
-    this.stageIndex += 1;
-    this.render();
+    step.total = Math.max(total, 1);
+    step.done = Math.min(done, step.total);
+    step.label = step.done >= step.total ? 'Postava připravena' : 'Připravuji postavu…';
+    if (step.done >= step.total) step.note = '';
+    this.lastProgressAt = performance.now();
+    this.paint();
   }
 
-  closeWorldSteps() {
-    for (const step of this.steps) {
-      if (step.world) step.done = step.total;
+  endFloat() {
+    this.floatStep = null;
+    this.lastProgressAt = performance.now();
+    this.paint();
+  }
+
+  get allDone() {
+    if (this.assetStep && this.assetStep.done < this.assetStep.total) return false;
+    return !this.floatStep && this.stageClosed >= this.stageCount;
+  }
+
+  get pending() {
+    return this.attachHandles.size;
+  }
+
+  percent() {
+    if (!this.assetStep) return 0;
+    const modelled = Math.min(this.assetStep.done / this.assetStep.total, 1);
+    if (modelled < 1) return modelled * MODELS_END;
+    if (this.floatStep || this.stageCount <= 0) {
+      const floated = this.floatStep ? Math.min(this.floatStep.done / this.floatStep.total, 1) : 0;
+      return FLOAT_START + floated * (FLOAT_END - FLOAT_START);
     }
-    this.stageIndex = -1;
-    this.lastProgressAt = performance.now();
-    this.recount();
-    this.render();
-  }
-
-  closeStep(step) {
-    if (!step) return;
-    step.done = step.total;
-    this.lastProgressAt = performance.now();
-    this.recount();
-    this.render();
-  }
-
-  closeAllSteps() {
-    for (const step of this.steps) step.done = step.total;
-    this.lastProgressAt = performance.now();
-    this.recount();
-    this.render();
-  }
-
-  stepDone(step) {
-    this.closeStep(step);
-  }
-
-  get worldStart() {
-    return this.steps.findIndex((step) => step.world === true);
-  }
-
-  get stage() {
-    if (this.stageIndex < 0) return null;
-    return this.steps[this.worldStart + this.stageIndex] || null;
-  }
-
-  get current() {
-    return this.stage || this.steps.find((step) => step.done < step.total) || null;
-  }
-
-  recount() {
-    let done = 0;
-    for (const step of this.steps) {
-      const weight = step.weight || 1;
-      done += (Math.min(step.done, step.total) / step.total) * weight;
-    }
-    this.doneTotal = done;
-    this.allTotal = Math.max(this.plannedTotal || 0, 100);
+    const inside = this.stageStep ? Math.min(this.stageStep.done / this.stageStep.total, 1) : 0;
+    const share = Math.min((this.stageClosed + inside) / this.stageCount, 1);
+    return WORLD_START + share * (WORLD_END - WORLD_START);
   }
 
   attach(count = 1) {
@@ -191,7 +213,7 @@ export default class LoadingScreen {
     if (count <= 0) return null;
     const handle = { count, opened: false, released: false };
     this.attachHandles.add(handle);
-    this.render();
+    this.paint();
     if (this.hideTimer) this.cancelHide();
     return handle;
   }
@@ -212,7 +234,7 @@ export default class LoadingScreen {
       resolve();
     }
     this.lastProgressAt = performance.now();
-    this.render();
+    this.paint();
   }
 
   wait(handle) {
@@ -224,43 +246,22 @@ export default class LoadingScreen {
     });
   }
 
-  get pending() {
-    return this.attachHandles.size;
-  }
-
-  render() {
+  paint() {
     if (!this.root) return;
-    const percent = this.allTotal > 0 ? Math.min(this.doneTotal / this.allTotal, 0.99) * 100 : 0;
-    this.barEl.style.width = `${percent}%`;
-    const step = this.current;
-    const waiting = this.attachHandles.size > 0;
-    if (step) {
-      this.labelEl.textContent = step.label;
-      this.countEl.textContent = step.total > 1 ? `${step.done} / ${step.total}` : '';
-      this.detailEl.textContent = step.note || (waiting && step.world ? 'dočišťuji zbytek světa…' : '');
-      return;
-    }
-    this.labelEl.textContent = this.allTotal > 0 ? 'Zbývá dopnout zbytek světa…' : 'Připravuji svět…';
-    this.countEl.textContent = '';
-    this.detailEl.textContent = waiting ? `hotovo z ${Math.round(percent)} %, čeká se na ${this.attachHandles.size} ${this.attachHandles.size === 1 ? 'krok' : 'kroky'}` : '';
-  }
-
-  renderComplete() {
-    if (!this.root) return;
-    this.barEl.style.width = '100%';
-    this.labelEl.textContent = 'Hotovo';
-    this.countEl.textContent = '';
-    if (this.detailEl) this.detailEl.textContent = '';
+    const step = this.stageStep || this.floatStep;
+    this.barEl.style.width = `${this.percent()}%`;
+    this.labelEl.textContent = step ? step.label : (this.assetStep ? this.assetStep.label : 'Připravuji svět…');
+    this.detailEl.textContent = step ? (step.note || '') : (this.assetStep ? this.assetStep.note || '' : '');
   }
 
   finish() {
     this.mount();
     if (this.hideTimer) return;
-    this.renderComplete();
+    this.barEl.style.width = '100%';
+    this.labelEl.textContent = 'Hotovo';
+    this.detailEl.textContent = '';
     const now = performance.now();
-    const sinceStart = now - this.startedAt;
-    const sinceProgress = now - this.lastProgressAt;
-    const wait = Math.max(MIN_VISIBLE_MS - sinceStart, MIN_AFTER_FIRST_MS - sinceProgress, 0);
+    const wait = Math.max(MIN_VISIBLE_MS - (now - this.startedAt), MIN_AFTER_FIRST_MS - (now - this.lastProgressAt), 0);
     this.hideTimer = setTimeout(() => {
       if (!this.root) return;
       if (this.attachHandles.size) this.warnStillPending();
@@ -290,7 +291,5 @@ export default class LoadingScreen {
   }
 }
 
-function shortName(url) {
-  const parts = url.split('/');
-  return parts[parts.length - 1] || url;
-}
+
+﻿

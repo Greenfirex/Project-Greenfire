@@ -9,8 +9,9 @@ const DRAG_THRESHOLD = 5;
 
 export default class InputSystem {
 
-  constructor(scene) {
+  constructor(scene, game) {
     this.s = scene;
+    this.game = game;
     this.rotating = false;
     this.painting = false;
     this.lastX = 0;
@@ -32,16 +33,24 @@ export default class InputSystem {
   hitsUi(evt) {
     if (!evt || typeof evt.clientX !== 'number') return false;
     const el = document.elementFromPoint(evt.clientX, evt.clientY);
-    return Boolean(el && el.closest('#hud-layer'));
+    const inside = Boolean(el && el.closest('#hud-layer'));
+    if (inside) console.info(`[click] klik spolkl ${el.className || el.tagName}`);
+    return inside;
   }
 
-  attach(camera) {
+  isBusy() {
+    return !this.game || this.game.paused || !this.game.loaded;
+  }
+
+  attach(camera, game) {
     this.camera = camera;
+    if (game) this.game = game;
 
     this.s.onPointerObservable.add((info) => {
       const evt = info.event;
       const type = info.type;
-      const onUi = type === PointerEventTypes.POINTERDOWN && (this.s.paused || !this.s.loaded || this.hitsUi(evt));
+      if (type === PointerEventTypes.POINTERDOWN) console.info(`[click] pointerdown button=${evt.button} paused=${this.game ? this.game.paused : 'hra?'} loaded=${this.game ? this.game.loaded : 'hra?'}`);
+      const onUi = type === PointerEventTypes.POINTERDOWN && (this.isBusy() || this.hitsUi(evt));
 
       if (type === PointerEventTypes.POINTERDOWN) {
         if (evt.button === 2) {

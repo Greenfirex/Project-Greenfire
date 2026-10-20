@@ -1,11 +1,11 @@
-// Sběr surovin z krajiny — najde nejbližší strom nebo kámen, počítá údery a hýbe s ním.
-// Drží jen stav vyčerpávání a naklonění modelů; modely dodává dekorace, hráče předává scéna.
+// Sber surovin z krajiny - najde nejblizsi strom nebo kamen, pocita udery a hybe s nim.
+// Drzi jen stav vycerpavani a nakloneni modelu; modely dodava dekorace, hrace predava scena.
 const REACH = 2.6;
 const BARE_COOLDOWN = 0.62;
-const BARE_KINDS = ['tree'];
+const BARE_KINDS = ['tree', 'log'];
 const BARE_SOUND = 'bare';
 const BARE_YIELDS = { wood: 1 };
-const SWAY_KINDS = ['tree'];
+const SWAY_KINDS = ['tree', 'log'];
 const ORE_HITS = 10;
 const FALLBACK_DURATION = 0.5;
 const IMPACT_SHARE = 0.62;
@@ -20,6 +20,7 @@ export default class GatherSystem {
     this.entries = [];
     this.target = null;
     this.playerPos = null;
+    this.player = null;
     this.cooldown = 0;
     this.hitCooldown = BARE_COOLDOWN;
     this.pending = null;
@@ -36,12 +37,16 @@ export default class GatherSystem {
     this.pending = null;
   }
 
+  totalFor(def) {
+    if (def.kind === 'ore') return ORE_HITS;
+    return Object.values(def.gather).reduce((sum, n) => sum + n, 0);
+  }
+
   addEntry(entry, def, anchor) {
-    if (!def || !def.gather || !anchor) return;
-    const isOre = def.kind === 'ore';
-    const total = isOre ? ORE_HITS : Object.values(def.gather).reduce((sum, n) => sum + n, 0);
-    if (total <= 0) return;
-    this.entries.push({
+    if (!def || !def.gather || !anchor) return null;
+    const total = this.totalFor(def);
+    if (total <= 0) return null;
+    const item = {
       entry,
       def,
       anchor,
@@ -53,16 +58,28 @@ export default class GatherSystem {
       sway: 0,
       axisX: 0,
       axisZ: 1,
-    });
+    };
+    this.entries.push(item);
+    return item;
+  }
+
+  ensureEntry(anchor) {
+    const def = anchor.metadata?.def;
+    const entry = anchor.metadata?.entry;
+    if (!def || !entry || !def.gather) return null;
+    for (const item of this.entries) {
+      if (item.anchor !== anchor) continue;
+      item.entry = entry;
+      if (item.left <= 0) Object.assign(item, { left: item.total, hits: 0 });
+      return item;
+    }
+    return this.addEntry(entry, def, anchor);
   }
 
   syncFromDeco() {
     const deco = this.decoSystem;
     if (!deco || !deco.readyEntries) return;
-    for (const item of deco.readyEntries()) {
-      if (item.entry && this.hasEntry(item.entry.cx, item.entry.cz)) continue;
-      this.addEntry(item.entry, item.def, item.anchor);
-    }
+    for (const anchor of deco.readyEntries()) this.ensureEntry(anchor);
   }
 
   hasEntry(cx, cz) {
@@ -131,11 +148,17 @@ export default class GatherSystem {
     const impact = this.player && this.player.strikeImpactTime ? this.player.strikeImpactTime() : 0;
     const fallback = duration > 0 ? duration * IMPACT_SHARE : FALLBACK_DURATION * IMPACT_SHARE;
     this.pending.delay = Number.isFinite(impact) && impact > 0 ? impact : fallback;
+    console.info(`[gather] ${item.def.displayName}: ${item.left}/${item.total} úderů, nástroj ${this.tool ? this.tool.displayName : 'ruka'}`);
     return true;
   }
 
+  explicitTotal(item) {
+    const sum = Object.values(item.def.gather).reduce((acc, n) => acc + n, 0);
+    return sum > 0 ? sum : item.total;
+  }
+
   startSwing(item) {
-    if (!item) return;
+    if (!item) return 0;
     this.pending = { item };
     const swing = this.player && this.player.strike ? this.player.strike() : 0;
     const duration = Number.isFinite(swing) && swing > 0 ? swing : FALLBACK_DURATION;
@@ -154,8 +177,8 @@ export default class GatherSystem {
     if (!pending) return null;
     this.pending = null;
     const item = pending.item;
-    const still = this.target === item && item.left > 0;
-    if (!still) return null;
+    if (!item || item.left <= 0 || !this.canHarvest(item)) return null;
+    if (item.anchor && item.anchor.isDisposed()) return null;
     item.hits += 1;
     item.left -= 1;
     this.startSway(item);
@@ -174,17 +197,24 @@ export default class GatherSystem {
     this.swayTime = 0;
   }
 
-  takeYield() {
-    const item = this.target;
-    if (!item || item.left > 0) return null;
-    this.target = null;
-    if (item.anchor && !item.anchor.isDisposed()) item.anchor.setEnabled(false);
-    const yields = this.tool && this.tool.harvest ? item.def.gather : BARE_YIELDS;
-    const owned = item.def.kind === 'ore';
+  takeYield(item) {
+    const source = item || this.target;
+    if (!source || source.left > 0) return null;
+    if (this.target === source) this.target = null;
+    if (source.anchor && !source.anchor.isDisposed()) source.anchor.setEnabled(false);
+    const withTool = Boolean(this.tool && this.tool.harvest);
+    const yields = withTool ? source.def.gather : BARE_YIELDS;
     return Object.entries(yields)
       .filter(([key, amount]) => typeof key === 'string' && Number.isFinite(amount) && amount > 0)
-      .map(([itemKey, amount]) => ({ itemKey, amount: owned ? item.total : amount }));
+      .map(([itemKey, amount]) => ({ itemKey, amount: withTool ? this.toolYieldAmount(source, amount) : 1 }));
   }
+
+  toolYieldAmount(source, amount) {
+    if (source.def.kind !== 'ore') return amount;
+    return this.explicitTotal(source);
+  }
+
+
 
   shakeNearby(kind) {
     for (const item of this.entries) {

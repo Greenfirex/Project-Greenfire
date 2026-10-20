@@ -21,7 +21,7 @@ export function toolModelUrl(tool) {
   return `${TOOL_DIR}${tool.model}.gltf`;
 }
 
-export function collectModelUrls() {
+export function collectModelUrls(heldTool = null) {
   const urls = new Set();
   for (const def of Object.values(DECORATION_TYPES)) {
     if (def.model) urls.add(def.model);
@@ -29,9 +29,8 @@ export function collectModelUrls() {
   for (const def of Object.values(MACHINE_TYPES)) {
     if (def.model) urls.add(def.model);
   }
-  for (const tool of Object.values(TOOL_TYPES)) {
-    if (tool.model) urls.add(toolModelUrl(tool));
-  }
+  const tool = heldTool ? TOOL_TYPES[heldTool] : null;
+  if (tool && tool.model) urls.add(toolModelUrl(tool));
   for (const brush of Object.values(BRUSHES)) {
     for (const key of brush.pool || []) {
       const def = DECORATION_TYPES[key];

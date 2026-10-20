@@ -4,10 +4,11 @@ import '@babylonjs/core/Meshes/transformNode';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Meshes/mesh';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { cellToWorldCoords, cellKey, indexToCellCoords, CELL_SIZE } from '../utils/gridMath.js';
+import { cellToWorldCoords, worldToCellCoords, cellKey, indexToCellCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { getDecoration, decoHeight } from '../data/catalogs/decorations.js';
+import { pieceCount } from './pieceCount.js';
 import { deriveBlocked } from '../data/maps/layoutStore.js';
-import { loadModel, instantiateModel } from '../utils/assetLoader.js';
+import { loadModel, instantiateModel, whenModelsIdle } from '../utils/assetLoader.js';
 import { tintTemplate, forgetTints } from '../utils/decoTint.js';
 
 const PATH_LIFT = 0.002;
@@ -48,11 +49,11 @@ export default class DecoSystem {
     this.columnTop = new Map();
     this.surfaceKeys = new Map();
     this.onDecoReady = null;
-    this.onPlaced = null;
     this.colors = null;
     this.nodes = [];
     this.pathNodes = [];
     this.waterNodes = [];
+    this.pendingPieces = [];
   }
 
   create(layout, colors) {
@@ -67,12 +68,16 @@ export default class DecoSystem {
 
   applyLayout(layout) {
     this.layout = layout;
+    this.createAll(layout);
+    this.refreshBlocked(layout);
+  }
+
+  createAll(layout) {
     for (const entry of layout.floor || []) this.place(entry);
     this.buildPath();
     this.buildWater();
     for (const entry of layout.clearing || []) this.place(entry);
     for (const entry of layout.decorations || []) this.place(entry);
-    this.refreshBlocked(layout);
   }
 
   beginStages(layout, colors) {
@@ -85,13 +90,26 @@ export default class DecoSystem {
     this.layout = layout;
   }
 
-  buildStage(stage) {
-    const layout = this.layout || {};
-    if (stage === 'floor') for (const entry of layout.floor || []) this.place(entry);
-    if (stage === 'path') this.buildPath();
-    if (stage === 'water') this.buildWater();
-    if (stage === 'ground') for (const entry of layout.clearing || []) this.place(entry);
-    if (stage === 'deco') for (const entry of layout.decorations || []) this.place(entry);
+  hasModel(key) {
+    return !!getDecoration(key);
+  }
+
+  blockCount(entry) {
+    const def = getDecoration(entry.key);
+    if (!def) return 0;
+    return pieceCount(def);
+  }
+
+  placePiece(entry, section) {
+    const bucket = section === 'path' ? this.pathNodes : section === 'water' ? this.waterNodes : this.nodes;
+    this.pendingPieces.push(this.place(entry, bucket, section));
+  }
+
+  async settle() {
+    await whenModelsIdle();
+    const rest = this.pendingPieces.filter(Boolean);
+    this.pendingPieces.length = 0;
+    if (rest.length) await Promise.all(rest.map((work) => work.catch(() => null)));
   }
 
   finishStages() {
@@ -99,17 +117,21 @@ export default class DecoSystem {
   }
 
   buildPath() {
-    for (const entry of this.layout?.path || []) this.place(withLift(entry, PATH_LIFT), this.pathNodes, 'path');
-    for (const entry of this.layout?.manual || []) this.placePathManual(entry);
+    for (const entry of this.layout?.path || []) this.placePath(entry);
+    for (const entry of this.layout?.manual || []) this.placePath(entry);
   }
 
   buildWater() {
-    for (const entry of this.layout?.water || []) this.place(withLift(entry, WATER_LIFT), this.waterNodes, 'water');
+    for (const entry of this.layout?.water || []) this.placeWater(entry);
   }
 
-  placePathManual(entry) {
+  placePath(entry) {
     if (!getDecoration(entry.key)) return;
     this.place(withLift(entry, PATH_LIFT), this.pathNodes, 'path');
+  }
+
+  placeWater(entry) {
+    this.place(withLift(entry, WATER_LIFT), this.waterNodes, 'water');
   }
 
   refreshBlocked(layout) {
@@ -186,16 +208,12 @@ export default class DecoSystem {
 
   place(entry, bucket = this.nodes, section = 'deco') {
     const def = getDecoration(entry.key);
-    if (!def) return;
+    if (!def) return null;
 
-    const loader = this.s.loader;
-    const handle = loader && this.s.isLoading ? loader.attach(1) : null;
     this.applyEntry(entry, section);
     const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
     const anchor = this.createAnchor(entry, def, x, z, bucket);
-    const work = this.attachModel(anchor, def, entry, section);
-    if (handle) Promise.resolve(work).catch(() => {}).then(() => loader.detach(handle));
-    if (this.onPlaced) this.onPlaced(entry);
+    return this.attachModel(anchor, def, entry, section);
   }
 
   topAt(cx, cz) {
@@ -222,6 +240,12 @@ export default class DecoSystem {
     return anchor;
   }
 
+  blocksPlaced() {
+    let total = this.surfaceKeys.size;
+    for (const node of this.nodes) total += pieceCount(node.metadata?.def || {});
+    return total;
+  }
+
   dispose() {
     for (const node of this.s.transformNodes.slice()) this.disposeAnchor(node);
     this.nodes.length = 0;
@@ -242,10 +266,12 @@ export default class DecoSystem {
     if (!template || anchor.isDisposed()) return;
 
     const node = instantiateModel(this.s, template, `decoModel_${entry.key}_${entry.cx}_${entry.cz}`);
+    if (!node) return;
     node.parent = anchor;
     node.position = new Vector3(0, 0, 0);
     node.scaling = new Vector3(def.scale, def.scale, def.scale);
     tintTemplate(node, def, this.colors, section);
+    anchor.metadata.model = node;
 
     if (this.onDecoReady) this.onDecoReady(anchor, node, def, entry);
   }
@@ -253,13 +279,29 @@ export default class DecoSystem {
   readyEntries() {
     const out = [];
     for (const node of this.nodes) {
-      const entry = node.metadata?.entry;
-      const def = node.metadata?.def;
-      if (!entry || !def || !def.gather) continue;
-      if (!node.getChildMeshes().length) continue;
-      out.push({ anchor: node, def, entry });
+      if (!node || node.isDisposed() || this.isTaken(node) || !node.metadata?.model) continue;
+      out.push(node);
     }
     return out;
+  }
+
+  entryAt(cx, cz) {
+    const anchor = this.nodes.find((node) => {
+      if (!node || node.isDisposed() || this.isTaken(node) || !node.metadata?.def?.gather) return false;
+      return worldToCellCoords(node.position.x, node.position.z).cx === cx
+        && worldToCellCoords(node.position.x, node.position.z).cz === cz;
+    });
+    return anchor ? { anchor, def: anchor.metadata.def, entry: anchor.metadata.entry } : null;
+  }
+
+  releaseGather(node) {
+    if (!node || node.isDisposed()) return;
+    node.setEnabled(false);
+    node.metadata = { ...(node.metadata || {}), taken: true };
+  }
+
+  isTaken(node) {
+    return !!(node && node.metadata && node.metadata.taken);
   }
 
   isBlocked(cx, cz) {

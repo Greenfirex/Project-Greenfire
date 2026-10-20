@@ -1,8 +1,9 @@
 // Etapy stavby světa pro načítací obrazovku — názvy i pořadí vycházejí z druhů
 // objektů v katalogu dekorací, takže nová kategorie se objeví sama.
 import { getDecoration } from './decorations.js';
+import { pieceCount } from '../../systems/pieceCount.js';
 
-const KIND_ORDER = ['floor', 'path', 'water', 'ground', 'cliff', 'tree', 'prop', 'ore'];
+const KIND_ORDER = ['floor', 'path', 'water', 'ground', 'cliff', 'tree', 'log', 'prop', 'rock', 'ore'];
 
 const KIND_LABELS = {
   floor: 'Pokládám podlahu',
@@ -10,23 +11,20 @@ const KIND_LABELS = {
   path: 'Stavím cesty',
   cliff: 'Modeluji kopce',
   tree: 'Sázím stromy',
+  log: 'Pokládám kmeny',
   ground: 'Rozmisťuji trávu',
   prop: 'Stavím tábořiště',
+  rock: 'Vyvracím balvany',
   ore: 'Zakládám rudu',
 };
 
 const KIND_GROUP = { campfire: 'prop' };
 
-const STAGE_PARTS = {
-  floor: ['floor'],
-  path: ['path', 'manual'],
-  water: ['water'],
-  ground: ['clearing'],
-  cliff: ['deco'],
-  tree: ['deco'],
-  prop: ['deco'],
-  ore: ['deco'],
-};
+function entriesOf(layout, part) {
+  if (part === 'deco') return layout.decorations || [];
+  if (part === 'manual') return (layout.manual || []).filter((entry) => getDecoration(entry.key));
+  return layout[part] || [];
+}
 
 export function describeWorld(layout) {
   const groups = new Map();
@@ -47,8 +45,8 @@ export function describeWorld(layout) {
   }
   const stages = [];
   const push = (kind, keys) => {
-    const parts = STAGE_PARTS[kind] || ['deco'];
-    stages.push({ kind, label: labelFor(kind), total: keys.length, keys, parts });
+    const total = countPieces(layout, new Set(keys));
+    if (total > 0) stages.push({ kind, label: labelFor(kind), total, keys });
   };
   for (const kind of KIND_ORDER) {
     const keys = groups.get(kind);
@@ -59,6 +57,31 @@ export function describeWorld(layout) {
   }
   for (const [kind, keys] of groups) push(kind, keys);
   return stages;
+}
+
+export function stagePieces(layout, stage) {
+  const keys = new Set(stage.keys);
+  const parts = ['deco', 'floor', 'path', 'water', 'clearing', 'manual'];
+  const out = [];
+  for (const part of parts) {
+    for (const entry of entriesOf(layout, part)) {
+      if (keys.has(entry.key)) out.push(entry);
+    }
+  }
+  return out;
+}
+
+function countPieces(layout, keys) {
+  let total = 0;
+  for (const part of ['deco', 'floor', 'path', 'water', 'clearing', 'manual']) {
+    for (const entry of entriesOf(layout, part)) {
+      if (!keys.has(entry.key)) continue;
+      const def = getDecoration(entry.key);
+      if (!def) continue;
+      total += pieceCount(def);
+    }
+  }
+  return total;
 }
 
 function labelFor(kind) {

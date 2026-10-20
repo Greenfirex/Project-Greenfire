@@ -36,7 +36,7 @@ import TileThumbnails from '../ui/tileThumbnails.js';
 import DevPanel from '../ui/devPanel.js';
 import PauseScreen from '../ui/pauseScreen.js';
 import LoadingScreen from '../ui/loadingScreen.js';
-import { whenModelsIdle, takeModelError, preloadModels, releaseFrame } from '../utils/assetLoader.js';
+import { whenModelsIdle, takeModelError, preloadModel, releaseFrame } from '../utils/assetLoader.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
 import { HOTBAR_ITEMS } from '../data/catalogs/items.js';
 import { worldToCellCoords, worldToCell } from '../utils/gridMath.js';
@@ -48,7 +48,8 @@ import MAP_FILE from '../data/maps/glade/map.json';
 import { mapFileFromLayout } from '../data/catalogs/mapFile.js';
 import { normalizeLayout } from '../data/maps/layoutStore.js';
 import { generateLayout } from '../data/maps/mapRules.js';
-import { describeWorld } from '../data/catalogs/worldStages.js';
+import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
+import { getDecoration } from '../data/catalogs/decorations.js';
 import { readJSON, writeJSON } from '../utils/storage.js';
 import { OPTION_DEFAULTS, OPTIONS_STORAGE_KEY, QUALITY_SCALES } from '../data/catalogs/optionsSchema.js';
 import OptionsPanel from '../ui/optionsPanel.js';
@@ -58,6 +59,10 @@ const AUTOTUNE_LOW_FPS = 45;
 const AUTOTUNE_HIGH_FPS = 57;
 const AUTOTUNE_MIN_SCALE = 0.7;
 const AUTOTUNE_STEP = 0.1;
+const WORLD_BATCH = 4;
+const STAGE_LEAD_FRAMES = 2;
+const MODEL_LANES = 4;
+const LOAD_RETRIES = 2;
 const BUILD_RANGE_CELLS = 2;
 const IMPACT_DELAY = 0.28;
 const TIME_SKIP = { hours: 6 };
@@ -87,7 +92,7 @@ export default class GameScene {
     this.decoHighlight = new DecoHighlightSystem(scene);
     this.dayNightSystem = new DayNightSystem(scene);
     this.simSystem = new SimSystem(scene);
-    this.inputSystem = new InputSystem(scene);
+    this.inputSystem = new InputSystem(scene, this);
     this.playerSystem = new PlayerSystem(scene);
     this.buildSystem = new BuildSystem(scene);
     this.gatherSystem = new GatherSystem(scene);
@@ -139,19 +144,16 @@ export default class GameScene {
   }
 
   start() {
-    this.loader.mount();
-    this.startPreload();
+    const urls = collectModelUrls(this.heldItemSystem.key || SAVE_DEFAULTS.heldItem.key);
+    this.loader.plan(urls.length);
+    this.startPreload(urls);
   }
 
-  async startPreload() {
-    const urls = collectModelUrls();
-    this.loader.beginAssets(urls.length);
-    const result = await preloadModels(this.s, urls, (done, total, url, failed) => {
-      this.loader.assetLoaded(total, done, url, failed);
-    });
+  async startPreload(urls) {
+    const result = await this.loader.runAssets(urls, (url) => preloadModel(this.s, url));
     this.loader.endAssets();
-    if (result.missing.length) {
-      console.warn(`[start] Nenačteno ${result.missing.length} modelů: ${result.missing.join(', ')}`);
+    if (result.failed) {
+      console.warn(`[start] Nenačteno ${result.failed} modelů — hra pokračuje bez nich.`);
     }
     this.startWorld();
   }
@@ -168,7 +170,7 @@ export default class GameScene {
     if (takeModelError()) console.warn('[start] Některé modely se nepodařilo načíst — hra pokračuje bez nich.');
     const layout = this.buildMapLayout();
     const stages = describeWorld(this.mapFile || {});
-    this.loader.beginWorld(stages);
+    this.loader.beginWorld(stages.length);
     this.wireDecoReady();
     this.decoHighlight.clear();
     this.decoHighlight.create((cx, cz) => this.decoSystem.surfaceAt(cx, cz));
@@ -177,7 +179,6 @@ export default class GameScene {
     else this.decoSystem.create(layout, map.colors);
     this.setupDecorations();
     this.gridSystem.create();
-    this.setupShadowCasters();
     this.setupSimulation();
     this.setupHud();
     this.setupOptions();
@@ -233,39 +234,58 @@ export default class GameScene {
 
   async prepareGame() {
     await this.buildWorld();
-    const character = this.loader.addStep('Připravuji postavu a nástroje…');
+    this.setupShadowCasters();
     this.setupSave();
+    this.loader.beginFloat('Připravuji postavu…');
     await this.setupPlayer();
-    this.loader.stepDone(character);
-    const game = this.loader.addStep('Připravuji hru…');
+    this.loader.endFloat();
     this.decoSystem.rememberLayout(this.mapLayout);
-    this.loader.stepDone(game);
+    this.refreshShadowCasters();
     await this.waitForWorld();
+    this.s.loaded = true;
   }
 
   async waitForWorld() {
     for (let i = 0; i < 3000; i += 1) {
+      if (this.loader.allDone && this.loader.pending === 0) break;
       await whenModelsIdle();
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      if (this.loader.pending === 0) {
-        this.loader.closeAllSteps();
-        this.loader.finish();
-        return;
-      }
+      await releaseFrame();
     }
-    console.warn(`[start] dokončení světa trvá příliš dlouho — zbývá ${this.loader.pending} kroků.`);
-    this.loader.closeAllSteps();
+    if (this.loader.pending > 0) {
+      console.warn(`[start] dokončení světa trvá příliš dlouho — zbývá ${this.loader.pending} kroků.`);
+    }
     this.loader.finish();
   }
 
-  async buildWorld() {
-    await this.buildWorldStages();
-    this.loader.closeWorldSteps();
+  buildWorld() {
+    const stages = describeWorld(this.mapFile || {});
+    if (stages.length) return this.buildWorldStages();
+    return this.buildWorldAtOnce();
+  }
+
+  async buildWorldAtOnce() {
+    this.loader.openStage('Stavím svět');
+    this.loader.stageTotal(this.decoSystem.blocksPlaced());
+    await this.decoSystem.settle();
+    this.decoSystem.finishStages();
+    this.gatherSystem.syncFromDeco();
+    this.loader.stageProgress(this.decoSystem.blocksPlaced());
+    this.loader.endStage();
+    this.loader.endWorld();
   }
   onLoadingHidden() {
     if (!this.isLoading) return;
     this.isLoading = false;
     this.loaded = true;
+    this.s.loaded = true;
+    this.s.paused = false;
+    this.gatherSystem.syncFromDeco();
+    this.gatherSystem.setPlayer(this.playerSystem);
+    this.gatherSystem.setTool(this.heldItemSystem.tool());
+    this.gatherSystem.update(0, this.playerSystem);
+    const kinds = {};
+    for (const item of this.gatherSystem.entries) kinds[item.def.kind] = (kinds[item.def.kind] || 0) + 1;
+    console.info(`[gather] připraveno ${this.gatherSystem.entries.length} sběratelných věcí: ${JSON.stringify(kinds)}`);
     this.playerSystem.bindKeys();
     this.simSystem.resetAccumulator();
     this.refreshAmbient();
@@ -312,7 +332,7 @@ export default class GameScene {
   }
 
   updateGathering(dt) {
-    const active = !this.editorMode.active && !this.isBuilding();
+    const active = this.loaded && !this.editorMode.active && !this.isBuilding();
     this.gatherSystem.setPlayer(active ? this.playerSystem : null);
     this.gatherSystem.setTool(this.heldItemSystem.tool());
     this.gatherSystem.update(dt, this.playerSystem);
@@ -350,9 +370,14 @@ updateGatherTarget() {
   }
 
   handleLeftDown() {
-    if (this.editorMode.active || this.isBuilding()) return;
+    console.info(`[click] loaded=${this.loaded} editor=${this.editorMode.active} build=${this.isBuilding()} pending=${!!this.campfireSystem.pending} target=${this.gatherSystem.target ? this.gatherSystem.target.def.displayName : 'žádný'} entries=${this.gatherSystem.entries.length} tool=${this.heldItemSystem.key}`);
+    if (!this.loaded || this.editorMode.active || this.isBuilding()) return;
     if (this.campfireSystem.pending) {
       this.cancelCampfireIgnite();
+      return;
+    }
+    if (this.gatherSystem.target) {
+      this.strikeGather();
       return;
     }
     this.updateGatherTarget();
@@ -376,6 +401,14 @@ updateGatherTarget() {
     return this.gatherSystem.beginHit();
   }
 
+  takenAnchor(cell) {
+    for (const item of this.gatherSystem.entries) {
+      if (item.left > 0) continue;
+      if (item.entry.cx === cell.cx && item.entry.cz === cell.cz) return item.anchor;
+    }
+    return null;
+  }
+
   holdStrikeReady() {
     if (!this.inputSystem.leftDown || this.isBuilding() || this.editorMode.active) return false;
     if (this.campfireSystem.pending) return false;
@@ -393,15 +426,17 @@ updateGatherTarget() {
     this.audioSystem.play(result.sound);
     if (!result.exhausted) return;
     const cell = { cx: result.item.entry.cx, cz: result.item.entry.cz };
-    const yields = this.gatherSystem.takeYield();
+    const yields = this.gatherSystem.takeYield(result.item);
     if (!yields) return;
     if (result.item.def.kind === 'tree') this.audioSystem.play('fall');
-    this.releaseGatherCell(cell);
+    this.releaseGatherCell(this.takenAnchor(cell) || result.item.anchor, cell);
+    this.refreshGatherTargets();
     for (const { itemKey, amount } of yields) this.inventorySystem.add(itemKey, amount);
     this.inventoryPanel.update(this.inventorySystem);
   }
 
-  releaseGatherCell(cell) {
+  releaseGatherCell(anchor, cell) {
+    if (anchor && !anchor.isDisposed()) anchor.setEnabled(false);
     this.decoHighlight.remove(cell.cx, cell.cz);
     this.decoSystem.releaseCell(cell.cx, cell.cz);
     if (this.inputSystem.lastCell && this.inputSystem.lastCell.cx === cell.cx && this.inputSystem.lastCell.cz === cell.cz) {
@@ -409,13 +444,18 @@ updateGatherTarget() {
     }
   }
 
+  refreshGatherTargets() {
+    this.gatherSystem.setTool(this.heldItemSystem.tool());
+    this.gatherSystem.update(0, this.playerSystem);
+  }
+
   async setupPlayer() {
     this.playerSystem.blockedTest = (cx, cz) => this.buildSystem.isOccupied(cx, cz);
     this.playerSystem.decoSystem = this.decoSystem;
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z);
     this.playerSystem.spawnCell = this.mapLayout.spawn;
-    await this.playerSystem.loadTools();
     this.playerSystem.setHeldTool(this.heldItemSystem.key);
+    this.playerSystem.onProgress = (done) => this.loader.floatProgress(done);
     const root = await this.playerSystem.create();
     if (!root) return;
     for (const child of root.getChildMeshes()) this.addShadowCaster(child);
@@ -429,34 +469,115 @@ updateGatherTarget() {
 
   wireDecoReady() {
     this.gatherSystem.clear();
-    this.decoSystem.onDecoReady = (anchor, node, def, entry) => {
-      for (const child of node.getChildMeshes()) {
-        child.isPickable = false;
-        if (def.castsShadow) this.addShadowCaster(child);
-      }
-      this.decoHighlight.add(entry, node, def);
-      this.gatherSystem.addEntry(entry, def, anchor);
-      this.campfireSystem.add(entry, def, anchor.position.y);
-    };
+    this.decoSystem.onDecoReady = (anchor, node, def, entry) => this.onDecoPlaced(anchor, node, def, entry);
+  }
+
+  onDecoPlaced(anchor, node, def, entry) {
+    for (const child of node.getChildMeshes()) {
+      child.isPickable = false;
+      if (def.castsShadow) this.addShadowCaster(child);
+    }
+    this.decoHighlight.add(entry, node, def);
+    this.gatherSystem.ensureEntry(anchor);
+    this.campfireSystem.add(entry, def, anchor.position.y);
   }
 
   async buildWorldStages() {
-    const stages = describeWorld(this.mapFile || {});
+    const layout = this.decoSystem.layout || {};
+    const stages = describeWorld(layout);
     if (!stages.length) {
       this.decoSystem.finishStages();
+      this.loader.endWorld();
       return;
     }
+    let models = null;
     for (const stage of stages) {
-      const keys = new Set(stage.keys);
-      this.decoSystem.onPlaced = (entry) => {
-        if (keys.has(entry.key)) this.loader.stageProgress(1);
-      };
-      for (const part of stage.parts) this.decoSystem.buildStage(part);
+      const entries = stagePieces(layout, stage);
+      if (!entries.length) continue;
+      const blocks = this.stageBlocks(entries);
+      if (blocks <= 0) continue;
+      this.loader.openStage(stage.label);
+      this.loader.stageTotal(blocks);
+      await this.announceStage();
+      models = await this.loadStageModels(entries, models);
+      await this.placeStage(stage, entries);
       this.loader.endStage();
-      await releaseFrame();
     }
-    this.decoSystem.onPlaced = null;
     this.decoSystem.finishStages();
+    this.loader.endWorld();
+  }
+
+  async announceStage() {
+    for (let i = 0; i < STAGE_LEAD_FRAMES; i += 1) await releaseFrame();
+  }
+
+  async loadStageModels(entries, cache) {
+    const known = cache || new Map();
+    const missing = [];
+    for (const entry of entries) {
+      if (known.has(entry.key) || !this.decoSystem.hasModel(entry.key)) continue;
+      known.set(entry.key, null);
+      missing.push(entry.key);
+    }
+    if (!missing.length) return known;
+    let done = 0;
+    const total = missing.length;
+    this.loader.note(`Připravuji 0 z ${total} modelů`);
+    const queue = missing.map((key) => ({ key, left: LOAD_RETRIES }));
+    const worker = async () => {
+      while (queue.length) {
+        const item = queue.shift();
+        const root = await preloadModel(this.s, getDecoration(item.key).model);
+        done += 1;
+        if (root) known.set(item.key, root);
+        else if (item.left > 1) {
+          item.left -= 1;
+          queue.push(item);
+        }
+        this.loader.note(`Připravuji ${done} z ${total} modelů`);
+        await releaseFrame();
+      }
+    };
+    const lanes = [];
+    for (let i = 0; i < MODEL_LANES && i < total; i += 1) lanes.push(worker());
+    await Promise.all(lanes);
+    await releaseFrame();
+    return known;
+  }
+
+  stageBlocks(entries) {
+    let total = 0;
+    for (const entry of entries) total += this.decoSystem.blockCount(entry);
+    return total;
+  }
+
+  sectionFor(kind) {
+    if (kind === 'path') return 'path';
+    if (kind === 'water') return 'water';
+    return 'deco';
+  }
+
+  async placeStage(stage, entries) {
+    const section = this.sectionFor(stage.kind);
+    let cleared = 0;
+    let blocks = 0;
+    for (const entry of entries) {
+      blocks += this.decoSystem.blockCount(entry);
+      this.decoSystem.placePiece(entry, section);
+      cleared += 1;
+      if (cleared >= WORLD_BATCH) {
+        await this.flushPlaced(blocks);
+        cleared = 0;
+        blocks = 0;
+      }
+    }
+    if (cleared > 0) await this.flushPlaced(blocks);
+  }
+
+  async flushPlaced(blocks) {
+    await this.decoSystem.settle();
+    await releaseFrame();
+    this.loader.stageProgress(blocks);
   }
 
   setupDecorations() {
@@ -700,21 +821,16 @@ updateGatherTarget() {
   }
 
   restoreGatherEntries(exhausted) {
-    const cells = exhausted || this.gatherSystem.exhaustedCells();
+    const cells = exhausted || [];
     for (const cell of cells) {
       const anchor = this.findDecoAnchor(cell.cx, cell.cz);
-      if (anchor && !anchor.isDisposed()) anchor.setEnabled(false);
+      if (anchor && !anchor.isDisposed()) this.decoSystem.releaseGather(anchor);
     }
   }
 
   findDecoAnchor(cx, cz) {
-    for (const node of this.decoSystem.nodes) {
-      if (!node.metadata || !node.metadata.def?.gather) continue;
-      if (worldToCell(node.position.x) !== cx) continue;
-      if (worldToCell(node.position.z) !== cz) continue;
-      return node;
-    }
-    return null;
+    const found = this.decoSystem.entryAt(cx, cz);
+    return found ? found.anchor : null;
   }
 
   toggleEditorPanel(active) {
@@ -942,7 +1058,7 @@ updateGatherTarget() {
   setupInput() {
     this.inputSystem.suppressContextMenu(this.canvas);
     this.inputSystem.groundPredicate = (mesh) => mesh === this.terrainSystem.ground;
-    this.inputSystem.attach(this.camera);
+    this.inputSystem.attach(this.camera, this);
     this.inputSystem.onLeftDown = () => this.handleLeftDown();
     this.inputSystem.onHoverCell = (cell) => this.handleHover(cell);
     this.inputSystem.onCellRightClick = (cell) => this.handleCellRightClick(cell);
@@ -1034,6 +1150,7 @@ updateGatherTarget() {
     const paused = Boolean(on);
     if (paused === this.paused) return;
     this.paused = paused;
+    this.s.paused = paused;
     this.simSystem.setHalted(paused);
     this.engine.maxFPS = paused ? 60 : this.defaultMaxFPS;
     if (paused) {
