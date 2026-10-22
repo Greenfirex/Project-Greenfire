@@ -103,11 +103,17 @@ export default class FloraSystem {
     this.lastTime = performance.now();
   }
 
-  create(deco, density = 'high') {
+  create(deco, density = 'high', area = null) {
     this.dispose();
     this.deco = deco;
     this.density = density;
+    this.area = area && area.length ? new Set(area.map(([cx, cz]) => `${cx},${cz}`)) : null;
     this.build();
+  }
+
+  inArea(cx, cz) {
+    if (!this.area) return true;
+    return this.area.has(`${cx},${cz}`);
   }
 
   build() {
@@ -184,6 +190,7 @@ export default class FloraSystem {
   tileFree(tx, tz) {
     const cx = worldToCell(tx);
     const cz = worldToCell(tz);
+    if (!this.inArea(cx, cz)) return false;
     return isFree(this.deco, cx, cz) && !this.deco.nearBlocked(cx, cz, 0.9);
   }
 
@@ -199,6 +206,7 @@ export default class FloraSystem {
     const z = tz - CELL_SIZE * 0.5 + (row + 0.5) * step + jitterZ;
     const cx = worldToCell(x);
     const cz = worldToCell(z);
+    if (!this.inArea(cx, cz)) return null;
     if (!isFree(this.deco, cx, cz)) return null;
     if (hash(seed, cell + row, 11) > this.spotChance(tx, tz)) return null;
     return {

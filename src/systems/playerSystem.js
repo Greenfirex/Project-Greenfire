@@ -72,6 +72,7 @@ export default class PlayerSystem {
     this.input = { forward: false, back: false, left: false, right: false, sprint: false };
     this.facing = 0;
     this.blockedTest = null;
+    this.walkable = null;
     this.decoSystem = null;
     this.spawnCell = null;
     this.ready = false;
@@ -372,6 +373,7 @@ export default class PlayerSystem {
   free(x, z) {
     const { cx, cz } = worldToCellCoords(x, z);
     if (this.blockedTest && this.blockedTest(cx, cz)) return false;
+    if (this.walkable && !this.walkable(x, z)) return false;
     if (this.decoSystem && this.decoSystem.overlaps(x, z, BODY_RADIUS + BODY_MARGIN)) return false;
     return true;
   }
@@ -394,7 +396,7 @@ export default class PlayerSystem {
 
   tryMove(x, z, dirX, dirZ, step) {
     if (!this.free(this.root.position.x, this.root.position.z)) this.pushOut();
-    if (this.free(x, z)) {
+    if (this.stepAllowed(x, z) && this.free(x, z)) {
       this.root.position = new Vector3(x, 0, z);
       return true;
     }
@@ -414,12 +416,20 @@ export default class PlayerSystem {
     for (const scale of [1, 0.8, 0.6, 0.4]) {
       const ax = startX + sx * step * scale;
       const az = startZ + sz * step * scale;
-      if (this.free(ax, az)) {
+      if (this.stepAllowed(ax, az) && this.free(ax, az)) {
         this.root.position = new Vector3(ax, 0, az);
         return true;
       }
     }
     return false;
+  }
+
+  stepAllowed(x, z) {
+    if (!this.walkable) return true;
+    const from = this.root.position;
+    const fromOk = this.walkable(from.x, from.z);
+    const toOk = this.walkable(x, z);
+    return fromOk === toOk;
   }
 
   update(dt) {

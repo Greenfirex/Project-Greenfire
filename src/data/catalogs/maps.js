@@ -1,12 +1,9 @@
-// Registr map — seznam klíčů a deklarace map (rozměr světa, barvy půdy, atmosféra).
+// Registr map — seznam klíčů a deklarace map (počáteční semínko, barvy půdy, atmosféra).
 // Přidání mapy = jeden záznam v MAPS a klíč v MAP_KEYS.
 export const MAPS = {
   glade: {
     displayName: 'Temný hvozd',
-    groundSize: 26,
     seed: 20261016,
-    clearingRadius: 8,
-    clearingCenter: { cx: 3, cz: -2 },
     colors: {
       ground: [0.055, 0.082, 0.055],
       path: [0.13, 0.115, 0.095],

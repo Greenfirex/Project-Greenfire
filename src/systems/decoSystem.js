@@ -178,15 +178,6 @@ export default class DecoSystem {
     this.buildWater();
   }
 
-  canUpdatePath(editorLayout) {
-    if (!this.snapshot) return false;
-    return shapeSignature(editorLayout) === this.snapshot;
-  }
-
-  rememberLayout(editorLayout) {
-    this.snapshot = shapeSignature(editorLayout);
-  }
-
   applyEntry(entry, section = 'deco') {
     const def = getDecoration(entry.key);
     if (!def) return;
@@ -389,13 +380,3 @@ export default class DecoSystem {
   }
 }
 
-function shapeSignature(editorLayout) {
-  if (!editorLayout) return '';
-  const zones = [];
-  for (const zone of editorLayout.zones || []) {
-    for (const [cx, cz] of zone.cells) zones.push(`${cellKey(cx, cz)}:${zone.brush}`);
-  }
-  const height = (editorLayout.height || []).map(([key, level]) => `${key}=${level}`).sort().join(';');
-  const exclude = (editorLayout.exclude || []).map(([cx, cz]) => cellKey(cx, cz)).sort().join(';');
-  return `${zones.sort().join(';')}##${height}##${exclude}`;
-}

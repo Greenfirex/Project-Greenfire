@@ -73,3 +73,26 @@ zatím neběží.
 
 Další kroky: výroba ve strojích a plnění batohu, výběr a stav stroje kliknutím,
 výroba předmětů z batohu.
+
+## Editor mapy
+
+Mapa je uložená jako hotový seznam dlaždic a objektů v souboru
+(`src/data/maps/<mapa>/map.json`) — žádný recept, ze kterého by se dopočítávala.
+Co v souboru chybí, ve hře neexistuje: chybějící buňka znamená díru bez trávy,
+přes kterou se nedá chodit. Výška terénu je uložená u každé dlaždice zvlášť.
+
+V editoru (F1) jsou tři druhy práce: **zóny** vyplní označené buňky rostlinami
+a objekty, **výška** zvedá dlaždice, **plocha** přidává a odebírá samotné buňky
+mapy — mazání plochou udělá v mapě skutečnou díru. Klikací tlačítka výšky
+v panelu určují, jak vysoko se dlaždice pokládají; tlačítkem **Vyhladit**
+se srovnají schody do okolí.
+
+Soubor mapy je jediný zdroj pravdy: hra při startu vždycky přečte
+`src/data/maps/<mapa>/map.json` ze souboru na disku, žádnou jinou mapu v kódu
+nemá. Tlačítko **Uložit mapu** v panelu editoru (F1) zapíše hotovou mapu rovnou
+do toho souboru — pomáhá s tím vývojový server (`vite.mapSaver.js`). Po uložení
+se hra sama obnoví, takže vidíš přesně to, co je v souboru, a mapa je připravená
+k commitu.
+
+Když vývojový server neběží nebo jde o zabalenou verzi hry, soubor zapsat nejde
+a hra mapu místo toho stáhne jako `map.json`; ten pak polož do projektu ručně.

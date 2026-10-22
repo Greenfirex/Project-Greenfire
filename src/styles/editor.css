@@ -194,6 +194,12 @@
   display: none;
 }
 
+.editor-panel[data-mode="area"] .editor-panel__grid,
+.editor-panel[data-mode="area"] .editor-panel__heights,
+.editor-panel[data-mode="area"] .editor-panel__brush-opts {
+  display: none;
+}
+
 .editor-panel__brush-opts {
   display: grid;
   gap: 6px;
@@ -538,4 +544,132 @@
 .brush-panel.is-erasing .brush-panel__apply:not(:disabled) {
   background: rgba(220, 90, 90, 0.22);
   border-color: #d06060;
+}
+
+.area-panel {
+  position: absolute;
+  top: 12px;
+  left: 234px;
+  width: 300px;
+  display: none;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
+  z-index: 21;
+  user-select: none;
+  cursor: grab;
+}
+
+.area-panel.is-open {
+  display: block;
+}
+
+.area-panel.is-dragging {
+  cursor: grabbing;
+  z-index: 25;
+}
+
+.area-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.area-panel__title {
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: var(--glow-accent);
+  font-weight: 700;
+}
+
+.area-panel__close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.area-panel__close:hover {
+  color: var(--text-main);
+}
+
+.area-panel__tools,
+.area-panel__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.area-panel__undo-row {
+  grid-template-columns: 1fr;
+}
+
+.area-panel__tools button,
+.area-panel__actions button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  padding: 5px 4px;
+  cursor: pointer;
+}
+
+.area-panel__tools button:hover,
+.area-panel__actions button:hover {
+  border-color: rgba(90, 200, 170, 0.45);
+  color: var(--text-main);
+}
+
+.area-panel__tools button.is-active {
+  background: rgba(90, 200, 170, 0.18);
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+.area-panel__tools button[data-tool="erase"].is-active {
+  background: rgba(220, 90, 90, 0.2);
+  border-color: #d06060;
+  color: var(--text-main);
+}
+
+.area-panel__apply:not(:disabled) {
+  background: rgba(90, 200, 170, 0.18);
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+.area-panel.is-erasing .area-panel__apply:not(:disabled) {
+  background: rgba(220, 90, 90, 0.22);
+  border-color: #d06060;
+}
+
+.area-panel__actions button:disabled,
+.area-panel__undo-row button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.area-panel__count {
+  color: var(--text-dim);
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+
+.area-panel__note {
+  display: block;
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1.35;
+  opacity: 0.75;
 }

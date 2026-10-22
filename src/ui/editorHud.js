@@ -38,6 +38,7 @@ export default class EditorHud {
       <div class="editor-panel__modes">
         <button type="button" data-mode="zone">Zóny</button>
         <button type="button" data-mode="height">Výška</button>
+        <button type="button" data-mode="area">Plocha</button>
       </div>
       <div class="editor-panel__grid"></div>
       <div class="editor-panel__brush-opts">
@@ -73,7 +74,7 @@ export default class EditorHud {
       </div>
       <div class="editor-panel__readout">–</div>
       <div class="editor-panel__save-row">
-        <button type="button" class="editor-panel__save" title="Uložit mapu (přežije obnovení stránky)">Uložit mapu</button>
+        <button type="button" class="editor-panel__save" title="Uložit mapu (zapíše se do souboru v projektu)">Uložit mapu</button>
       </div>
     `;
     document.body.appendChild(root);
@@ -196,7 +197,7 @@ export default class EditorHud {
   }
 
   setMode(mode) {
-    this.mode = mode === 'height' ? 'height' : 'zone';
+    this.mode = mode === 'height' || mode === 'area' ? mode : 'zone';
     this.erasing = false;
     if (this.root) this.root.dataset.mode = this.mode;
     this.refresh();

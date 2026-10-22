@@ -1,5 +1,5 @@
-// Katalog brushů — deklarace „co se má na zóně vyplnit".
-// Editor je bere do palety a generátor podle nich plní zóny; přidání brushu = jeden záznam.
+// Katalog brushů — deklarace „co se má na zóně vyplnit“.
+// Editor je bere do palety a podle typu vyplní buňku dlaždicí nebo objektem; přidání brushu = jeden záznam.
 export const BRUSHES = {
   forest_exact: {
     label: 'Les',
@@ -11,31 +11,37 @@ export const BRUSHES = {
       'tree_cone', 'tree_detailed', 'tree_blocks', 'tree_plateau',
       'tree_simple', 'tree_small', 'tree_tall',
     ],
+    deco: true,
   },
   meadow: {
     label: 'Louka',
     shape: 'blob',
     pool: ['grass', 'grass', 'grass_leafs', 'grass_leafs', 'flower', 'flower_red', 'bush_small'],
+    deco: true,
   },
   rocks: {
     label: 'Kameny',
     shape: 'blob',
     pool: ['rock_large', 'rock_large_c', 'rock_small', 'rock_small_flat', 'rock_tall'],
+    deco: true,
   },
   stumps: {
     label: 'Pařezy a dřevo',
     shape: 'blob',
     pool: ['stump', 'stump_old', 'log', 'log_stack'],
+    deco: true,
   },
   mushrooms: {
     label: 'Houby',
     shape: 'blob',
     pool: ['mushroom_red', 'mushroom_tan', 'bush_small'],
+    deco: true,
   },
   grass: {
     label: 'Tráva',
     shape: 'blob',
     pool: [],
+    deco: true,
   },
   trail: {
     label: 'Cesta',
@@ -59,21 +65,25 @@ export const BRUSHES = {
     shape: 'perimeter',
     stack: 2,
     pool: ['cliff_large', 'cliff_half'],
+    deco: true,
   },
   hill_low: {
     label: 'Kopec 2 m',
     shape: 'blob',
     height: 2,
+    tile: 'floor_grass',
   },
   hill_mid: {
     label: 'Kopec 3 m',
     shape: 'blob',
     height: 3,
+    tile: 'floor_grass',
   },
   hill_high: {
     label: 'Kopec 4 m',
     shape: 'blob',
     height: 4,
+    tile: 'floor_grass',
   },
   water: {
     label: 'Voda',
@@ -96,11 +106,13 @@ export const BRUSHES = {
       iron: ['ore_iron'],
       copper: ['ore_copper'],
     },
+    deco: true,
   },
   camp: {
     label: 'Tábor',
     shape: 'blob',
     pool: ['tent', 'campfire', 'crate', 'barrel'],
+    deco: true,
   },
 };
 

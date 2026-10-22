@@ -1,44 +1,50 @@
-// Sestaví soubor mapy z receptu — hotové objekty pro hru i recept, ze kterého vznikly.
-import { generateLayout } from '../maps/mapRules.js';
+// Sestaví soubor mapy z toho, co je v editoru — hotové dlaždice a objekty bez dopočítávání.
 import { getMap } from './maps.js';
+import { getDecoration } from './decorations.js';
 
-export function recipeOf(layout) {
+export function isMapFile(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
+  return ['floor', 'path', 'water', 'decorations'].every((name) => Array.isArray(body[name]));
+}
+
+export function layoutFromMapFile(file, fallbackSeed = 1) {
+  const world = file || {};
   return {
-    version: layout.version,
-    seed: layout.seed,
-    spawn: layout.spawn,
-    zones: layout.zones || [],
-    manual: layout.manual || [],
-    pathOverrides: layout.pathOverrides || [],
-    waterOverrides: layout.waterOverrides || [],
-    exclude: layout.exclude || [],
-    height: layout.height || [],
+    spawn: world.spawn && Number.isFinite(world.spawn.cx) ? { cx: world.spawn.cx, cz: world.spawn.cz } : { cx: 0, cz: 0 },
+    seed: Number.isFinite(world.seed) ? world.seed : fallbackSeed,
+    entries: [
+      ...(world.floor || []),
+      ...(world.path || []),
+      ...(world.water || []),
+      ...(world.decorations || []),
+    ].map((entry) => ({ ...entry })),
   };
 }
 
 export function mapFileFromLayout(mapKey, layout) {
   const map = getMap(mapKey);
   if (!map || !layout) return null;
-  const built = generateLayout(mapKey, layout);
+  const floor = [];
+  const decorations = [];
+  for (const entry of layout.entries || []) {
+    if (entry.cx === undefined || entry.cz === undefined) continue;
+    if (isFloorTile(entry.key)) floor.push({ ...entry });
+    else decorations.push({ ...entry });
+  }
   return {
-    version: 2,
+    version: 3,
     mapKey,
     seed: layout.seed,
     spawn: layout.spawn,
-    floor: built.floor,
-    path: built.path,
-    water: built.water,
-    decorations: built.decorations,
-    recipe: recipeOf(layout),
+    floor,
+    path: [],
+    water: [],
+    decorations,
   };
 }
 
-export function recipeMismatch(mapKey, file) {
-  const layout = file && file.recipe;
-  if (!layout) return 'mapa nemá uložený recept';
-  const built = generateLayout(mapKey, layout);
-  if (built.path.length !== (file.path || []).length) return 'počty cest nesedí';
-  if (built.water.length !== (file.water || []).length) return 'počty vody nesedí';
-  if (built.decorations.length !== (file.decorations || []).length) return 'počty objektů nesedí';
-  return null;
+function isFloorTile(key) {
+  if (typeof key !== 'string') return false;
+  const def = getDecoration(key);
+  return Boolean(def && def.kind === 'floor');
 }
