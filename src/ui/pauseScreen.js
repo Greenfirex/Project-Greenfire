@@ -18,7 +18,7 @@ export default class PauseScreen {
         <div class="pause-card__title">Pauza</div>
         <div class="pause-card__speed">Rychlost času: <strong>1×</strong></div>
         <button type="button" class="pause-card__resume">Pokračovat</button>
-        <div class="pause-card__keys"><span class="hud-key">P</span> pokračovat <span class="hud-key">F2</span> vývojářské nástroje</div>
+        <div class="pause-card__keys"><span class="hud-key">P</span> pokračovat</div>
       </div>
     `;
     document.getElementById('hud-layer').appendChild(root);

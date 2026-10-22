@@ -75,6 +75,7 @@ export default class PlayerSystem {
     this.walkable = null;
     this.decoSystem = null;
     this.spawnCell = null;
+    this.walkableCells = null;
     this.ready = false;
     this.toolTemplates = {};
     this.toolLoading = {};
@@ -510,14 +511,42 @@ export default class PlayerSystem {
 
   apply(data) {
     const d = data || {};
-    const x = typeof d.x === 'number' ? d.x : SPAWN.x;
-    const z = typeof d.z === 'number' ? d.z : SPAWN.z;
+    let x = typeof d.x === 'number' ? d.x : SPAWN.x;
+    let z = typeof d.z === 'number' ? d.z : SPAWN.z;
     const facing = typeof d.facing === 'number' ? d.facing : 0;
     if (!this.root) return;
+    if (!this.standsOnMap(x, z)) {
+      const spot = this.nearestWalkable(x, z);
+      x = spot.x;
+      z = spot.z;
+    }
     this.root.position = new Vector3(x, 0, z);
     this.facing = facing;
     this.root.rotation.y = facing;
     if (this.onTeleport) this.onTeleport(x, z);
+  }
+
+  standsOnMap(x, z) {
+    const cells = typeof this.walkableCells === 'function' ? this.walkableCells() : this.walkableCells;
+    if (!cells || !cells.length) return true;
+    const { cx, cz } = worldToCellCoords(x, z);
+    return cells.some(([ax, az]) => ax === cx && az === cz);
+  }
+
+  nearestWalkable(x, z) {
+    const cells = typeof this.walkableCells === 'function' ? this.walkableCells() : this.walkableCells;
+    if (!cells || !cells.length) return SPAWN;
+    const from = worldToCellCoords(x, z);
+    let best = cells[0];
+    let bestDist = Infinity;
+    for (const [cx, cz] of cells) {
+      const dist = Math.hypot(cx - from.cx, cz - from.cz);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = [cx, cz];
+      }
+    }
+    return cellToWorldCoords(best[0], best[1]);
   }
 }
 

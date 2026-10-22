@@ -36,7 +36,7 @@ import EditorHud from '../ui/editorHud.js';
 import BrushPanel from '../ui/brushPanel.js';
 import AreaPanel from '../ui/areaPanel.js';
 import TileThumbnails from '../ui/tileThumbnails.js';
-import DevPanel from '../ui/devPanel.js';
+import EditorToggle from '../ui/editorToggle.js';
 import PauseScreen from '../ui/pauseScreen.js';
 import LoadingScreen from '../ui/loadingScreen.js';
 import { whenModelsIdle, takeModelError, preloadModel, releaseFrame } from '../utils/assetLoader.js';
@@ -111,7 +111,7 @@ export default class GameScene {
     this.brushPanel = new BrushPanel();
     this.areaPanel = new AreaPanel();
     this.optionsPanel = new OptionsPanel();
-    this.devPanel = new DevPanel();
+    this.editorToggle = new EditorToggle();
     this.pauseScreen = new PauseScreen();
     this.paused = false;
     this.loader = new LoadingScreen();
@@ -187,7 +187,7 @@ export default class GameScene {
     this.setupHud();
     this.setupOptions();
     this.setupInput();
-    this.setupDevPanel();
+    this.setupEditorToggle();
     this.registerHudEvents();
     this.heldItemSystem.apply(SAVE_DEFAULTS.heldItem);
     const restored = this.saveSystem.load();
@@ -293,6 +293,7 @@ export default class GameScene {
     this.playerSystem.bindKeys();
     this.simSystem.resetAccumulator();
     this.refreshAmbient();
+    this.refreshClock();
     this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);
     this.audioSystem.setAmbientVolume(this.options.ambientVolume / 100);
   }
@@ -374,7 +375,6 @@ updateGatherTarget() {
   }
 
   handleLeftDown() {
-    console.info(`[click] loaded=${this.loaded} editor=${this.editorMode.active} build=${this.isBuilding()} pending=${!!this.campfireSystem.pending} target=${this.gatherSystem.target ? this.gatherSystem.target.def.displayName : 'žádný'} entries=${this.gatherSystem.entries.length} tool=${this.heldItemSystem.key}`);
     if (!this.loaded || this.editorMode.active || this.isBuilding()) return;
     if (this.campfireSystem.pending) {
       this.cancelCampfireIgnite();
@@ -469,6 +469,7 @@ updateGatherTarget() {
 
   refreshTerrain() {
     const reach = this.editorMode.active ? this.terrainSystem.reachCells() : null;
+    this.terrainSystem.clear();
     this.terrainSystem.create(this.mapKey, this.mapFile, reach);
     this.editorMode.assignRealCells(this.terrainSystem.realCells);
     this.areaLookup = null;
@@ -613,7 +614,7 @@ updateGatherTarget() {
     this.editorMode.onModeChange = (mode) => {
       this.editorHud.setMode(mode);
       this.syncEditorPanels(mode);
-      this.showAreaPreview(this.editorMode.areaSelection);
+      this.showAreaPreview(this.editorMode.getAreaSelection());
       this.handleHover(this.hoverCell);
     };
     this.areaPanel.onTool = (tool) => {
@@ -833,17 +834,19 @@ updateGatherTarget() {
   renderMapLayout() {
     const exhausted = this.gatherSystem.exhaustedCells();
     this.gatherSystem.clear();
-    const map = getMap(this.mapKey);
-    this.adoptEditorMap(this.editorMode.getMap());
+    this.adoptEditorMap();
     this.markMapDirty();
     this.refreshTerrain();
-    this.decoHighlight.clear();
-    this.decoSystem.create(this.mapFile, map.colors);
-    this.floraSystem.create(this.decoSystem, this.options.grass, this.terrainSystem.groundCells);
-    this.gatherSystem.syncFromDeco();
-    this.campfireSystem.sync(this.mapFile.decorations || []);
-    this.restoreGatherEntries(exhausted);
-    this.refreshShadowCasters();
+    this.terrainSystem.whenReady().then(() => {
+      this.decoHighlight.clear();
+      this.decoSystem.create(this.mapFile, getMap(this.mapKey).colors);
+      this.floraSystem.create(this.decoSystem, this.options.grass, this.terrainSystem.groundCells);
+      this.gatherSystem.syncFromDeco();
+      this.campfireSystem.sync(this.mapFile.decorations || []);
+      this.restoreGatherEntries(exhausted);
+      this.refreshShadowCasters();
+      this.handleHover(this.hoverCell);
+    });
   }
 
   restoreGatherEntries(exhausted) {
@@ -861,8 +864,9 @@ updateGatherTarget() {
 
   toggleEditorPanel(active) {
     if (!active && this.mapDirty) this.warnUnsavedMap();
+    this.adoptEditorMap();
+    this.terrainSystem.clear();
     if (active) {
-      this.adoptEditorMap(this.editorMode.getMap());
       this.editorHud.show();
       this.editorHud.setMode(this.editorMode.mode);
       this.editorHud.setHeightLevel(this.editorMode.heightLevel);
@@ -874,7 +878,7 @@ updateGatherTarget() {
     }
     this.refreshTerrain();
     this.syncEditorPanels(this.editorMode.mode);
-    this.devPanel.setEditorActive(Boolean(active));
+    this.editorToggle.setActive(Boolean(active));
   }
 
   syncEditorPanels(mode) {
@@ -906,7 +910,8 @@ updateGatherTarget() {
     this.gridSystem.clearZones();
     this.gridSystem.clearDraftCells();
     this.toggleEditorPanel(false);
-    this.devPanel.setEditorActive(false);
+    this.editorToggle.setActive(false);
+    this.releaseGameFromEditor();
   }
 
   readMapFile() {
@@ -934,10 +939,12 @@ updateGatherTarget() {
     this.mapFile = mapFile;
     this.mapLayout = layoutFromMapFile(mapFile, getMap(this.mapKey).seed);
     this.editorMode.useLayout(this.mapLayout);
+    this.playerSystem.spawnCell = this.mapLayout.spawn;
     return this.mapFile;
   }
 
-  adoptEditorMap(layout) {
+  adoptEditorMap() {
+    const layout = this.editorMode.getMap();
     if (!layout) return;
     this.mapLayout = layout;
     this.mapFile = mapFileFromLayout(this.mapKey, layout) || this.mapFile;
@@ -1009,15 +1016,10 @@ updateGatherTarget() {
     });
   }
 
-  setupDevPanel() {
-    this.devPanel.onSpeed = (speed) => this.setSimSpeed(speed);
-    this.devPanel.onHalt = (on) => this.setTimeHalted(on);
-    this.devPanel.onToggleEditor = () => this.toggleEditorMode();
-    this.devPanel.mount();
-    this.devPanel.show();
-    this.devPanel.setSpeed(this.simSystem.speed);
-    this.devPanel.setHalted(this.simSystem.halted);
-    this.devPanel.setEditorActive(this.editorMode.active);
+  setupEditorToggle() {
+    this.editorToggle.onToggle = () => this.toggleEditorMode();
+    this.editorToggle.mount();
+    this.editorToggle.setActive(this.editorMode.active);
     this.pauseScreen.onResume = () => this.togglePause();
     this.pauseScreen.mount();
     this.pauseScreen.setSpeed(this.simSystem.speed);
@@ -1119,6 +1121,7 @@ updateGatherTarget() {
   }
 
   setupHud() {
+    this.hud.onSpeed = (speed) => this.setSimSpeed(speed);
     this.hud.mount();
     this.hud.setCount(this.buildSystem.count);
     this.hud.setStatusVisible(false);
@@ -1126,6 +1129,7 @@ updateGatherTarget() {
     this.hotbar.onSelect = (key) => this.heldItemSystem.set(key);
     this.hotbar.setSelected(this.heldItemSystem.key);
     this.inventoryPanel.update(this.inventorySystem);
+    this.refreshClock();
   }
 
   onHeldItemChange() {
@@ -1163,6 +1167,7 @@ updateGatherTarget() {
   }
 
   setupSave() {
+    this.playerSystem.walkableCells = () => this.terrainSystem.realCells || [];
     this.saveSystem.registerState('player', {
       serialize: () => this.playerSystem.serialize(),
       apply: (data) => this.playerSystem.apply(data),
@@ -1232,6 +1237,8 @@ updateGatherTarget() {
     if (paused) {
       this.pauseScreen.setSpeed(this.simSystem.speed);
       this.pauseScreen.show();
+    } else if (this.editorMode.active) {
+      this.pauseScreen.hide();
     } else {
       this.pauseScreen.hide();
       this.simSystem.resetAccumulator();
@@ -1241,22 +1248,31 @@ updateGatherTarget() {
 
   setSimSpeed(speed) {
     this.simSystem.setSpeed(speed);
-    this.devPanel.setSpeed(this.simSystem.speed);
     this.pauseScreen.setSpeed(this.simSystem.speed);
-    this.refreshClock();
-  }
-
-  setTimeHalted(on) {
-    this.simSystem.setHalted(Boolean(on));
-    this.devPanel.setHalted(this.simSystem.halted);
     this.refreshClock();
   }
 
   toggleEditorMode() {
     const active = this.editorMode.toggle();
-    if (active) this.editorHud.setBrush(this.editorMode.brushKey);
-    this.devPanel.setEditorActive(this.editorMode.active);
+    if (active) {
+      this.editorHud.setBrush(this.editorMode.brushKey);
+      this.holdGameForEditor();
+    } else {
+      this.releaseGameFromEditor();
+    }
+    this.editorToggle.setActive(this.editorMode.active);
     return active;
+  }
+
+  holdGameForEditor() {
+    if (this.paused) return;
+    this.setPaused(true);
+    this.pauseScreen.hide();
+  }
+
+  releaseGameFromEditor() {
+    if (!this.paused) return;
+    this.setPaused(false);
   }
 
   handleKey(evt) {
@@ -1266,11 +1282,6 @@ updateGatherTarget() {
       if (evt.repeat) return;
       evt.preventDefault();
       this.togglePause();
-      return;
-    }
-    if (evt.key === 'F2') {
-      evt.preventDefault();
-      this.devPanel.toggle();
       return;
     }
     if (this.paused) {
@@ -1421,8 +1432,7 @@ updateGatherTarget() {
         return;
       }
       if (this.editorMode.mode === 'area') {
-        this.showAreaPreview(this.editorMode.areaSelection
-          || { tool: this.editorMode.areaTool, cells: [[cell.cx, cell.cz]], drag: null });
+        this.showAreaPreview(this.editorMode.getAreaSelection());
         if (this.editorMode.hasAreaSelection) return;
         const info = this.editorMode.describeAt(cell.cx, cell.cz);
         const state = this.editorMode.areaTool === 'erase' ? 'mažu' : 'maluju';
@@ -1500,23 +1510,18 @@ updateGatherTarget() {
   }
 
   applyAreaSelection() {
-    if (!this.editorMode.hasAreaSelection) return false;
-    const erasing = this.editorMode.areaSelection.tool === 'erase';
-    const cells = this.editorMode.areaSelection.cells;
+    const selection = this.editorMode.getAreaSelection();
+    if (!selection || !selection.cells.length) return false;
+    const erasing = selection.tool === 'erase';
+    const pending = this.editorMode.pendingAreaCells();
     this.editorMode.applyAreaSelection();
-    let odds = 0;
-    if (erasing) {
-      for (const [cx, cz] of cells) {
-        if (!this.layerExists(cx, cz) && !this.decoExists(cx, cz)) odds += 1;
-      }
-    }
     this.gridSystem.clearBrush();
     this.areaPanel.setCount(0);
     this.refreshUndoButton();
     this.handleHover(this.hoverCell);
-    if (!erasing) this.editorHud.setReadout(`Přidáno ${cells.length} buněk plochy`);
-    else if (odds) this.editorHud.setReadout(`Smazáno ${cells.length - odds} · ${odds}× nic nebylo`);
-    else this.editorHud.setReadout(`Smazáno ${cells.length} buněk i s objekty`);
+    if (!erasing) this.editorHud.setReadout(`Přidáno ${pending} buněk plochy`);
+    else if (!pending) this.editorHud.setReadout('Nic k smazání — tyhle buňky v mapě nejsou');
+    else this.editorHud.setReadout(`Smazáno ${pending} buněk i s objekty`);
     return true;
   }
 
@@ -1606,11 +1611,12 @@ updateGatherTarget() {
   }
 
   handleCellClick(cell) {
-    if (!cell || !this.isBuilding()) return;
+    if (!cell) return;
     if (this.editorMode.active) {
       this.editorMode.paint(cell.cx, cell.cz);
       return;
     }
+    if (!this.isBuilding()) return;
     this.clearMark();
     const record = this.buildSystem.build(this.currentMachine, cell.cx, cell.cz, this.previewRotation);
     if (!record) return;
@@ -1622,7 +1628,7 @@ updateGatherTarget() {
   }
 
   handleCellRightClick(cell) {
-    if (!cell || !this.isBuilding()) return;
+    if (!cell) return;
     if (this.editorMode.active) {
       if (this.editorMode.mode === 'area') {
         const tool = this.editorMode.areaTool === 'erase' ? 'paint' : 'erase';
@@ -1647,6 +1653,7 @@ updateGatherTarget() {
       this.editorMode.draftCell(cell.cx, cell.cz);
       return;
     }
+    if (!this.isBuilding()) return;
     const result = this.buildSystem.toggleMark(cell.cx, cell.cz);
 
     if (result.removed) {
@@ -1694,38 +1701,64 @@ updateGatherTarget() {
   }
 
   saveMapLayout() {
-    const file = mapFileFromLayout(this.mapKey, this.mapLayout);
+    const layout = this.editorMode.getMap();
+    const key = typeof this.mapKey === 'string' ? this.mapKey.toLowerCase() : '';
+    const file = mapFileFromLayout(key, layout);
     if (!file) {
       this.editorHud.setReadout('Mapu nejde složit');
       return Promise.resolve(false);
     }
+    if (!Number.isInteger(layout.spawn.cx) || !Number.isInteger(layout.spawn.cz)) {
+      this.markMapDirty();
+      this.editorHud.setReadout(`● Neuložené změny — střed mapy nemá platné souřadnice (${layout.spawn.cx}, ${layout.spawn.cz})`);
+      return Promise.resolve(false);
+    }
+    const broken = brokenEntries(layout);
+    if (broken) {
+      this.markMapDirty();
+      this.editorHud.setReadout('● Neuložené změny');
+      this.hud.setSaveHint(`Mapa se neuložila — ${broken} buněk nemá platné souřadnice, takže by se v souboru rozsypala`);
+      return Promise.resolve(false);
+    }
     this.editorHud.setReadout('Ukládám do souboru…');
-    return this.writeMapFile(file).then((ok) => {
-      if (ok) {
-        this.mapFile = file;
-        this.clearMapDirty();
-        this.hud.setSaveHint('Mapa zapsaná do souboru projektu ✓');
-        return true;
-      }
-      this.downloadMapFile(file);
-      this.mapFile = file;
+    return this.writeMapFile(file).then((result) => this.finishMapSave(file, result));
+  }
+
+  finishMapSave(file, result) {
+    this.mapFile = file;
+    if (result.ok) {
       this.clearMapDirty();
-      this.hud.setSaveHint('Soubor nešel zapsat (běží vývojový server?) — mapa stažená, polož ji do projektu');
-      return false;
-    });
+      this.hud.setSaveHint('Mapa zapsaná do souboru projektu ✓');
+      return true;
+    }
+    this.downloadMapFile(file);
+    this.markMapDirty();
+    this.editorHud.setReadout(`● Neuložené změny — server odmítl: ${result.reason}`);
+    this.hud.setSaveHint(`Mapu se nepodařilo zapsat do souboru (${result.reason}) — soubor je stažený, polož ho do projektu`);
+    return false;
   }
 
   async writeMapFile(file) {
+    const url = `/_map/${encodeURIComponent(file.mapKey)}`;
+    let response;
     try {
-      const response = await fetch(`/_map/${encodeURIComponent(file.mapKey)}`, {
+      response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(file),
       });
-      return response.ok;
     } catch {
-      return false;
+      return { ok: false, reason: `server neodpověděl (${url})` };
     }
+    if (response.ok) return { ok: true };
+    let reason = `HTTP ${response.status}`;
+    try {
+      const answer = await response.json();
+      if (answer && answer.error) reason = `${reason} — ${answer.error}`;
+    } catch {
+      reason = `${reason} z ${url}`;
+    }
+    return { ok: false, reason };
   }
 
   downloadMapFile(file) {
@@ -1768,3 +1801,14 @@ updateGatherTarget() {
     this.cameraSystem.onResize();
   }
 }
+
+function brokenEntries(layout) {
+  let count = 0;
+  for (const name of ['floor', 'path', 'water', 'clearing', 'manual', 'decorations']) {
+    for (const entry of layout[name] || []) {
+      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) count += 1;
+    }
+  }
+  return count;
+}
+

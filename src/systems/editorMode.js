@@ -3,7 +3,7 @@
 import { BRUSHES } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { cellKey, MAX_HEIGHT } from '../data/maps/layoutStore.js';
-import { hasLayerCell, layerAt, dropLayerCell, dropDecorationCell, dropAreaCells } from '../data/maps/areaShape.js';
+import { hasLayerCell, layerAt, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
 
 const HISTORY_LIMIT = 100;
 
@@ -239,8 +239,7 @@ export default class EditorMode {
     if (!this.active || !this.layout) return;
     if (this.mode === 'area') {
       this.areaDrag = null;
-      this.areaStroke = null;
-      this.setAreaSelection({ tool: this.areaTool, cells: [[cx, cz]], drag: null });
+      this.addAreaCells([[cx, cz]]);
       return;
     }
     if (this.mode !== 'height') return;
@@ -253,8 +252,7 @@ export default class EditorMode {
     if (!this.active || !this.layout) return;
     if (this.mode === 'area') {
       this.areaDrag = null;
-      this.areaStroke = null;
-      this.setAreaSelection({ tool: this.areaTool, cells: bresenham(from.cx, from.cz, to.cx, to.cz), drag: null });
+      this.addAreaCells(bresenham(from.cx, from.cz, to.cx, to.cz));
       return;
     }
     if (this.mode !== 'height') return;
@@ -265,6 +263,14 @@ export default class EditorMode {
 
   dropTopEntry(cx, cz) {
     dropDecorationCell(this.layout, cx, cz);
+  }
+
+  dropOrphans() {
+    const grid = new Set(worldCells(this.layout).map(([cx, cz]) => cellKey(cx, cz)));
+    const kept = (this.layout.decorations || []).filter((entry) => entry && grid.has(cellKey(entry.cx, entry.cz)));
+    if (kept.length === (this.layout.decorations || []).length) return false;
+    this.layout.decorations = kept;
+    return true;
   }
 
   layerTileAt(cx, cz) {
@@ -331,10 +337,11 @@ export default class EditorMode {
 
   beginAreaDrag(cx, cz) {
     if (!this.layout) return;
-    this.areaStroke = new Map();
+    const kept = this.areaStroke || new Map();
+    this.areaStroke = kept;
     this.areaDrag = { mode: this.areaTool, fromX: cx, fromZ: cz, toX: cx, toZ: cz };
-    this.areaStroke.set(cellKey(cx, cz), [cx, cz]);
-    this.setAreaSelection({ tool: this.areaTool, cells: this.strokeCells(), drag: this.areaDrag });
+    kept.set(cellKey(cx, cz), [cx, cz]);
+    this.setAreaSelection({ tool: this.areaTool, cells: this.strokeCells() });
   }
 
   moveAreaDrag(cx, cz) {
@@ -351,19 +358,23 @@ export default class EditorMode {
     }
     drag.toX = cx;
     drag.toZ = cz;
-    this.setAreaSelection({ tool: drag.mode, cells: this.strokeCells(), drag });
+    this.setAreaSelection({ tool: drag.mode, cells: this.strokeCells() });
   }
 
   finishAreaDrag() {
-    const drag = this.areaDrag;
-    if (!drag) return;
+    if (!this.areaDrag) return;
     this.areaDrag = null;
-    this.setAreaSelection({ tool: drag.mode, cells: this.strokeCells(), drag: null });
-    this.areaStroke = null;
+    this.setAreaSelection({ tool: this.areaTool, cells: this.strokeCells() });
   }
 
   strokeCells() {
     return [...(this.areaStroke || new Map()).values()];
+  }
+
+  addAreaCells(cells) {
+    if (!this.areaStroke) this.areaStroke = new Map();
+    for (const [cx, cz] of cells) this.areaStroke.set(cellKey(cx, cz), [cx, cz]);
+    this.setAreaSelection({ tool: this.areaTool, cells: this.strokeCells() });
   }
 
   setAreaTool(tool) {
@@ -377,11 +388,19 @@ export default class EditorMode {
 
   setAreaSelection(selection) {
     const cells = selection && selection.cells ? selection.cells : [];
-    this.areaSelection = cells.length ? selection : null;
-    if (this.onAreaSelectionChange) this.onAreaSelectionChange(this.areaSelection);
+    const drag = this.areaDrag;
+    this.areaSelection = cells.length
+      ? { tool: selection.tool, cells, drag: drag ? { fromX: drag.fromX, fromZ: drag.fromZ, toX: drag.toX, toZ: drag.toZ } : null }
+      : null;
+    if (this.onAreaSelectionChange) this.onAreaSelectionChange(this.getAreaSelection());
+  }
+
+  getAreaSelection() {
+    return this.areaSelection;
   }
 
   clearAreaSelection() {
+    this.areaStroke = null;
     if (!this.areaSelection) return;
     this.areaSelection = null;
     if (this.onAreaSelectionChange) this.onAreaSelectionChange(null);
@@ -420,6 +439,7 @@ export default class EditorMode {
       for (const [cx, cz] of selection.cells) {
         if (dropDecorationCell(this.layout, cx, cz)) count += 1;
       }
+      this.dropOrphans();
     } else {
       for (const [cx, cz] of selection.cells) {
         const liftY = this.raiseToLevel(cx, cz);
@@ -533,6 +553,7 @@ export default class EditorMode {
       if (mode === 'remove') {
         dropLayerCell(this.layout, cx, cz);
         this.dropTopEntry(cx, cz);
+        this.dropOrphans();
         continue;
       }
       if (brush.deco) {
@@ -566,6 +587,7 @@ export default class EditorMode {
     if (this.erasing) {
       dropLayerCell(this.layout, cx, cz);
       this.dropTopEntry(cx, cz);
+      this.dropOrphans();
       return;
     }
     this.placeEntry(this.tileKey || FALLBACK_FLOOR, cx, cz, 0, this.heightLevel > 0 ? this.heightLevel * HEIGHT_STEP : 0);
@@ -684,37 +706,17 @@ const HEIGHT_STEP = 0.6;
 const FALLBACK_FLOOR = 'floor_grass';
 
 function toWorld(world) {
-  const groups = worldGroups(world);
+  const copy = (list) => (list || []).map((entry) => ({ ...entry }));
   return {
     spawn: world.spawn ? { ...world.spawn } : { cx: 0, cz: 0 },
     seed: world.seed,
-    floor: groups.floor,
-    path: groups.path,
-    water: groups.water,
-    clearing: groups.clearing,
-    manual: (world.manual || []).map((entry) => ({ ...entry })),
-    decorations: (world.decorations || []).map((entry) => ({ ...entry })),
+    floor: copy(world.floor),
+    path: copy(world.path),
+    water: copy(world.water),
+    clearing: copy(world.clearing),
+    manual: copy(world.manual),
+    decorations: copy(world.decorations),
   };
-}
-
-function worldGroups(world) {
-  const groups = { floor: [], path: [], water: [], clearing: [] };
-  if (!world) return groups;
-  if (world.entries) {
-    const from = new Map();
-    for (const entry of world.entries) {
-      if (entry && !from.has(entry.key)) from.set(entry.key, layerAt(world, entry.cx, entry.cz));
-    }
-    for (const entry of world.entries) {
-      const name = from.get(entry && entry.key);
-      if (groups[name]) groups[name].push({ ...entry });
-    }
-    return groups;
-  }
-  for (const name of Object.keys(groups)) {
-    groups[name] = (world[name] || []).map((entry) => ({ ...entry }));
-  }
-  return groups;
 }
 
 function areaRectOf(x0, z0, x1, z1) {

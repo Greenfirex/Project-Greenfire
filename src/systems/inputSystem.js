@@ -39,7 +39,9 @@ export default class InputSystem {
   }
 
   isBusy() {
-    return !this.game || this.game.paused || !this.game.loaded;
+    if (!this.game || !this.game.loaded) return true;
+    if (this.game.editorMode && this.game.editorMode.active) return false;
+    return Boolean(this.game.paused);
   }
 
   attach(camera, game) {

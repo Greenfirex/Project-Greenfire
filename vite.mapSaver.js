@@ -79,7 +79,7 @@ function checkMapKey(mapKey) {
 function isMapFile(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
   if (typeof body.mapKey !== 'string') return false;
-  if (!checkMapKey(body.mapKey)) return false;
+  if (checkMapKey(body.mapKey)) return false;
   return ['floor', 'path', 'water', 'decorations'].every((name) => Array.isArray(body[name]));
 }
 

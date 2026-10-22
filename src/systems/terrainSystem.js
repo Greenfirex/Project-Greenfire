@@ -31,6 +31,22 @@ export default class TerrainSystem {
     this.surfaceMaterial = null;
     this.gridLines = null;
     this.mapKey = null;
+    this.ready = Promise.resolve(null);
+  }
+
+  whenReady() {
+    return this.ready || Promise.resolve();
+  }
+
+  clear() {
+    for (const mesh of [this.ground, this.surface, this.gridLines]) {
+      if (mesh && !mesh.isDisposed()) mesh.dispose(false, false);
+    }
+    this.ground = null;
+    this.surface = null;
+    this.gridLines = null;
+    this.groundCells = [];
+    this.realCells = [];
   }
 
   create(mapKey, world = null, extraCells = null) {
@@ -44,6 +60,7 @@ export default class TerrainSystem {
     this.createSurface(map, this.groundCells);
     this.createPicker(extraCells && extraCells.length ? this.realCells.concat(extraCells) : this.realCells);
     this.gridLines = this.createGridLines(map, this.realCells);
+    this.ready = Promise.resolve(this.surface);
     return this.surface;
   }
 

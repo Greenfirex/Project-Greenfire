@@ -1,5 +1,5 @@
 ﻿// Hustá divoká vegetace mimo cesty — tráva, keře a květiny rozházené po volné půdě.
-// Tráva se rozsází jednou při stavbě mapy po celé ploše a pak se jen kreslí a houpe ve větru.
+// Roste jen na buňkách, které existují v mapě, a pak se jen kreslí a houpe ve větru.
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
@@ -21,7 +21,6 @@ const BLADE_CAP = 40000;
 const GRASS_BASE_TONE = new Color3(0.1, 0.24, 0.06);
 const SCATTER_KEYS = ['bush_small', 'flower', 'flower_red', 'mushroom_red', 'mushroom_tan'];
 const SCATTER_MODELS = {
-  bush: `${ASSET_DIRS.plants}plant_bush.glb`,
   bush_small: `${ASSET_DIRS.plants}plant_bushSmall.glb`,
   flower: `${ASSET_DIRS.plants}flower_purpleA.glb`,
   flower_red: `${ASSET_DIRS.plants}flower_redA.glb`,
@@ -29,7 +28,6 @@ const SCATTER_MODELS = {
   mushroom_tan: `${ASSET_DIRS.plants}mushroom_tan.glb`,
 };
 const SCATTER_CHANCE = 0.06;
-const BUSH_CHANCE = 0.5;
 const GRASS_LIFT = 0.02;
 
 function bladeShape() {
@@ -90,13 +88,12 @@ export default class FloraSystem {
     this.deco = null;
     this.density = 'high';
     this.grass = null;
-    this.span = 7;
+    this.area = null;
     this.slots = [];
     this.grassMeshes = [];
     this.scatterNode = new TransformNode('wildScatter', scene);
     this.scatterNodes = [];
     this.scatterTemplates = new Map();
-    this.scatterDone = false;
     this.bladesReady = false;
     this.observer = null;
     this.clock = 0;
@@ -111,15 +108,9 @@ export default class FloraSystem {
     this.build();
   }
 
-  inArea(cx, cz) {
-    if (!this.area) return true;
-    return this.area.has(`${cx},${cz}`);
-  }
-
   build() {
     if (!this.deco) return;
     this.buildGrass();
-    this.regrowScatter();
     this.populateScatter();
   }
 
@@ -151,8 +142,9 @@ export default class FloraSystem {
     if (!this.deco || !PER_TILE[this.density]) return [];
     if (this.grassMeshes.length) return this.grassMeshes.slice();
     const bounds = this.deco.boundsOfCells();
-    if (!bounds) return [];
-    this.makeBlades(bounds);
+    const ground = this.area;
+    if (!bounds || !ground) return [];
+    this.makeBlades(bounds, ground);
     this.createGrassMesh();
     this.grass = new TransformNode('wildGrass', this.s);
     for (const mesh of this.grassMeshes) mesh.parent = this.grass;
@@ -160,25 +152,21 @@ export default class FloraSystem {
     return this.grassMeshes.slice();
   }
 
-  makeBlades(bounds) {
+  makeBlades(bounds, ground) {
     const perTile = PER_TILE[this.density];
     const side = Math.round(Math.sqrt(perTile));
     const step = CELL_SIZE / side;
-    const fromX = bounds.minX - this.span;
-    const toX = bounds.maxX + this.span;
-    const fromZ = bounds.minZ - this.span;
-    const toZ = bounds.maxZ + this.span;
     let index = 0;
-    for (let tz = fromZ; tz <= toZ; tz += 1) {
-      for (let tx = fromX; tx <= toX; tx += 1) {
-        if (!this.tileFree(tx, tz)) {
+    for (let tz = bounds.minZ; tz <= bounds.maxZ; tz += 1) {
+      for (let tx = bounds.minX; tx <= bounds.maxX; tx += 1) {
+        if (!this.tileFree(tx, tz, ground)) {
           index += perTile;
           continue;
         }
         for (let cell = 0; cell < side; cell += 1) {
           for (let row = 0; row < side; row += 1) {
             if (this.slots.length >= BLADE_CAP) return;
-            const slot = this.makeSlot(tx, tz, index, cell, row, step);
+            const slot = this.makeSlot(tx, tz, index, cell, row, step, ground);
             index += 1;
             if (slot) this.slots.push(slot);
           }
@@ -187,10 +175,10 @@ export default class FloraSystem {
     }
   }
 
-  tileFree(tx, tz) {
+  tileFree(tx, tz, ground) {
     const cx = worldToCell(tx);
     const cz = worldToCell(tz);
-    if (!this.inArea(cx, cz)) return false;
+    if (!ground.has(`${cx},${cz}`)) return false;
     return isFree(this.deco, cx, cz) && !this.deco.nearBlocked(cx, cz, 0.9);
   }
 
@@ -199,14 +187,14 @@ export default class FloraSystem {
     return edge > 2 ? 0.6 : 1;
   }
 
-  makeSlot(tx, tz, seed, cell, row, step) {
+  makeSlot(tx, tz, seed, cell, row, step, ground) {
     const jitterX = (hash(seed, cell, 3) - 0.5) * step * 0.9;
     const jitterZ = (hash(seed, row, 7) - 0.5) * step * 0.9;
     const x = tx - CELL_SIZE * 0.5 + (cell + 0.5) * step + jitterX;
     const z = tz - CELL_SIZE * 0.5 + (row + 0.5) * step + jitterZ;
     const cx = worldToCell(x);
     const cz = worldToCell(z);
-    if (!this.inArea(cx, cz)) return null;
+    if (!ground.has(`${cx},${cz}`)) return null;
     if (!isFree(this.deco, cx, cz)) return null;
     if (hash(seed, cell + row, 11) > this.spotChance(tx, tz)) return null;
     return {
@@ -278,27 +266,20 @@ export default class FloraSystem {
   buildScatter() {
     if (!this.deco) return [];
     const bounds = this.deco.boundsOfCells();
-    if (!bounds) return [];
+    const ground = this.area;
+    if (!bounds || !ground) return [];
     const spots = [];
-    const ring = { minX: bounds.minX - 2, maxX: bounds.maxX + 2, minZ: bounds.minZ - 2, maxZ: bounds.maxZ + 2 };
-    for (let cx = ring.minX; cx <= ring.maxX; cx += 1) {
-      for (let cz = ring.minZ; cz <= ring.maxZ; cz += 1) {
-        if (Math.abs(this.edgeDistance(cx, cz, bounds)) >= 2) continue;
-        const outside = this.edgeDistance(cx, cz, bounds) <= 0;
-        if (outside) {
-          if (hash(cx, cz, 21) > BUSH_CHANCE) continue;
-        } else {
-          if (hash(cx, cz, 9) > SCATTER_CHANCE) continue;
-          if (!isFree(this.deco, cx, cz)) continue;
-        }
-        const key = outside
-          ? 'bush'
-          : SCATTER_KEYS[Math.floor(hash(cx, cz, 10) * SCATTER_KEYS.length) % SCATTER_KEYS.length];
+    for (let cx = bounds.minX; cx <= bounds.maxX; cx += 1) {
+      for (let cz = bounds.minZ; cz <= bounds.maxZ; cz += 1) {
+        if (!ground.has(`${cx},${cz}`)) continue;
+        if (hash(cx, cz, 9) > SCATTER_CHANCE) continue;
+        if (!isFree(this.deco, cx, cz)) continue;
+        const key = SCATTER_KEYS[Math.floor(hash(cx, cz, 10) * SCATTER_KEYS.length) % SCATTER_KEYS.length];
         spots.push({
           key,
           x: cx * CELL_SIZE + (hash(cx, cz, 11) - 0.5) * CELL_SIZE * 0.65,
           z: cz * CELL_SIZE + (hash(cx, cz, 12) - 0.5) * CELL_SIZE * 0.65,
-          scale: 1.6 + hash(cx, cz, 13) * 1.2 + (outside ? 1.6 : 0),
+          scale: 1.6 + hash(cx, cz, 13) * 1.2,
           turn: hash(cx, cz, 14) * Math.PI * 2,
         });
       }
@@ -306,14 +287,10 @@ export default class FloraSystem {
     return spots;
   }
 
-  edgeDistance(cx, cz, bounds) {
-    return Math.min(cx - bounds.minX, bounds.maxX - cx, cz - bounds.minZ, bounds.maxZ - cz);
-  }
-
   async collectScatter() {
     const loaded = new Map(getLoadedModels().map((entry) => [entry.path, entry.promise]));
     this.scatterTemplates.clear();
-    for (const key of [...SCATTER_KEYS, 'bush']) {
+    for (const key of SCATTER_KEYS) {
       const path = SCATTER_MODELS[key];
       const root = await (loaded.get(path) ?? loadModel(this.s, path));
       if (!root) continue;
@@ -329,35 +306,16 @@ export default class FloraSystem {
   }
 
   async populateScatter() {
-    if (this.scatterDone) return;
-    this.scatterDone = true;
-    const spots = this.buildScatter();
-    if (!spots.length) return;
-    await this.collectScatter();
+    if (!this.scatterTemplates.size) await this.collectScatter();
     if (!this.deco) return;
-    for (const spot of spots) {
+    for (const node of this.scatterNodes) node.dispose(false, false);
+    this.scatterNodes.length = 0;
+    for (const spot of this.buildScatter()) {
       const node = this.spawnScatter(spot);
       if (!node) continue;
       this.scatterNodes.push(node);
-      if (spot.key !== 'bush' && spot.key !== 'bush_small') continue;
+      if (spot.key !== 'bush_small') continue;
       this.clearGrassAround(spot.x, spot.z, spot.scale * 0.45);
-    }
-  }
-
-  regrowScatter() {
-    if (!this.bladesReady) {
-      this.bladesReady = true;
-      for (const spot of this.buildScatter()) {
-        if (spot.key !== 'bush' && spot.key !== 'bush_small') continue;
-        this.clearGrassAround(spot.x, spot.z, spot.scale * 0.45);
-      }
-    }
-    for (const node of this.scatterNodes) node.dispose(false, false);
-    this.scatterNodes.length = 0;
-    if (!this.scatterTemplates.size) return;
-    for (const spot of this.buildScatter()) {
-      const node = this.spawnScatter(spot);
-      if (node) this.scatterNodes.push(node);
     }
   }
 

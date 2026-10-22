@@ -298,6 +298,37 @@
   color: var(--glow-accent);
 }
 
+.hud-clock__speeds {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.hud-clock__speeds button {
+  min-width: 24px;
+  padding: 2px 5px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-glow);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.hud-clock__speeds button:hover {
+  border-color: var(--glow-warm);
+  color: var(--text-main);
+}
+
+.hud-clock__speeds button.is-active {
+  border-color: var(--glow-warm);
+  background: rgba(224, 164, 88, 0.18);
+  color: var(--text-main);
+}
+
 .hud-clock__flash {
   max-height: 0;
   overflow: hidden;
@@ -342,7 +373,7 @@
   color: var(--text-main);
 }
 
-/* Lišta nahoře uprostřed — otevření vývojářských nástrojů a editoru mapy. */
+/* Lišta nahoře uprostřed — tlačítko pro otevření editoru mapy. */
 .dev-bar {
   position: absolute;
   top: 12px;
@@ -373,110 +404,6 @@
 .dev-bar__btn.is-open {
   border-color: var(--glow-accent);
   color: var(--text-main);
-}
-
-/* Panel vývojářských nástrojů — otevřený hned po startu, technický vzhled. */
-.dev-panel {
-  position: absolute;
-  top: 56px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: none;
-  width: 260px;
-  padding: 10px 12px;
-  background: var(--bg-panel);
-  border: 1px solid rgba(224, 164, 88, 0.35);
-  border-radius: 6px;
-  font-size: 12px;
-  line-height: 1.5;
-  backdrop-filter: blur(4px);
-  box-shadow: 0 0 14px rgba(224, 164, 88, 0.08);
-  z-index: 21;
-  user-select: none;
-  cursor: grab;
-}
-
-.dev-panel.is-open {
-  display: block;
-}
-
-.dev-panel.is-dragging {
-  cursor: grabbing;
-  z-index: 24;
-}
-
-.dev-panel__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
-.dev-panel__title {
-  font-size: 12px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--glow-warm);
-  font-weight: 700;
-}
-
-.dev-panel__close {
-  background: none;
-  border: 1px solid rgba(224, 164, 88, 0.35);
-  border-radius: 4px;
-  color: var(--glow-warm);
-  font-family: inherit;
-  font-size: 12px;
-  line-height: 1;
-  padding: 1px 6px;
-  cursor: pointer;
-}
-
-.dev-panel__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.dev-panel__label {
-  color: var(--text-dim);
-}
-
-.dev-panel__choices {
-  display: flex;
-  gap: 4px;
-}
-
-.dev-panel__choices button,
-.dev-panel__halt {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(224, 164, 88, 0.3);
-  border-radius: 4px;
-  color: var(--glow-warm);
-  font-family: inherit;
-  font-size: 11px;
-  padding: 3px 7px;
-  cursor: pointer;
-}
-
-.dev-panel__choices button:hover,
-.dev-panel__halt:hover {
-  border-color: var(--glow-warm);
-  color: var(--text-main);
-}
-
-.dev-panel__choices button.is-active,
-.dev-panel__halt.is-active {
-  border-color: var(--glow-warm);
-  background: rgba(224, 164, 88, 0.18);
-  color: var(--text-main);
-}
-
-.dev-panel__note {
-  color: var(--text-dim);
-  font-size: 11px;
 }
 
 /* Obrazovka pauzy — ztmaví celou hru a uprostřed nechá kartu s pokračováním. */

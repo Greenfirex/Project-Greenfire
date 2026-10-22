@@ -1,4 +1,6 @@
 // DOM HUD — panely s ovládáním a stavem. Nad canvasem, do scény sahá jen callbacky.
+const SPEEDS = [1, 2, 5, 10];
+
 export default class Hud {
 
   constructor() {
@@ -13,9 +15,11 @@ export default class Hud {
     this.clockTimeEl = null;
     this.clockPhaseEl = null;
     this.clockSpeedEl = null;
+    this.speedBtns = new Map();
     this.onSave = null;
     this.onLoad = null;
     this.onToggleMachine = null;
+    this.onSpeed = null;
   }
 
   mount() {
@@ -40,7 +44,6 @@ export default class Hud {
       <div class="hud-row"><span>Uložit</span><span class="hud-key">F5</span></div>
       <div class="hud-row"><span>Načíst</span><span class="hud-key">F9</span></div>
       <div class="hud-row"><span>Možnosti</span><span class="hud-key">O</span></div>
-      <div class="hud-row"><span>Vývojářské nástroje</span><span class="hud-key">F2</span></div>
       <div class="hud-row"><span>Pauza / pokračovat</span><span class="hud-key">P</span></div>
       <div class="hud-hint">Stavět a bourat lze jen s plánem v ruce. Bourání je dvoukrokové: první pravé tlačítko stroj označí, druhé ho zbourá.</div>
     `;
@@ -76,9 +79,22 @@ export default class Hud {
         <span id="hud-clock-phase">—</span>
         <span id="hud-clock-speed">1×</span>
       </div>
+      <div class="hud-clock__speeds" id="hud-clock-speeds"></div>
       <div class="hud-clock__flash" id="hud-clock-flash"></div>
     `;
     this.layer.appendChild(this.clockEl);
+
+    const speedHost = this.clockEl.querySelector('#hud-clock-speeds');
+    for (const speed of SPEEDS) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = `${speed}×`;
+      btn.addEventListener('click', () => {
+        if (this.onSpeed) this.onSpeed(speed);
+      });
+      speedHost.appendChild(btn);
+      this.speedBtns.set(speed, btn);
+    }
 
     this.clockTimeEl = this.clockEl.querySelector('#hud-clock-time');
     this.clockPhaseEl = this.clockEl.querySelector('#hud-clock-phase');
@@ -141,6 +157,9 @@ export default class Hud {
     const text = paused ? 'Pauza' : `${speed}×`;
     if (this.clockSpeedEl.textContent !== text) this.clockSpeedEl.textContent = text;
     this.clockEl.classList.toggle('is-paused', paused);
+    for (const [value, btn] of this.speedBtns) {
+      btn.classList.toggle('is-active', value === speed);
+    }
   }
 
   flashClock(text) {
