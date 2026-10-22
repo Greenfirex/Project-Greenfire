@@ -63,6 +63,11 @@ export function loadModel(scene, url) {
   return cache.get(url);
 }
 
+export async function resolveModel(scene, url) {
+  const result = await loadModel(scene, url);
+  return result && result.getChildMeshes ? result : null;
+}
+
 export async function preloadModel(scene, url) {
   const root = await withTimeout(loadModel(scene, url), MODEL_TIMEOUT_MS);
   if (!root) console.warn(`[asset] Model se nepodařilo načíst do ${MODEL_TIMEOUT_MS / 1000} s: ${url}`);
@@ -97,8 +102,9 @@ export function tellModelLoaded() {
 
 function notifyWaiters() {
   if (pending > 0) return;
-  for (const resolve of waiters) resolve();
+  const list = Array.from(waiters);
   waiters.clear();
+  for (const resolve of list) resolve();
 }
 
 export function getLoadedModels() {
@@ -108,6 +114,7 @@ export function getLoadedModels() {
 export function instantiateModel(scene, template, name) {
   if (!template) return null;
   const node = template.clone(name, null, false);
+  if (!node) return null;
   node.setEnabled(true);
   node.scaling = node.scaling.scale(MODEL_SCALE);
   for (const child of node.getChildMeshes()) {
@@ -116,5 +123,15 @@ export function instantiateModel(scene, template, name) {
     child.receiveShadows = true;
   }
   return node;
+}
+
+export function ownMaterials(node) {
+  if (!node || !node.getChildMeshes) return;
+  for (const child of node.getChildMeshes()) {
+    const source = child.material;
+    if (!source) continue;
+    if (source.isDisposed && source.isDisposed()) continue;
+    child.material = source.clone(`${source.name}_own`);
+  }
 }
 

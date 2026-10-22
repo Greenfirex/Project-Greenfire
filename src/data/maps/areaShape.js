@@ -50,6 +50,23 @@ export function dropDecorationCell(world, cx, cz) {
   world.decorations = kept;
   return true;
 }
+export function floorCellAt(world, cx, cz) {
+  if (!world) return null;
+  const list = world.floor || [];
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    const entry = list[i];
+    if (entry && entry.cx === cx && entry.cz === cz) return entry;
+  }
+  return null;
+}
+export function dropFloorCell(world, cx, cz) {
+  if (!world) return false;
+  const entries = world.floor || [];
+  const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+  if (kept.length === entries.length) return false;
+  world.floor = kept;
+  return true;
+}
 export function dropLayerCell(world, cx, cz) {
   if (!world) return false;
   let dropped = false;

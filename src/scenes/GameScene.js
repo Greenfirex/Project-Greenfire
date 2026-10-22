@@ -48,6 +48,7 @@ import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { SAVE_DEFAULTS, SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
 import { collectModelUrls } from '../data/catalogs/modelCatalog.js';
 import { mapFileFromLayout, layoutFromMapFile, isMapFile } from '../data/catalogs/mapFile.js';
+import { worldCells } from '../data/maps/areaShape.js';
 import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { readJSON, writeJSON } from '../utils/storage.js';
@@ -62,6 +63,7 @@ const AUTOTUNE_STEP = 0.1;
 const WORLD_BATCH = 4;
 const STAGE_LEAD_FRAMES = 2;
 const MODEL_LANES = 4;
+const DECO_SETTLE_PASSES = 2;
 const LOAD_RETRIES = 2;
 const BUILD_RANGE_CELLS = 2;
 const WALK_CLEARANCE = 1.25;
@@ -243,7 +245,7 @@ export default class GameScene {
     this.loader.beginFloat('Připravuji postavu…');
     await this.setupPlayer();
     this.loader.endFloat();
-    this.floraSystem.create(this.decoSystem, this.options.grass, this.terrainSystem.groundCells);
+    this.floraSystem.create(this.decoSystem, this.options.grass);
     this.refreshShadowCasters();
     await this.waitForWorld();
     this.s.loaded = true;
@@ -640,7 +642,6 @@ updateGatherTarget() {
     this.editorHud.onHeightStep = (delta) => this.editorMode.stepHeightLevel(delta);
     this.editorHud.onSmooth = () => this.editorMode.smoothHeights();
     this.editorHud.onClose = () => this.exitEditor();
-    this.editorHud.onBrushOpts = (key, opts) => this.setBrushOpts(key, opts);
     this.editorHud.onSaveMap = () => this.saveMapLayout();
     this.brushPanel.onThumbnail = (key, img) => this.fillThumbnail(key, img);
     this.brushPanel.onApply = () => this.applyBrushDraft();
@@ -700,13 +701,6 @@ updateGatherTarget() {
     this.refreshUndoButton();
     this.refreshZoneOverlay();
     this.handleHover(this.hoverCell);
-  }
-
-  setBrushOpts(brushKey, opts) {
-    this.editorMode.setBrushOpts(brushKey, opts);
-    if (this.editorMode.draft && this.editorMode.draft.brushKey === brushKey) {
-      this.editorMode.setDraftOpts(opts);
-    }
   }
 
   applyBrushDraft() {
@@ -837,16 +831,65 @@ updateGatherTarget() {
     this.adoptEditorMap();
     this.markMapDirty();
     this.refreshTerrain();
-    this.terrainSystem.whenReady().then(() => {
-      this.decoHighlight.clear();
-      this.decoSystem.create(this.mapFile, getMap(this.mapKey).colors);
-      this.floraSystem.create(this.decoSystem, this.options.grass, this.terrainSystem.groundCells);
-      this.gatherSystem.syncFromDeco();
-      this.campfireSystem.sync(this.mapFile.decorations || []);
-      this.restoreGatherEntries(exhausted);
-      this.refreshShadowCasters();
-      this.handleHover(this.hoverCell);
-    });
+    this.terrainSystem.whenReady()
+      .then(() => this.rebuildDecorations(exhausted))
+      .catch((error) => this.reportRebuildError(error));
+  }
+
+  async rebuildDecorations(exhausted) {
+    const layout = this.mapFile || {};
+    const entries = [];
+    for (const stage of describeWorld(layout)) {
+      for (const entry of stagePieces(layout, stage)) entries.push(entry);
+    }
+    for (const entry of layout.decorations || []) {
+      if (!entries.includes(entry)) entries.push(entry);
+    }
+    await this.loadStageModels(entries, null);
+    this.decoSystem.brokenCount = 0;
+    this.decoHighlight.clear();
+    this.decoSystem.create(this.mapFile, getMap(this.mapKey).colors);
+    await this.settleDecorations();
+    this.finishRebuild(exhausted);
+  }
+
+  settleDecorations() {
+    return this.decoSystem.settle()
+      .catch((error) => console.error('[deco] Čekání na modely selhalo:', error))
+      .then(() => this.decoSystem.finishStages());
+  }
+
+  finishRebuild(exhausted) {
+    this.floraSystem.create(this.decoSystem, this.options.grass);
+    this.gatherSystem.syncFromDeco();
+    this.campfireSystem.sync((this.mapFile || {}).decorations || []);
+    this.restoreGatherEntries(exhausted);
+    this.refreshShadowCasters();
+    this.handleHover(this.hoverCell);
+    this.reportRebuild();
+  }
+
+  reportRebuildError(error) {
+    const reason = error && error.message ? error.message : 'neznámá chyba';
+    console.error('[mapa] Skládání světa selhalo:', error);
+    this.editorHud.setReadout(`Mapu se nepodařilo postavit — ${reason}`);
+  }
+
+  async settleDecorations() {
+    for (let pass = 0; pass < DECO_SETTLE_PASSES; pass += 1) await this.decoSystem.settle();
+  }
+
+
+  reportRebuild() {
+    const broken = this.decoSystem.brokenCount || 0;
+    const placed = this.decoSystem.placedCount();
+    if (!this.editorMode.active) return;
+    if (broken === 0) {
+      this.editorHud.setReadout(`Aplikováno — postaveno ${placed} objektů.`);
+      return;
+    }
+    const label = broken === 1 ? '1 objekt se nepostavil' : `${broken} objektů se nepostavilo`;
+    this.editorHud.setReadout(`Aplikováno ${placed} objektů, ale ${label} — chybí model.`);
   }
 
   restoreGatherEntries(exhausted) {
@@ -1589,10 +1632,14 @@ updateGatherTarget() {
   isWalkableAt(x, z) {
     const { cx, cz } = worldToCellCoords(x, z);
     if (!this.areaLookup) {
-      this.areaLookup = new Set((this.terrainSystem.realCells || []).map(([ax, az]) => `${ax},${az}`));
+      this.areaLookup = new Set(this.areaCellsNow().map(([ax, az]) => `${ax},${az}`));
     }
     if (!this.areaLookup.has(`${cx},${cz}`)) return false;
     return this.decoSystem.topAt(cx, cz) < WALK_CLEARANCE;
+  }
+
+  areaCellsNow() {
+    return worldCells(this.decoSystem.layout || this.terrainSystem.layout || null);
   }
 
   withinBuildRange(cx, cz) {

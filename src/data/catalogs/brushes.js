@@ -40,7 +40,7 @@ export const BRUSHES = {
   grass: {
     label: 'Tráva',
     shape: 'blob',
-    pool: [],
+    pool: ['grass_patch'],
     deco: true,
   },
   trail: {
@@ -100,7 +100,6 @@ export const BRUSHES = {
     label: 'Ruda',
     shape: 'blob',
     style: 'iron',
-    scatter: true,
     styles: ['iron', 'copper'],
     poolByStyle: {
       iron: ['ore_iron'],

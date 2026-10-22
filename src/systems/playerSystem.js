@@ -90,6 +90,8 @@ export default class PlayerSystem {
     this.igniteTimer = 0;
     this.igniteImpactAt = 0;
     this.travelled = 0;
+    this.homeX = 0;
+    this.homeZ = 0;
     this.onStep = null;
     this.onProgress = null;
     this.progressTotal = 1 + PLAYER_ANIMS.length + 1;
@@ -121,6 +123,8 @@ export default class PlayerSystem {
       root.rotation.y = MODEL_YAW;
       const start = this.spawnCell ? cellToWorldCoords(this.spawnCell.cx, this.spawnCell.cz) : SPAWN;
       this.root.position = new Vector3(start.x, 0, start.z);
+      this.homeX = start.x;
+      this.homeZ = start.z;
 
       this.loadAnimations(loaded.slice(1));
       this.reportProgress(3);
@@ -285,11 +289,13 @@ export default class PlayerSystem {
     return true;
   }
 
-  faceTo(x, z) {
-    if (!this.root) return;
+  faceTo(x, z, maxDistance) {
+    if (!this.root || this.root.isDisposed()) return;
     const dx = x - this.root.position.x;
     const dz = z - this.root.position.z;
-    if (dx * dx + dz * dz < 0.0001) return;
+    const distSq = dx * dx + dz * dz;
+    if (distSq < 0.0001) return;
+    if (Number.isFinite(maxDistance) && distSq > maxDistance * maxDistance) return;
     this.facing = Math.atan2(dx, dz);
     this.root.rotation.y = this.facing;
   }
@@ -320,6 +326,34 @@ export default class PlayerSystem {
         mesh.setEnabled(false);
       }
     }
+  }
+
+  updateHome() {
+    if (!this.root || this.root.isDisposed()) return;
+    const pos = this.root.position;
+    if (!Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return;
+    this.homeX = pos.x;
+    this.homeZ = pos.z;
+  }
+
+  keepGrounded() {
+    const root = this.root;
+    if (!root || root.isDisposed()) return;
+    if (!Number.isFinite(root.position.x) || !Number.isFinite(root.position.z) || !Number.isFinite(root.position.y)) {
+      root.position.set(this.homeX, 0, this.homeZ);
+    }
+    if (!root.isEnabled(false)) root.setEnabled(true);
+    if (!this.mesh || this.mesh.isDisposed()) return;
+    if (!this.mesh.isEnabled(false)) this.mesh.setEnabled(true);
+  }
+
+  endStrike() {
+    this.strikeTimer = 0;
+    this.play(this.idleAnim());
+  }
+
+  idleAnim() {
+    return this.heldToolKey ? 'holdTool' : 'idle';
   }
 
   play(key, restart = false) {
@@ -384,13 +418,26 @@ export default class PlayerSystem {
     for (let i = 0; i < 8; i++) {
       const x = this.root.position.x;
       const z = this.root.position.z;
+      if (!Number.isFinite(x) || !Number.isFinite(z)) {
+        this.root.position.set(this.homeX, 0, this.homeZ);
+        return false;
+      }
       if (this.blockedTest) {
         const { cx, cz } = worldToCellCoords(x, z);
         if (this.blockedTest(cx, cz)) return false;
       }
       const contact = this.decoSystem.nearestContact(x, z, BODY_RADIUS + BODY_MARGIN, 0);
       if (!contact) return i > 0;
-      this.root.position = new Vector3(x + contact.nx * (0.02 - contact.gap), 0, z + contact.nz * (0.02 - contact.gap));
+      const nLen = Math.sqrt(contact.nx * contact.nx + contact.nz * contact.nz);
+      if (!Number.isFinite(nLen) || nLen < 0.0001) return false;
+      const nx = contact.nx / nLen;
+      const nz = contact.nz / nLen;
+      const push = Math.max(0.02, 0.02 - contact.gap);
+      if (!Number.isFinite(push)) return false;
+      const nextX = x + nx * push;
+      const nextZ = z + nz * push;
+      if (!Number.isFinite(nextX) || !Number.isFinite(nextZ)) return false;
+      this.root.position = new Vector3(nextX, 0, nextZ);
     }
     return !this.decoSystem.overlaps(this.root.position.x, this.root.position.z, BODY_RADIUS + BODY_MARGIN);
   }
@@ -434,7 +481,8 @@ export default class PlayerSystem {
   }
 
   update(dt) {
-    if (!this.ready || !this.root) return;
+    if (!this.ready || !this.root || this.root.isDisposed()) return;
+    this.keepGrounded();
     this.ensurePlaying();
     if (this.strikeTimer > 0) {
       this.strikeTimer -= dt;
@@ -442,6 +490,7 @@ export default class PlayerSystem {
       if (this.strikeTimer > 0) return;
       const done = this.anims[this.strikeAnim];
       if (done) done.pause();
+      this.endStrike();
     }
     if (this.igniteTimer > 0) {
       this.igniteTimer -= dt;
@@ -475,6 +524,7 @@ export default class PlayerSystem {
     const step = (sprint ? MOVE_SPEED : WALK_SPEED) * dt;
     this.tryMove(this.root.position.x + move.x * step, this.root.position.z + move.z * step, move.x, move.z, step);
     this.updateSteps(sprint, step);
+    this.updateHome();
 
     const target = Math.atan2(move.x, move.z);
     this.facing = turnToward(this.facing, target, TURN_SPEED * dt);

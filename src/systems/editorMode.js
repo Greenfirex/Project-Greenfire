@@ -3,9 +3,12 @@
 import { BRUSHES } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { cellKey, MAX_HEIGHT } from '../data/maps/layoutStore.js';
-import { hasLayerCell, layerAt, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
+import { layerAt, floorCellAt, dropFloorCell, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
+import { fillZone } from '../utils/zoneFill.js';
+import { createRng, seedFor } from '../utils/rng.js';
 
 const HISTORY_LIMIT = 100;
+const FALLBACK_FLOOR = 'floor_grass';
 
 export default class EditorMode {
 
@@ -115,16 +118,6 @@ export default class EditorMode {
     if (this.onManualModeChange) this.onManualModeChange(next, this.tileKey);
   }
 
-  setBrushOpts(key, opts) {
-    if (!BRUSHES[key]) return;
-    if (opts) this.brushOpts[key] = { ...opts };
-    else delete this.brushOpts[key];
-  }
-
-  getBrushOpts(key) {
-    return this.brushOpts[key] || null;
-  }
-
   setMode(mode) {
     if (mode !== 'zone' && mode !== 'height' && mode !== 'area') return;
     this.mode = mode;
@@ -179,7 +172,7 @@ export default class EditorMode {
     if (!this.isManualBrush()) return false;
     if (!this.tileKey || !getDecoration(this.tileKey)) return false;
     this.pushHistory();
-    this.placeEntry(this.tileKey, cx, cz, rotation);
+    this.fixMissingFloor();
     this.scheduleRegenerate();
     return true;
   }
@@ -305,10 +298,59 @@ export default class EditorMode {
   placeEntry(key, cx, cz, rotation = 0, liftY = 0, layer = null) {
     const entry = { key, cx, cz, rotation: ((rotation % 4) + 4) % 4 };
     if (liftY) entry.liftY = liftY;
-    const target = layer || (this.isWaterCell(cx, cz) ? 'water' : this.isPathCell(cx, cz) ? 'path' : 'floor');
-    dropLayerCell(this.layout, cx, cz);
+    let target = layer;
+    if (!target) {
+      if (this.isWaterCell(cx, cz)) target = 'water';
+      else if (this.isPathCell(cx, cz)) target = 'path';
+      else target = 'floor';
+    }
+    const floor = floorCellAt(this.layout, cx, cz);
+    if (target === 'floor') {
+      dropFloorCell(this.layout, cx, cz);
+      if (!layer) this.dropPathAt(cx, cz);
+    } else {
+      if (floor && floor.liftY && !entry.liftY) entry.liftY = floor.liftY;
+      dropLayerCell(this.layout, cx, cz);
+    }
     this.layout[target].push(entry);
+    if (target === 'path') this.dropFloorAt(cx, cz);
     return entry;
+  }
+
+  dropPathAt(cx, cz) {
+    for (const name of ['path', 'manual']) {
+      const list = this.layout[name] || [];
+      const kept = list.filter((entry) => entry.cx !== cx || entry.cz !== cz);
+      if (kept.length !== list.length) this.layout[name] = kept;
+    }
+  }
+
+  dropFloorAt(cx, cz) {
+    const list = this.layout.floor || [];
+    const kept = list.filter((entry) => entry.cx !== cx || entry.cz !== cz);
+    if (kept.length !== list.length) this.layout.floor = kept;
+  }
+
+  keepFloor(cx, cz) {
+    const floor = floorCellAt(this.layout, cx, cz);
+    return floor ? floor.key : FALLBACK_FLOOR;
+  }
+
+  fixMissingFloor() {
+    const cells = worldCells(this.layout);
+    if (!cells.length) return 0;
+    const seen = new Set();
+    for (const [cx, cz] of cells) seen.add(cellKey(cx, cz));
+    for (const entry of this.layout.decorations || []) {
+      if (!entry) continue;
+      const key = cellKey(entry.cx, entry.cz);
+      if (seen.has(key)) continue;
+      const floorKey = this.keepFloor(entry.cx, entry.cz);
+      if (!getDecoration(floorKey)) continue;
+      seen.add(key);
+      this.layout.floor.push({ key: floorKey, cx: entry.cx, cz: entry.cz, rotation: 0 });
+    }
+    return seen.size;
   }
 
   setTileLift(cx, cz, height) {
@@ -446,6 +488,7 @@ export default class EditorMode {
         this.placeEntry(this.tileKey || FALLBACK_FLOOR, cx, cz, 0, liftY);
         count += 1;
       }
+      this.fixMissingFloor();
     }
     if (!count) {
       this.history.pop();
@@ -467,15 +510,9 @@ export default class EditorMode {
   beginDraft(brushKey) {
     if (!this.layout) return;
     if (!BRUSHES[brushKey]) return;
-    const opts = this.brushOpts[brushKey];
-    if (this.draft && this.draft.brushKey === brushKey) {
-      if (opts) this.draft.opts = { ...opts };
-      else delete this.draft.opts;
-      return;
-    }
+    if (this.draft && this.draft.brushKey === brushKey) return;
     if (this.draft) this.cancelDraft();
     this.draft = { brushKey, cells: new Set(), mode: this.erasing ? 'remove' : 'add' };
-    if (opts) this.draft.opts = { ...opts };
     if (this.onDraftChange) this.onDraftChange(this.draft);
   }
 
@@ -497,12 +534,6 @@ export default class EditorMode {
     }
   }
 
-  setDraftOpts(opts) {
-    if (!this.draft) return;
-    if (opts) this.draft.opts = { ...opts };
-    else delete this.draft.opts;
-  }
-
   get hasDraft() {
     return Boolean(this.draft);
   }
@@ -513,7 +544,7 @@ export default class EditorMode {
 
   canDraftCell(cx, cz) {
     if (!this.draft) return false;
-    if (this.draft.mode === 'remove') return hasLayerCell(this.layout, cx, cz);
+    if (this.draft.mode === 'remove') return droppable(this.layout, cx, cz).length > 0;
     return this.canEditCell(cx, cz);
   }
 
@@ -537,7 +568,7 @@ export default class EditorMode {
 
   applyDraft() {
     if (!this.draft) return 0;
-    const { brushKey, cells, opts, mode } = this.draft;
+    const { brushKey, cells, mode } = this.draft;
     if (!cells.size) {
       if (this.onDraftChange) this.onDraftChange(this.draft);
       return 0;
@@ -545,31 +576,53 @@ export default class EditorMode {
     this.pushHistory();
     const brush = BRUSHES[brushKey] || {};
     const shape = brush.shape;
-    const fillKey = brush.deco ? ((opts && opts.key) || this.tileKey) : (brush.tile || FALLBACK_FLOOR);
     const stepLevel = brush.height ? brush.height / HEIGHT_STEP : this.heightLevel;
     const liftY = shape === 'line' ? 0 : Math.round(stepLevel) * HEIGHT_STEP;
-    for (const key of cells) {
-      const [cx, cz] = key.split(',').map(Number);
+    const filled = this.zoneEntries(brushKey, brush, [...cells], mode);
+    for (const cell of filled) {
+      const { cx, cz } = cell;
       if (mode === 'remove') {
+        dropDecorationCell(this.layout, cx, cz);
+        if (brush.deco) continue;
         dropLayerCell(this.layout, cx, cz);
         this.dropTopEntry(cx, cz);
         this.dropOrphans();
         continue;
       }
+      const key = brush.deco ? (cell.key || this.tileKey) : cell.key;
+      if (!key || !getDecoration(key)) continue;
       if (brush.deco) {
-        dropLayerCell(this.layout, cx, cz);
-        this.layout.decorations.push({ key: fillKey, cx, cz, rotation: 0 });
+        dropDecorationCell(this.layout, cx, cz);
+        const entry = { key, cx, cz, rotation: 0 };
+        if (cell.liftY) entry.liftY = cell.liftY;
+        this.layout.decorations.push(entry);
         continue;
       }
-      if (shape === 'line') this.placeEntry(fillKey, cx, cz, 0, 0, 'path');
-      else if (brushKey === 'water') this.placeEntry(fillKey, cx, cz, 0, 0, 'water');
-      else this.placeEntry(fillKey, cx, cz, 0, liftY, 'floor');
+      if (shape === 'line') this.placeEntry(key, cx, cz, cell.rotation || 0, 0, 'path');
+      else if (brushKey === 'water') this.placeEntry(key, cx, cz, cell.rotation || 0, 0, 'water');
+      else this.placeEntry(key, cx, cz, 0, liftY, 'floor');
     }
+    this.fixMissingFloor();
     const count = cells.size;
     this.draft.cells.clear();
     if (this.onDraftChange) this.onDraftChange(this.draft);
     this.scheduleRegenerate();
     return count;
+  }
+
+  zoneEntries(brushKey, brush, cellKeys, mode) {
+    if (mode === 'remove') return cellKeys.map(parseCell);
+    const pool = this.brushPool(brushKey);
+    const filled = fillZone(
+      (label) => createRng(seedFor(this.layout.seed || 1, `${brushKey}:${label}:${Date.now()}`, 0, 0)),
+      {
+        ...brush,
+        pool: pool.length ? pool : brush.pool,
+      },
+      cellKeys,
+    );
+    const fallback = brush.deco ? this.tileKey : (brush.tile || pool[0]);
+    return filled.map((cell) => (cell.key ? cell : { ...cell, key: fallback }));
   }
 
   cancelDraft() {
@@ -591,6 +644,7 @@ export default class EditorMode {
       return;
     }
     this.placeEntry(this.tileKey || FALLBACK_FLOOR, cx, cz, 0, this.heightLevel > 0 ? this.heightLevel * HEIGHT_STEP : 0);
+    this.fixMissingFloor();
   }
 
   smoothHeights() {
@@ -703,7 +757,6 @@ export default class EditorMode {
 
 const ORTHO = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const HEIGHT_STEP = 0.6;
-const FALLBACK_FLOOR = 'floor_grass';
 
 function toWorld(world) {
   const copy = (list) => (list || []).map((entry) => ({ ...entry }));
@@ -717,6 +770,17 @@ function toWorld(world) {
     manual: copy(world.manual),
     decorations: copy(world.decorations),
   };
+}
+
+function droppable(layout, cx, cz) {
+  const layers = (layout.layers || []).filter((layer) => layer.cells && layer.cells.some((cell) => cell.cx === cx && cell.cz === cz));
+  const decos = (layout.decorations || []).filter((entry) => entry && entry.cx === cx && entry.cz === cz);
+  return [...layers, ...decos];
+}
+
+function parseCell(cellKeyValue) {
+  const [cx, cz] = String(cellKeyValue).split(',').map(Number);
+  return { cx, cz };
 }
 
 function areaRectOf(x0, z0, x1, z1) {

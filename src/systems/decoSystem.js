@@ -8,7 +8,7 @@ import { cellToWorldCoords, worldToCellCoords, cellKey, indexToCellCoords, CELL_
 import { getDecoration, decoHeight } from '../data/catalogs/decorations.js';
 import { pieceCount } from './pieceCount.js';
 import { deriveBlocked } from '../data/maps/layoutStore.js';
-import { loadModel, instantiateModel, whenModelsIdle } from '../utils/assetLoader.js';
+import { resolveModel, instantiateModel, ownMaterials, whenModelsIdle } from '../utils/assetLoader.js';
 import { tintTemplate, forgetTints } from '../utils/decoTint.js';
 
 const PATH_LIFT = 0.002;
@@ -49,11 +49,14 @@ export default class DecoSystem {
     this.columnTop = new Map();
     this.surfaceKeys = new Map();
     this.onDecoReady = null;
+    this.onDecoBroken = null;
     this.colors = null;
     this.nodes = [];
+    this.anchors = [];
     this.pathNodes = [];
     this.waterNodes = [];
     this.pendingPieces = [];
+    this.brokenCount = 0;
   }
 
   create(layout, colors) {
@@ -62,6 +65,7 @@ export default class DecoSystem {
     this.blocked.clear();
     this.columnTop.clear();
     this.surfaceKeys.clear();
+    this.brokenCount = 0;
     this.colors = colors || null;
     this.applyLayout(layout);
   }
@@ -86,6 +90,7 @@ export default class DecoSystem {
     this.blocked.clear();
     this.columnTop.clear();
     this.surfaceKeys.clear();
+    this.brokenCount = 0;
     this.colors = colors || null;
     this.layout = layout;
   }
@@ -106,10 +111,13 @@ export default class DecoSystem {
   }
 
   async settle() {
-    await whenModelsIdle();
-    const rest = this.pendingPieces.filter(Boolean);
-    this.pendingPieces.length = 0;
-    if (rest.length) await Promise.all(rest.map((work) => work.catch(() => null)));
+    await whenModelsIdle().catch(() => null);
+    for (;;) {
+      const rest = this.pendingPieces.filter(Boolean);
+      this.pendingPieces.length = 0;
+      if (!rest.length) return;
+      await Promise.all(rest.map((work) => work.catch(() => null)));
+    }
   }
 
   finishStages() {
@@ -265,6 +273,7 @@ export default class DecoSystem {
     anchor.rotation.y = (Math.PI / 2) * entry.rotation;
     anchor.metadata = { key: entry.key, def, bucket, entry };
     bucket.push(anchor);
+    this.anchors.push(anchor);
     return anchor;
   }
 
@@ -274,33 +283,55 @@ export default class DecoSystem {
     return total;
   }
 
+  placedCount() {
+    let total = 0;
+    for (const node of this.anchors) {
+      if (node && !node.isDisposed() && node.metadata?.model) total += 1;
+    }
+    return total;
+  }
+
   dispose() {
-    for (const node of this.s.transformNodes.slice()) this.disposeAnchor(node);
+    for (const anchor of this.anchors.slice()) this.disposeAnchor(anchor);
+    this.anchors.length = 0;
     this.nodes.length = 0;
     this.pathNodes.length = 0;
     this.waterNodes.length = 0;
+    this.pendingPieces.length = 0;
   }
 
   disposeAnchor(node) {
-    if (!node || node.isDisposed() || !node.name?.startsWith('deco_')) return;
+    if (!node || node.isDisposed()) return;
     const bucket = node.metadata?.bucket;
     const index = bucket ? bucket.indexOf(node) : -1;
     if (index >= 0) bucket.splice(index, 1);
+    const own = this.anchors.indexOf(node);
+    if (own >= 0) this.anchors.splice(own, 1);
     node.dispose(false, false);
   }
 
   async attachModel(anchor, def, entry, section) {
-    const template = await loadModel(this.s, def.model);
-    if (!template || anchor.isDisposed()) return;
+    try {
+      await this.attachModelNow(anchor, def, entry, section);
+    } catch (error) {
+      console.warn('[deco] Model se nepodařilo připojit:', def.model, error);
+      if (!anchor.isDisposed() && !anchor.metadata?.broken) this.markBroken(anchor, def);
+    }
+  }
+
+  async attachModelNow(anchor, def, entry, section) {
+    const template = await resolveModel(this.s, def.model);
+    if (anchor.isDisposed()) return;
+    if (!template) return this.markBroken(anchor, def);
 
     const node = instantiateModel(this.s, template, `decoModel_${entry.key}_${entry.cx}_${entry.cz}`);
-    if (!node) return;
+    if (!node) return this.markBroken(anchor, def);
     node.parent = anchor;
     node.position = new Vector3(0, 0, 0);
     node.scaling = new Vector3(def.scale, def.scale, def.scale);
+    ownMaterials(node);
     tintTemplate(node, def, this.colors, section);
     anchor.metadata.model = node;
-
     if (this.onDecoReady) this.onDecoReady(anchor, node, def, entry);
   }
 
@@ -330,6 +361,16 @@ export default class DecoSystem {
 
   isTaken(node) {
     return !!(node && node.metadata && node.metadata.taken);
+  }
+
+  isBroken(node) {
+    return !!(node && node.metadata && node.metadata.broken);
+  }
+
+  markBroken(anchor, def) {
+    if (anchor) anchor.metadata = { ...(anchor.metadata || {}), broken: true };
+    this.brokenCount += 1;
+    console.warn(`[deco] Model se nepodařilo postavit: ${def.displayName || def.model}`);
   }
 
   isBlocked(cx, cz) {

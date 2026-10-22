@@ -17,15 +17,17 @@ export function tintTemplate(template, def, colors, section = 'deco') {
     bySection.set(key, cached);
   }
 
-  for (const child of template.getChildMeshes()) {
+  const targets = template.getChildMeshes ? template.getChildMeshes() : [];
+  for (const child of targets) {
     const source = child.material;
     if (!source) continue;
+    if (source.isDisposed && source.isDisposed()) continue;
     let built = cached.get(source);
-    if (!built) {
+    if (!built || (built.isDisposed && built.isDisposed())) {
       built = makeTinted(source, def, colors, key);
       cached.set(source, built);
     }
-    child.material = built;
+    if (built && built !== source) child.material = built;
   }
 }
 

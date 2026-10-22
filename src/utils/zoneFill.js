@@ -1,5 +1,5 @@
 // Vyplňování zón — ze seznamu buněk a předpisu brushu udělá konkrétní dekorace.
-// Čtyři tvary: blob (rozhazování), line (spojitá trasa), perimeter (okraj), outline_fill (vnitřek + lem).
+// Čtyři tvary: blob (plošné vyplnění), line (spojitá trasa), perimeter (okraj), outline_fill (vnitřek + lem).
 import { pick } from './rng.js';
 
 const ORTHO = [[0, -1], [1, 0], [0, 1], [-1, 0]];
@@ -40,45 +40,18 @@ function cellRng(makeRng, k) {
   return makeRng(k);
 }
 
-function fadeEdges(cells, makeRng, blur) {
-  const list = sortedCells(cells);
-  if (!blur) return list;
-  const result = [];
-  for (const k of list) {
-    const [cx, cz] = parse(k);
-    let open = 0;
-    for (const [dx, dz] of ORTHO) if (!cells.has(key(cx + dx, cz + dz))) open++;
-    if (open > 0 && cellRng(makeRng, k)() < (open / ORTHO.length) * 0.55) continue;
-    result.push(k);
-  }
-  return result;
-}
-
-function fillBlob(makeRng, brush, cells, occupied) {
-  const opts = brush.opts || {};
-  const free = cells.filter((k) => !occupied.has(k));
-  if (!free.length) return [];
+function fillBlob(makeRng, brush, cells) {
+  if (!cells.length) return [];
 
   const pool = brush.pool && brush.pool.length
     ? brush.pool
     : [...new Set(Object.values(brush.poolByStyle || {}).flat())];
-  const scatter = Boolean(opts.scatter);
-  const blur = scatter && Boolean(opts.blur);
-  const density = scatter ? (opts.fill ?? 1) : 1;
 
-  const kept = fadeEdges(new Set(free), makeRng, blur);
-  const out = [];
-
-  for (const k of kept) {
-    const [cx, cz] = parse(k);
-    if (cellRng(makeRng, k)() > density) continue;
-    out.push({ cx, cz });
-  }
-
-  if (!pool.length) return out;
-  return out.map((cell) => {
-    const local = cellRng(makeRng, key(cell.cx, cell.cz));
-    return { ...cell, key: pick(local, pool) };
+  const out = cells.map((k) => parse(k));
+  if (!pool.length) return out.map(([cx, cz]) => ({ cx, cz }));
+  return out.map(([cx, cz]) => {
+    const local = cellRng(makeRng, key(cx, cz));
+    return { cx, cz, key: pick(local, pool) };
   });
 }
 
@@ -125,12 +98,8 @@ function fillPerimeter(makeRng, brush, cells) {
   const out = [];
   for (const k of edge) {
     const [cx, cz] = parse(k);
-    const local = cellRng(makeRng, k);
     for (let level = 0; level < stack; level++) {
       out.push({ cx, cz, key: palette.length ? palette[Math.min(level, palette.length - 1)] : null, level });
-    }
-    if (brush.scatter && brush.scatter.fill && isInner(k, new Set(cells)) && local() <= brush.scatter.fill) {
-      out.push({ cx, cz, key: pick(local, brush.scatter.pool) });
     }
   }
   return out;
@@ -165,20 +134,10 @@ function fillOutline(makeRng, brush, cells) {
     out.push({ cx, cz, key: pick(local, brush.edge.pool), rotation, liftY: brush.edge.liftY ?? 0 });
   }
 
-  if (brush.scatter && brush.scatter.fill) {
-    for (const k of cells) {
-      if (edge.has(k)) continue;
-      const local = cellRng(makeRng, k);
-      if (local() > brush.scatter.fill) continue;
-      const [cx, cz] = parse(k);
-      out.push({ cx, cz, key: pick(local, brush.scatter.pool), liftY: brush.scatter.liftY ?? 0.02 });
-    }
-  }
-
   return out;
 }
 
-export function fillZone(makeRng, brush, cells, occupied) {
+export function fillZone(makeRng, brush, cells) {
   const list = [...cells].map((k) => String(k));
   switch (brush.shape) {
     case 'line':
@@ -188,7 +147,7 @@ export function fillZone(makeRng, brush, cells, occupied) {
     case 'outline_fill':
       return fillOutline(makeRng, brush, list);
     default:
-      return fillBlob(makeRng, brush, list, occupied);
+      return fillBlob(makeRng, brush, list);
   }
 }
 

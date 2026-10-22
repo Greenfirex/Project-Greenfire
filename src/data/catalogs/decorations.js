@@ -182,6 +182,16 @@ export const DECORATION_TYPES = {
     castsShadow: false,
     kind: 'ground',
   },
+  grass_patch: {
+    displayName: 'Tráva',
+    model: `${ASSET_DIRS.plants}grass.glb`,
+    scale: 2.0,
+    radius: 0,
+    blocks: false,
+    castsShadow: false,
+    kind: 'ground',
+    noTint: true,
+  },
   grass_leafs: {
     displayName: 'Listy trávy',
     model: `${ASSET_DIRS.plants}grass_leafs.glb`,

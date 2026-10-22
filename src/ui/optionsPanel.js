@@ -23,7 +23,7 @@ const FPS_OPTIONS = [
 ];
 
 const GRASS_LEVELS = [
-  { value: 'off', label: 'Vypnutá', title: 'Žádná divoká tráva, jen holá zem' },
+  { value: 'off', label: 'Vypnutá', title: 'Namalovaná tráva se nekreslí' },
   { value: 'medium', label: 'Střední', title: 'Řidší tráva pro slabší počítače' },
   { value: 'high', label: 'Hustá', title: 'Plná tráva, doporučeno' },
 ];
@@ -85,10 +85,10 @@ export default class OptionsPanel {
       </div>
       <small class="options-panel__note">Nižší číslo = chladnější počítač.</small>
       <div class="options-panel__row">
-        <span class="options-panel__label">Divoká tráva</span>
+        <span class="options-panel__label">Hustota trávy</span>
         <div class="options-panel__choices" data-group="grass"></div>
       </div>
-      <small class="options-panel__note">Hustá tráva vypadá nejlíp, střední šetří výkon.</small>
+      <small class="options-panel__note">Jak hustě se kreslí tráva, kterou namaluješ štětcem. Na mapě zůstane pořád.</small>
       <div class="options-panel__volumes"></div>
       <div class="options-panel__toggles"></div>
       <button type="button" class="options-panel__reset">Obnovit výchozí</button>

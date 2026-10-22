@@ -76,10 +76,29 @@ export default class GatherSystem {
     return this.addEntry(entry, def, anchor);
   }
 
+  syncEntryPositions() {
+    for (const item of this.entries) {
+      const anchor = item.anchor;
+      if (!anchor || anchor.isDisposed()) continue;
+      item.x = anchor.position.x;
+      item.z = anchor.position.z;
+    }
+  }
+
   syncFromDeco() {
     const deco = this.decoSystem;
     if (!deco || !deco.readyEntries) return;
-    for (const anchor of deco.readyEntries()) this.ensureEntry(anchor);
+    const fresh = [];
+    for (const anchor of deco.readyEntries()) {
+      const item = this.ensureEntry(anchor);
+      if (item) fresh.push(item);
+    }
+    this.retainEntries(fresh);
+  }
+
+  retainEntries(fresh) {
+    const live = new Set(fresh);
+    this.entries = this.entries.filter((item) => live.has(item));
   }
 
   hasEntry(cx, cz) {
@@ -111,6 +130,7 @@ export default class GatherSystem {
       const dx = item.x - x;
       const dz = item.z - z;
       const dist = Math.sqrt(dx * dx + dz * dz);
+      if (!Number.isFinite(dist)) continue;
       if (dist > bestDist) continue;
       best = item;
       bestDist = dist;
@@ -118,10 +138,17 @@ export default class GatherSystem {
     return best;
   }
 
+  syncPlayerPos(player) {
+    const root = player && player.root ? player.root : null;
+    if (!root || root.isDisposed()) return this.playerPos;
+    this.playerPos = { x: root.position.x, z: root.position.z };
+    return this.playerPos;
+  }
+
   update(dt, player) {
     if (this.cooldown > 0) this.cooldown -= dt;
-    const root = player && player.root ? player.root : null;
-    this.playerPos = root ? { x: root.position.x, z: root.position.z } : null;
+    this.syncEntryPositions();
+    this.syncPlayerPos(player);
     const target = this.playerPos ? this.findNearest(this.playerPos.x, this.playerPos.z) : null;
     this.target = target;
     this.updateSway(dt);
@@ -134,16 +161,24 @@ export default class GatherSystem {
       this.pending = null;
       return false;
     }
-    if (this.playerPos) {
-      const dx = item.x - this.playerPos.x;
-      const dz = item.z - this.playerPos.z;
-      const len = Math.sqrt(dx * dx + dz * dz);
-      if (len > 0.001) {
-        item.axisX = dx / len;
-        item.axisZ = dz / len;
-      }
+    this.syncPlayerPos(this.player);
+    if (!this.playerPos) {
+      this.pending = null;
+      return false;
     }
-    if (this.player && this.player.faceTo) this.player.faceTo(item.x, item.z);
+    const reachX = item.x - this.playerPos.x;
+    const reachZ = item.z - this.playerPos.z;
+    if (reachX * reachX + reachZ * reachZ > REACH * REACH) {
+      this.pending = null;
+      this.target = null;
+      return false;
+    }
+    const len = Math.sqrt(reachX * reachX + reachZ * reachZ);
+    if (len > 0.001) {
+      item.axisX = reachX / len;
+      item.axisZ = reachZ / len;
+    }
+    if (this.player && this.player.faceTo) this.player.faceTo(item.x, item.z, REACH);
     const duration = this.startSwing(item);
     const impact = this.player && this.player.strikeImpactTime ? this.player.strikeImpactTime() : 0;
     const fallback = duration > 0 ? duration * IMPACT_SHARE : FALLBACK_DURATION * IMPACT_SHARE;
