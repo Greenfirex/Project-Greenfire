@@ -178,6 +178,11 @@ export default class OptionsPanel {
     if (this.button) this.button.classList.remove('is-open');
   }
 
+  setButtonVisible(visible) {
+    if (!this.button) return;
+    this.button.classList.toggle('is-hidden', !visible);
+  }
+
   toggle() {
     if (this.root && this.root.classList.contains('is-open')) this.hide();
     else this.show();

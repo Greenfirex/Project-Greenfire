@@ -18,7 +18,7 @@ export function layerCells(entries) {
 }
 export function worldCells(world) {
   const layers = world || {};
-  const cells = layerCells(layers.floor).concat(layerCells(layers.path), layerCells(layers.water), layerCells(layers.clearing));
+  const cells = layerCells(layers.floor).concat(layerCells(layers.path), layerCells(layers.water), layerCells(layers.clearing), layerCells(layers.grass));
   const seen = new Set();
   return cells.filter(([cx, cz]) => {
     const key = cellKey(cx, cz);
@@ -37,6 +37,7 @@ export function layerAt(world, cx, cz) {
   if (hit(layers.path)) return 'path';
   if (hit(layers.water)) return 'water';
   if (hit(layers.clearing)) return 'clearing';
+  if (hit(layers.grass)) return 'grass';
   return null;
 }
 export function hasLayerCell(world, cx, cz) {
@@ -70,7 +71,7 @@ export function dropFloorCell(world, cx, cz) {
 export function dropLayerCell(world, cx, cz) {
   if (!world) return false;
   let dropped = false;
-  for (const name of ['floor', 'path', 'water', 'clearing', 'manual']) {
+  for (const name of ['floor', 'path', 'water', 'clearing', 'manual', 'grass']) {
     const entries = world[name] || [];
     const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
     if (kept.length !== entries.length) {

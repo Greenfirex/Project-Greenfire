@@ -1,11 +1,14 @@
-// Obrazovka načítání — pruh má tři úseky za sebou: modely, stavba světa a postava.
-// Každý úsek počítá jen svůj postup, celek se za chodu nikdy nepřepočítává.
+// Obrazovka načítání — jeden souvislý pruh od 0 do 100 %, který se jen plní dopředu.
+// Nahoře je splash obrázek, pod ním pruh s vtipnými popisky aktuální fáze.
 const MIN_VISIBLE_MS = 600;
 const MIN_AFTER_FIRST_MS = 300;
 const FADE_MS = 400;
 const ASSET_LANES = 4;
-const MODELS_END = 15;
-const WORLD_START = MODELS_END;
+const SPLASH_URL = 'assets/Gemini_Generated_Image_wv9oq7wv9oq7wv9o.jpg';
+
+const ASSET_END = 25;
+const MAP_END = 28;
+const WORLD_START = MAP_END;
 const WORLD_END = 95;
 const FLOAT_START = WORLD_END;
 const FLOAT_END = 100;
@@ -33,6 +36,8 @@ export default class LoadingScreen {
     this.stageClosed = 0;
     this.stageCount = 0;
     this.missing = 0;
+    this.overall = 0;
+    this.mapStep = null;
     this.startedAt = 0;
     this.lastProgressAt = 0;
     this.hideTimer = 0;
@@ -44,6 +49,7 @@ export default class LoadingScreen {
     const root = document.createElement('div');
     root.className = 'loading-screen';
     root.innerHTML = `
+      <div class="loading-splash"></div>
       <div class="loading-box">
         <div class="loading-title">Project Greenfactory</div>
         <div class="loading-bar"><div class="loading-bar__fill"></div></div>
@@ -58,6 +64,8 @@ export default class LoadingScreen {
     this.barEl = root.querySelector('.loading-bar__fill');
     this.labelEl = root.querySelector('.loading-label');
     this.detailEl = root.querySelector('.loading-detail');
+    const splash = root.querySelector('.loading-splash');
+    splash.style.backgroundImage = `url('${SPLASH_URL}')`;
     this.startedAt = performance.now();
     this.lastProgressAt = this.startedAt;
     this.paint();
@@ -65,7 +73,7 @@ export default class LoadingScreen {
 
   plan(count) {
     if (this.assetStep) return;
-    this.assetStep = { label: 'Načítám modely…', total: Math.max(count, 1), done: 0, note: '' };
+    this.assetStep = { label: 'Šourám modely ze sklepa…', total: Math.max(count, 1), done: 0, note: '' };
     this.mount();
     this.paint();
   }
@@ -79,7 +87,8 @@ export default class LoadingScreen {
     step.note = this.missing
       ? `${this.missing} modelů se nenačetlo — hra pokračuje bez nich`
       : step.done < step.total && url ? shortName(url) : '';
-    if (step.done >= step.total) step.label = 'Modely načteny';
+    if (step.done >= step.total) step.label = 'Modely jsou venku';
+    this.setOverall(this.assetPercent());
     this.lastProgressAt = performance.now();
     this.paint();
   }
@@ -87,6 +96,7 @@ export default class LoadingScreen {
   endAssets() {
     const step = this.assetStep;
     if (step) step.note = this.missing ? `${this.missing} modelů se nenačetlo — hra pokračuje bez nich` : '';
+    this.setOverall(Math.max(this.overall, ASSET_END));
     this.paint();
   }
 
@@ -113,14 +123,29 @@ export default class LoadingScreen {
     return { done, failed };
   }
 
+  assetPercent() {
+    const step = this.assetStep;
+    if (!step) return 0;
+    return Math.min(step.done / step.total, 1) * ASSET_END;
+  }
+
+  beginMap() {
+    this.mapStep = { label: 'Rozvíjím mapu…', note: '' };
+    this.setOverall(MAP_END);
+    this.paint();
+  }
+
+  endMap() {
+    this.mapStep = null;
+    this.setOverall(MAP_END);
+    this.paint();
+  }
+
   beginWorld(count) {
     this.mount();
     this.stageCount = Math.max(count, 1);
     this.stageClosed = 0;
-    if (this.assetStep && this.assetStep.done >= this.assetStep.total) {
-      this.assetStep.label = 'Modely načteny';
-      this.assetStep.note = '';
-    }
+    this.setOverall(WORLD_START);
     if (this.hideTimer) this.cancelHide();
     this.paint();
   }
@@ -140,6 +165,7 @@ export default class LoadingScreen {
     if (!step || count <= 0) return;
     step.done += count;
     step.note = '';
+    this.setOverall(this.worldPercent());
     this.lastProgressAt = performance.now();
     this.paint();
   }
@@ -154,13 +180,21 @@ export default class LoadingScreen {
   endStage() {
     this.stageClosed += 1;
     this.stageStep = null;
+    this.setOverall(this.worldPercent());
     this.paint();
   }
 
   endWorld() {
     this.stageClosed = this.stageCount;
     this.stageStep = null;
+    this.setOverall(WORLD_END);
     this.paint();
+  }
+
+  worldPercent() {
+    const inside = this.stageStep ? Math.min(this.stageStep.done / this.stageStep.total, 1) : 0;
+    const share = Math.min((this.stageClosed + inside) / this.stageCount, 1);
+    return WORLD_START + share * (WORLD_END - WORLD_START);
   }
 
   beginFloat(label) {
@@ -169,13 +203,14 @@ export default class LoadingScreen {
     this.paint();
   }
 
-  floatProgress(done, total = 1) {
+  floatProgress(done, total = 1, label = null) {
     const step = this.floatStep;
     if (!step) return;
     step.total = Math.max(total, 1);
     step.done = Math.min(done, step.total);
-    step.label = step.done >= step.total ? 'Postava připravena' : 'Připravuji postavu…';
+    if (label) step.label = label;
     if (step.done >= step.total) step.note = '';
+    this.setOverall(this.floatPercent());
     this.lastProgressAt = performance.now();
     this.paint();
   }
@@ -186,9 +221,18 @@ export default class LoadingScreen {
     this.paint();
   }
 
+  floatPercent() {
+    const floated = this.floatStep ? Math.min(this.floatStep.done / this.floatStep.total, 1) : 0;
+    return FLOAT_START + floated * (FLOAT_END - FLOAT_START);
+  }
+
+  setOverall(value) {
+    this.overall = Math.min(100, Math.max(this.overall, value));
+  }
+
   get allDone() {
     if (this.assetStep && this.assetStep.done < this.assetStep.total) return false;
-    return !this.floatStep && this.stageClosed >= this.stageCount;
+    return !this.floatStep && !this.mapStep && this.stageClosed >= this.stageCount;
   }
 
   get pending() {
@@ -196,16 +240,7 @@ export default class LoadingScreen {
   }
 
   percent() {
-    if (!this.assetStep) return 0;
-    const modelled = Math.min(this.assetStep.done / this.assetStep.total, 1);
-    if (modelled < 1) return modelled * MODELS_END;
-    if (this.floatStep || this.stageCount <= 0) {
-      const floated = this.floatStep ? Math.min(this.floatStep.done / this.floatStep.total, 1) : 0;
-      return FLOAT_START + floated * (FLOAT_END - FLOAT_START);
-    }
-    const inside = this.stageStep ? Math.min(this.stageStep.done / this.stageStep.total, 1) : 0;
-    const share = Math.min((this.stageClosed + inside) / this.stageCount, 1);
-    return WORLD_START + share * (WORLD_END - WORLD_START);
+    return this.overall;
   }
 
   attach(count = 1) {
@@ -248,15 +283,16 @@ export default class LoadingScreen {
 
   paint() {
     if (!this.root) return;
-    const step = this.stageStep || this.floatStep;
+    const step = this.stageStep || this.floatStep || this.mapStep;
     this.barEl.style.width = `${this.percent()}%`;
-    this.labelEl.textContent = step ? step.label : (this.assetStep ? this.assetStep.label : 'Připravuji svět…');
+    this.labelEl.textContent = step ? step.label : (this.assetStep ? this.assetStep.label : 'Chystám svět…');
     this.detailEl.textContent = step ? (step.note || '') : (this.assetStep ? this.assetStep.note || '' : '');
   }
 
   finish() {
     this.mount();
     if (this.hideTimer) return;
+    this.setOverall(100);
     this.barEl.style.width = '100%';
     this.labelEl.textContent = 'Hotovo';
     this.detailEl.textContent = '';

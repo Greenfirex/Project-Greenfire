@@ -15,7 +15,6 @@ const BLADE_WIDTH = CELL_SIZE * 0.028;
 const PER_TILE = { off: 0, medium: 120, high: 220 };
 const BLADE_CAP = 40000;
 const GRASS_BASE_TONE = new Color3(0.1, 0.24, 0.06);
-const PATCH_KEYS = ['grass_patch', 'grass', 'grass_leafs'];
 const GRASS_LIFT = 0.02;
 
 function bladeShape() {
@@ -124,8 +123,8 @@ export default class FloraSystem {
     const layout = this.deco.layout;
     if (!layout) return [];
     const cells = [];
-    for (const entry of layout.decorations || []) {
-      if (!entry || !PATCH_KEYS.includes(entry.key)) continue;
+    for (const entry of layout.grass || []) {
+      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
       cells.push([entry.cx, entry.cz]);
     }
     return cells;

@@ -16,7 +16,7 @@ export const BRUSHES = {
   meadow: {
     label: 'Louka',
     shape: 'blob',
-    pool: ['grass', 'grass', 'grass_leafs', 'grass_leafs', 'flower', 'flower_red', 'bush_small'],
+    pool: ['flower', 'flower_red', 'bush_small'],
     deco: true,
   },
   rocks: {
@@ -40,8 +40,7 @@ export const BRUSHES = {
   grass: {
     label: 'Tráva',
     shape: 'blob',
-    pool: ['grass_patch'],
-    deco: true,
+    flora: true,
   },
   trail: {
     label: 'Cesta',

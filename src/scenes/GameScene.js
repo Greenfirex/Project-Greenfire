@@ -46,7 +46,7 @@ import { worldToCellCoords, worldToCell } from '../utils/gridMath.js';
 import { getBrush } from '../data/catalogs/brushes.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { SAVE_DEFAULTS, SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
-import { collectModelUrls } from '../data/catalogs/modelCatalog.js';
+import { collectStartupUrls } from '../data/catalogs/modelCatalog.js';
 import { mapFileFromLayout, layoutFromMapFile, isMapFile } from '../data/catalogs/mapFile.js';
 import { worldCells } from '../data/maps/areaShape.js';
 import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
@@ -148,7 +148,7 @@ export default class GameScene {
   }
 
   start() {
-    const urls = collectModelUrls(this.heldItemSystem.key || SAVE_DEFAULTS.heldItem.key);
+    const urls = collectStartupUrls(this.heldItemSystem.key || SAVE_DEFAULTS.heldItem.key);
     this.loader.plan(urls.length);
     this.startPreload(urls);
   }
@@ -170,7 +170,9 @@ export default class GameScene {
     this.setupGlow();
     this.setupLighting();
     this.camera = this.cameraSystem.create();
+    this.loader.beginMap();
     const mapFile = await this.loadMapFile();
+    this.loader.endMap();
     this.buildMapLayout(mapFile);
     this.setupTerrain();
     if (takeModelError()) console.warn('[start] Některé modely se nepodařilo načíst — hra pokračuje bez nich.');
@@ -241,11 +243,13 @@ export default class GameScene {
     await this.buildWorld();
     this.setupShadowCasters();
     this.setupSave();
-    this.loader.beginFloat('Připravuji postavu…');
+    this.loader.beginFloat('Budím postavu…');
     await this.setupPlayer();
-    this.loader.endFloat();
+    this.loader.floatProgress(1, 1, 'Seju trávu…');
     this.floraSystem.create(this.decoSystem, this.options.grass);
+    this.loader.floatProgress(1, 1, 'Nastavuji stíny…');
     this.refreshShadowCasters();
+    this.loader.endFloat();
     await this.waitForWorld();
     this.s.loaded = true;
   }
@@ -284,6 +288,7 @@ export default class GameScene {
     this.loaded = true;
     this.s.loaded = true;
     this.s.paused = false;
+    this.optionsPanel.setButtonVisible(true);
     this.gatherSystem.syncFromDeco();
     this.gatherSystem.setPlayer(this.playerSystem);
     this.gatherSystem.setTool(this.heldItemSystem.tool());
@@ -1034,6 +1039,7 @@ updateGatherTarget() {
     this.applyOptions();
     this.optionsPanel.mount();
     this.optionsPanel.render();
+    this.optionsPanel.setButtonVisible(false);
     this.optionsPanel.onChange = (values) => {
       this.options = { ...values };
       this.autoScale = 1;

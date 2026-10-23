@@ -583,10 +583,23 @@ export default class EditorMode {
       const { cx, cz } = cell;
       if (mode === 'remove') {
         dropDecorationCell(this.layout, cx, cz);
+        if (brush.flora) {
+          if (this.layout.grass) {
+            this.layout.grass = this.layout.grass.filter((entry) => !entry || (entry.cx !== cx || entry.cz !== cz));
+          }
+          continue;
+        }
         if (brush.deco) continue;
         dropLayerCell(this.layout, cx, cz);
         this.dropTopEntry(cx, cz);
         this.dropOrphans();
+        continue;
+      }
+      if (brush.flora) {
+        const key = cellKey(cx, cz);
+        if (!this.layout.grass) this.layout.grass = [];
+        this.layout.grass = this.layout.grass.filter((entry) => entry && (entry.cx !== cx || entry.cz !== cz));
+        this.layout.grass.push({ cx, cz });
         continue;
       }
       const key = brush.deco ? (cell.key || this.tileKey) : cell.key;
@@ -768,6 +781,7 @@ function toWorld(world) {
     water: copy(world.water),
     clearing: copy(world.clearing),
     manual: copy(world.manual),
+    grass: copy(world.grass),
     decorations: copy(world.decorations),
   };
 }

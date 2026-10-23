@@ -6,16 +6,16 @@ import { pieceCount } from '../../systems/pieceCount.js';
 const KIND_ORDER = ['floor', 'path', 'water', 'ground', 'cliff', 'tree', 'log', 'prop', 'rock', 'ore'];
 
 const KIND_LABELS = {
-  floor: 'Pokládám podlahu',
-  water: 'Zaplňuji vodu',
-  path: 'Stavím cesty',
-  cliff: 'Modeluji kopce',
-  tree: 'Sázím stromy',
-  log: 'Pokládám kmeny',
-  ground: 'Rozmisťuji trávu',
-  prop: 'Stavím tábořiště',
-  rock: 'Vyvracím balvany',
-  ore: 'Zakládám rudu',
+  floor: 'Rovnám podlahu, ať si nezvrtneš kotník',
+  water: 'Napouštím rybník',
+  path: 'Ušlapávám cestičky',
+  cliff: 'Hrnu kopce lopatou',
+  tree: 'Sázím stromy, jen ať mi neutečou',
+  log: 'Kutálím kmeny',
+  ground: 'Rozhazuji kvítí a keře',
+  prop: 'Stavím tábor, táta kuchtí',
+  rock: 'Kulím balvany',
+  ore: 'Zakopávám rudu, ať ji najdeš jen ty',
 };
 
 const KIND_GROUP = { campfire: 'prop' };
