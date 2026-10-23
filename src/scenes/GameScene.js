@@ -43,7 +43,7 @@ import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/mach
 import { HOTBAR_ITEMS } from '../data/catalogs/items.js';
 import { worldToCellCoords, worldToCell } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
-import { SAVE_DEFAULTS, SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
+import { SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
 import { collectStartupUrls } from '../data/catalogs/modelCatalog.js';
 import { mapFileFromLayout, layoutFromMapFile, isMapFile } from '../data/catalogs/mapFile.js';
 import { worldCells, hasFloor } from '../data/maps/areaShape.js';
@@ -144,7 +144,7 @@ export default class GameScene {
   }
 
   start() {
-    const urls = collectStartupUrls(this.heldItemSystem.key || SAVE_DEFAULTS.heldItem.key);
+    const urls = collectStartupUrls(this.heldItemSystem.key);
     this.loader.plan(urls.length);
     this.startPreload(urls);
   }
@@ -189,9 +189,7 @@ export default class GameScene {
     this.setupInput();
     this.setupEditorToggle();
     this.registerHudEvents();
-    this.heldItemSystem.apply(SAVE_DEFAULTS.heldItem);
-    const restored = this.saveSystem.load();
-    if (restored) this.heldItemSystem.set(this.heldItemSystem.key || SAVE_DEFAULTS.heldItem.key);
+    this.saveSystem.load();
 
     this.buildSystem.onMachineReady = (record, node) => {
       const placeholder = record.mesh;
@@ -239,6 +237,7 @@ export default class GameScene {
   async prepareGame() {
     await this.buildWorld();
     this.setupShadowCasters();
+    this.saveSystem.dropLegacy();
     this.setupSave();
     this.loader.beginFloat('Budím postavu…');
     await this.setupPlayer();
@@ -1175,53 +1174,30 @@ updateGatherTarget() {
 
   setupSave() {
     this.playerSystem.walkableCells = () => this.terrainSystem.realCells || [];
-    this.saveSystem.registerState('player', {
-      serialize: () => this.playerSystem.serialize(),
-      apply: (data) => this.playerSystem.apply(data),
-      order: 5,
-    });
-    this.saveSystem.registerState('inventory', {
+    this.registerSavedState(this.playerSystem, 'player', 5);
+    this.registerSavedState(this.heldItemSystem, 'heldItem', 7);
+    this.registerSavedState(this.buildSystem, 'machines', 10);
+    this.registerSavedState(this.campfireSystem, 'campfires', 12);
+    this.registerSavedState(this.dayNightSystem, 'dayNight', 20);
+    this.registerSavedState(this.simSystem, 'sim', 25);
+    this.saveSystem.register(this.inventorySystem, 'inventory', {
       serialize: () => this.inventorySystem.serialize(),
       apply: (data) => {
         this.inventorySystem.apply(data);
         this.inventoryPanel.update(this.inventorySystem);
         this.restoreGatherEntries();
       },
+      defaults: { items: {} },
       order: 6,
     });
-    this.saveSystem.registerState('heldItem', {
-      serialize: () => this.heldItemSystem.serialize(),
-      apply: (data) => this.heldItemSystem.apply(data),
-      order: 7,
-    });
-    this.saveSystem.registerState('machines', {
-      serialize: () => this.buildSystem.serialize(),
-      apply: (data) => this.buildSystem.apply(data),
-      order: 10,
-    });
-    this.saveSystem.registerState('campfires', {
-      serialize: () => this.campfireSystem.serializeState(),
-      apply: (data) => this.campfireSystem.restoreState(data),
-      order: 12,
-    });
-    this.saveSystem.registerState('dayNight', {
-      serialize: () => ({ time: this.dayNightSystem.getTime() }),
-      apply: (data) => {
-        const defaults = SAVE_DEFAULTS.dayNight;
-        const time = data && typeof data.time === 'number' ? data.time : defaults.time;
-        this.dayNightSystem.setTime(time);
-      },
-      order: 20,
-    });
-    this.saveSystem.registerState('sim', {
-      serialize: () => ({ time: this.simSystem.time }),
-      apply: (data) => {
-        const time = data && typeof data.time === 'number' && Number.isFinite(data.time) && data.time >= 0
-          ? data.time
-          : SAVE_DEFAULTS.sim.time;
-        this.simSystem.time = time;
-      },
-      order: 25,
+  }
+
+  registerSavedState(owner, key, order) {
+    this.saveSystem.register(owner, key, {
+      serialize: () => owner.serialize(),
+      apply: (data) => owner.apply(data),
+      defaults: () => owner.defaultState(),
+      order,
     });
   }
 

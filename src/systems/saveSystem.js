@@ -1,7 +1,8 @@
 // Obecný save systém — sběrač stavu nad registrovanými vlastníky.
 // Nezná obsah stavu: každý vlastník se hlásí přes registerState(key, { serialize, apply, order }).
-import { SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
+import { SAVE_VERSION, SAVE_STORAGE_KEY, SAVE_LEGACY_KEY } from '../data/catalogs/saveSchema.js';
 import { readJSON, writeJSON, removeJSON } from '../utils/storage.js';
+import { stateProvider } from '../utils/saveState.js';
 
 export default class SaveSystem {
 
@@ -16,11 +17,12 @@ export default class SaveSystem {
 
   registerState(key, provider) {
     if (!key || !provider) return;
-    this.providers.set(key, {
-      serialize: typeof provider.serialize === 'function' ? provider.serialize : () => null,
-      apply: typeof provider.apply === 'function' ? provider.apply : () => {},
-      order: provider.order !== undefined ? provider.order : 100,
-    });
+    this.providers.set(key, stateProvider(provider));
+  }
+
+  register(owner, key, def) {
+    if (!owner || typeof owner.registerState !== 'function') return;
+    owner.registerState(key, stateProvider(def));
   }
 
   orderedProviders() {
@@ -67,5 +69,9 @@ export default class SaveSystem {
 
   clear() {
     return removeJSON(SAVE_STORAGE_KEY);
+  }
+
+  dropLegacy() {
+    return removeJSON(SAVE_LEGACY_KEY);
   }
 }

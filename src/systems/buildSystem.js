@@ -209,6 +209,15 @@ export default class BuildSystem {
     }
   }
 
+  registerState(key, provider) {
+    this.saveKey = key;
+    this.savedState = provider;
+  }
+
+  defaultState() {
+    return [];
+  }
+
   get count() {
     return this.machines.size;
   }

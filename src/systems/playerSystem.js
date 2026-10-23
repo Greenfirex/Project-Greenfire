@@ -551,12 +551,20 @@ export default class PlayerSystem {
   }
 
   serialize() {
-    if (!this.root) return { x: SPAWN.x, z: SPAWN.z, facing: 0 };
     return {
-      x: this.root.position.x,
-      z: this.root.position.z,
+      x: this.root ? this.root.position.x : SPAWN.x,
+      z: this.root ? this.root.position.z : SPAWN.z,
       facing: this.facing,
     };
+  }
+
+  registerState(key, provider) {
+    this.saveKey = key;
+    this.savedState = provider;
+  }
+
+  defaultState() {
+    return { x: SPAWN.x, z: SPAWN.z, facing: 0 };
   }
 
   apply(data) {

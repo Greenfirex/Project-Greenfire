@@ -44,6 +44,25 @@ export default class DayNightSystem {
     this.apply();
   }
 
+  serialize() {
+    return { time: this.time };
+  }
+
+  apply(data) {
+    const start = this.config ? this.config.startTime : 0;
+    const time = data && typeof data.time === 'number' && Number.isFinite(data.time) ? data.time : start;
+    this.setTime(time);
+  }
+
+  registerState(key, provider) {
+    this.saveKey = key;
+    this.savedState = provider;
+  }
+
+  defaultState() {
+    return { time: this.config ? this.config.startTime ?? 0 : 0 };
+  }
+
   update(deltaSeconds) {
     if (!this.config) return;
     this.time = (this.time + deltaSeconds / this.config.dayLengthSeconds) % 1;

@@ -145,11 +145,20 @@ export default class CampfireSystem {
     return best ? { item: best, distance: bestDist } : null;
   }
 
-  serializeState() {
+  serialize() {
     return { lit: this.fires.filter((item) => item.lit).map((item) => cellKey(item.cx, item.cz)) };
   }
 
-  restoreState(data) {
+  registerState(key, provider) {
+    this.saveKey = key;
+    this.savedState = provider;
+  }
+
+  defaultState() {
+    return { lit: [] };
+  }
+
+  apply(data) {
     const list = data && Array.isArray(data.lit) ? data.lit.filter((key) => typeof key === 'string') : [];
     for (const item of this.fires) {
       if (!list.includes(cellKey(item.cx, item.cz))) continue;

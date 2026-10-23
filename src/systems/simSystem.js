@@ -36,6 +36,25 @@ export default class SimSystem {
     this.acc = 0;
   }
 
+  registerState(key, provider) {
+    this.saveKey = key;
+    this.savedState = provider;
+  }
+
+  serialize() {
+    return { time: this.time, speed: this.speed };
+  }
+
+  apply(data) {
+    const time = data && typeof data.time === 'number' && Number.isFinite(data.time) && data.time >= 0 ? data.time : 0;
+    this.time = time;
+    this.setSpeed(data && data.speed !== undefined ? data.speed : 1);
+  }
+
+  defaultState() {
+    return { time: 0, speed: 1 };
+  }
+
   update(deltaSeconds) {
     if (!Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return;
     if (this.halted) return;
