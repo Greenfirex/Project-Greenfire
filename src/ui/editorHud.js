@@ -36,7 +36,7 @@ export default class EditorHud {
       <div class="editor-panel__modes">
         <button type="button" data-mode="zone">Zóny</button>
         <button type="button" data-mode="height">Výška</button>
-        <button type="button" data-mode="area">Plocha</button>
+        <button type="button" data-mode="area">Herní plocha</button>
       </div>
       <div class="editor-panel__grid"></div>
       <div class="editor-panel__heights">

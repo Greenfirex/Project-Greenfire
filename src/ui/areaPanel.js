@@ -21,7 +21,7 @@ export default class AreaPanel {
     root.className = 'area-panel';
     root.innerHTML = `
       <div class="area-panel__head">
-        <span class="area-panel__title">Plocha mapy</span>
+        <span class="area-panel__title">Herní plocha</span>
         <button type="button" class="area-panel__close" title="Zavřít okénko">×</button>
       </div>
       <div class="area-panel__tools">

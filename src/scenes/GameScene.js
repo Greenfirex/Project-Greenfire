@@ -1184,6 +1184,7 @@ updateGatherTarget() {
   setupInput() {
     this.inputSystem.suppressContextMenu(this.canvas);
     this.inputSystem.groundPredicate = (mesh) => mesh === this.terrainSystem.ground;
+    this.inputSystem.shouldPickByRay = () => this.editorMode.active && this.editorMode.mode === 'area';
     this.inputSystem.attach(this.camera, this);
     this.inputSystem.onLeftDown = () => this.handleLeftDown();
     this.inputSystem.onHoverCell = (cell) => this.handleHover(cell);

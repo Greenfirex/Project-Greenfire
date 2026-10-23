@@ -1,11 +1,13 @@
 // Zpracování vstupu — rotace kamery středním tlačítkem, zoom kolečkem, klik a tažení na zemi.
 // Levá klávesa kreslí (editor) nebo kliká (hra), pravá maže, kontextové menu prohlížeče potlačujeme.
 import '@babylonjs/core/Culling/ray';
+import { Plane } from '@babylonjs/core/Maths/math.plane';
 import { PointerEventTypes } from '@babylonjs/core/Events/pointerEvents';
 import { worldToCellCoords } from '../utils/gridMath.js';
 
 const ROTATE_SPEED = 0.006;
 const DRAG_THRESHOLD = 5;
+const GroundPlane = new Plane(0, 1, 0, 0.002);
 
 export default class InputSystem {
 
@@ -28,6 +30,7 @@ export default class InputSystem {
     this.pointerMoved = true;
     this.lastMoveX = null;
     this.lastMoveY = null;
+    this.shouldPickByRay = null;
   }
 
   hitsUi(evt) {
@@ -142,8 +145,20 @@ export default class InputSystem {
   }
 
   cellAtPointer() {
+    if (this.shouldPickByRay && this.shouldPickByRay()) {
+      return this.cellAtPointerByRay();
+    }
     const point = this.pickGround(this.groundPredicate);
     if (!point) return null;
+    const { cx, cz } = worldToCellCoords(point.x, point.z);
+    return { cx, cz, point };
+  }
+
+  cellAtPointerByRay() {
+    const ray = this.s.createPickingRay(this.s.pointerX, this.s.pointerY, null, this.camera);
+    const distance = ray.intersectsPlane(GroundPlane);
+    if (distance === null || !Number.isFinite(distance)) return null;
+    const point = ray.origin.add(ray.direction.scale(distance));
     const { cx, cz } = worldToCellCoords(point.x, point.z);
     return { cx, cz, point };
   }

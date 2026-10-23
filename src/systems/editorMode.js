@@ -484,11 +484,11 @@ export default class EditorMode {
       this.dropOrphans();
     } else {
       for (const [cx, cz] of selection.cells) {
-        const liftY = this.raiseToLevel(cx, cz);
-        this.placeEntry(this.tileKey || FALLBACK_FLOOR, cx, cz, 0, liftY);
+        dropLayerCell(this.layout, cx, cz);
+        dropDecorationCell(this.layout, cx, cz);
+        this.layout.floor.push({ key: FALLBACK_FLOOR, cx, cz, rotation: 0 });
         count += 1;
       }
-      this.fixMissingFloor();
     }
     if (!count) {
       this.history.pop();
