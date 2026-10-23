@@ -10,9 +10,10 @@ import { pieceCount } from './pieceCount.js';
 import { deriveBlocked } from '../data/maps/layoutStore.js';
 import { resolveModel, instantiateModel, ownMaterials, whenModelsIdle } from '../utils/assetLoader.js';
 import { tintTemplate, forgetTints } from '../utils/decoTint.js';
+import PathSystem from './pathSystem.js';
 
-const PATH_LIFT = 0.002;
 const WATER_LIFT = 0.003;
+const PATH_SURFACE = 0.02;
 
 function withLift(entry, lift) {
   const base = entry.liftY || 0;
@@ -57,6 +58,7 @@ export default class DecoSystem {
     this.waterNodes = [];
     this.pendingPieces = [];
     this.brokenCount = 0;
+    this.pathSystem = new PathSystem(scene);
   }
 
   create(layout, colors) {
@@ -96,7 +98,8 @@ export default class DecoSystem {
   }
 
   hasModel(key) {
-    return !!getDecoration(key);
+    const def = getDecoration(key);
+    return !!def && !!def.model;
   }
 
   blockCount(entry) {
@@ -121,21 +124,27 @@ export default class DecoSystem {
   }
 
   finishStages() {
+    this.buildPath();
     this.refreshBlocked(this.layout || {});
   }
 
   buildPath() {
-    for (const entry of this.layout?.path || []) this.placePath(entry);
-    for (const entry of this.layout?.manual || []) this.placePath(entry);
+    this.pathSystem.buildFromLayout(this.layout);
+    this.claimPathCells();
+  }
+
+  claimPathCells() {
+    for (const [key, cell] of this.pathSystem.shapes) {
+      this.surfaceKeys.set(key, 'path');
+      const current = this.columnTop.get(key);
+      const surface = cell.y + PATH_SURFACE;
+      if (!current) this.columnTop.set(key, { block: 0, surface });
+      else current.surface = Math.max(current.surface, surface);
+    }
   }
 
   buildWater() {
     for (const entry of this.layout?.water || []) this.placeWater(entry);
-  }
-
-  placePath(entry) {
-    if (!getDecoration(entry.key)) return;
-    this.place(withLift(entry, PATH_LIFT), this.pathNodes, 'path');
   }
 
   placeWater(entry) {
@@ -173,8 +182,6 @@ export default class DecoSystem {
 
   updatePath(layout) {
     this.layout = layout;
-    for (const node of this.pathNodes) if (node && !node.isDisposed()) node.dispose(false, false);
-    this.pathNodes.length = 0;
     this.buildPath();
     this.refreshBlocked(layout);
   }
@@ -212,6 +219,7 @@ export default class DecoSystem {
     this.applyEntry(entry, section);
     const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
     const anchor = this.createAnchor(entry, def, x, z, bucket);
+    if (!def.model) return anchor;
     const work = this.attachModel(anchor, def, entry, section);
     this.pendingPieces.push(work);
     return work;

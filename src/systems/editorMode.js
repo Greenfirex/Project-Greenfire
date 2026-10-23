@@ -3,7 +3,7 @@
 import { BRUSHES } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { cellKey, MAX_HEIGHT } from '../data/maps/layoutStore.js';
-import { layerAt, floorCellAt, dropFloorCell, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
+import { layerAt, layerEntriesAt, floorCellAt, dropFloorCell, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
 import { fillZone } from '../utils/zoneFill.js';
 import { createRng, seedFor } from '../utils/rng.js';
 
@@ -213,8 +213,12 @@ export default class EditorMode {
     if (!this.layout) return false;
     const layer = layerAt(this.layout, cx, cz);
     if (layer === 'path') return true;
-    if (layer === 'floor') return false;
     return this.brushShapeAt(cx, cz) === 'line';
+  }
+
+  isPathBrush(brushKey = this.brushKey) {
+    const brush = BRUSHES[brushKey];
+    return Boolean(brush && brush.shape === 'line');
   }
 
   setHeightLevel(level) {
@@ -267,13 +271,8 @@ export default class EditorMode {
   }
 
   layerTileAt(cx, cz) {
-    const layer = layerAt(this.layout, cx, cz);
-    if (!layer) return null;
-    const list = this.layout[layer] || [];
-    for (let i = list.length - 1; i >= 0; i -= 1) {
-      if (list[i].cx === cx && list[i].cz === cz) return list[i];
-    }
-    return null;
+    const entries = layerEntriesAt(this.layout, cx, cz);
+    return entries.length ? entries[0] : null;
   }
 
   useLayout(world) {
@@ -298,22 +297,29 @@ export default class EditorMode {
   placeEntry(key, cx, cz, rotation = 0, liftY = 0, layer = null) {
     const entry = { key, cx, cz, rotation: ((rotation % 4) + 4) % 4 };
     if (liftY) entry.liftY = liftY;
-    let target = layer;
-    if (!target) {
-      if (this.isWaterCell(cx, cz)) target = 'water';
-      else if (this.isPathCell(cx, cz)) target = 'path';
-      else target = 'floor';
-    }
+    const explicit = layer;
     const floor = floorCellAt(this.layout, cx, cz);
+    if (layer === 'path') {
+      entry.style = this.pathStyle;
+      if (floor && floor.liftY) entry.liftY = floor.liftY;
+      const existing = (this.layout.path || []).find((cell) => cell && cell.cx === cx && cell.cz === cz);
+      if (existing) existing.style = entry.style;
+      else this.layout.path.push(entry);
+      if (this.layout.manual) this.layout.manual = this.layout.manual.filter((cell) => !cell || cell.cx !== cx || cell.cz !== cz);
+      if (!floor) this.placeFloor(FALLBACK_FLOOR, cx, cz);
+      return entry;
+    }
+    const target = layer || (this.isWaterCell(cx, cz) ? 'water' : 'floor');
     if (target === 'floor') {
       dropFloorCell(this.layout, cx, cz);
-      if (!layer) this.dropPathAt(cx, cz);
+      if (!explicit) this.dropPathAt(cx, cz);
     } else {
       if (floor && floor.liftY && !entry.liftY) entry.liftY = floor.liftY;
       dropLayerCell(this.layout, cx, cz);
+      if (floor && !(this.layout.floor || []).includes(floor)) this.layout.floor.push(floor);
+      if (!floor) this.placeFloor(FALLBACK_FLOOR, cx, cz);
     }
     this.layout[target].push(entry);
-    if (target === 'path') this.dropFloorAt(cx, cz);
     return entry;
   }
 
@@ -325,15 +331,13 @@ export default class EditorMode {
     }
   }
 
-  dropFloorAt(cx, cz) {
-    const list = this.layout.floor || [];
-    const kept = list.filter((entry) => entry.cx !== cx || entry.cz !== cz);
-    if (kept.length !== list.length) this.layout.floor = kept;
-  }
-
   keepFloor(cx, cz) {
     const floor = floorCellAt(this.layout, cx, cz);
     return floor ? floor.key : FALLBACK_FLOOR;
+  }
+
+  placeFloor(key, cx, cz) {
+    this.layout.floor.push({ key, cx, cz, rotation: 0 });
   }
 
   fixMissingFloor() {
@@ -341,14 +345,24 @@ export default class EditorMode {
     if (!cells.length) return 0;
     const seen = new Set();
     for (const [cx, cz] of cells) seen.add(cellKey(cx, cz));
+    const place = (cx, cz) => {
+      const floorKey = this.keepFloor(cx, cz);
+      if (!getDecoration(floorKey)) return;
+      this.layout.floor.push({ key: floorKey, cx, cz, rotation: 0 });
+    };
     for (const entry of this.layout.decorations || []) {
       if (!entry) continue;
       const key = cellKey(entry.cx, entry.cz);
       if (seen.has(key)) continue;
-      const floorKey = this.keepFloor(entry.cx, entry.cz);
-      if (!getDecoration(floorKey)) continue;
       seen.add(key);
-      this.layout.floor.push({ key: floorKey, cx: entry.cx, cz: entry.cz, rotation: 0 });
+      place(entry.cx, entry.cz);
+    }
+    for (const name of ['path', 'manual']) {
+      for (const entry of this.layout[name] || []) {
+        if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+        if (floorCellAt(this.layout, entry.cx, entry.cz)) continue;
+        place(entry.cx, entry.cz);
+      }
     }
     return seen.size;
   }
@@ -357,7 +371,7 @@ export default class EditorMode {
     for (const layer of ['floor', 'path', 'water', 'clearing']) {
       for (let i = (this.layout[layer] || []).length - 1; i >= 0; i -= 1) {
         const entry = this.layout[layer][i];
-        if (entry.cx !== cx || entry.cz !== cz) continue;
+        if (!entry || entry.cx !== cx || entry.cz !== cz) continue;
         if (height > 0) entry.liftY = height;
         else delete entry.liftY;
         return entry;
@@ -590,7 +604,12 @@ export default class EditorMode {
           continue;
         }
         if (brush.deco) continue;
+        if (shape === 'line') {
+          this.dropPathAt(cx, cz);
+          continue;
+        }
         dropLayerCell(this.layout, cx, cz);
+        this.dropPathAt(cx, cz);
         this.dropTopEntry(cx, cz);
         this.dropOrphans();
         continue;
@@ -602,7 +621,7 @@ export default class EditorMode {
         this.layout.grass.push({ cx, cz });
         continue;
       }
-      const key = brush.deco ? (cell.key || this.tileKey) : cell.key;
+      const key = brush.deco ? (cell.key || this.tileKey) : (cell.key || this.tileKey || this.draftTile);
       if (!key || !getDecoration(key)) continue;
       if (brush.deco) {
         dropDecorationCell(this.layout, cx, cz);
@@ -611,14 +630,16 @@ export default class EditorMode {
         this.layout.decorations.push(entry);
         continue;
       }
-      if (shape === 'line') this.placeEntry(key, cx, cz, cell.rotation || 0, 0, 'path');
-      else if (brushKey === 'water') this.placeEntry(key, cx, cz, cell.rotation || 0, 0, 'water');
+      if (shape === 'line') {
+        this.placeEntry(key, cx, cz, cell.rotation || 0, 0, 'path');
+      } else if (brushKey === 'water') this.placeEntry(key, cx, cz, cell.rotation || 0, 0, 'water');
       else this.placeEntry(key, cx, cz, 0, liftY, 'floor');
     }
     this.fixMissingFloor();
     const count = cells.size;
     this.draft.cells.clear();
     if (this.onDraftChange) this.onDraftChange(this.draft);
+    console.log('[debug] applyDraft done — cells:', count, '| path cells now:', (this.layout.path || []).length, '| deco cells now:', (this.layout.decorations || []).length);
     this.scheduleRegenerate();
     return count;
   }
@@ -652,6 +673,7 @@ export default class EditorMode {
     }
     if (this.erasing) {
       dropLayerCell(this.layout, cx, cz);
+      this.dropPathAt(cx, cz);
       this.dropTopEntry(cx, cz);
       this.dropOrphans();
       return;
@@ -687,10 +709,12 @@ export default class EditorMode {
   }
 
   scheduleRegenerate() {
+    console.log('[debug] scheduleRegenerate called — onRegenerate is', typeof this.onRegenerate);
     this.repaint();
   }
 
   repaint() {
+    console.log('[debug] repaint called');
     if (this.onRegenerate) this.onRegenerate(this.layout);
   }
 
@@ -710,14 +734,10 @@ export default class EditorMode {
   }
 
   draftTileAt(cx, cz) {
-    const layer = layerAt(this.layout, cx, cz);
-    if (!layer) return null;
-    const list = this.layout[layer] || [];
-    for (let i = list.length - 1; i >= 0; i -= 1) {
-      const entry = list[i];
-      if (entry.cx === cx && entry.cz === cz) return entry.key;
-    }
-    return null;
+    const entries = layerEntriesAt(this.layout, cx, cz);
+    if (entries.length) return entries[0].key;
+    const floor = floorCellAt(this.layout, cx, cz);
+    return floor ? floor.key : null;
   }
 
   draftDecoAt(cx, cz) {

@@ -48,16 +48,7 @@ export const BRUSHES = {
     style: 'dirt',
     manual: true,
     styles: ['dirt', 'stone', 'wood'],
-    poolByStyle: {
-      dirt: [
-        'ground_pathStraight', 'ground_pathBend', 'ground_pathCorner', 'ground_pathCornerSmall',
-        'ground_pathCross', 'ground_pathEnd', 'ground_pathEndClosed', 'ground_pathSplit',
-        'ground_pathOpen', 'ground_pathSide', 'ground_pathSideOpen', 'ground_pathTile',
-        'ground_pathRocks', 'ground_pathBendBank',
-      ],
-      stone: ['path_stone', 'path_stoneCircle', 'path_stoneCorner', 'path_stoneEnd'],
-      wood: ['path_wood', 'path_woodCorner', 'path_woodEnd'],
-    },
+    pool: ['path'],
   },
   cliff_rim: {
     label: 'Rám útesů',

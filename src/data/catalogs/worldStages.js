@@ -23,6 +23,7 @@ const KIND_GROUP = { campfire: 'prop' };
 function entriesOf(layout, part) {
   if (part === 'deco') return layout.decorations || [];
   if (part === 'manual') return (layout.manual || []).filter((entry) => getDecoration(entry.key));
+  if (part === 'path') return layout.path || [];
   return layout[part] || [];
 }
 

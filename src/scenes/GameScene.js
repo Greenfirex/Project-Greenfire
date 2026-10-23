@@ -48,7 +48,7 @@ import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { SAVE_DEFAULTS, SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
 import { collectStartupUrls } from '../data/catalogs/modelCatalog.js';
 import { mapFileFromLayout, layoutFromMapFile, isMapFile } from '../data/catalogs/mapFile.js';
-import { worldCells } from '../data/maps/areaShape.js';
+import { worldCells, hasFloor } from '../data/maps/areaShape.js';
 import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { readJSON, writeJSON } from '../utils/storage.js';
@@ -184,6 +184,7 @@ export default class GameScene {
     const map = getMap(this.mapKey);
     if (stages.length) this.decoSystem.beginStages(this.mapFile, map.colors);
     else this.decoSystem.create(this.mapFile, map.colors);
+    this.decoSystem.buildPath();
     this.setupDecorations();
     this.gridSystem.create();
     this.setupSimulation();
@@ -830,6 +831,7 @@ updateGatherTarget() {
   }
 
   renderMapLayout() {
+    console.log('[debug] renderMapLayout called');
     const exhausted = this.gatherSystem.exhaustedCells();
     this.gatherSystem.clear();
     this.adoptEditorMap();
@@ -837,23 +839,30 @@ updateGatherTarget() {
     this.refreshTerrain();
     this.terrainSystem.whenReady()
       .then(() => this.rebuildDecorations(exhausted))
-      .catch((error) => this.reportRebuildError(error));
+      .catch((error) => {
+        console.error('[debug] rebuildDecorations ERROR:', error);
+        this.reportRebuildError(error);
+      });
   }
 
   async rebuildDecorations(exhausted) {
     const layout = this.mapFile || {};
     const stages = describeWorld(layout);
+    console.log('[debug] rebuildDecorations start — stages:', stages.map((s) => `${s.kind}:${s.keys.length}`).join(', '), '| path cells:', (layout.path || []).length, '| deco cells:', (layout.decorations || []).length);
     let models = null;
     this.decoSystem.brokenCount = 0;
     this.decoHighlight.clear();
     this.decoSystem.beginStages(layout, getMap(this.mapKey).colors);
+    this.decoSystem.buildPath();
     for (const stage of stages) {
       const entries = stagePieces(layout, stage);
       if (!entries.length) continue;
+      console.log('[debug] rebuild stage', stage.kind, 'entries:', entries.length);
       models = await this.loadStageModels(entries, models);
       await this.placeStage(stage, entries);
     }
     this.decoSystem.finishStages();
+    console.log('[debug] rebuildDecorations done');
     this.finishRebuild(exhausted);
   }
 
@@ -1627,6 +1636,8 @@ updateGatherTarget() {
 
   isWalkableAt(x, z) {
     const { cx, cz } = worldToCellCoords(x, z);
+    const layout = this.decoSystem.layout || this.terrainSystem.layout || null;
+    if (hasFloor(layout, cx, cz)) return true;
     if (!this.areaLookup) {
       this.areaLookup = new Set(this.areaCellsNow().map(([ax, az]) => `${ax},${az}`));
     }

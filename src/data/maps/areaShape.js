@@ -33,12 +33,31 @@ export function groundCells(world) {
 export function layerAt(world, cx, cz) {
   const layers = world || {};
   const hit = (entries) => (entries || []).some((entry) => entry.cx === cx && entry.cz === cz);
+  if (hit(layers.path) || hit(layers.manual)) return 'path';
   if (hit(layers.floor)) return 'floor';
-  if (hit(layers.path)) return 'path';
   if (hit(layers.water)) return 'water';
   if (hit(layers.clearing)) return 'clearing';
   if (hit(layers.grass)) return 'grass';
   return null;
+}
+export function layerEntriesAt(world, cx, cz) {
+  const layers = world || {};
+  const out = [];
+  const push = (name) => {
+    for (const entry of layers[name] || []) {
+      if (entry && entry.cx === cx && entry.cz === cz) out.push(entry);
+    }
+  };
+  push('path');
+  push('manual');
+  push('floor');
+  push('water');
+  push('clearing');
+  push('grass');
+  return out;
+}
+export function hasFloor(world, cx, cz) {
+  return Boolean(floorCellAt(world, cx, cz));
 }
 export function hasLayerCell(world, cx, cz) {
   return layerAt(world, cx, cz) !== null;

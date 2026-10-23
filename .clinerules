@@ -18,6 +18,11 @@
   `npm i <balíček>`, `npm uninstall`, `pip install`, cokoli dalšího).
   Když nová závislost vypadá jako nutná, nejdřív se ZEPTEJ a vysvětli proč.
 - Testy a validaci NESPOUŠTĚJ sám — výstup ověřuje uživatel ručně v dev serveru.
+- NIKDY nezakládej testovací skripty, harnessy ani dočasné testovací soubory
+  (Node skripty, kopie modulů, simulace editoru apod.). Žádné „ověřím si to
+  bokem" — hotový task předávej uživateli a ten ho sám vyzkouší v dev serveru.
+- Jediná povolená kontrola vlastního kódu je přečtení upravených řádků
+  a případně `node --check` na syntaxi. Nic víc.
 - Když test spustíš (jen na výslovný pokyn), spouštěj ho na POPŘEDÍ v rámci
   jednoho volání příkazu, bez pozadových procesů.
 - NIKDY `Start-Process` bez `-WindowStyle Hidden`; v Node skriptech vždy
