@@ -39,6 +39,12 @@ export const MACHINE_KEYS = Object.keys(MACHINE_TYPES);
 
 export const DEFAULT_MACHINE = 'miner';
 
+export const MACHINE_STATE_DEFAULT = {
+  input: {},
+  output: {},
+  progress: 0,
+};
+
 export function getMachine(machineKey) {
   return MACHINE_TYPES[machineKey] || null;
 }

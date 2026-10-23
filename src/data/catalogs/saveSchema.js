@@ -3,9 +3,3 @@
 export const SAVE_VERSION = 1;
 export const SAVE_STORAGE_KEY = 'greenfactory.save.dev';
 export const SAVE_LEGACY_KEY = 'greenfactory.save.v9';
-
-export const MACHINE_STATE_DEFAULT = {
-  input: {},
-  output: {},
-  progress: 0,
-};

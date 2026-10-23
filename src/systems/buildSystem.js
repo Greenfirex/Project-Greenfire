@@ -6,9 +6,8 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { cellToWorldCoords, cellKey } from '../utils/gridMath.js';
-import { getMachine } from '../data/catalogs/machines.js';
+import { getMachine, MACHINE_STATE_DEFAULT } from '../data/catalogs/machines.js';
 import { loadModel, instantiateModel, whenModelsIdle } from '../utils/assetLoader.js';
-import { MACHINE_STATE_DEFAULT } from '../data/catalogs/saveSchema.js';
 
 function sanitizeCounts(source) {
   const result = {};

@@ -71,6 +71,25 @@ suroviny pro výrobu (železná a měděná ruda, ingoty). Stroj má v savu při
 stav (co má uvnitř, co vyrobil, jak daleko je ve výrobě), ale výroba v něm
 zatím neběží.
 
+### Voda v mapě — připravená dlaždicová logika
+
+Voda se v mapě kreslí (`water` je vrstva vedle `floor`, `path` a `clearing`),
+ale vykresluje se jedním a tím samým modelem na každou buňku — nevypadá proto
+jako řeka, ale jako hromada stejných kostek.
+
+V `src/utils/waterTiles.js` už leží hotový výběr dílku: z toho, které ze čtyř
+sousedních buněk jsou taky voda, pozná rovinku, zatáčku, křížení, konec a
+samostatný dílek, a vrátí i potřebné otočení. Navíc rozliší úzký tok od široké
+vodní plochy (hloubka podle zaplněného čtverce okolo buňky) a u břehu použije
+břehové a rohové dílky.
+
+Modely k tomu v projektu leží: `public/assets/nature/water/` (rovná, zatáčka,
+křížení, konec, břeh, plná hladina, kameny, lekníny).
+
+Zbývá dodělat: soubor se nikde neimportuje, takže se nepoužívá. Napojit ho
+znamená při stavbě vrstev vody (viz `decoSystem`) vybrat dílek a otočení podle
+`waterPlan(cells)` místo jednoho modelu pro každou buňku.
+
 Další kroky: výroba ve strojích a plnění batohu, výběr a stav stroje kliknutím,
 výroba předmětů z batohu.
 
