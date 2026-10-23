@@ -96,3 +96,29 @@ k commitu.
 
 Když vývojový server neběží nebo jde o zabalenou verzi hry, soubor zapsat nejde
 a hra mapu místo toho stáhne jako `map.json`; ten pak polož do projektu ručně.
+
+### Cesty
+
+Cesta je samostatná **vrstva** mapy (`path`), ne dlaždice: každý záznam má jen
+pozici (`cx`, `cz`) a styl (`dirt`/`stone`/`wood` = hlína/kámen/dřevo), **žádný
+`key`** — na rozdíl od podlahy a dekorací se cesta nepoznává podle klíče, ale
+podle toho, že je ve vrstvě `path` (viz `src/data/maps/areaShape.js`).
+
+Vykresluje ji `src/systems/pathSystem.js` podle toho, kolik sousedních buněk je
+taky cesta:
+
+- **rovinka** (2 protilehlí sousedé) → rovný pás,
+- **zatáčka** (2 sousedé do pravého úhlu) → zaoblený roh,
+- **křížení / rozcestí T** (3–4 sousedé) → sjednocení vodorovného a svislého pásu;
+  u „T" je chybějící rameno uťaté přesně na hraně buňky, aby nečouhalo do trávy.
+
+Šířka cesty je **deterministická funkce světových souřadnic** (`pathHalfWidth`),
+ne náhodná — proto se plynule vlní (cesta vypadá jako vyšlapaná pěšinka), ale
+zároveň se sousední segmenty na hranici buňky potkají se stejnou šířkou, takže
+nikde nevznikají schody ani díry. Amplituda toho kolísání je nastavená v té samé
+funkci na konci souboru.
+
+V editoru se cesta kreslí brushem **Cesta** (má tlačítka pro volbu stylu hlina/
+kámen/dřevo). Zvýraznění „už tady cesta je" funguje na vrstvu `path`, ne na klíč,
+takže funguje stejně pro cestu nakreslenou v editoru i pro tu načtenou ze souboru.
+
