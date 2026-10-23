@@ -228,11 +228,9 @@ export default class EditorMode {
     const floor = floorCellAt(this.layout, cx, cz);
     if (layer === 'path') {
       entry.style = this.pathStyle;
-      entry.key = floor ? floor.key : FALLBACK_FLOOR;
       if (floor && floor.liftY) entry.liftY = floor.liftY;
       const existing = (this.layout.path || []).find((cell) => cell && cell.cx === cx && cell.cz === cz);
       if (existing) {
-        existing.key = entry.key;
         existing.style = entry.style;
         if (entry.liftY) existing.liftY = entry.liftY;
       } else {
@@ -545,8 +543,8 @@ export default class EditorMode {
         this.layout.grass.push({ cx, cz });
         continue;
       }
-      const key = brush.deco ? (cell.key || this.tileKey) : (cell.key || this.tileKey || this.draftTile);
-      if (!key || !getDecoration(key)) continue;
+      const key = brush.deco ? (cell.key || this.tileKey) : cell.key;
+      if (brush.deco && (!key || !getDecoration(key))) continue;
       if (brush.deco) {
         dropDecorationCell(this.layout, cx, cz);
         const entry = { key, cx, cz, rotation: 0 };
@@ -652,13 +650,6 @@ export default class EditorMode {
     if (brush.tile) keys.push(brush.tile);
     if (brush.shape === 'line') keys.push('path');
     return keys;
-  }
-
-  get draftTile() {
-    const brush = BRUSHES[this.brushKey];
-    if (!brush) return null;
-    if (brush.tile) return brush.tile;
-    return this.tileKey;
   }
 
   draftTileAt(cx, cz) {
