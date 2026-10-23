@@ -1143,6 +1143,7 @@ updateGatherTarget() {
     const dayness = this.dayNightSystem.config ? this.dayNightSystem.dayness(this.dayNightSystem.getTime()) : 1;
     const value = this.options.dayCycle ? dayness : 1;
     this.audioSystem.setDayness(value);
+    this.floraSystem.setDayness(value);
     if (this.playerSystem.torchFire) this.playerSystem.torchFire.setDayness(value);
     this.campfireSystem.setDayness(value);
   }

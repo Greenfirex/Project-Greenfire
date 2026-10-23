@@ -4,7 +4,7 @@ const MIN_VISIBLE_MS = 600;
 const MIN_AFTER_FIRST_MS = 300;
 const FADE_MS = 400;
 const ASSET_LANES = 4;
-const SPLASH_URL = 'assets/Gemini_Generated_Image_wv9oq7wv9oq7wv9o.jpg';
+const SPLASH_URL = 'assets/ui/loading-screen-bg.jpg';
 
 const ASSET_END = 25;
 const MAP_END = 28;

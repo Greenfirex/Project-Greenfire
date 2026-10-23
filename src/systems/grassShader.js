@@ -61,6 +61,7 @@ precision highp float;
 uniform vec3 baseColor;
 uniform vec3 grassRoot;
 uniform vec3 lightDir;
+uniform float dayness;
 
 varying vec3 vPosition;
 varying vec3 vNormal;
@@ -77,10 +78,13 @@ void main(void) {
   vec3 color = mix(grassRoot, tip, pow(vHeight, 1.25));
   color *= mix(0.4, 1.0, smoothstep(0.0, 0.35, vHeight));
 
+  float daylight = 0.04 + 0.96 * dayness;
+  color *= daylight;
+
   vec3 n = normalize(vNormal);
   float face = dot(n, lightDir);
   float wrap = clamp(face * 0.5 + 0.5, 0.0, 1.0);
-  color *= 0.72 + wrap * 0.5;
+  color *= 0.72 + wrap * 0.5 * dayness;
 
   gl_FragColor = vec4(color, 1.0);
 }
@@ -99,7 +103,7 @@ export function createGrassMaterial(scene, options) {
   registerShaders();
   const material = new ShaderMaterial('wildGrassMat', scene, { vertex: 'grass', fragment: 'grass' }, {
     attributes: ['position', 'normal', 'uv', 'world0', 'world1', 'world2', 'world3'],
-    uniforms: ['viewProjection', 'grassTime', 'grassHeight', 'baseColor', 'grassRoot', 'lightDir'],
+    uniforms: ['viewProjection', 'grassTime', 'grassHeight', 'baseColor', 'grassRoot', 'lightDir', 'dayness'],
   });
   material.backFaceCulling = false;
   material.setFloat('grassTime', 0);
@@ -107,6 +111,7 @@ export function createGrassMaterial(scene, options) {
   material.setColor3('baseColor', options.base);
   material.setColor3('grassRoot', options.root);
   material.setVector3('lightDir', LIGHT_DIR);
+  material.setFloat('dayness', 1);
   return material;
 }
 

@@ -70,6 +70,7 @@ export default class FloraSystem {
     this.observer = null;
     this.clock = 0;
     this.lastTime = performance.now();
+    this.dayness = 1;
   }
 
   create(deco, density = 'high') {
@@ -104,6 +105,12 @@ export default class FloraSystem {
     if (!this.deco) return;
     this.dispose();
     this.build();
+  }
+
+  setDayness(value) {
+    const v = Math.max(0, Math.min(1, Number(value) || 0));
+    if (v === this.dayness) return;
+    this.dayness = v;
   }
 
   buildGrass() {
@@ -227,7 +234,10 @@ export default class FloraSystem {
       this.clock += Math.min((now - this.lastTime) / 1000, 0.1);
       this.lastTime = now;
       const mat = this.grassMeshes[0]?.material;
-      if (mat) tickGrass(mat, this.clock);
+      if (mat) {
+        tickGrass(mat, this.clock);
+        mat.setFloat('dayness', this.dayness);
+      }
     });
   }
 }
