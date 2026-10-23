@@ -9,6 +9,9 @@
   --glow-warm: #e0a458;
   --text-main: #d6e2e0;
   --text-dim: #7d8f8c;
+  --editor-zone: #5ac8aa;
+  --editor-area: #5b9bd5;
+  --editor-height: #d9a441;
 }
 
 * {

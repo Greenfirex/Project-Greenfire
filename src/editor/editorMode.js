@@ -15,7 +15,7 @@ export default class EditorMode {
   constructor() {
     this.active = false;
     this.mode = 'zone';
-    this.brushKey = 'forest_exact';
+    this.brushKey = null;
     this.tileKey = null;
     this.pathStyle = 'dirt';
     this.erasing = false;
@@ -473,6 +473,10 @@ export default class EditorMode {
     if (!this.draft) return false;
     if (this.draft.mode === 'remove') return droppable(this.layout, cx, cz).length > 0;
     return this.canEditCell(cx, cz);
+  }
+
+  get hasBrush() {
+    return Boolean(this.brushKey && BRUSHES[this.brushKey]);
   }
 
   draftCell(cx, cz) {

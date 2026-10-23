@@ -1,10 +1,11 @@
 /* Styl editačního panelu — paleta brushů, paleta výšek a nástroje pro malování zón. */
 .editor-panel {
   position: absolute;
-  top: 60px;
-  right: 14px;
+  top: 50%;
+  right: 16px;
   width: 210px;
   display: none;
+  transform: translateY(-50%);
   background: var(--bg-panel);
   border: 1px solid var(--border-glow);
   border-radius: 6px;
@@ -20,6 +21,7 @@
 
 .editor-panel.is-dragging {
   cursor: grabbing;
+  transform: none;
   z-index: 24;
 }
 
@@ -65,32 +67,93 @@
 
 .editor-panel__modes {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
+  grid-template-columns: 1fr;
+  gap: 5px;
   margin-bottom: 8px;
 }
 
 .editor-panel__modes button {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(90, 200, 170, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 3px solid rgba(255, 255, 255, 0.18);
   border-radius: 4px;
-  color: var(--text-dim);
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  padding: 5px 4px;
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  padding: 9px 10px;
   cursor: pointer;
+  text-align: left;
   text-transform: uppercase;
 }
 
+.editor-panel__modes button[data-mode="zone"] {
+  border-left-color: var(--editor-zone);
+  color: var(--editor-zone);
+}
+
+.editor-panel__modes button[data-mode="area"] {
+  border-left-color: var(--editor-area);
+  color: var(--editor-area);
+}
+
+.editor-panel__modes button[data-mode="height"] {
+  border-left-color: var(--editor-height);
+  color: var(--editor-height);
+}
+
 .editor-panel__modes button:hover {
-  border-color: rgba(90, 200, 170, 0.45);
-  color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.32);
+  filter: brightness(1.25);
+}
+
+.editor-panel__modes button[data-mode="zone"]:hover {
+  border-left-color: var(--editor-zone);
+}
+
+.editor-panel__modes button[data-mode="area"]:hover {
+  border-left-color: var(--editor-area);
+}
+
+.editor-panel__modes button[data-mode="height"]:hover {
+  border-left-color: var(--editor-height);
 }
 
 .editor-panel__modes button.is-active {
-  background: rgba(90, 200, 170, 0.18);
-  border-color: var(--glow-accent);
-  color: var(--text-main);
+  color: #0d1014;
+  border-color: transparent;
+}
+
+.editor-panel__modes button[data-mode="zone"].is-active {
+  background: var(--editor-zone);
+}
+
+.editor-panel__modes button[data-mode="area"].is-active {
+  background: var(--editor-area);
+}
+
+.editor-panel__modes button[data-mode="height"].is-active {
+  background: var(--editor-height);
+}
+
+.editor-panel__empty {
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.4;
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  text-align: center;
+}
+
+.editor-panel[data-mode="height"] .editor-panel__empty {
+  display: none;
+}
+
+.editor-panel.has-brush .editor-panel__empty,
+.editor-panel[data-mode="area"] .editor-panel__empty {
+  display: none;
 }
 
 .brush-panel__styles button img {
@@ -221,12 +284,11 @@
 
 .brush-panel {
   position: absolute;
-  top: 12px;
-  left: 234px;
-  width: 300px;
-  max-height: calc(100vh - 24px);
-  overflow-y: auto;
+  top: 50%;
+  right: 250px;
+  width: 240px;
   display: none;
+  transform: translateY(-50%);
   background: var(--bg-panel);
   border: 1px solid var(--border-glow);
   border-radius: 6px;
@@ -242,6 +304,7 @@
 
 .brush-panel.is-dragging {
   cursor: grabbing;
+  transform: none;
   z-index: 25;
 }
 
@@ -396,10 +459,11 @@
 
 .area-panel {
   position: absolute;
-  top: 12px;
-  left: 234px;
-  width: 300px;
+  top: 50%;
+  right: 250px;
+  width: 260px;
   display: none;
+  transform: translateY(-50%);
   background: var(--bg-panel);
   border: 1px solid var(--border-glow);
   border-radius: 6px;
@@ -419,6 +483,7 @@
 
 .area-panel.is-dragging {
   cursor: grabbing;
+  transform: none;
   z-index: 25;
 }
 

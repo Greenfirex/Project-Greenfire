@@ -43,7 +43,7 @@ export default class InputSystem {
 
   isBusy() {
     if (!this.game || !this.game.loaded) return true;
-    if (this.game.editorMode && this.game.editorMode.active) return false;
+    if (this.game.editor && this.game.editor.active) return false;
     return Boolean(this.game.paused);
   }
 

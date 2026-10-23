@@ -31,10 +31,7 @@ import AudioSystem from '../systems/audioSystem.js';
 import InventoryPanel from '../ui/inventoryPanel.js';
 import Hud from '../ui/hud.js';
 import Hotbar from '../ui/hotbar.js';
-import EditorMode from '../editor/editorMode.js';
-import EditorHud from '../editor/editorHud.js';
-import BrushPanel from '../editor/brushPanel.js';
-import AreaPanel from '../editor/areaPanel.js';
+import MapEditor from '../editor/mapEditor.js';
 import EditorToggle from '../editor/editorToggle.js';
 import PauseScreen from '../ui/pauseScreen.js';
 import LoadingScreen from '../ui/loadingScreen.js';
@@ -104,11 +101,7 @@ export default class GameScene {
     this.hud = new Hud();
     this.hotbar = new Hotbar();
     this.inventoryPanel = new InventoryPanel();
-    this.editorMode = new EditorMode();
-    this.lastPaintCell = null;
-    this.editorHud = new EditorHud();
-    this.brushPanel = new BrushPanel();
-    this.areaPanel = new AreaPanel();
+    this.editor = new MapEditor(this);
     this.optionsPanel = new OptionsPanel();
     this.editorToggle = new EditorToggle();
     this.pauseScreen = new PauseScreen();
@@ -339,7 +332,7 @@ export default class GameScene {
   }
 
   updateGathering(dt) {
-    const active = this.loaded && !this.editorMode.active && !this.isBuilding();
+    const active = this.loaded && !this.editor.active && !this.isBuilding();
     this.gatherSystem.setPlayer(active ? this.playerSystem : null);
     this.gatherSystem.setTool(this.heldItemSystem.tool());
     this.gatherSystem.update(dt, this.playerSystem);
@@ -351,7 +344,7 @@ export default class GameScene {
 
   gatherPrompt(target) {
     if (target) return this.describeGatherTarget(target);
-    if (this.editorMode.active || this.isBuilding()) return '';
+    if (this.editor.active || this.isBuilding()) return '';
     if (this.campfireSystem.pending) return 'Zapaluji táborák…';
     if (this.campfireSystem.nearest) return 'E — zapálit Táborák';
     return '';
@@ -377,7 +370,7 @@ updateGatherTarget() {
   }
 
   handleLeftDown() {
-    if (!this.loaded || this.editorMode.active || this.isBuilding()) return;
+    if (!this.loaded || this.editor.active || this.isBuilding()) return;
     if (this.campfireSystem.pending) {
       this.cancelCampfireIgnite();
       return;
@@ -416,7 +409,7 @@ updateGatherTarget() {
   }
 
   holdStrikeReady() {
-    if (!this.inputSystem.leftDown || this.isBuilding() || this.editorMode.active) return false;
+    if (!this.inputSystem.leftDown || this.isBuilding() || this.editor.active) return false;
     if (this.campfireSystem.pending) return false;
     const gather = this.gatherSystem;
     if (!gather.target || gather.cooldown > 0 || gather.pending) return false;
@@ -470,17 +463,17 @@ updateGatherTarget() {
   }
 
   refreshTerrain() {
-    const reach = this.editorMode.active ? this.terrainSystem.reachCells() : null;
+    const reach = this.editor.active ? this.terrainSystem.reachCells() : null;
     this.terrainSystem.clear();
     this.terrainSystem.create(this.mapKey, this.mapFile, reach);
-    this.editorMode.assignRealCells(this.terrainSystem.realCells);
+    this.editor.mode.assignRealCells(this.terrainSystem.realCells);
     this.areaLookup = null;
   }
 
   setupTerrain() {
     const ground = this.terrainSystem.create(this.mapKey, this.mapFile);
     if (ground) this.s.clearColor = this.mapColor(this.mapKey, 'sky');
-    this.editorMode.assignRealCells(this.terrainSystem.realCells);
+    this.editor.mode.assignRealCells(this.terrainSystem.realCells);
     this.areaLookup = null;
   }
 
@@ -609,183 +602,31 @@ updateGatherTarget() {
       this.refreshHoverPreview();
     };
 
-    this.editorMode.onRegenerate = () => this.renderMapLayout();
-    this.editorMode.onAreaSelectionChange = (selection) => this.showAreaPreview(selection);
-    this.editorMode.onChange = (active) => this.toggleEditorPanel(active);
-    this.editorMode.onModeChange = (mode) => {
-      this.editorHud.setMode(mode);
-      this.syncEditorPanels(mode);
-      this.showAreaPreview(this.editorMode.getAreaSelection());
-      this.handleHover(this.hoverCell);
-    };
-    this.areaPanel.onTool = (tool) => {
-      this.editorMode.setAreaTool(tool);
-      this.areaPanel.setTool(this.editorMode.areaTool);
-      this.handleHover(this.hoverCell);
-    };
-    this.areaPanel.onApply = () => this.applyAreaSelection();
-    this.areaPanel.onClear = () => this.clearAreaSelection();
-    this.areaPanel.onUndo = () => this.undoEdit();
-    this.editorMode.onStyleChange = (brushKey, styleKey) => {
-      this.brushPanel.setStyle(styleKey);
-    };
-    this.editorMode.onHeightChange = (level) => this.editorHud.setHeightLevel(level);
-    this.editorMode.onDraftChange = (draft) => this.updateDraftView(draft);
-    this.editorMode.onBrushChange = (key) => {
-      this.editorHud.setBrush(key);
-      this.openBrushPanel(key);
-    };
-    this.editorHud.onBrush = (key) => this.editorMode.setBrush(key);
-    this.editorHud.onMode = (mode) => this.editorMode.setMode(mode);
-    this.editorHud.onHeightLevel = (level) => this.editorMode.setHeightLevel(level);
-    this.editorHud.onHeightStep = (delta) => this.editorMode.stepHeightLevel(delta);
-    this.editorHud.onSmooth = () => this.editorMode.smoothHeights();
-    this.editorHud.onClose = () => this.exitEditor();
-    this.editorHud.onSaveMap = () => this.saveMapLayout();
-    this.brushPanel.onApply = () => this.applyBrushDraft();
-    this.brushPanel.onCancel = () => this.cancelBrushDraft();
-    this.brushPanel.onStyle = (brushKey, styleKey) => this.editorMode.setStyle(styleKey);
-    this.brushPanel.onErase = () => this.setEraseMode(!this.editorMode.erasing);
-    this.brushPanel.onUndo = () => this.undoEdit();
+    this.editor.connect();
   }
 
   setEraseMode(on) {
-    this.editorMode.setDraftMode(on ? 'remove' : 'add');
-    this.editorHud.erasing = this.editorMode.erasing;
-    this.editorHud.refresh();
-    this.brushPanel.setDraftMode(this.editorMode.draftMode);
-    this.refreshUndoButton();
-    this.refreshZoneOverlay();
-    this.handleHover(this.hoverCell);
-  }
-
-  openBrushPanel(brushKey) {
-    this.editorMode.beginDraft(brushKey);
-    this.brushPanel.open(brushKey, 0, this.editorMode.pathStyle);
-    this.brushPanel.setDraftMode(this.editorMode.draftMode);
-    this.refreshUndoButton();
-    this.refreshZoneOverlay();
-    this.handleHover(this.hoverCell);
+    return this.editor.setEraseMode(on);
   }
 
   applyBrushDraft() {
-    const removing = this.editorMode.draftMode === 'remove';
-    const count = this.editorMode.applyDraft();
-    if (count) this.editorHud.setReadout((removing ? 'Smazáno ' : 'Aplikováno ') + count + ' buněk');
-    else this.editorHud.setReadout(removing ? 'Nic ke smazání' : 'Prázdná zóna');
-    this.brushPanel.setDraftMode(this.editorMode.draftMode);
-    this.refreshUndoButton();
-    this.refreshZoneOverlay();
-    this.handleHover(this.hoverCell);
+    return this.editor.applyBrushDraft();
   }
 
   cancelBrushDraft() {
-    this.editorMode.cancelDraft();
-    this.brushPanel.close();
-    this.editorHud.clearBrushSelection();
-    this.refreshZoneOverlay();
-    this.handleHover(this.hoverCell);
+    return this.editor.cancelBrushDraft();
   }
 
   undoEdit() {
-    if (!this.editorMode.undo()) {
-      this.refreshUndoButton();
-      this.handleHover(this.hoverCell);
-      return false;
-    }
-    this.ensureDraft();
-    this.refreshUndoButton();
-    this.areaPanel.setCount(this.editorMode.pendingAreaCells());
-    this.handleHover(this.hoverCell);
-    return true;
-  }
-
-  ensureDraft() {
-    if (this.editorMode.draft) return;
-    if (!this.brushPanel.isOpen) return;
-    const brushKey = this.editorMode.brushKey;
-    if (!brushKey) return;
-    this.editorMode.beginDraft(brushKey);
-  }
-
-  refreshUndoButton() {
-    this.brushPanel.setUndoEnabled(this.editorMode.canUndo);
-    this.areaPanel.setUndoEnabled(this.editorMode.canUndo);
-  }
-
-  undoEditor() {
-    this.editorMode.undo();
-    this.brushPanel.close();
-    this.editorHud.clearBrushSelection();
-    this.setEraseMode(false);
-    this.refreshZoneOverlay();
+    return this.editor.undo();
   }
 
   updateDraftView(draft) {
-    if (!draft) {
-      this.brushPanel.setCount(0);
-      this.refreshUndoButton();
-      this.refreshZoneOverlay();
-      return;
-    }
-    this.brushPanel.setDraftMode(draft.mode);
-    this.brushPanel.setCount(draft.cells.size);
-    this.refreshUndoButton();
-    this.refreshZoneOverlay();
+    return this.editor.updateDraftView(draft);
   }
 
   refreshZoneOverlay() {
-    if (!this.editorMode.active || !this.mapLayout || !this.editorMode.hasDraft) {
-      this.gridSystem.clearZones();
-      this.gridSystem.clearDraftCells();
-      return;
-    }
-    const draft = this.editorMode.draft;
-    const removing = draft.mode === 'remove';
-    const surfaceAt = (cx, cz) => this.decoSystem.surfaceAt(cx, cz);
-    const same = [];
-    const other = [];
-
-    const draftCells = [];
-    for (const key of draft.cells) {
-      const [cx, cz] = key.split(',').map(Number);
-      draftCells.push([cx, cz]);
-      if (removing) continue;
-      if (this.editorMode.draftHasSame(cx, cz)) same.push([cx, cz]);
-    }
-    if (!removing) {
-      for (const [cx, cz] of this.terrainSystem.realCells || []) {
-        if (!this.editorMode.draftHasContent(cx, cz)) continue;
-        if (this.editorMode.draftHasSame(cx, cz)) same.push([cx, cz]);
-        else other.push([cx, cz]);
-      }
-    }
-
-    this.gridSystem.showZones([
-      {
-        cells: other,
-        color: new Color3(0.5, 0.55, 0.6),
-        glow: new Color3(0.32, 0.36, 0.4),
-        alpha: 0.28,
-        lift: 0.015,
-      },
-      {
-        cells: same,
-        color: new Color3(0.3, 0.62, 0.36),
-        glow: new Color3(0.2, 0.45, 0.26),
-        alpha: 0.3,
-        lift: 0.02,
-      },
-      {
-        cells: draftCells,
-        color: removing ? new Color3(1, 0.3, 0.25) : new Color3(0.15, 1, 0.85),
-        glow: removing ? new Color3(0.95, 0.25, 0.2) : new Color3(0.2, 0.95, 0.8),
-        alpha: 0.72,
-        lift: 0.055,
-      },
-    ], surfaceAt);
-
-    this.gridSystem.showDraftCells(draftCells, surfaceAt, draft.mode);
+    return this.editor.refreshZoneOverlay();
   }
 
   renderMapLayout() {
@@ -837,19 +678,19 @@ updateGatherTarget() {
   reportRebuildError(error) {
     const reason = error && error.message ? error.message : 'neznámá chyba';
     console.error('[mapa] Skládání světa selhalo:', error);
-    this.editorHud.setReadout(`Mapu se nepodařilo postavit — ${reason}`);
+    this.editor.hud.setReadout(`Mapu se nepodařilo postavit — ${reason}`);
   }
 
   reportRebuild() {
     const broken = this.decoSystem.brokenCount || 0;
     const placed = this.decoSystem.placedCount();
-    if (!this.editorMode.active) return;
+    if (!this.editor.active) return;
     if (broken === 0) {
-      this.editorHud.setReadout(`Aplikováno — postaveno ${placed} objektů.`);
+      this.editor.hud.setReadout(`Aplikováno — postaveno ${placed} objektů.`);
       return;
     }
     const label = broken === 1 ? '1 objekt se nepostavil' : `${broken} objektů se nepostavilo`;
-    this.editorHud.setReadout(`Aplikováno ${placed} objektů, ale ${label} — chybí model.`);
+    this.editor.hud.setReadout(`Aplikováno ${placed} objektů, ale ${label} — chybí model.`);
   }
 
   restoreGatherEntries(exhausted) {
@@ -866,55 +707,15 @@ updateGatherTarget() {
   }
 
   toggleEditorPanel(active) {
-    if (!active && this.mapDirty) this.warnUnsavedMap();
-    this.adoptEditorMap();
-    this.terrainSystem.clear();
-    if (active) {
-      this.editorHud.show();
-      this.editorHud.setMode(this.editorMode.mode);
-      this.editorHud.setHeightLevel(this.editorMode.heightLevel);
-    } else {
-      this.editorHud.hide();
-      this.gridSystem.clearBrush();
-      this.brushPanel.close();
-      this.areaPanel.hide();
-    }
-    this.refreshTerrain();
-    this.syncEditorPanels(this.editorMode.mode);
-    this.editorToggle.setActive(Boolean(active));
+    return this.editor.togglePanel(active);
   }
 
   syncEditorPanels(mode) {
-    if (!this.editorMode.active) {
-      this.areaPanel.hide();
-      return;
-    }
-    if (mode === 'area') {
-      this.brushPanel.close();
-      this.editorMode.cancelDraft();
-      this.areaPanel.open(
-        this.editorMode.areaTool,
-        this.editorMode.pendingAreaCells(),
-        this.editorMode.canUndo,
-      );
-      return;
-    }
-    this.areaPanel.hide();
+    return this.editor.syncPanels(mode);
   }
 
   exitEditor() {
-    this.editorMode.cancelDraft();
-    this.editorMode.clearAreaSelection();
-    this.editorMode.active = false;
-    this.brushPanel.close();
-    this.areaPanel.hide();
-    this.editorHud.clearBrushSelection();
-    this.gridSystem.clearBrush();
-    this.gridSystem.clearZones();
-    this.gridSystem.clearDraftCells();
-    this.toggleEditorPanel(false);
-    this.editorToggle.setActive(false);
-    this.releaseGameFromEditor();
+    return this.editor.close();
   }
 
   readMapFile() {
@@ -941,13 +742,13 @@ updateGatherTarget() {
   buildMapLayout(mapFile) {
     this.mapFile = mapFile;
     this.mapLayout = layoutFromMapFile(mapFile, getMap(this.mapKey).seed);
-    this.editorMode.useLayout(this.mapLayout);
+    this.editor.useLayout(this.mapLayout);
     this.playerSystem.spawnCell = this.mapLayout.spawn;
     return this.mapFile;
   }
 
   adoptEditorMap() {
-    const layout = this.editorMode.getMap();
+    const layout = this.editor.getMap();
     if (!layout) return;
     this.mapLayout = layout;
     this.mapFile = mapFileFromLayout(this.mapKey, layout) || this.mapFile;
@@ -1023,7 +824,7 @@ updateGatherTarget() {
   setupEditorToggle() {
     this.editorToggle.onToggle = () => this.toggleEditorMode();
     this.editorToggle.mount();
-    this.editorToggle.setActive(this.editorMode.active);
+    this.editorToggle.setActive(this.editor.active);
     this.pauseScreen.onResume = () => this.togglePause();
     this.pauseScreen.mount();
     this.pauseScreen.setSpeed(this.simSystem.speed);
@@ -1158,7 +959,7 @@ updateGatherTarget() {
   setupInput() {
     this.inputSystem.suppressContextMenu(this.canvas);
     this.inputSystem.groundPredicate = (mesh) => mesh === this.terrainSystem.ground;
-    this.inputSystem.shouldPickByRay = () => this.editorMode.active && this.editorMode.mode === 'area';
+    this.inputSystem.shouldPickByRay = () => this.editor.active && this.editor.mapMode === 'area';
     this.inputSystem.attach(this.camera, this);
     this.inputSystem.onLeftDown = () => this.handleLeftDown();
     this.inputSystem.onHoverCell = (cell) => this.handleHover(cell);
@@ -1220,7 +1021,7 @@ updateGatherTarget() {
     if (paused) {
       this.pauseScreen.setSpeed(this.simSystem.speed);
       this.pauseScreen.show();
-    } else if (this.editorMode.active) {
+    } else if (this.editor.active) {
       this.pauseScreen.hide();
     } else {
       this.pauseScreen.hide();
@@ -1236,14 +1037,8 @@ updateGatherTarget() {
   }
 
   toggleEditorMode() {
-    const active = this.editorMode.toggle();
-    if (active) {
-      this.editorHud.setBrush(this.editorMode.brushKey);
-      this.holdGameForEditor();
-    } else {
-      this.releaseGameFromEditor();
-    }
-    this.editorToggle.setActive(this.editorMode.active);
+    const active = this.editor.open();
+    this.editorToggle.setActive(active);
     return active;
   }
 
@@ -1292,26 +1087,26 @@ updateGatherTarget() {
       evt.preventDefault();
       return;
     }
-    if (this.editorMode.active) {
-      if (evt.key === 'Escape' && this.editorMode.mode === 'area' && this.editorMode.hasAreaSelection) {
+    if (this.editor.active) {
+      if (evt.key === 'Escape' && this.editor.mapMode === 'area' && this.editor.mode.hasAreaSelection) {
         this.clearAreaSelection();
         evt.preventDefault();
         return;
       }
-      if (evt.key === 'Enter' && this.editorMode.hasAreaSelection) { this.applyAreaSelection(); evt.preventDefault(); return; }
-      if (evt.key === 'Escape' && this.editorMode.hasDraft) { this.cancelBrushDraft(); evt.preventDefault(); return; }
-      if (evt.key === 'Enter' && this.editorMode.hasDraft) { this.applyBrushDraft(); evt.preventDefault(); return; }
-      if (evt.key === 'x' || evt.key === 'X') { this.setEraseMode(!this.editorMode.erasing); evt.preventDefault(); return; }
+      if (evt.key === 'Enter' && this.editor.mode.hasAreaSelection) { this.applyAreaSelection(); evt.preventDefault(); return; }
+      if (evt.key === 'Escape' && this.editor.mode.hasDraft) { this.cancelBrushDraft(); evt.preventDefault(); return; }
+      if (evt.key === 'Enter' && this.editor.mode.hasDraft) { this.applyBrushDraft(); evt.preventDefault(); return; }
+      if (evt.key === 'x' || evt.key === 'X') { this.setEraseMode(!this.editor.erasing); evt.preventDefault(); return; }
       if (evt.key === 'z' || evt.key === 'Z') { this.undoEdit(); evt.preventDefault(); return; }
       if (evt.key === 'h' || evt.key === 'H') {
-        this.editorMode.setMode(this.editorMode.mode === 'height' ? 'zone' : 'height');
+        this.editor.mode.setMode(this.editor.mapMode === 'height' ? 'zone' : 'height');
         evt.preventDefault();
         return;
       }
-      if (evt.key === 'q' || evt.key === 'Q') { this.editorMode.stepHeightLevel(1); evt.preventDefault(); return; }
-      if (evt.key === 'e' || evt.key === 'E') { this.editorMode.stepHeightLevel(-1); evt.preventDefault(); return; }
+      if (evt.key === 'q' || evt.key === 'Q') { this.editor.mode.stepHeightLevel(1); evt.preventDefault(); return; }
+      if (evt.key === 'e' || evt.key === 'E') { this.editor.mode.stepHeightLevel(-1); evt.preventDefault(); return; }
       if (/^[0-4]$/.test(evt.key)) {
-        this.editorMode.setHeightLevel(Number(evt.key));
+        this.editor.mode.setHeightLevel(Number(evt.key));
         evt.preventDefault();
         return;
       }
@@ -1320,7 +1115,7 @@ updateGatherTarget() {
       if (evt.ctrlKey || evt.metaKey || evt.altKey || typing) return;
       const key = HOTBAR_ITEMS[Number(evt.key) - 1];
       if (!key) return;
-      if (this.editorMode.active) return;
+      if (this.editor.active) return;
       evt.preventDefault();
       if (this.heldItemSystem.key === key) this.heldItemSystem.set(null);
       else this.heldItemSystem.set(key);
@@ -1391,7 +1186,7 @@ updateGatherTarget() {
   }
 
   refreshHoverPreview() {
-    if (!this.hoverCell || !this.isBuilding() || this.editorMode.active) return;
+    if (!this.hoverCell || !this.isBuilding() || this.editor.active) return;
     const { cx, cz } = this.hoverCell;
     const topY = this.decoSystem.topAt(cx, cz);
     this.refreshHologram(this.hoverCell, topY, this.buildSystem.canBuild(cx, cz));
@@ -1400,45 +1195,29 @@ updateGatherTarget() {
   handleHover(cell) {
     this.hoverCell = cell;
     if (cell) this.decoHighlight.setHover(cell);
-    if (this.editorMode.active) {
-      this.gridSystem.hideHighlight();
-      this.gridSystem.hideHologram();
-      if (!cell) {
-        this.gridSystem.clearBrush();
-        this.editorHud.setReadout('–');
-        return;
-      }
-      if (this.editorMode.mode === 'area') {
-        this.showAreaPreview(this.editorMode.getAreaSelection());
-        if (this.editorMode.hasAreaSelection) return;
-        const info = this.editorMode.describeAt(cell.cx, cell.cz);
-        const state = this.editorMode.areaTool === 'erase' ? 'mažu' : 'maluju';
-        this.editorHud.setReadout(`${cell.cx}, ${cell.cz} — ${state} plochu · ${info.brush ? `zóna: ${info.brush}` : 'bez zóny'}`);
-        return;
-      }
-      if (this.editorMode.hasDraft && this.editorMode.mode !== 'height') {
-        this.gridSystem.clearBrush();
-      } else {
-        this.gridSystem.showBrush([[cell.cx, cell.cz]], (cx, cz) => this.decoSystem.surfaceAt(cx, cz), this.editorMode.erasing);
-      }
-      const info = this.editorMode.describeAt(cell.cx, cell.cz);
-      const tile = describeEntry(info);
-      const height = ` · výška ${info.height === null ? '0 m' : info.height + ' m'}`;
-      const draft = this.editorMode.draft ? ` · kreslím: ${this.editorMode.draft.brushKey}` : '';
-      this.editorHud.setReadout(`${cell.cx}, ${cell.cz} — ${tile}${height}${draft}`);
+    if (!this.editor.active) {
+      this.moveGridHighlight(cell);
       return;
     }
-    this.moveGridHighlight(cell);
+    this.gridSystem.hideHighlight();
+    this.gridSystem.hideHologram();
+    if (!cell) {
+      this.editor.clearHoverReadout();
+      return;
+    }
+    if (this.editor.mapMode === 'area') {
+      this.editor.showAreaPreview(this.editor.mode.getAreaSelection());
+      if (this.editor.mode.hasAreaSelection) return;
+      this.editor.showAreaHoverReadout(cell);
+      return;
+    }
+    this.editor.showCellHoverReadout(cell);
   }
 
   handlePaintStart(cell) {
     if (!cell) return;
-    if (this.editorMode.active) {
-      this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
-      if (this.editorMode.mode === 'area') this.editorMode.beginAreaDrag(cell.cx, cell.cz);
-      else if (this.editorMode.mode === 'height') this.editorMode.paint(cell.cx, cell.cz);
-      else if (!this.editorMode.canDraftCell(cell.cx, cell.cz)) this.editorHud.setReadout('Mimo hrací plochu — přepni na Plochu');
-      else this.editorMode.draftCell(cell.cx, cell.cz);
+    if (this.editor.active) {
+      this.editor.startPaint(cell);
       this.handleHover(cell);
       return;
     }
@@ -1447,77 +1226,39 @@ updateGatherTarget() {
 
   handlePaintMove(cell) {
     if (!cell) return;
-    if (this.editorMode.active) {
-      const from = this.lastPaintCell || cell;
-      if (this.editorMode.mode === 'area') this.editorMode.moveAreaDrag(cell.cx, cell.cz);
-      else if (this.editorMode.mode === 'height') this.editorMode.paintRun(from, cell);
-      else this.editorMode.draftRun(from, cell);
-      this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
+    if (this.editor.active) {
+      this.editor.movePaint(cell);
       this.handleHover(cell);
+      return;
     }
   }
 
   handlePaintEnd() {
-    if (this.editorMode.mode === 'area') this.editorMode.finishAreaDrag();
-    this.lastPaintCell = null;
+    if (this.editor.mapMode === 'area') this.editor.mode.finishAreaDrag();
+    this.editor.lastPaintCell = null;
   }
 
   showAreaPreview(selection) {
-    if (this.editorMode.active && this.editorMode.mode !== 'area') {
-      this.gridSystem.clearBrush();
-      this.areaPanel.setCount(0);
-      return;
-    }
-    const cells = selection ? selection.cells : null;
-    if (!cells || !cells.length) {
-      this.gridSystem.clearBrush();
-      this.areaPanel.setCount(0);
-      return;
-    }
-    const erasing = selection.tool === 'erase';
-    this.areaPanel.setTool(selection.tool);
-    this.gridSystem.showBrush(cells, (cx, cz) => this.decoSystem.surfaceAt(cx, cz), erasing);
-    const count = this.editorMode.pendingAreaCells();
-    this.areaPanel.setCount(count);
-    if (selection.drag) {
-      this.editorHud.setReadout(`plocha: ${cells.length} buněk označeno — pusť myš a klikni Aplikovat`);
-    }
+    return this.editor.showAreaPreview(selection);
   }
 
   applyAreaSelection() {
-    const selection = this.editorMode.getAreaSelection();
-    if (!selection || !selection.cells.length) return false;
-    const erasing = selection.tool === 'erase';
-    const pending = this.editorMode.pendingAreaCells();
-    this.editorMode.applyAreaSelection();
-    this.gridSystem.clearBrush();
-    this.areaPanel.setCount(0);
-    this.refreshUndoButton();
-    this.handleHover(this.hoverCell);
-    if (!erasing) this.editorHud.setReadout(`Přidáno ${pending} buněk plochy`);
-    else if (!pending) this.editorHud.setReadout('Nic k smazání — tyhle buňky v mapě nejsou');
-    else this.editorHud.setReadout(`Smazáno ${pending} buněk i s objekty`);
-    return true;
+    return this.editor.applyAreaSelection();
   }
 
   layerExists(cx, cz) {
-    const world = this.editorMode.getMap();
+    const world = this.editor.getMap();
     if (!world) return false;
     return ['floor', 'path', 'water', 'clearing'].some((name) => (world[name] || []).some((e) => e.cx === cx && e.cz === cz));
   }
 
   decoExists(cx, cz) {
-    const world = this.editorMode.getMap();
+    const world = this.editor.getMap();
     return Boolean(world && (world.decorations || []).some((e) => e.cx === cx && e.cz === cz));
   }
 
   clearAreaSelection() {
-    if (!this.editorMode.hasAreaSelection) return false;
-    this.editorMode.clearAreaSelection();
-    this.gridSystem.clearBrush();
-    this.areaPanel.setCount(0);
-    this.editorHud.setReadout('Výběr plochy zahozen');
-    return true;
+    return this.editor.clearAreaSelection();
   }
 
   moveGridHighlight(cell) {
@@ -1543,7 +1284,7 @@ updateGatherTarget() {
   }
 
   refreshHologram(cell, topY, valid) {
-    if (!this.isBuilding() || this.editorMode.active || !this.currentMachine) {
+    if (!this.isBuilding() || this.editor.active || !this.currentMachine) {
       this.gridSystem.hideHologram();
       return;
     }
@@ -1588,8 +1329,8 @@ updateGatherTarget() {
 
   handleCellClick(cell) {
     if (!cell) return;
-    if (this.editorMode.active) {
-      this.editorMode.paint(cell.cx, cell.cz);
+    if (this.editor.active) {
+      this.editor.paintCell(cell.cx, cell.cz);
       return;
     }
     if (!this.isBuilding()) return;
@@ -1605,23 +1346,9 @@ updateGatherTarget() {
 
   handleCellRightClick(cell) {
     if (!cell) return;
-    if (this.editorMode.active) {
-      if (this.editorMode.mode === 'area') {
-        const tool = this.editorMode.areaTool === 'erase' ? 'paint' : 'erase';
-        this.editorMode.setAreaTool(tool);
-        this.areaPanel.setTool(this.editorMode.areaTool);
-        this.handleHover(cell);
-        return;
-      }
-      if (this.editorMode.mode === 'height') {
-        const wasErasing = this.editorMode.erasing;
-        this.editorMode.erasing = true;
-        this.editorMode.paint(cell.cx, cell.cz);
-        this.editorMode.erasing = wasErasing;
-        return;
-      }
-      if (!this.editorMode.canEditCell(cell.cx, cell.cz)) return;
-      this.editorMode.draftCell(cell.cx, cell.cz);
+    if (this.editor.active) {
+      this.editor.rightClickCell(cell);
+      this.handleHover(cell);
       return;
     }
     if (!this.isBuilding()) return;
@@ -1657,90 +1384,19 @@ updateGatherTarget() {
   }
 
   warnUnsavedMap() {
-    this.hud.setSaveHint('Mapa ještě není zapsaná v souboru — po obnovení stránky se změny ztratí');
+    return this.editor.warnUnsaved();
   }
 
   markMapDirty() {
-    if (this.mapDirty) return;
-    this.mapDirty = true;
-    this.editorHud.setReadout('● Neuložené změny');
+    return this.editor.markDirty();
   }
 
   clearMapDirty() {
-    this.mapDirty = false;
-    this.editorHud.setReadout('Uloženo ✓');
+    return this.editor.clearDirty();
   }
 
   saveMapLayout() {
-    const layout = this.editorMode.getMap();
-    const key = typeof this.mapKey === 'string' ? this.mapKey.toLowerCase() : '';
-    const file = mapFileFromLayout(key, layout);
-    if (!file) {
-      this.editorHud.setReadout('Mapu nejde složit');
-      return Promise.resolve(false);
-    }
-    if (!Number.isInteger(layout.spawn.cx) || !Number.isInteger(layout.spawn.cz)) {
-      this.markMapDirty();
-      this.editorHud.setReadout(`● Neuložené změny — střed mapy nemá platné souřadnice (${layout.spawn.cx}, ${layout.spawn.cz})`);
-      return Promise.resolve(false);
-    }
-    const broken = brokenEntries(layout);
-    if (broken) {
-      this.markMapDirty();
-      this.editorHud.setReadout('● Neuložené změny');
-      this.hud.setSaveHint(`Mapa se neuložila — ${broken} buněk nemá platné souřadnice, takže by se v souboru rozsypala`);
-      return Promise.resolve(false);
-    }
-    this.editorHud.setReadout('Ukládám do souboru…');
-    return this.writeMapFile(file).then((result) => this.finishMapSave(file, result));
-  }
-
-  finishMapSave(file, result) {
-    this.mapFile = file;
-    if (result.ok) {
-      this.clearMapDirty();
-      this.hud.setSaveHint('Mapa zapsaná do souboru projektu ✓');
-      return true;
-    }
-    this.downloadMapFile(file);
-    this.markMapDirty();
-    this.editorHud.setReadout(`● Neuložené změny — server odmítl: ${result.reason}`);
-    this.hud.setSaveHint(`Mapu se nepodařilo zapsat do souboru (${result.reason}) — soubor je stažený, polož ho do projektu`);
-    return false;
-  }
-
-  async writeMapFile(file) {
-    const url = `/_map/${encodeURIComponent(file.mapKey)}`;
-    let response;
-    try {
-      response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(file),
-      });
-    } catch {
-      return { ok: false, reason: `server neodpověděl (${url})` };
-    }
-    if (response.ok) return { ok: true };
-    let reason = `HTTP ${response.status}`;
-    try {
-      const answer = await response.json();
-      if (answer && answer.error) reason = `${reason} — ${answer.error}`;
-    } catch {
-      reason = `${reason} z ${url}`;
-    }
-    return { ok: false, reason };
-  }
-
-  downloadMapFile(file) {
-    const name = `${file.mapKey}-map.json`;
-    const blob = new Blob([JSON.stringify(file)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = name;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return this.editor.saveMap();
   }
 
   doLoad() {
@@ -1771,21 +1427,5 @@ updateGatherTarget() {
   onResize() {
     this.cameraSystem.onResize();
   }
-}
-
-function describeEntry(info) {
-  if (!info.entry) return 'prázdno';
-  if (info.isPath) return `cesta (${info.style})`;
-  return info.entry.key;
-}
-
-function brokenEntries(layout) {
-  let count = 0;
-  for (const name of ['floor', 'path', 'water', 'clearing', 'decorations']) {
-    for (const entry of layout[name] || []) {
-      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) count += 1;
-    }
-  }
-  return count;
 }
 

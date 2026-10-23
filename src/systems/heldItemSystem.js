@@ -1,13 +1,11 @@
 // Co má hráč právě v ruce — nástroj vybraný v liště dole, nebo nic.
 // Drží jen klíč předmětu a umí se uložit, ať po obnovení stránky zůstane stejná věc v ruce.
-import { getTool, HOTBAR_ITEMS } from '../data/catalogs/items.js';
-
-const DEFAULT_TOOL = HOTBAR_ITEMS[0] || null;
+import { getTool } from '../data/catalogs/items.js';
 
 export default class HeldItemSystem {
 
   constructor() {
-    this.key = DEFAULT_TOOL;
+    this.key = null;
     this.onChange = null;
   }
 
@@ -43,6 +41,6 @@ export default class HeldItemSystem {
   }
 
   defaultState() {
-    return { key: DEFAULT_TOOL };
+    return { key: null };
   }
 }

@@ -32,12 +32,13 @@ export default class EditorHud {
         <span class="editor-panel__title">Editor mapy</span>
         <button type="button" class="editor-panel__close" title="Zavřít (F1)">×</button>
       </div>
-      <div class="editor-panel__hint">Klikni na brush, nakresli zónu tažením, pak Aplikovat · pravý klik maže · Z zpět · F1 zavřít</div>
+      <div class="editor-panel__hint">Vyber štětec, nakresli zónu tažením, pak Aplikovat · pravý klik maže · Z zpět · F1 zavřít</div>
       <div class="editor-panel__modes">
         <button type="button" data-mode="zone">Zóny</button>
         <button type="button" data-mode="height">Výška</button>
         <button type="button" data-mode="area">Herní plocha</button>
       </div>
+      <div class="editor-panel__empty">Zatím není vybraný žádný štětec.</div>
       <div class="editor-panel__grid"></div>
       <div class="editor-panel__heights">
         <span class="editor-panel__label">Výška</span>
@@ -145,6 +146,7 @@ export default class EditorHud {
     for (const btn of this.root.querySelectorAll('[data-brush]')) {
       btn.classList.toggle('is-active', !this.erasing && btn.dataset.brush === this.activeBrush);
     }
+    this.root.classList.toggle('has-brush', Boolean(this.activeBrush));
   }
 
   show() {
