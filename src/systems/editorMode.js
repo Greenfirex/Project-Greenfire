@@ -19,7 +19,6 @@ export default class EditorMode {
     this.tileKey = null;
     this.pathStyle = 'dirt';
     this.erasing = false;
-    this.manualMode = false;
     this.heightLevel = 2;
     this.layout = null;
     this.draft = null;
@@ -37,8 +36,6 @@ export default class EditorMode {
     this.onDraftChange = null;
     this.onAreaSelectionChange = null;
     this.onStyleChange = null;
-    this.onTileChange = null;
-    this.onManualModeChange = null;
     this.onRestore = null;
   }
 
@@ -82,7 +79,6 @@ export default class EditorMode {
     if (!BRUSHES[key]) return;
     if (this.brushKey !== key && this.draft) this.cancelDraft();
     this.brushKey = key;
-    this.manualMode = false;
     this.pathStyle = this.styleFor(key);
     this.syncTileKey();
     if (this.onBrushChange) this.onBrushChange(key);
@@ -97,25 +93,11 @@ export default class EditorMode {
     if (!pool.includes(this.tileKey)) this.tileKey = pool[0];
   }
 
-  brushPool(brushKey = this.brushKey) {
-    const brush = BRUSHES[brushKey];
+  brushPool(brushKey) {
+    const brush = BRUSHES[brushKey || this.brushKey];
     if (!brush) return [];
-    if (brush.poolByStyle) return brush.poolByStyle[this.styleFor(brushKey)] || [];
+    if (brush.poolByStyle) return brush.poolByStyle[this.styleFor(brushKey || this.brushKey)] || [];
     return brush.pool || [];
-  }
-
-  isManualBrush(brushKey = this.brushKey) {
-    const brush = BRUSHES[brushKey];
-    return Boolean(brush && brush.manual && this.manualMode && brush.poolByStyle && this.mode !== 'height');
-  }
-
-  setManualMode(on) {
-    const next = Boolean(on);
-    if (this.manualMode === next) return;
-    this.manualMode = next;
-    if (next) this.cancelDraft();
-    this.syncTileKey();
-    if (this.onManualModeChange) this.onManualModeChange(next, this.tileKey);
   }
 
   setMode(mode) {
@@ -136,12 +118,6 @@ export default class EditorMode {
     return this.mode === 'area' || this.areaExists(cx, cz);
   }
 
-  setTileKey(key) {
-    if (!this.brushPool().includes(key)) return;
-    this.tileKey = key;
-    if (this.onTileChange) this.onTileChange(key);
-  }
-
   setStyle(styleKey) {
     const brush = BRUSHES[this.brushKey];
     const keys = brush ? (brush.styles || Object.keys(brush.poolByStyle || {})) : [];
@@ -152,7 +128,6 @@ export default class EditorMode {
     this.syncTileKey();
     if (this.draft) this.draft.opts = { ...(this.draft.opts || {}), style: styleKey };
     if (this.onStyleChange) this.onStyleChange(this.brushKey, styleKey);
-    if (this.onTileChange) this.onTileChange(this.tileKey);
   }
 
   styleFor(brushKey) {
@@ -167,53 +142,9 @@ export default class EditorMode {
     return 'dirt';
   }
 
-  placeAt(cx, cz, rotation = 0) {
-    if (!this.active || !this.layout) return false;
-    if (!this.isManualBrush()) return false;
-    if (!this.tileKey || !getDecoration(this.tileKey)) return false;
-    this.pushHistory();
-    this.fixMissingFloor();
-    this.scheduleRegenerate();
-    return true;
-  }
-
-  rotateAt(cx, cz, delta = 1) {
-    if (!this.active || !this.layout) return false;
-    const tile = this.layerTileAt(cx, cz);
-    if (tile) {
-      this.pushHistory();
-      tile.rotation = ((tile.rotation || 0) + delta + 4) % 4;
-      this.scheduleRegenerate();
-      return true;
-    }
-    const entry = this.topEntryAt(cx, cz);
-    if (!entry) return false;
-    this.pushHistory();
-    entry.rotation = ((entry.rotation || 0) + delta + 4) % 4;
-    this.scheduleRegenerate();
-    return true;
-  }
-
-  deleteAt(cx, cz) {
-    if (!this.active || !this.layout) return false;
-    const entry = this.topEntryAt(cx, cz);
-    if (!entry) return false;
-    this.pushHistory();
-    this.dropTopEntry(cx, cz);
-    this.scheduleRegenerate();
-    return true;
-  }
-
   isWaterCell(cx, cz) {
     if (!this.layout) return false;
     return layerAt(this.layout, cx, cz) === 'water';
-  }
-
-  isPathCell(cx, cz) {
-    if (!this.layout) return false;
-    const layer = layerAt(this.layout, cx, cz);
-    if (layer === 'path') return true;
-    return this.brushShapeAt(cx, cz) === 'line';
   }
 
   isPathBrush(brushKey = this.brushKey) {
@@ -290,10 +221,6 @@ export default class EditorMode {
     return null;
   }
 
-  brushShapeAt(cx, cz) {
-    return BRUSHES[this.brushKey] ? BRUSHES[this.brushKey].shape : null;
-  }
-
   placeEntry(key, cx, cz, rotation = 0, liftY = 0, layer = null) {
     const entry = { key, cx, cz, rotation: ((rotation % 4) + 4) % 4 };
     if (liftY) entry.liftY = liftY;
@@ -301,12 +228,16 @@ export default class EditorMode {
     const floor = floorCellAt(this.layout, cx, cz);
     if (layer === 'path') {
       entry.style = this.pathStyle;
+      entry.key = floor ? floor.key : FALLBACK_FLOOR;
       if (floor && floor.liftY) entry.liftY = floor.liftY;
       const existing = (this.layout.path || []).find((cell) => cell && cell.cx === cx && cell.cz === cz);
-      if (existing) existing.style = entry.style;
-      else this.layout.path.push(entry);
-      if (this.layout.manual) this.layout.manual = this.layout.manual.filter((cell) => !cell || cell.cx !== cx || cell.cz !== cz);
-      if (!floor) this.placeFloor(FALLBACK_FLOOR, cx, cz);
+      if (existing) {
+        existing.key = entry.key;
+        existing.style = entry.style;
+        if (entry.liftY) existing.liftY = entry.liftY;
+      } else {
+        this.layout.path.push(entry);
+      }
       return entry;
     }
     const target = layer || (this.isWaterCell(cx, cz) ? 'water' : 'floor');
@@ -324,11 +255,11 @@ export default class EditorMode {
   }
 
   dropPathAt(cx, cz) {
-    for (const name of ['path', 'manual']) {
-      const list = this.layout[name] || [];
-      const kept = list.filter((entry) => entry.cx !== cx || entry.cz !== cz);
-      if (kept.length !== list.length) this.layout[name] = kept;
-    }
+    const list = this.layout.path || [];
+    const kept = list.filter((entry) => entry.cx !== cx || entry.cz !== cz);
+    if (kept.length === list.length) return false;
+    this.layout.path = kept;
+    return true;
   }
 
   keepFloor(cx, cz) {
@@ -356,13 +287,6 @@ export default class EditorMode {
       if (seen.has(key)) continue;
       seen.add(key);
       place(entry.cx, entry.cz);
-    }
-    for (const name of ['path', 'manual']) {
-      for (const entry of this.layout[name] || []) {
-        if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
-        if (floorCellAt(this.layout, entry.cx, entry.cz)) continue;
-        place(entry.cx, entry.cz);
-      }
     }
     return seen.size;
   }
@@ -672,8 +596,11 @@ export default class EditorMode {
       return;
     }
     if (this.erasing) {
+      if (this.isPathBrush()) {
+        this.dropPathAt(cx, cz);
+        return;
+      }
       dropLayerCell(this.layout, cx, cz);
-      this.dropPathAt(cx, cz);
       this.dropTopEntry(cx, cz);
       this.dropOrphans();
       return;
@@ -723,6 +650,7 @@ export default class EditorMode {
     if (!brush) return [];
     const keys = [...this.brushPool()];
     if (brush.tile) keys.push(brush.tile);
+    if (brush.shape === 'line') keys.push('path');
     return keys;
   }
 
@@ -777,12 +705,12 @@ export default class EditorMode {
     const level = entry && entry.liftY ? Math.round(entry.liftY / HEIGHT_STEP) : 0;
     return {
       brush: layer,
-      manual: entry,
+      entry,
       height: level > 0 ? level : null,
       override: entry,
       isPath: layer === 'path',
-      style: layer === 'path' ? this.styleFor(this.brushKey) : null,
-      pool: this.brushPool(),
+      style: layer === 'path' ? (entry && entry.style ? entry.style : this.styleFor(this.brushKey)) : null,
+      pool: this.brushPool(this.brushKey),
       key: cellKey(cx, cz),
     };
   }
@@ -800,7 +728,6 @@ function toWorld(world) {
     path: copy(world.path),
     water: copy(world.water),
     clearing: copy(world.clearing),
-    manual: copy(world.manual),
     grass: copy(world.grass),
     decorations: copy(world.decorations),
   };

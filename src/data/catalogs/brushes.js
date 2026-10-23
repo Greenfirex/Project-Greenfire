@@ -46,9 +46,12 @@ export const BRUSHES = {
     label: 'Cesta',
     shape: 'line',
     style: 'dirt',
-    manual: true,
     styles: ['dirt', 'stone', 'wood'],
-    pool: ['path'],
+    texture: {
+      dirt: 'Ground071_1K-JPG_Color.jpg',
+      stone: 'PavingStones092_1K-JPG_Color.jpg',
+      wood: 'Planks004_1K-JPG_Color.jpg',
+    },
   },
   cliff_rim: {
     label: 'Rám útesů',

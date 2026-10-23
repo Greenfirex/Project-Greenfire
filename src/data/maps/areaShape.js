@@ -33,7 +33,7 @@ export function groundCells(world) {
 export function layerAt(world, cx, cz) {
   const layers = world || {};
   const hit = (entries) => (entries || []).some((entry) => entry.cx === cx && entry.cz === cz);
-  if (hit(layers.path) || hit(layers.manual)) return 'path';
+  if (hit(layers.path)) return 'path';
   if (hit(layers.floor)) return 'floor';
   if (hit(layers.water)) return 'water';
   if (hit(layers.clearing)) return 'clearing';
@@ -49,7 +49,6 @@ export function layerEntriesAt(world, cx, cz) {
     }
   };
   push('path');
-  push('manual');
   push('floor');
   push('water');
   push('clearing');
@@ -90,7 +89,7 @@ export function dropFloorCell(world, cx, cz) {
 export function dropLayerCell(world, cx, cz) {
   if (!world) return false;
   let dropped = false;
-  for (const name of ['floor', 'path', 'water', 'clearing', 'manual', 'grass']) {
+  for (const name of ['floor', 'path', 'water', 'clearing', 'grass']) {
     const entries = world[name] || [];
     const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
     if (kept.length !== entries.length) {

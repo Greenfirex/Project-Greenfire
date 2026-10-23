@@ -35,7 +35,6 @@ import EditorMode from '../systems/editorMode.js';
 import EditorHud from '../ui/editorHud.js';
 import BrushPanel from '../ui/brushPanel.js';
 import AreaPanel from '../ui/areaPanel.js';
-import TileThumbnails from '../ui/tileThumbnails.js';
 import EditorToggle from '../ui/editorToggle.js';
 import PauseScreen from '../ui/pauseScreen.js';
 import LoadingScreen from '../ui/loadingScreen.js';
@@ -43,7 +42,6 @@ import { whenModelsIdle, takeModelError, preloadModel, releaseFrame } from '../u
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
 import { HOTBAR_ITEMS } from '../data/catalogs/items.js';
 import { worldToCellCoords, worldToCell } from '../utils/gridMath.js';
-import { getBrush } from '../data/catalogs/brushes.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { SAVE_DEFAULTS, SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
 import { collectStartupUrls } from '../data/catalogs/modelCatalog.js';
@@ -126,8 +124,6 @@ export default class GameScene {
     this.autoWindowStart = 0;
     this.autoWindowFrames = 0;
     this.shadowCasters = [];
-
-    this.tileThumbs = null;
 
     this.camera = null;
     this.shadowGenerator = null;
@@ -606,7 +602,6 @@ updateGatherTarget() {
     const map = getMap(this.mapKey);
     this.gatherSystem.syncFromDeco();
     this.campfireSystem.sync(this.mapFile.decorations || []);
-    this.tileThumbs = new TileThumbnails(this.s, map.colors);
     this.buildSystem.blockedTest = (cx, cz) => this.decoSystem.isBlocked(cx, cz);
     this.buildSystem.heightTest = (cx, cz) => this.decoSystem.topAt(cx, cz) > 0;
     this.buildSystem.rangeTest = (cx, cz) => this.withinBuildRange(cx, cz);
@@ -633,7 +628,7 @@ updateGatherTarget() {
     this.areaPanel.onClear = () => this.clearAreaSelection();
     this.areaPanel.onUndo = () => this.undoEdit();
     this.editorMode.onStyleChange = (brushKey, styleKey) => {
-      this.brushPanel.setStyle(styleKey, this.editorMode.tileKey);
+      this.brushPanel.setStyle(styleKey);
     };
     this.editorMode.onHeightChange = (level) => this.editorHud.setHeightLevel(level);
     this.editorMode.onDraftChange = (draft) => this.updateDraftView(draft);
@@ -648,32 +643,11 @@ updateGatherTarget() {
     this.editorHud.onSmooth = () => this.editorMode.smoothHeights();
     this.editorHud.onClose = () => this.exitEditor();
     this.editorHud.onSaveMap = () => this.saveMapLayout();
-    this.brushPanel.onThumbnail = (key, img) => this.fillThumbnail(key, img);
     this.brushPanel.onApply = () => this.applyBrushDraft();
     this.brushPanel.onCancel = () => this.cancelBrushDraft();
     this.brushPanel.onStyle = (brushKey, styleKey) => this.editorMode.setStyle(styleKey);
-    this.brushPanel.onTile = (key) => this.editorMode.setTileKey(key);
-    this.brushPanel.onManualMode = (on) => this.editorMode.setManualMode(on);
     this.brushPanel.onErase = () => this.setEraseMode(!this.editorMode.erasing);
     this.brushPanel.onUndo = () => this.undoEdit();
-    this.editorMode.onManualModeChange = () => this.openBrushPanel(this.editorMode.brushKey);
-  }
-
-  fillThumbnail(key, img) {
-    if (!img || !this.tileThumbs) return;
-    if (img.dataset.state !== 'idle') return;
-    img.dataset.state = 'loading';
-    this.tileThumbs.get(key).then((url) => {
-      if (!img.isConnected) return;
-      if (!url) {
-        img.dataset.state = 'missing';
-        return;
-      }
-      img.src = url;
-      img.dataset.state = 'done';
-    }).catch(() => {
-      img.dataset.state = 'missing';
-    });
   }
 
   setEraseMode(on) {
@@ -687,21 +661,8 @@ updateGatherTarget() {
   }
 
   openBrushPanel(brushKey) {
-    const brush = getBrush(brushKey);
-    const manual = Boolean(brush && brush.poolByStyle) && this.editorMode.manualMode;
-    if (manual) {
-      this.editorMode.cancelDraft();
-      this.editorHud.setReadout('Maluj dílky · pravý klik maže · R otáčí');
-    } else {
-      this.editorMode.beginDraft(brushKey);
-    }
-    this.brushPanel.open(
-      brushKey,
-      0,
-      this.editorMode.pathStyle,
-      manual ? this.editorMode.tileKey : null,
-      manual,
-    );
+    this.editorMode.beginDraft(brushKey);
+    this.brushPanel.open(brushKey, 0, this.editorMode.pathStyle);
     this.brushPanel.setDraftMode(this.editorMode.draftMode);
     this.refreshUndoButton();
     this.refreshZoneOverlay();
@@ -743,7 +704,6 @@ updateGatherTarget() {
   ensureDraft() {
     if (this.editorMode.draft) return;
     if (!this.brushPanel.isOpen) return;
-    if (this.editorMode.manualMode) return;
     const brushKey = this.editorMode.brushKey;
     if (!brushKey) return;
     this.editorMode.beginDraft(brushKey);
@@ -759,7 +719,6 @@ updateGatherTarget() {
     this.brushPanel.close();
     this.editorHud.clearBrushSelection();
     this.setEraseMode(false);
-    this.editorMode.setManualMode(false);
     this.refreshZoneOverlay();
   }
 
@@ -1375,12 +1334,6 @@ updateGatherTarget() {
       }
       if (evt.key === 'q' || evt.key === 'Q') { this.editorMode.stepHeightLevel(1); evt.preventDefault(); return; }
       if (evt.key === 'e' || evt.key === 'E') { this.editorMode.stepHeightLevel(-1); evt.preventDefault(); return; }
-      if ((evt.key === 'r' || evt.key === 'R') && this.editorMode.isManualBrush() && this.hoverCell) {
-        this.editorMode.rotateAt(this.hoverCell.cx, this.hoverCell.cz);
-        evt.preventDefault();
-        this.handleHover(this.hoverCell);
-        return;
-      }
       if (/^[0-4]$/.test(evt.key)) {
         this.editorMode.setHeightLevel(Number(evt.key));
         evt.preventDefault();
@@ -1493,7 +1446,7 @@ updateGatherTarget() {
         this.gridSystem.showBrush([[cell.cx, cell.cz]], (cx, cz) => this.decoSystem.surfaceAt(cx, cz), this.editorMode.erasing);
       }
       const info = this.editorMode.describeAt(cell.cx, cell.cz);
-      const tile = info.manual ? `dlážděno: ${info.manual.key}` : 'prázdno';
+      const tile = describeEntry(info);
       const height = ` · výška ${info.height === null ? '0 m' : info.height + ' m'}`;
       const draft = this.editorMode.draft ? ` · kreslím: ${this.editorMode.draft.brushKey}` : '';
       this.editorHud.setReadout(`${cell.cx}, ${cell.cz} — ${tile}${height}${draft}`);
@@ -1509,7 +1462,6 @@ updateGatherTarget() {
       if (this.editorMode.mode === 'area') this.editorMode.beginAreaDrag(cell.cx, cell.cz);
       else if (this.editorMode.mode === 'height') this.editorMode.paint(cell.cx, cell.cz);
       else if (!this.editorMode.canEditCell(cell.cx, cell.cz)) this.editorHud.setReadout('Mimo hrací plochu — přepni na Plochu');
-      else if (this.editorMode.isManualBrush()) this.paintManual(cell);
       else this.editorMode.draftCell(cell.cx, cell.cz);
       this.handleHover(cell);
       return;
@@ -1523,7 +1475,6 @@ updateGatherTarget() {
       const from = this.lastPaintCell || cell;
       if (this.editorMode.mode === 'area') this.editorMode.moveAreaDrag(cell.cx, cell.cz);
       else if (this.editorMode.mode === 'height') this.editorMode.paintRun(from, cell);
-      else if (this.editorMode.isManualBrush()) this.paintManual(cell);
       else this.editorMode.draftRun(from, cell);
       this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
       this.handleHover(cell);
@@ -1591,11 +1542,6 @@ updateGatherTarget() {
     this.areaPanel.setCount(0);
     this.editorHud.setReadout('Výběr plochy zahozen');
     return true;
-  }
-
-  paintManual(cell) {
-    if (this.editorMode.erasing) this.editorMode.deleteAt(cell.cx, cell.cz);
-    else this.editorMode.placeAt(cell.cx, cell.cz);
   }
 
   moveGridHighlight(cell) {
@@ -1688,11 +1634,6 @@ updateGatherTarget() {
         const tool = this.editorMode.areaTool === 'erase' ? 'paint' : 'erase';
         this.editorMode.setAreaTool(tool);
         this.areaPanel.setTool(this.editorMode.areaTool);
-        this.handleHover(cell);
-        return;
-      }
-      if (this.editorMode.isManualBrush()) {
-        this.editorMode.deleteAt(cell.cx, cell.cz);
         this.handleHover(cell);
         return;
       }
@@ -1856,9 +1797,15 @@ updateGatherTarget() {
   }
 }
 
+function describeEntry(info) {
+  if (!info.entry) return 'prázdno';
+  if (info.isPath) return `cesta (${info.style})`;
+  return info.entry.key;
+}
+
 function brokenEntries(layout) {
   let count = 0;
-  for (const name of ['floor', 'path', 'water', 'clearing', 'manual', 'decorations']) {
+  for (const name of ['floor', 'path', 'water', 'clearing', 'decorations']) {
     for (const entry of layout[name] || []) {
       if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) count += 1;
     }

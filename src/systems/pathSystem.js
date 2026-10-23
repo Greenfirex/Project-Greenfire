@@ -26,7 +26,7 @@ const CORNERS = [
   { sx: -1, sz: 1, sides: ['west', 'south'], dirs: ['south', 'west'] },
 ];
 
-const PATHS_LAYER = ['path', 'manual'];
+const PATHS_LAYER = ['path'];
 const GROUND_LAYER = ['floor', 'clearing', 'grass'];
 const EDGE_LAYER = ['water'];
 const SIDE_NAMES = ['north', 'south', 'west', 'east'];
@@ -90,7 +90,7 @@ function nearGroundY(ground, cx, cz) {
 
 function bodyOf(world) {
   if (!world) return null;
-  if (world.path || world.manual) return world;
+  if (world.path) return world;
   if (Array.isArray(world)) return { path: world };
   return null;
 }
@@ -112,15 +112,14 @@ export default class PathSystem {
     this.shapes.clear();
   }
 
-  buildPaths(world, manualEntries) {
+  buildPaths(world) {
     this.clear();
     const body = bodyOf(world);
     if (!body) return;
-    const manual = manualEntries || [];
-    const cells = this.collectCells(body, manual);
+    const cells = this.collectCells(body);
     if (!cells.size) return;
     const floor = this.collectLayer(body, ['floor']);
-    const ground = this.collectGround(body, manual);
+    const ground = this.collectGround(body);
     const water = this.collectLayer(body, EDGE_LAYER);
     const skins = this.skinsOf(cells, ground, water);
     for (const [key, cell] of cells) {
@@ -147,23 +146,19 @@ export default class PathSystem {
     this.buildPaths(layout);
   }
 
-  collectCells(body, manual) {
+  collectCells(body) {
     const cells = new Map();
-    const add = (entry, isManual) => {
+    const add = (entry) => {
       if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) return;
       const key = cellKey(entry.cx, entry.cz);
-      const known = cells.get(key);
-      if (known && known.manual && !isManual) return;
       cells.set(key, {
         cx: entry.cx,
         cz: entry.cz,
         style: styleOf(entry),
         y: 0,
-        manual: Boolean(isManual || (known && known.manual)),
       });
     };
-    for (const name of PATHS_LAYER) for (const entry of body[name] || []) add(entry, false);
-    for (const entry of manual) add(entry, true);
+    for (const name of PATHS_LAYER) for (const entry of body[name] || []) add(entry);
     return cells;
   }
 
@@ -179,14 +174,8 @@ export default class PathSystem {
     return out;
   }
 
-  collectGround(body, manual) {
-    const out = this.collectLayer(body, GROUND_LAYER);
-    for (const entry of manual) {
-      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
-      const key = cellKey(entry.cx, entry.cz);
-      if (!out.has(key)) out.set(key, { cx: entry.cx, cz: entry.cz, y: entry.liftY || 0 });
-    }
-    return out;
+  collectGround(body) {
+    return this.collectLayer(body, GROUND_LAYER);
   }
 
   skinsOf(cells, ground, water) {

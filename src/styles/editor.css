@@ -93,89 +93,12 @@
   color: var(--text-main);
 }
 
-.brush-panel__palette {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.brush-panel__palette.is-hidden {
-  display: none;
-}
-
-.brush-panel__palette button {
-  position: relative;
-  aspect-ratio: 1;
-  padding: 0;
-  border: 1px solid rgba(90, 200, 170, 0.18);
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.35);
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.brush-panel__palette button:hover {
-  border-color: rgba(90, 200, 170, 0.45);
-}
-
-.brush-panel__palette button.is-active {
-  border-color: var(--glow-accent);
-  box-shadow: 0 0 8px rgba(90, 200, 170, 0.35);
-  background: rgba(90, 200, 170, 0.12);
-}
-
-.brush-panel__palette img {
+.brush-panel__styles button img {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
-}
-
-.brush-panel__palette img[data-state='idle'],
-.brush-panel__palette img[data-state='loading'] {
-  opacity: 0.35;
-}
-
-.brush-panel__palette img[data-state='missing'] {
-  visibility: hidden;
-}
-
-.brush-panel__modes {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  margin-bottom: 8px;
-}
-
-.brush-panel__modes.is-hidden {
-  display: none;
-}
-
-.brush-panel__modes button {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(90, 200, 170, 0.18);
-  border-radius: 4px;
-  color: var(--text-dim);
-  font-size: 10px;
-  padding: 5px 2px;
-  cursor: pointer;
-}
-
-.brush-panel__modes button:hover {
-  border-color: rgba(90, 200, 170, 0.45);
-  color: var(--text-main);
-}
-
-.brush-panel__modes button.is-active {
-  background: rgba(90, 200, 170, 0.18);
-  border-color: var(--glow-accent);
-  color: var(--text-main);
-}
-
-.brush-panel.is-manual .brush-panel__count,
-.brush-panel.is-manual .brush-panel__actions {
-  display: none;
+  object-fit: cover;
+  border-radius: 3px;
 }
 
 .editor-panel__heights {
@@ -379,6 +302,12 @@
   font-size: 10px;
   padding: 4px 2px;
   cursor: pointer;
+}
+
+.brush-panel__styles button:has(img) {
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
 }
 
 .brush-panel__styles button:hover {
