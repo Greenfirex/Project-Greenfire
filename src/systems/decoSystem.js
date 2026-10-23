@@ -107,7 +107,7 @@ export default class DecoSystem {
 
   placePiece(entry, section) {
     const bucket = section === 'path' ? this.pathNodes : section === 'water' ? this.waterNodes : this.nodes;
-    this.pendingPieces.push(this.place(entry, bucket, section));
+    return this.place(entry, bucket, section);
   }
 
   async settle() {
@@ -212,7 +212,9 @@ export default class DecoSystem {
     this.applyEntry(entry, section);
     const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
     const anchor = this.createAnchor(entry, def, x, z, bucket);
-    return this.attachModel(anchor, def, entry, section);
+    const work = this.attachModel(anchor, def, entry, section);
+    this.pendingPieces.push(work);
+    return work;
   }
 
   topAt(cx, cz) {
@@ -269,8 +271,8 @@ export default class DecoSystem {
 
   createAnchor(entry, def, x, z, bucket = this.nodes) {
     const anchor = new TransformNode(`deco_${entry.key}_${entry.cx}_${entry.cz}`, this.s);
-    anchor.position = new Vector3(x + entry.offsetX, entry.liftY || 0, z + entry.offsetZ);
-    anchor.rotation.y = (Math.PI / 2) * entry.rotation;
+    anchor.position = new Vector3(x + (entry.offsetX || 0), entry.liftY || 0, z + (entry.offsetZ || 0));
+    anchor.rotation.y = (Math.PI / 2) * (entry.rotation || 0);
     anchor.metadata = { key: entry.key, def, bucket, entry };
     bucket.push(anchor);
     this.anchors.push(anchor);

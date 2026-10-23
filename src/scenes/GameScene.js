@@ -63,7 +63,6 @@ const AUTOTUNE_STEP = 0.1;
 const WORLD_BATCH = 4;
 const STAGE_LEAD_FRAMES = 2;
 const MODEL_LANES = 4;
-const DECO_SETTLE_PASSES = 2;
 const LOAD_RETRIES = 2;
 const BUILD_RANGE_CELLS = 2;
 const WALK_CLEARANCE = 1.25;
@@ -838,25 +837,19 @@ updateGatherTarget() {
 
   async rebuildDecorations(exhausted) {
     const layout = this.mapFile || {};
-    const entries = [];
-    for (const stage of describeWorld(layout)) {
-      for (const entry of stagePieces(layout, stage)) entries.push(entry);
-    }
-    for (const entry of layout.decorations || []) {
-      if (!entries.includes(entry)) entries.push(entry);
-    }
-    await this.loadStageModels(entries, null);
+    const stages = describeWorld(layout);
+    let models = null;
     this.decoSystem.brokenCount = 0;
     this.decoHighlight.clear();
-    this.decoSystem.create(this.mapFile, getMap(this.mapKey).colors);
-    await this.settleDecorations();
+    this.decoSystem.beginStages(layout, getMap(this.mapKey).colors);
+    for (const stage of stages) {
+      const entries = stagePieces(layout, stage);
+      if (!entries.length) continue;
+      models = await this.loadStageModels(entries, models);
+      await this.placeStage(stage, entries);
+    }
+    this.decoSystem.finishStages();
     this.finishRebuild(exhausted);
-  }
-
-  settleDecorations() {
-    return this.decoSystem.settle()
-      .catch((error) => console.error('[deco] Čekání na modely selhalo:', error))
-      .then(() => this.decoSystem.finishStages());
   }
 
   finishRebuild(exhausted) {
@@ -874,11 +867,6 @@ updateGatherTarget() {
     console.error('[mapa] Skládání světa selhalo:', error);
     this.editorHud.setReadout(`Mapu se nepodařilo postavit — ${reason}`);
   }
-
-  async settleDecorations() {
-    for (let pass = 0; pass < DECO_SETTLE_PASSES; pass += 1) await this.decoSystem.settle();
-  }
-
 
   reportRebuild() {
     const broken = this.decoSystem.brokenCount || 0;
