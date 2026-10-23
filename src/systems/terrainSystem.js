@@ -58,7 +58,7 @@ export default class TerrainSystem {
     this.groundCells = groundCells(world);
     this.realCells = worldCells(world);
     this.createSurface(map, this.groundCells);
-    this.createPicker(extraCells && extraCells.length ? this.realCells.concat(extraCells) : this.realCells);
+    this.createPicker(this.pickCells());
     this.gridLines = this.createGridLines(map, this.realCells);
     this.ready = Promise.resolve(this.surface);
     return this.surface;
@@ -86,6 +86,19 @@ export default class TerrainSystem {
 
   cellsSignature(cells) {
     return cells.map(([cx, cz]) => `${cx},${cz}`).sort().join(';');
+  }
+
+  pickCells() {
+    const cells = (this.realCells || []).slice();
+    const seen = new Set(cells.map(([cx, cz]) => `${cx},${cz}`));
+    for (const entry of (this.layout || {}).path || []) {
+      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+      const key = `${entry.cx},${entry.cz}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      cells.push([entry.cx, entry.cz]);
+    }
+    return cells;
   }
 
   createPicker(cells) {

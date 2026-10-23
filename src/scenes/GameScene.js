@@ -1461,7 +1461,7 @@ updateGatherTarget() {
       this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
       if (this.editorMode.mode === 'area') this.editorMode.beginAreaDrag(cell.cx, cell.cz);
       else if (this.editorMode.mode === 'height') this.editorMode.paint(cell.cx, cell.cz);
-      else if (!this.editorMode.canEditCell(cell.cx, cell.cz)) this.editorHud.setReadout('Mimo hrací plochu — přepni na Plochu');
+      else if (!this.editorMode.canDraftCell(cell.cx, cell.cz)) this.editorHud.setReadout('Mimo hrací plochu — přepni na Plochu');
       else this.editorMode.draftCell(cell.cx, cell.cz);
       this.handleHover(cell);
       return;

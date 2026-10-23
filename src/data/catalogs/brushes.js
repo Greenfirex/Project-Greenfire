@@ -47,11 +47,6 @@ export const BRUSHES = {
     shape: 'line',
     style: 'dirt',
     styles: ['dirt', 'stone', 'wood'],
-    texture: {
-      dirt: 'Ground071_1K-JPG_Color.jpg',
-      stone: 'PavingStones092_1K-JPG_Color.jpg',
-      wood: 'Planks004_1K-JPG_Color.jpg',
-    },
   },
   cliff_rim: {
     label: 'Rám útesů',

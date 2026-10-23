@@ -34,8 +34,8 @@ export function layerAt(world, cx, cz) {
   const layers = world || {};
   const hit = (entries) => (entries || []).some((entry) => entry.cx === cx && entry.cz === cz);
   if (hit(layers.path)) return 'path';
-  if (hit(layers.floor)) return 'floor';
   if (hit(layers.water)) return 'water';
+  if (hit(layers.floor)) return 'floor';
   if (hit(layers.clearing)) return 'clearing';
   if (hit(layers.grass)) return 'grass';
   return null;

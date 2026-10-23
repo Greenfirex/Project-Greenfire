@@ -3,7 +3,7 @@
 import { BRUSHES } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { cellKey, MAX_HEIGHT } from '../data/maps/layoutStore.js';
-import { layerAt, layerEntriesAt, floorCellAt, dropFloorCell, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
+import { layerAt, layerEntriesAt, floorCellAt, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
 import { fillZone } from '../utils/zoneFill.js';
 import { createRng, seedFor } from '../utils/rng.js';
 
@@ -147,11 +147,6 @@ export default class EditorMode {
     return layerAt(this.layout, cx, cz) === 'water';
   }
 
-  isPathBrush(brushKey = this.brushKey) {
-    const brush = BRUSHES[brushKey];
-    return Boolean(brush && brush.shape === 'line');
-  }
-
   setHeightLevel(level) {
     const n = Math.max(0, Math.min(MAX_HEIGHT, Math.round(Number(level))));
     if (!Number.isFinite(n)) return;
@@ -224,9 +219,9 @@ export default class EditorMode {
   placeEntry(key, cx, cz, rotation = 0, liftY = 0, layer = null) {
     const entry = { key, cx, cz, rotation: ((rotation % 4) + 4) % 4 };
     if (liftY) entry.liftY = liftY;
-    const explicit = layer;
     const floor = floorCellAt(this.layout, cx, cz);
     if (layer === 'path') {
+      delete entry.key;
       entry.style = this.pathStyle;
       if (floor && floor.liftY) entry.liftY = floor.liftY;
       const existing = (this.layout.path || []).find((cell) => cell && cell.cx === cx && cell.cz === cz);
@@ -240,8 +235,7 @@ export default class EditorMode {
     }
     const target = layer || (this.isWaterCell(cx, cz) ? 'water' : 'floor');
     if (target === 'floor') {
-      dropFloorCell(this.layout, cx, cz);
-      if (!explicit) this.dropPathAt(cx, cz);
+      dropLayerCell(this.layout, cx, cz);
     } else {
       if (floor && floor.liftY && !entry.liftY) entry.liftY = floor.liftY;
       dropLayerCell(this.layout, cx, cz);
@@ -252,12 +246,8 @@ export default class EditorMode {
     return entry;
   }
 
-  dropPathAt(cx, cz) {
-    const list = this.layout.path || [];
-    const kept = list.filter((entry) => entry.cx !== cx || entry.cz !== cz);
-    if (kept.length === list.length) return false;
-    this.layout.path = kept;
-    return true;
+  placePath(cx, cz) {
+    return this.placeEntry('path', cx, cz, 0, 0, 'path');
   }
 
   keepFloor(cx, cz) {
@@ -393,7 +383,8 @@ export default class EditorMode {
   }
 
   areaExists(cx, cz) {
-    return Boolean(this.realCells && this.realCells.some(([ax, az]) => ax === cx && az === cz));
+    if (this.realCells && this.realCells.some(([ax, az]) => ax === cx && az === cz)) return true;
+    return (this.layout.path || []).some((entry) => entry && entry.cx === cx && entry.cz === cz);
   }
 
   assignRealCells(cells) {
@@ -526,12 +517,7 @@ export default class EditorMode {
           continue;
         }
         if (brush.deco) continue;
-        if (shape === 'line') {
-          this.dropPathAt(cx, cz);
-          continue;
-        }
         dropLayerCell(this.layout, cx, cz);
-        this.dropPathAt(cx, cz);
         this.dropTopEntry(cx, cz);
         this.dropOrphans();
         continue;
@@ -553,15 +539,17 @@ export default class EditorMode {
         continue;
       }
       if (shape === 'line') {
-        this.placeEntry(key, cx, cz, cell.rotation || 0, 0, 'path');
-      } else if (brushKey === 'water') this.placeEntry(key, cx, cz, cell.rotation || 0, 0, 'water');
-      else this.placeEntry(key, cx, cz, 0, liftY, 'floor');
+        this.placePath(cx, cz);
+      } else {
+        dropLayerCell(this.layout, cx, cz);
+        if (brushKey === 'water') this.placeEntry(key, cx, cz, cell.rotation || 0, 0, 'water');
+        else this.placeEntry(key, cx, cz, 0, liftY, 'floor');
+      }
     }
     this.fixMissingFloor();
     const count = cells.size;
     this.draft.cells.clear();
     if (this.onDraftChange) this.onDraftChange(this.draft);
-    console.log('[debug] applyDraft done — cells:', count, '| path cells now:', (this.layout.path || []).length, '| deco cells now:', (this.layout.decorations || []).length);
     this.scheduleRegenerate();
     return count;
   }
@@ -594,10 +582,6 @@ export default class EditorMode {
       return;
     }
     if (this.erasing) {
-      if (this.isPathBrush()) {
-        this.dropPathAt(cx, cz);
-        return;
-      }
       dropLayerCell(this.layout, cx, cz);
       this.dropTopEntry(cx, cz);
       this.dropOrphans();
@@ -653,6 +637,7 @@ export default class EditorMode {
   }
 
   draftTileAt(cx, cz) {
+    if (layerAt(this.layout, cx, cz) === 'path') return 'path';
     const entries = layerEntriesAt(this.layout, cx, cz);
     if (entries.length) return entries[0].key;
     const floor = floorCellAt(this.layout, cx, cz);
