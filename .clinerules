@@ -33,6 +33,11 @@
 
 - Čti POUZE soubory, které k zadanému úkolu přímo potřebuješ (typicky 1–3).
 - ZAKÁZÁNO: plošné inventury projektu, grep přes celý strom, čtení „pro jistotu".
+- Jediná výjimka: než něco smažu nebo přejmenuju, MUSÍM ověřit, že se to
+  nikde nepoužívá — a to jen u konkrétního názvu, ne plošně.
+- Když do pravidel, dokumentace nebo kódu píšu konkrétní název souboru,
+  složky nebo funkce, MUSÍM ho v projektu nejdřív ověřit. Nic se nepíše
+  z paměti — vymyšlený název mate stejně jako chybějící.
 - Když něco nevím a je to potřeba, ZEPTEJ SE místo hádání.
 
 # ===== ARCHITEKTURA (Babylon.js) =====
@@ -53,10 +58,13 @@
 
 # ===== KOMENTÁŘE =====
 
-- Na ZAČÁTKU každého souboru je POVOLENÝ (a žádoucí) hlavičkový komentář:
-  1–3 řádky, laicky, k čemu soubor slouží. Bez JSDoc, bez dekorativních rámečků.
-- Uvnitř kódu komentáře NEPIŠ. Žádné `//`, žádné `/* */`, žádné JSDoc bloky,
-  žádné sekční oddělovače `// ===...`.
+- Na začátku souboru je hlavička: 1–3 řádky, laicky, k čemu soubor slouží.
+  Bez JSDoc, bez rámečků. Hlavička popisuje CELÝ soubor, ne jeho část.
+- Za hlavičkou už žádné poznámky nejsou. Konkrétně: žádné `//`, žádné
+  `/* */`, žádné sekční oddělovače `// ===`, ani poznámka nad funkcí
+  nebo skupinou funkcí.
+- Když je něco v kódu nejasné, patří to do README nebo do názvu, ne do
+  poznámky v kódu. Název, který věc popisuje, je lepší než poznámka.
 
 # ===== MRTVÝ KÓD =====
 
@@ -68,20 +76,43 @@
 - VŠECHNY dočasné soubory patří výhradně do `tools/_temp/` (náhledy, logy,
   scratch skripty, výstupy jednorázových skriptů).
 - NIKDY nezakládej pracovní soubory v rootu projektu ani vedle kódu.
-- Root obsahuje jen projektové soubory (`.clinerules`, `.gitignore`,
+- Root obsahuje jen projektové soubory: `.clinerules`, `.gitignore`,
   `README.md`, `index.html`, `package.json`, `package-lock.json`,
-  `vite.config.js`).
+  `vite.config.js` a `vite.mapSaver.js` (pomocník dev serveru — editor mapy
+  přes něj ukládá mapu přímo do souboru, funguje jen při vývoji).
+- Dále složky `src/`, `public/`, `tools/` a ty, které v gitu nejsou
+  (`node_modules/`, `dist/`, `_sources/` se staženými zdrojovými balíčky).
+- Cokoli jiného v rootu (modely, obrázky, dočasné soubory) je chyba —
+  patří to do `public/assets/`, `src/` nebo `tools/_temp/`.
 - `tools/_temp/` je v `.gitignore` — nikdy se necommituje.
+
+# ===== KDO CO VLASTNÍ =====
+
+- Každý druh věci má v projektu JEDNO místo, kde se udržuje. Nikdy se
+  stejná hodnota nedrží na dvou místech.
+  - Co jak vypadá a co umí konkrétní stroj → katalog strojů.
+  - Co je jaký předmět → katalog předmětů.
+  - Jak se co ukládá a jak vypadá nový svět → seznam pro ukládání.
+  - Výchozí stav jedné konkrétní věci (co má stroj uvnitř, jaký nástroj
+    drží hráč na začátku) → u toho stroje / u toho předmětu, ne centrálně.
+- Když se stejná hodnota objeví na dvou místech, je to chyba i tehdy,
+  když obě čísla zrovna sedí. Jedno z nich dřív nebo později zůstane
+  staré a bude tiše přebíjet to druhé.
+- Systém nikdy nesahá na jiný systém napřímo. Když jeden potřebuje
+  vědět něco o druhém, dostane to přes scénu (ta jediná všechno propojuje).
 
 # ===== SAVE SYSTÉM =====
 
 - Ve hře existuje obecný save systém (`src/systems/saveSystem.js`) — sběrač
   stavu nad registrovanými vlastníky.
-- KAŽDÝ nový trvalý stav hry se MUSÍ zaregistrovat přes
-  `saveSystem.registerState(key, { serialize, apply, order })`.
-- `apply(data)` MUSÍ být tolerantní k chybějícím/částečným datům.
-- Výchozí hodnoty stavu patří do `src/data/catalogs/saveSchema.js`.
-- Při změně formátu savu bumpni `SAVE_VERSION` v `saveSchema.js`.
+- KAŽDÝ nový trvalý stav hry se MUSÍ zaregistrovat u save systému a dodat
+  tři věci: jak se uloží, jak se vrátí a v jakém pořadí se má vracet.
+- Vracení MUSÍ snést neúplná nebo stará data — nesmí spadnout, když
+  v uloženém stavu něco chybí.
+- Výchozí hodnoty patří k vlastníkovi stavu (ke stroji, k hráči, k batohu),
+  ne do centrálního souboru. Seznam pro ukládání obsahuje jen to, co se
+  týká ukládání: verzi, jméno úložiště a jméno starého úložiště.
+- Při změně formátu savu se zvedne verze. Starší verze se nenačítají.
 - Save systém zůstává OBECNÝ — nesmí znát obsah konkrétních stavů.
 
 # ===== GIT =====
