@@ -2,7 +2,7 @@
 // Otevírá se klikem na štětec v paletě, sám nic negeneruje ani nemění.
 import { getBrush } from '../data/catalogs/brushes.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
-import { makeDraggable } from './draggable.js';
+import { makeDraggable } from '../ui/draggable.js';
 
 const STYLE_LABELS = { dirt: 'Hlína', stone: 'Kámen', wood: 'Dřevo', iron: 'Železo', copper: 'Měď' };
 

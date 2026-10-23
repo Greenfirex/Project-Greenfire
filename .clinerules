@@ -47,6 +47,9 @@
 - Systémy jsou třídy v `src/systems/` (konstruktor dostane `scene`,
   přístup přes `this.s`), data v `src/data/catalogs/`, utility v `src/utils/`,
   DOM HUD v `src/ui/`.
+- Editor mapy a jeho panely jsou v `src/editor/` — jediná výjimka z dělení
+  výš. Patří tam jen to, co hra bez editoru vůbec nepotřebuje; věc, kterou
+  hra používá i bez editoru (cesty, terén, modely), patří do `src/systems/`.
 - Import z `@babylonjs/core` dělej po částech (tree-shaking), ne celý balík.
 - DOM HUD je nad canvasem a NIKDY nezasahuje do scény přímo — jen přes callbacky.
 

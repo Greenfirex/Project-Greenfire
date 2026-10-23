@@ -1,6 +1,6 @@
 // Plovoucí okénko režimu Plocha — přepínač Ručně/Mazat, počítadlo, potvrzení a vrácení.
 // Otevírá se při přepnutí na Plochu, sám nic negeneruje ani nemění.
-import { makeDraggable } from './draggable.js';
+import { makeDraggable } from '../ui/draggable.js';
 
 export default class AreaPanel {
 

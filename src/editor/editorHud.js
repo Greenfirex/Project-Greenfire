@@ -1,7 +1,7 @@
 // DOM panel editačního režimu — paleta brushů, modelování výšek, mazání a zpět.
 // Napojený přes callbacky na scene, sám nic generuje ani nemění.
 import { BRUSH_KEYS, BRUSHES } from '../data/catalogs/brushes.js';
-import { makeDraggable } from './draggable.js';
+import { makeDraggable } from '../ui/draggable.js';
 
 const HEIGHT_LEVELS = [0, 1, 2, 3, 4];
 
