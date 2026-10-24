@@ -73,16 +73,17 @@ export const BRUSHES = {
     height: 4,
     tile: 'floor_grass',
   },
-  water: {
-    label: 'Voda',
-    shape: 'outline_fill',
-    poolByStyle: {
-      water: [
-        'river_tile', 'river_open', 'river_side_open', 'river_straight', 'river_corner', 'river_corner_small',
-        'river_bend', 'river_bend_bank', 'river_cross', 'river_end',
-        'river_end_closed', 'river_split', 'river_corner_bank', 'river_side', 'river_rocks',
-      ],
-    },
+  hollow_shallow: {
+    label: 'Prohlubeň 1 m',
+    shape: 'blob',
+    height: -1,
+    tile: 'floor_grass',
+  },
+  hollow_deep: {
+    label: 'Hlubší prohlubeň 2 m',
+    shape: 'blob',
+    height: -2,
+    tile: 'floor_grass',
   },
   ore: {
     label: 'Ruda',

@@ -3,11 +3,10 @@
 import { getDecoration } from './decorations.js';
 import { pieceCount } from '../../systems/pieceCount.js';
 
-const KIND_ORDER = ['floor', 'path', 'water', 'ground', 'cliff', 'tree', 'log', 'prop', 'rock', 'ore'];
+const KIND_ORDER = ['floor', 'path', 'ground', 'cliff', 'tree', 'log', 'prop', 'rock', 'ore'];
 
 const KIND_LABELS = {
   floor: 'Rovnám podlahu, ať si nezvrtneš kotník',
-  water: 'Napouštím rybník',
   path: 'Ušlapávám cestičky',
   cliff: 'Hrnu kopce lopatou',
   tree: 'Sázím stromy, jen ať mi neutečou',
@@ -32,7 +31,6 @@ export function describeWorld(layout) {
     groups.get(kind).push(key);
   };
   for (const entry of layout.floor || []) add('floor', entry.key);
-  for (const entry of layout.water || []) add('water', entry.key);
   for (const entry of layout.path || []) add('path', 'path');
   for (const entry of layout.clearing || []) add('ground', entry.key);
   for (const entry of layout.decorations || []) {
@@ -59,7 +57,7 @@ export function describeWorld(layout) {
 
 export function stagePieces(layout, stage) {
   const keys = new Set(stage.keys);
-  const parts = ['deco', 'floor', 'path', 'water', 'clearing'];
+  const parts = ['deco', 'floor', 'path', 'clearing'];
   const out = [];
   for (const part of parts) {
     for (const entry of entriesOf(layout, part)) {
@@ -71,7 +69,7 @@ export function stagePieces(layout, stage) {
 
 function countPieces(layout, keys) {
   let total = 0;
-  for (const part of ['deco', 'floor', 'path', 'water', 'clearing']) {
+  for (const part of ['deco', 'floor', 'path', 'clearing']) {
     for (const entry of entriesOf(layout, part)) {
       if (!keys.has(part === 'path' ? 'path' : entry.key)) continue;
       const def = getDecoration(part === 'path' ? 'path' : entry.key);

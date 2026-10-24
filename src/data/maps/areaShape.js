@@ -1,4 +1,4 @@
-// Které buňky mapy existují a jakou vrstvu v nich najdeš — podlaha, cesta, nebo voda.
+// Které buňky mapy existují a jakou vrstvu v nich najdeš — podlaha, cesta, nebo tráva.
 // Odsud se počítá hratelná země, mřížka, tráva i chození.
 
 export function cellKey(cx, cz) {
@@ -18,7 +18,7 @@ export function layerCells(entries) {
 }
 export function worldCells(world) {
   const layers = world || {};
-  const cells = layerCells(layers.floor).concat(layerCells(layers.path), layerCells(layers.water), layerCells(layers.clearing), layerCells(layers.grass));
+  const cells = layerCells(layers.floor).concat(layerCells(layers.path), layerCells(layers.clearing), layerCells(layers.grass));
   const seen = new Set();
   return cells.filter(([cx, cz]) => {
     const key = cellKey(cx, cz);
@@ -34,7 +34,6 @@ export function layerAt(world, cx, cz) {
   const layers = world || {};
   const hit = (entries) => (entries || []).some((entry) => entry.cx === cx && entry.cz === cz);
   if (hit(layers.path)) return 'path';
-  if (hit(layers.water)) return 'water';
   if (hit(layers.floor)) return 'floor';
   if (hit(layers.clearing)) return 'clearing';
   if (hit(layers.grass)) return 'grass';
@@ -50,7 +49,6 @@ export function layerEntriesAt(world, cx, cz) {
   };
   push('path');
   push('floor');
-  push('water');
   push('clearing');
   push('grass');
   return out;
@@ -68,6 +66,14 @@ export function dropDecorationCell(world, cx, cz) {
   if (kept.length === entries.length) return false;
   world.decorations = kept;
   return true;
+}
+export function layerLiftAt(world, cx, cz) {
+  if (!world) return null;
+  for (const name of ['floor', 'clearing', 'grass', 'path']) {
+    const entry = (world[name] || []).find((item) => item && item.cx === cx && item.cz === cz);
+    if (entry) return entry.liftY || 0;
+  }
+  return null;
 }
 export function floorCellAt(world, cx, cz) {
   if (!world) return null;
@@ -89,7 +95,7 @@ export function dropFloorCell(world, cx, cz) {
 export function dropLayerCell(world, cx, cz) {
   if (!world) return false;
   let dropped = false;
-  for (const name of ['floor', 'path', 'water', 'clearing', 'grass']) {
+  for (const name of ['floor', 'path', 'clearing', 'grass']) {
     const entries = world[name] || [];
     const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
     if (kept.length !== entries.length) {

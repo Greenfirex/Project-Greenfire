@@ -3,7 +3,7 @@ import { getMap } from './maps.js';
 
 export function isMapFile(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
-  return ['floor', 'path', 'water', 'decorations'].every((name) => Array.isArray(body[name]));
+  return ['floor', 'path', 'decorations'].every((name) => Array.isArray(body[name]));
 }
 
 export function layoutFromMapFile(file, fallbackSeed = 1) {
@@ -14,7 +14,6 @@ export function layoutFromMapFile(file, fallbackSeed = 1) {
     seed: Number.isFinite(world.seed) ? world.seed : fallbackSeed,
     floor: copy(world.floor),
     path: copy(world.path),
-    water: copy(world.water),
     clearing: copy(world.clearing),
     grass: copy(world.grass),
     decorations: copy(world.decorations),
@@ -32,7 +31,6 @@ export function mapFileFromLayout(mapKey, layout) {
     spawn: layout.spawn ? { cx: layout.spawn.cx, cz: layout.spawn.cz } : { cx: 0, cz: 0 },
     floor: copy(layout.floor),
     path: copy(layout.path),
-    water: copy(layout.water),
     clearing: copy(layout.clearing),
     grass: copy(layout.grass),
     decorations: copy(layout.decorations),

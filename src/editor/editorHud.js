@@ -3,8 +3,6 @@
 import { BRUSH_KEYS, BRUSHES } from '../data/catalogs/brushes.js';
 import { makeDraggable } from '../ui/draggable.js';
 
-const HEIGHT_LEVELS = [0, 1, 2, 3, 4];
-
 export default class EditorHud {
 
   constructor() {
@@ -42,13 +40,15 @@ export default class EditorHud {
       <div class="editor-panel__grid"></div>
       <div class="editor-panel__heights">
         <span class="editor-panel__label">Výška</span>
+        <button type="button" data-height="-2">−2</button>
+        <button type="button" data-height="-1">−1</button>
         <button type="button" data-height="0">0</button>
         <button type="button" data-height="1">1</button>
         <button type="button" data-height="2">2</button>
         <button type="button" data-height="3">3</button>
         <button type="button" data-height="4">4</button>
-        <button type="button" data-step="1" title="Přidat 1 m (Q)">+1</button>
-        <button type="button" data-step="-1" title="Ubrat 1 m (E)">−1</button>
+        <button type="button" data-step="1" title="Přidat 1 úroveň (Q)">+1</button>
+        <button type="button" data-step="-1" title="Ubrat 1 úroveň (E)">−1</button>
         <button type="button" data-tool="smooth" title="Vyhladit schody">✦ Vyhladit</button>
       </div>
       <div class="editor-panel__readout">–</div>

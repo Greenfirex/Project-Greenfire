@@ -3,7 +3,7 @@
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import '@babylonjs/core/Materials/standardMaterial';
 
-const TINT_KINDS = { floor: 'floorTile', path: 'floorTile', cliff: 'cliffTile', water: 'water' };
+const TINT_KINDS = { floor: 'floorTile', path: 'floorTile', cliff: 'cliffTile' };
 const bySection = new Map();
 const shadeSerial = new Map();
 const builtMaterials = new Set();

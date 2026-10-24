@@ -7,6 +7,7 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { CELL_SIZE, cellKey } from '../utils/gridMath.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
+import { layerLiftAt } from '../data/maps/areaShape.js';
 
 const PATH_LIFT = 0.01;
 const HALF = CELL_SIZE / 2;
@@ -50,13 +51,8 @@ export default class PathSystem {
   }
 
   groundHeightAt(world, cx, cz) {
-    const key = cellKey(cx, cz);
-    for (const name of ['floor', 'clearing', 'grass']) {
-      for (const entry of (world && world[name]) || []) {
-        if (!entry || entry.cx !== cx || entry.cz !== cz) continue;
-        return entry.liftY || 0;
-      }
-    }
+    const lifted = layerLiftAt(world, cx, cz);
+    if (lifted !== null) return lifted;
     return 0;
   }
 
@@ -78,7 +74,7 @@ export default class PathSystem {
         cz: entry.cz,
         style: styleOf(entry),
         open: pathOpen(pathKeys, entry.cx, entry.cz),
-        y: Math.max(entry.liftY || 0, this.groundHeightAt(world, entry.cx, entry.cz)),
+        y: this.groundHeightAt(world, entry.cx, entry.cz),
       };
       cells.push(cell);
       this.shapes.set(key, cell);

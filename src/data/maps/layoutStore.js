@@ -2,6 +2,7 @@
 // Nezná scénu ani editor, jen katalog dekorací.
 import { getDecoration, decoRadius, decoFootprint } from '../catalogs/decorations.js';
 
+export const MIN_HEIGHT = -2;
 export const MAX_HEIGHT = 4;
 export function deriveBlocked(entries) {
   const out = [];

@@ -12,11 +12,16 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { CELL_SIZE } from '../utils/gridMath.js';
 import { getMap } from '../data/catalogs/maps.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
-import { groundCells, worldCells } from '../data/maps/areaShape.js';
+import { groundCells, worldCells, layerLiftAt } from '../data/maps/areaShape.js';
 
 const GRASS_TEXTURE = `${ASSET_DIRS.textures}Grass004_1K-JPG_Color.jpg`;
 const GRASS_TILE = 5.5;
 const PICK_LIFT = 0.002;
+
+function toHeight(lift) {
+  if (!Number.isFinite(lift) || Math.abs(lift) < 0.001) return 0;
+  return Math.round(lift * 1000) / 1000;
+}
 
 function color3(rgb) {
   return new Color3(rgb[0], rgb[1], rgb[2]);
@@ -136,35 +141,27 @@ export default class TerrainSystem {
   createSurface(map, cells) {
     if (this.surface && !this.surface.isDisposed()) this.surface.dispose(false, false);
 
-    const heights = new Map();
-    for (const entry of (this.layout && this.layout.floor) || []) {
-      if (entry.liftY > 0) heights.set(`${entry.cx},${entry.cz}`, entry.liftY);
-    }
-
+    const heights = this.cellHeights();
     const positions = [];
     const indices = [];
     const uvs = [];
     const colors = [];
-    const spot = new Map();
     const tint = new Color3(0.72, 0.7, 0.64);
-    const slot = (px, pz, lift) => {
-      const id = `${px},${pz}`;
-      if (!spot.has(id)) {
-        spot.set(id, positions.length / 3);
-        positions.push(px, 0, pz);
-        uvs.push(px / GRASS_TILE, pz / GRASS_TILE);
-        colors.push(tint.r, tint.g, tint.b, lift ? 0.55 : 1);
-      }
-      return spot.get(id);
+    const slot = (x, lift, z) => {
+      const index = positions.length / 3;
+      positions.push(x, lift, z);
+      uvs.push(x / GRASS_TILE, z / GRASS_TILE);
+      colors.push(tint.r, tint.g, tint.b, lift ? 0.55 : 1);
+      return index;
     };
     for (const [cx, cz] of cells) {
       const x = cx * CELL_SIZE;
       const z = cz * CELL_SIZE;
       const lift = heights.get(`${cx},${cz}`) || 0;
-      const a = slot(x - 1, z - 1, lift);
-      const b = slot(x + 1, z - 1, lift);
-      const c = slot(x + 1, z + 1, lift);
-      const d = slot(x - 1, z + 1, lift);
+      const a = slot(x - 1, lift, z - 1);
+      const b = slot(x + 1, lift, z - 1);
+      const c = slot(x + 1, lift, z + 1);
+      const d = slot(x - 1, lift, z + 1);
       indices.push(a, b, c, a, c, d);
     }
 
@@ -190,6 +187,19 @@ export default class TerrainSystem {
     this.surfaceMaterial.diffuseColor = color3(this.tintOf(map));
     mesh.material = this.surfaceMaterial;
     this.surface = mesh;
+  }
+
+  cellHeight(cx, cz) {
+    return toHeight(layerLiftAt(this.layout, cx, cz));
+  }
+
+  cellHeights() {
+    const heights = new Map();
+    for (const [cx, cz] of this.realCells || []) {
+      const height = this.cellHeight(cx, cz);
+      if (height) heights.set(`${cx},${cz}`, height);
+    }
+    return heights;
   }
 
   tintOf(map) {

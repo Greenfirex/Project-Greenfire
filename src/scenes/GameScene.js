@@ -563,7 +563,6 @@ updateGatherTarget() {
 
   sectionFor(kind) {
     if (kind === 'path') return 'path';
-    if (kind === 'water') return 'water';
     return 'deco';
   }
 
@@ -595,7 +594,7 @@ updateGatherTarget() {
     this.gatherSystem.syncFromDeco();
     this.campfireSystem.sync(this.mapFile.decorations || []);
     this.buildSystem.blockedTest = (cx, cz) => this.decoSystem.isBlocked(cx, cz);
-    this.buildSystem.heightTest = (cx, cz) => this.decoSystem.topAt(cx, cz) > 0;
+    this.buildSystem.heightTest = (cx, cz) => this.decoSystem.topAt(cx, cz) !== 0;
     this.buildSystem.rangeTest = (cx, cz) => this.withinBuildRange(cx, cz);
     this.gridSystem.onHologramReady = (machineKey) => {
       if (machineKey !== this.currentMachine) return;
@@ -630,7 +629,6 @@ updateGatherTarget() {
   }
 
   renderMapLayout() {
-    console.log('[debug] renderMapLayout called');
     const exhausted = this.gatherSystem.exhaustedCells();
     this.gatherSystem.clear();
     this.adoptEditorMap();
@@ -647,7 +645,6 @@ updateGatherTarget() {
   async rebuildDecorations(exhausted) {
     const layout = this.mapFile || {};
     const stages = describeWorld(layout);
-    console.log('[debug] rebuildDecorations start — stages:', stages.map((s) => `${s.kind}:${s.keys.length}`).join(', '), '| path cells:', (layout.path || []).length, '| deco cells:', (layout.decorations || []).length);
     let models = null;
     this.decoSystem.brokenCount = 0;
     this.decoHighlight.clear();
@@ -656,12 +653,10 @@ updateGatherTarget() {
     for (const stage of stages) {
       const entries = stagePieces(layout, stage);
       if (!entries.length) continue;
-      console.log('[debug] rebuild stage', stage.kind, 'entries:', entries.length);
       models = await this.loadStageModels(entries, models);
       await this.placeStage(stage, entries);
     }
     this.decoSystem.finishStages();
-    console.log('[debug] rebuildDecorations done');
     this.finishRebuild(exhausted);
   }
 
@@ -735,7 +730,7 @@ updateGatherTarget() {
       return file;
     } catch (error) {
       this.hud.setSaveHint(`Mapu ${this.mapKey} nejde přečíst ze souboru — ${error.message}`);
-      return { version: 3, mapKey: this.mapKey, seed: getMap(this.mapKey).seed, spawn: { cx: 0, cz: 0 }, floor: [], path: [], water: [], decorations: [] };
+      return { version: 3, mapKey: this.mapKey, seed: getMap(this.mapKey).seed, spawn: { cx: 0, cz: 0 }, floor: [], path: [], decorations: [] };
     }
   }
 
@@ -1249,7 +1244,7 @@ updateGatherTarget() {
   layerExists(cx, cz) {
     const world = this.editor.getMap();
     if (!world) return false;
-    return ['floor', 'path', 'water', 'clearing'].some((name) => (world[name] || []).some((e) => e.cx === cx && e.cz === cz));
+    return ['floor', 'path', 'clearing'].some((name) => (world[name] || []).some((e) => e.cx === cx && e.cz === cz));
   }
 
   decoExists(cx, cz) {

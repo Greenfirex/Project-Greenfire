@@ -2,7 +2,7 @@
 // Přepíná se F1, drží jen hotovou mapu a historii úprav; vykreslování si řídí scéna.
 import { BRUSHES } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
-import { cellKey, MAX_HEIGHT } from '../data/maps/layoutStore.js';
+import { cellKey, MIN_HEIGHT, MAX_HEIGHT } from '../data/maps/layoutStore.js';
 import { layerAt, layerEntriesAt, floorCellAt, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
 import { fillZone } from '../utils/zoneFill.js';
 import { createRng, seedFor } from '../utils/rng.js';
@@ -142,13 +142,8 @@ export default class EditorMode {
     return 'dirt';
   }
 
-  isWaterCell(cx, cz) {
-    if (!this.layout) return false;
-    return layerAt(this.layout, cx, cz) === 'water';
-  }
-
   setHeightLevel(level) {
-    const n = Math.max(0, Math.min(MAX_HEIGHT, Math.round(Number(level))));
+    const n = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, Math.round(Number(level))));
     if (!Number.isFinite(n)) return;
     this.heightLevel = n;
     if (this.onHeightChange) this.onHeightChange(n);
@@ -233,11 +228,15 @@ export default class EditorMode {
       }
       return entry;
     }
-    const target = layer || (this.isWaterCell(cx, cz) ? 'water' : 'floor');
+    const target = layer || 'floor';
     if (target === 'floor') {
       dropLayerCell(this.layout, cx, cz);
+      for (const name of ['grass', 'clearing']) {
+        if ((this.layout[name] || []).some((item) => item && item.cx === cx && item.cz === cz && item.liftY)) continue;
+        this.layout[name] = (this.layout[name] || []).filter((item) => !item || item.cx !== cx || item.cz !== cz);
+      }
     } else {
-      if (floor && floor.liftY && !entry.liftY) entry.liftY = floor.liftY;
+      if (!entry.liftY && floor && floor.liftY) entry.liftY = floor.liftY;
       dropLayerCell(this.layout, cx, cz);
       if (floor && !(this.layout.floor || []).includes(floor)) this.layout.floor.push(floor);
       if (!floor) this.placeFloor(FALLBACK_FLOOR, cx, cz);
@@ -280,27 +279,26 @@ export default class EditorMode {
   }
 
   setTileLift(cx, cz, height) {
-    for (const layer of ['floor', 'path', 'water', 'clearing']) {
-      for (let i = (this.layout[layer] || []).length - 1; i >= 0; i -= 1) {
-        const entry = this.layout[layer][i];
+    const layer = layerAt(this.layout, cx, cz);
+    const path = layer === 'path'
+      ? (this.layout.path || []).find((entry) => entry && entry.cx === cx && entry.cz === cz) || null
+      : null;
+    const targets = [];
+    const floor = floorCellAt(this.layout, cx, cz);
+    if (floor) targets.push(floor);
+    for (const name of ['floor', 'clearing', 'grass']) {
+      for (const entry of this.layout[name] || []) {
         if (!entry || entry.cx !== cx || entry.cz !== cz) continue;
-        if (height > 0) entry.liftY = height;
-        else delete entry.liftY;
-        return entry;
+        if (!targets.includes(entry)) targets.push(entry);
       }
     }
-    return null;
-  }
-
-  heightLevels() {
-    const levels = new Map();
-    for (const layer of ['floor', 'path', 'water', 'clearing']) {
-      for (const entry of this.layout[layer] || []) {
-        const level = Math.round((entry.liftY || 0) / HEIGHT_STEP);
-        if (level > 0 && !levels.has(cellKey(entry.cx, entry.cz))) levels.set(cellKey(entry.cx, entry.cz), level);
-      }
+    if (path && !targets.includes(path)) targets.push(path);
+    if (!targets.length) return null;
+    for (const entry of targets) {
+      if (height) entry.liftY = height;
+      else delete entry.liftY;
     }
-    return levels;
+    return floor || path || targets[0];
   }
 
   beginAreaDrag(cx, cz) {
@@ -428,8 +426,7 @@ export default class EditorMode {
   }
 
   raiseToLevel(cx, cz) {
-    const level = this.heightLevel;
-    const height = level > 0 ? level * HEIGHT_STEP : 0;
+    const height = this.heightLevel * HEIGHT_STEP;
     this.setTileLift(cx, cz, height);
     return height;
   }
@@ -507,8 +504,7 @@ export default class EditorMode {
     this.pushHistory();
     const brush = BRUSHES[brushKey] || {};
     const shape = brush.shape;
-    const stepLevel = brush.height ? brush.height / HEIGHT_STEP : this.heightLevel;
-    const liftY = shape === 'line' ? 0 : Math.round(stepLevel) * HEIGHT_STEP;
+    const brushLift = brush.height ? brush.height * HEIGHT_STEP : 0;
     const filled = this.zoneEntries(brushKey, brush, [...cells], mode);
     for (const cell of filled) {
       const { cx, cz } = cell;
@@ -544,10 +540,9 @@ export default class EditorMode {
       }
       if (shape === 'line') {
         this.placePath(cx, cz);
+        this.setTileLift(cx, cz, brushLift);
       } else {
-        dropLayerCell(this.layout, cx, cz);
-        if (brushKey === 'water') this.placeEntry(key, cx, cz, cell.rotation || 0, 0, 'water');
-        else this.placeEntry(key, cx, cz, 0, liftY, 'floor');
+        this.placeEntry(key, cx, cz, 0, cell.liftY || brushLift, 'floor');
       }
     }
     this.fixMissingFloor();
@@ -591,7 +586,7 @@ export default class EditorMode {
       this.dropOrphans();
       return;
     }
-    this.placeEntry(this.tileKey || FALLBACK_FLOOR, cx, cz, 0, this.heightLevel > 0 ? this.heightLevel * HEIGHT_STEP : 0);
+    this.placeEntry(this.tileKey || FALLBACK_FLOOR, cx, cz, 0, this.heightLevel * HEIGHT_STEP);
     this.fixMissingFloor();
   }
 
@@ -622,12 +617,10 @@ export default class EditorMode {
   }
 
   scheduleRegenerate() {
-    console.log('[debug] scheduleRegenerate called — onRegenerate is', typeof this.onRegenerate);
     this.repaint();
   }
 
   repaint() {
-    console.log('[debug] repaint called');
     if (this.onRegenerate) this.onRegenerate(this.layout);
   }
 
@@ -682,16 +675,17 @@ export default class EditorMode {
   describeAt(cx, cz) {
     const layer = layerAt(this.layout, cx, cz);
     const entry = this.topEntryAt(cx, cz);
-    const level = entry && entry.liftY ? Math.round(entry.liftY / HEIGHT_STEP) : 0;
+    const level = entry && Number.isFinite(entry.liftY) ? Math.round(entry.liftY / HEIGHT_STEP) : 0;
     return {
       brush: layer,
       entry,
-      height: level > 0 ? level : null,
+      height: level || null,
       override: entry,
       isPath: layer === 'path',
       style: layer === 'path' ? (entry && entry.style ? entry.style : this.styleFor(this.brushKey)) : null,
       pool: this.brushPool(this.brushKey),
       key: cellKey(cx, cz),
+      liftY: entry && entry.liftY ? entry.liftY : 0,
     };
   }
 }
@@ -706,7 +700,6 @@ function toWorld(world) {
     seed: world.seed,
     floor: copy(world.floor),
     path: copy(world.path),
-    water: copy(world.water),
     clearing: copy(world.clearing),
     grass: copy(world.grass),
     decorations: copy(world.decorations),

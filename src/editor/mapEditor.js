@@ -256,8 +256,10 @@ export default class MapEditor {
     if (this.mode.hasDraft && this.mode.mode !== 'height') {
       this.s.gridSystem.clearBrush();
     } else {
+      const pool = this.mode.brushPool();
+      const cells = pool.map((hit) => [hit.cx, hit.cz]);
       const surfaceAt = (cx, cz) => this.s.decoSystem.surfaceAt(cx, cz);
-      this.s.gridSystem.showBrush([[cell.cx, cell.cz]], surfaceAt, this.mode.erasing);
+      this.s.gridSystem.showBrush(cells, surfaceAt, this.mode.erasing);
     }
     const info = this.mode.describeAt(cell.cx, cell.cz);
     const tile = describeEntry(info);
@@ -513,7 +515,7 @@ function describeEntry(info) {
 
 function brokenEntries(layout) {
   let count = 0;
-  for (const name of ['floor', 'path', 'water', 'clearing', 'decorations']) {
+  for (const name of ['floor', 'path', 'clearing', 'decorations']) {
     for (const entry of layout[name] || []) {
       if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) count += 1;
     }

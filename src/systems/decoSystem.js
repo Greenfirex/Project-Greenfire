@@ -1,4 +1,4 @@
-// Stavba dekoraci krajiny z dat mapy - dlazdice pudy, cesty, stromy, skaly.
+﻿// Stavba dekoraci krajiny z dat mapy - dlazdice pudy, cesty, stromy, skaly.
 // Drzi jen postavene meshe a blokovane bunky; rozvrzeni si bere z data mapy.
 import '@babylonjs/core/Meshes/transformNode';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
@@ -12,13 +12,7 @@ import { resolveModel, instantiateModel, ownMaterials, whenModelsIdle } from '..
 import { tintTemplate, forgetTints } from '../utils/decoTint.js';
 import PathSystem from './pathSystem.js';
 
-const WATER_LIFT = 0.003;
 const PATH_SURFACE = 0.02;
-
-function withLift(entry, lift) {
-  const base = entry.liftY || 0;
-  return base > lift ? entry : { ...entry, liftY: lift };
-}
 
 const SKIRT_KEYS = new Set([
   'cliff_large', 'cliff_half', 'cliff_top', 'cliff_cornerLarge', 'cliff_cornerTop', 'cliff_halfCorner',
@@ -49,13 +43,13 @@ export default class DecoSystem {
     this.blocked = new Map();
     this.columnTop = new Map();
     this.surfaceKeys = new Map();
+    this.floorLifts = new Map();
     this.onDecoReady = null;
     this.onDecoBroken = null;
     this.colors = null;
     this.nodes = [];
     this.anchors = [];
     this.pathNodes = [];
-    this.waterNodes = [];
     this.pendingPieces = [];
     this.brokenCount = 0;
     this.pathSystem = new PathSystem(scene);
@@ -67,6 +61,7 @@ export default class DecoSystem {
     this.blocked.clear();
     this.columnTop.clear();
     this.surfaceKeys.clear();
+    this.floorLifts.clear();
     this.brokenCount = 0;
     this.colors = colors || null;
     this.applyLayout(layout);
@@ -81,7 +76,6 @@ export default class DecoSystem {
   createAll(layout) {
     for (const entry of layout.floor || []) this.place(entry);
     this.buildPath();
-    this.buildWater();
     for (const entry of layout.clearing || []) this.place(entry);
     for (const entry of layout.decorations || []) this.place(entry);
   }
@@ -92,6 +86,7 @@ export default class DecoSystem {
     this.blocked.clear();
     this.columnTop.clear();
     this.surfaceKeys.clear();
+    this.floorLifts.clear();
     this.brokenCount = 0;
     this.colors = colors || null;
     this.layout = layout;
@@ -109,7 +104,7 @@ export default class DecoSystem {
   }
 
   placePiece(entry, section) {
-    const bucket = section === 'path' ? this.pathNodes : section === 'water' ? this.waterNodes : this.nodes;
+    const bucket = section === 'path' ? this.pathNodes : this.nodes;
     return this.place(entry, bucket, section);
   }
 
@@ -143,20 +138,11 @@ export default class DecoSystem {
     }
   }
 
-  buildWater() {
-    for (const entry of this.layout?.water || []) this.placeWater(entry);
-  }
-
-  placeWater(entry) {
-    this.place(withLift(entry, WATER_LIFT), this.waterNodes, 'water');
-  }
-
   refreshBlocked(layout) {
     this.blocked.clear();
     const entries = [].concat(
       layout.floor || [],
       layout.path || [],
-      layout.water || [],
       layout.clearing || [],
       layout.decorations || [],
     );
@@ -186,13 +172,6 @@ export default class DecoSystem {
     this.refreshBlocked(layout);
   }
 
-  updateWater(layout) {
-    this.layout = layout;
-    for (const node of this.waterNodes) if (node && !node.isDisposed()) node.dispose(false, false);
-    this.waterNodes.length = 0;
-    this.buildWater();
-  }
-
   applyEntry(entry, section = 'deco') {
     const def = getDecoration(entry.key);
     if (!def) return;
@@ -202,6 +181,7 @@ export default class DecoSystem {
     const key = cellKey(entry.cx, entry.cz);
     const solid = def.blocks !== false;
     if (isSkirt(entry.key)) return;
+    if (section !== 'deco') this.floorLifts.set(key, entry.liftY || 0);
     if (section === 'path') this.surfaceKeys.set(key, entry.key);
     const current = this.columnTop.get(key);
     if (!current) {
@@ -227,13 +207,20 @@ export default class DecoSystem {
 
   topAt(cx, cz) {
     const cell = this.columnTop.get(cellKey(cx, cz));
-    if (!cell) return 0;
-    return Math.max(cell.block, cell.surface);
+    if (cell) return Math.max(cell.block, cell.surface);
+    return this.surfaceAt(cx, cz);
   }
 
   surfaceAt(cx, cz) {
-    const cell = this.columnTop.get(cellKey(cx, cz));
-    return cell ? cell.surface : 0;
+    const key = cellKey(cx, cz);
+    const cell = this.columnTop.get(key);
+    if (cell) return Math.max(cell.surface, this.floorTopAt(key));
+    return this.floorTopAt(key);
+  }
+
+  floorTopAt(key) {
+    const lift = this.floorLifts.get(key);
+    return lift || 0;
   }
 
   surfaceKeyAt(cx, cz) {
@@ -262,7 +249,6 @@ export default class DecoSystem {
     const entries = [].concat(
       this.layout.floor || [],
       this.layout.path || [],
-      this.layout.water || [],
       this.layout.clearing || [],
       this.layout.decorations || [],
     );
@@ -306,7 +292,6 @@ export default class DecoSystem {
     this.anchors.length = 0;
     this.nodes.length = 0;
     this.pathNodes.length = 0;
-    this.waterNodes.length = 0;
     this.pendingPieces.length = 0;
   }
 
@@ -324,7 +309,7 @@ export default class DecoSystem {
     try {
       await this.attachModelNow(anchor, def, entry, section);
     } catch (error) {
-      console.warn('[deco] Model se nepodařilo připojit:', def.model, error);
+      console.warn('[deco] Model se nepodaĹ™ilo pĹ™ipojit:', def.model, error);
       if (!anchor.isDisposed() && !anchor.metadata?.broken) this.markBroken(anchor, def);
     }
   }
@@ -380,7 +365,7 @@ export default class DecoSystem {
   markBroken(anchor, def) {
     if (anchor) anchor.metadata = { ...(anchor.metadata || {}), broken: true };
     this.brokenCount += 1;
-    console.warn(`[deco] Model se nepodařilo postavit: ${def.displayName || def.model}`);
+    console.warn(`[deco] Model se nepodaĹ™ilo postavit: ${def.displayName || def.model}`);
   }
 
   isBlocked(cx, cz) {
@@ -391,6 +376,7 @@ export default class DecoSystem {
     const key = cellKey(cx, cz);
     this.blocked.delete(key);
     this.columnTop.delete(key);
+    this.floorLifts.delete(key);
   }
 
   overlaps(x, z, bodyRadius) {
