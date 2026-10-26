@@ -74,6 +74,7 @@ export default class PlayerSystem {
     this.blockedTest = null;
     this.walkable = null;
     this.decoSystem = null;
+    this.groundHeightAt = null;
     this.spawnCell = null;
     this.walkableCells = null;
     this.ready = false;
@@ -122,7 +123,7 @@ export default class PlayerSystem {
       root.scaling = new Vector3(scale, scale, scale);
       root.rotation.y = MODEL_YAW;
       const start = this.spawnCell ? cellToWorldCoords(this.spawnCell.cx, this.spawnCell.cz) : SPAWN;
-      this.root.position = new Vector3(start.x, 0, start.z);
+      this.root.position = this.positionAt(start.x, start.z);
       this.homeX = start.x;
       this.homeZ = start.z;
 
@@ -336,13 +337,29 @@ export default class PlayerSystem {
     this.homeZ = pos.z;
   }
 
+  groundY(x, z) {
+    const height = this.groundHeightAt ? this.groundHeightAt(x, z) : 0;
+    return Number.isFinite(height) ? height : 0;
+  }
+
+  positionAt(x, z) {
+    return new Vector3(x, this.groundY(x, z), z);
+  }
+
+  applyGroundHeight() {
+    const root = this.root;
+    if (!root || root.isDisposed()) return;
+    root.position.y = this.groundY(root.position.x, root.position.z);
+  }
+
   keepGrounded() {
     const root = this.root;
     if (!root || root.isDisposed()) return;
     if (!Number.isFinite(root.position.x) || !Number.isFinite(root.position.z) || !Number.isFinite(root.position.y)) {
-      root.position.set(this.homeX, 0, this.homeZ);
+      root.position = this.positionAt(this.homeX, this.homeZ);
     }
     if (!root.isEnabled(false)) root.setEnabled(true);
+    this.applyGroundHeight();
     if (!this.mesh || this.mesh.isDisposed()) return;
     if (!this.mesh.isEnabled(false)) this.mesh.setEnabled(true);
   }
@@ -419,7 +436,7 @@ export default class PlayerSystem {
       const x = this.root.position.x;
       const z = this.root.position.z;
       if (!Number.isFinite(x) || !Number.isFinite(z)) {
-        this.root.position.set(this.homeX, 0, this.homeZ);
+        this.root.position = this.positionAt(this.homeX, this.homeZ);
         return false;
       }
       if (this.blockedTest) {
@@ -437,7 +454,7 @@ export default class PlayerSystem {
       const nextX = x + nx * push;
       const nextZ = z + nz * push;
       if (!Number.isFinite(nextX) || !Number.isFinite(nextZ)) return false;
-      this.root.position = new Vector3(nextX, 0, nextZ);
+      this.root.position = this.positionAt(nextX, nextZ);
     }
     return !this.decoSystem.overlaps(this.root.position.x, this.root.position.z, BODY_RADIUS + BODY_MARGIN);
   }
@@ -445,7 +462,7 @@ export default class PlayerSystem {
   tryMove(x, z, dirX, dirZ, step) {
     if (!this.free(this.root.position.x, this.root.position.z)) this.pushOut();
     if (this.stepAllowed(x, z) && this.free(x, z)) {
-      this.root.position = new Vector3(x, 0, z);
+      this.root.position = this.positionAt(x, z);
       return true;
     }
     const startX = this.root.position.x;
@@ -465,7 +482,7 @@ export default class PlayerSystem {
       const ax = startX + sx * step * scale;
       const az = startZ + sz * step * scale;
       if (this.stepAllowed(ax, az) && this.free(ax, az)) {
-        this.root.position = new Vector3(ax, 0, az);
+        this.root.position = this.positionAt(ax, az);
         return true;
       }
     }
@@ -578,7 +595,7 @@ export default class PlayerSystem {
       x = spot.x;
       z = spot.z;
     }
-    this.root.position = new Vector3(x, 0, z);
+    this.root.position = this.positionAt(x, z);
     this.facing = facing;
     this.root.rotation.y = facing;
     if (this.onTeleport) this.onTeleport(x, z);

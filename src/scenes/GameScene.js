@@ -216,7 +216,7 @@ export default class GameScene {
       const root = this.playerSystem.root;
       this.campfireSystem.update(dt, root);
       this.updateCampfireSound(root);
-      if (root) this.cameraSystem.follow(root.position.x, root.position.z, dt);
+      if (root) this.cameraSystem.follow(root.position.x, root.position.z, root.position.y, dt);
       this.autoTune(dt);
       this.audioSystem.update(dt);
       this.playerSystem.updateFire();
@@ -455,14 +455,15 @@ updateGatherTarget() {
     this.playerSystem.blockedTest = (cx, cz) => this.buildSystem.isOccupied(cx, cz);
     this.playerSystem.walkable = (x, z) => this.isWalkableAt(x, z);
     this.playerSystem.decoSystem = this.decoSystem;
-    this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z);
+    this.playerSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z);
+    this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z, this.playerSystem.root ? this.playerSystem.root.position.y : 0);
     this.playerSystem.spawnCell = this.mapLayout.spawn;
     this.playerSystem.setHeldTool(this.heldItemSystem.key);
     this.playerSystem.onProgress = (done) => this.loader.floatProgress(done);
     const root = await this.playerSystem.create();
     if (!root) return;
     for (const child of root.getChildMeshes()) this.addShadowCaster(child);
-    this.cameraSystem.snapTo(root.position.x, root.position.z);
+    this.cameraSystem.snapTo(root.position.x, root.position.z, root.position.y);
   }
 
   refreshTerrain() {

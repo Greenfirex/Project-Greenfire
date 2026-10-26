@@ -62,17 +62,18 @@ export default class CameraSystem {
     this.camera.alpha += alphaDelta;
   }
 
-  follow(x, z, dt) {
+  follow(x, z, y, dt) {
     if (!this.camera) return;
     const k = 1 - Math.pow(0.001, Math.min(0.25, Math.max(0, dt)));
+    const goalY = Number.isFinite(y) ? y : 0;
     this.target.x += (x - this.target.x) * k;
     this.target.z += (z - this.target.z) * k;
-    this.target.y += (0 - this.target.y) * k;
+    this.target.y += (goalY - this.target.y) * k;
     this.camera.setTarget(this.target);
   }
 
-  snapTo(x, z) {
-    this.target.set(x, 0, z);
+  snapTo(x, z, y = 0) {
+    this.target.set(x, Number.isFinite(y) ? y : 0, z);
     if (this.camera) this.camera.setTarget(this.target);
   }
 

@@ -309,7 +309,8 @@ mají plynulé svahy a na okraji mapy je hliněný bok. Za okrajem mapy se poč�
 s výškou nejbližší buňky, takže se zem na okraji nezvedá zpátky nahoru.
 Cesty, tráva, objekty i kurzor v editoru sedí na skutečné výšce země. Cesty
 se skládají z jemných kousků, takže kopírují zaoblení země i v kopci a v příkopu.
-Hráč zatím chodí v nulové výšce; jeho výška přijde ve fázi 5.
+Hráč už chodí po skutečné výšce země; hluboká pláž a voda přijdou v dalších
+krocích.
 
 V okně **Herní plocha** se k razítku vybírá podklad a výška; počítadlo předem
 ukáže, kolik buněk se přepíše a kolik jich už v mapě je.
