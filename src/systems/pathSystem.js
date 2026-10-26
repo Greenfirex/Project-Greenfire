@@ -1,5 +1,5 @@
 // Cesty — klade na políčka pásek hlíny, kamene nebo prken, který v zatáčkách plynule zatáčí.
-// Šířka pásku se pozvolna vlní podle souřadnic, takže cesta vypadá jako vyšlapaná pěšinka, ne linka.
+// Pásek se skládá z jemných kousků a každý sedí na skutečné výšce země, takže kopíruje kopce i příkopy.
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
@@ -8,7 +8,11 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { CELL_SIZE, cellKey } from '../utils/gridMath.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 
-const PATH_LIFT = 0.01;
+const PATH_LIFT = 0.025;
+const STRAIGHT_ALONG = 4;
+const STRAIGHT_ACROSS = 3;
+const BEND_ALONG = 8;
+const BEND_ACROSS = 3;
 const HALF = CELL_SIZE / 2;
 const HALF_WIDTH = CELL_SIZE / 4;
 const UV_TILE = 1;
@@ -116,22 +120,29 @@ export default class PathSystem {
   addStraight(cell, list, across) {
     const x = cell.cx * CELL_SIZE;
     const z = cell.cz * CELL_SIZE;
-    const start = list.positions.length / 3;
-    let corners;
+    const grid = [];
     if (across) {
-      const wLeft = pathHalfWidth(x - HALF);
-      const wRight = pathHalfWidth(x + HALF);
-      corners = [[-HALF, -wLeft], [HALF, -wRight], [HALF, wRight], [-HALF, wLeft]];
+      for (let i = 0; i <= STRAIGHT_ALONG; i += 1) {
+        const px = x - HALF + (CELL_SIZE * i) / STRAIGHT_ALONG;
+        const w = pathHalfWidth(px);
+        const row = [];
+        for (let j = 0; j <= STRAIGHT_ACROSS; j += 1) {
+          row.push([px, z - w + (2 * w * j) / STRAIGHT_ACROSS]);
+        }
+        grid.push(row);
+      }
     } else {
-      const wNorth = pathHalfWidth(z - HALF);
-      const wSouth = pathHalfWidth(z + HALF);
-      corners = [[-wNorth, -HALF], [wNorth, -HALF], [wSouth, HALF], [-wSouth, HALF]];
+      for (let i = 0; i <= STRAIGHT_ACROSS; i += 1) {
+        const row = [];
+        for (let j = 0; j <= STRAIGHT_ALONG; j += 1) {
+          const pz = z - HALF + (CELL_SIZE * j) / STRAIGHT_ALONG;
+          const w = pathHalfWidth(pz);
+          row.push([x - w + (2 * w * i) / STRAIGHT_ACROSS, pz]);
+        }
+        grid.push(row);
+      }
     }
-    for (const [dx, dz] of corners) {
-      list.positions.push(x + dx, this.groundAt(x + dx, z + dz), z + dz);
-      list.uvs.push((x + dx) / UV_TILE, (z + dz) / UV_TILE);
-    }
-    list.indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
+    this.emitGrid(list, grid);
   }
 
   addCross(cell, list) {
@@ -140,39 +151,89 @@ export default class PathSystem {
     const [east, north, west, south] = cell.open;
 
     if (east || west) {
-      const wLeft = pathHalfWidth(x - HALF);
-      const wRight = pathHalfWidth(x + HALF);
       let x0;
       let x1;
-      let w0;
-      let w1;
-      if (east && west) { x0 = -HALF; x1 = HALF; w0 = wLeft; w1 = wRight; }
-      else if (west) { x0 = -HALF; x1 = 0; w0 = wLeft; w1 = wLeft; }
-      else { x0 = 0; x1 = HALF; w0 = wRight; w1 = wRight; }
-      this.emitQuad(list, x, z, [x0, -w0], [x1, -w1], [x1, w1], [x0, w0]);
+      if (east && west) { x0 = -HALF; x1 = HALF; }
+      else if (west) { x0 = -HALF; x1 = 0; }
+      else { x0 = 0; x1 = HALF; }
+      this.emitArmX(list, x, z, x0, x1);
     }
 
     if (north || south) {
-      const wNorth = pathHalfWidth(z - HALF);
-      const wSouth = pathHalfWidth(z + HALF);
       let z0;
       let z1;
-      let wn0;
-      let wn1;
-      if (north && south) { z0 = -HALF; z1 = HALF; wn0 = wNorth; wn1 = wSouth; }
-      else if (north) { z0 = -HALF; z1 = 0; wn0 = wNorth; wn1 = wNorth; }
-      else { z0 = 0; z1 = HALF; wn0 = wSouth; wn1 = wSouth; }
-      this.emitQuad(list, x, z, [-wn0, z0], [wn0, z0], [wn1, z1], [-wn1, z1]);
+      if (north && south) { z0 = -HALF; z1 = HALF; }
+      else if (north) { z0 = -HALF; z1 = 0; }
+      else { z0 = 0; z1 = HALF; }
+      this.emitArmZ(list, x, z, z0, z1);
     }
   }
 
-  emitQuad(list, x, z, c0, c1, c2, c3) {
-    const start = list.positions.length / 3;
-    for (const [dx, dz] of [c0, c1, c2, c3]) {
-      list.positions.push(x + dx, this.groundAt(x + dx, z + dz), z + dz);
-      list.uvs.push((x + dx) / UV_TILE, (z + dz) / UV_TILE);
+  emitArmX(list, x, z, x0, x1) {
+    const grid = [];
+    for (let i = 0; i <= STRAIGHT_ALONG; i += 1) {
+      const px = x + x0 + ((x1 - x0) * i) / STRAIGHT_ALONG;
+      const w = pathHalfWidth(px);
+      const row = [];
+      for (let j = 0; j <= STRAIGHT_ACROSS; j += 1) {
+        row.push([px, z - w + (2 * w * j) / STRAIGHT_ACROSS]);
+      }
+      grid.push(row);
     }
-    list.indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
+    this.emitGrid(list, grid);
+  }
+
+  emitArmZ(list, x, z, z0, z1) {
+    const grid = [];
+    for (let i = 0; i <= STRAIGHT_ACROSS; i += 1) {
+      const row = [];
+      for (let j = 0; j <= STRAIGHT_ALONG; j += 1) {
+        const pz = z + z0 + ((z1 - z0) * j) / STRAIGHT_ALONG;
+        const w = pathHalfWidth(pz);
+        row.push([x - w + (2 * w * i) / STRAIGHT_ACROSS, pz]);
+      }
+      grid.push(row);
+    }
+    this.emitGrid(list, grid);
+  }
+
+  emitPoints(list, grid) {
+    const base = list.positions.length / 3;
+    for (const row of grid) {
+      for (const [x, z] of row) {
+        list.positions.push(x, this.groundAt(x, z), z);
+        list.uvs.push(x / UV_TILE, z / UV_TILE);
+      }
+    }
+    return base;
+  }
+
+  emitGrid(list, grid) {
+    const base = this.emitPoints(list, grid);
+    const across = grid[0].length;
+    for (let i = 0; i < grid.length - 1; i += 1) {
+      for (let j = 0; j < across - 1; j += 1) {
+        const a = base + i * across + j;
+        const b = a + across;
+        const c = b + 1;
+        const d = a + 1;
+        list.indices.push(a, b, c, a, c, d);
+      }
+    }
+  }
+
+  emitBendGrid(list, grid) {
+    const base = this.emitPoints(list, grid);
+    const across = grid[0].length;
+    for (let i = 0; i < grid.length - 1; i += 1) {
+      for (let j = 0; j < across - 1; j += 1) {
+        const a = base + i * across + j;
+        const b = a + 1;
+        const c = a + across;
+        const d = c + 1;
+        list.indices.push(a, b, c, b, d, c);
+      }
+    }
   }
 
   addBend(cell, list) {
@@ -206,32 +267,23 @@ export default class PathSystem {
   }
 
   addCorner(cx, cz, start, end, wIn, wOut, list) {
-    const SEGMENTS = 6;
-    const base = list.positions.length / 3;
-    for (let i = 0; i <= SEGMENTS; i += 1) {
-      const t = i / SEGMENTS;
+    const grid = [];
+    for (let i = 0; i <= BEND_ALONG; i += 1) {
+      const t = i / BEND_ALONG;
       const a = start + (end - start) * t;
       const w = wIn + (wOut - wIn) * t;
       const rOuter = HALF - w;
       const rInner = HALF + w;
       const ox = Math.cos(a);
       const oz = Math.sin(a);
-      const outX = cx + ox * rOuter;
-      const outZ = cz + oz * rOuter;
-      const inX = cx + ox * rInner;
-      const inZ = cz + oz * rInner;
-      list.positions.push(outX, this.groundAt(outX, outZ), outZ);
-      list.positions.push(inX, this.groundAt(inX, inZ), inZ);
-      list.uvs.push(outX / UV_TILE, outZ / UV_TILE);
-      list.uvs.push(inX / UV_TILE, inZ / UV_TILE);
+      const row = [];
+      for (let j = 0; j <= BEND_ACROSS; j += 1) {
+        const r = rOuter + ((rInner - rOuter) * j) / BEND_ACROSS;
+        row.push([cx + ox * r, cz + oz * r]);
+      }
+      grid.push(row);
     }
-    for (let i = 0; i < SEGMENTS; i += 1) {
-      const a = base + i * 2;
-      const b = a + 1;
-      const c = a + 2;
-      const d = a + 3;
-      list.indices.push(a, b, c, b, d, c);
-    }
+    this.emitBendGrid(list, grid);
   }
 
   addMesh(name, list, material) {
