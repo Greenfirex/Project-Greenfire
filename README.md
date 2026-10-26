@@ -262,15 +262,19 @@ Co v souboru chybí, ve hře neexistuje: chybějící buňka znamená díru bez 
 přes kterou se nedá chodit. Výška terénu je uložená u každé dlaždice zvlášť.
 
 V editoru (F1) jsou tři druhy práce: **zóny** vyplní označené buňky rostlinami
-a objekty, **výška** zvedá dlaždice, **plocha** přidává a odebírá samotné buňky
-mapy — mazání plochou udělá v mapě skutečnou díru. Klikací tlačítka výšky
-v panelu určují, jak vysoko se dlaždice pokládají; tlačítkem **Vyhladit**
-se srovnají schody do okolí.
+a objekty, **výška** zvedá dlaždice a **plocha** zakládá nebo přepisuje zem
+s vybraným podkladem a výškou. Plocha je razítko: nové buňky vzniknou,
+existující se přepíšou i s objekty, mazání udělá v mapě skutečnou díru.
+Klikací tlačítka výšky v panelu určují, jak vysoko se dlaždice pokládají;
+tlačítkem **Vyhladit** se srovnají schody do okolí.
 
 Podklad dlaždice (tráva, písek) se mění štětcem **Povrch**: ten nechá výšku,
 cesty i objekty a uklidí jen trávu. Mazání tímto štětcem vrátí buňku na trávu.
 Nový povrch je jeden záznam v katalogu dekorací vedle `floor_grass` a
 `floor_sand`; terén pak každý povrch kreslí vlastní texturou a velikostí dlaždice.
+
+V okně **Herní plocha** se k razítku vybírá podklad a výška; počítadlo předem
+ukáže, kolik buněk se přepíše a kolik jich už v mapě je.
 
 Soubor mapy je jediný zdroj pravdy: hra při startu vždycky přečte
 `src/data/maps/<mapa>/map.json` ze souboru na disku, žádnou jinou mapu v kódu

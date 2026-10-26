@@ -1,6 +1,7 @@
 // DOM panel editačního režimu — paleta brushů, modelování výšek, mazání a zpět.
 // Napojený přes callbacky na scene, sám nic generuje ani nemění.
 import { BRUSH_KEYS, BRUSHES } from '../data/catalogs/brushes.js';
+import { DEFAULT_HEIGHT_LEVEL } from '../data/maps/layoutStore.js';
 import { makeDraggable } from '../ui/draggable.js';
 
 export default class EditorHud {
@@ -17,7 +18,7 @@ export default class EditorHud {
     this.activeBrush = null;
     this.erasing = false;
     this.mode = 'zone';
-    this.heightLevel = 2;
+    this.heightLevel = DEFAULT_HEIGHT_LEVEL;
   }
 
   mount() {
@@ -30,7 +31,7 @@ export default class EditorHud {
         <span class="editor-panel__title">Editor mapy</span>
         <button type="button" class="editor-panel__close" title="Zavřít (F1)">×</button>
       </div>
-      <div class="editor-panel__hint">Vyber štětec, nakresli zónu tažením, pak Aplikovat · pravý klik maže · Z zpět · F1 zavřít</div>
+      <div class="editor-panel__hint">Zóny: vyber štětec a nakresli · Výška: klikací tlačítka · Plocha: podklad, výška, tažení · Z zpět · F1 zavřít</div>
       <div class="editor-panel__modes">
         <button type="button" data-mode="zone">Zóny</button>
         <button type="button" data-mode="height">Výška</button>

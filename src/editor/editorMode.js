@@ -2,7 +2,7 @@
 // Přepíná se F1, drží jen hotovou mapu a historii úprav; vykreslování si řídí scéna.
 import { BRUSHES } from '../data/catalogs/brushes.js';
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
-import { cellKey, MIN_HEIGHT, MAX_HEIGHT } from '../data/maps/layoutStore.js';
+import { cellKey, MIN_HEIGHT, MAX_HEIGHT, DEFAULT_HEIGHT_LEVEL } from '../data/maps/layoutStore.js';
 import { layerAt, layerEntriesAt, floorCellAt, layerLiftAt, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
 import { fillZone } from '../utils/zoneFill.js';
 import { createRng, seedFor } from '../utils/rng.js';
@@ -18,10 +18,11 @@ export default class EditorMode {
     this.tileKey = null;
     this.pathStyle = 'dirt';
     this.erasing = false;
-    this.heightLevel = 2;
+    this.heightLevel = DEFAULT_HEIGHT_LEVEL;
     this.layout = null;
     this.draft = null;
     this.areaTool = 'paint';
+    this.areaSurface = DEFAULT_FLOOR;
     this.areaSelection = null;
     this.areaDrag = null;
     this.areaStroke = null;
@@ -373,6 +374,16 @@ export default class EditorMode {
     this.clearAreaSelection();
   }
 
+  setAreaSurface(key) {
+    const def = getDecoration(key);
+    if (!def || !def.surface) return;
+    this.areaSurface = key;
+  }
+
+  get areaHeightMeters() {
+    return this.heightLevel * HEIGHT_STEP;
+  }
+
   setAreaSelection(selection) {
     const cells = selection && selection.cells ? selection.cells : [];
     const drag = this.areaDrag;
@@ -413,7 +424,16 @@ export default class EditorMode {
   pendingAreaCells() {
     const selection = this.areaSelection;
     if (!selection || !selection.cells.length) return 0;
-    return selection.cells.filter(([cx, cz]) => (selection.tool === 'erase') === this.areaExists(cx, cz)).length;
+    if (selection.tool === 'erase') {
+      return selection.cells.filter(([cx, cz]) => this.areaExists(cx, cz)).length;
+    }
+    return selection.cells.length;
+  }
+
+  pendingAreaExisting() {
+    const selection = this.areaSelection;
+    if (!selection || selection.tool === 'erase') return 0;
+    return selection.cells.filter(([cx, cz]) => this.areaExists(cx, cz)).length;
   }
 
   applyAreaSelection() {
@@ -429,10 +449,13 @@ export default class EditorMode {
       }
       this.dropOrphans();
     } else {
+      const lift = this.heightLevel * HEIGHT_STEP;
       for (const [cx, cz] of selection.cells) {
         dropLayerCell(this.layout, cx, cz);
         dropDecorationCell(this.layout, cx, cz);
-        this.layout.floor.push({ key: DEFAULT_FLOOR, cx, cz, rotation: 0 });
+        const entry = { key: this.areaSurface, cx, cz, rotation: 0 };
+        if (lift) entry.liftY = lift;
+        this.layout.floor.push(entry);
         count += 1;
       }
     }

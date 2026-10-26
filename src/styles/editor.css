@@ -172,7 +172,8 @@
   margin-bottom: 8px;
 }
 
-.editor-panel[data-mode="height"] .editor-panel__heights {
+.editor-panel[data-mode="height"] .editor-panel__heights,
+.editor-panel[data-mode="area"] .editor-panel__heights {
   display: grid;
 }
 
@@ -180,8 +181,11 @@
   display: none;
 }
 
-.editor-panel[data-mode="area"] .editor-panel__grid,
-.editor-panel[data-mode="area"] .editor-panel__heights {
+.editor-panel[data-mode="area"] .editor-panel__grid {
+  display: none;
+}
+
+.editor-panel[data-mode="area"] [data-tool="smooth"] {
   display: none;
 }
 
@@ -525,6 +529,53 @@
 
 .area-panel__undo-row {
   grid-template-columns: 1fr;
+}
+
+.area-panel__surfaces {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.area-panel.is-erasing .area-panel__surfaces {
+  display: none;
+}
+
+.area-panel__surfaces button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 4px;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.area-panel__surfaces button img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.area-panel__surfaces button span {
+  display: block;
+  padding: 2px 4px;
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+.area-panel__surfaces button:hover {
+  border-color: rgba(90, 200, 170, 0.45);
+}
+
+.area-panel__surfaces button.is-active {
+  background: rgba(90, 200, 170, 0.18);
+  border-color: var(--glow-accent);
+}
+
+.area-panel__surfaces button.is-active span {
+  color: var(--text-main);
 }
 
 .area-panel__tools button,

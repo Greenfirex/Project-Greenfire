@@ -1,18 +1,34 @@
-// Plovoucí okénko režimu Plocha — přepínač Ručně/Mazat, počítadlo, potvrzení a vrácení.
+// Plovoucí okénko režimu Plocha — volba podkladu a výšky, počítadlo a potvrzení.
 // Otevírá se při přepnutí na Plochu, sám nic negeneruje ani nemění.
+import { surfaceEntries } from '../data/catalogs/decorations.js';
 import { makeDraggable } from '../ui/draggable.js';
+
+const SURFACES = surfaceEntries();
+const SURFACE_LABELS = new Map(SURFACES.map((entry) => [entry.key, entry.label]));
+
+function formatMeters(value) {
+  const n = Math.round((Number(value) || 0) * 100) / 100;
+  return `${String(n).replace('.', ',')} m`;
+}
 
 export default class AreaPanel {
 
   constructor() {
     this.root = null;
+    this.count = null;
+    this.surfaceRow = null;
+    this.note = null;
     this.onTool = null;
     this.onApply = null;
     this.onClear = null;
     this.onUndo = null;
+    this.onSurface = null;
     this.tool = 'paint';
-    this.count = 0;
+    this.countValue = 0;
+    this.existingCount = 0;
     this.undoEnabled = false;
+    this.surfaceLabel = '';
+    this.heightMeters = 0;
   }
 
   mount() {
@@ -28,6 +44,7 @@ export default class AreaPanel {
         <button type="button" data-tool="paint">Ručně</button>
         <button type="button" data-tool="erase">Mazat</button>
       </div>
+      <div class="area-panel__surfaces"></div>
       <div class="area-panel__count">Přidá se: 0 buněk</div>
       <div class="area-panel__tools area-panel__undo-row">
         <button type="button" class="area-panel__undo" title="Vrátit poslední úpravu (Z)">Zpět</button>
@@ -36,11 +53,33 @@ export default class AreaPanel {
         <button type="button" class="area-panel__apply" title="Potvrdit výběr (Enter)">Aplikovat</button>
         <button type="button" class="area-panel__clear" title="Zahodit výběr (Esc)">Zahodit</button>
       </div>
-      <small class="area-panel__note">Táhni myší po mapě i mimo ni. Pak klikni Aplikovat. Z vrací celý krok.</small>
+      <small class="area-panel__note"></small>
     `;
     document.body.appendChild(root);
     this.root = root;
     makeDraggable(root);
+    this.count = root.querySelector('.area-panel__count');
+    this.surfaceRow = root.querySelector('.area-panel__surfaces');
+    this.note = root.querySelector('.area-panel__note');
+
+    for (const entry of SURFACES) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.surface = entry.key;
+      btn.title = entry.label;
+      const img = document.createElement('img');
+      img.src = entry.texture;
+      img.alt = entry.label;
+      img.draggable = false;
+      btn.appendChild(img);
+      const label = document.createElement('span');
+      label.textContent = entry.label;
+      btn.appendChild(label);
+      btn.addEventListener('click', () => {
+        if (this.onSurface) this.onSurface(entry.key);
+      });
+      this.surfaceRow.appendChild(btn);
+    }
 
     for (const btn of root.querySelectorAll('[data-tool]')) {
       btn.addEventListener('click', () => {
@@ -67,9 +106,33 @@ export default class AreaPanel {
     this.refresh();
   }
 
-  setCount(count) {
-    this.count = count || 0;
+  setSurface(key) {
+    if (!SURFACE_LABELS.has(key)) return;
+    this.surfaceLabel = SURFACE_LABELS.get(key);
+    if (this.surfaceRow) {
+      for (const btn of this.surfaceRow.querySelectorAll('[data-surface]')) {
+        btn.classList.toggle('is-active', btn.dataset.surface === key);
+      }
+    }
+    this.refresh();
+  }
+
+  setHeight(meters) {
+    const value = Number(meters);
+    if (!Number.isFinite(value)) return;
+    this.heightMeters = value;
+    this.refresh();
+  }
+
+  setCount(count, existingCount = 0) {
+    this.countValue = count || 0;
+    this.existingCount = existingCount || 0;
     if (this.root) this.refresh();
+  }
+
+  summary() {
+    const height = `výška ${formatMeters(this.heightMeters)}`;
+    return this.surfaceLabel ? `${this.surfaceLabel} · ${height}` : height;
   }
 
   setUndoEnabled(on) {
@@ -81,13 +144,26 @@ export default class AreaPanel {
     if (!this.root) return;
     const erasing = this.tool === 'erase';
     this.root.classList.toggle('is-erasing', erasing);
+    if (this.note) {
+      this.note.textContent = erasing
+        ? 'Táhni myší po mapě. Smažou se označené buňky i s objekty. Z vrací celý krok.'
+        : 'Táhni myší po mapě i mimo ni. Nové buňky vzniknou, existující se přepíšou i s objekty. Z vrací celý krok.';
+    }
     for (const btn of this.root.querySelectorAll('[data-tool]')) {
       btn.classList.toggle('is-active', btn.dataset.tool === this.tool);
     }
-    const n = this.count;
+    const n = this.countValue || 0;
     const word = n === 1 ? 'buňka' : n < 5 ? 'buňky' : 'buněk';
-    const count = this.root.querySelector('.area-panel__count');
-    if (count) count.textContent = `${erasing ? 'Ke smazání' : 'Přidá se'}: ${n} ${word}`;
+    let label;
+    if (erasing) {
+      label = `Smaže se: ${n} ${word}`;
+    } else if (this.existingCount > 0) {
+      label = `Přepíše se: ${n} ${word} · ${this.existingCount} už v mapě`;
+    } else {
+      label = `Přidá se: ${n} ${word}`;
+    }
+    if (!erasing) label += ` · ${this.summary()}`;
+    if (this.count) this.count.textContent = label;
     const apply = this.root.querySelector('.area-panel__apply');
     if (apply) apply.disabled = n === 0;
     const clear = this.root.querySelector('.area-panel__clear');
@@ -96,25 +172,19 @@ export default class AreaPanel {
     if (undo) undo.disabled = !this.undoEnabled;
   }
 
-  open(tool, count, undoEnabled) {
+  open(options = {}) {
     this.mount();
-    this.tool = tool === 'erase' ? 'erase' : 'paint';
-    this.count = count || 0;
-    this.undoEnabled = Boolean(undoEnabled);
+    this.tool = options.tool === 'erase' ? 'erase' : 'paint';
+    this.countValue = options.count || 0;
+    this.existingCount = options.existingCount || 0;
+    this.undoEnabled = Boolean(options.undoEnabled);
+    this.heightMeters = Number.isFinite(options.height) ? options.height : 0;
+    this.setSurface(options.surface);
     this.root.classList.add('is-open');
     this.refresh();
   }
 
-  show() {
-    if (!this.root) return;
-    this.root.classList.add('is-open');
-  }
-
   hide() {
     if (this.root) this.root.classList.remove('is-open');
-  }
-
-  get isOpen() {
-    return Boolean(this.root && this.root.classList.contains('is-open'));
   }
 }

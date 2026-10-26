@@ -51,7 +51,10 @@ export default class MapEditor {
       this.s.handleHover(this.s.hoverCell);
     };
     this.mode.onStyleChange = (brushKey, styleKey) => this.brushPanel.setStyle(styleKey);
-    this.mode.onHeightChange = (level) => this.hud.setHeightLevel(level);
+    this.mode.onHeightChange = (level) => {
+      this.hud.setHeightLevel(level);
+      this.areaPanel.setHeight(this.mode.areaHeightMeters);
+    };
     this.mode.onDraftChange = (draft) => this.updateDraftView(draft);
     this.mode.onBrushChange = (key) => {
       this.hud.setBrush(key);
@@ -80,6 +83,10 @@ export default class MapEditor {
     this.areaPanel.onApply = () => this.applyAreaSelection();
     this.areaPanel.onClear = () => this.clearAreaSelection();
     this.areaPanel.onUndo = () => this.undo();
+    this.areaPanel.onSurface = (key) => {
+      this.mode.setAreaSurface(key);
+      this.areaPanel.setSurface(key);
+    };
   }
 
   open() {
@@ -156,11 +163,14 @@ export default class MapEditor {
     if (mode === 'area') {
       this.brushPanel.close();
       this.mode.cancelDraft();
-      this.areaPanel.open(
-        this.mode.areaTool,
-        this.mode.pendingAreaCells(),
-        this.mode.canUndo,
-      );
+      this.areaPanel.open({
+        tool: this.mode.areaTool,
+        count: this.mode.pendingAreaCells(),
+        existingCount: this.mode.pendingAreaExisting(),
+        undoEnabled: this.mode.canUndo,
+        surface: this.mode.areaSurface,
+        height: this.mode.areaHeightMeters,
+      });
       return;
     }
     this.areaPanel.hide();
@@ -169,20 +179,20 @@ export default class MapEditor {
   showAreaPreview(selection) {
     if (this.mode.active && this.mode.mode !== 'area') {
       this.s.gridSystem.clearBrush();
-      this.areaPanel.setCount(0);
+      this.areaPanel.setCount(0, 0);
       return;
     }
     const cells = selection ? selection.cells : null;
     if (!cells || !cells.length) {
       this.s.gridSystem.clearBrush();
-      this.areaPanel.setCount(0);
+      this.areaPanel.setCount(0, 0);
       return;
     }
     const erasing = selection.tool === 'erase';
     this.areaPanel.setTool(selection.tool);
     this.s.gridSystem.showBrush(cells, (cx, cz) => this.s.decoSystem.surfaceAt(cx, cz), erasing);
     const count = this.mode.pendingAreaCells();
-    this.areaPanel.setCount(count);
+    this.areaPanel.setCount(count, this.mode.pendingAreaExisting());
     if (selection.drag) {
       this.hud.setReadout(`plocha: ${cells.length} buněk označeno — pusť myš a klikni Aplikovat`);
     }
@@ -193,13 +203,17 @@ export default class MapEditor {
     if (!selection || !selection.cells.length) return false;
     const erasing = selection.tool === 'erase';
     const pending = this.mode.pendingAreaCells();
+    const existing = this.mode.pendingAreaExisting();
+    const summary = this.areaPanel.summary();
     this.mode.applyAreaSelection();
     this.s.gridSystem.clearBrush();
-    this.areaPanel.setCount(0);
+    this.areaPanel.setCount(0, 0);
     this.refreshUndoButton();
     this.s.handleHover(this.s.hoverCell);
-    if (!erasing) this.hud.setReadout(`Přidáno ${pending} buněk plochy`);
-    else if (!pending) this.hud.setReadout('Nic k smazání — tyhle buňky v mapě nejsou');
+    if (!erasing) {
+      const verb = existing > 0 ? 'Přepsáno' : 'Přidáno';
+      this.hud.setReadout(`${verb} ${pending} buněk · ${summary}`);
+    } else if (!pending) this.hud.setReadout('Nic k smazání — tyhle buňky v mapě nejsou');
     else this.hud.setReadout(`Smazáno ${pending} buněk i s objekty`);
     return true;
   }
@@ -208,7 +222,7 @@ export default class MapEditor {
     if (!this.mode.hasAreaSelection) return false;
     this.mode.clearAreaSelection();
     this.s.gridSystem.clearBrush();
-    this.areaPanel.setCount(0);
+    this.areaPanel.setCount(0, 0);
     this.hud.setReadout('Výběr plochy zahozen');
     return true;
   }
@@ -334,7 +348,7 @@ export default class MapEditor {
     }
     this.ensureDraft();
     this.refreshUndoButton();
-    this.areaPanel.setCount(this.mode.pendingAreaCells());
+    this.areaPanel.setCount(this.mode.pendingAreaCells(), this.mode.pendingAreaExisting());
     this.s.handleHover(this.s.hoverCell);
     return true;
   }
