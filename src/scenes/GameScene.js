@@ -43,7 +43,7 @@ import { worldToCellCoords, worldToCell } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
 import { collectStartupUrls } from '../data/catalogs/modelCatalog.js';
-import { mapFileFromLayout, layoutFromMapFile, isMapFile } from '../data/catalogs/mapFile.js';
+import { mapFileFromLayout, layoutFromMapFile, isMapFile, MAP_VERSION } from '../data/catalogs/mapFile.js';
 import { worldCells, hasFloor } from '../data/maps/areaShape.js';
 import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
@@ -751,7 +751,7 @@ updateGatherTarget() {
       return file;
     } catch (error) {
       this.hud.setSaveHint(`Mapu ${this.mapKey} nejde přečíst ze souboru — ${error.message}`);
-      return { version: 3, mapKey: this.mapKey, seed: getMap(this.mapKey).seed, spawn: { cx: 0, cz: 0 }, floor: [], path: [], decorations: [] };
+      return { version: MAP_VERSION, mapKey: this.mapKey, seed: getMap(this.mapKey).seed, spawn: { cx: 0, cz: 0 }, floor: [], path: [], decorations: [] };
     }
   }
 

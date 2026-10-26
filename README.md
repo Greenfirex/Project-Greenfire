@@ -65,7 +65,7 @@ dřeva a kamene včetně kácení stromů, batoh, modelem nahrazené stroje z Ke
 kitu, rotace a bourání strojů, táborák s ohněm a svícením, oheň pochodně,
 denní cyklus se stíny, lesní zvuky a kroky podle povrchu, panel možností,
 editor mapy (zóny, cesty, výšky ±6 m, štětec pláže se svahem po 0,3 m,
-výběr buněk, undo), spojitý terén
+štětec útesů s hliněnou stěnou, výběr buněk, undo), spojitý terén
 s hranou mapy, cesty kopírující terén, hráč chodící po výšce země
 a ukládání/načítání do prohlížeče.
 
@@ -78,12 +78,13 @@ zatím neběží.
 
 Poslední funkční commit před touto prací: `4e1defc` — výšky ±6 m se škálou
 a předvolbou 6 m; handoff před fází 5 je `13d8f70`. Štětec Pláž, zvlnění
-hranic povrchů a odstranění starých skalních modelů jsou hotové v pracovním
-stromu a čekají na vizuální test; commit dělá uživatel.
+hranic povrchů, odstranění starých skalních modelů a útesy jsou hotové
+v pracovním stromu a čekají na vizuální test; commit dělá uživatel.
 
 **Aktuální fáze:** 5 — Hloubka, pláž a hráč na zemi. Hotový je hráč na výšce
-země, výšky ±6 m, výškový panel se škálou, výběr buněk a štětec Pláž
-(písek se svahem po 0,3 m). Zbývá závěrečný test fáze s třímetrovou pánví.
+země, výšky ±6 m, výškový panel se škálou, výběr buněk, štětec Pláž
+(písek se svahem po 0,3 m) a štětec Útes (plošina s hliněnou stěnou).
+Zbývá závěrečný test fáze s třímetrovou pánví.
 
 **Hotovo (fáze 0–5, část):**
 - Fáze 0–4: plán, písek a povrch, razítko Herní plocha, výškové nástroje,
@@ -106,7 +107,11 @@ země, výšky ±6 m, výškový panel se škálou, výběr buněk a štětec Pl
   jako podle pravítka; děje se jen při kreslení, data mapy zůstávají stejná.
 - Staré skalní modely: pryč z katalogu, mapy i assetů; kopce a stupně dělají
   jen výšky.
-- Data a ukládání: beze změny; výška je desetinné číslo.
+- Útesy: štětec označí buňky jako plošinu; kde je mezi označenou buňkou
+  a sousedem skok, vznikne svislá hliněná stěna stejnou texturou jako okraj
+  mapy a hráč přes ni nepřejde. Mapa kvůli značce poskočila na verzi 4.
+- Data a ukládání: ukládání hráče beze změny; výška je desetinné číslo,
+  mapa má kvůli značkám útesů verzi 4.
 
 **Zbývá:**
 - Fáze 5: závěrečný test — třímetrová pánev s pozvolnými břehy, hráč po ní
@@ -116,11 +121,14 @@ země, výšky ±6 m, výškový panel se škálou, výběr buněk a štětec Pl
 - Fáze 7: vzhled vody — vlny, odlesky, barva podle hloubky, průhlednost.
 - Mimo tento plán: výroba ve strojích, recepty a plnění batohu.
 
-**Další krok — test pláže:**
+**Další krok — test pláže a útesů:**
 - V paletě štětců zvol Pláž, hloubku a namaluj plochu pánve; kolem ní
   vznikne písek po 0,3 m jako svah. Zapni Plynulý okraj a porovnej.
 - Ověř, že pánev má tři metry, břehy jsou pozvolné a hráč po nich chodí.
-- Když něco nesedí, vrací se jen pláž; fáze 6 začíná až po tvém potvrzení.
+- Zkus štětec Útes: označ pár buněk plošiny, dej jim výšku a zkontroluj,
+  že se na hraně objeví hliněná stěna a hráč přes ni nepřejde. Stejně vysoký
+  soused se má napojit bez stěny a hrana se má drobně vlnit.
+- Když něco nesedí, vrací se jen ta část; fáze 6 začíná až po tvém potvrzení.
 
 **Klíčová rozhodnutí (nevrátit omylem):**
 - Výšky jsou v metrech, krok 0,3 m, rozsah ±6 m; předvolby včetně ±4,5 a ±6.
@@ -137,16 +145,20 @@ země, výšky ±6 m, výškový panel se škálou, výběr buněk a štětec Pl
   povrch, vlna vzniká až při kreslení podlahy.
 - Kopce a stupně se staví výškami, ne skládáním skalních bloků; staré skalní
   modely jsou z projektu odstraněné i s kusy v mapě.
-- Mapa a sav se do fáze 6 nemění; voda přinese novou verzi mapy.
+- Označená buňka je plošina: drží rovnou výšku, přes její hranu se výška
+  nedopočítává a kde je soused níž, stojí hliněná stěna. Stejně vysoký soused
+  se napojí plynule bez stěny a hrana stěny se drobně vlní.
+- Mapa má verzi 4 (značka útesu); starší mapy se načtou bez útesů.
+  Voda přinese další verzi mapy.
 
 **Kde co je:**
 - `src/data/maps/layoutStore.js` — rozsah výšek, krok, předvolby.
 - `src/editor/heightPanel.js` — okno Výška; `areaPanel.js`, `brushPanel.js` — plocha a štětce.
 - `src/editor/editorMode.js`, `mapEditor.js`, `editorHud.js` — editor, výběr, panely, pláž.
 - `src/systems/gridSystem.js`, `inputSystem.js` — hover, levé/pravé tažení.
-- `src/utils/terrainField.js`, `src/systems/terrainSystem.js` — výškový model, terén, hrana.
+- `src/utils/terrainField.js`, `src/systems/terrainSystem.js` — výškový model, terén, hrana, útesy.
 - `src/systems/pathSystem.js`, `playerSystem.js`, `cameraSystem.js` — cesty a hráč.
-- `src/data/catalogs/brushes.js` — štětce včetně Pláže; `decorations.js` — písek a povrchy.
+- `src/data/catalogs/brushes.js` — štětce včetně Pláže a Útesu; `decorations.js` — písek a povrchy.
 - `src/data/maps/glade/map.json` — aktuální mapa; `README.md` — plán a tento handoff.
 - `.clinerules` — pravidla práce.
 
@@ -211,6 +223,8 @@ samostatně; když se některá nepovede, vrací se jen ona a plán zůstává.
   svah se přidá kolem. Globální Vyhladit se ruší.
 - **Země bude spojitá.** Štěrbiny se neřeší stěnami, ale plynulým dopočtem
   výšky. Stěny by za chvíli zmizely a pláž by s nimi nešla.
+- **Ostrý svah je výjimka.** Označená buňka drží rovnou výšku, přes její hranu
+  se nedopočítává a stojí tam hliněná stěna stejná jako okraj mapy.
 - **Voda vznikne z hladiny a terénu.** Co je pod hladinou, je zatopené. Není to
   dlaždice ani vrstva mapy a stará dlaždicová logika se nevrací.
 - **Voda bude mít vlastní program** (jako tráva), ne novou knihovnu.
@@ -379,11 +393,13 @@ ambientní zvuk, případně zrcadlení.
 - Fáze 2 potřebuje seznam podkladů z fáze 1.
 - Fáze 3b navazuje na výškové nástroje z fáze 3 a připravuje tvar kopců pro spojitou zem.
 - Fáze 4 je nejcitlivější; bez ní není pláž ani voda.
-- Fáze 6 jediná mění formát souboru mapy.
+- Fáze 6 znovu zvedne verzi souboru mapy (hladina vody).
 
 ### Otevřená rozhodnutí
 
 - Fáze 5: šířka Plynulého okraje (zatím jeden prstenec navíc).
+- Útesy: neprůchodnost pro hráče (zatím nepřejde schod nad 0,45 m) a to,
+  že hrana sedí na mřížce 0,5 m.
 - Fáze 6: hladina editovatelná v editoru (návrh ano).
 - Fáze 8: mělká + zákaz hluboké, nebo plavání.
 - Fáze 8: zvukové soubory.
@@ -426,8 +442,21 @@ Zaškrtnutý **Plynulý okraj** přidá ještě jeden prstenec písku za posledn
 V namalované ploše zmizí stromy, kameny i tráva; na svazích se objekty posunou
 s terénem. Tlačítko **Zpět na trávu** srovná výšku na 0 a vrátí trávu.
 
+**Útes** je štětec, který buňky označí jako plošinu. Označená buňka drží svou
+výšku rovně a na každé straně, kde je soused níž, se postaví svislá hliněná
+stěna stejnou texturou jako okraj mapy; hráč přes ni zatím nepřejde. Stěna se
+staví po půlmetrových kouscích, dorovná se i v rozích a její hrana se drobně
+vlní, aby nebyla rovná jako podle pravítka. Kde má soused stejnou výšku, hrana
+se spojí po celé délce — terén se k plošině dotáhne i v rozích a žádná stěna
+tam nevznikne. Rozdíl proti nižší zemi se uzavře krátkou hliněnou plochou
+na boku, takže do útesu se nedělají zářezy a neprosvítá tráva. Rohy, kde se
+potkají dvě stěny, se drobně zkosí, aby nebyly ostré. Značky
+se ukládají do mapy (verze 4), mažou se tlačítkem **Zrušit útesy** a Z vrací
+celý krok.
+
 Země je spojitá: výška se mezi středy buněk dopočítává, takže kopce a prohlubně
-mají plynulé svahy a na okraji mapy je hliněný bok. Za okrajem mapy se počítá
+mají plynulé svahy a na okraji mapy je hliněný bok. Výjimka je označená buňka
+útesu — ta drží rovnou výšku a na hranici se přes ni nedopočítává. Za okrajem mapy se počítá
 s výškou nejbližší buňky, takže se zem na okraji nezvedá zpátky nahoru.
 Cesty, tráva, objekty i kurzor v editoru sedí na skutečné výšce země. Cesty
 se skládají z jemných kousků, takže kopírují zaoblení země i v kopci a v příkopu.

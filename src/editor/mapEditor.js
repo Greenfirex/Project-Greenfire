@@ -358,8 +358,13 @@ export default class MapEditor {
     const removing = this.mode.draftMode === 'remove';
     const heightBrush = this.mode.isHeightBrush;
     const surfaceBrush = this.mode.isSurfaceBrush;
+    const cliffBrush = this.mode.isCliffBrush;
     const count = this.mode.applyDraft();
-    if (count && surfaceBrush) {
+    if (count && cliffBrush) {
+      this.hud.setReadout(removing
+        ? `Útes zrušen u ${count} buněk`
+        : `Označeno jako útes: ${count} buněk`);
+    } else if (count && surfaceBrush) {
       this.hud.setReadout(removing
         ? `Vráceno na trávu ${count} buněk`
         : `Pláž hotová: ${count} buněk i s břehem`);
@@ -367,6 +372,8 @@ export default class MapEditor {
       const verb = heightBrush && removing ? 'Srovnáno ' : heightBrush ? 'Aplikováno ' : removing ? 'Smazáno ' : 'Aplikováno ';
       const suffix = heightBrush ? ' (i se svahem)' : '';
       this.hud.setReadout(verb + count + ' buněk' + suffix);
+    } else if (cliffBrush) {
+      this.hud.setReadout(removing ? 'Nic k vrácení' : 'Tyhle buňky už jsou označené');
     } else this.hud.setReadout(removing ? 'Nic ke smazání' : 'Prázdná zóna');
     this.brushPanel.setDraftMode(this.mode.draftMode);
     this.refreshUndoButton();

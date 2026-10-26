@@ -26,12 +26,21 @@ const WALL_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
 const SURFACE_WAVE = 0.28;
 const SURFACE_WAVE_LONG = 1.1;
 const SURFACE_WAVE_SHORT = 2.7;
+const CLIFF_WAVE = 0.16;
+const CLIFF_WAVE_LONG = 0.9;
+const CLIFF_WAVE_SHORT = 2.3;
+const CLIFF_FLAT_STEP = 0.15;
+const CLIFF_CORNER_ROUND = 0.2;
 const SURFACE_SIDES = [
   { dx: -1, dz: 0 },
   { dx: 1, dz: 0 },
   { dx: 0, dz: -1 },
   { dx: 0, dz: 1 },
 ];
+
+function pointId(gx, gz) {
+  return `${Math.round(gx * 2)},${Math.round(gz * 2)}`;
+}
 
 function hash01(a, b) {
   const n = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
@@ -48,6 +57,14 @@ function waveOffset(t, line) {
     Math.sin(t * SURFACE_WAVE_LONG + phase) * 0.65
     + Math.sin(t * SURFACE_WAVE_SHORT + phase * 1.7) * 0.35
   ) * SURFACE_WAVE;
+}
+
+function cliffOffset(t, line) {
+  const phase = hash01(Math.round(line * 2), 13) * Math.PI * 2;
+  return (
+    Math.sin(t * CLIFF_WAVE_LONG + phase) * 0.65
+    + Math.sin(t * CLIFF_WAVE_SHORT + phase * 1.7) * 0.35
+  ) * CLIFF_WAVE;
 }
 
 function color3(rgb) {
@@ -211,17 +228,111 @@ export default class TerrainSystem {
       }
       return group;
     };
-    const slot = (group, x, z, px = x, pz = z) => {
-      const id = `${x},${z}`;
+    const slot = (group, x, z, px = x, pz = z, py = null, owner = null) => {
+      const id = owner ? `${x},${z}|${owner}` : `${x},${z}`;
       const found = group.vertices.get(id);
       if (found !== undefined) return found;
       const index = group.positions.length / 3;
       group.vertices.set(id, index);
-      group.positions.push(px, this.heightAt(px, pz), pz);
+      group.positions.push(px, py === null ? this.heightAt(px, pz) : py, pz);
       group.uvs.push(px / group.tile, pz / group.tile);
       group.colors.push(tint.r, tint.g, tint.b, 1);
       return index;
     };
+
+    const field = this.field;
+    const cliffPoints = new Set();
+    const cliffShifts = new Map();
+    const cornerDirs = new Map();
+    const flushValues = new Map();
+    const flushAllowed = (value, gx, gz) => {
+      const edgeX = Number.isInteger(gx) && Math.abs(gx % 2) === 1;
+      const edgeZ = Number.isInteger(gz) && Math.abs(gz % 2) === 1;
+      const xs = edgeX ? [(gx - 1) / 2, (gx + 1) / 2] : [Math.round(gx / CELL_SIZE)];
+      const zs = edgeZ ? [(gz - 1) / 2, (gz + 1) / 2] : [Math.round(gz / CELL_SIZE)];
+      let low = Infinity;
+      let high = -Infinity;
+      for (const px of xs) {
+        for (const pz of zs) {
+          if (!keyAt(px, pz)) continue;
+          const height = field.heightAtCell(px, pz);
+          low = Math.min(low, height);
+          high = Math.max(high, height);
+        }
+      }
+      if (!Number.isFinite(low)) return false;
+      return Math.abs(value - low) <= CLIFF_FLAT_STEP && Math.abs(value - high) <= CLIFF_FLAT_STEP;
+    };
+    for (const [cx, cz] of cells) {
+      if (!keyAt(cx, cz)) continue;
+      const x0 = cx * CELL_SIZE - half;
+      const z0 = cz * CELL_SIZE - half;
+      for (const side of SURFACE_SIDES) {
+        if (side.dx < 0 || side.dz < 0) continue;
+        const nx = cx + side.dx;
+        const nz = cz + side.dz;
+        if (!keyAt(nx, nz)) continue;
+        if (!field.isSharp(cx, cz) && !field.isSharp(nx, nz)) continue;
+        let x1;
+        let z1;
+        let x2;
+        let z2;
+        if (side.dx) {
+          x1 = x0 + CELL_SIZE;
+          z1 = z0;
+          x2 = x1;
+          z2 = z0 + CELL_SIZE;
+        } else {
+          x1 = x0;
+          z1 = z0 + CELL_SIZE;
+          x2 = x0 + CELL_SIZE;
+          z2 = z1;
+        }
+        const heightA = field.heightAtCell(cx, cz);
+        const heightB = field.heightAtCell(nx, nz);
+        const markA = field.isSharp(cx, cz);
+        const markB = field.isSharp(nx, nz);
+        const flush = Math.abs(heightA - heightB) <= CLIFF_FLAT_STEP;
+        const points = [];
+        for (let i = 0; i <= SURFACE_SUB; i += 1) {
+          const t = i / SURFACE_SUB;
+          const gx = x1 + (x2 - x1) * t;
+          const gz = z1 + (z2 - z1) * t;
+          points.push({ gx, gz });
+          if (flush) continue;
+          const shift = side.dx ? cliffOffset(gz, gx) : cliffOffset(gx, gz);
+          const id = pointId(gx, gz);
+          cliffPoints.add(id);
+          const entry = cliffShifts.get(id) || { x: 0, z: 0 };
+          if (side.dx) entry.x = shift;
+          else entry.z = shift;
+          cliffShifts.set(id, entry);
+          const dir = cornerDirs.get(id) || { x: 0, z: 0 };
+          if (side.dx) {
+            if (markA && !markB) dir.x = -1;
+            else if (markB && !markA) dir.x = 1;
+            else if (markA && markB && heightA !== heightB) dir.x = heightA > heightB ? -1 : 1;
+          } else if (markA && !markB) {
+            dir.z = -1;
+          } else if (markB && !markA) {
+            dir.z = 1;
+          } else if (markA && markB && heightA !== heightB) {
+            dir.z = heightA > heightB ? -1 : 1;
+          }
+          cornerDirs.set(id, dir);
+        }
+        if (flush) {
+          const value = Math.max(heightA, heightB);
+          for (const point of points) flushValues.set(pointId(point.gx, point.gz), value);
+          continue;
+        }
+      }
+    }
+
+    for (const [id, dir] of cornerDirs) {
+      if (!dir.x || !dir.z) continue;
+      cliffShifts.set(id, { x: dir.x * CLIFF_CORNER_ROUND, z: dir.z * CLIFF_CORNER_ROUND });
+    }
 
     const waves = new Map();
     const waveAt = (gx, gz) => {
@@ -245,15 +356,75 @@ export default class TerrainSystem {
           const edgeX = cx * CELL_SIZE + side.dx * half;
           for (let j = 0; j <= SURFACE_SUB; j += 1) {
             const gz = z0 + j * step;
+            if (cliffPoints.has(pointId(edgeX, gz))) continue;
             waveAt(edgeX, gz).x = waveOffset(gz, edgeX);
           }
         } else {
           const edgeZ = cz * CELL_SIZE + side.dz * half;
           for (let i = 0; i <= SURFACE_SUB; i += 1) {
             const gx = x0 + i * step;
+            if (cliffPoints.has(pointId(gx, edgeZ))) continue;
             waveAt(gx, edgeZ).z = waveOffset(gx, edgeZ);
           }
         }
+      }
+    }
+
+    const positionOf = (point) => {
+      const id = pointId(point.gx, point.gz);
+      const wave = waves.get(id);
+      const shift = cliffPoints.has(id) ? cliffShifts.get(id) : null;
+      return {
+        px: point.gx + (wave ? wave.x : 0) + (shift ? shift.x : 0),
+        pz: point.gz + (wave ? wave.z : 0) + (shift ? shift.z : 0),
+      };
+    };
+    const heightOf = (point, cx, cz) => {
+      const id = pointId(point.gx, point.gz);
+      const pos = positionOf(point);
+      const flush = flushValues.get(id);
+      if (cliffPoints.has(id)) {
+        if (flush !== undefined && Math.abs(field.heightAtCell(cx, cz) - flush) <= CLIFF_FLAT_STEP) return flush;
+        return field.heightAtSide(pos.px, pos.pz, cx, cz);
+      }
+      if (flush !== undefined && flushAllowed(flush, point.gx, point.gz)) return flush;
+      return field.heightAt(pos.px, pos.pz);
+    };
+    const wallEdges = [];
+    for (const [cx, cz] of cells) {
+      if (!keyAt(cx, cz)) continue;
+      const x0 = cx * CELL_SIZE - half;
+      const z0 = cz * CELL_SIZE - half;
+      for (const side of SURFACE_SIDES) {
+        if (side.dx < 0 || side.dz < 0) continue;
+        const nx = cx + side.dx;
+        const nz = cz + side.dz;
+        if (!keyAt(nx, nz)) continue;
+        let x1;
+        let z1;
+        let x2;
+        let z2;
+        if (side.dx) {
+          x1 = x0 + CELL_SIZE;
+          z1 = z0;
+          x2 = x1;
+          z2 = z0 + CELL_SIZE;
+        } else {
+          x1 = x0;
+          z1 = z0 + CELL_SIZE;
+          x2 = x0 + CELL_SIZE;
+          z2 = z1;
+        }
+        const points = [];
+        let gap = false;
+        for (let i = 0; i <= SURFACE_SUB; i += 1) {
+          const t = i / SURFACE_SUB;
+          const point = { gx: x1 + (x2 - x1) * t, gz: z1 + (z2 - z1) * t };
+          points.push(point);
+          if (gap) continue;
+          if (Math.abs(heightOf(point, cx, cz) - heightOf(point, nx, nz)) > 0.02) gap = true;
+        }
+        if (gap) wallEdges.push({ points, cx, cz, nx, nz });
       }
     }
 
@@ -269,8 +440,11 @@ export default class TerrainSystem {
         for (let j = 0; j <= SURFACE_SUB; j += 1) {
           const gx = x0 + i * step;
           const gz = z0 + j * step;
-          const wave = waves.get(`${Math.round(gx * 2)},${Math.round(gz * 2)}`);
-          row.push(slot(group, gx, gz, gx + (wave ? wave.x : 0), gz + (wave ? wave.z : 0)));
+          const point = { gx, gz };
+          const pos = positionOf(point);
+          const split = cliffPoints.has(pointId(gx, gz));
+          const py = heightOf(point, cx, cz);
+          row.push(slot(group, gx, gz, pos.px, pos.pz, py, split ? `${cx},${cz}` : null));
         }
         grid.push(row);
       }
@@ -301,6 +475,61 @@ export default class TerrainSystem {
       mesh.material = this.materialFor(key, map);
       this.surfaces.push(mesh);
     }
+
+    if (wallEdges.length) this.createCliffMesh(wallEdges, positionOf, heightOf);
+  }
+
+  createCliffMesh(edges, positionOf, heightOf) {
+    const positions = [];
+    const indices = [];
+    const uvs = [];
+    for (const edge of edges) {
+      const points = edge.points;
+      for (let i = 0; i < SURFACE_SUB; i += 1) {
+        const a = points[i];
+        const b = points[i + 1];
+        const a1 = heightOf(a, edge.cx, edge.cz);
+        const a2 = heightOf(a, edge.nx, edge.nz);
+        const b1 = heightOf(b, edge.cx, edge.cz);
+        const b2 = heightOf(b, edge.nx, edge.nz);
+        if (Math.abs(a1 - a2) < 0.02 && Math.abs(b1 - b2) < 0.02) continue;
+        const apos = positionOf(a);
+        const bpos = positionOf(b);
+        const aTop = Math.max(a1, a2) + 0.03;
+        const aBottom = Math.min(a1, a2) - 0.03;
+        const bTop = Math.max(b1, b2) + 0.03;
+        const bBottom = Math.min(b1, b2) - 0.03;
+        const start = positions.length / 3;
+        positions.push(
+          apos.px, aTop, apos.pz,
+          apos.px, aBottom, apos.pz,
+          bpos.px, bTop, bpos.pz,
+          bpos.px, bBottom, bpos.pz,
+        );
+        const s0 = (CELL_SIZE * i) / SURFACE_SUB;
+        const s1 = (CELL_SIZE * (i + 1)) / SURFACE_SUB;
+        uvs.push(
+          s0 / WALL_TILE, aTop / WALL_TILE,
+          s0 / WALL_TILE, aBottom / WALL_TILE,
+          s1 / WALL_TILE, bTop / WALL_TILE,
+          s1 / WALL_TILE, bBottom / WALL_TILE,
+        );
+        indices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
+      }
+    }
+    if (!positions.length) return;
+    const mesh = new Mesh('terrainCliffs', this.s);
+    const data = new VertexData();
+    data.positions = positions;
+    data.indices = indices;
+    data.uvs = uvs;
+    data.normals = [];
+    VertexData.ComputeNormals(positions, indices, data.normals);
+    data.applyToMesh(mesh);
+    mesh.isPickable = false;
+    mesh.receiveShadows = true;
+    mesh.material = this.skirtMaterialFor();
+    this.surfaces.push(mesh);
   }
 
   createSkirt(cells) {

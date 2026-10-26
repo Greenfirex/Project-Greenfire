@@ -97,12 +97,15 @@ export default class BrushPanel {
     const heightOnly = Boolean(brush && (Number.isFinite(brush.height) || brush.heights));
     const surfaceOnly = Boolean(brush && brush.surfaceOnly);
     const surfaceBrush = Boolean(brush && brush.surface);
+    const cliffBrush = Boolean(brush && brush.cliff);
     const erase = this.root.querySelector('.brush-panel__erase');
     if (erase) {
-      erase.textContent = surfaceBrush ? 'Zpět na trávu' : heightOnly ? 'Srovnat' : surfaceOnly ? 'Na trávu' : 'Mazat';
-      erase.title = surfaceBrush
-        ? 'Vrátit trávu a srovnat na 0 (X)'
-        : heightOnly ? 'Srovnat na 0 (X)' : surfaceOnly ? 'Vrátit na trávu (X)' : 'Mazat (X)';
+      erase.textContent = cliffBrush ? 'Zrušit útesy' : surfaceBrush ? 'Zpět na trávu' : heightOnly ? 'Srovnat' : surfaceOnly ? 'Na trávu' : 'Mazat';
+      erase.title = cliffBrush
+        ? 'Zrušit označení útesu (X)'
+        : surfaceBrush
+          ? 'Vrátit trávu a srovnat na 0 (X)'
+          : heightOnly ? 'Srovnat na 0 (X)' : surfaceOnly ? 'Vrátit na trávu (X)' : 'Mazat (X)';
     }
     this.setCount(cellCount);
     this.root.classList.add('is-open');
@@ -192,8 +195,9 @@ export default class BrushPanel {
     const heightOnly = Boolean(brush && (Number.isFinite(brush.height) || brush.heights));
     const surfaceOnly = Boolean(brush && brush.surfaceOnly);
     const surfaceBrush = Boolean(brush && brush.surface);
+    const cliffBrush = Boolean(brush && brush.cliff);
     const prefix = this.draftMode === 'remove'
-      ? (surfaceBrush ? 'Vrátí se' : heightOnly ? 'Srovná se' : surfaceOnly ? 'Na trávu' : 'Ke smazání')
+      ? (cliffBrush ? 'Zruší se' : surfaceBrush ? 'Vrátí se' : heightOnly ? 'Srovná se' : surfaceOnly ? 'Na trávu' : 'Ke smazání')
       : 'Vybráno';
     let text = `${prefix}: ${n} ${word}`;
     if (this.slopeCount > 0) text += ` · svah ${this.slopeCount}`;

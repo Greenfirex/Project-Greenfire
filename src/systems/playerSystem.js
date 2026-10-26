@@ -46,6 +46,7 @@ const BODY_MARGIN = 0.08;
 const SLIDE_LOOKAHEAD = 1.2;
 const SLIDE_MIN = 0.12;
 const MOVE_SPEED = 4.5;
+const STEP_LIMIT = 0.45;
 const WALK_SPEED = 2.4;
 const TURN_SPEED = 12;
 const MODEL_HEIGHT = 1.75;
@@ -494,7 +495,8 @@ export default class PlayerSystem {
     const from = this.root.position;
     const fromOk = this.walkable(from.x, from.z);
     const toOk = this.walkable(x, z);
-    return fromOk === toOk;
+    if (fromOk !== toOk) return false;
+    return Math.abs(this.groundY(x, z) - this.groundY(from.x, from.z)) <= STEP_LIMIT;
   }
 
   update(dt) {

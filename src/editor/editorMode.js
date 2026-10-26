@@ -379,6 +379,11 @@ export default class EditorMode {
     return Boolean(brush && brush.surface);
   }
 
+  get isCliffBrush() {
+    const brush = BRUSHES[this.brushKey];
+    return Boolean(brush && brush.cliff);
+  }
+
   cellHeightValue(cx, cz) {
     const floor = floorCellAt(this.layout, cx, cz);
     return floor ? (floor.liftY || 0) : (layerLiftAt(this.layout, cx, cz) || 0);
@@ -764,6 +769,15 @@ export default class EditorMode {
     }
     this.pushHistory();
     const brush = BRUSHES[brushKey] || {};
+    if (brush.cliff) {
+      const zone = [...cells].map(parseCell);
+      const count = this.applyCliffMarks(zone, mode);
+      if (!count) this.history.pop();
+      this.draft.cells.clear();
+      if (this.onDraftChange) this.onDraftChange(this.draft);
+      this.scheduleRegenerate();
+      return count;
+    }
     if (brush.surface) {
       const zone = [...cells].map(parseCell);
       const count = this.applyBeach(brushKey, zone, mode);
@@ -877,6 +891,20 @@ export default class EditorMode {
     }
     for (const entry of shape.rim) {
       this.paintSurface(entry.cx, entry.cz, surface);
+      count += 1;
+    }
+    return count;
+  }
+
+  applyCliffMarks(zone, mode) {
+    const on = mode !== 'remove';
+    let count = 0;
+    for (const entry of zone) {
+      const floor = floorCellAt(this.layout, entry.cx, entry.cz);
+      if (!floor) continue;
+      if (Boolean(floor.cliff) === on) continue;
+      if (on) floor.cliff = true;
+      else delete floor.cliff;
       count += 1;
     }
     return count;
@@ -999,6 +1027,10 @@ export default class EditorMode {
 
   draftHasSame(cx, cz) {
     const brush = BRUSHES[this.brushKey];
+    if (brush && brush.cliff) {
+      const floor = floorCellAt(this.layout, cx, cz);
+      return Boolean(floor && floor.cliff === true);
+    }
     if (brush && brush.surface) return this.surfaceAt(cx, cz) === brush.surface;
     const keys = this.draftKeys;
     if (!keys.length) return false;

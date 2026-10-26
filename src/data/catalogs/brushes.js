@@ -117,6 +117,11 @@ export const BRUSHES = {
     surface: 'floor_sand',
     option: { key: 'smoothEdge', label: 'Plynulý okraj' },
   },
+  cliff: {
+    label: 'Útes',
+    shape: 'blob',
+    cliff: true,
+  },
   ore: {
     label: 'Ruda',
     shape: 'blob',

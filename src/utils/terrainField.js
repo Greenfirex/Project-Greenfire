@@ -1,4 +1,5 @@
 // Spojitá výška země — přesná ve středu buňky, plynule dopočítaná mezi středy.
+// Označená buňka útesu drží rovnou výšku a přes její hranu se nedopočítává.
 // Za okrajem mapy a u děr bere výšku nejbližší buňky, aby se zem na okraji nezvedala.
 import { CELL_SIZE, cellKey } from './gridMath.js';
 import { worldCells, layerLiftAt } from '../data/maps/areaShape.js';
@@ -17,9 +18,13 @@ function catmull(p0, p1, p2, p3, t) {
 
 export function createTerrainField(world) {
   const heights = new Map();
+  const sharp = new Set();
   for (const [cx, cz] of worldCells(world || {})) {
     const lift = layerLiftAt(world, cx, cz);
     if (Number.isFinite(lift)) heights.set(cellKey(cx, cz), lift);
+  }
+  for (const entry of (world || {}).floor || []) {
+    if (entry && entry.cliff === true) sharp.add(cellKey(entry.cx, entry.cz));
   }
 
   const nearest = new Map();
@@ -69,23 +74,36 @@ export function createTerrainField(world) {
     return near === undefined ? 0 : near;
   };
 
-  function heightAt(x, z) {
-    const px = x / CELL_SIZE;
-    const pz = z / CELL_SIZE;
+  const isSharp = (cx, cz) => sharp.has(cellKey(cx, cz));
+
+  const cellAt = (value) => Math.floor((value + CELL_SIZE / 2) / CELL_SIZE);
+
+  function patched(px, pz) {
     const ix = Math.floor(px);
     const iz = Math.floor(pz);
     const fx = px - ix;
     const fz = pz - iz;
+    let sum = 0;
+    let count = 0;
+    for (let j = 0; j < 4; j += 1) {
+      const row = iz - 1 + j;
+      for (let i = 0; i < 4; i += 1) {
+        const col = ix - 1 + i;
+        if (isSharp(col, row)) continue;
+        sum += sample(col, row);
+        count += 1;
+      }
+    }
+    const base = count ? sum / count : sample(ix, iz);
     const rows = [];
     const used = [];
     for (let j = 0; j < 4; j += 1) {
       const row = iz - 1 + j;
-      const values = [
-        sample(ix - 1, row),
-        sample(ix, row),
-        sample(ix + 1, row),
-        sample(ix + 2, row),
-      ];
+      const values = [];
+      for (let i = 0; i < 4; i += 1) {
+        const col = ix - 1 + i;
+        values.push(isSharp(col, row) ? base : sample(col, row));
+      }
       used.push(...values);
       rows.push(catmull(values[0], values[1], values[2], values[3], fx));
     }
@@ -95,10 +113,21 @@ export function createTerrainField(world) {
     return Math.min(high, Math.max(low, value));
   }
 
+  function heightAtSide(x, z, cx, cz) {
+    if (isSharp(cx, cz)) return sample(cx, cz);
+    return patched(x / CELL_SIZE, z / CELL_SIZE);
+  }
+
+  function heightAt(x, z) {
+    const cx = cellAt(x);
+    const cz = cellAt(z);
+    return isSharp(cx, cz) ? sample(cx, cz) : patched(x / CELL_SIZE, z / CELL_SIZE);
+  }
+
   function heightAtCell(cx, cz) {
     const value = cellHeight(cx, cz);
     return value === null ? 0 : value;
   }
 
-  return { heightAt, heightAtCell };
+  return { heightAt, heightAtCell, heightAtSide, isSharp };
 }
