@@ -472,7 +472,7 @@ updateGatherTarget() {
 
   setupTerrain() {
     const ground = this.terrainSystem.create(this.mapKey, this.mapFile);
-    if (ground) this.s.clearColor = this.mapColor(this.mapKey, 'sky');
+    if (ground && ground.length) this.s.clearColor = this.mapColor(this.mapKey, 'sky');
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);
     this.areaLookup = null;
   }
@@ -791,8 +791,7 @@ updateGatherTarget() {
   }
 
   setupShadowCasters() {
-    const surface = this.terrainSystem.surface;
-    if (surface) surface.receiveShadows = true;
+    for (const surface of this.terrainSystem.surfaces || []) surface.receiveShadows = true;
   }
 
   setupOptions() {

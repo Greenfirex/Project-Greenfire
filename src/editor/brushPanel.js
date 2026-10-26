@@ -1,7 +1,6 @@
 // Malý panel pro rozpracovanou zónu — název štětce, styl a potvrzení.
 // Otevírá se klikem na štětec v paletě, sám nic negeneruje ani nemění.
 import { getBrush } from '../data/catalogs/brushes.js';
-import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import { makeDraggable } from '../ui/draggable.js';
 
 const STYLE_LABELS = { dirt: 'Hlína', stone: 'Kámen', wood: 'Dřevo', iron: 'Železo', copper: 'Měď' };
@@ -112,16 +111,17 @@ export default class BrushPanel {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.dataset.style = key;
-      btn.title = STYLE_LABELS[key] || key;
+      const label = (brush.styleLabels && brush.styleLabels[key]) || STYLE_LABELS[key] || key;
+      btn.title = label;
       const file = brush.texture && brush.texture[key];
       if (file) {
         const img = document.createElement('img');
-        img.src = `${ASSET_DIRS.pathTextures}${file}`;
-        img.alt = btn.title;
+        img.src = file;
+        img.alt = label;
         img.draggable = false;
         btn.appendChild(img);
       } else {
-        btn.textContent = btn.title;
+        btn.textContent = label;
       }
       btn.classList.toggle('is-active', key === this.pathStyle);
       btn.addEventListener('click', () => {

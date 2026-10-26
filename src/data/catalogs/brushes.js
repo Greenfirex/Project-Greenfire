@@ -1,5 +1,22 @@
 // Katalog brushů — deklarace „co se má na zóně vyplnit“.
-// Editor je bere do palety a podle typu vyplní buňku dlaždicí nebo objektem; přidání brushu = jeden záznam.
+// Povrchový štětec se skládá ze seznamu podkladů, takže nový povrch stačí přidat v katalogu dekorací.
+import { DEFAULT_FLOOR, surfaceEntries } from './decorations.js';
+
+const SURFACES = surfaceEntries();
+const surfaceStyle = (entry) => entry.key.replace(/^floor_/, '');
+const SURFACE_BRUSH = SURFACES.length
+  ? {
+      label: 'Povrch',
+      shape: 'blob',
+      surfaceOnly: true,
+      style: surfaceStyle(SURFACES[0]),
+      styles: SURFACES.map(surfaceStyle),
+      poolByStyle: Object.fromEntries(SURFACES.map((entry) => [surfaceStyle(entry), [entry.key]])),
+      texture: Object.fromEntries(SURFACES.map((entry) => [surfaceStyle(entry), entry.texture])),
+      styleLabels: Object.fromEntries(SURFACES.map((entry) => [surfaceStyle(entry), entry.label])),
+    }
+  : null;
+
 export const BRUSHES = {
   forest_exact: {
     label: 'Les',
@@ -42,6 +59,7 @@ export const BRUSHES = {
     shape: 'blob',
     flora: true,
   },
+  ...(SURFACE_BRUSH ? { surface: SURFACE_BRUSH } : {}),
   trail: {
     label: 'Cesta',
     shape: 'line',
@@ -59,31 +77,31 @@ export const BRUSHES = {
     label: 'Kopec 2 m',
     shape: 'blob',
     height: 2,
-    tile: 'floor_grass',
+    tile: DEFAULT_FLOOR,
   },
   hill_mid: {
     label: 'Kopec 3 m',
     shape: 'blob',
     height: 3,
-    tile: 'floor_grass',
+    tile: DEFAULT_FLOOR,
   },
   hill_high: {
     label: 'Kopec 4 m',
     shape: 'blob',
     height: 4,
-    tile: 'floor_grass',
+    tile: DEFAULT_FLOOR,
   },
   hollow_shallow: {
     label: 'Prohlubeň 1 m',
     shape: 'blob',
     height: -1,
-    tile: 'floor_grass',
+    tile: DEFAULT_FLOOR,
   },
   hollow_deep: {
     label: 'Hlubší prohlubeň 2 m',
     shape: 'blob',
     height: -2,
-    tile: 'floor_grass',
+    tile: DEFAULT_FLOOR,
   },
   ore: {
     label: 'Ruda',

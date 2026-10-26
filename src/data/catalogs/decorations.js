@@ -366,6 +366,25 @@ export const DECORATION_TYPES = {
     radius: 0,
     blocks: false,
     kind: 'floor',
+    surface: {
+      label: 'Tráva',
+      texture: `${ASSET_DIRS.textures}Grass004_1K-JPG_Color.jpg`,
+      tile: 5.5,
+      ambient: [0.08, 0.1, 0.08],
+      mapTint: true,
+    },
+  },
+  floor_sand: {
+    displayName: 'Písek',
+    radius: 0,
+    blocks: false,
+    kind: 'floor',
+    surface: {
+      texture: `${ASSET_DIRS.textures}Ground080_1K-JPG_Color.jpg`,
+      tile: 3,
+      ambient: [0.09, 0.08, 0.07],
+      color: [1.05, 0.98, 0.86],
+    },
   },
   cliff_large: {
     displayName: 'Skalní stěna',
@@ -521,6 +540,8 @@ export const DECORATION_TYPES = {
   },
 };
 
+export const DEFAULT_FLOOR = 'floor_grass';
+
 export const DECORATION_KEYS = Object.keys(DECORATION_TYPES);
 
 export const TREE_KEYS = DECORATION_KEYS.filter((key) => DECORATION_TYPES[key].kind === 'tree');
@@ -532,6 +553,15 @@ export function getDecoration(key) {
   if (!def || def.highlight) return def;
   const highlight = genericHighlight(def);
   return highlight ? { ...def, highlight } : def;
+}
+
+export function surfaceEntries() {
+  const out = [];
+  for (const [key, def] of Object.entries(DECORATION_TYPES)) {
+    if (!def || def.kind !== 'floor' || !def.surface || !def.surface.texture) continue;
+    out.push({ ...def.surface, key, label: def.surface.label || def.displayName || key });
+  }
+  return out;
 }
 
 export function decoRadius(def) {

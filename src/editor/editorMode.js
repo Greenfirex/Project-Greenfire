@@ -1,14 +1,13 @@
 // Editační režim mapy — vyplňování buněk štětcem, modelování výšek a práce s plochou.
 // Přepíná se F1, drží jen hotovou mapu a historii úprav; vykreslování si řídí scéna.
 import { BRUSHES } from '../data/catalogs/brushes.js';
-import { getDecoration } from '../data/catalogs/decorations.js';
+import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
 import { cellKey, MIN_HEIGHT, MAX_HEIGHT } from '../data/maps/layoutStore.js';
-import { layerAt, layerEntriesAt, floorCellAt, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
+import { layerAt, layerEntriesAt, floorCellAt, layerLiftAt, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
 import { fillZone } from '../utils/zoneFill.js';
 import { createRng, seedFor } from '../utils/rng.js';
 
 const HISTORY_LIMIT = 100;
-const FALLBACK_FLOOR = 'floor_grass';
 
 export default class EditorMode {
 
@@ -239,10 +238,32 @@ export default class EditorMode {
       if (!entry.liftY && floor && floor.liftY) entry.liftY = floor.liftY;
       dropLayerCell(this.layout, cx, cz);
       if (floor && !(this.layout.floor || []).includes(floor)) this.layout.floor.push(floor);
-      if (!floor) this.placeFloor(FALLBACK_FLOOR, cx, cz);
+      if (!floor) this.placeFloor(DEFAULT_FLOOR, cx, cz);
     }
     this.layout[target].push(entry);
     return entry;
+  }
+
+  paintSurface(cx, cz, key) {
+    const def = getDecoration(key);
+    if (!def) return false;
+    const floor = floorCellAt(this.layout, cx, cz);
+    const changed = !floor || floor.key !== key;
+    const lift = floor ? (floor.liftY || 0) : (layerLiftAt(this.layout, cx, cz) || 0);
+    if (floor) {
+      floor.key = key;
+      if (lift) floor.liftY = lift;
+      else delete floor.liftY;
+    } else {
+      if (!this.layout.floor) this.layout.floor = [];
+      const entry = { key, cx, cz, rotation: 0 };
+      if (lift) entry.liftY = lift;
+      this.layout.floor.push(entry);
+    }
+    if (changed && this.layout.grass) {
+      this.layout.grass = this.layout.grass.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+    }
+    return true;
   }
 
   placePath(cx, cz) {
@@ -251,7 +272,7 @@ export default class EditorMode {
 
   keepFloor(cx, cz) {
     const floor = floorCellAt(this.layout, cx, cz);
-    return floor ? floor.key : FALLBACK_FLOOR;
+    return floor ? floor.key : DEFAULT_FLOOR;
   }
 
   placeFloor(key, cx, cz) {
@@ -411,7 +432,7 @@ export default class EditorMode {
       for (const [cx, cz] of selection.cells) {
         dropLayerCell(this.layout, cx, cz);
         dropDecorationCell(this.layout, cx, cz);
-        this.layout.floor.push({ key: FALLBACK_FLOOR, cx, cz, rotation: 0 });
+        this.layout.floor.push({ key: DEFAULT_FLOOR, cx, cz, rotation: 0 });
         count += 1;
       }
     }
@@ -509,6 +530,10 @@ export default class EditorMode {
     for (const cell of filled) {
       const { cx, cz } = cell;
       if (mode === 'remove') {
+        if (brush.surfaceOnly) {
+          this.paintSurface(cx, cz, DEFAULT_FLOOR);
+          continue;
+        }
         dropDecorationCell(this.layout, cx, cz);
         if (brush.flora) {
           if (this.layout.grass) {
@@ -536,6 +561,10 @@ export default class EditorMode {
         const entry = { key, cx, cz, rotation: 0 };
         if (cell.liftY) entry.liftY = cell.liftY;
         this.layout.decorations.push(entry);
+        continue;
+      }
+      if (brush.surfaceOnly) {
+        if (key) this.paintSurface(cx, cz, key);
         continue;
       }
       if (shape === 'line') {
@@ -586,7 +615,7 @@ export default class EditorMode {
       this.dropOrphans();
       return;
     }
-    this.placeEntry(this.tileKey || FALLBACK_FLOOR, cx, cz, 0, this.heightLevel * HEIGHT_STEP);
+    this.placeEntry(this.tileKey || DEFAULT_FLOOR, cx, cz, 0, this.heightLevel * HEIGHT_STEP);
     this.fixMissingFloor();
   }
 

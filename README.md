@@ -267,6 +267,11 @@ mapy — mazání plochou udělá v mapě skutečnou díru. Klikací tlačítka 
 v panelu určují, jak vysoko se dlaždice pokládají; tlačítkem **Vyhladit**
 se srovnají schody do okolí.
 
+Podklad dlaždice (tráva, písek) se mění štětcem **Povrch**: ten nechá výšku,
+cesty i objekty a uklidí jen trávu. Mazání tímto štětcem vrátí buňku na trávu.
+Nový povrch je jeden záznam v katalogu dekorací vedle `floor_grass` a
+`floor_sand`; terén pak každý povrch kreslí vlastní texturou a velikostí dlaždice.
+
 Soubor mapy je jediný zdroj pravdy: hra při startu vždycky přečte
 `src/data/maps/<mapa>/map.json` ze souboru na disku, žádnou jinou mapu v kódu
 nemá. Tlačítko **Uložit mapu** v panelu editoru (F1) zapíše hotovou mapu rovnou
