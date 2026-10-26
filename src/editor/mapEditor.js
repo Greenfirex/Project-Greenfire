@@ -60,6 +60,7 @@ export default class MapEditor {
       this.areaPanel.setHeight(this.mode.areaHeightMeters);
     };
     this.mode.onDraftChange = (draft) => this.updateDraftView(draft);
+    this.mode.onHeightDraftChange = () => this.refreshHeightDraftView();
     this.mode.onBrushChange = (key) => {
       this.hud.setBrush(key);
       this.openBrushPanel(key);
@@ -69,6 +70,8 @@ export default class MapEditor {
     this.hud.onMode = (mode) => this.mode.setMode(mode);
     this.hud.onHeightLevel = (level) => this.mode.setHeightLevel(level);
     this.hud.onHeightStep = (delta) => this.mode.stepHeightLevel(delta);
+    this.hud.onHeightApply = () => this.applyHeightSelection();
+    this.hud.onHeightCancel = () => this.cancelHeightDraft();
     this.hud.onClose = () => this.close();
     this.hud.onSaveMap = () => this.saveMap();
 
@@ -108,7 +111,9 @@ export default class MapEditor {
 
   resetSelection() {
     this.mode.cancelDraft();
+    this.mode.cancelHeightDraft();
     this.mode.clearAreaSelection();
+    this.hud.setHeightDraft(0);
     this.brushPanel.close();
     this.areaPanel.hide();
     this.s.gridSystem.clearBrush();
@@ -127,7 +132,9 @@ export default class MapEditor {
 
   close() {
     this.mode.cancelDraft();
+    this.mode.cancelHeightDraft();
     this.mode.clearAreaSelection();
+    this.hud.setHeightDraft(0);
     this.mode.active = false;
     this.brushPanel.close();
     this.areaPanel.hide();
@@ -389,7 +396,16 @@ export default class MapEditor {
   }
 
   refreshZoneOverlay() {
-    if (!this.mode.active || !this.s.mapLayout || !this.mode.hasDraft) {
+    if (!this.mode.active || !this.s.mapLayout) {
+      this.s.gridSystem.clearZones();
+      this.s.gridSystem.clearDraftCells();
+      return;
+    }
+    if (this.mode.mode === 'height' && this.mode.heightDraftCount) {
+      this.showHeightDraftOverlay();
+      return;
+    }
+    if (!this.mode.hasDraft) {
       this.s.gridSystem.clearZones();
       this.s.gridSystem.clearDraftCells();
       return;
@@ -448,6 +464,59 @@ export default class MapEditor {
     ], surfaceAt);
 
     this.s.gridSystem.showDraftCells(draftCells, surfaceAt, draft.mode);
+  }
+
+  showHeightDraftOverlay() {
+    const draft = this.mode.heightDraft;
+    if (!draft) return;
+    const paint = [];
+    const erase = [];
+    for (const [key, mark] of draft) {
+      const [cx, cz] = key.split(',').map(Number);
+      if (mark === 'erase') erase.push([cx, cz]);
+      else paint.push([cx, cz]);
+    }
+    const surfaceAt = (cx, cz) => this.s.decoSystem.surfaceAt(cx, cz);
+    this.s.gridSystem.showZones([
+      {
+        cells: erase,
+        color: new Color3(1, 0.3, 0.25),
+        glow: new Color3(0.95, 0.25, 0.2),
+        alpha: 0.62,
+        lift: 0.04,
+      },
+      {
+        cells: paint,
+        color: new Color3(0.15, 1, 0.85),
+        glow: new Color3(0.2, 0.95, 0.8),
+        alpha: 0.62,
+        lift: 0.04,
+      },
+    ], surfaceAt);
+    this.s.gridSystem.showDraftCells([...paint, ...erase], surfaceAt, 'add');
+  }
+
+  applyHeightSelection() {
+    const count = this.mode.applyHeightSelection();
+    if (count) this.hud.setReadout(`Aplikováno ${count} buněk — výšky se přepočítají`);
+    else this.hud.setReadout('Prázdný návrh výšek');
+    this.hud.setHeightDraft(0);
+    this.refreshUndoButton();
+    this.refreshZoneOverlay();
+    this.s.handleHover(this.s.hoverCell);
+  }
+
+  cancelHeightDraft() {
+    const had = this.mode.cancelHeightDraft();
+    this.hud.setHeightDraft(0);
+    this.refreshZoneOverlay();
+    this.s.handleHover(this.s.hoverCell);
+    if (had) this.hud.setReadout('Návrh výšek zrušen');
+  }
+
+  refreshHeightDraftView() {
+    this.hud.setHeightDraft(this.mode.heightDraftCount);
+    this.refreshZoneOverlay();
   }
 
   warnUnsaved() {

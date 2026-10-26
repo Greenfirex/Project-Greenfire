@@ -21,6 +21,7 @@ export default class EditorMode {
     this.heightLevel = DEFAULT_HEIGHT_LEVEL;
     this.layout = null;
     this.draft = null;
+    this.heightDraft = null;
     this.areaTool = 'paint';
     this.areaSurface = DEFAULT_FLOOR;
     this.areaSelection = null;
@@ -34,12 +35,14 @@ export default class EditorMode {
     this.onModeChange = null;
     this.onHeightChange = null;
     this.onDraftChange = null;
+    this.onHeightDraftChange = null;
     this.onAreaSelectionChange = null;
     this.onStyleChange = null;
     this.onRestore = null;
   }
 
   attach(world) {
+    this.cancelHeightDraft();
     this.history = [];
     this.layout = toWorld(world || {});
   }
@@ -61,6 +64,7 @@ export default class EditorMode {
   }
 
   undo() {
+    this.cancelHeightDraft();
     if (this.draft) {
       this.draft.cells.clear();
       if (this.onDraftChange) this.onDraftChange(this.draft);
@@ -107,6 +111,7 @@ export default class EditorMode {
     this.areaDrag = null;
     this.areaStroke = null;
     this.clearAreaSelection();
+    this.cancelHeightDraft();
     if (this.draft) {
       this.draft = null;
       if (this.onDraftChange) this.onDraftChange(null);
@@ -147,6 +152,7 @@ export default class EditorMode {
     if (!Number.isFinite(n)) return;
     this.heightLevel = n;
     if (this.onHeightChange) this.onHeightChange(n);
+    if (this.heightDraft && this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
   }
 
   stepHeightLevel(delta) {
@@ -161,9 +167,7 @@ export default class EditorMode {
       return;
     }
     if (this.mode !== 'height') return;
-    this.pushHistory();
-    this.applyCell(cx, cz);
-    this.scheduleRegenerate();
+    this.markHeightCell(cx, cz, this.erasing);
   }
 
   paintRun(from, to) {
@@ -174,9 +178,9 @@ export default class EditorMode {
       return;
     }
     if (this.mode !== 'height') return;
-    this.pushHistory();
-    for (const [cx, cz] of bresenham(from.cx, from.cz, to.cx, to.cz)) this.applyCell(cx, cz);
-    this.scheduleRegenerate();
+    for (const [cx, cz] of bresenham(from.cx, from.cz, to.cx, to.cz)) {
+      this.markHeightCell(cx, cz, this.erasing);
+    }
   }
 
   dropTopEntry(cx, cz) {
@@ -742,8 +746,37 @@ export default class EditorMode {
     return true;
   }
 
-  applyCell(cx, cz) {
-    this.setCellHeight(cx, cz, this.erasing ? 0 : this.heightLevel * HEIGHT_STEP);
+  markHeightCell(cx, cz, erasing) {
+    if (!this.layout) return;
+    if (!this.heightDraft) this.heightDraft = new Map();
+    this.heightDraft.set(cellKey(cx, cz), erasing ? 'erase' : 'paint');
+    if (this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
+  }
+
+  get heightDraftCount() {
+    return this.heightDraft ? this.heightDraft.size : 0;
+  }
+
+  applyHeightSelection() {
+    if (!this.layout || !this.heightDraft || !this.heightDraft.size) return 0;
+    this.pushHistory();
+    let count = 0;
+    for (const [key, mark] of this.heightDraft) {
+      const [cx, cz] = key.split(',').map(Number);
+      const height = mark === 'erase' ? 0 : this.heightLevel * HEIGHT_STEP;
+      this.setCellHeight(cx, cz, height);
+      count += 1;
+    }
+    this.cancelHeightDraft();
+    this.scheduleRegenerate();
+    return count;
+  }
+
+  cancelHeightDraft() {
+    if (!this.heightDraft) return false;
+    this.heightDraft = null;
+    if (this.onHeightDraftChange) this.onHeightDraftChange(null);
+    return true;
   }
 
   scheduleRegenerate() {

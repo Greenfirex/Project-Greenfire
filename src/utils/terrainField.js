@@ -1,0 +1,104 @@
+// Spojitá výška země — přesná ve středu buňky, plynule dopočítaná mezi středy.
+// Za okrajem mapy a u děr bere výšku nejbližší buňky, aby se zem na okraji nezvedala.
+import { CELL_SIZE, cellKey } from './gridMath.js';
+import { worldCells, layerLiftAt } from '../data/maps/areaShape.js';
+
+const MARGIN = 2;
+const AROUND = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+function catmull(p0, p1, p2, p3, t) {
+  return 0.5 * (
+    2 * p1
+    + (-p0 + p2) * t
+    + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t
+    + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t
+  );
+}
+
+export function createTerrainField(world) {
+  const heights = new Map();
+  for (const [cx, cz] of worldCells(world || {})) {
+    const lift = layerLiftAt(world, cx, cz);
+    if (Number.isFinite(lift)) heights.set(cellKey(cx, cz), lift);
+  }
+
+  const nearest = new Map();
+  if (heights.size) {
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    let frontier = [];
+    for (const [key, lift] of heights) {
+      const [cx, cz] = key.split(',').map(Number);
+      minX = Math.min(minX, cx);
+      maxX = Math.max(maxX, cx);
+      minZ = Math.min(minZ, cz);
+      maxZ = Math.max(maxZ, cz);
+      frontier.push([cx, cz, lift]);
+    }
+    const seen = new Set(heights.keys());
+    while (frontier.length) {
+      const next = [];
+      for (const [cx, cz, lift] of frontier) {
+        for (const [dx, dz] of AROUND) {
+          const nx = cx + dx;
+          const nz = cz + dz;
+          if (nx < minX - MARGIN || nx > maxX + MARGIN) continue;
+          if (nz < minZ - MARGIN || nz > maxZ + MARGIN) continue;
+          const key = cellKey(nx, nz);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          nearest.set(key, lift);
+          next.push([nx, nz, lift]);
+        }
+      }
+      frontier = next;
+    }
+  }
+
+  const cellHeight = (cx, cz) => {
+    const value = heights.get(cellKey(cx, cz));
+    return value === undefined ? null : value;
+  };
+
+  const sample = (cx, cz) => {
+    const value = heights.get(cellKey(cx, cz));
+    if (value !== undefined) return value;
+    const near = nearest.get(cellKey(cx, cz));
+    return near === undefined ? 0 : near;
+  };
+
+  function heightAt(x, z) {
+    const px = x / CELL_SIZE;
+    const pz = z / CELL_SIZE;
+    const ix = Math.floor(px);
+    const iz = Math.floor(pz);
+    const fx = px - ix;
+    const fz = pz - iz;
+    const rows = [];
+    const used = [];
+    for (let j = 0; j < 4; j += 1) {
+      const row = iz - 1 + j;
+      const values = [
+        sample(ix - 1, row),
+        sample(ix, row),
+        sample(ix + 1, row),
+        sample(ix + 2, row),
+      ];
+      used.push(...values);
+      rows.push(catmull(values[0], values[1], values[2], values[3], fx));
+    }
+    const value = catmull(rows[0], rows[1], rows[2], rows[3], fz);
+    const low = Math.min(...used);
+    const high = Math.max(...used);
+    return Math.min(high, Math.max(low, value));
+  }
+
+  function heightAtCell(cx, cz) {
+    const value = cellHeight(cx, cz);
+    return value === null ? 0 : value;
+  }
+
+  return { heightAt, heightAtCell };
+}

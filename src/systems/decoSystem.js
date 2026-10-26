@@ -47,6 +47,7 @@ export default class DecoSystem {
     this.onDecoReady = null;
     this.onDecoBroken = null;
     this.colors = null;
+    this.groundHeightAt = null;
     this.nodes = [];
     this.anchors = [];
     this.pathNodes = [];
@@ -124,7 +125,7 @@ export default class DecoSystem {
   }
 
   buildPath() {
-    this.pathSystem.buildFromLayout(this.layout);
+    this.pathSystem.buildFromLayout(this.layout, this.groundHeightAt);
     this.claimPathCells();
   }
 
@@ -176,8 +177,7 @@ export default class DecoSystem {
     const def = getDecoration(entry.key);
     if (!def) return;
 
-    const lift = entry.liftY || 0;
-    const top = lift + decoHeight(def);
+    const top = this.entryHeight(entry) + decoHeight(def);
     const key = cellKey(entry.cx, entry.cz);
     const solid = def.blocks !== false;
     if (isSkirt(entry.key)) return;
@@ -190,6 +190,15 @@ export default class DecoSystem {
     }
     if (solid) current.block = Math.max(current.block, top);
     else current.surface = Math.max(current.surface, top);
+  }
+
+  entryHeight(entry) {
+    const base = entry.liftY || 0;
+    if (!this.groundHeightAt) return base;
+    const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
+    const local = this.groundHeightAt(x + (entry.offsetX || 0), z + (entry.offsetZ || 0));
+    const center = this.groundHeightAt(x, z);
+    return base + (local - center);
   }
 
   place(entry, bucket = this.nodes, section = 'deco') {
@@ -213,9 +222,11 @@ export default class DecoSystem {
 
   surfaceAt(cx, cz) {
     const key = cellKey(cx, cz);
+    const { x, z } = cellToWorldCoords(cx, cz);
+    const ground = this.groundHeightAt ? this.groundHeightAt(x, z) : this.floorTopAt(key);
     const cell = this.columnTop.get(key);
-    if (cell) return Math.max(cell.surface, this.floorTopAt(key));
-    return this.floorTopAt(key);
+    if (cell) return Math.max(cell.surface, ground);
+    return ground;
   }
 
   floorTopAt(key) {
@@ -265,7 +276,7 @@ export default class DecoSystem {
 
   createAnchor(entry, def, x, z, bucket = this.nodes) {
     const anchor = new TransformNode(`deco_${entry.key}_${entry.cx}_${entry.cz}`, this.s);
-    anchor.position = new Vector3(x + (entry.offsetX || 0), entry.liftY || 0, z + (entry.offsetZ || 0));
+    anchor.position = new Vector3(x + (entry.offsetX || 0), this.entryHeight(entry), z + (entry.offsetZ || 0));
     anchor.rotation.y = (Math.PI / 2) * (entry.rotation || 0);
     anchor.metadata = { key: entry.key, def, bucket, entry };
     bucket.push(anchor);

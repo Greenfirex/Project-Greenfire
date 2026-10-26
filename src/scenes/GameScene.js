@@ -79,11 +79,14 @@ export default class GameScene {
     this.engine = engine;
     this.canvas = canvas;
     this.mapKey = DEFAULT_MAP;
+    this.rebuildRunning = false;
+    this.rebuildPending = false;
 
     this.cameraSystem = new CameraSystem(scene);
     this.gridSystem = new GridSystem(scene);
     this.terrainSystem = new TerrainSystem(scene);
     this.decoSystem = new DecoSystem(scene);
+    this.decoSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z);
     this.floraSystem = new FloraSystem(scene);
     this.campfireSystem = new CampfireSystem(scene);
     this.glowSystem = new GlowSystem(scene);
@@ -630,17 +633,32 @@ updateGatherTarget() {
   }
 
   renderMapLayout() {
-    const exhausted = this.gatherSystem.exhaustedCells();
-    this.gatherSystem.clear();
-    this.adoptEditorMap();
-    this.markMapDirty();
-    this.refreshTerrain();
-    this.terrainSystem.whenReady()
-      .then(() => this.rebuildDecorations(exhausted))
-      .catch((error) => {
-        console.error('[debug] rebuildDecorations ERROR:', error);
-        this.reportRebuildError(error);
-      });
+    this.rebuildPending = true;
+    if (this.rebuildRunning) return;
+    this.runMapRebuild();
+  }
+
+  async runMapRebuild() {
+    if (this.rebuildRunning) return;
+    this.rebuildRunning = true;
+    try {
+      while (this.rebuildPending) {
+        this.rebuildPending = false;
+        const exhausted = this.gatherSystem.exhaustedCells();
+        this.gatherSystem.clear();
+        this.adoptEditorMap();
+        this.markMapDirty();
+        this.refreshTerrain();
+        await this.terrainSystem.whenReady();
+        await this.rebuildDecorations(exhausted);
+      }
+    } catch (error) {
+      console.error('[debug] rebuildDecorations ERROR:', error);
+      this.reportRebuildError(error);
+    } finally {
+      this.rebuildRunning = false;
+      if (this.rebuildPending) this.runMapRebuild();
+    }
   }
 
   async rebuildDecorations(exhausted) {

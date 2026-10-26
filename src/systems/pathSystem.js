@@ -7,7 +7,6 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { CELL_SIZE, cellKey } from '../utils/gridMath.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
-import { layerLiftAt } from '../data/maps/areaShape.js';
 
 const PATH_LIFT = 0.01;
 const HALF = CELL_SIZE / 2;
@@ -30,6 +29,7 @@ export default class PathSystem {
     this.meshes = [];
     this.materials = new Map();
     this.shapes = new Map();
+    this.groundHeightAt = null;
   }
 
   clear() {
@@ -50,14 +50,18 @@ export default class PathSystem {
     }
   }
 
-  groundHeightAt(world, cx, cz) {
-    const lifted = layerLiftAt(world, cx, cz);
-    if (lifted !== null) return lifted;
-    return 0;
+  cellGround(cx, cz) {
+    if (!this.groundHeightAt) return 0;
+    return this.groundHeightAt(cx * CELL_SIZE, cz * CELL_SIZE);
   }
 
-  buildFromLayout(world) {
+  groundAt(x, z) {
+    return (this.groundHeightAt ? this.groundHeightAt(x, z) : 0) + PATH_LIFT;
+  }
+
+  buildFromLayout(world, heightAt) {
     this.clear();
+    this.groundHeightAt = typeof heightAt === 'function' ? heightAt : null;
     if (!world || !Array.isArray(world.path)) return;
     const cells = [];
     const pathKeys = new Set();
@@ -74,7 +78,7 @@ export default class PathSystem {
         cz: entry.cz,
         style: styleOf(entry),
         open: pathOpen(pathKeys, entry.cx, entry.cz),
-        y: this.groundHeightAt(world, entry.cx, entry.cz),
+        y: this.cellGround(entry.cx, entry.cz),
       };
       cells.push(cell);
       this.shapes.set(key, cell);
@@ -112,7 +116,6 @@ export default class PathSystem {
   addStraight(cell, list, across) {
     const x = cell.cx * CELL_SIZE;
     const z = cell.cz * CELL_SIZE;
-    const y = cell.y + PATH_LIFT;
     const start = list.positions.length / 3;
     let corners;
     if (across) {
@@ -125,7 +128,7 @@ export default class PathSystem {
       corners = [[-wNorth, -HALF], [wNorth, -HALF], [wSouth, HALF], [-wSouth, HALF]];
     }
     for (const [dx, dz] of corners) {
-      list.positions.push(x + dx, y, z + dz);
+      list.positions.push(x + dx, this.groundAt(x + dx, z + dz), z + dz);
       list.uvs.push((x + dx) / UV_TILE, (z + dz) / UV_TILE);
     }
     list.indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
@@ -134,7 +137,6 @@ export default class PathSystem {
   addCross(cell, list) {
     const x = cell.cx * CELL_SIZE;
     const z = cell.cz * CELL_SIZE;
-    const y = cell.y + PATH_LIFT;
     const [east, north, west, south] = cell.open;
 
     if (east || west) {
@@ -147,7 +149,7 @@ export default class PathSystem {
       if (east && west) { x0 = -HALF; x1 = HALF; w0 = wLeft; w1 = wRight; }
       else if (west) { x0 = -HALF; x1 = 0; w0 = wLeft; w1 = wLeft; }
       else { x0 = 0; x1 = HALF; w0 = wRight; w1 = wRight; }
-      this.emitQuad(list, x, y, z, [x0, -w0], [x1, -w1], [x1, w1], [x0, w0]);
+      this.emitQuad(list, x, z, [x0, -w0], [x1, -w1], [x1, w1], [x0, w0]);
     }
 
     if (north || south) {
@@ -160,21 +162,20 @@ export default class PathSystem {
       if (north && south) { z0 = -HALF; z1 = HALF; wn0 = wNorth; wn1 = wSouth; }
       else if (north) { z0 = -HALF; z1 = 0; wn0 = wNorth; wn1 = wNorth; }
       else { z0 = 0; z1 = HALF; wn0 = wSouth; wn1 = wSouth; }
-      this.emitQuad(list, x, y, z, [-wn0, z0], [wn0, z0], [wn1, z1], [-wn1, z1]);
+      this.emitQuad(list, x, z, [-wn0, z0], [wn0, z0], [wn1, z1], [-wn1, z1]);
     }
   }
 
-  emitQuad(list, x, y, z, c0, c1, c2, c3) {
+  emitQuad(list, x, z, c0, c1, c2, c3) {
     const start = list.positions.length / 3;
     for (const [dx, dz] of [c0, c1, c2, c3]) {
-      list.positions.push(x + dx, y, z + dz);
+      list.positions.push(x + dx, this.groundAt(x + dx, z + dz), z + dz);
       list.uvs.push((x + dx) / UV_TILE, (z + dz) / UV_TILE);
     }
     list.indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
   }
 
   addBend(cell, list) {
-    const y = cell.y + PATH_LIFT;
     const x = cell.cx * CELL_SIZE;
     const z = cell.cz * CELL_SIZE;
     const [east, north, west, south] = cell.open;
@@ -201,10 +202,10 @@ export default class PathSystem {
       wIn = pathHalfWidth(z + HALF);
       wOut = pathHalfWidth(x + HALF);
     }
-    this.addCorner(x + cornerX, z + cornerZ, y, start, end, wIn, wOut, list);
+    this.addCorner(x + cornerX, z + cornerZ, start, end, wIn, wOut, list);
   }
 
-  addCorner(cx, cz, y, start, end, wIn, wOut, list) {
+  addCorner(cx, cz, start, end, wIn, wOut, list) {
     const SEGMENTS = 6;
     const base = list.positions.length / 3;
     for (let i = 0; i <= SEGMENTS; i += 1) {
@@ -215,10 +216,14 @@ export default class PathSystem {
       const rInner = HALF + w;
       const ox = Math.cos(a);
       const oz = Math.sin(a);
-      list.positions.push(cx + ox * rOuter, y, cz + oz * rOuter);
-      list.positions.push(cx + ox * rInner, y, cz + oz * rInner);
-      list.uvs.push((cx + ox * rOuter) / UV_TILE, (cz + oz * rOuter) / UV_TILE);
-      list.uvs.push((cx + ox * rInner) / UV_TILE, (cz + oz * rInner) / UV_TILE);
+      const outX = cx + ox * rOuter;
+      const outZ = cz + oz * rOuter;
+      const inX = cx + ox * rInner;
+      const inZ = cz + oz * rInner;
+      list.positions.push(outX, this.groundAt(outX, outZ), outZ);
+      list.positions.push(inX, this.groundAt(inX, inZ), inZ);
+      list.uvs.push(outX / UV_TILE, outZ / UV_TILE);
+      list.uvs.push(inX / UV_TILE, inZ / UV_TILE);
     }
     for (let i = 0; i < SEGMENTS; i += 1) {
       const a = base + i * 2;

@@ -13,11 +13,14 @@ export default class EditorHud {
     this.onMode = null;
     this.onHeightLevel = null;
     this.onHeightStep = null;
+    this.onHeightApply = null;
+    this.onHeightCancel = null;
     this.onSaveMap = null;
     this.activeBrush = null;
     this.erasing = false;
     this.mode = 'zone';
     this.heightLevel = DEFAULT_HEIGHT_LEVEL;
+    this.heightDraftCount = 0;
   }
 
   mount() {
@@ -30,7 +33,7 @@ export default class EditorHud {
         <span class="editor-panel__title">Editor mapy</span>
         <button type="button" class="editor-panel__close" title="Zavřít (F1)">×</button>
       </div>
-      <div class="editor-panel__hint">Zóny: vyber štětec a nakresli · Výška: klikací tlačítka · Plocha: podklad, výška, tažení · Z zpět · F1 zavřít</div>
+      <div class="editor-panel__hint">Zóny: vyber štětec a nakresli · Výška: nakresli plochu a dej Aplikovat · Plocha: podklad, výška, tažení · Z zpět · F1 zavřít</div>
       <div class="editor-panel__modes">
         <button type="button" data-mode="zone">Zóny</button>
         <button type="button" data-mode="height">Výška</button>
@@ -49,6 +52,11 @@ export default class EditorHud {
         <button type="button" data-height="4">4</button>
         <button type="button" data-step="1" title="Přidat 1 úroveň (Q)">+1</button>
         <button type="button" data-step="-1" title="Ubrat 1 úroveň (E)">−1</button>
+      </div>
+      <div class="editor-panel__height-actions">
+        <span class="editor-panel__height-count">Nic není nakresleno</span>
+        <button type="button" class="editor-panel__height-apply" title="Aplikovat nakreslené výšky" disabled>Aplikovat</button>
+        <button type="button" class="editor-panel__height-cancel" title="Zrušit návrh výšek">Zrušit</button>
       </div>
       <div class="editor-panel__readout">–</div>
       <div class="editor-panel__save-row">
@@ -92,6 +100,12 @@ export default class EditorHud {
         if (this.onHeightStep) this.onHeightStep(Number(btn.dataset.step));
       });
     }
+    root.querySelector('.editor-panel__height-apply').addEventListener('click', () => {
+      if (this.onHeightApply) this.onHeightApply();
+    });
+    root.querySelector('.editor-panel__height-cancel').addEventListener('click', () => {
+      if (this.onHeightCancel) this.onHeightCancel();
+    });
     root.querySelector('.editor-panel__save').addEventListener('click', () => {
       if (this.onSaveMap) this.onSaveMap();
     });
@@ -100,6 +114,7 @@ export default class EditorHud {
       if (this.onClose) this.onClose();
     });
 
+    this.refreshHeightDraft();
     return root;
   }
 
@@ -131,6 +146,25 @@ export default class EditorHud {
     this.refresh();
   }
 
+  setHeightDraft(count) {
+    this.heightDraftCount = Number(count) || 0;
+    this.refreshHeightDraft();
+  }
+
+  refreshHeightDraft() {
+    if (!this.root) return;
+    const count = this.heightDraftCount;
+    const label = this.root.querySelector('.editor-panel__height-count');
+    if (label) {
+      if (!count) label.textContent = 'Nic není nakresleno';
+      else if (count === 1) label.textContent = '1 buňka';
+      else if (count < 5) label.textContent = `${count} buňky`;
+      else label.textContent = `${count} buněk`;
+    }
+    const apply = this.root.querySelector('.editor-panel__height-apply');
+    if (apply) apply.disabled = !count;
+  }
+
   refresh() {
     if (!this.root) return;
     for (const btn of this.root.querySelectorAll('[data-mode]')) {
@@ -143,6 +177,7 @@ export default class EditorHud {
       btn.classList.toggle('is-active', !this.erasing && btn.dataset.brush === this.activeBrush);
     }
     this.root.classList.toggle('has-brush', Boolean(this.activeBrush));
+    this.refreshHeightDraft();
   }
 
   show() {

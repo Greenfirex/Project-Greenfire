@@ -172,10 +172,11 @@ export default class FloraSystem {
     const gx = worldToCell(x);
     const gz = worldToCell(z);
     if (!isFree(this.deco, gx, gz)) return null;
+    const ground = this.deco.groundHeightAt ? this.deco.groundHeightAt(x, z) : this.deco.topAt(gx, gz);
     return {
       x,
       z,
-      y: this.deco.topAt(gx, gz) + GRASS_LIFT,
+      y: ground + GRASS_LIFT,
       size: 0.6 + hash(seed, row + cell, 5) * 0.8,
       yaw: hash(seed, cell, 13) * Math.PI * 2,
       lean: hash(seed, row, 17),

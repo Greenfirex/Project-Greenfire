@@ -285,10 +285,12 @@ Co v souboru chybí, ve hře neexistuje: chybějící buňka znamená díru bez 
 přes kterou se nedá chodit. Výška terénu je uložená u každé dlaždice zvlášť.
 
 V editoru (F1) jsou tři druhy práce: **zóny** vyplní označené buňky rostlinami
-a objekty, **výška** zvedá dlaždice a **plocha** zakládá nebo přepisuje zem
-s vybraným podkladem a výškou. Plocha je razítko: nové buňky vzniknou,
-existující se přepíšou i s objekty, mazání udělá v mapě skutečnou díru.
-Klikací tlačítka výšky v panelu určují, jak vysoko se dlaždice pokládají.
+a objekty, **výška** nejdřív kreslí návrh a po potvrzení zvedá dlaždice
+a **plocha** zakládá nebo přepisuje zem s vybraným podkladem a výškou.
+Plocha je razítko: nové buňky vzniknou, existující se přepíšou i s objekty,
+mazání udělá v mapě skutečnou díru.
+Tlačítka výšky v panelu určují, jak vysoko se dlaždice po Aplikovat pokládají.
+Návrh se dá kdykoli zrušit a pravé tlačítko označí buňky ke srovnání na nulu.
 Kopec a Prohlubeň si svah staví samy: v jejich okně vybereš výšku a namalovaná
 plocha zůstane plochá, kolem ní se přidá svah po 0,6 m až do 0.
 
@@ -301,6 +303,12 @@ Nový povrch je jeden záznam v katalogu dekorací vedle `floor_grass` a
 spolu se zemí. Kopec a Prohlubeň dělají totéž plošně; jejich Srovnat buňky
 srovná na nulu, nemaže je. Výšky v jejich podmenu odpovídají skutečné
 výšce v metrech.
+
+Země je spojitá: výška se mezi středy buněk dopočítává, takže kopce a prohlubně
+mají plynulé svahy a na okraji mapy je hliněný bok. Za okrajem mapy se počítá
+s výškou nejbližší buňky, takže se zem na okraji nezvedá zpátky nahoru.
+Cesty, tráva, objekty i kurzor v editoru sedí na skutečné výšce země. Hráč
+zatím chodí v nulové výšce; jeho výška přijde ve fázi 5.
 
 V okně **Herní plocha** se k razítku vybírá podklad a výška; počítadlo předem
 ukáže, kolik buněk se přepíše a kolik jich už v mapě je.
