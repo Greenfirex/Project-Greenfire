@@ -82,6 +82,10 @@ export default class MapEditor {
     this.brushPanel.onApply = () => this.applyBrushDraft();
     this.brushPanel.onCancel = () => this.cancelBrushDraft();
     this.brushPanel.onStyle = (brushKey, styleKey) => this.mode.setStyle(styleKey);
+    this.brushPanel.onOption = (optionKey, value) => {
+      this.mode.setBrushOption(optionKey, value);
+      this.updateDraftView(this.mode.draft);
+    };
     this.brushPanel.onErase = () => this.setEraseMode(!this.mode.erasing);
     this.brushPanel.onUndo = () => this.undo();
 
@@ -270,7 +274,7 @@ export default class MapEditor {
 
   openBrushPanel(brushKey) {
     this.mode.beginDraft(brushKey);
-    this.brushPanel.open(brushKey, 0, this.mode.pathStyle);
+    this.brushPanel.open(brushKey, 0, this.mode.pathStyle, this.mode.brushOptionValue(brushKey));
     this.brushPanel.setDraftMode(this.mode.draftMode);
     this.refreshUndoButton();
     this.refreshZoneOverlay();
@@ -353,8 +357,13 @@ export default class MapEditor {
   applyBrushDraft() {
     const removing = this.mode.draftMode === 'remove';
     const heightBrush = this.mode.isHeightBrush;
+    const surfaceBrush = this.mode.isSurfaceBrush;
     const count = this.mode.applyDraft();
-    if (count) {
+    if (count && surfaceBrush) {
+      this.hud.setReadout(removing
+        ? `Vráceno na trávu ${count} buněk`
+        : `Pláž hotová: ${count} buněk i s břehem`);
+    } else if (count) {
       const verb = heightBrush && removing ? 'Srovnáno ' : heightBrush ? 'Aplikováno ' : removing ? 'Smazáno ' : 'Aplikováno ';
       const suffix = heightBrush ? ' (i se svahem)' : '';
       this.hud.setReadout(verb + count + ' buněk' + suffix);
@@ -409,7 +418,9 @@ export default class MapEditor {
     }
     this.brushPanel.setDraftMode(draft.mode);
     const shape = this.mode.heightDraftShape(draft);
-    this.brushPanel.setCount(draft.cells.size, shape ? shape.slope.length : 0);
+    const slopeCount = shape ? shape.slope.length : 0;
+    const rimCount = shape && shape.rim ? shape.rim.length : 0;
+    this.brushPanel.setCount(draft.cells.size, slopeCount, rimCount);
     this.refreshUndoButton();
     this.refreshZoneOverlay();
   }
@@ -479,6 +490,13 @@ export default class MapEditor {
         glow: new Color3(0.85, 0.6, 0.15),
         alpha: 0.34,
         lift: 0.035,
+      },
+      {
+        cells: shape && shape.rim ? shape.rim.map((entry) => [entry.cx, entry.cz]) : [],
+        color: new Color3(0.95, 0.88, 0.55),
+        glow: new Color3(0.85, 0.78, 0.4),
+        alpha: 0.22,
+        lift: 0.03,
       },
     ], surfaceAt);
 

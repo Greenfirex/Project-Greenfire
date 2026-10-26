@@ -331,6 +331,26 @@
   color: var(--text-main);
 }
 
+.brush-panel__option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--text-dim);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.brush-panel__option.is-hidden {
+  display: none;
+}
+
+.brush-panel__option input {
+  margin: 0;
+  accent-color: var(--glow-accent);
+  cursor: pointer;
+}
+
 .brush-panel__tools {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -1,5 +1,6 @@
 // Vyplňování zón — ze seznamu buněk a předpisu brushu udělá konkrétní dekorace.
-// Čtyři tvary: blob (plošné vyplnění), line (spojitá trasa), perimeter (okraj), outline_fill (vnitřek + lem).
+// Tři tvary: blob (plošné vyplnění), line (spojitá trasa), outline_fill (vnitřek + lem).
+
 import { pick } from './rng.js';
 
 const ORTHO = [[0, -1], [1, 0], [0, 1], [-1, 0]];
@@ -91,20 +92,6 @@ function fillLine(makeRng, brush, cells) {
   return [...dedup.values()];
 }
 
-function fillPerimeter(makeRng, brush, cells) {
-  const edge = edgeCells(cells);
-  const stack = Math.max(1, brush.stack || 1);
-  const palette = brush.pool && brush.pool.length ? brush.pool : [];
-  const out = [];
-  for (const k of edge) {
-    const [cx, cz] = parse(k);
-    for (let level = 0; level < stack; level++) {
-      out.push({ cx, cz, key: palette.length ? palette[Math.min(level, palette.length - 1)] : null, level });
-    }
-  }
-  return out;
-}
-
 function fillOutline(makeRng, brush, cells) {
   if (!brush.bed && !brush.inner && !brush.edge) {
     return cells.map((k) => {
@@ -142,8 +129,6 @@ export function fillZone(makeRng, brush, cells) {
   switch (brush.shape) {
     case 'line':
       return fillLine(makeRng, brush, list);
-    case 'perimeter':
-      return fillPerimeter(makeRng, brush, list);
     case 'outline_fill':
       return fillOutline(makeRng, brush, list);
     default:

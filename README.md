@@ -64,7 +64,8 @@ zvýrazněním, hratelná postava s animacemi (idle/run/jízda nástrojem), sbě
 dřeva a kamene včetně kácení stromů, batoh, modelem nahrazené stroje z Kenney
 kitu, rotace a bourání strojů, táborák s ohněm a svícením, oheň pochodně,
 denní cyklus se stíny, lesní zvuky a kroky podle povrchu, panel možností,
-editor mapy (zóny, cesty, výšky ±6 m, výběr buněk, undo), spojitý terén
+editor mapy (zóny, cesty, výšky ±6 m, štětec pláže se svahem po 0,3 m,
+výběr buněk, undo), spojitý terén
 s hranou mapy, cesty kopírující terén, hráč chodící po výšce země
 a ukládání/načítání do prohlížeče.
 
@@ -75,12 +76,14 @@ zatím neběží.
 
 ### Předání stavu
 
-Poslední funkční commit: `4e1defc` — výšky ±6 m se škálou a předvolbou 6 m.
-Tento handoff přidává jen README; po jeho commitu je pracovní strom čistý.
+Poslední funkční commit před touto prací: `4e1defc` — výšky ±6 m se škálou
+a předvolbou 6 m; handoff před fází 5 je `13d8f70`. Štětec Pláž, zvlnění
+hranic povrchů a odstranění starých skalních modelů jsou hotové v pracovním
+stromu a čekají na vizuální test; commit dělá uživatel.
 
 **Aktuální fáze:** 5 — Hloubka, pláž a hráč na zemi. Hotový je hráč na výšce
-země, výšky ±6 m, výškový panel se škálou a výběr buněk. Zbývá pláž,
-třímetrová pánev a závěrečný test fáze.
+země, výšky ±6 m, výškový panel se škálou, výběr buněk a štětec Pláž
+(písek se svahem po 0,3 m). Zbývá závěrečný test fáze s třímetrovou pánví.
 
 **Hotovo (fáze 0–5, část):**
 - Fáze 0–4: plán, písek a povrch, razítko Herní plocha, výškové nástroje,
@@ -94,23 +97,30 @@ třímetrová pánev a závěrečný test fáze.
 - Hráč: chodí po skutečné výšce země; kamera ho sleduje i svisle; spawn,
   načtení savu a odstrčení od objektů počítají s terénem.
 - Cesty: jemná síť kopíruje terén, drží se 2,5 cm nad zemí.
+- Pláž: štětec s hloubkami −1,5 / −2,4 / −3 m; písek ve zvolené hloubce
+  a prstence písku po 0,3 m kolem, z nichž spojitá zem udělá břeh.
+  Volitelný Plynulý okraj přidá prstenec písku navíc. V pánvi mizí objekty
+  a tráva, na svazích se objekty posouvají s terénem; Zpět na trávu
+  srovná výšku na 0 a vrátí trávu.
+- Přechod povrchů: hranice trávy a písku se plynule rozvlní, aby nepůsobila
+  jako podle pravítka; děje se jen při kreslení, data mapy zůstávají stejná.
+- Staré skalní modely: pryč z katalogu, mapy i assetů; kopce a stupně dělají
+  jen výšky.
 - Data a ukládání: beze změny; výška je desetinné číslo.
 
 **Zbývá:**
-- Fáze 5: pláž — pásy písku po 0,3 m, spojitý svah, volitelně Plynulý okraj;
-  třímetrová pánev s pozvolnými břehy a test s hráčem.
+- Fáze 5: závěrečný test — třímetrová pánev s pozvolnými břehy, hráč po ní
+  chodí a stojí na zemi.
 - Fáze 6: voda — hladina v mapě, verze mapy, staré mapy bez vody, břeh,
   hloubka, jednoduchá průhledná plocha.
 - Fáze 7: vzhled vody — vlny, odlesky, barva podle hloubky, průhlednost.
 - Mimo tento plán: výroba ve strojích, recepty a plnění batohu.
 
-**Další krok — pláž:**
-- Podle fáze 5: pásy písku po 0,3 m; spojitá zem z nich udělá svah;
-  volitelně Plynulý okraj; cíl je třímetrová pánev, po které hráč chodí.
-- Otevřené rozhodnutí: nový štětec/razítko „Pláž“, nebo použít stávající
-  Herní plochu s pískem a výškou. Další agent to má nejdřív nabídnout
-  uživateli, ne si domýšlet.
-- Po pláži dokončit fázi 5 a otestovat; pak fáze 6.
+**Další krok — test pláže:**
+- V paletě štětců zvol Pláž, hloubku a namaluj plochu pánve; kolem ní
+  vznikne písek po 0,3 m jako svah. Zapni Plynulý okraj a porovnej.
+- Ověř, že pánev má tři metry, břehy jsou pozvolné a hráč po nich chodí.
+- Když něco nesedí, vrací se jen pláž; fáze 6 začíná až po tvém potvrzení.
 
 **Klíčová rozhodnutí (nevrátit omylem):**
 - Výšky jsou v metrech, krok 0,3 m, rozsah ±6 m; předvolby včetně ±4,5 a ±6.
@@ -119,16 +129,24 @@ třímetrová pánev a závěrečný test fáze.
 - Střed buňky zůstává přesný; kraj mapy a díry berou výšku nejbližší buňky.
 - Terén se dělí podle povrchů; cesty jsou jemné a 2,5 cm nad zemí.
 - Hráčova výška se dopočítá z terénu; sav drží jen x, z a natočení.
+- Pláž je štětec, ne razítko: mění jen existující buňky a svah si staví
+  prstenci po 0,3 m. Novou zem z prázdna dál umí jen Herní plocha.
+- Plynulý okraj = jeden prstenec písku navíc za posledním schodem.
+- V pánvi pláže mizí objekty a tráva; na svazích se posouvají s terénem.
+- Vlnění hranice povrchů je jen vizuální: buňka má v datech pořád jeden
+  povrch, vlna vzniká až při kreslení podlahy.
+- Kopce a stupně se staví výškami, ne skládáním skalních bloků; staré skalní
+  modely jsou z projektu odstraněné i s kusy v mapě.
 - Mapa a sav se do fáze 6 nemění; voda přinese novou verzi mapy.
 
 **Kde co je:**
 - `src/data/maps/layoutStore.js` — rozsah výšek, krok, předvolby.
 - `src/editor/heightPanel.js` — okno Výška; `areaPanel.js`, `brushPanel.js` — plocha a štětce.
-- `src/editor/editorMode.js`, `mapEditor.js`, `editorHud.js` — editor, výběr, panely.
+- `src/editor/editorMode.js`, `mapEditor.js`, `editorHud.js` — editor, výběr, panely, pláž.
 - `src/systems/gridSystem.js`, `inputSystem.js` — hover, levé/pravé tažení.
 - `src/utils/terrainField.js`, `src/systems/terrainSystem.js` — výškový model, terén, hrana.
 - `src/systems/pathSystem.js`, `playerSystem.js`, `cameraSystem.js` — cesty a hráč.
-- `src/data/catalogs/decorations.js`, `brushes.js` — písek, povrchy a štětce pro pláž.
+- `src/data/catalogs/brushes.js` — štětce včetně Pláže; `decorations.js` — písek a povrchy.
 - `src/data/maps/glade/map.json` — aktuální mapa; `README.md` — plán a tento handoff.
 - `.clinerules` — pravidla práce.
 
@@ -142,21 +160,22 @@ třímetrová pánev a závěrečný test fáze.
 - Nezasahovat do jiných projektů; dočasné soubory jen do `tools/_temp/`.
 
 **Otevřené otázky pro uživatele:**
-- Pláž: nový štětec/razítko, nebo stávající Herní plocha?
-- Plynulý okraj: checkbox ano/ne, a jak široký?
-- Třímetrová pánev: přesný tvar a hloubka dna?
+- Pláž: štětec je hotový; čeká se na vizuální test a potvrzení hloubek a okraje.
+- Plynulý okraj: zatím jen zapnuto/vypnuto a jeden prstenec navíc; šířku doladit podle testu.
+- Třímetrová pánev: tvar se kreslí štětcem, hloubka dna je předvolba −3 m.
 - Voda: až po dokončení pláže (fáze 6).
 
 **Test předání:**
 - Ověřit, že sedí poslední funkční commit a po commitu handoffu je strom čistý.
 - Ověřit, že výškový panel, výběr, hráč, cesty a hrana fungují.
-- Pláž zatím neexistuje; voda také ne.
+- Ověřit štětec Pláž: hloubka, břeh, Plynulý okraj a Zpět na trávu.
+- Voda zatím neexistuje.
 
 **První kroky dalšího agenta:**
 1. Přečíst README/Předání a `.clinerules`.
 2. Ověřit git stav.
-3. Nabídnout uživateli variantu pláže a počkat na potvrzení.
-4. Připravit plán, přepnout do Act, implementovat, nechat otestovat.
+3. Nechat uživatele otestovat pláž a počkat na potvrzení.
+4. Případné úpravy pláže dělat jen v pláži, ne v jiných nástrojích.
 5. Po commitu uživatelem pokračovat fází 6.
 
 ### Voda
@@ -165,7 +184,7 @@ Voda zatím ve hře není. Dřívější dlaždicová logika i modely byly z pro
 odstraněny; nová voda bude vycházet z hladiny a z výšky terénu. Postup a
 jednotlivé kroky jsou v sekci „Plán: terén, písek a voda“ níže.
 
-Aktuální plán: dokončit fázi 5 (pláž), pak fáze 6 voda a fáze 7 vzhled vody.
+Aktuální plán: otestovat pláž (fáze 5), pak fáze 6 voda a fáze 7 vzhled vody.
 Samostatně pak výroba ve strojích a plnění batohu, výběr a stav stroje
 kliknutím, výroba předmětů z batohu.
 
@@ -297,12 +316,12 @@ plynulé, cesty/tráva/stromy sedí na zemi, okraj mapy je uzavřený.
 **Cíl:** jezero s pláží a hráč, který po něm chodí.
 
 - Výšky v metrech, rozsah −6 až +6 m a krok 0,3 m. **Hotovo.**
-- Pláž razítkem: pásy písku po 0,3 m; spojitá zem z nich udělá svah. Volitelně
-  volba Plynulý okraj. **Zbývá.**
+- Pláž štětcem: písek ve zvolené hloubce a pásy písku po 0,3 m kolem; spojitá
+  zem z nich udělá svah. Volitelně Plynulý okraj. **Hotovo, čeká na test.**
 - Hráč sleduje výšku země; dojde do jámy i na kopec. **Hotovo.**
 
-**Stav:** hráč, výšky, výškový panel a výběr buněk jsou hotové; zbývá pláž
-a závěrečný test třímetrové pánve.
+**Stav:** hráč, výšky, výškový panel, výběr buněk i štětec Pláž jsou hotové;
+zbývá závěrečný test třímetrové pánve.
 
 **Hotovo, když:** třímetrová pánev má pozvolné břehy, hráč po nich chodí a stojí
 na zemi.
@@ -364,7 +383,7 @@ ambientní zvuk, případně zrcadlení.
 
 ### Otevřená rozhodnutí
 
-- Fáze 5: přesný rozsah a krok výšek.
+- Fáze 5: šířka Plynulého okraje (zatím jeden prstenec navíc).
 - Fáze 6: hladina editovatelná v editoru (návrh ano).
 - Fáze 8: mělká + zákaz hluboké, nebo plavání.
 - Fáze 8: zvukové soubory.
@@ -400,13 +419,23 @@ spolu se zemí. Výšky jdou od −6 do +6 m; jediný krok je 0,3 m. Kopec
 a Prohlubeň dělají totéž plošně; jejich Srovnat buňky srovná na nulu,
 nemaže je. Výšky v jejich podmenu odpovídají skutečné výšce v metrech.
 
+**Pláž** je štětec v paletě zón: vybereš hloubku (−1,5 / −2,4 / −3 m)
+a namaluješ plochu. Písek se položí do zvolené hloubky a kolem ní se přidají
+prstence písku po 0,3 m až k původní zemi, ze kterých spojitá zem udělá břeh.
+Zaškrtnutý **Plynulý okraj** přidá ještě jeden prstenec písku za poslední schod.
+V namalované ploše zmizí stromy, kameny i tráva; na svazích se objekty posunou
+s terénem. Tlačítko **Zpět na trávu** srovná výšku na 0 a vrátí trávu.
+
 Země je spojitá: výška se mezi středy buněk dopočítává, takže kopce a prohlubně
 mají plynulé svahy a na okraji mapy je hliněný bok. Za okrajem mapy se počítá
 s výškou nejbližší buňky, takže se zem na okraji nezvedá zpátky nahoru.
 Cesty, tráva, objekty i kurzor v editoru sedí na skutečné výšce země. Cesty
 se skládají z jemných kousků, takže kopírují zaoblení země i v kopci a v příkopu.
-Hráč už chodí po skutečné výšce země; hluboká pláž a voda přijdou v dalších
-krocích.
+Hráč už chodí po skutečné výšce země; voda přijde v dalším kroku.
+
+Hranice mezi povrchy se při kreslení země plynule rozvlní, aby nepůsobila
+jako podle pravítka. Data se tím nemění — buňka má pořád jeden povrch, takže
+se po ní chodí a staví stejně jako dřív a změna je vidět jen na pohled.
 
 V okně **Herní plocha** se k razítku vybírá podklad a výška; počítadlo předem
 ukáže, kolik buněk se přepíše a kolik jich už v mapě je. Levé tlačítko buňky

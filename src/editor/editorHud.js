@@ -46,7 +46,6 @@ export default class EditorHud {
     const grid = root.querySelector('.editor-panel__grid');
     for (const key of BRUSH_KEYS) {
       const brush = BRUSHES[key];
-      if (brush.shape === 'perimeter') continue;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.dataset.brush = key;

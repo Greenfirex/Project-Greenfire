@@ -6,7 +6,6 @@ export const ASSET_DIRS = {
   wood: 'assets/nature/wood/',
   textures: 'assets/nature/textures/',
   pathTextures: 'assets/nature/textures/',
-  cliffs: 'assets/nature/cliffs/',
   ores: 'assets/nature/ores/',
   props: 'assets/props/',
   tools: 'assets/props/KayKit_RPGToolsBits/',

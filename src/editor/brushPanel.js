@@ -22,6 +22,12 @@ export default class BrushPanel {
     this.draftMode = 'add';
     this.countValue = 0;
     this.slopeCount = 0;
+    this.rimCount = 0;
+    this.option = null;
+    this.optionInput = null;
+    this.optionKey = null;
+    this.optionValue = false;
+    this.onOption = null;
   }
 
   mount() {
@@ -34,6 +40,10 @@ export default class BrushPanel {
         <button type="button" class="brush-panel__close" title="Zrušit (Esc)">×</button>
       </div>
       <div class="brush-panel__styles is-hidden"></div>
+      <label class="brush-panel__option is-hidden">
+        <input type="checkbox" />
+        <span class="brush-panel__option-label"></span>
+      </label>
       <div class="brush-panel__tools">
         <button type="button" class="brush-panel__erase" title="Mazat (X)">Mazat</button>
         <button type="button" class="brush-panel__undo" title="Vrátit poslední úpravu (Z)">Zpět</button>
@@ -50,6 +60,13 @@ export default class BrushPanel {
     this.title = root.querySelector('.brush-panel__title');
     this.count = root.querySelector('.brush-panel__count');
     this.styles = root.querySelector('.brush-panel__styles');
+    this.option = root.querySelector('.brush-panel__option');
+    this.optionInput = root.querySelector('.brush-panel__option input');
+    if (this.optionInput) {
+      this.optionInput.addEventListener('change', () => {
+        if (this.onOption && this.optionKey) this.onOption(this.optionKey, this.optionInput.checked);
+      });
+    }
 
     root.querySelector('.brush-panel__apply').addEventListener('click', () => {
       if (this.onApply) this.onApply();
@@ -69,22 +86,38 @@ export default class BrushPanel {
     return root;
   }
 
-  open(brushKey, cellCount = 0, styleKey = 'dirt') {
+  open(brushKey, cellCount = 0, styleKey = 'dirt', optionValue = false) {
     this.mount();
     const brush = getBrush(brushKey);
     this.brushKey = brushKey;
     this.pathStyle = styleKey || 'dirt';
     this.title.textContent = brush ? brush.label : brushKey;
     this.buildStyles(brush);
+    this.buildOption(brush, optionValue);
     const heightOnly = Boolean(brush && (Number.isFinite(brush.height) || brush.heights));
     const surfaceOnly = Boolean(brush && brush.surfaceOnly);
+    const surfaceBrush = Boolean(brush && brush.surface);
     const erase = this.root.querySelector('.brush-panel__erase');
     if (erase) {
-      erase.textContent = heightOnly ? 'Srovnat' : surfaceOnly ? 'Na trávu' : 'Mazat';
-      erase.title = heightOnly ? 'Srovnat na 0 (X)' : surfaceOnly ? 'Vrátit na trávu (X)' : 'Mazat (X)';
+      erase.textContent = surfaceBrush ? 'Zpět na trávu' : heightOnly ? 'Srovnat' : surfaceOnly ? 'Na trávu' : 'Mazat';
+      erase.title = surfaceBrush
+        ? 'Vrátit trávu a srovnat na 0 (X)'
+        : heightOnly ? 'Srovnat na 0 (X)' : surfaceOnly ? 'Vrátit na trávu (X)' : 'Mazat (X)';
     }
     this.setCount(cellCount);
     this.root.classList.add('is-open');
+  }
+
+  buildOption(brush, value) {
+    if (!this.option) return;
+    const option = brush && brush.option;
+    this.optionKey = option ? option.key : null;
+    this.optionValue = Boolean(value);
+    this.option.classList.toggle('is-hidden', !option);
+    if (!option) return;
+    const label = this.option.querySelector('.brush-panel__option-label');
+    if (label) label.textContent = option.label;
+    if (this.optionInput) this.optionInput.checked = this.optionValue;
   }
 
   setDraftMode(mode) {
@@ -144,9 +177,10 @@ export default class BrushPanel {
     this.buildStyles(getBrush(this.brushKey));
   }
 
-  setCount(count, slopeCount = 0) {
+  setCount(count, slopeCount = 0, rimCount = 0) {
     this.countValue = count || 0;
     this.slopeCount = slopeCount || 0;
+    this.rimCount = rimCount || 0;
     this.refreshCount();
   }
 
@@ -157,11 +191,13 @@ export default class BrushPanel {
     const brush = getBrush(this.brushKey);
     const heightOnly = Boolean(brush && (Number.isFinite(brush.height) || brush.heights));
     const surfaceOnly = Boolean(brush && brush.surfaceOnly);
+    const surfaceBrush = Boolean(brush && brush.surface);
     const prefix = this.draftMode === 'remove'
-      ? (heightOnly ? 'Srovná se' : surfaceOnly ? 'Na trávu' : 'Ke smazání')
+      ? (surfaceBrush ? 'Vrátí se' : heightOnly ? 'Srovná se' : surfaceOnly ? 'Na trávu' : 'Ke smazání')
       : 'Vybráno';
     let text = `${prefix}: ${n} ${word}`;
     if (this.slopeCount > 0) text += ` · svah ${this.slopeCount}`;
+    if (this.rimCount > 0) text += ` · okraj ${this.rimCount}`;
     this.count.textContent = text;
     const apply = this.root.querySelector('.brush-panel__apply');
     if (apply) apply.disabled = n === 0;

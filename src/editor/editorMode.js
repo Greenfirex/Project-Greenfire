@@ -147,6 +147,20 @@ export default class EditorMode {
     return 'dirt';
   }
 
+  brushOptionValue(brushKey) {
+    const brush = BRUSHES[brushKey];
+    if (!brush || !brush.option) return false;
+    const opts = this.brushOpts[brushKey];
+    return Boolean(opts && opts[brush.option.key]);
+  }
+
+  setBrushOption(optionKey, value) {
+    const brush = BRUSHES[this.brushKey];
+    if (!brush || !brush.option || brush.option.key !== optionKey) return;
+    this.brushOpts[this.brushKey] = { ...(this.brushOpts[this.brushKey] || {}), [optionKey]: Boolean(value) };
+    if (this.draft && this.onDraftChange) this.onDraftChange(this.draft);
+  }
+
   setHeightLevel(level) {
     const n = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, Math.round(Number(level))));
     if (!Number.isFinite(n)) return;
@@ -360,6 +374,11 @@ export default class EditorMode {
     return Boolean(brush && (brush.height || brush.heights));
   }
 
+  get isSurfaceBrush() {
+    const brush = BRUSHES[this.brushKey];
+    return Boolean(brush && brush.surface);
+  }
+
   cellHeightValue(cx, cz) {
     const floor = floorCellAt(this.layout, cx, cz);
     return floor ? (floor.liftY || 0) : (layerLiftAt(this.layout, cx, cz) || 0);
@@ -411,7 +430,63 @@ export default class EditorMode {
     const brush = BRUSHES[draft.brushKey];
     if (!brush || !(brush.height || brush.heights)) return null;
     const zone = [...draft.cells].map(parseCell);
+    if (brush.surface) {
+      if (draft.mode === 'remove') return this.beachRemoveShape(draft.brushKey, zone);
+      return this.surfaceHeightShape(draft.brushKey, zone, draft.mode);
+    }
     return this.heightShape(draft.brushKey, zone, draft.mode);
+  }
+
+  beachRemoveShape(brushKey, zone) {
+    const brush = BRUSHES[brushKey];
+    const surface = brush.surface;
+    const depths = Object.values(brush.heights || {}).map((level) => Math.abs(level));
+    const depth = depths.length ? Math.max(...depths) : 0;
+    const present = new Set(worldCells(this.layout).map(([cx, cz]) => cellKey(cx, cz)));
+    const seen = new Set(zone.map((entry) => cellKey(entry.cx, entry.cz)));
+    const slope = [];
+    let frontier = zone.map((entry) => ({ cx: entry.cx, cz: entry.cz }));
+    for (let level = depth - 1; level >= 0; level -= 1) {
+      const next = [];
+      for (const entry of frontier) {
+        for (const [dx, dz] of AROUND) {
+          const cx = entry.cx + dx;
+          const cz = entry.cz + dz;
+          const key = cellKey(cx, cz);
+          if (seen.has(key) || !present.has(key)) continue;
+          if (this.cellHeightValue(cx, cz) >= 0 && this.surfaceAt(cx, cz) !== surface) continue;
+          seen.add(key);
+          const ring = { cx, cz };
+          slope.push(ring);
+          next.push(ring);
+        }
+      }
+      if (!next.length) break;
+      frontier = next;
+    }
+    return { zone, slope, rim: [] };
+  }
+
+  surfaceHeightShape(brushKey, zone, mode) {
+    const shape = this.heightShape(brushKey, zone, mode);
+    const brush = BRUSHES[brushKey];
+    if (!brush || !brush.option || !this.brushOptionValue(brushKey)) {
+      return { zone: shape.zone, slope: shape.slope, rim: [] };
+    }
+    const used = new Set([...shape.zone, ...shape.slope].map((entry) => cellKey(entry.cx, entry.cz)));
+    const present = new Set(worldCells(this.layout).map(([cx, cz]) => cellKey(cx, cz)));
+    const rim = [];
+    for (const entry of shape.slope) {
+      for (const [dx, dz] of AROUND) {
+        const cx = entry.cx + dx;
+        const cz = entry.cz + dz;
+        const key = cellKey(cx, cz);
+        if (used.has(key) || !present.has(key)) continue;
+        used.add(key);
+        rim.push({ cx, cz });
+      }
+    }
+    return { zone: shape.zone, slope: shape.slope, rim };
   }
 
   applyHeightDraft(brushKey, zone, mode) {
@@ -689,6 +764,15 @@ export default class EditorMode {
     }
     this.pushHistory();
     const brush = BRUSHES[brushKey] || {};
+    if (brush.surface) {
+      const zone = [...cells].map(parseCell);
+      const count = this.applyBeach(brushKey, zone, mode);
+      if (!count) this.history.pop();
+      this.draft.cells.clear();
+      if (this.onDraftChange) this.onDraftChange(this.draft);
+      this.scheduleRegenerate();
+      return count;
+    }
     if (brush.height || brush.heights) {
       const zone = [...cells].map(parseCell);
       const count = this.applyHeightDraft(brushKey, zone, mode);
@@ -754,6 +838,58 @@ export default class EditorMode {
     if (this.onDraftChange) this.onDraftChange(this.draft);
     this.scheduleRegenerate();
     return count;
+  }
+
+  applyBeach(brushKey, zone, mode) {
+    const brush = BRUSHES[brushKey];
+    const surface = brush.surface;
+    const shape = mode === 'remove'
+      ? this.beachRemoveShape(brushKey, zone)
+      : this.surfaceHeightShape(brushKey, zone, mode);
+    let count = 0;
+    if (mode === 'remove') {
+      for (const entry of shape.zone) {
+        this.dropGrassCell(entry.cx, entry.cz);
+        this.setCellHeight(entry.cx, entry.cz, 0);
+        this.paintSurface(entry.cx, entry.cz, DEFAULT_FLOOR);
+        count += 1;
+      }
+      for (const entry of [...shape.slope, ...shape.rim]) {
+        const height = this.cellHeightValue(entry.cx, entry.cz);
+        if (height >= 0 && this.surfaceAt(entry.cx, entry.cz) !== surface) continue;
+        if (height < 0) this.setCellHeight(entry.cx, entry.cz, 0);
+        this.paintSurface(entry.cx, entry.cz, DEFAULT_FLOOR);
+        count += 1;
+      }
+      return count;
+    }
+    for (const entry of shape.zone) {
+      dropDecorationCell(this.layout, entry.cx, entry.cz);
+      this.dropGrassCell(entry.cx, entry.cz);
+      this.paintSurface(entry.cx, entry.cz, surface);
+      this.setCellHeight(entry.cx, entry.cz, entry.height);
+      count += 1;
+    }
+    for (const entry of shape.slope) {
+      this.paintSurface(entry.cx, entry.cz, surface);
+      this.setCellHeight(entry.cx, entry.cz, entry.height);
+      count += 1;
+    }
+    for (const entry of shape.rim) {
+      this.paintSurface(entry.cx, entry.cz, surface);
+      count += 1;
+    }
+    return count;
+  }
+
+  dropGrassCell(cx, cz) {
+    if (!this.layout.grass) return;
+    this.layout.grass = this.layout.grass.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+  }
+
+  surfaceAt(cx, cz) {
+    const floor = floorCellAt(this.layout, cx, cz);
+    return floor ? floor.key : null;
   }
 
   zoneEntries(brushKey, brush, cellKeys, mode) {
@@ -862,6 +998,8 @@ export default class EditorMode {
   }
 
   draftHasSame(cx, cz) {
+    const brush = BRUSHES[this.brushKey];
+    if (brush && brush.surface) return this.surfaceAt(cx, cz) === brush.surface;
     const keys = this.draftKeys;
     if (!keys.length) return false;
     const tile = this.draftTileAt(cx, cz);

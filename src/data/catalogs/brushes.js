@@ -11,6 +11,10 @@ function levelMeters(level) {
   return `${String(n).replace('.', ',')} m`;
 }
 
+function depthMeters(level) {
+  return `−${levelMeters(level)}`;
+}
+
 const SURFACE_BRUSH = SURFACES.length
   ? {
       label: 'Povrch',
@@ -73,13 +77,6 @@ export const BRUSHES = {
     style: 'dirt',
     styles: ['dirt', 'stone', 'wood'],
   },
-  cliff_rim: {
-    label: 'Rám útesů',
-    shape: 'perimeter',
-    stack: 2,
-    pool: ['cliff_large', 'cliff_half'],
-    deco: true,
-  },
   hill: {
     label: 'Kopec',
     shape: 'blob',
@@ -104,6 +101,21 @@ export const BRUSHES = {
       deep: levelMeters(4),
     },
     falloff: true,
+  },
+  beach: {
+    label: 'Pláž',
+    shape: 'blob',
+    style: 'shallow',
+    styles: ['shallow', 'mid', 'deep'],
+    heights: { shallow: -5, mid: -8, deep: -10 },
+    styleLabels: {
+      shallow: depthMeters(5),
+      mid: depthMeters(8),
+      deep: depthMeters(10),
+    },
+    falloff: true,
+    surface: 'floor_sand',
+    option: { key: 'smoothEdge', label: 'Plynulý okraj' },
   },
   ore: {
     label: 'Ruda',

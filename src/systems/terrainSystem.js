@@ -23,6 +23,32 @@ const SURFACE_SUB = 4;
 const SKIRT_DEPTH = 2;
 const WALL_TILE = 3;
 const WALL_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
+const SURFACE_WAVE = 0.28;
+const SURFACE_WAVE_LONG = 1.1;
+const SURFACE_WAVE_SHORT = 2.7;
+const SURFACE_SIDES = [
+  { dx: -1, dz: 0 },
+  { dx: 1, dz: 0 },
+  { dx: 0, dz: -1 },
+  { dx: 0, dz: 1 },
+];
+
+function hash01(a, b) {
+  const n = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
+  return n - Math.floor(n);
+}
+
+function wavePhase(line) {
+  return hash01(Math.round(line * 2), 7) * Math.PI * 2;
+}
+
+function waveOffset(t, line) {
+  const phase = wavePhase(line);
+  return (
+    Math.sin(t * SURFACE_WAVE_LONG + phase) * 0.65
+    + Math.sin(t * SURFACE_WAVE_SHORT + phase * 1.7) * 0.35
+  ) * SURFACE_WAVE;
+}
 
 function color3(rgb) {
   return new Color3(rgb[0], rgb[1], rgb[2]);
@@ -163,39 +189,89 @@ export default class TerrainSystem {
     const step = CELL_SIZE / SURFACE_SUB;
     const half = CELL_SIZE / 2;
     const groups = new Map();
+    const keys = new Map();
+    for (const [cx, cz] of cells) {
+      const floor = floorCellAt(this.layout, cx, cz);
+      keys.set(`${cx},${cz}`, floor && floor.key ? floor.key : DEFAULT_FLOOR);
+    }
+    const keyAt = (cx, cz) => keys.get(`${cx},${cz}`) || null;
     const groupFor = (key) => {
       let group = groups.get(key);
       if (!group) {
-        group = { positions: [], indices: [], uvs: [], colors: [], vertices: new Map(), tile: 1 };
+        const cfg = this.surfaceConfig(key);
+        group = {
+          positions: [],
+          indices: [],
+          uvs: [],
+          colors: [],
+          vertices: new Map(),
+          tile: (cfg && cfg.tile) || 1,
+        };
         groups.set(key, group);
       }
       return group;
     };
-    const slot = (group, x, z) => {
+    const slot = (group, x, z, px = x, pz = z) => {
       const id = `${x},${z}`;
       const found = group.vertices.get(id);
       if (found !== undefined) return found;
       const index = group.positions.length / 3;
       group.vertices.set(id, index);
-      group.positions.push(x, this.heightAt(x, z), z);
-      group.uvs.push(x / group.tile, z / group.tile);
+      group.positions.push(px, this.heightAt(px, pz), pz);
+      group.uvs.push(px / group.tile, pz / group.tile);
       group.colors.push(tint.r, tint.g, tint.b, 1);
       return index;
     };
 
+    const waves = new Map();
+    const waveAt = (gx, gz) => {
+      const id = `${Math.round(gx * 2)},${Math.round(gz * 2)}`;
+      let entry = waves.get(id);
+      if (!entry) {
+        entry = { x: 0, z: 0 };
+        waves.set(id, entry);
+      }
+      return entry;
+    };
     for (const [cx, cz] of cells) {
-      const floor = floorCellAt(this.layout, cx, cz);
-      const key = floor && floor.key ? floor.key : DEFAULT_FLOOR;
-      const cfg = this.surfaceConfig(key);
-      if (!cfg) continue;
+      const key = keyAt(cx, cz);
+      if (!this.surfaceConfig(key)) continue;
+      const x0 = cx * CELL_SIZE - half;
+      const z0 = cz * CELL_SIZE - half;
+      for (const side of SURFACE_SIDES) {
+        const otherKey = keyAt(cx + side.dx, cz + side.dz);
+        if (!otherKey || otherKey === key) continue;
+        if (side.dx !== 0) {
+          const edgeX = cx * CELL_SIZE + side.dx * half;
+          for (let j = 0; j <= SURFACE_SUB; j += 1) {
+            const gz = z0 + j * step;
+            waveAt(edgeX, gz).x = waveOffset(gz, edgeX);
+          }
+        } else {
+          const edgeZ = cz * CELL_SIZE + side.dz * half;
+          for (let i = 0; i <= SURFACE_SUB; i += 1) {
+            const gx = x0 + i * step;
+            waveAt(gx, edgeZ).z = waveOffset(gx, edgeZ);
+          }
+        }
+      }
+    }
+
+    for (const [cx, cz] of cells) {
+      const key = keyAt(cx, cz);
+      if (!this.surfaceConfig(key)) continue;
       const group = groupFor(key);
-      group.tile = cfg.tile || group.tile;
       const x0 = cx * CELL_SIZE - half;
       const z0 = cz * CELL_SIZE - half;
       const grid = [];
       for (let i = 0; i <= SURFACE_SUB; i += 1) {
         const row = [];
-        for (let j = 0; j <= SURFACE_SUB; j += 1) row.push(slot(group, x0 + i * step, z0 + j * step));
+        for (let j = 0; j <= SURFACE_SUB; j += 1) {
+          const gx = x0 + i * step;
+          const gz = z0 + j * step;
+          const wave = waves.get(`${Math.round(gx * 2)},${Math.round(gz * 2)}`);
+          row.push(slot(group, gx, gz, gx + (wave ? wave.x : 0), gz + (wave ? wave.z : 0)));
+        }
         grid.push(row);
       }
       for (let i = 0; i < SURFACE_SUB; i += 1) {

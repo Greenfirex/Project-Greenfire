@@ -386,122 +386,6 @@ export const DECORATION_TYPES = {
       color: [1.05, 0.98, 0.86],
     },
   },
-  cliff_large: {
-    displayName: 'Skalní stěna',
-    model: `${ASSET_DIRS.cliffs}cliff_large_rock.glb`,
-    scale: 2.0,
-    height: 2,
-    radius: 1.15,
-    footprint: { kind: 'edge', depth: 0.21 },
-    blocks: true,
-    castsShadow: true,
-    kind: 'cliff',
-  },
-  cliff_half: {
-    displayName: 'Nízká skála',
-    model: `${ASSET_DIRS.cliffs}cliff_half_rock.glb`,
-    scale: 2.0,
-    height: 1,
-    radius: 1.15,
-    footprint: { kind: 'edge', depth: 0.21 },
-    blocks: true,
-    castsShadow: true,
-    kind: 'cliff',
-  },
-  cliff_cornerLarge: {
-    displayName: 'Skalní roh — velký',
-    model: `${ASSET_DIRS.cliffs}cliff_cornerLarge_rock.glb`,
-    scale: 2.0,
-    height: 2,
-    radius: 1.5,
-    footprint: { kind: 'corner', depth: 0.5 },
-    blocks: true,
-    castsShadow: true,
-    kind: 'cliff',
-  },
-  cliff_cornerTop: {
-    displayName: 'Skalní roh — s trávou',
-    model: `${ASSET_DIRS.cliffs}cliff_cornerTop_rock.glb`,
-    scale: 2.0,
-    height: 2,
-    radius: 1.5,
-    footprint: { kind: 'corner', depth: 0.27 },
-    blocks: true,
-    castsShadow: true,
-    kind: 'cliff',
-  },
-  cliff_cornerHalf: {
-    displayName: 'Nízký skalní roh',
-    model: `${ASSET_DIRS.cliffs}cliff_halfCorner_rock.glb`,
-    scale: 2.0,
-    height: 1,
-    radius: 1.5,
-    footprint: { kind: 'corner', depth: 0.5 },
-    blocks: true,
-    castsShadow: true,
-    kind: 'cliff',
-  },
-  cliff_top: {
-    displayName: 'Skalní hrana',
-    model: `${ASSET_DIRS.cliffs}cliff_top_rock.glb`,
-    scale: 2.0,
-    height: 2,
-    radius: 1.15,
-    footprint: { kind: 'edge', depth: 0.35 },
-    blocks: true,
-    castsShadow: true,
-    kind: 'cliff',
-  },
-  cliff_steps: {
-    displayName: 'Skalní schody',
-    model: `${ASSET_DIRS.cliffs}cliff_steps_rock.glb`,
-    scale: 2.0,
-    height: 2,
-    radius: 1.3,
-    blocks: false,
-    castsShadow: true,
-    kind: 'cliff',
-  },
-  cliff_slope: {
-    displayName: 'Skalní rampa',
-    model: `${ASSET_DIRS.cliffs}cliff_blockSlope_rock.glb`,
-    scale: 2.0,
-    height: 2,
-    radius: 1.3,
-    blocks: false,
-    castsShadow: true,
-    kind: 'cliff',
-  },
-  cliff_slopeWalls: {
-    displayName: 'Skalní rampa s bočnicemi',
-    model: `${ASSET_DIRS.cliffs}cliff_blockSlopeWalls_rock.glb`,
-    scale: 2.0,
-    height: 2,
-    radius: 1.3,
-    blocks: false,
-    castsShadow: true,
-    kind: 'cliff',
-  },
-  cliff_levelMid: {
-    displayName: 'Kopec — stupeň',
-    model: `${ASSET_DIRS.cliffs}cliff_blockHalf_rock.glb`,
-    scale: 2.0,
-    height: 1,
-    radius: 1.0,
-    blocks: true,
-    castsShadow: true,
-    kind: 'cliff',
-  },
-  cliff_levelHigh: {
-    displayName: 'Kopec — vrchol',
-    model: `${ASSET_DIRS.cliffs}cliff_block_rock.glb`,
-    scale: 2.0,
-    height: 2,
-    radius: 1.0,
-    blocks: true,
-    castsShadow: true,
-    kind: 'cliff',
-  },
   ore_iron: {
     displayName: 'Železná ruda',
     model: `${ASSET_DIRS.ores}ore_deposit.glb`,
@@ -546,8 +430,6 @@ export const DECORATION_KEYS = Object.keys(DECORATION_TYPES);
 
 export const TREE_KEYS = DECORATION_KEYS.filter((key) => DECORATION_TYPES[key].kind === 'tree');
 
-export const CLIFF_KEYS = DECORATION_KEYS.filter((key) => DECORATION_TYPES[key].kind === 'cliff');
-
 export function getDecoration(key) {
   const def = DECORATION_TYPES[key];
   if (!def || def.highlight) return def;
@@ -566,8 +448,7 @@ export function surfaceEntries() {
 
 export function decoRadius(def) {
   if (def.blocks === false) return 0;
-  if (def.radius) return def.radius;
-  return def.kind === 'cliff' ? 0.8 : 0;
+  return def.radius || 0;
 }
 
 export function decoFootprint(def) {

@@ -1,14 +1,12 @@
 // Etapy stavby světa pro načítací obrazovku — názvy i pořadí vycházejí z druhů
 // objektů v katalogu dekorací, takže nová kategorie se objeví sama.
 import { getDecoration } from './decorations.js';
-import { pieceCount } from '../../systems/pieceCount.js';
 
-const KIND_ORDER = ['floor', 'path', 'ground', 'cliff', 'tree', 'log', 'prop', 'rock', 'ore'];
+const KIND_ORDER = ['floor', 'path', 'ground', 'tree', 'log', 'prop', 'rock', 'ore'];
 
 const KIND_LABELS = {
   floor: 'Rovnám podlahu, ať si nezvrtneš kotník',
   path: 'Ušlapávám cestičky',
-  cliff: 'Hrnu kopce lopatou',
   tree: 'Sázím stromy, jen ať mi neutečou',
   log: 'Kutálím kmeny',
   ground: 'Rozhazuji kvítí a keře',
@@ -74,7 +72,7 @@ function countPieces(layout, keys) {
       if (!keys.has(part === 'path' ? 'path' : entry.key)) continue;
       const def = getDecoration(part === 'path' ? 'path' : entry.key);
       if (!def) continue;
-      total += pieceCount(def);
+      total += 1;
     }
   }
   return total;

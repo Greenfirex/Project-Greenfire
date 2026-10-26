@@ -6,21 +6,12 @@ import '@babylonjs/core/Meshes/mesh';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { cellToWorldCoords, worldToCellCoords, cellKey, indexToCellCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { getDecoration, decoHeight } from '../data/catalogs/decorations.js';
-import { pieceCount } from './pieceCount.js';
 import { deriveBlocked } from '../data/maps/layoutStore.js';
 import { resolveModel, instantiateModel, ownMaterials, whenModelsIdle } from '../utils/assetLoader.js';
 import { tintTemplate, forgetTints } from '../utils/decoTint.js';
 import PathSystem from './pathSystem.js';
 
 const PATH_SURFACE = 0.02;
-
-const SKIRT_KEYS = new Set([
-  'cliff_large', 'cliff_half', 'cliff_top', 'cliff_cornerLarge', 'cliff_cornerTop', 'cliff_halfCorner',
-]);
-
-function isSkirt(key) {
-  return SKIRT_KEYS.has(key);
-}
 
 function cellGap(shape, x, z) {
   if (shape.footprint) {
@@ -101,7 +92,7 @@ export default class DecoSystem {
   blockCount(entry) {
     const def = getDecoration(entry.key);
     if (!def) return 0;
-    return pieceCount(def);
+    return 1;
   }
 
   placePiece(entry, section) {
@@ -180,7 +171,6 @@ export default class DecoSystem {
     const top = this.entryHeight(entry) + decoHeight(def);
     const key = cellKey(entry.cx, entry.cz);
     const solid = def.blocks !== false;
-    if (isSkirt(entry.key)) return;
     if (section !== 'deco') this.floorLifts.set(key, entry.liftY || 0);
     if (section === 'path') this.surfaceKeys.set(key, entry.key);
     const current = this.columnTop.get(key);
@@ -286,7 +276,7 @@ export default class DecoSystem {
 
   blocksPlaced() {
     let total = this.surfaceKeys.size;
-    for (const node of this.nodes) total += pieceCount(node.metadata?.def || {});
+    for (const node of this.nodes) total += 1;
     return total;
   }
 
