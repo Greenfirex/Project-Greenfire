@@ -207,7 +207,7 @@ plynulé, cesty/tráva/stromy sedí na zemi, okraj mapy je uzavřený.
 
 **Cíl:** jezero s pláží a hráč, který po něm chodí.
 
-- Výšky v metrech, širší rozsah (návrh −6 až +3 m) a jemnější krok (návrh 0,3 m).
+- Výšky v metrech, rozsah −6 až +6 m a krok 0,3 m.
 - Pláž razítkem: pásy písku po 0,3 m; spojitá zem z nich udělá svah. Volitelně
   volba Plynulý okraj.
 - Hráč sleduje výšku země; dojde do jámy i na kopec.
@@ -291,10 +291,10 @@ Plocha je razítko: nové buňky vzniknou, existující se přepíšou i s objek
 mazání udělá v mapě skutečnou díru.
 Tlačítka výšky v panelu určují, jak vysoko se dlaždice po Aplikovat pokládají.
 Výška má vlastní okénko jako Herní plocha; otevírá se při přepnutí na Výšku.
-Výšky jdou od −6 do +3 m; předvolby vybírají hrubé hodnoty, +/−0,3 m doladí
-jemně a +/−4,5 m skočí hrubě (na hranicích se zastaví). Levé tlačítko buňky
-přidává do výběru, pravé je odebírá; na nulu se srovnává předvolbou 0 m.
-Návrh se dá kdykoli zrušit.
+Výšky jdou od −6 do +6 m; předvolby jsou −6, −4,5, −3, −1,5, 0, 1,5, 3,
+4,5 a 6 m; jediný mezikrok je +/−0,3 m. Levé tlačítko buňky přidává do výběru,
+pravé je odebírá; na nulu se srovnává předvolbou 0 m. Návrh se dá kdykoli
+zrušit.
 Kopec a Prohlubeň si svah staví samy: v jejich okně vybereš výšku a namalovaná
 plocha zůstane plochá, kolem ní se přidá svah po 0,3 m až do 0.
 
@@ -304,8 +304,8 @@ Nový povrch je jeden záznam v katalogu dekorací vedle `floor_grass` a
 `floor_sand`; terén pak každý povrch kreslí vlastní texturou a velikostí dlaždice.
 
 **Výška** mění jen výšku: podklad zůstane a objekty na buňce se posunou
-spolu se zemí. Výšky jdou od −6 do +3 m; jemný krok je 0,3 m a hrubý 4,5 m.
-Kopec a Prohlubeň dělají totéž plošně; jejich Srovnat buňky srovná na nulu,
+spolu se zemí. Výšky jdou od −6 do +6 m; jediný krok je 0,3 m. Kopec
+a Prohlubeň dělají totéž plošně; jejich Srovnat buňky srovná na nulu,
 nemaže je. Výšky v jejich podmenu odpovídají skutečné výšce v metrech.
 
 Země je spojitá: výška se mezi středy buněk dopočítává, takže kopce a prohlubně

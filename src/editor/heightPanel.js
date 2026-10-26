@@ -1,6 +1,6 @@
-// Plovoucí okénko režimu Výška — předvolby, jemný a hrubý krok, počet a potvrzení.
+// Plovoucí okénko režimu Výška — předvolby, jemný krok, počet a potvrzení.
 // Otevírá se při přepnutí na Výšku; samo nic negeneruje ani nemění.
-import { HEIGHT_COARSE_LEVELS, HEIGHT_PRESETS, HEIGHT_STEP } from '../data/maps/layoutStore.js';
+import { HEIGHT_PRESETS, HEIGHT_STEP, MAX_HEIGHT, MIN_HEIGHT } from '../data/maps/layoutStore.js';
 import { makeDraggable } from '../ui/draggable.js';
 
 function heightLabel(level, suffix = false) {
@@ -31,19 +31,22 @@ export default class HeightPanel {
     const root = document.createElement('div');
     root.className = 'area-panel height-panel';
     const fine = heightLabel(1);
-    const coarse = heightLabel(HEIGHT_COARSE_LEVELS);
     root.innerHTML = `
       <div class="area-panel__head">
         <span class="area-panel__title">Výška</span>
         <button type="button" class="area-panel__close" title="Zavřít okénko">×</button>
       </div>
       <div class="height-panel__value">0 m</div>
+      <div class="height-panel__scale">
+        <span class="height-panel__scale-zero"></span>
+        <span class="height-panel__marker"></span>
+      </div>
+      <div class="height-panel__scale-labels"><span>−6</span><span>0</span><span>+6</span></div>
       <div class="height-panel__presets"></div>
+      <div class="height-panel__step-label">Jemný krok</div>
       <div class="height-panel__steps">
         <button type="button" data-step="1" title="Přidat ${fine} m">+${fine}</button>
         <button type="button" data-step="-1" title="Ubrat ${fine} m">−${fine}</button>
-        <button type="button" data-step="${HEIGHT_COARSE_LEVELS}" title="Přidat ${coarse} m">+${coarse}</button>
-        <button type="button" data-step="-${HEIGHT_COARSE_LEVELS}" title="Ubrat ${coarse} m">−${coarse}</button>
       </div>
       <div class="area-panel__count">Vybráno: 0 buněk</div>
       <div class="area-panel__tools area-panel__undo-row">
@@ -59,6 +62,7 @@ export default class HeightPanel {
     this.root = root;
     makeDraggable(root);
     this.value = root.querySelector('.height-panel__value');
+    this.marker = root.querySelector('.height-panel__marker');
     this.count = root.querySelector('.area-panel__count');
     this.presets = root.querySelector('.height-panel__presets');
 
@@ -68,6 +72,8 @@ export default class HeightPanel {
       btn.dataset.level = String(level);
       btn.textContent = heightLabel(level);
       btn.title = heightLabel(level, true);
+      const meters = level * HEIGHT_STEP;
+      btn.classList.add(meters < 0 ? 'is-negative' : meters > 0 ? 'is-positive' : 'is-zero');
       btn.addEventListener('click', () => {
         if (this.onLevel) this.onLevel(level);
       });
@@ -112,7 +118,17 @@ export default class HeightPanel {
 
   refresh() {
     if (!this.root) return;
+    const meters = this.heightLevel * HEIGHT_STEP;
+    this.root.classList.toggle('is-negative', meters < -0.0001);
+    this.root.classList.toggle('is-positive', meters > 0.0001);
+    this.root.classList.toggle('is-zero', Math.abs(meters) < 0.0001);
     if (this.value) this.value.textContent = heightLabel(this.heightLevel, true);
+    if (this.marker) {
+      const span = MAX_HEIGHT - MIN_HEIGHT;
+      const ratio = span ? (this.heightLevel - MIN_HEIGHT) / span : 0;
+      const pct = Math.max(0, Math.min(100, ratio * 100));
+      this.marker.style.left = `${pct}%`;
+    }
     for (const btn of this.presets.querySelectorAll('[data-level]')) {
       btn.classList.toggle('is-active', Number(btn.dataset.level) === this.heightLevel);
     }

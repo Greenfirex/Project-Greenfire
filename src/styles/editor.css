@@ -583,10 +583,69 @@
 
 .height-panel__value {
   color: var(--glow-accent);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  margin-bottom: 6px;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.height-panel.is-negative .height-panel__value {
+  color: #9fc6e8;
+}
+
+.height-panel.is-positive .height-panel__value {
+  color: #a8d8a8;
+}
+
+.height-panel.is-zero .height-panel__value {
+  color: var(--glow-accent);
+}
+
+.height-panel__scale {
+  position: relative;
+  height: 10px;
+  margin-bottom: 2px;
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 5px;
+  background: linear-gradient(90deg, #4a6f8f 0%, #2a3436 50%, #6f9a5f 100%);
+}
+
+.height-panel__scale-zero {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 50%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.height-panel__marker {
+  position: absolute;
+  top: -4px;
+  width: 4px;
+  height: 18px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+  transition: left 0.12s ease;
+}
+
+.height-panel.is-negative .height-panel__marker {
+  background: #9fc6e8;
+}
+
+.height-panel.is-positive .height-panel__marker {
+  background: #a8d8a8;
+}
+
+.height-panel__scale-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: var(--text-dim);
+  font-size: 9px;
 }
 
 .height-panel__presets {
@@ -596,9 +655,17 @@
   margin-bottom: 6px;
 }
 
+.height-panel__step-label {
+  margin-bottom: 4px;
+  color: var(--text-dim);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
 .height-panel__steps {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 4px;
   margin-bottom: 6px;
 }
@@ -621,14 +688,25 @@
   color: var(--text-main);
 }
 
-.height-panel__presets button.is-active {
-  background: rgba(90, 200, 170, 0.18);
-  border-color: var(--glow-accent);
+.height-panel__presets button.is-negative {
+  border-color: rgba(110, 160, 210, 0.25);
+  color: #9fc6e8;
+}
+
+.height-panel__presets button.is-positive {
+  border-color: rgba(110, 190, 120, 0.25);
+  color: #a8d8a8;
+}
+
+.height-panel__presets button.is-zero {
+  border-color: rgba(90, 200, 170, 0.4);
+  background: rgba(90, 200, 170, 0.08);
   color: var(--text-main);
 }
 
-.height-panel__steps button[data-step="15"],
-.height-panel__steps button[data-step="-15"] {
-  border-color: rgba(90, 200, 170, 0.35);
+.height-panel__presets button.is-active {
+  background: rgba(90, 200, 170, 0.22);
+  border-color: var(--glow-accent);
   color: var(--text-main);
+  box-shadow: 0 0 8px rgba(90, 200, 170, 0.2);
 }

@@ -1123,7 +1123,7 @@ updateGatherTarget() {
       }
       if (evt.key === 'q' || evt.key === 'Q') { this.editor.mode.stepHeightLevel(1); evt.preventDefault(); return; }
       if (evt.key === 'e' || evt.key === 'E') { this.editor.mode.stepHeightLevel(-1); evt.preventDefault(); return; }
-      if (/^[1-6]$/.test(evt.key)) {
+      if (/^[1-9]$/.test(evt.key)) {
         this.editor.mode.setHeightLevel(HEIGHT_PRESETS[Number(evt.key) - 1]);
         evt.preventDefault();
         return;
