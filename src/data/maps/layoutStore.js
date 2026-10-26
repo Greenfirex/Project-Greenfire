@@ -1,11 +1,12 @@
-// Pomocné výpočty k dlaždicím mapy — které buňky zabírají objekty, aby se přes ně nedalo chodit.
+// Pomocné výpočty k dlaždicím mapy a rozsah výšek editoru.
 // Nezná scénu ani editor, jen katalog dekorací.
 import { getDecoration, decoRadius, decoFootprint } from '../catalogs/decorations.js';
 
-export const MIN_HEIGHT = -2;
-export const MAX_HEIGHT = 4;
-export const HEIGHT_STEP = 0.6;
+export const MIN_HEIGHT = -20;
+export const MAX_HEIGHT = 10;
+export const HEIGHT_STEP = 0.3;
 export const DEFAULT_HEIGHT_LEVEL = 0;
+export const HEIGHT_PRESETS = [-20, -10, -5, 0, 5, 10];
 export function deriveBlocked(entries) {
   const out = [];
   for (const entry of entries) {

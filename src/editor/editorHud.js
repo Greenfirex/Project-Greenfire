@@ -1,7 +1,7 @@
 // DOM panel editačního režimu — paleta brushů, modelování výšek, mazání a zpět.
 // Napojený přes callbacky na scene, sám nic generuje ani nemění.
 import { BRUSH_KEYS, BRUSHES } from '../data/catalogs/brushes.js';
-import { DEFAULT_HEIGHT_LEVEL } from '../data/maps/layoutStore.js';
+import { DEFAULT_HEIGHT_LEVEL, HEIGHT_PRESETS, HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { makeDraggable } from '../ui/draggable.js';
 
 export default class EditorHud {
@@ -33,7 +33,7 @@ export default class EditorHud {
         <span class="editor-panel__title">Editor mapy</span>
         <button type="button" class="editor-panel__close" title="Zavřít (F1)">×</button>
       </div>
-      <div class="editor-panel__hint">Zóny: vyber štětec a nakresli · Výška: nakresli plochu a dej Aplikovat · Plocha: podklad, výška, tažení · Z zpět · F1 zavřít</div>
+      <div class="editor-panel__hint">Zóny: vyber štětec a nakresli · Výška: −6 až +3 m po 0,3 m, nakresli plochu a dej Aplikovat · Levá přidá, pravá odebere z výběru · Z zpět · F1 zavřít</div>
       <div class="editor-panel__modes">
         <button type="button" data-mode="zone">Zóny</button>
         <button type="button" data-mode="height">Výška</button>
@@ -42,16 +42,9 @@ export default class EditorHud {
       <div class="editor-panel__empty">Zatím není vybraný žádný štětec.</div>
       <div class="editor-panel__grid"></div>
       <div class="editor-panel__heights">
-        <span class="editor-panel__label">Výška</span>
-        <button type="button" data-height="-2">−2</button>
-        <button type="button" data-height="-1">−1</button>
-        <button type="button" data-height="0">0</button>
-        <button type="button" data-height="1">1</button>
-        <button type="button" data-height="2">2</button>
-        <button type="button" data-height="3">3</button>
-        <button type="button" data-height="4">4</button>
-        <button type="button" data-step="1" title="Přidat 1 úroveň (Q)">+1</button>
-        <button type="button" data-step="-1" title="Ubrat 1 úroveň (E)">−1</button>
+        <span class="editor-panel__label">Výška <span class="editor-panel__height-value">0 m</span></span>
+        <button type="button" data-step="1" title="Přidat 0,3 m (Q)">+0,3</button>
+        <button type="button" data-step="-1" title="Ubrat 0,3 m (E)">−0,3</button>
       </div>
       <div class="editor-panel__height-actions">
         <span class="editor-panel__height-count">Nic není nakresleno</span>
@@ -83,6 +76,17 @@ export default class EditorHud {
         if (this.onBrush) this.onBrush(key);
       });
       grid.appendChild(btn);
+    }
+
+    const heights = root.querySelector('.editor-panel__heights');
+    const stepUp = heights.querySelector('[data-step="1"]');
+    for (const level of HEIGHT_PRESETS) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.height = String(level);
+      btn.textContent = this.heightLabel(level);
+      btn.title = this.heightLabel(level, true);
+      heights.insertBefore(btn, stepUp);
     }
 
     for (const btn of root.querySelectorAll('[data-mode]')) {
@@ -146,6 +150,12 @@ export default class EditorHud {
     this.refresh();
   }
 
+  heightLabel(level, suffix = false) {
+    const meters = Math.round(level * HEIGHT_STEP * 10) / 10;
+    const text = String(meters).replace('.', ',').replace('-', '−');
+    return suffix ? `${text} m` : text;
+  }
+
   setHeightDraft(count) {
     this.heightDraftCount = Number(count) || 0;
     this.refreshHeightDraft();
@@ -177,6 +187,8 @@ export default class EditorHud {
       btn.classList.toggle('is-active', !this.erasing && btn.dataset.brush === this.activeBrush);
     }
     this.root.classList.toggle('has-brush', Boolean(this.activeBrush));
+    const value = this.root.querySelector('.editor-panel__height-value');
+    if (value) value.textContent = this.heightLabel(this.heightLevel, true);
     this.refreshHeightDraft();
   }
 

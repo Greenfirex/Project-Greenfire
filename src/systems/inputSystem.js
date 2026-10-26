@@ -1,5 +1,5 @@
 // Zpracování vstupu — rotace kamery středním tlačítkem, zoom kolečkem, klik a tažení na zemi.
-// Levá klávesa kreslí (editor) nebo kliká (hra), pravá maže, kontextové menu prohlížeče potlačujeme.
+// Levá klávesa kreslí (editor) nebo kliká (hra); pravá v editoru odebírá z výběru a ve hře bourá; kontextové menu potlačujeme.
 import '@babylonjs/core/Culling/ray';
 import { Plane } from '@babylonjs/core/Maths/math.plane';
 import { PointerEventTypes } from '@babylonjs/core/Events/pointerEvents';
@@ -18,11 +18,16 @@ export default class InputSystem {
     this.painting = false;
     this.lastX = 0;
     this.lastCell = null;
+    this.rightPainting = false;
+    this.lastRightCell = null;
     this.onHoverCell = null;
     this.onCellRightClick = null;
     this.onPaintStart = null;
     this.onPaintMove = null;
     this.onPaintEnd = null;
+    this.onRightPaintStart = null;
+    this.onRightPaintMove = null;
+    this.onRightPaintEnd = null;
     this.onLeftDown = null;
     this.onLeftUp = null;
     this.leftDown = false;
@@ -60,6 +65,13 @@ export default class InputSystem {
       if (type === PointerEventTypes.POINTERDOWN) {
         if (evt.button === 2) {
           if (onUi) return;
+          if (this.game && this.game.editor && this.game.editor.active) {
+            const cell = this.cellAtPointer();
+            this.rightPainting = Boolean(cell);
+            this.lastRightCell = cell;
+            if (cell && this.onRightPaintStart) this.onRightPaintStart(cell);
+            return;
+          }
           this.handleRightClick();
           return;
         }
@@ -89,6 +101,12 @@ export default class InputSystem {
           this.rotating = false;
           return;
         }
+        if (evt.button === 2) {
+          this.rightPainting = false;
+          this.lastRightCell = null;
+          if (this.onRightPaintEnd) this.onRightPaintEnd();
+          return;
+        }
         if (evt.button !== 0) return;
         this.painting = false;
         this.lastCell = null;
@@ -115,6 +133,13 @@ export default class InputSystem {
           if (!same) {
             this.lastCell = cell;
             this.onPaintMove(cell);
+          }
+        }
+        if (this.rightPainting && cell && this.onRightPaintMove) {
+          const same = this.lastRightCell && this.lastRightCell.cx === cell.cx && this.lastRightCell.cz === cell.cz;
+          if (!same) {
+            this.lastRightCell = cell;
+            this.onRightPaintMove(cell);
           }
         }
         if (this.onHoverCell) this.onHoverCell(cell);

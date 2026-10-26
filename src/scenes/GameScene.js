@@ -36,6 +36,7 @@ import EditorToggle from '../editor/editorToggle.js';
 import PauseScreen from '../ui/pauseScreen.js';
 import LoadingScreen from '../ui/loadingScreen.js';
 import { whenModelsIdle, takeModelError, preloadModel, releaseFrame } from '../utils/assetLoader.js';
+import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
 import { HOTBAR_ITEMS } from '../data/catalogs/items.js';
 import { worldToCellCoords, worldToCell } from '../utils/gridMath.js';
@@ -981,6 +982,9 @@ updateGatherTarget() {
     this.inputSystem.onPaintStart = (cell) => this.handlePaintStart(cell);
     this.inputSystem.onPaintMove = (cell) => this.handlePaintMove(cell);
     this.inputSystem.onPaintEnd = () => this.handlePaintEnd();
+    this.inputSystem.onRightPaintStart = (cell) => this.handleRightPaintStart(cell);
+    this.inputSystem.onRightPaintMove = (cell) => this.handleRightPaintMove(cell);
+    this.inputSystem.onRightPaintEnd = () => this.handleRightPaintEnd();
     this.inputSystem.onZoom = (delta) => {
       this.cameraSystem.zoomBy(delta);
       this.cameraSystem.applyOrtho();
@@ -1119,8 +1123,8 @@ updateGatherTarget() {
       }
       if (evt.key === 'q' || evt.key === 'Q') { this.editor.mode.stepHeightLevel(1); evt.preventDefault(); return; }
       if (evt.key === 'e' || evt.key === 'E') { this.editor.mode.stepHeightLevel(-1); evt.preventDefault(); return; }
-      if (/^[0-4]$/.test(evt.key)) {
-        this.editor.mode.setHeightLevel(Number(evt.key));
+      if (/^[1-6]$/.test(evt.key)) {
+        this.editor.mode.setHeightLevel(HEIGHT_PRESETS[Number(evt.key) - 1]);
         evt.preventDefault();
         return;
       }
@@ -1210,6 +1214,7 @@ updateGatherTarget() {
     this.hoverCell = cell;
     if (cell) this.decoHighlight.setHover(cell);
     if (!this.editor.active) {
+      this.gridSystem.clearHoverCell();
       this.moveGridHighlight(cell);
       return;
     }
@@ -1219,6 +1224,7 @@ updateGatherTarget() {
       this.editor.clearHoverReadout();
       return;
     }
+    this.gridSystem.showHoverCell(cell.cx, cell.cz, (cx, cz) => this.decoSystem.surfaceAt(cx, cz));
     if (this.editor.mapMode === 'area') {
       this.editor.showAreaPreview(this.editor.mode.getAreaSelection());
       if (this.editor.mode.hasAreaSelection) return;
@@ -1249,6 +1255,21 @@ updateGatherTarget() {
 
   handlePaintEnd() {
     if (this.editor.mapMode === 'area') this.editor.mode.finishAreaDrag();
+    this.editor.lastPaintCell = null;
+  }
+
+  handleRightPaintStart(cell) {
+    if (!cell || !this.editor.active) return;
+    this.handleCellRightClick(cell);
+  }
+
+  handleRightPaintMove(cell) {
+    if (!cell || !this.editor.active) return;
+    this.editor.rightMovePaint(cell);
+    this.handleHover(cell);
+  }
+
+  handleRightPaintEnd() {
     this.editor.lastPaintCell = null;
   }
 

@@ -117,6 +117,7 @@ export default class MapEditor {
     this.brushPanel.close();
     this.areaPanel.hide();
     this.s.gridSystem.clearBrush();
+    this.s.gridSystem.clearHoverCell();
     this.s.gridSystem.clearZones();
     this.s.gridSystem.clearDraftCells();
     this.centerPanels();
@@ -140,6 +141,7 @@ export default class MapEditor {
     this.areaPanel.hide();
     this.hud.clearBrushSelection();
     this.s.gridSystem.clearBrush();
+    this.s.gridSystem.clearHoverCell();
     this.s.gridSystem.clearZones();
     this.s.gridSystem.clearDraftCells();
     this.togglePanel(false);
@@ -266,6 +268,7 @@ export default class MapEditor {
 
   clearHoverReadout() {
     this.s.gridSystem.clearBrush();
+    this.s.gridSystem.clearHoverCell();
     this.hud.setReadout('–');
   }
 
@@ -277,14 +280,6 @@ export default class MapEditor {
   }
 
   showCellHoverReadout(cell) {
-    if (this.mode.hasDraft && this.mode.mode !== 'height') {
-      this.s.gridSystem.clearBrush();
-    } else {
-      const pool = this.mode.brushPool();
-      const cells = pool.map((hit) => [hit.cx, hit.cz]);
-      const surfaceAt = (cx, cz) => this.s.decoSystem.surfaceAt(cx, cz);
-      this.s.gridSystem.showBrush(cells, surfaceAt, this.mode.erasing);
-    }
     const info = this.mode.describeAt(cell.cx, cell.cz);
     const tile = describeEntry(info);
     const lift = Math.round((Number(info.liftY) || 0) * 100) / 100;
@@ -310,18 +305,22 @@ export default class MapEditor {
     this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
   }
 
+  rightMovePaint(cell) {
+    const from = this.lastPaintCell || cell;
+    if (this.mode.mode === 'area') this.mode.removeAreaRun(from, cell);
+    else if (this.mode.mode === 'height') this.mode.unmarkHeightRun(from, cell);
+    else this.mode.undraftRun(from, cell);
+    this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
+  }
+
   rightClickCell(cell) {
+    this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
     if (this.mode.mode === 'area') {
-      const tool = this.mode.areaTool === 'erase' ? 'paint' : 'erase';
-      this.mode.setAreaTool(tool);
-      this.areaPanel.setTool(this.mode.areaTool);
+      this.mode.removeAreaCells([[cell.cx, cell.cz]]);
       return;
     }
     if (this.mode.mode === 'height') {
-      const wasErasing = this.mode.erasing;
-      this.mode.erasing = true;
-      this.mode.paint(cell.cx, cell.cz);
-      this.mode.erasing = wasErasing;
+      this.mode.unmarkHeightCell(cell.cx, cell.cz);
       return;
     }
     if (!this.mode.canEditCell(cell.cx, cell.cz)) return;
@@ -329,7 +328,7 @@ export default class MapEditor {
       this.hud.setReadout(NO_BRUSH_HINT);
       return;
     }
-    this.mode.draftCell(cell.cx, cell.cz);
+    this.mode.undraftCell(cell.cx, cell.cz);
   }
 
   applyBrushDraft() {
@@ -469,31 +468,22 @@ export default class MapEditor {
   showHeightDraftOverlay() {
     const draft = this.mode.heightDraft;
     if (!draft) return;
-    const paint = [];
-    const erase = [];
-    for (const [key, mark] of draft) {
+    const cells = [];
+    for (const key of draft) {
       const [cx, cz] = key.split(',').map(Number);
-      if (mark === 'erase') erase.push([cx, cz]);
-      else paint.push([cx, cz]);
+      cells.push([cx, cz]);
     }
     const surfaceAt = (cx, cz) => this.s.decoSystem.surfaceAt(cx, cz);
     this.s.gridSystem.showZones([
       {
-        cells: erase,
-        color: new Color3(1, 0.3, 0.25),
-        glow: new Color3(0.95, 0.25, 0.2),
-        alpha: 0.62,
-        lift: 0.04,
-      },
-      {
-        cells: paint,
+        cells,
         color: new Color3(0.15, 1, 0.85),
         glow: new Color3(0.2, 0.95, 0.8),
         alpha: 0.62,
         lift: 0.04,
       },
     ], surfaceAt);
-    this.s.gridSystem.showDraftCells([...paint, ...erase], surfaceAt, 'add');
+    this.s.gridSystem.showDraftCells(cells, surfaceAt, 'add');
   }
 
   applyHeightSelection() {

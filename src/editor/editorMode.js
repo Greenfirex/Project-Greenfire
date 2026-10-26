@@ -167,7 +167,7 @@ export default class EditorMode {
       return;
     }
     if (this.mode !== 'height') return;
-    this.markHeightCell(cx, cz, this.erasing);
+    this.markHeightCell(cx, cz);
   }
 
   paintRun(from, to) {
@@ -179,7 +179,7 @@ export default class EditorMode {
     }
     if (this.mode !== 'height') return;
     for (const [cx, cz] of bresenham(from.cx, from.cz, to.cx, to.cz)) {
-      this.markHeightCell(cx, cz, this.erasing);
+      this.markHeightCell(cx, cz);
     }
   }
 
@@ -481,6 +481,21 @@ export default class EditorMode {
     this.setAreaSelection({ tool: this.areaTool, cells: this.strokeCells() });
   }
 
+  removeAreaCells(cells) {
+    if (!this.areaStroke || !cells || !cells.length) return false;
+    let changed = false;
+    for (const [cx, cz] of cells) {
+      if (this.areaStroke.delete(cellKey(cx, cz))) changed = true;
+    }
+    if (!changed) return false;
+    this.setAreaSelection({ tool: this.areaTool, cells: this.strokeCells() });
+    return true;
+  }
+
+  removeAreaRun(from, to) {
+    return this.removeAreaCells(bresenham(from.cx, from.cz, to.cx, to.cz));
+  }
+
   setAreaTool(tool) {
     const next = tool === 'erase' ? 'erase' : 'paint';
     if (this.areaTool === next) return;
@@ -648,6 +663,23 @@ export default class EditorMode {
     return true;
   }
 
+  undraftCell(cx, cz) {
+    if (!this.draft) return false;
+    if (!this.draft.cells.delete(cellKey(cx, cz))) return false;
+    if (this.onDraftChange) this.onDraftChange(this.draft);
+    return true;
+  }
+
+  undraftRun(from, to) {
+    if (!this.draft) return true;
+    let changed = false;
+    for (const [cx, cz] of bresenham(from.cx, from.cz, to.cx, to.cz)) {
+      if (this.draft.cells.delete(cellKey(cx, cz))) changed = true;
+    }
+    if (changed && this.onDraftChange) this.onDraftChange(this.draft);
+    return true;
+  }
+
   applyDraft() {
     if (!this.draft) return 0;
     const { brushKey, cells, mode } = this.draft;
@@ -746,11 +778,28 @@ export default class EditorMode {
     return true;
   }
 
-  markHeightCell(cx, cz, erasing) {
+  markHeightCell(cx, cz) {
     if (!this.layout) return;
-    if (!this.heightDraft) this.heightDraft = new Map();
-    this.heightDraft.set(cellKey(cx, cz), erasing ? 'erase' : 'paint');
+    if (!this.heightDraft) this.heightDraft = new Set();
+    this.heightDraft.add(cellKey(cx, cz));
     if (this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
+  }
+
+  unmarkHeightCell(cx, cz) {
+    if (!this.heightDraft) return false;
+    if (!this.heightDraft.delete(cellKey(cx, cz))) return false;
+    if (this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
+    return true;
+  }
+
+  unmarkHeightRun(from, to) {
+    if (!this.heightDraft) return false;
+    let changed = false;
+    for (const [cx, cz] of bresenham(from.cx, from.cz, to.cx, to.cz)) {
+      if (this.heightDraft.delete(cellKey(cx, cz))) changed = true;
+    }
+    if (changed && this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
+    return changed;
   }
 
   get heightDraftCount() {
@@ -761,10 +810,9 @@ export default class EditorMode {
     if (!this.layout || !this.heightDraft || !this.heightDraft.size) return 0;
     this.pushHistory();
     let count = 0;
-    for (const [key, mark] of this.heightDraft) {
+    for (const key of this.heightDraft) {
       const [cx, cz] = key.split(',').map(Number);
-      const height = mark === 'erase' ? 0 : this.heightLevel * HEIGHT_STEP;
-      this.setCellHeight(cx, cz, height);
+      this.setCellHeight(cx, cz, this.heightLevel * HEIGHT_STEP);
       count += 1;
     }
     this.cancelHeightDraft();

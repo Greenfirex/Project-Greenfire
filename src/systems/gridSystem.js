@@ -24,6 +24,8 @@ export default class GridSystem {
     this.brushMaster = null;
     this.brushMaterial = null;
     this.brushInstances = [];
+    this.hoverMaster = null;
+    this.hoverMaterial = null;
     this.zonesMasters = [];
     this.zonesMaterials = [];
     this.zonesPool = [];
@@ -219,6 +221,31 @@ export default class GridSystem {
     for (const inst of this.brushInstances || []) inst.dispose();
     this.brushInstances = [];
     if (this.brushMaster) this.brushMaster.setEnabled(false);
+  }
+
+  showHoverCell(cx, cz, surfaceAt) {
+    if (!this.hoverMaster) {
+      this.hoverMaster = MeshBuilder.CreateGround('hoverCellMaster', {
+        width: CELL_SIZE * 0.96,
+        height: CELL_SIZE * 0.96,
+      }, this.s);
+      const mat = new StandardMaterial('hoverCellMat', this.s);
+      mat.diffuseColor = new Color3(0.78, 0.96, 1);
+      mat.emissiveColor = new Color3(0.55, 0.86, 1);
+      mat.disableLighting = true;
+      mat.alpha = 0.42;
+      this.hoverMaster.material = mat;
+      this.hoverMaster.isPickable = false;
+      this.hoverMaster.setEnabled(false);
+      this.hoverMaterial = mat;
+    }
+    const y = surfaceAt(cx, cz) + 0.09;
+    this.hoverMaster.position = new Vector3(cx * CELL_SIZE, y, cz * CELL_SIZE);
+    this.hoverMaster.setEnabled(true);
+  }
+
+  clearHoverCell() {
+    if (this.hoverMaster) this.hoverMaster.setEnabled(false);
   }
 
   showZones(groups, surfaceAt) {

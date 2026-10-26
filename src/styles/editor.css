@@ -232,6 +232,11 @@
   font-size: 10px;
 }
 
+.editor-panel__height-value {
+  color: var(--glow-accent);
+  font-weight: 600;
+}
+
 .editor-panel__height-apply,
 .editor-panel__height-cancel {
   background: rgba(255, 255, 255, 0.04);

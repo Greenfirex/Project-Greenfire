@@ -290,9 +290,11 @@ a **plocha** zakládá nebo přepisuje zem s vybraným podkladem a výškou.
 Plocha je razítko: nové buňky vzniknou, existující se přepíšou i s objekty,
 mazání udělá v mapě skutečnou díru.
 Tlačítka výšky v panelu určují, jak vysoko se dlaždice po Aplikovat pokládají.
-Návrh se dá kdykoli zrušit a pravé tlačítko označí buňky ke srovnání na nulu.
+Výšky jdou od −6 do +3 m po 0,3 m; tlačítka vybírají hrubé hodnoty a +/−
+doladí po 0,3 m. Levé tlačítko buňky přidává do výběru, pravé je odebírá;
+na nulu se srovnává předvolbou 0 m. Návrh se dá kdykoli zrušit.
 Kopec a Prohlubeň si svah staví samy: v jejich okně vybereš výšku a namalovaná
-plocha zůstane plochá, kolem ní se přidá svah po 0,6 m až do 0.
+plocha zůstane plochá, kolem ní se přidá svah po 0,3 m až do 0.
 
 Podklad dlaždice (tráva, písek) se mění štětcem **Povrch**: ten nechá výšku,
 cesty i objekty a uklidí jen trávu. Mazání tímto štětcem vrátí buňku na trávu.
@@ -300,9 +302,9 @@ Nový povrch je jeden záznam v katalogu dekorací vedle `floor_grass` a
 `floor_sand`; terén pak každý povrch kreslí vlastní texturou a velikostí dlaždice.
 
 **Výška** mění jen výšku: podklad zůstane a objekty na buňce se posunou
-spolu se zemí. Kopec a Prohlubeň dělají totéž plošně; jejich Srovnat buňky
-srovná na nulu, nemaže je. Výšky v jejich podmenu odpovídají skutečné
-výšce v metrech.
+spolu se zemí. Výšky jdou od −6 do +3 m po 0,3 m. Kopec a Prohlubeň dělají
+totéž plošně; jejich Srovnat buňky srovná na nulu, nemaže je. Výšky v jejich
+podmenu odpovídají skutečné výšce v metrech.
 
 Země je spojitá: výška se mezi středy buněk dopočítává, takže kopce a prohlubně
 mají plynulé svahy a na okraji mapy je hliněný bok. Za okrajem mapy se počítá
@@ -313,7 +315,8 @@ Hráč už chodí po skutečné výšce země; hluboká pláž a voda přijdou v
 krocích.
 
 V okně **Herní plocha** se k razítku vybírá podklad a výška; počítadlo předem
-ukáže, kolik buněk se přepíše a kolik jich už v mapě je.
+ukáže, kolik buněk se přepíše a kolik jich už v mapě je. Levé tlačítko buňky
+přidává do výběru, pravé je odebírá; mazání se vybírá tlačítkem v panelu.
 
 Soubor mapy je jediný zdroj pravdy: hra při startu vždycky přečte
 `src/data/maps/<mapa>/map.json` ze souboru na disku, žádnou jinou mapu v kódu
