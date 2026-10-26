@@ -71,27 +71,188 @@ suroviny pro výrobu (železná a měděná ruda, ingoty). Stroj má v savu při
 stav (co má uvnitř, co vyrobil, jak daleko je ve výrobě), ale výroba v něm
 zatím neběží.
 
-### Voda v mapě — připravená dlaždicová logika
+### Voda
 
-Voda se v mapě kreslí (`water` je vrstva vedle `floor`, `path` a `clearing`),
-ale vykresluje se jedním a tím samým modelem na každou buňku — nevypadá proto
-jako řeka, ale jako hromada stejných kostek.
-
-V `src/utils/waterTiles.js` už leží hotový výběr dílku: z toho, které ze čtyř
-sousedních buněk jsou taky voda, pozná rovinku, zatáčku, křížení, konec a
-samostatný dílek, a vrátí i potřebné otočení. Navíc rozliší úzký tok od široké
-vodní plochy (hloubka podle zaplněného čtverce okolo buňky) a u břehu použije
-břehové a rohové dílky.
-
-Modely k tomu v projektu leží: `public/assets/nature/water/` (rovná, zatáčka,
-křížení, konec, břeh, plná hladina, kameny, lekníny).
-
-Zbývá dodělat: soubor se nikde neimportuje, takže se nepoužívá. Napojit ho
-znamená při stavbě vrstev vody (viz `decoSystem`) vybrat dílek a otočení podle
-`waterPlan(cells)` místo jednoho modelu pro každou buňku.
+Voda zatím ve hře není. Dřívější dlaždicová logika i modely byly z projektu
+odstraněny; nová voda bude vycházet z hladiny a z výšky terénu. Postup a
+jednotlivé kroky jsou v sekci „Plán: terén, písek a voda“ níže.
 
 Další kroky: výroba ve strojích a plnění batohu, výběr a stav stroje kliknutím,
 výroba předmětů z batohu.
+
+## Plán: terén, písek a voda
+
+Tohle je závazné pořadí prací. Každá fáze se dokončí, otestuje a commitne
+samostatně; když se některá nepovede, vrací se jen ona a plán zůstává.
+
+### Pravidla postupu
+
+- Jedna fáze = jeden commit. Commit dělá uživatel, ne agent.
+- Dokud není splněné „Hotovo, když“, do další fáze se nepokračuje.
+- Když se fáze zvrhne, rozdělí se; plán se tím nemění.
+- Nové závislosti jen s výslovným souhlasem; vizuální kontrolu dělá uživatel.
+
+### Rozhodnutí, na kterých plán stojí
+
+- **Herní plocha je razítko.** Umí podklad i výšku a existující buňky přepíše
+  včetně objektů. Je to jediné místo, které vytváří novou zem z prázdna.
+- **Povrch mění jen podklad.** Nechá výšku, cesty, stromy i skály; uklidí jen
+  trávu.
+- **Výška mění jen výšku.** Nechá podklad a objekty posune spolu se zemí.
+- **Země bude spojitá.** Štěrbiny se neřeší stěnami, ale plynulým dopočtem
+  výšky. Stěny by za chvíli zmizely a pláž by s nimi nešla.
+- **Voda vznikne z hladiny a terénu.** Co je pod hladinou, je zatopené. Není to
+  dlaždice ani vrstva mapy a stará dlaždicová logika se nevrací.
+- **Voda bude mít vlastní program** (jako tráva), ne novou knihovnu.
+
+### Fáze 0 — Ukotvení plánu
+
+**Cíl:** plán je v projektu a existuje bod pro návrat.
+
+- Zapsat tento plán do README a odstranit zastaralou sekci o dlaždicové vodě.
+- Uživatel commitne současný stav jako checkpoint.
+
+**Hotovo, když:** plán je v repu, stará vodní sekce je pryč a existuje commit
+před začátkem přestavby.
+
+### Fáze 1 — Povrchy a písek
+
+**Cíl:** písek je použitelný povrch, tvar země se nemění.
+
+- Společný seznam podkladů (tráva, písek): název, textura, velikost dlaždice,
+  zabarvení. Písek použije `Ground080` z `public/assets/nature/textures/`.
+- Terén kreslí každý povrch zvlášť; neznámý podklad spadne na trávu.
+- Štětec **Povrch** s volbami Tráva/Písek a náhledy. Mění jen klíč podlahy:
+  výšku, cesty a objekty nechá, trávu uklidí.
+- Mřížka editoru se kreslí v úrovni buňky, ne v nule.
+
+**Hotovo, když:** písek jde namalovat na trávu i na kopec, zůstane výška i
+objekty, po uložení a obnovení drží, stará mapa vypadá stejně.
+
+**V této fázi ještě nebude:** razítko, výškové nástroje, spojitá zem, pláž, voda.
+**Data a ukládání:** beze změny.
+
+### Fáze 2 — Herní plocha jako razítko
+
+**Cíl:** jedním tahem vznikne nebo se přepíše zem s vybraným podkladem a výškou.
+
+- Panel Herní plocha dostane volbu podkladu; výškový pruh bude vidět i tady.
+- Výchozí výška bude 0 (dnes 1,2 m); tlačítko Vyhladit se v tomto režimu skryje.
+- Kreslení nastaví přesně zvolený podklad a výšku. Nové buňky vzniknou,
+  existující se přepíšou i s objekty, trávou a cestami.
+- Počítadlo ukáže počet přepsaných buněk, z toho existujících, podklad a výšku.
+- Mazání zůstane; Z vrátí celé razítko.
+
+**Hotovo, když:** z prázdna vznikne písek na zvolené výšce; přejetí existující
+země ji přepíše; počítadlo sedí; Z vrátí vše.
+
+**V této fázi ještě nebude:** plynulé svahy a oprava štěrbin.
+**Data a ukládání:** beze změny.
+
+### Fáze 3 — Výškové nástroje bez vedlejších účinků
+
+**Cíl:** nástroje na výšku nemění podklad a nenechávají objekty viset.
+
+- Společná operace „nastav výšku buňky“: podlaha, cesty, tráva, drobné vrstvy
+  a objekty se posunou spolu se zemí.
+- Režim Výška přestane přebarvovat na trávu.
+- Kopec a Prohlubeň mění jen výšku; na písku zůstane písek.
+- Vyhladit posouvá i objekty.
+- Názvy prohlubní odpovídají skutečné hloubce.
+
+**Hotovo, když:** kopec i prohlubeň na písku zůstanou pískové, objekty se
+posunou, cesta drží, režim Výška nemění podklad.
+
+**V této fázi ještě nebude:** hlubší jámy, plynulé svahy, hráč na zemi, voda.
+**Data a ukládání:** beze změny.
+
+### Fáze 4 — Spojitá zem
+
+**Cíl:** štěrbiny zmizí a schody se stanou svahy.
+
+- Výška se mezi buňkami dopočítá plynule, střed buňky zůstane přesný.
+- Terén se vzorkuje jemněji a zůstane rozdělený podle podkladů.
+- Okraj mapy a vnitřní díry dostanou svislý bok z hlíny.
+- Cesty, tráva, objekty, kurzor, zóny a mřížka používají skutečnou výšku země.
+
+**Hotovo, když:** prohlubeň na okraji mapy nemá prosvítající štěrbinu, svahy jsou
+plynulé, cesty/tráva/stromy sedí na zemi, okraj mapy je uzavřený.
+
+**V této fázi ještě nebude:** hráč sledující výšku, hluboká pláž, voda.
+**Data a ukládání:** beze změny; mění se jen vykreslení a čtení výšky.
+
+### Fáze 5 — Hloubka, pláž a hráč na zemi
+
+**Cíl:** jezero s pláží a hráč, který po něm chodí.
+
+- Výšky v metrech, širší rozsah (návrh −6 až +3 m) a jemnější krok (návrh 0,3 m).
+- Pláž razítkem: pásy písku po 0,3 m; spojitá zem z nich udělá svah. Volitelně
+  volba Plynulý okraj.
+- Hráč sleduje výšku země; dojde do jámy i na kopec.
+
+**Hotovo, když:** třímetrová pánev má pozvolné břehy, hráč po nich chodí a stojí
+na zemi.
+
+**V této fázi ještě nebude:** voda.
+**Data a ukládání:** beze změny (výška je už desetinné číslo).
+
+### Fáze 6 — Voda: hladina a tvar
+
+**Cíl:** hladina v mapě a voda tam, kde je zem pod ní.
+
+- Hladina do souboru mapy; verze mapy se zvedne, staré mapy se načtou bez vody.
+- Ovládání hladiny v editoru, voda vidět hned po aplikaci.
+- Vodní plocha z terénu, břeh kopíruje tvar země, hloubka v každém bodě.
+- Zatím jednoduchá poloprůhledná plocha pro kontrolu tvaru.
+
+**Hotovo, když:** voda se objeví jen v pánvi, břeh sedí, změna terénu vodu
+přepočítá, hladina přežije uložení, stará mapa se načte.
+
+**V této fázi ještě nebude:** vlny, pěna, odlesky, chování hráče.
+**Data a ukládání:** soubor mapy nová verze; herní uložení beze změny.
+
+### Fáze 7 — Voda: vzhled
+
+**Cíl:** živá a realistická voda.
+
+- Vlastní program: vlny, odlesky, barva podle hloubky, průhledná mělčina,
+  pěna u břehu, noc.
+- Kvalita podle nastavení grafiky.
+- Volitelně mokrý písek a jiné zabarvení dna.
+
+**Hotovo, když:** mělčina je průhledná, hloubka tmavne, jsou vidět vlny a slunce,
+pěna kopíruje břeh, v noci je voda tmavá a hra se nezpomalí.
+
+**V této fázi ještě nebude:** skutečné zrcadlení okolí.
+
+### Fáze 8 — Voda: hráč a život
+
+**Cíl:** voda je součást hry.
+
+- Rozhodnout mělká/hluboká (návrh: mělká průchozí se zpomalením, hluboká ne).
+- Cákance, zpomalení, zákaz stavění ve vodě, zvuky (potřebují soubory).
+- Případný nový stav se registruje u ukládání.
+
+**Hotovo, když:** chování je jasné, stavění ve vodě hlásí důvod, zvuky hrají.
+
+### Fáze 9 — Doladění (volitelné)
+
+Mokrý písek, rostliny u břehu, jemnější přechod písek/tráva, zatopené kameny,
+ambientní zvuk, případně zrcadlení.
+
+### Pořadí a závislosti
+
+- 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8; fáze 9 kdykoliv na konci.
+- Fáze 2 potřebuje seznam podkladů z fáze 1.
+- Fáze 4 je nejcitlivější; bez ní není pláž ani voda.
+- Fáze 6 jediná mění formát souboru mapy.
+
+### Otevřená rozhodnutí
+
+- Fáze 5: přesný rozsah a krok výšek.
+- Fáze 6: hladina editovatelná v editoru (návrh ano).
+- Fáze 8: mělká + zákaz hluboké, nebo plavání.
+- Fáze 8: zvukové soubory.
 
 ## Editor mapy
 
