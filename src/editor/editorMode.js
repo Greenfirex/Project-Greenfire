@@ -51,6 +51,23 @@ export default class EditorMode {
     return this.layout;
   }
 
+  getWaterLevel() {
+    const value = this.layout && this.layout.waterLevel;
+    return Number.isFinite(value) ? value : null;
+  }
+
+  setWaterLevel(level) {
+    if (!this.layout) return null;
+    const low = MIN_HEIGHT * HEIGHT_STEP;
+    const high = MAX_HEIGHT * HEIGHT_STEP;
+    const next = Number.isFinite(level) ? Math.min(high, Math.max(low, Number(level))) : null;
+    if (next === this.getWaterLevel()) return next;
+    this.pushHistory();
+    if (next === null) delete this.layout.waterLevel;
+    else this.layout.waterLevel = next;
+    return next;
+  }
+
   toggle() {
     this.active = !this.active;
     if (this.onChange) this.onChange(this.active);
@@ -1078,6 +1095,7 @@ function toWorld(world) {
   return {
     spawn: world.spawn ? { ...world.spawn } : { cx: 0, cz: 0 },
     seed: world.seed,
+    waterLevel: Number.isFinite(world.waterLevel) ? world.waterLevel : null,
     floor: copy(world.floor),
     path: copy(world.path),
     clearing: copy(world.clearing),

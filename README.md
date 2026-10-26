@@ -66,8 +66,8 @@ kitu, rotace a bourání strojů, táborák s ohněm a svícením, oheň pochodn
 denní cyklus se stíny, lesní zvuky a kroky podle povrchu, panel možností,
 editor mapy (zóny, cesty, výšky ±6 m, štětec pláže se svahem po 0,3 m,
 štětec útesů s hliněnou stěnou, výběr buněk, undo), spojitý terén
-s hranou mapy, cesty kopírující terén, hráč chodící po výšce země
-a ukládání/načítání do prohlížeče.
+s hranou mapy, cesty kopírující terén, hráč chodící po výšce země,
+hladina vody s poloprůhlednou plochou a ukládání/načítání do prohlížeče.
 
 Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů) a
 suroviny pro výrobu (železná a měděná ruda, ingoty). Stroj má v savu připravený
@@ -78,13 +78,12 @@ zatím neběží.
 
 Poslední funkční commit před touto prací: `4e1defc` — výšky ±6 m se škálou
 a předvolbou 6 m; handoff před fází 5 je `13d8f70`. Štětec Pláž, zvlnění
-hranic povrchů, odstranění starých skalních modelů a útesy jsou hotové
-v pracovním stromu a čekají na vizuální test; commit dělá uživatel.
+hranic povrchů, odstranění starých skalních modelů, útesy a hladina vody
+jsou hotové v pracovním stromu a čekají na vizuální test; commit dělá uživatel.
 
-**Aktuální fáze:** 5 — Hloubka, pláž a hráč na zemi. Hotový je hráč na výšce
-země, výšky ±6 m, výškový panel se škálou, výběr buněk, štětec Pláž
-(písek se svahem po 0,3 m) a štětec Útes (plošina s hliněnou stěnou).
-Zbývá závěrečný test fáze s třímetrovou pánví.
+**Aktuální fáze:** 6 — Voda: hladina a tvar. Hotová je hladina vody v mapě,
+poloprůhledná plocha a ovládání v editoru. Zbývá vizuální test fáze; další je
+fáze 7 (vzhled vody).
 
 **Hotovo (fáze 0–5, část):**
 - Fáze 0–4: plán, písek a povrch, razítko Herní plocha, výškové nástroje,
@@ -110,25 +109,29 @@ Zbývá závěrečný test fáze s třímetrovou pánví.
 - Útesy: štětec označí buňky jako plošinu; kde je mezi označenou buňkou
   a sousedem skok, vznikne svislá hliněná stěna stejnou texturou jako okraj
   mapy a hráč přes ni nepřejde. Mapa kvůli značce poskočila na verzi 4.
+- Voda: hladina pro celou mapu jako nepovinné číslo v souboru mapy;
+  poloprůhledná plocha v úrovni hladiny, terén ji jinde překryje. V editoru
+  se zapíná tlačítkem Voda a hladina se ladí po 0,3 m; Z vrací krok.
 - Data a ukládání: ukládání hráče beze změny; výška je desetinné číslo,
   mapa má kvůli značkám útesů verzi 4.
 
 **Zbývá:**
-- Fáze 5: závěrečný test — třímetrová pánev s pozvolnými břehy, hráč po ní
-  chodí a stojí na zemi.
-- Fáze 6: voda — hladina v mapě, verze mapy, staré mapy bez vody, břeh,
-  hloubka, jednoduchá průhledná plocha.
+- Fáze 5 a 6: závěrečný test — třímetrová pánev s pozvolnými břehy, hráč po ní
+  chodí a stojí na zemi; hladina vody jen v pánvi a břeh sedí.
 - Fáze 7: vzhled vody — vlny, odlesky, barva podle hloubky, průhlednost.
+- Fáze 8: hráč a život ve vodě — mělká/hluboká, cákance, zákaz stavění, zvuky.
 - Mimo tento plán: výroba ve strojích, recepty a plnění batohu.
 
-**Další krok — test pláže a útesů:**
+**Další krok — test fáze 5 a 6:**
 - V paletě štětců zvol Pláž, hloubku a namaluj plochu pánve; kolem ní
   vznikne písek po 0,3 m jako svah. Zapni Plynulý okraj a porovnej.
 - Ověř, že pánev má tři metry, břehy jsou pozvolné a hráč po nich chodí.
 - Zkus štětec Útes: označ pár buněk plošiny, dej jim výšku a zkontroluj,
   že se na hraně objeví hliněná stěna a hráč přes ni nepřejde. Stejně vysoký
   soused se má napojit bez stěny a hrana se má drobně vlnit.
-- Když něco nesedí, vrací se jen ta část; fáze 6 začíná až po tvém potvrzení.
+- V editoru zapni Vodu a nastav hladinu tak, aby byla jen v pánvi; změň terén,
+  ulož mapu a obnov stránku — hladina i břeh musí držet.
+- Když něco nesedí, vrací se jen ta část; fáze 7 začíná až po tvém potvrzení.
 
 **Klíčová rozhodnutí (nevrátit omylem):**
 - Výšky jsou v metrech, krok 0,3 m, rozsah ±6 m; předvolby včetně ±4,5 a ±6.
@@ -148,15 +151,20 @@ Zbývá závěrečný test fáze s třímetrovou pánví.
 - Označená buňka je plošina: drží rovnou výšku, přes její hranu se výška
   nedopočítává a kde je soused níž, stojí hliněná stěna. Stejně vysoký soused
   se napojí plynule bez stěny a hrana stěny se drobně vlní.
-- Mapa má verzi 4 (značka útesu); starší mapy se načtou bez útesů.
-  Voda přinese další verzi mapy.
+- Voda je jedna hladina pro celou mapu a jen se kreslí — nic v mapě nemění.
+  Kde je terén pod ní, tam je voda; kde je výš, terén ji překryje.
+- Suché jámy pod hladinou (doly, sklepy) současná deska neumí; vyřeší se
+  později suchou zónou nebo vodními zónami.
+- Mapa má verzi 4 (značka útesu); hladina vody je nepovinné číslo a verzi
+  nemění. Starší mapy se načtou bez vody.
 
 **Kde co je:**
 - `src/data/maps/layoutStore.js` — rozsah výšek, krok, předvolby.
 - `src/editor/heightPanel.js` — okno Výška; `areaPanel.js`, `brushPanel.js` — plocha a štětce.
-- `src/editor/editorMode.js`, `mapEditor.js`, `editorHud.js` — editor, výběr, panely, pláž.
+- `src/editor/editorMode.js`, `mapEditor.js`, `editorHud.js` — editor, výběr, panely, pláž, voda.
 - `src/systems/gridSystem.js`, `inputSystem.js` — hover, levé/pravé tažení.
 - `src/utils/terrainField.js`, `src/systems/terrainSystem.js` — výškový model, terén, hrana, útesy.
+- `src/systems/waterSystem.js` — hladina a poloprůhledná vodní plocha.
 - `src/systems/pathSystem.js`, `playerSystem.js`, `cameraSystem.js` — cesty a hráč.
 - `src/data/catalogs/brushes.js` — štětce včetně Pláže a Útesu; `decorations.js` — písek a povrchy.
 - `src/data/maps/glade/map.json` — aktuální mapa; `README.md` — plán a tento handoff.
@@ -175,30 +183,32 @@ Zbývá závěrečný test fáze s třímetrovou pánví.
 - Pláž: štětec je hotový; čeká se na vizuální test a potvrzení hloubek a okraje.
 - Plynulý okraj: zatím jen zapnuto/vypnuto a jeden prstenec navíc; šířku doladit podle testu.
 - Třímetrová pánev: tvar se kreslí štětcem, hloubka dna je předvolba −3 m.
-- Voda: až po dokončení pláže (fáze 6).
+- Voda: hladina je hotová; čeká test a pak fáze 7 (vzhled vody).
 
 **Test předání:**
 - Ověřit, že sedí poslední funkční commit a po commitu handoffu je strom čistý.
 - Ověřit, že výškový panel, výběr, hráč, cesty a hrana fungují.
 - Ověřit štětec Pláž: hloubka, břeh, Plynulý okraj a Zpět na trávu.
-- Voda zatím neexistuje.
+- Ověřit vodu: hladina v pánvi, břeh po změně terénu, uložení a načtení.
 
 **První kroky dalšího agenta:**
 1. Přečíst README/Předání a `.clinerules`.
 2. Ověřit git stav.
-3. Nechat uživatele otestovat pláž a počkat na potvrzení.
-4. Případné úpravy pláže dělat jen v pláži, ne v jiných nástrojích.
-5. Po commitu uživatelem pokračovat fází 6.
+3. Nechat uživatele otestovat pláž, útesy a vodu a počkat na potvrzení.
+4. Případné úpravy dělat jen v části, které se týkají.
+5. Po commitu uživatelem pokračovat fází 7.
 
 ### Voda
 
-Voda zatím ve hře není. Dřívější dlaždicová logika i modely byly z projektu
-odstraněny; nová voda bude vycházet z hladiny a z výšky terénu. Postup a
-jednotlivé kroky jsou v sekci „Plán: terén, písek a voda“ níže.
+Voda je jedna hladina pro celou mapu, uložená jako nepovinné číslo
+v souboru mapy. Kreslí se jako poloprůhledná deska v úrovni hladiny; kde je
+terén výš, terén ji překryje. V editoru se zapíná tlačítkem Voda a hladina
+se ladí po 0,3 m. Suché jámy pod hladinou současná deska neumí — vyřeší se
+později suchou zónou nebo vodními zónami.
 
-Aktuální plán: otestovat pláž (fáze 5), pak fáze 6 voda a fáze 7 vzhled vody.
-Samostatně pak výroba ve strojích a plnění batohu, výběr a stav stroje
-kliknutím, výroba předmětů z batohu.
+Aktuální plán: otestovat fázi 5 a 6, pak fáze 7 vzhled vody a fáze 8 hráč
+a život ve vodě. Samostatně pak výroba ve strojích a plnění batohu, výběr
+a stav stroje kliknutím, výroba předmětů z batohu.
 
 ## Plán: terén, písek a voda
 
@@ -347,16 +357,20 @@ na zemi.
 
 **Cíl:** hladina v mapě a voda tam, kde je zem pod ní.
 
-- Hladina do souboru mapy; verze mapy se zvedne, staré mapy se načtou bez vody.
-- Ovládání hladiny v editoru, voda vidět hned po aplikaci.
+- Hladina do souboru mapy jako nepovinné číslo; verze mapy zůstává 4 a stará
+  mapa bez hladiny se načte bez vody. **Hotovo.**
+- Ovládání hladiny v editoru, voda vidět hned po změně. **Hotovo.**
 - Vodní plocha z terénu, břeh kopíruje tvar země, hloubka v každém bodě.
-- Zatím jednoduchá poloprůhledná plocha pro kontrolu tvaru.
+  **Hotovo (jedna deska, terén ji překrývá).**
+- Zatím jednoduchá poloprůhledná plocha pro kontrolu tvaru. **Hotovo.**
+
+**Stav:** hladina, deska a ovládání v editoru jsou hotové; zbývá vizuální test.
 
 **Hotovo, když:** voda se objeví jen v pánvi, břeh sedí, změna terénu vodu
 přepočítá, hladina přežije uložení, stará mapa se načte.
 
-**V této fázi ještě nebude:** vlny, pěna, odlesky, chování hráče.
-**Data a ukládání:** soubor mapy nová verze; herní uložení beze změny.
+**V této fázi ještě nebude:** vlny, pěna, odlesky, chování hráče, suché jámy.
+**Data a ukládání:** soubor mapy má nepovinnou hladinu; herní uložení beze změny.
 
 ### Fáze 7 — Voda: vzhled
 
@@ -393,14 +407,14 @@ ambientní zvuk, případně zrcadlení.
 - Fáze 2 potřebuje seznam podkladů z fáze 1.
 - Fáze 3b navazuje na výškové nástroje z fáze 3 a připravuje tvar kopců pro spojitou zem.
 - Fáze 4 je nejcitlivější; bez ní není pláž ani voda.
-- Fáze 6 znovu zvedne verzi souboru mapy (hladina vody).
+- Fáze 6 přidá do mapy nepovinnou hladinu vody; verze mapy zůstává 4.
 
 ### Otevřená rozhodnutí
 
 - Fáze 5: šířka Plynulého okraje (zatím jeden prstenec navíc).
 - Útesy: neprůchodnost pro hráče (zatím nepřejde schod nad 0,45 m) a to,
   že hrana sedí na mřížce 0,5 m.
-- Fáze 6: hladina editovatelná v editoru (návrh ano).
+- Voda: suché jámy pod hladinou (suchá zóna nebo vodní zóny) — později.
 - Fáze 8: mělká + zákaz hluboké, nebo plavání.
 - Fáze 8: zvukové soubory.
 

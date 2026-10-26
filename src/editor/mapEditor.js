@@ -2,6 +2,7 @@
 // Drží otevření editoru, štětec, plochu, neuložené změny a ukládání mapy do souboru.
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { mapFileFromLayout } from '../data/catalogs/mapFile.js';
+import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import EditorMode from './editorMode.js';
 import EditorHud from './editorHud.js';
 import BrushPanel from './brushPanel.js';
@@ -101,6 +102,29 @@ export default class MapEditor {
       this.mode.setAreaSurface(key);
       this.areaPanel.setSurface(key);
     };
+
+    this.hud.onWaterToggle = () => this.toggleWater();
+    this.hud.onWaterStep = (delta) => this.stepWater(delta);
+  }
+
+  toggleWater() {
+    const current = this.mode.getWaterLevel();
+    this.setWater(current === null ? -HEIGHT_STEP : null);
+  }
+
+  stepWater(delta) {
+    const current = this.mode.getWaterLevel();
+    const base = current === null ? 0 : current;
+    this.setWater(base + delta * HEIGHT_STEP);
+  }
+
+  setWater(level) {
+    const value = this.mode.setWaterLevel(level);
+    this.hud.setWater(value);
+    this.s.adoptEditorMap();
+    this.s.renderWater();
+    this.s.handleHover(this.s.hoverCell);
+    this.markDirty();
   }
 
   open() {
@@ -109,6 +133,7 @@ export default class MapEditor {
       this.resetSelection();
       this.hud.show();
       this.hud.clearBrushSelection();
+      this.hud.setWater(this.mode.getWaterLevel());
       this.hud.setReadout(NO_BRUSH_HINT);
       this.s.holdGameForEditor();
       this.syncPanels(this.mode.mode);
@@ -176,6 +201,7 @@ export default class MapEditor {
     this.s.refreshTerrain();
     this.syncPanels(this.mode.mode);
     this.s.editorToggle.setActive(Boolean(active));
+    if (active) this.hud.setWater(this.mode.getWaterLevel());
   }
 
   syncPanels(mode) {
@@ -396,6 +422,7 @@ export default class MapEditor {
       return false;
     }
     this.ensureDraft();
+    this.hud.setWater(this.mode.getWaterLevel());
     this.refreshUndoButton();
     this.areaPanel.setCount(this.mode.pendingAreaCells(), this.mode.pendingAreaExisting());
     this.s.handleHover(this.s.hoverCell);

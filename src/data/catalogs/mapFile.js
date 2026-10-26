@@ -14,6 +14,7 @@ export function layoutFromMapFile(file, fallbackSeed = 1) {
   return {
     spawn: world.spawn && Number.isFinite(world.spawn.cx) ? { cx: world.spawn.cx, cz: world.spawn.cz } : { cx: 0, cz: 0 },
     seed: Number.isFinite(world.seed) ? world.seed : fallbackSeed,
+    waterLevel: Number.isFinite(world.waterLevel) ? world.waterLevel : null,
     floor: copy(world.floor),
     path: copy(world.path),
     clearing: copy(world.clearing),
@@ -31,6 +32,7 @@ export function mapFileFromLayout(mapKey, layout) {
     mapKey,
     seed: Number.isFinite(layout.seed) ? layout.seed : fallback.seed,
     spawn: layout.spawn ? { cx: layout.spawn.cx, cz: layout.spawn.cz } : { cx: 0, cz: 0 },
+    waterLevel: Number.isFinite(layout.waterLevel) ? layout.waterLevel : undefined,
     floor: copy(layout.floor),
     path: copy(layout.path),
     clearing: copy(layout.clearing),

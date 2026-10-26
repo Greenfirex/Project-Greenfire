@@ -13,6 +13,7 @@ import { Scene } from '@babylonjs/core/scene';
 import CameraSystem from '../systems/cameraSystem.js';
 import GridSystem from '../systems/gridSystem.js';
 import TerrainSystem from '../systems/terrainSystem.js';
+import WaterSystem from '../systems/waterSystem.js';
 import DecoSystem from '../systems/decoSystem.js';
 import FloraSystem from '../systems/floraSystem.js';
 import DecoHighlightSystem from '../systems/decoHighlightSystem.js';
@@ -86,6 +87,7 @@ export default class GameScene {
     this.cameraSystem = new CameraSystem(scene);
     this.gridSystem = new GridSystem(scene);
     this.terrainSystem = new TerrainSystem(scene);
+    this.waterSystem = new WaterSystem(scene);
     this.decoSystem = new DecoSystem(scene);
     this.decoSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z);
     this.floraSystem = new FloraSystem(scene);
@@ -473,6 +475,7 @@ updateGatherTarget() {
     this.terrainSystem.create(this.mapKey, this.mapFile, reach);
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);
     this.areaLookup = null;
+    this.renderWater();
   }
 
   setupTerrain() {
@@ -480,6 +483,12 @@ updateGatherTarget() {
     if (ground && ground.length) this.s.clearColor = this.mapColor(this.mapKey, 'sky');
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);
     this.areaLookup = null;
+    this.renderWater();
+  }
+
+  renderWater() {
+    const level = this.mapLayout && Number.isFinite(this.mapLayout.waterLevel) ? this.mapLayout.waterLevel : null;
+    this.waterSystem.create(this.terrainSystem.realCells, level);
   }
 
   wireDecoReady() {

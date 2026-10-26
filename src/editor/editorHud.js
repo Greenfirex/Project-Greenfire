@@ -3,6 +3,11 @@
 import { BRUSH_KEYS, BRUSHES } from '../data/catalogs/brushes.js';
 import { makeDraggable } from '../ui/draggable.js';
 
+function formatMeters(value) {
+  const n = Math.round(Number(value) * 10) / 10;
+  return String(n).replace('.', ',').replace('-', '−');
+}
+
 export default class EditorHud {
 
   constructor() {
@@ -11,9 +16,12 @@ export default class EditorHud {
     this.onClose = null;
     this.onMode = null;
     this.onSaveMap = null;
+    this.onWaterToggle = null;
+    this.onWaterStep = null;
     this.activeBrush = null;
     this.erasing = false;
     this.mode = 'zone';
+    this.waterLevel = null;
   }
 
   mount() {
@@ -35,6 +43,17 @@ export default class EditorHud {
       <div class="editor-panel__empty">Zatím není vybraný žádný štětec.</div>
       <div class="editor-panel__grid"></div>
       <div class="editor-panel__readout">–</div>
+      <div class="editor-panel__water">
+        <div class="editor-panel__water-top">
+          <span class="editor-panel__water-label">Voda</span>
+          <button type="button" class="editor-panel__water-toggle" title="Zapnout nebo vypnout vodu pro celou mapu">Vypnuto</button>
+        </div>
+        <div class="editor-panel__water-level">
+          <button type="button" data-water-step="-1" title="Snížit hladinu o 0,3 m">−</button>
+          <span class="editor-panel__water-value">–</span>
+          <button type="button" data-water-step="1" title="Zvýšit hladinu o 0,3 m">+</button>
+        </div>
+      </div>
       <div class="editor-panel__save-row">
         <button type="button" class="editor-panel__save" title="Uložit mapu (zapíše se do souboru v projektu)">Uložit mapu</button>
       </div>
@@ -69,6 +88,15 @@ export default class EditorHud {
       if (this.onSaveMap) this.onSaveMap();
     });
 
+    root.querySelector('.editor-panel__water-toggle').addEventListener('click', () => {
+      if (this.onWaterToggle) this.onWaterToggle();
+    });
+    for (const btn of root.querySelectorAll('[data-water-step]')) {
+      btn.addEventListener('click', () => {
+        if (this.onWaterStep) this.onWaterStep(Number(btn.dataset.waterStep));
+      });
+    }
+
     root.querySelector('.editor-panel__close').addEventListener('click', () => {
       if (this.onClose) this.onClose();
     });
@@ -79,6 +107,20 @@ export default class EditorHud {
   setReadout(text) {
     const node = this.root && this.root.querySelector('.editor-panel__readout');
     if (node) node.textContent = text;
+  }
+
+  setWater(level) {
+    this.waterLevel = Number.isFinite(level) ? level : null;
+    if (!this.root) return;
+    const on = this.waterLevel !== null;
+    this.root.classList.toggle('has-water', on);
+    const toggle = this.root.querySelector('.editor-panel__water-toggle');
+    if (toggle) {
+      toggle.textContent = on ? 'Zapnuto' : 'Vypnuto';
+      toggle.classList.toggle('is-active', on);
+    }
+    const value = this.root.querySelector('.editor-panel__water-value');
+    if (value) value.textContent = on ? `${formatMeters(this.waterLevel)} m` : '–';
   }
 
   setBrush(key) {
@@ -114,6 +156,7 @@ export default class EditorHud {
     this.mount();
     this.root.classList.add('is-open');
     this.root.dataset.mode = this.mode;
+    this.setWater(this.waterLevel);
     if (this.onBrush && this.activeBrush) this.onBrush(this.activeBrush);
     this.refresh();
   }
