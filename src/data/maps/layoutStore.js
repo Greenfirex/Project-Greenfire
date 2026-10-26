@@ -5,6 +5,7 @@ import { getDecoration, decoRadius, decoFootprint } from '../catalogs/decoration
 export const MIN_HEIGHT = -20;
 export const MAX_HEIGHT = 10;
 export const HEIGHT_STEP = 0.3;
+export const HEIGHT_COARSE_LEVELS = 15;
 export const DEFAULT_HEIGHT_LEVEL = 0;
 export const HEIGHT_PRESETS = [-20, -10, -5, 0, 5, 10];
 export function deriveBlocked(entries) {

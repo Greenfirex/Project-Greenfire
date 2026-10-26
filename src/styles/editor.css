@@ -164,19 +164,6 @@
   border-radius: 3px;
 }
 
-.editor-panel__heights {
-  display: none;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.editor-panel[data-mode="height"] .editor-panel__heights,
-.editor-panel[data-mode="area"] .editor-panel__heights {
-  display: grid;
-}
-
 .editor-panel[data-mode="height"] .editor-panel__grid {
   display: none;
 }
@@ -184,91 +171,6 @@
 .editor-panel[data-mode="area"] .editor-panel__grid {
   display: none;
 }
-
-.editor-panel__label {
-  grid-column: 1 / -1;
-  color: var(--text-dim);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.editor-panel__heights button {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(90, 200, 170, 0.18);
-  border-radius: 4px;
-  color: var(--text-dim);
-  font-size: 11px;
-  padding: 5px 2px;
-  cursor: pointer;
-  text-align: center;
-}
-
-.editor-panel__heights button:hover {
-  border-color: rgba(90, 200, 170, 0.45);
-  color: var(--text-main);
-}
-
-.editor-panel__heights button.is-active {
-  background: rgba(90, 200, 170, 0.18);
-  border-color: var(--glow-accent);
-  color: var(--text-main);
-}
-
-.editor-panel__height-actions {
-  display: none;
-  grid-template-columns: 1fr auto auto;
-  gap: 4px;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.editor-panel[data-mode="height"] .editor-panel__height-actions {
-  display: grid;
-}
-
-.editor-panel__height-count {
-  color: var(--text-dim);
-  font-size: 10px;
-}
-
-.editor-panel__height-value {
-  color: var(--glow-accent);
-  font-weight: 600;
-}
-
-.editor-panel__height-apply,
-.editor-panel__height-cancel {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(90, 200, 170, 0.18);
-  border-radius: 4px;
-  color: var(--text-dim);
-  font-size: 10px;
-  padding: 5px 6px;
-  cursor: pointer;
-}
-
-.editor-panel__height-apply {
-  background: rgba(90, 200, 170, 0.14);
-  border-color: rgba(90, 200, 170, 0.4);
-  color: var(--text-main);
-}
-
-.editor-panel__height-apply:hover,
-.editor-panel__height-cancel:hover {
-  border-color: var(--glow-accent);
-  color: var(--text-main);
-}
-
-.editor-panel__height-apply:disabled {
-  opacity: 0.4;
-  cursor: default;
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(90, 200, 170, 0.18);
-  color: var(--text-dim);
-}
-
-.editor-panel__heights [data-step],
 
 .editor-panel__grid {
   display: grid;
@@ -677,4 +579,56 @@
   font-size: 10px;
   line-height: 1.35;
   opacity: 0.75;
+}
+
+.height-panel__value {
+  color: var(--glow-accent);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.height-panel__presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.height-panel__steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.height-panel__presets button,
+.height-panel__steps button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  padding: 5px 2px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.height-panel__presets button:hover,
+.height-panel__steps button:hover {
+  border-color: rgba(90, 200, 170, 0.45);
+  color: var(--text-main);
+}
+
+.height-panel__presets button.is-active {
+  background: rgba(90, 200, 170, 0.18);
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+.height-panel__steps button[data-step="15"],
+.height-panel__steps button[data-step="-15"] {
+  border-color: rgba(90, 200, 170, 0.35);
+  color: var(--text-main);
 }
