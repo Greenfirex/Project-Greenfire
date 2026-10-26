@@ -1,9 +1,16 @@
 // Katalog brushů — deklarace „co se má na zóně vyplnit“.
 // Povrchový štětec se skládá ze seznamu podkladů, takže nový povrch stačí přidat v katalogu dekorací.
-import { DEFAULT_FLOOR, surfaceEntries } from './decorations.js';
+import { surfaceEntries } from './decorations.js';
+import { HEIGHT_STEP } from '../maps/layoutStore.js';
 
 const SURFACES = surfaceEntries();
 const surfaceStyle = (entry) => entry.key.replace(/^floor_/, '');
+
+function levelMeters(level) {
+  const n = Math.round(Math.abs(level) * HEIGHT_STEP * 10) / 10;
+  return `${String(n).replace('.', ',')} m`;
+}
+
 const SURFACE_BRUSH = SURFACES.length
   ? {
       label: 'Povrch',
@@ -73,35 +80,30 @@ export const BRUSHES = {
     pool: ['cliff_large', 'cliff_half'],
     deco: true,
   },
-  hill_low: {
-    label: 'Kopec 2 m',
+  hill: {
+    label: 'Kopec',
     shape: 'blob',
-    height: 2,
-    tile: DEFAULT_FLOOR,
+    style: 'low',
+    styles: ['low', 'mid', 'high'],
+    heights: { low: 2, mid: 3, high: 4 },
+    styleLabels: {
+      low: levelMeters(2),
+      mid: levelMeters(3),
+      high: levelMeters(4),
+    },
+    falloff: true,
   },
-  hill_mid: {
-    label: 'Kopec 3 m',
+  hollow: {
+    label: 'Prohlubeň',
     shape: 'blob',
-    height: 3,
-    tile: DEFAULT_FLOOR,
-  },
-  hill_high: {
-    label: 'Kopec 4 m',
-    shape: 'blob',
-    height: 4,
-    tile: DEFAULT_FLOOR,
-  },
-  hollow_shallow: {
-    label: 'Prohlubeň 1 m',
-    shape: 'blob',
-    height: -1,
-    tile: DEFAULT_FLOOR,
-  },
-  hollow_deep: {
-    label: 'Hlubší prohlubeň 2 m',
-    shape: 'blob',
-    height: -2,
-    tile: DEFAULT_FLOOR,
+    style: 'shallow',
+    styles: ['shallow', 'deep'],
+    heights: { shallow: -1, deep: -2 },
+    styleLabels: {
+      shallow: levelMeters(1),
+      deep: levelMeters(2),
+    },
+    falloff: true,
   },
   ore: {
     label: 'Ruda',

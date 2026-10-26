@@ -223,7 +223,7 @@ export default class GridSystem {
 
   showZones(groups, surfaceAt) {
     if (!this.zonesMasters.length) {
-      for (let slot = 0; slot < 3; slot++) {
+      for (let slot = 0; slot < 4; slot++) {
         const master = MeshBuilder.CreateGround(`zonesMaster_${slot}`, {
           width: CELL_SIZE * 0.9,
           height: CELL_SIZE * 0.9,

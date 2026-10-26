@@ -21,6 +21,7 @@ export default class BrushPanel {
     this.pathStyle = 'dirt';
     this.draftMode = 'add';
     this.countValue = 0;
+    this.slopeCount = 0;
   }
 
   mount() {
@@ -75,6 +76,13 @@ export default class BrushPanel {
     this.pathStyle = styleKey || 'dirt';
     this.title.textContent = brush ? brush.label : brushKey;
     this.buildStyles(brush);
+    const heightOnly = Boolean(brush && (Number.isFinite(brush.height) || brush.heights));
+    const surfaceOnly = Boolean(brush && brush.surfaceOnly);
+    const erase = this.root.querySelector('.brush-panel__erase');
+    if (erase) {
+      erase.textContent = heightOnly ? 'Srovnat' : surfaceOnly ? 'Na trávu' : 'Mazat';
+      erase.title = heightOnly ? 'Srovnat na 0 (X)' : surfaceOnly ? 'Vrátit na trávu (X)' : 'Mazat (X)';
+    }
     this.setCount(cellCount);
     this.root.classList.add('is-open');
   }
@@ -136,8 +144,9 @@ export default class BrushPanel {
     this.buildStyles(getBrush(this.brushKey));
   }
 
-  setCount(count) {
+  setCount(count, slopeCount = 0) {
     this.countValue = count || 0;
+    this.slopeCount = slopeCount || 0;
     this.refreshCount();
   }
 
@@ -145,8 +154,15 @@ export default class BrushPanel {
     if (!this.root || !this.count) return;
     const n = this.countValue || 0;
     const word = n === 1 ? 'buňka' : n < 5 ? 'buňky' : 'buněk';
-    const prefix = this.draftMode === 'remove' ? 'Ke smazání' : 'Vybráno';
-    this.count.textContent = `${prefix}: ${n} ${word}`;
+    const brush = getBrush(this.brushKey);
+    const heightOnly = Boolean(brush && (Number.isFinite(brush.height) || brush.heights));
+    const surfaceOnly = Boolean(brush && brush.surfaceOnly);
+    const prefix = this.draftMode === 'remove'
+      ? (heightOnly ? 'Srovná se' : surfaceOnly ? 'Na trávu' : 'Ke smazání')
+      : 'Vybráno';
+    let text = `${prefix}: ${n} ${word}`;
+    if (this.slopeCount > 0) text += ` · svah ${this.slopeCount}`;
+    this.count.textContent = text;
     const apply = this.root.querySelector('.brush-panel__apply');
     if (apply) apply.disabled = n === 0;
   }

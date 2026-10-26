@@ -99,6 +99,8 @@ samostatně; když se některá nepovede, vrací se jen ona a plán zůstává.
 - **Povrch mění jen podklad.** Nechá výšku, cesty, stromy i skály; uklidí jen
   trávu.
 - **Výška mění jen výšku.** Nechá podklad a objekty posune spolu se zemí.
+- **Kopec a Prohlubeň si svah staví samy.** Namalovaná plocha zůstane plochá,
+  svah se přidá kolem. Globální Vyhladit se ruší.
 - **Země bude spojitá.** Štěrbiny se neřeší stěnami, ale plynulým dopočtem
   výšky. Stěny by za chvíli zmizely a pláž by s nimi nešla.
 - **Voda vznikne z hladiny a terénu.** Co je pod hladinou, je zatopené. Není to
@@ -137,7 +139,7 @@ objekty, po uložení a obnovení drží, stará mapa vypadá stejně.
 **Cíl:** jedním tahem vznikne nebo se přepíše zem s vybraným podkladem a výškou.
 
 - Panel Herní plocha dostane volbu podkladu; výškový pruh bude vidět i tady.
-- Výchozí výška bude 0 (dnes 1,2 m); tlačítko Vyhladit se v tomto režimu skryje.
+- Výchozí výška bude 0 (dnes 1,2 m).
 - Kreslení nastaví přesně zvolený podklad a výšku. Nové buňky vzniknou,
   existující se přepíšou i s objekty, trávou a cestami.
 - Počítadlo ukáže počet přepsaných buněk, z toho existujících, podklad a výšku.
@@ -157,13 +159,33 @@ země ji přepíše; počítadlo sedí; Z vrátí vše.
   a objekty se posunou spolu se zemí.
 - Režim Výška přestane přebarvovat na trávu.
 - Kopec a Prohlubeň mění jen výšku; na písku zůstane písek.
-- Vyhladit posouvá i objekty.
+- Vyhladit posouvá i objekty (ve fázi 3b je nahrazeno svahem u Kopce).
 - Názvy prohlubní odpovídají skutečné hloubce.
 
 **Hotovo, když:** kopec i prohlubeň na písku zůstanou pískové, objekty se
 posunou, cesta drží, režim Výška nemění podklad.
 
 **V této fázi ještě nebude:** hlubší jámy, plynulé svahy, hráč na zemi, voda.
+**Data a ukládání:** beze změny.
+
+### Fáze 3b — Kopec a Prohlubeň se svahem
+
+**Cíl:** zrušit globální Vyhladit a naučit výškové štětce stavět svah samy.
+
+- Jeden Kopec s výškami 1,2 / 1,8 / 2,4 m a jeden Prohlubeň s 0,6 / 1,2 m;
+  výšky se vybírají v okně štětce.
+- Namalovaná plocha zůstane plochá ve zvolené výšce; kolem ní brush přidá
+  svah po 0,6 m, dokud nedojde na 0.
+- Svah jen na existující buňky; podklad zůstane, objekty se posunou; náhled
+  ukáže plochu i svah; Z vrátí celý krok.
+- Vyhladit a globální dohlazování se mažou.
+
+**Hotovo, když:** pruh tří buněk na 1,2 m zůstane plochý, kolem něj je
+prstenec 0,6 m a dál 0; Prohlubeň funguje zrcadlově; tlačítko Vyhladit
+zmizelo a náhled nešedí celou mapu.
+
+**V této fázi ještě nebude:** spojitá zem – kopec bude v datech správně, ale
+vizuálně schodovitý. Plynulý svah přijde ve fázi 4.
 **Data a ukládání:** beze změny.
 
 ### Fáze 4 — Spojitá zem
@@ -242,8 +264,9 @@ ambientní zvuk, případně zrcadlení.
 
 ### Pořadí a závislosti
 
-- 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8; fáze 9 kdykoliv na konci.
+- 1 → 2 → 3 → 3b → 4 → 5 → 6 → 7 → 8; fáze 9 kdykoliv na konci.
 - Fáze 2 potřebuje seznam podkladů z fáze 1.
+- Fáze 3b navazuje na výškové nástroje z fáze 3 a připravuje tvar kopců pro spojitou zem.
 - Fáze 4 je nejcitlivější; bez ní není pláž ani voda.
 - Fáze 6 jediná mění formát souboru mapy.
 
@@ -265,13 +288,19 @@ V editoru (F1) jsou tři druhy práce: **zóny** vyplní označené buňky rostl
 a objekty, **výška** zvedá dlaždice a **plocha** zakládá nebo přepisuje zem
 s vybraným podkladem a výškou. Plocha je razítko: nové buňky vzniknou,
 existující se přepíšou i s objekty, mazání udělá v mapě skutečnou díru.
-Klikací tlačítka výšky v panelu určují, jak vysoko se dlaždice pokládají;
-tlačítkem **Vyhladit** se srovnají schody do okolí.
+Klikací tlačítka výšky v panelu určují, jak vysoko se dlaždice pokládají.
+Kopec a Prohlubeň si svah staví samy: v jejich okně vybereš výšku a namalovaná
+plocha zůstane plochá, kolem ní se přidá svah po 0,6 m až do 0.
 
 Podklad dlaždice (tráva, písek) se mění štětcem **Povrch**: ten nechá výšku,
 cesty i objekty a uklidí jen trávu. Mazání tímto štětcem vrátí buňku na trávu.
 Nový povrch je jeden záznam v katalogu dekorací vedle `floor_grass` a
 `floor_sand`; terén pak každý povrch kreslí vlastní texturou a velikostí dlaždice.
+
+**Výška** mění jen výšku: podklad zůstane a objekty na buňce se posunou
+spolu se zemí. Kopec a Prohlubeň dělají totéž plošně; jejich Srovnat buňky
+srovná na nulu, nemaže je. Výšky v jejich podmenu odpovídají skutečné
+výšce v metrech.
 
 V okně **Herní plocha** se k razítku vybírá podklad a výška; počítadlo předem
 ukáže, kolik buněk se přepíše a kolik jich už v mapě je.

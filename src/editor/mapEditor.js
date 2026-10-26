@@ -50,7 +50,11 @@ export default class MapEditor {
       this.showAreaPreview(this.mode.getAreaSelection());
       this.s.handleHover(this.s.hoverCell);
     };
-    this.mode.onStyleChange = (brushKey, styleKey) => this.brushPanel.setStyle(styleKey);
+    this.mode.onStyleChange = (brushKey, styleKey) => {
+      this.brushPanel.setStyle(styleKey);
+      if (this.mode.draft) this.updateDraftView(this.mode.draft);
+      else this.refreshZoneOverlay();
+    };
     this.mode.onHeightChange = (level) => {
       this.hud.setHeightLevel(level);
       this.areaPanel.setHeight(this.mode.areaHeightMeters);
@@ -65,7 +69,6 @@ export default class MapEditor {
     this.hud.onMode = (mode) => this.mode.setMode(mode);
     this.hud.onHeightLevel = (level) => this.mode.setHeightLevel(level);
     this.hud.onHeightStep = (delta) => this.mode.stepHeightLevel(delta);
-    this.hud.onSmooth = () => this.mode.smoothHeights();
     this.hud.onClose = () => this.close();
     this.hud.onSaveMap = () => this.saveMap();
 
@@ -277,7 +280,8 @@ export default class MapEditor {
     }
     const info = this.mode.describeAt(cell.cx, cell.cz);
     const tile = describeEntry(info);
-    const height = ` · výška ${info.height === null ? '0 m' : info.height + ' m'}`;
+    const lift = Math.round((Number(info.liftY) || 0) * 100) / 100;
+    const height = ` · výška ${String(lift).replace('.', ',')} m`;
     const draft = this.mode.draft ? ` · kreslím: ${this.mode.draft.brushKey}` : '';
     this.hud.setReadout(`${cell.cx}, ${cell.cz} — ${tile}${height}${draft}`);
   }
@@ -323,9 +327,13 @@ export default class MapEditor {
 
   applyBrushDraft() {
     const removing = this.mode.draftMode === 'remove';
+    const heightBrush = this.mode.isHeightBrush;
     const count = this.mode.applyDraft();
-    if (count) this.hud.setReadout((removing ? 'Smazáno ' : 'Aplikováno ') + count + ' buněk');
-    else this.hud.setReadout(removing ? 'Nic ke smazání' : 'Prázdná zóna');
+    if (count) {
+      const verb = heightBrush && removing ? 'Srovnáno ' : heightBrush ? 'Aplikováno ' : removing ? 'Smazáno ' : 'Aplikováno ';
+      const suffix = heightBrush ? ' (i se svahem)' : '';
+      this.hud.setReadout(verb + count + ' buněk' + suffix);
+    } else this.hud.setReadout(removing ? 'Nic ke smazání' : 'Prázdná zóna');
     this.brushPanel.setDraftMode(this.mode.draftMode);
     this.refreshUndoButton();
     this.refreshZoneOverlay();
@@ -374,7 +382,8 @@ export default class MapEditor {
       return;
     }
     this.brushPanel.setDraftMode(draft.mode);
-    this.brushPanel.setCount(draft.cells.size);
+    const shape = this.mode.heightDraftShape(draft);
+    this.brushPanel.setCount(draft.cells.size, shape ? shape.slope.length : 0);
     this.refreshUndoButton();
     this.refreshZoneOverlay();
   }
@@ -390,6 +399,7 @@ export default class MapEditor {
     const surfaceAt = (cx, cz) => this.s.decoSystem.surfaceAt(cx, cz);
     const same = [];
     const other = [];
+    const shape = this.mode.heightDraftShape(draft);
 
     const draftCells = [];
     for (const key of draft.cells) {
@@ -398,7 +408,7 @@ export default class MapEditor {
       if (removing) continue;
       if (this.mode.draftHasSame(cx, cz)) same.push([cx, cz]);
     }
-    if (!removing) {
+    if (!removing && this.mode.draftKeys.length) {
       for (const [cx, cz] of this.s.terrainSystem.realCells || []) {
         if (!this.mode.draftHasContent(cx, cz)) continue;
         if (this.mode.draftHasSame(cx, cz)) same.push([cx, cz]);
@@ -427,6 +437,13 @@ export default class MapEditor {
         glow: removing ? new Color3(0.95, 0.25, 0.2) : new Color3(0.2, 0.95, 0.8),
         alpha: 0.72,
         lift: 0.055,
+      },
+      {
+        cells: shape ? shape.slope.map((entry) => [entry.cx, entry.cz]) : [],
+        color: new Color3(0.95, 0.7, 0.2),
+        glow: new Color3(0.85, 0.6, 0.15),
+        alpha: 0.34,
+        lift: 0.035,
       },
     ], surfaceAt);
 

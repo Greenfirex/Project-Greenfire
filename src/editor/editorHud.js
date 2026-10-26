@@ -13,7 +13,6 @@ export default class EditorHud {
     this.onMode = null;
     this.onHeightLevel = null;
     this.onHeightStep = null;
-    this.onSmooth = null;
     this.onSaveMap = null;
     this.activeBrush = null;
     this.erasing = false;
@@ -50,7 +49,6 @@ export default class EditorHud {
         <button type="button" data-height="4">4</button>
         <button type="button" data-step="1" title="Přidat 1 úroveň (Q)">+1</button>
         <button type="button" data-step="-1" title="Ubrat 1 úroveň (E)">−1</button>
-        <button type="button" data-tool="smooth" title="Vyhladit schody">✦ Vyhladit</button>
       </div>
       <div class="editor-panel__readout">–</div>
       <div class="editor-panel__save-row">
@@ -94,9 +92,6 @@ export default class EditorHud {
         if (this.onHeightStep) this.onHeightStep(Number(btn.dataset.step));
       });
     }
-    root.querySelector('[data-tool="smooth"]').addEventListener('click', () => {
-      if (this.onSmooth) this.onSmooth();
-    });
     root.querySelector('.editor-panel__save').addEventListener('click', () => {
       if (this.onSaveMap) this.onSaveMap();
     });

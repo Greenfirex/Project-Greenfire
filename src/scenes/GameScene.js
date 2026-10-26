@@ -563,6 +563,7 @@ updateGatherTarget() {
 
   sectionFor(kind) {
     if (kind === 'path') return 'path';
+    if (kind === 'floor' || kind === 'ground') return kind;
     return 'deco';
   }
 

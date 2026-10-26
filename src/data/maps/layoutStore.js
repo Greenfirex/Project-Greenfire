@@ -4,6 +4,7 @@ import { getDecoration, decoRadius, decoFootprint } from '../catalogs/decoration
 
 export const MIN_HEIGHT = -2;
 export const MAX_HEIGHT = 4;
+export const HEIGHT_STEP = 0.6;
 export const DEFAULT_HEIGHT_LEVEL = 0;
 export function deriveBlocked(entries) {
   const out = [];
