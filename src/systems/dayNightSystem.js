@@ -88,11 +88,18 @@ export default class DayNightSystem {
     const moon = cfg.moonTint || [1, 1, 1];
     this.sunDiffuse = this.sunDiffuse || this.sunLight.diffuse.clone();
     const sun = this.sunDiffuse;
-    this.sunLight.diffuse.set(
-      sun.r + (moon[0] - sun.r) * (1 - dayness),
-      sun.g + (moon[1] - sun.g) * (1 - dayness),
-      sun.b + (moon[2] - sun.b) * (1 - dayness)
-    );
+    let red = sun.r + (moon[0] - sun.r) * (1 - dayness);
+    let green = sun.g + (moon[1] - sun.g) * (1 - dayness);
+    let blue = sun.b + (moon[2] - sun.b) * (1 - dayness);
+    const dusk = cfg.duskTint;
+    if (dusk) {
+      const low = 4 * dayness * (1 - dayness);
+      const warmth = Math.pow(Math.max(0, low), 2) * 0.9;
+      red += (dusk[0] - red) * warmth;
+      green += (dusk[1] - green) * warmth;
+      blue += (dusk[2] - blue) * warmth;
+    }
+    this.sunLight.diffuse.set(red, green, blue);
 
     if (this.skyLight) {
       const floor = cfg.nightLight ?? 0.35;

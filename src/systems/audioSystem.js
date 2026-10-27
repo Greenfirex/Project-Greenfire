@@ -35,7 +35,7 @@ const FIRE_FADE_SECONDS = 0.5;
 const FIRE_HEARING = 12;
 const FIRE_LEVELS = [0.3, 0.2, 0.12, 0.05];
 
-const SHORE_LAYER = 'beach';
+const SHORE_LAYER = 'sea';
 const SHORE_FADE_SECONDS = 2;
 const SHORE_LEVEL = 0.35;
 const SHORE_NEAR = 3;

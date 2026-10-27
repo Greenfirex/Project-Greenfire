@@ -4,6 +4,7 @@ import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
 import { Effect } from '@babylonjs/core/Materials/effect';
 import { Vector3, Matrix } from '@babylonjs/core/Maths/math.vector';
 import { WAVE_SWAY, WAVE_TIME_WRAP, glslFloat, swellGlsl, swellSlopeGlsl } from '../utils/waterWaves.js';
+import { causticGlsl } from '../utils/waterCaustics.js';
 
 const WAVE = `
 float hash(vec2 p) {
@@ -67,11 +68,13 @@ float swashPhase(vec2 p, float time) {
   return sin(time * 0.9 + drift * 6.2831 + p.x * 0.22 + p.y * 0.18);
 }
 
+${causticGlsl()}
 `;
 const VERTEX = `
 precision highp float;
 
 attribute vec3 position;
+attribute float waveAmp;
 
 uniform mat4 viewProjection;
 uniform float waterTime;
@@ -79,12 +82,14 @@ uniform vec2 seaDir;
 ${WAVE}
 varying vec3 vPosition;
 varying float vSwash;
+varying float vWaveAmp;
 
 void main(void) {
   vSwash = swashPhase(position.xz, waterTime);
   vec2 dir = seaDirection(seaDir, position.xz, waterTime);
-  float rise = swell(position.xz, dir, waterTime);
+  float rise = swell(position.xz, dir, waterTime) * waveAmp;
   vec3 world = vec3(position.x, position.y + rise, position.z);
+  vWaveAmp = waveAmp;
   vPosition = world;
   gl_Position = viewProjection * vec4(world, 1.0);
 }
@@ -115,6 +120,7 @@ uniform mat4 reflectionViewProjection;
 
 varying vec3 vPosition;
 varying float vSwash;
+varying float vWaveAmp;
 ${WAVE}
 
 void main(void) {
@@ -126,18 +132,12 @@ void main(void) {
   vec2 dir = seaDirection(seaDir, p, waterTime);
 
   vec2 ripple = rippleSlope(p, dir, waterTime);
-  vec2 slope = ripple + swellSlope(p, dir, waterTime);
+  vec2 slope = ripple + swellSlope(p, dir, waterTime) * vWaveAmp;
   float slopeSize = length(slope);
   vec3 normal = normalize(vec3(-slope.x, 1.0, -slope.y));
   vec3 viewDir = normalize(cameraDir);
 
   float sun = max(dot(normal, sunDir), 0.0);
-  vec3 halfDir = sunDir + viewDir;
-  float halfLen = length(halfDir);
-  halfDir = halfLen > 0.0001 ? halfDir / halfLen : normal;
-  float halfDot = max(dot(normal, halfDir), 0.0);
-  float glitter = pow(halfDot, 700.0) * 5.0 * smoothstep(0.35, 0.75, noise(p * 3.6 + vec2(waterTime * 0.80, -waterTime * 0.65)));
-  float spec = pow(halfDot, 420.0) * 1.1 + pow(halfDot, 60.0) * 0.35 + glitter;
   float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 3.0);
 
   float t = clamp(depth / maxDepth, 0.0, 1.0);
@@ -149,7 +149,7 @@ void main(void) {
   vec3 skyReflect = mix(skyColor * 0.5, skyColor * 0.9, smoothstep(0.1, 0.85, upness));
   vec4 reflectionPos = reflectionViewProjection * vec4(vPosition, 1.0);
   vec2 reflectionUv = reflectionPos.xy / max(abs(reflectionPos.w), 1e-4) * 0.5 + 0.5;
-  reflectionUv += slope * 0.10;
+  reflectionUv += slope * 0.04;
   vec3 reflected = texture2D(reflectionSampler, clamp(reflectionUv, vec2(0.002), vec2(0.998))).rgb;
   reflected = mix(reflected, skyReflect, 0.15);
 
@@ -162,13 +162,9 @@ void main(void) {
   color += deepColor * 0.25;
   color = mix(color, reflected, mirror);
   color *= 1.0 + slopeSize * 0.9;
-  float causticPhase = dot(p, dir) * 1.6 - waterTime * 0.9;
-  float causticA = sin(causticPhase + noise(p * 0.55 + vec2(waterTime * 0.15, -waterTime * 0.12)) * 5.0);
-  float causticB = sin(causticPhase * 1.7 + 2.1 + noise(p * 0.75 - vec2(waterTime * 0.11, waterTime * 0.16)) * 5.0);
-  float caustic = pow(abs(causticA * causticB), 1.5);
+  float caustic = causticPattern(p, dir, waterTime);
   caustic *= (1.0 - smoothstep(0.0, 1.0, depth)) * (0.30 + 0.70 * dayness);
-  color += sunColor * caustic * sunIntensity * 0.10;
-  color += sunColor * spec * sunIntensity * 0.5;
+  color += sunColor * caustic * sunIntensity * 0.04;
 
   float crest = smoothstep(0.10, 0.35, slopeSize);
   color = mix(color, shallowColor * 1.15 + 0.02, crest * 0.22);
@@ -176,20 +172,20 @@ void main(void) {
   float n1 = noise(p * 0.90 + vec2(waterTime * 0.25, waterTime * 0.20));
   float n2 = noise(p * 2.30 - vec2(waterTime * 0.40, waterTime * 0.30));
   float foamNoise = n1 * 0.62 + n2 * 0.38;
-  float foamBand = (1.0 - smoothstep(0.02, 0.12, wet)) * smoothstep(-0.02, 0.02, wet);
+  float foamBand = (1.0 - smoothstep(0.02, 0.16, wet)) * smoothstep(-0.02, 0.02, wet);
   float foam = foamBand * smoothstep(0.42, 0.85, foamNoise + 0.20);
   foam = smoothstep(0.05, 0.60, foam);
-  float seaCrest = seaHeight(p, dir, waterTime) / 0.33;
+  float seaCrest = seaHeight(p, dir, waterTime) * vWaveAmp / 0.33;
   float breaker = smoothstep(0.45, 0.92, seaCrest) * smoothstep(0.06, 0.22, depth) * (1.0 - smoothstep(0.45, 1.1, depth));
-  foam = max(foam, breaker * 0.45);
+  foam = max(foam, breaker * 0.5);
   foam *= mix(0.35, 1.0, 1.0 - smoothstep(-0.7, 0.2, vSwash));
   float shoreCut = smoothstep(-0.03, 0.06, rawDrop);
   float visible = smoothstep(0.0, 0.22, wet) * shoreCut;
   foam *= smoothstep(0.015, 0.12, wet);
-  color = mix(color, foamColor * (0.4 + 0.6 * dayness), foam * 0.55 * shoreCut);
+  color = mix(color, foamColor * (0.4 + 0.6 * dayness), foam * 0.66 * shoreCut);
 
   float alpha = mix(0.30, 0.9, t) * visible;
-  alpha = max(alpha, foam * 0.5 * shoreCut);
+  alpha = max(alpha, foam * 0.58 * shoreCut);
   gl_FragColor = vec4(color, alpha);
 }
 `;
@@ -199,6 +195,7 @@ precision highp float;
 
 attribute vec3 position;
 attribute vec2 uv;
+attribute float waveAmp;
 
 uniform mat4 viewProjection;
 uniform float waterTime;
@@ -211,7 +208,7 @@ void main(void) {
   vec3 pos = position;
   if (uv.y < 0.5) {
     vec2 dir = seaDirection(seaDir, pos.xz, waterTime);
-    pos.y += swell(pos.xz, dir, waterTime);
+    pos.y += swell(pos.xz, dir, waterTime) * waveAmp;
   }
   vUV = uv;
   vPosition = pos;
@@ -270,7 +267,7 @@ function registerShaders() {
 export function createWaterMaterial(scene, options) {
   registerShaders();
   const material = new ShaderMaterial('waterSurfaceMat', scene, { vertex: 'water', fragment: 'water' }, {
-    attributes: ['position'],
+    attributes: ['position', 'waveAmp'],
     uniforms: [
       'viewProjection', 'waterTime', 'sunDir', 'sunColor', 'sunIntensity', 'skyColor',
       'cameraDir', 'shallowColor', 'deepColor', 'foamColor', 'dayness', 'maxDepth',
@@ -299,7 +296,7 @@ export function createWaterMaterial(scene, options) {
 export function createWaterSideMaterial(scene, options) {
   registerShaders();
   const material = new ShaderMaterial('waterSideMat', scene, { vertex: 'waterSide', fragment: 'waterSide' }, {
-    attributes: ['position', 'uv'],
+    attributes: ['position', 'uv', 'waveAmp'],
     uniforms: ['viewProjection', 'waterTime', 'surfaceColor', 'deepColor', 'foamColor', 'dayness', 'seaDir'],
   });
   material.backFaceCulling = false;

@@ -2,4 +2,4 @@ Zvuky kroků, sekání, těžby, pochodně a ohně: Free Fantasy SFX Pack od Tom
 (https://tommusic.itch.io), zdrojový balíček je ve složce _sources.
 Kroky ve vodě (waterstep_1 až waterstep_5) jsou z téhož balíčku, soubory
 "Water Walk 1" až "Water Walk 5".
-Příboj (beach.ogg) je z téhož balíčku, soubor "Beach" ze složky BGS Loops.
+Příboj (sea.ogg) je z téhož balíčku, soubor "Sea" ze složky BGS Loops.

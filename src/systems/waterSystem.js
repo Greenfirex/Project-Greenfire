@@ -19,11 +19,18 @@ const WATER_STEPS = { high: 0.5, medium: 1, low: 2 };
 const DEPTH_STEP = 0.5;
 const DEPTH_MAX = 256;
 const DEPTH_RANGE = 3;
-const REFLECTION_SCALES = { high: 0.5, medium: 0.4, low: 0.3 };
+const REFLECTION_SCALES = { high: 0.6, medium: 0.45, low: 0.35 };
 const FALLBACK_RGB = [0.06, 0.16, 0.19];
 const FALLBACK_SKY = new Color3(0.5, 0.65, 0.8);
 const SEA_FALLBACK = [0.94, 0.34];
 const MAX_DEPTH = 2.5;
+const WAVE_AMP_MIN = 0.7;
+const WAVE_AMP_MAX = 2.15;
+
+function waveAmpFor(depth) {
+  const t = Math.min(1, Math.max(0, (depth - 0.15) / (MAX_DEPTH - 0.15)));
+  return WAVE_AMP_MIN + (WAVE_AMP_MAX - WAVE_AMP_MIN) * (t * t * (3 - 2 * t));
+}
 const RIPPLE_COUNT = 8;
 const RIPPLE_SECONDS = 0.7;
 const RIPPLE_GROW = 0.9;
@@ -87,6 +94,7 @@ export default class WaterSystem {
     this.level = null;
     this.heightAt = null;
     this.shoreCells = [];
+    this.maxDepth = MAX_DEPTH;
     this.ripples = [];
   }
 
@@ -206,6 +214,8 @@ export default class WaterSystem {
       mesh.isPickable = false;
       mesh.receiveShadows = false;
       mesh.setEnabled(false);
+      mesh.alphaIndex = 3;
+      material.disableDepthWrite = true;
       this.ripples.push({ mesh, material, time: 0, life: 0 });
     }
     return this.ripples;
@@ -512,7 +522,9 @@ export default class WaterSystem {
     data.positions = positions;
     data.indices = indices;
     data.applyToMesh(mesh);
+    mesh.setVerticesData('waveAmp', new Float32Array(depths.map(waveAmpFor)), false, 1);
     mesh.isPickable = false;
+    mesh.alphaIndex = 2;
     const material = this.materialFor();
     material.setFloat('waterLevel', level);
     this.depthMapFor(level, heightAt, x0, x1, z0, z1);
@@ -524,10 +536,12 @@ export default class WaterSystem {
     this.reflectionFor(quality, surfaceY);
     mesh.material = material;
     this.mesh = mesh;
+    material.disableDepthWrite = true;
 
     const sidePositions = [];
     const sideUvs = [];
     const sideIndices = [];
+    const sideAmps = [];
     const vertex = (i, j) => {
       const index = j * (cols + 1) + i;
       return { x: positions[index * 3], z: positions[index * 3 + 2], depth: depths[index] };
@@ -546,6 +560,7 @@ export default class WaterSystem {
         b.x, bBottom, b.z,
       );
       sideUvs.push(a.depth, 0, a.depth, 1, b.depth, 0, b.depth, 1);
+      sideAmps.push(waveAmpFor(a.depth), 0, waveAmpFor(b.depth), 0);
       sideIndices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
     };
     for (const key of included) {
@@ -562,7 +577,9 @@ export default class WaterSystem {
       sideData.indices = sideIndices;
       sideData.uvs = sideUvs;
       sideData.applyToMesh(sides);
+      sides.setVerticesData('waveAmp', new Float32Array(sideAmps), false, 1);
       sides.isPickable = false;
+      sides.alphaIndex = 1;
       const base = this.waterRgb || FALLBACK_RGB;
       sides.material = createWaterSideMaterial(this.s, {
         shallowColor: this.sideColor(base, 1.9, 0.05),
@@ -570,6 +587,7 @@ export default class WaterSystem {
         foamColor: new Color3(0.62, 0.72, 0.73),
       });
       sides.material.setVector2('seaDir', this.seaDir);
+      sides.material.disableDepthWrite = true;
       this.sideMesh = sides;
       this.sideMaterial = sides.material;
     }

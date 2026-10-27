@@ -32,6 +32,7 @@ export const MAPS = {
       sunHeight: 34,
       moonIntensity: 0.40,
       moonTint: [0.46, 0.58, 0.88],
+      duskTint: [1.0, 0.62, 0.35],
       dawnColor: [0.36, 0.26, 0.22],
       dayColor: [0.035, 0.045, 0.055],
       duskColor: [0.32, 0.20, 0.18],

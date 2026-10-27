@@ -134,7 +134,7 @@ volitelné body fáze 9.
 
 **Zbývá:**
 - Fáze 9: rostliny u břehu, zatopené kameny, skutečný odraz oblohy,
-  volitelně varianty příboje (bouřka, otevřené moře).
+  volitelně bouřka a déšť (počasí).
 - Doladit suché jámy pod hladinou (suchá zóna nebo vodní zóny).
 - Mimo tento plán: výroba ve strojích, recepty a plnění batohu.
 
@@ -454,7 +454,7 @@ Hotové: mokrý písek, kaustiky, bílé hřebeny, ambientní zvuk lesa a jemně
 přechod písek/tráva (míchání textur i barvy).
 
 Zbývá: rostliny u břehu, zatopené kameny, skutečný odraz oblohy, volitelně
-varianty příboje (bouřka, otevřené moře, déšť).
+bouřka a déšť (počasí).
 
 ### Pořadí a závislosti
 

@@ -39,6 +39,7 @@ import PauseScreen from '../ui/pauseScreen.js';
 import LoadingScreen from '../ui/loadingScreen.js';
 import { whenModelsIdle, takeModelError, preloadModel, releaseFrame } from '../utils/assetLoader.js';
 import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
+import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
 import { HOTBAR_ITEMS } from '../data/catalogs/items.js';
 import { worldToCellCoords, worldToCell, CELL_SIZE } from '../utils/gridMath.js';
@@ -238,6 +239,7 @@ export default class GameScene {
       const root = this.playerSystem.root;
       this.campfireSystem.update(dt, root);
       this.waterSystem.update(dt);
+      this.updateWaterCaustics();
       this.updateCampfireSound(root);
       this.updateShoreSound(root, dt);
       if (root) this.cameraSystem.follow(root.position.x, root.position.z, root.position.y, dt);
@@ -343,6 +345,20 @@ export default class GameScene {
     this.shoreClock = 0;
     const distance = root ? this.waterSystem.shoreDistanceAt(root.position.x, root.position.z) : Infinity;
     this.audioSystem.setShoreDistance(distance);
+  }
+
+  updateWaterCaustics() {
+    const water = this.waterSystem;
+    const sun = this.dayNightSystem ? this.dayNightSystem.sunLight : null;
+    const level = water && Number.isFinite(water.level) ? water.surfaceY : null;
+    if (!water || !sun || level === null) {
+      this.terrainSystem.updateCaustics(0, null, 0, 0, null, 0, 0);
+      return;
+    }
+    const dirX = water.seaDir ? water.seaDir.x : 0.94;
+    const dirZ = water.seaDir ? water.seaDir.y : 0.34;
+    const strength = sun.intensity * this.waterDayness() * 0.2;
+    this.terrainSystem.updateCaustics(water.time % WAVE_TIME_WRAP, level, dirX, dirZ, sun.diffuse, strength, water.maxDepth);
   }
 
   cancelCampfireIgnite() {

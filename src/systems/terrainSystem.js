@@ -18,6 +18,7 @@ import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
 import { groundCells, worldCells, floorCellAt } from '../data/maps/areaShape.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import TerrainBlendPlugin from './terrainBlendPlugin.js';
+import TerrainCausticPlugin from './terrainCausticPlugin.js';
 
 const PICK_LIFT = 0.002;
 const GRID_LIFT = 0.02;
@@ -95,6 +96,7 @@ export default class TerrainSystem {
     this.blendPlugins = new Map();
     this.blendTextures = new Map();
     this.weightTextures = [];
+    this.causticPlugins = [];
     this.skirtMaterial = null;
     this.skirtMesh = null;
     this.gridLines = null;
@@ -768,6 +770,7 @@ export default class TerrainSystem {
       material.useVertexColor = true;
       material.diffuseColor = color3(cfg.mapTint ? this.tintOf(map) : (cfg.color || [1, 1, 1]));
       this.materials.set(cacheKey, material);
+      this.causticPlugins.push(new TerrainCausticPlugin(material));
       if (blend) {
         this.blendPlugins.set(cacheKey, new TerrainBlendPlugin(material, {
           texture: this.blendTextureFor(blend.partner),
@@ -810,12 +813,19 @@ export default class TerrainSystem {
     return texture;
   }
 
+  updateCaustics(time, level, dirX, dirZ, color, strength, maxDepth) {
+    for (const plugin of this.causticPlugins) {
+      plugin.setCaustics(time, level, dirX, dirZ, color, strength, maxDepth);
+    }
+  }
+
   disposeMaterials() {
     for (const material of this.materials.values()) {
       if (material) material.dispose(false, true);
     }
     this.materials.clear();
     this.blendPlugins.clear();
+    this.causticPlugins.length = 0;
     for (const texture of this.blendTextures.values()) {
       if (texture) texture.dispose();
     }
