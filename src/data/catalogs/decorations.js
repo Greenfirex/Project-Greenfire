@@ -372,7 +372,6 @@ export const DECORATION_TYPES = {
       tile: 5.5,
       ambient: [0.08, 0.1, 0.08],
       mapTint: true,
-      edgeTint: [1.06, 1.01, 0.9],
     },
   },
   floor_sand: {
@@ -385,7 +384,7 @@ export const DECORATION_TYPES = {
       tile: 3,
       ambient: [0.09, 0.08, 0.07],
       color: [1.05, 0.98, 0.86],
-      edgeTint: [0.95, 0.95, 0.92],
+      spreads: true,
     },
   },
   ore_iron: {

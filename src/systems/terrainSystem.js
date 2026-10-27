@@ -7,14 +7,17 @@ import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Vector2, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
+import { Constants } from '@babylonjs/core/Engines/constants';
 import { CELL_SIZE } from '../utils/gridMath.js';
 import { createTerrainField } from '../utils/terrainField.js';
 import { getMap } from '../data/catalogs/maps.js';
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
 import { groundCells, worldCells, floorCellAt } from '../data/maps/areaShape.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
+import TerrainBlendPlugin from './terrainBlendPlugin.js';
 
 const PICK_LIFT = 0.002;
 const GRID_LIFT = 0.02;
@@ -23,10 +26,16 @@ const SURFACE_SUB = 4;
 const SKIRT_DEPTH = 2;
 const WALL_TILE = 3;
 const WALL_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
-const SURFACE_WAVE = 0.28;
-const SURFACE_WAVE_LONG = 1.1;
-const SURFACE_WAVE_SHORT = 2.7;
-const SURFACE_EDGE_METERS = 1.1;
+const SURFACE_BLEND_RADIUS = 1.8;
+const SURFACE_BLEND_SOFTMIN = 0.35;
+const SURFACE_BLEND_COLLAR = 0.25;
+const SURFACE_BLEND_TEXEL = CELL_SIZE / 8;
+const SURFACE_BLEND_NOISE = CELL_SIZE;
+const SURFACE_BLEND_GRAIN = CELL_SIZE / 4;
+const BLEND_NEIGHBORS = [
+  [1, 0], [-1, 0], [0, 1], [0, -1],
+  [1, 1], [1, -1], [-1, 1], [-1, -1],
+];
 const CLIFF_WAVE = 0.16;
 const CLIFF_WAVE_LONG = 0.9;
 const CLIFF_WAVE_SHORT = 2.3;
@@ -48,16 +57,20 @@ function hash01(a, b) {
   return n - Math.floor(n);
 }
 
-function wavePhase(line) {
-  return hash01(Math.round(line * 2), 7) * Math.PI * 2;
-}
-
-function waveOffset(t, line) {
-  const phase = wavePhase(line);
-  return (
-    Math.sin(t * SURFACE_WAVE_LONG + phase) * 0.65
-    + Math.sin(t * SURFACE_WAVE_SHORT + phase * 1.7) * 0.35
-  ) * SURFACE_WAVE;
+function valueNoise(x, z) {
+  const ix = Math.floor(x);
+  const iz = Math.floor(z);
+  const fx = x - ix;
+  const fz = z - iz;
+  const sx = fx * fx * (3 - 2 * fx);
+  const sz = fz * fz * (3 - 2 * fz);
+  const a = hash01(ix, iz);
+  const b = hash01(ix + 1, iz);
+  const c = hash01(ix, iz + 1);
+  const d = hash01(ix + 1, iz + 1);
+  const top = a + (b - a) * sx;
+  const bottom = c + (d - c) * sx;
+  return top + (bottom - top) * sz;
 }
 
 function cliffOffset(t, line) {
@@ -79,6 +92,9 @@ export default class TerrainSystem {
     this.ground = null;
     this.surfaces = [];
     this.materials = new Map();
+    this.blendPlugins = new Map();
+    this.blendTextures = new Map();
+    this.weightTextures = [];
     this.skirtMaterial = null;
     this.skirtMesh = null;
     this.gridLines = null;
@@ -214,6 +230,8 @@ export default class TerrainSystem {
       if (mesh && !mesh.isDisposed()) mesh.dispose(false, false);
     }
     this.surfaces = [];
+    for (const texture of this.weightTextures) texture.dispose();
+    this.weightTextures = [];
 
     const tint = new Color3(0.72, 0.7, 0.64);
     const step = CELL_SIZE / SURFACE_SUB;
@@ -225,38 +243,92 @@ export default class TerrainSystem {
       keys.set(`${cx},${cz}`, floor && floor.key ? floor.key : DEFAULT_FLOOR);
     }
     const keyAt = (cx, cz) => keys.get(`${cx},${cz}`) || null;
-    const edgeTints = new Map();
-    const edgeTintFor = (key) => {
-      if (edgeTints.has(key)) return edgeTints.get(key);
+    const spreads = (key) => {
       const cfg = this.surfaceConfig(key);
-      const value = cfg && Array.isArray(cfg.edgeTint) && cfg.edgeTint.length === 3 ? cfg.edgeTint : null;
-      edgeTints.set(key, value);
-      return value;
+      return Boolean(cfg && cfg.spreads);
     };
-    const edgeWeightAt = (px, pz, ownKey) => {
-      const ax = Math.floor((px + half) / CELL_SIZE) * CELL_SIZE;
-      const az = Math.floor((pz + half) / CELL_SIZE) * CELL_SIZE;
-      let best = Infinity;
-      for (const cx of [ax, ax - CELL_SIZE]) {
-        for (const cz of [az, az - CELL_SIZE]) {
-          const key = keyAt(cx / CELL_SIZE, cz / CELL_SIZE);
-          if (!key || key === ownKey) continue;
-          const dx = Math.abs(px - cx) - half;
-          const dz = Math.abs(pz - cz) - half;
-          const distance = Math.hypot(Math.max(dx, 0), Math.max(dz, 0));
-          if (distance < best) best = distance;
+    const partnerFor = (key) => {
+      if (spreads(key)) return null;
+      const counts = new Map();
+      for (const [cx, cz] of cells) {
+        if (keyAt(cx, cz) !== key) continue;
+        for (const [dx, dz] of BLEND_NEIGHBORS) {
+          const other = keyAt(cx + dx, cz + dz);
+          if (!other || other === key || !spreads(other)) continue;
+          counts.set(other, (counts.get(other) || 0) + 1);
         }
       }
-      if (best >= SURFACE_EDGE_METERS) return 0;
-      const t = Math.max(0, best / SURFACE_EDGE_METERS);
-      return 1 - t * t * (3 - 2 * t);
+      let partner = null;
+      let best = 0;
+      for (const [other, count] of counts) {
+        if (count > best) {
+          best = count;
+          partner = other;
+        }
+      }
+      return partner;
+    };
+    const weightsFor = (partner) => {
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minZ = Infinity;
+      let maxZ = -Infinity;
+      for (const [cx, cz] of cells) {
+        minX = Math.min(minX, cx);
+        maxX = Math.max(maxX, cx);
+        minZ = Math.min(minZ, cz);
+        maxZ = Math.max(maxZ, cz);
+      }
+      const x0 = minX * CELL_SIZE - half;
+      const x1 = maxX * CELL_SIZE + half;
+      const z0 = minZ * CELL_SIZE - half;
+      const z1 = maxZ * CELL_SIZE + half;
+      const spanX = x1 - x0;
+      const spanZ = z1 - z0;
+      const width = Math.max(2, Math.ceil(spanX / SURFACE_BLEND_TEXEL));
+      const height = Math.max(2, Math.ceil(spanZ / SURFACE_BLEND_TEXEL));
+      const data = new Uint8Array(width * height);
+      const smooth = (t) => t * t * (3 - 2 * t);
+      for (let j = 0; j < height; j += 1) {
+        const z = z0 + (j + 0.5) * (spanZ / height);
+        for (let i = 0; i < width; i += 1) {
+          const x = x0 + (i + 0.5) * (spanX / width);
+          const cx = Math.floor((x + half) / CELL_SIZE);
+          const cz = Math.floor((z + half) / CELL_SIZE);
+          if (keyAt(cx, cz) === partner) {
+            data[j * width + i] = 255;
+            continue;
+          }
+          let reach = 0;
+          for (const [dx, dz] of BLEND_NEIGHBORS) {
+            const nx = cx + dx;
+            const nz = cz + dz;
+            if (keyAt(nx, nz) !== partner) continue;
+            const gapX = Math.abs(x - nx * CELL_SIZE) - half;
+            const gapZ = Math.abs(z - nz * CELL_SIZE) - half;
+            const distance = Math.hypot(Math.max(gapX, 0), Math.max(gapZ, 0));
+            reach += Math.exp(-distance / SURFACE_BLEND_SOFTMIN);
+          }
+          if (reach <= 0) continue;
+          const soft = Math.max(0, -SURFACE_BLEND_SOFTMIN * Math.log(reach));
+          const coarse = valueNoise(x / SURFACE_BLEND_NOISE, z / SURFACE_BLEND_NOISE);
+          const fine = valueNoise(x / SURFACE_BLEND_GRAIN + 13.7, z / SURFACE_BLEND_GRAIN - 5.1);
+          const band = SURFACE_BLEND_RADIUS * (0.65 + 0.7 * coarse) * (0.9 + 0.2 * fine);
+          const fade = Math.min(1, Math.max(0, (soft - SURFACE_BLEND_COLLAR) / band));
+          data[j * width + i] = Math.round((1 - smooth(fade)) * 255);
+        }
+      }
+      const texture = new RawTexture(data, width, height, Constants.TEXTUREFORMAT_R, this.s, false, false, Texture.BILINEAR_SAMPLINGMODE);
+      texture.wrapU = Texture.CLAMP_ADDRESSMODE;
+      texture.wrapV = Texture.CLAMP_ADDRESSMODE;
+      this.weightTextures.push(texture);
+      return { texture, origin: new Vector2(x0, z0), scale: new Vector2(1 / spanX, 1 / spanZ) };
     };
     const groupFor = (key) => {
       let group = groups.get(key);
       if (!group) {
         const cfg = this.surfaceConfig(key);
         group = {
-          key,
           positions: [],
           indices: [],
           uvs: [],
@@ -278,19 +350,7 @@ export default class TerrainSystem {
       group.positions.push(px, y, pz);
       group.uvs.push(px / group.tile, pz / group.tile);
       const wet = this.wetFactor(y);
-      const edge = edgeTintFor(group.key);
-      let cr = tint.r;
-      let cg = tint.g;
-      let cb = tint.b;
-      if (edge) {
-        const weight = edgeWeightAt(px, pz, group.key);
-        if (weight > 0) {
-          cr *= 1 + (edge[0] - 1) * weight;
-          cg *= 1 + (edge[1] - 1) * weight;
-          cb *= 1 + (edge[2] - 1) * weight;
-        }
-      }
-      group.colors.push(cr * wet, cg * wet, cb * wet, 1);
+      group.colors.push(tint.r * wet, tint.g * wet, tint.b * wet, 1);
       return index;
     };
 
@@ -388,49 +448,12 @@ export default class TerrainSystem {
       cliffShifts.set(id, { x: dir.x * CLIFF_CORNER_ROUND, z: dir.z * CLIFF_CORNER_ROUND });
     }
 
-    const waves = new Map();
-    const waveAt = (gx, gz) => {
-      const id = `${Math.round(gx * 2)},${Math.round(gz * 2)}`;
-      let entry = waves.get(id);
-      if (!entry) {
-        entry = { x: 0, z: 0 };
-        waves.set(id, entry);
-      }
-      return entry;
-    };
-    for (const [cx, cz] of cells) {
-      const key = keyAt(cx, cz);
-      if (!this.surfaceConfig(key)) continue;
-      const x0 = cx * CELL_SIZE - half;
-      const z0 = cz * CELL_SIZE - half;
-      for (const side of SURFACE_SIDES) {
-        const otherKey = keyAt(cx + side.dx, cz + side.dz);
-        if (!otherKey || otherKey === key) continue;
-        if (side.dx !== 0) {
-          const edgeX = cx * CELL_SIZE + side.dx * half;
-          for (let j = 0; j <= SURFACE_SUB; j += 1) {
-            const gz = z0 + j * step;
-            if (cliffPoints.has(pointId(edgeX, gz))) continue;
-            waveAt(edgeX, gz).x = waveOffset(gz, edgeX);
-          }
-        } else {
-          const edgeZ = cz * CELL_SIZE + side.dz * half;
-          for (let i = 0; i <= SURFACE_SUB; i += 1) {
-            const gx = x0 + i * step;
-            if (cliffPoints.has(pointId(gx, edgeZ))) continue;
-            waveAt(gx, edgeZ).z = waveOffset(gx, edgeZ);
-          }
-        }
-      }
-    }
-
     const positionOf = (point) => {
       const id = pointId(point.gx, point.gz);
-      const wave = waves.get(id);
       const shift = cliffPoints.has(id) ? cliffShifts.get(id) : null;
       return {
-        px: point.gx + (wave ? wave.x : 0) + (shift ? shift.x : 0),
-        pz: point.gz + (wave ? wave.z : 0) + (shift ? shift.z : 0),
+        px: point.gx + (shift ? shift.x : 0),
+        pz: point.gz + (shift ? shift.z : 0),
       };
     };
     const heightOf = (point, cx, cz) => {
@@ -513,6 +536,66 @@ export default class TerrainSystem {
       }
     }
 
+    const blends = new Map();
+    for (const key of groups.keys()) {
+      const partner = partnerFor(key);
+      const cfg = partner ? this.surfaceConfig(partner) : null;
+      if (!partner || !cfg || !cfg.texture) {
+        blends.set(key, null);
+        continue;
+      }
+      blends.set(key, {
+        partner,
+        tile: cfg.tile || 1,
+        color: this.surfaceColor(partner, map),
+        weights: weightsFor(partner),
+      });
+    }
+
+    const borderNormals = new Map();
+    const onBorder = (value) => {
+      const rounded = Math.round(value);
+      return Math.abs(value - rounded) < 0.001 && Math.abs(rounded % 2) === 1;
+    };
+    const borderId = (px, pz) => `${Math.round(px * 1000)},${Math.round(pz * 1000)}`;
+    for (const group of groups.values()) {
+      if (!group.positions.length) continue;
+      group.normals = [];
+      VertexData.ComputeNormals(group.positions, group.indices, group.normals);
+      const total = group.positions.length / 3;
+      for (let v = 0; v < total; v += 1) {
+        const px = group.positions[v * 3];
+        const pz = group.positions[v * 3 + 2];
+        if (!onBorder(px) && !onBorder(pz)) continue;
+        const id = borderId(px, pz);
+        let entry = borderNormals.get(id);
+        if (!entry) {
+          entry = { x: 0, y: 0, z: 0, count: 0 };
+          borderNormals.set(id, entry);
+        }
+        entry.x += group.normals[v * 3];
+        entry.y += group.normals[v * 3 + 1];
+        entry.z += group.normals[v * 3 + 2];
+        entry.count += 1;
+      }
+    }
+    for (const group of groups.values()) {
+      if (!group.positions.length) continue;
+      const total = group.positions.length / 3;
+      for (let v = 0; v < total; v += 1) {
+        const px = group.positions[v * 3];
+        const pz = group.positions[v * 3 + 2];
+        if (!onBorder(px) && !onBorder(pz)) continue;
+        const entry = borderNormals.get(borderId(px, pz));
+        if (!entry || entry.count < 2) continue;
+        const length = Math.hypot(entry.x, entry.y, entry.z);
+        if (length < 1e-6) continue;
+        group.normals[v * 3] = entry.x / length;
+        group.normals[v * 3 + 1] = entry.y / length;
+        group.normals[v * 3 + 2] = entry.z / length;
+      }
+    }
+
     for (const [key, group] of groups) {
       if (!group.positions.length) continue;
       const mesh = new Mesh(key === DEFAULT_FLOOR ? 'terrainSurface' : `terrainSurface_${key}`, this.s);
@@ -521,12 +604,11 @@ export default class TerrainSystem {
       data.indices = group.indices;
       data.uvs = group.uvs;
       data.colors = group.colors;
-      data.normals = [];
-      VertexData.ComputeNormals(group.positions, group.indices, data.normals);
+      data.normals = group.normals;
       data.applyToMesh(mesh);
       mesh.isPickable = false;
       mesh.receiveShadows = true;
-      mesh.material = this.materialFor(key, map);
+      mesh.material = this.materialFor(key, map, blends.get(key));
       this.surfaces.push(mesh);
     }
 
@@ -674,18 +756,58 @@ export default class TerrainSystem {
     return fallback && fallback.surface && fallback.surface.texture ? fallback.surface : null;
   }
 
-  materialFor(key, map) {
-    const cached = this.materials.get(key);
-    if (cached) return cached;
-    const cfg = this.surfaceConfig(key);
-    const material = new StandardMaterial(`terrainSurfaceMat_${key}`, this.s);
-    material.diffuseTexture = new Texture(cfg.texture, this.s);
-    material.specularColor = new Color3(0.02, 0.02, 0.02);
-    material.ambientColor = color3(cfg.ambient || [0.08, 0.08, 0.07]);
-    material.useVertexColor = true;
-    material.diffuseColor = color3(cfg.mapTint ? this.tintOf(map) : (cfg.color || [1, 1, 1]));
-    this.materials.set(key, material);
+  materialFor(key, map, blend = null) {
+    const cacheKey = blend ? `${key}|${blend.partner}` : key;
+    let material = this.materials.get(cacheKey);
+    if (!material) {
+      const cfg = this.surfaceConfig(key);
+      material = new StandardMaterial(`terrainSurfaceMat_${cacheKey}`, this.s);
+      material.diffuseTexture = new Texture(cfg.texture, this.s);
+      material.specularColor = new Color3(0.02, 0.02, 0.02);
+      material.ambientColor = color3(cfg.ambient || [0.08, 0.08, 0.07]);
+      material.useVertexColor = true;
+      material.diffuseColor = color3(cfg.mapTint ? this.tintOf(map) : (cfg.color || [1, 1, 1]));
+      this.materials.set(cacheKey, material);
+      if (blend) {
+        this.blendPlugins.set(cacheKey, new TerrainBlendPlugin(material, {
+          texture: this.blendTextureFor(blend.partner),
+          weights: blend.weights.texture,
+          tile: blend.tile,
+          color: blend.color,
+          origin: blend.weights.origin,
+          scale: blend.weights.scale,
+        }));
+      }
+      return material;
+    }
+    const plugin = this.blendPlugins.get(cacheKey);
+    if (plugin && blend) {
+      plugin.setBlend(
+        this.blendTextureFor(blend.partner),
+        blend.tile,
+        blend.color,
+        blend.weights.texture,
+        blend.weights.origin,
+        blend.weights.scale,
+      );
+    }
     return material;
+  }
+
+  surfaceColor(key, map) {
+    const cfg = this.surfaceConfig(key);
+    if (!cfg) return new Color3(1, 1, 1);
+    return color3(cfg.mapTint ? this.tintOf(map) : (cfg.color || [1, 1, 1]));
+  }
+
+  blendTextureFor(key) {
+    let texture = this.blendTextures.get(key);
+    if (!texture) {
+      const cfg = this.surfaceConfig(key);
+      texture = new Texture(cfg.texture, this.s);
+      this.blendTextures.set(key, texture);
+    }
+    return texture;
   }
 
   disposeMaterials() {
@@ -693,6 +815,11 @@ export default class TerrainSystem {
       if (material) material.dispose(false, true);
     }
     this.materials.clear();
+    this.blendPlugins.clear();
+    for (const texture of this.blendTextures.values()) {
+      if (texture) texture.dispose();
+    }
+    this.blendTextures.clear();
     if (this.skirtMaterial) {
       this.skirtMaterial.dispose(false, true);
       this.skirtMaterial = null;

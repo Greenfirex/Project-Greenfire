@@ -68,8 +68,10 @@ denní cyklus se stíny, lesní zvuky a kroky podle povrchu, panel možností,
 editor mapy (zóny, cesty, výšky ±6 m, štětec pláže se svahem po 0,3 m,
 štětec útesů s hliněnou stěnou, výběr buněk, undo), spojitý terén
 s hranou mapy, cesty kopírující terén, hráč chodící po výšce země,
-vodní hladina s vlnami a pěnou, obloha se sluncem a ukládání/načítání
-do prohlížeče.
+vodní hladina s vlnami a pěnou, plynulé prolínání trávy a písku
+(texturou i barvou), hráč ve vodě (mělká zpomalí, do hluboké nesmí,
+ve vodě nejde stavět), kroky ve vodě, příboj u vody, obloha se sluncem
+a ukládání/načítání do prohlížeče.
 
 Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů) a
 suroviny pro výrobu (železná a měděná ruda, ingoty). Stroj má v savu připravený
@@ -78,19 +80,16 @@ zatím neběží.
 
 ### Předání stavu
 
-Poslední funkční commit před touto prací: `4e1defc` — výšky ±6 m se škálou
-a předvolbou 6 m; handoff před fází 5 je `13d8f70`. Štětec Pláž, zvlnění
-hranic povrchů, odstranění starých skalních modelů, útesy, hladina vody
-a nový vzhled vody s oblohou jsou hotové v pracovním stromu a čekají na
-vizuální test; commit dělá uživatel.
+Poslední commit: `f06a51d` — vlnění vodní hladiny. V pracovním stromu je nad
+ním hotové míchání textur trávy a písku (jednosměrné, písek do trávy), rovné
+hranice povrchů, kroky ve vodě a příboj u vody včetně hráče ve vodě a zákazu
+stavění; čeká na vizuální test, commit dělá uživatel.
 
-**Aktuální fáze:** 7 — Voda: vzhled. Hladina má vlastní program pro
-orthografickou kameru (vlny, pěna, barva podle hloubky), obloha je ze
-SkyMaterialu a kraj mapy uzavírá vlastní vodní stěna. Odraz okolí řeší
-odrazová sonda (krychlový snímek okolí); obloha se do odrazu nepouští.
-Zbývá vizuální test fáze; další je fáze 8 (hráč a život ve vodě).
+**Aktuální fáze:** 9 — volitelné doladění. Fáze 6–8 jsou hotové (hladina,
+vzhled, hráč a život ve vodě). Zbývá vizuální test přechodů povrchů a
+volitelné body fáze 9.
 
-**Hotovo (fáze 0–5, část):**
+**Hotovo (fáze 0–8, část fáze 9):**
 - Fáze 0–4: plán, písek a povrch, razítko Herní plocha, výškové nástroje,
   Kopec/Prohlubeň se svahem, spojitý terén, hrana mapy a cesty.
 - Výšky: rozsah −6 až +6 m, krok 0,3 m, předvolby −6, −4,5, −3, −1,5, 0,
@@ -107,8 +106,9 @@ Zbývá vizuální test fáze; další je fáze 8 (hráč a život ve vodě).
   Volitelný Plynulý okraj přidá prstenec písku navíc. V pánvi mizí objekty
   a tráva, na svazích se objekty posouvají s terénem; Zpět na trávu
   srovná výšku na 0 a vrátí trávu.
-- Přechod povrchů: hranice trávy a písku se plynule rozvlní, aby nepůsobila
-  jako podle pravítka; děje se jen při kreslení, data mapy zůstávají stejná.
+- Přechod povrchů: hranice jsou rovné; tráva se u okraje plynule prolíná
+  do písku texturou i barvou a písek do trávy neproniká (jednosměrné).
+  Šířka pásu se lokálně mění šumem, aby přechod nepůsobil jako pruh.
 - Staré skalní modely: pryč z katalogu, mapy i assetů; kopce a stupně dělají
   jen výšky.
 - Útesy: štětec označí buňky jako plošinu; kde je mezi označenou buňkou
@@ -133,28 +133,19 @@ Zbývá vizuální test fáze; další je fáze 8 (hráč a život ve vodě).
   mapa má kvůli značkám útesů verzi 4.
 
 **Zbývá:**
-- Fáze 7: závěrečný test vzhledu vody a oblohy.
-- Fáze 8: hráč a život ve vodě — mělká/hluboká, cákance, zákaz stavění, zvuky.
-- Fáze 9: volitelné doladění — rostliny u břehu, kaustiky, hřebeny vln
-  a skutečný odraz oblohy.
+- Fáze 9: rostliny u břehu, zatopené kameny, skutečný odraz oblohy,
+  volitelně varianty příboje (bouřka, otevřené moře).
+- Doladit suché jámy pod hladinou (suchá zóna nebo vodní zóny).
 - Mimo tento plán: výroba ve strojích, recepty a plnění batohu.
 
-**Další krok — test fáze 7:**
-- V editoru zapni Vodu a nastav hladinu; ověř, že se voda hýbe, voda
-  vybíhá na písek v jazycích a pěna i bílé hřebeny jsou vidět i zeshora.
-- Otoč kamerou dokola: odraz terénu a objektů má být stabilní, bez bílých
-  pruhů a zrcadlových fleků.
-- Mezi hladinou a boční stěnou na kraji mapy nesmí prosvítat světlý pásek.
-- Voda nesmí vyčuhovat mimo obrys mapy ani do děr; na kraji a v dírách má být
-  vidět svislý řez hladinou, ne průhledná plocha.
-- Písek u břehové čáry má být tmavší (mokrý) a při posunu hladiny se má
-  břeh posunout spolu s ní.
-- Zkus jiný čas dne (N) — ve dne má být obloha jasná, v noci tmavá a voda
-  má ztmavnout; při svítání a soumraku má být obloha teplejší.
-- Zkontroluj plynulost, hlavně při zoomu; případně změň kvalitu v Možnostech.
-- Ulož mapu a obnov — hladina i vzhled musí držet.
-- Když něco nesedí, výška vln, barvy a síla odlesku jsou jen čísla; fáze 8
-  začíná až po tvém potvrzení.
+**Další krok — vizuální test:**
+- Přechod trávy a písku: rovná hranice bez proužku trávy i bez světlého
+  lemu, diagonální rohy plynule prolnuté, i na přímém slunci.
+- Voda: hráč se v mělké vodě zpomalí, do hluboké nesmí, ve vodě nejde stavět
+  a panel Stavba napíše důvod.
+- Zvuky: kroky ve vodě, příboj slábne se vzdáleností a u vody ztlumí les.
+- Ulož mapu a obnov — hladina, povrchy i jejich prolnutí musí držet.
+- Když něco nesedí, šířka pásu, síla variací a hlasitosti jsou jen čísla.
 
 **Klíčová rozhodnutí (nevrátit omylem):**
 - Výšky jsou v metrech, krok 0,3 m, rozsah ±6 m; předvolby včetně ±4,5 a ±6.
@@ -167,8 +158,9 @@ Zbývá vizuální test fáze; další je fáze 8 (hráč a život ve vodě).
   prstenci po 0,3 m. Novou zem z prázdna dál umí jen Herní plocha.
 - Plynulý okraj = jeden prstenec písku navíc za posledním schodem.
 - V pánvi pláže mizí objekty a tráva; na svazích se posouvají s terénem.
-- Vlnění hranice povrchů je jen vizuální: buňka má v datech pořád jeden
-  povrch, vlna vzniká až při kreslení podlahy.
+- Hranice povrchů jsou rovné (vlny zůstaly jen u útesů). Tráva se u okraje
+  prolíná do písku texturou i barvou, písek do trávy neproniká. Váha prolnutí
+  je v textuře nad mapou (0,25 m) a šev drží na 1, aby nebyl vidět.
 - Kopce a stupně se staví výškami, ne skládáním skalních bloků; staré skalní
   modely jsou z projektu odstraněné i s kusy v mapě.
 - Označená buňka je plošina: drží rovnou výšku, přes její hranu se výška
@@ -196,7 +188,11 @@ Zbývá vizuální test fáze; další je fáze 8 (hráč a život ve vodě).
 - `src/editor/heightPanel.js` — okno Výška; `areaPanel.js`, `brushPanel.js` — plocha a štětce.
 - `src/editor/editorMode.js`, `mapEditor.js`, `editorHud.js` — editor, výběr, panely, pláž, voda.
 - `src/systems/gridSystem.js`, `inputSystem.js` — hover, levé/pravé tažení.
-- `src/utils/terrainField.js`, `src/systems/terrainSystem.js` — výškový model, terén, hrana, útesy.
+- `src/utils/terrainField.js` — výškový model (spojitá výška mezi buňkami).
+- `src/systems/terrainSystem.js` — terén, hrana, útesy, prolnutí povrchů.
+- `src/systems/terrainBlendPlugin.js` — míchání textur sousedních povrchů v materiálu terénu.
+- `src/utils/waterWaves.js` — čísla a výpočet vln (společné pro program i hru).
+- `src/systems/audioSystem.js` — kroky, příboj, oheň a ambientní vrstvy.
 - `src/systems/waterSystem.js` — hladina, odrazová sonda, kraj mapy.
 - `src/systems/waterShader.js` — program pro vodu: vlny, pěna, svislá stěna.
 - `src/systems/skySystem.js` — obloha a slunce.
@@ -209,6 +205,8 @@ Zbývá vizuální test fáze; další je fáze 8 (hráč a život ve vodě).
 
 - `@babylonjs/core`, `@babylonjs/loaders`, `@babylonjs/materials` (8.56.2) — jádro hry, načítání modelů a obloha.
 - `@babylonjs/inspector` (8.56.2) — jen vývojová závislost; do produkčního buildu se nebalí.
+- Zvuky: Free Fantasy SFX Pack od TomMusic (tommusic.itch.io); původ je zapsaný
+  v `public/assets/audio/CREDITS.txt`.
 
 **Pravidla pro navazujícího agenta:**
 - Přečíst `.clinerules`, README a tuto sekci; ověřit `git status` a `git log`.
@@ -223,20 +221,21 @@ Zbývá vizuální test fáze; další je fáze 8 (hráč a život ve vodě).
 - Pláž: štětec je hotový; čeká se na vizuální test a potvrzení hloubek a okraje.
 - Plynulý okraj: zatím jen zapnuto/vypnuto a jeden prstenec navíc; šířku doladit podle testu.
 - Třímetrová pánev: tvar se kreslí štětcem, hloubka dna je předvolba −3 m.
-- Voda: hladina je hotová; čeká test a pak fáze 7 (vzhled vody).
+- Přechod povrchů: šířka pásu a síla variací se ladí podle vzhledu.
 
 **Test předání:**
 - Ověřit, že sedí poslední funkční commit a po commitu handoffu je strom čistý.
 - Ověřit, že výškový panel, výběr, hráč, cesty a hrana fungují.
 - Ověřit štětec Pláž: hloubka, břeh, Plynulý okraj a Zpět na trávu.
 - Ověřit vodu: hladina v pánvi, břeh po změně terénu, uložení a načtení.
+- Ověřit přechod trávy a písku: rovná hranice, diagonální rohy, šev není vidět.
 
 **První kroky dalšího agenta:**
 1. Přečíst README/Předání a `.clinerules`.
 2. Ověřit git stav.
-3. Nechat uživatele otestovat pláž, útesy a vodu a počkat na potvrzení.
+3. Nechat uživatele otestovat povrchy, vodu a zvuky a počkat na potvrzení.
 4. Případné úpravy dělat jen v části, které se týkají.
-5. Po commitu uživatelem pokračovat fází 7.
+5. Po potvrzení pokračovat volitelnou fází 9 (rostliny u břehu, zatopené kameny, odraz oblohy).
 
 ### Voda
 
@@ -248,8 +247,9 @@ pod hladinou. V editoru se voda zapíná tlačítkem Voda a hladina se ladí
 po 0,3 m. Suché jámy pod hladinou současná plocha neumí — vyřeší se
 později suchou zónou nebo vodními zónami.
 
-Aktuální plán: otestovat fázi 7 (voda a obloha), pak fáze 8 hráč
-a život ve vodě. Samostatně pak výroba ve strojích a plnění batohu, výběr
+Aktuální plán: fáze 6–8 jsou hotové; zbývá vizuální test přechodů povrchů
+a volitelné doladění fáze 9 (rostliny u břehu, zatopené kameny, odraz oblohy).
+Samostatně pak výroba ve strojích a plnění batohu, výběr
 a stav stroje kliknutím, výroba předmětů z batohu.
 
 ## Plán: terén, písek a voda
@@ -406,7 +406,7 @@ na zemi.
   **Hotovo (jedna deska, terén ji překrývá).**
 - Zatím jednoduchá poloprůhledná plocha pro kontrolu tvaru. **Hotovo.**
 
-**Stav:** hladina, deska a ovládání v editoru jsou hotové; zbývá vizuální test.
+**Stav:** hladina, deska a ovládání v editoru jsou hotové a ověřené testem.
 
 **Hotovo, když:** voda se objeví jen v pánvi, břeh sedí, změna terénu vodu
 přepočítá, hladina přežije uložení, stará mapa se načte.
@@ -421,9 +421,9 @@ přepočítá, hladina přežije uložení, stará mapa se načte.
 - Vlastní program: vlny, odlesky, barva podle hloubky, průhledná mělčina,
   pěna u břehu, noc. **Hotovo.**
 - Kvalita podle nastavení grafiky. **Hotovo (hustota vodní sítě).**
-- Volitelně mokrý písek a jiné zabarvení dna. **Zbývá jako volitelné (fáze 9).**
+- Mokrý písek a jiné zabarvení dna. **Hotovo (ztmavení u břehové čáry).**
 
-**Stav:** program i síť jsou hotové; zbývá vizuální test.
+**Stav:** hotovo; vizuální test proběhl při ladění vln a příboje.
 
 **Hotovo, když:** mělčina je průhledná, hloubka tmavne, jsou vidět vlny a slunce,
 pěna kopíruje břeh, v noci je voda tmavá a hra se nezpomalí.
@@ -433,18 +433,28 @@ pěna kopíruje břeh, v noci je voda tmavá a hra se nezpomalí.
 
 ### Fáze 8 — Voda: hráč a život
 
-**Cíl:** voda je součást hry.
+**Cíl:** voda je součást hry. **Hotovo.**
 
-- Rozhodnout mělká/hluboká (návrh: mělká průchozí se zpomalením, hluboká ne).
-- Cákance, zpomalení, zákaz stavění ve vodě, zvuky (potřebují soubory).
-- Případný nový stav se registruje u ukládání.
+- Mělká voda do 0,6 m je průchozí se zpomalením (plynulý náběh na 65 %
+  rychlosti), hluboká je neprůchozí. Hloubka se bere z klidové hladiny.
+- Cákance: kroužky na skutečné vlnové hladině, jen když hráč stojí ve vodě;
+  se vlnami se posouvají a po chvíli mizí.
+- Zákaz stavění ve vodě i v pásu, kam dosáhne vlna (0,33 m nad klidovou
+  hladinou). Panel Stavba vypíše důvod: voda, překážka, není rovná plocha,
+  mimo dosah, nebo že tu už stojí stroj.
+- Kroky ve vodě (5 variant) a příboj u vody: hlasitost podle vzdálenosti
+  od břehu, u vody ztlumí les, načte se až při prvním přiblížení.
+- Nový trvalý stav nevznikl; ukládání se nemění.
 
 **Hotovo, když:** chování je jasné, stavění ve vodě hlásí důvod, zvuky hrají.
 
 ### Fáze 9 — Doladění (volitelné)
 
-Mokrý písek, rostliny u břehu, jemnější přechod písek/tráva, zatopené kameny,
-ambientní zvuk, případně zrcadlení.
+Hotové: mokrý písek, kaustiky, bílé hřebeny, ambientní zvuk lesa a jemnější
+přechod písek/tráva (míchání textur i barvy).
+
+Zbývá: rostliny u břehu, zatopené kameny, skutečný odraz oblohy, volitelně
+varianty příboje (bouřka, otevřené moře, déšť).
 
 ### Pořadí a závislosti
 
@@ -460,8 +470,7 @@ ambientní zvuk, případně zrcadlení.
 - Útesy: neprůchodnost pro hráče (zatím nepřejde schod nad 0,45 m) a to,
   že hrana sedí na mřížce 0,5 m.
 - Voda: suché jámy pod hladinou (suchá zóna nebo vodní zóny) — později.
-- Fáze 8: mělká + zákaz hluboké, nebo plavání.
-- Fáze 8: zvukové soubory.
+- Voda: volitelně varianty příboje podle počasí a denní doby.
 
 ## Editor mapy
 
