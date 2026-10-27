@@ -137,11 +137,13 @@ void main(void) {
   float halfLen = length(halfDir);
   halfDir = halfLen > 0.0001 ? halfDir / halfLen : normal;
   float halfDot = max(dot(normal, halfDir), 0.0);
-  float spec = pow(halfDot, 420.0) * 1.1 + pow(halfDot, 60.0) * 0.35;
+  float glitter = pow(halfDot, 700.0) * 5.0 * smoothstep(0.35, 0.75, noise(p * 3.6 + vec2(waterTime * 0.80, -waterTime * 0.65)));
+  float spec = pow(halfDot, 420.0) * 1.1 + pow(halfDot, 60.0) * 0.35 + glitter;
   float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 3.0);
 
   float t = clamp(depth / maxDepth, 0.0, 1.0);
-  vec3 base = mix(shallowColor, deepColor, t);
+  vec3 transmittance = exp(-depth * vec3(1.05, 0.42, 0.26));
+  vec3 base = shallowColor * transmittance + deepColor * (1.0 - transmittance);
 
   vec3 reflectedDir = reflect(-viewDir, normal);
   float upness = clamp(reflectedDir.y, 0.0, 1.0);
@@ -161,6 +163,12 @@ void main(void) {
   color += deepColor * 0.25;
   color = mix(color, reflected, mirror);
   color *= 1.0 + slopeSize * 0.9;
+  float causticPhase = dot(p, dir) * 1.6 - waterTime * 0.9;
+  float causticA = sin(causticPhase + noise(p * 0.55 + vec2(waterTime * 0.15, -waterTime * 0.12)) * 5.0);
+  float causticB = sin(causticPhase * 1.7 + 2.1 + noise(p * 0.75 - vec2(waterTime * 0.11, waterTime * 0.16)) * 5.0);
+  float caustic = pow(abs(causticA * causticB), 1.5);
+  caustic *= (1.0 - smoothstep(0.0, 1.0, depth)) * (0.30 + 0.70 * dayness);
+  color += sunColor * caustic * sunIntensity * 0.10;
   color += sunColor * spec * sunIntensity * 0.5;
 
   float crest = smoothstep(0.10, 0.35, slopeSize);

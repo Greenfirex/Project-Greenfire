@@ -50,6 +50,8 @@ export default class WaterSystem {
     this.savedView = new Matrix();
     this.depthMap = null;
     this.depthOrigin = new Vector2(0, 0);
+    this.clipPlane = new Plane(0, -1, 0, 0);
+    this.savedClipPlane = null;
     this.depthScale = new Vector2(1, 1);
   }
 
@@ -177,12 +179,18 @@ export default class WaterSystem {
     this.s.setTransformMatrix(this.reflectionView, projection);
     Vector3.TransformCoordinatesToRef(camera.globalPosition, this.mirror, this.mirrorEye);
     this.s._mirroredCameraPosition = this.mirrorEye;
+    this.savedClipPlane = this.s.clipPlane;
+    this.clipPlane.normal.set(0, -1, 0);
+    this.clipPlane.d = this.surfaceY;
+    this.s.clipPlane = this.clipPlane;
     this.s._forcedViewPosition = this.mirrorEye;
   }
 
   endReflection() {
     const camera = this.s.activeCamera;
     this.s._mirroredCameraPosition = null;
+    this.s.clipPlane = this.savedClipPlane;
+    this.savedClipPlane = null;
     this.s._forcedViewPosition = null;
     if (camera) this.s.setTransformMatrix(this.savedView, camera.getProjectionMatrix());
     if (this.material) this.material.setMatrix('reflectionViewProjection', this.reflectionViewProjection);
