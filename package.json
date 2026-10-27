@@ -12,9 +12,11 @@
   "license": "MIT",
   "dependencies": {
     "@babylonjs/core": "^8.0.0",
-    "@babylonjs/loaders": "^8.0.0"
+    "@babylonjs/loaders": "^8.0.0",
+    "@babylonjs/materials": "^8.56.2"
   },
   "devDependencies": {
+    "@babylonjs/inspector": "^8.56.2",
     "fbx2gltf": "^0.9.7-p1",
     "vite": "^8.3.2"
   }

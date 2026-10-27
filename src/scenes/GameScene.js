@@ -14,6 +14,7 @@ import CameraSystem from '../systems/cameraSystem.js';
 import GridSystem from '../systems/gridSystem.js';
 import TerrainSystem from '../systems/terrainSystem.js';
 import WaterSystem from '../systems/waterSystem.js';
+import SkySystem from '../systems/skySystem.js';
 import DecoSystem from '../systems/decoSystem.js';
 import FloraSystem from '../systems/floraSystem.js';
 import DecoHighlightSystem from '../systems/decoHighlightSystem.js';
@@ -88,6 +89,7 @@ export default class GameScene {
     this.gridSystem = new GridSystem(scene);
     this.terrainSystem = new TerrainSystem(scene);
     this.waterSystem = new WaterSystem(scene);
+    this.skySystem = new SkySystem(scene);
     this.decoSystem = new DecoSystem(scene);
     this.decoSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z);
     this.floraSystem = new FloraSystem(scene);
@@ -139,6 +141,7 @@ export default class GameScene {
     window.addEventListener('keydown', this.unlockAudio, { once: true });
     this.hoverCell = null;
     this.mapLayout = null;
+    this.waterMeshCount = 0;
     this.impactTimer = 0;
   }
 
@@ -165,6 +168,8 @@ export default class GameScene {
     this.setupGlow();
     this.setupLighting();
     this.camera = this.cameraSystem.create();
+    this.skySystem.create();
+    this.skySystem.setDayness(this.waterDayness(), this.dayNightSystem.sunLight);
     this.loader.beginMap();
     const mapFile = await this.loadMapFile();
     this.loader.endMap();
@@ -197,6 +202,7 @@ export default class GameScene {
         if (index >= 0) this.shadowCasters.splice(index, 1);
       }
       for (const child of node.getChildMeshes()) this.addShadowCaster(child);
+      this.refreshWaterReflectors();
     };
 
     this.s.onBeforeRenderObservable.add(() => {
@@ -218,12 +224,14 @@ export default class GameScene {
       this.updateGathering(dt);
       const root = this.playerSystem.root;
       this.campfireSystem.update(dt, root);
+      this.waterSystem.update(dt);
       this.updateCampfireSound(root);
       if (root) this.cameraSystem.follow(root.position.x, root.position.z, root.position.y, dt);
       this.autoTune(dt);
       this.audioSystem.update(dt);
       this.playerSystem.updateFire();
       this.refreshClock();
+      if (this.s.meshes.length !== this.waterMeshCount) this.refreshWaterReflectors();
     });
 
     this.engine.runRenderLoop(() => this.s.render());
@@ -244,6 +252,7 @@ export default class GameScene {
     this.floraSystem.create(this.decoSystem, this.options.grass);
     this.loader.floatProgress(1, 1, 'Nastavuji stíny…');
     this.refreshShadowCasters();
+    this.refreshWaterReflectors();
     this.loader.endFloat();
     await this.waitForWorld();
     this.s.loaded = true;
@@ -488,7 +497,33 @@ updateGatherTarget() {
 
   renderWater() {
     const level = this.mapLayout && Number.isFinite(this.mapLayout.waterLevel) ? this.mapLayout.waterLevel : null;
-    this.waterSystem.create(this.terrainSystem.realCells, level);
+    const quality = (this.options && this.options.quality) || 'high';
+    const map = getMap(this.mapKey);
+    const rgb = map && map.colors && map.colors.water ? map.colors.water : null;
+    this.waterSystem.setSun(this.dayNightSystem ? this.dayNightSystem.sunLight : null);
+    this.waterSystem.setDayness(this.waterDayness());
+    this.waterSystem.create(this.terrainSystem.groundCells, level, (x, z) => this.terrainSystem.heightAt(x, z), rgb, quality);
+    this.refreshWaterReflectors();
+  }
+
+  refreshWaterReflectors() {
+    const skip = new Set([this.waterSystem.mesh, this.waterSystem.sideMesh, this.skySystem.skybox]);
+    const meshes = [];
+    for (const mesh of this.s.meshes) {
+      if (!mesh || mesh.isDisposed() || skip.has(mesh)) continue;
+      if (!mesh.isVisible) continue;
+      if (mesh.getClassName() === 'LinesMesh') continue;
+      meshes.push(mesh);
+    }
+    this.waterMeshCount = this.s.meshes.length;
+    this.waterSystem.setReflectors(meshes);
+  }
+
+  waterDayness() {
+    const system = this.dayNightSystem;
+    if (!system || !system.config) return 1;
+    if (this.options && !this.options.dayCycle) return 1;
+    return system.dayness(system.getTime());
   }
 
   wireDecoReady() {
@@ -696,6 +731,7 @@ updateGatherTarget() {
     this.campfireSystem.sync((this.mapFile || {}).decorations || []);
     this.restoreGatherEntries(exhausted);
     this.refreshShadowCasters();
+    this.refreshWaterReflectors();
     this.handleHover(this.hoverCell);
     this.reportRebuild();
   }
@@ -885,6 +921,7 @@ updateGatherTarget() {
     if (this.isLoading) return;
     this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);
     this.audioSystem.setAmbientVolume(this.options.ambientVolume / 100);
+    if (this.waterSystem.quality !== this.options.quality) this.renderWater();
   }
 
   autoTune(dt) {
@@ -936,6 +973,8 @@ updateGatherTarget() {
     const value = this.options.dayCycle ? dayness : 1;
     this.audioSystem.setDayness(value);
     this.floraSystem.setDayness(value);
+    this.waterSystem.setDayness(value);
+    this.skySystem.setDayness(value, this.dayNightSystem.sunLight);
     if (this.playerSystem.torchFire) this.playerSystem.torchFire.setDayness(value);
     this.campfireSystem.setDayness(value);
   }

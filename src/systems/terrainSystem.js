@@ -196,6 +196,16 @@ export default class TerrainSystem {
     this.ground = ground;
   }
 
+  wetFactor(y) {
+    const level = this.layout && Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
+    if (level === null) return 1;
+    const above = y - level;
+    if (above >= 0.45) return 1;
+    if (above <= -0.15) return 0.7;
+    const t = (above + 0.15) / 0.6;
+    return 0.7 + 0.3 * t * t * (3 - 2 * t);
+  }
+
   createSurface(map, cells) {
     for (const mesh of this.surfaces) {
       if (mesh && !mesh.isDisposed()) mesh.dispose(false, false);
@@ -234,9 +244,11 @@ export default class TerrainSystem {
       if (found !== undefined) return found;
       const index = group.positions.length / 3;
       group.vertices.set(id, index);
-      group.positions.push(px, py === null ? this.heightAt(px, pz) : py, pz);
+      const y = py === null ? this.heightAt(px, pz) : py;
+      group.positions.push(px, y, pz);
       group.uvs.push(px / group.tile, pz / group.tile);
-      group.colors.push(tint.r, tint.g, tint.b, 1);
+      const wet = this.wetFactor(y);
+      group.colors.push(tint.r * wet, tint.g * wet, tint.b * wet, 1);
       return index;
     };
 

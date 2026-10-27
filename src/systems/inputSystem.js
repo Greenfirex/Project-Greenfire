@@ -1,5 +1,5 @@
-// Zpracování vstupu — rotace kamery středním tlačítkem, zoom kolečkem, klik a tažení na zemi.
-// Levá klávesa kreslí (editor) nebo kliká (hra); pravá v editoru odebírá z výběru a ve hře bourá; kontextové menu potlačujeme.
+// Zpracování vstupu — rotace kamery pravým tažením (v editoru středním tlačítkem), zoom kolečkem,
+// klik a tažení na zemi. Levá kreslí nebo kliká, pravá v editoru odebírá a ve hře bourá; menu potlačujeme.
 import '@babylonjs/core/Culling/ray';
 import { Plane } from '@babylonjs/core/Maths/math.plane';
 import { PointerEventTypes } from '@babylonjs/core/Events/pointerEvents';
@@ -15,6 +15,10 @@ export default class InputSystem {
     this.s = scene;
     this.game = game;
     this.rotating = false;
+    this.rightRotating = false;
+    this.rightDragged = false;
+    this.rightStartX = 0;
+    this.rightStartY = 0;
     this.painting = false;
     this.lastX = 0;
     this.lastCell = null;
@@ -72,7 +76,12 @@ export default class InputSystem {
             if (cell && this.onRightPaintStart) this.onRightPaintStart(cell);
             return;
           }
-          this.handleRightClick();
+          this.rightRotating = true;
+          this.rightDragged = false;
+          this.rightStartX = evt.clientX;
+          this.rightStartY = evt.clientY;
+          this.lastX = evt.clientX;
+          evt.preventDefault();
           return;
         }
         if (evt.button === 1) {
@@ -102,6 +111,13 @@ export default class InputSystem {
           return;
         }
         if (evt.button === 2) {
+          if (this.rightRotating) {
+            this.rightRotating = false;
+            const dragged = this.rightDragged;
+            this.rightDragged = false;
+            if (!dragged) this.handleRightClick();
+            return;
+          }
           this.rightPainting = false;
           this.lastRightCell = null;
           if (this.onRightPaintEnd) this.onRightPaintEnd();
@@ -126,6 +142,13 @@ export default class InputSystem {
           const dx = evt.clientX - this.lastX;
           this.lastX = evt.clientX;
           if (Math.abs(dx) >= DRAG_THRESHOLD) this.camera.alpha += dx * ROTATE_SPEED;
+        }
+        if (this.rightRotating) {
+          const dx = evt.clientX - this.lastX;
+          this.lastX = evt.clientX;
+          const travel = Math.abs(evt.clientX - this.rightStartX) + Math.abs(evt.clientY - this.rightStartY);
+          if (travel >= DRAG_THRESHOLD) this.rightDragged = true;
+          if (this.rightDragged) this.camera.alpha += dx * ROTATE_SPEED;
         }
         const cell = this.cellAtPointer();
         if (this.painting && cell && this.onPaintMove) {

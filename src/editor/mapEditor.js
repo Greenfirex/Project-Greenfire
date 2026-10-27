@@ -122,7 +122,7 @@ export default class MapEditor {
     const value = this.mode.setWaterLevel(level);
     this.hud.setWater(value);
     this.s.adoptEditorMap();
-    this.s.renderWater();
+    this.s.refreshTerrain();
     this.s.handleHover(this.s.hoverCell);
     this.markDirty();
   }

@@ -26,3 +26,22 @@ window.addEventListener('resize', () => {
 });
 
 window.greenfactory = { engine, scene, game };
+
+if (import.meta.env.DEV) {
+  let inspectorToken = null;
+  const toggleInspector = async () => {
+    if (inspectorToken) {
+      inspectorToken.dispose();
+      inspectorToken = null;
+      return;
+    }
+    const { ShowInspector } = await import('@babylonjs/inspector');
+    inspectorToken = ShowInspector(scene, {});
+  };
+  window.addEventListener('keydown', (event) => {
+    if (!event.ctrlKey || !event.altKey || event.code !== 'KeyI') return;
+    event.preventDefault();
+    toggleInspector();
+  });
+  if (new URLSearchParams(window.location.search).has('inspector')) toggleInspector();
+}

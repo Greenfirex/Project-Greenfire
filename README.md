@@ -18,14 +18,14 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 | Vstup | Akce |
 |---|---|
 | **W A S D / šipky** | Pohyb postavy (vzhledem ke kameře), Shift = běh |
-| **Tažení myší** | Rotace kamery |
+| **Tažení pravým tlačítkem** | Rotace kamery (v editoru středním tlačítkem) |
 | **Kolečko** | Zoom |
 | **1–5** | Výběr předmětu v ruce (plán, sekera, krumpáč, pochodeň) |
 | **Levé tlačítko u stromu / rudy / kamene** | Těžení (podržet = opakovat) |
 | **Klik na zem s plánem v ruce** | Postavení stroje na buňku |
 | **M** | Přepnutí typu stavěného stroje |
 | **R** | Otočení stroje (pod kurzorem, nebo u stavby budoucího) |
-| **Pravé tlačítko ×2 na stroj** | Bourání (první klik označí, druhý zbourá) |
+| **Pravé tlačítko ×2 na stroj (klik bez tažení)** | Bourání (první klik označí, druhý zbourá) |
 | **E** | Zapálit / zrušit táborák |
 | **G** | Zobrazit / skrýt mřížku |
 | **N** | Posun času o 6 hodin |
@@ -34,6 +34,7 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 | **F2** | Vývojářské nástroje (rychlost času 1×/2×/5×/10×, pauza času) — také tlačítkem 🐞 |
 | **O** | Možnosti (kvalita, stíny, FPS, hlasitost) |
 | **F5 / F9** | Uložit / načíst |
+| **Ctrl+Alt+I** | Ladicí okno Babylona (jen při vývoji; jde i přes adresu `?inspector`) |
 
 ## Architektura
 
@@ -41,7 +42,7 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 src/
   main.js                    engine, plátno, render loop
   scenes/GameScene.js        orchestrátor — stav světa, delegace na systémy
-  systems/                   camera, grid, terrain, deco, build, gather,
+  systems/                   camera, grid, terrain, water, sky, deco, build, gather,
                              inventory, heldItem, player, input, editor,
                              campfire, glow, dayNight, sim, audio, save
   data/catalogs/             stroje, předměty, dekorace, mapy, uložený stav
@@ -67,7 +68,8 @@ denní cyklus se stíny, lesní zvuky a kroky podle povrchu, panel možností,
 editor mapy (zóny, cesty, výšky ±6 m, štětec pláže se svahem po 0,3 m,
 štětec útesů s hliněnou stěnou, výběr buněk, undo), spojitý terén
 s hranou mapy, cesty kopírující terén, hráč chodící po výšce země,
-hladina vody s poloprůhlednou plochou a ukládání/načítání do prohlížeče.
+vodní hladina s vlnami a pěnou, obloha se sluncem a ukládání/načítání
+do prohlížeče.
 
 Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů) a
 suroviny pro výrobu (železná a měděná ruda, ingoty). Stroj má v savu připravený
@@ -78,12 +80,15 @@ zatím neběží.
 
 Poslední funkční commit před touto prací: `4e1defc` — výšky ±6 m se škálou
 a předvolbou 6 m; handoff před fází 5 je `13d8f70`. Štětec Pláž, zvlnění
-hranic povrchů, odstranění starých skalních modelů, útesy a hladina vody
-jsou hotové v pracovním stromu a čekají na vizuální test; commit dělá uživatel.
+hranic povrchů, odstranění starých skalních modelů, útesy, hladina vody
+a nový vzhled vody s oblohou jsou hotové v pracovním stromu a čekají na
+vizuální test; commit dělá uživatel.
 
-**Aktuální fáze:** 6 — Voda: hladina a tvar. Hotová je hladina vody v mapě,
-poloprůhledná plocha a ovládání v editoru. Zbývá vizuální test fáze; další je
-fáze 7 (vzhled vody).
+**Aktuální fáze:** 7 — Voda: vzhled. Hladina má vlastní program pro
+orthografickou kameru (vlny, pěna, barva podle hloubky), obloha je ze
+SkyMaterialu a kraj mapy uzavírá vlastní vodní stěna. Odraz okolí řeší
+odrazová sonda (krychlový snímek okolí); obloha se do odrazu nepouští.
+Zbývá vizuální test fáze; další je fáze 8 (hráč a život ve vodě).
 
 **Hotovo (fáze 0–5, část):**
 - Fáze 0–4: plán, písek a povrch, razítko Herní plocha, výškové nástroje,
@@ -109,29 +114,47 @@ fáze 7 (vzhled vody).
 - Útesy: štětec označí buňky jako plošinu; kde je mezi označenou buňkou
   a sousedem skok, vznikne svislá hliněná stěna stejnou texturou jako okraj
   mapy a hráč přes ni nepřejde. Mapa kvůli značce poskočila na verzi 4.
-- Voda: hladina pro celou mapu jako nepovinné číslo v souboru mapy;
-  poloprůhledná plocha v úrovni hladiny, terén ji jinde překryje. V editoru
+- Voda: hladina pro celou mapu jako nepovinné číslo v souboru mapy; v editoru
   se zapíná tlačítkem Voda a hladina se ladí po 0,3 m; Z vrací krok.
+  Mapa má hladinu −0,3 m, takže je voda zapnutá hned po startu.
+- Vzhled vody: vlastní program pro orthografickou kameru — vlny tlumené
+  v hloubce, přílivové jazyky na písek, pěna a bílé hřebeny viditelné
+  z každého úhlu, barva a průhlednost podle hloubky a odraz okolí přes
+  odrazovou sondu (terén, dekorace, postava, stroje).
+  Hustota vodní sítě jde podle kvality grafiky (0,5/1/2 m).
+- Voda leží jen na skutečných buňkách mapy, takže nevyčuhuje mimo obrys ani
+  do děr; na kraji mapy a v dírách ji uzavírá svislá vodní stěna. Písek
+  u břehové čáry ztmavne, jako by byl mokrý; při změně hladiny v editoru se
+  břeh i voda překreslí.
+- Obloha: SkyMaterial bez textury; slunce na obloze jde podle denní doby
+  a voda z ní bere barvu. Odraz okolí řeší odrazová sonda; obloha se
+  do odrazu nepouští.
 - Data a ukládání: ukládání hráče beze změny; výška je desetinné číslo,
   mapa má kvůli značkám útesů verzi 4.
 
 **Zbývá:**
-- Fáze 5 a 6: závěrečný test — třímetrová pánev s pozvolnými břehy, hráč po ní
-  chodí a stojí na zemi; hladina vody jen v pánvi a břeh sedí.
-- Fáze 7: vzhled vody — vlny, odlesky, barva podle hloubky, průhlednost.
+- Fáze 7: závěrečný test vzhledu vody a oblohy.
 - Fáze 8: hráč a život ve vodě — mělká/hluboká, cákance, zákaz stavění, zvuky.
+- Fáze 9: volitelné doladění — rostliny u břehu, kaustiky, hřebeny vln
+  a skutečný odraz oblohy.
 - Mimo tento plán: výroba ve strojích, recepty a plnění batohu.
 
-**Další krok — test fáze 5 a 6:**
-- V paletě štětců zvol Pláž, hloubku a namaluj plochu pánve; kolem ní
-  vznikne písek po 0,3 m jako svah. Zapni Plynulý okraj a porovnej.
-- Ověř, že pánev má tři metry, břehy jsou pozvolné a hráč po nich chodí.
-- Zkus štětec Útes: označ pár buněk plošiny, dej jim výšku a zkontroluj,
-  že se na hraně objeví hliněná stěna a hráč přes ni nepřejde. Stejně vysoký
-  soused se má napojit bez stěny a hrana se má drobně vlnit.
-- V editoru zapni Vodu a nastav hladinu tak, aby byla jen v pánvi; změň terén,
-  ulož mapu a obnov stránku — hladina i břeh musí držet.
-- Když něco nesedí, vrací se jen ta část; fáze 7 začíná až po tvém potvrzení.
+**Další krok — test fáze 7:**
+- V editoru zapni Vodu a nastav hladinu; ověř, že se voda hýbe, voda
+  vybíhá na písek v jazycích a pěna i bílé hřebeny jsou vidět i zeshora.
+- Otoč kamerou dokola: odraz terénu a objektů má být stabilní, bez bílých
+  pruhů a zrcadlových fleků.
+- Mezi hladinou a boční stěnou na kraji mapy nesmí prosvítat světlý pásek.
+- Voda nesmí vyčuhovat mimo obrys mapy ani do děr; na kraji a v dírách má být
+  vidět svislý řez hladinou, ne průhledná plocha.
+- Písek u břehové čáry má být tmavší (mokrý) a při posunu hladiny se má
+  břeh posunout spolu s ní.
+- Zkus jiný čas dne (N) — ve dne má být obloha jasná, v noci tmavá a voda
+  má ztmavnout; při svítání a soumraku má být obloha teplejší.
+- Zkontroluj plynulost, hlavně při zoomu; případně změň kvalitu v Možnostech.
+- Ulož mapu a obnov — hladina i vzhled musí držet.
+- Když něco nesedí, výška vln, barvy a síla odlesku jsou jen čísla; fáze 8
+  začíná až po tvém potvrzení.
 
 **Klíčová rozhodnutí (nevrátit omylem):**
 - Výšky jsou v metrech, krok 0,3 m, rozsah ±6 m; předvolby včetně ±4,5 a ±6.
@@ -153,7 +176,17 @@ fáze 7 (vzhled vody).
   se napojí plynule bez stěny a hrana stěny se drobně vlní.
 - Voda je jedna hladina pro celou mapu a jen se kreslí — nic v mapě nemění.
   Kde je terén pod ní, tam je voda; kde je výš, terén ji překryje.
-- Suché jámy pod hladinou (doly, sklepy) současná deska neumí; vyřeší se
+- Voda má vlastní program pro orthografickou kameru; hotový Babylon
+  WaterMaterial se nepoužívá, protože počítá odlesky z pozice kamery a na
+  ortho kameře dělá bílé pruhy a zrcadlové fleky.
+- Odraz se bere z odrazové sondy nad středem vody. Do odrazu jdou terén
+  a objekty; obloha je barva.
+- Hloubka se bere z terénu pod hladinou; kde je mělko, prosvítá dno, hloubka
+  tmavne. Pěna u břehu je součástí vodního programu.
+- Hustota vodní sítě jde podle kvality: vysoká 0,5 m, střední 1 m, nízká 2 m.
+- Obloha je SkyMaterial bez textury a nahrazuje jednobarevné nebe; voda
+  z ní bere jen barvu.
+- Suché jámy pod hladinou (doly, sklepy) současná plocha neumí; vyřeší se
   později suchou zónou nebo vodními zónami.
 - Mapa má verzi 4 (značka útesu); hladina vody je nepovinné číslo a verzi
   nemění. Starší mapy se načtou bez vody.
@@ -164,11 +197,18 @@ fáze 7 (vzhled vody).
 - `src/editor/editorMode.js`, `mapEditor.js`, `editorHud.js` — editor, výběr, panely, pláž, voda.
 - `src/systems/gridSystem.js`, `inputSystem.js` — hover, levé/pravé tažení.
 - `src/utils/terrainField.js`, `src/systems/terrainSystem.js` — výškový model, terén, hrana, útesy.
-- `src/systems/waterSystem.js` — hladina a poloprůhledná vodní plocha.
+- `src/systems/waterSystem.js` — hladina, odrazová sonda, kraj mapy.
+- `src/systems/waterShader.js` — program pro vodu: vlny, pěna, svislá stěna.
+- `src/systems/skySystem.js` — obloha a slunce.
 - `src/systems/pathSystem.js`, `playerSystem.js`, `cameraSystem.js` — cesty a hráč.
 - `src/data/catalogs/brushes.js` — štětce včetně Pláže a Útesu; `decorations.js` — písek a povrchy.
 - `src/data/maps/glade/map.json` — aktuální mapa; `README.md` — plán a tento handoff.
 - `.clinerules` — pravidla práce.
+
+## Závislosti a licence
+
+- `@babylonjs/core`, `@babylonjs/loaders`, `@babylonjs/materials` (8.56.2) — jádro hry, načítání modelů a obloha.
+- `@babylonjs/inspector` (8.56.2) — jen vývojová závislost; do produkčního buildu se nebalí.
 
 **Pravidla pro navazujícího agenta:**
 - Přečíst `.clinerules`, README a tuto sekci; ověřit `git status` a `git log`.
@@ -201,12 +241,14 @@ fáze 7 (vzhled vody).
 ### Voda
 
 Voda je jedna hladina pro celou mapu, uložená jako nepovinné číslo
-v souboru mapy. Kreslí se jako poloprůhledná deska v úrovni hladiny; kde je
-terén výš, terén ji překryje. V editoru se zapíná tlačítkem Voda a hladina
-se ladí po 0,3 m. Suché jámy pod hladinou současná deska neumí — vyřeší se
+v souboru mapy. Kreslí ji vlastní program: vlny, odlesk slunce,
+barva a průhlednost podle hloubky, pěna u břehu, odraz okolí přes
+odrazovou sondu a tmavší hladina v noci. Hloubka se bere z terénu
+pod hladinou. V editoru se voda zapíná tlačítkem Voda a hladina se ladí
+po 0,3 m. Suché jámy pod hladinou současná plocha neumí — vyřeší se
 později suchou zónou nebo vodními zónami.
 
-Aktuální plán: otestovat fázi 5 a 6, pak fáze 7 vzhled vody a fáze 8 hráč
+Aktuální plán: otestovat fázi 7 (voda a obloha), pak fáze 8 hráč
 a život ve vodě. Samostatně pak výroba ve strojích a plnění batohu, výběr
 a stav stroje kliknutím, výroba předmětů z batohu.
 
@@ -377,14 +419,17 @@ přepočítá, hladina přežije uložení, stará mapa se načte.
 **Cíl:** živá a realistická voda.
 
 - Vlastní program: vlny, odlesky, barva podle hloubky, průhledná mělčina,
-  pěna u břehu, noc.
-- Kvalita podle nastavení grafiky.
-- Volitelně mokrý písek a jiné zabarvení dna.
+  pěna u břehu, noc. **Hotovo.**
+- Kvalita podle nastavení grafiky. **Hotovo (hustota vodní sítě).**
+- Volitelně mokrý písek a jiné zabarvení dna. **Zbývá jako volitelné (fáze 9).**
+
+**Stav:** program i síť jsou hotové; zbývá vizuální test.
 
 **Hotovo, když:** mělčina je průhledná, hloubka tmavne, jsou vidět vlny a slunce,
 pěna kopíruje břeh, v noci je voda tmavá a hra se nezpomalí.
 
-**V této fázi ještě nebude:** skutečné zrcadlení okolí.
+**V této fázi ještě nebude:** skutečný odraz oblohy.
+**Data a ukládání:** beze změny; hladina je z fáze 6.
 
 ### Fáze 8 — Voda: hráč a život
 
