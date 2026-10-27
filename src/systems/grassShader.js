@@ -4,9 +4,6 @@
 import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
 import { Effect } from '@babylonjs/core/Materials/effect';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-
-const LIGHT_DIR = new Vector3(0.35, 1, 0.25).normalize();
 
 const VERTEX = `
 precision highp float;
@@ -78,7 +75,7 @@ void main(void) {
   vec3 color = mix(grassRoot, tip, pow(vHeight, 1.25));
   color *= mix(0.4, 1.0, smoothstep(0.0, 0.35, vHeight));
 
-  float daylight = 0.04 + 0.96 * dayness;
+  float daylight = 0.24 + 0.76 * dayness;
   color *= daylight;
 
   vec3 n = normalize(vNormal);
@@ -110,7 +107,7 @@ export function createGrassMaterial(scene, options) {
   material.setFloat('grassHeight', options.height);
   material.setColor3('baseColor', options.base);
   material.setColor3('grassRoot', options.root);
-  material.setVector3('lightDir', LIGHT_DIR);
+  material.setVector3('lightDir', options.lightDir);
   material.setFloat('dayness', 1);
   return material;
 }

@@ -2,16 +2,25 @@
 // Drží se jen na buňkách mapy, kraj uzavírá vodní stěna a dno prosvítá podle hloubky.
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Vector2, Vector3, Matrix } from '@babylonjs/core/Maths/math.vector';
+import { Plane } from '@babylonjs/core/Maths/math.plane';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
-import { ReflectionProbe } from '@babylonjs/core/Probes/reflectionProbe';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { RenderTargetTexture } from '@babylonjs/core/Materials/Textures/renderTargetTexture';
+import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
+import { Constants } from '@babylonjs/core/Engines/constants';
 import { CELL_SIZE } from '../utils/gridMath.js';
 import { createWaterMaterial, createWaterSideMaterial, tickWater } from './waterShader.js';
 
 const WATER_SINK = 0.02;
 const WATER_STEPS = { high: 0.5, medium: 1, low: 2 };
-const PROBE_SIZES = { high: 128, medium: 96, low: 64 };
+const DEPTH_STEP = 0.5;
+const DEPTH_MAX = 256;
+const DEPTH_RANGE = 3;
+const REFLECTION_SCALES = { high: 0.5, medium: 0.4, low: 0.3 };
 const FALLBACK_RGB = [0.06, 0.16, 0.19];
+const FALLBACK_SKY = new Color3(0.5, 0.65, 0.8);
+const SEA_FALLBACK = [0.94, 0.34];
 const MAX_DEPTH = 2.5;
 
 export default class WaterSystem {
@@ -24,12 +33,24 @@ export default class WaterSystem {
     this.sideMaterial = null;
     this.sunLight = null;
     this.dayness = 1;
+    this.skyTint = null;
     this.time = 0;
     this.quality = 'high';
     this.waterRgb = null;
-    this.probe = null;
-    this.probeSize = 0;
-    this.reflectors = [];
+    this.reflection = null;
+    this.reflectionExclusions = [];
+    this.hiddenReflectionMeshes = [];
+    this.reflectionScale = 0;
+    this.surfaceY = 0;
+    this.plane = new Plane(0, 1, 0, 0);
+    this.mirror = new Matrix();
+    this.reflectionView = new Matrix();
+    this.reflectionViewProjection = new Matrix();
+    this.mirrorEye = new Vector3();
+    this.savedView = new Matrix();
+    this.depthMap = null;
+    this.depthOrigin = new Vector2(0, 0);
+    this.depthScale = new Vector2(1, 1);
   }
 
   setSun(light) {
@@ -41,46 +62,161 @@ export default class WaterSystem {
     this.applyColors();
   }
 
+  setSkyTint(color) {
+    this.skyTint = color ? color.clone() : null;
+    this.applyColors();
+    if (this.reflection) this.reflection.clearColor = this.skyClearColor();
+  }
+
+  setReflectionExclusions(meshes) {
+    this.reflectionExclusions = Array.isArray(meshes) ? meshes.filter((mesh) => mesh && !mesh.isDisposed()) : [];
+  }
+
   clear() {
     if (this.mesh && !this.mesh.isDisposed()) this.mesh.dispose(false, false);
     if (this.sideMesh && !this.sideMesh.isDisposed()) this.sideMesh.dispose(false, true);
     this.mesh = null;
     this.sideMesh = null;
     this.sideMaterial = null;
-    if (this.probe) this.probe.refreshRate = 0;
-  }
-
-  setReflectors(meshes) {
-    this.reflectors = Array.isArray(meshes) ? meshes.slice() : [];
-    this.applyReflectors();
-  }
-
-  applyReflectors() {
-    if (!this.probe) return;
-    this.probe.renderList = this.reflectors.filter((node) => node && !node.isDisposed());
+    if (this.depthMap) {
+      this.depthMap.dispose();
+      this.depthMap = null;
+    }
   }
 
   skyClearColor() {
-    const sky = this.s.clearColor;
-    return sky ? new Color4(sky.r, sky.g, sky.b, 1) : new Color4(0.05, 0.06, 0.08, 1);
+    const tint = this.skyTint || FALLBACK_SKY;
+    return new Color4(tint.r, tint.g, tint.b, 1);
   }
 
-  probeFor(quality, centerX, centerZ, surfaceY) {
-    const size = PROBE_SIZES[quality] || PROBE_SIZES.high;
-    if (!this.probe || this.probeSize !== size) {
-      if (this.probe) this.probe.dispose();
-      const probe = new ReflectionProbe('waterProbe', size, this.s);
-      probe.refreshRate = 2;
-      probe.renderList = [];
-      this.probe = probe;
-      this.probeSize = size;
-      if (this.material) this.material.setTexture('reflectionSampler', probe.cubeTexture);
+  reflectionSize(scale) {
+    const engine = this.s.getEngine();
+    return {
+      width: Math.max(64, Math.floor(engine.getRenderWidth() * scale)),
+      height: Math.max(64, Math.floor(engine.getRenderHeight() * scale)),
+    };
+  }
+
+  depthMapFor(level, heightAt, x0, x1, z0, z1) {
+    const spanX = Math.max(1e-6, x1 - x0);
+    const spanZ = Math.max(1e-6, z1 - z0);
+    const width = Math.max(2, Math.min(DEPTH_MAX, Math.ceil(spanX / DEPTH_STEP) + 1));
+    const height = Math.max(2, Math.min(DEPTH_MAX, Math.ceil(spanZ / DEPTH_STEP) + 1));
+    const raw = new Float32Array(width * height);
+    for (let j = 0; j < height; j += 1) {
+      const z = z0 + (j / (height - 1)) * spanZ;
+      for (let i = 0; i < width; i += 1) {
+        const x = x0 + (i / (width - 1)) * spanX;
+        raw[j * width + i] = level - heightAt(x, z);
+      }
     }
-    this.probe.position = new Vector3(centerX, surfaceY + 1.2, centerZ);
-    this.probe.refreshRate = 2;
-    if (this.probe.cubeTexture) this.probe.cubeTexture.clearColor = this.skyClearColor();
-    this.applyReflectors();
-    return this.probe;
+    const smooth = new Float32Array(raw.length);
+    for (let j = 0; j < height; j += 1) {
+      for (let i = 0; i < width; i += 1) {
+        let sum = 0;
+        for (let dj = -1; dj <= 1; dj += 1) {
+          const jj = Math.min(height - 1, Math.max(0, j + dj));
+          for (let di = -1; di <= 1; di += 1) {
+            const ii = Math.min(width - 1, Math.max(0, i + di));
+            sum += raw[jj * width + ii];
+          }
+        }
+        smooth[j * width + i] = sum / 9;
+      }
+    }
+    const data = new Uint8Array(width * height);
+    for (let index = 0; index < smooth.length; index += 1) {
+      const normalized = Math.min(1, Math.max(0, 0.5 + smooth[index] / (2 * DEPTH_RANGE)));
+      data[index] = Math.round(normalized * 255);
+    }
+    if (this.depthMap) this.depthMap.dispose();
+    this.depthMap = new RawTexture(data, width, height, Constants.TEXTUREFORMAT_R, this.s, false, false, Texture.BILINEAR_SAMPLINGMODE);
+    this.depthMap.wrapU = Texture.CLAMP_ADDRESSMODE;
+    this.depthMap.wrapV = Texture.CLAMP_ADDRESSMODE;
+    this.depthOrigin.set(x0, z0);
+    this.depthScale.set(1 / spanX, 1 / spanZ);
+    return this.depthMap;
+  }
+
+  reflectionFor(quality, surfaceY) {
+    const scale = REFLECTION_SCALES[quality] || REFLECTION_SCALES.medium;
+    if (!this.reflection) {
+      const rtt = new RenderTargetTexture('waterReflection', this.reflectionSize(scale), this.s, false, true);
+      rtt.renderList = null;
+      rtt.wrapU = Texture.CLAMP_ADDRESSMODE;
+      rtt.wrapV = Texture.CLAMP_ADDRESSMODE;
+      rtt.refreshRate = 1;
+      rtt.clearColor = this.skyClearColor();
+      rtt.onBeforeRenderObservable.add(() => this.beginReflection());
+      rtt.onAfterRenderObservable.add(() => this.endReflection());
+      this.s.customRenderTargets.push(rtt);
+      this.reflection = rtt;
+      this.reflectionScale = scale;
+    } else if (this.reflectionScale !== scale) {
+      this.reflection.resize(this.reflectionSize(scale));
+      this.reflectionScale = scale;
+    }
+    this.reflection.refreshRate = 1;
+    this.surfaceY = surfaceY;
+    this.plane.d = -surfaceY;
+    if (this.material) this.material.setTexture('reflectionSampler', this.reflection);
+    return this.reflection;
+  }
+
+  beginReflection() {
+    const camera = this.s.activeCamera;
+    if (!camera) return;
+    this.hideReflectionMeshes(true);
+    const view = camera.getViewMatrix(true);
+    this.savedView.copyFrom(view);
+    this.plane.d = -this.surfaceY;
+    Matrix.ReflectionToRef(this.plane, this.mirror);
+    this.mirror.multiplyToRef(view, this.reflectionView);
+    const projection = camera.getProjectionMatrix();
+    this.reflectionView.multiplyToRef(projection, this.reflectionViewProjection);
+    this.s.setTransformMatrix(this.reflectionView, projection);
+    Vector3.TransformCoordinatesToRef(camera.globalPosition, this.mirror, this.mirrorEye);
+    this.s._mirroredCameraPosition = this.mirrorEye;
+    this.s._forcedViewPosition = this.mirrorEye;
+  }
+
+  endReflection() {
+    const camera = this.s.activeCamera;
+    this.s._mirroredCameraPosition = null;
+    this.s._forcedViewPosition = null;
+    if (camera) this.s.setTransformMatrix(this.savedView, camera.getProjectionMatrix());
+    if (this.material) this.material.setMatrix('reflectionViewProjection', this.reflectionViewProjection);
+    this.hideReflectionMeshes(false);
+  }
+
+  hideReflectionMeshes(hidden) {
+    if (hidden) {
+      this.hiddenReflectionMeshes = [];
+      const hide = (mesh) => {
+        if (!mesh || mesh.isDisposed() || !mesh.isVisible) return;
+        this.hiddenReflectionMeshes.push(mesh);
+        mesh.isVisible = false;
+      };
+      hide(this.mesh);
+      hide(this.sideMesh);
+      for (const mesh of this.s.meshes) {
+        if (mesh.getClassName() === 'LinesMesh') hide(mesh);
+      }
+      for (const mesh of this.reflectionExclusions) hide(mesh);
+      return;
+    }
+    for (const mesh of this.hiddenReflectionMeshes) {
+      if (!mesh.isDisposed()) mesh.isVisible = true;
+    }
+    this.hiddenReflectionMeshes = [];
+  }
+
+  syncReflection() {
+    const rtt = this.reflection;
+    if (!rtt) return;
+    const size = this.reflectionSize(this.reflectionScale);
+    if (rtt.getRenderWidth() !== size.width || rtt.getRenderHeight() !== size.height) rtt.resize(size);
+    rtt.clearColor = this.skyClearColor();
   }
 
   colorOptions() {
@@ -90,7 +226,7 @@ export default class WaterSystem {
       deepColor: this.deepColor(base),
       foamColor: new Color3(0.82, 0.92, 0.94),
       sunColor: new Color3(1, 0.95, 0.86),
-      skyColor: new Color3(0.5, 0.65, 0.8),
+      skyColor: FALLBACK_SKY.clone(),
       maxDepth: MAX_DEPTH,
     };
   }
@@ -129,9 +265,8 @@ export default class WaterSystem {
       this.material.setColor3('deepColor', this.deepColor(base));
       this.material.setColor3('foamColor', new Color3(0.82, 0.92, 0.94));
       this.material.setFloat('dayness', this.dayness);
-      const sky = this.s.clearColor;
-      if (sky) this.material.setColor3('skyColor', new Color3(sky.r, sky.g, sky.b));
-      if (this.probe && this.probe.cubeTexture) this.probe.cubeTexture.clearColor = this.skyClearColor();
+      if (this.skyTint) this.material.setColor3('skyColor', this.skyTint);
+      if (this.reflection) this.reflection.clearColor = this.skyClearColor();
     }
     if (this.sideMaterial) {
       this.sideMaterial.setColor3('surfaceColor', this.sideColor(base, 1.9, 0.05));
@@ -142,6 +277,7 @@ export default class WaterSystem {
 
   create(cells, level, heightAt = null, waterRgb = null, quality = 'high') {
     this.clear();
+    if (this.reflection) this.reflection.refreshRate = 0;
     this.quality = quality;
     this.waterRgb = waterRgb || this.waterRgb;
     const step = WATER_STEPS[quality] || WATER_STEPS.medium;
@@ -159,6 +295,18 @@ export default class WaterSystem {
       cellSet.add(`${cx},${cz}`);
     }
     if (!cellSet.size) return null;
+    let seaDirX = 0;
+    let seaDirZ = 0;
+    for (const [cx, cz] of cells) {
+      if (heightAt(cx * CELL_SIZE, cz * CELL_SIZE) >= level) continue;
+      if (cx === minX) seaDirX += 1;
+      if (cx === maxX) seaDirX -= 1;
+      if (cz === minZ) seaDirZ += 1;
+      if (cz === maxZ) seaDirZ -= 1;
+    }
+    const seaDirLength = Math.hypot(seaDirX, seaDirZ);
+    this.seaDir = new Vector2(SEA_FALLBACK[0], SEA_FALLBACK[1]);
+    if (seaDirLength > 1e-4) this.seaDir.set(seaDirX / seaDirLength, seaDirZ / seaDirLength);
     const half = CELL_SIZE / 2;
     const x0 = minX * CELL_SIZE - half;
     const x1 = maxX * CELL_SIZE + half;
@@ -175,15 +323,14 @@ export default class WaterSystem {
     };
     const surfaceY = level - WATER_SINK;
     const positions = [];
-    const uvs = [];
     const depths = [];
     for (let j = 0; j <= rows; j += 1) {
       const z = z0 + j * dz;
       for (let i = 0; i <= cols; i += 1) {
         const x = x0 + i * dx;
-        const depth = Math.max(0, level - heightAt(x, z));
+        const drop = level - heightAt(x, z);
+        const depth = Math.max(0, drop);
         positions.push(x, surfaceY, z);
-        uvs.push(depth, 0);
         depths.push(depth);
       }
     }
@@ -208,11 +355,17 @@ export default class WaterSystem {
     const data = new VertexData();
     data.positions = positions;
     data.indices = indices;
-    data.uvs = uvs;
     data.applyToMesh(mesh);
     mesh.isPickable = false;
     const material = this.materialFor();
-    this.probeFor(quality, (x0 + x1) / 2, (z0 + z1) / 2, surfaceY);
+    material.setFloat('waterLevel', level);
+    this.depthMapFor(level, heightAt, x0, x1, z0, z1);
+    material.setTexture('depthMap', this.depthMap);
+    material.setVector2('depthOrigin', this.depthOrigin);
+    material.setVector2('depthScale', this.depthScale);
+    material.setFloat('depthRange', DEPTH_RANGE);
+    material.setVector2('seaDir', this.seaDir);
+    this.reflectionFor(quality, surfaceY);
     mesh.material = material;
     this.mesh = mesh;
 
@@ -260,6 +413,7 @@ export default class WaterSystem {
         deepColor: this.sideColor(base, 0.45, 0),
         foamColor: new Color3(0.62, 0.72, 0.73),
       });
+      sides.material.setVector2('seaDir', this.seaDir);
       this.sideMesh = sides;
       this.sideMaterial = sides.material;
     }
@@ -275,7 +429,7 @@ export default class WaterSystem {
     if (!material) return;
     tickWater(material, this.time);
     if (this.sideMaterial) tickWater(this.sideMaterial, this.time);
-    if (this.probe && this.probe.cubeTexture) this.probe.cubeTexture.clearColor = this.skyClearColor();
+    this.syncReflection();
     const sun = this.sunLight;
     if (sun) {
       const direction = sun.direction;
@@ -285,8 +439,8 @@ export default class WaterSystem {
       material.setColor3('sunColor', sun.diffuse);
       material.setFloat('sunIntensity', sun.intensity);
     }
-    const sky = this.s.clearColor;
-    if (sky) material.setColor3('skyColor', new Color3(sky.r, sky.g, sky.b));
+    const sky = this.skyTint;
+    if (sky) material.setColor3('skyColor', sky);
     const camera = this.s.activeCamera;
     if (camera && typeof camera.getForwardRay === 'function') {
       const toward = camera.getForwardRay().direction.scale(-1);

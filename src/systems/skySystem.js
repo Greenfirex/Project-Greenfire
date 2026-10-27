@@ -1,7 +1,12 @@
 // Obloha kolem scény — bez textury, slunce se hýbe podle denní doby.
 // Dává vodě skutečný odraz nebe a nahrazuje jednobarevné pozadí.
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { SkyMaterial } from '@babylonjs/materials/sky/skyMaterial';
+
+const NIGHT_LUMINANCE = 0.14;
+const DAY_LUMINANCE = 1.17;
+const HORIZON_COLOR = new Color3(0.55, 0.7, 0.92);
 
 export default class SkySystem {
 
@@ -19,8 +24,8 @@ export default class SkySystem {
     material.useSunPosition = true;
     material.turbidity = 8;
     material.rayleigh = 2;
-    material.mieCoefficient = 0.005;
-    material.mieDirectionalG = 0.8;
+    material.mieCoefficient = 0.012;
+    material.mieDirectionalG = 0.85;
     material.luminance = 1;
     material.dithering = true;
     material.distance = 1000;
@@ -36,10 +41,20 @@ export default class SkySystem {
   setDayness(value, sunLight = null) {
     if (!this.material) return;
     const dayness = Math.max(0, Math.min(1, Number(value) || 0));
-    this.material.luminance = 0.02 + 1.15 * dayness;
+    this.material.luminance = NIGHT_LUMINANCE + (DAY_LUMINANCE - NIGHT_LUMINANCE) * dayness;
     if (sunLight && sunLight.position && sunLight.position.lengthSquared() > 0) {
       const direction = sunLight.position.clone().normalize();
       this.material.sunPosition = direction.scale(this.material.distance);
     }
+  }
+
+  tint() {
+    const luminance = this.material ? this.material.luminance : DAY_LUMINANCE;
+    const brightness = Math.max(0.12, Math.min(1, luminance / DAY_LUMINANCE));
+    return new Color3(
+      HORIZON_COLOR.r * brightness,
+      HORIZON_COLOR.g * brightness,
+      HORIZON_COLOR.b * brightness,
+    );
   }
 }

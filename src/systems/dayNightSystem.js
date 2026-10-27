@@ -4,6 +4,8 @@ import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { getMap } from '../data/catalogs/maps.js';
 
+const DAYLIGHT_CURVE = 0.6;
+
 function lerpRgb(a, b, t) {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 }
@@ -111,7 +113,7 @@ export default class DayNightSystem {
     if (time < cfg.dawnTime || time > cfg.duskTime) return 0;
     const span = cfg.duskTime - cfg.dawnTime;
     const t = (time - cfg.dawnTime) / span;
-    return Math.sin(Math.PI * t);
+    return Math.pow(Math.sin(Math.PI * t), DAYLIGHT_CURVE);
   }
 
   skyColor(dayness) {

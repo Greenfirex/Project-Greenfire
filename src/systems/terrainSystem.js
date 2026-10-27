@@ -79,6 +79,7 @@ export default class TerrainSystem {
     this.surfaces = [];
     this.materials = new Map();
     this.skirtMaterial = null;
+    this.skirtMesh = null;
     this.gridLines = null;
     this.field = null;
     this.mapKey = null;
@@ -103,6 +104,7 @@ export default class TerrainSystem {
     }
     this.ground = null;
     this.surfaces = [];
+    this.skirtMesh = null;
     this.gridLines = null;
     this.field = null;
     this.groundCells = [];
@@ -605,6 +607,7 @@ export default class TerrainSystem {
     mesh.isPickable = false;
     mesh.receiveShadows = true;
     mesh.material = this.skirtMaterialFor();
+    this.skirtMesh = mesh;
     this.surfaces.push(mesh);
   }
 

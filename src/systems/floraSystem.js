@@ -71,6 +71,7 @@ export default class FloraSystem {
     this.clock = 0;
     this.lastTime = performance.now();
     this.dayness = 1;
+    this.sunDirection = new Vector3(0.35, 1, 0.25).normalize();
   }
 
   create(deco, density = 'high') {
@@ -111,6 +112,12 @@ export default class FloraSystem {
     const v = Math.max(0, Math.min(1, Number(value) || 0));
     if (v === this.dayness) return;
     this.dayness = v;
+  }
+
+  setSunDirection(direction) {
+    if (!direction) return;
+    this.sunDirection.copyFrom(direction);
+    if (this.sunDirection.lengthSquared() > 0) this.sunDirection.normalize();
   }
 
   buildGrass() {
@@ -200,6 +207,7 @@ export default class FloraSystem {
       height: BLADE_HEIGHT,
       base: groundColor(this.s),
       root: GRASS_BASE_TONE,
+      lightDir: this.sunDirection,
     });
     mesh.isPickable = false;
     mesh.alwaysSelectAsActiveMesh = true;
@@ -238,6 +246,7 @@ export default class FloraSystem {
       if (mat) {
         tickGrass(mat, this.clock);
         mat.setFloat('dayness', this.dayness);
+        mat.setVector3('lightDir', this.sunDirection);
       }
     });
   }
