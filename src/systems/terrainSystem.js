@@ -26,6 +26,7 @@ const WALL_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
 const SURFACE_WAVE = 0.28;
 const SURFACE_WAVE_LONG = 1.1;
 const SURFACE_WAVE_SHORT = 2.7;
+const SURFACE_EDGE_METERS = 1.1;
 const CLIFF_WAVE = 0.16;
 const CLIFF_WAVE_LONG = 0.9;
 const CLIFF_WAVE_SHORT = 2.3;
@@ -224,11 +225,38 @@ export default class TerrainSystem {
       keys.set(`${cx},${cz}`, floor && floor.key ? floor.key : DEFAULT_FLOOR);
     }
     const keyAt = (cx, cz) => keys.get(`${cx},${cz}`) || null;
+    const edgeTints = new Map();
+    const edgeTintFor = (key) => {
+      if (edgeTints.has(key)) return edgeTints.get(key);
+      const cfg = this.surfaceConfig(key);
+      const value = cfg && Array.isArray(cfg.edgeTint) && cfg.edgeTint.length === 3 ? cfg.edgeTint : null;
+      edgeTints.set(key, value);
+      return value;
+    };
+    const edgeWeightAt = (px, pz, ownKey) => {
+      const ax = Math.floor((px + half) / CELL_SIZE) * CELL_SIZE;
+      const az = Math.floor((pz + half) / CELL_SIZE) * CELL_SIZE;
+      let best = Infinity;
+      for (const cx of [ax, ax - CELL_SIZE]) {
+        for (const cz of [az, az - CELL_SIZE]) {
+          const key = keyAt(cx / CELL_SIZE, cz / CELL_SIZE);
+          if (!key || key === ownKey) continue;
+          const dx = Math.abs(px - cx) - half;
+          const dz = Math.abs(pz - cz) - half;
+          const distance = Math.hypot(Math.max(dx, 0), Math.max(dz, 0));
+          if (distance < best) best = distance;
+        }
+      }
+      if (best >= SURFACE_EDGE_METERS) return 0;
+      const t = Math.max(0, best / SURFACE_EDGE_METERS);
+      return 1 - t * t * (3 - 2 * t);
+    };
     const groupFor = (key) => {
       let group = groups.get(key);
       if (!group) {
         const cfg = this.surfaceConfig(key);
         group = {
+          key,
           positions: [],
           indices: [],
           uvs: [],
@@ -250,7 +278,19 @@ export default class TerrainSystem {
       group.positions.push(px, y, pz);
       group.uvs.push(px / group.tile, pz / group.tile);
       const wet = this.wetFactor(y);
-      group.colors.push(tint.r * wet, tint.g * wet, tint.b * wet, 1);
+      const edge = edgeTintFor(group.key);
+      let cr = tint.r;
+      let cg = tint.g;
+      let cb = tint.b;
+      if (edge) {
+        const weight = edgeWeightAt(px, pz, group.key);
+        if (weight > 0) {
+          cr *= 1 + (edge[0] - 1) * weight;
+          cg *= 1 + (edge[1] - 1) * weight;
+          cb *= 1 + (edge[2] - 1) * weight;
+        }
+      }
+      group.colors.push(cr * wet, cg * wet, cb * wet, 1);
       return index;
     };
 

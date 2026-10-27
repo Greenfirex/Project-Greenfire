@@ -74,6 +74,7 @@ export default class PlayerSystem {
     this.facing = 0;
     this.blockedTest = null;
     this.walkable = null;
+    this.speedScale = null;
     this.decoSystem = null;
     this.groundHeightAt = null;
     this.spawnCell = null;
@@ -540,7 +541,9 @@ export default class PlayerSystem {
 
     move.normalize();
     const sprint = this.input.sprint;
-    const step = (sprint ? MOVE_SPEED : WALK_SPEED) * dt;
+    const scale = this.speedScale ? this.speedScale(this.root.position.x, this.root.position.z) : 1;
+    const pace = Number.isFinite(scale) ? scale : 1;
+    const step = (sprint ? MOVE_SPEED : WALK_SPEED) * pace * dt;
     this.tryMove(this.root.position.x + move.x * step, this.root.position.z + move.z * step, move.x, move.z, step);
     this.updateSteps(sprint, step);
     this.updateHome();

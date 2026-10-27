@@ -8,8 +8,10 @@ import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { RenderTargetTexture } from '@babylonjs/core/Materials/Textures/renderTargetTexture';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Constants } from '@babylonjs/core/Engines/constants';
 import { CELL_SIZE } from '../utils/gridMath.js';
+import { waveOffset, WAVE_REACH, WAVE_TIME_WRAP } from '../utils/waterWaves.js';
 import { createWaterMaterial, createWaterSideMaterial, tickWater } from './waterShader.js';
 
 const WATER_SINK = 0.02;
@@ -22,6 +24,35 @@ const FALLBACK_RGB = [0.06, 0.16, 0.19];
 const FALLBACK_SKY = new Color3(0.5, 0.65, 0.8);
 const SEA_FALLBACK = [0.94, 0.34];
 const MAX_DEPTH = 2.5;
+const RIPPLE_COUNT = 8;
+const RIPPLE_SECONDS = 0.7;
+const RIPPLE_GROW = 0.9;
+const RIPPLE_SEGMENTS = 24;
+const RIPPLE_INNER = 0.78;
+
+function rippleShape() {
+  const positions = [];
+  const normals = [];
+  const indices = [];
+  for (let i = 0; i < RIPPLE_SEGMENTS; i += 1) {
+    const a0 = (i / RIPPLE_SEGMENTS) * Math.PI * 2;
+    const a1 = ((i + 1) / RIPPLE_SEGMENTS) * Math.PI * 2;
+    const c0 = Math.cos(a0);
+    const s0 = Math.sin(a0);
+    const c1 = Math.cos(a1);
+    const s1 = Math.sin(a1);
+    const base = positions.length / 3;
+    positions.push(
+      c0 * RIPPLE_INNER, 0, s0 * RIPPLE_INNER,
+      c0, 0, s0,
+      c1, 0, s1,
+      c1 * RIPPLE_INNER, 0, s1 * RIPPLE_INNER,
+    );
+    normals.push(0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0);
+    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+  return { positions, normals, indices };
+}
 
 export default class WaterSystem {
 
@@ -53,6 +84,10 @@ export default class WaterSystem {
     this.clipPlane = new Plane(0, -1, 0, 0);
     this.savedClipPlane = null;
     this.depthScale = new Vector2(1, 1);
+    this.level = null;
+    this.heightAt = null;
+    this.shoreCells = [];
+    this.ripples = [];
   }
 
   setSun(light) {
@@ -80,9 +115,116 @@ export default class WaterSystem {
     this.mesh = null;
     this.sideMesh = null;
     this.sideMaterial = null;
+    this.level = null;
+    this.heightAt = null;
+    this.shoreCells = [];
+    for (const ripple of this.ripples) {
+      ripple.life = 0;
+      ripple.material.alpha = 0;
+      ripple.mesh.setEnabled(false);
+    }
     if (this.depthMap) {
       this.depthMap.dispose();
       this.depthMap = null;
+    }
+  }
+
+  depthAt(x, z) {
+    if (!this.heightAt || !Number.isFinite(this.level)) return 0;
+    const ground = this.heightAt(x, z);
+    if (!Number.isFinite(ground)) return 0;
+    return Math.max(0, this.surfaceY - ground);
+  }
+
+  surfaceHeightAt(x, z) {
+    if (!Number.isFinite(this.level)) return 0;
+    const dirX = this.seaDir ? this.seaDir.x : 1;
+    const dirZ = this.seaDir ? this.seaDir.y : 0;
+    return this.surfaceY + waveOffset(x, z, dirX, dirZ, this.time % WAVE_TIME_WRAP);
+  }
+
+  waveDepthAt(x, z) {
+    if (!this.heightAt || !Number.isFinite(this.level)) return 0;
+    const ground = this.heightAt(x, z);
+    if (!Number.isFinite(ground)) return 0;
+    return Math.max(0, this.surfaceHeightAt(x, z) - ground);
+  }
+
+  reachesAt(x, z) {
+    if (!this.heightAt || !Number.isFinite(this.level)) return false;
+    const ground = this.heightAt(x, z);
+    if (!Number.isFinite(ground)) return false;
+    return this.surfaceY + WAVE_REACH > ground;
+  }
+
+  shoreDistanceAt(x, z) {
+    if (!this.shoreCells.length || !Number.isFinite(this.level)) return Infinity;
+    let best = Infinity;
+    for (const [cx, cz] of this.shoreCells) {
+      const dx = Math.abs(x - cx * CELL_SIZE) - CELL_SIZE * 0.5;
+      const dz = Math.abs(z - cz * CELL_SIZE) - CELL_SIZE * 0.5;
+      const distance = Math.hypot(Math.max(dx, 0), Math.max(dz, 0));
+      if (distance < best) best = distance;
+      if (best === 0) return 0;
+    }
+    return best;
+  }
+
+  splash(x, z, strength = 1) {
+    const depth = this.waveDepthAt(x, z);
+    if (depth <= 0.02) return;
+    const pool = this.ripplePool();
+    let ripple = pool.find((item) => item.life <= 0);
+    if (!ripple) ripple = pool.reduce((a, b) => (a.time / a.life > b.time / b.life ? a : b));
+    ripple.time = 0;
+    ripple.life = RIPPLE_SECONDS;
+    const scale = (0.18 + Math.min(depth, 0.6) * 0.35) * strength;
+    ripple.mesh.position.set(x, this.surfaceHeightAt(x, z) + 0.015, z);
+    ripple.mesh.scaling.set(scale, 1, scale);
+    ripple.mesh.setEnabled(true);
+    ripple.material.alpha = 0.4;
+  }
+
+  ripplePool() {
+    if (this.ripples.length) return this.ripples;
+    const shape = rippleShape();
+    for (let i = 0; i < RIPPLE_COUNT; i += 1) {
+      const mesh = new Mesh(`waterSplash${i}`, this.s);
+      const data = new VertexData();
+      data.positions = shape.positions;
+      data.normals = shape.normals;
+      data.indices = shape.indices;
+      data.applyToMesh(mesh);
+      const material = new StandardMaterial(`waterSplashMat${i}`, this.s);
+      material.disableLighting = true;
+      material.emissiveColor = new Color3(0.78, 0.9, 0.94);
+      material.diffuseColor = Color3.Black();
+      material.specularColor = Color3.Black();
+      material.alpha = 0;
+      material.backFaceCulling = false;
+      mesh.material = material;
+      mesh.isPickable = false;
+      mesh.receiveShadows = false;
+      mesh.setEnabled(false);
+      this.ripples.push({ mesh, material, time: 0, life: 0 });
+    }
+    return this.ripples;
+  }
+
+  updateRipples(dt) {
+    for (const ripple of this.ripples) {
+      if (ripple.life <= 0) continue;
+      ripple.time += dt;
+      const t = Math.min(1, ripple.time / ripple.life);
+      ripple.mesh.position.y = this.surfaceHeightAt(ripple.mesh.position.x, ripple.mesh.position.z) + 0.015;
+      const scale = ripple.mesh.scaling.x + dt * RIPPLE_GROW;
+      ripple.mesh.scaling.set(scale, 1, scale);
+      ripple.material.alpha = 0.4 * (1 - t);
+      if (t >= 1) {
+        ripple.life = 0;
+        ripple.material.alpha = 0;
+        ripple.mesh.setEnabled(false);
+      }
     }
   }
 
@@ -290,6 +432,8 @@ export default class WaterSystem {
     this.waterRgb = waterRgb || this.waterRgb;
     const step = WATER_STEPS[quality] || WATER_STEPS.medium;
     if (!Number.isFinite(level) || typeof heightAt !== 'function' || !cells || !cells.length) return null;
+    this.level = level;
+    this.heightAt = heightAt;
     let minX = Infinity;
     let maxX = -Infinity;
     let minZ = Infinity;
@@ -305,13 +449,16 @@ export default class WaterSystem {
     if (!cellSet.size) return null;
     let seaDirX = 0;
     let seaDirZ = 0;
+    const shoreCells = [];
     for (const [cx, cz] of cells) {
       if (heightAt(cx * CELL_SIZE, cz * CELL_SIZE) >= level) continue;
+      shoreCells.push([cx, cz]);
       if (cx === minX) seaDirX += 1;
       if (cx === maxX) seaDirX -= 1;
       if (cz === minZ) seaDirZ += 1;
       if (cz === maxZ) seaDirZ -= 1;
     }
+    this.shoreCells = shoreCells;
     const seaDirLength = Math.hypot(seaDirX, seaDirZ);
     this.seaDir = new Vector2(SEA_FALLBACK[0], SEA_FALLBACK[1]);
     if (seaDirLength > 1e-4) this.seaDir.set(seaDirX / seaDirLength, seaDirZ / seaDirLength);
@@ -330,6 +477,7 @@ export default class WaterSystem {
       return cellSet.has(cellAt(x0 + (i + 0.5) * dx, z0 + (j + 0.5) * dz));
     };
     const surfaceY = level - WATER_SINK;
+    this.surfaceY = surfaceY;
     const positions = [];
     const depths = [];
     for (let j = 0; j <= rows; j += 1) {
@@ -433,6 +581,7 @@ export default class WaterSystem {
 
   update(dt) {
     this.time += dt;
+    this.updateRipples(dt);
     const material = this.material;
     if (!material) return;
     tickWater(material, this.time);

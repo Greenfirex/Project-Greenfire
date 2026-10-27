@@ -41,7 +41,7 @@ import { whenModelsIdle, takeModelError, preloadModel, releaseFrame } from '../u
 import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
 import { HOTBAR_ITEMS } from '../data/catalogs/items.js';
-import { worldToCellCoords, worldToCell } from '../utils/gridMath.js';
+import { worldToCellCoords, worldToCell, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
 import { collectStartupUrls } from '../data/catalogs/modelCatalog.js';
@@ -64,6 +64,11 @@ const MODEL_LANES = 4;
 const LOAD_RETRIES = 2;
 const BUILD_RANGE_CELLS = 2;
 const WALK_CLEARANCE = 1.25;
+const WADE_DEPTH = 0.6;
+const WADE_SPEED = 0.65;
+const WADE_RAMP = 0.2;
+const WATER_STEP_DEPTH = 0.02;
+const SHORE_CHECK_SECONDS = 0.3;
 const IMPACT_DELAY = 0.28;
 const TIME_SKIP = { hours: 6 };
 
@@ -73,6 +78,15 @@ function surfaceStepSound(key) {
   if (/wood|plank|bridge|deck|board/.test(name)) return 'stepWood';
   if (/path|stone|rock|cobble|brick|tile|pavement|gravel/.test(name)) return 'stepStone';
   return 'stepGrass';
+}
+
+function buildReasonText(reason) {
+  if (reason === 'occupied') return 'už tu stojí stroj';
+  if (reason === 'blocked') return 'překážka';
+  if (reason === 'water') return 'voda';
+  if (reason === 'height') return 'není rovná plocha';
+  if (reason === 'range') return 'mimo dosah';
+  return null;
 }
 
 export default class GameScene {
@@ -142,6 +156,7 @@ export default class GameScene {
     this.hoverCell = null;
     this.mapLayout = null;
     this.impactTimer = 0;
+    this.shoreClock = 0;
   }
 
   start() {
@@ -224,6 +239,7 @@ export default class GameScene {
       this.campfireSystem.update(dt, root);
       this.waterSystem.update(dt);
       this.updateCampfireSound(root);
+      this.updateShoreSound(root, dt);
       if (root) this.cameraSystem.follow(root.position.x, root.position.z, root.position.y, dt);
       this.autoTune(dt);
       this.audioSystem.update(dt);
@@ -319,6 +335,14 @@ export default class GameScene {
   updateCampfireSound(root) {
     const burning = root ? this.campfireSystem.nearestBurning(root.position.x, root.position.z) : null;
     this.audioSystem.setFire(burning !== null, burning ? burning.distance : Infinity);
+  }
+
+  updateShoreSound(root, dt) {
+    this.shoreClock += dt;
+    if (this.shoreClock < SHORE_CHECK_SECONDS) return;
+    this.shoreClock = 0;
+    const distance = root ? this.waterSystem.shoreDistanceAt(root.position.x, root.position.z) : Infinity;
+    this.audioSystem.setShoreDistance(distance);
   }
 
   cancelCampfireIgnite() {
@@ -428,8 +452,10 @@ updateGatherTarget() {
   }
 
   onPlayerStep(x, z, sprint) {
+    const inWater = this.waterDepthNowAt(x, z) > WATER_STEP_DEPTH;
+    if (inWater) this.waterSystem.splash(x, z, sprint ? 1.2 : 1);
     const key = this.decoSystem.surfaceKeyAt(worldToCell(x), worldToCell(z)) || '';
-    this.audioSystem.play(surfaceStepSound(key), { gain: sprint ? 1.35 : 1 });
+    this.audioSystem.play(inWater ? 'stepWater' : surfaceStepSound(key), { gain: sprint ? 1.35 : 1 });
   }
 
   onGatherImpact(result) {
@@ -462,6 +488,12 @@ updateGatherTarget() {
   async setupPlayer() {
     this.playerSystem.blockedTest = (cx, cz) => this.buildSystem.isOccupied(cx, cz);
     this.playerSystem.walkable = (x, z) => this.isWalkableAt(x, z);
+    this.playerSystem.speedScale = (x, z) => {
+      const depth = this.waterDepthNowAt(x, z);
+      if (depth <= WATER_STEP_DEPTH) return 1;
+      const wet = Math.min(1, depth / WADE_RAMP);
+      return 1 - (1 - WADE_SPEED) * wet;
+    };
     this.playerSystem.decoSystem = this.decoSystem;
     this.playerSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z);
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z, this.playerSystem.root ? this.playerSystem.root.position.y : 0);
@@ -472,6 +504,7 @@ updateGatherTarget() {
     if (!root) return;
     for (const child of root.getChildMeshes()) this.addShadowCaster(child);
     this.cameraSystem.snapTo(root.position.x, root.position.z, root.position.y);
+    this.rescuePlayerFromWater();
   }
 
   refreshTerrain() {
@@ -501,6 +534,7 @@ updateGatherTarget() {
     this.waterSystem.setSkyTint(this.skySystem.tint());
     this.waterSystem.setReflectionExclusions([this.terrainSystem.skirtMesh]);
     this.waterSystem.create(this.terrainSystem.groundCells, level, (x, z) => this.terrainSystem.heightAt(x, z), rgb, quality);
+    this.rescuePlayerFromWater();
   }
 
   waterDayness() {
@@ -628,6 +662,7 @@ updateGatherTarget() {
     this.gatherSystem.syncFromDeco();
     this.campfireSystem.sync(this.mapFile.decorations || []);
     this.buildSystem.blockedTest = (cx, cz) => this.decoSystem.isBlocked(cx, cz);
+    this.buildSystem.waterTest = (cx, cz) => this.waterSystem.reachesAt(cx * CELL_SIZE, cz * CELL_SIZE);
     this.buildSystem.heightTest = (cx, cz) => this.decoSystem.topAt(cx, cz) !== 0;
     this.buildSystem.rangeTest = (cx, cz) => this.withinBuildRange(cx, cz);
     this.gridSystem.onHologramReady = (machineKey) => {
@@ -1339,10 +1374,12 @@ updateGatherTarget() {
       this.gridSystem.hideHologram();
       this.hud.setCell(null, null, true);
       this.hud.setHeight(null);
+      this.hud.setBuildReason(null);
       return;
     }
     const occupied = this.buildSystem.isOccupied(cell.cx, cell.cz);
-    const valid = this.buildSystem.canBuild(cell.cx, cell.cz);
+    const reason = this.buildSystem.blockReason(cell.cx, cell.cz);
+    const valid = reason === null;
     const topY = this.decoSystem.topAt(cell.cx, cell.cz);
     this.hoverCell = cell;
     this.gridSystem.setHighlight(cell.cx, cell.cz, topY);
@@ -1350,6 +1387,7 @@ updateGatherTarget() {
     this.refreshHologram(cell, topY, valid);
     this.hud.setCell(cell.cx, cell.cz, valid);
     this.hud.setHeight(topY);
+    this.hud.setBuildReason(buildReasonText(reason));
     if (occupied) this.hud.setCellOccupied(this.describeMachine(cell.cx, cell.cz));
     else this.hud.setCellOccupied(null);
   }
@@ -1369,6 +1407,7 @@ updateGatherTarget() {
   }
 
   isWalkableAt(x, z) {
+    if (this.waterDepthAt(x, z) > WADE_DEPTH) return false;
     const { cx, cz } = worldToCellCoords(x, z);
     const layout = this.decoSystem.layout || this.terrainSystem.layout || null;
     if (hasFloor(layout, cx, cz)) return true;
@@ -1381,6 +1420,35 @@ updateGatherTarget() {
 
   areaCellsNow() {
     return worldCells(this.decoSystem.layout || this.terrainSystem.layout || null);
+  }
+
+  waterDepthAt(x, z) {
+    return this.waterSystem ? this.waterSystem.depthAt(x, z) : 0;
+  }
+
+  waterDepthNowAt(x, z) {
+    return this.waterSystem ? this.waterSystem.waveDepthAt(x, z) : 0;
+  }
+
+  rescuePlayerFromWater() {
+    const player = this.playerSystem;
+    if (!player || !player.ready || !player.root) return;
+    const pos = player.root.position;
+    if (!Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return;
+    if (this.waterDepthAt(pos.x, pos.z) <= WADE_DEPTH) return;
+    let best = null;
+    let bestDist = Infinity;
+    for (const [cx, cz] of this.areaCellsNow()) {
+      const x = cx * CELL_SIZE;
+      const z = cz * CELL_SIZE;
+      if (!this.isWalkableAt(x, z)) continue;
+      const dist = Math.hypot(x - pos.x, z - pos.z);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { x, z };
+      }
+    }
+    if (best) player.apply({ x: best.x, z: best.z, facing: player.facing });
   }
 
   withinBuildRange(cx, cz) {

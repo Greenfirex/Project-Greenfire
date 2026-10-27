@@ -12,8 +12,8 @@ import { createGrassMaterial, tickGrass } from './grassShader.js';
 const BLADE_HEIGHT = CELL_SIZE * 0.22;
 const BLADE_SEGMENTS = 3;
 const BLADE_WIDTH = CELL_SIZE * 0.028;
-const PER_TILE = { off: 0, medium: 120, high: 220 };
-const BLADE_CAP = 40000;
+const PER_TILE = { off: 0, medium: 121, high: 225 };
+const BLADE_CAP = 500000;
 const GRASS_BASE_TONE = new Color3(0.1, 0.24, 0.06);
 const GRASS_LIFT = 0.02;
 
@@ -66,7 +66,6 @@ export default class FloraSystem {
     this.grass = null;
     this.slots = [];
     this.grassMeshes = [];
-    this.bladesReady = false;
     this.observer = null;
     this.clock = 0;
     this.lastTime = performance.now();
@@ -93,7 +92,7 @@ export default class FloraSystem {
   }
 
   disposeGrass() {
-    if (this.grass && !this.grass.isDisposed()) this.grass.dispose(false, false);
+    if (this.grass && !this.grass.isDisposed()) this.grass.dispose(false, true);
     this.grass = null;
     this.grassMeshes.length = 0;
     this.slots.length = 0;
@@ -102,7 +101,6 @@ export default class FloraSystem {
   setDensity(density) {
     if (density === this.density) return;
     this.density = density;
-    this.bladesReady = false;
     if (!this.deco) return;
     this.dispose();
     this.build();
@@ -146,12 +144,14 @@ export default class FloraSystem {
 
   makeBlades(cells) {
     const perTile = PER_TILE[this.density];
-    const side = Math.round(Math.sqrt(perTile));
+    const budget = Math.floor(BLADE_CAP / cells.length);
+    const side = Math.max(1, Math.floor(Math.sqrt(Math.min(perTile, budget))));
+    const bladesPerTile = side * side;
     const step = CELL_SIZE / side;
     let index = 0;
     for (const [cx, cz] of cells) {
       if (!this.tileFree(cx, cz)) {
-        index += perTile;
+        index += bladesPerTile;
         continue;
       }
       for (let cell = 0; cell < side; cell += 1) {

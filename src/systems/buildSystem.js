@@ -39,6 +39,7 @@ export default class BuildSystem {
     this.onMachineReady = null;
     this.markedCell = null;
     this.blockedTest = null;
+    this.waterTest = null;
     this.heightTest = null;
     this.rangeTest = null;
   }
@@ -52,11 +53,16 @@ export default class BuildSystem {
   }
 
   canBuild(cx, cz) {
-    if (this.isOccupied(cx, cz)) return false;
-    if (this.blockedTest && this.blockedTest(cx, cz)) return false;
-    if (this.heightTest && this.heightTest(cx, cz)) return false;
-    if (this.rangeTest && !this.rangeTest(cx, cz)) return false;
-    return true;
+    return this.blockReason(cx, cz) === null;
+  }
+
+  blockReason(cx, cz) {
+    if (this.isOccupied(cx, cz)) return 'occupied';
+    if (this.blockedTest && this.blockedTest(cx, cz)) return 'blocked';
+    if (this.waterTest && this.waterTest(cx, cz)) return 'water';
+    if (this.heightTest && this.heightTest(cx, cz)) return 'height';
+    if (this.rangeTest && !this.rangeTest(cx, cz)) return 'range';
+    return null;
   }
 
   build(machineKey, cx, cz, rotation = 0, state = null) {

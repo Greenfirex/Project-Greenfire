@@ -3,6 +3,7 @@
 import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
 import { Effect } from '@babylonjs/core/Materials/effect';
 import { Vector3, Matrix } from '@babylonjs/core/Maths/math.vector';
+import { WAVE_SWAY, WAVE_TIME_WRAP, glslFloat, swellGlsl, swellSlopeGlsl } from '../utils/waterWaves.js';
 
 const WAVE = `
 float hash(vec2 p) {
@@ -28,19 +29,19 @@ vec2 rotateDir(vec2 direction, float angle) {
 
 vec2 seaDirection(vec2 baseDir, vec2 p, float time) {
   vec2 base = normalize(baseDir + vec2(1e-5));
-  float wobble = (noise(p * 0.04 + vec2(time * 0.02, time * 0.01)) - 0.5) * 0.24;
+  float swayA = sin(p.x * ${glslFloat(WAVE_SWAY.frequencyX)} + time * ${glslFloat(WAVE_SWAY.speedX)});
+  float swayB = sin(p.y * ${glslFloat(WAVE_SWAY.frequencyZ)} + time * ${glslFloat(WAVE_SWAY.speedZ)});
+  float wobble = (swayA + swayB) * ${glslFloat(WAVE_SWAY.amount)};
   return rotateDir(base, wobble);
 }
 
 float seaPhase(vec2 p, vec2 dir, float wavelength, float speed, float time) {
-  float k = 6.28318 / wavelength;
+  float k = ${glslFloat(Math.PI * 2)} / wavelength;
   return k * (dot(p, dir) - speed * time);
 }
 
 float seaHeight(vec2 p, vec2 dir, float time) {
-  return sin(seaPhase(p, dir, 18.0, 1.2, time)) * 0.16
-       + sin(seaPhase(p, dir, 11.0, 1.7, time)) * 0.11
-       + sin(seaPhase(p, dir, 7.0, 2.3, time)) * 0.06;
+  return ${swellGlsl()};
 }
 
 float swell(vec2 p, vec2 dir, float time) {
@@ -48,9 +49,7 @@ float swell(vec2 p, vec2 dir, float time) {
 }
 
 vec2 swellSlope(vec2 p, vec2 dir, float time) {
-  vec2 slope = dir * (6.28318 / 18.0) * 0.16 * cos(seaPhase(p, dir, 18.0, 1.2, time));
-  slope += dir * (6.28318 / 11.0) * 0.11 * cos(seaPhase(p, dir, 11.0, 1.7, time));
-  slope += dir * (6.28318 / 7.0) * 0.06 * cos(seaPhase(p, dir, 7.0, 2.3, time));
+  vec2 slope = ${swellSlopeGlsl()};
   return slope;
 }
 
@@ -314,6 +313,6 @@ export function createWaterSideMaterial(scene, options) {
 }
 
 export function tickWater(material, seconds) {
-  material.setFloat('waterTime', seconds % 3600);
+  material.setFloat('waterTime', seconds % WAVE_TIME_WRAP);
 }
 

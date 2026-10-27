@@ -36,7 +36,7 @@ function clampPercent(value) {
 
 const VOLUMES = [
   { key: 'sfxVolume', label: 'Zvuky hry', note: 'Sekání, kroky, těžba a padající stromy.' },
-  { key: 'ambientVolume', label: 'Zvuky prostředí', note: 'Hučení lesa na pozadí, ve dne jiné než v noci.' },
+  { key: 'ambientVolume', label: 'Zvuky prostředí', note: 'Hučení lesa (ve dne jiné než v noci) a příboj u vody.' },
 ];
 
 const PRESETS = [

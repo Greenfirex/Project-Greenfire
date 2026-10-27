@@ -10,6 +10,7 @@ const CLIPS = {
   stepGrass: ['dirtstep_1', 'dirtstep_2', 'dirtstep_3'],
   stepWood: ['woodstep_1', 'woodstep_2', 'woodstep_3'],
   stepStone: ['stonestep_1', 'stonestep_2', 'stonestep_3'],
+  stepWater: ['waterstep_1', 'waterstep_2', 'waterstep_3', 'waterstep_4', 'waterstep_5'],
   ignite: ['ignite_1', 'ignite_2'],
 };
 
@@ -21,6 +22,7 @@ const VOICES = {
   stepGrass: { volume: 0.07, voices: 3, pitch: 0.08 },
   stepWood: { volume: 0.08, voices: 3, pitch: 0.08 },
   stepStone: { volume: 0.08, voices: 3, pitch: 0.08 },
+  stepWater: { volume: 0.09, voices: 5, pitch: 0.08 },
   ignite: { volume: 0.6, voices: 2, pitch: 0.05 },
 };
 
@@ -32,6 +34,13 @@ const FIRE_LOOP = 'torch_loop';
 const FIRE_FADE_SECONDS = 0.5;
 const FIRE_HEARING = 12;
 const FIRE_LEVELS = [0.3, 0.2, 0.12, 0.05];
+
+const SHORE_LAYER = 'beach';
+const SHORE_FADE_SECONDS = 2;
+const SHORE_LEVEL = 0.35;
+const SHORE_NEAR = 3;
+const SHORE_FAR = 26;
+const FOREST_DUCK = 0.7;
 
 export default class AudioSystem {
 
@@ -51,6 +60,9 @@ export default class AudioSystem {
     this.fire = null;
     this.fireOn = false;
     this.fireDistance = Infinity;
+    this.shore = null;
+    this.shoreMix = 0;
+    this.shoreTarget = 0;
   }
 
   unlock() {
@@ -73,6 +85,7 @@ export default class AudioSystem {
     if (this.ctx.state === 'suspended') this.ctx.resume();
     this.resumeAmbient();
     this.resumeFire();
+    this.resumeShore();
   }
 
   load() {
@@ -107,6 +120,7 @@ export default class AudioSystem {
     this.available = false;
     this.buffers = {};
     this.stopAmbient();
+    this.stopShore();
     this.fire = null;
   }
 
@@ -210,6 +224,55 @@ export default class AudioSystem {
     this.fire.gain.gain.setTargetAtTime(this.fireLevel(), this.ctx.currentTime, FIRE_FADE_SECONDS / 3);
   }
 
+  setShoreDistance(distance) {
+    const value = Number.isFinite(distance) ? Math.max(0, distance) : Infinity;
+    let target = 0;
+    if (value <= SHORE_NEAR) target = 1;
+    else if (value < SHORE_FAR) target = 1 - (value - SHORE_NEAR) / (SHORE_FAR - SHORE_NEAR);
+    this.shoreTarget = target;
+    if (target <= 0) return;
+    this.ensureShore();
+    this.resumeShore();
+  }
+
+  ensureShore() {
+    if (!this.ctx || this.shore) return;
+    const gain = this.ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(this.master || this.ctx.destination);
+    this.shore = { gain, source: null, buffer: null };
+    this.fetchClip(`${ASSET_DIRS.audio}${SHORE_LAYER}.ogg`, (buffer) => {
+      if (!this.shore) return;
+      this.shore.buffer = buffer;
+      this.resumeShore();
+    });
+  }
+
+  resumeShore() {
+    if (!this.shore || !this.shore.buffer || this.shore.source) return;
+    if (!this.ctx || this.ctx.state === 'suspended') return;
+    if (this.shoreTarget <= 0) return;
+    const source = this.ctx.createBufferSource();
+    source.buffer = this.shore.buffer;
+    source.loop = true;
+    source.connect(this.shore.gain);
+    source.start();
+    this.shore.source = source;
+    this.applyShoreGain();
+  }
+
+  stopShore() {
+    if (!this.shore) return;
+    if (this.shore.source) this.shore.source.stop();
+    this.shore.source = null;
+  }
+
+  applyShoreGain() {
+    if (!this.shore || !this.ctx) return;
+    const level = this.ambientVolume * SHORE_LEVEL * this.shoreMix;
+    this.shore.gain.gain.setTargetAtTime(level, this.ctx.currentTime, SHORE_FADE_SECONDS / 3);
+  }
+
   setMasterVolume(value) {
     this.masterVolume = Math.max(0, Math.min(1, value));
     if (this.master) this.master.gain.value = this.masterVolume;
@@ -218,6 +281,7 @@ export default class AudioSystem {
   setAmbientVolume(value) {
     this.ambientVolume = Math.max(0, Math.min(1, value));
     this.applyLayerGains();
+    this.applyShoreGain();
   }
 
   setDayness(dayness) {
@@ -227,11 +291,13 @@ export default class AudioSystem {
 
   applyLayerGains() {
     if (!this.ambient || !this.ctx) return;
-    const level = this.ambientVolume * this.ambientBoost;
+    const duck = 1 - FOREST_DUCK * Math.sqrt(this.shoreMix);
+    const level = this.ambientVolume * this.ambientBoost * duck;
+    const smoothing = this.shoreMix > 0 ? SHORE_FADE_SECONDS : AMBIENT_FADE_SECONDS;
     for (const key of AMBIENT_LAYERS) {
       const layer = this.ambient[key];
       if (!layer) continue;
-      layer.gain.gain.setTargetAtTime(this.ambientMix[key] * level, this.ctx.currentTime, AMBIENT_FADE_SECONDS / 3);
+      layer.gain.gain.setTargetAtTime(this.ambientMix[key] * level, this.ctx.currentTime, smoothing / 3);
     }
   }
 
@@ -246,6 +312,18 @@ export default class AudioSystem {
         continue;
       }
       this.ambientMix[key] += diff * step;
+      changed = true;
+    }
+    const shoreDiff = this.shoreTarget - this.shoreMix;
+    if (Math.abs(shoreDiff) < 0.005) {
+      if (shoreDiff !== 0) {
+        this.shoreMix = this.shoreTarget;
+        this.applyShoreGain();
+        changed = true;
+      }
+    } else {
+      this.shoreMix += shoreDiff * Math.min(1, dt / SHORE_FADE_SECONDS);
+      this.applyShoreGain();
       changed = true;
     }
     if (changed) this.applyLayerGains();

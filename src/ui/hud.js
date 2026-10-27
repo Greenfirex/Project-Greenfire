@@ -11,6 +11,7 @@ export default class Hud {
     this.countEl = null;
     this.cellEl = null;
     this.underEl = null;
+    this.reasonEl = null;
     this.clockEl = null;
     this.clockTimeEl = null;
     this.clockPhaseEl = null;
@@ -59,6 +60,7 @@ export default class Hud {
       <div class="hud-row"><span>Buňka</span><strong id="hud-cell">—</strong></div>
       <div class="hud-row"><span>Výška</span><strong id="hud-height">—</strong></div>
       <div class="hud-row"><span>Pod kurzorem</span><strong id="hud-under">—</strong></div>
+      <div class="hud-row"><span>Důvod</span><strong id="hud-reason">—</strong></div>
       <div class="hud-hint" id="hud-savehint">Uložení: žádné</div>
     `;
     this.layer.appendChild(this.statusEl);
@@ -68,6 +70,7 @@ export default class Hud {
     this.cellEl = this.statusEl.querySelector('#hud-cell');
     this.heightEl = this.statusEl.querySelector('#hud-height');
     this.underEl = this.statusEl.querySelector('#hud-under');
+    this.reasonEl = this.statusEl.querySelector('#hud-reason');
     this.saveHintEl = this.statusEl.querySelector('#hud-savehint');
 
     this.clockEl = document.createElement('div');
@@ -132,6 +135,10 @@ export default class Hud {
 
   setCellOccupied(text) {
     if (this.underEl) this.underEl.textContent = text || '—';
+  }
+
+  setBuildReason(text) {
+    if (this.reasonEl) this.reasonEl.textContent = text || '—';
   }
 
   setSaveHint(text) {
