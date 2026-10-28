@@ -53,6 +53,12 @@ export const BRUSHES = {
     pool: ['tree_palm_a', 'tree_palm_b'],
     deco: true,
   },
+  broadleaf: {
+    label: 'Listnáče',
+    shape: 'blob',
+    pool: ['tree_seagrape', 'tree_almond'],
+    deco: true,
+  },
   meadow: {
     label: 'Louka',
     shape: 'blob',

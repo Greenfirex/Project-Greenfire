@@ -19,6 +19,8 @@ const fronds = new WeakMap();
 const textures = new WeakMap();
 const cutMaterials = new WeakMap();
 const TREE_BRIGHTNESS = 1.12;
+const CARD_ROLL = 0.7;
+const CARD_ASPECT = 0.7;
 
 export function treeTemplate(scene, key) {
   return cachedTemplate(templates, scene, key, (recipe) => buildTree(scene, key, recipe));
@@ -59,6 +61,8 @@ function buildTree(scene, key, recipe) {
   if (recipe.shape === 'palm') {
     buildPalmTrunk(bark, crown, recipe, rng);
     buildPalmCrown(leaves, recipe, rng);
+  } else if (recipe.shape === 'broadleaf') {
+    buildBroadleaf(bark, leaves, recipe, rng);
   } else {
     buildTrunk(bark, recipe, rng);
     buildBranches(bark, leaves, recipe, rng);
@@ -68,11 +72,13 @@ function buildTree(scene, key, recipe) {
   const root = new TransformNode(`tplTree_${key}`, scene);
   const barkMesh = buildMesh(scene, `tree_${key}_bark`, bark, barkMaterial(scene, key, recipe));
   const leafMesh = buildMesh(scene, `tree_${key}_leaves`, leaves, leafMaterial(scene, key, recipe));
-  if (recipe.shape === 'palm') leafMesh.receiveShadows = false;
+  const flatLeaves = recipe.shape === 'palm' || recipe.shape === 'broadleaf';
+  if (flatLeaves) leafMesh.receiveShadows = false;
   barkMesh.parent = root;
   leafMesh.parent = root;
   if (crown.positions.length) {
     const crownMesh = buildMesh(scene, `tree_${key}_crown`, crown, crownMaterial(scene, key, recipe));
+    if (flatLeaves) crownMesh.receiveShadows = false;
     crownMesh.parent = root;
   }
   root.setEnabled(false);
@@ -113,7 +119,7 @@ function leafMaterial(scene, key, recipe) {
   material.transparencyMode = Material.MATERIAL_ALPHATEST;
   material.alphaCutOff = 0.45;
   material.backFaceCulling = false;
-  material.twoSidedLighting = true;
+  material.twoSidedLighting = false;
   addWind(material, recipe);
   return material;
 }
@@ -205,9 +211,10 @@ function addTriangle(buffer, a, b, c, color, uvA, uvB, uvC, softUp) {
   buffer.indices.push(i0, i1, i2);
 }
 
-function addQuad(buffer, a, b, c, d, color, softUp) {
-  addTriangle(buffer, a, b, c, color, [0, 0], [1, 0], [1, 1], softUp);
-  addTriangle(buffer, a, c, d, color, [0, 0], [1, 1], [0, 1], softUp);
+function addQuad(buffer, a, b, c, d, color, softUp, uv) {
+  const [u0, v0, u1, v1] = uv || [0, 0, 1, 1];
+  addTriangle(buffer, a, b, c, color, [u0, v0], [u1, v0], [u1, v1], softUp);
+  addTriangle(buffer, a, c, d, color, [u0, v0], [u1, v1], [u0, v1], softUp);
 }
 
 function addQuadRange(buffer, a, b, c, d, color, u0, u1, softUp) {
@@ -215,14 +222,14 @@ function addQuadRange(buffer, a, b, c, d, color, u0, u1, softUp) {
   addTriangle(buffer, a, d, c, color, [u0, 0], [u1, 0], [u1, 1], softUp);
 }
 
-function addCard(buffer, center, forward, lateral, length, height, color) {
+function addCard(buffer, center, forward, lateral, length, height, color, uv) {
   const along = forward.scale(length * 0.5);
   const across = lateral.scale(height * 0.5);
   const a = center.subtract(along).subtract(across);
   const b = center.add(along).subtract(across);
   const c = center.add(along).add(across);
   const d = center.subtract(along).add(across);
-  addQuad(buffer, a, b, c, d, color, Vector3.Up());
+  addQuad(buffer, a, b, c, d, color, Vector3.Up(), uv);
 }
 
 function tangentAt(points, index) {
@@ -349,12 +356,14 @@ function buildTrunk(buffer, recipe, rng) {
 function buildBranches(barkBuffer, leafBuffer, recipe, rng) {
   const whorls = Math.max(2, recipe.whorls);
   for (let w = 0; w < whorls; w += 1) {
-    const t = recipe.crownStart + (recipe.crownEnd - recipe.crownStart) * (w / (whorls - 1));
+    const step = w / (whorls - 1);
+    const t = recipe.crownStart + (recipe.crownEnd - recipe.crownStart) * step;
     const center = trunkAxis(recipe, t);
     const count = recipe.branchesMin
       + Math.floor(rng() * (recipe.branchesMax - recipe.branchesMin + 1));
     const baseAngle = rng() * Math.PI * 2;
-    const length = recipe.height * (recipe.branchLength + 0.1 * (1 - t));
+    const taper = 1 - (recipe.crownTaper || 0) * Math.pow(step, 0.8);
+    const length = recipe.height * (recipe.branchLength + 0.1 * (1 - t)) * taper;
     for (let b = 0; b < count; b += 1) {
       const angle = baseAngle + (b / count) * Math.PI * 2 + (rng() - 0.5) * 0.3;
       const outward = new Vector3(Math.cos(angle), 0, Math.sin(angle));
@@ -377,17 +386,36 @@ function addBranchCards(buffer, recipe, rng, start, direction, length, t) {
   const cardLength = length * recipe.cardLength;
   const cardHeight = length * recipe.cardHeight;
   for (let c = 0; c < count; c += 1) {
-    const along = count === 1 ? 0.7 : 0.45 + (0.6 * c) / (count - 1);
+    const step = count === 1 ? 0.5 : c / (count - 1);
+    const along = 0.35 + 0.55 * step;
     const center = start.add(direction.scale(length * along));
     const color = leafShade(recipe, t, rng);
+    const uv = pickLeafUv(recipe, rng);
     const tilt = up.add(lateral.scale((rng() - 0.5) * 0.5)).normalize();
-    addCard(buffer, center, direction, tilt, cardLength, cardHeight, color);
-    addCard(buffer, center, direction, lateral, cardLength, cardHeight, color);
+    const size = (0.9 + rng() * 0.2) * (1 - 0.35 * step);
+    const roll = (rng() - 0.5) * CARD_ROLL;
+    addCard(buffer, center, direction, rollLateral(tilt, direction, roll),
+      cardLength * size, cardHeight * size, color, uv);
+    addCard(buffer, center, direction, rollLateral(lateral, direction, roll),
+      cardLength * size, cardHeight * size, color, uv);
   }
   const inner = start.add(direction.scale(length * 0.24));
   const innerColor = leafShade(recipe, t, rng);
-  addCard(buffer, inner, direction, up, cardLength * 0.7, cardHeight * 0.7, innerColor);
-  addCard(buffer, inner, direction, lateral, cardLength * 0.7, cardHeight * 0.7, innerColor);
+  const innerUv = pickLeafUv(recipe, rng);
+  addCard(buffer, inner, direction, up, cardLength * 0.7, cardHeight * 0.7, innerColor, innerUv);
+  addCard(buffer, inner, direction, lateral, cardLength * 0.7, cardHeight * 0.7, innerColor, innerUv);
+}
+
+function rollLateral(lateral, forward, angle) {
+  return lateral.scale(Math.cos(angle))
+    .add(Vector3.Cross(forward, lateral).scale(Math.sin(angle)))
+    .normalize();
+}
+
+function pickLeafUv(recipe, rng) {
+  const windows = recipe.leafUv;
+  if (!windows || !windows.length) return null;
+  return windows[Math.floor(rng() * windows.length)];
 }
 
 function buildTop(buffer, recipe, rng) {
@@ -472,7 +500,7 @@ function buildPalmTrunk(bark, crown, recipe, rng) {
     const t = (i / (rings - 1)) * shaftBottom;
     points.push(palmAxis(recipe, t));
     const flare = 1 + 0.55 * Math.pow(1 - t, 6);
-    radii.push((recipe.trunkRadius * flare * (1 - 0.2 * t)) + 0.04);
+    radii.push((recipe.trunkRadius * flare * (1 - 0.2 * t)) + 0.02);
   }
   addTube(bark, points, radii, sides,
     (t) => barkShade(recipe, t, rng), [1, Math.max(2, recipe.height / 2.4)]);
@@ -518,7 +546,7 @@ function buildPalmCrown(buffer, recipe, rng) {
     const droop = -0.8 - rng() * 0.35;
     const tipDroop = -1.0 - rng() * 0.3;
     const length = recipe.frondLength * (0.5 + rng() * 0.2);
-    addFrond(buffer, crownTop, angle, droop, tipDroop, length, recipe, leafShade(recipe, 1, rng), true);
+    addFrond(buffer, crownTop, angle, droop, tipDroop, length, recipe, leafShade(recipe, 0.85, rng), true);
   }
 }
 
@@ -555,5 +583,88 @@ function addFrondQuad(buffer, from, to, lateral, width, u0, u1, color) {
   const c = to.add(half);
   const d = to.subtract(half);
   addQuadRange(buffer, a, b, c, d, color, u0, u1, Vector3.Up());
+}
+
+function buildBroadleaf(bark, leaves, recipe, rng) {
+  const top = Math.min(0.9, Math.max(0.2, recipe.trunkTop));
+  const rings = Math.max(3, recipe.trunkRings);
+  const points = [];
+  const radii = [];
+  for (let i = 0; i < rings; i += 1) {
+    const t = (i / (rings - 1)) * top;
+    points.push(trunkAxis(recipe, t));
+    radii.push(recipe.trunkRadius * Math.pow(1 - t / top, 0.75) + 0.03);
+  }
+  addTube(bark, points, radii, recipe.trunkSides, (t) => barkShade(recipe, t, rng),
+    [1, Math.max(1, recipe.height / 2.6)]);
+  addCap(bark, points[points.length - 1], tangentAt(points, points.length - 1),
+    radii[radii.length - 1], recipe.trunkSides, barkShade(recipe, top, rng));
+
+  const fork = points[points.length - 1];
+  const limbs = Math.max(2, recipe.limbs);
+  const reach = recipe.limbLength;
+  const rootRadius = radii[radii.length - 1] * 0.85;
+  for (let i = 0; i < limbs; i += 1) {
+    const angle = (i / limbs) * Math.PI * 2 + rng() * 0.5;
+    const outward = new Vector3(Math.cos(angle), 0, Math.sin(angle));
+    const direction = outward.scale(recipe.limbSpread).add(Vector3.Up()).normalize();
+    const start = fork.subtract(Vector3.Up().scale(0.06));
+    const mid = start.add(direction.scale(reach * 0.55));
+    const rise = direction.add(Vector3.Up().scale(0.2)).normalize();
+    const end = mid.add(rise.scale(reach * 0.45));
+    const limb = [start, mid, end];
+    addTube(bark, limb, [rootRadius, rootRadius * 0.55, 0.025],
+      Math.max(5, recipe.trunkSides - 3), (t) => barkShade(recipe, top + t * 0.3, rng), [1, 1.4]);
+    addCap(bark, end, tangentAt(limb, 2), 0.025, 6, barkShade(recipe, 1, rng));
+  }
+
+  buildBroadleafCrown(leaves, recipe, rng, fork.add(Vector3.Up().scale(recipe.crownLift)));
+}
+
+function buildBroadleafCrown(buffer, recipe, rng, base) {
+  const layers = Math.max(1, recipe.layers);
+  const perLayer = Math.max(4, recipe.cardsPerLayer);
+  for (let l = 0; l < layers; l += 1) {
+    const lf = (l + 0.5) / layers;
+    const shell = 0.5 + 0.5 * Math.sin(Math.PI * lf);
+    const level = recipe.crownHeight * (lf - 0.5);
+    for (let i = 0; i < perLayer; i += 1) {
+      const angle = rng() * Math.PI * 2;
+      const rise = (rng() - 0.5) * 1.1;
+      const direction = new Vector3(Math.cos(angle), rise, Math.sin(angle)).normalize();
+      const radial = recipe.crownRadius * shell * (0.75 + rng() * 0.35);
+      const position = base.add(new Vector3(
+        direction.x * radial,
+        level + direction.y * recipe.crownHeight * 0.4,
+        direction.z * radial,
+      ));
+      const normal = direction.add(Vector3.Up().scale(0.2)).normalize();
+      const size = recipe.cardSize * (0.8 + rng() * 0.4);
+      addFacingCard(buffer, position, normal, size, leafShade(recipe, 0.4 + 0.55 * lf, rng),
+        pickLeafUv(recipe, rng), rng() * Math.PI * 2);
+    }
+  }
+  const tuft = Math.max(2, Math.round(perLayer * 0.3));
+  for (let i = 0; i < tuft; i += 1) {
+    const angle = rng() * Math.PI * 2;
+    const position = base.add(new Vector3(
+      Math.cos(angle) * recipe.crownRadius * 0.35,
+      recipe.crownHeight * 0.55,
+      Math.sin(angle) * recipe.crownRadius * 0.35,
+    ));
+    const normal = new Vector3(Math.cos(angle), 1.6, Math.sin(angle)).normalize();
+    addFacingCard(buffer, position, normal, recipe.cardSize * 0.9,
+      leafShade(recipe, 1, rng), pickLeafUv(recipe, rng), rng() * Math.PI * 2);
+  }
+}
+
+function addFacingCard(buffer, center, normal, size, color, uv, roll) {
+  const face = normal.normalize();
+  const helper = Math.abs(face.y) < 0.9 ? Vector3.Up() : Vector3.Right();
+  const tangent = Vector3.Cross(face, helper).normalize();
+  const bitangent = Vector3.Cross(face, tangent).normalize();
+  const forward = tangent.scale(Math.cos(roll)).add(bitangent.scale(Math.sin(roll))).normalize();
+  const lateral = Vector3.Cross(face, forward).normalize();
+  addCard(buffer, center, forward, lateral, size, size * CARD_ASPECT, color, uv);
 }
 

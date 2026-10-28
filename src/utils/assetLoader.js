@@ -42,7 +42,10 @@ export function loadModel(scene, url) {
     const promise = ImportMeshAsync(url, scene, { meshNames: null }).then((result) => {
       const root = new TransformNode('tplModel', scene);
       const kids = result.meshes.filter((m) => m.getTotalVertices && m.getTotalVertices() > 0);
-      for (const mesh of kids) mesh.parent = root;
+      for (const mesh of kids) {
+        mesh.parent = root;
+        mesh.receiveShadows = true;
+      }
       if (!kids.length) {
         console.error(`[asset] Model neobsahuje žádnou geometrii: ${url}`);
       }
@@ -120,7 +123,6 @@ export function instantiateModel(scene, template, name) {
   for (const child of node.getChildMeshes()) {
     child.setEnabled(true);
     child.isPickable = false;
-    child.receiveShadows = true;
   }
   return node;
 }
