@@ -27,6 +27,7 @@ import PlayerSystem from '../systems/playerSystem.js';
 import BuildSystem from '../systems/buildSystem.js';
 import SaveSystem from '../systems/saveSystem.js';
 import GatherSystem from '../systems/gatherSystem.js';
+import FellingSystem from '../systems/fellingSystem.js';
 import InventorySystem from '../systems/inventorySystem.js';
 import HeldItemSystem from '../systems/heldItemSystem.js';
 import AudioSystem from '../systems/audioSystem.js';
@@ -38,6 +39,7 @@ import EditorToggle from '../editor/editorToggle.js';
 import PauseScreen from '../ui/pauseScreen.js';
 import LoadingScreen from '../ui/loadingScreen.js';
 import { whenModelsIdle, takeModelError, preloadModel, releaseFrame } from '../utils/assetLoader.js';
+import { treeTemplate } from '../utils/treeFactory.js';
 import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
@@ -118,6 +120,9 @@ export default class GameScene {
     this.buildSystem = new BuildSystem(scene);
     this.gatherSystem = new GatherSystem(scene);
     this.gatherSystem.decoSystem = this.decoSystem;
+    this.gatherSystem.onLand = () => this.audioSystem.play('fall');
+    this.gatherSystem.onFell = (item) => this.finishFelling(item);
+    this.fellingSystem = new FellingSystem(scene);
     this.audioSystem = new AudioSystem(scene);
     this.inventorySystem = new InventorySystem();
     this.saveSystem = new SaveSystem(this);
@@ -308,6 +313,7 @@ export default class GameScene {
     this.s.paused = false;
     this.optionsPanel.setButtonVisible(true);
     this.gatherSystem.syncFromDeco();
+    this.syncFelling();
     this.gatherSystem.setPlayer(this.playerSystem);
     this.gatherSystem.setTool(this.heldItemSystem.tool());
     this.gatherSystem.update(0, this.playerSystem);
@@ -477,14 +483,67 @@ updateGatherTarget() {
   onGatherImpact(result) {
     this.audioSystem.play(result.sound);
     if (!result.exhausted) return;
+    const isTree = result.item.def.kind === 'tree';
     const cell = { cx: result.item.entry.cx, cz: result.item.entry.cz };
-    const yields = this.gatherSystem.takeYield(result.item);
+    const yields = this.gatherSystem.takeYield(result.item, !isTree);
     if (!yields) return;
-    if (result.item.def.kind === 'tree') this.audioSystem.play('fall');
-    this.releaseGatherCell(this.takenAnchor(cell) || result.item.anchor, cell);
+    if (isTree) {
+      const root = this.playerSystem ? this.playerSystem.root : null;
+      const fromX = root ? root.position.x : result.item.x + 1;
+      const fromZ = root ? root.position.z : result.item.z;
+      this.gatherSystem.beginFall(result.item, fromX, fromZ);
+    } else {
+      this.releaseGatherCell(this.takenAnchor(cell) || result.item.anchor, cell);
+    }
     this.refreshGatherTargets();
     for (const { itemKey, amount } of yields) this.inventorySystem.add(itemKey, amount);
     this.inventoryPanel.update(this.inventorySystem);
+  }
+
+  finishFelling(item) {
+    const anchor = item ? item.anchor : null;
+    if (!anchor || anchor.isDisposed()) return;
+    const fall = item.fall || { dirX: 1, dirZ: 0 };
+    this.applyFelling(item.entry.cx, item.entry.cz, anchor, item.def, fall, true);
+    this.refreshGatherTargets();
+  }
+
+  applyFelling(cx, cz, anchor, def, dir, record) {
+    if (!anchor || anchor.isDisposed() || !def) return;
+    if (anchor.metadata && anchor.metadata.stump) return;
+    const model = anchor.metadata ? anchor.metadata.model : null;
+    if (model && !model.isDisposed()) {
+      for (const child of model.getChildMeshes()) this.removeShadowCaster(child);
+      model.setEnabled(false);
+    }
+    const parts = [
+      ...this.decoSystem.showStump(anchor, def),
+      ...this.decoSystem.showLogs(anchor, def, dir.dirX, dir.dirZ),
+    ];
+    if (def.tree && def.tree.startsWith('palm')) {
+      parts.push(...this.decoSystem.showFronds(anchor, def, dir.dirX, dir.dirZ));
+    }
+    for (const node of parts) {
+      for (const child of node.getChildMeshes()) {
+        child.isPickable = false;
+        if (def.castsShadow) this.addShadowCaster(child);
+      }
+    }
+    this.decoHighlight.remove(cx, cz);
+    this.decoSystem.releaseCell(cx, cz);
+    this.gatherSystem.markTaken(cx, cz);
+    if (record) this.fellingSystem.record(cx, cz, def, dir);
+  }
+
+  syncFelling() {
+    for (const cell of this.fellingSystem.list()) {
+      const found = this.decoSystem.entryAt(cell.cx, cell.cz);
+      if (!found || !found.def || found.def.tree !== cell.tree) {
+        this.fellingSystem.drop(cell.cx, cell.cz);
+        continue;
+      }
+      this.applyFelling(cell.cx, cell.cz, found.anchor, found.def, cell, false);
+    }
   }
 
   releaseGatherCell(anchor, cell) {
@@ -609,6 +668,12 @@ updateGatherTarget() {
     const missing = [];
     for (const entry of entries) {
       if (known.has(entry.key) || !this.decoSystem.hasModel(entry.key)) continue;
+      const def = getDecoration(entry.key);
+      if (def && def.tree) {
+        treeTemplate(this.s, def.tree);
+        known.set(entry.key, null);
+        continue;
+      }
       known.set(entry.key, null);
       missing.push(entry.key);
     }
@@ -725,13 +790,12 @@ updateGatherTarget() {
     try {
       while (this.rebuildPending) {
         this.rebuildPending = false;
-        const exhausted = this.gatherSystem.exhaustedCells();
         this.gatherSystem.clear();
         this.adoptEditorMap();
         this.markMapDirty();
         this.refreshTerrain();
         await this.terrainSystem.whenReady();
-        await this.rebuildDecorations(exhausted);
+        await this.rebuildDecorations();
       }
     } catch (error) {
       console.error('[debug] rebuildDecorations ERROR:', error);
@@ -742,7 +806,7 @@ updateGatherTarget() {
     }
   }
 
-  async rebuildDecorations(exhausted) {
+  async rebuildDecorations() {
     const layout = this.mapFile || {};
     const stages = describeWorld(layout);
     let models = null;
@@ -760,11 +824,11 @@ updateGatherTarget() {
     this.finishRebuild(exhausted);
   }
 
-  finishRebuild(exhausted) {
+  finishRebuild() {
     this.floraSystem.create(this.decoSystem, this.options.grass);
     this.gatherSystem.syncFromDeco();
+    this.syncFelling();
     this.campfireSystem.sync((this.mapFile || {}).decorations || []);
-    this.restoreGatherEntries(exhausted);
     this.refreshShadowCasters();
     this.handleHover(this.hoverCell);
     this.reportRebuild();
@@ -786,19 +850,6 @@ updateGatherTarget() {
     }
     const label = broken === 1 ? '1 objekt se nepostavil' : `${broken} objektů se nepostavilo`;
     this.editor.hud.setReadout(`Aplikováno ${placed} objektů, ale ${label} — chybí model.`);
-  }
-
-  restoreGatherEntries(exhausted) {
-    const cells = exhausted || [];
-    for (const cell of cells) {
-      const anchor = this.findDecoAnchor(cell.cx, cell.cz);
-      if (anchor && !anchor.isDisposed()) this.decoSystem.releaseGather(anchor);
-    }
-  }
-
-  findDecoAnchor(cx, cz) {
-    const found = this.decoSystem.entryAt(cx, cz);
-    return found ? found.anchor : null;
   }
 
   toggleEditorPanel(active) {
@@ -1084,6 +1135,7 @@ updateGatherTarget() {
     this.registerSavedState(this.heldItemSystem, 'heldItem', 7);
     this.registerSavedState(this.buildSystem, 'machines', 10);
     this.registerSavedState(this.campfireSystem, 'campfires', 12);
+    this.registerSavedState(this.fellingSystem, 'felling', 14);
     this.registerSavedState(this.dayNightSystem, 'dayNight', 20);
     this.registerSavedState(this.simSystem, 'sim', 25);
     this.saveSystem.register(this.inventorySystem, 'inventory', {
@@ -1091,7 +1143,6 @@ updateGatherTarget() {
       apply: (data) => {
         this.inventorySystem.apply(data);
         this.inventoryPanel.update(this.inventorySystem);
-        this.restoreGatherEntries();
       },
       defaults: { items: {} },
       order: 6,
@@ -1559,6 +1610,7 @@ updateGatherTarget() {
     this.gridSystem.clearMark();
     this.hud.setCount(this.buildSystem.count);
     this.hud.setStatusVisible(this.isBuilding());
+    if (ok) this.renderMapLayout();
     this.refreshShadowCasters();
     this.refreshClock();
     this.hud.setSaveHint(ok ? 'Načteno ✓' : 'Žádný save');

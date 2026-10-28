@@ -41,6 +41,18 @@ export const BRUSHES = {
     ],
     deco: true,
   },
+  saplings: {
+    label: 'Borovice',
+    shape: 'blob',
+    pool: ['tree_pine_a', 'tree_pine_b', 'tree_pine_c', 'tree_pine_d', 'tree_pine_e'],
+    deco: true,
+  },
+  palms: {
+    label: 'Palmy',
+    shape: 'blob',
+    pool: ['tree_palm_a', 'tree_palm_b'],
+    deco: true,
+  },
   meadow: {
     label: 'Louka',
     shape: 'blob',

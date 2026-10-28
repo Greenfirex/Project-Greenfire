@@ -8,10 +8,25 @@ import { cellToWorldCoords, worldToCellCoords, cellKey, indexToCellCoords, CELL_
 import { getDecoration, decoHeight } from '../data/catalogs/decorations.js';
 import { deriveBlocked } from '../data/maps/layoutStore.js';
 import { resolveModel, instantiateModel, ownMaterials, whenModelsIdle } from '../utils/assetLoader.js';
+import { treeTemplate, treeStumpTemplate, treeLogTemplate, treeFrondTemplate } from '../utils/treeFactory.js';
 import { tintTemplate, forgetTints } from '../utils/decoTint.js';
 import PathSystem from './pathSystem.js';
 
 const PATH_SURFACE = 0.02;
+
+function cellNoise(cx, cz, salt) {
+  const n = Math.sin(cx * 127.1 + cz * 311.7 + salt * 74.7) * 43758.5453;
+  return n - Math.floor(n);
+}
+
+function treeJitter(entry) {
+  return {
+    yaw: (cellNoise(entry.cx, entry.cz, 3) - 0.5) * 0.87,
+    x: (cellNoise(entry.cx, entry.cz, 7) - 0.5) * 0.4,
+    z: (cellNoise(entry.cx, entry.cz, 11) - 0.5) * 0.4,
+    scale: 0.9 + cellNoise(entry.cx, entry.cz, 17) * 0.2,
+  };
+}
 
 function cellGap(shape, x, z) {
   if (shape.footprint) {
@@ -86,7 +101,7 @@ export default class DecoSystem {
 
   hasModel(key) {
     const def = getDecoration(key);
-    return !!def && !!def.model;
+    return !!def && !!(def.model || def.tree);
   }
 
   blockCount(entry) {
@@ -182,11 +197,11 @@ export default class DecoSystem {
     else current.surface = Math.max(current.surface, top);
   }
 
-  entryHeight(entry) {
+  entryHeight(entry, extraX = 0, extraZ = 0) {
     const base = entry.liftY || 0;
     if (!this.groundHeightAt) return base;
     const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
-    const local = this.groundHeightAt(x + (entry.offsetX || 0), z + (entry.offsetZ || 0));
+    const local = this.groundHeightAt(x + (entry.offsetX || 0) + extraX, z + (entry.offsetZ || 0) + extraZ);
     const center = this.groundHeightAt(x, z);
     return base + (local - center);
   }
@@ -198,7 +213,7 @@ export default class DecoSystem {
     this.applyEntry(entry, section);
     const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
     const anchor = this.createAnchor(entry, def, x, z, bucket);
-    if (!def.model) return anchor;
+    if (!def.model && !def.tree) return anchor;
     const work = this.attachModel(anchor, def, entry, section);
     this.pendingPieces.push(work);
     return work;
@@ -265,9 +280,16 @@ export default class DecoSystem {
   }
 
   createAnchor(entry, def, x, z, bucket = this.nodes) {
+    const jitter = def.kind === 'tree' ? treeJitter(entry) : null;
+    const shiftX = jitter ? jitter.x : 0;
+    const shiftZ = jitter ? jitter.z : 0;
     const anchor = new TransformNode(`deco_${entry.key}_${entry.cx}_${entry.cz}`, this.s);
-    anchor.position = new Vector3(x + (entry.offsetX || 0), this.entryHeight(entry), z + (entry.offsetZ || 0));
-    anchor.rotation.y = (Math.PI / 2) * (entry.rotation || 0);
+    anchor.position = new Vector3(
+      x + (entry.offsetX || 0) + shiftX,
+      this.entryHeight(entry, shiftX, shiftZ),
+      z + (entry.offsetZ || 0) + shiftZ,
+    );
+    anchor.rotation.y = (Math.PI / 2) * (entry.rotation || 0) + (jitter ? jitter.yaw : 0);
     anchor.metadata = { key: entry.key, def, bucket, entry };
     bucket.push(anchor);
     this.anchors.push(anchor);
@@ -310,13 +332,15 @@ export default class DecoSystem {
     try {
       await this.attachModelNow(anchor, def, entry, section);
     } catch (error) {
-      console.warn('[deco] Model se nepodaĹ™ilo pĹ™ipojit:', def.model, error);
+      console.warn('[deco] Model se nepodaĹ™ilo pĹ™ipojit:', def.model || def.tree, error);
       if (!anchor.isDisposed() && !anchor.metadata?.broken) this.markBroken(anchor, def);
     }
   }
 
   async attachModelNow(anchor, def, entry, section) {
-    const template = await resolveModel(this.s, def.model);
+    const template = def.tree
+      ? treeTemplate(this.s, def.tree)
+      : await resolveModel(this.s, def.model);
     if (anchor.isDisposed()) return;
     if (!template) return this.markBroken(anchor, def);
 
@@ -324,8 +348,10 @@ export default class DecoSystem {
     if (!node) return this.markBroken(anchor, def);
     node.parent = anchor;
     node.position = new Vector3(0, 0, 0);
-    node.scaling = new Vector3(def.scale, def.scale, def.scale);
-    ownMaterials(node);
+    const jitter = def.kind === 'tree' ? treeJitter(entry) : null;
+    const scale = def.scale * (jitter ? jitter.scale : 1);
+    node.scaling = new Vector3(scale, scale, scale);
+    if (!def.noTint) ownMaterials(node);
     tintTemplate(node, def, this.colors, section);
     anchor.metadata.model = node;
     if (this.onDecoReady) this.onDecoReady(anchor, node, def, entry);
@@ -334,7 +360,7 @@ export default class DecoSystem {
   readyEntries() {
     const out = [];
     for (const node of this.nodes) {
-      if (!node || node.isDisposed() || this.isTaken(node) || !node.metadata?.model) continue;
+      if (!node || node.isDisposed() || !node.metadata?.model) continue;
       out.push(node);
     }
     return out;
@@ -342,23 +368,90 @@ export default class DecoSystem {
 
   entryAt(cx, cz) {
     const anchor = this.nodes.find((node) => {
-      if (!node || node.isDisposed() || this.isTaken(node) || !node.metadata?.def?.gather) return false;
+      if (!node || node.isDisposed() || !node.metadata?.def?.gather) return false;
       return worldToCellCoords(node.position.x, node.position.z).cx === cx
         && worldToCellCoords(node.position.x, node.position.z).cz === cz;
     });
     return anchor ? { anchor, def: anchor.metadata.def, entry: anchor.metadata.entry } : null;
   }
 
-  releaseGather(node) {
-    if (!node || node.isDisposed()) return;
-    node.setEnabled(false);
-    node.metadata = { ...(node.metadata || {}), taken: true };
+  showStump(anchor, def) {
+    if (!anchor || anchor.isDisposed() || !def || !def.tree) return [];
+    const model = anchor.metadata?.model;
+    if (model && !model.isDisposed()) model.setEnabled(false);
+    anchor.rotation.x = 0;
+    anchor.rotation.z = 0;
+    const old = anchor.metadata?.stump;
+    if (old && !old.isDisposed()) return [];
+    const template = treeStumpTemplate(this.s, def.tree);
+    if (!template) return [];
+    const stump = instantiateModel(this.s, template, `stump_${anchor.name}`);
+    if (!stump) return [];
+    stump.parent = anchor;
+    stump.position = new Vector3(0, 0, 0);
+    stump.scaling = new Vector3(1, 1, 1);
+    anchor.metadata = { ...(anchor.metadata || {}), stump };
+    return [stump];
   }
 
-  isTaken(node) {
-    return !!(node && node.metadata && node.metadata.taken);
+  showLogs(anchor, def, dirX, dirZ) {
+    if (!anchor || anchor.isDisposed() || !def || !def.tree) return [];
+    const template = treeLogTemplate(this.s, def.tree);
+    if (!template) return [];
+    const yaw = anchor.rotation.y;
+    const cos = Math.cos(-yaw);
+    const sin = Math.sin(-yaw);
+    const localX = dirX * cos - dirZ * sin;
+    const localZ = dirX * sin + dirZ * cos;
+    const heading = Math.atan2(localZ, localX);
+    const nodes = [];
+    for (let i = 0; i < 2; i += 1) {
+      const node = instantiateModel(this.s, template, `log_${anchor.name}_${i}`);
+      if (!node) continue;
+      node.parent = anchor;
+      node.scaling = new Vector3(1, 1, 1);
+      const spread = i === 0 ? 0.4 : -0.45;
+      const reach = 0.95 + i * 0.5;
+      node.position = new Vector3(
+        localX * reach - localZ * spread,
+        0.02,
+        localZ * reach + localX * spread,
+      );
+      node.rotation.y = heading + (i === 0 ? 0.16 : -0.22);
+      nodes.push(node);
+    }
+    return nodes;
   }
 
+  showFronds(anchor, def, dirX, dirZ) {
+    if (!anchor || anchor.isDisposed() || !def || !def.tree) return [];
+    const template = treeFrondTemplate(this.s, def.tree);
+    if (!template) return [];
+    const entry = anchor.metadata ? anchor.metadata.entry : null;
+    const cx = entry ? entry.cx : 0;
+    const cz = entry ? entry.cz : 0;
+    const yaw = anchor.rotation.y;
+    const cos = Math.cos(-yaw);
+    const sin = Math.sin(-yaw);
+    const localX = dirX * cos - dirZ * sin;
+    const localZ = dirX * sin + dirZ * cos;
+    const baseAngle = Math.atan2(localZ, localX);
+    const count = 3 + Math.floor(cellNoise(cx, cz, 23) * 3);
+    const nodes = [];
+    for (let i = 0; i < count; i += 1) {
+      const node = instantiateModel(this.s, template, `frond_${anchor.name}_${i}`);
+      if (!node) continue;
+      node.parent = anchor;
+      const phi = baseAngle + (cellNoise(cx, cz, 31 + i) - 0.5) * 2.2;
+      const reach = 0.45 + cellNoise(cx, cz, 41 + i) * 1.25;
+      node.position = new Vector3(Math.cos(phi) * reach, 0.03, Math.sin(phi) * reach);
+      node.rotation.y = -phi + (cellNoise(cx, cz, 51 + i) - 0.5) * 0.7;
+      const scale = 1.6 + cellNoise(cx, cz, 61 + i) * 0.8;
+      node.scaling = new Vector3(scale, scale, scale);
+      nodes.push(node);
+    }
+    return nodes;
+  }
   isBroken(node) {
     return !!(node && node.metadata && node.metadata.broken);
   }
@@ -366,7 +459,7 @@ export default class DecoSystem {
   markBroken(anchor, def) {
     if (anchor) anchor.metadata = { ...(anchor.metadata || {}), broken: true };
     this.brokenCount += 1;
-    console.warn(`[deco] Model se nepodaĹ™ilo postavit: ${def.displayName || def.model}`);
+    console.warn(`[deco] Model se nepodaĹ™ilo postavit: ${def.displayName || def.model || def.tree}`);
   }
 
   isBlocked(cx, cz) {

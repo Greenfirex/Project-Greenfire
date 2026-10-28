@@ -5,3 +5,7 @@ PavingStones092_1K-JPG_Color.jpg – ambientCG (https://ambientcg.com/view?id=Pa
 Planks004_1K-JPG_Color.jpg – ambientCG (https://ambientcg.com/view?id=Planks004), licence CC0
 Ground080_1K-JPG_Color.jpg – ambientCG (https://ambientcg.com/view?id=Ground080), licence CC0
 Ground080_1K-JPG_NormalGL.jpg – ambientCG (https://ambientcg.com/view?id=Ground080), licence CC0
+pine_twig.png - Poly Haven (https://polyhaven.com/a/pine_tree_01), licence CC0; vyrez vetve s pruhlednosti
+pine_bark.jpg - Poly Haven (https://polyhaven.com/a/pine_tree_01), licence CC0; zjasneno
+palm_frond.png - AI generated (Nano Banana), upraveno: odstranene pozadi, vyrez, zmenseni
+palm_bark.jpg - AI generated (Nano Banana), upraveno: zjasneno, prevedeno do JPEG

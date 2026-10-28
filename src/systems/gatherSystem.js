@@ -27,6 +27,9 @@ export default class GatherSystem {
     this.swayTime = 0;
     this.tool = null;
     this.decoSystem = null;
+    this.falls = [];
+    this.onLand = null;
+    this.onFell = null;
   }
 
   clear() {
@@ -35,6 +38,7 @@ export default class GatherSystem {
     this.playerPos = null;
     this.cooldown = 0;
     this.pending = null;
+    this.falls = [];
   }
 
   totalFor(def) {
@@ -105,12 +109,6 @@ export default class GatherSystem {
     return this.entries.some((e) => e.entry.cx === cx && e.entry.cz === cz && e.left > 0);
   }
 
-  exhaustedCells() {
-    return this.entries
-      .filter((e) => e.left <= 0)
-      .map((e) => ({ cx: e.entry.cx, cz: e.entry.cz }));
-  }
-
   setTool(tool) {
     this.tool = tool || null;
     this.hitCooldown = tool && tool.harvest ? tool.harvest.cooldown : BARE_COOLDOWN;
@@ -151,6 +149,7 @@ export default class GatherSystem {
     this.syncPlayerPos(player);
     const target = this.playerPos ? this.findNearest(this.playerPos.x, this.playerPos.z) : null;
     this.target = target;
+    this.updateFalls(dt);
     this.updateSway(dt);
     return this.target;
   }
@@ -232,11 +231,11 @@ export default class GatherSystem {
     this.swayTime = 0;
   }
 
-  takeYield(item) {
+  takeYield(item, hide = true) {
     const source = item || this.target;
     if (!source || source.left > 0) return null;
     if (this.target === source) this.target = null;
-    if (source.anchor && !source.anchor.isDisposed()) source.anchor.setEnabled(false);
+    if (hide && source.anchor && !source.anchor.isDisposed()) source.anchor.setEnabled(false);
     const withTool = Boolean(this.tool && this.tool.harvest);
     const yields = withTool ? source.def.gather : BARE_YIELDS;
     return Object.entries(yields)
@@ -250,6 +249,42 @@ export default class GatherSystem {
   }
 
 
+
+  beginFall(item, fromX, fromZ) {
+    if (!item || !item.anchor || item.anchor.isDisposed()) return false;
+    const dx = item.x - fromX;
+    const dz = item.z - fromZ;
+    const length = Math.hypot(dx, dz) || 1;
+    item.sway = 0;
+    item.fall = { time: 0, duration: 1.05, dirX: dx / length, dirZ: dz / length, landed: false };
+    this.falls.push(item);
+    return true;
+  }
+
+  updateFalls(dt) {
+    if (!this.falls.length) return;
+    for (const item of this.falls.slice()) {
+      const fall = item.fall;
+      const anchor = item.anchor;
+      if (!fall || !anchor || anchor.isDisposed()) {
+        this.falls.splice(this.falls.indexOf(item), 1);
+        continue;
+      }
+      fall.time += dt;
+      const t = Math.min(1, fall.time / fall.duration);
+      const angle = (Math.PI / 2) * t * t;
+      anchor.rotation.x = angle * fall.dirZ;
+      anchor.rotation.z = -angle * fall.dirX;
+      if (!fall.landed && t >= 0.88) {
+        fall.landed = true;
+        if (this.onLand) this.onLand(item);
+      }
+      if (t >= 1) {
+        this.falls.splice(this.falls.indexOf(item), 1);
+        if (this.onFell) this.onFell(item);
+      }
+    }
+  }
 
   shakeNearby(kind) {
     for (const item of this.entries) {
@@ -268,13 +303,22 @@ export default class GatherSystem {
     const falloff = Math.exp(-SWAY_DECAY * dt);
     const bend = SWAY_AMPLITUDE * Math.sin(this.swayTime * SWAY_SPEED);
     for (const item of this.entries) {
-      if (item.sway <= 0) continue;
+      if (item.sway <= 0 || item.fall) continue;
       item.sway *= falloff;
       if (item.sway < 0.01) item.sway = 0;
       if (!item.anchor || item.anchor.isDisposed()) continue;
       const angleX = item.axisZ * bend * item.sway;
       const angleZ = -item.axisX * bend * item.sway;
       item.anchor.rotation.set(angleX, item.anchor.rotation.y, angleZ);
+    }
+  }
+
+  markTaken(cx, cz) {
+    for (const item of this.entries) {
+      if (item.entry.cx !== cx || item.entry.cz !== cz) continue;
+      item.left = 0;
+      item.hits = item.total;
+      if (this.target === item) this.target = null;
     }
   }
 

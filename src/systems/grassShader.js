@@ -82,6 +82,7 @@ void main(void) {
   float face = dot(n, lightDir);
   float wrap = clamp(face * 0.5 + 0.5, 0.0, 1.0);
   color *= 0.72 + wrap * 0.5 * dayness;
+  color *= 0.92;
 
   gl_FragColor = vec4(color, 1.0);
 }
