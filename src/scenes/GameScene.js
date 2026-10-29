@@ -9,6 +9,7 @@ import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator'
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Scene } from '@babylonjs/core/scene';
+import { FxaaPostProcess } from '@babylonjs/core/PostProcesses/fxaaPostProcess';
 
 import CameraSystem from '../systems/cameraSystem.js';
 import GridSystem from '../systems/gridSystem.js';
@@ -159,6 +160,7 @@ export default class GameScene {
     this.shadowCasters = [];
 
     this.camera = null;
+    this.fxaa = null;
     this.shadowGenerator = null;
     this.sunLight = null;
     this.currentMachine = DEFAULT_MACHINE;
@@ -201,6 +203,7 @@ export default class GameScene {
     this.setupGlow();
     this.setupLighting();
     this.camera = this.cameraSystem.create();
+    this.fxaa = new FxaaPostProcess('fxaa', 1.0, this.camera);
     this.skySystem.create();
     this.skySystem.setDayness(this.waterDayness(), this.dayNightSystem.sunLight);
     this.loader.beginMap();
@@ -240,7 +243,12 @@ export default class GameScene {
     this.s.onBeforeRenderObservable.add(() => {
       const dt = Math.min(this.engine.getDeltaTime() / 1000, MAX_STEP_SECONDS);
       if (this.paused) {
-        if (this.editor.active) this.updateEditorCamera(dt);
+        if (this.editor.active) {
+          this.updateEditorCamera(dt);
+          this.waterSystem.update(dt);
+          this.decoSystem.updateWind(this.floraSystem.clock);
+          this.updateWaterCaustics();
+        }
         this.refreshClock();
         return;
       }
@@ -373,7 +381,8 @@ export default class GameScene {
     const water = this.waterSystem;
     const sun = this.dayNightSystem ? this.dayNightSystem.sunLight : null;
     const level = water && Number.isFinite(water.level) && !water.hidden ? water.surfaceY : null;
-    this.terrainSystem.updateWetLevel(water && Number.isFinite(water.level) ? water.level : null);
+    const wetLevel = water && Number.isFinite(water.level) ? water.level : null;
+    this.terrainSystem.updateWetLevel(wetLevel);
     if (!water || !sun || level === null) {
       this.terrainSystem.updateCaustics(0, null, 0, 0, null, 0, 0);
       return;
@@ -1134,6 +1143,7 @@ updateGatherTarget() {
     this.decoHighlight.setVisible(this.options.highlights);
     this.glowSystem.setEnabled(this.options.fireGlow);
     this.floraSystem.setDensity(this.options.grass);
+    this.waterSystem.setDetail(this.options.waterDetail);
     if (this.isLoading) return;
     this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);
     this.audioSystem.setAmbientVolume(this.options.ambientVolume / 100);

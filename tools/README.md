@@ -32,33 +32,40 @@ python tools/make_cliff_catalog.py --filter "^(block|top|half|cornerTop)$"
 
 Výstup: `tools/_temp/cliff_catalog.png`.
 
-## shores.mjs
+## scatter/ — sázení drobností do mapy
 
-Doplní do souboru mapy lastury na břeh a koraly do hloubky. Lastury leží kolem
-hladiny ve čtyřech tvarech a třech velikostech. Koraly se sázejí jako několik
-shluků v hluboké vodě (aspoň 2 m) — na každé buňce shluku 8–14 menších kusů
-s náhodným posunem a měřítkem, takže nevypadají jako pravidelná mřížka ani jako
-jeden kus na buňku. Každá drobnost dostane svoji výšku, aby nevisela ve vzduchu.
-Lastury se nikdy nesázejí na sousední buňky, aby nevznikaly hromady. Na jedno
-místo u spawnu dá jednu obrovskou mušli, kterou jde ve hře sehrát krumpáčem.
-Před zápisem smaže dřívější břehové i mořské drobnosti, takže se dá pouštět
-opakovaně. Nakonec do mapy zapíše třináct hejn ryb pěti barev — stříbrné i
-v hloubce, barevné (zlaté, zelené, červené) do mělčiny, kde je voda průhledná,
-a drobné roje až od 0,3 m hloubky. Část hejn krouží, část se toulá. Hejna se
-sázejí jen tam, kde je v okolí dost vody (od 0,3 m u břehu po 0,7 m v hloubce),
-aby ryby nevplavaly na souš. Na travnaté buňky nakonec rozsype květiny
-(čtyři barvy, jedna až tři na buňku), aby louka nebyla holý koberec.
-Výšky počítá stejným kódem jako hra (`src/utils/terrainField.js`),
-takže vše sedí na skutečný terén.
+Čtyři samostatné nástroje se společným základem (`scatter/base.mjs`). Každý
+načte soubor mapy, spočítá terén stejným kódem jako hra
+(`src/utils/terrainField.js`), takže všechno sedí na skutečný povrch, a nahradí
+**jen svoje vlastní** věci. Ostatní dekorace na mapě nechá být a vyhýbá se
+buňkám, kde už je výsledek jiného nástroje.
+
+- `scatter/shells.mjs` — lastury kolem hladiny (čtyři tvary, tři velikosti)
+  a jedna obrovská mušle u spawnu. Sází se tam, kde je buňka suchá nebo těsně
+  pod hladinou a sousedí s vodou; nikdy ne na sousední buňky, aby nevznikaly
+  hromady. Počet roste s délkou břehu, takže se nemusí nastavovat.
+- `scatter/corals.mjs` — korály na dno (aspoň 2 m hloubky). Počet shluků se
+  počítá z velikosti mapy (jeden shluk na ~450 vodních buněk), každý shluk má
+  4 buňky a na každé 8–14 kusů s náhodným posunem a měřítkem. Shluky se
+  vybírají tak, aby byly co nejdál od sebe — rozprostřou se po celém dně.
+- `scatter/fish.mjs` — hejna ryb po pásech hloubky (od 0,3 m u břehu po
+  hloubku). Počet hejn se počítá z velikosti mapy (jedno hejno na ~170 vodních
+  buněk) a poměr barev i hloubek zůstává. Část hejn krouží, část se toulá.
+  Hejna se sázejí jen tam, kde je v okolí dost vody, aby ryby nevplavaly na souš.
+- `scatter/flowers.mjs` — květiny na travnaté buňky (čtyři barvy, jedna až dvě
+  na buňku, ve shlucích podle šumu).
 
 ```
-node tools/shores.mjs --dry          # jen spočítá a vypíše, soubor nezmění
-node tools/shores.mjs                # zapíše do src/data/maps/glade/map.json
-node tools/shores.mjs cesta/map.json # jiná mapa
+node tools/scatter/corals.mjs --dry         # jen spočítá a vypíše, soubor nezmění
+node tools/scatter/corals.mjs               # zapíše do src/data/maps/glade/map.json
+node tools/scatter/fish.mjs cesta/map.json  # jiná mapa
 ```
 
-Budoucí úpravy břehu se dělají štětcem **Pobřeží** v editoru mapy, tenhle
-nástroj je jen na první naplnění mapy.
+Po zvětšení mapy se pouští v pořadí **shells → corals → fish** (každý další se
+vyhne buňkám předchozího). Květiny se pouští zvlášť, jen když je chceš přesypat.
+
+Budoucí úpravy břehu se dělají štětcem **Pobřeží** v editoru mapy, tyhle
+nástroje jsou na první naplnění mapy nebo na přesypání po zvětšení.
 
 ## Cliff assety — co je co
 

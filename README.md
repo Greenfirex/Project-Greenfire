@@ -217,6 +217,8 @@ doladění a práce mimo tento plán.
 - `@babylonjs/inspector` (8.56.2) — jen vývojová závislost; do produkčního buildu se nebalí.
 - Zvuky: Free Fantasy SFX Pack od TomMusic (tommusic.itch.io); původ je zapsaný
   v `public/assets/audio/CREDITS.txt`.
+- Textury vln: `water_normals.jpg` z three.js (repo pod MIT),
+  v `public/assets/nature/textures/`.
 
 **Pravidla pro navazujícího agenta:**
 - Přečíst `.clinerules`, README a tuto sekci; ověřit `git status` a `git log`.
@@ -256,6 +258,15 @@ odrazovou sondu, kaustika na dně pod hladinou a tmavší hladina v noci.
 Hloubka se bere z terénu pod hladinou. V editoru se voda zapíná tlačítkem
 Voda a hladina se ladí po 0,3 m. Suché jámy pod hladinou současná plocha
 neumí — vyřeší se později suchou zónou nebo vodními zónami.
+
+**Vlny** skládají dva systémy a míchají se podle vzdálenosti od břehu: do ~6 m
+od pobřeží jdou hřebeny rovnoběžně s pískem (pole vzdáleností se počítá přesně,
+takže má skutečné kružnice, a vyhlazuje se jen přes vodu), od ~24 m dál vládne
+volné vlnění z pěti směrů s nezaokrouhlenými vlnovými délkami — proto se vzor
+nikde neopakuje. Mezi tím se plynule míchá **výška** obou systémů, takže
+nevzniká šev ani hrana. Výšku vln tlumí hloubka, takže u břehu je hladina
+klidná. Jemný třpyt dodává jedna normálová textura ve třech pootočených
+vrstvách, které se posouvají stejným směrem jako vlny.
 
 **Otevřená rozhodnutí:** šířka Plynulého okraje u pláže (zatím jeden
 prstenec navíc), průchodnost útesů (schod nad 0,45 m a hrana na mřížce

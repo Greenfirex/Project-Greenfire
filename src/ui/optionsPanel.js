@@ -8,6 +8,7 @@ const TOGGLES = [
   { key: 'highlights', label: 'Zvýrazňování pod myší', note: 'Kroužky pod stromy a rudou při najetí myší.' },
   { key: 'dayCycle', label: 'Denní cyklus', note: 'Zastavení nechá slunce stát na aktuálním času.' },
   { key: 'autoTune', label: 'Automatická úprava výkonu', note: 'Při poklesu snímků hra sama sníží rozlišení.' },
+  { key: 'waterDetail', label: 'Textura vody', note: 'Jemné čeření hladiny. Vypnutím uvidíš hladinu bez textury.' },
 ];
 
 const QUALITIES = [

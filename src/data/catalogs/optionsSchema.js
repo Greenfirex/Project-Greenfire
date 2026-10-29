@@ -10,6 +10,7 @@ export const OPTION_DEFAULTS = {
   dayCycle: true,
   autoTune: false,
   grass: 'high',
+  waterDetail: true,
   sfxVolume: 70,
   ambientVolume: 25,
 };
