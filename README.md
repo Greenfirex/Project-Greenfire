@@ -17,7 +17,7 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 
 | Vstup | Akce |
 |---|---|
-| **W A S D / šipky** | Pohyb postavy (vzhledem ke kameře), Shift = běh |
+| **W A S D / šipky** | Pohyb postavy (vzhledem ke kameře), Shift = běh. V editoru posouvají pohled po mapě, Shift zrychlí |
 | **Tažení pravým tlačítkem** | Rotace kamery (v editoru středním tlačítkem) |
 | **Kolečko** | Zoom |
 | **1–5** | Výběr předmětu v ruce (plán, sekera, krumpáč, pochodeň) |
@@ -74,7 +74,8 @@ rozbitý okraj písku s ostrůvky a jazyky, štětec Pobřeží s lasturami
 ve čtyřech tvarech a třech velikostech (největší se dá sehrát), koraly
 na dně v shlucích (vějíř, trs a mozkový) se štětcem Koraly, hejna ryb
 pěti barev (i drobných), která se toulají vodou, občas vyšlou rybku na
-potulky a plaší se před hráčem,
+potulky a plaší se před hráčem, tráva s květinami ve čtyřech barvách
+(květy se houpou ve větru a rostou i ve shlucích, štětec Tráva je umí vypnout),
 plynulé prolínání trávy a písku
 (texturou i barvou), hráč ve vodě (mělká zpomalí, do hluboké nesmí,
 ve vodě nejde stavět), kroky ve vodě, příboj u vody, obloha se sluncem
@@ -375,8 +376,9 @@ seznam k výběru.
 2. **Skála: mech a lišejník** — kámen je jednolitý. Ztmavení u paty a mírné
    zelené omaštění horních ploch podle sklonu (barvou ve vrcholech, bez
    nových textur) oživí útes i balvany.
-3. **Tráva: barevné skvrny a květiny** — tráva je jedna barva. Dva odstíny
-   podle polohy a občasný květ udělají louku míň kobercovou.
+3. **Tráva: výraznější barevné skvrny** — tráva má jen jemné kolísání odstínu.
+   Dva zřetelné odstíny podle polohy (bez květin, ty už jsou) udělají louku
+   míň kobercovou.
 4. **Vzdálené stromy (LOD)** — až bude les hustší, nahradit daleké stromy
    jednodušší variantou. Uvolní výkon a dovolí sázet víc stromů.
 

@@ -33,8 +33,17 @@ export default class CampfireSystem {
     fire.setDayness(this.dayness);
     fire.setScale(cfg.size);
     fire.place(x, surfaceY + cfg.y, z);
-    this.fires.push({ entry, cx: entry.cx, cz: entry.cz, x, z, fire, lit: false });
+    this.fires.push({ entry, cx: entry.cx, cz: entry.cz, x, z, fire, lift: cfg.y, lit: false });
     if (this.onFireAdded) this.onFireAdded(fire);
+  }
+
+  reseatHeights(heightForEntry) {
+    if (typeof heightForEntry !== 'function') return;
+    for (const item of this.fires) {
+      const base = heightForEntry(item.entry);
+      if (!Number.isFinite(base)) continue;
+      item.fire.place(item.x, base + (item.lift || 0), item.z);
+    }
   }
 
   sync(entries) {

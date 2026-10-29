@@ -13,6 +13,11 @@ export function makeDraggable(root) {
     const rect = target.getBoundingClientRect();
     const offsetX = event.clientX - rect.left;
     const offsetY = event.clientY - rect.top;
+    target.style.transform = 'none';
+    target.style.right = 'auto';
+    target.style.bottom = 'auto';
+    target.style.left = `${rect.left}px`;
+    target.style.top = `${rect.top}px`;
     target.setPointerCapture(event.pointerId);
     target.classList.add('is-dragging');
 

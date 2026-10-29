@@ -400,6 +400,10 @@ export default class PlayerSystem {
     group.restart();
   }
 
+  get moveInput() {
+    return this.input;
+  }
+
   bindKeys() {
     if (this.keysBound) return;
     this.keysBound = true;

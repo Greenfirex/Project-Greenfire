@@ -46,7 +46,8 @@ opakovaně. Nakonec do mapy zapíše třináct hejn ryb pěti barev — stříbr
 v hloubce, barevné (zlaté, zelené, červené) do mělčiny, kde je voda průhledná,
 a drobné roje až od 0,3 m hloubky. Část hejn krouží, část se toulá. Hejna se
 sázejí jen tam, kde je v okolí dost vody (od 0,3 m u břehu po 0,7 m v hloubce),
-aby ryby nevplavaly na souš.
+aby ryby nevplavaly na souš. Na travnaté buňky nakonec rozsype květiny
+(čtyři barvy, jedna až tři na buňku), aby louka nebyla holý koberec.
 Výšky počítá stejným kódem jako hra (`src/utils/terrainField.js`),
 takže vše sedí na skutečný terén.
 

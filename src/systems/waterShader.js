@@ -36,20 +36,21 @@ vec2 seaDirection(vec2 baseDir, vec2 p, float time) {
   return rotateDir(base, wobble);
 }
 
-float seaPhase(vec2 p, vec2 dir, float wavelength, float speed, float time) {
+float seaPhase(float waveDist, float wavelength, float speed, float time) {
+  float k = ${glslFloat(Math.PI * 2)} / wavelength;
+  return k * (waveDist + speed * time);
+}
+
+float flatPhase(vec2 p, vec2 dir, float wavelength, float speed, float time) {
   float k = ${glslFloat(Math.PI * 2)} / wavelength;
   return k * (dot(p, dir) - speed * time);
 }
 
-float seaHeight(vec2 p, vec2 dir, float time) {
+float seaHeight(float waveDist, float time) {
   return ${swellGlsl()};
 }
 
-float swell(vec2 p, vec2 dir, float time) {
-  return seaHeight(p, dir, time);
-}
-
-vec2 swellSlope(vec2 p, vec2 dir, float time) {
+vec2 swellSlope(float waveDist, vec2 dir, float time) {
   vec2 slope = ${swellSlopeGlsl()};
   return slope;
 }
@@ -58,8 +59,8 @@ vec2 rippleSlope(vec2 p, vec2 dir, float time) {
   float mask = noise(p * 0.17 + vec2(time * 0.06, -time * 0.05));
   float gain = mix(0.7, 1.15, mask);
   vec2 fine = rotateDir(dir, 0.32);
-  vec2 slope = dir * (6.28318 / 3.2) * 0.012 * cos(seaPhase(p, dir, 3.2, 0.9, time));
-  slope += fine * (6.28318 / 1.8) * 0.007 * cos(seaPhase(p, fine, 1.8, 1.3, time));
+  vec2 slope = dir * (6.28318 / 3.2) * 0.012 * cos(flatPhase(p, dir, 3.2, 0.9, time));
+  slope += fine * (6.28318 / 1.8) * 0.007 * cos(flatPhase(p, fine, 1.8, 1.3, time));
   return slope * gain;
 }
 
@@ -74,22 +75,26 @@ const VERTEX = `
 precision highp float;
 
 attribute vec3 position;
+attribute vec2 waveDir;
+attribute float waveDist;
 attribute float waveAmp;
 
 uniform mat4 viewProjection;
 uniform float waterTime;
-uniform vec2 seaDir;
 ${WAVE}
 varying vec3 vPosition;
 varying float vSwash;
 varying float vWaveAmp;
+varying float vWaveDist;
+varying vec2 vWaveDir;
 
 void main(void) {
   vSwash = swashPhase(position.xz, waterTime);
-  vec2 dir = seaDirection(seaDir, position.xz, waterTime);
-  float rise = swell(position.xz, dir, waterTime) * waveAmp;
+  float rise = seaHeight(waveDist, waterTime) * waveAmp;
   vec3 world = vec3(position.x, position.y + rise, position.z);
   vWaveAmp = waveAmp;
+  vWaveDist = waveDist;
+  vWaveDir = waveDir;
   vPosition = world;
   gl_Position = viewProjection * vec4(world, 1.0);
 }
@@ -110,7 +115,6 @@ uniform vec3 foamColor;
 uniform float dayness;
 uniform float maxDepth;
 uniform float waterLevel;
-uniform vec2 seaDir;
 uniform sampler2D depthMap;
 uniform vec2 depthOrigin;
 uniform vec2 depthScale;
@@ -121,6 +125,8 @@ uniform mat4 reflectionViewProjection;
 varying vec3 vPosition;
 varying float vSwash;
 varying float vWaveAmp;
+varying float vWaveDist;
+varying vec2 vWaveDir;
 ${WAVE}
 
 void main(void) {
@@ -129,10 +135,11 @@ void main(void) {
   float rawDrop = (texture2D(depthMap, clamp(depthUv, vec2(0.0), vec2(1.0))).r - 0.5) * 2.0 * depthRange;
   float depth = max(rawDrop, 0.0);
   float wet = vPosition.y - waterLevel + rawDrop;
-  vec2 dir = seaDirection(seaDir, p, waterTime);
+  vec2 dir = seaDirection(vWaveDir, p, waterTime);
+  vec2 shoreward = -dir;
 
-  vec2 ripple = rippleSlope(p, dir, waterTime);
-  vec2 slope = ripple + swellSlope(p, dir, waterTime) * vWaveAmp;
+  vec2 ripple = rippleSlope(p, shoreward, waterTime);
+  vec2 slope = ripple + swellSlope(vWaveDist, dir, waterTime) * vWaveAmp;
   float slopeSize = length(slope);
   vec3 normal = normalize(vec3(-slope.x, 1.0, -slope.y));
   vec3 viewDir = normalize(cameraDir);
@@ -175,7 +182,7 @@ void main(void) {
   float foamBand = (1.0 - smoothstep(0.02, 0.16, wet)) * smoothstep(-0.02, 0.02, wet);
   float foam = foamBand * smoothstep(0.42, 0.85, foamNoise + 0.20);
   foam = smoothstep(0.05, 0.60, foam);
-  float seaCrest = seaHeight(p, dir, waterTime) * vWaveAmp / 0.33;
+  float seaCrest = seaHeight(vWaveDist, waterTime) * vWaveAmp / 0.33;
   float breaker = smoothstep(0.45, 0.92, seaCrest) * smoothstep(0.06, 0.22, depth) * (1.0 - smoothstep(0.45, 1.1, depth));
   foam = max(foam, breaker * 0.5);
   foam *= mix(0.35, 1.0, 1.0 - smoothstep(-0.7, 0.2, vSwash));
@@ -195,11 +202,11 @@ precision highp float;
 
 attribute vec3 position;
 attribute vec2 uv;
+attribute float waveDist;
 attribute float waveAmp;
 
 uniform mat4 viewProjection;
 uniform float waterTime;
-uniform vec2 seaDir;
 ${WAVE}
 varying vec2 vUV;
 varying vec3 vPosition;
@@ -207,8 +214,7 @@ varying vec3 vPosition;
 void main(void) {
   vec3 pos = position;
   if (uv.y < 0.5) {
-    vec2 dir = seaDirection(seaDir, pos.xz, waterTime);
-    pos.y += swell(pos.xz, dir, waterTime) * waveAmp;
+    pos.y += seaHeight(waveDist, waterTime) * waveAmp;
   }
   vUV = uv;
   vPosition = pos;
@@ -267,12 +273,12 @@ function registerShaders() {
 export function createWaterMaterial(scene, options) {
   registerShaders();
   const material = new ShaderMaterial('waterSurfaceMat', scene, { vertex: 'water', fragment: 'water' }, {
-    attributes: ['position', 'waveAmp'],
+    attributes: ['position', 'waveDir', 'waveDist', 'waveAmp'],
     uniforms: [
       'viewProjection', 'waterTime', 'sunDir', 'sunColor', 'sunIntensity', 'skyColor',
       'cameraDir', 'shallowColor', 'deepColor', 'foamColor', 'dayness', 'maxDepth',
       'reflectionSampler', 'reflectionViewProjection', 'waterLevel',
-      'depthMap', 'depthOrigin', 'depthScale', 'depthRange', 'seaDir',
+      'depthMap', 'depthOrigin', 'depthScale', 'depthRange',
     ],
   });
   material.backFaceCulling = false;
@@ -296,8 +302,8 @@ export function createWaterMaterial(scene, options) {
 export function createWaterSideMaterial(scene, options) {
   registerShaders();
   const material = new ShaderMaterial('waterSideMat', scene, { vertex: 'waterSide', fragment: 'waterSide' }, {
-    attributes: ['position', 'uv', 'waveAmp'],
-    uniforms: ['viewProjection', 'waterTime', 'surfaceColor', 'deepColor', 'foamColor', 'dayness', 'seaDir'],
+    attributes: ['position', 'uv', 'waveDist', 'waveAmp'],
+    uniforms: ['viewProjection', 'waterTime', 'surfaceColor', 'deepColor', 'foamColor', 'dayness'],
   });
   material.backFaceCulling = false;
   material.alpha = 0.999;

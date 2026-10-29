@@ -48,9 +48,19 @@ const FISH_BANDS = {
   shallow: { minDepth: 0.3, maxDepth: 0.6, clearance: 0.3, reach: 1, maxRadius: 2.5 },
 };
 const FISH_SPACING = 2.5;
+const FLOWER_POOL = ['flower_white', 'flower_yellow', 'flower_pink', 'flower_coral'];
+const FLOWER_CHANCE = 0.12;
+const FLOWER_MIN = 1;
+const FLOWER_MAX = 2;
+const FLOWER_SPREAD = 0.9;
+const FLOWER_SCALE_MIN = 0.7;
+const FLOWER_SCALE_MAX = 1;
+const FLOWER_PATCH_SCALE = 3.4;
 const SHORE_KEYS = [
   'shore_shells', 'shore_shells_mid', 'shore_shells_wide', 'shore_shells_cup',
   'shell_giant', 'shore_pebbles', 'coral_fan', 'coral_branch', 'coral_brain',
+  'flower_white', 'flower_yellow', 'flower_pink', 'flower_coral',
+  'flower_purple', 'flower_red',
 ];
 const SHELL_VARIANTS = ['shore_shells', 'shore_shells_mid', 'shore_shells_wide', 'shore_shells_cup'];
 const CORAL_VARIANTS = ['coral_fan', 'coral_branch', 'coral_brain'];
@@ -294,6 +304,41 @@ map.fish = schools.map((school) => {
   };
 });
 
+const liftByCell = new Map();
+for (const entry of map.floor || []) {
+  if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+  liftByCell.set(cellKey(entry.cx, entry.cz), entry.liftY || 0);
+}
+
+let flowerCount = 0;
+for (const cell of map.grass || []) {
+  if (!cell || !Number.isFinite(cell.cx) || !Number.isFinite(cell.cz)) continue;
+  const { cx, cz } = cell;
+  const patch = valueNoise(cx / FLOWER_PATCH_SCALE, cz / FLOWER_PATCH_SCALE);
+  if (roll(cx, cz, 37) > FLOWER_CHANCE * (0.25 + 1.3 * patch)) continue;
+  const lift = liftByCell.get(cellKey(cx, cz)) || 0;
+  const amount = FLOWER_MIN
+    + Math.floor(roll(cx, cz, 41) * (FLOWER_MAX - FLOWER_MIN + 1 + patch));
+  for (let index = 0; index < amount; index += 1) {
+    const key = FLOWER_POOL[Math.min(
+      FLOWER_POOL.length - 1,
+      Math.floor(roll(cx + index * 3, cz - index, 43) * FLOWER_POOL.length),
+    )];
+    const entry = {
+      key,
+      cx,
+      cz,
+      rotation: 0,
+      scale: round(FLOWER_SCALE_MIN + roll(cx + index, cz + index, 47) * (FLOWER_SCALE_MAX - FLOWER_SCALE_MIN)),
+      offsetX: round((roll(cx - index, cz + index * 2, 53) - 0.5) * FLOWER_SPREAD * 2),
+      offsetZ: round((roll(cx + index * 2, cz - index, 59) - 0.5) * FLOWER_SPREAD * 2),
+    };
+    if (lift) entry.liftY = lift;
+    added.push(entry);
+    flowerCount += 1;
+  }
+}
+
 const count = (key) => added.filter((entry) => entry.key === key).length;
 const shellCount = count('shore_shells') + count('shore_shells_mid')
   + count('shore_shells_wide') + count('shore_shells_cup');
@@ -301,6 +346,7 @@ const coralCount = count('coral_fan') + count('coral_branch') + count('coral_bra
 console.log(`Břeh: ${shellCount} lastur a ${count('shell_giant')} obrovská mušle.`);
 console.log(`Dno: ${coralCount} koralů ve ${centers.length} shlucích na ${coralCells.length} buňkách.`);
 console.log(`Ryby: ${schools.length} hejn (${schools.map((school) => school.kind).join(', ')}).`);
+console.log(`Květiny: ${flowerCount} kusů na travnatých buňkách.`);
 if (giantSpot) console.log(`Obrovská mušle je na buňce ${giantSpot.cx},${giantSpot.cz}.`);
 
 if (dryRun) {

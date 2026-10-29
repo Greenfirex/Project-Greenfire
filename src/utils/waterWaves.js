@@ -1,5 +1,5 @@
 // Vlny vodní hladiny — jediné místo, kde jsou jejich čísla i výpočet.
-// Ze stejných čísel se skládá program na kartě, takže obraz a hra se nemůže rozejít.
+// Výška se počítá ze vzdálenosti od břehu, takže hřebeny jdou jako kruhy kolem pevniny.
 export const WAVE_TERMS = [
   { wavelength: 18, speed: 1.2, height: 0.16 },
   { wavelength: 11, speed: 1.7, height: 0.11 },
@@ -16,33 +16,13 @@ export const WAVE_SWAY = {
 export const WAVE_REACH = WAVE_TERMS.reduce((sum, term) => sum + term.height, 0);
 export const WAVE_TIME_WRAP = 3600;
 
-export function waveDirection(dirX, dirZ, x, z, time) {
-  const dx = dirX + 1e-5;
-  const dz = dirZ + 1e-5;
-  const length = Math.hypot(dx, dz) || 1;
-  const baseX = dx / length;
-  const baseZ = dz / length;
-  const wobble = (
-    Math.sin(x * WAVE_SWAY.frequencyX + time * WAVE_SWAY.speedX)
-    + Math.sin(z * WAVE_SWAY.frequencyZ + time * WAVE_SWAY.speedZ)
-  ) * WAVE_SWAY.amount;
-  const c = Math.cos(wobble);
-  const s = Math.sin(wobble);
-  return { x: baseX * c - baseZ * s, z: baseX * s + baseZ * c };
-}
-
-export function waveHeight(x, z, dirX, dirZ, time) {
+export function waveHeight(distance, time) {
   let height = 0;
   for (const term of WAVE_TERMS) {
     const k = (Math.PI * 2) / term.wavelength;
-    height += Math.sin(k * (x * dirX + z * dirZ - term.speed * time)) * term.height;
+    height += Math.sin(k * (distance + term.speed * time)) * term.height;
   }
   return height;
-}
-
-export function waveOffset(x, z, dirX, dirZ, time) {
-  const dir = waveDirection(dirX, dirZ, x, z, time);
-  return waveHeight(x, z, dir.x, dir.z, time);
 }
 
 export function glslFloat(value) {
@@ -52,12 +32,12 @@ export function glslFloat(value) {
 
 export function swellGlsl() {
   return WAVE_TERMS
-    .map((term) => `sin(seaPhase(p, dir, ${glslFloat(term.wavelength)}, ${glslFloat(term.speed)}, time)) * ${glslFloat(term.height)}`)
+    .map((term) => `sin(seaPhase(waveDist, ${glslFloat(term.wavelength)}, ${glslFloat(term.speed)}, time)) * ${glslFloat(term.height)}`)
     .join('\n       + ');
 }
 
 export function swellSlopeGlsl() {
   return WAVE_TERMS
-    .map((term) => `dir * ${glslFloat((Math.PI * 2) / term.wavelength)} * ${glslFloat(term.height)} * cos(seaPhase(p, dir, ${glslFloat(term.wavelength)}, ${glslFloat(term.speed)}, time))`)
+    .map((term) => `dir * ${glslFloat((Math.PI * 2) / term.wavelength)} * ${glslFloat(term.height)} * cos(seaPhase(waveDist, ${glslFloat(term.wavelength)}, ${glslFloat(term.speed)}, time))`)
     .join('\n       + ');
 }

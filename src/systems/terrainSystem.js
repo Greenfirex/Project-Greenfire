@@ -15,7 +15,7 @@ import { CELL_SIZE } from '../utils/gridMath.js';
 import { createTerrainField } from '../utils/terrainField.js';
 import { getMap } from '../data/catalogs/maps.js';
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
-import { groundCells, worldCells, floorCellAt } from '../data/maps/areaShape.js';
+import { groundCells, worldCells } from '../data/maps/areaShape.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import TerrainBlendPlugin from './terrainBlendPlugin.js';
 import TerrainCausticPlugin from './terrainCausticPlugin.js';
@@ -242,9 +242,13 @@ export default class TerrainSystem {
     const half = CELL_SIZE / 2;
     const groups = new Map();
     const keys = new Map();
+    const floorKeys = new Map();
+    for (const entry of (this.layout || {}).floor || []) {
+      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+      if (entry.key) floorKeys.set(`${entry.cx},${entry.cz}`, entry.key);
+    }
     for (const [cx, cz] of cells) {
-      const floor = floorCellAt(this.layout, cx, cz);
-      keys.set(`${cx},${cz}`, floor && floor.key ? floor.key : DEFAULT_FLOOR);
+      keys.set(`${cx},${cz}`, floorKeys.get(`${cx},${cz}`) || DEFAULT_FLOOR);
     }
     const keyAt = (cx, cz) => keys.get(`${cx},${cz}`) || null;
     const field = this.field;

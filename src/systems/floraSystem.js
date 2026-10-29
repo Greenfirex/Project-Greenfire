@@ -229,6 +229,20 @@ export default class FloraSystem {
     this.grassMeshes[0] = mesh;
   }
 
+  reseatHeights() {
+    const mesh = this.grassMeshes[0];
+    if (!this.deco || !mesh || !this.slots.length) return;
+    const total = Math.min(this.slots.length, BLADE_CAP);
+    const matrices = new Float32Array(total * 16);
+    for (let i = 0; i < total; i += 1) {
+      const slot = this.slots[i];
+      const ground = this.deco.groundHeightAt ? this.deco.groundHeightAt(slot.x, slot.z) : slot.y;
+      slot.y = ground + GRASS_LIFT;
+      this.bladeMatrix(slot).copyToArray(matrices, i * 16);
+    }
+    mesh.thinInstanceSetBuffer('matrix', matrices, 16, false);
+  }
+
   bladeMatrix(slot) {
     const size = slot.size || 1;
     const yaw = slot.yaw || 0;

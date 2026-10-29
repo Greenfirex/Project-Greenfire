@@ -24,6 +24,8 @@ export default class EditorMode {
     this.layout = null;
     this.draft = null;
     this.heightDraft = null;
+    this.contentIndex = null;
+    this.presentCache = null;
     this.areaTool = 'paint';
     this.areaSurface = DEFAULT_FLOOR;
     this.areaSelection = null;
@@ -38,6 +40,7 @@ export default class EditorMode {
     this.onHeightChange = null;
     this.onDraftChange = null;
     this.onHeightDraftChange = null;
+    this.onHeightsChange = null;
     this.onAreaSelectionChange = null;
     this.onStyleChange = null;
     this.onRestore = null;
@@ -181,7 +184,8 @@ export default class EditorMode {
     const brush = BRUSHES[brushKey];
     if (!brush || !brush.option) return false;
     const opts = this.brushOpts[brushKey];
-    return Boolean(opts && opts[brush.option.key]);
+    if (opts && brush.option.key in opts) return Boolean(opts[brush.option.key]);
+    return brush.option.default === true;
   }
 
   setBrushOption(optionKey, value) {
@@ -196,7 +200,6 @@ export default class EditorMode {
     if (!Number.isFinite(n)) return;
     this.heightLevel = n;
     if (this.onHeightChange) this.onHeightChange(n);
-    if (this.heightDraft && this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
   }
 
   stepHeightLevel(delta) {
@@ -248,7 +251,6 @@ export default class EditorMode {
     if (!world) return;
     this.restoreLayout(world);
   }
-
   topEntryAt(cx, cz) {
     const tile = this.layerTileAt(cx, cz);
     if (tile) return tile;
@@ -425,7 +427,7 @@ export default class EditorMode {
     const zoneEntries = zone.map(({ cx, cz }) => ({ cx, cz, height: level, zone: true }));
     if (!brush || !brush.falloff || !level) return { zone: zoneEntries, slope: [] };
     const sign = Math.sign(level);
-    const present = new Set(worldCells(this.layout).map(([cx, cz]) => cellKey(cx, cz)));
+    const present = this.presentCells();
     const affected = new Map();
     for (const entry of zoneEntries) affected.set(cellKey(entry.cx, entry.cz), entry);
     let frontier = new Map(zoneEntries.map((entry) => [cellKey(entry.cx, entry.cz), entry]));
@@ -475,9 +477,9 @@ export default class EditorMode {
   beachRemoveShape(brushKey, zone) {
     const brush = BRUSHES[brushKey];
     const surface = brush.surface;
-    const depths = Object.values(brush.heights || {}).map((level) => Math.abs(level));
-    const depth = depths.length ? Math.max(...depths) : 0;
-    const present = new Set(worldCells(this.layout).map(([cx, cz]) => cellKey(cx, cz)));
+    const chosen = Math.abs(this.brushHeight(brushKey));
+    const depth = Number.isFinite(chosen) ? chosen : 0;
+    const present = this.presentCells();
     const seen = new Set(zone.map((entry) => cellKey(entry.cx, entry.cz)));
     const slope = [];
     let frontier = zone.map((entry) => ({ cx: entry.cx, cz: entry.cz }));
@@ -509,7 +511,7 @@ export default class EditorMode {
       return { zone: shape.zone, slope: shape.slope, rim: [] };
     }
     const used = new Set([...shape.zone, ...shape.slope].map((entry) => cellKey(entry.cx, entry.cz)));
-    const present = new Set(worldCells(this.layout).map(([cx, cz]) => cellKey(cx, cz)));
+    const present = this.presentCells();
     const rim = [];
     for (const entry of shape.slope) {
       for (const [dx, dz] of AROUND) {
@@ -758,7 +760,7 @@ export default class EditorMode {
   draftCell(cx, cz) {
     if (!this.draft) return false;
     if (!this.canDraftCell(cx, cz)) return false;
-    this.draft.cells.add(cellKey(cx, cz));
+    this.stampDraft(cx, cz);
     if (this.onDraftChange) this.onDraftChange(this.draft);
     return true;
   }
@@ -767,15 +769,47 @@ export default class EditorMode {
     if (!this.draft) return true;
     for (const [cx, cz] of bresenham(from.cx, from.cz, to.cx, to.cz)) {
       if (!this.canDraftCell(cx, cz)) continue;
-      this.draft.cells.add(cellKey(cx, cz));
+      this.stampDraft(cx, cz);
     }
     if (this.onDraftChange) this.onDraftChange(this.draft);
     return true;
   }
 
+  brushRadius() {
+    const brush = BRUSHES[this.brushKey];
+    return brush && Number.isFinite(brush.radius) ? Math.max(0, Math.round(brush.radius)) : 0;
+  }
+
+  stampDraft(cx, cz) {
+    const radius = this.brushRadius();
+    if (!radius) {
+      this.draft.cells.add(cellKey(cx, cz));
+      return;
+    }
+    for (let dz = -radius; dz <= radius; dz += 1) {
+      for (let dx = -radius; dx <= radius; dx += 1) {
+        if (!this.canDraftCell(cx + dx, cz + dz)) continue;
+        this.draft.cells.add(cellKey(cx + dx, cz + dz));
+      }
+    }
+  }
+
+  unstampDraft(cx, cz) {
+    if (!this.draft) return false;
+    const radius = this.brushRadius();
+    if (!radius) return this.draft.cells.delete(cellKey(cx, cz));
+    let changed = false;
+    for (let dz = -radius; dz <= radius; dz += 1) {
+      for (let dx = -radius; dx <= radius; dx += 1) {
+        if (this.draft.cells.delete(cellKey(cx + dx, cz + dz))) changed = true;
+      }
+    }
+    return changed;
+  }
+
   undraftCell(cx, cz) {
     if (!this.draft) return false;
-    if (!this.draft.cells.delete(cellKey(cx, cz))) return false;
+    if (!this.unstampDraft(cx, cz)) return false;
     if (this.onDraftChange) this.onDraftChange(this.draft);
     return true;
   }
@@ -784,7 +818,7 @@ export default class EditorMode {
     if (!this.draft) return true;
     let changed = false;
     for (const [cx, cz] of bresenham(from.cx, from.cz, to.cx, to.cz)) {
-      if (this.draft.cells.delete(cellKey(cx, cz))) changed = true;
+      if (this.unstampDraft(cx, cz)) changed = true;
     }
     if (changed && this.onDraftChange) this.onDraftChange(this.draft);
     return true;
@@ -850,6 +884,7 @@ export default class EditorMode {
           if (this.layout.grass) {
             this.layout.grass = this.layout.grass.filter((entry) => !entry || (entry.cx !== cx || entry.cz !== cz));
           }
+          this.scatterDecorations(brushKey, brush, cx, cz, true);
           continue;
         }
         if (brush.deco) continue;
@@ -863,6 +898,7 @@ export default class EditorMode {
         if (!this.layout.grass) this.layout.grass = [];
         this.layout.grass = this.layout.grass.filter((entry) => entry && (entry.cx !== cx || entry.cz !== cz));
         this.layout.grass.push({ cx, cz });
+        this.scatterDecorations(brushKey, brush, cx, cz, false);
         continue;
       }
       const key = brush.deco ? (cell.key || this.tileKey) : cell.key;
@@ -970,8 +1006,8 @@ export default class EditorMode {
   }
 
   surfaceAt(cx, cz) {
-    const floor = floorCellAt(this.layout, cx, cz);
-    return floor ? floor.key : null;
+    const cell = this.contentAt(cx, cz);
+    return cell && cell.floor ? cell.floor.key : null;
   }
 
   applyFishBrush(brushKey, brush, zone, mode) {
@@ -1006,6 +1042,36 @@ export default class EditorMode {
     return changed;
   }
 
+  scatterDecorations(brushKey, brush, cx, cz, removing) {
+    const scatter = brush.scatter;
+    if (!scatter || !scatter.pool || !scatter.pool.length) return;
+    if (!this.layout.decorations) this.layout.decorations = [];
+    const pool = scatter.pool;
+    this.layout.decorations = this.layout.decorations.filter((entry) => (
+      !entry || entry.cx !== cx || entry.cz !== cz || !pool.includes(entry.key)
+    ));
+    if (removing) return;
+    if (!this.brushOptionValue(brushKey)) return;
+    const patch = noise2(cx / 3.4, cz / 3.4);
+    if (hash01(cx * 91.7, cz * 47.3) > scatter.chance * (0.25 + 1.3 * patch)) return;
+    const amount = scatter.min + Math.floor(hash01(cx * 13.1, cz * 71.9) * (scatter.max - scatter.min + 1 + patch));
+    const lift = layerLiftAt(this.layout, cx, cz) || 0;
+    for (let index = 0; index < amount; index += 1) {
+      const seed = cx * 37 + cz * 11 + index * 5;
+      const entry = {
+        key: pool[Math.floor(hash01(seed * 1.7, seed * 0.9) * pool.length)],
+        cx,
+        cz,
+        rotation: 0,
+        scale: round2(scatter.scaleMin + hash01(seed * 3.1, seed * 1.3) * (scatter.scaleMax - scatter.scaleMin)),
+        offsetX: round2((hash01(seed * 5.3, seed * 2.1) - 0.5) * scatter.spread * 2),
+        offsetZ: round2((hash01(seed * 7.9, seed * 3.3) - 0.5) * scatter.spread * 2),
+      };
+      if (lift) entry.liftY = lift;
+      this.layout.decorations.push(entry);
+    }
+  }
+
   zoneEntries(brushKey, brush, cellKeys, mode) {
     if (mode === 'remove') return cellKeys.map(parseCell);
     const pool = this.brushPool(brushKey);
@@ -1030,8 +1096,10 @@ export default class EditorMode {
 
   markHeightCell(cx, cz) {
     if (!this.layout) return;
-    if (!this.heightDraft) this.heightDraft = new Set();
-    this.heightDraft.add(cellKey(cx, cz));
+    if (!this.heightDraft) this.heightDraft = new Map();
+    const key = cellKey(cx, cz);
+    if (this.heightDraft.get(key) === this.heightLevel) return;
+    this.heightDraft.set(key, this.heightLevel);
     if (this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
   }
 
@@ -1056,17 +1124,37 @@ export default class EditorMode {
     return this.heightDraft ? this.heightDraft.size : 0;
   }
 
+  heightLevelAt(cx, cz) {
+    if (!this.heightDraft) return null;
+    const level = this.heightDraft.get(cellKey(cx, cz));
+    return Number.isFinite(level) ? level : null;
+  }
+
+  heightDraftGroups() {
+    if (!this.heightDraft || !this.heightDraft.size) return [];
+    const groups = new Map();
+    for (const [key, level] of this.heightDraft) {
+      const [cx, cz] = key.split(',').map(Number);
+      if (!groups.has(level)) groups.set(level, []);
+      groups.get(level).push([cx, cz]);
+    }
+    return [...groups.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .map(([level, cells]) => ({ level, cells }));
+  }
+
   applyHeightSelection() {
     if (!this.layout || !this.heightDraft || !this.heightDraft.size) return 0;
     this.pushHistory();
     let count = 0;
-    for (const key of this.heightDraft) {
+    for (const [key, level] of this.heightDraft) {
       const [cx, cz] = key.split(',').map(Number);
-      this.setCellHeight(cx, cz, this.heightLevel * HEIGHT_STEP);
+      const value = Number.isFinite(level) ? level : this.heightLevel;
+      this.setCellHeight(cx, cz, value * HEIGHT_STEP);
       count += 1;
     }
     this.cancelHeightDraft();
-    this.scheduleRegenerate();
+    this.repaintHeights();
     return count;
   }
 
@@ -1082,7 +1170,23 @@ export default class EditorMode {
   }
 
   repaint() {
+    this.contentIndex = null;
+    this.presentCache = null;
     if (this.onRegenerate) this.onRegenerate(this.layout);
+  }
+
+  repaintHeights() {
+    this.contentIndex = null;
+    this.presentCache = null;
+    if (this.onHeightsChange) this.onHeightsChange(this.layout);
+    else this.repaint();
+  }
+
+  presentCells() {
+    if (!this.presentCache) {
+      this.presentCache = new Set(worldCells(this.layout).map(([cx, cz]) => cellKey(cx, cz)));
+    }
+    return this.presentCache;
   }
 
   get draftKeys() {
@@ -1095,26 +1199,54 @@ export default class EditorMode {
   }
 
   draftTileAt(cx, cz) {
-    if (layerAt(this.layout, cx, cz) === 'path') return 'path';
-    const entries = layerEntriesAt(this.layout, cx, cz);
-    if (entries.length) return entries[0].key;
-    const floor = floorCellAt(this.layout, cx, cz);
-    return floor ? floor.key : null;
+    const cell = this.contentAt(cx, cz);
+    if (!cell) return null;
+    if (cell.path) return 'path';
+    const first = cell.floor || cell.clearing || cell.grass;
+    return first ? first.key : null;
   }
 
   draftDecoAt(cx, cz) {
-    const list = this.layout.decorations || [];
-    for (let i = list.length - 1; i >= 0; i -= 1) {
-      const entry = list[i];
-      if (entry.cx === cx && entry.cz === cz) return entry.key;
+    const cell = this.contentAt(cx, cz);
+    return cell && cell.deco ? cell.deco.key : null;
+  }
+
+  contentAt(cx, cz) {
+    const index = this.contentIndexFor();
+    return index.get(cellKey(cx, cz)) || null;
+  }
+
+  contentIndexFor() {
+    if (this.contentIndex) return this.contentIndex;
+    const index = new Map();
+    const cellFor = (cx, cz) => {
+      const key = cellKey(cx, cz);
+      let cell = index.get(key);
+      if (!cell) {
+        cell = { path: null, floor: null, clearing: null, grass: null, deco: null };
+        index.set(key, cell);
+      }
+      return cell;
+    };
+    for (const name of ['path', 'floor', 'clearing', 'grass']) {
+      for (const entry of this.layout[name] || []) {
+        if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+        cellFor(entry.cx, entry.cz)[name] = entry;
+      }
     }
-    return null;
+    for (const entry of this.layout.decorations || []) {
+      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+      cellFor(entry.cx, entry.cz).deco = entry;
+    }
+    this.contentIndex = index;
+    return index;
   }
 
   draftHasSame(cx, cz) {
     const brush = BRUSHES[this.brushKey];
     if (brush && brush.cliff) {
-      const floor = floorCellAt(this.layout, cx, cz);
+      const cell = this.contentAt(cx, cz);
+      const floor = cell ? cell.floor : null;
       if (!floor || floor.cliff !== true) return false;
       return (floor.cliffStyle || 'dirt') === this.styleFor(this.brushKey);
     }
@@ -1128,12 +1260,15 @@ export default class EditorMode {
   }
 
   draftHasContent(cx, cz) {
-    if (layerAt(this.layout, cx, cz)) return true;
-    return this.draftDecoAt(cx, cz) !== null;
+    const cell = this.contentAt(cx, cz);
+    if (!cell) return false;
+    return Boolean(cell.path || cell.floor || cell.clearing || cell.grass || cell.deco);
   }
 
   restoreLayout(next) {
     this.layout = toWorld(next);
+    this.contentIndex = null;
+    this.presentCache = null;
   }
 
   regenerate() {
@@ -1159,6 +1294,27 @@ export default class EditorMode {
 }
 
 const AROUND = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+
+function hash01(a, b) {
+  const value = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+function noise2(x, z) {
+  const ix = Math.floor(x);
+  const iz = Math.floor(z);
+  const fx = x - ix;
+  const fz = z - iz;
+  const sx = fx * fx * (3 - 2 * fx);
+  const sz = fz * fz * (3 - 2 * fz);
+  const top = hash01(ix, iz) + (hash01(ix + 1, iz) - hash01(ix, iz)) * sx;
+  const bottom = hash01(ix, iz + 1) + (hash01(ix + 1, iz + 1) - hash01(ix, iz + 1)) * sx;
+  return top + (bottom - top) * sz;
+}
+
+function round2(value) {
+  return Math.round(value * 100) / 100;
+}
 
 function toWorld(world) {
   const copy = (list) => (list || []).map((entry) => ({ ...entry }));

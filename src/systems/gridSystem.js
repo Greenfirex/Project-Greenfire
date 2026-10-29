@@ -4,6 +4,8 @@ import '@babylonjs/core/Meshes/Builders/groundBuilder';
 import '@babylonjs/core/Meshes/Builders/linesBuilder';
 import '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -11,6 +13,7 @@ import { CELL_SIZE } from '../utils/gridMath.js';
 import { loadModel, instantiateModel } from '../utils/assetLoader.js';
 
 const HOLOGRAM_ALPHA = 0.45;
+const ZONE_SLOTS = 12;
 
 
 export default class GridSystem {
@@ -29,6 +32,7 @@ export default class GridSystem {
     this.zonesMasters = [];
     this.zonesMaterials = [];
     this.zonesPool = [];
+    this.heightBands = [];
     this.draftLinesAdd = null;
     this.draftAddPool = [];
     this.draftLinesRemove = null;
@@ -250,7 +254,7 @@ export default class GridSystem {
 
   showZones(groups, surfaceAt) {
     if (!this.zonesMasters.length) {
-      for (let slot = 0; slot < 4; slot++) {
+      for (let slot = 0; slot < ZONE_SLOTS; slot++) {
         const master = MeshBuilder.CreateGround(`zonesMaster_${slot}`, {
           width: CELL_SIZE * 0.9,
           height: CELL_SIZE * 0.9,
@@ -279,6 +283,7 @@ export default class GridSystem {
       const master = this.zonesMasters[slot];
       const mat = this.zonesMaterials[slot];
       const pool = this.zonesPool[slot];
+      if (!master) break;
 
       mat.diffuseColor = group.color;
       mat.emissiveColor = group.glow;
@@ -289,7 +294,7 @@ export default class GridSystem {
       for (const [cx, cz] of cells) {
         const x = cx * CELL_SIZE;
         const z = cz * CELL_SIZE;
-        const y = surfaceAt(cx, cz) + group.lift;
+        const y = typeof group.yAt === 'function' ? group.yAt(cx, cz) : surfaceAt(cx, cz) + group.lift;
         if (!masterUsed) {
           master.position = new Vector3(x, y, z);
           master.setEnabled(true);
@@ -384,6 +389,56 @@ export default class GridSystem {
     for (const pool of this.zonesPool || []) {
       for (const inst of pool) inst.setEnabled(false);
     }
+  }
+
+  showHeightBands(bands) {
+    this.clearHeightBands();
+    const list = bands || [];
+    const half = CELL_SIZE * 0.47;
+    for (let index = 0; index < list.length; index += 1) {
+      const band = list[index];
+      const cells = band.cells || [];
+      if (!cells.length) continue;
+      const positions = [];
+      const indices = [];
+      for (const [cx, cz, y] of cells) {
+        const x = cx * CELL_SIZE;
+        const z = cz * CELL_SIZE;
+        const base = positions.length / 3;
+        positions.push(
+          x - half, y, z - half,
+          x + half, y, z - half,
+          x + half, y, z + half,
+          x - half, y, z + half,
+        );
+        indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      }
+      const mesh = new Mesh(`heightBand${index}`, this.s);
+      const data = new VertexData();
+      data.positions = positions;
+      data.indices = indices;
+      data.applyToMesh(mesh);
+      const material = new StandardMaterial(`heightBandMat${index}`, this.s);
+      material.disableLighting = true;
+      material.diffuseColor = Color3.Black();
+      material.emissiveColor = band.color;
+      material.alpha = band.alpha === undefined ? 0.34 : band.alpha;
+      material.backFaceCulling = false;
+      material.disableDepthWrite = true;
+      mesh.material = material;
+      mesh.isPickable = false;
+      mesh.alphaIndex = 0;
+      mesh.setEnabled(true);
+      this.heightBands.push(mesh);
+    }
+  }
+
+  clearHeightBands() {
+    for (const mesh of this.heightBands || []) {
+      if (mesh.material) mesh.material.dispose();
+      mesh.dispose();
+    }
+    this.heightBands = [];
   }
 
   setMark(cx, cz) {

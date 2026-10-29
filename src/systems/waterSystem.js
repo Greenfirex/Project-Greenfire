@@ -11,14 +11,18 @@ import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Constants } from '@babylonjs/core/Engines/constants';
 import { CELL_SIZE } from '../utils/gridMath.js';
-import { waveOffset, WAVE_REACH, WAVE_TIME_WRAP } from '../utils/waterWaves.js';
+import { waveHeight, WAVE_REACH, WAVE_TIME_WRAP } from '../utils/waterWaves.js';
 import { createWaterMaterial, createWaterSideMaterial, tickWater } from './waterShader.js';
 
 const WATER_SINK = 0.02;
 const WATER_STEPS = { high: 0.5, medium: 1, low: 2 };
 const DEPTH_STEP = 0.5;
 const DEPTH_MAX = 256;
-const DEPTH_RANGE = 3;
+const DEPTH_RANGE = 5;
+const SHORE_EDGE = 0.02;
+const ISLAND_MIN_TEXELS = 24;
+const SHORE_BLUR_PASSES = 3;
+const SHORE_DIST_MAX = 200;
 const REFLECTION_SCALES = { high: 0.6, medium: 0.45, low: 0.35 };
 const FALLBACK_RGB = [0.06, 0.16, 0.19];
 const FALLBACK_SKY = new Color3(0.5, 0.65, 0.8);
@@ -91,6 +95,9 @@ export default class WaterSystem {
     this.clipPlane = new Plane(0, -1, 0, 0);
     this.savedClipPlane = null;
     this.depthScale = new Vector2(1, 1);
+    this.waveDistData = null;
+    this.waveDistWidth = 0;
+    this.waveDistHeight = 0;
     this.level = null;
     this.heightAt = null;
     this.shoreCells = [];
@@ -148,6 +155,7 @@ export default class WaterSystem {
       this.depthMap.dispose();
       this.depthMap = null;
     }
+    this.waveDistData = null;
   }
 
   depthAt(x, z) {
@@ -159,13 +167,12 @@ export default class WaterSystem {
 
   surfaceHeightAt(x, z, ground = null) {
     if (!Number.isFinite(this.level)) return 0;
-    const dirX = this.seaDir ? this.seaDir.x : 1;
-    const dirZ = this.seaDir ? this.seaDir.y : 0;
+    const distance = this.waveDistAt(x, z);
     const height = Number.isFinite(ground) ? ground : (this.heightAt ? this.heightAt(x, z) : null);
     const deep = !Number.isFinite(height);
     const depth = deep ? MAX_DEPTH : Math.max(0, this.level - height);
     const amp = waveAmpFor(depth);
-    return this.surfaceY + waveOffset(x, z, dirX, dirZ, this.time % WAVE_TIME_WRAP) * amp;
+    return this.surfaceY + waveHeight(distance, this.time % WAVE_TIME_WRAP) * amp;
   }
 
   waveDepthAt(x, z) {
@@ -307,7 +314,148 @@ export default class WaterSystem {
     this.depthMap.wrapV = Texture.CLAMP_ADDRESSMODE;
     this.depthOrigin.set(x0, z0);
     this.depthScale.set(1 / spanX, 1 / spanZ);
+    this.shoreDistancesFor(smooth, width, height, spanX, spanZ);
     return this.depthMap;
+  }
+
+  shoreDistancesFor(depths, width, height, spanX, spanZ) {
+    const size = width * height;
+    const land = new Uint8Array(size);
+    for (let index = 0; index < size; index += 1) land[index] = depths[index] <= SHORE_EDGE ? 1 : 0;
+    this.dropTinyIslands(land, width, height);
+    const far = 1e6;
+    const distance = new Float32Array(size);
+    for (let index = 0; index < size; index += 1) distance[index] = land[index] ? 0 : far;
+    for (let j = 0; j < height; j += 1) {
+      for (let i = 0; i < width; i += 1) {
+        const index = j * width + i;
+        let best = distance[index];
+        if (i > 0) best = Math.min(best, distance[index - 1] + 3);
+        if (j > 0) best = Math.min(best, distance[index - width] + 3);
+        if (i > 0 && j > 0) best = Math.min(best, distance[index - width - 1] + 4);
+        if (i < width - 1 && j > 0) best = Math.min(best, distance[index - width + 1] + 4);
+        distance[index] = best;
+      }
+    }
+    for (let j = height - 1; j >= 0; j -= 1) {
+      for (let i = width - 1; i >= 0; i -= 1) {
+        const index = j * width + i;
+        let best = distance[index];
+        if (i < width - 1) best = Math.min(best, distance[index + 1] + 3);
+        if (j < height - 1) best = Math.min(best, distance[index + width] + 3);
+        if (i < width - 1 && j < height - 1) best = Math.min(best, distance[index + width + 1] + 4);
+        if (i > 0 && j < height - 1) best = Math.min(best, distance[index + width - 1] + 4);
+        distance[index] = best;
+      }
+    }
+    const metresPerUnit = ((spanX / (width - 1)) + (spanZ / (height - 1))) * 0.5 / 3;
+    for (let index = 0; index < size; index += 1) {
+      distance[index] = Math.min(distance[index] * metresPerUnit, SHORE_DIST_MAX);
+    }
+    this.blurField(distance, width, height);
+    this.waveDistData = distance;
+    this.waveDistWidth = width;
+    this.waveDistHeight = height;
+  }
+
+  dropTinyIslands(land, width, height) {
+    const size = width * height;
+    const seen = new Uint8Array(size);
+    const stack = [];
+    const blob = [];
+    for (let start = 0; start < size; start += 1) {
+      if (!land[start] || seen[start]) continue;
+      blob.length = 0;
+      stack.length = 0;
+      stack.push(start);
+      seen[start] = 1;
+      while (stack.length) {
+        const index = stack.pop();
+        blob.push(index);
+        const i = index % width;
+        const j = (index - i) / width;
+        if (i > 0 && land[index - 1] && !seen[index - 1]) {
+          seen[index - 1] = 1;
+          stack.push(index - 1);
+        }
+        if (i < width - 1 && land[index + 1] && !seen[index + 1]) {
+          seen[index + 1] = 1;
+          stack.push(index + 1);
+        }
+        if (j > 0 && land[index - width] && !seen[index - width]) {
+          seen[index - width] = 1;
+          stack.push(index - width);
+        }
+        if (j < height - 1 && land[index + width] && !seen[index + width]) {
+          seen[index + width] = 1;
+          stack.push(index + width);
+        }
+      }
+      if (blob.length >= ISLAND_MIN_TEXELS) continue;
+      for (const index of blob) land[index] = 0;
+    }
+  }
+
+  blurField(field, width, height) {
+    const temp = new Float32Array(field.length);
+    for (let pass = 0; pass < SHORE_BLUR_PASSES; pass += 1) {
+      for (let j = 0; j < height; j += 1) {
+        const j0 = Math.max(0, j - 1);
+        const j1 = Math.min(height - 1, j + 1);
+        for (let i = 0; i < width; i += 1) {
+          const i0 = Math.max(0, i - 1);
+          const i1 = Math.min(width - 1, i + 1);
+          let sum = 0;
+          for (let jj = j0; jj <= j1; jj += 1) {
+            for (let ii = i0; ii <= i1; ii += 1) sum += field[jj * width + ii];
+          }
+          temp[j * width + i] = sum / ((j1 - j0 + 1) * (i1 - i0 + 1));
+        }
+      }
+      field.set(temp);
+    }
+  }
+
+  waveDirAt(x, z, out) {
+    const result = out || { x: 1, z: 0 };
+    result.x = this.seaDir ? this.seaDir.x : SEA_FALLBACK[0];
+    result.z = this.seaDir ? this.seaDir.y : SEA_FALLBACK[1];
+    if (!this.waveDistData) return result;
+    const u = (x - this.depthOrigin.x) * this.depthScale.x;
+    const v = (z - this.depthOrigin.y) * this.depthScale.y;
+    const i = Math.min(this.waveDistWidth - 1, Math.max(0, Math.round(u * (this.waveDistWidth - 1))));
+    const j = Math.min(this.waveDistHeight - 1, Math.max(0, Math.round(v * (this.waveDistHeight - 1))));
+    const i0 = Math.max(0, i - 1);
+    const i1 = Math.min(this.waveDistWidth - 1, i + 1);
+    const j0 = Math.max(0, j - 1);
+    const j1 = Math.min(this.waveDistHeight - 1, j + 1);
+    const data = this.waveDistData;
+    const gx = data[j * this.waveDistWidth + i1] - data[j * this.waveDistWidth + i0];
+    const gz = data[j1 * this.waveDistWidth + i] - data[j0 * this.waveDistWidth + i];
+    const length = Math.hypot(gx, gz);
+    if (length > 1e-4) {
+      result.x = gx / length;
+      result.z = gz / length;
+    }
+    return result;
+  }
+
+  waveDistAt(x, z) {
+    if (!this.waveDistData) return 0;
+    const u = (x - this.depthOrigin.x) * this.depthScale.x;
+    const v = (z - this.depthOrigin.y) * this.depthScale.y;
+    const fx = Math.min(this.waveDistWidth - 1, Math.max(0, u * (this.waveDistWidth - 1)));
+    const fz = Math.min(this.waveDistHeight - 1, Math.max(0, v * (this.waveDistHeight - 1)));
+    const i0 = Math.floor(fx);
+    const j0 = Math.floor(fz);
+    const i1 = Math.min(this.waveDistWidth - 1, i0 + 1);
+    const j1 = Math.min(this.waveDistHeight - 1, j0 + 1);
+    const tx = fx - i0;
+    const tz = fz - j0;
+    const data = this.waveDistData;
+    const top = data[j0 * this.waveDistWidth + i0] * (1 - tx) + data[j0 * this.waveDistWidth + i1] * tx;
+    const bottom = data[j1 * this.waveDistWidth + i0] * (1 - tx) + data[j1 * this.waveDistWidth + i1] * tx;
+    return top * (1 - tz) + bottom * tz;
   }
 
   reflectionFor(quality, surfaceY) {
@@ -506,8 +654,12 @@ export default class WaterSystem {
     };
     const surfaceY = level - WATER_SINK;
     this.surfaceY = surfaceY;
+    this.depthMapFor(level, heightAt, x0, x1, z0, z1);
     const positions = [];
     const depths = [];
+    const waveDirs = [];
+    const waveDists = [];
+    const vertexDir = { x: 1, z: 0 };
     for (let j = 0; j <= rows; j += 1) {
       const z = z0 + j * dz;
       for (let i = 0; i <= cols; i += 1) {
@@ -516,6 +668,9 @@ export default class WaterSystem {
         const depth = Math.max(0, drop);
         positions.push(x, surfaceY, z);
         depths.push(depth);
+        this.waveDirAt(x, z, vertexDir);
+        waveDirs.push(vertexDir.x, vertexDir.z);
+        waveDists.push(this.waveDistAt(x, z));
       }
     }
     const included = new Set();
@@ -541,16 +696,16 @@ export default class WaterSystem {
     data.indices = indices;
     data.applyToMesh(mesh);
     mesh.setVerticesData('waveAmp', new Float32Array(depths.map(waveAmpFor)), false, 1);
+    mesh.setVerticesData('waveDir', new Float32Array(waveDirs), false, 2);
+    mesh.setVerticesData('waveDist', new Float32Array(waveDists), false, 1);
     mesh.isPickable = false;
     mesh.alphaIndex = 2;
     const material = this.materialFor();
     material.setFloat('waterLevel', level);
-    this.depthMapFor(level, heightAt, x0, x1, z0, z1);
     material.setTexture('depthMap', this.depthMap);
     material.setVector2('depthOrigin', this.depthOrigin);
     material.setVector2('depthScale', this.depthScale);
     material.setFloat('depthRange', DEPTH_RANGE);
-    material.setVector2('seaDir', this.seaDir);
     this.reflectionFor(quality, surfaceY);
     mesh.material = material;
     this.mesh = mesh;
@@ -560,9 +715,15 @@ export default class WaterSystem {
     const sideUvs = [];
     const sideIndices = [];
     const sideAmps = [];
+    const sideDists = [];
     const vertex = (i, j) => {
       const index = j * (cols + 1) + i;
-      return { x: positions[index * 3], z: positions[index * 3 + 2], depth: depths[index] };
+      return {
+        x: positions[index * 3],
+        z: positions[index * 3 + 2],
+        depth: depths[index],
+        dist: waveDists[index],
+      };
     };
     const addSide = (i1, j1, i2, j2) => {
       const a = vertex(i1, j1);
@@ -579,6 +740,7 @@ export default class WaterSystem {
       );
       sideUvs.push(a.depth, 0, a.depth, 1, b.depth, 0, b.depth, 1);
       sideAmps.push(waveAmpFor(a.depth), 0, waveAmpFor(b.depth), 0);
+      sideDists.push(a.dist, a.dist, b.dist, b.dist);
       sideIndices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
     };
     for (const key of included) {
@@ -596,6 +758,7 @@ export default class WaterSystem {
       sideData.uvs = sideUvs;
       sideData.applyToMesh(sides);
       sides.setVerticesData('waveAmp', new Float32Array(sideAmps), false, 1);
+      sides.setVerticesData('waveDist', new Float32Array(sideDists), false, 1);
       sides.isPickable = false;
       sides.alphaIndex = 1;
       const base = this.waterRgb || FALLBACK_RGB;
@@ -604,7 +767,6 @@ export default class WaterSystem {
         deepColor: this.sideColor(base, 0.45, 0),
         foamColor: new Color3(0.62, 0.72, 0.73),
       });
-      sides.material.setVector2('seaDir', this.seaDir);
       sides.material.disableDepthWrite = true;
       this.sideMesh = sides;
       this.sideMaterial = sides.material;

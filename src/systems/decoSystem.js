@@ -12,6 +12,7 @@ import { treeTemplate, treeStumpTemplate, treeLogTemplate, treeFrondTemplate } f
 import { rockTemplate } from '../utils/rockFactory.js';
 import { shellTemplate } from '../utils/shellFactory.js';
 import { coralTemplate } from '../utils/coralFactory.js';
+import { flowerTemplate } from '../utils/flowerFactory.js';
 import { tintTemplate, forgetTints } from '../utils/decoTint.js';
 import PathSystem from './pathSystem.js';
 
@@ -47,8 +48,13 @@ function rockJitter(entry) {
 
 function jitterFor(def, entry) {
   if (def.kind === 'tree') return treeJitter(entry);
-  if (def.rock || def.shell || def.coral) return rockJitter(entry);
+  if (def.rock || def.shell || def.coral || def.flower) return rockJitter(entry);
   return null;
+}
+
+function hasModelDef(def) {
+  if (!def) return false;
+  return Boolean(def.model || def.tree || def.rock || def.shell || def.coral || def.flower);
 }
 
 function cellGap(shape, x, z) {
@@ -80,6 +86,7 @@ export default class DecoSystem {
     this.groundHeightAt = null;
     this.nodes = [];
     this.anchors = [];
+    this.flowerAnchors = [];
     this.pathNodes = [];
     this.pendingPieces = [];
     this.brokenCount = 0;
@@ -124,8 +131,7 @@ export default class DecoSystem {
   }
 
   hasModel(key) {
-    const def = getDecoration(key);
-    return !!def && !!(def.model || def.tree || def.rock || def.shell || def.coral);
+    return hasModelDef(getDecoration(key));
   }
 
   blockCount(entry) {
@@ -152,6 +158,35 @@ export default class DecoSystem {
   finishStages() {
     this.buildPath();
     this.refreshBlocked(this.layout || {});
+  }
+
+  beginHeights(layout, colors) {
+    this.blocked.clear();
+    this.columnTop.clear();
+    this.surfaceKeys.clear();
+    this.floorLifts.clear();
+    this.colors = colors || this.colors;
+    this.layout = layout;
+    for (const entry of layout.floor || []) this.applyEntry(entry);
+    this.buildPath();
+    for (const entry of layout.clearing || []) this.applyEntry(entry);
+    for (const entry of layout.decorations || []) this.applyEntry(entry);
+    this.refreshBlocked(layout);
+  }
+
+  reseatHeights() {
+    if (!this.groundHeightAt) return;
+    for (const anchor of this.anchors) {
+      if (!anchor || anchor.isDisposed()) continue;
+      const meta = anchor.metadata;
+      if (!meta || !meta.entry) continue;
+      const jitter = jitterFor(meta.def, meta.entry);
+      const shiftX = jitter ? jitter.x : 0;
+      const shiftZ = jitter ? jitter.z : 0;
+      const y = this.entryHeight(meta.entry, shiftX, shiftZ);
+      anchor.position.y = y;
+      if (liesFlat(meta.def)) this.leanFlat(anchor, meta.def, anchor.position.x, y, anchor.position.z);
+    }
   }
 
   buildPath() {
@@ -241,9 +276,9 @@ export default class DecoSystem {
     if (!def) return null;
 
     this.applyEntry(entry, section);
+    if (!hasModelDef(def)) return null;
     const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
     const anchor = this.createAnchor(entry, def, x, z, bucket);
-    if (!def.model && !def.tree && !def.rock && !def.shell && !def.coral) return anchor;
     const work = this.attachModel(anchor, def, entry, section);
     this.pendingPieces.push(work);
     return work;
@@ -321,7 +356,8 @@ export default class DecoSystem {
     anchor.position = new Vector3(spotX, spotY, spotZ);
     anchor.metadata = { key: entry.key, def, bucket, entry, yaw };
     if (liesFlat(def)) this.leanFlat(anchor, def, spotX, spotY, spotZ);
-    else anchor.rotation.y = yaw;
+    else if (!def.flower) anchor.rotation.y = yaw;
+    if (def.flower) this.flowerAnchors.push(anchor);
     bucket.push(anchor);
     this.anchors.push(anchor);
     return anchor;
@@ -356,6 +392,7 @@ export default class DecoSystem {
   dispose() {
     for (const anchor of this.anchors.slice()) this.disposeAnchor(anchor);
     this.anchors.length = 0;
+    this.flowerAnchors.length = 0;
     this.nodes.length = 0;
     this.pathNodes.length = 0;
     this.pendingPieces.length = 0;
@@ -368,6 +405,8 @@ export default class DecoSystem {
     if (index >= 0) bucket.splice(index, 1);
     const own = this.anchors.indexOf(node);
     if (own >= 0) this.anchors.splice(own, 1);
+    const flower = this.flowerAnchors.indexOf(node);
+    if (flower >= 0) this.flowerAnchors.splice(flower, 1);
     node.dispose(false, false);
   }
 
@@ -386,6 +425,7 @@ export default class DecoSystem {
     else if (def.rock) template = rockTemplate(this.s, def.rock);
     else if (def.shell) template = shellTemplate(this.s, def.shell);
     else if (def.coral) template = coralTemplate(this.s, def.coral);
+    else if (def.flower) template = flowerTemplate(this.s, def.flower);
     else template = await resolveModel(this.s, def.model);
     if (anchor.isDisposed()) return;
     if (!template) return this.markBroken(anchor, def);
@@ -398,11 +438,29 @@ export default class DecoSystem {
     const entryScale = Number.isFinite(entry.scale) ? entry.scale : 1;
     const scale = def.scale * entryScale * (jitter ? jitter.scale : 1);
     node.scaling = new Vector3(scale, scale, scale);
-    if (liesFlat(def) && anchor.metadata) node.rotation.y = anchor.metadata.yaw || 0;
+    if ((liesFlat(def) || def.flower) && anchor.metadata) node.rotation.y = anchor.metadata.yaw || 0;
     if (!def.noTint) ownMaterials(node);
     tintTemplate(node, def, this.colors, section);
     anchor.metadata.model = node;
     if (this.onDecoReady) this.onDecoReady(anchor, node, def, entry);
+  }
+
+  updateWind(time) {
+    if (!this.flowerAnchors.length) return;
+    const seconds = Number.isFinite(time) ? time : 0;
+    for (let index = 0; index < this.flowerAnchors.length; index += 1) {
+      const anchor = this.flowerAnchors[index];
+      if (!anchor || anchor.isDisposed()) continue;
+      const phase = anchor.position.x * 0.55 + anchor.position.z * 0.42;
+      const gust = Math.sin(seconds * 0.8 + phase * 0.35);
+      const pushX = Math.sin(seconds * 1.6 + phase) * 0.55
+        + Math.sin(seconds * 3.4 + phase * 2.1) * 0.2;
+      const pushZ = Math.cos(seconds * 1.25 + phase * 1.4) * 0.45
+        + Math.cos(seconds * 2.9 + phase * 0.7) * 0.15;
+      const amount = 0.28 * (0.7 + 0.3 * gust);
+      anchor.rotation.x = pushZ * amount;
+      anchor.rotation.z = -pushX * amount;
+    }
   }
 
   readyEntries() {

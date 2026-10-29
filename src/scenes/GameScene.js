@@ -44,6 +44,7 @@ import { treeTemplate } from '../utils/treeFactory.js';
 import { rockTemplate } from '../utils/rockFactory.js';
 import { shellTemplate } from '../utils/shellFactory.js';
 import { coralTemplate } from '../utils/coralFactory.js';
+import { flowerTemplate } from '../utils/flowerFactory.js';
 import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
@@ -66,6 +67,7 @@ const AUTOTUNE_HIGH_FPS = 57;
 const AUTOTUNE_MIN_SCALE = 0.7;
 const AUTOTUNE_STEP = 0.1;
 const WORLD_BATCH = 4;
+const WORLD_BATCH_BULK = 1500;
 const STAGE_LEAD_FRAMES = 2;
 const MODEL_LANES = 4;
 const LOAD_RETRIES = 2;
@@ -77,6 +79,8 @@ const WADE_RAMP = 0.2;
 const WATER_STEP_DEPTH = 0.02;
 const SHORE_CHECK_SECONDS = 0.3;
 const MAX_STEP_SECONDS = 0.1;
+const EDITOR_CAM_SPEED = 12;
+const EDITOR_CAM_SPRINT = 32;
 const IMPACT_DELAY = 0.28;
 const TIME_SKIP = { hours: 6 };
 
@@ -106,6 +110,8 @@ export default class GameScene {
     this.mapKey = DEFAULT_MAP;
     this.rebuildRunning = false;
     this.rebuildPending = false;
+    this.heightRunning = false;
+    this.heightPending = false;
 
     this.cameraSystem = new CameraSystem(scene);
     this.gridSystem = new GridSystem(scene);
@@ -234,11 +240,13 @@ export default class GameScene {
     this.s.onBeforeRenderObservable.add(() => {
       const dt = Math.min(this.engine.getDeltaTime() / 1000, MAX_STEP_SECONDS);
       if (this.paused) {
+        if (this.editor.active) this.updateEditorCamera(dt);
         this.refreshClock();
         return;
       }
       this.simSystem.update(dt);
       this.decoHighlight.update(dt);
+      this.decoSystem.updateWind(this.floraSystem.clock);
       if (this.isLoading) {
         this.audioSystem.update(dt);
         this.refreshClock();
@@ -608,6 +616,34 @@ updateGatherTarget() {
     this.renderWater();
   }
 
+  updateEditorCamera(dt) {
+    const camera = this.s.activeCamera;
+    const input = this.playerSystem ? this.playerSystem.moveInput : null;
+    if (!camera || !input) return;
+    const forward = this.playerSystem.cameraForward(camera);
+    const rightX = forward.z;
+    const rightZ = -forward.x;
+    let dirX = 0;
+    let dirZ = 0;
+    if (input.forward) { dirX += forward.x; dirZ += forward.z; }
+    if (input.back) { dirX -= forward.x; dirZ -= forward.z; }
+    if (input.right) { dirX += rightX; dirZ += rightZ; }
+    if (input.left) { dirX -= rightX; dirZ -= rightZ; }
+    if (!dirX && !dirZ) return;
+    const length = Math.hypot(dirX, dirZ) || 1;
+    const step = (input.sprint ? EDITOR_CAM_SPRINT : EDITOR_CAM_SPEED) * dt;
+    const target = this.cameraSystem.viewCenter();
+    let x = target.x + (dirX / length) * step;
+    let z = target.z + (dirZ / length) * step;
+    const bounds = this.decoSystem.boundsOfCells ? this.decoSystem.boundsOfCells() : null;
+    if (bounds) {
+      const margin = CELL_SIZE + 2;
+      x = Math.min(bounds.maxX * CELL_SIZE + margin, Math.max(bounds.minX * CELL_SIZE - margin, x));
+      z = Math.min(bounds.maxZ * CELL_SIZE + margin, Math.max(bounds.minZ * CELL_SIZE - margin, z));
+    }
+    this.cameraSystem.snapTo(x, z, this.terrainSystem.heightAt(x, z));
+  }
+
   refreshWaterVisibility() {
     this.waterSystem.setVisible(!this.editor || this.editor.mode.waterShown !== false);
     this.fishSystem.show();
@@ -711,6 +747,11 @@ updateGatherTarget() {
         known.set(entry.key, null);
         continue;
       }
+      if (def && def.flower) {
+        flowerTemplate(this.s, def.flower);
+        known.set(entry.key, null);
+        continue;
+      }
       known.set(entry.key, null);
       missing.push(entry.key);
     }
@@ -752,15 +793,23 @@ updateGatherTarget() {
     return 'deco';
   }
 
+  stageHasModels(entries) {
+    for (const entry of entries) {
+      if (this.decoSystem.hasModel(entry.key)) return true;
+    }
+    return false;
+  }
+
   async placeStage(stage, entries) {
     const section = this.sectionFor(stage.kind);
+    const batch = this.stageHasModels(entries) ? WORLD_BATCH : WORLD_BATCH_BULK;
     let cleared = 0;
     let blocks = 0;
     for (const entry of entries) {
       blocks += this.decoSystem.blockCount(entry);
       this.decoSystem.placePiece(entry, section);
       cleared += 1;
-      if (cleared >= WORLD_BATCH) {
+      if (cleared >= batch) {
         await this.flushPlaced(blocks);
         cleared = 0;
         blocks = 0;
@@ -841,6 +890,46 @@ updateGatherTarget() {
       this.rebuildRunning = false;
       if (this.rebuildPending) this.runMapRebuild();
     }
+  }
+
+  renderHeights() {
+    this.heightPending = true;
+    if (this.heightRunning) return;
+    this.runHeightRebuild();
+  }
+
+  async runHeightRebuild() {
+    if (this.heightRunning) return;
+    this.heightRunning = true;
+    try {
+      while (this.heightPending) {
+        this.heightPending = false;
+        this.adoptEditorMap();
+        this.markMapDirty();
+        this.refreshTerrain();
+        await this.terrainSystem.whenReady();
+        this.reseatDecorations();
+      }
+    } catch (error) {
+      console.error('[mapa] Přesazení výšek selhalo:', error);
+      this.reportRebuildError(error);
+    } finally {
+      this.heightRunning = false;
+      if (this.heightPending) this.runHeightRebuild();
+    }
+  }
+
+  reseatDecorations() {
+    const layout = this.mapFile || {};
+    this.decoSystem.beginHeights(layout, getMap(this.mapKey).colors);
+    this.decoSystem.reseatHeights();
+    this.floraSystem.reseatHeights();
+    this.campfireSystem.reseatHeights((entry) => this.decoSystem.entryHeight(entry));
+    this.gatherSystem.syncFromDeco();
+    this.syncFelling();
+    this.refreshShadowCasters();
+    this.handleHover(this.hoverCell);
+    this.reportRebuild();
   }
 
   async rebuildDecorations() {
@@ -1247,6 +1336,8 @@ updateGatherTarget() {
   releaseGameFromEditor() {
     if (!this.paused) return;
     this.setPaused(false);
+    const root = this.playerSystem.root;
+    if (root) this.cameraSystem.snapTo(root.position.x, root.position.z, root.position.y);
   }
 
   handleKey(evt) {

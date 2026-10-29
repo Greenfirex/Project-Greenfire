@@ -2,10 +2,11 @@
 // Označená buňka útesu drží rovnou výšku a přes její hranu se nedopočítává.
 // Za okrajem mapy a u děr bere výšku nejbližší buňky, aby se zem na okraji nezvedala.
 import { CELL_SIZE, cellKey } from './gridMath.js';
-import { worldCells, layerLiftAt } from '../data/maps/areaShape.js';
+import { worldCells } from '../data/maps/areaShape.js';
 
 const MARGIN = 2;
 const AROUND = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const LAYER_ORDER = ['floor', 'clearing', 'grass', 'path'];
 
 function catmull(p0, p1, p2, p3, t) {
   return 0.5 * (
@@ -16,12 +17,27 @@ function catmull(p0, p1, p2, p3, t) {
   );
 }
 
+function layerLifts(world) {
+  const lifts = new Map();
+  const layers = world || {};
+  for (const name of LAYER_ORDER) {
+    for (const entry of layers[name] || []) {
+      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+      const key = cellKey(entry.cx, entry.cz);
+      if (lifts.has(key)) continue;
+      lifts.set(key, entry.liftY || 0);
+    }
+  }
+  return lifts;
+}
+
 export function createTerrainField(world) {
   const heights = new Map();
   const sharp = new Set();
   const sharpStyles = new Map();
+  const lifts = layerLifts(world);
   for (const [cx, cz] of worldCells(world || {})) {
-    const lift = layerLiftAt(world, cx, cz);
+    const lift = lifts.get(cellKey(cx, cz));
     if (Number.isFinite(lift)) heights.set(cellKey(cx, cz), lift);
   }
   for (const entry of (world || {}).floor || []) {
