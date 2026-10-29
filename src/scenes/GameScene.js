@@ -40,6 +40,7 @@ import PauseScreen from '../ui/pauseScreen.js';
 import LoadingScreen from '../ui/loadingScreen.js';
 import { whenModelsIdle, takeModelError, preloadModel, releaseFrame } from '../utils/assetLoader.js';
 import { treeTemplate } from '../utils/treeFactory.js';
+import { rockTemplate } from '../utils/rockFactory.js';
 import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
@@ -671,6 +672,11 @@ updateGatherTarget() {
       const def = getDecoration(entry.key);
       if (def && def.tree) {
         treeTemplate(this.s, def.tree);
+        known.set(entry.key, null);
+        continue;
+      }
+      if (def && def.rock) {
+        rockTemplate(this.s, def.rock);
         known.set(entry.key, null);
         continue;
       }

@@ -9,6 +9,7 @@ import { getDecoration, decoHeight } from '../data/catalogs/decorations.js';
 import { deriveBlocked } from '../data/maps/layoutStore.js';
 import { resolveModel, instantiateModel, ownMaterials, whenModelsIdle } from '../utils/assetLoader.js';
 import { treeTemplate, treeStumpTemplate, treeLogTemplate, treeFrondTemplate } from '../utils/treeFactory.js';
+import { rockTemplate } from '../utils/rockFactory.js';
 import { tintTemplate, forgetTints } from '../utils/decoTint.js';
 import PathSystem from './pathSystem.js';
 
@@ -26,6 +27,21 @@ function treeJitter(entry) {
     z: (cellNoise(entry.cx, entry.cz, 11) - 0.5) * 0.4,
     scale: 0.9 + cellNoise(entry.cx, entry.cz, 17) * 0.2,
   };
+}
+
+function rockJitter(entry) {
+  return {
+    yaw: cellNoise(entry.cx, entry.cz, 29) * Math.PI * 2,
+    x: 0,
+    z: 0,
+    scale: 0.85 + cellNoise(entry.cx, entry.cz, 31) * 0.3,
+  };
+}
+
+function jitterFor(def, entry) {
+  if (def.kind === 'tree') return treeJitter(entry);
+  if (def.rock) return rockJitter(entry);
+  return null;
 }
 
 function cellGap(shape, x, z) {
@@ -47,6 +63,7 @@ export default class DecoSystem {
   constructor(scene) {
     this.s = scene;
     this.blocked = new Map();
+    this.treeCells = new Set();
     this.columnTop = new Map();
     this.surfaceKeys = new Map();
     this.floorLifts = new Map();
@@ -101,7 +118,7 @@ export default class DecoSystem {
 
   hasModel(key) {
     const def = getDecoration(key);
-    return !!def && !!(def.model || def.tree);
+    return !!def && !!(def.model || def.tree || def.rock);
   }
 
   blockCount(entry) {
@@ -147,12 +164,18 @@ export default class DecoSystem {
 
   refreshBlocked(layout) {
     this.blocked.clear();
+    this.treeCells.clear();
     const entries = [].concat(
       layout.floor || [],
       layout.path || [],
       layout.clearing || [],
       layout.decorations || [],
     );
+    for (const entry of layout.decorations || []) {
+      if (!entry) continue;
+      const def = getDecoration(entry.key);
+      if (def && def.kind === 'tree') this.treeCells.add(cellKey(entry.cx, entry.cz));
+    }
     for (const shape of deriveBlocked(entries)) this.addBlockedShape(shape);
     for (const cell of layout.blocked || []) this.addBlockedShape(cell);
   }
@@ -213,7 +236,7 @@ export default class DecoSystem {
     this.applyEntry(entry, section);
     const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
     const anchor = this.createAnchor(entry, def, x, z, bucket);
-    if (!def.model && !def.tree) return anchor;
+    if (!def.model && !def.tree && !def.rock) return anchor;
     const work = this.attachModel(anchor, def, entry, section);
     this.pendingPieces.push(work);
     return work;
@@ -280,7 +303,7 @@ export default class DecoSystem {
   }
 
   createAnchor(entry, def, x, z, bucket = this.nodes) {
-    const jitter = def.kind === 'tree' ? treeJitter(entry) : null;
+    const jitter = jitterFor(def, entry);
     const shiftX = jitter ? jitter.x : 0;
     const shiftZ = jitter ? jitter.z : 0;
     const anchor = new TransformNode(`deco_${entry.key}_${entry.cx}_${entry.cz}`, this.s);
@@ -338,9 +361,10 @@ export default class DecoSystem {
   }
 
   async attachModelNow(anchor, def, entry, section) {
-    const template = def.tree
-      ? treeTemplate(this.s, def.tree)
-      : await resolveModel(this.s, def.model);
+    let template = null;
+    if (def.tree) template = treeTemplate(this.s, def.tree);
+    else if (def.rock) template = rockTemplate(this.s, def.rock);
+    else template = await resolveModel(this.s, def.model);
     if (anchor.isDisposed()) return;
     if (!template) return this.markBroken(anchor, def);
 
@@ -348,7 +372,7 @@ export default class DecoSystem {
     if (!node) return this.markBroken(anchor, def);
     node.parent = anchor;
     node.position = new Vector3(0, 0, 0);
-    const jitter = def.kind === 'tree' ? treeJitter(entry) : null;
+    const jitter = jitterFor(def, entry);
     const scale = def.scale * (jitter ? jitter.scale : 1);
     node.scaling = new Vector3(scale, scale, scale);
     if (!def.noTint) ownMaterials(node);
@@ -466,9 +490,14 @@ export default class DecoSystem {
     return this.blocked.has(cellKey(cx, cz));
   }
 
+  isTreeCell(cx, cz) {
+    return this.treeCells.has(cellKey(cx, cz));
+  }
+
   releaseCell(cx, cz) {
     const key = cellKey(cx, cz);
     this.blocked.delete(key);
+    this.treeCells.delete(key);
     this.columnTop.delete(key);
     this.floorLifts.delete(key);
   }

@@ -788,7 +788,7 @@ export default class EditorMode {
     const brush = BRUSHES[brushKey] || {};
     if (brush.cliff) {
       const zone = [...cells].map(parseCell);
-      const count = this.applyCliffMarks(zone, mode);
+      const count = this.applyCliffMarks(zone, mode, this.styleFor(brushKey));
       if (!count) this.history.pop();
       this.draft.cells.clear();
       if (this.onDraftChange) this.onDraftChange(this.draft);
@@ -913,15 +913,22 @@ export default class EditorMode {
     return count;
   }
 
-  applyCliffMarks(zone, mode) {
+  applyCliffMarks(zone, mode, style = 'stone') {
     const on = mode !== 'remove';
     let count = 0;
     for (const entry of zone) {
       const floor = floorCellAt(this.layout, entry.cx, entry.cz);
       if (!floor) continue;
-      if (Boolean(floor.cliff) === on) continue;
-      if (on) floor.cliff = true;
-      else delete floor.cliff;
+      if (!on) {
+        if (floor.cliff !== true) continue;
+        delete floor.cliff;
+        delete floor.cliffStyle;
+        count += 1;
+        continue;
+      }
+      if (floor.cliff === true && (floor.cliffStyle || 'dirt') === style) continue;
+      floor.cliff = true;
+      floor.cliffStyle = style;
       count += 1;
     }
     return count;
@@ -1046,7 +1053,8 @@ export default class EditorMode {
     const brush = BRUSHES[this.brushKey];
     if (brush && brush.cliff) {
       const floor = floorCellAt(this.layout, cx, cz);
-      return Boolean(floor && floor.cliff === true);
+      if (!floor || floor.cliff !== true) return false;
+      return (floor.cliffStyle || 'dirt') === this.styleFor(this.brushKey);
     }
     if (brush && brush.surface) return this.surfaceAt(cx, cz) === brush.surface;
     const keys = this.draftKeys;

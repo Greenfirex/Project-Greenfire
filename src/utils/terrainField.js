@@ -19,12 +19,16 @@ function catmull(p0, p1, p2, p3, t) {
 export function createTerrainField(world) {
   const heights = new Map();
   const sharp = new Set();
+  const sharpStyles = new Map();
   for (const [cx, cz] of worldCells(world || {})) {
     const lift = layerLiftAt(world, cx, cz);
     if (Number.isFinite(lift)) heights.set(cellKey(cx, cz), lift);
   }
   for (const entry of (world || {}).floor || []) {
-    if (entry && entry.cliff === true) sharp.add(cellKey(entry.cx, entry.cz));
+    if (!entry || entry.cliff !== true) continue;
+    const key = cellKey(entry.cx, entry.cz);
+    sharp.add(key);
+    sharpStyles.set(key, entry.cliffStyle === 'stone' ? 'stone' : 'dirt');
   }
 
   const nearest = new Map();
@@ -129,5 +133,11 @@ export function createTerrainField(world) {
     return value === null ? 0 : value;
   }
 
-  return { heightAt, heightAtCell, heightAtSide, isSharp };
+  return {
+    heightAt,
+    heightAtCell,
+    heightAtSide,
+    isSharp,
+    cliffStyleAt: (cx, cz) => sharpStyles.get(cellKey(cx, cz)) || null,
+  };
 }

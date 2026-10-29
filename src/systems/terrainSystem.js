@@ -27,6 +27,9 @@ const SURFACE_SUB = 4;
 const SKIRT_DEPTH = 2;
 const WALL_TILE = 3;
 const WALL_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
+const CLIFF_TEXTURE = `${ASSET_DIRS.textures}Rock030_1K-JPG_Color.jpg`;
+const CLIFF_NORMAL = `${ASSET_DIRS.textures}Rock030_1K-JPG_NormalGL.jpg`;
+const CLAY_CLIFF_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
 const SURFACE_BLEND_RADIUS = 1.8;
 const SURFACE_BLEND_SOFTMIN = 0.35;
 const SURFACE_BLEND_COLLAR = 0.25;
@@ -98,6 +101,7 @@ export default class TerrainSystem {
     this.weightTextures = [];
     this.causticPlugins = [];
     this.skirtMaterial = null;
+    this.cliffMaterials = null;
     this.skirtMesh = null;
     this.gridLines = null;
     this.field = null;
@@ -245,6 +249,7 @@ export default class TerrainSystem {
       keys.set(`${cx},${cz}`, floor && floor.key ? floor.key : DEFAULT_FLOOR);
     }
     const keyAt = (cx, cz) => keys.get(`${cx},${cz}`) || null;
+    const field = this.field;
     const spreads = (key) => {
       const cfg = this.surfaceConfig(key);
       return Boolean(cfg && cfg.spreads);
@@ -297,6 +302,7 @@ export default class TerrainSystem {
           const x = x0 + (i + 0.5) * (spanX / width);
           const cx = Math.floor((x + half) / CELL_SIZE);
           const cz = Math.floor((z + half) / CELL_SIZE);
+          if (field.isSharp(cx, cz)) continue;
           if (keyAt(cx, cz) === partner) {
             data[j * width + i] = 255;
             continue;
@@ -305,6 +311,7 @@ export default class TerrainSystem {
           for (const [dx, dz] of BLEND_NEIGHBORS) {
             const nx = cx + dx;
             const nz = cz + dz;
+            if (field.isSharp(nx, nz)) continue;
             if (keyAt(nx, nz) !== partner) continue;
             const gapX = Math.abs(x - nx * CELL_SIZE) - half;
             const gapZ = Math.abs(z - nz * CELL_SIZE) - half;
@@ -356,7 +363,6 @@ export default class TerrainSystem {
       return index;
     };
 
-    const field = this.field;
     const cliffPoints = new Set();
     const cliffShifts = new Map();
     const cornerDirs = new Map();
@@ -618,9 +624,26 @@ export default class TerrainSystem {
   }
 
   createCliffMesh(edges, positionOf, heightOf) {
+    const groups = new Map();
+    for (const edge of edges) {
+      const style = this.cliffStyleOf(edge);
+      if (!groups.has(style)) groups.set(style, []);
+      groups.get(style).push(edge);
+    }
+    for (const [style, list] of groups) this.buildCliffFaces(list, positionOf, heightOf, style);
+  }
+
+  cliffStyleOf(edge) {
+    const field = this.field;
+    if (!field || !field.cliffStyleAt) return 'dirt';
+    return field.cliffStyleAt(edge.cx, edge.cz) || field.cliffStyleAt(edge.nx, edge.nz) || 'dirt';
+  }
+
+  buildCliffFaces(edges, positionOf, heightOf, style) {
     const positions = [];
     const indices = [];
     const uvs = [];
+    const colors = [];
     for (const edge of edges) {
       const points = edge.points;
       for (let i = 0; i < SURFACE_SUB; i += 1) {
@@ -646,6 +669,14 @@ export default class TerrainSystem {
         );
         const s0 = (CELL_SIZE * i) / SURFACE_SUB;
         const s1 = (CELL_SIZE * (i + 1)) / SURFACE_SUB;
+        const tone = 0.9 + (Math.abs(edge.cx * 7 + edge.cz * 13) % 5) * 0.02;
+        const foot = tone * 0.78;
+        colors.push(
+          tone, tone, tone, 1,
+          foot, foot, foot, 1,
+          tone, tone, tone, 1,
+          foot, foot, foot, 1,
+        );
         uvs.push(
           s0 / WALL_TILE, aTop / WALL_TILE,
           s0 / WALL_TILE, aBottom / WALL_TILE,
@@ -656,17 +687,18 @@ export default class TerrainSystem {
       }
     }
     if (!positions.length) return;
-    const mesh = new Mesh('terrainCliffs', this.s);
+    const mesh = new Mesh(`terrainCliffs_${style}`, this.s);
     const data = new VertexData();
     data.positions = positions;
     data.indices = indices;
     data.uvs = uvs;
+    data.colors = colors;
     data.normals = [];
     VertexData.ComputeNormals(positions, indices, data.normals);
     data.applyToMesh(mesh);
     mesh.isPickable = false;
     mesh.receiveShadows = true;
-    mesh.material = this.skirtMaterialFor();
+    mesh.material = this.cliffMaterialFor(style);
     this.surfaces.push(mesh);
   }
 
@@ -748,6 +780,46 @@ export default class TerrainSystem {
     material.backFaceCulling = false;
     material.twoSidedLighting = true;
     this.skirtMaterial = material;
+    return material;
+  }
+
+  cliffMaterialFor(style) {
+    if (!this.cliffMaterials) this.cliffMaterials = {};
+    const key = style === 'dirt' ? 'dirt' : 'stone';
+    if (!this.cliffMaterials[key]) {
+      this.cliffMaterials[key] = key === 'dirt' ? this.dirtCliffMaterial() : this.stoneCliffMaterial();
+    }
+    return this.cliffMaterials[key];
+  }
+
+  stoneCliffMaterial() {
+    const material = new StandardMaterial('terrainCliffStoneMat', this.s);
+    const texture = new Texture(CLIFF_TEXTURE, this.s);
+    texture.wrapU = Texture.WRAP_ADDRESSMODE;
+    texture.wrapV = Texture.WRAP_ADDRESSMODE;
+    texture.anisotropicFilteringLevel = 4;
+    material.diffuseTexture = texture;
+    material.diffuseColor = new Color3(1.12, 1.12, 1.1);
+    material.specularColor = new Color3(0.08, 0.08, 0.08);
+    material.backFaceCulling = false;
+    const bump = new Texture(CLIFF_NORMAL, this.s);
+    bump.wrapU = Texture.WRAP_ADDRESSMODE;
+    bump.wrapV = Texture.WRAP_ADDRESSMODE;
+    bump.gammaSpace = false;
+    material.bumpTexture = bump;
+    return material;
+  }
+
+  dirtCliffMaterial() {
+    const material = new StandardMaterial('terrainCliffDirtMat', this.s);
+    const texture = new Texture(CLAY_CLIFF_TEXTURE, this.s);
+    texture.wrapU = Texture.WRAP_ADDRESSMODE;
+    texture.wrapV = Texture.WRAP_ADDRESSMODE;
+    material.diffuseTexture = texture;
+    material.diffuseColor = new Color3(0.88, 0.82, 0.72);
+    material.specularColor = new Color3(0.02, 0.02, 0.02);
+    material.backFaceCulling = false;
+    material.twoSidedLighting = true;
     return material;
   }
 
@@ -833,6 +905,12 @@ export default class TerrainSystem {
     if (this.skirtMaterial) {
       this.skirtMaterial.dispose(false, true);
       this.skirtMaterial = null;
+    }
+    if (this.cliffMaterials) {
+      for (const material of Object.values(this.cliffMaterials)) {
+        if (material) material.dispose(false, true);
+      }
+      this.cliffMaterials = null;
     }
   }
 

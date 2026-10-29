@@ -33,11 +33,8 @@ export const BRUSHES = {
     label: 'Les',
     shape: 'blob',
     pool: [
-      'tree_pine_tall', 'tree_pine_tall_b', 'tree_pine_tall_c',
-      'tree_pine_round', 'tree_pine_round_c', 'tree_pine_small',
-      'tree_default', 'tree_oak', 'tree_thin', 'tree_fat',
-      'tree_cone', 'tree_detailed', 'tree_blocks', 'tree_plateau',
-      'tree_simple', 'tree_small', 'tree_tall',
+      'tree_pine_a', 'tree_pine_b', 'tree_pine_c', 'tree_pine_d', 'tree_pine_e',
+      'tree_seagrape', 'tree_almond',
     ],
     deco: true,
   },
@@ -68,7 +65,10 @@ export const BRUSHES = {
   rocks: {
     label: 'Kameny',
     shape: 'blob',
-    pool: ['rock_large', 'rock_large_c', 'rock_small', 'rock_small_flat', 'rock_tall'],
+    pool: [
+      'rock_large', 'rock_large_c', 'rock_small', 'rock_small_flat', 'rock_tall',
+      'rock_pair', 'rock_jagged', 'rock_pebbles',
+    ],
     deco: true,
   },
   stumps: {
@@ -138,6 +138,8 @@ export const BRUSHES = {
   cliff: {
     label: 'Útes',
     shape: 'blob',
+    style: 'stone',
+    styles: ['stone', 'dirt'],
     cliff: true,
   },
   ore: {

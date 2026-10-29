@@ -16,6 +16,7 @@ const PER_TILE = { off: 0, medium: 121, high: 225 };
 const BLADE_CAP = 500000;
 const GRASS_BASE_TONE = new Color3(0.1, 0.24, 0.06);
 const GRASS_LIFT = 0.02;
+const TREE_CLEARANCE = 0.35;
 
 function bladeShape() {
   const positions = [];
@@ -52,7 +53,7 @@ function groundColor(scene) {
 }
 
 function isFree(deco, cx, cz) {
-  if (deco.isBlocked(cx, cz)) return false;
+  if (deco.isBlocked(cx, cz) && !deco.isTreeCell(cx, cz)) return false;
   if (deco.surfaceKeyAt(cx, cz)) return false;
   return true;
 }
@@ -179,6 +180,11 @@ export default class FloraSystem {
     const gx = worldToCell(x);
     const gz = worldToCell(z);
     if (!isFree(this.deco, gx, gz)) return null;
+    if (this.deco.isTreeCell(gx, gz)) {
+      const dx = x - gx * CELL_SIZE;
+      const dz = z - gz * CELL_SIZE;
+      if (dx * dx + dz * dz < TREE_CLEARANCE * TREE_CLEARANCE) return null;
+    }
     const ground = this.deco.groundHeightAt ? this.deco.groundHeightAt(x, z) : this.deco.topAt(gx, gz);
     return {
       x,

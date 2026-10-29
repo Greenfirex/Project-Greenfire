@@ -1,13 +1,13 @@
 // Skládá stromy z geometrie v kódu — kmen s kůrou a korunu z průhledných karet.
 // Šablona se staví jednou pro každý recept a do světa se vkládá jejím klonem.
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Material } from '@babylonjs/core/Materials/material';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { createBuffer, pushVertex, buildMesh, mulberry32 } from './meshBuilder.js';
+import { buildTreeSkeleton } from './treeSkeleton.js';
 import { getTreeRecipe } from '../data/catalogs/trees.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import TreeWindPlugin from '../systems/treeWindPlugin.js';
@@ -21,6 +21,7 @@ const cutMaterials = new WeakMap();
 const TREE_BRIGHTNESS = 1.12;
 const CARD_ROLL = 0.7;
 const CARD_ASPECT = 0.7;
+const CARD_BEND = 0.12;
 
 export function treeTemplate(scene, key) {
   return cachedTemplate(templates, scene, key, (recipe) => buildTree(scene, key, recipe));
@@ -61,8 +62,8 @@ function buildTree(scene, key, recipe) {
   if (recipe.shape === 'palm') {
     buildPalmTrunk(bark, crown, recipe, rng);
     buildPalmCrown(leaves, recipe, rng);
-  } else if (recipe.shape === 'broadleaf') {
-    buildBroadleaf(bark, leaves, recipe, rng);
+  } else if (recipe.shape === 'skeleton') {
+    buildSkeletonTree(bark, leaves, recipe);
   } else {
     buildTrunk(bark, recipe, rng);
     buildBranches(bark, leaves, recipe, rng);
@@ -72,7 +73,7 @@ function buildTree(scene, key, recipe) {
   const root = new TransformNode(`tplTree_${key}`, scene);
   const barkMesh = buildMesh(scene, `tree_${key}_bark`, bark, barkMaterial(scene, key, recipe));
   const leafMesh = buildMesh(scene, `tree_${key}_leaves`, leaves, leafMaterial(scene, key, recipe));
-  const flatLeaves = recipe.shape === 'palm' || recipe.shape === 'broadleaf';
+  const flatLeaves = recipe.shape === 'palm' || recipe.shape === 'skeleton';
   if (flatLeaves) leafMesh.receiveShadows = false;
   barkMesh.parent = root;
   leafMesh.parent = root;
@@ -83,22 +84,6 @@ function buildTree(scene, key, recipe) {
   }
   root.setEnabled(false);
   return root;
-}
-
-function buildMesh(scene, name, buffer, material) {
-  const mesh = new Mesh(name, scene);
-  const data = new VertexData();
-  data.positions = buffer.positions;
-  data.normals = buffer.normals;
-  data.colors = buffer.colors;
-  data.uvs = buffer.uvs;
-  data.indices = buffer.indices;
-  data.applyToMesh(mesh);
-  mesh.hasVertexAlpha = false;
-  mesh.isPickable = false;
-  mesh.receiveShadows = true;
-  mesh.material = material;
-  return mesh;
 }
 
 function barkMaterial(scene, key, recipe, wind = true) {
@@ -176,28 +161,6 @@ function textureFor(scene, file, repeat) {
   if (file.endsWith('.png')) texture.hasAlpha = true;
   byName.set(file, texture);
   return texture;
-}
-
-function mulberry32(seed) {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(state ^ (state >>> 15), 1 | state);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function createBuffer() {
-  return { positions: [], normals: [], colors: [], uvs: [], indices: [] };
-}
-
-function pushVertex(buffer, point, normal, color, u, v) {
-  buffer.positions.push(point.x, point.y, point.z);
-  buffer.normals.push(normal.x, normal.y, normal.z);
-  buffer.colors.push(color.r, color.g, color.b, 1);
-  buffer.uvs.push(u, v);
-  return buffer.positions.length / 3 - 1;
 }
 
 function addTriangle(buffer, a, b, c, color, uvA, uvB, uvC, softUp) {
@@ -585,79 +548,6 @@ function addFrondQuad(buffer, from, to, lateral, width, u0, u1, color) {
   addQuadRange(buffer, a, b, c, d, color, u0, u1, Vector3.Up());
 }
 
-function buildBroadleaf(bark, leaves, recipe, rng) {
-  const top = Math.min(0.9, Math.max(0.2, recipe.trunkTop));
-  const rings = Math.max(3, recipe.trunkRings);
-  const points = [];
-  const radii = [];
-  for (let i = 0; i < rings; i += 1) {
-    const t = (i / (rings - 1)) * top;
-    points.push(trunkAxis(recipe, t));
-    radii.push(recipe.trunkRadius * Math.pow(1 - t / top, 0.75) + 0.03);
-  }
-  addTube(bark, points, radii, recipe.trunkSides, (t) => barkShade(recipe, t, rng),
-    [1, Math.max(1, recipe.height / 2.6)]);
-  addCap(bark, points[points.length - 1], tangentAt(points, points.length - 1),
-    radii[radii.length - 1], recipe.trunkSides, barkShade(recipe, top, rng));
-
-  const fork = points[points.length - 1];
-  const limbs = Math.max(2, recipe.limbs);
-  const reach = recipe.limbLength;
-  const rootRadius = radii[radii.length - 1] * 0.85;
-  for (let i = 0; i < limbs; i += 1) {
-    const angle = (i / limbs) * Math.PI * 2 + rng() * 0.5;
-    const outward = new Vector3(Math.cos(angle), 0, Math.sin(angle));
-    const direction = outward.scale(recipe.limbSpread).add(Vector3.Up()).normalize();
-    const start = fork.subtract(Vector3.Up().scale(0.06));
-    const mid = start.add(direction.scale(reach * 0.55));
-    const rise = direction.add(Vector3.Up().scale(0.2)).normalize();
-    const end = mid.add(rise.scale(reach * 0.45));
-    const limb = [start, mid, end];
-    addTube(bark, limb, [rootRadius, rootRadius * 0.55, 0.025],
-      Math.max(5, recipe.trunkSides - 3), (t) => barkShade(recipe, top + t * 0.3, rng), [1, 1.4]);
-    addCap(bark, end, tangentAt(limb, 2), 0.025, 6, barkShade(recipe, 1, rng));
-  }
-
-  buildBroadleafCrown(leaves, recipe, rng, fork.add(Vector3.Up().scale(recipe.crownLift)));
-}
-
-function buildBroadleafCrown(buffer, recipe, rng, base) {
-  const layers = Math.max(1, recipe.layers);
-  const perLayer = Math.max(4, recipe.cardsPerLayer);
-  for (let l = 0; l < layers; l += 1) {
-    const lf = (l + 0.5) / layers;
-    const shell = 0.5 + 0.5 * Math.sin(Math.PI * lf);
-    const level = recipe.crownHeight * (lf - 0.5);
-    for (let i = 0; i < perLayer; i += 1) {
-      const angle = rng() * Math.PI * 2;
-      const rise = (rng() - 0.5) * 1.1;
-      const direction = new Vector3(Math.cos(angle), rise, Math.sin(angle)).normalize();
-      const radial = recipe.crownRadius * shell * (0.75 + rng() * 0.35);
-      const position = base.add(new Vector3(
-        direction.x * radial,
-        level + direction.y * recipe.crownHeight * 0.4,
-        direction.z * radial,
-      ));
-      const normal = direction.add(Vector3.Up().scale(0.2)).normalize();
-      const size = recipe.cardSize * (0.8 + rng() * 0.4);
-      addFacingCard(buffer, position, normal, size, leafShade(recipe, 0.4 + 0.55 * lf, rng),
-        pickLeafUv(recipe, rng), rng() * Math.PI * 2);
-    }
-  }
-  const tuft = Math.max(2, Math.round(perLayer * 0.3));
-  for (let i = 0; i < tuft; i += 1) {
-    const angle = rng() * Math.PI * 2;
-    const position = base.add(new Vector3(
-      Math.cos(angle) * recipe.crownRadius * 0.35,
-      recipe.crownHeight * 0.55,
-      Math.sin(angle) * recipe.crownRadius * 0.35,
-    ));
-    const normal = new Vector3(Math.cos(angle), 1.6, Math.sin(angle)).normalize();
-    addFacingCard(buffer, position, normal, recipe.cardSize * 0.9,
-      leafShade(recipe, 1, rng), pickLeafUv(recipe, rng), rng() * Math.PI * 2);
-  }
-}
-
 function addFacingCard(buffer, center, normal, size, color, uv, roll) {
   const face = normal.normalize();
   const helper = Math.abs(face.y) < 0.9 ? Vector3.Up() : Vector3.Right();
@@ -665,6 +555,86 @@ function addFacingCard(buffer, center, normal, size, color, uv, roll) {
   const bitangent = Vector3.Cross(face, tangent).normalize();
   const forward = tangent.scale(Math.cos(roll)).add(bitangent.scale(Math.sin(roll))).normalize();
   const lateral = Vector3.Cross(face, forward).normalize();
-  addCard(buffer, center, forward, lateral, size, size * CARD_ASPECT, color, uv);
+  const [u0, v0, u1, v1] = uv || [0, 0, 1, 1];
+  const halfLength = size * 0.5;
+  const halfHeight = size * CARD_ASPECT * 0.5;
+  const bend = size * CARD_BEND;
+  const grid = [];
+  for (let i = 0; i <= 2; i += 1) {
+    const row = [];
+    for (let j = 0; j <= 2; j += 1) {
+      const si = i - 1;
+      const sj = j - 1;
+      const pull = (1 - si * si) * (1 - sj * sj);
+      row.push(center
+        .add(forward.scale(si * halfLength))
+        .add(lateral.scale(sj * halfHeight))
+        .subtract(face.scale(pull * bend)));
+    }
+    grid.push(row);
+  }
+  const uvAt = (i, j) => [
+    u0 + (i / 2) * (u1 - u0),
+    v0 + (j / 2) * (v1 - v0),
+  ];
+  for (let i = 0; i < 2; i += 1) {
+    for (let j = 0; j < 2; j += 1) {
+      const a = grid[i][j];
+      const b = grid[i + 1][j];
+      const c = grid[i + 1][j + 1];
+      const d = grid[i][j + 1];
+      const up = Vector3.Up();
+      addTriangle(buffer, a, b, c, color, uvAt(i, j), uvAt(i + 1, j), uvAt(i + 1, j + 1), up);
+      addTriangle(buffer, a, c, d, color, uvAt(i, j), uvAt(i + 1, j + 1), uvAt(i, j + 1), up);
+    }
+  }
 }
 
+function buildSkeletonTree(bark, leaves, recipe) {
+  const rng = mulberry32(recipe.seed + 7);
+  const skeleton = buildTreeSkeleton(recipe);
+  const sides = Math.max(4, recipe.branchSides || 6);
+  const levels = Math.max(2, recipe.levels);
+  for (const segment of skeleton.segments) {
+    const direction = segment.end.subtract(segment.start);
+    const length = direction.length();
+    if (length < 1e-4) continue;
+    const mid = segment.start.add(direction.scale(0.5));
+    const shade = segment.level / (levels - 1);
+    addTube(bark, [segment.start, mid, segment.end],
+      [segment.radius, (segment.radius + segment.radiusEnd) * 0.5, segment.radiusEnd],
+      sides, (t) => barkShade(recipe, Math.min(1, shade + t * 0.12), rng), [1, 1]);
+    addCap(bark, segment.end, direction.scale(1 / length), segment.radiusEnd, sides,
+      barkShade(recipe, 1, rng));
+  }
+  for (const card of leafCardList(recipe, skeleton)) {
+    addFacingCard(leaves, card.position, card.normal, card.size, card.color, card.uv, card.roll);
+  }
+}
+
+function leafCardList(recipe, skeleton) {
+  const rng = mulberry32(recipe.seed + 31);
+  const windows = recipe.leafUv && recipe.leafUv.length ? recipe.leafUv : [[0, 0, 1, 1]];
+  const cards = [];
+  const perTip = Math.max(1, recipe.cardsPerTip);
+  for (const tip of skeleton.tips) {
+    for (let i = 0; i < perTip; i += 1) {
+      const yaw = rng() * Math.PI * 2;
+      const roll = rng() * Math.PI * 2;
+      const normal = new Vector3(Math.cos(yaw), rng() - 0.2, Math.sin(yaw)).normalize();
+      const size = recipe.cardSize * (0.8 + rng() * 0.4);
+      const window = Math.floor(rng() * windows.length);
+      const [wu0, wv0, wu1, wv1] = windows[window];
+      const mirror = rng() < 0.5;
+      cards.push({
+        position: tip.point.add(normal.scale(size * 0.3)),
+        normal,
+        roll,
+        size,
+        uv: mirror ? [wu1, wv0, wu0, wv1] : [wu0, wv0, wu1, wv1],
+        color: leafShade(recipe, 0.55 + rng() * 0.45, rng),
+      });
+    }
+  }
+  return cards;
+}
