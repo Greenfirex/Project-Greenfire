@@ -68,7 +68,14 @@ denní cyklus se stíny, lesní zvuky a kroky podle povrchu, panel možností,
 editor mapy (zóny, cesty, výšky ±6 m, štětec pláže se svahem po 0,3 m,
 štětec útesů s hliněnou stěnou, výběr buněk, undo), spojitý terén
 s hranou mapy, cesty kopírující terén, hráč chodící po výšce země,
-vodní hladina s vlnami a pěnou, plynulé prolínání trávy a písku
+vodní hladina s vlnami a pěnou (v editoru jde jen skrýt, hladina i ryby
+zůstanou), mokrý pruh na břehu kopírující terén,
+rozbitý okraj písku s ostrůvky a jazyky, štětec Pobřeží s lasturami
+ve čtyřech tvarech a třech velikostech (největší se dá sehrát), koraly
+na dně v shlucích (vějíř, trs a mozkový) se štětcem Koraly, hejna ryb
+pěti barev (i drobných), která se toulají vodou, občas vyšlou rybku na
+potulky a plaší se před hráčem,
+plynulé prolínání trávy a písku
 (texturou i barvou), hráč ve vodě (mělká zpomalí, do hluboké nesmí,
 ve vodě nejde stavět), kroky ve vodě, příboj u vody, obloha se sluncem
 a ukládání/načítání do prohlížeče.
@@ -365,14 +372,11 @@ seznam k výběru.
 1. **Kontaktní stíny pod objekty** — kameny, sudy, bedny a pařezy nemají
    stín přímo pod sebou, takže působí, že plavou. Plochý flek na zemi ale
    neumí kopírovat svah, takže to chce řešení, které se ohne s terénem.
-2. **Pláž a voda** — chybí mokrý pruh u hladiny a rozbitý okraj písku.
-   Výpočet mokré barvy už existuje, jde jen doladit šířku a přidat kamínky
-   a lastury podél břehu.
-3. **Skála: mech a lišejník** — kámen je jednolitý. Ztmavení u paty a mírné
+2. **Skála: mech a lišejník** — kámen je jednolitý. Ztmavení u paty a mírné
    zelené omaštění horních ploch podle sklonu (barvou ve vrcholech, bez
    nových textur) oživí útes i balvany.
-4. **Tráva: barevné skvrny a květiny** — tráva je jedna barva. Dva odstíny
+3. **Tráva: barevné skvrny a květiny** — tráva je jedna barva. Dva odstíny
    podle polohy a občasný květ udělají louku míň kobercovou.
-5. **Vzdálené stromy (LOD)** — až bude les hustší, nahradit daleké stromy
+4. **Vzdálené stromy (LOD)** — až bude les hustší, nahradit daleké stromy
    jednodušší variantou. Uvolní výkon a dovolí sázet víc stromů.
 

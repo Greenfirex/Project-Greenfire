@@ -13,6 +13,12 @@ export const ITEM_TYPES = {
     kind: 'raw',
     color: [0.55, 0.55, 0.58],
   },
+  shell: {
+    displayName: 'Mušle',
+    stackSize: 20,
+    kind: 'raw',
+    color: [0.93, 0.86, 0.8],
+  },
   stick: {
     displayName: 'Klacek',
     stackSize: 100,

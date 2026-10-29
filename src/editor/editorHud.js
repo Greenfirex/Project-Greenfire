@@ -109,10 +109,10 @@ export default class EditorHud {
     if (node) node.textContent = text;
   }
 
-  setWater(level) {
+  setWater(level, shown = true) {
     this.waterLevel = Number.isFinite(level) ? level : null;
     if (!this.root) return;
-    const on = this.waterLevel !== null;
+    const on = this.waterLevel !== null && shown !== false;
     this.root.classList.toggle('has-water', on);
     const toggle = this.root.querySelector('.editor-panel__water-toggle');
     if (toggle) {
@@ -120,7 +120,10 @@ export default class EditorHud {
       toggle.classList.toggle('is-active', on);
     }
     const value = this.root.querySelector('.editor-panel__water-value');
-    if (value) value.textContent = on ? `${formatMeters(this.waterLevel)} m` : '–';
+    if (value) {
+      if (this.waterLevel === null) value.textContent = '–';
+      else value.textContent = shown === false ? 'skrytá' : `${formatMeters(this.waterLevel)} m`;
+    }
   }
 
   setBrush(key) {

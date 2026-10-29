@@ -6,6 +6,7 @@ import { cellKey, MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP, DEFAULT_HEIGHT_LEVEL } fr
 import { layerAt, layerEntriesAt, floorCellAt, layerLiftAt, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
 import { fillZone } from '../utils/zoneFill.js';
 import { createRng, seedFor } from '../utils/rng.js';
+import { getFishType } from '../data/catalogs/fish.js';
 
 const HISTORY_LIMIT = 100;
 
@@ -19,6 +20,7 @@ export default class EditorMode {
     this.pathStyle = 'dirt';
     this.erasing = false;
     this.heightLevel = DEFAULT_HEIGHT_LEVEL;
+    this.waterShown = true;
     this.layout = null;
     this.draft = null;
     this.heightDraft = null;
@@ -66,6 +68,17 @@ export default class EditorMode {
     if (next === null) delete this.layout.waterLevel;
     else this.layout.waterLevel = next;
     return next;
+  }
+
+  setWaterShown(shown) {
+    const next = shown !== false;
+    if (next === this.waterShown) return next;
+    this.waterShown = next;
+    return next;
+  }
+
+  toggleWaterShown() {
+    return this.setWaterShown(!this.waterShown);
   }
 
   toggle() {
@@ -795,6 +808,15 @@ export default class EditorMode {
       this.scheduleRegenerate();
       return count;
     }
+    if (brush.fish) {
+      const zone = [...cells].map(parseCell);
+      const count = this.applyFishBrush(brushKey, brush, zone, mode);
+      if (!count) this.history.pop();
+      this.draft.cells.clear();
+      if (this.onDraftChange) this.onDraftChange(this.draft);
+      this.scheduleRegenerate();
+      return count;
+    }
     if (brush.surface) {
       const zone = [...cells].map(parseCell);
       const count = this.applyBeach(brushKey, zone, mode);
@@ -815,6 +837,7 @@ export default class EditorMode {
     const shape = brush.shape;
     const brushLift = brush.height ? brush.height * HEIGHT_STEP : 0;
     const filled = this.zoneEntries(brushKey, brush, [...cells], mode);
+    const clearedDeco = new Set();
     for (const cell of filled) {
       const { cx, cz } = cell;
       if (mode === 'remove') {
@@ -845,9 +868,16 @@ export default class EditorMode {
       const key = brush.deco ? (cell.key || this.tileKey) : cell.key;
       if (brush.deco && (!key || !getDecoration(key))) continue;
       if (brush.deco) {
-        dropDecorationCell(this.layout, cx, cz);
+        const cellId = cellKey(cx, cz);
+        if (!clearedDeco.has(cellId)) {
+          dropDecorationCell(this.layout, cx, cz);
+          clearedDeco.add(cellId);
+        }
         const lift = layerLiftAt(this.layout, cx, cz) || 0;
-        const entry = { key, cx, cz, rotation: 0 };
+        const entry = { key, cx, cz, rotation: cell.rotation || 0 };
+        if (Number.isFinite(cell.offsetX) && cell.offsetX) entry.offsetX = cell.offsetX;
+        if (Number.isFinite(cell.offsetZ) && cell.offsetZ) entry.offsetZ = cell.offsetZ;
+        if (Number.isFinite(cell.scale) && cell.scale) entry.scale = cell.scale;
         if (lift) entry.liftY = lift;
         this.layout.decorations.push(entry);
         continue;
@@ -942,6 +972,38 @@ export default class EditorMode {
   surfaceAt(cx, cz) {
     const floor = floorCellAt(this.layout, cx, cz);
     return floor ? floor.key : null;
+  }
+
+  applyFishBrush(brushKey, brush, zone, mode) {
+    if (!this.layout.fish) this.layout.fish = [];
+    const style = this.styleFor(brushKey);
+    const kind = brush.styles && brush.styles.includes(style) ? style : 'fish_blue';
+    const type = getFishType(kind);
+    const level = Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
+    let changed = 0;
+    for (const { cx, cz } of zone) {
+      const key = cellKey(cx, cz);
+      const before = this.layout.fish.length;
+      this.layout.fish = this.layout.fish.filter((school) => !school || cellKey(school.cx, school.cz) !== key);
+      if (mode === 'remove') {
+        if (this.layout.fish.length !== before) changed += 1;
+        continue;
+      }
+      if (level === null) continue;
+      const depth = level - layerLiftAt(this.layout, cx, cz);
+      if (depth < 0.35) continue;
+      const roll = Math.abs(Math.sin(cx * 127.1 + cz * 311.7) * 43758.5453) % 1;
+      this.layout.fish.push({
+        cx,
+        cz,
+        radius: Math.min(type.radius, 4),
+        count: type.count,
+        kind,
+        mode: roll < 0.35 ? 'orbit' : 'wander',
+      });
+      changed += 1;
+    }
+    return changed;
   }
 
   zoneEntries(brushKey, brush, cellKeys, mode) {
@@ -1109,6 +1171,7 @@ function toWorld(world) {
     clearing: copy(world.clearing),
     grass: copy(world.grass),
     decorations: copy(world.decorations),
+    fish: copy(world.fish),
   };
 }
 

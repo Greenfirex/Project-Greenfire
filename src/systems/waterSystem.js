@@ -96,6 +96,7 @@ export default class WaterSystem {
     this.shoreCells = [];
     this.maxDepth = MAX_DEPTH;
     this.ripples = [];
+    this.hidden = false;
   }
 
   setSun(light) {
@@ -115,6 +116,18 @@ export default class WaterSystem {
 
   setReflectionExclusions(meshes) {
     this.reflectionExclusions = Array.isArray(meshes) ? meshes.filter((mesh) => mesh && !mesh.isDisposed()) : [];
+  }
+
+  setVisible(visible) {
+    this.hidden = visible === false;
+    if (this.mesh && !this.mesh.isDisposed()) this.mesh.setEnabled(!this.hidden);
+    if (this.sideMesh && !this.sideMesh.isDisposed()) this.sideMesh.setEnabled(!this.hidden);
+    if (!this.hidden) return;
+    for (const ripple of this.ripples) {
+      ripple.life = 0;
+      ripple.material.alpha = 0;
+      ripple.mesh.setEnabled(false);
+    }
   }
 
   clear() {
@@ -144,11 +157,15 @@ export default class WaterSystem {
     return Math.max(0, this.surfaceY - ground);
   }
 
-  surfaceHeightAt(x, z) {
+  surfaceHeightAt(x, z, ground = null) {
     if (!Number.isFinite(this.level)) return 0;
     const dirX = this.seaDir ? this.seaDir.x : 1;
     const dirZ = this.seaDir ? this.seaDir.y : 0;
-    return this.surfaceY + waveOffset(x, z, dirX, dirZ, this.time % WAVE_TIME_WRAP);
+    const height = Number.isFinite(ground) ? ground : (this.heightAt ? this.heightAt(x, z) : null);
+    const deep = !Number.isFinite(height);
+    const depth = deep ? MAX_DEPTH : Math.max(0, this.level - height);
+    const amp = waveAmpFor(depth);
+    return this.surfaceY + waveOffset(x, z, dirX, dirZ, this.time % WAVE_TIME_WRAP) * amp;
   }
 
   waveDepthAt(x, z) {
@@ -179,6 +196,7 @@ export default class WaterSystem {
   }
 
   splash(x, z, strength = 1) {
+    if (this.hidden) return;
     const depth = this.waveDepthAt(x, z);
     if (depth <= 0.02) return;
     const pool = this.ripplePool();

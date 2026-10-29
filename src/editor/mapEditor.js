@@ -108,19 +108,26 @@ export default class MapEditor {
   }
 
   toggleWater() {
-    const current = this.mode.getWaterLevel();
-    this.setWater(current === null ? -HEIGHT_STEP : null);
+    const shown = this.mode.toggleWaterShown();
+    if (shown && this.mode.getWaterLevel() === null) {
+      this.setWater(-HEIGHT_STEP);
+      return;
+    }
+    this.hud.setWater(this.mode.getWaterLevel(), this.mode.waterShown);
+    this.s.refreshWaterVisibility();
   }
 
   stepWater(delta) {
     const current = this.mode.getWaterLevel();
     const base = current === null ? 0 : current;
+    this.mode.setWaterShown(true);
     this.setWater(base + delta * HEIGHT_STEP);
   }
 
   setWater(level) {
     const value = this.mode.setWaterLevel(level);
-    this.hud.setWater(value);
+    this.mode.setWaterShown(true);
+    this.hud.setWater(value, this.mode.waterShown);
     this.s.adoptEditorMap();
     this.s.refreshTerrain();
     this.s.handleHover(this.s.hoverCell);
@@ -133,11 +140,13 @@ export default class MapEditor {
       this.resetSelection();
       this.hud.show();
       this.hud.clearBrushSelection();
-      this.hud.setWater(this.mode.getWaterLevel());
+      this.hud.setWater(this.mode.getWaterLevel(), this.mode.waterShown);
       this.hud.setReadout(NO_BRUSH_HINT);
       this.s.holdGameForEditor();
       this.syncPanels(this.mode.mode);
     } else {
+      this.mode.setWaterShown(true);
+      this.s.refreshWaterVisibility();
       this.s.releaseGameFromEditor();
     }
     return active;
@@ -201,7 +210,7 @@ export default class MapEditor {
     this.s.refreshTerrain();
     this.syncPanels(this.mode.mode);
     this.s.editorToggle.setActive(Boolean(active));
-    if (active) this.hud.setWater(this.mode.getWaterLevel());
+    if (active) this.hud.setWater(this.mode.getWaterLevel(), this.mode.waterShown);
   }
 
   syncPanels(mode) {
@@ -422,7 +431,7 @@ export default class MapEditor {
       return false;
     }
     this.ensureDraft();
-    this.hud.setWater(this.mode.getWaterLevel());
+    this.hud.setWater(this.mode.getWaterLevel(), this.mode.waterShown);
     this.refreshUndoButton();
     this.areaPanel.setCount(this.mode.pendingAreaCells(), this.mode.pendingAreaExisting());
     this.s.handleHover(this.s.hoverCell);

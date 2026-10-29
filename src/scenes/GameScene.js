@@ -14,6 +14,7 @@ import CameraSystem from '../systems/cameraSystem.js';
 import GridSystem from '../systems/gridSystem.js';
 import TerrainSystem from '../systems/terrainSystem.js';
 import WaterSystem from '../systems/waterSystem.js';
+import FishSystem from '../systems/fishSystem.js';
 import SkySystem from '../systems/skySystem.js';
 import DecoSystem from '../systems/decoSystem.js';
 import FloraSystem from '../systems/floraSystem.js';
@@ -41,6 +42,8 @@ import LoadingScreen from '../ui/loadingScreen.js';
 import { whenModelsIdle, takeModelError, preloadModel, releaseFrame } from '../utils/assetLoader.js';
 import { treeTemplate } from '../utils/treeFactory.js';
 import { rockTemplate } from '../utils/rockFactory.js';
+import { shellTemplate } from '../utils/shellFactory.js';
+import { coralTemplate } from '../utils/coralFactory.js';
 import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
@@ -73,6 +76,7 @@ const WADE_SPEED = 0.65;
 const WADE_RAMP = 0.2;
 const WATER_STEP_DEPTH = 0.02;
 const SHORE_CHECK_SECONDS = 0.3;
+const MAX_STEP_SECONDS = 0.1;
 const IMPACT_DELAY = 0.28;
 const TIME_SKIP = { hours: 6 };
 
@@ -107,6 +111,7 @@ export default class GameScene {
     this.gridSystem = new GridSystem(scene);
     this.terrainSystem = new TerrainSystem(scene);
     this.waterSystem = new WaterSystem(scene);
+    this.fishSystem = new FishSystem(scene);
     this.skySystem = new SkySystem(scene);
     this.decoSystem = new DecoSystem(scene);
     this.decoSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z);
@@ -227,7 +232,7 @@ export default class GameScene {
     };
 
     this.s.onBeforeRenderObservable.add(() => {
-      const dt = this.engine.getDeltaTime() / 1000;
+      const dt = Math.min(this.engine.getDeltaTime() / 1000, MAX_STEP_SECONDS);
       if (this.paused) {
         this.refreshClock();
         return;
@@ -246,6 +251,7 @@ export default class GameScene {
       const root = this.playerSystem.root;
       this.campfireSystem.update(dt, root);
       this.waterSystem.update(dt);
+      this.fishSystem.update(dt);
       this.updateWaterCaustics();
       this.updateCampfireSound(root);
       this.updateShoreSound(root, dt);
@@ -358,7 +364,8 @@ export default class GameScene {
   updateWaterCaustics() {
     const water = this.waterSystem;
     const sun = this.dayNightSystem ? this.dayNightSystem.sunLight : null;
-    const level = water && Number.isFinite(water.level) ? water.surfaceY : null;
+    const level = water && Number.isFinite(water.level) && !water.hidden ? water.surfaceY : null;
+    this.terrainSystem.updateWetLevel(water && Number.isFinite(water.level) ? water.level : null);
     if (!water || !sun || level === null) {
       this.terrainSystem.updateCaustics(0, null, 0, 0, null, 0, 0);
       return;
@@ -601,6 +608,11 @@ updateGatherTarget() {
     this.renderWater();
   }
 
+  refreshWaterVisibility() {
+    this.waterSystem.setVisible(!this.editor || this.editor.mode.waterShown !== false);
+    this.fishSystem.show();
+  }
+
   renderWater() {
     const level = this.mapLayout && Number.isFinite(this.mapLayout.waterLevel) ? this.mapLayout.waterLevel : null;
     const quality = (this.options && this.options.quality) || 'high';
@@ -611,6 +623,14 @@ updateGatherTarget() {
     this.waterSystem.setSkyTint(this.skySystem.tint());
     this.waterSystem.setReflectionExclusions([this.terrainSystem.skirtMesh]);
     this.waterSystem.create(this.terrainSystem.groundCells, level, (x, z) => this.terrainSystem.heightAt(x, z), rgb, quality);
+    this.refreshWaterVisibility();
+    this.fishSystem.create(
+      this.mapLayout,
+      level,
+      this.waterSystem,
+      (x, z) => this.terrainSystem.heightAt(x, z),
+      () => (this.playerSystem.root ? this.playerSystem.root.position : null),
+    );
     this.rescuePlayerFromWater();
   }
 
@@ -678,6 +698,16 @@ updateGatherTarget() {
       }
       if (def && def.rock) {
         rockTemplate(this.s, def.rock);
+        known.set(entry.key, null);
+        continue;
+      }
+      if (def && def.shell) {
+        shellTemplate(this.s, def.shell);
+        known.set(entry.key, null);
+        continue;
+      }
+      if (def && def.coral) {
+        coralTemplate(this.s, def.coral);
         known.set(entry.key, null);
         continue;
       }
@@ -828,7 +858,7 @@ updateGatherTarget() {
       await this.placeStage(stage, entries);
     }
     this.decoSystem.finishStages();
-    this.finishRebuild(exhausted);
+    this.finishRebuild();
   }
 
   finishRebuild() {

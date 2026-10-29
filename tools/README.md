@@ -32,6 +32,33 @@ python tools/make_cliff_catalog.py --filter "^(block|top|half|cornerTop)$"
 
 Výstup: `tools/_temp/cliff_catalog.png`.
 
+## shores.mjs
+
+Doplní do souboru mapy lastury na břeh a koraly do hloubky. Lastury leží kolem
+hladiny ve čtyřech tvarech a třech velikostech. Koraly se sázejí jako několik
+shluků v hluboké vodě (aspoň 2 m) — na každé buňce shluku 8–14 menších kusů
+s náhodným posunem a měřítkem, takže nevypadají jako pravidelná mřížka ani jako
+jeden kus na buňku. Každá drobnost dostane svoji výšku, aby nevisela ve vzduchu.
+Lastury se nikdy nesázejí na sousední buňky, aby nevznikaly hromady. Na jedno
+místo u spawnu dá jednu obrovskou mušli, kterou jde ve hře sehrát krumpáčem.
+Před zápisem smaže dřívější břehové i mořské drobnosti, takže se dá pouštět
+opakovaně. Nakonec do mapy zapíše třináct hejn ryb pěti barev — stříbrné i
+v hloubce, barevné (zlaté, zelené, červené) do mělčiny, kde je voda průhledná,
+a drobné roje až od 0,3 m hloubky. Část hejn krouží, část se toulá. Hejna se
+sázejí jen tam, kde je v okolí dost vody (od 0,3 m u břehu po 0,7 m v hloubce),
+aby ryby nevplavaly na souš.
+Výšky počítá stejným kódem jako hra (`src/utils/terrainField.js`),
+takže vše sedí na skutečný terén.
+
+```
+node tools/shores.mjs --dry          # jen spočítá a vypíše, soubor nezmění
+node tools/shores.mjs                # zapíše do src/data/maps/glade/map.json
+node tools/shores.mjs cesta/map.json # jiná mapa
+```
+
+Budoucí úpravy břehu se dělají štětcem **Pobřeží** v editoru mapy, tenhle
+nástroj je jen na první naplnění mapy.
+
 ## Cliff assety — co je co
 
 Zdroj: `public/assets/nature/cliffs/cliff_*_rock.glb`.

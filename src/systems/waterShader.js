@@ -184,7 +184,7 @@ void main(void) {
   foam *= smoothstep(0.015, 0.12, wet);
   color = mix(color, foamColor * (0.4 + 0.6 * dayness), foam * 0.66 * shoreCut);
 
-  float alpha = mix(0.30, 0.9, t) * visible;
+  float alpha = mix(0.4, 0.94, t) * visible;
   alpha = max(alpha, foam * 0.58 * shoreCut);
   gl_FragColor = vec4(color, alpha);
 }

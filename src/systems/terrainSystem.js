@@ -19,6 +19,7 @@ import { groundCells, worldCells, floorCellAt } from '../data/maps/areaShape.js'
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import TerrainBlendPlugin from './terrainBlendPlugin.js';
 import TerrainCausticPlugin from './terrainCausticPlugin.js';
+import TerrainWetPlugin from './terrainWetPlugin.js';
 
 const PICK_LIFT = 0.002;
 const GRID_LIFT = 0.02;
@@ -36,6 +37,12 @@ const SURFACE_BLEND_COLLAR = 0.25;
 const SURFACE_BLEND_TEXEL = CELL_SIZE / 8;
 const SURFACE_BLEND_NOISE = CELL_SIZE;
 const SURFACE_BLEND_GRAIN = CELL_SIZE / 4;
+const SURFACE_BLEND_WARP = CELL_SIZE * 2.2;
+const SURFACE_BLEND_TONGUE = CELL_SIZE * 1.1;
+const SURFACE_BLEND_SPECK = CELL_SIZE * 0.45;
+const SURFACE_BLEND_SPECK_MIN = 10;
+const SURFACE_BLEND_SPECK_EDGE = 0.78;
+const SURFACE_BLEND_SPECK_MAX = 92;
 const BLEND_NEIGHBORS = [
   [1, 0], [-1, 0], [0, 1], [0, -1],
   [1, 1], [1, -1], [-1, 1], [-1, -1],
@@ -100,6 +107,7 @@ export default class TerrainSystem {
     this.blendTextures = new Map();
     this.weightTextures = [];
     this.causticPlugins = [];
+    this.wetPlugins = [];
     this.skirtMaterial = null;
     this.cliffMaterials = null;
     this.skirtMesh = null;
@@ -221,16 +229,6 @@ export default class TerrainSystem {
     this.ground = ground;
   }
 
-  wetFactor(y) {
-    const level = this.layout && Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
-    if (level === null) return 1;
-    const above = y - level;
-    if (above >= 0.45) return 1;
-    if (above <= -0.15) return 0.7;
-    const t = (above + 0.15) / 0.6;
-    return 0.7 + 0.3 * t * t * (3 - 2 * t);
-  }
-
   createSurface(map, cells) {
     for (const mesh of this.surfaces) {
       if (mesh && !mesh.isDisposed()) mesh.dispose(false, false);
@@ -322,9 +320,25 @@ export default class TerrainSystem {
           const soft = Math.max(0, -SURFACE_BLEND_SOFTMIN * Math.log(reach));
           const coarse = valueNoise(x / SURFACE_BLEND_NOISE, z / SURFACE_BLEND_NOISE);
           const fine = valueNoise(x / SURFACE_BLEND_GRAIN + 13.7, z / SURFACE_BLEND_GRAIN - 5.1);
-          const band = SURFACE_BLEND_RADIUS * (0.65 + 0.7 * coarse) * (0.9 + 0.2 * fine);
+          const warp = valueNoise(x / SURFACE_BLEND_WARP + 41.3, z / SURFACE_BLEND_WARP - 17.9);
+          const tongue = valueNoise(
+            x / SURFACE_BLEND_TONGUE + warp * 2.6,
+            z / SURFACE_BLEND_TONGUE - warp * 2.1,
+          );
+          const band = SURFACE_BLEND_RADIUS
+            * (0.65 + 0.7 * coarse)
+            * (0.9 + 0.2 * fine)
+            * (0.55 + 0.9 * tongue);
           const fade = Math.min(1, Math.max(0, (soft - SURFACE_BLEND_COLLAR) / band));
-          data[j * width + i] = Math.round((1 - smooth(fade)) * 255);
+          let weight = Math.round((1 - smooth(fade)) * 255);
+          if (weight < SURFACE_BLEND_SPECK_MIN) {
+            const speck = valueNoise(x / SURFACE_BLEND_SPECK + 71.1, z / SURFACE_BLEND_SPECK - 29.3);
+            if (speck > SURFACE_BLEND_SPECK_EDGE) {
+              const amount = (speck - SURFACE_BLEND_SPECK_EDGE) / (1 - SURFACE_BLEND_SPECK_EDGE);
+              weight = Math.round(amount * SURFACE_BLEND_SPECK_MAX);
+            }
+          }
+          data[j * width + i] = weight;
         }
       }
       const texture = new RawTexture(data, width, height, Constants.TEXTUREFORMAT_R, this.s, false, false, Texture.BILINEAR_SAMPLINGMODE);
@@ -358,8 +372,7 @@ export default class TerrainSystem {
       const y = py === null ? this.heightAt(px, pz) : py;
       group.positions.push(px, y, pz);
       group.uvs.push(px / group.tile, pz / group.tile);
-      const wet = this.wetFactor(y);
-      group.colors.push(tint.r * wet, tint.g * wet, tint.b * wet, 1);
+      group.colors.push(tint.r, tint.g, tint.b, 1);
       return index;
     };
 
@@ -843,6 +856,7 @@ export default class TerrainSystem {
       material.diffuseColor = color3(cfg.mapTint ? this.tintOf(map) : (cfg.color || [1, 1, 1]));
       this.materials.set(cacheKey, material);
       this.causticPlugins.push(new TerrainCausticPlugin(material));
+      this.wetPlugins.push(new TerrainWetPlugin(material, cfg.wet === undefined ? 0.4 : cfg.wet));
       if (blend) {
         this.blendPlugins.set(cacheKey, new TerrainBlendPlugin(material, {
           texture: this.blendTextureFor(blend.partner),
@@ -891,6 +905,10 @@ export default class TerrainSystem {
     }
   }
 
+  updateWetLevel(level) {
+    for (const plugin of this.wetPlugins) plugin.setWet(level);
+  }
+
   disposeMaterials() {
     for (const material of this.materials.values()) {
       if (material) material.dispose(false, true);
@@ -898,6 +916,7 @@ export default class TerrainSystem {
     this.materials.clear();
     this.blendPlugins.clear();
     this.causticPlugins.length = 0;
+    this.wetPlugins.length = 0;
     for (const texture of this.blendTextures.values()) {
       if (texture) texture.dispose();
     }

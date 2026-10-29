@@ -5,6 +5,7 @@ import { ITEM_TYPES, RECIPES } from '../data/catalogs/items.js';
 const ICONS = {
   wood: '🪵',
   stone: '🪨',
+  shell: '🐚',
   stick: '🥢',
   iron_ore: '⛏',
   iron_ingot: '⬜',

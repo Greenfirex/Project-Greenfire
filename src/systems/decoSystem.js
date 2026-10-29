@@ -3,17 +3,24 @@
 import '@babylonjs/core/Meshes/transformNode';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Meshes/mesh';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Vector3, Quaternion } from '@babylonjs/core/Maths/math.vector';
 import { cellToWorldCoords, worldToCellCoords, cellKey, indexToCellCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { getDecoration, decoHeight } from '../data/catalogs/decorations.js';
 import { deriveBlocked } from '../data/maps/layoutStore.js';
 import { resolveModel, instantiateModel, ownMaterials, whenModelsIdle } from '../utils/assetLoader.js';
 import { treeTemplate, treeStumpTemplate, treeLogTemplate, treeFrondTemplate } from '../utils/treeFactory.js';
 import { rockTemplate } from '../utils/rockFactory.js';
+import { shellTemplate } from '../utils/shellFactory.js';
+import { coralTemplate } from '../utils/coralFactory.js';
 import { tintTemplate, forgetTints } from '../utils/decoTint.js';
 import PathSystem from './pathSystem.js';
 
 const PATH_SURFACE = 0.02;
+const FLAT_SINK = 0.015;
+
+function liesFlat(def) {
+  return Boolean(def && def.shell);
+}
 
 function cellNoise(cx, cz, salt) {
   const n = Math.sin(cx * 127.1 + cz * 311.7 + salt * 74.7) * 43758.5453;
@@ -40,7 +47,7 @@ function rockJitter(entry) {
 
 function jitterFor(def, entry) {
   if (def.kind === 'tree') return treeJitter(entry);
-  if (def.rock) return rockJitter(entry);
+  if (def.rock || def.shell || def.coral) return rockJitter(entry);
   return null;
 }
 
@@ -118,7 +125,7 @@ export default class DecoSystem {
 
   hasModel(key) {
     const def = getDecoration(key);
-    return !!def && !!(def.model || def.tree || def.rock);
+    return !!def && !!(def.model || def.tree || def.rock || def.shell || def.coral);
   }
 
   blockCount(entry) {
@@ -236,7 +243,7 @@ export default class DecoSystem {
     this.applyEntry(entry, section);
     const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
     const anchor = this.createAnchor(entry, def, x, z, bucket);
-    if (!def.model && !def.tree && !def.rock) return anchor;
+    if (!def.model && !def.tree && !def.rock && !def.shell && !def.coral) return anchor;
     const work = this.attachModel(anchor, def, entry, section);
     this.pendingPieces.push(work);
     return work;
@@ -306,17 +313,30 @@ export default class DecoSystem {
     const jitter = jitterFor(def, entry);
     const shiftX = jitter ? jitter.x : 0;
     const shiftZ = jitter ? jitter.z : 0;
+    const spotX = x + (entry.offsetX || 0) + shiftX;
+    const spotZ = z + (entry.offsetZ || 0) + shiftZ;
+    const spotY = this.entryHeight(entry, shiftX, shiftZ);
+    const yaw = (Math.PI / 2) * (entry.rotation || 0) + (jitter ? jitter.yaw : 0);
     const anchor = new TransformNode(`deco_${entry.key}_${entry.cx}_${entry.cz}`, this.s);
-    anchor.position = new Vector3(
-      x + (entry.offsetX || 0) + shiftX,
-      this.entryHeight(entry, shiftX, shiftZ),
-      z + (entry.offsetZ || 0) + shiftZ,
-    );
-    anchor.rotation.y = (Math.PI / 2) * (entry.rotation || 0) + (jitter ? jitter.yaw : 0);
-    anchor.metadata = { key: entry.key, def, bucket, entry };
+    anchor.position = new Vector3(spotX, spotY, spotZ);
+    anchor.metadata = { key: entry.key, def, bucket, entry, yaw };
+    if (liesFlat(def)) this.leanFlat(anchor, def, spotX, spotY, spotZ);
+    else anchor.rotation.y = yaw;
     bucket.push(anchor);
     this.anchors.push(anchor);
     return anchor;
+  }
+
+  leanFlat(anchor, def, x, y, z) {
+    if (!this.groundHeightAt) return;
+    const reach = Math.max(0.12, def.radius || 0.2);
+    const slopeX = (this.groundHeightAt(x + reach, z) - this.groundHeightAt(x - reach, z)) / (2 * reach);
+    const slopeZ = (this.groundHeightAt(x, z + reach) - this.groundHeightAt(x, z - reach)) / (2 * reach);
+    const normal = new Vector3(-slopeX, 1, -slopeZ).normalize();
+    const tilt = Quaternion.Identity();
+    Quaternion.FromUnitVectorsToRef(Vector3.Up(), normal, tilt);
+    anchor.rotationQuaternion = tilt;
+    anchor.position.y = y - FLAT_SINK;
   }
 
   blocksPlaced() {
@@ -364,6 +384,8 @@ export default class DecoSystem {
     let template = null;
     if (def.tree) template = treeTemplate(this.s, def.tree);
     else if (def.rock) template = rockTemplate(this.s, def.rock);
+    else if (def.shell) template = shellTemplate(this.s, def.shell);
+    else if (def.coral) template = coralTemplate(this.s, def.coral);
     else template = await resolveModel(this.s, def.model);
     if (anchor.isDisposed()) return;
     if (!template) return this.markBroken(anchor, def);
@@ -373,8 +395,10 @@ export default class DecoSystem {
     node.parent = anchor;
     node.position = new Vector3(0, 0, 0);
     const jitter = jitterFor(def, entry);
-    const scale = def.scale * (jitter ? jitter.scale : 1);
+    const entryScale = Number.isFinite(entry.scale) ? entry.scale : 1;
+    const scale = def.scale * entryScale * (jitter ? jitter.scale : 1);
     node.scaling = new Vector3(scale, scale, scale);
+    if (liesFlat(def) && anchor.metadata) node.rotation.y = anchor.metadata.yaw || 0;
     if (!def.noTint) ownMaterials(node);
     tintTemplate(node, def, this.colors, section);
     anchor.metadata.model = node;

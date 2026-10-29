@@ -20,6 +20,7 @@ export function layoutFromMapFile(file, fallbackSeed = 1) {
     clearing: copy(world.clearing),
     grass: copy(world.grass),
     decorations: copy(world.decorations),
+    fish: copy(world.fish),
   };
 }
 
@@ -38,5 +39,6 @@ export function mapFileFromLayout(mapKey, layout) {
     clearing: copy(layout.clearing),
     grass: copy(layout.grass),
     decorations: copy(layout.decorations),
+    fish: copy(layout.fish),
   };
 }

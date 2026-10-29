@@ -135,6 +135,33 @@ export const BRUSHES = {
     surface: 'floor_sand',
     option: { key: 'smoothEdge', label: 'Plynulý okraj' },
   },
+  shore: {
+    label: 'Pobřeží',
+    shape: 'blob',
+    pool: ['shore_shells', 'shore_shells_mid', 'shore_shells_wide', 'shore_shells_cup'],
+    deco: true,
+  },
+  reef: {
+    label: 'Koraly',
+    shape: 'blob',
+    pool: ['coral_fan', 'coral_branch', 'coral_brain'],
+    deco: true,
+    cluster: { min: 8, max: 14, spread: 0.85, scaleMin: 0.45, scaleMax: 0.75 },
+  },
+  fish: {
+    label: 'Ryby',
+    shape: 'blob',
+    fish: true,
+    style: 'fish_blue',
+    styles: ['fish_blue', 'fish_gold', 'fish_green', 'fish_red', 'fish_micro'],
+    styleLabels: {
+      fish_blue: 'Stříbrné',
+      fish_gold: 'Zlaté',
+      fish_green: 'Zelené',
+      fish_red: 'Červené',
+      fish_micro: 'Drobné',
+    },
+  },
   cliff: {
     label: 'Útes',
     shape: 'blob',
