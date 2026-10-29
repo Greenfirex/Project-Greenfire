@@ -80,10 +80,13 @@ zatím neběží.
 
 ### Předání stavu
 
-Poslední commit: `f06a51d` — vlnění vodní hladiny. V pracovním stromu je nad
-ním hotové míchání textur trávy a písku (jednosměrné, písek do trávy), rovné
-hranice povrchů, kroky ve vodě a příboj u vody včetně hráče ve vodě a zákazu
-stavění; čeká na vizuální test, commit dělá uživatel.
+Poslední commit: `d212110` — procedurální vegetace, kameny a kamenné útesy.
+Přinesl listnáče s rekurzivním větvením a atlasem tří listů, kameny stavěné
+v kódu (pět tvarů a tři shluky, náhodné otočení a zvětšení), volbu kamenného
+nebo hliněného útesu ve štětci Útes, míchání povrchů, které útes respektuje,
+trávu na buňce se stromem a novou texturu listu palmy bez bílého oparu.
+Staré low-poly modely stromů a kamenů jsou odstraněné a mapa je převedená
+na procedurální druhy. Pracovní strom je čistý.
 
 **Stav:** plán kolem terénu, povrchů a vody je uzavřený. Zbývá jen volitelné
 doladění a práce mimo tento plán.
@@ -353,4 +356,26 @@ funkci na konci souboru.
 V editoru se cesta kreslí brushem **Cesta** (má tlačítka pro volbu stylu hlina/
 kámen/dřevo). Zvýraznění „už tady cesta je" funguje na vrstvu `path`, ne na klíč,
 takže funguje stejně pro cestu nakreslenou v editoru i pro tu načtenou ze souboru.
+
+## Nápady na další vizuální vylepšení
+
+Seřazeno podle poměru přínos / práce. Nic z toho není rozhodnuté, je to
+seznam k výběru.
+
+1. **Kontaktní stíny pod objekty** — kameny, sudy, bedny a pařezy nemají
+   stín přímo pod sebou, takže působí, že plavou. Jemný tmavý kruh na zemi
+   pod každým objektem scénu nejvíc „usadí“ a je to nejmenší práce.
+2. **Borovice: menší a prohnuté karty** — listová karta je u borovic pořád
+   velký rovný obdélník. Stejná úprava, jakou už mají listnáče (zmenšit,
+   prohnout, náhodně zrcadlit), z borovic sundá dojem placek.
+3. **Pláž a voda** — chybí mokrý pruh u hladiny a rozbitý okraj písku.
+   Výpočet mokré barvy už existuje, jde jen doladit šířku a přidat kamínky
+   a lastury podél břehu.
+4. **Skála: mech a lišejník** — kámen je jednolitý. Ztmavení u paty a mírné
+   zelené omaštění horních ploch podle sklonu (barvou ve vrcholech, bez
+   nových textur) oživí útes i balvany.
+5. **Tráva: barevné skvrny a květiny** — tráva je jedna barva. Dva odstíny
+   podle polohy a občasný květ udělají louku míň kobercovou.
+6. **Vzdálené stromy (LOD)** — až bude les hustší, nahradit daleké stromy
+   jednodušší variantou. Uvolní výkon a dovolí sázet víc stromů.
 
