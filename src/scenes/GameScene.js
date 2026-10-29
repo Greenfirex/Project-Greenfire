@@ -149,6 +149,7 @@ export default class GameScene {
 
     this.camera = null;
     this.shadowGenerator = null;
+    this.sunLight = null;
     this.currentMachine = DEFAULT_MACHINE;
     this.previewRotation = 0;
     this.heldItemSystem = new HeldItemSystem();
@@ -926,11 +927,13 @@ updateGatherTarget() {
     dir.intensity = light.sunIntensity;
     if (light.sunColor) dir.diffuse = new Color3(light.sunColor[0], light.sunColor[1], light.sunColor[2]);
 
+    this.sunLight = dir;
     this.shadowGenerator = new ShadowGenerator(light.shadowMapSize, dir);
     this.shadowGenerator.usePercentageCloserFiltering = true;
     this.shadowGenerator.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
     this.shadowGenerator.bias = 0.00005;
     this.shadowGenerator.normalBias = 0.002;
+    this.shadowGenerator.getShadowMap().clearColor = new Color4(1, 1, 1, 1);
 
     this.setupFog(map);
 
@@ -1008,6 +1011,7 @@ updateGatherTarget() {
     this.engine.maxFPS = this.paused ? 60 : this.defaultMaxFPS;
     this.refreshClock();
     this.shadowGenerator.getShadowMap().renderList = this.options.shadows ? this.shadowCasters.slice() : [];
+    if (this.sunLight) this.sunLight.shadowEnabled = Boolean(this.options.shadows);
     this.decoHighlight.setVisible(this.options.highlights);
     this.glowSystem.setEnabled(this.options.fireGlow);
     this.floraSystem.setDensity(this.options.grass);
@@ -1633,7 +1637,9 @@ updateGatherTarget() {
 
   refreshShadowCasters() {
     this.shadowCasters = this.shadowCasters.filter((mesh) => mesh && !mesh.isDisposed());
-    this.shadowGenerator.getShadowMap().renderList = this.options.shadows ? this.shadowCasters.slice() : [];
+    const shadows = Boolean(this.options.shadows);
+    if (this.sunLight) this.sunLight.shadowEnabled = shadows;
+    this.shadowGenerator.getShadowMap().renderList = shadows ? this.shadowCasters.slice() : [];
   }
 
 

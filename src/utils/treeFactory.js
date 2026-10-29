@@ -22,6 +22,7 @@ const TREE_BRIGHTNESS = 1.12;
 const CARD_ROLL = 0.7;
 const CARD_ASPECT = 0.7;
 const CARD_BEND = 0.12;
+const PINE_CARD_BEND = 0.22;
 
 export function treeTemplate(scene, key) {
   return cachedTemplate(templates, scene, key, (recipe) => buildTree(scene, key, recipe));
@@ -195,6 +196,31 @@ function addCard(buffer, center, forward, lateral, length, height, color, uv) {
   addQuad(buffer, a, b, c, d, color, Vector3.Up(), uv);
 }
 
+function addBentCard(buffer, center, forward, lateral, length, height, color, uv, bend) {
+  const faceCross = Vector3.Cross(forward, lateral);
+  if (faceCross.lengthSquared() < 1e-8) {
+    addCard(buffer, center, forward, lateral, length, height, color, uv);
+    return;
+  }
+  const [u0, v0, u1, v1] = uv || [0, 0, 1, 1];
+  const face = faceCross.normalize();
+  const across = lateral.scale(height * 0.5);
+  const grid = [];
+  for (let i = 0; i <= 2; i += 1) {
+    const si = i - 1;
+    const bow = (1 - si * si) * bend * length;
+    const along = center.add(forward.scale(si * length * 0.5)).subtract(face.scale(bow));
+    grid.push([along.subtract(across), along.add(across)]);
+  }
+  const uvAt = (i, j) => [u0 + (i / 2) * (u1 - u0), v0 + j * (v1 - v0)];
+  for (let i = 0; i < 2; i += 1) {
+    addTriangle(buffer, grid[i][0], grid[i + 1][0], grid[i + 1][1], color,
+      uvAt(i, 0), uvAt(i + 1, 0), uvAt(i + 1, 1), Vector3.Up());
+    addTriangle(buffer, grid[i][0], grid[i + 1][1], grid[i][1], color,
+      uvAt(i, 0), uvAt(i + 1, 1), uvAt(i, 1), Vector3.Up());
+  }
+}
+
 function tangentAt(points, index) {
   if (index === 0) return points[1].subtract(points[0]).normalize();
   if (index === points.length - 1) return points[index].subtract(points[index - 1]).normalize();
@@ -337,36 +363,37 @@ function buildBranches(barkBuffer, leafBuffer, recipe, rng) {
       addTube(barkBuffer, [start, mid, tip], [0.05, 0.028, 0.012], 5,
         (k) => barkShade(recipe, 0.35 + k * 0.45, rng), [1, 1.2]);
       addCap(barkBuffer, tip, direction, 0.012, 5, barkShade(recipe, 0.8, rng));
-      addBranchCards(leafBuffer, recipe, rng, start, direction, length, t);
+      addBranchCards(leafBuffer, recipe, rng, start, direction, length, t, step);
     }
   }
 }
 
-function addBranchCards(buffer, recipe, rng, start, direction, length, t) {
-  const count = Math.max(1, recipe.cardsPerBranch);
+function addBranchCards(buffer, recipe, rng, start, direction, length, t, step) {
+  const tipSparse = Math.max(0, (step - 0.75) / 0.25);
+  const count = Math.max(1, Math.round(recipe.cardsPerBranch * (1 - 0.45 * tipSparse)));
   const up = Vector3.Up();
   const lateral = Vector3.Cross(direction, up).normalize();
   const cardLength = length * recipe.cardLength;
   const cardHeight = length * recipe.cardHeight;
   for (let c = 0; c < count; c += 1) {
-    const step = count === 1 ? 0.5 : c / (count - 1);
-    const along = 0.35 + 0.55 * step;
+    const slot = count === 1 ? 0.5 : c / (count - 1);
+    const along = 0.35 + 0.55 * slot;
     const center = start.add(direction.scale(length * along));
     const color = leafShade(recipe, t, rng);
     const uv = pickLeafUv(recipe, rng);
     const tilt = up.add(lateral.scale((rng() - 0.5) * 0.5)).normalize();
-    const size = (0.9 + rng() * 0.2) * (1 - 0.35 * step);
+    const size = (0.9 + rng() * 0.2) * (1 - 0.35 * slot);
     const roll = (rng() - 0.5) * CARD_ROLL;
-    addCard(buffer, center, direction, rollLateral(tilt, direction, roll),
-      cardLength * size, cardHeight * size, color, uv);
-    addCard(buffer, center, direction, rollLateral(lateral, direction, roll),
-      cardLength * size, cardHeight * size, color, uv);
+    addBentCard(buffer, center, direction, rollLateral(tilt, direction, roll),
+      cardLength * size, cardHeight * size, color, uv, PINE_CARD_BEND);
+    addBentCard(buffer, center, direction, rollLateral(lateral, direction, roll),
+      cardLength * size, cardHeight * size, color, uv, PINE_CARD_BEND);
   }
   const inner = start.add(direction.scale(length * 0.24));
   const innerColor = leafShade(recipe, t, rng);
   const innerUv = pickLeafUv(recipe, rng);
-  addCard(buffer, inner, direction, up, cardLength * 0.7, cardHeight * 0.7, innerColor, innerUv);
-  addCard(buffer, inner, direction, lateral, cardLength * 0.7, cardHeight * 0.7, innerColor, innerUv);
+  addCard(buffer, inner, direction, up, cardLength * 0.85, cardHeight * 0.85, innerColor, innerUv);
+  addCard(buffer, inner, direction, lateral, cardLength * 0.85, cardHeight * 0.85, innerColor, innerUv);
 }
 
 function rollLateral(lateral, forward, angle) {
@@ -378,7 +405,8 @@ function rollLateral(lateral, forward, angle) {
 function pickLeafUv(recipe, rng) {
   const windows = recipe.leafUv;
   if (!windows || !windows.length) return null;
-  return windows[Math.floor(rng() * windows.length)];
+  const [u0, v0, u1, v1] = windows[Math.floor(rng() * windows.length)];
+  return rng() < 0.5 ? [u1, v0, u0, v1] : [u0, v0, u1, v1];
 }
 
 function buildTop(buffer, recipe, rng) {
@@ -389,10 +417,10 @@ function buildTop(buffer, recipe, rng) {
     const direction = new Vector3(Math.cos(angle) * 0.45, 1, Math.sin(angle) * 0.45).normalize();
     const lateral = Vector3.Cross(direction, Vector3.Up()).normalize();
     const color = leafShade(recipe, 1, rng);
-    const size = recipe.height * 0.16;
+    const size = recipe.height * 0.12;
     const center = top.add(direction.scale(size * 0.3));
-    addCard(buffer, center, direction, Vector3.Up(), size, size * 0.55, color);
-    addCard(buffer, center, direction, lateral, size, size * 0.55, color);
+    addBentCard(buffer, center, direction, Vector3.Up(), size, size * 0.55, color, null, PINE_CARD_BEND);
+    addBentCard(buffer, center, direction, lateral, size, size * 0.55, color, null, PINE_CARD_BEND);
   }
 }
 

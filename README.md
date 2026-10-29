@@ -363,19 +363,16 @@ Seřazeno podle poměru přínos / práce. Nic z toho není rozhodnuté, je to
 seznam k výběru.
 
 1. **Kontaktní stíny pod objekty** — kameny, sudy, bedny a pařezy nemají
-   stín přímo pod sebou, takže působí, že plavou. Jemný tmavý kruh na zemi
-   pod každým objektem scénu nejvíc „usadí“ a je to nejmenší práce.
-2. **Borovice: menší a prohnuté karty** — listová karta je u borovic pořád
-   velký rovný obdélník. Stejná úprava, jakou už mají listnáče (zmenšit,
-   prohnout, náhodně zrcadlit), z borovic sundá dojem placek.
-3. **Pláž a voda** — chybí mokrý pruh u hladiny a rozbitý okraj písku.
+   stín přímo pod sebou, takže působí, že plavou. Plochý flek na zemi ale
+   neumí kopírovat svah, takže to chce řešení, které se ohne s terénem.
+2. **Pláž a voda** — chybí mokrý pruh u hladiny a rozbitý okraj písku.
    Výpočet mokré barvy už existuje, jde jen doladit šířku a přidat kamínky
    a lastury podél břehu.
-4. **Skála: mech a lišejník** — kámen je jednolitý. Ztmavení u paty a mírné
+3. **Skála: mech a lišejník** — kámen je jednolitý. Ztmavení u paty a mírné
    zelené omaštění horních ploch podle sklonu (barvou ve vrcholech, bez
    nových textur) oživí útes i balvany.
-5. **Tráva: barevné skvrny a květiny** — tráva je jedna barva. Dva odstíny
+4. **Tráva: barevné skvrny a květiny** — tráva je jedna barva. Dva odstíny
    podle polohy a občasný květ udělají louku míň kobercovou.
-6. **Vzdálené stromy (LOD)** — až bude les hustší, nahradit daleké stromy
+5. **Vzdálené stromy (LOD)** — až bude les hustší, nahradit daleké stromy
    jednodušší variantou. Uvolní výkon a dovolí sázet víc stromů.
 
