@@ -77,12 +77,20 @@
   display: block;
 }
 
-/* Hotbar dole uprostřed — sloty pro předměty, které má hráč v ruce. */
-.hotbar {
+/* Dolní lišta — tři samostatné panely vedle sebe: batoh, předměty, postava. */
+.hud-dock {
   position: absolute;
   bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  z-index: 11;
+}
+
+.hotbar {
+  order: 2;
   padding: 8px 10px 6px;
   background: var(--bg-panel);
   border: 1px solid var(--border-glow);
@@ -95,6 +103,56 @@
 .hotbar__slots {
   display: flex;
   gap: 6px;
+}
+
+/* Samostatné panely po stranách lišty — otevírají batoh a postavu. */
+.dock-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 66px;
+  padding: 8px 6px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1.2;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
+}
+
+.dock-panel:hover {
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+.dock-panel.is-active {
+  border-color: var(--glow-accent);
+  background: rgba(90, 200, 170, 0.16);
+  color: var(--text-main);
+  box-shadow: 0 0 8px rgba(90, 200, 170, 0.35);
+}
+
+.dock-panel--bag {
+  order: 1;
+}
+
+.dock-panel--character {
+  order: 3;
+}
+
+.dock-panel__icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.dock-panel__name {
+  white-space: nowrap;
 }
 
 .hotbar__hint {
@@ -255,47 +313,127 @@
   display: block;
 }
 
-/* Panel batohu vlevo dole — suroviny hráče a recepty, které jdou udělat. */
-#hud-inventory {
+/* Log vlevo dole — poslední události ve hře, nejnovější nahoře. */
+.hud-log {
   bottom: 12px;
   left: 12px;
-  min-width: 290px;
-  max-width: 340px;
+  width: 290px;
+  max-width: 290px;
+  padding: 10px 12px;
 }
 
-#hud-inventory .inv-list {
-  gap: 4px;
+.log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 186px;
+  overflow: hidden;
 }
 
-#hud-inventory .inv-row {
+.log-row {
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-dim);
+}
+
+.log-row--gain {
+  color: var(--glow-accent);
+}
+
+.log-row--action {
+  color: var(--text-main);
+}
+
+.log-row--warn {
+  color: var(--glow-warm);
+}
+
+.log-empty {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+/* Okna batohu a postavy — otevírají se tlačítky po stranách lišty s předměty. */
+.side-window {
+  position: absolute;
+  bottom: 122px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  width: 320px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 12px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
+  z-index: 22;
+  user-select: none;
+}
+
+.side-window.is-open {
+  display: block;
+}
+
+.side-window__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
+  margin-bottom: 8px;
 }
 
-#hud-inventory .inv-row__icon {
+.side-window__title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--glow-accent);
+}
+
+.side-window__close {
   width: 22px;
-  font-size: 17px;
-}
-
-#hud-inventory .inv-empty {
-  font-size: 15px;
-}
-
-#hud-inventory .inv-craft {
-  margin-top: 12px;
-  padding-top: 10px;
-}
-
-#hud-inventory .inv-craft__label {
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border-glow);
+  border-radius: 4px;
+  color: var(--text-dim);
   font-size: 14px;
-  margin-bottom: 6px;
+  line-height: 1;
+  cursor: pointer;
 }
 
-#hud-inventory .inv-recipes {
-  gap: 4px;
+.side-window__close:hover {
+  border-color: var(--glow-accent);
+  color: var(--text-main);
 }
 
-#hud-inventory .inv-recipe {
-  font-size: 15px;
+.character-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-dim);
+}
+
+.character-row strong {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.character-note {
+  margin-top: 8px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-dim);
 }
 
 .inv-list {

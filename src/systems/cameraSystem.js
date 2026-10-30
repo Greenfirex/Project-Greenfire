@@ -8,13 +8,14 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 const ISO_ALPHA = -Math.PI / 4;
 const ISO_BETA = Math.PI / 3.4;
 const ZOOM_MIN = 8;
-const ZOOM_MAX = 60;
+export const ZOOM_MAX = 60;
 
 export default class CameraSystem {
 
   constructor(scene) {
     this.s = scene;
-    this.zoom = 30;
+    this.zoom = 18;
+    this.maxZoom = ZOOM_MAX;
     this.target = new Vector3(0, 0, 0);
     this.camera = null;
   }
@@ -49,9 +50,15 @@ export default class CameraSystem {
   }
 
   setZoom(zoom) {
-    this.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom));
+    this.zoom = Math.min(this.maxZoom, Math.max(ZOOM_MIN, zoom));
     this.camera.radius = this.zoom * 2.2;
     this.applyOrtho();
+  }
+
+  setMaxZoom(maxZoom) {
+    const value = Number.isFinite(maxZoom) ? maxZoom : ZOOM_MAX;
+    this.maxZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value));
+    if (this.zoom > this.maxZoom) this.setZoom(this.maxZoom);
   }
 
   zoomBy(delta) {

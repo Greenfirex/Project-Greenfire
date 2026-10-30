@@ -1,4 +1,5 @@
 // Hotbar dole uprostřed — sloty pro předměty v ruce. Kliknutí jen hlásí callback.
+// Sedí v dolní liště vedle samostatných panelů batohu a postavy.
 import { getTool, HOTBAR_ITEMS } from '../data/catalogs/items.js';
 
 const HOTBAR_SLOT_COUNT = 5;
@@ -16,6 +17,7 @@ export default class Hotbar {
 
   mount() {
     if (this.root) return this.root;
+    const dock = this.dock();
     const root = document.createElement('div');
     root.className = 'hotbar';
     root.innerHTML = '<div class="hotbar__slots"></div><div class="hotbar__hint"><span class="hud-key">1</span>–<span class="hud-key">5</span> výběr předmětu</div>';
@@ -47,12 +49,22 @@ export default class Hotbar {
       slots.appendChild(btn);
     }
 
-    document.getElementById('hud-layer').appendChild(root);
+    dock.appendChild(root);
     this.root = root;
     this.prompt = document.createElement('div');
     this.prompt.className = 'gather-prompt';
     document.getElementById('hud-layer').appendChild(this.prompt);
     return root;
+  }
+
+  dock() {
+    let dock = document.getElementById('hud-dock');
+    if (dock) return dock;
+    dock = document.createElement('div');
+    dock.className = 'hud-dock';
+    dock.id = 'hud-dock';
+    document.getElementById('hud-layer').appendChild(dock);
+    return dock;
   }
 
   setPrompt(text) {

@@ -19,8 +19,9 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 |---|---|
 | **W A S D / šipky** | Pohyb postavy (vzhledem ke kameře), Shift = běh. V editoru posouvají pohled po mapě, Shift zrychlí |
 | **Tažení pravým tlačítkem** | Rotace kamery (v editoru středním tlačítkem) |
-| **Kolečko** | Zoom |
+| **Kolečko** | Zoom (v editoru jde oddálit víc než ve hře) |
 | **1–5** | Výběr předmětu v ruce (plán, sekera, krumpáč, pochodeň) |
+| **I / C** | Batoh / postava — okna nad lištou předmětů (také tlačítky po stranách lišty) |
 | **Levé tlačítko u stromu / rudy / kamene** | Těžení (podržet = opakovat) |
 | **Klik na zem s plánem v ruce** | Postavení stroje na buňku |
 | **M** | Přepnutí typu stavěného stroje |
@@ -65,7 +66,8 @@ src/
 
 Funkční: izometrická ortho kamera, navazování na postavu, mřížka s hover
 zvýrazněním, hratelná postava s animacemi (idle/run/jízda nástrojem), sběr
-dřeva a kamene včetně kácení stromů, batoh, modelem nahrazené stroje z Kenney
+dřeva a kamene včetně kácení stromů, batoh a postava v oknech nad lištou
+předmětů, log událostí vlevo dole, modelem nahrazené stroje z Kenney
 kitu, rotace a bourání strojů, táborák s ohněm a svícením, oheň pochodně,
 denní cyklus se stíny, lesní zvuky a kroky podle povrchu, panel možností,
 editor mapy (zóny, cesty, výšky ±6 m, štětec pláže se svahem po 0,3 m,

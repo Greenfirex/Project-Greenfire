@@ -11,7 +11,7 @@ import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Scene } from '@babylonjs/core/scene';
 import { FxaaPostProcess } from '@babylonjs/core/PostProcesses/fxaaPostProcess';
 
-import CameraSystem from '../systems/cameraSystem.js';
+import CameraSystem, { ZOOM_MAX as EDITOR_ZOOM_MAX } from '../systems/cameraSystem.js';
 import GridSystem from '../systems/gridSystem.js';
 import TerrainSystem from '../systems/terrainSystem.js';
 import WaterSystem from '../systems/waterSystem.js';
@@ -34,9 +34,13 @@ import HarvestSystem from '../systems/harvestSystem.js';
 import InventorySystem from '../systems/inventorySystem.js';
 import HeldItemSystem from '../systems/heldItemSystem.js';
 import AudioSystem from '../systems/audioSystem.js';
-import InventoryPanel from '../ui/inventoryPanel.js';
+import InventoryWindow from '../ui/inventoryWindow.js';
+import CharacterWindow from '../ui/characterWindow.js';
+import LogPanel from '../ui/logPanel.js';
+import { itemIcon } from '../ui/itemIcons.js';
 import Hud from '../ui/hud.js';
 import Hotbar from '../ui/hotbar.js';
+import DockButton from '../ui/dockButton.js';
 import MapEditor from '../editor/mapEditor.js';
 import EditorToggle from '../editor/editorToggle.js';
 import PauseScreen from '../ui/pauseScreen.js';
@@ -52,7 +56,7 @@ import { flowerTemplate } from '../utils/flowerFactory.js';
 import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
-import { HOTBAR_ITEMS } from '../data/catalogs/items.js';
+import { HOTBAR_ITEMS, ITEM_TYPES } from '../data/catalogs/items.js';
 import { worldToCellCoords, worldToCell, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
@@ -88,6 +92,7 @@ const SHADOW_REACH_STEP = 0.2;
 const EDITOR_CAM_SPEED = 12;
 const EDITOR_CAM_SPRINT = 32;
 const IMPACT_DELAY = 0.28;
+const PLAYER_ZOOM_MAX = 22;
 const TIME_SKIP = { hours: 6 };
 
 function sameMeshes(first, second) {
@@ -159,7 +164,11 @@ export default class GameScene {
     this.hud = new Hud();
     this.tooltipPanel = new TooltipPanel();
     this.hotbar = new Hotbar();
-    this.inventoryPanel = new InventoryPanel();
+    this.bagButton = new DockButton({ icon: '🎒', label: 'Batoh', title: 'Batoh (I)', slot: 'bag' });
+    this.characterButton = new DockButton({ icon: '🧍', label: 'Postava', title: 'Postava (C)', slot: 'character' });
+    this.log = new LogPanel();
+    this.inventoryWindow = new InventoryWindow();
+    this.characterWindow = new CharacterWindow();
     this.editor = new MapEditor(this);
     this.optionsPanel = new OptionsPanel();
     this.editorToggle = new EditorToggle();
@@ -197,6 +206,7 @@ export default class GameScene {
     window.addEventListener('keydown', this.unlockAudio, { once: true });
     this.hoverCell = null;
     this.mapLayout = null;
+    this.clockText = '';
     this.impactTimer = 0;
     this.shoreClock = 0;
   }
@@ -220,10 +230,14 @@ export default class GameScene {
     this.audioSystem.load();
     this.refreshAmbient();
     this.campfireSystem.onIgniteStart = (item) => this.playerSystem.igniteAt(item.x, item.z);
-    this.campfireSystem.onIgnite = () => this.audioSystem.play('ignite');
+    this.campfireSystem.onIgnite = () => {
+      this.audioSystem.play('ignite');
+      this.log.add('Táborák zapálen', 'action');
+    };
     this.setupGlow();
     this.setupLighting();
     this.camera = this.cameraSystem.create();
+    this.cameraSystem.setMaxZoom(PLAYER_ZOOM_MAX);
     this.fxaa = new FxaaPostProcess('fxaa', 1.0, this.camera);
     this.skySystem.create();
     this.skySystem.setDayness(this.waterDayness(), this.dayNightSystem.sunLight);
@@ -305,7 +319,7 @@ export default class GameScene {
     this.engine.runRenderLoop(() => this.s.render());
     this.hud.setMachine(getMachine(this.currentMachine).displayName);
     this.hotbar.setSelected(this.heldItemSystem.key);
-    this.inventoryPanel.update(this.inventorySystem);
+    this.inventoryWindow.update(this.inventorySystem);
     await this.prepareGame();
   }
 
@@ -560,7 +574,8 @@ updateGatherTarget() {
     }
     this.refreshGatherTargets();
     for (const { itemKey, amount } of yields) this.inventorySystem.add(itemKey, amount);
-    this.inventoryPanel.update(this.inventorySystem);
+    this.inventoryWindow.update(this.inventorySystem);
+    this.logGain(yields);
   }
 
   finishFelling(item) {
@@ -568,6 +583,7 @@ updateGatherTarget() {
     if (!anchor || anchor.isDisposed()) return;
     const fall = item.fall || { dirX: 1, dirZ: 0 };
     this.applyFelling(item.entry.cx, item.entry.cz, anchor, item.def, fall, true);
+    this.log.add(`Pokáceno: ${item.def.displayName}`, 'action');
     this.refreshGatherTargets();
   }
 
@@ -654,6 +670,8 @@ updateGatherTarget() {
       restored += 1;
     }
     if (restored) this.refreshGatherTargets();
+    if (restored === 1) this.log.add('Na místě vyrostla houba nebo mušle', 'info');
+    else if (restored > 1) this.log.add(`Na místě vyrostlo ${restored} hub a mušlí`, 'info');
   }
 
   restoreHarvested(found, cell) {
@@ -1308,9 +1326,11 @@ updateGatherTarget() {
     const minutes = Math.floor(time * 24 * 60) % (24 * 60);
     const hh = String(Math.floor(minutes / 60)).padStart(2, '0');
     const mm = String(minutes % 60).padStart(2, '0');
-    this.hud.setClockText(`${hh}:${mm}`);
+    this.clockText = `${hh}:${mm}`;
+    this.hud.setClockText(this.clockText);
     this.hud.setClockPhase(this.describeDayPhase(time, cfg));
     this.hud.setClockSpeed(this.simSystem.speed, this.paused || this.simSystem.halted);
+    if (this.characterWindow.open) this.refreshCharacterWindow();
   }
 
   refreshAmbient() {
@@ -1347,8 +1367,71 @@ updateGatherTarget() {
     this.hotbar.mount();
     this.hotbar.onSelect = (key) => this.heldItemSystem.set(key);
     this.hotbar.setSelected(this.heldItemSystem.key);
-    this.inventoryPanel.update(this.inventorySystem);
+    this.bagButton.onClick = () => this.toggleInventoryWindow();
+    this.characterButton.onClick = () => this.toggleCharacterWindow();
+    this.bagButton.mount();
+    this.characterButton.mount();
+    this.log.mount();
+    this.inventoryWindow.update(this.inventorySystem);
     this.refreshClock();
+  }
+
+  toggleInventoryWindow() {
+    const open = !this.inventoryWindow.open;
+    this.closeOpenWindows();
+    if (!open) return;
+    this.inventoryWindow.update(this.inventorySystem);
+    this.inventoryWindow.show();
+    this.bagButton.setActive(true);
+  }
+
+  toggleCharacterWindow() {
+    const open = !this.characterWindow.open;
+    this.closeOpenWindows();
+    if (!open) return;
+    this.refreshCharacterWindow();
+    this.characterWindow.show();
+    this.characterButton.setActive(true);
+  }
+
+  closeOpenWindows() {
+    let closed = false;
+    if (this.inventoryWindow.open) {
+      this.inventoryWindow.close();
+      this.bagButton.setActive(false);
+      closed = true;
+    }
+    if (this.characterWindow.open) {
+      this.characterWindow.close();
+      this.characterButton.setActive(false);
+      closed = true;
+    }
+    return closed;
+  }
+
+  refreshCharacterWindow() {
+    const root = this.playerSystem.root;
+    const carrying = Object.values(this.inventorySystem.items || {})
+      .reduce((sum, count) => sum + (Number(count) || 0), 0);
+    let cell = '—';
+    if (root) {
+      const coords = worldToCellCoords(root.position.x, root.position.z);
+      cell = `${coords.cx}, ${coords.cz}`;
+    }
+    this.characterWindow.update({
+      cell,
+      height: root ? metersText(root.position.y) : '—',
+      carrying,
+      clock: this.clockText || '—',
+    });
+  }
+
+  logGain(yields) {
+    const parts = yields.map(({ itemKey, amount }) => {
+      const def = ITEM_TYPES[itemKey];
+      return `+${amount} ${itemIcon(itemKey)} ${def ? def.displayName : itemKey}`;
+    });
+    if (parts.length) this.log.add(parts.join('   '), 'gain');
   }
 
   onHeldItemChange() {
@@ -1404,7 +1487,7 @@ updateGatherTarget() {
       serialize: () => this.inventorySystem.serialize(),
       apply: (data) => {
         this.inventorySystem.apply(data);
-        this.inventoryPanel.update(this.inventorySystem);
+        this.inventoryWindow.update(this.inventorySystem);
       },
       defaults: { items: {} },
       order: 6,
@@ -1460,6 +1543,10 @@ updateGatherTarget() {
     return active;
   }
 
+  syncZoomLimit() {
+    this.cameraSystem.setMaxZoom(this.editor.active ? EDITOR_ZOOM_MAX : PLAYER_ZOOM_MAX);
+  }
+
   holdGameForEditor() {
     if (this.paused) return;
     this.setPaused(true);
@@ -1494,6 +1581,10 @@ updateGatherTarget() {
       if (evt.key !== 'Escape') evt.preventDefault();
       return;
     }
+    if (evt.key === 'Escape' && this.closeOpenWindows()) {
+      evt.preventDefault();
+      return;
+    }
     if ((evt.key === 'o' || evt.key === 'O') && !typing) {
       if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
       evt.preventDefault();
@@ -1508,6 +1599,18 @@ updateGatherTarget() {
     if (evt.key === 'F2') {
       evt.preventDefault();
       this.toggleEditorMode();
+      return;
+    }
+    if ((evt.key === 'i' || evt.key === 'I') && !typing && !this.editor.active) {
+      if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+      evt.preventDefault();
+      this.toggleInventoryWindow();
+      return;
+    }
+    if ((evt.key === 'c' || evt.key === 'C') && !typing && !this.editor.active) {
+      if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+      evt.preventDefault();
+      this.toggleCharacterWindow();
       return;
     }
     if (evt.key === 'g' || evt.key === 'G') {
@@ -1843,6 +1946,7 @@ updateGatherTarget() {
     record.mesh.receiveShadows = true;
     this.hud.setCount(this.buildSystem.count);
     this.hud.setSaveHint('Neuloženo');
+    this.log.add(`Postaveno: ${getMachine(record.type).displayName}`, 'action');
     this.handleHover(cell);
   }
 
@@ -1861,6 +1965,7 @@ updateGatherTarget() {
       this.dropShadowCasters(result.removed);
       this.hud.setCount(this.buildSystem.count);
       this.hud.setSaveHint(`Zbouráno: ${getMachine(result.removed.type).displayName}`);
+      this.log.add(`Zbouráno: ${getMachine(result.removed.type).displayName}`, 'warn');
       this.handleHover(this.hoverCell);
       return;
     }
@@ -1883,6 +1988,7 @@ updateGatherTarget() {
   doSave() {
     const ok = this.saveSystem.save();
     this.hud.setSaveHint(ok ? 'Uloženo ✓' : 'Uložení selhalo');
+    this.log.add(ok ? 'Hra uložena' : 'Uložení selhalo', ok ? 'info' : 'warn');
     this.dialog.tell({
       title: ok ? 'Uloženo' : 'Uložení selhalo',
       text: ok
@@ -1924,6 +2030,7 @@ updateGatherTarget() {
     this.saveHintAfterLoad = ok
       ? { title: 'Načteno', text: 'Hra je obnovená z posledního uložení.' }
       : { title: 'Načtení selhalo', text: 'Uloženou hru nešlo načíst — chybí, nebo je z jiné verze.' };
+    this.log.add(ok ? 'Hra načtena' : 'Načtení selhalo', ok ? 'info' : 'warn');
     if (!ok) {
       console.warn('[save] Uloženou hru nešlo načíst — chybí, nebo má jinou verzi.');
       return;

@@ -1,42 +1,48 @@
-// Panel v levém dolním rohu — co hráč nese a co z toho jde vyrobit.
-// Jen čte batoh a překresluje seznamy; do scény nijak nezasahuje.
+// Okno s batohem — co hráč nese a co z toho jde vyrobit.
+// Otevírá se tlačítkem u lišty s předměty; obsah jen čte, do hry nezasahuje.
 import { ITEM_TYPES, RECIPES } from '../data/catalogs/items.js';
+import { itemIcon } from './itemIcons.js';
 
-const ICONS = {
-  wood: '🪵',
-  stone: '🪨',
-  shell: '🐚',
-  stick: '🥢',
-  iron_ore: '⛏',
-  iron_ingot: '⬜',
-  copper_ore: '🟠',
-  copper_ingot: '🟧',
-  stone_axe: '🪓',
-  stone_pickaxe: '🎯',
-  workbench: '🎪',
-  campfire: '🔥',
-};
-
-export default class InventoryPanel {
+export default class InventoryWindow {
 
   constructor() {
     this.root = null;
     this.itemsEl = null;
     this.recipeEl = null;
     this.lastSignature = '';
+    this.open = false;
   }
 
   mount() {
     if (this.root) return this.root;
     const root = document.createElement('div');
-    root.className = 'hud-panel hud-panel--corner inventory-panel';
+    root.className = 'side-window inv-window';
     root.id = 'hud-inventory';
-    root.innerHTML = '<h2>Batoh</h2><div class="inv-list"></div><div class="inv-craft"><span class="inv-craft__label">Vyrobit lze</span><div class="inv-recipes"></div></div>';
+    root.innerHTML = `
+      <div class="side-window__head">
+        <span class="side-window__title">Batoh</span>
+        <button type="button" class="side-window__close" title="Zavřít (I)">×</button>
+      </div>
+      <div class="inv-list"></div>
+      <div class="inv-craft"><span class="inv-craft__label">Vyrobit lze</span><div class="inv-recipes"></div></div>
+    `;
     this.itemsEl = root.querySelector('.inv-list');
     this.recipeEl = root.querySelector('.inv-recipes');
+    root.querySelector('.side-window__close').addEventListener('click', () => this.close());
     document.getElementById('hud-layer').appendChild(root);
     this.root = root;
     return root;
+  }
+
+  show() {
+    this.mount();
+    this.open = true;
+    this.root.classList.add('is-open');
+  }
+
+  close() {
+    this.open = false;
+    if (this.root) this.root.classList.remove('is-open');
   }
 
   update(inventory) {
@@ -59,7 +65,7 @@ export default class InventoryPanel {
       row.className = 'inv-row';
       const icon = document.createElement('span');
       icon.className = 'inv-row__icon';
-      icon.textContent = ICONS[key] || '•';
+      icon.textContent = itemIcon(key);
       const name = document.createElement('span');
       name.className = 'inv-row__name';
       name.textContent = ITEM_TYPES[key] ? ITEM_TYPES[key].displayName : key;
@@ -82,7 +88,7 @@ export default class InventoryPanel {
       if (!recipe) continue;
       const chip = document.createElement('span');
       chip.className = 'inv-recipe';
-      chip.textContent = `${ICONS[key] || '•'} ${recipe.displayName}`;
+      chip.textContent = `${itemIcon(key)} ${recipe.displayName}`;
       this.recipeEl.appendChild(chip);
     }
   }

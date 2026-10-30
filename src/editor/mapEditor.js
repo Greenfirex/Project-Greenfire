@@ -169,6 +169,7 @@ export default class MapEditor {
       this.s.refreshWaterVisibility();
       this.s.releaseGameFromEditor();
     }
+    this.s.syncZoomLimit();
     return active;
   }
 
@@ -212,6 +213,7 @@ export default class MapEditor {
     this.s.gridSystem.clearHeightBands();
     this.togglePanel(false);
     this.s.releaseGameFromEditor();
+    this.s.syncZoomLimit();
   }
 
   togglePanel(active) {
