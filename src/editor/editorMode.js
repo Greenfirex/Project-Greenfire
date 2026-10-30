@@ -1,5 +1,5 @@
 // Editační režim mapy — vyplňování buněk štětcem, modelování výšek a práce s plochou.
-// Přepíná se F1, drží jen hotovou mapu a historii úprav; vykreslování si řídí scéna.
+// Přepíná se F2, drží jen hotovou mapu a historii úprav; vykreslování si řídí scéna.
 import { BRUSHES } from '../data/catalogs/brushes.js';
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
 import { cellKey, MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP, DEFAULT_HEIGHT_LEVEL } from '../data/maps/layoutStore.js';

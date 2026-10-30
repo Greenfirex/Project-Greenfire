@@ -30,10 +30,10 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 | **G** | Zobrazit / skrýt mřížku |
 | **N** | Posun času o 6 hodin |
 | **P** | Pauza / pokračovat (ztmaví obrazovku, zastaví celou hru) |
-| **F1** | Editor mapy (zóny, dlaždice, výšky) — také tlačítkem 🧱 nahoře uprostřed |
-| **F2** | Vývojářské nástroje (rychlost času 1×/2×/5×/10×, pauza času) — také tlačítkem 🐞 |
-| **O** | Možnosti (kvalita, stíny, FPS, hlasitost) |
-| **F5 / F9** | Uložit / načíst |
+| **F1** | Nápověda a ovládání (rozbalit / sbalit) — také tlačítkem ❔ Ovládání v liště |
+| **F2** | Editor mapy (zóny, dlaždice, výšky) — také tlačítkem 🧱 Editor v liště |
+| **O** | Možnosti (kvalita, stíny, FPS, hlasitost) — také tlačítkem ⚙ Možnosti v liště |
+| **F5 / F9** | Uložit / načíst (načtení se ptá na potvrzení) — také tlačítky 💾 Uložit a 📂 Načíst v liště |
 | **Ctrl+Alt+I** | Ladicí okno Babylona (jen při vývoji; jde i přes adresu `?inspector`) |
 
 ## Architektura
@@ -57,6 +57,9 @@ src/
 - Simulace běží v pevném ticku (10× za sekundu) a o obsahu mechanik nic neví;
   mechaniky se hlásí přes `simSystem.subscribe`.
 - Ukládání je obecný sběrač stavu (`saveSystem.registerState`).
+- Načtení savu hru znovu spustí a stav se navrství na čerstvě postavený svět
+  při startu — proto je u načtení vidět načítací obrazovka. Běžné spuštění
+  zůstává čisté, nic se nenačítá samo.
 
 ## Stav projektu
 
@@ -282,7 +285,7 @@ Mapa je uložená jako hotový seznam dlaždic a objektů v souboru
 Co v souboru chybí, ve hře neexistuje: chybějící buňka znamená díru bez trávy,
 přes kterou se nedá chodit. Výška terénu je uložená u každé dlaždice zvlášť.
 
-V editoru (F1) jsou tři druhy práce: **zóny** vyplní označené buňky rostlinami
+V editoru (F2) jsou tři druhy práce: **zóny** vyplní označené buňky rostlinami
 a objekty, **výška** nejdřív kreslí návrh a po potvrzení zvedá dlaždice
 a **plocha** zakládá nebo přepisuje zem s vybraným podkladem a výškou.
 Plocha je razítko: nové buňky vzniknou, existující se přepíšou i s objekty,
@@ -380,7 +383,7 @@ přidává do výběru, pravé je odebírá; mazání se vybírá tlačítkem v 
 
 Soubor mapy je jediný zdroj pravdy: hra při startu vždycky přečte
 `src/data/maps/<mapa>/map.json` ze souboru na disku, žádnou jinou mapu v kódu
-nemá. Tlačítko **Uložit mapu** v panelu editoru (F1) zapíše hotovou mapu rovnou
+nemá. Tlačítko **Uložit mapu** v panelu editoru (F2) zapíše hotovou mapu rovnou
 do toho souboru — pomáhá s tím vývojový server (`vite.mapSaver.js`). Po uložení
 se hra sama obnoví, takže vidíš přesně to, co je v souboru, a mapa je připravená
 k commitu.

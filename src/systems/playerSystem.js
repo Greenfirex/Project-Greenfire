@@ -95,6 +95,7 @@ export default class PlayerSystem {
     this.travelled = 0;
     this.homeX = 0;
     this.homeZ = 0;
+    this.pendingState = null;
     this.onStep = null;
     this.onProgress = null;
     this.progressTotal = 1 + PLAYER_ANIMS.length + 1;
@@ -128,6 +129,13 @@ export default class PlayerSystem {
       this.root.position = this.positionAt(start.x, start.z);
       this.homeX = start.x;
       this.homeZ = start.z;
+      if (this.pendingState) {
+        const pending = this.pendingState;
+        this.pendingState = null;
+        this.apply(pending);
+        this.homeX = this.root.position.x;
+        this.homeZ = this.root.position.z;
+      }
 
       this.loadAnimations(loaded.slice(1));
       this.reportProgress(3);
@@ -424,6 +432,7 @@ export default class PlayerSystem {
     const action = MOVE_KEYS[evt.code];
     if (!action) return;
     if (evt.target && evt.target.tagName === 'INPUT') return;
+    if (this.inputBlocked && this.inputBlocked()) return;
     evt.preventDefault();
     this.input[action] = down;
   }
@@ -595,6 +604,11 @@ export default class PlayerSystem {
 
   apply(data) {
     const d = data || {};
+    if (!this.root) {
+      this.pendingState = d;
+      return;
+    }
+    this.pendingState = null;
     let x = typeof d.x === 'number' ? d.x : SPAWN.x;
     let z = typeof d.z === 'number' ? d.z : SPAWN.z;
     const facing = typeof d.facing === 'number' ? d.facing : 0;

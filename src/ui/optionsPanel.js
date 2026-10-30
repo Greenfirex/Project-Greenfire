@@ -59,11 +59,12 @@ export default class OptionsPanel {
     if (this.root) return this.root;
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'options-toggle';
+    button.className = 'hud-bar__btn hud-bar__btn--options';
     button.title = 'Možnosti (O)';
     button.textContent = '⚙ Možnosti';
     button.addEventListener('mousedown', (evt) => evt.preventDefault());
-    document.body.appendChild(button);
+    const host = document.getElementById('hud-bar') || document.body;
+    host.appendChild(button);
     button.addEventListener('click', () => this.toggle());
     this.button = button;
 

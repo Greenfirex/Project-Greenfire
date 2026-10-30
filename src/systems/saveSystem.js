@@ -1,6 +1,6 @@
 // Obecný save systém — sběrač stavu nad registrovanými vlastníky.
-// Nezná obsah stavu: každý vlastník se hlásí přes registerState(key, { serialize, apply, order }).
-import { SAVE_VERSION, SAVE_STORAGE_KEY, SAVE_LEGACY_KEY } from '../data/catalogs/saveSchema.js';
+// Nezná obsah stavu: každý vlastník dodá serialize, apply, defaults a order.
+import { SAVE_VERSION, SAVE_STORAGE_KEY, SAVE_LEGACY_KEY, SAVE_LOAD_FLAG_KEY } from '../data/catalogs/saveSchema.js';
 import { readJSON, writeJSON, removeJSON } from '../utils/storage.js';
 import { stateProvider } from '../utils/saveState.js';
 
@@ -15,14 +15,11 @@ export default class SaveSystem {
     return this.gameScene;
   }
 
-  registerState(key, provider) {
-    if (!key || !provider) return;
-    this.providers.set(key, stateProvider(provider));
-  }
-
   register(owner, key, def) {
-    if (!owner || typeof owner.registerState !== 'function') return;
-    owner.registerState(key, stateProvider(def));
+    if (!key || !def) return;
+    const provider = stateProvider(def);
+    if (owner && typeof owner.registerState === 'function') owner.registerState(key, provider);
+    this.providers.set(key, provider);
   }
 
   orderedProviders() {
@@ -50,6 +47,27 @@ export default class SaveSystem {
   hasSave() {
     const raw = readJSON(SAVE_STORAGE_KEY);
     return !!(raw && raw.version === SAVE_VERSION && raw.state);
+  }
+
+  markLoadOnStart() {
+    try {
+      if (typeof sessionStorage === 'undefined') return false;
+      sessionStorage.setItem(SAVE_LOAD_FLAG_KEY, '1');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  consumeLoadOnStart() {
+    try {
+      if (typeof sessionStorage === 'undefined') return false;
+      const wanted = sessionStorage.getItem(SAVE_LOAD_FLAG_KEY) === '1';
+      if (wanted) sessionStorage.removeItem(SAVE_LOAD_FLAG_KEY);
+      return wanted;
+    } catch {
+      return false;
+    }
   }
 
   load() {

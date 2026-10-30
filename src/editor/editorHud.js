@@ -33,9 +33,9 @@ export default class EditorHud {
     root.innerHTML = `
       <div class="editor-panel__head">
         <span class="editor-panel__title">Editor mapy</span>
-        <button type="button" class="editor-panel__close" title="Zavřít (F1)">×</button>
+        <button type="button" class="editor-panel__close" title="Zavřít (F2)">×</button>
       </div>
-      <div class="editor-panel__hint">Zóny: vyber štětec a nakresli · WASD posun pohledu (Shift rychleji) · Levá přidá, pravá odebere z výběru · Z zpět · F1 zavřít</div>
+      <div class="editor-panel__hint">Zóny: vyber štětec a nakresli · WASD posun pohledu (Shift rychleji) · Levá přidá, pravá odebere z výběru · Z zpět · F2 zavřít</div>
       <div class="editor-panel__modes">
         <button type="button" data-mode="zone">Zóny</button>
         <button type="button" data-mode="height">Výška</button>

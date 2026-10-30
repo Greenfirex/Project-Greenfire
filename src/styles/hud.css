@@ -11,10 +11,58 @@
   box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
 }
 
-#hud-help {
+/* Lišta nahoře vlevo — ovládání, editor, ukládání, načtení a možnosti. */
+.hud-bar {
+  position: absolute;
   top: 12px;
   left: 12px;
+  display: flex;
+  gap: 6px;
+  z-index: 12;
+}
+
+.hud-bar__btn {
+  height: 32px;
+  padding: 0 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
+}
+
+.hud-bar__btn:hover,
+.hud-bar__btn.is-open {
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
+.hud-bar__btn.is-hidden {
+  display: none;
+}
+
+.hud-bar__btn--help { order: 1; }
+.hud-bar__btn--editor { order: 2; }
+.hud-bar__btn--save { order: 3; }
+.hud-bar__btn--load { order: 4; }
+.hud-bar__btn--options { order: 5; }
+
+#hud-help {
+  display: none;
+  top: 52px;
+  left: 12px;
   max-width: 240px;
+  z-index: 11;
+}
+
+#hud-help.is-open {
+  display: block;
 }
 
 #hud-status {
@@ -395,67 +443,76 @@
 }
 
 
-.options-toggle {
+/* Potvrzovací okno — ztmaví hru a nechá rozhodnout ano/ne. */
+.confirm-screen {
   position: absolute;
-  top: 12px;
-  left: 300px;
-  height: 32px;
-  padding: 0 12px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-glow);
-  border-radius: 6px;
-  color: var(--glow-accent);
-  font-family: inherit;
-  font-size: 12px;
-  letter-spacing: 0.5px;
-  line-height: 1;
-  cursor: pointer;
-  z-index: 12;
-  backdrop-filter: blur(4px);
-  box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
-}
-
-.options-toggle:hover,
-.options-toggle.is-open {
-  border-color: var(--glow-accent);
-  color: var(--text-main);
-}
-
-.options-toggle.is-hidden {
+  inset: 0;
   display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 7, 10, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 45;
 }
 
-/* Lišta nahoře uprostřed — tlačítko pro otevření editoru mapy. */
-.dev-bar {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+.confirm-screen.is-open {
   display: flex;
-  gap: 6px;
-  z-index: 11;
 }
 
-.dev-bar__btn {
-  height: 32px;
-  padding: 0 12px;
+.confirm-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 280px;
+  max-width: 360px;
+  padding: 20px 24px 16px;
   background: var(--bg-panel);
   border: 1px solid var(--border-glow);
-  border-radius: 6px;
+  border-radius: 8px;
+  box-shadow: 0 0 24px rgba(90, 200, 170, 0.12);
+  user-select: none;
+}
+
+.confirm-card__title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--glow-accent);
+}
+
+.confirm-card__text {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.confirm-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.confirm-card__btn {
+  padding: 6px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-glow);
+  border-radius: 5px;
   color: var(--text-dim);
   font-family: inherit;
   font-size: 12px;
   letter-spacing: 0.5px;
-  line-height: 1;
   cursor: pointer;
-  backdrop-filter: blur(4px);
-  box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
 }
 
-.dev-bar__btn:hover,
-.dev-bar__btn.is-open {
+.confirm-card__btn:hover {
   border-color: var(--glow-accent);
   color: var(--text-main);
+}
+
+.confirm-card__btn--ok {
+  background: rgba(90, 200, 170, 0.12);
+  color: var(--glow-accent);
 }
 
 /* Obrazovka pauzy — ztmaví celou hru a uprostřed nechá kartu s pokračováním. */

@@ -1,4 +1,4 @@
-// Tlačítko nahoře uprostřed — otevře a zavře editor mapy.
+// Tlačítko v horní liště — otevře a zavře editor mapy.
 // Jen hlásí kliknutí scéně, stav editoru si drží scéna.
 export default class EditorToggle {
 
@@ -10,18 +10,21 @@ export default class EditorToggle {
   }
 
   mount() {
-    if (this.root) return this.root;
-    const root = document.createElement('div');
-    root.className = 'dev-bar';
-    root.innerHTML = `<button type="button" class="dev-bar__btn" title="Editor mapy (F1)">🧱 Editor</button>`;
-    document.getElementById('hud-layer').appendChild(root);
-    this.root = root;
-    this.btn = root.querySelector('.dev-bar__btn');
-    this.btn.addEventListener('click', () => {
+    if (this.btn) return this.btn;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'hud-bar__btn hud-bar__btn--editor';
+    btn.title = 'Editor mapy (F2)';
+    btn.textContent = '🧱 Editor';
+    btn.addEventListener('click', () => {
       if (this.onToggle) this.onToggle();
     });
+    const host = document.getElementById('hud-bar') || document.getElementById('hud-layer');
+    host.appendChild(btn);
+    this.root = btn;
+    this.btn = btn;
     this.refresh();
-    return root;
+    return btn;
   }
 
   setActive(active) {

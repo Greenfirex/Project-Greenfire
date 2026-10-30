@@ -40,6 +40,7 @@ import Hotbar from '../ui/hotbar.js';
 import MapEditor from '../editor/mapEditor.js';
 import EditorToggle from '../editor/editorToggle.js';
 import PauseScreen from '../ui/pauseScreen.js';
+import Dialog from '../ui/dialog.js';
 import LoadingScreen from '../ui/loadingScreen.js';
 import TooltipPanel from '../ui/tooltipPanel.js';
 import { whenModelsIdle, takeModelError, preloadModel, releaseFrame } from '../utils/assetLoader.js';
@@ -163,11 +164,13 @@ export default class GameScene {
     this.optionsPanel = new OptionsPanel();
     this.editorToggle = new EditorToggle();
     this.pauseScreen = new PauseScreen();
+    this.dialog = new Dialog();
     this.paused = false;
     this.loader = new LoadingScreen();
     this.loader.onHiddenCallback = () => this.onLoadingHidden();
     this.isLoading = true;
     this.loaded = false;
+    this.saveHintAfterLoad = null;
     this.defaultMaxFPS = undefined;
     this.options = { ...OPTION_DEFAULTS };
     this.renderScale = 1;
@@ -246,7 +249,6 @@ export default class GameScene {
     this.setupInput();
     this.setupEditorToggle();
     this.registerHudEvents();
-    this.saveSystem.load();
 
     this.buildSystem.onMachineReady = (record, node) => {
       const placeholder = record.mesh;
@@ -312,10 +314,12 @@ export default class GameScene {
     this.setupShadowCasters();
     this.saveSystem.dropLegacy();
     this.setupSave();
+    if (this.saveSystem.consumeLoadOnStart()) this.loadSaveState();
     this.loader.beginFloat('Budím postavu…');
     await this.setupPlayer();
     this.loader.floatProgress(1, 1, 'Seju trávu…');
     this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle());
+    this.floraSystem.updateView(this.viewCircle());
     this.refreshReflectionExclusions();
     this.loader.floatProgress(1, 1, 'Nastavuji stíny…');
     this.refreshShadowCasters();
@@ -352,6 +356,7 @@ export default class GameScene {
     this.loader.endStage();
     this.loader.endWorld();
   }
+
   onLoadingHidden() {
     if (!this.isLoading) return;
     this.isLoading = false;
@@ -359,6 +364,12 @@ export default class GameScene {
     this.s.loaded = true;
     this.s.paused = false;
     this.optionsPanel.setButtonVisible(true);
+    if (this.saveHintAfterLoad) {
+      const notice = this.saveHintAfterLoad;
+      this.saveHintAfterLoad = null;
+      this.hud.setSaveHint(notice.title);
+      this.dialog.tell(notice);
+    }
     this.gatherSystem.syncFromDeco();
     this.syncFelling();
     this.syncHarvest();
@@ -657,6 +668,7 @@ updateGatherTarget() {
 
   async setupPlayer() {
     this.playerSystem.blockedTest = (cx, cz) => this.buildSystem.isOccupied(cx, cz);
+    this.playerSystem.inputBlocked = () => this.dialog.open;
     this.playerSystem.walkable = (x, z) => this.isWalkableAt(x, z);
     this.playerSystem.speedScale = (x, z) => {
       const depth = this.waterDepthNowAt(x, z);
@@ -1061,6 +1073,7 @@ updateGatherTarget() {
 
   finishRebuild() {
     this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle());
+    this.floraSystem.updateView(this.viewCircle());
     this.refreshReflectionExclusions();
     this.gatherSystem.syncFromDeco();
     this.syncFelling();
@@ -1326,6 +1339,8 @@ updateGatherTarget() {
 
   setupHud() {
     this.hud.onSpeed = (speed) => this.setSimSpeed(speed);
+    this.hud.onSave = () => this.doSave();
+    this.hud.onLoad = () => this.requestLoad();
     this.hud.mount();
     this.hud.setCount(this.buildSystem.count);
     this.hud.setStatusVisible(false);
@@ -1461,6 +1476,14 @@ updateGatherTarget() {
   handleKey(evt) {
     if (!this.loaded) return;
     const typing = evt.target && (evt.target.tagName === 'INPUT' || evt.target.tagName === 'TEXTAREA' || evt.target.isContentEditable);
+    if (this.dialog.handleKey(evt)) {
+      evt.preventDefault();
+      return;
+    }
+    if (this.dialog.open) {
+      evt.preventDefault();
+      return;
+    }
     if ((evt.key === 'p' || evt.key === 'P') && !typing && !evt.ctrlKey && !evt.metaKey && !evt.altKey) {
       if (evt.repeat) return;
       evt.preventDefault();
@@ -1478,6 +1501,11 @@ updateGatherTarget() {
       return;
     }
     if (evt.key === 'F1') {
+      evt.preventDefault();
+      this.hud.toggleHelp();
+      return;
+    }
+    if (evt.key === 'F2') {
       evt.preventDefault();
       this.toggleEditorMode();
       return;
@@ -1548,7 +1576,7 @@ updateGatherTarget() {
     }
     if (evt.key === 'F9') {
       evt.preventDefault();
-      this.doLoad();
+      this.requestLoad();
     }
   }
 
@@ -1855,6 +1883,12 @@ updateGatherTarget() {
   doSave() {
     const ok = this.saveSystem.save();
     this.hud.setSaveHint(ok ? 'Uloženo ✓' : 'Uložení selhalo');
+    this.dialog.tell({
+      title: ok ? 'Uloženo' : 'Uložení selhalo',
+      text: ok
+        ? 'Hra je uložená. Načíst ji můžeš tlačítkem 📂 Načíst nebo klávesou F9.'
+        : 'Uložení se nepodařilo — prohlížeč nepovolil zápis do úložiště.',
+    });
   }
 
   warnUnsavedMap() {
@@ -1873,18 +1907,54 @@ updateGatherTarget() {
     return this.editor.saveMap();
   }
 
-  doLoad() {
-    const ok = this.saveSystem.load();
-    this.gridSystem.clearMark();
-    this.hud.setCount(this.buildSystem.count);
-    this.hud.setStatusVisible(this.isBuilding());
-    if (ok) this.renderMapLayout();
-    if (ok) this.syncHarvest();
-    this.refreshShadowCasters();
-    this.refreshClock();
-    this.hud.setSaveHint(ok ? 'Načteno ✓' : 'Žádný save');
+  requestLoad() {
+    if (this.dialog.open) return;
+    this.playerSystem.releaseKeys();
+    this.dialog.ask({
+      title: 'Načíst uloženou hru?',
+      text: 'Hra se znovu načte a vrátí se stav z posledního uložení. Co jsi od té doby udělal, se ztratí.',
+      confirmLabel: 'Načíst',
+      cancelLabel: 'Zrušit',
+      onConfirm: () => this.reloadFromSave(),
+    });
   }
 
+  loadSaveState() {
+    const ok = this.saveSystem.load();
+    this.saveHintAfterLoad = ok
+      ? { title: 'Načteno', text: 'Hra je obnovená z posledního uložení.' }
+      : { title: 'Načtení selhalo', text: 'Uloženou hru nešlo načíst — chybí, nebo je z jiné verze.' };
+    if (!ok) {
+      console.warn('[save] Uloženou hru nešlo načíst — chybí, nebo má jinou verzi.');
+      return;
+    }
+    console.info('[save] Obnoveno:', {
+      stroje: this.buildSystem.count,
+      druhyPredmetu: Object.keys(this.inventorySystem.items || {}).length,
+      sebrane: this.harvestSystem.list().length,
+      cas: Math.round(this.simSystem.time),
+    });
+  }
+
+  reloadFromSave() {
+    if (!this.saveSystem.hasSave()) {
+      this.hud.setSaveHint('Žádný save');
+      this.dialog.tell({
+        title: 'Žádný save',
+        text: 'Nejdřív hru ulož — tlačítkem 💾 Uložit nebo klávesou F5.',
+      });
+      return;
+    }
+    if (!this.saveSystem.markLoadOnStart()) {
+      this.hud.setSaveHint('Načtení se nepodařilo připravit');
+      this.dialog.tell({
+        title: 'Načtení selhalo',
+        text: 'Prohlížeč nepovolil připravit načtení uložené hry.',
+      });
+      return;
+    }
+    window.location.reload();
+  }
   dropShadowCasters(record) {
     const meshes = record.node ? record.node.getChildMeshes() : [record.mesh];
     for (const mesh of meshes) {
