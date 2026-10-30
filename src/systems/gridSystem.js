@@ -227,7 +227,7 @@ export default class GridSystem {
     if (this.brushMaster) this.brushMaster.setEnabled(false);
   }
 
-  showHoverCell(cx, cz, surfaceAt) {
+  showHoverCell(cx, cz, surfaceAt, span = 1) {
     if (!this.hoverMaster) {
       this.hoverMaster = MeshBuilder.CreateGround('hoverCellMaster', {
         width: CELL_SIZE * 0.96,
@@ -245,6 +245,8 @@ export default class GridSystem {
     }
     const y = surfaceAt(cx, cz) + 0.09;
     this.hoverMaster.position = new Vector3(cx * CELL_SIZE, y, cz * CELL_SIZE);
+    const size = Math.max(1, Math.round(Number(span) || 1));
+    this.hoverMaster.scaling.set(size, 1, size);
     this.hoverMaster.setEnabled(true);
   }
 

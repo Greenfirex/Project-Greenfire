@@ -9,6 +9,7 @@ import { createRng, seedFor } from '../utils/rng.js';
 import { getFishType } from '../data/catalogs/fish.js';
 
 const HISTORY_LIMIT = 100;
+const ROUGH_SKIP = 0.32;
 
 export default class EditorMode {
 
@@ -20,6 +21,10 @@ export default class EditorMode {
     this.pathStyle = 'dirt';
     this.erasing = false;
     this.heightLevel = DEFAULT_HEIGHT_LEVEL;
+    this.heightBrushSize = 0;
+    this.heightStepSign = 0;
+    this.heightStrokeStep = 0;
+    this.heightJitter = 0;
     this.waterShown = true;
     this.layout = null;
     this.draft = null;
@@ -180,17 +185,30 @@ export default class EditorMode {
     return 'dirt';
   }
 
-  brushOptionValue(brushKey) {
+  brushOptionsOf(brushKey) {
     const brush = BRUSHES[brushKey];
-    if (!brush || !brush.option) return false;
+    if (!brush) return [];
+    if (Array.isArray(brush.options)) return brush.options;
+    return brush.option ? [brush.option] : [];
+  }
+
+  brushOptionValue(brushKey, optionKey = null) {
+    const list = this.brushOptionsOf(brushKey);
+    const option = optionKey ? list.find((item) => item.key === optionKey) : list[0];
+    if (!option) return false;
     const opts = this.brushOpts[brushKey];
-    if (opts && brush.option.key in opts) return Boolean(opts[brush.option.key]);
-    return brush.option.default === true;
+    if (opts && option.key in opts) return Boolean(opts[option.key]);
+    return option.default === true;
+  }
+
+  brushOptionValues(brushKey) {
+    const out = {};
+    for (const option of this.brushOptionsOf(brushKey)) out[option.key] = this.brushOptionValue(brushKey, option.key);
+    return out;
   }
 
   setBrushOption(optionKey, value) {
-    const brush = BRUSHES[this.brushKey];
-    if (!brush || !brush.option || brush.option.key !== optionKey) return;
+    if (!this.brushOptionsOf(this.brushKey).some((item) => item.key === optionKey)) return;
     this.brushOpts[this.brushKey] = { ...(this.brushOpts[this.brushKey] || {}), [optionKey]: Boolean(value) };
     if (this.draft && this.onDraftChange) this.onDraftChange(this.draft);
   }
@@ -204,6 +222,44 @@ export default class EditorMode {
 
   stepHeightLevel(delta) {
     this.setHeightLevel(this.heightLevel + delta);
+  }
+
+  setHeightBrushSize(size) {
+    const value = Math.max(0, Math.min(3, Math.round(Number(size) || 0)));
+    if (value === this.heightBrushSize) return;
+    this.heightBrushSize = value;
+    if (this.onHeightBrushChange) this.onHeightBrushChange(value);
+  }
+
+  setHeightStepSign(sign) {
+    const value = Math.sign(Number(sign) || 0);
+    if (value === this.heightStepSign) return;
+    this.heightStepSign = value;
+    if (this.onHeightStepChange) this.onHeightStepChange(value);
+  }
+
+  setHeightJitter(value) {
+    const next = Math.max(0, Math.min(2, Math.round(Number(value) || 0)));
+    if (next === this.heightJitter) return;
+    this.heightJitter = next;
+    if (this.onHeightJitterChange) this.onHeightJitterChange(next);
+  }
+
+  beginHeightStroke() {
+    this.heightStrokeStep = 0;
+  }
+
+  heightStampCells(cx, cz) {
+    const radius = this.heightBrushSize || 0;
+    const cells = [];
+    for (let dz = -radius; dz <= radius; dz += 1) {
+      for (let dx = -radius; dx <= radius; dx += 1) cells.push([cx + dx, cz + dz]);
+    }
+    return cells;
+  }
+
+  get heightStampSpan() {
+    return (this.heightBrushSize || 0) * 2 + 1;
   }
 
   paint(cx, cz) {
@@ -427,11 +483,14 @@ export default class EditorMode {
     const zoneEntries = zone.map(({ cx, cz }) => ({ cx, cz, height: level, zone: true }));
     if (!brush || !brush.falloff || !level) return { zone: zoneEntries, slope: [] };
     const sign = Math.sign(level);
+    const steep = this.brushOptionValue(brushKey, 'steep');
+    const rough = this.brushOptionValue(brushKey, 'rough');
+    const drop = HEIGHT_STEP * (steep ? 2 : 1);
     const present = this.presentCells();
     const affected = new Map();
     for (const entry of zoneEntries) affected.set(cellKey(entry.cx, entry.cz), entry);
     let frontier = new Map(zoneEntries.map((entry) => [cellKey(entry.cx, entry.cz), entry]));
-    let nextLevel = level - sign * HEIGHT_STEP;
+    let nextLevel = level - sign * drop;
     while (Math.abs(nextLevel) > 1e-6) {
       const next = new Map();
       for (const entry of frontier.values()) {
@@ -440,6 +499,7 @@ export default class EditorMode {
           const cz = entry.cz + dz;
           const key = cellKey(cx, cz);
           if (!present.has(key) || affected.has(key)) continue;
+          if (rough && noise2(cx / 2.6 + 17.3, cz / 2.3 - 9.1) < ROUGH_SKIP) continue;
           const ring = { cx, cz, height: nextLevel, zone: false };
           affected.set(key, ring);
           next.set(key, ring);
@@ -447,7 +507,7 @@ export default class EditorMode {
       }
       if (!next.size) break;
       frontier = next;
-      nextLevel -= sign * HEIGHT_STEP;
+      nextLevel -= sign * drop;
     }
     const slope = [];
     for (const entry of affected.values()) {
@@ -1097,15 +1157,46 @@ export default class EditorMode {
   markHeightCell(cx, cz) {
     if (!this.layout) return;
     if (!this.heightDraft) this.heightDraft = new Map();
-    const key = cellKey(cx, cz);
-    if (this.heightDraft.get(key) === this.heightLevel) return;
-    this.heightDraft.set(key, this.heightLevel);
+    const stepping = this.heightStepSign !== 0;
+    const base = this.strokeHeightLevel();
+    let changed = false;
+    for (const [x, z] of this.heightStampCells(cx, cz)) {
+      const key = cellKey(x, z);
+      const level = this.stampLevel(base, x, z);
+      if (stepping) {
+        if (this.heightDraft.has(key)) continue;
+        this.heightDraft.set(key, level);
+        changed = true;
+        continue;
+      }
+      if (this.heightDraft.get(key) === level) continue;
+      this.heightDraft.set(key, level);
+      changed = true;
+    }
+    if (!changed) return;
+    if (stepping) this.heightStrokeStep += 1;
     if (this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
+  }
+
+  stampLevel(base, cx, cz) {
+    const jitter = this.heightJitter || 0;
+    if (!jitter) return base;
+    const offset = Math.round((hash01(cx * 7.31 + 3.7, cz * 5.13 - 1.9) * 2 - 1) * jitter);
+    return Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, base + offset));
+  }
+
+  strokeHeightLevel() {
+    const level = this.heightLevel + this.heightStepSign * this.heightStrokeStep;
+    return Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, level));
   }
 
   unmarkHeightCell(cx, cz) {
     if (!this.heightDraft) return false;
-    if (!this.heightDraft.delete(cellKey(cx, cz))) return false;
+    let changed = false;
+    for (const [x, z] of this.heightStampCells(cx, cz)) {
+      if (this.heightDraft.delete(cellKey(x, z))) changed = true;
+    }
+    if (!changed) return false;
     if (this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
     return true;
   }
@@ -1114,7 +1205,9 @@ export default class EditorMode {
     if (!this.heightDraft) return false;
     let changed = false;
     for (const [cx, cz] of bresenham(from.cx, from.cz, to.cx, to.cz)) {
-      if (this.heightDraft.delete(cellKey(cx, cz))) changed = true;
+      for (const [x, z] of this.heightStampCells(cx, cz)) {
+        if (this.heightDraft.delete(cellKey(x, z))) changed = true;
+      }
     }
     if (changed && this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
     return changed;
@@ -1147,15 +1240,40 @@ export default class EditorMode {
     if (!this.layout || !this.heightDraft || !this.heightDraft.size) return 0;
     this.pushHistory();
     let count = 0;
+    const touched = [];
     for (const [key, level] of this.heightDraft) {
       const [cx, cz] = key.split(',').map(Number);
       const value = Number.isFinite(level) ? level : this.heightLevel;
       this.setCellHeight(cx, cz, value * HEIGHT_STEP);
+      touched.push([cx, cz]);
       count += 1;
     }
+    this.cleanFlatCliffs(touched);
     this.cancelHeightDraft();
     this.repaintHeights();
     return count;
+  }
+
+  cleanFlatCliffs(cells) {
+    const seen = new Set();
+    for (const [cx, cz] of cells) {
+      for (let dz = -1; dz <= 1; dz += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) seen.add(cellKey(cx + dx, cz + dz));
+      }
+    }
+    for (const key of seen) {
+      const [cx, cz] = key.split(',').map(Number);
+      const floor = floorCellAt(this.layout, cx, cz);
+      if (!floor || floor.cliff !== true) continue;
+      const height = floor.liftY || 0;
+      const stepped = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => {
+        const near = layerLiftAt(this.layout, cx + dx, cz + dz);
+        return Number.isFinite(near) && Math.abs(near - height) > HEIGHT_STEP + 0.01;
+      });
+      if (stepped) continue;
+      delete floor.cliff;
+      delete floor.cliffStyle;
+    }
   }
 
   cancelHeightDraft() {

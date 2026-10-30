@@ -6,6 +6,8 @@ const RAMP = [
   { meters: -6, color: [0.29, 0.44, 0.56] },
   { meters: 0, color: [0.16, 0.2, 0.21] },
   { meters: 6, color: [0.44, 0.6, 0.37] },
+  { meters: 14, color: [0.62, 0.62, 0.5] },
+  { meters: 24, color: [0.82, 0.84, 0.86] },
 ];
 
 export function formatMeters(meters) {

@@ -67,6 +67,34 @@ vyhne buňkám předchozího). Květiny se pouští zvlášť, jen když je chce
 Budoucí úpravy břehu se dělají štětcem **Pobřeží** v editoru mapy, tyhle
 nástroje jsou na první naplnění mapy nebo na přesypání po zvětšení.
 
+## island.mjs — tvar velkého ostrova
+
+Přeskupí velký ostrov do tří vrstev podle vzdálenosti od moře (pobřeží → nízká →
+střední → plochý vrchol), na okrajích vrstev udělá skalní stěny a nasází na ně
+stromy, kameny, houby a trávu podle pásma. Malý ostrov vedle nechává být.
+
+Nástroj si sám najde velký ostrov: buňky u vody „ohryže", zbytek rozdělí na
+souvislé kusy a každou pobřežní buňku přiřadí k nejbližšímu kusu. Nízká šíje mezi
+ostrovy se tím rozdělí na půl a oba ostrovy zůstanou oddělené.
+
+Kroky se pouštějí popořadě, každý zvlášť:
+
+```
+node tools/island.mjs --shape --dry    # jen vypíše, co by udělal
+node tools/island.mjs --shape          # terasy (výšky po buňkách)
+node tools/island.mjs --cliffs         # skalní stěny na okrajích teras
+node tools/island.mjs --plants         # stromy, kameny, houby, tráva
+```
+
+Před prvním zápisem si drží zálohu v `tools/_temp/map-before-island.json`
+(druhý běh ji nepřepíše). Cesta a okolí spawnu se netvarují, aby zůstaly
+průchozí. Po každém kroku je potřeba **obnovit stránku** — editor mapy drží
+mapu v paměti a přepsal by změny při uložení.
+
+Kolik se čeho nasadilo, se počítá z výšky a vzdálenosti od moře; čísla
+(hustoty, výšky vrstev, podíl skalních okrajů) jsou nahoře v souboru.
+
+
 ## Cliff assety — co je co
 
 Zdroj: `public/assets/nature/cliffs/cliff_*_rock.glb`.

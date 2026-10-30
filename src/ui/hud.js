@@ -149,6 +149,10 @@ export default class Hud {
     if (this.statusEl) this.statusEl.classList.toggle('is-open', visible);
   }
 
+  isStatusOpen() {
+    return Boolean(this.statusEl && this.statusEl.classList.contains('is-open'));
+  }
+
   setClockText(text) {
     if (!this.clockTimeEl || this.clockTimeEl.textContent === text) return;
     this.clockTimeEl.textContent = text;

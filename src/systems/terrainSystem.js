@@ -12,6 +12,7 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Constants } from '@babylonjs/core/Engines/constants';
 import { CELL_SIZE } from '../utils/gridMath.js';
+import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { createTerrainField } from '../utils/terrainField.js';
 import { getMap } from '../data/catalogs/maps.js';
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
@@ -50,7 +51,7 @@ const BLEND_NEIGHBORS = [
 const CLIFF_WAVE = 0.16;
 const CLIFF_WAVE_LONG = 0.9;
 const CLIFF_WAVE_SHORT = 2.3;
-const CLIFF_FLAT_STEP = 0.15;
+const CLIFF_FLAT_STEP = HEIGHT_STEP + 0.01;
 const CLIFF_CORNER_ROUND = 0.2;
 const SURFACE_SIDES = [
   { dx: -1, dz: 0 },
@@ -383,25 +384,8 @@ export default class TerrainSystem {
     const cliffPoints = new Set();
     const cliffShifts = new Map();
     const cornerDirs = new Map();
+    const cornerPoints = new Map();
     const flushValues = new Map();
-    const flushAllowed = (value, gx, gz) => {
-      const edgeX = Number.isInteger(gx) && Math.abs(gx % 2) === 1;
-      const edgeZ = Number.isInteger(gz) && Math.abs(gz % 2) === 1;
-      const xs = edgeX ? [(gx - 1) / 2, (gx + 1) / 2] : [Math.round(gx / CELL_SIZE)];
-      const zs = edgeZ ? [(gz - 1) / 2, (gz + 1) / 2] : [Math.round(gz / CELL_SIZE)];
-      let low = Infinity;
-      let high = -Infinity;
-      for (const px of xs) {
-        for (const pz of zs) {
-          if (!keyAt(px, pz)) continue;
-          const height = field.heightAtCell(px, pz);
-          low = Math.min(low, height);
-          high = Math.max(high, height);
-        }
-      }
-      if (!Number.isFinite(low)) return false;
-      return Math.abs(value - low) <= CLIFF_FLAT_STEP && Math.abs(value - high) <= CLIFF_FLAT_STEP;
-    };
     for (const [cx, cz] of cells) {
       if (!keyAt(cx, cz)) continue;
       const x0 = cx * CELL_SIZE - half;
@@ -438,9 +422,10 @@ export default class TerrainSystem {
           const gx = x1 + (x2 - x1) * t;
           const gz = z1 + (z2 - z1) * t;
           points.push({ gx, gz });
+          const id = pointId(gx, gz);
+          if (!cornerPoints.has(id)) cornerPoints.set(id, { gx, gz });
           if (flush) continue;
           const shift = side.dx ? cliffOffset(gz, gx) : cliffOffset(gx, gz);
-          const id = pointId(gx, gz);
           cliffPoints.add(id);
           const entry = cliffShifts.get(id) || { x: 0, z: 0 };
           if (side.dx) entry.x = shift;
@@ -462,14 +447,41 @@ export default class TerrainSystem {
         }
         if (flush) {
           const value = Math.max(heightA, heightB);
-          for (const point of points) flushValues.set(pointId(point.gx, point.gz), value);
+          for (const point of points) {
+            const id = pointId(point.gx, point.gz);
+            const list = flushValues.get(id);
+            if (!list) flushValues.set(id, [value]);
+            else if (!list.includes(value)) list.push(value);
+          }
           continue;
         }
       }
     }
 
+    const sameLevel = (list) => list.every((height) => Math.abs(height - list[0]) <= CLIFF_FLAT_STEP);
+
+    const cornerCanRound = (point) => {
+      if (!point) return false;
+      const edgeX = Math.abs(point.gx % 2) === 1;
+      const edgeZ = Math.abs(point.gz % 2) === 1;
+      if (!edgeX || !edgeZ) return false;
+      const heights = [];
+      for (const px of [(point.gx - 1) / 2, (point.gx + 1) / 2]) {
+        for (const pz of [(point.gz - 1) / 2, (point.gz + 1) / 2]) {
+          if (!keyAt(px, pz)) return false;
+          heights.push(field.heightAtCell(px, pz));
+        }
+      }
+      const top = Math.max(...heights);
+      const high = heights.filter((height) => height >= top - CLIFF_FLAT_STEP);
+      const low = heights.filter((height) => height < top - CLIFF_FLAT_STEP);
+      if (high.length !== 1 || low.length !== 3) return false;
+      return sameLevel(low);
+    };
+
     for (const [id, dir] of cornerDirs) {
       if (!dir.x || !dir.z) continue;
+      if (!cornerCanRound(cornerPoints.get(id))) continue;
       cliffShifts.set(id, { x: dir.x * CLIFF_CORNER_ROUND, z: dir.z * CLIFF_CORNER_ROUND });
     }
 
@@ -483,14 +495,21 @@ export default class TerrainSystem {
     };
     const heightOf = (point, cx, cz) => {
       const id = pointId(point.gx, point.gz);
-      const pos = positionOf(point);
-      const flush = flushValues.get(id);
-      if (cliffPoints.has(id)) {
-        if (flush !== undefined && Math.abs(field.heightAtCell(cx, cz) - flush) <= CLIFF_FLAT_STEP) return flush;
-        return field.heightAtSide(pos.px, pos.pz, cx, cz);
+      const own = field.heightAtCell(cx, cz);
+      const candidates = flushValues.get(id);
+      if (candidates) {
+        let best = null;
+        let bestDelta = CLIFF_FLAT_STEP;
+        for (const value of candidates) {
+          const delta = Math.abs(own - value);
+          if (delta > bestDelta) continue;
+          best = value;
+          bestDelta = delta;
+        }
+        if (best !== null) return best;
       }
-      if (flush !== undefined && flushAllowed(flush, point.gx, point.gz)) return flush;
-      return field.heightAt(pos.px, pos.pz);
+      const pos = positionOf(point);
+      return field.heightAtSide(pos.px, pos.pz, cx, cz);
     };
     const wallEdges = [];
     for (const [cx, cz] of cells) {

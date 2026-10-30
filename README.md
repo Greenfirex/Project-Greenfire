@@ -102,8 +102,8 @@ doladění a práce mimo tento plán.
 **Hotovo:**
 - Povrchy a terén: písek a tráva, razítko Herní plocha, výškové nástroje,
   Kopec/Prohlubeň se svahem, spojitý terén, hrana mapy a cesty.
-- Výšky: rozsah −6 až +6 m, krok 0,3 m, předvolby −6, −4,5, −3, −1,5, 0,
-  1,5, 3, 4,5 a 6 m; jediný krok je 0,3 m.
+- Výšky: rozsah −6 až +24 m, krok 0,3 m, předvolby −6, −3, 0, 3, 6, 9, 12,
+  18 a 24 m; jediný krok je 0,3 m.
 - Výškový panel: vlastní okno, škála, barevné odlišení, počet, Zpět,
   Aplikovat a Zahodit; hlavní HUD už výškový řádek nemá.
 - Výběr: hover buňky, levé tlačítko přidá, pravé odebere (i tahem), 0 m
@@ -289,12 +289,29 @@ Plocha je razítko: nové buňky vzniknou, existující se přepíšou i s objek
 mazání udělá v mapě skutečnou díru.
 Tlačítka výšky v panelu určují, jak vysoko se dlaždice po Aplikovat pokládají.
 Výška má vlastní okénko jako Herní plocha; otevírá se při přepnutí na Výšku.
-Výšky jdou od −6 do +6 m; předvolby jsou −6, −4,5, −3, −1,5, 0, 1,5, 3,
-4,5 a 6 m; jediný mezikrok je +/−0,3 m. Levé tlačítko buňky přidává do výběru,
+Výšky jdou od −6 do +24 m; předvolby jsou −6, −3, 0, 3, 6, 9, 12, 18 a 24 m;
+jediný mezikrok je +/−0,3 m. Levé tlačítko buňky přidává do výběru,
 pravé je odebírá; na nulu se srovnává předvolbou 0 m. Návrh se dá kdykoli
 zrušit.
 Kopec a Prohlubeň si svah staví samy: v jejich okně vybereš výšku a namalovaná
-plocha zůstane plochá, kolem ní se přidá svah po 0,3 m až do 0.
+plocha zůstane plochá, kolem ní se přidá svah po 0,3 m až do 0. Dvě
+zaškrtávátka svah mění: **Strmý svah** spadne o 0,6 m na řadu, takže úpatí je
+poloviční; **Nepravidelný svah** část buněk v každé řadě vynechá, takže obrys
+kopce není kruh a svah je místy prudší. Buňka přitom nikdy nespadne pod svou
+původní výšku. Svislé stěny z toho nevzniknou — ty dělá štětec Útes a hrany
+vyšší než 2,4 m.
+
+Panel Výšky má i **velikost štětce** (1×1, 3×3, 5×5, 7×7) a **krok po buňce**
+(vyp / −0,3 / +0,3 m). Velikost určuje čtverec buněk kolem kurzoru. Krok posouvá
+výšku s každým dalším otiskem v jednom tahu: první otisk je zvolená výška, druhý
+o krok níž (nebo výš) — z tažení tak vznikne schodiště. Buňky, které už v tom
+tahu označené byly, si svou výšku drží, a krok se zarazí o meze −6 a +24 m.
+Nové tažení začíná zase od zvolené výšky.
+
+Třetí řádek **Nepravidelnost** (vyp / ±0,3 / ±0,6 m) rozhodne, jestli každá
+buňka dostane o krok nahoru nebo dolů. Při ±0,3 m se z malované 1,5 m střídá
+1,2 / 1,5 / 1,8 m, takže plocha není rovná jako stůl. Posun je vázaný na buňku,
+takže stejné místo vychází pořád stejně a nic neposkakuje.
 
 Podklad dlaždice (tráva, písek) se mění štětcem **Povrch**: ten nechá výšku,
 cesty i objekty a uklidí jen trávu. Mazání tímto štětcem vrátí buňku na trávu.
@@ -324,6 +341,26 @@ na boku, takže do útesu se nedělají zářezy a neprosvítá tráva. Rohy, kd
 potkají dvě stěny, se drobně zkosí, aby nebyly ostré. Značky
 se ukládají do mapy (verze 4), mažou se tlačítkem **Zrušit útesy** a Z vrací
 celý krok.
+
+Ručně označovat není potřeba: buňka, která je o **víc než 2,4 m výš** než její
+nejnižší soused, se jako útes bere sama a nakreslí se pod ní skalní stěna. Počítá
+se to z výšek při každém načtení mapy, takže se to nemůže rozejít s terénem —
+a platí to i pro editor. Menší skoky zůstanou svahem; přes 0,45 m stejně nejde
+vylézt.
+
+Když se výšky označených buněk srovnají do roviny se všemi čtyřmi sousedy
+(do jednoho schodu), značka útesu při **Aplikovat** zmizí — nemá co dělat a jen
+by později vyskočila stěna tam, kde ji nechceš. Zpět to vrátí. Rohy se zakulacují
+jen u **vnějšího rohu plošiny** — kolem rohu jsou tři buňky níž (ve stejné výšce)
+a jedna výš a všechny čtyři musí existovat. U zářezu, díry, kraje mapy nebo
+u výškového schodu zůstane roh ostrý a stěny na sebe přesně navazují.
+
+Vrchní plocha se k sousedovi přimyká **po celé hraně najednou**: slevování
+blízkých výšek se rozhoduje podle buňky, ne podle jednotlivých bodů hrany.
+Dřív se stávalo, že se půlka hrany srovnala a půlka ne — a plocha se pak
+„lepila" jen v rozích a uprostřed. Kde se v jednom bodě potkají dvě slevnané
+hrany v různých výškách, vybere si každá buňka tu hodnotu, která je její vlastní
+výšce **nejblíž** — hrana se tak nerozpadne ani na kraji u vyššího útesu.
 
 Země je spojitá: výška se mezi středy buněk dopočítává, takže kopce a prohlubně
 mají plynulé svahy a na okraji mapy je hliněný bok. Výjimka je označená buňka

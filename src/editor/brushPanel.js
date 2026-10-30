@@ -23,10 +23,7 @@ export default class BrushPanel {
     this.countValue = 0;
     this.slopeCount = 0;
     this.rimCount = 0;
-    this.option = null;
-    this.optionInput = null;
-    this.optionKey = null;
-    this.optionValue = false;
+    this.options = null;
     this.onOption = null;
   }
 
@@ -40,10 +37,7 @@ export default class BrushPanel {
         <button type="button" class="brush-panel__close" title="Zrušit (Esc)">×</button>
       </div>
       <div class="brush-panel__styles is-hidden"></div>
-      <label class="brush-panel__option is-hidden">
-        <input type="checkbox" />
-        <span class="brush-panel__option-label"></span>
-      </label>
+      <div class="brush-panel__options"></div>
       <div class="brush-panel__tools">
         <button type="button" class="brush-panel__erase" title="Mazat (X)">Mazat</button>
         <button type="button" class="brush-panel__undo" title="Vrátit poslední úpravu (Z)">Zpět</button>
@@ -60,13 +54,7 @@ export default class BrushPanel {
     this.title = root.querySelector('.brush-panel__title');
     this.count = root.querySelector('.brush-panel__count');
     this.styles = root.querySelector('.brush-panel__styles');
-    this.option = root.querySelector('.brush-panel__option');
-    this.optionInput = root.querySelector('.brush-panel__option input');
-    if (this.optionInput) {
-      this.optionInput.addEventListener('change', () => {
-        if (this.onOption && this.optionKey) this.onOption(this.optionKey, this.optionInput.checked);
-      });
-    }
+    this.options = root.querySelector('.brush-panel__options');
 
     root.querySelector('.brush-panel__apply').addEventListener('click', () => {
       if (this.onApply) this.onApply();
@@ -86,14 +74,14 @@ export default class BrushPanel {
     return root;
   }
 
-  open(brushKey, cellCount = 0, styleKey = 'dirt', optionValue = false) {
+  open(brushKey, cellCount = 0, styleKey = 'dirt', optionValues = null) {
     this.mount();
     const brush = getBrush(brushKey);
     this.brushKey = brushKey;
     this.pathStyle = styleKey || 'dirt';
     this.title.textContent = brush ? brush.label : brushKey;
     this.buildStyles(brush);
-    this.buildOption(brush, optionValue);
+    this.buildOptions(brush, optionValues);
     const heightOnly = Boolean(brush && (Number.isFinite(brush.height) || brush.heights));
     const surfaceOnly = Boolean(brush && brush.surfaceOnly);
     const surfaceBrush = Boolean(brush && brush.surface);
@@ -111,16 +99,27 @@ export default class BrushPanel {
     this.root.classList.add('is-open');
   }
 
-  buildOption(brush, value) {
-    if (!this.option) return;
-    const option = brush && brush.option;
-    this.optionKey = option ? option.key : null;
-    this.optionValue = Boolean(value);
-    this.option.classList.toggle('is-hidden', !option);
-    if (!option) return;
-    const label = this.option.querySelector('.brush-panel__option-label');
-    if (label) label.textContent = option.label;
-    if (this.optionInput) this.optionInput.checked = this.optionValue;
+  buildOptions(brush, values) {
+    if (!this.options) return;
+    this.options.innerHTML = '';
+    const list = brush
+      ? (Array.isArray(brush.options) ? brush.options : (brush.option ? [brush.option] : []))
+      : [];
+    for (const option of list) {
+      const label = document.createElement('label');
+      label.className = 'brush-panel__option';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = Boolean(values && values[option.key]);
+      input.addEventListener('change', () => {
+        if (this.onOption) this.onOption(option.key, input.checked);
+      });
+      const text = document.createElement('span');
+      text.className = 'brush-panel__option-label';
+      text.textContent = option.label;
+      label.append(input, text);
+      this.options.appendChild(label);
+    }
   }
 
   setDraftMode(mode) {

@@ -18,7 +18,13 @@ export default class HeightPanel {
     this.onUndo = null;
     this.onPickLevel = null;
     this.onToggleHeights = null;
+    this.onBrushSize = null;
+    this.onStepMode = null;
+    this.onJitter = null;
     this.heightLevel = 0;
+    this.brushSize = 0;
+    this.stepSign = 0;
+    this.jitter = 0;
     this.countValue = 0;
     this.undoEnabled = false;
     this.showHeights = true;
@@ -51,6 +57,25 @@ export default class HeightPanel {
       <div class="height-panel__steps">
         <button type="button" data-step="1" title="Přidat ${fine}">+${fine}</button>
         <button type="button" data-step="-1" title="Ubrat ${fine}">−${fine}</button>
+      </div>
+      <div class="height-panel__step-label">Velikost štětce</div>
+      <div class="height-panel__steps height-panel__steps--four">
+        <button type="button" data-size="0" title="Jedna buňka">1×1</button>
+        <button type="button" data-size="1" title="Čtverec 3×3">3×3</button>
+        <button type="button" data-size="2" title="Čtverec 5×5">5×5</button>
+        <button type="button" data-size="3" title="Čtverec 7×7">7×7</button>
+      </div>
+      <div class="height-panel__step-label">Krok po buňce</div>
+      <div class="height-panel__steps height-panel__steps--three">
+        <button type="button" data-krok="0" title="Všechny buňky stejně">vyp</button>
+        <button type="button" data-krok="-1" title="Každý další otisk o 0,3 m níž">−0,3 m</button>
+        <button type="button" data-krok="1" title="Každý další otisk o 0,3 m výš">+0,3 m</button>
+      </div>
+      <div class="height-panel__step-label">Nepravidelnost</div>
+      <div class="height-panel__steps height-panel__steps--three">
+        <button type="button" data-jitter="0" title="Všechny buňky přesně na zvolené výšce">vyp</button>
+        <button type="button" data-jitter="1" title="Každá buňka náhodně ±0,3 m">±0,3 m</button>
+        <button type="button" data-jitter="2" title="Každá buňka náhodně ±0,6 m">±0,6 m</button>
       </div>
       <div class="area-panel__count">Vybráno: 0 buněk</div>
       <div class="area-panel__tools area-panel__undo-row">
@@ -101,6 +126,27 @@ export default class HeightPanel {
         if (this.onStep) this.onStep(Number(btn.dataset.step));
       });
     }
+
+    for (const btn of root.querySelectorAll('[data-size]')) {
+      btn.addEventListener('click', () => {
+        this.setBrushSize(Number(btn.dataset.size));
+        if (this.onBrushSize) this.onBrushSize(this.brushSize);
+      });
+    }
+
+    for (const btn of root.querySelectorAll('[data-krok]')) {
+      btn.addEventListener('click', () => {
+        this.setStepMode(Number(btn.dataset.krok));
+        if (this.onStepMode) this.onStepMode(this.stepSign);
+      });
+    }
+
+    for (const btn of root.querySelectorAll('[data-jitter]')) {
+      btn.addEventListener('click', () => {
+        this.setJitter(Number(btn.dataset.jitter));
+        if (this.onJitter) this.onJitter(this.jitter);
+      });
+    }
     root.querySelector('.area-panel__apply').addEventListener('click', () => {
       if (this.onApply) this.onApply();
     });
@@ -124,6 +170,27 @@ export default class HeightPanel {
 
   setCount(count) {
     this.countValue = count || 0;
+    if (this.root) this.refresh();
+  }
+
+  setBrushSize(size) {
+    const value = Number(size);
+    if (!Number.isFinite(value)) return;
+    this.brushSize = Math.max(0, Math.min(3, Math.round(value)));
+    if (this.root) this.refresh();
+  }
+
+  setStepMode(sign) {
+    const value = Number(sign);
+    if (!Number.isFinite(value)) return;
+    this.stepSign = value < 0 ? -1 : value > 0 ? 1 : 0;
+    if (this.root) this.refresh();
+  }
+
+  setJitter(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return;
+    this.jitter = Math.max(0, Math.min(2, Math.round(n)));
     if (this.root) this.refresh();
   }
 
@@ -152,6 +219,15 @@ export default class HeightPanel {
     }
     for (const btn of this.presets.querySelectorAll('[data-level]')) {
       btn.classList.toggle('is-active', Number(btn.dataset.level) === this.heightLevel);
+    }
+    for (const btn of this.root.querySelectorAll('[data-size]')) {
+      btn.classList.toggle('is-active', Number(btn.dataset.size) === this.brushSize);
+    }
+    for (const btn of this.root.querySelectorAll('[data-krok]')) {
+      btn.classList.toggle('is-active', Number(btn.dataset.krok) === this.stepSign);
+    }
+    for (const btn of this.root.querySelectorAll('[data-jitter]')) {
+      btn.classList.toggle('is-active', Number(btn.dataset.jitter) === this.jitter);
     }
     this.refreshStaged();
     const n = this.countValue || 0;
@@ -192,6 +268,9 @@ export default class HeightPanel {
   open(options = {}) {
     this.mount();
     this.heightLevel = Number.isFinite(options.level) ? options.level : 0;
+    if (Number.isFinite(options.brushSize)) this.brushSize = Math.max(0, Math.min(3, Math.round(options.brushSize)));
+    if (Number.isFinite(options.stepSign)) this.stepSign = Math.sign(options.stepSign);
+    if (Number.isFinite(options.jitter)) this.jitter = Math.max(0, Math.min(2, Math.round(options.jitter)));
     this.countValue = options.count || 0;
     this.undoEnabled = Boolean(options.undoEnabled);
     this.stagedEntries = options.staged || [];

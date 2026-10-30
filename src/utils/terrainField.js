@@ -6,6 +6,7 @@ import { worldCells } from '../data/maps/areaShape.js';
 
 const MARGIN = 2;
 const AROUND = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const AUTO_CLIFF_STEP = 2.4;
 const LAYER_ORDER = ['floor', 'clearing', 'grass', 'path'];
 
 function catmull(p0, p1, p2, p3, t) {
@@ -45,6 +46,18 @@ export function createTerrainField(world) {
     const key = cellKey(entry.cx, entry.cz);
     sharp.add(key);
     sharpStyles.set(key, entry.cliffStyle === 'stone' ? 'stone' : 'dirt');
+  }
+  for (const [key, height] of heights) {
+    if (sharp.has(key)) continue;
+    const [cx, cz] = key.split(',').map(Number);
+    let lowest = Infinity;
+    for (const [dx, dz] of AROUND) {
+      const near = heights.get(cellKey(cx + dx, cz + dz));
+      if (near !== undefined) lowest = Math.min(lowest, near);
+    }
+    if (!Number.isFinite(lowest) || height - lowest < AUTO_CLIFF_STEP) continue;
+    sharp.add(key);
+    sharpStyles.set(key, 'stone');
   }
 
   const nearest = new Map();

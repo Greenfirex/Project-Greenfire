@@ -868,9 +868,18 @@
   color: var(--text-main);
 }
 
-.height-panel__presets button.is-active {
+.height-panel__presets button.is-active,
+.height-panel__steps button.is-active {
   background: rgba(90, 200, 170, 0.22);
   border-color: var(--glow-accent);
   color: var(--text-main);
   box-shadow: 0 0 8px rgba(90, 200, 170, 0.2);
+}
+
+.height-panel__steps--four {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.height-panel__steps--three {
+  grid-template-columns: repeat(3, 1fr);
 }

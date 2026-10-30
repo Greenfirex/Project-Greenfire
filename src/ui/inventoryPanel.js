@@ -29,7 +29,7 @@ export default class InventoryPanel {
   mount() {
     if (this.root) return this.root;
     const root = document.createElement('div');
-    root.className = 'hud-panel inventory-panel';
+    root.className = 'hud-panel hud-panel--corner inventory-panel';
     root.id = 'hud-inventory';
     root.innerHTML = '<h2>Batoh</h2><div class="inv-list"></div><div class="inv-craft"><span class="inv-craft__label">Vyrobit lze</span><div class="inv-recipes"></div></div>';
     this.itemsEl = root.querySelector('.inv-list');

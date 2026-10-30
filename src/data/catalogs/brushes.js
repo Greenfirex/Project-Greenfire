@@ -119,13 +119,20 @@ export const BRUSHES = {
     note: 'Vyzdvihne zem do kopce se svahem, výšku volíš v panelu.',
     shape: 'blob',
     style: 'low',
-    styles: ['low', 'mid', 'high'],
-    heights: { low: 4, mid: 6, high: 8 },
+    styles: ['low', 'mid', 'high', 'higher', 'tall', 'max'],
+    heights: { low: 4, mid: 6, high: 8, higher: 12, tall: 24, max: 40 },
     styleLabels: {
       low: levelMeters(4),
       mid: levelMeters(6),
       high: levelMeters(8),
+      higher: levelMeters(12),
+      tall: levelMeters(24),
+      max: levelMeters(40),
     },
+    options: [
+      { key: 'steep', label: 'Strmý svah (užší)' },
+      { key: 'rough', label: 'Nepravidelný svah' },
+    ],
     falloff: true,
   },
   hollow: {
@@ -140,6 +147,10 @@ export const BRUSHES = {
       shallow: levelMeters(2),
       deep: levelMeters(4),
     },
+    options: [
+      { key: 'steep', label: 'Strmý svah (užší)' },
+      { key: 'rough', label: 'Nepravidelný svah' },
+    ],
     falloff: true,
   },
   beach: {

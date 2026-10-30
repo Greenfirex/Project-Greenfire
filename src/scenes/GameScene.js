@@ -40,6 +40,7 @@ import MapEditor from '../editor/mapEditor.js';
 import EditorToggle from '../editor/editorToggle.js';
 import PauseScreen from '../ui/pauseScreen.js';
 import LoadingScreen from '../ui/loadingScreen.js';
+import TooltipPanel from '../ui/tooltipPanel.js';
 import { whenModelsIdle, takeModelError, preloadModel, releaseFrame } from '../utils/assetLoader.js';
 import { treeTemplate } from '../utils/treeFactory.js';
 import { rockTemplate } from '../utils/rockFactory.js';
@@ -93,6 +94,11 @@ function surfaceStepSound(key) {
   return 'stepGrass';
 }
 
+function metersText(value) {
+  const rounded = Math.round((Number(value) || 0) * 10) / 10;
+  return `${String(rounded).replace('.', ',')} m`;
+}
+
 function buildReasonText(reason) {
   if (reason === 'occupied') return 'už tu stojí stroj';
   if (reason === 'blocked') return 'překážka';
@@ -140,6 +146,7 @@ export default class GameScene {
     this.inventorySystem = new InventorySystem();
     this.saveSystem = new SaveSystem(this);
     this.hud = new Hud();
+    this.tooltipPanel = new TooltipPanel();
     this.hotbar = new Hotbar();
     this.inventoryPanel = new InventoryPanel();
     this.editor = new MapEditor(this);
@@ -216,7 +223,6 @@ export default class GameScene {
     this.loader.beginWorld(stages.length);
     this.wireDecoReady();
     this.decoHighlight.clear();
-    this.decoHighlight.create((cx, cz) => this.decoSystem.surfaceAt(cx, cz));
     const map = getMap(this.mapKey);
     if (stages.length) this.decoSystem.beginStages(this.mapFile, map.colors);
     else this.decoSystem.create(this.mapFile, map.colors);
@@ -1251,6 +1257,7 @@ updateGatherTarget() {
   setupInput() {
     this.inputSystem.suppressContextMenu(this.canvas);
     this.inputSystem.groundPredicate = (mesh) => mesh === this.terrainSystem.ground;
+    this.inputSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z);
     this.inputSystem.shouldPickByRay = () => this.editor.active && this.editor.mapMode === 'area';
     this.inputSystem.attach(this.camera, this);
     this.inputSystem.onLeftDown = () => this.handleLeftDown();
@@ -1491,19 +1498,21 @@ updateGatherTarget() {
 
   handleHover(cell) {
     this.hoverCell = cell;
-    if (cell) this.decoHighlight.setHover(cell);
+    this.decoHighlight.setHover(cell || null);
     if (!this.editor.active) {
       this.gridSystem.clearHoverCell();
       this.moveGridHighlight(cell);
+      this.refreshHoverTooltip(cell);
       return;
     }
+    this.tooltipPanel.hide();
     this.gridSystem.hideHighlight();
     this.gridSystem.hideHologram();
     if (!cell) {
       this.editor.clearHoverReadout();
       return;
     }
-    this.gridSystem.showHoverCell(cell.cx, cell.cz, (cx, cz) => this.decoSystem.surfaceAt(cx, cz));
+    this.gridSystem.showHoverCell(cell.cx, cell.cz, (cx, cz) => this.decoSystem.surfaceAt(cx, cz), this.editor.mode.mode === 'height' ? this.editor.mode.heightStampSpan : 1);
     if (this.editor.mapMode === 'area') {
       this.editor.showAreaPreview(this.editor.mode.getAreaSelection());
       if (this.editor.mode.hasAreaSelection) return;
@@ -1511,6 +1520,23 @@ updateGatherTarget() {
       return;
     }
     this.editor.showCellHoverReadout(cell);
+  }
+
+  refreshHoverTooltip(cell) {
+    if (!cell || !this.options.highlights || this.isBuilding() || this.hud.isStatusOpen()) {
+      this.tooltipPanel.hide();
+      return;
+    }
+    const height = this.terrainSystem.heightAt(cell.cx * CELL_SIZE, cell.cz * CELL_SIZE);
+    const detail = `výška ${metersText(height)}`;
+    const deco = this.decoHighlight.labelAt(cell.cx, cell.cz);
+    if (deco) {
+      this.tooltipPanel.show(deco.label, detail);
+      return;
+    }
+    const surfaceKey = this.decoSystem.surfaceKeyAt ? this.decoSystem.surfaceKeyAt(cell.cx, cell.cz) : null;
+    const surface = surfaceKey ? getDecoration(surfaceKey) : null;
+    this.tooltipPanel.show(surface ? surface.displayName : 'Země', detail);
   }
 
   handlePaintStart(cell) {

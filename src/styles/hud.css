@@ -144,6 +144,19 @@
   font-weight: 700;
 }
 
+/* Dva rohové panely (batoh a tooltip) — stejná velikost i styl, jen zrcadlově. */
+.hud-panel--corner {
+  padding: 16px 20px;
+  font-size: 16px;
+  line-height: 1.5;
+  border-radius: 8px;
+}
+
+.hud-panel--corner h2 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
 .hud-row {
   display: flex;
   justify-content: space-between;
@@ -198,8 +211,43 @@
 #hud-inventory {
   bottom: 12px;
   left: 12px;
-  min-width: 178px;
-  max-width: 210px;
+  min-width: 290px;
+  max-width: 340px;
+}
+
+#hud-inventory .inv-list {
+  gap: 4px;
+}
+
+#hud-inventory .inv-row {
+  gap: 10px;
+}
+
+#hud-inventory .inv-row__icon {
+  width: 22px;
+  font-size: 17px;
+}
+
+#hud-inventory .inv-empty {
+  font-size: 15px;
+}
+
+#hud-inventory .inv-craft {
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+#hud-inventory .inv-craft__label {
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+#hud-inventory .inv-recipes {
+  gap: 4px;
+}
+
+#hud-inventory .inv-recipe {
+  font-size: 15px;
 }
 
 .inv-list {
@@ -808,4 +856,34 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* Tooltip v pravém dolním rohu — co je právě pod kurzorem. */
+.hud-tooltip {
+  display: none;
+  right: 12px;
+  bottom: 12px;
+  min-width: 290px;
+  text-align: right;
+  pointer-events: none;
+}
+
+.hud-tooltip.is-open {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+#hud-layer > .hud-tooltip {
+  pointer-events: none;
+}
+
+.hud-tooltip__title {
+  color: var(--text-main);
+  font-size: 18px;
+}
+
+.hud-tooltip__detail {
+  color: var(--text-dim);
+  font-size: 14px;
 }

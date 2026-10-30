@@ -36,6 +36,8 @@ export default class InputSystem {
     this.onLeftUp = null;
     this.leftDown = false;
     this.groundPredicate = null;
+    this.groundHeightAt = null;
+    this.surfaceGuess = null;
     this.pointerMoved = true;
     this.lastMoveX = null;
     this.lastMoveY = null;
@@ -193,22 +195,42 @@ export default class InputSystem {
   }
 
   cellAtPointer() {
-    if (this.shouldPickByRay && this.shouldPickByRay()) {
-      return this.cellAtPointerByRay();
-    }
-    const point = this.pickGround(this.groundPredicate);
+    const ray = this.s.createPickingRay(this.s.pointerX, this.s.pointerY, null, this.camera);
+    const point = this.surfacePoint(ray) || this.fallbackPoint(ray);
     if (!point) return null;
     const { cx, cz } = worldToCellCoords(point.x, point.z);
     return { cx, cz, point };
   }
 
-  cellAtPointerByRay() {
-    const ray = this.s.createPickingRay(this.s.pointerX, this.s.pointerY, null, this.camera);
-    const distance = ray.intersectsPlane(GroundPlane);
-    if (distance === null || !Number.isFinite(distance)) return null;
-    const point = ray.origin.add(ray.direction.scale(distance));
-    const { cx, cz } = worldToCellCoords(point.x, point.z);
-    return { cx, cz, point };
+  surfacePoint(ray) {
+    if (!this.groundHeightAt) return null;
+    const origin = ray.origin;
+    const direction = ray.direction;
+    if (Math.abs(direction.y) < 1e-4) return null;
+    let guess = Number.isFinite(this.surfaceGuess) ? this.surfaceGuess : 0;
+    let last = null;
+    for (let i = 0; i < 6; i += 1) {
+      const distance = (guess - origin.y) / direction.y;
+      if (!Number.isFinite(distance) || distance < 0) return last;
+      const point = origin.add(direction.scale(distance));
+      const height = this.groundHeightAt(point.x, point.z);
+      if (!Number.isFinite(height)) return last;
+      point.y = height;
+      last = point;
+      if (Math.abs(height - guess) < 0.02) break;
+      guess = height;
+    }
+    if (last) this.surfaceGuess = last.y;
+    return last;
+  }
+
+  fallbackPoint(ray) {
+    if (this.shouldPickByRay && this.shouldPickByRay()) {
+      const distance = ray.intersectsPlane(GroundPlane);
+      if (distance === null || !Number.isFinite(distance)) return null;
+      return ray.origin.add(ray.direction.scale(distance));
+    }
+    return this.pickGround(this.groundPredicate);
   }
 
   pointerInside() {

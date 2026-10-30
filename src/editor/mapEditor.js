@@ -73,6 +73,9 @@ export default class MapEditor {
     this.mode.onDraftChange = (draft) => this.updateDraftView(draft);
     this.mode.onHeightsChange = () => this.s.renderHeights();
     this.mode.onHeightDraftChange = () => this.refreshHeightDraftView();
+    this.mode.onHeightBrushChange = (size) => this.heightPanel.setBrushSize(size);
+    this.mode.onHeightStepChange = (sign) => this.heightPanel.setStepMode(sign);
+    this.mode.onHeightJitterChange = (value) => this.heightPanel.setJitter(value);
     this.mode.onBrushChange = (key) => {
       this.hud.setBrush(key);
       this.openBrushPanel(key);
@@ -89,6 +92,9 @@ export default class MapEditor {
     this.heightPanel.onCancel = () => this.cancelHeightDraft();
     this.heightPanel.onUndo = () => this.undo();
     this.heightPanel.onPickLevel = (level) => this.mode.setHeightLevel(level);
+    this.heightPanel.onBrushSize = (size) => this.mode.setHeightBrushSize(size);
+    this.heightPanel.onStepMode = (sign) => this.mode.setHeightStepSign(sign);
+    this.heightPanel.onJitter = (value) => this.mode.setHeightJitter(value);
     this.heightPanel.onToggleHeights = (on) => {
       this.showHeights = on;
       this.refreshHeightTint();
@@ -258,6 +264,9 @@ export default class MapEditor {
         undoEnabled: this.mode.canUndo,
         staged: this.stagedList(),
         showHeights: this.showHeights,
+        brushSize: this.mode.heightBrushSize,
+        stepSign: this.mode.heightStepSign,
+        jitter: this.mode.heightJitter,
       });
       this.refreshHeightTint();
       return;
@@ -366,7 +375,7 @@ export default class MapEditor {
 
   openBrushPanel(brushKey) {
     this.mode.beginDraft(brushKey);
-    this.brushPanel.open(brushKey, 0, this.mode.pathStyle, this.mode.brushOptionValue(brushKey));
+    this.brushPanel.open(brushKey, 0, this.mode.pathStyle, this.mode.brushOptionValues(brushKey));
     this.brushPanel.setDraftMode(this.mode.draftMode);
     this.refreshUndoButton();
     this.refreshZoneOverlay();
@@ -408,8 +417,10 @@ export default class MapEditor {
   startPaint(cell) {
     this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
     if (this.mode.mode === 'area') this.mode.beginAreaDrag(cell.cx, cell.cz);
-    else if (this.mode.mode === 'height') this.mode.paint(cell.cx, cell.cz);
-    else if (!this.mode.hasBrush) this.hud.setReadout(NO_BRUSH_HINT);
+    else if (this.mode.mode === 'height') {
+      this.mode.beginHeightStroke();
+      this.mode.paint(cell.cx, cell.cz);
+    } else if (!this.mode.hasBrush) this.hud.setReadout(NO_BRUSH_HINT);
     else if (!this.mode.canDraftCell(cell.cx, cell.cz)) this.hud.setReadout('Mimo hrací plochu — přepni na Plochu');
     else this.mode.draftCell(cell.cx, cell.cz);
   }
