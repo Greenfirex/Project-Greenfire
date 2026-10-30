@@ -81,7 +81,11 @@ na dně v shlucích (vějíř, trs a mozkový) se štětcem Koraly, hejna ryb
 pěti barev (i drobných), která se toulají vodou, občas vyšlou rybku na
 potulky a plaší se před hráčem, tráva s květinami ve čtyřech barvách
 (květy se houpou ve větru a rostou i ve shlucích, štětec Tráva je umí vypnout),
-plynulé prolínání trávy a písku
+keře v šesti tvarech (kopule, sloup, suknice, stěna, hrbolatý, z karet listí
+s vnitřní vrstvou, tmavší u země a světlejší nahoře, aby měly objem,
+s měkkým stínem pod sebou — všechny skvrny jedním tahem —, houpou se ve větru,
+sází je nástroj `scatter/bushes.mjs` hustě v pásu podél břehů a řidčeji
+ve vnitrozemí, i ve shlucích, a mohou růst i pod stromy), plynulé prolínání trávy a písku
 (texturou i barvou), hráč ve vodě (mělká zpomalí, do hluboké nesmí,
 ve vodě nejde stavět), kroky ve vodě, příboj u vody, obloha se sluncem
 a ukládání/načítání do prohlížeče.
@@ -290,6 +294,16 @@ přes kterou se nedá chodit. Výška terénu je uložená u každé dlaždice z
 V editoru (F2) jsou tři druhy práce: **zóny** vyplní označené buňky rostlinami
 a objekty, **výška** nejdřív kreslí návrh a po potvrzení zvedá dlaždice
 a **plocha** zakládá nebo přepisuje zem s vybraným podkladem a výškou.
+Co na buňce leží (povrch a všechny dekorace českými názvy), vypisuje vpravo dole
+tooltip; panel editoru hlásí jen stav (mimo plochu, aplikováno…).
+U štětců na rostliny a objekty jde v panelu vybrat **druh** (keř, houba, kámen…);
+vybraný druh se pod kurzorem ukazuje jako průsvitný duch, takže je vidět
+dřív, než se klikne — u keřů jich duch ukáže tolik, kolik jich hustota nasadí,
+ve stejné velikosti, otočení a na stejném místě, jaké pak opravdu dostanou. Keře mají navíc posuvník **Hustota** (kolik keřů na buňce
+vyroste, 1–5), volbu **Kolísání ±1** (počet se náhodně houpe o jeden nahoru
+dolů) a **Střídat druhy samo (skvrny)** — s ní editor nebere druh z ruky, ale
+počítá ho z polohy buňky, takže namalovaná plocha se sama rozpadne na skvrny
+stejného druhu o zhruba sedmi buňkách; kliknutí na konkrétní druh ji vypne.
 Plocha je razítko: nové buňky vzniknou, existující se přepíšou i s objekty,
 mazání udělá v mapě skutečnou díru.
 Tlačítka výšky v panelu určují, jak vysoko se dlaždice po Aplikovat pokládají.

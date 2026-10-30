@@ -1,6 +1,7 @@
 // Malý panel pro rozpracovanou zónu — název štětce, styl a potvrzení.
 // Otevírá se klikem na štětec v paletě, sám nic negeneruje ani nemění.
 import { getBrush } from '../data/catalogs/brushes.js';
+import { getDecoration } from '../data/catalogs/decorations.js';
 import { makeDraggable } from '../ui/draggable.js';
 
 const STYLE_LABELS = { dirt: 'Hlína', stone: 'Kámen', wood: 'Dřevo', iron: 'Železo', copper: 'Měď' };
@@ -23,8 +24,10 @@ export default class BrushPanel {
     this.countValue = 0;
     this.slopeCount = 0;
     this.rimCount = 0;
+    this.species = null;
     this.options = null;
     this.onOption = null;
+    this.onSpecies = null;
   }
 
   mount() {
@@ -37,6 +40,7 @@ export default class BrushPanel {
         <button type="button" class="brush-panel__close" title="Zrušit (Esc)">×</button>
       </div>
       <div class="brush-panel__styles is-hidden"></div>
+      <div class="brush-panel__species is-hidden"></div>
       <div class="brush-panel__options"></div>
       <div class="brush-panel__tools">
         <button type="button" class="brush-panel__erase" title="Mazat (X)">Mazat</button>
@@ -54,6 +58,7 @@ export default class BrushPanel {
     this.title = root.querySelector('.brush-panel__title');
     this.count = root.querySelector('.brush-panel__count');
     this.styles = root.querySelector('.brush-panel__styles');
+    this.species = root.querySelector('.brush-panel__species');
     this.options = root.querySelector('.brush-panel__options');
 
     root.querySelector('.brush-panel__apply').addEventListener('click', () => {
@@ -74,13 +79,14 @@ export default class BrushPanel {
     return root;
   }
 
-  open(brushKey, cellCount = 0, styleKey = 'dirt', optionValues = null) {
+  open(brushKey, cellCount = 0, styleKey = 'dirt', optionValues = null, speciesKey = null) {
     this.mount();
     const brush = getBrush(brushKey);
     this.brushKey = brushKey;
     this.pathStyle = styleKey || 'dirt';
     this.title.textContent = brush ? brush.label : brushKey;
     this.buildStyles(brush);
+    this.buildSpecies(brush, speciesKey);
     this.buildOptions(brush, optionValues);
     const heightOnly = Boolean(brush && (Number.isFinite(brush.height) || brush.heights));
     const surfaceOnly = Boolean(brush && brush.surfaceOnly);
@@ -106,6 +112,10 @@ export default class BrushPanel {
       ? (Array.isArray(brush.options) ? brush.options : (brush.option ? [brush.option] : []))
       : [];
     for (const option of list) {
+      if (option.kind === 'range') {
+        this.options.appendChild(this.buildRangeOption(option, values));
+        continue;
+      }
       const label = document.createElement('label');
       label.className = 'brush-panel__option';
       const input = document.createElement('input');
@@ -120,6 +130,65 @@ export default class BrushPanel {
       label.append(input, text);
       this.options.appendChild(label);
     }
+  }
+
+  buildRangeOption(option, values) {
+    const row = document.createElement('div');
+    row.className = 'brush-panel__option brush-panel__option--range';
+    const text = document.createElement('span');
+    text.className = 'brush-panel__option-label';
+    text.textContent = option.label;
+    const min = Number.isFinite(option.min) ? option.min : 1;
+    const max = Number.isFinite(option.max) ? option.max : min + 4;
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = String(min);
+    input.max = String(max);
+    input.step = String(Number.isFinite(option.step) ? option.step : 1);
+    const stored = values && values[option.key] !== undefined ? Number(values[option.key]) : Number(option.default);
+    input.value = String(Math.min(max, Math.max(min, Number.isFinite(stored) ? stored : min)));
+    const value = document.createElement('span');
+    value.className = 'brush-panel__option-value';
+    value.textContent = input.value;
+    input.addEventListener('input', () => {
+      value.textContent = input.value;
+      if (this.onOption) this.onOption(option.key, Number(input.value));
+    });
+    row.append(text, input, value);
+    return row;
+  }
+
+  buildSpecies(brush, speciesKey = null) {
+    const pool = brush && brush.deco && Array.isArray(brush.pool) ? brush.pool : [];
+    if (!this.species) return;
+    this.species.classList.toggle('is-hidden', pool.length < 2);
+    this.species.innerHTML = '';
+    for (const key of pool) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.species = key;
+      const def = getDecoration(key);
+      const label = def && def.displayName ? def.displayName : key;
+      btn.title = label;
+      btn.textContent = label;
+      btn.classList.toggle('is-active', key === speciesKey);
+      btn.addEventListener('click', () => {
+        if (this.onSpecies) this.onSpecies(key);
+      });
+      this.species.appendChild(btn);
+    }
+  }
+
+  setSpecies(key) {
+    if (!this.species) return;
+    for (const btn of this.species.querySelectorAll('[data-species]')) {
+      btn.classList.toggle('is-active', btn.dataset.species === key);
+    }
+  }
+
+  setOptions(values) {
+    if (!this.root) return;
+    this.buildOptions(getBrush(this.brushKey), values);
   }
 
   setDraftMode(mode) {

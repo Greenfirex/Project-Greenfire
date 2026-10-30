@@ -54,8 +54,9 @@ function fillBlob(makeRng, brush, cells) {
   const entries = [];
   for (const [cx, cz] of out) {
     const local = cellRng(makeRng, key(cx, cz));
+    const species = pick(local, pool);
     if (!cluster) {
-      entries.push({ cx, cz, key: pick(local, pool) });
+      entries.push({ cx, cz, key: species });
       continue;
     }
     const amount = cluster.min
@@ -64,7 +65,7 @@ function fillBlob(makeRng, brush, cells) {
       const entry = {
         cx,
         cz,
-        key: pick(local, pool),
+        key: species,
         offsetX: Math.round((local() - 0.5) * cluster.spread * 2 * 100) / 100,
         offsetZ: Math.round((local() - 0.5) * cluster.spread * 2 * 100) / 100,
         scale: Math.round((cluster.scaleMin + local() * (cluster.scaleMax - cluster.scaleMin)) * 100) / 100,

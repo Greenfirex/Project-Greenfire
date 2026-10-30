@@ -32,9 +32,24 @@ python tools/make_cliff_catalog.py --filter "^(block|top|half|cornerTop)$"
 
 Výstup: `tools/_temp/cliff_catalog.png`.
 
+## cutout_leaves.py
+
+Vyřízne jednolité pozadí z fotografií listí a uloží PNG s průhledností. Slouží
+pro sprity, které generátor obrázků umí jen s pozadím (typicky purpurovým):
+barvu pozadí si vezme z rohů, udělá měkkou masku, potlačí barevný lem na okrajích
+listů a ořízne prázdné okraje.
+
+```
+python tools/cutout_leaves.py tools/_temp/bush_*.jpg
+python tools/cutout_leaves.py tools/_temp/*.jpg --out public/assets/nature/textures --size 768
+```
+
+Výstup: stejné názvy s příponou `.png` v cílové složce (výchozí
+`public/assets/nature/textures`). Vstupní soubory patří do `tools/_temp/`.
+
 ## scatter/ — sázení drobností do mapy
 
-Čtyři samostatné nástroje se společným základem (`scatter/base.mjs`). Každý
+Pět samostatných nástrojů se společným základem (`scatter/base.mjs`). Každý
 načte soubor mapy, spočítá terén stejným kódem jako hra
 (`src/utils/terrainField.js`), takže všechno sedí na skutečný povrch, a nahradí
 **jen svoje vlastní** věci. Ostatní dekorace na mapě nechá být a vyhýbá se
@@ -54,6 +69,13 @@ buňkám, kde už je výsledek jiného nástroje.
   Hejna se sázejí jen tam, kde je v okolí dost vody, aby ryby nevplavaly na souš.
 - `scatter/flowers.mjs` — květiny na travnaté buňky (čtyři barvy, jedna až dvě
   na buňku, ve shlucích podle šumu).
+- `scatter/bushes.mjs` — keře na travnaté buňky (šest tvarů) ve dvou
+  průchodech. **Pobřežní pás** bere travnaté buňky do dvou buněk od písku
+  a sází tam hustě 2–4 kusy na buňku; druh se vybírá po skvrnách o čtyřech
+  buňkách s převahou vavřínového a kulatého keře. **Zbytek ostrova** je
+  řidší (šance 16 %, 1–4 kusy, všech šest druhů po sedmibuňkových skvrnách).
+  Vyhýbá se cestám a buňkám, kde stojí něco jiného než strom — keře pod
+  stromy růst mohou.
 
 ```
 node tools/scatter/corals.mjs --dry         # jen spočítá a vypíše, soubor nezmění
@@ -62,7 +84,8 @@ node tools/scatter/fish.mjs cesta/map.json  # jiná mapa
 ```
 
 Po zvětšení mapy se pouští v pořadí **shells → corals → fish** (každý další se
-vyhne buňkám předchozího). Květiny se pouští zvlášť, jen když je chceš přesypat.
+vyhne buňkám předchozího). Květiny a keře se pouští zvlášť, jen když je chceš
+přesypat.
 
 Budoucí úpravy břehu se dělají štětcem **Pobřeží** v editoru mapy, tyhle
 nástroje jsou na první naplnění mapy nebo na přesypání po zvětšení.

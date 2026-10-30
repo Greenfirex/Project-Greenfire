@@ -90,9 +90,24 @@ export const BRUSHES = {
   mushrooms: {
     label: 'Houby',
     group: 'Rostliny',
-    note: 'Nasadí houby a drobné keře.',
+    note: 'Nasadí houby na lesní půdu.',
     shape: 'blob',
-    pool: ['mushroom_red', 'mushroom_tan', 'bush_small'],
+    pool: ['mushroom_red', 'mushroom_tan'],
+    deco: true,
+  },
+  bushes: {
+    label: 'Keře',
+    group: 'Rostliny',
+    note: 'Nasadí keře; hustota říká, kolik jich na buňce vyroste, kolísání to nechá houpat o ±1. Skvrny = druh se střídá sám po plochách kolem sedmi buněk.',
+    shape: 'blob',
+    pool: ['bush', 'bush_round', 'bush_dense', 'bush_wide', 'bush_bramble', 'bush_small'],
+    options: [
+      { key: 'density', label: 'Hustota', kind: 'range', default: 2, min: 1, max: 5, step: 1 },
+      { key: 'jitter', label: 'Kolísání ±1', default: true },
+      { key: 'patch', label: 'Střídat druhy samo (skvrny)', default: true },
+    ],
+    patch: 7,
+    cluster: { spread: 0.65, scaleMin: 0.7, scaleMax: 1.3 },
     deco: true,
   },
   grass: {

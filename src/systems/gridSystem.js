@@ -11,8 +11,14 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CELL_SIZE } from '../utils/gridMath.js';
 import { loadModel, instantiateModel } from '../utils/assetLoader.js';
+import { decorationTemplate } from '../utils/decoTemplate.js';
 
 const HOLOGRAM_ALPHA = 0.45;
+const SINGLE_ITEM = { offsetX: 0, offsetZ: 0, yaw: 0 };
+
+function speciesOf(def) {
+  return def.bush || def.tree || def.rock || def.shell || def.coral || def.flower || def.model || 'kus';
+}
 const ZONE_SLOTS = 12;
 
 
@@ -38,7 +44,10 @@ export default class GridSystem {
     this.draftLinesRemove = null;
     this.draftRemovePool = [];
     this.hologramKey = '';
-    this.hologramNode = null;
+    this.hologramNodes = [];
+    this.hologramItems = null;
+    this.hologramBase = null;
+    this.hologramVisible = false;
     this.hologramOwnMaterials = [];
     this.hologramToken = 0;
     this.hologramValid = true;
@@ -120,27 +129,73 @@ export default class GridSystem {
 
   showHologram(machineKey, def, cx, cz, topY, rotation, valid) {
     if (this.hologramKey !== machineKey) this.requestHologram(machineKey, def);
-    if (!this.hologramNode) return;
-
-    this.hologramNode.position.set(cx * CELL_SIZE, topY, cz * CELL_SIZE);
-    this.hologramNode.rotation.y = (Math.PI / 2) * rotation;
-    this.hologramNode.setEnabled(true);
+    this.placeHologram(cx * CELL_SIZE, topY, cz * CELL_SIZE, (Math.PI / 2) * rotation);
     this.tintHologram(valid);
   }
 
   requestHologram(machineKey, def) {
-    this.hologramKey = machineKey;
+    this.buildHologram(machineKey, () => loadModel(this.s, def.model), null);
+  }
+
+  showDecorPreview(def, items, cx, cz, topY, rotation = 0) {
+    if (!def) return;
+    const list = Array.isArray(items) && items.length ? items : [SINGLE_ITEM];
+    const key = `deco:${speciesOf(def)}`;
+    if (this.hologramKey !== key) this.buildHologram(key, () => decorationTemplate(this.s, def), list);
+    this.placeHologram(cx * CELL_SIZE, topY, cz * CELL_SIZE, (Math.PI / 2) * rotation, list);
+    this.tintHologram(true);
+  }
+
+  placeHologram(x, y, z, rotation, items = null) {
+    this.hologramBase = { x, y, z, rotation };
+    if (items) this.hologramItems = items;
+    this.hologramVisible = true;
+    this.arrangeHologram();
+  }
+
+  arrangeHologram() {
+    const base = this.hologramBase;
+    if (!base || !this.hologramNodes.length) return;
+    const items = this.hologramItems && this.hologramItems.length ? this.hologramItems : [SINGLE_ITEM];
+    this.growHologramNodes(items.length);
+    this.hologramNodes.forEach((node, index) => {
+      const item = items[index];
+      if (!item) {
+        node.setEnabled(false);
+        return;
+      }
+      node.position.set(base.x + (item.offsetX || 0), base.y, base.z + (item.offsetZ || 0));
+      node.rotation.y = base.rotation + (item.yaw || 0);
+      if (Number.isFinite(item.scale)) node.scaling.setAll(item.scale);
+      node.setEnabled(this.hologramVisible);
+    });
+  }
+
+  growHologramNodes(count) {
+    const first = this.hologramNodes[0];
+    while (first && this.hologramNodes.length < count) {
+      const copy = first.clone(`hologramModel_${this.hologramNodes.length}`);
+      if (!copy) return;
+      copy.setEnabled(false);
+      this.hologramNodes.push(copy);
+    }
+  }
+
+  buildHologram(key, loadTemplate, items = null) {
+    this.hologramKey = key;
+    this.hologramItems = items;
     this.disposeHologram();
     this.hologramToken += 1;
     const token = this.hologramToken;
-    loadModel(this.s, def.model).then((template) => {
-      if (token !== this.hologramToken || this.hologramKey !== machineKey) return;
+    Promise.resolve(loadTemplate()).then((template) => {
+      if (token !== this.hologramToken || this.hologramKey !== key) return;
       const node = instantiateModel(this.s, template, 'hologramModel');
       if (!node) return;
       this.hologramOwnMaterials = node.getChildMeshes().map((mesh) => {
         const mat = new StandardMaterial(`hologramMat_${mesh.name}`, this.s);
         const source = mesh.material;
         if (source && source.alphaTexture) mat.opacityTexture = source.alphaTexture;
+        else if (source && source.useAlphaFromDiffuseTexture && source.diffuseTexture) mat.opacityTexture = source.diffuseTexture;
         mat.diffuseColor = new Color3(0.35, 0.95, 0.8);
         mat.emissiveColor = new Color3(0.21, 0.57, 0.48);
         mat.specularColor = new Color3(0, 0, 0);
@@ -150,17 +205,16 @@ export default class GridSystem {
         mesh.receiveShadows = false;
         return mat;
       });
-      this.hologramNode = node;
-      node.setEnabled(false);
-      if (typeof this.onHologramReady === 'function') this.onHologramReady(machineKey);
+      this.hologramNodes = [node];
+      this.arrangeHologram();
+      this.tintHologram(this.hologramValid);
+      if (typeof this.onHologramReady === 'function') this.onHologramReady(key);
     });
   }
 
   disposeHologram() {
-    if (this.hologramNode) {
-      this.hologramNode.dispose(false, false);
-      this.hologramNode = null;
-    }
+    for (const node of this.hologramNodes) node.dispose(false, false);
+    this.hologramNodes = [];
     for (const mat of this.hologramOwnMaterials) mat.dispose();
     this.hologramOwnMaterials = [];
   }
@@ -175,7 +229,8 @@ export default class GridSystem {
   }
 
   hideHologram() {
-    if (this.hologramNode) this.hologramNode.setEnabled(false);
+    this.hologramVisible = false;
+    for (const node of this.hologramNodes) node.setEnabled(false);
   }
 
   showBrush(cells, surfaceAt, erasing) {

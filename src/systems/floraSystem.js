@@ -110,7 +110,7 @@ export default class FloraSystem {
     this.chunks.length = 0;
     this.grassMeshes.length = 0;
     this.slots.length = 0;
-    if (this.grassMaterial && !this.grassMaterial.isDisposed()) this.grassMaterial.dispose();
+    if (this.grassMaterial) this.grassMaterial.dispose();
     this.grassMaterial = null;
   }
 

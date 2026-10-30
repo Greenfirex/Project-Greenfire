@@ -9,6 +9,8 @@ import BrushPanel from './brushPanel.js';
 import AreaPanel from './areaPanel.js';
 import HeightPanel from './heightPanel.js';
 import { formatLevel, formatMeters, heightRampColor } from './heightRamp.js';
+import { getDecoration } from '../data/catalogs/decorations.js';
+import { BRUSHES } from '../data/catalogs/brushes.js';
 
 const NO_BRUSH_HINT = 'Vyber štětec v paletě — teprve pak jde do mapy kreslit';
 const HEIGHT_BAND_LIFT = 0.03;
@@ -103,9 +105,16 @@ export default class MapEditor {
     this.brushPanel.onApply = () => this.applyBrushDraft();
     this.brushPanel.onCancel = () => this.cancelBrushDraft();
     this.brushPanel.onStyle = (brushKey, styleKey) => this.mode.setStyle(styleKey);
+    this.brushPanel.onSpecies = (key) => {
+      if (!this.mode.setTileKey(key)) return;
+      this.brushPanel.setSpecies(key);
+      this.brushPanel.setOptions(this.mode.brushOptionValues(this.mode.brushKey));
+      this.s.handleHover(this.s.hoverCell);
+    };
     this.brushPanel.onOption = (optionKey, value) => {
       this.mode.setBrushOption(optionKey, value);
       this.updateDraftView(this.mode.draft);
+      this.s.handleHover(this.s.hoverCell);
     };
     this.brushPanel.onErase = () => this.setEraseMode(!this.mode.erasing);
     this.brushPanel.onUndo = () => this.undo();
@@ -214,6 +223,7 @@ export default class MapEditor {
     this.togglePanel(false);
     this.s.releaseGameFromEditor();
     this.s.syncZoomLimit();
+    this.s.handleHover(this.s.hoverCell);
   }
 
   togglePanel(active) {
@@ -377,7 +387,7 @@ export default class MapEditor {
 
   openBrushPanel(brushKey) {
     this.mode.beginDraft(brushKey);
-    this.brushPanel.open(brushKey, 0, this.mode.pathStyle, this.mode.brushOptionValues(brushKey));
+    this.brushPanel.open(brushKey, 0, this.mode.pathStyle, this.mode.brushOptionValues(brushKey), this.mode.tileKey);
     this.brushPanel.setDraftMode(this.mode.draftMode);
     this.refreshUndoButton();
     this.refreshZoneOverlay();
@@ -396,24 +406,33 @@ export default class MapEditor {
     this.s.gridSystem.clearBrush();
     this.s.gridSystem.clearHoverCell();
     this.hud.setReadout('–');
+    this.s.tooltipPanel.hide();
   }
 
   showAreaHoverReadout(cell) {
     const info = this.mode.describeAt(cell.cx, cell.cz);
     const state = this.mode.areaTool === 'erase' ? 'mažu' : 'maluju';
-    const zone = info.brush ? `zóna: ${info.brush}` : 'bez zóny';
-    this.hud.setReadout(`${cell.cx}, ${cell.cz} — ${state} plochu · ${zone}`);
+    const zone = info.layerEntry ? `povrch: ${entryLabel(info.layerEntry)}` : 'bez povrchu';
+    this.s.tooltipPanel.show(`Plocha — ${state}`, `${cell.cx}, ${cell.cz} · ${zone}`);
   }
 
   showCellHoverReadout(cell) {
     const info = this.mode.describeAt(cell.cx, cell.cz);
-    const tile = describeEntry(info);
+    const parts = [];
+    const surface = entryLabel(info.layerEntry);
+    if (surface) parts.push(surface);
+    for (const item of info.decorations || []) parts.push(item.name);
     const lift = Math.round((Number(info.liftY) || 0) * 100) / 100;
     const staged = this.mode.mode === 'height' ? this.mode.heightLevelAt(cell.cx, cell.cz) : null;
     const target = staged === null ? '' : ` → ${formatLevel(staged)}`;
-    const height = ` · výška ${formatMeters(lift)}${target}`;
-    const draft = this.mode.draft ? ` · kreslím: ${this.mode.draft.brushKey}` : '';
-    this.hud.setReadout(`${cell.cx}, ${cell.cz} — ${tile}${height}${draft}`);
+    let draft = '';
+    if (this.mode.draft) {
+      const count = this.mode.clusterCountAt(this.mode.draft.brushKey);
+      const amount = count.max > 1 ? (count.min === count.max ? ` ×${count.min}` : ` ×${count.min}–${count.max}`) : '';
+      draft = ` · kreslím: ${brushLabel(this.mode.draft.brushKey)}${amount}`;
+    }
+    const title = parts.length ? parts.join(' · ') : 'Prázdno';
+    this.s.tooltipPanel.show(title, `${cell.cx}, ${cell.cz} · výška ${formatMeters(lift)}${target}${draft}`);
   }
 
   startPaint(cell) {
@@ -785,10 +804,15 @@ export default class MapEditor {
   }
 }
 
-function describeEntry(info) {
-  if (!info.entry) return 'prázdno';
-  if (info.isPath) return `cesta (${info.style})`;
-  return info.entry.key;
+function entryLabel(entry) {
+  if (!entry) return null;
+  const def = getDecoration(entry.key);
+  return def && def.displayName ? def.displayName : entry.key;
+}
+
+function brushLabel(key) {
+  const brush = BRUSHES[key];
+  return brush ? brush.label : key;
 }
 
 function brokenEntries(layout) {

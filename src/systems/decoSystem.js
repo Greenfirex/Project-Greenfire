@@ -7,14 +7,13 @@ import { Vector3, Quaternion } from '@babylonjs/core/Maths/math.vector';
 import { cellToWorldCoords, worldToCellCoords, cellKey, indexToCellCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { getDecoration, decoHeight } from '../data/catalogs/decorations.js';
 import { deriveBlocked } from '../data/maps/layoutStore.js';
-import { resolveModel, instantiateModel, ownMaterials, whenModelsIdle } from '../utils/assetLoader.js';
-import { treeTemplate, treeStumpTemplate, treeLogTemplate, treeFrondTemplate } from '../utils/treeFactory.js';
-import { rockTemplate } from '../utils/rockFactory.js';
-import { shellTemplate } from '../utils/shellFactory.js';
-import { coralTemplate } from '../utils/coralFactory.js';
-import { flowerTemplate } from '../utils/flowerFactory.js';
+import { instantiateModel, ownMaterials, whenModelsIdle } from '../utils/assetLoader.js';
+import { treeStumpTemplate, treeLogTemplate, treeFrondTemplate } from '../utils/treeFactory.js';
+import { decorationTemplate } from '../utils/decoTemplate.js';
 import { tintTemplate, forgetTints } from '../utils/decoTint.js';
+import { cellNoise, decoJitter, decoPlacement } from '../utils/decoPlacement.js';
 import PathSystem from './pathSystem.js';
+import ContactShadow from '../utils/contactShadow.js';
 
 const PATH_SURFACE = 0.02;
 const FLAT_SINK = 0.015;
@@ -23,38 +22,9 @@ function liesFlat(def) {
   return Boolean(def && def.shell);
 }
 
-function cellNoise(cx, cz, salt) {
-  const n = Math.sin(cx * 127.1 + cz * 311.7 + salt * 74.7) * 43758.5453;
-  return n - Math.floor(n);
-}
-
-function treeJitter(entry) {
-  return {
-    yaw: (cellNoise(entry.cx, entry.cz, 3) - 0.5) * 0.87,
-    x: (cellNoise(entry.cx, entry.cz, 7) - 0.5) * 0.4,
-    z: (cellNoise(entry.cx, entry.cz, 11) - 0.5) * 0.4,
-    scale: 0.9 + cellNoise(entry.cx, entry.cz, 17) * 0.2,
-  };
-}
-
-function rockJitter(entry) {
-  return {
-    yaw: cellNoise(entry.cx, entry.cz, 29) * Math.PI * 2,
-    x: 0,
-    z: 0,
-    scale: 0.85 + cellNoise(entry.cx, entry.cz, 31) * 0.3,
-  };
-}
-
-function jitterFor(def, entry) {
-  if (def.kind === 'tree') return treeJitter(entry);
-  if (def.rock || def.shell || def.coral || def.flower) return rockJitter(entry);
-  return null;
-}
-
 function hasModelDef(def) {
   if (!def) return false;
-  return Boolean(def.model || def.tree || def.rock || def.shell || def.coral || def.flower);
+  return Boolean(def.model || def.tree || def.rock || def.shell || def.coral || def.flower || def.bush);
 }
 
 function cellGap(shape, x, z) {
@@ -91,6 +61,7 @@ export default class DecoSystem {
     this.pendingPieces = [];
     this.brokenCount = 0;
     this.pathSystem = new PathSystem(scene);
+    this.contactShadow = new ContactShadow(scene);
   }
 
   create(layout, colors) {
@@ -180,13 +151,14 @@ export default class DecoSystem {
       if (!anchor || anchor.isDisposed()) continue;
       const meta = anchor.metadata;
       if (!meta || !meta.entry) continue;
-      const jitter = jitterFor(meta.def, meta.entry);
+      const jitter = decoJitter(meta.def, meta.entry);
       const shiftX = jitter ? jitter.x : 0;
       const shiftZ = jitter ? jitter.z : 0;
       const y = this.entryHeight(meta.entry, shiftX, shiftZ);
       anchor.position.y = y;
       if (liesFlat(meta.def)) this.leanFlat(anchor, meta.def, anchor.position.x, y, anchor.position.z);
     }
+    this.refreshContactShadows();
   }
 
   buildPath() {
@@ -345,13 +317,12 @@ export default class DecoSystem {
   }
 
   createAnchor(entry, def, x, z, bucket = this.nodes) {
-    const jitter = jitterFor(def, entry);
-    const shiftX = jitter ? jitter.x : 0;
-    const shiftZ = jitter ? jitter.z : 0;
-    const spotX = x + (entry.offsetX || 0) + shiftX;
-    const spotZ = z + (entry.offsetZ || 0) + shiftZ;
-    const spotY = this.entryHeight(entry, shiftX, shiftZ);
-    const yaw = (Math.PI / 2) * (entry.rotation || 0) + (jitter ? jitter.yaw : 0);
+    const place = decoPlacement(def, entry);
+    const spotX = x + place.offsetX;
+    const spotZ = z + place.offsetZ;
+    const spotY = this.entryHeight(entry, place.jitterX, place.jitterZ);
+    const yaw = place.yaw;
+    if (def.bush) this.addContactShadow(def, spotX, spotY, spotZ);
     const anchor = new TransformNode(`deco_${entry.key}_${entry.cx}_${entry.cz}`, this.s);
     anchor.position = new Vector3(spotX, spotY, spotZ);
     anchor.metadata = { key: entry.key, def, bucket, entry, yaw };
@@ -375,6 +346,31 @@ export default class DecoSystem {
     anchor.position.y = y - FLAT_SINK;
   }
 
+  addContactShadow(def, x, y, z) {
+    const radius = Number.isFinite(def.radius) ? def.radius : 1;
+    this.contactShadow.add(x, y, z, Math.max(0.4, radius), this.groundTiltAt(x, z, Math.max(0.4, radius)));
+  }
+
+  groundTiltAt(x, z, reach) {
+    if (!this.groundHeightAt) return null;
+    const slopeX = (this.groundHeightAt(x + reach, z) - this.groundHeightAt(x - reach, z)) / (2 * reach);
+    const slopeZ = (this.groundHeightAt(x, z + reach) - this.groundHeightAt(x, z - reach)) / (2 * reach);
+    const normal = new Vector3(-slopeX, 1, -slopeZ).normalize();
+    const tilt = Quaternion.Identity();
+    Quaternion.FromUnitVectorsToRef(Vector3.Up(), normal, tilt);
+    return tilt;
+  }
+
+  refreshContactShadows() {
+    this.contactShadow.clear();
+    for (const anchor of this.anchors) {
+      if (!anchor || anchor.isDisposed()) continue;
+      const meta = anchor.metadata;
+      if (!meta || !meta.def || !meta.def.bush) continue;
+      this.addContactShadow(meta.def, anchor.position.x, anchor.position.y, anchor.position.z);
+    }
+  }
+
   blocksPlaced() {
     let total = this.surfaceKeys.size;
     for (const node of this.nodes) total += 1;
@@ -390,6 +386,7 @@ export default class DecoSystem {
   }
 
   dispose() {
+    this.contactShadow.clear();
     for (const anchor of this.anchors.slice()) this.disposeAnchor(anchor);
     this.anchors.length = 0;
     this.flowerAnchors.length = 0;
@@ -420,13 +417,7 @@ export default class DecoSystem {
   }
 
   async attachModelNow(anchor, def, entry, section) {
-    let template = null;
-    if (def.tree) template = treeTemplate(this.s, def.tree);
-    else if (def.rock) template = rockTemplate(this.s, def.rock);
-    else if (def.shell) template = shellTemplate(this.s, def.shell);
-    else if (def.coral) template = coralTemplate(this.s, def.coral);
-    else if (def.flower) template = flowerTemplate(this.s, def.flower);
-    else template = await resolveModel(this.s, def.model);
+    const template = await decorationTemplate(this.s, def);
     if (anchor.isDisposed()) return;
     if (!template) return this.markBroken(anchor, def);
 
@@ -434,9 +425,7 @@ export default class DecoSystem {
     if (!node) return this.markBroken(anchor, def);
     node.parent = anchor;
     node.position = new Vector3(0, 0, 0);
-    const jitter = jitterFor(def, entry);
-    const entryScale = Number.isFinite(entry.scale) ? entry.scale : 1;
-    const scale = def.scale * entryScale * (jitter ? jitter.scale : 1);
+    const { scale } = decoPlacement(def, entry);
     node.scaling = new Vector3(scale, scale, scale);
     if ((liesFlat(def) || def.flower) && anchor.metadata) node.rotation.y = anchor.metadata.yaw || 0;
     if (!def.noTint) ownMaterials(node);
@@ -446,6 +435,7 @@ export default class DecoSystem {
   }
 
   updateWind(time) {
+    if (this.contactShadow) this.contactShadow.flush();
     if (!this.flowerAnchors.length) return;
     const seconds = Number.isFinite(time) ? time : 0;
     for (let index = 0; index < this.flowerAnchors.length; index += 1) {

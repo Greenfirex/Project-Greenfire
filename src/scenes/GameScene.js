@@ -48,11 +48,7 @@ import Dialog from '../ui/dialog.js';
 import LoadingScreen from '../ui/loadingScreen.js';
 import TooltipPanel from '../ui/tooltipPanel.js';
 import { whenModelsIdle, takeModelError, preloadModel, releaseFrame } from '../utils/assetLoader.js';
-import { treeTemplate } from '../utils/treeFactory.js';
-import { rockTemplate } from '../utils/rockFactory.js';
-import { shellTemplate } from '../utils/shellFactory.js';
-import { coralTemplate } from '../utils/coralFactory.js';
-import { flowerTemplate } from '../utils/flowerFactory.js';
+import { proceduralTemplate } from '../utils/decoTemplate.js';
 import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
@@ -759,6 +755,8 @@ updateGatherTarget() {
 
   refreshReflectionExclusions() {
     const excluded = [this.terrainSystem.skirtMesh, ...this.floraSystem.grassMeshes];
+    const shadows = this.decoSystem.contactShadow ? this.decoSystem.contactShadow.mesh : null;
+    if (shadows) excluded.push(shadows);
     for (const school of this.fishSystem.schools) {
       if (school.mesh) excluded.push(school.mesh);
     }
@@ -866,28 +864,7 @@ updateGatherTarget() {
     for (const entry of entries) {
       if (known.has(entry.key) || !this.decoSystem.hasModel(entry.key)) continue;
       const def = getDecoration(entry.key);
-      if (def && def.tree) {
-        treeTemplate(this.s, def.tree);
-        known.set(entry.key, null);
-        continue;
-      }
-      if (def && def.rock) {
-        rockTemplate(this.s, def.rock);
-        known.set(entry.key, null);
-        continue;
-      }
-      if (def && def.shell) {
-        shellTemplate(this.s, def.shell);
-        known.set(entry.key, null);
-        continue;
-      }
-      if (def && def.coral) {
-        coralTemplate(this.s, def.coral);
-        known.set(entry.key, null);
-        continue;
-      }
-      if (def && def.flower) {
-        flowerTemplate(this.s, def.flower);
+      if (proceduralTemplate(this.s, def)) {
         known.set(entry.key, null);
         continue;
       }
@@ -971,8 +948,12 @@ updateGatherTarget() {
     this.buildSystem.waterTest = (cx, cz) => this.waterSystem.reachesAt(cx * CELL_SIZE, cz * CELL_SIZE);
     this.buildSystem.heightTest = (cx, cz) => this.decoSystem.topAt(cx, cz) !== 0;
     this.buildSystem.rangeTest = (cx, cz) => this.withinBuildRange(cx, cz);
-    this.gridSystem.onHologramReady = (machineKey) => {
-      if (machineKey !== this.currentMachine) return;
+    this.gridSystem.onHologramReady = (key) => {
+      if (this.editor.active) {
+        this.handleHover(this.hoverCell);
+        return;
+      }
+      if (key !== this.currentMachine) return;
       this.refreshHoverPreview();
     };
 
@@ -1737,12 +1718,15 @@ updateGatherTarget() {
       this.refreshHoverTooltip(cell);
       return;
     }
-    this.tooltipPanel.hide();
     this.gridSystem.hideHighlight();
     this.gridSystem.hideHologram();
     if (!cell) {
       this.editor.clearHoverReadout();
       return;
+    }
+    const preview = this.editor.mode.decoPreview(cell.cx, cell.cz);
+    if (preview) {
+      this.gridSystem.showDecorPreview(preview.def, preview.items, cell.cx, cell.cz, this.decoSystem.surfaceAt(cell.cx, cell.cz), 0);
     }
     this.gridSystem.showHoverCell(cell.cx, cell.cz, (cx, cz) => this.decoSystem.surfaceAt(cx, cz), this.editor.mode.mode === 'height' ? this.editor.mode.heightStampSpan : 1);
     if (this.editor.mapMode === 'area') {

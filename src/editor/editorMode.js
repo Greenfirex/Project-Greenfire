@@ -7,6 +7,7 @@ import { layerAt, layerEntriesAt, floorCellAt, layerLiftAt, dropLayerCell, dropD
 import { fillZone } from '../utils/zoneFill.js';
 import { createRng, seedFor } from '../utils/rng.js';
 import { getFishType } from '../data/catalogs/fish.js';
+import { decoPlacement } from '../utils/decoPlacement.js';
 
 const HISTORY_LIMIT = 100;
 const ROUGH_SKIP = 0.32;
@@ -197,7 +198,16 @@ export default class EditorMode {
     const option = optionKey ? list.find((item) => item.key === optionKey) : list[0];
     if (!option) return false;
     const opts = this.brushOpts[brushKey];
-    if (opts && option.key in opts) return Boolean(opts[option.key]);
+    const stored = opts && option.key in opts ? opts[option.key] : null;
+    if (option.kind === 'range') {
+      const fallback = Number(option.default) || Number(option.min) || 0;
+      const raw = stored === null ? fallback : Number(stored);
+      const value = Number.isFinite(raw) ? raw : fallback;
+      const step = Number(option.step) || 1;
+      const clamped = Math.min(Number(option.max), Math.max(Number(option.min), value));
+      return Math.round(clamped / step) * step;
+    }
+    if (stored !== null) return Boolean(stored);
     return option.default === true;
   }
 
@@ -208,8 +218,10 @@ export default class EditorMode {
   }
 
   setBrushOption(optionKey, value) {
-    if (!this.brushOptionsOf(this.brushKey).some((item) => item.key === optionKey)) return;
-    this.brushOpts[this.brushKey] = { ...(this.brushOpts[this.brushKey] || {}), [optionKey]: Boolean(value) };
+    const option = this.brushOptionsOf(this.brushKey).find((item) => item.key === optionKey);
+    if (!option) return;
+    const stored = option.kind === 'range' ? Number(value) : Boolean(value);
+    this.brushOpts[this.brushKey] = { ...(this.brushOpts[this.brushKey] || {}), [optionKey]: stored };
     if (this.draft && this.onDraftChange) this.onDraftChange(this.draft);
   }
 
@@ -288,6 +300,18 @@ export default class EditorMode {
 
   dropTopEntry(cx, cz) {
     dropDecorationCell(this.layout, cx, cz);
+  }
+
+  dropStackableDecorations(cx, cz) {
+    const entries = this.layout.decorations || [];
+    const kept = entries.filter((entry) => {
+      if (!entry || entry.cx !== cx || entry.cz !== cz) return true;
+      const def = getDecoration(entry.key);
+      return !def || !def.stackable;
+    });
+    if (kept.length === entries.length) return false;
+    this.layout.decorations = kept;
+    return true;
   }
 
   dropOrphans() {
@@ -962,11 +986,13 @@ export default class EditorMode {
         continue;
       }
       const key = brush.deco ? (cell.key || this.tileKey) : cell.key;
-      if (brush.deco && (!key || !getDecoration(key))) continue;
+      const painted = brush.deco ? getDecoration(key) : null;
+      if (brush.deco && !painted) continue;
       if (brush.deco) {
         const cellId = cellKey(cx, cz);
         if (!clearedDeco.has(cellId)) {
-          dropDecorationCell(this.layout, cx, cz);
+          if (painted.stackable) this.dropStackableDecorations(cx, cz);
+          else dropDecorationCell(this.layout, cx, cz);
           clearedDeco.add(cellId);
         }
         const lift = layerLiftAt(this.layout, cx, cz) || 0;
@@ -1135,16 +1161,82 @@ export default class EditorMode {
   zoneEntries(brushKey, brush, cellKeys, mode) {
     if (mode === 'remove') return cellKeys.map(parseCell);
     const pool = this.brushPool(brushKey);
+    const cluster = this.clusterConfigFor(brushKey, brush);
     const filled = fillZone(
-      (label) => createRng(seedFor(this.layout.seed || 1, `${brushKey}:${label}:${Date.now()}`, 0, 0)),
+      this.cellRng(brushKey),
       {
         ...brush,
+        cluster,
         pool: pool.length ? pool : brush.pool,
       },
       cellKeys,
     );
-    const fallback = brush.deco ? this.tileKey : (brush.tile || pool[0]);
-    return filled.map((cell) => (cell.key || !fallback ? cell : { ...cell, key: fallback }));
+    if (!brush.deco) {
+      const fallback = brush.tile || pool[0];
+      return filled.map((cell) => (cell.key || !fallback ? cell : { ...cell, key: fallback }));
+    }
+    const list = pool.length ? pool : (brush.pool || []);
+    return filled.map((cell) => ({ ...cell, key: this.speciesKeyAt(brush, list, cell.cx, cell.cz) }));
+  }
+
+  cellRng(brushKey) {
+    const seed = this.layout.seed || 1;
+    return (label) => createRng(seedFor(seed, `${brushKey}:${label}`, 0, 0));
+  }
+
+  clusterConfigFor(brushKey, brush) {
+    const base = brush && brush.cluster;
+    if (!base) return null;
+    const density = Math.round(Number(this.brushOptionValue(brushKey, 'density')) || 1);
+    const jitter = this.brushOptionValue(brushKey, 'jitter');
+    const min = Math.max(1, jitter ? density - 1 : density);
+    const max = Math.max(min, jitter ? density + 1 : density);
+    if (max <= 1) return null;
+    return { ...base, min, max };
+  }
+
+  clusterCountAt(brushKey) {
+    const config = this.clusterConfigFor(brushKey, BRUSHES[brushKey]);
+    return config ? { min: config.min, max: config.max } : { min: 1, max: 1 };
+  }
+
+  speciesKeyAt(brush, pool, cx, cz) {
+    if (!pool || !pool.length) return this.tileKey;
+    if (brush.patch && this.brushOptionValue(this.brushKey, 'patch')) {
+      const px = Math.floor(cx / brush.patch + noise2(cx / 3.1, cz / 3.1) * 0.85);
+      const pz = Math.floor(cz / brush.patch + noise2(cx / 2.7 + 5, cz / 2.7 - 3) * 0.85);
+      const value = noise2(px * 17.3, pz * 11.7);
+      return pool[Math.min(pool.length - 1, Math.floor(value * pool.length))];
+    }
+    return pool.includes(this.tileKey) ? this.tileKey : pool[0];
+  }
+
+  setTileKey(key) {
+    const pool = this.brushPool();
+    if (!pool.includes(key)) return false;
+    this.tileKey = key;
+    this.setBrushOption('patch', false);
+    return true;
+  }
+
+  decoPreview(cx, cz) {
+    const brush = BRUSHES[this.brushKey];
+    if (!brush || !brush.deco || !this.active) return null;
+    const pool = this.brushPool();
+    const key = this.speciesKeyAt(brush, pool, cx, cz);
+    const def = key ? getDecoration(key) : null;
+    if (!def) return null;
+    const entries = fillZone(
+      this.cellRng(this.brushKey),
+      {
+        ...brush,
+        cluster: this.clusterConfigFor(this.brushKey, brush),
+        pool: pool.length ? pool : brush.pool,
+      },
+      [cellKey(cx, cz)],
+    );
+    const items = entries.map((entry) => decoPlacement(def, { ...entry, cx, cz }));
+    return { key, def, items };
   }
 
   cancelDraft() {
@@ -1393,13 +1485,27 @@ export default class EditorMode {
     this.repaint();
   }
 
+  decorationsAt(cx, cz) {
+    const out = [];
+    for (const entry of this.layout.decorations || []) {
+      if (!entry || entry.cx !== cx || entry.cz !== cz) continue;
+      const def = getDecoration(entry.key);
+      out.push({ entry, def, name: def && def.displayName ? def.displayName : entry.key });
+    }
+    return out;
+  }
+
   describeAt(cx, cz) {
     const layer = layerAt(this.layout, cx, cz);
     const entry = this.topEntryAt(cx, cz);
+    const layerEntry = this.layerTileAt(cx, cz);
+    const decorations = this.decorationsAt(cx, cz);
     const level = entry && Number.isFinite(entry.liftY) ? Math.round(entry.liftY / HEIGHT_STEP) : 0;
     return {
       brush: layer,
       entry,
+      layerEntry,
+      decorations,
       height: level || null,
       override: entry,
       isPath: layer === 'path',

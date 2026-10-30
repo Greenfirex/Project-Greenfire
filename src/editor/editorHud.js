@@ -31,16 +31,13 @@ export default class EditorHud {
     root.className = 'editor-panel';
     root.dataset.mode = this.mode;
     root.innerHTML = `
-      <div class="editor-panel__head">
-        <span class="editor-panel__title">Editor mapy</span>
-        <button type="button" class="editor-panel__close" title="Zavřít (F2)">×</button>
-      </div>
-      <div class="editor-panel__hint">Zóny: vyber štětec a nakresli · WASD posun pohledu (Shift rychleji) · Levá přidá, pravá odebere z výběru · Z zpět · F2 zavřít</div>
-      <div class="editor-panel__modes">
+      <div class="editor-panel__tabs">
         <button type="button" data-mode="zone">Zóny</button>
         <button type="button" data-mode="height">Výška</button>
         <button type="button" data-mode="area">Herní plocha</button>
+        <button type="button" class="editor-panel__close" title="Zavřít (F2)">×</button>
       </div>
+      <div class="editor-panel__hint">Vyber štětec a nakresli · WASD posun pohledu (Shift rychleji) · Levá přidá, pravá odebere z výběru · Z zpět · F2 zavřít</div>
       <div class="editor-panel__grid"></div>
       <div class="editor-panel__note">–</div>
       <div class="editor-panel__readout">–</div>

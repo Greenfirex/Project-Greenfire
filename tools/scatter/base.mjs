@@ -17,7 +17,8 @@ export const CORAL_KEYS = ['coral_fan', 'coral_branch', 'coral_brain'];
 export const FLOWER_KEYS = [
   'flower_white', 'flower_yellow', 'flower_pink', 'flower_coral', 'flower_purple', 'flower_red',
 ];
-export const OWNED_KEYS = [...SHELL_KEYS, ...CORAL_KEYS, ...FLOWER_KEYS];
+export const BUSH_KEYS = ['bush', 'bush_round', 'bush_dense', 'bush_wide', 'bush_bramble', 'bush_small'];
+export const OWNED_KEYS = [...SHELL_KEYS, ...CORAL_KEYS, ...FLOWER_KEYS, ...BUSH_KEYS];
 export const SHELL_VARIANTS = ['shore_shells', 'shore_shells_mid', 'shore_shells_wide', 'shore_shells_cup'];
 export const CORAL_VARIANTS = ['coral_fan', 'coral_branch', 'coral_brain'];
 
