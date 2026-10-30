@@ -116,6 +116,7 @@ export default class GatherSystem {
 
   canHarvest(item) {
     if (!item) return false;
+    if (item.def.byHand) return true;
     if (this.tool && this.tool.harvest) return this.tool.harvest.kinds.includes(item.def.kind);
     return BARE_KINDS.includes(item.def.kind);
   }
@@ -218,11 +219,16 @@ export default class GatherSystem {
     this.startSway(item);
     return {
       item,
-      sound: item.def.kind === 'tree' ? this.impactSound('chop') : this.impactSound('mine'),
+      sound: this.gatherSound(item),
       total: item.total,
       left: item.left,
       exhausted: item.left <= 0,
     };
+  }
+
+  gatherSound(item) {
+    if (item.def.byHand) return BARE_SOUND;
+    return item.def.kind === 'tree' ? this.impactSound('chop') : this.impactSound('mine');
   }
 
   startSway(item) {
@@ -237,7 +243,7 @@ export default class GatherSystem {
     if (this.target === source) this.target = null;
     if (hide && source.anchor && !source.anchor.isDisposed()) source.anchor.setEnabled(false);
     const withTool = Boolean(this.tool && this.tool.harvest);
-    const yields = withTool ? source.def.gather : BARE_YIELDS;
+    const yields = withTool || source.def.byHand ? source.def.gather : BARE_YIELDS;
     return Object.entries(yields)
       .filter(([key, amount]) => typeof key === 'string' && Number.isFinite(amount) && amount > 0)
       .map(([itemKey, amount]) => ({ itemKey, amount: withTool ? this.toolYieldAmount(source, amount) : 1 }));

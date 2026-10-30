@@ -30,6 +30,7 @@ import BuildSystem from '../systems/buildSystem.js';
 import SaveSystem from '../systems/saveSystem.js';
 import GatherSystem from '../systems/gatherSystem.js';
 import FellingSystem from '../systems/fellingSystem.js';
+import HarvestSystem from '../systems/harvestSystem.js';
 import InventorySystem from '../systems/inventorySystem.js';
 import HeldItemSystem from '../systems/heldItemSystem.js';
 import AudioSystem from '../systems/audioSystem.js';
@@ -81,10 +82,18 @@ const WADE_RAMP = 0.2;
 const WATER_STEP_DEPTH = 0.02;
 const SHORE_CHECK_SECONDS = 0.3;
 const MAX_STEP_SECONDS = 0.1;
+const SHADOW_REACH_MARGIN = 20;
+const SHADOW_REACH_STEP = 0.2;
 const EDITOR_CAM_SPEED = 12;
 const EDITOR_CAM_SPRINT = 32;
 const IMPACT_DELAY = 0.28;
 const TIME_SKIP = { hours: 6 };
+
+function sameMeshes(first, second) {
+  if (first.length !== second.length) return false;
+  for (let i = 0; i < first.length; i += 1) if (first[i] !== second[i]) return false;
+  return true;
+}
 
 
 function surfaceStepSound(key) {
@@ -142,6 +151,7 @@ export default class GameScene {
     this.gatherSystem.onLand = () => this.audioSystem.play('fall');
     this.gatherSystem.onFell = (item) => this.finishFelling(item);
     this.fellingSystem = new FellingSystem(scene);
+    this.harvestSystem = new HarvestSystem(scene);
     this.audioSystem = new AudioSystem(scene);
     this.inventorySystem = new InventorySystem();
     this.saveSystem = new SaveSystem(this);
@@ -165,6 +175,7 @@ export default class GameScene {
     this.autoWindowStart = 0;
     this.autoWindowFrames = 0;
     this.shadowCasters = [];
+    this.shadowClock = 0;
 
     this.camera = null;
     this.fxaa = null;
@@ -248,6 +259,11 @@ export default class GameScene {
 
     this.s.onBeforeRenderObservable.add(() => {
       const dt = Math.min(this.engine.getDeltaTime() / 1000, MAX_STEP_SECONDS);
+      this.shadowClock += dt;
+      if (this.shadowClock >= SHADOW_REACH_STEP) {
+        this.shadowClock = 0;
+        this.refreshShadowReach();
+      }
       if (this.paused) {
         if (this.editor.active) {
           this.updateEditorCamera(dt);
@@ -299,7 +315,8 @@ export default class GameScene {
     this.loader.beginFloat('Budím postavu…');
     await this.setupPlayer();
     this.loader.floatProgress(1, 1, 'Seju trávu…');
-    this.floraSystem.create(this.decoSystem, this.options.grass);
+    this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle());
+    this.refreshReflectionExclusions();
     this.loader.floatProgress(1, 1, 'Nastavuji stíny…');
     this.refreshShadowCasters();
     this.loader.endFloat();
@@ -344,6 +361,7 @@ export default class GameScene {
     this.optionsPanel.setButtonVisible(true);
     this.gatherSystem.syncFromDeco();
     this.syncFelling();
+    this.syncHarvest();
     this.gatherSystem.setPlayer(this.playerSystem);
     this.gatherSystem.setTool(this.heldItemSystem.tool());
     this.gatherSystem.update(0, this.playerSystem);
@@ -480,6 +498,7 @@ updateGatherTarget() {
   }
 
   describeGatherTarget(target) {
+    if (target.def.byHand) return `Levé tlačítko — sbírat ${target.def.displayName} (${target.left}/${target.total})`;
     const verb = target.def.kind === 'tree' ? 'kácet' : 'těžit';
     if (target.def.kind === 'ore') return `Levé tlačítko — ${verb} ${target.def.displayName} (${target.left} úderů)`;
     return `Levé tlačítko — ${verb} ${target.def.displayName} (${target.left}/${target.total})`;
@@ -526,6 +545,7 @@ updateGatherTarget() {
       this.gatherSystem.beginFall(result.item, fromX, fromZ);
     } else {
       this.releaseGatherCell(this.takenAnchor(cell) || result.item.anchor, cell);
+      if (result.item.def.byHand) this.harvestSystem.record(cell.cx, cell.cz, this.simSystem.time);
     }
     this.refreshGatherTargets();
     for (const { itemKey, amount } of yields) this.inventorySystem.add(itemKey, amount);
@@ -590,6 +610,49 @@ updateGatherTarget() {
   refreshGatherTargets() {
     this.gatherSystem.setTool(this.heldItemSystem.tool());
     this.gatherSystem.update(0, this.playerSystem);
+  }
+
+  syncHarvest() {
+    for (const cell of this.harvestSystem.list()) {
+      const found = this.decoSystem.entryAt(cell.cx, cell.cz);
+      if (!found || !found.def || !found.def.byHand) {
+        this.harvestSystem.drop(cell.cx, cell.cz);
+        continue;
+      }
+      const anchor = found.anchor;
+      if (anchor && !anchor.isDisposed()) anchor.setEnabled(false);
+      this.decoHighlight.remove(cell.cx, cell.cz);
+      this.decoSystem.releaseCell(cell.cx, cell.cz);
+      this.gatherSystem.markTaken(cell.cx, cell.cz);
+    }
+  }
+
+  updateHarvestRespawns() {
+    const ripe = this.harvestSystem.ripe(this.simSystem.time);
+    if (!ripe.length) return;
+    let restored = 0;
+    for (const cell of ripe) {
+      const found = this.decoSystem.entryAt(cell.cx, cell.cz);
+      if (!found || !found.def || !found.def.byHand) {
+        this.harvestSystem.drop(cell.cx, cell.cz);
+        continue;
+      }
+      if (this.buildSystem.isOccupied(cell.cx, cell.cz)) continue;
+      this.restoreHarvested(found, cell);
+      this.harvestSystem.drop(cell.cx, cell.cz);
+      restored += 1;
+    }
+    if (restored) this.refreshGatherTargets();
+  }
+
+  restoreHarvested(found, cell) {
+    const anchor = found.anchor;
+    if (!anchor || anchor.isDisposed()) return;
+    anchor.setEnabled(true);
+    const model = anchor.metadata ? anchor.metadata.model : null;
+    if (model && !model.isDisposed()) model.setEnabled(true);
+    this.gatherSystem.ensureEntry(anchor);
+    this.decoHighlight.add(found.entry, model, found.def);
   }
 
   async setupPlayer() {
@@ -664,6 +727,31 @@ updateGatherTarget() {
     this.fishSystem.show();
   }
 
+  refreshReflectionExclusions() {
+    const excluded = [this.terrainSystem.skirtMesh, ...this.floraSystem.grassMeshes];
+    for (const school of this.fishSystem.schools) {
+      if (school.mesh) excluded.push(school.mesh);
+    }
+    const level = this.waterSystem.level;
+    for (const anchor of this.decoSystem.nodes) {
+      if (!anchor || anchor.isDisposed()) continue;
+      const def = anchor.metadata ? anchor.metadata.def : null;
+      const hidden = (def && def.noReflection) || (Number.isFinite(level) && anchor.position.y < level);
+      if (!hidden) continue;
+      excluded.push(...anchor.getChildMeshes());
+    }
+    this.waterSystem.setReflectionExclusions(excluded);
+  }
+
+  viewCircle() {
+    const camera = this.camera;
+    const target = this.cameraSystem.target;
+    if (!camera || !target) return null;
+    const halfWidth = Math.abs(camera.orthoRight - camera.orthoLeft) / 2;
+    const halfHeight = Math.abs(camera.orthoTop - camera.orthoBottom) / 2;
+    return { x: target.x, z: target.z, radius: Math.hypot(halfWidth, halfHeight) };
+  }
+
   renderWater() {
     const level = this.mapLayout && Number.isFinite(this.mapLayout.waterLevel) ? this.mapLayout.waterLevel : null;
     const quality = (this.options && this.options.quality) || 'high';
@@ -672,7 +760,6 @@ updateGatherTarget() {
     this.waterSystem.setSun(this.dayNightSystem ? this.dayNightSystem.sunLight : null);
     this.waterSystem.setDayness(this.waterDayness());
     this.waterSystem.setSkyTint(this.skySystem.tint());
-    this.waterSystem.setReflectionExclusions([this.terrainSystem.skirtMesh]);
     this.waterSystem.create(this.terrainSystem.groundCells, level, (x, z) => this.terrainSystem.heightAt(x, z), rgb, quality);
     this.refreshWaterVisibility();
     this.fishSystem.create(
@@ -682,6 +769,7 @@ updateGatherTarget() {
       (x, z) => this.terrainSystem.heightAt(x, z),
       () => (this.playerSystem.root ? this.playerSystem.root.position : null),
     );
+    this.refreshReflectionExclusions();
     this.rescuePlayerFromWater();
   }
 
@@ -698,13 +786,19 @@ updateGatherTarget() {
   }
 
   onDecoPlaced(anchor, node, def, entry) {
+    const underWater = this.underWaterLevel(anchor.position.y);
     for (const child of node.getChildMeshes()) {
       child.isPickable = false;
-      if (def.castsShadow) this.addShadowCaster(child);
+      if (def.castsShadow && !underWater) this.addShadowCaster(child);
     }
     this.decoHighlight.add(entry, node, def);
     this.gatherSystem.ensureEntry(anchor);
     this.campfireSystem.add(entry, def, anchor.position.y);
+  }
+
+  underWaterLevel(y) {
+    const level = this.mapLayout ? this.mapLayout.waterLevel : null;
+    return Number.isFinite(level) && y < level;
   }
 
   async buildWorldStages() {
@@ -966,9 +1060,11 @@ updateGatherTarget() {
   }
 
   finishRebuild() {
-    this.floraSystem.create(this.decoSystem, this.options.grass);
+    this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle());
+    this.refreshReflectionExclusions();
     this.gatherSystem.syncFromDeco();
     this.syncFelling();
+    this.syncHarvest();
     this.campfireSystem.sync((this.mapFile || {}).decorations || []);
     this.refreshShadowCasters();
     this.handleHover(this.hoverCell);
@@ -1144,11 +1240,12 @@ updateGatherTarget() {
     this.cameraSystem.applyOrtho();
     this.engine.maxFPS = this.paused ? 60 : this.defaultMaxFPS;
     this.refreshClock();
-    this.shadowGenerator.getShadowMap().renderList = this.options.shadows ? this.shadowCasters.slice() : [];
-    if (this.sunLight) this.sunLight.shadowEnabled = Boolean(this.options.shadows);
+    this.refreshShadowReach(true);
     this.decoHighlight.setVisible(this.options.highlights);
     this.glowSystem.setEnabled(this.options.fireGlow);
+    const grassDensity = this.floraSystem.density;
     this.floraSystem.setDensity(this.options.grass);
+    if (this.floraSystem.density !== grassDensity) this.refreshReflectionExclusions();
     this.waterSystem.setDetail(this.options.waterDetail);
     if (this.isLoading) return;
     this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);
@@ -1180,9 +1277,12 @@ updateGatherTarget() {
   }
 
   setupSimulation() {
+    const map = getMap(this.mapKey);
+    this.harvestSystem.configure(map && map.dayNight ? map.dayNight.dayLengthSeconds : null);
     this.simSystem.subscribe((tick) => {
       if (this.options.dayCycle) this.dayNightSystem.update(tick);
       this.refreshAmbient();
+      this.updateHarvestRespawns();
     });
     this.simSystem.onTick = null;
     this.refreshClock();
@@ -1282,6 +1382,7 @@ updateGatherTarget() {
     this.registerSavedState(this.buildSystem, 'machines', 10);
     this.registerSavedState(this.campfireSystem, 'campfires', 12);
     this.registerSavedState(this.fellingSystem, 'felling', 14);
+    this.registerSavedState(this.harvestSystem, 'harvest', 15);
     this.registerSavedState(this.dayNightSystem, 'dayNight', 20);
     this.registerSavedState(this.simSystem, 'sim', 25);
     this.saveSystem.register(this.inventorySystem, 'inventory', {
@@ -1778,6 +1879,7 @@ updateGatherTarget() {
     this.hud.setCount(this.buildSystem.count);
     this.hud.setStatusVisible(this.isBuilding());
     if (ok) this.renderMapLayout();
+    if (ok) this.syncHarvest();
     this.refreshShadowCasters();
     this.refreshClock();
     this.hud.setSaveHint(ok ? 'Načteno ✓' : 'Žádný save');
@@ -1794,9 +1896,32 @@ updateGatherTarget() {
 
   refreshShadowCasters() {
     this.shadowCasters = this.shadowCasters.filter((mesh) => mesh && !mesh.isDisposed());
+    this.refreshShadowReach(true);
+  }
+
+  refreshShadowReach(force = false) {
+    if (!this.shadowGenerator) return;
     const shadows = Boolean(this.options.shadows);
     if (this.sunLight) this.sunLight.shadowEnabled = shadows;
-    this.shadowGenerator.getShadowMap().renderList = shadows ? this.shadowCasters.slice() : [];
+    const shadowMap = this.shadowGenerator.getShadowMap();
+    if (!shadows) {
+      if (!force && shadowMap.renderList && !shadowMap.renderList.length) return;
+      shadowMap.renderList = [];
+      return;
+    }
+    const view = this.viewCircle();
+    const reach = view ? view.radius + SHADOW_REACH_MARGIN : Infinity;
+    const centerX = view ? view.x : 0;
+    const centerZ = view ? view.z : 0;
+    const next = [];
+    for (const mesh of this.shadowCasters) {
+      if (!mesh || mesh.isDisposed() || !mesh.isEnabled()) continue;
+      const point = mesh.getAbsolutePosition();
+      if (Math.hypot(point.x - centerX, point.z - centerZ) > reach) continue;
+      next.push(mesh);
+    }
+    if (!force && sameMeshes(next, shadowMap.renderList || [])) return;
+    shadowMap.renderList = next;
   }
 
 

@@ -30,6 +30,7 @@ const SHORE_NOISE_SMALL = 0.35;
 const POTENTIAL_MAX = 96;
 const POTENTIAL_ITERATIONS = 400;
 const REFLECTION_SCALES = { high: 0.6, medium: 0.45, low: 0.35 };
+const REFLECTION_REFRESH_FRAMES = 2;
 const FALLBACK_RGB = [0.06, 0.16, 0.19];
 const FALLBACK_SKY = new Color3(0.5, 0.65, 0.8);
 const SEA_FALLBACK = [0.94, 0.34];
@@ -649,7 +650,7 @@ export default class WaterSystem {
       rtt.renderList = null;
       rtt.wrapU = Texture.CLAMP_ADDRESSMODE;
       rtt.wrapV = Texture.CLAMP_ADDRESSMODE;
-      rtt.refreshRate = 1;
+      rtt.refreshRate = REFLECTION_REFRESH_FRAMES;
       rtt.clearColor = this.skyClearColor();
       rtt.onBeforeRenderObservable.add(() => this.beginReflection());
       rtt.onAfterRenderObservable.add(() => this.endReflection());
@@ -660,7 +661,7 @@ export default class WaterSystem {
       this.reflection.resize(this.reflectionSize(scale));
       this.reflectionScale = scale;
     }
-    this.reflection.refreshRate = 1;
+    this.reflection.refreshRate = REFLECTION_REFRESH_FRAMES;
     this.surfaceY = surfaceY;
     this.plane.d = -surfaceY;
     if (this.material) this.material.setTexture('reflectionSampler', this.reflection);

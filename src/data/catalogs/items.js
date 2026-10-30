@@ -19,6 +19,12 @@ export const ITEM_TYPES = {
     kind: 'raw',
     color: [0.93, 0.86, 0.8],
   },
+  mushroom: {
+    displayName: 'Houba',
+    stackSize: 100,
+    kind: 'raw',
+    color: [0.78, 0.55, 0.42],
+  },
   stick: {
     displayName: 'Klacek',
     stackSize: 100,

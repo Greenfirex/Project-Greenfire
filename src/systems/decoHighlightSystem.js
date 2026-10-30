@@ -23,8 +23,10 @@ export default class DecoHighlightSystem {
 
   add(entry, node, def) {
     if (!node || !def) return;
-    if (def.blocks === false) return;
-    if ((def.radius || 0) < MIN_RADIUS) return;
+    if (!def.gather) {
+      if (def.blocks === false) return;
+      if ((def.radius || 0) < MIN_RADIUS) return;
+    }
     if (!node.getChildMeshes) return;
     const meshes = node.getChildMeshes().filter((mesh) => mesh.getTotalVertices && mesh.getTotalVertices() > 0);
     if (node.getTotalVertices && node.getTotalVertices() > 0) meshes.unshift(node);

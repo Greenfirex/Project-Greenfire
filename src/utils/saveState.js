@@ -2,7 +2,7 @@
 // Řeší výchozí hodnoty, pořadí načítání i hlášení chyb, aby to každá věc nepsala ručně.
 export function stateProvider(def) {
   const fallback = typeof def.defaults === 'function' ? def.defaults : () => (def && def.defaults !== undefined ? def.defaults : null);
-  const restore = def && typeof def.restore === 'function' ? def.restore : () => {};
+  const restore = def && typeof def.apply === 'function' ? def.apply : () => {};
   return {
     serialize: typeof def.serialize === 'function' ? def.serialize : () => null,
     apply(data) {

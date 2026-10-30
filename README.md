@@ -430,3 +430,45 @@ seznam k výběru.
 4. **Vzdálené stromy (LOD)** — až bude les hustší, nahradit daleké stromy
    jednodušší variantou. Uvolní výkon a dovolí sázet víc stromů.
 
+## Nápady na další vývoj
+
+### Nepřátelé a boj
+
+Vychází z Rage of Mages (1998): hrdina s vlastnostmi, k tomu jednotky a souboje
+sledované z nadhledu, kde jsou vlastní a cizí jednotky barevně odlišené. Nejde
+o kopírování — bereme si nápad: nepřítel má svoje vlastnosti, svůj okruh
+pozornosti a svou barvu, a boj se odehrává kolem hráče, ne ve výběrovém okně.
+
+**Jak by to mělo vypadat ve hře**
+
+- Každý nepřítel má vlastnosti (kolik vydrží, jak silně a jak daleko útočí, jak
+  je rychlý) a okruh pozornosti. Dokud je hráč daleko, nepřítel postává nebo
+  chodí po svém území.
+- Když hráč do okruhu vstoupí, nepřítel se rozběhne. Když ho ztratí (uteče dost
+  daleko), vrátí se domů a přestane ho honit — jinak by ho pronásledoval přes
+  celou mapu a nedalo by se před ním utéct.
+- Barva není ozdoba: jiná barevná kombinace znamená jiný druh a jinou sílu,
+  takže se hráč na první pohled rozhodne, jestli do toho jde. Stejný model
+  s jinou barvou je levná varianta, silnější verze dostane i jiné vlastnosti.
+- Boj je akční, protože se chodí WASD: hráč mává zbraní v ruce a rozhoduje
+  vzdálenost i úhel, ne kliknutí na cíl. Nepřítel útočí ze svého dosahu a hráč
+  taky dostává zranění.
+
+**Jak to sedne do projektu**
+
+- Co nepřítel je a co umí (vlastnosti, okruh pozornosti, barvy, model, co po
+  něm zůstane) patří do nového katalogu mezi stávající katalogy. Čísla se drží
+  jen tam, nikde jinde.
+- Chování (čekání, honička, útok, návrat) patří do nového systému, který
+  dostane scénu; scéna ho jen propojí s ostatními, stejně jako dnes.
+- Počítá se v pevném kroku simulace (desetkrát za sekundu), obraz jen kreslí,
+  co simulace rozhodla.
+- Trvalý stav (kde nepřítel stojí, kolik mu zbývá, kdo je mrtvý) se hlásí
+  ukládání jako každý jiný stav ve hře; načtení starších dat nesmí spadnout.
+
+**První verze**
+
+Jeden druh nepřítele, okruh pozornosti, honička a návrat domů, jeden typ útoku,
+smrt a vypadnutí suroviny. Bez skupin, bez respawnu a bez vylepšování hrdiny —
+to jsou samostatná rozhodnutí, ne součást prvního kroku.
+

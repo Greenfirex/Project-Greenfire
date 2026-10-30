@@ -62,4 +62,9 @@ export default class FellingSystem {
   defaultState() {
     return { cells: [] };
   }
+
+  registerState(key, provider) {
+    this.saveKey = key;
+    this.savedState = provider;
+  }
 }

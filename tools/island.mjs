@@ -36,10 +36,10 @@ const ROCK_KEYS = ['rock_small', 'rock_small_flat', 'rock_pair', 'rock_large', '
 const SMALL_KEYS = ['bush', 'bush_small', 'mushroom_red', 'mushroom_tan'];
 
 const BANDS = {
-  top: { pine: 0.16, rock: 0.05, small: 0.02, grass: 0.05 },
-  mid: { pine: 0.1, almond: 0.1, rock: 0.03, small: 0.06, grass: 0.04 },
-  low: { pine: 0.05, almond: 0.04, rock: 0.04, small: 0.06, grass: 0.03 },
-  coast: { palm: 0.06, seagrape: 0.04, rock: 0.03, small: 0.02, grass: 0.0 },
+  top: { pine: 0.16, rock: 0.05, small: 0.02 },
+  mid: { pine: 0.1, almond: 0.1, rock: 0.03, small: 0.06 },
+  low: { pine: 0.05, almond: 0.04, rock: 0.04, small: 0.06 },
+  coast: { palm: 0.06, seagrape: 0.04, rock: 0.03, small: 0.02 },
 };
 
 const args = new Set(process.argv.slice(2));
@@ -352,7 +352,6 @@ if (doPlants) {
     step(weights.seagrape, ['tree_seagrape'], 31);
     step(weights.rock, ROCK_KEYS, 37);
     step(weights.small, SMALL_KEYS, 41);
-    step(weights.grass, ['grass_patch'], 43);
     if (!chosen) continue;
     if (TREE_KEYS.has(chosen) && crowded(cx, cz)) continue;
     plant(chosen, cx, cz);

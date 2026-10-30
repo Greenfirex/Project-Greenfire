@@ -17,6 +17,10 @@ const BLADE_CAP = 500000;
 const GRASS_BASE_TONE = new Color3(0.1, 0.24, 0.06);
 const GRASS_LIFT = 0.02;
 const TREE_CLEARANCE = 0.35;
+const CHUNK_CELLS = 8;
+const CHUNK_WORLD = CELL_SIZE * CHUNK_CELLS;
+const VIEW_MARGIN = 6;
+const VIEW_HYSTERESIS = 4;
 
 function bladeShape() {
   const positions = [];
@@ -67,6 +71,9 @@ export default class FloraSystem {
     this.grass = null;
     this.slots = [];
     this.grassMeshes = [];
+    this.chunks = [];
+    this.grassMaterial = null;
+    this.viewProvider = null;
     this.observer = null;
     this.clock = 0;
     this.lastTime = performance.now();
@@ -74,10 +81,11 @@ export default class FloraSystem {
     this.sunDirection = new Vector3(0.35, 1, 0.25).normalize();
   }
 
-  create(deco, density = 'high') {
+  create(deco, density = 'high', viewProvider = null) {
     this.dispose();
     this.deco = deco;
     this.density = density;
+    this.viewProvider = viewProvider;
     this.build();
   }
 
@@ -93,10 +101,17 @@ export default class FloraSystem {
   }
 
   disposeGrass() {
-    if (this.grass && !this.grass.isDisposed()) this.grass.dispose(false, true);
+    if (this.grass && !this.grass.isDisposed()) this.grass.dispose(false, false);
     this.grass = null;
+    for (const chunk of this.chunks) {
+      if (chunk.mesh && !chunk.mesh.isDisposed()) chunk.mesh.dispose(false, false);
+      chunk.mesh = null;
+    }
+    this.chunks.length = 0;
     this.grassMeshes.length = 0;
     this.slots.length = 0;
+    if (this.grassMaterial && !this.grassMaterial.isDisposed()) this.grassMaterial.dispose();
+    this.grassMaterial = null;
   }
 
   setDensity(density) {
@@ -125,7 +140,7 @@ export default class FloraSystem {
     const cells = this.patchCells();
     if (!cells.length) return [];
     this.makeBlades(cells);
-    this.createGrassMesh();
+    this.createGrassChunks();
     this.grass = new TransformNode('grassPatches', this.s);
     for (const mesh of this.grassMeshes) mesh.parent = this.grass;
     this.animate();
@@ -193,54 +208,88 @@ export default class FloraSystem {
       size: 0.6 + hash(seed, row + cell, 5) * 0.8,
       yaw: hash(seed, cell, 13) * Math.PI * 2,
       lean: hash(seed, row, 17),
-      mesh: null,
-      slot: 0,
     };
   }
 
-  createGrassMesh() {
-    const total = Math.min(this.slots.length, BLADE_CAP);
-    if (!total) return;
+  createGrassChunks() {
     const shape = bladeShape();
-    const mesh = new Mesh('wildGrass', this.s);
+    const material = createGrassMaterial(this.s, {
+      height: BLADE_HEIGHT,
+      base: groundColor(this.s),
+      root: GRASS_BASE_TONE,
+      lightDir: this.sunDirection,
+    });
+    this.grassMaterial = material;
+    const groups = new Map();
+    for (const slot of this.slots) {
+      const gx = Math.floor(slot.x / CHUNK_WORLD);
+      const gz = Math.floor(slot.z / CHUNK_WORLD);
+      const key = `${gx},${gz}`;
+      let chunk = groups.get(key);
+      if (!chunk) {
+        chunk = { key, minX: gx * CHUNK_WORLD, minZ: gz * CHUNK_WORLD, slots: [], mesh: null, enabled: false };
+        groups.set(key, chunk);
+      }
+      chunk.slots.push(slot);
+    }
+    for (const chunk of groups.values()) this.createChunkMesh(chunk, shape, material);
+  }
+
+  createChunkMesh(chunk, shape, material) {
+    const mesh = new Mesh(`wildGrass_${chunk.key}`, this.s);
     const data = new VertexData();
     data.positions = shape.positions;
     data.uvs = shape.uvs;
     data.normals = shape.normals;
     data.indices = shape.indices;
     data.applyToMesh(mesh);
-    mesh.material = createGrassMaterial(this.s, {
-      height: BLADE_HEIGHT,
-      base: groundColor(this.s),
-      root: GRASS_BASE_TONE,
-      lightDir: this.sunDirection,
-    });
+    mesh.material = material;
     mesh.isPickable = false;
-    mesh.alwaysSelectAsActiveMesh = true;
     mesh.receiveShadows = false;
+    mesh.alwaysSelectAsActiveMesh = true;
+    mesh.setEnabled(false);
+    chunk.mesh = mesh;
+    this.writeChunk(chunk);
+    this.grassMeshes.push(mesh);
+    this.chunks.push(chunk);
+  }
+
+  writeChunk(chunk) {
+    const total = chunk.slots.length;
     const matrices = new Float32Array(total * 16);
-    for (let i = 0; i < total; i += 1) {
-      const slot = this.slots[i];
-      slot.mesh = mesh;
-      slot.slot = i;
-      this.bladeMatrix(slot).copyToArray(matrices, i * 16);
+    for (let i = 0; i < total; i += 1) this.bladeMatrix(chunk.slots[i]).copyToArray(matrices, i * 16);
+    chunk.mesh.thinInstanceSetBuffer('matrix', matrices, 16, false);
+  }
+
+  updateView(view) {
+    if (!view || !this.chunks.length) return;
+    const inner = view.radius + VIEW_MARGIN;
+    const outer = inner + VIEW_HYSTERESIS;
+    for (const chunk of this.chunks) {
+      const dx = Math.max(chunk.minX - view.x, 0, view.x - (chunk.minX + CHUNK_WORLD));
+      const dz = Math.max(chunk.minZ - view.z, 0, view.z - (chunk.minZ + CHUNK_WORLD));
+      const distance = Math.hypot(dx, dz);
+      if (chunk.enabled) {
+        if (distance <= outer) continue;
+        chunk.enabled = false;
+        chunk.mesh.setEnabled(false);
+        continue;
+      }
+      if (distance > inner) continue;
+      chunk.enabled = true;
+      chunk.mesh.setEnabled(true);
     }
-    mesh.thinInstanceSetBuffer('matrix', matrices, 16, false);
-    this.grassMeshes[0] = mesh;
   }
 
   reseatHeights() {
-    const mesh = this.grassMeshes[0];
-    if (!this.deco || !mesh || !this.slots.length) return;
-    const total = Math.min(this.slots.length, BLADE_CAP);
-    const matrices = new Float32Array(total * 16);
-    for (let i = 0; i < total; i += 1) {
-      const slot = this.slots[i];
-      const ground = this.deco.groundHeightAt ? this.deco.groundHeightAt(slot.x, slot.z) : slot.y;
-      slot.y = ground + GRASS_LIFT;
-      this.bladeMatrix(slot).copyToArray(matrices, i * 16);
+    if (!this.deco || !this.chunks.length) return;
+    for (const chunk of this.chunks) {
+      for (const slot of chunk.slots) {
+        const ground = this.deco.groundHeightAt ? this.deco.groundHeightAt(slot.x, slot.z) : slot.y;
+        slot.y = ground + GRASS_LIFT;
+      }
+      this.writeChunk(chunk);
     }
-    mesh.thinInstanceSetBuffer('matrix', matrices, 16, false);
   }
 
   bladeMatrix(slot) {
@@ -262,6 +311,7 @@ export default class FloraSystem {
       const now = performance.now();
       this.clock += Math.min((now - this.lastTime) / 1000, 0.1);
       this.lastTime = now;
+      if (this.viewProvider) this.updateView(this.viewProvider());
       const mat = this.grassMeshes[0]?.material;
       if (mat) {
         tickGrass(mat, this.clock);
