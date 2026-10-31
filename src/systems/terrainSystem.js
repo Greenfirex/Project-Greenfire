@@ -988,6 +988,12 @@ export default class TerrainSystem {
       const point = alongX ? { gx: uPlane, gz: snapped } : { gx: snapped, gz: uPlane };
       return this.bridgeWallColumn(point.gx, point.gz);
     };
+    plan.columnAtEnd = (side, u) => {
+      const vPlane = side === 'near' ? v0 : v1;
+      const snapped = Math.round(u * 2) / 2;
+      const point = alongX ? { gx: snapped, gz: vPlane } : { gx: vPlane, gz: snapped };
+      return this.bridgeWallColumn(point.gx, point.gz);
+    };
     return plan;
   }
 
@@ -1030,10 +1036,15 @@ export default class TerrainSystem {
     for (const plan of this.bridges) {
       const u = plan.axis === 'x' ? gx : gz;
       const v = plan.axis === 'x' ? gz : gx;
-      const onSide = Math.abs(u - plan.u0) <= 0.01 || Math.abs(u - plan.u1) <= 0.01;
-      if (!onSide) continue;
-      if (v < plan.v0 - 0.01 || v > plan.v1 + 0.01) continue;
-      return true;
+      const onBank = Math.abs(u - plan.u0) <= 0.01 || Math.abs(u - plan.u1) <= 0.01;
+      if (onBank) {
+        if (v < plan.v0 - 0.01 || v > plan.v1 + 0.01) continue;
+        return true;
+      }
+      const onBack = Math.abs(u - (plan.u0 - CELL_SIZE)) <= 0.01 || Math.abs(u - (plan.u1 + CELL_SIZE)) <= 0.01;
+      if (onBack && v >= plan.v0 - 0.01 && v <= plan.v1 + 0.01) return true;
+      const onEnd = Math.abs(v - plan.v0) <= 0.01 || Math.abs(v - plan.v1) <= 0.01;
+      if (onEnd && u >= plan.u0 - CELL_SIZE - 0.01 && u <= plan.u1 + CELL_SIZE + 0.01) return true;
     }
     return false;
   }

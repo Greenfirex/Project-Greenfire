@@ -214,6 +214,9 @@ export function buildBridge(plan) {
     const columns = columnsFor(span);
     const colLow = plan.columnAt ? plan.columnAt('low', v) : null;
     const colHigh = plan.columnAt ? plan.columnAt('high', v) : null;
+    const endKey = side === 0 ? 'near' : 'far';
+    const colEndLow = plan.columnAtEnd ? plan.columnAtEnd(endKey, uA - plan.burial) : null;
+    const colEndHigh = plan.columnAtEnd ? plan.columnAtEnd(endKey, uB + plan.burial) : null;
     const rowCount = 6;
     const start = rock.positions.length / 3;
     for (let k = 0; k <= rowCount; k += 1) {
@@ -226,6 +229,13 @@ export function buildBridge(plan) {
         let vv = v;
         if (t < 0 || t > 1) {
           u = t < 0 ? uA - plan.burial : uB + plan.burial;
+          const rowY = bottom + (top - bottom) * (k / rowCount);
+          const endCol = t < 0 ? colEndLow : colEndHigh;
+          const endV = columnVAt(endCol, rowY, plan.axis);
+          if (endV !== null) {
+            const amount = t < 0 ? clamp01(-t * span / plan.burial) : clamp01((t - 1) * span / plan.burial);
+            vv += (endV - v) * amount;
+          }
         } else {
           const rowY = bottom + (top - bottom) * (k / rowCount);
           const lowEdge = columnUAt(colLow, rowY, plan.axis);
