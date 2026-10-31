@@ -1,6 +1,6 @@
 // Editační režim mapy — vyplňování buněk štětcem, modelování výšek a práce s plochou.
 // Přepíná se F2, drží jen hotovou mapu a historii úprav; vykreslování si řídí scéna.
-import { BRUSHES } from '../data/catalogs/brushes.js';
+import { BRUSHES, brushOptions } from '../data/catalogs/brushes.js';
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
 import { cellKey, MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP, DEFAULT_HEIGHT_LEVEL } from '../data/maps/layoutStore.js';
 import { layerAt, layerEntriesAt, floorCellAt, layerLiftAt, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
@@ -201,10 +201,7 @@ export default class EditorMode {
   }
 
   brushOptionsOf(brushKey) {
-    const brush = BRUSHES[brushKey];
-    if (!brush) return [];
-    if (Array.isArray(brush.options)) return brush.options;
-    return brush.option ? [brush.option] : [];
+    return brushOptions(BRUSHES[brushKey]);
   }
 
   brushOptionValue(brushKey, optionKey = null) {
@@ -239,6 +236,10 @@ export default class EditorMode {
     this.brushOpts[this.brushKey] = { ...(this.brushOpts[this.brushKey] || {}), [optionKey]: stored };
     if (this.joinTop && this.joinBottom) {
       this.buildJoin(this.joinBottom.cx, this.joinBottom.cz, this.joinBottom.height);
+      return;
+    }
+    if (this.draftDrag) {
+      this.refreshDraftDrag();
       return;
     }
     if (this.draft && this.onDraftChange) this.onDraftChange(this.draft);
@@ -615,7 +616,7 @@ export default class EditorMode {
   surfaceHeightShape(brushKey, zone, mode) {
     const shape = this.heightShape(brushKey, zone, mode);
     const brush = BRUSHES[brushKey];
-    if (!brush || !brush.option || !this.brushOptionValue(brushKey)) {
+    if (!brush || !brush.option || !this.brushOptionValue(brushKey, brush.option.key)) {
       return { zone: shape.zone, slope: shape.slope, rim: [] };
     }
     const used = new Set([...shape.zone, ...shape.slope].map((entry) => cellKey(entry.cx, entry.cz)));
@@ -712,10 +713,6 @@ export default class EditorMode {
     if (!changed) return false;
     this.setAreaSelection({ tool: this.areaTool, cells: this.strokeCells() });
     return true;
-  }
-
-  removeAreaRun(from, to) {
-    return this.removeAreaCells(bresenham(from.cx, from.cz, to.cx, to.cz));
   }
 
   setAreaTool(tool) {
@@ -942,8 +939,9 @@ export default class EditorMode {
     const cells = this.draft.cells;
     cells.clear();
     for (const key of this.draftBase || []) cells.add(key);
+    const radius = this.brushRadius();
     for (const [cx, cz] of rectCells(drag.fromX, drag.fromZ, drag.toX, drag.toZ)) {
-      if (this.canDraftCell(cx, cz)) this.stampCells(cells, cx, cz);
+      if (this.canDraftCell(cx, cz)) this.stampCells(cells, cx, cz, radius);
     }
     if (this.onDraftChange) this.onDraftChange(this.draft);
   }
@@ -1048,12 +1046,15 @@ export default class EditorMode {
   }
 
   brushRadius() {
-    const brush = BRUSHES[this.brushKey];
-    return brush && Number.isFinite(brush.radius) ? Math.max(0, Math.round(brush.radius)) : 0;
+    const value = Number(this.brushOptionValue(this.brushKey, 'radius'));
+    return Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
   }
 
-  stampCells(target, cx, cz) {
-    const radius = this.brushRadius();
+  get brushSpan() {
+    return this.brushRadius() * 2 + 1;
+  }
+
+  stampCells(target, cx, cz, radius = this.brushRadius()) {
     if (!radius) {
       target.add(cellKey(cx, cz));
       return;
@@ -1083,16 +1084,6 @@ export default class EditorMode {
     if (!this.draft) return false;
     if (!this.unstampDraft(cx, cz)) return false;
     if (this.onDraftChange) this.onDraftChange(this.draft);
-    return true;
-  }
-
-  undraftRun(from, to) {
-    if (!this.draft) return true;
-    let changed = false;
-    for (const [cx, cz] of bresenham(from.cx, from.cz, to.cx, to.cz)) {
-      if (this.unstampDraft(cx, cz)) changed = true;
-    }
-    if (changed && this.onDraftChange) this.onDraftChange(this.draft);
     return true;
   }
 
@@ -1335,7 +1326,8 @@ export default class EditorMode {
       !entry || entry.cx !== cx || entry.cz !== cz || !pool.includes(entry.key)
     ));
     if (removing) return;
-    if (!this.brushOptionValue(brushKey)) return;
+    const gate = brush.option ? brush.option.key : null;
+    if (gate && !this.brushOptionValue(brushKey, gate)) return;
     const patch = noise2(cx / 3.4, cz / 3.4);
     if (hash01(cx * 91.7, cz * 47.3) > scatter.chance * (0.25 + 1.3 * patch)) return;
     const amount = scatter.min + Math.floor(hash01(cx * 13.1, cz * 71.9) * (scatter.max - scatter.min + 1 + patch));
@@ -1491,18 +1483,6 @@ export default class EditorMode {
     if (!changed) return false;
     if (this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
     return true;
-  }
-
-  unmarkHeightRun(from, to) {
-    if (!this.heightDraft) return false;
-    let changed = false;
-    for (const [cx, cz] of bresenham(from.cx, from.cz, to.cx, to.cz)) {
-      for (const [x, z] of this.heightStampCells(cx, cz)) {
-        if (this.heightDraft.delete(cellKey(x, z))) changed = true;
-      }
-    }
-    if (changed && this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
-    return changed;
   }
 
   get heightDraftCount() {

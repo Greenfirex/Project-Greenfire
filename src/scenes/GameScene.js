@@ -1446,9 +1446,6 @@ updateGatherTarget() {
     this.inputSystem.onPaintStart = (cell) => this.handlePaintStart(cell);
     this.inputSystem.onPaintMove = (cell) => this.handlePaintMove(cell);
     this.inputSystem.onPaintEnd = () => this.handlePaintEnd();
-    this.inputSystem.onRightPaintStart = (cell) => this.handleRightPaintStart(cell);
-    this.inputSystem.onRightPaintMove = (cell) => this.handleRightPaintMove(cell);
-    this.inputSystem.onRightPaintEnd = () => this.handleRightPaintEnd();
     this.inputSystem.onZoom = (delta) => {
       this.cameraSystem.zoomBy(delta);
       this.cameraSystem.applyOrtho();
@@ -1729,7 +1726,9 @@ updateGatherTarget() {
     if (preview) {
       this.gridSystem.showDecorPreview(preview.def, preview.items, cell.cx, cell.cz, this.decoSystem.surfaceAt(cell.cx, cell.cz), 0);
     }
-    this.gridSystem.showHoverCell(cell.cx, cell.cz, (cx, cz) => this.decoSystem.surfaceAt(cx, cz), this.editor.mode.mode === 'height' ? this.editor.mode.heightStampSpan : 1);
+    const mapMode = this.editor.mapMode;
+    const hoverSpan = mapMode === 'height' ? this.editor.mode.heightStampSpan : mapMode === 'zone' ? this.editor.mode.brushSpan : 1;
+    this.gridSystem.showHoverCell(cell.cx, cell.cz, (cx, cz) => this.decoSystem.surfaceAt(cx, cz), hoverSpan);
     if (this.editor.mapMode === 'area') {
       this.editor.showAreaPreview(this.editor.mode.getAreaSelection());
       if (this.editor.mode.hasAreaSelection) return;
@@ -1777,21 +1776,6 @@ updateGatherTarget() {
 
   handlePaintEnd() {
     if (this.editor.mapMode === 'area') this.editor.mode.finishAreaDrag();
-    this.editor.lastPaintCell = null;
-  }
-
-  handleRightPaintStart(cell) {
-    if (!cell || !this.editor.active) return;
-    this.handleCellRightClick(cell);
-  }
-
-  handleRightPaintMove(cell) {
-    if (!cell || !this.editor.active) return;
-    this.editor.rightMovePaint(cell);
-    this.handleHover(cell);
-  }
-
-  handleRightPaintEnd() {
     this.editor.lastPaintCell = null;
   }
 

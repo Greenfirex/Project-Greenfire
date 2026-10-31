@@ -1,12 +1,18 @@
-// Zpracování vstupu — rotace kamery pravým tažením (v editoru středním tlačítkem), zoom kolečkem,
-// klik a tažení na zemi. Levá kreslí nebo kliká, pravá v editoru odebírá a ve hře bourá; menu potlačujeme.
+// Zpracování vstupu — rotace kamery pravým tažením, zoom kolečkem, klik a tažení na zemi.
+// Levá kreslí nebo kliká, pravé kliknutí v editoru odebírá a ve hře bourá; menu potlačujeme.
 import '@babylonjs/core/Culling/ray';
 import { Plane } from '@babylonjs/core/Maths/math.plane';
 import { PointerEventTypes } from '@babylonjs/core/Events/pointerEvents';
 import { worldToCellCoords } from '../utils/gridMath.js';
+import { MAX_HEIGHT, HEIGHT_STEP } from '../data/maps/layoutStore.js';
 
 const ROTATE_SPEED = 0.006;
 const DRAG_THRESHOLD = 5;
+const PICK_TOP = MAX_HEIGHT * HEIGHT_STEP + 2;
+const PICK_STEP = 0.5;
+const PICK_STEPS = 400;
+const PICK_REFINE = 12;
+const PICK_NUDGE = 0.05;
 const GroundPlane = new Plane(0, 1, 0, 0.002);
 
 export default class InputSystem {
@@ -22,22 +28,16 @@ export default class InputSystem {
     this.painting = false;
     this.lastX = 0;
     this.lastCell = null;
-    this.rightPainting = false;
-    this.lastRightCell = null;
     this.onHoverCell = null;
     this.onCellRightClick = null;
     this.onPaintStart = null;
     this.onPaintMove = null;
     this.onPaintEnd = null;
-    this.onRightPaintStart = null;
-    this.onRightPaintMove = null;
-    this.onRightPaintEnd = null;
     this.onLeftDown = null;
     this.onLeftUp = null;
     this.leftDown = false;
     this.groundPredicate = null;
     this.groundHeightAt = null;
-    this.surfaceGuess = null;
     this.pointerMoved = true;
     this.lastMoveX = null;
     this.lastMoveY = null;
@@ -71,13 +71,6 @@ export default class InputSystem {
       if (type === PointerEventTypes.POINTERDOWN) {
         if (evt.button === 2) {
           if (onUi) return;
-          if (this.game && this.game.editor && this.game.editor.active) {
-            const cell = this.cellAtPointer();
-            this.rightPainting = Boolean(cell);
-            this.lastRightCell = cell;
-            if (cell && this.onRightPaintStart) this.onRightPaintStart(cell);
-            return;
-          }
           this.rightRotating = true;
           this.rightDragged = false;
           this.rightStartX = evt.clientX;
@@ -118,11 +111,7 @@ export default class InputSystem {
             const dragged = this.rightDragged;
             this.rightDragged = false;
             if (!dragged) this.handleRightClick();
-            return;
           }
-          this.rightPainting = false;
-          this.lastRightCell = null;
-          if (this.onRightPaintEnd) this.onRightPaintEnd();
           return;
         }
         if (evt.button !== 0) return;
@@ -158,13 +147,6 @@ export default class InputSystem {
           if (!same) {
             this.lastCell = cell;
             this.onPaintMove(cell);
-          }
-        }
-        if (this.rightPainting && cell && this.onRightPaintMove) {
-          const same = this.lastRightCell && this.lastRightCell.cx === cell.cx && this.lastRightCell.cz === cell.cz;
-          if (!same) {
-            this.lastRightCell = cell;
-            this.onRightPaintMove(cell);
           }
         }
         if (this.onHoverCell) this.onHoverCell(cell);
@@ -206,22 +188,32 @@ export default class InputSystem {
     if (!this.groundHeightAt) return null;
     const origin = ray.origin;
     const direction = ray.direction;
-    if (Math.abs(direction.y) < 1e-4) return null;
-    let guess = Number.isFinite(this.surfaceGuess) ? this.surfaceGuess : 0;
-    let last = null;
-    for (let i = 0; i < 6; i += 1) {
-      const distance = (guess - origin.y) / direction.y;
-      if (!Number.isFinite(distance) || distance < 0) return last;
+    if (direction.y > -1e-4) return null;
+    let distance = 0;
+    if (origin.y > PICK_TOP) distance = (PICK_TOP - origin.y) / direction.y;
+    let previous = distance;
+    for (let i = 0; i < PICK_STEPS; i += 1) {
       const point = origin.add(direction.scale(distance));
       const height = this.groundHeightAt(point.x, point.z);
-      if (!Number.isFinite(height)) return last;
-      point.y = height;
-      last = point;
-      if (Math.abs(height - guess) < 0.02) break;
-      guess = height;
+      if (!Number.isFinite(height)) return null;
+      if (point.y <= height) {
+        let low = previous;
+        let high = distance;
+        for (let k = 0; k < PICK_REFINE; k += 1) {
+          const mid = (low + high) * 0.5;
+          const probe = origin.add(direction.scale(mid));
+          const probeHeight = this.groundHeightAt(probe.x, probe.z);
+          if (probe.y <= probeHeight) high = mid;
+          else low = mid;
+        }
+        const hit = origin.add(direction.scale(high + PICK_NUDGE));
+        hit.y = this.groundHeightAt(hit.x, hit.z);
+        return hit;
+      }
+      previous = distance;
+      distance += PICK_STEP;
     }
-    if (last) this.surfaceGuess = last.y;
-    return last;
+    return null;
   }
 
   fallbackPoint(ray) {

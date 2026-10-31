@@ -85,6 +85,14 @@ function cliffOffset(x, z) {
   return (valueNoise(x * CLIFF_WAVE_SCALE + 11.3, z * CLIFF_WAVE_SCALE - 7.1) - 0.5) * 2 * CLIFF_WAVE;
 }
 
+function wallBetween(field, ax, az, bx, bz) {
+  const sx = Math.sign(bx - ax);
+  const sz = Math.sign(bz - az);
+  if (sx && (field.isHardEdge(ax, az, sx, 0) || field.isHardEdge(bx, bz, -sx, 0))) return true;
+  if (sz && (field.isHardEdge(ax, az, 0, sz) || field.isHardEdge(bx, bz, 0, -sz))) return true;
+  return false;
+}
+
 function smoothCoincidentNormals(positions, normals) {
   const buckets = new Map();
   const total = positions.length / 3;
@@ -338,6 +346,28 @@ export default class TerrainSystem {
       const height = Math.max(2, Math.ceil(spanZ / SURFACE_BLEND_TEXEL));
       const data = new Uint8Array(width * height);
       const smooth = (t) => t * t * (3 - 2 * t);
+      const waterLevel = this.layout && Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
+      const isDry = (cx, cz) => waterLevel === null || field.heightAtCell(cx, cz) > waterLevel + 0.001;
+      const blockedFrom = (cx, cz, nx, nz) => {
+        const dx = nx - cx;
+        const dz = nz - cz;
+        if (dx && dz) {
+          const blockedA = wallBetween(field, cx, cz, cx + dx, cz) || wallBetween(field, cx + dx, cz, nx, nz);
+          const blockedB = wallBetween(field, cx, cz, cx, cz + dz) || wallBetween(field, cx, cz + dz, nx, nz);
+          return blockedA && blockedB;
+        }
+        return wallBetween(field, cx, cz, nx, nz);
+      };
+      const wallCache = new Map();
+      const againstWall = (cx, cz) => {
+        const id = `${cx},${cz}`;
+        if (wallCache.has(id)) return wallCache.get(id);
+        const value = BLEND_NEIGHBORS.some(([dx, dz]) => (
+          field.isSharp(cx + dx, cz + dz) && blockedFrom(cx, cz, cx + dx, cz + dz)
+        ));
+        wallCache.set(id, value);
+        return value;
+      };
       for (let j = 0; j < height; j += 1) {
         const z = z0 + (j + 0.5) * (spanZ / height);
         for (let i = 0; i < width; i += 1) {
@@ -346,7 +376,7 @@ export default class TerrainSystem {
           const cz = Math.floor((z + half) / CELL_SIZE);
           if (field.isSharp(cx, cz)) continue;
           if (keyAt(cx, cz) === partner) {
-            data[j * width + i] = 255;
+            data[j * width + i] = isDry(cx, cz) && againstWall(cx, cz) ? 0 : 255;
             continue;
           }
           let reach = 0;
@@ -355,6 +385,7 @@ export default class TerrainSystem {
             const nz = cz + dz;
             if (field.isSharp(nx, nz)) continue;
             if (keyAt(nx, nz) !== partner) continue;
+            if (isDry(cx, cz) && blockedFrom(cx, cz, nx, nz)) continue;
             const gapX = Math.abs(x - nx * CELL_SIZE) - half;
             const gapZ = Math.abs(z - nz * CELL_SIZE) - half;
             const distance = Math.hypot(Math.max(gapX, 0), Math.max(gapZ, 0));

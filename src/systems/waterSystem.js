@@ -21,6 +21,8 @@ const DEPTH_STEP = 0.5;
 const DEPTH_MAX = 256;
 const DEPTH_RANGE = 5;
 const SHORE_EDGE = 0.02;
+const CLIFF_DEPTH_JUMP = 1;
+const NEIGHBORS_4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const ISLAND_MIN_TEXELS = 24;
 const SHORE_BLUR_PASSES = 4;
 const SHORE_BLUR_RADIUS = 3;
@@ -422,15 +424,37 @@ export default class WaterSystem {
     const smooth = new Float32Array(raw.length);
     for (let j = 0; j < height; j += 1) {
       for (let i = 0; i < width; i += 1) {
+        const index = j * width + i;
+        const center = raw[index];
         let sum = 0;
+        let count = 0;
         for (let dj = -1; dj <= 1; dj += 1) {
           const jj = Math.min(height - 1, Math.max(0, j + dj));
           for (let di = -1; di <= 1; di += 1) {
             const ii = Math.min(width - 1, Math.max(0, i + di));
-            sum += raw[jj * width + ii];
+            const value = raw[jj * width + ii];
+            if (Math.abs(value - center) >= CLIFF_DEPTH_JUMP) continue;
+            sum += value;
+            count += 1;
           }
         }
-        smooth[j * width + i] = sum / 9;
+        smooth[index] = count ? sum / count : center;
+      }
+    }
+    for (let j = 0; j < height; j += 1) {
+      for (let i = 0; i < width; i += 1) {
+        const index = j * width + i;
+        if (raw[index] > 0) continue;
+        let deep = 0;
+        for (const [di, dj] of NEIGHBORS_4) {
+          const ii = i + di;
+          const jj = j + dj;
+          if (ii < 0 || jj < 0 || ii >= width || jj >= height) continue;
+          const value = raw[jj * width + ii];
+          if (value - raw[index] < CLIFF_DEPTH_JUMP) continue;
+          if (value > deep) deep = value;
+        }
+        if (deep > 0) smooth[index] = deep;
       }
     }
     const data = new Uint8Array(width * height);

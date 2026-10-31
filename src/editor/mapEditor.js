@@ -483,14 +483,6 @@ export default class MapEditor {
     this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
   }
 
-  rightMovePaint(cell) {
-    const from = this.lastPaintCell || cell;
-    if (this.mode.mode === 'area') this.mode.removeAreaRun(from, cell);
-    else if (this.mode.mode === 'height') this.mode.unmarkHeightRun(from, cell);
-    else this.mode.undraftRun(from, cell);
-    this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
-  }
-
   rightClickCell(cell) {
     this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
     if (this.mode.mode === 'zone' && this.mode.isJoinBrush) {

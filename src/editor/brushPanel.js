@@ -1,6 +1,6 @@
 // Malý panel pro rozpracovanou zónu — název štětce, styl a potvrzení.
 // Otevírá se klikem na štětec v paletě, sám nic negeneruje ani nemění.
-import { getBrush } from '../data/catalogs/brushes.js';
+import { brushOptions, getBrush } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { makeDraggable } from '../ui/draggable.js';
 
@@ -108,9 +108,7 @@ export default class BrushPanel {
   buildOptions(brush, values) {
     if (!this.options) return;
     this.options.innerHTML = '';
-    const list = brush
-      ? (Array.isArray(brush.options) ? brush.options : (brush.option ? [brush.option] : []))
-      : [];
+    const list = brushOptions(brush);
     for (const option of list) {
       if (option.kind === 'range') {
         this.options.appendChild(this.buildRangeOption(option, values));
@@ -149,9 +147,13 @@ export default class BrushPanel {
     input.value = String(Math.min(max, Math.max(min, Number.isFinite(stored) ? stored : min)));
     const value = document.createElement('span');
     value.className = 'brush-panel__option-value';
-    value.textContent = input.value;
+    const showValue = (raw) => {
+      const text = option.display === 'square' ? `${raw * 2 + 1}×${raw * 2 + 1}` : String(raw);
+      value.textContent = text;
+    };
+    showValue(Number(input.value));
     input.addEventListener('input', () => {
-      value.textContent = input.value;
+      showValue(Number(input.value));
       if (this.onOption) this.onOption(option.key, Number(input.value));
     });
     row.append(text, input, value);

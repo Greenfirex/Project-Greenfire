@@ -18,7 +18,7 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 | Vstup | Akce |
 |---|---|
 | **W A S D / šipky** | Pohyb postavy (vzhledem ke kameře), Shift = běh. V editoru posouvají pohled po mapě, Shift zrychlí |
-| **Tažení pravým tlačítkem** | Rotace kamery (v editoru středním tlačítkem) |
+| **Tažení pravým tlačítkem** | Rotace kamery (i v editoru); v editoru pravé kliknutí bez tažení odebírá buňku |
 | **Kolečko** | Zoom (v editoru jde oddálit víc než ve hře) |
 | **1–5** | Výběr předmětu v ruce (plán, sekera, krumpáč, pochodeň) |
 | **I / C** | Batoh / postava — okna nad lištou předmětů (také tlačítky po stranách lišty) |
@@ -115,7 +115,7 @@ doladění a práce mimo tento plán.
   18 a 24 m; jediný krok je 0,3 m.
 - Výškový panel: vlastní okno, škála, barevné odlišení, počet, Zpět,
   Aplikovat a Zahodit; hlavní HUD už výškový řádek nemá.
-- Výběr: hover buňky, levé tlačítko přidá, pravé odebere (i tahem), 0 m
+- Výběr: hover buňky, levé tlačítko přidá, pravé kliknutí odebere, 0 m
   srovnává; platí pro výšky, brush drafts i Herní plochu.
 - Hráč: chodí po skutečné výšce země; kamera ho sleduje i svisle; spawn,
   načtení savu a odstrčení od objektů počítají s terénem.
@@ -169,7 +169,7 @@ doladění a práce mimo tento plán.
 **Klíčová rozhodnutí (nevrátit omylem):**
 - Výšky jsou v metrech, krok 0,3 m, rozsah ±6 m; předvolby včetně ±4,5 a ±6.
 - Výškový panel je samostatné okno; hlavní HUD výšky neobsahuje.
-- Výběr buněk: hover + levé přidá + pravé odebere; 0 m srovnává.
+- Výběr buněk: hover + levé přidá + pravé kliknutí odebere; 0 m srovnává.
 - Střed buňky zůstává přesný; kraj mapy a díry berou výšku nejbližší buňky.
 - Terén se dělí podle povrchů; cesty jsou jemné a 2,5 cm nad zemí.
 - Hráčova výška se dopočítá z terénu; sav drží jen x, z a natočení.
@@ -313,7 +313,7 @@ Tlačítka výšky v panelu určují, jak vysoko se dlaždice po Aplikovat pokl�
 Výška má vlastní okénko jako Herní plocha; otevírá se při přepnutí na Výšku.
 Výšky jdou od −6 do +24 m; předvolby jsou −6, −3, 0, 3, 6, 9, 12, 18 a 24 m;
 jediný mezikrok je +/−0,3 m. Levé tlačítko buňky přidává do výběru,
-pravé je odebírá; na nulu se srovnává předvolbou 0 m. Návrh se dá kdykoli
+pravé kliknutí je odebírá; na nulu se srovnává předvolbou 0 m. Návrh se dá kdykoli
 zrušit.
 Kopec a Prohlubeň si svah staví samy: v jejich okně vybereš výšku a namalovaná
 plocha zůstane plochá, kolem ní se přidá svah po 0,3 m až do 0. Dvě
@@ -412,7 +412,7 @@ se po ní chodí a staví stejně jako dřív a změna je vidět jen na pohled.
 
 V okně **Herní plocha** se k razítku vybírá podklad a výška; počítadlo předem
 ukáže, kolik buněk se přepíše a kolik jich už v mapě je. Levé tlačítko buňky
-přidává do výběru, pravé je odebírá; mazání se vybírá tlačítkem v panelu.
+přidává do výběru, pravé kliknutí je odebírá; mazání se vybírá tlačítkem v panelu.
 
 Soubor mapy je jediný zdroj pravdy: hra při startu vždycky přečte
 `src/data/maps/<mapa>/map.json` ze souboru na disku, žádnou jinou mapu v kódu

@@ -7,6 +7,8 @@ import { HEIGHT_STEP } from '../maps/layoutStore.js';
 const SURFACES = surfaceEntries();
 const surfaceStyle = (entry) => entry.key.replace(/^floor_/, '');
 
+const SIZE_OPTION = { key: 'radius', label: 'Velikost', kind: 'range', min: 0, max: 3, step: 1, display: 'square' };
+
 function levelMeters(level) {
   const n = Math.round(Math.abs(level) * HEIGHT_STEP * 10) / 10;
   return `${String(n).replace('.', ',')} m`;
@@ -272,4 +274,12 @@ export function brushesOf(group) {
 
 export function getBrush(brushKey) {
   return BRUSHES[brushKey] || null;
+}
+
+export function brushOptions(brush) {
+  if (!brush) return [];
+  const list = Array.isArray(brush.options) ? brush.options : (brush.option ? [brush.option] : []);
+  if (brush.join) return list;
+  const size = Number.isFinite(brush.radius) ? Math.max(0, Math.min(SIZE_OPTION.max, Math.round(brush.radius))) : 0;
+  return [...list, { ...SIZE_OPTION, default: size }];
 }
