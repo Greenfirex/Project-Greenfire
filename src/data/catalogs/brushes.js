@@ -140,6 +140,18 @@ export const BRUSHES = {
       { key: 'width', label: 'Šířka', kind: 'range', default: 1, min: 1, max: 5, step: 2 },
     ],
   },
+  bridge: {
+    label: 'Most',
+    group: 'Terén',
+    note: 'Klikni na jeden břeh a pak na protější — přes propast vznikne skalní most, po kterém se dá chodit.',
+    shape: 'line',
+    bridge: true,
+    style: 'stone',
+    styles: ['stone', 'dirt'],
+    options: [
+      { key: 'width', label: 'Tloušťka', kind: 'range', default: 3, min: 1, max: 5, step: 2 },
+    ],
+  },
   hill: {
     label: 'Kopec',
     group: 'Terén',
@@ -279,7 +291,7 @@ export function getBrush(brushKey) {
 export function brushOptions(brush) {
   if (!brush) return [];
   const list = Array.isArray(brush.options) ? brush.options : (brush.option ? [brush.option] : []);
-  if (brush.join) return list;
+  if (brush.join || brush.bridge) return list;
   const size = Number.isFinite(brush.radius) ? Math.max(0, Math.min(SIZE_OPTION.max, Math.round(brush.radius))) : 0;
   return [...list, { ...SIZE_OPTION, default: size }];
 }

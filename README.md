@@ -199,8 +199,8 @@ doladění a práce mimo tento plán.
   z ní bere jen barvu.
 - Suché jámy pod hladinou (doly, sklepy) současná plocha neumí; vyřeší se
   později suchou zónou nebo vodními zónami.
-- Mapa má verzi 4 (značka útesu); hladina vody je nepovinné číslo a verzi
-  nemění. Starší mapy se načtou bez vody.
+- Mapa má verzi 5 (značka útesu, vrstva mostů); hladina vody je nepovinné číslo
+  a verzi nemění. Starší mapy se načtou bez vody i bez mostů.
 
 **Kde co je:**
 - `src/data/maps/layoutStore.js` — rozsah výšek, krok, předvolby.
@@ -208,7 +208,8 @@ doladění a práce mimo tento plán.
 - `src/editor/editorMode.js`, `mapEditor.js`, `editorHud.js` — editor, výběr, panely, pláž, voda.
 - `src/systems/gridSystem.js`, `inputSystem.js` — hover, levé/pravé tažení.
 - `src/utils/terrainField.js` — výškový model (spojitá výška mezi buňkami).
-- `src/systems/terrainSystem.js` — terén, hrana, útesy, prolnutí povrchů.
+- `src/systems/terrainSystem.js` — terén, hrana, útesy, mosty, prolnutí povrchů.
+- `src/utils/bridgeShape.js` — tvar skalního mostu: klenba, čela a pochozí plocha.
 - `src/systems/terrainBlendPlugin.js` — míchání textur sousedních povrchů v materiálu terénu.
 - `src/utils/waterWaves.js` — čísla a výpočet vln (společné pro program i hru).
 - `src/systems/audioSystem.js` — kroky, příboj, oheň a ambientní vrstvy.
@@ -216,7 +217,7 @@ doladění a práce mimo tento plán.
 - `src/systems/waterShader.js` — program pro vodu: vlny, pěna, svislá stěna.
 - `src/systems/skySystem.js` — obloha a slunce.
 - `src/systems/pathSystem.js`, `playerSystem.js`, `cameraSystem.js` — cesty a hráč.
-- `src/data/catalogs/brushes.js` — štětce včetně Pláže a Útesu; `decorations.js` — písek a povrchy.
+- `src/data/catalogs/brushes.js` — štětce včetně Pláže, Útesu a Mostu; `decorations.js` — písek a povrchy.
 - `src/data/maps/glade/map.json` — aktuální mapa; `README.md` — přehled a tento handoff.
 - `.clinerules` — pravidla práce.
 
@@ -332,6 +333,17 @@ podle vzdálenosti po 0,3 m, takže vznikne souvislý výjezd; posuvník **Ší�
 jak je pruh široký (1, 3 nebo 5 buněk). Když je převýšení na danou vzdálenost moc
 velké, panel to napíše — tak prudký schod hráč nevyleze (zvládne 0,45 m). Pravé
 tlačítko rozpracovanou spojnici zruší.
+
+Štětec **Most** postaví skalní most přes propast nebo vodu: klikneš na jeden břeh
+a pak na protější. Editor ověří, že břehy leží proti sobě, že mezi nimi je dost
+hluboko a že se most nepřekrývá s jiným. Posuvník **Tloušťka** určí, jak je skalní
+blok podél průplavu široký (1, 3 nebo 5 buněk); tlačítka **Kámen/Hlína** volí
+materiál čel a klenby. Po mostě se dá chodit, voda pod ním zůstane. Most se ukládá
+do mapy jako dva kotevní body, takže se po načtení spočítá znovu přesně podle
+současných břehů. V místě, kde se most opírá o stěnu, se stěna pod mostem vyčistí
+(přestanou se tam dělat terasy a vyboulení), aby na sebe obě plochy dosedly; nad
+mostem zůstane útes beze změny. V režimu **Mazat** stačí přejet buňku mostu a most
+zmizí celý. Pravé tlačítko rozpracovaný most zruší.
 
 V režimu **Mazat** editor rovnou zvýrazní všechny buňky, které tenhle štětec umí
 smazat (u ryb tedy hejna, u stromů objekty, u Kopce zvednutou zem), takže se nemusí

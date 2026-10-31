@@ -8,6 +8,7 @@ import { fillZone } from '../utils/zoneFill.js';
 import { createRng, seedFor } from '../utils/rng.js';
 import { getFishType } from '../data/catalogs/fish.js';
 import { decoPlacement } from '../utils/decoPlacement.js';
+import { bridgeSpan, bridgeCells } from '../utils/bridgeShape.js';
 
 const HISTORY_LIMIT = 100;
 const ROUGH_SKIP = 0.32;
@@ -36,6 +37,9 @@ export default class EditorMode {
     this.joinHeights = null;
     this.joinInfo = null;
     this.eraseCache = null;
+    this.bridgeTop = null;
+    this.pendingBridge = null;
+    this.bridgeInfo = null;
     this.heightDraft = null;
     this.contentIndex = null;
     this.presentCache = null;
@@ -63,6 +67,7 @@ export default class EditorMode {
   attach(world) {
     this.cancelHeightDraft();
     this.history = [];
+    this.resetBridge();
     this.layout = toWorld(world || {});
   }
 
@@ -114,6 +119,7 @@ export default class EditorMode {
     this.cancelHeightDraft();
     this.resetDraftDrag();
     this.resetJoin();
+    this.resetBridge();
     if (this.draft) {
       this.draft.cells.clear();
       if (this.onDraftChange) this.onDraftChange(this.draft);
@@ -165,6 +171,7 @@ export default class EditorMode {
     this.cancelHeightDraft();
     this.resetDraftDrag();
     this.resetJoin();
+    this.resetBridge();
     if (this.draft) {
       this.draft = null;
       if (this.onDraftChange) this.onDraftChange(null);
@@ -185,6 +192,7 @@ export default class EditorMode {
     this.pathStyle = styleKey;
     this.syncTileKey();
     if (this.draft) this.draft.opts = { ...(this.draft.opts || {}), style: styleKey };
+    if (this.pendingBridge) this.buildBridgeSpan(this.pendingBridge.bx, this.pendingBridge.bz, this.pendingBridge.toHeight);
     if (this.onStyleChange) this.onStyleChange(this.brushKey, styleKey);
   }
 
@@ -234,6 +242,10 @@ export default class EditorMode {
     if (!option) return;
     const stored = option.kind === 'range' ? Number(value) : Boolean(value);
     this.brushOpts[this.brushKey] = { ...(this.brushOpts[this.brushKey] || {}), [optionKey]: stored };
+    if (this.pendingBridge) {
+      this.buildBridgeSpan(this.pendingBridge.bx, this.pendingBridge.bz, this.pendingBridge.toHeight);
+      return;
+    }
     if (this.joinTop && this.joinBottom) {
       this.buildJoin(this.joinBottom.cx, this.joinBottom.cz, this.joinBottom.height);
       return;
@@ -519,6 +531,11 @@ export default class EditorMode {
   get isJoinBrush() {
     const brush = BRUSHES[this.brushKey];
     return Boolean(brush && brush.join);
+  }
+
+  get isBridgeBrush() {
+    const brush = BRUSHES[this.brushKey];
+    return Boolean(brush && brush.bridge);
   }
 
   cellHeightValue(cx, cz) {
@@ -826,6 +843,7 @@ export default class EditorMode {
     if (!BRUSHES[brushKey]) return;
     if (this.draft && this.draft.brushKey === brushKey) return;
     if (this.draft) this.cancelDraft();
+    this.resetBridge();
     this.draft = { brushKey, cells: new Set(), mode: this.erasing ? 'remove' : 'add' };
     if (this.onDraftChange) this.onDraftChange(this.draft);
   }
@@ -837,6 +855,7 @@ export default class EditorMode {
         this.draft.mode = next;
         this.resetDraftDrag();
         this.resetJoin();
+        this.resetBridge();
         this.draft.cells.clear();
         if (this.onDraftChange) this.onDraftChange(this.draft);
       }
@@ -847,6 +866,7 @@ export default class EditorMode {
       this.draft.mode = next;
       this.resetDraftDrag();
       this.resetJoin();
+      this.resetBridge();
       this.draft.cells.clear();
       if (this.onDraftChange) this.onDraftChange(this.draft);
     }
@@ -862,7 +882,11 @@ export default class EditorMode {
 
   canDraftCell(cx, cz) {
     if (!this.draft) return false;
-    if (this.draft.mode === 'remove') return droppable(this.layout, cx, cz).length > 0;
+    if (this.draft.mode === 'remove') {
+      const brush = BRUSHES[this.draft.brushKey];
+      if (brush && brush.bridge) return this.bridgeAt(cx, cz) !== null;
+      return droppable(this.layout, cx, cz).length > 0;
+    }
     return this.canEditCell(cx, cz);
   }
 
@@ -891,7 +915,11 @@ export default class EditorMode {
       }
     };
     if (brush.cliff) eachLayer((entry) => entry.cliff === true);
-    else if (brush.fish) {
+    else if (brush.bridge) {
+      for (const record of layout.bridges || []) {
+        for (const [cx, cz] of bridgeCells(record)) add(cx, cz);
+      }
+    } else if (brush.fish) {
       for (const entry of layout.fish || []) if (entry) add(entry.cx, entry.cz);
     } else if (brush.surfaceOnly) eachLayer((entry, name) => name === 'floor' && entry.key !== DEFAULT_FLOOR);
     else if (brush.surface) eachLayer((entry, name) => name === 'floor' && entry.key === brush.surface);
@@ -1024,6 +1052,129 @@ export default class EditorMode {
     this.joinInfo = null;
   }
 
+  bridgeWidth() {
+    const value = Number(this.brushOptionValue(this.brushKey, 'width'));
+    return Number.isFinite(value) ? Math.max(1, Math.min(5, Math.round(value))) : 3;
+  }
+
+  bridgeAt(cx, cz) {
+    for (const record of (this.layout && this.layout.bridges) || []) {
+      if (!record) continue;
+      if (bridgeCells(record).some(([x, z]) => x === cx && z === cz)) return record;
+    }
+    return null;
+  }
+
+  bridgeOverlaps(cells) {
+    const taken = new Set();
+    for (const record of (this.layout && this.layout.bridges) || []) {
+      for (const [cx, cz] of bridgeCells(record)) taken.add(cellKey(cx, cz));
+    }
+    return cells.some(([cx, cz]) => taken.has(cellKey(cx, cz)));
+  }
+
+  resetBridge() {
+    this.bridgeTop = null;
+    this.pendingBridge = null;
+    this.bridgeInfo = null;
+  }
+
+  cancelBridge() {
+    if (!this.draft) return false;
+    this.resetBridge();
+    this.draft.cells.clear();
+    if (this.onDraftChange) this.onDraftChange(this.draft);
+    return true;
+  }
+
+  pickBridgeCell(cx, cz) {
+    if (!this.draft || !this.layout) return 'invalid';
+    if (!this.canEditCell(cx, cz)) return 'invalid';
+    const height = this.cellHeightValue(cx, cz);
+    const top = this.bridgeTop;
+    if (!top) {
+      this.bridgeTop = { cx, cz, height };
+      this.bridgeInfo = null;
+      this.draft.cells.clear();
+      this.draft.cells.add(cellKey(cx, cz));
+      if (this.onDraftChange) this.onDraftChange(this.draft);
+      return 'top';
+    }
+    return this.buildBridgeSpan(cx, cz, height) ? 'ready' : 'bad';
+  }
+
+  buildBridgeSpan(cx, cz, toHeight) {
+    const top = this.bridgeTop;
+    if (!top) return false;
+    const record = {
+      ax: top.cx,
+      az: top.cz,
+      bx: cx,
+      bz: cz,
+      width: this.bridgeWidth(),
+      style: this.styleFor(this.brushKey),
+    };
+    this.pendingBridge = null;
+    this.bridgeInfo = null;
+    const span = bridgeSpan(record);
+    const cells = span ? bridgeCells(record) : [];
+    const aligned = (top.cx === cx) !== (top.cz === cz);
+    if (!aligned) {
+      this.draft.cells.clear();
+      this.draft.cells.add(cellKey(top.cx, top.cz));
+      this.draft.cells.add(cellKey(cx, cz));
+      if (this.onDraftChange) this.onDraftChange(this.draft);
+      return false;
+    }
+    let bankLow = Infinity;
+    let gapHigh = -Infinity;
+    for (const [x, z] of cells) {
+      if (!this.canEditCell(x, z)) return false;
+      const isBank = span.axis === 'x' ? (x === span.from || x === span.to) : (z === span.from || z === span.to);
+      const value = this.cellHeightValue(x, z);
+      if (isBank) bankLow = Math.min(bankLow, value);
+      else gapHigh = Math.max(gapHigh, value);
+    }
+    if (!(bankLow > gapHigh + 0.8)) return false;
+    if (!Number.isFinite(toHeight) || Math.abs(top.height - toHeight) > 3) return false;
+    if (this.bridgeOverlaps(cells)) return false;
+    this.pendingBridge = { ...record, toHeight };
+    this.bridgeInfo = {
+      span: Math.abs(span.axis === 'x' ? cx - top.cx : cz - top.cz),
+      drop: bankLow - gapHigh,
+    };
+    this.draft.cells.clear();
+    for (const [x, z] of cells) this.draft.cells.add(cellKey(x, z));
+    if (this.onDraftChange) this.onDraftChange(this.draft);
+    return true;
+  }
+
+  applyBridge(mode) {
+    if (!this.layout) return 0;
+    if (!Array.isArray(this.layout.bridges)) this.layout.bridges = [];
+    if (mode === 'remove') {
+      const targets = new Set(this.draft ? [...this.draft.cells] : []);
+      const keep = [];
+      let count = 0;
+      for (const record of this.layout.bridges) {
+        if (bridgeCells(record).some(([cx, cz]) => targets.has(cellKey(cx, cz)))) count += 1;
+        else keep.push(record);
+      }
+      this.layout.bridges = keep;
+      return count;
+    }
+    if (!this.pendingBridge) return 0;
+    this.layout.bridges.push({
+      ax: this.pendingBridge.ax,
+      az: this.pendingBridge.az,
+      bx: this.pendingBridge.bx,
+      bz: this.pendingBridge.bz,
+      width: this.pendingBridge.width,
+      style: this.pendingBridge.style,
+    });
+    return 1;
+  }
+
   applyJoin(mode) {
     if (!this.layout || !this.draft) return 0;
     if (mode === 'remove') {
@@ -1097,6 +1248,15 @@ export default class EditorMode {
     }
     this.pushHistory();
     const brush = BRUSHES[brushKey] || {};
+    if (brush.bridge) {
+      const count = this.applyBridge(mode);
+      if (!count) this.history.pop();
+      this.draft.cells.clear();
+      this.resetBridge();
+      if (this.onDraftChange) this.onDraftChange(this.draft);
+      this.scheduleRegenerate();
+      return count;
+    }
     if (brush.join) {
       const joined = this.applyJoin(mode);
       if (!joined) this.history.pop();
@@ -1433,6 +1593,7 @@ export default class EditorMode {
     if (!this.draft) return false;
     this.resetDraftDrag();
     this.resetJoin();
+    this.resetBridge();
     this.draft = null;
     if (this.onDraftChange) this.onDraftChange(null);
     return true;
@@ -1583,7 +1744,7 @@ export default class EditorMode {
 
   get draftKeys() {
     const brush = BRUSHES[this.brushKey];
-    if (!brush || brush.join) return [];
+    if (!brush || brush.join || brush.bridge) return [];
     const keys = [...this.brushPool()];
     if (brush.tile) keys.push(brush.tile);
     if (brush.shape === 'line') keys.push('path');
@@ -1734,6 +1895,7 @@ function toWorld(world) {
     grass: copy(world.grass),
     decorations: copy(world.decorations),
     fish: copy(world.fish),
+    bridges: copy(world.bridges),
   };
 }
 

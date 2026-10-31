@@ -390,6 +390,7 @@ export default class MapEditor {
     this.brushPanel.open(brushKey, 0, this.mode.pathStyle, this.mode.brushOptionValues(brushKey), this.mode.tileKey);
     this.brushPanel.setDraftMode(this.mode.draftMode);
     if (this.mode.isJoinBrush) this.hud.setReadout('Spojnice: klikni na vrchol, pak na spodek');
+    else if (this.mode.isBridgeBrush) this.hud.setReadout('Most: klikni na první břeh, pak na protější');
     this.refreshUndoButton();
     this.refreshZoneOverlay();
     this.s.handleHover(this.s.hoverCell);
@@ -447,6 +448,7 @@ export default class MapEditor {
       this.mode.paint(cell.cx, cell.cz);
     } else if (!this.mode.hasBrush) this.hud.setReadout(NO_BRUSH_HINT);
     else if (this.mode.isJoinBrush) this.pickJoinCell(cell);
+    else if (this.mode.isBridgeBrush && this.mode.draftMode !== 'remove') this.pickBridgeCell(cell);
     else if (!this.mode.canDraftCell(cell.cx, cell.cz)) this.hud.setReadout('Mimo hrací plochu — přepni na Plochu');
     else this.mode.beginDraftDrag(cell.cx, cell.cz);
   }
@@ -473,11 +475,30 @@ export default class MapEditor {
     this.hud.setReadout(`Spojnice: ${info.count} buněk · krok ${formatMeters(info.maxStep)}${note}`);
   }
 
+  pickBridgeCell(cell) {
+    const state = this.mode.pickBridgeCell(cell.cx, cell.cz);
+    if (state === 'invalid') {
+      this.hud.setReadout('Most: klikni na buňku, která v mapě existuje');
+      return;
+    }
+    if (state === 'top') {
+      this.hud.setReadout('Břeh označen — klikni na protější břeh');
+      return;
+    }
+    if (state === 'bad') {
+      this.hud.setReadout('Most nejde postavit — břehy musí ležet proti sobě a mezi nimi musí být propast');
+      return;
+    }
+    const info = this.mode.bridgeInfo;
+    if (!info) return;
+    this.hud.setReadout(`Most: ${info.span + 1} buněk · převýšení ${formatMeters(info.drop)}`);
+  }
+
   movePaint(cell) {
     const from = this.lastPaintCell || cell;
     if (this.mode.mode === 'area') this.mode.moveAreaDrag(cell.cx, cell.cz);
     else if (this.mode.mode === 'height') this.mode.paintRun(from, cell);
-    else if (!this.mode.isJoinBrush) this.mode.moveDraftDrag(cell.cx, cell.cz);
+    else if (!this.mode.isJoinBrush && (!this.mode.isBridgeBrush || this.mode.draftMode === 'remove')) this.mode.moveDraftDrag(cell.cx, cell.cz);
     this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
   }
 
@@ -486,6 +507,11 @@ export default class MapEditor {
     if (this.mode.mode === 'zone' && this.mode.isJoinBrush) {
       this.mode.cancelJoin();
       this.hud.setReadout('Spojnice zrušena — klikni znovu na vrchol');
+      return;
+    }
+    if (this.mode.mode === 'zone' && this.mode.isBridgeBrush) {
+      this.mode.cancelBridge();
+      this.hud.setReadout('Most zrušen — klikni znovu na břeh');
       return;
     }
     if (this.mode.mode === 'area') {
@@ -509,9 +535,12 @@ export default class MapEditor {
     const heightBrush = this.mode.isHeightBrush;
     const surfaceBrush = this.mode.isSurfaceBrush;
     const cliffBrush = this.mode.isCliffBrush;
+    const bridgeBrush = this.mode.isBridgeBrush;
     const joinBrush = this.mode.isJoinBrush;
     const count = this.mode.applyDraft();
-    if (count && cliffBrush) {
+    if (count && bridgeBrush) {
+      this.hud.setReadout(removing ? `Most odstraněn: ${count}` : 'Most postaven');
+    } else if (count && cliffBrush) {
       this.hud.setReadout(removing
         ? `Útes zrušen u ${count} buněk`
         : `Označeno jako útes: ${count} buněk`);

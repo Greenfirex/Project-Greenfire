@@ -1,7 +1,7 @@
 // Sestaví soubor mapy z toho, co je v editoru — každá vrstva zůstane vrstvou, nic se nedopočítává.
 import { getMap } from './maps.js';
 
-export const MAP_VERSION = 4;
+export const MAP_VERSION = 5;
 
 export function isMapFile(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
@@ -21,6 +21,7 @@ export function layoutFromMapFile(file, fallbackSeed = 1) {
     grass: copy(world.grass),
     decorations: copy(world.decorations),
     fish: copy(world.fish),
+    bridges: copy(world.bridges),
   };
 }
 
@@ -40,5 +41,6 @@ export function mapFileFromLayout(mapKey, layout) {
     grass: copy(layout.grass),
     decorations: copy(layout.decorations),
     fish: copy(layout.fish),
+    bridges: copy(layout.bridges),
   };
 }

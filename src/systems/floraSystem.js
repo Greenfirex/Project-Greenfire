@@ -1,4 +1,4 @@
-﻿// Kreslí trávu na buňkách, které jsou označené v mapě — stébla se houpou ve větru.
+// Kreslí trávu na buňkách, které jsou označené v mapě — stébla se houpou ve větru.
 // Rostliny se nikdy nevysévají samy; co v mapě není, to na zemi neroste.
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
@@ -233,6 +233,45 @@ export default class FloraSystem {
       chunk.slots.push(slot);
     }
     for (const chunk of groups.values()) this.createChunkMesh(chunk, shape, material);
+  }
+
+  addShelfGrass(anchors) {
+    if (!this.grassMeshes.length || !anchors || !anchors.length) return;
+    const shape = bladeShape();
+    const material = this.grassMeshes[0].material;
+    const groups = new Map();
+    for (const anchor of anchors) {
+      if (!anchor || (anchor.depth || 0) < 0.12) continue;
+      if (hash(anchor.x, anchor.z, 3.7) > 0.45) continue;
+      const count = 4 + Math.floor(hash(anchor.x, anchor.z, 5.1) * 5);
+      for (let index = 0; index < count; index += 1) {
+        const spread = (hash(anchor.x, anchor.z, index + 11) - 0.5) * 0.9;
+        const inset = hash(anchor.x, anchor.z, index + 21) * anchor.depth * 0.8;
+        const x = anchor.x - anchor.dirX * inset - anchor.dirZ * spread;
+        const z = anchor.z - anchor.dirZ * inset + anchor.dirX * spread;
+        const slot = {
+          x,
+          y: anchor.y + GRASS_LIFT,
+          z,
+          size: 0.8 + hash(anchor.x, anchor.z, index + 31) * 0.5,
+          yaw: hash(anchor.x, anchor.z, index + 41) * Math.PI * 2,
+          lean: (hash(anchor.x, anchor.z, index + 51) - 0.5) * 0.6,
+        };
+        const gx = Math.floor(x / CHUNK_WORLD);
+        const gz = Math.floor(z / CHUNK_WORLD);
+        const key = `shelf_${gx},${gz}`;
+        let chunk = groups.get(key);
+        if (!chunk) {
+          chunk = { key, minX: gx * CHUNK_WORLD, minZ: gz * CHUNK_WORLD, slots: [], mesh: null, enabled: false };
+          groups.set(key, chunk);
+        }
+        chunk.slots.push(slot);
+      }
+    }
+    for (const chunk of groups.values()) {
+      this.createChunkMesh(chunk, shape, material);
+      if (chunk.mesh && this.grass) chunk.mesh.parent = this.grass;
+    }
   }
 
   createChunkMesh(chunk, shape, material) {

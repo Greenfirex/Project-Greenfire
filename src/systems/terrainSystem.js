@@ -12,6 +12,7 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Constants } from '@babylonjs/core/Engines/constants';
 import { CELL_SIZE } from '../utils/gridMath.js';
+import { buildBridge, deckHeightAt, bridgeSpan, bridgeCellOf, sampleBank, BRIDGE_BURIAL, BRIDGE_RISE, BRIDGE_CLEARANCE } from '../utils/bridgeShape.js';
 import { createTerrainField } from '../utils/terrainField.js';
 import { getMap } from '../data/catalogs/maps.js';
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
@@ -38,6 +39,7 @@ const SURFACE_BLEND_RADIUS = 1.8;
 const SURFACE_BLEND_SOFTMIN = 0.35;
 const SURFACE_BLEND_COLLAR = 0.25;
 const SURFACE_BLEND_TEXEL = CELL_SIZE / 8;
+const SURFACE_VERTEX_TINT = [0.72, 0.7, 0.64];
 const SURFACE_BLEND_NOISE = CELL_SIZE;
 const SURFACE_BLEND_GRAIN = CELL_SIZE / 4;
 const SURFACE_BLEND_WARP = CELL_SIZE * 2.2;
@@ -57,18 +59,49 @@ const CLIFF_RELIEF_SPAN = 1.6;
 const CLIFF_NORMAL_BLEND = 0.35;
 const CLIFF_DEPTH_IN = 1.10;
 const CLIFF_DEPTH_OUT = 1.00;
+const CLIFF_LEDGE_MIN = 2.2;
+const CLIFF_LEDGE_RAMP = 0.8;
+const CLIFF_LEDGE_STEP = 0.45;
+const CLIFF_LEDGE_RATIO = 0.16;
+const CLIFF_WAIST_MIN = 3.0;
+const CLIFF_WAIST_RAMP = 1.5;
+const CLIFF_WAIST_DEPTH = 0.50;
+const CLIFF_CORNER_DEPTH = 0.15;
+const CLIFF_CORNER_SPAN = 2.0;
+const CLIFF_INWARD_MAX = 0.60;
+const CLIFF_LEDGE_TAPER = 0.6;
+const CLIFF_LEDGE_T_MIN = 0.22;
+const CLIFF_LEDGE_T_MAX = 0.54;
+const CLIFF_LEDGE2_MIN = 7.0;
+const CLIFF_LEDGE2_RAMP = 1.5;
+const CLIFF_LEDGE2_STEP = 0.38;
+const CLIFF_LEDGE2_RATIO = 0.10;
+const CLIFF_LEDGE2_T_MIN = 0.66;
+const CLIFF_LEDGE2_T_MAX = 0.80;
 const CLIFF_PROFILE = [
   [0.00, 0.00],
-  [0.06, 0.55],
-  [0.14, 0.92],
-  [0.26, 1.00],
-  [0.40, 1.00],
-  [0.54, 1.00],
-  [0.68, 0.90],
-  [0.80, 0.35],
-  [0.90, 0.15],
+  [0.05, 0.50],
+  [0.11, 0.85],
+  [0.18, 1.00],
+  [0.58, 1.00],
+  [0.62, 1.00],
+  [0.82, 1.00],
+  [0.88, 0.40],
+  [0.94, 0.14],
   [1.00, 0.00],
 ];
+const CLIFF_ROWS = CLIFF_PROFILE.map(([t, w]) => ({ t, w, ledge: 0, pair: 0 }));
+const CLIFF_ROWS_LEDGE = [];
+for (const row of CLIFF_ROWS) {
+  CLIFF_ROWS_LEDGE.push(row);
+  if (row.t === 0.18 || row.t === 0.62) {
+    const pair = row.t === 0.18 ? 1 : 2;
+    CLIFF_ROWS_LEDGE.push({ t: 0, w: 1, ledge: 1, pair });
+    CLIFF_ROWS_LEDGE.push({ t: 0, w: 1, ledge: 2, pair });
+  }
+}
+const CLIFF_LEDGE_INDEX = CLIFF_ROWS_LEDGE.findIndex((row) => row.ledge === 1 && row.pair === 1);
+const CLIFF_LEDGE2_INDEX = CLIFF_ROWS_LEDGE.findIndex((row) => row.ledge === 1 && row.pair === 2);
 const SURFACE_SIDES = [
   { dx: -1, dz: 0 },
   { dx: 1, dz: 0 },
@@ -112,22 +145,69 @@ function cliffRelief(gx, gz, at) {
   return (coarse - 0.5) * 0.95 + (middle - 0.5) * 0.45 + (band - 0.5) * 0.60;
 }
 
-function cliffDepth(point, row) {
-  const relief = row[1] * cliffRelief(point.gx, point.gz, row[0]);
+function cliffDepth(point, t, w) {
+  const relief = w * cliffRelief(point.gx, point.gz, t);
   return Math.max(-CLIFF_DEPTH_IN, Math.min(CLIFF_DEPTH_OUT, relief));
+}
+
+function cliffLedgeT(point) {
+  const noise = valueNoise(point.gx * 0.55 + 27.3, point.gz * 0.55 - 41.7);
+  return CLIFF_LEDGE_T_MIN + (CLIFF_LEDGE_T_MAX - CLIFF_LEDGE_T_MIN) * noise;
+}
+
+function cliffLedgeMask(point) {
+  return smoothstep(0.52, 0.72, valueNoise(point.gx * 0.42 + 61.7, point.gz * 0.42 - 12.9));
+}
+
+function cliffLedgeT2(point) {
+  const noise = valueNoise(point.gx * 0.61 - 14.6, point.gz * 0.61 + 33.2);
+  return CLIFF_LEDGE2_T_MIN + (CLIFF_LEDGE2_T_MAX - CLIFF_LEDGE2_T_MIN) * noise;
+}
+
+function cliffLedgeMask2(point) {
+  return smoothstep(0.60, 0.78, valueNoise(point.gx * 0.37 - 44.3, point.gz * 0.37 + 8.8));
+}
+
+function cliffWaistScale(point) {
+  return 0.5 + 0.8 * valueNoise(point.gx * 0.31 + 17.1, point.gz * 0.31 - 53.7);
 }
 
 function cliffDirection(pushes, point) {
   const entry = pushes.get(pointId(point.gx, point.gz));
-  if (!entry) return { x: 0, z: 0 };
+  if (!entry) return { x: 0, z: 0, corner: 0 };
   const length = Math.hypot(entry.x, entry.z);
-  if (length < 1e-6) return { x: 0, z: 0 };
-  return { x: entry.x / length, z: entry.z / length };
+  if (length < 1e-6) return { x: 0, z: 0, corner: 0 };
+  const count = entry.count || 1;
+  return {
+    x: entry.x / length,
+    z: entry.z / length,
+    corner: count > 1 ? Math.min(1, Math.max(0, (count - length) / 0.6)) : 0,
+  };
 }
 
 function smoothstep(edge0, edge1, value) {
   const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
   return t * t * (3 - 2 * t);
+}
+
+function cliffTint(gx, gz, y, t, tone, push, rim) {
+  const grain = valueNoise(gx * 0.37 + 4.1, gz * 0.37 - 2.3);
+  const stripe = 0.5 + 0.5 * Math.sin(y * 0.95 + grain * 3.1);
+  const base = 0.70 + (tone - 0.70) * Math.pow(t, 0.62);
+  const moss = smoothstep(0.68, 0.95, t + (grain - 0.5) * 0.18) * (0.35 + 0.65 * grain);
+  const contact = 0.62 + 0.38 * smoothstep(0.02, 0.26, t);
+  const relief = 1 - 0.50 * Math.max(0, -push) + 0.14 * Math.max(0, push);
+  const shade = base * (0.88 + 0.14 * grain) * (0.88 + 0.16 * stripe) * contact * relief;
+  const lip = smoothstep(0.88, 1, t + (grain - 0.5) * 0.04) * 0.80;
+  const r = shade * (1 - 0.10 * moss);
+  const g = shade * (1 + 0.02 * moss);
+  const b = shade * (1 - 0.16 * moss);
+  return {
+    r: r + (rim[0] - r) * lip,
+    g: g + (rim[1] - g) * lip,
+    b: b + (rim[2] - b) * lip,
+    moss,
+  };
 }
 
 function wallBetween(field, ax, az, bx, bz) {
@@ -208,6 +288,7 @@ export default class TerrainSystem {
     this.gridLines = null;
     this.field = null;
     this.mapKey = null;
+    this.bridges = [];
     this.ready = Promise.resolve(null);
   }
 
@@ -232,6 +313,7 @@ export default class TerrainSystem {
     this.skirtMesh = null;
     this.gridLines = null;
     this.field = null;
+    this.bridges = [];
     this.groundCells = [];
     this.realCells = [];
   }
@@ -310,8 +392,10 @@ export default class TerrainSystem {
     this.surfaces = [];
     for (const texture of this.weightTextures) texture.dispose();
     this.weightTextures = [];
+    this.shelfAnchors = [];
+    this.bridges = [];
 
-    const tint = new Color3(0.72, 0.7, 0.64);
+    const tint = new Color3(...SURFACE_VERTEX_TINT);
     const step = CELL_SIZE / SURFACE_SUB;
     const half = CELL_SIZE / 2;
     const groups = new Map();
@@ -739,18 +823,22 @@ export default class TerrainSystem {
       this.surfaces.push(mesh);
     }
 
+    this.bridges = this.bridgePlansFor(map, keyAt, positionOf, weldedAt);
     if (wallEdges.length) {
+      const shelves = new Map();
       this.createCliffMesh(wallEdges, positionOf, heightOf, weldedAt, (edge) => {
         const lower = this.heightAtCell(edge.cx, edge.cz);
         const higher = this.heightAtCell(edge.nx, edge.nz);
         const key = higher >= lower ? keyAt(edge.nx, edge.nz) : keyAt(edge.cx, edge.cz);
         const color = this.surfaceColor(key, map);
-        return [color.r * 0.50, color.g * 0.66, color.b * 0.40];
-      });
+        return { key, color: [color.r * 0.50, color.g * 0.66, color.b * 0.40] };
+      }, shelves);
+      this.createShelfMeshes(shelves, map, blends);
     }
+    if (this.bridges.length) this.createBridges(map, blends);
   }
 
-  createCliffMesh(edges, positionOf, heightOf, weldedAt, rimColorOf) {
+  createCliffMesh(edges, positionOf, heightOf, weldedAt, rimColorOf, shelves) {
     const tops = new Map();
     const bottoms = new Map();
     for (const edge of edges) {
@@ -780,13 +868,216 @@ export default class TerrainSystem {
       const dirZ = riseSum > 0 ? edge.nz - edge.cz : edge.cz - edge.nz;
       for (const point of edge.points) {
         const id = pointId(point.gx, point.gz);
-        const entry = pushes.get(id) || { x: 0, z: 0 };
+        const entry = pushes.get(id) || { x: 0, z: 0, count: 0 };
         entry.x += dirX;
         entry.z += dirZ;
+        entry.count += 1;
         pushes.set(id, entry);
       }
     }
-    for (const [style, list] of groups) this.buildCliffFaces(list, positionOf, heightOf, style, tops, bottoms, rimColorOf, pushes);
+    for (const [style, list] of groups) this.buildCliffFaces(list, positionOf, heightOf, style, tops, bottoms, rimColorOf, pushes, shelves);
+  }
+
+  bridgePlansFor(map, keyAt, positionOf, weldedAt) {
+    const records = this.layout && Array.isArray(this.layout.bridges) ? this.layout.bridges : [];
+    const plans = [];
+    for (const record of records) {
+      const plan = this.bridgePlanFor(map, record, keyAt, positionOf, weldedAt);
+      if (plan) plans.push(plan);
+    }
+    return plans;
+  }
+
+  bridgePlanFor(map, record, keyAt, positionOf, weldedAt) {
+    const span = bridgeSpan(record);
+    if (!span) return null;
+    const { axis, from, to, center, vFrom, vTo } = span;
+    const alongX = axis === 'x';
+    const cellOf = (bankCell, vCell) => bridgeCellOf(span, bankCell, vCell);
+    const samplesFor = (bankCell, uPlane) => {
+      const samples = [];
+      for (let vCell = vFrom; vCell <= vTo; vCell += 1) {
+        const [cx, cz] = cellOf(bankCell, vCell);
+        if (!keyAt(cx, cz)) return null;
+        for (let i = 0; i <= SURFACE_SUB; i += 1) {
+          const v = vCell * CELL_SIZE - CELL_SIZE / 2 + (CELL_SIZE * i) / SURFACE_SUB;
+          const point = alongX ? { gx: uPlane, gz: v } : { gx: v, gz: uPlane };
+          const pos = positionOf(point);
+          const weldedValue = weldedAt(pointId(point.gx, point.gz), cx, cz);
+          const y = weldedValue === null ? this.field.heightAtSide(pos.px, pos.pz, cx, cz) : weldedValue;
+          samples.push({ u: alongX ? pos.px : pos.pz, v: alongX ? pos.pz : pos.px, y });
+        }
+      }
+      return samples;
+    };
+    for (let vCell = vFrom; vCell <= vTo; vCell += 1) {
+      for (let bankCell = from + 1; bankCell <= to - 1; bankCell += 1) {
+        const [cx, cz] = cellOf(bankCell, vCell);
+        if (!keyAt(cx, cz)) return null;
+      }
+    }
+    const u0 = from * CELL_SIZE + CELL_SIZE / 2;
+    const u1 = to * CELL_SIZE - CELL_SIZE / 2;
+    const v0 = vFrom * CELL_SIZE - CELL_SIZE / 2;
+    const v1 = vTo * CELL_SIZE + CELL_SIZE / 2;
+    const bankA = samplesFor(from, u0);
+    const bankB = samplesFor(to, u1);
+    if (!bankA || !bankB) return null;
+    let uMin = Infinity;
+    let uMax = -Infinity;
+    for (const sample of bankA) {
+      if (sample.u < uMin) uMin = sample.u;
+      if (sample.u > uMax) uMax = sample.u;
+    }
+    for (const sample of bankB) {
+      if (sample.u < uMin) uMin = sample.u;
+      if (sample.u > uMax) uMax = sample.u;
+    }
+    const mid = Math.floor((bankA.length - 1) / 2);
+    let low = Infinity;
+    for (const sample of bankA) low = Math.min(low, sample.y);
+    for (const sample of bankB) low = Math.min(low, sample.y);
+    const centerU = (u0 + u1) / 2;
+    const centerV = (v0 + v1) / 2;
+    const gapX = alongX ? centerU : centerV;
+    const gapZ = alongX ? centerV : centerU;
+    const gapGround = this.heightAt(gapX, gapZ);
+    const waterLevel = this.layout && Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
+    let springing = gapGround + 0.45;
+    if (waterLevel !== null && gapGround < waterLevel) springing = waterLevel + 0.35;
+    const deckMid = (bankA[mid].y + bankB[mid].y) / 2 + BRIDGE_RISE;
+    springing = Math.min(springing, deckMid - 1.6);
+    springing = Math.min(springing, low - 0.4);
+    const opening = Math.max(0.9, deckMid - springing);
+    const thickness = Math.min(4.2, Math.max(1.1, opening * 0.3));
+    const crown = Math.max(springing + 0.2, low - thickness);
+    const [bankAX, bankAZ] = cellOf(from, center);
+    const [bankBX, bankBZ] = cellOf(to, center);
+    const key = keyAt(bankAX, bankAZ) || DEFAULT_FLOOR;
+    const cfg = this.surfaceConfig(key);
+    const rimSource = this.surfaceColor(key, map);
+    const plan = {
+      axis,
+      u0,
+      u1,
+      v0,
+      v1,
+      bankA,
+      bankB,
+      springing,
+      crown,
+      burial: BRIDGE_BURIAL,
+      tile: (cfg && cfg.tile) || 1,
+      wallTile: WALL_TILE,
+      key,
+      style: record.style === 'dirt' || record.style === 'stone'
+        ? record.style
+        : (this.field.cliffStyleAt(bankAX, bankAZ) === 'stone' || this.field.cliffStyleAt(bankBX, bankBZ) === 'stone' ? 'stone' : 'dirt'),
+      rim: [rimSource.r * 0.5, rimSource.g * 0.66, rimSource.b * 0.4],
+      groundAt: (x, z) => this.heightAt(x, z),
+      rect: alongX
+        ? { x0: uMin, x1: uMax, z0: v0, z1: v1 }
+        : { x0: v0, x1: v1, z0: uMin, z1: uMax },
+    };
+    plan.deckAt = (x, z) => deckHeightAt(plan, alongX ? x : z, alongX ? z : x);
+    return plan;
+  }
+
+  bridgeClearAt(gx, gz, y) {
+    let factor = 1;
+    for (const plan of this.bridges) {
+      const alongX = plan.axis === 'x';
+      const plane = alongX ? gx : gz;
+      const nearLow = Math.abs(plane - plan.u0) <= 0.01;
+      const nearHigh = Math.abs(plane - plan.u1) <= 0.01;
+      if (!nearLow && !nearHigh) continue;
+      const along = alongX ? gz : gx;
+      let distance = 0;
+      if (along < plan.v0) distance = plan.v0 - along;
+      else if (along > plan.v1) distance = along - plan.v1;
+      const near = smoothstep(0, BRIDGE_CLEARANCE, distance);
+      if (near >= 1) continue;
+      const deckTop = sampleBank(nearLow ? plan.bankA : plan.bankB, along);
+      const below = 1 - smoothstep(deckTop - 0.25, deckTop + 0.35, y);
+      const clear = 1 - (1 - near) * below;
+      if (clear < factor) factor = clear;
+    }
+    return factor;
+  }
+
+  createBridges(map, blends) {
+    for (let index = 0; index < this.bridges.length; index += 1) {
+      const plan = this.bridges[index];
+      const built = buildBridge({
+        ...plan,
+        tint: SURFACE_VERTEX_TINT,
+        shade: (x, y, z, t) => cliffTint(x, z, y, t, 0.9, 0, plan.rim),
+      });
+      if (built.deck.positions.length) {
+        const mesh = new Mesh(`terrainBridgeDeck_${index}`, this.s);
+        const data = new VertexData();
+        data.positions = built.deck.positions;
+        data.indices = built.deck.indices;
+        data.uvs = built.deck.uvs;
+        data.colors = built.deck.colors;
+        data.normals = [];
+        VertexData.ComputeNormals(data.positions, data.indices, data.normals);
+        data.applyToMesh(mesh);
+        mesh.isPickable = false;
+        mesh.receiveShadows = true;
+        mesh.material = this.materialFor(plan.key, map, blends.get(plan.key));
+        this.surfaces.push(mesh);
+      }
+      if (built.rock.positions.length) {
+        const mesh = new Mesh(`terrainBridgeRock_${index}`, this.s);
+        const data = new VertexData();
+        data.positions = built.rock.positions;
+        data.indices = built.rock.indices;
+        data.uvs = built.rock.uvs;
+        data.colors = built.rock.colors;
+        data.normals = [];
+        VertexData.ComputeNormals(data.positions, data.indices, data.normals);
+        data.applyToMesh(mesh);
+        mesh.setVerticesData('mossMask', new Float32Array(built.rock.moss), false, 1);
+        mesh.isPickable = false;
+        mesh.receiveShadows = true;
+        mesh.metadata = { shadowAlways: true };
+        mesh.material = this.cliffMaterialFor(plan.style);
+        this.surfaces.push(mesh);
+      }
+    }
+  }
+
+  bridgeDeckAt(x, z) {
+    for (const plan of this.bridges) {
+      const rect = plan.rect;
+      if (x < rect.x0 || x > rect.x1 || z < rect.z0 || z > rect.z1) continue;
+      return plan.deckAt(x, z);
+    }
+    return null;
+  }
+
+  walkHeightAt(x, z) {
+    const deck = this.bridgeDeckAt(x, z);
+    return deck === null ? this.heightAt(x, z) : deck;
+  }
+  createShelfMeshes(shelves, map, blends) {
+    for (const [key, group] of shelves) {
+      if (!group.positions.length) continue;
+      const mesh = new Mesh(`terrainShelf_${key}`, this.s);
+      const data = new VertexData();
+      data.positions = group.positions;
+      data.indices = group.indices;
+      data.uvs = group.uvs;
+      data.colors = group.colors;
+      data.normals = [];
+      VertexData.ComputeNormals(group.positions, group.indices, data.normals);
+      data.applyToMesh(mesh);
+      mesh.isPickable = false;
+      mesh.receiveShadows = true;
+      mesh.material = this.materialFor(key, map, blends.get(key));
+      this.surfaces.push(mesh);
+    }
   }
 
   cliffStyleOf(edge) {
@@ -795,39 +1086,32 @@ export default class TerrainSystem {
     return field.cliffStyleAt(edge.cx, edge.cz) || field.cliffStyleAt(edge.nx, edge.nz) || 'dirt';
   }
 
-  buildCliffFaces(edges, positionOf, heightOf, style, tops, bottoms, rimColorOf, pushes) {
+  buildCliffFaces(edges, positionOf, heightOf, style, tops, bottoms, rimColorOf, pushes, shelves) {
     const positions = [];
     const indices = [];
     const uvs = [];
     const colors = [];
     const masks = [];
+    const shelfGroup = (key) => {
+      let group = shelves.get(key);
+      if (!group) {
+        const cfg = this.surfaceConfig(key);
+        group = { tile: (cfg && cfg.tile) || 1, positions: [], indices: [], uvs: [], colors: [] };
+        shelves.set(key, group);
+      }
+      return group;
+    };
     const shadeAt = (y, top, bottom, gx, gz, tone, push, rim) => {
       const span = Math.max(0.001, top - bottom);
       const t = Math.min(1, Math.max(0, (y - bottom) / span));
-      const grain = valueNoise(gx * 0.37 + 4.1, gz * 0.37 - 2.3);
-      const stripe = 0.5 + 0.5 * Math.sin(y * 0.95 + grain * 3.1);
-      const base = 0.70 + (tone - 0.70) * Math.pow(t, 0.62);
-      const moss = smoothstep(0.52, 0.90, t + (grain - 0.5) * 0.24) * (0.35 + 0.65 * grain);
-      const contact = 0.62 + 0.38 * smoothstep(0.02, 0.26, t);
-      const relief = 1 - 0.50 * Math.max(0, -push) + 0.14 * Math.max(0, push);
-      const shade = base * (0.88 + 0.14 * grain) * (0.88 + 0.16 * stripe) * contact * relief;
-      const lip = smoothstep(0.88, 1, t + (grain - 0.5) * 0.04) * 0.80;
-      const rock = {
-        r: shade * (1 - 0.10 * moss),
-        g: shade * (1 + 0.02 * moss),
-        b: shade * (1 - 0.16 * moss),
-      };
-      return {
-        r: rock.r + (rim[0] - rock.r) * lip,
-        g: rock.g + (rim[1] - rock.g) * lip,
-        b: rock.b + (rim[2] - rock.b) * lip,
-        moss,
-      };
+      return cliffTint(gx, gz, y, t, tone, push, rim);
     };
     for (const edge of edges) {
       const points = edge.points;
       const alongZ = edge.cx !== edge.nx;
-      const rim = rimColorOf(edge);
+      const rimInfo = rimColorOf(edge);
+      const rim = rimInfo.color;
+      const shelfKey = rimInfo.key;
       const tone = 0.9 + (Math.abs(edge.cx * 7 + edge.cz * 13) % 5) * 0.02;
       for (let i = 0; i < SURFACE_SUB; i += 1) {
         const a = points[i];
@@ -850,32 +1134,127 @@ export default class TerrainSystem {
         const rise = (a1 - a2) || (b1 - b2);
         const windX = rise > 0 ? edge.nx - edge.cx : edge.cx - edge.nx;
         const windZ = rise > 0 ? edge.nz - edge.cz : edge.cz - edge.nz;
-        for (let r = 0; r < CLIFF_PROFILE.length - 1; r += 1) {
-          const upper = CLIFF_PROFILE[r];
-          const lower = CLIFF_PROFILE[r + 1];
-          const aDepth0 = cliffDepth(a, upper);
-          const aDepth1 = cliffDepth(a, lower);
-          const bDepth0 = cliffDepth(b, upper);
-          const bDepth1 = cliffDepth(b, lower);
-          const aShift0 = aSpan * CLIFF_RELIEF * aDepth0;
-          const aShift1 = aSpan * CLIFF_RELIEF * aDepth1;
-          const bShift0 = bSpan * CLIFF_RELIEF * bDepth0;
-          const bShift1 = bSpan * CLIFF_RELIEF * bDepth1;
-          const ay0 = aBottom + (aTop - aBottom) * upper[0];
-          const ay1 = aBottom + (aTop - aBottom) * lower[0];
-          const by0 = bBottom + (bTop - bBottom) * upper[0];
-          const by1 = bBottom + (bTop - bBottom) * lower[0];
+        const ledgeSpan = Math.min(aTop - aBottom, bTop - bBottom);
+        const ledgeFactor = Math.min(1, Math.max(0, (ledgeSpan - CLIFF_LEDGE_MIN) / CLIFF_LEDGE_RAMP));
+        const ledgeStep = Math.min(CLIFF_LEDGE_STEP, ledgeSpan * CLIFF_LEDGE_RATIO) * ledgeFactor;
+        const rows = CLIFF_ROWS_LEDGE;
+        const ledgeRow = CLIFF_LEDGE_INDEX;
+        const aLedgeT = cliffLedgeT(a);
+        const bLedgeT = cliffLedgeT(b);
+        const aMask = cliffLedgeMask(a);
+        const bMask = cliffLedgeMask(b);
+        const ledge2Factor = Math.min(1, Math.max(0, (ledgeSpan - CLIFF_LEDGE2_MIN) / CLIFF_LEDGE2_RAMP));
+        const ledge2Step = Math.min(CLIFF_LEDGE2_STEP, ledgeSpan * CLIFF_LEDGE2_RATIO) * ledge2Factor;
+        const ledgeRow2 = CLIFF_LEDGE2_INDEX;
+        const aLedgeT2 = cliffLedgeT2(a);
+        const bLedgeT2 = cliffLedgeT2(b);
+        const aMask2 = cliffLedgeMask2(a);
+        const bMask2 = cliffLedgeMask2(b);
+        const waistAmount = CLIFF_WAIST_DEPTH * Math.min(1, Math.max(0, (ledgeSpan - CLIFF_WAIST_MIN) / CLIFF_WAIST_RAMP));
+        const aWaist = waistAmount * cliffWaistScale(a);
+        const bWaist = waistAmount * cliffWaistScale(b);
+        const aCornerInset = CLIFF_CORNER_DEPTH * aDir.corner * Math.min(1, ledgeSpan / CLIFF_CORNER_SPAN);
+        const bCornerInset = CLIFF_CORNER_DEPTH * bDir.corner * Math.min(1, ledgeSpan / CLIFF_CORNER_SPAN);
+        const aUnit = Math.max(0.001, aSpan * CLIFF_RELIEF);
+        const bUnit = Math.max(0.001, bSpan * CLIFF_RELIEF);
+        for (let r = 0; r < rows.length - 1; r += 1) {
+          const upper = rows[r];
+          const lower = rows[r + 1];
+          const aT0 = upper.ledge ? (upper.pair === 2 ? aLedgeT2 : aLedgeT) : upper.t;
+          const aT1 = lower.ledge ? (lower.pair === 2 ? aLedgeT2 : aLedgeT) : lower.t;
+          const bT0 = upper.ledge ? (upper.pair === 2 ? bLedgeT2 : bLedgeT) : upper.t;
+          const bT1 = lower.ledge ? (lower.pair === 2 ? bLedgeT2 : bLedgeT) : lower.t;
+          const aStep0 = (r <= ledgeRow ? ledgeStep * aMask : 0) + (r <= ledgeRow2 ? ledge2Step * aMask2 : 0);
+          const aStep1 = (r + 1 <= ledgeRow ? ledgeStep * aMask : 0) + (r + 1 <= ledgeRow2 ? ledge2Step * aMask2 : 0);
+          const bStep0 = (r <= ledgeRow ? ledgeStep * bMask : 0) + (r <= ledgeRow2 ? ledge2Step * bMask2 : 0);
+          const bStep1 = (r + 1 <= ledgeRow ? ledgeStep * bMask : 0) + (r + 1 <= ledgeRow2 ? ledge2Step * bMask2 : 0);
+          const ay0 = aBottom + (aTop - aBottom) * aT0;
+          const ay1 = aBottom + (aTop - aBottom) * aT1;
+          const by0 = bBottom + (bTop - bBottom) * bT0;
+          const by1 = bBottom + (bTop - bBottom) * bT1;
+          const aClear0 = this.bridgeClearAt(a.gx, a.gz, ay0);
+          const aClear1 = this.bridgeClearAt(a.gx, a.gz, ay1);
+          const bClear0 = this.bridgeClearAt(b.gx, b.gz, by0);
+          const bClear1 = this.bridgeClearAt(b.gx, b.gz, by1);
+          const aProtrude0 = aStep0 * Math.min(1, upper.w / CLIFF_LEDGE_TAPER) * aClear0;
+          const aProtrude1 = aStep1 * Math.min(1, lower.w / CLIFF_LEDGE_TAPER) * aClear1;
+          const bProtrude0 = bStep0 * Math.min(1, upper.w / CLIFF_LEDGE_TAPER) * bClear0;
+          const bProtrude1 = bStep1 * Math.min(1, lower.w / CLIFF_LEDGE_TAPER) * bClear1;
+          const aWaist0 = aWaist * Math.sin(Math.PI * aT0);
+          const aWaist1 = aWaist * Math.sin(Math.PI * aT1);
+          const bWaist0 = bWaist * Math.sin(Math.PI * bT0);
+          const bWaist1 = bWaist * Math.sin(Math.PI * bT1);
+          const aCorner0 = aCornerInset * Math.min(1, upper.w / CLIFF_LEDGE_TAPER);
+          const aCorner1 = aCornerInset * Math.min(1, lower.w / CLIFF_LEDGE_TAPER);
+          const bCorner0 = bCornerInset * Math.min(1, upper.w / CLIFF_LEDGE_TAPER);
+          const bCorner1 = bCornerInset * Math.min(1, lower.w / CLIFF_LEDGE_TAPER);
+          const aDepth0 = cliffDepth(a, aT0, upper.w);
+          const aDepth1 = cliffDepth(a, aT1, lower.w);
+          const bDepth0 = cliffDepth(b, bT0, upper.w);
+          const bDepth1 = cliffDepth(b, bT1, lower.w);
+          const aShift0 = Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth0 + aProtrude0 - aWaist0 - aCorner0) * aClear0;
+          const aShift1 = Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth1 + aProtrude1 - aWaist1 - aCorner1) * aClear1;
+          const bShift0 = Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth0 + bProtrude0 - bWaist0 - bCorner0) * bClear0;
+          const bShift1 = Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth1 + bProtrude1 - bWaist1 - bCorner1) * bClear1;
+          const ax0 = apos.px + aDir.x * aShift0;
+          const az0 = apos.pz + aDir.z * aShift0;
+          const ax1 = apos.px + aDir.x * aShift1;
+          const az1 = apos.pz + aDir.z * aShift1;
+          const bx0 = bpos.px + bDir.x * bShift0;
+          const bz0 = bpos.pz + bDir.z * bShift0;
+          const bx1 = bpos.px + bDir.x * bShift1;
+          const bz1 = bpos.pz + bDir.z * bShift1;
+          if (upper.ledge && lower.ledge && aProtrude0 + bProtrude0 > 0.008) {
+            const group = shelfGroup(shelfKey);
+            const tile = group.tile;
+            const start = group.positions.length / 3;
+            group.positions.push(
+              ax0, ay0, az0,
+              ax1, ay1, az1,
+              bx0, by0, bz0,
+              bx1, by1, bz1,
+            );
+            group.uvs.push(
+              ax0 / tile, az0 / tile,
+              ax1 / tile, az1 / tile,
+              bx0 / tile, bz0 / tile,
+              bx1 / tile, bz1 / tile,
+            );
+            group.colors.push(
+              SURFACE_VERTEX_TINT[0], SURFACE_VERTEX_TINT[1], SURFACE_VERTEX_TINT[2], 1,
+              SURFACE_VERTEX_TINT[0], SURFACE_VERTEX_TINT[1], SURFACE_VERTEX_TINT[2], 1,
+              SURFACE_VERTEX_TINT[0], SURFACE_VERTEX_TINT[1], SURFACE_VERTEX_TINT[2], 1,
+              SURFACE_VERTEX_TINT[0], SURFACE_VERTEX_TINT[1], SURFACE_VERTEX_TINT[2], 1,
+            );
+            const hangX = ax0 - ax1;
+            const hangZ = az0 - az1;
+            const hangLength = Math.hypot(hangX, hangZ);
+            if (hangLength > 0.01) {
+              this.shelfAnchors.push({
+                x: (ax0 + bx0) * 0.5,
+                y: ay0,
+                z: (az0 + bz0) * 0.5,
+                dirX: hangX / hangLength,
+                dirZ: hangZ / hangLength,
+                depth: hangLength,
+              });
+            }
+            const up = (bz0 - az0) * (ax1 - ax0) - (bx0 - ax0) * (az1 - az0);
+            if (up > 0) group.indices.push(start, start + 2, start + 1, start + 1, start + 2, start + 3);
+            else group.indices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
+            continue;
+          }
           const start = positions.length / 3;
           positions.push(
-            apos.px + aDir.x * aShift0, ay0, apos.pz + aDir.z * aShift0,
-            apos.px + aDir.x * aShift1, ay1, apos.pz + aDir.z * aShift1,
-            bpos.px + bDir.x * bShift0, by0, bpos.pz + bDir.z * bShift0,
-            bpos.px + bDir.x * bShift1, by1, bpos.pz + bDir.z * bShift1,
+            ax0, ay0, az0,
+            ax1, ay1, az1,
+            bx0, by0, bz0,
+            bx1, by1, bz1,
           );
-          const aHigh = shadeAt(ay0, aTop, aBottom, a.gx, a.gz, tone, aDepth0, rim);
-          const aLow = shadeAt(ay1, aTop, aBottom, a.gx, a.gz, tone, aDepth1, rim);
-          const bHigh = shadeAt(by0, bTop, bBottom, b.gx, b.gz, tone, bDepth0, rim);
-          const bLow = shadeAt(by1, bTop, bBottom, b.gx, b.gz, tone, bDepth1, rim);
+          const aHigh = shadeAt(ay0, aTop, aBottom, a.gx, a.gz, tone, aDepth0 - Math.min(0.6, aWaist0 / aUnit), rim);
+          const aLow = shadeAt(ay1, aTop, aBottom, a.gx, a.gz, tone, aDepth1 - Math.min(0.6, aWaist1 / aUnit), rim);
+          const bHigh = shadeAt(by0, bTop, bBottom, b.gx, b.gz, tone, bDepth0 - Math.min(0.6, bWaist0 / bUnit), rim);
+          const bLow = shadeAt(by1, bTop, bBottom, b.gx, b.gz, tone, bDepth1 - Math.min(0.6, bWaist1 / bUnit), rim);
           colors.push(
             aHigh.r, aHigh.g, aHigh.b, 1,
             aLow.r, aLow.g, aLow.b, 1,
@@ -945,7 +1324,13 @@ export default class TerrainSystem {
     const indices = [];
     const uvs = [];
 
-    const wall = (x1, z1, x2, z2) => {
+    const wall = (x1, z1, x2, z2, cx, cz) => {
+      const insideX = cx * CELL_SIZE;
+      const insideZ = cz * CELL_SIZE;
+      const sampleY = (x, z) => this.heightAt(
+        x + (insideX - x) * 0.08,
+        z + (insideZ - z) * 0.08,
+      );
       const alongX = Math.abs(x2 - x1) >= Math.abs(z2 - z1);
       for (let i = 0; i < SURFACE_SUB; i += 1) {
         const t0 = i / SURFACE_SUB;
@@ -954,8 +1339,8 @@ export default class TerrainSystem {
         const az = z1 + (z2 - z1) * t0;
         const bx = x1 + (x2 - x1) * t1;
         const bz = z1 + (z2 - z1) * t1;
-        const ay = this.heightAt(ax, az);
-        const by = this.heightAt(bx, bz);
+        const ay = sampleY(ax, az);
+        const by = sampleY(bx, bz);
         const au = (alongX ? ax : az) / WALL_TILE;
         const bu = (alongX ? bx : bz) / WALL_TILE;
         const start = positions.length / 3;
@@ -970,10 +1355,10 @@ export default class TerrainSystem {
       const z0 = cz * CELL_SIZE - half;
       const x1 = x0 + CELL_SIZE;
       const z1 = z0 + CELL_SIZE;
-      if (!floorKeys.has(`${cx},${cz - 1}`)) wall(x0, z0, x1, z0);
-      if (!floorKeys.has(`${cx + 1},${cz}`)) wall(x1, z0, x1, z1);
-      if (!floorKeys.has(`${cx},${cz + 1}`)) wall(x1, z1, x0, z1);
-      if (!floorKeys.has(`${cx - 1},${cz}`)) wall(x0, z1, x0, z0);
+      if (!floorKeys.has(`${cx},${cz - 1}`)) wall(x0, z0, x1, z0, cx, cz);
+      if (!floorKeys.has(`${cx + 1},${cz}`)) wall(x1, z0, x1, z1, cx, cz);
+      if (!floorKeys.has(`${cx},${cz + 1}`)) wall(x1, z1, x0, z1, cx, cz);
+      if (!floorKeys.has(`${cx - 1},${cz}`)) wall(x0, z1, x0, z0, cx, cz);
     }
 
     if (!positions.length) return;
@@ -1087,6 +1472,8 @@ export default class TerrainSystem {
       material.specularColor = new Color3(0.02, 0.02, 0.02);
       material.ambientColor = color3(cfg.ambient || [0.08, 0.08, 0.07]);
       material.useVertexColor = true;
+      material.backFaceCulling = false;
+      material.twoSidedLighting = true;
       material.diffuseColor = color3(cfg.mapTint ? this.tintOf(map) : (cfg.color || [1, 1, 1]));
       this.materials.set(cacheKey, material);
       this.causticPlugins.push(new TerrainCausticPlugin(material));

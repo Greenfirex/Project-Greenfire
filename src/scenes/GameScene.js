@@ -19,6 +19,7 @@ import FishSystem from '../systems/fishSystem.js';
 import SkySystem from '../systems/skySystem.js';
 import DecoSystem from '../systems/decoSystem.js';
 import FloraSystem from '../systems/floraSystem.js';
+import CliffVineSystem from '../systems/cliffVineSystem.js';
 import DecoHighlightSystem from '../systems/decoHighlightSystem.js';
 import CampfireSystem from '../systems/campfireSystem.js';
 import GlowSystem from '../systems/glowSystem.js';
@@ -140,6 +141,7 @@ export default class GameScene {
     this.decoSystem = new DecoSystem(scene);
     this.decoSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z);
     this.floraSystem = new FloraSystem(scene);
+    this.cliffVineSystem = new CliffVineSystem(scene);
     this.campfireSystem = new CampfireSystem(scene);
     this.glowSystem = new GlowSystem(scene);
     this.decoHighlight = new DecoHighlightSystem(scene);
@@ -330,6 +332,7 @@ export default class GameScene {
     await this.setupPlayer();
     this.loader.floatProgress(1, 1, 'Seju trávu…');
     this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle());
+    this.floraSystem.addShelfGrass(this.terrainSystem.shelfAnchors);
     this.floraSystem.updateView(this.viewCircle());
     this.refreshReflectionExclusions();
     this.loader.floatProgress(1, 1, 'Nastavuji stíny…');
@@ -547,7 +550,8 @@ updateGatherTarget() {
   }
 
   onPlayerStep(x, z, sprint) {
-    const inWater = this.waterDepthNowAt(x, z) > WATER_STEP_DEPTH;
+    const onBridge = this.terrainSystem && this.terrainSystem.bridgeDeckAt(x, z) !== null;
+    const inWater = !onBridge && this.waterDepthNowAt(x, z) > WATER_STEP_DEPTH;
     if (inWater) this.waterSystem.splash(x, z, sprint ? 1.2 : 1);
     const key = this.decoSystem.surfaceKeyAt(worldToCell(x), worldToCell(z)) || '';
     this.audioSystem.play(inWater ? 'stepWater' : surfaceStepSound(key), { gain: sprint ? 1.35 : 1 });
@@ -686,13 +690,14 @@ updateGatherTarget() {
     this.playerSystem.inputBlocked = () => this.dialog.open;
     this.playerSystem.walkable = (x, z) => this.isWalkableAt(x, z);
     this.playerSystem.speedScale = (x, z) => {
+      if (this.terrainSystem.bridgeDeckAt(x, z) !== null) return 1;
       const depth = this.waterDepthNowAt(x, z);
       if (depth <= WATER_STEP_DEPTH) return 1;
       const wet = Math.min(1, depth / WADE_RAMP);
       return 1 - (1 - WADE_SPEED) * wet;
     };
     this.playerSystem.decoSystem = this.decoSystem;
-    this.playerSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z);
+    this.playerSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z, this.playerSystem.root ? this.playerSystem.root.position.y : 0);
     this.playerSystem.spawnCell = this.mapLayout.spawn;
     this.playerSystem.setHeldTool(this.heldItemSystem.key);
@@ -711,6 +716,7 @@ updateGatherTarget() {
     this.areaLookup = null;
     this.refreshShadowCasters();
     this.renderWater();
+    this.cliffVineSystem.create(this.terrainSystem.shelfAnchors, this.greenTint());
   }
 
   setupTerrain() {
@@ -719,6 +725,7 @@ updateGatherTarget() {
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);
     this.areaLookup = null;
     this.renderWater();
+    this.cliffVineSystem.create(this.terrainSystem.shelfAnchors, this.greenTint());
   }
 
   updateEditorCamera(dt) {
@@ -746,7 +753,7 @@ updateGatherTarget() {
       x = Math.min(bounds.maxX * CELL_SIZE + margin, Math.max(bounds.minX * CELL_SIZE - margin, x));
       z = Math.min(bounds.maxZ * CELL_SIZE + margin, Math.max(bounds.minZ * CELL_SIZE - margin, z));
     }
-    this.cameraSystem.snapTo(x, z, this.terrainSystem.heightAt(x, z));
+    this.cameraSystem.snapTo(x, z, this.terrainSystem.walkHeightAt(x, z));
   }
 
   refreshWaterVisibility() {
@@ -1073,6 +1080,7 @@ updateGatherTarget() {
 
   finishRebuild() {
     this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle());
+    this.floraSystem.addShelfGrass(this.terrainSystem.shelfAnchors);
     this.floraSystem.updateView(this.viewCircle());
     this.refreshReflectionExclusions();
     this.gatherSystem.syncFromDeco();
@@ -1155,6 +1163,16 @@ updateGatherTarget() {
     if (!map || !map.colors[key]) return null;
     const c = map.colors[key];
     return new Color4(c[0], c[1], c[2], 1);
+  }
+
+  greenTint() {
+    const map = getMap(this.mapKey);
+    const tone = (map && map.colors && map.colors.surfaceTint) || [0.5, 0.62, 0.45];
+    return [
+      Math.min(1.15, tone[0] * 1.9),
+      Math.min(1.15, tone[1] * 1.9),
+      Math.min(1.15, tone[2] * 1.7),
+    ];
   }
 
   setupLighting() {
@@ -1443,7 +1461,7 @@ updateGatherTarget() {
   setupInput() {
     this.inputSystem.suppressContextMenu(this.canvas);
     this.inputSystem.groundPredicate = (mesh) => mesh === this.terrainSystem.ground;
-    this.inputSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z);
+    this.inputSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
     this.inputSystem.shouldPickByRay = () => this.editor.active && this.editor.mapMode === 'area';
     this.inputSystem.attach(this.camera, this);
     this.inputSystem.onLeftDown = () => this.handleLeftDown();
@@ -1749,7 +1767,7 @@ updateGatherTarget() {
       this.tooltipPanel.hide();
       return;
     }
-    const height = this.terrainSystem.heightAt(cell.cx * CELL_SIZE, cell.cz * CELL_SIZE);
+    const height = this.terrainSystem.walkHeightAt(cell.cx * CELL_SIZE, cell.cz * CELL_SIZE);
     const detail = `výška ${metersText(height)}`;
     const deco = this.decoHighlight.labelAt(cell.cx, cell.cz);
     if (deco) {
@@ -1848,6 +1866,7 @@ updateGatherTarget() {
   }
 
   isWalkableAt(x, z) {
+    if (this.terrainSystem && this.terrainSystem.bridgeDeckAt(x, z) !== null) return true;
     if (this.waterDepthAt(x, z) > WADE_DEPTH) return false;
     const { cx, cz } = worldToCellCoords(x, z);
     const layout = this.decoSystem.layout || this.terrainSystem.layout || null;
@@ -1876,6 +1895,7 @@ updateGatherTarget() {
     if (!player || !player.ready || !player.root) return;
     const pos = player.root.position;
     if (!Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return;
+    if (this.terrainSystem && this.terrainSystem.bridgeDeckAt(pos.x, pos.z) !== null) return;
     if (this.waterDepthAt(pos.x, pos.z) <= WADE_DEPTH) return;
     let best = null;
     let bestDist = Infinity;
