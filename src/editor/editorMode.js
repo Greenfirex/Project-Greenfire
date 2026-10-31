@@ -29,6 +29,13 @@ export default class EditorMode {
     this.waterShown = true;
     this.layout = null;
     this.draft = null;
+    this.draftDrag = null;
+    this.draftBase = null;
+    this.joinTop = null;
+    this.joinBottom = null;
+    this.joinHeights = null;
+    this.joinInfo = null;
+    this.eraseCache = null;
     this.heightDraft = null;
     this.contentIndex = null;
     this.presentCache = null;
@@ -37,6 +44,7 @@ export default class EditorMode {
     this.areaSelection = null;
     this.areaDrag = null;
     this.areaStroke = null;
+    this.areaBase = null;
     this.realCells = null;
     this.brushOpts = {};
     this.history = [];
@@ -104,6 +112,8 @@ export default class EditorMode {
 
   undo() {
     this.cancelHeightDraft();
+    this.resetDraftDrag();
+    this.resetJoin();
     if (this.draft) {
       this.draft.cells.clear();
       if (this.onDraftChange) this.onDraftChange(this.draft);
@@ -120,6 +130,7 @@ export default class EditorMode {
 
   setBrush(key) {
     if (!BRUSHES[key]) return;
+    this.eraseCache = null;
     if (this.brushKey !== key && this.draft) this.cancelDraft();
     this.brushKey = key;
     this.pathStyle = this.styleFor(key);
@@ -149,8 +160,11 @@ export default class EditorMode {
     this.erasing = false;
     this.areaDrag = null;
     this.areaStroke = null;
+    this.areaBase = null;
     this.clearAreaSelection();
     this.cancelHeightDraft();
+    this.resetDraftDrag();
+    this.resetJoin();
     if (this.draft) {
       this.draft = null;
       if (this.onDraftChange) this.onDraftChange(null);
@@ -204,8 +218,9 @@ export default class EditorMode {
       const raw = stored === null ? fallback : Number(stored);
       const value = Number.isFinite(raw) ? raw : fallback;
       const step = Number(option.step) || 1;
-      const clamped = Math.min(Number(option.max), Math.max(Number(option.min), value));
-      return Math.round(clamped / step) * step;
+      const min = Number.isFinite(Number(option.min)) ? Number(option.min) : 0;
+      const clamped = Math.min(Number(option.max), Math.max(min, value));
+      return min + Math.round((clamped - min) / step) * step;
     }
     if (stored !== null) return Boolean(stored);
     return option.default === true;
@@ -222,6 +237,10 @@ export default class EditorMode {
     if (!option) return;
     const stored = option.kind === 'range' ? Number(value) : Boolean(value);
     this.brushOpts[this.brushKey] = { ...(this.brushOpts[this.brushKey] || {}), [optionKey]: stored };
+    if (this.joinTop && this.joinBottom) {
+      this.buildJoin(this.joinBottom.cx, this.joinBottom.cz, this.joinBottom.height);
+      return;
+    }
     if (this.draft && this.onDraftChange) this.onDraftChange(this.draft);
   }
 
@@ -496,6 +515,11 @@ export default class EditorMode {
     return Boolean(brush && brush.cliff);
   }
 
+  get isJoinBrush() {
+    const brush = BRUSHES[this.brushKey];
+    return Boolean(brush && brush.join);
+  }
+
   cellHeightValue(cx, cz) {
     const floor = floorCellAt(this.layout, cx, cz);
     return floor ? (floor.liftY || 0) : (layerLiftAt(this.layout, cx, cz) || 0);
@@ -637,33 +661,35 @@ export default class EditorMode {
 
   beginAreaDrag(cx, cz) {
     if (!this.layout) return;
-    const kept = this.areaStroke || new Map();
-    this.areaStroke = kept;
+    this.areaBase = this.areaStroke ? new Map(this.areaStroke) : new Map();
     this.areaDrag = { mode: this.areaTool, fromX: cx, fromZ: cz, toX: cx, toZ: cz };
-    kept.set(cellKey(cx, cz), [cx, cz]);
-    this.setAreaSelection({ tool: this.areaTool, cells: this.strokeCells() });
+    this.refreshAreaDrag();
   }
 
   moveAreaDrag(cx, cz) {
     const drag = this.areaDrag;
     if (!drag) return;
     if (drag.toX === cx && drag.toZ === cz) return;
-    this.extendAreaDrag(cx, cz);
-  }
-
-  extendAreaDrag(cx, cz) {
-    const drag = this.areaDrag;
-    for (const [x, z] of areaRectOf(drag.fromX, drag.fromZ, cx, cz)) {
-      if (!this.areaStroke.has(cellKey(x, z))) this.areaStroke.set(cellKey(x, z), [x, z]);
-    }
     drag.toX = cx;
     drag.toZ = cz;
+    this.refreshAreaDrag();
+  }
+
+  refreshAreaDrag() {
+    const drag = this.areaDrag;
+    if (!drag) return;
+    const stroke = this.areaBase ? new Map(this.areaBase) : new Map();
+    for (const [x, z] of rectCells(drag.fromX, drag.fromZ, drag.toX, drag.toZ)) {
+      stroke.set(cellKey(x, z), [x, z]);
+    }
+    this.areaStroke = stroke;
     this.setAreaSelection({ tool: drag.mode, cells: this.strokeCells() });
   }
 
   finishAreaDrag() {
     if (!this.areaDrag) return;
     this.areaDrag = null;
+    this.areaBase = null;
     this.setAreaSelection({ tool: this.areaTool, cells: this.strokeCells() });
   }
 
@@ -726,6 +752,8 @@ export default class EditorMode {
 
   clearAreaSelection() {
     this.areaStroke = null;
+    this.areaBase = null;
+    this.areaDrag = null;
     if (!this.areaSelection) return;
     this.areaSelection = null;
     if (this.onAreaSelectionChange) this.onAreaSelectionChange(null);
@@ -810,6 +838,8 @@ export default class EditorMode {
     if (this.erasing === (next === 'remove')) {
       if (this.draft && this.draft.mode !== next) {
         this.draft.mode = next;
+        this.resetDraftDrag();
+        this.resetJoin();
         this.draft.cells.clear();
         if (this.onDraftChange) this.onDraftChange(this.draft);
       }
@@ -818,6 +848,8 @@ export default class EditorMode {
     this.erasing = next === 'remove';
     if (this.draft) {
       this.draft.mode = next;
+      this.resetDraftDrag();
+      this.resetJoin();
       this.draft.cells.clear();
       if (this.onDraftChange) this.onDraftChange(this.draft);
     }
@@ -837,26 +869,182 @@ export default class EditorMode {
     return this.canEditCell(cx, cz);
   }
 
+  eraseCandidates() {
+    const brush = BRUSHES[this.brushKey];
+    if (!brush || !this.layout) return [];
+    if (this.eraseCache && this.eraseCache.brushKey === this.brushKey) return this.eraseCache.cells;
+    const cells = this.collectErasable(brush);
+    this.eraseCache = { brushKey: this.brushKey, cells };
+    return cells;
+  }
+
+  collectErasable(brush) {
+    const layout = this.layout;
+    const found = new Map();
+    const add = (cx, cz) => {
+      if (!Number.isFinite(cx) || !Number.isFinite(cz)) return;
+      found.set(cellKey(cx, cz), [cx, cz]);
+    };
+    const eachLayer = (test) => {
+      for (const name of ['floor', 'path', 'clearing', 'grass']) {
+        for (const entry of layout[name] || []) {
+          if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+          if (test(entry, name)) add(entry.cx, entry.cz);
+        }
+      }
+    };
+    if (brush.cliff) eachLayer((entry) => entry.cliff === true);
+    else if (brush.fish) {
+      for (const entry of layout.fish || []) if (entry) add(entry.cx, entry.cz);
+    } else if (brush.surfaceOnly) eachLayer((entry, name) => name === 'floor' && entry.key !== DEFAULT_FLOOR);
+    else if (brush.surface) eachLayer((entry, name) => name === 'floor' && entry.key === brush.surface);
+    else if (brush.height || brush.heights) {
+      const up = this.brushHeight(this.brushKey) >= 0;
+      eachLayer((entry) => {
+        const lift = entry.liftY || 0;
+        return up ? lift > 0 : lift < 0;
+      });
+    } else if (brush.flora) {
+      for (const entry of layout.grass || []) if (entry) add(entry.cx, entry.cz);
+    } else if (brush.deco) {
+      for (const entry of layout.decorations || []) if (entry) add(entry.cx, entry.cz);
+    } else {
+      for (const entry of layout.path || []) if (entry) add(entry.cx, entry.cz);
+    }
+    return [...found.values()];
+  }
+
   get hasBrush() {
     return Boolean(this.brushKey && BRUSHES[this.brushKey]);
   }
 
-  draftCell(cx, cz) {
+  beginDraftDrag(cx, cz) {
     if (!this.draft) return false;
-    if (!this.canDraftCell(cx, cz)) return false;
-    this.stampDraft(cx, cz);
+    this.draftBase = new Set(this.draft.cells);
+    this.draftDrag = { fromX: cx, fromZ: cz, toX: cx, toZ: cz };
+    this.refreshDraftDrag();
+    return true;
+  }
+
+  moveDraftDrag(cx, cz) {
+    const drag = this.draftDrag;
+    if (!drag) return false;
+    if (drag.toX === cx && drag.toZ === cz) return false;
+    drag.toX = cx;
+    drag.toZ = cz;
+    this.refreshDraftDrag();
+    return true;
+  }
+
+  refreshDraftDrag() {
+    const drag = this.draftDrag;
+    if (!drag || !this.draft) return;
+    const cells = this.draft.cells;
+    cells.clear();
+    for (const key of this.draftBase || []) cells.add(key);
+    for (const [cx, cz] of rectCells(drag.fromX, drag.fromZ, drag.toX, drag.toZ)) {
+      if (this.canDraftCell(cx, cz)) this.stampCells(cells, cx, cz);
+    }
+    if (this.onDraftChange) this.onDraftChange(this.draft);
+  }
+
+  resetDraftDrag() {
+    this.draftDrag = null;
+    this.draftBase = null;
+  }
+
+  pickJoinCell(cx, cz) {
+    if (!this.draft || !this.layout) return 'invalid';
+    if (!this.canEditCell(cx, cz)) return 'invalid';
+    const height = this.cellHeightValue(cx, cz);
+    if (!this.joinTop) {
+      this.joinTop = { cx, cz, height };
+      this.joinHeights = null;
+      this.joinInfo = null;
+      this.draft.cells.clear();
+      if (this.onDraftChange) this.onDraftChange(this.draft);
+      return 'top';
+    }
+    this.buildJoin(cx, cz, height);
+    return 'ready';
+  }
+
+  buildJoin(cx, cz, bottomHeight) {
+    const top = this.joinTop;
+    if (!top) return;
+    const line = bresenham(top.cx, top.cz, cx, cz);
+    const steps = Math.max(1, line.length - 1);
+    const width = Math.max(1, Math.round(this.brushOptionValue(this.brushKey, 'width')));
+    const radius = Math.floor((width - 1) / 2);
+    const heights = new Map();
+    const seen = new Set();
+    let maxStep = 0;
+    let previous = null;
+    this.draft.cells.clear();
+    for (let index = 0; index < line.length; index += 1) {
+      const [lineX, lineZ] = line[index];
+      const meters = joinMeters(top.height, bottomHeight, index, steps);
+      if (previous !== null) maxStep = Math.max(maxStep, Math.abs(meters - previous));
+      previous = meters;
+      for (let dz = -radius; dz <= radius; dz += 1) {
+        for (let dx = -radius; dx <= radius; dx += 1) {
+          const cellX = lineX + dx;
+          const cellZ = lineZ + dz;
+          const key = cellKey(cellX, cellZ);
+          if (seen.has(key)) continue;
+          if (!this.canDraftCell(cellX, cellZ)) continue;
+          seen.add(key);
+          heights.set(key, meters);
+          this.draft.cells.add(key);
+        }
+      }
+    }
+    this.joinHeights = heights;
+    this.joinBottom = { cx, cz, height: bottomHeight };
+    this.joinInfo = { count: heights.size, maxStep, drop: Math.abs(top.height - bottomHeight) };
+    if (this.onDraftChange) this.onDraftChange(this.draft);
+  }
+
+  joinMetersAt(cx, cz) {
+    if (!this.joinHeights) return null;
+    const value = this.joinHeights.get(cellKey(cx, cz));
+    return value === undefined ? null : value;
+  }
+
+  cancelJoin() {
+    if (!this.draft) return false;
+    this.resetJoin();
+    this.draft.cells.clear();
     if (this.onDraftChange) this.onDraftChange(this.draft);
     return true;
   }
 
-  draftRun(from, to) {
-    if (!this.draft) return true;
-    for (const [cx, cz] of bresenham(from.cx, from.cz, to.cx, to.cz)) {
-      if (!this.canDraftCell(cx, cz)) continue;
-      this.stampDraft(cx, cz);
+  resetJoin() {
+    this.joinTop = null;
+    this.joinBottom = null;
+    this.joinHeights = null;
+    this.joinInfo = null;
+  }
+
+  applyJoin(mode) {
+    if (!this.layout || !this.draft) return 0;
+    if (mode === 'remove') {
+      let count = 0;
+      for (const key of this.draft.cells) {
+        const { cx, cz } = parseCell(key);
+        this.setCellHeight(cx, cz, 0);
+        count += 1;
+      }
+      return count;
     }
-    if (this.onDraftChange) this.onDraftChange(this.draft);
-    return true;
+    if (!this.joinHeights) return 0;
+    let count = 0;
+    for (const [key, meters] of this.joinHeights) {
+      const { cx, cz } = parseCell(key);
+      this.setCellHeight(cx, cz, meters);
+      count += 1;
+    }
+    return count;
   }
 
   brushRadius() {
@@ -864,16 +1052,16 @@ export default class EditorMode {
     return brush && Number.isFinite(brush.radius) ? Math.max(0, Math.round(brush.radius)) : 0;
   }
 
-  stampDraft(cx, cz) {
+  stampCells(target, cx, cz) {
     const radius = this.brushRadius();
     if (!radius) {
-      this.draft.cells.add(cellKey(cx, cz));
+      target.add(cellKey(cx, cz));
       return;
     }
     for (let dz = -radius; dz <= radius; dz += 1) {
       for (let dx = -radius; dx <= radius; dx += 1) {
         if (!this.canDraftCell(cx + dx, cz + dz)) continue;
-        this.draft.cells.add(cellKey(cx + dx, cz + dz));
+        target.add(cellKey(cx + dx, cz + dz));
       }
     }
   }
@@ -910,6 +1098,7 @@ export default class EditorMode {
 
   applyDraft() {
     if (!this.draft) return 0;
+    this.resetDraftDrag();
     const { brushKey, cells, mode } = this.draft;
     if (!cells.size) {
       if (this.onDraftChange) this.onDraftChange(this.draft);
@@ -917,6 +1106,15 @@ export default class EditorMode {
     }
     this.pushHistory();
     const brush = BRUSHES[brushKey] || {};
+    if (brush.join) {
+      const joined = this.applyJoin(mode);
+      if (!joined) this.history.pop();
+      this.draft.cells.clear();
+      this.resetJoin();
+      if (this.onDraftChange) this.onDraftChange(this.draft);
+      this.scheduleRegenerate();
+      return joined;
+    }
     if (brush.cliff) {
       const zone = [...cells].map(parseCell);
       const count = this.applyCliffMarks(zone, mode, this.styleFor(brushKey));
@@ -1241,6 +1439,8 @@ export default class EditorMode {
 
   cancelDraft() {
     if (!this.draft) return false;
+    this.resetDraftDrag();
+    this.resetJoin();
     this.draft = null;
     if (this.onDraftChange) this.onDraftChange(null);
     return true;
@@ -1382,12 +1582,14 @@ export default class EditorMode {
   repaint() {
     this.contentIndex = null;
     this.presentCache = null;
+    this.eraseCache = null;
     if (this.onRegenerate) this.onRegenerate(this.layout);
   }
 
   repaintHeights() {
     this.contentIndex = null;
     this.presentCache = null;
+    this.eraseCache = null;
     if (this.onHeightsChange) this.onHeightsChange(this.layout);
     else this.repaint();
   }
@@ -1401,7 +1603,7 @@ export default class EditorMode {
 
   get draftKeys() {
     const brush = BRUSHES[this.brushKey];
-    if (!brush) return [];
+    if (!brush || brush.join) return [];
     const keys = [...this.brushPool()];
     if (brush.tile) keys.push(brush.tile);
     if (brush.shape === 'line') keys.push('path');
@@ -1571,7 +1773,13 @@ function parseCell(cellKeyValue) {
   return { cx, cz };
 }
 
-function areaRectOf(x0, z0, x1, z1) {
+function joinMeters(topMeters, bottomMeters, index, steps) {
+  const raw = topMeters + (bottomMeters - topMeters) * (index / steps);
+  const level = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, Math.round(raw / HEIGHT_STEP)));
+  return level * HEIGHT_STEP;
+}
+
+function rectCells(x0, z0, x1, z1) {
   const out = [];
   const minX = Math.min(x0, x1);
   const maxX = Math.max(x0, x1);

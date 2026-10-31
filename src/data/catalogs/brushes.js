@@ -20,7 +20,7 @@ const SURFACE_BRUSH = SURFACES.length
   ? {
       label: 'Povrch',
       group: 'Povrchy',
-      note: 'Přebarví povrch země na trávu nebo písek, výšku nemění. Maluje se tažením.',
+      note: 'Přebarví povrch země na trávu nebo písek, výšku nemění. Tažením označíš obdélník.',
       shape: 'blob',
       surfaceOnly: true,
       radius: 1,
@@ -127,6 +127,16 @@ export const BRUSHES = {
     shape: 'line',
     style: 'dirt',
     styles: ['dirt', 'stone', 'wood'],
+  },
+  join: {
+    label: 'Spojnice',
+    group: 'Terén',
+    note: 'Klikni na vrchol a pak na spodek — země se mezi nimi plynule srovná po 0,3 m.',
+    shape: 'line',
+    join: true,
+    options: [
+      { key: 'width', label: 'Šířka', kind: 'range', default: 1, min: 1, max: 5, step: 2 },
+    ],
   },
   hill: {
     label: 'Kopec',

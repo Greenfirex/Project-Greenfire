@@ -296,6 +296,9 @@ a objekty, **výška** nejdřív kreslí návrh a po potvrzení zvedá dlaždice
 a **plocha** zakládá nebo přepisuje zem s vybraným podkladem a výškou.
 Co na buňce leží (povrch a všechny dekorace českými názvy), vypisuje vpravo dole
 tooltip; panel editoru hlásí jen stav (mimo plochu, aplikováno…).
+Tažení levým tlačítkem bere obdélník mezi buňkou, kde jsi stiskl, a buňkou pod
+myší; vracením myši se obdélník zase zmenšuje a klik bez tažení označí jedinou
+buňku. Režim Výška kreslí stopu, protože z kroku po buňce vzniká schodiště.
 U štětců na rostliny a objekty jde v panelu vybrat **druh** (keř, houba, kámen…);
 vybraný druh se pod kurzorem ukazuje jako průsvitný duch, takže je vidět
 dřív, než se klikne — u keřů jich duch ukáže tolik, kolik jich hustota nasadí,
@@ -318,7 +321,21 @@ zaškrtávátka svah mění: **Strmý svah** spadne o 0,6 m na řadu, takže úp
 poloviční; **Nepravidelný svah** část buněk v každé řadě vynechá, takže obrys
 kopce není kruh a svah je místy prudší. Buňka přitom nikdy nespadne pod svou
 původní výšku. Svislé stěny z toho nevzniknou — ty dělá štětec Útes a hrany
-vyšší než 2,4 m.
+vyšší než 2,4 m. Plošina nad útesem zůstane plochá až do hrany: vyhlazení terénu
+se přes stěnu nedívá, takže se vnitřek nepřitáhne k zemi pod útesem. Označený pás
+(třeba tři buňky široký) se uvnitř vyhlazuje jako běžná země — stěna vznikne jen
+na jeho okraji, kde se označená země potkává s neoznačenou.
+
+Štětec **Spojnice** propojí dva body: klikneš na vršek (třeba na hranu útesu) a pak
+na spodek (třeba na pláž). Editor si přečte výšky z obou míst a mezi nimi je rozdělí
+podle vzdálenosti po 0,3 m, takže vznikne souvislý výjezd; posuvník **Šířka** určí,
+jak je pruh široký (1, 3 nebo 5 buněk). Když je převýšení na danou vzdálenost moc
+velké, panel to napíše — tak prudký schod hráč nevyleze (zvládne 0,45 m). Pravé
+tlačítko rozpracovanou spojnici zruší.
+
+V režimu **Mazat** editor rovnou zvýrazní všechny buňky, které tenhle štětec umí
+smazat (u ryb tedy hejna, u stromů objekty, u Kopce zvednutou zem), takže se nemusí
+hádat, kde co leží. Buňky, které myší přejedeš, svítí sytě červeně nad tím.
 
 Panel Výšky má i **velikost štětce** (1×1, 3×3, 5×5, 7×7) a **krok po buňce**
 (vyp / −0,3 / +0,3 m). Velikost určuje čtverec buněk kolem kurzoru. Krok posouvá

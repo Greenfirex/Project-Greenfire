@@ -23,6 +23,7 @@ export default class AreaPanel {
     this.onClear = null;
     this.onUndo = null;
     this.onSurface = null;
+    this.onHeightStep = null;
     this.tool = 'paint';
     this.countValue = 0;
     this.existingCount = 0;
@@ -45,6 +46,11 @@ export default class AreaPanel {
         <button type="button" data-tool="erase">Mazat</button>
       </div>
       <div class="area-panel__surfaces"></div>
+      <div class="area-panel__height">
+        <button type="button" class="area-panel__height-down" title="Snížit o stupeň (E)">−</button>
+        <span class="area-panel__height-value">výška 0 m</span>
+        <button type="button" class="area-panel__height-up" title="Zvýšit o stupeň (Q)">+</button>
+      </div>
       <div class="area-panel__count">Přidá se: 0 buněk</div>
       <div class="area-panel__tools area-panel__undo-row">
         <button type="button" class="area-panel__undo" title="Vrátit poslední úpravu (Z)">Zpět</button>
@@ -60,6 +66,7 @@ export default class AreaPanel {
     makeDraggable(root);
     this.count = root.querySelector('.area-panel__count');
     this.surfaceRow = root.querySelector('.area-panel__surfaces');
+    this.heightValue = root.querySelector('.area-panel__height-value');
     this.note = root.querySelector('.area-panel__note');
 
     for (const entry of SURFACES) {
@@ -86,6 +93,12 @@ export default class AreaPanel {
         if (this.onTool) this.onTool(btn.dataset.tool);
       });
     }
+    root.querySelector('.area-panel__height-down').addEventListener('click', () => {
+      if (this.onHeightStep) this.onHeightStep(-1);
+    });
+    root.querySelector('.area-panel__height-up').addEventListener('click', () => {
+      if (this.onHeightStep) this.onHeightStep(1);
+    });
     root.querySelector('.area-panel__apply').addEventListener('click', () => {
       if (this.onApply) this.onApply();
     });
@@ -146,8 +159,8 @@ export default class AreaPanel {
     this.root.classList.toggle('is-erasing', erasing);
     if (this.note) {
       this.note.textContent = erasing
-        ? 'Táhni myší po mapě. Smažou se označené buňky i s objekty. Z vrací celý krok.'
-        : 'Táhni myší po mapě i mimo ni. Nové buňky vzniknou, existující se přepíšou i s objekty. Z vrací celý krok.';
+        ? 'Táhni myší — označí se obdélník, vrácením myší zpět se zase zmenší. Smažou se označené buňky i s objekty. Z vrací celý krok.'
+        : 'Táhni myší — označí se obdélník, vrácením myší zpět se zase zmenší. Nové buňky vzniknou, existující se přepíšou i s objekty. Z vrací celý krok.';
     }
     for (const btn of this.root.querySelectorAll('[data-tool]')) {
       btn.classList.toggle('is-active', btn.dataset.tool === this.tool);
@@ -162,8 +175,9 @@ export default class AreaPanel {
     } else {
       label = `Přidá se: ${n} ${word}`;
     }
-    if (!erasing) label += ` · ${this.summary()}`;
+    if (!erasing) label += this.surfaceLabel ? ` · ${this.surfaceLabel}` : '';
     if (this.count) this.count.textContent = label;
+    if (this.heightValue) this.heightValue.textContent = `výška ${formatMeters(this.heightMeters)}`;
     const apply = this.root.querySelector('.area-panel__apply');
     if (apply) apply.disabled = n === 0;
     const clear = this.root.querySelector('.area-panel__clear');

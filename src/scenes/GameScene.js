@@ -25,7 +25,7 @@ import GlowSystem from '../systems/glowSystem.js';
 import DayNightSystem from '../systems/dayNightSystem.js';
 import SimSystem from '../systems/simSystem.js';
 import InputSystem from '../systems/inputSystem.js';
-import PlayerSystem from '../systems/playerSystem.js';
+import PlayerSystem, { STEP_LIMIT } from '../systems/playerSystem.js';
 import BuildSystem from '../systems/buildSystem.js';
 import SaveSystem from '../systems/saveSystem.js';
 import GatherSystem from '../systems/gatherSystem.js';
@@ -165,6 +165,7 @@ export default class GameScene {
     this.log = new LogPanel();
     this.inventoryWindow = new InventoryWindow();
     this.characterWindow = new CharacterWindow();
+    this.walkStepLimit = STEP_LIMIT;
     this.editor = new MapEditor(this);
     this.optionsPanel = new OptionsPanel();
     this.editorToggle = new EditorToggle();

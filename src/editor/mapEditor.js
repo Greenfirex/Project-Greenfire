@@ -131,6 +131,7 @@ export default class MapEditor {
       this.mode.setAreaSurface(key);
       this.areaPanel.setSurface(key);
     };
+    this.areaPanel.onHeightStep = (delta) => this.mode.stepHeightLevel(delta);
 
     this.hud.onWaterToggle = () => this.toggleWater();
     this.hud.onWaterStep = (delta) => this.stepWater(delta);
@@ -380,6 +381,7 @@ export default class MapEditor {
     this.hud.erasing = this.mode.erasing;
     this.hud.refresh();
     this.brushPanel.setDraftMode(this.mode.draftMode);
+    this.hud.setReadout(on ? 'Mazat: zvýrazněná pole jdou smazat — přejeď je myší' : 'Mazání vypnuto');
     this.refreshUndoButton();
     this.refreshZoneOverlay();
     this.s.handleHover(this.s.hoverCell);
@@ -389,6 +391,7 @@ export default class MapEditor {
     this.mode.beginDraft(brushKey);
     this.brushPanel.open(brushKey, 0, this.mode.pathStyle, this.mode.brushOptionValues(brushKey), this.mode.tileKey);
     this.brushPanel.setDraftMode(this.mode.draftMode);
+    if (this.mode.isJoinBrush) this.hud.setReadout('Spojnice: klikni na vrchol, pak na spodek');
     this.refreshUndoButton();
     this.refreshZoneOverlay();
     this.s.handleHover(this.s.hoverCell);
@@ -424,7 +427,10 @@ export default class MapEditor {
     for (const item of info.decorations || []) parts.push(item.name);
     const lift = Math.round((Number(info.liftY) || 0) * 100) / 100;
     const staged = this.mode.mode === 'height' ? this.mode.heightLevelAt(cell.cx, cell.cz) : null;
-    const target = staged === null ? '' : ` → ${formatLevel(staged)}`;
+    const joined = this.mode.joinMetersAt(cell.cx, cell.cz);
+    let target = '';
+    if (staged !== null) target = ` → ${formatLevel(staged)}`;
+    else if (joined !== null) target = ` → ${formatMeters(joined)}`;
     let draft = '';
     if (this.mode.draft) {
       const count = this.mode.clusterCountAt(this.mode.draft.brushKey);
@@ -442,15 +448,38 @@ export default class MapEditor {
       this.mode.beginHeightStroke();
       this.mode.paint(cell.cx, cell.cz);
     } else if (!this.mode.hasBrush) this.hud.setReadout(NO_BRUSH_HINT);
+    else if (this.mode.isJoinBrush) this.pickJoinCell(cell);
     else if (!this.mode.canDraftCell(cell.cx, cell.cz)) this.hud.setReadout('Mimo hrací plochu — přepni na Plochu');
-    else this.mode.draftCell(cell.cx, cell.cz);
+    else this.mode.beginDraftDrag(cell.cx, cell.cz);
+  }
+
+  pickJoinCell(cell) {
+    if (this.mode.draftMode === 'remove') {
+      this.hud.setReadout('Spojnice se v režimu Mazat nepoužívá — vypni Mazat');
+      return;
+    }
+    const state = this.mode.pickJoinCell(cell.cx, cell.cz);
+    if (state === 'invalid') {
+      this.hud.setReadout('Spojnice: klikni na buňku, která v mapě existuje');
+      return;
+    }
+    if (state === 'top') {
+      this.hud.setReadout('Vrchol označen — klikni na spodek');
+      return;
+    }
+    const info = this.mode.joinInfo;
+    if (!info) return;
+    const limit = Number(this.s.walkStepLimit);
+    const steep = Number.isFinite(limit) && info.maxStep > limit;
+    const note = steep ? ' — hráč to nevyleze' : '';
+    this.hud.setReadout(`Spojnice: ${info.count} buněk · krok ${formatMeters(info.maxStep)}${note}`);
   }
 
   movePaint(cell) {
     const from = this.lastPaintCell || cell;
     if (this.mode.mode === 'area') this.mode.moveAreaDrag(cell.cx, cell.cz);
     else if (this.mode.mode === 'height') this.mode.paintRun(from, cell);
-    else this.mode.draftRun(from, cell);
+    else if (!this.mode.isJoinBrush) this.mode.moveDraftDrag(cell.cx, cell.cz);
     this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
   }
 
@@ -464,6 +493,11 @@ export default class MapEditor {
 
   rightClickCell(cell) {
     this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
+    if (this.mode.mode === 'zone' && this.mode.isJoinBrush) {
+      this.mode.cancelJoin();
+      this.hud.setReadout('Spojnice zrušena — klikni znovu na vrchol');
+      return;
+    }
     if (this.mode.mode === 'area') {
       this.mode.removeAreaCells([[cell.cx, cell.cz]]);
       return;
@@ -485,11 +519,14 @@ export default class MapEditor {
     const heightBrush = this.mode.isHeightBrush;
     const surfaceBrush = this.mode.isSurfaceBrush;
     const cliffBrush = this.mode.isCliffBrush;
+    const joinBrush = this.mode.isJoinBrush;
     const count = this.mode.applyDraft();
     if (count && cliffBrush) {
       this.hud.setReadout(removing
         ? `Útes zrušen u ${count} buněk`
         : `Označeno jako útes: ${count} buněk`);
+    } else if (count && joinBrush) {
+      this.hud.setReadout(removing ? `Spojnice srovnána: ${count} buněk` : `Spojnice hotová: ${count} buněk`);
     } else if (count && surfaceBrush) {
       this.hud.setReadout(removing
         ? `Vráceno na trávu ${count} buněk`
@@ -621,7 +658,15 @@ export default class MapEditor {
       }
     }
 
+    const eraseTargets = removing ? this.mode.eraseCandidates() : [];
     this.s.gridSystem.showZones([
+      {
+        cells: eraseTargets,
+        color: new Color3(0.95, 0.45, 0.3),
+        glow: new Color3(0.55, 0.16, 0.1),
+        alpha: 0.16,
+        lift: 0.012,
+      },
       {
         cells: other,
         color: new Color3(0.5, 0.55, 0.6),

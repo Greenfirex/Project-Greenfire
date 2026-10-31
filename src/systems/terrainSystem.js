@@ -12,7 +12,6 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Constants } from '@babylonjs/core/Engines/constants';
 import { CELL_SIZE } from '../utils/gridMath.js';
-import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { createTerrainField } from '../utils/terrainField.js';
 import { getMap } from '../data/catalogs/maps.js';
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
@@ -49,10 +48,7 @@ const BLEND_NEIGHBORS = [
   [1, 1], [1, -1], [-1, 1], [-1, -1],
 ];
 const CLIFF_WAVE = 0.16;
-const CLIFF_WAVE_LONG = 0.9;
-const CLIFF_WAVE_SHORT = 2.3;
-const CLIFF_FLAT_STEP = HEIGHT_STEP + 0.01;
-const CLIFF_CORNER_ROUND = 0.2;
+const CLIFF_WAVE_SCALE = 0.45;
 const SURFACE_SIDES = [
   { dx: -1, dz: 0 },
   { dx: 1, dz: 0 },
@@ -85,12 +81,55 @@ function valueNoise(x, z) {
   return top + (bottom - top) * sz;
 }
 
-function cliffOffset(t, line) {
-  const phase = hash01(Math.round(line * 2), 13) * Math.PI * 2;
-  return (
-    Math.sin(t * CLIFF_WAVE_LONG + phase) * 0.65
-    + Math.sin(t * CLIFF_WAVE_SHORT + phase * 1.7) * 0.35
-  ) * CLIFF_WAVE;
+function cliffOffset(x, z) {
+  return (valueNoise(x * CLIFF_WAVE_SCALE + 11.3, z * CLIFF_WAVE_SCALE - 7.1) - 0.5) * 2 * CLIFF_WAVE;
+}
+
+function smoothCoincidentNormals(positions, normals) {
+  const buckets = new Map();
+  const total = positions.length / 3;
+  for (let i = 0; i < total; i += 1) {
+    const key = `${Math.round(positions[i * 3] * 100)},${Math.round(positions[i * 3 + 1] * 100)},${Math.round(positions[i * 3 + 2] * 100)}`;
+    const list = buckets.get(key);
+    if (list) list.push(i);
+    else buckets.set(key, [i]);
+  }
+  for (const list of buckets.values()) {
+    if (list.length < 2) continue;
+    const sums = list.map(() => null);
+    for (let i = 0; i < list.length; i += 1) {
+      const index = list[i];
+      const nx = normals[index * 3];
+      const ny = normals[index * 3 + 1];
+      const nz = normals[index * 3 + 2];
+      let x = 0;
+      let y = 0;
+      let z = 0;
+      let count = 0;
+      for (const other of list) {
+        const ox = normals[other * 3];
+        const oy = normals[other * 3 + 1];
+        const oz = normals[other * 3 + 2];
+        if (nx * ox + ny * oy + nz * oz < 0.6) continue;
+        x += ox;
+        y += oy;
+        z += oz;
+        count += 1;
+      }
+      if (count < 2) continue;
+      const length = Math.hypot(x, y, z);
+      if (length < 1e-6) continue;
+      sums[i] = [x / length, y / length, z / length];
+    }
+    for (let i = 0; i < list.length; i += 1) {
+      const value = sums[i];
+      if (!value) continue;
+      const index = list[i];
+      normals[index * 3] = value[0];
+      normals[index * 3 + 1] = value[1];
+      normals[index * 3 + 2] = value[2];
+    }
+  }
 }
 
 function color3(rgb) {
@@ -383,9 +422,6 @@ export default class TerrainSystem {
 
     const cliffPoints = new Set();
     const cliffShifts = new Map();
-    const cornerDirs = new Map();
-    const cornerPoints = new Map();
-    const flushValues = new Map();
     for (const [cx, cz] of cells) {
       if (!keyAt(cx, cz)) continue;
       const x0 = cx * CELL_SIZE - half;
@@ -395,7 +431,7 @@ export default class TerrainSystem {
         const nx = cx + side.dx;
         const nz = cz + side.dz;
         if (!keyAt(nx, nz)) continue;
-        if (!field.isSharp(cx, cz) && !field.isSharp(nx, nz)) continue;
+        if (!field.isHardEdge(cx, cz, side.dx, side.dz)) continue;
         let x1;
         let z1;
         let x2;
@@ -411,78 +447,19 @@ export default class TerrainSystem {
           x2 = x0 + CELL_SIZE;
           z2 = z1;
         }
-        const heightA = field.heightAtCell(cx, cz);
-        const heightB = field.heightAtCell(nx, nz);
-        const markA = field.isSharp(cx, cz);
-        const markB = field.isSharp(nx, nz);
-        const flush = Math.abs(heightA - heightB) <= CLIFF_FLAT_STEP;
-        const points = [];
         for (let i = 0; i <= SURFACE_SUB; i += 1) {
           const t = i / SURFACE_SUB;
           const gx = x1 + (x2 - x1) * t;
           const gz = z1 + (z2 - z1) * t;
-          points.push({ gx, gz });
           const id = pointId(gx, gz);
-          if (!cornerPoints.has(id)) cornerPoints.set(id, { gx, gz });
-          if (flush) continue;
-          const shift = side.dx ? cliffOffset(gz, gx) : cliffOffset(gx, gz);
           cliffPoints.add(id);
+          if (i === 0 || i === SURFACE_SUB) continue;
           const entry = cliffShifts.get(id) || { x: 0, z: 0 };
-          if (side.dx) entry.x = shift;
-          else entry.z = shift;
+          if (side.dx) entry.x = cliffOffset(gx, gz);
+          else entry.z = cliffOffset(gx + 37.9, gz - 19.4);
           cliffShifts.set(id, entry);
-          const dir = cornerDirs.get(id) || { x: 0, z: 0 };
-          if (side.dx) {
-            if (markA && !markB) dir.x = -1;
-            else if (markB && !markA) dir.x = 1;
-            else if (markA && markB && heightA !== heightB) dir.x = heightA > heightB ? -1 : 1;
-          } else if (markA && !markB) {
-            dir.z = -1;
-          } else if (markB && !markA) {
-            dir.z = 1;
-          } else if (markA && markB && heightA !== heightB) {
-            dir.z = heightA > heightB ? -1 : 1;
-          }
-          cornerDirs.set(id, dir);
-        }
-        if (flush) {
-          const value = Math.max(heightA, heightB);
-          for (const point of points) {
-            const id = pointId(point.gx, point.gz);
-            const list = flushValues.get(id);
-            if (!list) flushValues.set(id, [value]);
-            else if (!list.includes(value)) list.push(value);
-          }
-          continue;
         }
       }
-    }
-
-    const sameLevel = (list) => list.every((height) => Math.abs(height - list[0]) <= CLIFF_FLAT_STEP);
-
-    const cornerCanRound = (point) => {
-      if (!point) return false;
-      const edgeX = Math.abs(point.gx % 2) === 1;
-      const edgeZ = Math.abs(point.gz % 2) === 1;
-      if (!edgeX || !edgeZ) return false;
-      const heights = [];
-      for (const px of [(point.gx - 1) / 2, (point.gx + 1) / 2]) {
-        for (const pz of [(point.gz - 1) / 2, (point.gz + 1) / 2]) {
-          if (!keyAt(px, pz)) return false;
-          heights.push(field.heightAtCell(px, pz));
-        }
-      }
-      const top = Math.max(...heights);
-      const high = heights.filter((height) => height >= top - CLIFF_FLAT_STEP);
-      const low = heights.filter((height) => height < top - CLIFF_FLAT_STEP);
-      if (high.length !== 1 || low.length !== 3) return false;
-      return sameLevel(low);
-    };
-
-    for (const [id, dir] of cornerDirs) {
-      if (!dir.x || !dir.z) continue;
-      if (!cornerCanRound(cornerPoints.get(id))) continue;
-      cliffShifts.set(id, { x: dir.x * CLIFF_CORNER_ROUND, z: dir.z * CLIFF_CORNER_ROUND });
     }
 
     const positionOf = (point) => {
@@ -494,20 +471,6 @@ export default class TerrainSystem {
       };
     };
     const heightOf = (point, cx, cz) => {
-      const id = pointId(point.gx, point.gz);
-      const own = field.heightAtCell(cx, cz);
-      const candidates = flushValues.get(id);
-      if (candidates) {
-        let best = null;
-        let bestDelta = CLIFF_FLAT_STEP;
-        for (const value of candidates) {
-          const delta = Math.abs(own - value);
-          if (delta > bestDelta) continue;
-          best = value;
-          bestDelta = delta;
-        }
-        if (best !== null) return best;
-      }
       const pos = positionOf(point);
       return field.heightAtSide(pos.px, pos.pz, cx, cz);
     };
@@ -521,6 +484,7 @@ export default class TerrainSystem {
         const nx = cx + side.dx;
         const nz = cz + side.dz;
         if (!keyAt(nx, nz)) continue;
+        if (!field.isHardEdge(cx, cz, side.dx, side.dz)) continue;
         let x1;
         let z1;
         let x2;
@@ -549,6 +513,65 @@ export default class TerrainSystem {
       }
     }
 
+    const cliffValues = new Map();
+    for (const [cx, cz] of cells) {
+      const key = keyAt(cx, cz);
+      if (!this.surfaceConfig(key)) continue;
+      const x0 = cx * CELL_SIZE - half;
+      const z0 = cz * CELL_SIZE - half;
+      for (let i = 0; i <= SURFACE_SUB; i += 1) {
+        for (let j = 0; j <= SURFACE_SUB; j += 1) {
+          const gx = x0 + i * step;
+          const gz = z0 + j * step;
+          const id = pointId(gx, gz);
+          if (!cliffPoints.has(id)) continue;
+          const value = heightOf({ gx, gz }, cx, cz);
+          const list = cliffValues.get(id);
+          if (list) list.push({ cx, cz, height: value });
+          else cliffValues.set(id, [{ cx, cz, height: value }]);
+        }
+      }
+    }
+
+    const welded = new Map();
+    for (const [id, list] of cliffValues) {
+      const groupOf = list.map(() => -1);
+      let groupCount = 0;
+      for (let start = 0; start < list.length; start += 1) {
+        if (groupOf[start] !== -1) continue;
+        const group = groupCount;
+        groupCount += 1;
+        groupOf[start] = group;
+        const queue = [start];
+        while (queue.length) {
+          const current = list[queue.pop()];
+          for (const side of SURFACE_SIDES) {
+            for (let j = 0; j < list.length; j += 1) {
+              if (groupOf[j] !== -1) continue;
+              const other = list[j];
+              if (other.cx !== current.cx + side.dx || other.cz !== current.cz + side.dz) continue;
+              if (field.isHardEdge(current.cx, current.cz, side.dx, side.dz)) continue;
+              groupOf[j] = group;
+              queue.push(j);
+            }
+          }
+        }
+      }
+      const groupTops = new Array(groupCount).fill(-Infinity);
+      for (let i = 0; i < list.length; i += 1) {
+        const index = groupOf[i];
+        if (list[i].height > groupTops[index]) groupTops[index] = list[i].height;
+      }
+      for (let i = 0; i < list.length; i += 1) {
+        welded.set(`${id}|${list[i].cx},${list[i].cz}`, groupTops[groupOf[i]]);
+      }
+    }
+
+    const weldedAt = (id, cx, cz) => {
+      const value = welded.get(`${id}|${cx},${cz}`);
+      return value === undefined ? null : value;
+    };
+
     for (const [cx, cz] of cells) {
       const key = keyAt(cx, cz);
       if (!this.surfaceConfig(key)) continue;
@@ -563,8 +586,10 @@ export default class TerrainSystem {
           const gz = z0 + j * step;
           const point = { gx, gz };
           const pos = positionOf(point);
-          const split = cliffPoints.has(pointId(gx, gz));
-          const py = heightOf(point, cx, cz);
+          const id = pointId(gx, gz);
+          const split = cliffPoints.has(id);
+          const weldedValue = weldedAt(id, cx, cz);
+          const py = weldedValue === null ? heightOf(point, cx, cz) : weldedValue;
           row.push(slot(group, gx, gz, pos.px, pos.pz, py, split ? `${cx},${cz}` : null));
         }
         grid.push(row);
@@ -656,17 +681,32 @@ export default class TerrainSystem {
       this.surfaces.push(mesh);
     }
 
-    if (wallEdges.length) this.createCliffMesh(wallEdges, positionOf, heightOf);
+    if (wallEdges.length) this.createCliffMesh(wallEdges, positionOf, heightOf, weldedAt);
   }
 
-  createCliffMesh(edges, positionOf, heightOf) {
+  createCliffMesh(edges, positionOf, heightOf, weldedAt) {
+    const tops = new Map();
+    const bottoms = new Map();
+    for (const edge of edges) {
+      for (const point of edge.points) {
+        const id = pointId(point.gx, point.gz);
+        const first = heightOf(point, edge.cx, edge.cz);
+        const second = heightOf(point, edge.nx, edge.nz);
+        const weldedFirst = weldedAt(id, edge.cx, edge.cz);
+        const weldedSecond = weldedAt(id, edge.nx, edge.nz);
+        const top = Math.max(weldedFirst === null ? first : weldedFirst, weldedSecond === null ? second : weldedSecond);
+        const bottom = Math.min(first, second);
+        if (!tops.has(id) || top > tops.get(id)) tops.set(id, top);
+        if (!bottoms.has(id) || bottom < bottoms.get(id)) bottoms.set(id, bottom);
+      }
+    }
     const groups = new Map();
     for (const edge of edges) {
       const style = this.cliffStyleOf(edge);
       if (!groups.has(style)) groups.set(style, []);
       groups.get(style).push(edge);
     }
-    for (const [style, list] of groups) this.buildCliffFaces(list, positionOf, heightOf, style);
+    for (const [style, list] of groups) this.buildCliffFaces(list, positionOf, heightOf, style, tops, bottoms);
   }
 
   cliffStyleOf(edge) {
@@ -675,7 +715,7 @@ export default class TerrainSystem {
     return field.cliffStyleAt(edge.cx, edge.cz) || field.cliffStyleAt(edge.nx, edge.nz) || 'dirt';
   }
 
-  buildCliffFaces(edges, positionOf, heightOf, style) {
+  buildCliffFaces(edges, positionOf, heightOf, style, tops, bottoms) {
     const positions = [];
     const indices = [];
     const uvs = [];
@@ -690,12 +730,17 @@ export default class TerrainSystem {
         const b1 = heightOf(b, edge.cx, edge.cz);
         const b2 = heightOf(b, edge.nx, edge.nz);
         if (Math.abs(a1 - a2) < 0.02 && Math.abs(b1 - b2) < 0.02) continue;
+        const aId = pointId(a.gx, a.gz);
+        const bId = pointId(b.gx, b.gz);
         const apos = positionOf(a);
         const bpos = positionOf(b);
-        const aTop = Math.max(a1, a2) + 0.03;
-        const aBottom = Math.min(a1, a2) - 0.03;
-        const bTop = Math.max(b1, b2) + 0.03;
-        const bBottom = Math.min(b1, b2) - 0.03;
+        const rise = (a1 - a2) || (b1 - b2);
+        const outX = rise > 0 ? edge.nx - edge.cx : edge.cx - edge.nx;
+        const outZ = rise > 0 ? edge.nz - edge.cz : edge.cz - edge.nz;
+        const aTop = tops.get(aId) + 0.03;
+        const aBottom = bottoms.get(aId) - 0.03;
+        const bTop = tops.get(bId) + 0.03;
+        const bBottom = bottoms.get(bId) - 0.03;
         const start = positions.length / 3;
         positions.push(
           apos.px, aTop, apos.pz,
@@ -719,7 +764,10 @@ export default class TerrainSystem {
           s1 / WALL_TILE, bTop / WALL_TILE,
           s1 / WALL_TILE, bBottom / WALL_TILE,
         );
-        indices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
+        const dx = b.gx - a.gx;
+        const dz = b.gz - a.gz;
+        if (-dz * outX + dx * outZ < 0) indices.push(start, start + 2, start + 1, start + 1, start + 2, start + 3);
+        else indices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
       }
     }
     if (!positions.length) return;
@@ -731,6 +779,7 @@ export default class TerrainSystem {
     data.colors = colors;
     data.normals = [];
     VertexData.ComputeNormals(positions, indices, data.normals);
+    smoothCoincidentNormals(positions, data.normals);
     data.applyToMesh(mesh);
     mesh.isPickable = false;
     mesh.receiveShadows = true;
