@@ -159,7 +159,7 @@ export default class MapEditor {
     this.mode.setWaterShown(true);
     this.hud.setWater(value, this.mode.waterShown);
     this.s.adoptEditorMap();
-    this.s.refreshTerrain();
+    this.s.renderWater();
     this.s.handleHover(this.s.hoverCell);
     this.markDirty();
   }
@@ -230,7 +230,6 @@ export default class MapEditor {
   togglePanel(active) {
     if (!active && this.mapDirty) this.warnUnsaved();
     this.s.adoptEditorMap();
-    this.s.terrainSystem.clear();
     if (active) {
       this.hud.show();
       this.hud.setMode(this.mode.mode);
@@ -241,7 +240,6 @@ export default class MapEditor {
       this.areaPanel.hide();
       this.heightPanel.hide();
     }
-    this.s.refreshTerrain();
     this.syncPanels(this.mode.mode);
     this.s.editorToggle.setActive(Boolean(active));
     if (active) this.hud.setWater(this.mode.getWaterLevel(), this.mode.waterShown);

@@ -131,8 +131,8 @@ doladění a práce mimo tento plán.
 - Staré skalní modely: pryč z katalogu, mapy i assetů; kopce a stupně dělají
   jen výšky.
 - Útesy: štětec označí buňky jako plošinu; kde je mezi označenou buňkou
-  a sousedem skok, vznikne svislá hliněná stěna stejnou texturou jako okraj
-  mapy a hráč přes ni nepřejde. Mapa kvůli značce poskočila na verzi 4.
+  a sousedem skok, vznikne svislá kamenná stěna, nebo hliněná se stejnou texturou
+  jako okraj mapy, a hráč přes ni nepřejde. Mapa kvůli značce poskočila na verzi 4.
 - Voda: hladina pro celou mapu jako nepovinné číslo v souboru mapy; v editoru
   se zapíná tlačítkem Voda a hladina se ladí po 0,3 m; Z vrací krok.
   Mapa má hladinu −0,3 m, takže je voda zapnutá hned po startu.
@@ -183,7 +183,7 @@ doladění a práce mimo tento plán.
 - Kopce a stupně se staví výškami, ne skládáním skalních bloků; staré skalní
   modely jsou z projektu odstraněné i s kusy v mapě.
 - Označená buňka je plošina: drží rovnou výšku, přes její hranu se výška
-  nedopočítává a kde je soused níž, stojí hliněná stěna. Stejně vysoký soused
+  nedopočítává a kde je soused níž, stojí kamenná nebo hliněná stěna. Stejně vysoký soused
   se napojí plynule bez stěny a hrana stěny se drobně vlní.
 - Voda je jedna hladina pro celou mapu a jen se kreslí — nic v mapě nemění.
   Kde je terén pod ní, tam je voda; kde je výš, terén ji překryje.
@@ -367,10 +367,11 @@ V namalované ploše zmizí stromy, kameny i tráva; na svazích se objekty posu
 s terénem. Tlačítko **Zpět na trávu** srovná výšku na 0 a vrátí trávu.
 
 **Útes** je štětec, který buňky označí jako plošinu. Označená buňka drží svou
-výšku rovně a na každé straně, kde je soused níž, se postaví svislá hliněná
-stěna stejnou texturou jako okraj mapy; hráč přes ni zatím nepřejde. Stěna se
+výšku rovně a na každé straně, kde je soused níž, se postaví svislá kamenná
+stěna, nebo hliněná se stejnou texturou jako okraj mapy; hráč přes ni zatím nepřejde. Stěna se
 staví po půlmetrových kouscích, dorovná se i v rozích a její hrana se drobně
-vlní, aby nebyla rovná jako podle pravítka. Kde má soused stejnou výšku, hrana
+vlní, aby nebyla rovná jako podle pravítka. Kamenná stěna míchá dvě skály podle
+vodorovných vrstev, nahoře přidává mech a pod vodou tmavne; stěny vrhají stín. Kde má soused stejnou výšku, hrana
 se spojí po celé délce — terén se k plošině dotáhne i v rozích a žádná stěna
 tam nevznikne. Rozdíl proti nižší zemi se uzavře krátkou hliněnou plochou
 na boku, takže do útesu se nedělají zářezy a neprosvítá tráva. Rohy, kde se

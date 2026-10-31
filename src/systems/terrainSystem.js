@@ -20,6 +20,7 @@ import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import TerrainBlendPlugin from './terrainBlendPlugin.js';
 import TerrainCausticPlugin from './terrainCausticPlugin.js';
 import TerrainWetPlugin from './terrainWetPlugin.js';
+import CliffSurfacePlugin from './cliffSurfacePlugin.js';
 
 const PICK_LIFT = 0.002;
 const GRID_LIFT = 0.02;
@@ -28,8 +29,10 @@ const SURFACE_SUB = 4;
 const SKIRT_DEPTH = 2;
 const WALL_TILE = 3;
 const WALL_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
-const CLIFF_TEXTURE = `${ASSET_DIRS.textures}Rock030_1K-JPG_Color.jpg`;
-const CLIFF_NORMAL = `${ASSET_DIRS.textures}Rock030_1K-JPG_NormalGL.jpg`;
+const CLIFF_TEXTURE = `${ASSET_DIRS.textures}Rock050_1K-JPG_Color.jpg`;
+const CLIFF_NORMAL = `${ASSET_DIRS.textures}Rock050_1K-JPG_NormalGL.jpg`;
+const CLIFF_STRATA_TEXTURE = `${ASSET_DIRS.textures}Rock023_1K-JPG_Color.jpg`;
+const CLIFF_MOSS_TEXTURE = `${ASSET_DIRS.textures}Rock063_1K-JPG_Color.jpg`;
 const CLAY_CLIFF_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
 const SURFACE_BLEND_RADIUS = 1.8;
 const SURFACE_BLEND_SOFTMIN = 0.35;
@@ -83,6 +86,11 @@ function valueNoise(x, z) {
 
 function cliffOffset(x, z) {
   return (valueNoise(x * CLIFF_WAVE_SCALE + 11.3, z * CLIFF_WAVE_SCALE - 7.1) - 0.5) * 2 * CLIFF_WAVE;
+}
+
+function smoothstep(edge0, edge1, value) {
+  const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
 }
 
 function wallBetween(field, ax, az, bx, bz) {
@@ -158,6 +166,7 @@ export default class TerrainSystem {
     this.wetPlugins = [];
     this.skirtMaterial = null;
     this.cliffMaterials = null;
+    this.cliffBlendTextures = [];
     this.skirtMesh = null;
     this.gridLines = null;
     this.field = null;
@@ -190,7 +199,7 @@ export default class TerrainSystem {
     this.realCells = [];
   }
 
-  create(mapKey, world = null, extraCells = null) {
+  create(mapKey, world = null) {
     const map = getMap(mapKey);
     if (!map) return null;
 
@@ -206,26 +215,6 @@ export default class TerrainSystem {
     this.gridLines = this.createGridLines(map, this.realCells);
     this.ready = Promise.resolve(this.surfaces);
     return this.surfaces;
-  }
-
-  reachCells(step = 14) {
-    const cells = this.realCells || [];
-    if (!cells.length) return [];
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minZ = Infinity;
-    let maxZ = -Infinity;
-    for (const [cx, cz] of cells) {
-      minX = Math.min(minX, cx);
-      maxX = Math.max(maxX, cx);
-      minZ = Math.min(minZ, cz);
-      maxZ = Math.max(maxZ, cz);
-    }
-    const out = [];
-    for (let cx = minX - step; cx <= maxX + step; cx += 1) {
-      for (let cz = minZ - step; cz <= maxZ + step; cz += 1) out.push([cx, cz]);
-    }
-    return out;
   }
 
   cellsSignature(cells) {
@@ -751,8 +740,25 @@ export default class TerrainSystem {
     const indices = [];
     const uvs = [];
     const colors = [];
+    const masks = [];
+    const shadeAt = (y, top, bottom, gx, gz, tone) => {
+      const span = Math.max(0.001, top - bottom);
+      const t = Math.min(1, Math.max(0, (y - bottom) / span));
+      const grain = valueNoise(gx * 0.37 + 4.1, gz * 0.37 - 2.3);
+      const stripe = 0.5 + 0.5 * Math.sin(y * 0.95 + grain * 3.1);
+      const base = 0.70 + (tone - 0.70) * Math.pow(t, 0.62);
+      const moss = smoothstep(0.52, 0.90, t + (grain - 0.5) * 0.24) * (0.35 + 0.65 * grain);
+      const shade = base * (0.92 + 0.08 * grain) * (0.95 + 0.07 * stripe);
+      return {
+        r: shade * (1 - 0.10 * moss),
+        g: shade * (1 + 0.02 * moss),
+        b: shade * (1 - 0.16 * moss),
+        moss,
+      };
+    };
     for (const edge of edges) {
       const points = edge.points;
+      const alongZ = edge.cx !== edge.nx;
       for (let i = 0; i < SURFACE_SUB; i += 1) {
         const a = points[i];
         const b = points[i + 1];
@@ -779,21 +785,25 @@ export default class TerrainSystem {
           bpos.px, bTop, bpos.pz,
           bpos.px, bBottom, bpos.pz,
         );
-        const s0 = (CELL_SIZE * i) / SURFACE_SUB;
-        const s1 = (CELL_SIZE * (i + 1)) / SURFACE_SUB;
         const tone = 0.9 + (Math.abs(edge.cx * 7 + edge.cz * 13) % 5) * 0.02;
-        const foot = tone * 0.78;
+        const aHigh = shadeAt(aTop, aTop, aBottom, a.gx, a.gz, tone);
+        const aLow = shadeAt(aBottom, aTop, aBottom, a.gx, a.gz, tone);
+        const bHigh = shadeAt(bTop, bTop, bBottom, b.gx, b.gz, tone);
+        const bLow = shadeAt(bBottom, bTop, bBottom, b.gx, b.gz, tone);
         colors.push(
-          tone, tone, tone, 1,
-          foot, foot, foot, 1,
-          tone, tone, tone, 1,
-          foot, foot, foot, 1,
+          aHigh.r, aHigh.g, aHigh.b, 1,
+          aLow.r, aLow.g, aLow.b, 1,
+          bHigh.r, bHigh.g, bHigh.b, 1,
+          bLow.r, bLow.g, bLow.b, 1,
         );
+        masks.push(aHigh.moss, aLow.moss, bHigh.moss, bLow.moss);
+        const aU = (alongZ ? a.gz : a.gx) / WALL_TILE;
+        const bU = (alongZ ? b.gz : b.gx) / WALL_TILE;
         uvs.push(
-          s0 / WALL_TILE, aTop / WALL_TILE,
-          s0 / WALL_TILE, aBottom / WALL_TILE,
-          s1 / WALL_TILE, bTop / WALL_TILE,
-          s1 / WALL_TILE, bBottom / WALL_TILE,
+          aU, aTop / WALL_TILE,
+          aU, aBottom / WALL_TILE,
+          bU, bTop / WALL_TILE,
+          bU, bBottom / WALL_TILE,
         );
         const dx = b.gx - a.gx;
         const dz = b.gz - a.gz;
@@ -812,8 +822,10 @@ export default class TerrainSystem {
     VertexData.ComputeNormals(positions, indices, data.normals);
     smoothCoincidentNormals(positions, data.normals);
     data.applyToMesh(mesh);
+    mesh.setVerticesData('mossMask', new Float32Array(masks), false, 1);
     mesh.isPickable = false;
     mesh.receiveShadows = true;
+    mesh.metadata = { shadowAlways: true };
     mesh.material = this.cliffMaterialFor(style);
     this.surfaces.push(mesh);
   }
@@ -915,15 +927,33 @@ export default class TerrainSystem {
     texture.wrapV = Texture.WRAP_ADDRESSMODE;
     texture.anisotropicFilteringLevel = 4;
     material.diffuseTexture = texture;
-    material.diffuseColor = new Color3(1.12, 1.12, 1.1);
-    material.specularColor = new Color3(0.08, 0.08, 0.08);
+    material.diffuseColor = new Color3(1.02, 1.01, 0.98);
+    material.specularColor = new Color3(0.05, 0.05, 0.05);
     material.backFaceCulling = false;
     const bump = new Texture(CLIFF_NORMAL, this.s);
     bump.wrapU = Texture.WRAP_ADDRESSMODE;
     bump.wrapV = Texture.WRAP_ADDRESSMODE;
     bump.gammaSpace = false;
     material.bumpTexture = bump;
+    const strata = this.cliffBlendTexture(CLIFF_STRATA_TEXTURE);
+    const moss = this.cliffBlendTexture(CLIFF_MOSS_TEXTURE);
+    new CliffSurfacePlugin(material, { strata, moss });
+    this.addCliffWaterPlugins(material, 0.5);
     return material;
+  }
+
+  cliffBlendTexture(url) {
+    const texture = new Texture(url, this.s);
+    texture.wrapU = Texture.WRAP_ADDRESSMODE;
+    texture.wrapV = Texture.WRAP_ADDRESSMODE;
+    texture.anisotropicFilteringLevel = 4;
+    this.cliffBlendTextures.push(texture);
+    return texture;
+  }
+
+  addCliffWaterPlugins(material, wet) {
+    this.causticPlugins.push(new TerrainCausticPlugin(material));
+    this.wetPlugins.push(new TerrainWetPlugin(material, wet));
   }
 
   dirtCliffMaterial() {
@@ -936,6 +966,7 @@ export default class TerrainSystem {
     material.specularColor = new Color3(0.02, 0.02, 0.02);
     material.backFaceCulling = false;
     material.twoSidedLighting = true;
+    this.addCliffWaterPlugins(material, 0.55);
     return material;
   }
 
@@ -1034,6 +1065,10 @@ export default class TerrainSystem {
       }
       this.cliffMaterials = null;
     }
+    for (const texture of this.cliffBlendTextures) {
+      if (texture) texture.dispose();
+    }
+    this.cliffBlendTextures.length = 0;
   }
 
   tintOf(map) {

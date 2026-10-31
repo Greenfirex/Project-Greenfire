@@ -17,3 +17,7 @@ palm_frond.png - AI generated (Nano Banana), upraveno: odstranene sede pozadi, o
 palm_bark.jpg - AI generated (Nano Banana), upraveno: zjasneno, prevedeno do JPEG
 seagrape_leaf.png - AI generated (Gemini), upraveno: 3 listy slozene do atlasu, odstranene pozadi, okraje prebarvene
 almond_leaf.png - AI generated (Gemini), upraveno: 3 listy slozene do atlasu, odstranene pozadi, okraje prebarvene
+Rock050_1K-JPG_Color.jpg – ambientCG (https://ambientcg.com/view?id=Rock050), licence CC0
+Rock050_1K-JPG_NormalGL.jpg – ambientCG (https://ambientcg.com/view?id=Rock050), licence CC0
+Rock063_1K-JPG_Color.jpg – ambientCG (https://ambientcg.com/view?id=Rock063), licence CC0
+Rock063_1K-JPG_NormalGL.jpg – ambientCG (https://ambientcg.com/view?id=Rock063), licence CC0

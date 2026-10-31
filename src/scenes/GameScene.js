@@ -322,7 +322,7 @@ export default class GameScene {
 
   async prepareGame() {
     await this.buildWorld();
-    this.setupShadowCasters();
+    this.refreshShadowCasters();
     this.saveSystem.dropLegacy();
     this.setupSave();
     if (this.saveSystem.consumeLoadOnStart()) this.loadSaveState();
@@ -705,11 +705,11 @@ updateGatherTarget() {
   }
 
   refreshTerrain() {
-    const reach = this.editor.active ? this.terrainSystem.reachCells() : null;
     this.terrainSystem.clear();
-    this.terrainSystem.create(this.mapKey, this.mapFile, reach);
+    this.terrainSystem.create(this.mapKey, this.mapFile);
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);
     this.areaLookup = null;
+    this.refreshShadowCasters();
     this.renderWater();
   }
 
@@ -1195,8 +1195,14 @@ updateGatherTarget() {
     this.dayNightSystem.fogColor = this.s.fogColor;
   }
 
-  setupShadowCasters() {
-    for (const surface of this.terrainSystem.surfaces || []) surface.receiveShadows = true;
+  refreshShadowCasters() {
+    this.shadowCasters = this.shadowCasters.filter((mesh) => mesh && !mesh.isDisposed());
+    for (const surface of this.terrainSystem.surfaces || []) {
+      if (!surface) continue;
+      surface.receiveShadows = true;
+      if (surface.metadata && surface.metadata.shadowAlways) this.addShadowCaster(surface);
+    }
+    this.refreshShadowReach(true);
   }
 
   setupOptions() {
@@ -2040,11 +2046,6 @@ updateGatherTarget() {
     this.refreshShadowCasters();
   }
 
-  refreshShadowCasters() {
-    this.shadowCasters = this.shadowCasters.filter((mesh) => mesh && !mesh.isDisposed());
-    this.refreshShadowReach(true);
-  }
-
   refreshShadowReach(force = false) {
     if (!this.shadowGenerator) return;
     const shadows = Boolean(this.options.shadows);
@@ -2062,8 +2063,11 @@ updateGatherTarget() {
     const next = [];
     for (const mesh of this.shadowCasters) {
       if (!mesh || mesh.isDisposed() || !mesh.isEnabled()) continue;
-      const point = mesh.getAbsolutePosition();
-      if (Math.hypot(point.x - centerX, point.z - centerZ) > reach) continue;
+      const always = mesh.metadata && mesh.metadata.shadowAlways;
+      if (!always) {
+        const point = mesh.getAbsolutePosition();
+        if (Math.hypot(point.x - centerX, point.z - centerZ) > reach) continue;
+      }
       next.push(mesh);
     }
     if (!force && sameMeshes(next, shadowMap.renderList || [])) return;
