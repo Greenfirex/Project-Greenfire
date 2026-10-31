@@ -52,6 +52,23 @@ const BLEND_NEIGHBORS = [
 ];
 const CLIFF_WAVE = 0.16;
 const CLIFF_WAVE_SCALE = 0.45;
+const CLIFF_RELIEF = 0.30;
+const CLIFF_RELIEF_SPAN = 1.6;
+const CLIFF_NORMAL_BLEND = 0.35;
+const CLIFF_DEPTH_IN = 1.10;
+const CLIFF_DEPTH_OUT = 1.00;
+const CLIFF_PROFILE = [
+  [0.00, 0.00],
+  [0.06, 0.55],
+  [0.14, 0.92],
+  [0.26, 1.00],
+  [0.40, 1.00],
+  [0.54, 1.00],
+  [0.68, 0.90],
+  [0.80, 0.35],
+  [0.90, 0.15],
+  [1.00, 0.00],
+];
 const SURFACE_SIDES = [
   { dx: -1, dz: 0 },
   { dx: 1, dz: 0 },
@@ -86,6 +103,26 @@ function valueNoise(x, z) {
 
 function cliffOffset(x, z) {
   return (valueNoise(x * CLIFF_WAVE_SCALE + 11.3, z * CLIFF_WAVE_SCALE - 7.1) - 0.5) * 2 * CLIFF_WAVE;
+}
+
+function cliffRelief(gx, gz, at) {
+  const coarse = valueNoise(gx * 0.22 + 3.7, gz * 0.22 - 8.2);
+  const middle = valueNoise(gx * 0.62 - 15.1, gz * 0.62 + 6.4);
+  const band = valueNoise(gx * 0.14 + at * 1.7 + 51.2, gz * 0.14 - 33.4);
+  return (coarse - 0.5) * 0.95 + (middle - 0.5) * 0.45 + (band - 0.5) * 0.60;
+}
+
+function cliffDepth(point, row) {
+  const relief = row[1] * cliffRelief(point.gx, point.gz, row[0]);
+  return Math.max(-CLIFF_DEPTH_IN, Math.min(CLIFF_DEPTH_OUT, relief));
+}
+
+function cliffDirection(pushes, point) {
+  const entry = pushes.get(pointId(point.gx, point.gz));
+  if (!entry) return { x: 0, z: 0 };
+  const length = Math.hypot(entry.x, entry.z);
+  if (length < 1e-6) return { x: 0, z: 0 };
+  return { x: entry.x / length, z: entry.z / length };
 }
 
 function smoothstep(edge0, edge1, value) {
@@ -364,8 +401,9 @@ export default class TerrainSystem {
           const cx = Math.floor((x + half) / CELL_SIZE);
           const cz = Math.floor((z + half) / CELL_SIZE);
           if (field.isSharp(cx, cz)) continue;
+          if (againstWall(cx, cz)) continue;
           if (keyAt(cx, cz) === partner) {
-            data[j * width + i] = isDry(cx, cz) && againstWall(cx, cz) ? 0 : 255;
+            data[j * width + i] = 255;
             continue;
           }
           let reach = 0;
@@ -701,10 +739,18 @@ export default class TerrainSystem {
       this.surfaces.push(mesh);
     }
 
-    if (wallEdges.length) this.createCliffMesh(wallEdges, positionOf, heightOf, weldedAt);
+    if (wallEdges.length) {
+      this.createCliffMesh(wallEdges, positionOf, heightOf, weldedAt, (edge) => {
+        const lower = this.heightAtCell(edge.cx, edge.cz);
+        const higher = this.heightAtCell(edge.nx, edge.nz);
+        const key = higher >= lower ? keyAt(edge.nx, edge.nz) : keyAt(edge.cx, edge.cz);
+        const color = this.surfaceColor(key, map);
+        return [color.r * 0.50, color.g * 0.66, color.b * 0.40];
+      });
+    }
   }
 
-  createCliffMesh(edges, positionOf, heightOf, weldedAt) {
+  createCliffMesh(edges, positionOf, heightOf, weldedAt, rimColorOf) {
     const tops = new Map();
     const bottoms = new Map();
     for (const edge of edges) {
@@ -726,7 +772,21 @@ export default class TerrainSystem {
       if (!groups.has(style)) groups.set(style, []);
       groups.get(style).push(edge);
     }
-    for (const [style, list] of groups) this.buildCliffFaces(list, positionOf, heightOf, style, tops, bottoms);
+    const pushes = new Map();
+    for (const edge of edges) {
+      let riseSum = 0;
+      for (const point of edge.points) riseSum += heightOf(point, edge.cx, edge.cz) - heightOf(point, edge.nx, edge.nz);
+      const dirX = riseSum > 0 ? edge.nx - edge.cx : edge.cx - edge.nx;
+      const dirZ = riseSum > 0 ? edge.nz - edge.cz : edge.cz - edge.nz;
+      for (const point of edge.points) {
+        const id = pointId(point.gx, point.gz);
+        const entry = pushes.get(id) || { x: 0, z: 0 };
+        entry.x += dirX;
+        entry.z += dirZ;
+        pushes.set(id, entry);
+      }
+    }
+    for (const [style, list] of groups) this.buildCliffFaces(list, positionOf, heightOf, style, tops, bottoms, rimColorOf, pushes);
   }
 
   cliffStyleOf(edge) {
@@ -735,30 +795,40 @@ export default class TerrainSystem {
     return field.cliffStyleAt(edge.cx, edge.cz) || field.cliffStyleAt(edge.nx, edge.nz) || 'dirt';
   }
 
-  buildCliffFaces(edges, positionOf, heightOf, style, tops, bottoms) {
+  buildCliffFaces(edges, positionOf, heightOf, style, tops, bottoms, rimColorOf, pushes) {
     const positions = [];
     const indices = [];
     const uvs = [];
     const colors = [];
     const masks = [];
-    const shadeAt = (y, top, bottom, gx, gz, tone) => {
+    const shadeAt = (y, top, bottom, gx, gz, tone, push, rim) => {
       const span = Math.max(0.001, top - bottom);
       const t = Math.min(1, Math.max(0, (y - bottom) / span));
       const grain = valueNoise(gx * 0.37 + 4.1, gz * 0.37 - 2.3);
       const stripe = 0.5 + 0.5 * Math.sin(y * 0.95 + grain * 3.1);
       const base = 0.70 + (tone - 0.70) * Math.pow(t, 0.62);
       const moss = smoothstep(0.52, 0.90, t + (grain - 0.5) * 0.24) * (0.35 + 0.65 * grain);
-      const shade = base * (0.92 + 0.08 * grain) * (0.95 + 0.07 * stripe);
-      return {
+      const contact = 0.62 + 0.38 * smoothstep(0.02, 0.26, t);
+      const relief = 1 - 0.50 * Math.max(0, -push) + 0.14 * Math.max(0, push);
+      const shade = base * (0.88 + 0.14 * grain) * (0.88 + 0.16 * stripe) * contact * relief;
+      const lip = smoothstep(0.88, 1, t + (grain - 0.5) * 0.04) * 0.80;
+      const rock = {
         r: shade * (1 - 0.10 * moss),
         g: shade * (1 + 0.02 * moss),
         b: shade * (1 - 0.16 * moss),
+      };
+      return {
+        r: rock.r + (rim[0] - rock.r) * lip,
+        g: rock.g + (rim[1] - rock.g) * lip,
+        b: rock.b + (rim[2] - rock.b) * lip,
         moss,
       };
     };
     for (const edge of edges) {
       const points = edge.points;
       const alongZ = edge.cx !== edge.nx;
+      const rim = rimColorOf(edge);
+      const tone = 0.9 + (Math.abs(edge.cx * 7 + edge.cz * 13) % 5) * 0.02;
       for (let i = 0; i < SURFACE_SUB; i += 1) {
         const a = points[i];
         const b = points[i + 1];
@@ -767,48 +837,65 @@ export default class TerrainSystem {
         const b1 = heightOf(b, edge.cx, edge.cz);
         const b2 = heightOf(b, edge.nx, edge.nz);
         if (Math.abs(a1 - a2) < 0.02 && Math.abs(b1 - b2) < 0.02) continue;
-        const aId = pointId(a.gx, a.gz);
-        const bId = pointId(b.gx, b.gz);
         const apos = positionOf(a);
         const bpos = positionOf(b);
+        const aTop = tops.get(pointId(a.gx, a.gz)) + 0.015;
+        const aBottom = bottoms.get(pointId(a.gx, a.gz)) - 0.08;
+        const bTop = tops.get(pointId(b.gx, b.gz)) + 0.015;
+        const bBottom = bottoms.get(pointId(b.gx, b.gz)) - 0.08;
+        const aDir = cliffDirection(pushes, a);
+        const bDir = cliffDirection(pushes, b);
+        const aSpan = Math.min(1, (aTop - aBottom) / CLIFF_RELIEF_SPAN);
+        const bSpan = Math.min(1, (bTop - bBottom) / CLIFF_RELIEF_SPAN);
         const rise = (a1 - a2) || (b1 - b2);
-        const outX = rise > 0 ? edge.nx - edge.cx : edge.cx - edge.nx;
-        const outZ = rise > 0 ? edge.nz - edge.cz : edge.cz - edge.nz;
-        const aTop = tops.get(aId) + 0.03;
-        const aBottom = bottoms.get(aId) - 0.03;
-        const bTop = tops.get(bId) + 0.03;
-        const bBottom = bottoms.get(bId) - 0.03;
-        const start = positions.length / 3;
-        positions.push(
-          apos.px, aTop, apos.pz,
-          apos.px, aBottom, apos.pz,
-          bpos.px, bTop, bpos.pz,
-          bpos.px, bBottom, bpos.pz,
-        );
-        const tone = 0.9 + (Math.abs(edge.cx * 7 + edge.cz * 13) % 5) * 0.02;
-        const aHigh = shadeAt(aTop, aTop, aBottom, a.gx, a.gz, tone);
-        const aLow = shadeAt(aBottom, aTop, aBottom, a.gx, a.gz, tone);
-        const bHigh = shadeAt(bTop, bTop, bBottom, b.gx, b.gz, tone);
-        const bLow = shadeAt(bBottom, bTop, bBottom, b.gx, b.gz, tone);
-        colors.push(
-          aHigh.r, aHigh.g, aHigh.b, 1,
-          aLow.r, aLow.g, aLow.b, 1,
-          bHigh.r, bHigh.g, bHigh.b, 1,
-          bLow.r, bLow.g, bLow.b, 1,
-        );
-        masks.push(aHigh.moss, aLow.moss, bHigh.moss, bLow.moss);
-        const aU = (alongZ ? a.gz : a.gx) / WALL_TILE;
-        const bU = (alongZ ? b.gz : b.gx) / WALL_TILE;
-        uvs.push(
-          aU, aTop / WALL_TILE,
-          aU, aBottom / WALL_TILE,
-          bU, bTop / WALL_TILE,
-          bU, bBottom / WALL_TILE,
-        );
-        const dx = b.gx - a.gx;
-        const dz = b.gz - a.gz;
-        if (-dz * outX + dx * outZ < 0) indices.push(start, start + 2, start + 1, start + 1, start + 2, start + 3);
-        else indices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
+        const windX = rise > 0 ? edge.nx - edge.cx : edge.cx - edge.nx;
+        const windZ = rise > 0 ? edge.nz - edge.cz : edge.cz - edge.nz;
+        for (let r = 0; r < CLIFF_PROFILE.length - 1; r += 1) {
+          const upper = CLIFF_PROFILE[r];
+          const lower = CLIFF_PROFILE[r + 1];
+          const aDepth0 = cliffDepth(a, upper);
+          const aDepth1 = cliffDepth(a, lower);
+          const bDepth0 = cliffDepth(b, upper);
+          const bDepth1 = cliffDepth(b, lower);
+          const aShift0 = aSpan * CLIFF_RELIEF * aDepth0;
+          const aShift1 = aSpan * CLIFF_RELIEF * aDepth1;
+          const bShift0 = bSpan * CLIFF_RELIEF * bDepth0;
+          const bShift1 = bSpan * CLIFF_RELIEF * bDepth1;
+          const ay0 = aBottom + (aTop - aBottom) * upper[0];
+          const ay1 = aBottom + (aTop - aBottom) * lower[0];
+          const by0 = bBottom + (bTop - bBottom) * upper[0];
+          const by1 = bBottom + (bTop - bBottom) * lower[0];
+          const start = positions.length / 3;
+          positions.push(
+            apos.px + aDir.x * aShift0, ay0, apos.pz + aDir.z * aShift0,
+            apos.px + aDir.x * aShift1, ay1, apos.pz + aDir.z * aShift1,
+            bpos.px + bDir.x * bShift0, by0, bpos.pz + bDir.z * bShift0,
+            bpos.px + bDir.x * bShift1, by1, bpos.pz + bDir.z * bShift1,
+          );
+          const aHigh = shadeAt(ay0, aTop, aBottom, a.gx, a.gz, tone, aDepth0, rim);
+          const aLow = shadeAt(ay1, aTop, aBottom, a.gx, a.gz, tone, aDepth1, rim);
+          const bHigh = shadeAt(by0, bTop, bBottom, b.gx, b.gz, tone, bDepth0, rim);
+          const bLow = shadeAt(by1, bTop, bBottom, b.gx, b.gz, tone, bDepth1, rim);
+          colors.push(
+            aHigh.r, aHigh.g, aHigh.b, 1,
+            aLow.r, aLow.g, aLow.b, 1,
+            bHigh.r, bHigh.g, bHigh.b, 1,
+            bLow.r, bLow.g, bLow.b, 1,
+          );
+          masks.push(aHigh.moss, aLow.moss, bHigh.moss, bLow.moss);
+          const aU = (alongZ ? a.gz : a.gx) / WALL_TILE;
+          const bU = (alongZ ? b.gz : b.gx) / WALL_TILE;
+          uvs.push(
+            aU, ay0 / WALL_TILE,
+            aU, ay1 / WALL_TILE,
+            bU, by0 / WALL_TILE,
+            bU, by1 / WALL_TILE,
+          );
+          const dx = b.gx - a.gx;
+          const dz = b.gz - a.gz;
+          if (-dz * windX + dx * windZ < 0) indices.push(start, start + 2, start + 1, start + 1, start + 2, start + 3);
+          else indices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
+        }
       }
     }
     if (!positions.length) return;
@@ -820,7 +907,17 @@ export default class TerrainSystem {
     data.colors = colors;
     data.normals = [];
     VertexData.ComputeNormals(positions, indices, data.normals);
+    const flatNormals = data.normals.slice();
     smoothCoincidentNormals(positions, data.normals);
+    for (let i = 0; i < data.normals.length; i += 3) {
+      const nx = flatNormals[i] + (data.normals[i] - flatNormals[i]) * CLIFF_NORMAL_BLEND;
+      const ny = flatNormals[i + 1] + (data.normals[i + 1] - flatNormals[i + 1]) * CLIFF_NORMAL_BLEND;
+      const nz = flatNormals[i + 2] + (data.normals[i + 2] - flatNormals[i + 2]) * CLIFF_NORMAL_BLEND;
+      const length = Math.hypot(nx, ny, nz) || 1;
+      data.normals[i] = nx / length;
+      data.normals[i + 1] = ny / length;
+      data.normals[i + 2] = nz / length;
+    }
     data.applyToMesh(mesh);
     mesh.setVerticesData('mossMask', new Float32Array(masks), false, 1);
     mesh.isPickable = false;
@@ -934,6 +1031,8 @@ export default class TerrainSystem {
     bump.wrapU = Texture.WRAP_ADDRESSMODE;
     bump.wrapV = Texture.WRAP_ADDRESSMODE;
     bump.gammaSpace = false;
+    material.twoSidedLighting = true;
+    bump.level = 1.4;
     material.bumpTexture = bump;
     const strata = this.cliffBlendTexture(CLIFF_STRATA_TEXTURE);
     const moss = this.cliffBlendTexture(CLIFF_MOSS_TEXTURE);
@@ -950,6 +1049,7 @@ export default class TerrainSystem {
     this.cliffBlendTextures.push(texture);
     return texture;
   }
+
 
   addCliffWaterPlugins(material, wet) {
     this.causticPlugins.push(new TerrainCausticPlugin(material));
