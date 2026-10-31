@@ -11,6 +11,11 @@ function clamp01(value) {
   return Math.min(1, Math.max(0, value));
 }
 
+function smoothstep(edge0, edge1, value) {
+  const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
 export function bridgeSpan(record) {
   const ax = Number(record && record.ax);
   const az = Number(record && record.az);
@@ -121,6 +126,40 @@ function gridIndices(indices, start, rows, stride) {
   }
 }
 
+function columnUAt(column, y, axis) {
+  if (!column || !column.length) return null;
+  const uOf = (entry) => (axis === 'x' ? entry.x : entry.z);
+  if (y <= column[0].y) return uOf(column[0]);
+  const last = column[column.length - 1];
+  if (y >= last.y) return uOf(last);
+  for (let i = 1; i < column.length; i += 1) {
+    const b = column[i];
+    if (b.y < y) continue;
+    const a = column[i - 1];
+    const span = b.y - a.y;
+    if (span <= 1e-6) return uOf(b);
+    return uOf(a) + (uOf(b) - uOf(a)) * ((y - a.y) / span);
+  }
+  return uOf(last);
+}
+
+function columnVAt(column, y, axis) {
+  if (!column || !column.length) return null;
+  const vOf = (entry) => (axis === 'x' ? entry.z : entry.x);
+  if (y <= column[0].y) return vOf(column[0]);
+  const last = column[column.length - 1];
+  if (y >= last.y) return vOf(last);
+  for (let i = 1; i < column.length; i += 1) {
+    const b = column[i];
+    if (b.y < y) continue;
+    const a = column[i - 1];
+    const span = b.y - a.y;
+    if (span <= 1e-6) return vOf(b);
+    return vOf(a) + (vOf(b) - vOf(a)) * ((y - a.y) / span);
+  }
+  return vOf(last);
+}
+
 export function buildBridge(plan) {
   const ideal = Math.max(1e-6, plan.u1 - plan.u0);
   const steps = Math.max(8, Math.round(ideal / 0.35));
@@ -164,22 +203,44 @@ export function buildBridge(plan) {
     rock.moss.push(color.moss);
   };
   const fascia = (side) => {
-    const v = side === 0 ? plan.v0 + BRIDGE_END_INSET : plan.v1 - BRIDGE_END_INSET;
+    const v = side === 0
+      ? plan.bankA[0].v + BRIDGE_END_INSET
+      : plan.bankA[rows - 1].v - BRIDGE_END_INSET;
     const uA = sampleValue(plan.bankA, v, 'u');
     const uB = sampleValue(plan.bankB, v, 'u');
     const hA = sampleBank(plan.bankA, v);
     const hB = sampleBank(plan.bankB, v);
     const span = Math.max(1e-6, uB - uA);
     const columns = columnsFor(span);
+    const colLow = plan.columnAt ? plan.columnAt('low', v) : null;
+    const colHigh = plan.columnAt ? plan.columnAt('high', v) : null;
     const rowCount = 6;
     const start = rock.positions.length / 3;
     for (let k = 0; k <= rowCount; k += 1) {
       for (let i = 0; i < columns.length; i += 1) {
         const t = columns[i];
-        const u = uA + span * t;
-        const [x, z] = axisPoint(plan.axis, u, v);
+        const tc = clamp01(t);
         const bottom = archHeightAt(plan, t);
         let top = deckAtT(plan, t, span, hA, hB);
+        let u;
+        let vv = v;
+        if (t < 0 || t > 1) {
+          u = t < 0 ? uA - plan.burial : uB + plan.burial;
+        } else {
+          const rowY = bottom + (top - bottom) * (k / rowCount);
+          const lowEdge = columnUAt(colLow, rowY, plan.axis);
+          const highEdge = columnUAt(colHigh, rowY, plan.axis);
+          const low = lowEdge === null ? uA : lowEdge;
+          const high = highEdge === null ? uB : highEdge;
+          u = low + (high - low) * tc;
+          const lowV = columnVAt(colLow, rowY, plan.axis);
+          const highV = columnVAt(colHigh, rowY, plan.axis);
+          const wLow = 1 - smoothstep(0, 0.22, tc);
+          const wHigh = 1 - smoothstep(0, 0.22, 1 - tc);
+          if (lowV !== null) vv += (lowV - v) * wLow;
+          if (highV !== null) vv += (highV - v) * wHigh;
+        }
+        const [x, z] = axisPoint(plan.axis, u, vv);
         if (t < 0 || t > 1) top = Math.min(top, groundLimit(plan, x, z, top));
         top = Math.max(top, bottom + 0.05);
         const y = bottom + (top - bottom) * (k / rowCount);
@@ -192,8 +253,8 @@ export function buildBridge(plan) {
   fascia(1);
 
   const soffitRows = 6;
-  const vStart = plan.v0 + BRIDGE_END_INSET;
-  const vEnd = plan.v1 - BRIDGE_END_INSET;
+  const vStart = plan.bankA[0].v + BRIDGE_END_INSET;
+  const vEnd = plan.bankA[rows - 1].v - BRIDGE_END_INSET;
   const soffitStart = rock.positions.length / 3;
   for (let k = 0; k <= soffitRows; k += 1) {
     const vt = k / soffitRows;
@@ -204,13 +265,34 @@ export function buildBridge(plan) {
     const hB = sampleBank(plan.bankB, v);
     const span = Math.max(1e-6, uB - uA);
     const columns = columnsFor(span);
+    const colLow = plan.columnAt ? plan.columnAt('low', v) : null;
+    const colHigh = plan.columnAt ? plan.columnAt('high', v) : null;
     const vault = BRIDGE_VAULT * Math.sin(Math.PI * vt);
     for (let i = 0; i < columns.length; i += 1) {
       const t = columns[i];
-      const u = uA + span * t;
+      const tc = clamp01(t);
       const bottom = archHeightAt(plan, t);
       const y = bottom + vault;
-      const [x, z] = axisPoint(plan.axis, u, v);
+      let u;
+      let vv = v;
+      if (t < 0) u = uA - plan.burial;
+      else if (t > 1) u = uB + plan.burial;
+      else {
+        const lowEdge = columnUAt(colLow, y, plan.axis);
+        const highEdge = columnUAt(colHigh, y, plan.axis);
+        const low = lowEdge === null ? uA : lowEdge;
+        const high = highEdge === null ? uB : highEdge;
+        u = low + (high - low) * tc;
+        if (k === 0 || k === soffitRows) {
+          const lowV = columnVAt(colLow, y, plan.axis);
+          const highV = columnVAt(colHigh, y, plan.axis);
+          const wLow = 1 - smoothstep(0, 0.22, tc);
+          const wHigh = 1 - smoothstep(0, 0.22, 1 - tc);
+          if (lowV !== null) vv += (lowV - v) * wLow;
+          if (highV !== null) vv += (highV - v) * wHigh;
+        }
+      }
+      const [x, z] = axisPoint(plan.axis, u, vv);
       const top = deckAtT(plan, t, span, hA, hB);
       rockVertex(x, y, z, u, v, (y - bottom) / Math.max(0.001, top - bottom));
     }

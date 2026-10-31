@@ -314,6 +314,7 @@ export default class TerrainSystem {
     this.gridLines = null;
     this.field = null;
     this.bridges = [];
+    this.bridgeWallColumns = new Map();
     this.groundCells = [];
     this.realCells = [];
   }
@@ -394,6 +395,7 @@ export default class TerrainSystem {
     this.weightTextures = [];
     this.shelfAnchors = [];
     this.bridges = [];
+    this.bridgeWallColumns = new Map();
 
     const tint = new Color3(...SURFACE_VERTEX_TINT);
     const step = CELL_SIZE / SURFACE_SUB;
@@ -980,6 +982,12 @@ export default class TerrainSystem {
         : { x0: v0, x1: v1, z0: uMin, z1: uMax },
     };
     plan.deckAt = (x, z) => deckHeightAt(plan, alongX ? x : z, alongX ? z : x);
+    plan.columnAt = (side, v) => {
+      const uPlane = side === 'low' ? u0 : u1;
+      const snapped = Math.round(v * 2) / 2;
+      const point = alongX ? { gx: uPlane, gz: snapped } : { gx: snapped, gz: uPlane };
+      return this.bridgeWallColumn(point.gx, point.gz);
+    };
     return plan;
   }
 
@@ -987,22 +995,63 @@ export default class TerrainSystem {
     let factor = 1;
     for (const plan of this.bridges) {
       const alongX = plan.axis === 'x';
-      const plane = alongX ? gx : gz;
-      const nearLow = Math.abs(plane - plan.u0) <= 0.01;
-      const nearHigh = Math.abs(plane - plan.u1) <= 0.01;
-      if (!nearLow && !nearHigh) continue;
-      const along = alongX ? gz : gx;
-      let distance = 0;
-      if (along < plan.v0) distance = plan.v0 - along;
-      else if (along > plan.v1) distance = along - plan.v1;
-      const near = smoothstep(0, BRIDGE_CLEARANCE, distance);
+      const u = alongX ? gx : gz;
+      const v = alongX ? gz : gx;
+      const sideLow = Math.abs(u - plan.u0) <= 0.01;
+      const sideHigh = Math.abs(u - plan.u1) <= 0.01;
+      const endLow = Math.abs(v - plan.v0) <= 0.01;
+      const endHigh = Math.abs(v - plan.v1) <= 0.01;
+      let near = 1;
+      let deckTop = 0;
+      if (sideLow || sideHigh) {
+        let distance = 0;
+        if (v < plan.v0) distance = plan.v0 - v;
+        else if (v > plan.v1) distance = v - plan.v1;
+        near = smoothstep(0, BRIDGE_CLEARANCE, distance);
+        deckTop = sampleBank(sideLow ? plan.bankA : plan.bankB, v);
+      } else if (endLow || endHigh) {
+        let distance = 0;
+        if (u < plan.u0) distance = plan.u0 - u;
+        else if (u > plan.u1) distance = u - plan.u1;
+        near = smoothstep(0, BRIDGE_CLEARANCE, distance);
+        deckTop = sampleBank(u < (plan.u0 + plan.u1) / 2 ? plan.bankA : plan.bankB, v);
+      } else {
+        continue;
+      }
       if (near >= 1) continue;
-      const deckTop = sampleBank(nearLow ? plan.bankA : plan.bankB, along);
       const below = 1 - smoothstep(deckTop - 0.25, deckTop + 0.35, y);
       const clear = 1 - (1 - near) * below;
       if (clear < factor) factor = clear;
     }
     return factor;
+  }
+
+  bridgeWallSide(gx, gz) {
+    for (const plan of this.bridges) {
+      const u = plan.axis === 'x' ? gx : gz;
+      const v = plan.axis === 'x' ? gz : gx;
+      const onSide = Math.abs(u - plan.u0) <= 0.01 || Math.abs(u - plan.u1) <= 0.01;
+      if (!onSide) continue;
+      if (v < plan.v0 - 0.01 || v > plan.v1 + 0.01) continue;
+      return true;
+    }
+    return false;
+  }
+
+  recordBridgeWall(point, y, x, z, row) {
+    if (!this.bridgeWallSide(point.gx, point.gz)) return;
+    const id = pointId(point.gx, point.gz);
+    let rows = this.bridgeWallColumns.get(id);
+    if (!rows) {
+      rows = new Map();
+      this.bridgeWallColumns.set(id, rows);
+    }
+    rows.set(row, { y, x, z });
+  }
+
+  bridgeWallColumn(gx, gz) {
+    const rows = this.bridgeWallColumns.get(pointId(gx, gz));
+    return rows ? [...rows.values()].sort((a, b) => a.y - b.y) : null;
   }
 
   createBridges(map, blends) {
@@ -1192,10 +1241,10 @@ export default class TerrainSystem {
           const aDepth1 = cliffDepth(a, aT1, lower.w);
           const bDepth0 = cliffDepth(b, bT0, upper.w);
           const bDepth1 = cliffDepth(b, bT1, lower.w);
-          const aShift0 = Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth0 + aProtrude0 - aWaist0 - aCorner0) * aClear0;
-          const aShift1 = Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth1 + aProtrude1 - aWaist1 - aCorner1) * aClear1;
-          const bShift0 = Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth0 + bProtrude0 - bWaist0 - bCorner0) * bClear0;
-          const bShift1 = Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth1 + bProtrude1 - bWaist1 - bCorner1) * bClear1;
+          const aShift0 = Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth0 + aProtrude0 - aWaist0 - aCorner0);
+          const aShift1 = Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth1 + aProtrude1 - aWaist1 - aCorner1);
+          const bShift0 = Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth0 + bProtrude0 - bWaist0 - bCorner0);
+          const bShift1 = Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth1 + bProtrude1 - bWaist1 - bCorner1);
           const ax0 = apos.px + aDir.x * aShift0;
           const az0 = apos.pz + aDir.z * aShift0;
           const ax1 = apos.px + aDir.x * aShift1;
@@ -1204,6 +1253,10 @@ export default class TerrainSystem {
           const bz0 = bpos.pz + bDir.z * bShift0;
           const bx1 = bpos.px + bDir.x * bShift1;
           const bz1 = bpos.pz + bDir.z * bShift1;
+          this.recordBridgeWall(a, ay0, ax0, az0, r);
+          this.recordBridgeWall(a, ay1, ax1, az1, r + 1);
+          this.recordBridgeWall(b, by0, bx0, bz0, r);
+          this.recordBridgeWall(b, by1, bx1, bz1, r + 1);
           if (upper.ledge && lower.ledge && aProtrude0 + bProtrude0 > 0.008) {
             const group = shelfGroup(shelfKey);
             const tile = group.tile;
