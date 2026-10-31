@@ -1731,6 +1731,11 @@ updateGatherTarget() {
     this.refreshHologram(this.hoverCell, topY, this.buildSystem.canBuild(cx, cz));
   }
 
+  cellSurfaceAt(cx, cz) {
+    const deck = this.terrainSystem.bridgeDeckAt(cx * CELL_SIZE, cz * CELL_SIZE);
+    return deck === null ? this.decoSystem.surfaceAt(cx, cz) : deck;
+  }
+
   handleHover(cell) {
     this.hoverCell = cell;
     this.decoHighlight.setHover(cell || null);
@@ -1748,11 +1753,12 @@ updateGatherTarget() {
     }
     const preview = this.editor.mode.decoPreview(cell.cx, cell.cz);
     if (preview) {
-      this.gridSystem.showDecorPreview(preview.def, preview.items, cell.cx, cell.cz, this.decoSystem.surfaceAt(cell.cx, cell.cz), 0);
+      this.gridSystem.showDecorPreview(preview.def, preview.items, cell.cx, cell.cz, this.cellSurfaceAt(cell.cx, cell.cz), 0);
     }
     const mapMode = this.editor.mapMode;
     const hoverSpan = mapMode === 'height' ? this.editor.mode.heightStampSpan : mapMode === 'zone' ? this.editor.mode.brushSpan : 1;
-    this.gridSystem.showHoverCell(cell.cx, cell.cz, (cx, cz) => this.decoSystem.surfaceAt(cx, cz), hoverSpan);
+    const hoverSurfaceAt = (cx, cz) => this.cellSurfaceAt(cx, cz);
+    this.gridSystem.showHoverCell(cell.cx, cell.cz, hoverSurfaceAt, hoverSpan);
     if (this.editor.mapMode === 'area') {
       this.editor.showAreaPreview(this.editor.mode.getAreaSelection());
       if (this.editor.mode.hasAreaSelection) return;

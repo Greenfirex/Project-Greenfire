@@ -5,7 +5,6 @@ export const BRIDGE_SINK = 0.035;
 export const BRIDGE_RISE = 0.14;
 export const BRIDGE_VAULT = 0.25;
 export const BRIDGE_CLEARANCE = 2.0;
-export const BRIDGE_END_INSET = 0.02;
 
 function clamp01(value) {
   return Math.min(1, Math.max(0, value));
@@ -209,9 +208,7 @@ export function buildBridge(plan) {
     rock.moss.push(color.moss);
   };
   const fascia = (side) => {
-    const v = side === 0
-      ? plan.bankA[0].v + BRIDGE_END_INSET
-      : plan.bankA[rows - 1].v - BRIDGE_END_INSET;
+    const v = side === 0 ? plan.bankA[0].v : plan.bankA[rows - 1].v;
     const uA = sampleValue(plan.bankA, v, 'u');
     const uB = sampleValue(plan.bankB, v, 'u');
     const hA = sampleBank(plan.bankA, v);
@@ -227,7 +224,7 @@ export function buildBridge(plan) {
         const t = columns[i];
         const tc = clamp01(t);
         const bottom = archHeightAt(plan, t);
-        const top = Math.max(deckAtT(plan, t, span, hA, hB), bottom + 0.05);
+        const top = Math.max(deckAtT(plan, t, span, hA, hB), bottom + 0.05) + 0.04;
         const rowY = bottom + (top - bottom) * (k / rowCount);
         const lowEdge = columnUAt(colLow, rowY, plan.axis);
         const highEdge = columnUAt(colHigh, rowY, plan.axis);
@@ -252,8 +249,8 @@ export function buildBridge(plan) {
   fascia(1);
 
   const soffitRows = 6;
-  const vStart = plan.bankA[0].v + BRIDGE_END_INSET;
-  const vEnd = plan.bankA[rows - 1].v - BRIDGE_END_INSET;
+  const vStart = plan.bankA[0].v;
+  const vEnd = plan.bankA[rows - 1].v;
   const soffitStart = rock.positions.length / 3;
   for (let k = 0; k <= soffitRows; k += 1) {
     const vt = k / soffitRows;

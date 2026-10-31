@@ -337,7 +337,7 @@ export default class MapEditor {
     }
     const erasing = selection.tool === 'erase';
     this.areaPanel.setTool(selection.tool);
-    this.s.gridSystem.showBrush(cells, (cx, cz) => this.s.decoSystem.surfaceAt(cx, cz), erasing);
+    this.s.gridSystem.showBrush(cells, (cx, cz) => this.s.cellSurfaceAt(cx, cz), erasing);
     const count = this.mode.pendingAreaCells();
     this.areaPanel.setCount(count, this.mode.pendingAreaExisting());
     if (selection.drag) {
@@ -646,7 +646,7 @@ export default class MapEditor {
     }
     const draft = this.mode.draft;
     const removing = draft.mode === 'remove';
-    const surfaceAt = (cx, cz) => this.s.decoSystem.surfaceAt(cx, cz);
+    const surfaceAt = (cx, cz) => this.s.cellSurfaceAt(cx, cz);
     const same = [];
     const other = [];
     const shape = this.mode.heightDraftShape(draft);
