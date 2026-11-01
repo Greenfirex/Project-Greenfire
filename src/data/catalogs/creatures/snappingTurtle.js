@@ -215,9 +215,11 @@ export const SNAPPING_TURTLE = {
   biteRecover: 0.9,
   confusedSeconds: 1.4,
   roamRadius: 6,
+  maxStepHeight: 0.45,
+  attackHeight: 0.45,
+  respawnDays: 3,
   idleSeconds: [2.5, 6],
   defaultTier: 'adult',
-  defaultSpawn: { dx: 3, dz: 2 },
   tiers: {
     young: {
       label: 'Mladá',

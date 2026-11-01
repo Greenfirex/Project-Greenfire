@@ -7,6 +7,7 @@ import { layerAt, layerEntriesAt, floorCellAt, layerLiftAt, dropLayerCell, dropD
 import { fillZone } from '../utils/zoneFill.js';
 import { createRng, seedFor } from '../utils/rng.js';
 import { getFishType } from '../data/catalogs/fish.js';
+import { getCreatureType, getCreatureTier } from '../data/catalogs/creatures/index.js';
 import { decoPlacement } from '../utils/decoPlacement.js';
 import { bridgeSpan, bridgeCells } from '../utils/bridgeShape.js';
 
@@ -538,6 +539,60 @@ export default class EditorMode {
     return Boolean(brush && brush.bridge);
   }
 
+  get isCreatureBrush() {
+    const brush = BRUSHES[this.brushKey];
+    return Boolean(brush && brush.creature);
+  }
+
+  creatureAt(cx, cz) {
+    for (const entry of (this.layout && this.layout.creatures) || []) {
+      if (entry && entry.cx === cx && entry.cz === cz) return entry;
+    }
+    return null;
+  }
+
+  creatureInfoAt(cx, cz) {
+    const entry = this.creatureAt(cx, cz);
+    if (!entry) return null;
+    const type = getCreatureType(entry.kind);
+    if (!type) return null;
+    const tierKey = entry.tier && type.tiers[entry.tier] ? entry.tier : type.defaultTier;
+    return { entry, type, tierKey, tier: getCreatureTier(type, tierKey) };
+  }
+
+  creatureTierFor(brushKey) {
+    const brush = BRUSHES[brushKey];
+    const type = brush && brush.creatureKind ? getCreatureType(brush.creatureKind) : null;
+    if (!type || !type.tiers) return null;
+    const style = this.styleFor(brushKey);
+    return type.tiers[style] ? style : type.defaultTier;
+  }
+
+  creaturePreviewAt(cx, cz) {
+    if (!this.active || this.mode !== 'zone') return null;
+    if (this.draftMode === 'remove') return null;
+    const brush = BRUSHES[this.brushKey];
+    const type = brush && brush.creatureKind ? getCreatureType(brush.creatureKind) : null;
+    if (!type) return null;
+    const radius = Number(type.roamRadius);
+    if (!Number.isFinite(radius) || radius <= 0) return null;
+    return { type, tierKey: this.creatureTierFor(this.brushKey), radius, cx, cz };
+  }
+
+  creatureMarks() {
+    const list = this.layout && Array.isArray(this.layout.creatures) ? this.layout.creatures : [];
+    const marks = [];
+    for (const entry of list) {
+      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+      const type = getCreatureType(entry.kind);
+      const radius = Number(type && type.roamRadius);
+      if (!Number.isFinite(radius) || radius <= 0) continue;
+      const tierKey = entry.tier && type.tiers[entry.tier] ? entry.tier : type.defaultTier;
+      marks.push({ cx: entry.cx, cz: entry.cz, radius, kind: entry.kind, tierKey });
+    }
+    return marks;
+  }
+
   cellHeightValue(cx, cz) {
     const floor = floorCellAt(this.layout, cx, cz);
     return floor ? (floor.liftY || 0) : (layerLiftAt(this.layout, cx, cz) || 0);
@@ -885,6 +940,7 @@ export default class EditorMode {
     if (this.draft.mode === 'remove') {
       const brush = BRUSHES[this.draft.brushKey];
       if (brush && brush.bridge) return this.bridgeAt(cx, cz) !== null;
+      if (brush && brush.creature) return this.creatureAt(cx, cz) !== null;
       return droppable(this.layout, cx, cz).length > 0;
     }
     return this.canEditCell(cx, cz);
@@ -921,6 +977,8 @@ export default class EditorMode {
       }
     } else if (brush.fish) {
       for (const entry of layout.fish || []) if (entry) add(entry.cx, entry.cz);
+    } else if (brush.creature) {
+      for (const entry of layout.creatures || []) if (entry) add(entry.cx, entry.cz);
     } else if (brush.surfaceOnly) eachLayer((entry, name) => name === 'floor' && entry.key !== DEFAULT_FLOOR);
     else if (brush.surface) eachLayer((entry, name) => name === 'floor' && entry.key === brush.surface);
     else if (brush.height || brush.heights) {
@@ -1275,6 +1333,15 @@ export default class EditorMode {
       this.scheduleRegenerate();
       return count;
     }
+    if (brush.creature) {
+      const zone = [...cells].map(parseCell);
+      const count = this.applyCreatureBrush(brushKey, brush, zone, mode);
+      if (!count) this.history.pop();
+      this.draft.cells.clear();
+      if (this.onDraftChange) this.onDraftChange(this.draft);
+      this.scheduleRegenerate();
+      return count;
+    }
     if (brush.fish) {
       const zone = [...cells].map(parseCell);
       const count = this.applyFishBrush(brushKey, brush, zone, mode);
@@ -1472,6 +1539,26 @@ export default class EditorMode {
         kind,
         mode: roll < 0.35 ? 'orbit' : 'wander',
       });
+      changed += 1;
+    }
+    return changed;
+  }
+
+  applyCreatureBrush(brushKey, brush, zone, mode) {
+    if (!this.layout.creatures) this.layout.creatures = [];
+    const kind = brush.creatureKind;
+    if (!getCreatureType(kind)) return 0;
+    const tier = this.creatureTierFor(brushKey);
+    let changed = 0;
+    for (const { cx, cz } of zone) {
+      const key = cellKey(cx, cz);
+      const before = this.layout.creatures.length;
+      this.layout.creatures = this.layout.creatures.filter((entry) => !entry || cellKey(entry.cx, entry.cz) !== key);
+      if (mode === 'remove') {
+        if (this.layout.creatures.length !== before) changed += 1;
+        continue;
+      }
+      this.layout.creatures.push({ kind, tier, cx, cz });
       changed += 1;
     }
     return changed;
@@ -1804,6 +1891,11 @@ export default class EditorMode {
       return (floor.cliffStyle || 'dirt') === this.styleFor(this.brushKey);
     }
     if (brush && brush.surface) return this.surfaceAt(cx, cz) === brush.surface;
+    if (brush && brush.creature) {
+      const entry = this.creatureAt(cx, cz);
+      if (!entry) return false;
+      return entry.kind === brush.creatureKind && entry.tier === this.creatureTierFor(this.brushKey);
+    }
     const keys = this.draftKeys;
     if (!keys.length) return false;
     const tile = this.draftTileAt(cx, cz);
@@ -1856,6 +1948,7 @@ export default class EditorMode {
       pool: this.brushPool(this.brushKey),
       key: cellKey(cx, cz),
       liftY: entry && entry.liftY ? entry.liftY : 0,
+      creature: this.creatureInfoAt(cx, cz),
     };
   }
 }

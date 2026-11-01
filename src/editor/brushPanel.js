@@ -214,6 +214,7 @@ export default class BrushPanel {
   styleList(brush) {
     if (!brush) return [];
     const list = brush.styles || (brush.poolByStyle ? Object.keys(brush.poolByStyle) : []);
+    if (brush.creature) return list;
     return list.length > 1 ? list : [];
   }
 
@@ -260,8 +261,11 @@ export default class BrushPanel {
   refreshCount() {
     if (!this.root || !this.count) return;
     const n = this.countValue || 0;
-    const word = n === 1 ? 'buňka' : n < 5 ? 'buňky' : 'buněk';
     const brush = getBrush(this.brushKey);
+    const creatureBrush = Boolean(brush && brush.creature);
+    const word = creatureBrush
+      ? (n === 1 ? 'tvor' : n < 5 ? 'tvoři' : 'tvorů')
+      : (n === 1 ? 'buňka' : n < 5 ? 'buňky' : 'buněk');
     const heightOnly = Boolean(brush && (Number.isFinite(brush.height) || brush.heights));
     const surfaceOnly = Boolean(brush && brush.surfaceOnly);
     const surfaceBrush = Boolean(brush && brush.surface);

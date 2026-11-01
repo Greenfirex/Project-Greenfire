@@ -1,18 +1,15 @@
 // Tvorové ve světě — načte model, rozhoduje v pevném tiku a plynule ho hýbe.
 // Nedrží žádný jiný systém; výšku terénu, průchodnost a hráče dostane od scény.
-import '../utils/assetLoader.js';
+import { loadContainer } from '../utils/assetLoader.js';
 import '@babylonjs/core/Meshes/mesh';
 import '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Materials/PBR/pbrMaterial';
 import '@babylonjs/core/Materials/Textures/texture';
 import '@babylonjs/core/Rendering/outlineRenderer';
-import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { createCreatureMarker, setMarkerIcon } from '../utils/creatureMarker.js';
 import {
-  CREATURE_TYPES,
-  CREATURE_KEYS,
   getCreatureType,
   getCreatureTier,
   creatureLength,
@@ -25,6 +22,8 @@ const TURN_SPEED = 3.4;
 const RENDER_SMOOTHING = 0.001;
 const SPOT_STEP = 0.5;
 const SPOT_REACH = 12;
+const PATH_SAMPLE = 0.3;
+const CHASE_STUCK_SECONDS = 1.2;
 const ARRIVE = 0.12;
 const OUTLINE_WIDTH = 0.038;
 const OUTLINE_PULSE = 0.012;
@@ -39,6 +38,11 @@ const MARK_PULSE = 0.06;
 const MARK_SPEED = 3;
 const ALERT_COLOR = new Color3(1, 0.78, 0.25);
 const COMBAT_COLOR = new Color3(0.92, 0.16, 0.12);
+const RESPAWN_CLEAR = 1.5;
+
+function slotKeyOf(kind, tierKey, cx, cz) {
+  return `${kind}|${tierKey}|${cx}|${cz}`;
+}
 
 function turnToward(current, target, maxDelta) {
   let diff = target - current;
@@ -58,6 +62,7 @@ export default class CreatureSystem {
     this.s = scene;
     this.creatures = [];
     this.meshes = [];
+    this.slots = new Map();
     this.containers = new Map();
     this.groundHeightAt = null;
     this.walkableAt = null;
@@ -65,56 +70,104 @@ export default class CreatureSystem {
     this.onBite = null;
     this.onSound = null;
     this.onMeshReady = null;
+    this.onMeshGone = null;
+    this.onRosterChange = null;
     this.pendingState = null;
     this.hovered = null;
     this.hoverTime = 0;
+    this.now = 0;
+    this.daySeconds = 0;
+  }
+
+  configure(daySeconds) {
+    this.daySeconds = Number.isFinite(daySeconds) && daySeconds > 0 ? daySeconds : 0;
   }
 
   async create(layout) {
+    const previousDead = this.deadTimes();
     this.clear();
     const entries = this.entriesFor(layout);
-    if (!entries.length) return this.creatures;
+    if (!entries.length) {
+      this.pendingState = null;
+      return this.creatures;
+    }
+    const saved = this.stateByKey(this.pendingState);
+    this.pendingState = null;
     for (const entry of entries) {
       const type = getCreatureType(entry.kind);
-      if (!type) continue;
       const tierKey = entry.tier && type.tiers[entry.tier] ? entry.tier : type.defaultTier;
       const tier = getCreatureTier(type, tierKey);
+      const key = slotKeyOf(entry.kind, tierKey, entry.cx, entry.cz);
+      if (this.slots.has(key)) continue;
+      const slot = {
+        key,
+        kind: entry.kind,
+        tierKey,
+        type,
+        tier,
+        entry: { ...entry, tier: tierKey },
+        creature: null,
+        deadAt: null,
+      };
+      this.slots.set(key, slot);
+      if (previousDead.has(key)) slot.deadAt = previousDead.get(key);
+      const record = saved.get(key);
+      if (record) {
+        slot.deadAt = record.alive === false
+          ? (Number.isFinite(record.deadAt) ? record.deadAt : 0)
+          : null;
+      }
       const container = await this.containerFor(type.model);
-      if (!container) continue;
-      const creature = this.spawn(type, tierKey, tier, entry, container);
-      if (creature) this.creatures.push(creature);
-    }
-    if (this.pendingState) {
-      const pending = this.pendingState;
-      this.pendingState = null;
-      this.apply(pending);
+      if (!container || Number.isFinite(slot.deadAt)) continue;
+      const creature = this.spawn(type, tierKey, tier, slot.entry, container);
+      if (!creature) continue;
+      creature.slotKey = key;
+      slot.creature = creature;
+      this.creatures.push(creature);
+      if (record) this.applyLive(creature, record);
     }
     return this.creatures;
   }
 
   entriesFor(layout) {
-    const authored = layout && Array.isArray(layout.creatures) ? layout.creatures : null;
-    if (authored) return authored.filter((entry) => entry && getCreatureType(entry.kind));
-    const spawn = layout && layout.spawn ? layout.spawn : { cx: 0, cz: 0 };
-    const list = [];
-    for (const key of CREATURE_KEYS) {
-      const type = CREATURE_TYPES[key];
-      if (!type || !type.defaultSpawn) continue;
-      list.push({
-        kind: key,
-        tier: type.defaultTier,
-        cx: spawn.cx + type.defaultSpawn.dx,
-        cz: spawn.cz + type.defaultSpawn.dz,
-      });
+    const list = layout && Array.isArray(layout.creatures) ? layout.creatures : [];
+    return list.filter((entry) => entry
+      && getCreatureType(entry.kind)
+      && Number.isFinite(entry.cx)
+      && Number.isFinite(entry.cz));
+  }
+
+  deadTimes() {
+    const map = new Map();
+    for (const slot of this.slots.values()) {
+      if (!slot.creature && Number.isFinite(slot.deadAt)) map.set(slot.key, slot.deadAt);
     }
-    return list;
+    return map;
+  }
+
+  stateByKey(data) {
+    const map = new Map();
+    const list = data && Array.isArray(data.list) ? data.list : [];
+    for (const saved of list) {
+      const key = this.savedKey(saved);
+      if (key) map.set(key, saved);
+    }
+    return map;
+  }
+
+  savedKey(saved) {
+    if (!saved || !Number.isFinite(saved.cx) || !Number.isFinite(saved.cz)) return null;
+    const type = getCreatureType(saved.kind);
+    if (!type) return null;
+    const tierKey = saved.tier && type.tiers[saved.tier] ? saved.tier : type.defaultTier;
+    return slotKeyOf(saved.kind, tierKey, saved.cx, saved.cz);
   }
 
   async containerFor(url) {
     if (this.containers.has(url)) return this.containers.get(url);
     let container = null;
     try {
-      container = await LoadAssetContainerAsync(url, this.s);
+      container = await loadContainer(this.s, url);
     } catch (error) {
       console.error(`[creature] Model se nenačetl: ${url} — ${error && error.message ? error.message : error}`);
       container = null;
@@ -169,12 +222,12 @@ export default class CreatureSystem {
     const world = Number.isFinite(entry.cx) && Number.isFinite(entry.cz)
       ? cellToWorldCoords(entry.cx, entry.cz)
       : { x: Number(entry.x) || 0, z: Number(entry.z) || 0 };
-    const spot = this.nearestSpot(world.x, world.z);
+    const spot = this.nearestSpot(world.x, world.z, type);
     const facing = Math.random() * Math.PI * 2;
 
     const boneSummary = type.rig ? type.rig.summary(rig) : 'bez kostry';
     console.info(`[creature] ${type.label} (${tier.label}) na ${spot.x.toFixed(1)}, ${spot.z.toFixed(1)} — ${boneSummary}`);
-    return {
+    const creature = {
       kind: entry.kind,
       type,
       tierKey,
@@ -203,8 +256,19 @@ export default class CreatureSystem {
       timer: randomBetween(type.idleSeconds[0], type.idleSeconds[1]),
       cooldown: 0,
       walking: false,
+      blockedTime: 0,
+      giveUpUntil: 0,
       health: tier.health,
     };
+    this.placeHolder(creature);
+    return creature;
+  }
+
+  placeHolder(creature, bob = 0) {
+    if (!creature || !creature.holder) return;
+    const ground = this.groundHeightAt ? this.groundHeightAt(creature.renderX, creature.renderZ) : 0;
+    creature.holder.position.set(creature.renderX, ground + bob, creature.renderZ);
+    creature.holder.rotation.y = creature.renderFacing + (creature.type.yawOffset || 0);
   }
 
   tintMaterial(mesh, tint) {
@@ -221,24 +285,145 @@ export default class CreatureSystem {
     return this.walkableAt(x, z);
   }
 
-  nearestSpot(x, z) {
-    if (this.canStand(x, z)) return { x, z };
+  groundAt(x, z) {
+    const height = this.groundHeightAt ? this.groundHeightAt(x, z) : 0;
+    return Number.isFinite(height) ? height : 0;
+  }
+
+  stepLimit(type) {
+    const limit = Number(type && type.maxStepHeight);
+    return Number.isFinite(limit) && limit > 0 ? limit : Infinity;
+  }
+
+  attackHeight(type) {
+    const limit = Number(type && type.attackHeight);
+    return Number.isFinite(limit) && limit >= 0 ? limit : Infinity;
+  }
+
+  heightGap(creature, player) {
+    if (!player || !Number.isFinite(player.y)) return 0;
+    return Math.abs(player.y - this.groundAt(creature.x, creature.z));
+  }
+
+  inBiteRange(creature, player) {
+    if (!player) return false;
+    const gap = Math.hypot(player.x - creature.x, player.z - creature.z);
+    if (gap > creature.type.biteRange) return false;
+    return this.heightGap(creature, player) <= this.attackHeight(creature.type);
+  }
+
+  canStep(creature, x, z) {
+    if (!this.canStand(x, z)) return false;
+    const limit = this.stepLimit(creature.type);
+    if (!Number.isFinite(limit)) return true;
+    return Math.abs(this.groundAt(x, z) - this.groundAt(creature.x, creature.z)) <= limit;
+  }
+
+  pathClear(fromX, fromZ, toX, toZ, type) {
+    const dx = toX - fromX;
+    const dz = toZ - fromZ;
+    const distance = Math.hypot(dx, dz);
+    if (distance < 1e-6) return true;
+    const samples = Math.max(1, Math.ceil(distance / PATH_SAMPLE));
+    const limit = this.stepLimit(type);
+    let previousY = this.groundAt(fromX, fromZ);
+    for (let index = 1; index <= samples; index += 1) {
+      const t = index / samples;
+      const x = fromX + dx * t;
+      const z = fromZ + dz * t;
+      if (!this.canStand(x, z)) return false;
+      const y = this.groundAt(x, z);
+      if (Number.isFinite(limit) && Math.abs(y - previousY) > limit) return false;
+      previousY = y;
+    }
+    return true;
+  }
+
+  nearestSpot(x, z, type) {
+    const limit = this.stepLimit(type);
+    const referenceY = this.groundAt(x, z);
+    const fits = (px, pz) => {
+      if (!this.canStand(px, pz)) return false;
+      if (Number.isFinite(limit) && Math.abs(this.groundAt(px, pz) - referenceY) > limit) return false;
+      return this.pathClear(x, z, px, pz, type);
+    };
+    if (fits(x, z)) return { x, z };
     for (let ring = 1; ring <= SPOT_REACH / SPOT_STEP; ring += 1) {
       const radius = ring * SPOT_STEP;
       for (let step = 0; step < 8; step += 1) {
         const angle = (step / 8) * Math.PI * 2;
         const px = x + Math.cos(angle) * radius;
         const pz = z + Math.sin(angle) * radius;
-        if (this.canStand(px, pz)) return { x: px, z: pz };
+        if (fits(px, pz)) return { x: px, z: pz };
       }
     }
     return { x, z };
   }
 
-  tick(dt) {
+  roamTarget(creature) {
+    const type = creature.type;
+    const radius = Number(type.roamRadius);
+    if (!Number.isFinite(radius) || radius <= 0) return { x: creature.homeX, z: creature.homeZ };
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const reach = radius * (0.4 + Math.random() * 0.6);
+      const x = creature.homeX + Math.cos(angle) * reach;
+      const z = creature.homeZ + Math.sin(angle) * reach;
+      if (this.pathClear(creature.homeX, creature.homeZ, x, z, type)) return { x, z };
+    }
+    return { x: creature.homeX, z: creature.homeZ };
+  }
+
+  tick(dt, now) {
     if (!Number.isFinite(dt) || dt <= 0) return;
+    if (Number.isFinite(now)) this.now = now;
     const player = this.playerAt ? this.playerAt() : null;
     for (const creature of this.creatures) this.think(creature, dt, player);
+    this.respawnDue(this.now, player);
+  }
+
+  respawnDue(now, player) {
+    if (!(this.daySeconds > 0)) return;
+    for (const slot of this.slots.values()) {
+      if (slot.creature || !Number.isFinite(slot.deadAt)) continue;
+      const days = Number(slot.type.respawnDays);
+      if (!Number.isFinite(days) || days <= 0) continue;
+      if (now - slot.deadAt < days * this.daySeconds) continue;
+      if (this.playerOnSlot(player, slot)) continue;
+      const container = this.containers.get(slot.type.model);
+      if (!container) continue;
+      const creature = this.spawn(slot.type, slot.tierKey, slot.tier, slot.entry, container);
+      if (!creature) continue;
+      creature.slotKey = slot.key;
+      slot.creature = creature;
+      slot.deadAt = null;
+      this.creatures.push(creature);
+      if (this.onRosterChange) this.onRosterChange();
+    }
+  }
+
+  playerOnSlot(player, slot) {
+    if (!player) return false;
+    const world = cellToWorldCoords(slot.entry.cx, slot.entry.cz);
+    return Math.hypot(player.x - world.x, player.z - world.z) < RESPAWN_CLEAR;
+  }
+
+  statusAt(cx, cz, kind, tierKey) {
+    const slot = this.slots.get(slotKeyOf(kind, tierKey, cx, cz));
+    if (!slot) return null;
+    const days = Number(slot.type.respawnDays);
+    const remainingDays = !slot.creature
+      && Number.isFinite(slot.deadAt)
+      && Number.isFinite(days)
+      && days > 0
+      && this.daySeconds > 0
+      ? Math.max(0, (slot.deadAt + days * this.daySeconds - this.now) / this.daySeconds)
+      : null;
+    return {
+      alive: Boolean(slot.creature),
+      waiting: Number.isFinite(slot.deadAt),
+      remainingDays,
+    };
   }
 
   think(creature, dt, player) {
@@ -247,16 +432,23 @@ export default class CreatureSystem {
     creature.cooldown = Math.max(0, creature.cooldown - dt);
     creature.timer -= dt;
     const gap = player ? Math.hypot(player.x - creature.x, player.z - creature.z) : Infinity;
+    const heightGap = this.heightGap(creature, player);
     const aggro = Number.isFinite(creature.tier.aggroRange) ? creature.tier.aggroRange : type.aggroRange;
     const alertSeconds = Array.isArray(type.alertSeconds) ? type.alertSeconds : [2, 3];
+    const canAggro = Boolean(player)
+      && gap < aggro
+      && heightGap <= this.attackHeight(type)
+      && this.now >= (creature.giveUpUntil || 0);
 
     if (creature.mode === 'windup') {
       if (creature.timer <= 0) {
         creature.mode = 'recover';
         creature.timer = type.biteRecover;
         creature.cooldown = type.biteCooldown;
-        this.playSound(creature, 'bite');
-        if (this.onBite) this.onBite(creature);
+        if (this.inBiteRange(creature, player)) {
+          this.playSound(creature, 'bite');
+          if (this.onBite) this.onBite(creature);
+        }
       }
       return;
     }
@@ -267,7 +459,7 @@ export default class CreatureSystem {
     }
 
     if (creature.mode === 'confused') {
-      if (player && gap < aggro) {
+      if (canAggro) {
         this.beginAlert(creature, alertSeconds);
         return;
       }
@@ -281,7 +473,7 @@ export default class CreatureSystem {
     }
 
     if (creature.mode === 'alert') {
-      if (!player || gap > aggro) {
+      if (!canAggro) {
         creature.mode = 'roam';
         creature.targetX = creature.homeX;
         creature.targetZ = creature.homeZ;
@@ -298,7 +490,7 @@ export default class CreatureSystem {
       return;
     }
 
-    if (player && gap < aggro) {
+    if (canAggro) {
       if (creature.mode !== 'chase') {
         if (gap <= type.chargeRange) {
           this.beginCharge(creature);
@@ -307,7 +499,7 @@ export default class CreatureSystem {
           return;
         }
       }
-      if (gap <= type.biteRange && creature.cooldown <= 0) {
+      if (this.inBiteRange(creature, player) && creature.cooldown <= 0) {
         creature.mode = 'windup';
         creature.timer = type.biteWindup;
         return;
@@ -316,7 +508,7 @@ export default class CreatureSystem {
     }
 
     if (creature.mode === 'chase') {
-      if (!player || gap > aggro * 1.8) {
+      if (!player || gap > aggro * 1.8 || heightGap > this.attackHeight(type)) {
         creature.engaged = false;
         creature.mode = 'confused';
         creature.timer = creature.type.confusedSeconds || 1.4;
@@ -327,7 +519,15 @@ export default class CreatureSystem {
       const dirX = (player.x - creature.x) / gap;
       const dirZ = (player.z - creature.z) / gap;
       const speed = type.walkSpeed * creature.tier.speed;
-      this.walkTo(creature, player.x - dirX * standoff, player.z - dirZ * standoff, speed, dt);
+      const arrived = this.walkTo(creature, player.x - dirX * standoff, player.z - dirZ * standoff, speed, dt);
+      const blocked = !arrived && !creature.walking;
+      creature.blockedTime = blocked ? creature.blockedTime + dt : 0;
+      if (creature.blockedTime > CHASE_STUCK_SECONDS) {
+        creature.engaged = false;
+        creature.giveUpUntil = this.now + (type.confusedSeconds || 1.4) + 3;
+        creature.mode = 'confused';
+        creature.timer = type.confusedSeconds || 1.4;
+      }
       return;
     }
 
@@ -342,10 +542,9 @@ export default class CreatureSystem {
     }
 
     if (creature.timer <= 0) {
-      const angle = Math.random() * Math.PI * 2;
-      const reach = type.roamRadius * (0.4 + Math.random() * 0.6);
-      creature.targetX = creature.homeX + Math.cos(angle) * reach;
-      creature.targetZ = creature.homeZ + Math.sin(angle) * reach;
+      const target = this.roamTarget(creature);
+      creature.targetX = target.x;
+      creature.targetZ = target.z;
       creature.mode = 'roam';
       creature.timer = randomBetween(5, 9);
     }
@@ -381,14 +580,14 @@ export default class CreatureSystem {
     const dirZ = dz / distance;
     const step = Math.min(distance, speed * dt);
     let moved = false;
-    if (this.canStand(creature.x + dirX * step, creature.z + dirZ * step)) {
+    if (this.canStep(creature, creature.x + dirX * step, creature.z + dirZ * step)) {
       creature.x += dirX * step;
       creature.z += dirZ * step;
       moved = true;
-    } else if (this.canStand(creature.x + dirX * step, creature.z)) {
+    } else if (this.canStep(creature, creature.x + dirX * step, creature.z)) {
       creature.x += dirX * step;
       moved = true;
-    } else if (this.canStand(creature.x, creature.z + dirZ * step)) {
+    } else if (this.canStep(creature, creature.x, creature.z + dirZ * step)) {
       creature.z += dirZ * step;
       moved = true;
     }
@@ -407,15 +606,11 @@ export default class CreatureSystem {
       creature.renderX += (creature.x - creature.renderX) * blend;
       creature.renderZ += (creature.z - creature.renderZ) * blend;
       creature.renderFacing = turnToward(creature.renderFacing, creature.facing, TURN_SPEED * seconds);
-      const ground = this.groundHeightAt
-        ? this.groundHeightAt(creature.renderX, creature.renderZ)
-        : 0;
       const pose = creature.type.rig
         ? creature.type.rig.pose(creature.rig, seconds, { mode: creature.mode, moving: creature.walking })
         : null;
       const bob = pose && Number.isFinite(pose.bob) ? pose.bob : 0;
-      creature.holder.position.set(creature.renderX, ground + bob, creature.renderZ);
-      creature.holder.rotation.y = creature.renderFacing + (creature.type.yawOffset || 0);
+      this.placeHolder(creature, bob);
       const alert = creature.mode === 'alert';
       const combat = creature.mode === 'chase' || creature.mode === 'windup' || creature.mode === 'recover';
       const hovered = creature === this.hovered;
@@ -480,17 +675,65 @@ export default class CreatureSystem {
     marker.position.y = creature.markHeight + Math.sin(this.hoverTime * MARK_SPEED * 0.7) * MARK_BOB;
   }
 
+  damage(creature, amount, now) {
+    if (!creature || !Number.isFinite(amount) || amount <= 0) return false;
+    if (creature.health <= 0) return false;
+    creature.health = Math.max(0, creature.health - amount);
+    if (creature.health > 0) return false;
+    return this.kill(creature, now);
+  }
+
+  kill(creature, now) {
+    const slot = creature && creature.slotKey ? this.slots.get(creature.slotKey) : null;
+    if (!slot || slot.creature !== creature) return false;
+    creature.health = 0;
+    slot.deadAt = Number.isFinite(now) ? now : this.now;
+    this.despawn(creature);
+    if (this.onRosterChange) this.onRosterChange();
+    return true;
+  }
+
+  despawn(creature) {
+    if (!creature) return;
+    const gone = [...(creature.meshes || [])];
+    if (creature.marker) gone.push(creature.marker);
+    this.creatures = this.creatures.filter((item) => item !== creature);
+    this.meshes = this.meshes.filter((mesh) => !gone.includes(mesh));
+    if (this.hovered === creature) this.hovered = null;
+    const slot = creature.slotKey ? this.slots.get(creature.slotKey) : null;
+    if (slot && slot.creature === creature) slot.creature = null;
+    if (creature.holder && !creature.holder.isDisposed()) creature.holder.dispose();
+    if (this.onMeshGone) {
+      for (const mesh of gone) this.onMeshGone(mesh);
+    }
+  }
+
   serialize() {
-    return {
-      list: this.creatures.map((creature) => ({
-        kind: creature.kind,
-        tier: creature.tierKey,
-        x: creature.x,
-        z: creature.z,
-        facing: creature.facing,
-        health: creature.health,
-      })),
-    };
+    const list = [];
+    for (const slot of this.slots.values()) {
+      const base = {
+        kind: slot.kind,
+        tier: slot.tierKey,
+        cx: slot.entry.cx,
+        cz: slot.entry.cz,
+      };
+      const creature = slot.creature;
+      if (creature) {
+        list.push({
+          ...base,
+          alive: true,
+          x: creature.x,
+          z: creature.z,
+          facing: creature.facing,
+          health: creature.health,
+        });
+      } else if (Number.isFinite(slot.deadAt)) {
+        list.push({ ...base, alive: false, deadAt: slot.deadAt });
+      } else {
+        list.push({ ...base, alive: true });
+      }
+    }
+    return { list };
   }
 
   defaultState() {
@@ -498,31 +741,40 @@ export default class CreatureSystem {
   }
 
   apply(data) {
-    const list = data && Array.isArray(data.list) ? data.list : [];
-    if (!list.length) return;
-    if (!this.creatures.length) {
-      this.pendingState = data;
+    const records = this.stateByKey(data);
+    if (!this.slots.size) {
+      this.pendingState = records.size ? data : null;
       return;
     }
-    for (let index = 0; index < this.creatures.length; index += 1) {
-      const saved = list[index];
-      const creature = this.creatures[index];
-      if (!saved || !creature || saved.kind !== creature.kind) continue;
-      if (Number.isFinite(saved.x) && Number.isFinite(saved.z)) {
-        const spot = this.nearestSpot(saved.x, saved.z);
-        creature.x = spot.x;
-        creature.z = spot.z;
-        creature.homeX = spot.x;
-        creature.homeZ = spot.z;
-        creature.renderX = spot.x;
-        creature.renderZ = spot.z;
+    for (const [key, saved] of records) {
+      const slot = this.slots.get(key);
+      if (!slot) continue;
+      if (saved.alive === false) {
+        slot.deadAt = Number.isFinite(saved.deadAt) ? saved.deadAt : 0;
+        if (slot.creature) this.despawn(slot.creature);
+        continue;
       }
-      if (Number.isFinite(saved.facing)) {
-        creature.facing = saved.facing;
-        creature.renderFacing = saved.facing;
-      }
-      if (Number.isFinite(saved.health)) creature.health = saved.health;
+      slot.deadAt = null;
+      if (slot.creature) this.applyLive(slot.creature, saved);
     }
+  }
+
+  applyLive(creature, saved) {
+    if (!creature || !saved) return;
+    if (Number.isFinite(saved.x) && Number.isFinite(saved.z)) {
+      const spot = this.nearestSpot(saved.x, saved.z, creature.type);
+      creature.x = spot.x;
+      creature.z = spot.z;
+      creature.homeX = spot.x;
+      creature.homeZ = spot.z;
+      creature.renderX = spot.x;
+      creature.renderZ = spot.z;
+    }
+    if (Number.isFinite(saved.facing)) {
+      creature.facing = saved.facing;
+      creature.renderFacing = saved.facing;
+    }
+    if (Number.isFinite(saved.health)) creature.health = saved.health;
   }
 
   clear() {
@@ -531,6 +783,7 @@ export default class CreatureSystem {
     }
     this.creatures = [];
     this.meshes = [];
+    this.slots.clear();
     this.hovered = null;
   }
 }

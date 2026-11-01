@@ -2,6 +2,7 @@
 // Podlahu a linky buněk kreslí terrainSystem; tenhle systém řeší jen kurzor.
 import '@babylonjs/core/Meshes/Builders/groundBuilder';
 import '@babylonjs/core/Meshes/Builders/linesBuilder';
+import '@babylonjs/core/Meshes/Builders/discBuilder';
 import '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
@@ -14,6 +15,8 @@ import { loadModel, instantiateModel } from '../utils/assetLoader.js';
 import { decorationTemplate } from '../utils/decoTemplate.js';
 
 const HOLOGRAM_ALPHA = 0.45;
+const CREATURE_RADIUS_LIFT = 0.06;
+const CREATURE_RADIUS_STEPS = 72;
 const SINGLE_ITEM = { offsetX: 0, offsetZ: 0, yaw: 0 };
 
 function speciesOf(def) {
@@ -35,6 +38,9 @@ export default class GridSystem {
     this.brushInstances = [];
     this.hoverMaster = null;
     this.hoverMaterial = null;
+    this.radiusDisc = null;
+    this.radiusRing = null;
+    this.radiusMaterial = null;
     this.zonesMasters = [];
     this.zonesMaterials = [];
     this.zonesPool = [];
@@ -307,6 +313,49 @@ export default class GridSystem {
 
   clearHoverCell() {
     if (this.hoverMaster) this.hoverMaster.setEnabled(false);
+  }
+
+  showCreatureRadius(cx, cz, radiusMeters, surfaceAt) {
+    const radius = Number(radiusMeters);
+    if (!Number.isFinite(radius) || radius <= 0) {
+      this.clearCreatureRadius();
+      return;
+    }
+    if (!this.radiusDisc) {
+      this.radiusDisc = MeshBuilder.CreateDisc('creatureRadiusDisc', { radius: 1, tessellation: 64 }, this.s);
+      const mat = new StandardMaterial('creatureRadiusMat', this.s);
+      mat.diffuseColor = new Color3(1, 0.82, 0.35);
+      mat.emissiveColor = new Color3(0.9, 0.68, 0.2);
+      mat.disableLighting = true;
+      mat.backFaceCulling = false;
+      mat.alpha = 0.14;
+      this.radiusDisc.material = mat;
+      this.radiusDisc.isPickable = false;
+      this.radiusDisc.rotation.x = Math.PI / 2;
+      this.radiusDisc.setEnabled(false);
+      this.radiusMaterial = mat;
+      const points = [];
+      for (let step = 0; step <= CREATURE_RADIUS_STEPS; step += 1) {
+        const angle = (step / CREATURE_RADIUS_STEPS) * Math.PI * 2;
+        points.push(new Vector3(Math.cos(angle), 0, Math.sin(angle)));
+      }
+      this.radiusRing = MeshBuilder.CreateLines('creatureRadiusRing', { points }, this.s);
+      this.radiusRing.color = new Color3(1, 0.86, 0.4);
+      this.radiusRing.isPickable = false;
+      this.radiusRing.setEnabled(false);
+    }
+    const y = surfaceAt(cx, cz) + CREATURE_RADIUS_LIFT;
+    this.radiusDisc.position.set(cx * CELL_SIZE, y, cz * CELL_SIZE);
+    this.radiusDisc.scaling.set(radius, radius, 1);
+    this.radiusDisc.setEnabled(true);
+    this.radiusRing.position.set(cx * CELL_SIZE, y + 0.002, cz * CELL_SIZE);
+    this.radiusRing.scaling.set(radius, 1, radius);
+    this.radiusRing.setEnabled(true);
+  }
+
+  clearCreatureRadius() {
+    if (this.radiusDisc) this.radiusDisc.setEnabled(false);
+    if (this.radiusRing) this.radiusRing.setEnabled(false);
   }
 
   showZones(groups, surfaceAt) {

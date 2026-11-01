@@ -2,6 +2,7 @@
 // Povrchový štětec se skládá ze seznamu podkladů, takže nový povrch stačí přidat v katalogu dekorací.
 import { surfaceEntries } from './decorations.js';
 import { FLOWER_KEYS } from './flowers.js';
+import { CREATURE_KEYS, CREATURE_TYPES } from './creatures/index.js';
 import { HEIGHT_STEP } from '../maps/layoutStore.js';
 
 const SURFACES = surfaceEntries();
@@ -34,7 +35,28 @@ const SURFACE_BRUSH = SURFACES.length
     }
   : null;
 
+const CREATURE_GROUP = 'Tvorové';
+
+function creatureBrush(kind) {
+  const type = CREATURE_TYPES[kind];
+  const tierKeys = type && type.tiers ? Object.keys(type.tiers) : [];
+  return {
+    label: type.label,
+    group: CREATURE_GROUP,
+    note: 'Položí tvora na buňku. V panelu zvolíš, jak je starý; toulá se pak kolem místa, kam ho dáš.',
+    shape: 'blob',
+    creature: true,
+    creatureKind: kind,
+    style: type.defaultTier,
+    styles: tierKeys,
+    styleLabels: Object.fromEntries(tierKeys.map((key) => [key, type.tiers[key].label])),
+  };
+}
+
+const CREATURE_BRUSHES = Object.fromEntries(CREATURE_KEYS.map((kind) => [`creature_${kind}`, creatureBrush(kind)]));
+
 export const BRUSHES = {
+  ...CREATURE_BRUSHES,
   forest_exact: {
     label: 'Les',
     group: 'Rostliny',
@@ -278,7 +300,7 @@ export const BRUSHES = {
 
 export const BRUSH_KEYS = Object.keys(BRUSHES);
 
-export const BRUSH_GROUPS = ['Povrchy', 'Terén', 'Voda', 'Rostliny', 'Objekty', 'Ostatní'];
+export const BRUSH_GROUPS = ['Povrchy', 'Terén', 'Voda', 'Rostliny', 'Objekty', 'Tvorové', 'Ostatní'];
 
 export function brushesOf(group) {
   return BRUSH_KEYS.filter((key) => (BRUSHES[key].group || 'Ostatní') === group);
@@ -291,7 +313,7 @@ export function getBrush(brushKey) {
 export function brushOptions(brush) {
   if (!brush) return [];
   const list = Array.isArray(brush.options) ? brush.options : (brush.option ? [brush.option] : []);
-  if (brush.join || brush.bridge) return list;
+  if (brush.join || brush.bridge || brush.creature) return list;
   const size = Number.isFinite(brush.radius) ? Math.max(0, Math.min(SIZE_OPTION.max, Math.round(brush.radius))) : 0;
   return [...list, { ...SIZE_OPTION, default: size }];
 }

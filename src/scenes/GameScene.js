@@ -49,7 +49,7 @@ import PauseScreen from '../ui/pauseScreen.js';
 import Dialog from '../ui/dialog.js';
 import LoadingScreen from '../ui/loadingScreen.js';
 import TooltipPanel from '../ui/tooltipPanel.js';
-import { whenModelsIdle, takeModelError, preloadModel, releaseFrame } from '../utils/assetLoader.js';
+import { whenModelsIdle, takeModelError, preloadModel, loadContainer, releaseFrame } from '../utils/assetLoader.js';
 import { proceduralTemplate } from '../utils/decoTemplate.js';
 import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
@@ -58,7 +58,7 @@ import { HOTBAR_ITEMS, ITEM_TYPES } from '../data/catalogs/items.js';
 import { worldToCellCoords, worldToCell, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
-import { collectStartupUrls } from '../data/catalogs/modelCatalog.js';
+import { collectStartupUrls, CREATURE_MODEL_URLS } from '../data/catalogs/modelCatalog.js';
 import { mapFileFromLayout, layoutFromMapFile, isMapFile, MAP_VERSION } from '../data/catalogs/mapFile.js';
 import { worldCells, hasFloor } from '../data/maps/areaShape.js';
 import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
@@ -217,6 +217,7 @@ export default class GameScene {
     this.shoreClock = 0;
     this.creaturePickAt = 0;
     this.creatureTooltipOn = false;
+    this.creatureLayoutKey = null;
   }
 
   start() {
@@ -226,7 +227,10 @@ export default class GameScene {
   }
 
   async startPreload(urls) {
-    const result = await this.loader.runAssets(urls, (url) => preloadModel(this.s, url));
+    const creatureModels = new Set(CREATURE_MODEL_URLS);
+    const result = await this.loader.runAssets(urls, (url) => (
+      creatureModels.has(url) ? loadContainer(this.s, url) : preloadModel(this.s, url)
+    ));
     this.loader.endAssets();
     if (result.failed) {
       console.warn(`[start] Nenačteno ${result.failed} modelů — hra pokračuje bez nich.`);
@@ -762,13 +766,37 @@ updateGatherTarget() {
     };
     system.playerAt = () => (this.playerSystem.root ? this.playerSystem.root.position : null);
     system.onMeshReady = (mesh) => this.addShadowCaster(mesh);
+    system.onMeshGone = (mesh) => this.removeShadowCaster(mesh);
+    system.onRosterChange = () => {
+      this.refreshShadowCasters();
+      this.refreshReflectionExclusions();
+    };
     system.onSound = (key, creature) => this.playCreatureSound(key, creature);
     system.onBite = () => {
       this.cameraSystem.shake(0.28, 0.32);
       this.log.add('Želva po tobě chňapla', 'action');
     };
     await system.create(this.mapLayout);
+    this.creatureLayoutKey = this.creatureLayoutSignature();
     this.refreshReflectionExclusions();
+  }
+
+  creatureLayoutSignature() {
+    const layout = this.mapLayout || {};
+    return JSON.stringify(Array.isArray(layout.creatures) ? layout.creatures : null);
+  }
+
+  async refreshCreatures() {
+    const key = this.creatureLayoutSignature();
+    if (key === this.creatureLayoutKey) return;
+    this.creatureLayoutKey = key;
+    await this.setupCreatures();
+    this.refreshShadowCasters();
+    if (this.editor.active) this.editor.refreshCreatureMarks();
+  }
+
+  creatureStatusAt(cx, cz, kind, tierKey) {
+    return this.creatureSystem.statusAt(cx, cz, kind, tierKey);
   }
 
   playCreatureSound(key, creature) {
@@ -1085,6 +1113,7 @@ updateGatherTarget() {
         this.refreshTerrain();
         await this.terrainSystem.whenReady();
         await this.rebuildDecorations();
+        await this.refreshCreatures();
       }
     } catch (error) {
       console.error('[debug] rebuildDecorations ERROR:', error);
@@ -1418,11 +1447,12 @@ updateGatherTarget() {
   setupSimulation() {
     const map = getMap(this.mapKey);
     this.harvestSystem.configure(map && map.dayNight ? map.dayNight.dayLengthSeconds : null);
+    this.creatureSystem.configure(map && map.dayNight ? map.dayNight.dayLengthSeconds : null);
     this.simSystem.subscribe((tick) => {
       if (this.options.dayCycle) this.dayNightSystem.update(tick);
       this.refreshAmbient();
       this.updateHarvestRespawns();
-      this.creatureSystem.tick(tick);
+      this.creatureSystem.tick(tick, this.simSystem.time);
     });
     this.simSystem.onTick = null;
     this.refreshClock();
@@ -1845,6 +1875,7 @@ updateGatherTarget() {
     this.decoHighlight.setHover(cell || null);
     if (!this.editor.active) {
       this.gridSystem.clearHoverCell();
+      this.gridSystem.clearCreatureRadius();
       this.moveGridHighlight(cell);
       this.refreshHoverTooltip(cell);
       return;
@@ -1863,6 +1894,7 @@ updateGatherTarget() {
     const hoverSpan = mapMode === 'height' ? this.editor.mode.heightStampSpan : mapMode === 'zone' ? this.editor.mode.brushSpan : 1;
     const hoverSurfaceAt = (cx, cz) => this.cellSurfaceAt(cx, cz);
     this.gridSystem.showHoverCell(cell.cx, cell.cz, hoverSurfaceAt, hoverSpan);
+    this.editor.syncCreatureRadius(cell);
     if (this.editor.mapMode === 'area') {
       this.editor.showAreaPreview(this.editor.mode.getAreaSelection());
       if (this.editor.mode.hasAreaSelection) return;

@@ -8,6 +8,7 @@ import EditorHud from './editorHud.js';
 import BrushPanel from './brushPanel.js';
 import AreaPanel from './areaPanel.js';
 import HeightPanel from './heightPanel.js';
+import CreatureOverlay from './creatureOverlay.js';
 import { formatLevel, formatMeters, heightRampColor } from './heightRamp.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { BRUSHES } from '../data/catalogs/brushes.js';
@@ -27,6 +28,7 @@ export default class MapEditor {
     this.brushPanel = new BrushPanel();
     this.areaPanel = new AreaPanel();
     this.heightPanel = new HeightPanel();
+    this.creatureOverlay = new CreatureOverlay(this.s.s);
     this.mapDirty = false;
     this.showHeights = true;
     this.pendingDraftView = undefined;
@@ -61,12 +63,14 @@ export default class MapEditor {
       this.hud.setMode(mode);
       this.syncPanels(mode);
       this.showAreaPreview(this.mode.getAreaSelection());
+      this.refreshCreatureMarks();
       this.s.handleHover(this.s.hoverCell);
     };
     this.mode.onStyleChange = (brushKey, styleKey) => {
       this.brushPanel.setStyle(styleKey);
       if (this.mode.draft) this.updateDraftView(this.mode.draft);
       else this.refreshZoneOverlay();
+      this.refreshCreatureMarks();
     };
     this.mode.onHeightChange = (level) => {
       this.heightPanel.setHeight(level);
@@ -170,6 +174,7 @@ export default class MapEditor {
       this.resetSelection();
       this.hud.show();
       this.hud.clearBrushSelection();
+      this.refreshCreatureMarks();
       this.hud.setWater(this.mode.getWaterLevel(), this.mode.waterShown);
       this.hud.setReadout(NO_BRUSH_HINT);
       this.s.holdGameForEditor();
@@ -193,6 +198,7 @@ export default class MapEditor {
     this.areaPanel.hide();
     this.s.gridSystem.clearBrush();
     this.s.gridSystem.clearHoverCell();
+    this.s.gridSystem.clearCreatureRadius();
     this.s.gridSystem.clearZones();
     this.s.gridSystem.clearDraftCells();
     this.centerPanels();
@@ -218,6 +224,7 @@ export default class MapEditor {
     this.hud.clearBrushSelection();
     this.s.gridSystem.clearBrush();
     this.s.gridSystem.clearHoverCell();
+    this.s.gridSystem.clearCreatureRadius();
     this.s.gridSystem.clearZones();
     this.s.gridSystem.clearDraftCells();
     this.s.gridSystem.clearHeightBands();
@@ -239,10 +246,12 @@ export default class MapEditor {
       this.brushPanel.close();
       this.areaPanel.hide();
       this.heightPanel.hide();
+      this.hud.clearBrushSelection();
     }
     this.syncPanels(this.mode.mode);
     this.s.editorToggle.setActive(Boolean(active));
     if (active) this.hud.setWater(this.mode.getWaterLevel(), this.mode.waterShown);
+    this.refreshCreatureMarks();
   }
 
   syncPanels(mode) {
@@ -356,6 +365,7 @@ export default class MapEditor {
     this.s.gridSystem.clearBrush();
     this.areaPanel.setCount(0, 0);
     this.refreshUndoButton();
+    this.refreshCreatureMarks();
     this.s.handleHover(this.s.hoverCell);
     if (!erasing) {
       const verb = existing > 0 ? 'Přepsáno' : 'Přidáno';
@@ -382,6 +392,7 @@ export default class MapEditor {
     this.hud.setReadout(on ? 'Mazat: zvýrazněná pole jdou smazat — přejeď je myší' : 'Mazání vypnuto');
     this.refreshUndoButton();
     this.refreshZoneOverlay();
+    this.refreshCreatureMarks();
     this.s.handleHover(this.s.hoverCell);
   }
 
@@ -393,6 +404,7 @@ export default class MapEditor {
     else if (this.mode.isBridgeBrush) this.hud.setReadout('Most: klikni na první břeh, pak na protější');
     this.refreshUndoButton();
     this.refreshZoneOverlay();
+    this.refreshCreatureMarks();
     this.s.handleHover(this.s.hoverCell);
   }
 
@@ -407,8 +419,45 @@ export default class MapEditor {
   clearHoverReadout() {
     this.s.gridSystem.clearBrush();
     this.s.gridSystem.clearHoverCell();
+    this.s.gridSystem.clearCreatureRadius();
     this.hud.setReadout('–');
     this.s.tooltipPanel.hide();
+  }
+
+  syncCreatureRadius(cell) {
+    const grid = this.s.gridSystem;
+    if (!grid) return;
+    if (!this.mode.active || !cell) {
+      grid.clearCreatureRadius();
+      return;
+    }
+    const preview = this.mode.creaturePreviewAt(cell.cx, cell.cz);
+    if (!preview) {
+      grid.clearCreatureRadius();
+      return;
+    }
+    grid.showCreatureRadius(cell.cx, cell.cz, preview.radius, (cx, cz) => this.s.cellSurfaceAt(cx, cz));
+  }
+
+  refreshCreatureMarks() {
+    const overlay = this.creatureOverlay;
+    if (!overlay) return;
+    const brush = this.hud.activeBrush;
+    const active = this.mode.active && this.mode.mode === 'zone';
+    if (!active || !this.mode.isCreatureBrush || brush !== this.mode.brushKey) {
+      overlay.clear();
+      return;
+    }
+    const marks = this.mode.creatureMarks().map((mark) => {
+      const state = this.s.creatureStatusAt
+        ? this.s.creatureStatusAt(mark.cx, mark.cz, mark.kind, mark.tierKey)
+        : null;
+      if (!state) return { ...mark, state: 'new' };
+      if (state.alive) return { ...mark, state: 'alive' };
+      if (!state.waiting) return { ...mark, state: 'new' };
+      return { ...mark, state: 'waiting', remainingDays: state.remainingDays };
+    });
+    overlay.show(marks, (cx, cz) => this.s.cellSurfaceAt(cx, cz));
   }
 
   showAreaHoverReadout(cell) {
@@ -424,6 +473,8 @@ export default class MapEditor {
     const surface = entryLabel(info.layerEntry);
     if (surface) parts.push(surface);
     for (const item of info.decorations || []) parts.push(item.name);
+    const beast = info.creature;
+    if (beast) parts.push(beast.tier ? `${beast.type.label} (${beast.tier.label})` : beast.type.label);
     const lift = Math.round((Number(info.liftY) || 0) * 100) / 100;
     const staged = this.mode.mode === 'height' ? this.mode.heightLevelAt(cell.cx, cell.cz) : null;
     const joined = this.mode.joinMetersAt(cell.cx, cell.cz);
@@ -436,8 +487,17 @@ export default class MapEditor {
       const amount = count.max > 1 ? (count.min === count.max ? ` ×${count.min}` : ` ×${count.min}–${count.max}`) : '';
       draft = ` · kreslím: ${brushLabel(this.mode.draft.brushKey)}${amount}`;
     }
+    const roam = beast && Number.isFinite(beast.type.roamRadius)
+      ? ` · toulá se do ${formatMeters(beast.type.roamRadius)} m`
+      : '';
+    const runtime = beast && this.s.creatureStatusAt
+      ? this.s.creatureStatusAt(cell.cx, cell.cz, beast.entry.kind, beast.tierKey)
+      : null;
+    const status = runtime
+      ? (runtime.alive ? ' · živý' : runtime.waiting ? ` · mrtvý, ${respawnLabel(runtime.remainingDays)}` : '')
+      : '';
     const title = parts.length ? parts.join(' · ') : 'Prázdno';
-    this.s.tooltipPanel.show(title, `${cell.cx}, ${cell.cz} · výška ${formatMeters(lift)}${target}${draft}`);
+    this.s.tooltipPanel.show(title, `${cell.cx}, ${cell.cz} · výška ${formatMeters(lift)}${target}${draft}${roam}${status}`);
   }
 
   startPaint(cell) {
@@ -537,6 +597,7 @@ export default class MapEditor {
     const cliffBrush = this.mode.isCliffBrush;
     const bridgeBrush = this.mode.isBridgeBrush;
     const joinBrush = this.mode.isJoinBrush;
+    const creatureBrush = this.mode.isCreatureBrush;
     const count = this.mode.applyDraft();
     if (count && bridgeBrush) {
       this.hud.setReadout(removing ? `Most odstraněn: ${count}` : 'Most postaven');
@@ -546,6 +607,9 @@ export default class MapEditor {
         : `Označeno jako útes: ${count} buněk`);
     } else if (count && joinBrush) {
       this.hud.setReadout(removing ? `Spojnice srovnána: ${count} buněk` : `Spojnice hotová: ${count} buněk`);
+    } else if (count && creatureBrush) {
+      const word = count === 1 ? 'tvor' : count < 5 ? 'tvoři' : 'tvorů';
+      this.hud.setReadout(`${removing ? 'Odebráno' : 'Položeno'}: ${count} ${word}`);
     } else if (count && surfaceBrush) {
       this.hud.setReadout(removing
         ? `Vráceno na trávu ${count} buněk`
@@ -560,6 +624,7 @@ export default class MapEditor {
     this.brushPanel.setDraftMode(this.mode.draftMode);
     this.refreshUndoButton();
     this.refreshZoneOverlay();
+    this.refreshCreatureMarks();
     this.s.handleHover(this.s.hoverCell);
   }
 
@@ -568,12 +633,14 @@ export default class MapEditor {
     this.brushPanel.close();
     this.hud.clearBrushSelection();
     this.refreshZoneOverlay();
+    this.refreshCreatureMarks();
     this.s.handleHover(this.s.hoverCell);
   }
 
   undo() {
     if (!this.mode.undo()) {
       this.refreshUndoButton();
+      this.refreshCreatureMarks();
       this.s.handleHover(this.s.hoverCell);
       return false;
     }
@@ -582,6 +649,7 @@ export default class MapEditor {
     this.refreshUndoButton();
     this.areaPanel.setCount(this.mode.pendingAreaCells(), this.mode.pendingAreaExisting());
     this.refreshHeightTint();
+    this.refreshCreatureMarks();
     this.s.handleHover(this.s.hoverCell);
     return true;
   }
@@ -879,9 +947,18 @@ function brushLabel(key) {
   return brush ? brush.label : key;
 }
 
+function respawnLabel(days) {
+  if (!Number.isFinite(days)) return 'čeká na obnovu';
+  const whole = Math.max(0, Math.ceil(days));
+  if (whole <= 0) return 'obnoví se každou chvíli';
+  if (whole === 1) return 'obnoví se za 1 den';
+  if (whole <= 4) return `obnoví se za ${whole} dny`;
+  return `obnoví se za ${whole} dní`;
+}
+
 function brokenEntries(layout) {
   let count = 0;
-  for (const name of ['floor', 'path', 'clearing', 'decorations']) {
+  for (const name of ['floor', 'path', 'clearing', 'decorations', 'creatures']) {
     for (const entry of layout[name] || []) {
       if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) count += 1;
     }

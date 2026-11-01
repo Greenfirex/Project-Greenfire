@@ -6,7 +6,7 @@ import '@babylonjs/core/Meshes/abstractMesh';
 import '@babylonjs/core/Meshes/geometry';
 import '@babylonjs/core/Materials/Textures/texture';
 import { registerBuiltInLoaders } from '@babylonjs/loaders/dynamic';
-import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader';
+import { ImportMeshAsync, LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3, Matrix } from '@babylonjs/core/Maths/math.vector';
@@ -21,6 +21,7 @@ export function releaseFrame() {
 const MODEL_SCALE = CELL_SIZE;
 const MODEL_TIMEOUT_MS = 15000;
 const cache = new Map();
+const containerCache = new Map();
 const reportedTextures = new Set();
 const waiters = new Set();
 let pending = 0;
@@ -75,6 +76,28 @@ export async function preloadModel(scene, url) {
   const root = await withTimeout(loadModel(scene, url), MODEL_TIMEOUT_MS);
   if (!root) console.warn(`[asset] Model se nepodařilo načíst do ${MODEL_TIMEOUT_MS / 1000} s: ${url}`);
   return root;
+}
+
+export function loadContainer(scene, url) {
+  if (!containerCache.has(url)) {
+    pending += 1;
+    const promise = withTimeout(
+      LoadAssetContainerAsync(url, scene)
+        .catch((err) => {
+          console.error(`[asset] Model se nenačetl: ${url} — ${err?.message ?? err}`);
+          loadError = true;
+          return null;
+        }),
+      MODEL_TIMEOUT_MS,
+    ).then((container) => {
+      if (!container) console.warn(`[asset] Kontejner se nepodařilo načíst do ${MODEL_TIMEOUT_MS / 1000} s: ${url}`);
+      pending -= 1;
+      notifyWaiters();
+      return container;
+    });
+    containerCache.set(url, promise);
+  }
+  return containerCache.get(url);
 }
 
 function withTimeout(promise, ms) {

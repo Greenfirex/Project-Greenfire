@@ -65,7 +65,13 @@ src/
 ## Tvorové (NPC)
 
 První tvor je kajmanka (`snapping_turtle`). Každý tvor má **jeden vlastní soubor** — data
-i rig pohromadě — a systém tvorů o kostech nic neví.
+i rig pohromadě — a systém tvorů o kostech nic neví. Tvor ve hře je jen ten, který je
+zapsaný v mapě; hra žádné tvory nedoplňuje sama.
+
+Každý tvor zapsaný v mapě je zároveň **spawní místo**. Když zahyne, po `respawnDays`
+herních dnech se na stejném místě obnoví. Živý tvor se neobnovuje ani nekopíruje;
+počet tvorů určuje mapa, ne uložená hra. Mapa si stav živý/mrtvý nepamatuje — ten
+patří do uložené hry.
 
 ```
 src/data/catalogs/creatures/
@@ -118,15 +124,21 @@ rig.summary(stav)                          // -> řetězec do konzole
    - rig (rozpoznání kostí + animace), nebo `rig: null`, když model kosti nemá,
    - data: `label`, `model`, `rig`, `sounds`, `length`, `yawOffset`, `walkSpeed`, `turnRate`,
      `aggroRange`, `chargeRange`, `alertSeconds`, `biteRange`, `biteWindup`, `biteCooldown`,
-     `biteRecover`, `confusedSeconds`, `roamRadius`, `idleSeconds`, `defaultTier`,
-     `defaultSpawn`, `tiers`.
+     `biteRecover`, `confusedSeconds`, `roamRadius`, `maxStepHeight`, `attackHeight`,
+     `respawnDays`, `idleSeconds`, `defaultTier`, `tiers`.
 3. Přidej řádek do `index.js` (import + položka v `CREATURE_TYPES`).
 4. Hotovo — spawn, ikony, obrysy, tooltip i ukládání fungují automaticky.
 
 ### Na co si dát pozor
 
 - **`kind` je v savu.** Nepřejmenovávej ho u existujícího tvora, jinak se stará data ignorují
-  a tvor se vrátí na výchozí místo.
+  a tvor zůstane na místě, kam ho položila mapa.
+- **Stav živý/mrtvý není v mapě.** Mapa drží jen druh, stáří a buňku; čas smrti a zdraví
+  patří do uložené hry.
+- **Výškový rozdíl:** `maxStepHeight` určuje, jak velký schod tvor zvládne. Větší rozdíl
+  je pro něj zeď, takže nepřeleze útes; toulat se smí jen po spojitém terénu.
+- **Útok přes výšku:** `attackHeight` určuje, jak vysoko nebo nízko ještě tvor dosáhne
+  na hráče. Na hráče na útesu nezaútočí a ani se na něj nenaštve.
 - **`tier` je v savu.** Při přejmenování tierů zvedni `SAVE_VERSION`.
 - **Načtení musí snést stará data** (chybějící tvory, neznámé tiery) — `apply` nesmí spadnout.
 - **Matematika kostí:** `getBindPose()` je lokální, ne absolutní; osa otáčení se převádí do prostoru
@@ -385,6 +397,19 @@ počítá ho z polohy buňky, takže namalovaná plocha se sama rozpadne na skvr
 stejného druhu o zhruba sedmi buňkách; kliknutí na konkrétní druh ji vypne.
 Plocha je razítko: nové buňky vzniknou, existující se přepíšou i s objekty,
 mazání udělá v mapě skutečnou díru.
+Skupina **Tvorové** v paletě se plní z katalogu tvorů: každý tvor má vlastní
+tlačítko a v panelu se u něj vybírá stáří (u kajmanky Mladá / Dospělá / Stará).
+Klik položí jednoho tvora na buňku, tažení jich položí víc; na buňce zůstane
+vždy jen jeden a nový ten starý nahradí. V režimu Mazat se tvorové zase odeberou.
+Pod kurzorem se u štětce tvora kreslí jantarový kruh o poloměru jeho toulání
+a tooltip u buňky napíše druh, stáří i „toulá se do 6 m". Když je vybraný
+štětec tvora, editor navíc označí všechna spawní místa v mapě — u každého
+kruh toulání a malý čtvereček na buňce. Plný tyrkysový čtvereček znamená,
+že tam tvor zrovna žije; obrysový a ztlumený, že zahynul a čeká na obnovu.
+Tooltip u buňky napíše i stav a přibližně kolik dní do obnovy zbývá. Nově
+nakreslené místo, které ještě není potvrzené, je neutrální. Prázdná mapa
+znamená žádná spawní místa: nic se nedoplňuje samo, tvora položíš štětcem
+a uložíš mapu.
 Tlačítka výšky v panelu určují, jak vysoko se dlaždice po Aplikovat pokládají.
 Výška má vlastní okénko jako Herní plocha; otevírá se při přepnutí na Výšku.
 Výšky jdou od −6 do +24 m; předvolby jsou −6, −3, 0, 3, 6, 9, 12, 18 a 24 m;
