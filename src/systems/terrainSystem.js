@@ -66,8 +66,9 @@ const CLIFF_LEDGE_RATIO = 0.16;
 const CLIFF_WAIST_MIN = 3.0;
 const CLIFF_WAIST_RAMP = 1.5;
 const CLIFF_WAIST_DEPTH = 0.50;
-const CLIFF_CORNER_DEPTH = 0.15;
-const CLIFF_CORNER_SPAN = 2.0;
+const CLIFF_CORNER_DEPTH = 0.20;
+const CLIFF_RIM_BEVEL = 0.05;
+const CLIFF_CORNER_PULL = 0.8;
 const CLIFF_INWARD_MAX = 0.60;
 const CLIFF_LEDGE_TAPER = 0.6;
 const CLIFF_LEDGE_T_MIN = 0.22;
@@ -174,6 +175,11 @@ function cliffWaistScale(point) {
 
 function cliffCornerTaper(k) {
   return Math.min(1, Math.min(k, SURFACE_SUB - k) / (SURFACE_SUB / 2));
+}
+
+function cliffRimBevel(t) {
+  if (t <= 0.72 || t >= 1.0) return 0;
+  return smoothstep(0.72, 0.9, t) * (1 - smoothstep(0.96, 1.0, t));
 }
 
 function cliffDirection(pushes, point) {
@@ -388,6 +394,36 @@ export default class TerrainSystem {
     ground.isPickable = true;
     ground.isVisible = false;
     this.ground = ground;
+  }
+
+  cliffCornerInfo(gx, gz) {
+    const half = CELL_SIZE / 2;
+    const cells = [];
+    for (const sx of [-half, half]) {
+      for (const sz of [-half, half]) {
+        const ax = Math.round((gx + sx) / CELL_SIZE);
+        const az = Math.round((gz + sz) / CELL_SIZE);
+        cells.push({ cx: ax, cz: az, h: this.field.heightAtCell(ax, az) });
+      }
+    }
+    const sorted = [...cells].sort((a, b) => b.h - a.h);
+    const margin = 0.2;
+    if (sorted[0].h - sorted[3].h < margin) return null;
+    const high = cells.filter((c) => c.h > sorted[0].h - margin);
+    const low = cells.filter((c) => c.h < sorted[3].h + margin);
+    if (low.length === 1) {
+      const lo = low[0];
+      const pull = new Set();
+      for (const c of cells) {
+        if (c.h > lo.h + margin) pull.add(`${c.cx},${c.cz}`);
+      }
+      return { target: [lo.cx, lo.cz], pull };
+    }
+    if (high.length === 1) {
+      const hi = high[0];
+      return { target: [hi.cx, hi.cz], pull: new Set([`${hi.cx},${hi.cz}`]) };
+    }
+    return null;
   }
 
   createSurface(map, cells) {
@@ -661,6 +697,28 @@ export default class TerrainSystem {
       }
     }
 
+    const cliffCornerSet = new Set();
+    const cliffPushMap = new Map();
+    for (const edge of wallEdges) {
+      let riseSum = 0;
+      for (const point of edge.points) riseSum += heightOf(point, edge.cx, edge.cz) - heightOf(point, edge.nx, edge.nz);
+      const dirX = riseSum > 0 ? edge.nx - edge.cx : edge.cx - edge.nx;
+      const dirZ = riseSum > 0 ? edge.nz - edge.cz : edge.cz - edge.nz;
+      for (const point of edge.points) {
+        const id = pointId(point.gx, point.gz);
+        const entry = cliffPushMap.get(id) || { x: 0, z: 0, count: 0 };
+        entry.x += dirX;
+        entry.z += dirZ;
+        entry.count += 1;
+        cliffPushMap.set(id, entry);
+      }
+    }
+    for (const [id, entry] of cliffPushMap) {
+      if (entry.count <= 1) continue;
+      const length = Math.hypot(entry.x, entry.z);
+      if (length > 1e-6 && (entry.count - length) / 0.6 > 0.3) cliffCornerSet.add(id);
+    }
+
     const cliffValues = new Map();
     for (const [cx, cz] of cells) {
       const key = keyAt(cx, cz);
@@ -738,7 +796,27 @@ export default class TerrainSystem {
           const split = cliffPoints.has(id);
           const weldedValue = weldedAt(id, cx, cz);
           const py = weldedValue === null ? heightOf(point, cx, cz) : weldedValue;
-          row.push(slot(group, gx, gz, pos.px, pos.pz, py, split ? `${cx},${cz}` : null));
+          let px = pos.px;
+          let pz = pos.pz;
+          const nearGI = i * 2 < SURFACE_SUB ? 0 : SURFACE_SUB;
+          const nearGJ = j * 2 < SURFACE_SUB ? 0 : SURFACE_SUB;
+          const cornerDist = Math.abs(i - nearGI) + Math.abs(j - nearGJ);
+          if (cornerDist <= 1) {
+            const cornerGx = x0 + nearGI * step;
+            const cornerGz = z0 + nearGJ * step;
+            const info = cliffCornerSet.has(pointId(cornerGx, cornerGz)) ? this.cliffCornerInfo(cornerGx, cornerGz) : null;
+            if (info && info.pull.has(`${cx},${cz}`)) {
+              const falloff = cornerDist === 0 ? 1 : 0.5;
+              const tx = info.target[0] * CELL_SIZE - px;
+              const tz = info.target[1] * CELL_SIZE - pz;
+              const len = Math.hypot(tx, tz);
+              if (len > 1e-4) {
+                px += (tx / len) * CLIFF_CORNER_PULL * falloff;
+                pz += (tz / len) * CLIFF_CORNER_PULL * falloff;
+              }
+            }
+          }
+          row.push(slot(group, gx, gz, px, pz, py, split ? `${cx},${cz}` : null));
         }
         grid.push(row);
       }
@@ -1161,6 +1239,28 @@ export default class TerrainSystem {
         if (Math.abs(a1 - a2) < 0.02 && Math.abs(b1 - b2) < 0.02) continue;
         const apos = positionOf(a);
         const bpos = positionOf(b);
+        const highKey = a1 >= a2 ? `${edge.cx},${edge.cz}` : `${edge.nx},${edge.nz}`;
+        const lowKey = a1 >= a2 ? `${edge.nx},${edge.nz}` : `${edge.cx},${edge.cz}`;
+        const cornerPullFor = (index, point, pos) => {
+          const cornerIndex = index * 2 < SURFACE_SUB ? 0 : SURFACE_SUB;
+          const dist = Math.abs(index - cornerIndex);
+          if (dist > 1) return null;
+          const cornerPoint = points[cornerIndex];
+          if (cliffDirection(pushes, cornerPoint).corner <= 0.3) return null;
+          const info = this.cliffCornerInfo(cornerPoint.gx, cornerPoint.gz);
+          if (!info) return null;
+          const tx = info.target[0] * CELL_SIZE - pos.px;
+          const tz = info.target[1] * CELL_SIZE - pos.pz;
+          const len = Math.hypot(tx, tz);
+          if (len < 1e-4) return null;
+          const falloff = dist === 0 ? 1 : 0.5;
+          return {
+            x: (tx / len) * CLIFF_CORNER_PULL * falloff,
+            z: (tz / len) * CLIFF_CORNER_PULL * falloff,
+            topActive: info.pull.has(highKey),
+            bottomActive: info.pull.has(lowKey),
+          };
+        };
         const aWelded1 = weldedAt(pointId(a.gx, a.gz), edge.cx, edge.cz);
         const aWelded2 = weldedAt(pointId(a.gx, a.gz), edge.nx, edge.nz);
         const bWelded1 = weldedAt(pointId(b.gx, b.gz), edge.cx, edge.cz);
@@ -1171,6 +1271,8 @@ export default class TerrainSystem {
         const bBottom = Math.min(b1, b2) - 0.08;
         const aDir = cliffDirection(pushes, a);
         const bDir = cliffDirection(pushes, b);
+        const aCornerPull = cornerPullFor(i, a, apos);
+        const bCornerPull = cornerPullFor(i + 1, b, bpos);
         const aSpan = Math.min(1, (aTop - aBottom) / CLIFF_RELIEF_SPAN);
         const bSpan = Math.min(1, (bTop - bBottom) / CLIFF_RELIEF_SPAN);
         const rise = (a1 - a2) || (b1 - b2);
@@ -1195,8 +1297,8 @@ export default class TerrainSystem {
         const waistAmount = CLIFF_WAIST_DEPTH * Math.min(1, Math.max(0, (ledgeSpan - CLIFF_WAIST_MIN) / CLIFF_WAIST_RAMP));
         const aWaist = waistAmount * cliffWaistScale(a);
         const bWaist = waistAmount * cliffWaistScale(b);
-        const aCornerInset = CLIFF_CORNER_DEPTH * aDir.corner * Math.min(1, ledgeSpan / CLIFF_CORNER_SPAN);
-        const bCornerInset = CLIFF_CORNER_DEPTH * bDir.corner * Math.min(1, ledgeSpan / CLIFF_CORNER_SPAN);
+        const aCornerInset = CLIFF_CORNER_DEPTH * aDir.corner;
+        const bCornerInset = CLIFF_CORNER_DEPTH * bDir.corner;
         const aUnit = Math.max(0.001, aSpan * CLIFF_RELIEF);
         const bUnit = Math.max(0.001, bSpan * CLIFF_RELIEF);
         for (let r = 0; r < rows.length - 1; r += 1) {
@@ -1236,18 +1338,27 @@ export default class TerrainSystem {
           const bDepth1 = cliffDepth(b, bT1, lower.w);
           const aTaper = cliffCornerTaper(i);
           const bTaper = cliffCornerTaper(i + 1);
-          const aShift0 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth0 + aProtrude0 - aWaist0 - aCorner0);
-          const aShift1 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth1 + aProtrude1 - aWaist1 - aCorner1);
-          const bShift0 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth0 + bProtrude0 - bWaist0 - bCorner0);
-          const bShift1 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth1 + bProtrude1 - bWaist1 - bCorner1);
-          const ax0 = apos.px + aDir.x * aShift0;
-          const az0 = apos.pz + aDir.z * aShift0;
-          const ax1 = apos.px + aDir.x * aShift1;
-          const az1 = apos.pz + aDir.z * aShift1;
-          const bx0 = bpos.px + bDir.x * bShift0;
-          const bz0 = bpos.pz + bDir.z * bShift0;
-          const bx1 = bpos.px + bDir.x * bShift1;
-          const bz1 = bpos.pz + bDir.z * bShift1;
+          const aShift0 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth0 + aProtrude0 - aWaist0 - CLIFF_RIM_BEVEL * cliffRimBevel(aT0)) - aCorner0;
+          const aShift1 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth1 + aProtrude1 - aWaist1 - CLIFF_RIM_BEVEL * cliffRimBevel(aT1)) - aCorner1;
+          const bShift0 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth0 + bProtrude0 - bWaist0 - CLIFF_RIM_BEVEL * cliffRimBevel(bT0)) - bCorner0;
+          const bShift1 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth1 + bProtrude1 - bWaist1 - CLIFF_RIM_BEVEL * cliffRimBevel(bT1)) - bCorner1;
+          const pullAt = (pl, t) => (pl ? (1 - t) * (pl.bottomActive ? 1 : 0) + t * (pl.topActive ? 1 : 0) : 0);
+          const aPull0 = pullAt(aCornerPull, aT0);
+          const aPull1 = pullAt(aCornerPull, aT1);
+          const bPull0 = pullAt(bCornerPull, bT0);
+          const bPull1 = pullAt(bCornerPull, bT1);
+          const aPullX = aCornerPull ? aCornerPull.x : 0;
+          const aPullZ = aCornerPull ? aCornerPull.z : 0;
+          const bPullX = bCornerPull ? bCornerPull.x : 0;
+          const bPullZ = bCornerPull ? bCornerPull.z : 0;
+          const ax0 = apos.px + aDir.x * aShift0 + aPullX * aPull0;
+          const az0 = apos.pz + aDir.z * aShift0 + aPullZ * aPull0;
+          const ax1 = apos.px + aDir.x * aShift1 + aPullX * aPull1;
+          const az1 = apos.pz + aDir.z * aShift1 + aPullZ * aPull1;
+          const bx0 = bpos.px + bDir.x * bShift0 + bPullX * bPull0;
+          const bz0 = bpos.pz + bDir.z * bShift0 + bPullZ * bPull0;
+          const bx1 = bpos.px + bDir.x * bShift1 + bPullX * bPull1;
+          const bz1 = bpos.pz + bDir.z * bShift1 + bPullZ * bPull1;
           this.recordBridgeWall(a, ay0, ax0, az0, r);
           this.recordBridgeWall(a, ay1, ax1, az1, r + 1);
           this.recordBridgeWall(b, by0, bx0, bz0, r);
