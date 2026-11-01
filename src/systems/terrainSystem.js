@@ -63,12 +63,11 @@ const CLIFF_LEDGE_MIN = 2.2;
 const CLIFF_LEDGE_RAMP = 0.8;
 const CLIFF_LEDGE_STEP = 0.45;
 const CLIFF_LEDGE_RATIO = 0.16;
-const CLIFF_WAIST_MIN = 3.0;
-const CLIFF_WAIST_RAMP = 1.5;
-const CLIFF_WAIST_DEPTH = 0.50;
 const CLIFF_RIM_BEVEL = 0.05;
 const CLIFF_CORNER_GAP = 0.5;
-const CLIFF_INWARD_MAX = 0.60;
+const CLIFF_BEVEL_ROUND = 0.2;
+const BRIDGE_CORNER_MARGIN = 0.6;
+const CLIFF_INWARD_MAX = 0.85;
 const CLIFF_LEDGE_TAPER = 0.6;
 const CLIFF_LEDGE_T_MIN = 0.22;
 const CLIFF_LEDGE_T_MAX = 0.54;
@@ -166,10 +165,6 @@ function cliffLedgeT2(point) {
 
 function cliffLedgeMask2(point) {
   return smoothstep(0.60, 0.78, valueNoise(point.gx * 0.37 - 44.3, point.gz * 0.37 + 8.8));
-}
-
-function cliffWaistScale(point) {
-  return 0.5 + 0.8 * valueNoise(point.gx * 0.31 + 17.1, point.gz * 0.31 - 53.7);
 }
 
 function cliffCornerTaper(k) {
@@ -432,6 +427,7 @@ export default class TerrainSystem {
 
   cliffCornerPost(pushes, point) {
     if (cliffDirection(pushes, point).corner <= 0.3) return false;
+    if (this.bridgeCornerAt(point.gx, point.gz)) return false;
     const info = this.cliffCornerInfo(point.gx, point.gz);
     return Boolean(info && info.convex);
   }
@@ -788,6 +784,8 @@ export default class TerrainSystem {
       return value === undefined ? null : value;
     };
 
+    this.bridges = this.bridgePlansFor(map, keyAt, positionOf, weldedAt);
+
     for (const [cx, cz] of cells) {
       const key = keyAt(cx, cz);
       if (!this.surfaceConfig(key)) continue;
@@ -814,11 +812,13 @@ export default class TerrainSystem {
             const cornerGx = x0 + nearGI * step;
             const cornerGz = z0 + nearGJ * step;
             const info = cliffCornerSet.has(pointId(cornerGx, cornerGz)) ? this.cliffCornerInfo(cornerGx, cornerGz) : null;
-            if (info && info.convex && info.pull.has(`${cx},${cz}`)) {
+            if (info && info.convex && info.pull.has(`${cx},${cz}`) && !this.bridgeCornerAt(cornerGx, cornerGz)) {
               const innerA = positionOf({ gx: cornerGx + (nearGI === 0 ? step : -step), gz: cornerGz });
               const innerB = positionOf({ gx: cornerGx, gz: cornerGz + (nearGJ === 0 ? step : -step) });
-              px = (innerA.px + innerB.px) * 0.5;
-              pz = (innerA.pz + innerB.pz) * 0.5;
+              const chordMidX = (innerA.px + innerB.px) * 0.5;
+              const chordMidZ = (innerA.pz + innerB.pz) * 0.5;
+              px = chordMidX + (px - chordMidX) * CLIFF_BEVEL_ROUND;
+              pz = chordMidZ + (pz - chordMidZ) * CLIFF_BEVEL_ROUND;
             }
           }
           row.push(slot(group, gx, gz, px, pz, py, split ? `${cx},${cz}` : null));
@@ -912,7 +912,6 @@ export default class TerrainSystem {
       this.surfaces.push(mesh);
     }
 
-    this.bridges = this.bridgePlansFor(map, keyAt, positionOf, weldedAt);
     if (wallEdges.length) {
       const shelves = new Map();
       this.createCliffMesh(wallEdges, positionOf, heightOf, weldedAt, (edge) => {
@@ -1112,6 +1111,17 @@ export default class TerrainSystem {
     return false;
   }
 
+  bridgeCornerAt(gx, gz) {
+    for (const plan of this.bridges) {
+      const u = plan.axis === 'x' ? gx : gz;
+      const v = plan.axis === 'x' ? gz : gx;
+      if (Math.abs(u - plan.u0) > BRIDGE_CORNER_MARGIN && Math.abs(u - plan.u1) > BRIDGE_CORNER_MARGIN) continue;
+      if (v < plan.v0 - BRIDGE_CORNER_MARGIN || v > plan.v1 + BRIDGE_CORNER_MARGIN) continue;
+      return true;
+    }
+    return false;
+  }
+
   recordBridgeWall(point, y, x, z, row) {
     if (!this.bridgeWallSide(point.gx, point.gz)) return;
     const id = pointId(point.gx, point.gz);
@@ -1230,31 +1240,46 @@ export default class TerrainSystem {
         for (let r = 0; r < n; r += 1) {
           const a = pa.rows[r];
           const b = pb.rows[r];
-          const tintA = cliffTint(a.x, a.z, a.y, 0.6, 0.92, 0, [0.34, 0.4, 0.28]);
-          const tintB = cliffTint(b.x, b.z, b.y, 0.6, 0.92, 0, [0.34, 0.4, 0.28]);
-          positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
-          uvs.push(a.x / WALL_TILE, a.y / WALL_TILE, b.x / WALL_TILE, b.y / WALL_TILE);
-          colors.push(tintA.r, tintA.g, tintA.b, 1, tintB.r, tintB.g, tintB.b, 1);
-          masks.push(tintA.moss, tintB.moss);
+          const chordMX = (a.x + b.x) * 0.5;
+          const chordMZ = (a.z + b.z) * 0.5;
+          const midX = chordMX + (pa.cornerX - chordMX) * CLIFF_BEVEL_ROUND;
+          const midZ = chordMZ + (pa.cornerZ - chordMZ) * CLIFF_BEVEL_ROUND;
+          const midY = (a.y + b.y) * 0.5;
+          const tA = Math.min(1, Math.max(0, (a.y - pa.bottom) / Math.max(0.001, pa.top - pa.bottom)));
+          const tB = Math.min(1, Math.max(0, (b.y - pb.bottom) / Math.max(0.001, pb.top - pb.bottom)));
+          const tM = (tA + tB) * 0.5;
+          const tintA = cliffTint(a.x, a.z, a.y, tA, pa.tone, 0, pa.rim);
+          const tintM = cliffTint(midX, midZ, midY, tM, pa.tone, 0, pa.rim);
+          const tintB = cliffTint(b.x, b.z, b.y, tB, pb.tone, 0, pb.rim);
+          positions.push(a.x, a.y, a.z, midX, midY, midZ, b.x, b.y, b.z);
+          uvs.push(a.x / WALL_TILE, a.y / WALL_TILE, midX / WALL_TILE, midY / WALL_TILE, b.x / WALL_TILE, b.y / WALL_TILE);
+          colors.push(tintA.r, tintA.g, tintA.b, 1, tintM.r, tintM.g, tintM.b, 1, tintB.r, tintB.g, tintB.b, 1);
+          masks.push(tintA.moss, tintM.moss, tintB.moss);
         }
         const outwardX = pa.outX + pb.outX;
         const outwardZ = pa.outZ + pb.outZ;
-        const a0 = pa.rows[0];
-        const b0 = pb.rows[0];
-        const a1 = pa.rows[1];
-        const ux = b0.x - a0.x;
-        const uy = b0.y - a0.y;
-        const uz = b0.z - a0.z;
-        const vx = a1.x - a0.x;
-        const vy = a1.y - a0.y;
-        const vz = a1.z - a0.z;
+        const p0 = start * 3;
+        const p1 = (start + 1) * 3;
+        const p2 = (start + 3) * 3;
+        const ux = positions[p1] - positions[p0];
+        const uy = positions[p1 + 1] - positions[p0 + 1];
+        const uz = positions[p1 + 2] - positions[p0 + 2];
+        const vx = positions[p2] - positions[p0];
+        const vy = positions[p2 + 1] - positions[p0 + 1];
+        const vz = positions[p2 + 2] - positions[p0 + 2];
         const crossX = uy * vz - uz * vy;
         const crossZ = ux * vy - uy * vx;
         const flip = crossX * outwardX + crossZ * outwardZ < 0;
         for (let r = 0; r < n - 1; r += 1) {
-          const i0 = start + r * 2;
-          if (flip) indices.push(i0, i0 + 2, i0 + 1, i0 + 1, i0 + 2, i0 + 3);
-          else indices.push(i0, i0 + 1, i0 + 2, i0 + 1, i0 + 3, i0 + 2);
+          const i0 = start + r * 3;
+          const i1 = i0 + 3;
+          if (flip) {
+            indices.push(i0, i1, i0 + 1, i0 + 1, i1, i1 + 1);
+            indices.push(i0 + 1, i1 + 1, i0 + 2, i0 + 2, i1 + 1, i1 + 2);
+          } else {
+            indices.push(i0, i0 + 1, i1, i0 + 1, i1 + 1, i1);
+            indices.push(i0 + 1, i0 + 2, i1 + 1, i0 + 2, i1 + 2, i1 + 1);
+          }
         }
       }
       if (!positions.length) continue;
@@ -1350,17 +1375,18 @@ export default class TerrainSystem {
         const bLedgeT2 = cliffLedgeT2(b);
         const aMask2 = cliffLedgeMask2(a);
         const bMask2 = cliffLedgeMask2(b);
-        const waistAmount = CLIFF_WAIST_DEPTH * Math.min(1, Math.max(0, (ledgeSpan - CLIFF_WAIST_MIN) / CLIFF_WAIST_RAMP));
-        const aWaist = waistAmount * cliffWaistScale(a);
-        const bWaist = waistAmount * cliffWaistScale(b);
-        const aUnit = Math.max(0.001, aSpan * CLIFF_RELIEF);
-        const bUnit = Math.max(0.001, bSpan * CLIFF_RELIEF);
         let cornerPost = null;
         if (postKey) {
           cornerPost = {
             rows: [],
             outX: postUsesA ? -aDir.x : -bDir.x,
             outZ: postUsesA ? -aDir.z : -bDir.z,
+            top: postUsesA ? aTop : bTop,
+            bottom: postUsesA ? aBottom : bBottom,
+            cornerX: postUsesA ? points[0].gx : points[SURFACE_SUB].gx,
+            cornerZ: postUsesA ? points[0].gz : points[SURFACE_SUB].gz,
+            tone,
+            rim,
             style,
           };
           const list = cornerPosts.get(postKey);
@@ -1390,20 +1416,16 @@ export default class TerrainSystem {
           const aProtrude1 = aStep1 * Math.min(1, lower.w / CLIFF_LEDGE_TAPER) * aClear1;
           const bProtrude0 = bStep0 * Math.min(1, upper.w / CLIFF_LEDGE_TAPER) * bClear0;
           const bProtrude1 = bStep1 * Math.min(1, lower.w / CLIFF_LEDGE_TAPER) * bClear1;
-          const aWaist0 = aWaist * Math.sin(Math.PI * aT0);
-          const aWaist1 = aWaist * Math.sin(Math.PI * aT1);
-          const bWaist0 = bWaist * Math.sin(Math.PI * bT0);
-          const bWaist1 = bWaist * Math.sin(Math.PI * bT1);
           const aDepth0 = cliffDepth(a, aT0, upper.w);
           const aDepth1 = cliffDepth(a, aT1, lower.w);
           const bDepth0 = cliffDepth(b, bT0, upper.w);
           const bDepth1 = cliffDepth(b, bT1, lower.w);
           const aTaper = cliffCornerTaper(i);
           const bTaper = cliffCornerTaper(i + 1);
-          const aShift0 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth0 + aProtrude0 - aWaist0 - CLIFF_RIM_BEVEL * cliffRimBevel(aT0));
-          const aShift1 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth1 + aProtrude1 - aWaist1 - CLIFF_RIM_BEVEL * cliffRimBevel(aT1));
-          const bShift0 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth0 + bProtrude0 - bWaist0 - CLIFF_RIM_BEVEL * cliffRimBevel(bT0));
-          const bShift1 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth1 + bProtrude1 - bWaist1 - CLIFF_RIM_BEVEL * cliffRimBevel(bT1));
+          const aShift0 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth0 + aProtrude0 - CLIFF_RIM_BEVEL * cliffRimBevel(aT0));
+          const aShift1 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth1 + aProtrude1 - CLIFF_RIM_BEVEL * cliffRimBevel(aT1));
+          const bShift0 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth0 + bProtrude0 - CLIFF_RIM_BEVEL * cliffRimBevel(bT0));
+          const bShift1 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth1 + bProtrude1 - CLIFF_RIM_BEVEL * cliffRimBevel(bT1));
           const ax0 = apos.px + aDir.x * aShift0;
           const az0 = apos.pz + aDir.z * aShift0;
           const ax1 = apos.px + aDir.x * aShift1;
@@ -1473,10 +1495,10 @@ export default class TerrainSystem {
             bx0, by0, bz0,
             bx1, by1, bz1,
           );
-          const aHigh = shadeAt(ay0, aTop, aBottom, a.gx, a.gz, tone, aDepth0 - Math.min(0.6, aWaist0 / aUnit), rim);
-          const aLow = shadeAt(ay1, aTop, aBottom, a.gx, a.gz, tone, aDepth1 - Math.min(0.6, aWaist1 / aUnit), rim);
-          const bHigh = shadeAt(by0, bTop, bBottom, b.gx, b.gz, tone, bDepth0 - Math.min(0.6, bWaist0 / bUnit), rim);
-          const bLow = shadeAt(by1, bTop, bBottom, b.gx, b.gz, tone, bDepth1 - Math.min(0.6, bWaist1 / bUnit), rim);
+          const aHigh = shadeAt(ay0, aTop, aBottom, a.gx, a.gz, tone, aDepth0, rim);
+          const aLow = shadeAt(ay1, aTop, aBottom, a.gx, a.gz, tone, aDepth1, rim);
+          const bHigh = shadeAt(by0, bTop, bBottom, b.gx, b.gz, tone, bDepth0, rim);
+          const bLow = shadeAt(by1, bTop, bBottom, b.gx, b.gz, tone, bDepth1, rim);
           colors.push(
             aHigh.r, aHigh.g, aHigh.b, 1,
             aLow.r, aLow.g, aLow.b, 1,
