@@ -172,6 +172,10 @@ function cliffWaistScale(point) {
   return 0.5 + 0.8 * valueNoise(point.gx * 0.31 + 17.1, point.gz * 0.31 - 53.7);
 }
 
+function cliffCornerTaper(k) {
+  return Math.min(1, Math.min(k, SURFACE_SUB - k) / (SURFACE_SUB / 2));
+}
+
 function cliffDirection(pushes, point) {
   const entry = pushes.get(pointId(point.gx, point.gz));
   if (!entry) return { x: 0, z: 0, corner: 0 };
@@ -841,21 +845,6 @@ export default class TerrainSystem {
   }
 
   createCliffMesh(edges, positionOf, heightOf, weldedAt, rimColorOf, shelves) {
-    const tops = new Map();
-    const bottoms = new Map();
-    for (const edge of edges) {
-      for (const point of edge.points) {
-        const id = pointId(point.gx, point.gz);
-        const first = heightOf(point, edge.cx, edge.cz);
-        const second = heightOf(point, edge.nx, edge.nz);
-        const weldedFirst = weldedAt(id, edge.cx, edge.cz);
-        const weldedSecond = weldedAt(id, edge.nx, edge.nz);
-        const top = Math.max(weldedFirst === null ? first : weldedFirst, weldedSecond === null ? second : weldedSecond);
-        const bottom = Math.min(first, second);
-        if (!tops.has(id) || top > tops.get(id)) tops.set(id, top);
-        if (!bottoms.has(id) || bottom < bottoms.get(id)) bottoms.set(id, bottom);
-      }
-    }
     const groups = new Map();
     for (const edge of edges) {
       const style = this.cliffStyleOf(edge);
@@ -877,7 +866,7 @@ export default class TerrainSystem {
         pushes.set(id, entry);
       }
     }
-    for (const [style, list] of groups) this.buildCliffFaces(list, positionOf, heightOf, style, tops, bottoms, rimColorOf, pushes, shelves);
+    for (const [style, list] of groups) this.buildCliffFaces(list, positionOf, heightOf, weldedAt, style, rimColorOf, pushes, shelves);
   }
 
   bridgePlansFor(map, keyAt, positionOf, weldedAt) {
@@ -1135,7 +1124,7 @@ export default class TerrainSystem {
     return field.cliffStyleAt(edge.cx, edge.cz) || field.cliffStyleAt(edge.nx, edge.nz) || 'dirt';
   }
 
-  buildCliffFaces(edges, positionOf, heightOf, style, tops, bottoms, rimColorOf, pushes, shelves) {
+  buildCliffFaces(edges, positionOf, heightOf, weldedAt, style, rimColorOf, pushes, shelves) {
     const positions = [];
     const indices = [];
     const uvs = [];
@@ -1172,10 +1161,14 @@ export default class TerrainSystem {
         if (Math.abs(a1 - a2) < 0.02 && Math.abs(b1 - b2) < 0.02) continue;
         const apos = positionOf(a);
         const bpos = positionOf(b);
-        const aTop = tops.get(pointId(a.gx, a.gz)) + 0.015;
-        const aBottom = bottoms.get(pointId(a.gx, a.gz)) - 0.08;
-        const bTop = tops.get(pointId(b.gx, b.gz)) + 0.015;
-        const bBottom = bottoms.get(pointId(b.gx, b.gz)) - 0.08;
+        const aWelded1 = weldedAt(pointId(a.gx, a.gz), edge.cx, edge.cz);
+        const aWelded2 = weldedAt(pointId(a.gx, a.gz), edge.nx, edge.nz);
+        const bWelded1 = weldedAt(pointId(b.gx, b.gz), edge.cx, edge.cz);
+        const bWelded2 = weldedAt(pointId(b.gx, b.gz), edge.nx, edge.nz);
+        const aTop = Math.max(aWelded1 === null ? a1 : aWelded1, aWelded2 === null ? a2 : aWelded2) + 0.015;
+        const aBottom = Math.min(a1, a2) - 0.08;
+        const bTop = Math.max(bWelded1 === null ? b1 : bWelded1, bWelded2 === null ? b2 : bWelded2) + 0.015;
+        const bBottom = Math.min(b1, b2) - 0.08;
         const aDir = cliffDirection(pushes, a);
         const bDir = cliffDirection(pushes, b);
         const aSpan = Math.min(1, (aTop - aBottom) / CLIFF_RELIEF_SPAN);
@@ -1241,10 +1234,12 @@ export default class TerrainSystem {
           const aDepth1 = cliffDepth(a, aT1, lower.w);
           const bDepth0 = cliffDepth(b, bT0, upper.w);
           const bDepth1 = cliffDepth(b, bT1, lower.w);
-          const aShift0 = Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth0 + aProtrude0 - aWaist0 - aCorner0);
-          const aShift1 = Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth1 + aProtrude1 - aWaist1 - aCorner1);
-          const bShift0 = Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth0 + bProtrude0 - bWaist0 - bCorner0);
-          const bShift1 = Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth1 + bProtrude1 - bWaist1 - bCorner1);
+          const aTaper = cliffCornerTaper(i);
+          const bTaper = cliffCornerTaper(i + 1);
+          const aShift0 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth0 + aProtrude0 - aWaist0 - aCorner0);
+          const aShift1 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth1 + aProtrude1 - aWaist1 - aCorner1);
+          const bShift0 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth0 + bProtrude0 - bWaist0 - bCorner0);
+          const bShift1 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth1 + bProtrude1 - bWaist1 - bCorner1);
           const ax0 = apos.px + aDir.x * aShift0;
           const az0 = apos.pz + aDir.z * aShift0;
           const ax1 = apos.px + aDir.x * aShift1;
