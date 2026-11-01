@@ -80,9 +80,11 @@
   scratch skripty, výstupy jednorázových skriptů).
 - NIKDY nezakládej pracovní soubory v rootu projektu ani vedle kódu.
 - Root obsahuje jen projektové soubory: `.clinerules`, `.gitignore`,
-  `README.md`, `index.html`, `package.json`, `package-lock.json`,
+  `README.md`, `TODO.md`, `index.html`, `package.json`, `package-lock.json`,
   `vite.config.js` a `vite.mapSaver.js` (pomocník dev serveru — editor mapy
   přes něj ukládá mapu přímo do souboru, funguje jen při vývoji).
+- `TODO.md` je krátký seznam aktuálních úkolů projektu. Neobsahuje pravidla,
+  architekturu ani historii; hotové položky se z něj mažou.
 - Dále složky `src/`, `public/`, `tools/` a ty, které v gitu nejsou
   (`node_modules/`, `dist/`, `_sources/` se staženými zdrojovými balíčky).
 - Cokoli jiného v rootu (modely, obrázky, dočasné soubory) je chyba —

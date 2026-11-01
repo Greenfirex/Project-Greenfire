@@ -1,6 +1,8 @@
 # Project Greenfactory
 
-3D tovární hra ve stylu Satisfactory, hratelná ve webu (Vite + Babylon.js).
+3D survival hra, hratelná ve webu (Vite + Babylon.js).
+
+Aktuální úkoly a známé chyby jsou v [TODO.md](TODO.md).
 
 ## Spuštění
 
@@ -10,7 +12,7 @@ npm run dev      # http://localhost:5174
 ```
 
 Při startu běží přes obrazovku načítání reálné počítadlo dokončených dílů (dlaždice mapy,
-stromy a kameny, postava, její animace, nástroje, příprava ukládání). Mapa se začne
+stromy a kameny, modely tvorů, postava, její animace, nástroje, příprava ukládání). Mapa se začne
 vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud obrazovka nezmizí.
 
 ## Ovládání
@@ -20,7 +22,7 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 | **W A S D / šipky** | Pohyb postavy (vzhledem ke kameře), Shift = běh. V editoru posouvají pohled po mapě, Shift zrychlí |
 | **Tažení pravým tlačítkem** | Rotace kamery (i v editoru); v editoru pravé kliknutí bez tažení odebírá buňku |
 | **Kolečko** | Zoom (v editoru jde oddálit víc než ve hře) |
-| **1–5** | Výběr předmětu v ruce (plán, sekera, krumpáč, pochodeň) |
+| **1–4** | Výběr předmětu v ruce (plán, sekera, krumpáč, pochodeň) |
 | **I / C** | Batoh / postava — okna nad lištou předmětů (také tlačítky po stranách lišty) |
 | **Levé tlačítko u stromu / rudy / kamene** | Těžení (podržet = opakovat) |
 | **Klik na zem s plánem v ruce** | Postavení stroje na buňku |
@@ -32,7 +34,7 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 | **N** | Posun času o 6 hodin |
 | **P** | Pauza / pokračovat (ztmaví obrazovku, zastaví celou hru) |
 | **F1** | Nápověda a ovládání (rozbalit / sbalit) — také tlačítkem ❔ Ovládání v liště |
-| **F2** | Editor mapy (zóny, dlaždice, výšky) — také tlačítkem 🧱 Editor v liště |
+| **F2** | Editor mapy (zóny, výška, herní plocha, tvorové) — také tlačítkem 🧱 Editor v liště |
 | **O** | Možnosti (kvalita, stíny, FPS, hlasitost) — také tlačítkem ⚙ Možnosti v liště |
 | **F5 / F9** | Uložit / načíst (načtení se ptá na potvrzení) — také tlačítky 💾 Uložit a 📂 Načíst v liště |
 | **Ctrl+Alt+I** | Ladicí okno Babylona (jen při vývoji; jde i přes adresu `?inspector`) |
@@ -44,10 +46,11 @@ src/
   main.js                    engine, plátno, render loop
   scenes/GameScene.js        orchestrátor — stav světa, delegace na systémy
   systems/                   camera, grid, terrain, water, sky, deco, build, gather,
-                             inventory, heldItem, player, input, editor,
+                             inventory, heldItem, player, input,
                              campfire, glow, dayNight, sim, audio, save, creature
+  editor/                    editor mapy, panely, štětce, značky spawních míst
   data/catalogs/             stroje, předměty, dekorace, mapy, tvorové, uložený stav
-  data/maps/                 generátor mapy a editovatelné rozvržení
+  data/maps/                 tvar oblasti, nastavení výšek a soubor mapy
   effects/                   oheň (táborák, pochodeň)
   ui/                        DOM HUD panely nad plátnem
   utils/                     výpočty mřížky, načítání modelů, ukládání do prohlížeče
@@ -57,7 +60,8 @@ src/
 - Systémy jsou třídy, konstruktor dostane scénu, přístup přes `this.s`.
 - Simulace běží v pevném ticku (10× za sekundu) a o obsahu mechanik nic neví;
   mechaniky se hlásí přes `simSystem.subscribe`.
-- Ukládání je obecný sběrač stavu (`saveSystem.registerState`).
+- Ukládání je obecný sběrač stavu; scéna registrované vlastníky připojuje přes
+  `saveSystem.register` (vlastníci dodávají `serialize`, `apply` a `defaultState`).
 - Načtení savu hru znovu spustí a stav se navrství na čerstvě postavený svět
   při startu — proto je u načtení vidět načítací obrazovka. Běžné spuštění
   zůstává čisté, nic se nenačítá samo.
@@ -374,193 +378,18 @@ stroje kliknutím, výroba předmětů z batohu.
 
 ## Editor mapy
 
-Mapa je uložená jako hotový seznam dlaždic a objektů v souboru
-(`src/data/maps/<mapa>/map.json`) — žádný recept, ze kterého by se dopočítávala.
-Co v souboru chybí, ve hře neexistuje: chybějící buňka znamená díru bez trávy,
-přes kterou se nedá chodit. Výška terénu je uložená u každé dlaždice zvlášť.
+Editor se otevírá **F2** a hru při otevření pozastaví. Umožňuje kreslit zóny
+a objekty, modelovat výšky, razítkovat herní plochu a ukládat mapu přímo do
+`src/data/maps/<mapa>/map.json`.
 
-V editoru (F2) jsou tři druhy práce: **zóny** vyplní označené buňky rostlinami
-a objekty, **výška** nejdřív kreslí návrh a po potvrzení zvedá dlaždice
-a **plocha** zakládá nebo přepisuje zem s vybraným podkladem a výškou.
-Co na buňce leží (povrch a všechny dekorace českými názvy), vypisuje vpravo dole
-tooltip; panel editoru hlásí jen stav (mimo plochu, aplikováno…).
-Tažení levým tlačítkem bere obdélník mezi buňkou, kde jsi stiskl, a buňkou pod
-myší; vracením myši se obdélník zase zmenšuje a klik bez tažení označí jedinou
-buňku. Režim Výška kreslí stopu, protože z kroku po buňce vzniká schodiště.
-U štětců na rostliny a objekty jde v panelu vybrat **druh** (keř, houba, kámen…);
-vybraný druh se pod kurzorem ukazuje jako průsvitný duch, takže je vidět
-dřív, než se klikne — u keřů jich duch ukáže tolik, kolik jich hustota nasadí,
-ve stejné velikosti, otočení a na stejném místě, jaké pak opravdu dostanou. Keře mají navíc posuvník **Hustota** (kolik keřů na buňce
-vyroste, 1–5), volbu **Kolísání ±1** (počet se náhodně houpe o jeden nahoru
-dolů) a **Střídat druhy samo (skvrny)** — s ní editor nebere druh z ruky, ale
-počítá ho z polohy buňky, takže namalovaná plocha se sama rozpadne na skvrny
-stejného druhu o zhruba sedmi buňkách; kliknutí na konkrétní druh ji vypne.
-Plocha je razítko: nové buňky vzniknou, existující se přepíšou i s objekty,
-mazání udělá v mapě skutečnou díru.
-Skupina **Tvorové** v paletě se plní z katalogu tvorů: každý tvor má vlastní
-tlačítko a v panelu se u něj vybírá stáří (u kajmanky Mladá / Dospělá / Stará).
-Klik položí jednoho tvora na buňku, tažení jich položí víc; na buňce zůstane
-vždy jen jeden a nový ten starý nahradí. V režimu Mazat se tvorové zase odeberou.
-Pod kurzorem se u štětce tvora kreslí jantarový kruh o poloměru jeho toulání
-a tooltip u buňky napíše druh, stáří i „toulá se do 6 m". Když je vybraný
-štětec tvora, editor navíc označí všechna spawní místa v mapě — u každého
-kruh toulání a malý čtvereček na buňce. Plný tyrkysový čtvereček znamená,
-že tam tvor zrovna žije; obrysový a ztlumený, že zahynul a čeká na obnovu.
-Tooltip u buňky napíše i stav a přibližně kolik dní do obnovy zbývá. Nově
-nakreslené místo, které ještě není potvrzené, je neutrální. Prázdná mapa
-znamená žádná spawní místa: nic se nedoplňuje samo, tvora položíš štětcem
-a uložíš mapu.
-Tlačítka výšky v panelu určují, jak vysoko se dlaždice po Aplikovat pokládají.
-Výška má vlastní okénko jako Herní plocha; otevírá se při přepnutí na Výšku.
-Výšky jdou od −6 do +24 m; předvolby jsou −6, −3, 0, 3, 6, 9, 12, 18 a 24 m;
-jediný mezikrok je +/−0,3 m. Levé tlačítko buňky přidává do výběru,
-pravé kliknutí je odebírá; na nulu se srovnává předvolbou 0 m. Návrh se dá kdykoli
-zrušit.
-Kopec a Prohlubeň si svah staví samy: v jejich okně vybereš výšku a namalovaná
-plocha zůstane plochá, kolem ní se přidá svah po 0,3 m až do 0. Dvě
-zaškrtávátka svah mění: **Strmý svah** spadne o 0,6 m na řadu, takže úpatí je
-poloviční; **Nepravidelný svah** část buněk v každé řadě vynechá, takže obrys
-kopce není kruh a svah je místy prudší. Buňka přitom nikdy nespadne pod svou
-původní výšku. Svislé stěny z toho nevzniknou — ty dělá štětec Útes a hrany
-vyšší než 2,4 m. Plošina nad útesem zůstane plochá až do hrany: vyhlazení terénu
-se přes stěnu nedívá, takže se vnitřek nepřitáhne k zemi pod útesem. Označený pás
-(třeba tři buňky široký) se uvnitř vyhlazuje jako běžná země — stěna vznikne jen
-na jeho okraji, kde se označená země potkává s neoznačenou.
+- **Zóny** — rostliny, objekty, cesty, pláž, útes, most a tvorové.
+- **Výška** — terén od −6 do +24 m po 0,3 m, kopce, prohlubně, útesy a spojnice.
+- **Herní plocha** — razítko podkladu a výšky pro nové nebo přepsané buňky.
+- **Voda** — jedna hladina pro mapu, v editoru ji jde zapnout, skrýt a ladit po 0,3 m.
+- **Tvorové** — spawní místa se značkami živého, čekajícího a nového místa.
 
-Štětec **Spojnice** propojí dva body: klikneš na vršek (třeba na hranu útesu) a pak
-na spodek (třeba na pláž). Editor si přečte výšky z obou míst a mezi nimi je rozdělí
-podle vzdálenosti po 0,3 m, takže vznikne souvislý výjezd; posuvník **Šířka** určí,
-jak je pruh široký (1, 3 nebo 5 buněk). Když je převýšení na danou vzdálenost moc
-velké, panel to napíše — tak prudký schod hráč nevyleze (zvládne 0,45 m). Pravé
-tlačítko rozpracovanou spojnici zruší.
-
-Štětec **Most** postaví skalní most přes propast nebo vodu: klikneš na jeden břeh
-a pak na protější. Editor ověří, že břehy leží proti sobě, že mezi nimi je dost
-hluboko a že se most nepřekrývá s jiným. Posuvník **Tloušťka** určí, jak je skalní
-blok podél průplavu široký (1, 3 nebo 5 buněk); tlačítka **Kámen/Hlína** volí
-materiál čel a klenby. Po mostě se dá chodit, voda pod ním zůstane. Most se ukládá
-do mapy jako dva kotevní body, takže se po načtení spočítá znovu přesně podle
-současných břehů. V místě, kde se most opírá o stěnu, se stěna pod mostem vyčistí
-(přestanou se tam dělat terasy a vyboulení), aby na sebe obě plochy dosedly; nad
-mostem zůstane útes beze změny. V režimu **Mazat** stačí přejet buňku mostu a most
-zmizí celý. Pravé tlačítko rozpracovaný most zruší.
-
-V režimu **Mazat** editor rovnou zvýrazní všechny buňky, které tenhle štětec umí
-smazat (u ryb tedy hejna, u stromů objekty, u Kopce zvednutou zem), takže se nemusí
-hádat, kde co leží. Buňky, které myší přejedeš, svítí sytě červeně nad tím.
-
-Panel Výšky má i **velikost štětce** (1×1, 3×3, 5×5, 7×7) a **krok po buňce**
-(vyp / −0,3 / +0,3 m). Velikost určuje čtverec buněk kolem kurzoru. Krok posouvá
-výšku s každým dalším otiskem v jednom tahu: první otisk je zvolená výška, druhý
-o krok níž (nebo výš) — z tažení tak vznikne schodiště. Buňky, které už v tom
-tahu označené byly, si svou výšku drží, a krok se zarazí o meze −6 a +24 m.
-Nové tažení začíná zase od zvolené výšky.
-
-Třetí řádek **Nepravidelnost** (vyp / ±0,3 / ±0,6 m) rozhodne, jestli každá
-buňka dostane o krok nahoru nebo dolů. Při ±0,3 m se z malované 1,5 m střídá
-1,2 / 1,5 / 1,8 m, takže plocha není rovná jako stůl. Posun je vázaný na buňku,
-takže stejné místo vychází pořád stejně a nic neposkakuje.
-
-Podklad dlaždice (tráva, písek) se mění štětcem **Povrch**: ten nechá výšku,
-cesty i objekty a uklidí jen trávu. Mazání tímto štětcem vrátí buňku na trávu.
-Nový povrch je jeden záznam v katalogu dekorací vedle `floor_grass` a
-`floor_sand`; terén pak každý povrch kreslí vlastní texturou a velikostí dlaždice.
-
-**Výška** mění jen výšku: podklad zůstane a objekty na buňce se posunou
-spolu se zemí. Výšky jdou od −6 do +6 m; jediný krok je 0,3 m. Kopec
-a Prohlubeň dělají totéž plošně; jejich Srovnat buňky srovná na nulu,
-nemaže je. Výšky v jejich podmenu odpovídají skutečné výšce v metrech.
-
-**Pláž** je štětec v paletě zón: vybereš hloubku (−1,5 / −2,4 / −3 m)
-a namaluješ plochu. Písek se položí do zvolené hloubky a kolem ní se přidají
-prstence písku po 0,3 m až k původní zemi, ze kterých spojitá zem udělá břeh.
-Zaškrtnutý **Plynulý okraj** přidá ještě jeden prstenec písku za poslední schod.
-V namalované ploše zmizí stromy, kameny i tráva; na svazích se objekty posunou
-s terénem. Tlačítko **Zpět na trávu** srovná výšku na 0 a vrátí trávu.
-
-**Útes** je štětec, který buňky označí jako plošinu. Označená buňka drží svou
-výšku rovně a na každé straně, kde je soused níž, se postaví svislá kamenná
-stěna, nebo hliněná se stejnou texturou jako okraj mapy; hráč přes ni zatím nepřejde. Stěna se
-staví po půlmetrových kouscích, dorovná se i v rozích a její hrana se drobně
-vlní, aby nebyla rovná jako podle pravítka. Kamenná stěna míchá dvě skály podle
-vodorovných vrstev, nahoře přidává mech a pod vodou tmavne; stěny vrhají stín. Kde má soused stejnou výšku, hrana
-se spojí po celé délce — terén se k plošině dotáhne i v rozích a žádná stěna
-tam nevznikne. Rozdíl proti nižší zemi se uzavře krátkou hliněnou plochou
-na boku, takže do útesu se nedělají zářezy a neprosvítá tráva. Rohy, kde se
-potkají dvě stěny, se drobně zkosí, aby nebyly ostré. Značky
-se ukládají do mapy (verze 4), mažou se tlačítkem **Zrušit útesy** a Z vrací
-celý krok.
-
-Ručně označovat není potřeba: buňka, která je o **víc než 2,4 m výš** než její
-nejnižší soused, se jako útes bere sama a nakreslí se pod ní skalní stěna. Počítá
-se to z výšek při každém načtení mapy, takže se to nemůže rozejít s terénem —
-a platí to i pro editor. Menší skoky zůstanou svahem; přes 0,45 m stejně nejde
-vylézt.
-
-Když se výšky označených buněk srovnají do roviny se všemi čtyřmi sousedy
-(do jednoho schodu), značka útesu při **Aplikovat** zmizí — nemá co dělat a jen
-by později vyskočila stěna tam, kde ji nechceš. Zpět to vrátí. Rohy se zakulacují
-jen u **vnějšího rohu plošiny** — kolem rohu jsou tři buňky níž (ve stejné výšce)
-a jedna výš a všechny čtyři musí existovat. U zářezu, díry, kraje mapy nebo
-u výškového schodu zůstane roh ostrý a stěny na sebe přesně navazují.
-
-Vrchní plocha se k sousedovi přimyká **po celé hraně najednou**: slevování
-blízkých výšek se rozhoduje podle buňky, ne podle jednotlivých bodů hrany.
-Dřív se stávalo, že se půlka hrany srovnala a půlka ne — a plocha se pak
-„lepila" jen v rozích a uprostřed. Kde se v jednom bodě potkají dvě slevnané
-hrany v různých výškách, vybere si každá buňka tu hodnotu, která je její vlastní
-výšce **nejblíž** — hrana se tak nerozpadne ani na kraji u vyššího útesu.
-
-Země je spojitá: výška se mezi středy buněk dopočítává, takže kopce a prohlubně
-mají plynulé svahy a na okraji mapy je hliněný bok. Výjimka je označená buňka
-útesu — ta drží rovnou výšku a na hranici se přes ni nedopočítává. Za okrajem mapy se počítá
-s výškou nejbližší buňky, takže se zem na okraji nezvedá zpátky nahoru.
-Cesty, tráva, objekty i kurzor v editoru sedí na skutečné výšce země. Cesty
-se skládají z jemných kousků, takže kopírují zaoblení země i v kopci a v příkopu.
-Hráč už chodí po skutečné výšce země; voda přijde v dalším kroku.
-
-Hranice mezi povrchy se při kreslení země plynule rozvlní, aby nepůsobila
-jako podle pravítka. Data se tím nemění — buňka má pořád jeden povrch, takže
-se po ní chodí a staví stejně jako dřív a změna je vidět jen na pohled.
-
-V okně **Herní plocha** se k razítku vybírá podklad a výška; počítadlo předem
-ukáže, kolik buněk se přepíše a kolik jich už v mapě je. Levé tlačítko buňky
-přidává do výběru, pravé kliknutí je odebírá; mazání se vybírá tlačítkem v panelu.
-
-Soubor mapy je jediný zdroj pravdy: hra při startu vždycky přečte
-`src/data/maps/<mapa>/map.json` ze souboru na disku, žádnou jinou mapu v kódu
-nemá. Tlačítko **Uložit mapu** v panelu editoru (F2) zapíše hotovou mapu rovnou
-do toho souboru — pomáhá s tím vývojový server (`vite.mapSaver.js`). Po uložení
-se hra sama obnoví, takže vidíš přesně to, co je v souboru, a mapa je připravená
-k commitu.
-
-Když vývojový server neběží nebo jde o zabalenou verzi hry, soubor zapsat nejde
-a hra mapu místo toho stáhne jako `map.json`; ten pak polož do projektu ručně.
-
-### Cesty
-
-Cesta je samostatná **vrstva** mapy (`path`), ne dlaždice: každý záznam má jen
-pozici (`cx`, `cz`) a styl (`dirt`/`stone`/`wood` = hlína/kámen/dřevo), **žádný
-`key`** — na rozdíl od podlahy a dekorací se cesta nepoznává podle klíče, ale
-podle toho, že je ve vrstvě `path` (viz `src/data/maps/areaShape.js`).
-
-Vykresluje ji `src/systems/pathSystem.js` podle toho, kolik sousedních buněk je
-taky cesta:
-
-- **rovinka** (2 protilehlí sousedé) → rovný pás,
-- **zatáčka** (2 sousedé do pravého úhlu) → zaoblený roh,
-- **křížení / rozcestí T** (3–4 sousedé) → sjednocení vodorovného a svislého pásu;
-  u „T" je chybějící rameno uťaté přesně na hraně buňky, aby nečouhalo do trávy.
-
-Šířka cesty je **deterministická funkce světových souřadnic** (`pathHalfWidth`),
-ne náhodná — proto se plynule vlní (cesta vypadá jako vyšlapaná pěšinka), ale
-zároveň se sousední segmenty na hranici buňky potkají se stejnou šířkou, takže
-nikde nevznikají schody ani díry. Amplituda toho kolísání je nastavená v té samé
-funkci na konci souboru.
-
-V editoru se cesta kreslí brushem **Cesta** (má tlačítka pro volbu stylu hlina/
-kámen/dřevo). Zvýraznění „už tady cesta je" funguje na vrstvu `path`, ne na klíč,
-takže funguje stejně pro cestu nakreslenou v editoru i pro tu načtenou ze souboru.
+Podrobný popis režimů, štětců, výšek, vody, cest, tvorů a ukládání mapy je
+v [dokumentaci editoru](src/editor/README.md).
 
 ## Nápady na další vizuální vylepšení
 
