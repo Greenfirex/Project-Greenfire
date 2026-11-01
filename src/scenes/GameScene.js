@@ -16,6 +16,7 @@ import GridSystem from '../systems/gridSystem.js';
 import TerrainSystem from '../systems/terrainSystem.js';
 import WaterSystem from '../systems/waterSystem.js';
 import FishSystem from '../systems/fishSystem.js';
+import CreatureSystem from '../systems/creatureSystem.js';
 import SkySystem from '../systems/skySystem.js';
 import DecoSystem from '../systems/decoSystem.js';
 import FloraSystem from '../systems/floraSystem.js';
@@ -90,6 +91,7 @@ const EDITOR_CAM_SPEED = 12;
 const EDITOR_CAM_SPRINT = 32;
 const IMPACT_DELAY = 0.28;
 const PLAYER_ZOOM_MAX = 22;
+const CREATURE_SOUND_RANGE = 22;
 const TIME_SKIP = { hours: 6 };
 
 function sameMeshes(first, second) {
@@ -137,6 +139,7 @@ export default class GameScene {
     this.terrainSystem = new TerrainSystem(scene);
     this.waterSystem = new WaterSystem(scene);
     this.fishSystem = new FishSystem(scene);
+    this.creatureSystem = new CreatureSystem(scene);
     this.skySystem = new SkySystem(scene);
     this.decoSystem = new DecoSystem(scene);
     this.decoSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z);
@@ -208,6 +211,8 @@ export default class GameScene {
     this.clockText = '';
     this.impactTimer = 0;
     this.shoreClock = 0;
+    this.creaturePickAt = 0;
+    this.creatureTooltipOn = false;
   }
 
   start() {
@@ -299,6 +304,7 @@ export default class GameScene {
       }
       this.followPointer();
       this.playerSystem.update(dt);
+      this.creatureSystem.update(dt);
       this.glowSystem.retryPending();
       this.updateGathering(dt);
       const root = this.playerSystem.root;
@@ -330,6 +336,7 @@ export default class GameScene {
     if (this.saveSystem.consumeLoadOnStart()) this.loadSaveState();
     this.loader.beginFloat('Budím postavu…');
     await this.setupPlayer();
+    await this.setupCreatures();
     this.loader.floatProgress(1, 1, 'Seju trávu…');
     this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle());
     this.floraSystem.addShelfGrass(this.terrainSystem.shelfAnchors);
@@ -448,19 +455,50 @@ export default class GameScene {
   }
 
   followPointer() {
-    if (!this.options.highlights) return;
-    if (!this.inputSystem.takeMoved()) return;
-    const inside = this.inputSystem.pointerInside();
-    if (!inside) {
-      this.decoHighlight.setHover(null);
+    const now = performance.now();
+    const moved = this.inputSystem.takeMoved();
+    if (!this.options.highlights) {
+      this.creatureSystem.clearHover();
+      this.creatureTooltipOn = false;
+      this.tooltipPanel.hide();
       return;
     }
+    if (!this.inputSystem.pointerInside()) {
+      this.decoHighlight.setHover(null);
+      this.creatureSystem.clearHover();
+      this.creatureTooltipOn = false;
+      this.tooltipPanel.hide();
+      return;
+    }
+    if (moved || now - this.creaturePickAt > 250) {
+      this.creaturePickAt = now;
+      const creature = this.creatureSystem.hoverAt(this.s.pointerX, this.s.pointerY);
+      if (creature) {
+        this.decoHighlight.setHover(null);
+        this.showCreatureTooltip(creature);
+        return;
+      }
+      this.hideCreatureTooltip();
+    }
+    if (!moved) return;
     const pointer = this.inputSystem.lastCell;
     if (pointer && this.decoHighlight.hasEntry(pointer.cx, pointer.cz)) {
       this.decoHighlight.setHover(pointer);
       return;
     }
     this.decoHighlight.setHover(this.inputSystem.cellAtPointer());
+  }
+
+  showCreatureTooltip(creature) {
+    if (!creature || this.isBuilding() || this.hud.isStatusOpen()) return;
+    this.creatureTooltipOn = true;
+    this.tooltipPanel.show(`${creature.type.label} (${creature.tier.label})`, '');
+  }
+
+  hideCreatureTooltip() {
+    if (!this.creatureTooltipOn) return;
+    this.creatureTooltipOn = false;
+    this.refreshHoverTooltip(this.inputSystem.lastCell);
   }
 
   updateGathering(dt) {
@@ -709,6 +747,35 @@ updateGatherTarget() {
     this.rescuePlayerFromWater();
   }
 
+  async setupCreatures() {
+    const system = this.creatureSystem;
+    system.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
+    system.walkableAt = (x, z) => {
+      const cell = worldToCellCoords(x, z);
+      if (this.buildSystem.isOccupied(cell.cx, cell.cz)) return false;
+      return this.isWalkableAt(x, z);
+    };
+    system.playerAt = () => (this.playerSystem.root ? this.playerSystem.root.position : null);
+    system.onMeshReady = (mesh) => this.addShadowCaster(mesh);
+    system.onSound = (key, creature) => this.playCreatureSound(key, creature);
+    system.onBite = () => {
+      this.cameraSystem.shake(0.28, 0.32);
+      this.log.add('Želva po tobě chňapla', 'action');
+    };
+    await system.create(this.mapLayout);
+    this.refreshReflectionExclusions();
+  }
+
+  playCreatureSound(key, creature) {
+    if (!key || !creature) return;
+    const root = this.playerSystem.root;
+    const center = root ? root.position : this.cameraSystem.viewCenter();
+    const distance = Math.hypot(creature.renderX - center.x, creature.renderZ - center.z);
+    const gain = Math.max(0, Math.min(1, 1 - distance / CREATURE_SOUND_RANGE));
+    if (gain <= 0.02) return;
+    this.audioSystem.play(key, { gain });
+  }
+
   refreshTerrain() {
     this.terrainSystem.clear();
     this.terrainSystem.create(this.mapKey, this.mapFile);
@@ -767,6 +834,9 @@ updateGatherTarget() {
     if (shadows) excluded.push(shadows);
     for (const school of this.fishSystem.schools) {
       if (school.mesh) excluded.push(school.mesh);
+    }
+    for (const mesh of this.creatureSystem.meshes) {
+      if (mesh && !mesh.isDisposed()) excluded.push(mesh);
     }
     const level = this.waterSystem.level;
     for (const anchor of this.decoSystem.nodes) {
@@ -1320,6 +1390,7 @@ updateGatherTarget() {
       if (this.options.dayCycle) this.dayNightSystem.update(tick);
       this.refreshAmbient();
       this.updateHarvestRespawns();
+      this.creatureSystem.tick(tick);
     });
     this.simSystem.onTick = null;
     this.refreshClock();
@@ -1484,6 +1555,7 @@ updateGatherTarget() {
     this.registerSavedState(this.campfireSystem, 'campfires', 12);
     this.registerSavedState(this.fellingSystem, 'felling', 14);
     this.registerSavedState(this.harvestSystem, 'harvest', 15);
+    this.registerSavedState(this.creatureSystem, 'creatures', 16);
     this.registerSavedState(this.dayNightSystem, 'dayNight', 20);
     this.registerSavedState(this.simSystem, 'sim', 25);
     this.saveSystem.register(this.inventorySystem, 'inventory', {
@@ -1769,6 +1841,7 @@ updateGatherTarget() {
   }
 
   refreshHoverTooltip(cell) {
+    if (this.creatureTooltipOn) return;
     if (!cell || !this.options.highlights || this.isBuilding() || this.hud.isStatusOpen()) {
       this.tooltipPanel.hide();
       return;

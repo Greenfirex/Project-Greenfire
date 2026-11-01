@@ -18,6 +18,10 @@ export default class CameraSystem {
     this.maxZoom = ZOOM_MAX;
     this.target = new Vector3(0, 0, 0);
     this.camera = null;
+    this.shakeAmp = 0;
+    this.shakeTime = 0;
+    this.shakeTotal = 0;
+    this.shakeOffset = new Vector3(0, 0, 0);
   }
 
   create() {
@@ -76,7 +80,28 @@ export default class CameraSystem {
     this.target.x += (x - this.target.x) * k;
     this.target.z += (z - this.target.z) * k;
     this.target.y += (goalY - this.target.y) * k;
-    this.camera.setTarget(this.target);
+    const offset = this.advanceShake(dt);
+    this.camera.setTarget(offset ? this.target.add(offset) : this.target);
+  }
+
+  shake(strength = 0.25, seconds = 0.3) {
+    this.shakeAmp = Math.max(0, strength);
+    this.shakeTime = Math.max(0, seconds);
+    this.shakeTotal = this.shakeTime;
+  }
+
+  advanceShake(dt) {
+    if (this.shakeTime <= 0) return null;
+    this.shakeTime = Math.max(0, this.shakeTime - dt);
+    const falloff = this.shakeTotal > 0 ? this.shakeTime / this.shakeTotal : 0;
+    const amp = this.shakeAmp * falloff * falloff;
+    if (amp <= 0) return null;
+    this.shakeOffset.set(
+      (Math.random() * 2 - 1) * amp,
+      (Math.random() * 2 - 1) * amp * 0.4,
+      (Math.random() * 2 - 1) * amp,
+    );
+    return this.shakeOffset;
   }
 
   snapTo(x, z, y = 0) {

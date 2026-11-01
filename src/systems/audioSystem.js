@@ -12,6 +12,9 @@ const CLIPS = {
   stepStone: ['stonestep_1', 'stonestep_2', 'stonestep_3'],
   stepWater: ['waterstep_1', 'waterstep_2', 'waterstep_3', 'waterstep_4', 'waterstep_5'],
   ignite: ['ignite_1', 'ignite_2'],
+  turtleHiss: ['turtle_hiss_1.wav'],
+  turtleBite: ['turtle_bite_1.wav', 'turtle_bite_2.wav', 'turtle_bite_3.wav'],
+  turtleGrowl: ['turtle_growl_1.wav'],
 };
 
 const VOICES = {
@@ -24,6 +27,9 @@ const VOICES = {
   stepStone: { volume: 0.08, voices: 3, pitch: 0.08 },
   stepWater: { volume: 0.09, voices: 5, pitch: 0.08 },
   ignite: { volume: 0.6, voices: 2, pitch: 0.05 },
+  turtleHiss: { volume: 0.5, voices: 1, pitch: 0.04 },
+  turtleBite: { volume: 0.55, voices: 3, pitch: 0.06 },
+  turtleGrowl: { volume: 0.45, voices: 1, pitch: 0.05 },
 };
 
 const AMBIENT_LAYERS = ['forest_day', 'forest_night'];
@@ -97,8 +103,9 @@ export default class AudioSystem {
       this.buffers[key] = pool;
       this.cursors[key] = 0;
       for (let i = 0; i < cfg.voices; i += 1) {
-        const url = `${ASSET_DIRS.audio}${names[i % names.length]}.ogg`;
-        this.fetchClip(url, (buffer) => { pool[i] = buffer; });
+        const name = names[i % names.length];
+        const file = name.includes('.') ? name : `${name}.ogg`;
+        this.fetchClip(`${ASSET_DIRS.audio}${file}`, (buffer) => { pool[i] = buffer; });
       }
     }
     this.startAmbient();
@@ -111,8 +118,8 @@ export default class AudioSystem {
       const data = await response.arrayBuffer();
       const buffer = await this.ctx.decodeAudioData(data);
       if (onDone) onDone(buffer);
-    } catch {
-      this.disable();
+    } catch (error) {
+      console.warn(`[audio] Klip se nenačetl: ${url} — ${error && error.message ? error.message : error}`);
     }
   }
 

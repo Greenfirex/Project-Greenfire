@@ -45,8 +45,8 @@ src/
   scenes/GameScene.js        orchestrátor — stav světa, delegace na systémy
   systems/                   camera, grid, terrain, water, sky, deco, build, gather,
                              inventory, heldItem, player, input, editor,
-                             campfire, glow, dayNight, sim, audio, save
-  data/catalogs/             stroje, předměty, dekorace, mapy, uložený stav
+                             campfire, glow, dayNight, sim, audio, save, creature
+  data/catalogs/             stroje, předměty, dekorace, mapy, tvorové, uložený stav
   data/maps/                 generátor mapy a editovatelné rozvržení
   effects/                   oheň (táborák, pochodeň)
   ui/                        DOM HUD panely nad plátnem
@@ -61,6 +61,81 @@ src/
 - Načtení savu hru znovu spustí a stav se navrství na čerstvě postavený svět
   při startu — proto je u načtení vidět načítací obrazovka. Běžné spuštění
   zůstává čisté, nic se nenačítá samo.
+
+## Tvorové (NPC)
+
+První tvor je kajmanka (`snapping_turtle`). Každý tvor má **jeden vlastní soubor** — data
+i rig pohromadě — a systém tvorů o kostech nic neví.
+
+```
+src/data/catalogs/creatures/
+  index.js            registr: které tvory hra zná + pomocné funkce
+  snappingTurtle.js   jeden tvor: data, tiery a rig
+src/systems/creatureSystem.js   obecné: spawn, stavy, ikony, obrysy, ukládání
+src/utils/creatureMarker.js     vykřičník a otazníky nad hlavou (společné všem)
+public/assets/creatures/<kind>/ model + CREDITS.txt
+```
+
+### Co patří kam
+
+| Věc | Kde | Poznámka |
+|---|---|---|
+| jméno, model, měřítko, otočení | soubor tvora | `length` je délka těla ve světových jednotkách (buňka = 2) |
+| čísla chování (rychlosti, kruhy, časy, dostřel) | soubor tvora | systém je jen čte |
+| tiery | soubor tvora | klíč tieru se ukládá do savu |
+| rig (rozpoznání kostí + animace) | soubor tvora | `build` / `pose` / `summary` |
+| zvuky (`alert`, `charge`, `bite`) | soubor tvora | klíče do seznamu zvuků v audio systému |
+| stavy, spawn, ikony, obrysy, tooltip, ukládání | systém tvorů | pro všechny tvory stejné |
+| barvy a tloušťky obrysů, obrázky ikon | systém / `creatureMarker.js` | společné, ne v souboru tvora |
+
+### Rozhraní rigu
+
+```js
+rig.build(mesh, skeleton)                  // -> stav kostry, nebo null
+rig.pose(stav, dt, { mode, moving })       // -> { bob }
+rig.summary(stav)                          // -> řetězec do konzole
+```
+
+- `mode` je `idle | roam | alert | chase | windup | recover | confused` — rozhoduje systém.
+- `moving` je `true`, jen když se tvor v tomto tiku opravdu pohnul (ne když jen stojí v režimu honičky).
+- `pose` vrací jen svislé zhoupnutí; polohu a otočení řeší systém.
+- Systém nikdy nesahá na jednotlivé kosti. Nový tvor s jiným tělem = nová trojice funkcí.
+
+### Konvence modelu
+
+- Formát GLB, skinned mesh; jeden model = jeden tvor.
+- Model se normalizuje na `length` a staví se nohama na nulu.
+- Otočení: model kouká na +Z; `yawOffset` v datech srovná model, který kouká jinam (želva má `Math.PI`).
+- Kosti nemají jména — rig si je rozpozná podle klidové polohy, normalizované vůči rozměrům modelu.
+- Tuhé části (krunýř) se neanimují: hýbe se jen to, co rig výslovně vybere.
+- Model i `CREDITS.txt` patří do `public/assets/creatures/<kind>/`.
+
+### Přidání nového tvora
+
+1. Nahraj model do `public/assets/creatures/<kind>/` a přilož `CREDITS.txt`.
+2. Vytvoř `src/data/catalogs/creatures/<kind>.js`:
+   - hlavička (1–3 řádky) a import `ASSET_DIRS`,
+   - rig (rozpoznání kostí + animace), nebo `rig: null`, když model kosti nemá,
+   - data: `label`, `model`, `rig`, `sounds`, `length`, `yawOffset`, `walkSpeed`, `turnRate`,
+     `aggroRange`, `chargeRange`, `alertSeconds`, `biteRange`, `biteWindup`, `biteCooldown`,
+     `biteRecover`, `confusedSeconds`, `roamRadius`, `idleSeconds`, `defaultTier`,
+     `defaultSpawn`, `tiers`.
+3. Přidej řádek do `index.js` (import + položka v `CREATURE_TYPES`).
+4. Hotovo — spawn, ikony, obrysy, tooltip i ukládání fungují automaticky.
+
+### Na co si dát pozor
+
+- **`kind` je v savu.** Nepřejmenovávej ho u existujícího tvora, jinak se stará data ignorují
+  a tvor se vrátí na výchozí místo.
+- **`tier` je v savu.** Při přejmenování tierů zvedni `SAVE_VERSION`.
+- **Načtení musí snést stará data** (chybějící tvory, neznámé tiery) — `apply` nesmí spadnout.
+- **Matematika kostí:** `getBindPose()` je lokální, ne absolutní; osa otáčení se převádí do prostoru
+  rodiče a normalizuje (jinak se rotace násobí měřítkem modelu).
+- **Kopírování modelu:** `LoadAssetContainerAsync` + `instantiateModelsToScene`; ruční `clone()`
+  skinned meshe si rozbije kostru.
+- **Tvary bez kostí** (sochy, barely): `rig: null`, systém to snese.
+- **Mrtvý kód:** když tvor ocas nemá, rig ho nesmí mít „pro jistotu“.
+- **Ladění patří k tvorovi**, ne do systému: rozsahy, prahy i časy jsou v jeho souboru.
 
 ## Stav projektu
 
@@ -482,6 +557,12 @@ seznam k výběru.
 ## Nápady na další vývoj
 
 ### Nepřátelé a boj
+
+> **Stav:** první verze je hotová — kajmanka (`snapping_turtle`) umí toulání, dvě zóny
+> pozornosti (ostražitost s vykřičníkem, pak honička), kousnutí s nápřahem, zmatení
+> s otazníky, návrat domů, obrysy a tooltip. Zatím **neubírá zdraví** a nemá smrt
+> ani vypadnutí suroviny. Jak přidat dalšího tvora je v sekci
+> [Tvorové (NPC)](#tvorové-npc).
 
 Vychází z Rage of Mages (1998): hrdina s vlastnostmi, k tomu jednotky a souboje
 sledované z nadhledu, kde jsou vlastní a cizí jednotky barevně odlišené. Nejde

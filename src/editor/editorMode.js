@@ -1895,6 +1895,7 @@ function toWorld(world) {
     grass: copy(world.grass),
     decorations: copy(world.decorations),
     fish: copy(world.fish),
+    creatures: Array.isArray(world.creatures) ? copy(world.creatures) : null,
     bridges: copy(world.bridges),
   };
 }

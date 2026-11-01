@@ -9,6 +9,7 @@ export const ASSET_DIRS = {
   tools: 'assets/props/KayKit_RPGToolsBits/',
   machines: 'assets/machines/',
   characters: 'assets/characters/',
+  creatures: 'assets/creatures/',
   audio: 'assets/audio/',
   effects: 'assets/effects/',
 };

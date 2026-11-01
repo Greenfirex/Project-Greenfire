@@ -1,0 +1,6 @@
+Model želvy (snapping turtle) — vytvořeno v Meshy (https://www.meshy.ai)
+z vlastního obrázku vygenerovaného v Gemini.
+
+Licence: Meshy Pro (private license) — https://www.meshy.ai/pricing
+Upraveno: změna měřítka a otočení, úprava barev podle tieru,
+doplněné animace chůze a kousnutí v kódu hry.
