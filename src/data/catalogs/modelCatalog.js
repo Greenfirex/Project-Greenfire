@@ -14,6 +14,11 @@ export const PLAYER_ASSET_URLS = [PLAYER_MODEL, ...PLAYER_ANIMS];
 export const PLAYER_BASE_HEIGHT = 1.7;
 export const PLAYER_MODEL_YAW = 0;
 export const PLAYER_INTRO_YAW = Math.PI * 0.75;
+export const PLAYER_FOOT_BONES = {
+  left: ['LeftFoot', 'mixamorig:LeftFoot', 'foot_l', 'foot.l'],
+  right: ['RightFoot', 'mixamorig:RightFoot', 'foot_r', 'foot.r'],
+};
+
 export const PLAYER_HAND_BONES = [
   'RightHand',
   'mixamorig:RightHand',

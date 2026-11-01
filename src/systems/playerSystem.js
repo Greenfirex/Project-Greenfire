@@ -15,6 +15,7 @@ import {
   PLAYER_MODEL_YAW,
   PLAYER_INTRO_YAW,
   PLAYER_HAND_BONES,
+  PLAYER_FOOT_BONES,
   PLAYER_ANIM_NAMES,
   PLAYER_ANIM_SPEEDS,
   PLAYER_ANIM_FALLBACKS,
@@ -95,6 +96,14 @@ export default class PlayerSystem {
     this.handSlot = null;
     this.strikeTimer = 0;
     this.strikeAnim = 'chopBare';
+    this.footBones = { left: null, right: null };
+    this.stepSide = 1;
+    this.footContact = { left: true, right: true };
+    this.footLow = { left: Infinity, right: Infinity };
+    this.footHigh = { left: -Infinity, right: -Infinity };
+    this.footInitialized = false;
+    this.footFallbackTimer = 0;
+    this.onFootPlant = null;
     this.igniteTimer = 0;
     this.igniteImpactAt = 0;
     this.pickupTimer = 0;
@@ -148,6 +157,7 @@ export default class PlayerSystem {
       }
 
       this.loadAnimations(result, loaded.slice(1));
+      this.cacheFootBones();
       this.reportProgress(this.progressTotal);
       await this.attachToolNode();
       this.bindKeys();
@@ -333,6 +343,25 @@ export default class PlayerSystem {
     if (Number.isFinite(maxDistance) && distSq > maxDistance * maxDistance) return;
     this.facing = Math.atan2(dx, dz);
     this.root.rotation.y = this.facing;
+  }
+
+  cacheFootBones() {
+    const skeleton = this.mesh && this.mesh.skeleton;
+    if (!skeleton || !Array.isArray(skeleton.bones)) return;
+    for (const [side, names] of Object.entries(PLAYER_FOOT_BONES)) {
+      const wanted = names.map((name) => String(name).toLowerCase());
+      const bone = skeleton.bones.find((item) => {
+        const name = String(item.name || '').toLowerCase();
+        return wanted.includes(name) || wanted.some((candidate) => name.endsWith(':' + candidate));
+      });
+      this.footBones[side] = bone ? bone.getTransformNode() : null;
+    }
+  }
+
+  footPosition(side) {
+    const node = this.footBones[side];
+    if (!node || node.isDisposed()) return null;
+    return node.getAbsolutePosition();
   }
 
   findHandBone(skeleton) {
@@ -693,6 +722,39 @@ export default class PlayerSystem {
     this.facing = turnToward(this.facing, target, TURN_SPEED * dt);
     this.root.rotation.y = this.facing + MODEL_YAW;
     this.play(sprint ? 'run' : 'walk');
+    this.updateFootprints(dt, sprint);
+  }
+
+  updateFootprints(dt, sprint) {
+    if (!this.onFootPlant) return;
+    this.footFallbackTimer += Number.isFinite(dt) ? dt : 0;
+    let emitted = false;
+    for (const side of ['left', 'right']) {
+      const foot = this.footPosition(side);
+      if (!foot) continue;
+      const ground = this.groundY(foot.x, foot.z);
+      const height = foot.y - ground;
+      if (height < this.footLow[side]) this.footLow[side] = height;
+      if (height > this.footHigh[side]) this.footHigh[side] = height;
+      const span = this.footHigh[side] - this.footLow[side];
+      const threshold = this.footLow[side] + Math.max(0.04, span * 0.25);
+      const planted = height <= threshold;
+      if (!this.footInitialized) this.footContact[side] = planted;
+      else if (this.footContact[side] && !planted && span > 0.04) {
+        this.onFootPlant(foot.x, foot.z, this.facing, side);
+        emitted = true;
+        this.footFallbackTimer = 0;
+      }
+      this.footContact[side] = planted;
+    }
+    if (!emitted && this.footFallbackTimer > (sprint ? 0.45 : 0.75)) {
+      this.stepSide = -this.stepSide;
+      const side = this.stepSide > 0 ? 'left' : 'right';
+      const foot = this.footPosition(side);
+      this.onFootPlant(foot ? foot.x : this.root.position.x, foot ? foot.z : this.root.position.z, this.facing, side);
+      this.footFallbackTimer = 0;
+    }
+    this.footInitialized = true;
   }
 
   updateSteps(sprint, step) {
@@ -701,7 +763,10 @@ export default class PlayerSystem {
     this.travelled = 0;
     if (!this.onStep) return;
     const pos = this.root.position;
-    this.onStep(pos.x, pos.z, sprint);
+    this.stepSide = -this.stepSide;
+    const side = this.stepSide > 0 ? 'left' : 'right';
+    const foot = this.footPosition(side);
+    this.onStep(pos.x, pos.z, sprint, this.facing, side, foot ? foot.x : null, foot ? foot.z : null);
   }
 
   cameraForward(camera) {

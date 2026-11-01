@@ -216,6 +216,18 @@ export const SNAPPING_TURTLE = {
   confusedSeconds: 1.4,
   roamRadius: 6,
   maxStepHeight: 0.45,
+  footprint: {
+    kind: 'turtle',
+    scale: 0.33,
+    stepDistance: 0.65,
+    feet: [
+      { side: 0.24, forward: 0.16 },
+      { side: -0.24, forward: 0.16 },
+      { side: 0.24, forward: -0.16 },
+      { side: -0.24, forward: -0.16 },
+    ],
+    pairs: [[0, 3], [1, 2]],
+  },
   attackHeight: 0.45,
   respawnDays: 3,
   idleSeconds: [2.5, 6],

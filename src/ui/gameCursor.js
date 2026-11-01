@@ -8,7 +8,7 @@ const FILES = {
 };
 const HOTSPOTS = {
   ui: [0.28, 0.04],
-  attack: [0.9, 0.08],
+  attack: [0.5, 0],
   chop: [0.82, 0.15],
   mine: [0.12, 0.12],
 };

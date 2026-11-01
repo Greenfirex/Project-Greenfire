@@ -4,6 +4,7 @@ const REACH = 2.6;
 const BARE_COOLDOWN = 0.62;
 const BARE_KINDS = ['tree', 'log'];
 const BARE_SOUND = 'bare';
+const PICKUP_SOUND = 'pickup';
 const BARE_YIELDS = { wood: 1 };
 const SWAY_KINDS = ['tree', 'log'];
 const ORE_HITS = 10;
@@ -231,7 +232,7 @@ export default class GatherSystem {
   }
 
   gatherSound(item) {
-    if (item.def.byHand) return BARE_SOUND;
+    if (item.def.byHand) return PICKUP_SOUND;
     return item.def.kind === 'tree' ? this.impactSound('chop') : this.impactSound('mine');
   }
 

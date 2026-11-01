@@ -1124,3 +1124,10 @@ body.has-custom-cursor * {
 .game-cursor[data-state="ui"].is-pressed .game-cursor__image {
   transform: rotate(-90deg) scale(0.86);
 }
+.game-cursor[data-state="attack"] .game-cursor__image {
+  transform: rotate(-45deg);
+}
+
+.game-cursor[data-state="attack"].is-pressed .game-cursor__image {
+  transform: rotate(-45deg) scale(0.86);
+}

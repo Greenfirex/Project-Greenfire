@@ -67,6 +67,7 @@ export default class CreatureSystem {
     this.groundHeightAt = null;
     this.walkableAt = null;
     this.playerAt = null;
+    this.onStep = null;
     this.onBite = null;
     this.onSound = null;
     this.onMeshReady = null;
@@ -257,6 +258,8 @@ export default class CreatureSystem {
       cooldown: 0,
       walking: false,
       blockedTime: 0,
+      stepTravelled: 0,
+      stepSide: 1,
       giveUpUntil: 0,
       health: tier.health,
     };
@@ -572,6 +575,8 @@ export default class CreatureSystem {
   }
 
   walkTo(creature, targetX, targetZ, speed, dt) {
+    const startX = creature.x;
+    const startZ = creature.z;
     const dx = targetX - creature.x;
     const dz = targetZ - creature.z;
     const distance = Math.hypot(dx, dz);
@@ -594,6 +599,15 @@ export default class CreatureSystem {
     if (!moved) return false;
     creature.walking = true;
     creature.facing = turnToward(creature.facing, Math.atan2(dirX, dirZ), creature.type.turnRate * dt);
+    creature.stepTravelled += Math.hypot(creature.x - startX, creature.z - startZ);
+    const stepDistance = creature.type.footprint && Number.isFinite(creature.type.footprint.stepDistance)
+      ? creature.type.footprint.stepDistance
+      : Math.max(0.6, creatureLength(creature.type) * 0.7);
+    if (creature.stepTravelled >= stepDistance) {
+      creature.stepTravelled = 0;
+      creature.stepSide = -creature.stepSide;
+      if (this.onStep) this.onStep(creature, creature.stepSide);
+    }
     return false;
   }
 

@@ -293,6 +293,7 @@ export default class TerrainSystem {
     this.skirtMesh = null;
     this.gridLines = null;
     this.field = null;
+    this.floorKeys = new Map();
     this.mapKey = null;
     this.bridges = [];
     this.ready = Promise.resolve(null);
@@ -310,6 +311,10 @@ export default class TerrainSystem {
     return this.field ? this.field.heightAtCell(cx, cz) : 0;
   }
 
+  floorKeyAt(cx, cz) {
+    return this.floorKeys ? this.floorKeys.get(String(cx) + ',' + String(cz)) || null : null;
+  }
+
   clear() {
     for (const mesh of [this.ground, this.gridLines, ...this.surfaces]) {
       if (mesh && !mesh.isDisposed()) mesh.dispose(false, false);
@@ -319,6 +324,7 @@ export default class TerrainSystem {
     this.skirtMesh = null;
     this.gridLines = null;
     this.field = null;
+    this.floorKeys.clear();
     this.bridges = [];
     this.bridgeWallColumns = new Map();
     this.groundCells = [];
@@ -458,6 +464,7 @@ export default class TerrainSystem {
     for (const [cx, cz] of cells) {
       keys.set(`${cx},${cz}`, floorKeys.get(`${cx},${cz}`) || DEFAULT_FLOOR);
     }
+    this.floorKeys = keys;
     const keyAt = (cx, cz) => keys.get(`${cx},${cz}`) || null;
     const field = this.field;
     const spreads = (key) => {

@@ -6,6 +6,7 @@ import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
+import { CascadedShadowGenerator } from '@babylonjs/core/Lights/Shadows/cascadedShadowGenerator';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Scene } from '@babylonjs/core/scene';
@@ -33,6 +34,7 @@ import SaveSystem from '../systems/saveSystem.js';
 import GatherSystem from '../systems/gatherSystem.js';
 import FellingSystem from '../systems/fellingSystem.js';
 import HarvestSystem from '../systems/harvestSystem.js';
+import FootprintSystem from '../systems/footprintSystem.js';
 import InventorySystem from '../systems/inventorySystem.js';
 import HeldItemSystem from '../systems/heldItemSystem.js';
 import AudioSystem from '../systems/audioSystem.js';
@@ -84,6 +86,7 @@ const WADE_DEPTH = 0.6;
 const WADE_SPEED = 0.65;
 const WADE_RAMP = 0.2;
 const WATER_STEP_DEPTH = 0.02;
+const FOOTPRINT_WATER_DEPTH = 0.35;
 const SHORE_CHECK_SECONDS = 0.3;
 const MAX_STEP_SECONDS = 0.1;
 const SHADOW_REACH_MARGIN = 20;
@@ -94,7 +97,6 @@ const IMPACT_DELAY = 0.28;
 const PLAYER_ZOOM_MAX = 22;
 const CREATURE_SOUND_RANGE = 22;
 const SHADOW_FRUSTUM = 70;
-const SHADOW_LIGHT_DISTANCE = 70;
 const SHADOW_MIN_Z = 1;
 const SHADOW_MAX_Z = 180;
 const TIME_SKIP = { hours: 6 };
@@ -165,6 +167,7 @@ export default class GameScene {
     this.gatherSystem.onFell = (item) => this.finishFelling(item);
     this.fellingSystem = new FellingSystem(scene);
     this.harvestSystem = new HarvestSystem(scene);
+    this.footprintSystem = new FootprintSystem(scene);
     this.audioSystem = new AudioSystem(scene);
     this.inventorySystem = new InventorySystem();
     this.saveSystem = new SaveSystem(this);
@@ -196,7 +199,6 @@ export default class GameScene {
     this.autoWindowFrames = 0;
     this.shadowCasters = [];
     this.shadowClock = 0;
-
     this.camera = null;
     this.fxaa = null;
     this.shadowGenerator = null;
@@ -206,6 +208,8 @@ export default class GameScene {
     this.heldItemSystem = new HeldItemSystem();
     this.heldItemSystem.onChange = () => this.onHeldItemChange();
     this.playerSystem.onStep = (x, z, sprint) => this.onPlayerStep(x, z, sprint);
+    this.playerSystem.onFootPlant = (x, z, facing, side) => this.spawnFootprint(x, z, facing, 1, 'human');
+    this.creatureSystem.onStep = (creature, side) => this.onCreatureStep(creature, side);
     this.unlockAudio = () => {
       this.audioSystem.unlock();
       this.audioSystem.startAmbient();
@@ -252,8 +256,8 @@ export default class GameScene {
       this.log.add('Táborák zapálen', 'action');
     };
     this.setupGlow();
-    this.setupLighting();
     this.camera = this.cameraSystem.create();
+    this.setupLighting();
     this.cameraSystem.setMaxZoom(PLAYER_ZOOM_MAX);
     this.fxaa = new FxaaPostProcess('fxaa', 1.0, this.camera);
     this.skySystem.create();
@@ -308,6 +312,10 @@ export default class GameScene {
         return;
       }
       this.simSystem.update(dt);
+      if (this.options.dayCycle && !this.simSystem.halted) {
+        this.dayNightSystem.update(dt * this.simSystem.speed);
+      }
+      this.refreshAmbient();
       this.decoHighlight.update(dt);
       this.decoSystem.updateWind(this.floraSystem.clock);
       if (this.isLoading) {
@@ -318,6 +326,7 @@ export default class GameScene {
       this.followPointer();
       this.playerSystem.update(dt);
       this.creatureSystem.update(dt);
+      this.footprintSystem.update(dt);
       this.glowSystem.retryPending();
       this.updateGathering(dt);
       const root = this.playerSystem.root;
@@ -328,7 +337,6 @@ export default class GameScene {
       this.updateCampfireSound(root);
       this.updateShoreSound(root, dt);
       if (root) this.cameraSystem.follow(root.position.x, root.position.z, root.position.y, dt);
-      this.updateSunShadow();
       this.autoTune(dt);
       this.audioSystem.update(dt);
       this.playerSystem.updateFire();
@@ -631,6 +639,52 @@ updateGatherTarget() {
     if (inWater) this.waterSystem.splash(x, z, sprint ? 1.2 : 1);
     const key = this.decoSystem.surfaceKeyAt(worldToCell(x), worldToCell(z)) || '';
     this.audioSystem.play(inWater ? 'stepWater' : surfaceStepSound(key), { gain: sprint ? 1.35 : 1 });
+  }
+
+  onCreatureStep(creature, side) {
+    if (!creature || !creature.type) return;
+    const footprint = creature.type.footprint || {};
+    const tierScale = creature.tier && Number.isFinite(creature.tier.scale) ? creature.tier.scale : 1;
+    const scale = (Number.isFinite(footprint.scale) ? footprint.scale : 0.85) * tierScale;
+    const angle = creature.holder && Number.isFinite(creature.holder.rotation.y)
+      ? creature.holder.rotation.y
+      : (Number.isFinite(creature.renderFacing) ? creature.renderFacing : (Number.isFinite(creature.facing) ? creature.facing : 0)) + (creature.type.yawOffset || 0);
+    const kind = footprint.kind || 'turtle';
+    const feet = Array.isArray(footprint.feet) ? footprint.feet : null;
+    if (feet && feet.length) {
+      const pairs = Array.isArray(footprint.pairs) ? footprint.pairs : null;
+      const pair = pairs ? pairs[side >= 0 ? 0 : 1] : feet.map((_, index) => index);
+      for (const index of pair || []) {
+        const foot = feet[index];
+        if (!foot) continue;
+        const lateral = (Number(foot.side) || 0) * tierScale;
+        const forward = (Number(foot.forward) || 0) * tierScale;
+        const x = creature.x + Math.cos(angle) * lateral + Math.sin(angle) * forward;
+        const z = creature.z - Math.sin(angle) * lateral + Math.cos(angle) * forward;
+        this.spawnFootprint(x, z, angle, scale, kind);
+      }
+      return;
+    }
+    const offset = Number.isFinite(footprint.offset) ? footprint.offset : 0.22;
+    const direction = side >= 0 ? 1 : -1;
+    const x = creature.x + Math.cos(angle + Math.PI / 2) * offset * tierScale * direction;
+    const z = creature.z + Math.sin(angle + Math.PI / 2) * offset * tierScale * direction;
+    this.spawnFootprint(x, z, angle, scale, kind);
+  }
+
+  spawnFootprint(x, z, angle, scale, kind = 'human') {
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return;
+    if (this.terrainSystem && this.terrainSystem.bridgeDeckAt(x, z) !== null) return;
+    const cx = worldToCell(x);
+    const cz = worldToCell(z);
+    const pathKey = this.decoSystem.surfaceKeyAt(cx, cz) || '';
+    const floorKey = this.terrainSystem.floorKeyAt ? this.terrainSystem.floorKeyAt(cx, cz) : null;
+    const key = pathKey || floorKey || '';
+    if (!/sand/i.test(key)) return;
+    const depth = this.waterDepthNowAt(x, z);
+    if (depth > FOOTPRINT_WATER_DEPTH) return;
+    const y = this.terrainSystem.walkHeightAt(x, z) + 0.025;
+    this.footprintSystem.spawn({ x, y, z, angle, scale, kind, wet: depth > WATER_STEP_DEPTH });
   }
 
   onGatherImpact(result) {
@@ -1325,14 +1379,24 @@ updateGatherTarget() {
     if (light.sunColor) dir.diffuse = new Color3(light.sunColor[0], light.sunColor[1], light.sunColor[2]);
 
     this.sunLight = dir;
-    this.shadowMapSize = light.shadowMapSize;
     dir.autoUpdateExtends = false;
     dir.shadowFrustumSize = SHADOW_FRUSTUM;
     dir.shadowMinZ = SHADOW_MIN_Z;
     dir.shadowMaxZ = SHADOW_MAX_Z;
-    this.shadowGenerator = new ShadowGenerator(light.shadowMapSize, dir);
-    this.shadowGenerator.usePercentageCloserFiltering = true;
-    this.shadowGenerator.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
+    if (CascadedShadowGenerator.IsSupported) {
+      const csm = new CascadedShadowGenerator(light.shadowMapSize, dir, true, this.camera);
+      csm.numCascades = 2;
+      csm.stabilizeCascades = true;
+      csm.lambda = 0.8;
+      csm.cascadeBlendPercentage = 0.1;
+      csm.shadowMaxZ = SHADOW_MAX_Z;
+      csm.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
+      this.shadowGenerator = csm;
+    } else {
+      this.shadowGenerator = new ShadowGenerator(light.shadowMapSize, dir);
+      this.shadowGenerator.usePercentageCloserFiltering = true;
+      this.shadowGenerator.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
+    }
     this.shadowGenerator.bias = 0.00005;
     this.shadowGenerator.normalBias = 0.002;
     this.shadowGenerator.getShadowMap().clearColor = new Color4(1, 1, 1, 1);
@@ -1342,28 +1406,6 @@ updateGatherTarget() {
     this.dayNightSystem.create(map);
     this.dayNightSystem.attach(dir, hemi);
     this.dayNightSystem.apply();
-    this.updateSunShadow();
-  }
-
-  updateSunShadow() {
-    const light = this.sunLight;
-    if (!light || !this.shadowGenerator || !this.options.shadows) return;
-    const forward = light.direction;
-    if (!forward || forward.lengthSquared() < 1e-6) return;
-    const f = forward.clone().normalize();
-    const right = Vector3.Cross(Vector3.Up(), f);
-    if (right.lengthSquared() < 1e-6) return;
-    right.normalize();
-    const up = Vector3.Cross(f, right).normalize();
-    const center = this.cameraSystem.viewCenter();
-    const texel = SHADOW_FRUSTUM / this.shadowMapSize;
-    const along = Vector3.Dot(center, f);
-    const snappedRight = Math.round(Vector3.Dot(center, right) / texel) * texel;
-    const snappedUp = Math.round(Vector3.Dot(center, up) / texel) * texel;
-    const position = right.scale(snappedRight);
-    position.addInPlace(up.scale(snappedUp));
-    position.addInPlace(f.scale(along - SHADOW_LIGHT_DISTANCE));
-    light.position.copyFrom(position);
   }
 
   setupFog(map) {
@@ -1482,8 +1524,6 @@ updateGatherTarget() {
     this.harvestSystem.configure(map && map.dayNight ? map.dayNight.dayLengthSeconds : null);
     this.creatureSystem.configure(map && map.dayNight ? map.dayNight.dayLengthSeconds : null);
     this.simSystem.subscribe((tick) => {
-      if (this.options.dayCycle) this.dayNightSystem.update(tick);
-      this.refreshAmbient();
       this.updateHarvestRespawns();
       this.creatureSystem.tick(tick, this.simSystem.time);
     });
