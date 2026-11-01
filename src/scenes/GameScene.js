@@ -92,6 +92,10 @@ const EDITOR_CAM_SPRINT = 32;
 const IMPACT_DELAY = 0.28;
 const PLAYER_ZOOM_MAX = 22;
 const CREATURE_SOUND_RANGE = 22;
+const SHADOW_FRUSTUM = 70;
+const SHADOW_LIGHT_DISTANCE = 70;
+const SHADOW_MIN_Z = 1;
+const SHADOW_MAX_Z = 180;
 const TIME_SKIP = { hours: 6 };
 
 function sameMeshes(first, second) {
@@ -315,6 +319,7 @@ export default class GameScene {
       this.updateCampfireSound(root);
       this.updateShoreSound(root, dt);
       if (root) this.cameraSystem.follow(root.position.x, root.position.z, root.position.y, dt);
+      this.updateSunShadow();
       this.autoTune(dt);
       this.audioSystem.update(dt);
       this.playerSystem.updateFire();
@@ -1259,6 +1264,11 @@ updateGatherTarget() {
     if (light.sunColor) dir.diffuse = new Color3(light.sunColor[0], light.sunColor[1], light.sunColor[2]);
 
     this.sunLight = dir;
+    this.shadowMapSize = light.shadowMapSize;
+    dir.autoUpdateExtends = false;
+    dir.shadowFrustumSize = SHADOW_FRUSTUM;
+    dir.shadowMinZ = SHADOW_MIN_Z;
+    dir.shadowMaxZ = SHADOW_MAX_Z;
     this.shadowGenerator = new ShadowGenerator(light.shadowMapSize, dir);
     this.shadowGenerator.usePercentageCloserFiltering = true;
     this.shadowGenerator.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
@@ -1271,6 +1281,28 @@ updateGatherTarget() {
     this.dayNightSystem.create(map);
     this.dayNightSystem.attach(dir, hemi);
     this.dayNightSystem.apply();
+    this.updateSunShadow();
+  }
+
+  updateSunShadow() {
+    const light = this.sunLight;
+    if (!light || !this.shadowGenerator || !this.options.shadows) return;
+    const forward = light.direction;
+    if (!forward || forward.lengthSquared() < 1e-6) return;
+    const f = forward.clone().normalize();
+    const right = Vector3.Cross(Vector3.Up(), f);
+    if (right.lengthSquared() < 1e-6) return;
+    right.normalize();
+    const up = Vector3.Cross(f, right).normalize();
+    const center = this.cameraSystem.viewCenter();
+    const texel = SHADOW_FRUSTUM / this.shadowMapSize;
+    const along = Vector3.Dot(center, f);
+    const snappedRight = Math.round(Vector3.Dot(center, right) / texel) * texel;
+    const snappedUp = Math.round(Vector3.Dot(center, up) / texel) * texel;
+    const position = right.scale(snappedRight);
+    position.addInPlace(up.scale(snappedUp));
+    position.addInPlace(f.scale(along - SHADOW_LIGHT_DISTANCE));
+    light.position.copyFrom(position);
   }
 
   setupFog(map) {

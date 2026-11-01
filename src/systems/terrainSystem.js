@@ -66,6 +66,8 @@ const CLIFF_LEDGE_RATIO = 0.16;
 const CLIFF_RIM_BEVEL = 0.05;
 const CLIFF_CORNER_GAP = 0.5;
 const CLIFF_BEVEL_ROUND = 0.2;
+const CLIFF_SKIRT_SINK = 0.08;
+const CORNER_FILL_STEPS = 3;
 const BRIDGE_CORNER_MARGIN = 0.6;
 const CLIFF_INWARD_MAX = 0.85;
 const CLIFF_LEDGE_TAPER = 0.6;
@@ -836,6 +838,84 @@ export default class TerrainSystem {
       }
     }
 
+    const cornerStep = CELL_SIZE / SURFACE_SUB;
+    const distanceToCell = (x, z, cx, cz) => {
+      const dx = Math.max(0, Math.abs(x - cx * CELL_SIZE) - CELL_SIZE / 2);
+      const dz = Math.max(0, Math.abs(z - cz * CELL_SIZE) - CELL_SIZE / 2);
+      return Math.hypot(dx, dz);
+    };
+    const lowGroundAt = (x, z, lowCells) => {
+      let sum = 0;
+      let weight = 0;
+      for (const cell of lowCells) {
+        const reach = distanceToCell(x, z, cell[0], cell[1]) + 0.05;
+        const w = 1 / (reach * reach);
+        sum += field.heightAtSide(x, z, cell[0], cell[1]) * w;
+        weight += w;
+      }
+      return weight > 0 ? sum / weight : 0;
+    };
+    for (const cornerId of cliffCornerSet) {
+      const [cornerX, cornerZ] = cornerId.split(',').map((value) => Number(value) / 2);
+      const info = this.cliffCornerInfo(cornerX, cornerZ);
+      if (!info || !info.convex || info.pull.size !== 1) continue;
+      const [highX, highZ] = [...info.pull][0].split(',').map(Number);
+      const highHeight = field.heightAtCell(highX, highZ);
+      const dirX = Math.sign(highX * CELL_SIZE - cornerX) || 1;
+      const dirZ = Math.sign(highZ * CELL_SIZE - cornerZ) || 1;
+      const sideX = [highX - dirX, highZ];
+      const sideZ = [highX, highZ - dirZ];
+      const lowCells = [];
+      for (const cell of [sideX, sideZ, [highX - dirX, highZ - dirZ]]) {
+        if (field.heightAtCell(cell[0], cell[1]) > highHeight - 0.001) continue;
+        lowCells.push(cell);
+      }
+      if (!lowCells.length) continue;
+      const centerX = cornerX + dirX * CORNER_FILL_STEPS * cornerStep * 0.5;
+      const centerZ = cornerZ + dirZ * CORNER_FILL_STEPS * cornerStep * 0.5;
+      let ownerCell = lowCells[0];
+      let ownerDist = Infinity;
+      for (const cell of lowCells) {
+        const dist = distanceToCell(centerX, centerZ, cell[0], cell[1]);
+        if (dist < ownerDist) {
+          ownerDist = dist;
+          ownerCell = cell;
+        }
+      }
+      const group = groupFor(keyAt(ownerCell[0], ownerCell[1]) || DEFAULT_FLOOR);
+      const fillOwner = `fill:${highX},${highZ}`;
+      const reach = CORNER_FILL_STEPS * cornerStep;
+      const xMin = Math.min(cornerX, cornerX + dirX * reach);
+      const xMax = Math.max(cornerX, cornerX + dirX * reach);
+      const zMin = Math.min(cornerZ, cornerZ + dirZ * reach);
+      const zMax = Math.max(cornerZ, cornerZ + dirZ * reach);
+      const fillGrid = [];
+      for (let i = 0; i <= CORNER_FILL_STEPS; i += 1) {
+        const x = xMin + i * cornerStep;
+        const row = [];
+        for (let j = 0; j <= CORNER_FILL_STEPS; j += 1) {
+          const z = zMin + j * cornerStep;
+          const onX = Math.abs(x - cornerX) < 1e-6;
+          const onZ = Math.abs(z - cornerZ) < 1e-6;
+          let owner = fillOwner;
+          if (onX) owner = `${sideX[0]},${sideX[1]}`;
+          else if (onZ) owner = `${sideZ[0]},${sideZ[1]}`;
+          const y = lowGroundAt(x, z, lowCells);
+          row.push(slot(group, x, z, x, z, y, owner));
+        }
+        fillGrid.push(row);
+      }
+      for (let i = 0; i < CORNER_FILL_STEPS; i += 1) {
+        for (let j = 0; j < CORNER_FILL_STEPS; j += 1) {
+          const a = fillGrid[i][j];
+          const b = fillGrid[i + 1][j];
+          const c = fillGrid[i + 1][j + 1];
+          const d = fillGrid[i][j + 1];
+          group.indices.push(a, b, c, a, c, d);
+        }
+      }
+    }
+
     const blends = new Map();
     for (const key of groups.keys()) {
       const partner = partnerFor(key);
@@ -1349,9 +1429,9 @@ export default class TerrainSystem {
         const bWelded1 = weldedAt(pointId(b.gx, b.gz), edge.cx, edge.cz);
         const bWelded2 = weldedAt(pointId(b.gx, b.gz), edge.nx, edge.nz);
         const aTop = Math.max(aWelded1 === null ? a1 : aWelded1, aWelded2 === null ? a2 : aWelded2) + 0.015;
-        const aBottom = Math.min(a1, a2) - 0.08;
+        const aBottom = Math.min(a1, a2) - CLIFF_SKIRT_SINK;
         const bTop = Math.max(bWelded1 === null ? b1 : bWelded1, bWelded2 === null ? b2 : bWelded2) + 0.015;
-        const bBottom = Math.min(b1, b2) - 0.08;
+        const bBottom = Math.min(b1, b2) - CLIFF_SKIRT_SINK;
         const aDir = cliffDirection(pushes, a);
         const bDir = cliffDirection(pushes, b);
         const aSpan = Math.min(1, (aTop - aBottom) / CLIFF_RELIEF_SPAN);

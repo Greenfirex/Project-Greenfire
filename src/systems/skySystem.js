@@ -42,9 +42,11 @@ export default class SkySystem {
     if (!this.material) return;
     const dayness = Math.max(0, Math.min(1, Number(value) || 0));
     this.material.luminance = NIGHT_LUMINANCE + (DAY_LUMINANCE - NIGHT_LUMINANCE) * dayness;
-    if (sunLight && sunLight.position && sunLight.position.lengthSquared() > 0) {
-      const direction = sunLight.position.clone().normalize();
-      this.material.sunPosition = direction.scale(this.material.distance);
+    const source = sunLight && sunLight.direction
+      ? sunLight.direction.scale(-1)
+      : sunLight && sunLight.position ? sunLight.position.clone() : null;
+    if (source && source.lengthSquared() > 0) {
+      this.material.sunPosition = source.normalize().scale(this.material.distance);
     }
   }
 
