@@ -33,6 +33,9 @@ const STRIKE_FALLBACK = 0.5;
 const IGNITE_SHARE = 0.55;
 const IGNITE_HOLD = 0.35;
 const IGNITE_FALLBACK = 0.75;
+const PICKUP_SHARE = 0.55;
+const PICKUP_HOLD = 0.12;
+const PICKUP_FALLBACK = 0.75;
 const STEP_DISTANCE = 1.5;
 const TOOL_SCALE = 0.95;
 const TOOL_POSITION = new Vector3(-0.12, 0.12, 0.04);
@@ -94,6 +97,8 @@ export default class PlayerSystem {
     this.strikeAnim = 'chopBare';
     this.igniteTimer = 0;
     this.igniteImpactAt = 0;
+    this.pickupTimer = 0;
+    this.pickupImpactAt = 0;
     this.travelled = 0;
     this.homeX = 0;
     this.homeZ = 0;
@@ -298,6 +303,19 @@ export default class PlayerSystem {
     return this.igniteTimer;
   }
 
+  pickUp() {
+    this.strikeTimer = 0;
+    const length = this.animLength('pickup', PICKUP_FALLBACK);
+    this.pickupTimer = Math.max(0.18, length * PICKUP_SHARE + PICKUP_HOLD);
+    this.pickupImpactAt = Math.max(0.12, this.pickupTimer * PICKUP_SHARE);
+    this.play('pickup', true);
+    return this.pickupTimer;
+  }
+
+  pickupImpactTime() {
+    return this.pickupImpactAt;
+  }
+
   cancelIgnite() {
     if (this.igniteTimer <= 0) return false;
     this.igniteTimer = 0;
@@ -366,7 +384,8 @@ export default class PlayerSystem {
       const source = pick(key);
       if (!source) continue;
       let group = source;
-      if (!embeddedSet.has(source)) {
+      const alreadyUsed = Object.values(this.anims).includes(source);
+      if (!embeddedSet.has(source) || alreadyUsed) {
         source.stop();
         group = source.clone(`player_${key}`, (target) => nodeByName.get(target.name) || null);
       } else {
@@ -622,6 +641,17 @@ export default class PlayerSystem {
       const done = this.anims[this.strikeAnim];
       if (done) done.pause();
       this.endStrike();
+    }
+    if (this.pickupTimer > 0) {
+      this.pickupTimer -= dt;
+      this.pickupImpactAt -= dt;
+      if (this.pickupTimer > 0) {
+        this.play('pickup');
+        return;
+      }
+      const finished = this.anims.pickup;
+      if (finished) finished.pause();
+      this.pickupImpactAt = 0;
     }
     if (this.igniteTimer > 0) {
       this.igniteTimer -= dt;

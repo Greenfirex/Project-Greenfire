@@ -41,6 +41,7 @@ import CharacterWindow from '../ui/characterWindow.js';
 import LogPanel from '../ui/logPanel.js';
 import { itemIcon } from '../ui/itemIcons.js';
 import Hud from '../ui/hud.js';
+import GameCursor from '../ui/gameCursor.js';
 import Hotbar from '../ui/hotbar.js';
 import DockButton from '../ui/dockButton.js';
 import MapEditor from '../editor/mapEditor.js';
@@ -132,6 +133,7 @@ export default class GameScene {
     this.s = scene;
     this.engine = engine;
     this.canvas = canvas;
+    this.gameCursor = new GameCursor();
     this.mapKey = DEFAULT_MAP;
     this.rebuildRunning = false;
     this.rebuildPending = false;
@@ -466,6 +468,24 @@ export default class GameScene {
     this.playerSystem.cancelIgnite();
   }
 
+  setPointerCursorState() {
+    if (this.editor.active || this.isBuilding()) {
+      this.gameCursor.setState('default');
+      return;
+    }
+    const pointer = this.inputSystem.lastCell;
+    const entry = pointer
+      ? this.gatherSystem.entries.find((item) => item.left > 0
+        && item.entry.cx === pointer.cx && item.entry.cz === pointer.cz)
+      : null;
+    const tool = this.heldItemSystem.tool();
+    if (!entry || entry.def.byHand || !tool || !tool.harvest || !tool.harvest.kinds.includes(entry.def.kind)) {
+      this.gameCursor.setState('default');
+      return;
+    }
+    this.gameCursor.setState(tool.model === 'pickaxe' ? 'mine' : 'chop');
+  }
+
   followPointer() {
     const now = performance.now();
     const moved = this.inputSystem.takeMoved();
@@ -473,6 +493,7 @@ export default class GameScene {
       this.creatureSystem.clearHover();
       this.creatureTooltipOn = false;
       this.tooltipPanel.hide();
+      this.gameCursor.setState('default');
       return;
     }
     if (!this.inputSystem.pointerInside()) {
@@ -480,6 +501,7 @@ export default class GameScene {
       this.creatureSystem.clearHover();
       this.creatureTooltipOn = false;
       this.tooltipPanel.hide();
+      this.gameCursor.setState('default');
       return;
     }
     if (moved || now - this.creaturePickAt > 250) {
@@ -488,17 +510,21 @@ export default class GameScene {
       if (creature) {
         this.decoHighlight.setHover(null);
         this.showCreatureTooltip(creature);
+        this.gameCursor.setState(this.editor.active || this.isBuilding() ? 'default' : 'attack');
         return;
       }
       this.hideCreatureTooltip();
+      this.setPointerCursorState();
     }
     if (!moved) return;
     const pointer = this.inputSystem.lastCell;
     if (pointer && this.decoHighlight.hasEntry(pointer.cx, pointer.cz)) {
       this.decoHighlight.setHover(pointer);
+      this.setPointerCursorState();
       return;
     }
     this.decoHighlight.setHover(this.inputSystem.cellAtPointer());
+    this.setPointerCursorState();
   }
 
   showCreatureTooltip(creature) {
@@ -1416,6 +1442,7 @@ updateGatherTarget() {
     this.refreshClock();
     this.refreshShadowReach(true);
     this.decoHighlight.setVisible(this.options.highlights);
+    this.gameCursor.setEnabled(this.options.customCursor);
     this.glowSystem.setEnabled(this.options.fireGlow);
     const grassDensity = this.floraSystem.density;
     this.floraSystem.setDensity(this.options.grass);
@@ -1591,6 +1618,7 @@ updateGatherTarget() {
     } else if (this.hoverCell) {
       this.handleHover(this.hoverCell);
     }
+    this.setPointerCursorState();
   }
 
   isBuilding() {

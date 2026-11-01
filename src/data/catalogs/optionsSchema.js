@@ -7,6 +7,7 @@ export const OPTION_DEFAULTS = {
   fireGlow: true,
   fpsCap: 60,
   highlights: true,
+  customCursor: true,
   dayCycle: true,
   autoTune: false,
   grass: 'high',

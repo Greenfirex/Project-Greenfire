@@ -32,6 +32,7 @@ export const PLAYER_ANIM_NAMES = {
   chopBare: 'Right_Hand_Sword_Slash',
   holdTool: 'Idle_11',
   ignite: 'Male_Bend_Over_Pick_Up',
+  pickup: 'Male_Bend_Over_Pick_Up',
   getUp: 'Stand_Up1',
 };
 
@@ -40,6 +41,7 @@ export const PLAYER_ANIM_SPEEDS = {
   mine: 1.1,
   chopBare: 1.35,
   ignite: 2.5,
+  pickup: 3.0,
   getUp: 1,
 };
 
@@ -49,6 +51,7 @@ export const PLAYER_ANIM_FALLBACKS = {
   chopBare: ['chopBare', 'chop', 'mine'],
   holdTool: ['holdTool', 'idle'],
   ignite: ['ignite', 'chopBare', 'chop', 'idle'],
+  pickup: ['pickup', 'ignite', 'chopBare', 'idle'],
   getUp: ['getUp'],
 };
 

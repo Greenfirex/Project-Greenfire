@@ -180,7 +180,9 @@ export default class GatherSystem {
     }
     if (this.player && this.player.faceTo) this.player.faceTo(item.x, item.z, REACH);
     const duration = this.startSwing(item);
-    const impact = this.player && this.player.strikeImpactTime ? this.player.strikeImpactTime() : 0;
+    const impact = this.player && item.def.byHand && this.player.pickupImpactTime
+      ? this.player.pickupImpactTime()
+      : this.player && this.player.strikeImpactTime ? this.player.strikeImpactTime() : 0;
     const fallback = duration > 0 ? duration * IMPACT_SHARE : FALLBACK_DURATION * IMPACT_SHARE;
     this.pending.delay = Number.isFinite(impact) && impact > 0 ? impact : fallback;
     console.info(`[gather] ${item.def.displayName}: ${item.left}/${item.total} úderů, nástroj ${this.tool ? this.tool.displayName : 'ruka'}`);
@@ -195,7 +197,9 @@ export default class GatherSystem {
   startSwing(item) {
     if (!item) return 0;
     this.pending = { item };
-    const swing = this.player && this.player.strike ? this.player.strike() : 0;
+    const swing = item.def.byHand && this.player && this.player.pickUp
+      ? this.player.pickUp()
+      : this.player && this.player.strike ? this.player.strike() : 0;
     const duration = Number.isFinite(swing) && swing > 0 ? swing : FALLBACK_DURATION;
     this.cooldown = Math.max(this.hitCooldown, duration);
     return duration;

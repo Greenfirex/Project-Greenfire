@@ -1,0 +1,4 @@
+Cursor set pro Project Greenfactory
+
+Sheet kurzorů byl vygenerovaný autorem projektu v Gemini a ručně rozřezaný pro potřeby hry.
+Použité ikony: meč, sekera, krumpáč a ruka (UI i výchozí kurzor).
