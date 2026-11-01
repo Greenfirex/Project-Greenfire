@@ -21,6 +21,7 @@ export function releaseFrame() {
 const MODEL_SCALE = CELL_SIZE;
 const MODEL_TIMEOUT_MS = 15000;
 const cache = new Map();
+const importedCache = new Map();
 const containerCache = new Map();
 const reportedTextures = new Set();
 const waiters = new Set();
@@ -76,6 +77,34 @@ export async function preloadModel(scene, url) {
   const root = await withTimeout(loadModel(scene, url), MODEL_TIMEOUT_MS);
   if (!root) console.warn(`[asset] Model se nepodařilo načíst do ${MODEL_TIMEOUT_MS / 1000} s: ${url}`);
   return root;
+}
+
+export function loadImported(scene, url) {
+  if (!importedCache.has(url)) {
+    pending += 1;
+    const promise = withTimeout(
+      ImportMeshAsync(url, scene).catch((err) => {
+        console.error(`[asset] Model se nenačetl: ${url} — ${err?.message ?? err}`);
+        loadError = true;
+        return null;
+      }),
+      MODEL_TIMEOUT_MS,
+    )
+      .then((result) => {
+        if (!result) return null;
+        for (const mesh of result.meshes || []) mesh.setEnabled(false);
+        for (const group of result.animationGroups || []) group.stop();
+        return result;
+      })
+      .then((result) => {
+        if (!result) console.warn(`[asset] Model se nepodařilo načíst do ${MODEL_TIMEOUT_MS / 1000} s: ${url}`);
+        pending -= 1;
+        notifyWaiters();
+        return result;
+      });
+    importedCache.set(url, promise);
+  }
+  return importedCache.get(url);
 }
 
 export function loadContainer(scene, url) {

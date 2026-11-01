@@ -3,30 +3,29 @@
 import '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Animations/animatable';
 import '@babylonjs/core/Materials/PBR/pbrMaterial';
-import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { worldToCellCoords, cellToWorldCoords } from '../utils/gridMath.js';
 import { TOOL_TYPES } from '../data/catalogs/items.js';
-import { toolModelUrl, PLAYER_MODEL, PLAYER_ANIMS } from '../data/catalogs/modelCatalog.js';
-import { loadModel, instantiateModel } from '../utils/assetLoader.js';
+import {
+  toolModelUrl,
+  PLAYER_MODEL,
+  PLAYER_ANIMS,
+  PLAYER_BASE_HEIGHT,
+  PLAYER_MODEL_YAW,
+  PLAYER_INTRO_YAW,
+  PLAYER_HAND_BONES,
+  PLAYER_ANIM_NAMES,
+  PLAYER_ANIM_SPEEDS,
+  PLAYER_ANIM_FALLBACKS,
+} from '../data/catalogs/modelCatalog.js';
+import { loadModel, instantiateModel, loadImported } from '../utils/assetLoader.js';
 import TorchFire from '../effects/torchFire.js';
 
-const ANIM_NAMES = {
-  idle: 'Idle_A',
-  walk: 'Walking_A',
-  run: 'Running_A',
-  jump: 'Jump_Full_Short',
-  chop: 'Chopping',
-  mine: 'Pickaxing',
-  chopBare: 'Use_Item',
-  holdTool: 'Holding_A',
-  ignite: 'Interact',
-};
 const ANIM_BLEND = 0.25;
 const STRIKE_SHARE = {
   chop: 0.55,
-  mine: 0.3,
+  mine: 0.45,
   chopBare: 0.55,
 };
 const STRIKE_HOLD = 0.12;
@@ -35,10 +34,9 @@ const IGNITE_SHARE = 0.55;
 const IGNITE_HOLD = 0.35;
 const IGNITE_FALLBACK = 0.75;
 const STEP_DISTANCE = 1.5;
-const HAND_BONE = 'handslot.r';
 const TOOL_SCALE = 0.95;
 const TOOL_POSITION = new Vector3(-0.12, 0.12, 0.04);
-const TOOL_ROTATION = new Vector3(0, Math.PI, -0.45);
+const TOOL_ROTATION = new Vector3(0, 0, -0.45);
 const PLAN_POSITION = new Vector3(0, -0.02, 0.14);
 const PLAN_ROTATION = new Vector3(Math.PI / 2, 0, 0);
 const BODY_RADIUS = 0.3;
@@ -49,9 +47,9 @@ const MOVE_SPEED = 4.5;
 export const STEP_LIMIT = 0.45;
 const WALK_SPEED = 2.4;
 const TURN_SPEED = 12;
-const MODEL_HEIGHT = 1.75;
-const MODEL_BASE_HEIGHT = 2.27;
-const MODEL_YAW = 0;
+const MODEL_HEIGHT = 2.31;
+const MODEL_BASE_HEIGHT = PLAYER_BASE_HEIGHT;
+const MODEL_YAW = PLAYER_MODEL_YAW;
 const SPAWN = { x: 0, z: 0 };
 const MOVE_KEYS = {
   KeyW: 'forward', ArrowUp: 'forward',
@@ -80,6 +78,10 @@ export default class PlayerSystem {
     this.spawnCell = null;
     this.walkableCells = null;
     this.ready = false;
+    this.lying = false;
+    this.waking = false;
+    this.wakeTimer = 0;
+    this.onIntroChange = null;
     this.toolTemplates = {};
     this.toolLoading = {};
     this.heldToolKey = null;
@@ -105,13 +107,16 @@ export default class PlayerSystem {
     this.beginStep();
     try {
       const loaded = await Promise.all([
-        ImportMeshAsync(PLAYER_MODEL, this.s),
-        ...PLAYER_ANIMS.map((url) => ImportMeshAsync(url, this.s)),
+        loadImported(this.s, PLAYER_MODEL),
+        ...PLAYER_ANIMS.map((url) => loadImported(this.s, url)),
       ]);
       this.reportProgress(1);
       const result = loaded[0];
+      if (!result) return null;
+      const hasSave = Boolean(this.pendingState);
       const root = new TransformNode('playerRoot', this.s);
-      for (const mesh of result.meshes) {
+      for (const mesh of result.meshes || []) {
+        if (mesh.setEnabled) mesh.setEnabled(true);
         if (mesh.getTotalVertices && mesh.getTotalVertices() > 0) {
           if (!this.mesh) this.mesh = mesh;
           mesh.isPickable = false;
@@ -137,12 +142,13 @@ export default class PlayerSystem {
         this.homeZ = this.root.position.z;
       }
 
-      this.loadAnimations(loaded.slice(1));
-      this.reportProgress(3);
+      this.loadAnimations(result, loaded.slice(1));
+      this.reportProgress(this.progressTotal);
       await this.attachToolNode();
-      this.play('idle');
       this.bindKeys();
       this.ready = true;
+      if (hasSave) this.play('idle');
+      else this.lieDown();
       return this.root;
     } finally {
       this.endStep();
@@ -182,7 +188,7 @@ export default class PlayerSystem {
   async attachToolNode() {
     const skeleton = this.mesh && this.mesh.skeleton;
     if (!skeleton) return;
-    const bone = skeleton.bones.find((b) => b.name === HAND_BONE);
+    const bone = this.findHandBone(skeleton);
     const hand = bone && bone.getTransformNode();
     if (!hand) return;
     this.handSlot = new TransformNode('playerHandSlot', this.s);
@@ -311,7 +317,18 @@ export default class PlayerSystem {
     this.root.rotation.y = this.facing;
   }
 
-  loadAnimations(sources) {
+  findHandBone(skeleton) {
+    if (!skeleton || !Array.isArray(skeleton.bones)) return null;
+    const wanted = PLAYER_HAND_BONES.map((name) => String(name).toLowerCase());
+    for (const bone of skeleton.bones) {
+      const name = String(bone.name || '').toLowerCase();
+      if (wanted.includes(name)) return bone;
+      if (wanted.some((candidate) => name.endsWith(`:${candidate}`))) return bone;
+    }
+    return null;
+  }
+
+  loadAnimations(modelResult, sources) {
     const skeleton = this.mesh && this.mesh.skeleton;
     if (!skeleton) return;
     const nodeByName = new Map();
@@ -320,19 +337,53 @@ export default class PlayerSystem {
       if (node) nodeByName.set(bone.name, node);
     }
 
+    const embedded = modelResult && Array.isArray(modelResult.animationGroups)
+      ? modelResult.animationGroups
+      : [];
+    const external = [];
     for (const result of sources || []) {
-      for (const [key, name] of Object.entries(ANIM_NAMES)) {
-        const source = result.animationGroups.find((g) => g.name === name);
-        if (!source) continue;
-        source.stop();
-        const group = source.clone(`player_${key}`, (target) => nodeByName.get(target.name) || null);
-        group.weight = 1;
-        group.enableBlending = true;
-        group.blendingSpeed = ANIM_BLEND;
-        this.anims[key] = group;
+      if (result && Array.isArray(result.animationGroups)) external.push(...result.animationGroups);
+    }
+    const all = [...embedded, ...external];
+    const embeddedSet = new Set(embedded);
+
+    const pick = (key) => {
+      const name = PLAYER_ANIM_NAMES[key];
+      if (name) {
+        const direct = all.find((group) => group.name === name);
+        if (direct) return direct;
       }
-      for (const group of result.animationGroups) group.stop();
-      for (const mesh of result.meshes) {
+      for (const fallback of PLAYER_ANIM_FALLBACKS[key] || []) {
+        const fallbackName = PLAYER_ANIM_NAMES[fallback];
+        if (!fallbackName) continue;
+        const group = all.find((item) => item.name === fallbackName);
+        if (group) return group;
+      }
+      return null;
+    };
+
+    for (const key of Object.keys(PLAYER_ANIM_NAMES)) {
+      const source = pick(key);
+      if (!source) continue;
+      let group = source;
+      if (!embeddedSet.has(source)) {
+        source.stop();
+        group = source.clone(`player_${key}`, (target) => nodeByName.get(target.name) || null);
+      } else {
+        group.stop();
+      }
+      if (!group) continue;
+      group.weight = 1;
+      group.enableBlending = true;
+      group.blendingSpeed = ANIM_BLEND;
+      const speed = Number(PLAYER_ANIM_SPEEDS[key]);
+      group.speedRatio = Number.isFinite(speed) && speed > 0 ? speed : 1;
+      this.anims[key] = group;
+    }
+
+    for (const group of all) group.stop();
+    for (const result of sources || []) {
+      for (const mesh of result.meshes || []) {
         if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0) continue;
         mesh.setEnabled(false);
       }
@@ -383,23 +434,53 @@ export default class PlayerSystem {
     return this.heldToolKey ? 'holdTool' : 'idle';
   }
 
-  play(key, restart = false) {
+  play(key, restart = false, loop = true) {
     const group = this.anims[key];
     if (!group) return;
     if (this.currentKey === key) {
-      if (restart) group.start(true, group.speedRatio, group.from, group.to);
+      if (restart) group.start(loop, group.speedRatio, group.from, group.to);
       return;
     }
     if (this.current && this.current !== group) this.current.stop();
     for (const [otherKey, other] of Object.entries(this.anims)) {
-      if (otherKey === key) continue;
-      for (const animatable of other.animatables) {
-        for (const runtime of animatable.getAnimations()) runtime.stop(false);
-      }
+      if (otherKey === key || other === group) continue;
+      other.stop();
     }
-    group.start(true, group.speedRatio, group.from, group.to);
+    group.start(loop, group.speedRatio, group.from, group.to);
     this.current = group;
     this.currentKey = key;
+  }
+
+  lieDown() {
+    this.lying = true;
+    this.waking = false;
+    this.wakeTimer = 0;
+    this.releaseKeys();
+    const group = this.anims.getUp;
+    if (group) {
+      this.current = group;
+      this.currentKey = 'getUp';
+      this.facing = PLAYER_INTRO_YAW;
+      if (this.root) this.root.rotation.y = this.facing + MODEL_YAW;
+      group.stop();
+      group.start(false, 0.001, group.from, group.to);
+    } else {
+      console.warn('[player] Chybí animace Stand_Up1 — postava zůstane ve výchozí póze.');
+      this.play('idle');
+    }
+    if (this.onIntroChange) this.onIntroChange(true);
+  }
+
+  wake() {
+    if (!this.lying || this.waking) return false;
+    this.waking = true;
+    const group = this.anims.getUp;
+    const speed = Number(PLAYER_ANIM_SPEEDS.getUp);
+    if (group && Number.isFinite(speed) && speed > 0) group.speedRatio = speed;
+    this.wakeTimer = Math.max(0.5, this.animLength('getUp', 8.3));
+    if (this.onIntroChange) this.onIntroChange(false);
+    this.play('getUp', true, false);
+    return true;
   }
 
   ensurePlaying() {
@@ -434,6 +515,11 @@ export default class PlayerSystem {
     if (evt.target && evt.target.tagName === 'INPUT') return;
     if (this.inputBlocked && this.inputBlocked()) return;
     evt.preventDefault();
+    if (this.lying) {
+      this.input[action] = down;
+      if (down) this.wake();
+      return;
+    }
     this.input[action] = down;
   }
 
@@ -516,6 +602,18 @@ export default class PlayerSystem {
   update(dt) {
     if (!this.ready || !this.root || this.root.isDisposed()) return;
     this.keepGrounded();
+    if (this.lying) {
+      if (this.waking) {
+        this.wakeTimer -= dt;
+        if (this.wakeTimer <= 0) {
+          this.lying = false;
+          this.waking = false;
+          this.wakeTimer = 0;
+          this.play('idle');
+        }
+      }
+      return;
+    }
     this.ensurePlaying();
     if (this.strikeTimer > 0) {
       this.strikeTimer -= dt;

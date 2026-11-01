@@ -49,7 +49,7 @@ import PauseScreen from '../ui/pauseScreen.js';
 import Dialog from '../ui/dialog.js';
 import LoadingScreen from '../ui/loadingScreen.js';
 import TooltipPanel from '../ui/tooltipPanel.js';
-import { whenModelsIdle, takeModelError, preloadModel, loadContainer, releaseFrame } from '../utils/assetLoader.js';
+import { whenModelsIdle, takeModelError, preloadModel, loadContainer, loadImported, releaseFrame } from '../utils/assetLoader.js';
 import { proceduralTemplate } from '../utils/decoTemplate.js';
 import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
@@ -58,7 +58,7 @@ import { HOTBAR_ITEMS, ITEM_TYPES } from '../data/catalogs/items.js';
 import { worldToCellCoords, worldToCell, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
-import { collectStartupUrls, CREATURE_MODEL_URLS } from '../data/catalogs/modelCatalog.js';
+import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../data/catalogs/modelCatalog.js';
 import { mapFileFromLayout, layoutFromMapFile, isMapFile, MAP_VERSION } from '../data/catalogs/mapFile.js';
 import { worldCells, hasFloor } from '../data/maps/areaShape.js';
 import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
@@ -228,9 +228,12 @@ export default class GameScene {
 
   async startPreload(urls) {
     const creatureModels = new Set(CREATURE_MODEL_URLS);
-    const result = await this.loader.runAssets(urls, (url) => (
-      creatureModels.has(url) ? loadContainer(this.s, url) : preloadModel(this.s, url)
-    ));
+    const playerAssets = new Set(PLAYER_ASSET_URLS);
+    const result = await this.loader.runAssets(urls, (url) => {
+      if (playerAssets.has(url)) return loadImported(this.s, url);
+      if (creatureModels.has(url)) return loadContainer(this.s, url);
+      return preloadModel(this.s, url);
+    });
     this.loader.endAssets();
     if (result.failed) {
       console.warn(`[start] Nenačteno ${result.failed} modelů — hra pokračuje bez nich.`);
@@ -746,6 +749,9 @@ updateGatherTarget() {
     this.playerSystem.decoSystem = this.decoSystem;
     this.playerSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z, this.playerSystem.root ? this.playerSystem.root.position.y : 0);
+    this.playerSystem.onIntroChange = (lying) => {
+      this.hud.setSaveHint(lying ? 'Stiskni WASD nebo šipky pro vstání' : '');
+    };
     this.playerSystem.spawnCell = this.mapLayout.spawn;
     this.playerSystem.setHeldTool(this.heldItemSystem.key);
     this.playerSystem.onProgress = (done) => this.loader.floatProgress(done);

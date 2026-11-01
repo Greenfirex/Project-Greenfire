@@ -7,6 +7,13 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Sjednotit údaje v hlavním README: výšky terénu, verzi mapy, ovládání vody a okraje povrchů.
 - [ ] Odstranit z hlavního README historický handoff a duplicitní pravidla pro agenty.
 
+## Postava
+
+- [ ] Doladit měřítko, otočení a uchycení nástroje u nové castaway postavy.
+- [ ] Doladit úvodní ležení a vstávání: polohu na zemi, otočení a rychlost `Stand_Up1`.
+- [ ] Zkontrolovat animace v dev serveru: idle, chůze, běh, sekání a zapalování.
+- [ ] Zvážit zmenšení 2K textur nebo celého GLB, pokud bude start hry pomalý.
+
 ## Editor
 
 - [ ] Přidat spojovací čáru mezi spawním místem a živým tvorem; jen při vybraném štětci tvora.

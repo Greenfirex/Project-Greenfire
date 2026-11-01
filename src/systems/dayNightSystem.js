@@ -81,7 +81,6 @@ export default class DayNightSystem {
     const y = Math.sin(angle) * cfg.sunHeight;
     const z = cfg.sunDistance * 0.3;
 
-    this.sunLight.position = new Vector3(x, y, z);
     this.sunLight.direction = new Vector3(-x, -Math.abs(y) - 2, -z).normalize();
     this.sunLight.intensity = this.light.sunIntensity * dayness + cfg.moonIntensity * (1 - dayness);
 

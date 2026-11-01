@@ -66,6 +66,19 @@ src/
   při startu — proto je u načtení vidět načítací obrazovka. Běžné spuštění
   zůstává čisté, nic se nenačítá samo.
 
+## Postava
+
+Hráčská postava je `public/assets/characters/castaway/castaway.glb`. Model má
+vlastní kostru i animace přímo v GLB a při startu se přednačítá spolu s ostatními
+modely. Nástroj se přichytí na kost `RightHand`.
+
+Nový svět začíná na buňce **−1, −16**. Hráč nejdřív leží a vstane po stisknutí
+WASD nebo šipek. Uložená hra se načte na uložené pozici a úvodní vstávání přeskočí.
+
+Mapování animací, kandidáti na kost ruky, výška a otočení modelu jsou v
+`src/data/catalogs/modelCatalog.js`; vlastní načtení a přepínání animací řeší
+`src/systems/playerSystem.js`. Licence modelu je v `CREDITS.txt` vedle souboru.
+
 ## Tvorové (NPC)
 
 První tvor je kajmanka (`snapping_turtle`). Každý tvor má **jeden vlastní soubor** — data
