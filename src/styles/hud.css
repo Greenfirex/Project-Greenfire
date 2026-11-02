@@ -429,13 +429,6 @@
   font-weight: 600;
 }
 
-.character-note {
-  margin-top: 8px;
-  font-size: 11px;
-  font-style: italic;
-  color: var(--text-dim);
-}
-
 .inv-list {
   display: flex;
   flex-direction: column;
@@ -1131,3 +1124,68 @@ body.has-custom-cursor * {
 .game-cursor[data-state="attack"].is-pressed .game-cursor__image {
   transform: rotate(-45deg) scale(0.86);
 }
+
+/* Proužek zdraví nad lištou předmětů a červené bliknutí při zásahu. */
+.hud-health {
+  position: absolute;
+  bottom: 136px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 260px;
+  padding: 6px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 14px rgba(90, 200, 170, 0.08);
+  z-index: 11;
+  pointer-events: none;
+}
+
+.hud-health.is-full {
+  opacity: 0.7;
+}
+
+.hud-health__bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.hud-health__fill {
+  width: 100%;
+  height: 100%;
+  background: var(--glow-accent);
+  transition: width 160ms linear, background 200ms ease;
+}
+
+.hud-health.is-low .hud-health__fill {
+  background: #d8534a;
+}
+
+.hud-health__value {
+  color: var(--text-main);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hud-damage-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(190, 30, 20, 0) 34%, rgba(190, 30, 20, 0.8) 100%);
+}
+
+#hud-layer > .hud-health,
+#hud-layer > .hud-damage-flash {
+  pointer-events: none;
+}
+

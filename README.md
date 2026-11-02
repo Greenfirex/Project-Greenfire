@@ -25,6 +25,7 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 | **1–4** | Výběr předmětu v ruce (plán, sekera, krumpáč, pochodeň) |
 | **I / C** | Batoh / postava — okna nad lištou předmětů (také tlačítky po stranách lišty) |
 | **Levé tlačítko u stromu / rudy / kamene** | Těžení (podržet = opakovat) |
+| **Levé tlačítko u tvora** | Útok rukou (podržet = opakovat) |
 | **Klik na zem s plánem v ruce** | Postavení stroje na buňku |
 | **M** | Přepnutí typu stavěného stroje |
 | **R** | Otočení stroje (pod kurzorem, nebo u stavby budoucího) |
@@ -78,6 +79,11 @@ WASD nebo šipek. Uložená hra se načte na uložené pozici a úvodní vstáv�
 Mapování animací, kandidáti na kost ruky, výška a otočení modelu jsou v
 `src/data/catalogs/modelCatalog.js`; vlastní načtení a přepínání animací řeší
 `src/systems/playerSystem.js`. Licence modelu je v `CREDITS.txt` vedle souboru.
+
+Zdraví postavy drží `src/systems/playerStatsSystem.js`; čísla (maximum, doplňování,
+chvilka klidu po probuzení) jsou v `src/data/catalogs/player.js` a proužek nad lištou
+předmětů kreslí `src/ui/healthBar.js`. Zdraví se ukládá jako každý jiný stav a načtení
+starších dat ho doplní na plné. Když dojde, hráč se probudí na startovním místě mapy.
 
 ## Tvorové (NPC)
 
@@ -427,9 +433,9 @@ seznam k výběru.
 
 > **Stav:** první verze je hotová — kajmanka (`snapping_turtle`) umí toulání, dvě zóny
 > pozornosti (ostražitost s vykřičníkem, pak honička), kousnutí s nápřahem, zmatení
-> s otazníky, návrat domů, obrysy a tooltip. Zatím **neubírá zdraví** a nemá smrt
-> ani vypadnutí suroviny. Jak přidat dalšího tvora je v sekci
-> [Tvorové (NPC)](#tvorové-npc).
+> s otazníky, návrat domů, obrysy a tooltip. Kousnutí ubírá hráči zdraví (4/8/14 podle
+> stáří), rána rukou ubírá jemu a po smrti se na svém místě po pár dnech vrátí; chybí už
+> jen vypadnutí suroviny. Jak přidat dalšího tvora je v sekci [Tvorové (NPC)](#tvorové-npc).
 
 Vychází z Rage of Mages (1998): hrdina s vlastnostmi, k tomu jednotky a souboje
 sledované z nadhledu, kde jsou vlastní a cizí jednotky barevně odlišené. Nejde

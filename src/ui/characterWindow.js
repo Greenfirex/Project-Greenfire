@@ -1,6 +1,7 @@
-// Okno s postavou — zatím jen údaje, které hra o hráči opravdu zná.
-// Statistiky přijdou s bojem; okno se jen překresluje, do hry nezasahuje.
+// Okno s postavou — údaje, které hra o hráči opravdu zná.
+// Statistiky přibývají postupně; okno se jen překresluje, do hry nezasahuje.
 const ROWS = [
+  { key: 'health', label: 'Zdraví' },
   { key: 'cell', label: 'Buňka' },
   { key: 'height', label: 'Výška' },
   { key: 'carrying', label: 'Nese kusů' },
@@ -27,7 +28,6 @@ export default class CharacterWindow {
         <button type="button" class="side-window__close" title="Zavřít (C)">×</button>
       </div>
       <div class="character-rows"></div>
-      <div class="character-note">Statistiky přijdou s bojem.</div>
     `;
     const host = root.querySelector('.character-rows');
     for (const row of ROWS) {

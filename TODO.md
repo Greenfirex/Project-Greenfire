@@ -21,9 +21,9 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ## Tvorové a boj
 
-- [ ] Napojit skutečné ubírání zdraví při kousnutí a při útoku hráče.
-- [ ] Napojit skutečnou smrt na už hotový respawn a přidat vypadnutí suroviny.
-- [ ] Přidat útok hráče na tvora se stejnou výškovou kontrolou, jakou má tvor.
+- [ ] Přidat vypadnutí suroviny po zabití tvora; smrt i respawn už fungují.
+- [ ] Zvážit zvuk a výraznější zpětnou vazbu při zásahu hráče.
+- [ ] Nástroje: až se budou měnit, dostanou vlastní sílu, dosah a tempo rány.
 
 ## Výroba a svět
 

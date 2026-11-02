@@ -693,7 +693,11 @@ export default class CreatureSystem {
     if (!creature || !Number.isFinite(amount) || amount <= 0) return false;
     if (creature.health <= 0) return false;
     creature.health = Math.max(0, creature.health - amount);
-    if (creature.health > 0) return false;
+    if (creature.health > 0) {
+      creature.giveUpUntil = 0;
+      this.beginCharge(creature);
+      return false;
+    }
     return this.kill(creature, now);
   }
 

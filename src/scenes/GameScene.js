@@ -29,6 +29,8 @@ import DayNightSystem from '../systems/dayNightSystem.js';
 import SimSystem from '../systems/simSystem.js';
 import InputSystem from '../systems/inputSystem.js';
 import PlayerSystem, { STEP_LIMIT } from '../systems/playerSystem.js';
+import PlayerStatsSystem from '../systems/playerStatsSystem.js';
+import CombatSystem from '../systems/combatSystem.js';
 import BuildSystem from '../systems/buildSystem.js';
 import SaveSystem from '../systems/saveSystem.js';
 import GatherSystem from '../systems/gatherSystem.js';
@@ -45,6 +47,7 @@ import { itemIcon } from '../ui/itemIcons.js';
 import Hud from '../ui/hud.js';
 import GameCursor from '../ui/gameCursor.js';
 import Hotbar from '../ui/hotbar.js';
+import HealthBar from '../ui/healthBar.js';
 import DockButton from '../ui/dockButton.js';
 import MapEditor from '../editor/mapEditor.js';
 import EditorToggle from '../editor/editorToggle.js';
@@ -58,7 +61,7 @@ import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
 import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
 import { HOTBAR_ITEMS, ITEM_TYPES } from '../data/catalogs/items.js';
-import { worldToCellCoords, worldToCell, CELL_SIZE } from '../utils/gridMath.js';
+import { worldToCellCoords, worldToCell, cellToWorldCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
 import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../data/catalogs/modelCatalog.js';
@@ -160,6 +163,10 @@ export default class GameScene {
     this.simSystem = new SimSystem(scene);
     this.inputSystem = new InputSystem(scene, this);
     this.playerSystem = new PlayerSystem(scene);
+    this.playerStats = new PlayerStatsSystem();
+    this.combatSystem = new CombatSystem();
+    this.combatSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
+    this.combatSystem.onHit = (creature, amount) => this.damageCreature(creature, amount);
     this.buildSystem = new BuildSystem(scene);
     this.gatherSystem = new GatherSystem(scene);
     this.gatherSystem.decoSystem = this.decoSystem;
@@ -179,6 +186,7 @@ export default class GameScene {
     this.log = new LogPanel();
     this.inventoryWindow = new InventoryWindow();
     this.characterWindow = new CharacterWindow();
+    this.healthBar = new HealthBar();
     this.walkStepLimit = STEP_LIMIT;
     this.editor = new MapEditor(this);
     this.optionsPanel = new OptionsPanel();
@@ -210,6 +218,7 @@ export default class GameScene {
     this.playerSystem.onStep = (x, z, sprint) => this.onPlayerStep(x, z, sprint);
     this.playerSystem.onFootPlant = (x, z, facing, side) => this.spawnFootprint(x, z, facing, 1, 'human');
     this.creatureSystem.onStep = (creature, side) => this.onCreatureStep(creature, side);
+    this.playerStats.onChange = (health, maxHealth) => this.healthBar.set(health, maxHealth);
     this.unlockAudio = () => {
       this.audioSystem.unlock();
       this.audioSystem.startAmbient();
@@ -329,6 +338,7 @@ export default class GameScene {
       this.footprintSystem.update(dt);
       this.glowSystem.retryPending();
       this.updateGathering(dt);
+      this.updateCombat(dt);
       const root = this.playerSystem.root;
       this.campfireSystem.update(dt, root);
       this.waterSystem.update(dt);
@@ -538,7 +548,10 @@ export default class GameScene {
   showCreatureTooltip(creature) {
     if (!creature || this.isBuilding() || this.hud.isStatusOpen()) return;
     this.creatureTooltipOn = true;
-    this.tooltipPanel.show(`${creature.type.label} (${creature.tier.label})`, '');
+    const total = creature.tier && Number.isFinite(creature.tier.health) ? Math.round(creature.tier.health) : null;
+    const left = Number.isFinite(creature.health) ? Math.max(0, Math.round(creature.health)) : null;
+    const detail = total !== null && left !== null ? `Zdraví ${left} / ${total}` : '';
+    this.tooltipPanel.show(`${creature.type.label} (${creature.tier.label})`, detail);
   }
 
   hideCreatureTooltip() {
@@ -591,6 +604,7 @@ updateGatherTarget() {
       this.cancelCampfireIgnite();
       return;
     }
+    if (this.attackAtPointer()) return;
     if (this.gatherSystem.target) {
       this.strikeGather();
       return;
@@ -858,10 +872,7 @@ updateGatherTarget() {
       this.refreshReflectionExclusions();
     };
     system.onSound = (key, creature) => this.playCreatureSound(key, creature);
-    system.onBite = () => {
-      this.cameraSystem.shake(0.28, 0.32);
-      this.log.add('Želva po tobě chňapla', 'action');
-    };
+    system.onBite = (creature) => this.onCreatureBite(creature);
     await system.create(this.mapLayout);
     this.creatureLayoutKey = this.creatureLayoutSignature();
     this.refreshReflectionExclusions();
@@ -893,6 +904,68 @@ updateGatherTarget() {
     const gain = Math.max(0, Math.min(1, 1 - distance / CREATURE_SOUND_RANGE));
     if (gain <= 0.02) return;
     this.audioSystem.play(key, { gain });
+  }
+
+  attackAtPointer() {
+    if (this.playerSystem.lying) return false;
+    const creature = this.creatureSystem.hoverAt(this.s.pointerX, this.s.pointerY);
+    if (!creature) return false;
+    return this.combatSystem.swing(creature, this.playerSystem);
+  }
+
+  updateCombat(dt) {
+    const active = this.loaded && !this.editor.active && !this.isBuilding();
+    this.combatSystem.update(active ? dt : 0, active ? this.playerSystem : null);
+    if (!active || !this.inputSystem.leftDown) return;
+    const target = this.combatSystem.target;
+    if (!target || this.creatureSystem.hovered !== target) return;
+    if (!this.creatureSystem.creatures.includes(target)) {
+      this.combatSystem.target = null;
+      return;
+    }
+    this.combatSystem.swing(target, this.playerSystem);
+  }
+
+  damageCreature(creature, amount) {
+    if (!creature) return false;
+    const killed = this.creatureSystem.damage(creature, amount, this.simSystem.time);
+    this.audioSystem.play('bare');
+    const label = creature.type ? creature.type.label : 'Tvor';
+    if (killed) {
+      this.log.add(`Porazil jsi: ${label}`, 'warn');
+      return true;
+    }
+    const left = Math.max(0, Math.round(creature.health));
+    const total = creature.tier && Number.isFinite(creature.tier.health) ? Math.round(creature.tier.health) : null;
+    const suffix = total === null ? '' : ` (${left} / ${total})`;
+    this.log.add(`${label} — ${Math.round(amount)} poškození${suffix}`, 'action');
+    return false;
+  }
+
+  hurtPlayer(amount, label) {
+    if (!this.loaded || this.paused) return false;
+    if (!this.playerStats.hurt(amount)) return false;
+    this.cameraSystem.shake(0.28, 0.32);
+    this.healthBar.flash();
+    if (label) this.log.add(label, 'warn');
+    if (this.playerStats.health <= 0) this.onPlayerDeath();
+    return true;
+  }
+
+  onCreatureBite(creature) {
+    const damage = creature && creature.tier ? creature.tier.bite : 0;
+    const who = creature && creature.type ? creature.type.label : 'Útok';
+    this.hurtPlayer(damage, `${who} — ${Math.round(damage)} poškození`);
+  }
+
+  onPlayerDeath() {
+    this.log.add('Probral ses na pláži', 'warn');
+    const spawn = this.mapLayout && this.mapLayout.spawn ? this.mapLayout.spawn : null;
+    if (spawn) {
+      const spot = cellToWorldCoords(spawn.cx, spawn.cz);
+      this.playerSystem.apply({ x: spot.x, z: spot.z, facing: 0 });
+    }
+    this.playerStats.resurrect();
   }
 
   refreshTerrain() {
@@ -1526,6 +1599,7 @@ updateGatherTarget() {
     this.simSystem.subscribe((tick) => {
       this.updateHarvestRespawns();
       this.creatureSystem.tick(tick, this.simSystem.time);
+      this.playerStats.tick(tick);
     });
     this.simSystem.onTick = null;
     this.refreshClock();
@@ -1583,6 +1657,7 @@ updateGatherTarget() {
     this.characterButton.onClick = () => this.toggleCharacterWindow();
     this.bagButton.mount();
     this.characterButton.mount();
+    this.healthBar.set(this.playerStats.health, this.playerStats.maxHealth);
     this.log.mount();
     this.inventoryWindow.update(this.inventorySystem);
     this.refreshClock();
@@ -1631,6 +1706,7 @@ updateGatherTarget() {
       cell = `${coords.cx}, ${coords.cz}`;
     }
     this.characterWindow.update({
+      health: `${Math.ceil(this.playerStats.health)} / ${this.playerStats.maxHealth}`,
       cell,
       height: root ? metersText(root.position.y) : '—',
       carrying,
@@ -1687,6 +1763,7 @@ updateGatherTarget() {
     this.playerSystem.walkableCells = () => this.terrainSystem.realCells || [];
     this.registerSavedState(this.playerSystem, 'player', 5);
     this.registerSavedState(this.heldItemSystem, 'heldItem', 7);
+    this.registerSavedState(this.playerStats, 'playerStats', 8);
     this.registerSavedState(this.buildSystem, 'machines', 10);
     this.registerSavedState(this.campfireSystem, 'campfires', 12);
     this.registerSavedState(this.fellingSystem, 'felling', 14);

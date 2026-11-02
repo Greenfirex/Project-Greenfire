@@ -284,13 +284,19 @@ export default class PlayerSystem {
     return Number.isFinite(length) && length > 0 ? length : fallback;
   }
 
-  strike() {
-    this.strikeAnim = this.heldToolKey === 'pickaxe' ? 'mine' : (TOOL_TYPES[this.heldToolKey] && TOOL_TYPES[this.heldToolKey].mode === 'gather' ? 'chop' : 'chopBare');
+  strike(animKey) {
+    this.strikeAnim = animKey || this.strikeAnimationForTool();
     const length = this.animLength(this.strikeAnim, STRIKE_FALLBACK);
     const share = STRIKE_SHARE[this.strikeAnim] || 0.6;
     this.strikeTimer = Math.max(0.15, length * share + STRIKE_HOLD);
     this.play(this.strikeAnim, true);
     return this.strikeTimer;
+  }
+
+  strikeAnimationForTool() {
+    if (this.heldToolKey === 'pickaxe') return 'mine';
+    const tool = TOOL_TYPES[this.heldToolKey];
+    return tool && tool.mode === 'gather' ? 'chop' : 'chopBare';
   }
 
   strikeImpactTime() {
