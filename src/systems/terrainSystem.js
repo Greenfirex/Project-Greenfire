@@ -48,6 +48,7 @@ const SURFACE_BLEND_SPECK = CELL_SIZE * 0.45;
 const SURFACE_BLEND_SPECK_MIN = 10;
 const SURFACE_BLEND_SPECK_EDGE = 0.78;
 const SURFACE_BLEND_SPECK_MAX = 92;
+const SURFACE_BLEND_WALL_FADE = 0.5;
 const BLEND_NEIGHBORS = [
   [1, 0], [-1, 0], [0, 1], [0, -1],
   [1, 1], [1, -1], [-1, 1], [-1, -1],
@@ -526,14 +527,30 @@ export default class TerrainSystem {
         return wallBetween(field, cx, cz, nx, nz);
       };
       const wallCache = new Map();
-      const againstWall = (cx, cz) => {
+      const wallSides = (cx, cz) => {
         const id = `${cx},${cz}`;
         if (wallCache.has(id)) return wallCache.get(id);
-        const value = BLEND_NEIGHBORS.some(([dx, dz]) => (
-          field.isSharp(cx + dx, cz + dz) && blockedFrom(cx, cz, cx + dx, cz + dz)
-        ));
-        wallCache.set(id, value);
-        return value;
+        const sides = [
+          wallBetween(field, cx, cz, cx - 1, cz),
+          wallBetween(field, cx, cz, cx + 1, cz),
+          wallBetween(field, cx, cz, cx, cz - 1),
+          wallBetween(field, cx, cz, cx, cz + 1),
+        ];
+        wallCache.set(id, sides);
+        return sides;
+      };
+      const wallReach = (cx, cz, x, z) => {
+        const sides = wallSides(cx, cz);
+        const x0 = cx * CELL_SIZE - half;
+        const x1 = cx * CELL_SIZE + half;
+        const z0 = cz * CELL_SIZE - half;
+        const z1 = cz * CELL_SIZE + half;
+        let best = Infinity;
+        if (sides[0]) best = Math.min(best, x - x0);
+        if (sides[1]) best = Math.min(best, x1 - x);
+        if (sides[2]) best = Math.min(best, z - z0);
+        if (sides[3]) best = Math.min(best, z1 - z);
+        return best;
       };
       for (let j = 0; j < height; j += 1) {
         const z = z0 + (j + 0.5) * (spanZ / height);
@@ -541,16 +558,21 @@ export default class TerrainSystem {
           const x = x0 + (i + 0.5) * (spanX / width);
           const cx = Math.floor((x + half) / CELL_SIZE);
           const cz = Math.floor((z + half) / CELL_SIZE);
-          if (field.isSharp(cx, cz)) continue;
-          if (keyAt(cx, cz) === partner) {
-            data[j * width + i] = isDry(cx, cz) && againstWall(cx, cz) ? 0 : 255;
+          const isPartner = keyAt(cx, cz) === partner;
+          if (field.isSharp(cx, cz) && !isPartner) continue;
+          if (isPartner) {
+            let weight = 255;
+            if (isDry(cx, cz)) {
+              const toWall = wallReach(cx, cz, x, z);
+              if (Number.isFinite(toWall)) weight = Math.round(255 * Math.min(1, toWall / SURFACE_BLEND_WALL_FADE));
+            }
+            data[j * width + i] = weight;
             continue;
           }
           let reach = 0;
           for (const [dx, dz] of BLEND_NEIGHBORS) {
             const nx = cx + dx;
             const nz = cz + dz;
-            if (field.isSharp(nx, nz)) continue;
             if (keyAt(nx, nz) !== partner) continue;
             if (isDry(cx, cz) && blockedFrom(cx, cz, nx, nz)) continue;
             const gapX = Math.abs(x - nx * CELL_SIZE) - half;

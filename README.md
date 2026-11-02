@@ -244,6 +244,8 @@ doladění a práce mimo tento plán.
 - Přechod povrchů: hranice jsou rovné; tráva se u okraje plynule prolíná
   do písku texturou i barvou a písek do trávy neproniká (jednosměrné).
   Šířka pásu se lokálně mění šumem, aby přechod nepůsobil jako pruh.
+  U stěn útesů se písek stahuje k zdi do nuly (aby nepřeskočil na plošinu),
+  ale zbytek buňky zůstává pískový — jinak by v trávě u paty vznikl pruh.
 - Staré skalní modely: pryč z katalogu, mapy i assetů; kopce a stupně dělají
   jen výšky.
 - Útesy: štětec označí buňky jako plošinu; kde je mezi označenou buňkou
