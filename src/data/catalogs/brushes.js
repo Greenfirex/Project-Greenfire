@@ -269,10 +269,22 @@ export const BRUSHES = {
   cliff: {
     label: 'Útes',
     group: 'Terén',
-    note: 'Označí buňky jako plošinu, kde je skok, vznikne svislá stěna.',
+    note: 'Označí buňky jako plošinu, kde je skok, vznikne svislá stěna. Volba Pata přebarví povrch buněk pod stěnou.',
     shape: 'blob',
     style: 'stone',
     styles: ['stone', 'dirt'],
+    options: [
+      {
+        key: 'foot',
+        label: 'Pata útesu',
+        kind: 'choice',
+        default: 'auto',
+        values: [
+          { value: 'auto', label: 'Podle buňky' },
+          ...SURFACES.map((entry) => ({ value: entry.key, label: entry.label })),
+        ],
+      },
+    ],
     cliff: true,
   },
   ore: {

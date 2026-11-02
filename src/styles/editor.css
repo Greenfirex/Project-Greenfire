@@ -443,6 +443,43 @@
   cursor: default;
 }
 
+.brush-panel__option--choice {
+  align-items: flex-start;
+  flex-direction: column;
+  cursor: default;
+}
+
+.brush-panel__choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 100%;
+}
+
+.brush-panel__choice button {
+  flex: 1;
+  min-width: 44px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(90, 200, 170, 0.18);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 10px;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+
+.brush-panel__choice button:hover {
+  border-color: rgba(90, 200, 170, 0.45);
+  color: var(--text-main);
+}
+
+.brush-panel__choice button.is-active {
+  background: rgba(90, 200, 170, 0.18);
+  border-color: var(--glow-accent);
+  color: var(--text-main);
+}
+
 .brush-panel__option--range input[type="range"] {
   flex: 1;
   min-width: 0;

@@ -114,6 +114,10 @@ export default class BrushPanel {
         this.options.appendChild(this.buildRangeOption(option, values));
         continue;
       }
+      if (option.kind === 'choice') {
+        this.options.appendChild(this.buildChoiceOption(option, values));
+        continue;
+      }
       const label = document.createElement('label');
       label.className = 'brush-panel__option';
       const input = document.createElement('input');
@@ -157,6 +161,31 @@ export default class BrushPanel {
       if (this.onOption) this.onOption(option.key, Number(input.value));
     });
     row.append(text, input, value);
+    return row;
+  }
+
+  buildChoiceOption(option, values) {
+    const row = document.createElement('div');
+    row.className = 'brush-panel__option brush-panel__option--choice';
+    const text = document.createElement('span');
+    text.className = 'brush-panel__option-label';
+    text.textContent = option.label;
+    const group = document.createElement('div');
+    group.className = 'brush-panel__choice';
+    const stored = values && values[option.key] !== undefined ? values[option.key] : option.default;
+    for (const choice of option.values || []) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.choice = choice.value;
+      btn.textContent = choice.label;
+      btn.classList.toggle('is-active', choice.value === stored);
+      btn.addEventListener('click', () => {
+        for (const other of group.querySelectorAll('button')) other.classList.toggle('is-active', other === btn);
+        if (this.onOption) this.onOption(option.key, choice.value);
+      });
+      group.appendChild(btn);
+    }
+    row.append(text, group);
     return row;
   }
 

@@ -811,7 +811,10 @@ export default class TerrainSystem {
           const id = pointId(gx, gz);
           const split = cliffPoints.has(id);
           const weldedValue = weldedAt(id, cx, cz);
-          const py = weldedValue === null ? heightOf(point, cx, cz) : weldedValue;
+          const edge = i === 0 || i === SURFACE_SUB || j === 0 || j === SURFACE_SUB;
+          const py = weldedValue !== null
+            ? weldedValue
+            : (!split && edge ? field.heightAt(pos.px, pos.pz) : heightOf(point, cx, cz));
           let px = pos.px;
           let pz = pos.pz;
           const nearGI = i * 2 < SURFACE_SUB ? 0 : SURFACE_SUB;

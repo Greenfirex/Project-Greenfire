@@ -248,7 +248,8 @@ doladění a práce mimo tento plán.
   jen výšky.
 - Útesy: štětec označí buňky jako plošinu; kde je mezi označenou buňkou
   a sousedem skok, vznikne svislá kamenná stěna, nebo hliněná se stejnou texturou
-  jako okraj mapy, a hráč přes ni nepřejde. Mapa kvůli značce poskočila na verzi 4.
+  jako okraj mapy, a hráč přes ni nepřejde. Volba Pata útesu přebarví při malování
+  povrch buněk pod stěnou (výšky zůstanou). Mapa kvůli značce poskočila na verzi 4.
 - Voda: hladina pro celou mapu jako nepovinné číslo v souboru mapy; v editoru
   se zapíná tlačítkem Voda a hladina se ladí po 0,3 m; Z vrací krok.
   Mapa má hladinu −0,3 m, takže je voda zapnutá hned po startu.

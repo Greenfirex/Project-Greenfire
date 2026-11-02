@@ -228,6 +228,12 @@ export default class EditorMode {
       const clamped = Math.min(Number(option.max), Math.max(min, value));
       return min + Math.round((clamped - min) / step) * step;
     }
+    if (option.kind === 'choice') {
+      const choices = Array.isArray(option.values) ? option.values : [];
+      const fallback = option.default !== undefined ? option.default : (choices[0] ? choices[0].value : '');
+      if (stored === null) return fallback;
+      return choices.some((choice) => choice.value === stored) ? stored : fallback;
+    }
     if (stored !== null) return Boolean(stored);
     return option.default === true;
   }
@@ -241,7 +247,9 @@ export default class EditorMode {
   setBrushOption(optionKey, value) {
     const option = this.brushOptionsOf(this.brushKey).find((item) => item.key === optionKey);
     if (!option) return;
-    const stored = option.kind === 'range' ? Number(value) : Boolean(value);
+    const stored = option.kind === 'range'
+      ? Number(value)
+      : option.kind === 'choice' ? String(value) : Boolean(value);
     this.brushOpts[this.brushKey] = { ...(this.brushOpts[this.brushKey] || {}), [optionKey]: stored };
     if (this.pendingBridge) {
       this.buildBridgeSpan(this.pendingBridge.bx, this.pendingBridge.bz, this.pendingBridge.toHeight);
@@ -1326,7 +1334,8 @@ export default class EditorMode {
     }
     if (brush.cliff) {
       const zone = [...cells].map(parseCell);
-      const count = this.applyCliffMarks(zone, mode, this.styleFor(brushKey));
+      const foot = this.brushOptionValue(brushKey, 'foot');
+      const count = this.applyCliffMarks(zone, mode, this.styleFor(brushKey), foot);
       if (!count) this.history.pop();
       this.draft.cells.clear();
       if (this.onDraftChange) this.onDraftChange(this.draft);
@@ -1481,8 +1490,9 @@ export default class EditorMode {
     return count;
   }
 
-  applyCliffMarks(zone, mode, style = 'stone') {
+  applyCliffMarks(zone, mode, style = 'stone', foot = 'auto') {
     const on = mode !== 'remove';
+    const repaintFoot = on && Boolean(foot) && foot !== 'auto';
     let count = 0;
     for (const entry of zone) {
       const floor = floorCellAt(this.layout, entry.cx, entry.cz);
@@ -1494,12 +1504,30 @@ export default class EditorMode {
         count += 1;
         continue;
       }
+      if (repaintFoot) this.paintCliffFoot(entry.cx, entry.cz, foot);
       if (floor.cliff === true && (floor.cliffStyle || 'dirt') === style) continue;
       floor.cliff = true;
       floor.cliffStyle = style;
       count += 1;
     }
     return count;
+  }
+
+  paintCliffFoot(cx, cz, key) {
+    const present = this.presentCells();
+    if (!present.has(cellKey(cx, cz))) return;
+    const here = this.cellHeightValue(cx, cz);
+    let self = false;
+    for (const [dx, dz] of SIDES) {
+      const nx = cx + dx;
+      const nz = cz + dz;
+      if (!present.has(cellKey(nx, nz))) continue;
+      const step = this.cellHeightValue(nx, nz) - here;
+      if (Math.abs(step) < 1e-6) continue;
+      if (step < 0) this.paintSurface(nx, nz, key);
+      else self = true;
+    }
+    if (self) this.paintSurface(cx, cz, key);
   }
 
   dropGrassCell(cx, cz) {
@@ -1786,7 +1814,7 @@ export default class EditorMode {
       const floor = floorCellAt(this.layout, cx, cz);
       if (!floor || floor.cliff !== true) continue;
       const height = floor.liftY || 0;
-      const stepped = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => {
+      const stepped = SIDES.some(([dx, dz]) => {
         const near = layerLiftAt(this.layout, cx + dx, cz + dz);
         return Number.isFinite(near) && Math.abs(near - height) > HEIGHT_STEP + 0.01;
       });
@@ -1953,6 +1981,7 @@ export default class EditorMode {
   }
 }
 
+const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const AROUND = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 
 function hash01(a, b) {
