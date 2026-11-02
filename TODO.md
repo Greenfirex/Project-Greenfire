@@ -21,9 +21,19 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ## Tvorové a boj
 
-- [ ] Přidat vypadnutí suroviny po zabití tvora; smrt i respawn už fungují.
-- [ ] Zvážit zvuk a výraznější zpětnou vazbu při zásahu hráče.
-- [ ] Nástroje: až se budou měnit, dostanou vlastní sílu, dosah a tempo rány.
+### Etapa 3 — kořist
+
+- [ ] Přidat předměty z kořisti (maso, krunýř) do katalogu předmětů.
+- [ ] U tvora určit, co po něm zůstane (tabulka kořisti podle druhu a stáří).
+- [ ] Po zabití přidat kořist do batohu a zapsat ji do logu; rozhodnout, jestli padá na zem.
+
+### Etapa 4 — doladění boje
+
+- [ ] Zbraně a nástroje: vlastní síla, dosah a tempo rány (dnes se bije jen rukama).
+- [ ] Vlastnosti postavy (síla, obratnost, výdrž) a jejich vliv na ránu, zdraví a rychlost.
+- [ ] Výraznější zpětná vazba zásahu (záblesk obrysu, zvuk).
+- [ ] Zvážit tvrdší smrt hráče: obrazovka smrti a ztráta batohu.
+- [ ] Druhý nepřítel a barevné varianty s jinou silou.
 
 ## Výroba a svět
 
