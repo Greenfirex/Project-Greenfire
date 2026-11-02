@@ -21,6 +21,13 @@ export function creatureLength(type) {
   return Number.isFinite(type && type.length) ? type.length : 1;
 }
 
+export function creatureStat(type, tier, key) {
+  const tierValue = tier ? tier[key] : undefined;
+  if (Number.isFinite(tierValue)) return tierValue;
+  const baseValue = type ? type[key] : undefined;
+  return Number.isFinite(baseValue) ? baseValue : 0;
+}
+
 export function tierTint(tier) {
   const tint = tier && Array.isArray(tier.tint) ? tier.tint : [1, 1, 1];
   return { r: tint[0], g: tint[1], b: tint[2] };

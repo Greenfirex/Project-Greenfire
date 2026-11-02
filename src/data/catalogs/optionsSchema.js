@@ -12,6 +12,11 @@ export const OPTION_DEFAULTS = {
   autoTune: false,
   grass: 'high',
   waterDetail: true,
+  footprints: true,
+  cameraShake: true,
+  damageFlash: true,
+  floatingNumbers: true,
+  lookAtPointer: true,
   sfxVolume: 70,
   ambientVolume: 25,
 };

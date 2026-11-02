@@ -7,7 +7,7 @@ import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import { CascadedShadowGenerator } from '@babylonjs/core/Lights/Shadows/cascadedShadowGenerator';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Vector3, Matrix } from '@babylonjs/core/Maths/math.vector';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Scene } from '@babylonjs/core/scene';
 import { FxaaPostProcess } from '@babylonjs/core/PostProcesses/fxaaPostProcess';
@@ -30,7 +30,7 @@ import SimSystem from '../systems/simSystem.js';
 import InputSystem from '../systems/inputSystem.js';
 import PlayerSystem, { STEP_LIMIT } from '../systems/playerSystem.js';
 import PlayerStatsSystem from '../systems/playerStatsSystem.js';
-import CombatSystem from '../systems/combatSystem.js';
+import PlayerAttackSystem from '../systems/playerAttackSystem.js';
 import BuildSystem from '../systems/buildSystem.js';
 import SaveSystem from '../systems/saveSystem.js';
 import GatherSystem from '../systems/gatherSystem.js';
@@ -43,6 +43,7 @@ import AudioSystem from '../systems/audioSystem.js';
 import InventoryWindow from '../ui/inventoryWindow.js';
 import CharacterWindow from '../ui/characterWindow.js';
 import LogPanel from '../ui/logPanel.js';
+import FloatingNumbers from '../ui/floatingNumbers.js';
 import { itemIcon } from '../ui/itemIcons.js';
 import Hud from '../ui/hud.js';
 import GameCursor from '../ui/gameCursor.js';
@@ -97,6 +98,7 @@ const SHADOW_REACH_STEP = 0.2;
 const EDITOR_CAM_SPEED = 12;
 const EDITOR_CAM_SPRINT = 32;
 const IMPACT_DELAY = 0.28;
+const PLAYER_FLOAT_HEIGHT = 2.2;
 const PLAYER_ZOOM_MAX = 22;
 const CREATURE_SOUND_RANGE = 22;
 const SHADOW_FRUSTUM = 70;
@@ -164,9 +166,10 @@ export default class GameScene {
     this.inputSystem = new InputSystem(scene, this);
     this.playerSystem = new PlayerSystem(scene);
     this.playerStats = new PlayerStatsSystem();
-    this.combatSystem = new CombatSystem();
-    this.combatSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
-    this.combatSystem.onHit = (creature, amount) => this.damageCreature(creature, amount);
+    this.playerAttackSystem = new PlayerAttackSystem();
+    this.playerAttackSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
+    this.playerAttackSystem.onHit = (creature, amount, crit) => this.damageCreature(creature, amount, crit);
+    this.playerAttackSystem.onMiss = (creature) => this.missCreature(creature);
     this.buildSystem = new BuildSystem(scene);
     this.gatherSystem = new GatherSystem(scene);
     this.gatherSystem.decoSystem = this.decoSystem;
@@ -187,6 +190,7 @@ export default class GameScene {
     this.inventoryWindow = new InventoryWindow();
     this.characterWindow = new CharacterWindow();
     this.healthBar = new HealthBar();
+    this.floatingNumbers = new FloatingNumbers();
     this.walkStepLimit = STEP_LIMIT;
     this.editor = new MapEditor(this);
     this.optionsPanel = new OptionsPanel();
@@ -217,6 +221,7 @@ export default class GameScene {
     this.heldItemSystem.onChange = () => this.onHeldItemChange();
     this.playerSystem.onStep = (x, z, sprint) => this.onPlayerStep(x, z, sprint);
     this.playerSystem.onFootPlant = (x, z, facing, side) => this.spawnFootprint(x, z, facing, 1, 'human');
+    this.playerSystem.lookAt = () => this.playerLookPoint();
     this.creatureSystem.onStep = (creature, side) => this.onCreatureStep(creature, side);
     this.playerStats.onChange = (health, maxHealth) => this.healthBar.set(health, maxHealth);
     this.unlockAudio = () => {
@@ -338,7 +343,7 @@ export default class GameScene {
       this.footprintSystem.update(dt);
       this.glowSystem.retryPending();
       this.updateGathering(dt);
-      this.updateCombat(dt);
+      this.updatePlayerAttack(dt);
       const root = this.playerSystem.root;
       this.campfireSystem.update(dt, root);
       this.waterSystem.update(dt);
@@ -687,6 +692,7 @@ updateGatherTarget() {
   }
 
   spawnFootprint(x, z, angle, scale, kind = 'human') {
+    if (!this.options.footprints) return;
     if (!Number.isFinite(x) || !Number.isFinite(z)) return;
     if (this.terrainSystem && this.terrainSystem.bridgeDeckAt(x, z) !== null) return;
     const cx = worldToCell(x);
@@ -865,6 +871,7 @@ updateGatherTarget() {
       return this.isWalkableAt(x, z);
     };
     system.playerAt = () => (this.playerSystem.root ? this.playerSystem.root.position : null);
+    system.defenseAt = () => this.playerStats.defense;
     system.onMeshReady = (mesh) => this.addShadowCaster(mesh);
     system.onMeshGone = (mesh) => this.removeShadowCaster(mesh);
     system.onRosterChange = () => {
@@ -872,7 +879,8 @@ updateGatherTarget() {
       this.refreshReflectionExclusions();
     };
     system.onSound = (key, creature) => this.playCreatureSound(key, creature);
-    system.onBite = (creature) => this.onCreatureBite(creature);
+    system.onBite = (creature, damage, crit) => this.onCreatureBite(creature, damage, crit);
+    system.onBiteMiss = (creature) => this.onCreatureBiteMiss(creature);
     await system.create(this.mapLayout);
     this.creatureLayoutKey = this.creatureLayoutSignature();
     this.refreshReflectionExclusions();
@@ -906,31 +914,48 @@ updateGatherTarget() {
     this.audioSystem.play(key, { gain });
   }
 
+  playerLookPoint() {
+    if (!this.options.lookAtPointer) return null;
+    if (this.editor.active) return null;
+    const root = this.playerSystem.root;
+    if (!root || !this.inputSystem.pointerInside()) return null;
+    const camera = this.cameraSystem.camera;
+    if (!camera) return null;
+    const ray = this.s.createPickingRay(this.s.pointerX, this.s.pointerY, null, camera);
+    if (!ray) return null;
+    const dy = ray.direction.y;
+    if (!Number.isFinite(dy) || Math.abs(dy) < 0.0001) return null;
+    const t = (root.position.y - ray.origin.y) / dy;
+    if (!Number.isFinite(t) || t <= 0) return null;
+    return { x: ray.origin.x + ray.direction.x * t, z: ray.origin.z + ray.direction.z * t };
+  }
+
   attackAtPointer() {
     if (this.playerSystem.lying) return false;
     const creature = this.creatureSystem.hoverAt(this.s.pointerX, this.s.pointerY);
     if (!creature) return false;
-    return this.combatSystem.swing(creature, this.playerSystem);
+    return this.playerAttackSystem.swing(creature, this.playerSystem);
   }
 
-  updateCombat(dt) {
+  updatePlayerAttack(dt) {
     const active = this.loaded && !this.editor.active && !this.isBuilding();
-    this.combatSystem.update(active ? dt : 0, active ? this.playerSystem : null);
+    this.playerAttackSystem.update(active ? dt : 0);
     if (!active || !this.inputSystem.leftDown) return;
-    const target = this.combatSystem.target;
+    const target = this.playerAttackSystem.target;
     if (!target || this.creatureSystem.hovered !== target) return;
     if (!this.creatureSystem.creatures.includes(target)) {
-      this.combatSystem.target = null;
+      this.playerAttackSystem.target = null;
       return;
     }
-    this.combatSystem.swing(target, this.playerSystem);
+    this.playerAttackSystem.swing(target, this.playerSystem);
   }
 
-  damageCreature(creature, amount) {
+  damageCreature(creature, amount, crit) {
     if (!creature) return false;
     const killed = this.creatureSystem.damage(creature, amount, this.simSystem.time);
     this.audioSystem.play('bare');
     const label = creature.type ? creature.type.label : 'Tvor';
+    this.showFloatingDamage(creature, amount, crit);
     if (killed) {
       this.log.add(`Porazil jsi: ${label}`, 'warn');
       return true;
@@ -938,24 +963,71 @@ updateGatherTarget() {
     const left = Math.max(0, Math.round(creature.health));
     const total = creature.tier && Number.isFinite(creature.tier.health) ? Math.round(creature.tier.health) : null;
     const suffix = total === null ? '' : ` (${left} / ${total})`;
-    this.log.add(`${label} — ${Math.round(amount)} poškození${suffix}`, 'action');
+    const critText = crit ? ' kriticky' : '';
+    this.log.add(`${label} — ${Math.round(amount)} poškození${critText}${suffix}`, 'action');
     return false;
+  }
+
+  missCreature(creature) {
+    if (!creature) return;
+    const label = creature.type ? creature.type.label : 'Tvor';
+    this.log.add(`Minul jsi: ${label}`, 'action');
+  }
+
+  showFloatingDamage(creature, amount, crit) {
+    if (!creature) return;
+    const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ);
+    const kind = crit ? 'crit' : null;
+    this.spawnFloatingNumber(amount, creature.renderX, ground + creature.markHeight, creature.renderZ, kind);
+  }
+
+  showFloatingOverPlayer(amount, crit) {
+    const root = this.playerSystem.root;
+    if (!root) return;
+    const y = root.position.y + PLAYER_FLOAT_HEIGHT;
+    this.spawnFloatingNumber(amount, root.position.x, y, root.position.z, crit ? 'crit' : 'hurt');
+  }
+
+  spawnFloatingNumber(amount, x, y, z, kind) {
+    if (!this.options.floatingNumbers) return;
+    const point = this.screenPointOf(x, y, z);
+    if (!point) return;
+    this.floatingNumbers.spawn(point, Math.round(amount), kind);
+  }
+
+  screenPointOf(x, y, z) {
+    const camera = this.cameraSystem.camera;
+    const canvas = this.engine.getRenderingCanvas();
+    if (!camera || !canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const viewport = camera.viewport.toGlobal(rect.width, rect.height);
+    const point = new Vector3(x, y, z);
+    const projected = Vector3.Project(point, Matrix.Identity(), this.s.getTransformMatrix(), viewport);
+    if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y)) return null;
+    return { x: projected.x, y: projected.y };
   }
 
   hurtPlayer(amount, label) {
     if (!this.loaded || this.paused) return false;
     if (!this.playerStats.hurt(amount)) return false;
-    this.cameraSystem.shake(0.28, 0.32);
-    this.healthBar.flash();
+    if (this.options.cameraShake) this.cameraSystem.shake(0.28, 0.32);
+    if (this.options.damageFlash) this.healthBar.flash();
     if (label) this.log.add(label, 'warn');
     if (this.playerStats.health <= 0) this.onPlayerDeath();
     return true;
   }
 
-  onCreatureBite(creature) {
-    const damage = creature && creature.tier ? creature.tier.bite : 0;
+  onCreatureBite(creature, damage, crit) {
     const who = creature && creature.type ? creature.type.label : 'Útok';
-    this.hurtPlayer(damage, `${who} — ${Math.round(damage)} poškození`);
+    const critText = crit ? ' kriticky' : '';
+    const hurt = this.hurtPlayer(damage, `${who} — ${Math.round(damage)} poškození${critText}`);
+    if (hurt) this.showFloatingOverPlayer(damage, crit);
+  }
+
+  onCreatureBiteMiss(creature) {
+    const who = creature && creature.type ? creature.type.label : 'Útok';
+    this.log.add(`${who} — útok minul`, 'info');
   }
 
   onPlayerDeath() {
@@ -969,6 +1041,7 @@ updateGatherTarget() {
   }
 
   refreshTerrain() {
+    this.floatingNumbers.clear();
     this.terrainSystem.clear();
     this.terrainSystem.create(this.mapKey, this.mapFile);
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);

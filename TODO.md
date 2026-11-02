@@ -30,8 +30,11 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ### Etapa 4 — doladění boje
 
 - [ ] Zbraně a nástroje: vlastní síla, dosah a tempo rány (dnes se bije jen rukama).
+- [ ] Výbava: brnění na sloty zvedá obranu o procento ze základu se stropem, zbraně útok.
 - [ ] Vlastnosti postavy (síla, obratnost, výdrž) a jejich vliv na ránu, zdraví a rychlost.
 - [ ] Výraznější zpětná vazba zásahu (záblesk obrysu, zvuk).
+- [ ] Doladit barvu a délku plovoucích čísel poškození podle vizuálního testu.
+- [ ] Zobrazit zdraví tvora číslem nebo proužkem nad ním.
 - [ ] Zvážit tvrdší smrt hráče: obrazovka smrti a ztráta batohu.
 - [ ] Druhý nepřítel a barevné varianty s jinou silou.
 

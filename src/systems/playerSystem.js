@@ -51,6 +51,8 @@ const MOVE_SPEED = 4.5;
 export const STEP_LIMIT = 0.45;
 const WALK_SPEED = 2.4;
 const TURN_SPEED = 12;
+const LOOK_TURN_SPEED = 6;
+const LOOK_DEAD_ZONE = 0.7;
 const MODEL_HEIGHT = 2.31;
 const MODEL_BASE_HEIGHT = PLAYER_BASE_HEIGHT;
 const MODEL_YAW = PLAYER_MODEL_YAW;
@@ -77,6 +79,7 @@ export default class PlayerSystem {
     this.blockedTest = null;
     this.walkable = null;
     this.speedScale = null;
+    this.lookAt = null;
     this.decoSystem = null;
     this.groundHeightAt = null;
     this.spawnCell = null;
@@ -349,6 +352,18 @@ export default class PlayerSystem {
     if (Number.isFinite(maxDistance) && distSq > maxDistance * maxDistance) return;
     this.facing = Math.atan2(dx, dz);
     this.root.rotation.y = this.facing;
+  }
+
+  lookAround(dt) {
+    if (!this.lookAt || !this.root) return;
+    const point = this.lookAt();
+    if (!point) return;
+    const dx = point.x - this.root.position.x;
+    const dz = point.z - this.root.position.z;
+    if (dx * dx + dz * dz < LOOK_DEAD_ZONE * LOOK_DEAD_ZONE) return;
+    const target = Math.atan2(dx, dz);
+    this.facing = turnToward(this.facing, target, LOOK_TURN_SPEED * dt);
+    this.root.rotation.y = this.facing + MODEL_YAW;
   }
 
   cacheFootBones() {
@@ -711,6 +726,7 @@ export default class PlayerSystem {
     if (this.input.left) move.subtractInPlace(right);
 
     if (move.lengthSquared() < 0.0001) {
+      this.lookAround(dt);
       this.play('idle');
       return;
     }

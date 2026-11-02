@@ -1,15 +1,17 @@
-// Boj nablízko — kdy hráč máchne rukou, kdy je dopad a jestli rána vyšla.
-// Čísla bere z katalogu postavy; ubrané zdraví hlásí scéně, sám ho nedrží.
+// Hráčův útok nablízko — kdy máchne rukou, kdy je dopad a jestli rána vyšla.
+// O zásahu i o critu rozhodne porovnání útoku s obranou cíle; ubrané zdraví hlásí scéně, sám ho nedrží.
 import { PLAYER_BASE } from '../data/catalogs/player.js';
+import { creatureStat } from '../data/catalogs/creatures/index.js';
+import { rollStrike, CRIT_MULTIPLIER } from '../utils/combatRoll.js';
 
-export default class CombatSystem {
+export default class PlayerAttackSystem {
 
   constructor() {
     const punch = PLAYER_BASE.punch || {};
+    this.attack = this.number(PLAYER_BASE.attack);
     this.damage = this.number(punch.damage);
     this.cooldownSeconds = this.number(punch.cooldown);
     this.reach = this.number(punch.reach);
-    this.arcCosine = Math.cos((this.number(punch.arcDegrees) * Math.PI) / 360);
     this.heightLimit = this.number(punch.heightLimit);
     this.cooldown = 0;
     this.pending = null;
@@ -18,6 +20,7 @@ export default class CombatSystem {
     this.target = null;
     this.groundHeightAt = null;
     this.onHit = null;
+    this.onMiss = null;
   }
 
   number(value) {
@@ -31,11 +34,6 @@ export default class CombatSystem {
     const dz = creature.z - root.position.z;
     const distance = Math.hypot(dx, dz);
     if (distance > this.reach) return false;
-    if (distance > 0.001) {
-      const forwardX = Math.sin(player.facing);
-      const forwardZ = Math.cos(player.facing);
-      if ((dx * forwardX + dz * forwardZ) / distance < this.arcCosine) return false;
-    }
     const ground = this.groundHeightAt ? this.groundHeightAt(creature.x, creature.z) : root.position.y;
     return Math.abs(root.position.y - ground) <= this.heightLimit;
   }
@@ -53,7 +51,7 @@ export default class CombatSystem {
     return true;
   }
 
-  update(dt, player) {
+  update(dt) {
     const step = Number.isFinite(dt) && dt > 0 ? dt : 0;
     if (this.cooldown > 0) this.cooldown = Math.max(0, this.cooldown - step);
     const pending = this.pending;
@@ -61,7 +59,14 @@ export default class CombatSystem {
     this.impactTimer += step;
     if (this.impactTimer < this.impactDelay) return;
     this.pending = null;
-    if (!this.canHit(pending.creature, player)) return;
-    if (this.onHit) this.onHit(pending.creature, pending.damage);
+    const creature = pending.creature;
+    const defense = creatureStat(creature.type, creature.tier, 'defense');
+    const strike = rollStrike(this.attack, defense);
+    if (!strike.hit) {
+      if (this.onMiss) this.onMiss(creature);
+      return;
+    }
+    const damage = strike.crit ? pending.damage * CRIT_MULTIPLIER : pending.damage;
+    if (this.onHit) this.onHit(creature, damage, strike.crit);
   }
 }

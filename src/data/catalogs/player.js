@@ -1,7 +1,9 @@
 // Co je hráč zač — výchozí čísla postavy na jednom místě; systém stavů je jen čte.
-// Později sem přibudou vlastnosti (síla, obratnost, výdrž) a co z nich pro hráče plyne.
+// Útok a obrana rozhodují o zásahu, zdraví o přežití; další vlastnosti přibudou později.
 export const PLAYER_BASE = {
   maxHealth: 100,
+  attack: 12,
+  defense: 10,
   regenDelaySeconds: 8,
   regenPerSecond: 1.5,
   reviveImmunitySeconds: 2,
@@ -9,7 +11,6 @@ export const PLAYER_BASE = {
     damage: 6,
     cooldown: 0.65,
     reach: 1.8,
-    arcDegrees: 110,
     heightLimit: 0.9,
   },
 };

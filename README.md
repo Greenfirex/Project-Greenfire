@@ -36,7 +36,7 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 | **P** | Pauza / pokračovat (ztmaví obrazovku, zastaví celou hru) |
 | **F1** | Nápověda a ovládání (rozbalit / sbalit) — také tlačítkem ❔ Ovládání v liště |
 | **F2** | Editor mapy (zóny, výška, herní plocha, tvorové) — také tlačítkem 🧱 Editor v liště |
-| **O** | Možnosti (kvalita, stíny, FPS, hlasitost) — také tlačítkem ⚙ Možnosti v liště |
+| **O** | Možnosti (záložky obraz a výkon, zvuk, hra) — také tlačítkem ⚙ Možnosti v liště |
 | **F5 / F9** | Uložit / načíst (načtení se ptá na potvrzení) — také tlačítky 💾 Uložit a 📂 Načíst v liště |
 | **Ctrl+Alt+I** | Ladicí okno Babylona (jen při vývoji; jde i přes adresu `?inspector`) |
 
@@ -110,7 +110,7 @@ public/assets/creatures/<kind>/ model + CREDITS.txt
 | Věc | Kde | Poznámka |
 |---|---|---|
 | jméno, model, měřítko, otočení | soubor tvora | `length` je délka těla ve světových jednotkách (buňka = 2) |
-| čísla chování (rychlosti, kruhy, časy, dostřel) | soubor tvora | systém je jen čte |
+| čísla chování (rychlosti, kruhy, časy, dostřel, útok a obrana) | soubor tvora | systém je jen čte |
 | tiery | soubor tvora | klíč tieru se ukládá do savu |
 | rig (rozpoznání kostí + animace) | soubor tvora | `build` / `pose` / `summary` |
 | zvuky (`alert`, `charge`, `bite`) | soubor tvora | klíče do seznamu zvuků v audio systému |
@@ -148,7 +148,8 @@ rig.summary(stav)                          // -> řetězec do konzole
    - data: `label`, `model`, `rig`, `sounds`, `length`, `yawOffset`, `walkSpeed`, `turnRate`,
      `aggroRange`, `chargeRange`, `alertSeconds`, `biteRange`, `biteWindup`, `biteCooldown`,
      `biteRecover`, `confusedSeconds`, `roamRadius`, `maxStepHeight`, `attackHeight`,
-     `respawnDays`, `idleSeconds`, `defaultTier`, `tiers`.
+     `respawnDays`, `idleSeconds`, `defaultTier`, `tiers`,
+   - vlastnosti pro zásah: `attack` a `defense` (u druhu jako základ, stáří je přebíjí).
 3. Přidej řádek do `index.js` (import + položka v `CREATURE_TYPES`).
 4. Hotovo — spawn, ikony, obrysy, tooltip i ukládání fungují automaticky.
 
@@ -162,6 +163,11 @@ rig.summary(stav)                          // -> řetězec do konzole
   je pro něj zeď, takže nepřeleze útes; toulat se smí jen po spojitém terénu.
 - **Útok přes výšku:** `attackHeight` určuje, jak vysoko nebo nízko ještě tvor dosáhne
   na hráče. Na hráče na útesu nezaútočí a ani se na něj nenaštve.
+- **Zásah rozhodují vlastnosti:** `attack` útočníka proti `defense` obránce (útok² proti
+  obraně², ohraničeno na 5–95 %). Vzdálenost se u dopadu nekontroluje — kdo útok zahájí,
+  ten ho dokončí; rána ho nepřeruší.
+- **Crit se nevyplňuje:** šance na citlivý zásah je odvozená z téhož porovnání —
+  `(šance na zásah − 50 %) × 0,75`, strop 40 %, poškození ×2. U tvora se nic nenastavuje.
 - **`tier` je v savu.** Při přejmenování tierů zvedni `SAVE_VERSION`.
 - **Načtení musí snést stará data** (chybějící tvory, neznámé tiery) — `apply` nesmí spadnout.
 - **Matematika kostí:** `getBindPose()` je lokální, ne absolutní; osa otáčení se převádí do prostoru
@@ -433,9 +439,10 @@ seznam k výběru.
 
 > **Stav:** první verze je hotová — kajmanka (`snapping_turtle`) umí toulání, dvě zóny
 > pozornosti (ostražitost s vykřičníkem, pak honička), kousnutí s nápřahem, zmatení
-> s otazníky, návrat domů, obrysy a tooltip. Kousnutí ubírá hráči zdraví (4/8/14 podle
-> stáří), rána rukou ubírá jemu a po smrti se na svém místě po pár dnech vrátí; chybí už
-> jen vypadnutí suroviny. Jak přidat dalšího tvora je v sekci [Tvorové (NPC)](#tvorové-npc).
+> s otazníky, návrat domů, obrysy a tooltip. O zásahu rozhoduje hod útoku proti obraně,
+> zásah ubírá zdraví (kousnutí 4/8/14 podle stáří), po smrti se tvor na svém místě
+> po pár dnech vrátí; chybí už jen vypadnutí suroviny. Jak přidat dalšího tvora je
+> v sekci [Tvorové (NPC)](#tvorové-npc).
 
 Vychází z Rage of Mages (1998): hrdina s vlastnostmi, k tomu jednotky a souboje
 sledované z nadhledu, kde jsou vlastní a cizí jednotky barevně odlišené. Nejde
@@ -454,8 +461,12 @@ pozornosti a svou barvu, a boj se odehrává kolem hráče, ne ve výběrovém o
   takže se hráč na první pohled rozhodne, jestli do toho jde. Stejný model
   s jinou barvou je levná varianta, silnější verze dostane i jiné vlastnosti.
 - Boj je akční, protože se chodí WASD: hráč mává zbraní v ruce a rozhoduje
-  vzdálenost i úhel, ne kliknutí na cíl. Nepřítel útočí ze svého dosahu a hráč
-  taky dostává zranění.
+  vzdálenost, ne kliknutí na cíl. Postava se na kliknutý cíl sama otočí a ve stoje
+  se dívá za myší. O tom, jestli rána vyšla, rozhodují vlastnosti — útok proti
+  obraně. Kdo útok zahájí, ten ho dokončí: uskočení ani rána ho nepřeruší.
+- Široká rána (cleave): těžká zbraň zasáhne i další tvory v malém kuželu před
+  hráčem. Šířka kuželu, nejvyšší počet cílů a podíl poškození pro vedlejší cíle
+  patří ke zbrani, ne k postavě.
 
 **Jak to sedne do projektu**
 

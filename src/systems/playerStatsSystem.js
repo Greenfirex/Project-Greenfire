@@ -1,4 +1,4 @@
-// Stavy postavy — zdraví hráče, jeho doplňování a chvilka klidu po probuzení.
+// Stavy postavy — zdraví a obrana hráče, doplňování zdraví a chvilka klidu po probuzení.
 // Čísla bere z katalogu postavy; scéně jen hlásí změnu zdraví.
 import { PLAYER_BASE } from '../data/catalogs/player.js';
 
@@ -7,6 +7,7 @@ export default class PlayerStatsSystem {
   constructor() {
     this.maxHealth = this.amount(PLAYER_BASE.maxHealth, 100, 1);
     this.health = this.maxHealth;
+    this.defense = this.amount(PLAYER_BASE.defense, 0, 0);
     this.sinceHurt = 0;
     this.immunity = 0;
     this.onChange = null;

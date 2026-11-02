@@ -1,15 +1,17 @@
-// DOM panel Možnosti — přepínače výkonu a chování hry; volby posílá scéně přes jediný callback.
+// DOM panel Možnosti — tři záložky (obraz a výkon, zvuk, hra); volby posílá scéně přes jediný callback.
 import { makeDraggable } from './draggable.js';
 import { OPTION_DEFAULTS, PRESET_OPTIONS } from '../data/catalogs/optionsSchema.js';
 
-const TOGGLES = [
-  { key: 'shadows', label: 'Stíny', note: 'Vypnutí nejvíc zrychlí hru, krajina bude plošší.' },
-  { key: 'fireGlow', label: 'Záře ohně', note: 'Oheň a pochodně svítí do okolí. Vypnutí ušetří výkon.' },
-  { key: 'highlights', label: 'Zvýrazňování pod myší', note: 'Kroužky pod stromy a rudou při najetí myší.' },
-  { key: 'customCursor', label: 'Vlastní kurzor', note: 'Fantasy ruka a nástroje místo systémové šipky. Vypnutím vrátíš šipku Windows.' },
-  { key: 'dayCycle', label: 'Denní cyklus', note: 'Zastavení nechá slunce stát na aktuálním času.' },
-  { key: 'autoTune', label: 'Automatická úprava výkonu', note: 'Při poklesu snímků hra sama sníží rozlišení.' },
-  { key: 'waterDetail', label: 'Textura vody', note: 'Jemné čeření hladiny. Vypnutím uvidíš hladinu bez textury.' },
+const TABS = [
+  { key: 'view', label: 'Obraz a výkon' },
+  { key: 'sound', label: 'Zvuk' },
+  { key: 'game', label: 'Hra' },
+];
+
+const PRESETS = [
+  { value: 'high', label: 'Vysoká', title: 'Plná kvalita, stíny a zvýrazňování' },
+  { value: 'balanced', label: 'Vyvážená', title: 'Střední kvalita a 60 snímků' },
+  { value: 'eco', label: 'Úsporná', title: 'Nízká kvalita, bez stínů a kroužků' },
 ];
 
 const QUALITIES = [
@@ -30,22 +32,31 @@ const GRASS_LEVELS = [
   { value: 'high', label: 'Hustá', title: 'Plná tráva, doporučeno' },
 ];
 
+const ITEMS = [
+  { kind: 'choice', key: 'quality', tab: 'view', label: 'Kvalita obrazu', note: 'Nižší kvalita zmenší rozlišení, obraz bude měkčí.', options: QUALITIES },
+  { kind: 'choice', key: 'grass', tab: 'view', label: 'Hustota trávy', note: 'Jak hustě se kreslí tráva, kterou namaluješ štětcem. Na mapě zůstane pořád.', options: GRASS_LEVELS },
+  { kind: 'choice', key: 'fpsCap', tab: 'view', label: 'Omezit snímky', note: 'Nižší číslo = chladnější počítač.', options: FPS_OPTIONS, numeric: true },
+  { kind: 'toggle', key: 'shadows', tab: 'view', label: 'Stíny', note: 'Vypnutí nejvíc zrychlí hru, krajina bude plošší.' },
+  { kind: 'toggle', key: 'fireGlow', tab: 'view', label: 'Záře ohně', note: 'Oheň a pochodně svítí do okolí. Vypnutí ušetří výkon.' },
+  { kind: 'toggle', key: 'waterDetail', tab: 'view', label: 'Textura vody', note: 'Jemné čeření hladiny. Vypnutím uvidíš hladinu bez textury.' },
+  { kind: 'toggle', key: 'footprints', tab: 'view', label: 'Stopy ve písku', note: 'Otisky kroků na písku a v hlíně. Vypnutí ušetří kreslení.' },
+  { kind: 'toggle', key: 'autoTune', tab: 'view', label: 'Automatická úprava výkonu', note: 'Při poklesu snímků hra sama sníží rozlišení.' },
+  { kind: 'volume', key: 'sfxVolume', tab: 'sound', label: 'Zvuky hry', note: 'Sekání, kroky, těžba a padající stromy.' },
+  { kind: 'volume', key: 'ambientVolume', tab: 'sound', label: 'Zvuky prostředí', note: 'Hučení lesa (ve dne jiné než v noci) a příboj u vody.' },
+  { kind: 'toggle', key: 'dayCycle', tab: 'game', label: 'Denní cyklus', note: 'Zastavení nechá slunce stát na aktuálním času.' },
+  { kind: 'toggle', key: 'highlights', tab: 'game', label: 'Zvýrazňování pod myší', note: 'Kroužky pod stromy a rudou při najetí myší.' },
+  { kind: 'toggle', key: 'customCursor', tab: 'game', label: 'Vlastní kurzor', note: 'Fantasy ruka a nástroje místo systémové šipky. Vypnutím vrátíš šipku Windows.' },
+  { kind: 'toggle', key: 'cameraShake', tab: 'game', label: 'Třes kamery', note: 'Kamera se otřese, když dostaneš zásah.' },
+  { kind: 'toggle', key: 'damageFlash', tab: 'game', label: 'Červené bliknutí', note: 'Záblesk po okrajích obrazovky při zásahu.' },
+  { kind: 'toggle', key: 'floatingNumbers', tab: 'game', label: 'Plovoucí čísla', note: 'Poškození vypluje nad postavou a zmizí.' },
+  { kind: 'toggle', key: 'lookAtPointer', tab: 'game', label: 'Otáčení za myší', note: 'Ve stoje se postava dívá tam, kde máš kurzor.' },
+];
+
 function clampPercent(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
   return Math.max(0, Math.min(100, Math.round(number)));
 }
-
-const VOLUMES = [
-  { key: 'sfxVolume', label: 'Zvuky hry', note: 'Sekání, kroky, těžba a padající stromy.' },
-  { key: 'ambientVolume', label: 'Zvuky prostředí', note: 'Hučení lesa (ve dne jiné než v noci) a příboj u vody.' },
-];
-
-const PRESETS = [
-  { value: 'high', label: 'Vysoká', title: 'Plná kvalita, stíny a zvýrazňování' },
-  { value: 'balanced', label: 'Vyvážená', title: 'Střední kvalita a 60 snímků' },
-  { value: 'eco', label: 'Úsporná', title: 'Nízká kvalita, bez stínů a kroužků' },
-];
 
 export default class OptionsPanel {
 
@@ -54,6 +65,7 @@ export default class OptionsPanel {
     this.button = null;
     this.values = { ...OPTION_DEFAULTS };
     this.onChange = null;
+    this.tab = TABS[0].key;
   }
 
   mount() {
@@ -76,34 +88,42 @@ export default class OptionsPanel {
         <span class="options-panel__title">Možnosti</span>
         <button type="button" class="options-panel__close" title="Zavřít (O)">×</button>
       </div>
-      <div class="options-panel__presets"></div>
-      <div class="options-panel__row">
-        <span class="options-panel__label">Kvalita obrazu</span>
-        <div class="options-panel__choices" data-group="quality"></div>
-      </div>
-      <small class="options-panel__note">Nižší kvalita zmenší rozlišení, obraz bude měkčí.</small>
-      <div class="options-panel__row">
-        <span class="options-panel__label">Omezit snímky</span>
-        <div class="options-panel__choices" data-group="fpsCap"></div>
-      </div>
-      <small class="options-panel__note">Nižší číslo = chladnější počítač.</small>
-      <div class="options-panel__row">
-        <span class="options-panel__label">Hustota trávy</span>
-        <div class="options-panel__choices" data-group="grass"></div>
-      </div>
-      <small class="options-panel__note">Jak hustě se kreslí tráva, kterou namaluješ štětcem. Na mapě zůstane pořád.</small>
-      <div class="options-panel__volumes"></div>
-      <div class="options-panel__toggles"></div>
-      <button type="button" class="options-panel__reset">Obnovit výchozí</button>
+      <div class="options-panel__tabs"></div>
+      <div class="options-panel__body"></div>
     `;
     document.body.appendChild(root);
     this.root = root;
     makeDraggable(root);
 
     root.querySelector('.options-panel__close').addEventListener('click', () => this.hide());
-    root.querySelector('.options-panel__reset').addEventListener('click', () => this.setAll({ ...OPTION_DEFAULTS }));
 
-    const presets = root.querySelector('.options-panel__presets');
+    const tabs = root.querySelector('.options-panel__tabs');
+    const body = root.querySelector('.options-panel__body');
+    for (const tab of TABS) {
+      const tabButton = document.createElement('button');
+      tabButton.type = 'button';
+      tabButton.dataset.tab = tab.key;
+      tabButton.textContent = tab.label;
+      tabButton.addEventListener('click', () => this.showTab(tab.key));
+      tabs.appendChild(tabButton);
+
+      const panel = document.createElement('div');
+      panel.className = 'options-panel__tab';
+      panel.dataset.panel = tab.key;
+      body.appendChild(panel);
+      if (tab.key === 'view') this.buildPresets(panel);
+      this.buildItems(panel, tab.key);
+      this.buildReset(panel, tab.key);
+    }
+
+    this.showTab(this.tab);
+    this.render();
+    return root;
+  }
+
+  buildPresets(panel) {
+    const presets = document.createElement('div');
+    presets.className = 'options-panel__presets';
     for (const preset of PRESETS) {
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -113,59 +133,103 @@ export default class OptionsPanel {
       btn.addEventListener('click', () => this.setAll({ ...OPTION_DEFAULTS, ...PRESET_OPTIONS[preset.value] }));
       presets.appendChild(btn);
     }
-
-    this.buildChoices(root, 'quality', QUALITIES);
-    this.buildChoices(root, 'fpsCap', FPS_OPTIONS);
-    this.buildChoices(root, 'grass', GRASS_LEVELS);
-
-    const volumes = root.querySelector('.options-panel__volumes');
-    for (const volume of VOLUMES) {
-      const row = document.createElement('label');
-      row.className = 'options-panel__volume';
-      row.innerHTML = `
-        <span class="options-panel__volume-head">
-          <span class="options-panel__label">${volume.label}</span>
-          <span class="options-panel__volume-value" data-value="${volume.key}"></span>
-        </span>
-        <input type="range" min="0" max="100" step="5" data-volume="${volume.key}">
-        <small class="options-panel__sound-note">${volume.note}</small>
-      `;
-      const input = row.querySelector('input');
-      input.addEventListener('input', () => this.patch({ [volume.key]: Number(input.value) }));
-      volumes.appendChild(row);
-    }
-
-    const toggles = root.querySelector('.options-panel__toggles');
-    for (const toggle of TOGGLES) {
-      const row = document.createElement('label');
-      row.className = 'options-panel__toggle';
-      row.innerHTML = `
-        <input type="checkbox" data-toggle="${toggle.key}">
-        <span class="options-panel__toggle-text">
-          <span>${toggle.label}</span>
-          <small>${toggle.note}</small>
-        </span>
-      `;
-      const input = row.querySelector('input');
-      input.addEventListener('change', () => this.patch({ [toggle.key]: input.checked }));
-      toggles.appendChild(row);
-    }
-
-    this.render();
-    return root;
+    panel.appendChild(presets);
   }
 
-  buildChoices(root, group, items) {
-    const host = root.querySelector(`[data-group="${group}"]`);
-    for (const item of items) {
+  buildItems(panel, tabKey) {
+    let group = null;
+    let groupKind = null;
+    for (const item of ITEMS) {
+      if (item.tab !== tabKey) continue;
+      if (item.kind === 'choice') {
+        this.buildChoice(panel, item);
+        group = null;
+        groupKind = null;
+        continue;
+      }
+      if (groupKind !== item.kind) {
+        group = document.createElement('div');
+        group.className = item.kind === 'toggle' ? 'options-panel__toggles' : 'options-panel__volumes';
+        panel.appendChild(group);
+        groupKind = item.kind;
+      }
+      if (item.kind === 'toggle') this.buildToggle(group, item);
+      else this.buildVolume(group, item);
+    }
+  }
+
+  buildChoice(panel, item) {
+    const row = document.createElement('div');
+    row.className = 'options-panel__row';
+    row.innerHTML = `<span class="options-panel__label">${item.label}</span><div class="options-panel__choices" data-group="${item.key}"></div>`;
+    panel.appendChild(row);
+    const note = document.createElement('small');
+    note.className = 'options-panel__note';
+    note.textContent = item.note;
+    panel.appendChild(note);
+    const host = row.querySelector(`[data-group="${item.key}"]`);
+    for (const option of item.options) {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.dataset.value = item.value;
-      btn.textContent = item.label;
+      btn.dataset.value = option.value;
+      btn.textContent = option.label;
+      if (option.title) btn.title = option.title;
       btn.addEventListener('click', () => {
-        this.patch({ [group]: group === 'fpsCap' ? Number(item.value) : item.value });
+        this.patch({ [item.key]: item.numeric ? Number(option.value) : option.value });
       });
       host.appendChild(btn);
+    }
+  }
+
+  buildToggle(host, item) {
+    const row = document.createElement('label');
+    row.className = 'options-panel__toggle';
+    row.innerHTML = `
+      <input type="checkbox" data-toggle="${item.key}">
+      <span class="options-panel__toggle-text">
+        <span>${item.label}</span>
+        <small>${item.note}</small>
+      </span>
+    `;
+    const input = row.querySelector('input');
+    input.addEventListener('change', () => this.patch({ [item.key]: input.checked }));
+    host.appendChild(row);
+  }
+
+  buildVolume(host, item) {
+    const row = document.createElement('label');
+    row.className = 'options-panel__volume';
+    row.innerHTML = `
+      <span class="options-panel__volume-head">
+        <span class="options-panel__label">${item.label}</span>
+        <span class="options-panel__volume-value" data-value="${item.key}"></span>
+      </span>
+      <input type="range" min="0" max="100" step="5" data-volume="${item.key}">
+      <small class="options-panel__sound-note">${item.note}</small>
+    `;
+    const input = row.querySelector('input');
+    input.addEventListener('input', () => this.patch({ [item.key]: Number(input.value) }));
+    host.appendChild(row);
+  }
+
+  buildReset(panel, tabKey) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'options-panel__reset';
+    btn.textContent = 'Obnovit výchozí';
+    btn.title = 'Vrátí výchozí hodnoty jen v této záložce';
+    btn.addEventListener('click', () => this.resetTab(tabKey));
+    panel.appendChild(btn);
+  }
+
+  showTab(key) {
+    this.tab = key;
+    if (!this.root) return;
+    for (const btn of this.root.querySelectorAll('[data-tab]')) {
+      btn.classList.toggle('is-active', btn.dataset.tab === key);
+    }
+    for (const panel of this.root.querySelectorAll('[data-panel]')) {
+      panel.classList.toggle('is-active', panel.dataset.panel === key);
     }
   }
 
@@ -203,26 +267,37 @@ export default class OptionsPanel {
     if (this.onChange) this.onChange({ ...this.values });
   }
 
+  resetTab(tabKey) {
+    const changes = {};
+    for (const item of ITEMS) {
+      if (item.tab !== tabKey) continue;
+      changes[item.key] = OPTION_DEFAULTS[item.key];
+    }
+    this.patch(changes);
+  }
+
   render() {
     if (!this.root) return;
-    for (const btn of this.root.querySelectorAll('[data-group="quality"] button')) {
-      btn.classList.toggle('is-active', String(this.values.quality) === btn.dataset.value);
-    }
-    for (const btn of this.root.querySelectorAll('[data-group="fpsCap"] button')) {
-      btn.classList.toggle('is-active', String(this.values.fpsCap) === btn.dataset.value);
-    }
-    for (const btn of this.root.querySelectorAll('[data-group="grass"] button')) {
-      btn.classList.toggle('is-active', String(this.values.grass) === btn.dataset.value);
-    }
-    for (const input of this.root.querySelectorAll('[data-toggle]')) {
-      input.checked = Boolean(this.values[input.dataset.toggle]);
-    }
-    for (const input of this.root.querySelectorAll('[data-volume]')) {
-      const value = clampPercent(this.values[input.dataset.volume]);
-      input.value = String(value);
-      input.style.setProperty('--fill', `${value}%`);
-      const label = this.root.querySelector(`[data-value="${input.dataset.volume}"]`);
-      if (label) label.textContent = `${value} %`;
+    for (const item of ITEMS) {
+      if (item.kind === 'choice') {
+        for (const btn of this.root.querySelectorAll(`[data-group="${item.key}"] button`)) {
+          btn.classList.toggle('is-active', String(this.values[item.key]) === btn.dataset.value);
+        }
+        continue;
+      }
+      if (item.kind === 'toggle') {
+        for (const input of this.root.querySelectorAll(`[data-toggle="${item.key}"]`)) {
+          input.checked = Boolean(this.values[item.key]);
+        }
+        continue;
+      }
+      for (const input of this.root.querySelectorAll(`[data-volume="${item.key}"]`)) {
+        const value = clampPercent(this.values[item.key]);
+        input.value = String(value);
+        input.style.setProperty('--fill', `${value}%`);
+        const label = this.root.querySelector(`[data-value="${item.key}"]`);
+        if (label) label.textContent = `${value} %`;
+      }
     }
     for (const btn of this.root.querySelectorAll('[data-preset]')) {
       const preset = PRESET_OPTIONS[btn.dataset.preset];
@@ -231,3 +306,4 @@ export default class OptionsPanel {
     }
   }
 }
+

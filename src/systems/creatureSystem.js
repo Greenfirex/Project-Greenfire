@@ -9,10 +9,12 @@ import '@babylonjs/core/Rendering/outlineRenderer';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { createCreatureMarker, setMarkerIcon } from '../utils/creatureMarker.js';
+import { rollStrike, CRIT_MULTIPLIER } from '../utils/combatRoll.js';
 import {
   getCreatureType,
   getCreatureTier,
   creatureLength,
+  creatureStat,
   creatureScale,
   tierTint,
 } from '../data/catalogs/creatures/index.js';
@@ -67,8 +69,10 @@ export default class CreatureSystem {
     this.groundHeightAt = null;
     this.walkableAt = null;
     this.playerAt = null;
+    this.defenseAt = null;
     this.onStep = null;
     this.onBite = null;
+    this.onBiteMiss = null;
     this.onSound = null;
     this.onMeshReady = null;
     this.onMeshGone = null;
@@ -448,10 +452,8 @@ export default class CreatureSystem {
         creature.mode = 'recover';
         creature.timer = type.biteRecover;
         creature.cooldown = type.biteCooldown;
-        if (this.inBiteRange(creature, player)) {
-          this.playSound(creature, 'bite');
-          if (this.onBite) this.onBite(creature);
-        }
+        this.playSound(creature, 'bite');
+        this.resolveBite(creature, player);
       }
       return;
     }
@@ -566,6 +568,20 @@ export default class CreatureSystem {
       this.playSound(creature, 'charge');
     }
     creature.mode = 'chase';
+  }
+
+  resolveBite(creature, player) {
+    if (!player) return;
+    const attack = creatureStat(creature.type, creature.tier, 'attack');
+    const defense = this.defenseAt ? this.defenseAt() : 0;
+    const strike = rollStrike(attack, defense);
+    if (!strike.hit) {
+      if (this.onBiteMiss) this.onBiteMiss(creature);
+      return;
+    }
+    const bite = creatureStat(creature.type, creature.tier, 'bite');
+    const damage = strike.crit ? bite * CRIT_MULTIPLIER : bite;
+    if (this.onBite) this.onBite(creature, damage, strike.crit);
   }
 
   playSound(creature, kind) {
@@ -695,7 +711,7 @@ export default class CreatureSystem {
     creature.health = Math.max(0, creature.health - amount);
     if (creature.health > 0) {
       creature.giveUpUntil = 0;
-      this.beginCharge(creature);
+      if (creature.mode !== 'windup') this.beginCharge(creature);
       return false;
     }
     return this.kill(creature, now);
