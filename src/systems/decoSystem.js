@@ -24,7 +24,7 @@ function liesFlat(def) {
 
 function hasModelDef(def) {
   if (!def) return false;
-  return Boolean(def.model || def.tree || def.rock || def.shell || def.coral || def.flower || def.bush);
+  return Boolean(def.model || def.tree || def.rock || def.shell || def.coral || def.flower || def.bush || def.campfire);
 }
 
 function cellGap(shape, x, z) {

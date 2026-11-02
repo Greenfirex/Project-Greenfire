@@ -22,14 +22,10 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 | **W A S D / šipky** | Pohyb postavy (vzhledem ke kameře), Shift = běh. V editoru posouvají pohled po mapě, Shift zrychlí |
 | **Tažení pravým tlačítkem** | Rotace kamery (i v editoru); v editoru pravé kliknutí bez tažení odebírá buňku |
 | **Kolečko** | Zoom (v editoru jde oddálit víc než ve hře) |
-| **1–4** | Výběr předmětu v ruce (plán, sekera, krumpáč, pochodeň) |
+| **1–3** | Výběr předmětu v ruce (sekera, krumpáč, pochodeň) |
 | **I / C** | Batoh / postava — okna nad lištou předmětů (také tlačítky po stranách lišty) |
-| **Levé tlačítko u stromu / rudy / kamene** | Těžení (podržet = opakovat) |
+| **Levé tlačítko u stromu / kamene** | Těžení (podržet = opakovat) |
 | **Levé tlačítko u tvora** | Útok rukou (podržet = opakovat) |
-| **Klik na zem s plánem v ruce** | Postavení stroje na buňku |
-| **M** | Přepnutí typu stavěného stroje |
-| **R** | Otočení stroje (pod kurzorem, nebo u stavby budoucího) |
-| **Pravé tlačítko ×2 na stroj (klik bez tažení)** | Bourání (první klik označí, druhý zbourá) |
 | **E** | Zapálit / zrušit táborák |
 | **G** | Zobrazit / skrýt mřížku |
 | **N** | Posun času o 6 hodin |
@@ -46,11 +42,11 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 src/
   main.js                    engine, plátno, render loop
   scenes/GameScene.js        orchestrátor — stav světa, delegace na systémy
-  systems/                   camera, grid, terrain, water, sky, deco, build, gather,
+  systems/                   camera, grid, terrain, water, sky, deco, gather,
                              inventory, heldItem, player, input,
                              campfire, glow, dayNight, sim, audio, save, creature
   editor/                    editor mapy, panely, štětce, značky spawních míst
-  data/catalogs/             stroje, předměty, dekorace, mapy, tvorové, uložený stav
+  data/catalogs/             předměty, dekorace, mapy, tvorové, uložený stav
   data/maps/                 tvar oblasti, nastavení výšek a soubor mapy
   effects/                   oheň (táborák, pochodeň)
   ui/                        DOM HUD panely nad plátnem
@@ -95,6 +91,10 @@ Každý tvor zapsaný v mapě je zároveň **spawní místo**. Když zahyne, po 
 herních dnech se na stejném místě obnoví. Živý tvor se neobnovuje ani nekopíruje;
 počet tvorů určuje mapa, ne uložená hra. Mapa si stav živý/mrtvý nepamatuje — ten
 patří do uložené hry.
+
+Po smrti zůstane tělo asi 20 sekund ležet na boku, jde z něj sebrat kořist
+a potom se propadne do země. Když ho sebereš dřív, propadne se hned po sehrání.
+Bílý obrys se ukáže, jen když jsi blízko.
 
 ```
 src/data/catalogs/creatures/
@@ -148,7 +148,7 @@ rig.summary(stav)                          // -> řetězec do konzole
    - data: `label`, `model`, `rig`, `sounds`, `length`, `yawOffset`, `walkSpeed`, `turnRate`,
      `aggroRange`, `chargeRange`, `alertSeconds`, `biteRange`, `biteWindup`, `biteCooldown`,
      `biteRecover`, `confusedSeconds`, `roamRadius`, `maxStepHeight`, `attackHeight`,
-     `respawnDays`, `idleSeconds`, `defaultTier`, `tiers`,
+     `respawnDays`, `idleSeconds`, `defaultTier`, `loot`, `tiers`,
    - vlastnosti pro zásah: `attack` a `defense` (u druhu jako základ, stáří je přebíjí).
 3. Přidej řádek do `index.js` (import + položka v `CREATURE_TYPES`).
 4. Hotovo — spawn, ikony, obrysy, tooltip i ukládání fungují automaticky.
@@ -183,8 +183,7 @@ rig.summary(stav)                          // -> řetězec do konzole
 Funkční: izometrická ortho kamera, navazování na postavu, mřížka s hover
 zvýrazněním, hratelná postava s animacemi (idle/run/jízda nástrojem), sběr
 dřeva a kamene včetně kácení stromů, batoh a postava v oknech nad lištou
-předmětů, log událostí vlevo dole, modelem nahrazené stroje z Kenney
-kitu, rotace a bourání strojů, táborák s ohněm a svícením, oheň pochodně,
+předmětů, log událostí vlevo dole, táborák s ohněm a svícením, oheň pochodně,
 denní cyklus se stíny, lesní zvuky a kroky podle povrchu, panel možností,
 editor mapy (zóny, cesty, výšky ±6 m, štětec pláže se svahem po 0,3 m,
 štětec útesů s hliněnou stěnou, výběr buněk, undo), spojitý terén
@@ -202,14 +201,11 @@ s vnitřní vrstvou, tmavší u země a světlejší nahoře, aby měly objem,
 s měkkým stínem pod sebou — všechny skvrny jedním tahem —, houpou se ve větru,
 sází je nástroj `scatter/bushes.mjs` hustě v pásu podél břehů a řidčeji
 ve vnitrozemí, i ve shlucích, a mohou růst i pod stromy), plynulé prolínání trávy a písku
-(texturou i barvou), hráč ve vodě (mělká zpomalí, do hluboké nesmí,
-ve vodě nejde stavět), kroky ve vodě, příboj u vody, obloha se sluncem
+(texturou i barvou), hráč ve vodě (mělká zpomalí, do hluboké nesmí),
+kroky ve vodě, příboj u vody, obloha se sluncem
 a ukládání/načítání do prohlížeče.
 
-Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů) a
-suroviny pro výrobu (železná a měděná ruda, ingoty). Stroj má v savu připravený
-stav (co má uvnitř, co vyrobil, jak daleko je ve výrobě), ale výroba v něm
-zatím neběží.
+Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů).
 
 ### Předání stavu
 
@@ -258,7 +254,7 @@ doladění a práce mimo tento plán.
 - Vzhled vody: vlastní program pro orthografickou kameru — vlny tlumené
   v hloubce, přílivové jazyky na písek, pěna a bílé hřebeny viditelné
   z každého úhlu, barva a průhlednost podle hloubky a odraz okolí přes
-  odrazovou sondu (terén, dekorace, postava, stroje).
+  odrazovou sondu (terén, dekorace, postava).
   Hustota vodní sítě jde podle kvality grafiky (0,5/1/2 m).
 - Voda leží jen na skutečných buňkách mapy, takže nevyčuhuje mimo obrys ani
   do děr; na kraji mapy a v dírách ji uzavírá svislá vodní stěna. Písek
@@ -274,13 +270,12 @@ doladění a práce mimo tento plán.
 - Volitelné doladění: rostliny u břehu, zatopené kameny, skutečný odraz
   oblohy, bouřka a déšť (počasí).
 - Doladit suché jámy pod hladinou (suchá zóna nebo vodní zóny).
-- Mimo uzavřený plán: výroba ve strojích, recepty a plnění batohu.
+- Mimo uzavřený plán: recepty a plnění batohu.
 
 **Další krok — vizuální test:**
 - Přechod trávy a písku: rovná hranice bez proužku trávy i bez světlého
   lemu, diagonální rohy plynule prolnuté, i na přímém slunci.
-- Voda: hráč se v mělké vodě zpomalí, do hluboké nesmí, ve vodě nejde stavět
-  a panel Stavba napíše důvod.
+- Voda: hráč se v mělké vodě zpomalí, do hluboké nesmí.
 - Zvuky: kroky ve vodě, příboj slábne se vzdáleností a u vody ztlumí les.
 - Ulož mapu a obnov — hladina, povrchy i jejich prolnutí musí držet.
 - Když něco nesedí, šířka pásu, síla variací a hlasitosti jsou jen čísla.
@@ -401,8 +396,8 @@ vrstvách, které se posouvají stejným směrem jako vlny.
 prstenec navíc), průchodnost útesů (schod nad 0,45 m a hrana na mřížce
 0,5 m) a suché jámy pod hladinou (suchá zóna nebo vodní zóny).
 
-**Další práce:** výroba ve strojích a recepty, plnění batohu, výběr a stav
-stroje kliknutím, výroba předmětů z batohu.
+**Další práce:** recepty, plnění batohu, výroba předmětů z batohu
+a nový systém stavění (ten starý byl odstraněn).
 
 ## Editor mapy
 
@@ -424,7 +419,7 @@ v [dokumentaci editoru](src/editor/README.md).
 Seřazeno podle poměru přínos / práce. Nic z toho není rozhodnuté, je to
 seznam k výběru.
 
-1. **Kontaktní stíny pod objekty** — kameny, sudy, bedny a pařezy nemají
+1. **Kontaktní stíny pod objekty** — kameny a keře nemají
    stín přímo pod sebou, takže působí, že plavou. Plochý flek na zemi ale
    neumí kopírovat svah, takže to chce řešení, které se ohne s terénem.
 2. **Skála: mech a lišejník** — kámen je jednolitý. Ztmavení u paty a mírné
@@ -486,6 +481,5 @@ pozornosti a svou barvu, a boj se odehrává kolem hráče, ne ve výběrovém o
 **První verze**
 
 Jeden druh nepřítele, okruh pozornosti, honička a návrat domů, jeden typ útoku,
-smrt a vypadnutí suroviny. Bez skupin, bez respawnu a bez vylepšování hrdiny —
-to jsou samostatná rozhodnutí, ne součást prvního kroku.
+smrt, mrtvé tělo s kořistí a respawn.
 

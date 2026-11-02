@@ -2,8 +2,6 @@
 // Sedí v dolní liště vedle samostatných panelů batohu a postavy.
 import { getTool, HOTBAR_ITEMS } from '../data/catalogs/items.js';
 
-const HOTBAR_SLOT_COUNT = 5;
-
 export default class Hotbar {
 
   constructor() {
@@ -20,7 +18,7 @@ export default class Hotbar {
     const dock = this.dock();
     const root = document.createElement('div');
     root.className = 'hotbar';
-    root.innerHTML = '<div class="hotbar__slots"></div><div class="hotbar__hint"><span class="hud-key">1</span>–<span class="hud-key">5</span> výběr předmětu</div>';
+    root.innerHTML = `<div class="hotbar__slots"></div><div class="hotbar__hint"><span class="hud-key">1</span>–<span class="hud-key">${HOTBAR_ITEMS.length}</span> výběr předmětu</div>`;
     const slots = root.querySelector('.hotbar__slots');
 
     for (const [index, key] of HOTBAR_ITEMS.entries()) {
@@ -38,15 +36,6 @@ export default class Hotbar {
       });
       slots.appendChild(btn);
       this.slotEls.set(key, btn);
-    }
-
-    for (let i = HOTBAR_ITEMS.length; i < HOTBAR_SLOT_COUNT; i += 1) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'hotbar__slot is-empty';
-      btn.disabled = true;
-      btn.innerHTML = `<span class="hotbar__key">${i + 1}</span><span class="hotbar__icon">·</span><span class="hotbar__name">—</span>`;
-      slots.appendChild(btn);
     }
 
     dock.appendChild(root);

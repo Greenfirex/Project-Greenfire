@@ -41,6 +41,16 @@ const MARK_SPEED = 3;
 const ALERT_COLOR = new Color3(1, 0.78, 0.25);
 const COMBAT_COLOR = new Color3(0.92, 0.16, 0.12);
 const RESPAWN_CLEAR = 1.5;
+const CORPSE_LIFETIME = 200;
+const CORPSE_FALL = 0.5;
+const CORPSE_SINK = 1.2;
+const CORPSE_LOOT_SINK_DELAY = 1.9;
+const CORPSE_TILT = Math.PI / 2;
+const CORPSE_GROUND_MARGIN = 0.02;
+const CORPSE_GROUND_SAMPLE = 0.35;
+const CORPSE_OUTLINE_COLOR = new Color3(0.95, 0.95, 0.92);
+const CORPSE_OUTLINE_WIDTH = 0.03;
+const CORPSE_OUTLINE_REACH = 5;
 
 function slotKeyOf(kind, tierKey, cx, cz) {
   return `${kind}|${tierKey}|${cx}|${cz}`;
@@ -63,6 +73,7 @@ export default class CreatureSystem {
   constructor(scene) {
     this.s = scene;
     this.creatures = [];
+    this.corpses = [];
     this.meshes = [];
     this.slots = new Map();
     this.containers = new Map();
@@ -79,6 +90,7 @@ export default class CreatureSystem {
     this.onRosterChange = null;
     this.pendingState = null;
     this.hovered = null;
+    this.hoveredCorpse = null;
     this.hoverTime = 0;
     this.now = 0;
     this.daySeconds = 0;
@@ -628,7 +640,7 @@ export default class CreatureSystem {
   }
 
   update(dt) {
-    if (!this.creatures.length) return;
+    if (!this.creatures.length && !this.corpses.length) return;
     const seconds = Number.isFinite(dt) && dt > 0 ? Math.min(dt, 0.25) : 0;
     const blend = 1 - Math.pow(RENDER_SMOOTHING, seconds);
     this.hoverTime += seconds;
@@ -653,11 +665,29 @@ export default class CreatureSystem {
       this.applyOutline(creature, color, widthScale, pulseSpeed);
       this.updateMarker(creature, seconds);
     }
+    this.updateCorpses(seconds);
+  }
+
+  isPlayerInCombat(player) {
+    if (!player) return false;
+    return this.creatures.some((creature) => {
+      if (!creature || creature.dead) return false;
+      if (!creature.engaged && creature.mode !== 'alert'
+        && creature.mode !== 'chase'
+        && creature.mode !== 'windup'
+        && creature.mode !== 'recover') return false;
+      const bite = creature.type && Number.isFinite(creature.type.biteRange)
+        ? creature.type.biteRange
+        : 1.2;
+      const gap = Math.hypot(player.x - creature.x, player.z - creature.z);
+      return gap <= bite + 0.8;
+    });
   }
 
   hoverAt(x, y) {
     if (!this.creatures.length || !Number.isFinite(x) || !Number.isFinite(y)) {
       this.hovered = null;
+      this.hoveredCorpse = null;
       return null;
     }
     const pick = this.s.pick(x, y, (mesh) => this.meshes.includes(mesh));
@@ -669,6 +699,7 @@ export default class CreatureSystem {
 
   clearHover() {
     this.hovered = null;
+    this.hoveredCorpse = null;
   }
 
   applyOutline(creature, color, widthScale, pulseSpeed) {
@@ -722,9 +753,132 @@ export default class CreatureSystem {
     if (!slot || slot.creature !== creature) return false;
     creature.health = 0;
     slot.deadAt = Number.isFinite(now) ? now : this.now;
-    this.despawn(creature);
+    this.makeCorpse(creature);
     if (this.onRosterChange) this.onRosterChange();
     return true;
+  }
+
+  makeCorpse(creature) {
+    if (!creature || creature.dead) return;
+    creature.dead = true;
+    creature.mode = 'dead';
+    creature.walking = false;
+    creature.health = 0;
+    if (creature.marker) creature.marker.setEnabled(false);
+    for (const mesh of creature.meshes || []) mesh.renderOutline = false;
+    this.creatures = this.creatures.filter((item) => item !== creature);
+    if (this.hovered === creature) this.hovered = null;
+    if (this.hoveredCorpse === creature) this.hoveredCorpse = null;
+    const slot = creature.slotKey ? this.slots.get(creature.slotKey) : null;
+    if (slot && slot.creature === creature) slot.creature = null;
+    const holder = creature.holder;
+    if (!holder || holder.isDisposed()) return;
+    this.corpses.push({
+      creature,
+      age: 0,
+      sinkAt: CORPSE_LIFETIME,
+      tilt: 0,
+      looted: false,
+    });
+  }
+
+  updateCorpses(seconds) {
+    if (!this.corpses.length) return;
+    const player = this.playerAt ? this.playerAt() : null;
+    for (const entry of [...this.corpses]) {
+      const creature = entry.creature;
+      const holder = creature ? creature.holder : null;
+      if (!holder || holder.isDisposed()) {
+        this.corpses = this.corpses.filter((item) => item !== entry);
+        continue;
+      }
+      entry.age += seconds;
+      const fall = Math.min(1, entry.age / CORPSE_FALL);
+      const ease = fall * fall * (3 - 2 * fall);
+      entry.tilt = CORPSE_TILT * ease;
+      holder.rotation.z = entry.tilt;
+      if (creature.type.rig) {
+        creature.type.rig.pose(creature.rig, seconds, { mode: 'dead', moving: false });
+      }
+      holder.computeWorldMatrix(true);
+      const bounds = holder.getHierarchyBoundingVectors(true);
+      const ground = this.corpseGroundAt(creature);
+      const offset = bounds ? bounds.min.y - holder.position.y : 0;
+      const groundY = ground + CORPSE_GROUND_MARGIN - offset;
+      const near = Boolean(player)
+        && !entry.looted
+        && entry.age < entry.sinkAt
+        && Math.hypot(player.x - creature.x, player.z - creature.z) <= CORPSE_OUTLINE_REACH;
+      for (const mesh of creature.meshes || []) {
+        mesh.renderOutline = near;
+        if (!near) continue;
+        mesh.outlineColor = CORPSE_OUTLINE_COLOR;
+        mesh.outlineWidth = CORPSE_OUTLINE_WIDTH;
+      }
+      if (entry.age < entry.sinkAt) {
+        holder.position.y = groundY;
+        continue;
+      }
+      const sink = Math.min(1, (entry.age - entry.sinkAt) / CORPSE_SINK);
+      holder.position.y = groundY - 0.7 * sink;
+      holder.rotation.z = CORPSE_TILT * (1 + sink * 0.25);
+      if (sink >= 1) this.disposeCorpse(entry);
+    }
+  }
+
+  corpseGroundAt(creature) {
+    const x = creature.renderX;
+    const z = creature.renderZ;
+    const reach = CORPSE_GROUND_SAMPLE;
+    return Math.max(
+      this.groundAt(x, z),
+      this.groundAt(x + reach, z),
+      this.groundAt(x - reach, z),
+      this.groundAt(x, z + reach),
+      this.groundAt(x, z - reach),
+    );
+  }
+
+  disposeCorpse(entry) {
+    if (!entry) return;
+    this.corpses = this.corpses.filter((item) => item !== entry);
+    const creature = entry.creature;
+    if (this.hoveredCorpse === creature) this.hoveredCorpse = null;
+    if (creature) this.despawn(creature);
+    if (this.onRosterChange) this.onRosterChange();
+  }
+
+  corpseAt(x, y) {
+    if (!this.corpses.length || !Number.isFinite(x) || !Number.isFinite(y)) {
+      this.hoveredCorpse = null;
+      return null;
+    }
+    const pick = this.s.pick(x, y, (mesh) => this.meshes.includes(mesh));
+    const mesh = pick && pick.hit ? pick.pickedMesh : null;
+    const entry = mesh
+      ? this.corpses.find((item) => !item.looted && item.creature && item.creature.meshes.includes(mesh))
+      : null;
+    this.hoveredCorpse = entry ? entry.creature : null;
+    return entry ? entry.creature : null;
+  }
+
+  loot(corpse) {
+    if (!corpse || !corpse.dead) return null;
+    const entry = this.corpses.find((item) => item.creature === corpse);
+    if (!entry || entry.looted) return null;
+    const config = corpse.type && corpse.type.loot ? corpse.type.loot : null;
+    if (!config) return null;
+    const yields = [];
+    for (const [itemKey, amount] of Object.entries(config)) {
+      if (typeof itemKey !== 'string' || !Number.isFinite(amount) || amount <= 0) continue;
+      yields.push({ itemKey, amount });
+    }
+    if (!yields.length) return null;
+    entry.looted = true;
+    entry.sinkAt = Math.min(entry.sinkAt, entry.age + CORPSE_LOOT_SINK_DELAY);
+    if (this.hoveredCorpse === corpse) this.hoveredCorpse = null;
+    for (const mesh of corpse.meshes || []) mesh.renderOutline = false;
+    return yields;
   }
 
   despawn(creature) {
@@ -812,6 +966,10 @@ export default class CreatureSystem {
   }
 
   clear() {
+    for (const entry of this.corpses) {
+      if (entry.creature) this.despawn(entry.creature);
+    }
+    this.corpses = [];
     for (const creature of this.creatures) {
       if (creature.holder && !creature.holder.isDisposed()) creature.holder.dispose();
     }
@@ -819,5 +977,6 @@ export default class CreatureSystem {
     this.meshes = [];
     this.slots.clear();
     this.hovered = null;
+    this.hoveredCorpse = null;
   }
 }

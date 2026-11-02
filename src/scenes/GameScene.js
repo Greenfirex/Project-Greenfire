@@ -31,7 +31,6 @@ import InputSystem from '../systems/inputSystem.js';
 import PlayerSystem, { STEP_LIMIT } from '../systems/playerSystem.js';
 import PlayerStatsSystem from '../systems/playerStatsSystem.js';
 import PlayerAttackSystem from '../systems/playerAttackSystem.js';
-import BuildSystem from '../systems/buildSystem.js';
 import SaveSystem from '../systems/saveSystem.js';
 import GatherSystem from '../systems/gatherSystem.js';
 import FellingSystem from '../systems/fellingSystem.js';
@@ -61,7 +60,6 @@ import { whenModelsIdle, takeModelError, preloadModel, loadContainer, loadImport
 import { proceduralTemplate } from '../utils/decoTemplate.js';
 import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
-import { MACHINE_KEYS, DEFAULT_MACHINE, getMachine } from '../data/catalogs/machines.js';
 import { HOTBAR_ITEMS, ITEM_TYPES } from '../data/catalogs/items.js';
 import { worldToCellCoords, worldToCell, cellToWorldCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
@@ -85,7 +83,6 @@ const WORLD_BATCH_BULK = 1500;
 const STAGE_LEAD_FRAMES = 2;
 const MODEL_LANES = 4;
 const LOAD_RETRIES = 2;
-const BUILD_RANGE_CELLS = 2;
 const WALK_CLEARANCE = 1.25;
 const WADE_DEPTH = 0.6;
 const WADE_SPEED = 0.65;
@@ -127,15 +124,6 @@ function metersText(value) {
   return `${String(rounded).replace('.', ',')} m`;
 }
 
-function buildReasonText(reason) {
-  if (reason === 'occupied') return 'už tu stojí stroj';
-  if (reason === 'blocked') return 'překážka';
-  if (reason === 'water') return 'voda';
-  if (reason === 'height') return 'není rovná plocha';
-  if (reason === 'range') return 'mimo dosah';
-  return null;
-}
-
 export default class GameScene {
 
   constructor(scene, engine, canvas) {
@@ -172,7 +160,6 @@ export default class GameScene {
     this.playerAttackSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
     this.playerAttackSystem.onHit = (creature, amount, crit) => this.damageCreature(creature, amount, crit);
     this.playerAttackSystem.onMiss = (creature) => this.missCreature(creature);
-    this.buildSystem = new BuildSystem(scene);
     this.gatherSystem = new GatherSystem(scene);
     this.gatherSystem.decoSystem = this.decoSystem;
     this.gatherSystem.onLand = () => this.audioSystem.play('fall');
@@ -218,8 +205,6 @@ export default class GameScene {
     this.fxaa = null;
     this.shadowGenerator = null;
     this.sunLight = null;
-    this.currentMachine = DEFAULT_MACHINE;
-    this.previewRotation = 0;
     this.heldItemSystem = new HeldItemSystem();
     this.heldItemSystem.onChange = () => this.onHeldItemChange();
     this.playerSystem.onStep = (x, z, sprint) => this.onPlayerStep(x, z, sprint);
@@ -294,22 +279,12 @@ export default class GameScene {
     else this.decoSystem.create(this.mapFile, map.colors);
     this.decoSystem.buildPath();
     this.setupDecorations();
-    this.gridSystem.create();
     this.setupSimulation();
     this.setupHud();
     this.setupOptions();
     this.setupInput();
     this.setupEditorToggle();
     this.registerHudEvents();
-
-    this.buildSystem.onMachineReady = (record, node) => {
-      const placeholder = record.mesh;
-      if (placeholder) {
-        const index = this.shadowCasters.indexOf(placeholder);
-        if (index >= 0) this.shadowCasters.splice(index, 1);
-      }
-      for (const child of node.getChildMeshes()) this.addShadowCaster(child);
-    };
 
     this.s.onBeforeRenderObservable.add(() => {
       const dt = Math.min(this.engine.getDeltaTime() / 1000, MAX_STEP_SECONDS);
@@ -363,7 +338,6 @@ export default class GameScene {
     });
 
     this.engine.runRenderLoop(() => this.s.render());
-    this.hud.setMachine(getMachine(this.currentMachine).displayName);
     this.hotbar.setSelected(this.heldItemSystem.key);
     this.inventoryWindow.update(this.inventorySystem);
     await this.prepareGame();
@@ -429,7 +403,6 @@ export default class GameScene {
     if (this.saveHintAfterLoad) {
       const notice = this.saveHintAfterLoad;
       this.saveHintAfterLoad = null;
-      this.hud.setSaveHint(notice.title);
       this.dialog.tell(notice);
     }
     this.gatherSystem.syncFromDeco();
@@ -496,7 +469,7 @@ export default class GameScene {
   }
 
   setPointerCursorState() {
-    if (this.editor.active || this.isBuilding()) {
+    if (this.editor.active) {
       this.gameCursor.setState('default');
       return;
     }
@@ -537,7 +510,14 @@ export default class GameScene {
       if (creature) {
         this.decoHighlight.setHover(null);
         this.showCreatureTooltip(creature);
-        this.gameCursor.setState(this.editor.active || this.isBuilding() ? 'default' : 'attack');
+        this.gameCursor.setState(this.editor.active ? 'default' : 'attack');
+        return;
+      }
+      const corpse = this.creatureSystem.corpseAt(this.s.pointerX, this.s.pointerY);
+      if (corpse) {
+        this.decoHighlight.setHover(null);
+        this.showCorpseTooltip(corpse);
+        this.gameCursor.setState('default');
         return;
       }
       this.hideCreatureTooltip();
@@ -555,7 +535,7 @@ export default class GameScene {
   }
 
   showCreatureTooltip(creature) {
-    if (!creature || this.isBuilding() || this.hud.isStatusOpen()) return;
+    if (!creature) return;
     this.creatureTooltipOn = true;
     const total = creature.tier && Number.isFinite(creature.tier.health) ? Math.round(creature.tier.health) : null;
     const left = Number.isFinite(creature.health) ? Math.max(0, Math.round(creature.health)) : null;
@@ -569,8 +549,19 @@ export default class GameScene {
     this.refreshHoverTooltip(this.inputSystem.lastCell);
   }
 
+  showCorpseTooltip(corpse) {
+    if (!corpse) return;
+    this.creatureTooltipOn = true;
+    const loot = corpse.type && corpse.type.loot ? Object.entries(corpse.type.loot) : [];
+    const names = loot
+      .filter(([, amount]) => Number.isFinite(amount) && amount > 0)
+      .map(([key]) => (ITEM_TYPES[key] ? ITEM_TYPES[key].displayName : key));
+    const detail = names.length ? `Levé tlačítko — sebrat ${names.join(' a ')}` : 'Mrtvý tvor';
+    this.tooltipPanel.show(`${corpse.type.label} (mrtvá)`, detail);
+  }
+
   updateGathering(dt) {
-    const active = this.loaded && !this.editor.active && !this.isBuilding();
+    const active = this.loaded && !this.editor.active;
     this.gatherSystem.setPlayer(active ? this.playerSystem : null);
     this.gatherSystem.setTool(this.heldItemSystem.tool());
     this.gatherSystem.update(dt, this.playerSystem);
@@ -582,7 +573,7 @@ export default class GameScene {
 
   gatherPrompt(target) {
     if (target) return this.describeGatherTarget(target);
-    if (this.editor.active || this.isBuilding()) return '';
+    if (this.editor.active) return '';
     if (this.campfireSystem.pending) return 'Zapaluji táborák…';
     if (this.campfireSystem.nearest) return 'E — zapálit Táborák';
     return '';
@@ -608,11 +599,12 @@ updateGatherTarget() {
   }
 
   handleLeftDown() {
-    if (!this.loaded || this.editor.active || this.isBuilding()) return;
+    if (!this.loaded || this.editor.active) return;
     if (this.campfireSystem.pending) {
       this.cancelCampfireIgnite();
       return;
     }
+    if (this.lootAtPointer()) return;
     if (this.attackAtPointer()) return;
     if (this.gatherSystem.target) {
       this.strikeGather();
@@ -632,7 +624,6 @@ updateGatherTarget() {
   describeGatherTarget(target) {
     if (target.def.byHand) return `Levé tlačítko — sbírat ${target.def.displayName} (${target.left}/${target.total})`;
     const verb = target.def.kind === 'tree' ? 'kácet' : 'těžit';
-    if (target.def.kind === 'ore') return `Levé tlačítko — ${verb} ${target.def.displayName} (${target.left} úderů)`;
     return `Levé tlačítko — ${verb} ${target.def.displayName} (${target.left}/${target.total})`;
   }
 
@@ -649,7 +640,7 @@ updateGatherTarget() {
   }
 
   holdStrikeReady() {
-    if (!this.inputSystem.leftDown || this.isBuilding() || this.editor.active) return false;
+    if (!this.inputSystem.leftDown || this.editor.active) return false;
     if (this.campfireSystem.pending) return false;
     const gather = this.gatherSystem;
     if (!gather.target || gather.cooldown > 0 || gather.pending) return false;
@@ -830,7 +821,6 @@ updateGatherTarget() {
         this.harvestSystem.drop(cell.cx, cell.cz);
         continue;
       }
-      if (this.buildSystem.isOccupied(cell.cx, cell.cz)) continue;
       this.restoreHarvested(found, cell);
       this.harvestSystem.drop(cell.cx, cell.cz);
       restored += 1;
@@ -851,9 +841,9 @@ updateGatherTarget() {
   }
 
   async setupPlayer() {
-    this.playerSystem.blockedTest = (cx, cz) => this.buildSystem.isOccupied(cx, cz);
     this.playerSystem.inputBlocked = () => this.dialog.open;
     this.playerSystem.walkable = (x, z) => this.isWalkableAt(x, z);
+    this.playerSystem.inCombat = () => this.creatureSystem.isPlayerInCombat(this.playerSystem.root);
     this.playerSystem.speedScale = (x, z) => {
       if (this.terrainSystem.bridgeDeckAt(x, z) !== null) return 1;
       const depth = this.waterDepthNowAt(x, z);
@@ -865,7 +855,7 @@ updateGatherTarget() {
     this.playerSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z, this.playerSystem.root ? this.playerSystem.root.position.y : 0);
     this.playerSystem.onIntroChange = (lying) => {
-      this.hud.setSaveHint(lying ? 'Stiskni WASD nebo šipky pro vstání' : '');
+      if (lying) this.log.add('Stiskni WASD nebo šipky pro vstání', 'info');
     };
     this.playerSystem.spawnCell = this.mapLayout.spawn;
     this.playerSystem.setHeldTool(this.heldItemSystem.key);
@@ -880,11 +870,7 @@ updateGatherTarget() {
   async setupCreatures() {
     const system = this.creatureSystem;
     system.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
-    system.walkableAt = (x, z) => {
-      const cell = worldToCellCoords(x, z);
-      if (this.buildSystem.isOccupied(cell.cx, cell.cz)) return false;
-      return this.isWalkableAt(x, z);
-    };
+    system.walkableAt = (x, z) => this.isWalkableAt(x, z);
     system.playerAt = () => (this.playerSystem.root ? this.playerSystem.root.position : null);
     system.defenseAt = () => this.playerStats.defense;
     system.onMeshReady = (mesh) => this.addShadowCaster(mesh);
@@ -952,8 +938,25 @@ updateGatherTarget() {
     return this.playerAttackSystem.swing(creature, this.playerSystem);
   }
 
+  lootAtPointer() {
+    if (this.playerSystem.lying) return false;
+    const corpse = this.creatureSystem.corpseAt(this.s.pointerX, this.s.pointerY);
+    if (!corpse) return false;
+    const yields = this.creatureSystem.loot(corpse);
+    if (!yields) return false;
+    this.creatureTooltipOn = false;
+    this.tooltipPanel.hide();
+    this.playerSystem.faceTo(corpse.x, corpse.z);
+    this.playerSystem.crouchPickUp();
+    this.decoHighlight.setHover(null);
+    for (const { itemKey, amount } of yields) this.inventorySystem.add(itemKey, amount);
+    this.inventoryWindow.update(this.inventorySystem);
+    this.logGain(yields);
+    return true;
+  }
+
   updatePlayerAttack(dt) {
-    const active = this.loaded && !this.editor.active && !this.isBuilding();
+    const active = this.loaded && !this.editor.active;
     this.playerAttackSystem.update(active ? dt : 0);
     if (!active || !this.inputSystem.leftDown) return;
     const target = this.playerAttackSystem.target;
@@ -1329,21 +1332,8 @@ updateGatherTarget() {
   }
 
   setupDecorations() {
-    const map = getMap(this.mapKey);
     this.gatherSystem.syncFromDeco();
     this.campfireSystem.sync(this.mapFile.decorations || []);
-    this.buildSystem.blockedTest = (cx, cz) => this.decoSystem.isBlocked(cx, cz);
-    this.buildSystem.waterTest = (cx, cz) => this.waterSystem.reachesAt(cx * CELL_SIZE, cz * CELL_SIZE);
-    this.buildSystem.heightTest = (cx, cz) => this.decoSystem.topAt(cx, cz) !== 0;
-    this.buildSystem.rangeTest = (cx, cz) => this.withinBuildRange(cx, cz);
-    this.gridSystem.onHologramReady = (key) => {
-      if (this.editor.active) {
-        this.handleHover(this.hoverCell);
-        return;
-      }
-      if (key !== this.currentMachine) return;
-      this.refreshHoverPreview();
-    };
 
     this.editor.connect();
   }
@@ -1519,7 +1509,7 @@ updateGatherTarget() {
       if (!isMapFile(file)) throw new Error('neplatný tvar souboru');
       return file;
     } catch (error) {
-      this.hud.setSaveHint(`Mapu ${this.mapKey} nejde přečíst ze souboru — ${error.message}`);
+      console.warn(`[mapa] Mapu ${this.mapKey} nejde přečíst ze souboru — ${error.message}`);
       return { version: MAP_VERSION, mapKey: this.mapKey, seed: getMap(this.mapKey).seed, spawn: { cx: 0, cz: 0 }, floor: [], path: [], decorations: [] };
     }
   }
@@ -1767,8 +1757,6 @@ updateGatherTarget() {
     this.hud.onSave = () => this.doSave();
     this.hud.onLoad = () => this.requestLoad();
     this.hud.mount();
-    this.hud.setCount(this.buildSystem.count);
-    this.hud.setStatusVisible(false);
     this.hotbar.mount();
     this.hotbar.onSelect = (key) => this.heldItemSystem.set(key);
     this.hotbar.setSelected(this.heldItemSystem.key);
@@ -1843,22 +1831,11 @@ updateGatherTarget() {
   }
 
   onHeldItemChange() {
-    this.hud.setStatusVisible(this.isBuilding());
     this.hotbar.setSelected(this.heldItemSystem.key);
     this.playerSystem.setHeldTool(this.heldItemSystem.key);
     this.gatherSystem.setTool(this.heldItemSystem.tool());
-    if (!this.isBuilding()) {
-      this.hoverCell = null;
-      this.gridSystem.hideHighlight();
-      this.gridSystem.hideHologram();
-    } else if (this.hoverCell) {
-      this.handleHover(this.hoverCell);
-    }
+    this.gridSystem.hideHologram();
     this.setPointerCursorState();
-  }
-
-  isBuilding() {
-    return this.heldItemSystem.holds('build');
   }
 
   setupInput() {
@@ -1885,7 +1862,6 @@ updateGatherTarget() {
     this.registerSavedState(this.playerSystem, 'player', 5);
     this.registerSavedState(this.heldItemSystem, 'heldItem', 7);
     this.registerSavedState(this.playerStats, 'playerStats', 8);
-    this.registerSavedState(this.buildSystem, 'machines', 10);
     this.registerSavedState(this.campfireSystem, 'campfires', 12);
     this.registerSavedState(this.fellingSystem, 'felling', 14);
     this.registerSavedState(this.harvestSystem, 'harvest', 15);
@@ -2084,7 +2060,6 @@ updateGatherTarget() {
       else this.heldItemSystem.set(key);
       return;
     }
-    if (evt.key === 'm' || evt.key === 'M') this.cycleMachine();
     if (evt.key === 'e' || evt.key === 'E') {
       if (evt.ctrlKey || evt.metaKey || evt.altKey || typing) return;
       if (this.campfireSystem.pending) {
@@ -2098,8 +2073,6 @@ updateGatherTarget() {
       this.campfireSystem.ignite(fire.entry);
       return;
     }
-    if (evt.key === 'r' || evt.key === 'R') this.rotateHovered();
-    if (evt.key === 'Escape') this.clearMark();
     if (evt.key === 'F5') {
       evt.preventDefault();
       this.doSave();
@@ -2125,36 +2098,6 @@ updateGatherTarget() {
     this.hud.flashClock(`+${TIME_SKIP.hours} h → ${hh}:${mm}`);
   }
 
-  cycleMachine() {
-    if (!this.isBuilding()) return;
-    const index = MACHINE_KEYS.indexOf(this.currentMachine);
-    this.currentMachine = MACHINE_KEYS[(index + 1) % MACHINE_KEYS.length];
-    this.previewRotation = 0;
-    this.hud.setMachine(getMachine(this.currentMachine).displayName);
-    this.refreshHoverPreview();
-  }
-
-  rotateHovered() {
-    if (!this.isBuilding()) return;
-    const record = this.hoverCell ? this.buildSystem.getAt(this.hoverCell.cx, this.hoverCell.cz) : null;
-    if (record) {
-      const rotated = this.buildSystem.rotate(this.hoverCell.cx, this.hoverCell.cz);
-      if (!rotated) return;
-      const def = getMachine(rotated.type);
-      this.hud.setSaveHint(`${def.displayName}: ${rotated.rotation * 90}°`);
-      return;
-    }
-    this.previewRotation = (this.previewRotation + 1) % 4;
-    this.refreshHoverPreview();
-  }
-
-  refreshHoverPreview() {
-    if (!this.hoverCell || !this.isBuilding() || this.editor.active) return;
-    const { cx, cz } = this.hoverCell;
-    const topY = this.decoSystem.topAt(cx, cz);
-    this.refreshHologram(this.hoverCell, topY, this.buildSystem.canBuild(cx, cz));
-  }
-
   cellSurfaceAt(cx, cz) {
     const deck = this.terrainSystem.bridgeDeckAt(cx * CELL_SIZE, cz * CELL_SIZE);
     return deck === null ? this.decoSystem.surfaceAt(cx, cz) : deck;
@@ -2166,11 +2109,10 @@ updateGatherTarget() {
     if (!this.editor.active) {
       this.gridSystem.clearHoverCell();
       this.gridSystem.clearCreatureRadius();
-      this.moveGridHighlight(cell);
+      this.gridSystem.hideHologram();
       this.refreshHoverTooltip(cell);
       return;
     }
-    this.gridSystem.hideHighlight();
     this.gridSystem.hideHologram();
     if (!cell) {
       this.editor.clearHoverReadout();
@@ -2196,7 +2138,7 @@ updateGatherTarget() {
 
   refreshHoverTooltip(cell) {
     if (this.creatureTooltipOn) return;
-    if (!cell || !this.options.highlights || this.isBuilding() || this.hud.isStatusOpen()) {
+    if (!cell || !this.options.highlights) {
       this.tooltipPanel.hide();
       return;
     }
@@ -2259,41 +2201,6 @@ updateGatherTarget() {
     return this.editor.clearAreaSelection();
   }
 
-  moveGridHighlight(cell) {
-    if (!cell || !this.isBuilding()) {
-      this.hoverCell = null;
-      this.gridSystem.hideHighlight();
-      this.gridSystem.hideHologram();
-      this.hud.setCell(null, null, true);
-      this.hud.setHeight(null);
-      this.hud.setBuildReason(null);
-      return;
-    }
-    const occupied = this.buildSystem.isOccupied(cell.cx, cell.cz);
-    const reason = this.buildSystem.blockReason(cell.cx, cell.cz);
-    const valid = reason === null;
-    const topY = this.decoSystem.topAt(cell.cx, cell.cz);
-    this.hoverCell = cell;
-    this.gridSystem.setHighlight(cell.cx, cell.cz, topY);
-    this.gridSystem.setHighlightValid(valid);
-    this.refreshHologram(cell, topY, valid);
-    this.hud.setCell(cell.cx, cell.cz, valid);
-    this.hud.setHeight(topY);
-    this.hud.setBuildReason(buildReasonText(reason));
-    if (occupied) this.hud.setCellOccupied(this.describeMachine(cell.cx, cell.cz));
-    else this.hud.setCellOccupied(null);
-  }
-
-  refreshHologram(cell, topY, valid) {
-    if (!this.isBuilding() || this.editor.active || !this.currentMachine) {
-      this.gridSystem.hideHologram();
-      return;
-    }
-    const def = getMachine(this.currentMachine);
-    if (!def) return;
-    this.gridSystem.showHologram(this.currentMachine, def, cell.cx, cell.cz, topY, this.previewRotation, valid);
-  }
-
   cellsOfArea() {
     return this.terrainSystem.realCells || [];
   }
@@ -2345,77 +2252,21 @@ updateGatherTarget() {
     if (best) player.apply({ x: best.x, z: best.z, facing: player.facing });
   }
 
-  withinBuildRange(cx, cz) {
-    const root = this.playerSystem.root;
-    if (!root) return true;
-    const { cx: pcx, cz: pcz } = worldToCellCoords(root.position.x, root.position.z);
-    if (cx === pcx && cz === pcz) return false;
-    return Math.max(Math.abs(cx - pcx), Math.abs(cz - pcz)) <= BUILD_RANGE_CELLS;
-  }
-
-  describeMachine(cx, cz) {
-    const record = this.buildSystem.getAt(cx, cz);
-    if (!record) return null;
-    const def = getMachine(record.type);
-    return `${def.displayName} ${record.rotation * 90}°`;
-  }
-
   handleCellClick(cell) {
     if (!cell) return;
-    if (this.editor.active) {
-      this.editor.paintCell(cell.cx, cell.cz);
-      return;
-    }
-    if (!this.isBuilding()) return;
-    this.clearMark();
-    const record = this.buildSystem.build(this.currentMachine, cell.cx, cell.cz, this.previewRotation);
-    if (!record) return;
-    if (!record.node) this.addShadowCaster(record.mesh);
-    record.mesh.receiveShadows = true;
-    this.hud.setCount(this.buildSystem.count);
-    this.hud.setSaveHint('Neuloženo');
-    this.log.add(`Postaveno: ${getMachine(record.type).displayName}`, 'action');
-    this.handleHover(cell);
+    if (!this.editor.active) return;
+    this.editor.paintCell(cell.cx, cell.cz);
   }
 
   handleCellRightClick(cell) {
     if (!cell) return;
-    if (this.editor.active) {
-      this.editor.rightClickCell(cell);
-      this.handleHover(cell);
-      return;
-    }
-    if (!this.isBuilding()) return;
-    const result = this.buildSystem.toggleMark(cell.cx, cell.cz);
-
-    if (result.removed) {
-      this.gridSystem.clearMark();
-      this.dropShadowCasters(result.removed);
-      this.hud.setCount(this.buildSystem.count);
-      this.hud.setSaveHint(`Zbouráno: ${getMachine(result.removed.type).displayName}`);
-      this.log.add(`Zbouráno: ${getMachine(result.removed.type).displayName}`, 'warn');
-      this.handleHover(this.hoverCell);
-      return;
-    }
-
-    if (result.marked) {
-      this.gridSystem.setMark(this.buildSystem.markedCell.cx, this.buildSystem.markedCell.cz);
-      this.hud.setSaveHint('Označeno k bourání — pravé tlačítko znovu zbourá');
-    } else {
-      this.gridSystem.clearMark();
-      this.hud.setSaveHint('Označení zrušeno');
-    }
-  }
-
-  clearMark() {
-    if (!this.buildSystem.markedCell) return;
-    this.buildSystem.demark();
-    this.gridSystem.clearMark();
+    if (!this.editor.active) return;
+    this.editor.rightClickCell(cell.cx, cell.cz);
+    this.handleHover(cell);
   }
 
   doSave() {
     const ok = this.saveSystem.save();
-    this.hud.setSaveHint(ok ? 'Uloženo ✓' : 'Uložení selhalo');
     this.log.add(ok ? 'Hra uložena' : 'Uložení selhalo', ok ? 'info' : 'warn');
     this.dialog.tell({
       title: ok ? 'Uloženo' : 'Uložení selhalo',
@@ -2464,7 +2315,6 @@ updateGatherTarget() {
       return;
     }
     console.info('[save] Obnoveno:', {
-      stroje: this.buildSystem.count,
       druhyPredmetu: Object.keys(this.inventorySystem.items || {}).length,
       sebrane: this.harvestSystem.list().length,
       cas: Math.round(this.simSystem.time),
@@ -2473,7 +2323,6 @@ updateGatherTarget() {
 
   reloadFromSave() {
     if (!this.saveSystem.hasSave()) {
-      this.hud.setSaveHint('Žádný save');
       this.dialog.tell({
         title: 'Žádný save',
         text: 'Nejdřív hru ulož — tlačítkem 💾 Uložit nebo klávesou F5.',
@@ -2481,7 +2330,6 @@ updateGatherTarget() {
       return;
     }
     if (!this.saveSystem.markLoadOnStart()) {
-      this.hud.setSaveHint('Načtení se nepodařilo připravit');
       this.dialog.tell({
         title: 'Načtení selhalo',
         text: 'Prohlížeč nepovolil připravit načtení uložené hry.',
@@ -2489,14 +2337,6 @@ updateGatherTarget() {
       return;
     }
     window.location.reload();
-  }
-  dropShadowCasters(record) {
-    const meshes = record.node ? record.node.getChildMeshes() : [record.mesh];
-    for (const mesh of meshes) {
-      const caster = this.shadowCasters.find((item) => item === mesh);
-      if (caster) this.removeShadowCaster(caster);
-    }
-    this.refreshShadowCasters();
   }
 
   refreshShadowReach(force = false) {

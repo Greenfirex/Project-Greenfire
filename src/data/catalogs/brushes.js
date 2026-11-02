@@ -103,14 +103,6 @@ export const BRUSHES = {
     ],
     deco: true,
   },
-  stumps: {
-    label: 'Pařezy a dřevo',
-    group: 'Objekty',
-    note: 'Nasadí pařezy, kmeny a skládky dřeva.',
-    shape: 'blob',
-    pool: ['stump', 'stump_old', 'log', 'log_stack'],
-    deco: true,
-  },
   mushrooms: {
     label: 'Houby',
     group: 'Rostliny',
@@ -287,25 +279,12 @@ export const BRUSHES = {
     ],
     cliff: true,
   },
-  ore: {
-    label: 'Ruda',
-    group: 'Objekty',
-    note: 'Nasadí ložisko rudy — železo nebo měď.',
-    shape: 'blob',
-    style: 'iron',
-    styles: ['iron', 'copper'],
-    poolByStyle: {
-      iron: ['ore_iron'],
-      copper: ['ore_copper'],
-    },
-    deco: true,
-  },
   camp: {
-    label: 'Tábor',
+    label: 'Táborák',
     group: 'Objekty',
-    note: 'Postaví tábor: stan, táborák, bedny a sudy.',
+    note: 'Postaví ohniště s ohněm, které jde zapálit.',
     shape: 'blob',
-    pool: ['tent', 'campfire', 'crate', 'barrel'],
+    pool: ['campfire'],
     deco: true,
   },
 };

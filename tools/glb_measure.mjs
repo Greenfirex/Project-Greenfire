@@ -1,4 +1,4 @@
-// Měří GLB modely z Kenney kitů — rozměry, pivot a rozložení geometrie po dlaždici.
+// Měří GLB modely — rozměry, pivot a rozložení geometrie po dlaždici.
 // Slouží k odvození orientace dlaždic (kde má dlaždice rameno, stěnu nebo okraj).
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, basename, extname } from 'node:path';

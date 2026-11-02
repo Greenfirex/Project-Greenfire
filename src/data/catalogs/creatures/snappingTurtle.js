@@ -25,6 +25,7 @@ const ALERT_HEAD = -0.35;
 const TAIL_SWING_WALK = 0.14;
 const TAIL_SWING_IDLE = 0.05;
 const TAIL_SPEED = 1.6;
+const DEAD_LEG = 0.4;
 const SIDE_AXIS = new Vector3(1, 0, 0);
 const BACK_AXIS = new Vector3(0, 0, -1);
 
@@ -157,6 +158,21 @@ function pose(rig, dt, info) {
   const mode = info && info.mode ? info.mode : 'idle';
   const moving = Boolean(info && info.moving);
   const seconds = Number.isFinite(dt) && dt > 0 ? dt : 0;
+  if (mode === 'dead') {
+    rig.mode = 'dead';
+    rig.headPitch += (HEAD_CALM - rig.headPitch) * Math.min(1, seconds * HEAD_SPEED);
+    rig.headPull += (HEAD_CALM - rig.headPull) * Math.min(1, seconds * HEAD_PULL_SPEED);
+    rig.swing += (0 - rig.swing) * Math.min(1, seconds * 6);
+    rig.tailSwing += (0 - rig.tailSwing) * Math.min(1, seconds * 4);
+    for (const leg of rig.legs) {
+      const side = leg.key.endsWith('l') ? -1 : 1;
+      swingEntry(leg.entry, side * DEAD_LEG);
+    }
+    swingEntry(rig.head, rig.headPitch);
+    pullEntry(rig.head, rig.headPull);
+    swingEntry(rig.tail, 0);
+    return { bob: 0 };
+  }
   if (rig.mode === 'windup' && mode === 'recover') {
     rig.headPitch = HEAD_BITE;
     rig.headPull = HEAD_PULL_BITE;
@@ -232,6 +248,7 @@ export const SNAPPING_TURTLE = {
   respawnDays: 3,
   idleSeconds: [2.5, 6],
   defaultTier: 'adult',
+  loot: { meat: 1, turtle_shell: 1 },
   tiers: {
     young: {
       label: 'Mladá',

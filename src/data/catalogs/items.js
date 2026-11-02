@@ -31,29 +31,17 @@ export const ITEM_TYPES = {
     kind: 'product',
     color: [0.52, 0.38, 0.24],
   },
-  iron_ore: {
-    displayName: 'Železná ruda',
-    stackSize: 100,
+  meat: {
+    displayName: 'Maso',
+    stackSize: 20,
     kind: 'raw',
-    color: [0.55, 0.5, 0.48],
+    color: [0.72, 0.25, 0.22],
   },
-  iron_ingot: {
-    displayName: 'Železný ingot',
-    stackSize: 100,
-    kind: 'product',
-    color: [0.72, 0.72, 0.75],
-  },
-  copper_ore: {
-    displayName: 'Měděná ruda',
-    stackSize: 100,
+  turtle_shell: {
+    displayName: 'Krunýř',
+    stackSize: 20,
     kind: 'raw',
-    color: [0.78, 0.45, 0.25],
-  },
-  copper_ingot: {
-    displayName: 'Měděný ingot',
-    stackSize: 100,
-    kind: 'product',
-    color: [0.85, 0.55, 0.3],
+    color: [0.38, 0.42, 0.28],
   },
 };
 
@@ -83,21 +71,12 @@ export const RECIPES = {
 };
 
 export const TOOL_TYPES = {
-  plan: {
-    displayName: 'Stavební plán',
-    shortName: 'Plán',
-    icon: '📐',
-    kind: 'tool',
-    model: 'blueprint',
-    mode: 'build',
-  },
   axe: {
     displayName: 'Sekyrka',
     shortName: 'Sekyrka',
     icon: '🪓',
     kind: 'tool',
     model: 'axe',
-    mode: 'gather',
     harvest: { kinds: ['tree', 'log'], cooldown: 0.95 },
   },
   pickaxe: {
@@ -106,8 +85,7 @@ export const TOOL_TYPES = {
     icon: '⛏',
     kind: 'tool',
     model: 'pickaxe',
-    mode: 'gather',
-    harvest: { kinds: ['rock', 'ore'], cooldown: 1.4 },
+    harvest: { kinds: ['rock'], cooldown: 1.4 },
   },
   torch: {
     displayName: 'Pochodeň',
@@ -115,11 +93,10 @@ export const TOOL_TYPES = {
     icon: '🔥',
     kind: 'tool',
     model: 'torch',
-    mode: 'light',
   },
 };
 
-export const HOTBAR_ITEMS = ['plan', 'axe', 'pickaxe', 'torch'];
+export const HOTBAR_ITEMS = ['axe', 'pickaxe', 'torch'];
 
 export function getTool(toolKey) {
   return TOOL_TYPES[toolKey] || null;

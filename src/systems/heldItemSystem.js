@@ -20,11 +20,6 @@ export default class HeldItemSystem {
     return getTool(this.key);
   }
 
-  holds(mode) {
-    const tool = this.tool();
-    return Boolean(tool && tool.mode === mode);
-  }
-
   serialize() {
     return { key: this.key };
   }

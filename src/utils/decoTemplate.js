@@ -6,10 +6,12 @@ import { shellTemplate } from './shellFactory.js';
 import { coralTemplate } from './coralFactory.js';
 import { flowerTemplate } from './flowerFactory.js';
 import { bushTemplate } from './bushFactory.js';
+import { campfireTemplate } from './campfireFactory.js';
 import { resolveModel } from './assetLoader.js';
 
 export function proceduralTemplate(scene, def) {
   if (!def) return null;
+  if (def.campfire) return campfireTemplate(scene, def.campfire);
   if (def.tree) return treeTemplate(scene, def.tree);
   if (def.rock) return rockTemplate(scene, def.rock);
   if (def.shell) return shellTemplate(scene, def.shell);

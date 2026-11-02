@@ -18,6 +18,7 @@ export default class PlayerAttackSystem {
     this.impactTimer = 0;
     this.impactDelay = 0;
     this.target = null;
+    this.nextUnarmed = 'punch';
     this.groundHeightAt = null;
     this.onHit = null;
     this.onMiss = null;
@@ -42,11 +43,13 @@ export default class PlayerAttackSystem {
     if (this.cooldown > 0 || this.pending) return false;
     if (!this.canHit(creature, player)) return false;
     if (player.faceTo) player.faceTo(creature.x, creature.z, this.reach);
-    const length = player.strike('chopBare');
+    const animKey = this.nextUnarmed;
+    this.nextUnarmed = animKey === 'punch' ? 'kick' : 'punch';
+    player.strike(animKey);
     this.pending = { creature, damage: this.damage };
     this.impactTimer = 0;
     this.impactDelay = player.strikeImpactTime();
-    this.cooldown = Math.max(this.cooldownSeconds, length);
+    this.cooldown = this.cooldownSeconds;
     this.target = creature;
     return true;
   }

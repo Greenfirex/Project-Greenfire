@@ -849,7 +849,7 @@ export default class MapEditor {
   }
 
   warnUnsaved() {
-    this.s.hud.setSaveHint('Mapa ještě není zapsaná v souboru — po obnovení stránky se změny ztratí');
+    this.hud.setReadout('Mapa ještě není zapsaná v souboru — po obnovení stránky se změny ztratí');
   }
 
   markDirty() {
@@ -880,7 +880,7 @@ export default class MapEditor {
     if (broken) {
       this.markDirty();
       this.hud.setReadout('● Neuložené změny');
-      this.s.hud.setSaveHint(`Mapa se neuložila — ${broken} buněk nemá platné souřadnice, takže by se v souboru rozsypala`);
+      this.hud.setReadout(`Mapa se neuložila — ${broken} buněk nemá platné souřadnice, takže by se v souboru rozsypala`);
       return Promise.resolve(false);
     }
     this.hud.setReadout('Ukládám do souboru…');
@@ -891,13 +891,13 @@ export default class MapEditor {
     this.s.mapFile = file;
     if (result.ok) {
       this.clearDirty();
-      this.s.hud.setSaveHint('Mapa zapsaná do souboru projektu ✓');
+      this.hud.setReadout('Mapa zapsaná do souboru projektu ✓');
       return true;
     }
     this.downloadMapFile(file);
     this.markDirty();
     this.hud.setReadout(`● Neuložené změny — server odmítl: ${result.reason}`);
-    this.s.hud.setSaveHint(`Mapu se nepodařilo zapsat do souboru (${result.reason}) — soubor je stažený, polož ho do projektu`);
+    this.hud.setReadout(`Mapu se nepodařilo zapsat do souboru (${result.reason}) — soubor je stažený, polož ho do projektu`);
     return false;
   }
 

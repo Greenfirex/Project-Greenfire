@@ -1,5 +1,5 @@
-// Hratelná postava — načtení modelu s vlastní texturou, animace z vedlejších souborů a pohyb po světě.
-// Model i animace se stahují najednou; nástroj teprve ve chvíli, kdy ho hráč poprvé vezme do ruky.
+﻿// HratelnĂˇ postava â€” naÄŤtenĂ­ modelu s vlastnĂ­ texturou, animace z vedlejĹˇĂ­ch souborĹŻ a pohyb po svÄ›tÄ›.
+// Model i animace se stahujĂ­ najednou; nĂˇstroj teprve ve chvĂ­li, kdy ho hrĂˇÄŤ poprvĂ© vezme do ruky.
 import '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Animations/animatable';
 import '@babylonjs/core/Materials/PBR/pbrMaterial';
@@ -19,15 +19,22 @@ import {
   PLAYER_ANIM_NAMES,
   PLAYER_ANIM_SPEEDS,
   PLAYER_ANIM_FALLBACKS,
+  PLAYER_ANIM_RANGES,
+  PLAYER_ANIM_ROOTLESS,
 } from '../data/catalogs/modelCatalog.js';
 import { loadModel, instantiateModel, loadImported } from '../utils/assetLoader.js';
 import TorchFire from '../effects/torchFire.js';
 
 const ANIM_BLEND = 0.25;
-const STRIKE_SHARE = {
+const STRIKE_PLAY_SHARE = {
+  punch: 1,
+  kick: 1,
+};
+const STRIKE_IMPACT_SHARE = {
   chop: 0.55,
   mine: 0.45,
-  chopBare: 0.55,
+  punch: 0.4,
+  kick: 0.55,
 };
 const STRIKE_HOLD = 0.12;
 const STRIKE_FALLBACK = 0.5;
@@ -41,8 +48,6 @@ const STEP_DISTANCE = 1.5;
 const TOOL_SCALE = 0.95;
 const TOOL_POSITION = new Vector3(-0.12, 0.12, 0.04);
 const TOOL_ROTATION = new Vector3(0, 0, -0.45);
-const PLAN_POSITION = new Vector3(0, -0.02, 0.14);
-const PLAN_ROTATION = new Vector3(Math.PI / 2, 0, 0);
 const BODY_RADIUS = 0.3;
 const BODY_MARGIN = 0.08;
 const SLIDE_LOOKAHEAD = 1.2;
@@ -80,6 +85,7 @@ export default class PlayerSystem {
     this.walkable = null;
     this.speedScale = null;
     this.lookAt = null;
+    this.inCombat = null;
     this.decoSystem = null;
     this.groundHeightAt = null;
     this.spawnCell = null;
@@ -98,7 +104,8 @@ export default class PlayerSystem {
     this.torchFire = null;
     this.handSlot = null;
     this.strikeTimer = 0;
-    this.strikeAnim = 'chopBare';
+    this.strikeAnim = 'punch';
+    this.pickupKey = 'pickup';
     this.footBones = { left: null, right: null };
     this.stepSide = 1;
     this.footContact = { left: true, right: true };
@@ -165,7 +172,7 @@ export default class PlayerSystem {
       await this.attachToolNode();
       this.bindKeys();
       this.ready = true;
-      if (hasSave) this.play('idle');
+      if (hasSave) this.play(this.idleAnim());
       else this.lieDown();
       return this.root;
     } finally {
@@ -240,10 +247,9 @@ export default class PlayerSystem {
     this.toolNode = instantiateModel(this.s, template, `playerHeld_${tool.model}`);
     if (!this.toolNode) return;
     this.toolNode.parent = this.handSlot;
-    const plan = tool.mode === 'build';
     this.toolNode.scaling = new Vector3(TOOL_SCALE, TOOL_SCALE, TOOL_SCALE);
-    this.toolNode.position = plan ? PLAN_POSITION.scale(TOOL_SCALE) : TOOL_POSITION.scale(TOOL_SCALE);
-    this.toolNode.rotation = plan ? PLAN_ROTATION : TOOL_ROTATION;
+    this.toolNode.position = TOOL_POSITION.scale(TOOL_SCALE);
+    this.toolNode.rotation = TOOL_ROTATION;
     if (tool.model !== 'torch') return;
     this.torchFire = new TorchFire(this.s);
     this.torchFire.attach(this.toolNode);
@@ -290,8 +296,8 @@ export default class PlayerSystem {
   strike(animKey) {
     this.strikeAnim = animKey || this.strikeAnimationForTool();
     const length = this.animLength(this.strikeAnim, STRIKE_FALLBACK);
-    const share = STRIKE_SHARE[this.strikeAnim] || 0.6;
-    this.strikeTimer = Math.max(0.15, length * share + STRIKE_HOLD);
+    const playShare = STRIKE_PLAY_SHARE[this.strikeAnim] || STRIKE_IMPACT_SHARE[this.strikeAnim] || 1;
+    this.strikeTimer = Math.max(0.15, length * playShare + STRIKE_HOLD);
     this.play(this.strikeAnim, true);
     return this.strikeTimer;
   }
@@ -299,11 +305,11 @@ export default class PlayerSystem {
   strikeAnimationForTool() {
     if (this.heldToolKey === 'pickaxe') return 'mine';
     const tool = TOOL_TYPES[this.heldToolKey];
-    return tool && tool.mode === 'gather' ? 'chop' : 'chopBare';
+    return tool && tool.harvest ? 'chop' : 'punch';
   }
 
   strikeImpactTime() {
-    const share = STRIKE_SHARE[this.strikeAnim] || 0.6;
+    const share = STRIKE_IMPACT_SHARE[this.strikeAnim] || 0.6;
     const impact = this.strikeTimer * share;
     return impact > 0 ? impact : STRIKE_FALLBACK * share;
   }
@@ -324,10 +330,22 @@ export default class PlayerSystem {
 
   pickUp() {
     this.strikeTimer = 0;
+    this.pickupKey = 'pickup';
     const length = this.animLength('pickup', PICKUP_FALLBACK);
     this.pickupTimer = Math.max(0.18, length * PICKUP_SHARE + PICKUP_HOLD);
     this.pickupImpactAt = Math.max(0.12, this.pickupTimer * PICKUP_SHARE);
     this.play('pickup', true);
+    return this.pickupTimer;
+  }
+
+  crouchPickUp() {
+    if (!this.anims.crouchPickup) return 0;
+    this.strikeTimer = 0;
+    this.pickupKey = 'crouchPickup';
+    const length = this.animLength('crouchPickup', PICKUP_FALLBACK);
+    this.pickupTimer = Math.max(0.25, length + PICKUP_HOLD);
+    this.pickupImpactAt = Math.max(0.15, this.pickupTimer * PICKUP_SHARE);
+    this.play('crouchPickup', true, false);
     return this.pickupTimer;
   }
 
@@ -339,7 +357,7 @@ export default class PlayerSystem {
     if (this.igniteTimer <= 0) return false;
     this.igniteTimer = 0;
     this.igniteImpactAt = 0;
-    this.play('idle');
+    this.play(this.idleAnim());
     return true;
   }
 
@@ -447,6 +465,7 @@ export default class PlayerSystem {
       group.blendingSpeed = ANIM_BLEND;
       const speed = Number(PLAYER_ANIM_SPEEDS[key]);
       group.speedRatio = Number.isFinite(speed) && speed > 0 ? speed : 1;
+      this.prepareAnimation(key, group);
       this.anims[key] = group;
     }
 
@@ -455,6 +474,39 @@ export default class PlayerSystem {
       for (const mesh of result.meshes || []) {
         if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0) continue;
         mesh.setEnabled(false);
+      }
+    }
+  }
+
+  prepareAnimation(key, group) {
+    if (!group) return;
+    if (PLAYER_ANIM_ROOTLESS.includes(key)) this.removeRootMotion(group);
+    const range = PLAYER_ANIM_RANGES[key];
+    if (!range) return;
+    const first = group.targetedAnimations && group.targetedAnimations[0];
+    const fps = first && first.animation && first.animation.framePerSecond
+      ? first.animation.framePerSecond
+      : 30;
+    const from = group.from;
+    group.from = from + range.start * fps;
+    group.to = from + range.end * fps;
+  }
+
+  removeRootMotion(group) {
+    const list = group.targetedAnimations;
+    if (!list) return;
+    for (const item of list) {
+      const target = item && item.target;
+      const animation = item && item.animation;
+      if (!target || !animation || animation.targetProperty !== 'position') continue;
+      if (target.name !== 'Hips' && !String(target.name).endsWith(':Hips')) continue;
+      const keys = animation.getKeys();
+      if (!keys || !keys.length || !keys[0].value) continue;
+      const base = keys[0].value;
+      for (const key of keys) {
+        if (!key.value) continue;
+        key.value.x = base.x;
+        key.value.z = base.z;
       }
     }
   }
@@ -500,6 +552,7 @@ export default class PlayerSystem {
   }
 
   idleAnim() {
+    if (this.inCombat && this.inCombat() && this.anims.combatStance) return 'combatStance';
     return this.heldToolKey ? 'holdTool' : 'idle';
   }
 
@@ -534,8 +587,8 @@ export default class PlayerSystem {
       group.stop();
       group.start(false, 0.001, group.from, group.to);
     } else {
-      console.warn('[player] Chybí animace Stand_Up1 — postava zůstane ve výchozí póze.');
-      this.play('idle');
+      console.warn('[player] ChybĂ­ animace Stand_Up1 â€” postava zĹŻstane ve vĂ˝chozĂ­ pĂłze.');
+      this.play(this.idleAnim());
     }
     if (this.onIntroChange) this.onIntroChange(true);
   }
@@ -678,7 +731,7 @@ export default class PlayerSystem {
           this.lying = false;
           this.waking = false;
           this.wakeTimer = 0;
-          this.play('idle');
+          this.play(this.idleAnim());
         }
       }
       return;
@@ -696,12 +749,13 @@ export default class PlayerSystem {
       this.pickupTimer -= dt;
       this.pickupImpactAt -= dt;
       if (this.pickupTimer > 0) {
-        this.play('pickup');
+        this.play(this.pickupKey);
         return;
       }
-      const finished = this.anims.pickup;
+      const finished = this.anims[this.pickupKey];
       if (finished) finished.pause();
       this.pickupImpactAt = 0;
+      this.pickupKey = 'pickup';
     }
     if (this.igniteTimer > 0) {
       this.igniteTimer -= dt;
@@ -727,7 +781,7 @@ export default class PlayerSystem {
 
     if (move.lengthSquared() < 0.0001) {
       this.lookAround(dt);
-      this.play('idle');
+      this.play(this.idleAnim());
       return;
     }
 

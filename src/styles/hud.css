@@ -1,4 +1,4 @@
-/* Styl HUD panelů — ovládání, stav stavby, budoucí build menu. */
+/* Styl HUD panelů — nápověda ovládání a hodiny. */
 .hud-panel {
   position: absolute;
   background: var(--bg-panel);
@@ -62,18 +62,6 @@
 }
 
 #hud-help.is-open {
-  display: block;
-}
-
-#hud-status {
-  display: none;
-  bottom: 12px;
-  right: 12px;
-  text-align: right;
-  min-width: 160px;
-}
-
-#hud-status.is-open {
   display: block;
 }
 
@@ -190,23 +178,6 @@
   background: rgba(90, 200, 170, 0.16);
   color: var(--text-main);
   box-shadow: 0 0 8px rgba(90, 200, 170, 0.35);
-}
-
-.hotbar__slot.is-empty {
-  border-style: dashed;
-  border-color: rgba(90, 200, 170, 0.12);
-  background: rgba(0, 0, 0, 0.18);
-  cursor: default;
-}
-
-.hotbar__slot.is-empty .hotbar__icon,
-.hotbar__slot.is-empty .hotbar__name {
-  opacity: 0.35;
-}
-
-.hotbar__slot.is-empty:hover {
-  border-color: rgba(90, 200, 170, 0.12);
-  color: var(--text-dim);
 }
 
 .hotbar__icon {

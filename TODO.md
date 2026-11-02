@@ -23,9 +23,8 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ### Etapa 3 — kořist
 
-- [ ] Přidat předměty z kořisti (maso, krunýř) do katalogu předmětů.
-- [ ] U tvora určit, co po něm zůstane (tabulka kořisti podle druhu a stáří).
-- [ ] Po zabití přidat kořist do batohu a zapsat ji do logu; rozhodnout, jestli padá na zem.
+- [ ] Doladit množství kořisti podle stáří tvora a rozhodnout, jestli má část padat na zem.
+- [ ] Zkontrolovat vzhled mrtvého těla v dev serveru (bok, nebo hřbet).
 
 ### Etapa 4 — doladění boje
 
@@ -41,5 +40,5 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ## Výroba a svět
 
 - [ ] Rozhodnout, jestli recepty zůstanou jen jako přehled, nebo dostanou tlačítko pro výrobu.
-- [ ] Dořešit výrobu ve strojích a plnění batohu.
+- [ ] Navrhnout nový systém stavění (starý byl odstraněn).
 - [ ] Rozhodnout o suchých jamách pod vodní hladinou a šířce plynulého okraje pláže.

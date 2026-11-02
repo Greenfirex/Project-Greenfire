@@ -1,4 +1,4 @@
-// Načítání a cache 3D modelů (Kenney GLB).
+// Načítání a cache 3D modelů (GLB).
 // Každý model se stáhne jednou, do scény se vkládá jeho klon. Selhání modelu
 // i chybějící atlasová textura se hlásí do konzole s cestou k souboru.
 import '@babylonjs/core/Meshes/mesh';

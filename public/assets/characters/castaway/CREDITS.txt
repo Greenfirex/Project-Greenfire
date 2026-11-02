@@ -1,5 +1,5 @@
 Castaway — hráčská postava
 
-Model „Rugged Survivor“ byl vygenerovaný v Meshy AI a upravený pro tento projekt.
-Zdroj: Meshy AI, model „Rugged Survivor“ s animacemi.
+Model „CASTAWAY“ byl vygenerovaný v Meshy AI a upravený pro tento projekt.
+Zdroj: Meshy AI, model „CASTAWAY“ s animacemi (soubor Meshy_AI_CASTAWAY_All_Animations (2).glb).
 Licence a podmínky použití: podle licence účtu Meshy, na kterém byl model vytvořen.

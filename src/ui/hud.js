@@ -11,12 +11,6 @@ export default class Hud {
     this.loadBtn = null;
     this.helpOpen = false;
     this.helpEl = null;
-    this.statusEl = null;
-    this.machineEl = null;
-    this.countEl = null;
-    this.cellEl = null;
-    this.underEl = null;
-    this.reasonEl = null;
     this.clockEl = null;
     this.clockTimeEl = null;
     this.clockPhaseEl = null;
@@ -24,7 +18,6 @@ export default class Hud {
     this.speedBtns = new Map();
     this.onSave = null;
     this.onLoad = null;
-    this.onToggleMachine = null;
     this.onSpeed = null;
   }
 
@@ -56,12 +49,7 @@ export default class Hud {
       <h2>Ovládání</h2>
       <div class="hud-row"><span>Rotace kamery</span><strong>tažení myší</strong></div>
       <div class="hud-row"><span>Zoom</span><strong>kolečko</strong></div>
-      <div class="hud-row"><span>Nástroj v ruce</span><span class="hud-key">1</span>–<span class="hud-key">5</span></div>
-      <div class="hud-row"><span>Postavit</span><strong>klik na zem s plánem</strong></div>
-      <div class="hud-row"><span>Dosah stavby</span><strong>2 buňky</strong></div>
-      <div class="hud-row"><span>Změna stroje</span><span class="hud-key">M</span></div>
-      <div class="hud-row"><span>Otočit stroj</span><span class="hud-key">R</span></div>
-      <div class="hud-row"><span>Bourat</span><strong>pravé tlačítko ×2</strong></div>
+      <div class="hud-row"><span>Nástroj v ruce</span><span class="hud-key">1</span>–<span class="hud-key">3</span></div>
       <div class="hud-row"><span>Zapálit táborák</span><span class="hud-key">E</span></div>
       <div class="hud-row"><span>Mřížka</span><span class="hud-key">G</span></div>
       <div class="hud-row"><span>Přesunout den</span><span class="hud-key">N</span></div>
@@ -73,32 +61,8 @@ export default class Hud {
       <div class="hud-row"><span>Batoh / postava</span><span class="hud-key">I</span> <span class="hud-key">C</span></div>
       <div class="hud-row"><span>Pauza / pokračovat</span><span class="hud-key">P</span></div>
       <div class="hud-row"><span>Skrýt nápovědu</span><span class="hud-key">F1</span></div>
-      <div class="hud-hint">Stavět a bourat lze jen s plánem v ruce. Bourání je dvoukrokové: první pravé tlačítko stroj označí, druhé ho zbourá.</div>
     `;
     this.layer.appendChild(this.helpEl);
-
-    this.statusEl = document.createElement('div');
-    this.statusEl.className = 'hud-panel';
-    this.statusEl.id = 'hud-status';
-    this.statusEl.innerHTML = `
-      <h2>Stavba</h2>
-      <div class="hud-row"><span>Stroj</span><strong id="hud-machine">—</strong></div>
-      <div class="hud-row"><span>Postaveno</span><strong id="hud-count">0</strong></div>
-      <div class="hud-row"><span>Buňka</span><strong id="hud-cell">—</strong></div>
-      <div class="hud-row"><span>Výška</span><strong id="hud-height">—</strong></div>
-      <div class="hud-row"><span>Pod kurzorem</span><strong id="hud-under">—</strong></div>
-      <div class="hud-row"><span>Důvod</span><strong id="hud-reason">—</strong></div>
-      <div class="hud-hint" id="hud-savehint">Uložení: žádné</div>
-    `;
-    this.layer.appendChild(this.statusEl);
-
-    this.machineEl = this.statusEl.querySelector('#hud-machine');
-    this.countEl = this.statusEl.querySelector('#hud-count');
-    this.cellEl = this.statusEl.querySelector('#hud-cell');
-    this.heightEl = this.statusEl.querySelector('#hud-height');
-    this.underEl = this.statusEl.querySelector('#hud-under');
-    this.reasonEl = this.statusEl.querySelector('#hud-reason');
-    this.saveHintEl = this.statusEl.querySelector('#hud-savehint');
 
     this.clockEl = document.createElement('div');
     this.clockEl.className = 'hud-panel';
@@ -133,10 +97,6 @@ export default class Hud {
     this.clockFlashTimer = 0;
   }
 
-  setMachine(name) {
-    if (this.machineEl) this.machineEl.textContent = name;
-  }
-
   createBarButton(label, title, slot, onClick) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -156,49 +116,6 @@ export default class Hud {
     this.helpOpen = Boolean(open);
     if (this.helpEl) this.helpEl.classList.toggle('is-open', this.helpOpen);
     if (this.helpToggle) this.helpToggle.classList.toggle('is-open', this.helpOpen);
-  }
-
-  setCount(count) {
-    if (this.countEl) this.countEl.textContent = String(count);
-  }
-
-  setCell(cx, cz, valid) {
-    if (!this.cellEl) return;
-    if (cx === null) {
-      this.cellEl.textContent = '—';
-      return;
-    }
-    const mark = valid ? '' : ' ✕';
-    this.cellEl.textContent = `${cx}, ${cz}${mark}`;
-  }
-
-  setHeight(metres) {
-    if (!this.heightEl) return;
-    if (metres === null || metres === undefined) {
-      this.heightEl.textContent = '—';
-      return;
-    }
-    this.heightEl.textContent = `${metres.toFixed(1)} m`;
-  }
-
-  setCellOccupied(text) {
-    if (this.underEl) this.underEl.textContent = text || '—';
-  }
-
-  setBuildReason(text) {
-    if (this.reasonEl) this.reasonEl.textContent = text || '—';
-  }
-
-  setSaveHint(text) {
-    if (this.saveHintEl) this.saveHintEl.textContent = text;
-  }
-
-  setStatusVisible(visible) {
-    if (this.statusEl) this.statusEl.classList.toggle('is-open', visible);
-  }
-
-  isStatusOpen() {
-    return Boolean(this.statusEl && this.statusEl.classList.contains('is-open'));
   }
 
   setClockText(text) {

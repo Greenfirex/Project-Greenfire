@@ -1,7 +1,6 @@
-// Seznam modelů nutných ke startu hry — postava, animace, nástroj, stroje a tvorové.
+// Seznam modelů nutných ke startu hry — postava, animace, nástroj a tvorové.
 // Dekorace mapy se načítají on-demand při stavbě světa (viz loadStageModels).
 import { ASSET_DIRS } from './assetPaths.js';
-import { MACHINE_TYPES } from './machines.js';
 import { TOOL_TYPES } from './items.js';
 import { CREATURE_TYPES } from './creatures/index.js';
 
@@ -27,36 +26,71 @@ export const PLAYER_HAND_BONES = [
   'hand.r',
 ];
 
+export const PLAYER_ANIM_LIBRARY = {
+  walking: 'Walking',
+  running: 'Running',
+  attack: 'Attack',
+  boxingPunch: 'Boxing_Guard_Prep_Straight_Punch',
+  chargedSlash: 'Charged_Slash',
+  collectObject: 'Collect_Object',
+  combatStance: 'Combat_Stance',
+  facePunch: 'Face_Punch_Reaction',
+  crouchPickup: 'Female_Crouch_Pick_Up_Place_Side',
+  hammerSwing: 'Heavy_Hammer_Swing',
+  idle11: 'Idle_11',
+  leftSlash: 'Left_Slash',
+  swordSlash: 'Right_Hand_Sword_Slash',
+  shotInBack: 'Shot_in_the_Back_and_Fall',
+  kick: 'Boxing_Guard_Right_Straight_Kick',
+  standUp1: 'Stand_Up1',
+  drink: 'Stand_and_Drink',
+  dyingBackwards: 'dying_backwards',
+};
+
 export const PLAYER_ANIM_NAMES = {
-  idle: 'Idle_11',
-  walk: 'Walking',
-  run: 'Running',
+  idle: PLAYER_ANIM_LIBRARY.idle11,
+  walk: PLAYER_ANIM_LIBRARY.walking,
+  run: PLAYER_ANIM_LIBRARY.running,
   jump: null,
-  chop: 'Right_Hand_Sword_Slash',
-  mine: 'Heavy_Hammer_Swing',
-  chopBare: 'Right_Hand_Sword_Slash',
-  holdTool: 'Idle_11',
-  ignite: 'Male_Bend_Over_Pick_Up',
-  pickup: 'Male_Bend_Over_Pick_Up',
-  getUp: 'Stand_Up1',
+  chop: PLAYER_ANIM_LIBRARY.swordSlash,
+  mine: PLAYER_ANIM_LIBRARY.hammerSwing,
+  punch: PLAYER_ANIM_LIBRARY.boxingPunch,
+  kick: PLAYER_ANIM_LIBRARY.kick,
+  holdTool: PLAYER_ANIM_LIBRARY.idle11,
+  ignite: PLAYER_ANIM_LIBRARY.collectObject,
+  pickup: PLAYER_ANIM_LIBRARY.collectObject,
+  crouchPickup: PLAYER_ANIM_LIBRARY.crouchPickup,
+  combatStance: PLAYER_ANIM_LIBRARY.combatStance,
+  getUp: PLAYER_ANIM_LIBRARY.standUp1,
 };
 
 export const PLAYER_ANIM_SPEEDS = {
   chop: 1.35,
   mine: 1.1,
-  chopBare: 1.35,
+  punch: 1.8,
+  kick: 1.4,
   ignite: 2.5,
   pickup: 3.0,
+  crouchPickup: 2.5,
   getUp: 1,
 };
 
+export const PLAYER_ANIM_RANGES = {
+  punch: { start: 1.1, end: 2.7 },
+  crouchPickup: { start: 0.0, end: 5.6 },
+};
+
+export const PLAYER_ANIM_ROOTLESS = ['punch'];
+
 export const PLAYER_ANIM_FALLBACKS = {
-  chop: ['chop', 'mine', 'chopBare'],
-  mine: ['mine', 'chop', 'chopBare'],
-  chopBare: ['chopBare', 'chop', 'mine'],
+  chop: ['chop', 'mine', 'punch', 'kick'],
+  mine: ['mine', 'chop', 'punch', 'kick'],
+  punch: ['punch', 'kick', 'chop'],
+  kick: ['kick', 'punch', 'chop'],
   holdTool: ['holdTool', 'idle'],
-  ignite: ['ignite', 'chopBare', 'chop', 'idle'],
-  pickup: ['pickup', 'ignite', 'chopBare', 'idle'],
+  ignite: ['ignite', 'pickup', 'punch', 'idle'],
+  pickup: ['pickup', 'ignite', 'punch', 'idle'],
+  crouchPickup: ['crouchPickup', 'pickup', 'idle'],
   getUp: ['getUp'],
 };
 
@@ -72,9 +106,6 @@ export function toolModelUrl(tool) {
 
 export function collectStartupUrls(heldTool = null) {
   const urls = new Set();
-  for (const def of Object.values(MACHINE_TYPES)) {
-    if (def.model) urls.add(def.model);
-  }
   const tool = heldTool ? TOOL_TYPES[heldTool] : null;
   if (tool && tool.model) urls.add(toolModelUrl(tool));
   for (const url of CREATURE_MODEL_URLS) urls.add(url);

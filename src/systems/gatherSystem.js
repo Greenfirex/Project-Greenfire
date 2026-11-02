@@ -2,12 +2,11 @@
 // Drzi jen stav vycerpavani a nakloneni modelu; modely dodava dekorace, hrace predava scena.
 const REACH = 2.6;
 const BARE_COOLDOWN = 0.62;
-const BARE_KINDS = ['tree', 'log'];
+const BARE_KINDS = ['tree'];
 const BARE_SOUND = 'bare';
 const PICKUP_SOUND = 'pickup';
 const BARE_YIELDS = { wood: 1 };
-const SWAY_KINDS = ['tree', 'log'];
-const ORE_HITS = 10;
+const SWAY_KINDS = ['tree'];
 const FALLBACK_DURATION = 0.5;
 const IMPACT_SHARE = 0.62;
 const SWAY_AMPLITUDE = 0.055;
@@ -43,7 +42,6 @@ export default class GatherSystem {
   }
 
   totalFor(def) {
-    if (def.kind === 'ore') return ORE_HITS;
     return Object.values(def.gather).reduce((sum, n) => sum + n, 0);
   }
 
@@ -190,11 +188,6 @@ export default class GatherSystem {
     return true;
   }
 
-  explicitTotal(item) {
-    const sum = Object.values(item.def.gather).reduce((acc, n) => acc + n, 0);
-    return sum > 0 ? sum : item.total;
-  }
-
   startSwing(item) {
     if (!item) return 0;
     this.pending = { item };
@@ -251,12 +244,7 @@ export default class GatherSystem {
     const yields = withTool || source.def.byHand ? source.def.gather : BARE_YIELDS;
     return Object.entries(yields)
       .filter(([key, amount]) => typeof key === 'string' && Number.isFinite(amount) && amount > 0)
-      .map(([itemKey, amount]) => ({ itemKey, amount: withTool ? this.toolYieldAmount(source, amount) : 1 }));
-  }
-
-  toolYieldAmount(source, amount) {
-    if (source.def.kind !== 'ore') return amount;
-    return this.explicitTotal(source);
+      .map(([itemKey, amount]) => ({ itemKey, amount: withTool ? amount : 1 }));
   }
 
 

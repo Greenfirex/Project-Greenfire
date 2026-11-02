@@ -2,17 +2,15 @@
 // objektů v katalogu dekorací, takže nová kategorie se objeví sama.
 import { getDecoration } from './decorations.js';
 
-const KIND_ORDER = ['floor', 'path', 'ground', 'tree', 'log', 'prop', 'rock', 'ore'];
+const KIND_ORDER = ['floor', 'path', 'ground', 'tree', 'prop', 'rock'];
 
 const KIND_LABELS = {
   floor: 'Rovnám podlahu, ať si nezvrtneš kotník',
   path: 'Ušlapávám cestičky',
   tree: 'Sázím stromy, jen ať mi neutečou',
-  log: 'Kutálím kmeny',
   ground: 'Rozhazuji kvítí a keře',
   prop: 'Stavím tábor, táta kuchtí',
   rock: 'Kulím balvany',
-  ore: 'Zakopávám rudu, ať ji najdeš jen ty',
 };
 
 const KIND_GROUP = { campfire: 'prop' };

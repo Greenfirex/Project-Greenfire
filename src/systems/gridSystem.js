@@ -1,9 +1,8 @@
-// Mřížka světa — zvýraznění cílové buňky, náhled stavěného stroje a označení k bourání.
+// Mřížka světa — náhled dekorací a zvýraznění buněk v editoru mapy.
 // Podlahu a linky buněk kreslí terrainSystem; tenhle systém řeší jen kurzor.
 import '@babylonjs/core/Meshes/Builders/groundBuilder';
 import '@babylonjs/core/Meshes/Builders/linesBuilder';
 import '@babylonjs/core/Meshes/Builders/discBuilder';
-import '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
@@ -11,7 +10,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CELL_SIZE } from '../utils/gridMath.js';
-import { loadModel, instantiateModel } from '../utils/assetLoader.js';
+import { instantiateModel } from '../utils/assetLoader.js';
 import { decorationTemplate } from '../utils/decoTemplate.js';
 
 const HOLOGRAM_ALPHA = 0.45;
@@ -29,10 +28,6 @@ export default class GridSystem {
 
   constructor(scene) {
     this.s = scene;
-    this.highlight = null;
-    this.highlightEdge = null;
-    this.highlightMaterial = null;
-    this.mark = null;
     this.brushMaster = null;
     this.brushMaterial = null;
     this.brushInstances = [];
@@ -57,90 +52,6 @@ export default class GridSystem {
     this.hologramOwnMaterials = [];
     this.hologramToken = 0;
     this.hologramValid = true;
-    this.onHologramReady = null;
-  }
-
-  create() {
-    this.highlight = MeshBuilder.CreateGround('cellHighlight', {
-      width: CELL_SIZE * 0.96,
-      height: CELL_SIZE * 0.96,
-    }, this.s);
-    this.highlightMaterial = new StandardMaterial('cellHighlightMat', this.s);
-    this.highlightMaterial.diffuseColor = new Color3(0.35, 0.95, 0.8);
-    this.highlightMaterial.emissiveColor = new Color3(0.3, 0.78, 0.65);
-    this.highlightMaterial.alpha = 0.3;
-    this.highlight.material = this.highlightMaterial;
-    this.highlight.position = new Vector3(0, 0.02, 0);
-    this.highlight.isPickable = false;
-    this.highlight.setEnabled(false);
-
-    this.highlightEdge = MeshBuilder.CreateLines('cellHighlightEdge', {
-      points: [
-        new Vector3(-CELL_SIZE / 2, 0, -CELL_SIZE / 2),
-        new Vector3(CELL_SIZE / 2, 0, -CELL_SIZE / 2),
-        new Vector3(CELL_SIZE / 2, 0, CELL_SIZE / 2),
-        new Vector3(-CELL_SIZE / 2, 0, CELL_SIZE / 2),
-        new Vector3(-CELL_SIZE / 2, 0, -CELL_SIZE / 2),
-      ],
-    }, this.s);
-    this.highlightEdge.color = new Color3(0.75, 1, 0.92);
-    this.highlightEdge.alpha = 0.95;
-    this.highlightEdge.position = new Vector3(0, 0.03, 0);
-    this.highlightEdge.isPickable = false;
-    this.highlightEdge.setEnabled(false);
-
-    this.mark = MeshBuilder.CreateGround('cellMark', {
-      width: CELL_SIZE * 0.96,
-      height: CELL_SIZE * 0.96,
-    }, this.s);
-    const markMat = new StandardMaterial('cellMarkMat', this.s);
-    markMat.diffuseColor = new Color3(0.85, 0.22, 0.18);
-    markMat.emissiveColor = new Color3(0.6, 0.12, 0.1);
-    markMat.alpha = 0.45;
-    this.mark.material = markMat;
-    this.mark.position = new Vector3(0, 0.03, 0);
-    this.mark.isPickable = false;
-    this.mark.setEnabled(false);
-
-    return this.highlight;
-  }
-
-  setHighlight(cx, cz, topY = 0) {
-    const x = cx * CELL_SIZE;
-    const z = cz * CELL_SIZE;
-    this.highlight.position = new Vector3(x, topY + 0.02, z);
-    this.highlight.setEnabled(true);
-    this.highlightEdge.position = new Vector3(x, topY + 0.05, z);
-    this.highlightEdge.setEnabled(true);
-  }
-
-  hideHighlight() {
-    this.highlight.setEnabled(false);
-    this.highlightEdge.setEnabled(false);
-  }
-
-  setHighlightValid(isValid) {
-    this.hologramValid = isValid;
-    if (isValid) {
-      this.highlightMaterial.diffuseColor = new Color3(0.35, 0.95, 0.8);
-      this.highlightMaterial.emissiveColor = new Color3(0.3, 0.78, 0.65);
-      this.highlightEdge.color = new Color3(0.75, 1, 0.92);
-    } else {
-      this.highlightMaterial.diffuseColor = new Color3(0.95, 0.38, 0.32);
-      this.highlightMaterial.emissiveColor = new Color3(0.72, 0.24, 0.2);
-      this.highlightEdge.color = new Color3(1, 0.7, 0.62);
-    }
-    this.tintHologram(isValid);
-  }
-
-  showHologram(machineKey, def, cx, cz, topY, rotation, valid) {
-    if (this.hologramKey !== machineKey) this.requestHologram(machineKey, def);
-    this.placeHologram(cx * CELL_SIZE, topY, cz * CELL_SIZE, (Math.PI / 2) * rotation);
-    this.tintHologram(valid);
-  }
-
-  requestHologram(machineKey, def) {
-    this.buildHologram(machineKey, () => loadModel(this.s, def.model), null);
   }
 
   showDecorPreview(def, items, cx, cz, topY, rotation = 0) {
@@ -214,7 +125,6 @@ export default class GridSystem {
       this.hologramNodes = [node];
       this.arrangeHologram();
       this.tintHologram(this.hologramValid);
-      if (typeof this.onHologramReady === 'function') this.onHologramReady(key);
     });
   }
 
@@ -545,14 +455,5 @@ export default class GridSystem {
       mesh.dispose();
     }
     this.heightBands = [];
-  }
-
-  setMark(cx, cz) {
-    this.mark.position = new Vector3(cx * CELL_SIZE, 0.03, cz * CELL_SIZE);
-    this.mark.setEnabled(true);
-  }
-
-  clearMark() {
-    this.mark.setEnabled(false);
   }
 }
