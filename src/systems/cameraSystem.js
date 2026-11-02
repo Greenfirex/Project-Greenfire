@@ -8,6 +8,9 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 const ISO_ALPHA = -Math.PI / 4;
 const ISO_BETA = Math.PI / 3.4;
 const ZOOM_MIN = 8;
+const ORTHO_RADIUS_FACTOR = 2.2;
+const DEPTH_MARGIN_BASE = 10;
+const DEPTH_MARGIN_ZOOM = 0.4;
 export const ZOOM_MAX = 60;
 
 export default class CameraSystem {
@@ -29,7 +32,7 @@ export default class CameraSystem {
       'isoCamera',
       ISO_ALPHA,
       ISO_BETA,
-      this.zoom * 2.2,
+      this.zoom * ORTHO_RADIUS_FACTOR,
       this.target,
       this.s
     );
@@ -55,8 +58,18 @@ export default class CameraSystem {
 
   setZoom(zoom) {
     this.zoom = Math.min(this.maxZoom, Math.max(ZOOM_MIN, zoom));
-    this.camera.radius = this.zoom * 2.2;
+    this.camera.radius = this.zoom * ORTHO_RADIUS_FACTOR;
     this.applyOrtho();
+  }
+
+  viewDepthRange() {
+    const radius = this.zoom * ORTHO_RADIUS_FACTOR;
+    const spread = (this.zoom / 2) / Math.cos(ISO_BETA);
+    const margin = DEPTH_MARGIN_BASE + this.zoom * DEPTH_MARGIN_ZOOM;
+    return {
+      near: Math.max(1, radius - spread - margin),
+      far: radius + spread + margin,
+    };
   }
 
   setMaxZoom(maxZoom) {

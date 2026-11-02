@@ -49,6 +49,7 @@ import Hud from '../ui/hud.js';
 import GameCursor from '../ui/gameCursor.js';
 import Hotbar from '../ui/hotbar.js';
 import HealthBar from '../ui/healthBar.js';
+import CreatureHealthBar from '../ui/creatureHealthBar.js';
 import DockButton from '../ui/dockButton.js';
 import MapEditor from '../editor/mapEditor.js';
 import EditorToggle from '../editor/editorToggle.js';
@@ -101,6 +102,7 @@ const IMPACT_DELAY = 0.28;
 const PLAYER_FLOAT_HEIGHT = 2.2;
 const PLAYER_ZOOM_MAX = 22;
 const CREATURE_SOUND_RANGE = 22;
+const CREATURE_BAR_LIFT = 0.4;
 const SHADOW_FRUSTUM = 70;
 const SHADOW_MIN_Z = 1;
 const SHADOW_MAX_Z = 180;
@@ -190,6 +192,7 @@ export default class GameScene {
     this.inventoryWindow = new InventoryWindow();
     this.characterWindow = new CharacterWindow();
     this.healthBar = new HealthBar();
+    this.creatureHealthBar = new CreatureHealthBar();
     this.floatingNumbers = new FloatingNumbers();
     this.walkStepLimit = STEP_LIMIT;
     this.editor = new MapEditor(this);
@@ -315,6 +318,7 @@ export default class GameScene {
         this.shadowClock = 0;
         this.refreshShadowReach();
       }
+      this.refreshCreatureHealthBars();
       if (this.paused) {
         if (this.editor.active) {
           this.updateEditorCamera(dt);
@@ -1019,6 +1023,36 @@ updateGatherTarget() {
     return { x: projected.x, y: projected.y };
   }
 
+  refreshCreatureHealthBars() {
+    if (!this.loaded || this.paused || this.editor.active) {
+      this.creatureHealthBar.update([]);
+      return;
+    }
+    const canvas = this.engine.getRenderingCanvas();
+    const rect = canvas ? canvas.getBoundingClientRect() : null;
+    if (!rect || !rect.width || !rect.height) {
+      this.creatureHealthBar.update([]);
+      return;
+    }
+    const items = [];
+    for (const creature of this.creatureSystem.creatures) {
+      if (!creature || !creature.slotKey || !Number.isFinite(creature.health)) continue;
+      const total = creature.tier && Number.isFinite(creature.tier.health) ? creature.tier.health : 0;
+      if (total <= 0) continue;
+      const ratio = creature.health / total;
+      const combat = creature.mode === 'alert' || creature.mode === 'chase'
+        || creature.mode === 'windup' || creature.mode === 'recover';
+      const hovered = this.creatureSystem.hovered === creature;
+      if (ratio >= 0.999 && !combat && !hovered) continue;
+      const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ);
+      const point = this.screenPointOf(creature.renderX, ground + creature.markHeight + CREATURE_BAR_LIFT, creature.renderZ);
+      if (!point) continue;
+      if (point.x < 0 || point.y < 0 || point.x > rect.width || point.y > rect.height) continue;
+      items.push({ key: creature.slotKey, x: point.x, y: point.y, ratio });
+    }
+    this.creatureHealthBar.update(items);
+  }
+
   hurtPlayer(amount, label) {
     if (!this.loaded || this.paused) return false;
     if (!this.playerStats.hurt(amount)) return false;
@@ -1557,6 +1591,7 @@ updateGatherTarget() {
     this.shadowGenerator.bias = 0.00005;
     this.shadowGenerator.normalBias = 0.002;
     this.shadowGenerator.getShadowMap().clearColor = new Color4(1, 1, 1, 1);
+    this.refreshShadowDepth();
 
     this.setupFog(map);
 
@@ -1742,6 +1777,7 @@ updateGatherTarget() {
     this.bagButton.mount();
     this.characterButton.mount();
     this.healthBar.set(this.playerStats.health, this.playerStats.maxHealth);
+    this.creatureHealthBar.mount();
     this.log.mount();
     this.inventoryWindow.update(this.inventorySystem);
     this.refreshClock();
@@ -1840,6 +1876,7 @@ updateGatherTarget() {
     this.inputSystem.onZoom = (delta) => {
       this.cameraSystem.zoomBy(delta);
       this.cameraSystem.applyOrtho();
+      this.refreshShadowDepth();
     };
   }
 
@@ -1917,6 +1954,24 @@ updateGatherTarget() {
 
   syncZoomLimit() {
     this.cameraSystem.setMaxZoom(this.editor.active ? EDITOR_ZOOM_MAX : PLAYER_ZOOM_MAX);
+    this.refreshShadowDepth();
+  }
+
+  refreshShadowDepth() {
+    if (!this.shadowGenerator || !this.camera) return;
+    const range = this.cameraSystem.viewDepthRange();
+    if (this.shadowGenerator instanceof CascadedShadowGenerator) {
+      const span = this.camera.maxZ - this.camera.minZ;
+      this.shadowGenerator.shadowMaxZ = range.far;
+      if (span > 0) {
+        this.shadowGenerator.setMinMaxDistance(
+          (range.near - this.camera.minZ) / span,
+          (range.far - this.camera.minZ) / span,
+        );
+      }
+    }
+    const soft = this.cameraSystem.zoom > PLAYER_ZOOM_MAX;
+    this.shadowGenerator.filteringQuality = soft ? ShadowGenerator.QUALITY_HIGH : ShadowGenerator.QUALITY_MEDIUM;
   }
 
   holdGameForEditor() {

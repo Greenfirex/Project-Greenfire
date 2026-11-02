@@ -1238,4 +1238,41 @@ body.has-custom-cursor * {
   pointer-events: none;
 }
 
+.hud-creature-health {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 64px;
+  height: 7px;
+  padding: 1px;
+  box-sizing: border-box;
+  background: rgba(8, 12, 10, 0.72);
+  border: 1px solid rgba(160, 220, 190, 0.28);
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  z-index: 21;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.hud-creature-health__fill {
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--glow-accent);
+  transition: width 140ms linear, background 160ms ease;
+}
+
+.hud-creature-health.is-hurt .hud-creature-health__fill {
+  background: #e0a43c;
+}
+
+.hud-creature-health.is-low .hud-creature-health__fill {
+  background: #d8534a;
+}
+
+#hud-layer > .hud-creature-health {
+  pointer-events: none;
+}
+
 
