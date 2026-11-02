@@ -763,7 +763,7 @@ export default class PlayerSystem {
       const planted = height <= threshold;
       if (!this.footInitialized) this.footContact[side] = planted;
       else if (this.footContact[side] && !planted && span > 0.04) {
-        this.onFootPlant(foot.x, foot.z, this.facing, side);
+        this.onFootPlant(foot.x, foot.z, this.facing, side, sprint);
         emitted = true;
         this.footFallbackTimer = 0;
       }
@@ -773,7 +773,7 @@ export default class PlayerSystem {
       this.stepSide = -this.stepSide;
       const side = this.stepSide > 0 ? 'left' : 'right';
       const foot = this.footPosition(side);
-      this.onFootPlant(foot ? foot.x : this.root.position.x, foot ? foot.z : this.root.position.z, this.facing, side);
+      this.onFootPlant(foot ? foot.x : this.root.position.x, foot ? foot.z : this.root.position.z, this.facing, side, sprint);
       this.footFallbackTimer = 0;
     }
     this.footInitialized = true;

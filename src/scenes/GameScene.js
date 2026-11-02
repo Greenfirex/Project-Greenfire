@@ -220,7 +220,7 @@ export default class GameScene {
     this.heldItemSystem = new HeldItemSystem();
     this.heldItemSystem.onChange = () => this.onHeldItemChange();
     this.playerSystem.onStep = (x, z, sprint) => this.onPlayerStep(x, z, sprint);
-    this.playerSystem.onFootPlant = (x, z, facing, side) => this.spawnFootprint(x, z, facing, 1, 'human');
+    this.playerSystem.onFootPlant = (x, z, facing, side, sprint) => this.footfall(x, z, facing, 1, 'human', sprint ? 1.25 : 1);
     this.playerSystem.lookAt = () => this.playerLookPoint();
     this.creatureSystem.onStep = (creature, side) => this.onCreatureStep(creature, side);
     this.playerStats.onChange = (health, maxHealth) => this.healthBar.set(health, maxHealth);
@@ -655,7 +655,6 @@ updateGatherTarget() {
   onPlayerStep(x, z, sprint) {
     const onBridge = this.terrainSystem && this.terrainSystem.bridgeDeckAt(x, z) !== null;
     const inWater = !onBridge && this.waterDepthNowAt(x, z) > WATER_STEP_DEPTH;
-    if (inWater) this.waterSystem.splash(x, z, sprint ? 1.2 : 1);
     const key = this.decoSystem.surfaceKeyAt(worldToCell(x), worldToCell(z)) || '';
     this.audioSystem.play(inWater ? 'stepWater' : surfaceStepSound(key), { gain: sprint ? 1.35 : 1 });
   }
@@ -680,7 +679,7 @@ updateGatherTarget() {
         const forward = (Number(foot.forward) || 0) * tierScale;
         const x = creature.x + Math.cos(angle) * lateral + Math.sin(angle) * forward;
         const z = creature.z - Math.sin(angle) * lateral + Math.cos(angle) * forward;
-        this.spawnFootprint(x, z, angle, scale, kind);
+        this.footfall(x, z, angle, scale, kind, 0.45 + scale);
       }
       return;
     }
@@ -688,7 +687,19 @@ updateGatherTarget() {
     const direction = side >= 0 ? 1 : -1;
     const x = creature.x + Math.cos(angle + Math.PI / 2) * offset * tierScale * direction;
     const z = creature.z + Math.sin(angle + Math.PI / 2) * offset * tierScale * direction;
+    this.footfall(x, z, angle, scale, kind, 0.45 + scale);
+  }
+
+  footfall(x, z, angle, scale, kind, strength = 1) {
+    this.stepSplash(x, z, strength);
     this.spawnFootprint(x, z, angle, scale, kind);
+  }
+
+  stepSplash(x, z, strength) {
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return;
+    if (this.terrainSystem && this.terrainSystem.bridgeDeckAt(x, z) !== null) return;
+    if (this.waterDepthNowAt(x, z) <= WATER_STEP_DEPTH) return;
+    this.waterSystem.splash(x, z, strength);
   }
 
   spawnFootprint(x, z, angle, scale, kind = 'human') {

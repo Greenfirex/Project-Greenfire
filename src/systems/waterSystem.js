@@ -160,7 +160,7 @@ function harmonicPotential(land, width, height) {
   return out;
 }
 
-const RIPPLE_COUNT = 8;
+const RIPPLE_COUNT = 12;
 const RIPPLE_SECONDS = 0.7;
 const RIPPLE_GROW = 0.9;
 const RIPPLE_SEGMENTS = 24;
@@ -342,8 +342,9 @@ export default class WaterSystem {
     let ripple = pool.find((item) => item.life <= 0);
     if (!ripple) ripple = pool.reduce((a, b) => (a.time / a.life > b.time / b.life ? a : b));
     ripple.time = 0;
-    ripple.life = RIPPLE_SECONDS;
-    const scale = (0.18 + Math.min(depth, 0.6) * 0.35) * strength;
+    const jitter = 0.9 + Math.random() * 0.2;
+    ripple.life = RIPPLE_SECONDS * jitter;
+    const scale = (0.18 + Math.min(depth, 0.6) * 0.35) * strength * jitter;
     ripple.mesh.position.set(x, this.surfaceHeightAt(x, z) + 0.015, z);
     ripple.mesh.scaling.set(scale, 1, scale);
     ripple.mesh.setEnabled(true);

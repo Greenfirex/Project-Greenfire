@@ -542,9 +542,8 @@ export default class TerrainSystem {
           const cx = Math.floor((x + half) / CELL_SIZE);
           const cz = Math.floor((z + half) / CELL_SIZE);
           if (field.isSharp(cx, cz)) continue;
-          if (againstWall(cx, cz)) continue;
           if (keyAt(cx, cz) === partner) {
-            data[j * width + i] = 255;
+            data[j * width + i] = isDry(cx, cz) && againstWall(cx, cz) ? 0 : 255;
             continue;
           }
           let reach = 0;
