@@ -17,7 +17,6 @@ export default class HeightPanel {
     this.onCancel = null;
     this.onUndo = null;
     this.onPickLevel = null;
-    this.onToggleHeights = null;
     this.onBrushSize = null;
     this.onStepMode = null;
     this.onJitter = null;
@@ -27,7 +26,6 @@ export default class HeightPanel {
     this.jitter = 0;
     this.countValue = 0;
     this.undoEnabled = false;
-    this.showHeights = true;
     this.stagedEntries = [];
   }
 
@@ -48,10 +46,6 @@ export default class HeightPanel {
       </div>
       <div class="height-panel__scale-labels"><span>−6</span><span>0</span><span>+6</span></div>
       <div class="height-panel__presets"></div>
-      <label class="height-panel__toggle">
-        <input type="checkbox" checked>
-        <span>Výšky terénu</span>
-      </label>
       <div class="height-panel__staged is-hidden"></div>
       <div class="height-panel__step-label">Jemný krok</div>
       <div class="height-panel__steps">
@@ -97,13 +91,6 @@ export default class HeightPanel {
     this.staged = root.querySelector('.height-panel__staged');
     const colorBar = root.querySelector('.height-panel__scale');
     if (colorBar) colorBar.style.background = heightRampGradientCss();
-    const toggle = root.querySelector('.height-panel__toggle input');
-    if (toggle) {
-      toggle.addEventListener('change', () => {
-        this.showHeights = toggle.checked;
-        if (this.onToggleHeights) this.onToggleHeights(this.showHeights);
-      });
-    }
 
     for (const level of HEIGHT_PRESETS) {
       const btn = document.createElement('button');
@@ -274,11 +261,6 @@ export default class HeightPanel {
     this.countValue = options.count || 0;
     this.undoEnabled = Boolean(options.undoEnabled);
     this.stagedEntries = options.staged || [];
-    this.showHeights = options.showHeights === undefined ? true : Boolean(options.showHeights);
-    if (this.root) {
-      const toggle = this.root.querySelector('.height-panel__toggle input');
-      if (toggle) toggle.checked = this.showHeights;
-    }
     this.root.classList.add('is-open');
     this.refresh();
   }

@@ -47,7 +47,8 @@ chystá položit. Panel editoru hlásí stav: mimo plochu, neuložené změny, a
 
 Kreslí rostliny, objekty, cesty, pláž, útes, most a tvory. U štětců s více druhy
 se v panelu vybírá konkrétní druh; pod kurzorem se ukazuje průsvitný náhled
-přesně v té podobě, v jaké se položí.
+přesně v té podobě, v jaké se položí. Panel štětce se zavírá křížkem nebo
+tlačítkem Zrušit — tím se štětec odvybere a náhled pod kurzorem zmizí.
 
 Keře mají navíc hustotu, kolísání počtu a volbu střídání druhů podle polohy.
 Plocha je razítko: nové buňky vzniknou, existující se přepíšou i s objekty,
@@ -56,6 +57,24 @@ mazání udělá v mapě skutečnou díru.
 **Tvorové** se plní z katalogu tvorů. Každý tvor má vlastní tlačítko a v panelu
 se volí stáří. Na jedné buňce zůstane vždy jen jeden tvor; nový starý nahradí.
 V režimu Mazat se tvor odebere.
+
+Štětce jsou rozdělené podle toho, co do světa kladou: **Povrch**, **Terén**,
+**Rostliny**, **Objekty**, **Tvorové** a **Ostatní**. Na konci každé kategorie
+sedí její guma s červeným okrajem.
+
+### Gumy
+
+Guma maže podle druhu věci, takže se nemusí vybírat štětec, který ji původně
+položil. Tažením označíš buňky a Enterem smažeš:
+
+- **Guma: rostliny** — stromy, keře, houby, květiny i trávu,
+- **Guma: objekty** — kameny, dřevo, suť, mušle, korály a táborák,
+- **Guma: cesta** — jen vrstvu cesty,
+- **Guma: terén** — srovná zem na nulu, zruší označení útesu a smaže most,
+- **Guma: tvorové** — tvora nebo hejno ryb,
+- **Guma: všechno** — dekorace, trávu, cestu, tvora i rybu; dlaždici nechá.
+
+Kurzor má u gumy červenou barvu, aby bylo vidět, že se maže.
 
 **Start hráče** určí buňku, na které hráč začíná. Klikneš na jednu buňku a potvrdíš
 (Enter). Aktuální start je v editoru vidět jako žlutý čtvereček. Změna se projeví
@@ -78,6 +97,8 @@ tvory nedoplňuje sám.
 
 Režim Výška nejdřív kreslí návrh a po potvrzení mění dlaždice. Výšky jdou od
 **−6 do +24 m**, krok je **0,3 m**. Předvolby jsou −6, −3, 0, 3, 6, 9, 12, 18 a 24 m.
+Označená plocha se zvýrazní jen obrysem, aby zůstal vidět terén; cílovou výšku
+vidíš u kurzoru a v okénku.
 
 - **Kopec** a **Prohlubeň** si svah staví samy po 0,3 m až do nuly.
 - **Strmý svah** spadne o 0,6 m na řadu.

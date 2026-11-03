@@ -1,4 +1,4 @@
-// Koraly ze dna — tři tvary složené v kódu: vějíř, trs větviček a mozkový koral.
+// Koraly ze dna — jeden shluk se v kódu skládá z vějířů, trsů a mozkových korálů.
 // Šablona se staví jednou pro každý recept a do světa se vkládá jejím klonem.
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
@@ -28,9 +28,7 @@ export function coralTemplate(scene, key) {
 
 function buildCoralTemplate(scene, key, recipe) {
   const buffer = createBuffer();
-  if (recipe.shape === 'fan') fillFan(buffer, recipe);
-  else if (recipe.shape === 'brain') fillBrain(buffer, recipe);
-  else fillBranches(buffer, recipe);
+  fillClump(buffer, recipe);
   finishNormals(buffer);
   const root = new TransformNode(`tplCoral_${key}`, scene);
   const mesh = buildMesh(scene, `coral_${key}`, buffer, coralMaterial(scene, key));
@@ -187,6 +185,65 @@ function addTube(buffer, points, radii, sides, shade) {
   }
 }
 
+function fillClump(buffer, recipe) {
+  const rng = mulberry32(recipe.seed || 1);
+  const count = Math.max(2, Math.round(recipe.parts || 4));
+  const spread = recipe.spread === undefined ? 0.35 : recipe.spread;
+  for (let part = 0; part < count; part += 1) {
+    const piece = createBuffer();
+    const sub = partRecipe(recipe, rng);
+    if (sub.shape === 'fan') fillFan(piece, sub);
+    else if (sub.shape === 'brain') fillBrain(piece, sub);
+    else fillBranches(piece, sub);
+    const angle = rng() * Math.PI * 2;
+    const reach = spread * (0.25 + rng() * 0.75);
+    appendPiece(buffer, piece, {
+      x: Math.cos(angle) * reach,
+      z: Math.sin(angle) * reach,
+      y: 0,
+      yaw: rng() * Math.PI * 2,
+      scale: 0.45 + rng() * 0.35,
+    });
+  }
+}
+
+function partRecipe(recipe, rng) {
+  const shapes = Array.isArray(recipe.shapes) && recipe.shapes.length
+    ? recipe.shapes
+    : ['fan', 'branch', 'brain'];
+  const shape = shapes[Math.floor(rng() * shapes.length) % shapes.length];
+  const base = recipe.size ? recipe.size[0] : 0.5;
+  const size = base * (0.4 + rng() * 0.35);
+  return {
+    shape,
+    seed: 1 + Math.floor(rng() * 100000),
+    size: [size, size * (0.65 + rng() * 0.45), size * (0.65 + rng() * 0.45)],
+    branches: (shape === 'fan' ? 7 : 5) + Math.floor(rng() * 5),
+    radius: (recipe.radius || 0.03) * (0.7 + rng() * 0.7),
+    spread: 0.9 + rng() * 0.5,
+    lean: 0.4 + rng() * 0.4,
+    ribs: 7 + Math.floor(rng() * 4),
+    ridge: 0.08,
+    baseTint: recipe.baseTint,
+    tipTint: recipe.tipTint,
+  };
+}
+
+function appendPiece(buffer, piece, place) {
+  const cos = Math.cos(place.yaw);
+  const sin = Math.sin(place.yaw);
+  const lift = place.y || 0;
+  const offset = buffer.positions.length / 3;
+  for (let index = 0; index < piece.positions.length; index += 3) {
+    const px = piece.positions[index] * place.scale;
+    const py = piece.positions[index + 1] * place.scale;
+    const pz = piece.positions[index + 2] * place.scale;
+    buffer.positions.push(px * cos - pz * sin + place.x, py + lift, px * sin + pz * cos + place.z);
+  }
+  for (const value of piece.colors) buffer.colors.push(value);
+  for (const value of piece.uvs) buffer.uvs.push(value);
+  for (const value of piece.indices) buffer.indices.push(value + offset);
+}
 function finishNormals(buffer) {
   let normals = [];
   VertexData.ComputeNormals(buffer.positions, buffer.indices, normals);

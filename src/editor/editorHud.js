@@ -82,6 +82,7 @@ export default class EditorHud {
         btn.dataset.brush = key;
         btn.textContent = brush.label;
         btn.title = brush.note || brush.label;
+        if (brush.erase) btn.classList.add('is-eraser');
         btn.addEventListener('mouseenter', () => this.showNote(key));
         btn.addEventListener('mouseleave', () => this.showNote(this.state.brush));
         btn.addEventListener('click', () => {
@@ -158,11 +159,6 @@ export default class EditorHud {
 
   setBrush(key) {
     this.state.brush = key;
-    this.refresh();
-  }
-
-  clearBrushSelection() {
-    this.state.brush = null;
     this.refresh();
   }
 

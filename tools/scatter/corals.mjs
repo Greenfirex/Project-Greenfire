@@ -3,17 +3,12 @@
 import { cellKey } from '../../src/utils/gridMath.js';
 import {
   CORAL_KEYS, coralVariant, openMap, occupiedCells, deepCells, waterCellCount,
-  pickFarthest, replaceOwned, saveMap, roll, round, hash,
+  pickFarthest, replaceOwned, saveMap, hash,
 } from './base.mjs';
 
 const CORAL_DEPTH = 2;
 const WATER_PER_CLUSTER = 450;
 const CLUSTER_CELLS = 4;
-const PER_CELL_MIN = 8;
-const PER_CELL_MAX = 14;
-const SPREAD = 0.85;
-const SCALE_MIN = 0.45;
-const SCALE_MAX = 0.75;
 const MIN_CLUSTERS = 4;
 const MAX_CLUSTERS = 40;
 
@@ -52,22 +47,13 @@ for (const center of centers) {
 
 const added = [];
 for (const cell of coralCells) {
-  const amount = PER_CELL_MIN
-    + Math.floor(roll(cell.cx, cell.cz, 101) * (PER_CELL_MAX - PER_CELL_MIN + 1));
-  for (let index = 0; index < amount; index += 1) {
-    const seed = cell.cx * 131 + cell.cz * 17 + index * 7;
-    const entry = { key: coralVariant(seed), cx: cell.cx, cz: cell.cz, rotation: 0 };
-    if (cell.lift) entry.liftY = Math.round(cell.lift * 1000) / 1000;
-    const offsetX = round((hash(seed, index + 1) - 0.5) * SPREAD * 2);
-    const offsetZ = round((hash(seed + 5, index + 9) - 0.5) * SPREAD * 2);
-    if (offsetX) entry.offsetX = offsetX;
-    if (offsetZ) entry.offsetZ = offsetZ;
-    entry.scale = round(SCALE_MIN + hash(seed + 11, index + 3) * (SCALE_MAX - SCALE_MIN));
-    added.push(entry);
-  }
+  const seed = cell.cx * 131 + cell.cz * 17;
+  const entry = { key: coralVariant(seed), cx: cell.cx, cz: cell.cz, rotation: Math.floor(hash(seed, 3) * 4) };
+  if (cell.lift) entry.liftY = Math.round(cell.lift * 1000) / 1000;
+  added.push(entry);
 }
 
-console.log(`Dno: ${added.length} koralů ve ${centers.length} shlucích na ${coralCells.length} buňkách (z ${water} vodních buněk).`);
+console.log(`Dno: ${added.length} shluků korálů na ${coralCells.length} buňkách (z ${water} vodních buněk).`);
 
 replaceOwned(map, CORAL_KEYS, added);
 saveMap(map, mapPath, dryRun);

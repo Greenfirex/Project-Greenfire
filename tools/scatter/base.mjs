@@ -13,14 +13,14 @@ export const SHELL_KEYS = [
   'shore_shells', 'shore_shells_mid', 'shore_shells_wide', 'shore_shells_cup',
   'shell_giant', 'shore_pebbles',
 ];
-export const CORAL_KEYS = ['coral_fan', 'coral_branch', 'coral_brain'];
+export const CORAL_KEYS = ['coral_clump_1', 'coral_clump_2', 'coral_clump_3', 'coral_clump_4', 'coral_clump_5', 'coral_clump_6', 'coral_clump_7', 'coral_clump_8', 'coral_clump_9', 'coral_clump_10'];
 export const FLOWER_KEYS = [
   'flower_white', 'flower_yellow', 'flower_pink', 'flower_coral', 'flower_purple', 'flower_red',
 ];
 export const BUSH_KEYS = ['bush', 'bush_round', 'bush_dense', 'bush_wide', 'bush_bramble', 'bush_small'];
 export const OWNED_KEYS = [...SHELL_KEYS, ...CORAL_KEYS, ...FLOWER_KEYS, ...BUSH_KEYS];
 export const SHELL_VARIANTS = ['shore_shells', 'shore_shells_mid', 'shore_shells_wide', 'shore_shells_cup'];
-export const CORAL_VARIANTS = ['coral_fan', 'coral_branch', 'coral_brain'];
+export const CORAL_VARIANTS = ['coral_clump_1', 'coral_clump_2', 'coral_clump_3', 'coral_clump_4', 'coral_clump_5', 'coral_clump_6', 'coral_clump_7', 'coral_clump_8', 'coral_clump_9', 'coral_clump_10'];
 
 export function hash(ix, iz) {
   const n = Math.sin(ix * 127.1 + iz * 311.7) * 43758.5453;

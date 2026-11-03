@@ -626,31 +626,101 @@ export const DECORATION_TYPES = {
     noTint: true,
     kind: 'rock',
   },
-  coral_fan: {
-    displayName: 'Vějířový koral',
-    coral: 'coral_fan',
+  coral_clump_1: {
+    displayName: 'Shluk korálů 1',
+    coral: 'coral_clump_1',
     scale: 1,
-    radius: 0.25,
+    radius: 0.5,
     blocks: false,
     castsShadow: false,
     noTint: true,
     kind: 'ground',
   },
-  coral_branch: {
-    displayName: 'Trs koralů',
-    coral: 'coral_branch',
+  coral_clump_2: {
+    displayName: 'Shluk korálů 2',
+    coral: 'coral_clump_2',
     scale: 1,
-    radius: 0.22,
+    radius: 0.5,
     blocks: false,
     castsShadow: false,
     noTint: true,
     kind: 'ground',
   },
-  coral_brain: {
-    displayName: 'Mozkový koral',
-    coral: 'coral_brain',
+  coral_clump_3: {
+    displayName: 'Shluk korálů 3',
+    coral: 'coral_clump_3',
     scale: 1,
-    radius: 0.24,
+    radius: 0.5,
+    blocks: false,
+    castsShadow: false,
+    noTint: true,
+    kind: 'ground',
+  },
+  coral_clump_4: {
+    displayName: 'Shluk korálů 4',
+    coral: 'coral_clump_4',
+    scale: 1,
+    radius: 0.5,
+    blocks: false,
+    castsShadow: false,
+    noTint: true,
+    kind: 'ground',
+  },
+  coral_clump_5: {
+    displayName: 'Shluk korálů 5',
+    coral: 'coral_clump_5',
+    scale: 1,
+    radius: 0.5,
+    blocks: false,
+    castsShadow: false,
+    noTint: true,
+    kind: 'ground',
+  },
+  coral_clump_6: {
+    displayName: 'Shluk korálů 6',
+    coral: 'coral_clump_6',
+    scale: 1,
+    radius: 0.5,
+    blocks: false,
+    castsShadow: false,
+    noTint: true,
+    kind: 'ground',
+  },
+  coral_clump_7: {
+    displayName: 'Shluk korálů 7',
+    coral: 'coral_clump_7',
+    scale: 1,
+    radius: 0.5,
+    blocks: false,
+    castsShadow: false,
+    noTint: true,
+    kind: 'ground',
+  },
+  coral_clump_8: {
+    displayName: 'Shluk korálů 8',
+    coral: 'coral_clump_8',
+    scale: 1,
+    radius: 0.5,
+    blocks: false,
+    castsShadow: false,
+    noTint: true,
+    kind: 'ground',
+  },
+  coral_clump_9: {
+    displayName: 'Shluk korálů 9',
+    coral: 'coral_clump_9',
+    scale: 1,
+    radius: 0.5,
+    blocks: false,
+    castsShadow: false,
+    noTint: true,
+    kind: 'ground',
+  },
+  coral_clump_10: {
+    displayName: 'Shluk korálů 10',
+    coral: 'coral_clump_10',
+    scale: 1,
+    radius: 0.5,
     blocks: false,
     castsShadow: false,
     noTint: true,
@@ -746,6 +816,17 @@ export function getDecoration(key) {
   if (!def || def.highlight) return def;
   const highlight = genericHighlight(def);
   return highlight ? { ...def, highlight } : def;
+}
+
+export function decoFamily(key) {
+  const def = DECORATION_TYPES[key];
+  if (!def) return null;
+  if (def.kind === 'tree' || def.bush || def.flower) return 'plant';
+  if (def.gather && def.gather.mushroom) return 'plant';
+  if (def.kind === 'rock' || def.kind === 'campfire') return 'object';
+  if (def.shell || def.coral || def.rock) return 'object';
+  if (def.kind === 'floor' || def.kind === 'path') return null;
+  return 'object';
 }
 
 export function surfaceEntries() {

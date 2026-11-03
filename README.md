@@ -192,9 +192,9 @@ editor mapy (zóny, cesty, výšky ±6 m, štětec pláže se svahem po 0,3 m,
 s hranou mapy, cesty kopírující terén, hráč chodící po výšce země,
 vodní hladina s vlnami a pěnou (v editoru jde jen skrýt, hladina i ryby
 zůstanou), mokrý pruh na břehu kopírující terén,
-rozbitý okraj písku s ostrůvky a jazyky, štětec Pobřeží s lasturami
-ve čtyřech tvarech a třech velikostech (největší se dá sehrát), koraly
-na dně v shlucích (vějíř, trs a mozkový) se štětcem Koraly, hejna ryb
+rozbitý okraj písku s ostrůvky a jazyky, štětec Mušle s lasturami
+ve čtyřech tvarech a třech velikostech (největší se dá sehrát), korály
+na dně jako deset variací shluků se štětcem Koraly, hejna ryb
 pěti barev (i drobných), která se toulají vodou, občas vyšlou rybku na
 potulky a plaší se před hráčem, tráva s květinami ve čtyřech barvách
 (květy se houpou ve větru a rostou i ve shlucích, štětec Tráva je umí vypnout),
@@ -485,4 +485,3 @@ pozornosti a svou barvu, a boj se odehrává kolem hráče, ne ve výběrovém o
 
 Jeden druh nepřítele, okruh pozornosti, honička a návrat domů, jeden typ útoku,
 smrt, mrtvé tělo s kořistí a respawn.
-

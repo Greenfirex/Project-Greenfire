@@ -1,7 +1,7 @@
 // Editační režim mapy — vyplňování buněk štětcem, modelování výšek a práce s plochou.
 // Přepíná se F2, drží jen hotovou mapu a historii úprav; vykreslování si řídí scéna.
 import { BRUSHES, brushOptions, brushPaintParts, PAINT_ALL, PAINT_TERRAIN } from '../data/catalogs/brushes.js';
-import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
+import { getDecoration, DEFAULT_FLOOR, decoFamily } from '../data/catalogs/decorations.js';
 import { cellKey, MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP, DEFAULT_HEIGHT_LEVEL } from '../data/maps/layoutStore.js';
 import { layerAt, layerEntriesAt, floorCellAt, layerLiftAt, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
 import { fillZone } from '../utils/zoneFill.js';
@@ -47,7 +47,6 @@ export default class EditorMode {
     this.joinBottom = null;
     this.joinHeights = null;
     this.joinInfo = null;
-    this.eraseCache = null;
     this.bridgeTop = null;
     this.pendingBridge = null;
     this.bridgeInfo = null;
@@ -227,13 +226,13 @@ export default class EditorMode {
   }
 
   setBrush(key) {
-    if (!BRUSHES[key]) return;
-    this.eraseCache = null;
+    if (key && !BRUSHES[key]) return;
     if (this.brushKey !== key && this.draft) this.cancelDraft();
-    this.brushKey = key;
-    this.pathStyle = this.styleFor(key);
+    if (key && BRUSHES[key].erase) this.erasing = false;
+    this.brushKey = key || null;
+    this.pathStyle = this.styleFor(this.brushKey);
     this.syncTileKey();
-    if (this.onBrushChange) this.onBrushChange(key);
+    if (this.onBrushChange) this.onBrushChange(this.brushKey);
   }
 
   syncTileKey() {
@@ -648,6 +647,116 @@ export default class EditorMode {
     return Boolean(brush && brush.spawn);
   }
 
+  get eraseKind() {
+    const brush = BRUSHES[this.brushKey];
+    return brush && brush.erase ? brush.erase : null;
+  }
+
+  get isEraserBrush() {
+    return Boolean(this.eraseKind);
+  }
+
+  applyEraser(zone) {
+    const kind = this.eraseKind;
+    if (!kind) return 0;
+    let changed = 0;
+    for (const { cx, cz } of zone) {
+      if (this.eraseCell(cx, cz, kind)) changed += 1;
+    }
+    if (kind === 'terrain') this.cleanFlatCliffs(zone.map((cell) => [cell.cx, cell.cz]));
+    else this.dropOrphans();
+    return changed;
+  }
+
+  eraseCell(cx, cz, kind) {
+    const plants = kind === 'plants' || kind === 'all';
+    const objects = kind === 'objects' || kind === 'all';
+    let dropped = false;
+    if (plants || objects) {
+      const removed = this.dropDecorations(cx, cz, (entry) => {
+        const family = decoFamily(entry.key);
+        if (family === 'plant') return plants;
+        return objects && family === 'object';
+      });
+      if (removed) dropped = true;
+    }
+    if (plants && this.dropGrassCell(cx, cz)) dropped = true;
+    if ((kind === 'path' || kind === 'all') && this.dropPathCell(cx, cz)) dropped = true;
+    if (kind === 'creatures' || kind === 'all') {
+      if (this.dropCreatureCell(cx, cz)) dropped = true;
+      if (this.dropFishCell(cx, cz)) dropped = true;
+    }
+    if (kind === 'terrain') {
+      if (this.flattenCell(cx, cz)) dropped = true;
+      if (this.dropBridgeCell(cx, cz)) dropped = true;
+    }
+    if (kind === 'all' && this.dropBridgeCell(cx, cz)) dropped = true;
+    return dropped;
+  }
+
+  dropDecorations(cx, cz, test) {
+    const entries = this.layout.decorations || [];
+    const kept = entries.filter((entry) => {
+      if (!entry || entry.cx !== cx || entry.cz !== cz) return true;
+      return !test(entry);
+    });
+    if (kept.length === entries.length) return false;
+    this.layout.decorations = kept;
+    return true;
+  }
+
+  dropPathCell(cx, cz) {
+    const entries = this.layout.path || [];
+    const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+    if (kept.length === entries.length) return false;
+    this.layout.path = kept;
+    return true;
+  }
+
+  dropCreatureCell(cx, cz) {
+    if (!Array.isArray(this.layout.creatures)) return false;
+    const entries = this.layout.creatures;
+    const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+    if (kept.length === entries.length) return false;
+    this.layout.creatures = kept;
+    return true;
+  }
+
+  dropFishCell(cx, cz) {
+    const entries = this.layout.fish || [];
+    const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+    if (kept.length === entries.length) return false;
+    this.layout.fish = kept;
+    return true;
+  }
+
+  dropBridgeCell(cx, cz) {
+    const bridges = this.layout.bridges || [];
+    const kept = bridges.filter((record) => !bridgeCells(record).some(([x, z]) => x === cx && z === cz));
+    if (kept.length === bridges.length) return false;
+    this.layout.bridges = kept;
+    return true;
+  }
+
+  flattenCell(cx, cz) {
+    let changed = false;
+    for (const name of ['floor', 'clearing', 'grass', 'path']) {
+      for (const entry of this.layout[name] || []) {
+        if (!entry || entry.cx !== cx || entry.cz !== cz) continue;
+        if (entry.liftY) {
+          delete entry.liftY;
+          changed = true;
+        }
+        if (entry.cliff) {
+          delete entry.cliff;
+          delete entry.cliffStyle;
+          changed = true;
+        }
+      }
+    }
+    return changed;
+  }
+
   spawnCell() {
     const spawn = this.layout && this.layout.spawn;
     if (!spawn || !Number.isFinite(spawn.cx) || !Number.isFinite(spawn.cz)) return null;
@@ -1035,15 +1144,18 @@ export default class EditorMode {
 
   beginDraft(brushKey) {
     if (!this.layout) return;
-    if (!BRUSHES[brushKey]) return;
+    const brush = BRUSHES[brushKey];
+    if (!brush) return;
     if (this.draft && this.draft.brushKey === brushKey) return;
     if (this.draft) this.cancelDraft();
     this.resetBridge();
-    this.draft = { brushKey, cells: new Set(), mode: this.erasing ? 'remove' : 'add' };
+    const removing = this.erasing && !brush.erase;
+    this.draft = { brushKey, cells: new Set(), mode: removing ? 'remove' : 'add' };
     if (this.onDraftChange) this.onDraftChange(this.draft);
   }
 
   setDraftMode(mode) {
+    if (this.isEraserBrush) return;
     const next = mode === 'remove' ? 'remove' : 'add';
     if (this.erasing === (next === 'remove')) {
       if (this.draft && this.draft.mode !== next) {
@@ -1085,57 +1197,6 @@ export default class EditorMode {
       return droppable(this.layout, cx, cz).length > 0;
     }
     return this.canEditCell(cx, cz);
-  }
-
-  eraseCandidates() {
-    const brush = BRUSHES[this.brushKey];
-    if (!brush || !this.layout) return [];
-    if (this.eraseCache && this.eraseCache.brushKey === this.brushKey) return this.eraseCache.cells;
-    const cells = this.collectErasable(brush);
-    this.eraseCache = { brushKey: this.brushKey, cells };
-    return cells;
-  }
-
-  collectErasable(brush) {
-    const layout = this.layout;
-    const found = new Map();
-    const add = (cx, cz) => {
-      if (!Number.isFinite(cx) || !Number.isFinite(cz)) return;
-      found.set(cellKey(cx, cz), [cx, cz]);
-    };
-    const eachLayer = (test) => {
-      for (const name of ['floor', 'path', 'clearing', 'grass']) {
-        for (const entry of layout[name] || []) {
-          if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
-          if (test(entry, name)) add(entry.cx, entry.cz);
-        }
-      }
-    };
-    if (brush.cliff) eachLayer((entry) => entry.cliff === true);
-    else if (brush.bridge) {
-      for (const record of layout.bridges || []) {
-        for (const [cx, cz] of bridgeCells(record)) add(cx, cz);
-      }
-    } else if (brush.fish) {
-      for (const entry of layout.fish || []) if (entry) add(entry.cx, entry.cz);
-    } else if (brush.creature) {
-      for (const entry of layout.creatures || []) if (entry) add(entry.cx, entry.cz);
-    } else if (brush.surfaceOnly) eachLayer((entry, name) => name === 'floor' && entry.key !== DEFAULT_FLOOR);
-    else if (brush.surface) eachLayer((entry, name) => name === 'floor' && entry.key === brush.surface);
-    else if (brush.height || brush.heights) {
-      const up = this.brushHeight(this.brushKey) >= 0;
-      eachLayer((entry) => {
-        const lift = entry.liftY || 0;
-        return up ? lift > 0 : lift < 0;
-      });
-    } else if (brush.flora) {
-      for (const entry of layout.grass || []) if (entry) add(entry.cx, entry.cz);
-    } else if (brush.deco) {
-      for (const entry of layout.decorations || []) if (entry) add(entry.cx, entry.cz);
-    } else {
-      for (const entry of layout.path || []) if (entry) add(entry.cx, entry.cz);
-    }
-    return [...found.values()];
   }
 
   get hasBrush() {
@@ -1497,6 +1558,15 @@ export default class EditorMode {
     if (brush.spawn) {
       const zone = [...cells].map(parseCell);
       const count = this.applySpawnCell(zone);
+      if (!count) this.history.pop();
+      this.draft.cells.clear();
+      if (this.onDraftChange) this.onDraftChange(this.draft);
+      this.scheduleRegenerate(parts);
+      return count;
+    }
+    if (brush.erase) {
+      const zone = [...cells].map(parseCell);
+      const count = this.applyEraser(zone);
       if (!count) this.history.pop();
       this.draft.cells.clear();
       if (this.onDraftChange) this.onDraftChange(this.draft);
@@ -2006,7 +2076,6 @@ export default class EditorMode {
     this.commitHistory();
     this.contentIndex = null;
     this.presentCache = null;
-    this.eraseCache = null;
     if (this.onRegenerate) this.onRegenerate(this.layout, parts || PAINT_ALL);
   }
 
@@ -2014,7 +2083,6 @@ export default class EditorMode {
     this.commitHistory();
     this.contentIndex = null;
     this.presentCache = null;
-    this.eraseCache = null;
     if (this.onHeightsChange) this.onHeightsChange(this.layout);
     else this.repaint();
   }
@@ -2024,28 +2092,6 @@ export default class EditorMode {
       this.presentCache = new Set(worldCells(this.layout).map(([cx, cz]) => cellKey(cx, cz)));
     }
     return this.presentCache;
-  }
-
-  get draftKeys() {
-    const brush = BRUSHES[this.brushKey];
-    if (!brush || brush.join || brush.bridge) return [];
-    const keys = [...this.brushPool()];
-    if (brush.tile) keys.push(brush.tile);
-    if (brush.shape === 'line') keys.push('path');
-    return keys;
-  }
-
-  draftTileAt(cx, cz) {
-    const cell = this.contentAt(cx, cz);
-    if (!cell) return null;
-    if (cell.path) return 'path';
-    const first = cell.floor || cell.clearing || cell.grass;
-    return first ? first.key : null;
-  }
-
-  draftDecoAt(cx, cz) {
-    const cell = this.contentAt(cx, cz);
-    return cell && cell.deco ? cell.deco.key : null;
   }
 
   contentAt(cx, cz) {
@@ -2077,34 +2123,6 @@ export default class EditorMode {
     }
     this.contentIndex = index;
     return index;
-  }
-
-  draftHasSame(cx, cz) {
-    const brush = BRUSHES[this.brushKey];
-    if (brush && brush.cliff) {
-      const cell = this.contentAt(cx, cz);
-      const floor = cell ? cell.floor : null;
-      if (!floor || floor.cliff !== true) return false;
-      return (floor.cliffStyle || 'dirt') === this.styleFor(this.brushKey);
-    }
-    if (brush && brush.surface) return this.surfaceAt(cx, cz) === brush.surface;
-    if (brush && brush.creature) {
-      const entry = this.creatureAt(cx, cz);
-      if (!entry) return false;
-      return entry.kind === brush.creatureKind && entry.tier === this.creatureTierFor(this.brushKey);
-    }
-    const keys = this.draftKeys;
-    if (!keys.length) return false;
-    const tile = this.draftTileAt(cx, cz);
-    if (tile && keys.includes(tile)) return true;
-    const deco = this.draftDecoAt(cx, cz);
-    return Boolean(deco && keys.includes(deco));
-  }
-
-  draftHasContent(cx, cz) {
-    const cell = this.contentAt(cx, cz);
-    if (!cell) return false;
-    return Boolean(cell.path || cell.floor || cell.clearing || cell.grass || cell.deco);
   }
 
   restoreLayout(next) {

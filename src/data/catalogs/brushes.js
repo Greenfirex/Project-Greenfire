@@ -33,7 +33,7 @@ function depthMeters(level) {
 const SURFACE_BRUSH = SURFACES.length
   ? {
       label: 'Povrch',
-      group: 'Povrchy',
+      group: 'Povrch',
       note: 'Přebarví povrch země na trávu nebo písek, výšku nemění. Tažením označíš obdélník.',
       shape: 'blob',
       surfaceOnly: true,
@@ -65,6 +65,27 @@ function creatureBrush(kind) {
 }
 
 const CREATURE_BRUSHES = Object.fromEntries(CREATURE_KEYS.map((kind) => [`creature_${kind}`, creatureBrush(kind)]));
+
+const ERASER_GROUP = 'Ostatní';
+
+function eraserBrush(erase, group, label, note) {
+  return {
+    label,
+    group,
+    note,
+    shape: 'blob',
+    erase,
+  };
+}
+
+const ERASER_BRUSHES = {
+  erase_plants: eraserBrush('plants', 'Rostliny', 'Guma: rostliny', 'Smaže stromy, keře, houby, květiny i trávu.'),
+  erase_objects: eraserBrush('objects', 'Objekty', 'Guma: objekty', 'Smaže kameny, dřevo, suť, mušle, korály a táborák.'),
+  erase_path: eraserBrush('path', 'Povrch', 'Guma: cesta', 'Smaže jen vrstvu cesty.'),
+  erase_terrain: eraserBrush('terrain', 'Terén', 'Guma: terén', 'Srovná zem na nulu, zruší označení útesu a smaže most.'),
+  erase_creatures: eraserBrush('creatures', 'Tvorové', 'Guma: tvorové', 'Smaže tvora nebo hejno ryb z buňky.'),
+  erase_all: eraserBrush('all', ERASER_GROUP, 'Guma: všechno', 'Smaže, co na buňce stojí — dekorace, trávu, cestu, tvora i rybu. Dlaždici nechá.'),
+};
 
 export const BRUSHES = {
   ...CREATURE_BRUSHES,
@@ -184,7 +205,7 @@ export const BRUSHES = {
   ...(SURFACE_BRUSH ? { surface: SURFACE_BRUSH } : {}),
   trail: {
     label: 'Cesta',
-    group: 'Terén',
+    group: 'Povrch',
     note: 'Nakreslí cestu, která kopíruje terén (hlína, kámen, dřevo).',
     shape: 'line',
     style: 'dirt',
@@ -254,7 +275,7 @@ export const BRUSHES = {
   },
   beach: {
     label: 'Pláž',
-    group: 'Voda',
+    group: 'Terén',
     note: 'Vykope břeh do zvolené hloubky a nasype písek.',
     shape: 'blob',
     style: 'shallow',
@@ -272,8 +293,8 @@ export const BRUSHES = {
     option: { key: 'smoothEdge', label: 'Plynulý okraj' },
   },
   shore: {
-    label: 'Pobřeží',
-    group: 'Voda',
+    label: 'Mušle',
+    group: 'Objekty',
     note: 'Rozsype lastury po písku u vody.',
     shape: 'blob',
     pool: ['shore_shells', 'shore_shells_mid', 'shore_shells_wide', 'shore_shells_cup'],
@@ -281,16 +302,19 @@ export const BRUSHES = {
   },
   reef: {
     label: 'Koraly',
-    group: 'Voda',
-    note: 'Nasype shluky koralů na dno, jen pod vodou.',
+    group: 'Objekty',
+    note: 'Položí na dno hrudu korálů; náhodně střídá variace.',
     shape: 'blob',
-    pool: ['coral_fan', 'coral_branch', 'coral_brain'],
+    pool: [
+      'coral_clump_1', 'coral_clump_2', 'coral_clump_3', 'coral_clump_4', 'coral_clump_5',
+      'coral_clump_6', 'coral_clump_7', 'coral_clump_8', 'coral_clump_9', 'coral_clump_10',
+    ],
+    options: [RANDOM_OPTION],
     deco: true,
-    cluster: { min: 8, max: 14, spread: 0.85, scaleMin: 0.45, scaleMax: 0.75 },
   },
   fish: {
     label: 'Ryby',
-    group: 'Voda',
+    group: 'Tvorové',
     note: 'Vypustí hejno rybek zvolené barvy; na suché buňce se neuloží.',
     shape: 'blob',
     fish: true,
@@ -340,11 +364,12 @@ export const BRUSHES = {
     shape: 'blob',
     spawn: true,
   },
+  ...ERASER_BRUSHES,
 };
 
 export const BRUSH_KEYS = Object.keys(BRUSHES);
 
-export const BRUSH_GROUPS = ['Povrchy', 'Terén', 'Voda', 'Rostliny', 'Objekty', 'Tvorové', 'Ostatní'];
+export const BRUSH_GROUPS = ['Povrch', 'Terén', 'Rostliny', 'Objekty', 'Tvorové', 'Ostatní'];
 
 export function brushesOf(group) {
   return BRUSH_KEYS.filter((key) => (BRUSHES[key].group || 'Ostatní') === group);
@@ -358,6 +383,10 @@ export function brushPaintParts(brushKey) {
   const brush = BRUSHES[brushKey];
   if (!brush) return PAINT_ALL;
   if (brush.spawn) return PAINT_NOTHING;
+  if (brush.erase === 'terrain') return PAINT_ALL;
+  if (brush.erase === 'creatures') return [PAINT_CREATURES, PAINT_FISH];
+  if (brush.erase === 'all') return [PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH];
+  if (brush.erase) return PAINT_DECO_ONLY;
   if (brush.creature) return PAINT_CREATURE_ONLY;
   if (brush.fish) return PAINT_FISH_ONLY;
   if (brush.height || brush.heights || brush.cliff || brush.join || brush.bridge) return PAINT_ALL;

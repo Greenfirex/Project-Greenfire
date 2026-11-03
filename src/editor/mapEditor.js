@@ -9,15 +9,11 @@ import BrushPanel from './brushPanel.js';
 import AreaPanel from './areaPanel.js';
 import HeightPanel from './heightPanel.js';
 import CreatureOverlay from './creatureOverlay.js';
-import { formatLevel, formatMeters, heightRampColor } from './heightRamp.js';
+import { formatLevel, formatMeters } from './heightRamp.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { BRUSHES } from '../data/catalogs/brushes.js';
 
 const NO_BRUSH_HINT = 'Vyber štětec v paletě — teprve pak jde do mapy kreslit';
-const HEIGHT_BAND_LIFT = 0.03;
-const HEIGHT_BAND_STEP = 1.5;
-const HEIGHT_TINT_ALPHA = 0.32;
-const HEIGHT_GHOST_ALPHA = 0.6;
 
 export default class MapEditor {
 
@@ -31,7 +27,6 @@ export default class MapEditor {
     this.creatureOverlay = new CreatureOverlay(this.s.s);
     this.mapDirty = false;
     this.savedFingerprint = null;
-    this.showHeights = true;
     this.pendingDraftView = undefined;
     this.draftViewFrame = 0;
   }
@@ -88,7 +83,13 @@ export default class MapEditor {
     this.mode.onBrushChange = (key) => {
       this.hud.setBrush(key);
       this.hud.setErasing(this.mode.erasing);
-      this.openBrushPanel(key);
+      if (key) {
+        this.openBrushPanel(key);
+        return;
+      }
+      this.brushPanel.close();
+      this.refreshZoneOverlay();
+      this.refreshCreatureMarks();
     };
 
     this.hud.onBrush = (key) => this.mode.setBrush(key);
@@ -105,10 +106,6 @@ export default class MapEditor {
     this.heightPanel.onBrushSize = (size) => this.mode.setHeightBrushSize(size);
     this.heightPanel.onStepMode = (sign) => this.mode.setHeightStepSign(sign);
     this.heightPanel.onJitter = (value) => this.mode.setHeightJitter(value);
-    this.heightPanel.onToggleHeights = (on) => {
-      this.showHeights = on;
-      this.refreshHeightTint();
-    };
 
     this.brushPanel.onApply = () => this.applyBrushDraft();
     this.brushPanel.onCancel = () => this.cancelBrushDraft();
@@ -177,9 +174,11 @@ export default class MapEditor {
       this.close();
       return false;
     }
+    this.mode.setBrush(null);
+    this.mode.setDraftMode('add');
+    this.hud.setErasing(false);
     this.resetSelection();
     this.mode.toggle();
-    this.hud.clearBrushSelection();
     this.hud.setReadout(NO_BRUSH_HINT);
     this.s.holdGameForEditor();
     this.s.syncZoomLimit();
@@ -220,13 +219,13 @@ export default class MapEditor {
     this.mode.active = false;
     this.brushPanel.close();
     this.areaPanel.hide();
-    this.hud.clearBrushSelection();
+    this.mode.setBrush(null);
     this.s.gridSystem.clearBrush();
     this.s.gridSystem.clearHoverCell();
     this.s.gridSystem.clearCreatureRadius();
     this.s.gridSystem.clearZones();
     this.s.gridSystem.clearDraftCells();
-    this.s.gridSystem.clearHeightBands();
+    this.s.gridSystem.clearDraftOutline();
     this.s.refreshWaterVisibility();
     this.togglePanel(false);
     this.s.releaseGameFromEditor();
@@ -246,7 +245,7 @@ export default class MapEditor {
       this.brushPanel.close();
       this.areaPanel.hide();
       this.heightPanel.hide();
-      this.hud.clearBrushSelection();
+      this.mode.setBrush(null);
     }
     this.syncPanels(this.mode.mode);
     this.s.editorToggle.setActive(Boolean(active));
@@ -264,7 +263,6 @@ export default class MapEditor {
       this.brushPanel.close();
       this.heightPanel.hide();
       this.mode.cancelDraft();
-      this.refreshHeightTint();
       this.areaPanel.open({
         tool: this.mode.areaTool,
         count: this.mode.pendingAreaCells(),
@@ -283,16 +281,14 @@ export default class MapEditor {
         count: this.mode.heightDraftCount,
         undoEnabled: this.mode.canUndo,
         staged: this.stagedList(),
-        showHeights: this.showHeights,
         brushSize: this.mode.heightBrushSize,
         stepSign: this.mode.heightStepSign,
         jitter: this.mode.heightJitter,
       });
-      this.refreshHeightTint();
       return;
     }
     this.heightPanel.hide();
-    this.refreshHeightTint();
+    if (this.mode.brushKey && !this.mode.hasDraft) this.openBrushPanel(this.mode.brushKey);
   }
 
   stagedList() {
@@ -300,36 +296,6 @@ export default class MapEditor {
       level: group.level,
       count: group.cells.length,
     }));
-  }
-
-  refreshHeightTint() {
-    const grid = this.s.gridSystem;
-    if (!grid) return;
-    if (!this.mode.active || this.mode.mode !== 'height' || !this.showHeights) {
-      grid.clearHeightBands();
-      return;
-    }
-    const bands = new Map();
-    for (const [cx, cz] of this.s.terrainSystem.realCells || []) {
-      const meters = this.mode.cellHeightValue(cx, cz);
-      if (Math.abs(meters) < 0.15) continue;
-      const index = Math.round(meters / HEIGHT_BAND_STEP);
-      if (!index) continue;
-      if (!bands.has(index)) bands.set(index, []);
-      const y = this.s.decoSystem.surfaceAt(cx, cz) + HEIGHT_BAND_LIFT;
-      bands.get(index).push([cx, cz, y]);
-    }
-    const list = [...bands.entries()]
-      .sort((a, b) => a[0] - b[0])
-      .map(([index, cells]) => {
-        const color = heightRampColor(index * HEIGHT_BAND_STEP);
-        return {
-          cells,
-          color: new Color3(color[0], color[1], color[2]),
-          alpha: HEIGHT_TINT_ALPHA,
-        };
-      });
-    grid.showHeightBands(list);
   }
 
   showAreaPreview(selection) {
@@ -385,6 +351,7 @@ export default class MapEditor {
   }
 
   setEraseMode(on) {
+    if (this.mode.isEraserBrush) return;
     this.mode.setDraftMode(on ? 'remove' : 'add');
     this.hud.setErasing(this.mode.erasing);
     this.hud.refresh();
@@ -478,9 +445,11 @@ export default class MapEditor {
     if (beast) parts.push(beast.tier ? `${beast.type.label} (${beast.tier.label})` : beast.type.label);
     const lift = Math.round((Number(info.liftY) || 0) * 100) / 100;
     const staged = this.mode.mode === 'height' ? this.mode.heightLevelAt(cell.cx, cell.cz) : null;
+    const goal = this.mode.mode === 'height' ? this.mode.heightLevel : null;
     const joined = this.mode.joinMetersAt(cell.cx, cell.cz);
     let target = '';
     if (staged !== null) target = ` → ${formatLevel(staged)}`;
+    else if (goal !== null) target = ` → ${formatLevel(goal)}`;
     else if (joined !== null) target = ` → ${formatMeters(joined)}`;
     let draft = '';
     if (this.mode.draft) {
@@ -616,6 +585,8 @@ export default class MapEditor {
       this.hud.setReadout(spawn
         ? `Start hráče přesunut na ${spawn.cx}, ${spawn.cz} — projeví se při startu hry`
         : 'Start hráče nastaven');
+    } else if (count && this.mode.isEraserBrush) {
+      this.hud.setReadout(`Smazáno ${count} buněk`);
     } else if (count && surfaceBrush) {
       this.hud.setReadout(removing
         ? `Vráceno na trávu ${count} buněk`
@@ -628,6 +599,8 @@ export default class MapEditor {
       this.hud.setReadout(removing ? 'Nic k vrácení' : 'Tyhle buňky už jsou označené');
     } else if (this.mode.isSpawnBrush) {
       this.hud.setReadout('Start hráče už je na téhle buňce');
+    } else if (this.mode.isEraserBrush) {
+      this.hud.setReadout('Nic k smazání — guma nenašla, co by vzala');
     } else this.hud.setReadout(removing ? 'Nic ke smazání' : 'Prázdná zóna');
     this.brushPanel.setDraftMode(this.mode.draftMode);
     this.refreshUndoButton();
@@ -637,9 +610,8 @@ export default class MapEditor {
   }
 
   cancelBrushDraft() {
-    this.mode.cancelDraft();
+    this.mode.setBrush(null);
     this.brushPanel.close();
-    this.hud.clearBrushSelection();
     this.refreshZoneOverlay();
     this.refreshCreatureMarks();
     this.s.handleHover(this.s.hoverCell);
@@ -656,7 +628,6 @@ export default class MapEditor {
     this.hud.setWater(this.mode.getWaterLevel(), this.mode.waterShown);
     this.refreshUndoButton();
     this.areaPanel.setCount(this.mode.pendingAreaCells(), this.mode.pendingAreaExisting());
-    this.refreshHeightTint();
     this.refreshCreatureMarks();
     this.s.handleHover(this.s.hoverCell);
     return true;
@@ -708,7 +679,7 @@ export default class MapEditor {
     if (!this.mode.active || !this.s.mapLayout) {
       this.s.gridSystem.clearZones();
       this.s.gridSystem.clearDraftCells();
-      this.s.gridSystem.clearHeightBands();
+      this.s.gridSystem.clearDraftOutline();
       return;
     }
     if (this.mode.mode === 'height' && this.mode.heightDraftCount) {
@@ -720,64 +691,22 @@ export default class MapEditor {
       if (spawnZone) this.s.gridSystem.showZones([spawnZone], (cx, cz) => this.s.cellSurfaceAt(cx, cz));
       else this.s.gridSystem.clearZones();
       this.s.gridSystem.clearDraftCells();
+      this.s.gridSystem.clearDraftOutline();
       return;
     }
+    this.s.gridSystem.clearDraftOutline();
     const draft = this.mode.draft;
-    const removing = draft.mode === 'remove';
+    const removing = draft.mode === 'remove' || Boolean(this.mode.eraseKind);
     const surfaceAt = (cx, cz) => this.s.cellSurfaceAt(cx, cz);
-    const same = [];
-    const other = [];
     const shape = this.mode.heightDraftShape(draft);
 
     const draftCells = [];
     for (const key of draft.cells) {
       const [cx, cz] = key.split(',').map(Number);
       draftCells.push([cx, cz]);
-      if (removing) continue;
-      if (this.mode.draftHasSame(cx, cz)) same.push([cx, cz]);
-    }
-    if (!removing && this.mode.draftKeys.length) {
-      const seen = new Set();
-      const radius = draftCells.length > 300 ? 1 : 3;
-      for (const [cx, cz] of draftCells) {
-        for (let dz = -radius; dz <= radius; dz += 1) {
-          for (let dx = -radius; dx <= radius; dx += 1) {
-            const nx = cx + dx;
-            const nz = cz + dz;
-            const key = `${nx},${nz}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            if (!this.mode.draftHasContent(nx, nz)) continue;
-            if (this.mode.draftHasSame(nx, nz)) same.push([nx, nz]);
-            else other.push([nx, nz]);
-          }
-        }
-      }
     }
 
-    const eraseTargets = removing ? this.mode.eraseCandidates() : [];
     const groups = [
-      {
-        cells: eraseTargets,
-        color: new Color3(0.95, 0.45, 0.3),
-        glow: new Color3(0.55, 0.16, 0.1),
-        alpha: 0.16,
-        lift: 0.012,
-      },
-      {
-        cells: other,
-        color: new Color3(0.5, 0.55, 0.6),
-        glow: new Color3(0.32, 0.36, 0.4),
-        alpha: 0.28,
-        lift: 0.015,
-      },
-      {
-        cells: same,
-        color: new Color3(0.3, 0.62, 0.36),
-        glow: new Color3(0.2, 0.45, 0.26),
-        alpha: 0.3,
-        lift: 0.02,
-      },
       {
         cells: draftCells,
         color: removing ? new Color3(1, 0.3, 0.25) : new Color3(0.15, 1, 0.85),
@@ -820,29 +749,20 @@ export default class MapEditor {
 
   showHeightDraftOverlay() {
     const groups = this.mode.heightDraftGroups();
+    const surfaceAt = (cx, cz) => this.s.decoSystem.surfaceAt(cx, cz);
     if (!groups.length) {
       this.s.gridSystem.clearZones();
       this.s.gridSystem.clearDraftCells();
+      this.s.gridSystem.clearDraftOutline();
       return;
     }
-    const surfaceAt = (cx, cz) => this.s.decoSystem.surfaceAt(cx, cz);
     const cells = [];
-    const zones = [];
     for (const group of groups) {
       for (const cell of group.cells) cells.push(cell);
-      const color = heightRampColor(group.level * HEIGHT_STEP);
-      const bright = color.map((channel) => Math.min(1, 0.35 + channel * 0.8));
-      const target = group.level * HEIGHT_STEP;
-      zones.push({
-        cells: group.cells,
-        color: new Color3(bright[0], bright[1], bright[2]),
-        glow: new Color3(bright[0] * 0.85, bright[1] * 0.85, bright[2] * 0.85),
-        alpha: HEIGHT_GHOST_ALPHA,
-        yAt: (cx, cz) => surfaceAt(cx, cz) - this.mode.cellHeightValue(cx, cz) + target + HEIGHT_BAND_LIFT,
-      });
     }
-    this.s.gridSystem.showZones(zones, surfaceAt);
-    this.s.gridSystem.showDraftCells(cells, surfaceAt, 'add');
+    this.s.gridSystem.clearZones();
+    this.s.gridSystem.clearDraftCells();
+    this.s.gridSystem.showDraftOutline(cells, surfaceAt);
   }
 
   applyHeightSelection() {
@@ -853,7 +773,6 @@ export default class MapEditor {
     this.heightPanel.setStaged(this.stagedList());
     this.refreshUndoButton();
     this.refreshZoneOverlay();
-    this.refreshHeightTint();
     this.s.handleHover(this.s.hoverCell);
   }
 

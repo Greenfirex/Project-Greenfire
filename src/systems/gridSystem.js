@@ -4,8 +4,6 @@ import '@babylonjs/core/Meshes/Builders/groundBuilder';
 import '@babylonjs/core/Meshes/Builders/linesBuilder';
 import '@babylonjs/core/Meshes/Builders/discBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -16,6 +14,7 @@ import { decorationTemplate } from '../utils/decoTemplate.js';
 const HOLOGRAM_ALPHA = 0.45;
 const CREATURE_RADIUS_LIFT = 0.06;
 const CREATURE_RADIUS_STEPS = 72;
+const OUTLINE_LIFT = 0.07;
 const SINGLE_ITEM = { offsetX: 0, offsetZ: 0, yaw: 0 };
 
 function speciesOf(def) {
@@ -39,7 +38,7 @@ export default class GridSystem {
     this.zonesMasters = [];
     this.zonesMaterials = [];
     this.zonesPool = [];
-    this.heightBands = [];
+    this.draftOutline = null;
     this.draftLinesAdd = null;
     this.draftAddPool = [];
     this.draftLinesRemove = null;
@@ -198,15 +197,13 @@ export default class GridSystem {
     if (this.brushMaster) this.brushMaster.setEnabled(false);
   }
 
-  showHoverCell(cx, cz, surfaceAt, span = 1) {
+  showHoverCell(cx, cz, surfaceAt, span = 1, erasing = false) {
     if (!this.hoverMaster) {
       this.hoverMaster = MeshBuilder.CreateGround('hoverCellMaster', {
         width: CELL_SIZE * 0.96,
         height: CELL_SIZE * 0.96,
       }, this.s);
       const mat = new StandardMaterial('hoverCellMat', this.s);
-      mat.diffuseColor = new Color3(0.78, 0.96, 1);
-      mat.emissiveColor = new Color3(0.55, 0.86, 1);
       mat.disableLighting = true;
       mat.alpha = 0.42;
       this.hoverMaster.material = mat;
@@ -214,6 +211,8 @@ export default class GridSystem {
       this.hoverMaster.setEnabled(false);
       this.hoverMaterial = mat;
     }
+    this.hoverMaterial.diffuseColor = erasing ? new Color3(1, 0.5, 0.45) : new Color3(0.78, 0.96, 1);
+    this.hoverMaterial.emissiveColor = erasing ? new Color3(0.95, 0.35, 0.3) : new Color3(0.55, 0.86, 1);
     const y = surfaceAt(cx, cz) + 0.09;
     this.hoverMaster.position = new Vector3(cx * CELL_SIZE, y, cz * CELL_SIZE);
     const size = Math.max(1, Math.round(Number(span) || 1));
@@ -400,60 +399,44 @@ export default class GridSystem {
     ];
   }
 
+  showDraftOutline(cells, surfaceAt) {
+    this.clearDraftOutline();
+    const list = Array.isArray(cells) ? cells : [];
+    if (!list.length) return;
+    const marked = new Set(list.map(([cx, cz]) => `${cx},${cz}`));
+    const half = CELL_SIZE / 2;
+    const lines = [];
+    const addEdge = (cx, cz, fromX, fromZ, toX, toZ) => {
+      const y = surfaceAt(cx, cz) + OUTLINE_LIFT;
+      lines.push([
+        new Vector3(cx * CELL_SIZE + fromX * half, y, cz * CELL_SIZE + fromZ * half),
+        new Vector3(cx * CELL_SIZE + toX * half, y, cz * CELL_SIZE + toZ * half),
+      ]);
+    };
+    for (const [cx, cz] of list) {
+      if (!marked.has(`${cx},${cz - 1}`)) addEdge(cx, cz, -1, -1, 1, -1);
+      if (!marked.has(`${cx},${cz + 1}`)) addEdge(cx, cz, -1, 1, 1, 1);
+      if (!marked.has(`${cx - 1},${cz}`)) addEdge(cx, cz, -1, -1, -1, 1);
+      if (!marked.has(`${cx + 1},${cz}`)) addEdge(cx, cz, 1, -1, 1, 1);
+    }
+    if (!lines.length) return;
+    const mesh = MeshBuilder.CreateLineSystem('draftOutline', { lines }, this.s);
+    mesh.color = new Color3(0.75, 1, 0.95);
+    mesh.alpha = 1;
+    mesh.alphaIndex = 3;
+    mesh.isPickable = false;
+    this.draftOutline = mesh;
+  }
+
+  clearDraftOutline() {
+    if (this.draftOutline && !this.draftOutline.isDisposed()) this.draftOutline.dispose(false, false);
+    this.draftOutline = null;
+  }
+
   clearZones() {
     for (const master of this.zonesMasters || []) master.setEnabled(false);
     for (const pool of this.zonesPool || []) {
       for (const inst of pool) inst.setEnabled(false);
     }
-  }
-
-  showHeightBands(bands) {
-    this.clearHeightBands();
-    const list = bands || [];
-    const half = CELL_SIZE * 0.47;
-    for (let index = 0; index < list.length; index += 1) {
-      const band = list[index];
-      const cells = band.cells || [];
-      if (!cells.length) continue;
-      const positions = [];
-      const indices = [];
-      for (const [cx, cz, y] of cells) {
-        const x = cx * CELL_SIZE;
-        const z = cz * CELL_SIZE;
-        const base = positions.length / 3;
-        positions.push(
-          x - half, y, z - half,
-          x + half, y, z - half,
-          x + half, y, z + half,
-          x - half, y, z + half,
-        );
-        indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
-      }
-      const mesh = new Mesh(`heightBand${index}`, this.s);
-      const data = new VertexData();
-      data.positions = positions;
-      data.indices = indices;
-      data.applyToMesh(mesh);
-      const material = new StandardMaterial(`heightBandMat${index}`, this.s);
-      material.disableLighting = true;
-      material.diffuseColor = Color3.Black();
-      material.emissiveColor = band.color;
-      material.alpha = band.alpha === undefined ? 0.34 : band.alpha;
-      material.backFaceCulling = false;
-      material.disableDepthWrite = true;
-      mesh.material = material;
-      mesh.isPickable = false;
-      mesh.alphaIndex = 0;
-      mesh.setEnabled(true);
-      this.heightBands.push(mesh);
-    }
-  }
-
-  clearHeightBands() {
-    for (const mesh of this.heightBands || []) {
-      if (mesh.material) mesh.material.dispose();
-      mesh.dispose();
-    }
-    this.heightBands = [];
   }
 }

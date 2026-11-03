@@ -2287,7 +2287,8 @@ updateGatherTarget() {
     const mapMode = this.editor.mapMode;
     const hoverSpan = mapMode === 'height' ? this.editor.mode.heightStampSpan : mapMode === 'zone' ? this.editor.mode.brushSpan : 1;
     const hoverSurfaceAt = (cx, cz) => this.cellSurfaceAt(cx, cz);
-    this.gridSystem.showHoverCell(cell.cx, cell.cz, hoverSurfaceAt, hoverSpan);
+    const erasing = Boolean(this.editor.mode.eraseKind) || this.editor.erasing;
+    this.gridSystem.showHoverCell(cell.cx, cell.cz, hoverSurfaceAt, hoverSpan, erasing);
     this.editor.syncCreatureRadius(cell);
     if (this.editor.mapMode === 'area') {
       this.editor.showAreaPreview(this.editor.mode.getAreaSelection());

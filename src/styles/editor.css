@@ -184,6 +184,25 @@
   color: var(--text-main);
 }
 
+.editor-panel__grid button.is-eraser {
+  background: rgba(196, 68, 51, 0.3);
+  border-color: rgba(255, 96, 76, 0.9);
+  color: #ffd2c8;
+  font-weight: 600;
+}
+
+.editor-panel__grid button.is-eraser:hover {
+  background: rgba(214, 80, 60, 0.42);
+  border-color: #ff9a84;
+  color: #fff;
+}
+
+.editor-panel__grid button.is-eraser.is-active {
+  background: rgba(240, 96, 72, 0.6);
+  border-color: #ffb6a6;
+  color: #fff;
+}
+
 .editor-panel__readout {
   color: var(--text-dim);
   font-size: 10px;
@@ -859,24 +878,6 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   margin-bottom: 6px;
-}
-
-.height-panel__toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-  color: var(--text-dim);
-  font-size: 10px;
-  cursor: pointer;
-}
-
-.height-panel__toggle input {
-  width: 12px;
-  height: 12px;
-  margin: 0;
-  accent-color: #5ac8aa;
-  cursor: pointer;
 }
 
 .height-panel__staged {
