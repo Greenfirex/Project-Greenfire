@@ -1205,6 +1205,12 @@ body.has-custom-cursor * {
   color: #ffd23f;
 }
 
+.hud-float--miss {
+  font-size: 18px;
+  color: #d8d2c4;
+  font-weight: 600;
+}
+
 #hud-layer > .hud-float {
   pointer-events: none;
 }

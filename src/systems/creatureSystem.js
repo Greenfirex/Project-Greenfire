@@ -8,6 +8,8 @@ import '@babylonjs/core/Materials/Textures/texture';
 import '@babylonjs/core/Rendering/outlineRenderer';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import '@babylonjs/core/Meshes/Builders/sphereBuilder';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { createCreatureMarker, setMarkerIcon } from '../utils/creatureMarker.js';
 import { rollStrike, CRIT_MULTIPLIER } from '../utils/combatRoll.js';
 import {
@@ -43,8 +45,8 @@ const COMBAT_COLOR = new Color3(0.92, 0.16, 0.12);
 const RESPAWN_CLEAR = 1.5;
 const CORPSE_LIFETIME = 200;
 const CORPSE_FALL = 0.5;
-const CORPSE_SINK = 1.2;
-const CORPSE_LOOT_SINK_DELAY = 1.9;
+const CORPSE_SINK = 2.4;
+const CORPSE_LOOT_SINK_DELAY = 1.4;
 const CORPSE_TILT = Math.PI / 2;
 const CORPSE_GROUND_MARGIN = 0.02;
 const CORPSE_GROUND_SAMPLE = 0.35;
@@ -75,6 +77,8 @@ export default class CreatureSystem {
     this.creatures = [];
     this.corpses = [];
     this.meshes = [];
+    this.pickMeshes = [];
+    this.pickOwner = new Map();
     this.slots = new Map();
     this.containers = new Map();
     this.groundHeightAt = null;
@@ -212,7 +216,8 @@ export default class CreatureSystem {
     const holder = new TransformNode(`creature_${type.label}_${this.creatures.length}`, this.s);
     root.parent = holder;
     root.scaling.set(scale, scale, scale);
-    root.position.set(-centerX * scale, -bounds.min.y * scale, -centerZ * scale);
+    const groundOffset = Number.isFinite(type.groundOffset) ? type.groundOffset : 0;
+    root.position.set(-centerX * scale, -(bounds.min.y + groundOffset) * scale, -centerZ * scale);
 
     const tint = tierTint(tier);
     const tinted = new Set();
@@ -228,13 +233,31 @@ export default class CreatureSystem {
     }
 
     const skeleton = instance.skeletons && instance.skeletons[0] ? instance.skeletons[0] : null;
-    const rig = type.rig ? type.rig.build(solid[0], skeleton) : null;
+    let rig = null;
+    if (type.rig) {
+      try {
+        rig = type.rig.build(solid[0], skeleton);
+      } catch (error) {
+        console.warn(`[creature] Procedurální rig selhal pro ${type.label}: ${error && error.message ? error.message : error}`);
+      }
+    }
 
     const marker = createCreatureMarker(this.s);
     marker.parent = holder;
     const markHeight = (bounds.max.y - bounds.min.y) * scale + MARK_HEIGHT;
     marker.position.set(0, markHeight, 0);
     this.meshes.push(marker);
+
+    const pickSize = Math.max(0.9, Math.min(2.4, creatureLength(type) * 1.4));
+    const pickProxy = MeshBuilder.CreateSphere(`creaturePick_${type.label}_${this.creatures.length}`, {
+      diameter: pickSize,
+      segments: 8,
+    }, this.s);
+    pickProxy.isPickable = true;
+    pickProxy.isVisible = true;
+    pickProxy.visibility = 0;
+    pickProxy.receiveShadows = false;
+    pickProxy.metadata = { pickProxy: true };
 
     const world = Number.isFinite(entry.cx) && Number.isFinite(entry.cz)
       ? cellToWorldCoords(entry.cx, entry.cz)
@@ -255,6 +278,8 @@ export default class CreatureSystem {
       rig,
       marker,
       markHeight,
+      pickProxy,
+      pickHeight: Math.max(0.35, (bounds.max.y - bounds.min.y) * scale * 0.5),
       markTimer: 0,
       markerIcon: 'bang',
       engaged: false,
@@ -269,7 +294,11 @@ export default class CreatureSystem {
       homeZ: spot.z,
       targetX: spot.x,
       targetZ: spot.z,
-      mode: 'idle',
+      mode: type.buried ? 'buried' : 'idle',
+      buried: Boolean(type.buried),
+      emergeProgress: type.buried ? 0 : 1,
+      emergeSeconds: Number.isFinite(type.emergeSeconds) ? type.emergeSeconds : 1,
+      buriedDepth: Number.isFinite(type.buriedDepth) ? type.buriedDepth : 0.85,
       timer: randomBetween(type.idleSeconds[0], type.idleSeconds[1]),
       cooldown: 0,
       walking: false,
@@ -280,14 +309,32 @@ export default class CreatureSystem {
       health: tier.health,
     };
     this.placeHolder(creature);
+    this.pickMeshes.push(pickProxy);
+    this.pickOwner.set(pickProxy, creature);
+    this.placePickProxy(creature);
     return creature;
   }
 
   placeHolder(creature, bob = 0) {
     if (!creature || !creature.holder) return;
     const ground = this.groundHeightAt ? this.groundHeightAt(creature.renderX, creature.renderZ) : 0;
-    creature.holder.position.set(creature.renderX, ground + bob, creature.renderZ);
+    const bury = creature.buried
+      ? (1 - Math.max(0, Math.min(1, creature.emergeProgress))) * creature.buriedDepth
+      : 0;
+    const jump = creature.mode === 'emerging' && creature.type.emergeJump
+      ? Math.sin(Math.max(0, Math.min(1, creature.emergeProgress)) * Math.PI) * creature.type.emergeJump
+      : 0;
+    creature.holder.position.set(creature.renderX, ground + bob - bury + jump, creature.renderZ);
     creature.holder.rotation.y = creature.renderFacing + (creature.type.yawOffset || 0);
+    this.placePickProxy(creature);
+  }
+
+  placePickProxy(creature) {
+    const proxy = creature && creature.pickProxy;
+    if (!proxy || proxy.isDisposed()) return;
+    const holder = creature.holder;
+    const baseY = holder && !holder.isDisposed() ? holder.position.y : this.groundAt(creature.renderX, creature.renderZ);
+    proxy.position.set(creature.renderX, baseY + creature.pickHeight, creature.renderZ);
   }
 
   tintMaterial(mesh, tint) {
@@ -458,6 +505,25 @@ export default class CreatureSystem {
       && gap < aggro
       && heightGap <= this.attackHeight(type)
       && this.now >= (creature.giveUpUntil || 0);
+
+    if (creature.mode === 'buried') {
+      const emergeRange = Number.isFinite(type.emergeRange) ? type.emergeRange : aggro;
+      if (player && gap <= emergeRange) {
+        creature.mode = 'emerging';
+        creature.timer = creature.emergeSeconds;
+        this.playSound(creature, 'alert');
+      }
+      return;
+    }
+
+    if (creature.mode === 'emerging') {
+      if (creature.timer <= 0) {
+        creature.buried = false;
+        creature.emergeProgress = 1;
+        this.beginAlert(creature, alertSeconds);
+      }
+      return;
+    }
 
     if (creature.mode === 'windup') {
       if (creature.timer <= 0) {
@@ -649,15 +715,24 @@ export default class CreatureSystem {
       creature.renderZ += (creature.z - creature.renderZ) * blend;
       creature.renderFacing = turnToward(creature.renderFacing, creature.facing, TURN_SPEED * seconds);
       const pose = creature.type.rig
-        ? creature.type.rig.pose(creature.rig, seconds, { mode: creature.mode, moving: creature.walking })
+        ? creature.type.rig.pose(creature.rig, seconds, {
+          mode: creature.mode,
+          moving: creature.walking,
+          buried: creature.buried,
+          emergeProgress: creature.emergeProgress,
+        })
         : null;
+      if (creature.buried && creature.mode === 'emerging' && creature.emergeSeconds > 0) {
+        creature.emergeProgress = Math.min(1, Math.max(0, 1 - creature.timer / creature.emergeSeconds));
+      }
       const bob = pose && Number.isFinite(pose.bob) ? pose.bob : 0;
       this.placeHolder(creature, bob);
+      const hidden = creature.buried;
       const alert = creature.mode === 'alert';
       const combat = creature.mode === 'chase' || creature.mode === 'windup' || creature.mode === 'recover';
       const hovered = creature === this.hovered;
       const color = alert && !combat ? ALERT_COLOR : COMBAT_COLOR;
-      const goal = alert || combat || hovered ? 1 : 0;
+      const goal = hidden ? 0 : alert || combat || hovered ? 1 : 0;
       const fade = OUTLINE_FADE * seconds;
       creature.outlineLevel += Math.max(-fade, Math.min(fade, goal - creature.outlineLevel));
       const widthScale = combat ? OUTLINE_COMBAT_SCALE : 1;
@@ -671,7 +746,7 @@ export default class CreatureSystem {
   isPlayerInCombat(player) {
     if (!player) return false;
     return this.creatures.some((creature) => {
-      if (!creature || creature.dead) return false;
+      if (!creature || creature.dead || creature.buried) return false;
       if (!creature.engaged && creature.mode !== 'alert'
         && creature.mode !== 'chase'
         && creature.mode !== 'windup'
@@ -684,15 +759,36 @@ export default class CreatureSystem {
     });
   }
 
+  nearestHostile(player, maxDistance) {
+    if (!player) return null;
+    let best = null;
+    let bestDist = Number.isFinite(maxDistance) ? maxDistance : Infinity;
+    for (const creature of this.creatures) {
+      if (!creature || creature.dead || creature.buried) continue;
+      if (!creature.engaged && creature.mode !== 'alert'
+        && creature.mode !== 'chase'
+        && creature.mode !== 'windup'
+        && creature.mode !== 'recover') continue;
+      const dist = Math.hypot(player.x - creature.x, player.z - creature.z);
+      if (!Number.isFinite(dist) || dist > bestDist) continue;
+      best = creature;
+      bestDist = dist;
+    }
+    return best;
+  }
+
   hoverAt(x, y) {
     if (!this.creatures.length || !Number.isFinite(x) || !Number.isFinite(y)) {
       this.hovered = null;
       this.hoveredCorpse = null;
       return null;
     }
-    const pick = this.s.pick(x, y, (mesh) => this.meshes.includes(mesh));
+    const pick = this.s.pick(x, y, (mesh) => this.pickMeshes.includes(mesh) || this.meshes.includes(mesh));
     const mesh = pick && pick.hit ? pick.pickedMesh : null;
-    const creature = mesh ? this.creatures.find((item) => item.meshes.includes(mesh)) : null;
+    const owner = mesh ? this.pickOwner.get(mesh) : null;
+    const creature = owner
+      ? (this.creatures.includes(owner) && !owner.buried ? owner : null)
+      : mesh ? this.creatures.find((item) => !item.buried && item.meshes.includes(mesh)) : null;
     this.hovered = creature || null;
     return creature || null;
   }
@@ -719,6 +815,10 @@ export default class CreatureSystem {
   updateMarker(creature, seconds) {
     const marker = creature.marker;
     if (!marker) return;
+    if (creature.buried) {
+      marker.setEnabled(false);
+      return;
+    }
     creature.markTimer = Math.max(0, creature.markTimer - seconds);
     const doubt = creature.mode === 'confused';
     const alert = creature.mode === 'alert';
@@ -737,7 +837,7 @@ export default class CreatureSystem {
   }
 
   damage(creature, amount, now) {
-    if (!creature || !Number.isFinite(amount) || amount <= 0) return false;
+    if (!creature || creature.buried || !Number.isFinite(amount) || amount <= 0) return false;
     if (creature.health <= 0) return false;
     creature.health = Math.max(0, creature.health - amount);
     if (creature.health > 0) {
@@ -817,11 +917,13 @@ export default class CreatureSystem {
       }
       if (entry.age < entry.sinkAt) {
         holder.position.y = groundY;
+        this.placePickProxy(creature);
         continue;
       }
       const sink = Math.min(1, (entry.age - entry.sinkAt) / CORPSE_SINK);
       holder.position.y = groundY - 0.7 * sink;
       holder.rotation.z = CORPSE_TILT * (1 + sink * 0.25);
+      this.placePickProxy(creature);
       if (sink >= 1) this.disposeCorpse(entry);
     }
   }
@@ -853,10 +955,12 @@ export default class CreatureSystem {
       this.hoveredCorpse = null;
       return null;
     }
-    const pick = this.s.pick(x, y, (mesh) => this.meshes.includes(mesh));
+    const pick = this.s.pick(x, y, (mesh) => this.pickMeshes.includes(mesh) || this.meshes.includes(mesh));
     const mesh = pick && pick.hit ? pick.pickedMesh : null;
+    const owner = mesh ? this.pickOwner.get(mesh) : null;
     const entry = mesh
-      ? this.corpses.find((item) => !item.looted && item.creature && item.creature.meshes.includes(mesh))
+      ? this.corpses.find((item) => !item.looted && item.creature
+        && (item.creature === owner || item.creature.meshes.includes(mesh)))
       : null;
     this.hoveredCorpse = entry ? entry.creature : null;
     return entry ? entry.creature : null;
@@ -885,6 +989,12 @@ export default class CreatureSystem {
     if (!creature) return;
     const gone = [...(creature.meshes || [])];
     if (creature.marker) gone.push(creature.marker);
+    const proxy = creature.pickProxy;
+    if (proxy) {
+      this.pickMeshes = this.pickMeshes.filter((mesh) => mesh !== proxy);
+      this.pickOwner.delete(proxy);
+      if (!proxy.isDisposed()) proxy.dispose();
+    }
     this.creatures = this.creatures.filter((item) => item !== creature);
     this.meshes = this.meshes.filter((mesh) => !gone.includes(mesh));
     if (this.hovered === creature) this.hovered = null;
@@ -971,10 +1081,14 @@ export default class CreatureSystem {
     }
     this.corpses = [];
     for (const creature of this.creatures) {
+      const proxy = creature.pickProxy;
+      if (proxy && !proxy.isDisposed()) proxy.dispose();
       if (creature.holder && !creature.holder.isDisposed()) creature.holder.dispose();
     }
     this.creatures = [];
     this.meshes = [];
+    this.pickMeshes = [];
+    this.pickOwner.clear();
     this.slots.clear();
     this.hovered = null;
     this.hoveredCorpse = null;

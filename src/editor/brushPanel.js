@@ -6,6 +6,17 @@ import { makeDraggable } from '../ui/draggable.js';
 
 const STYLE_LABELS = { dirt: 'Hlína', stone: 'Kámen', wood: 'Dřevo', iron: 'Železo', copper: 'Měď' };
 
+function speciesSwatch(key, def) {
+  if (def && def.swatch) return def.swatch;
+  if (!key) return null;
+  if (key.includes('black')) return '#252724';
+  if (key.includes('dark')) return '#555750';
+  if (key.includes('rockfall') || key.startsWith('rock_')) return '#aaa69a';
+  if (key.includes('driftwood')) return '#b8aa91';
+  if (key.includes('log') || key.includes('branch')) return '#75543a';
+  return null;
+}
+
 export default class BrushPanel {
 
   constructor() {
@@ -201,7 +212,16 @@ export default class BrushPanel {
       const def = getDecoration(key);
       const label = def && def.displayName ? def.displayName : key;
       btn.title = label;
-      btn.textContent = label;
+      const swatch = speciesSwatch(key, def);
+      if (swatch) {
+        const dot = document.createElement('span');
+        dot.className = 'brush-panel__swatch';
+        dot.style.background = swatch;
+        btn.appendChild(dot);
+      }
+      const text = document.createElement('span');
+      text.textContent = label;
+      btn.appendChild(text);
       btn.classList.toggle('is-active', key === speciesKey);
       btn.addEventListener('click', () => {
         if (this.onSpecies) this.onSpecies(key);

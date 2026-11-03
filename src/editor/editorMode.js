@@ -1667,6 +1667,10 @@ export default class EditorMode {
 
   speciesKeyAt(brush, pool, cx, cz) {
     if (!pool || !pool.length) return this.tileKey;
+    if (this.brushOptionValue(this.brushKey, 'random')) {
+      const value = hash01(cx * 41.7 + 13.1, cz * 67.3 - 7.9);
+      return pool[Math.min(pool.length - 1, Math.floor(value * pool.length))];
+    }
     if (brush.patch && this.brushOptionValue(this.brushKey, 'patch')) {
       const px = Math.floor(cx / brush.patch + noise2(cx / 3.1, cz / 3.1) * 0.85);
       const pz = Math.floor(cz / brush.patch + noise2(cx / 2.7 + 5, cz / 2.7 - 3) * 0.85);
@@ -1681,6 +1685,7 @@ export default class EditorMode {
     if (!pool.includes(key)) return false;
     this.tileKey = key;
     this.setBrushOption('patch', false);
+    this.setBrushOption('random', false);
     return true;
   }
 

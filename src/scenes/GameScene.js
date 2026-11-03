@@ -506,7 +506,8 @@ export default class GameScene {
     }
     if (moved || now - this.creaturePickAt > 250) {
       this.creaturePickAt = now;
-      const creature = this.creatureSystem.hoverAt(this.s.pointerX, this.s.pointerY);
+      const creature = this.creatureSystem.hoverAt(this.s.pointerX, this.s.pointerY)
+        || this.assistCreatureAtPointer();
       if (creature) {
         this.decoHighlight.setHover(null);
         this.showCreatureTooltip(creature);
@@ -934,8 +935,37 @@ updateGatherTarget() {
   attackAtPointer() {
     if (this.playerSystem.lying) return false;
     const creature = this.creatureSystem.hoverAt(this.s.pointerX, this.s.pointerY);
-    if (!creature) return false;
-    return this.playerAttackSystem.swing(creature, this.playerSystem);
+    if (creature) return this.playerAttackSystem.swing(creature, this.playerSystem);
+    const assisted = this.assistCreatureAtPointer();
+    if (assisted) return this.playerAttackSystem.swing(assisted, this.playerSystem);
+    const root = this.playerSystem.root;
+    const nearest = root
+      ? this.creatureSystem.nearestHostile(root.position, this.playerAttackSystem.reach)
+      : null;
+    return nearest ? this.playerAttackSystem.swing(nearest, this.playerSystem) : false;
+  }
+
+  assistCreatureAtPointer() {
+    const root = this.playerSystem.root;
+    if (!root || !this.inputSystem.pointerInside()) return null;
+    let best = null;
+    let bestDistance = 32;
+    const reach = this.playerAttackSystem.reach + 0.35;
+    for (const creature of this.creatureSystem.creatures) {
+      if (!creature || creature.dead) continue;
+      const worldDistance = Math.hypot(creature.x - root.position.x, creature.z - root.position.z);
+      if (worldDistance > reach) continue;
+      const holderY = creature.holder && !creature.holder.isDisposed()
+        ? creature.holder.position.y
+        : root.position.y;
+      const point = this.screenPointOf(creature.renderX, holderY + creature.markHeight * 0.5, creature.renderZ);
+      if (!point) continue;
+      const distance = Math.hypot(point.x - this.s.pointerX, point.y - this.s.pointerY);
+      if (distance > bestDistance) continue;
+      best = creature;
+      bestDistance = distance;
+    }
+    return best;
   }
 
   lootAtPointer() {
@@ -960,9 +990,13 @@ updateGatherTarget() {
     this.playerAttackSystem.update(active ? dt : 0);
     if (!active || !this.inputSystem.leftDown) return;
     const target = this.playerAttackSystem.target;
-    if (!target || this.creatureSystem.hovered !== target) return;
-    if (!this.creatureSystem.creatures.includes(target)) {
+    if (!target || !this.creatureSystem.creatures.includes(target)) {
       this.playerAttackSystem.target = null;
+      const root = this.playerSystem.root;
+      const next = root
+        ? this.creatureSystem.nearestHostile(root.position, this.playerAttackSystem.reach)
+        : null;
+      if (next) this.playerAttackSystem.swing(next, this.playerSystem);
       return;
     }
     this.playerAttackSystem.swing(target, this.playerSystem);
@@ -990,6 +1024,8 @@ updateGatherTarget() {
     if (!creature) return;
     const label = creature.type ? creature.type.label : 'Tvor';
     this.log.add(`Minul jsi: ${label}`, 'action');
+    const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ);
+    this.spawnFloatingText('Minul', creature.renderX, ground + creature.markHeight, creature.renderZ, 'miss');
   }
 
   showFloatingDamage(creature, amount, crit) {
@@ -1007,10 +1043,15 @@ updateGatherTarget() {
   }
 
   spawnFloatingNumber(amount, x, y, z, kind) {
+    if (!Number.isFinite(amount)) return;
+    this.spawnFloatingText(Math.round(amount), x, y, z, kind);
+  }
+
+  spawnFloatingText(text, x, y, z, kind) {
     if (!this.options.floatingNumbers) return;
     const point = this.screenPointOf(x, y, z);
     if (!point) return;
-    this.floatingNumbers.spawn(point, Math.round(amount), kind);
+    this.floatingNumbers.spawn(point, text, kind);
   }
 
   screenPointOf(x, y, z) {
@@ -1039,7 +1080,7 @@ updateGatherTarget() {
     }
     const items = [];
     for (const creature of this.creatureSystem.creatures) {
-      if (!creature || !creature.slotKey || !Number.isFinite(creature.health)) continue;
+      if (!creature || !creature.slotKey || !Number.isFinite(creature.health) || creature.buried) continue;
       const total = creature.tier && Number.isFinite(creature.tier.health) ? creature.tier.health : 0;
       if (total <= 0) continue;
       const ratio = creature.health / total;
@@ -1076,6 +1117,13 @@ updateGatherTarget() {
   onCreatureBiteMiss(creature) {
     const who = creature && creature.type ? creature.type.label : 'Útok';
     this.log.add(`${who} — útok minul`, 'info');
+    this.showFloatingTextOverPlayer('Minul', 'miss');
+  }
+
+  showFloatingTextOverPlayer(text, kind) {
+    const root = this.playerSystem.root;
+    if (!root) return;
+    this.spawnFloatingText(text, root.position.x, root.position.y + PLAYER_FLOAT_HEIGHT, root.position.z, kind);
   }
 
   onPlayerDeath() {

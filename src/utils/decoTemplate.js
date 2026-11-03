@@ -1,6 +1,6 @@
 // Překlad dekorace na šablonu — procedura z kódu, nebo model z disku.
 // Na jednom místě, aby se seznam druhů neopisoval na víc místech.
-import { treeTemplate } from './treeFactory.js';
+import { treeTemplate, treeLogTemplate, treeBranchTemplate } from './treeFactory.js';
 import { rockTemplate } from './rockFactory.js';
 import { shellTemplate } from './shellFactory.js';
 import { coralTemplate } from './coralFactory.js';
@@ -12,6 +12,9 @@ import { resolveModel } from './assetLoader.js';
 export function proceduralTemplate(scene, def) {
   if (!def) return null;
   if (def.campfire) return campfireTemplate(scene, def.campfire);
+  if (def.log) return treeLogTemplate(scene, def.log);
+  if (def.branch) return treeBranchTemplate(scene, def.branch);
+  if (def.driftwood) return treeLogTemplate(scene, def.driftwood);
   if (def.tree) return treeTemplate(scene, def.tree);
   if (def.rock) return rockTemplate(scene, def.rock);
   if (def.shell) return shellTemplate(scene, def.shell);

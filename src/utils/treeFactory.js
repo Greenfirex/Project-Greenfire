@@ -15,6 +15,7 @@ import TreeWindPlugin from '../systems/treeWindPlugin.js';
 const templates = new WeakMap();
 const stumps = new WeakMap();
 const logs = new WeakMap();
+const branches = new WeakMap();
 const fronds = new WeakMap();
 const textures = new WeakMap();
 const cutMaterials = new WeakMap();
@@ -34,6 +35,10 @@ export function treeStumpTemplate(scene, key) {
 
 export function treeLogTemplate(scene, key) {
   return cachedTemplate(logs, scene, key, (recipe) => buildLog(scene, key, recipe));
+}
+
+export function treeBranchTemplate(scene, key) {
+  return cachedTemplate(branches, scene, key, (recipe) => buildBranch(scene, key, recipe));
 }
 
 export function treeFrondTemplate(scene, key) {
@@ -123,6 +128,7 @@ function cutMaterial(scene) {
   material = new StandardMaterial('treeCut', scene);
   material.diffuseColor = new Color3(0.72, 0.58, 0.42);
   material.specularColor = new Color3(0.05, 0.05, 0.04);
+  material.backFaceCulling = false;
   cutMaterials.set(scene, material);
   return material;
 }
@@ -445,17 +451,144 @@ function buildLog(scene, key, recipe) {
   const sides = Math.max(6, Math.min(10, recipe.trunkSides));
   const length = Math.max(0.9, recipe.height * 0.42);
   const radius = Math.max(0.08, recipe.trunkRadius * 0.85);
+  const rng = mulberry32(recipe.seed);
   const bark = createBuffer();
   const cut = createBuffer();
   const y = radius;
   const half = length / 2;
-  const points = [new Vector3(-half, y, 0), new Vector3(0, y, 0), new Vector3(half, y, 0)];
-  const radii = [radius * 0.94, radius, radius * 0.94];
-  addTube(bark, points, radii, sides, () => new Color3(0.95, 0.92, 0.88), [1, Math.max(1, length / 0.9)]);
-  addCap(cut, new Vector3(half, y, 0), new Vector3(1, 0, 0), radius * 0.94, sides, new Color3(1, 1, 1));
-  addCap(cut, new Vector3(-half, y, 0), new Vector3(-1, 0, 0), radius * 0.94, sides, new Color3(1, 1, 1));
+  const bend = (rng() - 0.5) * radius * (Number.isFinite(recipe.bend) ? recipe.bend : 0.7);
+  const points = [
+    new Vector3(-half, y, 0),
+    new Vector3(-half * 0.42, y + bend * 0.35, bend),
+    new Vector3(0, y + bend * 0.55, bend * 0.7),
+    new Vector3(half * 0.46, y + bend * 0.2, bend * 0.3),
+    new Vector3(half, y, 0),
+  ];
+  const radii = [radius * 0.9, radius, radius * 0.96, radius * 0.92, radius * 0.82];
+  const gap = radius * (Number.isFinite(recipe.split) ? recipe.split : 0.42);
+  const leftPoints = points.map((point) => point.add(new Vector3(0, radius * 0.05, -gap)));
+  const rightPoints = points.map((point) => point.add(new Vector3(0, -radius * 0.04, gap)));
+  addHalfTube(bark, cut, leftPoints, radii.map((value) => value * 0.95), sides, [1, Math.max(1, length / 0.9)], 0, Math.PI);
+  addHalfTube(bark, cut, rightPoints, radii.map((value) => value * 0.88), sides, [1, Math.max(1, length / 0.9)], Math.PI, Math.PI * 2);
+  addRaggedCap(cut, leftPoints[0], new Vector3(-1, 0, 0), radii[0] * 0.95, sides, new Color3(1, 1, 1), rng);
+  addRaggedCap(cut, leftPoints[leftPoints.length - 1], new Vector3(1, 0, 0), radii[radii.length - 1] * 0.95, sides, new Color3(1, 1, 1), rng);
+  addRaggedCap(cut, rightPoints[0], new Vector3(-1, 0, 0), radii[0] * 0.88, sides, new Color3(1, 1, 1), rng);
+  addRaggedCap(cut, rightPoints[rightPoints.length - 1], new Vector3(1, 0, 0), radii[radii.length - 1] * 0.88, sides, new Color3(1, 1, 1), rng);
+  addLogBranches(bark, cut, points, radius, sides, rng, recipe.branchCount);
   return assembleTemplate(scene, `tplLog_${key}`, [
     [bark, barkMaterial(scene, `${key}_log`, recipe, false)],
+    [cut, cutMaterial(scene)],
+  ]);
+}
+
+function addHalfTube(bark, cut, points, radii, sides, uvRepeat, angleStart, angleEnd) {
+  const frames = [];
+  let right = null;
+  for (let i = 0; i < points.length; i += 1) {
+    const tangent = tangentAt(points, i);
+    let next = right ? right.subtract(tangent.scale(Vector3.Dot(right, tangent))) : perpendicular(tangent);
+    if (next.lengthSquared() < 1e-6) next = perpendicular(tangent);
+    right = next.normalize();
+    frames.push({ right, up: Vector3.Cross(tangent, right).normalize() });
+  }
+  const start = bark.positions.length / 3;
+  for (let i = 0; i < points.length; i += 1) {
+    const frame = frames[i];
+    const shade = () => new Color3(0.95, 0.92, 0.88);
+    const v = (i / (points.length - 1)) * uvRepeat[1];
+    for (let s = 0; s <= sides; s += 1) {
+      const angle = angleStart + ((angleEnd - angleStart) * s) / sides;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const normal = new Vector3(
+        frame.right.x * cos + frame.up.x * sin,
+        frame.right.y * cos + frame.up.y * sin,
+        frame.right.z * cos + frame.up.z * sin,
+      ).normalize();
+      pushVertex(bark, points[i].add(normal.scale(radii[i])), normal, shade(),
+        (s / sides) * uvRepeat[0], v);
+    }
+  }
+  for (let i = 0; i < points.length - 1; i += 1) {
+    for (let s = 0; s < sides; s += 1) {
+      const a = start + i * (sides + 1) + s;
+      const b = a + 1;
+      const c = a + sides + 1;
+      const d = c + 1;
+      bark.indices.push(a, c, b, b, c, d);
+    }
+  }
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const frame = frames[i];
+    const nextFrame = frames[i + 1];
+    const a = points[i].add(new Vector3(frame.right.x * radii[i], frame.right.y * radii[i], frame.right.z * radii[i]));
+    const b = points[i + 1].add(new Vector3(nextFrame.right.x * radii[i + 1], nextFrame.right.y * radii[i + 1], nextFrame.right.z * radii[i + 1]));
+    const c = points[i + 1].add(new Vector3(-nextFrame.right.x * radii[i + 1], -nextFrame.right.y * radii[i + 1], -nextFrame.right.z * radii[i + 1]));
+    const d = points[i].add(new Vector3(-frame.right.x * radii[i], -frame.right.y * radii[i], -frame.right.z * radii[i]));
+    addQuad(cut, a, b, c, d, new Color3(1, 1, 1), Vector3.Up(), [0, i / (points.length - 1), 1, (i + 1) / (points.length - 1)]);
+  }
+}
+
+function addLogBranches(bark, cut, points, radius, sides, rng, branchCount) {
+  const count = Number.isFinite(branchCount) ? branchCount : 2 + Math.floor(rng() * 2);
+  for (let i = 0; i < count; i += 1) {
+    const base = points[1 + Math.floor(rng() * (points.length - 2))];
+    const direction = new Vector3((rng() - 0.5) * 1.4, 0.35 + rng() * 0.5, (rng() - 0.5) * 1.4).normalize();
+    const start = base.add(direction.scale(radius * 0.5));
+    const end = start.add(direction.scale(radius * (0.8 + rng() * 0.9)));
+    addTube(bark, [start, end], [radius * 0.36, radius * 0.13], 5, () => new Color3(0.93, 0.9, 0.85), [1, 0.7]);
+    addRaggedCap(cut, end, direction, radius * 0.13, 5, new Color3(1, 1, 1), rng);
+  }
+}
+
+function addRaggedCap(buffer, center, tangent, radius, sides, color, rng) {
+  const normal = tangent.normalize();
+  const right = perpendicular(normal);
+  const up = Vector3.Cross(normal, right).normalize();
+  const capCenter = center.add(normal.scale((rng() - 0.5) * radius * 0.25));
+  const centerIndex = pushVertex(buffer, capCenter, normal, color, 0.5, 0.5);
+  const ring = [];
+  for (let s = 0; s < sides; s += 1) {
+    const angle = (s / sides) * Math.PI * 2;
+    const reach = radius * (0.72 + rng() * 0.36);
+    const point = capCenter
+      .add(right.scale(Math.cos(angle) * reach))
+      .add(up.scale(Math.sin(angle) * reach));
+    ring.push(pushVertex(buffer, point, normal, color, 0.5 + Math.cos(angle) * 0.5, 0.5 + Math.sin(angle) * 0.5));
+  }
+  for (let s = 0; s < sides; s += 1) {
+    const next = (s + 1) % sides;
+    buffer.indices.push(centerIndex, ring[s], ring[next]);
+    buffer.indices.push(centerIndex, ring[next], ring[s]);
+  }
+}
+
+function buildBranch(scene, key, recipe) {
+  const sides = Math.max(5, Math.min(8, recipe.trunkSides));
+  const length = Math.max(1.1, recipe.height * 0.55);
+  const radius = Math.max(0.04, recipe.trunkRadius * 0.55);
+  const angle = Number.isFinite(recipe.branchAngle) ? recipe.branchAngle : 0.8;
+  const rng = mulberry32(recipe.seed);
+  const bark = createBuffer();
+  const cut = createBuffer();
+  const y = radius;
+  const main = [
+    new Vector3(-length * 0.5, y, 0),
+    new Vector3(0, y + radius * 0.15, 0),
+    new Vector3(length * 0.5, y, 0),
+  ];
+  addTube(bark, main, [radius * 0.75, radius, radius * 0.62], sides, () => new Color3(0.95, 0.92, 0.88), [1, Math.max(1, length / 0.7)]);
+  addRaggedCap(cut, main[0], new Vector3(-1, 0, 0), radius * 0.75, sides, new Color3(1, 1, 1), rng);
+  addRaggedCap(cut, main[2], new Vector3(1, 0, 0), radius * 0.62, sides, new Color3(1, 1, 1), rng);
+  const fork = new Vector3(-length * 0.06, y, 0);
+  const firstEnd = fork.add(new Vector3(length * Math.cos(angle) * 0.34, radius * 0.12, length * Math.sin(angle) * 0.24));
+  addTube(bark, [fork, firstEnd], [radius * 0.62, radius * 0.26], sides, () => new Color3(0.94, 0.9, 0.85), [1, Math.max(1, length / 0.5)]);
+  addRaggedCap(cut, firstEnd, new Vector3(0.4, 0, 0.9), radius * 0.26, sides, new Color3(1, 1, 1), rng);
+  const secondEnd = fork.add(new Vector3(length * 0.18, radius * 0.2, -length * 0.3));
+  addTube(bark, [fork, secondEnd], [radius * 0.5, radius * 0.22], sides, () => new Color3(0.92, 0.88, 0.83), [1, Math.max(1, length / 0.5)]);
+  addRaggedCap(cut, secondEnd, new Vector3(0.2, 0, -1), radius * 0.22, sides, new Color3(1, 1, 1), rng);
+  return assembleTemplate(scene, `tplBranch_${key}`, [
+    [bark, barkMaterial(scene, `${key}_branch`, recipe, false)],
     [cut, cutMaterial(scene)],
   ]);
 }

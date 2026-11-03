@@ -1,0 +1,3 @@
+﻿Model Písečný běs — zdroj: sand devil.glb.
+Vytvořeno v Meshy AI, upraveno pro tento projekt.
+Licence: podle licence účtu Meshy, na kterém byl model vytvořen.

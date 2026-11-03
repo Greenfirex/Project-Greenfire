@@ -19,12 +19,13 @@ const PATH_SURFACE = 0.02;
 const FLAT_SINK = 0.015;
 
 function liesFlat(def) {
-  return Boolean(def && def.shell);
+  return Boolean(def && (def.shell || def.flat));
 }
 
 function hasModelDef(def) {
   if (!def) return false;
-  return Boolean(def.model || def.tree || def.rock || def.shell || def.coral || def.flower || def.bush || def.campfire);
+  return Boolean(def.model || def.tree || def.log || def.branch || def.driftwood
+    || def.rock || def.shell || def.coral || def.flower || def.bush || def.campfire);
 }
 
 function cellGap(shape, x, z) {
@@ -326,7 +327,10 @@ export default class DecoSystem {
     const anchor = new TransformNode(`deco_${entry.key}_${entry.cx}_${entry.cz}`, this.s);
     anchor.position = new Vector3(spotX, spotY, spotZ);
     anchor.metadata = { key: entry.key, def, bucket, entry, yaw };
-    if (liesFlat(def)) this.leanFlat(anchor, def, spotX, spotY, spotZ);
+    if (liesFlat(def)) {
+      if (def.flat) anchor.rotation.y = yaw;
+      this.leanFlat(anchor, def, spotX, spotY, spotZ);
+    }
     else if (!def.flower) anchor.rotation.y = yaw;
     if (def.flower) this.flowerAnchors.push(anchor);
     bucket.push(anchor);
@@ -342,7 +346,13 @@ export default class DecoSystem {
     const normal = new Vector3(-slopeX, 1, -slopeZ).normalize();
     const tilt = Quaternion.Identity();
     Quaternion.FromUnitVectorsToRef(Vector3.Up(), normal, tilt);
-    anchor.rotationQuaternion = tilt;
+    if (def.flat) {
+      const yaw = anchor.rotation.y;
+      const turn = Quaternion.RotationAxis(Vector3.Up(), yaw);
+      anchor.rotationQuaternion = tilt.multiply(turn);
+    } else {
+      anchor.rotationQuaternion = tilt;
+    }
     anchor.position.y = y - FLAT_SINK;
   }
 
@@ -427,7 +437,7 @@ export default class DecoSystem {
     node.position = new Vector3(0, 0, 0);
     const { scale } = decoPlacement(def, entry);
     node.scaling = new Vector3(scale, scale, scale);
-    if ((liesFlat(def) || def.flower) && anchor.metadata) node.rotation.y = anchor.metadata.yaw || 0;
+    if (((liesFlat(def) && !def.flat) || def.flower) && anchor.metadata) node.rotation.y = anchor.metadata.yaw || 0;
     if (!def.noTint) ownMaterials(node);
     tintTemplate(node, def, this.colors, section);
     anchor.metadata.model = node;

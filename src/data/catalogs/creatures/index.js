@@ -1,9 +1,11 @@
 // Registr tvorů — jediné místo, které ví, jací tvorové ve hře existují.
 // Každý tvor má vlastní soubor; tady se jen poskládají do mapy a přidají pomocné funkce.
 import { SNAPPING_TURTLE } from './snappingTurtle.js';
+import { SAND_DEVIL } from './sandDevil.js';
 
 export const CREATURE_TYPES = {
   snapping_turtle: SNAPPING_TURTLE,
+  sand_devil: SAND_DEVIL,
 };
 
 export const CREATURE_KEYS = Object.keys(CREATURE_TYPES);

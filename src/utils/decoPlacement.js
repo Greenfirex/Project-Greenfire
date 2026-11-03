@@ -26,8 +26,8 @@ function rockJitter(entry) {
 
 export function decoJitter(def, entry) {
   if (!def || !entry) return null;
-  if (def.kind === 'tree') return treeJitter(entry);
-  if (def.rock || def.shell || def.coral || def.flower || def.bush) return rockJitter(entry);
+  if (def.tree) return treeJitter(entry);
+  if (def.rock || def.log || def.branch || def.driftwood || def.shell || def.coral || def.flower || def.bush) return rockJitter(entry);
   return null;
 }
 

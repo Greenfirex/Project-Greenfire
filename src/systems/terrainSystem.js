@@ -293,6 +293,8 @@ export default class TerrainSystem {
     this.cliffBlendTextures = [];
     this.skirtMesh = null;
     this.gridLines = null;
+    this.gridVisible = false;
+
     this.field = null;
     this.floorKeys = new Map();
     this.mapKey = null;
@@ -1951,12 +1953,13 @@ export default class TerrainSystem {
     lines.color = color3(map.colors.gridLine);
     lines.alpha = 0.22;
     lines.isPickable = false;
+    lines.setEnabled(this.gridVisible);
     return lines;
   }
 
   toggleGrid() {
-    if (!this.gridLines) return false;
-    this.gridLines.setEnabled(!this.gridLines.isEnabled());
-    return this.gridLines.isEnabled();
+    this.gridVisible = !this.gridVisible;
+    if (this.gridLines && !this.gridLines.isDisposed()) this.gridLines.setEnabled(this.gridVisible);
+    return this.gridVisible;
   }
 }

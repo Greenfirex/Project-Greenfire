@@ -9,6 +9,7 @@ const SURFACES = surfaceEntries();
 const surfaceStyle = (entry) => entry.key.replace(/^floor_/, '');
 
 const SIZE_OPTION = { key: 'radius', label: 'Velikost', kind: 'range', min: 0, max: 3, step: 1, display: 'square' };
+const RANDOM_OPTION = { key: 'random', label: 'Náhodně střídat varianty', default: true };
 
 function levelMeters(level) {
   const n = Math.round(Math.abs(level) * HEIGHT_STEP * 10) / 10;
@@ -101,6 +102,41 @@ export const BRUSHES = {
       'rock_large', 'rock_large_c', 'rock_small', 'rock_small_flat', 'rock_tall',
       'rock_pair', 'rock_jagged', 'rock_pebbles',
     ],
+    deco: true,
+  },
+  deadwood: {
+    label: 'Mrtvé dřevo',
+    group: 'Objekty',
+    note: 'Nasadí padlé kmeny a suché větve na lesní půdu.',
+    shape: 'blob',
+    pool: [
+      'fallen_log_pine_a', 'fallen_log_pine_b', 'fallen_log_pine_c', 'fallen_log_pine_d',
+      'fallen_log_palm_a', 'fallen_log_palm_b', 'fallen_log_palm_c',
+      'dead_branch_a', 'dead_branch_b',
+    ],
+    options: [RANDOM_OPTION],
+    deco: true,
+  },
+  driftwood: {
+    label: 'Naplavené dřevo',
+    group: 'Objekty',
+    note: 'Nasadí vybledlé kmeny a větve na pláž a k vodě.',
+    shape: 'blob',
+    pool: ['driftwood_palm_a', 'driftwood_palm_b'],
+    options: [RANDOM_OPTION],
+    deco: true,
+  },
+  cliffDebris: {
+    label: 'Suť z útesu',
+    group: 'Objekty',
+    note: 'Nasadí sesunuté skalní desky, hromady a rozsypané kamení. Náhodně střídá tvary i tmavé varianty.',
+    shape: 'blob',
+    pool: [
+      'rockfall_slab', 'rockfall_pile', 'rockfall_spire', 'rockfall_scatter',
+      'rockfall_mass_a', 'rockfall_mass_b', 'rockfall_dark_pile', 'rockfall_dark_slab',
+      'rockfall_dark_mass', 'rockfall_dark_spire', 'rockfall_black_pile', 'rockfall_black_mass',
+    ],
+    options: [RANDOM_OPTION],
     deco: true,
   },
   mushrooms: {
