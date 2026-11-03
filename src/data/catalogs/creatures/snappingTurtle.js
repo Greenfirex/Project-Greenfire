@@ -251,6 +251,8 @@ export const SNAPPING_TURTLE = {
     alert: 'turtleHiss',
     charge: 'turtleGrowl',
     bite: 'turtleBite',
+    hit: 'turtleGrowl',
+    death: 'turtleHiss',
   },
   length: 1.1,
   yawOffset: Math.PI,
@@ -270,7 +272,7 @@ export const SNAPPING_TURTLE = {
   footprint: {
     kind: 'turtle',
     scale: 0.33,
-    stepDistance: 0.65,
+    stepDistance: 0.37,
     feet: [
       { side: 0.2, forward: 0.277 },
       { side: -0.157, forward: 0.299 },

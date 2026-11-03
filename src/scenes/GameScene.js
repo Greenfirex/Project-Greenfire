@@ -1098,9 +1098,10 @@ updateGatherTarget() {
     this.creatureHealthBar.update(items);
   }
 
-  hurtPlayer(amount, label) {
+  hurtPlayer(amount, label, crit = false) {
     if (!this.loaded || this.paused) return false;
     if (!this.playerStats.hurt(amount)) return false;
+    this.audioSystem.play(crit ? 'hurtCrit' : 'hurt');
     if (this.options.cameraShake) this.cameraSystem.shake(0.28, 0.32);
     if (this.options.damageFlash) this.healthBar.flash();
     if (label) this.log.add(label, 'warn');
@@ -1111,12 +1112,13 @@ updateGatherTarget() {
   onCreatureBite(creature, damage, crit) {
     const who = creature && creature.type ? creature.type.label : 'Útok';
     const critText = crit ? ' kriticky' : '';
-    const hurt = this.hurtPlayer(damage, `${who} — ${Math.round(damage)} poškození${critText}`);
+    const hurt = this.hurtPlayer(damage, `${who} — ${Math.round(damage)} poškození${critText}`, crit);
     if (hurt) this.showFloatingOverPlayer(damage, crit);
   }
 
   onCreatureBiteMiss(creature) {
     const who = creature && creature.type ? creature.type.label : 'Útok';
+    this.audioSystem.play('miss');
     this.log.add(`${who} — útok minul`, 'info');
     this.showFloatingTextOverPlayer('Minul', 'miss');
   }
