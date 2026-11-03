@@ -16,7 +16,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ## Editor
 
-- [ ] Přidat spojovací čáru mezi spawním místem a živým tvorem; jen při vybraném štětci tvora.
 - [ ] Doladit barvy a průhlednost značek živého a čekajícího tvora podle vizuálního testu.
 
 ## Tvorové a boj

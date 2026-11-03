@@ -411,7 +411,8 @@ a objekty, modelovat výšky, razítkovat herní plochu a ukládat mapu přímo 
 - **Výška** — terén od −6 do +24 m po 0,3 m, kopce, prohlubně, útesy a spojnice.
 - **Herní plocha** — razítko podkladu a výšky pro nové nebo přepsané buňky.
 - **Voda** — jedna hladina pro mapu, v editoru ji jde zapnout, skrýt a ladit po 0,3 m.
-- **Tvorové** — spawní místa se značkami živého, čekajícího a nového místa.
+- **Tvorové** — spawní místa se značkami živého, čekajícího a nového místa
+  a se spojnicí od spawního místa k živému tvorovi.
 
 Podrobný popis režimů, štětců, výšek, vody, cest, tvorů a ukládání mapy je
 v [dokumentaci editoru](src/editor/README.md).

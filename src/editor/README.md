@@ -28,8 +28,15 @@ Po uložení je potřeba mapu znovu načíst; vývojový server obvykle stránku
 - **Pravé tlačení** otáčí kameru.
 - **WASD / šipky** posouvají pohled, Shift zrychluje.
 - **Kolečko** zoomuje; v editoru jde oddálit víc než ve hře.
-- **Z** vrací poslední krok.
+- **Enter** potvrdí rozpracovanou zónu nebo označenou plochu.
+- **Esc** zahodí rozepsaný návrh nebo označenou plochu.
+- **Z** vrací poslední krok, **X** zapíná a vypíná mazání.
+- **H** přepíná režim výšek, **Q/E** a číslice 1–9 ladí výšku.
 - **F2** editor zavře.
+
+Editor hru pozastaví, ale klávesy fungují dál — pauza se do nich neplete.
+Když editor otevřeš ve chvíli, kdy máš hru pozastavenou ty, po zavření
+zůstane pauza a vrátí se pauzovací nabídka.
 
 Panel vpravo dole vypisuje, co na buňce leží, jaká je její výška a co se tam
 chystá položit. Panel editoru hlásí stav: mimo plochu, neuložené změny, aplikováno.
@@ -50,15 +57,22 @@ mazání udělá v mapě skutečnou díru.
 se volí stáří. Na jedné buňce zůstane vždy jen jeden tvor; nový starý nahradí.
 V režimu Mazat se tvor odebere.
 
+**Start hráče** určí buňku, na které hráč začíná. Klikneš na jednu buňku a potvrdíš
+(Enter). Aktuální start je v editoru vidět jako žlutý čtvereček. Změna se projeví
+až při startu hry nebo načtení uložené pozice.
+
 Když je vybraný štětec tvora, editor označí všechna spawní místa v mapě:
 
 - **plný tyrkysový čtvereček** znamená živého tvora,
 - **obrysový a ztlumený čtvereček** znamená mrtvého tvora, který čeká na obnovu,
 - **neutrální značka** znamená nové místo, které ještě není potvrzené.
 
-Kruh kolem značky ukazuje poloměr toulání. Tooltip u buňky vypíše druh, stáří,
-poloměr a stav — živý, nebo přibližně kolik dní zbývá do obnovy. Prázdná mapa
-znamená žádná spawní místa; editor žádné tvory nedoplňuje sám.
+Kruh kolem značky ukazuje poloměr toulání. Od živého čtverečku vede tenká
+spojnice k místu, kde tvor skutečně stojí — jakmile se zatoulá nebo vyrazí za
+hráčem, je to vidět. Stojí-li přímo na spawním místě, spojnice se nekreslí.
+Tooltip u buňky vypíše druh, stáří, poloměr a stav — živý, nebo přibližně kolik
+dní zbývá do obnovy. Prázdná mapa znamená žádná spawní místa; editor žádné
+tvory nedoplňuje sám.
 
 ### Výška
 
@@ -99,6 +113,24 @@ podle sousedů:
 
 Šířka cesty je deterministická funkce světových souřadnic, takže se plynule vlní,
 ale sousední segmenty na sebe navazují.
+
+## Přestavba světa
+
+Editor neposílá scéně pokyn „postav celou mapu znovu". Každý štětec v katalogu
+štětců říká, co svou změnou rozhýbe, a scéna přestaví jen ty části:
+
+- **terén** — země, voda a útesy (výšky, útes, pláž, most, spojnice, herní plocha, hladina vody),
+- **dekorace** — stromy, keře, kameny, cesty, ohniště, květiny,
+- **tvorové** — spawní místa tvorů,
+- **ryby** — hejna ve vodě.
+
+Položení tvora tedy nepřestaví vegetaci ani terén a ostatní tvorové zůstanou
+stát tam, kde jsou, se stejným zdravím. Start hráče nepřestavuje nic — mění se
+jen údaj v mapě. Štětec, který v katalogu žádný údaj nemá, spustí přestavbu
+celou — nic se tak nerozbije tiše.
+
+Dokud přestavba běží, svítí nahoře uprostřed proužek s tím, co se právě počítá.
+Klikání neblokuje: další tah se jen zařadí za běžící práci.
 
 ## Kde editor bydlí
 

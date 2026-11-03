@@ -108,49 +108,62 @@ export default class CreatureSystem {
   }
 
   async create(layout) {
-    const previousDead = this.deadTimes();
-    this.clear();
-    const entries = this.entriesFor(layout);
-    if (!entries.length) {
-      this.pendingState = null;
-      return this.creatures;
-    }
     const saved = this.stateByKey(this.pendingState);
     this.pendingState = null;
-    for (const entry of entries) {
+    const wanted = new Map();
+    for (const entry of this.entriesFor(layout)) {
       const type = getCreatureType(entry.kind);
       const tierKey = entry.tier && type.tiers[entry.tier] ? entry.tier : type.defaultTier;
-      const tier = getCreatureTier(type, tierKey);
-      const key = slotKeyOf(entry.kind, tierKey, entry.cx, entry.cz);
+      wanted.set(slotKeyOf(entry.kind, tierKey, entry.cx, entry.cz), { entry, type, tierKey });
+    }
+    for (const slot of [...this.slots.values()]) {
+      if (!wanted.has(slot.key)) this.dropSlot(slot);
+    }
+    for (const [key, want] of wanted) {
       if (this.slots.has(key)) continue;
-      const slot = {
-        key,
-        kind: entry.kind,
-        tierKey,
-        type,
-        tier,
-        entry: { ...entry, tier: tierKey },
-        creature: null,
-        deadAt: null,
-      };
-      this.slots.set(key, slot);
-      if (previousDead.has(key)) slot.deadAt = previousDead.get(key);
-      const record = saved.get(key);
-      if (record) {
-        slot.deadAt = record.alive === false
-          ? (Number.isFinite(record.deadAt) ? record.deadAt : 0)
-          : null;
-      }
-      const container = await this.containerFor(type.model);
-      if (!container || Number.isFinite(slot.deadAt)) continue;
-      const creature = this.spawn(type, tierKey, tier, slot.entry, container);
-      if (!creature) continue;
-      creature.slotKey = key;
-      slot.creature = creature;
-      this.creatures.push(creature);
-      if (record) this.applyLive(creature, record);
+      await this.fillSlot(key, want, saved);
     }
     return this.creatures;
+  }
+
+  dropSlot(slot) {
+    for (const corpse of [...this.corpses]) {
+      if (corpse.creature && corpse.creature.slotKey === slot.key) this.disposeCorpse(corpse);
+    }
+    if (slot.creature) this.despawn(slot.creature);
+    this.slots.delete(slot.key);
+    if (this.onRosterChange) this.onRosterChange();
+  }
+
+  async fillSlot(key, want, saved) {
+    const { entry, type, tierKey } = want;
+    const tier = getCreatureTier(type, tierKey);
+    const slot = {
+      key,
+      kind: entry.kind,
+      tierKey,
+      type,
+      tier,
+      entry: { ...entry, tier: tierKey },
+      creature: null,
+      deadAt: null,
+    };
+    this.slots.set(key, slot);
+    const record = saved ? saved.get(key) : null;
+    if (record) {
+      slot.deadAt = record.alive === false
+        ? (Number.isFinite(record.deadAt) ? record.deadAt : 0)
+        : null;
+    }
+    if (Number.isFinite(slot.deadAt)) return;
+    const container = await this.containerFor(type.model);
+    if (!container) return;
+    const creature = this.spawn(type, tierKey, tier, slot.entry, container);
+    if (!creature) return;
+    creature.slotKey = key;
+    slot.creature = creature;
+    this.creatures.push(creature);
+    if (record) this.applyLive(creature, record);
   }
 
   entriesFor(layout) {
@@ -159,14 +172,6 @@ export default class CreatureSystem {
       && getCreatureType(entry.kind)
       && Number.isFinite(entry.cx)
       && Number.isFinite(entry.cz));
-  }
-
-  deadTimes() {
-    const map = new Map();
-    for (const slot of this.slots.values()) {
-      if (!slot.creature && Number.isFinite(slot.deadAt)) map.set(slot.key, slot.deadAt);
-    }
-    return map;
   }
 
   stateByKey(data) {
@@ -489,10 +494,13 @@ export default class CreatureSystem {
       && this.daySeconds > 0
       ? Math.max(0, (slot.deadAt + days * this.daySeconds - this.now) / this.daySeconds)
       : null;
+    const live = slot.creature;
     return {
-      alive: Boolean(slot.creature),
+      alive: Boolean(live),
       waiting: Number.isFinite(slot.deadAt),
       remainingDays,
+      x: live ? live.renderX : null,
+      z: live ? live.renderZ : null,
     };
   }
 
@@ -1136,24 +1144,5 @@ export default class CreatureSystem {
       creature.renderFacing = saved.facing;
     }
     if (Number.isFinite(saved.health)) creature.health = saved.health;
-  }
-
-  clear() {
-    for (const entry of this.corpses) {
-      if (entry.creature) this.despawn(entry.creature);
-    }
-    this.corpses = [];
-    for (const creature of this.creatures) {
-      const proxy = creature.pickProxy;
-      if (proxy && !proxy.isDisposed()) proxy.dispose();
-      if (creature.holder && !creature.holder.isDisposed()) creature.holder.dispose();
-    }
-    this.creatures = [];
-    this.meshes = [];
-    this.pickMeshes = [];
-    this.pickOwner.clear();
-    this.slots.clear();
-    this.hovered = null;
-    this.hoveredCorpse = null;
   }
 }

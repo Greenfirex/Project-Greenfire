@@ -18,18 +18,17 @@ export default class EditorHud {
     this.onSaveMap = null;
     this.onWaterToggle = null;
     this.onWaterStep = null;
-    this.activeBrush = null;
-    this.erasing = false;
-    this.mode = 'zone';
+    this.state = { mode: 'zone', brush: null, erasing: false };
     this.waterLevel = null;
     this.waterShown = true;
+    this.busyEl = null;
   }
 
   mount() {
     if (this.root) return this.root;
     const root = document.createElement('div');
     root.className = 'editor-panel';
-    root.dataset.mode = this.mode;
+    root.dataset.mode = this.state.mode;
     root.innerHTML = `
       <div class="editor-panel__tabs">
         <button type="button" data-mode="zone">Zóny</button>
@@ -58,6 +57,10 @@ export default class EditorHud {
     `;
     document.body.appendChild(root);
     this.root = root;
+    const busy = document.createElement('div');
+    busy.className = 'editor-busy';
+    document.body.appendChild(busy);
+    this.busyEl = busy;
     makeDraggable(root);
 
     const grid = root.querySelector('.editor-panel__grid');
@@ -80,10 +83,9 @@ export default class EditorHud {
         btn.textContent = brush.label;
         btn.title = brush.note || brush.label;
         btn.addEventListener('mouseenter', () => this.showNote(key));
-        btn.addEventListener('mouseleave', () => this.showNote(this.activeBrush));
+        btn.addEventListener('mouseleave', () => this.showNote(this.state.brush));
         btn.addEventListener('click', () => {
-          this.activeBrush = key;
-          this.erasing = false;
+          this.state.brush = key;
           this.refresh();
           this.showNote(key);
           if (this.onBrush) this.onBrush(key);
@@ -119,6 +121,18 @@ export default class EditorHud {
     return root;
   }
 
+  setBusy(text) {
+    if (!this.busyEl) return;
+    const label = typeof text === 'string' ? text : '';
+    if (!label) {
+      this.busyEl.classList.remove('is-on');
+      this.busyEl.textContent = '';
+      return;
+    }
+    if (this.busyEl.textContent !== label) this.busyEl.textContent = label;
+    this.busyEl.classList.add('is-on');
+  }
+
   setReadout(text) {
     const node = this.root && this.root.querySelector('.editor-panel__readout');
     if (node) node.textContent = text;
@@ -143,20 +157,24 @@ export default class EditorHud {
   }
 
   setBrush(key) {
-    this.activeBrush = key;
-    this.erasing = false;
+    this.state.brush = key;
     this.refresh();
   }
 
   clearBrushSelection() {
-    this.activeBrush = null;
+    this.state.brush = null;
+    this.refresh();
+  }
+
+  setErasing(on) {
+    this.state.erasing = Boolean(on);
     this.refresh();
   }
 
   setMode(mode) {
-    this.mode = mode === 'height' || mode === 'area' ? mode : 'zone';
-    this.erasing = false;
-    if (this.root) this.root.dataset.mode = this.mode;
+    this.state.mode = mode === 'height' || mode === 'area' ? mode : 'zone';
+    this.state.erasing = false;
+    if (this.root) this.root.dataset.mode = this.state.mode;
     this.refresh();
   }
 
@@ -172,19 +190,19 @@ export default class EditorHud {
   refresh() {
     if (!this.root) return;
     for (const btn of this.root.querySelectorAll('[data-mode]')) {
-      btn.classList.toggle('is-active', btn.dataset.mode === this.mode);
+      btn.classList.toggle('is-active', btn.dataset.mode === this.state.mode);
     }
     for (const btn of this.root.querySelectorAll('[data-brush]')) {
-      btn.classList.toggle('is-active', !this.erasing && btn.dataset.brush === this.activeBrush);
+      btn.classList.toggle('is-active', !this.state.erasing && btn.dataset.brush === this.state.brush);
     }
   }
 
   show() {
     this.mount();
     this.root.classList.add('is-open');
-    this.root.dataset.mode = this.mode;
+    this.root.dataset.mode = this.state.mode;
     this.setWater(this.waterLevel, this.waterShown);
-    if (this.onBrush && this.activeBrush) this.onBrush(this.activeBrush);
+    if (this.onBrush && this.state.brush) this.onBrush(this.state.brush);
     this.refresh();
   }
 

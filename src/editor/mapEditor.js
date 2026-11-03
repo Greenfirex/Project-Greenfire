@@ -30,6 +30,7 @@ export default class MapEditor {
     this.heightPanel = new HeightPanel();
     this.creatureOverlay = new CreatureOverlay(this.s.s);
     this.mapDirty = false;
+    this.savedFingerprint = null;
     this.showHeights = true;
     this.pendingDraftView = undefined;
     this.draftViewFrame = 0;
@@ -49,6 +50,7 @@ export default class MapEditor {
 
   useLayout(layout) {
     this.mode.useLayout(layout);
+    this.savedFingerprint = this.mode.fingerprint();
   }
 
   getMap() {
@@ -56,13 +58,14 @@ export default class MapEditor {
   }
 
   connect() {
-    this.mode.onRegenerate = () => this.s.renderMapLayout();
+    this.mode.onRegenerate = (layout, parts) => this.s.renderMapLayout(parts);
     this.mode.onAreaSelectionChange = (selection) => this.showAreaPreview(selection);
     this.mode.onChange = (active) => this.togglePanel(active);
     this.mode.onModeChange = (mode) => {
       this.hud.setMode(mode);
       this.syncPanels(mode);
       this.showAreaPreview(this.mode.getAreaSelection());
+      this.refreshZoneOverlay();
       this.refreshCreatureMarks();
       this.s.handleHover(this.s.hoverCell);
     };
@@ -84,6 +87,7 @@ export default class MapEditor {
     this.mode.onHeightJitterChange = (value) => this.heightPanel.setJitter(value);
     this.mode.onBrushChange = (key) => {
       this.hud.setBrush(key);
+      this.hud.setErasing(this.mode.erasing);
       this.openBrushPanel(key);
     };
 
@@ -169,23 +173,17 @@ export default class MapEditor {
   }
 
   open() {
-    const active = this.mode.toggle();
-    if (active) {
-      this.resetSelection();
-      this.hud.show();
-      this.hud.clearBrushSelection();
-      this.refreshCreatureMarks();
-      this.hud.setWater(this.mode.getWaterLevel(), this.mode.waterShown);
-      this.hud.setReadout(NO_BRUSH_HINT);
-      this.s.holdGameForEditor();
-      this.syncPanels(this.mode.mode);
-    } else {
-      this.mode.setWaterShown(true);
-      this.s.refreshWaterVisibility();
-      this.s.releaseGameFromEditor();
+    if (this.mode.active) {
+      this.close();
+      return false;
     }
+    this.resetSelection();
+    this.mode.toggle();
+    this.hud.clearBrushSelection();
+    this.hud.setReadout(NO_BRUSH_HINT);
+    this.s.holdGameForEditor();
     this.s.syncZoomLimit();
-    return active;
+    return true;
   }
 
   resetSelection() {
@@ -216,6 +214,7 @@ export default class MapEditor {
     this.mode.cancelDraft();
     this.mode.cancelHeightDraft();
     this.mode.clearAreaSelection();
+    this.mode.setWaterShown(true);
     this.heightPanel.setCount(0);
     this.heightPanel.hide();
     this.mode.active = false;
@@ -228,6 +227,7 @@ export default class MapEditor {
     this.s.gridSystem.clearZones();
     this.s.gridSystem.clearDraftCells();
     this.s.gridSystem.clearHeightBands();
+    this.s.refreshWaterVisibility();
     this.togglePanel(false);
     this.s.releaseGameFromEditor();
     this.s.syncZoomLimit();
@@ -386,7 +386,7 @@ export default class MapEditor {
 
   setEraseMode(on) {
     this.mode.setDraftMode(on ? 'remove' : 'add');
-    this.hud.erasing = this.mode.erasing;
+    this.hud.setErasing(this.mode.erasing);
     this.hud.refresh();
     this.brushPanel.setDraftMode(this.mode.draftMode);
     this.hud.setReadout(on ? 'Mazat: zvýrazněná pole jdou smazat — přejeď je myší' : 'Mazání vypnuto');
@@ -402,6 +402,7 @@ export default class MapEditor {
     this.brushPanel.setDraftMode(this.mode.draftMode);
     if (this.mode.isJoinBrush) this.hud.setReadout('Spojnice: klikni na vrchol, pak na spodek');
     else if (this.mode.isBridgeBrush) this.hud.setReadout('Most: klikni na první břeh, pak na protější');
+    else if (this.mode.isSpawnBrush) this.hud.setReadout('Start hráče: klikni na buňku, kam má hráč začínat');
     this.refreshUndoButton();
     this.refreshZoneOverlay();
     this.refreshCreatureMarks();
@@ -442,9 +443,9 @@ export default class MapEditor {
   refreshCreatureMarks() {
     const overlay = this.creatureOverlay;
     if (!overlay) return;
-    const brush = this.hud.activeBrush;
+    const brush = this.mode.brushKey;
     const active = this.mode.active && this.mode.mode === 'zone';
-    if (!active || !this.mode.isCreatureBrush || brush !== this.mode.brushKey) {
+    if (!active || !this.mode.isCreatureBrush || !brush) {
       overlay.clear();
       return;
     }
@@ -453,7 +454,7 @@ export default class MapEditor {
         ? this.s.creatureStatusAt(mark.cx, mark.cz, mark.kind, mark.tierKey)
         : null;
       if (!state) return { ...mark, state: 'new' };
-      if (state.alive) return { ...mark, state: 'alive' };
+      if (state.alive) return { ...mark, state: 'alive', x: state.x, z: state.z };
       if (!state.waiting) return { ...mark, state: 'new' };
       return { ...mark, state: 'waiting', remainingDays: state.remainingDays };
     });
@@ -610,6 +611,11 @@ export default class MapEditor {
     } else if (count && creatureBrush) {
       const word = count === 1 ? 'tvor' : count < 5 ? 'tvoři' : 'tvorů';
       this.hud.setReadout(`${removing ? 'Odebráno' : 'Položeno'}: ${count} ${word}`);
+    } else if (count && this.mode.isSpawnBrush) {
+      const spawn = this.mode.spawnCell();
+      this.hud.setReadout(spawn
+        ? `Start hráče přesunut na ${spawn.cx}, ${spawn.cz} — projeví se při startu hry`
+        : 'Start hráče nastaven');
     } else if (count && surfaceBrush) {
       this.hud.setReadout(removing
         ? `Vráceno na trávu ${count} buněk`
@@ -620,6 +626,8 @@ export default class MapEditor {
       this.hud.setReadout(verb + count + ' buněk' + suffix);
     } else if (cliffBrush) {
       this.hud.setReadout(removing ? 'Nic k vrácení' : 'Tyhle buňky už jsou označené');
+    } else if (this.mode.isSpawnBrush) {
+      this.hud.setReadout('Start hráče už je na téhle buňce');
     } else this.hud.setReadout(removing ? 'Nic ke smazání' : 'Prázdná zóna');
     this.brushPanel.setDraftMode(this.mode.draftMode);
     this.refreshUndoButton();
@@ -707,8 +715,10 @@ export default class MapEditor {
       this.showHeightDraftOverlay();
       return;
     }
+    const spawnZone = this.spawnZone();
     if (!this.mode.hasDraft) {
-      this.s.gridSystem.clearZones();
+      if (spawnZone) this.s.gridSystem.showZones([spawnZone], (cx, cz) => this.s.cellSurfaceAt(cx, cz));
+      else this.s.gridSystem.clearZones();
       this.s.gridSystem.clearDraftCells();
       return;
     }
@@ -746,7 +756,7 @@ export default class MapEditor {
     }
 
     const eraseTargets = removing ? this.mode.eraseCandidates() : [];
-    this.s.gridSystem.showZones([
+    const groups = [
       {
         cells: eraseTargets,
         color: new Color3(0.95, 0.45, 0.3),
@@ -789,9 +799,23 @@ export default class MapEditor {
         alpha: 0.22,
         lift: 0.03,
       },
-    ], surfaceAt);
+    ];
+    this.s.gridSystem.showZones(spawnZone ? [spawnZone, ...groups] : groups, surfaceAt);
 
     this.s.gridSystem.showDraftCells(draftCells, surfaceAt, draft.mode);
+  }
+
+  spawnZone() {
+    if (!this.mode.active || this.mode.mode !== 'zone' || !this.mode.isSpawnBrush) return null;
+    const spawn = this.mode.spawnCell();
+    if (!spawn) return null;
+    return {
+      cells: [[spawn.cx, spawn.cz]],
+      color: new Color3(0.95, 0.9, 0.45),
+      glow: new Color3(0.85, 0.75, 0.25),
+      alpha: 0.5,
+      lift: 0.05,
+    };
   }
 
   showHeightDraftOverlay() {
@@ -853,6 +877,13 @@ export default class MapEditor {
   }
 
   markDirty() {
+    const saved = this.savedFingerprint;
+    if (saved !== null && this.mode.fingerprint() === saved) {
+      if (!this.mapDirty) return;
+      this.mapDirty = false;
+      this.hud.setReadout('Mapa je zpátky v uloženém stavu');
+      return;
+    }
     if (this.mapDirty) return;
     this.mapDirty = true;
     this.hud.setReadout('● Neuložené změny');
@@ -860,6 +891,7 @@ export default class MapEditor {
 
   clearDirty() {
     this.mapDirty = false;
+    this.savedFingerprint = this.mode.fingerprint();
     this.hud.setReadout('Uloženo ✓');
   }
 
@@ -879,7 +911,6 @@ export default class MapEditor {
     const broken = brokenEntries(layout);
     if (broken) {
       this.markDirty();
-      this.hud.setReadout('● Neuložené změny');
       this.hud.setReadout(`Mapa se neuložila — ${broken} buněk nemá platné souřadnice, takže by se v souboru rozsypala`);
       return Promise.resolve(false);
     }
@@ -896,7 +927,6 @@ export default class MapEditor {
     }
     this.downloadMapFile(file);
     this.markDirty();
-    this.hud.setReadout(`● Neuložené změny — server odmítl: ${result.reason}`);
     this.hud.setReadout(`Mapu se nepodařilo zapsat do souboru (${result.reason}) — soubor je stažený, polož ho do projektu`);
     return false;
   }
@@ -958,7 +988,7 @@ function respawnLabel(days) {
 
 function brokenEntries(layout) {
   let count = 0;
-  for (const name of ['floor', 'path', 'clearing', 'decorations', 'creatures']) {
+  for (const name of ['floor', 'path', 'clearing', 'grass', 'decorations', 'fish', 'creatures']) {
     for (const entry of layout[name] || []) {
       if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) count += 1;
     }

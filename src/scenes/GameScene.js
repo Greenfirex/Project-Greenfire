@@ -68,6 +68,7 @@ import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../d
 import { mapFileFromLayout, layoutFromMapFile, isMapFile, MAP_VERSION } from '../data/catalogs/mapFile.js';
 import { worldCells, hasFloor } from '../data/maps/areaShape.js';
 import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
+import { PAINT_TERRAIN, PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH, PAINT_ALL } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { readJSON, writeJSON } from '../utils/storage.js';
 import { OPTION_DEFAULTS, OPTIONS_STORAGE_KEY, QUALITY_SCALES } from '../data/catalogs/optionsSchema.js';
@@ -104,6 +105,12 @@ const SHADOW_FRUSTUM = 70;
 const SHADOW_MIN_Z = 1;
 const SHADOW_MAX_Z = 180;
 const TIME_SKIP = { hours: 6 };
+const REBUILD_LABELS = [
+  { part: PAINT_TERRAIN, label: 'terén' },
+  { part: PAINT_DECORATIONS, label: 'dekorace' },
+  { part: PAINT_CREATURES, label: 'tvory' },
+  { part: PAINT_FISH, label: 'ryby' },
+];
 
 function sameMeshes(first, second) {
   if (first.length !== second.length) return false;
@@ -134,6 +141,7 @@ export default class GameScene {
     this.mapKey = DEFAULT_MAP;
     this.rebuildRunning = false;
     this.rebuildPending = false;
+    this.rebuildParts = null;
     this.heightRunning = false;
     this.heightPending = false;
 
@@ -188,6 +196,7 @@ export default class GameScene {
     this.pauseScreen = new PauseScreen();
     this.dialog = new Dialog();
     this.paused = false;
+    this.editorHeldPause = false;
     this.loader = new LoadingScreen();
     this.loader.onHiddenCallback = () => this.onLoadingHidden();
     this.isLoading = true;
@@ -1232,6 +1241,13 @@ updateGatherTarget() {
     this.waterSystem.setSkyTint(this.skySystem.tint());
     this.waterSystem.create(this.terrainSystem.groundCells, level, (x, z) => this.terrainSystem.heightAt(x, z), rgb, quality);
     this.refreshWaterVisibility();
+    this.refreshFish();
+    this.refreshReflectionExclusions();
+    this.rescuePlayerFromWater();
+  }
+
+  refreshFish() {
+    const level = this.mapLayout && Number.isFinite(this.mapLayout.waterLevel) ? this.mapLayout.waterLevel : null;
     this.fishSystem.create(
       this.mapLayout,
       level,
@@ -1239,8 +1255,6 @@ updateGatherTarget() {
       (x, z) => this.terrainSystem.heightAt(x, z),
       () => (this.playerSystem.root ? this.playerSystem.root.position : null),
     );
-    this.refreshReflectionExclusions();
-    this.rescuePlayerFromWater();
   }
 
   waterDayness() {
@@ -1413,7 +1427,10 @@ updateGatherTarget() {
     return this.editor.refreshZoneOverlay();
   }
 
-  renderMapLayout() {
+  renderMapLayout(parts) {
+    const list = Array.isArray(parts) ? parts : PAINT_ALL;
+    if (!this.rebuildParts) this.rebuildParts = new Set();
+    for (const part of list) this.rebuildParts.add(part);
     this.rebuildPending = true;
     if (this.rebuildRunning) return;
     this.runMapRebuild();
@@ -1425,21 +1442,60 @@ updateGatherTarget() {
     try {
       while (this.rebuildPending) {
         this.rebuildPending = false;
-        this.gatherSystem.clear();
-        this.adoptEditorMap();
-        this.markMapDirty();
-        this.refreshTerrain();
-        await this.terrainSystem.whenReady();
-        await this.rebuildDecorations();
-        await this.refreshCreatures();
+        const parts = this.takeRebuildParts();
+        if (parts.size) {
+          this.showRebuildBusy(parts);
+          await this.nextFrame();
+        }
+        await this.rebuildWorld(parts);
       }
     } catch (error) {
       console.error('[debug] rebuildDecorations ERROR:', error);
       this.reportRebuildError(error);
     } finally {
       this.rebuildRunning = false;
+      this.hideRebuildBusy();
       if (this.rebuildPending) this.runMapRebuild();
     }
+  }
+
+  takeRebuildParts() {
+    const parts = this.rebuildParts || new Set(PAINT_ALL);
+    this.rebuildParts = null;
+    return parts;
+  }
+
+  nextFrame() {
+    if (document.hidden) return Promise.resolve();
+    return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  }
+
+  async rebuildWorld(parts) {
+    this.adoptEditorMap();
+    this.markMapDirty();
+    const terrain = parts.has(PAINT_TERRAIN);
+    if (terrain) {
+      this.gatherSystem.clear();
+      this.refreshTerrain();
+      await this.terrainSystem.whenReady();
+    }
+    if (parts.has(PAINT_DECORATIONS)) await this.rebuildDecorations();
+    if (parts.has(PAINT_CREATURES)) {
+      await this.refreshCreatures();
+      this.handleHover(this.hoverCell);
+    }
+    if (!terrain && parts.has(PAINT_FISH)) this.refreshFish();
+  }
+
+  showRebuildBusy(parts) {
+    if (!this.editor.active) return;
+    const labels = REBUILD_LABELS.filter((entry) => parts.has(entry.part)).map((entry) => entry.label);
+    this.editor.hud.setBusy(labels.length ? `Přepočítávám: ${labels.join(' · ')}` : 'Přepočítávám mapu…');
+  }
+
+  hideRebuildBusy() {
+    if (this.rebuildRunning || this.heightRunning) return;
+    this.editor.hud.setBusy(null);
   }
 
   renderHeights() {
@@ -1454,6 +1510,8 @@ updateGatherTarget() {
     try {
       while (this.heightPending) {
         this.heightPending = false;
+        this.showRebuildBusy(new Set([PAINT_TERRAIN]));
+        await this.nextFrame();
         this.adoptEditorMap();
         this.markMapDirty();
         this.refreshTerrain();
@@ -1465,6 +1523,7 @@ updateGatherTarget() {
       this.reportRebuildError(error);
     } finally {
       this.heightRunning = false;
+      this.hideRebuildBusy();
       if (this.heightPending) this.runHeightRebuild();
     }
   }
@@ -1958,8 +2017,6 @@ updateGatherTarget() {
     if (paused) {
       this.pauseScreen.setSpeed(this.simSystem.speed);
       this.pauseScreen.show();
-    } else if (this.editor.active) {
-      this.pauseScreen.hide();
     } else {
       this.pauseScreen.hide();
       this.simSystem.resetAccumulator();
@@ -2002,16 +2059,26 @@ updateGatherTarget() {
   }
 
   holdGameForEditor() {
-    if (this.paused) return;
+    this.editorHeldPause = this.paused;
+    if (this.paused) {
+      this.pauseScreen.hide();
+      return;
+    }
     this.setPaused(true);
     this.pauseScreen.hide();
   }
 
   releaseGameFromEditor() {
-    if (!this.paused) return;
-    this.setPaused(false);
     const root = this.playerSystem.root;
     if (root) this.cameraSystem.snapTo(root.position.x, root.position.z, root.position.y);
+    if (this.editorHeldPause) {
+      this.editorHeldPause = false;
+      this.pauseScreen.setSpeed(this.simSystem.speed);
+      this.pauseScreen.show();
+      return;
+    }
+    if (!this.paused) return;
+    this.setPaused(false);
   }
 
   handleKey(evt) {
@@ -2023,6 +2090,10 @@ updateGatherTarget() {
     }
     if (this.dialog.open) {
       evt.preventDefault();
+      return;
+    }
+    if (this.editor.active) {
+      this.handleEditorKey(evt, typing);
       return;
     }
     if ((evt.key === 'p' || evt.key === 'P') && !typing && !evt.ctrlKey && !evt.metaKey && !evt.altKey) {
@@ -2055,13 +2126,13 @@ updateGatherTarget() {
       this.toggleEditorMode();
       return;
     }
-    if ((evt.key === 'i' || evt.key === 'I') && !typing && !this.editor.active) {
+    if ((evt.key === 'i' || evt.key === 'I') && !typing) {
       if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
       evt.preventDefault();
       this.toggleInventoryWindow();
       return;
     }
-    if ((evt.key === 'c' || evt.key === 'C') && !typing && !this.editor.active) {
+    if ((evt.key === 'c' || evt.key === 'C') && !typing) {
       if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
       evt.preventDefault();
       this.toggleCharacterWindow();
@@ -2077,35 +2148,10 @@ updateGatherTarget() {
       evt.preventDefault();
       return;
     }
-    if (this.editor.active) {
-      if (evt.key === 'Escape' && this.editor.mapMode === 'area' && this.editor.mode.hasAreaSelection) {
-        this.clearAreaSelection();
-        evt.preventDefault();
-        return;
-      }
-      if (evt.key === 'Enter' && this.editor.mode.hasAreaSelection) { this.applyAreaSelection(); evt.preventDefault(); return; }
-      if (evt.key === 'Escape' && this.editor.mode.hasDraft) { this.cancelBrushDraft(); evt.preventDefault(); return; }
-      if (evt.key === 'Enter' && this.editor.mode.hasDraft) { this.applyBrushDraft(); evt.preventDefault(); return; }
-      if (evt.key === 'x' || evt.key === 'X') { this.setEraseMode(!this.editor.erasing); evt.preventDefault(); return; }
-      if (evt.key === 'z' || evt.key === 'Z') { this.undoEdit(); evt.preventDefault(); return; }
-      if (evt.key === 'h' || evt.key === 'H') {
-        this.editor.mode.setMode(this.editor.mapMode === 'height' ? 'zone' : 'height');
-        evt.preventDefault();
-        return;
-      }
-      if (evt.key === 'q' || evt.key === 'Q') { this.editor.mode.stepHeightLevel(1); evt.preventDefault(); return; }
-      if (evt.key === 'e' || evt.key === 'E') { this.editor.mode.stepHeightLevel(-1); evt.preventDefault(); return; }
-      if (/^[1-9]$/.test(evt.key)) {
-        this.editor.mode.setHeightLevel(HEIGHT_PRESETS[Number(evt.key) - 1]);
-        evt.preventDefault();
-        return;
-      }
-    }
     if (/^[1-5]$/.test(evt.key)) {
       if (evt.ctrlKey || evt.metaKey || evt.altKey || typing) return;
       const key = HOTBAR_ITEMS[Number(evt.key) - 1];
       if (!key) return;
-      if (this.editor.active) return;
       evt.preventDefault();
       if (this.heldItemSystem.key === key) this.heldItemSystem.set(null);
       else this.heldItemSystem.set(key);
@@ -2132,6 +2178,71 @@ updateGatherTarget() {
       evt.preventDefault();
       this.requestLoad();
     }
+  }
+
+  handleEditorKey(evt, typing) {
+    if (evt.key === 'F2') {
+      evt.preventDefault();
+      this.toggleEditorMode();
+      return;
+    }
+    if (typing && evt.key !== 'Escape') return;
+    if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+    if (evt.key === 'Escape') {
+      if (this.editor.mapMode === 'area' && this.editor.mode.hasAreaSelection) {
+        this.clearAreaSelection();
+        evt.preventDefault();
+        return;
+      }
+      if (this.editor.mode.hasDraft) {
+        this.cancelBrushDraft();
+        evt.preventDefault();
+      }
+      return;
+    }
+    if (evt.key === 'Enter') {
+      if (this.editor.mapMode === 'area' && this.editor.mode.hasAreaSelection) {
+        this.applyAreaSelection();
+        evt.preventDefault();
+        return;
+      }
+      if (this.editor.mode.hasDraft) {
+        this.applyBrushDraft();
+        evt.preventDefault();
+      }
+      return;
+    }
+    if (evt.key === 'x' || evt.key === 'X') {
+      this.setEraseMode(!this.editor.erasing);
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'z' || evt.key === 'Z') {
+      this.undoEdit();
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'h' || evt.key === 'H') {
+      this.editor.mode.setMode(this.editor.mapMode === 'height' ? 'zone' : 'height');
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'q' || evt.key === 'Q') {
+      this.editor.mode.stepHeightLevel(1);
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'e' || evt.key === 'E') {
+      this.editor.mode.stepHeightLevel(-1);
+      evt.preventDefault();
+      return;
+    }
+    if (/^[1-9]$/.test(evt.key)) {
+      this.editor.mode.setHeightLevel(HEIGHT_PRESETS[Number(evt.key) - 1]);
+      evt.preventDefault();
+      return;
+    }
+    evt.preventDefault();
   }
 
   toggleGrid() {

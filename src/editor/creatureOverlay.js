@@ -1,4 +1,5 @@
-// Zvýraznění spawních míst tvorů v editoru — kruhy toulání a čtverečky buněk.
+// Zvýraznění spawních míst tvorů v editoru — kruhy toulání, čtverečky buněk
+// a spojnice od spawního místa k živému tvorovi.
 import '@babylonjs/core/Meshes/Builders/groundBuilder';
 import '@babylonjs/core/Meshes/Builders/linesBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
@@ -21,6 +22,10 @@ const NEW_ALPHA = 0.45;
 const SQUARE_ALPHA = 0.9;
 const RING_ALPHA_INDEX = 2;
 const SQUARE_ALPHA_INDEX = 3;
+const LINK_POINTS = 17;
+const LINK_LIFT = 0.14;
+const LINK_MIN = CELL_SIZE * 0.3;
+const LINK_ALPHA = 0.5;
 
 function circlePoints() {
   const points = [];
@@ -42,6 +47,12 @@ function squarePoints() {
   ];
 }
 
+function straightPoints() {
+  const points = [];
+  for (let step = 0; step < LINK_POINTS; step += 1) points.push(new Vector3(0, 0, 0));
+  return points;
+}
+
 export default class CreatureOverlay {
 
   constructor(scene) {
@@ -49,6 +60,7 @@ export default class CreatureOverlay {
     this.rings = [];
     this.squares = [];
     this.outlines = [];
+    this.links = [];
     this.squareMaterial = null;
   }
 
@@ -91,6 +103,47 @@ export default class CreatureOverlay {
     return this.outlines[index];
   }
 
+  linkAt(index) {
+    while (this.links.length <= index) {
+      const link = MeshBuilder.CreateLines(`creatureMarkLink_${this.links.length}`, {
+        points: straightPoints(),
+        updatable: true,
+      }, this.s);
+      link.alphaIndex = RING_ALPHA_INDEX;
+      link.isPickable = false;
+      link.setEnabled(false);
+      this.links.push(link);
+    }
+    return this.links[index];
+  }
+
+  linkReaches(mark, x, z) {
+    const liveX = Number(mark.x);
+    const liveZ = Number(mark.z);
+    if (!Number.isFinite(liveX) || !Number.isFinite(liveZ)) return false;
+    return Math.hypot(liveX - x, liveZ - z) > LINK_MIN;
+  }
+
+  showLink(index, mark, x, z, surfaceAt) {
+    const liveX = Number(mark.x);
+    const liveZ = Number(mark.z);
+    const points = [];
+    for (let step = 0; step < LINK_POINTS; step += 1) {
+      const share = step / (LINK_POINTS - 1);
+      const px = x + (liveX - x) * share;
+      const pz = z + (liveZ - z) * share;
+      const ground = step === 0
+        ? surfaceAt(mark.cx, mark.cz)
+        : surfaceAt(px / CELL_SIZE, pz / CELL_SIZE);
+      points.push(new Vector3(px, (Number.isFinite(ground) ? ground : 0) + LINK_LIFT, pz));
+    }
+    const link = this.linkAt(index);
+    MeshBuilder.CreateLines(link.name, { points, instance: link }, this.s);
+    link.color = ALIVE_COLOR;
+    link.alpha = LINK_ALPHA;
+    link.setEnabled(true);
+  }
+
   material() {
     if (this.squareMaterial) return this.squareMaterial;
     const material = new StandardMaterial('creatureMarkSquareMat', this.s);
@@ -105,6 +158,7 @@ export default class CreatureOverlay {
   show(marks, surfaceAt) {
     const list = Array.isArray(marks) ? marks : [];
     let used = 0;
+    let linked = 0;
     for (const mark of list) {
       const state = mark.state === 'waiting' || mark.state === 'new' ? mark.state : 'alive';
       const x = mark.cx * CELL_SIZE;
@@ -123,6 +177,10 @@ export default class CreatureOverlay {
         square.position = new Vector3(x, y + SQUARE_LIFT, z);
         square.setEnabled(true);
         outline.setEnabled(false);
+        if (this.linkReaches(mark, x, z)) {
+          this.showLink(linked, mark, x, z, surfaceAt);
+          linked += 1;
+        }
       } else {
         square.setEnabled(false);
         outline.position = new Vector3(x, y + SQUARE_LIFT, z);
@@ -133,10 +191,16 @@ export default class CreatureOverlay {
       used += 1;
     }
     this.hideFrom(used);
+    this.hideLinksFrom(linked);
   }
 
   clear() {
     this.hideFrom(0);
+    this.hideLinksFrom(0);
+  }
+
+  hideLinksFrom(index) {
+    for (let i = index; i < this.links.length; i += 1) this.links[i].setEnabled(false);
   }
 
   hideFrom(index) {

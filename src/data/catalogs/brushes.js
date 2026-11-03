@@ -11,6 +11,16 @@ const surfaceStyle = (entry) => entry.key.replace(/^floor_/, '');
 const SIZE_OPTION = { key: 'radius', label: 'Velikost', kind: 'range', min: 0, max: 3, step: 1, display: 'square' };
 const RANDOM_OPTION = { key: 'random', label: 'Náhodně střídat varianty', default: true };
 
+export const PAINT_TERRAIN = 'terrain';
+export const PAINT_DECORATIONS = 'decorations';
+export const PAINT_CREATURES = 'creatures';
+export const PAINT_FISH = 'fish';
+export const PAINT_ALL = [PAINT_TERRAIN, PAINT_DECORATIONS];
+const PAINT_DECO_ONLY = [PAINT_DECORATIONS];
+const PAINT_CREATURE_ONLY = [PAINT_CREATURES];
+const PAINT_FISH_ONLY = [PAINT_FISH];
+const PAINT_NOTHING = [];
+
 function levelMeters(level) {
   const n = Math.round(Math.abs(level) * HEIGHT_STEP * 10) / 10;
   return `${String(n).replace('.', ',')} m`;
@@ -323,6 +333,13 @@ export const BRUSHES = {
     pool: ['campfire'],
     deco: true,
   },
+  spawn: {
+    label: 'Start hráče',
+    group: 'Ostatní',
+    note: 'Určí buňku, na které hráč začíná. Klikni na jednu buňku a potvrď.',
+    shape: 'blob',
+    spawn: true,
+  },
 };
 
 export const BRUSH_KEYS = Object.keys(BRUSHES);
@@ -337,10 +354,20 @@ export function getBrush(brushKey) {
   return BRUSHES[brushKey] || null;
 }
 
+export function brushPaintParts(brushKey) {
+  const brush = BRUSHES[brushKey];
+  if (!brush) return PAINT_ALL;
+  if (brush.spawn) return PAINT_NOTHING;
+  if (brush.creature) return PAINT_CREATURE_ONLY;
+  if (brush.fish) return PAINT_FISH_ONLY;
+  if (brush.height || brush.heights || brush.cliff || brush.join || brush.bridge) return PAINT_ALL;
+  return PAINT_DECO_ONLY;
+}
+
 export function brushOptions(brush) {
   if (!brush) return [];
   const list = Array.isArray(brush.options) ? brush.options : (brush.option ? [brush.option] : []);
-  if (brush.join || brush.bridge || brush.creature) return list;
+  if (brush.join || brush.bridge || brush.creature || brush.spawn) return list;
   const size = Number.isFinite(brush.radius) ? Math.max(0, Math.min(SIZE_OPTION.max, Math.round(brush.radius))) : 0;
   return [...list, { ...SIZE_OPTION, default: size }];
 }
