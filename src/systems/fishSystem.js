@@ -11,12 +11,23 @@ const SURFACE_MARGIN = 0.18;
 const FLEE_RANGE = 6;
 const FLEE_TIME = 2.4;
 const TURN_RATE = 2.2;
-const DRIFT_SPEED = 0.5;
+const DRIFT_SPEED = 0.9;
 const FLEE_SPEED = 2.2;
 const ORBIT_TANGENT = 1.7;
 const MAX_STEP = 0.1;
 const ROAM_MIN = 6;
 const ROAM_MAX = 18;
+const ROAM_FIRST_MIN = 2;
+const ROAM_FIRST_SPREAD = 12;
+const ROAM_NEXT_MIN = 6;
+const ROAM_NEXT_SPREAD = 14;
+const START_OUT_SHARE = 0.3;
+const SWIM_DEPTH = 0.8;
+const PATH_SAMPLES = 4;
+const SCHOOL_REACH_MIN = 0.3;
+const SCHOOL_REACH_SPREAD = 0.6;
+const SCHOOL_TIMER_MIN = 3;
+const SCHOOL_TIMER_MAX = 14;
 
 function hash(x, z) {
   const value = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
@@ -47,6 +58,7 @@ export default class FishSystem {
     this.water = water;
     this.groundAt = groundAt;
     this.playerAt = playerAt;
+    this.time = 0;
     const byKind = new Map();
     for (const school of schools) {
       if (!school || !Number.isFinite(school.cx) || !Number.isFinite(school.cz)) continue;
@@ -79,6 +91,7 @@ export default class FishSystem {
         const reach = radius * (0.25 + 0.6 * hash(centerX - index * 3, centerZ + index * 5));
         const speed = cruise * (0.75 + 0.5 * hash(index * 7 + 1, index * 3 - 5));
         const scale = 0.75 + 0.4 * hash(index * 17, index * 9);
+        const startOut = hash(index * 13 + 7, centerX - index * 2) < START_OUT_SHARE;
         const fishItem = {
           schoolIndex,
           x: centerX + Math.cos(angle) * reach,
@@ -93,12 +106,13 @@ export default class FishSystem {
           margin: SURFACE_MARGIN + type.length * 0.19 * scale,
           floor: Math.max(0.05, type.length * 0.3),
           state: 'school',
-          roamTimer: 25 + hash(index * 5 + 3, centerX + index) * 45,
+          roamTimer: ROAM_FIRST_MIN + hash(index * 5 + 3, centerX + index) * ROAM_FIRST_SPREAD,
           targetX: centerX,
           targetZ: centerZ,
         };
         group.fish.push(fishItem);
         group.schoolFish[schoolIndex].push(fishItem);
+        if (startOut) this.startRoam(fishItem, group.schools[schoolIndex]);
       }
       byKind.set(kind, group);
     }
@@ -119,18 +133,43 @@ export default class FishSystem {
         separation: group.separation,
       });
     }
-    this.time = 0;
     this.update(0);
     return this.schools.length ? this.schools[0].mesh : null;
   }
 
+  depthAt(x, z) {
+    if (!this.groundAt) return Infinity;
+    const ground = this.groundAt(x, z);
+    return Number.isFinite(ground) ? this.level - ground : Infinity;
+  }
+
+  pathSwims(fromX, fromZ, toX, toZ) {
+    for (let step = 1; step <= PATH_SAMPLES; step += 1) {
+      const t = step / PATH_SAMPLES;
+      if (this.depthAt(fromX + (toX - fromX) * t, fromZ + (toZ - fromZ) * t) < SWIM_DEPTH) return false;
+    }
+    return true;
+  }
+
   pickTarget(school) {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const wander = school.wander + 1 + attempt;
+      const angle = hash(school.homeX + wander * 3.7, school.homeZ - wander * 1.9) * Math.PI * 2;
+      const reach = school.radius * (SCHOOL_REACH_MIN + SCHOOL_REACH_SPREAD * hash(school.homeZ + wander, school.homeX - wander));
+      const targetX = school.homeX + Math.cos(angle) * reach;
+      const targetZ = school.homeZ + Math.sin(angle) * reach;
+      if (!this.pathSwims(school.homeX, school.homeZ, targetX, targetZ)) continue;
+      school.wander = wander;
+      school.targetX = targetX;
+      school.targetZ = targetZ;
+      const distance = Math.hypot(targetX - school.centerX, targetZ - school.centerZ);
+      school.timer = Math.max(SCHOOL_TIMER_MIN, Math.min(SCHOOL_TIMER_MAX, 1.5 + distance / DRIFT_SPEED));
+      return;
+    }
     school.wander += 1;
-    const angle = hash(school.homeX + school.wander * 3.7, school.homeZ - school.wander * 1.9) * Math.PI * 2;
-    const reach = school.radius * (0.1 + 0.55 * hash(school.homeZ + school.wander, school.homeX - school.wander));
-    school.targetX = school.homeX + Math.cos(angle) * reach;
-    school.targetZ = school.homeZ + Math.sin(angle) * reach;
-    school.timer = 3.5 + hash(school.wander * 1.3, school.homeX) * 4.5;
+    school.targetX = school.homeX;
+    school.targetZ = school.homeZ;
+    school.timer = SCHOOL_TIMER_MIN;
   }
 
   update(dt) {
@@ -170,8 +209,11 @@ export default class FishSystem {
         const awayX = school.centerX - player.x;
         const awayZ = school.centerZ - player.z;
         const awayLength = Math.hypot(awayX, awayZ) || 1;
-        school.targetX = school.homeX + (awayX / awayLength) * school.radius;
-        school.targetZ = school.homeZ + (awayZ / awayLength) * school.radius;
+        const fleeX = school.homeX + (awayX / awayLength) * school.radius;
+        const fleeZ = school.homeZ + (awayZ / awayLength) * school.radius;
+        const dryFlee = !this.pathSwims(school.centerX, school.centerZ, fleeX, fleeZ);
+        school.targetX = dryFlee ? school.homeX : fleeX;
+        school.targetZ = dryFlee ? school.homeZ : fleeZ;
         school.timer = FLEE_TIME;
       }
     }
@@ -181,6 +223,13 @@ export default class FishSystem {
     const speed = school.alarm > 0 ? FLEE_SPEED : DRIFT_SPEED;
     school.centerX += (stepX / length) * speed * dt;
     school.centerZ += (stepZ / length) * speed * dt;
+    if (this.depthAt(school.centerX, school.centerZ) < SWIM_DEPTH) {
+      school.centerX += (school.homeX - school.centerX) * 0.25;
+      school.centerZ += (school.homeZ - school.centerZ) * 0.25;
+      school.targetX = school.homeX;
+      school.targetZ = school.homeZ;
+      school.timer = SCHOOL_TIMER_MIN;
+    }
     if (school.alarm > 0) school.alarm -= dt;
   }
 
@@ -191,7 +240,7 @@ export default class FishSystem {
       const reach = ROAM_MIN + hash(seed * 2.1, seed * 0.7) * (ROAM_MAX - ROAM_MIN);
       const x = school.centerX + Math.cos(angle) * reach;
       const z = school.centerZ + Math.sin(angle) * reach;
-      if (this.groundAt && this.level - this.groundAt(x, z) < 0.5) continue;
+      if (!this.pathSwims(school.centerX, school.centerZ, x, z)) continue;
       item.targetX = x;
       item.targetZ = z;
       item.state = 'roam';
@@ -206,7 +255,7 @@ export default class FishSystem {
       item.roamTimer -= dt;
       if (item.roamTimer <= 0) this.startRoam(item, school);
     }
-    if (item.state === 'roam' && Number.isFinite(ground) && this.level - ground < 0.35) {
+    if (item.state === 'roam' && Number.isFinite(ground) && this.level - ground < SWIM_DEPTH) {
       item.state = 'back';
     }
     const headingX = item.state === 'roam' ? item.targetX : school.centerX;
@@ -274,7 +323,7 @@ export default class FishSystem {
     if (item.state === 'roam' && distance < 1.8) item.state = 'back';
     if (item.state === 'back' && distance < school.radius * 0.7) {
       item.state = 'school';
-      item.roamTimer = 25 + hash(item.phase * 3.1, item.phase * 1.7) * 45;
+      item.roamTimer = ROAM_NEXT_MIN + hash(item.phase * 3.1, item.phase * 1.7) * ROAM_NEXT_SPREAD;
     }
 
     const targetYaw = Math.atan2(-item.vz, item.vx);
@@ -291,7 +340,7 @@ export default class FishSystem {
     if (y > surface) y = surface;
     if (Number.isFinite(ground)) {
       const floor = ground + item.floor;
-      if (y < floor) y = Math.min(floor, surface);
+      if (y < floor) y = floor;
     }
     this.position.set(item.x, y, item.z);
     Quaternion.RotationYawPitchRollToRef(item.yaw, bob * 0.14, 0, this.rotation);
@@ -321,4 +370,3 @@ export default class FishSystem {
     this.clear();
   }
 }
-

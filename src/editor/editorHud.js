@@ -22,6 +22,7 @@ export default class EditorHud {
     this.waterLevel = null;
     this.waterShown = true;
     this.busyEl = null;
+    this.cursorEl = null;
   }
 
   mount() {
@@ -61,6 +62,11 @@ export default class EditorHud {
     busy.className = 'editor-busy';
     document.body.appendChild(busy);
     this.busyEl = busy;
+    const cursor = document.createElement('div');
+    cursor.className = 'editor-cursor';
+    document.body.appendChild(cursor);
+    this.cursorEl = cursor;
+    window.addEventListener('pointermove', (evt) => this.placeCursor(evt.clientX, evt.clientY));
     makeDraggable(root);
 
     const grid = root.querySelector('.editor-panel__grid');
@@ -132,6 +138,18 @@ export default class EditorHud {
     }
     if (this.busyEl.textContent !== label) this.busyEl.textContent = label;
     this.busyEl.classList.add('is-on');
+  }
+  placeCursor(x, y) {
+    if (!this.cursorEl) return;
+    this.cursorEl.style.left = `${x + 18}px`;
+    this.cursorEl.style.top = `${y + 16}px`;
+  }
+
+  setCursorValue(text) {
+    if (!this.cursorEl) return;
+    const label = typeof text === 'string' ? text : '';
+    if (this.cursorEl.textContent !== label) this.cursorEl.textContent = label;
+    this.cursorEl.classList.toggle('is-on', Boolean(label));
   }
 
   setReadout(text) {

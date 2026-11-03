@@ -9,9 +9,14 @@ import BrushPanel from './brushPanel.js';
 import AreaPanel from './areaPanel.js';
 import HeightPanel from './heightPanel.js';
 import CreatureOverlay from './creatureOverlay.js';
+import HeightLabels from './heightLabels.js';
 import { formatLevel, formatMeters } from './heightRamp.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { BRUSHES } from '../data/catalogs/brushes.js';
+import { CELL_SIZE } from '../utils/gridMath.js';
+
+const HEIGHT_LABEL_LIFT = 0.45;
+const HEIGHT_LABEL_LIMIT = 240;
 
 const NO_BRUSH_HINT = 'Vyber štětec v paletě — teprve pak jde do mapy kreslit';
 
@@ -25,6 +30,7 @@ export default class MapEditor {
     this.areaPanel = new AreaPanel();
     this.heightPanel = new HeightPanel();
     this.creatureOverlay = new CreatureOverlay(this.s.s);
+    this.heightLabels = new HeightLabels();
     this.mapDirty = false;
     this.savedFingerprint = null;
     this.pendingDraftView = undefined;
@@ -217,6 +223,8 @@ export default class MapEditor {
     this.heightPanel.setCount(0);
     this.heightPanel.hide();
     this.mode.active = false;
+    this.hud.setCursorValue(null);
+    this.heightLabels.clear();
     this.brushPanel.close();
     this.areaPanel.hide();
     this.mode.setBrush(null);
@@ -385,6 +393,7 @@ export default class MapEditor {
   }
 
   clearHoverReadout() {
+    this.hud.setCursorValue(null);
     this.s.gridSystem.clearBrush();
     this.s.gridSystem.clearHoverCell();
     this.s.gridSystem.clearCreatureRadius();
@@ -429,6 +438,7 @@ export default class MapEditor {
   }
 
   showAreaHoverReadout(cell) {
+    this.hud.setCursorValue(null);
     const info = this.mode.describeAt(cell.cx, cell.cz);
     const state = this.mode.areaTool === 'erase' ? 'mažu' : 'maluju';
     const zone = info.layerEntry ? `povrch: ${entryLabel(info.layerEntry)}` : 'bez povrchu';
@@ -444,6 +454,7 @@ export default class MapEditor {
     const beast = info.creature;
     if (beast) parts.push(beast.tier ? `${beast.type.label} (${beast.tier.label})` : beast.type.label);
     const lift = Math.round((Number(info.liftY) || 0) * 100) / 100;
+    this.hud.setCursorValue(this.mode.mode === 'height' ? formatMeters(lift) : null);
     const staged = this.mode.mode === 'height' ? this.mode.heightLevelAt(cell.cx, cell.cz) : null;
     const goal = this.mode.mode === 'height' ? this.mode.heightLevel : null;
     const joined = this.mode.joinMetersAt(cell.cx, cell.cz);
@@ -680,12 +691,14 @@ export default class MapEditor {
       this.s.gridSystem.clearZones();
       this.s.gridSystem.clearDraftCells();
       this.s.gridSystem.clearDraftOutline();
+      this.heightLabels.clear();
       return;
     }
     if (this.mode.mode === 'height' && this.mode.heightDraftCount) {
       this.showHeightDraftOverlay();
       return;
     }
+    this.heightLabels.clear();
     const spawnZone = this.spawnZone();
     if (!this.mode.hasDraft) {
       if (spawnZone) this.s.gridSystem.showZones([spawnZone], (cx, cz) => this.s.cellSurfaceAt(cx, cz));
@@ -754,15 +767,34 @@ export default class MapEditor {
       this.s.gridSystem.clearZones();
       this.s.gridSystem.clearDraftCells();
       this.s.gridSystem.clearDraftOutline();
+      this.heightLabels.clear();
       return;
     }
     const cells = [];
+    const labels = [];
     for (const group of groups) {
-      for (const cell of group.cells) cells.push(cell);
+      const target = group.level * HEIGHT_STEP;
+      for (const cell of group.cells) {
+        const [cx, cz] = cell;
+        cells.push(cell);
+        const ground = surfaceAt(cx, cz);
+        const y = Number.isFinite(ground) ? ground : 0;
+        const diff = target - y;
+        const dir = diff > 0.05 ? 'up' : diff < -0.05 ? 'down' : 'flat';
+        const text = dir === 'flat' ? formatMeters(target) : `${dir === 'up' ? '↑' : '↓'} ${formatMeters(target)} (z ${formatMeters(y)})`;
+        labels.push({ x: cx * CELL_SIZE, y: y + HEIGHT_LABEL_LIFT, z: cz * CELL_SIZE, dir, text });
+      }
     }
+    const stride = labels.length > HEIGHT_LABEL_LIMIT ? Math.ceil(labels.length / HEIGHT_LABEL_LIMIT) : 1;
+    this.heightLabels.show(stride === 1 ? labels : labels.filter((item, index) => index % stride === 0));
     this.s.gridSystem.clearZones();
     this.s.gridSystem.clearDraftCells();
     this.s.gridSystem.showDraftOutline(cells, surfaceAt);
+  }
+
+  updateHeightLabels() {
+    if (!this.heightLabels.items.length) return;
+    this.heightLabels.update((x, y, z) => this.s.screenPointOf(x, y, z));
   }
 
   applyHeightSelection() {

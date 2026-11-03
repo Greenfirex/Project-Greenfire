@@ -1025,3 +1025,55 @@
     transform: translateX(250%);
   }
 }
+/* Štítek s výškou u kurzoru — jen v režimu Výška. */
+.editor-cursor {
+  position: fixed;
+  display: none;
+  padding: 2px 7px;
+  border: 1px solid rgba(90, 200, 170, 0.5);
+  border-radius: 4px;
+  background: rgba(8, 18, 16, 0.85);
+  color: #d8f5ec;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  z-index: 31;
+}
+
+.editor-cursor.is-on {
+  display: block;
+}
+
+/* Popisky nové výšky na označených buňkách. */
+.editor-height-labels {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 29;
+}
+
+.editor-height-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: none;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(6, 14, 12, 0.72);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.editor-height-label.is-up {
+  color: #8ee89a;
+}
+
+.editor-height-label.is-down {
+  color: #ff9a85;
+}
+
+.editor-height-label.is-flat {
+  color: #cfd8d6;
+}

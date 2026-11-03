@@ -309,6 +309,7 @@ export default class GameScene {
           this.waterSystem.update(dt);
           this.decoSystem.updateWind(this.floraSystem.clock);
           this.updateWaterCaustics();
+          this.editor.updateHeightLabels();
         }
         this.refreshClock();
         return;

@@ -97,8 +97,9 @@ tvory nedoplňuje sám.
 
 Režim Výška nejdřív kreslí návrh a po potvrzení mění dlaždice. Výšky jdou od
 **−6 do +24 m**, krok je **0,3 m**. Předvolby jsou −6, −3, 0, 3, 6, 9, 12, 18 a 24 m.
-Označená plocha se zvýrazní jen obrysem, aby zůstal vidět terén; cílovou výšku
-vidíš u kurzoru a v okénku.
+Označená plocha se zvýrazní jen obrysem, aby zůstal vidět terén. Na označených
+buňkách stojí jejich nová výška — zeleně nahoru, červeně dolů, v závorce ta
+současná. U kurzoru je vidět výška buňky pod myší.
 
 - **Kopec** a **Prohlubeň** si svah staví samy po 0,3 m až do nuly.
 - **Strmý svah** spadne o 0,6 m na řadu.
