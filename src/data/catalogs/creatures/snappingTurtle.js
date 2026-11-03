@@ -26,6 +26,12 @@ const TAIL_SWING_WALK = 0.14;
 const TAIL_SWING_IDLE = 0.05;
 const TAIL_SPEED = 1.6;
 const DEAD_LEG = 0.4;
+const TURN_SWING = 0.6;
+const KNEE_LIFT = 0.45;
+const HIT_SECONDS = 0.3;
+const HIT_HEAD = -0.45;
+const HIT_PULL = 0.3;
+const HIT_LEG = 0.25;
 const SIDE_AXIS = new Vector3(1, 0, 0);
 const BACK_AXIS = new Vector3(0, 0, -1);
 
@@ -73,24 +79,24 @@ function animatedEntry(bone) {
   };
 }
 
-function swingEntry(entry, angle) {
+function swingEntry(entry, angle, lift = 0) {
   if (!entry || !entry.target || !entry.base) return;
+  let base = entry.base;
+  if (lift && entry.liftAxis) {
+    base = Quaternion.RotationAxis(entry.liftAxis, lift).multiply(base);
+  }
   if (!angle) {
-    entry.target.rotationQuaternion = entry.base.clone();
+    entry.target.rotationQuaternion = base.clone();
     return;
   }
   const delta = Quaternion.RotationAxis(entry.axis, angle);
-  entry.target.rotationQuaternion = delta.multiply(entry.base);
+  entry.target.rotationQuaternion = delta.multiply(base);
 }
 
 function pullEntry(entry, distance) {
   if (!entry || !entry.target || !entry.basePos) return;
   entry.target.position.copyFrom(entry.basePos);
   if (distance) entry.target.position.addInPlace(entry.backAxis.scale(distance));
-}
-
-function closestToBody(list) {
-  return list.reduce((best, item) => (Math.abs(item.x) < Math.abs(best.x) ? item : best));
 }
 
 function headBase(list) {
@@ -132,9 +138,26 @@ function build(mesh, skeleton) {
 
   const legEntries = [];
   for (const key of Object.keys(legs)) {
-    const list = legs[key];
+    const list = [...legs[key]].sort((a, b) => Math.abs(a.x) - Math.abs(b.x));
     if (!list.length) continue;
-    legEntries.push({ key, entry: animatedEntry(closestToBody(list).bone), offset: LEG_PHASES[key] });
+    const rootItem = list[0];
+    const jointItem = list.length > 1 ? list[1] : null;
+    const footItem = list[list.length - 1];
+    const entry = animatedEntry(rootItem.bone);
+    const direction = new Vector3(footItem.x - rootItem.x, 0, footItem.z - rootItem.z);
+    const worldLift = direction.lengthSquared() > 1e-6
+      ? new Vector3(-direction.z, 0, direction.x).normalize()
+      : SIDE_AXIS.clone();
+    entry.liftAxis = axisInParent(rootItem.bone, worldLift);
+    const joint = jointItem ? animatedEntry(jointItem.bone) : null;
+    if (joint) joint.liftAxis = axisInParent(jointItem.bone, worldLift);
+    legEntries.push({
+      key,
+      entry,
+      joint,
+      side: rootItem.x < 0 ? -1 : 1,
+      offset: LEG_PHASES[key],
+    });
   }
 
   const headItem = head.length ? headBase(head) : null;
@@ -149,6 +172,7 @@ function build(mesh, skeleton) {
     tailSwing: 0,
     headPitch: HEAD_CALM,
     headPull: HEAD_CALM,
+    hitTime: 0,
     mode: null,
   };
 }
@@ -160,13 +184,14 @@ function pose(rig, dt, info) {
   const seconds = Number.isFinite(dt) && dt > 0 ? dt : 0;
   if (mode === 'dead') {
     rig.mode = 'dead';
+    rig.hitTime = 0;
     rig.headPitch += (HEAD_CALM - rig.headPitch) * Math.min(1, seconds * HEAD_SPEED);
     rig.headPull += (HEAD_CALM - rig.headPull) * Math.min(1, seconds * HEAD_PULL_SPEED);
     rig.swing += (0 - rig.swing) * Math.min(1, seconds * 6);
     rig.tailSwing += (0 - rig.tailSwing) * Math.min(1, seconds * 4);
     for (const leg of rig.legs) {
-      const side = leg.key.endsWith('l') ? -1 : 1;
-      swingEntry(leg.entry, side * DEAD_LEG);
+      swingEntry(leg.entry, leg.side * DEAD_LEG);
+      if (leg.joint) swingEntry(leg.joint, 0);
     }
     swingEntry(rig.head, rig.headPitch);
     pullEntry(rig.head, rig.headPull);
@@ -186,19 +211,28 @@ function pose(rig, dt, info) {
   } else if (mode === 'alert') {
     headTarget = ALERT_HEAD;
   }
+  if (info && info.hit) rig.hitTime = HIT_SECONDS;
+  rig.hitTime = Math.max(0, rig.hitTime - seconds);
+  const hit = rig.hitTime / HIT_SECONDS;
+  const stepping = moving || Boolean(info && info.turning);
+  headTarget += HIT_HEAD * hit;
+  pullTarget += HIT_PULL * hit;
   rig.headPitch += (headTarget - rig.headPitch) * Math.min(1, seconds * HEAD_SPEED);
   rig.headPull += (pullTarget - rig.headPull) * Math.min(1, seconds * HEAD_PULL_SPEED);
-  rig.phase += (moving ? WALK_CYCLE : 0) * seconds;
-  rig.swing += ((moving ? SWING : 0) - rig.swing) * Math.min(1, seconds * 6);
+  rig.phase += (stepping ? WALK_CYCLE : 0) * seconds;
+  rig.swing += ((stepping ? (moving ? SWING : SWING * TURN_SWING) : 0) - rig.swing) * Math.min(1, seconds * 6);
   rig.tailPhase += TAIL_SPEED * seconds;
-  rig.tailSwing += ((moving ? TAIL_SWING_WALK : TAIL_SWING_IDLE) - rig.tailSwing) * Math.min(1, seconds * 4);
+  rig.tailSwing += ((stepping ? TAIL_SWING_WALK : TAIL_SWING_IDLE) - rig.tailSwing) * Math.min(1, seconds * 4);
   for (const leg of rig.legs) {
-    swingEntry(leg.entry, Math.sin(rig.phase + leg.offset) * rig.swing);
+    const wave = Math.sin(rig.phase + leg.offset);
+    const step = Math.max(0, Math.cos(rig.phase + leg.offset));
+    swingEntry(leg.entry, wave * rig.swing + HIT_LEG * hit * leg.side);
+    if (leg.joint) swingEntry(leg.joint, 0, step * KNEE_LIFT * (rig.swing / SWING));
   }
   swingEntry(rig.head, rig.headPitch);
   pullEntry(rig.head, rig.headPull);
   swingEntry(rig.tail, Math.sin(rig.tailPhase) * rig.tailSwing);
-  return { bob: moving ? Math.sin(rig.phase * 2) * BOB : 0 };
+  return { bob: stepping ? Math.sin(rig.phase * 2) * BOB : 0 };
 }
 
 function summary(rig) {
@@ -221,6 +255,7 @@ export const SNAPPING_TURTLE = {
   length: 1.1,
   yawOffset: Math.PI,
   walkSpeed: 0.7,
+  chaseBoost: 1.2,
   turnRate: 2.4,
   aggroRange: 6,
   chargeRange: 3.5,
@@ -237,10 +272,10 @@ export const SNAPPING_TURTLE = {
     scale: 0.33,
     stepDistance: 0.65,
     feet: [
-      { side: 0.24, forward: 0.16 },
-      { side: -0.24, forward: 0.16 },
-      { side: 0.24, forward: -0.16 },
-      { side: -0.24, forward: -0.16 },
+      { side: 0.2, forward: 0.277 },
+      { side: -0.157, forward: 0.299 },
+      { side: 0.204, forward: -0.101 },
+      { side: -0.178, forward: -0.071 },
     ],
     pairs: [[0, 3], [1, 2]],
   },

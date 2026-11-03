@@ -1,0 +1,242 @@
+# Tvorové — jak postavit novou potvoru
+
+Manuál k jedné věci: co všechno musí nový tvor mít, aby ho hra vzala za svůj.
+Obecné věci (spawn, stavy, ikony, obrysy, ukládání) drží systém tvorů a o kostech
+nic neví. Vzhled, animace a čísla chování patří do souboru tvora.
+
+```
+src/data/catalogs/creatures/
+  index.js            registr: které tvory hra zná + pomocné funkce
+  sandDevil.js        písečný běs — dnešní vzor (zahrabání, útok nohama, reakce na ránu)
+  snappingTurtle.js   kajmanka — vzor pro model bez použitelných jmen kostí
+src/systems/creatureSystem.js   obecné: spawn, stavy, ikony, obrysy, ukládání
+src/utils/creatureMarker.js     vykřičník a otazníky nad hlavou (společné všem)
+public/assets/creatures/<kind>/ model + CREDITS.txt
+```
+
+## Checklist nové potvory
+
+1. Model do `public/assets/creatures/<kind>/` + `CREDITS.txt` (odkud model je a jaká licence).
+2. Soubor `src/data/catalogs/creatures/<kind>.js`: hlavička (1–3 řádky), import `ASSET_DIRS`,
+   rig (nebo `rig: null`) a data podle tabulky níž.
+3. Řádek do `index.js` (import + položka v `CREATURE_TYPES`).
+4. Zvuky: soubory do `public/assets/audio/creatures/<druh>/`, záznam do seznamu klipů a do `CREDITS.txt`.
+5. Zapsat tvora do mapy (mapa určuje, kdo ve hře existuje; hra tvory nedoplňuje).
+
+Spawn, ikony, obrysy, tooltip, stopy i ukládání pak fungují samy.
+
+## Data tvora
+
+Povinné je to, co systém čte bez náhrady. „Když chybí" říká, co se stane, když pole vynecháš.
+
+| Pole | Co dělá | Když chybí |
+|---|---|---|
+| `label` | jméno do konzole a do jmen uzlů | povinné |
+| `model` | cesta ke GLB | povinné |
+| `rig` | trojice `build` / `pose` / `summary`, nebo `null` | `null` = model bez animace |
+| `sounds` | klíče zvuků (`alert`, `charge`, `bite`) | tvor je němý |
+| `length` | délka těla ve světových jednotkách (buňka = 2); model se na ni normalizuje | 1 |
+| `scale` | dodatečné měřítko nad `length` (1 = beze změny) | 1 |
+| `yawOffset` | pootočení modelu, který nekouká na +Z | 0 |
+| `groundOffset` | výška nejnižšího bodu modelu nad zemí (v jednotkách modelu) | 0 |
+| `walkSpeed` | rychlost chůze ve světových jednotkách za sekundu | povinné |
+| `chaseBoost` | násobek rychlosti v boji (honička) | 1 |
+| `turnRate` | jak rychle se otáčí (radiány za sekundu) | povinné |
+| `aggroRange` | od jaké dálky si tě všimne | povinné |
+| `chargeRange` | od jaké dálky rovnou útočí; dál jde nejdřív varování | povinné |
+| `alertSeconds` | rozsah `[min, max]`, jak dlouho varuje | `[2, 3]` |
+| `noWarning` | `true` = žádné varování, rovnou boj | `false` |
+| `biteRange` | na jakou dálku dosáhne | povinné |
+| `biteWindup` | jak dlouho se napřahuje, než rána padne | povinné |
+| `biteCooldown` | pauza mezi útoky | povinné |
+| `biteRecover` | jak dlouho se po ráně zotavuje | povinné |
+| `confusedSeconds` | jak dlouho tápe, když tě ztratí | 1,4 |
+| `roamRadius` | jak daleko od domova se toulá | 0 = stojí na místě |
+| `maxStepHeight` | jak vysoký schod ještě přeleze | bez omezení |
+| `attackHeight` | jak vysoko nebo nízko na tebe ještě dosáhne | bez omezení |
+| `footprint` | stopy v písku (viz níž) | jedna šmouha bez detailů |
+| `respawnDays` | po kolika herních dnech se obnoví | povinné |
+| `idleSeconds` | rozsah `[min, max]`, jak dlouho postává | povinné |
+| `defaultTier` | který tier platí, když mapa nic neřekne | povinné |
+| `loot` | co z něj vypadne (`{ id_předmětu: počet }`) | nic |
+| `tiers` | úrovně (viz níž) | povinné |
+| `buried` | `true` = začíná zahrabaný a vylézá na hráče | `false` |
+| `emergeRange` | z jaké dálky vyleze ze země | `aggroRange` |
+| `emergeSeconds` | jak dlouho vylézá (a stejně dlouho se i zahrabává) | 1 |
+| `emergeJump` | jak vysoko při vylézání poskočí | 0 = nevyskočí |
+| `buriedDepth` | jak hluboko je zapadlý (světové jednotky) | 0,85 |
+| `deathRoll` | o kolik se při smrti převalí; `Math.PI` = na záda, opačné znaménko = na druhou stranu | lehne si na bok |
+| `deathSeconds` | jak dlouho padání trvá | 0,5 |
+
+## Tiery
+
+Tier je stáří tvora. Klíč tieru se ukládá do savu, takže přejmenování zvedá verzi savu.
+
+| Pole | Co dělá | Když chybí |
+|---|---|---|
+| `label` | jméno stáří do konzole | — |
+| `scale` | měřítko proti základu | 1 |
+| `tint` | `[r, g, b]` nádech barvy | `[1, 1, 1]` |
+| `health` | životy | povinné |
+| `bite` | zranění z rány | povinné |
+| `attack` | síla útoku proti obraně hráče | povinné |
+| `defense` | obrana proti útoku hráče | povinné |
+| `speed` | násobek rychlosti | 1 |
+| `aggroRange` | přebíjí základní dohled | základ z dat tvora |
+
+## Rozhraní rigu
+
+```js
+rig.build(mesh, skeleton)          // -> stav kostry, nebo null, když se rig nepovedl
+rig.pose(stav, dt, info)           // -> { bob }  (jen svislé zhoupnutí)
+rig.summary(stav)                  // -> řetězec do konzole („6 nohou, 2 chapadla“)
+```
+
+`pose` se volá každý snímek s reálným `dt` (ne v tiku simulace). Dostává:
+
+| Vstup | Význam |
+|---|---|
+| `mode` | v jakém stavu tvor je — viz seznam níž |
+| `moving` | `true`, jen když se v tomto tiku opravdu pohnul |
+| `turning` | `true`, když se právě otáčí (i na místě) |
+| `engaged` | `true`, když je v boji (honička, útok) |
+| `hit` | `true` v jediném snímku, kdy dostal ránu |
+| `buried` | `true`, dokud je zarytý v zemi |
+| `emergeProgress` | 0 = úplně v zemi, 1 = venku; dorazí o snímek starší |
+
+Módy, které rig musí snést: `buried`, `emerging`, `burying`, `windup`, `recover`,
+`alert`, `confused`, `chase`, `roam`, `idle` a `dead`. Mrtvola se animuje taky —
+`pose` dostane `mode: 'dead'` a podle toho tělo složí.
+
+Rig nikdy nehýbe s pozicí ani otočením těla; to patří systému. Rig sahá jen na kosti
+a vrací jedno číslo — jak moc se má tělo zvednout.
+
+## Jak najít kosti v modelu
+
+Dvě cesty, obě použitelné:
+
+- **Podle klidové polohy** (želva): kosti nemají použitelná jména, tak se hledá podle
+  toho, kde v klidu leží (nejvíc vepředu = hlava, mimo tělo a nízko = noha). Funguje
+  i po novém exportu modelu, ale je to odhad.
+- **Podle jmen kostí** (běs): když export jména má (`Bone_035`), dá se rovnou říct,
+  která kost je která noha. Je to přesnější, ale jména generuje Meshy — po novém
+  exportu se změní a tabulka v souboru tvora se musí přepsat.
+
+Ať tak nebo tak, první krok je vždycky **vypsat, co v modelu je**:
+
+```js
+// node -e "...", jen ke čtení; vypíše jména kostí a jejich děti
+const fs = require('fs');
+const b = fs.readFileSync('public/assets/creatures/<kind>/<model>.glb');
+const len = b.readUInt32LE(12);
+const json = JSON.parse(b.slice(20, 20 + len).toString('utf8'));
+json.nodes.forEach((node, index) => console.log(index, node.name, node.children || ''));
+```
+
+Z toho se poznají řetězy kostí (která kost je kořen nohy, která prostředek a která
+špička). Klidové polohy se počítají průchodem hierarchie (translaci a otočení rodičů)
+a vynásobením měřítkem modelu — z toho vyjde tabulka chodidel pro stopy a osy otáčení.
+
+
+## Osvědčené vzory
+
+- **Nic nepřepínej skokem.** Každá poloha (prohnutí, otevření, zvednutí) má cílovou
+  hodnotu a k ní se plynule dojíždí; rychlost dojíždění je samostatná konstanta.
+  Skokové přepnutí je vidět jako cuknutí.
+- **Úder jako impuls.** Systém nemá mód „udeřil jsem“. Pozná se to podle přechodu
+  `windup` → `recover`; v ten snímek si rig nastaví impuls a ten postupně odezní.
+  Animace tak sedí na okamžik, kdy hra opravdu ubere zdraví.
+- **Reakce na ránu přes `hit`.** Systém pošle puls v jednom snímku; rig si drží
+  vlastní časovač (jak dlouho cuknutí trvá) a sílu reakce.
+- **Fázi kroku sčítej, nepočítej z času.** `walkPhase += cadence * dt` místo
+  `sin(čas × rychlost)`. Když se tempo uprostřed změní, nohy neskočí jinam.
+- **Zrcadlové nohy potřebují znaménko strany.** Stejný úhel na levou a pravou nohu
+  neudělá souměrný pohyb; znaménko se bere z klidové polohy kosti.
+- **Osy otáčení převáděj do prostoru rodiče** a normalizuj, jinak se do rotace
+  zamíchá měřítko modelu.
+- **Bázi kosti si ulož při stavbě** a každý snímek počítej z ní; nikdy neakumuluj
+  rotaci na živé kosti.
+- **Znaménka rotací ověř, neodhaduj.** Babylon počítá kvaterniony jinak než matice;
+  co vypadá „logicky“, může být obráceně. Nejrychlejší kontrola je krátký výpočet
+  v Node: otočit vektor kolem osy a podívat se, kterým směrem vyšel.
+- **Ladění patří k tvorovi** — rozsahy, prahy i rychlosti jsou v jeho souboru
+  jako pojmenované konstanty nahoře, ne rozeseté v kódu.
+
+## Stopy
+
+```js
+footprint: {
+  kind: 'sanddevil',         // který obrázek stopy a jak je velká
+  scale: 1,                  // násobek velikosti stopy
+  stepDistance: 0.34,        // po kolika metrech udělá další skupinu stop
+  feet: [{ side, forward }], // kde má chodidla (side = do strany, forward = dopředu)
+  pairs: [[0, 1, 2], ...],   // které nohy našlápnou spolu
+}
+```
+
+- `feet` se počítá z reálných špiček nohou v modelu vynásobených měřítkem modelu;
+  odhad „všechny nohy stejně“ je vidět jako stopy mimo tělo.
+- `pairs` musí odpovídat fázím v rigu. Šestinohý tvor našlapuje po trojicích,
+  čtyřnohý po dvojicích; když se to rozejde, tvor našlapuje proti animaci.
+- `stepDistance` se ladí podle tempa nohou: když je moc malá, sype stopy hustěji,
+  než našlapuje.
+
+## Zvuky
+
+Data tvora mají `sounds` s klíči, které systém volá: `alert` (varování před útokem),
+`charge` (naštvání), `bite` (rána), `hit` (dostal ránu), `death` (zahynul)
+a `dig` (vylézá nebo se zahrabává). Klíč se hledá v seznamu klipů v audio systému,
+hlasitost se počítá podle vzdálenosti od hráče. Když tvor nějaký klíč nemá, prostě
+v tu chvíli mlčí.
+
+Nový zvuk = tři kroky: soubor do správné složky v `public/assets/audio/` (kroky do `steps/`,
+sběr a těžba do `gather/`, souboj do `combat/`, smyčky do `ambient/` nebo `fire/`, zvuky
+tvora do `creatures/<druh>/`), záznam do seznamu klipů a hlasitostí (jméno i se složkou)
+a řádek do `CREDITS.txt` (odkud a jaká licence). Bez CREDITS zvuk v projektu nemá co dělat.
+
+Názvy složek nesmí obsahovat tečku — podle tečky v názvu klipu se pozná, jestli se má
+doplnit `.ogg`.
+
+Formát je OGG (Vorbis) — malý a čte ho každý prohlížeč. Stažené balíčky ale často
+chodí jako WAV; převod dělá ffmpeg:
+
+```
+ffmpeg -i vstup.wav -ar 44100 -ac 1 -c:a libvorbis -q:a 4 vystup.ogg
+```
+
+`-ar 44100 -ac 1` srovná vzorkování i počet kanálů (zdrojové balíčky mívají 96 kHz),
+`-q:a 4` je kvalita, na krátké ruchy bohatě stačí.
+
+## Nástrahy
+
+- **`kind` je v savu.** Přejmenování u existujícího tvora zahodí stará data.
+- **`tier` je v savu.** Přejmenování tieru zvedá verzi savu.
+- **Stav živý/mrtvý není v mapě** — mapa drží druh, stáří a buňku; čas smrti a zdraví
+  patří do uložené hry.
+- **Načtení musí snést stará data** (chybějící tvory, neznámé tiery) a nesmí spadnout.
+- **Výškový rozdíl:** `maxStepHeight` je schod, ne zeď; `attackHeight` rozhoduje, jestli
+  na hráče na útese vůbec zaútočí.
+- **Zásah rozhodují vlastnosti** (`attack` proti `defense`, ohraničeno 5–95 %); citlivý
+  zásah se nevyplňuje, je odvozený z téhož porovnání.
+- **Kopírování modelu:** `LoadAssetContainerAsync` + `instantiateModelsToScene`;
+  ruční `clone()` skinned meshe rozbije kostru.
+- **`pose` dostane `emergeProgress` o snímek starší** — nevadí to, ale nepočítej s ním
+  jako s aktuální hodnotou.
+- **Mrtvý kód:** když tvor ocas nemá, rig ho nesmí mít „pro jistotu“.
+- **Bez kostí** (sochy, barely): `rig: null` a systém to snese.
+
+## Co která potvora umí
+
+Aby se vědělo, kde je vzor a kde mezera. Úkoly z toho plynoucí patří do `TODO.md`.
+
+| Vlastnost | Písečný běs | Kajmanka |
+|---|---|---|
+| reakce na ránu (`hit`) | ano | chybí |
+| nohy našlapou i při otáčení (`turning`) | ano | chybí |
+| prohýbání kolen při chůzi | ano | chybí |
+| zrychlení v boji (`chaseBoost`) | ano (1,2) | chybí |
+| zahrabání a vylézání | ano | ne (žije u vody) |
+| převrácení na záda při smrti (`deathRoll`) | ano | ne (padá na bok) |
+| stopy z reálných chodidel | ano (6 nohou) | odhad (4 nohy stejně) |
+| varování před útokem (`noWarning`) | ne — rovnou útok | ano |
+| vlastní doložené zvuky | ano (Darkworld Audio) | ano, ale zdroj chybí v CREDITS |

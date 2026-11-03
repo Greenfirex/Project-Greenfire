@@ -3,25 +3,33 @@
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 
 const CLIPS = {
-  chop: ['chop_1', 'chop_3'],
-  mine: ['mine_1', 'mine_2', 'mine_4', 'mine_5'],
-  bare: ['chop_2', 'mine_3'],
-  pickup: ['pickup_1.wav'],
-  fall: ['chop_2', 'mine_5'],
-  stepGrass: ['dirtstep_1', 'dirtstep_2', 'dirtstep_3'],
-  stepWood: ['woodstep_1', 'woodstep_2', 'woodstep_3'],
-  stepStone: ['stonestep_1', 'stonestep_2', 'stonestep_3'],
-  stepWater: ['waterstep_1', 'waterstep_2', 'waterstep_3', 'waterstep_4', 'waterstep_5'],
-  ignite: ['ignite_1', 'ignite_2'],
-  turtleHiss: ['turtle_hiss_1.wav'],
-  turtleBite: ['turtle_bite_1.wav', 'turtle_bite_2.wav', 'turtle_bite_3.wav'],
-  turtleGrowl: ['turtle_growl_1.wav'],
+  chop: ['gather/chop_1', 'gather/chop_3'],
+  mine: ['gather/mine_1', 'gather/mine_2', 'gather/mine_4', 'gather/mine_5'],
+  bare: ['gather/chop_2', 'gather/mine_3'],
+  miss: ['combat/miss_1.ogg', 'combat/miss_2.ogg', 'combat/miss_3.ogg', 'combat/miss_4.ogg', 'combat/miss_5.ogg', 'combat/miss_6.ogg'],
+  pickup: ['gather/pickup_1.wav'],
+  fall: ['gather/chop_2', 'gather/mine_5'],
+  stepGrass: ['steps/dirtstep_1', 'steps/dirtstep_2', 'steps/dirtstep_3'],
+  stepWood: ['steps/woodstep_1', 'steps/woodstep_2', 'steps/woodstep_3'],
+  stepStone: ['steps/stonestep_1', 'steps/stonestep_2', 'steps/stonestep_3'],
+  stepWater: ['steps/waterstep_1', 'steps/waterstep_2', 'steps/waterstep_3', 'steps/waterstep_4', 'steps/waterstep_5'],
+  ignite: ['fire/ignite_1', 'fire/ignite_2'],
+  turtleHiss: ['creatures/turtle/turtle_hiss_1.wav'],
+  turtleBite: ['creatures/turtle/turtle_bite_1.wav', 'creatures/turtle/turtle_bite_2.wav', 'creatures/turtle/turtle_bite_3.wav'],
+  turtleGrowl: ['creatures/turtle/turtle_growl_1.wav'],
+  devilDig: ['creatures/devil/devil_dig_1.ogg', 'creatures/devil/devil_dig_2.ogg', 'creatures/devil/devil_dig_3.ogg'],
+  devilBite: ['creatures/devil/devil_bite_1.ogg', 'creatures/devil/devil_bite_2.ogg', 'creatures/devil/devil_bite_3.ogg'],
+  devilHit: ['creatures/devil/devil_hit_1.ogg', 'creatures/devil/devil_hit_2.ogg'],
+  devilDeath: ['creatures/devil/devil_death_1.ogg'],
+  devilGrowl: ['creatures/devil/devil_growl_1.ogg'],
+  grassRip: ['gather/grassrip_1.ogg', 'gather/grassrip_2.ogg'],
 };
 
 const VOICES = {
   chop: { volume: 0.5, voices: 3, pitch: 0.06 },
   mine: { volume: 0.42, voices: 3, pitch: 0.05 },
   bare: { volume: 0.34, voices: 2, pitch: 0.08 },
+  miss: { volume: 0.45, voices: 6, pitch: 0.08 },
   pickup: { volume: 0.38, voices: 1, pitch: 0.05 },
   fall: { volume: 0.36, voices: 2, pitch: 0.04 },
   stepGrass: { volume: 0.07, voices: 3, pitch: 0.08 },
@@ -32,18 +40,25 @@ const VOICES = {
   turtleHiss: { volume: 0.5, voices: 1, pitch: 0.04 },
   turtleBite: { volume: 0.55, voices: 3, pitch: 0.06 },
   turtleGrowl: { volume: 0.45, voices: 1, pitch: 0.05 },
+  devilDig: { volume: 0.5, voices: 3, pitch: 0.07 },
+  devilBite: { volume: 0.6, voices: 3, pitch: 0.06 },
+  devilHit: { volume: 0.55, voices: 2, pitch: 0.08 },
+  devilDeath: { volume: 0.55, voices: 1, pitch: 0.03 },
+  devilGrowl: { volume: 0.4, voices: 1, pitch: 0.05 },
+  grassRip: { volume: 0.4, voices: 2, pitch: 0.08 },
 };
 
 const AMBIENT_LAYERS = ['forest_day', 'forest_night'];
+const AMBIENT_FOLDER = 'ambient/';
 const AMBIENT_FADE_SECONDS = 6;
 const AMBIENT_LEVEL = 0.25;
 
-const FIRE_LOOP = 'torch_loop';
+const FIRE_LOOP = 'fire/torch_loop';
 const FIRE_FADE_SECONDS = 0.5;
 const FIRE_HEARING = 12;
 const FIRE_LEVELS = [0.3, 0.2, 0.12, 0.05];
 
-const SHORE_LAYER = 'sea';
+const SHORE_LAYER = 'ambient/sea';
 const SHORE_FADE_SECONDS = 2;
 const SHORE_LEVEL = 0.35;
 const SHORE_NEAR = 3;
@@ -141,7 +156,7 @@ export default class AudioSystem {
       gain.gain.value = 0;
       gain.connect(this.master);
       this.ambient[key] = { gain, source: null, buffer: null };
-      this.fetchClip(`${ASSET_DIRS.audio}${key}.ogg`, (buffer) => this.playLayer(key, buffer));
+      this.fetchClip(`${ASSET_DIRS.audio}${AMBIENT_FOLDER}${key}.ogg`, (buffer) => this.playLayer(key, buffer));
     }
     this.resumeAmbient();
   }

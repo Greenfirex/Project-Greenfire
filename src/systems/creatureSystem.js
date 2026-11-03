@@ -22,12 +22,15 @@ import {
 } from '../data/catalogs/creatures/index.js';
 import { cellToWorldCoords } from '../utils/gridMath.js';
 
-const TURN_SPEED = 3.4;
+const TURN_SPEED = 7;
+const EMERGE_TURN_SPEED = 18;
+const TURN_STEP_GAP = 0.12;
 const RENDER_SMOOTHING = 0.001;
 const SPOT_STEP = 0.5;
 const SPOT_REACH = 12;
 const PATH_SAMPLE = 0.3;
 const CHASE_STUCK_SECONDS = 1.2;
+const HOME_PATIENCE = 12;
 const ARRIVE = 0.12;
 const OUTLINE_WIDTH = 0.038;
 const OUTLINE_PULSE = 0.012;
@@ -307,6 +310,7 @@ export default class CreatureSystem {
       stepSide: 1,
       giveUpUntil: 0,
       health: tier.health,
+      hitPulse: false,
     };
     this.placeHolder(creature);
     this.pickMeshes.push(pickProxy);
@@ -511,16 +515,29 @@ export default class CreatureSystem {
       if (player && gap <= emergeRange) {
         creature.mode = 'emerging';
         creature.timer = creature.emergeSeconds;
-        this.playSound(creature, 'alert');
+        if (gap > 0.001) creature.facing = Math.atan2(player.x - creature.x, player.z - creature.z);
+        this.playSound(creature, 'dig');
       }
       return;
     }
 
     if (creature.mode === 'emerging') {
+      if (player && gap > 0.001) {
+        const look = Math.atan2(player.x - creature.x, player.z - creature.z);
+        creature.facing = turnToward(creature.facing, look, type.turnRate * dt);
+      }
       if (creature.timer <= 0) {
         creature.buried = false;
         creature.emergeProgress = 1;
-        this.beginAlert(creature, alertSeconds);
+        this.beginAggro(creature, alertSeconds);
+      }
+      return;
+    }
+
+    if (creature.mode === 'burying') {
+      if (creature.timer <= 0) {
+        creature.mode = 'buried';
+        creature.emergeProgress = 0;
       }
       return;
     }
@@ -543,7 +560,7 @@ export default class CreatureSystem {
 
     if (creature.mode === 'confused') {
       if (canAggro) {
-        this.beginAlert(creature, alertSeconds);
+        this.beginAggro(creature, alertSeconds);
         return;
       }
       if (creature.timer <= 0) {
@@ -578,7 +595,7 @@ export default class CreatureSystem {
         if (gap <= type.chargeRange) {
           this.beginCharge(creature);
         } else {
-          this.beginAlert(creature, alertSeconds);
+          this.beginAggro(creature, alertSeconds);
           return;
         }
       }
@@ -601,7 +618,8 @@ export default class CreatureSystem {
       if (gap <= standoff || gap < 0.001) return;
       const dirX = (player.x - creature.x) / gap;
       const dirZ = (player.z - creature.z) / gap;
-      const speed = type.walkSpeed * creature.tier.speed;
+      const boost = Number.isFinite(type.chaseBoost) ? type.chaseBoost : 1;
+      const speed = type.walkSpeed * creature.tier.speed * boost;
       const arrived = this.walkTo(creature, player.x - dirX * standoff, player.z - dirZ * standoff, speed, dt);
       const blocked = !arrived && !creature.walking;
       creature.blockedTime = blocked ? creature.blockedTime + dt : 0;
@@ -617,7 +635,15 @@ export default class CreatureSystem {
     if (creature.mode === 'roam') {
       const speed = type.walkSpeed * creature.tier.speed * 0.6;
       const arrived = this.walkTo(creature, creature.targetX, creature.targetZ, speed, dt);
-      if (arrived || creature.timer <= 0) {
+      const headingHome = Math.abs(creature.targetX - creature.homeX) < 0.01
+        && Math.abs(creature.targetZ - creature.homeZ) < 0.01;
+      const gaveUp = creature.timer <= 0 && (!headingHome || creature.timer < -HOME_PATIENCE);
+      if (arrived || gaveUp) {
+        const nearHome = Math.hypot(creature.x - creature.homeX, creature.z - creature.homeZ) <= 0.6;
+        if (type.buried && nearHome && gap > aggro * 1.5) {
+          this.beginBury(creature);
+          return;
+        }
         creature.mode = 'idle';
         creature.timer = randomBetween(type.idleSeconds[0], type.idleSeconds[1]);
       }
@@ -637,6 +663,22 @@ export default class CreatureSystem {
     creature.mode = 'alert';
     creature.timer = randomBetween(seconds[0], seconds[1]);
     this.playSound(creature, 'alert');
+  }
+
+  beginAggro(creature, seconds) {
+    if (creature.type.noWarning) {
+      this.beginCharge(creature);
+      return;
+    }
+    this.beginAlert(creature, seconds);
+  }
+
+  beginBury(creature) {
+    creature.mode = 'burying';
+    creature.timer = creature.emergeSeconds;
+    creature.buried = true;
+    creature.emergeProgress = 1;
+    this.playSound(creature, 'dig');
   }
 
   beginCharge(creature) {
@@ -713,23 +755,35 @@ export default class CreatureSystem {
     for (const creature of this.creatures) {
       creature.renderX += (creature.x - creature.renderX) * blend;
       creature.renderZ += (creature.z - creature.renderZ) * blend;
-      creature.renderFacing = turnToward(creature.renderFacing, creature.facing, TURN_SPEED * seconds);
+      const turnSpeed = creature.mode === 'emerging' ? EMERGE_TURN_SPEED : TURN_SPEED;
+      creature.renderFacing = turnToward(creature.renderFacing, creature.facing, turnSpeed * seconds);
+      let faceGap = creature.facing - creature.renderFacing;
+      while (faceGap > Math.PI) faceGap -= Math.PI * 2;
+      while (faceGap < -Math.PI) faceGap += Math.PI * 2;
+      const turning = Math.abs(faceGap) > TURN_STEP_GAP;
       const pose = creature.type.rig
         ? creature.type.rig.pose(creature.rig, seconds, {
           mode: creature.mode,
           moving: creature.walking,
           buried: creature.buried,
           emergeProgress: creature.emergeProgress,
+          turning,
+          engaged: Boolean(creature.engaged),
+          hit: Boolean(creature.hitPulse),
         })
         : null;
-      if (creature.buried && creature.mode === 'emerging' && creature.emergeSeconds > 0) {
-        creature.emergeProgress = Math.min(1, Math.max(0, 1 - creature.timer / creature.emergeSeconds));
+      creature.hitPulse = false;
+      if (creature.mode === 'emerging' && creature.emergeSeconds > 0) {
+        creature.emergeProgress = Math.min(1, creature.emergeProgress + seconds / creature.emergeSeconds);
+      } else if (creature.mode === 'burying' && creature.emergeSeconds > 0) {
+        creature.emergeProgress = Math.max(0, creature.emergeProgress - seconds / creature.emergeSeconds);
       }
       const bob = pose && Number.isFinite(pose.bob) ? pose.bob : 0;
       this.placeHolder(creature, bob);
-      const hidden = creature.buried;
+      const rising = creature.mode === 'emerging';
+      const hidden = creature.buried && !rising;
       const alert = creature.mode === 'alert';
-      const combat = creature.mode === 'chase' || creature.mode === 'windup' || creature.mode === 'recover';
+      const combat = rising || creature.mode === 'chase' || creature.mode === 'windup' || creature.mode === 'recover';
       const hovered = creature === this.hovered;
       const color = alert && !combat ? ALERT_COLOR : COMBAT_COLOR;
       const goal = hidden ? 0 : alert || combat || hovered ? 1 : 0;
@@ -815,14 +869,15 @@ export default class CreatureSystem {
   updateMarker(creature, seconds) {
     const marker = creature.marker;
     if (!marker) return;
-    if (creature.buried) {
+    const rising = creature.mode === 'emerging';
+    if (creature.buried && !rising) {
       marker.setEnabled(false);
       return;
     }
     creature.markTimer = Math.max(0, creature.markTimer - seconds);
     const doubt = creature.mode === 'confused';
     const alert = creature.mode === 'alert';
-    const show = doubt || alert || creature.markTimer > 0;
+    const show = doubt || alert || rising || creature.markTimer > 0;
     marker.setEnabled(show);
     if (!show) return;
     const icon = doubt ? 'doubt' : 'bang';
@@ -840,6 +895,8 @@ export default class CreatureSystem {
     if (!creature || creature.buried || !Number.isFinite(amount) || amount <= 0) return false;
     if (creature.health <= 0) return false;
     creature.health = Math.max(0, creature.health - amount);
+    creature.hitPulse = true;
+    this.playSound(creature, 'hit');
     if (creature.health > 0) {
       creature.giveUpUntil = 0;
       if (creature.mode !== 'windup') this.beginCharge(creature);
@@ -852,6 +909,7 @@ export default class CreatureSystem {
     const slot = creature && creature.slotKey ? this.slots.get(creature.slotKey) : null;
     if (!slot || slot.creature !== creature) return false;
     creature.health = 0;
+    this.playSound(creature, 'death');
     slot.deadAt = Number.isFinite(now) ? now : this.now;
     this.makeCorpse(creature);
     if (this.onRosterChange) this.onRosterChange();
@@ -893,10 +951,14 @@ export default class CreatureSystem {
         continue;
       }
       entry.age += seconds;
-      const fall = Math.min(1, entry.age / CORPSE_FALL);
+      const fallSeconds = Number.isFinite(creature.type.deathSeconds) ? creature.type.deathSeconds : CORPSE_FALL;
+      const roll = Number.isFinite(creature.type.deathRoll) ? creature.type.deathRoll : CORPSE_TILT;
+      const backwards = Number.isFinite(creature.type.deathRoll);
+      const fall = Math.min(1, entry.age / fallSeconds);
       const ease = fall * fall * (3 - 2 * fall);
-      entry.tilt = CORPSE_TILT * ease;
-      holder.rotation.z = entry.tilt;
+      entry.tilt = roll * ease;
+      if (backwards) holder.rotation.x = entry.tilt;
+      else holder.rotation.z = entry.tilt;
       if (creature.type.rig) {
         creature.type.rig.pose(creature.rig, seconds, { mode: 'dead', moving: false });
       }
@@ -922,7 +984,8 @@ export default class CreatureSystem {
       }
       const sink = Math.min(1, (entry.age - entry.sinkAt) / CORPSE_SINK);
       holder.position.y = groundY - 0.7 * sink;
-      holder.rotation.z = CORPSE_TILT * (1 + sink * 0.25);
+      if (backwards) holder.rotation.x = roll;
+      else holder.rotation.z = CORPSE_TILT * (1 + sink * 0.25);
       this.placePickProxy(creature);
       if (sink >= 1) this.disposeCorpse(entry);
     }

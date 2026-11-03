@@ -37,6 +37,29 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Zvážit tvrdší smrt hráče: obrazovka smrti a ztráta batohu.
 - [ ] Druhý nepřítel a barevné varianty s jinou silou.
 
+### Etapa 5 — dotažení potvor
+
+- [ ] Kajmanka: reakce na ránu (cuknutí při zásahu, stejný princip jako u běsa).
+- [ ] Kajmanka: nohy našlapou i při otáčení na místě.
+- [ ] Kajmanka: prohýbání kolen při chůzi.
+- [ ] Kajmanka: zrychlení v boji (`chaseBoost`).
+- [ ] Kajmanka: stopy spočítat z reálných chodidel místo odhadu.
+- [ ] Do `public/assets/audio/CREDITS.txt` doplnit zdroj želvích zvuků (hiss, growl, bite).
+- [ ] Ověřit licenční podmínky balíčku Darkworld (License Agreement.pdf) a případně upravit CREDITS.
+
+### Zvuky, které ve hře chybí
+
+- [ ] Hráč dostane ránu (a jakákoli zvuková zpětná vazba bolesti).
+- [ ] Smrt hráče.
+- [ ] Kroky po písku — dnes hrají jako hlína, i když máme pláž a pouštního tvora.
+- [ ] Kroky tvorů (aspoň tiché našlapování, dnes dělají jen stopy).
+- [ ] Švihnutí zbraně do prázdna (mine/chop bez zásahu).
+- [ ] Vstup do vody (šplouchnutí, ne jen kroky ve vodě).
+- [ ] Vkládání předmětů do batohu a přesouvání.
+- [ ] Rozhraní: klik, otevření panelu, chybová hláška.
+- [ ] Výroba předmětů.
+- [ ] Ryby ve vodě.
+
 ## Výroba a svět
 
 - [ ] Rozhodnout, jestli recepty zůstanou jen jako přehled, nebo dostanou tlačítko pro výrobu.

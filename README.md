@@ -83,23 +83,26 @@ starších dat ho doplní na plné. Když dojde, hráč se probudí na startovn�
 
 ## Tvorové (NPC)
 
-První tvor je kajmanka (`snapping_turtle`). Každý tvor má **jeden vlastní soubor** — data
-i rig pohromadě — a systém tvorů o kostech nic neví. Tvor ve hře je jen ten, který je
-zapsaný v mapě; hra žádné tvory nedoplňuje sama.
+První tvor je kajmanka (`snapping_turtle`), druhý písečný běs (`sand_devil`). Každý tvor
+má **jeden vlastní soubor** — data i rig pohromadě — a systém tvorů o kostech nic neví.
+Tvor ve hře je jen ten, který je zapsaný v mapě; hra žádné tvory nedoplňuje sama.
+Jak postavit nového, stojí v [manuálu pro tvory](src/data/catalogs/creatures/README.md).
 
 Každý tvor zapsaný v mapě je zároveň **spawní místo**. Když zahyne, po `respawnDays`
 herních dnech se na stejném místě obnoví. Živý tvor se neobnovuje ani nekopíruje;
 počet tvorů určuje mapa, ne uložená hra. Mapa si stav živý/mrtvý nepamatuje — ten
 patří do uložené hry.
 
-Po smrti zůstane tělo asi 20 sekund ležet na boku, jde z něj sebrat kořist
-a potom se propadne do země. Když ho sebereš dřív, propadne se hned po sehrání.
-Bílý obrys se ukáže, jen když jsi blízko.
+Po smrti zůstane tělo ležet přes tři minuty a jde z něj sebrat kořist, potom se propadne
+do země. Když ho sebereš dřív, propadne se hned po sehrání. Jak tělo padne, si určuje
+sám tvor (kajmanka na bok, běs se převrátí na záda). Bílý obrys se ukáže, jen když jsi blízko.
 
 ```
 src/data/catalogs/creatures/
   index.js            registr: které tvory hra zná + pomocné funkce
-  snappingTurtle.js   jeden tvor: data, tiery a rig
+  README.md           manuál: jak postavit nového tvora
+  sandDevil.js        písečný běs: data, tiery a rig
+  snappingTurtle.js   kajmanka: data, tiery a rig
 src/systems/creatureSystem.js   obecné: spawn, stavy, ikony, obrysy, ukládání
 src/utils/creatureMarker.js     vykřičník a otazníky nad hlavou (společné všem)
 public/assets/creatures/<kind>/ model + CREDITS.txt
@@ -113,45 +116,44 @@ public/assets/creatures/<kind>/ model + CREDITS.txt
 | čísla chování (rychlosti, kruhy, časy, dostřel, útok a obrana) | soubor tvora | systém je jen čte |
 | tiery | soubor tvora | klíč tieru se ukládá do savu |
 | rig (rozpoznání kostí + animace) | soubor tvora | `build` / `pose` / `summary` |
-| zvuky (`alert`, `charge`, `bite`) | soubor tvora | klíče do seznamu zvuků v audio systému |
+| stopy v písku (`footprint`) | soubor tvora | které nohy a kam našlapují, jak jsou velké |
+| zahrabání, vylézání a způsob smrti | soubor tvora | `buried`, `emerge*`, `deathRoll` |
+| zvuky (`alert`, `charge`, `bite`, `hit`, `death`, `dig`) | soubor tvora | klíče do seznamu zvuků v audio systému |
 | stavy, spawn, ikony, obrysy, tooltip, ukládání | systém tvorů | pro všechny tvory stejné |
 | barvy a tloušťky obrysů, obrázky ikon | systém / `creatureMarker.js` | společné, ne v souboru tvora |
 
 ### Rozhraní rigu
 
 ```js
-rig.build(mesh, skeleton)                  // -> stav kostry, nebo null
-rig.pose(stav, dt, { mode, moving })       // -> { bob }
-rig.summary(stav)                          // -> řetězec do konzole
+rig.build(mesh, skeleton)   // -> stav kostry, nebo null
+rig.pose(stav, dt, info)    // -> { bob }
+rig.summary(stav)           // -> řetězec do konzole
 ```
 
-- `mode` je `idle | roam | alert | chase | windup | recover | confused` — rozhoduje systém.
-- `moving` je `true`, jen když se tvor v tomto tiku opravdu pohnul (ne když jen stojí v režimu honičky).
-- `pose` vrací jen svislé zhoupnutí; polohu a otočení řeší systém.
-- Systém nikdy nesahá na jednotlivé kosti. Nový tvor s jiným tělem = nová trojice funkcí.
+Rig vrací jen svislé zhoupnutí; polohu a otočení řeší systém a na jednotlivé kosti
+nesahá. Co všechno `info` obsahuje a které módy rig musí snést, popisuje
+[manuál pro tvory](src/data/catalogs/creatures/README.md).
 
 ### Konvence modelu
 
 - Formát GLB, skinned mesh; jeden model = jeden tvor.
 - Model se normalizuje na `length` a staví se nohama na nulu.
 - Otočení: model kouká na +Z; `yawOffset` v datech srovná model, který kouká jinam (želva má `Math.PI`).
-- Kosti nemají jména — rig si je rozpozná podle klidové polohy, normalizované vůči rozměrům modelu.
+- Kosti buď nemají jména, nebo je generuje Meshy: rig je hledá podle klidové polohy (želva),
+  nebo podle jmen, když je export má (běs). Podrobně v manuálu pro tvory.
 - Tuhé části (krunýř) se neanimují: hýbe se jen to, co rig výslovně vybere.
 - Model i `CREDITS.txt` patří do `public/assets/creatures/<kind>/`.
 
 ### Přidání nového tvora
 
 1. Nahraj model do `public/assets/creatures/<kind>/` a přilož `CREDITS.txt`.
-2. Vytvoř `src/data/catalogs/creatures/<kind>.js`:
-   - hlavička (1–3 řádky) a import `ASSET_DIRS`,
-   - rig (rozpoznání kostí + animace), nebo `rig: null`, když model kosti nemá,
-   - data: `label`, `model`, `rig`, `sounds`, `length`, `yawOffset`, `walkSpeed`, `turnRate`,
-     `aggroRange`, `chargeRange`, `alertSeconds`, `biteRange`, `biteWindup`, `biteCooldown`,
-     `biteRecover`, `confusedSeconds`, `roamRadius`, `maxStepHeight`, `attackHeight`,
-     `respawnDays`, `idleSeconds`, `defaultTier`, `loot`, `tiers`,
-   - vlastnosti pro zásah: `attack` a `defense` (u druhu jako základ, stáří je přebíjí).
+2. Vytvoř `src/data/catalogs/creatures/<kind>.js`: hlavičku (1–3 řádky), import `ASSET_DIRS`,
+   rig (nebo `rig: null`, když model kosti nemá) a data tvora.
 3. Přidej řádek do `index.js` (import + položka v `CREATURE_TYPES`).
 4. Hotovo — spawn, ikony, obrysy, tooltip i ukládání fungují automaticky.
+
+Přesný seznam všech polí v datech, rozhraní rigu, stopy a zvuky popisuje
+[manuál pro tvory](src/data/catalogs/creatures/README.md).
 
 ### Na co si dát pozor
 

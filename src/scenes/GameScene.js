@@ -1022,6 +1022,7 @@ updateGatherTarget() {
 
   missCreature(creature) {
     if (!creature) return;
+    this.audioSystem.play('miss');
     const label = creature.type ? creature.type.label : 'Tvor';
     this.log.add(`Minul jsi: ${label}`, 'action');
     const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ);

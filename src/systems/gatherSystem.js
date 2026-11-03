@@ -225,6 +225,7 @@ export default class GatherSystem {
   }
 
   gatherSound(item) {
+    if (item.def.pickSound) return item.def.pickSound;
     if (item.def.byHand) return PICKUP_SOUND;
     return item.def.kind === 'tree' ? this.impactSound('chop') : this.impactSound('mine');
   }

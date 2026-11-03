@@ -5,10 +5,16 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 
-const MAX_PRINTS = 80;
+const MAX_PRINTS = 120;
 const DRY_SECONDS = 12;
 const WET_SECONDS = 3.5;
 const FADE_SECONDS = 2;
+const PRINT_STYLES = {
+  human: { width: 0.26, length: 0.52, alpha: 0.44 },
+  turtle: { width: 0.22, length: 0.38, alpha: 0.62 },
+  sanddevil: { width: 0.11, length: 0.13, alpha: 0.66 },
+};
+const WET_ALPHA = 0.7;
 
 function makeHumanTexture(scene) {
   const texture = new DynamicTexture('footprintTexture', 64, 64, scene, false);
@@ -33,7 +39,7 @@ function makeTurtleTexture(scene) {
   const texture = new DynamicTexture('turtleFootprintTexture', 64, 64, scene, false);
   const ctx = texture.getContext();
   ctx.clearRect(0, 0, 64, 64);
-  ctx.fillStyle = 'rgba(74, 61, 42, 0.6)';
+  ctx.fillStyle = 'rgba(58, 46, 28, 0.78)';
   ctx.beginPath();
   ctx.ellipse(32, 39, 12, 16, 0, 0, Math.PI * 2);
   ctx.fill();
@@ -42,6 +48,23 @@ function makeTurtleTexture(scene) {
     ctx.ellipse(x, 16, 5, 8, 0, 0, Math.PI * 2);
     ctx.fill();
   }
+  texture.hasAlpha = true;
+  texture.update(false);
+  return texture;
+}
+
+function makeSandDevilTexture(scene) {
+  const texture = new DynamicTexture('sandDevilFootprintTexture', 64, 64, scene, false);
+  const ctx = texture.getContext();
+  ctx.clearRect(0, 0, 64, 64);
+  ctx.fillStyle = 'rgba(58, 45, 28, 0.82)';
+  ctx.beginPath();
+  ctx.ellipse(32, 32, 10, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(40, 31, 20, 0.6)';
+  ctx.beginPath();
+  ctx.ellipse(32, 34, 5, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
   texture.hasAlpha = true;
   texture.update(false);
   return texture;
@@ -74,6 +97,7 @@ export default class FootprintSystem {
     if (this.materials.human) return;
     this.materials.human = makeMaterial(this.s, 'footprintMaterial', makeHumanTexture(this.s), new Color3(0.16, 0.12, 0.08));
     this.materials.turtle = makeMaterial(this.s, 'turtleFootprintMaterial', makeTurtleTexture(this.s), new Color3(0.13, 0.12, 0.08));
+    this.materials.sanddevil = makeMaterial(this.s, 'sandDevilFootprintMaterial', makeSandDevilTexture(this.s), new Color3(0.14, 0.12, 0.08));
   }
 
   createItem(kind = 'human') {
@@ -84,7 +108,7 @@ export default class FootprintSystem {
     mesh.isPickable = false;
     mesh.receiveShadows = false;
     mesh.setEnabled(false);
-    const item = { mesh, life: 0, wet: false };
+    const item = { mesh, life: 0, alpha: PRINT_STYLES.human.alpha };
     this.items.push(item);
     return item;
   }
@@ -98,15 +122,14 @@ export default class FootprintSystem {
     }
     this.cursor = (this.cursor + 1) % MAX_PRINTS;
     item.life = wet ? WET_SECONDS : DRY_SECONDS;
-    item.wet = wet;
     item.mesh.setEnabled(true);
     item.mesh.material = this.materials[kind] || this.materials.human;
-    item.mesh.visibility = wet ? 0.3 : 0.44;
+    const style = PRINT_STYLES[kind] || PRINT_STYLES.human;
+    item.alpha = wet ? style.alpha * WET_ALPHA : style.alpha;
+    item.mesh.visibility = item.alpha;
     item.mesh.position.set(x, y, z);
     item.mesh.rotation.y = angle;
-    const width = kind === 'turtle' ? 0.22 : 0.26;
-    const length = kind === 'turtle' ? 0.38 : 0.52;
-    item.mesh.scaling.set(width * scale, 1, length * scale);
+    item.mesh.scaling.set(style.width * scale, 1, style.length * scale);
   }
 
   update(dt) {
@@ -121,7 +144,7 @@ export default class FootprintSystem {
         continue;
       }
       const fade = Math.min(1, item.life / FADE_SECONDS);
-      item.mesh.visibility = (item.wet ? 0.3 : 0.44) * fade;
+      item.mesh.visibility = item.alpha * fade;
     }
   }
 }
