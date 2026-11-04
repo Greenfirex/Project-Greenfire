@@ -2,6 +2,7 @@
 // Statistiky přibývají postupně; okno se jen překresluje, do hry nezasahuje.
 const ROWS = [
   { key: 'health', label: 'Zdraví' },
+  { key: 'stamina', label: 'Výdrž' },
   { key: 'cell', label: 'Buňka' },
   { key: 'height', label: 'Výška' },
   { key: 'carrying', label: 'Nese kusů' },

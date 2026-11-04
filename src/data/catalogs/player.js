@@ -13,4 +13,13 @@ export const PLAYER_BASE = {
     reach: 1.8,
     heightLimit: 0.9,
   },
+  stamina: {
+    max: 100,
+    sprintPerSecond: 18,
+    attackCost: 8,
+    gatherCost: 6,
+    regenDelaySeconds: 1.2,
+    regenPerSecond: 14,
+    sprintResumeShare: 0.2,
+  },
 };

@@ -821,24 +821,6 @@ export default class CreatureSystem {
     });
   }
 
-  nearestHostile(player, maxDistance) {
-    if (!player) return null;
-    let best = null;
-    let bestDist = Number.isFinite(maxDistance) ? maxDistance : Infinity;
-    for (const creature of this.creatures) {
-      if (!creature || creature.dead || creature.buried) continue;
-      if (!creature.engaged && creature.mode !== 'alert'
-        && creature.mode !== 'chase'
-        && creature.mode !== 'windup'
-        && creature.mode !== 'recover') continue;
-      const dist = Math.hypot(player.x - creature.x, player.z - creature.z);
-      if (!Number.isFinite(dist) || dist > bestDist) continue;
-      best = creature;
-      bestDist = dist;
-    }
-    return best;
-  }
-
   hoverAt(x, y) {
     if (!this.creatures.length || !Number.isFinite(x) || !Number.isFinite(y)) {
       this.hovered = null;

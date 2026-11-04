@@ -62,6 +62,9 @@ export const PLAYER_ANIM_NAMES = {
   crouchPickup: PLAYER_ANIM_LIBRARY.crouchPickup,
   combatStance: PLAYER_ANIM_LIBRARY.combatStance,
   getUp: PLAYER_ANIM_LIBRARY.standUp1,
+  flinch: PLAYER_ANIM_LIBRARY.facePunch,
+  dieFall: PLAYER_ANIM_LIBRARY.dyingBackwards,
+  dieShot: PLAYER_ANIM_LIBRARY.shotInBack,
 };
 
 export const PLAYER_ANIM_SPEEDS = {
@@ -73,14 +76,21 @@ export const PLAYER_ANIM_SPEEDS = {
   pickup: 3.0,
   crouchPickup: 2.5,
   getUp: 1,
+  flinch: 2,
 };
 
 export const PLAYER_ANIM_RANGES = {
   punch: { start: 1.1, end: 2.7 },
   crouchPickup: { start: 0.0, end: 5.6 },
+  flinch: { start: 0.0, end: 1.0 },
 };
 
 export const PLAYER_ANIM_ROOTLESS = ['punch'];
+
+export const PLAYER_DEATH_OVERLAY_SHARE = {
+  dieFall: 0.8,
+  dieShot: 0.6,
+};
 
 export const PLAYER_ANIM_FALLBACKS = {
   chop: ['chop', 'mine', 'punch', 'kick'],
@@ -92,6 +102,8 @@ export const PLAYER_ANIM_FALLBACKS = {
   pickup: ['pickup', 'ignite', 'punch', 'idle'],
   crouchPickup: ['crouchPickup', 'pickup', 'idle'],
   getUp: ['getUp'],
+  dieFall: ['dieFall', 'dieShot'],
+  dieShot: ['dieShot', 'dieFall'],
 };
 
 export const TOOL_DIR = ASSET_DIRS.tools;

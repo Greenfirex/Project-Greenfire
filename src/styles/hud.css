@@ -687,6 +687,67 @@
   font-size: 11px;
 }
 
+.death-screen {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(9, 3, 3, 0.72);
+  backdrop-filter: blur(3px);
+  z-index: 46;
+}
+
+.death-screen.is-open {
+  display: flex;
+  animation: death-fade 0.6s ease-out;
+}
+
+@keyframes death-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.death-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  min-width: 260px;
+  padding: 24px 30px 20px;
+  background: var(--bg-panel);
+  border: 1px solid rgba(200, 70, 60, 0.55);
+  border-radius: 8px;
+  box-shadow: 0 0 28px rgba(200, 60, 50, 0.18);
+  user-select: none;
+}
+
+.death-card__title {
+  font-size: 26px;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: #d8604f;
+  font-weight: 700;
+}
+
+.death-card__respawn {
+  padding: 8px 26px;
+  background: rgba(200, 70, 60, 0.14);
+  border: 1px solid rgba(200, 70, 60, 0.55);
+  border-radius: 5px;
+  color: #e5806f;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+
+.death-card__respawn:hover,
+.death-card__respawn:focus {
+  border-color: #d8604f;
+  color: var(--text-main);
+}
+
 .options-panel {
   position: absolute;
   top: 52px;
@@ -1041,6 +1102,32 @@
 }
 
 /* Tooltip v pravém dolním rohu — co je právě pod kurzorem. */
+.hud-hint {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 13;
+  display: none;
+  padding: 5px 9px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 5px;
+  color: var(--text-main);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 12px rgba(90, 200, 170, 0.1);
+}
+
+.hud-hint.is-open {
+  display: block;
+}
+
+#hud-layer > .hud-hint {
+  pointer-events: none;
+}
+
 .hud-tooltip {
   display: none;
   right: 12px;
@@ -1119,16 +1206,15 @@ body.has-custom-cursor * {
   transform: rotate(-45deg) scale(0.86);
 }
 
-/* Proužek zdraví nad lištou předmětů a červené bliknutí při zásahu. */
-.hud-health {
+.hud-vitals {
   position: absolute;
   bottom: 136px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 260px;
+  gap: 14px;
+  width: 360px;
   padding: 6px 10px;
   background: var(--bg-panel);
   border: 1px solid var(--border-glow);
@@ -1139,11 +1225,15 @@ body.has-custom-cursor * {
   pointer-events: none;
 }
 
-.hud-health.is-full {
-  opacity: 0.7;
+.hud-vitals__group {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
-.hud-health__bar {
+.hud-vitals__bar {
   flex: 1;
   height: 8px;
   background: rgba(255, 255, 255, 0.07);
@@ -1151,18 +1241,34 @@ body.has-custom-cursor * {
   overflow: hidden;
 }
 
-.hud-health__fill {
+.hud-vitals__fill {
   width: 100%;
   height: 100%;
-  background: var(--glow-accent);
-  transition: width 160ms linear, background 200ms ease;
+  transition: width 160ms linear, opacity 200ms ease;
 }
 
-.hud-health.is-low .hud-health__fill {
+.hud-vitals__fill--health {
   background: #d8534a;
 }
 
-.hud-health__value {
+.hud-vitals__fill--stamina {
+  background: var(--glow-warm);
+}
+
+.hud-vitals.is-low-health .hud-vitals__fill--health {
+  animation: vitals-pulse 1s ease-in-out infinite;
+}
+
+.hud-vitals.is-empty-stamina .hud-vitals__fill--stamina {
+  opacity: 0.35;
+}
+
+@keyframes vitals-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.hud-vitals__value {
   color: var(--text-main);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
@@ -1178,7 +1284,7 @@ body.has-custom-cursor * {
   background: radial-gradient(circle at center, rgba(190, 30, 20, 0) 34%, rgba(190, 30, 20, 0.8) 100%);
 }
 
-#hud-layer > .hud-health,
+#hud-layer > .hud-vitals,
 #hud-layer > .hud-damage-flash {
   pointer-events: none;
 }

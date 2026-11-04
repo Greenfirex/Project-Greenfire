@@ -42,7 +42,7 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 src/
   main.js                    engine, plátno, render loop
   scenes/GameScene.js        orchestrátor — stav světa, delegace na systémy
-  systems/                   camera, grid, terrain, water, sky, deco, gather,
+  systems/                   camera, grid, terrain, water, sky, deco, gather, interaction,
                              inventory, heldItem, player, input,
                              campfire, glow, dayNight, sim, audio, save, creature
   editor/                    editor mapy, panely, štětce, značky spawních míst
@@ -76,10 +76,44 @@ Mapování animací, kandidáti na kost ruky, výška a otočení modelu jsou v
 `src/data/catalogs/modelCatalog.js`; vlastní načtení a přepínání animací řeší
 `src/systems/playerSystem.js`. Licence modelu je v `CREDITS.txt` vedle souboru.
 
-Zdraví postavy drží `src/systems/playerStatsSystem.js`; čísla (maximum, doplňování,
-chvilka klidu po probuzení) jsou v `src/data/catalogs/player.js` a proužek nad lištou
-předmětů kreslí `src/ui/healthBar.js`. Zdraví se ukládá jako každý jiný stav a načtení
-starších dat ho doplní na plné. Když dojde, hráč se probudí na startovním místě mapy.
+Zdraví a výdrž postavy drží `src/systems/playerStatsSystem.js`; čísla (maximum,
+doplňování, ceny za běh a útok, chvilka klidu po probuzení) jsou v
+`src/data/catalogs/player.js`. Oba proužky nad lištou předmětů kreslí
+`src/ui/vitalsBar.js` — zdraví červeně, výdrž žlutě. Stav se ukládá jako každý jiný
+a načtení starších dat ho doplní na plno. Když dojde zdraví, hráč se probudí na
+startovním místě mapy.
+
+Výdrž ubírá běh, každý útok a každé máchnutí do stromu či kamene. Doplňuje se po
+krátké prodlevě, kterou restartuje i kousnutí od tvora. Když dojde, postava přejde
+do chůze a běh povolí až po doplnění nad nastavenou mez — Shift je potřeba pustit
+a stisknout znovu, aby postava nekmitala mezi během a chůzí. Útočit jde i s prázdnou
+výdrží; omezený je jen běh.
+
+## Klikání ve světě
+
+Levé tlačítko rozhoduje podle toho, co je **pod kurzorem** — žádné „vezmi nejbližší
+věc v dosahu". Když je vybraná věc mimo dosah, nestane se nic. Držené tlačítko
+opakuje tutéž akci, dokud kurzorem neodjedeš.
+
+Rozhodování drží `src/systems/interactionSystem.js`: ptá se registrovaných operací
+podle priority a vrátí jednu, nebo nic. O obsahu operací sám nic neví.
+
+| priorita | operace | co udělá |
+| --- | --- | --- |
+| 100 | tvor | útok |
+| 90 | mrtvola | sebrat kořist |
+| 50 | těžená věc | máchnutí (kácení, těžba, sběr) |
+| 40 | táborák | zapálit |
+
+Operace se registrují v `src/scenes/GameScene.js` v `registerInteractions`. Každá
+dodá dvě věci:
+
+- `pick(context)` — když na daném místě něco umí, vrátí `{ ref, inReach }` (a případně `detail` s textem pro nápovědu u kurzoru), jinak `null`,
+- `act(target)` — provede akci.
+
+Nápověda u kurzoru i samotný klik používají stejné rozhodnutí, takže se nemůžou
+rozejít. Nová operace (vaření, výroba, cokoli dalšího) znamená **jeden nový řádek**
+v registraci — klikání, držení tlačítka ani nápověda se nemění.
 
 ## Tvorové (NPC)
 

@@ -1,5 +1,5 @@
-// Sber surovin z krajiny - najde nejblizsi strom nebo kamen, pocita udery a hybe s nim.
-// Drzi jen stav vycerpavani a nakloneni modelu; modely dodava dekorace, hrace predava scena.
+// Sběr surovin z krajiny — údery do věci, na kterou hráč ukáže, a hýbání modelem.
+// Drží jen stav vyčerpávání a náklon modelu; modely dodává dekorace, hráče předává scéna.
 const REACH = 2.6;
 const BARE_COOLDOWN = 0.62;
 const BARE_KINDS = ['tree'];
@@ -120,20 +120,25 @@ export default class GatherSystem {
     return BARE_KINDS.includes(item.def.kind);
   }
 
-  findNearest(x, z) {
-    let best = null;
-    let bestDist = REACH;
+  itemAtCell(cx, cz) {
+    if (!Number.isFinite(cx) || !Number.isFinite(cz)) return null;
     for (const item of this.entries) {
       if (item.left <= 0 || !this.canHarvest(item)) continue;
-      const dx = item.x - x;
-      const dz = item.z - z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (!Number.isFinite(dist)) continue;
-      if (dist > bestDist) continue;
-      best = item;
-      bestDist = dist;
+      if (item.entry.cx === cx && item.entry.cz === cz) return item;
     }
-    return best;
+    return null;
+  }
+
+  inReach(item) {
+    if (!item || !this.playerPos) return false;
+    const dx = item.x - this.playerPos.x;
+    const dz = item.z - this.playerPos.z;
+    return dx * dx + dz * dz <= REACH * REACH;
+  }
+
+  hitItem(item) {
+    this.target = item || null;
+    return this.beginHit();
   }
 
   syncPlayerPos(player) {
@@ -143,12 +148,11 @@ export default class GatherSystem {
     return this.playerPos;
   }
 
-  update(dt, player) {
+  update(dt, player, cell) {
     if (this.cooldown > 0) this.cooldown -= dt;
     this.syncEntryPositions();
     this.syncPlayerPos(player);
-    const target = this.playerPos ? this.findNearest(this.playerPos.x, this.playerPos.z) : null;
-    this.target = target;
+    this.target = cell ? this.itemAtCell(cell.cx, cell.cz) : null;
     this.updateFalls(dt);
     this.updateSway(dt);
     return this.target;

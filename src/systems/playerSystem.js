@@ -21,6 +21,7 @@ import {
   PLAYER_ANIM_FALLBACKS,
   PLAYER_ANIM_RANGES,
   PLAYER_ANIM_ROOTLESS,
+  PLAYER_DEATH_OVERLAY_SHARE,
 } from '../data/catalogs/modelCatalog.js';
 import { loadModel, instantiateModel, loadImported } from '../utils/assetLoader.js';
 import TorchFire from '../effects/torchFire.js';
@@ -44,6 +45,8 @@ const IGNITE_FALLBACK = 0.75;
 const PICKUP_SHARE = 0.55;
 const PICKUP_HOLD = 0.12;
 const PICKUP_FALLBACK = 0.75;
+const FLINCH_FALLBACK = 0.5;
+const DEATH_OVERLAY_FALLBACK = 0.8;
 const STEP_DISTANCE = 1.5;
 const TOOL_SCALE = 0.95;
 const TOOL_POSITION = new Vector3(-0.12, 0.12, 0.04);
@@ -86,6 +89,9 @@ export default class PlayerSystem {
     this.speedScale = null;
     this.lookAt = null;
     this.inCombat = null;
+    this.canSprint = null;
+    this.sprinting = false;
+    this.sprintSpent = false;
     this.decoSystem = null;
     this.groundHeightAt = null;
     this.spawnCell = null;
@@ -94,6 +100,7 @@ export default class PlayerSystem {
     this.lying = false;
     this.waking = false;
     this.wakeTimer = 0;
+    this.dead = false;
     this.onIntroChange = null;
     this.toolTemplates = {};
     this.toolLoading = {};
@@ -105,6 +112,7 @@ export default class PlayerSystem {
     this.handSlot = null;
     this.strikeTimer = 0;
     this.strikeAnim = 'punch';
+    this.flinchTimer = 0;
     this.pickupKey = 'pickup';
     this.footBones = { left: null, right: null };
     this.stepSide = 1;
@@ -294,6 +302,7 @@ export default class PlayerSystem {
   }
 
   strike(animKey) {
+    this.flinchTimer = 0;
     this.strikeAnim = animKey || this.strikeAnimationForTool();
     const length = this.animLength(this.strikeAnim, STRIKE_FALLBACK);
     const playShare = STRIKE_PLAY_SHARE[this.strikeAnim] || STRIKE_IMPACT_SHARE[this.strikeAnim] || 1;
@@ -321,6 +330,7 @@ export default class PlayerSystem {
   igniteAt(x, z) {
     this.faceTo(x, z);
     this.strikeTimer = 0;
+    this.flinchTimer = 0;
     const length = this.animLength('ignite', IGNITE_FALLBACK);
     this.igniteTimer = Math.max(0.35, length * IGNITE_SHARE + IGNITE_HOLD);
     this.igniteImpactAt = Math.max(0.15, this.igniteTimer * IGNITE_SHARE);
@@ -330,6 +340,7 @@ export default class PlayerSystem {
 
   pickUp() {
     this.strikeTimer = 0;
+    this.flinchTimer = 0;
     this.pickupKey = 'pickup';
     const length = this.animLength('pickup', PICKUP_FALLBACK);
     this.pickupTimer = Math.max(0.18, length * PICKUP_SHARE + PICKUP_HOLD);
@@ -341,6 +352,7 @@ export default class PlayerSystem {
   crouchPickUp() {
     if (!this.anims.crouchPickup) return 0;
     this.strikeTimer = 0;
+    this.flinchTimer = 0;
     this.pickupKey = 'crouchPickup';
     const length = this.animLength('crouchPickup', PICKUP_FALLBACK);
     this.pickupTimer = Math.max(0.25, length + PICKUP_HOLD);
@@ -359,6 +371,15 @@ export default class PlayerSystem {
     this.igniteImpactAt = 0;
     this.play(this.idleAnim());
     return true;
+  }
+
+  flinch() {
+    if (!this.ready || this.dead || this.lying) return 0;
+    if (this.strikeTimer > 0 || this.pickupTimer > 0 || this.igniteTimer > 0) return 0;
+    if (!this.anims.flinch) return 0;
+    this.flinchTimer = Math.max(0.2, this.animLength('flinch', FLINCH_FALLBACK));
+    this.play('flinch', true, false);
+    return this.flinchTimer;
   }
 
   faceTo(x, z, maxDistance) {
@@ -605,6 +626,48 @@ export default class PlayerSystem {
     return true;
   }
 
+  die(fromBehind) {
+    if (this.dead || !this.ready) return 0;
+    this.dead = true;
+    this.lying = false;
+    this.waking = false;
+    this.wakeTimer = 0;
+    this.strikeTimer = 0;
+    this.pickupTimer = 0;
+    this.igniteTimer = 0;
+    this.flinchTimer = 0;
+    this.releaseKeys();
+    const wanted = fromBehind ? 'dieShot' : 'dieFall';
+    const key = this.anims[wanted] ? wanted : (this.anims.dieFall ? 'dieFall' : (this.anims.dieShot ? 'dieShot' : null));
+    if (!key) {
+      this.play(this.idleAnim());
+      return DEATH_OVERLAY_FALLBACK;
+    }
+    const group = this.anims[key];
+    for (const other of Object.values(this.anims)) {
+      if (other !== group) other.stop();
+    }
+    this.current = group;
+    this.currentKey = key;
+    group.stop();
+    group.start(false, group.speedRatio, group.from, group.to);
+    const length = this.animLength(key, DEATH_OVERLAY_FALLBACK);
+    const share = Number(PLAYER_DEATH_OVERLAY_SHARE[key]);
+    const ratio = Number.isFinite(share) && share > 0 ? share : 1;
+    return Math.max(0.4, length * ratio);
+  }
+
+  revive(x, z) {
+    this.dead = false;
+    this.lying = false;
+    this.waking = false;
+    this.wakeTimer = 0;
+    this.flinchTimer = 0;
+    if (Number.isFinite(x) && Number.isFinite(z)) this.apply({ x, z, facing: 0 });
+    this.play(this.idleAnim(), true);
+    return true;
+  }
+
   ensurePlaying() {
     const group = this.current;
     if (!group || group.isStarted) return;
@@ -629,6 +692,8 @@ export default class PlayerSystem {
     this.input.left = false;
     this.input.right = false;
     this.input.sprint = false;
+    this.sprinting = false;
+    this.sprintSpent = false;
   }
 
   setKey(evt, down) {
@@ -643,6 +708,7 @@ export default class PlayerSystem {
       return;
     }
     this.input[action] = down;
+    if (action === 'sprint') this.sprintSpent = false;
   }
 
   free(x, z) {
@@ -724,6 +790,8 @@ export default class PlayerSystem {
   update(dt) {
     if (!this.ready || !this.root || this.root.isDisposed()) return;
     this.keepGrounded();
+    this.sprinting = false;
+    if (this.dead) return;
     if (this.lying) {
       if (this.waking) {
         this.wakeTimer -= dt;
@@ -735,6 +803,11 @@ export default class PlayerSystem {
         }
       }
       return;
+    }
+    if (this.flinchTimer > 0) {
+      this.flinchTimer = Math.max(0, this.flinchTimer - dt);
+      this.play('flinch');
+      if (this.flinchTimer > 0) return;
     }
     this.ensurePlaying();
     if (this.strikeTimer > 0) {
@@ -786,7 +859,10 @@ export default class PlayerSystem {
     }
 
     move.normalize();
-    const sprint = this.input.sprint;
+    const allowed = !this.canSprint || this.canSprint();
+    if (!allowed && this.input.sprint) this.sprintSpent = true;
+    const sprint = this.input.sprint && allowed && !this.sprintSpent;
+    this.sprinting = sprint;
     const scale = this.speedScale ? this.speedScale(this.root.position.x, this.root.position.z) : 1;
     const pace = Number.isFinite(scale) ? scale : 1;
     const step = (sprint ? MOVE_SPEED : WALK_SPEED) * pace * dt;
@@ -873,6 +949,7 @@ export default class PlayerSystem {
 
   apply(data) {
     const d = data || {};
+    this.dead = false;
     if (!this.root) {
       this.pendingState = d;
       return;

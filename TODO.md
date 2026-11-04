@@ -9,9 +9,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ## Postava
 
-- [ ] Doladit měřítko, otočení a uchycení nástroje u nové castaway postavy.
-- [ ] Doladit úvodní ležení a vstávání: polohu na zemi, otočení a rychlost `Stand_Up1`.
-- [ ] Zkontrolovat animace v dev serveru: idle, chůze, běh, sekání a zapalování.
 - [ ] Zvážit zmenšení 2K textur nebo celého GLB, pokud bude start hry pomalý.
 
 ## Editor
@@ -23,7 +20,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ### Etapa 3 — kořist
 
 - [ ] Doladit množství kořisti podle stáří tvora a rozhodnout, jestli má část padat na zem.
-- [ ] Zkontrolovat vzhled mrtvého těla v dev serveru (želva padá na bok, běs se převrací na záda).
 
 ### Etapa 4 — doladění boje
 
@@ -31,23 +27,16 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Výbava: brnění na sloty zvedá obranu o procento ze základu se stropem, zbraně útok.
 - [ ] Vlastnosti postavy (síla, obratnost, výdrž) a jejich vliv na ránu, zdraví a rychlost.
 - [ ] Záblesk obrysu při zásahu (zvuk zásahu už mají oba tvorové).
-- [ ] Doladit barvu a délku plovoucích čísel poškození podle vizuálního testu.
-- [ ] Zvážit tvrdší smrt hráče: obrazovka smrti a ztráta batohu.
-- [ ] Druhý nepřítel a barevné varianty s jinou silou.
+- [ ] Zvážit ztrátu batohu při smrti hráče.
 
 ### Etapa 5 — dotažení potvor
 
-- [ ] Kajmanka: reakce na ránu (cuknutí při zásahu, stejný princip jako u běsa).
-- [ ] Kajmanka: nohy našlapou i při otáčení na místě.
-- [ ] Kajmanka: prohýbání kolen při chůzi.
-- [ ] Kajmanka: zrychlení v boji (`chaseBoost`).
 - [ ] Kajmanka: stopy spočítat z reálných chodidel místo odhadu.
 - [ ] Do `public/assets/audio/CREDITS.txt` doplnit zdroj želvích zvuků (hiss, growl, bite).
 - [ ] Ověřit licenční podmínky balíčku Darkworld (License Agreement.pdf) a případně upravit CREDITS.
 
 ### Zvuky, které ve hře chybí
 
-- [ ] Hráč dostane ránu (a jakákoli zvuková zpětná vazba bolesti).
 - [ ] Smrt hráče.
 - [ ] Kroky po písku — dnes hrají jako hlína, i když máme pláž a pouštního tvora.
 - [ ] Kroky tvorů (aspoň tiché našlapování, dnes dělají jen stopy).

@@ -30,6 +30,7 @@ import SimSystem from '../systems/simSystem.js';
 import InputSystem from '../systems/inputSystem.js';
 import PlayerSystem, { STEP_LIMIT } from '../systems/playerSystem.js';
 import PlayerStatsSystem from '../systems/playerStatsSystem.js';
+import InteractionSystem from '../systems/interactionSystem.js';
 import PlayerAttackSystem from '../systems/playerAttackSystem.js';
 import SaveSystem from '../systems/saveSystem.js';
 import GatherSystem from '../systems/gatherSystem.js';
@@ -47,12 +48,14 @@ import { itemIcon } from '../ui/itemIcons.js';
 import Hud from '../ui/hud.js';
 import GameCursor from '../ui/gameCursor.js';
 import Hotbar from '../ui/hotbar.js';
-import HealthBar from '../ui/healthBar.js';
+import VitalsBar from '../ui/vitalsBar.js';
+import HoverHint from '../ui/hoverHint.js';
 import CreatureHealthBar from '../ui/creatureHealthBar.js';
 import DockButton from '../ui/dockButton.js';
 import MapEditor from '../editor/mapEditor.js';
 import EditorToggle from '../editor/editorToggle.js';
 import PauseScreen from '../ui/pauseScreen.js';
+import DeathScreen from '../ui/deathScreen.js';
 import Dialog from '../ui/dialog.js';
 import LoadingScreen from '../ui/loadingScreen.js';
 import TooltipPanel from '../ui/tooltipPanel.js';
@@ -105,6 +108,7 @@ const SHADOW_FRUSTUM = 70;
 const SHADOW_MIN_Z = 1;
 const SHADOW_MAX_Z = 180;
 const TIME_SKIP = { hours: 6 };
+const BACK_HIT_DOT = -0.2;
 const REBUILD_LABELS = [
   { part: PAINT_TERRAIN, label: 'terén' },
   { part: PAINT_DECORATIONS, label: 'dekorace' },
@@ -168,6 +172,7 @@ export default class GameScene {
     this.playerAttackSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
     this.playerAttackSystem.onHit = (creature, amount, crit) => this.damageCreature(creature, amount, crit);
     this.playerAttackSystem.onMiss = (creature) => this.missCreature(creature);
+    this.interaction = new InteractionSystem(scene);
     this.gatherSystem = new GatherSystem(scene);
     this.gatherSystem.decoSystem = this.decoSystem;
     this.gatherSystem.onLand = () => this.audioSystem.play('fall');
@@ -186,7 +191,8 @@ export default class GameScene {
     this.log = new LogPanel();
     this.inventoryWindow = new InventoryWindow();
     this.characterWindow = new CharacterWindow();
-    this.healthBar = new HealthBar();
+    this.vitalsBar = new VitalsBar();
+    this.hoverHint = new HoverHint();
     this.creatureHealthBar = new CreatureHealthBar();
     this.floatingNumbers = new FloatingNumbers();
     this.walkStepLimit = STEP_LIMIT;
@@ -194,8 +200,12 @@ export default class GameScene {
     this.optionsPanel = new OptionsPanel();
     this.editorToggle = new EditorToggle();
     this.pauseScreen = new PauseScreen();
+    this.deathScreen = new DeathScreen();
     this.dialog = new Dialog();
     this.paused = false;
+    this.dying = false;
+    this.deathTimer = 0;
+    this.deathShown = false;
     this.editorHeldPause = false;
     this.loader = new LoadingScreen();
     this.loader.onHiddenCallback = () => this.onLoadingHidden();
@@ -220,7 +230,8 @@ export default class GameScene {
     this.playerSystem.onFootPlant = (x, z, facing, side, sprint) => this.footfall(x, z, facing, 1, 'human', sprint ? 1.25 : 1);
     this.playerSystem.lookAt = () => this.playerLookPoint();
     this.creatureSystem.onStep = (creature, side) => this.onCreatureStep(creature, side);
-    this.playerStats.onChange = (health, maxHealth) => this.healthBar.set(health, maxHealth);
+    this.playerStats.onChange = (health, maxHealth) => this.vitalsBar.setHealth(health, maxHealth);
+    this.playerStats.onStamina = (stamina, maxStamina) => this.vitalsBar.setStamina(stamina, maxStamina);
     this.unlockAudio = () => {
       this.audioSystem.unlock();
       this.audioSystem.startAmbient();
@@ -327,7 +338,9 @@ export default class GameScene {
         return;
       }
       this.followPointer();
+      this.hoverHint.follow(this.s.pointerX, this.s.pointerY);
       this.playerSystem.update(dt);
+      this.updateDeath(dt);
       this.creatureSystem.update(dt);
       this.footprintSystem.update(dt);
       this.glowSystem.retryPending();
@@ -503,6 +516,7 @@ export default class GameScene {
       this.creatureSystem.clearHover();
       this.creatureTooltipOn = false;
       this.tooltipPanel.hide();
+      this.setHoverHint(null);
       this.gameCursor.setState('default');
       return;
     }
@@ -511,6 +525,7 @@ export default class GameScene {
       this.creatureSystem.clearHover();
       this.creatureTooltipOn = false;
       this.tooltipPanel.hide();
+      this.setHoverHint(null);
       this.gameCursor.setState('default');
       return;
     }
@@ -521,6 +536,7 @@ export default class GameScene {
       if (creature) {
         this.decoHighlight.setHover(null);
         this.showCreatureTooltip(creature);
+        this.setHoverHint(null);
         this.gameCursor.setState(this.editor.active ? 'default' : 'attack');
         return;
       }
@@ -528,11 +544,13 @@ export default class GameScene {
       if (corpse) {
         this.decoHighlight.setHover(null);
         this.showCorpseTooltip(corpse);
+        this.setHoverHint(null);
         this.gameCursor.setState('default');
         return;
       }
       this.hideCreatureTooltip();
       this.setPointerCursorState();
+      this.setHoverHint(this.interaction.targetOf('gather', { cell: this.inputSystem.cellAtPointer() }));
     }
     if (!moved) return;
     const pointer = this.inputSystem.lastCell;
@@ -543,6 +561,15 @@ export default class GameScene {
     }
     this.decoHighlight.setHover(this.inputSystem.cellAtPointer());
     this.setPointerCursorState();
+  }
+
+  setHoverHint(target) {
+    if (!target || !target.inReach || this.editor.active || this.dying) {
+      this.hoverHint.hide();
+      return;
+    }
+    this.hoverHint.show(target.detail);
+    this.hoverHint.follow(this.s.pointerX, this.s.pointerY);
   }
 
   showCreatureTooltip(creature) {
@@ -572,18 +599,16 @@ export default class GameScene {
   }
 
   updateGathering(dt) {
-    const active = this.loaded && !this.editor.active;
+    const active = this.loaded && !this.editor.active && !this.dying;
     this.gatherSystem.setPlayer(active ? this.playerSystem : null);
     this.gatherSystem.setTool(this.heldItemSystem.tool());
-    this.gatherSystem.update(dt, this.playerSystem);
+    this.gatherSystem.update(dt, this.playerSystem, active ? this.inputSystem.lastCell : null);
     if (active) this.holdStrikeReady();
     this.updateGatherImpact(dt);
-    const target = active ? this.gatherSystem.target : null;
-    this.hotbar.setPrompt(this.gatherPrompt(target));
+    this.hotbar.setPrompt(this.gatherPrompt());
   }
 
-  gatherPrompt(target) {
-    if (target) return this.describeGatherTarget(target);
+  gatherPrompt() {
     if (this.editor.active) return '';
     if (this.campfireSystem.pending) return 'Zapaluji táborák…';
     if (this.campfireSystem.nearest) return 'E — zapálit Táborák';
@@ -603,33 +628,70 @@ export default class GameScene {
     if (impact) this.onGatherImpact(impact);
   }
 
-updateGatherTarget() {
-    this.gatherSystem.setPlayer(this.playerSystem);
-    this.gatherSystem.setTool(this.heldItemSystem.tool());
-    this.gatherSystem.update(0, this.playerSystem);
-  }
-
   handleLeftDown() {
     if (!this.loaded || this.editor.active) return;
+    if (this.playerSystem.lying || this.dying) return;
     if (this.campfireSystem.pending) {
       this.cancelCampfireIgnite();
       return;
     }
-    if (this.lootAtPointer()) return;
-    if (this.attackAtPointer()) return;
-    if (this.gatherSystem.target) {
-      this.strikeGather();
-      return;
-    }
-    this.updateGatherTarget();
-    if (this.gatherSystem.target) {
-      this.strikeGather();
-      return;
-    }
-    const cell = this.inputSystem.lastCell;
-    if (cell && this.campfireSystem.nearest && this.campfireSystem.has(cell.cx, cell.cz)) {
-      this.campfireSystem.ignite(cell);
-    }
+    const target = this.interactionTarget();
+    if (!target || !target.inReach) return;
+    this.interaction.act(target);
+  }
+
+  interactionTarget() {
+    return this.interaction.targetAt({
+      cell: this.inputSystem.cellAtPointer(),
+      pointerX: this.s.pointerX,
+      pointerY: this.s.pointerY,
+    });
+  }
+
+  registerInteractions() {
+    this.interaction.register('creature', {
+      priority: 100,
+      pick: ({ pointerX, pointerY }) => {
+        const creature = this.creatureSystem.hoverAt(pointerX, pointerY) || this.assistCreatureAtPointer();
+        if (!creature) return null;
+        return {
+          ref: creature,
+          inReach: this.playerAttackSystem.canHit(creature, this.playerSystem),
+        };
+      },
+      act: (target) => this.swingCreature(target.ref),
+    });
+    this.interaction.register('corpse', {
+      priority: 90,
+      pick: ({ pointerX, pointerY }) => {
+        const corpse = this.creatureSystem.corpseAt(pointerX, pointerY);
+        if (!corpse) return null;
+        return { ref: corpse, inReach: true };
+      },
+      act: (target) => this.lootCorpse(target.ref),
+    });
+    this.interaction.register('gather', {
+      priority: 50,
+      pick: ({ cell }) => {
+        const item = cell ? this.gatherSystem.itemAtCell(cell.cx, cell.cz) : null;
+        if (!item) return null;
+        return {
+          ref: item,
+          detail: this.describeGatherTarget(item),
+          inReach: this.gatherSystem.inReach(item),
+        };
+      },
+      act: (target) => this.strikeGather(target.ref),
+    });
+    this.interaction.register('campfire', {
+      priority: 40,
+      pick: ({ cell }) => {
+        if (!cell || !this.campfireSystem.nearest) return null;
+        if (!this.campfireSystem.has(cell.cx, cell.cz)) return null;
+        return { ref: cell, inReach: true };
+      },
+      act: (target) => this.campfireSystem.ignite(target.ref),
+    });
   }
 
   describeGatherTarget(target) {
@@ -638,8 +700,10 @@ updateGatherTarget() {
     return `Levé tlačítko — ${verb} ${target.def.displayName} (${target.left}/${target.total})`;
   }
 
-  strikeGather() {
-    return this.gatherSystem.beginHit();
+  strikeGather(item) {
+    const swung = item ? this.gatherSystem.hitItem(item) : this.gatherSystem.beginHit();
+    if (swung) this.playerStats.spendGather();
+    return swung;
   }
 
   takenAnchor(cell) {
@@ -653,6 +717,8 @@ updateGatherTarget() {
   holdStrikeReady() {
     if (!this.inputSystem.leftDown || this.editor.active) return false;
     if (this.campfireSystem.pending) return false;
+    if (this.playerAttackSystem.target) return false;
+    if (this.creatureSystem.hovered || this.creatureSystem.hoveredCorpse) return false;
     const gather = this.gatherSystem;
     if (!gather.target || gather.cooldown > 0 || gather.pending) return false;
     return this.strikeGather();
@@ -852,9 +918,10 @@ updateGatherTarget() {
   }
 
   async setupPlayer() {
-    this.playerSystem.inputBlocked = () => this.dialog.open;
+    this.playerSystem.inputBlocked = () => this.dialog.open || this.dying;
     this.playerSystem.walkable = (x, z) => this.isWalkableAt(x, z);
     this.playerSystem.inCombat = () => this.creatureSystem.isPlayerInCombat(this.playerSystem.root);
+    this.playerSystem.canSprint = () => this.playerStats.canSprint();
     this.playerSystem.speedScale = (x, z) => {
       if (this.terrainSystem.bridgeDeckAt(x, z) !== null) return 1;
       const depth = this.waterDepthNowAt(x, z);
@@ -942,17 +1009,10 @@ updateGatherTarget() {
     return { x: ray.origin.x + ray.direction.x * t, z: ray.origin.z + ray.direction.z * t };
   }
 
-  attackAtPointer() {
-    if (this.playerSystem.lying) return false;
-    const creature = this.creatureSystem.hoverAt(this.s.pointerX, this.s.pointerY);
-    if (creature) return this.playerAttackSystem.swing(creature, this.playerSystem);
-    const assisted = this.assistCreatureAtPointer();
-    if (assisted) return this.playerAttackSystem.swing(assisted, this.playerSystem);
-    const root = this.playerSystem.root;
-    const nearest = root
-      ? this.creatureSystem.nearestHostile(root.position, this.playerAttackSystem.reach)
-      : null;
-    return nearest ? this.playerAttackSystem.swing(nearest, this.playerSystem) : false;
+  swingCreature(creature) {
+    const swung = this.playerAttackSystem.swing(creature, this.playerSystem);
+    if (swung) this.playerStats.spendAttack();
+    return swung;
   }
 
   assistCreatureAtPointer() {
@@ -978,9 +1038,7 @@ updateGatherTarget() {
     return best;
   }
 
-  lootAtPointer() {
-    if (this.playerSystem.lying) return false;
-    const corpse = this.creatureSystem.corpseAt(this.s.pointerX, this.s.pointerY);
+  lootCorpse(corpse) {
     if (!corpse) return false;
     const yields = this.creatureSystem.loot(corpse);
     if (!yields) return false;
@@ -996,20 +1054,19 @@ updateGatherTarget() {
   }
 
   updatePlayerAttack(dt) {
-    const active = this.loaded && !this.editor.active;
+    const active = this.loaded && !this.editor.active && !this.dying;
     this.playerAttackSystem.update(active ? dt : 0);
     if (!active || !this.inputSystem.leftDown) return;
     const target = this.playerAttackSystem.target;
     if (!target || !this.creatureSystem.creatures.includes(target)) {
       this.playerAttackSystem.target = null;
-      const root = this.playerSystem.root;
-      const next = root
-        ? this.creatureSystem.nearestHostile(root.position, this.playerAttackSystem.reach)
-        : null;
-      if (next) this.playerAttackSystem.swing(next, this.playerSystem);
       return;
     }
-    this.playerAttackSystem.swing(target, this.playerSystem);
+    if (this.creatureSystem.hovered !== target && this.assistCreatureAtPointer() !== target) {
+      this.playerAttackSystem.target = null;
+      return;
+    }
+    this.swingCreature(target);
   }
 
   damageCreature(creature, amount, crit) {
@@ -1108,21 +1165,35 @@ updateGatherTarget() {
     this.creatureHealthBar.update(items);
   }
 
-  hurtPlayer(amount, label, crit = false) {
-    if (!this.loaded || this.paused) return false;
+  hurtPlayer(amount, label, crit = false, fromBehind = false) {
+    if (!this.loaded || this.paused || this.dying) return false;
     if (!this.playerStats.hurt(amount)) return false;
     this.audioSystem.play(crit ? 'hurtCrit' : 'hurt');
     if (this.options.cameraShake) this.cameraSystem.shake(0.28, 0.32);
-    if (this.options.damageFlash) this.healthBar.flash();
+    if (this.options.damageFlash) this.vitalsBar.flash();
     if (label) this.log.add(label, 'warn');
-    if (this.playerStats.health <= 0) this.onPlayerDeath();
+    if (this.playerStats.health <= 0) this.onPlayerDeath(fromBehind);
+    else this.playerSystem.flinch();
     return true;
+  }
+
+  isBehindPlayer(creature) {
+    const root = this.playerSystem.root;
+    if (!root || !creature) return false;
+    const dx = creature.x - root.position.x;
+    const dz = creature.z - root.position.z;
+    const distance = Math.hypot(dx, dz);
+    if (!Number.isFinite(distance) || distance < 0.001) return false;
+    const facing = this.playerSystem.facing;
+    const dot = (dx * Math.sin(facing) + dz * Math.cos(facing)) / distance;
+    return dot < BACK_HIT_DOT;
   }
 
   onCreatureBite(creature, damage, crit) {
     const who = creature && creature.type ? creature.type.label : 'Útok';
     const critText = crit ? ' kriticky' : '';
-    const hurt = this.hurtPlayer(damage, `${who} — ${Math.round(damage)} poškození${critText}`, crit);
+    const behind = this.isBehindPlayer(creature);
+    const hurt = this.hurtPlayer(damage, `${who} — ${Math.round(damage)} poškození${critText}`, crit, behind);
     if (hurt) this.showFloatingOverPlayer(damage, crit);
   }
 
@@ -1139,14 +1210,39 @@ updateGatherTarget() {
     this.spawnFloatingText(text, root.position.x, root.position.y + PLAYER_FLOAT_HEIGHT, root.position.z, kind);
   }
 
-  onPlayerDeath() {
-    this.log.add('Probral ses na pláži', 'warn');
+  onPlayerDeath(fromBehind) {
+    if (this.dying) return;
+    this.dying = true;
+    this.deathShown = false;
+    this.deathTimer = this.playerSystem.die(Boolean(fromBehind));
+    this.playerSystem.releaseKeys();
+    this.closeOpenWindows();
+    this.hoverHint.hide();
+    this.simSystem.setHalted(true);
+  }
+
+  updateDeath(dt) {
+    if (!this.dying || this.deathShown) return;
+    this.deathTimer -= dt;
+    if (this.deathTimer > 0) return;
+    this.deathShown = true;
+    this.log.add('Zemřel jsi', 'warn');
+    this.deathScreen.show();
+  }
+
+  respawnPlayer() {
+    if (!this.dying) return;
+    this.dying = false;
+    this.deathShown = false;
+    this.deathTimer = 0;
+    this.deathScreen.hide();
     const spawn = this.mapLayout && this.mapLayout.spawn ? this.mapLayout.spawn : null;
-    if (spawn) {
-      const spot = cellToWorldCoords(spawn.cx, spawn.cz);
-      this.playerSystem.apply({ x: spot.x, z: spot.z, facing: 0 });
-    }
+    const spot = spawn ? cellToWorldCoords(spawn.cx, spawn.cz) : null;
     this.playerStats.resurrect();
+    this.playerSystem.revive(spot ? spot.x : null, spot ? spot.z : null);
+    this.simSystem.setHalted(false);
+    this.simSystem.resetAccumulator();
+    this.log.add('Probral ses na pláži', 'warn');
   }
 
   refreshTerrain() {
@@ -1819,7 +1915,7 @@ updateGatherTarget() {
     this.simSystem.subscribe((tick) => {
       this.updateHarvestRespawns();
       this.creatureSystem.tick(tick, this.simSystem.time);
-      this.playerStats.tick(tick);
+      this.playerStats.tick(tick, this.playerSystem.sprinting);
     });
     this.simSystem.onTick = null;
     this.refreshClock();
@@ -1875,9 +1971,13 @@ updateGatherTarget() {
     this.characterButton.onClick = () => this.toggleCharacterWindow();
     this.bagButton.mount();
     this.characterButton.mount();
-    this.healthBar.set(this.playerStats.health, this.playerStats.maxHealth);
+    this.vitalsBar.setHealth(this.playerStats.health, this.playerStats.maxHealth);
+    this.vitalsBar.setStamina(this.playerStats.stamina, this.playerStats.maxStamina);
     this.creatureHealthBar.mount();
     this.log.mount();
+    this.hoverHint.mount();
+    this.deathScreen.onRespawn = () => this.respawnPlayer();
+    this.deathScreen.mount();
     this.inventoryWindow.update(this.inventorySystem);
     this.refreshClock();
   }
@@ -1926,6 +2026,7 @@ updateGatherTarget() {
     }
     this.characterWindow.update({
       health: `${Math.ceil(this.playerStats.health)} / ${this.playerStats.maxHealth}`,
+      stamina: `${Math.ceil(this.playerStats.stamina)} / ${this.playerStats.maxStamina}`,
       cell,
       height: root ? metersText(root.position.y) : '—',
       carrying,
@@ -1966,6 +2067,7 @@ updateGatherTarget() {
       this.cameraSystem.applyOrtho();
       this.refreshShadowDepth();
     };
+    this.registerInteractions();
   }
 
   setupSave() {
@@ -2018,6 +2120,7 @@ updateGatherTarget() {
     if (paused) {
       this.pauseScreen.setSpeed(this.simSystem.speed);
       this.pauseScreen.show();
+      this.hoverHint.hide();
     } else {
       this.pauseScreen.hide();
       this.simSystem.resetAccumulator();
@@ -2091,6 +2194,10 @@ updateGatherTarget() {
     }
     if (this.dialog.open) {
       evt.preventDefault();
+      return;
+    }
+    if (this.dying) {
+      if (evt.key !== 'Enter') evt.preventDefault();
       return;
     }
     if (this.editor.active) {
@@ -2430,6 +2537,7 @@ updateGatherTarget() {
   }
 
   doSave() {
+    if (this.dying) return;
     const ok = this.saveSystem.save();
     this.log.add(ok ? 'Hra uložena' : 'Uložení selhalo', ok ? 'info' : 'warn');
     this.dialog.tell({
