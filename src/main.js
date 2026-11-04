@@ -25,7 +25,7 @@ window.addEventListener('resize', () => {
   game.onResize();
 });
 
-window.greenfactory = { engine, scene, game };
+window.greenfire = { engine, scene, game };
 
 if (import.meta.env.DEV) {
   let inspectorToken = null;

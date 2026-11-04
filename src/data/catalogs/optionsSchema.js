@@ -1,5 +1,5 @@
 // Výchozí nastavení hry z panelu Možnosti a pod který klíč se ukládá do prohlížeče.
-export const OPTIONS_STORAGE_KEY = 'greenfactory.options';
+export const OPTIONS_STORAGE_KEY = 'greenfire.options';
 
 export const OPTION_DEFAULTS = {
   quality: 'high',

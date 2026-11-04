@@ -1208,7 +1208,6 @@
   background-position: center center;
   background-size: cover;
   background-color: var(--bg-dark);
-  filter: saturate(0.25) brightness(0.7);
 }
 
 .loading-screen.is-hidden {

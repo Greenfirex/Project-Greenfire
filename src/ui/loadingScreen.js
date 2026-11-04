@@ -51,7 +51,7 @@ export default class LoadingScreen {
     root.innerHTML = `
       <div class="loading-splash"></div>
       <div class="loading-box">
-        <div class="loading-title">Project Greenfactory</div>
+        <div class="loading-title">Project Greenfire</div>
         <div class="loading-bar"><div class="loading-bar__fill"></div></div>
         <div class="loading-row">
           <span class="loading-label"></span>

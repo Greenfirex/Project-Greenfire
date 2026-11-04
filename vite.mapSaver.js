@@ -11,7 +11,7 @@ const HOT_FILE = `${MAP_DIR}glade/map.json`;
 
 export default function mapSaver() {
   return {
-    name: 'greenfactory-map-saver',
+    name: 'greenfire-map-saver',
     apply: 'serve',
     configureServer(server) {
       const isHot = (file) => file.split('\\').join('/') === HOT_FILE.split('\\').join('/');

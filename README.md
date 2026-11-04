@@ -1,4 +1,4 @@
-# Project Greenfactory
+# Project Greenfire
 
 3D survival hra, hratelná ve webu (Vite + Babylon.js).
 
