@@ -1,13 +1,14 @@
-// Tažení panelů v editoru za jejich plochu; tlačítka a pole zůstávají klikací.
-// Pozici drží v inline stylu panelu, do viewportu panel nepustí.
+// Tažení panelů — za celou plochu, nebo jen za předanou rukojeť (hlavičku).
+// Tlačítka a pole zůstávají klikací; pozici drží v inline stylu, z viewportu panel neuteče.
 const SKIP = 'button, input, select, textarea, label, a, output';
 
-export function makeDraggable(root) {
+export function makeDraggable(root, handle = null) {
   if (!root || root.dataset.dragReady === '1') return root;
   root.dataset.dragReady = '1';
   const target = root;
+  const grip = handle || root;
 
-  target.addEventListener('pointerdown', (event) => {
+  grip.addEventListener('pointerdown', (event) => {
     if (event.button !== 0) return;
     if (event.target.closest(SKIP)) return;
     const rect = target.getBoundingClientRect();

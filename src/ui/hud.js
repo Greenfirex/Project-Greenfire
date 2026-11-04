@@ -49,7 +49,7 @@ export default class Hud {
       <h2>Ovládání</h2>
       <div class="hud-row"><span>Rotace kamery</span><strong>tažení myší</strong></div>
       <div class="hud-row"><span>Zoom</span><strong>kolečko</strong></div>
-      <div class="hud-row"><span>Nástroj v ruce</span><span class="hud-key">1</span>–<span class="hud-key">3</span></div>
+      <div class="hud-row"><span>Nástroj v ruce</span><span class="hud-key">1</span>–<span class="hud-key">5</span></div>
       <div class="hud-row"><span>Zapálit táborák</span><span class="hud-key">E</span></div>
       <div class="hud-row"><span>Mřížka</span><span class="hud-key">G</span></div>
       <div class="hud-row"><span>Přesunout den</span><span class="hud-key">N</span></div>
@@ -58,7 +58,7 @@ export default class Hud {
       <div class="hud-row"><span>Uložit</span><span class="hud-key">F5</span></div>
       <div class="hud-row"><span>Načíst</span><span class="hud-key">F9</span></div>
       <div class="hud-row"><span>Možnosti</span><span class="hud-key">O</span></div>
-      <div class="hud-row"><span>Batoh / postava</span><span class="hud-key">I</span> <span class="hud-key">C</span></div>
+      <div class="hud-row"><span>Inventář / postava</span><span class="hud-key">I</span> <span class="hud-key">C</span></div>
       <div class="hud-row"><span>Pauza / pokračovat</span><span class="hud-key">P</span></div>
       <div class="hud-row"><span>Skrýt nápovědu</span><span class="hud-key">F1</span></div>
     `;

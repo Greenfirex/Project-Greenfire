@@ -23,7 +23,7 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 | **Tažení pravým tlačítkem** | Rotace kamery (i v editoru); v editoru pravé kliknutí bez tažení odebírá buňku |
 | **Kolečko** | Zoom (v editoru jde oddálit víc než ve hře) |
 | **1–3** | Výběr předmětu v ruce (sekera, krumpáč, pochodeň) |
-| **I / C** | Batoh / postava — okna nad lištou předmětů (také tlačítky po stranách lišty) |
+| **I / C** | Inventář / postava — velká okna uprostřed obrazovky, jde s nimi tahat (také tlačítky po stranách lišty) |
 | **Levé tlačítko u stromu / kamene** | Těžení (podržet = opakovat) |
 | **Levé tlačítko u tvora** | Útok rukou (podržet = opakovat) |
 | **E** | Zapálit / zrušit táborák |
@@ -88,6 +88,11 @@ krátké prodlevě, kterou restartuje i kousnutí od tvora. Když dojde, postava
 do chůze a běh povolí až po doplnění nad nastavenou mez — Shift je potřeba pustit
 a stisknout znovu, aby postava nekmitala mezi během a chůzí. Útočit jde i s prázdnou
 výdrží; omezený je jen běh.
+
+Okno **Postava** (C) má vlevo náhled postavy se sloty na výbavu a vpravo staty;
+sloty jsou zatím prázdné placeholdery, náhled čeká na 3D podobu. Okno **Inventář**
+(I) má vlevo mřížku předmětů a vpravo popisek toho, na co hráč najede myší. Obě
+okna jdou tahat myší a pamatují si pozici.
 
 ## Klikání ve světě
 

@@ -1,48 +1,107 @@
-// Okno s batohem — co hráč nese a co z toho jde vyrobit.
+// Okno s inventářem — co hráč nese a co z toho jde vyrobit.
 // Otevírá se tlačítkem u lišty s předměty; obsah jen čte, do hry nezasahuje.
 import { ITEM_TYPES, RECIPES } from '../data/catalogs/items.js';
 import { itemIcon } from './itemIcons.js';
+import WindowFrame from './windowFrame.js';
+
+const KIND_LABELS = {
+  raw: 'Surovina',
+  product: 'Produkt',
+  tool: 'Nástroj',
+};
 
 export default class InventoryWindow {
 
   constructor() {
-    this.root = null;
+    this.frame = new WindowFrame({
+      id: 'hud-inventory',
+      className: 'inv-window',
+      title: 'Inventář',
+      closeTitle: 'Zavřít (I)',
+    });
     this.itemsEl = null;
+    this.detailEl = null;
     this.recipeEl = null;
+    this.hoverKey = null;
     this.lastSignature = '';
-    this.open = false;
+    this.onClose = null;
+    this.frame.onClose = () => {
+      if (this.onClose) this.onClose();
+    };
+  }
+
+  get open() {
+    return this.frame.open;
   }
 
   mount() {
-    if (this.root) return this.root;
-    const root = document.createElement('div');
-    root.className = 'side-window inv-window';
-    root.id = 'hud-inventory';
-    root.innerHTML = `
-      <div class="side-window__head">
-        <span class="side-window__title">Batoh</span>
-        <button type="button" class="side-window__close" title="Zavřít (I)">×</button>
+    const root = this.frame.mount();
+    if (this.itemsEl) return root;
+    this.frame.body.innerHTML = `
+      <div class="inv-layout">
+        <div class="inv-grid"></div>
+        <div class="inv-detail"></div>
       </div>
-      <div class="inv-list"></div>
-      <div class="inv-craft"><span class="inv-craft__label">Vyrobit lze</span><div class="inv-recipes"></div></div>
+      <div class="inv-craft">
+        <span class="inv-craft__label">Vyrobit lze</span>
+        <div class="inv-recipes"></div>
+      </div>
     `;
-    this.itemsEl = root.querySelector('.inv-list');
-    this.recipeEl = root.querySelector('.inv-recipes');
-    root.querySelector('.side-window__close').addEventListener('click', () => this.close());
-    document.getElementById('hud-layer').appendChild(root);
-    this.root = root;
+    this.itemsEl = this.frame.body.querySelector('.inv-grid');
+    this.detailEl = this.frame.body.querySelector('.inv-detail');
+    this.recipeEl = this.frame.body.querySelector('.inv-recipes');
+    this.itemsEl.addEventListener('pointerleave', () => this.clearDetail());
+    this.clearDetail();
     return root;
   }
 
   show() {
     this.mount();
-    this.open = true;
-    this.root.classList.add('is-open');
+    this.frame.show();
   }
 
   close() {
-    this.open = false;
-    if (this.root) this.root.classList.remove('is-open');
+    this.frame.close();
+  }
+
+  showDetail(key, amount) {
+    if (!this.detailEl) return;
+    this.hoverKey = key;
+    const def = ITEM_TYPES[key] || null;
+    this.detailEl.innerHTML = '';
+    const icon = document.createElement('div');
+    icon.className = 'inv-detail__icon';
+    icon.textContent = itemIcon(key);
+    const name = document.createElement('div');
+    name.className = 'inv-detail__name';
+    name.textContent = def ? def.displayName : key;
+    this.detailEl.append(icon, name);
+    this.detailRow('Druh', KIND_LABELS[def ? def.kind : ''] || 'Předmět');
+    this.detailRow('Neseš', `${amount} ks`);
+    if (def && Number.isFinite(def.stackSize) && def.stackSize > 0) {
+      this.detailRow('Stoh', `${def.stackSize} ks`);
+    }
+  }
+
+  detailRow(label, value) {
+    const row = document.createElement('div');
+    row.className = 'inv-detail__row';
+    const left = document.createElement('span');
+    left.textContent = label;
+    const right = document.createElement('strong');
+    right.textContent = value;
+    row.append(left, right);
+    this.detailEl.appendChild(row);
+  }
+
+  clearDetail() {
+    this.hoverKey = null;
+    if (!this.detailEl) return;
+    this.detailEl.innerHTML = '';
+    const hint = document.createElement('div');
+    hint.className = 'inv-detail__hint';
+    hint.textContent = 'Najeď na předmět';
+    this.detailEl.appendChild(hint);
   }
 
   update(inventory) {
@@ -61,18 +120,27 @@ export default class InventoryWindow {
       this.itemsEl.appendChild(empty);
     }
     for (const [key, amount] of entries) {
-      const row = document.createElement('div');
-      row.className = 'inv-row';
+      const label = ITEM_TYPES[key] ? ITEM_TYPES[key].displayName : key;
+      const cell = document.createElement('div');
+      cell.className = 'inv-cell';
+      cell.title = `${label} × ${amount}`;
       const icon = document.createElement('span');
-      icon.className = 'inv-row__icon';
+      icon.className = 'inv-cell__icon';
       icon.textContent = itemIcon(key);
-      const name = document.createElement('span');
-      name.className = 'inv-row__name';
-      name.textContent = ITEM_TYPES[key] ? ITEM_TYPES[key].displayName : key;
-      const count = document.createElement('strong');
+      const count = document.createElement('span');
+      count.className = 'inv-cell__count';
       count.textContent = String(amount);
-      row.append(icon, name, count);
-      this.itemsEl.appendChild(row);
+      const name = document.createElement('span');
+      name.className = 'inv-cell__name';
+      name.textContent = label;
+      cell.append(icon, count, name);
+      cell.addEventListener('pointerenter', () => this.showDetail(key, amount));
+      this.itemsEl.appendChild(cell);
+    }
+    if (this.hoverKey) {
+      const still = entries.find(([key]) => key === this.hoverKey);
+      if (still) this.showDetail(still[0], still[1]);
+      else this.clearDetail();
     }
 
     this.recipeEl.innerHTML = '';

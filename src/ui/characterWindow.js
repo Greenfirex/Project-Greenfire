@@ -1,5 +1,7 @@
 // Okno s postavou — údaje, které hra o hráči opravdu zná.
 // Statistiky přibývají postupně; okno se jen překresluje, do hry nezasahuje.
+import WindowFrame from './windowFrame.js';
+
 const ROWS = [
   { key: 'health', label: 'Zdraví' },
   { key: 'stamina', label: 'Výdrž' },
@@ -9,54 +11,105 @@ const ROWS = [
   { key: 'clock', label: 'Herní čas' },
 ];
 
+const SLOTS = [
+  { key: 'head', label: 'Hlava', icon: '⛑' },
+  { key: 'chest', label: 'Tělo', icon: '🥋' },
+  { key: 'legs', label: 'Nohy', icon: '👖' },
+  { key: 'hands', label: 'Ruce', icon: '🧤' },
+  { key: 'feet', label: 'Boty', icon: '🥾' },
+  { key: 'weapon', label: 'Zbraň', icon: '⚔' },
+];
+
 export default class CharacterWindow {
 
   constructor() {
-    this.root = null;
+    this.frame = new WindowFrame({
+      id: 'hud-character',
+      className: 'character-window',
+      title: 'Postava',
+      closeTitle: 'Zavřít (C)',
+    });
     this.valueEls = new Map();
     this.lastSignature = '';
-    this.open = false;
+    this.onClose = null;
+    this.frame.onClose = () => {
+      if (this.onClose) this.onClose();
+    };
+  }
+
+  get open() {
+    return this.frame.open;
   }
 
   mount() {
-    if (this.root) return this.root;
-    const root = document.createElement('div');
-    root.className = 'side-window character-window';
-    root.id = 'hud-character';
-    root.innerHTML = `
-      <div class="side-window__head">
-        <span class="side-window__title">Postava</span>
-        <button type="button" class="side-window__close" title="Zavřít (C)">×</button>
-      </div>
-      <div class="character-rows"></div>
-    `;
-    const host = root.querySelector('.character-rows');
+    const root = this.frame.mount();
+    if (this.valueEls.size) return root;
+    const layout = document.createElement('div');
+    layout.className = 'character-layout';
+
+    const doll = document.createElement('div');
+    doll.className = 'equip-doll';
+    doll.append(
+      this.slotColumn(SLOTS.slice(0, 3)),
+      this.preview(),
+      this.slotColumn(SLOTS.slice(3)),
+    );
+
+    const grid = document.createElement('div');
+    grid.className = 'character-grid';
     for (const row of ROWS) {
-      const line = document.createElement('div');
-      line.className = 'character-row';
+      const card = document.createElement('div');
+      card.className = 'character-card';
       const label = document.createElement('span');
+      label.className = 'character-card__label';
       label.textContent = row.label;
       const value = document.createElement('strong');
+      value.className = 'character-card__value';
       value.textContent = '—';
-      line.append(label, value);
-      host.appendChild(line);
+      card.append(label, value);
+      grid.appendChild(card);
       this.valueEls.set(row.key, value);
     }
-    root.querySelector('.side-window__close').addEventListener('click', () => this.close());
-    document.getElementById('hud-layer').appendChild(root);
-    this.root = root;
+
+    layout.append(doll, grid);
+    this.frame.body.appendChild(layout);
     return root;
+  }
+
+  slotColumn(slots) {
+    const column = document.createElement('div');
+    column.className = 'equip-col';
+    for (const slot of slots) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'equip-slot is-empty';
+      btn.title = slot.label;
+      btn.dataset.slot = slot.key;
+      const icon = document.createElement('span');
+      icon.className = 'equip-slot__icon';
+      icon.textContent = slot.icon;
+      btn.appendChild(icon);
+      column.appendChild(btn);
+    }
+    return column;
+  }
+
+  preview() {
+    const box = document.createElement('div');
+    box.className = 'equip-preview';
+    const note = document.createElement('span');
+    note.textContent = 'Náhled postavy připravujeme';
+    box.appendChild(note);
+    return box;
   }
 
   show() {
     this.mount();
-    this.open = true;
-    this.root.classList.add('is-open');
+    this.frame.show();
   }
 
   close() {
-    this.open = false;
-    if (this.root) this.root.classList.remove('is-open');
+    this.frame.close();
   }
 
   update(data) {

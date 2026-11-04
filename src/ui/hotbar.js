@@ -1,6 +1,6 @@
 // Hotbar dole uprostřed — sloty pro předměty v ruce. Kliknutí jen hlásí callback.
-// Sedí v dolní liště vedle samostatných panelů batohu a postavy.
-import { getTool, HOTBAR_ITEMS } from '../data/catalogs/items.js';
+// Sedí v dolní liště vedle samostatných panelů inventáře a postavy.
+import { getTool, HOTBAR_ITEMS, HOTBAR_SLOTS } from '../data/catalogs/items.js';
 
 export default class Hotbar {
 
@@ -18,19 +18,26 @@ export default class Hotbar {
     const dock = this.dock();
     const root = document.createElement('div');
     root.className = 'hotbar';
-    root.innerHTML = `<div class="hotbar__slots"></div><div class="hotbar__hint"><span class="hud-key">1</span>–<span class="hud-key">${HOTBAR_ITEMS.length}</span> výběr předmětu</div>`;
+    root.innerHTML = `<div class="hotbar__slots"></div><div class="hotbar__hint"><span class="hud-key">1</span>–<span class="hud-key">${HOTBAR_SLOTS}</span> výběr předmětu</div>`;
     const slots = root.querySelector('.hotbar__slots');
 
-    for (const [index, key] of HOTBAR_ITEMS.entries()) {
-      const tool = getTool(key);
-      if (!tool) continue;
+    for (let index = 0; index < HOTBAR_SLOTS; index += 1) {
+      const key = HOTBAR_ITEMS[index] || null;
+      const tool = key ? getTool(key) : null;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'hotbar__slot';
+      btn.addEventListener('mousedown', (evt) => evt.preventDefault());
+      if (!tool) {
+        btn.classList.add('is-empty');
+        btn.title = 'Prázdný slot';
+        btn.innerHTML = `<span class="hotbar__key">${index + 1}</span><span class="hotbar__icon">·</span><span class="hotbar__name">—</span>`;
+        slots.appendChild(btn);
+        continue;
+      }
       btn.dataset.tool = key;
       btn.title = `${tool.displayName} (${index + 1})`;
       btn.innerHTML = `<span class="hotbar__key">${index + 1}</span><span class="hotbar__icon">${tool.icon}</span><span class="hotbar__name">${tool.shortName}</span>`;
-      btn.addEventListener('mousedown', (evt) => evt.preventDefault());
       btn.addEventListener('click', () => {
         if (this.onSelect) this.onSelect(key);
       });

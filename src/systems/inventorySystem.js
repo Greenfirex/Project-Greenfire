@@ -1,4 +1,4 @@
-// Batoh hráče — kolik čeho nese a co z toho jde vyrobit.
+// Inventář hráče — kolik čeho nese a co z toho jde vyrobit.
 // Drží jen počty předmětů, žádnou scénu ani modely.
 import { RECIPES } from '../data/catalogs/items.js';
 

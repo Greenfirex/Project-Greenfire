@@ -97,6 +97,7 @@ export const TOOL_TYPES = {
 };
 
 export const HOTBAR_ITEMS = ['axe', 'pickaxe', 'torch'];
+export const HOTBAR_SLOTS = 5;
 
 export function getTool(toolKey) {
   return TOOL_TYPES[toolKey] || null;

@@ -1,4 +1,4 @@
-// Ikony předmětů na jednom místě — používají je batoh i log.
+// Ikony předmětů na jednom místě — používají je inventář i log.
 export const ITEM_ICONS = {
   wood: '🪵',
   stone: '🪨',

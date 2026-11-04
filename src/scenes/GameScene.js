@@ -186,7 +186,7 @@ export default class GameScene {
     this.hud = new Hud();
     this.tooltipPanel = new TooltipPanel();
     this.hotbar = new Hotbar();
-    this.bagButton = new DockButton({ icon: '🎒', label: 'Batoh', title: 'Batoh (I)', slot: 'bag' });
+    this.bagButton = new DockButton({ icon: '🎒', label: 'Inventář', title: 'Inventář (I)', slot: 'bag' });
     this.characterButton = new DockButton({ icon: '🧍', label: 'Postava', title: 'Postava (C)', slot: 'character' });
     this.log = new LogPanel();
     this.inventoryWindow = new InventoryWindow();
@@ -1971,6 +1971,8 @@ export default class GameScene {
     this.characterButton.onClick = () => this.toggleCharacterWindow();
     this.bagButton.mount();
     this.characterButton.mount();
+    this.inventoryWindow.onClose = () => this.bagButton.setActive(false);
+    this.characterWindow.onClose = () => this.characterButton.setActive(false);
     this.vitalsBar.setHealth(this.playerStats.health, this.playerStats.maxHealth);
     this.vitalsBar.setStamina(this.playerStats.stamina, this.playerStats.maxStamina);
     this.creatureHealthBar.mount();
@@ -2004,12 +2006,10 @@ export default class GameScene {
     let closed = false;
     if (this.inventoryWindow.open) {
       this.inventoryWindow.close();
-      this.bagButton.setActive(false);
       closed = true;
     }
     if (this.characterWindow.open) {
       this.characterWindow.close();
-      this.characterButton.setActive(false);
       closed = true;
     }
     return closed;
