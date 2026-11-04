@@ -67,6 +67,7 @@ const CLIFF_LEDGE_RATIO = 0.16;
 const CLIFF_RIM_BEVEL = 0.05;
 const CLIFF_CORNER_GAP = 0.5;
 const CLIFF_BEVEL_ROUND = 0.2;
+const CLIFF_CORNER_TUCK = CELL_SIZE / SURFACE_SUB;
 const CLIFF_SKIRT_SINK = 0.08;
 const CORNER_FILL_STEPS = 3;
 const BRIDGE_CORNER_MARGIN = 0.6;
@@ -739,6 +740,62 @@ export default class TerrainSystem {
       }
     }
 
+    const cornerPeaks = new Map();
+    for (const edge of wallEdges) {
+      for (const point of [edge.points[0], edge.points[SURFACE_SUB]]) {
+        const id = pointId(point.gx, point.gz);
+        let entry = cornerPeaks.get(id);
+        if (!entry) {
+          const info = this.cliffCornerInfo(point.gx, point.gz);
+          entry = { peak: info && info.convex ? [...info.pull][0] : null, count: 0 };
+          cornerPeaks.set(id, entry);
+        }
+        if (!entry.peak) continue;
+        if (Math.abs(heightOf(point, edge.cx, edge.cz) - heightOf(point, edge.nx, edge.nz)) <= 0.02) continue;
+        const here = field.heightAtCell(edge.cx, edge.cz);
+        const there = field.heightAtCell(edge.nx, edge.nz);
+        const highCell = here >= there ? `${edge.cx},${edge.cz}` : `${edge.nx},${edge.nz}`;
+        if (highCell === entry.peak) entry.count += 1;
+      }
+    }
+    const bevelPeaks = new Map();
+    for (const [id, entry] of cornerPeaks) {
+      if (entry.peak && entry.count === 2) bevelPeaks.set(id, entry.peak);
+    }
+    const tuckSquares = new Map();
+    for (const edge of wallEdges) {
+      const highCell = field.heightAtCell(edge.cx, edge.cz) >= field.heightAtCell(edge.nx, edge.nz)
+        ? [edge.cx, edge.cz] : [edge.nx, edge.nz];
+      const highKey = `${highCell[0]},${highCell[1]}`;
+      const height = field.heightAtCell(highCell[0], highCell[1]);
+      for (const [point, nearPoint] of [[edge.points[0], edge.points[1]], [edge.points[SURFACE_SUB], edge.points[SURFACE_SUB - 1]]]) {
+        const peak = bevelPeaks.get(pointId(point.gx, point.gz));
+        if (peak === undefined || peak === highKey) continue;
+        const alongX = point.gx !== nearPoint.gx;
+        const stepX = alongX ? Math.sign(point.gx - nearPoint.gx) : 0;
+        const stepZ = alongX ? 0 : Math.sign(point.gz - nearPoint.gz);
+        const inwardX = alongX ? 0 : Math.sign(highCell[0] * CELL_SIZE - point.gx);
+        const inwardZ = alongX ? Math.sign(highCell[1] * CELL_SIZE - point.gz) : 0;
+        const squareX = point.gx + Math.min(0, (stepX || inwardX) * step);
+        const squareZ = point.gz + Math.min(0, (stepZ || inwardZ) * step);
+        const squareKey = `${squareX},${squareZ}`;
+        const seen = tuckSquares.get(squareKey);
+        if (seen && seen.height >= height) continue;
+        tuckSquares.set(squareKey, {
+          cx: highCell[0],
+          cz: highCell[1],
+          cornerX: point.gx,
+          cornerZ: point.gz,
+          stepX,
+          stepZ,
+          inwardX,
+          inwardZ,
+          height,
+        });
+      }
+    }
+    const cornerTucks = [...tuckSquares.values()];
+
     const cliffCornerSet = new Set();
     const cliffPushMap = new Map();
     for (const edge of wallEdges) {
@@ -953,6 +1010,33 @@ export default class TerrainSystem {
       }
     }
 
+    for (const tuck of cornerTucks) {
+      const key = keyAt(tuck.cx, tuck.cz);
+      if (!this.surfaceConfig(key)) continue;
+      const group = groupFor(key);
+      const weldOwner = `${tuck.cx},${tuck.cz}`;
+      const freeOwner = `tuck:${tuck.cx},${tuck.cz}:${tuck.cornerX},${tuck.cornerZ}`;
+      const spanX = (tuck.stepX || tuck.inwardX) * step;
+      const spanZ = (tuck.stepZ || tuck.inwardZ) * step;
+      const xMin = Math.min(tuck.cornerX, tuck.cornerX + spanX);
+      const xMax = Math.max(tuck.cornerX, tuck.cornerX + spanX);
+      const zMin = Math.min(tuck.cornerZ, tuck.cornerZ + spanZ);
+      const zMax = Math.max(tuck.cornerZ, tuck.cornerZ + spanZ);
+      const grid = [];
+      for (let i = 0; i <= 1; i += 1) {
+        const x = i === 0 ? xMin : xMax;
+        const row = [];
+        for (let j = 0; j <= 1; j += 1) {
+          const z = j === 0 ? zMin : zMax;
+          const weld = tuck.stepX !== 0 ? x === tuck.cornerX : z === tuck.cornerZ;
+          const y = field.heightAtSide(x, z, tuck.cx, tuck.cz);
+          row.push(slot(group, x, z, x, z, y, weld ? weldOwner : freeOwner));
+        }
+        grid.push(row);
+      }
+      group.indices.push(grid[0][0], grid[1][0], grid[1][1], grid[0][0], grid[1][1], grid[0][1]);
+    }
+
     const blends = new Map();
     for (const key of groups.keys()) {
       const partner = partnerFor(key);
@@ -1031,7 +1115,7 @@ export default class TerrainSystem {
 
     if (wallEdges.length) {
       const shelves = new Map();
-      this.createCliffMesh(wallEdges, positionOf, heightOf, weldedAt, (edge) => {
+      this.createCliffMesh(wallEdges, positionOf, heightOf, weldedAt, bevelPeaks, (edge) => {
         const lower = this.heightAtCell(edge.cx, edge.cz);
         const higher = this.heightAtCell(edge.nx, edge.nz);
         const key = higher >= lower ? keyAt(edge.nx, edge.nz) : keyAt(edge.cx, edge.cz);
@@ -1043,7 +1127,7 @@ export default class TerrainSystem {
     if (this.bridges.length) this.createBridges(map, blends);
   }
 
-  createCliffMesh(edges, positionOf, heightOf, weldedAt, rimColorOf, shelves) {
+  createCliffMesh(edges, positionOf, heightOf, weldedAt, bevelPeaks, rimColorOf, shelves) {
     const groups = new Map();
     for (const edge of edges) {
       const style = this.cliffStyleOf(edge);
@@ -1066,7 +1150,7 @@ export default class TerrainSystem {
       }
     }
     const cornerPosts = new Map();
-    for (const [style, list] of groups) this.buildCliffFaces(list, positionOf, heightOf, weldedAt, style, rimColorOf, pushes, shelves, cornerPosts);
+    for (const [style, list] of groups) this.buildCliffFaces(list, positionOf, heightOf, weldedAt, style, rimColorOf, pushes, shelves, cornerPosts, bevelPeaks);
     this.buildCornerBevels(cornerPosts);
   }
 
@@ -1418,7 +1502,7 @@ export default class TerrainSystem {
     }
   }
 
-  buildCliffFaces(edges, positionOf, heightOf, weldedAt, style, rimColorOf, pushes, shelves, cornerPosts) {
+  buildCliffFaces(edges, positionOf, heightOf, weldedAt, style, rimColorOf, pushes, shelves, cornerPosts, bevelPeaks) {
     const positions = [];
     const indices = [];
     const uvs = [];
@@ -1445,6 +1529,17 @@ export default class TerrainSystem {
       const rim = rimInfo.color;
       const shelfKey = rimInfo.key;
       const tone = 0.9 + (Math.abs(edge.cx * 7 + edge.cz * 13) % 5) * 0.02;
+      const here = this.field.heightAtCell(edge.cx, edge.cz);
+      const there = this.field.heightAtCell(edge.nx, edge.nz);
+      const edgeHigh = here >= there ? `${edge.cx},${edge.cz}` : `${edge.nx},${edge.nz}`;
+      const startPeak = bevelPeaks.get(pointId(points[0].gx, points[0].gz));
+      const endPeak = bevelPeaks.get(pointId(points[SURFACE_SUB].gx, points[SURFACE_SUB].gz));
+      const startTuck = startPeak !== undefined && startPeak !== edgeHigh;
+      const endTuck = endPeak !== undefined && endPeak !== edgeHigh;
+      const tuckStartX = Math.sign(points[0].gx - points[1].gx);
+      const tuckStartZ = Math.sign(points[0].gz - points[1].gz);
+      const tuckEndX = Math.sign(points[SURFACE_SUB].gx - points[SURFACE_SUB - 1].gx);
+      const tuckEndZ = Math.sign(points[SURFACE_SUB].gz - points[SURFACE_SUB - 1].gz);
       const startCorner = this.cliffCornerPost(pushes, points[0], edge);
       const endCorner = this.cliffCornerPost(pushes, points[SURFACE_SUB], edge);
       for (let i = 0; i < SURFACE_SUB; i += 1) {
@@ -1458,6 +1553,16 @@ export default class TerrainSystem {
         if (Math.abs(a1 - a2) < 0.02 && Math.abs(b1 - b2) < 0.02) continue;
         const apos = positionOf(a);
         const bpos = positionOf(b);
+        const aTuck = startTuck && i === 0;
+        const bTuck = endTuck && i === SURFACE_SUB - 1;
+        if (aTuck) {
+          apos.px += tuckStartX * CLIFF_CORNER_TUCK;
+          apos.pz += tuckStartZ * CLIFF_CORNER_TUCK;
+        }
+        if (bTuck) {
+          bpos.px += tuckEndX * CLIFF_CORNER_TUCK;
+          bpos.pz += tuckEndZ * CLIFF_CORNER_TUCK;
+        }
         const postKey = startCorner && i === 1 ? pointId(points[0].gx, points[0].gz)
           : endCorner && i === SURFACE_SUB - 2 ? pointId(points[SURFACE_SUB].gx, points[SURFACE_SUB].gz) : null;
         const postUsesA = startCorner && i === 1;
@@ -1605,12 +1710,14 @@ export default class TerrainSystem {
             else group.indices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
             continue;
           }
+          const aSink = aTuck && r === rows.length - 2 ? CLIFF_CORNER_TUCK : 0;
+          const bSink = bTuck && r === rows.length - 2 ? CLIFF_CORNER_TUCK : 0;
           const start = positions.length / 3;
           positions.push(
             ax0, ay0, az0,
-            ax1, ay1, az1,
+            ax1, ay1 - aSink, az1,
             bx0, by0, bz0,
-            bx1, by1, bz1,
+            bx1, by1 - bSink, bz1,
           );
           const aHigh = shadeAt(ay0, aTop, aBottom, a.gx, a.gz, tone, aDepth0, rim);
           const aLow = shadeAt(ay1, aTop, aBottom, a.gx, a.gz, tone, aDepth1, rim);
