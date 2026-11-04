@@ -54,6 +54,7 @@ Povinné je to, co systém čte bez náhrady. „Když chybí" říká, co se st
 | `roamRadius` | jak daleko od domova se toulá | 0 = stojí na místě |
 | `maxStepHeight` | jak vysoký schod ještě přeleze | bez omezení |
 | `attackHeight` | jak vysoko nebo nízko na tebe ještě dosáhne | bez omezení |
+| `noticeHeight` | jak vysoko nebo nízko si tě ještě všimne | bez omezení |
 | `footprint` | stopy v písku (viz níž) | jedna šmouha bez detailů |
 | `respawnDays` | po kolika herních dnech se obnoví | povinné |
 | `idleSeconds` | rozsah `[min, max]`, jak dlouho postává | povinné |
@@ -98,6 +99,7 @@ rig.summary(stav)                  // -> řetězec do konzole („6 nohou, 2 cha
 |---|---|
 | `mode` | v jakém stavu tvor je — viz seznam níž |
 | `moving` | `true`, jen když se v tomto tiku opravdu pohnul |
+| `moved` | kolik metrů v tomto snímku ušel (0, když stojí) |
 | `turning` | `true`, když se právě otáčí (i na místě) |
 | `engaged` | `true`, když je v boji (honička, útok) |
 | `hit` | `true` v jediném snímku, kdy dostal ránu |
@@ -148,8 +150,15 @@ a vynásobením měřítkem modelu — z toho vyjde tabulka chodidel pro stopy a
   Animace tak sedí na okamžik, kdy hra opravdu ubere zdraví.
 - **Reakce na ránu přes `hit`.** Systém pošle puls v jednom snímku; rig si drží
   vlastní časovač (jak dlouho cuknutí trvá) a sílu reakce.
-- **Fázi kroku sčítej, nepočítej z času.** `walkPhase += cadence * dt` místo
-  `sin(čas × rychlost)`. Když se tempo uprostřed změní, nohy neskočí jinam.
+- **Fázi kroku posouvej podle ušlé vzdálenosti, ne podle času.**
+  `phase += moved / STRIDE` (želva) sedí na každou rychlost — i na zrychlení v boji
+  a na mladší tiery. Časová fáze se s tlapkami rozejde, jakmile se tempo změní.
+- **Krok drž ve svislé rovině.** Všechny nohy se otáčejí kolem vodorovné osy napříč tělem,
+  takže krok je vidět z boku jako krok. Otáčení kolem svislé osy nohu přelévá do strany
+  (u roztažených nohou to vypadá jako plavání prsama, ne jako chůze).
+- **Délku kroku počítej z délky těla, ne z metrů.** Rig nezná měřítko modelu, takže cílová
+  dráha chodidla je podíl délky těla (`STEP_BODY`). Noha posazená šikměji (přední) dostane
+  větší úhel, aby dozadu popojela stejně daleko jako zadní.
 - **Zrcadlové nohy potřebují znaménko strany.** Stejný úhel na levou a pravou nohu
   neudělá souměrný pohyb; znaménko se bere z klidové polohy kosti.
 - **Osy otáčení převáděj do prostoru rodiče** a normalizuj, jinak se do rotace
@@ -168,18 +177,24 @@ a vynásobením měřítkem modelu — z toho vyjde tabulka chodidel pro stopy a
 footprint: {
   kind: 'sanddevil',         // který obrázek stopy a jak je velká
   scale: 1,                  // násobek velikosti stopy
-  stepDistance: 0.34,        // po kolika metrech udělá další skupinu stop
+  stepDistance: 0.113,       // po kolika metrech udělá další stopu (jedno došlápnutí)
   feet: [{ side, forward }], // kde má chodidla (side = do strany, forward = dopředu)
-  pairs: [[0, 1, 2], ...],   // které nohy našlápnou spolu
+  order: [0, 1, 2, 3, 4, 5], // v jakém pořadí nohy našlapují, jedna po druhé
 }
 ```
 
 - `feet` se počítá z reálných špiček nohou v modelu vynásobených měřítkem modelu;
   odhad „všechny nohy stejně“ je vidět jako stopy mimo tělo.
-- `pairs` musí odpovídat fázím v rigu. Šestinohý tvor našlapuje po trojicích,
-  čtyřnohý po dvojicích; když se to rozejde, tvor našlapuje proti animaci.
-- `stepDistance` se ladí podle tempa nohou: když je moc malá, sype stopy hustěji,
-  než našlapuje.
+- `forward` je nepovinné. Když chybí, položí se stopa přímo na cestu vedle těla.
+  U zvířete, jehož přední a zadní nohy jsou od sebe blíž než jeho krok, by se
+  stopy jinak kupily na jednom místě (zadní by došlápla na stopu přední).
+- `order` musí odpovídat fázím v rigu — jedna noha po druhé, v pořadí, v jakém je
+  animace zvedá. Čtyřnohý tvor jde laterálním krokem (přední levá, zadní levá,
+  přední pravá, zadní pravá), šestinohý našlapuje po trojicích. Když se to rozejde,
+  tvor našlapuje proti animaci.
+- `stepDistance` je vzdálenost mezi dvěma došlápnutími, ne celý cyklus nohou.
+  Musí sedět s tempem animace: vzdálenost = rychlost chůze × doba mezi dvěma
+  došlápnutími. Když je moc malá, sype stopy hustěji, než našlapuje.
 
 ## Zvuky
 
@@ -214,8 +229,9 @@ ffmpeg -i vstup.wav -ar 44100 -ac 1 -c:a libvorbis -q:a 4 vystup.ogg
 - **Stav živý/mrtvý není v mapě** — mapa drží druh, stáří a buňku; čas smrti a zdraví
   patří do uložené hry.
 - **Načtení musí snést stará data** (chybějící tvory, neznámé tiery) a nesmí spadnout.
-- **Výškový rozdíl:** `maxStepHeight` je schod, ne zeď; `attackHeight` rozhoduje, jestli
-  na hráče na útese vůbec zaútočí.
+- **Výškový rozdíl:** `maxStepHeight` je schod, ne zeď. `noticeHeight` rozhoduje, jestli si
+  tě tvor vůbec všimne (může být větší než `attackHeight` — tvor na tebe z kopečku zavrčí,
+  i když na tebe nedosáhne), `attackHeight` pak jestli na tebe opravdu zaútočí.
 - **Zásah rozhodují vlastnosti** (`attack` proti `defense`, ohraničeno 5–95 %); citlivý
   zásah se nevyplňuje, je odvozený z téhož porovnání.
 - **Kopírování modelu:** `LoadAssetContainerAsync` + `instantiateModelsToScene`;

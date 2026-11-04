@@ -389,7 +389,7 @@ export const SAND_DEVIL = {
   footprint: {
     kind: 'sanddevil',
     scale: 1,
-    stepDistance: 0.34,
+    stepDistance: 0.113,
     feet: [
       { side: 0.285, forward: 0.383 },
       { side: -0.377, forward: 0.002 },
@@ -398,7 +398,7 @@ export const SAND_DEVIL = {
       { side: 0.377, forward: 0.002 },
       { side: -0.288, forward: -0.156 },
     ],
-    pairs: [[0, 1, 2], [3, 4, 5]],
+    order: [0, 1, 2, 3, 4, 5],
   },
   respawnDays: 5,
   idleSeconds: [3, 7],

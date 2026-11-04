@@ -16,6 +16,7 @@ import {
   PLAYER_INTRO_YAW,
   PLAYER_HAND_BONES,
   PLAYER_FOOT_BONES,
+  PLAYER_TOE_BONES,
   PLAYER_ANIM_NAMES,
   PLAYER_ANIM_SPEEDS,
   PLAYER_ANIM_FALLBACKS,
@@ -48,6 +49,11 @@ const PICKUP_FALLBACK = 0.75;
 const FLINCH_FALLBACK = 0.5;
 const DEATH_OVERLAY_FALLBACK = 0.8;
 const STEP_DISTANCE = 1.5;
+const FOOT_SIDES = ['left', 'right'];
+const FOOT_LAND_DISTANCE = 0.04;
+const FOOT_SHIFT_MAX = 0.35;
+const FOOT_FALLBACK = { walk: 1.25, sprint: 1.0 };
+const FOOT_SIDE_OFFSET = 0.12;
 const TOOL_SCALE = 0.95;
 const TOOL_POSITION = new Vector3(-0.12, 0.12, 0.04);
 const TOOL_ROTATION = new Vector3(0, 0, -0.45);
@@ -115,12 +121,16 @@ export default class PlayerSystem {
     this.flinchTimer = 0;
     this.pickupKey = 'pickup';
     this.footBones = { left: null, right: null };
+    this.toeBones = { left: null, right: null };
     this.stepSide = 1;
-    this.footContact = { left: true, right: true };
-    this.footLow = { left: Infinity, right: Infinity };
-    this.footHigh = { left: -Infinity, right: -Infinity };
+    this.footTravel = { left: 0, right: 0 };
+    this.footPressed = { left: false, right: false };
+    this.footLast = { left: null, right: null };
+    this.footSpot = { left: null, right: null };
+    this.footStance = { left: 0, right: 0 };
+    this.footIdle = { left: 0, right: 0 };
     this.footInitialized = false;
-    this.footFallbackTimer = 0;
+    this.footSprint = null;
     this.onFootPlant = null;
     this.igniteTimer = 0;
     this.igniteImpactAt = 0;
@@ -408,18 +418,29 @@ export default class PlayerSystem {
   cacheFootBones() {
     const skeleton = this.mesh && this.mesh.skeleton;
     if (!skeleton || !Array.isArray(skeleton.bones)) return;
-    for (const [side, names] of Object.entries(PLAYER_FOOT_BONES)) {
+    this.cacheBoneSet(skeleton, PLAYER_FOOT_BONES, this.footBones);
+    this.cacheBoneSet(skeleton, PLAYER_TOE_BONES, this.toeBones);
+  }
+
+  cacheBoneSet(skeleton, catalog, target) {
+    for (const [side, names] of Object.entries(catalog)) {
       const wanted = names.map((name) => String(name).toLowerCase());
       const bone = skeleton.bones.find((item) => {
         const name = String(item.name || '').toLowerCase();
         return wanted.includes(name) || wanted.some((candidate) => name.endsWith(':' + candidate));
       });
-      this.footBones[side] = bone ? bone.getTransformNode() : null;
+      target[side] = bone ? bone.getTransformNode() : null;
     }
   }
 
   footPosition(side) {
     const node = this.footBones[side];
+    if (!node || node.isDisposed()) return null;
+    return node.getAbsolutePosition();
+  }
+
+  toePosition(side) {
+    const node = this.toeBones[side];
     if (!node || node.isDisposed()) return null;
     return node.getAbsolutePosition();
   }
@@ -853,6 +874,7 @@ export default class PlayerSystem {
     if (this.input.left) move.subtractInPlace(right);
 
     if (move.lengthSquared() < 0.0001) {
+      this.footInitialized = false;
       this.lookAround(dt);
       this.play(this.idleAnim());
       return;
@@ -879,34 +901,84 @@ export default class PlayerSystem {
 
   updateFootprints(dt, sprint) {
     if (!this.onFootPlant) return;
-    this.footFallbackTimer += Number.isFinite(dt) ? dt : 0;
-    let emitted = false;
-    for (const side of ['left', 'right']) {
-      const foot = this.footPosition(side);
-      if (!foot) continue;
-      const ground = this.groundY(foot.x, foot.z);
-      const height = foot.y - ground;
-      if (height < this.footLow[side]) this.footLow[side] = height;
-      if (height > this.footHigh[side]) this.footHigh[side] = height;
-      const span = this.footHigh[side] - this.footLow[side];
-      const threshold = this.footLow[side] + Math.max(0.04, span * 0.25);
-      const planted = height <= threshold;
-      if (!this.footInitialized) this.footContact[side] = planted;
-      else if (this.footContact[side] && !planted && span > 0.04) {
-        this.onFootPlant(foot.x, foot.z, this.facing, side, sprint);
-        emitted = true;
-        this.footFallbackTimer = 0;
-      }
-      this.footContact[side] = planted;
+    const seconds = Number.isFinite(dt) && dt > 0 ? Math.min(dt, 0.25) : 0;
+    if (!this.footInitialized || this.footSprint !== sprint) {
+      this.footSprint = sprint;
+      this.footInitialized = true;
+      this.resetFootTracking();
     }
-    if (!emitted && this.footFallbackTimer > (sprint ? 0.45 : 0.75)) {
-      this.stepSide = -this.stepSide;
-      const side = this.stepSide > 0 ? 'left' : 'right';
-      const foot = this.footPosition(side);
-      this.onFootPlant(foot ? foot.x : this.root.position.x, foot ? foot.z : this.root.position.z, this.facing, side, sprint);
-      this.footFallbackTimer = 0;
+    for (const side of FOOT_SIDES) {
+      this.footIdle[side] += seconds;
+      this.trackFootLanding(side, sprint);
     }
-    this.footInitialized = true;
+    const limit = sprint ? FOOT_FALLBACK.sprint : FOOT_FALLBACK.walk;
+    for (const side of FOOT_SIDES) {
+      if (this.footIdle[side] >= limit) this.plantFoot(side, sprint);
+    }
+  }
+
+  trackFootLanding(side, sprint) {
+    const toe = this.toePosition(side);
+    if (!toe) return;
+    const root = this.root.position;
+    const reach = (toe.x - root.x) * Math.sin(this.facing) + (toe.z - root.z) * Math.cos(this.facing);
+    const last = this.footLast[side];
+    this.footLast[side] = reach;
+    if (last === null) return;
+    const delta = reach - last;
+    const travel = this.footTravel[side];
+    this.footTravel[side] = Math.sign(delta) === Math.sign(travel) ? travel + delta : delta;
+    if (this.footTravel[side] > 0) {
+      this.footPressed[side] = false;
+      this.captureStance(side);
+      return;
+    }
+    if (this.footTravel[side] <= -FOOT_LAND_DISTANCE && !this.footPressed[side]) {
+      this.footPressed[side] = true;
+      this.footSpot[side] = this.soleSpot(side);
+      this.plantFoot(side, sprint);
+    }
+  }
+
+  captureStance(side) {
+    const start = this.footSpot[side];
+    if (!start) return;
+    this.footSpot[side] = null;
+    const spot = this.soleSpot(side);
+    if (!spot) return;
+    this.footStance[side] = Math.hypot(spot.x - start.x, spot.z - start.z);
+  }
+
+  soleSpot(side) {
+    const foot = this.footPosition(side);
+    const toe = this.toePosition(side);
+    if (foot && toe) return { x: (foot.x + toe.x) / 2, z: (foot.z + toe.z) / 2 };
+    if (toe) return { x: toe.x, z: toe.z };
+    if (foot) return { x: foot.x, z: foot.z };
+    return null;
+  }
+
+  plantFoot(side, sprint) {
+    this.footIdle[side] = 0;
+    const spot = this.soleSpot(side);
+    if (spot) {
+      const shift = Math.min(FOOT_SHIFT_MAX, this.footStance[side] * 0.5);
+      this.onFootPlant(spot.x + Math.sin(this.facing) * shift, spot.z + Math.cos(this.facing) * shift, this.facing, side, sprint);
+      return;
+    }
+    const lateral = side === 'left' ? FOOT_SIDE_OFFSET : -FOOT_SIDE_OFFSET;
+    const root = this.root.position;
+    this.onFootPlant(root.x + Math.cos(this.facing) * lateral, root.z - Math.sin(this.facing) * lateral, this.facing, side, sprint);
+  }
+
+  resetFootTracking() {
+    for (const side of FOOT_SIDES) {
+      this.footTravel[side] = 0;
+      this.footPressed[side] = false;
+      this.footLast[side] = null;
+      this.footSpot[side] = null;
+      this.footIdle[side] = 0;
+    }
   }
 
   updateSteps(sprint, step) {

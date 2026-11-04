@@ -731,7 +731,7 @@ export default class GameScene {
     this.audioSystem.play(inWater ? 'stepWater' : surfaceStepSound(key), { gain: sprint ? 1.35 : 1 });
   }
 
-  onCreatureStep(creature, side) {
+  onCreatureStep(creature, step) {
     if (!creature || !creature.type) return;
     const footprint = creature.type.footprint || {};
     const tierScale = creature.tier && Number.isFinite(creature.tier.scale) ? creature.tier.scale : 1;
@@ -742,21 +742,20 @@ export default class GameScene {
     const kind = footprint.kind || 'turtle';
     const feet = Array.isArray(footprint.feet) ? footprint.feet : null;
     if (feet && feet.length) {
-      const pairs = Array.isArray(footprint.pairs) ? footprint.pairs : null;
-      const pair = pairs ? pairs[side >= 0 ? 0 : 1] : feet.map((_, index) => index);
-      for (const index of pair || []) {
-        const foot = feet[index];
-        if (!foot) continue;
-        const lateral = (Number(foot.side) || 0) * tierScale;
-        const forward = (Number(foot.forward) || 0) * tierScale;
-        const x = creature.x + Math.cos(angle) * lateral + Math.sin(angle) * forward;
-        const z = creature.z - Math.sin(angle) * lateral + Math.cos(angle) * forward;
-        this.footfall(x, z, angle, scale, kind, 0.45 + scale);
-      }
+      const order = Array.isArray(footprint.order) && footprint.order.length
+        ? footprint.order
+        : feet.map((_, index) => index);
+      const foot = feet[order[step % order.length]];
+      if (!foot) return;
+      const lateral = (Number(foot.side) || 0) * tierScale;
+      const forward = (Number(foot.forward) || 0) * tierScale;
+      const x = creature.x + Math.cos(angle) * lateral + Math.sin(angle) * forward;
+      const z = creature.z - Math.sin(angle) * lateral + Math.cos(angle) * forward;
+      this.footfall(x, z, angle, scale, kind, 0.45 + scale);
       return;
     }
     const offset = Number.isFinite(footprint.offset) ? footprint.offset : 0.22;
-    const direction = side >= 0 ? 1 : -1;
+    const direction = step % 2 === 0 ? 1 : -1;
     const x = creature.x + Math.cos(angle + Math.PI / 2) * offset * tierScale * direction;
     const z = creature.z + Math.sin(angle + Math.PI / 2) * offset * tierScale * direction;
     this.footfall(x, z, angle, scale, kind, 0.45 + scale);

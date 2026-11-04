@@ -18,6 +18,11 @@ export const PLAYER_FOOT_BONES = {
   right: ['RightFoot', 'mixamorig:RightFoot', 'foot_r', 'foot.r'],
 };
 
+export const PLAYER_TOE_BONES = {
+  left: ['LeftToeBase', 'mixamorig:LeftToeBase', 'toe_l', 'toe.l'],
+  right: ['RightToeBase', 'mixamorig:RightToeBase', 'toe_r', 'toe.r'],
+};
+
 export const PLAYER_HAND_BONES = [
   'RightHand',
   'mixamorig:RightHand',

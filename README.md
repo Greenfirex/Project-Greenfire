@@ -203,7 +203,9 @@ Přesný seznam všech polí v datech, rozhraní rigu, stopy a zvuky popisuje
 - **Výškový rozdíl:** `maxStepHeight` určuje, jak velký schod tvor zvládne. Větší rozdíl
   je pro něj zeď, takže nepřeleze útes; toulat se smí jen po spojitém terénu.
 - **Útok přes výšku:** `attackHeight` určuje, jak vysoko nebo nízko ještě tvor dosáhne
-  na hráče. Na hráče na útesu nezaútočí a ani se na něj nenaštve.
+  na hráče. Na hráče na útesu nezaútočí. Všímavost je velkorysejší — `noticeHeight` říká,
+  jak velký výškový rozdíl ještě stačí na to, aby si tě tvor všiml a zavrčel; když na tebe
+  nedosáhne, po chvíli varování to vzdá.
 - **Zásah rozhodují vlastnosti:** `attack` útočníka proti `defense` obránce (útok² proti
   obraně², ohraničeno na 5–95 %). Vzdálenost se u dopadu nekontroluje — kdo útok zahájí,
   ten ho dokončí; rána ho nepřeruší.

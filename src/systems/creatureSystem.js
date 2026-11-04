@@ -312,7 +312,9 @@ export default class CreatureSystem {
       walking: false,
       blockedTime: 0,
       stepTravelled: 0,
-      stepSide: 1,
+      stepIndex: 0,
+      poseX: spot.x,
+      poseZ: spot.z,
       giveUpUntil: 0,
       health: tier.health,
       hitPulse: false,
@@ -372,6 +374,11 @@ export default class CreatureSystem {
 
   attackHeight(type) {
     const limit = Number(type && type.attackHeight);
+    return Number.isFinite(limit) && limit >= 0 ? limit : Infinity;
+  }
+
+  noticeHeight(type) {
+    const limit = Number(type && type.noticeHeight);
     return Number.isFinite(limit) && limit >= 0 ? limit : Infinity;
   }
 
@@ -515,7 +522,7 @@ export default class CreatureSystem {
     const alertSeconds = Array.isArray(type.alertSeconds) ? type.alertSeconds : [2, 3];
     const canAggro = Boolean(player)
       && gap < aggro
-      && heightGap <= this.attackHeight(type)
+      && heightGap <= this.noticeHeight(type)
       && this.now >= (creature.giveUpUntil || 0);
 
     if (creature.mode === 'buried') {
@@ -568,7 +575,7 @@ export default class CreatureSystem {
 
     if (creature.mode === 'confused') {
       if (canAggro) {
-        this.beginAggro(creature, alertSeconds);
+        this.beginAggro(creature, alertSeconds, heightGap <= this.attackHeight(type));
         return;
       }
       if (creature.timer <= 0) {
@@ -592,18 +599,27 @@ export default class CreatureSystem {
         const look = Math.atan2(player.x - creature.x, player.z - creature.z);
         creature.facing = turnToward(creature.facing, look, type.turnRate * dt * 0.7);
       }
-      if (gap <= type.chargeRange || creature.timer <= 0) {
+      if (heightGap <= this.attackHeight(type) && (gap <= type.chargeRange || creature.timer <= 0)) {
         this.beginCharge(creature);
+        return;
+      }
+      if (creature.timer <= 0) {
+        creature.giveUpUntil = this.now + (type.confusedSeconds || 1.4) + 3;
+        creature.mode = 'roam';
+        creature.targetX = creature.homeX;
+        creature.targetZ = creature.homeZ;
+        creature.timer = randomBetween(4, 8);
       }
       return;
     }
 
     if (canAggro) {
+      const reachable = heightGap <= this.attackHeight(type);
       if (creature.mode !== 'chase') {
-        if (gap <= type.chargeRange) {
+        if (gap <= type.chargeRange && reachable) {
           this.beginCharge(creature);
         } else {
-          this.beginAggro(creature, alertSeconds);
+          this.beginAggro(creature, alertSeconds, reachable);
           return;
         }
       }
@@ -673,8 +689,8 @@ export default class CreatureSystem {
     this.playSound(creature, 'alert');
   }
 
-  beginAggro(creature, seconds) {
-    if (creature.type.noWarning) {
+  beginAggro(creature, seconds, reachable = true) {
+    if (creature.type.noWarning && reachable) {
       this.beginCharge(creature);
       return;
     }
@@ -749,8 +765,8 @@ export default class CreatureSystem {
       : Math.max(0.6, creatureLength(creature.type) * 0.7);
     if (creature.stepTravelled >= stepDistance) {
       creature.stepTravelled = 0;
-      creature.stepSide = -creature.stepSide;
-      if (this.onStep) this.onStep(creature, creature.stepSide);
+      creature.stepIndex += 1;
+      if (this.onStep) this.onStep(creature, creature.stepIndex);
     }
     return false;
   }
@@ -769,10 +785,14 @@ export default class CreatureSystem {
       while (faceGap > Math.PI) faceGap -= Math.PI * 2;
       while (faceGap < -Math.PI) faceGap += Math.PI * 2;
       const turning = Math.abs(faceGap) > TURN_STEP_GAP;
+      const moved = Math.hypot(creature.x - creature.poseX, creature.z - creature.poseZ);
+      creature.poseX = creature.x;
+      creature.poseZ = creature.z;
       const pose = creature.type.rig
         ? creature.type.rig.pose(creature.rig, seconds, {
           mode: creature.mode,
           moving: creature.walking,
+          moved,
           buried: creature.buried,
           emergeProgress: creature.emergeProgress,
           turning,
