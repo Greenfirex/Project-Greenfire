@@ -1,8 +1,8 @@
 # ===== ROZSAH PROJEKTU =====
 
-- Pracuj VÝHRADNĚ v `Project-Greenfactory/` (Babylon.js 3D tovární hra).
-- NIKDY nelež do `Greenfire-Isometric/`, `Greenfire-idle/`,
-  `Project-Greenfire/` ani do rootu `Repository1/`. Ty patří JINÝM projektům.
+- Pracuj VÝHRADNĚ v této složce projektu (Babylon.js 3D hra).
+- NIKDY nelež do `Greenfire-Isometric/`, `Greenfire-idle/` ani do rootu
+  `Repository1/`. Ty patří JINÝM projektům.
 - `.clinerules` v `Greenfire-Isometric/` se tohoto projektu NETÝKA.
 
 # ===== VÝVOJOVÝ WORKFLOW =====

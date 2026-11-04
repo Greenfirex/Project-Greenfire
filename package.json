@@ -2,7 +2,7 @@
   "name": "project-greenfire",
   "private": true,
   "version": "0.1.0",
-  "description": "3D tovární hra ve stylu Satisfactory — Babylon.js, běží ve webu.",
+  "description": "3D survival hra, hratelná ve webu (Vite + Babylon.js).",
   "type": "module",
   "scripts": {
     "dev": "vite",
