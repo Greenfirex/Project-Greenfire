@@ -37,9 +37,12 @@ export default class CampfireSystem {
     if (this.onFireAdded) this.onFireAdded(fire);
   }
 
-  reseatHeights(heightForEntry) {
+  reseatHeights(heightForEntry, entries) {
     if (typeof heightForEntry !== 'function') return;
+    const list = Array.isArray(entries) ? entries : null;
     for (const item of this.fires) {
+      const fresh = list ? list.find((entry) => entry && sameEntry(item, entry)) : null;
+      if (fresh) item.entry = fresh;
       const base = heightForEntry(item.entry);
       if (!Number.isFinite(base)) continue;
       item.fire.place(item.x, base + (item.lift || 0), item.z);

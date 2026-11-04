@@ -436,11 +436,15 @@ export default class TerrainSystem {
     return null;
   }
 
-  cliffCornerPost(pushes, point) {
+  cliffCornerPost(pushes, point, edge) {
     if (cliffDirection(pushes, point).corner <= 0.3) return false;
     if (this.bridgeCornerAt(point.gx, point.gz)) return false;
     const info = this.cliffCornerInfo(point.gx, point.gz);
-    return Boolean(info && info.convex);
+    if (!info || !info.convex) return false;
+    const here = this.field.heightAtCell(edge.cx, edge.cz);
+    const there = this.field.heightAtCell(edge.nx, edge.nz);
+    const highCell = here >= there ? `${edge.cx},${edge.cz}` : `${edge.nx},${edge.nz}`;
+    return info.pull.has(highCell);
   }
 
   createSurface(map, cells) {
@@ -1441,8 +1445,8 @@ export default class TerrainSystem {
       const rim = rimInfo.color;
       const shelfKey = rimInfo.key;
       const tone = 0.9 + (Math.abs(edge.cx * 7 + edge.cz * 13) % 5) * 0.02;
-      const startCorner = this.cliffCornerPost(pushes, points[0]);
-      const endCorner = this.cliffCornerPost(pushes, points[SURFACE_SUB]);
+      const startCorner = this.cliffCornerPost(pushes, points[0], edge);
+      const endCorner = this.cliffCornerPost(pushes, points[SURFACE_SUB], edge);
       for (let i = 0; i < SURFACE_SUB; i += 1) {
         if ((i === 0 && startCorner) || (i === SURFACE_SUB - 1 && endCorner)) continue;
         const a = points[i];

@@ -1534,7 +1534,7 @@ updateGatherTarget() {
     this.decoSystem.beginHeights(layout, getMap(this.mapKey).colors);
     this.decoSystem.reseatHeights();
     this.floraSystem.reseatHeights();
-    this.campfireSystem.reseatHeights((entry) => this.decoSystem.entryHeight(entry));
+    this.campfireSystem.reseatHeights((entry) => this.decoSystem.entryHeight(entry), layout.decorations);
     this.gatherSystem.syncFromDeco();
     this.syncFelling();
     this.refreshShadowCasters();

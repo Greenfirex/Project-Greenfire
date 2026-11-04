@@ -1,4 +1,4 @@
-﻿// Stavba dekoraci krajiny z dat mapy - dlazdice pudy, cesty, stromy, skaly.
+// Stavba dekoraci krajiny z dat mapy - dlazdice pudy, cesty, stromy, skaly.
 // Drzi jen postavene meshe a blokovane bunky; rozvrzeni si bere z data mapy.
 import '@babylonjs/core/Meshes/transformNode';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
@@ -17,6 +17,11 @@ import ContactShadow from '../utils/contactShadow.js';
 
 const PATH_SURFACE = 0.02;
 const FLAT_SINK = 0.015;
+
+function entryMatchKey(entry) {
+  return `${entry.key}|${entry.cx}|${entry.cz}|${entry.offsetX || 0}|${entry.offsetZ || 0}|${entry.scale || 1}|${entry.rotation || 0}`;
+}
+
 
 function liesFlat(def) {
   return Boolean(def && (def.shell || def.flat));
@@ -143,7 +148,22 @@ export default class DecoSystem {
     this.buildPath();
     for (const entry of layout.clearing || []) this.applyEntry(entry);
     for (const entry of layout.decorations || []) this.applyEntry(entry);
+    this.relinkEntries(layout);
     this.refreshBlocked(layout);
+  }
+
+  relinkEntries(layout) {
+    const fresh = new Map();
+    for (const entry of layout.decorations || []) {
+      if (!entry) continue;
+      fresh.set(entryMatchKey(entry), entry);
+    }
+    for (const anchor of this.anchors) {
+      const meta = anchor && anchor.metadata;
+      if (!meta || !meta.entry) continue;
+      const next = fresh.get(entryMatchKey(meta.entry));
+      if (next) meta.entry = next;
+    }
   }
 
   reseatHeights() {
