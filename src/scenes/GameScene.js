@@ -59,8 +59,9 @@ import DeathScreen from '../ui/deathScreen.js';
 import Dialog from '../ui/dialog.js';
 import LoadingScreen from '../ui/loadingScreen.js';
 import TooltipPanel from '../ui/tooltipPanel.js';
-import { whenModelsIdle, takeModelError, preloadModel, loadContainer, loadImported, releaseFrame } from '../utils/assetLoader.js';
+import { whenModelsIdle, takeModelError, preloadModel, loadModel, loadContainer, loadImported, releaseFrame } from '../utils/assetLoader.js';
 import { proceduralTemplate } from '../utils/decoTemplate.js';
+import { grassModelUrls } from '../data/catalogs/grass.js';
 import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
 import { HOTBAR_ITEMS, ITEM_TYPES } from '../data/catalogs/items.js';
@@ -376,7 +377,8 @@ export default class GameScene {
     await this.setupPlayer();
     await this.setupCreatures();
     this.loader.floatProgress(1, 1, 'Seju trávu…');
-    this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle());
+    this.grassModelList = await this.loadGrassModels();
+    this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle(), this.grassModelList, this.grassLook());
     this.floraSystem.addShelfGrass(this.terrainSystem.shelfAnchors);
     this.floraSystem.updateView(this.viewCircle());
     this.refreshReflectionExclusions();
@@ -1655,8 +1657,39 @@ export default class GameScene {
     this.finishRebuild();
   }
 
+  grassLook() {
+    const map = getMap(this.mapKey);
+    return {
+      shade: this.terrainSystem.grassShade(map),
+      groundPatch: this.options.groundBlend !== false,
+    };
+  }
+
+  async loadGrassModels() {
+    const detail = this.options.grassFern === 'detail';
+    if (!this.grassTemplates) this.grassTemplates = new Map();
+    const list = [];
+    for (const item of grassModelUrls(detail)) {
+      let template = this.grassTemplates.get(item.url);
+      if (!template) {
+        template = await loadModel(this.s, item.url);
+        if (template) this.grassTemplates.set(item.url, template);
+      }
+      if (template) list.push({ species: item.species, template });
+    }
+    return list;
+  }
+
+  async rebuildGrass() {
+    this.grassModelList = await this.loadGrassModels();
+    this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle(), this.grassModelList, this.grassLook());
+    this.floraSystem.addShelfGrass(this.terrainSystem.shelfAnchors);
+    this.floraSystem.updateView(this.viewCircle());
+    this.refreshReflectionExclusions();
+  }
+
   finishRebuild() {
-    this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle());
+    this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle(), this.grassModelList, this.grassLook());
     this.floraSystem.addShelfGrass(this.terrainSystem.shelfAnchors);
     this.floraSystem.updateView(this.viewCircle());
     this.refreshReflectionExclusions();
@@ -1875,8 +1908,17 @@ export default class GameScene {
     this.gameCursor.setEnabled(this.options.customCursor);
     this.glowSystem.setEnabled(this.options.fireGlow);
     const grassDensity = this.floraSystem.density;
+    const fernMode = this.options.grassFern === 'detail' ? 'detail' : 'light';
+    const fernChanged = this.fernMode !== fernMode;
+    this.fernMode = fernMode;
     this.floraSystem.setDensity(this.options.grass);
     if (this.floraSystem.density !== grassDensity) this.refreshReflectionExclusions();
+    if (fernChanged && this.grassModelList) this.rebuildGrass();
+    const groundBlend = this.options.groundBlend !== false;
+    const blendChanged = this.groundBlend !== groundBlend;
+    this.groundBlend = groundBlend;
+    this.terrainSystem.setGroundBlend(groundBlend);
+    if (blendChanged && this.grassModelList) this.rebuildGrass();
     this.waterSystem.setDetail(this.options.waterDetail);
     if (this.isLoading) return;
     this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);

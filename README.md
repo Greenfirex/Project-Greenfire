@@ -237,7 +237,8 @@ rozbitý okraj písku s ostrůvky a jazyky, štětec Mušle s lasturami
 ve čtyřech tvarech a třech velikostech (největší se dá sehrát), korály
 na dně jako deset variací shluků se štětcem Koraly, hejna ryb
 pěti barev (i drobných), která se toulají vodou, občas vyšlou rybku na
-potulky a plaší se před hráčem, tráva s květinami ve čtyřech barvách
+potulky a plaší se před hráčem, tráva ze čtyř modelů (pobřežní tráva,
+širokolistý trs, nízký polštářek a kapradina) s květinami ve čtyřech barvách
 (květy se houpou ve větru a rostou i ve shlucích, štětec Tráva je umí vypnout),
 keře v šesti tvarech (kopule, sloup, suknice, stěna, hrbolatý, z karet listí
 s vnitřní vrstvou, tmavší u země a světlejší nahoře, aby měly objem,
@@ -307,7 +308,7 @@ doladění a práce mimo tento plán.
   a voda z ní bere barvu. Odraz okolí řeší odrazová sonda; obloha se
   do odrazu nepouští.
 - Data a ukládání: ukládání hráče beze změny; výška je desetinné číslo,
-  mapa má kvůli značkám útesů verzi 4.
+  mapa má kvůli značkám útesů a předvolbám trávy verzi 7.
 
 **Zbývá:**
 - Volitelné doladění: rostliny u břehu, zatopené kameny, skutečný odraz
@@ -458,6 +459,24 @@ a objekty, modelovat výšky, razítkovat herní plochu a ukládat mapu přímo 
 Podrobný popis režimů, štětců, výšek, vody, cest, tvorů a ukládání mapy je
 v [dokumentaci editoru](src/editor/README.md).
 
+## Tráva a podrost
+
+Tráva nejsou stébla dopočítaná v kódu, ale čtyři modely z Meshy: pobřežní
+tráva, širokolistý trs, nízký polštářek a kapradina. Pod nimi leží jemný
+koberec krátkých stébel (28 cm, tři stébla na kus), aby mezi trsy neprosvítala
+holá plocha. Štětec Tráva umí vrstvy oddělit: Obojí, Jen trsy nebo Jen koberec.
+Zem i stébla počítají barvu stejným kódem: travnatou zem míchají tři textury
+(Grass001–003) do velkých skvrn podle šumu, stéblo si bere barvu země přesně
+pod sebou a k tomu světlejší špičku a tmavší základnu, aby bylo vidět. Každý
+druh má v katalogu výšku, počet kusů na buňku, odstín a jas; přidání dalšího
+modelu k druhu je jeden záznam v jeho seznamu modelů. Druh na buňce určí
+poloha (u písku pobřežní, u stromů a skal kapradina, jinde směs podle skvrn),
+nebo předvolba Směs ve štětci Tráva, která se ukládá k buňce. Trsy se sázejí
+jako kopie jednoho tvaru, takže tisíce kusů stojí jedno kreslení na čtverec
+mapy a vzdálené čtverce se schovávají. Kapradina jde v Možnostech přepnout
+na detailní verzi (7 581 trojúhelníků) pro porovnání s lehkou (437);
+míchání tří textur země jde tamtéž vypnout.
+
 ## Nápady na další vizuální vylepšení
 
 Seřazeno podle poměru přínos / práce. Nic z toho není rozhodnuté, je to
@@ -469,10 +488,7 @@ seznam k výběru.
 2. **Skála: mech a lišejník** — kámen je jednolitý. Ztmavení u paty a mírné
    zelené omaštění horních ploch podle sklonu (barvou ve vrcholech, bez
    nových textur) oživí útes i balvany.
-3. **Tráva: výraznější barevné skvrny** — tráva má jen jemné kolísání odstínu.
-   Dva zřetelné odstíny podle polohy (bez květin, ty už jsou) udělají louku
-   míň kobercovou.
-4. **Vzdálené stromy (LOD)** — až bude les hustší, nahradit daleké stromy
+3. **Vzdálené stromy (LOD)** — až bude les hustší, nahradit daleké stromy
    jednodušší variantou. Uvolní výkon a dovolí sázet víc stromů.
 
 ## Nápady na další vývoj

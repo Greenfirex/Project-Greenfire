@@ -1,9 +1,9 @@
-﻿// Vlastní program pro grafiku, který kreslí trávu: stéblo se ohne ve větru,
-// tmavne u země, světlá ke špičce a každé stéblo má nepatrně jiný odstín.
-// Nepoužívá Babyloní materiály — má svůj vlastní, takže si hlídá všechno sám.
+// Vlastní program pro trávu — textura z modelu, ohýbání ve větru a ztmavení u země.
+// Stébla jednoho trsu se ohýbají podle výšky, každý trs má nepatrně jiný odstín.
 import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
 import { Effect } from '@babylonjs/core/Materials/effect';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { grassGroundGlsl } from '../utils/grassGround.js';
 
 const VERTEX = `
 precision highp float;
@@ -18,9 +18,9 @@ attribute vec4 world3;
 
 uniform mat4 viewProjection;
 uniform float grassTime;
-uniform float grassHeight;
+uniform float clumpHeight;
 
-varying vec3 vPosition;
+varying vec2 vUV;
 varying vec3 vNormal;
 varying vec3 vRoot;
 varying float vHeight;
@@ -30,7 +30,7 @@ void main(void) {
   vec3 worldPos = (finalWorld * vec4(position, 1.0)).xyz;
   vec3 rootPos = (finalWorld * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 
-  float h = clamp(uv.y, 0.0, 1.0);
+  float h = clamp(position.y / max(clumpHeight, 0.001), 0.0, 1.0);
   float flex = h * h;
   float phase = rootPos.x * 0.55 + rootPos.z * 0.42;
 
@@ -40,12 +40,12 @@ void main(void) {
   push.z = cos(grassTime * 1.25 + phase * 1.4) * 0.45 + cos(grassTime * 2.9 + phase * 0.7) * 0.15;
   push *= 0.28 * (0.7 + 0.3 * gust);
   push.y = -dot(push.xz, push.xz) * 0.6;
-  worldPos += push * flex * grassHeight;
+  worldPos += push * flex * clumpHeight;
 
   vec3 bladeNormal = mat3(finalWorld) * normal;
-  vNormal = normalize(bladeNormal + vec3(push.x, 1.0, push.z) * 2.2);
+  vNormal = normalize(bladeNormal + vec3(push.x, 1.0, push.z) * 1.4);
 
-  vPosition = worldPos;
+  vUV = uv;
   vRoot = rootPos;
   vHeight = h;
   gl_Position = viewProjection * vec4(worldPos, 1.0);
@@ -55,34 +55,56 @@ void main(void) {
 const FRAGMENT = `
 precision highp float;
 
-uniform vec3 baseColor;
-uniform vec3 grassRoot;
+uniform sampler2D diffuseSampler;
+uniform sampler2D groundTexA;
+uniform sampler2D groundTexB;
+uniform sampler2D groundTexC;
+uniform vec3 baseTint;
 uniform vec3 lightDir;
 uniform float dayness;
+uniform float uvFlip;
+uniform float uvScale;
+uniform float patchPick;
+uniform float groundMode;
+uniform float groundTileA;
+uniform float groundTileB;
+uniform float groundTileC;
+uniform float groundPatch;
 
-varying vec3 vPosition;
+varying vec2 vUV;
 varying vec3 vNormal;
 varying vec3 vRoot;
 varying float vHeight;
 
+${grassGroundGlsl()}
+
 void main(void) {
+  vec3 color;
+  if (groundMode > 0.5) {
+    color = groundGrass(vRoot.xz, groundTileA, groundTileB, groundTileC, groundPatch) * baseTint;
+  } else {
+    vec2 uv = vUV * uvScale;
+    if (patchPick > 0.5) {
+      vec2 cell = floor(vRoot.xz * 24.0);
+      float pick1 = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+      float pick2 = fract(sin(dot(cell + 7.13, vec2(39.346, 11.135))) * 24634.6345);
+      uv += vec2(pick1, pick2);
+    }
+    if (uvFlip > 0.5) uv.y = 1.0 - uv.y;
+    color = texture2D(diffuseSampler, uv).rgb * baseTint;
+  }
+
   float blade = fract(sin(dot(floor(vRoot.xz * 24.0), vec2(12.9898, 78.233))) * 43758.5453);
-  float patchMix = sin(vRoot.x * 0.35 + blade * 6.2831) * cos(vRoot.z * 0.29 - blade * 3.1);
-
-  vec3 tip = vec3(baseColor.r * 1.3 + 0.04, baseColor.g * 1.18 + 0.06, baseColor.b * 0.95);
-  tip *= 0.9 + patchMix * 0.18 + blade * 0.16;
-
-  vec3 color = mix(grassRoot, tip, pow(vHeight, 1.25));
-  color *= mix(0.4, 1.0, smoothstep(0.0, 0.35, vHeight));
+  color *= 0.9 + blade * 0.2;
+  color *= mix(0.55, 1.0, smoothstep(0.0, 0.22, vHeight));
+  color *= mix(1.0, 1.18, smoothstep(0.5, 1.0, vHeight));
 
   float daylight = 0.24 + 0.76 * dayness;
   color *= daylight;
 
   vec3 n = normalize(vNormal);
-  float face = dot(n, lightDir);
-  float wrap = clamp(face * 0.5 + 0.5, 0.0, 1.0);
-  color *= 0.72 + wrap * 0.5 * dayness;
-  color *= 0.92;
+  float wrap = clamp(dot(n, lightDir) * 0.5 + 0.5, 0.0, 1.0);
+  color *= 0.62 + wrap * 0.62 * dayness;
 
   gl_FragColor = vec4(color, 1.0);
 }
@@ -99,17 +121,35 @@ function registerShaders() {
 
 export function createGrassMaterial(scene, options) {
   registerShaders();
-  const material = new ShaderMaterial('wildGrassMat', scene, { vertex: 'grass', fragment: 'grass' }, {
+  const material = new ShaderMaterial(options.name || 'wildGrassMat', scene, { vertex: 'grass', fragment: 'grass' }, {
     attributes: ['position', 'normal', 'uv', 'world0', 'world1', 'world2', 'world3'],
-    uniforms: ['viewProjection', 'grassTime', 'grassHeight', 'baseColor', 'grassRoot', 'lightDir', 'dayness'],
+    uniforms: ['viewProjection', 'grassTime', 'clumpHeight', 'baseTint', 'lightDir', 'dayness', 'uvFlip', 'uvScale', 'patchPick', 'groundMode', 'groundTileA', 'groundTileB', 'groundTileC', 'groundPatch'],
+    samplers: ['diffuseSampler', 'groundTexA', 'groundTexB', 'groundTexC'],
   });
+  const tint = options.tint || [1, 1, 1];
+  const uvScale = Number(options.uvScale) || 1;
+  const ground = options.ground || null;
+  const tiles = ground ? ground.tiles : [1, 1, 1];
+  const groundTextures = ground ? ground.textures : [options.texture, options.texture, options.texture];
   material.backFaceCulling = false;
   material.setFloat('grassTime', 0);
-  material.setFloat('grassHeight', options.height);
-  material.setColor3('baseColor', options.base);
-  material.setColor3('grassRoot', options.root);
+  material.setFloat('clumpHeight', options.height || 0.5);
+  material.setColor3('baseTint', new Color3(tint[0], tint[1], tint[2]));
   material.setVector3('lightDir', options.lightDir);
   material.setFloat('dayness', 1);
+  material.setFloat('uvFlip', options.texture && options.texture.invertY ? 1 : 0);
+  material.setFloat('uvScale', uvScale);
+  material.setFloat('patchPick', options.patchPick ? 1 : 0);
+  material.setFloat('groundMode', ground ? 1 : 0);
+  material.setFloat('groundPatch', ground && ground.patch !== false ? 1 : 0);
+  material.setFloat('groundTileA', tiles[0]);
+  material.setFloat('groundTileB', tiles[1]);
+  material.setFloat('groundTileC', tiles[2]);
+  if (options.texture) material.setTexture('diffuseSampler', options.texture);
+  const groundNames = ['groundTexA', 'groundTexB', 'groundTexC'];
+  for (let index = 0; index < groundNames.length; index += 1) {
+    if (groundTextures[index]) material.setTexture(groundNames[index], groundTextures[index]);
+  }
   return material;
 }
 

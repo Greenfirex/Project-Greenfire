@@ -1621,9 +1621,17 @@ export default class EditorMode {
       }
       if (brush.flora) {
         if (!this.layout.grass) this.layout.grass = [];
-        const had = this.layout.grass.some((entry) => entry && entry.cx === cx && entry.cz === cz);
-        this.layout.grass = this.layout.grass.filter((entry) => entry && (entry.cx !== cx || entry.cz !== cz));
-        this.layout.grass.push({ cx, cz });
+        const mix = this.brushOptionValue(brushKey, 'mix');
+        const layer = this.brushOptionValue(brushKey, 'layer');
+        const entry = { cx, cz };
+        if (mix && mix !== 'auto') entry.mix = mix;
+        if (layer && layer !== 'both') entry.layer = layer;
+        const previous = this.layout.grass.find((item) => item && item.cx === cx && item.cz === cz);
+        const had = !!previous
+          && (previous.mix || 'auto') === (entry.mix || 'auto')
+          && (previous.layer || 'both') === (entry.layer || 'both');
+        this.layout.grass = this.layout.grass.filter((item) => item && (item.cx !== cx || item.cz !== cz));
+        this.layout.grass.push(entry);
         const scattered = this.scatterDecorations(brushKey, brush, cx, cz, false);
         if (!had || scattered) changed += 1;
         continue;
@@ -1831,7 +1839,7 @@ export default class EditorMode {
     let touched = kept.length !== entries.length;
     this.layout.decorations = kept;
     if (removing) return touched;
-    const gate = brush.option ? brush.option.key : null;
+    const gate = brush.scatterGate || (brush.option ? brush.option.key : null);
     if (gate && !this.brushOptionValue(brushKey, gate)) return touched;
     const patch = noise2(cx / 3.4, cz / 3.4);
     if (hash01(cx * 91.7, cz * 47.3) > scatter.chance * (0.25 + 1.3 * patch)) return touched;

@@ -6,6 +6,20 @@ export function cellNoise(cx, cz, salt) {
   return n - Math.floor(n);
 }
 
+export function patchValue(cx, cz, size = 7) {
+  const x = cx / size + cellNoise(cx, cz, 41) * 0.85;
+  const z = cz / size + cellNoise(cx, cz, 43) * 0.85;
+  const ix = Math.floor(x);
+  const iz = Math.floor(z);
+  const fx = x - ix;
+  const fz = z - iz;
+  const sx = fx * fx * (3 - 2 * fx);
+  const sz = fz * fz * (3 - 2 * fz);
+  const top = cellNoise(ix, iz, 47) + (cellNoise(ix + 1, iz, 47) - cellNoise(ix, iz, 47)) * sx;
+  const bottom = cellNoise(ix, iz + 1, 47) + (cellNoise(ix + 1, iz + 1, 47) - cellNoise(ix, iz + 1, 47)) * sx;
+  return top + (bottom - top) * sz;
+}
+
 function treeJitter(entry) {
   return {
     yaw: (cellNoise(entry.cx, entry.cz, 3) - 0.5) * 0.87,

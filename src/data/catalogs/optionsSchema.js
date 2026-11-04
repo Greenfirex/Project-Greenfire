@@ -11,6 +11,8 @@ export const OPTION_DEFAULTS = {
   dayCycle: true,
   autoTune: false,
   grass: 'high',
+  grassFern: 'light',
+  groundBlend: true,
   waterDetail: true,
   footprints: true,
   cameraShake: true,

@@ -1229,14 +1229,6 @@
   user-select: none;
 }
 
-.loading-title {
-  font-size: 28px;
-  letter-spacing: 6px;
-  text-transform: uppercase;
-  color: var(--glow-accent);
-  font-weight: 700;
-}
-
 .loading-bar {
   height: 8px;
   background: rgba(255, 255, 255, 0.07);

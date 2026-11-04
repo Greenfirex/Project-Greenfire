@@ -1,7 +1,7 @@
 // Sestaví soubor mapy z toho, co je v editoru — každá vrstva zůstane vrstvou, nic se nedopočítává.
 import { getMap } from './maps.js';
 
-export const MAP_VERSION = 6;
+export const MAP_VERSION = 8;
 
 export function isMapFile(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return false;

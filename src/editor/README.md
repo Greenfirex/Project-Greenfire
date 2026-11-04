@@ -54,6 +54,11 @@ Keře mají navíc hustotu, kolísání počtu a volbu střídání druhů podle
 Plocha je razítko: nové buňky vzniknou, existující se přepíšou i s objekty,
 mazání udělá v mapě skutečnou díru.
 
+Tráva má tři volby: **Květiny mezi stébly**, **Směs** (které druhy na ploše
+vyrostou — Automaticky se řídí polohou, jinak Pobřežní, Louka nebo Kapradiny)
+a **Vrstva** (Obojí / Jen trsy / Jen koberec). Směs i Vrstva se ukládají
+k buňce, takže vedle sebe může být holý trs bez koberce a koberec bez trsů.
+
 **Tvorové** se plní z katalogu tvorů. Každý tvor má vlastní tlačítko a v panelu
 se volí stáří. Na jedné buňce zůstane vždy jen jeden tvor; nový starý nahradí.
 V režimu Mazat se tvor odebere.

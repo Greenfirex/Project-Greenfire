@@ -2,6 +2,7 @@
 // Povrchový štětec se skládá ze seznamu podkladů, takže nový povrch stačí přidat v katalogu dekorací.
 import { surfaceEntries } from './decorations.js';
 import { FLOWER_KEYS } from './flowers.js';
+import { GRASS_MIXES } from './grass.js';
 import { CREATURE_KEYS, CREATURE_TYPES } from './creatures/index.js';
 import { HEIGHT_STEP } from '../maps/layoutStore.js';
 
@@ -10,6 +11,12 @@ const surfaceStyle = (entry) => entry.key.replace(/^floor_/, '');
 
 const SIZE_OPTION = { key: 'radius', label: 'Velikost', kind: 'range', min: 0, max: 3, step: 1, display: 'square' };
 const RANDOM_OPTION = { key: 'random', label: 'Náhodně střídat varianty', default: true };
+const GRASS_MIX_VALUES = Object.entries(GRASS_MIXES).map(([value, mix]) => ({ value, label: mix.label }));
+const GRASS_LAYER_VALUES = [
+  { value: 'both', label: 'Obojí' },
+  { value: 'plants', label: 'Jen trsy' },
+  { value: 'cover', label: 'Jen koberec' },
+];
 
 export const PAINT_TERRAIN = 'terrain';
 export const PAINT_DECORATIONS = 'decorations';
@@ -196,10 +203,15 @@ export const BRUSHES = {
   grass: {
     label: 'Tráva',
     group: 'Rostliny',
-    note: 'Zaseje stébla trávy; volitelně mezi ně přisype květiny.',
+    note: 'Zaseje porost; Směs určí, co na ploše vyroste, a Automaticky se řídí polohou (písek, stromy, skvrny).',
     shape: 'blob',
     flora: true,
-    option: { key: 'flowers', label: 'Květiny mezi stébly', default: true },
+    options: [
+      { key: 'flowers', label: 'Květiny mezi stébly', default: true },
+      { key: 'mix', label: 'Směs', kind: 'choice', default: 'auto', values: GRASS_MIX_VALUES },
+      { key: 'layer', label: 'Vrstva', kind: 'choice', default: 'both', values: GRASS_LAYER_VALUES },
+    ],
+    scatterGate: 'flowers',
     scatter: { pool: FLOWER_KEYS, chance: 0.12, min: 1, max: 2, spread: 0.9, scaleMin: 0.7, scaleMax: 1 },
   },
   ...(SURFACE_BRUSH ? { surface: SURFACE_BRUSH } : {}),

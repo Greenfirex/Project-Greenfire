@@ -784,7 +784,7 @@ export const DECORATION_TYPES = {
     kind: 'floor',
     surface: {
       label: 'Tráva',
-      texture: `${ASSET_DIRS.textures}Grass004_1K-JPG_Color.jpg`,
+      texture: `${ASSET_DIRS.textures}Grass001_1K-JPG_Color.jpg`,
       tile: 5.5,
       ambient: [0.08, 0.1, 0.08],
       mapTint: true,
@@ -797,7 +797,9 @@ export const DECORATION_TYPES = {
     blocks: false,
     kind: 'floor',
     surface: {
-      texture: `${ASSET_DIRS.textures}Ground080_1K-JPG_Color.jpg`,
+      texture: `${ASSET_DIRS.textures}Ground052_1K-JPG_Color.jpg`,
+      normal: `${ASSET_DIRS.textures}Ground052_1K-JPG_NormalGL.jpg`,
+      bumpSoftness: 2.4,
       tile: 3,
       ambient: [0.09, 0.08, 0.07],
       color: [1.05, 0.98, 0.86],

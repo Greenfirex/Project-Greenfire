@@ -19,9 +19,11 @@ import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
 import { groundCells, worldCells } from '../data/maps/areaShape.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import TerrainBlendPlugin from './terrainBlendPlugin.js';
+import TerrainGrassPlugin from './terrainGrassPlugin.js';
 import TerrainCausticPlugin from './terrainCausticPlugin.js';
 import TerrainWetPlugin from './terrainWetPlugin.js';
 import CliffSurfacePlugin from './cliffSurfacePlugin.js';
+import { GRASS_GROUND, grassGroundUrls } from '../data/catalogs/grass.js';
 
 const PICK_LIFT = 0.002;
 const GRID_LIFT = 0.02;
@@ -286,6 +288,8 @@ export default class TerrainSystem {
     this.materials = new Map();
     this.blendPlugins = new Map();
     this.blendTextures = new Map();
+    this.groundPatch = { patch: 1 };
+    this.grassGroundTex = null;
     this.weightTextures = [];
     this.causticPlugins = [];
     this.wetPlugins = [];
@@ -1937,6 +1941,15 @@ export default class TerrainSystem {
       const cfg = this.surfaceConfig(key);
       material = new StandardMaterial(`terrainSurfaceMat_${cacheKey}`, this.s);
       material.diffuseTexture = new Texture(cfg.texture, this.s);
+      if (cfg.normal) {
+        const bump = new Texture(cfg.normal, this.s);
+        bump.wrapU = Texture.WRAP_ADDRESSMODE;
+        bump.wrapV = Texture.WRAP_ADDRESSMODE;
+        bump.gammaSpace = false;
+        bump.anisotropicFilteringLevel = 4;
+        bump.level = cfg.bumpSoftness || 1;
+        material.bumpTexture = bump;
+      }
       material.specularColor = new Color3(0.02, 0.02, 0.02);
       material.ambientColor = color3(cfg.ambient || [0.08, 0.08, 0.07]);
       material.useVertexColor = true;
@@ -1946,6 +1959,13 @@ export default class TerrainSystem {
       this.materials.set(cacheKey, material);
       this.causticPlugins.push(new TerrainCausticPlugin(material));
       this.wetPlugins.push(new TerrainWetPlugin(material, cfg.wet === undefined ? 0.4 : cfg.wet));
+      if (key === DEFAULT_FLOOR) {
+        new TerrainGrassPlugin(material, {
+          textures: this.groundGrassTextures(),
+          tiles: GRASS_GROUND.tiles,
+          state: this.groundPatch,
+        });
+      }
       if (blend) {
         this.blendPlugins.set(cacheKey, new TerrainBlendPlugin(material, {
           texture: this.blendTextureFor(blend.partner),
@@ -1988,6 +2008,25 @@ export default class TerrainSystem {
     return texture;
   }
 
+  groundGrassTextures() {
+    if (this.grassGroundTex) return this.grassGroundTex;
+    this.grassGroundTex = grassGroundUrls().map((url) => new Texture(url, this.s));
+    return this.grassGroundTex;
+  }
+
+  grassShade(map) {
+    const tone = (map && map.colors && map.colors.surfaceTint) || [0.5, 0.62, 0.45];
+    return [
+      tone[0] * 2 * SURFACE_VERTEX_TINT[0],
+      tone[1] * 2 * SURFACE_VERTEX_TINT[1],
+      tone[2] * 2 * SURFACE_VERTEX_TINT[2],
+    ];
+  }
+
+  setGroundBlend(enabled) {
+    this.groundPatch.patch = enabled ? 1 : 0;
+  }
+
   updateCaustics(time, level, dirX, dirZ, color, strength, maxDepth) {
     for (const plugin of this.causticPlugins) {
       plugin.setCaustics(time, level, dirX, dirZ, color, strength, maxDepth);
@@ -2010,6 +2049,10 @@ export default class TerrainSystem {
       if (texture) texture.dispose();
     }
     this.blendTextures.clear();
+    if (this.grassGroundTex) {
+      for (const texture of this.grassGroundTex) texture.dispose();
+      this.grassGroundTex = null;
+    }
     if (this.skirtMaterial) {
       this.skirtMaterial.dispose(false, true);
       this.skirtMaterial = null;

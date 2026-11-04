@@ -32,9 +32,16 @@ const GRASS_LEVELS = [
   { value: 'high', label: 'Hustá', title: 'Plná tráva, doporučeno' },
 ];
 
+const FERN_MODES = [
+  { value: 'light', label: 'Lehká', title: 'Kapradina s 437 trojúhelníky, doporučeno' },
+  { value: 'detail', label: 'Detailní', title: 'Kapradina s 7 581 trojúhelníky, jen na vyzkoušení' },
+];
+
 const ITEMS = [
   { kind: 'choice', key: 'quality', tab: 'view', label: 'Kvalita obrazu', note: 'Nižší kvalita zmenší rozlišení, obraz bude měkčí.', options: QUALITIES },
   { kind: 'choice', key: 'grass', tab: 'view', label: 'Hustota trávy', note: 'Jak hustě se kreslí tráva, kterou namaluješ štětcem. Na mapě zůstane pořád.', options: GRASS_LEVELS },
+  { kind: 'choice', key: 'grassFern', tab: 'view', label: 'Kapradina', note: 'Lehká je na hraní, detailní je jen na porovnání vzhledu a výkonu.', options: FERN_MODES },
+  { kind: 'toggle', key: 'groundBlend', tab: 'view', label: 'Zem ze tří textur', note: 'Trávu na zemi míchají tři textury do velkých skvrn. Vypnutí ušetří výkon.' },
   { kind: 'choice', key: 'fpsCap', tab: 'view', label: 'Omezit snímky', note: 'Nižší číslo = chladnější počítač.', options: FPS_OPTIONS, numeric: true },
   { kind: 'toggle', key: 'shadows', tab: 'view', label: 'Stíny', note: 'Vypnutí nejvíc zrychlí hru, krajina bude plošší.' },
   { kind: 'toggle', key: 'fireGlow', tab: 'view', label: 'Záře ohně', note: 'Oheň a pochodně svítí do okolí. Vypnutí ušetří výkon.' },

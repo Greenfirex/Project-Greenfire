@@ -11,7 +11,7 @@ export const MAPS = {
       gridLine: [0.16, 0.22, 0.17],
       sky: [0.035, 0.045, 0.055],
       floorTile: [0.19, 0.28, 0.17],
-      surfaceTint: [0.42, 0.5, 0.36],
+      surfaceTint: [0.38, 0.45, 0.33],
       tintStrength: 0.85,
     },
     light: {

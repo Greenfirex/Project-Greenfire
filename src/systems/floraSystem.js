@@ -1,65 +1,168 @@
-// Kreslí trávu na buňkách, které jsou označené v mapě — stébla se houpou ve větru.
-// Rostliny se nikdy nevysévají samy; co v mapě není, to na zemi neroste.
+// Kreslí travnatý porost na buňkách označených v mapě — trsy se houpou ve větru.
+// Druh určuje poloha (písek, stromy, skvrny) nebo předvolba vybraná ve štětci.
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { Vector3, Matrix, Quaternion } from '@babylonjs/core/Maths/math.vector';
-import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { CELL_SIZE, worldToCell } from '../utils/gridMath.js';
+import { cellNoise, patchValue } from '../utils/decoPlacement.js';
 import { createGrassMaterial, tickGrass } from './grassShader.js';
+import { GRASS_TYPES, GRASS_MIXES, GRASS_ORDER, GRASS_COVER, GRASS_GROUND, grassGroundUrls } from '../data/catalogs/grass.js';
 
-const BLADE_HEIGHT = CELL_SIZE * 0.22;
-const BLADE_SEGMENTS = 3;
-const BLADE_WIDTH = CELL_SIZE * 0.028;
-const PER_TILE = { off: 0, medium: 121, high: 225 };
-const BLADE_CAP = 500000;
-const GRASS_BASE_TONE = new Color3(0.1, 0.24, 0.06);
 const GRASS_LIFT = 0.02;
 const TREE_CLEARANCE = 0.35;
 const CHUNK_CELLS = 8;
 const CHUNK_WORLD = CELL_SIZE * CHUNK_CELLS;
 const VIEW_MARGIN = 6;
 const VIEW_HYSTERESIS = 4;
-
-function bladeShape() {
-  const positions = [];
-  const uvs = [];
-  const normals = [];
-  const indices = [];
-  for (let s = 0; s <= BLADE_SEGMENTS; s += 1) {
-    const t = s / BLADE_SEGMENTS;
-    const x = BLADE_WIDTH * 0.5 * (1 - Math.pow(t, 1.8) * 0.97);
-    positions.push(-x, BLADE_HEIGHT * t, 0, x, BLADE_HEIGHT * t, 0);
-    uvs.push(0, t, 1, t);
-    normals.push(0, 0, 1, 0, 0, 1);
-    if (s > 0) {
-      const a = (s - 1) * 2;
-      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-    }
-  }
-  return { positions, uvs, normals, indices };
-}
-
-function hash(cx, cz, salt) {
-  const n = Math.sin(cx * 127.1 + cz * 311.7 + salt * 74.7) * 43758.5453;
-  return n - Math.floor(n);
-}
-
-function groundColor(scene) {
-  const mat = scene?.getMeshByName?.('terrainSurface')?.material;
-  if (!mat || !mat.diffuseColor) return new Color3(0.5, 0.66, 0.28);
-  return new Color3(
-    Math.min(mat.diffuseColor.r * 1.9, 0.62),
-    Math.min(mat.diffuseColor.g * 1.9, 0.78),
-    Math.min(mat.diffuseColor.b * 1.7, 0.36),
-  );
-}
+const SLOT_CAP = 500000;
+const COVER_SEGMENTS = 2;
+const COVER_BLADES = 4;
+const COVER_WIDTH = 0.022;
+const AUTO_WEIGHTS = { broadleaf: 3, cushion: 4, fern: 1 };
 
 function isFree(deco, cx, cz) {
   if (deco.isBlocked(cx, cz) && !deco.isTreeCell(cx, cz)) return false;
   if (deco.surfaceKeyAt(cx, cz)) return false;
   return true;
+}
+
+function neighbourSurface(deco, cx, cz) {
+  for (let dx = -1; dx <= 1; dx += 1) {
+    for (let dz = -1; dz <= 1; dz += 1) {
+      if (!dx && !dz) continue;
+      if (deco.surfaceKeyAt(cx + dx, cz + dz)) return true;
+    }
+  }
+  return false;
+}
+
+function neighbourCover(deco, cx, cz) {
+  for (let dx = -1; dx <= 1; dx += 1) {
+    for (let dz = -1; dz <= 1; dz += 1) {
+      if (!dx && !dz) continue;
+      if (deco.isTreeCell(cx + dx, cz + dz)) return true;
+      if (deco.isBlocked(cx + dx, cz + dz)) return true;
+    }
+  }
+  return false;
+}
+
+function coverShape(height) {
+  const positions = [];
+  const uvs = [];
+  const normals = [];
+  const indices = [];
+  for (let blade = 0; blade < COVER_BLADES; blade += 1) {
+    const angle = (blade / COVER_BLADES) * Math.PI * 2;
+    const dirX = Math.cos(angle);
+    const dirZ = Math.sin(angle);
+    const normalX = -dirZ;
+    const normalZ = dirX;
+    const offset = positions.length / 3;
+    for (let s = 0; s <= COVER_SEGMENTS; s += 1) {
+      const t = s / COVER_SEGMENTS;
+      const half = COVER_WIDTH * 0.5 * (1 - Math.pow(t, 1.6) * 0.9);
+      const baseX = dirX * 0.015;
+      const baseZ = dirZ * 0.015;
+      positions.push(
+        baseX - dirX * half, height * t, baseZ - dirZ * half,
+        baseX + dirX * half, height * t, baseZ + dirZ * half,
+      );
+      uvs.push(0, t, 1, t);
+      normals.push(normalX, 0, normalZ, normalX, 0, normalZ);
+      if (s > 0) {
+        const a = offset + (s - 1) * 2;
+        indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      }
+    }
+  }
+  return { positions, uvs, normals, indices, height };
+}
+
+function fitShape(shape, height) {
+  const positions = shape.positions;
+  const count = positions.length / 3;
+  if (!count) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let minZ = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let maxZ = -Infinity;
+  for (let i = 0; i < count; i += 1) {
+    const x = positions[i * 3];
+    const y = positions[i * 3 + 1];
+    const z = positions[i * 3 + 2];
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+    if (z < minZ) minZ = z;
+    if (z > maxZ) maxZ = z;
+  }
+  const span = maxY - minY;
+  const scale = span > 0.0001 ? height / span : 1;
+  const centerX = (minX + maxX) * 0.5;
+  const centerZ = (minZ + maxZ) * 0.5;
+  for (let i = 0; i < count; i += 1) {
+    positions[i * 3] = (positions[i * 3] - centerX) * scale;
+    positions[i * 3 + 1] = (positions[i * 3 + 1] - minY) * scale;
+    positions[i * 3 + 2] = (positions[i * 3 + 2] - centerZ) * scale;
+  }
+  return { positions, normals: shape.normals, uvs: shape.uvs, indices: shape.indices, height };
+}
+
+function extractShape(template, height) {
+  const positions = [];
+  const normals = [];
+  const uvs = [];
+  const indices = [];
+  for (const mesh of template.getChildMeshes()) {
+    if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0) continue;
+    const data = VertexData.ExtractFromMesh(mesh, true, true);
+    if (!data || !data.positions) continue;
+    const world = mesh.computeWorldMatrix(true);
+    const normalMatrix = Matrix.Transpose(Matrix.Invert(world));
+    const offset = positions.length / 3;
+    const count = data.positions.length / 3;
+    for (let i = 0; i < count; i += 1) {
+      const point = Vector3.TransformCoordinates(
+        new Vector3(data.positions[i * 3], data.positions[i * 3 + 1], data.positions[i * 3 + 2]),
+        world,
+      );
+      positions.push(point.x, point.y, point.z);
+      if (data.normals) {
+        const normal = Vector3.TransformNormal(
+          new Vector3(data.normals[i * 3], data.normals[i * 3 + 1], data.normals[i * 3 + 2]),
+          normalMatrix,
+        );
+        if (normal.lengthSquared() > 0) normal.normalize();
+        normals.push(normal.x, normal.y, normal.z);
+      } else {
+        normals.push(0, 1, 0);
+      }
+      uvs.push(data.uvs ? data.uvs[i * 2] : 0, data.uvs ? data.uvs[i * 2 + 1] : 0);
+    }
+    if (data.indices) {
+      for (const index of data.indices) indices.push(index + offset);
+    } else {
+      for (let i = 0; i < count; i += 1) indices.push(offset + i);
+    }
+  }
+  return fitShape({ positions, normals, uvs, indices }, height);
+}
+
+function templateTexture(template) {
+  for (const mesh of template.getChildMeshes()) {
+    const material = mesh.material;
+    if (!material) continue;
+    const texture = material.albedoTexture || material.diffuseTexture || material.baseTexture || null;
+    if (texture) return texture;
+  }
+  return null;
 }
 
 export default class FloraSystem {
@@ -68,24 +171,31 @@ export default class FloraSystem {
     this.s = scene;
     this.deco = null;
     this.density = 'high';
+    this.models = null;
+    this.assets = new Map();
     this.grass = null;
-    this.slots = [];
-    this.grassMeshes = [];
     this.chunks = [];
-    this.grassMaterial = null;
+    this.grassMeshes = [];
     this.viewProvider = null;
     this.observer = null;
+    this.groundTex = null;
+    this.shade = [1, 1, 1];
+    this.groundPatch = true;
     this.clock = 0;
     this.lastTime = performance.now();
     this.dayness = 1;
     this.sunDirection = new Vector3(0.35, 1, 0.25).normalize();
   }
 
-  create(deco, density = 'high', viewProvider = null) {
+  create(deco, density = 'high', viewProvider = null, models = null, look = null) {
     this.dispose();
     this.deco = deco;
     this.density = density;
     this.viewProvider = viewProvider;
+    this.models = models && models.length ? models : null;
+    const shade = look && look.shade ? look.shade : null;
+    this.shade = shade && shade.length === 3 ? shade : [1, 1, 1];
+    this.groundPatch = !(look && look.groundPatch === false);
     this.build();
   }
 
@@ -104,14 +214,19 @@ export default class FloraSystem {
     if (this.grass && !this.grass.isDisposed()) this.grass.dispose(false, false);
     this.grass = null;
     for (const chunk of this.chunks) {
-      if (chunk.mesh && !chunk.mesh.isDisposed()) chunk.mesh.dispose(false, false);
-      chunk.mesh = null;
+      for (const part of chunk.parts) {
+        if (part.mesh && !part.mesh.isDisposed()) part.mesh.dispose(false, false);
+        part.mesh = null;
+      }
     }
     this.chunks.length = 0;
     this.grassMeshes.length = 0;
-    this.slots.length = 0;
-    if (this.grassMaterial) this.grassMaterial.dispose();
-    this.grassMaterial = null;
+    for (const asset of this.assets.values()) {
+      for (const variant of asset.variants) {
+        if (variant.material) variant.material.dispose(false, false);
+      }
+    }
+    this.assets.clear();
   }
 
   setDensity(density) {
@@ -135,16 +250,72 @@ export default class FloraSystem {
   }
 
   buildGrass() {
-    if (!this.deco || !PER_TILE[this.density]) return [];
+    if (!this.deco || this.density === 'off') return [];
     if (this.grassMeshes.length) return this.grassMeshes.slice();
+    this.buildAssets();
+    if (!this.assets.size) return [];
     const cells = this.patchCells();
     if (!cells.length) return [];
-    this.makeBlades(cells);
-    this.createGrassChunks();
+    const slots = this.makeClumps(cells);
+    if (!slots.length) return [];
+    this.lastTime = performance.now();
     this.grass = new TransformNode('grassPatches', this.s);
-    for (const mesh of this.grassMeshes) mesh.parent = this.grass;
+    this.buildChunks(slots, 'cell');
     this.animate();
     return this.grassMeshes.slice();
+  }
+
+  buildAssets() {
+    this.buildCover();
+    if (!this.models) return;
+    for (const entry of this.models) {
+      const type = GRASS_TYPES[entry.species];
+      if (!type || !entry.template) continue;
+      const texture = templateTexture(entry.template);
+      if (!texture) continue;
+      const shape = extractShape(entry.template, type.height);
+      if (!shape) continue;
+      const material = createGrassMaterial(this.s, {
+        name: `grassMat_${entry.species}`,
+        height: shape.height,
+        tint: this.scaledTint(type.tint, type.gain || 1),
+        texture,
+        lightDir: this.sunDirection,
+      });
+      let asset = this.assets.get(entry.species);
+      if (!asset) {
+        asset = { variants: [] };
+        this.assets.set(entry.species, asset);
+      }
+      asset.variants.push({ shape, material });
+    }
+  }
+
+  buildCover() {
+    if (!GRASS_COVER.perCell[this.density]) return;
+    const textures = this.groundTextures();
+    if (!textures.length) return;
+    const material = createGrassMaterial(this.s, {
+      name: 'grassMatCover',
+      height: GRASS_COVER.height,
+      tint: this.scaledTint(GRASS_COVER.tint),
+      lightDir: this.sunDirection,
+      ground: { textures, tiles: GRASS_GROUND.tiles, patch: this.groundPatch },
+    });
+    this.assets.set('cover', { variants: [{ shape: coverShape(GRASS_COVER.height), material }] });
+  }
+
+  groundTextures() {
+    if (this.groundTex && this.groundTex.length) return this.groundTex;
+    this.groundTex = grassGroundUrls().map((url) => new Texture(url, this.s));
+    return this.groundTex;
+  }
+
+  scaledTint(base, gain = 1) {
+    const tint = base || [1, 1, 1];
+    const shade = this.shade || [1, 1, 1];
+    const scale = GRASS_GROUND.gain * gain;
+    return [tint[0] * shade[0] * scale, tint[1] * shade[1] * scale, tint[2] * shade[2] * scale];
   }
 
   patchCells() {
@@ -153,45 +324,111 @@ export default class FloraSystem {
     const cells = [];
     for (const entry of layout.grass || []) {
       if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
-      cells.push([entry.cx, entry.cz]);
+      cells.push({ cx: entry.cx, cz: entry.cz, mix: entry.mix || 'auto', layer: entry.layer || 'both' });
     }
     return cells;
   }
 
-  makeBlades(cells) {
-    const perTile = PER_TILE[this.density];
-    const budget = Math.floor(BLADE_CAP / cells.length);
-    const side = Math.max(1, Math.floor(Math.sqrt(Math.min(perTile, budget))));
-    const bladesPerTile = side * side;
+  pickWeighted(weights, cx, cz) {
+    const keys = Object.keys(weights);
+    let total = 0;
+    for (const key of keys) total += weights[key];
+    if (!total) return keys[0] || null;
+    const value = patchValue(cx, cz) * total;
+    let sum = 0;
+    for (const key of keys) {
+      sum += weights[key];
+      if (value <= sum) return key;
+    }
+    return keys[keys.length - 1];
+  }
+
+  resolveSpecies(name) {
+    if (this.assets.has(name)) return name;
+    for (const key of GRASS_ORDER) {
+      if (this.assets.has(key)) return key;
+    }
+    return null;
+  }
+
+  speciesAt(cell) {
+    const mix = GRASS_MIXES[cell.mix] ? cell.mix : 'auto';
+    const weights = GRASS_MIXES[mix].weights;
+    if (weights) return this.resolveSpecies(this.pickWeighted(weights, cell.cx, cell.cz));
+    if (neighbourSurface(this.deco, cell.cx, cell.cz)) return this.resolveSpecies('coastal');
+    if (neighbourCover(this.deco, cell.cx, cell.cz)) return this.resolveSpecies('fern');
+    return this.resolveSpecies(this.pickWeighted(AUTO_WEIGHTS, cell.cx, cell.cz));
+  }
+
+  makeClumps(cells) {
+    const slots = [];
+    const cover = this.assets.get('cover');
+    for (const cell of cells) {
+      if (slots.length >= SLOT_CAP) break;
+      if (!isFree(this.deco, cell.cx, cell.cz)) continue;
+      if (cover && cell.layer !== 'plants') this.addCoverSlots(slots, cell);
+      if (cell.layer === 'cover') continue;
+      const species = this.speciesAt(cell);
+      if (!species) continue;
+      const type = GRASS_TYPES[species];
+      const count = type.perCell[this.density] || type.perCell.high || 1;
+      const variants = this.assets.get(species).variants.length;
+      const side = Math.max(1, Math.ceil(Math.sqrt(count)));
+      const step = CELL_SIZE / side;
+      for (let index = 0; index < count; index += 1) {
+        if (slots.length >= SLOT_CAP) break;
+        const slot = this.makeSlot(cell, index, side, step, species, variants);
+        if (slot) slots.push(slot);
+      }
+    }
+    return slots;
+  }
+
+  addCoverSlots(slots, cell) {
+    const count = GRASS_COVER.perCell[this.density] || 0;
+    const side = Math.max(1, Math.ceil(Math.sqrt(count)));
     const step = CELL_SIZE / side;
-    let index = 0;
-    for (const [cx, cz] of cells) {
-      if (!this.tileFree(cx, cz)) {
-        index += bladesPerTile;
-        continue;
-      }
-      for (let cell = 0; cell < side; cell += 1) {
-        for (let row = 0; row < side; row += 1) {
-          if (this.slots.length >= BLADE_CAP) return;
-          const slot = this.makeSlot(cx, cz, index, cell, row, step);
-          index += 1;
-          if (slot) this.slots.push(slot);
-        }
-      }
+    for (let index = 0; index < count; index += 1) {
+      if (slots.length >= SLOT_CAP) return;
+      const column = index % side;
+      const row = Math.floor(index / side);
+      const jitterX = (cellNoise(cell.cx * 131 + index, cell.cz, 11) - 0.5) * step * 0.95;
+      const jitterZ = (cellNoise(cell.cx, cell.cz * 137 + index, 13) - 0.5) * step * 0.95;
+      const x = cell.cx * CELL_SIZE - CELL_SIZE * 0.5 + (column + 0.5) * step + jitterX;
+      const z = cell.cz * CELL_SIZE - CELL_SIZE * 0.5 + (row + 0.5) * step + jitterZ;
+      const slot = this.slotAt(
+        x,
+        z,
+        'cover',
+        0,
+        0.8 + cellNoise(cell.cx + index, cell.cz * 7 + index, 79) * 0.5,
+        cellNoise(cell.cx * 3 + index, cell.cz, 83) * Math.PI * 2,
+        cellNoise(cell.cx, cell.cz + index * 5, 89),
+      );
+      if (slot) slots.push(slot);
     }
   }
 
-  tileFree(cx, cz) {
-    return isFree(this.deco, cx, cz);
+  makeSlot(cell, index, side, step, species, variants) {
+    const column = index % side;
+    const row = Math.floor(index / side);
+    const jitterX = (cellNoise(cell.cx * 31 + index, cell.cz, 3) - 0.5) * step * 0.9;
+    const jitterZ = (cellNoise(cell.cx, cell.cz * 37 + index, 7) - 0.5) * step * 0.9;
+    const x = cell.cx * CELL_SIZE - CELL_SIZE * 0.5 + (column + 0.5) * step + jitterX;
+    const z = cell.cz * CELL_SIZE - CELL_SIZE * 0.5 + (row + 0.5) * step + jitterZ;
+    const variant = Math.min(variants - 1, Math.floor(cellNoise(cell.cx, cell.cz * 13 + index, 61) * variants));
+    return this.slotAt(
+      x,
+      z,
+      species,
+      variant,
+      0.75 + cellNoise(cell.cx + index, cell.cz, 67) * 0.5,
+      cellNoise(cell.cx, cell.cz + index, 71) * Math.PI * 2,
+      cellNoise(cell.cx + index, cell.cz + index, 73),
+    );
   }
 
-  makeSlot(cx, cz, seed, cell, row, step) {
-    const tx = cx * CELL_SIZE;
-    const tz = cz * CELL_SIZE;
-    const jitterX = (hash(seed, cell, 3) - 0.5) * step * 0.9;
-    const jitterZ = (hash(seed, row, 7) - 0.5) * step * 0.9;
-    const x = tx - CELL_SIZE * 0.5 + (cell + 0.5) * step + jitterX;
-    const z = tz - CELL_SIZE * 0.5 + (row + 0.5) * step + jitterZ;
+  slotAt(x, z, species, variant, size, yaw, lean) {
     const gx = worldToCell(x);
     const gz = worldToCell(z);
     if (!isFree(this.deco, gx, gz)) return null;
@@ -201,103 +438,71 @@ export default class FloraSystem {
       if (dx * dx + dz * dz < TREE_CLEARANCE * TREE_CLEARANCE) return null;
     }
     const ground = this.deco.groundHeightAt ? this.deco.groundHeightAt(x, z) : this.deco.topAt(gx, gz);
-    return {
-      x,
-      z,
-      y: ground + GRASS_LIFT,
-      size: 0.6 + hash(seed, row + cell, 5) * 0.8,
-      yaw: hash(seed, cell, 13) * Math.PI * 2,
-      lean: hash(seed, row, 17),
-    };
+    return { x, z, y: ground + GRASS_LIFT, species, variant, size, yaw, lean };
   }
 
-  createGrassChunks() {
-    const shape = bladeShape();
-    const material = createGrassMaterial(this.s, {
-      height: BLADE_HEIGHT,
-      base: groundColor(this.s),
-      root: GRASS_BASE_TONE,
-      lightDir: this.sunDirection,
-    });
-    this.grassMaterial = material;
-    const groups = new Map();
-    for (const slot of this.slots) {
+  buildChunks(slots, prefix) {
+    const chunks = new Map();
+    for (const slot of slots) {
       const gx = Math.floor(slot.x / CHUNK_WORLD);
       const gz = Math.floor(slot.z / CHUNK_WORLD);
-      const key = `${gx},${gz}`;
-      let chunk = groups.get(key);
+      const chunkKey = `${prefix}_${gx},${gz}`;
+      let chunk = chunks.get(chunkKey);
       if (!chunk) {
-        chunk = { key, minX: gx * CHUNK_WORLD, minZ: gz * CHUNK_WORLD, slots: [], mesh: null, enabled: false };
-        groups.set(key, chunk);
-      }
-      chunk.slots.push(slot);
-    }
-    for (const chunk of groups.values()) this.createChunkMesh(chunk, shape, material);
-  }
-
-  addShelfGrass(anchors) {
-    if (!this.grassMeshes.length || !anchors || !anchors.length) return;
-    const shape = bladeShape();
-    const material = this.grassMeshes[0].material;
-    const groups = new Map();
-    for (const anchor of anchors) {
-      if (!anchor || (anchor.depth || 0) < 0.12) continue;
-      if (hash(anchor.x, anchor.z, 3.7) > 0.45) continue;
-      const count = 4 + Math.floor(hash(anchor.x, anchor.z, 5.1) * 5);
-      for (let index = 0; index < count; index += 1) {
-        const spread = (hash(anchor.x, anchor.z, index + 11) - 0.5) * 0.9;
-        const inset = hash(anchor.x, anchor.z, index + 21) * anchor.depth * 0.8;
-        const x = anchor.x - anchor.dirX * inset - anchor.dirZ * spread;
-        const z = anchor.z - anchor.dirZ * inset + anchor.dirX * spread;
-        const slot = {
-          x,
-          y: anchor.y + GRASS_LIFT,
-          z,
-          size: 0.8 + hash(anchor.x, anchor.z, index + 31) * 0.5,
-          yaw: hash(anchor.x, anchor.z, index + 41) * Math.PI * 2,
-          lean: (hash(anchor.x, anchor.z, index + 51) - 0.5) * 0.6,
+        chunk = {
+          key: chunkKey,
+          minX: gx * CHUNK_WORLD,
+          minZ: gz * CHUNK_WORLD,
+          parts: [],
+          partMap: new Map(),
+          enabled: false,
         };
-        const gx = Math.floor(x / CHUNK_WORLD);
-        const gz = Math.floor(z / CHUNK_WORLD);
-        const key = `shelf_${gx},${gz}`;
-        let chunk = groups.get(key);
-        if (!chunk) {
-          chunk = { key, minX: gx * CHUNK_WORLD, minZ: gz * CHUNK_WORLD, slots: [], mesh: null, enabled: false };
-          groups.set(key, chunk);
-        }
-        chunk.slots.push(slot);
+        chunks.set(chunkKey, chunk);
       }
+      const partKey = `${slot.species}_${slot.variant}`;
+      let part = chunk.partMap.get(partKey);
+      if (!part) {
+        part = { species: slot.species, variant: slot.variant, slots: [], mesh: null };
+        chunk.partMap.set(partKey, part);
+        chunk.parts.push(part);
+      }
+      part.slots.push(slot);
     }
-    for (const chunk of groups.values()) {
-      this.createChunkMesh(chunk, shape, material);
-      if (chunk.mesh && this.grass) chunk.mesh.parent = this.grass;
+    for (const chunk of chunks.values()) {
+      chunk.partMap = null;
+      for (const part of chunk.parts) this.createPartMesh(chunk, part);
+      this.chunks.push(chunk);
     }
   }
 
-  createChunkMesh(chunk, shape, material) {
-    const mesh = new Mesh(`wildGrass_${chunk.key}`, this.s);
+  createPartMesh(chunk, part) {
+    const asset = this.assets.get(part.species);
+    if (!asset) return;
+    const variant = asset.variants[part.variant] || asset.variants[0];
+    const mesh = new Mesh(`wildGrass_${chunk.key}_${part.species}_${part.variant}`, this.s);
     const data = new VertexData();
-    data.positions = shape.positions;
-    data.uvs = shape.uvs;
-    data.normals = shape.normals;
-    data.indices = shape.indices;
+    data.positions = variant.shape.positions;
+    data.uvs = variant.shape.uvs;
+    data.normals = variant.shape.normals;
+    data.indices = variant.shape.indices;
     data.applyToMesh(mesh);
-    mesh.material = material;
+    mesh.material = variant.material;
     mesh.isPickable = false;
     mesh.receiveShadows = false;
     mesh.alwaysSelectAsActiveMesh = true;
     mesh.setEnabled(false);
-    chunk.mesh = mesh;
-    this.writeChunk(chunk);
+    mesh.parent = this.grass;
+    part.mesh = mesh;
+    this.writePart(part);
     this.grassMeshes.push(mesh);
-    this.chunks.push(chunk);
   }
 
-  writeChunk(chunk) {
-    const total = chunk.slots.length;
+  writePart(part) {
+    if (!part.mesh) return;
+    const total = part.slots.length;
     const matrices = new Float32Array(total * 16);
-    for (let i = 0; i < total; i += 1) this.bladeMatrix(chunk.slots[i]).copyToArray(matrices, i * 16);
-    chunk.mesh.thinInstanceSetBuffer('matrix', matrices, 16, false);
+    for (let i = 0; i < total; i += 1) this.clumpMatrix(part.slots[i]).copyToArray(matrices, i * 16);
+    part.mesh.thinInstanceSetBuffer('matrix', matrices, 16, false);
   }
 
   updateView(view) {
@@ -311,30 +516,32 @@ export default class FloraSystem {
       if (chunk.enabled) {
         if (distance <= outer) continue;
         chunk.enabled = false;
-        chunk.mesh.setEnabled(false);
+        for (const part of chunk.parts) if (part.mesh) part.mesh.setEnabled(false);
         continue;
       }
       if (distance > inner) continue;
       chunk.enabled = true;
-      chunk.mesh.setEnabled(true);
+      for (const part of chunk.parts) if (part.mesh) part.mesh.setEnabled(true);
     }
   }
 
   reseatHeights() {
     if (!this.deco || !this.chunks.length) return;
     for (const chunk of this.chunks) {
-      for (const slot of chunk.slots) {
-        const ground = this.deco.groundHeightAt ? this.deco.groundHeightAt(slot.x, slot.z) : slot.y;
-        slot.y = ground + GRASS_LIFT;
+      for (const part of chunk.parts) {
+        for (const slot of part.slots) {
+          const ground = this.deco.groundHeightAt ? this.deco.groundHeightAt(slot.x, slot.z) : slot.y;
+          slot.y = ground + GRASS_LIFT;
+        }
+        this.writePart(part);
       }
-      this.writeChunk(chunk);
     }
   }
 
-  bladeMatrix(slot) {
+  clumpMatrix(slot) {
     const size = slot.size || 1;
     const yaw = slot.yaw || 0;
-    const lean = (slot.lean || 0) * 0.35;
+    const lean = (slot.lean || 0) * 0.22;
     const tilt = Quaternion.RotationAxis(new Vector3(Math.cos(yaw), 0, Math.sin(yaw)), lean);
     const turn = Quaternion.RotationAxis(Vector3.Up(), yaw);
     return Matrix.Compose(
@@ -344,6 +551,36 @@ export default class FloraSystem {
     );
   }
 
+  addShelfGrass(anchors) {
+    if (!this.deco || !this.assets.size || !this.grass || !anchors || !anchors.length) return;
+    const species = this.assets.has('cushion') ? 'cushion' : this.resolveSpecies('fern');
+    if (!species) return;
+    const variants = this.assets.get(species).variants.length;
+    const slots = [];
+    for (const anchor of anchors) {
+      if (!anchor || (anchor.depth || 0) < 0.12) continue;
+      if (cellNoise(anchor.x, anchor.z, 3.7) > 0.45) continue;
+      const count = 2 + Math.floor(cellNoise(anchor.x, anchor.z, 5.1) * 3);
+      for (let index = 0; index < count; index += 1) {
+        const spread = (cellNoise(anchor.x, anchor.z, index + 11) - 0.5) * 0.9;
+        const inset = cellNoise(anchor.x, anchor.z, index + 21) * anchor.depth * 0.8;
+        const x = anchor.x - anchor.dirX * inset - anchor.dirZ * spread;
+        const z = anchor.z - anchor.dirZ * inset + anchor.dirX * spread;
+        slots.push({
+          x,
+          z,
+          y: anchor.y + GRASS_LIFT,
+          species,
+          variant: Math.min(variants - 1, Math.floor(cellNoise(anchor.x, anchor.z, index + 31) * variants)),
+          size: 0.8 + cellNoise(anchor.x, anchor.z, index + 41) * 0.4,
+          yaw: cellNoise(anchor.x, anchor.z, index + 51) * Math.PI * 2,
+          lean: (cellNoise(anchor.x, anchor.z, index + 61) - 0.5) * 0.6,
+        });
+      }
+    }
+    if (slots.length) this.buildChunks(slots, 'shelf');
+  }
+
   animate() {
     if (this.observer) return;
     this.observer = this.s.onBeforeRenderObservable.add(() => {
@@ -351,11 +588,14 @@ export default class FloraSystem {
       this.clock += Math.min((now - this.lastTime) / 1000, 0.1);
       this.lastTime = now;
       if (this.viewProvider) this.updateView(this.viewProvider());
-      const mat = this.grassMeshes[0]?.material;
-      if (mat) {
-        tickGrass(mat, this.clock);
-        mat.setFloat('dayness', this.dayness);
-        mat.setVector3('lightDir', this.sunDirection);
+      for (const asset of this.assets.values()) {
+        for (const variant of asset.variants) {
+          const material = variant.material;
+          if (!material) continue;
+          tickGrass(material, this.clock);
+          material.setFloat('dayness', this.dayness);
+          material.setVector3('lightDir', this.sunDirection);
+        }
       }
     });
   }
