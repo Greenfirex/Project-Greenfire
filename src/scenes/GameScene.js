@@ -39,6 +39,7 @@ import HarvestSystem from '../systems/harvestSystem.js';
 import FootprintSystem from '../systems/footprintSystem.js';
 import InventorySystem from '../systems/inventorySystem.js';
 import HeldItemSystem from '../systems/heldItemSystem.js';
+import WaveSpraySystem from '../systems/waveSpraySystem.js';
 import AudioSystem from '../systems/audioSystem.js';
 import InventoryWindow from '../ui/inventoryWindow.js';
 import CharacterWindow from '../ui/characterWindow.js';
@@ -154,6 +155,7 @@ export default class GameScene {
     this.gridSystem = new GridSystem(scene);
     this.terrainSystem = new TerrainSystem(scene);
     this.waterSystem = new WaterSystem(scene);
+    this.waveSpray = new WaveSpraySystem(scene);
     this.fishSystem = new FishSystem(scene);
     this.creatureSystem = new CreatureSystem(scene);
     this.skySystem = new SkySystem(scene);
@@ -319,6 +321,7 @@ export default class GameScene {
         if (this.editor.active) {
           this.updateEditorCamera(dt);
           this.waterSystem.update(dt);
+          this.updateWaveSpray();
           this.decoSystem.updateWind(this.floraSystem.clock);
           this.updateWaterCaustics();
           this.editor.updateHeightLabels();
@@ -350,6 +353,7 @@ export default class GameScene {
       const root = this.playerSystem.root;
       this.campfireSystem.update(dt, root);
       this.waterSystem.update(dt);
+      this.updateWaveSpray();
       this.fishSystem.update(dt);
       this.updateWaterCaustics();
       this.updateCampfireSound(root);
@@ -1338,10 +1342,17 @@ export default class GameScene {
     this.waterSystem.setDayness(this.waterDayness());
     this.waterSystem.setSkyTint(this.skySystem.tint());
     this.waterSystem.create(this.terrainSystem.groundCells, level, (x, z) => this.terrainSystem.heightAt(x, z), rgb, quality);
+    this.waveSpray.build(this.waterSystem);
     this.refreshWaterVisibility();
     this.refreshFish();
     this.refreshReflectionExclusions();
     this.rescuePlayerFromWater();
+  }
+
+  updateWaveSpray() {
+    const camera = this.s.activeCamera;
+    if (!camera) return;
+    this.waveSpray.update(camera.position.x, camera.position.z);
   }
 
   refreshFish() {

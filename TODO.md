@@ -23,6 +23,10 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 - [ ] Doladit barvy a průhlednost značek živého a čekajícího tvora podle vizuálního testu.
 
+## Voda
+
+- [ ] Doladit po novém vlnění: sytost barvy podle hloubky, síla nábřežní pěny a lesk slunce.
+
 ## Tvorové a boj
 
 ### Etapa 3 — kořist

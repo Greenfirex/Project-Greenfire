@@ -348,10 +348,47 @@ doladění a práce mimo tento plán.
 - Voda má vlastní program pro orthografickou kameru; hotový Babylon
   WaterMaterial se nepoužívá, protože počítá odlesky z pozice kamery a na
   ortho kameře dělá bílé pruhy a zrcadlové fleky.
+- Vlny se počítají ze vzdálenosti od břehu, ne z pevného směru: hřebeny jsou
+  obrysy ostrova, takže na každé straně běží ke břehu, stáčí se kolem mysů
+  a v zálivech se sbíhají. Fáze se láme po celých periodách (8 s), takže
+  hladina nikdy „necukne“.
+- Vzdálenost od břehu se měří v metrech jako vzdálenost k nejbližší zemi;
+  jemný šum na ní dělá nepravidelné hřebeny. Velký šum se u břehu vypíná
+  (aby zůstal obrys čistý), ale drobný šum o vlnové délce pár metrů zůstává
+  — díky němu se kraj vody a pěny na rovném břehu nevlní geometricky přesně.
+  Hřebeny se u břehu zvedají a zostřují.
+- Zvednutí hladiny i sklon pro světlo počítá stejný vzorec — vysoký hřeben
+  má i strmé světlo. Vlnky kratší než 5,6 m jsou jen v šumu programu, protože
+  na ně síť hladiny nemá dost vrcholů; světlo, odlesk i pěna je počítají dál.
+- Všechny vlny mají dobu oběhu 4 s, takže devítimetrová vlna běží 2,25 m/s;
+  hřebeny se ve vodě hýbou svižně a pěna se posouvá ke břehu 0,5 m/s.
+- Útes a pláž se poznají podle sklonu břehu: kde země u vody stoupá aspoň o
+  1,2 m, je to skála. Vlna se tam vyzdvihne a rozbije (a stříká), nábřežní
+  krajková pěna se tam naopak vypne.
+- Pěna jde ze stejných vln: nábřežní linka se přelévá podle vzdálenosti od
+  břehu a sahá až k vodní linii, hřebeny se lámou tam, kam skutečně dorazí.
+  Její okraj se navíc pomalu posouvá v rytmu vln, takže se voda na písku
+  rozlévá nerovnoměrně, ne jako rovná čára. V hluboké vodě zůstávají jen
+  slabé bílé hřebeny.
+- Vzorek pěny i jemných vlnek se posouvá jedním společným směrem podle
+  převládajícího sklonu břehu. Kdyby se posouval v každém místě podle
+  místního sklonu, na zakřiveném pobřeží by se vzorek mezi sousedními místy
+  roztřepil — čím déle by hra běžela, tím víc.
+- Pěna se nikdy nekreslí nad suchou zemí (jen tam, kde je pod ní voda nebo
+  kde se hladina u útesu dotahuje ke stěně).
 - Odraz se bere z odrazové sondy nad středem vody. Do odrazu jdou terén
-  a objekty; obloha je barva.
+  a objekty; obloha je barva. Síla zrcadlení se počítá z hladké vlny, ne
+  z jemných vlnek, takže odlesk je plynulý: rovná hladina drží hlubokou
+  barvu a zrcadlí se hlavně šikmé vlny.
+- Slunce dělá široký lesk a řídké jiskřičky na několika metrech; drobný lesk
+  i jiskřičky se při oddálení kamery tlumí, aby nekmitaly.
+- Jemné vlnky jsou součet deseti krátkých vln (0,78 až 0,15 m). Jejich směr
+  se řídí směrem velkých vln (ze tří čtvrtin převládajícím směrem moře,
+  ze čtvrtiny místním), takže se s vlněním stáčejí kolem ostrova. Délky jsou
+  nesouměřitelné a souřadnice se ještě jemně vlní, aby nevznikla pravidelná
+  mřížka. Vlnka se vypne, když je na obrazovce menší než ~18 pixelů.
 - Hloubka se bere z terénu pod hladinou; kde je mělko, prosvítá dno, hloubka
-  tmavne. Pěna u břehu je součástí vodního programu.
+  plynule tmavne. Pěna u břehu je součástí vodního programu.
 - Hustota vodní sítě jde podle kvality: vysoká 0,5 m, střední 1 m, nízká 2 m.
 - Obloha je SkyMaterial bez textury a nahrazuje jednobarevné nebe; voda
   z ní bere jen barvu.
@@ -385,8 +422,7 @@ doladění a práce mimo tento plán.
 - `@babylonjs/inspector` (8.56.2) — jen vývojová závislost; do produkčního buildu se nebalí.
 - Zvuky: Free Fantasy SFX Pack od TomMusic (tommusic.itch.io); původ je zapsaný
   v `public/assets/audio/CREDITS.txt`.
-- Textury vln: `water_normals.jpg` z three.js (repo pod MIT),
-  v `public/assets/nature/textures/`.
+- Textury pěny: `foam_fine_*` a `foam_coarse_*` v `public/assets/nature/textures/`.
 
 **Pravidla pro navazujícího agenta:**
 - Přečíst `.clinerules`, README a tuto sekci; ověřit `git status` a `git log`.
