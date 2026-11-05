@@ -14,10 +14,12 @@ import { getTreeRecipe } from '../data/catalogs/trees.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import TreeWindPlugin from '../systems/treeWindPlugin.js';
 import ModelSaturationPlugin from '../systems/modelSaturationPlugin.js';
+import ModelRimPlugin from '../systems/modelRimPlugin.js';
 
 const treeModels = new WeakMap();
 const fittedModels = new WeakSet();
 const windMaterials = new WeakSet();
+const rimMaterials = new WeakSet();
 const tintedMaterials = new WeakSet();
 const WIND_STRENGTH = 0.05;
 
@@ -59,6 +61,16 @@ function addModelSaturation(template, amount) {
     if (!material || tintedMaterials.has(material)) continue;
     tintedMaterials.add(material);
     new ModelSaturationPlugin(material, amount);
+  }
+}
+
+function addModelRim(template, amount, power) {
+  for (const mesh of template.getChildMeshes()) {
+    const material = mesh.material;
+    if (!material || rimMaterials.has(material)) continue;
+    if (material.getClassName && material.getClassName() !== 'PBRMaterial') continue;
+    rimMaterials.add(material);
+    new ModelRimPlugin(material, { amount, power });
   }
 }
 
@@ -190,6 +202,7 @@ export function decorationTemplate(scene, def) {
     if (!template) return null;
     fitModelBase(template);
     if (def.modelSaturation) addModelSaturation(template, def.modelSaturation);
+    if (def.modelRim) addModelRim(template, def.modelRim, def.modelRimPower);
     if (def.wind) addModelWind(template, def.wind);
     return template;
   });

@@ -222,7 +222,9 @@ export const DECORATION_TYPES = {
   bush_monstera: {
     displayName: 'Monstera',
     model: `${ASSET_DIRS.plants}monstera.glb`,
-    modelSaturation: 3,
+    modelSaturation: 2,
+    modelRim: 1,
+    modelRimPower: 2,
     wind: 0.05,
     scale: 1,
     radius: 1.1,
@@ -236,7 +238,9 @@ export const DECORATION_TYPES = {
   bush_monstera_small: {
     displayName: 'Malá monstera',
     model: `${ASSET_DIRS.plants}monstera.glb`,
-    modelSaturation: 3,
+    modelSaturation: 2,
+    modelRim: 1,
+    modelRimPower: 2,
     wind: 0.05,
     scale: 0.8,
     radius: 0.9,
@@ -250,7 +254,9 @@ export const DECORATION_TYPES = {
   bush_monstera_large: {
     displayName: 'Velká monstera',
     model: `${ASSET_DIRS.plants}monstera.glb`,
-    modelSaturation: 3,
+    modelSaturation: 2,
+    modelRim: 1,
+    modelRimPower: 2,
     wind: 0.05,
     scale: 1.25,
     radius: 1.3,
