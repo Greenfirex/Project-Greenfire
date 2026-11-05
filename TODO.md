@@ -32,6 +32,9 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ### Etapa 3 — kořist
 
 - [ ] Doladit množství kořisti podle stáří tvora a rozhodnout, jestli má část padat na zem.
+- [ ] Koa'tiki: doplnit zvuky (zavrčení, kousnutí, zásah, smrt) a zapsat je do CREDITS.
+- [ ] Koa'tiki: stopy ze skutečných chodidel místo jedné šmouhy.
+- [ ] Koa'tiki: u jednoho ze tří tvorů se nepovedla kalibrace čelisti (v konzoli „dolů o -0,187") — čelist se mu neotevře. Zjistit proč a opravit výpočet.
 
 ### Etapa 4 — doladění boje
 
@@ -46,6 +49,10 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Kajmanka: stopy spočítat z reálných chodidel místo odhadu.
 - [ ] Do `public/assets/audio/CREDITS.txt` doplnit zdroj želvích zvuků (hiss, growl, bite).
 - [ ] Ověřit licenční podmínky balíčku Darkworld (License Agreement.pdf) a případně upravit CREDITS.
+
+### Nástroje
+
+- [ ] `tools/capture.cjs` — vývojový náhled animace: `node tools/capture.cjs koa_tiki attack 12 2.2` (druh, scéna `attack`/`walk`, počet snímků, přiblížení). Ukládá mřížku póz do `tools/_temp/`.
 
 ### Zvuky, které ve hře chybí
 

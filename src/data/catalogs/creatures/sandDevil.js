@@ -1,12 +1,13 @@
 ﻿// Písečný běs — krabovitý tvor se šesti nohami, dvěma chapadly a kusadly.
 // Model nemá pojmenované kosti ani animace, tak se pohyb odvozuje z tvaru kostry.
-import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { ASSET_DIRS } from '../assetPaths.js';
+import {
+  SIDE_AXIS, UP_AXIS, FORWARD_AXIS,
+  findBone, axisEntry, partEntries, swingEntry, turnEntry, approach,
+  legEntry as legEntryShared,
+} from '../../../utils/proceduralRig.js';
 
 const MODEL = `${ASSET_DIRS.creatures}sand_devil/sand_devil.glb`;
-const SIDE_AXIS = new Vector3(1, 0, 0);
-const UP_AXIS = new Vector3(0, 1, 0);
-const FORWARD_AXIS = new Vector3(0, 0, 1);
 const SWING = 0.3;
 const LIFT = 0.42;
 const WALK_SPEED = 10;
@@ -81,111 +82,8 @@ const JAW_SPECS = [
 ];
 const TAIL_BONE = 'Bone_017';
 
-function bindMatrix(bone) {
-  try {
-    if (typeof bone.getAbsoluteMatrix === 'function') return bone.getAbsoluteMatrix();
-    if (typeof bone.getBindMatrix === 'function') return bone.getBindMatrix();
-  } catch (error) {
-    return null;
-  }
-  return null;
-}
-
-function restPosition(bone, mesh) {
-  try {
-    if (typeof bone.getAbsolutePosition === 'function') return bone.getAbsolutePosition(mesh).clone();
-  } catch (error) {
-    return null;
-  }
-  return null;
-}
-
-function axisInParent(bone, source) {
-  const parent = typeof bone.getParent === 'function' ? bone.getParent() : null;
-  if (!parent) return source.clone();
-  const matrix = bindMatrix(parent);
-  if (!matrix) return source.clone();
-  const inverse = matrix.clone();
-  inverse.invert();
-  const axis = Vector3.TransformNormal(source, inverse);
-  if (axis.lengthSquared() < 1e-8) return source.clone();
-  return axis.normalize();
-}
-
-function nodeOf(bone) {
-  return bone && typeof bone.getTransformNode === 'function' ? bone.getTransformNode() : null;
-}
-
-function axisEntry(bone, axes) {
-  const node = nodeOf(bone);
-  if (!node) return null;
-  const base = node.rotationQuaternion
-    ? node.rotationQuaternion.clone()
-    : Quaternion.FromEulerVector(node.rotation);
-  const keys = {};
-  for (const key of Object.keys(axes)) keys[key] = axisInParent(bone, axes[key]);
-  return { bone, node, base, keys };
-}
-
-function entryOf(bone, axis = SIDE_AXIS) {
-  const entry = axisEntry(bone, { swing: axis });
-  if (!entry) return null;
-  entry.axis = entry.keys.swing;
-  return entry;
-}
-
-function findBone(bones, name) {
-  return bones.find((bone) => {
-    const boneName = String(bone.name || '');
-    return boneName === name || boneName.endsWith(`:${name}`);
-  }) || null;
-}
-
 function legEntry(mesh, bones, spec) {
-  const rootBone = findBone(bones, spec.root);
-  const tipBone = findBone(bones, spec.tip);
-  const jointBone = findBone(bones, spec.joint);
-  if (!rootBone || !tipBone) return null;
-  const entry = entryOf(rootBone, Vector3.Up());
-  if (!entry) return null;
-  entry.id = spec.id;
-  entry.front = Boolean(spec.front);
-  entry.phase = spec.phase;
-  entry.amplitude = SWING * (Number.isFinite(spec.swing) ? spec.swing : 1);
-  entry.liftScale = spec.lift;
-  const rise = Math.max(0, spec.footZ - REST_FOOT_MIN);
-  const legLength = Math.max(0.001, entry.length || 1);
-  entry.restLift = -Math.asin(Math.min(0.8, rise / legLength));
-  const root = restPosition(rootBone, mesh);
-  const tip = restPosition(tipBone, mesh);
-  entry.side = root && root.x < 0 ? -1 : 1;
-  entry.length = root && tip ? Vector3.Distance(root, tip) : 0;
-  if (root && tip) {
-    const direction = tip.subtract(root);
-    direction.y = 0;
-    const worldLift = direction.lengthSquared() > 1e-6
-      ? new Vector3(-direction.z, 0, direction.x).normalize()
-      : SIDE_AXIS.clone();
-    entry.liftAxis = axisInParent(rootBone, worldLift);
-    if (jointBone) entry.joint = entryOf(jointBone, SIDE_AXIS);
-    if (entry.joint) entry.joint.liftAxis = axisInParent(jointBone, worldLift);
-  } else if (jointBone) {
-    entry.joint = entryOf(jointBone, SIDE_AXIS);
-  }
-  return entry;
-}
-
-function partEntries(bones, specs, axes) {
-  const list = [];
-  for (const spec of specs) {
-    const bone = findBone(bones, spec.bone);
-    if (!bone) continue;
-    const entry = axisEntry(bone, axes);
-    if (!entry) continue;
-    entry.share = Number.isFinite(spec.share) ? spec.share : 1;
-    list.push(entry);
-  }
-  return list;
+  return legEntryShared(mesh, bones, spec, { swing: SWING, restFootMin: REST_FOOT_MIN });
 }
 
 function build(mesh, skeleton) {
@@ -223,33 +121,6 @@ function build(mesh, skeleton) {
     tailAmount: TAIL_IDLE,
     lastMode: null,
   };
-}
-
-function swingEntry(entry, angle, lift = 0) {
-  if (!entry || !entry.node || !entry.base) return;
-  let base = entry.base;
-  if (lift && entry.liftAxis) {
-    base = Quaternion.RotationAxis(entry.liftAxis, lift).multiply(base);
-  }
-  const delta = Quaternion.RotationAxis(entry.axis, angle);
-  entry.node.rotationQuaternion = delta.multiply(base);
-}
-
-function turnEntry(entry, angles) {
-  if (!entry || !entry.node || !entry.base) return;
-  let rotation = entry.base;
-  for (const key of Object.keys(angles)) {
-    const angle = angles[key];
-    const axis = entry.keys ? entry.keys[key] : null;
-    if (!axis || !angle) continue;
-    rotation = Quaternion.RotationAxis(axis, angle).multiply(rotation);
-  }
-  entry.node.rotationQuaternion = rotation;
-}
-
-function approach(current, target, seconds, speed) {
-  const step = Math.min(1, seconds * speed);
-  return current + (target - current) * step;
 }
 
 function pose(rig, dt, info) {

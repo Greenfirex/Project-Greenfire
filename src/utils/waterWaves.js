@@ -16,7 +16,6 @@ export const WAVE_CREST_SCALE = WAVE_REACH * 1.35;
 export const WAVE_TIME_WRAP = 3600;
 export const CRASH_LIFT = 1.2;
 export const CLIFF_SHOAL = 0.45;
-export const FOAM_DRIFT = 0.5;
 export const SHORE_FOAM_WIDTH = 1.5;
 const SHOAL_REACH = 7;
 const SHOAL_GAIN = 0.85;
@@ -31,7 +30,7 @@ const GUST = {
 };
 const SWASH_TIME = (Math.PI * 2) / 4;
 const SWASH_DIST = 0.9;
-export const FOAM_SWING = 0.4;
+export const FOAM_SWING = 0.5;
 export const SHORE_SWING = 0.08;
 const RIPPLE_WAVES = [
   { wavelength: 0.78, period: 2.4, slope: 0.022, angle: -0.25, phase: 0.7 },
@@ -190,10 +189,6 @@ float shoalWithCliff(float d, float cliff) {
 
 float swashAt(float d, vec2 p, float time) {
   return ${swashGlsl()};
-}
-
-vec2 foamDrift(vec2 toward, float time) {
-  return toward * (time * ${glslFloat(FOAM_DRIFT)});
 }
 `;
 }

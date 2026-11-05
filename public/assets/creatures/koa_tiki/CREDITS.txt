@@ -1,0 +1,2 @@
+Model Koa'tiki — zdroj: Meshy AI (původní název Embercrest Raptor), upraveno pro tento projekt.
+Licence: podle licence účtu Meshy, na kterém byl model vytvořen.

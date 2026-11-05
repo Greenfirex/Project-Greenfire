@@ -193,7 +193,7 @@ void main(void) {
   vec2 ripplePerp = vec2(-rippleBase.y, rippleBase.x);
   float swash = swashAt(d, p, waterTime);
   float shoreRise = clamp(swell / ${glslFloat(WAVE_REACH)}, -1.0, 1.0);
-  vec2 drifts = foamDrift(foamDir, waterTime) + foamDir * (shoreRise * ${glslFloat(FOAM_SWING)});
+  vec2 drifts = foamDir * (shoreRise * ${glslFloat(FOAM_SWING)});
 
   vec2 surfaceWarp = vec2(
     noise(p * 0.045 + vec2(11.3, 5.7)),

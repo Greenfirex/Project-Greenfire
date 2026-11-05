@@ -370,10 +370,11 @@ doladění a práce mimo tento plán.
   Její okraj se navíc pomalu posouvá v rytmu vln, takže se voda na písku
   rozlévá nerovnoměrně, ne jako rovná čára. V hluboké vodě zůstávají jen
   slabé bílé hřebeny.
-- Vzorek pěny i jemných vlnek se posouvá jedním společným směrem podle
-  převládajícího sklonu břehu. Kdyby se posouval v každém místě podle
-  místního sklonu, na zakřiveném pobřeží by se vzorek mezi sousedními místy
-  roztřepil — čím déle by hra běžela, tím víc.
+- Vzorek pěny se houpe podle výšky hladiny: když vlna přichází, posune se
+  k pláži, když hladina klesá, vrátí se k moři — a stejný signál hýbe i
+  okrajem pěny. Posouvá se vždy jedním společným směrem pro celou plochu,
+  takže se vzorek nedeformuje (kdyby se řídil místním směrem, na zakřiveném
+  pobřeží by se mezi sousedními místy stlačoval a natahoval).
 - Pěna se nikdy nekreslí nad suchou zemí (jen tam, kde je pod ní voda nebo
   kde se hladina u útesu dotahuje ke stěně).
 - Odraz se bere z odrazové sondy nad středem vody. Do odrazu jdou terén

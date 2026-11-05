@@ -18,6 +18,10 @@
   `npm i <balíček>`, `npm uninstall`, `pip install`, cokoli dalšího).
   Když nová závislost vypadá jako nutná, nejdřív se ZEPTEJ a vysvětli proč.
 - Testy a validaci NESPOUŠTĚJ sám — výstup ověřuje uživatel ručně v dev serveru.
+- Výjimka: vývojové nástroje v `tools/` (např. `capture.cjs` pro snímky animace)
+  jsou povolené, když o ně uživatel požádá. Nikdy nesahají na herní kód,
+  nikdy se necommitují jako součást hry a jejich závislosti patří do
+  `devDependencies`.
 - NIKDY nezakládej testovací skripty, harnessy ani dočasné testovací soubory
   (Node skripty, kopie modulů, simulace editoru apod.). Žádné „ověřím si to
   bokem" — hotový task předávej uživateli a ten ho sám vyzkouší v dev serveru.

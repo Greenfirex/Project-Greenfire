@@ -7,10 +7,12 @@ nic neví. Vzhled, animace a čísla chování patří do souboru tvora.
 ```
 src/data/catalogs/creatures/
   index.js            registr: které tvory hra zná + pomocné funkce
-  sandDevil.js        písečný běs — dnešní vzor (zahrabání, útok nohama, reakce na ránu)
+  sandDevil.js        písečný běs — vzor (zahrabání, útok nohama, reakce na ránu)
   snappingTurtle.js   kajmanka — vzor pro model bez použitelných jmen kostí
+  koaTiki.js          Koa'tiki — vzor pro dvounohého tvora s otevíratelnou čelistí
 src/systems/creatureSystem.js   obecné: spawn, stavy, ikony, obrysy, ukládání
 src/utils/creatureMarker.js     vykřičník a otazníky nad hlavou (společné všem)
+src/utils/proceduralRig.js      společné pomocníky pro rigy (kosti, osy, otáčení)
 public/assets/creatures/<kind>/ model + CREDITS.txt
 ```
 
@@ -245,14 +247,15 @@ ffmpeg -i vstup.wav -ar 44100 -ac 1 -c:a libvorbis -q:a 4 vystup.ogg
 
 Aby se vědělo, kde je vzor a kde mezera. Úkoly z toho plynoucí patří do `TODO.md`.
 
-| Vlastnost | Písečný běs | Kajmanka |
-|---|---|---|
-| reakce na ránu (`hit`) | ano | chybí |
-| nohy našlapou i při otáčení (`turning`) | ano | chybí |
-| prohýbání kolen při chůzi | ano | chybí |
-| zrychlení v boji (`chaseBoost`) | ano (1,2) | chybí |
-| zahrabání a vylézání | ano | ne (žije u vody) |
-| převrácení na záda při smrti (`deathRoll`) | ano | ne (padá na bok) |
-| stopy z reálných chodidel | ano (6 nohou) | odhad (4 nohy stejně) |
-| varování před útokem (`noWarning`) | ne — rovnou útok | ano |
-| vlastní doložené zvuky | ano (Darkworld Audio) | ano, ale zdroj chybí v CREDITS |
+| Vlastnost | Písečný běs | Kajmanka | Koa'tiki |
+|---|---|---|---|
+| reakce na ránu (`hit`) | ano | chybí | ano |
+| nohy našlapou i při otáčení (`turning`) | ano | chybí | ano |
+| prohýbání kolen při chůzi | ano | chybí | ano |
+| zrychlení v boji (`chaseBoost`) | ano (1,2) | chybí | ano (1,35) |
+| zahrabání a vylézání | ano | ne (žije u vody) | ne |
+| otevíratelná čelist | ne (kusadla) | ne | ano (kost čelisti + tmavá vložka) |
+| převrácení na záda při smrti (`deathRoll`) | ano | ne (padá na bok) | ne (padá na bok) |
+| stopy z reálných chodidel | ano (6 nohou) | odhad (4 nohy stejně) | chybí (jedna šmouha) |
+| varování před útokem (`noWarning`) | ne — rovnou útok | ano | ano |
+| vlastní doložené zvuky | ano (Darkworld Audio) | ano, ale zdroj chybí v CREDITS | chybí — tvor je němý |
