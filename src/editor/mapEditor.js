@@ -371,6 +371,11 @@ export default class MapEditor {
     this.s.handleHover(this.s.hoverCell);
   }
 
+  refreshBrushOptions() {
+    if (!this.brushPanel.isOpen) return;
+    this.brushPanel.setOptions(this.mode.brushOptionValues(this.mode.brushKey));
+  }
+
   openBrushPanel(brushKey) {
     this.mode.beginDraft(brushKey);
     this.brushPanel.open(brushKey, 0, this.mode.pathStyle, this.mode.brushOptionValues(brushKey), this.mode.tileKey);

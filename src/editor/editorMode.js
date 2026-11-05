@@ -247,7 +247,12 @@ export default class EditorMode {
   brushPool(brushKey) {
     const brush = BRUSHES[brushKey || this.brushKey];
     if (!brush) return [];
-    if (brush.poolByStyle) return brush.poolByStyle[this.styleFor(brushKey || this.brushKey)] || [];
+    if (brush.poolByStyle) {
+      if (this.brushOptionValue(brushKey || this.brushKey, 'random')) {
+        return [...new Set(Object.values(brush.poolByStyle).flat())];
+      }
+      return brush.poolByStyle[this.styleFor(brushKey || this.brushKey)] || [];
+    }
     return brush.pool || [];
   }
 
@@ -1881,7 +1886,12 @@ export default class EditorMode {
       return filled.map((cell) => (cell.key || !fallback ? cell : { ...cell, key: fallback }));
     }
     const list = pool.length ? pool : (brush.pool || []);
-    return filled.map((cell) => ({ ...cell, key: this.speciesKeyAt(brush, list, cell.cx, cell.cz) }));
+    const rotation = this.decoRotation();
+    return filled.map((cell) => ({
+      ...cell,
+      key: this.speciesKeyAt(brush, list, cell.cx, cell.cz),
+      rotation,
+    }));
   }
 
   cellRng(brushKey) {
@@ -1929,6 +1939,21 @@ export default class EditorMode {
     return true;
   }
 
+  decoRotation() {
+    const brush = BRUSHES[this.brushKey];
+    if (!brush || !brush.rotate) return 0;
+    const step = Number(this.brushOptionValue(this.brushKey, 'rotation')) || 0;
+    return (((step % 8) + 8) % 8) / 2;
+  }
+
+  rotateDeco(direction = 1) {
+    const brush = BRUSHES[this.brushKey];
+    if (!brush || !brush.rotate) return false;
+    const current = Number(this.brushOptionValue(this.brushKey, 'rotation')) || 0;
+    this.setBrushOption('rotation', (((current + direction) % 8) + 8) % 8);
+    return true;
+  }
+
   decoPreview(cx, cz) {
     const brush = BRUSHES[this.brushKey];
     if (!brush || !brush.deco || !this.active) return null;
@@ -1945,7 +1970,7 @@ export default class EditorMode {
       },
       [cellKey(cx, cz)],
     );
-    const items = entries.map((entry) => decoPlacement(def, { ...entry, cx, cz }));
+    const items = entries.map((entry) => decoPlacement(def, { ...entry, cx, cz, rotation: this.decoRotation() }));
     return { key, def, items };
   }
 

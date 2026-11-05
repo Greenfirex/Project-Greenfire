@@ -10,6 +10,7 @@ const SURFACES = surfaceEntries();
 const surfaceStyle = (entry) => entry.key.replace(/^floor_/, '');
 
 const SIZE_OPTION = { key: 'radius', label: 'Velikost', kind: 'range', min: 0, max: 3, step: 1, display: 'square' };
+const ROTATION_OPTION = { key: 'rotation', label: 'Natočení', kind: 'range', min: 0, max: 7, step: 1, display: 'angle' };
 const RANDOM_OPTION = { key: 'random', label: 'Náhodně střídat varianty', default: true };
 const GRASS_MIX_VALUES = Object.entries(GRASS_MIXES).map(([value, mix]) => ({ value, label: mix.label }));
 const GRASS_LAYER_VALUES = [
@@ -118,9 +119,28 @@ export const BRUSHES = {
   palms: {
     label: 'Palmy',
     group: 'Rostliny',
-    note: 'Nasadí palmy, vhodné k písku a vodě.',
+    note: 'Nasadí palmy, vhodné k písku a vodě. Tlačítky vybereš rovnou nebo prohnutou, náhoda střídá všechny.',
     shape: 'blob',
-    pool: ['tree_palm_a', 'tree_palm_b'],
+    style: 'palm_a',
+    styles: ['palm_a', 'palm_b', 'palm_c', 'palm_curved_a', 'palm_curved_b', 'palm_curved_c'],
+    styleLabels: {
+      palm_a: 'Kokosová',
+      palm_b: 'Vysoká',
+      palm_c: 'Nízká',
+      palm_curved_a: 'Prohnutá',
+      palm_curved_b: 'Vysoká prohnutá',
+      palm_curved_c: 'Nízká prohnutá',
+    },
+    poolByStyle: {
+      palm_a: ['tree_palm_a'],
+      palm_b: ['tree_palm_b'],
+      palm_c: ['tree_palm_c'],
+      palm_curved_a: ['tree_palm_curved_a'],
+      palm_curved_b: ['tree_palm_curved_b'],
+      palm_curved_c: ['tree_palm_curved_c'],
+    },
+    options: [RANDOM_OPTION],
+    rotate: true,
     deco: true,
   },
   broadleaf: {
@@ -129,6 +149,17 @@ export const BRUSHES = {
     note: 'Nasadí listnaté stromy (mořské hrozno, mandlovník).',
     shape: 'blob',
     pool: ['tree_seagrape', 'tree_almond'],
+    deco: true,
+  },
+  herbs: {
+    label: 'Květiny',
+    group: 'Rostliny',
+    note: 'Nasadí léčivé byliny, které jde utrhnout rukou. Předmět pak leží v batohu.',
+    shape: 'blob',
+    style: 'plant_healing',
+    styles: ['plant_healing'],
+    styleLabels: { plant_healing: 'Léčivá bylina' },
+    poolByStyle: { plant_healing: ['plant_healing'] },
     deco: true,
   },
   rocks: {
@@ -190,7 +221,10 @@ export const BRUSHES = {
     group: 'Rostliny',
     note: 'Nasadí keře; hustota říká, kolik jich na buňce vyroste, kolísání to nechá houpat o ±1. Skvrny = druh se střídá sám po plochách kolem sedmi buněk.',
     shape: 'blob',
-    pool: ['bush', 'bush_round', 'bush_dense', 'bush_wide', 'bush_bramble', 'bush_small'],
+    pool: [
+      'bush', 'bush_round', 'bush_bramble', 'bush_small',
+      'bush_monstera', 'bush_monstera_small', 'bush_monstera_large',
+    ],
     options: [
       { key: 'density', label: 'Hustota', kind: 'range', default: 2, min: 1, max: 5, step: 1 },
       { key: 'jitter', label: 'Kolísání ±1', default: true },
@@ -407,8 +441,9 @@ export function brushPaintParts(brushKey) {
 
 export function brushOptions(brush) {
   if (!brush) return [];
-  const list = Array.isArray(brush.options) ? brush.options : (brush.option ? [brush.option] : []);
+  const list = [...(Array.isArray(brush.options) ? brush.options : (brush.option ? [brush.option] : []))];
   if (brush.join || brush.bridge || brush.creature || brush.spawn) return list;
+  if (brush.rotate) list.push(ROTATION_OPTION);
   const size = Number.isFinite(brush.radius) ? Math.max(0, Math.min(SIZE_OPTION.max, Math.round(brush.radius))) : 0;
   return [...list, { ...SIZE_OPTION, default: size }];
 }

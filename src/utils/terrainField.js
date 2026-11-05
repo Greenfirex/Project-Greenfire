@@ -130,8 +130,6 @@ export function createTerrainField(world) {
     return near === undefined ? 0 : near;
   };
 
-  const isSharp = (cx, cz) => sharp.has(cellKey(cx, cz));
-
   const cellAt = (value) => Math.floor((value + CELL_SIZE / 2) / CELL_SIZE);
 
   const hardMaskAt = (cx, cz) => hardSides.get(cellKey(cx, cz)) || 0;
@@ -197,7 +195,6 @@ export function createTerrainField(world) {
     heightAt,
     heightAtCell,
     heightAtSide,
-    isSharp,
     isHardEdge: (cx, cz, dx, dz) => {
       const mask = hardMaskAt(cx, cz);
       if (!mask) return false;

@@ -40,6 +40,9 @@ const CLIFF_MOSS_TEXTURE = `${ASSET_DIRS.textures}Rock063_1K-JPG_Color.jpg`;
 const CLAY_CLIFF_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
 const CLAY_CLIFF_NORMAL = `${ASSET_DIRS.textures}Ground071_1K-JPG_NormalGL.jpg`;
 const SURFACE_BLEND_RADIUS = 1.8;
+const SURFACE_BLEND_SLOTS = 3;
+const SURFACE_BLEND_BLOCK_STEP = 1;
+const SURFACE_BLEND_SHARED_MAX = 128;
 const SURFACE_BLEND_SOFTMIN = 0.35;
 const SURFACE_BLEND_COLLAR = 0.25;
 const SURFACE_BLEND_TEXEL = CELL_SIZE / 8;
@@ -72,7 +75,8 @@ const CLIFF_RIM_BEVEL = 0.05;
 const CLIFF_CORNER_GAP = 0.5;
 const CLIFF_BEVEL_ROUND = 0.2;
 const CLIFF_CORNER_TUCK = CELL_SIZE / SURFACE_SUB;
-const CLIFF_SKIRT_SINK = 0.08;
+const CLIFF_TOP_OVERLAP = 0.05;
+const CLIFF_SKIRT_SINK = 0.15;
 const CORNER_FILL_STEPS = 3;
 const BRIDGE_CORNER_MARGIN = 0.6;
 const CLIFF_INWARD_MAX = 0.85;
@@ -191,6 +195,24 @@ function cliffLedgeMask2(point) {
 
 function cliffCornerTaper(k) {
   return Math.min(1, Math.min(k, SURFACE_SUB - k) / (SURFACE_SUB / 2));
+}
+
+function cliffTaperIndex(value) {
+  const line = Math.round((value - CELL_SIZE / 2) / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+  const steps = Math.round(Math.abs(value - line) / (CELL_SIZE / SURFACE_SUB));
+  return Math.min(SURFACE_SUB, Math.max(0, steps));
+}
+
+function cliffTaperAtPosition(gx, gz) {
+  return cliffCornerTaper(Math.max(cliffTaperIndex(gx), cliffTaperIndex(gz)));
+}
+
+function cellIndicesAt(value) {
+  const low = Math.ceil((value - CELL_SIZE / 2) / CELL_SIZE - 1e-6);
+  const high = Math.floor((value + CELL_SIZE / 2) / CELL_SIZE + 1e-6);
+  const list = [];
+  for (let index = low; index <= high; index += 1) list.push(index);
+  return list;
 }
 
 function cliffRimBevel(t) {
@@ -519,34 +541,34 @@ export default class TerrainSystem {
       return Boolean(cfg && cfg.spreads);
     };
     const partnerFor = (key) => {
-      if (spreads(key)) return null;
-      const best = (onlySpreaders) => {
-        const counts = new Map();
-        for (const [cx, cz] of cells) {
-          if (keyAt(cx, cz) !== key) continue;
-          for (const [dx, dz] of BLEND_NEIGHBORS) {
-            const other = keyAt(cx + dx, cz + dz);
-            if (!other || other === key) continue;
-            if (onlySpreaders && !spreads(other)) continue;
-            counts.set(other, (counts.get(other) || 0) + 1);
-          }
+      if (spreads(key)) return [];
+      const counts = new Map();
+      for (const [cx, cz] of cells) {
+        if (keyAt(cx, cz) !== key) continue;
+        for (const [dx, dz] of BLEND_NEIGHBORS) {
+          const other = keyAt(cx + dx, cz + dz);
+          if (!other || other === key) continue;
+          counts.set(other, (counts.get(other) || 0) + 1);
         }
-        let partner = null;
-        let top = 0;
-        for (const [other, count] of counts) {
-          if (count > top) {
-            top = count;
-            partner = other;
-          }
-        }
-        return partner;
-      };
-      return best(true) || best(false);
+      }
+      const ranked = [...counts.entries()].sort((a, b) => {
+        const spreadA = spreads(a[0]) ? 1 : 0;
+        const spreadB = spreads(b[0]) ? 1 : 0;
+        if (spreadA !== spreadB) return spreadB - spreadA;
+        return b[1] - a[1];
+      });
+      return ranked.slice(0, SURFACE_BLEND_SLOTS).map(([other]) => other);
     };
     const weightCache = new Map();
-    const weightsFor = (partner) => {
-      const cached = weightCache.get(partner);
+    const weightsFor = (key, partner) => {
+      const cacheId = `${key}|${partner}`;
+      const cached = weightCache.get(cacheId);
       if (cached) return cached;
+      const ownConfig = this.surfaceConfig(key);
+      const blendRadius = ownConfig && Number.isFinite(ownConfig.blendRadius)
+        ? ownConfig.blendRadius
+        : SURFACE_BLEND_RADIUS;
+      const maxWeight = spreads(partner) ? 255 : SURFACE_BLEND_SHARED_MAX;
       let minX = Infinity;
       let maxX = -Infinity;
       let minZ = Infinity;
@@ -569,15 +591,18 @@ export default class TerrainSystem {
       const smooth = (t) => t * t * (3 - 2 * t);
       const waterLevel = this.layout && Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
       const isDry = (cx, cz) => waterLevel === null || field.heightAtCell(cx, cz) > waterLevel + 0.001;
+      const stepBetween = (cx, cz, nx, nz) => Math.abs(field.heightAtCell(cx, cz) - field.heightAtCell(nx, nz));
       const blockedFrom = (cx, cz, nx, nz) => {
         const dx = nx - cx;
         const dz = nz - cz;
         if (dx && dz) {
-          const blockedA = wallBetween(field, cx, cz, cx + dx, cz) || wallBetween(field, cx + dx, cz, nx, nz);
-          const blockedB = wallBetween(field, cx, cz, cx, cz + dz) || wallBetween(field, cx, cz + dz, nx, nz);
+          const blockedA = stepBetween(cx, cz, cx + dx, cz) > SURFACE_BLEND_BLOCK_STEP
+            || stepBetween(cx + dx, cz, nx, nz) > SURFACE_BLEND_BLOCK_STEP;
+          const blockedB = stepBetween(cx, cz, cx, cz + dz) > SURFACE_BLEND_BLOCK_STEP
+            || stepBetween(cx, cz + dz, nx, nz) > SURFACE_BLEND_BLOCK_STEP;
           return blockedA && blockedB;
         }
-        return wallBetween(field, cx, cz, nx, nz);
+        return stepBetween(cx, cz, nx, nz) > SURFACE_BLEND_BLOCK_STEP;
       };
       const wallCache = new Map();
       const wallSides = (cx, cz) => {
@@ -612,12 +637,11 @@ export default class TerrainSystem {
           const cx = Math.floor((x + half) / CELL_SIZE);
           const cz = Math.floor((z + half) / CELL_SIZE);
           const isPartner = keyAt(cx, cz) === partner;
-          if (field.isSharp(cx, cz) && !isPartner) continue;
           if (isPartner) {
-            let weight = 255;
+            let weight = maxWeight;
             if (isDry(cx, cz)) {
               const toWall = wallReach(cx, cz, x, z);
-              if (Number.isFinite(toWall)) weight = Math.round(255 * Math.min(1, toWall / SURFACE_BLEND_WALL_FADE));
+              if (Number.isFinite(toWall)) weight = Math.round(maxWeight * Math.min(1, toWall / SURFACE_BLEND_WALL_FADE));
             }
             data[j * width + i] = weight;
             continue;
@@ -642,17 +666,17 @@ export default class TerrainSystem {
             x / SURFACE_BLEND_TONGUE + warp * 2.6,
             z / SURFACE_BLEND_TONGUE - warp * 2.1,
           );
-          const band = SURFACE_BLEND_RADIUS
+          const band = blendRadius
             * (0.65 + 0.7 * coarse)
             * (0.9 + 0.2 * fine)
             * (0.55 + 0.9 * tongue);
           const fade = Math.min(1, Math.max(0, (soft - SURFACE_BLEND_COLLAR) / band));
-          let weight = Math.round((1 - smooth(fade)) * 255);
+          let weight = Math.round((1 - smooth(fade)) * maxWeight);
           if (weight < SURFACE_BLEND_SPECK_MIN) {
             const speck = valueNoise(x / SURFACE_BLEND_SPECK + 71.1, z / SURFACE_BLEND_SPECK - 29.3);
             if (speck > SURFACE_BLEND_SPECK_EDGE) {
               const amount = (speck - SURFACE_BLEND_SPECK_EDGE) / (1 - SURFACE_BLEND_SPECK_EDGE);
-              weight = Math.round(amount * SURFACE_BLEND_SPECK_MAX);
+              weight = Math.round(amount * SURFACE_BLEND_SPECK_MAX * (maxWeight / 255));
             }
           }
           data[j * width + i] = weight;
@@ -663,7 +687,7 @@ export default class TerrainSystem {
       texture.wrapV = Texture.CLAMP_ADDRESSMODE;
       this.weightTextures.push(texture);
       const result = { texture, origin: new Vector2(x0, z0), scale: new Vector2(1 / spanX, 1 / spanZ) };
-      weightCache.set(partner, result);
+      weightCache.set(cacheId, result);
       return result;
     };
     const groupFor = (key) => {
@@ -1087,18 +1111,18 @@ export default class TerrainSystem {
 
     const blends = new Map();
     for (const key of groups.keys()) {
-      const partner = partnerFor(key);
-      const cfg = partner ? this.surfaceConfig(partner) : null;
-      if (!partner || !cfg || !cfg.texture) {
-        blends.set(key, null);
-        continue;
+      const partners = [];
+      for (const partner of partnerFor(key)) {
+        const cfg = this.surfaceConfig(partner);
+        if (!cfg || !cfg.texture) continue;
+        partners.push({
+          key: partner,
+          tile: cfg.tile || 1,
+          color: this.surfaceColor(partner, map),
+          weights: weightsFor(key, partner),
+        });
       }
-      blends.set(key, {
-        partner,
-        tile: cfg.tile || 1,
-        color: this.surfaceColor(partner, map),
-        weights: weightsFor(partner),
-      });
+      blends.set(key, partners.length ? { partners } : null);
     }
 
     const borderNormals = new Map();
@@ -1471,10 +1495,19 @@ export default class TerrainSystem {
   buildCornerBevels(cornerPosts) {
     const byStyle = new Map();
     for (const posts of cornerPosts.values()) {
-      if (posts.length !== 2) continue;
+      if (posts.length < 2) continue;
       const style = posts[0].style || 'dirt';
       if (!byStyle.has(style)) byStyle.set(style, []);
-      byStyle.get(style).push(posts);
+      const sorted = [...posts].sort((a, b) => Math.atan2(a.outZ, a.outX) - Math.atan2(b.outZ, b.outX));
+      const pairs = [];
+      const sameHeight = (a, b) => Math.abs(a.top - b.top) <= 0.2;
+      for (let i = 0; i < sorted.length - 1; i += 1) {
+        if (sameHeight(sorted[i], sorted[i + 1])) pairs.push([sorted[i], sorted[i + 1]]);
+      }
+      if (sorted.length > 2 && sameHeight(sorted[sorted.length - 1], sorted[0])) {
+        pairs.push([sorted[sorted.length - 1], sorted[0]]);
+      }
+      byStyle.get(style).push(...pairs);
     }
     for (const [style, list] of byStyle) {
       const positions = [];
@@ -1570,9 +1603,78 @@ export default class TerrainSystem {
       const t = Math.min(1, Math.max(0, (y - bottom) / span));
       return cliffTint(gx, gz, y, t, tone, push, rim);
     };
+    const profiles = new Map();
+    const profileFor = (point, offsetX, offsetZ, tone, rim, edge) => {
+      const id = pointId(point.gx, point.gz);
+      const h1 = heightOf(point, edge.cx, edge.cz);
+      const h2 = heightOf(point, edge.nx, edge.nz);
+      const w1 = weldedAt(id, edge.cx, edge.cz);
+      const w2 = weldedAt(id, edge.nx, edge.nz);
+      const top = Math.max(w1 === null ? h1 : w1, w2 === null ? h2 : w2) + CLIFF_TOP_OVERLAP;
+      let crest = Math.max(w1 === null ? h1 : w1, w2 === null ? h2 : w2);
+      let foot = Math.min(h1, h2);
+      for (const cx of cellIndicesAt(point.gx)) {
+        for (const cz of cellIndicesAt(point.gz)) {
+          const weldedValue = weldedAt(id, cx, cz);
+          if (weldedValue === null) continue;
+          if (weldedValue > crest) crest = weldedValue;
+          const raw = heightOf(point, cx, cz);
+          if (raw < foot) foot = raw;
+        }
+      }
+      const bottom = foot - CLIFF_SKIRT_SINK;
+      const shapeSpan = crest + CLIFF_TOP_OVERLAP - bottom;
+      const key = `${id}|${Math.round(offsetX * 1000)},${Math.round(offsetZ * 1000)}|${top.toFixed(3)},${bottom.toFixed(3)}`;
+      const cached = profiles.get(key);
+      if (cached) return cached;
+      if (!Number.isFinite(top) || !Number.isFinite(bottom)) return null;
+      const pos = positionOf(point);
+      const span = top - bottom;
+      const dir = cliffDirection(pushes, point);
+      const reliefSpan = Math.min(1, shapeSpan / CLIFF_RELIEF_SPAN);
+      const bulgeScale = cliffBulgeScale(shapeSpan);
+      const ledgeFactor = Math.min(1, Math.max(0, (shapeSpan - CLIFF_LEDGE_MIN) / CLIFF_LEDGE_RAMP));
+      const ledgeStep = Math.min(CLIFF_LEDGE_STEP, shapeSpan * CLIFF_LEDGE_RATIO) * ledgeFactor;
+      const ledge2Factor = Math.min(1, Math.max(0, (shapeSpan - CLIFF_LEDGE2_MIN) / CLIFF_LEDGE2_RAMP));
+      const ledge2Step = Math.min(CLIFF_LEDGE2_STEP, shapeSpan * CLIFF_LEDGE2_RATIO) * ledge2Factor;
+      const ledgeT = cliffLedgeT(point);
+      const mask = cliffLedgeMask(point);
+      const ledgeT2 = cliffLedgeT2(point);
+      const mask2 = cliffLedgeMask2(point);
+      const taper = 1 - dir.corner * (1 - cliffTaperAtPosition(point.gx, point.gz));
+      const profile = {
+        gx: point.gx,
+        gz: point.gz,
+        top,
+        bottom,
+        outX: -dir.x,
+        outZ: -dir.z,
+        rows: [],
+      };
+      for (let r = 0; r < CLIFF_ROWS_LEDGE.length; r += 1) {
+        const row = CLIFF_ROWS_LEDGE[r];
+        const t = row.ledge ? (row.pair === 2 ? ledgeT2 : ledgeT) : row.t;
+        const y = bottom + span * t;
+        const clear = this.bridgeClearAt(point.gx, point.gz, y);
+        const step = (r <= CLIFF_LEDGE_INDEX ? ledgeStep * mask : 0) + (r <= CLIFF_LEDGE2_INDEX ? ledge2Step * mask2 : 0);
+        const protrude = step * Math.min(1, row.w / CLIFF_LEDGE_TAPER) * clear;
+        const depth = cliffDepth(point, t, row.w);
+        const bend = reliefSpan * CLIFF_RELIEF * depth + protrude + bulgeScale * cliffBulge(t) * clear;
+        const shift = taper * Math.max(-CLIFF_INWARD_MAX, bend - CLIFF_RIM_BEVEL * cliffRimBevel(t));
+        profile.rows.push({
+          x: pos.px + offsetX + dir.x * shift,
+          y,
+          z: pos.pz + offsetZ + dir.z * shift,
+          protrude,
+          tint: shadeAt(y, top, bottom, point.gx, point.gz, tone, depth, rim),
+        });
+      }
+      if (offsetX || offsetZ) profile.rows[profile.rows.length - 1].y -= CLIFF_CORNER_TUCK;
+      profiles.set(key, profile);
+      return profile;
+    };
     for (const edge of edges) {
       const points = edge.points;
-      const alongZ = edge.cx !== edge.nx;
       const rimInfo = rimColorOf(edge);
       const rim = rimInfo.color;
       const shelfKey = rimInfo.key;
@@ -1599,62 +1701,29 @@ export default class TerrainSystem {
         const b1 = heightOf(b, edge.cx, edge.cz);
         const b2 = heightOf(b, edge.nx, edge.nz);
         if (Math.abs(a1 - a2) < 0.02 && Math.abs(b1 - b2) < 0.02) continue;
-        const apos = positionOf(a);
-        const bpos = positionOf(b);
         const aTuck = startTuck && i === 0;
         const bTuck = endTuck && i === SURFACE_SUB - 1;
-        if (aTuck) {
-          apos.px += tuckStartX * CLIFF_CORNER_TUCK;
-          apos.pz += tuckStartZ * CLIFF_CORNER_TUCK;
-        }
-        if (bTuck) {
-          bpos.px += tuckEndX * CLIFF_CORNER_TUCK;
-          bpos.pz += tuckEndZ * CLIFF_CORNER_TUCK;
-        }
+        const profileA = profileFor(a, aTuck ? tuckStartX * CLIFF_CORNER_TUCK : 0, aTuck ? tuckStartZ * CLIFF_CORNER_TUCK : 0, tone, rim, edge);
+        const profileB = profileFor(b, bTuck ? tuckEndX * CLIFF_CORNER_TUCK : 0, bTuck ? tuckEndZ * CLIFF_CORNER_TUCK : 0, tone, rim, edge);
+        if (!profileA || !profileB) continue;
         const postKey = startCorner && i === 1 ? pointId(points[0].gx, points[0].gz)
           : endCorner && i === SURFACE_SUB - 2 ? pointId(points[SURFACE_SUB].gx, points[SURFACE_SUB].gz) : null;
         const postUsesA = startCorner && i === 1;
-        const aWelded1 = weldedAt(pointId(a.gx, a.gz), edge.cx, edge.cz);
-        const aWelded2 = weldedAt(pointId(a.gx, a.gz), edge.nx, edge.nz);
-        const bWelded1 = weldedAt(pointId(b.gx, b.gz), edge.cx, edge.cz);
-        const bWelded2 = weldedAt(pointId(b.gx, b.gz), edge.nx, edge.nz);
-        const aTop = Math.max(aWelded1 === null ? a1 : aWelded1, aWelded2 === null ? a2 : aWelded2) + 0.015;
-        const aBottom = Math.min(a1, a2) - CLIFF_SKIRT_SINK;
-        const bTop = Math.max(bWelded1 === null ? b1 : bWelded1, bWelded2 === null ? b2 : bWelded2) + 0.015;
-        const bBottom = Math.min(b1, b2) - CLIFF_SKIRT_SINK;
-        const aDir = cliffDirection(pushes, a);
-        const bDir = cliffDirection(pushes, b);
-        const aSpan = Math.min(1, (aTop - aBottom) / CLIFF_RELIEF_SPAN);
-        const bSpan = Math.min(1, (bTop - bBottom) / CLIFF_RELIEF_SPAN);
-        const aBulgeScale = cliffBulgeScale(aTop - aBottom);
-        const bBulgeScale = cliffBulgeScale(bTop - bBottom);
         const rise = (a1 - a2) || (b1 - b2);
         const windX = rise > 0 ? edge.nx - edge.cx : edge.cx - edge.nx;
         const windZ = rise > 0 ? edge.nz - edge.cz : edge.cz - edge.nz;
-        const ledgeSpan = Math.min(aTop - aBottom, bTop - bBottom);
-        const ledgeFactor = Math.min(1, Math.max(0, (ledgeSpan - CLIFF_LEDGE_MIN) / CLIFF_LEDGE_RAMP));
-        const ledgeStep = Math.min(CLIFF_LEDGE_STEP, ledgeSpan * CLIFF_LEDGE_RATIO) * ledgeFactor;
         const rows = CLIFF_ROWS_LEDGE;
-        const ledgeRow = CLIFF_LEDGE_INDEX;
-        const aLedgeT = cliffLedgeT(a);
-        const bLedgeT = cliffLedgeT(b);
-        const aMask = cliffLedgeMask(a);
-        const bMask = cliffLedgeMask(b);
-        const ledge2Factor = Math.min(1, Math.max(0, (ledgeSpan - CLIFF_LEDGE2_MIN) / CLIFF_LEDGE2_RAMP));
-        const ledge2Step = Math.min(CLIFF_LEDGE2_STEP, ledgeSpan * CLIFF_LEDGE2_RATIO) * ledge2Factor;
-        const ledgeRow2 = CLIFF_LEDGE2_INDEX;
-        const aLedgeT2 = cliffLedgeT2(a);
-        const bLedgeT2 = cliffLedgeT2(b);
-        const aMask2 = cliffLedgeMask2(a);
-        const bMask2 = cliffLedgeMask2(b);
-        let cornerPost = null;
+        const dx = b.gx - a.gx;
+        const dz = b.gz - a.gz;
+        const flip = -dz * windX + dx * windZ < 0;
         if (postKey) {
-          cornerPost = {
-            rows: [],
-            outX: postUsesA ? -aDir.x : -bDir.x,
-            outZ: postUsesA ? -aDir.z : -bDir.z,
-            top: postUsesA ? aTop : bTop,
-            bottom: postUsesA ? aBottom : bBottom,
+          const postProfile = postUsesA ? profileA : profileB;
+          const cornerPost = {
+            rows: postProfile.rows,
+            outX: postProfile.outX,
+            outZ: postProfile.outZ,
+            top: postProfile.top,
+            bottom: postProfile.bottom,
             cornerX: postUsesA ? points[0].gx : points[SURFACE_SUB].gx,
             cornerZ: postUsesA ? points[0].gz : points[SURFACE_SUB].gz,
             tone,
@@ -1662,69 +1731,36 @@ export default class TerrainSystem {
             style,
           };
           const list = cornerPosts.get(postKey);
-          if (list) list.push(cornerPost);
-          else cornerPosts.set(postKey, [cornerPost]);
+          if (list) {
+            if (!list.some((post) => post.rows === cornerPost.rows)) list.push(cornerPost);
+          } else {
+            cornerPosts.set(postKey, [cornerPost]);
+          }
         }
         for (let r = 0; r < rows.length - 1; r += 1) {
           const upper = rows[r];
           const lower = rows[r + 1];
-          const aT0 = upper.ledge ? (upper.pair === 2 ? aLedgeT2 : aLedgeT) : upper.t;
-          const aT1 = lower.ledge ? (lower.pair === 2 ? aLedgeT2 : aLedgeT) : lower.t;
-          const bT0 = upper.ledge ? (upper.pair === 2 ? bLedgeT2 : bLedgeT) : upper.t;
-          const bT1 = lower.ledge ? (lower.pair === 2 ? bLedgeT2 : bLedgeT) : lower.t;
-          const aStep0 = (r <= ledgeRow ? ledgeStep * aMask : 0) + (r <= ledgeRow2 ? ledge2Step * aMask2 : 0);
-          const aStep1 = (r + 1 <= ledgeRow ? ledgeStep * aMask : 0) + (r + 1 <= ledgeRow2 ? ledge2Step * aMask2 : 0);
-          const bStep0 = (r <= ledgeRow ? ledgeStep * bMask : 0) + (r <= ledgeRow2 ? ledge2Step * bMask2 : 0);
-          const bStep1 = (r + 1 <= ledgeRow ? ledgeStep * bMask : 0) + (r + 1 <= ledgeRow2 ? ledge2Step * bMask2 : 0);
-          const ay0 = aBottom + (aTop - aBottom) * aT0;
-          const ay1 = aBottom + (aTop - aBottom) * aT1;
-          const by0 = bBottom + (bTop - bBottom) * bT0;
-          const by1 = bBottom + (bTop - bBottom) * bT1;
-          const aClear0 = this.bridgeClearAt(a.gx, a.gz, ay0);
-          const aClear1 = this.bridgeClearAt(a.gx, a.gz, ay1);
-          const bClear0 = this.bridgeClearAt(b.gx, b.gz, by0);
-          const bClear1 = this.bridgeClearAt(b.gx, b.gz, by1);
-          const aProtrude0 = aStep0 * Math.min(1, upper.w / CLIFF_LEDGE_TAPER) * aClear0;
-          const aProtrude1 = aStep1 * Math.min(1, lower.w / CLIFF_LEDGE_TAPER) * aClear1;
-          const bProtrude0 = bStep0 * Math.min(1, upper.w / CLIFF_LEDGE_TAPER) * bClear0;
-          const bProtrude1 = bStep1 * Math.min(1, lower.w / CLIFF_LEDGE_TAPER) * bClear1;
-          const aDepth0 = cliffDepth(a, aT0, upper.w);
-          const aDepth1 = cliffDepth(a, aT1, lower.w);
-          const bDepth0 = cliffDepth(b, bT0, upper.w);
-          const bDepth1 = cliffDepth(b, bT1, lower.w);
-          const aTaper = 1 - aDir.corner * (1 - cliffCornerTaper(i));
-          const bTaper = 1 - bDir.corner * (1 - cliffCornerTaper(i + 1));
-          const aBulge0 = aBulgeScale * cliffBulge(aT0) * aClear0;
-          const aBulge1 = aBulgeScale * cliffBulge(aT1) * aClear1;
-          const bBulge0 = bBulgeScale * cliffBulge(bT0) * bClear0;
-          const bBulge1 = bBulgeScale * cliffBulge(bT1) * bClear1;
-          const aShift0 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth0 + aProtrude0 + aBulge0 - CLIFF_RIM_BEVEL * cliffRimBevel(aT0));
-          const aShift1 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth1 + aProtrude1 + aBulge1 - CLIFF_RIM_BEVEL * cliffRimBevel(aT1));
-          const bShift0 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth0 + bProtrude0 + bBulge0 - CLIFF_RIM_BEVEL * cliffRimBevel(bT0));
-          const bShift1 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth1 + bProtrude1 + bBulge1 - CLIFF_RIM_BEVEL * cliffRimBevel(bT1));
-          const ax0 = apos.px + aDir.x * aShift0;
-          const az0 = apos.pz + aDir.z * aShift0;
-          const ax1 = apos.px + aDir.x * aShift1;
-          const az1 = apos.pz + aDir.z * aShift1;
-          const bx0 = bpos.px + bDir.x * bShift0;
-          const bz0 = bpos.pz + bDir.z * bShift0;
-          const bx1 = bpos.px + bDir.x * bShift1;
-          const bz1 = bpos.pz + bDir.z * bShift1;
-          if (cornerPost) {
-            const px0 = postUsesA ? ax0 : bx0;
-            const pz0 = postUsesA ? az0 : bz0;
-            const py0 = postUsesA ? ay0 : by0;
-            const px1 = postUsesA ? ax1 : bx1;
-            const pz1 = postUsesA ? az1 : bz1;
-            const py1 = postUsesA ? ay1 : by1;
-            cornerPost.rows[r] = { x: px0, y: py0, z: pz0 };
-            if (r === rows.length - 2) cornerPost.rows[r + 1] = { x: px1, y: py1, z: pz1 };
-          }
+          const a0 = profileA.rows[r];
+          const a1r = profileA.rows[r + 1];
+          const b0 = profileB.rows[r];
+          const b1r = profileB.rows[r + 1];
+          const ax0 = a0.x;
+          const ay0 = a0.y;
+          const az0 = a0.z;
+          const ax1 = a1r.x;
+          const ay1 = a1r.y;
+          const az1 = a1r.z;
+          const bx0 = b0.x;
+          const by0 = b0.y;
+          const bz0 = b0.z;
+          const bx1 = b1r.x;
+          const by1 = b1r.y;
+          const bz1 = b1r.z;
           this.recordBridgeWall(a, ay0, ax0, az0, r);
           this.recordBridgeWall(a, ay1, ax1, az1, r + 1);
           this.recordBridgeWall(b, by0, bx0, bz0, r);
           this.recordBridgeWall(b, by1, bx1, bz1, r + 1);
-          if (upper.ledge && lower.ledge && aProtrude0 + bProtrude0 > 0.008) {
+          if (upper.ledge && lower.ledge && a0.protrude + b0.protrude > 0.008) {
             const group = shelfGroup(shelfKey);
             const tile = group.tile;
             const start = group.positions.length / 3;
@@ -1764,19 +1800,17 @@ export default class TerrainSystem {
             else group.indices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
             continue;
           }
-          const aSink = aTuck && r === rows.length - 2 ? CLIFF_CORNER_TUCK : 0;
-          const bSink = bTuck && r === rows.length - 2 ? CLIFF_CORNER_TUCK : 0;
           const start = positions.length / 3;
           positions.push(
             ax0, ay0, az0,
-            ax1, ay1 - aSink, az1,
+            ax1, ay1, az1,
             bx0, by0, bz0,
-            bx1, by1 - bSink, bz1,
+            bx1, by1, bz1,
           );
-          const aHigh = shadeAt(ay0, aTop, aBottom, a.gx, a.gz, tone, aDepth0, rim);
-          const aLow = shadeAt(ay1, aTop, aBottom, a.gx, a.gz, tone, aDepth1, rim);
-          const bHigh = shadeAt(by0, bTop, bBottom, b.gx, b.gz, tone, bDepth0, rim);
-          const bLow = shadeAt(by1, bTop, bBottom, b.gx, b.gz, tone, bDepth1, rim);
+          const aHigh = a0.tint;
+          const aLow = a1r.tint;
+          const bHigh = b0.tint;
+          const bLow = b1r.tint;
           colors.push(
             aHigh.r, aHigh.g, aHigh.b, 1,
             aLow.r, aLow.g, aLow.b, 1,
@@ -1784,17 +1818,15 @@ export default class TerrainSystem {
             bLow.r, bLow.g, bLow.b, 1,
           );
           masks.push(aHigh.moss, aLow.moss, bHigh.moss, bLow.moss);
-          const aU = (alongZ ? a.gz : a.gx) / WALL_TILE;
-          const bU = (alongZ ? b.gz : b.gx) / WALL_TILE;
+          const aU = (a.gx + a.gz) / WALL_TILE;
+          const bU = (b.gx + b.gz) / WALL_TILE;
           uvs.push(
             aU, ay0 / WALL_TILE,
             aU, ay1 / WALL_TILE,
             bU, by0 / WALL_TILE,
             bU, by1 / WALL_TILE,
           );
-          const dx = b.gx - a.gx;
-          const dz = b.gz - a.gz;
-          if (-dz * windX + dx * windZ < 0) indices.push(start, start + 2, start + 1, start + 1, start + 2, start + 3);
+          if (flip) indices.push(start, start + 2, start + 1, start + 1, start + 2, start + 3);
           else indices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
         }
       }
@@ -1991,8 +2023,31 @@ export default class TerrainSystem {
     return fallback && fallback.surface && fallback.surface.texture ? fallback.surface : null;
   }
 
+  blendSetupFor(blend) {
+    const blends = blend.partners.map((partner) => {
+      const cfg = this.surfaceConfig(partner.key);
+      const patch = Boolean(cfg && cfg.patch);
+      return {
+        texture: this.blendTextureFor(partner.key),
+        patch,
+        weights: partner.weights.texture,
+        tile: partner.tile,
+        color: partner.color,
+        origin: partner.weights.origin,
+        scale: partner.weights.scale,
+      };
+    });
+    const needsPatch = blends.some((slot) => slot.patch);
+    const patch = needsPatch ? {
+      textures: this.groundGrassTextures(),
+      tiles: GRASS_GROUND.tiles,
+      state: this.groundPatch,
+    } : null;
+    return { blends, patch };
+  }
+
   materialFor(key, map, blend = null) {
-    const cacheKey = blend ? `${key}|${blend.partner}` : key;
+    const cacheKey = blend ? `${key}|${blend.partners.map((partner) => partner.key).join('+')}` : key;
     let material = this.materials.get(cacheKey);
     if (!material) {
       const cfg = this.surfaceConfig(key);
@@ -2009,7 +2064,7 @@ export default class TerrainSystem {
       if (relief) this.reliefPlugins.set(cacheKey, new TerrainReliefPlugin(material, relief));
       this.causticPlugins.push(new TerrainCausticPlugin(material));
       this.wetPlugins.push(new TerrainWetPlugin(material, cfg.wet === undefined ? 0.4 : cfg.wet));
-      if (key === DEFAULT_FLOOR) {
+      if (cfg.patch) {
         new TerrainGrassPlugin(material, {
           textures: this.groundGrassTextures(),
           tiles: GRASS_GROUND.tiles,
@@ -2017,28 +2072,12 @@ export default class TerrainSystem {
         });
       }
       if (blend) {
-        this.blendPlugins.set(cacheKey, new TerrainBlendPlugin(material, {
-          texture: this.blendTextureFor(blend.partner),
-          weights: blend.weights.texture,
-          tile: blend.tile,
-          color: blend.color,
-          origin: blend.weights.origin,
-          scale: blend.weights.scale,
-        }));
+        this.blendPlugins.set(cacheKey, new TerrainBlendPlugin(material, this.blendSetupFor(blend)));
       }
       return material;
     }
     const plugin = this.blendPlugins.get(cacheKey);
-    if (plugin && blend) {
-      plugin.setBlend(
-        this.blendTextureFor(blend.partner),
-        blend.tile,
-        blend.color,
-        blend.weights.texture,
-        blend.weights.origin,
-        blend.weights.scale,
-      );
-    }
+    if (plugin && blend) plugin.setBlendSetup(this.blendSetupFor(blend));
     const reliefPlugin = this.reliefPlugins.get(cacheKey);
     if (reliefPlugin) reliefPlugin.setNeighbour(this.reliefNeighbourFor(blend));
     return material;
@@ -2069,8 +2108,8 @@ export default class TerrainSystem {
   }
 
   reliefNeighbourFor(blend) {
-    if (!blend) return null;
-    const cfg = this.surfaceConfig(blend.partner);
+    if (!blend || !blend.partners.length) return null;
+    const cfg = this.surfaceConfig(blend.partners[0].key);
     if (!cfg || !cfg.relief || !cfg.relief.map) return null;
     const map = cfg.relief.map;
     return {

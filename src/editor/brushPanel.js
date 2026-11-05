@@ -163,7 +163,9 @@ export default class BrushPanel {
     const value = document.createElement('span');
     value.className = 'brush-panel__option-value';
     const showValue = (raw) => {
-      const text = option.display === 'square' ? `${raw * 2 + 1}×${raw * 2 + 1}` : String(raw);
+      const text = option.display === 'square'
+        ? `${raw * 2 + 1}×${raw * 2 + 1}`
+        : option.display === 'angle' ? `${raw * 45}°` : String(raw);
       value.textContent = text;
     };
     showValue(Number(input.value));

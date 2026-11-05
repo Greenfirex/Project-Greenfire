@@ -30,7 +30,10 @@ const CLIFF_STYLE = 'stone';
 const GRASS_CHANCE = 0.3;
 
 const PINE_KEYS = ['tree_pine_a', 'tree_pine_b', 'tree_pine_c', 'tree_pine_d', 'tree_pine_e'];
-const PALM_KEYS = ['tree_palm_a', 'tree_palm_b'];
+const PALM_KEYS = [
+  'tree_palm_a', 'tree_palm_b', 'tree_palm_c',
+  'tree_palm_curved_a', 'tree_palm_curved_b', 'tree_palm_curved_c',
+];
 const TREE_KEYS = new Set([...PINE_KEYS, ...PALM_KEYS, 'tree_almond', 'tree_seagrape']);
 const ROCK_KEYS = ['rock_small', 'rock_small_flat', 'rock_pair', 'rock_large', 'rock_large_c', 'rock_tall', 'rock_jagged', 'rock_pebbles'];
 const SMALL_KEYS = ['bush', 'bush_small', 'mushroom_red', 'mushroom_tan'];

@@ -38,9 +38,19 @@ function rockJitter(entry) {
   };
 }
 
+function plantJitter(entry, fixedScale) {
+  return {
+    yaw: cellNoise(entry.cx, entry.cz, 23) * Math.PI * 2,
+    x: (cellNoise(entry.cx, entry.cz, 19) - 0.5) * 0.5,
+    z: (cellNoise(entry.cx, entry.cz, 37) - 0.5) * 0.5,
+    scale: fixedScale ? 1 : 0.94 + cellNoise(entry.cx, entry.cz, 31) * 0.12,
+  };
+}
+
 export function decoJitter(def, entry) {
   if (!def || !entry) return null;
   if (def.tree) return treeJitter(entry);
+  if (def.kind === 'bush') return plantJitter(entry, def.fixedScale);
   if (def.rock || def.log || def.branch || def.driftwood || def.shell || def.coral || def.flower || def.bush) return rockJitter(entry);
   return null;
 }

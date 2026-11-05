@@ -6,7 +6,10 @@ import {
   BUSH_KEYS, openMap, replaceOwned, saveMap, sandKeys, valueNoise, roll, round,
 } from './base.mjs';
 
-const SPECIES = ['bush', 'bush_round', 'bush_dense', 'bush_wide', 'bush_bramble', 'bush_small'];
+const SPECIES = [
+  'bush', 'bush_round', 'bush_bramble', 'bush_small',
+  'bush_monstera', 'bush_monstera_small', 'bush_monstera_large',
+];
 const SHORE_SPECIES = ['bush', 'bush_round'];
 const SHORE_WEIGHT = 0.7;
 const SHORE_REACH = 2;

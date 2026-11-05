@@ -25,6 +25,12 @@ export const ITEM_TYPES = {
     kind: 'raw',
     color: [0.78, 0.55, 0.42],
   },
+  herb: {
+    displayName: 'Léčivá bylina',
+    stackSize: 10,
+    kind: 'raw',
+    color: [0.72, 0.34, 0.28],
+  },
   stick: {
     displayName: 'Klacek',
     stackSize: 100,

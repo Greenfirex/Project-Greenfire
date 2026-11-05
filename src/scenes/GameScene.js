@@ -2382,6 +2382,14 @@ export default class GameScene {
       evt.preventDefault();
       return;
     }
+    if (evt.key === 'r' || evt.key === 'R') {
+      if (this.editor.mode.rotateDeco(evt.shiftKey ? -1 : 1)) {
+        this.editor.refreshBrushOptions();
+        this.handleHover(this.hoverCell);
+        evt.preventDefault();
+        return;
+      }
+    }
     if (/^[1-9]$/.test(evt.key)) {
       this.editor.mode.setHeightLevel(HEIGHT_PRESETS[Number(evt.key) - 1]);
       evt.preventDefault();
