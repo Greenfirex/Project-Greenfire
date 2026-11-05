@@ -19,6 +19,7 @@ import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
 import { groundCells, worldCells } from '../data/maps/areaShape.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import TerrainBlendPlugin from './terrainBlendPlugin.js';
+import TerrainReliefPlugin from './terrainReliefPlugin.js';
 import TerrainGrassPlugin from './terrainGrassPlugin.js';
 import TerrainCausticPlugin from './terrainCausticPlugin.js';
 import TerrainWetPlugin from './terrainWetPlugin.js';
@@ -37,6 +38,7 @@ const CLIFF_NORMAL = `${ASSET_DIRS.textures}Rock050_1K-JPG_NormalGL.jpg`;
 const CLIFF_STRATA_TEXTURE = `${ASSET_DIRS.textures}Rock023_1K-JPG_Color.jpg`;
 const CLIFF_MOSS_TEXTURE = `${ASSET_DIRS.textures}Rock063_1K-JPG_Color.jpg`;
 const CLAY_CLIFF_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
+const CLAY_CLIFF_NORMAL = `${ASSET_DIRS.textures}Ground071_1K-JPG_NormalGL.jpg`;
 const SURFACE_BLEND_RADIUS = 1.8;
 const SURFACE_BLEND_SOFTMIN = 0.35;
 const SURFACE_BLEND_COLLAR = 0.25;
@@ -95,6 +97,20 @@ const CLIFF_PROFILE = [
   [0.94, 0.14],
   [1.00, 0.00],
 ];
+const CLIFF_BULGE = [
+  [0.00, 0.00],
+  [0.05, 0.30],
+  [0.20, 0.24],
+  [0.45, -0.16],
+  [0.62, -0.10],
+  [0.80, -0.22],
+  [0.94, -0.08],
+  [1.00, 0.00],
+];
+const CLIFF_BULGE_LOW = 0.8;
+const CLIFF_BULGE_HIGH = 3.5;
+const CLIFF_BULGE_MIN = 0.22;
+const CLIFF_BULGE_MAX = 1.5;
 const CLIFF_ROWS = CLIFF_PROFILE.map(([t, w]) => ({ t, w, ledge: 0, pair: 0 }));
 const CLIFF_ROWS_LEDGE = [];
 for (const row of CLIFF_ROWS) {
@@ -180,6 +196,23 @@ function cliffCornerTaper(k) {
 function cliffRimBevel(t) {
   if (t <= 0.72 || t >= 1.0) return 0;
   return smoothstep(0.72, 0.9, t) * (1 - smoothstep(0.96, 1.0, t));
+}
+
+function cliffBulge(t) {
+  const clamped = Math.min(1, Math.max(0, t));
+  for (let i = 0; i < CLIFF_BULGE.length - 1; i += 1) {
+    const [t0, w0] = CLIFF_BULGE[i];
+    const [t1, w1] = CLIFF_BULGE[i + 1];
+    if (clamped > t1) continue;
+    const span = Math.max(1e-6, t1 - t0);
+    return w0 + (w1 - w0) * smoothstep(0, 1, (clamped - t0) / span);
+  }
+  return CLIFF_BULGE[CLIFF_BULGE.length - 1][1];
+}
+
+function cliffBulgeScale(height) {
+  const ramp = smoothstep(CLIFF_BULGE_LOW, CLIFF_BULGE_HIGH, height);
+  return CLIFF_BULGE_MIN + (CLIFF_BULGE_MAX - CLIFF_BULGE_MIN) * ramp;
 }
 
 function cliffDirection(pushes, point) {
@@ -287,6 +320,8 @@ export default class TerrainSystem {
     this.surfaces = [];
     this.materials = new Map();
     this.blendPlugins = new Map();
+    this.reliefPlugins = new Map();
+    this.reliefTextures = new Map();
     this.blendTextures = new Map();
     this.groundPatch = { patch: 1 };
     this.grassGroundTex = null;
@@ -485,26 +520,33 @@ export default class TerrainSystem {
     };
     const partnerFor = (key) => {
       if (spreads(key)) return null;
-      const counts = new Map();
-      for (const [cx, cz] of cells) {
-        if (keyAt(cx, cz) !== key) continue;
-        for (const [dx, dz] of BLEND_NEIGHBORS) {
-          const other = keyAt(cx + dx, cz + dz);
-          if (!other || other === key || !spreads(other)) continue;
-          counts.set(other, (counts.get(other) || 0) + 1);
+      const best = (onlySpreaders) => {
+        const counts = new Map();
+        for (const [cx, cz] of cells) {
+          if (keyAt(cx, cz) !== key) continue;
+          for (const [dx, dz] of BLEND_NEIGHBORS) {
+            const other = keyAt(cx + dx, cz + dz);
+            if (!other || other === key) continue;
+            if (onlySpreaders && !spreads(other)) continue;
+            counts.set(other, (counts.get(other) || 0) + 1);
+          }
         }
-      }
-      let partner = null;
-      let best = 0;
-      for (const [other, count] of counts) {
-        if (count > best) {
-          best = count;
-          partner = other;
+        let partner = null;
+        let top = 0;
+        for (const [other, count] of counts) {
+          if (count > top) {
+            top = count;
+            partner = other;
+          }
         }
-      }
-      return partner;
+        return partner;
+      };
+      return best(true) || best(false);
     };
+    const weightCache = new Map();
     const weightsFor = (partner) => {
+      const cached = weightCache.get(partner);
+      if (cached) return cached;
       let minX = Infinity;
       let maxX = -Infinity;
       let minZ = Infinity;
@@ -620,7 +662,9 @@ export default class TerrainSystem {
       texture.wrapU = Texture.CLAMP_ADDRESSMODE;
       texture.wrapV = Texture.CLAMP_ADDRESSMODE;
       this.weightTextures.push(texture);
-      return { texture, origin: new Vector2(x0, z0), scale: new Vector2(1 / spanX, 1 / spanZ) };
+      const result = { texture, origin: new Vector2(x0, z0), scale: new Vector2(1 / spanX, 1 / spanZ) };
+      weightCache.set(partner, result);
+      return result;
     };
     const groupFor = (key) => {
       let group = groups.get(key);
@@ -1582,6 +1626,8 @@ export default class TerrainSystem {
         const bDir = cliffDirection(pushes, b);
         const aSpan = Math.min(1, (aTop - aBottom) / CLIFF_RELIEF_SPAN);
         const bSpan = Math.min(1, (bTop - bBottom) / CLIFF_RELIEF_SPAN);
+        const aBulgeScale = cliffBulgeScale(aTop - aBottom);
+        const bBulgeScale = cliffBulgeScale(bTop - bBottom);
         const rise = (a1 - a2) || (b1 - b2);
         const windX = rise > 0 ? edge.nx - edge.cx : edge.cx - edge.nx;
         const windZ = rise > 0 ? edge.nz - edge.cz : edge.cz - edge.nz;
@@ -1646,12 +1692,16 @@ export default class TerrainSystem {
           const aDepth1 = cliffDepth(a, aT1, lower.w);
           const bDepth0 = cliffDepth(b, bT0, upper.w);
           const bDepth1 = cliffDepth(b, bT1, lower.w);
-          const aTaper = cliffCornerTaper(i);
-          const bTaper = cliffCornerTaper(i + 1);
-          const aShift0 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth0 + aProtrude0 - CLIFF_RIM_BEVEL * cliffRimBevel(aT0));
-          const aShift1 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth1 + aProtrude1 - CLIFF_RIM_BEVEL * cliffRimBevel(aT1));
-          const bShift0 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth0 + bProtrude0 - CLIFF_RIM_BEVEL * cliffRimBevel(bT0));
-          const bShift1 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth1 + bProtrude1 - CLIFF_RIM_BEVEL * cliffRimBevel(bT1));
+          const aTaper = 1 - aDir.corner * (1 - cliffCornerTaper(i));
+          const bTaper = 1 - bDir.corner * (1 - cliffCornerTaper(i + 1));
+          const aBulge0 = aBulgeScale * cliffBulge(aT0) * aClear0;
+          const aBulge1 = aBulgeScale * cliffBulge(aT1) * aClear1;
+          const bBulge0 = bBulgeScale * cliffBulge(bT0) * bClear0;
+          const bBulge1 = bBulgeScale * cliffBulge(bT1) * bClear1;
+          const aShift0 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth0 + aProtrude0 + aBulge0 - CLIFF_RIM_BEVEL * cliffRimBevel(aT0));
+          const aShift1 = aTaper * Math.max(-CLIFF_INWARD_MAX, aSpan * CLIFF_RELIEF * aDepth1 + aProtrude1 + aBulge1 - CLIFF_RIM_BEVEL * cliffRimBevel(aT1));
+          const bShift0 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth0 + bProtrude0 + bBulge0 - CLIFF_RIM_BEVEL * cliffRimBevel(bT0));
+          const bShift1 = bTaper * Math.max(-CLIFF_INWARD_MAX, bSpan * CLIFF_RELIEF * bDepth1 + bProtrude1 + bBulge1 - CLIFF_RIM_BEVEL * cliffRimBevel(bT1));
           const ax0 = apos.px + aDir.x * aShift0;
           const az0 = apos.pz + aDir.z * aShift0;
           const ax1 = apos.px + aDir.x * aShift1;
@@ -1923,6 +1973,13 @@ export default class TerrainSystem {
     material.specularColor = new Color3(0.02, 0.02, 0.02);
     material.backFaceCulling = false;
     material.twoSidedLighting = true;
+    const bump = new Texture(CLAY_CLIFF_NORMAL, this.s);
+    bump.wrapU = Texture.WRAP_ADDRESSMODE;
+    bump.wrapV = Texture.WRAP_ADDRESSMODE;
+    bump.gammaSpace = false;
+    bump.anisotropicFilteringLevel = 4;
+    bump.level = 1.2;
+    material.bumpTexture = bump;
     this.addCliffWaterPlugins(material, 0.55);
     return material;
   }
@@ -1941,15 +1998,6 @@ export default class TerrainSystem {
       const cfg = this.surfaceConfig(key);
       material = new StandardMaterial(`terrainSurfaceMat_${cacheKey}`, this.s);
       material.diffuseTexture = new Texture(cfg.texture, this.s);
-      if (cfg.normal) {
-        const bump = new Texture(cfg.normal, this.s);
-        bump.wrapU = Texture.WRAP_ADDRESSMODE;
-        bump.wrapV = Texture.WRAP_ADDRESSMODE;
-        bump.gammaSpace = false;
-        bump.anisotropicFilteringLevel = 4;
-        bump.level = cfg.bumpSoftness || 1;
-        material.bumpTexture = bump;
-      }
       material.specularColor = new Color3(0.02, 0.02, 0.02);
       material.ambientColor = color3(cfg.ambient || [0.08, 0.08, 0.07]);
       material.useVertexColor = true;
@@ -1957,6 +2005,8 @@ export default class TerrainSystem {
       material.twoSidedLighting = true;
       material.diffuseColor = color3(cfg.mapTint ? this.tintOf(map) : (cfg.color || [1, 1, 1]));
       this.materials.set(cacheKey, material);
+      const relief = this.reliefSetupFor(key, blend);
+      if (relief) this.reliefPlugins.set(cacheKey, new TerrainReliefPlugin(material, relief));
       this.causticPlugins.push(new TerrainCausticPlugin(material));
       this.wetPlugins.push(new TerrainWetPlugin(material, cfg.wet === undefined ? 0.4 : cfg.wet));
       if (key === DEFAULT_FLOOR) {
@@ -1989,7 +2039,59 @@ export default class TerrainSystem {
         blend.weights.scale,
       );
     }
+    const reliefPlugin = this.reliefPlugins.get(cacheKey);
+    if (reliefPlugin) reliefPlugin.setNeighbour(this.reliefNeighbourFor(blend));
     return material;
+  }
+
+  reliefSetupFor(key, blend) {
+    const cfg = this.surfaceConfig(key);
+    if (!cfg || !cfg.relief || !cfg.relief.map) return null;
+    const relief = cfg.relief;
+    return {
+      primary: this.reliefMapFor(relief.map),
+      detail: relief.detail ? this.reliefMapFor(relief.detail) : null,
+      strength: relief.strength === undefined ? 1 : relief.strength,
+      maskTile: relief.maskTile || 7,
+      macro: relief.macro || 0,
+      macroTile: relief.macroTile || 19,
+      neighbour: this.reliefNeighbourFor(blend),
+    };
+  }
+
+  reliefMapFor(map) {
+    return {
+      texture: this.reliefTexture(map.texture),
+      tile: map.tile || 1,
+      angle: map.angle || 0,
+      mix: map.mix === undefined ? 1 : map.mix,
+    };
+  }
+
+  reliefNeighbourFor(blend) {
+    if (!blend) return null;
+    const cfg = this.surfaceConfig(blend.partner);
+    if (!cfg || !cfg.relief || !cfg.relief.map) return null;
+    const map = cfg.relief.map;
+    return {
+      texture: this.reliefTexture(map.texture),
+      tile: map.tile || 1,
+      angle: map.angle || 0,
+      strength: cfg.relief.strength === undefined ? 1 : cfg.relief.strength,
+    };
+  }
+
+  reliefTexture(url) {
+    let texture = this.reliefTextures.get(url);
+    if (!texture) {
+      texture = new Texture(url, this.s);
+      texture.wrapU = Texture.WRAP_ADDRESSMODE;
+      texture.wrapV = Texture.WRAP_ADDRESSMODE;
+      texture.gammaSpace = false;
+      texture.anisotropicFilteringLevel = 8;
+      this.reliefTextures.set(url, texture);
+    }
+    return texture;
   }
 
   surfaceColor(key, map) {
@@ -2043,8 +2145,13 @@ export default class TerrainSystem {
     }
     this.materials.clear();
     this.blendPlugins.clear();
+    this.reliefPlugins.clear();
     this.causticPlugins.length = 0;
     this.wetPlugins.length = 0;
+    for (const texture of this.reliefTextures.values()) {
+      if (texture) texture.dispose();
+    }
+    this.reliefTextures.clear();
     for (const texture of this.blendTextures.values()) {
       if (texture) texture.dispose();
     }

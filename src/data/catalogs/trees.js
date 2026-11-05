@@ -135,6 +135,8 @@ export const TREE_RECIPES = {
   },
   palm_a: {
     shape: 'palm',
+    file: 'palm_a.glb',
+    modelSaturation: 1.35,
     height: 6.4,
     lean: 0.55,
     trunkRadius: 0.12,
@@ -155,6 +157,8 @@ export const TREE_RECIPES = {
   },
   palm_b: {
     shape: 'palm',
+    file: 'palm_a.glb',
+    modelSaturation: 1.35,
     height: 5.2,
     lean: 0.9,
     trunkRadius: 0.105,

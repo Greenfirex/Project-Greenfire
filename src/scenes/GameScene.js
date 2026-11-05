@@ -60,7 +60,7 @@ import Dialog from '../ui/dialog.js';
 import LoadingScreen from '../ui/loadingScreen.js';
 import TooltipPanel from '../ui/tooltipPanel.js';
 import { whenModelsIdle, takeModelError, preloadModel, loadModel, loadContainer, loadImported, releaseFrame } from '../utils/assetLoader.js';
-import { proceduralTemplate } from '../utils/decoTemplate.js';
+import { decorationModelUrl } from '../utils/decoTemplate.js';
 import { grassModelUrls } from '../data/catalogs/grass.js';
 import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
@@ -1417,12 +1417,8 @@ export default class GameScene {
     const missing = [];
     for (const entry of entries) {
       if (known.has(entry.key) || !this.decoSystem.hasModel(entry.key)) continue;
-      const def = getDecoration(entry.key);
-      if (proceduralTemplate(this.s, def)) {
-        known.set(entry.key, null);
-        continue;
-      }
       known.set(entry.key, null);
+      if (!decorationModelUrl(getDecoration(entry.key))) continue;
       missing.push(entry.key);
     }
     if (!missing.length) return known;
@@ -1433,7 +1429,7 @@ export default class GameScene {
     const worker = async () => {
       while (queue.length) {
         const item = queue.shift();
-        const root = await preloadModel(this.s, getDecoration(item.key).model);
+        const root = await preloadModel(this.s, decorationModelUrl(getDecoration(item.key)));
         done += 1;
         if (root) known.set(item.key, root);
         else if (item.left > 1) {

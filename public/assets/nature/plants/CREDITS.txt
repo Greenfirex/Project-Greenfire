@@ -1,3 +1,4 @@
 Modely trávy a kapradin — zdroj: Meshy AI (image to 3D), vygenerováno pro tento projekt.
 grass_coastal.glb, grass_broadleaf.glb, grass_cushion.glb, fern.glb, fern_detail.glb
+palm_a.glb — Meshy AI (image to 3D), vygenerováno pro tento projekt
 Licence a podmínky použití: podle licence účtu Meshy, na kterém byly modely vytvořeny.

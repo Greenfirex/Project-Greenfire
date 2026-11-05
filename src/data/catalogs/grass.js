@@ -43,7 +43,7 @@ export const GRASS_TYPES = {
 export const GRASS_COVER = {
   height: 0.28,
   perCell: { medium: 150, high: 250 },
-  tint: [0.72, 0.72, 0.72],
+  tint: [0.52, 0.72, 0.4],
 };
 
 export const GRASS_GROUND = {

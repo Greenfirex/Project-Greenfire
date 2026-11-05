@@ -41,7 +41,7 @@ const SURFACE_BRUSH = SURFACES.length
   ? {
       label: 'Povrch',
       group: 'Povrch',
-      note: 'Přebarví povrch země na trávu nebo písek, výšku nemění. Tažením označíš obdélník.',
+      note: 'Přebarví povrch země (tráva, písek, hlína, štěrk), výšku nemění. Tažením označíš obdélník.',
       shape: 'blob',
       surfaceOnly: true,
       radius: 1,
@@ -401,7 +401,7 @@ export function brushPaintParts(brushKey) {
   if (brush.erase) return PAINT_DECO_ONLY;
   if (brush.creature) return PAINT_CREATURE_ONLY;
   if (brush.fish) return PAINT_FISH_ONLY;
-  if (brush.height || brush.heights || brush.cliff || brush.join || brush.bridge) return PAINT_ALL;
+  if (brush.height || brush.heights || brush.cliff || brush.join || brush.bridge || brush.surface || brush.surfaceOnly) return PAINT_ALL;
   return PAINT_DECO_ONLY;
 }
 
