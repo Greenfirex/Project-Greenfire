@@ -52,7 +52,7 @@ const VOICES = {
   grassRip: { volume: 0.4, voices: 2, pitch: 0.08 },
 };
 
-const AMBIENT_LAYERS = ['forest_day', 'forest_night'];
+const AMBIENT_LAYERS = ['forest_day', 'forest_night', 'cave'];
 const AMBIENT_FOLDER = 'ambient/';
 const AMBIENT_FADE_SECONDS = 6;
 const AMBIENT_LEVEL = 0.25;
@@ -86,8 +86,10 @@ export default class AudioSystem {
     this.ambient = null;
     this.ambientVolume = 0;
     this.ambientBoost = AMBIENT_LEVEL;
-    this.ambientMix = { forest_day: 1, forest_night: 0 };
-    this.ambientTarget = { forest_day: 1, forest_night: 0 };
+    this.ambientMix = { forest_day: 1, forest_night: 0, cave: 0 };
+    this.ambientTarget = { forest_day: 1, forest_night: 0, cave: 0 };
+    this.dayT = 1;
+    this.indoor = 0;
     this.fire = null;
     this.fireOn = false;
     this.fireDistance = Infinity;
@@ -397,8 +399,19 @@ export default class AudioSystem {
   }
 
   setDayness(dayness) {
-    const t = Math.max(0, Math.min(1, dayness));
-    this.ambientTarget = { forest_day: t, forest_night: 1 - t };
+    this.dayT = Math.max(0, Math.min(1, dayness));
+    this.ambientTarget = this.ambientTargets();
+  }
+
+  setIndoor(indoor) {
+    this.indoor = Math.max(0, Math.min(1, Number(indoor) || 0));
+    this.ambientTarget = this.ambientTargets();
+  }
+
+  ambientTargets() {
+    const t = this.dayT;
+    const out = 1 - this.indoor;
+    return { forest_day: t * out, forest_night: (1 - t) * out, cave: this.indoor };
   }
 
   applyLayerGains() {

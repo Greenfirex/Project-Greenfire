@@ -2,11 +2,11 @@
 // Nezná scénu ani editor, jen katalog dekorací.
 import { getDecoration, decoRadius, decoFootprint } from '../catalogs/decorations.js';
 
-export const MIN_HEIGHT = -50;
-export const MAX_HEIGHT = 80;
-export const HEIGHT_STEP = 0.3;
+export const MIN_HEIGHT = -60;
+export const MAX_HEIGHT = 96;
+export const HEIGHT_STEP = 0.25;
 export const DEFAULT_HEIGHT_LEVEL = 0;
-export const HEIGHT_PRESETS = [-50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 60, 80];
+export const HEIGHT_PRESETS = [-60, -40, -20, 0, 20, 40, 60, 80, 96];
 export function deriveBlocked(entries) {
   const out = [];
   for (const entry of entries) {

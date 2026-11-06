@@ -94,6 +94,9 @@ export default class PlayerSystem {
     this.facing = 0;
     this.blockedTest = null;
     this.walkable = null;
+    this.stepLevel = null;
+    this.passageAt = null;
+    this.level = 0;
     this.speedScale = null;
     this.lookAt = null;
     this.inCombat = null;
@@ -566,17 +569,17 @@ export default class PlayerSystem {
     this.homeZ = pos.z;
   }
 
-  groundY(x, z) {
+  groundY(x, z, level = this.level) {
     if (!this.groundHeightAt) {
       warnMissingWiring('postava: výška země');
       return 0;
     }
-    const height = this.groundHeightAt(x, z);
+    const height = this.groundHeightAt(x, z, level);
     return Number.isFinite(height) ? height : 0;
   }
 
-  positionAt(x, z) {
-    return new Vector3(x, this.groundY(x, z), z);
+  positionAt(x, z, level = this.level) {
+    return new Vector3(x, this.groundY(x, z, level), z);
   }
 
   applyGroundHeight() {
@@ -741,22 +744,23 @@ export default class PlayerSystem {
     if (action === 'sprint') this.sprintSpent = false;
   }
 
-  free(x, z) {
+  free(x, z, level = this.level) {
     const { cx, cz } = worldToCellCoords(x, z);
     if (this.blockedTest && this.blockedTest(cx, cz)) return false;
-    if (this.walkable && !this.walkable(x, z)) return false;
-    if (this.decoSystem && this.decoSystem.overlaps(x, z, BODY_RADIUS + BODY_MARGIN)) return false;
-    if (this.cliffOverlapAt && this.root) {
-      const overlap = this.cliffOverlapAt(x, z);
+    if (this.walkable && !this.walkable(x, z, level)) return false;
+    if (level === 0 && this.decoSystem && this.decoSystem.overlaps(x, z, BODY_RADIUS + BODY_MARGIN)) return false;
+    const passage = this.passageAt ? this.passageAt(x, z, level) : false;
+    if (!passage && this.cliffOverlapAt && this.root) {
+      const overlap = this.cliffOverlapAt(x, z, level);
       if (overlap > 0) {
-        const hereOverlap = this.cliffOverlapAt(this.root.position.x, this.root.position.z);
+        const hereOverlap = this.cliffOverlapAt(this.root.position.x, this.root.position.z, this.level);
         if (overlap >= hereOverlap) return false;
       }
     }
-    if (this.wallRiseAt && this.root) {
-      const rise = this.wallRiseAt(x, z, BODY_RADIUS + BODY_MARGIN);
+    if (!passage && this.wallRiseAt && this.root) {
+      const rise = this.wallRiseAt(x, z, BODY_RADIUS + BODY_MARGIN, level);
       if (rise > STEP_LIMIT) {
-        const here = this.wallRiseAt(this.root.position.x, this.root.position.z, BODY_RADIUS + BODY_MARGIN);
+        const here = this.wallRiseAt(this.root.position.x, this.root.position.z, BODY_RADIUS + BODY_MARGIN, this.level);
         if (rise >= here) return false;
       }
     }
@@ -792,12 +796,22 @@ export default class PlayerSystem {
     return !this.decoSystem.overlaps(this.root.position.x, this.root.position.z, BODY_RADIUS + BODY_MARGIN);
   }
 
+  levelAt(x, z) {
+    if (!this.stepLevel || !this.root) return this.level;
+    return this.stepLevel(this.root.position.x, this.root.position.z, this.level, x, z);
+  }
+
+  commit(ax, az) {
+    const level = this.levelAt(ax, az);
+    if (!this.stepAllowed(ax, az, level) || !this.free(ax, az, level)) return false;
+    this.level = level;
+    this.root.position = this.positionAt(ax, az, level);
+    return true;
+  }
+
   tryMove(x, z, dirX, dirZ, step) {
-    if (!this.free(this.root.position.x, this.root.position.z)) this.pushOut();
-    if (this.stepAllowed(x, z) && this.free(x, z)) {
-      this.root.position = this.positionAt(x, z);
-      return true;
-    }
+    if (!this.free(this.root.position.x, this.root.position.z, this.level)) this.pushOut();
+    if (this.commit(x, z)) return true;
     const startX = this.root.position.x;
     const startZ = this.root.position.z;
     if (this.decoSystem) {
@@ -813,10 +827,7 @@ export default class PlayerSystem {
           for (const scale of [1, 0.8, 0.6, 0.4]) {
             const ax = startX + sx * step * scale;
             const az = startZ + sz * step * scale;
-            if (this.stepAllowed(ax, az) && this.free(ax, az)) {
-              this.root.position = this.positionAt(ax, az);
-              return true;
-            }
+            if (this.commit(ax, az)) return true;
           }
         }
       }
@@ -828,20 +839,18 @@ export default class PlayerSystem {
       const slideZ = Math.cos(turn);
       const ax = startX + slideX * step;
       const az = startZ + slideZ * step;
-      if (!this.stepAllowed(ax, az) || !this.free(ax, az)) continue;
-      this.root.position = this.positionAt(ax, az);
-      return true;
+      if (this.commit(ax, az)) return true;
     }
     return false;
   }
 
-  stepAllowed(x, z) {
+  stepAllowed(x, z, level = this.level) {
     if (!this.walkable) return true;
     const from = this.root.position;
-    const fromOk = this.walkable(from.x, from.z);
-    const toOk = this.walkable(x, z);
+    const fromOk = this.walkable(from.x, from.z, this.level);
+    const toOk = this.walkable(x, z, level);
     if (fromOk !== toOk) return false;
-    return Math.abs(this.groundY(x, z) - this.groundY(from.x, from.z)) <= STEP_LIMIT;
+    return Math.abs(this.groundY(x, z, level) - this.groundY(from.x, from.z, this.level)) <= STEP_LIMIT;
   }
 
   update(dt) {
@@ -1045,6 +1054,7 @@ export default class PlayerSystem {
       x: this.root ? this.root.position.x : SPAWN.x,
       z: this.root ? this.root.position.z : SPAWN.z,
       facing: this.facing,
+      level: Number.isFinite(this.level) ? this.level : 0,
     };
   }
 
@@ -1054,7 +1064,7 @@ export default class PlayerSystem {
   }
 
   defaultState() {
-    return { x: SPAWN.x, z: SPAWN.z, facing: 0 };
+    return { x: SPAWN.x, z: SPAWN.z, facing: 0, level: 0 };
   }
 
   apply(data) {
@@ -1065,6 +1075,7 @@ export default class PlayerSystem {
       return;
     }
     this.pendingState = null;
+    this.level = Number.isFinite(d.level) ? d.level : 0;
     let x = typeof d.x === 'number' ? d.x : SPAWN.x;
     let z = typeof d.z === 'number' ? d.z : SPAWN.z;
     const facing = typeof d.facing === 'number' ? d.facing : 0;

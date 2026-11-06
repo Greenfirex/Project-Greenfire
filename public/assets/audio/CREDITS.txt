@@ -7,6 +7,7 @@ Zvuky kroků, sekání, těžby, pochodně a ohně: Free Fantasy SFX Pack od Tom
 Kroky ve vodě (waterstep_1 až waterstep_5) jsou z téhož balíčku, soubory
 "Water Walk 1" až "Water Walk 5".
 Příboj (sea.ogg) je z téhož balíčku, soubor "Sea" ze složky BGS Loops.
+Jeskynní ambient (cave.ogg) je z téhož balíčku, soubor "Cave" ze složky BGS Loops.
 
 Zvuky písečného běsa (devil_dig_1 až devil_dig_3, devil_bite_1 až devil_bite_3,
 devil_hit_1 až devil_hit_2, devil_death_1, devil_growl_1) a trhání rostlin při sběru

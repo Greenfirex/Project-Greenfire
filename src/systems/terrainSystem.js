@@ -17,6 +17,7 @@ import { createTerrainField } from '../utils/terrainField.js';
 import { getMap } from '../data/catalogs/maps.js';
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
 import { groundCells, worldCells, planeLevels, levelOfEntry, columnsByCell, layerLiftAt, floorCellAt } from '../data/maps/areaShape.js';
+import { buildColumnRuns } from '../utils/terrainRuns.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import TerrainBlendPlugin from './terrainBlendPlugin.js';
 import TerrainReliefPlugin from './terrainReliefPlugin.js';
@@ -30,6 +31,7 @@ const PICK_LIFT = 0.002;
 const GRID_LIFT = 0.02;
 const GRID_SUB = 2;
 const SURFACE_SUB = 4;
+const SURFACE_CHUNK = 4;
 const RISE_SAMPLES = 8;
 const CLIFF_LOW_GAP = 0.9;
 const CLIFF_TOP_GAP = 0.25;
@@ -394,6 +396,11 @@ export default class TerrainSystem {
     return this.field ? this.field.heightAtCell(cx, cz, level) : 0;
   }
 
+  solidRunsAt(cx, cz) {
+    if (!this.columnRuns) this.columnRuns = buildColumnRuns(this.layout || {});
+    return this.columnRuns.get(`${cx},${cz}`) || [];
+  }
+
   floorKeyAt(cx, cz) {
     return this.floorKeys ? this.floorKeys.get(String(cx) + ',' + String(cz)) || null : null;
   }
@@ -419,6 +426,7 @@ export default class TerrainSystem {
       if (mesh && !mesh.isDisposed()) mesh.dispose(false, false);
     }
     this.surfaces = [];
+    this.surfaceChunks = [];
     for (const texture of this.weightTextures) texture.dispose();
     this.weightTextures = [];
     this.shelfAnchors = [];
@@ -436,6 +444,7 @@ export default class TerrainSystem {
     this.groundCells = groundCells(world);
     this.realCells = worldCells(world);
     this.field = createTerrainField(world);
+    this.columnRuns = null;
     const vents = this.connectorInfo();
     this.upLinks = vents.upLinks;
     this.openSides = vents.openSides;
@@ -449,7 +458,20 @@ export default class TerrainSystem {
     this.createPicker(this.pickCells());
     this.gridLines = this.createGridLines(map, this.realCells);
     this.ready = Promise.resolve(this.surfaces);
+    if (this.onRebuilt) this.onRebuilt();
     return this.surfaces;
+  }
+
+  caveMeshes() {
+    const list = [];
+    for (const mesh of this.surfaces) {
+      if (!mesh || mesh.isDisposed()) continue;
+      const name = mesh.name || '';
+      if (name.startsWith('terrainCaveWall') || name.startsWith('terrainCeiling') || name.includes('_L-')) {
+        list.push(mesh);
+      }
+    }
+    return list;
   }
 
   cellsSignature(cells) {
@@ -567,6 +589,24 @@ export default class TerrainSystem {
     if (level === 0) this.floorKeys = keys;
     const keyAt = (cx, cz) => keys.get(`${cx},${cz}`) || null;
     const field = planeView(this.field, level);
+    const caveColumns = columnsByCell(this.layout || {});
+    const overCaveAt = (cx, cz) => {
+      const planes = caveColumns.get(`${cx},${cz}`) || [];
+      for (const plane of planes) {
+        if (plane.level < level && Number.isFinite(plane.ceil)) return true;
+      }
+      return false;
+    };
+    const mouthFloor = new Map();
+    for (const [id, mouth] of this.mouths || []) {
+      if (!mouth || !Number.isFinite(mouth.bottom)) continue;
+      const [cell, dir] = id.split('|');
+      const [mCx, mCz] = cell.split(',').map(Number);
+      const [dirX, dirZ] = dir.split(',').map(Number);
+      const key = `${mCx + dirX},${mCz + dirZ}|${-dirX},${-dirZ}`;
+      const prev = mouthFloor.get(key);
+      if (prev === undefined || mouth.bottom < prev) mouthFloor.set(key, mouth.bottom);
+    }
     const spreads = (key) => {
       const cfg = this.surfaceConfig(key);
       return Boolean(cfg && cfg.spreads);
@@ -721,11 +761,17 @@ export default class TerrainSystem {
       weightCache.set(cacheId, result);
       return result;
     };
-    const groupFor = (key) => {
-      let group = groups.get(key);
+    const groupFor = (key, cx, cz) => {
+      const chunkX = Math.floor(cx / SURFACE_CHUNK);
+      const chunkZ = Math.floor(cz / SURFACE_CHUNK);
+      const id = `${key}|${chunkX}|${chunkZ}`;
+      let group = groups.get(id);
       if (!group) {
         const cfg = this.surfaceConfig(key);
         group = {
+          key,
+          chunkX,
+          chunkZ,
           positions: [],
           indices: [],
           uvs: [],
@@ -733,7 +779,7 @@ export default class TerrainSystem {
           vertices: new Map(),
           tile: (cfg && cfg.tile) || 1,
         };
-        groups.set(key, group);
+        groups.set(id, group);
       }
       return group;
     };
@@ -985,7 +1031,8 @@ export default class TerrainSystem {
     for (const [cx, cz] of cells) {
       const key = keyAt(cx, cz);
       if (!this.surfaceConfig(key)) continue;
-      const group = groupFor(key);
+      const group = groupFor(key, cx, cz);
+      if (overCaveAt(cx, cz)) group.overCave = true;
       const x0 = cx * CELL_SIZE - half;
       const z0 = cz * CELL_SIZE - half;
       const grid = [];
@@ -1000,9 +1047,21 @@ export default class TerrainSystem {
           const split = cliffPoints.has(id);
           const weldedValue = weldedAt(id, cx, cz);
           const edge = i === 0 || i === SURFACE_SUB || j === 0 || j === SURFACE_SUB;
-          const py = weldedValue !== null
+          let py = weldedValue !== null
             ? weldedValue
             : (!split && edge ? field.heightAt(pos.px, pos.pz) : heightOf(point, cx, cz));
+          let mouthFlat = null;
+          if (edge && mouthFloor.size) {
+            const sx = i === 0 ? -1 : i === SURFACE_SUB ? 1 : 0;
+            const sz = j === 0 ? -1 : j === SURFACE_SUB ? 1 : 0;
+            const take = (dx, dz) => {
+              const value = mouthFloor.get(`${cx},${cz}|${dx},${dz}`);
+              if (value !== undefined) mouthFlat = mouthFlat === null ? value : Math.min(mouthFlat, value);
+            };
+            if (sx !== 0) take(sx, 0);
+            if (sz !== 0) take(0, sz);
+            if (mouthFlat !== null) py = mouthFlat;
+          }
           let px = pos.px;
           let pz = pos.pz;
           const nearGI = i * 2 < SURFACE_SUB ? 0 : SURFACE_SUB;
@@ -1019,6 +1078,10 @@ export default class TerrainSystem {
               px = chordMidX + (px - chordMidX) * CLIFF_BEVEL_ROUND;
               pz = chordMidZ + (pz - chordMidZ) * CLIFF_BEVEL_ROUND;
             }
+          }
+          if (mouthFlat !== null) {
+            px = gx;
+            pz = gz;
           }
           row.push(slot(group, gx, gz, px, pz, py, split ? `${cx},${cz}` : null));
         }
@@ -1079,7 +1142,7 @@ export default class TerrainSystem {
           ownerCell = cell;
         }
       }
-      const group = groupFor(keyAt(ownerCell[0], ownerCell[1]) || DEFAULT_FLOOR);
+      const group = groupFor(keyAt(ownerCell[0], ownerCell[1]) || DEFAULT_FLOOR, ownerCell[0], ownerCell[1]);
       const fillOwner = `fill:${highX},${highZ}`;
       const reach = CORNER_FILL_STEPS * cornerStep;
       const xMin = Math.min(cornerX, cornerX + dirX * reach);
@@ -1116,7 +1179,7 @@ export default class TerrainSystem {
     for (const tuck of cornerTucks) {
       const key = keyAt(tuck.cx, tuck.cz);
       if (!this.surfaceConfig(key)) continue;
-      const group = groupFor(key);
+      const group = groupFor(key, tuck.cx, tuck.cz);
       const weldOwner = `${tuck.cx},${tuck.cz}`;
       const freeOwner = `tuck:${tuck.cx},${tuck.cz}:${tuck.cornerX},${tuck.cornerZ}`;
       const spanX = (tuck.stepX || tuck.inwardX) * step;
@@ -1142,7 +1205,9 @@ export default class TerrainSystem {
 
     const blends = new Map();
     if (level === 0) {
-      for (const key of groups.keys()) {
+      const floorKeys = new Set();
+      for (const group of groups.values()) floorKeys.add(group.key);
+      for (const key of floorKeys) {
         const partners = [];
         for (const partner of partnerFor(key)) {
           const cfg = this.surfaceConfig(partner);
@@ -1202,9 +1267,11 @@ export default class TerrainSystem {
       }
     }
 
-    for (const [key, group] of groups) {
+    for (const group of groups.values()) {
       if (!group.positions.length) continue;
-      const mesh = new Mesh(`${key === DEFAULT_FLOOR ? 'terrainSurface' : `terrainSurface_${key}`}${suffix}`, this.s);
+      const key = group.key;
+      const base = key === DEFAULT_FLOOR ? 'terrainSurface' : `terrainSurface_${key}`;
+      const mesh = new Mesh(`${base}_c${group.chunkX}_${group.chunkZ}${suffix}`, this.s);
       const data = new VertexData();
       data.positions = group.positions;
       data.indices = group.indices;
@@ -1214,8 +1281,19 @@ export default class TerrainSystem {
       data.applyToMesh(mesh);
       mesh.isPickable = false;
       mesh.receiveShadows = true;
+      mesh.metadata = {
+        level,
+        overCave: Boolean(group.overCave),
+        chunkX: group.chunkX,
+        chunkZ: group.chunkZ,
+        minCx: group.chunkX * SURFACE_CHUNK,
+        maxCx: (group.chunkX + 1) * SURFACE_CHUNK - 1,
+        minCz: group.chunkZ * SURFACE_CHUNK,
+        maxCz: (group.chunkZ + 1) * SURFACE_CHUNK - 1,
+      };
       mesh.material = this.materialFor(key, map, blends.get(key));
       this.surfaces.push(mesh);
+      this.surfaceChunks.push(mesh);
     }
 
     if (wallEdges.length) {
@@ -1987,24 +2065,34 @@ export default class TerrainSystem {
       }
       if (offsetX || offsetZ) profile.rows[profile.rows.length - 1].y -= CLIFF_CORNER_TUCK;
       if (cut !== null) {
-        let reference = -1;
+        let upper = profile.rows.length - 1;
         for (let r = 0; r < profile.rows.length; r += 1) {
           if (profile.rows[r].y >= cut) {
-            reference = r;
+            upper = r;
             break;
           }
         }
-        if (reference > 0) {
-          const keep = profile.rows[reference];
-          for (let r = 0; r < reference; r += 1) {
+        if (upper > 0) {
+          const under = profile.rows[upper - 1];
+          const over = profile.rows[upper];
+          const gap = over.y - under.y;
+          const t = gap < 1e-6 ? 0 : Math.min(1, Math.max(0, (cut - under.y) / gap));
+          const edgeX = under.x + (over.x - under.x) * t;
+          const edgeZ = under.z + (over.z - under.z) * t;
+          const edgeTint = {
+            r: under.tint.r + (over.tint.r - under.tint.r) * t,
+            g: under.tint.g + (over.tint.g - under.tint.g) * t,
+            b: under.tint.b + (over.tint.b - under.tint.b) * t,
+            moss: under.tint.moss + (over.tint.moss - under.tint.moss) * t,
+          };
+          for (let r = 0; r < upper; r += 1) {
             const row = profile.rows[r];
-            row.x = keep.x;
-            row.z = keep.z;
+            row.x = edgeX;
+            row.z = edgeZ;
             row.y = cut;
-            row.tint = keep.tint;
+            row.tint = edgeTint;
             row.protrude = 0;
           }
-          keep.y = cut;
         }
         profile.bottom = cut;
       }

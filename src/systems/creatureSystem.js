@@ -299,6 +299,7 @@ export default class CreatureSystem {
     console.info(`[creature] ${type.label} (${tier.label}) na ${spot.x.toFixed(1)}, ${spot.z.toFixed(1)} — ${boneSummary}`);
     const creature = {
       kind: entry.kind,
+      level: Number.isFinite(entry.level) ? entry.level : 0,
       type,
       tierKey,
       tier,
@@ -354,7 +355,7 @@ export default class CreatureSystem {
 
   placeHolder(creature, bob = 0, seconds = 0) {
     if (!creature || !creature.holder) return;
-    const ground = this.groundAt(creature.renderX, creature.renderZ);
+    const ground = this.groundAt(creature.renderX, creature.renderZ, creature.level);
     const fall = Number.isFinite(creature.renderY) ? creature.renderY : ground;
     const rate = seconds > 0 ? (ground > fall ? RISE_RATE : FALL_RATE) * seconds : Infinity;
     creature.renderY = rate === Infinity ? ground : fall + Math.max(-rate, Math.min(rate, ground - fall));
@@ -373,7 +374,7 @@ export default class CreatureSystem {
     const proxy = creature && creature.pickProxy;
     if (!proxy || proxy.isDisposed()) return;
     const holder = creature.holder;
-    const baseY = holder && !holder.isDisposed() ? holder.position.y : this.groundAt(creature.renderX, creature.renderZ);
+    const baseY = holder && !holder.isDisposed() ? holder.position.y : this.groundAt(creature.renderX, creature.renderZ, creature.level);
     proxy.position.set(creature.renderX, baseY + creature.pickHeight, creature.renderZ);
   }
 
@@ -386,17 +387,17 @@ export default class CreatureSystem {
     mesh.material = clone;
   }
 
-  canStand(x, z) {
+  canStand(x, z, level = 0) {
     if (!this.walkableAt) return true;
-    return this.walkableAt(x, z);
+    return this.walkableAt(x, z, level);
   }
 
-  groundAt(x, z) {
+  groundAt(x, z, level = 0) {
     if (!this.groundHeightAt) {
       warnMissingWiring('tvorové: výška země');
       return 0;
     }
-    const height = this.groundHeightAt(x, z);
+    const height = this.groundHeightAt(x, z, level);
     return Number.isFinite(height) ? height : 0;
   }
 
@@ -417,7 +418,7 @@ export default class CreatureSystem {
 
   heightGap(creature, player) {
     if (!player || !Number.isFinite(player.y)) return 0;
-    return Math.abs(player.y - this.groundAt(creature.x, creature.z));
+    return Math.abs(player.y - this.groundAt(creature.x, creature.z, creature.level));
   }
 
   inBiteRange(creature, player) {
@@ -428,10 +429,11 @@ export default class CreatureSystem {
   }
 
   canStep(creature, x, z, relaxed = false) {
-    if (!relaxed && !this.canStand(x, z)) return false;
+    const level = Number.isFinite(creature.level) ? creature.level : 0;
+    if (!relaxed && !this.canStand(x, z, level)) return false;
     const limit = this.stepLimit(creature.type);
     if (Number.isFinite(limit)) {
-      if (Math.abs(this.groundAt(x, z) - this.groundAt(creature.x, creature.z)) > limit) return false;
+      if (Math.abs(this.groundAt(x, z, level) - this.groundAt(creature.x, creature.z, level)) > limit) return false;
       if (!relaxed && this.wallRiseAt && this.wallRiseAt(x, z, CREATURE_WALL_MARGIN) > limit) return false;
     }
     return true;
@@ -1196,12 +1198,13 @@ export default class CreatureSystem {
     const x = creature.renderX;
     const z = creature.renderZ;
     const reach = CORPSE_GROUND_SAMPLE;
+    const level = creature.level;
     return Math.max(
-      this.groundAt(x, z),
-      this.groundAt(x + reach, z),
-      this.groundAt(x - reach, z),
-      this.groundAt(x, z + reach),
-      this.groundAt(x, z - reach),
+      this.groundAt(x, z, level),
+      this.groundAt(x + reach, z, level),
+      this.groundAt(x - reach, z, level),
+      this.groundAt(x, z + reach, level),
+      this.groundAt(x, z - reach, level),
     );
   }
 
@@ -1288,6 +1291,7 @@ export default class CreatureSystem {
           z: creature.z,
           facing: creature.facing,
           health: creature.health,
+          level: Number.isFinite(creature.level) ? creature.level : 0,
         });
       } else if (Number.isFinite(slot.deadAt)) {
         list.push({ ...base, alive: false, deadAt: slot.deadAt });
@@ -1323,6 +1327,7 @@ export default class CreatureSystem {
 
   applyLive(creature, saved) {
     if (!creature || !saved) return;
+    if (Number.isFinite(saved.level)) creature.level = saved.level;
     if (Number.isFinite(saved.x) && Number.isFinite(saved.z)) {
       const spot = this.nearestSpot(saved.x, saved.z, creature.type);
       creature.x = spot.x;

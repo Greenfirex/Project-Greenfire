@@ -71,7 +71,7 @@ import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
 import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../data/catalogs/modelCatalog.js';
 import { mapFileFromLayout, layoutFromMapFile, isMapFile, MAP_VERSION } from '../data/catalogs/mapFile.js';
-import { worldCells, hasFloor } from '../data/maps/areaShape.js';
+import { worldCells, hasFloor, ceilingLiftAt } from '../data/maps/areaShape.js';
 import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
 import { PAINT_TERRAIN, PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH, PAINT_ALL } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
@@ -91,6 +91,8 @@ const MODEL_LANES = 4;
 const LOAD_RETRIES = 2;
 const WALK_CLEARANCE = 1.25;
 const WADE_DEPTH = 0.6;
+const INDOOR_FADE_SECONDS = 2;
+const CHUNK_HIDE_RADIUS = 6;
 const WADE_SPEED = 0.65;
 const WADE_RAMP = 0.2;
 const WATER_STEP_DEPTH = 0.02;
@@ -172,7 +174,7 @@ export default class GameScene {
     this.playerSystem = new PlayerSystem(scene);
     this.playerStats = new PlayerStatsSystem();
     this.playerAttackSystem = new PlayerAttackSystem();
-    this.playerAttackSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
+    this.playerAttackSystem.groundHeightAt = (x, z, level) => this.terrainSystem.walkHeightAt(x, z, Number.isFinite(level) ? level : this.playerSystem.level);
     this.playerAttackSystem.onHit = (creature, amount, crit) => this.damageCreature(creature, amount, crit);
     this.playerAttackSystem.onMiss = (creature) => this.missCreature(creature);
     this.interaction = new InteractionSystem(scene);
@@ -332,7 +334,7 @@ export default class GameScene {
       if (this.options.dayCycle && !this.simSystem.halted) {
         this.dayNightSystem.update(dt * this.simSystem.speed);
       }
-      this.refreshAmbient();
+      this.refreshAmbient(dt);
       this.decoHighlight.update(dt);
       this.decoSystem.updateWind(this.floraSystem.clock);
       if (this.isLoading) {
@@ -928,7 +930,9 @@ export default class GameScene {
   async setupPlayer() {
     this.playerSystem.inputBlocked = () => this.dialog.open || this.dying;
     this.playerSystem.moveBlocked = () => this.editor.active;
-    this.playerSystem.walkable = (x, z) => this.isWalkableAt(x, z);
+    this.playerSystem.walkable = (x, z, level) => this.isWalkableAt(x, z, level);
+    this.playerSystem.stepLevel = (fromX, fromZ, level, toX, toZ) => this.stepLevel(fromX, fromZ, level, toX, toZ);
+    this.playerSystem.passageAt = (x, z, level) => this.isPassageAt(x, z, level);
     this.playerSystem.inCombat = () => this.creatureSystem.isPlayerInCombat(this.playerSystem.root);
     this.playerSystem.canSprint = () => this.playerStats.canSprint();
     this.playerSystem.speedScale = (x, z) => {
@@ -939,9 +943,9 @@ export default class GameScene {
       return 1 - (1 - WADE_SPEED) * wet;
     };
     this.playerSystem.decoSystem = this.decoSystem;
-    this.playerSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
-    this.playerSystem.wallRiseAt = (x, z, radius) => this.terrainSystem.riseNear(x, z, radius);
-    this.playerSystem.cliffOverlapAt = (x, z) => this.terrainSystem.cliffOverlap(x, z);
+    this.playerSystem.groundHeightAt = (x, z, level) => this.terrainSystem.walkHeightAt(x, z, level);
+    this.playerSystem.wallRiseAt = (x, z, radius, level) => this.terrainSystem.riseNear(x, z, radius, level);
+    this.playerSystem.cliffOverlapAt = (x, z, level) => this.terrainSystem.cliffOverlap(x, z, level);
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z, this.playerSystem.root ? this.playerSystem.root.position.y : 0);
     this.playerSystem.onIntroChange = (lying) => {
       if (lying) this.log.add('Stiskni WASD nebo šipky pro vstání', 'info');
@@ -958,8 +962,8 @@ export default class GameScene {
 
   async setupCreatures() {
     const system = this.creatureSystem;
-    system.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
-    system.walkableAt = (x, z) => this.isWalkableAt(x, z);
+    system.groundHeightAt = (x, z, level) => this.terrainSystem.walkHeightAt(x, z, level);
+    system.walkableAt = (x, z, level) => this.isWalkableAt(x, z, level);
     system.wallRiseAt = (x, z, radius) => this.terrainSystem.riseNear(x, z, radius);
     system.playerAt = () => (this.editor.active || !this.playerSystem.root ? null : this.playerSystem.root.position);
     system.defenseAt = () => this.playerStats.defense;
@@ -1843,6 +1847,26 @@ export default class GameScene {
     this.dayNightSystem.create(map);
     this.dayNightSystem.attach(dir, hemi);
     this.dayNightSystem.apply();
+    this.terrainSystem.onRebuilt = () => this.refreshCaveLighting();
+    this.refreshCaveLighting();
+  }
+
+  refreshCaveLighting() {
+    if (!this.terrainSystem || !this.sunLight) return;
+    const cave = this.terrainSystem.caveMeshes();
+    this.caveMeshList = cave;
+    this.sunLight.excludedMeshes = cave;
+    const sky = this.dayNightSystem ? this.dayNightSystem.skyLight : null;
+    if (sky) sky.excludedMeshes = cave;
+    if (!this.caveLight) {
+      const light = new HemisphericLight('caveLight', new Vector3(0, 1, 0), this.s);
+      light.groundColor = new Color3(0.02, 0.02, 0.03);
+      light.diffuse = new Color3(0.16, 0.18, 0.22);
+      light.specular = new Color3(0, 0, 0);
+      light.intensity = 1;
+      this.caveLight = light;
+    }
+    this.caveLight.includedOnlyMeshes = cave;
   }
 
   setupFog(map) {
@@ -1993,7 +2017,7 @@ export default class GameScene {
     if (this.characterWindow.open) this.refreshCharacterWindow();
   }
 
-  refreshAmbient() {
+  refreshAmbient(dt = 0) {
     const dayness = this.dayNightSystem.config ? this.dayNightSystem.dayness(this.dayNightSystem.getTime()) : 1;
     const value = this.options.dayCycle ? dayness : 1;
     this.audioSystem.setDayness(value);
@@ -2005,6 +2029,55 @@ export default class GameScene {
     this.waterSystem.setSkyTint(this.skySystem.tint());
     if (this.playerSystem.torchFire) this.playerSystem.torchFire.setDayness(value);
     this.campfireSystem.setDayness(value);
+    this.updateIndoor(dt);
+  }
+
+  updateIndoor(dt) {
+    const root = this.playerSystem ? this.playerSystem.root : null;
+    const level = this.playerSystem ? this.playerSystem.level : 0;
+    const under = root ? this.isUnderRoof(root.position.x, root.position.z, level) : false;
+    const target = under ? 1 : 0;
+    const step = Math.min(1, Math.max(0, dt) / INDOOR_FADE_SECONDS);
+    this.indoor = (this.indoor || 0) + (target - (this.indoor || 0)) * step;
+    if (Math.abs(target - this.indoor) < 0.001) this.indoor = target;
+    this.audioSystem.setIndoor(this.indoor);
+    this.updateSurfaceChunks();
+  }
+
+  updateSurfaceChunks() {
+    const chunks = this.terrainSystem ? this.terrainSystem.surfaceChunks : null;
+    if (!chunks || !chunks.length) return;
+    const root = this.playerSystem ? this.playerSystem.root : null;
+    const level = this.playerSystem ? this.playerSystem.level : 0;
+    const under = root ? this.isUnderRoof(root.position.x, root.position.z, level) : false;
+    let cx = 0;
+    let cz = 0;
+    if (root) {
+      const cell = worldToCellCoords(root.position.x, root.position.z);
+      cx = cell.cx;
+      cz = cell.cz;
+    }
+    for (const mesh of chunks) {
+      const meta = mesh.metadata;
+      if (!meta || meta.level === undefined) continue;
+      let visible = true;
+      if (under && meta.overCave && meta.level > level) {
+        const near = cx >= meta.minCx - CHUNK_HIDE_RADIUS && cx <= meta.maxCx + CHUNK_HIDE_RADIUS
+          && cz >= meta.minCz - CHUNK_HIDE_RADIUS && cz <= meta.maxCz + CHUNK_HIDE_RADIUS;
+        if (near) visible = false;
+      }
+      if (mesh._chunkVisible !== visible) {
+        mesh._chunkVisible = visible;
+        mesh.setEnabled(visible);
+      }
+    }
+  }
+
+  isUnderRoof(x, z, level = 0) {
+    const layout = (this.decoSystem && this.decoSystem.layout) || (this.terrainSystem && this.terrainSystem.layout) || null;
+    if (!layout) return false;
+    const { cx, cz } = worldToCellCoords(x, z);
+    return Number.isFinite(ceilingLiftAt(layout, cx, cz, level));
   }
 
   describeDayPhase(time, cfg) {
@@ -2111,7 +2184,7 @@ export default class GameScene {
   setupInput() {
     this.inputSystem.suppressContextMenu(this.canvas);
     this.inputSystem.groundPredicate = (mesh) => mesh === this.terrainSystem.ground;
-    this.inputSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
+    this.inputSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z, this.editor.active ? 0 : this.playerSystem.level);
     this.inputSystem.shouldPickByRay = () => this.editor.active && this.editor.mapMode === 'area';
     this.inputSystem.attach(this.camera, this);
     this.inputSystem.onLeftDown = () => this.handleLeftDown();
@@ -2538,17 +2611,72 @@ export default class GameScene {
     return this.terrainSystem.realCells || [];
   }
 
-  isWalkableAt(x, z) {
-    if (this.terrainSystem && this.terrainSystem.bridgeDeckAt(x, z) !== null) return true;
-    if (this.waterDepthAt(x, z) > WADE_DEPTH) return false;
+  isWalkableAt(x, z, level = 0) {
+    if (level === 0 && this.terrainSystem && this.terrainSystem.bridgeDeckAt(x, z) !== null) return true;
+    if (level === 0 && this.waterDepthAt(x, z) > WADE_DEPTH) return false;
     const { cx, cz } = worldToCellCoords(x, z);
     const layout = this.decoSystem.layout || this.terrainSystem.layout || null;
-    if (hasFloor(layout, cx, cz)) return true;
+    if (hasFloor(layout, cx, cz, level)) return true;
+    if (level !== 0) return false;
     if (!this.areaLookup) {
       this.areaLookup = new Set(this.areaCellsNow().map(([ax, az]) => `${ax},${az}`));
     }
     if (!this.areaLookup.has(`${cx},${cz}`)) return false;
     return this.decoSystem.topAt(cx, cz) < WALK_CLEARANCE;
+  }
+
+  connectorLevelMap() {
+    const layout = this.decoSystem.layout || this.terrainSystem.layout || {};
+    if (this.connectorMap && this.connectorMapFor === layout) return this.connectorMap;
+    const map = new Map();
+    const levelOf = (end) => (end && Number.isFinite(end.level) ? end.level : 0);
+    for (const record of layout.connectors || []) {
+      const from = record && record.from;
+      const to = record && record.to;
+      if (!from || !to) continue;
+      const dx = Math.sign(to.cx - from.cx);
+      const dz = Math.sign(to.cz - from.cz);
+      if (dx === 0 && dz === 0) continue;
+      map.set(`${from.cx},${from.cz},${levelOf(from)}|${dx},${dz}`, levelOf(to));
+      map.set(`${to.cx},${to.cz},${levelOf(to)}|${-dx},${-dz}`, levelOf(from));
+    }
+    this.connectorMap = map;
+    this.connectorMapFor = layout;
+    return map;
+  }
+
+  stepLevel(fromX, fromZ, level, toX, toZ) {
+    const from = worldToCellCoords(fromX, fromZ);
+    const to = worldToCellCoords(toX, toZ);
+    if (from.cx === to.cx && from.cz === to.cz) return level;
+    const dx = Math.sign(to.cx - from.cx);
+    const dz = Math.sign(to.cz - from.cz);
+    if (dx !== 0 && dz !== 0) return level;
+    const map = this.connectorLevelMap();
+    if (!map.size) return level;
+    const target = map.get(`${from.cx},${from.cz},${level}|${dx},${dz}`);
+    return target !== undefined ? target : level;
+  }
+
+  passageCells() {
+    const layout = this.decoSystem.layout || this.terrainSystem.layout || {};
+    if (this.passageSet && this.passageFor === layout) return this.passageSet;
+    const set = new Set();
+    for (const record of layout.connectors || []) {
+      for (const end of [record && record.from, record && record.to]) {
+        if (!end || !Number.isFinite(end.cx) || !Number.isFinite(end.cz)) continue;
+        const lv = Number.isFinite(end.level) ? end.level : 0;
+        set.add(`${end.cx},${end.cz},${lv}`);
+      }
+    }
+    this.passageSet = set;
+    this.passageFor = layout;
+    return set;
+  }
+
+  isPassageAt(x, z, level = 0) {
+    const { cx, cz } = worldToCellCoords(x, z);
+    return this.passageCells().has(`${cx},${cz},${level}`);
   }
 
   areaCellsNow() {

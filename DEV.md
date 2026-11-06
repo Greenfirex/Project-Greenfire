@@ -681,6 +681,9 @@ stěny při plochém úhlu kamery, nebo v editoru.
 2. **Mezi plochami se chodí jen po spoji.** Geometrie nikdy nedovolí přechod
    sama. Spoj zároveň znamená díru ve stropě nebo v podlaze a vynechanou stěnu
    tam, kudy prochází — takže nemůže vzniknout jeskyně se schody a bez díry.
+   **V buňkách spoje neplatí stěnová kolize útesu** (jinak by se kvůli „překryvu
+   útesu" k díře vůbec nedošlo); schod nahoru/dolů dál hlídá krokový limit, takže
+   se přes otvor nedá nikam vyskočit.
 3. **Světlá výška 2,6 m** (postava měří ve světě 2,31 m, zbytek je rezerva) je
    minimum, do kterého hráč vejde; editor varuje, když jeskyně vyjde nižší.
    Výchozí světlá výška nové jeskyně je 3,0 m.
@@ -724,8 +727,24 @@ straně, co na druhé, jaká plocha mezi nimi), pak geometrie z ní:
    díra versus okraj mapy. Bez viditelné změny. **Hotovo.**
 2. Geometrie podle tabulky ploch — podlaha, strop, stěny, šachty. **Hotovo**:
    povrch po plochách, stropy, stěny dutin, šachty i vynechané stěny u spojů.
-3. Hráč a tvorové nesou štítek patra; pohyb jen v rámci plochy; spoje.
+3. Hráč a tvorové nesou štítek patra; pohyb jen v rámci plochy; spoje. **Hotovo**
+   u hráče i tvorů (štítek patra, průchodnost podle patra) a u hráče i průchod
+   spojem (vejde do jeskyně a ven). Tvorové zatím přes spoj nechodí — jejich
+   hledání cesty je 2D nad jednou plochou (viz Stav níž).
 4. Viditelnost a světlo: skrýt plochy nade mnou, pod stropem tma.
+   **Tma a jeskynní ambient hotové.** Tma je **prostorová**: jeskynní plochy
+   (dlažba patra −1, stěny a strop jeskyně) jsou vyloučené ze slunce i z oblohy,
+   takže jsou tmavé **vždy** — i když tam nikdo nestojí; svítí je jen slabé
+   jeskynní světlo a pochodеň/oheň. Povrch zůstává vždy světlý. **Postava a tvorové
+   zůstávají osvětlení normálně i v jeskyni** (vylučovat je ze světla dělalo potíže —
+   po výstupu černali; doladí se později). Zvuk se naproti
+   tomu přelévá podle hráče: pod stropem se les ztlumí a rozehrajе se `cave.ogg`
+   (a naopak). **Skrývání nad hráčem hotové:** povrch se staví po **dílcích**
+   (skupiny buněk, `SURFACE_CHUNK`) a každý dílek ví, jestli leží nad jeskyní
+   (`overCave`). Když je hráč pod stropem, schovají se dílky vyššího patra, které
+   jsou nad jeskyní v okolí hráče (strop jeskyně je zeshora neviditelný, takže je
+   vidět dovnitř). Jinde zůstávají vidět. Pozn.: dílek je větší než malá jeskyně,
+   takže u okrajů se může odkrýt i prázdno — to je „hloubka skály", samostatné téma.
 5. Editor: přepínač pater, štětec díry, štětec spoje, řez sloupcem, duch skryté
    plochy, kontroly (díra bez spoje, nízký strop, podlaha pod vodou) a vracení
    zpět přes plochy.
@@ -735,13 +754,31 @@ straně, co na druhé, jaká plocha mezi nimi), pak geometrie z ní:
 
 Kroky 1–3 se dají ověřit na mapě napsané ručně, bez editoru.
 
-**Stav:** kroky 1 a 2 jsou hotové (data, dotazy i geometrie — viz seznam výš).
+**Stav:** kroky 1–3 jsou hotové (data, dotazy, geometrie i pohyb po patrech).
 Co je potřeba doladit, až se k tomu vrátíme:
 
-- **šev nad vchodem** u buňky −6,−11: pruh skály nad otvorem se tam nemá na co
-  napojit (u −6,−9 kolmá skalní stěna je, tam to sedí),
-- **v jeskyni je tma** — světlo přinese krok 4,
-- **do jeskyně se zatím nedá vejít** — chybí krok 3,
+- **šev nad vchodem** (vchod na −5,−10 mezi −5,−9 a −5,−11) — **opraveno.**
+  Vršek útesu má vizuální převis (lem se rozšiřuje nad stěnu), který je na
+  sousední stěně vidět jako prohnutí. Pruh skály nad otvorem se napojuje na dvě
+  sousední stěny a dřív se při výřezu posouval i první řádek nad otvorem, takže
+  se ten převis na pruhu „zmáčkl" a na prohnutí sousední stěny nenavázal (k −5,−9
+  to sedělo, protože tam sousední stěna končí ve výšce otvoru 3,6 m a převis tam
+  žádný není). Teď výřez jen odřízne spodek a **řádky nad otvorem nechá beze
+  změny**, takže lem/převis zůstane stejný jako u sousední stěny a šev naváže.
+  *(čeká na vizuální potvrzení v dev serveru)*
+- **skvíra u podlahy** ve vchodu — **opraveno.** Dlažba jeskyně je rovná, ale zem
+  před vchodem je vyhlazovaný povrch se zvlněným okrajem (reliéf skály se do něj
+  promítá) a její výšku táhne i sousední buňka −5,−11 (0,94 m vs. 0,9 m). Podél
+  vchodu se proto hrana země a dlažby nesešly a zůstal tenký klín. Teď se hrana
+  země podél otevřeného vchodu srovná na rovnou dlažbu — ve výšce i v půdorysu
+  (přesně na hranici buňky) — takže na sebe navážou. *(čeká na vizuální potvrzení
+  v dev serveru)*
+- **v jeskyni je tma a hraje jeskynní ambient** — hotovo v kroku 4 (část světlo/zvuk);
+  skrývání ploch nade hráčem (vidět do jeskyně z výšky) taky hotové — dílky nad jeskyní
+  se pod stropem schovají,
+- **tvorové nechodí přes spoj** — jejich hledání cesty je 2D nad jednou plochou;
+  štítek patra i průchodnost podle patra mají, ale do jeskyně sami nevejdou. V jeskyni
+  zatím žádní nejsou, takže to nevadí; doplní se, až tam mít budou,
 - **editor neumí** namalovat plochu −1 ani spoj (krok 5),
 - **vchod potřebuje stejnou výšku** na obou stranách; když se rozejdou, vznikne
   schod — ten budou řešit rampy nebo schody.
@@ -751,7 +788,88 @@ později totéž po buňkách kolem hráče (plynulé schovávání, průhled). 
 neznamenalo přestavět terén, staví se geometrie **po skupinách buněk** už od
 začátku — to je jediná věc, která by se dodatečně dělala draze.
 
+**Hloubka skály.** Terén není kus skály, ale sada tenkých skořápek: pochozí
+povrch nahoře, stěny útesů po stranách (oboustranné, takže z rubu je vidět
+textura) a „sukně" na okraji mapy. Pod povrchem ale není nic vyplněné — je tam
+prázdný prostor, který uzavírají jen ty skořápky. Dokud je terén kompaktní, není
+to vidět. Jakmile skálu prořízne vchod (a později celé jeskyně), vnější skořápka
+se přeruší a její okraj se nenapojí na vnitřní stěny jeskyně — mezi nimi zůstane
+prázdno. Proto je u vchodu „vidět dovnitř" a z boku je skála prázdná. Odpovídá to
+dřívějšímu pravidlu „skála mezi dvěma plochami je neviditelná, ale musí
+existovat" — dnes existuje jen jako prázdno.
+
+*Směry řešení (cena roste shora dolů):*
+
+- **Hrdlo u otvoru:** kolem každého vchodu doplnit krátké stěny, které spojí
+  vnější okraj díry s vnitřními stěnami jeskyně. Levné a místní, řeší jen otvory.
+- **Plné těleso po vrstvách:** doplnit spodní víka a vnitřní stěny tak, aby každý
+  vyvýšený blok byl uzavřený a nebylo přes něj vidět; jeskyně je dutina v něm.
+  Střední cena, sedí na model pater.
+- **Skutečná tloušťka stěn:** rubová plocha posunutá dovnitř a zarovnané hrany.
+  Robustní pro jakýkoli řez, ale nejdražší a u jeskyní naráží na dutinu uvnitř hmoty.
+- **Tmavé skalní dno (kosmetika):** prázdno vyplnit tmavým rubem a spodními víky,
+  aby to vypadalo jako temná skála, ne prázdno. Rychlé, ale není to skutečná hloubka.
+
+*Doporučení:* nejdřív pomůže „hrdlo" u vchodu (přestane prosvítat); dlouhodobě
+k tomu patří plné těleso po vrstvách — model pater už s ním počítá.
+
+**Řeší se velkou etapou „objemový terén" (viz konec dokumentu).** Skalní kůže ani
+jiné náplasti se nakonec nepoužijí; terén se předělá na skutečnou hmotu.
+
 **Otevřené otázky:** má se pod stropem zastavit denní doba; co má být uvnitř
 ke sbírání (ruda, krystaly) a jací tvorové; a jestli má voda v podzemí přijít
 hned po editoru, nebo až po něm.
+
+## Velká etapa: objemový terén (skála jako hmota)
+
+**Proč.** Terén je dnes sada tenkých skořápek (povrch, stěny útesů, strop jeskyně,
+sukně). Pod povrchem není hmota, takže v řezech (vchod, odklopení střechy ve 4B) je
+vidět prázdno až do moře. Náplasti (skalní kůže, prosvícení, přiklopení kamery)
+problém jen maskují. Pro budoucí přesahy, jeskyně kdekoliv a volná patra je potřeba
+terén jako objem.
+
+**Princip.** Místo „jedna výška na buňku a patro" drží každá buňka seznam **plných
+pruhů** (od–do) v rozlišení kroku; mezi nimi je vzduch. Je to totéž co voxely, jen
+komprimované (run-length). Umí jeskyně kdekoliv, volná patra, přesahy (pruh s prázdnem
+pod i nad), tunely i libovolný řez. Pevná skála se **odvodí ze stávajících dat** jako
+doplněk vzduchu (`airSpansAt` dá vzduch, zbytek je skála) — proto jde o migraci, ne
+o přepis mapy od nuly.
+
+**Krok výšek 0,25.** Změna z dnešních 0,3 na **0,25** (0 = default; kulatá čísla
+0 / 0,25 / 0,5 / 0,75 …). Rozsah zůstává **−15…+24 m** → v počtech kroků **−60…+96**
+(`MIN_HEIGHT`/`MAX_HEIGHT` a `HEIGHT_PRESETS` přepočítat).
+
+**Tři oddělená čísla** (dřív částečně svázaná s krokem; teď záměrně oddělené):
+
+- **krok mřížky** = 0,25 (jen rozlišení/vzhled),
+- **co postava/tvor vyleze** ≈ 0,5 (samostatný limit, nezávislý na kroku),
+- **práh útesu** zvlášť (velký rozdíl výšky nebo buňka označená jako útes).
+
+**Co se přepíše.** Kreslení terénu jedním **mesherem pruhů** po dílcích: horní líce
+= podlaha, spodní líce = spodní víka, boční líce = útesy / stěny jeskyní / přesahy
+(stěny slučovat kvůli výkonu). Dále dotazy na výšku a průchodnost (na pruzích), voda
+po sloupcích, editor (malování výšky + vykopat/vyplnit), formát mapy a savu (nová
+verze + migrace). Tráva, dekorace, kamera a tvorové zůstanou, jen budou číst nové
+dotazy.
+
+**Největší riziko: vzhled útesů.** Současné římsy, převisy a mech jsou procedurální
+na plochách; na objemových lících je třeba detail znovu vymyslet, jinak krajina zhrubne.
+
+**Fáze (hra běží celou dobu; starý renderer držet až do fáze 2):**
+
+0. Model pruhů vedle stávajícího (`utils/terrainRuns.js`, `terrainSystem.solidRunsAt`)
+   a krok výšek 0,25 v `layoutStore` (rozsah −15…+24 m, `HEIGHT_STEP`, předvolby).
+   **Hotovo.** Přeškálování starých výšek na 0,25 a zvednutí krokového limitu (~0,5)
+   patří na začátek fáze 1 — mění svět/pohyb, tak ať to jde s migrací naráz.
+1. Nový mesher pro podlahy (horní líce) za přepínačem; porovnat se současným povrchem.
+2. Boční a spodní líce (skála, stěny jeskyní, spodní víka) → hmota; odstranit staré
+   útesy/dutiny/sukni; ladit vzhled.
+3. Pohyb a dotazy na pruzích.
+4. Voda, tráva, dekorace, kamera na nové dotazy.
+5. Editor: úpravy pruhů (vykopat/vyplnit), díry, spoje.
+6. Formát mapy a ukládání (nová verze, migrace starých).
+7. Dočistit 4B: odkrývání střechy je teď bezpečné (skála je hmota) a skryjí se i
+   dekorace na odkrytých buňkách.
+
+**Stav:** Fáze 0 hotová (model pruhů + krok 0,25). Čeká na fázi 1 (mesher podlah).
 

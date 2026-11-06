@@ -70,8 +70,10 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ## Výroba a svět
 
-- [ ] Patra (sloupce): krok 3 — postava a tvorové nesou štítek plochy, pohyb jen v rámci plochy a průchod spojem (vejít do jeskyně). Pak krok 4 — skrytí plochy nade mnou a tma. Model a stav jsou v `DEV.md`, sekce „Jeskyně a patra".
-- [ ] Patra: doladit šev nad vchodem u buňky −6,−11 (pruh skály nad otvorem se tam nemá na co napojit).
+- [ ] **Velká etapa: objemový terén (skála jako hmota) + krok výšek 0,25** a oddělené limity (vylezu ~0,5; práh útesu zvlášť). Plán a fáze 0–7 v `DEV.md`, sekce „Velká etapa: objemový terén". **Fáze 0 hotová** (model pruhů `utils/terrainRuns.js` + krok 0,25 v `layoutStore`); čeká fáze 1 (mesher podlah) — tam i přeškálování výšek a zvednutí krokového limitu.
+- [ ] Patra: ověřit v dev serveru krok 4 — jeskyně je tmavá i bez hráče (prostorová tma; pochodеň/oheň prosvětlí), povrch světlý, jeskynní ambient (`cave.ogg`) se přelévá; a skrývání ploch nade hráčem (z výšky vidět dovnitř) funguje. Model a stav jsou v `DEV.md`, sekce „Jeskyně a patra".
+- [ ] 4B pozastaveno do velké etapy: odkrývání střechy teď ukazuje prázdno/moře a dekorace nad odhalenou plochou visí — dočistí se ve fázi 7 objemového terénu (skála bude hmota + skrytí dekorací).
+- [ ] Patra: hloubka skály — **řeší se velkou etapou „objemový terén"** (viz `DEV.md`, sekce „Velká etapa: objemový terén"). Skalní kůže a jiné náplasti se nepoužijí.
 - [ ] Suché jámy pod hladinou a řeky s vodopády — dvě témata k rozhodnutí; rozbor (co to obnáší a co se může rozbít) je v `DEV.md`, sekce „Voda a podzemí".
 - [ ] Rozhodnout, jestli recepty zůstanou jen jako přehled, nebo dostanou tlačítko pro výrobu.
 - [ ] Navrhnout nový systém stavění (starý byl odstraněn).
