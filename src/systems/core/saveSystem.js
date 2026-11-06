@@ -1,8 +1,8 @@
 // Obecný save systém — sběrač stavu nad registrovanými vlastníky.
 // Nezná obsah stavu: každý vlastník dodá serialize, apply, defaults a order.
-import { SAVE_VERSION, SAVE_STORAGE_KEY, SAVE_LEGACY_KEY, SAVE_LOAD_FLAG_KEY } from '../data/catalogs/saveSchema.js';
-import { readJSON, writeJSON, removeJSON } from '../utils/storage.js';
-import { stateProvider } from '../utils/saveState.js';
+import { SAVE_VERSION, SAVE_STORAGE_KEY, SAVE_LEGACY_KEY, SAVE_LOAD_FLAG_KEY } from '../../data/catalogs/saveSchema.js';
+import { readJSON, writeJSON, removeJSON } from '../../utils/storage.js';
+import { stateProvider } from '../../utils/saveState.js';
 
 export default class SaveSystem {
 

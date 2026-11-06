@@ -2,9 +2,9 @@
 // Systém jen čte mapu a hýbe hotovými tvary; do terénu ani do hry nezasahuje.
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { fishTemplate } from '../utils/fishFactory.js';
-import { FISH_KEYS, getFishType } from '../data/catalogs/fish.js';
-import { CELL_SIZE } from '../utils/gridMath.js';
+import { fishTemplate } from '../../utils/fishFactory.js';
+import { FISH_KEYS, getFishType } from '../../data/catalogs/fish.js';
+import { CELL_SIZE } from '../../utils/gridMath.js';
 
 const BOB = 0.07;
 const SURFACE_MARGIN = 0.18;

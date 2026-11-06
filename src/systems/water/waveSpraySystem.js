@@ -5,7 +5,7 @@ import { Color4 } from '@babylonjs/core/Maths/math.color';
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
 import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem';
 import '@babylonjs/core/Particles/webgl2ParticleSystem';
-import { CELL_SIZE } from '../utils/gridMath.js';
+import { CELL_SIZE } from '../../utils/gridMath.js';
 
 const CLIFF_RISE = 1.1;
 const SITE_SPACING = 2.4;

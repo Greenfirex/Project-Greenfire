@@ -6,11 +6,11 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { Vector3, Matrix, Quaternion } from '@babylonjs/core/Maths/math.vector';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
-import { CELL_SIZE, worldToCell } from '../utils/gridMath.js';
-import { warnMissingWiring } from '../utils/missingWiring.js';
-import { cellNoise, patchValue } from '../utils/decoPlacement.js';
+import { CELL_SIZE, worldToCell } from '../../utils/gridMath.js';
+import { warnMissingWiring } from '../../utils/missingWiring.js';
+import { cellNoise, patchValue } from '../../utils/decoPlacement.js';
 import { createGrassMaterial, tickGrass } from './grassShader.js';
-import { GRASS_TYPES, GRASS_MIXES, GRASS_ORDER, GRASS_COVER, GRASS_GROUND, grassGroundUrls } from '../data/catalogs/grass.js';
+import { GRASS_TYPES, GRASS_MIXES, GRASS_ORDER, GRASS_COVER, GRASS_GROUND, grassGroundUrls } from '../../data/catalogs/grass.js';
 
 const GRASS_LIFT = 0.02;
 const TREE_CLEARANCE = 0.35;

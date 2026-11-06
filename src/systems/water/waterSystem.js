@@ -10,8 +10,8 @@ import { RenderTargetTexture } from '@babylonjs/core/Materials/Textures/renderTa
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Constants } from '@babylonjs/core/Engines/constants';
-import { CELL_SIZE } from '../utils/gridMath.js';
-import { swellAt, shoalWithCliff, waveAmpFor, WAVE_REACH, WAVE_TIME_WRAP } from '../utils/waterWaves.js';
+import { CELL_SIZE } from '../../utils/gridMath.js';
+import { swellAt, shoalWithCliff, waveAmpFor, WAVE_REACH, WAVE_TIME_WRAP } from '../../utils/waterWaves.js';
 import { createWaterMaterial, createWaterSideMaterial, tickWater } from './waterShader.js';
 
 const WATER_SINK = 0.02;

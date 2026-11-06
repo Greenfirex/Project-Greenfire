@@ -1,6 +1,6 @@
 // Tvorové ve světě — načte model, rozhoduje v pevném tiku a plynule ho hýbe.
 // Nedrží žádný jiný systém; výšku terénu, průchodnost a hráče dostane od scény.
-import { loadContainer } from '../utils/assetLoader.js';
+import { loadContainer } from '../../utils/assetLoader.js';
 import '@babylonjs/core/Meshes/mesh';
 import '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Materials/PBR/pbrMaterial';
@@ -10,8 +10,8 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Meshes/Builders/sphereBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
-import { createCreatureMarker, setMarkerIcon } from '../utils/creatureMarker.js';
-import { rollStrike, CRIT_MULTIPLIER } from '../utils/combatRoll.js';
+import { createCreatureMarker, setMarkerIcon } from '../../utils/creatureMarker.js';
+import { rollStrike, CRIT_MULTIPLIER } from '../../utils/combatRoll.js';
 import {
   getCreatureType,
   getCreatureTier,
@@ -19,10 +19,10 @@ import {
   creatureStat,
   creatureScale,
   tierTint,
-} from '../data/catalogs/creatures/index.js';
-import { cellToWorldCoords, worldToCell, CELL_SIZE } from '../utils/gridMath.js';
-import { warnMissingWiring } from '../utils/missingWiring.js';
-import { findCellPath } from '../utils/gridPath.js';
+} from '../../data/catalogs/creatures/index.js';
+import { cellToWorldCoords, worldToCell, CELL_SIZE } from '../../utils/gridMath.js';
+import { warnMissingWiring } from '../../utils/missingWiring.js';
+import { findCellPath } from '../../utils/gridPath.js';
 
 const TURN_SPEED = 7;
 const EMERGE_TURN_SPEED = 18;

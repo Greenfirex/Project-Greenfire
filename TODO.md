@@ -70,7 +70,7 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ## Výroba a svět
 
-- [ ] **Velká etapa: objemový terén (skála jako hmota) + krok výšek 0,25** a oddělené limity (vylezu ~0,5; práh útesu zvlášť). Plán a fáze 0–7 v `DEV.md`, sekce „Velká etapa: objemový terén". **Fáze 0 hotová** (model pruhů `utils/terrainRuns.js` + krok 0,25 v `layoutStore`); čeká fáze 1 (mesher podlah) — tam i přeškálování výšek a zvednutí krokového limitu.
+- [ ] **Velká etapa: objemový terén (skála jako hmota) + krok výšek 0,25** a oddělené limity (vylezu ~0,5; práh útesu zvlášť). Plán a fáze 0–7 v `DEV.md`, sekce „Velká etapa: objemový terén". **Fáze 0 hotová** (model pruhů + krok 0,25). **Fáze 1 rozpracovaná**: přeškálování výšek na 0,25 a krokový limit (0,55) hotové; zbývá nový mesher podlah.
 - [ ] Patra: ověřit v dev serveru krok 4 — jeskyně je tmavá i bez hráče (prostorová tma; pochodеň/oheň prosvětlí), povrch světlý, jeskynní ambient (`cave.ogg`) se přelévá; a skrývání ploch nade hráčem (z výšky vidět dovnitř) funguje. Model a stav jsou v `DEV.md`, sekce „Jeskyně a patra".
 - [ ] 4B pozastaveno do velké etapy: odkrývání střechy teď ukazuje prázdno/moře a dekorace nad odhalenou plochou visí — dočistí se ve fázi 7 objemového terénu (skála bude hmota + skrytí dekorací).
 - [ ] Patra: hloubka skály — **řeší se velkou etapou „objemový terén"** (viz `DEV.md`, sekce „Velká etapa: objemový terén"). Skalní kůže a jiné náplasti se nepoužijí.

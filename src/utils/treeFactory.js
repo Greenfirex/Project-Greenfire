@@ -10,7 +10,7 @@ import { createBuffer, pushVertex, buildMesh, mulberry32 } from './meshBuilder.j
 import { buildTreeSkeleton } from './treeSkeleton.js';
 import { getTreeRecipe } from '../data/catalogs/trees.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
-import TreeWindPlugin from '../systems/treeWindPlugin.js';
+import TreeWindPlugin from '../systems/flora/treeWindPlugin.js';
 
 const templates = new WeakMap();
 const stumps = new WeakMap();

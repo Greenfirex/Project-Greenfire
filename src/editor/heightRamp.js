@@ -11,7 +11,7 @@ const RAMP = [
 ];
 
 export function formatMeters(meters) {
-  const value = Math.round((Number(meters) || 0) * 10) / 10;
+  const value = Math.round((Number(meters) || 0) * 100) / 100;
   return `${String(value).replace('.', ',').replace('-', '−')} m`;
 }
 

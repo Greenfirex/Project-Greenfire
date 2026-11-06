@@ -3,8 +3,8 @@
 import '@babylonjs/core/Culling/ray';
 import { Plane } from '@babylonjs/core/Maths/math.plane';
 import { PointerEventTypes } from '@babylonjs/core/Events/pointerEvents';
-import { worldToCellCoords } from '../utils/gridMath.js';
-import { MAX_HEIGHT, HEIGHT_STEP } from '../data/maps/layoutStore.js';
+import { worldToCellCoords } from '../../utils/gridMath.js';
+import { MAX_HEIGHT, HEIGHT_STEP } from '../../data/maps/layoutStore.js';
 
 const ROTATE_SPEED = 0.006;
 const DRAG_THRESHOLD = 5;

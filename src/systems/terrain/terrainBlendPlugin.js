@@ -1,7 +1,7 @@
 // Doplněk materiálu terénu — přimíchá barvu až tří sousedních povrchů podle váhových map.
 // Soused s třítexturovým podkladem (tráva) se počítá stejným předpisem jako jeho vlastní plocha.
 import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase';
-import { grassGroundGlsl } from '../utils/grassGround.js';
+import { grassGroundGlsl } from '../../utils/grassGround.js';
 
 const SECOND_SLOT = 'TERRAIN_BLEND_SECOND';
 const THIRD_SLOT = 'TERRAIN_BLEND_THIRD';

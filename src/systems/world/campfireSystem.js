@@ -1,7 +1,7 @@
 // Táboráky ve světě — kde stojí, jestli hoří, a co udělá zapálení.
 // Drží jen seznam ohňů; kdo klikne a kde stojí hráč, mu hlásí scéna.
-import { cellKey, cellToWorldCoords } from '../utils/gridMath.js';
-import CampfireFire from '../effects/campfireFire.js';
+import { cellKey, cellToWorldCoords } from '../../utils/gridMath.js';
+import CampfireFire from '../../effects/campfireFire.js';
 
 const REACH = 3.2;
 const MOVE_CANCEL = 0.16;

@@ -9,7 +9,7 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { createBuffer, pushVertex, buildMesh, mulberry32 } from './meshBuilder.js';
 import { getBushRecipe } from '../data/catalogs/bushes.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
-import TreeWindPlugin from '../systems/treeWindPlugin.js';
+import TreeWindPlugin from '../systems/flora/treeWindPlugin.js';
 
 const templates = new WeakMap();
 const textures = new WeakMap();

@@ -7,10 +7,10 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
-import { createCliffLeafGeometry } from '../utils/leafRosetteFactory.js';
-import TreeWindPlugin from './treeWindPlugin.js';
-import { flowerTemplate } from '../utils/flowerFactory.js';
+import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
+import { createCliffLeafGeometry } from '../../utils/leafRosetteFactory.js';
+import TreeWindPlugin from '../flora/treeWindPlugin.js';
+import { flowerTemplate } from '../../utils/flowerFactory.js';
 
 const TYPES = [
   {

@@ -2,7 +2,7 @@
 // Drží si seznam meshů a jméno pro tooltip; samotné kreslení si řídí Babylon.
 import '@babylonjs/core/Rendering/outlineRenderer';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { cellKey } from '../utils/gridMath.js';
+import { cellKey } from '../../utils/gridMath.js';
 
 const GOLD = new Color3(1, 0.78, 0.25);
 const OUTLINE_WIDTH = 0.035;

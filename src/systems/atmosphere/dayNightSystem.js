@@ -2,7 +2,7 @@
 // Jediné místo, které hýbe světly scény; bere si konfiguraci z mapy.
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { getMap } from '../data/catalogs/maps.js';
+import { getMap } from '../../data/catalogs/maps.js';
 
 const DAYLIGHT_CURVE = 0.6;
 

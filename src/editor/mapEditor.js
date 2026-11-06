@@ -170,7 +170,8 @@ export default class MapEditor {
   }
 
   setWater(level) {
-    const value = this.mode.setWaterLevel(level);
+    const snapped = Math.round((Number(level) || 0) / HEIGHT_STEP) * HEIGHT_STEP;
+    const value = this.mode.setWaterLevel(snapped);
     this.mode.setWaterShown(true);
     this.hud.setWater(value, this.mode.waterShown);
     this.s.adoptEditorMap();

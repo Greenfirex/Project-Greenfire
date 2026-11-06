@@ -3,7 +3,7 @@
 import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
 import { Effect } from '@babylonjs/core/Materials/effect';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { grassGroundGlsl } from '../utils/grassGround.js';
+import { grassGroundGlsl } from '../../utils/grassGround.js';
 
 const VERTEX = `
 precision highp float;

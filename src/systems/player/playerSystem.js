@@ -1,13 +1,13 @@
-﻿// HratelnĂˇ postava â€” naÄŤtenĂ­ modelu s vlastnĂ­ texturou, animace z vedlejĹˇĂ­ch souborĹŻ a pohyb po svÄ›tÄ›.
+// HratelnĂˇ postava â€” naÄŤtenĂ­ modelu s vlastnĂ­ texturou, animace z vedlejĹˇĂ­ch souborĹŻ a pohyb po svÄ›tÄ›.
 // Model i animace se stahujĂ­ najednou; nĂˇstroj teprve ve chvĂ­li, kdy ho hrĂˇÄŤ poprvĂ© vezme do ruky.
 import '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Animations/animatable';
 import '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { worldToCellCoords, cellToWorldCoords } from '../utils/gridMath.js';
-import { warnMissingWiring } from '../utils/missingWiring.js';
-import { TOOL_TYPES } from '../data/catalogs/items.js';
+import { worldToCellCoords, cellToWorldCoords } from '../../utils/gridMath.js';
+import { warnMissingWiring } from '../../utils/missingWiring.js';
+import { TOOL_TYPES } from '../../data/catalogs/items.js';
 import {
   toolModelUrl,
   PLAYER_MODEL,
@@ -24,9 +24,9 @@ import {
   PLAYER_ANIM_RANGES,
   PLAYER_ANIM_ROOTLESS,
   PLAYER_DEATH_OVERLAY_SHARE,
-} from '../data/catalogs/modelCatalog.js';
-import { loadModel, instantiateModel, loadImported } from '../utils/assetLoader.js';
-import TorchFire from '../effects/torchFire.js';
+} from '../../data/catalogs/modelCatalog.js';
+import { loadModel, instantiateModel, loadImported } from '../../utils/assetLoader.js';
+import TorchFire from '../../effects/torchFire.js';
 
 const ANIM_BLEND = 0.25;
 const STRIKE_PLAY_SHARE = {
@@ -64,7 +64,7 @@ const SLIDE_LOOKAHEAD = 1.2;
 const SLIDE_MIN = 0.12;
 const WALL_SLIDE_ANGLES = [0.35, -0.35, 0.7, -0.7, 1.05, -1.05, Math.PI / 2, -Math.PI / 2];
 const MOVE_SPEED = 4.5;
-export const STEP_LIMIT = 0.45;
+export const STEP_LIMIT = 0.55;
 const WALK_SPEED = 2.4;
 const TURN_SPEED = 12;
 const LOOK_TURN_SPEED = 6;

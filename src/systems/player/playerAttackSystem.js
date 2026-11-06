@@ -1,8 +1,8 @@
 // Hráčův útok nablízko — kdy máchne rukou, kdy je dopad a jestli rána vyšla.
 // O zásahu i o critu rozhodne porovnání útoku s obranou cíle; ubrané zdraví hlásí scéně, sám ho nedrží.
-import { PLAYER_BASE } from '../data/catalogs/player.js';
-import { creatureStat } from '../data/catalogs/creatures/index.js';
-import { rollStrike, CRIT_MULTIPLIER } from '../utils/combatRoll.js';
+import { PLAYER_BASE } from '../../data/catalogs/player.js';
+import { creatureStat } from '../../data/catalogs/creatures/index.js';
+import { rollStrike, CRIT_MULTIPLIER } from '../../utils/combatRoll.js';
 
 export default class PlayerAttackSystem {
 

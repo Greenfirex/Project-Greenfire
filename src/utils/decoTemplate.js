@@ -12,9 +12,9 @@ import { campfireTemplate } from './campfireFactory.js';
 import { resolveModel } from './assetLoader.js';
 import { getTreeRecipe } from '../data/catalogs/trees.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
-import TreeWindPlugin from '../systems/treeWindPlugin.js';
-import ModelSaturationPlugin from '../systems/modelSaturationPlugin.js';
-import ModelRimPlugin from '../systems/modelRimPlugin.js';
+import TreeWindPlugin from '../systems/flora/treeWindPlugin.js';
+import ModelSaturationPlugin from '../systems/materials/modelSaturationPlugin.js';
+import ModelRimPlugin from '../systems/materials/modelRimPlugin.js';
 
 const treeModels = new WeakMap();
 const fittedModels = new WeakSet();

@@ -1,6 +1,6 @@
 // Stavy postavy — zdraví, obrana a výdrž hráče, doplňování zdraví i výdrže a chvilka klidu po probuzení.
 // Čísla bere z katalogu postavy; scéně jen hlásí změnu zdraví a výdrže.
-import { PLAYER_BASE } from '../data/catalogs/player.js';
+import { PLAYER_BASE } from '../../data/catalogs/player.js';
 
 export default class PlayerStatsSystem {
 

@@ -8,7 +8,7 @@ import {
   WAVE_TIME_WRAP, WAVE_CREST_SCALE, WAVE_REACH, CRASH_LIFT, SHORE_FOAM_WIDTH, SHORE_BREATH,
   FOAM_SWING, SHORE_SWING,
   waveAmpGlsl, waveFieldGlsl, rippleSlopeGlsl, rippleWarpGlsl, glslFloat,
-} from '../utils/waterWaves.js';
+} from '../../utils/waterWaves.js';
 
 const FOAM_DIR = 'assets/nature/textures/';
 const FOAM_FILES = {

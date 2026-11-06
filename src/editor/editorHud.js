@@ -1,10 +1,11 @@
 // DOM panel editačního režimu — přepínání režimů, paleta brushů, čtení buňky a uložení.
 // Napojený přes callbacky na scene, sám nic generuje ani nemění.
 import { BRUSHES, BRUSH_GROUPS, brushesOf, getBrush } from '../data/catalogs/brushes.js';
+import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { makeDraggable } from '../ui/draggable.js';
 
 function formatMeters(value) {
-  const n = Math.round(Number(value) * 10) / 10;
+  const n = Math.round(Number(value) * 100) / 100;
   return String(n).replace('.', ',').replace('-', '−');
 }
 
@@ -48,9 +49,9 @@ export default class EditorHud {
           <button type="button" class="editor-panel__water-toggle" title="Zapnout nebo vypnout vodu pro celou mapu">Vypnuto</button>
         </div>
         <div class="editor-panel__water-level">
-          <button type="button" data-water-step="-1" title="Snížit hladinu o 0,3 m">−</button>
+          <button type="button" data-water-step="-1" title="Snížit hladinu o ${String(HEIGHT_STEP).replace('.', ',')} m">−</button>
           <span class="editor-panel__water-value">–</span>
-          <button type="button" data-water-step="1" title="Zvýšit hladinu o 0,3 m">+</button>
+          <button type="button" data-water-step="1" title="Zvýšit hladinu o ${String(HEIGHT_STEP).replace('.', ',')} m">+</button>
         </div>
       </div>
       <div class="editor-panel__save-row">

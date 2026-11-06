@@ -7,9 +7,9 @@ import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { CELL_SIZE } from '../utils/gridMath.js';
-import { instantiateModel } from '../utils/assetLoader.js';
-import { decorationTemplate } from '../utils/decoTemplate.js';
+import { CELL_SIZE } from '../../utils/gridMath.js';
+import { instantiateModel } from '../../utils/assetLoader.js';
+import { decorationTemplate } from '../../utils/decoTemplate.js';
 
 const HOLOGRAM_ALPHA = 0.45;
 const CREATURE_RADIUS_LIFT = 0.06;

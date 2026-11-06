@@ -10,9 +10,17 @@ a co následuje. Co hra je, jak se ovládá a jaké má licence, popisuje
 src/
   main.js                    engine, plátno, render loop
   scenes/GameScene.js        orchestrátor — stav světa, delegace na systémy
-  systems/                   camera, grid, terrain, water, sky, deco, gather, interaction,
-                             inventory, heldItem, player, input,
-                             campfire, glow, dayNight, sim, audio, save, creature
+  systems/
+    core/                    sim, save, input, interaction, camera, grid
+    terrain/                 terrain, blend/relief/caustic/wet/grass pluginy, cliffSurface, cliffVine
+    water/                   water, waterShader, waveSpray, fish
+    flora/                   flora, grassShader, treeWind
+    creatures/               creature, footprint
+    player/                  player, attack, stats, heldItem, inventory
+    gathering/               gather, harvest, felling
+    world/                   deco, decoHighlight, campfire, glow, path
+    atmosphere/              dayNight, sky, audio
+    materials/               modelRim, modelSaturation (pluginy materiálů modelů)
   editor/                    editor mapy, panely, štětce, značky spawních míst
   data/catalogs/             předměty, dekorace, mapy, tvorové, uložený stav
   data/maps/                 tvar oblasti, nastavení výšek a soubor mapy
@@ -53,18 +61,18 @@ jednu z těch dvou otázek — proto musí být od začátku jmenované.
 - `src/data/maps/layoutStore.js` — rozsah výšek, krok, předvolby.
 - `src/editor/heightPanel.js` — okno Výška; `areaPanel.js`, `brushPanel.js` — plocha a štětce.
 - `src/editor/editorMode.js`, `mapEditor.js`, `editorHud.js` — editor, výběr, panely, pláž, voda.
-- `src/systems/gridSystem.js`, `inputSystem.js` — hover, levé/pravé tažení.
+- `src/systems/core/gridSystem.js`, `inputSystem.js` — hover, levé/pravé tažení.
 - `src/utils/terrainField.js` — výškový model (spojitá výška mezi buňkami).
-- `src/systems/terrainSystem.js` — terén, hrana, útesy, mosty, prolnutí povrchů.
+- `src/systems/terrain/terrainSystem.js` — terén, hrana, útesy, mosty, prolnutí povrchů.
 - `src/utils/bridgeShape.js` — tvar skalního mostu: klenba, čela a pochozí plocha.
 - `src/utils/gridPath.js` — hledání cesty tvorů po buňkách (A*).
-- `src/systems/terrainBlendPlugin.js` — míchání textur sousedních povrchů v materiálu terénu.
+- `src/systems/terrain/terrainBlendPlugin.js` — míchání textur sousedních povrchů v materiálu terénu.
 - `src/utils/waterWaves.js` — čísla a výpočet vln (společné pro program i hru).
-- `src/systems/audioSystem.js` — kroky, příboj, oheň, ambientní vrstvy a hudba.
-- `src/systems/waterSystem.js` — hladina, odrazová sonda, kraj mapy.
-- `src/systems/waterShader.js` — program pro vodu: vlny, pěna, svislá stěna.
-- `src/systems/skySystem.js` — obloha a slunce.
-- `src/systems/pathSystem.js`, `playerSystem.js`, `cameraSystem.js` — cesty a hráč.
+- `src/systems/atmosphere/audioSystem.js` — kroky, příboj, oheň, ambientní vrstvy a hudba.
+- `src/systems/water/waterSystem.js` — hladina, odrazová sonda, kraj mapy.
+- `src/systems/water/waterShader.js` — program pro vodu: vlny, pěna, svislá stěna.
+- `src/systems/atmosphere/skySystem.js` — obloha a slunce.
+- `src/systems/world/pathSystem.js`, `playerSystem.js`, `cameraSystem.js` — cesty a hráč.
 - `src/data/catalogs/brushes.js` — štětce včetně Pláže, Útesu a Mostu; `decorations.js` — písek a povrchy.
 - `src/data/maps/glade/map.json` — aktuální mapa; `DEV.md` — tento přehled.
 - `.clinerules` — pravidla práce.
@@ -80,9 +88,9 @@ WASD nebo šipek. Uložená hra se načte na uložené pozici a úvodní vstáv�
 
 Mapování animací, kandidáti na kost ruky, výška a otočení modelu jsou v
 `src/data/catalogs/modelCatalog.js`; vlastní načtení a přepínání animací řeší
-`src/systems/playerSystem.js`. Licence modelu je v `CREDITS.txt` vedle souboru.
+`src/systems/player/playerSystem.js`. Licence modelu je v `CREDITS.txt` vedle souboru.
 
-Zdraví a výdrž postavy drží `src/systems/playerStatsSystem.js`; čísla (maximum,
+Zdraví a výdrž postavy drží `src/systems/player/playerStatsSystem.js`; čísla (maximum,
 doplňování, ceny za běh a útok, chvilka klidu po probuzení) jsou v
 `src/data/catalogs/player.js`. Oba proužky nad lištou předmětů kreslí
 `src/ui/vitalsBar.js` — zdraví červeně, výdrž žlutě. Stav se ukládá jako každý jiný
@@ -106,7 +114,7 @@ Levé tlačítko rozhoduje podle toho, co je **pod kurzorem** — žádné „ve
 věc v dosahu". Když je vybraná věc mimo dosah, nestane se nic. Držené tlačítko
 opakuje tutéž akci, dokud kurzorem neodjedeš.
 
-Rozhodování drží `src/systems/interactionSystem.js`: ptá se registrovaných operací
+Rozhodování drží `src/systems/core/interactionSystem.js`: ptá se registrovaných operací
 podle priority a vrátí jednu, nebo nic. O obsahu operací sám nic neví.
 
 | priorita | operace | co udělá |
@@ -148,7 +156,7 @@ src/data/catalogs/creatures/
   README.md           manuál: jak postavit nového tvora
   sandDevil.js        písečný běs: data, tiery a rig
   snappingTurtle.js   kajmanka: data, tiery a rig
-src/systems/creatureSystem.js   obecné: spawn, stavy, ikony, obrysy, ukládání
+src/systems/creatures/creatureSystem.js   obecné: spawn, stavy, ikony, obrysy, ukládání
 src/utils/gridPath.js           hledání cesty kolem překážek (A* nad mřížkou buněk)
 src/utils/creatureMarker.js     vykřičník a otazníky nad hlavou (společné všem)
 public/assets/creatures/<kind>/ model + CREDITS.txt
@@ -861,7 +869,10 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
    a krok výšek 0,25 v `layoutStore` (rozsah −15…+24 m, `HEIGHT_STEP`, předvolby).
    **Hotovo.** Přeškálování starých výšek na 0,25 a zvednutí krokového limitu (~0,5)
    patří na začátek fáze 1 — mění svět/pohyb, tak ať to jde s migrací naráz.
-1. Nový mesher pro podlahy (horní líce) za přepínačem; porovnat se současným povrchem.
+1. **Přeškálování výšek na 0,25** (`quantizeMapFileHeights` při načtení mapy — snapne
+   `liftY`/`ceilY` na 0,25) a **krokový limit postavy na 0,55** (aby šel vylézt 0,5).
+   **Hotovo.** Dále: nový mesher pro podlahy (horní líce) za přepínačem; porovnat se
+   současným povrchem.
 2. Boční a spodní líce (skála, stěny jeskyní, spodní víka) → hmota; odstranit staré
    útesy/dutiny/sukni; ladit vzhled.
 3. Pohyb a dotazy na pruzích.
@@ -871,5 +882,5 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
 7. Dočistit 4B: odkrývání střechy je teď bezpečné (skála je hmota) a skryjí se i
    dekorace na odkrytých buňkách.
 
-**Stav:** Fáze 0 hotová (model pruhů + krok 0,25). Čeká na fázi 1 (mesher podlah).
+**Stav:** Fáze 0 hotová (model pruhů + krok 0,25). Fáze 1 rozpracovaná — přeškálování výšek na 0,25 a krokový limit hotové; zbývá mesher podlah.
 

@@ -1,6 +1,6 @@
 // Zvuky hry — načte je jednou při startu a přehrává náhodné varianty bez vrstvení přes sebe.
 // Zvlášť k tomu drží zvuk lesa na pozadí, který se plynule přeladí mezi dnem a nocí.
-import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
+import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
 
 const CLIPS = {
   chop: ['gather/chop_1', 'gather/chop_3'],

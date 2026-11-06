@@ -1,7 +1,7 @@
 // Doplněk materiálu trávy — míchá tři textury země do velkých skvrn podle šumu.
 // Nahrazuje jen barvu podkladu; osvětlení, tintu i stíny nechává StandardMaterialu.
 import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase';
-import { grassGroundGlsl } from '../utils/grassGround.js';
+import { grassGroundGlsl } from '../../utils/grassGround.js';
 
 export default class TerrainGrassPlugin extends MaterialPluginBase {
 

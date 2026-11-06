@@ -1,7 +1,26 @@
 // Sestaví soubor mapy z toho, co je v editoru — každá vrstva zůstane vrstvou, nic se nedopočítává.
 import { getMap } from './maps.js';
+import { HEIGHT_STEP } from '../maps/layoutStore.js';
 
 export const MAP_VERSION = 9;
+
+const HEIGHT_LAYERS = ['floor', 'path', 'clearing', 'grass'];
+
+function snapHeight(value) {
+  return Number.isFinite(value) ? Math.round(value / HEIGHT_STEP) * HEIGHT_STEP : value;
+}
+
+export function quantizeMapFileHeights(file) {
+  if (!file) return file;
+  for (const name of HEIGHT_LAYERS) {
+    for (const entry of file[name] || []) {
+      if (Number.isFinite(entry.liftY)) entry.liftY = snapHeight(entry.liftY);
+      if (Number.isFinite(entry.ceilY)) entry.ceilY = snapHeight(entry.ceilY);
+    }
+  }
+  if (Number.isFinite(file.waterLevel)) file.waterLevel = snapHeight(file.waterLevel);
+  return file;
+}
 
 export function isMapFile(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return false;

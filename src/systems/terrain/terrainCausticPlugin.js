@@ -1,7 +1,7 @@
 // Kaustika na dně — světelná síť od vln se přidá k zemi, která je pod hladinou.
 import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { causticGlsl } from '../utils/waterCaustics.js';
+import { causticGlsl } from '../../utils/waterCaustics.js';
 
 const CAUSTIC_CODE = causticGlsl();
 

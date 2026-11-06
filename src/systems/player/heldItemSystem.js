@@ -1,6 +1,6 @@
 // Co má hráč právě v ruce — nástroj vybraný v liště dole, nebo nic.
 // Drží jen klíč předmětu a umí se uložit, ať po obnovení stránky zůstane stejná věc v ruce.
-import { getTool } from '../data/catalogs/items.js';
+import { getTool } from '../../data/catalogs/items.js';
 
 export default class HeldItemSystem {
 

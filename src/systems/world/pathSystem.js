@@ -5,9 +5,9 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
-import { CELL_SIZE, cellKey } from '../utils/gridMath.js';
-import { warnMissingWiring } from '../utils/missingWiring.js';
-import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
+import { CELL_SIZE, cellKey } from '../../utils/gridMath.js';
+import { warnMissingWiring } from '../../utils/missingWiring.js';
+import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
 
 const PATH_LIFT = 0.025;
 const STRAIGHT_ALONG = 4;
