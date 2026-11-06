@@ -93,6 +93,50 @@ async function run() {
             .map((value) => Number(value.toFixed(2)))
           : null,
       };
+      const cs = game.creatureSystem;
+      const terrain = game.terrainSystem;
+      if (terrain && typeof terrain.cliffOverlap === 'function') {
+        const playerRoot = game.playerSystem && game.playerSystem.root ? game.playerSystem.root.position : null;
+        info.rise = {
+          player: playerRoot ? Number(terrain.riseNear(playerRoot.x, playerRoot.z, 0.38).toFixed(2)) : null,
+          creature: Number(terrain.riseNear(creature.homeX, creature.homeZ, 0.3).toFixed(2)),
+          overlap: playerRoot ? Number(terrain.cliffOverlap(playerRoot.x, playerRoot.z).toFixed(2)) : null,
+        };
+      }
+      if (cs && typeof cs.buildPath === 'function') {
+        const clear = cs.pathClear(creature.x, creature.z, creature.homeX, creature.homeZ, creature.type);
+        const route = cs.buildPath(creature, creature.homeX, creature.homeZ);
+        info.pathToHome = { straight: clear, waypoints: route ? route.length : 0 };
+        const playerPos = game.playerSystem && game.playerSystem.root ? game.playerSystem.root.position : null;
+        if (playerPos) {
+          const startX = creature.x;
+          const startZ = creature.z;
+          const speed = creature.type.walkSpeed * creature.tier.speed * 0.6;
+          const dx = playerPos.x - startX;
+          const dz = playerPos.z - startZ;
+          const length = Math.hypot(dx, dz) || 1;
+          creature.x = startX + (dx / length) * 10;
+          creature.z = startZ + (dz / length) * 10;
+          const startGap = Math.hypot(creature.x - creature.homeX, creature.z - creature.homeZ);
+          creature.path = null;
+          creature.pathClock = 0;
+          creature.stuckTime = 0;
+          creature.walking = false;
+          for (let frame = 0; frame < 1200; frame += 1) {
+            cs.moveTo(creature, creature.homeX, creature.homeZ, speed, 1 / 60);
+            creature.walking = false;
+          }
+          info.homeSim = {
+            from: Number(startGap.toFixed(1)),
+            to: Number(Math.hypot(creature.x - creature.homeX, creature.z - creature.homeZ).toFixed(1)),
+          };
+          creature.x = startX;
+          creature.z = startZ;
+          creature.path = null;
+          creature.pathClock = 0;
+          creature.stuckTime = 0;
+        }
+      }
       game.cameraSystem.setZoom(zoomLevel);
       game.cameraSystem.snapTo(center.x, center.z, center.y);
       const cam = game.cameraSystem.camera;

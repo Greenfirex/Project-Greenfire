@@ -30,6 +30,9 @@ const PICK_LIFT = 0.002;
 const GRID_LIFT = 0.02;
 const GRID_SUB = 2;
 const SURFACE_SUB = 4;
+const RISE_SAMPLES = 8;
+const CLIFF_LOW_GAP = 0.9;
+const CLIFF_TOP_GAP = 0.25;
 const SKIRT_DEPTH = 2;
 const WALL_TILE = 3;
 const WALL_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
@@ -1466,6 +1469,38 @@ export default class TerrainSystem {
   walkHeightAt(x, z) {
     const deck = this.bridgeDeckAt(x, z);
     return deck === null ? this.heightAt(x, z) : deck;
+  }
+
+  riseNear(x, z, radius) {
+    const base = this.walkHeightAt(x, z);
+    let rise = 0;
+    for (let index = 0; index < RISE_SAMPLES; index += 1) {
+      const angle = (index / RISE_SAMPLES) * Math.PI * 2;
+      const height = this.walkHeightAt(x + Math.cos(angle) * radius, z + Math.sin(angle) * radius);
+      rise = Math.max(rise, height - base);
+    }
+    return rise;
+  }
+
+  cliffOverlap(x, z) {
+    const field = this.field;
+    if (!field) return -Infinity;
+    if (this.bridgeDeckAt(x, z) !== null) return -Infinity;
+    const cx = Math.round(x / CELL_SIZE);
+    const cz = Math.round(z / CELL_SIZE);
+    const half = CELL_SIZE / 2;
+    const here = field.heightAtCell(cx, cz);
+    let overlap = -Infinity;
+    for (const side of SURFACE_SIDES) {
+      if (!field.isHardEdge(cx, cz, side.dx, side.dz)) continue;
+      const below = here < field.heightAtCell(cx + side.dx, cz + side.dz);
+      const margin = below ? CLIFF_LOW_GAP : CLIFF_TOP_GAP;
+      const distance = side.dx !== 0
+        ? (side.dx > 0 ? cx * CELL_SIZE + half - x : x - (cx * CELL_SIZE - half))
+        : (side.dz > 0 ? cz * CELL_SIZE + half - z : z - (cz * CELL_SIZE - half));
+      overlap = Math.max(overlap, margin - distance);
+    }
+    return overlap;
   }
   createShelfMeshes(shelves, map, blends) {
     for (const [key, group] of shelves) {

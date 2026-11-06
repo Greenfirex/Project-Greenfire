@@ -213,6 +213,24 @@
 
 .editor-panel__save-row {
   margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editor-panel__pause {
+  background: rgba(200, 170, 90, 0.12);
+  border-color: rgba(200, 170, 90, 0.35);
+}
+
+.editor-panel__pause:hover {
+  background: rgba(200, 170, 90, 0.22);
+}
+
+.editor-panel__pause.is-active {
+  background: rgba(200, 170, 90, 0.32);
+  border-color: var(--glow-accent);
+  color: var(--glow-accent);
 }
 
 .editor-panel__save {

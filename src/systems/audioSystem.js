@@ -69,6 +69,10 @@ const SHORE_NEAR = 3;
 const SHORE_FAR = 26;
 const FOREST_DUCK = 0.7;
 
+const MUSIC_TRACKS = ['music/island_bamboo', 'music/island_drift', 'music/island_journey'];
+const MUSIC_FADE_SECONDS = 3;
+const MUSIC_LEVEL = 0.9;
+
 export default class AudioSystem {
 
   constructor(scene) {
@@ -90,6 +94,10 @@ export default class AudioSystem {
     this.shore = null;
     this.shoreMix = 0;
     this.shoreTarget = 0;
+    this.music = null;
+    this.musicVolume = 0;
+    this.musicMix = 0;
+    this.musicTrack = -1;
   }
 
   unlock() {
@@ -113,6 +121,7 @@ export default class AudioSystem {
     this.resumeAmbient();
     this.resumeFire();
     this.resumeShore();
+    this.resumeMusic();
   }
 
   load() {
@@ -130,6 +139,7 @@ export default class AudioSystem {
       }
     }
     this.startAmbient();
+    this.startMusic();
   }
 
   async fetchClip(url, onDone) {
@@ -149,6 +159,7 @@ export default class AudioSystem {
     this.buffers = {};
     this.stopAmbient();
     this.stopShore();
+    this.stopMusic();
     this.fire = null;
   }
 
@@ -301,6 +312,79 @@ export default class AudioSystem {
     this.shore.gain.gain.setTargetAtTime(level, this.ctx.currentTime, SHORE_FADE_SECONDS / 3);
   }
 
+  musicLevel() {
+    return this.musicVolume * this.masterVolume * MUSIC_LEVEL;
+  }
+
+  startMusic() {
+    if (this.music || this.musicVolume <= 0) return;
+    const element = document.createElement('audio');
+    element.preload = 'auto';
+    element.style.display = 'none';
+    element.addEventListener('ended', () => this.playNextTrack());
+    element.addEventListener('error', () => this.playNextTrack());
+    document.body.appendChild(element);
+    this.music = element;
+    this.playNextTrack();
+  }
+
+  playNextTrack() {
+    const element = this.music;
+    if (!element || !MUSIC_TRACKS.length) return;
+    const next = this.pickTrack();
+    this.musicTrack = next;
+    this.musicMix = 0;
+    element.volume = 0;
+    element.src = `${ASSET_DIRS.audio}${MUSIC_TRACKS[next]}.ogg`;
+    const started = element.play();
+    if (started && started.catch) started.catch(() => {});
+  }
+
+  pickTrack() {
+    if (MUSIC_TRACKS.length < 2) return 0;
+    let index = Math.floor(Math.random() * MUSIC_TRACKS.length);
+    if (index === this.musicTrack) index = (index + 1) % MUSIC_TRACKS.length;
+    return index;
+  }
+
+  resumeMusic() {
+    if (!this.music) {
+      this.startMusic();
+      return;
+    }
+    if (!this.music.paused || !this.music.currentSrc) return;
+    const started = this.music.play();
+    if (started && started.catch) started.catch(() => {});
+  }
+
+  stopMusic() {
+    const element = this.music;
+    this.music = null;
+    this.musicMix = 0;
+    this.musicTrack = -1;
+    if (!element) return;
+    element.pause();
+    element.removeAttribute('src');
+    if (element.parentNode) element.parentNode.removeChild(element);
+  }
+
+  setMusicVolume(value) {
+    this.musicVolume = Math.max(0, Math.min(1, value));
+    if (this.musicVolume > 0 && !this.music) this.startMusic();
+  }
+
+  updateMusic(dt) {
+    const element = this.music;
+    if (!element) return;
+    const left = Number.isFinite(element.duration) ? element.duration - element.currentTime : Infinity;
+    const target = left <= MUSIC_FADE_SECONDS ? 0 : this.musicLevel();
+    const step = dt / MUSIC_FADE_SECONDS;
+    if (this.musicMix < target) this.musicMix = Math.min(target, this.musicMix + step);
+    else if (this.musicMix > target) this.musicMix = Math.max(target, this.musicMix - step);
+    const volume = Math.max(0, Math.min(1, this.musicMix));
+    if (Math.abs(element.volume - volume) > 0.002) element.volume = volume;
+  }
+
   setMasterVolume(value) {
     this.masterVolume = Math.max(0, Math.min(1, value));
     if (this.master) this.master.gain.value = this.masterVolume;
@@ -330,6 +414,7 @@ export default class AudioSystem {
   }
 
   update(dt) {
+    this.updateMusic(dt);
     if (!this.ambient) return;
     const step = Math.min(1, dt / AMBIENT_FADE_SECONDS);
     let changed = false;

@@ -29,7 +29,7 @@ vykreslovat dřív, než doběhnou všechny modely; vstup je zamčený, dokud ob
 | **E** | Zapálit / zrušit táborák |
 | **G** | Zobrazit / skrýt mřížku |
 | **N** | Posun času o 6 hodin |
-| **P** | Pauza / pokračovat (ztmaví obrazovku, zastaví celou hru) |
+| **P** | Pauza / pokračovat (ztmaví obrazovku, zastaví celou hru) — v editoru jen zastaví hru |
 | **F1** | Nápověda a ovládání (rozbalit / sbalit) — také tlačítkem ❔ Ovládání v liště |
 | **F2** | Editor mapy (zóny, výška, herní plocha, tvorové) — také tlačítkem 🧱 Editor v liště |
 | **O** | Možnosti (záložky obraz a výkon, zvuk, hra) — také tlačítkem ⚙ Možnosti v liště |
@@ -143,6 +143,7 @@ src/data/catalogs/creatures/
   sandDevil.js        písečný běs: data, tiery a rig
   snappingTurtle.js   kajmanka: data, tiery a rig
 src/systems/creatureSystem.js   obecné: spawn, stavy, ikony, obrysy, ukládání
+src/utils/gridPath.js           hledání cesty kolem překážek (A* nad mřížkou buněk)
 src/utils/creatureMarker.js     vykřičník a otazníky nad hlavou (společné všem)
 public/assets/creatures/<kind>/ model + CREDITS.txt
 ```
@@ -408,7 +409,7 @@ doladění a práce mimo tento plán.
 - `src/utils/bridgeShape.js` — tvar skalního mostu: klenba, čela a pochozí plocha.
 - `src/systems/terrainBlendPlugin.js` — míchání textur sousedních povrchů v materiálu terénu.
 - `src/utils/waterWaves.js` — čísla a výpočet vln (společné pro program i hru).
-- `src/systems/audioSystem.js` — kroky, příboj, oheň a ambientní vrstvy.
+- `src/systems/audioSystem.js` — kroky, příboj, oheň, ambientní vrstvy a hudba.
 - `src/systems/waterSystem.js` — hladina, odrazová sonda, kraj mapy.
 - `src/systems/waterShader.js` — program pro vodu: vlny, pěna, svislá stěna.
 - `src/systems/skySystem.js` — obloha a slunce.
@@ -423,6 +424,8 @@ doladění a práce mimo tento plán.
 - `@babylonjs/inspector` (8.56.2) — jen vývojová závislost; do produkčního buildu se nebalí.
 - Zvuky: Free Fantasy SFX Pack od TomMusic (tommusic.itch.io); původ je zapsaný
   v `public/assets/audio/CREDITS.txt`.
+- Hudba: tři skladby z Pixabay Music (licence Pixabay Content License); původ,
+  autoři a převod do ogg jsou popsané tamtéž.
 - Textury pěny: `foam_fine_*` a `foam_coarse_*` v `public/assets/nature/textures/`.
 
 **Pravidla pro navazujícího agenta:**
@@ -482,7 +485,9 @@ a nový systém stavění (ten starý byl odstraněn).
 
 ## Editor mapy
 
-Editor se otevírá **F2** a hru při otevření pozastaví. Umožňuje kreslit zóny
+Editor se otevírá **F2** a hra pod ním běží dál — tvorové se hýbou, jen hráč
+stojí a klávesy patří kameře. Klávesou **P** nebo tlačítkem **Pauza** v panelu
+editoru se dá hra kdykoli zastavit a zase pustit. Editor umožňuje kreslit zóny
 a objekty, modelovat výšky, razítkovat herní plochu a ukládat mapu přímo do
 `src/data/maps/<mapa>/map.json`.
 

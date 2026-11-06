@@ -209,7 +209,6 @@ export default class GameScene {
     this.dying = false;
     this.deathTimer = 0;
     this.deathShown = false;
-    this.editorHeldPause = false;
     this.loader = new LoadingScreen();
     this.loader.onHiddenCallback = () => this.onLoadingHidden();
     this.isLoading = true;
@@ -358,7 +357,10 @@ export default class GameScene {
       this.updateWaterCaustics();
       this.updateCampfireSound(root);
       this.updateShoreSound(root, dt);
-      if (root) this.cameraSystem.follow(root.position.x, root.position.z, root.position.y, dt);
+      if (root) {
+        if (this.editor.active) this.updateEditorCamera(dt);
+        else this.cameraSystem.follow(root.position.x, root.position.z, root.position.y, dt);
+      }
       this.autoTune(dt);
       this.audioSystem.update(dt);
       this.playerSystem.updateFire();
@@ -449,6 +451,7 @@ export default class GameScene {
     this.refreshClock();
     this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);
     this.audioSystem.setAmbientVolume(this.options.ambientVolume / 100);
+    this.audioSystem.setMusicVolume(this.options.musicVolume / 100);
   }
 
   setupGlow() {
@@ -924,6 +927,7 @@ export default class GameScene {
 
   async setupPlayer() {
     this.playerSystem.inputBlocked = () => this.dialog.open || this.dying;
+    this.playerSystem.moveBlocked = () => this.editor.active;
     this.playerSystem.walkable = (x, z) => this.isWalkableAt(x, z);
     this.playerSystem.inCombat = () => this.creatureSystem.isPlayerInCombat(this.playerSystem.root);
     this.playerSystem.canSprint = () => this.playerStats.canSprint();
@@ -936,6 +940,8 @@ export default class GameScene {
     };
     this.playerSystem.decoSystem = this.decoSystem;
     this.playerSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
+    this.playerSystem.wallRiseAt = (x, z, radius) => this.terrainSystem.riseNear(x, z, radius);
+    this.playerSystem.cliffOverlapAt = (x, z) => this.terrainSystem.cliffOverlap(x, z);
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z, this.playerSystem.root ? this.playerSystem.root.position.y : 0);
     this.playerSystem.onIntroChange = (lying) => {
       if (lying) this.log.add('Stiskni WASD nebo šipky pro vstání', 'info');
@@ -954,7 +960,8 @@ export default class GameScene {
     const system = this.creatureSystem;
     system.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z);
     system.walkableAt = (x, z) => this.isWalkableAt(x, z);
-    system.playerAt = () => (this.playerSystem.root ? this.playerSystem.root.position : null);
+    system.wallRiseAt = (x, z, radius) => this.terrainSystem.riseNear(x, z, radius);
+    system.playerAt = () => (this.editor.active || !this.playerSystem.root ? null : this.playerSystem.root.position);
     system.defenseAt = () => this.playerStats.defense;
     system.onMeshReady = (mesh) => this.addShadowCaster(mesh);
     system.onMeshGone = (mesh) => this.removeShadowCaster(mesh);
@@ -1256,6 +1263,7 @@ export default class GameScene {
     this.terrainSystem.create(this.mapKey, this.mapFile);
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);
     this.areaLookup = null;
+    this.creatureSystem.clearPathCache();
     this.refreshShadowCasters();
     this.renderWater();
     this.cliffVineSystem.create(this.terrainSystem.shelfAnchors, this.greenTint());
@@ -1266,6 +1274,7 @@ export default class GameScene {
     if (ground && ground.length) this.s.clearColor = this.mapColor(this.mapKey, 'sky');
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);
     this.areaLookup = null;
+    this.creatureSystem.clearPathCache();
     this.renderWater();
     this.cliffVineSystem.create(this.terrainSystem.shelfAnchors, this.greenTint());
   }
@@ -1930,6 +1939,7 @@ export default class GameScene {
     if (this.isLoading) return;
     this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);
     this.audioSystem.setAmbientVolume(this.options.ambientVolume / 100);
+    this.audioSystem.setMusicVolume(this.options.musicVolume / 100);
     if (this.waterSystem.quality !== this.options.quality) this.renderWater();
   }
 
@@ -2167,12 +2177,13 @@ export default class GameScene {
     this.engine.maxFPS = paused ? 60 : this.defaultMaxFPS;
     if (paused) {
       this.pauseScreen.setSpeed(this.simSystem.speed);
-      this.pauseScreen.show();
+      if (!this.editor.active) this.pauseScreen.show();
       this.hoverHint.hide();
     } else {
       this.pauseScreen.hide();
       this.simSystem.resetAccumulator();
     }
+    if (this.editor.hud) this.editor.hud.setPaused(paused);
     this.refreshClock();
   }
 
@@ -2211,26 +2222,16 @@ export default class GameScene {
   }
 
   holdGameForEditor() {
-    this.editorHeldPause = this.paused;
-    if (this.paused) {
-      this.pauseScreen.hide();
-      return;
-    }
-    this.setPaused(true);
-    this.pauseScreen.hide();
+    if (this.paused) this.pauseScreen.hide();
+    if (this.editor.hud) this.editor.hud.setPaused(this.paused);
   }
 
   releaseGameFromEditor() {
     const root = this.playerSystem.root;
     if (root) this.cameraSystem.snapTo(root.position.x, root.position.z, root.position.y);
-    if (this.editorHeldPause) {
-      this.editorHeldPause = false;
-      this.pauseScreen.setSpeed(this.simSystem.speed);
-      this.pauseScreen.show();
-      return;
-    }
     if (!this.paused) return;
-    this.setPaused(false);
+    this.pauseScreen.setSpeed(this.simSystem.speed);
+    this.pauseScreen.show();
   }
 
   handleKey(evt) {
@@ -2344,6 +2345,11 @@ export default class GameScene {
     }
     if (typing && evt.key !== 'Escape') return;
     if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+    if (evt.key === 'p' || evt.key === 'P') {
+      evt.preventDefault();
+      this.togglePause();
+      return;
+    }
     if (evt.key === 'Escape') {
       if (this.editor.mapMode === 'area' && this.editor.mode.hasAreaSelection) {
         this.clearAreaSelection();

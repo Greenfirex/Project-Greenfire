@@ -135,17 +135,27 @@ export function createTerrainField(world) {
   const hardMaskAt = (cx, cz) => hardSides.get(cellKey(cx, cz)) || 0;
 
   function acrossHard(ax, az, bx, bz) {
+    const xBit = (step) => (step > 0 ? 1 : 2);
+    const zBit = (step) => (step > 0 ? 4 : 8);
     let x = ax;
     let z = az;
     let guard = 0;
     while ((x !== bx || z !== bz) && guard < 8) {
       guard += 1;
-      const nx = x + Math.sign(bx - x);
-      const nz = z + Math.sign(bz - z);
-      if (nx !== x && (hardMaskAt(x, z) & (nx > x ? 1 : 2))) return true;
-      if (nz !== z && (hardMaskAt(nx, z) & (nz > z ? 4 : 8))) return true;
-      x = nx;
-      z = nz;
+      const sx = Math.sign(bx - x);
+      const sz = Math.sign(bz - z);
+      if (sx !== 0 && sz !== 0) {
+        const here = hardMaskAt(x, z);
+        if (here & (xBit(sx) | zBit(sz))) return true;
+        if (hardMaskAt(x + sx, z) & zBit(sz)) return true;
+        if (hardMaskAt(x, z + sz) & xBit(sx)) return true;
+      } else if (sx !== 0) {
+        if (hardMaskAt(x, z) & xBit(sx)) return true;
+      } else if (sz !== 0) {
+        if (hardMaskAt(x, z) & zBit(sz)) return true;
+      }
+      x += sx;
+      z += sz;
     }
     return false;
   }

@@ -35,6 +35,7 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Koa'tiki: doplnit zvuky (zavrčení, kousnutí, zásah, smrt) a zapsat je do CREDITS.
 - [ ] Koa'tiki: stopy ze skutečných chodidel místo jedné šmouhy.
 - [ ] Koa'tiki: u jednoho ze tří tvorů se nepovedla kalibrace čelisti (v konzoli „dolů o -0,187") — čelist se mu neotevře. Zjistit proč a opravit výpočet.
+- [ ] Tvor, kterého honička zavede za nepřelezný sráz, zůstane trčet u zdi — rozhodnout, jestli se má po chvíli vrátit domů zkratkou (přesunout), nebo se nechat odlákat jinam.
 
 ### Etapa 4 — doladění boje
 
@@ -55,6 +56,8 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] `tools/capture.cjs` — vývojový náhled animace: `node tools/capture.cjs koa_tiki attack 12 2.2` (druh, scéna `attack`/`walk`, počet snímků, přiblížení). Ukládá mřížku póz do `tools/_temp/`.
 
 ### Zvuky, které ve hře chybí
+
+- [ ] Hudba: vymyslet systém výběru (den/noc, klid versus souboj) místo dnešního náhodného střídání tří skladeb.
 
 - [ ] Smrt hráče.
 - [ ] Kroky po písku — dnes hrají jako hlína, i když máme pláž a pouštního tvora.

@@ -21,6 +21,7 @@ export const OPTION_DEFAULTS = {
   lookAtPointer: true,
   sfxVolume: 70,
   ambientVolume: 25,
+  musicVolume: 40,
 };
 
 export const QUALITY_SCALES = { high: 1, medium: 0.8, low: 0.65 };

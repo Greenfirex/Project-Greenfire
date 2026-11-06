@@ -102,6 +102,10 @@ export default class MapEditor {
     this.hud.onMode = (mode) => this.mode.setMode(mode);
     this.hud.onClose = () => this.close();
     this.hud.onSaveMap = () => this.saveMap();
+    this.hud.onPause = () => {
+      this.s.togglePause();
+      this.hud.setPaused(this.s.paused);
+    };
 
     this.heightPanel.onLevel = (level) => this.mode.setHeightLevel(level);
     this.heightPanel.onStep = (delta) => this.mode.stepHeightLevel(delta);

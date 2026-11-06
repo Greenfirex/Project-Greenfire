@@ -16,6 +16,7 @@ export default class EditorHud {
     this.onClose = null;
     this.onMode = null;
     this.onSaveMap = null;
+    this.onPause = null;
     this.onWaterToggle = null;
     this.onWaterStep = null;
     this.state = { mode: 'zone', brush: null, erasing: false };
@@ -53,6 +54,7 @@ export default class EditorHud {
         </div>
       </div>
       <div class="editor-panel__save-row">
+        <button type="button" class="editor-panel__save editor-panel__pause" title="Pozastavit nebo pustit hru (P)">Pauza</button>
         <button type="button" class="editor-panel__save" title="Uložit mapu (zapíše se do souboru v projektu)">Uložit mapu</button>
       </div>
     `;
@@ -111,6 +113,9 @@ export default class EditorHud {
     root.querySelector('.editor-panel__save').addEventListener('click', () => {
       if (this.onSaveMap) this.onSaveMap();
     });
+    root.querySelector('.editor-panel__pause').addEventListener('click', () => {
+      if (this.onPause) this.onPause();
+    });
 
     root.querySelector('.editor-panel__water-toggle').addEventListener('click', () => {
       if (this.onWaterToggle) this.onWaterToggle();
@@ -155,6 +160,15 @@ export default class EditorHud {
   setReadout(text) {
     const node = this.root && this.root.querySelector('.editor-panel__readout');
     if (node) node.textContent = text;
+  }
+
+  setPaused(on) {
+    this.paused = Boolean(on);
+    if (!this.root) return;
+    const btn = this.root.querySelector('.editor-panel__pause');
+    if (!btn) return;
+    btn.textContent = this.paused ? 'Pokračovat' : 'Pauza';
+    btn.classList.toggle('is-active', this.paused);
   }
 
   setWater(level, shown = true) {

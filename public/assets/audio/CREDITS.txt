@@ -1,6 +1,6 @@
 Zvuky jsou ve složkách podle druhu: ambient/ (smyčky prostředí), fire/ (oheň),
-steps/ (kroky), gather/ (sběr a těžba), combat/ (souboj) a creatures/<druh>/
-(zvuky jednoho tvora). Názvy složek neobsahují tečku.
+steps/ (kroky), gather/ (sběr a těžba), combat/ (souboj), creatures/<druh>/
+(zvuky jednoho tvora) a music/ (hudba na pozadí). Názvy složek neobsahují tečku.
 
 Zvuky kroků, sekání, těžby, pochodně a ohně: Free Fantasy SFX Pack od TomMusic
 (https://tommusic.itch.io), zdrojový balíček je ve složce _sources.
@@ -18,3 +18,11 @@ soubory, samotný balíček zůstává mimo git.
 "biww-quick-air-swipe-sound-561932.mp3" (autor biww, čtyři švihy rozřezané)
 a "floraphonic-movement-swipe-whoosh-1-186575.mp3" / "...-3-186577.mp3"
 (autor floraphonic). Licenční údaje doplnit podle zdroje, odkud byly staženy.
+
+Hudba na pozadí (music/island_bamboo.ogg, island_drift.ogg, island_journey.ogg)
+je z Pixabay Music (https://pixabay.com/music/), licence "Pixabay Content
+License" — zdarma i pro komerční použití, uvedení autora není povinné:
+  island_bamboo.ogg  — "Bamboo Islands", autor vadim_makes_sound
+  island_drift.ogg   — "Rainforest Drift", autor u_98673jp944
+  island_journey.ogg — "Tropical Ambient Journey", autor u_98673jp944
+Originální mp3 soubory jsou v _sources, do ogg je převedl ffmpeg (libvorbis q4).

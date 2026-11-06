@@ -50,6 +50,7 @@ const ITEMS = [
   { kind: 'toggle', key: 'autoTune', tab: 'view', label: 'Automatická úprava výkonu', note: 'Při poklesu snímků hra sama sníží rozlišení.' },
   { kind: 'volume', key: 'sfxVolume', tab: 'sound', label: 'Zvuky hry', note: 'Sekání, kroky, těžba a padající stromy.' },
   { kind: 'volume', key: 'ambientVolume', tab: 'sound', label: 'Zvuky prostředí', note: 'Hučení lesa (ve dne jiné než v noci) a příboj u vody.' },
+  { kind: 'volume', key: 'musicVolume', tab: 'sound', label: 'Hudba', note: 'Ostrovní hudba na pozadí. Skladby se střídají náhodně.' },
   { kind: 'toggle', key: 'dayCycle', tab: 'game', label: 'Denní cyklus', note: 'Zastavení nechá slunce stát na aktuálním času.' },
   { kind: 'toggle', key: 'highlights', tab: 'game', label: 'Zvýrazňování pod myší', note: 'Kroužky pod stromy a rudou při najetí myší.' },
   { kind: 'toggle', key: 'customCursor', tab: 'game', label: 'Vlastní kurzor', note: 'Fantasy ruka a nástroje místo systémové šipky. Vypnutím vrátíš šipku Windows.' },

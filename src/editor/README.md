@@ -1,7 +1,9 @@
 # Editor mapy
 
-Editor se otevírá klávesou **F2** nebo tlačítkem v liště. Při otevření se hra
-pozastaví, takže se mapa dá upravovat bez pohybu tvorů a hráče.
+Editor se otevírá klávesou **F2** nebo tlačítkem v liště. Hra při otevření
+**běží dál** — tvorové se hýbou a denní doba plyne — takže je vidět, jak mapa
+vypadá živá. Hráč přitom stojí na místě a nereaguje na klávesy (ty patří kameře).
+Kdo chce při úpravách klid, zmáčkne v editoru **P** nebo tlačítko **Pauza**.
 
 Editor mění jen **mapu**. Uložená hra, zdraví, inventář ani stav tvorů se ho
 netýkají; ty patří do ukládání hry, ne do souboru mapy.
@@ -33,11 +35,11 @@ Po uložení je potřeba mapu znovu načíst; vývojový server obvykle stránku
 - **Z** vrací poslední krok, **X** zapíná a vypíná mazání.
 - **H** přepíná režim výšek, **Q/E** a číslice 1–9 ladí výšku.
 - **R** pootočí náhled sázeného objektu o 45°, **Shift+R** zpět (u palem určuje směr prohnutí).
-- **F2** editor zavře.
+- **F2** editor zavře, **P** pozastaví nebo pustí hru (stejně jako tlačítko **Pauza**).
 
-Editor hru pozastaví, ale klávesy fungují dál — pauza se do nich neplete.
-Když editor otevřeš ve chvíli, kdy máš hru pozastavenou ty, po zavření
-zůstane pauza a vrátí se pauzovací nabídka.
+Hra pod editorem běží dál. Když ji v editoru pozastavíš, po zavření editoru
+zůstane pozastavená a vrátí se pauzovací nabídka. Tvorové si hráče v editoru
+nevšímají, takže tě nemůžou napadnout, když zrovna kreslíš.
 
 Panel vpravo dole vypisuje, co na buňce leží, jaká je její výška a co se tam
 chystá položit. Panel editoru hlásí stav: mimo plochu, neuložené změny, aplikováno.

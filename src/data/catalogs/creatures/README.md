@@ -54,7 +54,7 @@ Povinné je to, co systém čte bez náhrady. „Když chybí" říká, co se st
 | `biteRecover` | jak dlouho se po ráně zotavuje | povinné |
 | `confusedSeconds` | jak dlouho tápe, když tě ztratí | 1,4 |
 | `roamRadius` | jak daleko od domova se toulá | 0 = stojí na místě |
-| `maxStepHeight` | jak vysoký schod ještě přeleze | bez omezení |
+| `maxStepHeight` | jak vysoký schod ještě přeleze (vyšší překážku obejde, ne přeleze) | bez omezení |
 | `attackHeight` | jak vysoko nebo nízko na tebe ještě dosáhne | bez omezení |
 | `noticeHeight` | jak vysoko nebo nízko si tě ještě všimne | bez omezení |
 | `footprint` | stopy v písku (viz níž) | jedna šmouha bez detailů |
@@ -231,7 +231,8 @@ ffmpeg -i vstup.wav -ar 44100 -ac 1 -c:a libvorbis -q:a 4 vystup.ogg
 - **Stav živý/mrtvý není v mapě** — mapa drží druh, stáří a buňku; čas smrti a zdraví
   patří do uložené hry.
 - **Načtení musí snést stará data** (chybějící tvory, neznámé tiery) a nesmí spadnout.
-- **Výškový rozdíl:** `maxStepHeight` je schod, ne zeď. `noticeHeight` rozhoduje, jestli si
+- **Výškový rozdíl:** `maxStepHeight` je schod, ne zeď. Když je cesta prudší, tvor si ji
+  obejde po buňkách — ale schod vyšší než `maxStepHeight` nepřeleze. `noticeHeight` rozhoduje, jestli si
   tě tvor vůbec všimne (může být větší než `attackHeight` — tvor na tebe z kopečku zavrčí,
   i když na tebe nedosáhne), `attackHeight` pak jestli na tebe opravdu zaútočí.
 - **Zásah rozhodují vlastnosti** (`attack` proti `defense`, ohraničeno 5–95 %); citlivý

@@ -61,6 +61,7 @@ const BODY_RADIUS = 0.3;
 const BODY_MARGIN = 0.08;
 const SLIDE_LOOKAHEAD = 1.2;
 const SLIDE_MIN = 0.12;
+const WALL_SLIDE_ANGLES = [0.35, -0.35, 0.7, -0.7, 1.05, -1.05, Math.PI / 2, -Math.PI / 2];
 const MOVE_SPEED = 4.5;
 export const STEP_LIMIT = 0.45;
 const WALK_SPEED = 2.4;
@@ -100,6 +101,9 @@ export default class PlayerSystem {
     this.sprintSpent = false;
     this.decoSystem = null;
     this.groundHeightAt = null;
+    this.wallRiseAt = null;
+    this.cliffOverlapAt = null;
+    this.moveBlocked = null;
     this.spawnCell = null;
     this.walkableCells = null;
     this.ready = false;
@@ -737,6 +741,20 @@ export default class PlayerSystem {
     if (this.blockedTest && this.blockedTest(cx, cz)) return false;
     if (this.walkable && !this.walkable(x, z)) return false;
     if (this.decoSystem && this.decoSystem.overlaps(x, z, BODY_RADIUS + BODY_MARGIN)) return false;
+    if (this.cliffOverlapAt && this.root) {
+      const overlap = this.cliffOverlapAt(x, z);
+      if (overlap > 0) {
+        const hereOverlap = this.cliffOverlapAt(this.root.position.x, this.root.position.z);
+        if (overlap >= hereOverlap) return false;
+      }
+    }
+    if (this.wallRiseAt && this.root) {
+      const rise = this.wallRiseAt(x, z, BODY_RADIUS + BODY_MARGIN);
+      if (rise > STEP_LIMIT) {
+        const here = this.wallRiseAt(this.root.position.x, this.root.position.z, BODY_RADIUS + BODY_MARGIN);
+        if (rise >= here) return false;
+      }
+    }
     return true;
   }
 
@@ -777,24 +795,37 @@ export default class PlayerSystem {
     }
     const startX = this.root.position.x;
     const startZ = this.root.position.z;
-    if (!this.decoSystem) return false;
-    const contact = this.decoSystem.nearestContact(startX, startZ, BODY_RADIUS, SLIDE_LOOKAHEAD);
-    if (!contact) return false;
-    const dot = dirX * contact.nx + dirZ * contact.nz;
-    if (dot >= 0) return false;
-    const slideX = dirX - contact.nx * dot;
-    const slideZ = dirZ - contact.nz * dot;
-    const length = Math.sqrt(slideX * slideX + slideZ * slideZ);
-    if (length < SLIDE_MIN) return false;
-    const sx = slideX / length;
-    const sz = slideZ / length;
-    for (const scale of [1, 0.8, 0.6, 0.4]) {
-      const ax = startX + sx * step * scale;
-      const az = startZ + sz * step * scale;
-      if (this.stepAllowed(ax, az) && this.free(ax, az)) {
-        this.root.position = this.positionAt(ax, az);
-        return true;
+    if (this.decoSystem) {
+      const contact = this.decoSystem.nearestContact(startX, startZ, BODY_RADIUS, SLIDE_LOOKAHEAD);
+      const dot = contact ? dirX * contact.nx + dirZ * contact.nz : 0;
+      if (contact && dot < 0) {
+        const slideX = dirX - contact.nx * dot;
+        const slideZ = dirZ - contact.nz * dot;
+        const length = Math.sqrt(slideX * slideX + slideZ * slideZ);
+        if (length >= SLIDE_MIN) {
+          const sx = slideX / length;
+          const sz = slideZ / length;
+          for (const scale of [1, 0.8, 0.6, 0.4]) {
+            const ax = startX + sx * step * scale;
+            const az = startZ + sz * step * scale;
+            if (this.stepAllowed(ax, az) && this.free(ax, az)) {
+              this.root.position = this.positionAt(ax, az);
+              return true;
+            }
+          }
+        }
       }
+    }
+    const heading = Math.atan2(dirX, dirZ);
+    for (const offset of WALL_SLIDE_ANGLES) {
+      const turn = heading + offset;
+      const slideX = Math.sin(turn);
+      const slideZ = Math.cos(turn);
+      const ax = startX + slideX * step;
+      const az = startZ + slideZ * step;
+      if (!this.stepAllowed(ax, az) || !this.free(ax, az)) continue;
+      this.root.position = this.positionAt(ax, az);
+      return true;
     }
     return false;
   }
@@ -868,10 +899,12 @@ export default class PlayerSystem {
     const right = new Vector3(forward.z, 0, -forward.x);
 
     const move = new Vector3(0, 0, 0);
-    if (this.input.forward) move.addInPlace(forward);
-    if (this.input.back) move.subtractInPlace(forward);
-    if (this.input.right) move.addInPlace(right);
-    if (this.input.left) move.subtractInPlace(right);
+    if (!(this.moveBlocked && this.moveBlocked())) {
+      if (this.input.forward) move.addInPlace(forward);
+      if (this.input.back) move.subtractInPlace(forward);
+      if (this.input.right) move.addInPlace(right);
+      if (this.input.left) move.subtractInPlace(right);
+    }
 
     if (move.lengthSquared() < 0.0001) {
       this.footInitialized = false;
