@@ -12,6 +12,7 @@ import { treeStumpTemplate, treeLogTemplate, treeFrondTemplate } from '../utils/
 import { decorationTemplate } from '../utils/decoTemplate.js';
 import { tintTemplate, forgetTints } from '../utils/decoTint.js';
 import { cellNoise, decoJitter, decoPlacement } from '../utils/decoPlacement.js';
+import { warnMissingWiring } from '../utils/missingWiring.js';
 import PathSystem from './pathSystem.js';
 import ContactShadow from '../utils/contactShadow.js';
 
@@ -55,7 +56,6 @@ export default class DecoSystem {
     this.treeCells = new Set();
     this.columnTop = new Map();
     this.surfaceKeys = new Map();
-    this.floorLifts = new Map();
     this.onDecoReady = null;
     this.onDecoBroken = null;
     this.colors = null;
@@ -76,7 +76,6 @@ export default class DecoSystem {
     this.blocked.clear();
     this.columnTop.clear();
     this.surfaceKeys.clear();
-    this.floorLifts.clear();
     this.brokenCount = 0;
     this.colors = colors || null;
     this.applyLayout(layout);
@@ -101,7 +100,6 @@ export default class DecoSystem {
     this.blocked.clear();
     this.columnTop.clear();
     this.surfaceKeys.clear();
-    this.floorLifts.clear();
     this.brokenCount = 0;
     this.colors = colors || null;
     this.layout = layout;
@@ -141,7 +139,6 @@ export default class DecoSystem {
     this.blocked.clear();
     this.columnTop.clear();
     this.surfaceKeys.clear();
-    this.floorLifts.clear();
     this.colors = colors || this.colors;
     this.layout = layout;
     for (const entry of layout.floor || []) this.applyEntry(entry);
@@ -244,7 +241,6 @@ export default class DecoSystem {
     const top = this.entryHeight(entry) + decoHeight(def);
     const key = cellKey(entry.cx, entry.cz);
     const solid = def.blocks !== false;
-    if (section !== 'deco') this.floorLifts.set(key, entry.liftY || 0);
     if (section === 'path') this.surfaceKeys.set(key, entry.key);
     const current = this.columnTop.get(key);
     if (!current) {
@@ -257,10 +253,13 @@ export default class DecoSystem {
 
   entryHeight(entry, extraX = 0, extraZ = 0) {
     const base = entry.liftY || 0;
-    if (!this.groundHeightAt) return base;
+    if (!this.groundHeightAt) {
+      warnMissingWiring('dekorace: výška země');
+      return base;
+    }
     const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
-    const local = this.groundHeightAt(x + (entry.offsetX || 0) + extraX, z + (entry.offsetZ || 0) + extraZ);
-    const center = this.groundHeightAt(x, z);
+    const local = this.groundAt(x + (entry.offsetX || 0) + extraX, z + (entry.offsetZ || 0) + extraZ);
+    const center = this.groundAt(x, z);
     return base + (local - center);
   }
 
@@ -286,15 +285,19 @@ export default class DecoSystem {
   surfaceAt(cx, cz) {
     const key = cellKey(cx, cz);
     const { x, z } = cellToWorldCoords(cx, cz);
-    const ground = this.groundHeightAt ? this.groundHeightAt(x, z) : this.floorTopAt(key);
+    const ground = this.groundAt(x, z);
     const cell = this.columnTop.get(key);
     if (cell) return Math.max(cell.surface, ground);
     return ground;
   }
 
-  floorTopAt(key) {
-    const lift = this.floorLifts.get(key);
-    return lift || 0;
+  groundAt(x, z) {
+    if (!this.groundHeightAt) {
+      warnMissingWiring('dekorace: výška země');
+      return 0;
+    }
+    const height = this.groundHeightAt(x, z);
+    return Number.isFinite(height) ? height : 0;
   }
 
   surfaceKeyAt(cx, cz) {
@@ -601,7 +604,6 @@ export default class DecoSystem {
     this.blocked.delete(key);
     this.treeCells.delete(key);
     this.columnTop.delete(key);
-    this.floorLifts.delete(key);
   }
 
   overlaps(x, z, bodyRadius) {

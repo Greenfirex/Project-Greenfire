@@ -3,7 +3,7 @@
 // Za okrajem mapy a u děr bere výšku nejbližší buňky, aby se zem na okraji nezvedala.
 import { CELL_SIZE, cellKey } from './gridMath.js';
 import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
-import { worldCells } from '../data/maps/areaShape.js';
+import { worldCells, levelOfEntry, planeLevels } from '../data/maps/areaShape.js';
 
 const MARGIN = 2;
 const AROUND = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -21,12 +21,13 @@ function catmull(p0, p1, p2, p3, t) {
   );
 }
 
-function layerLifts(world) {
+function layerLifts(world, level) {
   const lifts = new Map();
   const layers = world || {};
   for (const name of LAYER_ORDER) {
     for (const entry of layers[name] || []) {
       if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+      if (levelOfEntry(entry) !== level) continue;
       const key = cellKey(entry.cx, entry.cz);
       if (lifts.has(key)) continue;
       lifts.set(key, entry.liftY || 0);
@@ -35,18 +36,19 @@ function layerLifts(world) {
   return lifts;
 }
 
-export function createTerrainField(world) {
+function createPlane(world, level, below) {
   const heights = new Map();
   const sharp = new Set();
   const marked = new Set();
   const sharpStyles = new Map();
-  const lifts = layerLifts(world);
-  for (const [cx, cz] of worldCells(world || {})) {
+  const lifts = layerLifts(world, level);
+  for (const [cx, cz] of worldCells(world || {}, level)) {
     const lift = lifts.get(cellKey(cx, cz));
     if (Number.isFinite(lift)) heights.set(cellKey(cx, cz), lift);
   }
   for (const entry of (world || {}).floor || []) {
     if (!entry || entry.cliff !== true) continue;
+    if (levelOfEntry(entry) !== level) continue;
     const key = cellKey(entry.cx, entry.cz);
     sharp.add(key);
     marked.add(key);
@@ -201,6 +203,11 @@ export function createTerrainField(world) {
     return value === null ? 0 : value;
   }
 
+  const holes = new Set();
+  for (const key of below) {
+    if (!heights.has(key)) holes.add(key);
+  }
+
   return {
     heightAt,
     heightAtCell,
@@ -211,5 +218,38 @@ export function createTerrainField(world) {
       return (mask & (dx > 0 ? 1 : dx < 0 ? 2 : dz > 0 ? 4 : 8)) !== 0;
     },
     cliffStyleAt: (cx, cz) => sharpStyles.get(cellKey(cx, cz)) || null,
+    isHole: (cx, cz) => holes.has(cellKey(cx, cz)),
+    cells: heights,
+  };
+}
+
+function emptyPlane() {
+  return {
+    heightAt: () => 0,
+    heightAtCell: () => 0,
+    heightAtSide: () => 0,
+    isHardEdge: () => false,
+    cliffStyleAt: () => null,
+    isHole: () => false,
+  };
+}
+
+export function createTerrainField(world) {
+  const planes = new Map();
+  const below = new Set();
+  for (const level of planeLevels(world)) {
+    const plane = createPlane(world, level, below);
+    planes.set(level, plane);
+    for (const [key] of plane.cells) below.add(key);
+  }
+  const empty = emptyPlane();
+  const planeFor = (level) => planes.get(level) || empty;
+  return {
+    heightAt: (x, z, level = 0) => planeFor(level).heightAt(x, z),
+    heightAtCell: (cx, cz, level = 0) => planeFor(level).heightAtCell(cx, cz),
+    heightAtSide: (x, z, cx, cz, level = 0) => planeFor(level).heightAtSide(x, z, cx, cz),
+    isHardEdge: (cx, cz, dx, dz, level = 0) => planeFor(level).isHardEdge(cx, cz, dx, dz),
+    cliffStyleAt: (cx, cz, level = 0) => planeFor(level).cliffStyleAt(cx, cz),
+    isHole: (cx, cz, level = 0) => planeFor(level).isHole(cx, cz),
   };
 }

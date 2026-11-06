@@ -70,7 +70,9 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ## Výroba a svět
 
-- [ ] Suché jámy pod hladinou, řeky s vodopády a jeskyně — tři témata k rozhodnutí; rozbor (co to obnáší a co se může rozbít) je v `DEV.md`, sekce „Voda a podzemí".
+- [ ] Patra (sloupce): krok 3 — postava a tvorové nesou štítek plochy, pohyb jen v rámci plochy a průchod spojem (vejít do jeskyně). Pak krok 4 — skrytí plochy nade mnou a tma. Model a stav jsou v `DEV.md`, sekce „Jeskyně a patra".
+- [ ] Patra: doladit šev nad vchodem u buňky −6,−11 (pruh skály nad otvorem se tam nemá na co napojit).
+- [ ] Suché jámy pod hladinou a řeky s vodopády — dvě témata k rozhodnutí; rozbor (co to obnáší a co se může rozbít) je v `DEV.md`, sekce „Voda a podzemí".
 - [ ] Rozhodnout, jestli recepty zůstanou jen jako přehled, nebo dostanou tlačítko pro výrobu.
 - [ ] Navrhnout nový systém stavění (starý byl odstraněn).
 - [ ] Rozhodnout o šířce plynulého okraje pláže.

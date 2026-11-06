@@ -1,7 +1,7 @@
 // Sestaví soubor mapy z toho, co je v editoru — každá vrstva zůstane vrstvou, nic se nedopočítává.
 import { getMap } from './maps.js';
 
-export const MAP_VERSION = 8;
+export const MAP_VERSION = 9;
 
 export function isMapFile(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
@@ -23,13 +23,21 @@ export function layoutFromMapFile(file, fallbackSeed = 1) {
     fish: copy(world.fish),
     creatures: Array.isArray(world.creatures) ? copy(world.creatures) : null,
     bridges: copy(world.bridges),
+    connectors: copy(world.connectors),
   };
+}
+
+function storedEntry(entry) {
+  const out = { ...entry };
+  if (!out.level) delete out.level;
+  if (!Number.isFinite(out.ceilY)) delete out.ceilY;
+  return out;
 }
 
 export function mapFileFromLayout(mapKey, layout) {
   const fallback = getMap(mapKey);
   if (!fallback || !layout) return null;
-  const copy = (list) => (list || []).map((entry) => ({ ...entry }));
+  const copy = (list) => (list || []).map(storedEntry);
   return {
     version: MAP_VERSION,
     mapKey,
@@ -44,5 +52,6 @@ export function mapFileFromLayout(mapKey, layout) {
     fish: copy(layout.fish),
     creatures: Array.isArray(layout.creatures) ? copy(layout.creatures) : undefined,
     bridges: copy(layout.bridges),
+    connectors: (layout.connectors || []).length ? layout.connectors.map((item) => ({ ...item })) : undefined,
   };
 }

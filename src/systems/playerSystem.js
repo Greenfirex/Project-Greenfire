@@ -6,6 +6,7 @@ import '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { worldToCellCoords, cellToWorldCoords } from '../utils/gridMath.js';
+import { warnMissingWiring } from '../utils/missingWiring.js';
 import { TOOL_TYPES } from '../data/catalogs/items.js';
 import {
   toolModelUrl,
@@ -566,7 +567,11 @@ export default class PlayerSystem {
   }
 
   groundY(x, z) {
-    const height = this.groundHeightAt ? this.groundHeightAt(x, z) : 0;
+    if (!this.groundHeightAt) {
+      warnMissingWiring('postava: výška země');
+      return 0;
+    }
+    const height = this.groundHeightAt(x, z);
     return Number.isFinite(height) ? height : 0;
   }
 

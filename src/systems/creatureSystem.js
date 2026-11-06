@@ -21,6 +21,7 @@ import {
   tierTint,
 } from '../data/catalogs/creatures/index.js';
 import { cellToWorldCoords, worldToCell, CELL_SIZE } from '../utils/gridMath.js';
+import { warnMissingWiring } from '../utils/missingWiring.js';
 import { findCellPath } from '../utils/gridPath.js';
 
 const TURN_SPEED = 7;
@@ -353,7 +354,7 @@ export default class CreatureSystem {
 
   placeHolder(creature, bob = 0, seconds = 0) {
     if (!creature || !creature.holder) return;
-    const ground = this.groundHeightAt ? this.groundHeightAt(creature.renderX, creature.renderZ) : 0;
+    const ground = this.groundAt(creature.renderX, creature.renderZ);
     const fall = Number.isFinite(creature.renderY) ? creature.renderY : ground;
     const rate = seconds > 0 ? (ground > fall ? RISE_RATE : FALL_RATE) * seconds : Infinity;
     creature.renderY = rate === Infinity ? ground : fall + Math.max(-rate, Math.min(rate, ground - fall));
@@ -391,7 +392,11 @@ export default class CreatureSystem {
   }
 
   groundAt(x, z) {
-    const height = this.groundHeightAt ? this.groundHeightAt(x, z) : 0;
+    if (!this.groundHeightAt) {
+      warnMissingWiring('tvorové: výška země');
+      return 0;
+    }
+    const height = this.groundHeightAt(x, z);
     return Number.isFinite(height) ? height : 0;
   }
 

@@ -6,6 +6,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { CELL_SIZE, cellKey } from '../utils/gridMath.js';
+import { warnMissingWiring } from '../utils/missingWiring.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 
 const PATH_LIFT = 0.025;
@@ -55,12 +56,19 @@ export default class PathSystem {
   }
 
   cellGround(cx, cz) {
-    if (!this.groundHeightAt) return 0;
+    if (!this.groundHeightAt) {
+      warnMissingWiring('cesty: výška země');
+      return 0;
+    }
     return this.groundHeightAt(cx * CELL_SIZE, cz * CELL_SIZE);
   }
 
   groundAt(x, z) {
-    return (this.groundHeightAt ? this.groundHeightAt(x, z) : 0) + PATH_LIFT;
+    if (!this.groundHeightAt) {
+      warnMissingWiring('cesty: výška země');
+      return PATH_LIFT;
+    }
+    return this.groundHeightAt(x, z) + PATH_LIFT;
   }
 
   buildFromLayout(world, heightAt) {

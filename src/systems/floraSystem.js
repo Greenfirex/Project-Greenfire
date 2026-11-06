@@ -7,6 +7,7 @@ import { Vector3, Matrix, Quaternion } from '@babylonjs/core/Maths/math.vector';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { CELL_SIZE, worldToCell } from '../utils/gridMath.js';
+import { warnMissingWiring } from '../utils/missingWiring.js';
 import { cellNoise, patchValue } from '../utils/decoPlacement.js';
 import { createGrassMaterial, tickGrass } from './grassShader.js';
 import { GRASS_TYPES, GRASS_MIXES, GRASS_ORDER, GRASS_COVER, GRASS_GROUND, grassGroundUrls } from '../data/catalogs/grass.js';
@@ -437,8 +438,14 @@ export default class FloraSystem {
       const dz = z - gz * CELL_SIZE;
       if (dx * dx + dz * dz < TREE_CLEARANCE * TREE_CLEARANCE) return null;
     }
-    const ground = this.deco.groundHeightAt ? this.deco.groundHeightAt(x, z) : this.deco.topAt(gx, gz);
+    const ground = this.groundUnder(x, z, gx, gz);
     return { x, z, y: ground + GRASS_LIFT, species, variant, size, yaw, lean };
+  }
+
+  groundUnder(x, z, cx, cz) {
+    if (this.deco.groundHeightAt) return this.deco.groundHeightAt(x, z);
+    warnMissingWiring('tráva: výška země');
+    return this.deco.topAt(cx, cz);
   }
 
   buildChunks(slots, prefix) {
@@ -530,7 +537,7 @@ export default class FloraSystem {
     for (const chunk of this.chunks) {
       for (const part of chunk.parts) {
         for (const slot of part.slots) {
-          const ground = this.deco.groundHeightAt ? this.deco.groundHeightAt(slot.x, slot.z) : slot.y;
+          const ground = this.groundUnder(slot.x, slot.z, worldToCell(slot.x), worldToCell(slot.z));
           slot.y = ground + GRASS_LIFT;
         }
         this.writePart(part);

@@ -31,6 +31,23 @@ src/
   při startu — proto je u načtení vidět načítací obrazovka. Běžné spuštění
   zůstává čisté, nic se nenačítá samo.
 
+### Dvě otázky na výšku
+
+Pro každé místo existuje jedna výška země a na ní stojí všechno ostatní. Vedle
+ní je ale druhá odpověď — **co je pode mnou**, tedy země včetně mostu. Jsou to
+dvě různé otázky a zůstávají oddělené:
+
+- **Výška země** (`terrainSystem.heightAt`, `heightAtCell`) — kde je terén.
+  Berou ji dekorace, cesty, voda a tráva: zajímá je země, ne to, co je nad ní.
+- **Co je pode mnou** (`terrainSystem.walkHeightAt`) — na čem se dá stát.
+  Berou ji hráč, tvorové, kurzor a kamera: zajímá je povrch, po kterém se chodí.
+
+Výšku si žádný systém nepočítá sám z dat mapy — dostane ji od scény jako
+`groundHeightAt`. Když propojení chybí, ozve se do konzole (`utils/missingWiring.js`,
+jednou za systém), místo aby tiše počítal s nulou: nula je platná výška, takže by
+se chyba schovala. Až se jednou svět rozdělí na vrstvy, přibude vrstva právě na
+jednu z těch dvou otázek — proto musí být od začátku jmenované.
+
 ## Kde co je
 
 - `src/data/maps/layoutStore.js` — rozsah výšek, krok, předvolby.
@@ -230,14 +247,18 @@ Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů).
 
 - Volitelné doladění vzhledu: rostliny u břehu, zatopené kameny, skutečný odraz
   oblohy, počasí (bouřka a déšť).
-- Suché jámy pod hladinou, řeky s vodopády a jeskyně — tři témata k rozhodnutí,
-  rozbor je níž v sekci [Voda a podzemí](#voda-a-podzemí--tři-témata-k-rozhodnutí).
+- Suché jámy pod hladinou a řeky s vodopády — dvě témata k rozhodnutí,
+  rozbor je níž v sekci [Voda a podzemí](#voda-a-podzemí). Jeskyně a patra jsou
+  rozhodnuté (sloupce), model je v sekci [Jeskyně a patra](#jeskyně-a-patra).
 - Mimo uzavřený plán: recepty, plnění batohu a výroba předmětů.
 
 ## Klíčová rozhodnutí (nevrátit omylem)
 
-- Výšky jsou v metrech, krok 0,3 m, rozsah −6 až +24 m; předvolby −6, −3, 0, 3,
-  6, 9, 12, 18 a 24 m.
+- Výšky jsou v metrech, krok 0,3 m, rozsah −15 až +24 m; předvolby −15, −12, −9,
+  −6, −3, 0, 3, 6, 9, 12, 18 a 24 m.
+- Patra jsou sloupce: buňka může mít víc pochozích ploch nad sebou, štítek patra
+  je jen jmenovka (pořadí se počítá z výšek v buňce) a mezi plochami se chodí
+  jen po spoji. Pravidla a důvody jsou v sekci „Jeskyně a patra".
 - Výškový panel je samostatné okno; hlavní HUD výšky neobsahuje.
 - Výběr buněk: hover + levé přidá + pravé kliknutí odebere; 0 m srovnává.
 - Střed buňky zůstává přesný; kraj mapy a díry berou výšku nejbližší buňky.
@@ -437,10 +458,11 @@ pozornosti a svou barvu, a boj se odehrává kolem hráče, ne ve výběrovém o
 Jeden druh nepřítele, okruh pozornosti, honička a návrat domů, jeden typ útoku,
 smrt, mrtvé tělo s kořistí a respawn.
 
-## Voda a podzemí — tři témata k rozhodnutí
+## Voda a podzemí
 
-Odloženo na příště. Nic z toho není rozhodnuté; sepsané je to proto, aby se
-nemuselo znovu objevovat, proč to kde dnes nejde.
+Jeskyně a patra jsou **rozhodnuté** — viz „Jeskyně a patra" níž. Suché jámy
+a řeky zůstávají otevřené; sepsané je to proto, aby se nemuselo znovu
+objevovat, proč to kde dnes nejde.
 
 ### Suché jámy pod hladinou
 
@@ -518,22 +540,26 @@ na přechodu řeka → moře.
 má se dát přebrodit, nebo je to hranice (hráč zatím neumí plavat); má proud
 hráče unášet.
 
-### Jeskyně
+### Jeskyně a patra
 
 **Cíl:** díra do útesu, kterou se dá projít, a možnost jít pod zem a dovnitř do
-skály.
+skály — včetně jeskyně pod jeskyní.
 
 **Proč je to nejtěžší:** celý svět stojí na výškovém poli — pro každé místo na
 mapě existuje jedna výška, a na tom je postavené úplně všechno: terén, voda,
 tráva, dekorace, tvorové, stíny, kamera i hledání cest. Jeskyně ale znamená dvě
 podlaží nad sebou na stejném místě.
 
-**Varianta A — vchod jako kulisa** (malá práce): ve skalní stěně se vygeneruje
+**Rozhodnutí:** obecnost hned, žádné zjednodušování. Varianty A a B níž jsou
+zamítnuté, zvolená je varianta C a model, který je popsaný za nimi.
+
+**Varianta A — vchod jako kulisa** (zamítnutá): ve skalní stěně se vygeneruje
 tmavá nika, pár metrů hluboká, s tmavým koncem. Žádné druhé podlaží, jen
 geometrie a tma. Dá pocit, že hráč do skály vešel, ale nevede nikam. Práce: nový
 objekt v editoru, mesh a zákaz vstupu dál.
 
-**Varianta B — jeskyně jako samostatná mapa** (velká, ale schůdná; doporučená):
+**Varianta B — jeskyně jako samostatná mapa** (zamítnutá pro jeskyně; zůstává
+vhodná pro jiné vnitřky, třeba dům):
 vchod je díra ve stěně, po vejití se obrazovka zatmí a načte se jiná mapa.
 Tři výhody, které to mají zadarmo:
 
@@ -552,9 +578,9 @@ vchod zvenku i východ zevnitř. (3) uložení hry si musí pamatovat, ve které
 hráč je. (4) obsah jeskyně: chodby, síně, krápníky, tma, vlastní tvorové,
 případně voda. (5) zvuk — smyčka „Cave" je v balíčku, který už máme.
 
-**Varianta C — skutečná patra v jedné mapě** (nedoporučená): aby šlo projít
-tunelem pod skálu a zůstat ve stejné mapě, muselo by se výškové pole rozdělit na
-vrstvy a s ním všechno ostatní. Co konkrétně se rozbije:
+**Varianta C — skutečná patra v jedné mapě — ZVOLENÁ:** aby šlo projít
+tunelem pod skálu a zůstat ve stejné mapě, rozdělí se výškové pole na plochy
+a s ním všechno ostatní. Co je potřeba projít:
 
 - **Data mapy:** dvě vrstvy buněk, verze formátu +1, staré mapy musí jít načíst;
   každý štětec a zóna musí vědět, do které vrstvy kreslí (jinak maluješ strop,
@@ -597,26 +623,135 @@ vrstvy a s ním všechno ostatní. Co konkrétně se rozbije:
   systémů, které se každý snímek ptají na výšky. Projev: nepravidelné padání
   snímků v hustých místech.
 
-Souhrn k céčku: není to „přidat jeskyně", ale předělat základ hry na vrstvy
+Souhrn: není to „přidat jeskyně", ale předělat základ hry na plochy
 a projet všechny systémy, které dnes počítají s jedinou výškou — a to jsou
 prakticky všechny. Riziko není, že by to nešlo, ale že chyby budou tiché
 a místní: něco půjde devadesát procent času a v určité kombinaci se to rozbije.
 
-**Kompromis „C-lite":** jeskyně jako vodorovná chodba vyvrtaná do útesu — žádné
-druhé patro ani schody dolů, jen dutina ve skále s vlastní podlahou kousek nad
-okolním terénem a stropem z kamene. Obejde tím všechno, co se týká dvou podlaží,
-ale pořád je potřeba vyřešit vlastní podlahu pro chůzi, strop a jeho prořezávání
-pro kameru, světlo, kurzor a hledání cest. Odhadem třetinová práce proti céčku,
-ale pořád velká.
+### Model sloupců — jak se to udělá
 
-**Doporučený postup:** nejdřív prototyp přepnutí mapy za běhu (naťukat klávesu,
-přenést hráče do druhé, zatím prázdné mapy a zpátky) — když tohle funguje, je
-zbytek „jen" obsah. Pak jeskynní mapa s chodbami a síněmi, portál se zatmíváním
-a návrat na stejné místo. Než bude hotová velká verze, může na místě být aspoň
-varianta A (díra, která vypadá jako jeskyně).
+**Pochozí plocha patří buňce, ne světu.** Buňka (sloupec) může mít libovolný
+počet pochozích ploch; každá má svou výšku a některé i strop. Nic se nedopočítává
+z okolí — plocha je záznam v datech.
 
-**Otevřené otázky:** jedna dvě jeskyně, nebo celý podzemní systém (doly, chodby,
-propojení); má být uvnitř něco ke sbírání (ruda, krystaly) a tvorové, nebo zatím
-jen průchod; má se uvnitř zastavit denní doba a být pořád tma; stačí při vstupu
-krátký přeblik, nebo chceš načítací obrazovku.
+**Patro je jmenovka, ne pořadí.** Číslo patra (0, −1, −2 …) jen říká „tyhle
+plochy patří k sobě" — aby šlo malovat, svítit, hledat vodu a ukládat po celých
+plochách. Štítky se nikdy nepřečíslovávají; přečíslování by rozbilo mapy, spoje
+i uložené hry. Nová jeskyně vložená mezi dvě dostane další volný štítek.
+
+**Pořadí se počítá v každé buňce zvlášť, z výšek.** Co je nade mnou, pode mnou
+a mezi tím, pozná buňka tak, že si své plochy seřadí podle výšky. Globální
+pořadí pater neexistuje a nikde se nepotřebuje — ani pro viditelnost, protože
+„skrýt, co je nade mnou" je otázka pro buňku. V editoru se seznam pater řadí
+podle naměřené výšky, ne podle štítku.
+
+**Data** (formát mapy 9; verze 8 se načte jako všechno v patře 0):
+
+- záznam vrstvy (`floor`, `grass`, `path`, `clearing`) dostane `level`
+  (chybějící = 0) a `ceilY` (strop plochy; chybějící = otevřeno nahoru),
+- nová sekce `connectors`: spoj `{ from: {cx, cz, level}, to: {cx, cz, level},
+  kind }` — hrana mezi dvěma dvojicemi buňka + plocha, **libovolného směru**:
+  svislá šachta, vodorovný průchod i šikmý vchod ze skalní stěny. `kind`
+  (`stairs`, `ramp`, `ladder`, `shaft`, `passage`) říká, jak spoj vypadá a kdo
+  po něm umí chodit,
+- dekorace patří k patru stejně jako plocha, na které stojí.
+
+**Hloubka:** rozsah výšek je −15 až +24 m (v krocích 0,3 m), takže jeskyně jde
+vyhrabat do 15 m pod nulou. Původně to bylo 6 m — rozšířilo se kvůli patrům.
+
+**Zkušební jeskyně v mapě Glade:** 16 buněk (4×4) pod plošinou u spawnu
+(plocha −1, dno 0,9 m, strop 3,6 m, povrch štěrk) a **vchod ve skalní stěně**
+na buňce −6,−10, který vede ven na −5,−10. Všechny výšky jsou násobky 0,3 m,
+takže je editor umí namalovat. V editoru se dá posunout nebo zrušit.
+
+**Pozor při ukládání mapy:** editor ukládá to, co má otevřená stránka. Když se
+data mapy změní mimo běžící hru, je potřeba **obnovit stránku (F5)** — jinak
+uložení starý stav vrátí. Takhle jednou zmizela sekce `connectors` a s ní vchod
+do jeskyně.
+
+**Strop se kreslí jen zespodu.** Je to jednostranná plocha s normálami dolů, takže
+zeshora je neviditelný a pozdější pohled do jeskyně z výšky zůstane volný — strop
+nedělá poklop. Vidět je tam, kde se do jeskyně díváš zevnitř: vchodem ze skalní
+stěny při plochém úhlu kamery, nebo v editoru.
+
+**Pravidla, která drží model pohromadě:**
+
+1. **Strop je údaj plochy**, ne dopočet z plochy nad ní. Jinak by jeskyně pod
+   horou byla vysoká podle hory.
+2. **Mezi plochami se chodí jen po spoji.** Geometrie nikdy nedovolí přechod
+   sama. Spoj zároveň znamená díru ve stropě nebo v podlaze a vynechanou stěnu
+   tam, kudy prochází — takže nemůže vzniknout jeskyně se schody a bez díry.
+3. **Světlá výška 2,6 m** (postava měří ve světě 2,31 m, zbytek je rezerva) je
+   minimum, do kterého hráč vejde; editor varuje, když jeskyně vyjde nižší.
+   Výchozí světlá výška nové jeskyně je 3,0 m.
+4. **„Jsem pod střechou" se odvozuje** z toho, že nade mnou existuje strop —
+   neukládá se. Z toho plyne tma, žádné slunce a klid na pozadí.
+5. **Buňka zabraná šachtou nemá v tom patře podlahu.** Výškové pole to musí
+   vědět, jinak díru zalepí výškou od souseda — dnes to tak dělá u okraje mapy.
+
+**Plochy mezi buňkami** — jádro práce. Nejdřív tabulka případů (co je na jedné
+straně, co na druhé, jaká plocha mezi nimi), pak geometrie z ní:
+
+- **Stěny dutin se staví jen u ploch, které mají strop.** Otevřený povrch světa
+  se do nich nepočítá — o jeho stěny se starají útesy. Kdyby se počítal, udělá
+  každý schod rovnou stěnu a útesy ztratí svůj vzhled.
+- **Stěna dutiny se tam, kde sousedí s otevřeným světem níž než její dno,
+  nekreslí.** Skalní stěna sama dutinu uzavře — a protože je to tatáž plocha,
+  nevyčuhuje z ní žádná umělá stěna. Jinde (soused má povrch nad stropem dutiny)
+  se stěna kreslí, ale je schovaná uvnitř skály.
+- **Vchod do skalní stěny:** tam, kudy prochází spoj, se útes staví jen **nad
+  otvorem**, ne od země — tím ve stěně vznikne díra. Profil stěny se přitom
+  počítá z původní plné výšky a jen se pod otvorem odřízne, aby si skála
+  zachovala svůj tvar. **Podlahy se v místě vchodu potkají jen tehdy, když leží
+  ve stejné výšce** — pak na sebe navážou samy, bez jakékoli pomocné geometrie.
+  Když se výšky rozejdou, vznikne schod; ten bude řešit rampa nebo schody
+  (spoj už druh `stairs`/`ramp` má, jen se zatím nekreslí).
+- **Konec spoje, který je díra, bere výšku z výškového pole.** Buňka s dírou na
+  horní ploše nemá v datech co změřit; bez toho by spoj zanikl a díra by zůstala
+  zavřená stropem.
+
+- stejná plocha, stejná výška → žádná plocha mezi nimi,
+- stejná plocha, jiná výška → schod nebo útes (dnes),
+- plocha na jedné straně, nic na druhé → stěna,
+- plocha na jedné straně, šachta na druhé → stěna šachty,
+- dvě plochy nad sebou, soused jen jednu → stěna od podlahy ke stropu,
+- skála mezi dvěma plochami → neviditelná, ale musí existovat,
+- strop a podlaha téže plochy v jedné buňce (tenká skála) → dvě plochy.
+
+**Pořadí prací:**
+
+1. Data a dotazy: štítek patra a strop v záznamech, spoje, výšky po plochách,
+   díra versus okraj mapy. Bez viditelné změny. **Hotovo.**
+2. Geometrie podle tabulky ploch — podlaha, strop, stěny, šachty. **Hotovo**:
+   povrch po plochách, stropy, stěny dutin, šachty i vynechané stěny u spojů.
+3. Hráč a tvorové nesou štítek patra; pohyb jen v rámci plochy; spoje.
+4. Viditelnost a světlo: skrýt plochy nade mnou, pod stropem tma.
+5. Editor: přepínač pater, štětec díry, štětec spoje, řez sloupcem, duch skryté
+   plochy, kontroly (díra bez spoje, nízký strop, podlaha pod vodou) a vracení
+   zpět přes plochy.
+6. Voda po plochách — samostatná etapa, protože jedna hladina dnes proteče
+   stropem.
+7. Ukládání: štítek patra u hráče, tvorů i táboráků; stará uložení = patro 0.
+
+Kroky 1–3 se dají ověřit na mapě napsané ručně, bez editoru.
+
+**Stav:** kroky 1 a 2 jsou hotové (data, dotazy i geometrie — viz seznam výš).
+Co je potřeba doladit, až se k tomu vrátíme:
+
+- **šev nad vchodem** u buňky −6,−11: pruh skály nad otvorem se tam nemá na co
+  napojit (u −6,−9 kolmá skalní stěna je, tam to sedí),
+- **v jeskyni je tma** — světlo přinese krok 4,
+- **do jeskyně se zatím nedá vejít** — chybí krok 3,
+- **editor neumí** namalovat plochu −1 ani spoj (krok 5),
+- **vchod potřebuje stejnou výšku** na obou stranách; když se rozejdou, vznikne
+  schod — ten budou řešit rampy nebo schody.
+
+**Viditelnost se bude vylepšovat.** První verze skryje celou plochu nad hráčem;
+později totéž po buňkách kolem hráče (plynulé schovávání, průhled). Aby to druhé
+neznamenalo přestavět terén, staví se geometrie **po skupinách buněk** už od
+začátku — to je jediná věc, která by se dodatečně dělala draze.
+
+**Otevřené otázky:** má se pod stropem zastavit denní doba; co má být uvnitř
+ke sbírání (ruda, krystaly) a jací tvorové; a jestli má voda v podzemí přijít
+hned po editoru, nebo až po něm.
 

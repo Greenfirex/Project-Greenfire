@@ -16,7 +16,7 @@ import { buildBridge, deckHeightAt, bridgeSpan, bridgeCellOf, sampleBank, BRIDGE
 import { createTerrainField } from '../utils/terrainField.js';
 import { getMap } from '../data/catalogs/maps.js';
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
-import { groundCells, worldCells } from '../data/maps/areaShape.js';
+import { groundCells, worldCells, planeLevels, levelOfEntry, columnsByCell, layerLiftAt, floorCellAt } from '../data/maps/areaShape.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import TerrainBlendPlugin from './terrainBlendPlugin.js';
 import TerrainReliefPlugin from './terrainReliefPlugin.js';
@@ -160,6 +160,18 @@ function valueNoise(x, z) {
   const top = a + (b - a) * sx;
   const bottom = c + (d - c) * sx;
   return top + (bottom - top) * sz;
+}
+
+function planeView(field, level) {
+  if (!field || !level) return field;
+  return {
+    heightAt: (x, z) => field.heightAt(x, z, level),
+    heightAtCell: (cx, cz) => field.heightAtCell(cx, cz, level),
+    heightAtSide: (x, z, cx, cz) => field.heightAtSide(x, z, cx, cz, level),
+    isHardEdge: (cx, cz, dx, dz) => field.isHardEdge(cx, cz, dx, dz, level),
+    cliffStyleAt: (cx, cz) => field.cliffStyleAt(cx, cz, level),
+    isHole: (cx, cz) => field.isHole(cx, cz, level),
+  };
 }
 
 function cliffOffset(x, z) {
@@ -364,6 +376,9 @@ export default class TerrainSystem {
     this.floorKeys = new Map();
     this.mapKey = null;
     this.bridges = [];
+    this.mouths = new Map();
+    this.upLinks = new Map();
+    this.openSides = new Set();
     this.ready = Promise.resolve(null);
   }
 
@@ -371,12 +386,12 @@ export default class TerrainSystem {
     return this.ready || Promise.resolve();
   }
 
-  heightAt(x, z) {
-    return this.field ? this.field.heightAt(x, z) : 0;
+  heightAt(x, z, level = 0) {
+    return this.field ? this.field.heightAt(x, z, level) : 0;
   }
 
-  heightAtCell(cx, cz) {
-    return this.field ? this.field.heightAtCell(cx, cz) : 0;
+  heightAtCell(cx, cz, level = 0) {
+    return this.field ? this.field.heightAtCell(cx, cz, level) : 0;
   }
 
   floorKeyAt(cx, cz) {
@@ -399,6 +414,18 @@ export default class TerrainSystem {
     this.realCells = [];
   }
 
+  resetSurfaces() {
+    for (const mesh of this.surfaces) {
+      if (mesh && !mesh.isDisposed()) mesh.dispose(false, false);
+    }
+    this.surfaces = [];
+    for (const texture of this.weightTextures) texture.dispose();
+    this.weightTextures = [];
+    this.shelfAnchors = [];
+    this.bridges = [];
+    this.bridgeWallColumns = new Map();
+  }
+
   create(mapKey, world = null) {
     const map = getMap(mapKey);
     if (!map) return null;
@@ -409,7 +436,15 @@ export default class TerrainSystem {
     this.groundCells = groundCells(world);
     this.realCells = worldCells(world);
     this.field = createTerrainField(world);
-    this.createSurface(map, this.groundCells);
+    const vents = this.connectorInfo();
+    this.upLinks = vents.upLinks;
+    this.openSides = vents.openSides;
+    this.mouths = vents.mouths;
+    this.resetSurfaces();
+    for (const level of planeLevels(world)) {
+      this.createSurface(map, groundCells(world, level), level);
+    }
+    this.createVoids(map);
     this.createSkirt(this.groundCells);
     this.createPicker(this.pickCells());
     this.gridLines = this.createGridLines(map, this.realCells);
@@ -466,14 +501,14 @@ export default class TerrainSystem {
     this.ground = ground;
   }
 
-  cliffCornerInfo(gx, gz) {
+  cliffCornerInfo(gx, gz, field = this.field) {
     const half = CELL_SIZE / 2;
     const cells = [];
     for (const sx of [-half, half]) {
       for (const sz of [-half, half]) {
         const ax = Math.round((gx + sx) / CELL_SIZE);
         const az = Math.round((gz + sz) / CELL_SIZE);
-        cells.push({ cx: ax, cz: az, h: this.field.heightAtCell(ax, az) });
+        cells.push({ cx: ax, cz: az, h: field.heightAtCell(ax, az) });
       }
     }
     const sorted = [...cells].sort((a, b) => b.h - a.h);
@@ -501,28 +536,20 @@ export default class TerrainSystem {
     return null;
   }
 
-  cliffCornerPost(pushes, point, edge) {
+  cliffCornerPost(pushes, point, edge, field = this.field) {
     if (cliffDirection(pushes, point).corner <= 0.3) return false;
     if (this.bridgeCornerAt(point.gx, point.gz)) return false;
-    const info = this.cliffCornerInfo(point.gx, point.gz);
+    const info = this.cliffCornerInfo(point.gx, point.gz, field);
     if (!info || !info.convex) return false;
-    const here = this.field.heightAtCell(edge.cx, edge.cz);
-    const there = this.field.heightAtCell(edge.nx, edge.nz);
+    const here = field.heightAtCell(edge.cx, edge.cz);
+    const there = field.heightAtCell(edge.nx, edge.nz);
     const highCell = here >= there ? `${edge.cx},${edge.cz}` : `${edge.nx},${edge.nz}`;
     return info.pull.has(highCell);
   }
 
-  createSurface(map, cells) {
-    for (const mesh of this.surfaces) {
-      if (mesh && !mesh.isDisposed()) mesh.dispose(false, false);
-    }
-    this.surfaces = [];
-    for (const texture of this.weightTextures) texture.dispose();
-    this.weightTextures = [];
-    this.shelfAnchors = [];
-    this.bridges = [];
-    this.bridgeWallColumns = new Map();
-
+  createSurface(map, cells, level = 0) {
+    const suffix = level === 0 ? '' : `_L${level}`;
+    const shelfAnchors = [];
     const tint = new Color3(...SURFACE_VERTEX_TINT);
     const step = CELL_SIZE / SURFACE_SUB;
     const half = CELL_SIZE / 2;
@@ -531,14 +558,15 @@ export default class TerrainSystem {
     const floorKeys = new Map();
     for (const entry of (this.layout || {}).floor || []) {
       if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+      if (levelOfEntry(entry) !== level) continue;
       if (entry.key) floorKeys.set(`${entry.cx},${entry.cz}`, entry.key);
     }
     for (const [cx, cz] of cells) {
       keys.set(`${cx},${cz}`, floorKeys.get(`${cx},${cz}`) || DEFAULT_FLOOR);
     }
-    this.floorKeys = keys;
+    if (level === 0) this.floorKeys = keys;
     const keyAt = (cx, cz) => keys.get(`${cx},${cz}`) || null;
-    const field = this.field;
+    const field = planeView(this.field, level);
     const spreads = (key) => {
       const cfg = this.surfaceConfig(key);
       return Boolean(cfg && cfg.spreads);
@@ -715,7 +743,7 @@ export default class TerrainSystem {
       if (found !== undefined) return found;
       const index = group.positions.length / 3;
       group.vertices.set(id, index);
-      const y = py === null ? this.heightAt(px, pz) : py;
+      const y = py === null ? field.heightAt(px, pz) : py;
       group.positions.push(px, y, pz);
       group.uvs.push(px / group.tile, pz / group.tile);
       group.colors.push(tint.r, tint.g, tint.b, 1);
@@ -952,7 +980,7 @@ export default class TerrainSystem {
       return value === undefined ? null : value;
     };
 
-    this.bridges = this.bridgePlansFor(map, keyAt, positionOf, weldedAt);
+    if (level === 0) this.bridges = this.bridgePlansFor(map, keyAt, positionOf, weldedAt);
 
     for (const [cx, cz] of cells) {
       const key = keyAt(cx, cz);
@@ -1113,19 +1141,21 @@ export default class TerrainSystem {
     }
 
     const blends = new Map();
-    for (const key of groups.keys()) {
-      const partners = [];
-      for (const partner of partnerFor(key)) {
-        const cfg = this.surfaceConfig(partner);
-        if (!cfg || !cfg.texture) continue;
-        partners.push({
-          key: partner,
-          tile: cfg.tile || 1,
-          color: this.surfaceColor(partner, map),
-          weights: weightsFor(key, partner),
-        });
+    if (level === 0) {
+      for (const key of groups.keys()) {
+        const partners = [];
+        for (const partner of partnerFor(key)) {
+          const cfg = this.surfaceConfig(partner);
+          if (!cfg || !cfg.texture) continue;
+          partners.push({
+            key: partner,
+            tile: cfg.tile || 1,
+            color: this.surfaceColor(partner, map),
+            weights: weightsFor(key, partner),
+          });
+        }
+        blends.set(key, partners.length ? { partners } : null);
       }
-      blends.set(key, partners.length ? { partners } : null);
     }
 
     const borderNormals = new Map();
@@ -1174,7 +1204,7 @@ export default class TerrainSystem {
 
     for (const [key, group] of groups) {
       if (!group.positions.length) continue;
-      const mesh = new Mesh(key === DEFAULT_FLOOR ? 'terrainSurface' : `terrainSurface_${key}`, this.s);
+      const mesh = new Mesh(`${key === DEFAULT_FLOOR ? 'terrainSurface' : `terrainSurface_${key}`}${suffix}`, this.s);
       const data = new VertexData();
       data.positions = group.positions;
       data.indices = group.indices;
@@ -1191,21 +1221,271 @@ export default class TerrainSystem {
     if (wallEdges.length) {
       const shelves = new Map();
       this.createCliffMesh(wallEdges, positionOf, heightOf, weldedAt, bevelPeaks, (edge) => {
-        const lower = this.heightAtCell(edge.cx, edge.cz);
-        const higher = this.heightAtCell(edge.nx, edge.nz);
+        const lower = field.heightAtCell(edge.cx, edge.cz);
+        const higher = field.heightAtCell(edge.nx, edge.nz);
         const key = higher >= lower ? keyAt(edge.nx, edge.nz) : keyAt(edge.cx, edge.cz);
         const color = this.surfaceColor(key, map);
         return { key, color: [color.r * 0.50, color.g * 0.66, color.b * 0.40] };
-      }, shelves);
-      this.createShelfMeshes(shelves, map, blends);
+      }, shelves, field, suffix, shelfAnchors);
+      this.createShelfMeshes(shelves, map, blends, suffix);
     }
     if (this.bridges.length) this.createBridges(map, blends);
+    if (level === 0) this.shelfAnchors = shelfAnchors;
   }
 
-  createCliffMesh(edges, positionOf, heightOf, weldedAt, bevelPeaks, rimColorOf, shelves) {
+  mouthAt(edge) {
+    const mouths = this.mouths;
+    if (!mouths || !mouths.size) return null;
+    const dx = Math.sign(edge.nx - edge.cx);
+    const dz = Math.sign(edge.nz - edge.cz);
+    return mouths.get(`${edge.cx},${edge.cz}|${dx},${dz}`) || mouths.get(`${edge.nx},${edge.nz}|${-dx},${-dz}`) || null;
+  }
+
+  connectorInfo() {
+    const layout = this.layout || {};
+    const upLinks = new Map();
+    const openSides = new Set();
+    const mouths = new Map();
+    const levelOf = (end) => (end && Number.isFinite(end.level) ? end.level : 0);
+    const mouthFor = (end, dx, dz) => {
+      const entry = floorCellAt(layout, end.cx, end.cz, levelOf(end));
+      if (!entry || !Number.isFinite(entry.ceilY)) return;
+      const bottom = entry.liftY || 0;
+      if (entry.ceilY <= bottom) return;
+      mouths.set(`${end.cx},${end.cz}|${dx},${dz}`, { bottom, top: entry.ceilY });
+    };
+    const liftAt = (end, loose) => {
+      const lift = layerLiftAt(layout, end.cx, end.cz, levelOf(end));
+      if (lift !== null) return lift;
+      if (!loose || !this.field) return null;
+      const height = this.field.heightAt(end.cx * CELL_SIZE, end.cz * CELL_SIZE, levelOf(end));
+      return Number.isFinite(height) ? height : null;
+    };
+    for (const record of layout.connectors || []) {
+      const from = record && record.from;
+      const to = record && record.to;
+      if (!from || !to) continue;
+      const vertical = from.cx === to.cx && from.cz === to.cz;
+      const fromLift = liftAt(from, vertical);
+      const toLift = liftAt(to, vertical);
+      if (fromLift === null || toLift === null) continue;
+      const fromLevel = levelOf(from);
+      const toLevel = levelOf(to);
+      if (vertical) {
+        const fromKey = `${from.cx},${from.cz}|${fromLevel}`;
+        const toKey = `${to.cx},${to.cz}|${toLevel}`;
+        if (toLift > fromLift) upLinks.set(fromKey, Math.max(upLinks.get(fromKey) || -Infinity, toLift));
+        if (fromLift > toLift) upLinks.set(toKey, Math.max(upLinks.get(toKey) || -Infinity, fromLift));
+        continue;
+      }
+      const dx = Math.sign(to.cx - from.cx);
+      const dz = Math.sign(to.cz - from.cz);
+      openSides.add(`${from.cx},${from.cz}|${fromLevel}|${dx},${dz}`);
+      openSides.add(`${to.cx},${to.cz}|${toLevel}|${-dx},${-dz}`);
+      mouthFor(from, dx, dz);
+      mouthFor(to, -dx, -dz);
+    }
+    return { upLinks, openSides, mouths };
+  }
+
+  airSpansAt(cx, cz, columns, upLinks) {
+    const spans = [];
+    for (let index = 0; index < columns.length; index += 1) {
+      const column = columns[index];
+      const next = columns[index + 1];
+      const linked = upLinks.get(`${cx},${cz}|${column.level}`);
+      let top = Number.isFinite(column.ceil) ? column.ceil : (next ? next.lift : Infinity);
+      if (linked !== undefined && linked > top) top = linked;
+      if (!Number.isFinite(top) || top <= column.lift) continue;
+      const ceil = Number.isFinite(column.ceil) && top <= column.ceil ? column.ceil : null;
+      spans.push({ bottom: column.lift, top, ceil, level: column.level });
+    }
+    return spans;
+  }
+
+  createVoids(map) {
+    const layout = this.layout || {};
+    const upLinks = this.upLinks || new Map();
+    const openSides = this.openSides || new Set();
+    const columns = columnsByCell(layout);
+    const byCell = new Map();
+    const cells = [];
+    for (const level of planeLevels(layout)) {
+      for (const [cx, cz] of worldCells(layout, level)) {
+        const id = `${cx},${cz}`;
+        if (byCell.has(id)) continue;
+        const cell = { cx, cz, spans: this.airSpansAt(cx, cz, columns.get(id) || [], upLinks) };
+        cells.push(cell);
+        byCell.set(id, cell);
+      }
+    }
+    if (!cells.length) return;
+    const buckets = this.voidQuads(cells, byCell, openSides, columns);
+    this.voidMeshes(buckets, map);
+  }
+
+  voidQuads(cells, byCell, openSides, columns) {
+    const layout = this.layout || {};
+    const half = CELL_SIZE / 2;
+    const surfaceOf = (cx, cz) => {
+      const planes = columns && columns.get(`${cx},${cz}`);
+      return planes && planes.length ? planes[planes.length - 1].lift : null;
+    };
+    const tint = new Color3(...SURFACE_VERTEX_TINT);
+    const wallTint = new Color3(tint.r * 0.62, tint.g * 0.62, tint.b * 0.62);
+    const ceilingTint = new Color3(tint.r * 0.42, tint.g * 0.42, tint.b * 0.42);
+    const buckets = new Map();
+    const bucket = (id) => {
+      let group = buckets.get(id);
+      if (!group) {
+        group = { positions: [], indices: [], uvs: [], colors: [] };
+        buckets.set(id, group);
+      }
+      return group;
+    };
+    const quad = (group, points, color, tile) => {
+      const start = group.positions.length / 3;
+      for (const point of points) {
+        group.positions.push(point[0], point[1], point[2]);
+        group.uvs.push(point[0] / tile, point[2] / tile);
+        group.colors.push(color.r, color.g, color.b, 1);
+      }
+      group.indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
+    };
+    const keyFor = (cx, cz, level) => {
+      const entry = floorCellAt(layout, cx, cz, level);
+      const key = entry && entry.key ? entry.key : DEFAULT_FLOOR;
+      const cfg = this.surfaceConfig(key);
+      return { key, tile: (cfg && cfg.tile) || 1 };
+    };
+
+    for (const cell of cells) {
+      const x0 = cell.cx * CELL_SIZE - half;
+      const x1 = x0 + CELL_SIZE;
+      const z0 = cell.cz * CELL_SIZE - half;
+      const z1 = z0 + CELL_SIZE;
+      for (const span of cell.spans) {
+        if (span.ceil === null) continue;
+        const info = keyFor(cell.cx, cell.cz, span.level);
+        const group = bucket(`ceiling|${info.key}`);
+        quad(group, [[x0, span.ceil, z0], [x0, span.ceil, z1], [x1, span.ceil, z1], [x1, span.ceil, z0]], ceilingTint, info.tile);
+      }
+    }
+
+    const subtract = (span, others) => {
+      let pieces = [{ bottom: span.bottom, top: span.top }];
+      for (const other of others) {
+        const next = [];
+        for (const piece of pieces) {
+          if (other.top <= piece.bottom || other.bottom >= piece.top) {
+            next.push(piece);
+            continue;
+          }
+          if (other.bottom > piece.bottom) next.push({ bottom: piece.bottom, top: other.bottom });
+          if (other.top < piece.top) next.push({ bottom: other.top, top: piece.top });
+        }
+        pieces = next;
+      }
+      return pieces;
+    };
+
+    for (const cell of cells) {
+      const x0 = cell.cx * CELL_SIZE - half;
+      const z0 = cell.cz * CELL_SIZE - half;
+      for (const [dx, dz] of [[1, 0], [0, 1]]) {
+        const other = byCell.get(`${cell.cx + dx},${cell.cz + dz}`);
+        const otherSpans = other ? other.spans : [];
+        const faces = [];
+        for (const span of cell.spans) {
+          for (const piece of subtract(span, otherSpans)) {
+            faces.push({ bottom: piece.bottom, top: piece.top, level: span.level, owner: cell, sx: dx, sz: dz });
+          }
+        }
+        if (other) {
+          for (const span of other.spans) {
+            for (const piece of subtract(span, cell.spans)) {
+              faces.push({ bottom: piece.bottom, top: piece.top, level: span.level, owner: other, sx: -dx, sz: -dz });
+            }
+          }
+        }
+        for (const face of faces) {
+          if (!Number.isFinite(face.top) || face.top - face.bottom < 0.01) continue;
+          if (openSides.has(`${face.owner.cx},${face.owner.cz}|${face.level}|${face.sx},${face.sz}`)) continue;
+          const farSide = face.owner === cell ? other : cell;
+          if (farSide && farSide.spans.length === 0) {
+            const farSurface = surfaceOf(farSide.cx, farSide.cz);
+            if (farSurface !== null && farSurface <= face.bottom + 0.05) continue;
+          }
+          const info = keyFor(face.owner.cx, face.owner.cz, face.level);
+          const group = bucket(`wall|${info.key}`);
+          if (dx !== 0) {
+            const ex = dx > 0 ? cell.cx * CELL_SIZE + half : cell.cx * CELL_SIZE - half;
+            quad(group, [[ex, face.bottom, z0], [ex, face.top, z0], [ex, face.top, z0 + CELL_SIZE], [ex, face.bottom, z0 + CELL_SIZE]], wallTint, info.tile);
+          } else {
+            const ez = dz > 0 ? cell.cz * CELL_SIZE + half : cell.cz * CELL_SIZE - half;
+            quad(group, [[x0, face.bottom, ez], [x0, face.top, ez], [x0 + CELL_SIZE, face.top, ez], [x0 + CELL_SIZE, face.bottom, ez]], wallTint, info.tile);
+          }
+        }
+      }
+    }
+
+    return buckets;
+  }
+
+  voidMeshes(buckets, map) {
+    for (const [id, group] of buckets) {
+      if (!group.positions.length) continue;
+      const cut = id.indexOf('|');
+      const kind = id.slice(0, cut);
+      const key = id.slice(cut + 1);
+      let normals = [];
+      VertexData.ComputeNormals(group.positions, group.indices, normals);
+      if (kind === 'ceiling' && normals[1] > 0) {
+        const indices = group.indices;
+        for (let i = 0; i < indices.length; i += 3) {
+          const swap = indices[i + 1];
+          indices[i + 1] = indices[i + 2];
+          indices[i + 2] = swap;
+        }
+        normals = [];
+        VertexData.ComputeNormals(group.positions, indices, normals);
+      }
+      const prefix = kind === 'ceiling' ? 'terrainCeiling' : 'terrainCaveWall';
+      const mesh = new Mesh(`${prefix}_${key}`, this.s);
+      const data = new VertexData();
+      data.positions = group.positions;
+      data.indices = group.indices;
+      data.uvs = group.uvs;
+      data.colors = group.colors;
+      data.normals = normals;
+      data.applyToMesh(mesh);
+      mesh.isPickable = false;
+      mesh.receiveShadows = true;
+      mesh.material = kind === 'ceiling' ? this.ceilingMaterialFor(key, map) : this.materialFor(key, map);
+      this.surfaces.push(mesh);
+    }
+  }
+
+  ceilingMaterialFor(key, map) {
+    const cacheKey = `ceiling|${key}`;
+    const cached = this.materials.get(cacheKey);
+    if (cached) return cached;
+    const cfg = this.surfaceConfig(key) || {};
+    const material = new StandardMaterial(`terrainCeilingMat_${key}`, this.s);
+    if (cfg.texture) material.diffuseTexture = new Texture(cfg.texture, this.s);
+    material.specularColor = new Color3(0.02, 0.02, 0.02);
+    material.ambientColor = color3(cfg.ambient || [0.08, 0.08, 0.07]);
+    material.useVertexColor = true;
+    material.backFaceCulling = true;
+    material.diffuseColor = color3(cfg.mapTint ? this.tintOf(map) : (cfg.color || [1, 1, 1]));
+    this.materials.set(cacheKey, material);
+    return material;
+  }
+
+  createCliffMesh(edges, positionOf, heightOf, weldedAt, bevelPeaks, rimColorOf, shelves, field = this.field, suffix = '', shelfAnchors = this.shelfAnchors) {
     const groups = new Map();
     for (const edge of edges) {
-      const style = this.cliffStyleOf(edge);
+      const style = this.cliffStyleOf(edge, field);
       if (!groups.has(style)) groups.set(style, []);
       groups.get(style).push(edge);
     }
@@ -1225,8 +1505,8 @@ export default class TerrainSystem {
       }
     }
     const cornerPosts = new Map();
-    for (const [style, list] of groups) this.buildCliffFaces(list, positionOf, heightOf, weldedAt, style, rimColorOf, pushes, shelves, cornerPosts, bevelPeaks);
-    this.buildCornerBevels(cornerPosts);
+    for (const [style, list] of groups) this.buildCliffFaces(list, positionOf, heightOf, weldedAt, style, rimColorOf, pushes, shelves, cornerPosts, bevelPeaks, field, suffix, shelfAnchors);
+    this.buildCornerBevels(cornerPosts, suffix);
   }
 
   bridgePlansFor(map, keyAt, positionOf, weldedAt) {
@@ -1466,34 +1746,34 @@ export default class TerrainSystem {
     return null;
   }
 
-  walkHeightAt(x, z) {
-    const deck = this.bridgeDeckAt(x, z);
-    return deck === null ? this.heightAt(x, z) : deck;
+  walkHeightAt(x, z, level = 0) {
+    const deck = level === 0 ? this.bridgeDeckAt(x, z) : null;
+    return deck === null ? this.heightAt(x, z, level) : deck;
   }
 
-  riseNear(x, z, radius) {
-    const base = this.walkHeightAt(x, z);
+  riseNear(x, z, radius, level = 0) {
+    const base = this.walkHeightAt(x, z, level);
     let rise = 0;
     for (let index = 0; index < RISE_SAMPLES; index += 1) {
       const angle = (index / RISE_SAMPLES) * Math.PI * 2;
-      const height = this.walkHeightAt(x + Math.cos(angle) * radius, z + Math.sin(angle) * radius);
+      const height = this.walkHeightAt(x + Math.cos(angle) * radius, z + Math.sin(angle) * radius, level);
       rise = Math.max(rise, height - base);
     }
     return rise;
   }
 
-  cliffOverlap(x, z) {
+  cliffOverlap(x, z, level = 0) {
     const field = this.field;
     if (!field) return -Infinity;
-    if (this.bridgeDeckAt(x, z) !== null) return -Infinity;
+    if (level === 0 && this.bridgeDeckAt(x, z) !== null) return -Infinity;
     const cx = Math.round(x / CELL_SIZE);
     const cz = Math.round(z / CELL_SIZE);
     const half = CELL_SIZE / 2;
-    const here = field.heightAtCell(cx, cz);
+    const here = field.heightAtCell(cx, cz, level);
     let overlap = -Infinity;
     for (const side of SURFACE_SIDES) {
-      if (!field.isHardEdge(cx, cz, side.dx, side.dz)) continue;
-      const below = here < field.heightAtCell(cx + side.dx, cz + side.dz);
+      if (!field.isHardEdge(cx, cz, side.dx, side.dz, level)) continue;
+      const below = here < field.heightAtCell(cx + side.dx, cz + side.dz, level);
       const margin = below ? CLIFF_LOW_GAP : CLIFF_TOP_GAP;
       const distance = side.dx !== 0
         ? (side.dx > 0 ? cx * CELL_SIZE + half - x : x - (cx * CELL_SIZE - half))
@@ -1502,10 +1782,10 @@ export default class TerrainSystem {
     }
     return overlap;
   }
-  createShelfMeshes(shelves, map, blends) {
+  createShelfMeshes(shelves, map, blends, suffix = '') {
     for (const [key, group] of shelves) {
       if (!group.positions.length) continue;
-      const mesh = new Mesh(`terrainShelf_${key}`, this.s);
+      const mesh = new Mesh(`terrainShelf_${key}${suffix}`, this.s);
       const data = new VertexData();
       data.positions = group.positions;
       data.indices = group.indices;
@@ -1521,13 +1801,12 @@ export default class TerrainSystem {
     }
   }
 
-  cliffStyleOf(edge) {
-    const field = this.field;
+  cliffStyleOf(edge, field = this.field) {
     if (!field || !field.cliffStyleAt) return 'dirt';
     return field.cliffStyleAt(edge.cx, edge.cz) || field.cliffStyleAt(edge.nx, edge.nz) || 'dirt';
   }
 
-  buildCornerBevels(cornerPosts) {
+  buildCornerBevels(cornerPosts, suffix = '') {
     const byStyle = new Map();
     for (const posts of cornerPosts.values()) {
       if (posts.length < 2) continue;
@@ -1600,7 +1879,7 @@ export default class TerrainSystem {
         }
       }
       if (!positions.length) continue;
-      const mesh = new Mesh('terrainCliffs_corner', this.s);
+      const mesh = new Mesh(`terrainCliffs_corner${suffix}`, this.s);
       const data = new VertexData();
       data.positions = positions;
       data.indices = indices;
@@ -1618,7 +1897,7 @@ export default class TerrainSystem {
     }
   }
 
-  buildCliffFaces(edges, positionOf, heightOf, weldedAt, style, rimColorOf, pushes, shelves, cornerPosts, bevelPeaks) {
+  buildCliffFaces(edges, positionOf, heightOf, weldedAt, style, rimColorOf, pushes, shelves, cornerPosts, bevelPeaks, field = this.field, suffix = '', shelfAnchors = this.shelfAnchors) {
     const positions = [];
     const indices = [];
     const uvs = [];
@@ -1657,9 +1936,11 @@ export default class TerrainSystem {
           if (raw < foot) foot = raw;
         }
       }
+      const mouth = this.mouthAt(edge);
       const bottom = foot - CLIFF_SKIRT_SINK;
+      const cut = mouth && mouth.top > bottom && mouth.top < crest ? mouth.top : null;
       const shapeSpan = crest + CLIFF_TOP_OVERLAP - bottom;
-      const key = `${id}|${Math.round(offsetX * 1000)},${Math.round(offsetZ * 1000)}|${top.toFixed(3)},${bottom.toFixed(3)}`;
+      const key = `${id}|${Math.round(offsetX * 1000)},${Math.round(offsetZ * 1000)}|${top.toFixed(3)},${bottom.toFixed(3)}|${cut === null ? '' : cut.toFixed(3)}`;
       const cached = profiles.get(key);
       if (cached) return cached;
       if (!Number.isFinite(top) || !Number.isFinite(bottom)) return null;
@@ -1705,6 +1986,28 @@ export default class TerrainSystem {
         });
       }
       if (offsetX || offsetZ) profile.rows[profile.rows.length - 1].y -= CLIFF_CORNER_TUCK;
+      if (cut !== null) {
+        let reference = -1;
+        for (let r = 0; r < profile.rows.length; r += 1) {
+          if (profile.rows[r].y >= cut) {
+            reference = r;
+            break;
+          }
+        }
+        if (reference > 0) {
+          const keep = profile.rows[reference];
+          for (let r = 0; r < reference; r += 1) {
+            const row = profile.rows[r];
+            row.x = keep.x;
+            row.z = keep.z;
+            row.y = cut;
+            row.tint = keep.tint;
+            row.protrude = 0;
+          }
+          keep.y = cut;
+        }
+        profile.bottom = cut;
+      }
       profiles.set(key, profile);
       return profile;
     };
@@ -1714,8 +2017,8 @@ export default class TerrainSystem {
       const rim = rimInfo.color;
       const shelfKey = rimInfo.key;
       const tone = 0.9 + (Math.abs(edge.cx * 7 + edge.cz * 13) % 5) * 0.02;
-      const here = this.field.heightAtCell(edge.cx, edge.cz);
-      const there = this.field.heightAtCell(edge.nx, edge.nz);
+      const here = field.heightAtCell(edge.cx, edge.cz);
+      const there = field.heightAtCell(edge.nx, edge.nz);
       const edgeHigh = here >= there ? `${edge.cx},${edge.cz}` : `${edge.nx},${edge.nz}`;
       const startPeak = bevelPeaks.get(pointId(points[0].gx, points[0].gz));
       const endPeak = bevelPeaks.get(pointId(points[SURFACE_SUB].gx, points[SURFACE_SUB].gz));
@@ -1725,8 +2028,8 @@ export default class TerrainSystem {
       const tuckStartZ = Math.sign(points[0].gz - points[1].gz);
       const tuckEndX = Math.sign(points[SURFACE_SUB].gx - points[SURFACE_SUB - 1].gx);
       const tuckEndZ = Math.sign(points[SURFACE_SUB].gz - points[SURFACE_SUB - 1].gz);
-      const startCorner = this.cliffCornerPost(pushes, points[0], edge);
-      const endCorner = this.cliffCornerPost(pushes, points[SURFACE_SUB], edge);
+      const startCorner = this.cliffCornerPost(pushes, points[0], edge, field);
+      const endCorner = this.cliffCornerPost(pushes, points[SURFACE_SUB], edge, field);
       for (let i = 0; i < SURFACE_SUB; i += 1) {
         if ((i === 0 && startCorner) || (i === SURFACE_SUB - 1 && endCorner)) continue;
         const a = points[i];
@@ -1821,7 +2124,7 @@ export default class TerrainSystem {
             const hangZ = az0 - az1;
             const hangLength = Math.hypot(hangX, hangZ);
             if (hangLength > 0.01) {
-              this.shelfAnchors.push({
+              shelfAnchors.push({
                 x: (ax0 + bx0) * 0.5,
                 y: ay0,
                 z: (az0 + bz0) * 0.5,
@@ -1867,7 +2170,7 @@ export default class TerrainSystem {
       }
     }
     if (!positions.length) return;
-    const mesh = new Mesh(`terrainCliffs_${style}`, this.s);
+    const mesh = new Mesh(`terrainCliffs_${style}${suffix}`, this.s);
     const data = new VertexData();
     data.positions = positions;
     data.indices = indices;

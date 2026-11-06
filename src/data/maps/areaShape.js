@@ -1,14 +1,20 @@
 // Které buňky mapy existují a jakou vrstvu v nich najdeš — podlaha, cesta, nebo tráva.
-// Odsud se počítá hratelná země, mřížka, tráva i chození.
+// Odsud se počítá hratelná země, mřížka, tráva i chození; plocha (patro) je nepovinný údaj.
+
+const PLANE_LAYERS = ['floor', 'clearing', 'grass', 'path'];
 
 export function cellKey(cx, cz) {
   return `${cx},${cz}`;
 }
-export function layerCells(entries) {
+export function levelOfEntry(entry) {
+  return entry && Number.isFinite(entry.level) ? entry.level : 0;
+}
+export function layerCells(entries, level = 0) {
   const cells = [];
   const seen = new Set();
   for (const entry of entries || []) {
     if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+    if (levelOfEntry(entry) !== level) continue;
     const key = cellKey(entry.cx, entry.cz);
     if (seen.has(key)) continue;
     seen.add(key);
@@ -16,9 +22,9 @@ export function layerCells(entries) {
   }
   return cells;
 }
-export function worldCells(world) {
+export function worldCells(world, level = 0) {
   const layers = world || {};
-  const cells = layerCells(layers.floor).concat(layerCells(layers.path), layerCells(layers.clearing), layerCells(layers.grass));
+  const cells = layerCells(layers.floor, level).concat(layerCells(layers.path, level), layerCells(layers.clearing, level), layerCells(layers.grass, level));
   const seen = new Set();
   return cells.filter(([cx, cz]) => {
     const key = cellKey(cx, cz);
@@ -27,24 +33,24 @@ export function worldCells(world) {
     return true;
   });
 }
-export function groundCells(world) {
-  return layerCells((world || {}).floor);
+export function groundCells(world, level = 0) {
+  return layerCells((world || {}).floor, level);
 }
-export function layerAt(world, cx, cz) {
+export function layerAt(world, cx, cz, level = 0) {
   const layers = world || {};
-  const hit = (entries) => (entries || []).some((entry) => entry.cx === cx && entry.cz === cz);
+  const hit = (entries) => (entries || []).some((entry) => entry.cx === cx && entry.cz === cz && levelOfEntry(entry) === level);
   if (hit(layers.path)) return 'path';
   if (hit(layers.floor)) return 'floor';
   if (hit(layers.clearing)) return 'clearing';
   if (hit(layers.grass)) return 'grass';
   return null;
 }
-export function layerEntriesAt(world, cx, cz) {
+export function layerEntriesAt(world, cx, cz, level = 0) {
   const layers = world || {};
   const out = [];
   const push = (name) => {
     for (const entry of layers[name] || []) {
-      if (entry && entry.cx === cx && entry.cz === cz) out.push(entry);
+      if (entry && entry.cx === cx && entry.cz === cz && levelOfEntry(entry) === level) out.push(entry);
     }
   };
   push('path');
@@ -53,8 +59,8 @@ export function layerEntriesAt(world, cx, cz) {
   push('grass');
   return out;
 }
-export function hasFloor(world, cx, cz) {
-  return Boolean(floorCellAt(world, cx, cz));
+export function hasFloor(world, cx, cz, level = 0) {
+  return Boolean(floorCellAt(world, cx, cz, level));
 }
 export function hasLayerCell(world, cx, cz) {
   return layerAt(world, cx, cz) !== null;
@@ -67,22 +73,87 @@ export function dropDecorationCell(world, cx, cz) {
   world.decorations = kept;
   return true;
 }
-export function layerLiftAt(world, cx, cz) {
+export function layerLiftAt(world, cx, cz, level = 0) {
   if (!world) return null;
-  for (const name of ['floor', 'clearing', 'grass', 'path']) {
-    const entry = (world[name] || []).find((item) => item && item.cx === cx && item.cz === cz);
+  for (const name of PLANE_LAYERS) {
+    const entry = (world[name] || []).find((item) => item && item.cx === cx && item.cz === cz && levelOfEntry(item) === level);
     if (entry) return entry.liftY || 0;
   }
   return null;
 }
-export function floorCellAt(world, cx, cz) {
+export function floorCellAt(world, cx, cz, level = 0) {
   if (!world) return null;
   const list = world.floor || [];
   for (let i = list.length - 1; i >= 0; i -= 1) {
     const entry = list[i];
-    if (entry && entry.cx === cx && entry.cz === cz) return entry;
+    if (entry && entry.cx === cx && entry.cz === cz && levelOfEntry(entry) === level) return entry;
   }
   return null;
+}
+export function columnsByCell(world) {
+  const layers = world || {};
+  const grouped = new Map();
+  for (const name of PLANE_LAYERS) {
+    for (const entry of layers[name] || []) {
+      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+      const id = `${entry.cx},${entry.cz}`;
+      let planes = grouped.get(id);
+      if (!planes) {
+        planes = new Map();
+        grouped.set(id, planes);
+      }
+      const level = levelOfEntry(entry);
+      let plane = planes.get(level);
+      if (!plane) {
+        plane = { level, entries: [], lift: entry.liftY || 0, ceil: null };
+        planes.set(level, plane);
+      }
+      plane.entries.push(entry);
+      if (plane.ceil === null && Number.isFinite(entry.ceilY)) plane.ceil = entry.ceilY;
+    }
+  }
+  const out = new Map();
+  for (const [id, planes] of grouped) {
+    out.set(id, [...planes.values()].sort((a, b) => a.lift - b.lift));
+  }
+  return out;
+}
+export function columnAt(world, cx, cz) {
+  const layers = world || {};
+  const planes = new Map();
+  for (const name of PLANE_LAYERS) {
+    for (const entry of layers[name] || []) {
+      if (!entry || entry.cx !== cx || entry.cz !== cz) continue;
+      const level = levelOfEntry(entry);
+      let plane = planes.get(level);
+      if (!plane) {
+        plane = { level, entries: [], lift: null, ceil: null };
+        planes.set(level, plane);
+      }
+      plane.entries.push(entry);
+      if (plane.lift === null) plane.lift = entry.liftY || 0;
+      if (plane.ceil === null && Number.isFinite(entry.ceilY)) plane.ceil = entry.ceilY;
+    }
+  }
+  return [...planes.values()].sort((a, b) => a.lift - b.lift);
+}
+export function planesAt(world, cx, cz) {
+  return columnAt(world, cx, cz).map((plane) => plane.level);
+}
+export function planeLevels(world) {
+  const layers = world || {};
+  const levels = new Set();
+  for (const name of PLANE_LAYERS) {
+    for (const entry of layers[name] || []) {
+      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+      levels.add(levelOfEntry(entry));
+    }
+  }
+  return [...levels].sort((a, b) => a - b);
+}
+export function ceilingLiftAt(world, cx, cz, level = 0) {
+  const plane = columnAt(world, cx, cz).find((item) => item.level === level);
+  return plane ? plane.ceil : null;
 }
 export function dropFloorCell(world, cx, cz) {
   if (!world) return false;
