@@ -18,6 +18,8 @@ import { getMap } from '../../data/catalogs/maps.js';
 import { getDecoration, DEFAULT_FLOOR } from '../../data/catalogs/decorations.js';
 import { groundCells, worldCells, planeLevels, levelOfEntry, columnsByCell, layerLiftAt, floorCellAt } from '../../data/maps/areaShape.js';
 import { buildColumnRuns } from '../../utils/terrainRuns.js';
+import { buildRunSolidMesh } from './runSolidMesh.js';
+import { buildRunVolume } from './runVolume.js';
 import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
 import TerrainBlendPlugin from './terrainBlendPlugin.js';
 import TerrainReliefPlugin from './terrainReliefPlugin.js';
@@ -401,6 +403,23 @@ export default class TerrainSystem {
     return this.columnRuns.get(`${cx},${cz}`) || [];
   }
 
+  urlFlag(name) {
+    if (typeof location === 'undefined' || !location.search) return false;
+    try {
+      return new URLSearchParams(location.search).has(name);
+    } catch {
+      return false;
+    }
+  }
+
+  solidDebugEnabled() {
+    return this.urlFlag('solid');
+  }
+
+  volumeEnabled() {
+    return this.urlFlag('volume');
+  }
+
   floorKeyAt(cx, cz) {
     return this.floorKeys ? this.floorKeys.get(String(cx) + ',' + String(cz)) || null : null;
   }
@@ -427,6 +446,9 @@ export default class TerrainSystem {
     }
     this.surfaces = [];
     this.surfaceChunks = [];
+    this.roofMeshes = [];
+    this.caveRimMesh = null;
+    this.caveRoofCells = new Set();
     for (const texture of this.weightTextures) texture.dispose();
     this.weightTextures = [];
     this.shelfAnchors = [];
@@ -450,11 +472,24 @@ export default class TerrainSystem {
     this.openSides = vents.openSides;
     this.mouths = vents.mouths;
     this.resetSurfaces();
+    if (this.solidDebugEnabled()) {
+      const debugMesh = buildRunSolidMesh(this.s, world);
+      if (debugMesh) this.surfaces.push(debugMesh);
+      this.createPicker(this.pickCells());
+      this.ready = Promise.resolve(this.surfaces);
+      if (this.onRebuilt) this.onRebuilt();
+      return this.surfaces;
+    }
     for (const level of planeLevels(world)) {
       this.createSurface(map, groundCells(world, level), level);
     }
     this.createVoids(map);
+    this.createCaveReveal(map);
     this.createSkirt(this.groundCells);
+    if (this.volumeEnabled()) {
+      const volume = buildRunVolume(this.s, world);
+      if (volume) this.surfaces.push(volume);
+    }
     this.createPicker(this.pickCells());
     this.gridLines = this.createGridLines(map, this.realCells);
     this.ready = Promise.resolve(this.surfaces);
@@ -472,6 +507,65 @@ export default class TerrainSystem {
       }
     }
     return list;
+  }
+
+  createCaveReveal(map) {
+    const columns = columnsByCell(this.layout || {});
+    const roofs = new Map();
+    for (const [id, planes] of columns) {
+      let top = null;
+      let ceil = null;
+      for (const plane of planes) {
+        if (plane.level === 0 && top === null) top = plane.lift;
+        if (plane.level < 0 && Number.isFinite(plane.ceil)) ceil = plane.ceil;
+      }
+      if (top === null || ceil === null || top <= ceil) continue;
+      roofs.set(id, { top, ceil });
+    }
+    this.caveRoofCells = new Set(roofs.keys());
+    if (!roofs.size) return;
+    const half = CELL_SIZE / 2;
+    const positions = [];
+    const indices = [];
+    const quad = (ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz) => {
+      const start = positions.length / 3;
+      positions.push(ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz);
+      indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
+    };
+    for (const [id, info] of roofs) {
+      const [cx, cz] = id.split(',').map(Number);
+      const x0 = cx * CELL_SIZE - half;
+      const x1 = x0 + CELL_SIZE;
+      const z0 = cz * CELL_SIZE - half;
+      const z1 = z0 + CELL_SIZE;
+      const b = info.ceil;
+      const t = info.top;
+      if (!roofs.has(`${cx + 1},${cz}`)) quad(x1, b, z0, x1, b, z1, x1, t, z1, x1, t, z0);
+      if (!roofs.has(`${cx - 1},${cz}`)) quad(x0, b, z0, x0, b, z1, x0, t, z1, x0, t, z0);
+      if (!roofs.has(`${cx},${cz + 1}`)) quad(x0, b, z1, x1, b, z1, x1, t, z1, x0, t, z1);
+      if (!roofs.has(`${cx},${cz - 1}`)) quad(x0, b, z0, x1, b, z0, x1, t, z0, x0, t, z0);
+    }
+    if (!positions.length) return;
+    const normals = [];
+    VertexData.ComputeNormals(positions, indices, normals);
+    const mesh = new Mesh('terrainCaveRim', this.s);
+    const data = new VertexData();
+    data.positions = positions;
+    data.indices = indices;
+    data.normals = normals;
+    data.applyToMesh(mesh);
+    mesh.isPickable = false;
+    mesh.receiveShadows = true;
+    const material = new StandardMaterial('terrainCaveRimMat', this.s);
+    material.diffuseColor = new Color3(0.34, 0.31, 0.28);
+    material.specularColor = new Color3(0, 0, 0);
+    material.ambientColor = new Color3(0.1, 0.1, 0.1);
+    material.backFaceCulling = false;
+    mesh.material = material;
+    mesh.metadata = { caveRim: true };
+    mesh.setEnabled(false);
+    this.surfaces.push(mesh);
+    this.caveRimMesh = mesh;
   }
 
   cellsSignature(cells) {
@@ -761,17 +855,18 @@ export default class TerrainSystem {
       weightCache.set(cacheId, result);
       return result;
     };
-    const groupFor = (key, cx, cz) => {
+    const groupFor = (key, cx, cz, roof = false) => {
       const chunkX = Math.floor(cx / SURFACE_CHUNK);
       const chunkZ = Math.floor(cz / SURFACE_CHUNK);
-      const id = `${key}|${chunkX}|${chunkZ}`;
+      const id = roof ? `${key}|roof` : `${key}|${chunkX}|${chunkZ}`;
       let group = groups.get(id);
       if (!group) {
         const cfg = this.surfaceConfig(key);
         group = {
           key,
-          chunkX,
-          chunkZ,
+          roof: Boolean(roof),
+          chunkX: roof ? 0 : chunkX,
+          chunkZ: roof ? 0 : chunkZ,
           positions: [],
           indices: [],
           uvs: [],
@@ -1031,8 +1126,9 @@ export default class TerrainSystem {
     for (const [cx, cz] of cells) {
       const key = keyAt(cx, cz);
       if (!this.surfaceConfig(key)) continue;
-      const group = groupFor(key, cx, cz);
-      if (overCaveAt(cx, cz)) group.overCave = true;
+      const roof = overCaveAt(cx, cz);
+      const group = groupFor(key, cx, cz, roof);
+      if (roof) group.overCave = true;
       const x0 = cx * CELL_SIZE - half;
       const z0 = cz * CELL_SIZE - half;
       const grid = [];
@@ -1271,6 +1367,23 @@ export default class TerrainSystem {
       if (!group.positions.length) continue;
       const key = group.key;
       const base = key === DEFAULT_FLOOR ? 'terrainSurface' : `terrainSurface_${key}`;
+      if (group.roof) {
+        const roof = new Mesh(`${base}_roof${suffix}`, this.s);
+        const roofData = new VertexData();
+        roofData.positions = group.positions;
+        roofData.indices = group.indices;
+        roofData.uvs = group.uvs;
+        roofData.colors = group.colors;
+        roofData.normals = group.normals;
+        roofData.applyToMesh(roof);
+        roof.isPickable = false;
+        roof.receiveShadows = true;
+        roof.metadata = { level, roof: true };
+        roof.material = this.materialFor(key, map, blends.get(key));
+        this.surfaces.push(roof);
+        this.roofMeshes.push(roof);
+        continue;
+      }
       const mesh = new Mesh(`${base}_c${group.chunkX}_${group.chunkZ}${suffix}`, this.s);
       const data = new VertexData();
       data.positions = group.positions;

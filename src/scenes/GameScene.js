@@ -92,7 +92,6 @@ const LOAD_RETRIES = 2;
 const WALK_CLEARANCE = 1.25;
 const WADE_DEPTH = 0.6;
 const INDOOR_FADE_SECONDS = 2;
-const CHUNK_HIDE_RADIUS = 6;
 const WADE_SPEED = 0.65;
 const WADE_RAMP = 0.2;
 const WATER_STEP_DEPTH = 0.02;
@@ -2046,30 +2045,46 @@ export default class GameScene {
   }
 
   updateSurfaceChunks() {
-    const chunks = this.terrainSystem ? this.terrainSystem.surfaceChunks : null;
-    if (!chunks || !chunks.length) return;
+    const terrain = this.terrainSystem;
+    if (!terrain) return;
     const root = this.playerSystem ? this.playerSystem.root : null;
     const level = this.playerSystem ? this.playerSystem.level : 0;
     const under = root ? this.isUnderRoof(root.position.x, root.position.z, level) : false;
-    let cx = 0;
-    let cz = 0;
-    if (root) {
-      const cell = worldToCellCoords(root.position.x, root.position.z);
-      cx = cell.cx;
-      cz = cell.cz;
-    }
-    for (const mesh of chunks) {
-      const meta = mesh.metadata;
-      if (!meta || meta.level === undefined) continue;
-      let visible = true;
-      if (under && meta.overCave && meta.level > level) {
-        const near = cx >= meta.minCx - CHUNK_HIDE_RADIUS && cx <= meta.maxCx + CHUNK_HIDE_RADIUS
-          && cz >= meta.minCz - CHUNK_HIDE_RADIUS && cz <= meta.maxCz + CHUNK_HIDE_RADIUS;
-        if (near) visible = false;
+    const showRoof = !under;
+    for (const mesh of terrain.roofMeshes || []) {
+      if (mesh._roofVisible !== showRoof) {
+        mesh._roofVisible = showRoof;
+        mesh.setEnabled(showRoof);
       }
-      if (mesh._chunkVisible !== visible) {
-        mesh._chunkVisible = visible;
-        mesh.setEnabled(visible);
+    }
+    if (terrain.caveRimMesh) {
+      if (terrain.caveRimMesh._rimVisible !== under) {
+        terrain.caveRimMesh._rimVisible = under;
+        terrain.caveRimMesh.setEnabled(under);
+      }
+    }
+    this.updateCaveRoofDeco(under);
+  }
+
+  updateCaveRoofDeco(under) {
+    if (this._roofDecoUnder === under) return;
+    this._roofDecoUnder = under;
+    const terrain = this.terrainSystem;
+    const deco = this.decoSystem;
+    if (!terrain || !deco || !terrain.caveRoofCells || !terrain.caveRoofCells.size) return;
+    const seen = new Set();
+    for (const list of [deco.nodes, deco.pathNodes]) {
+      if (!Array.isArray(list)) continue;
+      for (const anchor of list) {
+        if (!anchor || anchor.isDisposed() || seen.has(anchor)) continue;
+        seen.add(anchor);
+        const cell = worldToCellCoords(anchor.position.x, anchor.position.z);
+        const onRoof = terrain.caveRoofCells.has(`${cell.cx},${cell.cz}`);
+        const visible = !(under && onRoof);
+        if (anchor._roofHidden !== visible) {
+          anchor._roofHidden = visible;
+          anchor.setEnabled(visible);
+        }
       }
     }
   }

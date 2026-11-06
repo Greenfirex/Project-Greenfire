@@ -873,6 +873,18 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
    `liftY`/`ceilY` na 0,25) a **krokový limit postavy na 0,55** (aby šel vylézt 0,5).
    **Hotovo.** Dále: nový mesher pro podlahy (horní líce) za přepínačem; porovnat se
    současným povrchem.
+   **Debug objem za `?solid`** (`terrain/runSolidMesh.js`) — z pruhů postaví hmotu
+   (horní/spodní/boční líce) k ověření modelu; normální běh (bez `?solid`) beze změny.
+   Směr: **hybrid** — hladký vršek zůstává (pohyb/tráva/voda se nemění), objem se přidá
+   jako líce; řez/odklopení střechy a přestavba útesů přijdou po ověření.
+   **Přesné odkrývání jeskyně (výchozí).** Stropní dlaždice buněk nad jeskyní
+   (`overCave`) jdou do samostatného meshe `terrainSurface_<key>_roof` a při pobytu
+   pod stropem se **schovají přesně ony** (ne celé dílky). Kolem otvoru se ukáže
+   **svislý skalní lem** (`terrainCaveRim`, od stropu jeskyně k povrchu) a skryjí se
+   dekorace na těch buňkách. Řešení „cap přes dílek" zrušeno (`?hybrid` i `hybridCap`
+   smazány).**Pozn.:** tráva (flora) na odhalených buňkách se zatím neskrývá — doladit.
+   **Boční hmota za `?volume`** (`terrain/runVolume.js`, první verze) — plné boční stěny
+   z pruhů za tenkými pláty útesů, aby z boku/zezadu neprosvítalo moře.
 2. Boční a spodní líce (skála, stěny jeskyní, spodní víka) → hmota; odstranit staré
    útesy/dutiny/sukni; ladit vzhled.
 3. Pohyb a dotazy na pruzích.
