@@ -173,4 +173,6 @@ Klikání neblokuje: další tah se jen zařadí za běžící práci.
 - `src/data/catalogs/mapFile.js` — formát souboru mapy,
 - `vite.mapSaver.js` — zápis mapy do souboru při vývoji.
 
-Hlavní dokumentace projektu je v [README.md](../../README.md). Aktuální úkoly a známé chyby jsou v [TODO.md](../../TODO.md).
+Technický průvodce projektem je v [DEV.md](../../DEV.md), hráčský popis hry
+v [README.md](../../README.md). Aktuální úkoly a známé chyby jsou v
+[TODO.md](../../TODO.md).

@@ -4,8 +4,7 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ## Dokumentace
 
-- [ ] Sjednotit údaje v hlavním README: výšky terénu, verzi mapy, ovládání vody a okraje povrchů.
-- [ ] Odstranit z hlavního README historický handoff a duplicitní pravidla pro agenty.
+- [ ] Sjednotit údaje v `DEV.md`: ovládání vody a okraje povrchů (výšky a verze mapy už sedí s kódem).
 
 ## Postava
 
@@ -71,6 +70,7 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ## Výroba a svět
 
+- [ ] Suché jámy pod hladinou, řeky s vodopády a jeskyně — tři témata k rozhodnutí; rozbor (co to obnáší a co se může rozbít) je v `DEV.md`, sekce „Voda a podzemí".
 - [ ] Rozhodnout, jestli recepty zůstanou jen jako přehled, nebo dostanou tlačítko pro výrobu.
 - [ ] Navrhnout nový systém stavění (starý byl odstraněn).
-- [ ] Rozhodnout o suchých jamách pod vodní hladinou a šířce plynulého okraje pláže.
+- [ ] Rozhodnout o šířce plynulého okraje pláže.

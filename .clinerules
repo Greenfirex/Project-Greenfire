@@ -70,7 +70,7 @@
 - Za hlavičkou už žádné poznámky nejsou. Konkrétně: žádné `//`, žádné
   `/* */`, žádné sekční oddělovače `// ===`, ani poznámka nad funkcí
   nebo skupinou funkcí.
-- Když je něco v kódu nejasné, patří to do README nebo do názvu, ne do
+- Když je něco v kódu nejasné, patří to do `DEV.md` nebo do názvu, ne do
   poznámky v kódu. Název, který věc popisuje, je lepší než poznámka.
 
 # ===== MRTVÝ KÓD =====
@@ -84,9 +84,14 @@
   scratch skripty, výstupy jednorázových skriptů).
 - NIKDY nezakládej pracovní soubory v rootu projektu ani vedle kódu.
 - Root obsahuje jen projektové soubory: `.clinerules`, `.gitignore`,
-  `README.md`, `TODO.md`, `index.html`, `package.json`, `package-lock.json`,
-  `vite.config.js` a `vite.mapSaver.js` (pomocník dev serveru — editor mapy
-  přes něj ukládá mapu přímo do souboru, funguje jen při vývoji).
+  `README.md`, `DEV.md`, `TODO.md`, `index.html`, `package.json`,
+  `package-lock.json`, `vite.config.js` a `vite.mapSaver.js` (pomocník dev
+  serveru — editor mapy přes něj ukládá mapu přímo do souboru, funguje jen při
+  vývoji).
+- `README.md` je pro hráče: co hra je, jak se spouští, ovládání, co v ní jde
+  dělat a odkazy dál. Technika, architektura, stav a plány tam NEPATŘÍ.
+- `DEV.md` je pro vývoj: jak se hra skládá, kde co je, stav projektu, klíčová
+  rozhodnutí a nápady. Sem patří každá technická poznámka.
 - `TODO.md` je krátký seznam aktuálních úkolů projektu. Neobsahuje pravidla,
   architekturu ani historii; hotové položky se z něj mažou.
 - Dále složky `src/`, `public/`, `tools/` a ty, které v gitu nejsou
