@@ -1,187 +1,96 @@
-# ===== ROZSAH PROJEKTU =====
+# Pravidla práce na Project Greenfire (Babylon.js 3D hra)
 
-- Pracuj VÝHRADNĚ v této složce projektu (Babylon.js 3D hra).
-- NIKDY nelež do `Greenfire-Isometric/`, `Greenfire-idle/` ani do rootu
-  `Repository1/`. Ty patří JINÝM projektům.
-- `.clinerules` v `Greenfire-Isometric/` se tohoto projektu NETÝKA.
+## Rozsah
+- Pracuj jen v této složce. `Greenfire-Isometric/`, `Greenfire-idle/` a root
+  `Repository1/` patří jiným projektům a jejich pravidla se tu neuplatňují.
 
-# ===== VÝVOJOVÝ WORKFLOW =====
+## Workflow a kontrola
+- Dev server (Vite) má puštěný uživatel a změny kontroluje on vizuálně.
+- Napiš kód, stručně řekni, co se změnilo, a čekej na potvrzení.
+- Povolená kontrola: přečtení upravených řádků, `node --check` a po větší změně
+  `npm run build` (na popředí) jako hledání chyb. Dev server, screenshoty,
+  testovací skripty, harnessy ani kopie modulů ne.
+- Nástroje v `tools/` (např. `capture.cjs`) jen na výslovnou žádost; nesahají
+  na herní kód a jejich závislosti patří do `devDependencies`.
+- Uživateli se nesmí objevit prázdné cmd okno: `Start-Process` vždy
+  s `-WindowStyle Hidden`, v Node `windowsHide: true`. Žádné procesy na pozadí.
 
-- Uživatel má otevřený dev server (Vite) a změny vizuálně kontroluje a potvrzuje.
-- Po úpravě kódu NEKONTROLUJ build, NEspouštěj dev server, NEdělej screenshoty.
-- Napiš kód, stručně řekni CO a KDE se změnilo, a čekej na potvrzení uživatele.
-- Vizuální kontrola = uživatel, ne agent.
+## Instalace
+- Nic neinstaluj ani neodinstaluj bez souhlasu. Když se nějaký balíček nebo
+  nástroj k úkolu opravdu hodí, navrhni ho, vysvětli proč a zeptej se.
 
-# ===== TESTOVÁNÍ A ZÁVISLOSTI =====
+## Průzkum
+- Čti, co k úkolu potřebuješ; u větších úkolů klidně víc souborů. Neprocházej
+  celý projekt bezúčelně „pro jistotu".
+- Než něco smažeš nebo přejmenuješ, ověř, že se to jinde nepoužívá.
+- Každý název souboru, složky nebo funkce, který píšeš do kódu či dokumentace,
+  nejdřív ověř v projektu. Nic z paměti.
+- Když něco nevíš, zeptej se místo hádání.
 
-- NIKDY nic neinstaluj bez výslovného souhlasu uživatele (`npm install`,
-  `npm i <balíček>`, `npm uninstall`, `pip install`, cokoli dalšího).
-  Když nová závislost vypadá jako nutná, nejdřív se ZEPTEJ a vysvětli proč.
-- Testy a validaci NESPOUŠTĚJ sám — výstup ověřuje uživatel ručně v dev serveru.
-- Výjimka: vývojové nástroje v `tools/` (např. `capture.cjs` pro snímky animace)
-  jsou povolené, když o ně uživatel požádá. Nikdy nesahají na herní kód,
-  nikdy se necommitují jako součást hry a jejich závislosti patří do
-  `devDependencies`.
-- NIKDY nezakládej testovací skripty, harnessy ani dočasné testovací soubory
-  (Node skripty, kopie modulů, simulace editoru apod.). Žádné „ověřím si to
-  bokem" — hotový task předávej uživateli a ten ho sám vyzkouší v dev serveru.
-- Jediná povolená kontrola vlastního kódu je přečtení upravených řádků
-  a případně `node --check` na syntaxi. Nic víc.
-- Když test spustíš (jen na výslovný pokyn), spouštěj ho na POPŘEDÍ v rámci
-  jednoho volání příkazu, bez pozadových procesů.
-- NIKDY `Start-Process` bez `-WindowStyle Hidden`; v Node skriptech vždy
-  `windowsHide: true` u `spawn`/`exec`. Uživateli se nesmí objevit žádné
-  prázdné cmd okno.
+## Architektura
+- `src/scenes/GameScene.js` je jediné místo, které zná celou scénu a propojuje
+  systémy; drží delegáty `foo(bar) { return this.someSystem.foo(bar); }`.
+- Systémy jsou třídy v `src/systems/` (dostanou `scene`, přístup přes `this.s`).
+  Systém nikdy nesahá na jiný systém napřímo, jen přes scénu.
+- Data v `src/data/catalogs/`, utility v `src/utils/`, DOM HUD v `src/ui/`.
+  HUD do scény nezasahuje, jen přes callbacky.
+- `src/editor/` jen pro to, co hra bez editoru nepotřebuje.
+- `@babylonjs/core` importuj po částech, ne celý balík.
+- Herní logika běží v pevném ticku odděleně od renderu; render stav jen kreslí.
+- Podrobnosti jsou v `DEV.md`.
 
-# ===== PRŮZKUM =====
+## Jedno místo pro každou hodnotu
+- Každá věc má jedno místo, kde se udržuje (stroj → katalog strojů, předmět →
+  katalog předmětů, výchozí stav → u svého vlastníka). Stejná hodnota na dvou
+  místech je chyba, i když zrovna sedí.
 
-- Čti POUZE soubory, které k zadanému úkolu přímo potřebuješ (typicky 1–3).
-- ZAKÁZÁNO: plošné inventury projektu, grep přes celý strom, čtení „pro jistotu".
-- Jediná výjimka: než něco smažu nebo přejmenuju, MUSÍM ověřit, že se to
-  nikde nepoužívá — a to jen u konkrétního názvu, ne plošně.
-- Když do pravidel, dokumentace nebo kódu píšu konkrétní název souboru,
-  složky nebo funkce, MUSÍM ho v projektu nejdřív ověřit. Nic se nepíše
-  z paměti — vymyšlený název mate stejně jako chybějící.
-- Když něco nevím a je to potřeba, ZEPTEJ SE místo hádání.
+## Save systém (`src/systems/core/saveSystem.js`)
+- Každý nový trvalý stav se zaregistruje: jak se uloží, jak se vrátí a v jakém
+  pořadí. Vracení musí snést neúplná a stará data.
+- Výchozí hodnoty patří vlastníkovi stavu, ne do centrálního souboru.
+- Změna formátu = vyšší verze; starší verze se nenačítají.
+- Save systém zůstává obecný a nezná obsah stavů.
 
-# ===== ARCHITEKTURA (Babylon.js) =====
+## Komentáře
+- Na začátku souboru 1–3 řádky laicky, k čemu soubor je. Jinak žádné komentáře
+  ani oddělovače. Co je nejasné, patří do názvu nebo do `DEV.md`.
 
-- `src/scenes/GameScene.js` = jediné místo, které zná celý stav scény;
-  drží delegáty ve tvaru `foo(bar) { return this.someSystem.foo(bar); }`.
-- Systémy jsou třídy v `src/systems/` (konstruktor dostane `scene`,
-  přístup přes `this.s`), data v `src/data/catalogs/`, utility v `src/utils/`,
-  DOM HUD v `src/ui/`.
-- Editor mapy a jeho panely jsou v `src/editor/` — jediná výjimka z dělení
-  výš. Patří tam jen to, co hra bez editoru vůbec nepotřebuje; věc, kterou
-  hra používá i bez editoru (cesty, terén, modely), patří do `src/systems/`.
-- Import z `@babylonjs/core` dělej po částech (tree-shaking), ne celý balík.
-- DOM HUD je nad canvasem a NIKDY nezasahuje do scény přímo — jen přes callbacky.
+## Mrtvý kód
+- Nepoužívaný kód (funkce, konstanty, importy, soubory, assety) najdi a navrhni
+  ke smazání. Smaž ho až po domluvě a schválení uživatelem. Nikdy ho
+  nezakomentovávej ani nenechávej „pro jistotu".
 
-# ===== SIMULACE (do budoucna) =====
-
-- Herní logika (stroje, pásy, toky) je ODDĚLENÁ od renderu.
-- Simulace běží v pevném ticku (např. 10× za sekundu), ne každý frame.
-- Render pouze vizualizuje stav, nikdy ho nemění.
-
-# ===== KOMENTÁŘE =====
-
-- Na začátku souboru je hlavička: 1–3 řádky, laicky, k čemu soubor slouží.
-  Bez JSDoc, bez rámečků. Hlavička popisuje CELÝ soubor, ne jeho část.
-- Za hlavičkou už žádné poznámky nejsou. Konkrétně: žádné `//`, žádné
-  `/* */`, žádné sekční oddělovače `// ===`, ani poznámka nad funkcí
-  nebo skupinou funkcí.
-- Když je něco v kódu nejasné, patří to do `DEV.md` nebo do názvu, ne do
-  poznámky v kódu. Název, který věc popisuje, je lepší než poznámka.
-
-# ===== MRTVÝ KÓD =====
-
-- Nepoužívaný kód se MAŽE, nezakomentovává a nenechává „pro jistotu".
-- Platí pro: nepoužívané funkce, konstanty, importy, exporty, soubory, assety.
-
-# ===== PRACOVNÍ SOUBORY (tools/_temp) =====
-
-- VŠECHNY dočasné soubory patří výhradně do `tools/_temp/` (náhledy, logy,
-  scratch skripty, výstupy jednorázových skriptů).
-- NIKDY nezakládej pracovní soubory v rootu projektu ani vedle kódu.
-- Root obsahuje jen projektové soubory: `.clinerules`, `.gitignore`,
+## Soubory a dokumentace
+- Dočasné soubory jen do `tools/_temp/` (je v `.gitignore`).
+- V rootu jsou jen: `.clinerules`, `CLAUDE.md`, `.claude/`, `.gitignore`,
   `README.md`, `DEV.md`, `TODO.md`, `index.html`, `package.json`,
-  `package-lock.json`, `vite.config.js` a `vite.mapSaver.js` (pomocník dev
-  serveru — editor mapy přes něj ukládá mapu přímo do souboru, funguje jen při
-  vývoji).
-- `README.md` je pro hráče: co hra je, jak se spouští, ovládání, co v ní jde
-  dělat a odkazy dál. Technika, architektura, stav a plány tam NEPATŘÍ.
-- `DEV.md` je pro vývoj: jak se hra skládá, kde co je, stav projektu, klíčová
-  rozhodnutí a nápady. Sem patří každá technická poznámka.
-- `TODO.md` je krátký seznam aktuálních úkolů projektu. Neobsahuje pravidla,
-  architekturu ani historii; hotové položky se z něj mažou.
-- Dále složky `src/`, `public/`, `tools/` a ty, které v gitu nejsou
-  (`node_modules/`, `dist/`, `_sources/` se staženými zdrojovými balíčky).
-- Cokoli jiného v rootu (modely, obrázky, dočasné soubory) je chyba —
-  patří to do `public/assets/`, `src/` nebo `tools/_temp/`.
-- `tools/_temp/` je v `.gitignore` — nikdy se necommituje.
+  `package-lock.json`, `vite.config.js`, `vite.mapSaver.js` a složky `src/`,
+  `public/`, `tools/` (plus negitované `node_modules/`, `dist/`, `_sources/`).
+  Cokoli jiného do rootu nepatří.
+- `README.md` je pro hráče (co hra je, spuštění, ovládání). `DEV.md` je pro vývoj
+  (architektura, stav, rozhodnutí). `TODO.md` je krátký seznam aktuálních úkolů;
+  hotové položky se mažou.
 
-# ===== KDO CO VLASTNÍ =====
+## Git
+- Agent jen čte: `status`, `log`, `diff`, `show`, `remote -v`, `ls-files`,
+  `check-ignore`. Vše, co git mění, dělá výhradně uživatel.
+- Když je co commitnout, navrhni zprávu a seznam souborů.
 
-- Každý druh věci má v projektu JEDNO místo, kde se udržuje. Nikdy se
-  stejná hodnota nedrží na dvou místech.
-  - Co jak vypadá a co umí konkrétní stroj → katalog strojů.
-  - Co je jaký předmět → katalog předmětů.
-  - Jak se co ukládá a jak vypadá nový svět → seznam pro ukládání.
-  - Výchozí stav jedné konkrétní věci (co má stroj uvnitř, jaký nástroj
-    drží hráč na začátku) → u toho stroje / u toho předmětu, ne centrálně.
-- Když se stejná hodnota objeví na dvou místech, je to chyba i tehdy,
-  když obě čísla zrovna sedí. Jedno z nich dřív nebo později zůstane
-  staré a bude tiše přebíjet to druhé.
-- Systém nikdy nesahá na jiný systém napřímo. Když jeden potřebuje
-  vědět něco o druhém, dostane to přes scénu (ta jediná všechno propojuje).
+## Revert („revertni to")
+- Vrať jen řádky, které jsi v posledním úkolu přidal nebo změnil. Nikdy kvůli
+  tomu `git checkout`, `restore`, `stash` ani `reset` (smazaly by i práci
+  uživatele).
+- Když si nejsi jistý rozsahem, vypiš změny a zeptej se. Po revertu řekni, co se
+  vrátilo a co zůstalo.
 
-# ===== SAVE SYSTÉM =====
+## Jak mluvit s uživatelem
+- Uživatel není programátor. Piš lidsky, česky, bez zkratek.
+- Nejdřív 1–2 věty výsledku; u jednoduché věci to stačí.
+- Začni tím, co se změní ve hře, a vysvětli příčinu (proč to dřív nefungovalo).
+- Odborný termín hned vysvětli v závorce. Kód, názvy funkcí, souborů a tabulky
+  jen když jsou potřeba nebo o ně uživatel požádá.
 
-- Ve hře existuje obecný save systém (`src/systems/saveSystem.js`) — sběrač
-  stavu nad registrovanými vlastníky.
-- KAŽDÝ nový trvalý stav hry se MUSÍ zaregistrovat u save systému a dodat
-  tři věci: jak se uloží, jak se vrátí a v jakém pořadí se má vracet.
-- Vracení MUSÍ snést neúplná nebo stará data — nesmí spadnout, když
-  v uloženém stavu něco chybí.
-- Výchozí hodnoty patří k vlastníkovi stavu (ke stroji, k hráči, k batohu),
-  ne do centrálního souboru. Seznam pro ukládání obsahuje jen to, co se
-  týká ukládání: verzi, jméno úložiště a jméno starého úložiště.
-- Při změně formátu savu se zvedne verze. Starší verze se nenačítají.
-- Save systém zůstává OBECNÝ — nesmí znát obsah konkrétních stavů.
-
-# ===== GIT =====
-
-- Commity NIKDY nedělej sám. `git add`, `git commit`, `git push`, `git merge`,
-  `git rebase`, `git reset` a jakékoli jiné měnící git operace provádí
-  VÝHRADNĚ uživatel.
-- Agent smí jen ČÍST: `git status`, `git log`, `git diff`, `git show`,
-  `git remote -v`, `git ls-files` a `git check-ignore`.
-- Když je potřeba něco commitnout, jen navrhni commit message a vypiš, které
-  soubory do commitu patří — a čekej, až to uživatel udělá sám.
-
-# ===== REVERT („revertni to") =====
-
-- „Revertni to" znamená: vrať POUZE změny z posledního tasku, které jsem
-  v projektu udělal já (agent). NIC víc.
-- NIKDY kvůli tomu nesahej na celý soubor a NIKDY nepoužívej
-  `git checkout -- <soubor>`, `git restore <soubor>`, `git stash` ani
-  `git reset` — ty smažou i všechnu ostatní neuloženou práci uživatele.
-- Postup: vezmi přesně ty řádky, které jsi v posledním tasku přidal nebo
-  změnil, a vrať je zpět na původní podobu (odstranit přidané, vrátit
-  přepsané). Ostatní obsah souboru nech být.
-- Když si nejsi jistý, co přesně jsi měnil, NEHÁDEJ a nejdřív se ZEPTEJ
-  (např. vypiš seznam změn a nech uživatele potvrdit rozsah).
-- Po revertu napiš, co přesně se vrátilo a co v souboru zůstalo.
-
-# ===== JAK MLUVIT S UŽIVATELEM =====
-
-- Piš LIDSKY, ne technicky. Uživatel není programátor a nezná zkratky.
-- Místo názvů metod, souborů a cizích slov použij popis toho,
-  co se v aplikaci stane (příklad: místo „clearZoneCells se nevolá"
-  napiš „smaže se jen označení, samotná zóna zůstane").
-- Když musíš použít odborný termín, VŽDY ho hned v závorce vysvětli
-  běžnými slovy (příklad: „cache (paměť, která si pamatuje stará data)").
-- Každý bod začni TÍM, CO TO UDĚLÁ V HRÁTCE. Až potom (nebo vůbec)
-  řekni, jak je to udělané v kódu.
-- Vysvětluj PŘÍČINU, ne jen výsledek. Uživatel chce vědět, PROČ to
-  dřív nefungovalo, ne jak vypadá nový příkaz.
-- Nepiš názvy souborů a cest, pokud to není potřeba k něčemu konkrétnímu
-  (např. „upravil jsem GameScene.js"). Když stačí říct „opravil jsem
-  načítání mapy", řekni to tak.
-- Žádné tabulky pravidel, žádné názvy funkcí, žádný kód v odpovědi,
-  pokud o něj uživatel sám nepožádá.
-- Nejdřív shrnutí výsledku v 1–2 větách, pak teprve podrobnosti.
-  Když je výsledek nudný a jednoduchý, stačí jen ty dvě věty.
-
-## Příklad špatně
-
-> `undo()` teď začíná kontrolou `this.draft.cells.size`. Pokud je
-> nenulová, provede `cells.clear()` a `return true`, aniž by došlo
-> k `history.pop()`. `canUndo` kontroluje `history.length > 0`.
-
-## Příklad dobře
-
-> Tlačítko Zpět teď funguje na jedno kliknutí. Dřív se první kliknutí
-> „spotřebovalo" na zrušení rozpracovaného výběru, takže jsi musel
-> kliknout dvakrát. Teď se výběr při vrácení prostě uklidí bokem
-> a rovnou se vrátí poslední skutečná změna mapy.
+Špatně: „`undo()` teď kontroluje `this.draft.cells.size` a bez `history.pop()`
+vrací `true`."
+Dobře: „Tlačítko Zpět teď funguje na jedno kliknutí. Dřív se první kliknutí
+spotřebovalo na zrušení rozpracovaného výběru."

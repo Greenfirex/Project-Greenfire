@@ -3,13 +3,14 @@
 import { BRUSHES, brushOptions, brushPaintParts, PAINT_ALL, PAINT_TERRAIN } from '../data/catalogs/brushes.js';
 import { getDecoration, DEFAULT_FLOOR, decoFamily } from '../data/catalogs/decorations.js';
 import { cellKey, MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP, DEFAULT_HEIGHT_LEVEL } from '../data/maps/layoutStore.js';
-import { layerAt, layerEntriesAt, floorCellAt, layerLiftAt, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
+import { layerAt, layerEntriesAt, floorCellAt, layerLiftAt, levelOfEntry, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
 import { fillZone } from '../utils/zoneFill.js';
 import { createRng, seedFor } from '../utils/rng.js';
 import { getFishType } from '../data/catalogs/fish.js';
 import { getCreatureType, getCreatureTier } from '../data/catalogs/creatures/index.js';
 import { decoPlacement } from '../utils/decoPlacement.js';
 import { bridgeSpan, bridgeCells } from '../utils/bridgeShape.js';
+import { layoutFromMapFile } from '../data/catalogs/mapFile.js';
 
 const HISTORY_LIMIT = 100;
 const ROUGH_SKIP = 0.32;
@@ -485,7 +486,7 @@ export default class EditorMode {
       delete entry.key;
       entry.style = this.pathStyle;
       if (floor && floor.liftY) entry.liftY = floor.liftY;
-      const existing = (this.layout.path || []).find((cell) => cell && cell.cx === cx && cell.cz === cz);
+      const existing = (this.layout.path || []).find((cell) => onSurface(cell, cx, cz));
       if (existing) {
         existing.style = entry.style;
         if (entry.liftY) existing.liftY = entry.liftY;
@@ -498,8 +499,8 @@ export default class EditorMode {
     if (target === 'floor') {
       dropLayerCell(this.layout, cx, cz);
       for (const name of ['grass', 'clearing']) {
-        if ((this.layout[name] || []).some((item) => item && item.cx === cx && item.cz === cz && item.liftY)) continue;
-        this.layout[name] = (this.layout[name] || []).filter((item) => !item || item.cx !== cx || item.cz !== cz);
+        if ((this.layout[name] || []).some((item) => onSurface(item, cx, cz) && item.liftY)) continue;
+        this.layout[name] = (this.layout[name] || []).filter((item) => !onSurface(item, cx, cz));
       }
     } else {
       if (!entry.liftY && floor && floor.liftY) entry.liftY = floor.liftY;
@@ -528,7 +529,7 @@ export default class EditorMode {
       this.layout.floor.push(entry);
     }
     if (changed && this.layout.grass) {
-      this.layout.grass = this.layout.grass.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+      this.layout.grass = this.layout.grass.filter((entry) => !onSurface(entry, cx, cz));
     }
     return changed;
   }
@@ -569,14 +570,14 @@ export default class EditorMode {
   setTileLift(cx, cz, height) {
     const layer = layerAt(this.layout, cx, cz);
     const path = layer === 'path'
-      ? (this.layout.path || []).find((entry) => entry && entry.cx === cx && entry.cz === cz) || null
+      ? (this.layout.path || []).find((entry) => onSurface(entry, cx, cz)) || null
       : null;
     const targets = [];
     const floor = floorCellAt(this.layout, cx, cz);
     if (floor) targets.push(floor);
     for (const name of ['floor', 'clearing', 'grass']) {
       for (const entry of this.layout[name] || []) {
-        if (!entry || entry.cx !== cx || entry.cz !== cz) continue;
+        if (!onSurface(entry, cx, cz)) continue;
         if (!targets.includes(entry)) targets.push(entry);
       }
     }
@@ -712,7 +713,7 @@ export default class EditorMode {
 
   dropPathCell(cx, cz) {
     const entries = this.layout.path || [];
-    const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+    const kept = entries.filter((entry) => !onSurface(entry, cx, cz));
     if (kept.length === entries.length) return false;
     this.layout.path = kept;
     return true;
@@ -747,7 +748,7 @@ export default class EditorMode {
     let changed = false;
     for (const name of ['floor', 'clearing', 'grass', 'path']) {
       for (const entry of this.layout[name] || []) {
-        if (!entry || entry.cx !== cx || entry.cz !== cz) continue;
+        if (!onSurface(entry, cx, cz)) continue;
         if (entry.liftY) {
           delete entry.liftY;
           changed = true;
@@ -1631,7 +1632,7 @@ export default class EditorMode {
         const entry = { cx, cz };
         if (mix && mix !== 'auto') entry.mix = mix;
         if (layer && layer !== 'both') entry.layer = layer;
-        const previous = this.layout.grass.find((item) => item && item.cx === cx && item.cz === cz);
+        const previous = this.layout.grass.find((item) => onSurface(item, cx, cz));
         const had = !!previous
           && (previous.mix || 'auto') === (entry.mix || 'auto')
           && (previous.layer || 'both') === (entry.layer || 'both');
@@ -1769,7 +1770,7 @@ export default class EditorMode {
   dropGrassCell(cx, cz) {
     if (!this.layout.grass) return false;
     const entries = this.layout.grass;
-    const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+    const kept = entries.filter((entry) => !onSurface(entry, cx, cz));
     if (kept.length === entries.length) return false;
     this.layout.grass = kept;
     return true;
@@ -2146,7 +2147,7 @@ export default class EditorMode {
     };
     for (const name of ['path', 'floor', 'clearing', 'grass']) {
       for (const entry of this.layout[name] || []) {
-        if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+        if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz) || levelOfEntry(entry) !== 0) continue;
         cellFor(entry.cx, entry.cz)[name] = entry;
       }
     }
@@ -2225,28 +2226,19 @@ function round2(value) {
   return Math.round(value * 100) / 100;
 }
 
+function onSurface(entry, cx, cz) {
+  return Boolean(entry) && entry.cx === cx && entry.cz === cz && levelOfEntry(entry) === 0;
+}
+
 function toWorld(world) {
-  const copy = (list) => (list || []).map((entry) => ({ ...entry }));
-  return {
-    spawn: world.spawn ? { ...world.spawn } : { cx: 0, cz: 0 },
-    seed: world.seed,
-    waterLevel: Number.isFinite(world.waterLevel) ? world.waterLevel : null,
-    floor: copy(world.floor),
-    path: copy(world.path),
-    clearing: copy(world.clearing),
-    grass: copy(world.grass),
-    decorations: copy(world.decorations),
-    fish: copy(world.fish),
-    creatures: Array.isArray(world.creatures) ? copy(world.creatures) : null,
-    bridges: copy(world.bridges),
-  };
+  return layoutFromMapFile(world, world && world.seed);
 }
 
 function droppable(layout, cx, cz) {
   const layers = [];
   for (const name of ['floor', 'path', 'clearing', 'grass']) {
     for (const entry of layout[name] || []) {
-      if (entry && entry.cx === cx && entry.cz === cz) layers.push(entry);
+      if (onSurface(entry, cx, cz)) layers.push(entry);
     }
   }
   const decos = (layout.decorations || []).filter((entry) => entry && entry.cx === cx && entry.cz === cz);

@@ -2,7 +2,8 @@
 import { getMap } from './maps.js';
 import { HEIGHT_STEP } from '../maps/layoutStore.js';
 
-export const MAP_VERSION = 9;
+export const MAP_VERSION = 10;
+const GRID_025_VERSION = 10;
 
 const HEIGHT_LAYERS = ['floor', 'path', 'clearing', 'grass'];
 
@@ -10,15 +11,38 @@ function snapHeight(value) {
   return Number.isFinite(value) ? Math.round(value / HEIGHT_STEP) * HEIGHT_STEP : value;
 }
 
+function surfaceShifts(file) {
+  const shifts = new Map();
+  for (const name of HEIGHT_LAYERS) {
+    for (const entry of file[name] || []) {
+      if (!entry || entry.level) continue;
+      const key = `${entry.cx},${entry.cz}`;
+      if (shifts.has(key)) continue;
+      const lift = Number.isFinite(entry.liftY) ? entry.liftY : 0;
+      shifts.set(key, snapHeight(lift) - lift);
+    }
+  }
+  return shifts;
+}
+
 export function quantizeMapFileHeights(file) {
-  if (!file) return file;
+  if (!file || (Number.isFinite(file.version) && file.version >= GRID_025_VERSION)) return file;
+  const shifts = surfaceShifts(file);
   for (const name of HEIGHT_LAYERS) {
     for (const entry of file[name] || []) {
       if (Number.isFinite(entry.liftY)) entry.liftY = snapHeight(entry.liftY);
       if (Number.isFinite(entry.ceilY)) entry.ceilY = snapHeight(entry.ceilY);
     }
   }
+  for (const entry of file.decorations || []) {
+    const shift = entry ? shifts.get(`${entry.cx},${entry.cz}`) : 0;
+    if (!shift) continue;
+    const next = Math.round(((entry.liftY || 0) + shift) * 1000) / 1000;
+    if (next) entry.liftY = next;
+    else delete entry.liftY;
+  }
   if (Number.isFinite(file.waterLevel)) file.waterLevel = snapHeight(file.waterLevel);
+  file.version = MAP_VERSION;
   return file;
 }
 

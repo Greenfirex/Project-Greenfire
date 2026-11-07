@@ -65,10 +65,13 @@ export function hasFloor(world, cx, cz, level = 0) {
 export function hasLayerCell(world, cx, cz) {
   return layerAt(world, cx, cz) !== null;
 }
-export function dropDecorationCell(world, cx, cz) {
+function entryInCell(entry, cx, cz, level) {
+  return Boolean(entry) && entry.cx === cx && entry.cz === cz && levelOfEntry(entry) === level;
+}
+export function dropDecorationCell(world, cx, cz, level = 0) {
   if (!world) return false;
   const entries = world.decorations || [];
-  const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+  const kept = entries.filter((entry) => !entryInCell(entry, cx, cz, level));
   if (kept.length === entries.length) return false;
   world.decorations = kept;
   return true;
@@ -163,12 +166,12 @@ export function dropFloorCell(world, cx, cz) {
   world.floor = kept;
   return true;
 }
-export function dropLayerCell(world, cx, cz) {
+export function dropLayerCell(world, cx, cz, level = 0) {
   if (!world) return false;
   let dropped = false;
-  for (const name of ['floor', 'path', 'clearing', 'grass']) {
+  for (const name of PLANE_LAYERS) {
     const entries = world[name] || [];
-    const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+    const kept = entries.filter((entry) => !entryInCell(entry, cx, cz, level));
     if (kept.length !== entries.length) {
       world[name] = kept;
       dropped = true;
