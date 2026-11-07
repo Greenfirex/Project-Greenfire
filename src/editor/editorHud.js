@@ -56,7 +56,7 @@ export default class EditorHud {
       </div>
       <div class="editor-panel__save-row">
         <button type="button" class="editor-panel__save editor-panel__pause" title="Pozastavit nebo pustit hru (P)">Pauza</button>
-        <button type="button" class="editor-panel__save" title="Uložit mapu (zapíše se do souboru v projektu)">Uložit mapu</button>
+        <button type="button" class="editor-panel__save editor-panel__save-map" title="Uložit mapu (zapíše se do souboru v projektu)">Uložit mapu</button>
       </div>
     `;
     document.body.appendChild(root);
@@ -111,7 +111,7 @@ export default class EditorHud {
         if (this.onMode) this.onMode(btn.dataset.mode);
       });
     }
-    root.querySelector('.editor-panel__save').addEventListener('click', () => {
+    root.querySelector('.editor-panel__save-map').addEventListener('click', () => {
       if (this.onSaveMap) this.onSaveMap();
     });
     root.querySelector('.editor-panel__pause').addEventListener('click', () => {
