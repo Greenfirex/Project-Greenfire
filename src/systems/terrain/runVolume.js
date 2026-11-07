@@ -4,12 +4,11 @@ import { CELL_SIZE } from '../../utils/gridMath.js';
 import { HEIGHT_STEP } from '../../data/maps/layoutStore.js';
 import { floorCellAt } from '../../data/maps/areaShape.js';
 import { DEFAULT_FLOOR } from '../../data/catalogs/decorations.js';
-import { buildColumnRuns, buildColumnAir } from '../../utils/terrainRuns.js';
+import { buildColumnRuns, buildColumnAir, EDGE_DEPTH } from '../../utils/terrainRuns.js';
 
 const EPS = 1e-4;
 const PLATE = HEIGHT_STEP;
 const PLATE_SPAN = 6;
-const EDGE_DEPTH = 2;
 const BAND_TILE = 1;
 const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 

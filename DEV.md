@@ -943,9 +943,20 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
    pravidlo pro celou mapu. Když se stará kůže zapne (`?cliffs`), může plochá
    stěna v některém místě vykouknout před vyboulený plát; řeší se to tady.
    **Rohy stěn jsou zatím ostré.** Zaoblení se zkoušelo (vykrojení dovnitř,
-   pak vyboulení ven) a ani jedno nevypadalo dobře, tak je kód zase pryč.
-   Až bude jasné, jak má roh vypadat, udělá se znovu — správně to znamená
-   roh **seříznout** (zkosit) a stěny v tom místě zkrátit na stejný bod.
+   pak vyboulení ven) a ani jedno nevypadalo dobře — posouvalo to celý profil
+   stěny, ne jen roh. **Přesné hledání rohů je hotové** (`utils/terrainCorners.js`):
+   pro každou svislou hranu se vezmou čtyři buňky kolem ní a po výškových
+   vrstvách z pruhů skály a vzduchu se zjistí, co na hraně je. Jediná pevná
+   buňka = skutečný roh, dvě pevné vedle sebe = šev (žádný roh), tři pevné =
+   vnitřní kout, dvě pevné diagonálně = dva rohy přes sebe. Počítá se jen tam,
+   kde jsou obě strany tvrdá hrana (útes), takže mělké schody ve svahu se
+   nepočítají. Náhled `?corners` hrany obarví: červená = skutečný roh,
+   modrá = vnitřní kout, žlutá = diagonální dotek; šev se nekreslí.
+   **Zaoblení rohů se zkoušelo a bylo zrušeno.** Řez dna se nedá sladit
+   s vyhlazovacím modelem země tak, aby nevznikaly díry ani divné přechody
+   (zkoušel se oblouk, zkrácení stěn, dno podle sousedů i podle čísel buněk),
+   a tak zůstává jen **detekce rohů** a náhled `?corners`. Nic se neřeže
+   a terén i stěny vypadají jako dřív.
    **Procedurální kůže útesů je vypnutá** — pláty s římsami a mechem, zkosené rohy,
    rohové výplně, vlisy pod plátem ani vlnitý posun hrany se nestaví. Svislé stěny
    teď dělá jen hmota (vrstvy po 0,25 m) a nová kůže se udělá až na plátovém
@@ -964,6 +975,8 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
    **`?solid`** je náhled hmoty pro vývoj (`terrain/runBlocks.js`): místo scény
    postaví každý pevný pruh jako uzavřený blok se švem a jiným odstínem podle
    buňky, takže je vidět naskládané kostky a je jasné, co v datech je.
+   **`?corners`** je náhled rohů (viz výš): obarví svislé hrany podle druhu,
+   do vzhledu terénu nijak nezasahuje.
 2. Boční a spodní líce (skála, stěny jeskyní, spodní víka) → hmota; odstranit staré
    útesy/dutiny/sukni; ladit vzhled. **Hotovo v tom smyslu, že hmota je skutečná
    a dutiny i sukně jsou pryč.** Viditelný povrch zůstává dnešní (hladká kůže
@@ -981,5 +994,7 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
 limit 0,55, přesné odkrývání stropu včetně skrytí trávy na odkrytých buňkách).
 Fáze 2 hotová: terén má skutečnou hmotu (jeskyně, stropy, boky s pásem povrchu
 a okraj mapy), staré dutiny a sukně jsou smazané. Hranice útesu snížená na 2,0 m.
-Náhled hmoty jako kostek je za `?solid`. Zbývá 3 (dotazy na pruzích) a dál.
+Náhled hmoty jako kostek je za `?solid`, náhled rohů za `?corners` (detekce)
+a seříznutí rohů za `?cut` (čeká na doladění šířky). Zbývá 3 (dotazy na
+pruzích) a dál.
 

@@ -18,6 +18,7 @@ import { getMap } from '../../data/catalogs/maps.js';
 import { getDecoration, DEFAULT_FLOOR } from '../../data/catalogs/decorations.js';
 import { groundCells, worldCells, planeLevels, levelOfEntry, columnsByCell, layerLiftAt, floorCellAt } from '../../data/maps/areaShape.js';
 import { buildColumnRuns } from '../../utils/terrainRuns.js';
+import { buildCornerEdges } from '../../utils/terrainCorners.js';
 import { buildRunBlocks } from './runBlocks.js';
 import { buildRunVolumeBuckets } from './runVolume.js';
 import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
@@ -86,6 +87,13 @@ const CLIFF_TOP_OVERLAP = 0.05;
 const CLIFF_SKIRT_SINK = 0.15;
 const CORNER_FILL_STEPS = 3;
 const BRIDGE_CORNER_MARGIN = 0.6;
+const CORNER_DEBUG_LIFT = 0.06;
+const CORNER_DEBUG_WIDTH = 0.03;
+const CORNER_DEBUG_COLORS = {
+  corner: [1, 0.16, 0.08],
+  inner: [0.2, 0.5, 1],
+  diagonal: [1, 0.85, 0.1],
+};
 const CLIFF_INWARD_MAX = 0.85;
 const CLIFF_LEDGE_TAPER = 0.6;
 const CLIFF_LEDGE_T_MIN = 0.22;
@@ -412,8 +420,16 @@ export default class TerrainSystem {
   }
 
   solidRunsAt(cx, cz) {
+    return this.solidRuns().get(`${cx},${cz}`) || [];
+  }
+
+  solidRuns() {
     if (!this.columnRuns) this.columnRuns = buildColumnRuns(this.layout || {});
-    return this.columnRuns.get(`${cx},${cz}`) || [];
+    return this.columnRuns;
+  }
+
+  hardEdgeAt(cx, cz, dx, dz) {
+    return this.field && this.field.isHardEdge ? this.field.isHardEdge(cx, cz, dx, dz) : false;
   }
 
   urlFlag(name) {
@@ -493,6 +509,7 @@ export default class TerrainSystem {
     }
     this.createVolumeMass(map);
     this.createCaveReveal(map);
+    if (this.urlFlag('corners')) this.createCornerDebug();
     this.createPicker(this.pickCells());
     this.gridLines = this.createGridLines(map, this.realCells);
     this.ready = Promise.resolve(this.surfaces);
@@ -1584,6 +1601,67 @@ export default class TerrainSystem {
       };
       this.surfaces.push(mesh);
     }
+  }
+
+  createCornerDebug() {
+    const edges = buildCornerEdges(this.layout || {}, {
+      runs: this.solidRuns(),
+      hardEdge: (cx, cz, dx, dz) => this.hardEdgeAt(cx, cz, dx, dz),
+    });
+    const groups = new Map();
+    for (const edge of edges) {
+      if (edge.kind === 'seam') continue;
+      let group = groups.get(edge.kind);
+      if (!group) {
+        group = { positions: [], indices: [] };
+        groups.set(edge.kind, group);
+      }
+      const px = edge.gx + edge.outX * CORNER_DEBUG_LIFT;
+      const pz = edge.gz + edge.outZ * CORNER_DEBUG_LIFT;
+      this.appendCornerRibbon(group, px, pz, edge.y0, edge.y1);
+    }
+    for (const [kind, group] of groups) {
+      if (!group.positions.length) continue;
+      const mesh = new Mesh(`terrainCornerDebug_${kind}`, this.s);
+      const data = new VertexData();
+      data.positions = group.positions;
+      data.indices = group.indices;
+      data.normals = [];
+      VertexData.ComputeNormals(group.positions, group.indices, data.normals);
+      data.applyToMesh(mesh);
+      mesh.material = this.cornerDebugMaterial(kind);
+      mesh.isPickable = false;
+      mesh.receiveShadows = false;
+      mesh.metadata = { cornerDebug: true, kind };
+      this.surfaces.push(mesh);
+    }
+  }
+
+  appendCornerRibbon(group, px, pz, y0, y1) {
+    const width = CORNER_DEBUG_WIDTH;
+    const start = group.positions.length / 3;
+    group.positions.push(
+      px, y0, pz - width, px, y1, pz - width, px, y1, pz + width, px, y0, pz + width,
+      px - width, y0, pz, px + width, y0, pz, px + width, y1, pz, px - width, y1, pz,
+    );
+    group.indices.push(
+      start, start + 1, start + 2, start, start + 2, start + 3,
+      start + 4, start + 5, start + 6, start + 4, start + 6, start + 7,
+    );
+  }
+
+  cornerDebugMaterial(kind) {
+    const cacheKey = `cornerDebug|${kind}`;
+    const cached = this.materials.get(cacheKey);
+    if (cached) return cached;
+    const rgb = CORNER_DEBUG_COLORS[kind] || [1, 1, 1];
+    const material = new StandardMaterial(`terrainCornerDebugMat_${kind}`, this.s);
+    material.disableLighting = true;
+    material.backFaceCulling = false;
+    material.diffuseColor = new Color3(rgb[0], rgb[1], rgb[2]);
+    material.emissiveColor = new Color3(rgb[0], rgb[1], rgb[2]);
+    this.materials.set(cacheKey, material);
+    return material;
   }
 
   blockMesh(blocks) {

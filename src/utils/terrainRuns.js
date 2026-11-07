@@ -5,6 +5,7 @@ import { MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP } from '../data/maps/layoutStore.js
 
 const WORLD_BOTTOM = MIN_HEIGHT * HEIGHT_STEP;
 const WORLD_TOP = MAX_HEIGHT * HEIGHT_STEP;
+const EDGE_DEPTH = 2;
 const EPS = 1e-4;
 
 function airSpansForColumn(planes, bottom, top) {
@@ -55,4 +56,4 @@ export function buildColumnAir(layout, bottom = WORLD_BOTTOM, top = WORLD_TOP) {
   return out;
 }
 
-export { WORLD_BOTTOM, WORLD_TOP };
+export { WORLD_BOTTOM, WORLD_TOP, EDGE_DEPTH };
