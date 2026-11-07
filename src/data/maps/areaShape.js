@@ -1,11 +1,10 @@
 // Které buňky mapy existují a jakou vrstvu v nich najdeš — podlaha, cesta, nebo tráva.
 // Odsud se počítá hratelná země, mřížka, tráva i chození; plocha (patro) je nepovinný údaj.
 
-const PLANE_LAYERS = ['floor', 'clearing', 'grass', 'path'];
+import { cellKey } from '../../utils/gridMath.js';
 
-export function cellKey(cx, cz) {
-  return `${cx},${cz}`;
-}
+export const PLANE_LAYERS = ['floor', 'clearing', 'grass', 'path'];
+export const ENTRY_LAYERS = [...PLANE_LAYERS, 'decorations', 'fish', 'creatures'];
 export function levelOfEntry(entry) {
   return entry && Number.isFinite(entry.level) ? entry.level : 0;
 }

@@ -1,6 +1,6 @@
 // Barevná škála výšek — jediné místo, kde se rozhoduje, jakou barvu která výška má.
 // Používá ji okénko Výška i překryvy v mapě, takže barvy vždycky sedí k sobě.
-import { HEIGHT_STEP, MIN_HEIGHT, MAX_HEIGHT } from '../data/maps/layoutStore.js';
+import { HEIGHT_STEP, MIN_HEIGHT, MAX_HEIGHT, formatMeters } from '../data/maps/layoutStore.js';
 
 const RAMP = [
   { meters: -15, color: [0.18, 0.27, 0.42] },
@@ -10,11 +10,6 @@ const RAMP = [
   { meters: 14, color: [0.62, 0.62, 0.5] },
   { meters: 24, color: [0.82, 0.84, 0.86] },
 ];
-
-export function formatMeters(meters) {
-  const value = Math.round((Number(meters) || 0) * 100) / 100;
-  return `${String(value).replace('.', ',').replace('-', '−')} m`;
-}
 
 export function formatLevel(level) {
   return formatMeters((Number(level) || 0) * HEIGHT_STEP);

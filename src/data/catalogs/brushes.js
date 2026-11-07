@@ -4,7 +4,8 @@ import { surfaceEntries } from './decorations.js';
 import { FLOWER_KEYS } from './flowers.js';
 import { GRASS_MIXES } from './grass.js';
 import { CREATURE_KEYS, CREATURE_TYPES } from './creatures/index.js';
-import { HEIGHT_STEP } from '../maps/layoutStore.js';
+import { HEIGHT_STEP, formatMeters } from '../maps/layoutStore.js';
+import { FISH_KEYS, FISH_TYPES } from './fish.js';
 
 const SURFACES = surfaceEntries();
 const surfaceStyle = (entry) => entry.key.replace(/^floor_/, '');
@@ -30,8 +31,7 @@ const PAINT_FISH_ONLY = [PAINT_FISH];
 const PAINT_NOTHING = [];
 
 function levelMeters(level) {
-  const n = Math.round(Math.abs(level) * HEIGHT_STEP * 100) / 100;
-  return `${String(n).replace('.', ',')} m`;
+  return formatMeters(Math.abs(level) * HEIGHT_STEP);
 }
 
 function depthMeters(level) {
@@ -364,15 +364,9 @@ export const BRUSHES = {
     note: 'Vypustí hejno rybek zvolené barvy; na suché buňce se neuloží.',
     shape: 'blob',
     fish: true,
-    style: 'fish_blue',
-    styles: ['fish_blue', 'fish_gold', 'fish_green', 'fish_red', 'fish_micro'],
-    styleLabels: {
-      fish_blue: 'Stříbrné',
-      fish_gold: 'Zlaté',
-      fish_green: 'Zelené',
-      fish_red: 'Červené',
-      fish_micro: 'Drobné',
-    },
+    style: FISH_KEYS[0],
+    styles: FISH_KEYS,
+    styleLabels: Object.fromEntries(FISH_KEYS.map((key) => [key, FISH_TYPES[key].label])),
   },
   cliff: {
     label: 'Útes',

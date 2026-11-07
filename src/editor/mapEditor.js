@@ -2,7 +2,7 @@
 // Drží otevření editoru, štětec, plochu, neuložené změny a ukládání mapy do souboru.
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { mapFileFromLayout } from '../data/catalogs/mapFile.js';
-import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
+import { HEIGHT_STEP, formatMeters } from '../data/maps/layoutStore.js';
 import EditorMode from './editorMode.js';
 import EditorHud from './editorHud.js';
 import BrushPanel from './brushPanel.js';
@@ -10,10 +10,11 @@ import AreaPanel from './areaPanel.js';
 import HeightPanel from './heightPanel.js';
 import CreatureOverlay from './creatureOverlay.js';
 import HeightLabels from './heightLabels.js';
-import { formatLevel, formatMeters } from './heightRamp.js';
+import { formatLevel } from './heightRamp.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { BRUSHES } from '../data/catalogs/brushes.js';
 import { CELL_SIZE } from '../utils/gridMath.js';
+import { ENTRY_LAYERS } from '../data/maps/areaShape.js';
 
 const HEIGHT_LABEL_LIFT = 0.45;
 const HEIGHT_LABEL_LIMIT = 240;
@@ -479,7 +480,7 @@ export default class MapEditor {
       draft = ` · kreslím: ${brushLabel(this.mode.draft.brushKey)}${amount}`;
     }
     const roam = beast && Number.isFinite(beast.type.roamRadius)
-      ? ` · toulá se do ${formatMeters(beast.type.roamRadius)} m`
+      ? ` · toulá se do ${formatMeters(beast.type.roamRadius)}`
       : '';
     const runtime = beast && this.s.creatureStatusAt
       ? this.s.creatureStatusAt(cell.cx, cell.cz, beast.entry.kind, beast.tierKey)
@@ -949,7 +950,7 @@ function respawnLabel(days) {
 
 function brokenEntries(layout) {
   let count = 0;
-  for (const name of ['floor', 'path', 'clearing', 'grass', 'decorations', 'fish', 'creatures']) {
+  for (const name of ENTRY_LAYERS) {
     for (const entry of layout[name] || []) {
       if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) count += 1;
     }

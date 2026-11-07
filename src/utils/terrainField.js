@@ -3,14 +3,13 @@
 // Za okrajem mapy a u děr bere výšku nejbližší buňky, aby se zem na okraji nezvedala.
 import { CELL_SIZE, cellKey } from './gridMath.js';
 import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
-import { worldCells, levelOfEntry, planeLevels } from '../data/maps/areaShape.js';
+import { PLANE_LAYERS, worldCells, levelOfEntry, planeLevels } from '../data/maps/areaShape.js';
 
 const MARGIN = 2;
 const AROUND = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const AUTO_CLIFF_STEP = 2.0;
 const STEP_EPSILON = 1e-6;
 export const SAME_LEVEL_STEP = HEIGHT_STEP + 0.01;
-const LAYER_ORDER = ['floor', 'clearing', 'grass', 'path'];
 
 function catmull(p0, p1, p2, p3, t) {
   return 0.5 * (
@@ -24,7 +23,7 @@ function catmull(p0, p1, p2, p3, t) {
 function layerLifts(world, level) {
   const lifts = new Map();
   const layers = world || {};
-  for (const name of LAYER_ORDER) {
+  for (const name of PLANE_LAYERS) {
     for (const entry of layers[name] || []) {
       if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
       if (levelOfEntry(entry) !== level) continue;

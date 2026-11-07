@@ -11,6 +11,9 @@ import { CELL_SIZE } from '../../utils/gridMath.js';
 import { instantiateModel } from '../../utils/assetLoader.js';
 import { decorationTemplate } from '../../utils/decoTemplate.js';
 
+const HOLO_VALID = new Color3(0.35, 0.95, 0.8);
+const HOLO_INVALID = new Color3(0.95, 0.38, 0.32);
+
 const HOLOGRAM_ALPHA = 0.45;
 const CREATURE_RADIUS_LIFT = 0.06;
 const CREATURE_RADIUS_STEPS = 72;
@@ -112,7 +115,7 @@ export default class GridSystem {
         const source = mesh.material;
         if (source && source.alphaTexture) mat.opacityTexture = source.alphaTexture;
         else if (source && source.useAlphaFromDiffuseTexture && source.diffuseTexture) mat.opacityTexture = source.diffuseTexture;
-        mat.diffuseColor = new Color3(0.35, 0.95, 0.8);
+        mat.diffuseColor = HOLO_VALID.clone();
         mat.emissiveColor = new Color3(0.21, 0.57, 0.48);
         mat.specularColor = new Color3(0, 0, 0);
         mat.alpha = HOLOGRAM_ALPHA;
@@ -136,7 +139,7 @@ export default class GridSystem {
 
   tintHologram(isValid) {
     this.hologramValid = isValid;
-    const base = isValid ? new Color3(0.35, 0.95, 0.8) : new Color3(0.95, 0.38, 0.32);
+    const base = isValid ? HOLO_VALID.clone() : HOLO_INVALID.clone();
     for (const mat of this.hologramOwnMaterials) {
       mat.diffuseColor = base;
       mat.emissiveColor = base.scale(0.6);
@@ -155,7 +158,7 @@ export default class GridSystem {
         height: CELL_SIZE * 0.92,
       }, this.s);
       const mat = new StandardMaterial('brushMasterMat', this.s);
-      mat.diffuseColor = new Color3(0.35, 0.95, 0.8);
+      mat.diffuseColor = HOLO_VALID.clone();
       mat.emissiveColor = new Color3(0.3, 0.78, 0.65);
       mat.alpha = 0.42;
       this.brushMaster.material = mat;
@@ -164,7 +167,7 @@ export default class GridSystem {
       this.brushMaterial = mat;
       this.brushInstances = [];
     }
-    const tint = erasing ? new Color3(0.95, 0.38, 0.32) : new Color3(0.35, 0.95, 0.8);
+    const tint = erasing ? HOLO_INVALID.clone() : HOLO_VALID.clone();
     const glow = erasing ? new Color3(0.72, 0.24, 0.2) : new Color3(0.3, 0.78, 0.65);
     this.brushMaterial.diffuseColor = tint;
     this.brushMaterial.emissiveColor = glow;

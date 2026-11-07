@@ -2,19 +2,20 @@
 // Přepíná se F2, drží jen hotovou mapu a historii úprav; vykreslování si řídí scéna.
 import { BRUSHES, brushOptions, brushPaintParts, PAINT_ALL, PAINT_TERRAIN, PAINT_CREATURES, PAINT_FISH } from '../data/catalogs/brushes.js';
 import { getDecoration, DEFAULT_FLOOR, decoFamily } from '../data/catalogs/decorations.js';
-import { cellKey, MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP, DEFAULT_HEIGHT_LEVEL } from '../data/maps/layoutStore.js';
-import { layerAt, layerEntriesAt, floorCellAt, layerLiftAt, levelOfEntry, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
+import { MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP, DEFAULT_HEIGHT_LEVEL } from '../data/maps/layoutStore.js';
+import { cellKey } from '../utils/gridMath.js';
+import { PLANE_LAYERS, ENTRY_LAYERS, layerAt, layerEntriesAt, floorCellAt, layerLiftAt, levelOfEntry, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
 import { fillZone } from '../utils/zoneFill.js';
 import { createRng, seedFor } from '../utils/rng.js';
 import { getFishType, FISH_SWIM_DEPTH } from '../data/catalogs/fish.js';
 import { getCreatureType, getCreatureTier } from '../data/catalogs/creatures/index.js';
 import { decoPlacement } from '../utils/decoPlacement.js';
 import { bridgeSpan, bridgeCells } from '../utils/bridgeShape.js';
-import { layoutFromMapFile } from '../data/catalogs/mapFile.js';
+import { layoutFromMapFile, defaultSpawn } from '../data/catalogs/mapFile.js';
+import { hash01, valueNoise } from '../utils/noise.js';
 
 const HISTORY_LIMIT = 100;
 const ROUGH_SKIP = 0.32;
-const ENTRY_LAYERS = ['floor', 'path', 'clearing', 'grass', 'decorations', 'fish', 'creatures'];
 
 function hashText(text) {
   let hash = 2166136261;
@@ -197,7 +198,7 @@ export default class EditorMode {
       }
     }
     if ('bridges' in patch) this.layout.bridges = patch.bridges.map((entry) => ({ ...entry }));
-    if ('spawn' in patch) this.layout.spawn = patch.spawn ? { ...patch.spawn } : { cx: 0, cz: 0 };
+    if ('spawn' in patch) this.layout.spawn = patch.spawn ? { ...patch.spawn } : defaultSpawn();
     if ('waterLevel' in patch) {
       if (patch.waterLevel === null) delete this.layout.waterLevel;
       else this.layout.waterLevel = patch.waterLevel;
@@ -746,7 +747,7 @@ export default class EditorMode {
 
   flattenCell(cx, cz) {
     let changed = false;
-    for (const name of ['floor', 'clearing', 'grass', 'path']) {
+    for (const name of PLANE_LAYERS) {
       for (const entry of this.layout[name] || []) {
         if (!onSurface(entry, cx, cz)) continue;
         if (entry.liftY) {
@@ -875,7 +876,7 @@ export default class EditorMode {
           const cz = entry.cz + dz;
           const key = cellKey(cx, cz);
           if (!present.has(key) || affected.has(key)) continue;
-          if (rough && noise2(cx / 2.6 + 17.3, cz / 2.3 - 9.1) < ROUGH_SKIP) continue;
+          if (rough && valueNoise(cx / 2.6 + 17.3, cz / 2.3 - 9.1) < ROUGH_SKIP) continue;
           const ring = { cx, cz, height: nextLevel, zone: false };
           affected.set(key, ring);
           next.set(key, ring);
@@ -1853,7 +1854,7 @@ export default class EditorMode {
     if (removing) return touched;
     const gate = brush.scatterGate || (brush.option ? brush.option.key : null);
     if (gate && !this.brushOptionValue(brushKey, gate)) return touched;
-    const patch = noise2(cx / 3.4, cz / 3.4);
+    const patch = valueNoise(cx / 3.4, cz / 3.4);
     if (hash01(cx * 91.7, cz * 47.3) > scatter.chance * (0.25 + 1.3 * patch)) return touched;
     const amount = scatter.min + Math.floor(hash01(cx * 13.1, cz * 71.9) * (scatter.max - scatter.min + 1 + patch));
     const lift = layerLiftAt(this.layout, cx, cz) || 0;
@@ -1929,9 +1930,9 @@ export default class EditorMode {
       return pool[Math.min(pool.length - 1, Math.floor(value * pool.length))];
     }
     if (brush.patch && this.brushOptionValue(this.brushKey, 'patch')) {
-      const px = Math.floor(cx / brush.patch + noise2(cx / 3.1, cz / 3.1) * 0.85);
-      const pz = Math.floor(cz / brush.patch + noise2(cx / 2.7 + 5, cz / 2.7 - 3) * 0.85);
-      const value = noise2(px * 17.3, pz * 11.7);
+      const px = Math.floor(cx / brush.patch + valueNoise(cx / 3.1, cz / 3.1) * 0.85);
+      const pz = Math.floor(cz / brush.patch + valueNoise(cx / 2.7 + 5, cz / 2.7 - 3) * 0.85);
+      const value = valueNoise(px * 17.3, pz * 11.7);
       return pool[Math.min(pool.length - 1, Math.floor(value * pool.length))];
     }
     return pool.includes(this.tileKey) ? this.tileKey : pool[0];
@@ -2151,7 +2152,7 @@ export default class EditorMode {
       }
       return cell;
     };
-    for (const name of ['path', 'floor', 'clearing', 'grass']) {
+    for (const name of PLANE_LAYERS) {
       for (const entry of this.layout[name] || []) {
         if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz) || levelOfEntry(entry) !== 0) continue;
         cellFor(entry.cx, entry.cz)[name] = entry;
@@ -2211,23 +2212,6 @@ export default class EditorMode {
 const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const AROUND = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 
-function hash01(a, b) {
-  const value = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
-  return value - Math.floor(value);
-}
-
-function noise2(x, z) {
-  const ix = Math.floor(x);
-  const iz = Math.floor(z);
-  const fx = x - ix;
-  const fz = z - iz;
-  const sx = fx * fx * (3 - 2 * fx);
-  const sz = fz * fz * (3 - 2 * fz);
-  const top = hash01(ix, iz) + (hash01(ix + 1, iz) - hash01(ix, iz)) * sx;
-  const bottom = hash01(ix, iz + 1) + (hash01(ix + 1, iz + 1) - hash01(ix, iz + 1)) * sx;
-  return top + (bottom - top) * sz;
-}
-
 function round2(value) {
   return Math.round(value * 100) / 100;
 }
@@ -2242,7 +2226,7 @@ function toWorld(world) {
 
 function droppable(layout, cx, cz) {
   const layers = [];
-  for (const name of ['floor', 'path', 'clearing', 'grass']) {
+  for (const name of PLANE_LAYERS) {
     for (const entry of layout[name] || []) {
       if (onSurface(entry, cx, cz)) layers.push(entry);
     }

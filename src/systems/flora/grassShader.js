@@ -4,6 +4,7 @@ import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
 import { Effect } from '@babylonjs/core/Materials/effect';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { grassGroundGlsl } from '../../utils/grassGround.js';
+import { WAVE_TIME_WRAP } from '../../utils/waterWaves.js';
 
 const VERTEX = `
 precision highp float;
@@ -154,5 +155,5 @@ export function createGrassMaterial(scene, options) {
 }
 
 export function tickGrass(material, seconds) {
-  material.setFloat('grassTime', seconds % 3600);
+  material.setFloat('grassTime', seconds % WAVE_TIME_WRAP);
 }

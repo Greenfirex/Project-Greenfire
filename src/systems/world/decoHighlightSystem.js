@@ -1,14 +1,10 @@
 // Zvýraznění dekorace pod kurzorem — zlatý obrys kolem celého objektu.
 // Drží si seznam meshů a jméno pro tooltip; samotné kreslení si řídí Babylon.
 import '@babylonjs/core/Rendering/outlineRenderer';
-import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { cellKey } from '../../utils/gridMath.js';
+import { OUTLINE_GOLD, OUTLINE_PULSE, OUTLINE_PULSE_SPEED, OUTLINE_FADE_SPEED } from '../../utils/outlineStyle.js';
 
-const GOLD = new Color3(1, 0.78, 0.25);
 const OUTLINE_WIDTH = 0.035;
-const OUTLINE_PULSE = 0.012;
-const PULSE_SPEED = 4.5;
-const FADE_SPEED = 8;
 const MIN_RADIUS = 0.25;
 
 export default class DecoHighlightSystem {
@@ -63,7 +59,7 @@ export default class DecoHighlightSystem {
   update(dt) {
     if (!this.records.size || !this.visible) return;
     this.time += dt;
-    const step = FADE_SPEED * dt;
+    const step = OUTLINE_FADE_SPEED * dt;
     for (const [key, record] of this.records) {
       const goal = key === this.hoverKey ? 1 : 0;
       const next = record.level + Math.max(-step, Math.min(step, goal - record.level));
@@ -75,11 +71,11 @@ export default class DecoHighlightSystem {
 
   applyLevel(record, level) {
     const on = level > 0;
-    const pulse = 0.5 + 0.5 * Math.sin(this.time * PULSE_SPEED);
+    const pulse = 0.5 + 0.5 * Math.sin(this.time * OUTLINE_PULSE_SPEED);
     for (const mesh of record.meshes) {
       mesh.renderOutline = on;
       if (!on) continue;
-      mesh.outlineColor = GOLD;
+      mesh.outlineColor = OUTLINE_GOLD;
       mesh.outlineWidth = OUTLINE_WIDTH + OUTLINE_PULSE * pulse * level;
     }
   }

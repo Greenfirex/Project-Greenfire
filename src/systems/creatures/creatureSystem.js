@@ -23,6 +23,7 @@ import {
 import { cellToWorldCoords, worldToCell, CELL_SIZE } from '../../utils/gridMath.js';
 import { warnMissingWiring } from '../../utils/missingWiring.js';
 import { findCellPath } from '../../utils/gridPath.js';
+import { OUTLINE_GOLD, OUTLINE_PULSE, OUTLINE_PULSE_SPEED, OUTLINE_FADE_SPEED } from '../../utils/outlineStyle.js';
 
 const TURN_SPEED = 7;
 const EMERGE_TURN_SPEED = 18;
@@ -53,9 +54,6 @@ const NEIGHBOURS_8 = [
   [1, 1], [1, -1], [-1, 1], [-1, -1],
 ];
 const OUTLINE_WIDTH = 0.038;
-const OUTLINE_PULSE = 0.012;
-const OUTLINE_FADE = 8;
-const OUTLINE_ALERT_SPEED = 4.5;
 const OUTLINE_COMBAT_SPEED = 8;
 const OUTLINE_COMBAT_SCALE = 1.35;
 const COMBAT_MARK_SECONDS = 1;
@@ -63,8 +61,9 @@ const MARK_HEIGHT = 0.22;
 const MARK_BOB = 0.02;
 const MARK_PULSE = 0.06;
 const MARK_SPEED = 3;
-const ALERT_COLOR = new Color3(1, 0.78, 0.25);
 const COMBAT_COLOR = new Color3(0.92, 0.16, 0.12);
+const ATTACK_MODES = ['chase', 'windup', 'recover'];
+const HOSTILE_MODES = ['alert', ...ATTACK_MODES];
 const RESPAWN_CLEAR = 1.5;
 const CORPSE_LIFETIME = 200;
 const CORPSE_FALL = 0.5;
@@ -1009,28 +1008,29 @@ export default class CreatureSystem {
       const rising = creature.mode === 'emerging';
       const hidden = creature.buried && !rising;
       const alert = creature.mode === 'alert';
-      const combat = rising || creature.mode === 'chase' || creature.mode === 'windup' || creature.mode === 'recover';
+      const combat = rising || ATTACK_MODES.includes(creature.mode);
       const hovered = creature === this.hovered;
-      const color = alert && !combat ? ALERT_COLOR : COMBAT_COLOR;
+      const color = alert && !combat ? OUTLINE_GOLD : COMBAT_COLOR;
       const goal = hidden ? 0 : alert || combat || hovered ? 1 : 0;
-      const fade = OUTLINE_FADE * seconds;
+      const fade = OUTLINE_FADE_SPEED * seconds;
       creature.outlineLevel += Math.max(-fade, Math.min(fade, goal - creature.outlineLevel));
       const widthScale = combat ? OUTLINE_COMBAT_SCALE : 1;
-      const pulseSpeed = combat ? OUTLINE_COMBAT_SPEED : OUTLINE_ALERT_SPEED;
+      const pulseSpeed = combat ? OUTLINE_COMBAT_SPEED : OUTLINE_PULSE_SPEED;
       this.applyOutline(creature, color, widthScale, pulseSpeed);
       this.updateMarker(creature, seconds);
     }
     this.updateCorpses(seconds);
   }
 
+  isHostile(creature) {
+    return Boolean(creature) && HOSTILE_MODES.includes(creature.mode);
+  }
+
   isPlayerInCombat(player) {
     if (!player) return false;
     return this.creatures.some((creature) => {
       if (!creature || creature.dead || creature.buried) return false;
-      if (!creature.engaged && creature.mode !== 'alert'
-        && creature.mode !== 'chase'
-        && creature.mode !== 'windup'
-        && creature.mode !== 'recover') return false;
+      if (!creature.engaged && !this.isHostile(creature)) return false;
       const bite = creature.type && Number.isFinite(creature.type.biteRange)
         ? creature.type.biteRange
         : 1.2;
@@ -1093,7 +1093,7 @@ export default class CreatureSystem {
       creature.markerIcon = icon;
       setMarkerIcon(marker, this.s, icon);
     }
-    marker.material.emissiveColor = doubt || alert ? ALERT_COLOR : COMBAT_COLOR;
+    marker.material.emissiveColor = doubt || alert ? OUTLINE_GOLD : COMBAT_COLOR;
     const pulse = 1 + Math.sin(this.hoverTime * MARK_SPEED) * MARK_PULSE;
     marker.scaling.set(pulse, pulse, pulse);
     marker.position.y = creature.markHeight + Math.sin(this.hoverTime * MARK_SPEED * 0.7) * MARK_BOB;

@@ -2,7 +2,7 @@
 // Mechaniky se hlásí přes subscribe(); simulace o jejich obsahu nic neví.
 const TICK_SECONDS = 0.1;
 const MAX_TICKS_PER_FRAME = 5;
-const SPEEDS = [1, 2, 5, 10];
+export const SIM_SPEEDS = [1, 2, 5, 10];
 
 export default class SimSystem {
 
@@ -21,7 +21,7 @@ export default class SimSystem {
 
   setSpeed(value) {
     const speed = Number(value);
-    this.speed = SPEEDS.includes(speed) ? speed : 1;
+    this.speed = SIM_SPEEDS.includes(speed) ? speed : 1;
     this.acc = 0;
   }
 

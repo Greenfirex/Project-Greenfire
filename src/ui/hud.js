@@ -1,5 +1,5 @@
 // DOM HUD — panely s ovládáním a stavem. Nad canvasem, do scény sahá jen callbacky.
-const SPEEDS = [1, 2, 5, 10];
+import { SIM_SPEEDS } from '../systems/core/simSystem.js';
 
 export default class Hud {
 
@@ -79,7 +79,7 @@ export default class Hud {
     this.layer.appendChild(this.clockEl);
 
     const speedHost = this.clockEl.querySelector('#hud-clock-speeds');
-    for (const speed of SPEEDS) {
+    for (const speed of SIM_SPEEDS) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = `${speed}×`;

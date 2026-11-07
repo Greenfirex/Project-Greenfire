@@ -2,12 +2,12 @@
 // Místa se hledají jednou po postavení vody; emitor vysype kapky, až k němu dorazí hřeben.
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Color4 } from '@babylonjs/core/Maths/math.color';
+import { CLIFF_RISE_MIN } from '../../utils/waterWaves.js';
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
 import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem';
 import '@babylonjs/core/Particles/webgl2ParticleSystem';
 import { CELL_SIZE } from '../../utils/gridMath.js';
 
-const CLIFF_RISE = 1.1;
 const SITE_SPACING = 2.4;
 const SITE_LIMIT = 64;
 const NEAR_CAMERA = 70;
@@ -51,7 +51,7 @@ export default class WaveSpraySystem {
     for (const [cx, cz] of water.shoreCells || []) {
       for (const [dx, dz] of AROUND) {
         const rise = water.heightAt((cx + dx) * CELL_SIZE, (cz + dz) * CELL_SIZE) - level;
-        if (rise < CLIFF_RISE) continue;
+        if (rise < CLIFF_RISE_MIN) continue;
         const siteX = cx * CELL_SIZE - dx * CELL_SIZE * 0.35;
         const siteZ = cz * CELL_SIZE - dz * CELL_SIZE * 0.35;
         const key = `${Math.round(siteX / SITE_SPACING)},${Math.round(siteZ / SITE_SPACING)}`;

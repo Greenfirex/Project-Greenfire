@@ -11,8 +11,11 @@ import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Constants } from '@babylonjs/core/Engines/constants';
 import { CELL_SIZE } from '../../utils/gridMath.js';
-import { swellAt, shoalWithCliff, waveAmpFor, WAVE_REACH, WAVE_TIME_WRAP } from '../../utils/waterWaves.js';
+import { swellAt, shoalWithCliff, waveAmpFor, WAVE_REACH, WAVE_TIME_WRAP, CLIFF_RISE_MIN, SEA_DIRECTION, WATER_MAX_DEPTH } from '../../utils/waterWaves.js';
 import { createWaterMaterial, createWaterSideMaterial, tickWater } from './waterShader.js';
+import { signedNoise } from '../../utils/noise.js';
+
+const FOAM_COLOR = new Color3(0.82, 0.92, 0.94);
 
 const WATER_SINK = 0.02;
 const WATER_STEPS = { high: 0.5, medium: 1, low: 2 };
@@ -31,31 +34,11 @@ const SHORE_NOISE_SMALL = 0.15;
 const SHORE_NOISE_NEAR_LARGE = 0.22;
 const SHORE_NOISE_NEAR_SMALL = 0.1;
 const SHORE_NOISE_REACH = 3;
-const CLIFF_RISE_MIN = 1.2;
 const CLIFF_REACH_TEXELS = 3;
 const REFLECTION_SCALES = { high: 0.6, medium: 0.45, low: 0.35 };
 const REFLECTION_REFRESH_FRAMES = 2;
 const FALLBACK_RGB = [0.06, 0.16, 0.19];
 const FALLBACK_SKY = new Color3(0.5, 0.65, 0.8);
-const SEA_FALLBACK = [0.94, 0.34];
-const MAX_DEPTH = 2.5;
-
-function hashNoise(ix, iz) {
-  const n = Math.sin(ix * 127.1 + iz * 311.7) * 43758.5453;
-  return n - Math.floor(n);
-}
-
-function smoothNoise(x, z) {
-  const ix = Math.floor(x);
-  const iz = Math.floor(z);
-  const fx = x - ix;
-  const fz = z - iz;
-  const sx = fx * fx * (3 - 2 * fx);
-  const sz = fz * fz * (3 - 2 * fz);
-  const top = hashNoise(ix, iz) + (hashNoise(ix + 1, iz) - hashNoise(ix, iz)) * sx;
-  const bottom = hashNoise(ix, iz + 1) + (hashNoise(ix + 1, iz + 1) - hashNoise(ix, iz + 1)) * sx;
-  return (top + (bottom - top) * sz) * 2 - 1;
-}
 
 function cliffField(raw, width, height) {
   const size = width * height;
@@ -206,7 +189,7 @@ export default class WaterSystem {
     this.level = null;
     this.heightAt = null;
     this.shoreCells = [];
-    this.maxDepth = MAX_DEPTH;
+    this.maxDepth = WATER_MAX_DEPTH;
     this.ripples = [];
     this.hidden = false;
   }
@@ -275,8 +258,8 @@ export default class WaterSystem {
     if (!Number.isFinite(this.level)) return 0;
     const height = Number.isFinite(ground) ? ground : (this.heightAt ? this.heightAt(x, z) : null);
     const deep = !Number.isFinite(height);
-    const depth = deep ? MAX_DEPTH : Math.max(0, this.level - height);
-    const amp = waveAmpFor(depth, MAX_DEPTH);
+    const depth = deep ? WATER_MAX_DEPTH : Math.max(0, this.level - height);
+    const amp = waveAmpFor(depth, WATER_MAX_DEPTH);
     const dist = this.waveDistAt(x, z);
     const time = this.time % WAVE_TIME_WRAP;
     const shoal = shoalWithCliff(dist, this.cliffAt(x, z));
@@ -481,13 +464,13 @@ export default class WaterSystem {
         const x = i * texel;
         const ramp = Math.min(1, Math.max(0, distance[index] / SHORE_NOISE_REACH));
         const fade = ramp * ramp * (3 - 2 * ramp);
-        const near = smoothNoise(x / 4.5, z / 4.5) * SHORE_NOISE_NEAR_LARGE
-          + smoothNoise(x / 1.8, z / 1.8) * SHORE_NOISE_NEAR_SMALL;
+        const near = signedNoise(x / 4.5, z / 4.5) * SHORE_NOISE_NEAR_LARGE
+          + signedNoise(x / 1.8, z / 1.8) * SHORE_NOISE_NEAR_SMALL;
         let wobble = near;
         if (fade > 0) {
-          wobble += (smoothNoise(x / 30, z / 30) * SHORE_NOISE_LARGE
-            + smoothNoise(x / 13, z / 13) * SHORE_NOISE_MID
-            + smoothNoise(x / 5.5, z / 5.5) * SHORE_NOISE_SMALL) * fade;
+          wobble += (signedNoise(x / 30, z / 30) * SHORE_NOISE_LARGE
+            + signedNoise(x / 13, z / 13) * SHORE_NOISE_MID
+            + signedNoise(x / 5.5, z / 5.5) * SHORE_NOISE_SMALL) * fade;
         }
         distance[index] = Math.max(0, distance[index] + wobble);
       }
@@ -703,10 +686,10 @@ export default class WaterSystem {
     return {
       shallowColor: this.shallowColor(base),
       deepColor: this.deepColor(base),
-      foamColor: new Color3(0.82, 0.92, 0.94),
+      foamColor: FOAM_COLOR.clone(),
       sunColor: new Color3(1, 0.95, 0.86),
       skyColor: FALLBACK_SKY.clone(),
-      maxDepth: MAX_DEPTH,
+      maxDepth: WATER_MAX_DEPTH,
     };
   }
 
@@ -742,7 +725,7 @@ export default class WaterSystem {
     if (this.material) {
       this.material.setColor3('shallowColor', this.shallowColor(base));
       this.material.setColor3('deepColor', this.deepColor(base));
-      this.material.setColor3('foamColor', new Color3(0.82, 0.92, 0.94));
+      this.material.setColor3('foamColor', FOAM_COLOR);
       this.material.setFloat('dayness', this.dayness);
       if (this.skyTint) this.material.setColor3('skyColor', this.skyTint);
       if (this.reflection) this.reflection.clearColor = this.skyClearColor();
@@ -789,7 +772,7 @@ export default class WaterSystem {
     }
     this.shoreCells = shoreCells;
     const seaDirLength = Math.hypot(seaDirX, seaDirZ);
-    this.seaDir = new Vector2(SEA_FALLBACK[0], SEA_FALLBACK[1]);
+    this.seaDir = new Vector2(SEA_DIRECTION[0], SEA_DIRECTION[1]);
     if (seaDirLength > 1e-4) this.seaDir.set(seaDirX / seaDirLength, seaDirZ / seaDirLength);
     const half = CELL_SIZE / 2;
     const x0 = minX * CELL_SIZE - half;
@@ -861,7 +844,7 @@ export default class WaterSystem {
     data.positions = positions;
     data.indices = indices;
     data.applyToMesh(mesh);
-    mesh.setVerticesData('waveAmp', new Float32Array(depths.map((depth) => waveAmpFor(depth, MAX_DEPTH))), false, 1);
+    mesh.setVerticesData('waveAmp', new Float32Array(depths.map((depth) => waveAmpFor(depth, WATER_MAX_DEPTH))), false, 1);
     mesh.setVerticesData('waveDist', new Float32Array(waveDists), false, 1);
     mesh.setVerticesData('waveDir', new Float32Array(waveDirs), false, 2);
     mesh.setVerticesData('waveCliff', new Float32Array(waveCliffs), false, 1);
@@ -909,7 +892,7 @@ export default class WaterSystem {
         b.x, bBottom, b.z,
       );
       sideUvs.push(a.depth, 0, a.depth, 1, b.depth, 0, b.depth, 1);
-      sideAmps.push(waveAmpFor(a.depth, MAX_DEPTH), 0, waveAmpFor(b.depth, MAX_DEPTH), 0);
+      sideAmps.push(waveAmpFor(a.depth, WATER_MAX_DEPTH), 0, waveAmpFor(b.depth, WATER_MAX_DEPTH), 0);
       sideDists.push(a.dist, a.dist, b.dist, b.dist);
       sideIndices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
     };

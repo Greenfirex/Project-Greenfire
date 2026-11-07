@@ -1,12 +1,11 @@
 // Oheň v táboráku — široký nízký plamen, který se po zapálení postupně rozhořívá.
 // Drží jen částice, světlo a míru rozhoření; kde táborák stojí, mu řekne scéna.
 import '@babylonjs/core/Particles/particleSystem';
-import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem';
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
-import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
-import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { fireParticleTexture, fireLayer } from './fireParticles.js';
 
 const LIT_SECONDS = 7;
 const SPUTTER_SECONDS = 1.1;
@@ -21,6 +20,7 @@ const GLOW_HOT = 0.28;
 const FLICKER_INTERVAL = 0.12;
 
 const CORE = {
+  boxHeight: 0.03,
   capacity: 260,
   rate: 110,
   size: [0.14, 0.26],
@@ -32,6 +32,7 @@ const CORE = {
 };
 
 const TONGUE = {
+  boxHeight: 0.03,
   capacity: 150,
   rate: 34,
   size: [0.22, 0.4],
@@ -43,6 +44,7 @@ const TONGUE = {
 };
 
 const SPARKS = {
+  boxHeight: 0.03,
   capacity: 40,
   rate: 4,
   size: [0.03, 0.06],
@@ -54,6 +56,7 @@ const SPARKS = {
 };
 
 const IGNITE = {
+  boxHeight: 0.03,
   capacity: 30,
   rate: 0,
   size: [0.03, 0.07],
@@ -64,62 +67,21 @@ const IGNITE = {
   colors: [[1, 0.95, 0.7], [1, 0.7, 0.2], [0.55, 0.15, 0.03]],
 };
 
-function particleTexture(scene) {
-  const size = 64;
-  const texture = new DynamicTexture('campfireParticleTexture', size, scene, false);
-  const ctx = texture.getContext();
-  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-  gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.5)');
-  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-  ctx.fillStyle = gradient;
-  ctx.clearRect(0, 0, size, size);
-  ctx.fillRect(0, 0, size, size);
-  texture.hasAlpha = true;
-  texture.update();
-  return texture;
-}
-
-function layer(scene, name, emitter, texture, cfg, gravity) {
-  const system = new ParticleSystem(name, cfg.capacity, scene);
-  system.particleTexture = texture;
-  system.emitter = emitter;
-  system.minEmitBox = new Vector3(-cfg.spread, 0, -cfg.spread);
-  system.maxEmitBox = new Vector3(cfg.spread, 0.03, cfg.spread);
-  system.color1 = new Color4(cfg.colors[0][0], cfg.colors[0][1], cfg.colors[0][2], 1);
-  system.color2 = new Color4(cfg.colors[1][0], cfg.colors[1][1], cfg.colors[1][2], 0.9);
-  system.colorDead = new Color4(cfg.colors[2][0], cfg.colors[2][1], cfg.colors[2][2], 0);
-  system.minSize = cfg.size[0];
-  system.maxSize = cfg.size[1];
-  system.minLifeTime = cfg.life[0];
-  system.maxLifeTime = cfg.life[1];
-  system.emitRate = cfg.rate;
-  system.minEmitPower = cfg.rise[0];
-  system.maxEmitPower = cfg.rise[1];
-  system.updateSpeed = 0.01;
-  system.direction1 = new Vector3(-cfg.drift, 1, -cfg.drift);
-  system.direction2 = new Vector3(cfg.drift, 1, cfg.drift);
-  system.blendMode = ParticleSystem.BLENDMODE_ADD;
-  system.gravity = gravity;
-  system.isLocal = false;
-  return system;
-}
-
 export default class CampfireFire {
 
   constructor(scene) {
     this.s = scene;
     this.emitter = new TransformNode('campfireEmitter', scene);
     this.emitter.setEnabled(false);
-    this.texture = particleTexture(scene);
+    this.texture = fireParticleTexture(scene, 'campfireParticleTexture');
     this.layers = [
-      layer(scene, 'campfireCore', this.emitter, this.texture, CORE, new Vector3(0, 0.6, 0)),
-      layer(scene, 'campfireTongue', this.emitter, this.texture, TONGUE, new Vector3(0, 0.55, 0)),
-      layer(scene, 'campfireSparks', this.emitter, this.texture, SPARKS, new Vector3(0, -0.25, 0)),
+      fireLayer(scene, 'campfireCore', this.emitter, this.texture, CORE, new Vector3(0, 0.6, 0)),
+      fireLayer(scene, 'campfireTongue', this.emitter, this.texture, TONGUE, new Vector3(0, 0.55, 0)),
+      fireLayer(scene, 'campfireSparks', this.emitter, this.texture, SPARKS, new Vector3(0, -0.25, 0)),
     ];
     this.layers[2].minEmitPower = 1.1;
     this.layers[2].maxEmitPower = 1.9;
-    this.igniteSparks = layer(scene, 'campfireIgnite', this.emitter, this.texture, IGNITE, new Vector3(0, 0.8, 0));
+    this.igniteSparks = fireLayer(scene, 'campfireIgnite', this.emitter, this.texture, IGNITE, new Vector3(0, 0.8, 0));
     this.light = new PointLight('campfireLight', new Vector3(0, LIGHT_OFFSET_Y, 0), scene);
     this.light.diffuse = LIGHT_COLOR;
     this.light.specular = Color3.Black();

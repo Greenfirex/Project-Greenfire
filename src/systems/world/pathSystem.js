@@ -19,9 +19,9 @@ const HALF_WIDTH = CELL_SIZE / 4;
 const UV_TILE = 1;
 
 const STYLE_TEXTURES = {
-  dirt: `${ASSET_DIRS.pathTextures}Ground071_1K-JPG_Color.jpg`,
-  stone: `${ASSET_DIRS.pathTextures}PavingStones092_1K-JPG_Color.jpg`,
-  wood: `${ASSET_DIRS.pathTextures}Planks004_1K-JPG_Color.jpg`,
+  dirt: `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`,
+  stone: `${ASSET_DIRS.textures}PavingStones092_1K-JPG_Color.jpg`,
+  wood: `${ASSET_DIRS.textures}Planks004_1K-JPG_Color.jpg`,
 };
 
 function styleOf(entry) {

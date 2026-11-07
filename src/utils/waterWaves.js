@@ -1,6 +1,7 @@
 // Vlny vodní hladiny — jediné místo, kde jsou jejich čísla i výpočet.
 // Fáze se bere ze vzdálenosti od břehu, takže hřebeny jsou obrysy ostrova
 // a na každé straně běží ke břehu; kratší vlnky dodělá až jemný šum v programu.
+import { smoothstep } from './noise.js';
 
 const SWELL_WAVES = [
   { wavelength: 9, period: 4, height: 0.055, phase: 0.6, shape: true },
@@ -16,6 +17,9 @@ export const WAVE_CREST_SCALE = WAVE_REACH * 1.35;
 export const WAVE_TIME_WRAP = 3600;
 export const CRASH_LIFT = 1.2;
 export const CLIFF_SHOAL = 0.45;
+export const CLIFF_RISE_MIN = 1.2;
+export const SEA_DIRECTION = [0.94, 0.34];
+export const WATER_MAX_DEPTH = 2.5;
 export const SHORE_FOAM_WIDTH = 1.5;
 const SHOAL_REACH = 7;
 const SHOAL_GAIN = 0.85;
@@ -65,11 +69,6 @@ const WAVES = SWELL_WAVES.map((wave) => ({
 }));
 
 const SHAPE_WAVES = WAVES.filter((wave) => wave.shape);
-
-function smoothstep(edge0, edge1, value) {
-  const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
-}
 
 export function waveAmpFor(depth, taperDepth) {
   const t = Math.min(1, Math.max(0, (depth - 0.15) / (taperDepth - 0.15)));

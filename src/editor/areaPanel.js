@@ -2,14 +2,10 @@
 // Otevírá se při přepnutí na Plochu, sám nic negeneruje ani nemění.
 import { surfaceEntries } from '../data/catalogs/decorations.js';
 import { makeDraggable } from '../ui/draggable.js';
+import { formatMeters } from '../data/maps/layoutStore.js';
 
 const SURFACES = surfaceEntries();
 const SURFACE_LABELS = new Map(SURFACES.map((entry) => [entry.key, entry.label]));
-
-function formatMeters(value) {
-  const n = Math.round((Number(value) || 0) * 100) / 100;
-  return `${String(n).replace('.', ',')} m`;
-}
 
 export default class AreaPanel {
 

@@ -1,11 +1,14 @@
 // Sestaví soubor mapy z toho, co je v editoru — každá vrstva zůstane vrstvou, nic se nedopočítává.
 import { getMap } from './maps.js';
 import { HEIGHT_STEP } from '../maps/layoutStore.js';
+import { PLANE_LAYERS } from '../maps/areaShape.js';
 
 export const MAP_VERSION = 10;
 const GRID_025_VERSION = 10;
 
-const HEIGHT_LAYERS = ['floor', 'path', 'clearing', 'grass'];
+export function defaultSpawn() {
+  return { cx: 0, cz: 0 };
+}
 
 function snapHeight(value) {
   return Number.isFinite(value) ? Math.round(value / HEIGHT_STEP) * HEIGHT_STEP : value;
@@ -13,7 +16,7 @@ function snapHeight(value) {
 
 function surfaceShifts(file) {
   const shifts = new Map();
-  for (const name of HEIGHT_LAYERS) {
+  for (const name of PLANE_LAYERS) {
     for (const entry of file[name] || []) {
       if (!entry || entry.level) continue;
       const key = `${entry.cx},${entry.cz}`;
@@ -28,7 +31,7 @@ function surfaceShifts(file) {
 export function quantizeMapFileHeights(file) {
   if (!file || (Number.isFinite(file.version) && file.version >= GRID_025_VERSION)) return file;
   const shifts = surfaceShifts(file);
-  for (const name of HEIGHT_LAYERS) {
+  for (const name of PLANE_LAYERS) {
     for (const entry of file[name] || []) {
       if (Number.isFinite(entry.liftY)) entry.liftY = snapHeight(entry.liftY);
       if (Number.isFinite(entry.ceilY)) entry.ceilY = snapHeight(entry.ceilY);
@@ -55,7 +58,7 @@ export function layoutFromMapFile(file, fallbackSeed = 1) {
   const world = file || {};
   const copy = (list) => (list || []).map((entry) => ({ ...entry }));
   return {
-    spawn: world.spawn && Number.isFinite(world.spawn.cx) ? { cx: world.spawn.cx, cz: world.spawn.cz } : { cx: 0, cz: 0 },
+    spawn: world.spawn && Number.isFinite(world.spawn.cx) ? { cx: world.spawn.cx, cz: world.spawn.cz } : defaultSpawn(),
     seed: Number.isFinite(world.seed) ? world.seed : fallbackSeed,
     waterLevel: Number.isFinite(world.waterLevel) ? world.waterLevel : null,
     floor: copy(world.floor),
@@ -85,7 +88,7 @@ export function mapFileFromLayout(mapKey, layout) {
     version: MAP_VERSION,
     mapKey,
     seed: Number.isFinite(layout.seed) ? layout.seed : fallback.seed,
-    spawn: layout.spawn ? { cx: layout.spawn.cx, cz: layout.spawn.cz } : { cx: 0, cz: 0 },
+    spawn: layout.spawn ? { cx: layout.spawn.cx, cz: layout.spawn.cz } : defaultSpawn(),
     waterLevel: Number.isFinite(layout.waterLevel) ? layout.waterLevel : undefined,
     floor: copy(layout.floor),
     path: copy(layout.path),

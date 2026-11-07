@@ -7,6 +7,11 @@ export const MAX_HEIGHT = 96;
 export const HEIGHT_STEP = 0.25;
 export const DEFAULT_HEIGHT_LEVEL = 0;
 export const HEIGHT_PRESETS = [-60, -40, -20, 0, 20, 40, 60, 80, 96];
+
+export function formatMeters(meters) {
+  const value = Math.round((Number(meters) || 0) * 100) / 100;
+  return `${String(value).replace('.', ',').replace('-', '−')} m`;
+}
 export function deriveBlocked(entries) {
   const out = [];
   for (const entry of entries) {
@@ -16,9 +21,5 @@ export function deriveBlocked(entries) {
     out.push({ cx: entry.cx, cz: entry.cz, offsetX: entry.offsetX || 0, offsetZ: entry.offsetZ || 0, radius: decoRadius(def) });
   }
   return out;
-}
-
-export function cellKey(cx, cz) {
-  return `${cx},${cz}`;
 }
 

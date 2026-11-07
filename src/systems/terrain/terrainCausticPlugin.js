@@ -2,6 +2,7 @@
 import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { causticGlsl } from '../../utils/waterCaustics.js';
+import { SEA_DIRECTION, WATER_MAX_DEPTH } from '../../utils/waterWaves.js';
 
 const CAUSTIC_CODE = causticGlsl();
 
@@ -11,11 +12,11 @@ export default class TerrainCausticPlugin extends MaterialPluginBase {
     super(material, 'TerrainCaustic', 210, {}, true, true);
     this.time = 0;
     this.level = -1000;
-    this.dirX = 0.94;
-    this.dirZ = 0.34;
+    this.dirX = SEA_DIRECTION[0];
+    this.dirZ = SEA_DIRECTION[1];
     this.color = new Color3(1, 1, 1);
     this.strength = 0;
-    this.maxDepth = 2.5;
+    this.maxDepth = WATER_MAX_DEPTH;
   }
 
   getClassName() {
@@ -25,8 +26,8 @@ export default class TerrainCausticPlugin extends MaterialPluginBase {
   setCaustics(time, level, dirX, dirZ, color, strength, maxDepth) {
     this.time = Number.isFinite(time) ? time : 0;
     this.level = Number.isFinite(level) ? level : -1000;
-    this.dirX = Number.isFinite(dirX) ? dirX : 0.94;
-    this.dirZ = Number.isFinite(dirZ) ? dirZ : 0.34;
+    this.dirX = Number.isFinite(dirX) ? dirX : SEA_DIRECTION[0];
+    this.dirZ = Number.isFinite(dirZ) ? dirZ : SEA_DIRECTION[1];
     if (color) this.color = color;
     this.strength = Number.isFinite(strength) ? strength : 0;
     if (Number.isFinite(maxDepth) && maxDepth > 0) this.maxDepth = maxDepth;

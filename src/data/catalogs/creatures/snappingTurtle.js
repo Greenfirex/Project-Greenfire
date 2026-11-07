@@ -2,6 +2,7 @@
 // Kosti modelu z Meshy nemají jména, takže části těla určuje tvar těla, ne názvy kostí.
 import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { ASSET_DIRS } from '../assetPaths.js';
+import { bindMatrix, axisInParent } from '../../../utils/proceduralRig.js';
 
 const MODEL = `${ASSET_DIRS.creatures}snapping_turtle/snapping_turtle.glb`;
 const LEG_SIDE = 0.32;
@@ -38,32 +39,10 @@ const HIT_LEG = 0.25;
 const SIDE_AXIS = new Vector3(1, 0, 0);
 const BACK_AXIS = new Vector3(0, 0, -1);
 
-function bindMatrix(bone) {
-  try {
-    if (typeof bone.getAbsoluteMatrix === 'function') return bone.getAbsoluteMatrix();
-    if (typeof bone.getBindMatrix === 'function') return bone.getBindMatrix();
-  } catch (error) {
-    return null;
-  }
-  return null;
-}
-
 function restPosition(bone) {
   const matrix = bindMatrix(bone);
   if (matrix && matrix.m) return new Vector3(matrix.m[12], matrix.m[13], matrix.m[14]);
   return bone.getAbsolutePosition().clone();
-}
-
-function axisInParent(bone, source) {
-  const parent = typeof bone.getParent === 'function' ? bone.getParent() : null;
-  if (!parent) return source.clone();
-  const matrix = bindMatrix(parent);
-  if (!matrix) return source.clone();
-  const inverse = matrix.clone();
-  inverse.invert();
-  const axis = Vector3.TransformNormal(source, inverse);
-  if (axis.lengthSquared() < 1e-8) return source.clone();
-  return axis.normalize();
 }
 
 function animatedEntry(bone) {

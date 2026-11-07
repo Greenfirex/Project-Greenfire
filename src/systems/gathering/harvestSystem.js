@@ -1,19 +1,17 @@
 // Evidence sebranných věcí (houby, mušle) — buňka a herní čas sehrání.
 // Do světa nic nestaví; scéna podle ní sebrané kusy schová a po pár dnech vrátí.
 const RESPAWN_DAYS = 3;
-const DEFAULT_DAY_SECONDS = 600;
 
 export default class HarvestSystem {
 
   constructor(scene) {
     this.s = scene;
     this.entries = new Map();
-    this.respawnSeconds = RESPAWN_DAYS * DEFAULT_DAY_SECONDS;
+    this.respawnSeconds = Infinity;
   }
 
   configure(daySeconds) {
-    const seconds = Number.isFinite(daySeconds) && daySeconds > 0 ? daySeconds : DEFAULT_DAY_SECONDS;
-    this.respawnSeconds = RESPAWN_DAYS * seconds;
+    this.respawnSeconds = Number.isFinite(daySeconds) && daySeconds > 0 ? RESPAWN_DAYS * daySeconds : Infinity;
   }
 
   keyOf(cx, cz) {

@@ -5,6 +5,7 @@ import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { fishTemplate } from '../../utils/fishFactory.js';
 import { FISH_KEYS, FISH_SWIM_DEPTH, getFishType } from '../../data/catalogs/fish.js';
 import { CELL_SIZE } from '../../utils/gridMath.js';
+import { hash01 } from '../../utils/noise.js';
 
 const BOB = 0.07;
 const SURFACE_MARGIN = 0.18;
@@ -27,11 +28,6 @@ const SCHOOL_REACH_MIN = 0.3;
 const SCHOOL_REACH_SPREAD = 0.6;
 const SCHOOL_TIMER_MIN = 3;
 const SCHOOL_TIMER_MAX = 14;
-
-function hash(x, z) {
-  const value = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
-  return value - Math.floor(value);
-}
 
 export default class FishSystem {
 
@@ -86,11 +82,11 @@ export default class FishSystem {
         mode: school.mode === 'orbit' ? 'orbit' : 'wander',
       });
       for (let index = 0; index < count; index += 1) {
-        const angle = (index / count) * Math.PI * 2 + hash(centerX + index, centerZ - index) * 0.8;
-        const reach = radius * (0.25 + 0.6 * hash(centerX - index * 3, centerZ + index * 5));
-        const speed = cruise * (0.75 + 0.5 * hash(index * 7 + 1, index * 3 - 5));
-        const scale = 0.75 + 0.4 * hash(index * 17, index * 9);
-        const startOut = hash(index * 13 + 7, centerX - index * 2) < START_OUT_SHARE;
+        const angle = (index / count) * Math.PI * 2 + hash01(centerX + index, centerZ - index) * 0.8;
+        const reach = radius * (0.25 + 0.6 * hash01(centerX - index * 3, centerZ + index * 5));
+        const speed = cruise * (0.75 + 0.5 * hash01(index * 7 + 1, index * 3 - 5));
+        const scale = 0.75 + 0.4 * hash01(index * 17, index * 9);
+        const startOut = hash01(index * 13 + 7, centerX - index * 2) < START_OUT_SHARE;
         const fishItem = {
           schoolIndex,
           x: centerX + Math.cos(angle) * reach,
@@ -99,13 +95,13 @@ export default class FishSystem {
           vz: Math.cos(angle) * speed,
           yaw: Math.atan2(-Math.cos(angle), -Math.sin(angle)),
           speed,
-          depth: type.depth * (0.7 + 0.6 * hash(index * 11, index * 5 + 3)),
-          phase: index * 1.7 + hash(index, centerX) * 2,
+          depth: type.depth * (0.7 + 0.6 * hash01(index * 11, index * 5 + 3)),
+          phase: index * 1.7 + hash01(index, centerX) * 2,
           scale,
           margin: SURFACE_MARGIN + type.length * 0.19 * scale,
           floor: Math.max(0.05, type.length * 0.3),
           state: 'school',
-          roamTimer: ROAM_FIRST_MIN + hash(index * 5 + 3, centerX + index) * ROAM_FIRST_SPREAD,
+          roamTimer: ROAM_FIRST_MIN + hash01(index * 5 + 3, centerX + index) * ROAM_FIRST_SPREAD,
           targetX: centerX,
           targetZ: centerZ,
         };
@@ -153,8 +149,8 @@ export default class FishSystem {
   pickTarget(school) {
     for (let attempt = 0; attempt < 6; attempt += 1) {
       const wander = school.wander + 1 + attempt;
-      const angle = hash(school.homeX + wander * 3.7, school.homeZ - wander * 1.9) * Math.PI * 2;
-      const reach = school.radius * (SCHOOL_REACH_MIN + SCHOOL_REACH_SPREAD * hash(school.homeZ + wander, school.homeX - wander));
+      const angle = hash01(school.homeX + wander * 3.7, school.homeZ - wander * 1.9) * Math.PI * 2;
+      const reach = school.radius * (SCHOOL_REACH_MIN + SCHOOL_REACH_SPREAD * hash01(school.homeZ + wander, school.homeX - wander));
       const targetX = school.homeX + Math.cos(angle) * reach;
       const targetZ = school.homeZ + Math.sin(angle) * reach;
       if (!this.pathSwims(school.homeX, school.homeZ, targetX, targetZ)) continue;
@@ -235,8 +231,8 @@ export default class FishSystem {
   startRoam(item, school) {
     for (let attempt = 0; attempt < 6; attempt += 1) {
       const seed = item.phase + attempt * 7.3 + Math.floor(this.time * 0.37);
-      const angle = hash(seed, seed * 1.7) * Math.PI * 2;
-      const reach = ROAM_MIN + hash(seed * 2.1, seed * 0.7) * (ROAM_MAX - ROAM_MIN);
+      const angle = hash01(seed, seed * 1.7) * Math.PI * 2;
+      const reach = ROAM_MIN + hash01(seed * 2.1, seed * 0.7) * (ROAM_MAX - ROAM_MIN);
       const x = school.centerX + Math.cos(angle) * reach;
       const z = school.centerZ + Math.sin(angle) * reach;
       if (!this.pathSwims(school.centerX, school.centerZ, x, z)) continue;
@@ -322,7 +318,7 @@ export default class FishSystem {
     if (item.state === 'roam' && distance < 1.8) item.state = 'back';
     if (item.state === 'back' && distance < school.radius * 0.7) {
       item.state = 'school';
-      item.roamTimer = ROAM_NEXT_MIN + hash(item.phase * 3.1, item.phase * 1.7) * ROAM_NEXT_SPREAD;
+      item.roamTimer = ROAM_NEXT_MIN + hash01(item.phase * 3.1, item.phase * 1.7) * ROAM_NEXT_SPREAD;
     }
 
     const targetYaw = Math.atan2(-item.vz, item.vx);

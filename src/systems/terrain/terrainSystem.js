@@ -28,6 +28,7 @@ import TerrainCausticPlugin from './terrainCausticPlugin.js';
 import TerrainWetPlugin from './terrainWetPlugin.js';
 import CliffSurfacePlugin from './cliffSurfacePlugin.js';
 import { GRASS_GROUND, grassGroundUrls } from '../../data/catalogs/grass.js';
+import { valueNoise, smoothstep } from '../../utils/noise.js';
 
 const PICK_LIFT = 0.002;
 const GRID_LIFT = 0.02;
@@ -81,27 +82,6 @@ function pointId(gx, gz) {
   return `${Math.round(gx * 2)},${Math.round(gz * 2)}`;
 }
 
-function hash01(a, b) {
-  const n = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
-  return n - Math.floor(n);
-}
-
-function valueNoise(x, z) {
-  const ix = Math.floor(x);
-  const iz = Math.floor(z);
-  const fx = x - ix;
-  const fz = z - iz;
-  const sx = fx * fx * (3 - 2 * fx);
-  const sz = fz * fz * (3 - 2 * fz);
-  const a = hash01(ix, iz);
-  const b = hash01(ix + 1, iz);
-  const c = hash01(ix, iz + 1);
-  const d = hash01(ix + 1, iz + 1);
-  const top = a + (b - a) * sx;
-  const bottom = c + (d - c) * sx;
-  return top + (bottom - top) * sz;
-}
-
 function planeView(field, level) {
   if (!field || !level) return field;
   return {
@@ -116,11 +96,6 @@ function planeView(field, level) {
 
 function cliffOffset(x, z) {
   return (valueNoise(x * CLIFF_WAVE_SCALE + 11.3, z * CLIFF_WAVE_SCALE - 7.1) - 0.5) * 2 * CLIFF_WAVE;
-}
-
-function smoothstep(edge0, edge1, value) {
-  const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
 }
 
 function cliffTint(gx, gz, y, t, tone, push, rim) {

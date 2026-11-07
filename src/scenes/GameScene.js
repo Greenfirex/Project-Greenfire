@@ -65,12 +65,12 @@ import { whenModelsIdle, takeModelError, preloadModel, loadModel, loadContainer,
 import { decorationModelUrl } from '../utils/decoTemplate.js';
 import { grassModelUrls } from '../data/catalogs/grass.js';
 import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
-import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
+import { WAVE_TIME_WRAP, SEA_DIRECTION } from '../utils/waterWaves.js';
 import { HOTBAR_ITEMS, ITEM_TYPES } from '../data/catalogs/items.js';
 import { worldToCellCoords, worldToCell, cellToWorldCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../data/catalogs/modelCatalog.js';
-import { mapFileFromLayout, layoutFromMapFile, isMapFile, MAP_VERSION, quantizeMapFileHeights } from '../data/catalogs/mapFile.js';
+import { mapFileFromLayout, layoutFromMapFile, isMapFile, MAP_VERSION, quantizeMapFileHeights, defaultSpawn } from '../data/catalogs/mapFile.js';
 import { worldCells, hasFloor, ceilingLiftAt } from '../data/maps/areaShape.js';
 import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
 import { PAINT_TERRAIN, PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH, PAINT_ALL } from '../data/catalogs/brushes.js';
@@ -496,8 +496,8 @@ export default class GameScene {
       this.terrainSystem.updateCaustics(0, null, 0, 0, null, 0, 0);
       return;
     }
-    const dirX = water.seaDir ? water.seaDir.x : 0.94;
-    const dirZ = water.seaDir ? water.seaDir.y : 0.34;
+    const dirX = water.seaDir ? water.seaDir.x : SEA_DIRECTION[0];
+    const dirZ = water.seaDir ? water.seaDir.y : SEA_DIRECTION[1];
     const strength = sun.intensity * this.waterDayness() * 0.2;
     this.terrainSystem.updateCaustics(water.time % WAVE_TIME_WRAP, level, dirX, dirZ, sun.diffuse, strength, water.maxDepth);
   }
@@ -1173,8 +1173,7 @@ export default class GameScene {
       const total = creature.tier && Number.isFinite(creature.tier.health) ? creature.tier.health : 0;
       if (total <= 0) continue;
       const ratio = creature.health / total;
-      const combat = creature.mode === 'alert' || creature.mode === 'chase'
-        || creature.mode === 'windup' || creature.mode === 'recover';
+      const combat = this.creatureSystem.isHostile(creature);
       const hovered = this.creatureSystem.hovered === creature;
       if (ratio >= 0.999 && !combat && !hovered) continue;
       const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ);
@@ -1737,7 +1736,7 @@ export default class GameScene {
       return file;
     } catch (error) {
       console.warn(`[mapa] Mapu ${this.mapKey} nejde přečíst ze souboru — ${error.message}`);
-      return { version: MAP_VERSION, mapKey: this.mapKey, seed: getMap(this.mapKey).seed, spawn: { cx: 0, cz: 0 }, floor: [], path: [], decorations: [] };
+      return { version: MAP_VERSION, mapKey: this.mapKey, seed: getMap(this.mapKey).seed, spawn: defaultSpawn(), floor: [], path: [], decorations: [] };
     }
   }
 
@@ -2217,7 +2216,7 @@ export default class GameScene {
         this.inventorySystem.apply(data);
         this.inventoryWindow.update(this.inventorySystem);
       },
-      defaults: { items: {} },
+      defaults: () => this.inventorySystem.defaultState(),
       order: 6,
     });
   }

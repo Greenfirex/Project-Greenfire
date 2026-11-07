@@ -9,8 +9,9 @@ import {
   FOAM_SWING, SHORE_SWING,
   waveAmpGlsl, waveFieldGlsl, rippleSlopeGlsl, rippleWarpGlsl, glslFloat,
 } from '../../utils/waterWaves.js';
+import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
 
-const FOAM_DIR = 'assets/nature/textures/';
+const FOAM_DIR = ASSET_DIRS.textures;
 const FOAM_FILES = {
   fineColor: `${FOAM_DIR}foam_fine_color.jpg`,
   fineOpacity: `${FOAM_DIR}foam_fine_opacity.jpg`,

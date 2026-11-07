@@ -1,18 +1,7 @@
-// Ikony předmětů na jednom místě — používají je inventář i log.
-export const ITEM_ICONS = {
-  wood: '🪵',
-  stone: '🪨',
-  shell: '🐚',
-  stick: '🥢',
-  meat: '🥩',
-  turtle_shell: '🐢',
-  mushroom: '🍄',
-  stone_axe: '🪓',
-  stone_pickaxe: '🎯',
-  workbench: '🎪',
-  campfire: '🔥',
-};
+// Ikona předmětu pro inventář a log — bere se z katalogu předmětů a receptů.
+import { ITEM_TYPES, RECIPES } from '../data/catalogs/items.js';
 
 export function itemIcon(key) {
-  return ITEM_ICONS[key] || '•';
+  const def = ITEM_TYPES[key] || RECIPES[key];
+  return (def && def.icon) || '•';
 }

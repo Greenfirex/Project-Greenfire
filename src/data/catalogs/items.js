@@ -3,24 +3,28 @@
 export const ITEM_TYPES = {
   wood: {
     displayName: 'Dřevo',
+    icon: '🪵',
     stackSize: 100,
     kind: 'raw',
     color: [0.45, 0.32, 0.2],
   },
   stone: {
     displayName: 'Kámen',
+    icon: '🪨',
     stackSize: 100,
     kind: 'raw',
     color: [0.55, 0.55, 0.58],
   },
   shell: {
     displayName: 'Mušle',
+    icon: '🐚',
     stackSize: 20,
     kind: 'raw',
     color: [0.93, 0.86, 0.8],
   },
   mushroom: {
     displayName: 'Houba',
+    icon: '🍄',
     stackSize: 100,
     kind: 'raw',
     color: [0.78, 0.55, 0.42],
@@ -33,18 +37,21 @@ export const ITEM_TYPES = {
   },
   stick: {
     displayName: 'Klacek',
+    icon: '🥢',
     stackSize: 100,
     kind: 'product',
     color: [0.52, 0.38, 0.24],
   },
   meat: {
     displayName: 'Maso',
+    icon: '🥩',
     stackSize: 20,
     kind: 'raw',
     color: [0.72, 0.25, 0.22],
   },
   turtle_shell: {
     displayName: 'Krunýř',
+    icon: '🐢',
     stackSize: 20,
     kind: 'raw',
     color: [0.38, 0.42, 0.28],
@@ -56,21 +63,25 @@ export const ITEM_KEYS = Object.keys(ITEM_TYPES);
 export const RECIPES = {
   stone_axe: {
     displayName: 'Kamenná sekyrka',
+    icon: '🪓',
     place: 'camp',
     cost: { wood: 2, stone: 3 },
   },
   stone_pickaxe: {
     displayName: 'Kamenný krumpáč',
+    icon: '🎯',
     place: 'camp',
     cost: { wood: 2, stone: 3 },
   },
   workbench: {
     displayName: 'Výrobní stůl',
+    icon: '🎪',
     place: 'camp',
     cost: { wood: 10, stone: 4 },
   },
   campfire: {
     displayName: 'Táborák',
+    icon: '🔥',
     place: 'camp',
     cost: { wood: 4, stone: 6 },
   },
