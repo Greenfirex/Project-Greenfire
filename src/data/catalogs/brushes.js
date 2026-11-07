@@ -30,7 +30,7 @@ const PAINT_FISH_ONLY = [PAINT_FISH];
 const PAINT_NOTHING = [];
 
 function levelMeters(level) {
-  const n = Math.round(Math.abs(level) * HEIGHT_STEP * 10) / 10;
+  const n = Math.round(Math.abs(level) * HEIGHT_STEP * 100) / 100;
   return `${String(n).replace('.', ',')} m`;
 }
 
@@ -260,7 +260,7 @@ export const BRUSHES = {
   join: {
     label: 'Spojnice',
     group: 'Terén',
-    note: 'Klikni na vrchol a pak na spodek — země se mezi nimi plynule srovná po 0,3 m.',
+    note: 'Klikni na vrchol a pak na spodek — země se mezi nimi plynule srovná po krocích výšky.',
     shape: 'line',
     join: true,
     options: [

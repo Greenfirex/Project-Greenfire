@@ -444,7 +444,7 @@ export default class DecoSystem {
     try {
       await this.attachModelNow(anchor, def, entry, section);
     } catch (error) {
-      console.warn('[deco] Model se nepodaĹ™ilo pĹ™ipojit:', def.model || def.tree, error);
+      console.warn('[deco] Model se nepodařilo připojit:', def.model || def.tree, error);
       if (!anchor.isDisposed() && !anchor.metadata?.broken) this.markBroken(anchor, def);
     }
   }
@@ -588,7 +588,7 @@ export default class DecoSystem {
   markBroken(anchor, def) {
     if (anchor) anchor.metadata = { ...(anchor.metadata || {}), broken: true };
     this.brokenCount += 1;
-    console.warn(`[deco] Model se nepodaĹ™ilo postavit: ${def.displayName || def.model || def.tree}`);
+    console.warn(`[deco] Model se nepodařilo postavit: ${def.displayName || def.model || def.tree}`);
   }
 
   isBlocked(cx, cz) {

@@ -33,7 +33,7 @@ Po uložení je potřeba mapu znovu načíst; vývojový server obvykle stránku
 - **Enter** potvrdí rozpracovanou zónu nebo označenou plochu.
 - **Esc** zahodí rozepsaný návrh nebo označenou plochu.
 - **Z** vrací poslední krok, **X** zapíná a vypíná mazání.
-- **H** přepíná režim výšek, **Q/E** a číslice 1–9 ladí výšku.
+- **H** přepíná režim výšek, **Q** výšku sníží, **E** zvýší a číslice 1–9 ladí výšku.
 - **R** pootočí náhled sázeného objektu o 45°, **Shift+R** zpět (u palem určuje směr prohnutí).
 - **F2** editor zavře, **P** pozastaví nebo pustí hru (stejně jako tlačítko **Pauza**).
 

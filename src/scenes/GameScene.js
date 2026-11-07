@@ -112,8 +112,10 @@ const SHADOW_MIN_Z = 1;
 const SHADOW_MAX_Z = 180;
 const TIME_SKIP = { hours: 6 };
 const BACK_HIT_DOT = -0.2;
+const REBUILD_HEIGHTS = 'heights';
 const REBUILD_LABELS = [
   { part: PAINT_TERRAIN, label: 'terén' },
+  { part: REBUILD_HEIGHTS, label: 'výšky' },
   { part: PAINT_DECORATIONS, label: 'dekorace' },
   { part: PAINT_CREATURES, label: 'tvory' },
   { part: PAINT_FISH, label: 'ryby' },
@@ -149,8 +151,6 @@ export default class GameScene {
     this.rebuildRunning = false;
     this.rebuildPending = false;
     this.rebuildParts = null;
-    this.heightRunning = false;
-    this.heightPending = false;
 
     this.cameraSystem = new CameraSystem(scene);
     this.gridSystem = new GridSystem(scene);
@@ -276,6 +276,7 @@ export default class GameScene {
     this.audioSystem.load();
     this.refreshAmbient();
     this.campfireSystem.onIgniteStart = (item) => this.playerSystem.igniteAt(item.x, item.z);
+    this.campfireSystem.igniteBusy = () => this.playerSystem.igniteImpactAt > 0;
     this.campfireSystem.onIgnite = () => {
       this.audioSystem.play('ignite');
       this.log.add('Táborák zapálen', 'action');
@@ -932,7 +933,7 @@ export default class GameScene {
     this.playerSystem.walkable = (x, z, level) => this.isWalkableAt(x, z, level);
     this.playerSystem.stepLevel = (fromX, fromZ, level, toX, toZ) => this.stepLevel(fromX, fromZ, level, toX, toZ);
     this.playerSystem.passageAt = (x, z, level) => this.isPassageAt(x, z, level);
-    this.playerSystem.inCombat = () => this.creatureSystem.isPlayerInCombat(this.playerSystem.root);
+    this.playerSystem.inCombat = () => Boolean(this.playerSystem.root) && this.creatureSystem.isPlayerInCombat(this.playerSystem.root.position);
     this.playerSystem.canSprint = () => this.playerStats.canSprint();
     this.playerSystem.speedScale = (x, z) => {
       if (this.terrainSystem.bridgeDeckAt(x, z) !== null) return 1;
@@ -1591,12 +1592,18 @@ export default class GameScene {
     this.adoptEditorMap();
     this.markMapDirty();
     const terrain = parts.has(PAINT_TERRAIN);
+    const heightsOnly = !terrain && parts.has(REBUILD_HEIGHTS);
     if (terrain) {
       this.gatherSystem.clear();
       this.refreshTerrain();
       await this.terrainSystem.whenReady();
     }
+    if (heightsOnly) {
+      this.refreshTerrain();
+      await this.terrainSystem.whenReady();
+    }
     if (parts.has(PAINT_DECORATIONS)) await this.rebuildDecorations();
+    else if (heightsOnly) this.reseatDecorations();
     if (parts.has(PAINT_CREATURES)) {
       await this.refreshCreatures();
       this.handleHover(this.hoverCell);
@@ -1611,38 +1618,12 @@ export default class GameScene {
   }
 
   hideRebuildBusy() {
-    if (this.rebuildRunning || this.heightRunning) return;
+    if (this.rebuildRunning) return;
     this.editor.hud.setBusy(null);
   }
 
   renderHeights() {
-    this.heightPending = true;
-    if (this.heightRunning) return;
-    this.runHeightRebuild();
-  }
-
-  async runHeightRebuild() {
-    if (this.heightRunning) return;
-    this.heightRunning = true;
-    try {
-      while (this.heightPending) {
-        this.heightPending = false;
-        this.showRebuildBusy(new Set([PAINT_TERRAIN]));
-        await this.nextFrame();
-        this.adoptEditorMap();
-        this.markMapDirty();
-        this.refreshTerrain();
-        await this.terrainSystem.whenReady();
-        this.reseatDecorations();
-      }
-    } catch (error) {
-      console.error('[mapa] Přesazení výšek selhalo:', error);
-      this.reportRebuildError(error);
-    } finally {
-      this.heightRunning = false;
-      this.hideRebuildBusy();
-      if (this.heightPending) this.runHeightRebuild();
-    }
+    this.renderMapLayout([REBUILD_HEIGHTS]);
   }
 
   reseatDecorations() {
@@ -1846,7 +1827,7 @@ export default class GameScene {
 
     this.dayNightSystem.create(map);
     this.dayNightSystem.attach(dir, hemi);
-    this.dayNightSystem.apply();
+    this.dayNightSystem.applyLighting();
     this.terrainSystem.onRebuilt = () => this.refreshCaveLighting();
     this.refreshCaveLighting();
   }
@@ -2001,7 +1982,7 @@ export default class GameScene {
     });
     this.simSystem.onTick = null;
     this.refreshClock();
-    this.hud.setClockSpeed(this.simSystem.speed, false);
+    this.hud.setClockSpeed(false, this.simSystem.speed);
   }
 
   refreshClock() {
@@ -2013,7 +1994,7 @@ export default class GameScene {
     this.clockText = `${hh}:${mm}`;
     this.hud.setClockText(this.clockText);
     this.hud.setClockPhase(this.describeDayPhase(time, cfg));
-    this.hud.setClockSpeed(this.simSystem.speed, this.paused || this.simSystem.halted);
+    this.hud.setClockSpeed(this.paused || this.simSystem.halted, this.simSystem.speed);
     if (this.characterWindow.open) this.refreshCharacterWindow();
   }
 
@@ -2083,11 +2064,14 @@ export default class GameScene {
         if (!anchor || anchor.isDisposed() || seen.has(anchor)) continue;
         seen.add(anchor);
         const cell = worldToCellCoords(anchor.position.x, anchor.position.z);
-        const onRoof = terrain.caveRoofCells.has(`${cell.cx},${cell.cz}`);
-        const visible = !(under && onRoof);
-        if (anchor._roofHidden !== visible) {
-          anchor._roofHidden = visible;
-          anchor.setEnabled(visible);
+        if (!terrain.caveRoofCells.has(`${cell.cx},${cell.cz}`)) continue;
+        if (under && !anchor._roofHidden) {
+          anchor._roofHidden = true;
+          anchor._roofWasEnabled = anchor.isEnabled(false);
+          anchor.setEnabled(false);
+        } else if (!under && anchor._roofHidden) {
+          anchor._roofHidden = false;
+          anchor.setEnabled(anchor._roofWasEnabled || anchor.isEnabled(false));
         }
       }
     }
@@ -2483,12 +2467,12 @@ export default class GameScene {
       return;
     }
     if (evt.key === 'q' || evt.key === 'Q') {
-      this.editor.mode.stepHeightLevel(1);
+      this.editor.mode.stepHeightLevel(-1);
       evt.preventDefault();
       return;
     }
     if (evt.key === 'e' || evt.key === 'E') {
-      this.editor.mode.stepHeightLevel(-1);
+      this.editor.mode.stepHeightLevel(1);
       evt.preventDefault();
       return;
     }

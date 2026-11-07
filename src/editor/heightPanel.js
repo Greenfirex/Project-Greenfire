@@ -4,6 +4,11 @@ import { HEIGHT_PRESETS, HEIGHT_STEP, MAX_HEIGHT, MIN_HEIGHT } from '../data/map
 import { formatLevel, heightRampColor, heightRampGradientCss } from './heightRamp.js';
 import { makeDraggable } from '../ui/draggable.js';
 
+function zeroRatio() {
+  const span = MAX_HEIGHT - MIN_HEIGHT;
+  return span ? (0 - MIN_HEIGHT) / span : 0.5;
+}
+
 export default class HeightPanel {
 
   constructor() {
@@ -34,6 +39,8 @@ export default class HeightPanel {
     const root = document.createElement('div');
     root.className = 'area-panel height-panel';
     const fine = formatLevel(1);
+    const wide = formatLevel(2);
+    const zeroPct = `${zeroRatio() * 100}%`;
     root.innerHTML = `
       <div class="area-panel__head">
         <span class="area-panel__title">Výška</span>
@@ -41,10 +48,10 @@ export default class HeightPanel {
       </div>
       <div class="height-panel__value">0 m</div>
       <div class="height-panel__scale">
-        <span class="height-panel__scale-zero"></span>
+        <span class="height-panel__scale-zero" style="left: ${zeroPct}"></span>
         <span class="height-panel__marker"></span>
       </div>
-      <div class="height-panel__scale-labels"><span>−6</span><span>0</span><span>+6</span></div>
+      <div class="height-panel__scale-labels"><span>${formatLevel(MIN_HEIGHT)}</span><span class="height-panel__scale-zero-label" style="left: ${zeroPct}">0</span><span>+${formatLevel(MAX_HEIGHT)}</span></div>
       <div class="height-panel__presets"></div>
       <div class="height-panel__staged is-hidden"></div>
       <div class="height-panel__step-label">Jemný krok</div>
@@ -62,14 +69,14 @@ export default class HeightPanel {
       <div class="height-panel__step-label">Krok po buňce</div>
       <div class="height-panel__steps height-panel__steps--three">
         <button type="button" data-krok="0" title="Všechny buňky stejně">vyp</button>
-        <button type="button" data-krok="-1" title="Každý další otisk o 0,3 m níž">−0,3 m</button>
-        <button type="button" data-krok="1" title="Každý další otisk o 0,3 m výš">+0,3 m</button>
+        <button type="button" data-krok="-1" title="Každý další otisk o ${fine} níž">−${fine}</button>
+        <button type="button" data-krok="1" title="Každý další otisk o ${fine} výš">+${fine}</button>
       </div>
       <div class="height-panel__step-label">Nepravidelnost</div>
       <div class="height-panel__steps height-panel__steps--three">
         <button type="button" data-jitter="0" title="Všechny buňky přesně na zvolené výšce">vyp</button>
-        <button type="button" data-jitter="1" title="Každá buňka náhodně ±0,3 m">±0,3 m</button>
-        <button type="button" data-jitter="2" title="Každá buňka náhodně ±0,6 m">±0,6 m</button>
+        <button type="button" data-jitter="1" title="Každá buňka náhodně ±${fine}">±${fine}</button>
+        <button type="button" data-jitter="2" title="Každá buňka náhodně ±${wide}">±${wide}</button>
       </div>
       <div class="area-panel__count">Vybráno: 0 buněk</div>
       <div class="area-panel__tools area-panel__undo-row">

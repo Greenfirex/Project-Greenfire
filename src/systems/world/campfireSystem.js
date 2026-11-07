@@ -21,6 +21,7 @@ export default class CampfireSystem {
     this.pending = null;
     this.pendingSparks = false;
     this.onIgniteStart = null;
+    this.igniteBusy = null;
     this.onFireAdded = null;
     this.onFireRemoved = null;
   }
@@ -29,6 +30,14 @@ export default class CampfireSystem {
     const cfg = def && def.flame;
     if (!cfg) return;
     const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
+    const existing = this.fires.find((item) => sameEntry(item, entry));
+    if (existing) {
+      existing.entry = entry;
+      existing.lift = cfg.y;
+      existing.fire.setScale(cfg.size);
+      existing.fire.place(x, surfaceY + cfg.y, z);
+      return;
+    }
     const fire = new CampfireFire(this.s);
     fire.setDayness(this.dayness);
     fire.setScale(cfg.size);
@@ -132,7 +141,7 @@ export default class CampfireSystem {
       this.cancel();
       return;
     }
-    if (root.igniteImpactAt > 0 || order.item.lit) return;
+    if ((this.igniteBusy && this.igniteBusy()) || order.item.lit) return;
     if (!this.pendingSparks) {
       this.pendingSparks = true;
       order.item.fire.ignite();

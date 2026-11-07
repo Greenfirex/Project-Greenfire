@@ -3,7 +3,7 @@
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { fishTemplate } from '../../utils/fishFactory.js';
-import { FISH_KEYS, getFishType } from '../../data/catalogs/fish.js';
+import { FISH_KEYS, FISH_SWIM_DEPTH, getFishType } from '../../data/catalogs/fish.js';
 import { CELL_SIZE } from '../../utils/gridMath.js';
 
 const BOB = 0.07;
@@ -22,7 +22,6 @@ const ROAM_FIRST_SPREAD = 12;
 const ROAM_NEXT_MIN = 6;
 const ROAM_NEXT_SPREAD = 14;
 const START_OUT_SHARE = 0.3;
-const SWIM_DEPTH = 0.8;
 const PATH_SAMPLES = 4;
 const SCHOOL_REACH_MIN = 0.3;
 const SCHOOL_REACH_SPREAD = 0.6;
@@ -146,7 +145,7 @@ export default class FishSystem {
   pathSwims(fromX, fromZ, toX, toZ) {
     for (let step = 1; step <= PATH_SAMPLES; step += 1) {
       const t = step / PATH_SAMPLES;
-      if (this.depthAt(fromX + (toX - fromX) * t, fromZ + (toZ - fromZ) * t) < SWIM_DEPTH) return false;
+      if (this.depthAt(fromX + (toX - fromX) * t, fromZ + (toZ - fromZ) * t) < FISH_SWIM_DEPTH) return false;
     }
     return true;
   }
@@ -223,7 +222,7 @@ export default class FishSystem {
     const speed = school.alarm > 0 ? FLEE_SPEED : DRIFT_SPEED;
     school.centerX += (stepX / length) * speed * dt;
     school.centerZ += (stepZ / length) * speed * dt;
-    if (this.depthAt(school.centerX, school.centerZ) < SWIM_DEPTH) {
+    if (this.depthAt(school.centerX, school.centerZ) < FISH_SWIM_DEPTH) {
       school.centerX += (school.homeX - school.centerX) * 0.25;
       school.centerZ += (school.homeZ - school.centerZ) * 0.25;
       school.targetX = school.homeX;
@@ -255,7 +254,7 @@ export default class FishSystem {
       item.roamTimer -= dt;
       if (item.roamTimer <= 0) this.startRoam(item, school);
     }
-    if (item.state === 'roam' && Number.isFinite(ground) && this.level - ground < SWIM_DEPTH) {
+    if (item.state === 'roam' && Number.isFinite(ground) && this.level - ground < FISH_SWIM_DEPTH) {
       item.state = 'back';
     }
     const headingX = item.state === 'roam' ? item.targetX : school.centerX;

@@ -1,8 +1,9 @@
 // Barevná škála výšek — jediné místo, kde se rozhoduje, jakou barvu která výška má.
 // Používá ji okénko Výška i překryvy v mapě, takže barvy vždycky sedí k sobě.
-import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
+import { HEIGHT_STEP, MIN_HEIGHT, MAX_HEIGHT } from '../data/maps/layoutStore.js';
 
 const RAMP = [
+  { meters: -15, color: [0.18, 0.27, 0.42] },
   { meters: -6, color: [0.29, 0.44, 0.56] },
   { meters: 0, color: [0.16, 0.2, 0.21] },
   { meters: 6, color: [0.44, 0.6, 0.37] },
@@ -41,7 +42,8 @@ export function heightRampColor(meters) {
 export function heightRampGradientCss() {
   const stops = RAMP.map((stop) => {
     const rgb = stop.color.map((channel) => Math.round(channel * 255));
-    const ratio = (stop.meters - RAMP[0].meters) / (RAMP[RAMP.length - 1].meters - RAMP[0].meters);
+    const low = MIN_HEIGHT * HEIGHT_STEP;
+    const ratio = Math.max(0, Math.min(1, (stop.meters - low) / (MAX_HEIGHT * HEIGHT_STEP - low)));
     return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]}) ${Math.round(ratio * 100)}%`;
   });
   return `linear-gradient(90deg, ${stops.join(', ')})`;

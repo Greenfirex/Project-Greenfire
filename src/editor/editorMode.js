@@ -1,12 +1,12 @@
 // Editační režim mapy — vyplňování buněk štětcem, modelování výšek a práce s plochou.
 // Přepíná se F2, drží jen hotovou mapu a historii úprav; vykreslování si řídí scéna.
-import { BRUSHES, brushOptions, brushPaintParts, PAINT_ALL, PAINT_TERRAIN } from '../data/catalogs/brushes.js';
+import { BRUSHES, brushOptions, brushPaintParts, PAINT_ALL, PAINT_TERRAIN, PAINT_CREATURES, PAINT_FISH } from '../data/catalogs/brushes.js';
 import { getDecoration, DEFAULT_FLOOR, decoFamily } from '../data/catalogs/decorations.js';
 import { cellKey, MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP, DEFAULT_HEIGHT_LEVEL } from '../data/maps/layoutStore.js';
 import { layerAt, layerEntriesAt, floorCellAt, layerLiftAt, levelOfEntry, dropLayerCell, dropDecorationCell, dropAreaCells, worldCells } from '../data/maps/areaShape.js';
 import { fillZone } from '../utils/zoneFill.js';
 import { createRng, seedFor } from '../utils/rng.js';
-import { getFishType } from '../data/catalogs/fish.js';
+import { getFishType, FISH_SWIM_DEPTH } from '../data/catalogs/fish.js';
 import { getCreatureType, getCreatureTier } from '../data/catalogs/creatures/index.js';
 import { decoPlacement } from '../utils/decoPlacement.js';
 import { bridgeSpan, bridgeCells } from '../utils/bridgeShape.js';
@@ -1125,6 +1125,8 @@ export default class EditorMode {
       count = dropAreaCells(this.layout, selection.cells);
       for (const [cx, cz] of selection.cells) {
         if (dropDecorationCell(this.layout, cx, cz)) count += 1;
+        if (this.dropCreatureCell(cx, cz)) count += 1;
+        if (this.dropFishCell(cx, cz)) count += 1;
       }
       this.dropOrphans();
     } else {
@@ -1144,7 +1146,7 @@ export default class EditorMode {
       return 0;
     }
     this.clearAreaSelection();
-    this.scheduleRegenerate();
+    this.scheduleRegenerate(erasing ? [...PAINT_ALL, PAINT_CREATURES, PAINT_FISH] : PAINT_ALL);
     return count;
   }
 
@@ -1572,11 +1574,14 @@ export default class EditorMode {
     }
     if (brush.erase) {
       const zone = [...cells].map(parseCell);
+      const bridgesBefore = (this.layout.bridges || []).length;
       const count = this.applyEraser(zone);
+      const eraseParts = (this.layout.bridges || []).length !== bridgesBefore ? [...new Set([...parts, PAINT_TERRAIN])] : parts;
       if (!count) this.history.pop();
+      else this.history[this.history.length - 1].parts = eraseParts;
       this.draft.cells.clear();
       if (this.onDraftChange) this.onDraftChange(this.draft);
-      this.scheduleRegenerate(parts);
+      this.scheduleRegenerate(eraseParts);
       return count;
     }
     if (brush.surface) {
@@ -1591,6 +1596,7 @@ export default class EditorMode {
     if (brush.height || brush.heights) {
       const zone = [...cells].map(parseCell);
       const count = this.applyHeightDraft(brushKey, zone, mode);
+      if (!count) this.history.pop();
       this.draft.cells.clear();
       if (this.onDraftChange) this.onDraftChange(this.draft);
       this.scheduleRegenerate(parts);
@@ -1798,7 +1804,7 @@ export default class EditorMode {
       }
       if (level === null) continue;
       const depth = level - layerLiftAt(this.layout, cx, cz);
-      if (depth < 0.35) continue;
+      if (depth < FISH_SWIM_DEPTH) continue;
       const roll = Math.abs(Math.sin(cx * 127.1 + cz * 311.7) * 43758.5453) % 1;
       this.layout.fish.push({
         cx,

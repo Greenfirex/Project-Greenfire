@@ -47,9 +47,9 @@ export default class AreaPanel {
       </div>
       <div class="area-panel__surfaces"></div>
       <div class="area-panel__height">
-        <button type="button" class="area-panel__height-down" title="Snížit o stupeň (E)">−</button>
+        <button type="button" class="area-panel__height-down" title="Snížit o stupeň (Q)">−</button>
         <span class="area-panel__height-value">výška 0 m</span>
-        <button type="button" class="area-panel__height-up" title="Zvýšit o stupeň (Q)">+</button>
+        <button type="button" class="area-panel__height-up" title="Zvýšit o stupeň (E)">+</button>
       </div>
       <div class="area-panel__count">Přidá se: 0 buněk</div>
       <div class="area-panel__tools area-panel__undo-row">

@@ -1,6 +1,7 @@
 // Typy rybek — rozměry, barvy a podoba hejna, ze kterých se ve hře skládá roj.
 // Rybka nevzniká v modelovém souboru, takže se dá ladit jedním číslem.
 const PROPORTION = { height: 0.38, width: 0.17 };
+export const FISH_SWIM_DEPTH = 0.8;
 
 export const FISH_TYPES = {
   fish_blue: {

@@ -246,10 +246,11 @@ export default class GatherSystem {
     if (this.target === source) this.target = null;
     if (hide && source.anchor && !source.anchor.isDisposed()) source.anchor.setEnabled(false);
     const withTool = Boolean(this.tool && this.tool.harvest);
-    const yields = withTool || source.def.byHand ? source.def.gather : BARE_YIELDS;
+    const fullYield = withTool || Boolean(source.def.byHand);
+    const yields = fullYield ? source.def.gather : BARE_YIELDS;
     return Object.entries(yields)
       .filter(([key, amount]) => typeof key === 'string' && Number.isFinite(amount) && amount > 0)
-      .map(([itemKey, amount]) => ({ itemKey, amount: withTool ? amount : 1 }));
+      .map(([itemKey, amount]) => ({ itemKey, amount: fullYield ? amount : 1 }));
   }
 
 

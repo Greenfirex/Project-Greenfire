@@ -43,7 +43,7 @@ export default class DayNightSystem {
 
   setTime(value) {
     this.time = ((value % 1) + 1) % 1;
-    this.apply();
+    this.applyLighting();
   }
 
   serialize() {
@@ -68,10 +68,10 @@ export default class DayNightSystem {
   update(deltaSeconds) {
     if (!this.config) return;
     this.time = (this.time + deltaSeconds / this.config.dayLengthSeconds) % 1;
-    this.apply();
+    this.applyLighting();
   }
 
-  apply() {
+  applyLighting() {
     const cfg = this.config;
     if (!cfg || !this.sunLight) return;
 

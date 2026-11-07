@@ -858,7 +858,6 @@
   position: absolute;
   top: -2px;
   bottom: -2px;
-  left: 50%;
   width: 1px;
   background: rgba(255, 255, 255, 0.5);
 }
@@ -884,11 +883,17 @@
 }
 
 .height-panel__scale-labels {
+  position: relative;
   display: flex;
   justify-content: space-between;
   margin-bottom: 8px;
   color: var(--text-dim);
   font-size: 9px;
+}
+
+.height-panel__scale-zero-label {
+  position: absolute;
+  transform: translateX(-50%);
 }
 
 .height-panel__presets {

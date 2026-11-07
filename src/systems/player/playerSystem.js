@@ -1,5 +1,5 @@
-// HratelnĂˇ postava â€” naÄŤtenĂ­ modelu s vlastnĂ­ texturou, animace z vedlejĹˇĂ­ch souborĹŻ a pohyb po svÄ›tÄ›.
-// Model i animace se stahujĂ­ najednou; nĂˇstroj teprve ve chvĂ­li, kdy ho hrĂˇÄŤ poprvĂ© vezme do ruky.
+// Hratelná postava — načtení modelu s vlastní texturou, animace z vedlejších souborů a pohyb po světě.
+// Model i animace se stahují najednou; nástroj teprve ve chvíli, kdy ho hráč poprvé vezme do ruky.
 import '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Animations/animatable';
 import '@babylonjs/core/Materials/PBR/pbrMaterial';
@@ -641,7 +641,7 @@ export default class PlayerSystem {
       group.stop();
       group.start(false, 0.001, group.from, group.to);
     } else {
-      console.warn('[player] ChybĂ­ animace Stand_Up1 â€” postava zĹŻstane ve vĂ˝chozĂ­ pĂłze.');
+      console.warn('[player] Chybí animace Stand_Up1 — postava zůstane ve výchozí póze.');
       this.play(this.idleAnim());
     }
     if (this.onIntroChange) this.onIntroChange(true);
