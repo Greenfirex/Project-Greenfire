@@ -8,6 +8,7 @@ import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import { CascadedShadowGenerator } from '@babylonjs/core/Lights/Shadows/cascadedShadowGenerator';
 import { Vector3, Matrix } from '@babylonjs/core/Maths/math.vector';
+import { Viewport } from '@babylonjs/core/Maths/math.viewport';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Scene } from '@babylonjs/core/scene';
 import { FxaaPostProcess } from '@babylonjs/core/PostProcesses/fxaaPostProcess';
@@ -113,6 +114,11 @@ const SHADOW_MAX_Z = 180;
 const TIME_SKIP = { hours: 6 };
 const BACK_HIT_DOT = -0.2;
 const REBUILD_HEIGHTS = 'heights';
+const AMBIENT_TIME_STEP = 0.0005;
+const SCREEN_IDENTITY = Matrix.Identity();
+const SCREEN_VIEWPORT = new Viewport(0, 0, 1, 1);
+const SCREEN_POINT = new Vector3();
+const SCREEN_PROJECTED = new Vector3();
 const REBUILD_LABELS = [
   { part: PAINT_TERRAIN, label: 'terén' },
   { part: REBUILD_HEIGHTS, label: 'výšky' },
@@ -299,9 +305,12 @@ export default class GameScene {
     this.wireDecoReady();
     this.decoHighlight.clear();
     const map = getMap(this.mapKey);
-    if (stages.length) this.decoSystem.beginStages(this.mapFile, map.colors);
-    else this.decoSystem.create(this.mapFile, map.colors);
-    this.decoSystem.buildPath();
+    if (stages.length) {
+      this.decoSystem.beginStages(this.mapFile, map.colors);
+      this.decoSystem.buildPath();
+    } else {
+      this.decoSystem.create(this.mapFile, map.colors);
+    }
     this.setupDecorations();
     this.setupSimulation();
     this.setupHud();
@@ -1144,9 +1153,9 @@ export default class GameScene {
     if (!camera || !canvas) return null;
     const rect = canvas.getBoundingClientRect();
     if (!rect.width || !rect.height) return null;
-    const viewport = camera.viewport.toGlobal(rect.width, rect.height);
-    const point = new Vector3(x, y, z);
-    const projected = Vector3.Project(point, Matrix.Identity(), this.s.getTransformMatrix(), viewport);
+    const viewport = camera.viewport.toGlobalToRef(rect.width, rect.height, SCREEN_VIEWPORT);
+    SCREEN_POINT.set(x, y, z);
+    const projected = Vector3.ProjectToRef(SCREEN_POINT, SCREEN_IDENTITY, this.s.getTransformMatrix(), viewport, SCREEN_PROJECTED);
     if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y)) return null;
     return { x: projected.x, y: projected.y };
   }
@@ -1454,11 +1463,14 @@ export default class GameScene {
       while (queue.length) {
         const item = queue.shift();
         const root = await preloadModel(this.s, decorationModelUrl(getDecoration(item.key)));
-        done += 1;
-        if (root) known.set(item.key, root);
-        else if (item.left > 1) {
+        if (root) {
+          known.set(item.key, root);
+          done += 1;
+        } else if (item.left > 1) {
           item.left -= 1;
           queue.push(item);
+        } else {
+          done += 1;
         }
         this.loader.note(`Připravuji ${done} z ${total} modelů`);
         await releaseFrame();
@@ -1999,8 +2011,17 @@ export default class GameScene {
   }
 
   refreshAmbient(dt = 0) {
-    const dayness = this.dayNightSystem.config ? this.dayNightSystem.dayness(this.dayNightSystem.getTime()) : 1;
+    const time = this.dayNightSystem.getTime();
+    const dayness = this.dayNightSystem.config ? this.dayNightSystem.dayness(time) : 1;
     const value = this.options.dayCycle ? dayness : 1;
+    const cycle = Boolean(this.options.dayCycle);
+    const settled = dt > 0 && cycle === this.ambientCycle && Math.abs(time - this.ambientTime) < AMBIENT_TIME_STEP;
+    if (settled) {
+      this.updateIndoor(dt);
+      return;
+    }
+    this.ambientCycle = cycle;
+    this.ambientTime = time;
     this.audioSystem.setDayness(value);
     this.floraSystem.setDayness(value);
     const sun = this.dayNightSystem.sunLight;

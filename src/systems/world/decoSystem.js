@@ -131,7 +131,6 @@ export default class DecoSystem {
   }
 
   finishStages() {
-    this.buildPath();
     this.refreshBlocked(this.layout || {});
   }
 

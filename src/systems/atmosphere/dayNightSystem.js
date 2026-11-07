@@ -106,7 +106,8 @@ export default class DayNightSystem {
     }
 
     const sky = this.skyColor(dayness);
-    this.s.clearColor = new Color4(sky[0], sky[1], sky[2], 1);
+    if (this.s.clearColor) this.s.clearColor.set(sky[0], sky[1], sky[2], 1);
+    else this.s.clearColor = new Color4(sky[0], sky[1], sky[2], 1);
     if (this.fogColor) {
       const scale = 0.55 + 0.75 * dayness;
       this.fogColor.set(sky[0] * scale, sky[1] * scale, sky[2] * scale);

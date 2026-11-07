@@ -43,7 +43,6 @@ export default class PathSystem {
     }
     this.meshes = [];
     this.shapes.clear();
-    this.dropUnusedMaterials();
   }
 
   dropUnusedMaterials() {
@@ -72,6 +71,11 @@ export default class PathSystem {
   }
 
   buildFromLayout(world, heightAt) {
+    this.buildMeshes(world, heightAt);
+    this.dropUnusedMaterials();
+  }
+
+  buildMeshes(world, heightAt) {
     this.clear();
     this.groundHeightAt = typeof heightAt === 'function' ? heightAt : null;
     if (!world || !Array.isArray(world.path)) return;

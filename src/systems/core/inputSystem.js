@@ -193,17 +193,17 @@ export default class InputSystem {
     if (origin.y > PICK_TOP) distance = (PICK_TOP - origin.y) / direction.y;
     let previous = distance;
     for (let i = 0; i < PICK_STEPS; i += 1) {
-      const point = origin.add(direction.scale(distance));
-      const height = this.groundHeightAt(point.x, point.z);
+      const px = origin.x + direction.x * distance;
+      const pz = origin.z + direction.z * distance;
+      const height = this.groundHeightAt(px, pz);
       if (!Number.isFinite(height)) return null;
-      if (point.y <= height) {
+      if (origin.y + direction.y * distance <= height) {
         let low = previous;
         let high = distance;
         for (let k = 0; k < PICK_REFINE; k += 1) {
           const mid = (low + high) * 0.5;
-          const probe = origin.add(direction.scale(mid));
-          const probeHeight = this.groundHeightAt(probe.x, probe.z);
-          if (probe.y <= probeHeight) high = mid;
+          const probeHeight = this.groundHeightAt(origin.x + direction.x * mid, origin.z + direction.z * mid);
+          if (origin.y + direction.y * mid <= probeHeight) high = mid;
           else low = mid;
         }
         const hit = origin.add(direction.scale(high + PICK_NUDGE));

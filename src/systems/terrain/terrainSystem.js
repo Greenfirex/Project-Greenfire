@@ -584,11 +584,15 @@ export default class TerrainSystem {
     data.applyToMesh(mesh);
     mesh.isPickable = false;
     mesh.receiveShadows = true;
-    const material = new StandardMaterial('terrainCaveRimMat', this.s);
-    material.diffuseColor = new Color3(0.34, 0.31, 0.28);
-    material.specularColor = new Color3(0, 0, 0);
-    material.ambientColor = new Color3(0.1, 0.1, 0.1);
-    material.backFaceCulling = false;
+    let material = this.materials.get('caveRim');
+    if (!material) {
+      material = new StandardMaterial('terrainCaveRimMat', this.s);
+      material.diffuseColor = new Color3(0.34, 0.31, 0.28);
+      material.specularColor = new Color3(0, 0, 0);
+      material.ambientColor = new Color3(0.1, 0.1, 0.1);
+      material.backFaceCulling = false;
+      this.materials.set('caveRim', material);
+    }
     mesh.material = material;
     mesh.metadata = { caveRim: true };
     mesh.setEnabled(false);

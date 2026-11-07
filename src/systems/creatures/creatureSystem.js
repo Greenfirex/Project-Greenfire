@@ -234,9 +234,13 @@ export default class CreatureSystem {
       if (node.getChildMeshes) children.push(...node.getChildMeshes());
     }
     const solid = children.filter((mesh) => mesh.getTotalVertices && mesh.getTotalVertices() > 0);
-    if (!solid.length) return null;
-    const root = instance.rootNodes.find((node) => node.getChildMeshes().length) || instance.rootNodes[0];
-    if (!root) return null;
+    const root = solid.length
+      ? instance.rootNodes.find((node) => node.getChildMeshes().length) || instance.rootNodes[0]
+      : null;
+    if (!root) {
+      instance.dispose();
+      return null;
+    }
 
     const bounds = root.getHierarchyBoundingVectors(true);
     const centerX = (bounds.min.x + bounds.max.x) / 2;
@@ -250,14 +254,14 @@ export default class CreatureSystem {
     root.position.set(-centerX * scale, -(bounds.min.y + groundOffset) * scale, -centerZ * scale);
 
     const tint = tierTint(tier);
-    const tinted = new Set();
+    const tinted = new Map();
     for (const mesh of solid) {
       mesh.isPickable = true;
       mesh.receiveShadows = true;
-      if (!tinted.has(mesh.material)) {
-        tinted.add(mesh.material);
-        this.tintMaterial(mesh, tint);
-      }
+      const original = mesh.material;
+      if (original && !tinted.has(original)) tinted.set(original, this.tintMaterial(original, tint));
+      const clone = original ? tinted.get(original) : null;
+      if (clone) mesh.material = clone;
       this.meshes.push(mesh);
       if (this.onMeshReady) this.onMeshReady(mesh);
     }
@@ -305,6 +309,8 @@ export default class CreatureSystem {
       tier,
       holder,
       root,
+      instance,
+      tintMaterials: [...tinted.values()].filter(Boolean),
       meshes: solid,
       rig,
       marker,
@@ -378,13 +384,12 @@ export default class CreatureSystem {
     proxy.position.set(creature.renderX, baseY + creature.pickHeight, creature.renderZ);
   }
 
-  tintMaterial(mesh, tint) {
-    const material = mesh.material;
-    if (!material || !material.clone) return;
+  tintMaterial(material, tint) {
+    if (!material || !material.clone) return null;
     const clone = material.clone(`${material.name}_tier`);
     if (clone.albedoColor !== undefined) clone.albedoColor = new Color3(tint.r, tint.g, tint.b);
     else if (clone.diffuseColor !== undefined) clone.diffuseColor = new Color3(tint.r, tint.g, tint.b);
-    mesh.material = clone;
+    return clone;
   }
 
   canStand(x, z, level = 0) {
@@ -1268,6 +1273,11 @@ export default class CreatureSystem {
     const slot = creature.slotKey ? this.slots.get(creature.slotKey) : null;
     if (slot && slot.creature === creature) slot.creature = null;
     if (creature.holder && !creature.holder.isDisposed()) creature.holder.dispose();
+    for (const material of creature.tintMaterials || []) material.dispose();
+    if (creature.instance) {
+      for (const group of creature.instance.animationGroups || []) group.dispose();
+      for (const skeleton of creature.instance.skeletons || []) skeleton.dispose();
+    }
     if (this.onMeshGone) {
       for (const mesh of gone) this.onMeshGone(mesh);
     }
