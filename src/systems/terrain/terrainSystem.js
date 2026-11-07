@@ -18,8 +18,8 @@ import { getMap } from '../../data/catalogs/maps.js';
 import { getDecoration, DEFAULT_FLOOR } from '../../data/catalogs/decorations.js';
 import { groundCells, worldCells, planeLevels, levelOfEntry, columnsByCell, layerLiftAt, floorCellAt } from '../../data/maps/areaShape.js';
 import { buildColumnRuns } from '../../utils/terrainRuns.js';
-import { buildRunSolidMesh } from './runSolidMesh.js';
-import { buildRunVolume } from './runVolume.js';
+import { buildRunBlocks } from './runBlocks.js';
+import { buildRunVolumeBuckets } from './runVolume.js';
 import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
 import TerrainBlendPlugin from './terrainBlendPlugin.js';
 import TerrainReliefPlugin from './terrainReliefPlugin.js';
@@ -34,12 +34,12 @@ const GRID_LIFT = 0.02;
 const GRID_SUB = 2;
 const SURFACE_SUB = 4;
 const SURFACE_CHUNK = 4;
+const CAVE_OPEN_STEP = 0.6;
 const RISE_SAMPLES = 8;
 const CLIFF_LOW_GAP = 0.9;
 const CLIFF_TOP_GAP = 0.25;
-const SKIRT_DEPTH = 2;
 const WALL_TILE = 3;
-const WALL_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
+const SURFACE_DEPTH = 1;
 const CLIFF_TEXTURE = `${ASSET_DIRS.textures}Rock050_1K-JPG_Color.jpg`;
 const CLIFF_NORMAL = `${ASSET_DIRS.textures}Rock050_1K-JPG_NormalGL.jpg`;
 const CLIFF_STRATA_TEXTURE = `${ASSET_DIRS.textures}Rock023_1K-JPG_Color.jpg`;
@@ -294,6 +294,21 @@ function cliffTint(gx, gz, y, t, tone, push, rim) {
   };
 }
 
+function wallTint(x, y, z, t) {
+  const grain = valueNoise(x * 0.37 + 4.1, z * 0.37 - 2.3);
+  const stripe = 0.5 + 0.5 * Math.sin(y * 0.95 + grain * 3.1);
+  const base = 0.66 + 0.34 * Math.pow(t, 0.62);
+  const moss = smoothstep(0.70, 0.97, t + (grain - 0.5) * 0.18) * (0.35 + 0.65 * grain);
+  const contact = 0.58 + 0.42 * smoothstep(0.02, 0.26, t);
+  const shade = base * (0.86 + 0.16 * grain) * (0.90 + 0.14 * stripe) * contact;
+  return {
+    r: shade * (1 - 0.12 * moss),
+    g: shade * (1 + 0.03 * moss),
+    b: shade * (1 - 0.20 * moss),
+    moss,
+  };
+}
+
 function wallBetween(field, ax, az, bx, bz) {
   const sx = Math.sign(bx - ax);
   const sz = Math.sign(bz - az);
@@ -369,20 +384,18 @@ export default class TerrainSystem {
     this.weightTextures = [];
     this.causticPlugins = [];
     this.wetPlugins = [];
-    this.skirtMaterial = null;
     this.cliffMaterials = null;
     this.cliffBlendTextures = [];
-    this.skirtMesh = null;
     this.gridLines = null;
     this.gridVisible = false;
 
     this.field = null;
+    this.cliffSkin = false;
     this.floorKeys = new Map();
     this.mapKey = null;
     this.bridges = [];
     this.mouths = new Map();
-    this.upLinks = new Map();
-    this.openSides = new Set();
+    this.surfaceEdge = new Map();
     this.ready = Promise.resolve(null);
   }
 
@@ -416,10 +429,6 @@ export default class TerrainSystem {
     return this.urlFlag('solid');
   }
 
-  volumeEnabled() {
-    return this.urlFlag('volume');
-  }
-
   floorKeyAt(cx, cz) {
     return this.floorKeys ? this.floorKeys.get(String(cx) + ',' + String(cz)) || null : null;
   }
@@ -430,7 +439,6 @@ export default class TerrainSystem {
     }
     this.ground = null;
     this.surfaces = [];
-    this.skirtMesh = null;
     this.gridLines = null;
     this.field = null;
     this.floorKeys.clear();
@@ -454,6 +462,7 @@ export default class TerrainSystem {
     this.shelfAnchors = [];
     this.bridges = [];
     this.bridgeWallColumns = new Map();
+    this.surfaceEdge.clear();
   }
 
   create(mapKey, world = null) {
@@ -468,13 +477,12 @@ export default class TerrainSystem {
     this.field = createTerrainField(world);
     this.columnRuns = null;
     const vents = this.connectorInfo();
-    this.upLinks = vents.upLinks;
-    this.openSides = vents.openSides;
     this.mouths = vents.mouths;
+    this.cliffSkin = this.urlFlag('cliffs');
     this.resetSurfaces();
     if (this.solidDebugEnabled()) {
-      const debugMesh = buildRunSolidMesh(this.s, world);
-      if (debugMesh) this.surfaces.push(debugMesh);
+      const blocks = buildRunBlocks(world, { cellSize: CELL_SIZE, tile: WALL_TILE });
+      if (blocks) this.surfaces.push(this.blockMesh(blocks));
       this.createPicker(this.pickCells());
       this.ready = Promise.resolve(this.surfaces);
       if (this.onRebuilt) this.onRebuilt();
@@ -483,13 +491,8 @@ export default class TerrainSystem {
     for (const level of planeLevels(world)) {
       this.createSurface(map, groundCells(world, level), level);
     }
-    this.createVoids(map);
+    this.createVolumeMass(map);
     this.createCaveReveal(map);
-    this.createSkirt(this.groundCells);
-    if (this.volumeEnabled()) {
-      const volume = buildRunVolume(this.s, world);
-      if (volume) this.surfaces.push(volume);
-    }
     this.createPicker(this.pickCells());
     this.gridLines = this.createGridLines(map, this.realCells);
     this.ready = Promise.resolve(this.surfaces);
@@ -683,6 +686,7 @@ export default class TerrainSystem {
     if (level === 0) this.floorKeys = keys;
     const keyAt = (cx, cz) => keys.get(`${cx},${cz}`) || null;
     const field = planeView(this.field, level);
+    const cliffSkin = this.cliffSkin;
     const caveColumns = columnsByCell(this.layout || {});
     const overCaveAt = (cx, cz) => {
       const planes = caveColumns.get(`${cx},${cz}`) || [];
@@ -924,7 +928,7 @@ export default class TerrainSystem {
           const gz = z1 + (z2 - z1) * t;
           const id = pointId(gx, gz);
           cliffPoints.add(id);
-          if (i === 0 || i === SURFACE_SUB) continue;
+          if (!cliffSkin || i === 0 || i === SURFACE_SUB) continue;
           const entry = cliffShifts.get(id) || { x: 0, z: 0 };
           if (side.dx) entry.x = cliffOffset(gx, gz);
           else entry.z = cliffOffset(gx + 37.9, gz - 19.4);
@@ -946,7 +950,8 @@ export default class TerrainSystem {
       return field.heightAtSide(pos.px, pos.pz, cx, cz);
     };
     const wallEdges = [];
-    for (const [cx, cz] of cells) {
+    const cliffCells = cliffSkin ? cells : [];
+    for (const [cx, cz] of cliffCells) {
       if (!keyAt(cx, cz)) continue;
       const x0 = cx * CELL_SIZE - half;
       const z0 = cz * CELL_SIZE - half;
@@ -1120,6 +1125,8 @@ export default class TerrainSystem {
       const value = welded.get(`${id}|${cx},${cz}`);
       return value === undefined ? null : value;
     };
+
+    this.surfaceEdge.set(level, { weldedAt, cliffPoints, heightOf });
 
     if (level === 0) this.bridges = this.bridgePlansFor(map, keyAt, positionOf, weldedAt);
 
@@ -1434,8 +1441,6 @@ export default class TerrainSystem {
 
   connectorInfo() {
     const layout = this.layout || {};
-    const upLinks = new Map();
-    const openSides = new Set();
     const mouths = new Map();
     const levelOf = (end) => (end && Number.isFinite(end.level) ? end.level : 0);
     const mouthFor = (end, dx, dz) => {
@@ -1452,7 +1457,9 @@ export default class TerrainSystem {
       const height = this.field.heightAt(end.cx * CELL_SIZE, end.cz * CELL_SIZE, levelOf(end));
       return Number.isFinite(height) ? height : null;
     };
-    for (const record of layout.connectors || []) {
+    const records = this.effectiveConnectors();
+    this.movementConnectors = records;
+    for (const record of records) {
       const from = record && record.from;
       const to = record && record.to;
       if (!from || !to) continue;
@@ -1460,201 +1467,165 @@ export default class TerrainSystem {
       const fromLift = liftAt(from, vertical);
       const toLift = liftAt(to, vertical);
       if (fromLift === null || toLift === null) continue;
-      const fromLevel = levelOf(from);
-      const toLevel = levelOf(to);
-      if (vertical) {
-        const fromKey = `${from.cx},${from.cz}|${fromLevel}`;
-        const toKey = `${to.cx},${to.cz}|${toLevel}`;
-        if (toLift > fromLift) upLinks.set(fromKey, Math.max(upLinks.get(fromKey) || -Infinity, toLift));
-        if (fromLift > toLift) upLinks.set(toKey, Math.max(upLinks.get(toKey) || -Infinity, fromLift));
-        continue;
-      }
+      if (vertical) continue;
       const dx = Math.sign(to.cx - from.cx);
       const dz = Math.sign(to.cz - from.cz);
-      openSides.add(`${from.cx},${from.cz}|${fromLevel}|${dx},${dz}`);
-      openSides.add(`${to.cx},${to.cz}|${toLevel}|${-dx},${-dz}`);
       mouthFor(from, dx, dz);
       mouthFor(to, -dx, -dz);
     }
-    return { upLinks, openSides, mouths };
+    return { mouths };
   }
 
-  airSpansAt(cx, cz, columns, upLinks) {
-    const spans = [];
-    for (let index = 0; index < columns.length; index += 1) {
-      const column = columns[index];
-      const next = columns[index + 1];
-      const linked = upLinks.get(`${cx},${cz}|${column.level}`);
-      let top = Number.isFinite(column.ceil) ? column.ceil : (next ? next.lift : Infinity);
-      if (linked !== undefined && linked > top) top = linked;
-      if (!Number.isFinite(top) || top <= column.lift) continue;
-      const ceil = Number.isFinite(column.ceil) && top <= column.ceil ? column.ceil : null;
-      spans.push({ bottom: column.lift, top, ceil, level: column.level });
-    }
-    return spans;
-  }
-
-  createVoids(map) {
-    const layout = this.layout || {};
-    const upLinks = this.upLinks || new Map();
-    const openSides = this.openSides || new Set();
-    const columns = columnsByCell(layout);
-    const byCell = new Map();
-    const cells = [];
-    for (const level of planeLevels(layout)) {
-      for (const [cx, cz] of worldCells(layout, level)) {
-        const id = `${cx},${cz}`;
-        if (byCell.has(id)) continue;
-        const cell = { cx, cz, spans: this.airSpansAt(cx, cz, columns.get(id) || [], upLinks) };
-        cells.push(cell);
-        byCell.set(id, cell);
-      }
-    }
-    if (!cells.length) return;
-    const buckets = this.voidQuads(cells, byCell, openSides, columns);
-    this.voidMeshes(buckets, map);
-  }
-
-  voidQuads(cells, byCell, openSides, columns) {
-    const layout = this.layout || {};
-    const half = CELL_SIZE / 2;
-    const surfaceOf = (cx, cz) => {
-      const planes = columns && columns.get(`${cx},${cz}`);
-      return planes && planes.length ? planes[planes.length - 1].lift : null;
-    };
-    const tint = new Color3(...SURFACE_VERTEX_TINT);
-    const wallTint = new Color3(tint.r * 0.62, tint.g * 0.62, tint.b * 0.62);
-    const ceilingTint = new Color3(tint.r * 0.42, tint.g * 0.42, tint.b * 0.42);
-    const buckets = new Map();
-    const bucket = (id) => {
-      let group = buckets.get(id);
-      if (!group) {
-        group = { positions: [], indices: [], uvs: [], colors: [] };
-        buckets.set(id, group);
-      }
-      return group;
-    };
-    const quad = (group, points, color, tile) => {
-      const start = group.positions.length / 3;
-      for (const point of points) {
-        group.positions.push(point[0], point[1], point[2]);
-        group.uvs.push(point[0] / tile, point[2] / tile);
-        group.colors.push(color.r, color.g, color.b, 1);
-      }
-      group.indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
-    };
-    const keyFor = (cx, cz, level) => {
-      const entry = floorCellAt(layout, cx, cz, level);
-      const key = entry && entry.key ? entry.key : DEFAULT_FLOOR;
-      const cfg = this.surfaceConfig(key);
-      return { key, tile: (cfg && cfg.tile) || 1 };
-    };
-
-    for (const cell of cells) {
-      const x0 = cell.cx * CELL_SIZE - half;
-      const x1 = x0 + CELL_SIZE;
-      const z0 = cell.cz * CELL_SIZE - half;
-      const z1 = z0 + CELL_SIZE;
-      for (const span of cell.spans) {
-        if (span.ceil === null) continue;
-        const info = keyFor(cell.cx, cell.cz, span.level);
-        const group = bucket(`ceiling|${info.key}`);
-        quad(group, [[x0, span.ceil, z0], [x0, span.ceil, z1], [x1, span.ceil, z1], [x1, span.ceil, z0]], ceilingTint, info.tile);
-      }
-    }
-
-    const subtract = (span, others) => {
-      let pieces = [{ bottom: span.bottom, top: span.top }];
-      for (const other of others) {
-        const next = [];
-        for (const piece of pieces) {
-          if (other.top <= piece.bottom || other.bottom >= piece.top) {
-            next.push(piece);
-            continue;
+  effectiveConnectors() {
+    const explicit = (this.layout && this.layout.connectors) || [];
+    const records = explicit
+      .filter((record) => record && record.from && record.to)
+      .map((record) => ({ from: { ...record.from }, to: { ...record.to }, kind: record.kind }));
+    const columns = columnsByCell(this.layout || {});
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (const [id, planes] of columns) {
+      const [cx, cz] = id.split(',').map(Number);
+      for (const plane of planes) {
+        if (plane.level >= 0 || !Number.isFinite(plane.ceil)) continue;
+        const caveLevel = plane.level;
+        const caveFloor = plane.lift;
+        for (const [dx, dz] of dirs) {
+          const nplanes = columns.get(`${cx + dx},${cz + dz}`);
+          if (!nplanes) continue;
+          let nGround = null;
+          let nHasCave = false;
+          for (const np of nplanes) {
+            if (np.level === 0) nGround = np.lift;
+            if (np.level === caveLevel) nHasCave = true;
           }
-          if (other.bottom > piece.bottom) next.push({ bottom: piece.bottom, top: other.bottom });
-          if (other.top < piece.top) next.push({ bottom: other.top, top: piece.top });
-        }
-        pieces = next;
-      }
-      return pieces;
-    };
-
-    for (const cell of cells) {
-      const x0 = cell.cx * CELL_SIZE - half;
-      const z0 = cell.cz * CELL_SIZE - half;
-      for (const [dx, dz] of [[1, 0], [0, 1]]) {
-        const other = byCell.get(`${cell.cx + dx},${cell.cz + dz}`);
-        const otherSpans = other ? other.spans : [];
-        const faces = [];
-        for (const span of cell.spans) {
-          for (const piece of subtract(span, otherSpans)) {
-            faces.push({ bottom: piece.bottom, top: piece.top, level: span.level, owner: cell, sx: dx, sz: dz });
-          }
-        }
-        if (other) {
-          for (const span of other.spans) {
-            for (const piece of subtract(span, cell.spans)) {
-              faces.push({ bottom: piece.bottom, top: piece.top, level: span.level, owner: other, sx: -dx, sz: -dz });
-            }
-          }
-        }
-        for (const face of faces) {
-          if (!Number.isFinite(face.top) || face.top - face.bottom < 0.01) continue;
-          if (openSides.has(`${face.owner.cx},${face.owner.cz}|${face.level}|${face.sx},${face.sz}`)) continue;
-          const farSide = face.owner === cell ? other : cell;
-          if (farSide && farSide.spans.length === 0) {
-            const farSurface = surfaceOf(farSide.cx, farSide.cz);
-            if (farSurface !== null && farSurface <= face.bottom + 0.05) continue;
-          }
-          const info = keyFor(face.owner.cx, face.owner.cz, face.level);
-          const group = bucket(`wall|${info.key}`);
-          if (dx !== 0) {
-            const ex = dx > 0 ? cell.cx * CELL_SIZE + half : cell.cx * CELL_SIZE - half;
-            quad(group, [[ex, face.bottom, z0], [ex, face.top, z0], [ex, face.top, z0 + CELL_SIZE], [ex, face.bottom, z0 + CELL_SIZE]], wallTint, info.tile);
-          } else {
-            const ez = dz > 0 ? cell.cz * CELL_SIZE + half : cell.cz * CELL_SIZE - half;
-            quad(group, [[x0, face.bottom, ez], [x0, face.top, ez], [x0 + CELL_SIZE, face.top, ez], [x0 + CELL_SIZE, face.bottom, ez]], wallTint, info.tile);
-          }
+          if (nHasCave || nGround === null) continue;
+          if (Math.abs(caveFloor - nGround) > CAVE_OPEN_STEP) continue;
+          const exists = records.some((record) => {
+            const fl = Number.isFinite(record.from.level) ? record.from.level : 0;
+            const tl = Number.isFinite(record.to.level) ? record.to.level : 0;
+            const fro = record.from;
+            const too = record.to;
+            return (too.cx === cx && too.cz === cz && tl === caveLevel && fro.cx === cx + dx && fro.cz === cz + dz)
+              || (fro.cx === cx && fro.cz === cz && fl === caveLevel && too.cx === cx + dx && too.cz === cz + dz);
+          });
+          if (exists) continue;
+          records.push({ from: { cx: cx + dx, cz: cz + dz, level: 0 }, to: { cx, cz, level: caveLevel }, kind: 'opening' });
         }
       }
     }
-
-    return buckets;
+    return records;
   }
 
-  voidMeshes(buckets, map) {
-    for (const [id, group] of buckets) {
+  createVolumeMass(map) {
+    const shade = { cave: 0.62, ceiling: 0.42 };
+    const buckets = buildRunVolumeBuckets(this.layout || {}, {
+      chunkSize: SURFACE_CHUNK,
+      cellSize: CELL_SIZE,
+      tileOf: (kind, name) => {
+        if (kind === 'cliff') return WALL_TILE;
+        const cfg = this.surfaceConfig(name);
+        return (cfg && cfg.tile) || 1;
+      },
+      subdivisions: SURFACE_SUB,
+      depth: SURFACE_DEPTH,
+      styleOf: (cx, cz) => (this.field && this.field.cliffStyleAt ? this.field.cliffStyleAt(cx, cz) : null),
+      surface: (gx, gz, cx, cz, dx, dz, fallback) => this.edgeHeightAt(gx, gz, cx, cz, dx, dz, fallback),
+      hardEdge: (cx, cz, dx, dz) => (this.field && this.field.isHardEdge ? this.field.isHardEdge(cx, cz, dx, dz) : false),
+    });
+    for (const group of buckets) {
       if (!group.positions.length) continue;
-      const cut = id.indexOf('|');
-      const kind = id.slice(0, cut);
-      const key = id.slice(cut + 1);
-      let normals = [];
-      VertexData.ComputeNormals(group.positions, group.indices, normals);
-      if (kind === 'ceiling' && normals[1] > 0) {
-        const indices = group.indices;
-        for (let i = 0; i < indices.length; i += 3) {
-          const swap = indices[i + 1];
-          indices[i + 1] = indices[i + 2];
-          indices[i + 2] = swap;
+      const total = group.positions.length / 3;
+      const factor = Number.isFinite(shade[group.kind]) ? shade[group.kind] : 1;
+      const colors = new Array(total * 4);
+      const mosses = group.kind === 'cliff' ? new Array(total) : null;
+      for (let i = 0; i < total; i += 1) {
+        if (mosses) {
+          const tint = wallTint(group.positions[i * 3], group.positions[i * 3 + 1], group.positions[i * 3 + 2], group.shades[i] || 0);
+          colors[i * 4] = tint.r;
+          colors[i * 4 + 1] = tint.g;
+          colors[i * 4 + 2] = tint.b;
+          colors[i * 4 + 3] = 1;
+          mosses[i] = tint.moss;
+        } else {
+          colors[i * 4] = SURFACE_VERTEX_TINT[0] * factor;
+          colors[i * 4 + 1] = SURFACE_VERTEX_TINT[1] * factor;
+          colors[i * 4 + 2] = SURFACE_VERTEX_TINT[2] * factor;
+          colors[i * 4 + 3] = 1;
         }
-        normals = [];
-        VertexData.ComputeNormals(group.positions, indices, normals);
       }
-      const prefix = kind === 'ceiling' ? 'terrainCeiling' : 'terrainCaveWall';
-      const mesh = new Mesh(`${prefix}_${key}`, this.s);
+      const mesh = new Mesh(this.volumeMeshName(group), this.s);
       const data = new VertexData();
       data.positions = group.positions;
       data.indices = group.indices;
       data.uvs = group.uvs;
-      data.colors = group.colors;
-      data.normals = normals;
+      data.colors = colors;
+      data.normals = [];
+      VertexData.ComputeNormals(group.positions, group.indices, data.normals);
       data.applyToMesh(mesh);
+      if (group.kind === 'cliff') {
+        const style = group.name === 'dirt' ? 'dirt' : 'stone';
+        if (style === 'stone') mesh.setVerticesData('mossMask', new Float32Array(mosses), false, 1);
+        mesh.material = this.cliffMaterialFor(style);
+      } else if (group.kind === 'ceiling') {
+        mesh.material = this.ceilingMaterialFor(group.name, map);
+      } else if (group.kind === 'soil') {
+        mesh.material = this.bandMaterialFor(group.name, map);
+      } else {
+        mesh.material = this.materialFor(group.name, map);
+      }
       mesh.isPickable = false;
       mesh.receiveShadows = true;
-      mesh.material = kind === 'ceiling' ? this.ceilingMaterialFor(key, map) : this.materialFor(key, map);
+      mesh.metadata = {
+        volume: true,
+        kind: group.kind,
+        key: group.name,
+        chunkX: group.chunkX,
+        chunkZ: group.chunkZ,
+      };
       this.surfaces.push(mesh);
     }
+  }
+
+  blockMesh(blocks) {
+    const mesh = new Mesh('terrainRunBlocks', this.s);
+    const data = new VertexData();
+    data.positions = blocks.positions;
+    data.indices = blocks.indices;
+    data.uvs = blocks.uvs;
+    data.colors = blocks.colors;
+    data.normals = [];
+    VertexData.ComputeNormals(blocks.positions, blocks.indices, data.normals);
+    data.applyToMesh(mesh);
+    mesh.setVerticesData('mossMask', new Float32Array(blocks.positions.length / 3), false, 1);
+    mesh.isPickable = false;
+    mesh.receiveShadows = true;
+    mesh.material = this.cliffMaterialFor('stone');
+    return mesh;
+  }
+
+  edgeHeightAt(gx, gz, cx, cz, dx, dz, fallback) {
+    const field = this.field;
+    if (!field || !field.heightAtSide) return fallback;
+    const source = this.surfaceEdge.get(0);
+    let height;
+    if (source) {
+      const id = pointId(gx, gz);
+      const welded = source.weldedAt(id, cx, cz);
+      if (welded !== null) height = welded;
+      else if (source.cliffPoints.has(id)) height = source.heightOf({ gx, gz }, cx, cz);
+      else height = field.heightAt(gx, gz);
+    } else {
+      height = field.heightAt(gx, gz);
+    }
+    return Number.isFinite(height) ? height : fallback;
+  }
+
+  volumeMeshName(group) {
+    const suffix = `c${group.chunkX}_${group.chunkZ}`;
+    if (group.kind === 'ceiling') return `terrainCeiling_vol_${suffix}_${group.name}`;
+    if (group.kind === 'cave') return `terrainCaveWall_vol_${suffix}_${group.name}`;
+    if (group.kind === 'soil') return `terrainSoil_vol_${suffix}_${group.name}`;
+    return `terrainVolume_${suffix}_${group.name}`;
   }
 
   ceilingMaterialFor(key, map) {
@@ -2399,93 +2370,6 @@ export default class TerrainSystem {
     this.surfaces.push(mesh);
   }
 
-  createSkirt(cells) {
-    if (!cells.length) return;
-    const floorKeys = new Set(cells.map(([cx, cz]) => `${cx},${cz}`));
-    let min = 0;
-    let first = true;
-    for (const [cx, cz] of cells) {
-      const height = this.heightAtCell(cx, cz);
-      if (first || height < min) {
-        min = height;
-        first = false;
-      }
-    }
-    const bottom = min - SKIRT_DEPTH;
-    const half = CELL_SIZE / 2;
-    const positions = [];
-    const indices = [];
-    const uvs = [];
-
-    const wall = (x1, z1, x2, z2, cx, cz) => {
-      const insideX = cx * CELL_SIZE;
-      const insideZ = cz * CELL_SIZE;
-      const sampleY = (x, z) => this.heightAt(
-        x + (insideX - x) * 0.08,
-        z + (insideZ - z) * 0.08,
-      );
-      const alongX = Math.abs(x2 - x1) >= Math.abs(z2 - z1);
-      for (let i = 0; i < SURFACE_SUB; i += 1) {
-        const t0 = i / SURFACE_SUB;
-        const t1 = (i + 1) / SURFACE_SUB;
-        const ax = x1 + (x2 - x1) * t0;
-        const az = z1 + (z2 - z1) * t0;
-        const bx = x1 + (x2 - x1) * t1;
-        const bz = z1 + (z2 - z1) * t1;
-        const ay = sampleY(ax, az);
-        const by = sampleY(bx, bz);
-        const au = (alongX ? ax : az) / WALL_TILE;
-        const bu = (alongX ? bx : bz) / WALL_TILE;
-        const start = positions.length / 3;
-        positions.push(ax, ay, az, bx, by, bz, bx, bottom, bz, ax, bottom, az);
-        uvs.push(au, ay / WALL_TILE, bu, by / WALL_TILE, bu, bottom / WALL_TILE, au, bottom / WALL_TILE);
-        indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
-      }
-    };
-
-    for (const [cx, cz] of cells) {
-      const x0 = cx * CELL_SIZE - half;
-      const z0 = cz * CELL_SIZE - half;
-      const x1 = x0 + CELL_SIZE;
-      const z1 = z0 + CELL_SIZE;
-      if (!floorKeys.has(`${cx},${cz - 1}`)) wall(x0, z0, x1, z0, cx, cz);
-      if (!floorKeys.has(`${cx + 1},${cz}`)) wall(x1, z0, x1, z1, cx, cz);
-      if (!floorKeys.has(`${cx},${cz + 1}`)) wall(x1, z1, x0, z1, cx, cz);
-      if (!floorKeys.has(`${cx - 1},${cz}`)) wall(x0, z1, x0, z0, cx, cz);
-    }
-
-    if (!positions.length) return;
-    const mesh = new Mesh('terrainSkirt', this.s);
-    const data = new VertexData();
-    data.positions = positions;
-    data.indices = indices;
-    data.uvs = uvs;
-    data.normals = [];
-    VertexData.ComputeNormals(positions, indices, data.normals);
-    data.applyToMesh(mesh);
-    mesh.isPickable = false;
-    mesh.receiveShadows = true;
-    mesh.material = this.skirtMaterialFor();
-    this.skirtMesh = mesh;
-    this.surfaces.push(mesh);
-  }
-
-  skirtMaterialFor() {
-    if (this.skirtMaterial) return this.skirtMaterial;
-    const material = new StandardMaterial('terrainSkirtMat', this.s);
-    const texture = new Texture(WALL_TEXTURE, this.s);
-    texture.wrapU = Texture.WRAP_ADDRESSMODE;
-    texture.wrapV = Texture.WRAP_ADDRESSMODE;
-    material.diffuseTexture = texture;
-    material.diffuseColor = new Color3(0.78, 0.72, 0.62);
-    material.specularColor = new Color3(0.02, 0.02, 0.02);
-    material.ambientColor = new Color3(0.08, 0.07, 0.06);
-    material.backFaceCulling = false;
-    material.twoSidedLighting = true;
-    this.skirtMaterial = material;
-    return material;
-  }
-
   cliffMaterialFor(style) {
     if (!this.cliffMaterials) this.cliffMaterials = {};
     const key = style === 'dirt' ? 'dirt' : 'stone';
@@ -2585,6 +2469,32 @@ export default class TerrainSystem {
     return { blends, patch };
   }
 
+  bandMaterialFor(key, map) {
+    const cacheKey = 'band|' + key;
+    const cached = this.materials.get(cacheKey);
+    if (cached) return cached;
+    const cfg = this.surfaceConfig(key) || {};
+    const material = new StandardMaterial('terrainBandMat_' + key, this.s);
+    const colorTexture = new Texture(CLAY_CLIFF_TEXTURE, this.s);
+    colorTexture.wrapU = Texture.WRAP_ADDRESSMODE;
+    colorTexture.wrapV = Texture.WRAP_ADDRESSMODE;
+    colorTexture.anisotropicFilteringLevel = 4;
+    material.diffuseTexture = colorTexture;
+    const bumpTexture = new Texture(CLAY_CLIFF_NORMAL, this.s);
+    bumpTexture.wrapU = Texture.WRAP_ADDRESSMODE;
+    bumpTexture.wrapV = Texture.WRAP_ADDRESSMODE;
+    bumpTexture.gammaSpace = false;
+    bumpTexture.anisotropicFilteringLevel = 4;
+    material.bumpTexture = bumpTexture;
+    material.diffuseColor = color3(cfg.mapTint ? this.tintOf(map) : (cfg.color || [1, 1, 1]));
+    material.specularColor = new Color3(0.02, 0.02, 0.02);
+    material.ambientColor = color3(cfg.ambient || [0.08, 0.08, 0.07]);
+    material.useVertexColor = true;
+    material.backFaceCulling = false;
+    material.twoSidedLighting = true;
+    this.materials.set(cacheKey, material);
+    return material;
+  }
   materialFor(key, map, blend = null) {
     const cacheKey = blend ? `${key}|${blend.partners.map((partner) => partner.key).join('+')}` : key;
     let material = this.materials.get(cacheKey);
@@ -2737,10 +2647,6 @@ export default class TerrainSystem {
     if (this.grassGroundTex) {
       for (const texture of this.grassGroundTex) texture.dispose();
       this.grassGroundTex = null;
-    }
-    if (this.skirtMaterial) {
-      this.skirtMaterial.dispose(false, true);
-      this.skirtMaterial = null;
     }
     if (this.cliffMaterials) {
       for (const material of Object.values(this.cliffMaterials)) {

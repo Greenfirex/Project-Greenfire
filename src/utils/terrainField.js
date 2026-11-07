@@ -1,5 +1,5 @@
 // Spojitá výška země — přesná ve středu buňky, plynule dopočítaná mezi středy; přes
-// hranu útesu ani přes schod nad 2,4 m se nevyhlazuje, takže vrch zůstane nad stěnou.
+// hranu útesu ani přes schod nad 2,0 m se nevyhlazuje, takže vrch zůstane nad stěnou.
 // Za okrajem mapy a u děr bere výšku nejbližší buňky, aby se zem na okraji nezvedala.
 import { CELL_SIZE, cellKey } from './gridMath.js';
 import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
@@ -7,7 +7,7 @@ import { worldCells, levelOfEntry, planeLevels } from '../data/maps/areaShape.js
 
 const MARGIN = 2;
 const AROUND = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-const AUTO_CLIFF_STEP = 2.4;
+const AUTO_CLIFF_STEP = 2.0;
 const STEP_EPSILON = 1e-6;
 export const SAME_LEVEL_STEP = HEIGHT_STEP + 0.01;
 const LAYER_ORDER = ['floor', 'clearing', 'grass', 'path'];

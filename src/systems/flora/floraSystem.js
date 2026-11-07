@@ -177,6 +177,8 @@ export default class FloraSystem {
     this.grass = null;
     this.chunks = [];
     this.grassMeshes = [];
+    this.excludeCells = null;
+    this.roofChunks = new Set();
     this.viewProvider = null;
     this.observer = null;
     this.groundTex = null;
@@ -509,6 +511,46 @@ export default class FloraSystem {
     const total = part.slots.length;
     const matrices = new Float32Array(total * 16);
     for (let i = 0; i < total; i += 1) this.clumpMatrix(part.slots[i]).copyToArray(matrices, i * 16);
+    part.mesh.thinInstanceSetBuffer('matrix', matrices, 16, false);
+  }
+
+  setRoofCells(cells) {
+    this.excludeCells = cells && cells.size ? cells : null;
+    const affected = new Set(this.roofChunks);
+    if (this.excludeCells) {
+      let minW = Infinity;
+      let maxW = -Infinity;
+      let minV = Infinity;
+      let maxV = -Infinity;
+      for (const id of this.excludeCells) {
+        const [cx, cz] = id.split(',').map(Number);
+        if (!Number.isFinite(cx) || !Number.isFinite(cz)) continue;
+        minW = Math.min(minW, cx * CELL_SIZE);
+        maxW = Math.max(maxW, cx * CELL_SIZE);
+        minV = Math.min(minV, cz * CELL_SIZE);
+        maxV = Math.max(maxV, cz * CELL_SIZE);
+      }
+      for (const chunk of this.chunks) {
+        if (chunk.minX > maxW + CELL_SIZE || chunk.minX + CHUNK_WORLD < minW - CELL_SIZE) continue;
+        if (chunk.minZ > maxV + CELL_SIZE || chunk.minZ + CHUNK_WORLD < minV - CELL_SIZE) continue;
+        affected.add(chunk);
+      }
+    }
+    this.roofChunks = this.excludeCells ? affected : new Set();
+    for (const chunk of affected) {
+      for (const part of chunk.parts) this.writePartFiltered(part);
+    }
+  }
+
+  writePartFiltered(part) {
+    if (!part.mesh) return;
+    const exclude = this.excludeCells;
+    const slots = exclude
+      ? part.slots.filter((slot) => !exclude.has(`${worldToCell(slot.x)},${worldToCell(slot.z)}`))
+      : part.slots;
+    const total = slots.length;
+    const matrices = new Float32Array(total * 16);
+    for (let i = 0; i < total; i += 1) this.clumpMatrix(slots[i]).copyToArray(matrices, i * 16);
     part.mesh.thinInstanceSetBuffer('matrix', matrices, 16, false);
   }
 

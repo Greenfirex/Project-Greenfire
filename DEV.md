@@ -790,6 +790,14 @@ Co je potřeba doladit, až se k tomu vrátíme:
 - **editor neumí** namalovat plochu −1 ani spoj (krok 5),
 - **vchod potřebuje stejnou výšku** na obou stranách; když se rozejdou, vznikne
   schod — ten budou řešit rampy nebo schody.
+- **otevřené otvory všude, kde jeskyně sedí na úrovni okolí** — obecné pravidlo
+  (hotovo, čeká na vizuální potvrzení). Kde jeskynní buňka (nižší patro se
+  stropem) sousedí s venkovní buňkou ve stejné výšce (rozdíl do 0,6 m), udělá se
+  tam **průchozí díra** — vyřízne se vnější skála a vynechá dutinová stěna, takže
+  se tam dá vejít i vyjít. Nikde se negeneruje falešná tenká zeď. Kde je venkov
+  výš/níž, zůstane skála. Otvory se počítají samy, takže to platí i pro budoucí
+  jeskyně; navržené spoje zůstávají a ruční vchod se s nimi jen sloučí (nekreslí
+  se dvakrát). Tvorové přes tyhle otvory zatím nechodí (stejně jako přes ruční vchod).
 
 **Viditelnost se bude vylepšovat.** První verze skryje celou plochu nad hráčem;
 později totéž po buňkách kolem hráče (plynulé schovávání, průhled). Aby to druhé
@@ -873,8 +881,8 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
    `liftY`/`ceilY` na 0,25) a **krokový limit postavy na 0,55** (aby šel vylézt 0,5).
    **Hotovo.** Dále: nový mesher pro podlahy (horní líce) za přepínačem; porovnat se
    současným povrchem.
-   **Debug objem za `?solid`** (`terrain/runSolidMesh.js`) — z pruhů postaví hmotu
-   (horní/spodní/boční líce) k ověření modelu; normální běh (bez `?solid`) beze změny.
+   **Debug objem za `?solid`** (`terrain/runBlocks.js`) — z pruhů postaví každý pevný
+   pruh jako uzavřený blok k ověření modelu; normální běh (bez `?solid`) beze změny.
    Směr: **hybrid** — hladký vršek zůstává (pohyb/tráva/voda se nemění), objem se přidá
    jako líce; řez/odklopení střechy a přestavba útesů přijdou po ověření.
    **Přesné odkrývání jeskyně (výchozí).** Stropní dlaždice buněk nad jeskyní
@@ -882,11 +890,86 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
    pod stropem se **schovají přesně ony** (ne celé dílky). Kolem otvoru se ukáže
    **svislý skalní lem** (`terrainCaveRim`, od stropu jeskyně k povrchu) a skryjí se
    dekorace na těch buňkách. Řešení „cap přes dílek" zrušeno (`?hybrid` i `hybridCap`
-   smazány).**Pozn.:** tráva (flora) na odhalených buňkách se zatím neskrývá — doladit.
-   **Boční hmota za `?volume`** (`terrain/runVolume.js`, první verze) — plné boční stěny
-   z pruhů za tenkými pláty útesů, aby z boku/zezadu neprosvítalo moře.
+   smazány). **Tráva** na odhalených buňkách se skryje taky — flora při odhalení
+   vyřadí sloty na těch buňkách (a po vynoření je vrátí).
+   **Hmota** (`terrain/runVolume.js`) — **hotovo, vždy zapnutá**. Z pruhů staví po
+   dílcích (stejné skupiny buněk jako povrch) tři druhy líců:
+   - **stěny jeskyní** (materiál tmavé podlahy patra, světlo je vyřadí ze slunce),
+     taky **po plátech 0,25 m** jako boky — pásy sedí na stejnou mřížku výšek,
+     takže vrstvy jdou plynule přes celou stěnu; jeskyně je vysoká pár metrů,
+     takže pásů je málo a není co optimalizovat,
+   - **spodní víka** (strop jeskyně),
+   - **boky terénu** — každý bok se dělí na dvě části: horní pás v materiálu
+     buňky (písek, tráva, hlína…) a pod ním skálu. Pás je **na útesu jen jeden
+     plát (0,25 m)**, na měkkém schodu **`SURFACE_DEPTH` (1 m)**; v obou
+     případech má **stejnou tloušťku po celé délce hrany** (kopíruje vršek),
+     takže se v něm textura nemačká do špičky. Pás má **stěnovou hliněnou
+     texturu obarvenou barvou buňky** a opakuje se **po `BAND_TILE` (1 m)** —
+     půdorysná textura (tráva, písek) na svislé ploše dělá pruhy, proto se na
+     boky nepoužívá. Skála má měřítko `WALL_TILE` (3 m) a klín od sklonu hrany
+     schová právě ona (pás zůstává rovný). Skála dostává **vrcholové barvy podle
+     výšky** (`wallTint`; podíl výšky na stěně dodává stavba hmoty v `shades`):
+     nazelenalý mech u horní hrany, ztmavení u paty a jemné světlé vrstvy —
+     bez toho je stěna jedna tmavá deska.
+     Horní hrana bere výšku **stejnými pravidly jako okraj
+     hladké plochy**: plocha si k tomu odloží svoje podklady (`surfaceEdge` —
+     svažené rohy, seznam útesových bodů a počítadlo výšky v posunutém místě)
+     a `edgeHeightAt` z nich čte ve stejném pořadí jako plocha: svažený roh →
+     svažená výška, útesový bod → výška buňky v posunutém místě, ostatní body →
+     přesná výška terénu bez posunu. Dřív si bok počítal výšku po svém (posun
+     vždy a svažené rohy vůbec), takže se okraje rozcházely o pár centimetrů
+     na svazích a v rozích. Hloubka pásu se odvozuje z hranice útesu:
+     hladká plocha klesne pod výšku buňky nejvýš o polovinu rozdílu a rozdíl je
+     nejvýš 2,0 m → pás musí mít aspoň **1,0 m = 4 pláty** po 0,25 m (5 plátů
+     je s rezervou), jinak by skála vykoukla nad povrch.
+     Bok je **rozřezaný na pláty po 0,25 m** (`HEIGHT_STEP`): skála je
+     zarovnaná na mřížku výšek (navazuje i mezi buňkami), pás kopíruje vršek.
+     Každý plát má **vlastní
+     výřez textury** (`layerUvs` — posun podle výšky vrstvy), takže se stejný
+     obrázek netáhne přes celou stěnu; pláty ve stejné vrstvě (i v sousední
+     buňce) mají posun stejný, takže se mezi buňkami nerozjedou svislé švy.
+     Hranice pásu povrchu padne přesně na hranu plátu. Hlouběji než 6 m pod
+     pásem zůstává skála jeden kus — je schovaná a dělení by jen žralo výkon.
+   - **okraj mapy** končí **`EDGE_DEPTH` (2 m) pod povrchem** — stejné pravidlo pro
+     každou buňku: bok sahá jen kousek pod zem, ne až na dno světa. U útesu je
+     spodek boku **nižší buňka** (celá výška schodu), ne 2 m od vršku útesu.
+     Zvenčí je proto pod okrajem vidět prázdno — dřív to kryla stěna až na −15 m.
+     Bok jde ještě **1 m (`depth`) pod zem nižší buňky**: hladká plocha se
+     u měkkého svahu prohýbá až o 1 m pod výšku buňky, takže stěna končící
+     přesně na zemi by u rohu útesu + svahu nechala klínovou škvíru (bylo to
+     vidět u buňky 9,1, kde se 3,6 m prohýbalo k 2,1 m). Ten metr navíc je
+     schovaný ve skále sousedky.
+   Boky se staví **u každé buňky stejně**, i tam, kde dřív stál plát útesu — jedno
+   pravidlo pro celou mapu. Když se stará kůže zapne (`?cliffs`), může plochá
+   stěna v některém místě vykouknout před vyboulený plát; řeší se to tady.
+   **Rohy stěn jsou zatím ostré.** Zaoblení se zkoušelo (vykrojení dovnitř,
+   pak vyboulení ven) a ani jedno nevypadalo dobře, tak je kód zase pryč.
+   Až bude jasné, jak má roh vypadat, udělá se znovu — správně to znamená
+   roh **seříznout** (zkosit) a stěny v tom místě zkrátit na stejný bod.
+   **Procedurální kůže útesů je vypnutá** — pláty s římsami a mechem, zkosené rohy,
+   rohové výplně, vlisy pod plátem ani vlnitý posun hrany se nestaví. Svislé stěny
+   teď dělá jen hmota (vrstvy po 0,25 m) a nová kůže se udělá až na plátovém
+   systému. Přepínač `?cliffs` starou kůži vrátí pro srovnání. S ní mizí i liány a
+   tráva na římsách (visí na místech, která stavěla právě ta kůže).
+   Líce se počítají odečtením pruhů souseda (ne jen „soused je celý vzduch"), takže
+   sedí i částečné přesahy.
+   **Staré řešení dutin (`createVoids`) a sukně (`createSkirt`) je smazané** — hmota
+   je nahradila. Hra proto neprosvítá z boku, za vchodem ani po odkrytí stropu,
+   a přitom **vypadá stejně jako dřív**.
+   **Hranice útesu je 2,0 m** (`AUTO_CLIFF_STEP` v `utils/terrainField.js`) — do ní
+   se svah přelévá hladce, nad ni je útes (svislá vrstvená stěna). Byla 2,4 m; snížení dělá krajinu
+   členitější. Pozor: přes hranu útesu se nepřelévá, takže tam vzniká schod, který
+   hráč nevyleze (limit 0,55 m) — kdyby některá cesta přestala být průchozí, je to
+   tohle číslo.
+   **`?solid`** je náhled hmoty pro vývoj (`terrain/runBlocks.js`): místo scény
+   postaví každý pevný pruh jako uzavřený blok se švem a jiným odstínem podle
+   buňky, takže je vidět naskládané kostky a je jasné, co v datech je.
 2. Boční a spodní líce (skála, stěny jeskyní, spodní víka) → hmota; odstranit staré
-   útesy/dutiny/sukni; ladit vzhled.
+   útesy/dutiny/sukni; ladit vzhled. **Hotovo v tom smyslu, že hmota je skutečná
+   a dutiny i sukně jsou pryč.** Viditelný povrch zůstává dnešní (hladká kůže
+   a pláty útesů), protože hráč nemá poznat rozdíl. **Zbývá, až bude chuť:** zkusit
+   plátování jako jinou kůži (vodorovné pásy po 0,25 m, horní pásy v barvě
+   povrchu) — je to jen jiný vzhled nad stejnou hmotou, ne potřeba k funkci.
 3. Pohyb a dotazy na pruzích.
 4. Voda, tráva, dekorace, kamera na nové dotazy.
 5. Editor: úpravy pruhů (vykopat/vyplnit), díry, spoje.
@@ -894,5 +977,9 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
 7. Dočistit 4B: odkrývání střechy je teď bezpečné (skála je hmota) a skryjí se i
    dekorace na odkrytých buňkách.
 
-**Stav:** Fáze 0 hotová (model pruhů + krok 0,25). Fáze 1 rozpracovaná — přeškálování výšek na 0,25 a krokový limit hotové; zbývá mesher podlah.
+**Stav:** Fáze 0 a 1 hotové (model pruhů + krok 0,25, přeškálování výšek, krokový
+limit 0,55, přesné odkrývání stropu včetně skrytí trávy na odkrytých buňkách).
+Fáze 2 hotová: terén má skutečnou hmotu (jeskyně, stropy, boky s pásem povrchu
+a okraj mapy), staré dutiny a sukně jsou smazané. Hranice útesu snížená na 2,0 m.
+Náhled hmoty jako kostek je za `?solid`. Zbývá 3 (dotazy na pruzích) a dál.
 

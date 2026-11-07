@@ -1316,7 +1316,7 @@ export default class GameScene {
   }
 
   refreshReflectionExclusions() {
-    const excluded = [this.terrainSystem.skirtMesh, ...this.floraSystem.grassMeshes];
+    const excluded = [...this.floraSystem.grassMeshes];
     const shadows = this.decoSystem.contactShadow ? this.decoSystem.contactShadow.mesh : null;
     if (shadows) excluded.push(shadows);
     for (const school of this.fishSystem.schools) {
@@ -2064,6 +2064,10 @@ export default class GameScene {
       }
     }
     this.updateCaveRoofDeco(under);
+    if (this.floraSystem && this.terrainSystem && this._roofFloraUnder !== under) {
+      this._roofFloraUnder = under;
+      this.floraSystem.setRoofCells(under ? this.terrainSystem.caveRoofCells : null);
+    }
   }
 
   updateCaveRoofDeco(under) {
@@ -2642,11 +2646,13 @@ export default class GameScene {
   }
 
   connectorLevelMap() {
-    const layout = this.decoSystem.layout || this.terrainSystem.layout || {};
-    if (this.connectorMap && this.connectorMapFor === layout) return this.connectorMap;
+    const terrain = this.terrainSystem;
+    const layout = this.decoSystem.layout || (terrain && terrain.layout) || {};
+    const records = (terrain && terrain.movementConnectors) || layout.connectors || [];
+    if (this.connectorMap && this.connectorMapFor === records) return this.connectorMap;
     const map = new Map();
     const levelOf = (end) => (end && Number.isFinite(end.level) ? end.level : 0);
-    for (const record of layout.connectors || []) {
+    for (const record of records) {
       const from = record && record.from;
       const to = record && record.to;
       if (!from || !to) continue;
@@ -2657,7 +2663,7 @@ export default class GameScene {
       map.set(`${to.cx},${to.cz},${levelOf(to)}|${-dx},${-dz}`, levelOf(from));
     }
     this.connectorMap = map;
-    this.connectorMapFor = layout;
+    this.connectorMapFor = records;
     return map;
   }
 
@@ -2675,10 +2681,12 @@ export default class GameScene {
   }
 
   passageCells() {
-    const layout = this.decoSystem.layout || this.terrainSystem.layout || {};
-    if (this.passageSet && this.passageFor === layout) return this.passageSet;
+    const terrain = this.terrainSystem;
+    const layout = this.decoSystem.layout || (terrain && terrain.layout) || {};
+    const records = (terrain && terrain.movementConnectors) || layout.connectors || [];
+    if (this.passageSet && this.passageFor === records) return this.passageSet;
     const set = new Set();
-    for (const record of layout.connectors || []) {
+    for (const record of records) {
       for (const end of [record && record.from, record && record.to]) {
         if (!end || !Number.isFinite(end.cx) || !Number.isFinite(end.cz)) continue;
         const lv = Number.isFinite(end.level) ? end.level : 0;
@@ -2686,7 +2694,7 @@ export default class GameScene {
       }
     }
     this.passageSet = set;
-    this.passageFor = layout;
+    this.passageFor = records;
     return set;
   }
 
