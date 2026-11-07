@@ -1,5 +1,5 @@
 // Registr map — seznam klíčů a deklarace map (počáteční semínko, barvy půdy, atmosféra).
-// Přidání mapy = jeden záznam v MAPS a klíč v MAP_KEYS.
+// Přidání mapy = jeden záznam v MAPS.
 export const MAPS = {
   glade: {
     displayName: 'Temný hvozd',
@@ -41,8 +41,6 @@ export const MAPS = {
     },
   },
 };
-
-export const MAP_KEYS = Object.keys(MAPS);
 
 export const DEFAULT_MAP = 'glade';
 

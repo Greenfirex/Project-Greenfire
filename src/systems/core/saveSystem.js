@@ -7,19 +7,13 @@ import { stateProvider } from '../../utils/saveState.js';
 export default class SaveSystem {
 
   constructor(scene) {
-    this.gameScene = scene;
+    this.s = scene;
     this.providers = new Map();
   }
 
-  get s() {
-    return this.gameScene;
-  }
-
-  register(owner, key, def) {
+  register(key, def) {
     if (!key || !def) return;
-    const provider = stateProvider(def);
-    if (owner && typeof owner.registerState === 'function') owner.registerState(key, provider);
-    this.providers.set(key, provider);
+    this.providers.set(key, stateProvider(def));
   }
 
   orderedProviders() {

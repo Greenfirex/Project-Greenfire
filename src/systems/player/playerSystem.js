@@ -119,7 +119,6 @@ export default class PlayerSystem {
     this.toolTemplates = {};
     this.toolLoading = {};
     this.heldToolKey = null;
-    this.loadStep = null;
     this.keysBound = false;
     this.toolNode = null;
     this.torchFire = null;
@@ -154,56 +153,51 @@ export default class PlayerSystem {
   }
 
   async create() {
-    this.beginStep();
-    try {
-      const loaded = await Promise.all([
-        loadImported(this.s, PLAYER_MODEL),
-        ...PLAYER_ANIMS.map((url) => loadImported(this.s, url)),
-      ]);
-      this.reportProgress(1);
-      const result = loaded[0];
-      if (!result) return null;
-      const hasSave = Boolean(this.pendingState);
-      const root = new TransformNode('playerRoot', this.s);
-      for (const mesh of result.meshes || []) {
-        if (mesh.setEnabled) mesh.setEnabled(true);
-        if (mesh.getTotalVertices && mesh.getTotalVertices() > 0) {
-          if (!this.mesh) this.mesh = mesh;
-          mesh.isPickable = false;
-          mesh.receiveShadows = true;
-        }
+    const loaded = await Promise.all([
+      loadImported(this.s, PLAYER_MODEL),
+      ...PLAYER_ANIMS.map((url) => loadImported(this.s, url)),
+    ]);
+    this.reportProgress(1);
+    const result = loaded[0];
+    if (!result) return null;
+    const hasSave = Boolean(this.pendingState);
+    const root = new TransformNode('playerRoot', this.s);
+    for (const mesh of result.meshes || []) {
+      if (mesh.setEnabled) mesh.setEnabled(true);
+      if (mesh.getTotalVertices && mesh.getTotalVertices() > 0) {
+        if (!this.mesh) this.mesh = mesh;
+        mesh.isPickable = false;
+        mesh.receiveShadows = true;
       }
-      if (!this.mesh) return null;
-      this.rig = this.mesh.parent;
-      if (this.rig) this.rig.parent = root;
-      this.root = root;
-      const scale = MODEL_HEIGHT / MODEL_BASE_HEIGHT;
-      root.scaling = new Vector3(scale, scale, scale);
-      root.rotation.y = MODEL_YAW;
-      const start = this.spawnCell ? cellToWorldCoords(this.spawnCell.cx, this.spawnCell.cz) : SPAWN;
-      this.root.position = this.positionAt(start.x, start.z);
-      this.homeX = start.x;
-      this.homeZ = start.z;
-      if (this.pendingState) {
-        const pending = this.pendingState;
-        this.pendingState = null;
-        this.apply(pending);
-        this.homeX = this.root.position.x;
-        this.homeZ = this.root.position.z;
-      }
-
-      this.loadAnimations(result, loaded.slice(1));
-      this.cacheFootBones();
-      this.reportProgress(this.progressTotal);
-      await this.attachToolNode();
-      this.bindKeys();
-      this.ready = true;
-      if (hasSave) this.play(this.idleAnim());
-      else this.lieDown();
-      return this.root;
-    } finally {
-      this.endStep();
     }
+    if (!this.mesh) return null;
+    this.rig = this.mesh.parent;
+    if (this.rig) this.rig.parent = root;
+    this.root = root;
+    const scale = MODEL_HEIGHT / MODEL_BASE_HEIGHT;
+    root.scaling = new Vector3(scale, scale, scale);
+    root.rotation.y = MODEL_YAW;
+    const start = this.spawnCell ? cellToWorldCoords(this.spawnCell.cx, this.spawnCell.cz) : SPAWN;
+    this.root.position = this.positionAt(start.x, start.z);
+    this.homeX = start.x;
+    this.homeZ = start.z;
+    if (this.pendingState) {
+      const pending = this.pendingState;
+      this.pendingState = null;
+      this.apply(pending);
+      this.homeX = this.root.position.x;
+      this.homeZ = this.root.position.z;
+    }
+
+    this.loadAnimations(result, loaded.slice(1));
+    this.cacheFootBones();
+    this.reportProgress(this.progressTotal);
+    await this.attachToolNode();
+    this.bindKeys();
+    this.ready = true;
+    if (hasSave) this.play(this.idleAnim());
+    else this.lieDown();
+    return this.root;
   }
 
   reportProgress(count) {
@@ -223,17 +217,6 @@ export default class PlayerSystem {
     }).catch(() => {
       this.toolLoading[tool.model] = false;
     });
-  }
-
-  beginStep() {
-    const loader = this.s.loader;
-    this.loadStep = loader ? loader.attach(1) : null;
-  }
-
-  endStep() {
-    const loader = this.s.loader;
-    if (loader && this.loadStep) loader.detach(this.loadStep);
-    this.loadStep = null;
   }
 
   async attachToolNode() {
@@ -1056,11 +1039,6 @@ export default class PlayerSystem {
       facing: this.facing,
       level: Number.isFinite(this.level) ? this.level : 0,
     };
-  }
-
-  registerState(key, provider) {
-    this.saveKey = key;
-    this.savedState = provider;
   }
 
   defaultState() {

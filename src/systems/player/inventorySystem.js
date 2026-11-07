@@ -61,11 +61,6 @@ export default class InventorySystem {
     this.items = next;
   }
 
-  registerState(key, provider) {
-    this.saveKey = key;
-    this.savedState = provider;
-  }
-
   defaultState() {
     return { items: {} };
   }

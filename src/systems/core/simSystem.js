@@ -10,11 +10,9 @@ export default class SimSystem {
     this.s = scene;
     this.acc = 0;
     this.time = 0;
-    this.tickCount = 0;
     this.speed = 1;
     this.halted = false;
     this.subscribers = [];
-    this.onTick = null;
   }
 
   subscribe(fn) {
@@ -34,11 +32,6 @@ export default class SimSystem {
 
   resetAccumulator() {
     this.acc = 0;
-  }
-
-  registerState(key, provider) {
-    this.saveKey = key;
-    this.savedState = provider;
   }
 
   serialize() {
@@ -70,8 +63,6 @@ export default class SimSystem {
 
   runTick() {
     this.time += TICK_SECONDS;
-    this.tickCount += 1;
     for (const fn of this.subscribers) fn(TICK_SECONDS, this.time);
-    if (this.onTick) this.onTick(this.time);
   }
 }

@@ -69,7 +69,6 @@ import { WAVE_TIME_WRAP } from '../utils/waterWaves.js';
 import { HOTBAR_ITEMS, ITEM_TYPES } from '../data/catalogs/items.js';
 import { worldToCellCoords, worldToCell, cellToWorldCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
-import { SAVE_VERSION, SAVE_STORAGE_KEY } from '../data/catalogs/saveSchema.js';
 import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../data/catalogs/modelCatalog.js';
 import { mapFileFromLayout, layoutFromMapFile, isMapFile, MAP_VERSION, quantizeMapFileHeights } from '../data/catalogs/mapFile.js';
 import { worldCells, hasFloor, ceilingLiftAt } from '../data/maps/areaShape.js';
@@ -408,12 +407,9 @@ export default class GameScene {
 
   async waitForWorld() {
     for (let i = 0; i < 3000; i += 1) {
-      if (this.loader.allDone && this.loader.pending === 0) break;
+      if (this.loader.allDone) break;
       await whenModelsIdle();
       await releaseFrame();
-    }
-    if (this.loader.pending > 0) {
-      console.warn(`[start] dokončení světa trvá příliš dlouho — zbývá ${this.loader.pending} kroků.`);
     }
     this.loader.finish();
   }
@@ -1549,14 +1545,6 @@ export default class GameScene {
     return this.editor.undo();
   }
 
-  updateDraftView(draft) {
-    return this.editor.updateDraftView(draft);
-  }
-
-  refreshZoneOverlay() {
-    return this.editor.refreshZoneOverlay();
-  }
-
   renderMapLayout(parts) {
     const list = Array.isArray(parts) ? parts : PAINT_ALL;
     if (!this.rebuildParts) this.rebuildParts = new Set();
@@ -1732,18 +1720,6 @@ export default class GameScene {
     this.editor.hud.setReadout(`Aplikováno ${placed} objektů, ale ${label} — chybí model.`);
   }
 
-  toggleEditorPanel(active) {
-    return this.editor.togglePanel(active);
-  }
-
-  syncEditorPanels(mode) {
-    return this.editor.syncPanels(mode);
-  }
-
-  exitEditor() {
-    return this.editor.close();
-  }
-
   readMapFile() {
     return `/_map/${encodeURIComponent(this.mapKey)}`;
   }
@@ -1847,7 +1823,6 @@ export default class GameScene {
   refreshCaveLighting() {
     if (!this.terrainSystem || !this.sunLight) return;
     const cave = this.terrainSystem.caveMeshes();
-    this.caveMeshList = cave;
     this.sunLight.excludedMeshes = cave;
     const sky = this.dayNightSystem ? this.dayNightSystem.skyLight : null;
     if (sky) sky.excludedMeshes = cave;
@@ -1992,7 +1967,6 @@ export default class GameScene {
       this.creatureSystem.tick(tick, this.simSystem.time);
       this.playerStats.tick(tick, this.playerSystem.sprinting);
     });
-    this.simSystem.onTick = null;
     this.refreshClock();
     this.hud.setClockSpeed(false, this.simSystem.speed);
   }
@@ -2237,7 +2211,7 @@ export default class GameScene {
     this.registerSavedState(this.creatureSystem, 'creatures', 16);
     this.registerSavedState(this.dayNightSystem, 'dayNight', 20);
     this.registerSavedState(this.simSystem, 'sim', 25);
-    this.saveSystem.register(this.inventorySystem, 'inventory', {
+    this.saveSystem.register('inventory', {
       serialize: () => this.inventorySystem.serialize(),
       apply: (data) => {
         this.inventorySystem.apply(data);
@@ -2249,7 +2223,7 @@ export default class GameScene {
   }
 
   registerSavedState(owner, key, order) {
-    this.saveSystem.register(owner, key, {
+    this.saveSystem.register(key, {
       serialize: () => owner.serialize(),
       apply: (data) => owner.apply(data),
       defaults: () => owner.defaultState(),
@@ -2609,31 +2583,12 @@ export default class GameScene {
     this.editor.lastPaintCell = null;
   }
 
-  showAreaPreview(selection) {
-    return this.editor.showAreaPreview(selection);
-  }
-
   applyAreaSelection() {
     return this.editor.applyAreaSelection();
   }
 
-  layerExists(cx, cz) {
-    const world = this.editor.getMap();
-    if (!world) return false;
-    return ['floor', 'path', 'clearing'].some((name) => (world[name] || []).some((e) => e.cx === cx && e.cz === cz));
-  }
-
-  decoExists(cx, cz) {
-    const world = this.editor.getMap();
-    return Boolean(world && (world.decorations || []).some((e) => e.cx === cx && e.cz === cz));
-  }
-
   clearAreaSelection() {
     return this.editor.clearAreaSelection();
-  }
-
-  cellsOfArea() {
-    return this.terrainSystem.realCells || [];
   }
 
   isWalkableAt(x, z, level = 0) {
@@ -2767,20 +2722,8 @@ export default class GameScene {
     });
   }
 
-  warnUnsavedMap() {
-    return this.editor.warnUnsaved();
-  }
-
   markMapDirty() {
     return this.editor.markDirty();
-  }
-
-  clearMapDirty() {
-    return this.editor.clearDirty();
-  }
-
-  saveMapLayout() {
-    return this.editor.saveMap();
   }
 
   requestLoad() {

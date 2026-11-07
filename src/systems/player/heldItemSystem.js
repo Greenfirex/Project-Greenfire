@@ -30,11 +30,6 @@ export default class HeldItemSystem {
     if (this.onChange) this.onChange(this.key);
   }
 
-  registerState(key, provider) {
-    this.saveKey = key;
-    this.savedState = provider;
-  }
-
   defaultState() {
     return { key: null };
   }

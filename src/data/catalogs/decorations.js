@@ -700,18 +700,6 @@ export const DECORATION_TYPES = {
     noTint: true,
     kind: 'ground',
   },
-  shell_giant: {
-    gather: { shell: 2 },
-    displayName: 'Obrovská mušle',
-    shell: 'shell_giant',
-    scale: 1,
-    radius: 0.75,
-    height: 0.35,
-    blocks: true,
-    castsShadow: true,
-    noTint: true,
-    kind: 'rock',
-  },
   coral_clump_1: {
     displayName: 'Shluk korálů 1',
     coral: 'coral_clump_1',
@@ -990,8 +978,6 @@ export const DECORATION_TYPES = {
 
 export const DEFAULT_FLOOR = 'floor_grass';
 
-export const DECORATION_KEYS = Object.keys(DECORATION_TYPES);
-
 export function getDecoration(key) {
   const def = DECORATION_TYPES[key];
   if (!def || def.highlight) return def;
@@ -1024,10 +1010,6 @@ export function decoRadius(def) {
   return def.radius || 0;
 }
 
-export function decoFootprint(def) {
-  return def.footprint || null;
-}
-
 export function decoHeight(def) {
   if (def.blocks === false) return 0;
   return def.height || 0;
@@ -1035,7 +1017,6 @@ export function decoHeight(def) {
 
 function genericHighlight(def) {
   if (def.kind === 'tree') return { ringColor: [0.55, 0.95, 0.5], ringSize: ringFor(def.radius, 0.9) };
-  if (def.kind === 'prop') return { ringColor: [0.85, 0.85, 0.55], ringSize: ringFor(def.radius, 0.8) };
   if (def.kind === 'rock') return { ringColor: [0.8, 0.82, 0.9], ringSize: ringFor(def.radius, 0.8) };
   return null;
 }

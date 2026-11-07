@@ -43,16 +43,6 @@ export const SHELL_RECIPES = {
     thickness: 0.45,
     tint: [1.2, 1.15, 1.08],
   },
-  shell_giant: {
-    ...SHELL_STONE,
-    size: [1.05, 0.42, 1.15],
-    ribs: 13,
-    spread: 1.2,
-    wave: 0.09,
-    curl: 0.08,
-    thickness: 0.55,
-    tint: [1.24, 1.19, 1.12],
-  },
 };
 
 export function getShellRecipe(key) {

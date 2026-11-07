@@ -56,11 +56,6 @@ export default class DayNightSystem {
     this.setTime(time);
   }
 
-  registerState(key, provider) {
-    this.saveKey = key;
-    this.savedState = provider;
-  }
-
   defaultState() {
     return { time: this.config ? this.config.startTime ?? 0 : 0 };
   }

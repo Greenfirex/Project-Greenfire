@@ -170,11 +170,6 @@ export default class CampfireSystem {
     return { lit: this.fires.filter((item) => item.lit).map((item) => cellKey(item.cx, item.cz)) };
   }
 
-  registerState(key, provider) {
-    this.saveKey = key;
-    this.savedState = provider;
-  }
-
   defaultState() {
     return { lit: [] };
   }

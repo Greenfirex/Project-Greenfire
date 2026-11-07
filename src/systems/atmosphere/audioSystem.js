@@ -212,7 +212,6 @@ export default class AudioSystem {
     const on = Boolean(burning);
     if (on !== this.fireOn) {
       this.fireOn = on;
-      if (on && this.s.engine) this.s.engine.unlockAudio();
     }
     this.fireDistance = Number.isFinite(distance) ? distance : Infinity;
     if (!on && !this.fire) return;

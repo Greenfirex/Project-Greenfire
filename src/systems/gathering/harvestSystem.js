@@ -66,9 +66,4 @@ export default class HarvestSystem {
   defaultState() {
     return { cells: [] };
   }
-
-  registerState(key, provider) {
-    this.saveKey = key;
-    this.savedState = provider;
-  }
 }

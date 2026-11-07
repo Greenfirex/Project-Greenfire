@@ -149,9 +149,4 @@ export default class PlayerStatsSystem {
   defaultState() {
     return { health: this.maxHealth, stamina: this.maxStamina };
   }
-
-  registerState(key, provider) {
-    this.saveKey = key;
-    this.savedState = provider;
-  }
 }

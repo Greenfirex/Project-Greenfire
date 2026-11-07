@@ -7,5 +7,4 @@ export const ASSET_DIRS = {
   characters: 'assets/characters/',
   creatures: 'assets/creatures/',
   audio: 'assets/audio/',
-  effects: 'assets/effects/',
 };

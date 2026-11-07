@@ -1258,12 +1258,6 @@
   text-overflow: ellipsis;
 }
 
-.loading-count {
-  color: var(--text-main);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
 .loading-detail {
   min-height: 24px;
   font-size: 20px;

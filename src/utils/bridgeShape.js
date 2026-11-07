@@ -10,11 +10,6 @@ function clamp01(value) {
   return Math.min(1, Math.max(0, value));
 }
 
-function smoothstep(edge0, edge1, value) {
-  const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
-}
-
 export function bridgeSpan(record) {
   const ax = Number(record && record.ax);
   const az = Number(record && record.az);
@@ -125,40 +120,6 @@ function gridIndices(indices, start, rows, stride) {
   }
 }
 
-function columnUAt(column, y, axis) {
-  if (!column || !column.length) return null;
-  const uOf = (entry) => (axis === 'x' ? entry.x : entry.z);
-  if (y <= column[0].y) return uOf(column[0]);
-  const last = column[column.length - 1];
-  if (y >= last.y) return uOf(last);
-  for (let i = 1; i < column.length; i += 1) {
-    const b = column[i];
-    if (b.y < y) continue;
-    const a = column[i - 1];
-    const span = b.y - a.y;
-    if (span <= 1e-6) return uOf(b);
-    return uOf(a) + (uOf(b) - uOf(a)) * ((y - a.y) / span);
-  }
-  return uOf(last);
-}
-
-function columnVAt(column, y, axis) {
-  if (!column || !column.length) return null;
-  const vOf = (entry) => (axis === 'x' ? entry.z : entry.x);
-  if (y <= column[0].y) return vOf(column[0]);
-  const last = column[column.length - 1];
-  if (y >= last.y) return vOf(last);
-  for (let i = 1; i < column.length; i += 1) {
-    const b = column[i];
-    if (b.y < y) continue;
-    const a = column[i - 1];
-    const span = b.y - a.y;
-    if (span <= 1e-6) return vOf(b);
-    return vOf(a) + (vOf(b) - vOf(a)) * ((y - a.y) / span);
-  }
-  return vOf(last);
-}
-
 export function buildBridge(plan) {
   const ideal = Math.max(1e-6, plan.u1 - plan.u0);
   const steps = Math.max(8, Math.round(ideal / 0.35));
@@ -215,8 +176,6 @@ export function buildBridge(plan) {
     const hB = sampleBank(plan.bankB, v);
     const span = Math.max(1e-6, uB - uA);
     const columns = rockColumnsFor();
-    const colLow = plan.columnAt ? plan.columnAt('low', v) : null;
-    const colHigh = plan.columnAt ? plan.columnAt('high', v) : null;
     const rowCount = 6;
     const start = rock.positions.length / 3;
     for (let k = 0; k <= rowCount; k += 1) {
@@ -225,20 +184,8 @@ export function buildBridge(plan) {
         const tc = clamp01(t);
         const bottom = archHeightAt(plan, t);
         const top = Math.max(deckAtT(plan, t, span, hA, hB), bottom + 0.05) + 0.04;
-        const rowY = bottom + (top - bottom) * (k / rowCount);
-        const lowEdge = columnUAt(colLow, rowY, plan.axis);
-        const highEdge = columnUAt(colHigh, rowY, plan.axis);
-        const low = lowEdge === null ? uA : lowEdge;
-        const high = highEdge === null ? uB : highEdge;
-        const u = low + (high - low) * tc;
-        let vv = v;
-        const lowV = columnVAt(colLow, rowY, plan.axis);
-        const highV = columnVAt(colHigh, rowY, plan.axis);
-        const wLow = 1 - smoothstep(0, 0.22, tc);
-        const wHigh = 1 - smoothstep(0, 0.22, 1 - tc);
-        if (lowV !== null) vv += (lowV - v) * wLow;
-        if (highV !== null) vv += (highV - v) * wHigh;
-        const [x, z] = axisPoint(plan.axis, u, vv);
+        const u = uA + (uB - uA) * tc;
+        const [x, z] = axisPoint(plan.axis, u, v);
         const y = bottom + (top - bottom) * (k / rowCount);
         rockVertex(x, y, z, u, v, (y - bottom) / Math.max(0.001, top - bottom), 'fascia');
       }
@@ -261,30 +208,14 @@ export function buildBridge(plan) {
     const hB = sampleBank(plan.bankB, v);
     const span = Math.max(1e-6, uB - uA);
     const columns = rockColumnsFor();
-    const colLow = plan.columnAt ? plan.columnAt('low', v) : null;
-    const colHigh = plan.columnAt ? plan.columnAt('high', v) : null;
     const vault = BRIDGE_VAULT * Math.sin(Math.PI * vt);
     for (let i = 0; i < columns.length; i += 1) {
       const t = columns[i];
       const tc = clamp01(t);
       const bottom = archHeightAt(plan, t);
       const y = bottom + vault;
-      let u;
-      let vv = v;
-      const lowEdge = columnUAt(colLow, y, plan.axis);
-      const highEdge = columnUAt(colHigh, y, plan.axis);
-      const low = lowEdge === null ? uA : lowEdge;
-      const high = highEdge === null ? uB : highEdge;
-      u = low + (high - low) * tc;
-      if (k === 0 || k === soffitRows) {
-        const lowV = columnVAt(colLow, y, plan.axis);
-        const highV = columnVAt(colHigh, y, plan.axis);
-        const wLow = 1 - smoothstep(0, 0.22, tc);
-        const wHigh = 1 - smoothstep(0, 0.22, 1 - tc);
-        if (lowV !== null) vv += (lowV - v) * wLow;
-        if (highV !== null) vv += (highV - v) * wHigh;
-      }
-      const [x, z] = axisPoint(plan.axis, u, vv);
+      const u = uA + (uB - uA) * tc;
+      const [x, z] = axisPoint(plan.axis, u, v);
       const top = deckAtT(plan, t, span, hA, hB);
       rockVertex(x, y, z, u, v, (y - bottom) / Math.max(0.001, top - bottom));
     }

@@ -29,7 +29,6 @@ export default class LoadingScreen {
     this.barEl = null;
     this.labelEl = null;
     this.detailEl = null;
-    this.attachHandles = new Set();
     this.assetStep = null;
     this.stageStep = null;
     this.floatStep = null;
@@ -234,50 +233,14 @@ export default class LoadingScreen {
     return !this.floatStep && !this.mapStep && this.stageClosed >= this.stageCount;
   }
 
-  get pending() {
-    return this.attachHandles.size;
-  }
-
   percent() {
     return this.overall;
-  }
-
-  attach(count = 1) {
-    this.mount();
-    if (count <= 0) return null;
-    const handle = { count, opened: false, released: false };
-    this.attachHandles.add(handle);
-    this.paint();
-    if (this.hideTimer) this.cancelHide();
-    return handle;
   }
 
   cancelHide() {
     clearTimeout(this.hideTimer);
     this.hideTimer = 0;
     if (this.root) this.root.classList.remove('is-hidden');
-  }
-
-  detach(handle) {
-    if (!handle) return;
-    if (!this.attachHandles.delete(handle)) return;
-    handle.released = true;
-    if (handle.resolve) {
-      const resolve = handle.resolve;
-      handle.resolve = null;
-      resolve();
-    }
-    this.lastProgressAt = performance.now();
-    this.paint();
-  }
-
-  wait(handle) {
-    if (!handle || handle.opened) return Promise.resolve();
-    handle.opened = true;
-    if (handle.released) return Promise.resolve();
-    return new Promise((resolve) => {
-      handle.resolve = resolve;
-    });
   }
 
   paint() {
@@ -299,7 +262,6 @@ export default class LoadingScreen {
     const wait = Math.max(MIN_VISIBLE_MS - (now - this.startedAt), MIN_AFTER_FIRST_MS - (now - this.lastProgressAt), 0);
     this.hideTimer = setTimeout(() => {
       if (!this.root) return;
-      if (this.attachHandles.size) this.warnStillPending();
       this.root.classList.add('is-hidden');
       this.hideTimer = setTimeout(() => {
         if (!this.root) return;
@@ -308,11 +270,6 @@ export default class LoadingScreen {
         this.onHidden();
       }, FADE_MS);
     }, wait);
-  }
-
-  warnStillPending() {
-    console.warn(`[start] načítací obrazovka se zavírá, i když ${this.attachHandles.size} dílců nedoběhlo — hra pokračuje bez nich.`);
-    this.attachHandles.clear();
   }
 
   onHidden() {
