@@ -930,6 +930,24 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
      buňce) mají posun stejný, takže se mezi buňkami nerozjedou svislé švy.
      Hranice pásu povrchu padne přesně na hranu plátu. Hlouběji než 6 m pod
      pásem zůstává skála jeden kus — je schovaná a dělení by jen žralo výkon.
+     **Obrys útesu se vlní.** Vnitřní body útesové hrany (rohy buněk ne) se
+     v půdorysu posouvají šumem do ±0,16 m; stejný posun bere povrch i bok,
+     takže na sebe sedí. Zdroj je jediný — `cliffShifts` v terénu (počítá
+     `cliffOffset`), který stavba hmoty dostane přes `shiftAt`. Rohy buněk
+     zůstávají pevné, takže se vlna mezi buňkami nepřetrhne; hráč chodí po
+     buňkách, takže se může ocitnout až o 16 cm za vizuální hranou.
+     **Pozor: hranu nedohlažovat světlem.** Zkoušelo se nahnout normály
+     horních bodů pásu nahoru, ale u svislé stěny to udělá tmavý pruh místo
+     měkké hrany (normála přestane chytat boční slunce). **Reliéf stěn se
+     zkoušel a byl zrušen:** posouvání bodů stěny podle výšky rozjíždělo
+     sousední plochy — dělalo díry u hrany i u paty a ani společné vršky hrany
+     (`edgeTops`) to nespravily. Reliéf se nepoužívá. Skála i pás mají jen
+     **jemné kolísání odstínu po délce** (`grain` z šumu), aby stěna nebyla
+     jednolitá. **Na hraně útesu rostou rostliny:**
+     ke každé útesové hraně se vyrobí kotvy (`EDGE_ANCHOR_DEPTH` = 0,4 m) na
+     stejném posunu jako hrana; odebírá je tráva (`addShelfGrass`) i skalní
+     rostliny a květiny (`CliffVineSystem`). Bez staré kůže byly prázdné,
+     teď je plní hmota.
    - **okraj mapy** končí **`EDGE_DEPTH` (2 m) pod povrchem** — stejné pravidlo pro
      každou buňku: bok sahá jen kousek pod zem, ne až na dno světa. U útesu je
      spodek boku **nižší buňka** (celá výška schodu), ne 2 m od vršku útesu.

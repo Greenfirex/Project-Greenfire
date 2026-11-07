@@ -39,6 +39,7 @@ const CAVE_OPEN_STEP = 0.6;
 const RISE_SAMPLES = 8;
 const CLIFF_LOW_GAP = 0.9;
 const CLIFF_TOP_GAP = 0.25;
+const EDGE_ANCHOR_DEPTH = 0.4;
 const WALL_TILE = 3;
 const SURFACE_DEPTH = 1;
 const CLIFF_TEXTURE = `${ASSET_DIRS.textures}Rock050_1K-JPG_Color.jpg`;
@@ -445,6 +446,12 @@ export default class TerrainSystem {
     return this.urlFlag('solid');
   }
 
+  surfaceShiftAt(gx, gz) {
+    const shifts = this.surfaceShift;
+    if (!shifts) return null;
+    return shifts.get(pointId(gx, gz)) || null;
+  }
+
   floorKeyAt(cx, cz) {
     return this.floorKeys ? this.floorKeys.get(String(cx) + ',' + String(cz)) || null : null;
   }
@@ -508,6 +515,7 @@ export default class TerrainSystem {
       this.createSurface(map, groundCells(world, level), level);
     }
     this.createVolumeMass(map);
+    this.createEdgeAnchors();
     this.createCaveReveal(map);
     if (this.urlFlag('corners')) this.createCornerDebug();
     this.createPicker(this.pickCells());
@@ -945,7 +953,7 @@ export default class TerrainSystem {
           const gz = z1 + (z2 - z1) * t;
           const id = pointId(gx, gz);
           cliffPoints.add(id);
-          if (!cliffSkin || i === 0 || i === SURFACE_SUB) continue;
+          if (i === 0 || i === SURFACE_SUB) continue;
           const entry = cliffShifts.get(id) || { x: 0, z: 0 };
           if (side.dx) entry.x = cliffOffset(gx, gz);
           else entry.z = cliffOffset(gx + 37.9, gz - 19.4);
@@ -953,6 +961,7 @@ export default class TerrainSystem {
         }
       }
     }
+    if (level === 0) this.surfaceShift = cliffShifts;
 
     const positionOf = (point) => {
       const id = pointId(point.gx, point.gz);
@@ -1548,6 +1557,7 @@ export default class TerrainSystem {
       styleOf: (cx, cz) => (this.field && this.field.cliffStyleAt ? this.field.cliffStyleAt(cx, cz) : null),
       surface: (gx, gz, cx, cz, dx, dz, fallback) => this.edgeHeightAt(gx, gz, cx, cz, dx, dz, fallback),
       hardEdge: (cx, cz, dx, dz) => (this.field && this.field.isHardEdge ? this.field.isHardEdge(cx, cz, dx, dz) : false),
+      shiftAt: (gx, gz) => this.surfaceShiftAt(gx, gz),
     });
     for (const group of buckets) {
       if (!group.positions.length) continue;
@@ -1556,17 +1566,20 @@ export default class TerrainSystem {
       const colors = new Array(total * 4);
       const mosses = group.kind === 'cliff' ? new Array(total) : null;
       for (let i = 0; i < total; i += 1) {
+        const px = group.positions[i * 3];
+        const pz = group.positions[i * 3 + 2];
+        const grain = 0.94 + 0.12 * valueNoise(px * 0.55 + 7.3, pz * 0.55 - 3.9);
         if (mosses) {
-          const tint = wallTint(group.positions[i * 3], group.positions[i * 3 + 1], group.positions[i * 3 + 2], group.shades[i] || 0);
-          colors[i * 4] = tint.r;
-          colors[i * 4 + 1] = tint.g;
-          colors[i * 4 + 2] = tint.b;
+          const tint = wallTint(px, group.positions[i * 3 + 1], pz, group.shades[i] || 0);
+          colors[i * 4] = tint.r * grain;
+          colors[i * 4 + 1] = tint.g * grain;
+          colors[i * 4 + 2] = tint.b * grain;
           colors[i * 4 + 3] = 1;
           mosses[i] = tint.moss;
         } else {
-          colors[i * 4] = SURFACE_VERTEX_TINT[0] * factor;
-          colors[i * 4 + 1] = SURFACE_VERTEX_TINT[1] * factor;
-          colors[i * 4 + 2] = SURFACE_VERTEX_TINT[2] * factor;
+          colors[i * 4] = SURFACE_VERTEX_TINT[0] * factor * grain;
+          colors[i * 4 + 1] = SURFACE_VERTEX_TINT[1] * factor * grain;
+          colors[i * 4 + 2] = SURFACE_VERTEX_TINT[2] * factor * grain;
           colors[i * 4 + 3] = 1;
         }
       }
@@ -1600,6 +1613,44 @@ export default class TerrainSystem {
         chunkZ: group.chunkZ,
       };
       this.surfaces.push(mesh);
+    }
+  }
+
+  createEdgeAnchors() {
+    const field = this.field;
+    if (!field || !field.heightAtCell || !this.shelfAnchors) return;
+    const seen = new Set();
+    const half = CELL_SIZE / 2;
+    for (const [cx, cz] of this.realCells || []) {
+      if (!this.floorKeyAt(cx, cz)) continue;
+      const here = field.heightAtCell(cx, cz);
+      if (!Number.isFinite(here)) continue;
+      const x0 = cx * CELL_SIZE - half;
+      const z0 = cz * CELL_SIZE - half;
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (!this.hardEdgeAt(cx, cz, dx, dz)) continue;
+        if (field.heightAtCell(cx + dx, cz + dz) >= here - 0.001) continue;
+        if (!this.floorKeyAt(cx + dx, cz + dz)) continue;
+        const edgeId = `${Math.round((cx + dx * 0.5) * 4)},${Math.round((cz + dz * 0.5) * 4)}`;
+        if (seen.has(edgeId)) continue;
+        seen.add(edgeId);
+        for (const step of [1, 3]) {
+          const t = step / 4;
+          const gx = dx !== 0 ? x0 + (dx > 0 ? CELL_SIZE : 0) : x0 + CELL_SIZE * t;
+          const gz = dz !== 0 ? z0 + (dz > 0 ? CELL_SIZE : 0) : z0 + CELL_SIZE * t;
+          const shift = this.surfaceShiftAt(gx, gz);
+          const y = this.edgeHeightAt(gx, gz, cx, cz, dx, dz, here);
+          if (!Number.isFinite(y)) continue;
+          this.shelfAnchors.push({
+            x: gx + (shift ? shift.x : 0),
+            y,
+            z: gz + (shift ? shift.z : 0),
+            dirX: dx,
+            dirZ: dz,
+            depth: EDGE_ANCHOR_DEPTH,
+          });
+        }
+      }
     }
   }
 

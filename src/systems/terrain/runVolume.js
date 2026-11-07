@@ -51,6 +51,7 @@ export function buildRunVolumeBuckets(layout, options = {}) {
   const styleOf = typeof options.styleOf === 'function' ? options.styleOf : () => null;
   const surface = typeof options.surface === 'function' ? options.surface : null;
   const hardEdge = typeof options.hardEdge === 'function' ? options.hardEdge : () => false;
+  const shiftAt = typeof options.shiftAt === 'function' ? options.shiftAt : null;
   const solids = buildColumnRuns(world);
   const air = buildColumnAir(world);
   const half = cellSize / 2;
@@ -134,6 +135,12 @@ export function buildRunVolumeBuckets(layout, options = {}) {
     return { gx: x0 + cellSize * a, gz: dz > 0 ? z0 + cellSize : z0 };
   };
 
+  const shifted = (gx, gz) => {
+    if (!shiftAt) return { x: gx, z: gz };
+    const shift = shiftAt(gx, gz);
+    return shift ? { x: gx + shift.x, z: gz + shift.z } : { x: gx, z: gz };
+  };
+
   const sideQuad = (group, cx, cz, dx, dz, a0, a1, bottomA, bottomB, topA, topB, tile, layer, faceBottom, faceTop) => {
     const x0 = cx * cellSize - half;
     const z0 = cz * cellSize - half;
@@ -146,11 +153,13 @@ export function buildRunVolumeBuckets(layout, options = {}) {
       const x = dx > 0 ? x0 + cellSize : x0;
       const za = z0 + cellSize * a0;
       const zb = z0 + cellSize * a1;
+      const pa = shifted(x, za);
+      const pb = shifted(x, zb);
       if (dx > 0) {
-        group.positions.push(x, bottomA, za, x, topA, za, x, topB, zb, x, bottomB, zb);
+        group.positions.push(pa.x, bottomA, pa.z, pa.x, topA, pa.z, pb.x, topB, pb.z, pb.x, bottomB, pb.z);
         heights = [bottomA, topA, topB, bottomB];
       } else {
-        group.positions.push(x, bottomB, zb, x, topB, zb, x, topA, za, x, bottomA, za);
+        group.positions.push(pb.x, bottomB, pb.z, pb.x, topB, pb.z, pa.x, topA, pa.z, pa.x, bottomA, pa.z);
         heights = [bottomB, topB, topA, bottomA];
       }
       group.uvs.push(...layerUvs([za / tile, bottomA / tile, za / tile, topA / tile, zb / tile, topB / tile, zb / tile, bottomB / tile], seed));
@@ -158,11 +167,13 @@ export function buildRunVolumeBuckets(layout, options = {}) {
       const z = dz > 0 ? z0 + cellSize : z0;
       const xa = x0 + cellSize * a0;
       const xb = x0 + cellSize * a1;
+      const pa = shifted(xa, z);
+      const pb = shifted(xb, z);
       if (dz > 0) {
-        group.positions.push(xb, bottomB, z, xb, topB, z, xa, topA, z, xa, bottomA, z);
+        group.positions.push(pb.x, bottomB, pb.z, pb.x, topB, pb.z, pa.x, topA, pa.z, pa.x, bottomA, pa.z);
         heights = [bottomB, topB, topA, bottomA];
       } else {
-        group.positions.push(xa, bottomA, z, xa, topA, z, xb, topB, z, xb, bottomB, z);
+        group.positions.push(pa.x, bottomA, pa.z, pa.x, topA, pa.z, pb.x, topB, pb.z, pb.x, bottomB, pb.z);
         heights = [bottomA, topA, topB, bottomB];
       }
       group.uvs.push(...layerUvs([xb / tile, bottomB / tile, xb / tile, topB / tile, xa / tile, topA / tile, xa / tile, bottomA / tile], seed));
@@ -205,12 +216,13 @@ export function buildRunVolumeBuckets(layout, options = {}) {
     const rockFrom = Math.max(bottom, rockTop - PLATE_SPAN);
     const rock = bucketOf(cx, cz, 'cliff', style);
     const band = bucketOf(cx, cz, 'soil', key);
-    if (rockFrom > bottom + EPS) {
-      sideQuad(rock, cx, cz, dx, dz, 0, 1, bottom, bottom, rockFrom, rockFrom, rockTile, null, bottom, faceTop);
-    }
-    for (const [b, t] of plateBands(rockFrom, rockTop)) {
-      sideQuad(rock, cx, cz, dx, dz, 0, 1, b, b, t, t, rockTile, null, bottom, faceTop);
-    }
+    const rockSpan = (b0, b1) => {
+      for (let i = 0; i < subdivisions; i += 1) {
+        sideQuad(rock, cx, cz, dx, dz, i / subdivisions, (i + 1) / subdivisions, b0, b0, b1, b1, rockTile, null, bottom, faceTop);
+      }
+    };
+    if (rockFrom > bottom + EPS) rockSpan(bottom, rockFrom);
+    for (const [b, t] of plateBands(rockFrom, rockTop)) rockSpan(b, t);
     for (let i = 0; i < subdivisions; i += 1) {
       const a0 = i / subdivisions;
       const a1 = (i + 1) / subdivisions;
