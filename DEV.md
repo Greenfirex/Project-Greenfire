@@ -962,9 +962,12 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
      **jemné kolísání odstínu po délce** (`grain` z šumu), aby stěna nebyla
      jednolitá. **Na hraně útesu rostou rostliny:**
      ke každé útesové hraně se vyrobí kotvy (`EDGE_ANCHOR_DEPTH` = 0,4 m) na
-     stejném posunu jako hrana; odebírá je tráva (`addShelfGrass`) i skalní
-     rostliny a květiny (`CliffVineSystem`). Bez staré kůže byly prázdné,
-     teď je plní hmota.
+     stejném posunu jako hrana; odebírá je tráva (`addShelfGrass`) i liany
+     a květiny (`CliffVineSystem`). Bez staré kůže byly prázdné,
+     teď je plní hmota. **Liana** je model `plants/cliff_vine.glb`: visí z horní
+     hrany dolů po stěně, kotva nese i výšku stěny (`drop`), takže se liana
+     zkrátí, aby nesahala pod patu; pod 0,6 m stěny se nedává. Natočení předku
+     modelu srovnává `VINE_YAW`. Ve větru se zatím nehýbe.
    - **okraj mapy** končí **`EDGE_DEPTH` (2 m) pod povrchem** — stejné pravidlo pro
      každou buňku: bok sahá jen kousek pod zem, ne až na dno světa. U útesu je
      spodek boku **nižší buňka** (celá výška schodu), ne 2 m od vršku útesu.

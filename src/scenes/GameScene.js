@@ -751,16 +751,6 @@ export default class GameScene {
     return new Color4(c[0], c[1], c[2], 1);
   }
 
-  greenTint() {
-    const map = getMap(this.mapKey);
-    const tone = (map && map.colors && map.colors.surfaceTint) || [0.5, 0.62, 0.45];
-    return [
-      Math.min(1.15, tone[0] * 1.9),
-      Math.min(1.15, tone[1] * 1.9),
-      Math.min(1.15, tone[2] * 1.7),
-    ];
-  }
-
   setupLighting() {
     const map = getMap(this.mapKey);
     const { sun, sky } = this.lighting.create(map.light, this.camera);

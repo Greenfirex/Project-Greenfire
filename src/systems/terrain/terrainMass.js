@@ -121,7 +121,8 @@ export default {
       const z0 = cz * CELL_SIZE - half;
       for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         if (!this.hardEdgeAt(cx, cz, dx, dz)) continue;
-        if (field.heightAtCell(cx + dx, cz + dz) >= here - 0.001) continue;
+        const below = field.heightAtCell(cx + dx, cz + dz);
+        if (below >= here - 0.001) continue;
         if (!this.floorKeyAt(cx + dx, cz + dz)) continue;
         const edgeId = `${Math.round((cx + dx * 0.5) * 4)},${Math.round((cz + dz * 0.5) * 4)}`;
         if (seen.has(edgeId)) continue;
@@ -140,6 +141,7 @@ export default {
             dirX: dx,
             dirZ: dz,
             depth: EDGE_ANCHOR_DEPTH,
+            drop: here - below,
           });
         }
       }

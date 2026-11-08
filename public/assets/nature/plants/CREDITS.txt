@@ -4,4 +4,5 @@ palm_a.glb — Meshy AI (image to 3D), vygenerováno pro tento projekt
 palm_curved.glb — Meshy AI (image to 3D), vygenerováno pro tento projekt
 monstera.glb — Meshy AI (image to 3D), vygenerováno pro tento projekt
 healing_plant.glb — Meshy AI (image to 3D), vygenerováno pro tento projekt
+cliff_vine.glb — Meshy AI (image to 3D), vygenerováno pro tento projekt
 Licence a podmínky použití: podle licence účtu Meshy, na kterém byly modely vytvořeny.

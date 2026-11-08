@@ -30,9 +30,6 @@ Rock050_1K-JPG_Color.jpg – ambientCG (https://ambientcg.com/view?id=Rock050), 
 Rock050_1K-JPG_NormalGL.jpg – ambientCG (https://ambientcg.com/view?id=Rock050), licence CC0
 Rock063_1K-JPG_Color.jpg – ambientCG (https://ambientcg.com/view?id=Rock063), licence CC0
 Rock063_1K-JPG_NormalGL.jpg – ambientCG (https://ambientcg.com/view?id=Rock063), licence CC0
-cliff_leaf_calathea_a.png – AI generated, upraveno: vyříznuté pozadí, ořez, zmenšeno
-cliff_leaf_calathea_b.png – AI generated, upraveno: vyříznuté pozadí, ořez, zmenšeno
-cliff_leaf_calathea_c.png – AI generated, upraveno: vyříznuté pozadí, ořez, zmenšeno
 foam_fine_color.jpg - ambientCG (https://ambientcg.com/view?id=Foam002), licence CC0
 foam_fine_opacity.jpg - ambientCG (https://ambientcg.com/view?id=Foam002), licence CC0
 foam_fine_normal.jpg - ambientCG (https://ambientcg.com/view?id=Foam002), licence CC0

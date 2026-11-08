@@ -1,33 +1,25 @@
-// Rostliny na poličkách útesu — růžice listů, každý list je prohnutý pás s vlastní texturou.
-// Listy se střídají ze tří textur, barva se tintí podle zeleně země.
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
+// Rostliny na hranách útesu — visuté liany z modelu, které visí z horní hrany dolů po stěně, a kytičky na hraně.
+// Liana se zkrátí podle výšky stěny, aby nesahala pod její patu; kde je stěna nízká, liana se nedává.
 import '@babylonjs/core/Meshes/thinInstanceMesh';
-import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import { Texture } from '@babylonjs/core/Materials/Textures/texture';
-import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
-import { createCliffLeafGeometry } from '../../utils/leafRosetteFactory.js';
-import TreeWindPlugin from '../flora/treeWindPlugin.js';
 import { flowerTemplate } from '../../utils/flowerFactory.js';
+import { loadModel } from '../../utils/assetLoader.js';
 
-const TYPES = [
-  {
-    key: 'calathea',
-    leaves: ['cliff_leaf_calathea_a.png', 'cliff_leaf_calathea_b.png', 'cliff_leaf_calathea_c.png'],
-    chance: 1,
-  },
-];
+const VINE_URL = `${ASSET_DIRS.plants}cliff_vine.glb`;
+const VINE_YAW = 0;
 const SPAWN_CHANCE = 0.22;
+const SCALE_RANGE = [0.9, 1.4];
+const MIN_DROP = 0.6;
+const DROP_SHARE = 0.9;
+const TOP_OVERLAP = 0.05;
+const WALL_GAP = 0.1;
+const YAW_SPREAD = 0.5;
 const FLOWER_KEYS = ['flower_white', 'flower_yellow', 'flower_pink', 'flower_coral'];
 const FLOWER_CHANCE = 0.2;
 const FLOWER_MIN = 1;
 const FLOWER_MAX = 3;
 const MIN_SHELF_DEPTH = 0.16;
-const SCALE = [0.8, 1.25];
-const INSET = 0.15;
-const DEFAULT_TINT = [0.95, 1.0, 0.86];
 
 function hash(...values) {
   let h = 2166136261;
@@ -46,17 +38,33 @@ export default class CliffVineSystem {
 
   constructor(scene) {
     this.s = scene;
-    this.types = TYPES.map((type, index) => this.typeFor(type, index));
+    this.vine = null;
     this.flowers = FLOWER_KEYS.map((key) => this.flowerFor(key));
     this.anchors = [];
+    loadModel(this.s, VINE_URL).then((template) => {
+      this.vine = this.vineFor(template);
+      if (this.vine) this.create(this.anchors);
+    });
   }
 
-  typeFor(type, index) {
-    const layers = type.leaves.map((file, layer) => ({
-      mesh: this.meshFor(`cliffPlant_${type.key}_${layer}`, createCliffLeafGeometry(layer, index + 5), file),
+  vineFor(template) {
+    const source = template && template.getChildMeshes ? template.getChildMeshes()[0] : null;
+    if (!source) return null;
+    const mesh = source.clone('cliffVine', null, false);
+    mesh.parent = null;
+    mesh.bakeCurrentTransformIntoVertices();
+    mesh.refreshBoundingInfo();
+    const box = mesh.getBoundingInfo().boundingBox;
+    mesh.isPickable = false;
+    mesh.receiveShadows = false;
+    mesh.alwaysSelectAsActiveMesh = true;
+    mesh.setEnabled(false);
+    return {
+      mesh,
+      top: box.maximum.y,
+      height: Math.max(0.01, box.maximum.y - box.minimum.y),
       matrices: [],
-    }));
-    return { type, layers };
+    };
   }
 
   flowerFor(key) {
@@ -71,76 +79,35 @@ export default class CliffVineSystem {
     return { key, mesh, matrices: [] };
   }
 
-  meshFor(name, geometry, file) {
-    const mesh = new Mesh(name, this.s);
-    const data = new VertexData();
-    data.positions = geometry.positions;
-    data.uvs = geometry.uvs;
-    data.normals = geometry.normals;
-    data.indices = geometry.indices;
-    data.colors = geometry.colors;
-    data.applyToMesh(mesh);
-    const material = new StandardMaterial(`${name}_mat`, this.s);
-    const texture = new Texture(`${ASSET_DIRS.textures}${file}`, this.s);
-    texture.hasAlpha = true;
-    texture.wrapU = Texture.CLAMP_ADDRESSMODE;
-    texture.wrapV = Texture.CLAMP_ADDRESSMODE;
-    material.diffuseTexture = texture;
-    material.diffuseColor = new Color3(DEFAULT_TINT[0], DEFAULT_TINT[1], DEFAULT_TINT[2]);
-    material.specularColor = new Color3(0.03, 0.03, 0.03);
-    material.emissiveColor = new Color3(0.14, 0.17, 0.1);
-    material.backFaceCulling = false;
-    material.twoSidedLighting = true;
-    material.useAlphaFromDiffuseTexture = true;
-    material.transparencyMode = StandardMaterial.MATERIAL_ALPHATEST;
-    material.alphaCutOff = 0.35;
-    new TreeWindPlugin(material, { strength: 0.035, height: 0.4 });
-    mesh.material = material;
-    mesh.useVertexColors = true;
-    mesh.isPickable = false;
-    mesh.receiveShadows = false;
-    mesh.alwaysSelectAsActiveMesh = true;
-    mesh.setEnabled(false);
-    return mesh;
-  }
-
-  create(anchors, tint) {
+  create(anchors) {
     this.anchors = anchors || [];
-    this.applyTint(tint);
-    for (const type of this.types) {
-      for (const layer of type.layers) layer.matrices = [];
-    }
+    if (this.vine) this.vine.matrices = [];
     for (const flower of this.flowers) flower.matrices = [];
     for (const anchor of this.anchors) this.place(anchor);
-    for (const type of this.types) {
-      for (const layer of type.layers) this.flush(layer.mesh, layer.matrices);
-    }
+    if (this.vine) this.flush(this.vine.mesh, this.vine.matrices);
     for (const flower of this.flowers) this.flush(flower.mesh, flower.matrices);
-  }
-
-  applyTint(tint) {
-    const color = Array.isArray(tint) && tint.length >= 3 ? tint : DEFAULT_TINT;
-    for (const type of this.types) {
-      for (const layer of type.layers) {
-        layer.mesh.material.diffuseColor = new Color3(color[0], color[1], color[2]);
-      }
-    }
   }
 
   place(anchor) {
     this.placeFlowers(anchor);
-    if ((anchor.depth || 0) < MIN_SHELF_DEPTH) return;
+    if (this.vine) this.placeVine(anchor);
+  }
+
+  placeVine(anchor) {
+    const vine = this.vine;
+    const drop = Number.isFinite(anchor.drop) ? anchor.drop : 0;
+    if ((anchor.depth || 0) < MIN_SHELF_DEPTH || drop < MIN_DROP) return;
     if (hash(anchor.x, anchor.z, 1) > SPAWN_CHANCE) return;
-    const type = this.pickType(hash(anchor.x, anchor.z, 2));
-    const yaw = Math.atan2(anchor.dirX, anchor.dirZ) + (hash(anchor.x, anchor.z, 3) - 0.5) * 1.6;
-    const scale = between(SCALE, hash(anchor.x, anchor.z, 4));
+    const wanted = between(SCALE_RANGE, hash(anchor.x, anchor.z, 4));
+    const scale = Math.min(wanted, (drop * DROP_SHARE) / vine.height);
+    const yaw = Math.atan2(anchor.dirX, anchor.dirZ) + VINE_YAW + (hash(anchor.x, anchor.z, 3) - 0.5) * YAW_SPREAD;
+    const gap = WALL_GAP * scale;
     const position = new Vector3(
-      anchor.x - anchor.dirX * INSET,
-      anchor.y - 0.01,
-      anchor.z - anchor.dirZ * INSET,
+      anchor.x + anchor.dirX * gap,
+      anchor.y + TOP_OVERLAP - vine.top * scale,
+      anchor.z + anchor.dirZ * gap,
     );
-    const matrix = Matrix.Compose(new Vector3(scale, scale, scale), Quaternion.RotationYawPitchRoll(yaw, 0, 0), position);
-    for (const layer of type.layers) layer.matrices.push(matrix);
+    vine.matrices.push(Matrix.Compose(new Vector3(scale, scale, scale), Quaternion.RotationYawPitchRoll(yaw, 0, 0), position));
   }
 
   placeFlowers(anchor) {
@@ -167,15 +134,6 @@ export default class CliffVineSystem {
     }
   }
 
-  pickType(value) {
-    let threshold = 0;
-    for (const type of this.types) {
-      threshold += type.type.chance;
-      if (value < threshold) return type;
-    }
-    return this.types[this.types.length - 1];
-  }
-
   flush(mesh, matrices) {
     const total = matrices.length;
     if (!total) {
@@ -192,9 +150,9 @@ export default class CliffVineSystem {
   }
 
   dispose() {
-    for (const type of this.types) {
-      for (const layer of type.layers) layer.mesh.dispose(false, true);
-    }
-    this.types = [];
+    if (this.vine) this.vine.mesh.dispose(false, false);
+    for (const flower of this.flowers) flower.mesh.dispose(false, false);
+    this.vine = null;
+    this.flowers = [];
   }
 }
