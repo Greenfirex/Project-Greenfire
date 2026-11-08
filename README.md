@@ -68,8 +68,8 @@ objeví jiný.
 Když dojde zdraví, probudíš se na startovním místě mapy.
 
 **Editor mapy.** Ve hře jde otevřít editor (F2) a malovat mapu — zóny, povrchy,
-výšky, pláž, útesy, vodu, tvory a start hráče. Uloží se přímo do souboru mapy,
-takže si můžeš ostrov předělat k obrazu svému.
+výšky, pláž, útesy, vodu, tvory a start hráče. Při spuštění přes `npm run dev`
+se uloží přímo do souboru mapy, takže si můžeš ostrov předělat k obrazu svému.
 
 ## Závislosti a zdroje
 

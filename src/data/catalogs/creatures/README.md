@@ -10,7 +10,7 @@ src/data/catalogs/creatures/
   sandDevil.js        písečný běs — vzor (zahrabání, útok nohama, reakce na ránu)
   snappingTurtle.js   kajmanka — vzor pro model bez použitelných jmen kostí
   koaTiki.js          Koa'tiki — vzor pro dvounohého tvora s otevíratelnou čelistí
-src/systems/creatureSystem.js   obecné: spawn, stavy, ikony, obrysy, ukládání
+src/systems/creatures/creatureSystem.js   obecné: spawn, stavy, ikony, obrysy, ukládání
 src/utils/creatureMarker.js     vykřičník a otazníky nad hlavou (společné všem)
 src/utils/proceduralRig.js      společné pomocníky pro rigy (kosti, osy, otáčení)
 public/assets/creatures/<kind>/ model + CREDITS.txt
@@ -19,7 +19,7 @@ public/assets/creatures/<kind>/ model + CREDITS.txt
 ## Checklist nové potvory
 
 1. Model do `public/assets/creatures/<kind>/` + `CREDITS.txt` (odkud model je a jaká licence).
-2. Soubor `src/data/catalogs/creatures/<kind>.js`: hlavička (1–3 řádky), import `ASSET_DIRS`,
+2. Soubor `src/data/catalogs/creatures/<jménoTvora>.js` (jméno souboru je ve tvaru `snappingTurtle.js`, `kind` v datech `snapping_turtle`): hlavička (1–3 řádky), import `ASSET_DIRS`,
    rig (nebo `rig: null`) a data podle tabulky níž.
 3. Řádek do `index.js` (import + položka v `CREATURE_TYPES`).
 4. Zvuky: soubory do `public/assets/audio/creatures/<druh>/`, záznam do seznamu klipů a do `CREDITS.txt`.

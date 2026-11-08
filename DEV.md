@@ -9,28 +9,40 @@ a co následuje. Co hra je, jak se ovládá a jaké má licence, popisuje
 ```
 src/
   main.js                    engine, plátno, render loop
-  scenes/GameScene.js        orchestrátor — stav světa, delegace na systémy
+  scenes/                    herní scéna — GameScene.js (orchestrátor) a její části:
+                             sceneWorld (stavba světa a přestavby), sceneCombat (tvorové
+                             a souboj), sceneGathering (sběr), sceneSteps (kroky a stopy),
+                             sceneSettings (společná čísla)
   systems/
-    core/                    sim, save, input, interaction, camera, grid
-    terrain/                 terrain, blend/relief/caustic/wet/grass pluginy, cliffSurface, cliffVine
+    core/                    sim, save, input, interaction, camera, grid, navigation
+    terrain/                 terrain + části (materials, bridges, caves, mass, picking,
+                             settings), ladicí pohledy (terrainDebug), hmota (runVolume,
+                             runBlocks), pluginy blend/relief/caustic/wet/grass, cliffSurface,
+                             cliffVine
     water/                   water, waterShader, waveSpray, fish
     flora/                   flora, grassShader, treeWind
     creatures/               creature, footprint
     player/                  player, attack, stats, heldItem, inventory
     gathering/               gather, harvest, felling
     world/                   deco, decoHighlight, campfire, glow, path
-    atmosphere/              dayNight, sky, audio
+    atmosphere/              dayNight, lighting (světla a stíny), sky, audio
     materials/               modelRim, modelSaturation (pluginy materiálů modelů)
-  editor/                    editor mapy, panely, štětce, značky spawních míst
+  editor/                    editor mapy (editorMode + části history, layoutEdits, heights,
+                             area, joinBridge, brushApply, query, settings), panely, štětce
   data/catalogs/             předměty, dekorace, mapy, tvorové, uložený stav
   data/maps/                 tvar oblasti, nastavení výšek a soubor mapy
   effects/                   oheň (táborák, pochodeň)
   ui/                        DOM HUD panely nad plátnem
-  utils/                     výpočty mřížky, načítání modelů, ukládání do prohlížeče
+  utils/                     výpočty mřížky, šum (noise), načítání modelů, ukládání do prohlížeče
   styles/                    global.css, hud.css, editor.css
 ```
 
 - Systémy jsou třídy, konstruktor dostane scénu, přístup přes `this.s`.
+- Velké soubory (scéna, terén, editor) jsou rozdělené na **části**: každá část je
+  objekt funkcí, který se na konci hlavního souboru připojí přes `Object.assign`
+  ke třídě, takže sdílí její `this`. Pravidla k tomu jsou v `.clinerules`.
+  Vlastnosti přes `get` zůstávají v hlavní třídě. Editor kódu (VS Code) části
+  nevidí a hlásí „Property … may not exist" — to není chyba.
 - Simulace běží v pevném ticku (10× za sekundu) a o obsahu mechanik nic neví;
   mechaniky se hlásí přes `simSystem.subscribe`.
 - Ukládání je obecný sběrač stavu; scéna registrované vlastníky připojuje přes
@@ -72,10 +84,13 @@ jednu z těch dvou otázek — proto musí být od začátku jmenované.
 - `src/systems/water/waterSystem.js` — hladina, odrazová sonda, kraj mapy.
 - `src/systems/water/waterShader.js` — program pro vodu: vlny, pěna, svislá stěna.
 - `src/systems/atmosphere/skySystem.js` — obloha a slunce.
-- `src/systems/world/pathSystem.js`, `playerSystem.js`, `cameraSystem.js` — cesty a hráč.
+- `src/systems/world/pathSystem.js` — cesty; `src/systems/player/playerSystem.js` — hráč;
+  `src/systems/core/cameraSystem.js` — kamera.
+- `src/systems/core/navigationSystem.js` — kudy se dá chodit, přechody mezi patry, strop nad hlavou.
+- `src/systems/atmosphere/lightingSystem.js` — slunce, obloha, mlha, světlo jeskyně a stíny.
 - `src/data/catalogs/brushes.js` — štětce včetně Pláže, Útesu a Mostu; `decorations.js` — písek a povrchy.
 - `src/data/maps/glade/map.json` — aktuální mapa; `DEV.md` — tento přehled.
-- `.clinerules` — pravidla práce.
+- `.clinerules` — pravidla práce (Claude Code je načítá přes `CLAUDE.md`).
 
 ## Postava
 
@@ -262,8 +277,9 @@ Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů).
 
 ## Klíčová rozhodnutí (nevrátit omylem)
 
-- Výšky jsou v metrech, krok 0,3 m, rozsah −15 až +24 m; předvolby −15, −12, −9,
-  −6, −3, 0, 3, 6, 9, 12, 18 a 24 m.
+- Výšky jsou v metrech, krok 0,25 m, rozsah −15 až +24 m; předvolby −15, −10, −5,
+  0, 5, 10, 15, 20 a 24 m (`layoutStore.js`). Postava i tvor vylezou schod do
+  0,55 m (`STEP_LIMIT`), hranice útesu je 2,0 m.
 - Patra jsou sloupce: buňka může mít víc pochozích ploch nad sebou, štítek patra
   je jen jmenovka (pořadí se počítá z výšek v buňce) a mezi plochami se chodí
   jen po spoji. Pravidla a důvody jsou v sekci „Jeskyně a patra".
@@ -273,7 +289,7 @@ Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů).
 - Terén se dělí podle povrchů; cesty jsou jemné a 2,5 cm nad zemí.
 - Hráčova výška se dopočítá z terénu; sav drží jen x, z a natočení.
 - Pláž je štětec, ne razítko: mění jen existující buňky a svah si staví
-  prstenci po 0,3 m. Novou zem z prázdna dál umí jen Herní plocha.
+  prstenci po jednom kroku výšky (0,25 m). Novou zem z prázdna dál umí jen Herní plocha.
 - Plynulý okraj = jeden prstenec písku navíc za posledním schodem.
 - V pánvi pláže mizí objekty a tráva; na svazích se posouvají s terénem.
 - Hranice povrchů jsou rovné (vlny zůstaly jen u útesů). Tráva se u okraje
@@ -336,9 +352,10 @@ Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů).
   z ní bere jen barvu.
 - Suché jámy pod hladinou (doly, sklepy) současná plocha neumí; rozbor obou cest
   je v sekci [Voda a podzemí](#voda-a-podzemí--tři-témata-k-rozhodnutí).
-- Mapa má verzi 8 (`MAP_VERSION` v `src/data/catalogs/mapFile.js`); hladina vody
+- Mapa má verzi 10 (`MAP_VERSION` v `src/data/catalogs/mapFile.js`); hladina vody
   je nepovinné číslo a verzi nemění. Starší mapy se načtou bez toho, co v nich
-  chybí.
+  chybí; mapa starší než 10 se při načtení převede na krok 0,25 m (výšky povrchu
+  i dekorací na něm, viz `quantizeMapFileHeights`) a po uložení už je v nové verzi.
 
 ## Voda
 
@@ -347,7 +364,7 @@ v souboru mapy. Kreslí ji vlastní program: vlny (vyšší v hloubce, nižší
 u břehu), barva a průhlednost podle hloubky, pěna u břehu, odraz okolí přes
 odrazovou sondu, kaustika na dně pod hladinou a tmavší hladina v noci.
 Hloubka se bere z terénu pod hladinou. V editoru se voda zapíná tlačítkem
-Voda a hladina se ladí po 0,3 m.
+Voda a hladina se ladí po 0,25 m.
 
 **Vlny** skládají dva systémy a míchají se podle vzdálenosti od břehu: do ~6 m
 od pobřeží jdou hřebeny rovnoběžně s pískem (pole vzdáleností se počítá přesně,
@@ -359,7 +376,7 @@ klidná. Jemný třpyt dodává jedna normálová textura ve třech pootočenýc
 vrstvách, které se posouvají stejným směrem jako vlny.
 
 **Otevřená rozhodnutí:** šířka Plynulého okraje u pláže (zatím jeden
-prstenec navíc), průchodnost útesů (schod nad 0,45 m a hrana na mřížce
+prstenec navíc), průchodnost útesů (schod nad 0,55 m a hrana na mřížce
 0,5 m) a suché jámy pod hladinou (suchá zóna nebo vodní zóny). Rozbor všech
 tří odložených témat — suché jámy, řeky s vodopády a jeskyně — je v sekci
 [Voda a podzemí](#voda-a-podzemí--tři-témata-k-rozhodnutí).
@@ -373,9 +390,9 @@ a objekty, modelovat výšky, razítkovat herní plochu a ukládat mapu přímo 
 `src/data/maps/<mapa>/map.json`.
 
 - **Zóny** — rostliny, objekty, cesty, pláž, útes, most a tvorové.
-- **Výška** — terén od −6 do +24 m po 0,3 m, kopce, prohlubně, útesy a spojnice.
+- **Výška** — terén od −15 do +24 m po 0,25 m, kopce, prohlubně, útesy a spojnice.
 - **Herní plocha** — razítko podkladu a výšky pro nové nebo přepsané buňky.
-- **Voda** — jedna hladina pro mapu, v editoru ji jde zapnout, skrýt a ladit po 0,3 m.
+- **Voda** — jedna hladina pro mapu, v editoru ji jde zapnout, skrýt a ladit po 0,25 m.
 - **Tvorové** — spawní místa se značkami živého, čekajícího a nového místa
   a se spojnicí od spawního místa k živému tvorovi.
 
@@ -506,7 +523,7 @@ v mapě, verze formátu +1 a zápis v seznamu pro ukládání.
    Editor by měl varovat „suchá zóna sousedí s vodou a nemá stěnu".
 3. Příboj a kaustika: `shoreDistanceAt` by v suché jámě šuměl, i když je sucho —
    ošetřit stejnou maskou. Totéž ryby a odlesky na dně.
-4. Schůdnost: do jámy musí vést svah nebo schody do 0,45 m na krok.
+4. Schůdnost: do jámy musí vést svah nebo schody do 0,55 m na krok.
 
 **Rizika:** maska má rozlišení hloubkové mapy, takže okraje jámy budou trochu
 zubaté — proto bod 2 (hranu schovat za stěnu).
@@ -653,7 +670,7 @@ pořadí pater neexistuje a nikde se nepotřebuje — ani pro viditelnost, proto
 „skrýt, co je nade mnou" je otázka pro buňku. V editoru se seznam pater řadí
 podle naměřené výšky, ne podle štítku.
 
-**Data** (formát mapy 9; verze 8 se načte jako všechno v patře 0):
+**Data** (od formátu mapy 9; verze 8 se načte jako všechno v patře 0):
 
 - záznam vrstvy (`floor`, `grass`, `path`, `clearing`) dostane `level`
   (chybějící = 0) a `ceilY` (strop plochy; chybějící = otevřeno nahoru),
@@ -664,12 +681,12 @@ podle naměřené výšky, ne podle štítku.
   po něm umí chodit,
 - dekorace patří k patru stejně jako plocha, na které stojí.
 
-**Hloubka:** rozsah výšek je −15 až +24 m (v krocích 0,3 m), takže jeskyně jde
+**Hloubka:** rozsah výšek je −15 až +24 m (v krocích 0,25 m), takže jeskyně jde
 vyhrabat do 15 m pod nulou. Původně to bylo 6 m — rozšířilo se kvůli patrům.
 
 **Zkušební jeskyně v mapě Glade:** 16 buněk (4×4) pod plošinou u spawnu
-(plocha −1, dno 0,9 m, strop 3,6 m, povrch štěrk) a **vchod ve skalní stěně**
-na buňce −6,−10, který vede ven na −5,−10. Všechny výšky jsou násobky 0,3 m,
+(plocha −1, dno 1 m, strop 3,5 m, povrch štěrk) a **vchod ve skalní stěně**
+na buňce −6,−10, který vede ven na −5,−10. Všechny výšky jsou násobky 0,25 m,
 takže je editor umí namalovat. V editoru se dá posunout nebo zrušit.
 
 **Pozor při ukládání mapy:** editor ukládá to, co má otevřená stránka. Když se
@@ -770,7 +787,7 @@ Co je potřeba doladit, až se k tomu vrátíme:
   sousední stěně vidět jako prohnutí. Pruh skály nad otvorem se napojuje na dvě
   sousední stěny a dřív se při výřezu posouval i první řádek nad otvorem, takže
   se ten převis na pruhu „zmáčkl" a na prohnutí sousední stěny nenavázal (k −5,−9
-  to sedělo, protože tam sousední stěna končí ve výšce otvoru 3,6 m a převis tam
+  to sedělo, protože tam sousední stěna končí ve výšce otvoru (strop jeskyně) a převis tam
   žádný není). Teď výřez jen odřízne spodek a **řádky nad otvorem nechá beze
   změny**, takže lem/převis zůstane stejný jako u sousední stěny a šev naváže.
   *(čeká na vizuální potvrzení v dev serveru)*
@@ -848,10 +865,10 @@ terén jako objem.
 pruhů** (od–do) v rozlišení kroku; mezi nimi je vzduch. Je to totéž co voxely, jen
 komprimované (run-length). Umí jeskyně kdekoliv, volná patra, přesahy (pruh s prázdnem
 pod i nad), tunely i libovolný řez. Pevná skála se **odvodí ze stávajících dat** jako
-doplněk vzduchu (`airSpansAt` dá vzduch, zbytek je skála) — proto jde o migraci, ne
+doplněk vzduchu (`buildColumnAir` v `utils/terrainRuns.js` dá vzduch, zbytek je skála) — proto jde o migraci, ne
 o přepis mapy od nuly.
 
-**Krok výšek 0,25.** Změna z dnešních 0,3 na **0,25** (0 = default; kulatá čísla
+**Krok výšek 0,25.** Změna z dřívějších 0,3 na **0,25** — hotovo (0 = default; kulatá čísla
 0 / 0,25 / 0,5 / 0,75 …). Rozsah zůstává **−15…+24 m** → v počtech kroků **−60…+96**
 (`MIN_HEIGHT`/`MAX_HEIGHT` a `HEIGHT_PRESETS` přepočítat).
 
@@ -958,8 +975,7 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
      vidět u buňky 9,1, kde se 3,6 m prohýbalo k 2,1 m). Ten metr navíc je
      schovaný ve skále sousedky.
    Boky se staví **u každé buňky stejně**, i tam, kde dřív stál plát útesu — jedno
-   pravidlo pro celou mapu. Když se stará kůže zapne (`?cliffs`), může plochá
-   stěna v některém místě vykouknout před vyboulený plát; řeší se to tady.
+   pravidlo pro celou mapu.
    **Rohy stěn jsou zatím ostré.** Zaoblení se zkoušelo (vykrojení dovnitř,
    pak vyboulení ven) a ani jedno nevypadalo dobře — posouvalo to celý profil
    stěny, ne jen roh. **Přesné hledání rohů je hotové** (`utils/terrainCorners.js`):
@@ -975,11 +991,11 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
    (zkoušel se oblouk, zkrácení stěn, dno podle sousedů i podle čísel buněk),
    a tak zůstává jen **detekce rohů** a náhled `?corners`. Nic se neřeže
    a terén i stěny vypadají jako dřív.
-   **Procedurální kůže útesů je vypnutá** — pláty s římsami a mechem, zkosené rohy,
-   rohové výplně, vlisy pod plátem ani vlnitý posun hrany se nestaví. Svislé stěny
-   teď dělá jen hmota (vrstvy po 0,25 m) a nová kůže se udělá až na plátovém
-   systému. Přepínač `?cliffs` starou kůži vrátí pro srovnání. S ní mizí i liány a
-   tráva na římsách (visí na místech, která stavěla právě ta kůže).
+   **Procedurální kůže útesů je z projektu odstraněná** (i s přepínačem `?cliffs`)
+   — pláty s římsami a mechem, zkosené rohy, rohové výplně a vlisy pod plátem.
+   Svislé stěny dělá jen hmota (vrstvy po 0,25 m); nová kůže by se dělala až na
+   plátovém systému. Spolu s kůží zmizelo i dolícování mostů ke skalní stěně
+   (bralo data z kůže) — mosty dnes navazují jen na břehy.
    Líce se počítají odečtením pruhů souseda (ne jen „soused je celý vzduch"), takže
    sedí i částečné přesahy.
    **Staré řešení dutin (`createVoids`) a sukně (`createSkirt`) je smazané** — hmota
@@ -998,7 +1014,7 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
 2. Boční a spodní líce (skála, stěny jeskyní, spodní víka) → hmota; odstranit staré
    útesy/dutiny/sukni; ladit vzhled. **Hotovo v tom smyslu, že hmota je skutečná
    a dutiny i sukně jsou pryč.** Viditelný povrch zůstává dnešní (hladká kůže
-   a pláty útesů), protože hráč nemá poznat rozdíl. **Zbývá, až bude chuť:** zkusit
+   a hmota), protože hráč nemá poznat rozdíl. **Zbývá, až bude chuť:** zkusit
    plátování jako jinou kůži (vodorovné pásy po 0,25 m, horní pásy v barvě
    povrchu) — je to jen jiný vzhled nad stejnou hmotou, ne potřeba k funkci.
 3. Pohyb a dotazy na pruzích.
@@ -1012,7 +1028,6 @@ na plochách; na objemových lících je třeba detail znovu vymyslet, jinak kra
 limit 0,55, přesné odkrývání stropu včetně skrytí trávy na odkrytých buňkách).
 Fáze 2 hotová: terén má skutečnou hmotu (jeskyně, stropy, boky s pásem povrchu
 a okraj mapy), staré dutiny a sukně jsou smazané. Hranice útesu snížená na 2,0 m.
-Náhled hmoty jako kostek je za `?solid`, náhled rohů za `?corners` (detekce)
-a seříznutí rohů za `?cut` (čeká na doladění šířky). Zbývá 3 (dotazy na
-pruzích) a dál.
+Náhled hmoty jako kostek je za `?solid`, náhled rohů za `?corners` (obojí
+v `terrain/terrainDebug.js`). Zbývá 3 (dotazy na pruzích) a dál.
 

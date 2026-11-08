@@ -14,7 +14,7 @@ Mapa je hotový seznam dlaždic, cest, dekorací, ryb, tvorů a mostů v souboru
 `src/data/maps/<mapa>/map.json`. Žádná část se při startu nedopočítává z receptu:
 co v souboru chybí, ve hře neexistuje.
 
-Aktuální formát mapy je **verze 6**. Hra při startu čte právě tenhle soubor;
+Aktuální formát mapy je **verze 10**. Hra při startu čte právě tenhle soubor;
 jiná mapa v kódu není.
 
 Tlačítko **Uložit mapu** zapíše změny přímo do souboru. Pomáhá s tím vývojový
@@ -104,16 +104,17 @@ tvory nedoplňuje sám.
 ### Výška
 
 Režim Výška nejdřív kreslí návrh a po potvrzení mění dlaždice. Výšky jdou od
-**−6 do +24 m**, krok je **0,3 m**. Předvolby jsou −6, −3, 0, 3, 6, 9, 12, 18 a 24 m.
+**−15 do +24 m**, krok je **0,25 m**. Předvolby jsou −15, −10, −5, 0, 5, 10, 15, 20
+a 24 m (klávesy 1–9); **Q** výšku o krok sníží, **E** zvýší.
 Označená plocha se zvýrazní jen obrysem, aby zůstal vidět terén. Na označených
 buňkách stojí jejich nová výška — zeleně nahoru, červeně dolů, v závorce ta
 současná. U kurzoru je vidět výška buňky pod myší.
 
-- **Kopec** a **Prohlubeň** si svah staví samy po 0,3 m až do nuly.
-- **Strmý svah** spadne o 0,6 m na řadu.
+- **Kopec** a **Prohlubeň** si svah staví samy po 0,25 m až do nuly.
+- **Strmý svah** spadne o 0,5 m na řadu.
 - **Nepravidelný svah** část buněk vynechá, takže obrys není kruh.
 - **Útes** drží svislou stěnu a na hranici se výška nedopočítává. Hrany vyšší
-  než 2,4 m se jako útes označí automaticky.
+  než 2,0 m se jako útes označí automaticky.
 - **Spojnice** srovná dvě místa na stejnou výšku.
 - **Most** položí mostovku přes vodu nebo propadlinu.
 
@@ -128,13 +129,13 @@ pravá odebírá, mazání se zapíná v panelu.
 ## Voda
 
 Voda je jedna hladina pro celou mapu, uložená jako nepovinné číslo `waterLevel`.
-V editoru se zapíná tlačítkem **Voda** a hladina se ladí po **0,3 m**.
+V editoru se zapíná tlačítkem **Voda** a hladina se ladí po **0,25 m**.
 Skrytí vody je jen vizuální; data se nemění.
 
 ## Cesty
 
 Cesta je samostatná vrstva `path`, ne dlaždice. Záznam má pozici a styl
-(`dirt` / `stone` / `wood`), žádný `key`. Vykresluje ji `src/systems/pathSystem.js`
+(`dirt` / `stone` / `wood`), žádný `key`. Vykresluje ji `src/systems/world/pathSystem.js`
 podle sousedů:
 
 - dva protilehlí sousedé = rovinka,

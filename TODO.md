@@ -2,10 +2,6 @@
 
 Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie patří do gitu.
 
-## Dokumentace
-
-- [ ] Sjednotit údaje v `DEV.md`: ovládání vody a okraje povrchů (výšky a verze mapy už sedí s kódem).
-
 ## Postava
 
 - [ ] Zvážit zmenšení 2K textur nebo celého GLB, pokud bude start hry pomalý.
