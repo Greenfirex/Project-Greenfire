@@ -30,6 +30,11 @@
 ## Architektura
 - `src/scenes/GameScene.js` je jediné místo, které zná celou scénu a propojuje
   systémy; drží delegáty `foo(bar) { return this.someSystem.foo(bar); }`.
+- Scéna se smí dělit na části ve `src/scenes/` (`sceneWorld.js`, `sceneCombat.js`…).
+  Část je obyčejný objekt funkcí, který GameScene připojí ke svým funkcím, takže
+  sdílí její `this` a smí řídit víc systémů. Nová část = nový soubor + jeden
+  záznam v `Object.assign` na konci GameScene. Čísla, která potřebuje víc částí,
+  patří do `src/scenes/sceneSettings.js`.
 - Systémy jsou třídy v `src/systems/` (dostanou `scene`, přístup přes `this.s`).
   Systém nikdy nesahá na jiný systém napřímo, jen přes scénu.
 - Data v `src/data/catalogs/`, utility v `src/utils/`, DOM HUD v `src/ui/`.
