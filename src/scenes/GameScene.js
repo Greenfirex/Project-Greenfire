@@ -324,6 +324,7 @@ export default class GameScene {
         if (this.editor.active) this.updateEditorCamera(dt);
         else this.cameraSystem.follow(root.position.x, root.position.z, root.position.y, dt);
       }
+      if (this.editor.active) this.editor.updateHeightLabels();
       this.autoTune(dt);
       this.audioSystem.update(dt);
       this.playerSystem.updateFire();

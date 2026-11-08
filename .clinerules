@@ -35,6 +35,10 @@
   sdílí její `this` a smí řídit víc systémů. Nová část = nový soubor + jeden
   záznam v `Object.assign` na konci GameScene. Čísla, která potřebuje víc částí,
   patří do `src/scenes/sceneSettings.js`.
+- Stejně se smí dělit velký systém nebo editor: části leží vedle něj
+  (`terrainMaterials.js`, `editorHeights.js`…), společná čísla v `…Settings.js`.
+  Do části patří jen obyčejné funkce; vlastnosti počítané přes `get` zůstávají
+  v hlavní třídě (`Object.assign` je nepřenese). Části nejsou samostatné systémy.
 - Systémy jsou třídy v `src/systems/` (dostanou `scene`, přístup přes `this.s`).
   Systém nikdy nesahá na jiný systém napřímo, jen přes scénu.
 - Data v `src/data/catalogs/`, utility v `src/utils/`, DOM HUD v `src/ui/`.
