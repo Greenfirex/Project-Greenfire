@@ -1022,6 +1022,19 @@ export default class CreatureSystem {
     this.updateCorpses(seconds);
   }
 
+  healthBarTargets() {
+    const out = [];
+    for (const creature of this.creatures) {
+      if (!creature || !creature.slotKey || !Number.isFinite(creature.health) || creature.buried) continue;
+      const total = creature.tier && Number.isFinite(creature.tier.health) ? creature.tier.health : 0;
+      if (total <= 0) continue;
+      const ratio = creature.health / total;
+      if (ratio >= 0.999 && !this.isHostile(creature) && this.hovered !== creature) continue;
+      out.push({ creature, ratio });
+    }
+    return out;
+  }
+
   isHostile(creature) {
     return Boolean(creature) && HOSTILE_MODES.includes(creature.mode);
   }

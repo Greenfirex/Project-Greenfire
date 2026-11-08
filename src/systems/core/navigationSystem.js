@@ -1,0 +1,141 @@
+// Kudy se dá chodit — pochozí místa, přechody mezi patry po spojích, průchody a stropy nad hlavou.
+// Sám nic nestaví; mapu, mosty, hloubku vody a výšku dekorací mu dodá scéna jako dotazy.
+import { worldToCellCoords, CELL_SIZE } from '../../utils/gridMath.js';
+import { worldCells, hasFloor, ceilingLiftAt } from '../../data/maps/areaShape.js';
+
+const WALK_CLEARANCE = 1.25;
+export const WADE_DEPTH = 0.6;
+
+function levelOf(end) {
+  return end && Number.isFinite(end.level) ? end.level : 0;
+}
+
+export default class NavigationSystem {
+
+  constructor(scene) {
+    this.s = scene;
+    this.layoutOf = null;
+    this.connectorsOf = null;
+    this.bridgeDeckAt = null;
+    this.waterDepthAt = null;
+    this.topAt = null;
+    this.areaLookup = null;
+    this.connectorMap = null;
+    this.connectorMapFor = null;
+    this.passageSet = null;
+    this.passageFor = null;
+  }
+
+  layout() {
+    return this.layoutOf ? this.layoutOf() : null;
+  }
+
+  connectors() {
+    const records = this.connectorsOf ? this.connectorsOf() : null;
+    return records || [];
+  }
+
+  resetArea() {
+    this.areaLookup = null;
+  }
+
+  areaCells() {
+    return worldCells(this.layout());
+  }
+
+  onBridge(x, z) {
+    return Boolean(this.bridgeDeckAt) && this.bridgeDeckAt(x, z) !== null;
+  }
+
+  tooDeep(x, z) {
+    return Boolean(this.waterDepthAt) && this.waterDepthAt(x, z) > WADE_DEPTH;
+  }
+
+  isWalkableAt(x, z, level = 0) {
+    if (level === 0 && this.onBridge(x, z)) return true;
+    if (level === 0 && this.tooDeep(x, z)) return false;
+    const { cx, cz } = worldToCellCoords(x, z);
+    if (hasFloor(this.layout(), cx, cz, level)) return true;
+    if (level !== 0) return false;
+    if (!this.areaLookup) {
+      this.areaLookup = new Set(this.areaCells().map(([ax, az]) => `${ax},${az}`));
+    }
+    if (!this.areaLookup.has(`${cx},${cz}`)) return false;
+    return !this.topAt || this.topAt(cx, cz) < WALK_CLEARANCE;
+  }
+
+  connectorLevelMap() {
+    const records = this.connectors();
+    if (this.connectorMap && this.connectorMapFor === records) return this.connectorMap;
+    const map = new Map();
+    for (const record of records) {
+      const from = record && record.from;
+      const to = record && record.to;
+      if (!from || !to) continue;
+      const dx = Math.sign(to.cx - from.cx);
+      const dz = Math.sign(to.cz - from.cz);
+      if (dx === 0 && dz === 0) continue;
+      map.set(`${from.cx},${from.cz},${levelOf(from)}|${dx},${dz}`, levelOf(to));
+      map.set(`${to.cx},${to.cz},${levelOf(to)}|${-dx},${-dz}`, levelOf(from));
+    }
+    this.connectorMap = map;
+    this.connectorMapFor = records;
+    return map;
+  }
+
+  stepLevel(fromX, fromZ, level, toX, toZ) {
+    const from = worldToCellCoords(fromX, fromZ);
+    const to = worldToCellCoords(toX, toZ);
+    if (from.cx === to.cx && from.cz === to.cz) return level;
+    const dx = Math.sign(to.cx - from.cx);
+    const dz = Math.sign(to.cz - from.cz);
+    if (dx !== 0 && dz !== 0) return level;
+    const map = this.connectorLevelMap();
+    if (!map.size) return level;
+    const target = map.get(`${from.cx},${from.cz},${level}|${dx},${dz}`);
+    return target !== undefined ? target : level;
+  }
+
+  passageCells() {
+    const records = this.connectors();
+    if (this.passageSet && this.passageFor === records) return this.passageSet;
+    const set = new Set();
+    for (const record of records) {
+      for (const end of [record && record.from, record && record.to]) {
+        if (!end || !Number.isFinite(end.cx) || !Number.isFinite(end.cz)) continue;
+        set.add(`${end.cx},${end.cz},${levelOf(end)}`);
+      }
+    }
+    this.passageSet = set;
+    this.passageFor = records;
+    return set;
+  }
+
+  isPassageAt(x, z, level = 0) {
+    const { cx, cz } = worldToCellCoords(x, z);
+    return this.passageCells().has(`${cx},${cz},${level}`);
+  }
+
+  isUnderRoof(x, z, level = 0) {
+    const layout = this.layout();
+    if (!layout) return false;
+    const { cx, cz } = worldToCellCoords(x, z);
+    return Number.isFinite(ceilingLiftAt(layout, cx, cz, level));
+  }
+
+  nearestWalkable(x, z) {
+    let best = null;
+    let bestDist = Infinity;
+    for (const [cx, cz] of this.areaCells()) {
+      const px = cx * CELL_SIZE;
+      const pz = cz * CELL_SIZE;
+      if (!this.isWalkableAt(px, pz)) continue;
+      const dist = Math.hypot(px - x, pz - z);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { x: px, z: pz };
+      }
+    }
+    return best;
+  }
+}

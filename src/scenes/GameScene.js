@@ -1,16 +1,6 @@
 // Herní scéna — orchestrátor. Drží stav světa, deleguje na systémy a řídí HUD.
 // Systémy dostávají scénu v konstruktoru a přistupují k ní přes this.s.
-import '@babylonjs/core/Lights/hemisphericLight';
-import '@babylonjs/core/Lights/directionalLight';
-import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
-import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
-import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
-import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
-import { CascadedShadowGenerator } from '@babylonjs/core/Lights/Shadows/cascadedShadowGenerator';
-import { Vector3, Matrix } from '@babylonjs/core/Maths/math.vector';
-import { Viewport } from '@babylonjs/core/Maths/math.viewport';
-import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
-import { Scene } from '@babylonjs/core/scene';
+import { Color4 } from '@babylonjs/core/Maths/math.color';
 import { FxaaPostProcess } from '@babylonjs/core/PostProcesses/fxaaPostProcess';
 
 import CameraSystem, { ZOOM_MAX as EDITOR_ZOOM_MAX } from '../systems/core/cameraSystem.js';
@@ -27,7 +17,9 @@ import DecoHighlightSystem from '../systems/world/decoHighlightSystem.js';
 import CampfireSystem from '../systems/world/campfireSystem.js';
 import GlowSystem from '../systems/world/glowSystem.js';
 import DayNightSystem from '../systems/atmosphere/dayNightSystem.js';
+import LightingSystem from '../systems/atmosphere/lightingSystem.js';
 import SimSystem from '../systems/core/simSystem.js';
+import NavigationSystem, { WADE_DEPTH } from '../systems/core/navigationSystem.js';
 import InputSystem from '../systems/core/inputSystem.js';
 import PlayerSystem, { STEP_LIMIT } from '../systems/player/playerSystem.js';
 import PlayerStatsSystem from '../systems/player/playerStatsSystem.js';
@@ -46,6 +38,7 @@ import InventoryWindow from '../ui/inventoryWindow.js';
 import CharacterWindow from '../ui/characterWindow.js';
 import LogPanel from '../ui/logPanel.js';
 import FloatingNumbers from '../ui/floatingNumbers.js';
+import { screenPointOf } from '../utils/screenPoint.js';
 import { itemIcon } from '../ui/itemIcons.js';
 import Hud from '../ui/hud.js';
 import GameCursor from '../ui/gameCursor.js';
@@ -64,14 +57,12 @@ import TooltipPanel from '../ui/tooltipPanel.js';
 import { whenModelsIdle, takeModelError, preloadModel, loadModel, loadContainer, loadImported, releaseFrame } from '../utils/assetLoader.js';
 import { decorationModelUrl } from '../utils/decoTemplate.js';
 import { grassModelUrls } from '../data/catalogs/grass.js';
-import { HEIGHT_PRESETS } from '../data/maps/layoutStore.js';
 import { WAVE_TIME_WRAP, SEA_DIRECTION } from '../utils/waterWaves.js';
 import { HOTBAR_ITEMS, ITEM_TYPES } from '../data/catalogs/items.js';
 import { worldToCellCoords, worldToCell, cellToWorldCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../data/catalogs/modelCatalog.js';
 import { mapFileFromLayout, layoutFromMapFile, isMapFile, MAP_VERSION, quantizeMapFileHeights, defaultSpawn } from '../data/catalogs/mapFile.js';
-import { worldCells, hasFloor, ceilingLiftAt } from '../data/maps/areaShape.js';
 import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
 import { PAINT_TERRAIN, PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH, PAINT_ALL } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
@@ -89,8 +80,6 @@ const WORLD_BATCH_BULK = 1500;
 const STAGE_LEAD_FRAMES = 2;
 const MODEL_LANES = 4;
 const LOAD_RETRIES = 2;
-const WALK_CLEARANCE = 1.25;
-const WADE_DEPTH = 0.6;
 const INDOOR_FADE_SECONDS = 2;
 const WADE_SPEED = 0.65;
 const WADE_RAMP = 0.2;
@@ -98,7 +87,6 @@ const WATER_STEP_DEPTH = 0.02;
 const FOOTPRINT_WATER_DEPTH = 0.35;
 const SHORE_CHECK_SECONDS = 0.3;
 const MAX_STEP_SECONDS = 0.1;
-const SHADOW_REACH_MARGIN = 20;
 const SHADOW_REACH_STEP = 0.2;
 const EDITOR_CAM_SPEED = 12;
 const EDITOR_CAM_SPRINT = 32;
@@ -107,17 +95,10 @@ const PLAYER_FLOAT_HEIGHT = 2.2;
 const PLAYER_ZOOM_MAX = 22;
 const CREATURE_SOUND_RANGE = 22;
 const CREATURE_BAR_LIFT = 0.4;
-const SHADOW_FRUSTUM = 70;
-const SHADOW_MIN_Z = 1;
-const SHADOW_MAX_Z = 180;
 const TIME_SKIP = { hours: 6 };
 const BACK_HIT_DOT = -0.2;
 const REBUILD_HEIGHTS = 'heights';
 const AMBIENT_TIME_STEP = 0.0005;
-const SCREEN_IDENTITY = Matrix.Identity();
-const SCREEN_VIEWPORT = new Viewport(0, 0, 1, 1);
-const SCREEN_POINT = new Vector3();
-const SCREEN_PROJECTED = new Vector3();
 const REBUILD_LABELS = [
   { part: PAINT_TERRAIN, label: 'terén' },
   { part: REBUILD_HEIGHTS, label: 'výšky' },
@@ -125,12 +106,6 @@ const REBUILD_LABELS = [
   { part: PAINT_CREATURES, label: 'tvory' },
   { part: PAINT_FISH, label: 'ryby' },
 ];
-
-function sameMeshes(first, second) {
-  if (first.length !== second.length) return false;
-  for (let i = 0; i < first.length; i += 1) if (first[i] !== second[i]) return false;
-  return true;
-}
 
 
 function surfaceStepSound(key) {
@@ -173,7 +148,17 @@ export default class GameScene {
     this.glowSystem = new GlowSystem(scene);
     this.decoHighlight = new DecoHighlightSystem(scene);
     this.dayNightSystem = new DayNightSystem(scene);
+    this.lighting = new LightingSystem(scene);
     this.simSystem = new SimSystem(scene);
+    this.navigation = new NavigationSystem(scene);
+    this.navigation.layoutOf = () => this.decoSystem.layout || this.terrainSystem.layout || null;
+    this.navigation.connectorsOf = () => {
+      const layout = this.navigation.layout() || {};
+      return this.terrainSystem.movementConnectors || layout.connectors || [];
+    };
+    this.navigation.bridgeDeckAt = (x, z) => this.terrainSystem.bridgeDeckAt(x, z);
+    this.navigation.waterDepthAt = (x, z) => this.waterDepthAt(x, z);
+    this.navigation.topAt = (cx, cz) => this.decoSystem.topAt(cx, cz);
     this.inputSystem = new InputSystem(scene, this);
     this.playerSystem = new PlayerSystem(scene);
     this.playerStats = new PlayerStatsSystem();
@@ -226,12 +211,9 @@ export default class GameScene {
     this.autoScale = 1;
     this.autoWindowStart = 0;
     this.autoWindowFrames = 0;
-    this.shadowCasters = [];
     this.shadowClock = 0;
     this.camera = null;
     this.fxaa = null;
-    this.shadowGenerator = null;
-    this.sunLight = null;
     this.heldItemSystem = new HeldItemSystem();
     this.heldItemSystem.onChange = () => this.onHeldItemChange();
     this.playerSystem.onStep = (x, z, sprint) => this.onPlayerStep(x, z, sprint);
@@ -1144,16 +1126,9 @@ export default class GameScene {
   }
 
   screenPointOf(x, y, z) {
-    const camera = this.cameraSystem.camera;
     const canvas = this.engine.getRenderingCanvas();
-    if (!camera || !canvas) return null;
-    const rect = canvas.getBoundingClientRect();
-    if (!rect.width || !rect.height) return null;
-    const viewport = camera.viewport.toGlobalToRef(rect.width, rect.height, SCREEN_VIEWPORT);
-    SCREEN_POINT.set(x, y, z);
-    const projected = Vector3.ProjectToRef(SCREEN_POINT, SCREEN_IDENTITY, this.s.getTransformMatrix(), viewport, SCREEN_PROJECTED);
-    if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y)) return null;
-    return { x: projected.x, y: projected.y };
+    if (!canvas) return null;
+    return screenPointOf(this.s, this.cameraSystem.camera, canvas.getBoundingClientRect(), x, y, z);
   }
 
   refreshCreatureHealthBars() {
@@ -1168,16 +1143,9 @@ export default class GameScene {
       return;
     }
     const items = [];
-    for (const creature of this.creatureSystem.creatures) {
-      if (!creature || !creature.slotKey || !Number.isFinite(creature.health) || creature.buried) continue;
-      const total = creature.tier && Number.isFinite(creature.tier.health) ? creature.tier.health : 0;
-      if (total <= 0) continue;
-      const ratio = creature.health / total;
-      const combat = this.creatureSystem.isHostile(creature);
-      const hovered = this.creatureSystem.hovered === creature;
-      if (ratio >= 0.999 && !combat && !hovered) continue;
+    for (const { creature, ratio } of this.creatureSystem.healthBarTargets()) {
       const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ);
-      const point = this.screenPointOf(creature.renderX, ground + creature.markHeight + CREATURE_BAR_LIFT, creature.renderZ);
+      const point = screenPointOf(this.s, this.cameraSystem.camera, rect, creature.renderX, ground + creature.markHeight + CREATURE_BAR_LIFT, creature.renderZ);
       if (!point) continue;
       if (point.x < 0 || point.y < 0 || point.x > rect.width || point.y > rect.height) continue;
       items.push({ key: creature.slotKey, x: point.x, y: point.y, ratio });
@@ -1270,7 +1238,7 @@ export default class GameScene {
     this.terrainSystem.clear();
     this.terrainSystem.create(this.mapKey, this.mapFile);
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);
-    this.areaLookup = null;
+    this.navigation.resetArea();
     this.creatureSystem.clearPathCache();
     this.refreshShadowCasters();
     this.renderWater();
@@ -1281,7 +1249,7 @@ export default class GameScene {
     const ground = this.terrainSystem.create(this.mapKey, this.mapFile);
     if (ground && ground.length) this.s.clearColor = this.mapColor(this.mapKey, 'sky');
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);
-    this.areaLookup = null;
+    this.navigation.resetArea();
     this.creatureSystem.clearPathCache();
     this.renderWater();
     this.cliffVineSystem.create(this.terrainSystem.shelfAnchors, this.greenTint());
@@ -1528,22 +1496,6 @@ export default class GameScene {
     this.editor.connect();
   }
 
-  setEraseMode(on) {
-    return this.editor.setEraseMode(on);
-  }
-
-  applyBrushDraft() {
-    return this.editor.applyBrushDraft();
-  }
-
-  cancelBrushDraft() {
-    return this.editor.cancelBrushDraft();
-  }
-
-  undoEdit() {
-    return this.editor.undo();
-  }
-
   renderMapLayout(parts) {
     const list = Array.isArray(parts) ? parts : PAINT_ALL;
     if (!this.rebuildParts) this.rebuildParts = new Set();
@@ -1775,84 +1727,24 @@ export default class GameScene {
 
   setupLighting() {
     const map = getMap(this.mapKey);
-    const light = map.light;
-
-    const hemi = new HemisphericLight('skyLight', new Vector3(0.3, 1, 0.2), this.s);
-    hemi.intensity = light.hemiIntensity;
-    hemi.groundColor = new Color3(light.hemiGround[0], light.hemiGround[1], light.hemiGround[2]);
-
-    const dir = new DirectionalLight('sunLight', new Vector3(light.sunDirection[0], light.sunDirection[1], light.sunDirection[2]), this.s);
-    dir.position = new Vector3(light.sunPosition[0], light.sunPosition[1], light.sunPosition[2]);
-    dir.intensity = light.sunIntensity;
-    if (light.sunColor) dir.diffuse = new Color3(light.sunColor[0], light.sunColor[1], light.sunColor[2]);
-
-    this.sunLight = dir;
-    dir.autoUpdateExtends = false;
-    dir.shadowFrustumSize = SHADOW_FRUSTUM;
-    dir.shadowMinZ = SHADOW_MIN_Z;
-    dir.shadowMaxZ = SHADOW_MAX_Z;
-    if (CascadedShadowGenerator.IsSupported) {
-      const csm = new CascadedShadowGenerator(light.shadowMapSize, dir, true, this.camera);
-      csm.numCascades = 2;
-      csm.stabilizeCascades = true;
-      csm.lambda = 0.8;
-      csm.cascadeBlendPercentage = 0.1;
-      csm.shadowMaxZ = SHADOW_MAX_Z;
-      csm.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
-      this.shadowGenerator = csm;
-    } else {
-      this.shadowGenerator = new ShadowGenerator(light.shadowMapSize, dir);
-      this.shadowGenerator.usePercentageCloserFiltering = true;
-      this.shadowGenerator.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
-    }
-    this.shadowGenerator.bias = 0.00005;
-    this.shadowGenerator.normalBias = 0.002;
-    this.shadowGenerator.getShadowMap().clearColor = new Color4(1, 1, 1, 1);
+    const { sun, sky } = this.lighting.create(map.light, this.camera);
     this.refreshShadowDepth();
-
-    this.setupFog(map);
-
+    const fogColor = this.lighting.createFog(map.fog);
+    if (fogColor) this.dayNightSystem.fogColor = fogColor;
     this.dayNightSystem.create(map);
-    this.dayNightSystem.attach(dir, hemi);
+    this.dayNightSystem.attach(sun, sky);
     this.dayNightSystem.applyLighting();
     this.terrainSystem.onRebuilt = () => this.refreshCaveLighting();
     this.refreshCaveLighting();
   }
 
   refreshCaveLighting() {
-    if (!this.terrainSystem || !this.sunLight) return;
-    const cave = this.terrainSystem.caveMeshes();
-    this.sunLight.excludedMeshes = cave;
-    const sky = this.dayNightSystem ? this.dayNightSystem.skyLight : null;
-    if (sky) sky.excludedMeshes = cave;
-    if (!this.caveLight) {
-      const light = new HemisphericLight('caveLight', new Vector3(0, 1, 0), this.s);
-      light.groundColor = new Color3(0.02, 0.02, 0.03);
-      light.diffuse = new Color3(0.16, 0.18, 0.22);
-      light.specular = new Color3(0, 0, 0);
-      light.intensity = 1;
-      this.caveLight = light;
-    }
-    this.caveLight.includedOnlyMeshes = cave;
-  }
-
-  setupFog(map) {
-    const fog = map.fog;
-    if (!fog) return;
-    this.s.fogMode = Scene.FOGMODE_LINEAR;
-    this.s.fogStart = fog.start;
-    this.s.fogEnd = fog.end;
-    this.s.fogColor = new Color3(fog.color[0], fog.color[1], fog.color[2]);
-    this.dayNightSystem.fogColor = this.s.fogColor;
+    if (!this.terrainSystem) return;
+    this.lighting.setCaveMeshes(this.terrainSystem.caveMeshes());
   }
 
   refreshShadowCasters() {
-    this.shadowCasters = this.shadowCasters.filter((mesh) => mesh && !mesh.isDisposed());
-    for (const surface of this.terrainSystem.surfaces || []) {
-      if (!surface) continue;
-      surface.receiveShadows = true;
-      if (surface.metadata && surface.metadata.shadowAlways) this.addShadowCaster(surface);
-    }
+    this.lighting.syncSurfaces(this.terrainSystem.surfaces, this.options.shadows);
     this.refreshShadowReach(true);
   }
 
@@ -1887,19 +1779,11 @@ export default class GameScene {
   }
 
   addShadowCaster(mesh) {
-    if (!mesh || this.shadowCasters.includes(mesh)) return;
-    this.shadowCasters.push(mesh);
-    if (this.options.shadows) this.shadowGenerator.addShadowCaster(mesh);
+    this.lighting.addCaster(mesh, this.options.shadows);
   }
 
   removeShadowCaster(mesh) {
-    const index = this.shadowCasters.indexOf(mesh);
-    if (index < 0) return;
-    this.shadowCasters.splice(index, 1);
-    const renderList = this.shadowGenerator.getShadowMap().renderList;
-    const listIndex = renderList ? renderList.indexOf(mesh) : -1;
-    if (listIndex >= 0) renderList.splice(listIndex, 1);
-    this.shadowGenerator.removeShadowCaster(mesh);
+    this.lighting.removeCaster(mesh);
   }
 
   applyOptions() {
@@ -2072,10 +1956,7 @@ export default class GameScene {
   }
 
   isUnderRoof(x, z, level = 0) {
-    const layout = (this.decoSystem && this.decoSystem.layout) || (this.terrainSystem && this.terrainSystem.layout) || null;
-    if (!layout) return false;
-    const { cx, cz } = worldToCellCoords(x, z);
-    return Number.isFinite(ceilingLiftAt(layout, cx, cz, level));
+    return this.navigation.isUnderRoof(x, z, level);
   }
 
   describeDayPhase(time, cfg) {
@@ -2276,20 +2157,8 @@ export default class GameScene {
   }
 
   refreshShadowDepth() {
-    if (!this.shadowGenerator || !this.camera) return;
-    const range = this.cameraSystem.viewDepthRange();
-    if (this.shadowGenerator instanceof CascadedShadowGenerator) {
-      const span = this.camera.maxZ - this.camera.minZ;
-      this.shadowGenerator.shadowMaxZ = range.far;
-      if (span > 0) {
-        this.shadowGenerator.setMinMaxDistance(
-          (range.near - this.camera.minZ) / span,
-          (range.far - this.camera.minZ) / span,
-        );
-      }
-    }
-    const soft = this.cameraSystem.zoom > PLAYER_ZOOM_MAX;
-    this.shadowGenerator.filteringQuality = soft ? ShadowGenerator.QUALITY_HIGH : ShadowGenerator.QUALITY_MEDIUM;
+    if (!this.camera) return;
+    this.lighting.refreshDepth(this.camera, this.cameraSystem.viewDepthRange(), this.cameraSystem.zoom > PLAYER_ZOOM_MAX);
   }
 
   holdGameForEditor() {
@@ -2321,7 +2190,7 @@ export default class GameScene {
       return;
     }
     if (this.editor.active) {
-      this.handleEditorKey(evt, typing);
+      this.editor.handleKey(evt, typing);
       return;
     }
     if ((evt.key === 'p' || evt.key === 'P') && !typing && !evt.ctrlKey && !evt.metaKey && !evt.altKey) {
@@ -2406,84 +2275,6 @@ export default class GameScene {
       evt.preventDefault();
       this.requestLoad();
     }
-  }
-
-  handleEditorKey(evt, typing) {
-    if (evt.key === 'F2') {
-      evt.preventDefault();
-      this.toggleEditorMode();
-      return;
-    }
-    if (typing && evt.key !== 'Escape') return;
-    if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
-    if (evt.key === 'p' || evt.key === 'P') {
-      evt.preventDefault();
-      this.togglePause();
-      return;
-    }
-    if (evt.key === 'Escape') {
-      if (this.editor.mapMode === 'area' && this.editor.mode.hasAreaSelection) {
-        this.clearAreaSelection();
-        evt.preventDefault();
-        return;
-      }
-      if (this.editor.mode.hasDraft) {
-        this.cancelBrushDraft();
-        evt.preventDefault();
-      }
-      return;
-    }
-    if (evt.key === 'Enter') {
-      if (this.editor.mapMode === 'area' && this.editor.mode.hasAreaSelection) {
-        this.applyAreaSelection();
-        evt.preventDefault();
-        return;
-      }
-      if (this.editor.mode.hasDraft) {
-        this.applyBrushDraft();
-        evt.preventDefault();
-      }
-      return;
-    }
-    if (evt.key === 'x' || evt.key === 'X') {
-      this.setEraseMode(!this.editor.erasing);
-      evt.preventDefault();
-      return;
-    }
-    if (evt.key === 'z' || evt.key === 'Z') {
-      this.undoEdit();
-      evt.preventDefault();
-      return;
-    }
-    if (evt.key === 'h' || evt.key === 'H') {
-      this.editor.mode.setMode(this.editor.mapMode === 'height' ? 'zone' : 'height');
-      evt.preventDefault();
-      return;
-    }
-    if (evt.key === 'q' || evt.key === 'Q') {
-      this.editor.mode.stepHeightLevel(-1);
-      evt.preventDefault();
-      return;
-    }
-    if (evt.key === 'e' || evt.key === 'E') {
-      this.editor.mode.stepHeightLevel(1);
-      evt.preventDefault();
-      return;
-    }
-    if (evt.key === 'r' || evt.key === 'R') {
-      if (this.editor.mode.rotateDeco(evt.shiftKey ? -1 : 1)) {
-        this.editor.refreshBrushOptions();
-        this.handleHover(this.hoverCell);
-        evt.preventDefault();
-        return;
-      }
-    }
-    if (/^[1-9]$/.test(evt.key)) {
-      this.editor.mode.setHeightLevel(HEIGHT_PRESETS[Number(evt.key) - 1]);
-      evt.preventDefault();
-      return;
-    }
-    evt.preventDefault();
   }
 
   toggleGrid() {
@@ -2582,88 +2373,16 @@ export default class GameScene {
     this.editor.lastPaintCell = null;
   }
 
-  applyAreaSelection() {
-    return this.editor.applyAreaSelection();
-  }
-
-  clearAreaSelection() {
-    return this.editor.clearAreaSelection();
-  }
-
   isWalkableAt(x, z, level = 0) {
-    if (level === 0 && this.terrainSystem && this.terrainSystem.bridgeDeckAt(x, z) !== null) return true;
-    if (level === 0 && this.waterDepthAt(x, z) > WADE_DEPTH) return false;
-    const { cx, cz } = worldToCellCoords(x, z);
-    const layout = this.decoSystem.layout || this.terrainSystem.layout || null;
-    if (hasFloor(layout, cx, cz, level)) return true;
-    if (level !== 0) return false;
-    if (!this.areaLookup) {
-      this.areaLookup = new Set(this.areaCellsNow().map(([ax, az]) => `${ax},${az}`));
-    }
-    if (!this.areaLookup.has(`${cx},${cz}`)) return false;
-    return this.decoSystem.topAt(cx, cz) < WALK_CLEARANCE;
-  }
-
-  connectorLevelMap() {
-    const terrain = this.terrainSystem;
-    const layout = this.decoSystem.layout || (terrain && terrain.layout) || {};
-    const records = (terrain && terrain.movementConnectors) || layout.connectors || [];
-    if (this.connectorMap && this.connectorMapFor === records) return this.connectorMap;
-    const map = new Map();
-    const levelOf = (end) => (end && Number.isFinite(end.level) ? end.level : 0);
-    for (const record of records) {
-      const from = record && record.from;
-      const to = record && record.to;
-      if (!from || !to) continue;
-      const dx = Math.sign(to.cx - from.cx);
-      const dz = Math.sign(to.cz - from.cz);
-      if (dx === 0 && dz === 0) continue;
-      map.set(`${from.cx},${from.cz},${levelOf(from)}|${dx},${dz}`, levelOf(to));
-      map.set(`${to.cx},${to.cz},${levelOf(to)}|${-dx},${-dz}`, levelOf(from));
-    }
-    this.connectorMap = map;
-    this.connectorMapFor = records;
-    return map;
+    return this.navigation.isWalkableAt(x, z, level);
   }
 
   stepLevel(fromX, fromZ, level, toX, toZ) {
-    const from = worldToCellCoords(fromX, fromZ);
-    const to = worldToCellCoords(toX, toZ);
-    if (from.cx === to.cx && from.cz === to.cz) return level;
-    const dx = Math.sign(to.cx - from.cx);
-    const dz = Math.sign(to.cz - from.cz);
-    if (dx !== 0 && dz !== 0) return level;
-    const map = this.connectorLevelMap();
-    if (!map.size) return level;
-    const target = map.get(`${from.cx},${from.cz},${level}|${dx},${dz}`);
-    return target !== undefined ? target : level;
-  }
-
-  passageCells() {
-    const terrain = this.terrainSystem;
-    const layout = this.decoSystem.layout || (terrain && terrain.layout) || {};
-    const records = (terrain && terrain.movementConnectors) || layout.connectors || [];
-    if (this.passageSet && this.passageFor === records) return this.passageSet;
-    const set = new Set();
-    for (const record of records) {
-      for (const end of [record && record.from, record && record.to]) {
-        if (!end || !Number.isFinite(end.cx) || !Number.isFinite(end.cz)) continue;
-        const lv = Number.isFinite(end.level) ? end.level : 0;
-        set.add(`${end.cx},${end.cz},${lv}`);
-      }
-    }
-    this.passageSet = set;
-    this.passageFor = records;
-    return set;
+    return this.navigation.stepLevel(fromX, fromZ, level, toX, toZ);
   }
 
   isPassageAt(x, z, level = 0) {
-    const { cx, cz } = worldToCellCoords(x, z);
-    return this.passageCells().has(`${cx},${cz},${level}`);
-  }
-
-  areaCellsNow() {
-    return worldCells(this.decoSystem.layout || this.terrainSystem.layout || null);
+    return this.navigation.isPassageAt(x, z, level);
   }
 
   waterDepthAt(x, z) {
@@ -2681,18 +2400,7 @@ export default class GameScene {
     if (!Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return;
     if (this.terrainSystem && this.terrainSystem.bridgeDeckAt(pos.x, pos.z) !== null) return;
     if (this.waterDepthAt(pos.x, pos.z) <= WADE_DEPTH) return;
-    let best = null;
-    let bestDist = Infinity;
-    for (const [cx, cz] of this.areaCellsNow()) {
-      const x = cx * CELL_SIZE;
-      const z = cz * CELL_SIZE;
-      if (!this.isWalkableAt(x, z)) continue;
-      const dist = Math.hypot(x - pos.x, z - pos.z);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = { x, z };
-      }
-    }
+    const best = this.navigation.nearestWalkable(pos.x, pos.z);
     if (best) player.apply({ x: best.x, z: best.z, facing: player.facing });
   }
 
@@ -2773,31 +2481,7 @@ export default class GameScene {
   }
 
   refreshShadowReach(force = false) {
-    if (!this.shadowGenerator) return;
-    const shadows = Boolean(this.options.shadows);
-    if (this.sunLight) this.sunLight.shadowEnabled = shadows;
-    const shadowMap = this.shadowGenerator.getShadowMap();
-    if (!shadows) {
-      if (!force && shadowMap.renderList && !shadowMap.renderList.length) return;
-      shadowMap.renderList = [];
-      return;
-    }
-    const view = this.viewCircle();
-    const reach = view ? view.radius + SHADOW_REACH_MARGIN : Infinity;
-    const centerX = view ? view.x : 0;
-    const centerZ = view ? view.z : 0;
-    const next = [];
-    for (const mesh of this.shadowCasters) {
-      if (!mesh || mesh.isDisposed() || !mesh.isEnabled()) continue;
-      const always = mesh.metadata && mesh.metadata.shadowAlways;
-      if (!always) {
-        const point = mesh.getAbsolutePosition();
-        if (Math.hypot(point.x - centerX, point.z - centerZ) > reach) continue;
-      }
-      next.push(mesh);
-    }
-    if (!force && sameMeshes(next, shadowMap.renderList || [])) return;
-    shadowMap.renderList = next;
+    this.lighting.refreshReach(this.viewCircle(), Boolean(this.options.shadows), force);
   }
 
 

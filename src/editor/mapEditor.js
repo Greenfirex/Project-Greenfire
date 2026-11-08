@@ -2,7 +2,7 @@
 // Drží otevření editoru, štětec, plochu, neuložené změny a ukládání mapy do souboru.
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { mapFileFromLayout } from '../data/catalogs/mapFile.js';
-import { HEIGHT_STEP, formatMeters } from '../data/maps/layoutStore.js';
+import { HEIGHT_STEP, HEIGHT_PRESETS, formatMeters } from '../data/maps/layoutStore.js';
 import EditorMode from './editorMode.js';
 import EditorHud from './editorHud.js';
 import BrushPanel from './brushPanel.js';
@@ -245,6 +245,84 @@ export default class MapEditor {
     this.s.releaseGameFromEditor();
     this.s.syncZoomLimit();
     this.s.handleHover(this.s.hoverCell);
+  }
+
+  handleKey(evt, typing) {
+    if (evt.key === 'F2') {
+      evt.preventDefault();
+      this.s.toggleEditorMode();
+      return;
+    }
+    if (typing && evt.key !== 'Escape') return;
+    if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+    if (evt.key === 'p' || evt.key === 'P') {
+      evt.preventDefault();
+      this.s.togglePause();
+      return;
+    }
+    if (evt.key === 'Escape') {
+      if (this.mapMode === 'area' && this.mode.hasAreaSelection) {
+        this.clearAreaSelection();
+        evt.preventDefault();
+        return;
+      }
+      if (this.mode.hasDraft) {
+        this.cancelBrushDraft();
+        evt.preventDefault();
+      }
+      return;
+    }
+    if (evt.key === 'Enter') {
+      if (this.mapMode === 'area' && this.mode.hasAreaSelection) {
+        this.applyAreaSelection();
+        evt.preventDefault();
+        return;
+      }
+      if (this.mode.hasDraft) {
+        this.applyBrushDraft();
+        evt.preventDefault();
+      }
+      return;
+    }
+    if (evt.key === 'x' || evt.key === 'X') {
+      this.setEraseMode(!this.erasing);
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'z' || evt.key === 'Z') {
+      this.undo();
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'h' || evt.key === 'H') {
+      this.mode.setMode(this.mapMode === 'height' ? 'zone' : 'height');
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'q' || evt.key === 'Q') {
+      this.mode.stepHeightLevel(-1);
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'e' || evt.key === 'E') {
+      this.mode.stepHeightLevel(1);
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'r' || evt.key === 'R') {
+      if (this.mode.rotateDeco(evt.shiftKey ? -1 : 1)) {
+        this.refreshBrushOptions();
+        this.s.handleHover(this.s.hoverCell);
+        evt.preventDefault();
+        return;
+      }
+    }
+    if (/^[1-9]$/.test(evt.key)) {
+      this.mode.setHeightLevel(HEIGHT_PRESETS[Number(evt.key) - 1]);
+      evt.preventDefault();
+      return;
+    }
+    evt.preventDefault();
   }
 
   togglePanel(active) {
