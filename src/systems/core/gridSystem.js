@@ -30,6 +30,7 @@ export default class GridSystem {
 
   constructor(scene) {
     this.s = scene;
+    this.overlayGroup = 0;
     this.brushMaster = null;
     this.brushMaterial = null;
     this.brushInstances = [];
@@ -151,6 +152,10 @@ export default class GridSystem {
     for (const node of this.hologramNodes) node.setEnabled(false);
   }
 
+  setOverlaysOnTop(on) {
+    this.overlayGroup = on ? 1 : 0;
+  }
+
   showBrush(cells, surfaceAt, erasing) {
     if (!this.brushMaster) {
       this.brushMaster = MeshBuilder.CreateGround('brushMaster', {
@@ -167,6 +172,7 @@ export default class GridSystem {
       this.brushMaterial = mat;
       this.brushInstances = [];
     }
+    this.brushMaster.renderingGroupId = this.overlayGroup;
     const tint = erasing ? HOLO_INVALID.clone() : HOLO_VALID.clone();
     const glow = erasing ? new Color3(0.72, 0.24, 0.2) : new Color3(0.3, 0.78, 0.65);
     this.brushMaterial.diffuseColor = tint;
@@ -214,6 +220,7 @@ export default class GridSystem {
       this.hoverMaster.setEnabled(false);
       this.hoverMaterial = mat;
     }
+    this.hoverMaster.renderingGroupId = this.overlayGroup;
     this.hoverMaterial.diffuseColor = erasing ? new Color3(1, 0.5, 0.45) : new Color3(0.78, 0.96, 1);
     this.hoverMaterial.emissiveColor = erasing ? new Color3(0.95, 0.35, 0.3) : new Color3(0.55, 0.86, 1);
     const y = surfaceAt(cx, cz) + 0.09;
@@ -288,7 +295,10 @@ export default class GridSystem {
       }
     }
 
-    for (const master of this.zonesMasters) master.setEnabled(false);
+    for (const master of this.zonesMasters) {
+      master.setEnabled(false);
+      master.renderingGroupId = this.overlayGroup;
+    }
     for (const pool of this.zonesPool) {
       for (const inst of pool) inst.setEnabled(false);
     }

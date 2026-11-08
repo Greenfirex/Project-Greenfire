@@ -31,6 +31,22 @@ export default {
     return this.cliffMaterials[key];
   },
 
+  caveFrameMaterial(style) {
+    if (!this.cliffMaterials) this.cliffMaterials = {};
+    const cliff = this.cliffMaterialFor(style);
+    const key = `frame_${cliff.name}`;
+    if (!this.cliffMaterials[key]) {
+      const material = new StandardMaterial(`caveFrameMat_${style}`, this.s);
+      material.diffuseTexture = cliff.diffuseTexture;
+      material.bumpTexture = cliff.bumpTexture;
+      material.diffuseColor = cliff.diffuseColor.clone();
+      material.specularColor = cliff.specularColor.clone();
+      material.backFaceCulling = false;
+      this.cliffMaterials[key] = material;
+    }
+    return this.cliffMaterials[key];
+  },
+
   caveRockMaterial(ceiling) {
     if (!this.cliffMaterials) this.cliffMaterials = {};
     const key = ceiling ? 'caveCeiling' : 'caveWall';

@@ -11,6 +11,10 @@ const PLATE = HEIGHT_STEP;
 const PLATE_SPAN = 6;
 const BAND_TILE = 1;
 const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const CAVE_WALL_SKIRT = 1;
+export const DOOR_LINTEL_DEPTH = 0.25;
+const BURIED_WALL_INSET = 0.02;
+const SURFACE_CLEARANCE = 0.02;
 
 function hash01(value) {
   const n = Math.sin(value * 127.1 + 311.7) * 43758.5453;
@@ -52,6 +56,14 @@ export function buildRunVolumeBuckets(layout, options = {}) {
   const surface = typeof options.surface === 'function' ? options.surface : null;
   const hardEdge = typeof options.hardEdge === 'function' ? options.hardEdge : () => false;
   const shiftAt = typeof options.shiftAt === 'function' ? options.shiftAt : null;
+  const keptAt = typeof options.keptAt === 'function' ? options.keptAt : () => false;
+  const keptDownTo = Number.isFinite(options.keptDownTo) ? options.keptDownTo : null;
+  const doorSteps = new Map();
+  for (const door of options.doors || []) {
+    const top = Math.max(door.floor, door.ground);
+    doorSteps.set(`${door.cx},${door.cz}|${door.dx},${door.dz}`, top);
+    doorSteps.set(`${door.cx + door.dx},${door.cz + door.dz}|${-door.dx},${-door.dz}`, top);
+  }
   const solids = buildColumnRuns(world);
   const air = buildColumnAir(world);
   const half = cellSize / 2;
@@ -141,20 +153,21 @@ export function buildRunVolumeBuckets(layout, options = {}) {
     return shift ? { x: gx + shift.x, z: gz + shift.z } : { x: gx, z: gz };
   };
 
-  const sideQuad = (group, cx, cz, dx, dz, a0, a1, bottomA, bottomB, topA, topB, tile, layer, faceBottom, faceTop) => {
+  const sideQuad = (group, cx, cz, dx, dz, a0, a1, bottomA, bottomB, topA, topB, tile, layer, faceBottom, faceTop, inset = 0) => {
     const x0 = cx * cellSize - half;
     const z0 = cz * cellSize - half;
+    const place = inset ? (gx, gz) => ({ x: gx, z: gz }) : shifted;
     const start = group.positions.length / 3;
     const seed = layer === null ? Math.round(bottomA / PLATE) : layer;
     const span = Math.max(1e-4, faceTop - faceBottom);
     const depthT = (value) => Math.min(1, Math.max(0, (value - faceBottom) / span));
     let heights;
     if (dx !== 0) {
-      const x = dx > 0 ? x0 + cellSize : x0;
+      const x = (dx > 0 ? x0 + cellSize : x0) - dx * inset;
       const za = z0 + cellSize * a0;
       const zb = z0 + cellSize * a1;
-      const pa = shifted(x, za);
-      const pb = shifted(x, zb);
+      const pa = place(x, za);
+      const pb = place(x, zb);
       if (dx > 0) {
         group.positions.push(pa.x, bottomA, pa.z, pa.x, topA, pa.z, pb.x, topB, pb.z, pb.x, bottomB, pb.z);
         heights = [bottomA, topA, topB, bottomB];
@@ -164,11 +177,11 @@ export function buildRunVolumeBuckets(layout, options = {}) {
       }
       group.uvs.push(...layerUvs([za / tile, bottomA / tile, za / tile, topA / tile, zb / tile, topB / tile, zb / tile, bottomB / tile], seed));
     } else {
-      const z = dz > 0 ? z0 + cellSize : z0;
+      const z = (dz > 0 ? z0 + cellSize : z0) - dz * inset;
       const xa = x0 + cellSize * a0;
       const xb = x0 + cellSize * a1;
-      const pa = shifted(xa, z);
-      const pb = shifted(xb, z);
+      const pa = place(xa, z);
+      const pb = place(xb, z);
       if (dz > 0) {
         group.positions.push(pb.x, bottomB, pb.z, pb.x, topB, pb.z, pa.x, topA, pa.z, pa.x, bottomA, pa.z);
         heights = [bottomB, topB, topA, bottomA];
@@ -195,7 +208,7 @@ export function buildRunVolumeBuckets(layout, options = {}) {
     return bands;
   };
 
-  const sideFace = (cx, cz, dx, dz, y0, y1, key, openEdge = false) => {
+  const sideFace = (cx, cz, dx, dz, y0, y1, key, openEdge = false, reach = depth) => {
     const style = styleOf(cx, cz) || 'dirt';
     const rockTile = tileOf('cliff', style);
     const hard = hardEdge(cx, cz, dx, dz);
@@ -208,7 +221,7 @@ export function buildRunVolumeBuckets(layout, options = {}) {
       heights.push(surface ? surface(p.gx, p.gz, cx, cz, dx, dz, y1) : y1);
     }
     const lowTop = Math.min(...heights);
-    const bottom = openEdge ? Math.max(y0, lowTop - EDGE_DEPTH) : y0 - depth;
+    const bottom = openEdge ? Math.max(y0, lowTop - EDGE_DEPTH) : y0 - reach;
     const tops = heights.map((value) => Math.max(value, bottom));
     const faceTop = Math.max(...tops);
     if (bottom >= faceTop - EPS) return;
@@ -245,6 +258,37 @@ export function buildRunVolumeBuckets(layout, options = {}) {
     }
   };
 
+  const caveAt = (cx, cz) => (air.get(`${cx},${cz}`) || []).some((span) => span.level < 0);
+
+  const buriedFace = (cx, cz, dx, dz, y0, y1) => {
+    const style = styleOf(cx, cz) || 'dirt';
+    const rockTile = tileOf('cliff', style);
+    const rock = bucketOf(cx, cz, 'cliff', style);
+    const tops = [];
+    for (let i = 0; i <= subdivisions; i += 1) {
+      const p = boundaryAt(cx, cz, dx, dz, i / subdivisions);
+      const height = surface ? surface(p.gx, p.gz, cx, cz, dx, dz, y1) : y1;
+      tops.push(Math.max(y0, Math.min(y1, height - SURFACE_CLEARANCE)));
+    }
+    const rockTop = Math.max(y0, Math.floor(Math.min(...tops) / PLATE + 1e-6) * PLATE);
+    const alongX = dx !== 0 ? 0 : 1;
+    const alongZ = dx !== 0 ? 1 : 0;
+    const reach = BURIED_WALL_INSET / cellSize;
+    const coversWall = (x, z) => !caveAt(x, z) && (solids.get(`${x},${z}`) || []).some(([, top]) => top >= y1 - EPS);
+    const startA = coversWall(cx - alongX, cz - alongZ) ? -reach : 0;
+    const endA = coversWall(cx + alongX, cz + alongZ) ? 1 + reach : 1;
+    for (let i = 0; i < subdivisions; i += 1) {
+      const a0 = i === 0 ? startA : i / subdivisions;
+      const a1 = i === subdivisions - 1 ? endA : (i + 1) / subdivisions;
+      for (const [b, t] of plateBands(y0, rockTop)) {
+        sideQuad(rock, cx, cz, dx, dz, a0, a1, b, b, t, t, rockTile, null, y0, y1, BURIED_WALL_INSET);
+      }
+      if (tops[i] > rockTop + EPS || tops[i + 1] > rockTop + EPS) {
+        sideQuad(rock, cx, cz, dx, dz, a0, a1, rockTop, rockTop, tops[i], tops[i + 1], rockTile, null, y0, y1, BURIED_WALL_INSET);
+      }
+    }
+  };
+
   for (const [id, runs] of solids) {
     if (!runs.length) continue;
     const [cx, cz] = id.split(',').map(Number);
@@ -262,15 +306,20 @@ export function buildRunVolumeBuckets(layout, options = {}) {
             sideFace(cx, cz, dx, dz, y0, y1, floorKey(cx, cz, 0), true);
             continue;
           }
+          const doorTop = doorSteps.get(`${id}|${dx},${dz}`);
           for (const piece of overlapPieces(neighborAir, y0, y1)) {
+            if (doorTop !== undefined && piece.top <= doorTop + EPS) continue;
             if (piece.level >= 0) {
-              sideFace(cx, cz, dx, dz, piece.bottom, piece.top, floorKey(cx, cz, 0));
+              const overDoor = ownAir.some((span) => span.level < 0 && Math.abs(span.top - piece.bottom) <= EPS);
+              sideFace(cx, cz, dx, dz, piece.bottom, piece.top, floorKey(cx, cz, 0), false, overDoor ? DOOR_LINTEL_DEPTH : depth);
               continue;
             }
+            const ownFloor = ownAir.find((span) => span.level === piece.level);
+            if (ownFloor && piece.top <= ownFloor.bottom + EPS && !hardEdge(cx, cz, dx, dz, piece.level)) continue;
             const key = floorKey(nx, nz, piece.level);
             const caveWall = bucketOf(cx, cz, 'cave', key);
             const caveTile = tileOf('cave', key);
-            for (const [b, t] of plateBands(piece.bottom, piece.top)) {
+            for (const [b, t] of plateBands(piece.bottom - CAVE_WALL_SKIRT, piece.top)) {
               wall(caveWall, cx, cz, dx, dz, b, t, caveTile);
             }
           }
@@ -280,6 +329,24 @@ export function buildRunVolumeBuckets(layout, options = {}) {
       if (below) {
         const key = floorKey(cx, cz, below.level);
         cap(bucketOf(cx, cz, 'ceiling', key), cx, cz, bottom, tileOf('ceiling', key));
+      }
+    }
+  }
+
+  if (keptDownTo !== null) {
+    for (const [id, runs] of solids) {
+      const [cx, cz] = id.split(',').map(Number);
+      if (caveAt(cx, cz)) continue;
+      const kept = keptAt(cx, cz);
+      for (const [dx, dz] of DIRECTIONS) {
+        if (!caveAt(cx + dx, cz + dz) && (!kept || keptAt(cx + dx, cz + dz))) continue;
+        for (const [neighborBottom, neighborTop] of solids.get(`${cx + dx},${cz + dz}`) || []) {
+          for (const [bottom, top] of runs) {
+            const y0 = Math.max(bottom, neighborBottom, keptDownTo - CAVE_WALL_SKIRT);
+            const y1 = Math.min(top, neighborTop);
+            if (y1 - y0 > EPS) buriedFace(cx, cz, dx, dz, y0, y1);
+          }
+        }
       }
     }
   }

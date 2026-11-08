@@ -48,6 +48,8 @@ export default {
     const wasBridges = (before.bridges || []).map((entry) => ({ ...entry }));
     const nowBridges = this.layout.bridges || [];
     if (JSON.stringify(wasBridges) !== JSON.stringify(nowBridges)) patch.bridges = wasBridges;
+    const wasConnectors = JSON.parse(JSON.stringify(before.connectors || []));
+    if (JSON.stringify(wasConnectors) !== JSON.stringify(this.layout.connectors || [])) patch.connectors = wasConnectors;
     const wasWater = Number.isFinite(before.waterLevel) ? before.waterLevel : null;
     const nowWater = this.layout && Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
     if (wasWater !== nowWater) patch.waterLevel = wasWater;
@@ -84,6 +86,7 @@ export default {
       }
     }
     if ('bridges' in patch) this.layout.bridges = patch.bridges.map((entry) => ({ ...entry }));
+    if ('connectors' in patch) this.layout.connectors = JSON.parse(JSON.stringify(patch.connectors));
     if ('spawn' in patch) this.layout.spawn = patch.spawn ? { ...patch.spawn } : defaultSpawn();
     if ('waterLevel' in patch) {
       if (patch.waterLevel === null) delete this.layout.waterLevel;

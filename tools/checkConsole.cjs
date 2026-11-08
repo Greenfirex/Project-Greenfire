@@ -80,6 +80,61 @@ async function dryPitReport(page) {
   });
 }
 
+async function floorEditorReport(page) {
+  const open = await page.evaluate(() => {
+    const { game } = window.greenfire;
+    const { editor } = game;
+    if (!editor.active) game.toggleEditorMode();
+    editor.mode.setMode('floors');
+    editor.floorPanel.onSelect(-1);
+    return editor.floorPanelView();
+  });
+  await sleep(SETTLE_MS);
+  const raised = await page.evaluate(() => {
+    const { editor } = window.greenfire.game;
+    const before = editor.currentFloorReport().low.length;
+    editor.floorPanel.onRaise();
+    const after = editor.currentFloorReport();
+    return { before, after: after.low.length, pierced: after.pierced.length };
+  });
+  console.log(`  zvednutí stropu: ${JSON.stringify(raised)}`);
+  await sleep(SETTLE_MS);
+  await page.evaluate(() => window.greenfire.game.editor.undo());
+  await sleep(SETTLE_MS);
+  await page.evaluate(() => {
+    const { game } = window.greenfire;
+    const { editor } = game;
+    editor.floorPanel.onAdd();
+    editor.mode.addAreaCells([[0, 0], [1, 0]]);
+    editor.applyAreaSelection();
+    return true;
+  });
+  console.log('  vykopáno');
+  await sleep(SETTLE_MS);
+  const broken = await page.evaluate(() => {
+    const names = new Set();
+    for (const mesh of window.greenfire.scene.meshes) {
+      for (const subMesh of mesh.subMeshes || []) {
+        const effect = subMesh.effect;
+        if (effect && effect.getCompilationError()) names.add(`${mesh.name}: ${effect.getCompilationError().slice(0, 400)}`);
+      }
+    }
+    return [...names];
+  });
+  if (broken.length) console.log(broken.join(' | '));
+  const result = await page.evaluate(() => {
+    const { editor } = window.greenfire.game;
+    const report = editor.currentFloorReport();
+    const floors = editor.mode.floorList().length;
+    editor.undo();
+    return { sealed: report.sealed, floors, afterUndo: editor.mode.floorEntries().length };
+  });
+  await sleep(SETTLE_MS);
+  await page.evaluate(() => window.greenfire.game.editor.close());
+  await sleep(SETTLE_MS);
+  return { floors: open.floors, report: { doors: open.report.doors, low: open.report.low.length, pierced: open.report.pierced.length, sealed: open.report.sealed }, dug: result };
+}
+
 async function run() {
   const executablePath = BROWSERS.find((candidate) => fs.existsSync(candidate));
   if (!executablePath) throw new Error('Nenašel jsem Edge ani Chrome.');
@@ -91,7 +146,11 @@ async function run() {
     windowsHide: true,
   });
   const problems = new Map();
-  const note = (text) => problems.set(text, (problems.get(text) || 0) + 1);
+  let phase = 'načítání';
+  const note = (text) => {
+    if (!problems.has(text)) console.log(`  (první výskyt při: ${phase}) ${text.slice(0, 160)}`);
+    problems.set(text, (problems.get(text) || 0) + 1);
+  };
   try {
     const page = await browser.newPage();
     page.on('pageerror', (error) => note(`[stránka] ${error.message}`));
@@ -106,11 +165,15 @@ async function run() {
     await page.goto(URL, { waitUntil: 'load', timeout: 60000 });
     await page.waitForFunction(() => Boolean(window.greenfire && window.greenfire.game && window.greenfire.game.loaded), { timeout: 240000, polling: 500 });
     console.log('Svět je načtený.');
+    phase = 'běh hry';
     await sleep(SETTLE_MS);
     console.log(`Zkušební jáma na −15, −5: ${JSON.stringify(await dryPitReport(page))}`);
+    phase = 'pobyt v jeskyni';
     const cave = await moveIntoCave(page);
     console.log(cave ? `Hráč přesunut do jeskyně: ${JSON.stringify(cave)}` : 'V mapě není jeskyně.');
     await sleep(SETTLE_MS);
+    phase = 'editor pater';
+    console.log(`Editor pater: ${JSON.stringify(await floorEditorReport(page))}`);
     for (const item of await shortUniformBuffers(page)) note(`[materiál] ${JSON.stringify(item)}`);
     if (cave) {
       const amount = await page.evaluate(() => window.greenfire.game.revealSystem.state.amount);

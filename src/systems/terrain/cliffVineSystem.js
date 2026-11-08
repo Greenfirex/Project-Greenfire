@@ -89,7 +89,7 @@ export default class CliffVineSystem {
   }
 
   place(anchor) {
-    this.placeFlowers(anchor);
+    if (!anchor.always) this.placeFlowers(anchor);
     if (this.vine) this.placeVine(anchor);
   }
 
@@ -97,7 +97,7 @@ export default class CliffVineSystem {
     const vine = this.vine;
     const drop = Number.isFinite(anchor.drop) ? anchor.drop : 0;
     if ((anchor.depth || 0) < MIN_SHELF_DEPTH || drop < MIN_DROP) return;
-    if (hash(anchor.x, anchor.z, 1) > SPAWN_CHANCE) return;
+    if (!anchor.always && hash(anchor.x, anchor.z, 1) > SPAWN_CHANCE) return;
     const wanted = between(SCALE_RANGE, hash(anchor.x, anchor.z, 4));
     const scale = Math.min(wanted, (drop * DROP_SHARE) / vine.height);
     const yaw = Math.atan2(anchor.dirX, anchor.dirZ) + VINE_YAW + (hash(anchor.x, anchor.z, 3) - 0.5) * YAW_SPREAD;

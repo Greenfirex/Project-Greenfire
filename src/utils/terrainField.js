@@ -9,6 +9,8 @@ const MARGIN = 2;
 const AROUND = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const AUTO_CLIFF_STEP = 2.0;
 const STEP_EPSILON = 1e-6;
+const DOOR_HALF_CELL = 0.5;
+const DOOR_FADE_START = 0.3;
 export const SAME_LEVEL_STEP = HEIGHT_STEP + 0.01;
 
 function catmull(p0, p1, p2, p3, t) {
@@ -18,6 +20,11 @@ function catmull(p0, p1, p2, p3, t) {
     + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t
     + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t
   );
+}
+
+function ease(value) {
+  const t = Math.min(1, Math.max(0, value));
+  return t * t * (3 - 2 * t);
 }
 
 function layerLifts(world, level) {
@@ -161,6 +168,19 @@ function createPlane(world, level, below) {
     return false;
   }
 
+  const doorBlends = new Map();
+
+  function doorBlendAt(px, pz, cx, cz) {
+    const blend = doorBlends.get(cellKey(cx, cz));
+    if (!blend) return 0;
+    const offsetX = px - cx;
+    const offsetZ = pz - cz;
+    const along = offsetX * blend.dx + offsetZ * blend.dz;
+    const across = Math.abs(offsetX * blend.dz - offsetZ * blend.dx);
+    const fade = 1 - ease((across - DOOR_FADE_START) / (DOOR_HALF_CELL - DOOR_FADE_START));
+    return blend.delta * ease(along / DOOR_HALF_CELL) * fade;
+  }
+
   function patched(px, pz, cx, cz) {
     const ix = Math.floor(px);
     const iz = Math.floor(pz);
@@ -184,7 +204,7 @@ function createPlane(world, level, below) {
     const value = catmull(rows[0], rows[1], rows[2], rows[3], fz);
     const low = Math.min(...used);
     const high = Math.max(...used);
-    return Math.min(high, Math.max(low, value));
+    return Math.min(high, Math.max(low, value)) + doorBlendAt(px, pz, cx, cz);
   }
 
   function heightAtSide(x, z, cx, cz) {
@@ -219,6 +239,7 @@ function createPlane(world, level, below) {
     cliffStyleAt: (cx, cz) => sharpStyles.get(cellKey(cx, cz)) || null,
     isHole: (cx, cz) => holes.has(cellKey(cx, cz)),
     cells: heights,
+    doorBlends,
   };
 }
 
@@ -230,6 +251,7 @@ function emptyPlane() {
     isHardEdge: () => false,
     cliffStyleAt: () => null,
     isHole: () => false,
+    doorBlends: new Map(),
   };
 }
 
@@ -250,5 +272,12 @@ export function createTerrainField(world) {
     isHardEdge: (cx, cz, dx, dz, level = 0) => planeFor(level).isHardEdge(cx, cz, dx, dz),
     cliffStyleAt: (cx, cz, level = 0) => planeFor(level).cliffStyleAt(cx, cz),
     isHole: (cx, cz, level = 0) => planeFor(level).isHole(cx, cz),
+    setDoorBlends: (doors) => {
+      for (const door of doors) {
+        const middle = (door.floor + door.ground) / 2;
+        planeFor(door.level).doorBlends.set(cellKey(door.cx, door.cz), { dx: door.dx, dz: door.dz, delta: middle - door.floor });
+        planeFor(0).doorBlends.set(cellKey(door.cx + door.dx, door.cz + door.dz), { dx: -door.dx, dz: -door.dz, delta: middle - door.ground });
+      }
+    },
   };
 }

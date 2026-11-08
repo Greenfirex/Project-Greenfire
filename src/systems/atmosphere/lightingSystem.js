@@ -83,9 +83,9 @@ export default class LightingSystem {
     this.sunLight.excludedMeshes = cave;
     if (this.skyLight) this.skyLight.excludedMeshes = cave;
     if (!this.caveLight) {
-      const light = new HemisphericLight('caveLight', new Vector3(0, 1, 0), this.s);
+      const light = new HemisphericLight('caveLight', new Vector3(0.45, 1, 0.3), this.s);
       light.groundColor = new Color3(0.02, 0.02, 0.03);
-      light.diffuse = new Color3(0.16, 0.18, 0.22);
+      light.diffuse = new Color3(0.2, 0.19, 0.17);
       light.specular = new Color3(0, 0, 0);
       light.intensity = 1;
       this.caveLight = light;
@@ -114,7 +114,7 @@ export default class LightingSystem {
     this.casters = this.casters.filter((mesh) => mesh && !mesh.isDisposed());
     for (const surface of surfaces || []) {
       if (!surface) continue;
-      surface.receiveShadows = true;
+      surface.receiveShadows = !(surface.metadata && surface.metadata.level < 0);
       if (surface.metadata && surface.metadata.shadowAlways) this.addCaster(surface, shadows);
     }
   }

@@ -200,6 +200,7 @@ export default class TerrainSystem {
     this.columnRuns = null;
     const vents = this.connectorInfo();
     this.mouths = vents.mouths;
+    this.field.setDoorBlends(this.caveDoors());
     this.resetSurfaces();
     if (this.solidDebugEnabled()) {
       const blocks = buildSolidBlockMesh(this, world, WALL_TILE);
@@ -721,7 +722,7 @@ export default class TerrainSystem {
       data.normals = group.normals;
       data.applyToMesh(mesh);
       mesh.isPickable = false;
-      mesh.receiveShadows = true;
+      mesh.receiveShadows = level >= 0;
       mesh.metadata = {
         level,
         overCave: Boolean(group.overCave),

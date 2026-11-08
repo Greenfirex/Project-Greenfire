@@ -13,6 +13,7 @@ import DecoSystem from '../systems/world/decoSystem.js';
 import RevealSystem from '../systems/world/revealSystem.js';
 import FloraSystem from '../systems/flora/floraSystem.js';
 import CliffVineSystem from '../systems/terrain/cliffVineSystem.js';
+import CaveFrameSystem from '../systems/terrain/caveFrameSystem.js';
 import DecoHighlightSystem from '../systems/world/decoHighlightSystem.js';
 import CampfireSystem from '../systems/world/campfireSystem.js';
 import GlowSystem from '../systems/world/glowSystem.js';
@@ -117,6 +118,7 @@ export default class GameScene {
     this.decoSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z);
     this.floraSystem = new FloraSystem(scene);
     this.cliffVineSystem = new CliffVineSystem(scene);
+    this.caveFrameSystem = new CaveFrameSystem(scene);
     this.campfireSystem = new CampfireSystem(scene);
     this.glowSystem = new GlowSystem(scene);
     this.decoHighlight = new DecoHighlightSystem(scene);
@@ -778,6 +780,8 @@ export default class GameScene {
     if (!this.terrainSystem) return;
     this.lighting.setCaveMeshes(this.terrainSystem.caveMeshes());
     this.revealSystem.setLightMap(this.terrainSystem.caveLightMap());
+    this.caveFrameSystem.create(this.terrainSystem.caveDoors(), (style) => this.terrainSystem.caveFrameMaterial(style));
+    this.editor.syncFloorView();
   }
 
   refreshShadowCasters() {
@@ -943,15 +947,17 @@ export default class GameScene {
   updateReveal(dt) {
     const root = this.playerSystem ? this.playerSystem.root : null;
     const level = this.playerSystem ? this.playerSystem.level : 0;
-    const under = Boolean(root) && !this.editor.active && this.isUnderRoof(root.position.x, root.position.z, level);
-    if (under || this.revealSystem.isOpen()) {
+    const view = this.editor.floorView();
+    const under = Boolean(view) || (Boolean(root) && !this.editor.active && this.isUnderRoof(root.position.x, root.position.z, level));
+    if (view) this.revealSystem.setKeptMeshes(this.terrainSystem.roofMeshes);
+    else if (under || this.revealSystem.isOpen()) {
       const own = [...root.getChildMeshes(false), ...this.terrainSystem.roofMeshes];
       for (const creature of this.creatureSystem.creatures) {
         if ((creature.level || 0) === level) own.push(...creature.meshes);
       }
       this.revealSystem.setKeptMeshes(own);
     }
-    this.revealSystem.update(dt, under, root ? root.position : null, this.camera);
+    this.revealSystem.update(dt, under, root ? root.position : null, this.camera, view);
   }
 
   playerOnSurface() {
@@ -1066,8 +1072,11 @@ export default class GameScene {
   setupInput() {
     this.inputSystem.suppressContextMenu(this.canvas);
     this.inputSystem.groundPredicate = (mesh) => mesh === this.terrainSystem.ground;
-    this.inputSystem.groundHeightAt = (x, z) => this.terrainSystem.walkHeightAt(x, z, this.editor.active ? 0 : this.playerSystem.level);
-    this.inputSystem.shouldPickByRay = () => this.editor.active && this.editor.mapMode === 'area';
+    this.inputSystem.groundHeightAt = (x, z) => {
+      const plane = this.editor.floorPlane();
+      return plane !== null ? plane : this.terrainSystem.walkHeightAt(x, z, this.editor.active ? 0 : this.playerSystem.level);
+    };
+    this.inputSystem.shouldPickByRay = () => this.editor.active && this.editor.mode.selectsArea;
     this.inputSystem.attach(this.camera, this);
     this.inputSystem.onLeftDown = () => this.handleLeftDown();
     this.inputSystem.onHoverCell = (cell) => this.handleHover(cell);
@@ -1296,6 +1305,8 @@ export default class GameScene {
   }
 
   cellSurfaceAt(cx, cz) {
+    const plane = this.editor.floorPlane();
+    if (plane !== null) return plane;
     const deck = this.terrainSystem.bridgeDeckAt(cx * CELL_SIZE, cz * CELL_SIZE);
     return deck === null ? this.decoSystem.surfaceAt(cx, cz) : deck;
   }
@@ -1326,6 +1337,10 @@ export default class GameScene {
     const erasing = Boolean(this.editor.mode.eraseKind) || this.editor.erasing;
     this.gridSystem.showHoverCell(cell.cx, cell.cz, hoverSurfaceAt, hoverSpan, erasing);
     this.editor.syncCreatureRadius(cell);
+    if (this.editor.mapMode === 'floors') {
+      this.editor.showFloorHoverReadout(cell);
+      return;
+    }
     if (this.editor.mapMode === 'area') {
       this.editor.showAreaPreview(this.editor.mode.getAreaSelection());
       if (this.editor.mode.hasAreaSelection) return;
@@ -1373,7 +1388,7 @@ export default class GameScene {
   }
 
   handlePaintEnd() {
-    if (this.editor.mapMode === 'area') this.editor.mode.finishAreaDrag();
+    if (this.editor.mode.selectsArea) this.editor.mode.finishAreaDrag();
     this.editor.lastPaintCell = null;
   }
 

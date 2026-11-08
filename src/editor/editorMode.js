@@ -15,6 +15,7 @@ import editorAreaParts from './editorArea.js';
 import editorJoinBridgeParts from './editorJoinBridge.js';
 import editorBrushApplyParts from './editorBrushApply.js';
 import editorQueryParts from './editorQuery.js';
+import editorFloorsParts, { DEFAULT_CLEARANCE } from './editorFloors.js';
 
 function droppable(layout, cx, cz) {
   const layers = [];
@@ -56,6 +57,11 @@ export default class EditorMode {
     this.heightDraft = null;
     this.contentIndex = null;
     this.presentCache = null;
+    this.floorLevel = 0;
+    this.floorHeight = 0;
+    this.floorClearance = DEFAULT_CLEARANCE;
+    this.floorExtra = new Set();
+    this.floorDragShift = [0, 0];
     this.areaTool = 'paint';
     this.areaSurface = DEFAULT_FLOOR;
     this.areaSelection = null;
@@ -124,6 +130,14 @@ export default class EditorMode {
     return this.active;
   }
 
+  get undergroundFloor() {
+    return this.mode === 'floors' && this.floorLevel < 0;
+  }
+
+  get selectsArea() {
+    return this.mode === 'area' || this.mode === 'floors';
+  }
+
   get canUndo() {
     return this.history.length > 0;
   }
@@ -160,7 +174,7 @@ export default class EditorMode {
   }
 
   setMode(mode) {
-    if (mode !== 'zone' && mode !== 'height' && mode !== 'area') return;
+    if (mode !== 'zone' && mode !== 'height' && mode !== 'area' && mode !== 'floors') return;
     this.mode = mode;
     this.erasing = false;
     this.areaDrag = null;
@@ -579,4 +593,4 @@ export default class EditorMode {
   }
 }
 
-Object.assign(EditorMode.prototype, editorHistoryParts, editorLayoutEditsParts, editorHeightsParts, editorAreaParts, editorJoinBridgeParts, editorBrushApplyParts, editorQueryParts);
+Object.assign(EditorMode.prototype, editorHistoryParts, editorLayoutEditsParts, editorHeightsParts, editorAreaParts, editorJoinBridgeParts, editorBrushApplyParts, editorQueryParts, editorFloorsParts);

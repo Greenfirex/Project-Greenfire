@@ -15,9 +15,10 @@ const FADE_SECONDS = 0.4;
 const CUT_ABOVE_FLOOR = 3;
 const CUT_FOLLOW = 10;
 const SIGHT_RADIUS = 12;
+const EDITOR_VIEW_RADIUS = 0.001;
 const BACKDROP_RADIUS = 400;
 const BACKDROP_BELOW_FLOOR = 0.15;
-const DAY_LIGHT = [2.6, 2.4, 2.0];
+const DAY_LIGHT = [4.5, 4.2, 3.8];
 const NIGHT_LIGHT = 0.25;
 const PLUGIN_CLASSES = new Set(['StandardMaterial', 'PBRMaterial', 'PBRMetallicRoughnessMaterial', 'PBRSpecularGlossinessMaterial']);
 
@@ -25,6 +26,8 @@ const OVERLAY_MATERIALS = /^(hologramMat_|brushMasterMat|hoverCellMat|creatureRa
 
 function materialKind(name) {
   if (name === 'revealBackdropMat') return 'backdrop';
+  if (name.startsWith('caveFrameMat_')) return 'frame';
+  if (name.startsWith('terrainSurfaceMat_Cave|')) return 'caveFloor';
   if (name === 'terrainCaveCeilingMat') return 'ceiling';
   if (name.includes('Cave')) return 'cave';
   if (name.startsWith('terrain')) return 'terrain';
@@ -56,6 +59,9 @@ export default class RevealSystem {
     this.shaders = new Set();
     this.backdrop = null;
     this.lightMapTexture = null;
+    this.lightBounds = new Vector4(0, 0, 1, 1);
+    this.editorMapTexture = null;
+    this.editorBounds = new Vector4(0, 0, 1, 1);
     this.litCells = 0;
     this.emptyMap = this.rawMap(new Uint8Array([0, 0, 0, 255]), 1, 1);
     this.state.map = this.emptyMap;
@@ -89,16 +95,32 @@ export default class RevealSystem {
   }
 
   setLightMap(map) {
-    const state = this.state;
     if (this.lightMapTexture) this.lightMapTexture.dispose();
-    this.lightMapTexture = null;
-    state.map = this.emptyMap;
-    state.mapMin.set(0, 0, 1, 1);
+    this.lightMapTexture = map ? this.rawMap(map.data, map.width, map.height) : null;
     this.litCells = map ? map.lit : 0;
-    if (!map) return;
-    this.lightMapTexture = this.rawMap(map.data, map.width, map.height);
-    state.map = this.lightMapTexture;
-    state.mapMin.set(map.minX, map.minZ, map.width, map.height);
+    if (map) this.lightBounds.set(map.minX, map.minZ, map.width, map.height);
+    this.useCurrentMap();
+  }
+
+  setEditorMap(map) {
+    if (this.editorMapTexture) this.editorMapTexture.dispose();
+    this.editorMapTexture = map ? this.rawMap(map.data, map.width, map.height) : null;
+    if (map) this.editorBounds.set(map.minX, map.minZ, map.width, map.height);
+    this.useCurrentMap();
+  }
+
+  useCurrentMap() {
+    const { state } = this;
+    if (this.editorMapTexture) {
+      state.map = this.editorMapTexture;
+      state.mapMin.copyFrom(this.editorBounds);
+    } else if (this.lightMapTexture) {
+      state.map = this.lightMapTexture;
+      state.mapMin.copyFrom(this.lightBounds);
+    } else {
+      state.map = this.emptyMap;
+      state.mapMin.set(0, 0, 1, 1);
+    }
   }
 
   rawMap(data, width, height) {
@@ -153,13 +175,18 @@ export default class RevealSystem {
     toCam.normalize();
   }
 
-  update(dt, active, position, camera) {
+  update(dt, active, position, camera, view = null) {
     this.attachPending();
     const step = Math.max(0, dt) / FADE_SECONDS;
     this.progress = Math.max(0, Math.min(1, this.progress + (active ? step : -step)));
     const state = this.state;
     state.amount = this.progress * this.progress * (3 - 2 * this.progress);
-    if (position) {
+    state.radius = view ? EDITOR_VIEW_RADIUS : SIGHT_RADIUS;
+    if (view) {
+      state.center.copyFrom(camera.target);
+      state.cut = view.cut;
+      state.floor = view.floor;
+    } else if (position) {
       state.center.copyFrom(position);
       const goal = position.y + CUT_ABOVE_FLOOR;
       const follow = this.progress > 0 && this.wasOpen ? 1 - Math.exp(-CUT_FOLLOW * Math.max(0, dt)) : 1;
@@ -169,7 +196,7 @@ export default class RevealSystem {
     this.wasOpen = this.progress > 0;
     if (camera) this.updateCamera(camera);
     this.pushShaderUniforms();
-    this.updateBackdrop(position);
+    this.updateBackdrop(view ? null : position);
   }
 
   pushShaderUniforms() {

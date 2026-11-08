@@ -8,9 +8,11 @@ import EditorHud from './editorHud.js';
 import BrushPanel from './brushPanel.js';
 import AreaPanel from './areaPanel.js';
 import HeightPanel from './heightPanel.js';
+import FloorPanel from './floorPanel.js';
 import CreatureOverlay from './creatureOverlay.js';
 import HeightLabels from './heightLabels.js';
 import { formatLevel } from './heightRamp.js';
+import { FLOOR_MARKS } from './editorFloors.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { BRUSHES } from '../data/catalogs/brushes.js';
 import { CELL_SIZE } from '../utils/gridMath.js';
@@ -30,6 +32,7 @@ export default class MapEditor {
     this.brushPanel = new BrushPanel();
     this.areaPanel = new AreaPanel();
     this.heightPanel = new HeightPanel();
+    this.floorPanel = new FloorPanel();
     this.creatureOverlay = new CreatureOverlay(this.s.s);
     this.heightLabels = new HeightLabels();
     this.mapDirty = false;
@@ -66,6 +69,7 @@ export default class MapEditor {
     this.mode.onModeChange = (mode) => {
       this.hud.setMode(mode);
       this.syncPanels(mode);
+      this.syncFloorView();
       this.showAreaPreview(this.mode.getAreaSelection());
       this.refreshZoneOverlay();
       this.refreshCreatureMarks();
@@ -149,8 +153,119 @@ export default class MapEditor {
     };
     this.areaPanel.onHeightStep = (delta) => this.mode.stepHeightLevel(delta);
 
+    this.floorPanel.onSelect = (level) => {
+      this.mode.selectFloor(level);
+      this.syncFloorView();
+      this.s.handleHover(this.s.hoverCell);
+    };
+    this.floorPanel.onAdd = () => {
+      this.mode.addFloor();
+      this.syncFloorView();
+      this.s.handleHover(this.s.hoverCell);
+    };
+    this.floorPanel.onTool = (tool) => {
+      this.mode.setAreaTool(tool);
+      this.refreshFloorPanel();
+    };
+    this.floorPanel.onSurface = (key) => {
+      this.mode.setAreaSurface(key);
+      this.refreshFloorPanel();
+    };
+    this.floorPanel.onHeightStep = (delta) => this.stepFloorHeight(delta);
+    this.floorPanel.onClearanceStep = (delta) => {
+      this.mode.stepFloorClearance(delta);
+      this.refreshFloorPanel();
+    };
+    this.floorPanel.onApply = () => this.applyAreaSelection();
+    this.floorPanel.onClear = () => this.clearAreaSelection();
+    this.floorPanel.onUndo = () => this.undo();
+    this.floorPanel.onRaise = () => {
+      const count = this.mode.raiseLowCeilings();
+      this.refreshUndoButton();
+      this.hud.setReadout(`Strop zvednut u ${count} buněk`);
+    };
+
     this.hud.onWaterToggle = () => this.toggleWater();
     this.hud.onWaterStep = (delta) => this.stepWater(delta);
+  }
+
+  floorPlane() {
+    return this.mode.active && this.mode.undergroundFloor ? this.mode.floorHeight : null;
+  }
+
+  floorView() {
+    return this.mode.floorView();
+  }
+
+  syncFloorView() {
+    const underground = this.mode.active && this.mode.undergroundFloor;
+    this.s.revealSystem.setEditorMap(underground ? this.mode.floorViewMap() : null);
+    this.s.gridSystem.setOverlaysOnTop(underground);
+    if (this.mode.active && this.mode.mode === 'floors') {
+      this.refreshFloorPanel();
+      this.refreshZoneOverlay();
+    }
+  }
+
+  stepFloorHeight(delta) {
+    this.mode.stepFloorHeight(delta);
+    this.syncFloorView();
+    this.showAreaPreview(this.mode.getAreaSelection());
+    this.s.handleHover(this.s.hoverCell);
+  }
+
+  currentFloorReport() {
+    return this.mode.floorReport(this.s.terrainSystem.movementConnectors);
+  }
+
+  floorPanelView() {
+    const selection = this.mode.getAreaSelection();
+    return {
+      floors: this.mode.floorList(),
+      level: this.mode.floorLevel,
+      tool: this.mode.areaTool,
+      surface: this.mode.areaSurface,
+      height: this.mode.floorHeight,
+      clearance: this.mode.floorClearance,
+      count: selection ? selection.cells.length : 0,
+      undoEnabled: this.mode.canUndo,
+      report: this.mode.undergroundFloor ? this.currentFloorReport() : null,
+    };
+  }
+
+  refreshFloorPanel() {
+    this.floorPanel.update(this.floorPanelView());
+  }
+
+  showFloorMarks() {
+    if (!this.mode.undergroundFloor) {
+      this.s.gridSystem.clearZones();
+      return;
+    }
+    const report = this.currentFloorReport();
+    this.floorMarksReport = report;
+    const door = Color3.FromArray(FLOOR_MARKS.door);
+    const problem = Color3.FromArray(FLOOR_MARKS.problem);
+    this.s.gridSystem.showZones([
+      { cells: report.doors, color: door, glow: door, alpha: 0.6, lift: 0.06 },
+      { cells: [...report.low, ...report.pierced], color: problem, glow: problem, alpha: 0.45, lift: 0.05 },
+    ], () => this.mode.floorHeight);
+  }
+
+  showFloorHoverReadout(cell) {
+    this.hud.setCursorValue(null);
+    if (!this.mode.undergroundFloor) {
+      this.s.tooltipPanel.show('Povrch', 'Vyber nebo založ podzemní patro');
+      return;
+    }
+    const state = this.mode.areaTool === 'erase' ? 'zasypávám' : 'kopu';
+    const report = this.floorMarksReport;
+    const has = (list) => Boolean(report) && list.some(([cx, cz]) => cx === cell.cx && cz === cell.cz);
+    let mark = '';
+    if (report && has(report.doors)) mark = ' · vchod';
+    else if (report && has(report.pierced)) mark = ' · strop prorazil povrch';
+    else if (report && has(report.low)) mark = ' · nízký strop';
+    this.s.tooltipPanel.show(`Patro — ${state}`, `${cell.cx}, ${cell.cz} · podlaha ${formatMeters(this.mode.floorHeight)}${mark}`);
   }
 
   toggleWater() {
@@ -203,6 +318,7 @@ export default class MapEditor {
     this.mode.clearAreaSelection();
     this.heightPanel.setCount(0);
     this.heightPanel.hide();
+    this.floorPanel.hide();
     this.brushPanel.close();
     this.areaPanel.hide();
     this.s.gridSystem.clearBrush();
@@ -214,7 +330,7 @@ export default class MapEditor {
   }
 
   centerPanels() {
-    for (const panel of [this.hud.root, this.brushPanel.root, this.areaPanel.root, this.heightPanel.root]) {
+    for (const panel of [this.hud.root, this.brushPanel.root, this.areaPanel.root, this.heightPanel.root, this.floorPanel.root]) {
       if (!panel) continue;
       panel.style.left = '';
       panel.style.top = '';
@@ -228,7 +344,9 @@ export default class MapEditor {
     this.mode.setWaterShown(true);
     this.heightPanel.setCount(0);
     this.heightPanel.hide();
+    this.floorPanel.hide();
     this.mode.active = false;
+    this.syncFloorView();
     this.hud.setCursorValue(null);
     this.heightLabels.clear();
     this.brushPanel.close();
@@ -261,7 +379,7 @@ export default class MapEditor {
       return;
     }
     if (evt.key === 'Escape') {
-      if (this.mapMode === 'area' && this.mode.hasAreaSelection) {
+      if (this.mode.selectsArea && this.mode.hasAreaSelection) {
         this.clearAreaSelection();
         evt.preventDefault();
         return;
@@ -273,7 +391,7 @@ export default class MapEditor {
       return;
     }
     if (evt.key === 'Enter') {
-      if (this.mapMode === 'area' && this.mode.hasAreaSelection) {
+      if (this.mode.selectsArea && this.mode.hasAreaSelection) {
         this.applyAreaSelection();
         evt.preventDefault();
         return;
@@ -300,12 +418,14 @@ export default class MapEditor {
       return;
     }
     if (evt.key === 'q' || evt.key === 'Q') {
-      this.mode.stepHeightLevel(-1);
+      if (this.mode.undergroundFloor) this.stepFloorHeight(-1);
+      else this.mode.stepHeightLevel(-1);
       evt.preventDefault();
       return;
     }
     if (evt.key === 'e' || evt.key === 'E') {
-      this.mode.stepHeightLevel(1);
+      if (this.mode.undergroundFloor) this.stepFloorHeight(1);
+      else this.mode.stepHeightLevel(1);
       evt.preventDefault();
       return;
     }
@@ -337,6 +457,7 @@ export default class MapEditor {
       this.brushPanel.close();
       this.areaPanel.hide();
       this.heightPanel.hide();
+      this.floorPanel.hide();
       this.mode.setBrush(null);
     }
     this.syncPanels(this.mode.mode);
@@ -349,8 +470,18 @@ export default class MapEditor {
     if (!this.mode.active) {
       this.areaPanel.hide();
       this.heightPanel.hide();
+      this.floorPanel.hide();
       return;
     }
+    if (mode === 'floors') {
+      this.brushPanel.close();
+      this.areaPanel.hide();
+      this.heightPanel.hide();
+      this.mode.cancelDraft();
+      this.floorPanel.show(this.floorPanelView());
+      return;
+    }
+    this.floorPanel.hide();
     if (mode === 'area') {
       this.brushPanel.close();
       this.heightPanel.hide();
@@ -391,6 +522,13 @@ export default class MapEditor {
   }
 
   showAreaPreview(selection) {
+    if (this.mode.active && this.mode.mode === 'floors') {
+      const cells = selection ? selection.cells : [];
+      if (cells.length) this.s.gridSystem.showBrush(cells, () => this.mode.floorHeight, selection.tool === 'erase');
+      else this.s.gridSystem.clearBrush();
+      this.refreshFloorPanel();
+      return;
+    }
     if (this.mode.active && this.mode.mode !== 'area') {
       this.s.gridSystem.clearBrush();
       this.areaPanel.setCount(0, 0);
@@ -415,6 +553,15 @@ export default class MapEditor {
   applyAreaSelection() {
     const selection = this.mode.getAreaSelection();
     if (!selection || !selection.cells.length) return false;
+    if (this.mode.mode === 'floors') {
+      const dug = this.mode.applyFloorSelection();
+      const erasing = selection.tool === 'erase';
+      this.s.gridSystem.clearBrush();
+      this.refreshUndoButton();
+      this.hud.setReadout(dug ? `${erasing ? 'Zasypáno' : 'Vykopáno'} ${dug} buněk` : 'Nic k zasypání — v tomhle patře tu nic není');
+      this.s.handleHover(this.s.hoverCell);
+      return true;
+    }
     const erasing = selection.tool === 'erase';
     const pending = this.mode.pendingAreaCells();
     const existing = this.mode.pendingAreaExisting();
@@ -572,7 +719,10 @@ export default class MapEditor {
 
   startPaint(cell) {
     this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
-    if (this.mode.mode === 'area') this.mode.beginAreaDrag(cell.cx, cell.cz);
+    if (this.mode.mode === 'floors') {
+      if (this.mode.undergroundFloor) this.mode.beginFloorDrag(cell.cx, cell.cz);
+      else this.hud.setReadout('Vyber nebo založ podzemní patro');
+    } else if (this.mode.mode === 'area') this.mode.beginAreaDrag(cell.cx, cell.cz);
     else if (this.mode.mode === 'height') {
       this.mode.beginHeightStroke();
       this.mode.paint(cell.cx, cell.cz);
@@ -626,7 +776,8 @@ export default class MapEditor {
 
   movePaint(cell) {
     const from = this.lastPaintCell || cell;
-    if (this.mode.mode === 'area') this.mode.moveAreaDrag(cell.cx, cell.cz);
+    if (this.mode.mode === 'floors') this.mode.moveFloorDrag(cell.cx, cell.cz);
+    else if (this.mode.mode === 'area') this.mode.moveAreaDrag(cell.cx, cell.cz);
     else if (this.mode.mode === 'height') this.mode.paintRun(from, cell);
     else if (!this.mode.isJoinBrush && (!this.mode.isBridgeBrush || this.mode.draftMode === 'remove')) this.mode.moveDraftDrag(cell.cx, cell.cz);
     this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
@@ -644,7 +795,7 @@ export default class MapEditor {
       this.hud.setReadout('Most zrušen — klikni znovu na břeh');
       return;
     }
-    if (this.mode.mode === 'area') {
+    if (this.mode.selectsArea) {
       this.mode.removeAreaCells([[cell.cx, cell.cz]]);
       return;
     }
@@ -745,6 +896,7 @@ export default class MapEditor {
     this.brushPanel.setUndoEnabled(this.mode.canUndo);
     this.areaPanel.setUndoEnabled(this.mode.canUndo);
     this.heightPanel.setUndoEnabled(this.mode.canUndo);
+    if (this.mode.mode === 'floors') this.refreshFloorPanel();
   }
 
   updateDraftView(draft) {
@@ -781,6 +933,13 @@ export default class MapEditor {
       this.s.gridSystem.clearDraftCells();
       this.s.gridSystem.clearDraftOutline();
       this.heightLabels.clear();
+      return;
+    }
+    if (this.mode.mode === 'floors') {
+      this.s.gridSystem.clearDraftCells();
+      this.s.gridSystem.clearDraftOutline();
+      this.heightLabels.clear();
+      this.showFloorMarks();
       return;
     }
     if (this.mode.mode === 'height' && this.mode.heightDraftCount) {

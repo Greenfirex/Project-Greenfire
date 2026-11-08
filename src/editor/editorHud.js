@@ -32,6 +32,7 @@ export default class EditorHud {
         <button type="button" data-mode="zone">Zóny</button>
         <button type="button" data-mode="height">Výška</button>
         <button type="button" data-mode="area">Herní plocha</button>
+        <button type="button" data-mode="floors">Patra</button>
         <button type="button" class="editor-panel__close" title="Zavřít (F2)">×</button>
       </div>
       <div class="editor-panel__hint">Vyber štětec a tažením označ obdélník (klik = jedna buňka) · WASD posun pohledu (Shift rychleji) · Pravé tažení otáčí pohled, pravé kliknutí odebere buňku · Z zpět · F2 zavřít</div>
@@ -196,7 +197,7 @@ export default class EditorHud {
   }
 
   setMode(mode) {
-    this.state.mode = mode === 'height' || mode === 'area' ? mode : 'zone';
+    this.state.mode = mode === 'height' || mode === 'area' || mode === 'floors' ? mode : 'zone';
     this.state.erasing = false;
     if (this.root) this.root.dataset.mode = this.state.mode;
     this.refresh();

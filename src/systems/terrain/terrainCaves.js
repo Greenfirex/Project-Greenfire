@@ -1,11 +1,13 @@
 // Část terénu: jeskyně — spoje mezi patry, vchody a strop, který se nad hráčem odkryje.
 // Patří k TerrainSystem (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { CELL_SIZE } from '../../utils/gridMath.js';
+import { DOOR_LINTEL_DEPTH } from './runVolume.js';
 import { columnsByCell, layerLiftAt, floorCellAt } from '../../data/maps/areaShape.js';
 
 const CAVE_OPEN_STEP = 0.6;
 const OUTER_LIGHT_CELLS = 6;
 const INNER_LIGHT_CELLS = 3;
+const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 export default {
   caveMeshes() {
@@ -13,7 +15,7 @@ export default {
     for (const mesh of this.surfaces) {
       if (!mesh || mesh.isDisposed()) continue;
       const name = mesh.name || '';
-      if (name.startsWith('terrainCaveWall') || name.startsWith('terrainCeiling') || name.includes('_L-')) {
+      if (name.startsWith('terrainCaveWall') || name.startsWith('terrainCeiling')) {
         list.push(mesh);
       }
     }
@@ -34,10 +36,21 @@ export default {
       maxZ = Math.max(maxZ, cz);
       if (planes.some((plane) => plane.level < 0 && Number.isFinite(plane.ceil))) caveCells.add(id);
     }
+    const rockCells = new Set();
+    for (const id of caveCells) {
+      const [cx, cz] = id.split(',').map(Number);
+      for (const [dx, dz] of SIDES) {
+        const sideId = `${cx + dx},${cz + dz}`;
+        if (caveCells.has(sideId)) continue;
+        const ground = (columns.get(sideId) || []).find((plane) => plane.level === 0);
+        if (ground && columns.get(id).some((plane) => plane.level < 0 && Number.isFinite(plane.ceil) && ground.lift >= plane.ceil)) rockCells.add(sideId);
+      }
+    }
     const outerSeeds = [];
     const faces = [];
     const innerSeeds = [];
     const doors = [];
+    const doorFloors = [];
     const levelOf = (end) => (Number.isFinite(end.level) ? end.level : 0);
     for (const record of this.movementConnectors || []) {
       if (!record || !record.from || !record.to || levelOf(record.from) === levelOf(record.to)) continue;
@@ -48,6 +61,8 @@ export default {
       outerSeeds.push([outside.cx, outside.cz]);
       faces.push({ cx: outside.cx, cz: outside.cz, dx: outside.cx - inside.cx, dz: outside.cz - inside.cz });
       innerSeeds.push([inside.cx, inside.cz]);
+      const insidePlane = (columns.get(`${inside.cx},${inside.cz}`) || []).find((plane) => plane.level === levelOf(inside));
+      if (insidePlane) doorFloors.push(insidePlane.lift);
       doors.push({ cx: inside.cx, cz: inside.cz, dx: inside.cx - outside.cx, dz: inside.cz - outside.cz });
     }
     if (!outerSeeds.length) return null;
@@ -88,13 +103,28 @@ export default {
     };
     const waterLevel = Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : -Infinity;
     const outdoors = (id) => {
-      if (caveCells.has(id)) return false;
+      if (caveCells.has(id) || rockCells.has(id)) return false;
       const ground = (columns.get(id) || []).find((plane) => plane.level === 0);
       if (!ground || ground.lift <= waterLevel) return false;
       const [cx, cz] = id.split(',').map(Number);
       return faces.some((face) => (cx - face.cx) * face.dx + (cz - face.cz) * face.dz >= 0);
     };
     const lit = spread(outerSeeds, OUTER_LIGHT_CELLS, 0, outdoors);
+    const lowestDoor = doorFloors.length ? Math.min(...doorFloors) : null;
+    for (const [id, planes] of columns) {
+      const ground = planes.find((plane) => plane.level === 0);
+      if (lowestDoor === null || !ground || ground.lift < lowestDoor) continue;
+      const [cx, cz] = id.split(',').map(Number);
+      const index = indexOf(cx, cz) * 4;
+      if (!data[index + 3] || !data[index]) continue;
+      let lowest = ground.lift;
+      for (const ox of [-0.5, 0, 0.5]) {
+        for (const oz of [-0.5, 0, 0.5]) {
+          if (this.field) lowest = Math.min(lowest, this.field.heightAtSide((cx + ox) * CELL_SIZE, (cz + oz) * CELL_SIZE, cx, cz));
+        }
+      }
+      if (lowest >= lowestDoor) data[index + 1] = 255;
+    }
     const inFrontOfDoor = (id) => {
       if (!caveCells.has(id)) return false;
       const [cx, cz] = id.split(',').map(Number);
@@ -107,7 +137,34 @@ export default {
       });
     };
     spread(innerSeeds, INNER_LIGHT_CELLS, 1, inFrontOfDoor);
-    return { data, width, height, minX, minZ, lit };
+    return { data, width, height, minX, minZ, lit, floor: lowestDoor };
+  },
+
+  caveDoors() {
+    const columns = columnsByCell(this.layout || {});
+    const levelOf = (end) => (Number.isFinite(end.level) ? end.level : 0);
+    const doors = new Map();
+    const doorId = (cx, cz, dx, dz) => `${cx},${cz}|${dx},${dz}`;
+    for (const record of this.movementConnectors || []) {
+      if (!record || !record.from || !record.to || levelOf(record.from) === levelOf(record.to)) continue;
+      const outside = levelOf(record.from) === 0 ? record.from : (levelOf(record.to) === 0 ? record.to : null);
+      if (!outside) continue;
+      const inside = outside === record.from ? record.to : record.from;
+      const dx = outside.cx - inside.cx;
+      const dz = outside.cz - inside.cz;
+      if (Math.abs(dx) + Math.abs(dz) !== 1) continue;
+      const cave = (columns.get(`${inside.cx},${inside.cz}`) || []).find((plane) => plane.level === levelOf(inside));
+      const ground = (columns.get(`${outside.cx},${outside.cz}`) || []).find((plane) => plane.level === 0);
+      if (!cave || !ground || !Number.isFinite(cave.ceil)) continue;
+      const flanks = [[outside.cx - dz, outside.cz + dx], [outside.cx + dz, outside.cz - dx]];
+      const style = flanks.map(([cx, cz]) => (this.field ? this.field.cliffStyleAt(cx, cz) : null)).find(Boolean) || 'dirt';
+      doors.set(doorId(inside.cx, inside.cz, dx, dz), { cx: inside.cx, cz: inside.cz, dx, dz, level: levelOf(inside), floor: cave.lift, top: cave.ceil - DOOR_LINTEL_DEPTH, ground: ground.lift, style });
+    }
+    return [...doors.values()].map((door) => ({
+      ...door,
+      openLeft: doors.has(doorId(door.cx - door.dz, door.cz + door.dx, door.dx, door.dz)),
+      openRight: doors.has(doorId(door.cx + door.dz, door.cz - door.dx, door.dx, door.dz)),
+    }));
   },
 
   connectorInfo() {

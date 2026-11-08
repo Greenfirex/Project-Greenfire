@@ -9,6 +9,10 @@ import { SURFACE_SUB, SURFACE_CHUNK, WALL_TILE, SURFACE_VERTEX_TINT, pointId } f
 
 const EDGE_ANCHOR_DEPTH = 0.4;
 const SURFACE_DEPTH = 1;
+const DOOR_VINE_SPREAD = 0.9;
+const DOOR_VINE_OUT = 0.05;
+const DOOR_VINE_ABOVE = 0.1;
+const DOOR_VINE_DROP = 1.4;
 
 function wallTint(x, y, z, t) {
   const grain = valueNoise(x * 0.37 + 4.1, z * 0.37 - 2.3);
@@ -28,6 +32,14 @@ function wallTint(x, y, z, t) {
 export default {
   createVolumeMass(map) {
     const shade = { cave: 0.62, ceiling: 0.42 };
+    const light = this.caveLightMap();
+    const keptAt = (cx, cz) => {
+      if (!light) return false;
+      const x = cx - light.minX;
+      const z = cz - light.minZ;
+      if (x < 0 || z < 0 || x >= light.width || z >= light.height) return false;
+      return light.data[(z * light.width + x) * 4] > 0;
+    };
     const buckets = buildRunVolumeBuckets(this.layout || {}, {
       chunkSize: SURFACE_CHUNK,
       cellSize: CELL_SIZE,
@@ -40,8 +52,11 @@ export default {
       depth: SURFACE_DEPTH,
       styleOf: (cx, cz) => (this.field && this.field.cliffStyleAt ? this.field.cliffStyleAt(cx, cz) : null),
       surface: (gx, gz, cx, cz, dx, dz, fallback) => this.edgeHeightAt(gx, gz, cx, cz, dx, dz, fallback),
-      hardEdge: (cx, cz, dx, dz) => (this.field && this.field.isHardEdge ? this.field.isHardEdge(cx, cz, dx, dz) : false),
+      hardEdge: (cx, cz, dx, dz, level = 0) => (this.field && this.field.isHardEdge ? this.field.isHardEdge(cx, cz, dx, dz, level) : false),
       shiftAt: (gx, gz) => this.surfaceShiftAt(gx, gz),
+      keptAt,
+      doors: this.caveDoors(),
+      keptDownTo: light ? light.floor : null,
     });
     for (const group of buckets) {
       if (!group.positions.length) continue;
@@ -146,6 +161,19 @@ export default {
           });
         }
       }
+    }
+    for (const door of this.caveDoors()) {
+      const across = (valueNoise(door.cx * 1.7, door.cz * 2.3) - 0.5) * DOOR_VINE_SPREAD;
+      this.shelfAnchors.push({
+        x: (door.cx + door.dx / 2) * CELL_SIZE + door.dx * DOOR_VINE_OUT - door.dz * across,
+        y: door.top + DOOR_VINE_ABOVE,
+        z: (door.cz + door.dz / 2) * CELL_SIZE + door.dz * DOOR_VINE_OUT + door.dx * across,
+        dirX: door.dx,
+        dirZ: door.dz,
+        depth: EDGE_ANCHOR_DEPTH,
+        drop: DOOR_VINE_DROP,
+        always: true,
+      });
     }
   },
 
