@@ -31,6 +31,21 @@ export default {
     return this.cliffMaterials[key];
   },
 
+  caveRockMaterial(ceiling) {
+    if (!this.cliffMaterials) this.cliffMaterials = {};
+    const key = ceiling ? 'caveCeiling' : 'caveWall';
+    if (!this.cliffMaterials[key]) {
+      const material = this.stoneCliffMaterial();
+      material.name = ceiling ? 'terrainCaveCeilingMat' : 'terrainCaveWallMat';
+      if (ceiling) {
+        material.backFaceCulling = true;
+        material.twoSidedLighting = false;
+      }
+      this.cliffMaterials[key] = material;
+    }
+    return this.cliffMaterials[key];
+  },
+
   stoneCliffMaterial() {
     const material = new StandardMaterial('terrainCliffStoneMat', this.s);
     const texture = new Texture(CLIFF_TEXTURE, this.s);
@@ -147,8 +162,9 @@ export default {
     return material;
   },
 
-  materialFor(key, map, blend = null) {
-    const cacheKey = blend ? `${key}|${blend.partners.map((partner) => partner.key).join('+')}` : key;
+  materialFor(key, map, blend = null, underground = false) {
+    const baseKey = blend ? `${key}|${blend.partners.map((partner) => partner.key).join('+')}` : key;
+    const cacheKey = underground ? `Cave|${baseKey}` : baseKey;
     let material = this.materials.get(cacheKey);
     if (!material) {
       const cfg = this.surfaceConfig(key);
@@ -315,21 +331,5 @@ export default {
   tintOf(map) {
     const tone = map.colors.surfaceTint || [0.5, 0.62, 0.45];
     return [tone[0] * 2, tone[1] * 2, tone[2] * 2];
-  },
-
-  ceilingMaterialFor(key, map) {
-    const cacheKey = `ceiling|${key}`;
-    const cached = this.materials.get(cacheKey);
-    if (cached) return cached;
-    const cfg = this.surfaceConfig(key) || {};
-    const material = new StandardMaterial(`terrainCeilingMat_${key}`, this.s);
-    if (cfg.texture) material.diffuseTexture = new Texture(cfg.texture, this.s);
-    material.specularColor = new Color3(0.02, 0.02, 0.02);
-    material.ambientColor = color3(cfg.ambient || [0.08, 0.08, 0.07]);
-    material.useVertexColor = true;
-    material.backFaceCulling = true;
-    material.diffuseColor = color3(cfg.mapTint ? this.tintOf(map) : (cfg.color || [1, 1, 1]));
-    this.materials.set(cacheKey, material);
-    return material;
   },
 };

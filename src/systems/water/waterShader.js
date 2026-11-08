@@ -10,6 +10,7 @@ import {
   waveAmpGlsl, waveFieldGlsl, rippleSlopeGlsl, rippleWarpGlsl, glslFloat,
 } from '../../utils/waterWaves.js';
 import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
+import { REVEAL_UNIFORMS, REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, revealBlock } from '../../utils/revealGlsl.js';
 
 const FOAM_DIR = ASSET_DIRS.textures;
 const FOAM_FILES = {
@@ -42,6 +43,8 @@ function foamTextureSet(scene) {
   foamTextures.set(scene, set);
   return set;
 }
+
+const REVEAL_WATER = { above: '1.0', front: '0.0', hide: '0.0', keep: '0.0', inside: '0.0', restore: '1.0' };
 
 const WAVE = `
 float hash(vec2 p) {
@@ -121,6 +124,7 @@ uniform sampler2D foamFineOpacity;
 uniform sampler2D foamFineNormal;
 uniform sampler2D foamCoarseColor;
 uniform sampler2D foamCoarseOpacity;
+${REVEAL_UNIFORMS}
 
 varying vec3 vPosition;
 varying float vDist;
@@ -294,6 +298,7 @@ void main(void) {
 
   float alpha = mix(0.62, 0.96, t) * visible;
   alpha = max(alpha, mix(foamAmount * 0.5, 0.96, foamAmount * foamAmount));
+  ${revealBlock('color', 'vPosition', REVEAL_WATER)}
   gl_FragColor = vec4(color, alpha);
 }
 `;
@@ -333,6 +338,7 @@ uniform vec3 deepColor;
 uniform vec3 foamColor;
 uniform float dayness;
 uniform float waterTime;
+${REVEAL_UNIFORMS}
 
 varying vec2 vUV;
 varying vec3 vPosition;
@@ -359,6 +365,7 @@ void main(void) {
   float foam = (1.0 - smoothstep(0.02, 0.22, t)) * (0.3 + 0.7 * pattern);
   color = mix(color, foamColor, clamp(foam, 0.0, 1.0) * 0.45);
   color *= 0.45 + 0.55 * dayness;
+  ${revealBlock('color', 'vPosition', REVEAL_WATER)}
   gl_FragColor = vec4(color, 0.94);
 }
 `;
@@ -378,11 +385,13 @@ export function createWaterMaterial(scene, options) {
   registerShaders();
   const material = new ShaderMaterial('waterSurfaceMat', scene, { vertex: 'water', fragment: 'water' }, {
     attributes: ['position', 'waveDist', 'waveAmp', 'waveDir', 'waveCliff'],
+    samplers: [REVEAL_SAMPLER],
     uniforms: [
       'viewProjection', 'waterTime', 'sunDir', 'sunColor', 'sunIntensity', 'skyColor',
       'cameraDir', 'shallowColor', 'deepColor', 'foamColor', 'dayness', 'maxDepth',
       'reflectionSampler', 'reflectionViewProjection', 'waterLevel',
       'depthMap', 'waterDetail', 'detailPixel', 'depthOrigin', 'depthScale', 'depthRange', 'foamDir',
+      ...REVEAL_UNIFORM_NAMES,
     ],
   });
   material.backFaceCulling = false;
@@ -416,7 +425,8 @@ export function createWaterSideMaterial(scene, options) {
   registerShaders();
   const material = new ShaderMaterial('waterSideMat', scene, { vertex: 'waterSide', fragment: 'waterSide' }, {
     attributes: ['position', 'uv', 'waveDist', 'waveAmp'],
-    uniforms: ['viewProjection', 'waterTime', 'surfaceColor', 'deepColor', 'foamColor', 'dayness'],
+    uniforms: ['viewProjection', 'waterTime', 'surfaceColor', 'deepColor', 'foamColor', 'dayness', ...REVEAL_UNIFORM_NAMES],
+    samplers: [REVEAL_SAMPLER],
   });
   material.backFaceCulling = false;
   material.alpha = 0.999;

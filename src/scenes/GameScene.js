@@ -10,6 +10,7 @@ import FishSystem from '../systems/water/fishSystem.js';
 import CreatureSystem from '../systems/creatures/creatureSystem.js';
 import SkySystem from '../systems/atmosphere/skySystem.js';
 import DecoSystem from '../systems/world/decoSystem.js';
+import RevealSystem from '../systems/world/revealSystem.js';
 import FloraSystem from '../systems/flora/floraSystem.js';
 import CliffVineSystem from '../systems/terrain/cliffVineSystem.js';
 import DecoHighlightSystem from '../systems/world/decoHighlightSystem.js';
@@ -106,6 +107,7 @@ export default class GameScene {
     this.cameraSystem = new CameraSystem(scene);
     this.gridSystem = new GridSystem(scene);
     this.terrainSystem = new TerrainSystem(scene);
+    this.revealSystem = new RevealSystem(scene);
     this.waterSystem = new WaterSystem(scene);
     this.waveSpray = new WaveSpraySystem(scene);
     this.fishSystem = new FishSystem(scene);
@@ -279,6 +281,7 @@ export default class GameScene {
         this.refreshShadowReach();
       }
       this.refreshCreatureHealthBars();
+      this.updateReveal(dt);
       if (this.paused) {
         if (this.editor.active) {
           this.updateEditorCamera(dt);
@@ -440,7 +443,7 @@ export default class GameScene {
       this.gameCursor.setState('default');
       return;
     }
-    const pointer = this.inputSystem.lastCell;
+    const pointer = this.playerOnSurface() ? this.inputSystem.lastCell : null;
     const entry = pointer
       ? this.gatherSystem.entries.find((item) => item.left > 0
         && item.entry.cx === pointer.cx && item.entry.cz === pointer.cz)
@@ -497,6 +500,11 @@ export default class GameScene {
       this.setHoverHint(this.interaction.targetOf('gather', { cell: this.inputSystem.cellAtPointer() }));
     }
     if (!moved) return;
+    if (!this.playerOnSurface()) {
+      this.decoHighlight.setHover(null);
+      this.setPointerCursorState();
+      return;
+    }
     const pointer = this.inputSystem.lastCell;
     if (pointer && this.decoHighlight.hasEntry(pointer.cx, pointer.cz)) {
       this.decoHighlight.setHover(pointer);
@@ -587,7 +595,7 @@ export default class GameScene {
     this.interaction.register('gather', {
       priority: 50,
       pick: ({ cell }) => {
-        const item = cell ? this.gatherSystem.itemAtCell(cell.cx, cell.cz) : null;
+        const item = cell && this.playerOnSurface() ? this.gatherSystem.itemAtCell(cell.cx, cell.cz) : null;
         if (!item) return null;
         return {
           ref: item,
@@ -600,7 +608,7 @@ export default class GameScene {
     this.interaction.register('campfire', {
       priority: 40,
       pick: ({ cell }) => {
-        if (!cell || !this.campfireSystem.nearest) return null;
+        if (!cell || !this.campfireSystem.nearest || !this.playerOnSurface()) return null;
         if (!this.campfireSystem.has(cell.cx, cell.cz)) return null;
         return { ref: cell, inReach: true };
       },
@@ -624,6 +632,7 @@ export default class GameScene {
       return 1 - (1 - WADE_SPEED) * wet;
     };
     this.playerSystem.decoSystem = this.decoSystem;
+    this.creatureSystem.pointerLevel = () => (this.editor.active ? null : this.playerSystem.level);
     this.playerSystem.groundHeightAt = (x, z, level) => this.terrainSystem.walkHeightAt(x, z, level);
     this.playerSystem.wallRiseAt = (x, z, radius, level) => this.terrainSystem.riseNear(x, z, radius, level);
     this.playerSystem.cliffOverlapAt = (x, z, level) => this.terrainSystem.cliffOverlap(x, z, level);
@@ -767,6 +776,7 @@ export default class GameScene {
   refreshCaveLighting() {
     if (!this.terrainSystem) return;
     this.lighting.setCaveMeshes(this.terrainSystem.caveMeshes());
+    this.revealSystem.setLightMap(this.terrainSystem.caveLightMap());
   }
 
   refreshShadowCasters() {
@@ -907,6 +917,7 @@ export default class GameScene {
     this.ambientTime = time;
     this.audioSystem.setDayness(value);
     this.floraSystem.setDayness(value);
+    this.revealSystem.setDayness(value);
     const sun = this.dayNightSystem.sunLight;
     if (sun) this.floraSystem.setSunDirection(sun.direction.scale(-1));
     this.skySystem.setDayness(value, this.dayNightSystem.sunLight);
@@ -926,59 +937,24 @@ export default class GameScene {
     this.indoor = (this.indoor || 0) + (target - (this.indoor || 0)) * step;
     if (Math.abs(target - this.indoor) < 0.001) this.indoor = target;
     this.audioSystem.setIndoor(this.indoor);
-    this.updateSurfaceChunks();
   }
 
-  updateSurfaceChunks() {
-    const terrain = this.terrainSystem;
-    if (!terrain) return;
+  updateReveal(dt) {
     const root = this.playerSystem ? this.playerSystem.root : null;
     const level = this.playerSystem ? this.playerSystem.level : 0;
-    const under = root ? this.isUnderRoof(root.position.x, root.position.z, level) : false;
-    const showRoof = !under;
-    for (const mesh of terrain.roofMeshes || []) {
-      if (mesh._roofVisible !== showRoof) {
-        mesh._roofVisible = showRoof;
-        mesh.setEnabled(showRoof);
+    const under = Boolean(root) && !this.editor.active && this.isUnderRoof(root.position.x, root.position.z, level);
+    if (under || this.revealSystem.isOpen()) {
+      const own = [...root.getChildMeshes(false), ...this.terrainSystem.roofMeshes];
+      for (const creature of this.creatureSystem.creatures) {
+        if ((creature.level || 0) === level) own.push(...creature.meshes);
       }
+      this.revealSystem.setKeptMeshes(own);
     }
-    if (terrain.caveRimMesh) {
-      if (terrain.caveRimMesh._rimVisible !== under) {
-        terrain.caveRimMesh._rimVisible = under;
-        terrain.caveRimMesh.setEnabled(under);
-      }
-    }
-    this.updateCaveRoofDeco(under);
-    if (this.floraSystem && this.terrainSystem && this._roofFloraUnder !== under) {
-      this._roofFloraUnder = under;
-      this.floraSystem.setRoofCells(under ? this.terrainSystem.caveRoofCells : null);
-    }
+    this.revealSystem.update(dt, under, root ? root.position : null, this.camera);
   }
 
-  updateCaveRoofDeco(under) {
-    if (this._roofDecoUnder === under) return;
-    this._roofDecoUnder = under;
-    const terrain = this.terrainSystem;
-    const deco = this.decoSystem;
-    if (!terrain || !deco || !terrain.caveRoofCells || !terrain.caveRoofCells.size) return;
-    const seen = new Set();
-    for (const list of [deco.nodes, deco.pathNodes]) {
-      if (!Array.isArray(list)) continue;
-      for (const anchor of list) {
-        if (!anchor || anchor.isDisposed() || seen.has(anchor)) continue;
-        seen.add(anchor);
-        const cell = worldToCellCoords(anchor.position.x, anchor.position.z);
-        if (!terrain.caveRoofCells.has(`${cell.cx},${cell.cz}`)) continue;
-        if (under && !anchor._roofHidden) {
-          anchor._roofHidden = true;
-          anchor._roofWasEnabled = anchor.isEnabled(false);
-          anchor.setEnabled(false);
-        } else if (!under && anchor._roofHidden) {
-          anchor._roofHidden = false;
-          anchor.setEnabled(anchor._roofWasEnabled || anchor.isEnabled(false));
-        }
-      }
-    }
+  playerOnSurface() {
+    return !this.playerSystem || this.editor.active || this.playerSystem.level === 0;
   }
 
   isUnderRoof(x, z, level = 0) {
@@ -1325,12 +1301,13 @@ export default class GameScene {
 
   handleHover(cell) {
     this.hoverCell = cell;
-    this.decoHighlight.setHover(cell || null);
+    const surfaceCell = this.playerOnSurface() ? cell : null;
+    this.decoHighlight.setHover(surfaceCell || null);
     if (!this.editor.active) {
       this.gridSystem.clearHoverCell();
       this.gridSystem.clearCreatureRadius();
       this.gridSystem.hideHologram();
-      this.refreshHoverTooltip(cell);
+      this.refreshHoverTooltip(surfaceCell);
       return;
     }
     this.gridSystem.hideHologram();

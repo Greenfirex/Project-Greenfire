@@ -87,7 +87,7 @@ export default {
     let bestDistance = 32;
     const reach = this.playerAttackSystem.reach + 0.35;
     for (const creature of this.creatureSystem.creatures) {
-      if (!creature || creature.dead) continue;
+      if (!creature || creature.dead || (creature.level || 0) !== this.playerSystem.level) continue;
       const worldDistance = Math.hypot(creature.x - root.position.x, creature.z - root.position.z);
       if (worldDistance > reach) continue;
       const holderY = creature.holder && !creature.holder.isDisposed()

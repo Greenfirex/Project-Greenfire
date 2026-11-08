@@ -1,13 +1,11 @@
 // Část terénu: jeskyně — spoje mezi patry, vchody a strop, který se nad hráčem odkryje.
 // Patří k TerrainSystem (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { columnsByCell, layerLiftAt, floorCellAt } from '../../data/maps/areaShape.js';
 
 const CAVE_OPEN_STEP = 0.6;
+const OUTER_LIGHT_CELLS = 6;
+const INNER_LIGHT_CELLS = 3;
 
 export default {
   caveMeshes() {
@@ -21,68 +19,95 @@ export default {
     }
     return list;
   },
-
-  createCaveReveal(map) {
+  caveLightMap() {
     const columns = columnsByCell(this.layout || {});
-    const roofs = new Map();
+    const caveCells = new Set();
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
     for (const [id, planes] of columns) {
-      let top = null;
-      let ceil = null;
-      for (const plane of planes) {
-        if (plane.level === 0 && top === null) top = plane.lift;
-        if (plane.level < 0 && Number.isFinite(plane.ceil)) ceil = plane.ceil;
-      }
-      if (top === null || ceil === null || top <= ceil) continue;
-      roofs.set(id, { top, ceil });
-    }
-    this.caveRoofCells = new Set(roofs.keys());
-    if (!roofs.size) return;
-    const half = CELL_SIZE / 2;
-    const positions = [];
-    const indices = [];
-    const quad = (ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz) => {
-      const start = positions.length / 3;
-      positions.push(ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz);
-      indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
-    };
-    for (const [id, info] of roofs) {
       const [cx, cz] = id.split(',').map(Number);
-      const x0 = cx * CELL_SIZE - half;
-      const x1 = x0 + CELL_SIZE;
-      const z0 = cz * CELL_SIZE - half;
-      const z1 = z0 + CELL_SIZE;
-      const b = info.ceil;
-      const t = info.top;
-      if (!roofs.has(`${cx + 1},${cz}`)) quad(x1, b, z0, x1, b, z1, x1, t, z1, x1, t, z0);
-      if (!roofs.has(`${cx - 1},${cz}`)) quad(x0, b, z0, x0, b, z1, x0, t, z1, x0, t, z0);
-      if (!roofs.has(`${cx},${cz + 1}`)) quad(x0, b, z1, x1, b, z1, x1, t, z1, x0, t, z1);
-      if (!roofs.has(`${cx},${cz - 1}`)) quad(x0, b, z0, x1, b, z0, x1, t, z0, x0, t, z0);
+      minX = Math.min(minX, cx);
+      maxX = Math.max(maxX, cx);
+      minZ = Math.min(minZ, cz);
+      maxZ = Math.max(maxZ, cz);
+      if (planes.some((plane) => plane.level < 0 && Number.isFinite(plane.ceil))) caveCells.add(id);
     }
-    if (!positions.length) return;
-    const normals = [];
-    VertexData.ComputeNormals(positions, indices, normals);
-    const mesh = new Mesh('terrainCaveRim', this.s);
-    const data = new VertexData();
-    data.positions = positions;
-    data.indices = indices;
-    data.normals = normals;
-    data.applyToMesh(mesh);
-    mesh.isPickable = false;
-    mesh.receiveShadows = true;
-    let material = this.materials.get('caveRim');
-    if (!material) {
-      material = new StandardMaterial('terrainCaveRimMat', this.s);
-      material.diffuseColor = new Color3(0.34, 0.31, 0.28);
-      material.specularColor = new Color3(0, 0, 0);
-      material.ambientColor = new Color3(0.1, 0.1, 0.1);
-      material.backFaceCulling = false;
-      this.materials.set('caveRim', material);
+    const outerSeeds = [];
+    const faces = [];
+    const innerSeeds = [];
+    const doors = [];
+    const levelOf = (end) => (Number.isFinite(end.level) ? end.level : 0);
+    for (const record of this.movementConnectors || []) {
+      if (!record || !record.from || !record.to || levelOf(record.from) === levelOf(record.to)) continue;
+      const outside = levelOf(record.from) === 0 ? record.from : (levelOf(record.to) === 0 ? record.to : null);
+      if (!outside) continue;
+      const inside = outside === record.from ? record.to : record.from;
+      if (caveCells.has(`${outside.cx},${outside.cz}`)) continue;
+      outerSeeds.push([outside.cx, outside.cz]);
+      faces.push({ cx: outside.cx, cz: outside.cz, dx: outside.cx - inside.cx, dz: outside.cz - inside.cz });
+      innerSeeds.push([inside.cx, inside.cz]);
+      doors.push({ cx: inside.cx, cz: inside.cz, dx: inside.cx - outside.cx, dz: inside.cz - outside.cz });
     }
-    mesh.material = material;
-    mesh.metadata = { caveRim: true };
-    mesh.setEnabled(false);
-    this.surfaces.push(mesh);
-    this.caveRimMesh = mesh;
+    if (!outerSeeds.length) return null;
+    minX -= OUTER_LIGHT_CELLS;
+    maxX += OUTER_LIGHT_CELLS;
+    minZ -= OUTER_LIGHT_CELLS;
+    maxZ += OUTER_LIGHT_CELLS;
+    const width = maxX - minX + 1;
+    const height = maxZ - minZ + 1;
+    const data = new Uint8Array(width * height * 4);
+    const indexOf = (cx, cz) => (cz - minZ) * width + (cx - minX);
+    for (let cz = minZ; cz <= maxZ; cz += 1) {
+      for (let cx = minX; cx <= maxX; cx += 1) {
+        if (!caveCells.has(`${cx},${cz}`)) data[indexOf(cx, cz) * 4 + 3] = 255;
+      }
+    }
+    const spread = (seeds, reach, channel, allowed) => {
+      let frontier = seeds;
+      const seen = new Set();
+      let lit = 0;
+      const nearestSeed = (cx, cz) => Math.min(...seeds.map(([sx, sz]) => Math.hypot(cx - sx, cz - sz)));
+      for (let distance = 0; distance < Math.ceil(reach * 1.5) && frontier.length; distance += 1) {
+        const next = [];
+        for (const [cx, cz] of frontier) {
+          const id = `${cx},${cz}`;
+          if (seen.has(id) || cx < minX || cx > maxX || cz < minZ || cz > maxZ || !allowed(id)) continue;
+          seen.add(id);
+          const strength = 1 - nearestSeed(cx, cz) / reach;
+          if (strength > 0) {
+            data[indexOf(cx, cz) * 4 + channel] = Math.round(255 * strength);
+            lit += 1;
+          }
+          next.push([cx + 1, cz], [cx - 1, cz], [cx, cz + 1], [cx, cz - 1]);
+        }
+        frontier = next;
+      }
+      return lit;
+    };
+    const waterLevel = Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : -Infinity;
+    const outdoors = (id) => {
+      if (caveCells.has(id)) return false;
+      const ground = (columns.get(id) || []).find((plane) => plane.level === 0);
+      if (!ground || ground.lift <= waterLevel) return false;
+      const [cx, cz] = id.split(',').map(Number);
+      return faces.some((face) => (cx - face.cx) * face.dx + (cz - face.cz) * face.dz >= 0);
+    };
+    const lit = spread(outerSeeds, OUTER_LIGHT_CELLS, 0, outdoors);
+    const inFrontOfDoor = (id) => {
+      if (!caveCells.has(id)) return false;
+      const [cx, cz] = id.split(',').map(Number);
+      return doors.some((door) => {
+        const rx = cx - door.cx;
+        const rz = cz - door.cz;
+        const inward = rx * door.dx + rz * door.dz;
+        const across = Math.abs(rx * door.dz - rz * door.dx);
+        return inward >= across;
+      });
+    };
+    spread(innerSeeds, INNER_LIGHT_CELLS, 1, inFrontOfDoor);
+    return { data, width, height, minX, minZ, lit };
   },
 
   connectorInfo() {

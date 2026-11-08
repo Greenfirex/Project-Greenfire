@@ -5,6 +5,7 @@ import { Effect } from '@babylonjs/core/Materials/effect';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { grassGroundGlsl } from '../../utils/grassGround.js';
 import { WAVE_TIME_WRAP } from '../../utils/waterWaves.js';
+import { REVEAL_UNIFORMS, REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, revealBlock } from '../../utils/revealGlsl.js';
 
 const VERTEX = `
 precision highp float;
@@ -71,6 +72,7 @@ uniform float groundTileA;
 uniform float groundTileB;
 uniform float groundTileC;
 uniform float groundPatch;
+${REVEAL_UNIFORMS}
 
 varying vec2 vUV;
 varying vec3 vNormal;
@@ -107,6 +109,7 @@ void main(void) {
   float wrap = clamp(dot(n, lightDir) * 0.5 + 0.5, 0.0, 1.0);
   color *= 0.62 + wrap * 0.62 * dayness;
 
+  ${revealBlock('color', 'vRoot', { above: '1.0', front: '0.0', hide: '1.0', keep: '0.0', inside: '0.0', restore: '1.0' })}
   gl_FragColor = vec4(color, 1.0);
 }
 `;
@@ -124,8 +127,8 @@ export function createGrassMaterial(scene, options) {
   registerShaders();
   const material = new ShaderMaterial(options.name || 'wildGrassMat', scene, { vertex: 'grass', fragment: 'grass' }, {
     attributes: ['position', 'normal', 'uv', 'world0', 'world1', 'world2', 'world3'],
-    uniforms: ['viewProjection', 'grassTime', 'clumpHeight', 'baseTint', 'lightDir', 'dayness', 'uvFlip', 'uvScale', 'patchPick', 'groundMode', 'groundTileA', 'groundTileB', 'groundTileC', 'groundPatch'],
-    samplers: ['diffuseSampler', 'groundTexA', 'groundTexB', 'groundTexC'],
+    uniforms: ['viewProjection', 'grassTime', 'clumpHeight', 'baseTint', 'lightDir', 'dayness', 'uvFlip', 'uvScale', 'patchPick', 'groundMode', 'groundTileA', 'groundTileB', 'groundTileC', 'groundPatch', ...REVEAL_UNIFORM_NAMES],
+    samplers: ['diffuseSampler', 'groundTexA', 'groundTexB', 'groundTexC', REVEAL_SAMPLER],
   });
   const tint = options.tint || [1, 1, 1];
   const uvScale = Number(options.uvScale) || 1;

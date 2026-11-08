@@ -12,6 +12,9 @@
   testovací skripty, harnessy ani kopie modulů ne.
 - Nástroje v `tools/` (např. `capture.cjs`) jen na výslovnou žádost; nesahají
   na herní kód a jejich závislosti patří do `devDependencies`.
+- Výjimka: po změně materiálů, programů pro grafickou kartu nebo načítání smí
+  agent spustit `node tools/checkConsole.cjs` nad běžícím dev serverem. Běží
+  skrytě, jen čte konzoli a nic nemění. Když dev server neběží, řekne to uživateli.
 - Uživateli se nesmí objevit prázdné cmd okno: `Start-Process` vždy
   s `-WindowStyle Hidden`, v Node `windowsHide: true`. Žádné procesy na pozadí.
 

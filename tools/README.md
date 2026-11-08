@@ -380,3 +380,12 @@ blokované buňce bez valu, což v hře vypadalo jako neviditelná kolize u boč
 
 
 
+
+## checkConsole.cjs
+
+Otevře hru na běžícím dev serveru ve skrytém prohlížeči, přesune hráče do jeskyně
+a vypíše chyby a varování z konzole i materiály s příliš malým balíkem hodnot.
+
+```
+node tools/checkConsole.cjs
+```

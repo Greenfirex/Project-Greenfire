@@ -32,7 +32,7 @@ export default {
       chunkSize: SURFACE_CHUNK,
       cellSize: CELL_SIZE,
       tileOf: (kind, name) => {
-        if (kind === 'cliff') return WALL_TILE;
+        if (kind === 'cliff' || kind === 'cave' || kind === 'ceiling') return WALL_TILE;
         const cfg = this.surfaceConfig(name);
         return (cfg && cfg.tile) || 1;
       },
@@ -80,8 +80,9 @@ export default {
         const style = group.name === 'dirt' ? 'dirt' : 'stone';
         if (style === 'stone') mesh.setVerticesData('mossMask', new Float32Array(mosses), false, 1);
         mesh.material = this.cliffMaterialFor(style);
-      } else if (group.kind === 'ceiling') {
-        mesh.material = this.ceilingMaterialFor(group.name, map);
+      } else if (group.kind === 'cave' || group.kind === 'ceiling') {
+        mesh.setVerticesData('mossMask', new Float32Array(total), false, 1);
+        mesh.material = this.caveRockMaterial(group.kind === 'ceiling');
       } else if (group.kind === 'soil') {
         mesh.material = this.bandMaterialFor(group.name, map);
       } else {

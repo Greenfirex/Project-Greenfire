@@ -1052,13 +1052,21 @@ export default class CreatureSystem {
     });
   }
 
+  pickableMesh(mesh) {
+    if (!this.pickMeshes.includes(mesh) && !this.meshes.includes(mesh)) return false;
+    const level = this.pointerLevel ? this.pointerLevel() : null;
+    if (level === null) return true;
+    const owner = this.pickOwner.get(mesh) || this.creatures.find((item) => item.meshes.includes(mesh));
+    return !owner || (owner.level || 0) === level;
+  }
+
   hoverAt(x, y) {
     if (!this.creatures.length || !Number.isFinite(x) || !Number.isFinite(y)) {
       this.hovered = null;
       this.hoveredCorpse = null;
       return null;
     }
-    const pick = this.s.pick(x, y, (mesh) => this.pickMeshes.includes(mesh) || this.meshes.includes(mesh));
+    const pick = this.s.pick(x, y, (mesh) => this.pickableMesh(mesh));
     const mesh = pick && pick.hit ? pick.pickedMesh : null;
     const owner = mesh ? this.pickOwner.get(mesh) : null;
     const creature = owner
@@ -1240,7 +1248,7 @@ export default class CreatureSystem {
       this.hoveredCorpse = null;
       return null;
     }
-    const pick = this.s.pick(x, y, (mesh) => this.pickMeshes.includes(mesh) || this.meshes.includes(mesh));
+    const pick = this.s.pick(x, y, (mesh) => this.pickableMesh(mesh));
     const mesh = pick && pick.hit ? pick.pickedMesh : null;
     const owner = mesh ? this.pickOwner.get(mesh) : null;
     const entry = mesh

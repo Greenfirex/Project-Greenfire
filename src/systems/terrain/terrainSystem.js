@@ -179,8 +179,6 @@ export default class TerrainSystem {
     this.surfaces = [];
     this.surfaceChunks = [];
     this.roofMeshes = [];
-    this.caveRimMesh = null;
-    this.caveRoofCells = new Set();
     for (const texture of this.weightTextures) texture.dispose();
     this.weightTextures = [];
     this.shelfAnchors = [];
@@ -215,7 +213,6 @@ export default class TerrainSystem {
     }
     this.createVolumeMass(map);
     this.createEdgeAnchors();
-    this.createCaveReveal(map);
     if (this.urlFlag('corners')) this.surfaces.push(...buildCornerDebugMeshes(this));
     this.createPicker(this.pickCells());
     this.gridLines = this.createGridLines(map, this.realCells);
@@ -709,7 +706,7 @@ export default class TerrainSystem {
         roof.isPickable = false;
         roof.receiveShadows = true;
         roof.metadata = { level, roof: true };
-        roof.material = this.materialFor(key, map, blends.get(key));
+        roof.material = this.materialFor(key, map, blends.get(key), level < 0);
         this.surfaces.push(roof);
         this.roofMeshes.push(roof);
         continue;
@@ -734,7 +731,7 @@ export default class TerrainSystem {
         minCz: group.chunkZ * SURFACE_CHUNK,
         maxCz: (group.chunkZ + 1) * SURFACE_CHUNK - 1,
       };
-      mesh.material = this.materialFor(key, map, blends.get(key));
+      mesh.material = this.materialFor(key, map, blends.get(key), level < 0);
       this.surfaces.push(mesh);
       this.surfaceChunks.push(mesh);
     }
