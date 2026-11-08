@@ -722,6 +722,7 @@ export default class GameScene {
     this.waterSystem.setDayness(this.waterDayness());
     this.waterSystem.setSkyTint(this.skySystem.tint());
     this.waterSystem.create(this.terrainSystem.groundCells, level, (x, z) => this.terrainSystem.heightAt(x, z), rgb, quality);
+    this.terrainSystem.setSeaDry(this.waterSystem.dryMap, this.waterSystem.dryArea);
     this.waveSpray.build(this.waterSystem);
     this.refreshWaterVisibility();
     this.refreshFish();

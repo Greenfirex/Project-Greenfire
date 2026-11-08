@@ -1,14 +1,21 @@
 // Kaustika na dně — světelná síť od vln se přidá k zemi, která je pod hladinou.
 import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { CELL_SIZE } from '../../utils/gridMath.js';
 import { causticGlsl } from '../../utils/waterCaustics.js';
 import { SEA_DIRECTION, WATER_MAX_DEPTH } from '../../utils/waterWaves.js';
 
-const CAUSTIC_CODE = causticGlsl();
+const CAUSTIC_CODE = `${causticGlsl()}
+uniform sampler2D seaDrySampler;
+float seaDryAt(vec2 point, vec4 area) {
+  vec2 cell = floor(point / ${CELL_SIZE.toFixed(1)} - area.xy + 0.5);
+  return texture2D(seaDrySampler, (cell + 0.5) / area.zw).r;
+}
+`;
 
 export default class TerrainCausticPlugin extends MaterialPluginBase {
 
-  constructor(material) {
+  constructor(material, seaDry) {
     super(material, 'TerrainCaustic', 210, {}, true, true);
     this.time = 0;
     this.level = -1000;
@@ -17,6 +24,11 @@ export default class TerrainCausticPlugin extends MaterialPluginBase {
     this.color = new Color3(1, 1, 1);
     this.strength = 0;
     this.maxDepth = WATER_MAX_DEPTH;
+    this.seaDry = seaDry;
+  }
+
+  getSamplers(samplers) {
+    samplers.push('seaDrySampler');
   }
 
   getClassName() {
@@ -42,6 +54,7 @@ export default class TerrainCausticPlugin extends MaterialPluginBase {
         { name: 'causticColor', size: 3, type: 'vec3' },
         { name: 'causticStrength', size: 1, type: 'float' },
         { name: 'causticMaxDepth', size: 1, type: 'float' },
+        { name: 'seaDryArea', size: 4, type: 'vec4' },
       ],
     };
   }
@@ -53,6 +66,8 @@ export default class TerrainCausticPlugin extends MaterialPluginBase {
     ubo.updateColor3('causticColor', this.color);
     ubo.updateFloat('causticStrength', this.strength);
     ubo.updateFloat('causticMaxDepth', this.maxDepth);
+    ubo.updateVector4('seaDryArea', this.seaDry.area);
+    if (this.seaDry.texture) ubo.setTexture('seaDrySampler', this.seaDry.texture);
   }
 
   getCustomCode(shaderType) {
@@ -61,7 +76,7 @@ export default class TerrainCausticPlugin extends MaterialPluginBase {
       CUSTOM_FRAGMENT_DEFINITIONS: CAUSTIC_CODE,
       CUSTOM_FRAGMENT_BEFORE_FOG: `
         float causticDepthNow = causticLevel - vPositionW.y;
-        if (causticDepthNow > 0.0) {
+        if (causticDepthNow > 0.0 && seaDryAt(vPositionW.xz, seaDryArea) < 0.5) {
           float causticT = clamp(causticDepthNow / max(causticMaxDepth, 0.001), 0.0, 1.0);
           float causticFade = smoothstep(0.25, 0.7, causticT) * (1.0 - 0.3 * smoothstep(0.7, 1.0, causticT));
           float causticValue = causticPattern(vPositionW.xz, causticDir, causticTime);

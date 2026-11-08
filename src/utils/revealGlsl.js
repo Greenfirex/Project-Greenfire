@@ -17,7 +17,7 @@ uniform sampler2D ${REVEAL_SAMPLER};
 `;
 
 export function revealBlock(color, position, rules) {
-  const { above, front, hide, keep, inside, restore, facing = '1.0', column = '0.0' } = rules;
+  const { above, front, hide, keep, inside, restore, facing = '1.0', column = '0.0', dark = '0.0' } = rules;
   return `
 {
   float revealAmount = revealParams.x;
@@ -48,7 +48,7 @@ export function revealBlock(color, position, rules) {
     float revealHole = max(max(max(revealAbove, revealInside * revealFront), revealHide), revealColumn) * revealAmount;
     float revealGrain = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
     if (revealHole > revealGrain) discard;
-    ${color}.rgb *= 1.0 - revealAmount * (1.0 - ${keep}) * (1.0 - revealNear);
+    ${color}.rgb *= 1.0 - revealAmount * (1.0 - ${keep}) * (1.0 - revealNear * (1.0 - ${dark}));
     ${color}.rgb *= vec3(1.0) + revealLight * ${inside} * mix(clamp((revealInner - 0.5) * 2.0, 0.0, 1.0), revealInner, revealAmount);
   }
 }

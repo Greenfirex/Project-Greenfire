@@ -35,7 +35,7 @@ export default {
     if (!this.cliffMaterials) this.cliffMaterials = {};
     const key = ceiling ? 'caveCeiling' : 'caveWall';
     if (!this.cliffMaterials[key]) {
-      const material = this.stoneCliffMaterial();
+      const material = this.stoneCliffMaterial(false);
       material.name = ceiling ? 'terrainCaveCeilingMat' : 'terrainCaveWallMat';
       if (ceiling) {
         material.backFaceCulling = true;
@@ -46,7 +46,7 @@ export default {
     return this.cliffMaterials[key];
   },
 
-  stoneCliffMaterial() {
+  stoneCliffMaterial(nearWater = true) {
     const material = new StandardMaterial('terrainCliffStoneMat', this.s);
     const texture = new Texture(CLIFF_TEXTURE, this.s);
     texture.wrapU = Texture.WRAP_ADDRESSMODE;
@@ -66,7 +66,7 @@ export default {
     const strata = this.cliffBlendTexture(CLIFF_STRATA_TEXTURE);
     const moss = this.cliffBlendTexture(CLIFF_MOSS_TEXTURE);
     new CliffSurfacePlugin(material, { strata, moss });
-    this.addCliffWaterPlugins(material, 0.5);
+    if (nearWater) this.addCliffWaterPlugins(material, 0.5);
     return material;
   },
 
@@ -80,7 +80,7 @@ export default {
   },
 
   addCliffWaterPlugins(material, wet) {
-    this.causticPlugins.push(new TerrainCausticPlugin(material));
+    this.causticPlugins.push(new TerrainCausticPlugin(material, this.seaDry));
     this.wetPlugins.push(new TerrainWetPlugin(material, wet));
   },
 
@@ -179,8 +179,10 @@ export default {
       this.materials.set(cacheKey, material);
       const relief = this.reliefSetupFor(key, blend);
       if (relief) this.reliefPlugins.set(cacheKey, new TerrainReliefPlugin(material, relief));
-      this.causticPlugins.push(new TerrainCausticPlugin(material));
-      this.wetPlugins.push(new TerrainWetPlugin(material, cfg.wet === undefined ? 0.4 : cfg.wet));
+      if (!underground) {
+        this.causticPlugins.push(new TerrainCausticPlugin(material, this.seaDry));
+        this.wetPlugins.push(new TerrainWetPlugin(material, cfg.wet === undefined ? 0.4 : cfg.wet));
+      }
       if (cfg.patch) {
         new TerrainGrassPlugin(material, {
           textures: this.groundGrassTextures(),
@@ -289,6 +291,11 @@ export default {
     for (const plugin of this.causticPlugins) {
       plugin.setCaustics(time, level, dirX, dirZ, color, strength, maxDepth);
     }
+  },
+
+  setSeaDry(texture, area) {
+    this.seaDry.texture = texture;
+    this.seaDry.area.copyFrom(area);
   },
 
   updateWetLevel(level) {

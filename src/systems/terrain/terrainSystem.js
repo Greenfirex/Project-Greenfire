@@ -5,7 +5,7 @@ import '@babylonjs/core/Meshes/Builders/linesBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { Vector2 } from '@babylonjs/core/Maths/math.vector';
+import { Vector2, Vector4 } from '@babylonjs/core/Maths/math.vector';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Constants } from '@babylonjs/core/Engines/constants';
@@ -105,6 +105,7 @@ export default class TerrainSystem {
     this.floorKeys = new Map();
     this.mapKey = null;
     this.bridges = [];
+    this.seaDry = { texture: null, area: new Vector4(0, 0, 1, 1) };
     this.mouths = new Map();
     this.surfaceEdge = new Map();
     this.ready = Promise.resolve(null);

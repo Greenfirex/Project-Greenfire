@@ -2,7 +2,7 @@
 // Drží se jen na buňkách mapy, kraj uzavírá vodní stěna a dno prosvítá podle hloubky.
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
-import { Vector2, Vector3, Matrix } from '@babylonjs/core/Maths/math.vector';
+import { Vector2, Vector3, Matrix, Vector4 } from '@babylonjs/core/Maths/math.vector';
 import { Plane } from '@babylonjs/core/Maths/math.plane';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
@@ -15,6 +15,7 @@ import { swellAt, shoalWithCliff, waveAmpFor, WAVE_REACH, WAVE_TIME_WRAP, CLIFF_
 import { createWaterMaterial, createWaterSideMaterial, tickWater } from './waterShader.js';
 import { signedNoise } from '../../utils/noise.js';
 
+const DRY_LAND_RISE = 0.05;
 const FOAM_COLOR = new Color3(0.82, 0.92, 0.94);
 
 const WATER_SINK = 0.02;
@@ -188,6 +189,9 @@ export default class WaterSystem {
     this.cliffHeight = 0;
     this.level = null;
     this.heightAt = null;
+    this.dryMap = null;
+    this.isDryLand = null;
+    this.dryArea = new Vector4(0, 0, 1, 1);
     this.shoreCells = [];
     this.maxDepth = WATER_MAX_DEPTH;
     this.ripples = [];
@@ -427,6 +431,14 @@ export default class WaterSystem {
     }
     const data = new Uint8Array(width * height * 4);
     const cliff = cliffField(raw, width, height);
+    if (this.isDryLand) {
+      for (let j = 0; j < height; j += 1) {
+        const z = z0 + (j / (height - 1)) * spanZ;
+        for (let i = 0; i < width; i += 1) {
+          if (this.isDryLand(x0 + (i / (width - 1)) * spanX, z)) cliff[j * width + i] = 0;
+        }
+      }
+    }
     for (let index = 0; index < smooth.length; index += 1) {
       const normalized = Math.min(1, Math.max(0, 0.5 + smooth[index] / (2 * DEPTH_RANGE)));
       data[index * 4] = Math.round(normalized * 255);
@@ -737,8 +749,89 @@ export default class WaterSystem {
     }
   }
 
+  limitToOcean(cells, cellSet, { minX, maxX, minZ, maxZ }, level, heightAt) {
+    const width = maxX - minX + 1;
+    const height = maxZ - minZ + 1;
+    const total = width * height;
+    const exists = new Uint8Array(total);
+    const below = new Uint8Array(total);
+    const ocean = new Uint8Array(total);
+    const indexOf = (cx, cz) => (cz - minZ) * width + (cx - minX);
+    const inside = (cx, cz) => cx >= minX && cx <= maxX && cz >= minZ && cz <= maxZ;
+    for (const [cx, cz] of cells) {
+      const index = indexOf(cx, cz);
+      exists[index] = 1;
+      below[index] = heightAt(cx * CELL_SIZE, cz * CELL_SIZE) < level ? 1 : 0;
+    }
+    const frontier = [];
+    for (const [cx, cz] of cells) {
+      const index = indexOf(cx, cz);
+      if (!below[index]) continue;
+      const onEdge = NEIGHBORS_4.some(([dx, dz]) => !inside(cx + dx, cz + dz) || !exists[indexOf(cx + dx, cz + dz)]);
+      if (!onEdge) continue;
+      ocean[index] = 1;
+      frontier.push(cx, cz);
+    }
+    while (frontier.length) {
+      const cz = frontier.pop();
+      const cx = frontier.pop();
+      for (const [dx, dz] of NEIGHBORS_4) {
+        const nx = cx + dx;
+        const nz = cz + dz;
+        if (!inside(nx, nz)) continue;
+        const index = indexOf(nx, nz);
+        if (ocean[index] || !below[index]) continue;
+        ocean[index] = 1;
+        frontier.push(nx, nz);
+      }
+    }
+    const dry = new Uint8Array(total);
+    const pits = new Uint8Array(total * 4);
+    for (const [cx, cz] of cells) {
+      let touchesOcean = false;
+      for (let dz = -1; dz <= 1 && !touchesOcean; dz += 1) {
+        for (let dx = -1; dx <= 1 && !touchesOcean; dx += 1) {
+          if (inside(cx + dx, cz + dz) && ocean[indexOf(cx + dx, cz + dz)]) touchesOcean = true;
+        }
+      }
+      if (touchesOcean) continue;
+      const index = indexOf(cx, cz);
+      dry[index] = 1;
+      if (below[index]) {
+        pits[index * 4] = 255;
+        pits[index * 4 + 3] = 255;
+      }
+    }
+    this.buildDryMap(pits, width, height, minX, minZ);
+    const half = CELL_SIZE / 2;
+    const isDry = (x, z) => {
+      const cx = Math.floor((x + half) / CELL_SIZE);
+      const cz = Math.floor((z + half) / CELL_SIZE);
+      return inside(cx, cz) && dry[indexOf(cx, cz)] === 1;
+    };
+    this.isDryLand = isDry;
+    return (x, z) => {
+      const ground = heightAt(x, z);
+      if (!Number.isFinite(ground) || ground >= level) return ground;
+      return isDry(x, z) ? level + DRY_LAND_RISE : ground;
+    };
+  }
+
+  buildDryMap(data, width, height, minX, minZ) {
+    this.dryMap = new RawTexture(data, width, height, Constants.TEXTUREFORMAT_RGBA, this.s, false, false, Texture.NEAREST_SAMPLINGMODE);
+    this.dryMap.wrapU = Texture.CLAMP_ADDRESSMODE;
+    this.dryMap.wrapV = Texture.CLAMP_ADDRESSMODE;
+    this.dryArea.set(minX, minZ, width, height);
+  }
+
+  releaseDryMap() {
+    if (this.dryMap) this.dryMap.dispose();
+    this.dryMap = null;
+  }
+
   create(cells, level, heightAt = null, waterRgb = null, quality = 'high') {
     this.clear();
+    this.releaseDryMap();
     if (this.reflection) this.reflection.refreshRate = 0;
     this.quality = quality;
     this.waterRgb = waterRgb || this.waterRgb;
@@ -759,6 +852,8 @@ export default class WaterSystem {
       cellSet.add(`${cx},${cz}`);
     }
     if (!cellSet.size) return null;
+    heightAt = this.limitToOcean(cells, cellSet, { minX, maxX, minZ, maxZ }, level, heightAt);
+    this.heightAt = heightAt;
     let seaDirX = 0;
     let seaDirZ = 0;
     const shoreCells = [];

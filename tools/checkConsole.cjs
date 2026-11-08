@@ -57,6 +57,29 @@ async function shortUniformBuffers(page) {
   });
 }
 
+async function dryPitReport(page) {
+  return page.evaluate(() => {
+    const { game } = window.greenfire;
+    const entry = (game.mapFile.floor || []).find((item) => item.cx === -15 && item.cz === -5 && !item.level);
+    if (!entry) return null;
+    const original = entry.liftY;
+    entry.liftY = -0.75;
+    game.refreshTerrain();
+    const water = game.waterSystem;
+    const report = {
+      terrain: game.terrainSystem.heightAt(-30, -10),
+      waterHeight: water.heightAt(-30, -10),
+      depth: water.depthAt(-30, -10),
+      cliff: water.cliffAt(-30, -10),
+      level: water.level,
+      sameLayout: game.terrainSystem.layout === game.mapFile,
+    };
+    entry.liftY = original;
+    game.refreshTerrain();
+    return report;
+  });
+}
+
 async function run() {
   const executablePath = BROWSERS.find((candidate) => fs.existsSync(candidate));
   if (!executablePath) throw new Error('Nenašel jsem Edge ani Chrome.');
@@ -84,6 +107,7 @@ async function run() {
     await page.waitForFunction(() => Boolean(window.greenfire && window.greenfire.game && window.greenfire.game.loaded), { timeout: 240000, polling: 500 });
     console.log('Svět je načtený.');
     await sleep(SETTLE_MS);
+    console.log(`Zkušební jáma na −15, −5: ${JSON.stringify(await dryPitReport(page))}`);
     const cave = await moveIntoCave(page);
     console.log(cave ? `Hráč přesunut do jeskyně: ${JSON.stringify(cave)}` : 'V mapě není jeskyně.');
     await sleep(SETTLE_MS);

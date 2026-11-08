@@ -59,7 +59,7 @@ export default class TerrainWetPlugin extends MaterialPluginBase {
     return {
       CUSTOM_FRAGMENT_DEFINITIONS: WET_CODE,
       CUSTOM_FRAGMENT_BEFORE_FOG: `
-        if (wetStrength > 0.0) {
+        if (wetStrength > 0.0 && seaDryAt(vPositionW.xz, seaDryArea) < 0.5) {
           float wetAbove = vPositionW.y - wetLevel;
           float wetEdge = (wetShape(vPositionW.xz * 0.85) - 0.5) * 0.18;
           float wetAmount = 1.0 - smoothstep(-0.05, 0.30, wetAbove + wetEdge);
