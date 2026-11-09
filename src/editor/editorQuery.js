@@ -40,13 +40,13 @@ export default {
     }
     const spawn = this.spawnCell();
     const water = this.layout && Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
-    const head = `${count}|${sum}|${spawn ? `${spawn.cx},${spawn.cz}` : '-'}|${water}|${this.layout ? this.layout.seed : ''}`;
+    const head = `${count}|${sum}|${spawn ? `${spawn.cx},${spawn.cz}` : '-'}|${water}|${this.layout ? this.layout.seed : ''}|${JSON.stringify((this.layout && this.layout.floorNames) || {})}`;
     return hashText(head);
   },
 
   creatureAt(cx, cz) {
     for (const entry of (this.layout && this.layout.creatures) || []) {
-      if (entry && entry.cx === cx && entry.cz === cz) return entry;
+      if (entry && entry.cx === cx && entry.cz === cz && levelOfEntry(entry) === this.paintLevel) return entry;
     }
     return null;
   },
@@ -83,12 +83,12 @@ export default {
     const list = this.layout && Array.isArray(this.layout.creatures) ? this.layout.creatures : [];
     const marks = [];
     for (const entry of list) {
-      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz) || levelOfEntry(entry) !== this.paintLevel) continue;
       const type = getCreatureType(entry.kind);
       const radius = Number(type && type.roamRadius);
       if (!Number.isFinite(radius) || radius <= 0) continue;
       const tierKey = entry.tier && type.tiers[entry.tier] ? entry.tier : type.defaultTier;
-      marks.push({ cx: entry.cx, cz: entry.cz, radius, kind: entry.kind, tierKey });
+      marks.push({ cx: entry.cx, cz: entry.cz, level: levelOfEntry(entry), radius, kind: entry.kind, tierKey });
     }
     return marks;
   },
@@ -96,7 +96,7 @@ export default {
   decorationsAt(cx, cz) {
     const out = [];
     for (const entry of this.layout.decorations || []) {
-      if (!entry || entry.cx !== cx || entry.cz !== cz) continue;
+      if (!entry || entry.cx !== cx || entry.cz !== cz || levelOfEntry(entry) !== this.paintLevel) continue;
       const def = getDecoration(entry.key);
       out.push({ entry, def, name: def && def.displayName ? def.displayName : entry.key });
     }
@@ -156,7 +156,7 @@ export default {
       }
     }
     for (const entry of this.layout.decorations || []) {
-      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) continue;
+      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz) || levelOfEntry(entry) !== 0) continue;
       cellFor(entry.cx, entry.cz).deco = entry;
     }
     this.contentIndex = index;

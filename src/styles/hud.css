@@ -776,6 +776,16 @@
   color: var(--text-dim);
 }
 
+.confirm-card__input {
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glow);
+  border-radius: 4px;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 13px;
+}
+
 .confirm-card__actions {
   display: flex;
   justify-content: flex-end;

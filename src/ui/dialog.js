@@ -20,7 +20,9 @@ export default class Dialog {
       <div class="confirm-card">
         <div class="confirm-card__title"></div>
         <div class="confirm-card__text"></div>
+        <input class="confirm-card__input" type="text" hidden>
         <div class="confirm-card__actions">
+          <button type="button" class="confirm-card__btn confirm-card__btn--extra" hidden></button>
           <button type="button" class="confirm-card__btn confirm-card__btn--cancel"></button>
           <button type="button" class="confirm-card__btn confirm-card__btn--ok"></button>
         </div>
@@ -30,8 +32,11 @@ export default class Dialog {
     this.root = root;
     this.titleEl = root.querySelector('.confirm-card__title');
     this.textEl = root.querySelector('.confirm-card__text');
+    this.inputEl = root.querySelector('.confirm-card__input');
     this.okBtn = root.querySelector('.confirm-card__btn--ok');
     this.cancelBtn = root.querySelector('.confirm-card__btn--cancel');
+    this.extraBtn = root.querySelector('.confirm-card__btn--extra');
+    this.extraBtn.addEventListener('click', () => this.chooseExtra());
     this.okBtn.addEventListener('click', () => this.confirm());
     this.cancelBtn.addEventListener('click', () => this.close());
     root.addEventListener('pointerdown', (evt) => {
@@ -56,20 +61,42 @@ export default class Dialog {
     this.cancelBtn.textContent = options.cancelLabel || 'Zrušit';
     this.cancelBtn.hidden = !withCancel;
     this.onConfirm = options.onConfirm || null;
+    this.onExtra = options.onExtra || null;
+    this.extraBtn.hidden = !options.extraLabel;
+    this.extraBtn.textContent = options.extraLabel || '';
     this.open = true;
     this.root.classList.add('is-open');
-    this.okBtn.focus();
+    const input = options.input || null;
+    this.inputEl.hidden = !input;
+    if (!input) {
+      this.okBtn.focus();
+      return;
+    }
+    this.inputEl.value = input.value || '';
+    this.inputEl.placeholder = input.placeholder || '';
+    this.inputEl.maxLength = input.maxLength || 40;
+    this.inputEl.focus();
+    this.inputEl.select();
   }
 
   close() {
     this.open = false;
     this.onConfirm = null;
+    this.onExtra = null;
     if (this.okBtn) this.okBtn.blur();
+    if (this.inputEl) this.inputEl.blur();
     if (this.root) this.root.classList.remove('is-open');
   }
 
   confirm() {
     const action = this.onConfirm;
+    const value = this.inputEl.value;
+    this.close();
+    if (action) action(value);
+  }
+
+  chooseExtra() {
+    const action = this.onExtra;
     this.close();
     if (action) action();
   }

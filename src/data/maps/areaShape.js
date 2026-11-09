@@ -3,6 +3,11 @@
 
 import { cellKey } from '../../utils/gridMath.js';
 
+export const CAVE_OPEN_STEP = 0.6;
+export function caveOpensInto(plane, caveFloor) {
+  const walkable = plane.level === 0 || (plane.level < 0 && Number.isFinite(plane.ceil));
+  return walkable && Math.abs(caveFloor - plane.lift) <= CAVE_OPEN_STEP;
+}
 export const PLANE_LAYERS = ['floor', 'clearing', 'grass', 'path'];
 export const ENTRY_LAYERS = [...PLANE_LAYERS, 'decorations', 'fish', 'creatures'];
 export function levelOfEntry(entry) {
@@ -57,9 +62,6 @@ export function layerEntriesAt(world, cx, cz, level = 0) {
   push('clearing');
   push('grass');
   return out;
-}
-export function hasFloor(world, cx, cz, level = 0) {
-  return Boolean(floorCellAt(world, cx, cz, level));
 }
 export function hasLayerCell(world, cx, cz) {
   return layerAt(world, cx, cz) !== null;

@@ -2,7 +2,7 @@
 // Patří k EditorMode (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { getDecoration, DEFAULT_FLOOR, decoFamily } from '../data/catalogs/decorations.js';
 import { cellKey } from '../utils/gridMath.js';
-import { PLANE_LAYERS, layerAt, layerEntriesAt, floorCellAt, layerLiftAt, dropLayerCell, dropDecorationCell, worldCells } from '../data/maps/areaShape.js';
+import { PLANE_LAYERS, layerAt, layerEntriesAt, floorCellAt, layerLiftAt, dropLayerCell, dropDecorationCell, worldCells, levelOfEntry } from '../data/maps/areaShape.js';
 import { bridgeCells } from '../utils/bridgeShape.js';
 import { onSurface } from './editorSettings.js';
 
@@ -25,7 +25,7 @@ export default {
 
   dropOrphans() {
     const grid = new Set(worldCells(this.layout).map(([cx, cz]) => cellKey(cx, cz)));
-    const kept = (this.layout.decorations || []).filter((entry) => entry && grid.has(cellKey(entry.cx, entry.cz)));
+    const kept = (this.layout.decorations || []).filter((entry) => entry && (levelOfEntry(entry) !== 0 || grid.has(cellKey(entry.cx, entry.cz))));
     if (kept.length === (this.layout.decorations || []).length) return false;
     this.layout.decorations = kept;
     return true;
@@ -41,7 +41,7 @@ export default {
     if (tile) return tile;
     const list = this.layout.decorations || [];
     for (let i = list.length - 1; i >= 0; i -= 1) {
-      if (list[i].cx === cx && list[i].cz === cz) return list[i];
+      if (list[i].cx === cx && list[i].cz === cz && levelOfEntry(list[i]) === this.paintLevel) return list[i];
     }
     return null;
   },
@@ -126,7 +126,7 @@ export default {
       this.layout.floor.push({ key: floorKey, cx, cz, rotation: 0 });
     };
     for (const entry of this.layout.decorations || []) {
-      if (!entry) continue;
+      if (!entry || levelOfEntry(entry) !== 0) continue;
       const key = cellKey(entry.cx, entry.cz);
       if (seen.has(key)) continue;
       seen.add(key);
@@ -172,7 +172,7 @@ export default {
 
   shiftDecorations(cx, cz, delta) {
     for (const entry of this.layout.decorations || []) {
-      if (!entry || entry.cx !== cx || entry.cz !== cz) continue;
+      if (!onSurface(entry, cx, cz)) continue;
       const next = Math.round(((entry.liftY || 0) + delta) * 1000) / 1000;
       if (next) entry.liftY = next;
       else delete entry.liftY;
@@ -194,6 +194,7 @@ export default {
   eraseCell(cx, cz, kind) {
     const plants = kind === 'plants' || kind === 'all';
     const objects = kind === 'objects' || kind === 'all';
+    const surface = this.paintLevel === 0;
     let dropped = false;
     if (plants || objects) {
       const removed = this.dropDecorations(cx, cz, (entry) => {
@@ -203,24 +204,24 @@ export default {
       });
       if (removed) dropped = true;
     }
-    if (plants && this.dropGrassCell(cx, cz)) dropped = true;
-    if ((kind === 'path' || kind === 'all') && this.dropPathCell(cx, cz)) dropped = true;
+    if (surface && plants && this.dropGrassCell(cx, cz)) dropped = true;
+    if (surface && (kind === 'path' || kind === 'all') && this.dropPathCell(cx, cz)) dropped = true;
     if (kind === 'creatures' || kind === 'all') {
       if (this.dropCreatureCell(cx, cz)) dropped = true;
       if (this.dropFishCell(cx, cz)) dropped = true;
     }
-    if (kind === 'terrain') {
+    if (surface && kind === 'terrain') {
       if (this.flattenCell(cx, cz)) dropped = true;
       if (this.dropBridgeCell(cx, cz)) dropped = true;
     }
-    if (kind === 'all' && this.dropBridgeCell(cx, cz)) dropped = true;
+    if (surface && kind === 'all' && this.dropBridgeCell(cx, cz)) dropped = true;
     return dropped;
   },
 
   dropDecorations(cx, cz, test) {
     const entries = this.layout.decorations || [];
     const kept = entries.filter((entry) => {
-      if (!entry || entry.cx !== cx || entry.cz !== cz) return true;
+      if (!entry || entry.cx !== cx || entry.cz !== cz || levelOfEntry(entry) !== this.paintLevel) return true;
       return !test(entry);
     });
     if (kept.length === entries.length) return false;
@@ -239,7 +240,7 @@ export default {
   dropCreatureCell(cx, cz) {
     if (!Array.isArray(this.layout.creatures)) return false;
     const entries = this.layout.creatures;
-    const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+    const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz || levelOfEntry(entry) !== this.paintLevel);
     if (kept.length === entries.length) return false;
     this.layout.creatures = kept;
     return true;
@@ -247,7 +248,7 @@ export default {
 
   dropFishCell(cx, cz) {
     const entries = this.layout.fish || [];
-    const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+    const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz || levelOfEntry(entry) !== this.paintLevel);
     if (kept.length === entries.length) return false;
     this.layout.fish = kept;
     return true;

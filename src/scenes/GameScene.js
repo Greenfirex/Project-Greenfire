@@ -63,6 +63,7 @@ import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../d
 import { describeWorld } from '../data/catalogs/worldStages.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { readJSON, writeJSON } from '../utils/storage.js';
+import { NO_FLOOR_PICK_HEIGHT } from './sceneSettings.js';
 import { mergeSavedOptions, OPTIONS_STORAGE_KEY, QUALITY_SCALES } from '../data/catalogs/optionsSchema.js';
 import OptionsPanel from '../ui/optionsPanel.js';
 import BusyNotice from '../ui/busyNotice.js';
@@ -83,7 +84,6 @@ const WADE_RAMP = 0.2;
 const SHORE_CHECK_SECONDS = 0.3;
 const MAX_STEP_SECONDS = 0.1;
 const SHADOW_REACH_STEP = 0.2;
-const NO_FLOOR_PICK_HEIGHT = -1000;
 const EDITOR_CAM_SPEED = 12;
 const EDITOR_CAM_SPRINT = 32;
 const PLAYER_ZOOM_MAX = 22;
@@ -634,7 +634,10 @@ export default class GameScene {
       return 1 - (1 - WADE_SPEED) * wet;
     };
     this.playerSystem.decoSystem = this.decoSystem;
-    this.creatureSystem.pointerLevel = () => (this.editor.active ? null : this.playerSystem.level);
+    this.creatureSystem.pointerLevel = () => {
+      if (!this.editor.active) return this.playerSystem.level;
+      return this.editor.mode.undergroundView ? this.editor.mode.floorLevel : 0;
+    };
     this.playerSystem.groundHeightAt = (x, z, level) => this.terrainSystem.walkHeightAt(x, z, level);
     this.playerSystem.wallRiseAt = (x, z, radius, level) => this.terrainSystem.riseNear(x, z, radius, level);
     this.playerSystem.cliffOverlapAt = (x, z, level) => this.terrainSystem.cliffOverlap(x, z, level);
@@ -802,7 +805,7 @@ export default class GameScene {
       this.applyOptions();
     };
     window.addEventListener('beforeunload', (event) => {
-      if (!this.mapDirty) return;
+      if (!this.editor.mapDirty) return;
       event.preventDefault();
       event.returnValue = '';
     });
@@ -950,8 +953,15 @@ export default class GameScene {
     const level = this.playerSystem ? this.playerSystem.level : 0;
     const view = this.editor.floorView();
     const under = Boolean(view) || (Boolean(root) && !this.editor.active && this.isUnderRoof(root.position.x, root.position.z, level));
-    if (view) this.revealSystem.setKeptMeshes([...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoMeshes(this.editor.mode.floorLevel)]);
-    else if (under || this.revealSystem.isOpen()) {
+    if (view) {
+      const floor = this.editor.mode.floorLevel;
+      const own = [...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoMeshes(floor)];
+      if (root && level === floor) own.push(...root.getChildMeshes(false));
+      for (const creature of this.creatureSystem.creatures) {
+        if ((creature.level || 0) === floor) own.push(...creature.meshes);
+      }
+      this.revealSystem.setKeptMeshes(own);
+    } else if (under || this.revealSystem.isOpen()) {
       const viewer = { x: root.position.x, y: root.position.y, z: root.position.z, level };
       const seen = ({ x, y, z }, floor) => this.navigation.seesAcrossFloors(viewer, { x, y, z, level: floor });
       const own = [...root.getChildMeshes(false), ...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoInSight(seen)];
@@ -1092,7 +1102,7 @@ export default class GameScene {
     this.inputSystem.suppressContextMenu(this.canvas);
     this.inputSystem.groundPredicate = (mesh) => mesh === this.terrainSystem.ground;
     this.inputSystem.groundHeightAt = (x, z, wanted = null) => {
-      const plane = wanted === null ? this.editor.floorPlane(x, z) : null;
+      const plane = wanted === null ? this.editor.floorPlane(x, z, true) : null;
       if (plane !== null) return plane;
       const level = wanted !== null ? wanted : this.gatherSystem.levelOf();
       if (level !== 0 && !this.navigation.isWalkableAt(x, z, level)) return NO_FLOOR_PICK_HEIGHT;
@@ -1216,7 +1226,7 @@ export default class GameScene {
       return;
     }
     if (this.dialog.open) {
-      evt.preventDefault();
+      if (!typing) evt.preventDefault();
       return;
     }
     if (this.dying) {

@@ -1,12 +1,18 @@
 // Plovoucí okénko režimu Patra — seznam pater, kopání a zasypávání, výška podlahy a varování.
 // Otevírá se při přepnutí na Patra, samo nic negeneruje ani nemění.
-import { surfaceEntries, placeableEntries } from '../data/catalogs/decorations.js';
+import { surfaceEntries } from '../data/catalogs/decorations.js';
 import { formatMeters } from '../data/maps/layoutStore.js';
 import { makeDraggable } from '../ui/draggable.js';
 import { FLOOR_MARKS, MIN_CLEARANCE } from './editorFloors.js';
 
-export function floorName(level) {
+export function floorName(level, name = null) {
+  if (name) return name;
   return level === 0 ? 'Povrch' : `Jeskyně ${String(level).replace('-', '−')}`;
+}
+
+function edgeWord(n) {
+  if (n === 1) return 'hrana';
+  return n >= 2 && n <= 4 ? 'hrany' : 'hran';
 }
 
 function cellWord(n) {
@@ -28,7 +34,8 @@ export default class FloorPanel {
     this.onClear = null;
     this.onUndo = null;
     this.onRaise = null;
-    this.onDeco = null;
+    this.onRename = null;
+    this.onDelete = null;
   }
 
   mount() {
@@ -47,9 +54,7 @@ export default class FloorPanel {
           <button type="button" data-tool="paint">Vykopat</button>
           <button type="button" data-tool="erase">Zasypat</button>
           <button type="button" data-tool="corridor">Chodba</button>
-          <button type="button" data-tool="deco">Předmět</button>
         </div>
-        <select class="floor-panel__deco"></select>
         <div class="area-panel__surfaces"></div>
         <div class="area-panel__height">
           <button type="button" data-floor-step="-1" title="Snížit podlahu (Q)">−</button>
@@ -92,14 +97,6 @@ export default class FloorPanel {
       btn.addEventListener('click', () => this.onSurface && this.onSurface(entry.key));
       this.surfaceRow.appendChild(btn);
     }
-    this.decoSelect = root.querySelector('.floor-panel__deco');
-    for (const entry of placeableEntries()) {
-      const option = document.createElement('option');
-      option.value = entry.key;
-      option.textContent = entry.label;
-      this.decoSelect.appendChild(option);
-    }
-    this.decoSelect.addEventListener('change', () => this.onDeco && this.onDeco(this.decoSelect.value));
     const on = (selector, handler) => root.querySelector(selector).addEventListener('click', handler);
     on('.floor-panel__add', () => this.onAdd && this.onAdd());
     on('.area-panel__apply', () => this.onApply && this.onApply());
@@ -138,43 +135,58 @@ export default class FloorPanel {
     root.classList.toggle('is-erasing', erasing);
     for (const btn of root.querySelectorAll('[data-tool]')) btn.classList.toggle('is-active', btn.dataset.tool === view.tool);
     for (const btn of this.surfaceRow.querySelectorAll('[data-surface]')) btn.classList.toggle('is-active', btn.dataset.surface === view.surface);
-    const placing = view.tool === 'deco';
-    this.decoSelect.style.display = placing ? '' : 'none';
-    this.surfaceRow.style.display = placing ? 'none' : '';
-    if (view.decoKey) this.decoSelect.value = view.decoKey;
-    else if (placing && this.onDeco) this.onDeco(this.decoSelect.value);
     root.querySelector('.floor-panel__height').textContent = `podlaha ${formatMeters(view.height)}`;
     root.querySelector('.floor-panel__clearance').textContent = `světlá výška ${formatMeters(view.clearance)}`;
     root.querySelector('.area-panel__count').textContent = `${erasing ? 'Zasype se' : 'Vykope se'}: ${view.count} ${cellWord(view.count)}`;
     root.querySelector('.area-panel__apply').disabled = view.count === 0;
     root.querySelector('.area-panel__clear').disabled = view.count === 0;
     root.querySelector('.area-panel__undo').disabled = !view.undoEnabled;
-    root.querySelector('.area-panel__note').textContent = placing && underground
-      ? 'Vyber předmět a klikni na buňku tohoto patra. Druhým kliknutím na stejnou buňku ho zase odebereš.'
-      : view.tool === 'corridor' && underground
+    root.querySelector('.area-panel__note').textContent = view.tool === 'corridor' && underground
       ? 'Táhni od začátku ke konci chodby, pak Aplikovat. Chodba naváže na podlahu, u které začíná, a plynule klesne k nastavené výšce podlahy. Průchod do jiného patra vznikne sám, když se podlahy potkají do 0,6 m.'
       : underground
-      ? 'Táhni myší — označí se obdélník, pak Aplikovat. Tažením zevnitř označení změníš jeho velikost, tažením mimo začneš nové. Průchod ven vznikne sám tam, kde podlaha navazuje na zem vedle (rozdíl do 0,6 m).'
-      : 'Povrch se upravuje v záložkách Zóny, Výška a Herní plocha. Tady vyber nebo založ podzemní patro.';
-    this.renderWarnings(underground ? view.report : null);
+      ? 'Táhni myší — označí se obdélník a každé další tažení k výběru přidává. Pravým tlačítkem buňku z výběru odebereš, Esc zahodí vše. Pak Aplikovat. Průchod ven vznikne sám tam, kde podlaha navazuje na zem vedle (rozdíl do 0,6 m).'
+      : 'Novou jeskyni začneš kliknutím na stěnu útesu: zelená značka ukáže vchod, pak táhni výběr do skály. Povrch se upravuje v záložkách Zóny, Výška a Herní plocha.';
+    this.renderWarnings(underground ? view.report : null, underground ? view.edgeCounts : null);
   }
 
   renderList(floors, selected) {
     const list = this.root.querySelector('.floor-panel__list');
     list.textContent = '';
     for (const floor of floors) {
+      const row = document.createElement('div');
+      row.className = 'floor-panel__row';
       const btn = document.createElement('button');
       btn.type = 'button';
+      btn.className = 'floor-panel__pick';
       btn.classList.toggle('is-active', floor.level === selected);
       const range = floor.level !== 0 && floor.count ? ` · ${formatMeters(floor.bottom)} až ${formatMeters(floor.top)}` : '';
       const empty = floor.level !== 0 && !floor.count ? ' · prázdné' : '';
-      btn.textContent = `${floorName(floor.level)}${range}${empty}`;
+      btn.textContent = `${floorName(floor.level, floor.name)}${range}${empty}`;
       btn.addEventListener('click', () => this.onSelect && this.onSelect(floor.level));
-      list.appendChild(btn);
+      row.appendChild(btn);
+      if (floor.level !== 0) {
+        const rename = document.createElement('button');
+        rename.type = 'button';
+        rename.className = 'floor-panel__rename';
+        rename.textContent = '✎';
+        rename.title = 'Přejmenovat patro';
+        rename.addEventListener('click', () => this.onRename && this.onRename(floor));
+        row.appendChild(rename);
+      }
+      if (floor.empty) {
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'floor-panel__rename';
+        remove.textContent = '×';
+        remove.title = 'Smazat prázdné patro';
+        remove.addEventListener('click', () => this.onDelete && this.onDelete(floor));
+        row.appendChild(remove);
+      }
+      list.appendChild(row);
     }
   }
 
-  renderWarnings(report) {
+  renderWarnings(report, edges) {
     const box = this.root.querySelector('.floor-panel__warnings');
     box.textContent = '';
     if (!report) return;
@@ -190,6 +202,9 @@ export default class FloorPanel {
       line.append(text);
       box.appendChild(line);
     };
+    if (edges && edges.door) addLine(`Výběr: vznikne vchod (${edges.door} ${edgeWord(edges.door)})`, FLOOR_MARKS.door);
+    if (edges && edges.thin) addLine(`Výběr: prokopnutí ven (${edges.thin} ${edgeWord(edges.thin)})`, FLOOR_MARKS.thin);
+    if (edges && edges.pierced) addLine(`Výběr: strop prorazí povrch (${edges.pierced} ${cellWord(edges.pierced)})`, FLOOR_MARKS.problem);
     if (report.doors.length) addLine(`Vchod: ${report.doors.length} ${cellWord(report.doors.length)}`, FLOOR_MARKS.door);
     if (report.low.length) addLine(`Nízký strop (pod ${formatMeters(MIN_CLEARANCE)}): ${report.low.length} ${cellWord(report.low.length)}`, FLOOR_MARKS.problem);
     if (report.steep.length) addLine(`Příliš strmá chodba: ${report.steep.length} ${cellWord(report.steep.length)}`, FLOOR_MARKS.problem);

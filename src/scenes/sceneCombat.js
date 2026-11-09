@@ -47,8 +47,8 @@ export default {
     if (this.editor.active) this.editor.refreshCreatureMarks();
   },
 
-  creatureStatusAt(cx, cz, kind, tierKey) {
-    return this.creatureSystem.statusAt(cx, cz, kind, tierKey);
+  creatureStatusAt(cx, cz, kind, tierKey, level = 0) {
+    return this.creatureSystem.statusAt(cx, cz, kind, tierKey, level);
   },
 
   playCreatureSound(key, creature) {
@@ -90,7 +90,7 @@ export default {
     let bestDistance = 32;
     const reach = this.playerAttackSystem.reach + 0.35;
     for (const creature of this.creatureSystem.creatures) {
-      if (!creature || creature.dead || (creature.level || 0) !== this.playerSystem.level) continue;
+      if (!creature || creature.dead || (creature.level || 0) !== this.creatureSystem.pointerLevel()) continue;
       const worldDistance = Math.hypot(creature.x - root.position.x, creature.z - root.position.z);
       if (worldDistance > reach) continue;
       const holderY = creature.holder && !creature.holder.isDisposed()

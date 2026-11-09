@@ -154,7 +154,7 @@ export default {
         const had = !!previous
           && (previous.mix || 'auto') === (entry.mix || 'auto')
           && (previous.layer || 'both') === (entry.layer || 'both');
-        this.layout.grass = this.layout.grass.filter((item) => item && (item.cx !== cx || item.cz !== cz));
+        this.layout.grass = this.layout.grass.filter((item) => item && !onSurface(item, cx, cz));
         this.layout.grass.push(entry);
         const scattered = this.scatterDecorations(brushKey, brush, cx, cz, false);
         if (!had || scattered) changed += 1;
@@ -353,7 +353,7 @@ export default {
     const pool = scatter.pool;
     const entries = this.layout.decorations;
     const kept = entries.filter((entry) => (
-      !entry || entry.cx !== cx || entry.cz !== cz || !pool.includes(entry.key)
+      !onSurface(entry, cx, cz) || !pool.includes(entry.key)
     ));
     let touched = kept.length !== entries.length;
     this.layout.decorations = kept;

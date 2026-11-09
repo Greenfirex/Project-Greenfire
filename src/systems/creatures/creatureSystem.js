@@ -731,8 +731,8 @@ export default class CreatureSystem {
     return Math.hypot(player.x - world.x, player.z - world.z) < RESPAWN_CLEAR;
   }
 
-  statusAt(cx, cz, kind, tierKey) {
-    const slot = this.slots.get(slotKeyOf(kind, tierKey, cx, cz));
+  statusAt(cx, cz, kind, tierKey, level = 0) {
+    const slot = this.slots.get(slotKeyOf(kind, tierKey, cx, cz, level));
     if (!slot) return null;
     const days = Number(slot.type.respawnDays);
     const remainingDays = !slot.creature

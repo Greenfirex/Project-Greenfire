@@ -68,8 +68,11 @@
   ani oddělovače. Co je nejasné, patří do názvu nebo do `DEV.md`.
 
 ## Mrtvý kód
-- Nepoužívaný kód (funkce, konstanty, importy, soubory, assety) najdi a navrhni
-  ke smazání. Smaž ho až po domluvě a schválení uživatelem. Nikdy ho
+- Kód, který přestal být potřeba kvůli tvým posledním změnám, rovnou smaž
+  a řekni uživateli, co zmizelo.
+- Jiný nepoužívaný kód (funkce, konstanty, importy, soubory, assety) navrhni
+  ke smazání a smaž ho až po schválení uživatelem.
+- Před smazáním ověř, že se to jinde nepoužívá. Nikdy nepoužívaný kód
   nezakomentovávej ani nenechávej „pro jistotu".
 
 ## Soubory a dokumentace

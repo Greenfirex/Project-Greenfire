@@ -18,7 +18,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Ověřit, jestli se předměty hýbou s buňkou při změně výšky (tak nejspíš zapadly léčivé byliny).
 - [ ] Liana u nově vykopaného vchodu: objeví se hned, nebo až po znovunačtení?
 - [ ] Slabý obrys povrchu při kopání do prázdného patra, pokud bude chybět.
-- [ ] Rozhodnout, jestli odstranit nástroj Předmět v panelu Patra (Zóny s přepínačem pater dělají totéž).
 
 ### Úklid a dokumentace
 - [ ] Prověřit zbytky starého schovávání střechy (`roofMeshes` v `terrainSystem.js` a `GameScene.js`, dnes se ještě používají); smazat jen po souhlasu.

@@ -5,6 +5,7 @@ import { getDecoration } from '../data/catalogs/decorations.js';
 import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
 import { dropLayerCell, dropDecorationCell, dropAreaCells } from '../data/maps/areaShape.js';
+import { onSurface } from './editorSettings.js';
 import { rectCells } from './editorSettings.js';
 import { corridorCells } from './editorFloors.js';
 
@@ -66,7 +67,7 @@ export default {
   },
 
   setAreaTool(tool) {
-    const next = tool === 'erase' || tool === 'corridor' || tool === 'deco' ? tool : 'paint';
+    const next = tool === 'erase' || tool === 'corridor' ? tool : 'paint';
     if (this.areaTool === next) return;
     this.areaTool = next;
     this.areaDrag = null;
@@ -104,7 +105,7 @@ export default {
 
   areaExists(cx, cz) {
     if (this.realCells && this.realCells.some(([ax, az]) => ax === cx && az === cz)) return true;
-    return (this.layout.path || []).some((entry) => entry && entry.cx === cx && entry.cz === cz);
+    return (this.layout.path || []).some((entry) => onSurface(entry, cx, cz));
   },
 
   assignRealCells(cells) {

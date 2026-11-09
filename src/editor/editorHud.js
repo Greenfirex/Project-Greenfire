@@ -5,6 +5,14 @@ import { HEIGHT_STEP, formatMeters } from '../data/maps/layoutStore.js';
 import { makeDraggable } from '../ui/draggable.js';
 import { floorName } from './floorPanel.js';
 
+const COMMON_HINT = 'WASD pohled · Shift+1–4 záložky · Z zpět · Ctrl+S uložit';
+const MODE_HINTS = {
+  zone: 'Vyber štětec a táhni · X mazání',
+  height: 'Táhni po buňkách · Q a E krok výšky · 1–9 předvolby',
+  area: 'Táhni obdélník · Enter použít · Esc zahodit',
+  floors: 'Na povrchu klikni na útes · v patře táhni výběr · Enter vykopat',
+};
+
 export default class EditorHud {
 
   constructor() {
@@ -31,13 +39,13 @@ export default class EditorHud {
     root.dataset.mode = this.state.mode;
     root.innerHTML = `
       <div class="editor-panel__tabs">
-        <button type="button" data-mode="zone">Zóny</button>
-        <button type="button" data-mode="height">Výška</button>
-        <button type="button" data-mode="area">Herní plocha</button>
-        <button type="button" data-mode="floors">Patra</button>
+        <button type="button" data-mode="zone" title="Zóny (Shift+1)">Zóny</button>
+        <button type="button" data-mode="height" title="Výška (Shift+2)">Výška</button>
+        <button type="button" data-mode="area" title="Herní plocha (Shift+3)">Herní plocha</button>
+        <button type="button" data-mode="floors" title="Patra (Shift+4)">Patra</button>
         <button type="button" class="editor-panel__close" title="Zavřít (F2)">×</button>
       </div>
-      <div class="editor-panel__hint">Vyber štětec a tažením označ obdélník (klik = jedna buňka) · WASD posun pohledu (Shift rychleji) · Pravé tažení otáčí pohled, pravé kliknutí odebere buňku · Z zpět · F2 zavřít</div>
+      <div class="editor-panel__hint"></div>
       <label class="editor-panel__floor">Patro <select></select></label>
       <div class="editor-panel__grid"></div>
       <div class="editor-panel__note">–</div>
@@ -143,7 +151,7 @@ export default class EditorHud {
     for (const floor of floors) {
       const option = document.createElement('option');
       option.value = String(floor.level);
-      option.textContent = floorName(floor.level);
+      option.textContent = floorName(floor.level, floor.name);
       select.appendChild(option);
     }
     select.value = String(selected);
@@ -233,6 +241,7 @@ export default class EditorHud {
 
   refresh() {
     if (!this.root) return;
+    this.root.querySelector('.editor-panel__hint').textContent = `${MODE_HINTS[this.state.mode]} · ${COMMON_HINT}`;
     for (const btn of this.root.querySelectorAll('[data-mode]')) {
       btn.classList.toggle('is-active', btn.dataset.mode === this.state.mode);
     }

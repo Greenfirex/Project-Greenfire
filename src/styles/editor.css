@@ -63,17 +63,20 @@
   border-color: var(--border-glow);
 }
 
-.editor-panel__tabs button[data-mode="zone"].is-active {
-  color: var(--editor-zone);
+.floor-panel__row {
+  display: flex;
+  gap: 4px;
 }
 
-.editor-panel__tabs button[data-mode="area"].is-active {
-  color: var(--editor-area);
+.floor-panel__row .floor-panel__pick {
+  flex: 1;
 }
 
-.editor-panel__tabs button[data-mode="floors"].is-active,
-.editor-panel__tabs button[data-mode="height"].is-active {
-  color: var(--editor-height);
+.floor-panel__row .floor-panel__rename {
+  flex: none;
+  width: 28px;
+  padding: 5px 0;
+  text-align: center;
 }
 
 .editor-panel__close {

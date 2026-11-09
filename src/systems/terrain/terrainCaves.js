@@ -2,9 +2,8 @@
 // Patří k TerrainSystem (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { DOOR_LINTEL_DEPTH } from './runVolume.js';
-import { columnsByCell, layerLiftAt, floorCellAt } from '../../data/maps/areaShape.js';
+import { columnsByCell, layerLiftAt, floorCellAt, caveOpensInto } from '../../data/maps/areaShape.js';
 
-const CAVE_OPEN_STEP = 0.6;
 const OUTER_LIGHT_CELLS = 6;
 const INNER_LIGHT_CELLS = 3;
 const ROCK_MAX_ABOVE_CEILING = 3;
@@ -220,8 +219,7 @@ export default {
           if (!nplanes) continue;
           if (nplanes.some((np) => np.level === caveLevel)) continue;
           for (const np of nplanes) {
-            if (np.level !== 0 && !(np.level < 0 && Number.isFinite(np.ceil))) continue;
-            if (Math.abs(caveFloor - np.lift) > CAVE_OPEN_STEP) continue;
+            if (!caveOpensInto(np, caveFloor)) continue;
             const here = (end) => end.cx === cx && end.cz === cz && (Number.isFinite(end.level) ? end.level : 0) === caveLevel;
             const there = (end) => end.cx === cx + dx && end.cz === cz + dz && (Number.isFinite(end.level) ? end.level : 0) === np.level;
             if (records.some((record) => (here(record.to) && there(record.from)) || (here(record.from) && there(record.to)))) continue;

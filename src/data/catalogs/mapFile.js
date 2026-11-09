@@ -70,6 +70,7 @@ export function layoutFromMapFile(file, fallbackSeed = 1) {
     creatures: Array.isArray(world.creatures) ? copy(world.creatures) : null,
     bridges: copy(world.bridges),
     connectors: copy(world.connectors),
+    floorNames: { ...(world.floorNames || {}) },
   };
 }
 
@@ -99,5 +100,6 @@ export function mapFileFromLayout(mapKey, layout) {
     creatures: Array.isArray(layout.creatures) ? copy(layout.creatures) : undefined,
     bridges: copy(layout.bridges),
     connectors: (layout.connectors || []).length ? layout.connectors.map((item) => ({ ...item })) : undefined,
+    floorNames: Object.keys(layout.floorNames || {}).length ? { ...layout.floorNames } : undefined,
   };
 }

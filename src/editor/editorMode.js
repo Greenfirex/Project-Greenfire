@@ -24,7 +24,7 @@ function droppable(layout, cx, cz) {
       if (onSurface(entry, cx, cz)) layers.push(entry);
     }
   }
-  const decos = (layout.decorations || []).filter((entry) => entry && entry.cx === cx && entry.cz === cz);
+  const decos = (layout.decorations || []).filter((entry) => onSurface(entry, cx, cz));
   return [...layers, ...decos];
 }
 
@@ -62,7 +62,6 @@ export default class EditorMode {
     this.floorClearance = DEFAULT_CLEARANCE;
     this.floorExtra = new Set();
     this.floorDragShift = [0, 0];
-    this.floorDecoKey = null;
     this.areaTool = 'paint';
     this.areaSurface = DEFAULT_FLOOR;
     this.areaSelection = null;

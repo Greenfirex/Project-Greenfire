@@ -1,7 +1,7 @@
 // Kudy se dá chodit — pochozí místa, přechody mezi patry po spojích, průchody a stropy nad hlavou.
 // Sám nic nestaví; mapu, mosty, hloubku vody a výšku dekorací mu dodá scéna jako dotazy.
 import { worldToCellCoords, CELL_SIZE } from '../../utils/gridMath.js';
-import { worldCells, hasFloor, ceilingLiftAt } from '../../data/maps/areaShape.js';
+import { worldCells, levelOfEntry, ceilingLiftAt } from '../../data/maps/areaShape.js';
 
 const FLOOR_LINK_RADIUS = 8;
 const DOORWAY_SIGHT_HEIGHT = 3;
@@ -22,6 +22,8 @@ export default class NavigationSystem {
     this.waterDepthAt = null;
     this.topAt = null;
     this.areaLookup = null;
+    this.floorSets = new Map();
+    this.floorSetsFor = null;
     this.connectorMap = null;
     this.connectorMapFor = null;
     this.passageSet = null;
@@ -39,6 +41,23 @@ export default class NavigationSystem {
 
   resetArea() {
     this.areaLookup = null;
+    this.floorSets.clear();
+  }
+
+  floorCells(level) {
+    const layout = this.layout();
+    if (this.floorSetsFor !== layout) {
+      this.floorSetsFor = layout;
+      this.floorSets.clear();
+    }
+    if (!this.floorSets.has(level)) {
+      const cells = new Set();
+      for (const entry of (layout && layout.floor) || []) {
+        if (entry && levelOfEntry(entry) === level) cells.add(`${entry.cx},${entry.cz}`);
+      }
+      this.floorSets.set(level, cells);
+    }
+    return this.floorSets.get(level);
   }
 
   areaCells() {
@@ -57,7 +76,7 @@ export default class NavigationSystem {
     if (level === 0 && this.onBridge(x, z)) return true;
     if (level === 0 && this.tooDeep(x, z)) return false;
     const { cx, cz } = worldToCellCoords(x, z);
-    if (hasFloor(this.layout(), cx, cz, level)) return true;
+    if (this.floorCells(level).has(`${cx},${cz}`)) return true;
     if (level !== 0) return false;
     if (!this.areaLookup) {
       this.areaLookup = new Set(this.areaCells().map(([ax, az]) => `${ax},${az}`));

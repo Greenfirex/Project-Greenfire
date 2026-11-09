@@ -2,14 +2,24 @@
 // Patří k EditorMode (sdílí jeho this); výběr buněk tažením si půjčuje od Herní plochy.
 import { PAINT_ALL } from '../data/catalogs/brushes.js';
 import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
-import { cellKey } from '../utils/gridMath.js';
-import { columnsByCell, dropDecorationCell, dropLayerCell, layerLiftAt, levelOfEntry, planeLevels } from '../data/maps/areaShape.js';
+import { CELL_SIZE, cellKey } from '../utils/gridMath.js';
+import { CAVE_OPEN_STEP, caveOpensInto, columnsByCell, dropDecorationCell, dropLayerCell, layerLiftAt, levelOfEntry, planeLevels } from '../data/maps/areaShape.js';
 import { SIDES } from './editorSettings.js';
 
 export const MIN_CLEARANCE = 3;
 export const MAX_CORRIDOR_STEP = 1;
 export const DEFAULT_CLEARANCE = 3;
-export const FLOOR_MARKS = { door: [0.25, 0.95, 0.5], problem: [1, 0.2, 0.2] };
+export const FLOOR_MARKS = { door: [0.25, 0.95, 0.5], thin: [1, 0.6, 0.15], problem: [1, 0.2, 0.2] };
+
+const CAVE_START_REACH = 1;
+
+function edgeKind(planes, level, floor, ceil) {
+  if (!planes) return 'thin';
+  if (planes.some((plane) => plane.level === level)) return null;
+  if (planes.some((plane) => caveOpensInto(plane, floor))) return 'door';
+  const open = planes.some((plane) => (plane.level === 0 ? plane.lift < ceil : Number.isFinite(plane.ceil) && plane.lift < ceil && plane.ceil > floor));
+  return open ? 'thin' : null;
+}
 
 export function corridorCells(fromX, fromZ, toX, toZ) {
   const cells = [[fromX, fromZ]];
@@ -38,6 +48,8 @@ export default {
       const ceilings = cells.map((entry) => (Number.isFinite(entry.ceilY) ? entry.ceilY : entry.liftY || 0));
       return {
         level,
+        name: ((this.layout && this.layout.floorNames) || {})[level] || null,
+        empty: this.floorIsEmpty(level),
         count: cells.length,
         bottom: cells.length ? Math.min(...lifts) : null,
         top: cells.length ? Math.max(...ceilings) : null,
@@ -48,6 +60,27 @@ export default {
       if (a.bottom === null || b.bottom === null) return a.bottom === null ? 1 : -1;
       return b.bottom - a.bottom || b.level - a.level;
     });
+  },
+
+  floorIsEmpty(level) {
+    if (level === 0 || !this.layout || planeLevels(this.layout).includes(level)) return false;
+    return !['decorations', 'creatures'].some((name) => (this.layout[name] || []).some((entry) => entry && levelOfEntry(entry) === level));
+  },
+
+  deleteFloor(level) {
+    if (!this.floorIsEmpty(level)) return false;
+    this.floorExtra.delete(level);
+    if (this.layout.floorNames) delete this.layout.floorNames[level];
+    if (this.floorLevel === level) this.selectFloor(0);
+    return true;
+  },
+
+  renameFloor(level, name) {
+    if (!this.layout || level === 0) return;
+    if (!this.layout.floorNames) this.layout.floorNames = {};
+    const text = String(name || '').trim();
+    if (text) this.layout.floorNames[level] = text;
+    else delete this.layout.floorNames[level];
   },
 
   selectFloor(level) {
@@ -65,6 +98,53 @@ export default {
     return level;
   },
 
+  caveWallAt(cell, columns) {
+    const surfaceLift = (cx, cz) => {
+      const plane = (columns.get(`${cx},${cz}`) || []).find((item) => item.level === 0);
+      return plane ? plane.lift : null;
+    };
+    const pointX = cell.point ? cell.point.x / CELL_SIZE : cell.cx;
+    const pointZ = cell.point ? cell.point.z / CELL_SIZE : cell.cz;
+    let best = null;
+    for (const [dx, dz] of SIDES) {
+      for (const [rockX, rockZ, sideX, sideZ] of [[cell.cx, cell.cz, dx, dz], [cell.cx + dx, cell.cz + dz, -dx, -dz]]) {
+        const rock = surfaceLift(rockX, rockZ);
+        const ground = surfaceLift(rockX + sideX, rockZ + sideZ);
+        if (rock === null || ground === null || rock - ground <= CAVE_OPEN_STEP) continue;
+        const distance = Math.hypot(rockX + sideX / 2 - pointX, rockZ + sideZ / 2 - pointZ);
+        if (distance > CAVE_START_REACH || (best && distance >= best.distance)) continue;
+        best = { cx: rockX, cz: rockZ, dx: sideX, dz: sideZ, floor: ground, wall: rock - ground, distance };
+      }
+    }
+    return best;
+  },
+
+  freeCaveLevel(wall, columns) {
+    const lowest = Math.min(0, ...this.floorExtra, ...planeLevels(this.layout));
+    const cells = [[wall.cx, wall.cz], ...SIDES.map(([dx, dz]) => [wall.cx + dx, wall.cz + dz])];
+    for (let level = -1; level >= lowest; level -= 1) {
+      if (!cells.some(([cx, cz]) => (columns.get(`${cx},${cz}`) || []).some((plane) => plane.level === level))) return level;
+    }
+    return lowest - 1;
+  },
+
+  caveStartAt(cell) {
+    if (!cell || !this.layout || this.floorLevel !== 0) return null;
+    const columns = columnsByCell(this.layout);
+    const wall = this.caveWallAt(cell, columns);
+    if (!wall) return null;
+    const missing = this.floorClearance - wall.wall;
+    return { ...wall, level: this.freeCaveLevel(wall, columns), missing: missing > 0 ? missing : 0 };
+  },
+
+  beginCave(plan) {
+    this.setAreaTool('paint');
+    this.floorExtra.add(plan.level);
+    this.selectFloor(plan.level);
+    this.floorHeight = plan.floor;
+    this.beginFloorDrag(plan.cx, plan.cz);
+  },
+
   stepFloorHeight(delta) {
     this.floorHeight += delta * HEIGHT_STEP;
     return this.floorHeight;
@@ -77,27 +157,9 @@ export default {
   },
 
   beginFloorDrag(cx, cz) {
-    const cells = this.strokeCells();
-    let fromX = cx;
-    let fromZ = cz;
-    let toX = cx;
-    let toZ = cz;
-    if (this.areaTool !== 'corridor' && cells.some(([x, z]) => x === cx && z === cz)) {
-      const xs = cells.map(([x]) => x);
-      const zs = cells.map(([, z]) => z);
-      const [minX, maxX, minZ, maxZ] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
-      const nearMaxX = maxX - cx <= cx - minX;
-      const nearMaxZ = maxZ - cz <= cz - minZ;
-      fromX = nearMaxX ? minX : maxX;
-      fromZ = nearMaxZ ? minZ : maxZ;
-      toX = nearMaxX ? maxX : minX;
-      toZ = nearMaxZ ? maxZ : minZ;
-    }
-    this.floorDragShift = [toX - cx, toZ - cz];
-    this.areaStroke = null;
-    this.areaBase = new Map();
-    this.areaDrag = { mode: this.areaTool, fromX, fromZ, toX, toZ };
-    this.refreshAreaDrag();
+    this.floorDragShift = [0, 0];
+    if (this.areaTool === 'corridor') this.areaStroke = null;
+    this.beginAreaDrag(cx, cz);
   },
 
   moveFloorDrag(cx, cz) {
@@ -146,9 +208,8 @@ export default {
     return count;
   },
 
-  applyCorridor(cells) {
-    const level = this.floorLevel;
-    const entries = this.floorEntries(level);
+  corridorLifts(cells) {
+    const entries = this.floorEntries(this.floorLevel);
     const liftAt = (cx, cz) => {
       const entry = entries.find((item) => item.cx === cx && item.cz === cz);
       return entry ? entry.liftY || 0 : null;
@@ -168,10 +229,37 @@ export default {
     }
     if (start === null) start = this.floorHeight;
     const steps = Math.max(1, cells.length - 1 + offset);
+    return cells.map((cell, index) => Math.round((start + (this.floorHeight - start) * ((index + offset) / steps)) / HEIGHT_STEP) * HEIGHT_STEP);
+  },
+
+  floorEdgePreview(selection) {
+    const preview = { door: [], thin: [], pierced: [] };
+    if (!selection || !this.layout || !this.undergroundFloor || !selection.cells.length || selection.tool === 'erase') return preview;
+    const level = this.floorLevel;
+    const lifts = selection.tool === 'corridor' ? this.corridorLifts(selection.cells) : null;
+    const planned = new Set(selection.cells.map(([cx, cz]) => `${cx},${cz}`));
+    const columns = columnsByCell(this.layout);
+    selection.cells.forEach(([cx, cz], index) => {
+      const floor = lifts ? lifts[index] : this.floorHeight;
+      const ceil = floor + this.floorClearance;
+      const surface = (columns.get(`${cx},${cz}`) || []).find((plane) => plane.level === 0);
+      if (surface && ceil > surface.lift) preview.pierced.push({ cx, cz, y: floor });
+      for (const [dx, dz] of SIDES) {
+        if (planned.has(`${cx + dx},${cz + dz}`)) continue;
+        const kind = edgeKind(columns.get(`${cx + dx},${cz + dz}`), level, floor, ceil);
+        if (kind) preview[kind].push({ cx, cz, dx, dz, y: floor });
+      }
+    });
+    return preview;
+  },
+
+  applyCorridor(cells) {
+    const level = this.floorLevel;
+    const lifts = this.corridorLifts(cells);
     this.pushHistory();
     cells.forEach(([cx, cz], index) => {
       dropLayerCell(this.layout, cx, cz, level);
-      const lift = Math.round((start + (this.floorHeight - start) * ((index + offset) / steps)) / HEIGHT_STEP) * HEIGHT_STEP;
+      const lift = lifts[index];
       const entry = { key: this.areaSurface, cx, cz, rotation: 0, ceilY: lift + this.floorClearance, level };
       if (lift) entry.liftY = lift;
       this.layout.floor.push(entry);
@@ -179,24 +267,6 @@ export default {
     this.clearAreaSelection();
     this.scheduleRegenerate(PAINT_ALL);
     return cells.length;
-  },
-
-  toggleFloorDeco(cx, cz) {
-    if (!this.layout || !this.undergroundFloor || !this.floorDecoKey) return 'none';
-    const level = this.floorLevel;
-    const cell = this.floorEntries(level).find((entry) => entry.cx === cx && entry.cz === cz);
-    if (!cell) return 'none';
-    if (!this.layout.decorations) this.layout.decorations = [];
-    this.pushHistory();
-    let result = 'removed';
-    if (!dropDecorationCell(this.layout, cx, cz, level)) {
-      const entry = { key: this.floorDecoKey, cx, cz, rotation: 0, level };
-      if (cell.liftY) entry.liftY = cell.liftY;
-      this.layout.decorations.push(entry);
-      result = 'placed';
-    }
-    this.scheduleRegenerate(PAINT_ALL);
-    return result;
   },
 
   dropConnectorsAt(cells, level) {

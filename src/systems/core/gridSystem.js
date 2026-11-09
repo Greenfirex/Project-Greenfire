@@ -5,11 +5,14 @@ import '@babylonjs/core/Meshes/Builders/linesBuilder';
 import '@babylonjs/core/Meshes/Builders/discBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { instantiateModel } from '../../utils/assetLoader.js';
 import { decorationTemplate } from '../../utils/decoTemplate.js';
+
+const EDGE_INSETS = [0, 0.05, 0.1];
+const EDGE_LIFT = 0.09;
 
 const HOLO_VALID = new Color3(0.35, 0.95, 0.8);
 const HOLO_INVALID = new Color3(0.95, 0.38, 0.32);
@@ -198,6 +201,34 @@ export default class GridSystem {
       this.brushInstances.push(inst);
     }
     if (first) this.brushMaster.setEnabled(false);
+  }
+
+  showEdges(edges) {
+    this.clearEdges();
+    if (!edges.length) return;
+    const lines = [];
+    const colors = [];
+    const half = CELL_SIZE / 2;
+    for (const edge of edges) {
+      const color = new Color4(edge.color[0], edge.color[1], edge.color[2], 1);
+      const y = edge.y + EDGE_LIFT;
+      const sideX = -edge.dz * half;
+      const sideZ = edge.dx * half;
+      for (const inset of EDGE_INSETS) {
+        const x = edge.cx * CELL_SIZE + edge.dx * (half - inset);
+        const z = edge.cz * CELL_SIZE + edge.dz * (half - inset);
+        lines.push([new Vector3(x - sideX, y, z - sideZ), new Vector3(x + sideX, y, z + sideZ)]);
+        colors.push([color, color]);
+      }
+    }
+    this.edgeLines = MeshBuilder.CreateLineSystem('floorEdgePreview', { lines, colors }, this.s);
+    this.edgeLines.isPickable = false;
+    this.edgeLines.renderingGroupId = this.overlayGroup;
+  }
+
+  clearEdges() {
+    if (this.edgeLines) this.edgeLines.dispose();
+    this.edgeLines = null;
   }
 
   clearBrush() {
