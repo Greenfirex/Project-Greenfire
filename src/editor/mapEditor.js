@@ -138,6 +138,16 @@ export default class MapEditor {
     };
     this.brushPanel.onErase = () => this.setEraseMode(!this.mode.erasing);
     this.brushPanel.onUndo = () => this.undo();
+    this.hud.onFloor = (level) => {
+      this.mode.selectFloor(level);
+      if (this.mode.draft) {
+        this.mode.draft.cells.clear();
+        if (this.mode.onDraftChange) this.mode.onDraftChange(this.mode.draft);
+      }
+      this.syncFloorView();
+      this.announceBrushFloor();
+      this.s.handleHover(this.s.hoverCell);
+    };
 
     this.areaPanel.onTool = (tool) => {
       this.mode.setAreaTool(tool);
@@ -167,6 +177,9 @@ export default class MapEditor {
       this.mode.setAreaTool(tool);
       this.refreshFloorPanel();
     };
+    this.floorPanel.onDeco = (key) => {
+      this.mode.floorDecoKey = key;
+    };
     this.floorPanel.onSurface = (key) => {
       this.mode.setAreaSurface(key);
       this.refreshFloorPanel();
@@ -189,8 +202,11 @@ export default class MapEditor {
     this.hud.onWaterStep = (delta) => this.stepWater(delta);
   }
 
-  floorPlane() {
-    return this.mode.active && this.mode.undergroundFloor ? this.mode.floorHeight : null;
+  floorPlane(x, z) {
+    if (!this.mode.active || !this.mode.undergroundView) return null;
+    const onFloor = this.mode.mode === 'zone' || this.mode.areaTool === 'deco';
+    if (onFloor && this.mode.floorEntries().length) return this.s.terrainSystem.heightAt(x, z, this.mode.floorLevel);
+    return this.mode.floorHeight;
   }
 
   floorView() {
@@ -198,9 +214,10 @@ export default class MapEditor {
   }
 
   syncFloorView() {
-    const underground = this.mode.active && this.mode.undergroundFloor;
+    const underground = this.mode.active && this.mode.undergroundView;
     this.s.revealSystem.setEditorMap(underground ? this.mode.floorViewMap() : null);
     this.s.gridSystem.setOverlaysOnTop(underground);
+    if (this.mode.active) this.hud.setFloors(this.mode.floorList(), this.mode.floorLevel);
     if (this.mode.active && this.mode.mode === 'floors') {
       this.refreshFloorPanel();
       this.refreshZoneOverlay();
@@ -224,6 +241,7 @@ export default class MapEditor {
       floors: this.mode.floorList(),
       level: this.mode.floorLevel,
       tool: this.mode.areaTool,
+      decoKey: this.mode.floorDecoKey,
       surface: this.mode.areaSurface,
       height: this.mode.floorHeight,
       clearance: this.mode.floorClearance,
@@ -254,12 +272,13 @@ export default class MapEditor {
 
   showFloorHoverReadout(cell) {
     this.hud.setCursorValue(null);
-    if (!this.mode.undergroundFloor) {
+    if (!this.mode.undergroundView) {
       this.s.tooltipPanel.show('Povrch', 'Vyber nebo založ podzemní patro');
       return;
     }
-    const state = this.mode.areaTool === 'erase' ? 'zasypávám' : 'kopu';
-    const report = this.floorMarksReport;
+    const zone = this.mode.mode === 'zone';
+    const state = zone ? 'kreslím předměty' : (this.mode.areaTool === 'erase' ? 'zasypávám' : 'kopu');
+    const report = zone ? null : this.floorMarksReport;
     const has = (list) => Boolean(report) && list.some(([cx, cz]) => cx === cell.cx && cz === cell.cz);
     let mark = '';
     if (report && has(report.doors)) mark = ' · vchod';
@@ -468,6 +487,7 @@ export default class MapEditor {
   }
 
   syncPanels(mode) {
+    this.syncFloorView();
     if (!this.mode.active) {
       this.areaPanel.hide();
       this.heightPanel.hide();
@@ -608,10 +628,16 @@ export default class MapEditor {
     this.brushPanel.setOptions(this.mode.brushOptionValues(this.mode.brushKey));
   }
 
+  announceBrushFloor() {
+    const brush = BRUSHES[this.mode.brushKey];
+    if (this.mode.paintLevel < 0 && !(brush && (brush.deco || brush.creature))) this.hud.setReadout('V podzemí jdou tímhle panelem kreslit jen předměty a tvorové');
+  }
+
   openBrushPanel(brushKey) {
     this.mode.beginDraft(brushKey);
     this.brushPanel.open(brushKey, 0, this.mode.pathStyle, this.mode.brushOptionValues(brushKey), this.mode.tileKey);
     this.brushPanel.setDraftMode(this.mode.draftMode);
+    this.announceBrushFloor();
     if (this.mode.isJoinBrush) this.hud.setReadout('Spojnice: klikni na vrchol, pak na spodek');
     else if (this.mode.isBridgeBrush) this.hud.setReadout('Most: klikni na první břeh, pak na protější');
     else if (this.mode.isSpawnBrush) this.hud.setReadout('Start hráče: klikni na buňku, kam má hráč začínat');
@@ -721,7 +747,11 @@ export default class MapEditor {
   startPaint(cell) {
     this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
     if (this.mode.mode === 'floors') {
-      if (this.mode.undergroundFloor) this.mode.beginFloorDrag(cell.cx, cell.cz);
+      if (this.mode.undergroundFloor && this.mode.areaTool === 'deco') {
+        const result = this.mode.toggleFloorDeco(cell.cx, cell.cz);
+        this.refreshUndoButton();
+        this.hud.setReadout({ placed: 'Předmět přidán', removed: 'Předmět odebrán', none: 'Tady v tomhle patře není podlaha' }[result]);
+      } else if (this.mode.undergroundFloor) this.mode.beginFloorDrag(cell.cx, cell.cz);
       else this.hud.setReadout('Vyber nebo založ podzemní patro');
     } else if (this.mode.mode === 'area') this.mode.beginAreaDrag(cell.cx, cell.cz);
     else if (this.mode.mode === 'height') {

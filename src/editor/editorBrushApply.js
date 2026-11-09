@@ -117,6 +117,7 @@ export default {
     const brushLift = brush.height ? brush.height * HEIGHT_STEP : 0;
     const filled = this.zoneEntries(brushKey, brush, [...cells], mode);
     const clearedDeco = new Set();
+    const level = this.paintLevel;
     let changed = 0;
     for (const cell of filled) {
       const { cx, cz } = cell;
@@ -125,7 +126,7 @@ export default {
           if (this.paintSurface(cx, cz, DEFAULT_FLOOR)) changed += 1;
           continue;
         }
-        let dropped = dropDecorationCell(this.layout, cx, cz);
+        let dropped = dropDecorationCell(this.layout, cx, cz, level);
         if (brush.flora) {
           if (this.dropGrassCell(cx, cz)) dropped = true;
           if (this.scatterDecorations(brushKey, brush, cx, cz, true)) dropped = true;
@@ -165,12 +166,13 @@ export default {
       if (brush.deco) {
         const cellId = cellKey(cx, cz);
         if (!clearedDeco.has(cellId)) {
-          if (painted.stackable) this.dropStackableDecorations(cx, cz);
-          else dropDecorationCell(this.layout, cx, cz);
+          if (painted.stackable) this.dropStackableDecorations(cx, cz, level);
+          else dropDecorationCell(this.layout, cx, cz, level);
           clearedDeco.add(cellId);
         }
-        const lift = layerLiftAt(this.layout, cx, cz) || 0;
+        const lift = layerLiftAt(this.layout, cx, cz, level) || 0;
         const entry = { key, cx, cz, rotation: cell.rotation || 0 };
+        if (level) entry.level = level;
         if (Number.isFinite(cell.offsetX) && cell.offsetX) entry.offsetX = cell.offsetX;
         if (Number.isFinite(cell.offsetZ) && cell.offsetZ) entry.offsetZ = cell.offsetZ;
         if (Number.isFinite(cell.scale) && cell.scale) entry.scale = cell.scale;
@@ -326,16 +328,19 @@ export default {
     const kind = brush.creatureKind;
     if (!getCreatureType(kind)) return 0;
     const tier = this.creatureTierFor(brushKey);
+    const level = this.paintLevel;
     let changed = 0;
     for (const { cx, cz } of zone) {
       const key = cellKey(cx, cz);
       const before = this.layout.creatures.length;
-      this.layout.creatures = this.layout.creatures.filter((entry) => !entry || cellKey(entry.cx, entry.cz) !== key);
+      this.layout.creatures = this.layout.creatures.filter((entry) => !entry || (entry.level || 0) !== level || cellKey(entry.cx, entry.cz) !== key);
       if (mode === 'remove') {
         if (this.layout.creatures.length !== before) changed += 1;
         continue;
       }
-      this.layout.creatures.push({ kind, tier, cx, cz });
+      const placed = { kind, tier, cx, cz };
+      if (level) placed.level = level;
+      this.layout.creatures.push(placed);
       changed += 1;
     }
     return changed;

@@ -996,6 +996,13 @@ export function decoFamily(key) {
   return 'object';
 }
 
+export function placeableEntries() {
+  return Object.entries(DECORATION_TYPES)
+    .filter(([, def]) => def && def.kind !== 'floor' && def.kind !== 'path' && def.displayName)
+    .map(([key, def]) => ({ key, label: def.displayName }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'cs'));
+}
+
 export function surfaceEntries() {
   const out = [];
   for (const [key, def] of Object.entries(DECORATION_TYPES)) {

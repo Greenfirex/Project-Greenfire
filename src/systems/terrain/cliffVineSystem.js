@@ -6,7 +6,7 @@ import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
 import { flowerTemplate } from '../../utils/flowerFactory.js';
 import { loadModel } from '../../utils/assetLoader.js';
 
-const VINE_URL = `${ASSET_DIRS.plants}cliff_vine.glb`;
+const VINE_URLS = [`${ASSET_DIRS.plants}cliff_vine.glb`, `${ASSET_DIRS.plants}cliff_vine_2.glb`];
 const VINE_YAW = 0;
 const SPAWN_CHANCE = 0.22;
 const SCALE_RANGE = [0.9, 1.4];
@@ -38,19 +38,19 @@ export default class CliffVineSystem {
 
   constructor(scene) {
     this.s = scene;
-    this.vine = null;
+    this.vines = [];
     this.flowers = FLOWER_KEYS.map((key) => this.flowerFor(key));
     this.anchors = [];
-    loadModel(this.s, VINE_URL).then((template) => {
-      this.vine = this.vineFor(template);
-      if (this.vine) this.create(this.anchors);
+    Promise.all(VINE_URLS.map((url) => loadModel(this.s, url))).then((templates) => {
+      this.vines = templates.map((template, index) => this.vineFor(template, index)).filter(Boolean);
+      if (this.vines.length) this.create(this.anchors);
     });
   }
 
-  vineFor(template) {
+  vineFor(template, index) {
     const source = template && template.getChildMeshes ? template.getChildMeshes()[0] : null;
     if (!source) return null;
-    const mesh = source.clone('cliffVine', null, false);
+    const mesh = source.clone(`cliffVine_${index}`, null, false);
     mesh.parent = null;
     mesh.bakeCurrentTransformIntoVertices();
     mesh.refreshBoundingInfo();
@@ -81,20 +81,20 @@ export default class CliffVineSystem {
 
   create(anchors) {
     this.anchors = anchors || [];
-    if (this.vine) this.vine.matrices = [];
+    for (const vine of this.vines) vine.matrices = [];
     for (const flower of this.flowers) flower.matrices = [];
     for (const anchor of this.anchors) this.place(anchor);
-    if (this.vine) this.flush(this.vine.mesh, this.vine.matrices);
+    for (const vine of this.vines) this.flush(vine.mesh, vine.matrices);
     for (const flower of this.flowers) this.flush(flower.mesh, flower.matrices);
   }
 
   place(anchor) {
     if (!anchor.always) this.placeFlowers(anchor);
-    if (this.vine) this.placeVine(anchor);
+    if (this.vines.length) this.placeVine(anchor);
   }
 
   placeVine(anchor) {
-    const vine = this.vine;
+    const vine = this.vines[Math.floor(hash(anchor.x, anchor.z, 11) * this.vines.length) % this.vines.length];
     const drop = Number.isFinite(anchor.drop) ? anchor.drop : 0;
     if ((anchor.depth || 0) < MIN_SHELF_DEPTH || drop < MIN_DROP) return;
     if (!anchor.always && hash(anchor.x, anchor.z, 1) > SPAWN_CHANCE) return;
@@ -150,9 +150,9 @@ export default class CliffVineSystem {
   }
 
   dispose() {
-    if (this.vine) this.vine.mesh.dispose(false, false);
+    for (const vine of this.vines) vine.mesh.dispose(false, false);
     for (const flower of this.flowers) flower.mesh.dispose(false, false);
-    this.vine = null;
+    this.vines = [];
     this.flowers = [];
   }
 }

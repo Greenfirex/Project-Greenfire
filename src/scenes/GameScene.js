@@ -115,7 +115,7 @@ export default class GameScene {
     this.creatureSystem = new CreatureSystem(scene);
     this.skySystem = new SkySystem(scene);
     this.decoSystem = new DecoSystem(scene);
-    this.decoSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z);
+    this.decoSystem.groundHeightAt = (x, z, level = 0) => this.terrainSystem.heightAt(x, z, level);
     this.floraSystem = new FloraSystem(scene);
     this.cliffVineSystem = new CliffVineSystem(scene);
     this.caveFrameSystem = new CaveFrameSystem(scene);
@@ -144,6 +144,7 @@ export default class GameScene {
     this.interaction = new InteractionSystem(scene);
     this.gatherSystem = new GatherSystem(scene);
     this.gatherSystem.decoSystem = this.decoSystem;
+    this.gatherSystem.levelOf = () => (this.editor.active ? 0 : this.playerSystem.level);
     this.gatherSystem.onLand = () => this.audioSystem.play('fall');
     this.gatherSystem.onFell = (item) => this.finishFelling(item);
     this.fellingSystem = new FellingSystem(scene);
@@ -318,7 +319,7 @@ export default class GameScene {
       this.updateGathering(dt);
       this.updatePlayerAttack(dt);
       const root = this.playerSystem.root;
-      this.campfireSystem.update(dt, root);
+      this.campfireSystem.update(dt, root, this.playerSystem.level);
       this.waterSystem.update(dt);
       this.updateWaveSpray();
       this.fishSystem.update(dt);
@@ -407,7 +408,7 @@ export default class GameScene {
   }
 
   updateCampfireSound(root) {
-    const burning = root ? this.campfireSystem.nearestBurning(root.position.x, root.position.z) : null;
+    const burning = root ? this.campfireSystem.nearestBurning(root.position.x, root.position.z, this.playerSystem.level) : null;
     this.audioSystem.setFire(burning !== null, burning ? burning.distance : Infinity);
   }
 
@@ -597,7 +598,7 @@ export default class GameScene {
     this.interaction.register('gather', {
       priority: 50,
       pick: ({ cell }) => {
-        const item = cell && this.playerOnSurface() ? this.gatherSystem.itemAtCell(cell.cx, cell.cz) : null;
+        const item = cell ? this.gatherSystem.itemAtCell(cell.cx, cell.cz) : null;
         if (!item) return null;
         return {
           ref: item,
@@ -610,8 +611,8 @@ export default class GameScene {
     this.interaction.register('campfire', {
       priority: 40,
       pick: ({ cell }) => {
-        if (!cell || !this.campfireSystem.nearest || !this.playerOnSurface()) return null;
-        if (!this.campfireSystem.has(cell.cx, cell.cz)) return null;
+        if (!cell || !this.campfireSystem.nearest) return null;
+        if (!this.campfireSystem.has(cell.cx, cell.cz, this.playerSystem.level)) return null;
         return { ref: cell, inReach: true };
       },
       act: (target) => this.campfireSystem.ignite(target.ref),
@@ -949,11 +950,11 @@ export default class GameScene {
     const level = this.playerSystem ? this.playerSystem.level : 0;
     const view = this.editor.floorView();
     const under = Boolean(view) || (Boolean(root) && !this.editor.active && this.isUnderRoof(root.position.x, root.position.z, level));
-    if (view) this.revealSystem.setKeptMeshes(this.terrainSystem.roofMeshes);
+    if (view) this.revealSystem.setKeptMeshes([...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoMeshes(this.editor.mode.floorLevel)]);
     else if (under || this.revealSystem.isOpen()) {
-      const own = [...root.getChildMeshes(false), ...this.terrainSystem.roofMeshes];
+      const own = [...root.getChildMeshes(false), ...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoMeshes(level)];
       for (const creature of this.creatureSystem.creatures) {
-        if ((creature.level || 0) === level) own.push(...creature.meshes);
+        if (this.navigation.floorsLinkedNear(root.position.x, root.position.z, level, creature.level || 0)) own.push(...creature.meshes);
       }
       this.revealSystem.setKeptMeshes(own);
     }
@@ -1073,7 +1074,7 @@ export default class GameScene {
     this.inputSystem.suppressContextMenu(this.canvas);
     this.inputSystem.groundPredicate = (mesh) => mesh === this.terrainSystem.ground;
     this.inputSystem.groundHeightAt = (x, z) => {
-      const plane = this.editor.floorPlane();
+      const plane = this.editor.floorPlane(x, z);
       return plane !== null ? plane : this.terrainSystem.walkHeightAt(x, z, this.editor.active ? 0 : this.playerSystem.level);
     };
     this.inputSystem.shouldPickByRay = () => this.editor.active && this.editor.mode.selectsArea;
@@ -1305,7 +1306,7 @@ export default class GameScene {
   }
 
   cellSurfaceAt(cx, cz) {
-    const plane = this.editor.floorPlane();
+    const plane = this.editor.floorPlane(cx * CELL_SIZE, cz * CELL_SIZE);
     if (plane !== null) return plane;
     const deck = this.terrainSystem.bridgeDeckAt(cx * CELL_SIZE, cz * CELL_SIZE);
     return deck === null ? this.decoSystem.surfaceAt(cx, cz) : deck;
@@ -1313,7 +1314,7 @@ export default class GameScene {
 
   handleHover(cell) {
     this.hoverCell = cell;
-    const surfaceCell = this.playerOnSurface() ? cell : null;
+    const surfaceCell = this.playerOnSurface() && !(this.editor.active && this.editor.mode.undergroundView) ? cell : null;
     this.decoHighlight.setHover(surfaceCell || null);
     if (!this.editor.active) {
       this.gridSystem.clearHoverCell();
@@ -1337,7 +1338,7 @@ export default class GameScene {
     const erasing = Boolean(this.editor.mode.eraseKind) || this.editor.erasing;
     this.gridSystem.showHoverCell(cell.cx, cell.cz, hoverSurfaceAt, hoverSpan, erasing);
     this.editor.syncCreatureRadius(cell);
-    if (this.editor.mapMode === 'floors') {
+    if (this.editor.mapMode === 'floors' || this.editor.mode.undergroundView) {
       this.editor.showFloorHoverReadout(cell);
       return;
     }

@@ -7,6 +7,7 @@ import { Vector3, Quaternion } from '@babylonjs/core/Maths/math.vector';
 import { cellToWorldCoords, worldToCellCoords, cellKey, indexToCellCoords, CELL_SIZE } from '../../utils/gridMath.js';
 import { getDecoration, decoHeight } from '../../data/catalogs/decorations.js';
 import { deriveBlocked } from '../../data/maps/layoutStore.js';
+import { levelOfEntry } from '../../data/maps/areaShape.js';
 import { instantiateModel, ownMaterials, whenModelsIdle } from '../../utils/assetLoader.js';
 import { treeStumpTemplate, treeLogTemplate, treeFrondTemplate } from '../../utils/treeFactory.js';
 import { decorationTemplate } from '../../utils/decoTemplate.js';
@@ -20,7 +21,7 @@ const PATH_SURFACE = 0.02;
 const FLAT_SINK = 0.015;
 
 function entryMatchKey(entry) {
-  return `${entry.key}|${entry.cx}|${entry.cz}|${entry.offsetX || 0}|${entry.offsetZ || 0}|${entry.scale || 1}|${entry.rotation || 0}`;
+  return `${levelOfEntry(entry)}|${entry.key}|${entry.cx}|${entry.cz}|${entry.offsetX || 0}|${entry.offsetZ || 0}|${entry.scale || 1}|${entry.rotation || 0}`;
 }
 
 
@@ -200,10 +201,10 @@ export default class DecoSystem {
       layout.floor || [],
       layout.path || [],
       layout.clearing || [],
-      layout.decorations || [],
+      (layout.decorations || []).filter((entry) => entry && levelOfEntry(entry) === 0),
     );
     for (const entry of layout.decorations || []) {
-      if (!entry) continue;
+      if (!entry || levelOfEntry(entry) !== 0) continue;
       const def = getDecoration(entry.key);
       if (def && def.kind === 'tree') this.treeCells.add(cellKey(entry.cx, entry.cz));
     }
@@ -235,7 +236,7 @@ export default class DecoSystem {
 
   applyEntry(entry, section = 'deco') {
     const def = getDecoration(entry.key);
-    if (!def) return;
+    if (!def || levelOfEntry(entry) !== 0) return;
 
     const top = this.entryHeight(entry) + decoHeight(def);
     const key = cellKey(entry.cx, entry.cz);
@@ -257,8 +258,9 @@ export default class DecoSystem {
       return base;
     }
     const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
-    const local = this.groundAt(x + (entry.offsetX || 0) + extraX, z + (entry.offsetZ || 0) + extraZ);
-    const center = this.groundAt(x, z);
+    const level = levelOfEntry(entry);
+    const local = this.groundAt(x + (entry.offsetX || 0) + extraX, z + (entry.offsetZ || 0) + extraZ, level);
+    const center = this.groundAt(x, z, level);
     return base + (local - center);
   }
 
@@ -273,6 +275,17 @@ export default class DecoSystem {
     const work = this.attachModel(anchor, def, entry, section);
     this.pendingPieces.push(work);
     return work;
+  }
+
+  caveDecoMeshes(level) {
+    if (level === 0) return [];
+    const meshes = [];
+    for (const anchor of this.anchors) {
+      const entry = anchor && anchor.metadata && anchor.metadata.entry;
+      if (!entry || levelOfEntry(entry) !== level || anchor.isDisposed()) continue;
+      meshes.push(...anchor.getChildMeshes(false));
+    }
+    return meshes;
   }
 
   topAt(cx, cz) {
@@ -290,12 +303,12 @@ export default class DecoSystem {
     return ground;
   }
 
-  groundAt(x, z) {
+  groundAt(x, z, level = 0) {
     if (!this.groundHeightAt) {
       warnMissingWiring('dekorace: výška země');
       return 0;
     }
-    const height = this.groundHeightAt(x, z);
+    const height = this.groundHeightAt(x, z, level);
     return Number.isFinite(height) ? height : 0;
   }
 

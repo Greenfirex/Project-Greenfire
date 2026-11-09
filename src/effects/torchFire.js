@@ -33,9 +33,9 @@ const TONGUE = {
 };
 const FLICKER_INTERVAL = 0.09;
 const LIGHT_COLOR = new Color3(1, 0.6, 0.25);
-const LIGHT_DAY = 0.12;
-const LIGHT_NIGHT = 0.9;
-const LIGHT_RANGE = 4.2;
+const LIGHT_DAY = 0.24;
+const LIGHT_NIGHT = 1.8;
+const LIGHT_RANGE = 9;
 const LIGHT_OFFSET_Y = 0.1;
 const GLOW_STRENGTH = 0.55;
 

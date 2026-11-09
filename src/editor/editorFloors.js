@@ -3,7 +3,7 @@
 import { PAINT_ALL } from '../data/catalogs/brushes.js';
 import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
-import { columnsByCell, dropLayerCell, layerLiftAt, levelOfEntry, planeLevels } from '../data/maps/areaShape.js';
+import { columnsByCell, dropDecorationCell, dropLayerCell, layerLiftAt, levelOfEntry, planeLevels } from '../data/maps/areaShape.js';
 import { SIDES } from './editorSettings.js';
 
 export const MIN_CLEARANCE = 3;
@@ -127,6 +127,7 @@ export default {
       const dropped = dropLayerCell(this.layout, cx, cz, level);
       if (erasing) {
         if (dropped) count += 1;
+        dropDecorationCell(this.layout, cx, cz, level);
         continue;
       }
       const entry = { key: this.areaSurface, cx, cz, rotation: 0, ceilY: this.floorHeight + this.floorClearance, level };
@@ -178,6 +179,24 @@ export default {
     this.clearAreaSelection();
     this.scheduleRegenerate(PAINT_ALL);
     return cells.length;
+  },
+
+  toggleFloorDeco(cx, cz) {
+    if (!this.layout || !this.undergroundFloor || !this.floorDecoKey) return 'none';
+    const level = this.floorLevel;
+    const cell = this.floorEntries(level).find((entry) => entry.cx === cx && entry.cz === cz);
+    if (!cell) return 'none';
+    if (!this.layout.decorations) this.layout.decorations = [];
+    this.pushHistory();
+    let result = 'removed';
+    if (!dropDecorationCell(this.layout, cx, cz, level)) {
+      const entry = { key: this.floorDecoKey, cx, cz, rotation: 0, level };
+      if (cell.liftY) entry.liftY = cell.liftY;
+      this.layout.decorations.push(entry);
+      result = 'placed';
+    }
+    this.scheduleRegenerate(PAINT_ALL);
+    return result;
   },
 
   dropConnectorsAt(cells, level) {
@@ -237,7 +256,7 @@ export default {
   },
 
   floorView() {
-    if (!this.active || !this.undergroundFloor) return null;
+    if (!this.active || !this.undergroundView) return null;
     const cells = this.floorEntries();
     if (!cells.length) return { floor: this.floorHeight, cut: this.floorHeight + this.floorClearance };
     return {

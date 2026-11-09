@@ -3,6 +3,7 @@
 import { BRUSHES, BRUSH_GROUPS, brushesOf, getBrush } from '../data/catalogs/brushes.js';
 import { HEIGHT_STEP, formatMeters } from '../data/maps/layoutStore.js';
 import { makeDraggable } from '../ui/draggable.js';
+import { floorName } from './floorPanel.js';
 
 export default class EditorHud {
 
@@ -11,6 +12,7 @@ export default class EditorHud {
     this.onBrush = null;
     this.onClose = null;
     this.onMode = null;
+    this.onFloor = null;
     this.onSaveMap = null;
     this.onPause = null;
     this.onWaterToggle = null;
@@ -36,6 +38,7 @@ export default class EditorHud {
         <button type="button" class="editor-panel__close" title="Zavřít (F2)">×</button>
       </div>
       <div class="editor-panel__hint">Vyber štětec a tažením označ obdélník (klik = jedna buňka) · WASD posun pohledu (Shift rychleji) · Pravé tažení otáčí pohled, pravé kliknutí odebere buňku · Z zpět · F2 zavřít</div>
+      <label class="editor-panel__floor">Patro <select></select></label>
       <div class="editor-panel__grid"></div>
       <div class="editor-panel__note">–</div>
       <div class="editor-panel__readout">–</div>
@@ -107,6 +110,9 @@ export default class EditorHud {
         if (this.onMode) this.onMode(btn.dataset.mode);
       });
     }
+    root.querySelector('.editor-panel__floor select').addEventListener('change', (event) => {
+      if (this.onFloor) this.onFloor(Number(event.target.value));
+    });
     root.querySelector('.editor-panel__save-map').addEventListener('click', () => {
       if (this.onSaveMap) this.onSaveMap();
     });
@@ -128,6 +134,19 @@ export default class EditorHud {
     });
 
     return root;
+  }
+
+  setFloors(floors, selected) {
+    const select = this.root && this.root.querySelector('.editor-panel__floor select');
+    if (!select) return;
+    select.textContent = '';
+    for (const floor of floors) {
+      const option = document.createElement('option');
+      option.value = String(floor.level);
+      option.textContent = floorName(floor.level);
+      select.appendChild(option);
+    }
+    select.value = String(selected);
   }
 
   setBusy(text) {

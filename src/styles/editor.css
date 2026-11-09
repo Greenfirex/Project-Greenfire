@@ -543,6 +543,18 @@
   text-align: right;
 }
 
+.editor-panel__floor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.editor-panel:not([data-mode="zone"]) .editor-panel__floor {
+  display: none;
+}
+
 .brush-panel__tools {
   display: grid;
   grid-template-columns: 1fr 1fr;

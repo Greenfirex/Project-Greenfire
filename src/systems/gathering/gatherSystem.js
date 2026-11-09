@@ -1,5 +1,7 @@
 // Sběr surovin z krajiny — údery do věci, na kterou hráč ukáže, a hýbání modelem.
 // Drží jen stav vyčerpávání a náklon modelu; modely dodává dekorace, hráče předává scéna.
+import { levelOfEntry } from '../../data/maps/areaShape.js';
+
 const REACH = 2.6;
 const BARE_COOLDOWN = 0.62;
 const BARE_KINDS = ['tree'];
@@ -122,9 +124,10 @@ export default class GatherSystem {
 
   itemAtCell(cx, cz) {
     if (!Number.isFinite(cx) || !Number.isFinite(cz)) return null;
+    const level = this.levelOf ? this.levelOf() : 0;
     for (const item of this.entries) {
       if (item.left <= 0 || !this.canHarvest(item)) continue;
-      if (item.entry.cx === cx && item.entry.cz === cz) return item;
+      if (item.entry.cx === cx && item.entry.cz === cz && levelOfEntry(item.entry) === level) return item;
     }
     return null;
   }

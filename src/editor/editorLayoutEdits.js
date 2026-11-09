@@ -11,10 +11,10 @@ export default {
     return dropDecorationCell(this.layout, cx, cz);
   },
 
-  dropStackableDecorations(cx, cz) {
+  dropStackableDecorations(cx, cz, level = 0) {
     const entries = this.layout.decorations || [];
     const kept = entries.filter((entry) => {
-      if (!entry || entry.cx !== cx || entry.cz !== cz) return true;
+      if (!entry || entry.cx !== cx || entry.cz !== cz || (entry.level || 0) !== level) return true;
       const def = getDecoration(entry.key);
       return !def || !def.stackable;
     });

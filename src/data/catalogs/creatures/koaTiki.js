@@ -411,6 +411,7 @@ export const KOA_TIKI = {
   confusedSeconds: 1.2,
   roamRadius: 2,
   maxStepHeight: 0.6,
+  entersCaves: true,
   attackHeight: 1.2,
   noticeHeight: 2.5,
   respawnDays: 6,

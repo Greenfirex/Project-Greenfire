@@ -76,8 +76,8 @@ const CORPSE_OUTLINE_COLOR = new Color3(0.95, 0.95, 0.92);
 const CORPSE_OUTLINE_WIDTH = 0.03;
 const CORPSE_OUTLINE_REACH = 5;
 
-function slotKeyOf(kind, tierKey, cx, cz) {
-  return `${kind}|${tierKey}|${cx}|${cz}`;
+function slotKeyOf(kind, tierKey, cx, cz, level = 0) {
+  return level ? `${kind}|${tierKey}|${cx}|${cz}|${level}` : `${kind}|${tierKey}|${cx}|${cz}`;
 }
 
 function turnToward(current, target, maxDelta) {
@@ -135,7 +135,7 @@ export default class CreatureSystem {
     for (const entry of this.entriesFor(layout)) {
       const type = getCreatureType(entry.kind);
       const tierKey = entry.tier && type.tiers[entry.tier] ? entry.tier : type.defaultTier;
-      wanted.set(slotKeyOf(entry.kind, tierKey, entry.cx, entry.cz), { entry, type, tierKey });
+      wanted.set(slotKeyOf(entry.kind, tierKey, entry.cx, entry.cz, entry.level || 0), { entry, type, tierKey });
     }
     for (const slot of [...this.slots.values()]) {
       if (!wanted.has(slot.key)) this.dropSlot(slot);
@@ -210,7 +210,7 @@ export default class CreatureSystem {
     const type = getCreatureType(saved.kind);
     if (!type) return null;
     const tierKey = saved.tier && type.tiers[saved.tier] ? saved.tier : type.defaultTier;
-    return slotKeyOf(saved.kind, tierKey, saved.cx, saved.cz);
+    return slotKeyOf(saved.kind, tierKey, saved.cx, saved.cz, saved.slotLevel || 0);
   }
 
   async containerFor(url) {
@@ -295,14 +295,16 @@ export default class CreatureSystem {
     const world = Number.isFinite(entry.cx) && Number.isFinite(entry.cz)
       ? cellToWorldCoords(entry.cx, entry.cz)
       : { x: Number(entry.x) || 0, z: Number(entry.z) || 0 };
-    const spot = this.nearestSpot(world.x, world.z, type);
+    const spawnLevel = Number.isFinite(entry.level) ? entry.level : 0;
+    const spot = this.nearestSpot(world.x, world.z, type, spawnLevel);
     const facing = Math.random() * Math.PI * 2;
 
     const boneSummary = type.rig ? type.rig.summary(rig) : 'bez kostry';
     console.info(`[creature] ${type.label} (${tier.label}) na ${spot.x.toFixed(1)}, ${spot.z.toFixed(1)} — ${boneSummary}`);
     const creature = {
       kind: entry.kind,
-      level: Number.isFinite(entry.level) ? entry.level : 0,
+      level: spawnLevel,
+      homeLevel: spawnLevel,
       type,
       tierKey,
       tier,
@@ -432,31 +434,46 @@ export default class CreatureSystem {
     return this.heightGap(creature, player) <= this.attackHeight(creature.type);
   }
 
-  canStep(creature, x, z, relaxed = false) {
+  canReachFloor(creature, level) {
+    return Boolean(creature.type.entersCaves) || (creature.homeLevel < 0 && level < 0);
+  }
+
+  mayChangeFloor(creature, level) {
+    return this.canReachFloor(creature, level) && (creature.mode === 'chase' || creature.level !== creature.homeLevel);
+  }
+
+  levelAfterStep(creature, x, z) {
     const level = Number.isFinite(creature.level) ? creature.level : 0;
+    if (!this.levelAcross) return level;
+    const across = this.levelAcross(creature.x, creature.z, level, x, z);
+    return across !== level && this.mayChangeFloor(creature, across) ? across : level;
+  }
+
+  canStep(creature, x, z, relaxed = false) {
+    const level = this.levelAfterStep(creature, x, z);
     if (!relaxed && !this.canStand(x, z, level)) return false;
     const limit = this.stepLimit(creature.type);
     if (Number.isFinite(limit)) {
-      if (Math.abs(this.groundAt(x, z, level) - this.groundAt(creature.x, creature.z, level)) > limit) return false;
-      if (!relaxed && this.wallRiseAt && this.wallRiseAt(x, z, CREATURE_WALL_MARGIN) > limit) return false;
+      if (Math.abs(this.groundAt(x, z, level) - this.groundAt(creature.x, creature.z, creature.level)) > limit) return false;
+      if (!relaxed && this.wallRiseAt && this.wallRiseAt(x, z, CREATURE_WALL_MARGIN, level) > limit) return false;
     }
     return true;
   }
 
-  pathClear(fromX, fromZ, toX, toZ, type) {
+  pathClear(fromX, fromZ, toX, toZ, type, level = 0) {
     const dx = toX - fromX;
     const dz = toZ - fromZ;
     const distance = Math.hypot(dx, dz);
     if (distance < 1e-6) return true;
     const samples = Math.max(1, Math.ceil(distance / PATH_SAMPLE));
     const limit = this.stepLimit(type);
-    let previousY = this.groundAt(fromX, fromZ);
+    let previousY = this.groundAt(fromX, fromZ, level);
     for (let index = 1; index <= samples; index += 1) {
       const t = index / samples;
       const x = fromX + dx * t;
       const z = fromZ + dz * t;
-      if (!this.canStand(x, z)) return false;
-      const y = this.groundAt(x, z);
+      if (!this.canStand(x, z, level)) return false;
+      const y = this.groundAt(x, z, level);
       if (Number.isFinite(limit) && Math.abs(y - previousY) > limit) return false;
       previousY = y;
     }
@@ -484,53 +501,62 @@ export default class CreatureSystem {
     this.pathCells.clear();
   }
 
-  cellInfo(i, j) {
-    const key = (i + CELL_KEY_OFFSET) * CELL_KEY_SPAN + (j + CELL_KEY_OFFSET);
+  cellInfo(i, j, level = 0) {
+    const key = ((i + CELL_KEY_OFFSET) * CELL_KEY_SPAN + (j + CELL_KEY_OFFSET)) * 64 + (level + 32);
     const cached = this.pathCells.get(key);
     if (cached) return cached;
-    const ok = this.canStand(i * CELL_SIZE, j * CELL_SIZE);
-    const entry = { ok, y: ok ? this.groundAt(i * CELL_SIZE, j * CELL_SIZE) : 0 };
+    const ok = this.canStand(i * CELL_SIZE, j * CELL_SIZE, level);
+    const entry = { ok, y: ok ? this.groundAt(i * CELL_SIZE, j * CELL_SIZE, level) : 0 };
     this.pathCells.set(key, entry);
     return entry;
   }
 
-  edgeFits(fromY, toY, fromI, fromJ, toI, toJ, limit) {
+  edgeFits(fromY, toY, fromI, fromJ, toI, toJ, limit, level = 0) {
     if (Math.abs(toY - fromY) <= limit) return true;
     const midX = ((fromI + toI) / 2) * CELL_SIZE;
     const midZ = ((fromJ + toJ) / 2) * CELL_SIZE;
-    if (!this.canStand(midX, midZ)) return false;
-    const midY = this.groundAt(midX, midZ);
+    if (!this.canStand(midX, midZ, level)) return false;
+    const midY = this.groundAt(midX, midZ, level);
     return Math.abs(midY - fromY) <= limit && Math.abs(toY - midY) <= limit;
   }
 
-  buildPath(creature, targetX, targetZ) {
+  buildPath(creature, targetX, targetZ, targetLevel = creature.level) {
     const type = creature.type;
     const limit = this.stepLimit(type);
     const cellData = this.cellInfo.bind(this);
-    const start = this.standableCellNear(this.cellAt(creature.x, creature.z), 2, cellData);
-    const goal = this.standableCellNear(this.cellAt(targetX, targetZ), 6, cellData);
-    if (!start || !goal) return null;
+    const startCell = this.standableCellNear(this.cellAt(creature.x, creature.z), 2, (i, j) => cellData(i, j, creature.level));
+    const goalCell = this.standableCellNear(this.cellAt(targetX, targetZ), 6, (i, j) => cellData(i, j, targetLevel));
+    if (!startCell || !goalCell) return null;
+    const start = { ...startCell, level: creature.level };
+    const goal = { ...goalCell, level: targetLevel };
     const edgeCache = new Map();
-    const edgeOpen = (fromI, fromJ, toI, toJ) => {
-      const key = ((fromI + CELL_KEY_OFFSET) * CELL_KEY_SPAN + (fromJ + CELL_KEY_OFFSET)) * 9
-        + (toI - fromI + 1) * 3 + (toJ - fromJ + 1);
+    const edgeOpen = (fromI, fromJ, toI, toJ, level) => {
+      const key = (((fromI + CELL_KEY_OFFSET) * CELL_KEY_SPAN + (fromJ + CELL_KEY_OFFSET)) * 9
+        + (toI - fromI + 1) * 3 + (toJ - fromJ + 1)) * 64 + (level + 32);
       const cached = edgeCache.get(key);
       if (cached !== undefined) return cached;
-      const from = cellData(fromI, fromJ);
-      const to = cellData(toI, toJ);
+      const from = cellData(fromI, fromJ, level);
+      const to = cellData(toI, toJ, level);
       let open = from.ok && to.ok;
       if (open && Number.isFinite(limit)) {
-        open = this.edgeFits(from.y, to.y, fromI, fromJ, toI, toJ, limit);
+        open = this.edgeFits(from.y, to.y, fromI, fromJ, toI, toJ, limit, level);
       }
       edgeCache.set(key, open);
       return open;
     };
-    const neighbours = (i, j) => {
+    const neighbours = (i, j, level) => {
       const out = [];
       for (const [di, dj] of NEIGHBOURS_8) {
-        if (!edgeOpen(i, j, i + di, j + dj)) continue;
-        if (di !== 0 && dj !== 0 && (!edgeOpen(i, j, i + di, j) || !edgeOpen(i, j, i, j + dj))) continue;
-        out.push({ i: i + di, j: j + dj, cost: Math.hypot(di, dj) });
+        if (this.levelAcross && (di === 0 || dj === 0)) {
+          const across = this.levelAcross(i * CELL_SIZE, j * CELL_SIZE, level, (i + di) * CELL_SIZE, (j + dj) * CELL_SIZE);
+          if (across !== level && this.mayChangeFloor(creature, across)) {
+            if (cellData(i + di, j + dj, across).ok) out.push({ i: i + di, j: j + dj, level: across, cost: 1 });
+            continue;
+          }
+        }
+        if (!edgeOpen(i, j, i + di, j + dj, level)) continue;
+        if (di !== 0 && dj !== 0 && (!edgeOpen(i, j, i + di, j, level) || !edgeOpen(i, j, i, j + dj, level))) continue;
+        out.push({ i: i + di, j: j + dj, level, cost: Math.hypot(di, dj) });
       }
       return out;
     };
@@ -551,15 +577,16 @@ export default class CreatureSystem {
     return this.smoothCells(cells.slice(0, PATH_LOOKAHEAD), limit);
   }
 
-  lineOpen(fromI, fromJ, toI, toJ, limit) {
+  lineOpen(fromI, fromJ, toI, toJ, limit, level = 0) {
     const steps = Math.max(Math.abs(toI - fromI), Math.abs(toJ - fromJ));
     if (steps <= 1) return true;
-    let previous = this.cellInfo(fromI, fromJ);
+    let previous = this.cellInfo(fromI, fromJ, level);
     for (let index = 1; index <= steps; index += 1) {
       const t = index / steps;
       const cell = this.cellInfo(
         Math.round(fromI + (toI - fromI) * t),
         Math.round(fromJ + (toJ - fromJ) * t),
+        level,
       );
       if (!cell.ok) return false;
       if (Number.isFinite(limit) && Math.abs(cell.y - previous.y) > limit) return false;
@@ -575,7 +602,7 @@ export default class CreatureSystem {
     let index = 0;
     while (index < cells.length - 1) {
       let far = Math.min(index + SMOOTH_SPAN, cells.length - 1);
-      while (far > index + 1 && !this.lineOpen(cells[index].i, cells[index].j, cells[far].i, cells[far].j, limit)) {
+      while (far > index + 1 && (cells[far].level !== cells[index].level || cells.slice(index, far + 1).some((cell) => cell.level !== cells[index].level) || !this.lineOpen(cells[index].i, cells[index].j, cells[far].i, cells[far].j, limit, cells[index].level))) {
         far -= 1;
       }
       out.push(points[far]);
@@ -584,17 +611,17 @@ export default class CreatureSystem {
     return out;
   }
 
-  moveTo(creature, targetX, targetZ, speed, dt) {
-    if (Math.hypot(targetX - creature.x, targetZ - creature.z) <= ARRIVE) {
+  moveTo(creature, targetX, targetZ, speed, dt, targetLevel = creature.level) {
+    if (targetLevel === creature.level && Math.hypot(targetX - creature.x, targetZ - creature.z) <= ARRIVE) {
       creature.path = null;
       return true;
     }
     creature.pathClock = (creature.pathClock || 0) - dt;
     if (creature.pathClock <= 0) {
       creature.pathClock = PATH_REPLAN;
-      creature.path = this.pathClear(creature.x, creature.z, targetX, targetZ, creature.type)
+      creature.path = targetLevel === creature.level && this.pathClear(creature.x, creature.z, targetX, targetZ, creature.type, creature.level)
         ? null
-        : this.buildPath(creature, targetX, targetZ);
+        : this.buildPath(creature, targetX, targetZ, targetLevel);
       creature.pathIndex = 1;
     }
     const path = creature.path;
@@ -613,13 +640,13 @@ export default class CreatureSystem {
     return false;
   }
 
-  nearestSpot(x, z, type) {
+  nearestSpot(x, z, type, level = 0) {
     const limit = this.stepLimit(type);
-    const referenceY = this.groundAt(x, z);
+    const referenceY = this.groundAt(x, z, level);
     const fits = (px, pz) => {
-      if (!this.canStand(px, pz)) return false;
-      if (Number.isFinite(limit) && Math.abs(this.groundAt(px, pz) - referenceY) > limit) return false;
-      return this.pathClear(x, z, px, pz, type);
+      if (!this.canStand(px, pz, level)) return false;
+      if (Number.isFinite(limit) && Math.abs(this.groundAt(px, pz, level) - referenceY) > limit) return false;
+      return this.pathClear(x, z, px, pz, type, level);
     };
     if (fits(x, z)) return { x, z };
     for (let ring = 1; ring <= SPOT_REACH / SPOT_STEP; ring += 1) {
@@ -643,7 +670,7 @@ export default class CreatureSystem {
       const reach = radius * (0.4 + Math.random() * 0.6);
       const x = creature.homeX + Math.cos(angle) * reach;
       const z = creature.homeZ + Math.sin(angle) * reach;
-      if (this.pathClear(creature.homeX, creature.homeZ, x, z, type)) return { x, z };
+      if (this.pathClear(creature.homeX, creature.homeZ, x, z, type, creature.homeLevel)) return { x, z };
     }
     return { x: creature.homeX, z: creature.homeZ };
   }
@@ -712,14 +739,18 @@ export default class CreatureSystem {
     const heightGap = this.heightGap(creature, player);
     const aggro = Number.isFinite(creature.tier.aggroRange) ? creature.tier.aggroRange : type.aggroRange;
     const alertSeconds = Array.isArray(type.alertSeconds) ? type.alertSeconds : [2, 3];
+    const playerFloor = this.playerLevel ? this.playerLevel() : 0;
+    const sameFloor = playerFloor === creature.level;
+    const sees = sameFloor || (Boolean(player) && Boolean(this.floorsLinked) && this.canReachFloor(creature, playerFloor) && this.floorsLinked(creature.x, creature.z, creature.level, playerFloor));
     const canAggro = Boolean(player)
+      && sees
       && gap < aggro
       && heightGap <= this.noticeHeight(type)
       && this.now >= (creature.giveUpUntil || 0);
 
     if (creature.mode === 'buried') {
       const emergeRange = Number.isFinite(type.emergeRange) ? type.emergeRange : aggro;
-      if (player && gap <= emergeRange) {
+      if (player && sees && gap <= emergeRange) {
         creature.mode = 'emerging';
         creature.timer = creature.emergeSeconds;
         if (gap > 0.001) creature.facing = Math.atan2(player.x - creature.x, player.z - creature.z);
@@ -824,19 +855,19 @@ export default class CreatureSystem {
     }
 
     if (creature.mode === 'chase') {
-      if (!player || gap > aggro * 1.8 || heightGap > this.attackHeight(type)) {
+      if (!player || gap > aggro * 1.8 || (sameFloor ? heightGap > this.attackHeight(type) : !this.canReachFloor(creature, playerFloor))) {
         creature.engaged = false;
         creature.mode = 'confused';
         creature.timer = creature.type.confusedSeconds || 1.4;
         return;
       }
       const standoff = type.biteRange * 0.85;
-      if (gap <= standoff || gap < 0.001) return;
+      if ((sameFloor && gap <= standoff) || gap < 0.001) return;
       const dirX = (player.x - creature.x) / gap;
       const dirZ = (player.z - creature.z) / gap;
       const boost = Number.isFinite(type.chaseBoost) ? type.chaseBoost : 1;
       const speed = type.walkSpeed * creature.tier.speed * boost;
-      const arrived = this.moveTo(creature, player.x - dirX * standoff, player.z - dirZ * standoff, speed, dt);
+      const arrived = this.moveTo(creature, player.x - dirX * standoff, player.z - dirZ * standoff, speed, dt, playerFloor);
       const blocked = !arrived && !creature.walking;
       creature.blockedTime = blocked ? creature.blockedTime + dt : 0;
       if (creature.blockedTime > CHASE_STUCK_SECONDS) {
@@ -850,7 +881,7 @@ export default class CreatureSystem {
 
     if (creature.mode === 'roam') {
       const speed = type.walkSpeed * creature.tier.speed * 0.6;
-      const arrived = this.moveTo(creature, creature.targetX, creature.targetZ, speed, dt);
+      const arrived = this.moveTo(creature, creature.targetX, creature.targetZ, speed, dt, creature.homeLevel);
       const headingHome = Math.abs(creature.targetX - creature.homeX) < 0.01
         && Math.abs(creature.targetZ - creature.homeZ) < 0.01;
       const gaveUp = creature.timer <= 0 && (!headingHome || creature.timer < -HOME_PATIENCE);
@@ -944,6 +975,7 @@ export default class CreatureSystem {
       const tryX = creature.x + Math.sin(turn) * step;
       const tryZ = creature.z + Math.cos(turn) * step;
       if (!this.canStep(creature, tryX, tryZ, relaxed)) continue;
+      creature.level = this.levelAfterStep(creature, tryX, tryZ);
       creature.x = tryX;
       creature.z = tryZ;
       moved = true;
@@ -1312,6 +1344,7 @@ export default class CreatureSystem {
         tier: slot.tierKey,
         cx: slot.entry.cx,
         cz: slot.entry.cz,
+        slotLevel: slot.entry.level || 0,
       };
       const creature = slot.creature;
       if (creature) {
@@ -1323,6 +1356,7 @@ export default class CreatureSystem {
           facing: creature.facing,
           health: creature.health,
           level: Number.isFinite(creature.level) ? creature.level : 0,
+          homeLevel: creature.homeLevel,
         });
       } else if (Number.isFinite(slot.deadAt)) {
         list.push({ ...base, alive: false, deadAt: slot.deadAt });
@@ -1359,12 +1393,15 @@ export default class CreatureSystem {
   applyLive(creature, saved) {
     if (!creature || !saved) return;
     if (Number.isFinite(saved.level)) creature.level = saved.level;
+    if (Number.isFinite(saved.homeLevel)) creature.homeLevel = saved.homeLevel;
     if (Number.isFinite(saved.x) && Number.isFinite(saved.z)) {
-      const spot = this.nearestSpot(saved.x, saved.z, creature.type);
+      const spot = this.nearestSpot(saved.x, saved.z, creature.type, creature.level);
       creature.x = spot.x;
       creature.z = spot.z;
-      creature.homeX = spot.x;
-      creature.homeZ = spot.z;
+      if (creature.level === creature.homeLevel) {
+        creature.homeX = spot.x;
+        creature.homeZ = spot.z;
+      }
       creature.renderX = spot.x;
       creature.renderZ = spot.z;
     }

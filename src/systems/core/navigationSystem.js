@@ -3,6 +3,7 @@
 import { worldToCellCoords, CELL_SIZE } from '../../utils/gridMath.js';
 import { worldCells, hasFloor, ceilingLiftAt } from '../../data/maps/areaShape.js';
 
+const FLOOR_LINK_RADIUS = 8;
 const WALK_CLEARANCE = 1.25;
 export const WADE_DEPTH = 0.6;
 
@@ -109,6 +110,22 @@ export default class NavigationSystem {
     this.passageSet = set;
     this.passageFor = records;
     return set;
+  }
+
+  floorsLinkedNear(x, z, levelA, levelB) {
+    if (levelA === levelB) return true;
+    for (const record of this.connectors() || []) {
+      const from = record && record.from;
+      const to = record && record.to;
+      if (!from || !to) continue;
+      const a = levelOf(from);
+      const b = levelOf(to);
+      if (!((a === levelA && b === levelB) || (a === levelB && b === levelA))) continue;
+      const doorX = ((from.cx + to.cx) / 2) * CELL_SIZE;
+      const doorZ = ((from.cz + to.cz) / 2) * CELL_SIZE;
+      if (Math.hypot(doorX - x, doorZ - z) <= FLOOR_LINK_RADIUS) return true;
+    }
+    return false;
   }
 
   isPassageAt(x, z, level = 0) {

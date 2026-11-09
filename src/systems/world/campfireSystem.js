@@ -2,12 +2,13 @@
 // Drží jen seznam ohňů; kdo klikne a kde stojí hráč, mu hlásí scéna.
 import { cellKey, cellToWorldCoords } from '../../utils/gridMath.js';
 import CampfireFire from '../../effects/campfireFire.js';
+import { levelOfEntry } from '../../data/maps/areaShape.js';
 
 const REACH = 3.2;
 const MOVE_CANCEL = 0.16;
 
 function sameEntry(item, entry) {
-  return item.entry === entry || (item.cx === entry.cx && item.cz === entry.cz);
+  return item.entry === entry || (item.cx === entry.cx && item.cz === entry.cz && item.level === levelOfEntry(entry));
 }
 
 export default class CampfireSystem {
@@ -42,7 +43,7 @@ export default class CampfireSystem {
     fire.setDayness(this.dayness);
     fire.setScale(cfg.size);
     fire.place(x, surfaceY + cfg.y, z);
-    this.fires.push({ entry, cx: entry.cx, cz: entry.cz, x, z, fire, lift: cfg.y, lit: false });
+    this.fires.push({ entry, cx: entry.cx, cz: entry.cz, level: levelOfEntry(entry), x, z, fire, lift: cfg.y, lit: false });
     if (this.onFireAdded) this.onFireAdded(fire);
   }
 
@@ -74,15 +75,15 @@ export default class CampfireSystem {
     this.nearest = null;
   }
 
-  has(cx, cz) {
-    return this.fires.some((item) => item.cx === cx && item.cz === cz);
+  has(cx, cz, level = 0) {
+    return this.fires.some((item) => item.cx === cx && item.cz === cz && item.level === level);
   }
 
-  nearestUnlit(x, z) {
+  nearestUnlit(x, z, level = 0) {
     let best = null;
     let bestDist = REACH;
     for (const item of this.fires) {
-      if (item.lit) continue;
+      if (item.lit || item.level !== level) continue;
       const dist = Math.hypot(item.x - x, item.z - z);
       if (dist > bestDist) continue;
       best = item;
@@ -119,8 +120,8 @@ export default class CampfireSystem {
     for (const item of this.fires) item.fire.setDayness(this.dayness);
   }
 
-  update(dt, root) {
-    this.nearest = root && !this.pending ? this.nearestUnlit(root.position.x, root.position.z) : null;
+  update(dt, root, level = 0) {
+    this.nearest = root && !this.pending ? this.nearestUnlit(root.position.x, root.position.z, level) : null;
     this.updatePending(root);
     for (const item of this.fires) item.fire.update(dt);
   }
@@ -153,11 +154,11 @@ export default class CampfireSystem {
     if (this.onIgnite) this.onIgnite(order.item.entry);
   }
 
-  nearestBurning(x, z) {
+  nearestBurning(x, z, level = 0) {
     let best = null;
     let bestDist = Infinity;
     for (const item of this.fires) {
-      if (!item.lit) continue;
+      if (!item.lit || item.level !== level) continue;
       const dist = Math.hypot(item.x - x, item.z - z);
       if (dist >= bestDist) continue;
       best = item;
@@ -167,7 +168,7 @@ export default class CampfireSystem {
   }
 
   serialize() {
-    return { lit: this.fires.filter((item) => item.lit).map((item) => cellKey(item.cx, item.cz)) };
+    return { lit: this.fires.filter((item) => item.lit).map((item) => `${cellKey(item.cx, item.cz)}|${item.level}`) };
   }
 
   defaultState() {
@@ -177,7 +178,7 @@ export default class CampfireSystem {
   apply(data) {
     const list = data && Array.isArray(data.lit) ? data.lit.filter((key) => typeof key === 'string') : [];
     for (const item of this.fires) {
-      if (!list.includes(cellKey(item.cx, item.cz))) continue;
+      if (!list.includes(`${cellKey(item.cx, item.cz)}|${item.level}`)) continue;
       this.light(item);
       item.fire.heat = 1;
     }

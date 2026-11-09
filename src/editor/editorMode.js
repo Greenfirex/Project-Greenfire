@@ -62,6 +62,7 @@ export default class EditorMode {
     this.floorClearance = DEFAULT_CLEARANCE;
     this.floorExtra = new Set();
     this.floorDragShift = [0, 0];
+    this.floorDecoKey = null;
     this.areaTool = 'paint';
     this.areaSurface = DEFAULT_FLOOR;
     this.areaSelection = null;
@@ -128,6 +129,14 @@ export default class EditorMode {
     this.active = !this.active;
     if (this.onChange) this.onChange(this.active);
     return this.active;
+  }
+
+  get paintLevel() {
+    return this.mode === 'zone' ? this.floorLevel : 0;
+  }
+
+  get undergroundView() {
+    return (this.mode === 'floors' || this.mode === 'zone') && this.floorLevel < 0;
   }
 
   get undergroundFloor() {
@@ -421,6 +430,12 @@ export default class EditorMode {
 
   canDraftCell(cx, cz) {
     if (!this.draft) return false;
+    if (this.paintLevel < 0) {
+      const painting = BRUSHES[this.draft.brushKey];
+      if (!painting || !(painting.deco || painting.creature)) return false;
+      if (this.draft.mode !== 'remove') return this.floorEntries(this.paintLevel).some((entry) => entry.cx === cx && entry.cz === cz);
+      return (this.layout[painting.creature ? 'creatures' : 'decorations'] || []).some((entry) => entry && entry.cx === cx && entry.cz === cz && (entry.level || 0) === this.paintLevel);
+    }
     if (this.draft.mode === 'remove') {
       const brush = BRUSHES[this.draft.brushKey];
       if (brush && brush.spawn) return false;

@@ -13,7 +13,10 @@ export default {
     const system = this.creatureSystem;
     system.groundHeightAt = (x, z, level) => this.terrainSystem.walkHeightAt(x, z, level);
     system.walkableAt = (x, z, level) => this.isWalkableAt(x, z, level);
-    system.wallRiseAt = (x, z, radius) => this.terrainSystem.riseNear(x, z, radius);
+    system.wallRiseAt = (x, z, radius, level) => this.terrainSystem.riseNear(x, z, radius, level);
+    system.levelAcross = (fromX, fromZ, level, toX, toZ) => this.navigation.stepLevel(fromX, fromZ, level, toX, toZ);
+    system.playerLevel = () => this.playerSystem.level;
+    system.floorsLinked = (x, z, levelA, levelB) => this.navigation.floorsLinkedNear(x, z, levelA, levelB);
     system.playerAt = () => (this.editor.active || !this.playerSystem.root ? null : this.playerSystem.root.position);
     system.defenseAt = () => this.playerStats.defense;
     system.onMeshReady = (mesh) => this.addShadowCaster(mesh);
