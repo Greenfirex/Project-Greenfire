@@ -6,6 +6,7 @@ export const REVEAL_UNIFORM_NAMES = ['revealCenter', 'revealRight', 'revealUp', 
 export const REVEAL_SAMPLER = 'revealMap';
 const DEEP_FLOOR_LIGHT = '0.12';
 const SIGHT_FADE_START = '8.0';
+const HIGH_ABOVE_CUT = '1.0';
 const SIGHT_FADE_END = '14.0';
 
 export const REVEAL_UNIFORMS = `
@@ -47,7 +48,7 @@ export function revealBlock(color, position, rules) {
     float revealOwnLit = revealOwn.a > 0.5 ? step(0.001, revealOwn.r) : 0.0;
     float revealRestore = ${restore} * revealNear * revealOwnLit * (1.0 - revealOwn.b);
     float revealAbove = ${above} * step(revealParams.y, ${position}.y) * (1.0 - revealRestore);
-    float revealFront = ${front} * step(revealParams.w + 0.2, ${position}.y) * mix(1.0, smoothstep(0.4, 1.0, dot(revealDelta, revealToCam)), ${facing}) * (1.0 - revealOwnLit);
+    float revealFront = ${front} * step(revealParams.w + 0.2, ${position}.y) * mix(1.0, max(smoothstep(0.4, 1.0, dot(revealDelta, revealToCam)), step(revealParams.y + ${HIGH_ABOVE_CUT}, ${position}.y)), ${facing}) * (1.0 - revealOwnLit);
     float revealColumn = ${column} * step(revealParams.w + 0.2, ${position}.y) * step(revealOwn.a, 0.5);
     float revealHide = ${hide} * (1.0 - revealRestore);
     float revealHole = max(max(max(revealAbove, revealInside * revealFront), revealHide), revealColumn) * revealAmount;
