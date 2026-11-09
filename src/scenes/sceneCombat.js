@@ -160,13 +160,13 @@ export default {
     this.audioSystem.play('miss');
     const label = creature.type ? creature.type.label : 'Tvor';
     this.log.add(`Minul jsi: ${label}`, 'action');
-    const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ);
+    const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ, creature.level || 0);
     this.spawnFloatingText('Minul', creature.renderX, ground + creature.markHeight, creature.renderZ, 'miss');
   },
 
   showFloatingDamage(creature, amount, crit) {
     if (!creature) return;
-    const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ);
+    const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ, creature.level || 0);
     const kind = crit ? 'crit' : null;
     this.spawnFloatingNumber(amount, creature.renderX, ground + creature.markHeight, creature.renderZ, kind);
   },
@@ -209,7 +209,7 @@ export default {
     }
     const items = [];
     for (const { creature, ratio } of this.creatureSystem.healthBarTargets()) {
-      const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ);
+      const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ, creature.level || 0);
       const point = screenPointOf(this.s, this.cameraSystem.camera, rect, creature.renderX, ground + creature.markHeight + CREATURE_BAR_LIFT, creature.renderZ);
       if (!point) continue;
       if (point.x < 0 || point.y < 0 || point.x > rect.width || point.y > rect.height) continue;
