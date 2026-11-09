@@ -248,7 +248,7 @@ export default class MapEditor {
     const problem = Color3.FromArray(FLOOR_MARKS.problem);
     this.s.gridSystem.showZones([
       { cells: report.doors, color: door, glow: door, alpha: 0.6, lift: 0.06 },
-      { cells: [...report.low, ...report.pierced], color: problem, glow: problem, alpha: 0.45, lift: 0.05 },
+      { cells: [...report.low, ...report.pierced, ...report.steep], color: problem, glow: problem, alpha: 0.45, lift: 0.05 },
     ], () => this.mode.floorHeight);
   }
 
@@ -265,6 +265,7 @@ export default class MapEditor {
     if (report && has(report.doors)) mark = ' · vchod';
     else if (report && has(report.pierced)) mark = ' · strop prorazil povrch';
     else if (report && has(report.low)) mark = ' · nízký strop';
+    else if (report && has(report.steep)) mark = ' · příliš strmé';
     this.s.tooltipPanel.show(`Patro — ${state}`, `${cell.cx}, ${cell.cz} · podlaha ${formatMeters(this.mode.floorHeight)}${mark}`);
   }
 

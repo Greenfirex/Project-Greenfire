@@ -7,6 +7,7 @@ import { columnsByCell, layerLiftAt, floorCellAt } from '../../data/maps/areaSha
 const CAVE_OPEN_STEP = 0.6;
 const OUTER_LIGHT_CELLS = 6;
 const INNER_LIGHT_CELLS = 3;
+const ROCK_MAX_ABOVE_CEILING = 3;
 const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 export default {
@@ -28,8 +29,12 @@ export default {
     let maxX = -Infinity;
     let minZ = Infinity;
     let maxZ = -Infinity;
+    let lowestVisible = Infinity;
     for (const [id, planes] of columns) {
       const [cx, cz] = id.split(',').map(Number);
+      for (const plane of planes) {
+        if (plane.level < 0 && Number.isFinite(plane.ceil)) lowestVisible = Math.min(lowestVisible, plane.lift);
+      }
       minX = Math.min(minX, cx);
       maxX = Math.max(maxX, cx);
       minZ = Math.min(minZ, cz);
@@ -43,7 +48,7 @@ export default {
         const sideId = `${cx + dx},${cz + dz}`;
         if (caveCells.has(sideId)) continue;
         const ground = (columns.get(sideId) || []).find((plane) => plane.level === 0);
-        if (ground && columns.get(id).some((plane) => plane.level < 0 && Number.isFinite(plane.ceil) && ground.lift >= plane.ceil)) rockCells.add(sideId);
+        if (ground && columns.get(id).some((plane) => plane.level < 0 && Number.isFinite(plane.ceil) && ground.lift >= plane.ceil && ground.lift - plane.ceil <= ROCK_MAX_ABOVE_CEILING)) rockCells.add(sideId);
       }
     }
     const outerSeeds = [];
@@ -113,17 +118,10 @@ export default {
     const lowestDoor = doorFloors.length ? Math.min(...doorFloors) : null;
     for (const [id, planes] of columns) {
       const ground = planes.find((plane) => plane.level === 0);
-      if (lowestDoor === null || !ground || ground.lift < lowestDoor) continue;
+      if (!ground) continue;
       const [cx, cz] = id.split(',').map(Number);
-      const index = indexOf(cx, cz) * 4;
-      if (!data[index + 3] || !data[index]) continue;
-      let lowest = ground.lift;
-      for (const ox of [-0.5, 0, 0.5]) {
-        for (const oz of [-0.5, 0, 0.5]) {
-          if (this.field) lowest = Math.min(lowest, this.field.heightAtSide((cx + ox) * CELL_SIZE, (cz + oz) * CELL_SIZE, cx, cz));
-        }
-      }
-      if (lowest >= lowestDoor) data[index + 1] = 255;
+      const litAt = (x, z) => x >= minX && x <= maxX && z >= minZ && z <= maxZ && data[indexOf(x, z) * 4] > 0;
+      if (litAt(cx, cz) || SIDES.some(([dx, dz]) => litAt(cx + dx, cz + dz))) lowestVisible = Math.min(lowestVisible, ground.lift);
     }
     const inFrontOfDoor = (id) => {
       if (!caveCells.has(id)) return false;
@@ -137,28 +135,28 @@ export default {
       });
     };
     spread(innerSeeds, INNER_LIGHT_CELLS, 1, inFrontOfDoor);
-    return { data, width, height, minX, minZ, lit, floor: lowestDoor };
+    return { data, width, height, minX, minZ, lit, floor: lowestDoor, lowestVisible };
   },
 
-  caveDoors() {
+  caveDoors(underground = false) {
     const columns = columnsByCell(this.layout || {});
     const levelOf = (end) => (Number.isFinite(end.level) ? end.level : 0);
     const doors = new Map();
     const doorId = (cx, cz, dx, dz) => `${cx},${cz}|${dx},${dz}`;
     for (const record of this.movementConnectors || []) {
       if (!record || !record.from || !record.to || levelOf(record.from) === levelOf(record.to)) continue;
-      const outside = levelOf(record.from) === 0 ? record.from : (levelOf(record.to) === 0 ? record.to : null);
-      if (!outside) continue;
+      const outside = levelOf(record.from) > levelOf(record.to) ? record.from : record.to;
+      if (!underground && levelOf(outside) !== 0) continue;
       const inside = outside === record.from ? record.to : record.from;
       const dx = outside.cx - inside.cx;
       const dz = outside.cz - inside.cz;
       if (Math.abs(dx) + Math.abs(dz) !== 1) continue;
       const cave = (columns.get(`${inside.cx},${inside.cz}`) || []).find((plane) => plane.level === levelOf(inside));
-      const ground = (columns.get(`${outside.cx},${outside.cz}`) || []).find((plane) => plane.level === 0);
+      const ground = (columns.get(`${outside.cx},${outside.cz}`) || []).find((plane) => plane.level === levelOf(outside));
       if (!cave || !ground || !Number.isFinite(cave.ceil)) continue;
       const flanks = [[outside.cx - dz, outside.cz + dx], [outside.cx + dz, outside.cz - dx]];
       const style = flanks.map(([cx, cz]) => (this.field ? this.field.cliffStyleAt(cx, cz) : null)).find(Boolean) || 'dirt';
-      doors.set(doorId(inside.cx, inside.cz, dx, dz), { cx: inside.cx, cz: inside.cz, dx, dz, level: levelOf(inside), floor: cave.lift, top: cave.ceil - DOOR_LINTEL_DEPTH, ground: ground.lift, style });
+      doors.set(doorId(inside.cx, inside.cz, dx, dz), { cx: inside.cx, cz: inside.cz, dx, dz, level: levelOf(inside), otherLevel: levelOf(outside), floor: cave.lift, top: cave.ceil - DOOR_LINTEL_DEPTH, ground: ground.lift, style });
     }
     return [...doors.values()].map((door) => ({
       ...door,
@@ -220,24 +218,15 @@ export default {
         for (const [dx, dz] of dirs) {
           const nplanes = columns.get(`${cx + dx},${cz + dz}`);
           if (!nplanes) continue;
-          let nGround = null;
-          let nHasCave = false;
+          if (nplanes.some((np) => np.level === caveLevel)) continue;
           for (const np of nplanes) {
-            if (np.level === 0) nGround = np.lift;
-            if (np.level === caveLevel) nHasCave = true;
+            if (np.level !== 0 && !(np.level < 0 && Number.isFinite(np.ceil))) continue;
+            if (Math.abs(caveFloor - np.lift) > CAVE_OPEN_STEP) continue;
+            const here = (end) => end.cx === cx && end.cz === cz && (Number.isFinite(end.level) ? end.level : 0) === caveLevel;
+            const there = (end) => end.cx === cx + dx && end.cz === cz + dz && (Number.isFinite(end.level) ? end.level : 0) === np.level;
+            if (records.some((record) => (here(record.to) && there(record.from)) || (here(record.from) && there(record.to)))) continue;
+            records.push({ from: { cx: cx + dx, cz: cz + dz, level: np.level }, to: { cx, cz, level: caveLevel }, kind: 'opening' });
           }
-          if (nHasCave || nGround === null) continue;
-          if (Math.abs(caveFloor - nGround) > CAVE_OPEN_STEP) continue;
-          const exists = records.some((record) => {
-            const fl = Number.isFinite(record.from.level) ? record.from.level : 0;
-            const tl = Number.isFinite(record.to.level) ? record.to.level : 0;
-            const fro = record.from;
-            const too = record.to;
-            return (too.cx === cx && too.cz === cz && tl === caveLevel && fro.cx === cx + dx && fro.cz === cz + dz)
-              || (fro.cx === cx && fro.cz === cz && fl === caveLevel && too.cx === cx + dx && too.cz === cz + dz);
-          });
-          if (exists) continue;
-          records.push({ from: { cx: cx + dx, cz: cz + dz, level: 0 }, to: { cx, cz, level: caveLevel }, kind: 'opening' });
         }
       }
     }

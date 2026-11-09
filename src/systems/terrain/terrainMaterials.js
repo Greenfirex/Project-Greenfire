@@ -53,10 +53,9 @@ export default {
     if (!this.cliffMaterials[key]) {
       const material = this.stoneCliffMaterial(false);
       material.name = ceiling ? 'terrainCaveCeilingMat' : 'terrainCaveWallMat';
-      if (ceiling) {
-        material.backFaceCulling = true;
-        material.twoSidedLighting = false;
-      }
+      material.backFaceCulling = true;
+      material.cullBackFaces = ceiling;
+      material.twoSidedLighting = !ceiling;
       this.cliffMaterials[key] = material;
     }
     return this.cliffMaterials[key];

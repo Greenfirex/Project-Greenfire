@@ -3,7 +3,7 @@
 import { surfaceEntries } from '../data/catalogs/decorations.js';
 import { formatMeters } from '../data/maps/layoutStore.js';
 import { makeDraggable } from '../ui/draggable.js';
-import { FLOOR_MARKS } from './editorFloors.js';
+import { FLOOR_MARKS, MIN_CLEARANCE } from './editorFloors.js';
 
 function floorName(level) {
   return level === 0 ? 'Povrch' : `Jeskyně ${String(level).replace('-', '−')}`;
@@ -45,6 +45,7 @@ export default class FloorPanel {
         <div class="area-panel__tools">
           <button type="button" data-tool="paint">Vykopat</button>
           <button type="button" data-tool="erase">Zasypat</button>
+          <button type="button" data-tool="corridor">Chodba</button>
         </div>
         <div class="area-panel__surfaces"></div>
         <div class="area-panel__height">
@@ -132,7 +133,9 @@ export default class FloorPanel {
     root.querySelector('.area-panel__apply').disabled = view.count === 0;
     root.querySelector('.area-panel__clear').disabled = view.count === 0;
     root.querySelector('.area-panel__undo').disabled = !view.undoEnabled;
-    root.querySelector('.area-panel__note').textContent = underground
+    root.querySelector('.area-panel__note').textContent = view.tool === 'corridor' && underground
+      ? 'Táhni od začátku ke konci chodby, pak Aplikovat. Chodba naváže na podlahu, u které začíná, a plynule klesne k nastavené výšce podlahy. Průchod do jiného patra vznikne sám, když se podlahy potkají do 0,6 m.'
+      : underground
       ? 'Táhni myší — označí se obdélník, pak Aplikovat. Tažením zevnitř označení změníš jeho velikost, tažením mimo začneš nové. Průchod ven vznikne sám tam, kde podlaha navazuje na zem vedle (rozdíl do 0,6 m).'
       : 'Povrch se upravuje v záložkách Zóny, Výška a Herní plocha. Tady vyber nebo založ podzemní patro.';
     this.renderWarnings(underground ? view.report : null);
@@ -170,7 +173,8 @@ export default class FloorPanel {
       box.appendChild(line);
     };
     if (report.doors.length) addLine(`Vchod: ${report.doors.length} ${cellWord(report.doors.length)}`, FLOOR_MARKS.door);
-    if (report.low.length) addLine(`Nízký strop (pod 2,6 m): ${report.low.length} ${cellWord(report.low.length)}`, FLOOR_MARKS.problem);
+    if (report.low.length) addLine(`Nízký strop (pod ${formatMeters(MIN_CLEARANCE)}): ${report.low.length} ${cellWord(report.low.length)}`, FLOOR_MARKS.problem);
+    if (report.steep.length) addLine(`Příliš strmá chodba: ${report.steep.length} ${cellWord(report.steep.length)}`, FLOOR_MARKS.problem);
     if (report.pierced.length) addLine(`Strop prorazil povrch: ${report.pierced.length} ${cellWord(report.pierced.length)}`, FLOOR_MARKS.problem);
     if (report.sealed) addLine(report.sealed === 1 ? 'Jedna jeskyně nemá vchod' : `Jeskyní bez vchodu: ${report.sealed}`, null);
     if (report.low.length) {

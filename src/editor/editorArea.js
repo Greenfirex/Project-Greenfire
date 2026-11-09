@@ -6,6 +6,7 @@ import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
 import { dropLayerCell, dropDecorationCell, dropAreaCells } from '../data/maps/areaShape.js';
 import { rectCells } from './editorSettings.js';
+import { corridorCells } from './editorFloors.js';
 
 export default {
   beginAreaDrag(cx, cz) {
@@ -28,7 +29,8 @@ export default {
     const drag = this.areaDrag;
     if (!drag) return;
     const stroke = this.areaBase ? new Map(this.areaBase) : new Map();
-    for (const [x, z] of rectCells(drag.fromX, drag.fromZ, drag.toX, drag.toZ)) {
+    const dragged = drag.mode === 'corridor' ? corridorCells(drag.fromX, drag.fromZ, drag.toX, drag.toZ) : rectCells(drag.fromX, drag.fromZ, drag.toX, drag.toZ);
+    for (const [x, z] of dragged) {
       stroke.set(cellKey(x, z), [x, z]);
     }
     this.areaStroke = stroke;
@@ -64,7 +66,7 @@ export default {
   },
 
   setAreaTool(tool) {
-    const next = tool === 'erase' ? 'erase' : 'paint';
+    const next = tool === 'erase' || tool === 'corridor' ? tool : 'paint';
     if (this.areaTool === next) return;
     this.areaTool = next;
     this.areaDrag = null;

@@ -55,7 +55,7 @@ export default {
       hardEdge: (cx, cz, dx, dz, level = 0) => (this.field && this.field.isHardEdge ? this.field.isHardEdge(cx, cz, dx, dz, level) : false),
       shiftAt: (gx, gz) => this.surfaceShiftAt(gx, gz),
       keptAt,
-      doors: this.caveDoors(),
+      doors: this.caveDoors(true),
       keptDownTo: light ? light.floor : null,
     });
     for (const group of buckets) {

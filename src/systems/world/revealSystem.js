@@ -63,6 +63,7 @@ export default class RevealSystem {
     this.editorMapTexture = null;
     this.editorBounds = new Vector4(0, 0, 1, 1);
     this.litCells = 0;
+    this.lowestVisible = Infinity;
     this.emptyMap = this.rawMap(new Uint8Array([0, 0, 0, 255]), 1, 1);
     this.state.map = this.emptyMap;
     this.setDayness(1);
@@ -98,6 +99,7 @@ export default class RevealSystem {
     if (this.lightMapTexture) this.lightMapTexture.dispose();
     this.lightMapTexture = map ? this.rawMap(map.data, map.width, map.height) : null;
     this.litCells = map ? map.lit : 0;
+    this.lowestVisible = map ? map.lowestVisible : Infinity;
     if (map) this.lightBounds.set(map.minX, map.minZ, map.width, map.height);
     this.useCurrentMap();
   }
@@ -196,7 +198,7 @@ export default class RevealSystem {
     this.wasOpen = this.progress > 0;
     if (camera) this.updateCamera(camera);
     this.pushShaderUniforms();
-    this.updateBackdrop(view ? null : position);
+    this.updateBackdrop(view ? state.center : position);
   }
 
   pushShaderUniforms() {
@@ -222,6 +224,6 @@ export default class RevealSystem {
     this.ensureBackdrop();
     this.backdrop.setEnabled(true);
     this.backdrop.material.alpha = this.state.amount;
-    this.backdrop.position.set(position.x, this.state.floor - BACKDROP_BELOW_FLOOR, position.z);
+    this.backdrop.position.set(position.x, Math.min(this.state.floor, this.lowestVisible) - BACKDROP_BELOW_FLOOR, position.z);
   }
 }

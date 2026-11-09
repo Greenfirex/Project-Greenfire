@@ -200,7 +200,7 @@ export default class TerrainSystem {
     this.columnRuns = null;
     const vents = this.connectorInfo();
     this.mouths = vents.mouths;
-    this.field.setDoorBlends(this.caveDoors());
+    this.field.setDoorBlends(this.caveDoors(true));
     this.resetSurfaces();
     if (this.solidDebugEnabled()) {
       const blocks = buildSolidBlockMesh(this, world, WALL_TILE);
@@ -262,7 +262,8 @@ export default class TerrainSystem {
       const [dirX, dirZ] = dir.split(',').map(Number);
       const key = `${mCx + dirX},${mCz + dirZ}|${-dirX},${-dirZ}`;
       const prev = mouthFloor.get(key);
-      if (prev === undefined || mouth.bottom < prev) mouthFloor.set(key, mouth.bottom);
+      const middle = (mouth.bottom + this.field.heightAtCell(mCx + dirX, mCz + dirZ, level)) / 2;
+      if (prev === undefined || middle < prev) mouthFloor.set(key, middle);
     }
     const spreads = (key) => {
       const cfg = this.surfaceConfig(key);

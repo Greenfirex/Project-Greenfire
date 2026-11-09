@@ -11,6 +11,7 @@ const AUTO_CLIFF_STEP = 2.0;
 const STEP_EPSILON = 1e-6;
 const DOOR_HALF_CELL = 0.5;
 const DOOR_FADE_START = 0.3;
+const BOUNDARY_NUDGES = [[-1e-4, -1e-4], [1e-4, -1e-4], [-1e-4, 1e-4], [1e-4, 1e-4]];
 export const SAME_LEVEL_STEP = HEIGHT_STEP + 0.01;
 
 function catmull(p0, p1, p2, p3, t) {
@@ -171,10 +172,20 @@ function createPlane(world, level, below) {
   const doorBlends = new Map();
 
   function doorBlendAt(px, pz, cx, cz) {
-    const blend = doorBlends.get(cellKey(cx, cz));
+    if (!doorBlends.size) return 0;
+    let blend = doorBlends.get(cellKey(cx, cz));
+    if (!blend && heights.has(cellKey(cx, cz))) return 0;
+    let ownX = cx;
+    let ownZ = cz;
+    for (const [nudgeX, nudgeZ] of BOUNDARY_NUDGES) {
+      if (blend) break;
+      ownX = Math.round(px + nudgeX);
+      ownZ = Math.round(pz + nudgeZ);
+      blend = doorBlends.get(cellKey(ownX, ownZ));
+    }
     if (!blend) return 0;
-    const offsetX = px - cx;
-    const offsetZ = pz - cz;
+    const offsetX = px - ownX;
+    const offsetZ = pz - ownZ;
     const along = offsetX * blend.dx + offsetZ * blend.dz;
     const across = Math.abs(offsetX * blend.dz - offsetZ * blend.dx);
     const fade = 1 - ease((across - DOOR_FADE_START) / (DOOR_HALF_CELL - DOOR_FADE_START));
@@ -276,7 +287,7 @@ export function createTerrainField(world) {
       for (const door of doors) {
         const middle = (door.floor + door.ground) / 2;
         planeFor(door.level).doorBlends.set(cellKey(door.cx, door.cz), { dx: door.dx, dz: door.dz, delta: middle - door.floor });
-        planeFor(0).doorBlends.set(cellKey(door.cx + door.dx, door.cz + door.dz), { dx: -door.dx, dz: -door.dz, delta: middle - door.ground });
+        planeFor(door.otherLevel).doorBlends.set(cellKey(door.cx + door.dx, door.cz + door.dz), { dx: -door.dx, dz: -door.dz, delta: middle - door.ground });
       }
     },
   };

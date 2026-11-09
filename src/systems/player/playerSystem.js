@@ -55,6 +55,7 @@ const FOOT_LAND_DISTANCE = 0.04;
 const FOOT_SHIFT_MAX = 0.35;
 const FOOT_FALLBACK = { walk: 1.25, sprint: 1.0 };
 const FOOT_SIDE_OFFSET = 0.12;
+const START_LYING = false;
 const TOOL_SCALE = 0.95;
 const TOOL_POSITION = new Vector3(-0.12, 0.12, 0.04);
 const TOOL_ROTATION = new Vector3(0, 0, -0.45);
@@ -195,7 +196,7 @@ export default class PlayerSystem {
     await this.attachToolNode();
     this.bindKeys();
     this.ready = true;
-    if (hasSave) this.play(this.idleAnim());
+    if (hasSave || !START_LYING) this.play(this.idleAnim());
     else this.lieDown();
     return this.root;
   }

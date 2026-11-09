@@ -308,14 +308,14 @@ export function buildRunVolumeBuckets(layout, options = {}) {
           }
           const doorTop = doorSteps.get(`${id}|${dx},${dz}`);
           for (const piece of overlapPieces(neighborAir, y0, y1)) {
-            if (doorTop !== undefined && piece.top <= doorTop + EPS) continue;
+            if (doorTop !== undefined && (piece.level < 0 || piece.top <= doorTop + EPS)) continue;
             if (piece.level >= 0) {
               const overDoor = ownAir.some((span) => span.level < 0 && Math.abs(span.top - piece.bottom) <= EPS);
               sideFace(cx, cz, dx, dz, piece.bottom, piece.top, floorKey(cx, cz, 0), false, overDoor ? DOOR_LINTEL_DEPTH : depth);
               continue;
             }
             const ownFloor = ownAir.find((span) => span.level === piece.level);
-            if (ownFloor && piece.top <= ownFloor.bottom + EPS && !hardEdge(cx, cz, dx, dz, piece.level)) continue;
+            if (ownFloor && (piece.top <= ownFloor.bottom + EPS || piece.bottom >= ownFloor.top - EPS) && !hardEdge(cx, cz, dx, dz, piece.level)) continue;
             const key = floorKey(nx, nz, piece.level);
             const caveWall = bucketOf(cx, cz, 'cave', key);
             const caveTile = tileOf('cave', key);

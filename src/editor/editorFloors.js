@@ -6,10 +6,20 @@ import { cellKey } from '../utils/gridMath.js';
 import { columnsByCell, dropLayerCell, layerLiftAt, levelOfEntry, planeLevels } from '../data/maps/areaShape.js';
 import { SIDES } from './editorSettings.js';
 
-export const MIN_CLEARANCE = 2.6;
+export const MIN_CLEARANCE = 3;
+export const MAX_CORRIDOR_STEP = 1;
 export const DEFAULT_CLEARANCE = 3;
 export const FLOOR_MARKS = { door: [0.25, 0.95, 0.5], problem: [1, 0.2, 0.2] };
-const SURFACE_DIM = 115;
+
+export function corridorCells(fromX, fromZ, toX, toZ) {
+  const cells = [[fromX, fromZ]];
+  let x = fromX;
+  let z = fromZ;
+  const walkX = () => { while (x !== toX) { x += Math.sign(toX - x); cells.push([x, z]); } };
+  const walkZ = () => { while (z !== toZ) { z += Math.sign(toZ - z); cells.push([x, z]); } };
+  if (Math.abs(toX - fromX) >= Math.abs(toZ - fromZ)) { walkX(); walkZ(); } else { walkZ(); walkX(); }
+  return cells;
+}
 
 function levelOfEnd(end) {
   return Number.isFinite(end.level) ? end.level : 0;
@@ -72,7 +82,7 @@ export default {
     let fromZ = cz;
     let toX = cx;
     let toZ = cz;
-    if (cells.some(([x, z]) => x === cx && z === cz)) {
+    if (this.areaTool !== 'corridor' && cells.some(([x, z]) => x === cx && z === cz)) {
       const xs = cells.map(([x]) => x);
       const zs = cells.map(([, z]) => z);
       const [minX, maxX, minZ, maxZ] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
@@ -108,6 +118,7 @@ export default {
   applyFloorSelection() {
     const selection = this.areaSelection;
     if (!selection || !this.layout || !this.undergroundFloor) return 0;
+    if (selection.tool === 'corridor') return this.applyCorridor(selection.cells);
     const erasing = selection.tool === 'erase';
     const level = this.floorLevel;
     this.pushHistory();
@@ -132,6 +143,41 @@ export default {
     this.clearAreaSelection();
     this.scheduleRegenerate(PAINT_ALL);
     return count;
+  },
+
+  applyCorridor(cells) {
+    const level = this.floorLevel;
+    const entries = this.floorEntries(level);
+    const liftAt = (cx, cz) => {
+      const entry = entries.find((item) => item.cx === cx && item.cz === cz);
+      return entry ? entry.liftY || 0 : null;
+    };
+    const [firstX, firstZ] = cells[0];
+    let start = liftAt(firstX, firstZ);
+    let offset = 0;
+    if (start === null) {
+      const inPath = new Set(cells.map(([cx, cz]) => cellKey(cx, cz)));
+      for (const [dx, dz] of SIDES) {
+        const lift = inPath.has(cellKey(firstX + dx, firstZ + dz)) ? null : liftAt(firstX + dx, firstZ + dz);
+        if (lift === null) continue;
+        start = lift;
+        offset = 1;
+        break;
+      }
+    }
+    if (start === null) start = this.floorHeight;
+    const steps = Math.max(1, cells.length - 1 + offset);
+    this.pushHistory();
+    cells.forEach(([cx, cz], index) => {
+      dropLayerCell(this.layout, cx, cz, level);
+      const lift = Math.round((start + (this.floorHeight - start) * ((index + offset) / steps)) / HEIGHT_STEP) * HEIGHT_STEP;
+      const entry = { key: this.areaSurface, cx, cz, rotation: 0, ceilY: lift + this.floorClearance, level };
+      if (lift) entry.liftY = lift;
+      this.layout.floor.push(entry);
+    });
+    this.clearAreaSelection();
+    this.scheduleRegenerate(PAINT_ALL);
+    return cells.length;
   },
 
   dropConnectorsAt(cells, level) {
@@ -180,7 +226,14 @@ export default {
       }
       if (!open) sealed += 1;
     }
-    return { doors: [...doors.values()], low, pierced, sealed };
+    const steep = new Map();
+    for (const [key, entry] of cells) {
+      for (const [dx, dz] of SIDES) {
+        const near = cells.get(cellKey(entry.cx + dx, entry.cz + dz));
+        if (near && Math.abs((near.liftY || 0) - (entry.liftY || 0)) > MAX_CORRIDOR_STEP + 1e-3) steep.set(key, [entry.cx, entry.cz]);
+      }
+    }
+    return { doors: [...doors.values()], low, pierced, sealed, steep: [...steep.values()] };
   },
 
   floorView() {
@@ -211,16 +264,10 @@ export default {
     const width = maxX - minX + 2;
     const height = maxZ - minZ + 2;
     const data = new Uint8Array(width * height * 4);
-    for (let index = 0; index < data.length; index += 4) {
-      data[index] = SURFACE_DIM;
-      data[index + 2] = 255;
-      data[index + 3] = 255;
-    }
+    for (let index = 2; index < data.length; index += 4) data[index] = 255;
     for (const entry of this.floorEntries()) {
       const index = ((entry.cz - minZ) * width + (entry.cx - minX)) * 4;
-      data[index] = 0;
       data[index + 1] = 255;
-      data[index + 3] = 0;
     }
     return { data, width, height, minX, minZ, lit: 0 };
   },
