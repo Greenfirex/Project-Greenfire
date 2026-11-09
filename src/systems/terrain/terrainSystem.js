@@ -91,8 +91,6 @@ export default class TerrainSystem {
     this.reliefPlugins = new Map();
     this.reliefTextures = new Map();
     this.blendTextures = new Map();
-    this.groundPatch = { patch: 1 };
-    this.grassGroundTex = null;
     this.weightTextures = [];
     this.causticPlugins = [];
     this.wetPlugins = [];
@@ -723,7 +721,7 @@ export default class TerrainSystem {
       data.normals = group.normals;
       data.applyToMesh(mesh);
       mesh.isPickable = false;
-      mesh.receiveShadows = level >= 0;
+      mesh.receiveShadows = true;
       mesh.metadata = {
         level,
         overCave: Boolean(group.overCave),

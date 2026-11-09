@@ -48,7 +48,6 @@ const ITEMS = [
   { kind: 'choice', key: 'quality', tab: 'view', label: 'Kvalita obrazu', note: 'Nižší kvalita zmenší rozlišení a zjednoduší vodu a odrazy, obraz bude měkčí.', options: QUALITIES },
   { kind: 'choice', key: 'grass', tab: 'view', label: 'Hustota trávy', note: 'Jak hustě se kreslí tráva, kterou namaluješ štětcem. Na mapě zůstane pořád.', options: GRASS_LEVELS },
   { kind: 'choice', key: 'grassFern', tab: 'view', label: 'Kapradina', note: 'Lehká je na hraní, detailní je jen na porovnání vzhledu a výkonu.', options: FERN_MODES },
-  { kind: 'toggle', key: 'groundBlend', tab: 'view', label: 'Zem ze tří textur', note: 'Trávu na zemi míchají tři textury do velkých skvrn. Vypnutí ušetří výkon.' },
   { kind: 'choice', key: 'fpsCap', tab: 'view', label: 'Omezit snímky', note: 'Nižší číslo = chladnější počítač.', options: FPS_OPTIONS, numeric: true },
   { kind: 'choice', key: 'shadows', tab: 'view', label: 'Stíny', note: 'Stíny patří k tomu, co hru zpomaluje nejvíc. Bez nich bude krajina plošší.', options: SHADOW_LEVELS },
   { kind: 'toggle', key: 'reflections', tab: 'view', label: 'Odrazy ve vodě', note: 'Stromy a břehy se zrcadlí na hladině. Vypnutí hodně ušetří, voda odráží jen oblohu.' },

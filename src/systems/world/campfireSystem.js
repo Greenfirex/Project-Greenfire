@@ -25,6 +25,12 @@ export default class CampfireSystem {
     this.igniteBusy = null;
     this.onFireAdded = null;
     this.onFireRemoved = null;
+    this.terrain = [];
+  }
+
+  setTerrain(surfaces) {
+    this.terrain = surfaces;
+    for (const item of this.fires) item.fire.setTerrain(surfaces);
   }
 
   add(entry, def, surfaceY) {
@@ -43,6 +49,7 @@ export default class CampfireSystem {
     fire.setDayness(this.dayness);
     fire.setScale(cfg.size);
     fire.place(x, surfaceY + cfg.y, z);
+    fire.setTerrain(this.terrain);
     this.fires.push({ entry, cx: entry.cx, cz: entry.cz, level: levelOfEntry(entry), x, z, fire, lift: cfg.y, lit: false });
     if (this.onFireAdded) this.onFireAdded(fire);
   }

@@ -12,7 +12,6 @@ export const OPTION_DEFAULTS = {
   autoTune: false,
   grass: 'high',
   grassFern: 'light',
-  groundBlend: true,
   waterDetail: true,
   reflections: true,
   footprints: true,
@@ -30,9 +29,9 @@ export const QUALITY_SCALES = { high: 1, medium: 0.8, low: 0.65 };
 export const FPS_CAPS = [30, 60, 0];
 
 export const PRESET_OPTIONS = {
-  high: { quality: 'high', shadows: 'full', fpsCap: 60, fireGlow: true, grass: 'high', groundBlend: true, waterDetail: true, reflections: true },
-  balanced: { quality: 'medium', shadows: 'simple', fpsCap: 60, fireGlow: true, grass: 'medium', groundBlend: true, waterDetail: true, reflections: true },
-  eco: { quality: 'low', shadows: 'off', fpsCap: 30, fireGlow: false, grass: 'off', groundBlend: false, waterDetail: false, reflections: false },
+  high: { quality: 'high', shadows: 'full', fpsCap: 60, fireGlow: true, grass: 'high', waterDetail: true, reflections: true },
+  balanced: { quality: 'medium', shadows: 'simple', fpsCap: 60, fireGlow: true, grass: 'medium', waterDetail: true, reflections: true },
+  eco: { quality: 'low', shadows: 'off', fpsCap: 30, fireGlow: false, grass: 'off', waterDetail: false, reflections: false },
 };
 
 export function mergeSavedOptions(saved) {

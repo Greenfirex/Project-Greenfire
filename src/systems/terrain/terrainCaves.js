@@ -15,11 +15,14 @@ export default {
     for (const mesh of this.surfaces) {
       if (!mesh || mesh.isDisposed()) continue;
       const name = mesh.name || '';
-      if (name.startsWith('terrainCaveWall') || name.startsWith('terrainCeiling')) {
+      if (name.startsWith('terrainCaveWall') || name.startsWith('terrainCeiling') || (mesh.metadata && mesh.metadata.level < 0)) {
         list.push(mesh);
       }
     }
     return list;
+  },
+  liveSurfaces() {
+    return this.surfaces.filter((mesh) => mesh && !mesh.isDisposed());
   },
   caveLightMap() {
     const columns = columnsByCell(this.layout || {});

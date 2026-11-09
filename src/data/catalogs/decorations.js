@@ -1,6 +1,7 @@
 // Deklarace typů dekorací krajiny (stromy, kameny, tráva, tábořiště).
 // Drží jen deklarace (model, měřítko, blokace) a resolve helpery, žádné rozvržení mapy.
 import { ASSET_DIRS } from './assetPaths.js';
+import { GRASS_GROUND, grassGroundUrl } from './grass.js';
 
 export const DECORATION_TYPES = {
   tree_pine_a: {
@@ -858,11 +859,11 @@ export const DECORATION_TYPES = {
     kind: 'floor',
     surface: {
       label: 'Tráva',
-      texture: `${ASSET_DIRS.textures}Grass001_1K-JPG_Color.jpg`,
-      tile: 5.5,
+      texture: grassGroundUrl(),
+      tile: GRASS_GROUND.tile,
+      shade: GRASS_GROUND.shade,
       ambient: [0.08, 0.1, 0.08],
       mapTint: true,
-      patch: true,
       wet: 0.45,
       relief: {
         strength: 2.4,

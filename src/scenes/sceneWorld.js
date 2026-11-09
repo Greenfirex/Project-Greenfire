@@ -326,7 +326,6 @@ export default {
     const map = getMap(this.mapKey);
     return {
       shade: this.terrainSystem.grassShade(map),
-      groundPatch: this.options.groundBlend !== false,
     };
   },
 

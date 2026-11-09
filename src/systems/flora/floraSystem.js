@@ -10,7 +10,7 @@ import { CELL_SIZE, worldToCell } from '../../utils/gridMath.js';
 import { warnMissingWiring } from '../../utils/missingWiring.js';
 import { cellNoise, patchValue } from '../../utils/decoPlacement.js';
 import { createGrassMaterial, tickGrass } from './grassShader.js';
-import { GRASS_TYPES, GRASS_MIXES, GRASS_ORDER, GRASS_COVER, GRASS_GROUND, grassGroundUrls } from '../../data/catalogs/grass.js';
+import { GRASS_TYPES, GRASS_MIXES, GRASS_ORDER, GRASS_COVER, GRASS_GROUND, grassGroundUrl } from '../../data/catalogs/grass.js';
 
 const GRASS_LIFT = 0.02;
 const TREE_CLEARANCE = 0.35;
@@ -181,7 +181,6 @@ export default class FloraSystem {
     this.observer = null;
     this.groundTex = null;
     this.shade = [1, 1, 1];
-    this.groundPatch = true;
     this.clock = 0;
     this.lastTime = performance.now();
     this.dayness = 1;
@@ -196,7 +195,6 @@ export default class FloraSystem {
     this.models = models && models.length ? models : null;
     const shade = look && look.shade ? look.shade : null;
     this.shade = shade && shade.length === 3 ? shade : [1, 1, 1];
-    this.groundPatch = !(look && look.groundPatch === false);
     this.build();
   }
 
@@ -286,21 +284,19 @@ export default class FloraSystem {
 
   buildCover() {
     if (!GRASS_COVER.perCell[this.density]) return;
-    const textures = this.groundTextures();
-    if (!textures.length) return;
     const material = createGrassMaterial(this.s, {
       name: 'grassMatCover',
       height: GRASS_COVER.height,
-      tint: this.scaledTint(GRASS_COVER.tint),
+      tint: this.scaledTint(GRASS_COVER.tint.map((value) => value * GRASS_GROUND.shade)),
+      texture: this.groundTexture(),
       lightDir: this.sunDirection,
-      ground: { textures, tiles: GRASS_GROUND.tiles, patch: this.groundPatch },
+      groundTile: GRASS_GROUND.tile,
     });
     this.assets.set('cover', { variants: [{ shape: coverShape(GRASS_COVER.height), material }] });
   }
 
-  groundTextures() {
-    if (this.groundTex && this.groundTex.length) return this.groundTex;
-    this.groundTex = grassGroundUrls().map((url) => new Texture(url, this.s));
+  groundTexture() {
+    if (!this.groundTex) this.groundTex = new Texture(grassGroundUrl(), this.s);
     return this.groundTex;
   }
 

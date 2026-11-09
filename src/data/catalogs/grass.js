@@ -47,13 +47,14 @@ export const GRASS_COVER = {
 };
 
 export const GRASS_GROUND = {
-  files: ['Grass001_1K-JPG_Color.jpg', 'Grass002_1K-JPG_Color.jpg', 'Grass003_1K-JPG_Color.jpg'],
-  tiles: [5.5, 4.3, 6.1],
+  file: 'Grass001_1K-JPG_Color.jpg',
+  tile: 5.5,
   gain: 1.45,
+  shade: 0.85,
 };
 
-export function grassGroundUrls() {
-  return GRASS_GROUND.files.map((file) => `${ASSET_DIRS.textures}${file}`);
+export function grassGroundUrl() {
+  return `${ASSET_DIRS.textures}${GRASS_GROUND.file}`;
 }
 
 export const GRASS_ORDER = Object.keys(GRASS_TYPES);

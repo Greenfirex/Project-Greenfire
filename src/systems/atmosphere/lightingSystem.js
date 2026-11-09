@@ -119,7 +119,7 @@ export default class LightingSystem {
     this.casters = this.casters.filter((mesh) => mesh && !mesh.isDisposed());
     for (const surface of surfaces || []) {
       if (!surface) continue;
-      surface.receiveShadows = !(surface.metadata && surface.metadata.level < 0);
+      surface.receiveShadows = true;
       if (surface.metadata && surface.metadata.shadowAlways) this.addCaster(surface, shadows);
     }
   }

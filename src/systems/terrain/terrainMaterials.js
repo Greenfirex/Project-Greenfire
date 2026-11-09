@@ -7,11 +7,9 @@ import { getDecoration, DEFAULT_FLOOR } from '../../data/catalogs/decorations.js
 import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
 import TerrainBlendPlugin from './terrainBlendPlugin.js';
 import TerrainReliefPlugin from './terrainReliefPlugin.js';
-import TerrainGrassPlugin from './terrainGrassPlugin.js';
 import TerrainCausticPlugin from './terrainCausticPlugin.js';
 import TerrainWetPlugin from './terrainWetPlugin.js';
 import CliffSurfacePlugin from './cliffSurfacePlugin.js';
-import { GRASS_GROUND, grassGroundUrls } from '../../data/catalogs/grass.js';
 import { SURFACE_VERTEX_TINT, color3 } from './terrainSettings.js';
 
 const CLIFF_TEXTURE = `${ASSET_DIRS.textures}Rock050_1K-JPG_Color.jpg`;
@@ -129,11 +127,8 @@ export default {
 
   blendSetupFor(blend) {
     const blends = blend.partners.map((partner) => {
-      const cfg = this.surfaceConfig(partner.key);
-      const patch = Boolean(cfg && cfg.patch);
       return {
         texture: this.blendTextureFor(partner.key),
-        patch,
         weights: partner.weights.texture,
         tile: partner.tile,
         color: partner.color,
@@ -141,13 +136,7 @@ export default {
         scale: partner.weights.scale,
       };
     });
-    const needsPatch = blends.some((slot) => slot.patch);
-    const patch = needsPatch ? {
-      textures: this.groundGrassTextures(),
-      tiles: GRASS_GROUND.tiles,
-      state: this.groundPatch,
-    } : null;
-    return { blends, patch };
+    return { blends };
   },
 
   bandMaterialFor(key, map) {
@@ -190,20 +179,13 @@ export default {
       material.useVertexColor = true;
       material.backFaceCulling = false;
       material.twoSidedLighting = true;
-      material.diffuseColor = color3(cfg.mapTint ? this.tintOf(map) : (cfg.color || [1, 1, 1]));
+      material.diffuseColor = this.surfaceDiffuse(cfg, map);
       this.materials.set(cacheKey, material);
       const relief = this.reliefSetupFor(key, blend);
       if (relief) this.reliefPlugins.set(cacheKey, new TerrainReliefPlugin(material, relief));
       if (!underground) {
         this.causticPlugins.push(new TerrainCausticPlugin(material, this.seaDry));
         this.wetPlugins.push(new TerrainWetPlugin(material, cfg.wet === undefined ? 0.4 : cfg.wet));
-      }
-      if (cfg.patch) {
-        new TerrainGrassPlugin(material, {
-          textures: this.groundGrassTextures(),
-          tiles: GRASS_GROUND.tiles,
-          state: this.groundPatch,
-        });
       }
       if (blend) {
         this.blendPlugins.set(cacheKey, new TerrainBlendPlugin(material, this.blendSetupFor(blend)));
@@ -270,7 +252,13 @@ export default {
   surfaceColor(key, map) {
     const cfg = this.surfaceConfig(key);
     if (!cfg) return new Color3(1, 1, 1);
-    return color3(cfg.mapTint ? this.tintOf(map) : (cfg.color || [1, 1, 1]));
+    return this.surfaceDiffuse(cfg, map);
+  },
+
+  surfaceDiffuse(cfg, map) {
+    const tint = cfg.mapTint ? this.tintOf(map) : (cfg.color || [1, 1, 1]);
+    if (!cfg.shade) return color3(tint);
+    return color3(tint.map((value, index) => value * cfg.shade / SURFACE_VERTEX_TINT[index]));
   },
 
   blendTextureFor(key) {
@@ -283,12 +271,6 @@ export default {
     return texture;
   },
 
-  groundGrassTextures() {
-    if (this.grassGroundTex) return this.grassGroundTex;
-    this.grassGroundTex = grassGroundUrls().map((url) => new Texture(url, this.s));
-    return this.grassGroundTex;
-  },
-
   grassShade(map) {
     const tone = (map && map.colors && map.colors.surfaceTint) || [0.5, 0.62, 0.45];
     return [
@@ -296,10 +278,6 @@ export default {
       tone[1] * 2 * SURFACE_VERTEX_TINT[1],
       tone[2] * 2 * SURFACE_VERTEX_TINT[2],
     ];
-  },
-
-  setGroundBlend(enabled) {
-    this.groundPatch.patch = enabled ? 1 : 0;
   },
 
   updateCaustics(time, level, dirX, dirZ, color, strength, maxDepth) {
@@ -334,10 +312,6 @@ export default {
       if (texture) texture.dispose();
     }
     this.blendTextures.clear();
-    if (this.grassGroundTex) {
-      for (const texture of this.grassGroundTex) texture.dispose();
-      this.grassGroundTex = null;
-    }
     if (this.cliffMaterials) {
       for (const material of Object.values(this.cliffMaterials)) {
         if (material) material.dispose(false, true);

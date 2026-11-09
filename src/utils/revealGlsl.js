@@ -4,7 +4,7 @@ import { CELL_SIZE } from './gridMath.js';
 
 export const REVEAL_UNIFORM_NAMES = ['revealCenter', 'revealRight', 'revealUp', 'revealToCam', 'revealParams', 'revealMapMin', 'revealLight'];
 export const REVEAL_SAMPLER = 'revealMap';
-const DEEP_FLOOR_LIGHT = '0.12';
+const DOOR_FLOOR_LIGHT = '0.25';
 const SIGHT_FADE_START = '8.0';
 const HIGH_ABOVE_CUT = '1.0';
 const SIGHT_FADE_END = '14.0';
@@ -20,8 +20,8 @@ uniform vec3 revealLight;
 uniform sampler2D ${REVEAL_SAMPLER};
 `;
 
-export function revealBlock(color, position, rules) {
-  const { above, front, hide, keep, inside, restore, facing = '1.0', column = '0.0', dark = '0.0', sunlit = '0.0', far = '0.0' } = rules;
+export function revealBlock(color, position, rules, albedo = color) {
+  const { above, front, hide, keep, inside, restore, facing = '1.0', column = '0.0', dark = '0.0', floorGlow = '0.0', far = '0.0' } = rules;
   return `
 {
   float revealAmount = revealParams.x;
@@ -56,8 +56,8 @@ export function revealBlock(color, position, rules) {
     if (revealHole > revealGrain) discard;
     ${color}.rgb *= 1.0 - revealAmount * (1.0 - ${keep}) * (1.0 - revealNear * (1.0 - ${dark}));
     float revealGlow = mix(clamp((revealInner - 0.5) * 2.0, 0.0, 1.0), revealInner, revealAmount);
-    ${color}.rgb *= vec3(1.0) + revealLight * ${inside} * (1.0 - ${sunlit}) * revealGlow;
-    ${color}.rgb *= mix(1.0, mix(${DEEP_FLOOR_LIGHT}, 1.0, revealGlow), ${sunlit});
+    ${color}.rgb *= vec3(1.0) + revealLight * ${inside} * (1.0 - ${floorGlow}) * revealGlow;
+    ${color}.rgb += ${albedo}.rgb * revealLight * ${DOOR_FLOOR_LIGHT} * ${floorGlow} * revealGlow;
     ${color}.rgb *= 1.0 - ${far} * revealAmount * step(1.0, revealRadius) * smoothstep(${SIGHT_FADE_START}, ${SIGHT_FADE_END}, length(revealDelta)) * (1.0 - revealGlow);
   }
 }

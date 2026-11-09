@@ -191,6 +191,14 @@ hráč pod stropem, schovají se přesně stropní dlaždice nad jeskyní (`over
 samostatný mesh `_roof`), kolem otvoru se ukáže skalní lem (`terrainCaveRim`)
 a skryjí se dekorace i tráva na těch buňkách. Strop je zeshora neviditelný.
 
+Táborák má vlastní stín do všech stran (`campfireFire.js`). Stín vrhají jen boky,
+stěny a stropy (`metadata.volume`), ploché podlahy ne, jinak by se pod ostrým úhlem
+kreslily pruhy. Stín se překresluje jednou za 1,5 s, ne každý snímek. Terén mimo
+dosah je z ohně vyloučený. Materiály země jsou blízko limitu 16 textur, proto je
+Půda jen z jedné textury a další textura na zemi se musí pohlídat. Podlaha
+jeskyně je vyloučená ze slunce jako stěny a záři od vchodu dostává přičtením
+(`floorGlow`), ne násobením, aby její jas nezávisel na tom, kde je vchod.
+
 Zkušební jeskyně v Glade: 4×4 buňky pod plošinou u spawnu, vchod ve skalní stěně
 na buňce −6,−10.
 

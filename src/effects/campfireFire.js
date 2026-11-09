@@ -2,6 +2,8 @@
 // Drží jen částice, světlo a míru rozhoření; kde táborák stojí, mu řekne scéna.
 import '@babylonjs/core/Particles/particleSystem';
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
+import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
+import { RenderTargetTexture } from '@babylonjs/core/Materials/Textures/renderTargetTexture';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -14,7 +16,11 @@ const LIGHT_COLOR = new Color3(1, 0.58, 0.22);
 const LIGHT_DAY = 0.9;
 const LIGHT_NIGHT = 4.0;
 const LIGHT_RANGE = 16;
-const LIGHT_OFFSET_Y = 0.1;
+const LIGHT_OFFSET_Y = 0.75;
+const SHADOW_SIZE = 512;
+const SHADOW_BIAS = 0.006;
+const SHADOW_NEAR = 0.05;
+const SHADOW_REFRESH_SECONDS = 1.5;
 const GLOW_STRENGTH = 0.9;
 const GLOW_HOT = 0.28;
 const FLICKER_INTERVAL = 0.12;
@@ -89,6 +95,14 @@ export default class CampfireFire {
     this.light.intensity = 0;
     this.light.range = LIGHT_RANGE;
     this.light.parent = this.emitter;
+    this.light.shadowMinZ = SHADOW_NEAR;
+    this.light.shadowMaxZ = LIGHT_RANGE;
+    this.shadows = new ShadowGenerator(SHADOW_SIZE, this.light);
+    this.shadows.usePoissonSampling = true;
+    this.shadows.bias = SHADOW_BIAS;
+    this.shadows.getShadowMap().refreshRate = RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
+    this.shadowTimer = 0;
+    this.terrain = [];
     this.heat = 0;
     this.flickerTimer = FLICKER_INTERVAL;
     this.flicker = 1;
@@ -102,6 +116,27 @@ export default class CampfireFire {
     this.emitter.position = new Vector3(x, y, z);
     this.emitter.setEnabled(true);
     this.emit(false);
+    this.fitTerrain();
+  }
+
+  setTerrain(surfaces) {
+    this.terrain = surfaces;
+    this.fitTerrain();
+  }
+
+  fitTerrain() {
+    const fire = this.emitter.position;
+    const near = [];
+    const far = [];
+    for (const mesh of this.terrain) {
+      mesh.computeWorldMatrix(true);
+      const { centerWorld, radiusWorld } = mesh.getBoundingInfo().boundingSphere;
+      (Vector3.Distance(centerWorld, fire) <= LIGHT_RANGE + radiusWorld ? near : far).push(mesh);
+    }
+    this.light.excludedMeshes = far;
+    const map = this.shadows.getShadowMap();
+    map.renderList = near.filter((mesh) => mesh.metadata && mesh.metadata.volume);
+    map.resetRefreshCounter();
   }
 
   ignite() {
@@ -140,6 +175,11 @@ export default class CampfireFire {
 
   update(dt) {
     if (this.heat <= 0) return;
+    this.shadowTimer -= dt;
+    if (this.shadowTimer <= 0) {
+      this.shadowTimer = SHADOW_REFRESH_SECONDS;
+      this.shadows.getShadowMap().resetRefreshCounter();
+    }
     this.heat = Math.min(1, this.heat + dt / LIT_SECONDS);
     const size = (0.3 + this.heat * 0.7) * this.scale;
     const [core, tongue, sparks] = this.layers;
@@ -180,6 +220,7 @@ export default class CampfireFire {
   dispose() {
     for (const system of this.layers) system.dispose();
     this.igniteSparks.dispose();
+    this.shadows.dispose();
     this.light.dispose();
     this.texture.dispose();
     this.emitter.dispose();

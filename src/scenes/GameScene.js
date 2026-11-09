@@ -782,6 +782,7 @@ export default class GameScene {
   refreshCaveLighting() {
     if (!this.terrainSystem) return;
     this.lighting.setCaveMeshes(this.terrainSystem.caveMeshes());
+    this.campfireSystem.setTerrain(this.terrainSystem.liveSurfaces());
     this.revealSystem.setLightMap(this.terrainSystem.caveLightMap());
     this.caveFrameSystem.create(this.terrainSystem.caveDoors(), (style) => this.terrainSystem.caveFrameMaterial(style));
     this.editor.syncFloorView();
@@ -848,12 +849,8 @@ export default class GameScene {
     const fernMode = this.options.grassFern === 'detail' ? 'detail' : 'light';
     const fernChanged = this.fernMode !== fernMode;
     this.fernMode = fernMode;
-    const groundBlend = this.options.groundBlend !== false;
-    const blendChanged = this.groundBlend !== groundBlend;
-    this.groundBlend = groundBlend;
-    this.terrainSystem.setGroundBlend(groundBlend);
     const densityChanged = this.floraSystem.density !== this.options.grass;
-    if ((fernChanged || blendChanged || densityChanged) && this.grassModelList) this.rebuildGrass();
+    if ((fernChanged || densityChanged) && this.grassModelList) this.rebuildGrass();
     this.waterSystem.setDetail(this.options.waterDetail);
     this.waterSystem.setReflections(this.options.reflections);
     if (this.isLoading) return;

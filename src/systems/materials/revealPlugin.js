@@ -3,15 +3,15 @@
 import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase';
 import { REVEAL_UNIFORMS, REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, revealBlock } from '../../utils/revealGlsl.js';
 
-const REVEAL_RULES = { above: 'REVEAL_ABOVE', front: 'REVEAL_FRONT', hide: 'REVEAL_HIDE', keep: 'REVEAL_KEEP', inside: 'REVEAL_INSIDE', restore: 'REVEAL_RESTORE', facing: 'REVEAL_FACING', column: 'REVEAL_COLUMN', sunlit: 'REVEAL_SUNLIT', far: 'REVEAL_FAR' };
-const REVEAL_CODE_STANDARD = revealBlock('color', 'vPositionW', REVEAL_RULES);
+const REVEAL_RULES = { above: 'REVEAL_ABOVE', front: 'REVEAL_FRONT', hide: 'REVEAL_HIDE', keep: 'REVEAL_KEEP', inside: 'REVEAL_INSIDE', restore: 'REVEAL_RESTORE', facing: 'REVEAL_FACING', column: 'REVEAL_COLUMN', floorGlow: 'REVEAL_FLOOR_GLOW', far: 'REVEAL_FAR' };
+const REVEAL_CODE_STANDARD = revealBlock('color', 'vPositionW', REVEAL_RULES, 'baseColor');
 const REVEAL_CODE_PBR = revealBlock('finalColor', 'vPositionW', REVEAL_RULES);
 const KEEP_UNIFORM = 'revealKeep';
-const DEFAULT_DEFINES = { REVEAL_ABOVE: '0.0', REVEAL_FRONT: '0.0', REVEAL_HIDE: '0.0', REVEAL_KEEP: '1.0', REVEAL_INSIDE: '0.0', REVEAL_RESTORE: '0.0', REVEAL_FACING: '1.0', REVEAL_COLUMN: '0.0', REVEAL_SUNLIT: '0.0', REVEAL_FAR: '0.0' };
+const DEFAULT_DEFINES = { REVEAL_ABOVE: '0.0', REVEAL_FRONT: '0.0', REVEAL_HIDE: '0.0', REVEAL_KEEP: '1.0', REVEAL_INSIDE: '0.0', REVEAL_RESTORE: '0.0', REVEAL_FACING: '1.0', REVEAL_COLUMN: '0.0', REVEAL_FLOOR_GLOW: '0.0', REVEAL_FAR: '0.0' };
 const DEFINE_FALLBACKS = Object.entries(DEFAULT_DEFINES).map(([name, value]) => `#ifndef ${name}\n#define ${name} ${value}\n#endif`).join('\n');
 const KIND_DEFINES = {
   cave: { above: '1.0', front: '1.0', hide: '0.0', keep: '1.0', inside: '1.0', restore: '0.0', facing: '1.0', far: '1.0' },
-  caveFloor: { above: '1.0', front: '1.0', hide: '0.0', keep: '1.0', inside: '1.0', restore: '0.0', facing: '1.0', sunlit: '1.0', far: '1.0' },
+  caveFloor: { above: '1.0', front: '1.0', hide: '0.0', keep: '1.0', inside: '1.0', restore: '0.0', facing: '1.0', floorGlow: '1.0', far: '1.0' },
   ceiling: { above: '1.0', front: '0.0', hide: '1.0', keep: '1.0', inside: '0.0', restore: '0.0', facing: '1.0' },
   terrain: { above: '0.0', front: '1.0', hide: KEEP_UNIFORM, keep: '0.0', inside: '0.0', restore: '0.0', facing: '1.0', column: '1.0' },
   backdrop: { above: '0.0', front: '0.0', hide: '0.0', keep: '1.0', inside: '0.0', restore: '0.0', facing: '1.0' },
@@ -45,7 +45,7 @@ export default class RevealPlugin extends MaterialPluginBase {
     defines.REVEAL_RESTORE = kind.restore;
     defines.REVEAL_FACING = kind.facing;
     defines.REVEAL_COLUMN = kind.column || '0.0';
-    defines.REVEAL_SUNLIT = kind.sunlit || '0.0';
+    defines.REVEAL_FLOOR_GLOW = kind.floorGlow || '0.0';
     defines.REVEAL_FAR = kind.far || '0.0';
     defines.REVEAL_SET = this._material.pluginManager._plugins.map((plugin) => plugin.name).join('_');
   }

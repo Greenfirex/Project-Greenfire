@@ -3,7 +3,6 @@
 import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
 import { Effect } from '@babylonjs/core/Materials/effect';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { grassGroundGlsl } from '../../utils/grassGround.js';
 import { WAVE_TIME_WRAP } from '../../utils/waterWaves.js';
 import { REVEAL_UNIFORMS, REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, revealBlock } from '../../utils/revealGlsl.js';
 
@@ -58,9 +57,6 @@ const FRAGMENT = `
 precision highp float;
 
 uniform sampler2D diffuseSampler;
-uniform sampler2D groundTexA;
-uniform sampler2D groundTexB;
-uniform sampler2D groundTexC;
 uniform vec3 baseTint;
 uniform vec3 lightDir;
 uniform float dayness;
@@ -68,10 +64,7 @@ uniform float uvFlip;
 uniform float uvScale;
 uniform float patchPick;
 uniform float groundMode;
-uniform float groundTileA;
-uniform float groundTileB;
-uniform float groundTileC;
-uniform float groundPatch;
+uniform float groundTile;
 ${REVEAL_UNIFORMS}
 
 varying vec2 vUV;
@@ -79,12 +72,10 @@ varying vec3 vNormal;
 varying vec3 vRoot;
 varying float vHeight;
 
-${grassGroundGlsl()}
-
 void main(void) {
   vec3 color;
   if (groundMode > 0.5) {
-    color = groundGrass(vRoot.xz, groundTileA, groundTileB, groundTileC, groundPatch) * baseTint;
+    color = texture2D(diffuseSampler, vRoot.xz / groundTile).rgb * baseTint;
   } else {
     vec2 uv = vUV * uvScale;
     if (patchPick > 0.5) {
@@ -127,14 +118,11 @@ export function createGrassMaterial(scene, options) {
   registerShaders();
   const material = new ShaderMaterial(options.name || 'wildGrassMat', scene, { vertex: 'grass', fragment: 'grass' }, {
     attributes: ['position', 'normal', 'uv', 'world0', 'world1', 'world2', 'world3'],
-    uniforms: ['viewProjection', 'grassTime', 'clumpHeight', 'baseTint', 'lightDir', 'dayness', 'uvFlip', 'uvScale', 'patchPick', 'groundMode', 'groundTileA', 'groundTileB', 'groundTileC', 'groundPatch', ...REVEAL_UNIFORM_NAMES],
-    samplers: ['diffuseSampler', 'groundTexA', 'groundTexB', 'groundTexC', REVEAL_SAMPLER],
+    uniforms: ['viewProjection', 'grassTime', 'clumpHeight', 'baseTint', 'lightDir', 'dayness', 'uvFlip', 'uvScale', 'patchPick', 'groundMode', 'groundTile', ...REVEAL_UNIFORM_NAMES],
+    samplers: ['diffuseSampler', REVEAL_SAMPLER],
   });
   const tint = options.tint || [1, 1, 1];
   const uvScale = Number(options.uvScale) || 1;
-  const ground = options.ground || null;
-  const tiles = ground ? ground.tiles : [1, 1, 1];
-  const groundTextures = ground ? ground.textures : [options.texture, options.texture, options.texture];
   material.backFaceCulling = false;
   material.setFloat('grassTime', 0);
   material.setFloat('clumpHeight', options.height || 0.5);
@@ -144,16 +132,9 @@ export function createGrassMaterial(scene, options) {
   material.setFloat('uvFlip', options.texture && options.texture.invertY ? 1 : 0);
   material.setFloat('uvScale', uvScale);
   material.setFloat('patchPick', options.patchPick ? 1 : 0);
-  material.setFloat('groundMode', ground ? 1 : 0);
-  material.setFloat('groundPatch', ground && ground.patch !== false ? 1 : 0);
-  material.setFloat('groundTileA', tiles[0]);
-  material.setFloat('groundTileB', tiles[1]);
-  material.setFloat('groundTileC', tiles[2]);
+  material.setFloat('groundMode', options.groundTile ? 1 : 0);
+  material.setFloat('groundTile', options.groundTile || 1);
   if (options.texture) material.setTexture('diffuseSampler', options.texture);
-  const groundNames = ['groundTexA', 'groundTexB', 'groundTexC'];
-  for (let index = 0; index < groundNames.length; index += 1) {
-    if (groundTextures[index]) material.setTexture(groundNames[index], groundTextures[index]);
-  }
   return material;
 }
 
