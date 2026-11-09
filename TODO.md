@@ -5,15 +5,12 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ## CLAUDE KROKY NA PONDĚLÍ
 
 ### Odladit tvory přes patra (rozdělané, ve hře netestované)
-- [ ] Projít honičku s koa'tiki: z povrchu do jeskyně, chodbou dolů do −2 a zpět. Zvládá chodbu (pokles 0,75 m na buňku, koa'tiki má `maxStepHeight` 0,6)?
 - [ ] Ověřit návrat domů přes průchody a to, že písečný ďábel a kajmanka se zastaví u vchodu z povrchu.
 - [ ] Doladit vnímání přes průchod (`FLOOR_LINK_RADIUS` 8 m v `navigationSystem.js`): viditelnost tvora a jeho reakce u průchodu.
 - [ ] Tvor umístěný do jeskyně: drží se v podzemí? Správné značky a stav v editoru (`statusAt` zná jen povrch).
 - [ ] Ověřit výkon hledání cesty přes patra.
 
 ### Život v jeskyni
-- [ ] Kolize předmětů v jeskyni (dnes se jimi projde).
-- [ ] Zvýraznění předmětu pod myší v jeskyni (dnes jen na povrchu).
 - [ ] Rozhodnout trávu v jeskyni (stébla se tam nepřidala).
 - [ ] Ověřit v praxi pokládání předmětů a táboráku v patře, zapálení a znovunačtení savu.
 

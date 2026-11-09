@@ -176,15 +176,15 @@ export default class InputSystem {
     return pick.pickedPoint;
   }
 
-  cellAtPointer() {
+  cellAtPointer(level = null) {
     const ray = this.s.createPickingRay(this.s.pointerX, this.s.pointerY, null, this.camera);
-    const point = this.surfacePoint(ray) || this.fallbackPoint(ray);
+    const point = this.surfacePoint(ray, level) || (level === null ? this.fallbackPoint(ray) : null);
     if (!point) return null;
     const { cx, cz } = worldToCellCoords(point.x, point.z);
     return { cx, cz, point };
   }
 
-  surfacePoint(ray) {
+  surfacePoint(ray, level = null) {
     if (!this.groundHeightAt) return null;
     const origin = ray.origin;
     const direction = ray.direction;
@@ -195,19 +195,19 @@ export default class InputSystem {
     for (let i = 0; i < PICK_STEPS; i += 1) {
       const px = origin.x + direction.x * distance;
       const pz = origin.z + direction.z * distance;
-      const height = this.groundHeightAt(px, pz);
+      const height = this.groundHeightAt(px, pz, level);
       if (!Number.isFinite(height)) return null;
       if (origin.y + direction.y * distance <= height) {
         let low = previous;
         let high = distance;
         for (let k = 0; k < PICK_REFINE; k += 1) {
           const mid = (low + high) * 0.5;
-          const probeHeight = this.groundHeightAt(origin.x + direction.x * mid, origin.z + direction.z * mid);
+          const probeHeight = this.groundHeightAt(origin.x + direction.x * mid, origin.z + direction.z * mid, level);
           if (origin.y + direction.y * mid <= probeHeight) high = mid;
           else low = mid;
         }
         const hit = origin.add(direction.scale(high + PICK_NUDGE));
-        hit.y = this.groundHeightAt(hit.x, hit.z);
+        hit.y = this.groundHeightAt(hit.x, hit.z, level);
         return hit;
       }
       previous = distance;

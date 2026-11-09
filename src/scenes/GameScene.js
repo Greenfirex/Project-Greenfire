@@ -83,6 +83,7 @@ const WADE_RAMP = 0.2;
 const SHORE_CHECK_SECONDS = 0.3;
 const MAX_STEP_SECONDS = 0.1;
 const SHADOW_REACH_STEP = 0.2;
+const NO_FLOOR_PICK_HEIGHT = -1000;
 const EDITOR_CAM_SPEED = 12;
 const EDITOR_CAM_SPRINT = 32;
 const PLAYER_ZOOM_MAX = 22;
@@ -123,6 +124,7 @@ export default class GameScene {
     this.campfireSystem = new CampfireSystem(scene);
     this.glowSystem = new GlowSystem(scene);
     this.decoHighlight = new DecoHighlightSystem(scene);
+    this.decoHighlight.levelOf = () => this.gatherSystem.levelOf();
     this.dayNightSystem = new DayNightSystem(scene);
     this.lighting = new LightingSystem(scene);
     this.simSystem = new SimSystem(scene);
@@ -451,11 +453,8 @@ export default class GameScene {
       this.gameCursor.setState('default');
       return;
     }
-    const pointer = this.playerOnSurface() ? this.inputSystem.lastCell : null;
-    const entry = pointer
-      ? this.gatherSystem.entries.find((item) => item.left > 0
-        && item.entry.cx === pointer.cx && item.entry.cz === pointer.cz)
-      : null;
+    const pointer = this.inputSystem.lastCell;
+    const entry = pointer ? this.gatherSystem.itemAtCell(pointer.cx, pointer.cz) : null;
     const tool = this.heldItemSystem.tool();
     if (!entry || entry.def.byHand || !tool || !tool.harvest || !tool.harvest.kinds.includes(entry.def.kind)) {
       this.gameCursor.setState('default');
@@ -508,18 +507,13 @@ export default class GameScene {
       this.setHoverHint(this.interaction.targetOf('gather', { cell: this.inputSystem.cellAtPointer() }));
     }
     if (!moved) return;
-    if (!this.playerOnSurface()) {
-      this.decoHighlight.setHover(null);
-      this.setPointerCursorState();
-      return;
-    }
     const pointer = this.inputSystem.lastCell;
     if (pointer && this.decoHighlight.hasEntry(pointer.cx, pointer.cz)) {
       this.decoHighlight.setHover(pointer);
       this.setPointerCursorState();
       return;
     }
-    this.decoHighlight.setHover(this.inputSystem.cellAtPointer());
+    this.decoHighlight.setHover(this.pointedCell(this.inputSystem.cellAtPointer()));
     this.setPointerCursorState();
   }
 
@@ -958,13 +952,31 @@ export default class GameScene {
     const under = Boolean(view) || (Boolean(root) && !this.editor.active && this.isUnderRoof(root.position.x, root.position.z, level));
     if (view) this.revealSystem.setKeptMeshes([...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoMeshes(this.editor.mode.floorLevel)]);
     else if (under || this.revealSystem.isOpen()) {
-      const own = [...root.getChildMeshes(false), ...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoMeshes(level)];
+      const viewer = { x: root.position.x, y: root.position.y, z: root.position.z, level };
+      const seen = ({ x, y, z }, floor) => this.navigation.seesAcrossFloors(viewer, { x, y, z, level: floor });
+      const own = [...root.getChildMeshes(false), ...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoInSight(seen)];
       for (const creature of this.creatureSystem.creatures) {
-        if (this.navigation.floorsLinkedNear(root.position.x, root.position.z, level, creature.level || 0)) own.push(...creature.meshes);
+        const floor = creature.level || 0;
+        const y = this.creatureSystem.groundAt(creature.x, creature.z, floor);
+        if (seen({ x: creature.x, y, z: creature.z }, floor)) own.push(...creature.meshes);
       }
       this.revealSystem.setKeptMeshes(own);
     }
     this.revealSystem.update(dt, under, root ? root.position : null, this.camera, view);
+  }
+
+  pointedCell(cell) {
+    const root = this.playerSystem.root;
+    if (!cell || !root || this.editor.active) return cell;
+    const { x, y, z } = root.position;
+    const viewer = { x, y, z, level: this.playerSystem.level };
+    for (const level of this.navigation.floorsInSight(x, z, viewer.level)) {
+      const candidate = level === viewer.level ? cell : this.inputSystem.cellAtPointer(level);
+      if (!candidate) continue;
+      const spot = this.decoHighlight.spotAt(candidate.cx, candidate.cz, level);
+      if (spot && this.navigation.seesAcrossFloors(viewer, { x: spot.x, y: spot.y, z: spot.z, level })) return { ...candidate, level };
+    }
+    return cell;
   }
 
   playerOnSurface() {
@@ -1079,9 +1091,12 @@ export default class GameScene {
   setupInput() {
     this.inputSystem.suppressContextMenu(this.canvas);
     this.inputSystem.groundPredicate = (mesh) => mesh === this.terrainSystem.ground;
-    this.inputSystem.groundHeightAt = (x, z) => {
-      const plane = this.editor.floorPlane(x, z);
-      return plane !== null ? plane : this.terrainSystem.walkHeightAt(x, z, this.editor.active ? 0 : this.playerSystem.level);
+    this.inputSystem.groundHeightAt = (x, z, wanted = null) => {
+      const plane = wanted === null ? this.editor.floorPlane(x, z) : null;
+      if (plane !== null) return plane;
+      const level = wanted !== null ? wanted : this.gatherSystem.levelOf();
+      if (level !== 0 && !this.navigation.isWalkableAt(x, z, level)) return NO_FLOOR_PICK_HEIGHT;
+      return this.terrainSystem.walkHeightAt(x, z, level);
     };
     this.inputSystem.shouldPickByRay = () => this.editor.active && this.editor.mode.selectsArea;
     this.inputSystem.attach(this.camera, this);
@@ -1320,13 +1335,13 @@ export default class GameScene {
 
   handleHover(cell) {
     this.hoverCell = cell;
-    const surfaceCell = this.playerOnSurface() && !(this.editor.active && this.editor.mode.undergroundView) ? cell : null;
-    this.decoHighlight.setHover(surfaceCell || null);
+    const pointedCell = this.editor.active && this.editor.mode.undergroundView ? null : this.pointedCell(cell);
+    this.decoHighlight.setHover(pointedCell || null);
     if (!this.editor.active) {
       this.gridSystem.clearHoverCell();
       this.gridSystem.clearCreatureRadius();
       this.gridSystem.hideHologram();
-      this.refreshHoverTooltip(surfaceCell);
+      this.refreshHoverTooltip(pointedCell);
       return;
     }
     this.gridSystem.hideHologram();
@@ -1363,14 +1378,15 @@ export default class GameScene {
       this.tooltipPanel.hide();
       return;
     }
-    const height = this.terrainSystem.walkHeightAt(cell.cx * CELL_SIZE, cell.cz * CELL_SIZE);
+    const level = Number.isFinite(cell.level) ? cell.level : this.gatherSystem.levelOf();
+    const height = this.terrainSystem.walkHeightAt(cell.cx * CELL_SIZE, cell.cz * CELL_SIZE, level);
     const detail = `výška ${metersText(height)}`;
-    const deco = this.decoHighlight.labelAt(cell.cx, cell.cz);
+    const deco = this.decoHighlight.labelAt(cell.cx, cell.cz, level);
     if (deco) {
       this.tooltipPanel.show(deco.label, detail);
       return;
     }
-    const surfaceKey = this.decoSystem.surfaceKeyAt ? this.decoSystem.surfaceKeyAt(cell.cx, cell.cz) : null;
+    const surfaceKey = this.playerOnSurface() && this.decoSystem.surfaceKeyAt ? this.decoSystem.surfaceKeyAt(cell.cx, cell.cz) : null;
     const surface = surfaceKey ? getDecoration(surfaceKey) : null;
     this.tooltipPanel.show(surface ? surface.displayName : 'Země', detail);
   }

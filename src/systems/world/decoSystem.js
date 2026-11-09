@@ -57,6 +57,7 @@ export default class DecoSystem {
   constructor(scene) {
     this.s = scene;
     this.blocked = new Map();
+    this.caveBlocked = new Map();
     this.treeCells = new Set();
     this.columnTop = new Map();
     this.surfaceKeys = new Map();
@@ -200,6 +201,7 @@ export default class DecoSystem {
 
   refreshBlocked(layout) {
     this.blocked.clear();
+    this.caveBlocked.clear();
     this.treeCells.clear();
     const entries = [].concat(
       layout.floor || [],
@@ -214,11 +216,23 @@ export default class DecoSystem {
     }
     for (const shape of deriveBlocked(entries)) this.addBlockedShape(shape);
     for (const cell of layout.blocked || []) this.addBlockedShape(cell);
+    for (const entry of layout.decorations || []) {
+      const level = levelOfEntry(entry);
+      if (!entry || level === 0) continue;
+      for (const shape of deriveBlocked([entry])) this.addBlockedShape(shape, level);
+    }
   }
 
-  addBlockedShape(cell) {
+  blockedOn(level) {
+    if (level === 0) return this.blocked;
+    if (!this.caveBlocked.has(level)) this.caveBlocked.set(level, new Map());
+    return this.caveBlocked.get(level);
+  }
+
+  addBlockedShape(cell, level = 0) {
+    const blocked = this.blockedOn(level);
     const key = cellKey(cell.cx, cell.cz);
-    const list = this.blocked.get(key);
+    const list = blocked.get(key);
     const shape = {
       cx: cell.cx,
       cz: cell.cz,
@@ -229,7 +243,7 @@ export default class DecoSystem {
       offsetZ: cell.offsetZ || 0,
     };
     if (list) list.push(shape);
-    else this.blocked.set(key, [shape]);
+    else blocked.set(key, [shape]);
   }
 
   updatePath(layout) {
@@ -287,6 +301,17 @@ export default class DecoSystem {
     for (const anchor of this.anchors) {
       const entry = anchor && anchor.metadata && anchor.metadata.entry;
       if (!entry || levelOfEntry(entry) !== level || anchor.isDisposed()) continue;
+      meshes.push(...anchor.getChildMeshes(false));
+    }
+    return meshes;
+  }
+
+  caveDecoInSight(seen) {
+    const meshes = [];
+    for (const anchor of this.anchors) {
+      const entry = anchor && anchor.metadata && anchor.metadata.entry;
+      const floor = levelOfEntry(entry);
+      if (!entry || floor === 0 || anchor.isDisposed() || !seen(anchor.position, floor)) continue;
       meshes.push(...anchor.getChildMeshes(false));
     }
     return meshes;
@@ -648,18 +673,24 @@ export default class DecoSystem {
     return this.treeCells.has(cellKey(cx, cz));
   }
 
-  releaseCell(cx, cz) {
+  releaseCell(cx, cz, anchor = null) {
     const key = cellKey(cx, cz);
+    const level = levelOfEntry(anchor && anchor.metadata ? anchor.metadata.entry : null);
+    if (level !== 0) {
+      this.blockedOn(level).delete(key);
+      return;
+    }
     this.blocked.delete(key);
     this.treeCells.delete(key);
     this.columnTop.delete(key);
   }
 
-  overlaps(x, z, bodyRadius) {
+  overlaps(x, z, bodyRadius, level = 0) {
+    const blocked = this.blockedOn(level);
     const { cx, cz } = indexToCellCoords(x, z);
     for (let ix = cx - 2; ix <= cx + 2; ix++) {
       for (let iz = cz - 2; iz <= cz + 2; iz++) {
-        const shapes = this.blocked.get(cellKey(ix, iz));
+        const shapes = blocked.get(cellKey(ix, iz));
         if (!shapes) continue;
         for (const shape of shapes) {
           const dx = x - shape.cx * CELL_SIZE - shape.offsetX;
@@ -671,12 +702,13 @@ export default class DecoSystem {
     return false;
   }
 
-  nearestContact(x, z, bodyRadius, reachOut) {
+  nearestContact(x, z, bodyRadius, reachOut, level = 0) {
+    const blocked = this.blockedOn(level);
     const { cx, cz } = indexToCellCoords(x, z);
     let best = null;
     for (let ix = cx - 2; ix <= cx + 2; ix++) {
       for (let iz = cz - 2; iz <= cz + 2; iz++) {
-        const shapes = this.blocked.get(cellKey(ix, iz));
+        const shapes = blocked.get(cellKey(ix, iz));
         if (!shapes) continue;
         for (const shape of shapes) {
           const dx = x - shape.cx * CELL_SIZE - shape.offsetX;

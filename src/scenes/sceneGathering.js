@@ -116,8 +116,8 @@ export default {
         if (def.castsShadow) this.addShadowCaster(child);
       }
     }
-    this.decoHighlight.remove(cx, cz);
-    this.decoSystem.releaseCell(cx, cz);
+    this.decoHighlight.remove(cx, cz, anchor);
+    this.decoSystem.releaseCell(cx, cz, anchor);
     this.gatherSystem.markTaken(cx, cz);
     if (record) this.fellingSystem.record(cx, cz, def, dir);
   },
@@ -135,8 +135,8 @@ export default {
 
   releaseGatherCell(anchor, cell) {
     if (anchor && !anchor.isDisposed()) anchor.setEnabled(false);
-    this.decoHighlight.remove(cell.cx, cell.cz);
-    this.decoSystem.releaseCell(cell.cx, cell.cz);
+    this.decoHighlight.remove(cell.cx, cell.cz, anchor);
+    this.decoSystem.releaseCell(cell.cx, cell.cz, anchor);
     if (this.inputSystem.lastCell && this.inputSystem.lastCell.cx === cell.cx && this.inputSystem.lastCell.cz === cell.cz) {
       this.decoHighlight.setHover(null);
     }
@@ -156,8 +156,8 @@ export default {
       }
       const anchor = found.anchor;
       if (anchor && !anchor.isDisposed()) anchor.setEnabled(false);
-      this.decoHighlight.remove(cell.cx, cell.cz);
-      this.decoSystem.releaseCell(cell.cx, cell.cz);
+      this.decoHighlight.remove(cell.cx, cell.cz, anchor);
+      this.decoSystem.releaseCell(cell.cx, cell.cz, anchor);
       this.gatherSystem.markTaken(cell.cx, cell.cz);
     }
   },

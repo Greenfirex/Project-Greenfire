@@ -4,6 +4,7 @@ import { worldToCellCoords, CELL_SIZE } from '../../utils/gridMath.js';
 import { worldCells, hasFloor, ceilingLiftAt } from '../../data/maps/areaShape.js';
 
 const FLOOR_LINK_RADIUS = 8;
+const DOORWAY_SIGHT_HEIGHT = 3;
 const WALK_CLEARANCE = 1.25;
 export const WADE_DEPTH = 0.6;
 
@@ -113,6 +114,38 @@ export default class NavigationSystem {
   }
 
   floorsLinkedNear(x, z, levelA, levelB) {
+    return this.doorwayNear([[x, z]], levelA, levelB);
+  }
+
+  sharesDoorway(firstX, firstZ, secondX, secondZ, levelA, levelB) {
+    return this.doorwayNear([[firstX, firstZ], [secondX, secondZ]], levelA, levelB);
+  }
+
+  seesAcrossFloors(viewer, thing) {
+    if (viewer.level === thing.level) return true;
+    if (!this.sharesDoorway(viewer.x, viewer.z, thing.x, thing.z, viewer.level, thing.level)) return false;
+    return thing.y - viewer.y <= DOORWAY_SIGHT_HEIGHT;
+  }
+
+  floorsInSight(x, z, level) {
+    const floors = [level];
+    for (const record of this.connectors() || []) {
+      const from = record && record.from;
+      const to = record && record.to;
+      if (!from || !to) continue;
+      const a = levelOf(from);
+      const b = levelOf(to);
+      if (a !== level && b !== level) continue;
+      const other = a === level ? b : a;
+      if (floors.includes(other)) continue;
+      const doorX = ((from.cx + to.cx) / 2) * CELL_SIZE;
+      const doorZ = ((from.cz + to.cz) / 2) * CELL_SIZE;
+      if (Math.hypot(doorX - x, doorZ - z) <= FLOOR_LINK_RADIUS) floors.push(other);
+    }
+    return floors;
+  }
+
+  doorwayNear(points, levelA, levelB) {
     if (levelA === levelB) return true;
     for (const record of this.connectors() || []) {
       const from = record && record.from;
@@ -123,7 +156,7 @@ export default class NavigationSystem {
       if (!((a === levelA && b === levelB) || (a === levelB && b === levelA))) continue;
       const doorX = ((from.cx + to.cx) / 2) * CELL_SIZE;
       const doorZ = ((from.cz + to.cz) / 2) * CELL_SIZE;
-      if (Math.hypot(doorX - x, doorZ - z) <= FLOOR_LINK_RADIUS) return true;
+      if (points.every(([x, z]) => Math.hypot(doorX - x, doorZ - z) <= FLOOR_LINK_RADIUS)) return true;
     }
     return false;
   }

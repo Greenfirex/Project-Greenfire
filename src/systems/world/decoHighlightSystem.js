@@ -2,6 +2,7 @@
 // Drží si seznam meshů a jméno pro tooltip; samotné kreslení si řídí Babylon.
 import '@babylonjs/core/Rendering/outlineRenderer';
 import { cellKey } from '../../utils/gridMath.js';
+import { levelOfEntry } from '../../data/maps/areaShape.js';
 import { OUTLINE_GOLD, OUTLINE_PULSE, OUTLINE_PULSE_SPEED, OUTLINE_FADE_SPEED } from '../../utils/outlineStyle.js';
 
 const OUTLINE_WIDTH = 0.035;
@@ -15,6 +16,15 @@ export default class DecoHighlightSystem {
     this.hoverKey = null;
     this.time = 0;
     this.visible = true;
+    this.levelOf = null;
+  }
+
+  currentLevel() {
+    return this.levelOf ? this.levelOf() : 0;
+  }
+
+  keyOf(cx, cz, level) {
+    return `${level}|${cellKey(cx, cz)}`;
   }
 
   add(entry, node, def) {
@@ -27,9 +37,10 @@ export default class DecoHighlightSystem {
     const meshes = node.getChildMeshes().filter((mesh) => mesh.getTotalVertices && mesh.getTotalVertices() > 0);
     if (node.getTotalVertices && node.getTotalVertices() > 0) meshes.unshift(node);
     if (!meshes.length) return;
-    const key = cellKey(entry.cx, entry.cz);
-    this.remove(entry.cx, entry.cz);
+    const key = this.keyOf(entry.cx, entry.cz, levelOfEntry(entry));
+    this.removeKey(key);
     this.records.set(key, {
+      node,
       meshes,
       label: def.displayName || entry.key,
       level: 0,
@@ -37,16 +48,21 @@ export default class DecoHighlightSystem {
   }
 
   hasEntry(cx, cz) {
-    return this.records.has(cellKey(cx, cz));
+    return this.records.has(this.keyOf(cx, cz, this.currentLevel()));
   }
 
-  labelAt(cx, cz) {
-    const record = this.records.get(cellKey(cx, cz));
+  labelAt(cx, cz, level = this.currentLevel()) {
+    const record = this.records.get(this.keyOf(cx, cz, level));
     return record ? { label: record.label } : null;
   }
 
+  spotAt(cx, cz, level) {
+    const record = this.records.get(this.keyOf(cx, cz, level));
+    return record ? record.node.getAbsolutePosition() : null;
+  }
+
   setHover(cell) {
-    this.hoverKey = cell ? cellKey(cell.cx, cell.cz) : null;
+    this.hoverKey = cell ? this.keyOf(cell.cx, cell.cz, Number.isFinite(cell.level) ? cell.level : this.currentLevel()) : null;
   }
 
   setVisible(visible) {
@@ -80,8 +96,12 @@ export default class DecoHighlightSystem {
     }
   }
 
-  remove(cx, cz) {
-    const key = cellKey(cx, cz);
+  remove(cx, cz, anchor = null) {
+    const level = anchor && anchor.metadata ? levelOfEntry(anchor.metadata.entry) : this.currentLevel();
+    this.removeKey(this.keyOf(cx, cz, level));
+  }
+
+  removeKey(key) {
     const record = this.records.get(key);
     if (!record) return;
     this.applyLevel(record, 0);
