@@ -14,8 +14,6 @@ import { REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER } from '../../utils/revealGlsl.js'
 const FADE_SECONDS = 0.4;
 const CUT_ABOVE_FLOOR = 3;
 const CUT_FOLLOW = 10;
-const SIGHT_RADIUS = 12;
-const EDITOR_VIEW_RADIUS = 0.001;
 const BACKDROP_RADIUS = 400;
 const BACKDROP_BELOW_FLOOR = 0.15;
 const DAY_LIGHT = [4.5, 4.2, 3.8];
@@ -40,12 +38,9 @@ export default class RevealSystem {
     this.s = scene;
     this.state = {
       center: new Vector3(0, 0, 0),
-      right: new Vector3(1, 0, 0),
-      up: new Vector3(0, 1, 0),
-      toCam: new Vector3(0, 1, 0),
       amount: 0,
       cut: 0,
-      radius: SIGHT_RADIUS,
+      sightFade: 1,
       floor: 0,
       kept: new Set(),
       map: null,
@@ -169,21 +164,13 @@ export default class RevealSystem {
     this.backdrop = backdrop;
   }
 
-  updateCamera(camera) {
-    const { right, up, toCam } = this.state;
-    camera.getDirectionToRef(Vector3.Right(), right);
-    camera.getDirectionToRef(Vector3.Up(), up);
-    camera.position.subtractToRef(camera.target, toCam);
-    toCam.normalize();
-  }
-
   update(dt, active, position, camera, view = null) {
     this.attachPending();
     const step = Math.max(0, dt) / FADE_SECONDS;
     this.progress = Math.max(0, Math.min(1, this.progress + (active ? step : -step)));
     const state = this.state;
     state.amount = this.progress * this.progress * (3 - 2 * this.progress);
-    state.radius = view ? EDITOR_VIEW_RADIUS : SIGHT_RADIUS;
+    state.sightFade = view ? 0 : 1;
     if (view) {
       state.center.copyFrom(camera.target);
       state.cut = view.cut;
@@ -196,22 +183,18 @@ export default class RevealSystem {
       state.floor = position.y;
     }
     this.wasOpen = this.progress > 0;
-    if (camera) this.updateCamera(camera);
     this.pushShaderUniforms();
     this.updateBackdrop(view ? state.center : position);
   }
 
   pushShaderUniforms() {
-    const { center, right, up, toCam, amount, cut, radius, floor, map, mapMin, light } = this.state;
+    const { center, amount, cut, sightFade, floor, map, mapMin, light } = this.state;
     for (const material of this.shaders) {
       material.setVector3('revealCenter', center);
-      material.setVector3('revealRight', right);
-      material.setVector3('revealUp', up);
-      material.setVector3('revealToCam', toCam);
       material.setTexture(REVEAL_SAMPLER, map);
       material.setVector4('revealMapMin', mapMin);
       material.setVector3('revealLight', light);
-      material.setVector4('revealParams', this.paramsVector.set(amount, cut, radius, floor));
+      material.setVector4('revealParams', this.paramsVector.set(amount, cut, sightFade, floor));
     }
   }
 

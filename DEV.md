@@ -190,6 +190,9 @@ vždy (vyloučená ze slunce), postava a tvorové zůstávají osvětlení norm�
 hráč pod stropem, schovají se přesně stropní dlaždice nad jeskyní (`overCave`,
 samostatný mesh `_roof`), kolem otvoru se ukáže skalní lem (`terrainCaveRim`)
 a skryjí se dekorace i tráva na těch buňkách. Strop je zeshora neviditelný.
+Terén výš než podlaha, na které hráč stojí, zmizí v celém rozsahu stejně jako
+v editoru pater (`revealColumn`), nezávisle na natočení kamery. Zůstává jen
+osvětlené okolí vchodu podle mapy `caveLightMap`.
 
 Táborák má vlastní stín do všech stran (`campfireFire.js`). Stín vrhají jen boky,
 stěny a stropy (`metadata.volume`), ploché podlahy ne, jinak by se pod ostrým úhlem

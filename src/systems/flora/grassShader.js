@@ -100,7 +100,7 @@ void main(void) {
   float wrap = clamp(dot(n, lightDir) * 0.5 + 0.5, 0.0, 1.0);
   color *= 0.62 + wrap * 0.62 * dayness;
 
-  ${revealBlock('color', 'vRoot', { above: '1.0', front: '0.0', hide: '1.0', keep: '0.0', inside: '0.0', restore: '1.0' })}
+  ${revealBlock('color', 'vRoot', { above: '1.0', hide: '1.0', keep: '0.0', inside: '0.0', restore: '1.0' })}
   gl_FragColor = vec4(color, 1.0);
 }
 `;
