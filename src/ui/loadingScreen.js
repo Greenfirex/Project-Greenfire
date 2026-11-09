@@ -1,5 +1,7 @@
 // Obrazovka načítání — jeden souvislý pruh od 0 do 100 %, který se jen plní dopředu.
 // Nahoře je splash obrázek, pod ním pruh s vtipnými popisky aktuální fáze.
+import { releaseFrame } from '../utils/assetLoader.js';
+
 const MIN_VISIBLE_MS = 600;
 const MIN_AFTER_FIRST_MS = 300;
 const FADE_MS = 400;
@@ -12,10 +14,6 @@ const WORLD_START = MAP_END;
 const WORLD_END = 95;
 const FLOAT_START = WORLD_END;
 const FLOAT_END = 100;
-
-function releaseFrame() {
-  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
-}
 
 function shortName(url) {
   const parts = url.split('/');
@@ -38,6 +36,7 @@ export default class LoadingScreen {
     this.overall = 0;
     this.mapStep = null;
     this.startedAt = 0;
+    this.phaseAt = 0;
     this.lastProgressAt = 0;
     this.hideTimer = 0;
     this.onHiddenCallback = null;
@@ -118,6 +117,7 @@ export default class LoadingScreen {
     for (let i = 0; i < ASSET_LANES; i += 1) lanes.push(worker());
     await Promise.all(lanes);
     this.endAssets();
+    this.logPhase('Modely');
     return { done, failed };
   }
 
@@ -137,6 +137,7 @@ export default class LoadingScreen {
     this.mapStep = null;
     this.setOverall(MAP_END);
     this.paint();
+    this.logPhase('Mapa');
   }
 
   beginWorld(count) {
@@ -187,6 +188,7 @@ export default class LoadingScreen {
     this.stageStep = null;
     this.setOverall(WORLD_END);
     this.paint();
+    this.logPhase('Stavba světa');
   }
 
   worldPercent() {
@@ -217,6 +219,14 @@ export default class LoadingScreen {
     this.floatStep = null;
     this.lastProgressAt = performance.now();
     this.paint();
+    this.logPhase('Postava, tvorové a tráva');
+    console.info(`[start] Celkem: ${((performance.now() - this.startedAt) / 1000).toFixed(1)} s`);
+  }
+
+  logPhase(name) {
+    const now = performance.now();
+    console.info(`[start] ${name}: ${((now - (this.phaseAt || this.startedAt)) / 1000).toFixed(1)} s`);
+    this.phaseAt = now;
   }
 
   floatPercent() {

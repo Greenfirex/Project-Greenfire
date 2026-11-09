@@ -9,7 +9,7 @@ import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
 import { PAINT_TERRAIN, PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH, PAINT_ALL } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 
-const WORLD_BATCH = 4;
+const WORLD_BATCH = 30;
 const WORLD_BATCH_BULK = 1500;
 const STAGE_LEAD_FRAMES = 2;
 const MODEL_LANES = 4;

@@ -73,6 +73,8 @@ import sceneCombatParts from './sceneCombat.js';
 import sceneGatheringParts from './sceneGathering.js';
 import sceneStepsParts from './sceneSteps.js';
 
+const LOADING_DRAW_MS = 500;
+
 const AUTOTUNE_WINDOW_MS = 2000;
 const AUTOTUNE_LOW_FPS = 45;
 const AUTOTUNE_HIGH_FPS = 57;
@@ -183,6 +185,7 @@ export default class GameScene {
     this.loader = new LoadingScreen();
     this.loader.onHiddenCallback = () => this.onLoadingHidden();
     this.isLoading = true;
+    this.loadingDrawnAt = 0;
     this.loaded = false;
     this.saveHintAfterLoad = null;
     this.defaultMaxFPS = undefined;
@@ -344,10 +347,20 @@ export default class GameScene {
       this.refreshClock();
     });
 
-    this.engine.runRenderLoop(() => this.s.render());
+    this.engine.runRenderLoop(() => {
+      if (this.shouldDrawFrame()) this.s.render();
+    });
     this.hotbar.setSelected(this.heldItemSystem.key);
     this.inventoryWindow.update(this.inventorySystem);
     await this.prepareGame();
+  }
+
+  shouldDrawFrame() {
+    if (!this.isLoading || this.loader.allDone) return true;
+    const now = performance.now();
+    if (now - this.loadingDrawnAt < LOADING_DRAW_MS) return false;
+    this.loadingDrawnAt = now;
+    return true;
   }
 
   async prepareGame() {
