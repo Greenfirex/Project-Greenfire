@@ -55,6 +55,7 @@ export default class CaveFrameSystem {
     if (known) return known;
     const source = rockTemplate(this.s, key).getChildMeshes()[0];
     const mesh = source.clone(`caveFrame_${door.style}_${key}`, null, false);
+    mesh.makeGeometryUnique();
     mesh.material = this.materialFor(door.style);
     mesh.parent = null;
     mesh.isPickable = false;

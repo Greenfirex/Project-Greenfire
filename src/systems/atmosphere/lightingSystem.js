@@ -23,6 +23,16 @@ function sameMeshes(first, second) {
   return true;
 }
 
+function casterPlace(mesh) {
+  if (!mesh.metadata || !mesh.metadata.shadowChunk) {
+    const point = mesh.getAbsolutePosition();
+    return { x: point.x, z: point.z, radius: 0 };
+  }
+  mesh.computeWorldMatrix();
+  const sphere = mesh.getBoundingInfo().boundingSphere;
+  return { x: sphere.centerWorld.x, z: sphere.centerWorld.z, radius: sphere.radiusWorld };
+}
+
 export default class LightingSystem {
 
   constructor(scene) {
@@ -120,7 +130,7 @@ export default class LightingSystem {
     for (const surface of surfaces || []) {
       if (!surface) continue;
       surface.receiveShadows = true;
-      if (surface.metadata && surface.metadata.shadowAlways) this.addCaster(surface, shadows);
+      if (surface.metadata && (surface.metadata.shadowAlways || surface.metadata.shadowChunk)) this.addCaster(surface, shadows);
     }
   }
 
@@ -173,8 +183,8 @@ export default class LightingSystem {
       if (!mesh || mesh.isDisposed() || !mesh.isEnabled()) continue;
       const always = mesh.metadata && mesh.metadata.shadowAlways;
       if (!always) {
-        const point = mesh.getAbsolutePosition();
-        if (Math.hypot(point.x - centerX, point.z - centerZ) > reach) continue;
+        const place = casterPlace(mesh);
+        if (Math.hypot(place.x - centerX, place.z - centerZ) > reach + place.radius) continue;
       }
       next.push(mesh);
     }

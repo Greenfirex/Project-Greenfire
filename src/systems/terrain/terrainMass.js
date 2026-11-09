@@ -107,6 +107,7 @@ export default {
       mesh.receiveShadows = true;
       mesh.metadata = {
         volume: true,
+        shadowChunk: group.kind === 'cliff',
         kind: group.kind,
         key: group.name,
         chunkX: group.chunkX,
