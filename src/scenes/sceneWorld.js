@@ -345,12 +345,25 @@ export default {
     return list;
   },
 
-  async rebuildGrass() {
-    this.grassModelList = await this.loadGrassModels();
-    this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle(), this.grassModelList, this.grassLook());
-    this.floraSystem.addShelfGrass(this.terrainSystem.shelfAnchors);
-    this.floraSystem.updateView(this.viewCircle());
-    this.refreshReflectionExclusions();
+  rebuildGrass() {
+    return this.withBusy('Přepočítávám trávu…', async () => {
+      this.grassModelList = await this.loadGrassModels();
+      this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle(), this.grassModelList, this.grassLook());
+      this.floraSystem.addShelfGrass(this.terrainSystem.shelfAnchors);
+      this.floraSystem.updateView(this.viewCircle());
+      this.refreshReflectionExclusions();
+    });
+  },
+
+  async withBusy(text, work) {
+    this.busyNotice.show(text);
+    try {
+      await this.nextFrame();
+      await this.nextFrame();
+      await work();
+    } finally {
+      this.busyNotice.hide();
+    }
   },
 
   finishRebuild() {

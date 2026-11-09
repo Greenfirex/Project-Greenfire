@@ -19,6 +19,9 @@ import ContactShadow from '../../utils/contactShadow.js';
 
 const PATH_SURFACE = 0.02;
 const FLAT_SINK = 0.015;
+const AREA_WORLD = CELL_SIZE * 8;
+const AREA_VIEW_MARGIN = 26;
+const AREA_VIEW_HYSTERESIS = 4;
 
 function entryMatchKey(entry) {
   return `${levelOfEntry(entry)}|${entry.key}|${entry.cx}|${entry.cz}|${entry.offsetX || 0}|${entry.offsetZ || 0}|${entry.scale || 1}|${entry.rotation || 0}`;
@@ -66,6 +69,7 @@ export default class DecoSystem {
     this.flowerAnchors = [];
     this.pathNodes = [];
     this.pendingPieces = [];
+    this.areas = new Map();
     this.brokenCount = 0;
     this.pathSystem = new PathSystem(scene);
     this.contactShadow = new ContactShadow(scene);
@@ -360,6 +364,7 @@ export default class DecoSystem {
     const yaw = place.yaw;
     if (def.bush) this.addContactShadow(def, spotX, spotY, spotZ);
     const anchor = new TransformNode(`deco_${entry.key}_${entry.cx}_${entry.cz}`, this.s);
+    anchor.parent = this.areaFor(spotX, spotZ);
     anchor.position = new Vector3(spotX, spotY, spotZ);
     anchor.metadata = { key: entry.key, def, bucket, entry, yaw };
     if (liesFlat(def)) {
@@ -438,6 +443,38 @@ export default class DecoSystem {
     this.nodes.length = 0;
     this.pathNodes.length = 0;
     this.pendingPieces.length = 0;
+    for (const area of this.areas.values()) area.node.dispose();
+    this.areas.clear();
+  }
+
+  areaFor(x, z) {
+    const areaX = Math.floor(x / AREA_WORLD);
+    const areaZ = Math.floor(z / AREA_WORLD);
+    const key = `${areaX}|${areaZ}`;
+    if (!this.areas.has(key)) {
+      this.areas.set(key, {
+        node: new TransformNode(`decoArea_${key}`, this.s),
+        minX: areaX * AREA_WORLD,
+        minZ: areaZ * AREA_WORLD,
+        enabled: true,
+      });
+    }
+    return this.areas.get(key).node;
+  }
+
+  updateView(view) {
+    if (!view) return;
+    const inner = view.radius + AREA_VIEW_MARGIN;
+    const outer = inner + AREA_VIEW_HYSTERESIS;
+    for (const area of this.areas.values()) {
+      const dx = Math.max(area.minX - view.x, 0, view.x - (area.minX + AREA_WORLD));
+      const dz = Math.max(area.minZ - view.z, 0, view.z - (area.minZ + AREA_WORLD));
+      const distance = Math.hypot(dx, dz);
+      const enabled = area.enabled ? distance <= outer : distance <= inner;
+      if (enabled === area.enabled) continue;
+      area.enabled = enabled;
+      area.node.setEnabled(enabled);
+    }
   }
 
   disposeAnchor(node) {

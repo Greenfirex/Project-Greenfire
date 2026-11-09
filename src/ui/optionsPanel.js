@@ -9,9 +9,9 @@ const TABS = [
 ];
 
 const PRESETS = [
-  { value: 'high', label: 'Vysoká', title: 'Plná kvalita, stíny a zvýrazňování' },
-  { value: 'balanced', label: 'Vyvážená', title: 'Střední kvalita a 60 snímků' },
-  { value: 'eco', label: 'Úsporná', title: 'Nízká kvalita, bez stínů a kroužků' },
+  { value: 'high', label: 'Vysoká', title: 'Plná kvalita, plné stíny, hustá tráva' },
+  { value: 'balanced', label: 'Vyvážená', title: 'Střední kvalita, jednoduché stíny, střední tráva' },
+  { value: 'eco', label: 'Úsporná', title: 'Nízká kvalita, bez stínů, trávy a odrazů, 30 snímků' },
 ];
 
 const QUALITIES = [
@@ -28,8 +28,15 @@ const FPS_OPTIONS = [
 
 const GRASS_LEVELS = [
   { value: 'off', label: 'Vypnutá', title: 'Namalovaná tráva se nekreslí' },
+  { value: 'low', label: 'Řídká', title: 'Nejřidší tráva pro slabé počítače' },
   { value: 'medium', label: 'Střední', title: 'Řidší tráva pro slabší počítače' },
   { value: 'high', label: 'Hustá', title: 'Plná tráva, doporučeno' },
+];
+
+const SHADOW_LEVELS = [
+  { value: 'off', label: 'Vypnuté', title: 'Žádné stíny, nejrychlejší' },
+  { value: 'simple', label: 'Jednoduché', title: 'Hrubší stíny pro slabší počítače' },
+  { value: 'full', label: 'Plné', title: 'Ostré a měkce zakončené stíny' },
 ];
 
 const FERN_MODES = [
@@ -38,19 +45,20 @@ const FERN_MODES = [
 ];
 
 const ITEMS = [
-  { kind: 'choice', key: 'quality', tab: 'view', label: 'Kvalita obrazu', note: 'Nižší kvalita zmenší rozlišení, obraz bude měkčí.', options: QUALITIES },
+  { kind: 'choice', key: 'quality', tab: 'view', label: 'Kvalita obrazu', note: 'Nižší kvalita zmenší rozlišení a zjednoduší vodu a odrazy, obraz bude měkčí.', options: QUALITIES },
   { kind: 'choice', key: 'grass', tab: 'view', label: 'Hustota trávy', note: 'Jak hustě se kreslí tráva, kterou namaluješ štětcem. Na mapě zůstane pořád.', options: GRASS_LEVELS },
   { kind: 'choice', key: 'grassFern', tab: 'view', label: 'Kapradina', note: 'Lehká je na hraní, detailní je jen na porovnání vzhledu a výkonu.', options: FERN_MODES },
   { kind: 'toggle', key: 'groundBlend', tab: 'view', label: 'Zem ze tří textur', note: 'Trávu na zemi míchají tři textury do velkých skvrn. Vypnutí ušetří výkon.' },
   { kind: 'choice', key: 'fpsCap', tab: 'view', label: 'Omezit snímky', note: 'Nižší číslo = chladnější počítač.', options: FPS_OPTIONS, numeric: true },
-  { kind: 'toggle', key: 'shadows', tab: 'view', label: 'Stíny', note: 'Vypnutí nejvíc zrychlí hru, krajina bude plošší.' },
-  { kind: 'toggle', key: 'fireGlow', tab: 'view', label: 'Záře ohně', note: 'Oheň a pochodně svítí do okolí. Vypnutí ušetří výkon.' },
-  { kind: 'toggle', key: 'waterDetail', tab: 'view', label: 'Textura vody', note: 'Jemné čeření hladiny. Vypnutím uvidíš hladinu bez textury.' },
-  { kind: 'toggle', key: 'footprints', tab: 'view', label: 'Stopy ve písku', note: 'Otisky kroků na písku a v hlíně. Vypnutí ušetří kreslení.' },
-  { kind: 'toggle', key: 'autoTune', tab: 'view', label: 'Automatická úprava výkonu', note: 'Při poklesu snímků hra sama sníží rozlišení.' },
+  { kind: 'choice', key: 'shadows', tab: 'view', label: 'Stíny', note: 'Stíny patří k tomu, co hru zpomaluje nejvíc. Bez nich bude krajina plošší.', options: SHADOW_LEVELS },
+  { kind: 'toggle', key: 'reflections', tab: 'view', label: 'Odrazy ve vodě', note: 'Stromy a břehy se zrcadlí na hladině. Vypnutí hodně ušetří, voda odráží jen oblohu.' },
+  { kind: 'toggle', key: 'fireGlow', tab: 'view', label: 'Záře ohně', note: 'Měkká záře kolem plamenů. Oheň svítí do okolí i bez ní. Šetří jen ve chvíli, kdy něco hoří.' },
+  { kind: 'toggle', key: 'waterDetail', tab: 'view', label: 'Čeření vody', note: 'Jemné vlnky na hladině. Vypnutí ušetří výkon, hladina bude hladší.' },
+  { kind: 'toggle', key: 'autoTune', tab: 'view', label: 'Automatická úprava výkonu', note: 'Při poklesu snímků hra sama sníží rozlišení, nejvýš na 70 %. Při limitu 30 snímků nepracuje.' },
   { kind: 'volume', key: 'sfxVolume', tab: 'sound', label: 'Zvuky hry', note: 'Sekání, kroky, těžba a padající stromy.' },
   { kind: 'volume', key: 'ambientVolume', tab: 'sound', label: 'Zvuky prostředí', note: 'Hučení lesa (ve dne jiné než v noci) a příboj u vody.' },
   { kind: 'volume', key: 'musicVolume', tab: 'sound', label: 'Hudba', note: 'Ostrovní hudba na pozadí. Skladby se střídají náhodně.' },
+  { kind: 'toggle', key: 'footprints', tab: 'game', label: 'Stopy ve písku', note: 'Otisky kroků na písku a v hlíně.' },
   { kind: 'toggle', key: 'dayCycle', tab: 'game', label: 'Denní cyklus', note: 'Zastavení nechá slunce stát na aktuálním času.' },
   { kind: 'toggle', key: 'highlights', tab: 'game', label: 'Zvýrazňování pod myší', note: 'Kroužky pod stromy a rudou při najetí myší.' },
   { kind: 'toggle', key: 'customCursor', tab: 'game', label: 'Vlastní kurzor', note: 'Fantasy ruka a nástroje místo systémové šipky. Vypnutím vrátíš šipku Windows.' },
@@ -138,7 +146,7 @@ export default class OptionsPanel {
       btn.dataset.preset = preset.value;
       btn.textContent = preset.label;
       btn.title = preset.title;
-      btn.addEventListener('click', () => this.setAll({ ...OPTION_DEFAULTS, ...PRESET_OPTIONS[preset.value] }));
+      btn.addEventListener('click', () => this.patch(PRESET_OPTIONS[preset.value]));
       presets.appendChild(btn);
     }
     panel.appendChild(presets);
@@ -261,12 +269,6 @@ export default class OptionsPanel {
   toggle() {
     if (this.root && this.root.classList.contains('is-open')) this.hide();
     else this.show();
-  }
-
-  setAll(values) {
-    this.values = { ...OPTION_DEFAULTS, ...values };
-    this.render();
-    if (this.onChange) this.onChange({ ...this.values });
   }
 
   patch(changes) {

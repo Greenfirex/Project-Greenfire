@@ -9,7 +9,7 @@ export const GRASS_TYPES = {
     label: 'Pobřežní tráva',
     models: ['grass_coastal.glb'],
     height: 0.55,
-    perCell: { medium: 5, high: 9 },
+    perCell: { low: 3, medium: 5, high: 9 },
     tint: [1, 1, 1],
     gain: 1.1,
   },
@@ -17,7 +17,7 @@ export const GRASS_TYPES = {
     label: 'Širokolistý trs',
     models: ['grass_broadleaf.glb'],
     height: 0.5,
-    perCell: { medium: 5, high: 8 },
+    perCell: { low: 3, medium: 5, high: 8 },
     tint: [1, 1, 1],
     gain: 1.2,
   },
@@ -25,7 +25,7 @@ export const GRASS_TYPES = {
     label: 'Nízký polštářek',
     models: ['grass_cushion.glb'],
     height: 0.32,
-    perCell: { medium: 6, high: 9 },
+    perCell: { low: 3, medium: 6, high: 9 },
     tint: [1, 1, 1],
     gain: 1.1,
   },
@@ -34,7 +34,7 @@ export const GRASS_TYPES = {
     models: ['fern.glb'],
     detailModel: 'fern_detail.glb',
     height: 0.38,
-    perCell: { medium: 3, high: 5 },
+    perCell: { low: 2, medium: 3, high: 5 },
     tint: [1, 1, 1],
     gain: 1.2,
   },
@@ -42,7 +42,7 @@ export const GRASS_TYPES = {
 
 export const GRASS_COVER = {
   height: 0.28,
-  perCell: { medium: 150, high: 250 },
+  perCell: { low: 60, medium: 150, high: 250 },
   tint: [0.52, 0.72, 0.4],
 };
 

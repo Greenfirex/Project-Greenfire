@@ -5,7 +5,11 @@ import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
 import { flowerTemplate } from '../../utils/flowerFactory.js';
 import { loadModel } from '../../utils/assetLoader.js';
+import { CELL_SIZE } from '../../utils/gridMath.js';
 
+const CHUNK_WORLD = CELL_SIZE * 8;
+const VIEW_MARGIN = 6;
+const VIEW_HYSTERESIS = 4;
 const VINE_URLS = [`${ASSET_DIRS.plants}cliff_vine.glb`, `${ASSET_DIRS.plants}cliff_vine_2.glb`];
 const VINE_YAW = 0;
 const SPAWN_CHANCE = 0.22;
@@ -41,6 +45,7 @@ export default class CliffVineSystem {
     this.vines = [];
     this.flowers = FLOWER_KEYS.map((key) => this.flowerFor(key));
     this.anchors = [];
+    this.chunks = [];
     Promise.all(VINE_URLS.map((url) => loadModel(this.s, url))).then((templates) => {
       this.vines = templates.map((template, index) => this.vineFor(template, index)).filter(Boolean);
       if (this.vines.length) this.create(this.anchors);
@@ -84,8 +89,51 @@ export default class CliffVineSystem {
     for (const vine of this.vines) vine.matrices = [];
     for (const flower of this.flowers) flower.matrices = [];
     for (const anchor of this.anchors) this.place(anchor);
-    for (const vine of this.vines) this.flush(vine.mesh, vine.matrices);
+    this.buildChunks();
     for (const flower of this.flowers) this.flush(flower.mesh, flower.matrices);
+  }
+
+  buildChunks() {
+    this.disposeChunks();
+    const byArea = new Map();
+    this.vines.forEach((vine, vineIndex) => {
+      for (const matrix of vine.matrices) {
+        const origin = matrix.getTranslation();
+        const areaX = Math.floor(origin.x / CHUNK_WORLD);
+        const areaZ = Math.floor(origin.z / CHUNK_WORLD);
+        const key = `${vineIndex}|${areaX}|${areaZ}`;
+        if (!byArea.has(key)) byArea.set(key, { vine, vineIndex, areaX, areaZ, matrices: [] });
+        byArea.get(key).matrices.push(matrix);
+      }
+    });
+    for (const area of byArea.values()) {
+      const mesh = area.vine.mesh.clone(`cliffVine_${area.vineIndex}_${area.areaX}_${area.areaZ}`, null, false);
+      mesh.isPickable = false;
+      mesh.receiveShadows = false;
+      mesh.alwaysSelectAsActiveMesh = true;
+      this.flush(mesh, area.matrices);
+      this.chunks.push({ mesh, minX: area.areaX * CHUNK_WORLD, minZ: area.areaZ * CHUNK_WORLD, enabled: true });
+    }
+  }
+
+  updateView(view) {
+    if (!view) return;
+    const inner = view.radius + VIEW_MARGIN;
+    const outer = inner + VIEW_HYSTERESIS;
+    for (const chunk of this.chunks) {
+      const dx = Math.max(chunk.minX - view.x, 0, view.x - (chunk.minX + CHUNK_WORLD));
+      const dz = Math.max(chunk.minZ - view.z, 0, view.z - (chunk.minZ + CHUNK_WORLD));
+      const distance = Math.hypot(dx, dz);
+      const enabled = chunk.enabled ? distance <= outer : distance <= inner;
+      if (enabled === chunk.enabled) continue;
+      chunk.enabled = enabled;
+      chunk.mesh.setEnabled(enabled);
+    }
+  }
+
+  disposeChunks() {
+    for (const chunk of this.chunks) chunk.mesh.dispose(false, false);
+    this.chunks = [];
   }
 
   place(anchor) {
@@ -150,6 +198,7 @@ export default class CliffVineSystem {
   }
 
   dispose() {
+    this.disposeChunks();
     for (const vine of this.vines) vine.mesh.dispose(false, false);
     for (const flower of this.flowers) flower.mesh.dispose(false, false);
     this.vines = [];

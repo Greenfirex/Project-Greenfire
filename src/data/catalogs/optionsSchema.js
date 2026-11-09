@@ -3,7 +3,7 @@ export const OPTIONS_STORAGE_KEY = 'greenfire.options';
 
 export const OPTION_DEFAULTS = {
   quality: 'high',
-  shadows: true,
+  shadows: 'full',
   fireGlow: true,
   fpsCap: 60,
   highlights: true,
@@ -14,6 +14,7 @@ export const OPTION_DEFAULTS = {
   grassFern: 'light',
   groundBlend: true,
   waterDetail: true,
+  reflections: true,
   footprints: true,
   cameraShake: true,
   damageFlash: true,
@@ -29,7 +30,13 @@ export const QUALITY_SCALES = { high: 1, medium: 0.8, low: 0.65 };
 export const FPS_CAPS = [30, 60, 0];
 
 export const PRESET_OPTIONS = {
-  high: { quality: 'high', shadows: true, fpsCap: 0, highlights: true, fireGlow: true },
-  balanced: { quality: 'medium', shadows: true, fpsCap: 60, highlights: true, fireGlow: true },
-  eco: { quality: 'low', shadows: false, fpsCap: 30, highlights: false, fireGlow: false },
+  high: { quality: 'high', shadows: 'full', fpsCap: 60, fireGlow: true, grass: 'high', groundBlend: true, waterDetail: true, reflections: true },
+  balanced: { quality: 'medium', shadows: 'simple', fpsCap: 60, fireGlow: true, grass: 'medium', groundBlend: true, waterDetail: true, reflections: true },
+  eco: { quality: 'low', shadows: 'off', fpsCap: 30, fireGlow: false, grass: 'off', groundBlend: false, waterDetail: false, reflections: false },
 };
+
+export function mergeSavedOptions(saved) {
+  const values = { ...OPTION_DEFAULTS, ...(saved || {}) };
+  if (typeof values.shadows === 'boolean') values.shadows = values.shadows ? 'full' : 'off';
+  return values;
+}

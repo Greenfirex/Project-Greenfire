@@ -17,6 +17,7 @@ export default class GlowSystem {
     this.meshes = [];
     this.entries = [];
     this.retry = [];
+    this.wanted = true;
   }
 
   create() {
@@ -80,7 +81,14 @@ export default class GlowSystem {
   }
 
   setEnabled(value) {
-    if (this.layer) this.layer.isEnabled = Boolean(value);
+    this.wanted = Boolean(value);
+    this.update();
+  }
+
+  update() {
+    if (!this.layer) return;
+    const burning = this.wanted && this.entries.some((item) => item.source.glowStrength() > 0);
+    if (this.layer.isEnabled !== burning) this.layer.isEnabled = burning;
   }
 
   dispose() {

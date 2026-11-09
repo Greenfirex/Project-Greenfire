@@ -63,8 +63,9 @@ import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../d
 import { describeWorld } from '../data/catalogs/worldStages.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { readJSON, writeJSON } from '../utils/storage.js';
-import { OPTION_DEFAULTS, OPTIONS_STORAGE_KEY, QUALITY_SCALES } from '../data/catalogs/optionsSchema.js';
+import { mergeSavedOptions, OPTIONS_STORAGE_KEY, QUALITY_SCALES } from '../data/catalogs/optionsSchema.js';
 import OptionsPanel from '../ui/optionsPanel.js';
+import BusyNotice from '../ui/busyNotice.js';
 import { WATER_STEP_DEPTH } from './sceneSettings.js';
 import sceneWorldParts from './sceneWorld.js';
 import sceneCombatParts from './sceneCombat.js';
@@ -168,6 +169,7 @@ export default class GameScene {
     this.walkStepLimit = STEP_LIMIT;
     this.editor = new MapEditor(this);
     this.optionsPanel = new OptionsPanel();
+    this.busyNotice = new BusyNotice();
     this.editorToggle = new EditorToggle();
     this.pauseScreen = new PauseScreen();
     this.deathScreen = new DeathScreen();
@@ -182,7 +184,7 @@ export default class GameScene {
     this.loaded = false;
     this.saveHintAfterLoad = null;
     this.defaultMaxFPS = undefined;
-    this.options = { ...OPTION_DEFAULTS };
+    this.options = mergeSavedOptions(readJSON(OPTIONS_STORAGE_KEY));
     this.renderScale = 1;
     this.autoScale = 1;
     this.autoWindowStart = 0;
@@ -282,6 +284,8 @@ export default class GameScene {
       if (this.shadowClock >= SHADOW_REACH_STEP) {
         this.shadowClock = 0;
         this.refreshShadowReach();
+        this.cliffVineSystem.updateView(this.viewCircle());
+        if (!this.isLoading) this.decoSystem.updateView(this.viewCircle());
       }
       this.refreshCreatureHealthBars();
       this.updateReveal(dt);
@@ -316,6 +320,7 @@ export default class GameScene {
       this.creatureSystem.update(dt);
       this.footprintSystem.update(dt);
       this.glowSystem.retryPending();
+      this.glowSystem.update();
       this.updateGathering(dt);
       this.updatePlayerAttack(dt);
       const root = this.playerSystem.root;
@@ -786,14 +791,12 @@ export default class GameScene {
   }
 
   refreshShadowCasters() {
-    this.lighting.syncSurfaces(this.terrainSystem.surfaces, this.options.shadows);
+    this.lighting.syncSurfaces(this.terrainSystem.surfaces, this.shadowsOn());
     this.refreshShadowReach(true);
   }
 
   setupOptions() {
-    const saved = readJSON(OPTIONS_STORAGE_KEY);
-    this.optionsPanel.values = { ...OPTION_DEFAULTS, ...(saved || {}) };
-    this.options = { ...this.optionsPanel.values };
+    this.optionsPanel.values = { ...this.options };
     this.applyOptions();
     this.optionsPanel.mount();
     this.optionsPanel.render();
@@ -821,7 +824,11 @@ export default class GameScene {
   }
 
   addShadowCaster(mesh) {
-    this.lighting.addCaster(mesh, this.options.shadows);
+    this.lighting.addCaster(mesh, this.shadowsOn());
+  }
+
+  shadowsOn() {
+    return this.options.shadows !== 'off';
   }
 
   removeShadowCaster(mesh) {
@@ -836,28 +843,27 @@ export default class GameScene {
     this.cameraSystem.applyOrtho();
     this.engine.maxFPS = this.paused ? 60 : this.defaultMaxFPS;
     this.refreshClock();
+    this.lighting.setShadowDetail(this.options.shadows);
     this.refreshShadowReach(true);
     this.decoHighlight.setVisible(this.options.highlights);
     this.gameCursor.setEnabled(this.options.customCursor);
     this.glowSystem.setEnabled(this.options.fireGlow);
-    const grassDensity = this.floraSystem.density;
     const fernMode = this.options.grassFern === 'detail' ? 'detail' : 'light';
     const fernChanged = this.fernMode !== fernMode;
     this.fernMode = fernMode;
-    this.floraSystem.setDensity(this.options.grass);
-    if (this.floraSystem.density !== grassDensity) this.refreshReflectionExclusions();
-    if (fernChanged && this.grassModelList) this.rebuildGrass();
     const groundBlend = this.options.groundBlend !== false;
     const blendChanged = this.groundBlend !== groundBlend;
     this.groundBlend = groundBlend;
     this.terrainSystem.setGroundBlend(groundBlend);
-    if (blendChanged && this.grassModelList) this.rebuildGrass();
+    const densityChanged = this.floraSystem.density !== this.options.grass;
+    if ((fernChanged || blendChanged || densityChanged) && this.grassModelList) this.rebuildGrass();
     this.waterSystem.setDetail(this.options.waterDetail);
+    this.waterSystem.setReflections(this.options.reflections);
     if (this.isLoading) return;
     this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);
     this.audioSystem.setAmbientVolume(this.options.ambientVolume / 100);
     this.audioSystem.setMusicVolume(this.options.musicVolume / 100);
-    if (this.waterSystem.quality !== this.options.quality) this.renderWater();
+    if (this.waterSystem.quality !== this.options.quality) this.withBusy('Přepočítávám vodu…', () => this.renderWater());
   }
 
   autoTune(dt) {
@@ -1501,7 +1507,7 @@ export default class GameScene {
   }
 
   refreshShadowReach(force = false) {
-    this.lighting.refreshReach(this.viewCircle(), Boolean(this.options.shadows), force);
+    this.lighting.refreshReach(this.viewCircle(), this.shadowsOn(), force);
   }
 
 

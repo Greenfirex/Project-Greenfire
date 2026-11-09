@@ -17,7 +17,7 @@ function findBrowser() {
   return found;
 }
 
-const url = process.env.GREENFIRE_URL || 'http://localhost:5174/';
+const url = process.env.GREENFIRE_URL || 'http://localhost:5174/?capture';
 const kind = process.argv[2] || 'koa_tiki';
 const scene = process.argv[3] || 'walk';
 const frames = Number(process.argv[4] || (scene === 'attack' ? 10 : 8));

@@ -111,6 +111,7 @@ uniform float dayness;
 uniform float maxDepth;
 uniform float waterLevel;
 uniform float waterDetail;
+uniform float reflectionOn;
 uniform float detailPixel;
 uniform sampler2D depthMap;
 uniform vec2 depthOrigin;
@@ -171,7 +172,8 @@ ${rippleSlopeGlsl()}
 }
 
 vec2 bumpSlope(vec2 p, vec2 warp, float time, vec2 dir, vec2 perp) {
-  return rippleSlope(p + warp * 1.2 + rippleWarp(p), time, dir, perp) * waterDetail;
+  if (waterDetail < 0.5) return vec2(0.0);
+  return rippleSlope(p + warp * 1.2 + rippleWarp(p), time, dir, perp);
 }
 
 void main(void) {
@@ -223,15 +225,18 @@ void main(void) {
   vec3 ambient = vec3(0.1, 0.15, 0.18) * daylight;
   vec3 color = base * (ambient + sunColor * sunIntensity * (0.34 + sun * 0.66));
 
-  vec4 reflectionPos = reflectionViewProjection * vec4(vPosition, 1.0);
-  vec2 reflectionUv = reflectionPos.xy / max(abs(reflectionPos.w), 1e-4) * 0.5 + 0.5;
-  reflectionUv += bigSlope * 0.02;
-  vec2 blurOffset = vec2(clamp(0.001 + waveSlope * 0.01, 0.0, 0.004));
-  blurOffset.y *= 0.6;
-  vec3 reflected = texture2D(reflectionSampler, clamp(reflectionUv + blurOffset, vec2(0.002), vec2(0.998))).rgb
-    + texture2D(reflectionSampler, clamp(reflectionUv - blurOffset, vec2(0.002), vec2(0.998))).rgb;
-  reflected *= 0.5;
-  reflected = mix(reflected, skyColor, 0.08);
+  vec3 reflected = skyColor;
+  if (reflectionOn > 0.5) {
+    vec4 reflectionPos = reflectionViewProjection * vec4(vPosition, 1.0);
+    vec2 reflectionUv = reflectionPos.xy / max(abs(reflectionPos.w), 1e-4) * 0.5 + 0.5;
+    reflectionUv += bigSlope * 0.02;
+    vec2 blurOffset = vec2(clamp(0.001 + waveSlope * 0.01, 0.0, 0.004));
+    blurOffset.y *= 0.6;
+    reflected = texture2D(reflectionSampler, clamp(reflectionUv + blurOffset, vec2(0.002), vec2(0.998))).rgb
+      + texture2D(reflectionSampler, clamp(reflectionUv - blurOffset, vec2(0.002), vec2(0.998))).rgb;
+    reflected *= 0.5;
+    reflected = mix(reflected, skyColor, 0.08);
+  }
 
   float mirror = clamp(0.08 + 0.45 * fresnel + 0.28 * waveSlope, 0.0, 0.55);
   mirror *= (0.5 + 0.5 * smoothstep(0.0, 0.9, depth)) * (0.6 + 0.4 * dayness);
@@ -390,7 +395,7 @@ export function createWaterMaterial(scene, options) {
       'viewProjection', 'waterTime', 'sunDir', 'sunColor', 'sunIntensity', 'skyColor',
       'cameraDir', 'shallowColor', 'deepColor', 'foamColor', 'dayness', 'maxDepth',
       'reflectionSampler', 'reflectionViewProjection', 'waterLevel',
-      'depthMap', 'waterDetail', 'detailPixel', 'depthOrigin', 'depthScale', 'depthRange', 'foamDir',
+      'depthMap', 'waterDetail', 'reflectionOn', 'detailPixel', 'depthOrigin', 'depthScale', 'depthRange', 'foamDir',
       ...REVEAL_UNIFORM_NAMES,
     ],
   });
@@ -410,6 +415,7 @@ export function createWaterMaterial(scene, options) {
   material.setFloat('maxDepth', options.maxDepth);
   material.setFloat('waterLevel', 0);
   material.setFloat('waterDetail', 1);
+  material.setFloat('reflectionOn', 1);
   material.setFloat('detailPixel', 0.02);
   material.setVector2('foamDir', new Vector2(0, -1));
   const foam = foamTextureSet(scene);

@@ -15,6 +15,7 @@ const SHADOW_FRUSTUM = 70;
 const SHADOW_MIN_Z = 1;
 const SHADOW_MAX_Z = 180;
 const SHADOW_REACH_MARGIN = 20;
+const SIMPLE_SHADOW_SIZE = 1024;
 
 function sameMeshes(first, second) {
   if (first.length !== second.length) return false;
@@ -31,9 +32,13 @@ export default class LightingSystem {
     this.caveLight = null;
     this.shadowGenerator = null;
     this.casters = [];
+    this.fullShadowSize = 0;
+    this.simpleShadows = false;
+    this.softShadows = false;
   }
 
   create(light, camera) {
+    this.fullShadowSize = light.shadowMapSize;
     const hemi = new HemisphericLight('skyLight', new Vector3(0.3, 1, 0.2), this.s);
     hemi.intensity = light.hemiIntensity;
     hemi.groundColor = new Color3(light.hemiGround[0], light.hemiGround[1], light.hemiGround[2]);
@@ -131,7 +136,24 @@ export default class LightingSystem {
         );
       }
     }
-    this.shadowGenerator.filteringQuality = soft ? ShadowGenerator.QUALITY_HIGH : ShadowGenerator.QUALITY_MEDIUM;
+    this.softShadows = Boolean(soft);
+    this.applyShadowFilter();
+  }
+
+  applyShadowFilter() {
+    if (this.simpleShadows) this.shadowGenerator.filteringQuality = ShadowGenerator.QUALITY_LOW;
+    else this.shadowGenerator.filteringQuality = this.softShadows ? ShadowGenerator.QUALITY_HIGH : ShadowGenerator.QUALITY_MEDIUM;
+  }
+
+  setShadowDetail(level) {
+    if (!this.shadowGenerator || level === 'off') return;
+    const simple = level === 'simple';
+    if (simple === this.simpleShadows) return;
+    this.simpleShadows = simple;
+    if (this.shadowGenerator instanceof CascadedShadowGenerator) this.shadowGenerator.numCascades = simple ? 1 : 2;
+    this.shadowGenerator.mapSize = simple ? Math.min(SIMPLE_SHADOW_SIZE, this.fullShadowSize) : this.fullShadowSize;
+    this.shadowGenerator.getShadowMap().clearColor = new Color4(1, 1, 1, 1);
+    this.applyShadowFilter();
   }
 
   refreshReach(view, shadows, force = false) {

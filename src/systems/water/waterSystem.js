@@ -37,7 +37,7 @@ const SHORE_NOISE_NEAR_SMALL = 0.1;
 const SHORE_NOISE_REACH = 3;
 const CLIFF_REACH_TEXELS = 3;
 const REFLECTION_SCALES = { high: 0.6, medium: 0.45, low: 0.35 };
-const REFLECTION_REFRESH_FRAMES = 2;
+const REFLECTION_REFRESH_FRAMES = { high: 2, medium: 3, low: 4 };
 const FALLBACK_RGB = [0.06, 0.16, 0.19];
 const FALLBACK_SKY = new Color3(0.5, 0.65, 0.8);
 
@@ -165,6 +165,7 @@ export default class WaterSystem {
     this.waterRgb = null;
     this.reflection = null;
     this.reflectionExclusions = [];
+    this.reflectionsOn = true;
     this.hiddenReflectionMeshes = [];
     this.reflectionScale = 0;
     this.surfaceY = 0;
@@ -606,6 +607,18 @@ export default class WaterSystem {
     if (this.material) this.material.setFloat('waterDetail', this.detail ? 1 : 0);
   }
 
+  setReflections(on) {
+    this.reflectionsOn = on !== false;
+    if (this.material) this.material.setFloat('reflectionOn', this.reflectionsOn ? 1 : 0);
+    this.applyReflectionRate();
+  }
+
+  applyReflectionRate() {
+    if (!this.reflection) return;
+    const rate = this.reflectionsOn ? REFLECTION_REFRESH_FRAMES[this.quality] || REFLECTION_REFRESH_FRAMES.medium : 0;
+    if (this.reflection.refreshRate !== rate) this.reflection.refreshRate = rate;
+  }
+
   reflectionFor(quality, surfaceY) {
     const scale = REFLECTION_SCALES[quality] || REFLECTION_SCALES.medium;
     if (!this.reflection) {
@@ -613,7 +626,6 @@ export default class WaterSystem {
       rtt.renderList = null;
       rtt.wrapU = Texture.CLAMP_ADDRESSMODE;
       rtt.wrapV = Texture.CLAMP_ADDRESSMODE;
-      rtt.refreshRate = REFLECTION_REFRESH_FRAMES;
       rtt.clearColor = this.skyClearColor();
       rtt.onBeforeRenderObservable.add(() => this.beginReflection());
       rtt.onAfterRenderObservable.add(() => this.endReflection());
@@ -624,7 +636,7 @@ export default class WaterSystem {
       this.reflection.resize(this.reflectionSize(scale));
       this.reflectionScale = scale;
     }
-    this.reflection.refreshRate = REFLECTION_REFRESH_FRAMES;
+    this.applyReflectionRate();
     this.surfaceY = surfaceY;
     this.plane.d = -surfaceY;
     if (this.material) this.material.setTexture('reflectionSampler', this.reflection);
@@ -949,6 +961,7 @@ export default class WaterSystem {
     material.setFloat('waterLevel', level);
     material.setTexture('depthMap', this.depthMap);
     material.setFloat('waterDetail', this.detail ? 1 : 0);
+    material.setFloat('reflectionOn', this.reflectionsOn ? 1 : 0);
     material.setVector2('depthOrigin', this.depthOrigin);
     material.setVector2('depthScale', this.depthScale);
     material.setFloat('depthRange', DEPTH_RANGE);

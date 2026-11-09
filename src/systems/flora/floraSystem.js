@@ -230,14 +230,6 @@ export default class FloraSystem {
     this.assets.clear();
   }
 
-  setDensity(density) {
-    if (density === this.density) return;
-    this.density = density;
-    if (!this.deco) return;
-    this.dispose();
-    this.build();
-  }
-
   setDayness(value) {
     const v = Math.max(0, Math.min(1, Number(value) || 0));
     if (v === this.dayness) return;
