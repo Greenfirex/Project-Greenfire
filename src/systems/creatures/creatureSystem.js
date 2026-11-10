@@ -68,6 +68,7 @@ const MARK_SPEED = 3;
 const COMBAT_COLOR = new Color3(0.92, 0.16, 0.12);
 const ATTACK_MODES = ['chase', 'windup', 'recover'];
 const HOSTILE_MODES = ['alert', ...ATTACK_MODES];
+const FIGHT_MODES = ['windup', 'recover'];
 const RESPAWN_CLEAR = 1.5;
 const CORPSE_LIFETIME = 200;
 const CORPSE_FALL = 0.5;
@@ -1076,10 +1077,23 @@ export default class CreatureSystem {
     this.updateCorpses(seconds);
   }
 
+  setSeen(creature, seen) {
+    if (!creature || !creature.holder || creature.holder.isDisposed()) return;
+    const unseen = !seen;
+    if (Boolean(creature.unseen) === unseen) return;
+    creature.unseen = unseen;
+    creature.holder.setEnabled(seen);
+    if (unseen && this.hovered === creature) this.hovered = null;
+  }
+
+  inFight(creature) {
+    return Boolean(creature) && (Boolean(creature.engaged) || FIGHT_MODES.includes(creature.mode));
+  }
+
   healthBarTargets() {
     const out = [];
     for (const creature of this.creatures) {
-      if (!creature || !creature.slotKey || !Number.isFinite(creature.health) || creature.buried) continue;
+      if (!creature || !creature.slotKey || !Number.isFinite(creature.health) || creature.buried || creature.unseen) continue;
       const total = creature.tier && Number.isFinite(creature.tier.health) ? creature.tier.health : 0;
       if (total <= 0) continue;
       const ratio = creature.health / total;
@@ -1214,6 +1228,10 @@ export default class CreatureSystem {
     if (slot && slot.creature === creature) slot.creature = null;
     const holder = creature.holder;
     if (!holder || holder.isDisposed()) return;
+    if (creature.unseen) {
+      creature.unseen = false;
+      holder.setEnabled(true);
+    }
     this.corpses.push({
       creature,
       age: 0,

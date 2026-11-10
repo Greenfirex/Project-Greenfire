@@ -11,6 +11,8 @@ import CreatureSystem from '../systems/creatures/creatureSystem.js';
 import SkySystem from '../systems/atmosphere/skySystem.js';
 import DecoSystem from '../systems/world/decoSystem.js';
 import RevealSystem from '../systems/world/revealSystem.js';
+import SightSystem from '../systems/world/sightSystem.js';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import FloraSystem from '../systems/flora/floraSystem.js';
 import CliffVineSystem from '../systems/terrain/cliffVineSystem.js';
 import CaveFrameSystem from '../systems/terrain/caveFrameSystem.js';
@@ -25,7 +27,7 @@ import LightingSystem from '../systems/atmosphere/lightingSystem.js';
 import SimSystem from '../systems/core/simSystem.js';
 import NavigationSystem, { WADE_DEPTH } from '../systems/core/navigationSystem.js';
 import InputSystem from '../systems/core/inputSystem.js';
-import PlayerSystem, { STEP_LIMIT } from '../systems/player/playerSystem.js';
+import PlayerSystem, { STEP_LIMIT, PLAYER_EYE_HEIGHT } from '../systems/player/playerSystem.js';
 import PlayerStatsSystem from '../systems/player/playerStatsSystem.js';
 import InteractionSystem from '../systems/core/interactionSystem.js';
 import PlayerAttackSystem from '../systems/player/playerAttackSystem.js';
@@ -117,6 +119,8 @@ export default class GameScene {
     this.gridSystem = new GridSystem(scene);
     this.terrainSystem = new TerrainSystem(scene);
     this.revealSystem = new RevealSystem(scene);
+    this.sightSystem = new SightSystem(scene);
+    this.sightSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z, 0);
     this.waterSystem = new WaterSystem(scene);
     this.waveSpray = new WaveSpraySystem(scene);
     this.fishSystem = new FishSystem(scene);
@@ -300,6 +304,7 @@ export default class GameScene {
         this.cliffVineSystem.updateView(this.viewCircle());
         this.cliffDressSystem.updateView(this.viewCircle());
         if (!this.isLoading) this.decoSystem.updateView(this.viewCircle());
+        if (this.loaded) this.refreshCreatureSight();
       }
       this.refreshCreatureHealthBars();
       this.updateReveal(dt);
@@ -532,11 +537,11 @@ export default class GameScene {
     if (!moved) return;
     const pointer = this.inputSystem.lastCell;
     if (pointer && this.decoHighlight.hasEntry(pointer.cx, pointer.cz)) {
-      this.decoHighlight.setHover(pointer);
+      this.hoverDeco(pointer);
       this.setPointerCursorState();
       return;
     }
-    this.decoHighlight.setHover(this.pointedCell(this.inputSystem.cellAtPointer()));
+    this.hoverDeco(this.pointedCell(this.inputSystem.cellAtPointer()));
     this.setPointerCursorState();
   }
 
@@ -814,6 +819,7 @@ export default class GameScene {
   refreshCaveLighting() {
     if (!this.terrainSystem) return;
     this.lighting.setCaveMeshes(this.terrainSystem.caveMeshes());
+    this.sightSystem.setBlockers(this.terrainSystem.liveSurfaces());
     this.campfireSystem.setTerrain(this.terrainSystem.liveSurfaces());
     this.revealSystem.setLightMap(this.terrainSystem.caveLightMap());
     this.caveFrameSystem.create(this.terrainSystem.caveDoors(), (style) => this.terrainSystem.caveFrameMaterial(style));
@@ -879,6 +885,7 @@ export default class GameScene {
     this.engine.maxFPS = this.paused ? 60 : this.defaultMaxFPS;
     this.refreshClock();
     this.lighting.setShadowDetail(this.options.shadows);
+    this.sightSystem.setDetail(this.options.sight);
     this.refreshShadowReach(true);
     this.decoHighlight.setVisible(this.options.highlights);
     this.gameCursor.setEnabled(this.options.customCursor);
@@ -1006,7 +1013,33 @@ export default class GameScene {
       }
       this.revealSystem.setKeptMeshes(own);
     }
+    this.updateSight(dt, view, under);
     this.revealSystem.update(dt, under, root ? root.position : null, this.camera, view);
+  }
+
+  updateSight(dt, view, under) {
+    const root = this.playerSystem ? this.playerSystem.root : null;
+    const watching = root && !view && !this.editor.active;
+    const eye = watching ? { x: root.position.x, y: root.position.y + PLAYER_EYE_HEIGHT, z: root.position.z } : null;
+    this.sightSystem.update(dt, eye, Boolean(eye) && under);
+    this.revealSystem.setSight(this.sightSystem.view());
+  }
+
+  hoverDeco(cell) {
+    this.decoHighlight.setHover(cell && this.cellInSight(cell) ? cell : null);
+  }
+
+  cellInSight(cell) {
+    const root = this.playerSystem ? this.playerSystem.root : null;
+    const sight = this.sightSystem.view();
+    if (!root || !sight.active || sight.hide < 0.5) return true;
+    const level = Number.isFinite(cell.level) ? cell.level : this.playerSystem.level;
+    const spot = this.decoHighlight.spotAt(cell.cx, cell.cz, level);
+    const x = spot ? spot.x : cell.cx * CELL_SIZE;
+    const z = spot ? spot.z : cell.cz * CELL_SIZE;
+    const y = spot ? spot.y : this.terrainSystem.walkHeightAt(x, z, level);
+    const eye = new Vector3(root.position.x, root.position.y + PLAYER_EYE_HEIGHT, root.position.z);
+    return this.seesSpot(eye, x, y, z, sight.range);
   }
 
   pointedCell(cell) {
@@ -1424,7 +1457,7 @@ export default class GameScene {
   handleHover(cell) {
     this.hoverCell = cell;
     const pointedCell = this.editor.active && this.editor.mode.undergroundView ? null : this.pointedCell(cell);
-    this.decoHighlight.setHover(pointedCell || null);
+    this.hoverDeco(pointedCell || null);
     if (!this.editor.active) {
       this.gridSystem.clearHoverCell();
       this.gridSystem.clearCreatureRadius();
@@ -1462,7 +1495,7 @@ export default class GameScene {
 
   refreshHoverTooltip(cell) {
     if (this.creatureTooltipOn) return;
-    if (!cell || !this.options.highlights) {
+    if (!cell || !this.options.highlights || !this.cellInSight(cell)) {
       this.tooltipPanel.hide();
       return;
     }

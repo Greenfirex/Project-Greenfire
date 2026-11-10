@@ -4,6 +4,7 @@ export const OPTIONS_STORAGE_KEY = 'greenfire.options';
 export const OPTION_DEFAULTS = {
   quality: 'high',
   shadows: 'full',
+  sight: 'full',
   fireGlow: true,
   fpsCap: 60,
   highlights: true,
@@ -29,9 +30,9 @@ export const QUALITY_SCALES = { high: 1, medium: 0.8, low: 0.65 };
 export const FPS_CAPS = [30, 60, 0];
 
 export const PRESET_OPTIONS = {
-  high: { quality: 'high', shadows: 'full', fpsCap: 60, fireGlow: true, grass: 'high', waterDetail: true, reflections: true },
-  balanced: { quality: 'medium', shadows: 'simple', fpsCap: 60, fireGlow: true, grass: 'medium', waterDetail: true, reflections: true },
-  eco: { quality: 'low', shadows: 'off', fpsCap: 30, fireGlow: false, grass: 'off', waterDetail: false, reflections: false },
+  high: { quality: 'high', shadows: 'full', sight: 'full', fpsCap: 60, fireGlow: true, grass: 'high', waterDetail: true, reflections: true },
+  balanced: { quality: 'medium', shadows: 'simple', sight: 'simple', fpsCap: 60, fireGlow: true, grass: 'medium', waterDetail: true, reflections: true },
+  eco: { quality: 'low', shadows: 'off', sight: 'off', fpsCap: 30, fireGlow: false, grass: 'off', waterDetail: false, reflections: false },
 };
 
 export function mergeSavedOptions(saved) {

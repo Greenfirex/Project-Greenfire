@@ -4,7 +4,7 @@ import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
 import { Effect } from '@babylonjs/core/Materials/effect';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { WAVE_TIME_WRAP } from '../../utils/waterWaves.js';
-import { REVEAL_UNIFORMS, REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, revealBlock } from '../../utils/revealGlsl.js';
+import { REVEAL_UNIFORMS, REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, revealBlock } from '../../utils/revealGlsl.js';
 
 const VERTEX = `
 precision highp float;
@@ -119,7 +119,7 @@ export function createGrassMaterial(scene, options) {
   const material = new ShaderMaterial(options.name || 'wildGrassMat', scene, { vertex: 'grass', fragment: 'grass' }, {
     attributes: ['position', 'normal', 'uv', 'world0', 'world1', 'world2', 'world3'],
     uniforms: ['viewProjection', 'grassTime', 'clumpHeight', 'baseTint', 'lightDir', 'dayness', 'uvFlip', 'uvScale', 'patchPick', 'groundMode', 'groundTile', ...REVEAL_UNIFORM_NAMES],
-    samplers: ['diffuseSampler', REVEAL_SAMPLER],
+    samplers: ['diffuseSampler', REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER],
   });
   const tint = options.tint || [1, 1, 1];
   const uvScale = Number(options.uvScale) || 1;

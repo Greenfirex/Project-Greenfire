@@ -39,6 +39,12 @@ const SHADOW_LEVELS = [
   { value: 'full', label: 'Plné', title: 'Ostré a měkce zakončené stíny' },
 ];
 
+const SIGHT_LEVELS = [
+  { value: 'off', label: 'Vypnutý', title: 'Bez dohledu postavy, nejrychlejší' },
+  { value: 'simple', label: 'Jednoduchý', title: 'Hrubší hrana dohledu pro slabší počítače' },
+  { value: 'full', label: 'Plný', title: 'Ostrá hrana toho, kam postava dohlédne' },
+];
+
 const FERN_MODES = [
   { value: 'light', label: 'Lehká', title: 'Kapradina s 437 trojúhelníky, doporučeno' },
   { value: 'detail', label: 'Detailní', title: 'Kapradina s 7 581 trojúhelníky, jen na vyzkoušení' },
@@ -50,6 +56,7 @@ const ITEMS = [
   { kind: 'choice', key: 'grassFern', tab: 'view', label: 'Kapradina', note: 'Lehká je na hraní, detailní je jen na porovnání vzhledu a výkonu.', options: FERN_MODES },
   { kind: 'choice', key: 'fpsCap', tab: 'view', label: 'Omezit snímky', note: 'Nižší číslo = chladnější počítač.', options: FPS_OPTIONS, numeric: true },
   { kind: 'choice', key: 'shadows', tab: 'view', label: 'Stíny', note: 'Stíny patří k tomu, co hru zpomaluje nejvíc. Bez nich bude krajina plošší.', options: SHADOW_LEVELS },
+  { kind: 'choice', key: 'sight', tab: 'view', label: 'Dohled postavy', note: 'Co postava nevidí, se ztratí v oparu nebo ve tmě. Hra kvůli tomu přepočítává pohled při každém pohybu.', options: SIGHT_LEVELS },
   { kind: 'toggle', key: 'reflections', tab: 'view', label: 'Odrazy ve vodě', note: 'Stromy a břehy se zrcadlí na hladině. Vypnutí hodně ušetří, voda odráží jen oblohu.' },
   { kind: 'toggle', key: 'fireGlow', tab: 'view', label: 'Záře ohně', note: 'Měkká záře kolem plamenů. Oheň svítí do okolí i bez ní. Šetří jen ve chvíli, kdy něco hoří.' },
   { kind: 'toggle', key: 'waterDetail', tab: 'view', label: 'Čeření vody', note: 'Jemné vlnky na hladině. Vypnutí ušetří výkon, hladina bude hladší.' },

@@ -4,12 +4,14 @@ import { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Material } from '@babylonjs/core/Materials/material';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
+import { RawCubeTexture } from '@babylonjs/core/Materials/Textures/rawCubeTexture';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Constants } from '@babylonjs/core/Engines/constants';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3, Vector4 } from '@babylonjs/core/Maths/math.vector';
+import { Scene } from '@babylonjs/core/scene';
 import RevealPlugin from '../materials/revealPlugin.js';
-import { REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER } from '../../utils/revealGlsl.js';
+import { REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER } from '../../utils/revealGlsl.js';
 
 const FADE_SECONDS = 0.4;
 const CUT_ABOVE_FLOOR = 3;
@@ -40,9 +42,14 @@ export default class RevealSystem {
       sightFade: 1,
       floor: 0,
       kept: new Set(),
+      creatures: new Set(),
       map: null,
       mapMin: new Vector4(0, 0, 1, 1),
       light: new Vector3(0, 0, 0),
+      sightMap: null,
+      sightEye: new Vector4(0, 0, 0, 0),
+      sightDepth: new Vector4(0, 1, 0, 0),
+      sightFog: new Color3(0, 0, 0),
     };
     this.paramsVector = new Vector4(0, 0, 0, 0);
     this.progress = 0;
@@ -58,6 +65,9 @@ export default class RevealSystem {
     this.lowestVisible = Infinity;
     this.emptyMap = this.rawMap(new Uint8Array([0, 0, 0, 255]), 1, 1);
     this.state.map = this.emptyMap;
+    this.openSight = this.allVisibleCube();
+    this.state.sightMap = this.openSight;
+    this.sightOn = false;
     this.watchMaterials();
   }
 
@@ -123,6 +133,26 @@ export default class RevealSystem {
     return texture;
   }
 
+  allVisibleCube() {
+    const face = new Uint8Array([255, 255, 255, 255]);
+    return new RawCubeTexture(this.s, [face, face, face, face, face, face], 1, Constants.TEXTUREFORMAT_RGBA, Constants.TEXTURETYPE_UNSIGNED_BYTE, false, false, Texture.NEAREST_SAMPLINGMODE);
+  }
+
+  setSight(sight) {
+    const { state } = this;
+    this.sightOn = Boolean(sight && sight.active);
+    if (!this.sightOn) {
+      state.sightMap = this.openSight;
+      state.sightEye.set(0, 0, 0, 0);
+      state.sightDepth.set(0, 1, 0, 0);
+      return;
+    }
+    state.sightMap = sight.map;
+    state.sightEye.set(sight.eye.x, sight.eye.y, sight.eye.z, sight.range);
+    state.sightFog.copyFrom(this.s.fogMode !== Scene.FOGMODE_NONE ? this.s.fogColor : this.s.clearColor);
+    state.sightDepth.set(sight.near, sight.near + sight.mapRange, sight.packed ? 1 : 0, sight.hide);
+  }
+
   setSkyLight(light) {
     if (!light) {
       this.state.light.set(0, 0, 0);
@@ -147,6 +177,10 @@ export default class RevealSystem {
 
   isOpen() {
     return this.progress > 0;
+  }
+
+  setCreatureMeshes(meshes) {
+    this.state.creatures = meshes;
   }
 
   setKeptMeshes(meshes) {
@@ -177,7 +211,7 @@ export default class RevealSystem {
     this.progress = Math.max(0, Math.min(1, this.progress + (active ? step : -step)));
     const state = this.state;
     state.amount = this.progress * this.progress * (3 - 2 * this.progress);
-    state.sightFade = view ? 0 : 1;
+    state.sightFade = view || this.sightOn ? 0 : 1;
     if (view) {
       state.center.copyFrom(camera.target);
       state.cut = view.cut;
@@ -195,8 +229,12 @@ export default class RevealSystem {
   }
 
   pushShaderUniforms() {
-    const { center, amount, cut, sightFade, floor, map, mapMin, light } = this.state;
+    const { center, amount, cut, sightFade, floor, map, mapMin, light, sightMap, sightEye, sightDepth, sightFog } = this.state;
     for (const material of this.shaders) {
+      material.setTexture(REVEAL_SIGHT_SAMPLER, sightMap);
+      material.setVector4('revealSightEye', sightEye);
+      material.setVector4('revealSightDepth', sightDepth);
+      material.setColor3('revealSightFog', sightFog);
       material.setVector3('revealCenter', center);
       material.setTexture(REVEAL_SAMPLER, map);
       material.setVector4('revealMapMin', mapMin);

@@ -195,22 +195,42 @@ vhodná pro jiné vnitřky, třeba dům, přes registr `src/data/catalogs/maps.j
   vznikne schod (rampy a schody se zatím nekreslí).
 
 **Hotovo:** data a dotazy, geometrie (podlahy, stropy, stěny, šachty, vchody),
-pohyb hráče po patrech i přes spoj, tma v jeskyni a jeskynní zvuk. Jeskyně je tmavá
-vždy (vyloučená ze slunce), postava a tvorové zůstávají osvětlení normálně. Když je
+pohyb hráče po patrech i přes spoj, tma v jeskyni a jeskynní zvuk. Jeskyni svítí
+vlastní slabé světlo; obloha je z ní vyloučená a slunce se v materiálu tlumí podle
+mapy vchodů (`revealPlugin.js`, `CUSTOM_LIGHT{X}_COLOR` jen pro směrové světlo), takže
+obloha i slunce pronikají jen vchodem a asi 3 buňky dovnitř slábnou. Světlo oblohy
+u vchodu je stejné jako venku (`revealSystem.setSkyLight`) a dopadá od otvoru, takže
+je vidět reliéf podlahy. Stín stropu na slunce nespoléhá: strop se slunci kreslí
+odvrácenou stranou a stín nevrhá. Postava a tvorové zůstávají osvětlení normálně. Když je
 hráč pod stropem, schovají se přesně stropní dlaždice nad jeskyní (`overCave`,
 samostatný mesh `_roof`), kolem otvoru se ukáže skalní lem (`terrainCaveRim`)
 a skryjí se dekorace i tráva na těch buňkách. Strop je zeshora neviditelný.
 Terén výš než podlaha, na které hráč stojí, zmizí v celém rozsahu stejně jako
-v editoru pater (`revealColumn`), nezávisle na natočení kamery. Zůstává jen
-osvětlené okolí vchodu podle mapy `caveLightMap`.
+v editoru pater (`revealColumn`), nezávisle na natočení kamery. Co z okolí je
+vidět, řeší dohled postavy (níž); bez dohledu (editor pater, volba vypnuta) zůstává
+jen osvětlené okolí vchodu podle mapy `caveLightMap` a tma od 8–14 m.
 
 Táborák má vlastní stín do všech stran (`campfireFire.js`). Stín vrhají jen boky,
 stěny a stropy (`metadata.volume`), ploché podlahy ne, jinak by se pod ostrým úhlem
 kreslily pruhy. Stín se překresluje jednou za 1,5 s, ne každý snímek. Terén mimo
 dosah je z ohně vyloučený. Materiály země jsou blízko limitu 16 textur, proto je
-Půda jen z jedné textury a další textura na zemi se musí pohlídat. Podlaha
-jeskyně je vyloučená ze slunce jako stěny a záři od vchodu dostává přičtením
-(`floorGlow`), ne násobením, aby její jas nezávisel na tom, kde je vchod.
+Půda jen z jedné textury a další textura na zemi se musí pohlídat. Nejhorší
+materiál země dnes používá 15 textur (včetně mapy dohledu).
+
+**Dohled postavy** (`world/sightSystem.js`, výpočet v `utils/revealGlsl.js`). Z očí
+postavy (`PLAYER_EYE_HEIGHT`) kreslí neviditelné bodové světlo krychlovou mapu
+vzdáleností; stín vrhá jen skalní hmota (`metadata.volume`). Mapa se čte stejně jako
+stín táboráku a překresluje se při každém posunu očí. Pravidla:
+- Pod zemí: co zakryje skála nebo je dál než 14 m, ztmavne a zešedne (jeskyně
+  tušeně, povrch úplně do černa, takže ven je vidět jen otvorem); modely se
+  mimo dohled rozplynou a tvorové se schovají celí (paprsek `sceneCombat.seesCreature`).
+- Venku: od ~15 m (z vyvýšeného místa až o 10 m dál) přibývá oparu v barvě mlhy
+  (nejvýš 60 %) a černobílé. Opar dostane i zem výrazně výš než postava a vyšší zem
+  za skálou; zem ve stejné výšce za rohem ne (jinak by se kreslily paprsky).
+  Tvorové se v oparu rozplynou, dekorace jen zešednou.
+- Země se testuje o 0,6 m výš (za nízkým schodem není tma); modely podle své paty
+  (`vRevealBase`), ne podle bodu modelu, aby koruny stromů nezahalil.
+- Volba Dohled postavy: vypnutý / jednoduchý (mapa 256) / plný (512).
 
 Zkušební jeskyně v Glade: 4×4 buňky pod plošinou u spawnu, vchod ve skalní stěně
 na buňce −6,−10.
@@ -247,6 +267,9 @@ tlačítkem Voda a ladí po 0,25 m.
   Síla zrcadlení se počítá z hladké vlny, ne z vlnek.
 - Hloubka z terénu pod hladinou: mělko prosvítá, hloubka tmavne; kaustika na dně,
   v noci tmavší hladina. Hustota sítě podle kvality: 0,5 / 1 / 2 m.
+- **Mokrý pruh** na zemi u vody: nízko nad hladinou a zároveň blízko moře. Vzdálenost
+  od moře je v zeleném kanálu mapy suchých jam (`waterSystem.limitToOcean`,
+  dosah `SEA_DISTANCE_REACH`), čte se plynule mezi buňkami.
 
 ## Postava
 
@@ -305,6 +328,10 @@ operací (registrace v `GameScene.registerInteractions`):
 (E nebo klik), obsah jde do batohu a vybrané se ukládají. Víko truhly (`lid`) se
 zvedne kolem zadní horní hrany. `backToEdge` posune předmět zády ke kraji buňky
 podle natočení ze štětce (R).
+
+**Dosah rukou** je v katalogu postavy (`handReach`: 2,6 m vodorovně, nejvýš 1 m výš
+nebo níž) a čte ho sběr, truhly i táborák (ten má vlastní vodorovný dosah 3,2 m).
+Přes útes tak nejde kácet, otevírat ani zapalovat.
 
 Každá operace dodá `pick(context)` (vrátí `{ ref, inReach, detail? }` nebo `null`)
 a `act(target)`. Nápověda u kurzoru i klik používají stejné rozhodnutí. Nová

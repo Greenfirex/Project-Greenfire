@@ -2,11 +2,18 @@
 // Patří ke GameScene (sdílí její this); jen ji dělí, aby hlavní soubor zůstal přehledný.
 import { screenPointOf } from '../utils/screenPoint.js';
 import { cellToWorldCoords } from '../utils/gridMath.js';
+import { Ray } from '@babylonjs/core/Culling/ray';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { PLAYER_EYE_HEIGHT } from '../systems/player/playerSystem.js';
+import { SIGHT_GROUND_LIFT, SIGHT_RISE_START, SIGHT_RISE_FULL, SIGHT_HIGHER_START, SIGHT_HIGHER_FULL, SIGHT_EDGE } from '../utils/revealGlsl.js';
+import { smoothstep } from '../utils/noise.js';
 
 const PLAYER_FLOAT_HEIGHT = 2.2;
 const CREATURE_SOUND_RANGE = 22;
 const CREATURE_BAR_LIFT = 0.4;
 const BACK_HIT_DOT = -0.2;
+const SIGHT_CLEARANCE = 0.3;
+const CREATURE_GONE_FOG = 0.95;
 
 export default {
   async setupCreatures() {
@@ -190,6 +197,52 @@ export default {
     const canvas = this.engine.getRenderingCanvas();
     if (!canvas) return null;
     return screenPointOf(this.s, this.cameraSystem.camera, canvas.getBoundingClientRect(), x, y, z);
+  },
+
+  refreshCreatureSight() {
+    const system = this.creatureSystem;
+    const root = this.playerSystem.root;
+    const sight = this.sightSystem.view();
+    const watching = Boolean(root) && !this.editor.active && sight.active;
+    const eye = watching ? new Vector3(root.position.x, root.position.y + PLAYER_EYE_HEIGHT, root.position.z) : null;
+    const meshes = new Set();
+    for (const creature of system.creatures) {
+      for (const mesh of creature.meshes) meshes.add(mesh);
+      if (!watching || system.inFight(creature)) {
+        system.setSeen(creature, true);
+        continue;
+      }
+      const seen = sight.hide >= 0.5
+        ? this.seesCreature(eye, creature, sight.range)
+        : this.creatureFogAt(eye, root.position.y, creature, sight) < CREATURE_GONE_FOG;
+      system.setSeen(creature, seen);
+    }
+    this.revealSystem.setCreatureMeshes(meshes);
+  },
+
+  creatureFogAt(eye, feetY, creature, sight) {
+    const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ, creature.level || 0);
+    const distance = Math.hypot(creature.renderX - eye.x, ground + SIGHT_GROUND_LIFT - eye.y, creature.renderZ - eye.z);
+    const far = smoothstep(sight.range * SIGHT_EDGE, sight.range, distance);
+    const rise = smoothstep(SIGHT_RISE_START, SIGHT_RISE_FULL, ground - eye.y);
+    const higher = smoothstep(SIGHT_HIGHER_START, SIGHT_HIGHER_FULL, ground - feetY);
+    const blocked = higher > 0 && !this.seesCreature(eye, creature, Infinity) ? higher : 0;
+    return Math.max(far, rise, blocked);
+  },
+
+  seesCreature(eye, creature, range) {
+    const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ, creature.level || 0);
+    return this.seesSpot(eye, creature.renderX, ground, creature.renderZ, range);
+  },
+
+  seesSpot(eye, x, groundY, z, range) {
+    const toward = new Vector3(x, groundY + SIGHT_GROUND_LIFT, z).subtractInPlace(eye);
+    const length = toward.length();
+    if (length > range) return false;
+    if (length <= SIGHT_CLEARANCE) return true;
+    const ray = new Ray(eye, toward.scaleInPlace(1 / length), length - SIGHT_CLEARANCE);
+    const hit = this.s.pickWithRay(ray, (mesh) => mesh.isEnabled() && Boolean(mesh.metadata && mesh.metadata.volume), true);
+    return !(hit && hit.hit);
   },
 
   refreshCreatureHealthBars() {

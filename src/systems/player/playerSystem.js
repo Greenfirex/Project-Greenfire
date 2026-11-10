@@ -79,6 +79,7 @@ const TURN_SPEED = 12;
 const LOOK_TURN_SPEED = 6;
 const LOOK_DEAD_ZONE = 0.7;
 const MODEL_HEIGHT = 2.31;
+export const PLAYER_EYE_HEIGHT = MODEL_HEIGHT * 0.92;
 const MODEL_BASE_HEIGHT = PLAYER_BASE_HEIGHT;
 const MODEL_YAW = PLAYER_MODEL_YAW;
 const SPAWN = { x: 0, z: 0 };

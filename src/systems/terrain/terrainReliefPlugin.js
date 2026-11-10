@@ -20,7 +20,6 @@ const RELIEF_DEFINES = {
 };
 
 const asFloat = (value) => Number(value).toFixed(3);
-const RELIEF_BROAD_LEVEL = '7.0';
 
 const RELIEF_CODE = `
 uniform sampler2D reliefMapA;
@@ -53,18 +52,6 @@ mat3 reliefFrame(vec3 n) {
   vec3 tangent = length(alongX) > 0.001 ? normalize(alongX) : vec3(0.0, 0.0, 1.0);
   vec3 bitangent = normalize(cross(n, tangent));
   return mat3(tangent, bitangent, n);
-}
-
-#if __VERSION__ >= 300
-  #define reliefBroadSample(map, uv) texture2DLodEXT(map, uv, ${RELIEF_BROAD_LEVEL})
-#else
-  #define reliefBroadSample(map, uv) texture2D(map, uv, ${RELIEF_BROAD_LEVEL})
-#endif
-
-vec3 reliefFineTexel(sampler2D map, vec2 uv) {
-  vec3 texel = texture2D(map, uv).xyz * 2.0 - 1.0;
-  vec2 broad = reliefBroadSample(map, uv).xy * 2.0 - 1.0;
-  return vec3(texel.xy - broad, texel.z);
 }
 
 vec3 reliefNormal(vec3 base, vec3 texel, float strength) {
@@ -139,13 +126,13 @@ export default class TerrainReliefPlugin extends MaterialPluginBase {
         vec3 reliefBase = normalize(normalW);
         vec3 reliefResult = reliefNormal(
           reliefBase,
-          reliefFineTexel(reliefMapA, reliefTurn(reliefWorld / RELIEF_TILE_A, RELIEF_ANGLE_A)),
+          texture2D(reliefMapA, reliefTurn(reliefWorld / RELIEF_TILE_A, RELIEF_ANGLE_A)).xyz * 2.0 - 1.0,
           RELIEF_STRENGTH
         );
         #ifdef RELIEF_DETAIL
           vec3 reliefSecond = reliefNormal(
             reliefBase,
-            reliefFineTexel(reliefMapB, reliefTurn(reliefWorld / RELIEF_TILE_B, RELIEF_ANGLE_B)),
+            texture2D(reliefMapB, reliefTurn(reliefWorld / RELIEF_TILE_B, RELIEF_ANGLE_B)).xyz * 2.0 - 1.0,
             RELIEF_STRENGTH
           );
           float reliefMask = smoothstep(0.32, 0.78, reliefNoise(reliefWorld / RELIEF_MASK_TILE)) * RELIEF_MIX_B;
@@ -156,7 +143,7 @@ export default class TerrainReliefPlugin extends MaterialPluginBase {
           float reliefAmount = texture2D(blendWeightSampler, reliefWeightUv).r;
           vec3 reliefOther = reliefNormal(
             reliefBase,
-            reliefFineTexel(reliefNeighbour, reliefTurn(reliefWorld / RELIEF_NEIGHBOUR_TILE, RELIEF_NEIGHBOUR_ANGLE)),
+            texture2D(reliefNeighbour, reliefTurn(reliefWorld / RELIEF_NEIGHBOUR_TILE, RELIEF_NEIGHBOUR_ANGLE)).xyz * 2.0 - 1.0,
             RELIEF_NEIGHBOUR_STRENGTH
           );
           reliefResult = normalize(mix(reliefResult, reliefOther, reliefAmount));

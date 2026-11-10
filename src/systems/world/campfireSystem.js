@@ -3,8 +3,10 @@
 import { cellKey, cellToWorldCoords } from '../../utils/gridMath.js';
 import CampfireFire from '../../effects/campfireFire.js';
 import { levelOfEntry } from '../../data/maps/areaShape.js';
+import { PLAYER_BASE } from '../../data/catalogs/player.js';
 
 const REACH = 3.2;
+const REACH_HEIGHT = PLAYER_BASE.handReach.heightLimit;
 const MOVE_CANCEL = 0.16;
 
 function sameEntry(item, entry) {
@@ -41,6 +43,7 @@ export default class CampfireSystem {
     if (existing) {
       existing.entry = entry;
       existing.lift = cfg.y;
+      existing.y = surfaceY;
       existing.fire.setScale(cfg.size);
       existing.fire.place(x, surfaceY + cfg.y, z);
       return;
@@ -50,7 +53,7 @@ export default class CampfireSystem {
     fire.setScale(cfg.size);
     fire.place(x, surfaceY + cfg.y, z);
     fire.setTerrain(this.terrain);
-    this.fires.push({ entry, cx: entry.cx, cz: entry.cz, level: levelOfEntry(entry), x, z, fire, lift: cfg.y, lit: false });
+    this.fires.push({ entry, cx: entry.cx, cz: entry.cz, level: levelOfEntry(entry), x, y: surfaceY, z, fire, lift: cfg.y, lit: false });
     if (this.onFireAdded) this.onFireAdded(fire);
   }
 
@@ -62,6 +65,7 @@ export default class CampfireSystem {
       if (fresh) item.entry = fresh;
       const base = heightForEntry(item.entry);
       if (!Number.isFinite(base)) continue;
+      item.y = base;
       item.fire.place(item.x, base + (item.lift || 0), item.z);
     }
   }
@@ -86,12 +90,13 @@ export default class CampfireSystem {
     return this.fires.some((item) => item.cx === cx && item.cz === cz && item.level === level);
   }
 
-  nearestUnlit(x, z, level = 0) {
+  nearestUnlit(from, level = 0) {
     let best = null;
     let bestDist = REACH;
     for (const item of this.fires) {
       if (item.lit || item.level !== level) continue;
-      const dist = Math.hypot(item.x - x, item.z - z);
+      if (Math.abs(item.y - from.y) > REACH_HEIGHT) continue;
+      const dist = Math.hypot(item.x - from.x, item.z - from.z);
       if (dist > bestDist) continue;
       best = item;
       bestDist = dist;
@@ -128,7 +133,7 @@ export default class CampfireSystem {
   }
 
   update(dt, root, level = 0) {
-    this.nearest = root && !this.pending ? this.nearestUnlit(root.position.x, root.position.z, level) : null;
+    this.nearest = root && !this.pending ? this.nearestUnlit(root.position, level) : null;
     this.updatePending(root);
     for (const item of this.fires) item.fire.update(dt);
   }
