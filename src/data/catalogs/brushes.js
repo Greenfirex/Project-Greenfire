@@ -88,7 +88,7 @@ function eraserBrush(erase, group, label, note) {
 
 const ERASER_BRUSHES = {
   erase_plants: eraserBrush('plants', 'Rostliny', 'Guma: rostliny', 'Smaže stromy, keře, houby, květiny i trávu.'),
-  erase_objects: eraserBrush('objects', 'Objekty', 'Guma: objekty', 'Smaže kameny, dřevo, suť, mušle, korály a táborák.'),
+  erase_objects: eraserBrush('objects', 'Objekty', 'Guma: objekty', 'Smaže kameny, dřevo, suť, mušle, korály, táborák, truhly a kostlivce.'),
   erase_path: eraserBrush('path', 'Povrch', 'Guma: cesta', 'Smaže jen vrstvu cesty.'),
   erase_terrain: eraserBrush('terrain', 'Terén', 'Guma: terén', 'Srovná zem na nulu, zruší označení útesu a smaže most.'),
   erase_creatures: eraserBrush('creatures', 'Tvorové', 'Guma: tvorové', 'Smaže tvora nebo hejno ryb z buňky.'),
@@ -395,6 +395,24 @@ export const BRUSHES = {
     note: 'Postaví ohniště s ohněm, které jde zapálit.',
     shape: 'blob',
     pool: ['campfire'],
+    deco: true,
+  },
+  chest: {
+    label: 'Truhla',
+    group: 'Objekty',
+    note: 'Postaví truhlu zády ke kraji buňky; jde jednou otevřít a vybrat. Natočením určíš, ke kterému kraji.',
+    shape: 'blob',
+    pool: ['loot_chest'],
+    rotate: true,
+    deco: true,
+  },
+  skeleton: {
+    label: 'Kostlivec',
+    group: 'Objekty',
+    note: 'Posadí kostlivce zády ke kraji buňky; jde jednou prohledat. Natočením určíš, ke kterému kraji.',
+    shape: 'blob',
+    pool: ['loot_skeleton'],
+    rotate: true,
     deco: true,
   },
   spawn: {

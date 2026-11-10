@@ -112,12 +112,8 @@ export default {
     if (!yields) return false;
     this.creatureTooltipOn = false;
     this.tooltipPanel.hide();
-    this.playerSystem.faceTo(corpse.x, corpse.z);
-    this.playerSystem.crouchPickUp();
     this.decoHighlight.setHover(null);
-    for (const { itemKey, amount } of yields) this.inventorySystem.add(itemKey, amount);
-    this.inventoryWindow.update(this.inventorySystem);
-    this.logGain(yields);
+    this.beginLootPickup(corpse.x, corpse.z, () => this.receiveLoot(yields));
     return true;
   },
 

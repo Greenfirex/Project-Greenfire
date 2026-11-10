@@ -3,11 +3,13 @@
 import { ITEM_TYPES, RECIPES } from '../data/catalogs/items.js';
 import { itemIcon } from './itemIcons.js';
 import WindowFrame from './windowFrame.js';
+import { wearDragType, SLOT_DRAG_TYPE } from './dragTypes.js';
 
 const KIND_LABELS = {
   raw: 'Surovina',
   product: 'Produkt',
   tool: 'Nástroj',
+  wear: 'Oblečení',
 };
 
 export default class InventoryWindow {
@@ -25,6 +27,7 @@ export default class InventoryWindow {
     this.hoverKey = null;
     this.lastSignature = '';
     this.onClose = null;
+    this.onUnequip = null;
     this.frame.onClose = () => {
       if (this.onClose) this.onClose();
     };
@@ -51,8 +54,25 @@ export default class InventoryWindow {
     this.detailEl = this.frame.body.querySelector('.inv-detail');
     this.recipeEl = this.frame.body.querySelector('.inv-recipes');
     this.itemsEl.addEventListener('pointerleave', () => this.clearDetail());
+    this.watchUnequipDrop(this.itemsEl);
     this.clearDetail();
     return root;
+  }
+
+  watchUnequipDrop(target) {
+    target.addEventListener('dragover', (evt) => {
+      if (!evt.dataTransfer.types.includes(SLOT_DRAG_TYPE)) return;
+      evt.preventDefault();
+      target.classList.add('is-drop');
+    });
+    target.addEventListener('dragleave', () => target.classList.remove('is-drop'));
+    target.addEventListener('drop', (evt) => {
+      target.classList.remove('is-drop');
+      const slot = evt.dataTransfer.getData(SLOT_DRAG_TYPE);
+      if (!slot) return;
+      evt.preventDefault();
+      if (this.onUnequip) this.onUnequip(slot);
+    });
   }
 
   show() {
@@ -135,6 +155,16 @@ export default class InventoryWindow {
       name.textContent = label;
       cell.append(icon, count, name);
       cell.addEventListener('pointerenter', () => this.showDetail(key, amount));
+      const slot = ITEM_TYPES[key] ? ITEM_TYPES[key].slot : null;
+      if (slot) {
+        cell.draggable = true;
+        cell.classList.add('is-wearable');
+        cell.title = `${label} — přetáhni na postavu (C) pro nasazení`;
+        cell.addEventListener('dragstart', (evt) => {
+          evt.dataTransfer.setData(wearDragType(slot), key);
+          evt.dataTransfer.effectAllowed = 'move';
+        });
+      }
       this.itemsEl.appendChild(cell);
     }
     if (this.hoverKey) {

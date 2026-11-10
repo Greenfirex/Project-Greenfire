@@ -14,8 +14,11 @@ import RevealSystem from '../systems/world/revealSystem.js';
 import FloraSystem from '../systems/flora/floraSystem.js';
 import CliffVineSystem from '../systems/terrain/cliffVineSystem.js';
 import CaveFrameSystem from '../systems/terrain/caveFrameSystem.js';
+import CliffDressSystem from '../systems/terrain/cliffDressSystem.js';
 import DecoHighlightSystem from '../systems/world/decoHighlightSystem.js';
 import CampfireSystem from '../systems/world/campfireSystem.js';
+import LootSystem from '../systems/world/lootSystem.js';
+import EquipmentSystem from '../systems/player/equipmentSystem.js';
 import GlowSystem from '../systems/world/glowSystem.js';
 import DayNightSystem from '../systems/atmosphere/dayNightSystem.js';
 import LightingSystem from '../systems/atmosphere/lightingSystem.js';
@@ -72,6 +75,7 @@ import sceneWorldParts from './sceneWorld.js';
 import sceneCombatParts from './sceneCombat.js';
 import sceneGatheringParts from './sceneGathering.js';
 import sceneStepsParts from './sceneSteps.js';
+import sceneEquipmentParts from './sceneEquipment.js';
 
 const LOADING_DRAW_MS = 500;
 
@@ -123,7 +127,11 @@ export default class GameScene {
     this.floraSystem = new FloraSystem(scene);
     this.cliffVineSystem = new CliffVineSystem(scene);
     this.caveFrameSystem = new CaveFrameSystem(scene);
+    this.cliffDressSystem = new CliffDressSystem(scene);
     this.campfireSystem = new CampfireSystem(scene);
+    this.lootSystem = new LootSystem(scene);
+    this.equipmentSystem = new EquipmentSystem();
+    this.lootPickup = null;
     this.glowSystem = new GlowSystem(scene);
     this.decoHighlight = new DecoHighlightSystem(scene);
     this.decoHighlight.levelOf = () => this.gatherSystem.levelOf();
@@ -290,6 +298,7 @@ export default class GameScene {
         this.shadowClock = 0;
         this.refreshShadowReach();
         this.cliffVineSystem.updateView(this.viewCircle());
+        this.cliffDressSystem.updateView(this.viewCircle());
         if (!this.isLoading) this.decoSystem.updateView(this.viewCircle());
       }
       this.refreshCreatureHealthBars();
@@ -330,6 +339,7 @@ export default class GameScene {
       this.updatePlayerAttack(dt);
       const root = this.playerSystem.root;
       this.campfireSystem.update(dt, root, this.playerSystem.level);
+      this.lootSystem.update(dt, root, this.playerSystem.level);
       this.waterSystem.update(dt);
       this.updateWaveSpray();
       this.fishSystem.update(dt);
@@ -375,7 +385,7 @@ export default class GameScene {
     this.loader.floatProgress(1, 1, 'Seju trávu…');
     this.grassModelList = await this.loadGrassModels();
     this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle(), this.grassModelList, this.grassLook());
-    this.floraSystem.addShelfGrass(this.terrainSystem.shelfAnchors);
+    this.floraSystem.addShelfGrass(this.shelfGrassAnchors());
     this.floraSystem.updateView(this.viewCircle());
     this.refreshReflectionExclusions();
     this.loader.floatProgress(1, 1, 'Nastavuji stíny…');
@@ -629,6 +639,15 @@ export default class GameScene {
       },
       act: (target) => this.campfireSystem.ignite(target.ref),
     });
+    this.interaction.register('loot', {
+      priority: 45,
+      pick: ({ cell }) => {
+        const box = cell ? this.lootSystem.at(cell.cx, cell.cz, this.playerSystem.level) : null;
+        if (!box || this.lootSystem.opened.has(box.key)) return null;
+        return { ref: box, inReach: this.lootSystem.nearest === box };
+      },
+      act: (target) => this.openLoot(target.ref),
+    });
   }
 
   async setupPlayer() {
@@ -798,7 +817,12 @@ export default class GameScene {
     this.campfireSystem.setTerrain(this.terrainSystem.liveSurfaces());
     this.revealSystem.setLightMap(this.terrainSystem.caveLightMap());
     this.caveFrameSystem.create(this.terrainSystem.caveDoors(), (style) => this.terrainSystem.caveFrameMaterial(style));
+    this.cliffDressSystem.create(this.terrainSystem.cliffFaces(), (style, mossy) => this.terrainSystem.cliffDressMaterial(style, mossy));
     this.editor.syncFloorView();
+  }
+
+  shelfGrassAnchors() {
+    return [...(this.terrainSystem.shelfAnchors || []), ...this.cliffDressSystem.terraceAnchors];
   }
 
   refreshShadowCasters() {
@@ -1029,8 +1053,16 @@ export default class GameScene {
     this.characterButton.onClick = () => this.toggleCharacterWindow();
     this.bagButton.mount();
     this.characterButton.mount();
-    this.inventoryWindow.onClose = () => this.bagButton.setActive(false);
-    this.characterWindow.onClose = () => this.characterButton.setActive(false);
+    this.inventoryWindow.onClose = () => {
+      this.bagButton.setActive(false);
+      this.pairWindows();
+    };
+    this.characterWindow.onClose = () => {
+      this.characterButton.setActive(false);
+      this.pairWindows();
+    };
+    this.inventoryWindow.onUnequip = (slot) => this.unequipSlot(slot);
+    this.characterWindow.onEquip = (itemKey, slot) => this.equipItem(itemKey, slot);
     this.vitalsBar.setHealth(this.playerStats.health, this.playerStats.maxHealth);
     this.vitalsBar.setStamina(this.playerStats.stamina, this.playerStats.maxStamina);
     this.creatureHealthBar.mount();
@@ -1043,21 +1075,33 @@ export default class GameScene {
   }
 
   toggleInventoryWindow() {
-    const open = !this.inventoryWindow.open;
-    this.closeOpenWindows();
-    if (!open) return;
+    if (this.inventoryWindow.open) {
+      this.inventoryWindow.close();
+      this.pairWindows();
+      return;
+    }
     this.inventoryWindow.update(this.inventorySystem);
     this.inventoryWindow.show();
     this.bagButton.setActive(true);
+    this.pairWindows();
   }
 
   toggleCharacterWindow() {
-    const open = !this.characterWindow.open;
-    this.closeOpenWindows();
-    if (!open) return;
+    if (this.characterWindow.open) {
+      this.characterWindow.close();
+      this.pairWindows();
+      return;
+    }
     this.refreshCharacterWindow();
     this.characterWindow.show();
     this.characterButton.setActive(true);
+    this.pairWindows();
+  }
+
+  pairWindows() {
+    const both = this.inventoryWindow.open && this.characterWindow.open;
+    if (this.characterWindow.frame.root) this.characterWindow.frame.root.classList.toggle('is-paired-left', both);
+    if (this.inventoryWindow.frame.root) this.inventoryWindow.frame.root.classList.toggle('is-paired-right', both);
   }
 
   closeOpenWindows() {
@@ -1140,6 +1184,15 @@ export default class GameScene {
     this.registerSavedState(this.heldItemSystem, 'heldItem', 7);
     this.registerSavedState(this.playerStats, 'playerStats', 8);
     this.registerSavedState(this.campfireSystem, 'campfires', 12);
+    this.saveSystem.register('loot', {
+      serialize: () => this.lootSystem.serialize(),
+      apply: (data) => {
+        this.lootSystem.apply(data);
+        this.syncLootHighlights();
+      },
+      defaults: () => this.lootSystem.defaultState(),
+      order: 13,
+    });
     this.registerSavedState(this.fellingSystem, 'felling', 14);
     this.registerSavedState(this.harvestSystem, 'harvest', 15);
     this.registerSavedState(this.creatureSystem, 'creatures', 16);
@@ -1153,6 +1206,15 @@ export default class GameScene {
       },
       defaults: () => this.inventorySystem.defaultState(),
       order: 6,
+    });
+    this.saveSystem.register('equipment', {
+      serialize: () => this.equipmentSystem.serialize(),
+      apply: (data) => {
+        this.equipmentSystem.apply(data);
+        this.refreshEquipment();
+      },
+      defaults: () => this.equipmentSystem.defaultState(),
+      order: 9,
     });
   }
 
@@ -1316,9 +1378,15 @@ export default class GameScene {
         return;
       }
       const fire = this.campfireSystem.nearest;
-      if (!fire) return;
+      if (fire) {
+        evt.preventDefault();
+        this.campfireSystem.ignite(fire.entry);
+        return;
+      }
+      const box = this.lootSystem.nearest;
+      if (!box) return;
       evt.preventDefault();
-      this.campfireSystem.ignite(fire.entry);
+      this.openLoot(box);
       return;
     }
     if (evt.key === 'F5') {
@@ -1552,4 +1620,4 @@ export default class GameScene {
   }
 }
 
-Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts);
+Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts);

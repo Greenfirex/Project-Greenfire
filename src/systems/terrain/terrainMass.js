@@ -125,9 +125,9 @@ export default {
     return `terrainVolume_${suffix}_${group.name}`;
   },
 
-  createEdgeAnchors() {
+  eachCliffSide(visit) {
     const field = this.field;
-    if (!field || !field.heightAtCell || !this.shelfAnchors) return;
+    if (!field || !field.heightAtCell) return;
     const seen = new Set();
     const half = CELL_SIZE / 2;
     for (const [cx, cz] of this.realCells || []) {
@@ -144,25 +144,68 @@ export default {
         const edgeId = `${Math.round((cx + dx * 0.5) * 4)},${Math.round((cz + dz * 0.5) * 4)}`;
         if (seen.has(edgeId)) continue;
         seen.add(edgeId);
-        for (const step of [1, 3]) {
-          const t = step / 4;
-          const gx = dx !== 0 ? x0 + (dx > 0 ? CELL_SIZE : 0) : x0 + CELL_SIZE * t;
-          const gz = dz !== 0 ? z0 + (dz > 0 ? CELL_SIZE : 0) : z0 + CELL_SIZE * t;
-          const shift = this.surfaceShiftAt(gx, gz);
-          const y = this.edgeHeightAt(gx, gz, cx, cz, dx, dz, here);
-          if (!Number.isFinite(y)) continue;
-          this.shelfAnchors.push({
-            x: gx + (shift ? shift.x : 0),
-            y,
-            z: gz + (shift ? shift.z : 0),
-            dirX: dx,
-            dirZ: dz,
-            depth: EDGE_ANCHOR_DEPTH,
-            drop: here - below,
-          });
-        }
+        visit({ cx, cz, dx, dz, here, below, x0, z0 });
       }
     }
+  },
+
+  cliffFaces() {
+    const doorSides = new Map();
+    for (const door of this.caveDoors()) {
+      doorSides.set(`${door.cx},${door.cz}|${door.dx},${door.dz}`, door.top);
+      doorSides.set(`${door.cx + door.dx},${door.cz + door.dz}|${-door.dx},${-door.dz}`, door.top);
+    }
+    const isDoor = (cx, cz, dx, dz) => doorSides.has(`${cx},${cz}|${dx},${dz}`);
+    const faces = [];
+    this.eachCliffSide(({ cx, cz, dx, dz, here, below, x0, z0 }) => {
+      const doorTop = doorSides.get(`${cx},${cz}|${dx},${dz}`);
+      const lintel = doorTop !== undefined;
+      const gx = dx !== 0 ? x0 + (dx > 0 ? CELL_SIZE : 0) : x0 + CELL_SIZE / 2;
+      const gz = dz !== 0 ? z0 + (dz > 0 ? CELL_SIZE : 0) : z0 + CELL_SIZE / 2;
+      const top = this.edgeHeightAt(gx, gz, cx, cz, dx, dz, here);
+      if (!Number.isFinite(top)) return;
+      const alongX = dx !== 0 ? 0 : 1;
+      const alongZ = dx !== 0 ? 1 : 0;
+      faces.push({
+        cx,
+        cz,
+        dx,
+        dz,
+        x: gx,
+        z: gz,
+        top,
+        foot: lintel ? doorTop : below,
+        lintel,
+        style: this.field.cliffStyleAt(cx, cz) || 'dirt',
+        doorBefore: isDoor(cx - alongX, cz - alongZ, dx, dz),
+        doorAfter: isDoor(cx + alongX, cz + alongZ, dx, dz),
+      });
+    });
+    return faces;
+  },
+
+  createEdgeAnchors() {
+    if (!this.shelfAnchors) return;
+    this.eachCliffSide(({ cx, cz, dx, dz, here, below, x0, z0 }) => {
+      for (const step of [1, 3]) {
+        const t = step / 4;
+        const gx = dx !== 0 ? x0 + (dx > 0 ? CELL_SIZE : 0) : x0 + CELL_SIZE * t;
+        const gz = dz !== 0 ? z0 + (dz > 0 ? CELL_SIZE : 0) : z0 + CELL_SIZE * t;
+        const shift = this.surfaceShiftAt(gx, gz);
+        const y = this.edgeHeightAt(gx, gz, cx, cz, dx, dz, here);
+        if (!Number.isFinite(y)) continue;
+        this.shelfAnchors.push({
+          x: gx + (shift ? shift.x : 0),
+          y,
+          z: gz + (shift ? shift.z : 0),
+          dirX: dx,
+          dirZ: dz,
+          depth: EDGE_ANCHOR_DEPTH,
+          drop: here - below,
+        });
+      }
+    });
+    if (!this.field) return;
     for (const door of this.caveDoors()) {
       const across = (valueNoise(door.cx * 1.7, door.cz * 2.3) - 0.5) * DOOR_VINE_SPREAD;
       this.shelfAnchors.push({

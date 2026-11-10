@@ -87,7 +87,8 @@ Hotové je jádro hratelného ostrova: izometrická kamera, postava s animacemi
 a staty, sběr dřeva a kamene, batoh a okna postavy, táborák a pochodeň, denní
 cyklus se stíny, zvuky podle povrchu, ukládání do prohlížeče, editor mapy
 a svět kolem toho — terén se skutečnou hmotou, útesy, mosty, jeskyně s patry,
-voda s vlnami a pěnou, ryby, tráva, keře, kameny a palmy.
+voda s vlnami a pěnou, ryby, tráva, keře, kameny a palmy, truhly a kostlivci
+s kořistí a první předmět na hlavu.
 
 Tvorové: kajmanka, písečný běs a Koa'tiki — toulání, dvě zóny pozornosti,
 honička s návratem domů, kousnutí, smrt, tělo s kořistí a respawn. Chybí
@@ -148,6 +149,16 @@ boky, stěny jeskyní a stropy (`terrainMass.js`, `runVolume.js`).
 - **Na hraně útesu rostou rostliny:** kotvy (`EDGE_ANCHOR_DEPTH`) berou tráva
   (`addShelfGrass`) i liany (`CliffVineSystem`, model `cliff_vine.glb`, zkrácená
   podle výšky stěny, pod 0,6 m se nedává). Ve větru se zatím nehýbe.
+- **Skalní kusy na útesech** (`terrain/cliffDressSystem.js`): stěna se nemění, jen
+  se obalí překrývajícími se kameny (kamenné útesy) nebo hroudami (hliněné), recepty
+  `cliff_stone_*` a `cliff_clod_*` v `rocks.js`. Pod kusy zůstává celá stěna, takže
+  nevznikají díry. Seznam stran dává `terrainMass.cliffFaces()`; strana nad vchodem
+  dostane jen řadu nad otvorem. Kusy u volného konce stěny se zúží a přitisknou, na
+  vnějším rohu stojí menší zapuštěný kus (jinak převisy). Horní řada má občas mech
+  (`cliffMossPlugin.js`, zezelená jen plocha mířící vzhůru). Občas je ve stěně
+  římsa — převrácený plochý kus s mechem, na který se sází podrost jako na hranu
+  (`shelfGrassAnchors` ve scéně). Kusy jsou hromadné kopie po oblastech; každá má
+  vlastní kopii tvaru (`makeGeometryUnique`), sdílený tvar si pozice přepisuje.
 - **Ladicí pohledy** (`terrain/terrainDebug.js`): `?solid` ukáže pruhy jako kostky,
   `?corners` obarví rohy útesů (červená roh, modrá vnitřní kout, žlutá diagonála).
 
@@ -161,8 +172,7 @@ boky, stěny jeskyní a stropy (`terrainMass.js`, `runVolume.js`).
 
 **Další fáze:** 3) pohyb a dotazy na pruzích, 4) voda, tráva, dekorace a kamera na
 nové dotazy, 5) editor (vykopat/vyplnit, díry, spoje), 6) nová verze mapy a savu
-s migrací. Volitelně jiná kůže útesů nad stejnou hmotou. Největší riziko je vzhled
-útesů — detail se musí na objemových lících vymyslet znovu.
+s migrací. Vzhled útesů řeší skalní kusy nad stejnou hmotou (viz výš).
 
 ## Jeskyně a patra
 
@@ -253,8 +263,23 @@ kamene; doplňuje se po prodlevě, kterou restartuje i kousnutí. Při prázdné
 postava přejde do chůze a běh povolí až nad mezí — Shift je potřeba pustit
 a stisknout znovu (jinak by kmitala). Útočit jde i bez výdrže.
 
-Okno **Postava** (C) a **Inventář** (I) jdou tahat myší a pamatují si pozici; sloty
-výbavy jsou zatím prázdné.
+Okno **Postava** (C) a **Inventář** (I) jdou tahat myší a pamatují si pozici. Obě
+můžou být otevřená zároveň a postaví se vedle sebe.
+
+**Vybavení:** předmět s `slot` (zatím `pirate_hat` na hlavu) se přetáhne z batohu
+na slot v okně postavy, zpět ho sundá přetažení do batohu (`dragTypes.js`). Co má
+hráč na sobě drží `equipmentSystem.js` (ukládá se), propojení dělá
+`sceneEquipment.js`. Model na hlavě sedí na uzlu odvozeném z kostí `Head`,
+`head_end` a `headfront`; velikost, výška, posun vpřed a natočení jsou v `wear`
+u předmětu. Ostatní sloty zatím nic neumí.
+
+**Pochodeň** je model z Meshy (`props/torch/torch.glb`). Nástroj může mít vlastní
+`grip` (velikost, natočení, posun); natočení pochodně je změřené v klidovém postoji
+tak, aby hlavice mířila nahoru a mírně dopředu.
+
+Modely z Meshy se před vložením zmenšují (textury WebP 1024, nekovový materiál);
+nahraný model ztratí posun svých dílů, proto pohyblivé díly (víko truhly) mají osu
+otáčení spočítanou až ve hře z tvaru dílu.
 
 ## Klikání ve světě
 
@@ -269,7 +294,13 @@ operací (registrace v `GameScene.registerInteractions`):
 | 100 | tvor | útok |
 | 90 | mrtvola | sebrat kořist |
 | 50 | těžená věc | máchnutí (kácení, těžba, sběr) |
+| 45 | truhla, kostlivec | otevřít / prohledat |
 | 40 | táborák | zapálit |
+
+**Truhly a kostlivci** (`world/lootSystem.js`): dekorace s `loot` jde jednou vybrat
+(E nebo klik), obsah jde do batohu a vybrané se ukládají. Víko truhly (`lid`) se
+zvedne kolem zadní horní hrany. `backToEdge` posune předmět zády ke kraji buňky
+podle natočení ze štětce (R).
 
 Každá operace dodá `pick(context)` (vrátí `{ ref, inReach, detail? }` nebo `null`)
 a `act(target)`. Nápověda u kurzoru i klik používají stejné rozhodnutí. Nová

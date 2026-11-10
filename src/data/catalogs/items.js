@@ -1,5 +1,16 @@
 // Deklarace typu předmětů (suroviny a produkty).
 // Drží jen deklarace a resolve helpery, žádnou herní logiku.
+import { ASSET_DIRS } from './assetPaths.js';
+
+export const EQUIP_SLOTS = [
+  { key: 'head', label: 'Hlava', icon: '⛑' },
+  { key: 'chest', label: 'Tělo', icon: '🥋' },
+  { key: 'legs', label: 'Nohy', icon: '👖' },
+  { key: 'hands', label: 'Ruce', icon: '🧤' },
+  { key: 'feet', label: 'Boty', icon: '🥾' },
+  { key: 'weapon', label: 'Zbraň', icon: '⚔' },
+];
+
 export const ITEM_TYPES = {
   wood: {
     displayName: 'Dřevo',
@@ -56,6 +67,15 @@ export const ITEM_TYPES = {
     kind: 'raw',
     color: [0.38, 0.42, 0.28],
   },
+  pirate_hat: {
+    displayName: 'Pirátský klobouk',
+    icon: '🎩',
+    stackSize: 1,
+    kind: 'wear',
+    slot: 'head',
+    color: [0.3, 0.2, 0.12],
+    wear: { model: `${ASSET_DIRS.props}pirate_hat/pirate_hat.glb`, width: 0.48, seat: 0.62, forward: 0.03, yaw: 0 },
+  },
 };
 
 export const ITEM_KEYS = Object.keys(ITEM_TYPES);
@@ -110,6 +130,8 @@ export const TOOL_TYPES = {
     icon: '🔥',
     kind: 'tool',
     model: 'torch',
+    file: `${ASSET_DIRS.props}torch/torch.glb`,
+    grip: { scale: 0.6, rotation: [0.37, -2.43, -3] },
   },
 };
 

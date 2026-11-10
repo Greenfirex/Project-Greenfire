@@ -32,6 +32,10 @@ export const PLAYER_HAND_BONES = [
   'hand.r',
 ];
 
+export const PLAYER_HEAD_BONES = ['Head', 'mixamorig:Head'];
+export const PLAYER_HEAD_TOP = ['head_end', 'HeadTop_End', 'mixamorig:HeadTop_End'];
+export const PLAYER_HEAD_FRONT = ['headfront'];
+
 export const PLAYER_ANIM_LIBRARY = {
   walking: 'Walking',
   running: 'Running',
@@ -41,7 +45,6 @@ export const PLAYER_ANIM_LIBRARY = {
   collectObject: 'Collect_Object',
   combatStance: 'Combat_Stance',
   facePunch: 'Face_Punch_Reaction',
-  crouchPickup: 'Female_Crouch_Pick_Up_Place_Side',
   hammerSwing: 'Heavy_Hammer_Swing',
   idle11: 'Idle_11',
   leftSlash: 'Left_Slash',
@@ -65,7 +68,6 @@ export const PLAYER_ANIM_NAMES = {
   holdTool: PLAYER_ANIM_LIBRARY.idle11,
   ignite: PLAYER_ANIM_LIBRARY.collectObject,
   pickup: PLAYER_ANIM_LIBRARY.collectObject,
-  crouchPickup: PLAYER_ANIM_LIBRARY.crouchPickup,
   combatStance: PLAYER_ANIM_LIBRARY.combatStance,
   getUp: PLAYER_ANIM_LIBRARY.standUp1,
   flinch: PLAYER_ANIM_LIBRARY.facePunch,
@@ -80,14 +82,12 @@ export const PLAYER_ANIM_SPEEDS = {
   kick: 1.4,
   ignite: 2.5,
   pickup: 3.0,
-  crouchPickup: 2.5,
   getUp: 1,
   flinch: 2,
 };
 
 export const PLAYER_ANIM_RANGES = {
   punch: { start: 1.1, end: 2.7 },
-  crouchPickup: { start: 0.0, end: 5.6 },
   flinch: { start: 0.0, end: 1.0 },
 };
 
@@ -106,7 +106,6 @@ export const PLAYER_ANIM_FALLBACKS = {
   holdTool: ['holdTool', 'idle'],
   ignite: ['ignite', 'pickup', 'punch', 'idle'],
   pickup: ['pickup', 'ignite', 'punch', 'idle'],
-  crouchPickup: ['crouchPickup', 'pickup', 'idle'],
   getUp: ['getUp'],
   dieFall: ['dieFall', 'dieShot'],
   dieShot: ['dieShot', 'dieFall'],
@@ -119,7 +118,7 @@ export const CREATURE_MODEL_URLS = Object.values(CREATURE_TYPES)
   .filter(Boolean);
 
 export function toolModelUrl(tool) {
-  return `${TOOL_DIR}${tool.model}.gltf`;
+  return tool.file || `${TOOL_DIR}${tool.model}.gltf`;
 }
 
 export function collectStartupUrls(heldTool = null) {

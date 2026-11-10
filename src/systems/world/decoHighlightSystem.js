@@ -29,7 +29,7 @@ export default class DecoHighlightSystem {
 
   add(entry, node, def) {
     if (!node || !def) return;
-    if (!def.gather) {
+    if (!def.gather && !def.loot) {
       if (def.blocks === false) return;
       if ((def.radius || 0) < MIN_RADIUS) return;
     }

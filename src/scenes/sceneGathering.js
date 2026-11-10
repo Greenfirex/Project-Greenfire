@@ -1,5 +1,6 @@
 // Část herní scény: sběr, kácení a těžba — načasování úderu, výnos a obnova sebraných věcí.
 // Patří ke GameScene (sdílí její this); jen ji dělí, aby hlavní soubor zůstal přehledný.
+import { PICKUP_SOUND } from '../systems/gathering/gatherSystem.js';
 
 const IMPACT_DELAY = 0.28;
 
@@ -11,6 +12,7 @@ export default {
     this.gatherSystem.update(dt, this.playerSystem, active ? this.inputSystem.lastCell : null);
     if (active) this.holdStrikeReady();
     this.updateGatherImpact(dt);
+    this.updateLootPickup(dt);
     this.hotbar.setPrompt(this.gatherPrompt());
   },
 
@@ -18,7 +20,53 @@ export default {
     if (this.editor.active) return '';
     if (this.campfireSystem.pending) return 'Zapaluji táborák…';
     if (this.campfireSystem.nearest) return 'E — zapálit Táborák';
+    if (this.lootSystem.nearest) {
+      const def = this.lootSystem.nearest.def;
+      return `E — ${def.lootVerb} ${def.displayName}`;
+    }
     return '';
+  },
+
+  openLoot(box) {
+    const yields = this.lootSystem.open(box);
+    if (!yields) return false;
+    this.syncLootHighlights();
+    this.beginLootPickup(box.x, box.z, () => this.receiveLoot(yields, `Vybráno: ${box.def.displayName}`));
+    return true;
+  },
+
+  beginLootPickup(x, z, onImpact) {
+    if (this.lootPickup) this.finishLootPickup();
+    this.playerSystem.faceTo(x, z);
+    this.playerSystem.pickUp();
+    this.lootPickup = { left: this.playerSystem.pickupImpactTime(), onImpact };
+  },
+
+  updateLootPickup(dt) {
+    if (!this.lootPickup) return;
+    this.lootPickup.left -= dt;
+    if (this.lootPickup.left <= 0) this.finishLootPickup();
+  },
+
+  finishLootPickup() {
+    const pickup = this.lootPickup;
+    this.lootPickup = null;
+    this.audioSystem.play(PICKUP_SOUND);
+    pickup.onImpact();
+  },
+
+  receiveLoot(yields, note = null) {
+    for (const { itemKey, amount } of yields) this.inventorySystem.add(itemKey, amount);
+    this.inventoryWindow.update(this.inventorySystem);
+    if (note) this.log.add(note, 'action');
+    this.logGain(yields);
+  },
+
+  syncLootHighlights() {
+    for (const box of this.lootSystem.boxes) {
+      if (!this.lootSystem.opened.has(box.key)) continue;
+      this.decoHighlight.removeKey(this.decoHighlight.keyOf(box.cx, box.cz, box.level));
+    }
   },
 
   updateGatherImpact(dt) {

@@ -4,9 +4,127 @@ const LIGHT_STONE = { texture: 'Rock030_1K-JPG_Color.jpg', normal: 'Rock030_1K-J
 const WARM_STONE = { texture: 'Rock023_1K-JPG_Color.jpg', normal: 'Rock023_1K-JPG_NormalGL.jpg' };
 const JAGGED_STONE = { texture: 'Rock045_1K-JPG_Color.jpg', normal: 'Rock045_1K-JPG_NormalGL.jpg' };
 const DARK_STONE = { texture: 'Rock050_1K-JPG_Color.jpg', normal: 'Rock050_1K-JPG_NormalGL.jpg' };
-const BLACK_STONE = { texture: 'Rock063_1K-JPG_Color.jpg', normal: 'Rock063_1K-JPG_NormalGL.jpg' };
+const CLAY = { texture: 'Ground071_1K-JPG_Color.jpg', normal: 'Ground071_1K-JPG_NormalGL.jpg' };
+const BLACK_STONE ={ texture: 'Rock063_1K-JPG_Color.jpg', normal: 'Rock063_1K-JPG_NormalGL.jpg' };
 
 export const ROCK_RECIPES = {
+  cliff_clod_round: {
+    ...CLAY,
+    seed: 6611,
+    size: [0.9, 0.7, 0.5],
+    detail: 2,
+    roughness: 0.16,
+    uvScale: 0.45,
+    tint: [0.95, 0.92, 0.88],
+  },
+  cliff_clod_wide: {
+    ...CLAY,
+    seed: 2087,
+    size: [1.05, 0.55, 0.48],
+    detail: 2,
+    roughness: 0.14,
+    uvScale: 0.42,
+    tint: [0.9, 0.87, 0.82],
+  },
+  cliff_clod_tall: {
+    ...CLAY,
+    seed: 4759,
+    size: [0.66, 0.9, 0.46],
+    detail: 2,
+    roughness: 0.18,
+    uvScale: 0.44,
+    tint: [1, 0.96, 0.9],
+  },
+  cliff_clod_pair: {
+    ...CLAY,
+    seed: 8329,
+    detail: 2,
+    roughness: 0.15,
+    uvScale: 0.44,
+    tint: [0.92, 0.89, 0.84],
+    parts: [
+      { seed: 8329, size: [0.7, 0.5, 0.46], offset: [-0.25, 0, 0] },
+      { seed: 1151, size: [0.55, 0.45, 0.42], offset: [0.5, 0.18, 0] },
+    ],
+  },
+  cliff_stone_wide: {
+    ...DARK_STONE,
+    seed: 7301,
+    size: [1, 0.72, 0.5],
+    detail: 2,
+    roughness: 0.3,
+    uvScale: 0.4,
+    tint: [0.94, 0.93, 0.9],
+  },
+  cliff_stone_tall: {
+    ...DARK_STONE,
+    seed: 2719,
+    size: [0.72, 1, 0.48],
+    detail: 2,
+    roughness: 0.34,
+    uvScale: 0.42,
+    tint: [0.9, 0.89, 0.86],
+  },
+  cliff_stone_slab: {
+    ...DARK_STONE,
+    seed: 6143,
+    size: [1.1, 0.5, 0.46],
+    detail: 2,
+    roughness: 0.26,
+    uvScale: 0.38,
+    tint: [0.98, 0.97, 0.93],
+  },
+  cliff_stone_wide_b: {
+    ...DARK_STONE,
+    seed: 9157,
+    size: [0.92, 0.62, 0.52],
+    detail: 2,
+    roughness: 0.38,
+    uvScale: 0.44,
+    tint: [0.86, 0.86, 0.84],
+  },
+  cliff_stone_tall_b: {
+    ...DARK_STONE,
+    seed: 1483,
+    size: [0.58, 0.92, 0.44],
+    detail: 2,
+    roughness: 0.4,
+    uvScale: 0.36,
+    tint: [1, 0.98, 0.93],
+  },
+  cliff_stone_block: {
+    ...DARK_STONE,
+    seed: 8263,
+    size: [0.78, 0.78, 0.5],
+    detail: 2,
+    roughness: 0.22,
+    uvScale: 0.46,
+    tint: [0.91, 0.9, 0.86],
+  },
+  cliff_stone_ledge: {
+    ...DARK_STONE,
+    seed: 3307,
+    detail: 2,
+    roughness: 0.3,
+    uvScale: 0.4,
+    tint: [0.95, 0.93, 0.88],
+    parts: [
+      { seed: 3307, size: [0.85, 0.42, 0.46], offset: [-0.3, 0, 0] },
+      { seed: 5519, size: [0.6, 0.5, 0.42], offset: [0.55, 0.22, 0] },
+    ],
+  },
+  cliff_stone_stack: {
+    ...DARK_STONE,
+    seed: 7741,
+    detail: 2,
+    roughness: 0.34,
+    uvScale: 0.42,
+    tint: [0.88, 0.87, 0.84],
+    parts: [
+      { seed: 7741, size: [0.7, 0.55, 0.46], offset: [0, 0, 0] },
+      { seed: 2293, size: [0.5, 0.5, 0.4], offset: [0.18, 0.62, 0] },
+    ],
+  },
   boulder_small: {
     ...LIGHT_STONE,
     seed: 1201,

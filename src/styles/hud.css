@@ -368,6 +368,20 @@
   display: flex;
 }
 
+.side-window.is-paired-left,
+.side-window.is-paired-right {
+  width: min(46vw, 760px);
+  min-width: 360px;
+}
+
+.side-window.is-paired-left {
+  left: 26%;
+}
+
+.side-window.is-paired-right {
+  left: 74%;
+}
+
 .side-window__body {
   flex: 1;
   min-height: 0;
@@ -462,6 +476,18 @@
 
 .equip-slot.is-empty {
   opacity: 0.5;
+}
+
+.equip-slot.is-drop,
+.inv-grid.is-drop {
+  border-color: rgba(90, 200, 170, 0.9);
+  background: rgba(90, 200, 170, 0.16);
+  opacity: 1;
+}
+
+.equip-slot[draggable='true'],
+.inv-cell.is-wearable {
+  cursor: grab;
 }
 
 .equip-preview {

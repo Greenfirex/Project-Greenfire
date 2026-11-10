@@ -86,6 +86,8 @@ export default {
     this.decoHighlight.add(entry, node, def);
     this.gatherSystem.ensureEntry(anchor);
     this.campfireSystem.add(entry, def, anchor.position.y);
+    this.lootSystem.add(entry, def, node, anchor.position);
+    if (def.loot) this.syncLootHighlights();
   },
 
   underWaterLevel(y) {
@@ -206,6 +208,7 @@ export default {
   setupDecorations() {
     this.gatherSystem.syncFromDeco();
     this.campfireSystem.sync(this.mapFile.decorations || []);
+    this.lootSystem.sync(this.mapFile.decorations || []);
 
     this.editor.connect();
   },
@@ -348,7 +351,7 @@ export default {
     return this.withBusy('Přepočítávám trávu…', async () => {
       this.grassModelList = await this.loadGrassModels();
       this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle(), this.grassModelList, this.grassLook());
-      this.floraSystem.addShelfGrass(this.terrainSystem.shelfAnchors);
+      this.floraSystem.addShelfGrass(this.shelfGrassAnchors());
       this.floraSystem.updateView(this.viewCircle());
       this.refreshReflectionExclusions();
     });
@@ -367,13 +370,14 @@ export default {
 
   finishRebuild() {
     this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle(), this.grassModelList, this.grassLook());
-    this.floraSystem.addShelfGrass(this.terrainSystem.shelfAnchors);
+    this.floraSystem.addShelfGrass(this.shelfGrassAnchors());
     this.floraSystem.updateView(this.viewCircle());
     this.refreshReflectionExclusions();
     this.gatherSystem.syncFromDeco();
     this.syncFelling();
     this.syncHarvest();
     this.campfireSystem.sync((this.mapFile || {}).decorations || []);
+    this.lootSystem.sync((this.mapFile || {}).decorations || []);
     this.refreshShadowCasters();
     this.handleHover(this.hoverCell);
     this.reportRebuild();

@@ -61,12 +61,14 @@ export function decoPlacement(def, entry) {
   const jitterZ = jitter ? jitter.z : 0;
   const entryScale = Number.isFinite(entry.scale) ? entry.scale : 1;
   const defScale = Number.isFinite(def && def.scale) ? def.scale : 1;
+  const yaw = (Math.PI / 2) * (entry.rotation || 0) + (jitter ? jitter.yaw : 0);
+  const back = Number.isFinite(def && def.backToEdge) ? def.backToEdge : 0;
   return {
-    offsetX: (entry.offsetX || 0) + jitterX,
-    offsetZ: (entry.offsetZ || 0) + jitterZ,
+    offsetX: (entry.offsetX || 0) + jitterX - Math.sin(yaw) * back,
+    offsetZ: (entry.offsetZ || 0) + jitterZ - Math.cos(yaw) * back,
     jitterX,
     jitterZ,
-    yaw: (Math.PI / 2) * (entry.rotation || 0) + (jitter ? jitter.yaw : 0),
+    yaw,
     scale: defScale * entryScale * (jitter ? jitter.scale : 1),
   };
 }

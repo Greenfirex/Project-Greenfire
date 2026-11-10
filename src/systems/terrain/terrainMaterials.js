@@ -10,6 +10,7 @@ import TerrainReliefPlugin from './terrainReliefPlugin.js';
 import TerrainCausticPlugin from './terrainCausticPlugin.js';
 import TerrainWetPlugin from './terrainWetPlugin.js';
 import CliffSurfacePlugin from './cliffSurfacePlugin.js';
+import CliffMossPlugin from './cliffMossPlugin.js';
 import { SURFACE_VERTEX_TINT, color3 } from './terrainSettings.js';
 
 const CLIFF_TEXTURE = `${ASSET_DIRS.textures}Rock050_1K-JPG_Color.jpg`;
@@ -18,6 +19,7 @@ const CLIFF_STRATA_TEXTURE = `${ASSET_DIRS.textures}Rock023_1K-JPG_Color.jpg`;
 const CLIFF_MOSS_TEXTURE = `${ASSET_DIRS.textures}Rock063_1K-JPG_Color.jpg`;
 const CLAY_CLIFF_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
 const CLAY_CLIFF_NORMAL = `${ASSET_DIRS.textures}Ground071_1K-JPG_NormalGL.jpg`;
+const DRESS_MOSS_TEXTURE = `${ASSET_DIRS.textures}Grass001_1K-JPG_Color.jpg`;
 
 export default {
   cliffMaterialFor(style) {
@@ -40,6 +42,23 @@ export default {
       material.diffuseColor = cliff.diffuseColor.clone();
       material.specularColor = cliff.specularColor.clone();
       material.backFaceCulling = false;
+      this.cliffMaterials[key] = material;
+    }
+    return this.cliffMaterials[key];
+  },
+
+  cliffDressMaterial(style, mossy = false) {
+    if (!this.cliffMaterials) this.cliffMaterials = {};
+    const key = `dress_${style}${mossy ? '_moss' : ''}`;
+    if (!this.cliffMaterials[key]) {
+      const cliff = this.cliffMaterialFor(style);
+      const material = new StandardMaterial(`terrainCliffDressMat_${style}${mossy ? '_moss' : ''}`, this.s);
+      material.diffuseTexture = cliff.diffuseTexture;
+      material.bumpTexture = cliff.bumpTexture;
+      material.diffuseColor = cliff.diffuseColor.clone();
+      material.specularColor = cliff.specularColor.clone();
+      material.backFaceCulling = false;
+      if (mossy) new CliffMossPlugin(material, this.cliffBlendTexture(DRESS_MOSS_TEXTURE));
       this.cliffMaterials[key] = material;
     }
     return this.cliffMaterials[key];
