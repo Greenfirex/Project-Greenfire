@@ -960,7 +960,7 @@ export default class GameScene {
     this.ambientTime = time;
     this.audioSystem.setDayness(value);
     this.floraSystem.setDayness(value);
-    this.revealSystem.setDayness(value);
+    this.revealSystem.setSkyLight(this.lighting.skyLight);
     const sun = this.dayNightSystem.sunLight;
     if (sun) this.floraSystem.setSunDirection(sun.direction.scale(-1));
     this.skySystem.setDayness(value, this.dayNightSystem.sunLight);

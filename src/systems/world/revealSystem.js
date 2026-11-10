@@ -16,8 +16,6 @@ const CUT_ABOVE_FLOOR = 3;
 const CUT_FOLLOW = 10;
 const BACKDROP_RADIUS = 400;
 const BACKDROP_BELOW_FLOOR = 0.15;
-const DAY_LIGHT = [4.5, 4.2, 3.8];
-const NIGHT_LIGHT = 0.25;
 const PLUGIN_CLASSES = new Set(['StandardMaterial', 'PBRMaterial', 'PBRMetallicRoughnessMaterial', 'PBRSpecularGlossinessMaterial']);
 
 const OVERLAY_MATERIALS = /^(hologramMat_|brushMasterMat|hoverCellMat|creatureRadiusMat|zonesMaterial_|creatureMark)/;
@@ -25,7 +23,6 @@ const OVERLAY_MATERIALS = /^(hologramMat_|brushMasterMat|hoverCellMat|creatureRa
 function materialKind(name) {
   if (name === 'revealBackdropMat') return 'backdrop';
   if (name.startsWith('caveFrameMat_')) return 'frame';
-  if (name.startsWith('terrainSurfaceMat_Cave|')) return 'caveFloor';
   if (name === 'terrainCaveCeilingMat') return 'ceiling';
   if (name.includes('Cave')) return 'cave';
   if (name.startsWith('terrain')) return 'terrain';
@@ -61,7 +58,6 @@ export default class RevealSystem {
     this.lowestVisible = Infinity;
     this.emptyMap = this.rawMap(new Uint8Array([0, 0, 0, 255]), 1, 1);
     this.state.map = this.emptyMap;
-    this.setDayness(1);
     this.watchMaterials();
   }
 
@@ -127,9 +123,20 @@ export default class RevealSystem {
     return texture;
   }
 
-  setDayness(value) {
-    const strength = NIGHT_LIGHT + (1 - NIGHT_LIGHT) * value;
-    this.state.light.set(DAY_LIGHT[0] * strength, DAY_LIGHT[1] * strength, DAY_LIGHT[2] * strength);
+  setSkyLight(light) {
+    if (!light) {
+      this.state.light.set(0, 0, 0);
+      return;
+    }
+    const up = 0.5 + 0.5 * Vector3.Normalize(light.direction).y;
+    const sky = light.diffuse;
+    const ground = light.groundColor;
+    const k = light.intensity;
+    this.state.light.set(
+      (ground.r + (sky.r - ground.r) * up) * k,
+      (ground.g + (sky.g - ground.g) * up) * k,
+      (ground.b + (sky.b - ground.b) * up) * k,
+    );
   }
 
   forgetCompiled(material) {

@@ -21,6 +21,7 @@ export const CLIFF_RISE_MIN = 1.2;
 export const SEA_DIRECTION = [0.94, 0.34];
 export const WATER_MAX_DEPTH = 2.5;
 export const SHORE_FOAM_WIDTH = 1.5;
+export const SEA_DISTANCE_REACH = 6;
 const SHOAL_REACH = 7;
 const SHOAL_GAIN = 0.85;
 const WAVE_AMP_MIN = 1.2;

@@ -11,7 +11,7 @@ import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Constants } from '@babylonjs/core/Engines/constants';
 import { CELL_SIZE } from '../../utils/gridMath.js';
-import { swellAt, shoalWithCliff, waveAmpFor, WAVE_REACH, WAVE_TIME_WRAP, CLIFF_RISE_MIN, SEA_DIRECTION, WATER_MAX_DEPTH } from '../../utils/waterWaves.js';
+import { swellAt, shoalWithCliff, waveAmpFor, WAVE_REACH, WAVE_TIME_WRAP, CLIFF_RISE_MIN, SEA_DIRECTION, WATER_MAX_DEPTH, SEA_DISTANCE_REACH } from '../../utils/waterWaves.js';
 import { createWaterMaterial, createWaterSideMaterial, tickWater } from './waterShader.js';
 import { signedNoise } from '../../utils/noise.js';
 
@@ -813,6 +813,10 @@ export default class WaterSystem {
         pits[index * 4] = 255;
         pits[index * 4 + 3] = 255;
       }
+    }
+    const fromSea = distanceField(ocean, width, height);
+    for (let index = 0; index < total; index += 1) {
+      pits[index * 4 + 1] = Math.round(Math.min(1, (fromSea[index] * CELL_SIZE) / SEA_DISTANCE_REACH) * 255);
     }
     this.buildDryMap(pits, width, height, minX, minZ);
     const half = CELL_SIZE / 2;

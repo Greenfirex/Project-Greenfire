@@ -1,14 +1,18 @@
-// Mokrý pruh na zemi u vody — ztmaví a mírně ochladí písek i trávu podle vzdálenosti od hladiny.
+// Mokrý pruh na zemi u vody — ztmaví a mírně ochladí písek i trávu jen kousek od moře a nízko nad hladinou.
 // Drží jen tvar pruhu; kde je voda a jak vysoko, mu hlásí systém terénu.
 import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+
+const WET_SEA_NEAR = '1.4';
+const WET_SEA_FAR = '3.2';
+const WET_SEA_WOBBLE = '1.4';
 
 const WET_CODE = `
 float wetHash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
-float wetShape(vec2 p) {
+float wetNoise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
@@ -17,6 +21,12 @@ float wetShape(vec2 p) {
   float c = wetHash(i + vec2(0.0, 1.0));
   float d = wetHash(i + vec2(1.0, 1.0));
   return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+float wetShape(vec2 p) {
+  float broad = wetNoise(mat2(0.8, -0.6, 0.6, 0.8) * p);
+  float fine = wetNoise(mat2(0.28, 0.96, -0.96, 0.28) * p * 2.3 + vec2(17.3, 5.1));
+  return broad * 0.7 + fine * 0.3;
 }
 `;
 
@@ -61,8 +71,11 @@ export default class TerrainWetPlugin extends MaterialPluginBase {
       CUSTOM_FRAGMENT_BEFORE_FOG: `
         if (wetStrength > 0.0 && seaDryAt(vPositionW.xz, seaDryArea) < 0.5) {
           float wetAbove = vPositionW.y - wetLevel;
-          float wetEdge = (wetShape(vPositionW.xz * 0.85) - 0.5) * 0.18;
-          float wetAmount = 1.0 - smoothstep(-0.05, 0.30, wetAbove + wetEdge);
+          float wetEdge = wetShape(vPositionW.xz * 0.85) - 0.5;
+          float wetByHeight = 1.0 - smoothstep(-0.05, 0.30, wetAbove + wetEdge * 0.18);
+          float wetFromSea = seaDistanceAt(vPositionW.xz, seaDryArea) + wetEdge * ${WET_SEA_WOBBLE};
+          float wetBySea = 1.0 - smoothstep(${WET_SEA_NEAR}, ${WET_SEA_FAR}, wetFromSea);
+          float wetAmount = min(wetByHeight, wetBySea);
           color.rgb *= mix(vec3(1.0), wetTint, clamp(wetAmount, 0.0, 1.0) * wetStrength);
         }
       `,

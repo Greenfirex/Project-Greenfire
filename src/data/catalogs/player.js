@@ -7,6 +7,10 @@ export const PLAYER_BASE = {
   regenDelaySeconds: 8,
   regenPerSecond: 1.5,
   reviveImmunitySeconds: 2,
+  handReach: {
+    distance: 2.6,
+    heightLimit: 1,
+  },
   punch: {
     damage: 6,
     cooldown: 1.0,

@@ -4,8 +4,10 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { cellKey } from '../../utils/gridMath.js';
 import { levelOfEntry } from '../../data/maps/areaShape.js';
+import { PLAYER_BASE } from '../../data/catalogs/player.js';
 
-const REACH = 2.6;
+const REACH = PLAYER_BASE.handReach.distance;
+const REACH_HEIGHT = PLAYER_BASE.handReach.heightLimit;
 const OPEN_SECONDS = 0.7;
 const OPEN_ANGLE = 1.9;
 
@@ -34,7 +36,7 @@ export default class LootSystem {
     const hinge = this.hingeFor(node, def.lid);
     const existing = this.boxes.find((box) => box.key === key);
     const box = existing || { key, cx: entry.cx, cz: entry.cz, level, open: 0 };
-    Object.assign(box, { entry, def, hinge, x: position.x, z: position.z });
+    Object.assign(box, { entry, def, hinge, x: position.x, y: position.y, z: position.z });
     box.open = this.opened.has(key) ? 1 : 0;
     this.pose(box);
     if (!existing) this.boxes.push(box);
@@ -89,7 +91,7 @@ export default class LootSystem {
   }
 
   update(dt, root, level = 0) {
-    this.nearest = root ? this.nearestClosed(root.position.x, root.position.z, level) : null;
+    this.nearest = root ? this.nearestClosed(root.position, level) : null;
     for (const box of this.boxes) {
       if (!box.swinging || box.open >= 1) continue;
       box.open = Math.min(1, box.open + dt / OPEN_SECONDS);
@@ -97,12 +99,13 @@ export default class LootSystem {
     }
   }
 
-  nearestClosed(x, z, level) {
+  nearestClosed(from, level) {
     let best = null;
     let bestDist = REACH;
     for (const box of this.boxes) {
       if (box.level !== level || this.opened.has(box.key)) continue;
-      const dist = Math.hypot(box.x - x, box.z - z);
+      if (Math.abs(box.y - from.y) > REACH_HEIGHT) continue;
+      const dist = Math.hypot(box.x - from.x, box.z - from.z);
       if (dist > bestDist) continue;
       best = box;
       bestDist = dist;

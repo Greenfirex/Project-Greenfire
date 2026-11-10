@@ -1,8 +1,10 @@
 // Sběr surovin z krajiny — údery do věci, na kterou hráč ukáže, a hýbání modelem.
 // Drží jen stav vyčerpávání a náklon modelu; modely dodává dekorace, hráče předává scéna.
 import { levelOfEntry } from '../../data/maps/areaShape.js';
+import { PLAYER_BASE } from '../../data/catalogs/player.js';
 
-const REACH = 2.6;
+const REACH = PLAYER_BASE.handReach.distance;
+const REACH_HEIGHT = PLAYER_BASE.handReach.heightLimit;
 const BARE_COOLDOWN = 0.62;
 const BARE_KINDS = ['tree'];
 const BARE_SOUND = 'bare';
@@ -56,6 +58,7 @@ export default class GatherSystem {
       def,
       anchor,
       x: anchor.position.x,
+      y: anchor.position.y,
       z: anchor.position.z,
       total,
       left: total,
@@ -86,6 +89,7 @@ export default class GatherSystem {
       const anchor = item.anchor;
       if (!anchor || anchor.isDisposed()) continue;
       item.x = anchor.position.x;
+      item.y = anchor.position.y;
       item.z = anchor.position.z;
     }
   }
@@ -136,6 +140,7 @@ export default class GatherSystem {
     if (!item || !this.playerPos) return false;
     const dx = item.x - this.playerPos.x;
     const dz = item.z - this.playerPos.z;
+    if (Math.abs(item.y - this.playerPos.y) > REACH_HEIGHT) return false;
     return dx * dx + dz * dz <= REACH * REACH;
   }
 
@@ -147,7 +152,7 @@ export default class GatherSystem {
   syncPlayerPos(player) {
     const root = player && player.root ? player.root : null;
     if (!root || root.isDisposed()) return this.playerPos;
-    this.playerPos = { x: root.position.x, z: root.position.z };
+    this.playerPos = { x: root.position.x, y: root.position.y, z: root.position.z };
     return this.playerPos;
   }
 
@@ -172,13 +177,13 @@ export default class GatherSystem {
       this.pending = null;
       return false;
     }
-    const reachX = item.x - this.playerPos.x;
-    const reachZ = item.z - this.playerPos.z;
-    if (reachX * reachX + reachZ * reachZ > REACH * REACH) {
+    if (!this.inReach(item)) {
       this.pending = null;
       this.target = null;
       return false;
     }
+    const reachX = item.x - this.playerPos.x;
+    const reachZ = item.z - this.playerPos.z;
     const len = Math.sqrt(reachX * reachX + reachZ * reachZ);
     if (len > 0.001) {
       item.axisX = reachX / len;

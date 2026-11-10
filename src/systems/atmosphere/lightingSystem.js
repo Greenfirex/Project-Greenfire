@@ -95,7 +95,6 @@ export default class LightingSystem {
 
   setCaveMeshes(cave) {
     if (!this.sunLight) return;
-    this.sunLight.excludedMeshes = cave;
     if (this.skyLight) this.skyLight.excludedMeshes = cave;
     if (!this.caveLight) {
       const light = new HemisphericLight('caveLight', new Vector3(0.45, 1, 0.3), this.s);

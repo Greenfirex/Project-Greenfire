@@ -3,13 +3,23 @@ import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { causticGlsl } from '../../utils/waterCaustics.js';
-import { SEA_DIRECTION, WATER_MAX_DEPTH } from '../../utils/waterWaves.js';
+import { SEA_DIRECTION, WATER_MAX_DEPTH, SEA_DISTANCE_REACH } from '../../utils/waterWaves.js';
 
 const CAUSTIC_CODE = `${causticGlsl()}
 uniform sampler2D seaDrySampler;
 float seaDryAt(vec2 point, vec4 area) {
   vec2 cell = floor(point / ${CELL_SIZE.toFixed(1)} - area.xy + 0.5);
   return texture2D(seaDrySampler, (cell + 0.5) / area.zw).r;
+}
+float seaDistanceAt(vec2 point, vec4 area) {
+  vec2 grid = point / ${CELL_SIZE.toFixed(1)} - area.xy;
+  vec2 base = floor(grid);
+  vec2 f = grid - base;
+  float a = texture2D(seaDrySampler, (base + vec2(0.5, 0.5)) / area.zw).g;
+  float b = texture2D(seaDrySampler, (base + vec2(1.5, 0.5)) / area.zw).g;
+  float c = texture2D(seaDrySampler, (base + vec2(0.5, 1.5)) / area.zw).g;
+  float d = texture2D(seaDrySampler, (base + vec2(1.5, 1.5)) / area.zw).g;
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y) * ${SEA_DISTANCE_REACH.toFixed(1)};
 }
 `;
 
