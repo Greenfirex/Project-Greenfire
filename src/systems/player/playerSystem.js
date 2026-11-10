@@ -4,7 +4,7 @@ import '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Animations/animatable';
 import '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
-import { Vector3, Quaternion } from '@babylonjs/core/Maths/math.vector';
+import { Vector3, Quaternion, Matrix } from '@babylonjs/core/Maths/math.vector';
 import { worldToCellCoords, cellToWorldCoords } from '../../utils/gridMath.js';
 import { warnMissingWiring } from '../../utils/missingWiring.js';
 import { TOOL_TYPES } from '../../data/catalogs/items.js';
@@ -16,6 +16,11 @@ import {
   PLAYER_MODEL_YAW,
   PLAYER_INTRO_YAW,
   PLAYER_HAND_BONES,
+  PLAYER_UPPER_ARM_BONES,
+  PLAYER_FOREARM_BONES,
+  PLAYER_FINGER_BONES,
+  PLAYER_FIST_BONES,
+  PLAYER_THUMB_BONES,
   PLAYER_HEAD_BONES,
   PLAYER_HEAD_TOP,
   PLAYER_HEAD_FRONT,
@@ -131,6 +136,9 @@ export default class PlayerSystem {
     this.headTop = 0;
     this.worn = {};
     this.wornNode = null;
+    this.toolSwapLeft = 0;
+    this.armNodes = null;
+    this.boneTurns = new Map();
     this.strikeTimer = 0;
     this.strikeAnim = 'punch';
     this.flinchTimer = 0;
@@ -235,21 +243,29 @@ export default class PlayerSystem {
     const bone = this.findHandBone(skeleton);
     const hand = bone && bone.getTransformNode();
     if (!hand) return;
+    const boneNode = (names) => {
+      const found = skeleton.bones.find((item) => names.includes(item.name));
+      return found ? found.getTransformNode() : null;
+    };
+    this.armNodes = {
+      upper: boneNode(PLAYER_UPPER_ARM_BONES),
+      fore: boneNode(PLAYER_FOREARM_BONES),
+      hand,
+      fingers: PLAYER_FINGER_BONES.map((name) => boneNode([name])).filter(Boolean),
+      fist: PLAYER_FIST_BONES.map((name) => boneNode([name])).filter(Boolean),
+      thumb: boneNode(PLAYER_THUMB_BONES),
+    };
     this.handSlot = new TransformNode('playerHandSlot', this.s);
     this.handSlot.parent = hand;
     this.handSlot.position = Vector3.Zero();
     this.handSlot.rotation = Vector3.Zero();
     this.handSlot.scaling = new Vector3(TOOL_SCALE, TOOL_SCALE, TOOL_SCALE);
+    this.torchFireFor();
     this.refreshToolNode();
   }
 
   refreshToolNode() {
-    if (this.torchFire) {
-      this.torchFire.detach();
-      this.torchFire.dispose();
-      this.torchFire = null;
-      this.syncTorchGlow();
-    }
+    if (this.torchFire) this.torchFire.detach();
     if (this.toolNode) {
       this.toolNode.setEnabled(false);
       this.toolNode.dispose(false, false);
@@ -272,9 +288,15 @@ export default class PlayerSystem {
     this.toolNode.position = (grip.position ? Vector3.FromArray(grip.position) : TOOL_POSITION).scale(TOOL_SCALE);
     this.toolNode.rotation = grip.rotation ? Vector3.FromArray(grip.rotation) : TOOL_ROTATION;
     if (tool.model !== 'torch') return;
-    this.torchFire = new TorchFire(this.s);
-    this.torchFire.attach(this.toolNode);
-    this.syncTorchGlow();
+    this.torchFireFor().attach(this.toolNode);
+  }
+
+  torchFireFor() {
+    if (!this.torchFire) {
+      this.torchFire = new TorchFire(this.s);
+      this.syncTorchGlow();
+    }
+    return this.torchFire;
   }
 
   attachHeadSlot() {
@@ -352,14 +374,91 @@ export default class PlayerSystem {
   setHeldTool(key) {
     if (this.heldToolKey === key) return;
     this.heldToolKey = key || null;
-    this.refreshToolNode();
+    const moving = this.input.forward || this.input.back || this.input.left || this.input.right;
+    if (!this.ready || this.lying || this.dead || moving || this.strikeTimer > 0) {
+      this.toolSwapLeft = 0;
+      this.refreshToolNode();
+      return;
+    }
+    this.pickUp();
+    this.toolSwapLeft = this.pickupImpactTime();
   }
 
   updateFire() {
-    const fire = this.torchFire;
-    if (!fire) return;
     const frame = this.s.getEngine().getDeltaTime() / 1000;
-    fire.update(Number.isFinite(frame) && frame > 0 ? Math.min(frame, 0.1) : 0.016);
+    const dt = Number.isFinite(frame) && frame > 0 ? Math.min(frame, 0.1) : 0.016;
+    if (this.toolSwapLeft > 0) {
+      this.toolSwapLeft -= dt;
+      if (this.toolSwapLeft <= 0) this.refreshToolNode();
+    }
+    this.holdUpright();
+    if (this.torchFire) this.torchFire.update(dt);
+  }
+
+  holdUpright() {
+    const tool = TOOL_TYPES[this.heldToolKey];
+    const grip = tool && tool.grip;
+    if (!grip || !grip.upright || !this.toolNode || !this.handSlot || this.toolSwapLeft > 0) return;
+    const forwardX = Math.sin(this.facing);
+    const forwardZ = Math.cos(this.facing);
+    const right = new Vector3(forwardZ, 0, -forwardX);
+    if (this.armNodes && this.strikeTimer <= 0 && this.pickupTimer <= 0) {
+      this.turnBone(this.armNodes.upper, right, grip.raise || 0);
+      this.turnBone(this.armNodes.fore, right, grip.bend || 0);
+    }
+    for (const node of [this.armNodes && this.armNodes.upper, this.armNodes && this.armNodes.fore, this.armNodes && this.armNodes.hand, this.handSlot]) {
+      if (node) node.computeWorldMatrix(true);
+    }
+    const fist = this.closeFist(grip.curl || 0);
+    const lean = grip.lean || 0;
+    const outward = grip.outward || 0;
+    const up = new Vector3(forwardX * lean + forwardZ * outward, 1, forwardZ * lean - forwardX * outward).normalize();
+    const wanted = Quaternion.Identity();
+    Quaternion.FromUnitVectorsToRef(Vector3.Up(), up, wanted);
+    const turn = Quaternion.RotationAxis(Vector3.Up(), this.facing);
+    const world = Matrix.Identity();
+    wanted.multiply(turn).toRotationMatrix(world);
+    const parent = Matrix.Identity();
+    this.handSlot.absoluteRotationQuaternion.toRotationMatrix(parent);
+    const local = world.multiply(Matrix.Invert(parent));
+    if (!this.toolNode.rotationQuaternion) this.toolNode.rotationQuaternion = Quaternion.Identity();
+    Quaternion.FromRotationMatrixToRef(local, this.toolNode.rotationQuaternion);
+    if (fist) {
+      const thumb = this.armNodes.thumb;
+      if (thumb && grip.toThumb) fist.addInPlace(thumb.getAbsolutePosition().subtract(fist).scale(grip.toThumb));
+      this.toolNode.setAbsolutePosition(fist.add(up.scale(grip.slide || 0)));
+      return;
+    }
+    const fingers = Vector3.TransformNormal(Vector3.Up(), this.handSlot.getWorldMatrix()).normalize();
+    this.toolNode.setAbsolutePosition(this.handSlot.getAbsolutePosition().add(fingers.scale(grip.palm || 0)));
+  }
+
+  closeFist(curl) {
+    const arm = this.armNodes;
+    if (!arm || !curl || !arm.fingers.length || !arm.fist.length) return null;
+    const side = Vector3.TransformNormal(Vector3.Right(), arm.hand.getWorldMatrix()).normalize();
+    for (const node of arm.fingers) {
+      this.turnBone(node, side, curl);
+      node.computeWorldMatrix(true);
+    }
+    const center = Vector3.Zero();
+    for (const node of arm.fist) center.addInPlace(node.getAbsolutePosition());
+    return center.scaleInPlace(1 / arm.fist.length);
+  }
+
+  turnBone(node, axis, angle) {
+    if (!node || !angle || !node.parent) return;
+    node.parent.computeWorldMatrix(true);
+    if (!node.rotationQuaternion) node.rotationQuaternion = Quaternion.FromEulerVector(node.rotation);
+    const last = this.boneTurns.get(node);
+    const base = last && node.rotationQuaternion.equalsWithEpsilon(last.turned, 1e-6) ? last.base : node.rotationQuaternion.clone();
+    const local = Matrix.Identity();
+    base.toRotationMatrix(local);
+    const parent = Matrix.Identity();
+    node.parent.absoluteRotationQuaternion.toRotationMatrix(parent);
+    const world = local.multiply(parent).multiply(Matrix.RotationAxis(axis, angle));
+    Quaternion.FromRotationMatrixToRef(world.multiply(Matrix.Invert(parent)), node.rotationQuaternion);
+    this.boneTurns.set(node, { base, turned: node.rotationQuaternion.clone() });
   }
 
   setTorchGlow(glow) {
@@ -367,10 +466,7 @@ export default class PlayerSystem {
   }
 
   syncTorchGlow() {
-    if (!this.torchGlow) return;
-    if (this.torchFire) this.torchGlow.addSource(this.torchFire);
-    else this.torchGlow.removeSource(this.torchFireSource);
-    this.torchFireSource = this.torchFire;
+    if (this.torchGlow && this.torchFire) this.torchGlow.addSource(this.torchFire);
   }
 
   animLength(key, fallback) {

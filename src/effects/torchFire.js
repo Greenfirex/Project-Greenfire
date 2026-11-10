@@ -1,5 +1,6 @@
 // Oheň na pochodni v ruce — částečky plamene ze špičky pochodně a oranžové světlo, které bliká.
-// Ve dne jen slabounce přisvětluje, v noci svítí naplno; bez pochodně v ruce oheň i světlo zhasnou.
+// Ve dne jen slabounce přisvětluje, v noci svítí naplno; bez pochodně v ruce oheň zhasne a světlo
+// jen ztlumí na nulu, protože přidání nebo odebrání světla nutí celý svět přepočítat materiály.
 import '@babylonjs/core/Particles/webgl2ParticleSystem';
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
@@ -66,20 +67,22 @@ export default class TorchFire {
     this.flicker = 1;
     this.dayness = 1;
     this.visible = false;
-    this.emitter.setEnabled(false);
+    this.detach();
   }
 
   attach(toolNode) {
     if (!toolNode) return;
     this.emitter.parent = toolNode;
     this.emitter.position = FLAME_SPOT.clone();
-    this.emitter.setEnabled(true);
+    for (const system of this.layers) system.start();
     this.visible = true;
   }
 
   detach() {
     this.visible = false;
-    this.emitter.setEnabled(false);
+    for (const system of this.layers) system.stop();
+    this.emitter.parent = null;
+    this.emitter.position = Vector3.Zero();
     this.light.intensity = 0;
   }
 

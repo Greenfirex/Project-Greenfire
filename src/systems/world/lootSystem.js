@@ -76,6 +76,10 @@ export default class LootSystem {
     return this.boxes.find((box) => box.cx === cx && box.cz === cz && box.level === level) || null;
   }
 
+  swing(box) {
+    if (box) box.swinging = true;
+  }
+
   open(box) {
     if (!box || this.opened.has(box.key)) return null;
     this.opened.add(box.key);
@@ -87,7 +91,7 @@ export default class LootSystem {
   update(dt, root, level = 0) {
     this.nearest = root ? this.nearestClosed(root.position.x, root.position.z, level) : null;
     for (const box of this.boxes) {
-      if (!this.opened.has(box.key) || box.open >= 1) continue;
+      if (!box.swinging || box.open >= 1) continue;
       box.open = Math.min(1, box.open + dt / OPEN_SECONDS);
       this.pose(box);
     }

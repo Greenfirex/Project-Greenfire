@@ -274,8 +274,12 @@ hráč na sobě drží `equipmentSystem.js` (ukládá se), propojení dělá
 u předmětu. Ostatní sloty zatím nic neumí.
 
 **Pochodeň** je model z Meshy (`props/torch/torch.glb`). Nástroj může mít vlastní
-`grip` (velikost, natočení, posun); natočení pochodně je změřené v klidovém postoji
-tak, aby hlavice mířila nahoru a mírně dopředu.
+`grip`. U pochodně (`upright`) se každý snímek po animaci předpaží paže, sevřou
+prsty a pochodeň se postaví svisle s náklonem ve směru pohledu do středu pěsti
+(`holdUpright`, `turnBone`, `closeFist` v `playerSystem.js`). Pojistka v `turnBone`
+pozná kost, kterou animace nepřepsala, aby se otočení nesčítalo. Světlo pochodně
+existuje od startu a jen se ztlumí; přidání světla by přepočítalo materiály celého
+světa (bliknutí). Výměna nástroje ve stoje se odehraje sáhnutím (`toolSwapLeft`).
 
 Modely z Meshy se před vložením zmenšují (textury WebP 1024, nekovový materiál);
 nahraný model ztratí posun svých dílů, proto pohyblivé díly (víko truhly) mají osu

@@ -131,7 +131,7 @@ export const TOOL_TYPES = {
     kind: 'tool',
     model: 'torch',
     file: `${ASSET_DIRS.props}torch/torch.glb`,
-    grip: { scale: 0.6, rotation: [0.37, -2.43, -3] },
+    grip: { scale: 0.6, upright: true, lean: 0.3, outward: 0.15, palm: 0.08, raise: -0.5, bend: -0.9, curl: 1.1, slide: -0.07, toThumb: 0.3 },
   },
 };
 

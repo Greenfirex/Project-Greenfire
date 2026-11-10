@@ -31,7 +31,10 @@ export default {
     const yields = this.lootSystem.open(box);
     if (!yields) return false;
     this.syncLootHighlights();
-    this.beginLootPickup(box.x, box.z, () => this.receiveLoot(yields, `Vybráno: ${box.def.displayName}`));
+    this.beginLootPickup(box.x, box.z, () => {
+      this.lootSystem.swing(box);
+      this.receiveLoot(yields, `Vybráno: ${box.def.displayName}`);
+    });
     return true;
   },
 
