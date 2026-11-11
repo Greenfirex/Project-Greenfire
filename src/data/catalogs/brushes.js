@@ -437,6 +437,13 @@ export function getBrush(brushKey) {
   return BRUSHES[brushKey] || null;
 }
 
+export function brushAboveGroundOnly(brushKey) {
+  const brush = BRUSHES[brushKey];
+  if (!brush || brush.erase) return false;
+  return Boolean(brush.height || brush.heights || brush.surface || brush.cliff || brush.join || brush.bridge
+    || brush.fish || brush.spawn || brush.flora || brush.shape === 'line');
+}
+
 export function brushPaintParts(brushKey) {
   const brush = BRUSHES[brushKey];
   if (!brush) return PAINT_ALL;

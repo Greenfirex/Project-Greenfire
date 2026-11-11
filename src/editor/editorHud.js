@@ -1,6 +1,6 @@
 // DOM panel editačního režimu — přepínání režimů, paleta brushů, čtení buňky a uložení.
 // Napojený přes callbacky na scene, sám nic generuje ani nemění.
-import { BRUSHES, BRUSH_GROUPS, brushesOf, getBrush } from '../data/catalogs/brushes.js';
+import { BRUSHES, BRUSH_GROUPS, brushesOf, getBrush, brushAboveGroundOnly } from '../data/catalogs/brushes.js';
 import { HEIGHT_STEP, formatMeters } from '../data/maps/layoutStore.js';
 import { makeDraggable } from '../ui/draggable.js';
 import { floorName } from './floorPanel.js';
@@ -25,7 +25,7 @@ export default class EditorHud {
     this.onPause = null;
     this.onWaterToggle = null;
     this.onWaterStep = null;
-    this.state = { mode: 'zone', brush: null, erasing: false };
+    this.state = { mode: 'zone', brush: null, erasing: false, underground: false };
     this.waterLevel = null;
     this.waterShown = true;
     this.busyEl = null;
@@ -102,6 +102,7 @@ export default class EditorHud {
         btn.addEventListener('mouseenter', () => this.showNote(key));
         btn.addEventListener('mouseleave', () => this.showNote(this.state.brush));
         btn.addEventListener('click', () => {
+          if (this.state.underground && brushAboveGroundOnly(key)) return;
           this.state.brush = key;
           this.refresh();
           this.showNote(key);
@@ -234,7 +235,8 @@ export default class EditorHud {
     const node = this.root && this.root.querySelector('.editor-panel__note');
     if (!node) return;
     const brush = key ? getBrush(key) : null;
-    const note = brush && brush.note ? brush.note : '';
+    const locked = this.state.underground && brushAboveGroundOnly(key);
+    const note = brush && brush.note ? `${locked ? 'Funguje jen na povrchu. ' : ''}${brush.note}` : '';
     node.textContent = note || '–';
     node.classList.toggle('is-empty', !note);
   }
@@ -247,7 +249,13 @@ export default class EditorHud {
     }
     for (const btn of this.root.querySelectorAll('[data-brush]')) {
       btn.classList.toggle('is-active', !this.state.erasing && btn.dataset.brush === this.state.brush);
+      btn.classList.toggle('is-locked', Boolean(this.state.underground) && brushAboveGroundOnly(btn.dataset.brush));
     }
+  }
+
+  setUnderground(on) {
+    this.state.underground = Boolean(on);
+    this.refresh();
   }
 
   show() {

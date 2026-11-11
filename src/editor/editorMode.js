@@ -1,6 +1,6 @@
 // Editační režim mapy — vyplňování buněk štětcem, modelování výšek a práce s plochou.
 // Přepíná se F2, drží jen hotovou mapu a historii úprav; vykreslování si řídí scéna.
-import { BRUSHES, brushOptions, PAINT_ALL, PAINT_TERRAIN } from '../data/catalogs/brushes.js';
+import { BRUSHES, brushOptions, brushAboveGroundOnly, PAINT_ALL, PAINT_TERRAIN } from '../data/catalogs/brushes.js';
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
 import { MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP, DEFAULT_HEIGHT_LEVEL } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
@@ -42,6 +42,8 @@ export default class EditorMode {
     this.heightStepSign = 0;
     this.heightStrokeStep = 0;
     this.heightJitter = 0;
+    this.heightFromNeighbors = false;
+    this.heightAuto = new Set();
     this.waterShown = true;
     this.layout = null;
     this.draft = null;
@@ -152,6 +154,7 @@ export default class EditorMode {
 
   setBrush(key) {
     if (key && !BRUSHES[key]) return;
+    if (key && this.floorLevel < 0 && brushAboveGroundOnly(key)) return;
     if (this.brushKey !== key && this.draft) this.cancelDraft();
     if (key && BRUSHES[key].erase) this.erasing = false;
     this.brushKey = key || null;

@@ -43,6 +43,36 @@ export default {
     if (this.onHeightJitterChange) this.onHeightJitterChange(next);
   },
 
+  setHeightFromNeighbors(on) {
+    const value = Boolean(on);
+    if (value === this.heightFromNeighbors) return;
+    this.heightFromNeighbors = value;
+    if (this.onHeightNeighborsChange) this.onHeightNeighborsChange(value);
+  },
+
+  neighborHeightLevel(cx, cz) {
+    let sum = 0;
+    let count = 0;
+    for (const [dx, dz] of AROUND) {
+      const x = cx + dx;
+      const z = cz + dz;
+      if (this.heightDraft && this.heightDraft.has(cellKey(x, z))) continue;
+      if (!floorCellAt(this.layout, x, z)) continue;
+      sum += this.cellHeightValue(x, z);
+      count += 1;
+    }
+    const meters = count ? sum / count : this.cellHeightValue(cx, cz);
+    return Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, Math.round(meters / HEIGHT_STEP)));
+  },
+
+  refreshAutoHeights() {
+    if (!this.heightDraft) return;
+    for (const key of this.heightAuto) {
+      const [cx, cz] = key.split(',').map(Number);
+      this.heightDraft.set(key, this.neighborHeightLevel(cx, cz));
+    }
+  },
+
   beginHeightStroke() {
     this.heightStrokeStep = 0;
   },
@@ -198,14 +228,30 @@ export default {
   markHeightCell(cx, cz) {
     if (!this.layout) return;
     if (!this.heightDraft) this.heightDraft = new Map();
+    if (this.heightFromNeighbors) {
+      let added = false;
+      for (const [x, z] of this.heightStampCells(cx, cz)) {
+        const key = cellKey(x, z);
+        if (this.heightAuto.has(key)) continue;
+        this.heightAuto.add(key);
+        this.heightDraft.set(key, 0);
+        added = true;
+      }
+      if (!added) return;
+      this.refreshAutoHeights();
+      if (this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
+      return;
+    }
     const stepping = this.heightStepSign !== 0;
     const base = this.strokeHeightLevel();
     let changed = false;
     for (const [x, z] of this.heightStampCells(cx, cz)) {
       const key = cellKey(x, z);
+      const wasAuto = this.heightAuto.delete(key);
+      if (wasAuto) changed = true;
       const level = this.stampLevel(base, x, z);
       if (stepping) {
-        if (this.heightDraft.has(key)) continue;
+        if (this.heightDraft.has(key) && !wasAuto) continue;
         this.heightDraft.set(key, level);
         changed = true;
         continue;
@@ -216,6 +262,7 @@ export default {
     }
     if (!changed) return;
     if (stepping) this.heightStrokeStep += 1;
+    this.refreshAutoHeights();
     if (this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
   },
 
@@ -235,9 +282,12 @@ export default {
     if (!this.heightDraft) return false;
     let changed = false;
     for (const [x, z] of this.heightStampCells(cx, cz)) {
-      if (this.heightDraft.delete(cellKey(x, z))) changed = true;
+      const key = cellKey(x, z);
+      this.heightAuto.delete(key);
+      if (this.heightDraft.delete(key)) changed = true;
     }
     if (!changed) return false;
+    this.refreshAutoHeights();
     if (this.onHeightDraftChange) this.onHeightDraftChange(this.heightDraft);
     return true;
   },
@@ -304,6 +354,7 @@ export default {
   cancelHeightDraft() {
     if (!this.heightDraft) return false;
     this.heightDraft = null;
+    this.heightAuto.clear();
     if (this.onHeightDraftChange) this.onHeightDraftChange(null);
     return true;
   },

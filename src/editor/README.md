@@ -70,6 +70,12 @@ V režimu Mazat se tvor odebere.
 **Rostliny**, **Objekty**, **Tvorové** a **Ostatní**. Na konci každé kategorie
 sedí její guma s červeným okrajem.
 
+V podzemním patře jsou zašedlé štětce, které umí zapisovat jen na povrch
+(`brushAboveGroundOnly` v katalogu štětců): Tráva, Cesta, Kopec, Prohlubeň, Pláž,
+Útes, Spojnice, Most, Ryby a Start hráče. Po přepnutí do podzemí se takový štětec
+sám odvybere. Ryby půjdou povolit, až budou i jiné vodní plochy než moře; Tráva
+a Cesta, až je hra bude umět vykreslit v jeskyni.
+
 ### Gumy
 
 Guma maže podle druhu věci, takže se nemusí vybírat štětec, který ji původně
@@ -106,9 +112,11 @@ tvory nedoplňuje sám.
 Režim Výška nejdřív kreslí návrh a po potvrzení mění dlaždice. Výšky jdou od
 **−15 do +24 m**, krok je **0,25 m**. Předvolby jsou −15, −10, −5, 0, 5, 10, 15, 20
 a 24 m (klávesy 1–9); **Q** výšku o krok sníží, **E** zvýší.
-Označená plocha se zvýrazní jen obrysem, aby zůstal vidět terén. Na označených
-buňkách stojí jejich nová výška — zeleně nahoru, červeně dolů, v závorce ta
-současná. U kurzoru je vidět výška buňky pod myší.
+Označená plocha se zvýrazní obrysem a průsvitnou hmotou změny (`heightHologram.js`):
+zelený blok ukazuje, co přibude, červený, co se odebere, a jeho dno je nový povrch.
+Hmota svítí i přes terén, takže je vidět i výkop. Na označených buňkách stojí jejich
+nová výška — zeleně nahoru, červeně dolů, v závorce ta současná. U kurzoru je vidět
+výška buňky pod myší.
 
 - **Kopec** a **Prohlubeň** si svah staví samy po 0,25 m až do nuly.
 - **Strmý svah** spadne o 0,5 m na řadu.
@@ -119,6 +127,11 @@ současná. U kurzoru je vidět výška buňky pod myší.
 - **Most** položí mostovku přes vodu nebo propadlinu.
 
 Označený pás se srovná na jednu výšku, takže po něm jde přejít. Z vrací krok.
+
+Volba **Výška buněk → Podle sousedů** dá každé označené buňce průměr výšek okolních
+neoznačených buněk (zaokrouhlený na 0,25 m). Hodí se na srovnání díry nebo hrbolu
+s okolím, třeba pod cestou: stačí přejet celou cestu a dát Aplikovat. Přepočítává se
+při každém tahu, takže na buňkách je vidět výsledná výška ještě před potvrzením.
 
 ### Herní plocha
 
@@ -135,7 +148,8 @@ Skrytí vody je jen vizuální; data se nemění.
 ## Cesty
 
 Cesta je samostatná vrstva `path`, ne dlaždice. Záznam má pozici a styl
-(`dirt` / `stone` / `wood`), žádný `key`. Vykresluje ji `src/systems/world/pathSystem.js`
+(`dirt` / `stone` / `wood`), žádný `key`. Výšku terénu nemění, jen převezme
+výšku buňky, na kterou se nakreslí. Vykresluje ji `src/systems/world/pathSystem.js`
 podle sousedů:
 
 - dva protilehlí sousedé = rovinka,

@@ -6,14 +6,9 @@
   width: 300px;
   display: none;
   transform: translateY(-50%);
-  background: var(--bg-panel);
-  border: 1px solid var(--border-glow);
-  border-radius: 6px;
-  padding: 10px 12px;
+  padding: 2px 6px;
   font-size: 12px;
   line-height: 1.5;
-  backdrop-filter: blur(4px);
-  box-shadow: 0 0 14px rgba(201, 162, 94, 0.08);
   z-index: 20;
   user-select: none;
   cursor: grab;
@@ -34,13 +29,14 @@
   display: flex;
   align-items: flex-end;
   gap: 4px;
-  margin: -10px -12px 8px;
-  padding: 6px 10px 0;
+  margin: 0 0 8px;
+  padding: 0;
+  border-bottom: 1px solid rgba(201, 162, 94, 0.45);
 }
 
 .editor-panel__tabs button[data-mode] {
   padding: 6px 10px 5px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-bottom: none;
   border-radius: 6px 6px 0 0;
@@ -58,9 +54,9 @@
 }
 
 .editor-panel__tabs button[data-mode].is-active {
-  background: var(--bg-panel);
-  color: var(--text-main);
-  border-color: var(--border-glow);
+  background: rgba(201, 162, 94, 0.22);
+  color: var(--title-gold);
+  border-color: rgba(201, 162, 94, 0.7);
 }
 
 .floor-panel__row {
@@ -81,17 +77,7 @@
 
 .editor-panel__close {
   margin-left: auto;
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 2px;
-}
-
-.editor-panel__close:hover {
-  color: var(--text-main);
+  align-self: center;
 }
 
 .editor-panel__hint {
@@ -138,7 +124,7 @@
 }
 
 .editor-panel__group-head {
-  color: rgba(150, 220, 195, 0.75);
+  color: var(--title-gold);
   font-size: 9px;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -169,7 +155,7 @@
 }
 
 .editor-panel__grid button {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(201, 162, 94, 0.18);
   border-radius: 4px;
   color: var(--text-dim);
@@ -188,6 +174,14 @@
   background: rgba(201, 162, 94, 0.18);
   border-color: var(--glow-accent);
   color: var(--text-main);
+}
+
+.editor-panel__grid button.is-locked,
+.editor-panel__grid button.is-locked:hover {
+  opacity: 0.35;
+  border-color: rgba(201, 162, 94, 0.12);
+  color: var(--text-dim);
+  cursor: not-allowed;
 }
 
 .editor-panel__grid button.is-eraser {
@@ -276,7 +270,7 @@
 }
 
 .editor-panel__water-toggle {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(201, 162, 94, 0.18);
   border-radius: 4px;
   color: var(--text-dim);
@@ -308,7 +302,7 @@
 }
 
 .editor-panel__water-level button {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(201, 162, 94, 0.18);
   border-radius: 4px;
   color: var(--text-main);
@@ -334,14 +328,9 @@
   width: 240px;
   display: none;
   transform: translateY(-50%);
-  background: var(--bg-panel);
-  border: 1px solid var(--border-glow);
-  border-radius: 6px;
-  padding: 10px 12px;
+  padding: 2px 6px;
   font-size: 12px;
   line-height: 1.5;
-  backdrop-filter: blur(4px);
-  box-shadow: 0 0 14px rgba(201, 162, 94, 0.08);
   z-index: 21;
   user-select: none;
   cursor: grab;
@@ -364,25 +353,10 @@
   margin-bottom: 4px;
 }
 
-.brush-panel__title {
-  font-size: 12px;
+.brush-panel__title,
+.area-panel__title {
+  font-size: 15px;
   letter-spacing: 0.5px;
-  color: var(--glow-accent);
-  font-weight: 700;
-}
-
-.brush-panel__close {
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 2px;
-}
-
-.brush-panel__close:hover {
-  color: var(--text-main);
 }
 
 .brush-panel__count {
@@ -403,7 +377,7 @@
 }
 
 .brush-panel__styles button {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(201, 162, 94, 0.18);
   border-radius: 4px;
   color: var(--text-dim);
@@ -444,7 +418,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(201, 162, 94, 0.18);
   border-radius: 4px;
   color: var(--text-dim);
@@ -513,7 +487,7 @@
 .brush-panel__choice button {
   flex: 1;
   min-width: 44px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(201, 162, 94, 0.18);
   border-radius: 4px;
   color: var(--text-dim);
@@ -566,7 +540,7 @@
 }
 
 .brush-panel__tools button {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(201, 162, 94, 0.18);
   border-radius: 4px;
   color: var(--text-dim);
@@ -598,7 +572,7 @@
 }
 
 .brush-panel__actions button {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(201, 162, 94, 0.18);
   border-radius: 4px;
   color: var(--text-dim);
@@ -638,14 +612,9 @@
   width: 260px;
   display: none;
   transform: translateY(-50%);
-  background: var(--bg-panel);
-  border: 1px solid var(--border-glow);
-  border-radius: 6px;
-  padding: 10px 12px;
+  padding: 2px 6px;
   font-size: 12px;
   line-height: 1.5;
-  backdrop-filter: blur(4px);
-  box-shadow: 0 0 14px rgba(201, 162, 94, 0.08);
   z-index: 21;
   user-select: none;
   cursor: grab;
@@ -668,26 +637,6 @@
   margin-bottom: 6px;
 }
 
-.area-panel__title {
-  font-size: 12px;
-  letter-spacing: 0.5px;
-  color: var(--glow-accent);
-  font-weight: 700;
-}
-
-.area-panel__close {
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 2px;
-}
-
-.area-panel__close:hover {
-  color: var(--text-main);
-}
 
 .area-panel__tools,
 .area-panel__actions {
@@ -721,7 +670,7 @@
 }
 
 .area-panel__height button {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(201, 162, 94, 0.18);
   border-radius: 4px;
   color: var(--text-dim);
@@ -747,7 +696,7 @@
 }
 
 .area-panel__surfaces button {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(201, 162, 94, 0.18);
   border-radius: 4px;
   padding: 0;
@@ -784,7 +733,7 @@
 
 .area-panel__tools button,
 .area-panel__actions button {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(201, 162, 94, 0.18);
   border-radius: 4px;
   color: var(--text-dim);
@@ -979,7 +928,7 @@
 }
 
 .height-panel__staged-row {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(201, 162, 94, 0.16);
   border-left-width: 3px;
   border-radius: 4px;
@@ -1017,7 +966,7 @@
 
 .height-panel__presets button,
 .height-panel__steps button {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(201, 162, 94, 0.18);
   border-radius: 4px;
   color: var(--text-dim);

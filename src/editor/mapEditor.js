@@ -11,11 +11,12 @@ import HeightPanel from './heightPanel.js';
 import FloorPanel from './floorPanel.js';
 import CreatureOverlay from './creatureOverlay.js';
 import HeightLabels from './heightLabels.js';
+import HeightHologram from './heightHologram.js';
 import { formatLevel } from './heightRamp.js';
 import { FLOOR_MARKS } from './editorFloors.js';
 import { floorName } from './floorPanel.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
-import { BRUSHES } from '../data/catalogs/brushes.js';
+import { BRUSHES, brushAboveGroundOnly } from '../data/catalogs/brushes.js';
 import { CELL_SIZE } from '../utils/gridMath.js';
 import { SIDES } from './editorSettings.js';
 import { ENTRY_LAYERS } from '../data/maps/areaShape.js';
@@ -39,6 +40,7 @@ export default class MapEditor {
     this.floorPanel = new FloorPanel();
     this.creatureOverlay = new CreatureOverlay(this.s.s);
     this.heightLabels = new HeightLabels();
+    this.heightHologram = new HeightHologram(this.s.s);
     this.mapDirty = false;
     this.savedFingerprint = null;
     this.pendingDraftView = undefined;
@@ -95,6 +97,7 @@ export default class MapEditor {
     this.mode.onHeightBrushChange = (size) => this.heightPanel.setBrushSize(size);
     this.mode.onHeightStepChange = (sign) => this.heightPanel.setStepMode(sign);
     this.mode.onHeightJitterChange = (value) => this.heightPanel.setJitter(value);
+    this.mode.onHeightNeighborsChange = (on) => this.heightPanel.setFromNeighbors(on);
     this.mode.onBrushChange = (key) => {
       this.hud.setBrush(key);
       this.hud.setErasing(this.mode.erasing);
@@ -125,6 +128,7 @@ export default class MapEditor {
     this.heightPanel.onBrushSize = (size) => this.mode.setHeightBrushSize(size);
     this.heightPanel.onStepMode = (sign) => this.mode.setHeightStepSign(sign);
     this.heightPanel.onJitter = (value) => this.mode.setHeightJitter(value);
+    this.heightPanel.onFromNeighbors = (on) => this.mode.setHeightFromNeighbors(on);
 
     this.brushPanel.onApply = () => this.applyBrushDraft();
     this.brushPanel.onCancel = () => this.cancelBrushDraft();
@@ -230,6 +234,9 @@ export default class MapEditor {
     this.refreshCreatureMarks();
     this.showFloorEdges(this.mode.getAreaSelection());
     if (this.mode.active) this.hud.setFloors(this.mode.floorList(), this.mode.floorLevel);
+    const below = this.mode.floorLevel < 0;
+    this.hud.setUnderground(below);
+    if (below && brushAboveGroundOnly(this.mode.brushKey)) this.mode.setBrush(null);
     if (this.mode.active && this.mode.mode === 'floors') {
       this.refreshFloorPanel();
       this.refreshZoneOverlay();
@@ -445,6 +452,7 @@ export default class MapEditor {
     this.syncFloorView();
     this.hud.setCursorValue(null);
     this.heightLabels.clear();
+    this.heightHologram.clear();
     this.brushPanel.close();
     this.areaPanel.hide();
     this.mode.setBrush(null);
@@ -614,6 +622,7 @@ export default class MapEditor {
         brushSize: this.mode.heightBrushSize,
         stepSign: this.mode.heightStepSign,
         jitter: this.mode.heightJitter,
+        fromNeighbors: this.mode.heightFromNeighbors,
       });
       return;
     }
@@ -1060,12 +1069,14 @@ export default class MapEditor {
       this.s.gridSystem.clearDraftCells();
       this.s.gridSystem.clearDraftOutline();
       this.heightLabels.clear();
+      this.heightHologram.clear();
       return;
     }
     if (this.mode.mode === 'floors') {
       this.s.gridSystem.clearDraftCells();
       this.s.gridSystem.clearDraftOutline();
       this.heightLabels.clear();
+      this.heightHologram.clear();
       this.showFloorMarks();
       return;
     }
@@ -1074,6 +1085,7 @@ export default class MapEditor {
       return;
     }
     this.heightLabels.clear();
+    this.heightHologram.clear();
     const spawnZone = this.spawnZone();
     if (!this.mode.hasDraft) {
       if (spawnZone) this.s.gridSystem.showZones([spawnZone], (cx, cz) => this.s.cellSurfaceAt(cx, cz));
@@ -1143,10 +1155,12 @@ export default class MapEditor {
       this.s.gridSystem.clearDraftCells();
       this.s.gridSystem.clearDraftOutline();
       this.heightLabels.clear();
+      this.heightHologram.clear();
       return;
     }
     const cells = [];
     const labels = [];
+    const volumes = [];
     for (const group of groups) {
       const target = group.level * HEIGHT_STEP;
       for (const cell of group.cells) {
@@ -1157,9 +1171,11 @@ export default class MapEditor {
         const diff = target - y;
         const dir = diff > 0.05 ? 'up' : diff < -0.05 ? 'down' : 'flat';
         const text = dir === 'flat' ? formatMeters(target) : `${dir === 'up' ? '↑' : '↓'} ${formatMeters(target)} (z ${formatMeters(y)})`;
-        labels.push({ x: cx * CELL_SIZE, y: y + HEIGHT_LABEL_LIFT, z: cz * CELL_SIZE, dir, text });
+        labels.push({ x: cx * CELL_SIZE, y: Math.max(y, target) + HEIGHT_LABEL_LIFT, z: cz * CELL_SIZE, dir, text });
+        volumes.push({ cx, cz, from: y, to: target });
       }
     }
+    this.heightHologram.show(volumes);
     const stride = labels.length > HEIGHT_LABEL_LIMIT ? Math.ceil(labels.length / HEIGHT_LABEL_LIMIT) : 1;
     this.heightLabels.show(stride === 1 ? labels : labels.filter((item, index) => index % stride === 0));
     this.s.gridSystem.clearZones();

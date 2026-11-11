@@ -8,7 +8,10 @@
 
 .hud-panel,
 .hotbar,
-.hud-vitals {
+.hud-vitals,
+.editor-panel,
+.brush-panel,
+.area-panel {
   border: 15px solid transparent;
   border-image: var(--ui-frame) 170 / 32px stretch;
   background: var(--ui-fill) center / cover padding-box;
@@ -80,7 +83,9 @@
 .death-card__title,
 .options-panel__title,
 .hud-tooltip__title,
-.hud-creature__title {
+.hud-creature__title,
+.brush-panel__title,
+.area-panel__title {
   font-family: var(--font-title);
   font-weight: 400;
   text-transform: none;
@@ -90,7 +95,10 @@
 
 .side-window__close,
 .options-panel__close,
-.hud-creature__close {
+.hud-creature__close,
+.editor-panel__close,
+.brush-panel__close,
+.area-panel__close {
   width: 24px;
   height: 24px;
   padding: 0;
@@ -112,7 +120,10 @@
 
 .side-window__close:hover,
 .options-panel__close:hover,
-.hud-creature__close:hover {
+.hud-creature__close:hover,
+.editor-panel__close:hover,
+.brush-panel__close:hover,
+.area-panel__close:hover {
   filter: brightness(1.25) drop-shadow(0 0 4px rgba(63, 212, 131, 0.7));
 }
 
@@ -1013,7 +1024,9 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  flex-direction: column;
   width: min(580px, 92vw);
+  height: min(720px, 86vh);
   padding: 4px 14px 10px;
   font-size: 13px;
   line-height: 1.5;
@@ -1025,7 +1038,7 @@
 }
 
 .options-panel.is-open {
-  display: block;
+  display: flex;
 }
 
 .options-panel.is-dragging {
@@ -1046,8 +1059,10 @@
 }
 
 .options-panel__body {
-  max-height: 58vh;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding-right: 8px;
 }
 

@@ -2,7 +2,6 @@
 // Patří k EditorMode (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { BRUSHES, brushPaintParts, PAINT_TERRAIN } from '../data/catalogs/brushes.js';
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
-import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
 import { floorCellAt, layerLiftAt, dropLayerCell, dropDecorationCell } from '../data/maps/areaShape.js';
 import { fillZone } from '../utils/zoneFill.js';
@@ -114,7 +113,6 @@ export default {
       return count;
     }
     const shape = brush.shape;
-    const brushLift = brush.height ? brush.height * HEIGHT_STEP : 0;
     const filled = this.zoneEntries(brushKey, brush, [...cells], mode);
     const clearedDeco = new Set();
     const level = this.paintLevel;
@@ -185,12 +183,8 @@ export default {
         if (key && this.paintSurface(cx, cz, key)) changed += 1;
         continue;
       }
-      if (shape === 'line') {
-        this.placePath(cx, cz);
-        this.setTileLift(cx, cz, brushLift);
-      } else {
-        this.placeEntry(key, cx, cz, 0, cell.liftY || brushLift, 'floor');
-      }
+      if (shape === 'line') this.placePath(cx, cz);
+      else this.placeEntry(key, cx, cz, 0, cell.liftY || 0, 'floor');
       changed += 1;
     }
     this.draft.cells.clear();

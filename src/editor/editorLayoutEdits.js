@@ -83,21 +83,21 @@ export default {
   paintSurface(cx, cz, key) {
     const def = getDecoration(key);
     if (!def) return false;
-    const floor = floorCellAt(this.layout, cx, cz);
+    const level = this.paintLevel;
+    const floor = floorCellAt(this.layout, cx, cz, level);
+    if (!floor && level !== 0) return false;
     const changed = !floor || floor.key !== key;
-    const lift = floor ? (floor.liftY || 0) : (layerLiftAt(this.layout, cx, cz) || 0);
     if (floor) {
       floor.key = key;
-      if (lift) floor.liftY = lift;
-      else delete floor.liftY;
     } else {
       if (!this.layout.floor) this.layout.floor = [];
       const entry = { key, cx, cz, rotation: 0 };
+      const lift = layerLiftAt(this.layout, cx, cz) || 0;
       if (lift) entry.liftY = lift;
       this.layout.floor.push(entry);
     }
     if (changed && this.layout.grass) {
-      this.layout.grass = this.layout.grass.filter((entry) => !onSurface(entry, cx, cz));
+      this.layout.grass = this.layout.grass.filter((entry) => !(entry && entry.cx === cx && entry.cz === cz && levelOfEntry(entry) === level));
     }
     return changed;
   },
@@ -162,18 +162,16 @@ export default {
     const value = Number(height);
     if (!Number.isFinite(value)) return null;
     const floor = floorCellAt(this.layout, cx, cz);
-    const before = floor ? (floor.liftY || 0) : (layerLiftAt(this.layout, cx, cz) || 0);
     if (!floor) this.placeFloor(this.keepFloor(cx, cz), cx, cz);
     this.setTileLift(cx, cz, value);
-    const delta = value - before;
-    if (delta) this.shiftDecorations(cx, cz, delta);
+    this.groundDecorations(cx, cz, value);
     return value;
   },
 
-  shiftDecorations(cx, cz, delta) {
+  groundDecorations(cx, cz, height) {
+    const next = Math.round(height * 1000) / 1000;
     for (const entry of this.layout.decorations || []) {
       if (!onSurface(entry, cx, cz)) continue;
-      const next = Math.round(((entry.liftY || 0) + delta) * 1000) / 1000;
       if (next) entry.liftY = next;
       else delete entry.liftY;
     }
