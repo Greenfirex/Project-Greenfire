@@ -4,7 +4,7 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { ASSET_DIRS } from '../assetPaths.js';
 import {
   SIDE_AXIS, UP_AXIS,
-  bindPosition, worldScale, axisInParent, entryOf, swingEntry, approach,
+  bindPosition, worldScale, axisInParent, entryOf, swingEntry, approach, stepSwing, stepLift,
 } from '../../../utils/proceduralRig.js';
 
 const MODEL = `${ASSET_DIRS.creatures}snapping_turtle/snapping_turtle.glb`;
@@ -42,17 +42,6 @@ const HIT_HEAD = -0.45;
 const HIT_PULL = 0.3;
 const HIT_LEG = 0.25;
 const BACK_AXIS = new Vector3(0, 0, -1);
-
-function stepSwing(phase) {
-  if (phase < STANCE_SHARE) return 1 - (2 * phase) / STANCE_SHARE;
-  const s = (phase - STANCE_SHARE) / (1 - STANCE_SHARE);
-  return -1 + 2 * s * s * (3 - 2 * s);
-}
-
-function stepLift(phase) {
-  if (phase < STANCE_SHARE) return 0;
-  return Math.sin(Math.PI * ((phase - STANCE_SHARE) / (1 - STANCE_SHARE)));
-}
 
 function liftSign(axis, reach) {
   return Math.sign(Vector3.Cross(axis, reach).y) || 1;
@@ -215,8 +204,8 @@ function pose(rig, dt, info) {
   rig.tailSwing = approach(rig.tailSwing, stepping ? TAIL_SWING_WALK : TAIL_SWING_IDLE, seconds, 4);
   for (const leg of rig.legs) {
     const legPhase = (rig.phase + leg.offset) % 1;
-    const swing = stepSwing(legPhase) * leg.amplitude * leg.forward * rig.swing;
-    const lift = stepLift(legPhase) * rig.swing;
+    const swing = stepSwing(legPhase, STANCE_SHARE) * leg.amplitude * leg.forward * rig.swing;
+    const lift = stepLift(legPhase, STANCE_SHARE) * rig.swing;
     swingEntry(leg.entry, swing + HIT_LEG * hit * leg.side, lift * ROOT_LIFT * leg.entry.liftSign);
     if (leg.joint) swingEntry(leg.joint, 0, lift * KNEE_LIFT * leg.joint.liftSign);
   }

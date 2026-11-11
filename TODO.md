@@ -73,6 +73,8 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ### Etapa 5 — dotažení potvor
 
 - [ ] Kajmanka: stopy spočítat z reálných chodidel místo odhadu.
+- [ ] Koa'tiki: běh v honičce (předklon, natažený krk, rovný ocas), tápání jako rychlé rozhlížení bez zobání.
+- [ ] README tvorů uvádí u Koa'tiki zrychlení v honičce 1,35, v datech je 1,6 — sjednotit.
 - [ ] Do `public/assets/audio/CREDITS.txt` doplnit zdroj želvích zvuků (hiss, growl, bite).
 - [ ] Ověřit licenční podmínky balíčku Darkworld (License Agreement.pdf) a případně upravit CREDITS.
 

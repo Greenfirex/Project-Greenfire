@@ -126,63 +126,18 @@ export function legEntry(mesh, bones, spec, options = {}) {
   } else if (jointBone) {
     entry.joint = entryOf(jointBone, SIDE_AXIS);
   }
-  if (options.calibrate && rootBone && tipBone) {
-    const pick = pickSwingAxis(mesh, rootBone, tipBone, entry.amplitude);
-    if (pick && pick.stride > 0.03) {
-      entry.axis = pick.axis;
-      entry.liftAxis = pick.axis;
-      entry.stride = pick.stride;
-    }
-    entry.liftSign = probeAxisSign(mesh, rootBone, entry.liftAxis, tipBone, 0.25);
-    if (jointBone) {
-      const jointPick = pickSwingAxis(mesh, jointBone, tipBone, 0.4);
-      if (jointPick) entry.joint.axis = jointPick.axis;
-    }
-  }
   return entry;
 }
 
-function tipMove(mesh, bone, tipBone, axis, angle) {
-  const node = nodeOf(bone);
-  const tip = nodeOf(tipBone);
-  if (!node || !tip || !axis) return null;
-  const base = node.rotationQuaternion
-    ? node.rotationQuaternion.clone()
-    : Quaternion.FromEulerVector(node.rotation);
-  const place = (delta) => {
-    node.rotationQuaternion = delta.multiply(base);
-    node.computeWorldMatrix(true);
-    tip.computeWorldMatrix(true);
-    return tip.getAbsolutePosition().clone();
-  };
-  const front = place(Quaternion.RotationAxis(axis, angle));
-  const back = place(Quaternion.RotationAxis(axis, -angle));
-  node.rotationQuaternion = base;
-  node.computeWorldMatrix(true);
-  tip.computeWorldMatrix(true);
-  const delta = modelDelta(mesh, back, front);
-  return { forward: Math.abs(delta.z), lateral: Math.abs(delta.x) };
+export function stepSwing(phase, stance) {
+  if (phase < stance) return 1 - (2 * phase) / stance;
+  const s = (phase - stance) / (1 - stance);
+  return -1 + 2 * s * s * (3 - 2 * s);
 }
 
-function pickSwingAxis(mesh, bone, tipBone, angle) {
-  const candidates = [SIDE_AXIS, FORWARD_AXIS, UP_AXIS]
-    .map((source) => axisInParent(bone, source))
-    .filter(Boolean);
-  let best = null;
-  for (const axis of candidates) {
-    const move = tipMove(mesh, bone, tipBone, axis, angle);
-    if (!move) continue;
-    const score = move.forward - 0.6 * move.lateral;
-    if (!best || score > best.score) best = { axis, score, stride: move.forward };
-  }
-  return best;
-}
-
-export function strideRateFor(legs) {
-  const strides = legs.map((leg) => leg.stride).filter((value) => Number.isFinite(value) && value > 0.03);
-  if (!strides.length) return 4;
-  const average = strides.reduce((sum, value) => sum + value, 0) / strides.length;
-  return Math.min(14, Math.max(1.5, Math.PI / average));
+export function stepLift(phase, stance) {
+  if (phase < stance) return 0;
+  return Math.sin(Math.PI * ((phase - stance) / (1 - stance)));
 }
 
 function modelDelta(mesh, before, after) {
@@ -190,32 +145,28 @@ function modelDelta(mesh, before, after) {
   return Vector3.TransformNormal(after.subtract(before), inverse);
 }
 
-function probeAxis(mesh, bone, axis, probeBone, angle, mode = 'parent') {
+function refreshPath(node) {
+  const path = [];
+  for (let current = node; current; current = current.parent) path.unshift(current);
+  for (const current of path) current.computeWorldMatrix(true);
+}
+
+export function probeAxis(mesh, bone, axis, probeBone, angle) {
   const node = nodeOf(bone);
   const probeNode = nodeOf(probeBone);
   if (!node || !probeNode || !axis) return null;
   const base = node.rotationQuaternion
     ? node.rotationQuaternion.clone()
     : Quaternion.FromEulerVector(node.rotation);
-  mesh.computeWorldMatrix(true);
-  node.computeWorldMatrix(true);
-  probeNode.computeWorldMatrix(true);
+  refreshPath(mesh);
+  refreshPath(probeNode);
   const before = probeNode.getAbsolutePosition().clone();
-  const delta = Quaternion.RotationAxis(axis, angle);
-  node.rotationQuaternion = mode === 'parent' ? delta.multiply(base) : base.multiply(delta);
-  node.computeWorldMatrix(true);
-  probeNode.computeWorldMatrix(true);
+  node.rotationQuaternion = Quaternion.RotationAxis(axis, angle).multiply(base);
+  refreshPath(probeNode);
   const after = probeNode.getAbsolutePosition().clone();
   node.rotationQuaternion = base;
-  node.computeWorldMatrix(true);
-  probeNode.computeWorldMatrix(true);
+  refreshPath(probeNode);
   return modelDelta(mesh, before, after);
-}
-
-export function probeAxisSign(mesh, bone, axis, probeBone, angle) {
-  const delta = probeAxis(mesh, bone, axis, probeBone, angle);
-  if (!delta) return 1;
-  return delta.y > 0 ? 1 : -1;
 }
 
 export function calibrateHinge(mesh, entry, probe) {

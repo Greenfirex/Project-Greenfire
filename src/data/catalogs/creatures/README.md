@@ -175,6 +175,26 @@ a vynásobením měřítkem modelu — z toho vyjde tabulka chodidel pro stopy a
   Mezi chůzí a klidem míchej přes váhu, která plynule dojíždí, ne přepínáním.
 - **Úder se švihem.** Výpad se rozjede za pár setin sekundy a dojede se zhoupnutím
   přes klid; okamžitý skok na plnou sílu je vidět jako cuknutí.
+- **Ptačí noha: pata vyrovnává koleno.** U dvounožce s kolenem, patou a prsty
+  (Koa'tiki) vyrovná pata při kroku polovinu pohybu kyčle a kolena a zbytek
+  vyrovná chodidlo, takže nárt se kývá s nohou a prsty leží naplocho. Ve vzduchu
+  se vyrovnávání povolí a prsty se přikrčí. Délku kroku rig počítá z toho, kam se
+  pod kyčlí posune chodidlo. Ušlou cestu vyhlazuje, protože chodí po nepravidelných
+  kouscích a bez vyhlazení noha cuká.
+- **Váha přes stojnou nohu.** Tělo se při chůzi naklání nad nohu na zemi a pánev se
+  pootáčí; kyčle se otočí zpátky, aby chodidla nepopojela, a krk vyrovná hlavu.
+  V klidu stojí chodidla pevně a pohupuje se jen tělo.
+- **Ocas jako vlna.** Každý článek ocasu se pohne o kousek později než ten před ním
+  (kajmanka, Koa'tiki); při chůzi se ocas kývá v rytmu kroku proti pánvi.
+- **Víc druhů útoku.** Systém zná jen napřažení a zotavení; rig si při začátku
+  napřažení sám vybere, kterou animaci zahraje (Koa'tiki: klovnutí, nebo výskok
+  se škrábnutím levou a pak pravou nohou). Každá animace je tabulka klíčových poloh v čase, kde 0 je
+  okamžik rány; mezi klíči se plynule dojíždí. Skok se vrací přes `bob`.
+  Ocas čte stejnou tabulku o kousek později, takže dozní švihem.
+- **Klid jako sled náhodných akcí.** Místo pevného rozvrhu si tvor po každé akci
+  vylosuje další (stání, rozhlédnutí, zobání) a zobání si pokaždé sestaví znovu
+  (kolik klovnutí, pauzy, jestli předtím hrabe nohou, na kterou stranu nakloní
+  hlavu). Kusy tak nejsou sladěné. Po boji začíná vždy stáním, aby hned nezobal.
 - **Mrtvola dozní.** Po smrti se nohy postupně stáhnou a pár sekund slábnoucími
   záškuby doznívají (`deadTime` v rigu běsa).
 - **Zrcadlové nohy potřebují znaménko strany.** Stejný úhel na levou a pravou nohu
@@ -275,6 +295,7 @@ Aby se vědělo, kde je vzor a kde mezera. Úkoly z toho plynoucí patří do `T
 | prohýbání kolen při chůzi | ano | ano | ano |
 | zrychlení v boji (`chaseBoost`) | ano (1,2) | chybí | ano (1,35) |
 | zahrabání a vylézání | ano | ne (žije u vody) | ne |
+| víc druhů útoku | ne | ne | ano (klovnutí, výskok se škrábnutím každou nohou) |
 | otevíratelná čelist | ne (kusadla) | ne | ano (kost čelisti + tmavá vložka) |
 | převrácení na záda při smrti (`deathRoll`) | ano | ne (padá na bok) | ne (padá na bok) |
 | stopy z reálných chodidel | ano (4 nohy; přední pár nese jako ruce) | odhad (4 nohy stejně) | chybí (jedna šmouha) |
