@@ -236,8 +236,9 @@ stín táboráku a překresluje se při každém posunu očí. Pravidla:
   tušeně, povrch úplně do černa, takže ven je vidět jen otvorem); modely se
   mimo dohled rozplynou a tvorové se schovají celí (paprsek `sceneCombat.seesCreature`).
 - Venku: od ~15 m (z vyvýšeného místa až o 10 m dál) přibývá oparu v barvě mlhy
-  (nejvýš 60 %) a černobílé. Opar dostane i zem výrazně výš než postava a vyšší zem
-  za skálou; zem ve stejné výšce za rohem ne (jinak by se kreslily paprsky).
+  (nejvýš 60 %) a černobílé. Opar dostane i zem výrazně výš než postava. Skála venku
+  zemi ani dekorace nezakrývá (za rohem by se kreslily pruhy mlhy); jen tvor na vyšší
+  zemi za skálou zmizí (`sceneCombat.creatureFogAt`).
   Tvorové se v oparu rozplynou, dekorace jen zešednou.
 - Země se testuje o 0,6 m výš (za nízkým schodem není tma); modely podle své paty
   (`vRevealBase`), ne podle bodu modelu, aby koruny stromů nezahalil.

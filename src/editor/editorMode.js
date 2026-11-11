@@ -434,8 +434,8 @@ export default class EditorMode {
     if (!this.draft) return false;
     if (this.paintLevel < 0) {
       const painting = BRUSHES[this.draft.brushKey];
-      if (!painting || !(painting.deco || painting.creature)) return false;
-      if (this.draft.mode !== 'remove') return this.floorEntries(this.paintLevel).some((entry) => entry.cx === cx && entry.cz === cz);
+      if (!painting || !(painting.deco || painting.creature || painting.surfaceOnly)) return false;
+      if (this.draft.mode !== 'remove' || painting.surfaceOnly) return this.floorEntries(this.paintLevel).some((entry) => entry.cx === cx && entry.cz === cz);
       return (this.layout[painting.creature ? 'creatures' : 'decorations'] || []).some((entry) => entry && entry.cx === cx && entry.cz === cz && (entry.level || 0) === this.paintLevel);
     }
     if (this.draft.mode === 'remove') {

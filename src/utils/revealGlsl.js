@@ -1,7 +1,7 @@
 // Výpočet rentgenu pro programy grafické karty — co v podzemí zmizí, co se ztmaví a kudy dovnitř jde světlo.
 // Sdílí ho úprava materiálů, tráva i voda; světlo u vchodů čte z mapy po buňkách, kterou spočítá terén,
 // obloha i slunce do jeskyně pronikají jen vchodem a směrem dovnitř slábnou; povrch natočený k vchodu chytí víc oblohy.
-// Co je dál, než postava dohlédne, venku výrazně výš než ona nebo za vyšší skálou, se ztratí v oparu a zešedne; pod zemí ztmavne i vše za skálou.
+// Co je dál, než postava dohlédne, nebo venku výrazně výš než ona, se ztratí v oparu a zešedne; pod zemí ztmavne i vše za skálou.
 // Modely se řídí místem, kde stojí; pod zemí se mimo dohled schovají, venku se v oparu rozplynou jen tvorové.
 // Povrch, na který postava z jeskyně nevidí, je úplně černý; jeskyně sama zůstane tušená.
 import { CELL_SIZE } from './gridMath.js';
@@ -17,10 +17,6 @@ export const SIGHT_HIGHER_START = 0.2;
 export const SIGHT_HIGHER_FULL = 0.8;
 
 export const SIGHT_EDGE = 0.7;
-
-export function sightHigherByHeight(position, up = 'sightUp') {
-  return `(smoothstep(${SIGHT_HIGHER_START.toFixed(2)}, ${SIGHT_HIGHER_FULL.toFixed(2)}, ${position}.y - revealCenter.y) * ${up})`;
-}
 
 export function sightRiseByHeight(position, up = 'sightUp') {
   return `(smoothstep(${SIGHT_RISE_START.toFixed(2)}, ${SIGHT_RISE_FULL.toFixed(2)}, ${position}.y - revealSightEye.y) * ${up})`;
@@ -60,7 +56,7 @@ float revealSightReach(vec3 direction) {
   return stored * revealSightDepth.y - revealSightDepth.x;
 }
 
-float revealSightHidden(vec3 point, float higher) {
+float revealSightHidden(vec3 point) {
   if (revealSightEye.w <= 0.001) return 0.0;
   vec3 ray = point - revealSightEye.xyz;
   float dist = length(ray);
@@ -75,7 +71,7 @@ float revealSightHidden(vec3 point, float higher) {
     blocked += reach < mapRange - 0.01 && dist > reach + slack ? 0.25 : 0.0;
   }
   float range = revealSightEye.w;
-  return max(blocked * max(revealSightDepth.w, higher), smoothstep(range * ${SIGHT_EDGE.toFixed(2)}, range, dist));
+  return max(blocked * revealSightDepth.w, smoothstep(range * ${SIGHT_EDGE.toFixed(2)}, range, dist));
 }
 
 vec4 revealSampleAt(vec3 point, out vec4 own) {
@@ -123,7 +119,7 @@ float revealDoorGlow(vec4 own, float inner) {
 `;
 
 export function revealBlock(color, position, rules, albedo = color, normal = 'vec3(0.0, 1.0, 0.0)') {
-  const { above, hide, keep, inside, restore, column = '0.0', dark = '0.0', far = '0.0', sight = '1.0', sightHide = '0.0', rise = sightRiseByHeight(position), higher = sightHigherByHeight(position), point = sightPointOf(position), surface = '1.0', cameraCut = '0.0' } = rules;
+  const { above, hide, keep, inside, restore, column = '0.0', dark = '0.0', far = '0.0', sight = '1.0', sightHide = '0.0', rise = sightRiseByHeight(position), point = sightPointOf(position), surface = '1.0', cameraCut = '0.0' } = rules;
   return `
 {
   float revealAmount = revealParams.x;
@@ -156,7 +152,7 @@ export function revealBlock(color, position, rules, albedo = color, normal = 've
   if (${sight} > 0.5 && revealSightEye.w > 0.001) {
     float sightUp = max(normalize(${normal}).y, 0.0);
     float sightRise = ${rise} * (1.0 - revealSightDepth.w);
-    float sightHidden = max(revealSightHidden(${point}, ${higher}), sightRise);
+    float sightHidden = max(revealSightHidden(${point}), sightRise);
     float sightGrain = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
     if (${sightHide} * sightHidden > sightGrain) discard;
     float sightOutdoor = 1.0 - revealSightDepth.w;
