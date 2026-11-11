@@ -60,6 +60,13 @@ export const ITEM_TYPES = {
     kind: 'product',
     color: [0.52, 0.38, 0.24],
   },
+  torch: {
+    displayName: 'Pochodeň',
+    icon: '🔥',
+    stackSize: 5,
+    kind: 'tool',
+    color: [0.62, 0.36, 0.16],
+  },
   meat: {
     displayName: 'Maso',
     icon: '🥩',
@@ -115,26 +122,8 @@ export const RECIPES = {
 };
 
 export const TOOL_TYPES = {
-  axe: {
-    displayName: 'Sekyrka',
-    shortName: 'Sekyrka',
-    icon: '🪓',
-    kind: 'tool',
-    model: 'axe',
-    harvest: { kinds: ['tree', 'log'], cooldown: 0.95 },
-  },
-  pickaxe: {
-    displayName: 'Krumpáč',
-    shortName: 'Krumpáč',
-    icon: '⛏',
-    kind: 'tool',
-    model: 'pickaxe',
-    harvest: { kinds: ['rock'], cooldown: 1.4 },
-  },
   torch: {
-    displayName: 'Pochodeň',
-    shortName: 'Pochodeň',
-    icon: '🔥',
+    item: 'torch',
     kind: 'tool',
     model: 'torch',
     file: `${ASSET_DIRS.props}torch/torch.glb`,
@@ -143,19 +132,23 @@ export const TOOL_TYPES = {
   club: {
     item: 'stick',
     kind: 'weapon',
-    model: 'club',
-    file: `${ASSET_DIRS.props}club/club.glb`,
+    model: 'stick',
+    file: `${ASSET_DIRS.props}club/stick.glb`,
     grip: { scale: 1.6, position: [-0.12, -0.07, 0.04] },
     weapon: { damage: 12, cooldown: 1.1, anim: 'chop' },
   },
 };
 
-export const HOTBAR_ITEMS = ['axe', 'pickaxe', 'torch', 'club'];
 export const HOTBAR_SLOTS = 5;
+export const INVENTORY_SLOTS = 30;
 
 export function getTool(toolKey) {
   const tool = TOOL_TYPES[toolKey];
-  if (!tool || !tool.item) return tool || null;
+  if (!tool) return null;
   const item = ITEM_TYPES[tool.item] || {};
   return { displayName: item.displayName, shortName: item.displayName, icon: item.icon, ...tool };
+}
+
+export function toolForItem(itemKey) {
+  return Object.keys(TOOL_TYPES).find((key) => TOOL_TYPES[key].item === itemKey) || null;
 }

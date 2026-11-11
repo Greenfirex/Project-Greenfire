@@ -59,7 +59,7 @@ export default {
     const taken = source.kind === 'box'
       ? this.lootSystem.take(source.ref, itemKey)
       : this.creatureSystem.takeLoot(source.ref, itemKey);
-    if (taken) this.receiveLoot([taken]);
+    if (taken) this.receiveItems([taken]);
     this.refreshLootWindow();
   },
 
@@ -73,7 +73,7 @@ export default {
         : this.creatureSystem.takeLoot(source.ref, itemKey);
       if (item) taken.push(item);
     }
-    if (taken.length) this.receiveLoot(taken);
+    if (taken.length) this.receiveItems(taken);
     this.refreshLootWindow();
   },
 
@@ -121,12 +121,6 @@ export default {
     this.lootPickup = null;
     this.audioSystem.play(PICKUP_SOUND);
     pickup.onImpact();
-  },
-
-  receiveLoot(yields) {
-    for (const { itemKey, amount } of yields) this.inventorySystem.add(itemKey, amount);
-    this.refreshInventory();
-    this.logGain(yields);
   },
 
   syncLootHighlights() {
@@ -188,9 +182,7 @@ export default {
       if (result.item.def.byHand) this.harvestSystem.record(cell.cx, cell.cz, result.item.entry.key, this.simSystem.time);
     }
     this.refreshGatherTargets();
-    for (const { itemKey, amount } of yields) this.inventorySystem.add(itemKey, amount);
-    this.refreshInventory();
-    this.logGain(yields);
+    this.receiveItems(yields);
   },
 
   finishFelling(item) {

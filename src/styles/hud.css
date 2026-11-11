@@ -210,6 +210,10 @@
   color: var(--text-main);
 }
 
+.dock-panel--craft {
+  order: 0;
+}
+
 .dock-panel--bag {
   order: 1;
 }
@@ -578,8 +582,19 @@
 }
 
 .equip-slot[draggable='true'],
-.inv-cell.is-wearable {
+.inv-cell[draggable='true'],
+.hotbar__slot[draggable='true'] {
   cursor: grab;
+}
+
+.inv-cell.is-drop {
+  background: rgba(201, 162, 94, 0.16);
+  border-color: rgba(201, 162, 94, 0.9);
+}
+
+.hotbar__slot.is-drop {
+  opacity: 1;
+  filter: brightness(1.2) drop-shadow(0 0 6px rgba(201, 162, 94, 0.85));
 }
 
 .equip-preview {
@@ -637,8 +652,8 @@
 
 .inv-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
   flex: 1;
   min-height: 0;
   align-content: start;
@@ -683,6 +698,7 @@
   font-weight: 600;
 }
 
+.craft-placeholder,
 .inv-detail__hint {
   margin: auto;
   text-align: center;
@@ -706,6 +722,15 @@
 .inv-cell:hover {
   background: rgba(201, 162, 94, 0.1);
   border-color: rgba(201, 162, 94, 0.3);
+}
+
+.inv-cell.is-empty:hover {
+  background: none;
+  border-color: transparent;
+}
+
+.inv-cell.is-empty .inv-cell__icon {
+  opacity: 0.4;
 }
 
 .inv-cell__icon {
@@ -737,43 +762,6 @@
   white-space: nowrap;
   font-size: 11px;
   color: var(--text-dim);
-}
-
-.inv-empty {
-  grid-column: 1 / -1;
-  color: var(--text-dim);
-  opacity: 0.7;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.inv-craft {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(201, 162, 94, 0.18);
-}
-
-.inv-craft__label {
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: var(--glow-accent);
-}
-
-.inv-recipes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.inv-recipe {
-  padding: 3px 8px;
-  border: 1px solid rgba(224, 164, 88, 0.35);
-  border-radius: 4px;
-  color: var(--glow-warm);
-  font-size: 11px;
 }
 
 /* Hodiny v HUD — aktuální herní čas, fáze dne a rychlost simulace. */

@@ -209,9 +209,9 @@ export const BRUSHES = {
   clubs: {
     label: 'Klacky',
     group: 'Objekty',
-    note: 'Rozhodí klacky, které jde sebrat a vzít do ruky jako zbraň. Náhoda střídá čtyři tvary.',
+    note: 'Rozhodí klacky, které jde sebrat a vzít do ruky jako zbraň. Náhoda střídá osm tvarů, světlé i tmavé.',
     shape: 'blob',
-    pool: ['club_a', 'club_b', 'club_c', 'club_d'],
+    pool: ['club_a', 'club_b', 'club_c', 'club_d', 'club_e', 'club_f', 'club_g', 'club_h'],
     options: [RANDOM_OPTION],
     deco: true,
   },

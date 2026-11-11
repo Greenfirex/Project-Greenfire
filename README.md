@@ -24,9 +24,9 @@ vstup je zamčený, dokud obrazovka nezmizí.
 | **W A S D / šipky** | Pohyb postavy (vzhledem ke kameře), Shift = běh. V editoru posouvají pohled po mapě, Shift zrychlí |
 | **Tažení pravým tlačítkem** | Rotace kamery (i v editoru); v editoru pravé kliknutí bez tažení odebírá buňku |
 | **Kolečko** | Zoom (v editoru jde oddálit víc než ve hře) |
-| **1–3** | Výběr předmětu v ruce (sekera, krumpáč, pochodeň) |
-| **I / C / B** | Inventář / postava / bestiář — velká okna uprostřed obrazovky, jde s nimi tahat (také tlačítky v liště) |
-| **Levé tlačítko u stromu / kamene** | Těžení (podržet = opakovat) |
+| **1–5** | Výběr předmětu v ruce z lišty dole; na lištu se věci přetahují z batohu, pravé tlačítko je z ní sundá |
+| **I / C / B / V** | Inventář / postava / bestiář / výroba — velká okna uprostřed obrazovky, jde s nimi tahat (také tlačítky v liště); výroba je zatím prázdná |
+| **Levé tlačítko u houby / kokosu / klacku** | Sebrání (podržet = opakovat) |
 | **Levé tlačítko u tvora** | Útok rukou (podržet = opakovat) |
 | **Pravé kliknutí na tvora** | Panel se statistikami tvora (zavře ho křížek, Esc nebo pravé kliknutí jinam) |
 | **E** | Zapálit / zrušit táborák |
@@ -48,10 +48,11 @@ pravým tlačítkem a přibližuje kolečkem. Na ostrově běží denní cyklus 
 a sluncem na obloze; ráno a večer se barvy krajiny mění, v noci je tma a
 pochodeň nebo táborák je jediné světlo.
 
-**Sběr.** Ze stromů se kácí dřevo, z kamenů se těží kámen, sbírat jde i rostliny
-a mušle na pláži. V ruce nosíš sekeru, krumpáč nebo pochodeň (klávesy 1–3) a
-klikáním na věc pod kurzorem ji opracuješ; držené tlačítko akci opakuje.
-Nasbírané věci se ukládají do batohu (I) a postava má vlastní okno se staty (C).
+**Sběr.** Rukou se sbírají houby, kokosy, klacky a mušle na pláži; klikneš na věc
+pod kurzorem, držené tlačítko akci opakuje. Do ruky si bereš věci z lišty dole
+(klávesy 1–5): klacek, kterým se dá bít, nebo pochodeň, kterou najdeš v truhle.
+Sekera a krumpáč na kácení a těžení přibudou později. Nasbírané věci se ukládají
+do batohu (I), kde si je můžeš přeskládat, a postava má vlastní okno se staty (C).
 
 **Oheň.** Táborák se zapálí u připraveného místa (E), svítí do okolí a v noci
 zahřívá. Pochodeň v ruce svítí, kam jdeš.

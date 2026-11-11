@@ -121,14 +121,12 @@ export const PLAYER_ANIM_FALLBACKS = {
   dieShot: ['dieShot', 'dieFall'],
 };
 
-export const TOOL_DIR = ASSET_DIRS.tools;
-
 export const CREATURE_MODEL_URLS = Object.values(CREATURE_TYPES)
   .map((type) => (type ? type.model : null))
   .filter(Boolean);
 
 export function toolModelUrl(tool) {
-  return tool.file || `${TOOL_DIR}${tool.model}.gltf`;
+  return tool.file;
 }
 
 export function collectStartupUrls(heldTool = null) {

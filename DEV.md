@@ -103,7 +103,8 @@ dohled, a po ztrátě hráče jdou na místo, kde ho viděli naposledy. Panel tv
 ukazuje statistiky odemčené počtem zabití (`bestiarySystem.js`), okno bestiáře je na B. Chybí
 vypadnutí suroviny a zvuky u Koa'tiki.
 
-Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů).
+Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů). Okno Výroba
+(`craftingWindow.js`, klávesa V) je zatím jen prázdný panel.
 
 ### Co zbývá
 
@@ -313,6 +314,15 @@ a stisknout znovu (jinak by kmitala). Útočit jde i bez výdrže.
 Okno **Postava** (C) a **Inventář** (I) jdou tahat myší a pamatují si pozici. Obě
 můžou být otevřená zároveň a postaví se vedle sebe.
 
+**Batoh a lišta:** batoh má pevná políčka (`INVENTORY_SLOTS`, mřížka 6 sloupců).
+Každý druh předmětu leží na jednom políčku, `inventorySystem.slots` pamatuje kde;
+přetažením se políčka prohodí. Nový předmět jde na první volné políčko, vypotřebovaný
+políčko uvolní. Lištu dole (`HOTBAR_SLOTS`) drží `heldItemSystem.bar` (klíče nástrojů).
+Na lištu jde jen předmět, ke kterému existuje nástroj (`toolForItem`); přetáhne se
+z batohu, mezi sloty se prohazuje, pravé tlačítko nebo přetažení zpět do batohu ho
+z lišty sundá. První kus nového nástroje se na lištu přidá sám (`GameScene.receiveItems`).
+Každý nástroj má `item`; pochodeň je předmět a leží v truhlách.
+
 **Vybavení:** předmět s `slot` (zatím `pirate_hat` na hlavu) se přetáhne z batohu
 na slot v okně postavy, zpět ho sundá přetažení do batohu (`dragTypes.js`). Co má
 hráč na sobě drží `equipmentSystem.js` (ukládá se), propojení dělá
@@ -329,9 +339,10 @@ existuje od startu a jen se ztlumí; přidání světla by přepočítalo materi
 světa (bliknutí). Výměna nástroje ve stoje se odehraje sáhnutím (`toolSwapLeft`).
 
 **Klacek** je první zbraň (`TOOL_TYPES.club`, `weapon`: poškození, prodleva, animace
-úderu). Nástroj s `item` je na liště zamčený, dokud hráč ten předmět nemá v batohu
-(`GameScene.ownsTool`); jméno a ikonu bere z předmětu. Na zemi leží čtyři tvary
-(`club_a`–`club_d`, uložené naležato), v ruce je jeden stojící (`props/club/club.glb`).
+úderu). Nástroj je na liště zamčený, dokud hráč jeho předmět (`item`) nemá v batohu
+(`GameScene.ownsTool`); jméno a ikonu bere z předmětu. Na zemi leží osm tvarů větví
+(`club_a`–`club_h`, světlé a–d, tmavé e–h, uložené naležato), v ruce je stojící větev e
+(`props/club/stick.glb`). Opracovaný kyj `club.glb` čeká na výrobu.
 Údery bez zbraně střídají pěst a kop, se zbraní se máchá jako sekyrou.
 
 Modely z Meshy se před vložením zmenšují (textury WebP 1024, nekovový materiál);
@@ -363,7 +374,8 @@ zvedne kolem zadní horní hrany. `backToEdge` posune předmět zády ke kraji b
 podle natočení ze štětce (R).
 
 **Bez nástroje** jde sbírat jen to, co má `byHand` (houby, mušle, kokosy, klacky).
-Stromy jen sekerou, kameny jen krumpáčem (`gatherSystem.canHarvest`).
+Stromy jen sekerou, kameny jen krumpáčem (`gatherSystem.canHarvest`). Sekera a krumpáč
+zatím ve hře nejsou (modely KayKit vyřazené), takže stromy a kameny teď opracovat nejde.
 
 **Víc věcí na buňce**: na jedné buňce smí ležet víc věcí ke sběru (palma a kokos).
 Sběr, zlatý obrys i popiska berou tu, která je nejblíž bodu pod kurzorem. Sebrání

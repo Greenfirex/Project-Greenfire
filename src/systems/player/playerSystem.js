@@ -484,9 +484,9 @@ export default class PlayerSystem {
   }
 
   strikeAnimationForTool() {
-    if (this.heldToolKey === 'pickaxe') return 'mine';
     const tool = TOOL_TYPES[this.heldToolKey];
-    return tool && tool.harvest ? 'chop' : 'punch';
+    if (!tool || !tool.harvest) return 'punch';
+    return tool.harvest.kinds.includes('rock') ? 'mine' : 'chop';
   }
 
   strikeImpactTime() {

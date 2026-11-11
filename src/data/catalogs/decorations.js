@@ -351,7 +351,7 @@ export const DECORATION_TYPES = {
     noTint: true,
     kind: 'ground',
   },
-  ...Object.fromEntries(['a', 'b', 'c', 'd'].map((letter) => [`club_${letter}`, {
+  ...Object.fromEntries(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((letter) => [`club_${letter}`, {
     displayName: 'Klacek',
     gather: { stick: 1 },
     byHand: true,
@@ -907,7 +907,7 @@ export const DECORATION_TYPES = {
     lid: 'chest_lid',
     backToEdge: 0.6,
     lootVerb: 'otevřít',
-    loot: { wood: 4, stone: 3, shell: 2 },
+    loot: { torch: 1, wood: 4, stone: 3, shell: 2 },
   },
   loot_skeleton: {
     displayName: 'Kostlivec',

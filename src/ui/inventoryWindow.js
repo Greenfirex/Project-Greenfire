@@ -1,9 +1,9 @@
-// Okno s inventářem — co hráč nese a co z toho jde vyrobit.
-// Otevírá se tlačítkem u lišty s předměty; obsah jen čte, do hry nezasahuje.
-import { ITEM_TYPES, RECIPES } from '../data/catalogs/items.js';
+// Okno s inventářem — mřížka políček s tím, co hráč nese.
+// Předměty jde přesouvat mezi políčky a táhnout na lištu dole; změny jen hlásí callbacky.
+import { ITEM_TYPES, toolForItem } from '../data/catalogs/items.js';
 import { itemIcon } from './itemIcons.js';
 import WindowFrame from './windowFrame.js';
-import { wearDragType, SLOT_DRAG_TYPE } from './dragTypes.js';
+import { wearDragType, SLOT_DRAG_TYPE, BAG_DRAG_TYPE, HAND_DRAG_TYPE, BAR_DRAG_TYPE } from './dragTypes.js';
 
 const KIND_LABELS = {
   raw: 'Surovina',
@@ -23,11 +23,12 @@ export default class InventoryWindow {
     });
     this.itemsEl = null;
     this.detailEl = null;
-    this.recipeEl = null;
     this.hoverKey = null;
     this.lastSignature = '';
     this.onClose = null;
     this.onUnequip = null;
+    this.onMove = null;
+    this.onClearBar = null;
     this.frame.onClose = () => {
       if (this.onClose) this.onClose();
     };
@@ -45,23 +46,19 @@ export default class InventoryWindow {
         <div class="inv-grid"></div>
         <div class="inv-detail"></div>
       </div>
-      <div class="inv-craft">
-        <span class="inv-craft__label">Vyrobit lze</span>
-        <div class="inv-recipes"></div>
-      </div>
     `;
     this.itemsEl = this.frame.body.querySelector('.inv-grid');
     this.detailEl = this.frame.body.querySelector('.inv-detail');
-    this.recipeEl = this.frame.body.querySelector('.inv-recipes');
     this.itemsEl.addEventListener('pointerleave', () => this.clearDetail());
-    this.watchUnequipDrop(this.itemsEl);
+    this.watchGridDrop(this.itemsEl);
     this.clearDetail();
     return root;
   }
 
-  watchUnequipDrop(target) {
+  watchGridDrop(target) {
     target.addEventListener('dragover', (evt) => {
-      if (!evt.dataTransfer.types.includes(SLOT_DRAG_TYPE)) return;
+      const types = evt.dataTransfer.types;
+      if (!types.includes(SLOT_DRAG_TYPE) && !types.includes(BAR_DRAG_TYPE)) return;
       evt.preventDefault();
       target.classList.add('is-drop');
     });
@@ -69,9 +66,27 @@ export default class InventoryWindow {
     target.addEventListener('drop', (evt) => {
       target.classList.remove('is-drop');
       const slot = evt.dataTransfer.getData(SLOT_DRAG_TYPE);
-      if (!slot) return;
+      const bar = evt.dataTransfer.getData(BAR_DRAG_TYPE);
+      if (!slot && bar === '') return;
       evt.preventDefault();
-      if (this.onUnequip) this.onUnequip(slot);
+      if (slot && this.onUnequip) this.onUnequip(slot);
+      if (bar !== '' && this.onClearBar) this.onClearBar(Number(bar));
+    });
+  }
+
+  watchMoveDrop(cell, index) {
+    cell.addEventListener('dragover', (evt) => {
+      if (!evt.dataTransfer.types.includes(BAG_DRAG_TYPE)) return;
+      evt.preventDefault();
+      cell.classList.add('is-drop');
+    });
+    cell.addEventListener('dragleave', () => cell.classList.remove('is-drop'));
+    cell.addEventListener('drop', (evt) => {
+      cell.classList.remove('is-drop');
+      const from = evt.dataTransfer.getData(BAG_DRAG_TYPE);
+      if (from === '') return;
+      evt.preventDefault();
+      if (this.onMove) this.onMove(Number(from), index);
     });
   }
 
@@ -124,70 +139,60 @@ export default class InventoryWindow {
     this.detailEl.appendChild(hint);
   }
 
+  emptyCell(index) {
+    const cell = document.createElement('div');
+    cell.className = 'inv-cell is-empty';
+    cell.innerHTML = '<span class="inv-cell__icon"></span><span class="inv-cell__name">&nbsp;</span>';
+    this.watchMoveDrop(cell, index);
+    return cell;
+  }
+
+  itemCell(key, amount, index) {
+    const label = ITEM_TYPES[key] ? ITEM_TYPES[key].displayName : key;
+    const cell = document.createElement('div');
+    cell.className = 'inv-cell';
+    cell.draggable = true;
+    const icon = document.createElement('span');
+    icon.className = 'inv-cell__icon';
+    icon.textContent = itemIcon(key);
+    const count = document.createElement('span');
+    count.className = 'inv-cell__count';
+    count.textContent = String(amount);
+    const name = document.createElement('span');
+    name.className = 'inv-cell__name';
+    name.textContent = label;
+    cell.append(icon, count, name);
+    cell.addEventListener('pointerenter', () => this.showDetail(key, amount));
+    const slot = ITEM_TYPES[key] ? ITEM_TYPES[key].slot : null;
+    const tool = toolForItem(key);
+    cell.title = `${label} × ${amount}`;
+    if (slot) cell.title = `${label} — přetáhni na postavu (C) pro nasazení`;
+    if (tool) cell.title = `${label} — přetáhni na lištu dole`;
+    cell.addEventListener('dragstart', (evt) => {
+      evt.dataTransfer.setData(BAG_DRAG_TYPE, String(index));
+      if (slot) evt.dataTransfer.setData(wearDragType(slot), key);
+      if (tool) evt.dataTransfer.setData(HAND_DRAG_TYPE, tool);
+      evt.dataTransfer.effectAllowed = 'move';
+    });
+    this.watchMoveDrop(cell, index);
+    return cell;
+  }
+
   update(inventory) {
     this.mount();
-    const entries = inventory ? inventory.entries() : [];
-    const craftable = inventory ? inventory.craftableKeys() : [];
-    const signature = entries.map(([k, n]) => `${k}:${n}`).join(',') + '|' + craftable.join(',');
+    const layout = inventory ? inventory.layout() : [];
+    const signature = layout.map((entry) => (entry ? entry.join(':') : '')).join(',');
     if (signature === this.lastSignature) return;
     this.lastSignature = signature;
 
     this.itemsEl.innerHTML = '';
-    if (entries.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'inv-empty';
-      empty.textContent = 'Zatím nic — buš do stromu nebo kamene.';
-      this.itemsEl.appendChild(empty);
-    }
-    for (const [key, amount] of entries) {
-      const label = ITEM_TYPES[key] ? ITEM_TYPES[key].displayName : key;
-      const cell = document.createElement('div');
-      cell.className = 'inv-cell';
-      cell.title = `${label} × ${amount}`;
-      const icon = document.createElement('span');
-      icon.className = 'inv-cell__icon';
-      icon.textContent = itemIcon(key);
-      const count = document.createElement('span');
-      count.className = 'inv-cell__count';
-      count.textContent = String(amount);
-      const name = document.createElement('span');
-      name.className = 'inv-cell__name';
-      name.textContent = label;
-      cell.append(icon, count, name);
-      cell.addEventListener('pointerenter', () => this.showDetail(key, amount));
-      const slot = ITEM_TYPES[key] ? ITEM_TYPES[key].slot : null;
-      if (slot) {
-        cell.draggable = true;
-        cell.classList.add('is-wearable');
-        cell.title = `${label} — přetáhni na postavu (C) pro nasazení`;
-        cell.addEventListener('dragstart', (evt) => {
-          evt.dataTransfer.setData(wearDragType(slot), key);
-          evt.dataTransfer.effectAllowed = 'move';
-        });
-      }
-      this.itemsEl.appendChild(cell);
-    }
+    layout.forEach((entry, index) => {
+      this.itemsEl.appendChild(entry ? this.itemCell(entry[0], entry[1], index) : this.emptyCell(index));
+    });
     if (this.hoverKey) {
-      const still = entries.find(([key]) => key === this.hoverKey);
+      const still = layout.find((entry) => entry && entry[0] === this.hoverKey);
       if (still) this.showDetail(still[0], still[1]);
       else this.clearDetail();
-    }
-
-    this.recipeEl.innerHTML = '';
-    if (craftable.length === 0) {
-      const hint = document.createElement('div');
-      hint.className = 'inv-empty';
-      hint.textContent = 'Na nic zatím nemáš dost surovin.';
-      this.recipeEl.appendChild(hint);
-      return;
-    }
-    for (const key of craftable) {
-      const recipe = RECIPES[key];
-      if (!recipe) continue;
-      const chip = document.createElement('span');
-      chip.className = 'inv-recipe';
-      chip.textContent = `${itemIcon(key)} ${recipe.displayName}`;
-      this.recipeEl.appendChild(chip);
     }
   }
 }

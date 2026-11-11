@@ -62,10 +62,11 @@ import LoadingScreen from '../ui/loadingScreen.js';
 import TooltipPanel from '../ui/tooltipPanel.js';
 import CreaturePanel from '../ui/creaturePanel.js';
 import BestiaryWindow from '../ui/bestiaryWindow.js';
+import CraftingWindow from '../ui/craftingWindow.js';
 import BestiarySystem from '../systems/creatures/bestiarySystem.js';
 import { takeModelError, preloadModel, loadContainer, loadImported } from '../utils/assetLoader.js';
 import { WAVE_TIME_WRAP, SEA_DIRECTION } from '../utils/waterWaves.js';
-import { HOTBAR_ITEMS, ITEM_TYPES, getTool } from '../data/catalogs/items.js';
+import { ITEM_TYPES, getTool, toolForItem } from '../data/catalogs/items.js';
 import { worldToCellCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../data/catalogs/modelCatalog.js';
@@ -186,6 +187,8 @@ export default class GameScene {
     this.characterButton = new DockButton({ icon: '🧍', label: 'Postava', title: 'Postava (C)', slot: 'character' });
     this.bestiaryButton = new DockButton({ icon: '📖', label: 'Bestiář', title: 'Bestiář (B)', slot: 'bestiary' });
     this.bestiaryWindow = new BestiaryWindow();
+    this.craftButton = new DockButton({ icon: '🔨', label: 'Výroba', title: 'Výroba (V)', slot: 'craft' });
+    this.craftingWindow = new CraftingWindow();
     this.log = new LogPanel();
     this.inventoryWindow = new InventoryWindow();
     this.lootWindow = new LootWindow();
@@ -225,6 +228,7 @@ export default class GameScene {
     this.fxaa = null;
     this.heldItemSystem = new HeldItemSystem();
     this.heldItemSystem.onChange = () => this.onHeldItemChange();
+    this.heldItemSystem.onBarChange = (bar) => this.hotbar.setSlots(bar);
     this.playerSystem.onStep = (x, z, sprint) => this.onPlayerStep(x, z, sprint);
     this.playerSystem.onFootPlant = (x, z, facing, side, sprint) => this.footfall(x, z, facing, 1, 'human', sprint ? 1.25 : 1);
     this.playerSystem.lookAt = () => this.playerLookPoint();
@@ -504,7 +508,7 @@ export default class GameScene {
       this.gameCursor.setState('default');
       return;
     }
-    this.gameCursor.setState(tool.model === 'pickaxe' ? 'mine' : 'chop');
+    this.gameCursor.setState(entry.def.kind === 'rock' ? 'mine' : 'chop');
   }
 
   followPointer() {
@@ -1092,14 +1096,21 @@ export default class GameScene {
     this.hud.mount();
     this.hotbar.mount();
     this.hotbar.onSelect = (key) => this.selectTool(key);
+    this.hotbar.onAssign = (index, toolKey) => this.heldItemSystem.assign(index, toolKey);
+    this.hotbar.onSwap = (from, to) => this.heldItemSystem.swap(from, to);
+    this.hotbar.onClear = (index) => this.heldItemSystem.clear(index);
+    this.hotbar.setSlots(this.heldItemSystem.bar);
     this.hotbar.setSelected(this.heldItemSystem.key);
     this.bagButton.onClick = () => this.toggleInventoryWindow();
     this.characterButton.onClick = () => this.toggleCharacterWindow();
     this.bestiaryButton.onClick = () => this.toggleBestiaryWindow();
+    this.craftButton.onClick = () => this.toggleCraftingWindow();
     this.bagButton.mount();
     this.characterButton.mount();
     this.bestiaryButton.mount();
+    this.craftButton.mount();
     this.bestiaryWindow.onClose = () => this.bestiaryButton.setActive(false);
+    this.craftingWindow.onClose = () => this.craftButton.setActive(false);
     this.inventoryWindow.onClose = () => {
       this.bagButton.setActive(false);
       this.pairWindows();
@@ -1109,6 +1120,10 @@ export default class GameScene {
       this.pairWindows();
     };
     this.inventoryWindow.onUnequip = (slot) => this.unequipSlot(slot);
+    this.inventoryWindow.onMove = (from, to) => {
+      if (this.inventorySystem.move(from, to)) this.refreshInventory();
+    };
+    this.inventoryWindow.onClearBar = (index) => this.heldItemSystem.clear(index);
     this.lootWindow.onTake = (itemKey) => this.takeLoot(itemKey);
     this.lootWindow.onTakeAll = () => this.takeAllLoot();
     this.lootWindow.onClose = () => {
@@ -1150,6 +1165,15 @@ export default class GameScene {
     this.pairWindows();
   }
 
+  toggleCraftingWindow() {
+    if (this.craftingWindow.open) {
+      this.craftingWindow.close();
+      return;
+    }
+    this.craftingWindow.show();
+    this.craftButton.setActive(true);
+  }
+
   pairWindows() {
     const both = this.inventoryWindow.open && this.characterWindow.open;
     if (this.characterWindow.frame.root) this.characterWindow.frame.root.classList.toggle('is-paired-left', both);
@@ -1168,6 +1192,10 @@ export default class GameScene {
     }
     if (this.bestiaryWindow.open) {
       this.bestiaryWindow.close();
+      closed = true;
+    }
+    if (this.craftingWindow.open) {
+      this.craftingWindow.close();
       closed = true;
     }
     if (this.lootWindow.open) {
@@ -1200,6 +1228,17 @@ export default class GameScene {
     });
   }
 
+  receiveItems(yields) {
+    for (const { itemKey, amount } of yields) {
+      const fresh = this.inventorySystem.count(itemKey) === 0;
+      this.inventorySystem.add(itemKey, amount);
+      const tool = toolForItem(itemKey);
+      if (fresh && tool) this.heldItemSystem.keep(tool);
+    }
+    this.refreshInventory();
+    this.logGain(yields);
+  }
+
   logGain(yields) {
     const parts = yields.map(({ itemKey, amount }) => {
       const def = ITEM_TYPES[itemKey];
@@ -1210,7 +1249,7 @@ export default class GameScene {
 
   ownsTool(key) {
     const tool = getTool(key);
-    return Boolean(tool) && (!tool.item || this.inventorySystem.count(tool.item) > 0);
+    return Boolean(tool) && this.inventorySystem.count(tool.item) > 0;
   }
 
   selectTool(key) {
@@ -1456,6 +1495,12 @@ export default class GameScene {
       this.toggleBestiaryWindow();
       return;
     }
+    if ((evt.key === 'v' || evt.key === 'V') && !typing) {
+      if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+      evt.preventDefault();
+      this.toggleCraftingWindow();
+      return;
+    }
     if (evt.key === 'g' || evt.key === 'G') {
       if (!evt.repeat) this.toggleGrid();
       evt.preventDefault();
@@ -1468,7 +1513,7 @@ export default class GameScene {
     }
     if (/^[1-5]$/.test(evt.key)) {
       if (evt.ctrlKey || evt.metaKey || evt.altKey || typing) return;
-      const key = HOTBAR_ITEMS[Number(evt.key) - 1];
+      const key = this.heldItemSystem.bar[Number(evt.key) - 1];
       if (!key) return;
       evt.preventDefault();
       if (this.heldItemSystem.key === key) this.heldItemSystem.set(null);
