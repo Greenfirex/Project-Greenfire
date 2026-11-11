@@ -7,6 +7,8 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { PLAYER_EYE_HEIGHT } from '../systems/player/playerSystem.js';
 import { SIGHT_GROUND_LIFT, SIGHT_RISE_START, SIGHT_RISE_FULL, SIGHT_HIGHER_START, SIGHT_HIGHER_FULL, SIGHT_EDGE } from '../utils/revealGlsl.js';
 import { smoothstep } from '../utils/noise.js';
+import { formatMeters } from '../data/maps/layoutStore.js';
+import { CREATURE_TYPES, CREATURE_KEYS } from '../data/catalogs/creatures/index.js';
 
 const PLAYER_FLOAT_HEIGHT = 2.2;
 const CREATURE_SOUND_RANGE = 22;
@@ -14,6 +16,7 @@ const CREATURE_BAR_LIFT = 0.4;
 const BACK_HIT_DOT = -0.2;
 const SIGHT_CLEARANCE = 0.3;
 const CREATURE_GONE_FOG = 0.95;
+const CREATURE_EYE_SHARE = 0.6;
 
 export default {
   async setupCreatures() {
@@ -25,6 +28,8 @@ export default {
     system.playerLevel = () => this.playerSystem.level;
     system.floorsLinked = (x, z, levelA, levelB) => this.navigation.floorsLinkedNear(x, z, levelA, levelB);
     system.playerAt = () => (this.editor.active || !this.playerSystem.root ? null : this.playerSystem.root.position);
+    system.walkStepLimit = this.walkStepLimit;
+    system.seesPlayer = (creature) => this.creatureSeesPlayer(creature);
     system.defenseAt = () => this.playerStats.defense;
     system.onMeshReady = (mesh) => this.addShadowCaster(mesh);
     system.onMeshGone = (mesh) => this.removeShadowCaster(mesh);
@@ -113,6 +118,111 @@ export default {
     return best;
   },
 
+  showCreaturePanel(creature) {
+    if (!creature) return;
+    this.creaturePanel.show(this.creaturePanelView(creature));
+  },
+
+  creaturePanelView(creature) {
+    const type = creature.type || {};
+    const tier = creature.tier || {};
+    const kind = creature.kind;
+    const total = Number.isFinite(tier.health) ? Math.round(tier.health) : 0;
+    const left = Number.isFinite(creature.health) ? Math.max(0, Math.round(creature.health)) : 0;
+    return {
+      title: type.label || 'Tvor',
+      subtitle: tier.label || '',
+      left,
+      total,
+      rows: this.creatureStatRows(kind, type, tier, `${left} / ${total}`),
+      hint: `Zabito: ${this.bestiary.killsOf(kind)} · Esc nebo × zavře`,
+    };
+  },
+
+  creatureStatRows(kind, type, tier, healthText) {
+    const sight = Number.isFinite(tier.aggroRange) ? tier.aggroRange : type.aggroRange;
+    const speed = (Number(type.walkSpeed) || 0) * (Number.isFinite(tier.speed) ? tier.speed : 1);
+    const row = (stat, label, value) => (this.bestiary.unlocked(kind, stat)
+      ? { label, value }
+      : { label, value: '???', locked: true });
+    return [
+      row('health', 'Životy', healthText),
+      row('attack', 'Útok', String(tier.attack ?? '—')),
+      row('defense', 'Obrana', String(tier.defense ?? '—')),
+      row('sight', 'Dohled', formatMeters(sight)),
+      row('speed', 'Rychlost', `${String(Math.round(speed * 10) / 10).replace('.', ',')} m/s`),
+    ];
+  },
+
+  creatureName(creature) {
+    const label = creature && creature.type ? creature.type.label : 'Tvor';
+    const tier = creature && creature.tier ? creature.tier.label : '';
+    if (!tier) return label;
+    return `${tier} ${label.charAt(0).toLocaleLowerCase('cs')}${label.slice(1)}`;
+  },
+
+  recordKill(creature) {
+    const entry = this.bestiary.record(creature.kind);
+    const name = this.creatureName(creature);
+    if (entry.first) this.log.add(`${name} — nový zápis v bestiáři`, 'gain');
+    else if (entry.unlocked.length) this.log.add(`${name} — doplněný zápis v bestiáři`, 'gain');
+    if (this.bestiaryWindow.open) this.refreshBestiaryWindow();
+  },
+
+  bestiaryEntries() {
+    return CREATURE_KEYS.map((kind) => {
+      const type = CREATURE_TYPES[kind];
+      const kills = this.bestiary.killsOf(kind);
+      if (!kills) return { key: kind, known: false };
+      const tiers = Object.values(type.tiers || {}).map((tier) => ({
+        label: tier.label || '',
+        rows: this.creatureStatRows(kind, type, tier, String(tier.health ?? '—')),
+      }));
+      return { key: kind, known: true, title: type.label, kills, tiers };
+    });
+  },
+
+  refreshBestiaryWindow() {
+    this.bestiaryWindow.update(this.bestiaryEntries());
+  },
+
+  toggleBestiaryWindow() {
+    if (this.bestiaryWindow.open) {
+      this.bestiaryWindow.close();
+      return;
+    }
+    this.refreshBestiaryWindow();
+    this.bestiaryWindow.show();
+    this.bestiaryButton.setActive(true);
+  },
+
+  pinCreatureAtPointer() {
+    const creature = this.creatureSystem.hoverAt(this.s.pointerX, this.s.pointerY) || this.assistCreatureAtPointer();
+    if (creature) {
+      this.pinnedCreature = creature;
+      this.creatureSystem.selected = creature;
+      this.showCreaturePanel(creature);
+      return;
+    }
+    if (this.pinnedCreature) this.unpinCreature();
+  },
+
+  unpinCreature() {
+    this.pinnedCreature = null;
+    this.creatureSystem.selected = null;
+    this.creaturePanel.hide();
+  },
+
+  refreshPinnedCreature() {
+    const creature = this.pinnedCreature;
+    if (!creature) return;
+    if (creature.dead || this.editor.active || !this.creatureSystem.creatures.includes(creature)) {
+      this.unpinCreature();
+      return;
+    }
+    this.showCreaturePanel(creature);
+  },
+
   lootCorpse(corpse) {
     if (!corpse) return false;
     const yields = this.creatureSystem.loot(corpse);
@@ -147,6 +257,7 @@ export default {
     const label = creature.type ? creature.type.label : 'Tvor';
     this.showFloatingDamage(creature, amount, crit);
     if (killed) {
+      this.recordKill(creature);
       this.log.add(`Porazil jsi: ${label}`, 'warn');
       return true;
     }
@@ -228,6 +339,15 @@ export default {
     const higher = smoothstep(SIGHT_HIGHER_START, SIGHT_HIGHER_FULL, ground - feetY);
     const blocked = higher > 0 && !this.seesCreature(eye, creature, Infinity) ? higher : 0;
     return Math.max(far, rise, blocked);
+  },
+
+  creatureSeesPlayer(creature) {
+    const root = this.playerSystem.root;
+    if (!root || !creature) return false;
+    const ground = this.terrainSystem.walkHeightAt(creature.x, creature.z, creature.level || 0);
+    const eye = new Vector3(creature.x, ground + (creature.markHeight || 0) * CREATURE_EYE_SHARE, creature.z);
+    const target = root.position.y + PLAYER_EYE_HEIGHT - SIGHT_GROUND_LIFT;
+    return this.seesSpot(eye, root.position.x, target, root.position.z, Infinity);
   },
 
   seesCreature(eye, creature, range) {

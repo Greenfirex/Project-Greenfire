@@ -54,9 +54,6 @@ Povinné je to, co systém čte bez náhrady. „Když chybí" říká, co se st
 | `biteRecover` | jak dlouho se po ráně zotavuje | povinné |
 | `confusedSeconds` | jak dlouho tápe, když tě ztratí | 1,4 |
 | `roamRadius` | jak daleko od domova se toulá | 0 = stojí na místě |
-| `maxStepHeight` | jak vysoký schod ještě přeleze (vyšší překážku obejde, ne přeleze) | bez omezení |
-| `attackHeight` | jak vysoko nebo nízko na tebe ještě dosáhne | bez omezení |
-| `noticeHeight` | jak vysoko nebo nízko si tě ještě všimne | bez omezení |
 | `footprint` | stopy v písku (viz níž) | jedna šmouha bez detailů |
 | `respawnDays` | po kolika herních dnech se obnoví | povinné |
 | `idleSeconds` | rozsah `[min, max]`, jak dlouho postává | povinné |
@@ -158,9 +155,28 @@ a vynásobením měřítkem modelu — z toho vyjde tabulka chodidel pro stopy a
 - **Krok drž ve svislé rovině.** Všechny nohy se otáčejí kolem vodorovné osy napříč tělem,
   takže krok je vidět z boku jako krok. Otáčení kolem svislé osy nohu přelévá do strany
   (u roztažených nohou to vypadá jako plavání prsama, ne jako chůze).
-- **Délku kroku počítej z délky těla, ne z metrů.** Rig nezná měřítko modelu, takže cílová
-  dráha chodidla je podíl délky těla (`STEP_BODY`). Noha posazená šikměji (přední) dostane
-  větší úhel, aby dozadu popojela stejně daleko jako zadní.
+- **Dráhu chodidla na zemi srovnej s ušlou cestou, jinak tlapky kloužou.** Za dobu, kdy
+  tlapka stojí na zemi, ujde tělo `STRIDE × podíl stání`; přesně tolik musí chodidlo
+  popojet dozadu. Rig si při stavbě přečte skutečné měřítko modelu (světovou matici), takže
+  to sedí i na mladší a starší tiery. Kratší noha dostane větší úhel.
+- **Směr kroku si spočítej.** Na zemi jde chodidlo dozadu, vzduchem dopředu. Kterým
+  znaménkem úhlu to je, plyne z polohy chodidla pod kloubem (vektorový součin osy
+  a ramene), ne z odhadu.
+- **Řetěz nohy hledej podle rodičů kostí, ne podle vzdálenosti od středu.** Kořen nohy je
+  kost, jejíž rodič do nohy nepatří, koleno je jeho dítě. Řazení podle vzdálenosti
+  od těla vybere jako „koleno“ špičku prstu a noha se pak nekrčí. Ocas je řetěz kostí
+  s jediným dítětem od špičky až k pánvi.
+- **Noha kývaná kolem svislé osy potřebuje znaménko strany i pro krok.** Stejný úhel
+  posune chodidlo vpravo dozadu a vlevo dopředu, takže bez znaménka polovina nohou
+  couvá (běs). Znaménko ber z klidové polohy kosti v prostoru modelu (`bindPosition`),
+  ne ze světa: model může být při načtení zrcadlený.
+- **Klid nemá být socha.** Rozvrh krátkých akcí (rozhlédnutí, cvaknutí, škubnutí, poklep)
+  se střídá dokola a každý kus začíná jinde, aby nebyli všichni sladění (běs, Koa'tiki).
+  Mezi chůzí a klidem míchej přes váhu, která plynule dojíždí, ne přepínáním.
+- **Úder se švihem.** Výpad se rozjede za pár setin sekundy a dojede se zhoupnutím
+  přes klid; okamžitý skok na plnou sílu je vidět jako cuknutí.
+- **Mrtvola dozní.** Po smrti se nohy postupně stáhnou a pár sekund slábnoucími
+  záškuby doznívají (`deadTime` v rigu běsa).
 - **Zrcadlové nohy potřebují znaménko strany.** Stejný úhel na levou a pravou nohu
   neudělá souměrný pohyb; znaménko se bere z klidové polohy kosti.
 - **Osy otáčení převáděj do prostoru rodiče** a normalizuj, jinak se do rotace
@@ -231,10 +247,14 @@ ffmpeg -i vstup.wav -ar 44100 -ac 1 -c:a libvorbis -q:a 4 vystup.ogg
 - **Stav živý/mrtvý není v mapě** — mapa drží druh, stáří a buňku; čas smrti a zdraví
   patří do uložené hry.
 - **Načtení musí snést stará data** (chybějící tvory, neznámé tiery) a nesmí spadnout.
-- **Výškový rozdíl:** `maxStepHeight` je schod, ne zeď. Když je cesta prudší, tvor si ji
-  obejde po buňkách — ale schod vyšší než `maxStepHeight` nepřeleze. `noticeHeight` rozhoduje, jestli si
-  tě tvor vůbec všimne (může být větší než `attackHeight` — tvor na tebe z kopečku zavrčí,
-  i když na tebe nedosáhne), `attackHeight` pak jestli na tebe opravdu zaútočí.
+- **Kam dojde hráč, tam dojde i tvor.** Schod mají všichni tvorové stejný jako hráč
+  (`walkStepLimit` předá scéna); plánovač cest kontroluje svah po 0,3 m stejně jako chůze.
+  Výšku, do které tvor kousne, drží jedno číslo `ATTACK_HEIGHT` v systému tvorů.
+- **Kam dohlédne hráč, tam i tvor — jen blíž.** Tvor si tě všimne, jen když jsi v jeho
+  dohledu (`aggroRange`) a mezi vámi nestojí skála (stejný paprsek, jakým hráč vidí tvory,
+  `seesSpot` ve scéně). Ztratí tě, když zmizíš za skálou nebo dál než 1,8× dohled.
+- **Paměť:** když tě ztratí, dojde na místo, kde tě viděl naposledy, rozhlédne se tam
+  (`confusedSeconds`, otazníky nad hlavou) a teprve pak jde domů.
 - **Zásah rozhodují vlastnosti** (`attack` proti `defense`, ohraničeno 5–95 %); citlivý
   zásah se nevyplňuje, je odvozený z téhož porovnání.
 - **Kopírování modelu:** `LoadAssetContainerAsync` + `instantiateModelsToScene`;
@@ -250,13 +270,13 @@ Aby se vědělo, kde je vzor a kde mezera. Úkoly z toho plynoucí patří do `T
 
 | Vlastnost | Písečný běs | Kajmanka | Koa'tiki |
 |---|---|---|---|
-| reakce na ránu (`hit`) | ano | chybí | ano |
-| nohy našlapou i při otáčení (`turning`) | ano | chybí | ano |
-| prohýbání kolen při chůzi | ano | chybí | ano |
+| reakce na ránu (`hit`) | ano | ano | ano |
+| nohy našlapou i při otáčení (`turning`) | ano | ano | ano |
+| prohýbání kolen při chůzi | ano | ano | ano |
 | zrychlení v boji (`chaseBoost`) | ano (1,2) | chybí | ano (1,35) |
 | zahrabání a vylézání | ano | ne (žije u vody) | ne |
 | otevíratelná čelist | ne (kusadla) | ne | ano (kost čelisti + tmavá vložka) |
 | převrácení na záda při smrti (`deathRoll`) | ano | ne (padá na bok) | ne (padá na bok) |
-| stopy z reálných chodidel | ano (6 nohou) | odhad (4 nohy stejně) | chybí (jedna šmouha) |
+| stopy z reálných chodidel | ano (4 nohy; přední pár nese jako ruce) | odhad (4 nohy stejně) | chybí (jedna šmouha) |
 | varování před útokem (`noWarning`) | ne — rovnou útok | ano | ano |
 | vlastní doložené zvuky | ano (Darkworld Audio) | ano, ale zdroj chybí v CREDITS | chybí — tvor je němý |

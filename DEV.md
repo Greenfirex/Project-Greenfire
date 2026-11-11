@@ -91,7 +91,10 @@ voda s vlnami a pěnou, ryby, tráva, keře, kameny a palmy, truhly a kostlivci
 s kořistí a první předmět na hlavu.
 
 Tvorové: kajmanka, písečný běs a Koa'tiki — toulání, dvě zóny pozornosti,
-honička s návratem domů, kousnutí, smrt, tělo s kořistí a respawn. Chybí
+honička s návratem domů, kousnutí, smrt, tělo s kořistí a respawn. Chodí a vidí
+podle stejných pravidel jako hráč (schod, skála v cestě pohledu), jen na kratší
+dohled, a po ztrátě hráče jdou na místo, kde ho viděli naposledy. Panel tvora
+ukazuje statistiky odemčené počtem zabití (`bestiarySystem.js`), okno bestiáře je na B. Chybí
 vypadnutí suroviny a zvuky u Koa'tiki.
 
 Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů).

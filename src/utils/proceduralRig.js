@@ -27,6 +27,20 @@ export function bindMatrix(bone) {
   return null;
 }
 
+export function bindPosition(bone) {
+  const matrix = bindMatrix(bone);
+  if (matrix && matrix.m) return new Vector3(matrix.m[12], matrix.m[13], matrix.m[14]);
+  return bone.getAbsolutePosition().clone();
+}
+
+export function worldScale(mesh) {
+  const chain = [];
+  for (let node = mesh; node; node = node.parent) chain.unshift(node);
+  for (const node of chain) node.computeWorldMatrix(true);
+  const scale = Vector3.TransformNormal(FORWARD_AXIS, mesh.getWorldMatrix()).length();
+  return Number.isFinite(scale) && scale > 1e-6 ? scale : 1;
+}
+
 export function restPosition(bone, mesh) {
   try {
     if (typeof bone.getAbsolutePosition === 'function') return bone.getAbsolutePosition(mesh).clone();

@@ -1,4 +1,5 @@
-// Část herní scény: kroky hráče a tvorů — zvuk podle povrchu, šplouchnutí ve vodě a stopy.
+// Část herní scény: kroky hráče a tvorů — zvuk podle povrchu, šplouchnutí ve vodě, stopy
+// a rozstřik písku, když se tvor zahrabává nebo vyhrabává.
 // Patří ke GameScene (sdílí její this); jen ji dělí, aby hlavní soubor zůstal přehledný.
 import { worldToCell } from '../utils/gridMath.js';
 import { WATER_STEP_DEPTH } from './sceneSettings.js';
@@ -48,6 +49,13 @@ export default {
     const x = creature.x + Math.cos(angle + Math.PI / 2) * offset * tierScale * direction;
     const z = creature.z + Math.sin(angle + Math.PI / 2) * offset * tierScale * direction;
     this.footfall(x, z, angle, scale, kind, 0.45 + scale);
+  },
+
+  onCreatureDig(creature) {
+    if (!creature || !Number.isFinite(creature.x) || !Number.isFinite(creature.z)) return;
+    const tierScale = creature.tier && Number.isFinite(creature.tier.scale) ? creature.tier.scale : 1;
+    const y = this.creatureSystem.groundAt(creature.x, creature.z, creature.level);
+    this.sandBursts.burst(creature.x, y, creature.z, tierScale, creature.emergeSeconds);
   },
 
   footfall(x, z, angle, scale, kind, strength = 1) {

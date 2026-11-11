@@ -25,9 +25,10 @@ vstup je zamčený, dokud obrazovka nezmizí.
 | **Tažení pravým tlačítkem** | Rotace kamery (i v editoru); v editoru pravé kliknutí bez tažení odebírá buňku |
 | **Kolečko** | Zoom (v editoru jde oddálit víc než ve hře) |
 | **1–3** | Výběr předmětu v ruce (sekera, krumpáč, pochodeň) |
-| **I / C** | Inventář / postava — velká okna uprostřed obrazovky, jde s nimi tahat (také tlačítky po stranách lišty) |
+| **I / C / B** | Inventář / postava / bestiář — velká okna uprostřed obrazovky, jde s nimi tahat (také tlačítky v liště) |
 | **Levé tlačítko u stromu / kamene** | Těžení (podržet = opakovat) |
 | **Levé tlačítko u tvora** | Útok rukou (podržet = opakovat) |
+| **Pravé kliknutí na tvora** | Panel se statistikami tvora (zavře ho křížek, Esc nebo pravé kliknutí jinam) |
 | **E** | Zapálit / zrušit táborák |
 | **G** | Zobrazit / skrýt mřížku |
 | **N** | Posun času o 6 hodin |

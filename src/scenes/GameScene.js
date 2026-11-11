@@ -36,6 +36,7 @@ import GatherSystem from '../systems/gathering/gatherSystem.js';
 import FellingSystem from '../systems/gathering/fellingSystem.js';
 import HarvestSystem from '../systems/gathering/harvestSystem.js';
 import FootprintSystem from '../systems/creatures/footprintSystem.js';
+import SandBurstSystem from '../systems/creatures/sandBurstSystem.js';
 import InventorySystem from '../systems/player/inventorySystem.js';
 import HeldItemSystem from '../systems/player/heldItemSystem.js';
 import WaveSpraySystem from '../systems/water/waveSpraySystem.js';
@@ -59,6 +60,9 @@ import DeathScreen from '../ui/deathScreen.js';
 import Dialog from '../ui/dialog.js';
 import LoadingScreen from '../ui/loadingScreen.js';
 import TooltipPanel from '../ui/tooltipPanel.js';
+import CreaturePanel from '../ui/creaturePanel.js';
+import BestiaryWindow from '../ui/bestiaryWindow.js';
+import BestiarySystem from '../systems/creatures/bestiarySystem.js';
 import { takeModelError, preloadModel, loadContainer, loadImported } from '../utils/assetLoader.js';
 import { WAVE_TIME_WRAP, SEA_DIRECTION } from '../utils/waterWaves.js';
 import { HOTBAR_ITEMS, ITEM_TYPES } from '../data/catalogs/items.js';
@@ -168,14 +172,21 @@ export default class GameScene {
     this.fellingSystem = new FellingSystem(scene);
     this.harvestSystem = new HarvestSystem(scene);
     this.footprintSystem = new FootprintSystem(scene);
+    this.sandBursts = new SandBurstSystem(scene);
     this.audioSystem = new AudioSystem(scene);
     this.inventorySystem = new InventorySystem();
     this.saveSystem = new SaveSystem(this);
     this.hud = new Hud();
     this.tooltipPanel = new TooltipPanel();
+    this.creaturePanel = new CreaturePanel();
+    this.creaturePanel.onClose = () => this.unpinCreature();
+    this.pinnedCreature = null;
+    this.bestiary = new BestiarySystem();
     this.hotbar = new Hotbar();
     this.bagButton = new DockButton({ icon: '🎒', label: 'Inventář', title: 'Inventář (I)', slot: 'bag' });
     this.characterButton = new DockButton({ icon: '🧍', label: 'Postava', title: 'Postava (C)', slot: 'character' });
+    this.bestiaryButton = new DockButton({ icon: '📖', label: 'Bestiář', title: 'Bestiář (B)', slot: 'bestiary' });
+    this.bestiaryWindow = new BestiaryWindow();
     this.log = new LogPanel();
     this.inventoryWindow = new InventoryWindow();
     this.characterWindow = new CharacterWindow();
@@ -216,6 +227,7 @@ export default class GameScene {
     this.playerSystem.onFootPlant = (x, z, facing, side, sprint) => this.footfall(x, z, facing, 1, 'human', sprint ? 1.25 : 1);
     this.playerSystem.lookAt = () => this.playerLookPoint();
     this.creatureSystem.onStep = (creature, side) => this.onCreatureStep(creature, side);
+    this.creatureSystem.onDig = (creature) => this.onCreatureDig(creature);
     this.playerStats.onChange = (health, maxHealth) => this.vitalsBar.setHealth(health, maxHealth);
     this.playerStats.onStamina = (stamina, maxStamina) => this.vitalsBar.setStamina(stamina, maxStamina);
     this.unlockAudio = () => {
@@ -309,6 +321,7 @@ export default class GameScene {
         if (this.loaded) this.refreshCreatureSight();
       }
       this.refreshCreatureHealthBars();
+      this.refreshPinnedCreature();
       this.updateReveal(dt);
       if (this.paused) {
         if (this.editor.active) {
@@ -340,6 +353,7 @@ export default class GameScene {
       this.updateDeath(dt);
       this.creatureSystem.update(dt);
       this.footprintSystem.update(dt);
+      this.sandBursts.update(dt);
       this.glowSystem.retryPending();
       this.glowSystem.update();
       this.updateGathering(dt);
@@ -561,7 +575,7 @@ export default class GameScene {
     this.creatureTooltipOn = true;
     const total = creature.tier && Number.isFinite(creature.tier.health) ? Math.round(creature.tier.health) : null;
     const left = Number.isFinite(creature.health) ? Math.max(0, Math.round(creature.health)) : null;
-    const detail = total !== null && left !== null ? `Zdraví ${left} / ${total}` : '';
+    const detail = total !== null && left !== null ? `Zdraví ${left} / ${total} · pravé tlačítko — podrobnosti` : '';
     this.tooltipPanel.show(`${creature.type.label} (${creature.tier.label})`, detail);
   }
 
@@ -1088,8 +1102,11 @@ export default class GameScene {
     this.hotbar.setSelected(this.heldItemSystem.key);
     this.bagButton.onClick = () => this.toggleInventoryWindow();
     this.characterButton.onClick = () => this.toggleCharacterWindow();
+    this.bestiaryButton.onClick = () => this.toggleBestiaryWindow();
     this.bagButton.mount();
     this.characterButton.mount();
+    this.bestiaryButton.mount();
+    this.bestiaryWindow.onClose = () => this.bestiaryButton.setActive(false);
     this.inventoryWindow.onClose = () => {
       this.bagButton.setActive(false);
       this.pairWindows();
@@ -1149,6 +1166,14 @@ export default class GameScene {
     }
     if (this.characterWindow.open) {
       this.characterWindow.close();
+      closed = true;
+    }
+    if (this.bestiaryWindow.open) {
+      this.bestiaryWindow.close();
+      closed = true;
+    }
+    if (this.pinnedCreature) {
+      this.unpinCreature();
       closed = true;
     }
     return closed;
@@ -1233,6 +1258,7 @@ export default class GameScene {
     this.registerSavedState(this.fellingSystem, 'felling', 14);
     this.registerSavedState(this.harvestSystem, 'harvest', 15);
     this.registerSavedState(this.creatureSystem, 'creatures', 16);
+    this.registerSavedState(this.bestiary, 'bestiary', 17);
     this.registerSavedState(this.dayNightSystem, 'dayNight', 20);
     this.registerSavedState(this.simSystem, 'sim', 25);
     this.saveSystem.register('inventory', {
@@ -1386,6 +1412,12 @@ export default class GameScene {
       if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
       evt.preventDefault();
       this.toggleCharacterWindow();
+      return;
+    }
+    if ((evt.key === 'b' || evt.key === 'B') && !typing) {
+      if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+      evt.preventDefault();
+      this.toggleBestiaryWindow();
       return;
     }
     if (evt.key === 'g' || evt.key === 'G') {
@@ -1578,8 +1610,11 @@ export default class GameScene {
   }
 
   handleCellRightClick(cell) {
+    if (!this.editor.active) {
+      if (this.loaded && !this.dying) this.pinCreatureAtPointer();
+      return;
+    }
     if (!cell) return;
-    if (!this.editor.active) return;
     this.editor.rightClickCell(cell.cx, cell.cz);
     this.handleHover(cell);
   }

@@ -130,6 +130,10 @@
   order: 1;
 }
 
+.dock-panel--bestiary {
+  order: 4;
+}
+
 .dock-panel--character {
   order: 3;
 }
@@ -675,9 +679,10 @@
 /* Hodiny v HUD — aktuální herní čas, fáze dne a rychlost simulace. */
 #hud-clock {
   top: 12px;
-  right: 12px;
+  left: 50%;
+  transform: translateX(-50%);
   min-width: 96px;
-  text-align: right;
+  text-align: center;
   padding: 6px 10px;
 }
 
@@ -691,7 +696,7 @@
 
 .hud-clock__meta {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 8px;
   font-size: 10px;
   color: var(--text-dim);
@@ -712,7 +717,7 @@
 
 .hud-clock__speeds {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 4px;
   margin-top: 4px;
 }
@@ -1364,6 +1369,132 @@
 .hud-tooltip__detail {
   color: var(--text-dim);
   font-size: 14px;
+}
+
+.hud-creature {
+  display: none;
+  top: 12px;
+  right: 12px;
+  width: 300px;
+}
+
+.hud-creature.is-open {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#hud-layer > .hud-creature {
+  pointer-events: auto;
+}
+
+.hud-creature__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.hud-creature__title {
+  color: var(--text-main);
+  font-size: 18px;
+}
+
+.hud-creature__close {
+  border: 1px solid var(--border-glow);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 7px;
+}
+
+.hud-creature__close:hover {
+  color: var(--text-main);
+}
+
+.hud-creature__subtitle,
+.hud-creature__hint {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.hud-creature__bar {
+  height: 8px;
+  padding: 1px;
+  box-sizing: border-box;
+  background: rgba(8, 12, 10, 0.72);
+  border: 1px solid rgba(160, 220, 190, 0.28);
+  border-radius: 4px;
+}
+
+.hud-creature__fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--glow-accent);
+  transition: width 140ms linear;
+}
+
+.hud-creature__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  font-size: 15px;
+}
+
+.hud-creature__row.is-locked strong,
+.bestiary-tier .is-locked strong {
+  color: var(--text-dim);
+}
+
+.bestiary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.bestiary-card {
+  padding: 10px 12px;
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+}
+
+.bestiary-card.is-unknown {
+  opacity: 0.55;
+}
+
+.bestiary-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-dim);
+}
+
+.bestiary-card__head strong {
+  color: var(--text-main);
+  font-size: 16px;
+}
+
+.bestiary-card__tiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.bestiary-tier__label {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--glow-warm);
+}
+
+.hud-creature__hint {
+  margin-top: 6px;
+  font-size: 12px;
 }
 
 body.has-custom-cursor,

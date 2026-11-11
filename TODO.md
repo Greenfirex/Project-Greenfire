@@ -10,6 +10,10 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Tvor umístěný do jeskyně: drží se v podzemí? Správné značky a stav v editoru (`statusAt` zná jen povrch).
 - [ ] Ověřit výkon hledání cesty přes patra.
 
+### Bestiář
+- [ ] Bestiář: doplnit obsah okna (popis tvora, kde žije, obrázek); kostra se seznamem a statistikami je hotová.
+- [ ] Odolnosti tvorů a jejich řádek v panelu tvora.
+
 ### Život v jeskyni
 - [ ] Rozhodnout trávu v jeskyni (stébla se tam nepřidala).
 - [ ] Ověřit v praxi pokládání předmětů a táboráku v patře, zapálení a znovunačtení savu.

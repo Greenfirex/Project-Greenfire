@@ -1,8 +1,11 @@
 // Želva kajmanka — všechna její data i rig na jednom místě.
 // Kosti modelu z Meshy nemají jména, takže části těla určuje tvar těla, ne názvy kostí.
-import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { ASSET_DIRS } from '../assetPaths.js';
-import { bindMatrix, axisInParent } from '../../../utils/proceduralRig.js';
+import {
+  SIDE_AXIS, UP_AXIS,
+  bindPosition, worldScale, axisInParent, entryOf, swingEntry, approach,
+} from '../../../utils/proceduralRig.js';
 
 const MODEL = `${ASSET_DIRS.creatures}snapping_turtle/snapping_turtle.glb`;
 const LEG_SIDE = 0.32;
@@ -12,12 +15,14 @@ const HEAD_Z = 0.5;
 const HEAD_HEIGHT = 0.5;
 const TAIL_Z = -0.45;
 const LEG_PHASES = { fl: 0, bl: 0.25, fr: 0.5, br: 0.75 };
-const STRIDE_LENGTH = 0.64;
-const STEP_BODY = 0.13;
-const STANCE_SHARE = 0.5;
+const STRIDE_LENGTH = 0.3;
+const STANCE_SHARE = 0.75;
 const TURN_CYCLE = 0.55;
-const MAX_STEP_ANGLE = 0.85;
-const BOB = 0.02;
+const MAX_STEP_ANGLE = 0.75;
+const ROOT_LIFT = 0.28;
+const KNEE_LIFT = 0.45;
+const BOB = 0.012;
+const HEAD_NOD = 0.04;
 const HEAD_CALM = 0;
 const HEAD_BACK = -0.6;
 const HEAD_BITE = 0.3;
@@ -26,54 +31,17 @@ const HEAD_PULL_BACK = 0.45;
 const HEAD_PULL_BITE = -0.3;
 const HEAD_PULL_SPEED = 14;
 const ALERT_HEAD = -0.35;
-const TAIL_SWING_WALK = 0.14;
-const TAIL_SWING_IDLE = 0.05;
+const TAIL_SWING_WALK = 0.07;
+const TAIL_SWING_IDLE = 0.025;
 const TAIL_SPEED = 1.6;
+const TAIL_LAG = 0.6;
 const DEAD_LEG = 0.4;
 const TURN_SWING = 0.6;
-const KNEE_LIFT = 0.45;
 const HIT_SECONDS = 0.3;
 const HIT_HEAD = -0.45;
 const HIT_PULL = 0.3;
 const HIT_LEG = 0.25;
-const SIDE_AXIS = new Vector3(1, 0, 0);
 const BACK_AXIS = new Vector3(0, 0, -1);
-
-function restPosition(bone) {
-  const matrix = bindMatrix(bone);
-  if (matrix && matrix.m) return new Vector3(matrix.m[12], matrix.m[13], matrix.m[14]);
-  return bone.getAbsolutePosition().clone();
-}
-
-function animatedEntry(bone) {
-  const node = typeof bone.getTransformNode === 'function' ? bone.getTransformNode() : null;
-  const target = node || bone;
-  const base = target.rotationQuaternion
-    ? target.rotationQuaternion.clone()
-    : Quaternion.FromEulerVector(target.rotation);
-  const basePos = target.position ? target.position.clone() : null;
-  return {
-    target,
-    base,
-    basePos,
-    axis: axisInParent(bone, SIDE_AXIS),
-    backAxis: axisInParent(bone, BACK_AXIS),
-  };
-}
-
-function swingEntry(entry, angle, lift = 0) {
-  if (!entry || !entry.target || !entry.base) return;
-  let base = entry.base;
-  if (lift && entry.liftAxis) {
-    base = Quaternion.RotationAxis(entry.liftAxis, lift).multiply(base);
-  }
-  if (!angle) {
-    entry.target.rotationQuaternion = base.clone();
-    return;
-  }
-  const delta = Quaternion.RotationAxis(entry.axis, angle);
-  entry.target.rotationQuaternion = delta.multiply(base);
-}
 
 function stepSwing(phase) {
   if (phase < STANCE_SHARE) return 1 - (2 * phase) / STANCE_SHARE;
@@ -86,18 +54,67 @@ function stepLift(phase) {
   return Math.sin(Math.PI * ((phase - STANCE_SHARE) / (1 - STANCE_SHARE)));
 }
 
+function liftSign(axis, reach) {
+  return Math.sign(Vector3.Cross(axis, reach).y) || 1;
+}
+
+function headEntry(bone) {
+  const entry = entryOf(bone, SIDE_AXIS);
+  if (!entry) return null;
+  entry.basePos = entry.node.position.clone();
+  entry.backAxis = axisInParent(bone, BACK_AXIS);
+  return entry;
+}
+
 function pullEntry(entry, distance) {
-  if (!entry || !entry.target || !entry.basePos) return;
-  entry.target.position.copyFrom(entry.basePos);
-  if (distance) entry.target.position.addInPlace(entry.backAxis.scale(distance));
+  if (!entry || !entry.basePos) return;
+  entry.node.position.copyFrom(entry.basePos);
+  if (distance) entry.node.position.addInPlace(entry.backAxis.scale(distance));
 }
 
-function headBase(list) {
-  return list.reduce((best, item) => (item.z < best.z ? item : best));
+function legRoot(list) {
+  const inLeg = new Set(list.map((item) => item.bone));
+  const roots = list.filter((item) => !inLeg.has(item.bone.getParent()));
+  return (roots.length ? roots : list).reduce((best, item) => (Math.abs(item.x) < Math.abs(best.x) ? item : best));
 }
 
-function tailBase(list) {
-  return list.reduce((best, item) => (item.z > best.z ? item : best));
+function legEntry(key, list, sweep) {
+  const root = legRoot(list);
+  const jointItem = list.find((item) => item.bone.getParent() === root.bone) || null;
+  const foot = list.reduce((best, item) => (item.y < best.y ? item : best));
+  const entry = entryOf(root.bone, SIDE_AXIS);
+  if (!entry) return null;
+  const reach = foot.point.subtract(root.point);
+  const flat = new Vector3(reach.x, 0, reach.z);
+  const worldLift = flat.lengthSquared() > 1e-6 ? new Vector3(-flat.z, 0, flat.x).normalize() : SIDE_AXIS.clone();
+  entry.liftAxis = axisInParent(root.bone, worldLift);
+  entry.liftSign = liftSign(worldLift, reach);
+  const joint = jointItem ? entryOf(jointItem.bone, SIDE_AXIS) : null;
+  if (joint) {
+    joint.liftAxis = axisInParent(jointItem.bone, worldLift);
+    joint.liftSign = liftSign(worldLift, foot.point.subtract(jointItem.point));
+  }
+  const height = Math.max(1e-4, Math.abs(reach.y));
+  return {
+    key,
+    entry,
+    joint,
+    side: root.x < 0 ? -1 : 1,
+    forward: reach.y < 0 ? -1 : 1,
+    offset: LEG_PHASES[key],
+    amplitude: Math.asin(Math.min(MAX_STEP_ANGLE, sweep / (2 * height))),
+  };
+}
+
+function tailChain(skeleton, tail) {
+  if (!tail.length) return [];
+  const tip = tail.reduce((best, item) => (item.z < best.z ? item : best)).bone;
+  const childCount = (parent) => skeleton.bones.filter((bone) => bone.getParent() === parent).length;
+  const chain = [tip];
+  for (let parent = tip.getParent(); parent && childCount(parent) === 1; parent = parent.getParent()) {
+    chain.unshift(parent);
+  }
+  return chain.map((bone) => entryOf(bone, UP_AXIS)).filter(Boolean);
 }
 
 function build(mesh, skeleton) {
@@ -115,11 +132,11 @@ function build(mesh, skeleton) {
   const tail = [];
 
   for (const bone of skeleton.bones) {
-    const point = restPosition(bone);
+    const point = bindPosition(bone);
     const nx = (point.x - centerX) / halfWidth;
     const ny = (point.y - min.y) / height;
     const nz = (point.z - centerZ) / halfLength;
-    const item = { bone, x: point.x, y: point.y, z: point.z, ny, nz };
+    const item = { bone, point, x: point.x, y: point.y, z: point.z };
     if (Math.abs(nx) > LEG_SIDE && ny < LEG_HEIGHT) {
       legs[`${nz > 0 ? 'f' : 'b'}${nx > 0 ? 'r' : 'l'}`].push(item);
     } else if (Math.abs(nx) < CENTER_WIDTH && nz > HEAD_Z && ny > HEAD_HEIGHT) {
@@ -129,41 +146,16 @@ function build(mesh, skeleton) {
     }
   }
 
-  const legEntries = [];
-  const stepReach = STEP_BODY * Math.max(0.001, max.z - min.z);
-  for (const key of Object.keys(legs)) {
-    const list = [...legs[key]].sort((a, b) => Math.abs(a.x) - Math.abs(b.x));
-    if (!list.length) continue;
-    const rootItem = list[0];
-    const jointItem = list.length > 1 ? list[1] : null;
-    const footItem = list[list.length - 1];
-    const entry = animatedEntry(rootItem.bone);
-    const direction = new Vector3(footItem.x - rootItem.x, 0, footItem.z - rootItem.z);
-    const worldLift = direction.lengthSquared() > 1e-6
-      ? new Vector3(-direction.z, 0, direction.x).normalize()
-      : SIDE_AXIS.clone();
-    entry.liftAxis = axisInParent(rootItem.bone, worldLift);
-    const joint = jointItem ? animatedEntry(jointItem.bone) : null;
-    if (joint) joint.liftAxis = axisInParent(jointItem.bone, worldLift);
-    const reach = new Vector3(footItem.x - rootItem.x, footItem.y - rootItem.y, footItem.z - rootItem.z);
-    const pitch = Vector3.Cross(SIDE_AXIS, reach);
-    const foreAft = Math.abs(pitch.z);
-    legEntries.push({
-      key,
-      entry,
-      joint,
-      side: rootItem.x < 0 ? -1 : 1,
-      offset: LEG_PHASES[key],
-      amplitude: Math.asin(Math.min(MAX_STEP_ANGLE, foreAft > 1e-4 ? stepReach / (2 * foreAft) : 0)),
-    });
-  }
-
-  const headItem = head.length ? headBase(head) : null;
-  const tailItem = tail.length ? tailBase(tail) : null;
+  const sweep = (STRIDE_LENGTH * STANCE_SHARE) / worldScale(mesh);
+  const legEntries = Object.keys(legs)
+    .filter((key) => legs[key].length)
+    .map((key) => legEntry(key, legs[key], sweep))
+    .filter(Boolean);
+  const headItem = head.length ? head.reduce((best, item) => (item.z < best.z ? item : best)) : null;
   return {
     legs: legEntries,
-    head: headItem ? animatedEntry(headItem.bone) : null,
-    tail: tailItem ? animatedEntry(tailItem.bone) : null,
+    head: headItem ? headEntry(headItem.bone) : null,
+    tail: tailChain(skeleton, tail),
     phase: Math.random(),
     tailPhase: Math.random() * Math.PI * 2,
     swing: 0,
@@ -183,17 +175,15 @@ function pose(rig, dt, info) {
   if (mode === 'dead') {
     rig.mode = 'dead';
     rig.hitTime = 0;
-    rig.headPitch += (HEAD_CALM - rig.headPitch) * Math.min(1, seconds * HEAD_SPEED);
-    rig.headPull += (HEAD_CALM - rig.headPull) * Math.min(1, seconds * HEAD_PULL_SPEED);
-    rig.swing += (0 - rig.swing) * Math.min(1, seconds * 6);
-    rig.tailSwing += (0 - rig.tailSwing) * Math.min(1, seconds * 4);
+    rig.headPitch = approach(rig.headPitch, HEAD_CALM, seconds, HEAD_SPEED);
+    rig.headPull = approach(rig.headPull, HEAD_CALM, seconds, HEAD_PULL_SPEED);
     for (const leg of rig.legs) {
       swingEntry(leg.entry, leg.side * DEAD_LEG);
       if (leg.joint) swingEntry(leg.joint, 0);
     }
     swingEntry(rig.head, rig.headPitch);
     pullEntry(rig.head, rig.headPull);
-    swingEntry(rig.tail, 0);
+    for (const segment of rig.tail) swingEntry(segment, 0);
     return { bob: 0 };
   }
   if (rig.mode === 'windup' && mode === 'recover') {
@@ -215,30 +205,34 @@ function pose(rig, dt, info) {
   const stepping = moving || Boolean(info && info.turning);
   headTarget += HIT_HEAD * hit;
   pullTarget += HIT_PULL * hit;
-  rig.headPitch += (headTarget - rig.headPitch) * Math.min(1, seconds * HEAD_SPEED);
-  rig.headPull += (pullTarget - rig.headPull) * Math.min(1, seconds * HEAD_PULL_SPEED);
+  rig.headPitch = approach(rig.headPitch, headTarget, seconds, HEAD_SPEED);
+  rig.headPull = approach(rig.headPull, pullTarget, seconds, HEAD_PULL_SPEED);
   const travelled = moving && info && Number.isFinite(info.moved) ? info.moved : 0;
   const turnPhase = !moving && stepping ? TURN_CYCLE * seconds : 0;
   rig.phase = (rig.phase + travelled / STRIDE_LENGTH + turnPhase) % 1;
-  rig.swing += ((stepping ? (moving ? 1 : TURN_SWING) : 0) - rig.swing) * Math.min(1, seconds * 6);
+  rig.swing = approach(rig.swing, stepping ? (moving ? 1 : TURN_SWING) : 0, seconds, 6);
   rig.tailPhase += TAIL_SPEED * seconds;
-  rig.tailSwing += ((stepping ? TAIL_SWING_WALK : TAIL_SWING_IDLE) - rig.tailSwing) * Math.min(1, seconds * 4);
+  rig.tailSwing = approach(rig.tailSwing, stepping ? TAIL_SWING_WALK : TAIL_SWING_IDLE, seconds, 4);
   for (const leg of rig.legs) {
     const legPhase = (rig.phase + leg.offset) % 1;
-    const swing = stepSwing(legPhase) * leg.amplitude * rig.swing;
-    swingEntry(leg.entry, swing + HIT_LEG * hit * leg.side);
-    if (leg.joint) swingEntry(leg.joint, 0, stepLift(legPhase) * KNEE_LIFT * rig.swing);
+    const swing = stepSwing(legPhase) * leg.amplitude * leg.forward * rig.swing;
+    const lift = stepLift(legPhase) * rig.swing;
+    swingEntry(leg.entry, swing + HIT_LEG * hit * leg.side, lift * ROOT_LIFT * leg.entry.liftSign);
+    if (leg.joint) swingEntry(leg.joint, 0, lift * KNEE_LIFT * leg.joint.liftSign);
   }
-  swingEntry(rig.head, rig.headPitch);
+  const rhythm = Math.sin(rig.phase * Math.PI * 8);
+  swingEntry(rig.head, rig.headPitch + rhythm * HEAD_NOD * rig.swing);
   pullEntry(rig.head, rig.headPull);
-  swingEntry(rig.tail, Math.sin(rig.tailPhase) * rig.tailSwing);
-  return { bob: stepping ? Math.sin(rig.phase * Math.PI * 4) * BOB : 0 };
+  rig.tail.forEach((segment, index) => {
+    swingEntry(segment, Math.sin(rig.tailPhase - index * TAIL_LAG) * rig.tailSwing);
+  });
+  return { bob: stepping ? rhythm * BOB * rig.swing : 0 };
 }
 
 function summary(rig) {
   if (!rig) return 'bez kostry';
-  const legs = rig.legs.map((leg) => leg.key).join('');
-  return `${legs || 'bez nohou'}${rig.head ? ', hlava' : ''}${rig.tail ? ', ocas' : ''}`;
+  const legs = rig.legs.map((leg) => `${leg.key}${leg.joint ? '+' : ''}`).join(' ');
+  return `${legs || 'bez nohou'}${rig.head ? ', hlava' : ''}${rig.tail.length ? `, ocas ${rig.tail.length}` : ''}`;
 }
 
 export const snappingTurtleRig = { build, pose, summary };
@@ -268,8 +262,6 @@ export const SNAPPING_TURTLE = {
   biteRecover: 0.9,
   confusedSeconds: 1.4,
   roamRadius: 6,
-  maxStepHeight: 0.45,
-  noticeHeight: 2,
   footprint: {
     kind: 'turtle',
     scale: 0.33,
@@ -282,7 +274,6 @@ export const SNAPPING_TURTLE = {
     ],
     order: [1, 3, 0, 2],
   },
-  attackHeight: 0.45,
   respawnDays: 3,
   idleSeconds: [2.5, 6],
   defaultTier: 'adult',
