@@ -77,10 +77,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Do `public/assets/audio/CREDITS.txt` doplnit zdroj želvích zvuků (hiss, growl, bite).
 - [ ] Ověřit licenční podmínky balíčku Darkworld (License Agreement.pdf) a případně upravit CREDITS.
 
-### Nástroje
-
-- [ ] `tools/capture.cjs` — vývojový náhled animace: `node tools/capture.cjs koa_tiki attack 12 2.2` (druh, scéna `attack`/`walk`, počet snímků, přiblížení). Ukládá mřížku póz do `tools/_temp/`.
-
 ### Zvuky, které ve hře chybí
 
 - [ ] Hudba: vymyslet systém výběru (den/noc, klid versus souboj) místo dnešního náhodného střídání tří skladeb.

@@ -8,7 +8,6 @@ import GameScene from './scenes/GameScene.js';
 
 const canvas = document.getElementById('render-canvas');
 const engine = new Engine(canvas, false, {
-  preserveDrawingBuffer: new URLSearchParams(window.location.search).has('capture'),
   stencil: true,
   disableWebGL2Support: false,
   adaptToDeviceRatio: true,

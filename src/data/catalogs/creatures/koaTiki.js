@@ -51,7 +51,7 @@ const TAIL_IDLE = 0.7;
 const TAIL_SPEED = 1.8;
 const CROUCH_THIGH = 0.5;
 const CROUCH_KNEE = 1;
-const CROUCH_DROP = 0.18;
+const CROUCH_DROP = 0.12;
 const SPEED_BLEND = 4;
 const NECK_LOOK = -0.18;
 const LOOK_YAW = 0.45;
@@ -67,8 +67,8 @@ const PECK_JABS = [1, 3];
 const PECK_PAUSE = [0.2, 0.55];
 const PECK_TILT = 0.22;
 const PECK_LOOK = { neck: 0.5, head: -0.4, crouch: 0.15, lean: 0.04, tail: 0.2 };
-const PECK_HOVER = { neck: 2.2, head: -2.1, crouch: 0.8, lean: 0.1, tail: 0.75 };
-const PECK_HIT = { neck: 2.6, head: -2.5, crouch: 1, lean: 0.14, tail: 0.85 };
+const PECK_HOVER = { neck: 1.95, head: -1.9, crouch: 0.65, lean: 0.08, tail: 0.65 };
+const PECK_HIT = { neck: 2.4, head: -2.35, crouch: 0.66, lean: 0.1, tail: 0.7 };
 const PECK_GULP = { neck: -0.2, head: 0.35, crouch: 0.1, lean: 0, tail: 0.1, tilt: 0 };
 const PECK_JAW_OPEN = 0.18;
 const PECK_SWALLOW = 0.12;
@@ -110,11 +110,13 @@ function peckSession() {
   }
   put(0.5, { ...PECK_HOVER, tilt: PECK_TILT * side });
   const jabs = Math.round(between(PECK_JABS));
+  const taps = [];
   for (let jab = 0; jab < jabs; jab += 1) {
     put(between(PECK_PAUSE), { tilt: PECK_TILT * (jab % 2 ? -side : side) });
     put(0.05, { jaw: PECK_JAW_OPEN, neck: PECK_HOVER.neck - 0.1 });
     put(0.08, PECK_HIT);
     put(0.05, { jaw: 0 });
+    taps.push(time);
     put(0.12, PECK_HOVER);
   }
   put(0.35, { neck: 0.8, head: -0.6, crouch: 0.3, lean: 0.04, tail: 0.3, tilt: 0 });
@@ -127,7 +129,7 @@ function peckSession() {
   const rest = {};
   for (const channel of IDLE_CHANNELS) rest[channel] = 0;
   put(0.45, rest);
-  return { kind: 'peck', time: 0, duration: time, keys, foot };
+  return { kind: 'peck', time: 0, duration: time, keys, foot, taps };
 }
 
 function restAction(seconds = between(REST_SECONDS)) {
@@ -223,6 +225,10 @@ const ATTACKS = {
     rake: [[-0.1, 0], [-0.03, 1], [0.05, -0.6], [0.1, 0]],
     tail: [[ATTACK_START, 0], [-0.2, -0.35], [-0.08, 0.45], [0.04, -0.35], [0.2, 0.15], [0.32, 0.45], [0.5, 0]],
   },
+};
+const STRIKES = {
+  peck: { sound: 'beak', times: [0] },
+  jump: { sound: 'claws', times: [0, RAKE_GAP] },
 };
 const TAIL_ATTACK_LAG = 0.05;
 const HIT_RISE = 0.05;
@@ -452,8 +458,13 @@ function pose(rig, dt, info) {
     }
     rig.lastMode = mode;
   }
+  const attackBefore = rig.attackTime;
   rig.attackTime += seconds;
   const attacking = !dead && (mode === 'windup' || mode === 'recover');
+  const strikes = rig.attack ? STRIKES[rig.attack] : null;
+  let sound = attacking && strikes && strikes.times.some((at) => at > attackBefore && at <= rig.attackTime)
+    ? strikes.sound
+    : null;
   rig.attackWeight = approach(rig.attackWeight, attacking ? 1 : 0, seconds, ATTACK_BLEND);
   const moves = rig.attack ? ATTACKS[rig.attack] : null;
   const attackTime = rig.attackTime;
@@ -486,7 +497,10 @@ function pose(rig, dt, info) {
   const idleOk = !dead && !moving && !turning && mode !== 'windup' && mode !== 'alert'
     && mode !== 'recover' && mode !== 'chase';
   if (idleOk) {
+    const before = rig.idleAction.time;
     rig.idleAction.time += seconds;
+    const taps = rig.idleAction.taps;
+    if (taps && taps.some((tap) => tap > before && tap <= rig.idleAction.time)) sound = 'peck';
     if (rig.idleAction.time >= rig.idleAction.duration) rig.idleAction = nextIdleAction(rig.idleAction.kind);
   } else if (rig.idleAction.kind !== 'rest' || rig.idleAction.time > 0) {
     rig.idleAction = restAction();
@@ -604,7 +618,7 @@ function pose(rig, dt, info) {
   const idleBob = Math.sin(rig.time * IDLE_SPEED) * IDLE_BOB;
   const bob = idleBob + (walkBob - idleBob) * swing;
   const jump = rig.attack === 'jump' ? jumpLift(attackTime) * JUMP_HEIGHT * rig.stride * attackWeight : 0;
-  return { bob: bob - CROUCH_DROP * crouch + jump };
+  return { bob: bob - CROUCH_DROP * rig.stride * crouch + jump, sound };
 }
 
 function summary(rig) {
@@ -618,6 +632,16 @@ export const KOA_TIKI = {
   label: "Koa'tiki",
   model: MODEL,
   rig: koaTikiRig,
+  sounds: {
+    alert: 'koaAlert',
+    charge: 'koaGrowl',
+    beak: 'koaBeak',
+    claws: 'koaClaws',
+    hit: 'koaHit',
+    death: 'koaDeath',
+    idle: 'koaChirp',
+    peck: 'koaPeck',
+  },
   length: 1.9,
   scale: 0.8,
   yawOffset: Math.PI,
@@ -636,6 +660,7 @@ export const KOA_TIKI = {
   entersCaves: true,
   respawnDays: 6,
   idleSeconds: [16, 30],
+  idleCallSeconds: [8, 20],
   defaultTier: 'adult',
   deathSeconds: 0.6,
   loot: { meat: 2 },

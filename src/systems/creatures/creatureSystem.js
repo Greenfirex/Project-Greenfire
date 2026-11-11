@@ -751,6 +751,7 @@ export default class CreatureSystem {
     creature.walking = false;
     creature.cooldown = Math.max(0, creature.cooldown - dt);
     creature.timer -= dt;
+    this.idleCall(creature, dt);
     const gap = player ? Math.hypot(player.x - creature.x, player.z - creature.z) : Infinity;
     const heightGap = this.heightGap(creature, player);
     const aggro = Number.isFinite(creature.tier.aggroRange) ? creature.tier.aggroRange : type.aggroRange;
@@ -1003,6 +1004,16 @@ export default class CreatureSystem {
     if (this.onBite) this.onBite(creature, damage, strike.crit);
   }
 
+  idleCall(creature, dt) {
+    const range = creature.type.idleCallSeconds;
+    if (!Array.isArray(range) || (creature.mode !== 'idle' && creature.mode !== 'roam')) return;
+    if (!Number.isFinite(creature.callTimer)) creature.callTimer = randomBetween(range[0], range[1]);
+    creature.callTimer -= dt;
+    if (creature.callTimer > 0) return;
+    creature.callTimer = randomBetween(range[0], range[1]);
+    this.playSound(creature, 'idle');
+  }
+
   playSound(creature, kind) {
     const key = creature && creature.type.sounds ? creature.type.sounds[kind] : null;
     if (!key || !this.onSound) return;
@@ -1082,6 +1093,7 @@ export default class CreatureSystem {
         })
         : null;
       creature.hitPulse = false;
+      if (pose && pose.sound) this.playSound(creature, pose.sound);
       if (creature.mode === 'emerging' && creature.emergeSeconds > 0) {
         creature.emergeProgress = Math.min(1, creature.emergeProgress + seconds / creature.emergeSeconds);
       } else if (creature.mode === 'burying' && creature.emergeSeconds > 0) {

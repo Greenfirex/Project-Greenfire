@@ -57,6 +57,7 @@ Povinné je to, co systém čte bez náhrady. „Když chybí" říká, co se st
 | `footprint` | stopy v písku (viz níž) | jedna šmouha bez detailů |
 | `respawnDays` | po kolika herních dnech se obnoví | povinné |
 | `idleSeconds` | rozsah `[min, max]`, jak dlouho postává | povinné |
+| `idleCallSeconds` | rozsah `[min, max]`, jak často v klidu zavolá (zvuk `idle`) | v klidu mlčí |
 | `defaultTier` | který tier platí, když mapa nic neřekne | povinné |
 | `loot` | co z něj vypadne (`{ id_předmětu: počet }`) | nic |
 | `tiers` | úrovně (viz níž) | povinné |
@@ -238,8 +239,16 @@ footprint: {
 
 Data tvora mají `sounds` s klíči, které systém volá: `alert` (varování před útokem),
 `charge` (naštvání), `bite` (rána), `hit` (dostal ránu), `death` (zahynul)
-a `dig` (vylézá nebo se zahrabává). Klíč se hledá v seznamu klipů v audio systému,
-hlasitost se počítá podle vzdálenosti od hráče. Když tvor nějaký klíč nemá, prostě
+a `dig` (vylézá nebo se zahrabává). Klidové zvuky: `idle` zazní v klidu nebo při
+procházce jednou za náhodnou dobu z `idleCallSeconds` (bez tohoto čísla tvor v klidu
+mlčí) a `peck` ohlásí sám rig, když v `pose` vrátí `sound: 'peck'` (Koa'tiki tak klapne
+zobákem pokaždé, když při zobání ťukne do země). Tvor s víc druhy útoku nemá `bite`,
+protože systém neví, který útok rig vybral; zvuk rány ohlásí rig ve chvíli dopadu
+(Koa'tiki: `beak` při klovnutí, `claws` při každém seknutí drápy ve výskoku). Klíč se hledá v seznamu klipů v audio systému,
+hlasitost se počítá podle vzdálenosti od hráče: každý zvuk má v audio systému vlastní
+dosah `hearing` v metrech (bez něj 22 m) a hlasitost k okraji dosahu klesá se čtvercem
+vzdálenosti, takže zvuk na půli dosahu hraje na čtvrtinu. Drobné zvuky (klapnutí zobáku)
+mají dosah malý, varovný skřek velký. Když tvor nějaký klíč nemá, prostě
 v tu chvíli mlčí.
 
 Nový zvuk = tři kroky: soubor do správné složky v `public/assets/audio/` (kroky do `steps/`,
@@ -300,4 +309,4 @@ Aby se vědělo, kde je vzor a kde mezera. Úkoly z toho plynoucí patří do `T
 | převrácení na záda při smrti (`deathRoll`) | ano | ne (padá na bok) | ne (padá na bok) |
 | stopy z reálných chodidel | ano (4 nohy; přední pár nese jako ruce) | odhad (4 nohy stejně) | chybí (jedna šmouha) |
 | varování před útokem (`noWarning`) | ne — rovnou útok | ano | ano |
-| vlastní doložené zvuky | ano (Darkworld Audio) | ano, ale zdroj chybí v CREDITS | chybí — tvor je němý |
+| vlastní doložené zvuky | ano (Darkworld Audio) | ano, ale zdroj chybí v CREDITS | ano (ElevenLabs; zvlášť klovnutí, drápy, volání a zobání) |

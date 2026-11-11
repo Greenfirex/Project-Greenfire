@@ -23,6 +23,14 @@ const CLIPS = {
   devilHit: ['creatures/devil/devil_hit_1.ogg', 'creatures/devil/devil_hit_2.ogg'],
   devilDeath: ['creatures/devil/devil_death_1.ogg'],
   devilGrowl: ['creatures/devil/devil_growl_1.ogg'],
+  koaAlert: ['creatures/koa/koa_alert_1.ogg', 'creatures/koa/koa_alert_2.ogg'],
+  koaGrowl: ['creatures/koa/koa_growl_1.ogg', 'creatures/koa/koa_growl_2.ogg'],
+  koaBeak: ['creatures/koa/koa_bite_1.ogg', 'creatures/koa/koa_bite_2.ogg', 'creatures/koa/koa_bite_3.ogg'],
+  koaClaws: ['creatures/koa/koa_claws_1.ogg', 'creatures/koa/koa_claws_2.ogg', 'creatures/koa/koa_claws_3.ogg', 'creatures/koa/koa_claws_4.ogg'],
+  koaHit: ['creatures/koa/koa_hit_1.ogg', 'creatures/koa/koa_hit_2.ogg'],
+  koaDeath: ['creatures/koa/koa_death_1.ogg', 'creatures/koa/koa_death_2.ogg'],
+  koaChirp: ['creatures/koa/koa_chirp_1.ogg', 'creatures/koa/koa_chirp_2.ogg', 'creatures/koa/koa_chirp_3.ogg'],
+  koaPeck: ['creatures/koa/koa_peck_1.ogg', 'creatures/koa/koa_peck_2.ogg'],
   grassRip: ['gather/grassrip_1.ogg', 'gather/grassrip_2.ogg'],
 };
 
@@ -47,10 +55,21 @@ const VOICES = {
   devilHit: { volume: 0.55, voices: 2, pitch: 0.08 },
   devilDeath: { volume: 0.55, voices: 1, pitch: 0.03 },
   devilGrowl: { volume: 0.4, voices: 1, pitch: 0.05 },
+  koaAlert: { volume: 0.4, voices: 2, pitch: 0.06, hearing: 20 },
+  koaGrowl: { volume: 0.45, voices: 2, pitch: 0.05, hearing: 20 },
+  koaBeak: { volume: 0.6, voices: 3, pitch: 0.06, hearing: 14 },
+  koaClaws: { volume: 0.5, voices: 4, pitch: 0.08, hearing: 12 },
+  koaHit: { volume: 0.45, voices: 2, pitch: 0.08, hearing: 16 },
+  koaDeath: { volume: 0.45, voices: 2, pitch: 0.03, hearing: 18 },
+  koaChirp: { volume: 0.3, voices: 3, pitch: 0.1, hearing: 16 },
+  koaPeck: { volume: 0.3, voices: 2, pitch: 0.1, hearing: 7 },
   grassRip: { volume: 0.4, voices: 2, pitch: 0.08 },
 };
 
-const AMBIENT_LAYERS = ['forest_day', 'forest_night', 'cave'];
+const DEFAULT_HEARING = 22;
+const SILENT_GAIN = 0.02;
+
+const AMBIENT_LAYERS =['forest_day', 'forest_night', 'cave'];
 const AMBIENT_FOLDER = 'ambient/';
 const AMBIENT_FADE_SECONDS = 6;
 const AMBIENT_LEVEL = 0.25;
@@ -452,18 +471,27 @@ export default class AudioSystem {
     if (changed) this.applyLayerGains();
   }
 
+  distanceGain(cfg, distance) {
+    if (!Number.isFinite(distance)) return 1;
+    const hearing = cfg.hearing || DEFAULT_HEARING;
+    const near = Math.max(0, 1 - distance / hearing);
+    return near * near;
+  }
+
   play(key, options = {}) {
     if (!this.available || !this.ctx) return;
     const pool = this.buffers[key];
     if (!pool) return;
     const cfg = VOICES[key];
+    const distanceGain = this.distanceGain(cfg, options.distance);
+    if (distanceGain <= SILENT_GAIN) return;
     const index = this.cursors[key] % pool.length;
     this.cursors[key] = (this.cursors[key] + 1) % pool.length;
     const buffer = pool[index];
     if (!buffer) return;
     if (this.ctx.state === 'suspended') this.ctx.resume();
     const gain = this.ctx.createGain();
-    gain.gain.value = cfg.volume * (options.gain || 1);
+    gain.gain.value = cfg.volume * (options.gain || 1) * distanceGain;
     gain.connect(this.master || this.ctx.destination);
     const source = this.ctx.createBufferSource();
     source.buffer = buffer;

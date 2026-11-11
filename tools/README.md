@@ -4,6 +4,31 @@ Vývojářské nástroje mimo běh hry. Pouští se ručně z rootu projektu (No
 
 - `_temp/` — dočasné soubory, náhledy, logy a scratch skripty. Nekomituje se.
 
+## capture.cjs a capture/ — fotoateliér tvorů
+
+Vyfotí jednoho tvora v prázdné scéně s rovnou zemí (`capture/stage.html`), bez zbytku
+hry, takže mu nepřekáží výhled hráče, mlha ani světlo dne. Tvora hýbe stejný rig jako
+ve hře. Běží nad dev serverem v neviditelném prohlížeči.
+
+```
+node tools/capture.cjs koa_tiki peck --view side
+node tools/capture.cjs koa_tiki attack --attack jump --frames 10 --view diag
+node tools/capture.cjs sand_devil walk --tier young --zoom 2.5
+```
+
+Scény: `idle`, `walk`, `attack` (`--attack peck|jump` vynutí druh útoku), `hit`, `death`,
+`peck` (zobání Koa'tiki, snímky kolem každého ťuknutí). Pohledy: `side` a `front`
+(s červenou čarou země), `diag`, `top`. Dál `--frames`, `--seconds`, `--tier`, `--zoom`
+(výška záběru v metrech).
+
+Výstup: mřížka snímků `tools/_temp/snimky-<tvor>-<scéna>-<pohled>.png` a do konzole
+ke každému snímku výška nejnižšího bodu těla a přední čtvrtiny (hlava) nad zemí;
+záporné číslo znamená, že ta část zajíždí pod zem. Měří se ze skutečného tvaru
+pokrčeného modelu, ne odhadem.
+
+Umístění modelu (měřítko podle `length` a tieru, posun na zem) opakuje
+`creatureSystem.spawn`; když se tam změní, je potřeba ho změnit i v `capture/stage.js`.
+
 ## glb_measure.mjs
 
 Změří GLB modely (rozměry, pivot, rozložení geometrie po dlaždici) a vypíše ASCII

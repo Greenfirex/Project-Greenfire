@@ -15,6 +15,12 @@ devil_hit_1 až devil_hit_2, devil_death_1, devil_growl_1) a trhání rostlin p�
 Licenční podmínky jsou v jeho "License Agreement.pdf"; v projektu leží jen použité
 soubory, samotný balíček zůstává mimo git.
 
+Zvuky Koa'tiki (creatures/koa/, koa_alert, koa_growl, koa_bite, koa_claws, koa_hit,
+koa_death, koa_chirp, koa_peck) jsou vygenerované nástrojem ElevenLabs Sound Effects
+(https://elevenlabs.io/sound-effects). Bezplatný plán vyžaduje uvést elevenlabs.io
+jako zdroj. Originální mp3 soubory jsou v _sources, do ogg je převedl ffmpeg
+(mono, 44,1 kHz, libvorbis q4, ořezané ticho na začátku, srovnaná hlasitost).
+
 Švihnutí při minutí (miss_1 až miss_6) vzniklo z těchto stažených souborů:
 "biww-quick-air-swipe-sound-561932.mp3" (autor biww, čtyři švihy rozřezané)
 a "floraphonic-movement-swipe-whoosh-1-186575.mp3" / "...-3-186577.mp3"

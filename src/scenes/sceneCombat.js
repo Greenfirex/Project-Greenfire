@@ -11,7 +11,6 @@ import { formatMeters } from '../data/maps/layoutStore.js';
 import { CREATURE_TYPES, CREATURE_KEYS } from '../data/catalogs/creatures/index.js';
 
 const PLAYER_FLOAT_HEIGHT = 2.2;
-const CREATURE_SOUND_RANGE = 22;
 const CREATURE_BAR_LIFT = 0.4;
 const BACK_HIT_DOT = -0.2;
 const SIGHT_CLEARANCE = 0.3;
@@ -68,9 +67,7 @@ export default {
     const root = this.playerSystem.root;
     const center = root ? root.position : this.cameraSystem.viewCenter();
     const distance = Math.hypot(creature.renderX - center.x, creature.renderZ - center.z);
-    const gain = Math.max(0, Math.min(1, 1 - distance / CREATURE_SOUND_RANGE));
-    if (gain <= 0.02) return;
-    this.audioSystem.play(key, { gain });
+    this.audioSystem.play(key, { distance });
   },
 
   playerLookPoint() {
