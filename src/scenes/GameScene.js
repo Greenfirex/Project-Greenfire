@@ -364,8 +364,8 @@ export default class GameScene {
       this.updateWaveSpray();
       this.fishSystem.update(dt);
       this.updateWaterCaustics();
-      this.updateCampfireSound(root);
-      this.updateShoreSound(root, dt);
+      this.updateCampfireSound();
+      this.updateShoreSound(dt);
       if (root) {
         if (this.editor.active) this.updateEditorCamera(dt);
         else this.cameraSystem.follow(root.position.x, root.position.z, root.position.y, dt);
@@ -445,17 +445,30 @@ export default class GameScene {
     this.audioSystem.setMusicVolume(this.options.musicVolume / 100);
   }
 
-  updateCampfireSound(root) {
-    const burning = root ? this.campfireSystem.nearestBurning(root.position.x, root.position.z, this.playerSystem.level) : null;
+  viewLevel() {
+    if (!this.editor.active) return this.playerSystem.level;
+    return this.editor.mode.undergroundView ? this.editor.mode.floorLevel : 0;
+  }
+
+  listener() {
+    const root = this.playerSystem.root;
+    if (root && !this.editor.active) return { x: root.position.x, z: root.position.z, level: this.playerSystem.level };
+    const center = this.cameraSystem.viewCenter();
+    return { x: center.x, z: center.z, level: this.viewLevel() };
+  }
+
+  updateCampfireSound() {
+    const ear = this.listener();
+    const burning = this.campfireSystem.nearestBurning(ear.x, ear.z, ear.level);
     this.audioSystem.setFire(burning !== null, burning ? burning.distance : Infinity);
   }
 
-  updateShoreSound(root, dt) {
+  updateShoreSound(dt) {
     this.shoreClock += dt;
     if (this.shoreClock < SHORE_CHECK_SECONDS) return;
     this.shoreClock = 0;
-    const distance = root ? this.waterSystem.shoreDistanceAt(root.position.x, root.position.z) : Infinity;
-    this.audioSystem.setShoreDistance(distance);
+    const ear = this.listener();
+    this.audioSystem.setShoreDistance(this.waterSystem.shoreDistanceAt(ear.x, ear.z));
   }
 
   updateWaterCaustics() {
@@ -674,10 +687,7 @@ export default class GameScene {
       return 1 - (1 - WADE_SPEED) * wet;
     };
     this.playerSystem.decoSystem = this.decoSystem;
-    this.creatureSystem.pointerLevel = () => {
-      if (!this.editor.active) return this.playerSystem.level;
-      return this.editor.mode.undergroundView ? this.editor.mode.floorLevel : 0;
-    };
+    this.creatureSystem.pointerLevel = () => this.viewLevel();
     this.playerSystem.groundHeightAt = (x, z, level) => this.terrainSystem.walkHeightAt(x, z, level);
     this.playerSystem.wallRiseAt = (x, z, radius, level) => this.terrainSystem.riseNear(x, z, radius, level);
     this.playerSystem.cliffOverlapAt = (x, z, level) => this.terrainSystem.cliffOverlap(x, z, level);

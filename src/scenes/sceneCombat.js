@@ -64,10 +64,8 @@ export default {
 
   playCreatureSound(key, creature) {
     if (!key || !creature) return;
-    const root = this.playerSystem.root;
-    const center = root ? root.position : this.cameraSystem.viewCenter();
-    const distance = Math.hypot(creature.renderX - center.x, creature.renderZ - center.z);
-    this.audioSystem.play(key, { distance });
+    const ear = this.listener();
+    this.audioSystem.play(key, { distance: Math.hypot(creature.renderX - ear.x, creature.renderZ - ear.z) });
   },
 
   playerLookPoint() {
