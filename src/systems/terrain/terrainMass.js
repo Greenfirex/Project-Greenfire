@@ -6,6 +6,7 @@ import { CELL_SIZE } from '../../utils/gridMath.js';
 import { buildRunVolumeBuckets } from './runVolume.js';
 import { valueNoise, smoothstep } from '../../utils/noise.js';
 import { SURFACE_SUB, SURFACE_CHUNK, WALL_TILE, SURFACE_VERTEX_TINT, pointId } from './terrainSettings.js';
+import { REVEAL_CUT_ABOVE_FLOOR } from '../../utils/revealGlsl.js';
 
 const EDGE_ANCHOR_DEPTH = 0.4;
 const SURFACE_DEPTH = 1;
@@ -13,6 +14,8 @@ const DOOR_VINE_SPREAD = 0.9;
 const DOOR_VINE_OUT = 0.05;
 const DOOR_VINE_ABOVE = 0.1;
 const DOOR_VINE_DROP = 1.4;
+const RING_KINDS = ['ringWall', 'ringCap'];
+const CAVE_ROCK_KINDS = ['cave', 'ceiling', ...RING_KINDS];
 
 function wallTint(x, y, z, t) {
   const grain = valueNoise(x * 0.37 + 4.1, z * 0.37 - 2.3);
@@ -31,20 +34,12 @@ function wallTint(x, y, z, t) {
 
 export default {
   createVolumeMass(map) {
-    const shade = { cave: 0.62, ceiling: 0.42 };
-    const light = this.caveLightMap();
-    const keptAt = (cx, cz) => {
-      if (!light) return false;
-      const x = cx - light.minX;
-      const z = cz - light.minZ;
-      if (x < 0 || z < 0 || x >= light.width || z >= light.height) return false;
-      return light.data[(z * light.width + x) * 4] > 0;
-    };
+    const shade = { cave: 0.62, ceiling: 0.42, ringWall: 0.62, ringCap: 0.3 };
     const buckets = buildRunVolumeBuckets(this.layout || {}, {
       chunkSize: SURFACE_CHUNK,
       cellSize: CELL_SIZE,
       tileOf: (kind, name) => {
-        if (kind === 'cliff' || kind === 'cave' || kind === 'ceiling') return WALL_TILE;
+        if (kind === 'cliff' || CAVE_ROCK_KINDS.includes(kind)) return WALL_TILE;
         const cfg = this.surfaceConfig(name);
         return (cfg && cfg.tile) || 1;
       },
@@ -54,9 +49,9 @@ export default {
       surface: (gx, gz, cx, cz, dx, dz, fallback) => this.edgeHeightAt(gx, gz, cx, cz, dx, dz, fallback),
       hardEdge: (cx, cz, dx, dz, level = 0) => (this.field && this.field.isHardEdge ? this.field.isHardEdge(cx, cz, dx, dz, level) : false),
       shiftAt: (gx, gz) => this.surfaceShiftAt(gx, gz),
-      keptAt,
       doors: this.caveDoors(true),
-      keptDownTo: light ? light.floor : null,
+      ringHeight: REVEAL_CUT_ABOVE_FLOOR,
+      groundAt: (gx, gz) => this.heightAt(gx, gz, 0),
     });
     for (const group of buckets) {
       if (!group.positions.length) continue;
@@ -90,14 +85,15 @@ export default {
       data.colors = colors;
       data.normals = [];
       VertexData.ComputeNormals(group.positions, group.indices, data.normals);
+      if (group.kind === 'cave') for (let i = 0; i < data.normals.length; i += 1) data.normals[i] = -data.normals[i];
       data.applyToMesh(mesh);
       if (group.kind === 'cliff') {
         const style = group.name === 'dirt' ? 'dirt' : 'stone';
         if (style === 'stone') mesh.setVerticesData('mossMask', new Float32Array(mosses), false, 1);
         mesh.material = this.cliffMaterialFor(style);
-      } else if (group.kind === 'cave' || group.kind === 'ceiling') {
+      } else if (CAVE_ROCK_KINDS.includes(group.kind)) {
         mesh.setVerticesData('mossMask', new Float32Array(total), false, 1);
-        mesh.material = this.caveRockMaterial(group.kind === 'ceiling');
+        mesh.material = RING_KINDS.includes(group.kind) ? this.caveRingMaterial() : this.caveRockMaterial(group.kind === 'ceiling');
       } else if (group.kind === 'soil') {
         mesh.material = this.bandMaterialFor(group.name, map);
       } else {
@@ -106,13 +102,17 @@ export default {
       mesh.isPickable = false;
       mesh.receiveShadows = true;
       mesh.metadata = {
-        volume: true,
-        shadowChunk: group.kind === 'cliff',
+        volume: !RING_KINDS.includes(group.kind),
+        shadowChunk: group.kind === 'cliff' || group.kind === 'cave' || group.kind === 'ceiling',
         kind: group.kind,
         key: group.name,
         chunkX: group.chunkX,
         chunkZ: group.chunkZ,
       };
+      if (RING_KINDS.includes(group.kind)) {
+        mesh.setEnabled(Boolean(this.caveRingOn));
+        this.caveRingDirty = true;
+      }
       this.surfaces.push(mesh);
     }
   },
@@ -121,6 +121,7 @@ export default {
     const suffix = `c${group.chunkX}_${group.chunkZ}`;
     if (group.kind === 'ceiling') return `terrainCeiling_vol_${suffix}_${group.name}`;
     if (group.kind === 'cave') return `terrainCaveWall_vol_${suffix}_${group.name}`;
+    if (RING_KINDS.includes(group.kind)) return `terrainCaveRing_vol_${suffix}_${group.kind}`;
     if (group.kind === 'soil') return `terrainSoil_vol_${suffix}_${group.name}`;
     return `terrainVolume_${suffix}_${group.name}`;
   },

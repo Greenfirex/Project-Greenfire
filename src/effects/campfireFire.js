@@ -7,6 +7,7 @@ import { RenderTargetTexture } from '@babylonjs/core/Materials/Textures/renderTa
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { bothSidesMaterial } from '../utils/bothSidesMaterial.js';
 import { fireParticleTexture, fireLayer } from './fireParticles.js';
 
 const LIT_SECONDS = 7;
@@ -135,7 +136,10 @@ export default class CampfireFire {
     }
     this.light.excludedMeshes = far;
     const map = this.shadows.getShadowMap();
-    map.renderList = near.filter((mesh) => mesh.metadata && mesh.metadata.volume);
+    const casters = near.filter((mesh) => mesh.metadata && mesh.metadata.volume);
+    const bothSides = bothSidesMaterial(this.s);
+    for (const mesh of casters) map.setMaterialForRendering(mesh, bothSides);
+    map.renderList = casters;
     map.resetRefreshCounter();
   }
 

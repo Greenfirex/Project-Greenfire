@@ -10,6 +10,7 @@ import { CascadedShadowGenerator } from '@babylonjs/core/Lights/Shadows/cascaded
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Scene } from '@babylonjs/core/scene';
+import { bothSidesMaterial } from '../../utils/bothSidesMaterial.js';
 
 const SHADOW_FRUSTUM = 70;
 const SHADOW_MIN_Z = 1;
@@ -188,6 +189,10 @@ export default class LightingSystem {
       next.push(mesh);
     }
     if (!force && sameMeshes(next, shadowMap.renderList || [])) return;
+    const bothSides = bothSidesMaterial(this.s);
+    for (const mesh of next) {
+      if (mesh.metadata && mesh.metadata.volume) shadowMap.setMaterialForRendering(mesh, bothSides);
+    }
     shadowMap.renderList = next;
   }
 }

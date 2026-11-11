@@ -3,12 +3,14 @@
 import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase';
 import { REVEAL_UNIFORMS, REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, revealBlock, sightRiseByHeight, sightHigherByHeight, sightPointOf } from '../../utils/revealGlsl.js';
 
-const REVEAL_RULES = { above: 'REVEAL_ABOVE', hide: 'REVEAL_HIDE', keep: 'REVEAL_KEEP', inside: 'REVEAL_INSIDE', restore: 'REVEAL_RESTORE', column: 'REVEAL_COLUMN', far: 'REVEAL_FAR', sight: 'REVEAL_SIGHT', sightHide: 'REVEAL_SIGHT_HIDE', rise: 'REVEAL_RISE', higher: 'REVEAL_HIGHER', point: 'REVEAL_POINT', surface: 'REVEAL_SURFACE' };
+const REVEAL_RULES = { above: 'REVEAL_ABOVE', hide: 'REVEAL_HIDE', keep: 'REVEAL_KEEP', inside: 'REVEAL_INSIDE', restore: 'REVEAL_RESTORE', column: 'REVEAL_COLUMN', far: 'REVEAL_FAR', sight: 'REVEAL_SIGHT', sightHide: 'REVEAL_SIGHT_HIDE', rise: 'REVEAL_RISE', higher: 'REVEAL_HIGHER', point: 'REVEAL_POINT', surface: 'REVEAL_SURFACE', cameraCut: 'REVEAL_CAMERA_CUT' };
 const REVEAL_CODE_STANDARD = revealBlock('color', 'vPositionW', REVEAL_RULES, '(baseColor.rgb * vDiffuseColor.rgb)', 'normalW');
 const REVEAL_CODE_PBR = revealBlock('finalColor', 'vPositionW', REVEAL_RULES);
 const KEEP_UNIFORM = 'revealKeep';
 const CREATURE_UNIFORM = 'revealCreature';
+const CAMERA_SIDE = 'revealCaveAhead(vPositionW, vEyePosition.xyz)';
 const BASE_VARYING = 'vRevealBase';
+const NEAR_WALL = `revealRockBehind(${BASE_VARYING}, vEyePosition.xyz)`;
 const RISE_BY_HEIGHT = sightRiseByHeight('vPositionW');
 const HIGHER_BY_HEIGHT = sightHigherByHeight('vPositionW');
 const POINT_BY_HEIGHT = sightPointOf('vPositionW');
@@ -22,10 +24,12 @@ if (REVEAL_INSIDE > 0.5) {
 `;
 const SUN_LIGHT_POINT = '!#define CUSTOM_LIGHT((\\d+))_COLOR';
 const SUN_LIGHT_GATE = '#ifdef DIRLIGHT$1\ndiffuse$2.rgb *= revealSunOpen;\n#endif\n';
-const DEFAULT_DEFINES = { REVEAL_ABOVE: '0.0', REVEAL_HIDE: '0.0', REVEAL_KEEP: '1.0', REVEAL_INSIDE: '0.0', REVEAL_RESTORE: '0.0', REVEAL_COLUMN: '0.0', REVEAL_FAR: '0.0', REVEAL_SIGHT: '1.0', REVEAL_SIGHT_HIDE: '0.0', REVEAL_RISE: '0.0', REVEAL_HIGHER: '0.0', REVEAL_POINT: 'vPositionW', REVEAL_SURFACE: '1.0' };
+const DEFAULT_DEFINES = { REVEAL_ABOVE: '0.0', REVEAL_HIDE: '0.0', REVEAL_KEEP: '1.0', REVEAL_INSIDE: '0.0', REVEAL_RESTORE: '0.0', REVEAL_COLUMN: '0.0', REVEAL_FAR: '0.0', REVEAL_SIGHT: '1.0', REVEAL_SIGHT_HIDE: '0.0', REVEAL_RISE: '0.0', REVEAL_HIGHER: '0.0', REVEAL_POINT: 'vPositionW', REVEAL_SURFACE: '1.0', REVEAL_CAMERA_CUT: '0.0' };
 const DEFINE_FALLBACKS = Object.entries(DEFAULT_DEFINES).map(([name, value]) => `#ifndef ${name}\n#define ${name} ${value}\n#endif`).join('\n');
 const KIND_DEFINES = {
   cave: { above: '1.0', hide: '0.0', keep: '1.0', inside: '1.0', restore: '0.0', far: '1.0', surface: '0.0' },
+  caveRing: { above: '1.0', hide: '0.0', keep: '1.0', inside: '1.0', restore: '0.0', far: '1.0', surface: '0.0', sight: '0.0', cameraCut: CAMERA_SIDE },
+  caveDress: { above: '1.0', hide: '0.0', keep: '1.0', inside: '1.0', restore: '0.0', far: '1.0', surface: '0.0', cameraCut: NEAR_WALL },
   ceiling: { above: '1.0', hide: '1.0', keep: '1.0', inside: '0.0', restore: '0.0', surface: '0.0' },
   terrain: { above: '0.0', hide: KEEP_UNIFORM, keep: '0.0', inside: '0.0', restore: '0.0', column: '1.0' },
   backdrop: { above: '0.0', hide: '0.0', keep: '1.0', inside: '0.0', restore: '0.0', sight: '0.0' },
@@ -64,6 +68,7 @@ export default class RevealPlugin extends MaterialPluginBase {
     defines.REVEAL_HIGHER = kind.higher || HIGHER_BY_HEIGHT;
     defines.REVEAL_POINT = kind.point || POINT_BY_HEIGHT;
     defines.REVEAL_SURFACE = kind.surface || '1.0';
+    defines.REVEAL_CAMERA_CUT = kind.cameraCut || '0.0';
     defines.REVEAL_SET = this._material.pluginManager._plugins.map((plugin) => plugin.name).join('_');
   }
 

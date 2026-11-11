@@ -200,8 +200,10 @@ vlastní slabé světlo; obloha je z ní vyloučená a slunce se v materiálu tl
 mapy vchodů (`revealPlugin.js`, `CUSTOM_LIGHT{X}_COLOR` jen pro směrové světlo), takže
 obloha i slunce pronikají jen vchodem a asi 3 buňky dovnitř slábnou. Světlo oblohy
 u vchodu je stejné jako venku (`revealSystem.setSkyLight`) a dopadá od otvoru, takže
-je vidět reliéf podlahy. Stín stropu na slunce nespoléhá: strop se slunci kreslí
-odvrácenou stranou a stín nevrhá. Postava a tvorové zůstávají osvětlení normálně. Když je
+je vidět reliéf podlahy. Stěny a strop jeskyně vrhají stín od slunce i táboráku; do map
+stínů (i do mapy dohledu) se skála kreslí z obou stran (`utils/bothSidesMaterial.js`),
+jinak by ji některé strany krychle i slunce viděly odvrácenou stranou a světlo by
+prošlo. Postava a tvorové zůstávají osvětlení normálně. Když je
 hráč pod stropem, schovají se přesně stropní dlaždice nad jeskyní (`overCave`,
 samostatný mesh `_roof`), kolem otvoru se ukáže skalní lem (`terrainCaveRim`)
 a skryjí se dekorace i tráva na těch buňkách. Strop je zeshora neviditelný.
@@ -231,6 +233,17 @@ stín táboráku a překresluje se při každém posunu očí. Pravidla:
 - Země se testuje o 0,6 m výš (za nízkým schodem není tma); modely podle své paty
   (`vRevealBase`), ne podle bodu modelu, aby koruny stromů nezahalil.
 - Volba Dohled postavy: vypnutý / jednoduchý (mapa 256) / plný (512).
+
+**Prstenec skály při řezu** (`runVolume.js`, kind `ringWall`/`ringCap`): kolem jeskyně
+se kreslí jedno políčko skály (i po úhlopříčce) od podlahy do výšky řezu
+(`REVEAL_CUT_ABOVE_FLOOR`); poklička kopíruje terén a v řezu se usekne, boky se zaoblí
+jako útesy. Je vidět jen při otevřeném řezu, nevrhá stín, neblokuje dohled
+a dohled ho neztmavuje. Část, za kterou z pohledu kamery leží jeskyně, se schová
+(`revealCaveAhead`). S dohledem řez schová všechen terén nad podlahou, i u vchodu.
+V jeskyni se kolize počítá celým tělem postavy (ne jen středem), aby oči nevlezly do
+stěny. Oheň pod zemí svítí vždy naplno. Stěny jeskyně se kreslí odvrácenou stranou
+(blízká stěna ke kameře tak zmizí) a Babylon pak pro světlo stranu neotočí, proto mají
+směr ploch (normály) otočený do jeskyně už v datech (`terrainMass.js`).
 
 Zkušební jeskyně v Glade: 4×4 buňky pod plošinou u spawnu, vchod ve skalní stěně
 na buňce −6,−10.

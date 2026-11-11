@@ -132,6 +132,7 @@ export default class GameScene {
     this.cliffVineSystem = new CliffVineSystem(scene);
     this.caveFrameSystem = new CaveFrameSystem(scene);
     this.cliffDressSystem = new CliffDressSystem(scene);
+    this.caveDressSystem = new CliffDressSystem(scene);
     this.campfireSystem = new CampfireSystem(scene);
     this.lootSystem = new LootSystem(scene);
     this.equipmentSystem = new EquipmentSystem();
@@ -303,6 +304,7 @@ export default class GameScene {
         this.refreshShadowReach();
         this.cliffVineSystem.updateView(this.viewCircle());
         this.cliffDressSystem.updateView(this.viewCircle());
+        this.caveDressSystem.updateView(this.viewCircle());
         if (!this.isLoading) this.decoSystem.updateView(this.viewCircle());
         if (this.loaded) this.refreshCreatureSight();
       }
@@ -818,7 +820,8 @@ export default class GameScene {
 
   refreshCaveLighting() {
     if (!this.terrainSystem) return;
-    this.lighting.setCaveMeshes(this.terrainSystem.caveMeshes());
+    this.caveDressSystem.create(this.terrainSystem.caveWallFaces(), (style) => this.terrainSystem.caveDressMaterial(style));
+    this.lighting.setCaveMeshes([...this.terrainSystem.caveMeshes(), ...this.caveDressSystem.chunks.map((chunk) => chunk.mesh)]);
     this.sightSystem.setBlockers(this.terrainSystem.liveSurfaces());
     this.campfireSystem.setTerrain(this.terrainSystem.liveSurfaces());
     this.revealSystem.setLightMap(this.terrainSystem.caveLightMap());
@@ -1015,6 +1018,7 @@ export default class GameScene {
     }
     this.updateSight(dt, view, under);
     this.revealSystem.update(dt, under, root ? root.position : null, this.camera, view);
+    this.terrainSystem.showCaveRing(this.revealSystem.isOpen());
   }
 
   updateSight(dt, view, under) {

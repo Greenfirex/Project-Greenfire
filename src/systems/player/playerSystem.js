@@ -69,6 +69,7 @@ const TOOL_POSITION = new Vector3(-0.12, 0.12, 0.04);
 const TOOL_ROTATION = new Vector3(0, 0, -0.45);
 const BODY_RADIUS = 0.3;
 const BODY_MARGIN = 0.08;
+const BODY_SAMPLES = 8;
 const SLIDE_LOOKAHEAD = 1.2;
 const SLIDE_MIN = 0.12;
 const WALL_SLIDE_ANGLES = [0.35, -0.35, 0.7, -0.7, 1.05, -1.05, Math.PI / 2, -Math.PI / 2];
@@ -909,12 +910,23 @@ export default class PlayerSystem {
         if (overlap >= hereOverlap) return false;
       }
     }
+    if (!passage && level !== 0 && this.walkable && this.root && !this.bodyFits(x, z, level)) {
+      if (this.bodyFits(this.root.position.x, this.root.position.z, this.level)) return false;
+    }
     if (!passage && this.wallRiseAt && this.root) {
       const rise = this.wallRiseAt(x, z, BODY_RADIUS + BODY_MARGIN, level);
       if (rise > STEP_LIMIT) {
         const here = this.wallRiseAt(this.root.position.x, this.root.position.z, BODY_RADIUS + BODY_MARGIN, this.level);
         if (rise >= here) return false;
       }
+    }
+    return true;
+  }
+
+  bodyFits(x, z, level) {
+    for (let index = 0; index < BODY_SAMPLES; index += 1) {
+      const angle = (index / BODY_SAMPLES) * Math.PI * 2;
+      if (!this.walkable(x + Math.cos(angle) * BODY_RADIUS, z + Math.sin(angle) * BODY_RADIUS, level)) return false;
     }
     return true;
   }

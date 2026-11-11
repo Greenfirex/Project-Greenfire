@@ -31,6 +31,22 @@ export default {
     return this.cliffMaterials[key];
   },
 
+  caveDressMaterial(style) {
+    if (!this.cliffMaterials) this.cliffMaterials = {};
+    const key = `caveDress_${style}`;
+    if (!this.cliffMaterials[key]) {
+      const cliff = this.cliffMaterialFor(style);
+      const material = new StandardMaterial(`terrainCaveDressMat_${style}`, this.s);
+      material.diffuseTexture = cliff.diffuseTexture;
+      material.bumpTexture = cliff.bumpTexture;
+      material.diffuseColor = cliff.diffuseColor.clone();
+      material.specularColor = cliff.specularColor.clone();
+      material.backFaceCulling = false;
+      this.cliffMaterials[key] = material;
+    }
+    return this.cliffMaterials[key];
+  },
+
   caveFrameMaterial(style) {
     if (!this.cliffMaterials) this.cliffMaterials = {};
     const cliff = this.cliffMaterialFor(style);
@@ -68,7 +84,7 @@ export default {
     if (!this.cliffMaterials) this.cliffMaterials = {};
     const key = ceiling ? 'caveCeiling' : 'caveWall';
     if (!this.cliffMaterials[key]) {
-      const material = this.stoneCliffMaterial(false);
+      const material = ceiling ? this.stoneCliffMaterial(false) : this.dirtCliffMaterial(false);
       material.name = ceiling ? 'terrainCaveCeilingMat' : 'terrainCaveWallMat';
       material.backFaceCulling = true;
       material.cullBackFaces = ceiling;
@@ -76,6 +92,18 @@ export default {
       this.cliffMaterials[key] = material;
     }
     return this.cliffMaterials[key];
+  },
+
+  caveRingMaterial() {
+    if (!this.cliffMaterials) this.cliffMaterials = {};
+    if (!this.cliffMaterials.caveRing) {
+      const material = this.dirtCliffMaterial(false);
+      material.name = 'terrainCaveRingMat';
+      material.backFaceCulling = false;
+      material.twoSidedLighting = true;
+      this.cliffMaterials.caveRing = material;
+    }
+    return this.cliffMaterials.caveRing;
   },
 
   stoneCliffMaterial(nearWater = true) {
@@ -116,7 +144,7 @@ export default {
     this.wetPlugins.push(new TerrainWetPlugin(material, wet));
   },
 
-  dirtCliffMaterial() {
+  dirtCliffMaterial(nearWater = true) {
     const material = new StandardMaterial('terrainCliffDirtMat', this.s);
     const texture = new Texture(CLAY_CLIFF_TEXTURE, this.s);
     texture.wrapU = Texture.WRAP_ADDRESSMODE;
@@ -133,7 +161,7 @@ export default {
     bump.anisotropicFilteringLevel = 4;
     bump.level = 1.2;
     material.bumpTexture = bump;
-    this.addCliffWaterPlugins(material, 0.55);
+    if (nearWater) this.addCliffWaterPlugins(material, 0.55);
     return material;
   },
 

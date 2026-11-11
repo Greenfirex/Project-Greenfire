@@ -49,11 +49,12 @@ export default class CampfireSystem {
       return;
     }
     const fire = new CampfireFire(this.s);
-    fire.setDayness(this.dayness);
     fire.setScale(cfg.size);
     fire.place(x, surfaceY + cfg.y, z);
     fire.setTerrain(this.terrain);
-    this.fires.push({ entry, cx: entry.cx, cz: entry.cz, level: levelOfEntry(entry), x, y: surfaceY, z, fire, lift: cfg.y, lit: false });
+    const level = levelOfEntry(entry);
+    fire.setDayness(level < 0 ? 0 : this.dayness);
+    this.fires.push({ entry, cx: entry.cx, cz: entry.cz, level, x, y: surfaceY, z, fire, lift: cfg.y, lit: false });
     if (this.onFireAdded) this.onFireAdded(fire);
   }
 
@@ -129,7 +130,7 @@ export default class CampfireSystem {
 
   setDayness(value) {
     this.dayness = Math.max(0, Math.min(1, value));
-    for (const item of this.fires) item.fire.setDayness(this.dayness);
+    for (const item of this.fires) item.fire.setDayness(item.level < 0 ? 0 : this.dayness);
   }
 
   update(dt, root, level = 0) {

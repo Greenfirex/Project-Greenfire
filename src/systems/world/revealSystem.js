@@ -11,10 +11,9 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3, Vector4 } from '@babylonjs/core/Maths/math.vector';
 import { Scene } from '@babylonjs/core/scene';
 import RevealPlugin from '../materials/revealPlugin.js';
-import { REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER } from '../../utils/revealGlsl.js';
+import { REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, REVEAL_CUT_ABOVE_FLOOR } from '../../utils/revealGlsl.js';
 
 const FADE_SECONDS = 0.4;
-const CUT_ABOVE_FLOOR = 3;
 const CUT_FOLLOW = 10;
 const BACKDROP_RADIUS = 400;
 const BACKDROP_BELOW_FLOOR = 0.15;
@@ -26,6 +25,8 @@ function materialKind(name) {
   if (name === 'revealBackdropMat') return 'backdrop';
   if (name.startsWith('caveFrameMat_')) return 'frame';
   if (name === 'terrainCaveCeilingMat') return 'ceiling';
+  if (name === 'terrainCaveRingMat') return 'caveRing';
+  if (name.startsWith('terrainCaveDressMat')) return 'caveDress';
   if (name.includes('Cave')) return 'cave';
   if (name.startsWith('terrain')) return 'terrain';
   return OVERLAY_MATERIALS.test(name) ? 'overlay' : 'model';
@@ -218,7 +219,7 @@ export default class RevealSystem {
       state.floor = view.floor;
     } else if (position) {
       state.center.copyFrom(position);
-      const goal = position.y + CUT_ABOVE_FLOOR;
+      const goal = position.y + REVEAL_CUT_ABOVE_FLOOR;
       const follow = this.progress > 0 && this.wasOpen ? 1 - Math.exp(-CUT_FOLLOW * Math.max(0, dt)) : 1;
       state.cut += (goal - state.cut) * follow;
       state.floor = position.y;

@@ -15,11 +15,59 @@ export default {
     for (const mesh of this.surfaces) {
       if (!mesh || mesh.isDisposed()) continue;
       const name = mesh.name || '';
-      if (name.startsWith('terrainCaveWall') || name.startsWith('terrainCeiling') || (mesh.metadata && mesh.metadata.level < 0)) {
+      if (name.startsWith('terrainCaveWall') || name.startsWith('terrainCaveRing') || name.startsWith('terrainCeiling') || (mesh.metadata && mesh.metadata.level < 0)) {
         list.push(mesh);
       }
     }
     return list;
+  },
+  showCaveRing(on) {
+    const show = Boolean(on);
+    if (show === this.caveRingOn && !this.caveRingDirty) return;
+    this.caveRingOn = show;
+    this.caveRingDirty = false;
+    for (const mesh of this.surfaces) {
+      if (mesh && !mesh.isDisposed() && (mesh.name || '').startsWith('terrainCaveRing')) mesh.setEnabled(show);
+    }
+  },
+  caveWallFaces() {
+    const columns = columnsByCell(this.layout || {});
+    const doorSides = new Set();
+    for (const door of this.caveDoors(true)) {
+      doorSides.add(`${door.cx},${door.cz}|${door.dx},${door.dz}`);
+      doorSides.add(`${door.cx + door.dx},${door.cz + door.dz}|${-door.dx},${-door.dz}`);
+    }
+    const faces = [];
+    for (const [id, planes] of columns) {
+      const [cx, cz] = id.split(',').map(Number);
+      for (const plane of planes) {
+        if (plane.level >= 0 || !Number.isFinite(plane.ceil)) continue;
+        for (const [dx, dz] of SIDES) {
+          if (doorSides.has(`${cx},${cz}|${dx},${dz}`)) continue;
+          const wallX = cx + dx;
+          const wallZ = cz + dz;
+          if ((columns.get(`${wallX},${wallZ}`) || []).some((other) => other.level === plane.level)) continue;
+          const alongX = dx !== 0 ? 0 : 1;
+          const alongZ = dx !== 0 ? 1 : 0;
+          faces.push({
+            cx: wallX,
+            cz: wallZ,
+            dx: -dx,
+            dz: -dz,
+            x: (cx + dx / 2) * CELL_SIZE,
+            z: (cz + dz / 2) * CELL_SIZE,
+            top: plane.ceil,
+            foot: plane.lift,
+            lintel: false,
+            inside: true,
+            style: 'stone',
+            doorBefore: doorSides.has(`${wallX - alongX},${wallZ - alongZ}|${-dx},${-dz}`),
+            doorAfter: doorSides.has(`${wallX + alongX},${wallZ + alongZ}|${-dx},${-dz}`),
+          });
+        }
+      }
+    }
+    return faces;
   },
   liveSurfaces() {
     return this.surfaces.filter((mesh) => mesh && !mesh.isDisposed());

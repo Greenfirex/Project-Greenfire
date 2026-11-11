@@ -9,6 +9,7 @@ import { CELL_SIZE } from './gridMath.js';
 export const REVEAL_UNIFORM_NAMES = ['revealCenter', 'revealParams', 'revealMapMin', 'revealLight', 'revealSightEye', 'revealSightDepth', 'revealSightFog'];
 export const REVEAL_SAMPLER = 'revealMap';
 export const REVEAL_SIGHT_SAMPLER = 'revealSightMap';
+export const REVEAL_CUT_ABOVE_FLOOR = 3;
 export const SIGHT_GROUND_LIFT = 0.6;
 export const SIGHT_RISE_START = -0.6;
 export const SIGHT_RISE_FULL = 0.9;
@@ -97,6 +98,24 @@ vec4 revealSampleAt(vec3 point, out vec4 own) {
   return vec4(lit, slope);
 }
 
+float revealCaveAhead(vec3 point, vec3 eye) {
+  vec2 ahead = normalize(point.xz - eye.xz);
+  for (int index = 1; index <= 5; index += 1) {
+    vec2 grid = (point.xz + ahead * float(index) * 0.5) / ${CELL_SIZE.toFixed(1)} - revealMapMin.xy;
+    if (texture2D(${REVEAL_SAMPLER}, (floor(grid + 0.5) + 0.5) / revealMapMin.zw).a < 0.5) return 1.0;
+  }
+  return 0.0;
+}
+
+float revealRockBehind(vec3 point, vec3 eye) {
+  vec2 back = normalize(eye.xz - point.xz);
+  for (int index = 0; index < 2; index += 1) {
+    vec2 grid = (point.xz + back * (0.75 + float(index) * 0.5)) / ${CELL_SIZE.toFixed(1)} - revealMapMin.xy;
+    if (texture2D(${REVEAL_SAMPLER}, (floor(grid + 0.5) + 0.5) / revealMapMin.zw).a > 0.5) return 1.0;
+  }
+  return 0.0;
+}
+
 float revealDoorGlow(vec4 own, float inner) {
   if (own.a > 0.5) return 0.0;
   return mix(clamp((inner - 0.5) * 2.0, 0.0, 1.0), inner, revealParams.x);
@@ -104,7 +123,7 @@ float revealDoorGlow(vec4 own, float inner) {
 `;
 
 export function revealBlock(color, position, rules, albedo = color, normal = 'vec3(0.0, 1.0, 0.0)') {
-  const { above, hide, keep, inside, restore, column = '0.0', dark = '0.0', far = '0.0', sight = '1.0', sightHide = '0.0', rise = sightRiseByHeight(position), higher = sightHigherByHeight(position), point = sightPointOf(position), surface = '1.0' } = rules;
+  const { above, hide, keep, inside, restore, column = '0.0', dark = '0.0', far = '0.0', sight = '1.0', sightHide = '0.0', rise = sightRiseByHeight(position), higher = sightHigherByHeight(position), point = sightPointOf(position), surface = '1.0', cameraCut = '0.0' } = rules;
   return `
 {
   float revealAmount = revealParams.x;
@@ -122,12 +141,12 @@ export function revealBlock(color, position, rules, albedo = color, normal = 've
     float revealOwnLit = revealOwn.a > 0.5 ? step(0.001, revealOwn.r) : 0.0;
     float revealRestore = ${restore} * revealNear * revealOwnLit * (1.0 - revealOwn.b);
     float revealAbove = ${above} * step(revealParams.y, ${position}.y) * (1.0 - revealRestore);
-    float revealColumn = ${column} * step(revealParams.w + 0.2, ${position}.y) * (1.0 - revealOwnLit);
+    float revealWithoutSight = revealSightEye.w > 0.001 ? 0.0 : 1.0;
+    float revealColumn = ${column} * step(revealParams.w + 0.2, ${position}.y) * (1.0 - revealOwnLit * revealWithoutSight);
     float revealHide = ${hide} * (1.0 - revealRestore);
-    float revealHole = max(max(revealAbove, revealHide), revealColumn) * revealAmount;
+    float revealHole = max(max(max(revealAbove, revealHide), revealColumn), ${cameraCut}) * revealAmount;
     float revealGrain = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
     if (revealHole > revealGrain) discard;
-    float revealWithoutSight = revealSightEye.w > 0.001 ? 0.0 : 1.0;
     ${color}.rgb *= 1.0 - revealWithoutSight * revealAmount * (1.0 - ${keep}) * (1.0 - revealNear * (1.0 - ${dark}));
     float revealGlow = revealDoorGlow(revealOwn, revealInner);
     float revealDoorLight = revealGlow * revealFacing;

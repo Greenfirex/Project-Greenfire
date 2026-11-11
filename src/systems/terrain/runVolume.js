@@ -1,4 +1,5 @@
 // Objem terénu — svislé stěny a spodní víka tam, kde skála sousedí se vzduchem, po dílcích.
+// Kolem jeskyní přidá prstenec skály jedno políčko tlustý; poklička kopíruje terén a usekne se ve výšce řezu kamerou.
 // Čistá data bez scény: vrací líce k vytvoření meshů, vzhled řeší terénní systém.
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { HEIGHT_STEP } from '../../data/maps/layoutStore.js';
@@ -13,8 +14,7 @@ const BAND_TILE = 1;
 const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const CAVE_WALL_SKIRT = 1;
 export const DOOR_LINTEL_DEPTH = 0.25;
-const BURIED_WALL_INSET = 0.02;
-const SURFACE_CLEARANCE = 0.02;
+const RING_CAP_DROP = 0.02;
 
 function hash01(value) {
   const n = Math.sin(value * 127.1 + 311.7) * 43758.5453;
@@ -56,8 +56,8 @@ export function buildRunVolumeBuckets(layout, options = {}) {
   const surface = typeof options.surface === 'function' ? options.surface : null;
   const hardEdge = typeof options.hardEdge === 'function' ? options.hardEdge : () => false;
   const shiftAt = typeof options.shiftAt === 'function' ? options.shiftAt : null;
-  const keptAt = typeof options.keptAt === 'function' ? options.keptAt : () => false;
-  const keptDownTo = Number.isFinite(options.keptDownTo) ? options.keptDownTo : null;
+  const ringHeight = Number.isFinite(options.ringHeight) ? options.ringHeight : 3;
+  const groundAt = typeof options.groundAt === 'function' ? options.groundAt : null;
   const doorSteps = new Map();
   for (const door of options.doors || []) {
     const top = Math.max(door.floor, door.ground);
@@ -260,35 +260,6 @@ export function buildRunVolumeBuckets(layout, options = {}) {
 
   const caveAt = (cx, cz) => (air.get(`${cx},${cz}`) || []).some((span) => span.level < 0);
 
-  const buriedFace = (cx, cz, dx, dz, y0, y1) => {
-    const style = styleOf(cx, cz) || 'dirt';
-    const rockTile = tileOf('cliff', style);
-    const rock = bucketOf(cx, cz, 'cliff', style);
-    const tops = [];
-    for (let i = 0; i <= subdivisions; i += 1) {
-      const p = boundaryAt(cx, cz, dx, dz, i / subdivisions);
-      const height = surface ? surface(p.gx, p.gz, cx, cz, dx, dz, y1) : y1;
-      tops.push(Math.max(y0, Math.min(y1, height - SURFACE_CLEARANCE)));
-    }
-    const rockTop = Math.max(y0, Math.floor(Math.min(...tops) / PLATE + 1e-6) * PLATE);
-    const alongX = dx !== 0 ? 0 : 1;
-    const alongZ = dx !== 0 ? 1 : 0;
-    const reach = BURIED_WALL_INSET / cellSize;
-    const coversWall = (x, z) => !caveAt(x, z) && (solids.get(`${x},${z}`) || []).some(([, top]) => top >= y1 - EPS);
-    const startA = coversWall(cx - alongX, cz - alongZ) ? -reach : 0;
-    const endA = coversWall(cx + alongX, cz + alongZ) ? 1 + reach : 1;
-    for (let i = 0; i < subdivisions; i += 1) {
-      const a0 = i === 0 ? startA : i / subdivisions;
-      const a1 = i === subdivisions - 1 ? endA : (i + 1) / subdivisions;
-      for (const [b, t] of plateBands(y0, rockTop)) {
-        sideQuad(rock, cx, cz, dx, dz, a0, a1, b, b, t, t, rockTile, null, y0, y1, BURIED_WALL_INSET);
-      }
-      if (tops[i] > rockTop + EPS || tops[i + 1] > rockTop + EPS) {
-        sideQuad(rock, cx, cz, dx, dz, a0, a1, rockTop, rockTop, tops[i], tops[i + 1], rockTile, null, y0, y1, BURIED_WALL_INSET);
-      }
-    }
-  };
-
   for (const [id, runs] of solids) {
     if (!runs.length) continue;
     const [cx, cz] = id.split(',').map(Number);
@@ -333,20 +304,80 @@ export function buildRunVolumeBuckets(layout, options = {}) {
     }
   }
 
-  if (keptDownTo !== null) {
-    for (const [id, runs] of solids) {
-      const [cx, cz] = id.split(',').map(Number);
-      if (caveAt(cx, cz)) continue;
-      const kept = keptAt(cx, cz);
-      for (const [dx, dz] of DIRECTIONS) {
-        if (!caveAt(cx + dx, cz + dz) && (!kept || keptAt(cx + dx, cz + dz))) continue;
-        for (const [neighborBottom, neighborTop] of solids.get(`${cx + dx},${cz + dz}`) || []) {
-          for (const [bottom, top] of runs) {
-            const y0 = Math.max(bottom, neighborBottom, keptDownTo - CAVE_WALL_SKIRT);
-            const y1 = Math.min(top, neighborTop);
-            if (y1 - y0 > EPS) buriedFace(cx, cz, dx, dz, y0, y1);
-          }
-        }
+  const ringFloors = new Map();
+  for (const [id, spans] of air) {
+    const caves = spans.filter((span) => span.level < 0);
+    if (!caves.length) continue;
+    const [cx, cz] = id.split(',').map(Number);
+    const floor = Math.min(...caves.map((span) => span.bottom));
+    for (let dx = -1; dx <= 1; dx += 1) {
+      for (let dz = -1; dz <= 1; dz += 1) {
+        if ((!dx && !dz) || caveAt(cx + dx, cz + dz)) continue;
+        const ringId = `${cx + dx},${cz + dz}`;
+        const known = ringFloors.get(ringId);
+        if (known === undefined || floor < known) ringFloors.set(ringId, floor);
+      }
+    }
+  }
+  const rings = new Map();
+  for (const [id, floor] of ringFloors) {
+    const run = (solids.get(id) || []).find(([start, end]) => start <= floor + EPS && end > floor + EPS);
+    if (!run || run[1] - floor <= EPS) continue;
+    const [cx, cz] = id.split(',').map(Number);
+    rings.set(id, { cx, cz, bottom: Math.max(run[0], floor - CAVE_WALL_SKIRT), cut: floor + ringHeight, top: run[1] });
+  }
+  const ringHeightAt = (ring, gx, gz, dx, dz) => {
+    const side = dx !== 0 || dz !== 0;
+    const ground = side
+      ? (surface ? surface(gx, gz, ring.cx, ring.cz, dx, dz, ring.top) : ring.top)
+      : (groundAt ? groundAt(gx, gz) : ring.top);
+    const height = Number.isFinite(ground) ? ground : ring.top;
+    return Math.max(ring.bottom, Math.min(ring.cut, height) - RING_CAP_DROP);
+  };
+  const ringCap = (ring) => {
+    const group = bucketOf(ring.cx, ring.cz, 'ringCap', 'stone');
+    const tile = tileOf('ringCap', 'stone');
+    const x0 = ring.cx * cellSize - half;
+    const z0 = ring.cz * cellSize - half;
+    const start = group.positions.length / 3;
+    for (let j = 0; j <= subdivisions; j += 1) {
+      for (let i = 0; i <= subdivisions; i += 1) {
+        const gx = x0 + (cellSize * i) / subdivisions;
+        const gz = z0 + (cellSize * j) / subdivisions;
+        const dx = i === 0 ? -1 : i === subdivisions ? 1 : 0;
+        const dz = dx !== 0 ? 0 : j === 0 ? -1 : j === subdivisions ? 1 : 0;
+        const edge = i === 0 || i === subdivisions || j === 0 || j === subdivisions;
+        const point = edge ? shifted(gx, gz) : { x: gx, z: gz };
+        group.positions.push(point.x, ringHeightAt(ring, gx, gz, dx, dz), point.z);
+        group.uvs.push(gx / tile, gz / tile);
+      }
+    }
+    const row = subdivisions + 1;
+    for (let j = 0; j < subdivisions; j += 1) {
+      for (let i = 0; i < subdivisions; i += 1) {
+        const a = start + j * row + i;
+        group.indices.push(a, a + 1, a + row + 1, a, a + row + 1, a + row);
+      }
+    }
+  };
+  for (const ring of rings.values()) {
+    ringCap(ring);
+    const sides = bucketOf(ring.cx, ring.cz, 'ringWall', 'stone');
+    const sideTile = tileOf('ringWall', 'stone');
+    for (const [dx, dz] of DIRECTIONS) {
+      if (caveAt(ring.cx + dx, ring.cz + dz)) continue;
+      const neighbor = rings.get(`${ring.cx + dx},${ring.cz + dz}`);
+      for (let i = 0; i < subdivisions; i += 1) {
+        const a0 = i / subdivisions;
+        const a1 = (i + 1) / subdivisions;
+        const pA = boundaryAt(ring.cx, ring.cz, dx, dz, a0);
+        const pB = boundaryAt(ring.cx, ring.cz, dx, dz, a1);
+        const topA = ringHeightAt(ring, pA.gx, pA.gz, dx, dz);
+        const topB = ringHeightAt(ring, pB.gx, pB.gz, dx, dz);
+        const bottomA = neighbor ? Math.min(topA, ringHeightAt(neighbor, pA.gx, pA.gz, -dx, -dz)) : ring.bottom;
+        const bottomB = neighbor ? Math.min(topB, ringHeightAt(neighbor, pB.gx, pB.gz, -dx, -dz)) : ring.bottom;
+        if (topA - bottomA <= EPS && topB - bottomB <= EPS) continue;
+        sideQuad(sides, ring.cx, ring.cz, dx, dz, a0, a1, bottomA, bottomB, topA, topB, sideTile, null, ring.bottom, ring.cut);
       }
     }
   }

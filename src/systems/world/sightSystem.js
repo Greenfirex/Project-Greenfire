@@ -3,6 +3,7 @@
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import { RenderTargetTexture } from '@babylonjs/core/Materials/Textures/renderTargetTexture';
+import { bothSidesMaterial } from '../../utils/bothSidesMaterial.js';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 
@@ -52,6 +53,7 @@ export default class SightSystem {
     this.map = this.generator.getShadowMap();
     this.map.refreshRate = RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
     this.map.renderList = [];
+    this.bothSides = bothSidesMaterial(scene);
   }
 
   setDetail(level) {
@@ -129,6 +131,7 @@ export default class SightSystem {
       const { centerWorld, radiusWorld } = mesh.getBoundingInfo().boundingSphere;
       if (Vector3.Distance(centerWorld, this.eye) <= MAP_RANGE + BLOCKER_STEP + radiusWorld) near.push(mesh);
     }
+    for (const mesh of near) this.map.setMaterialForRendering(mesh, this.bothSides);
     this.map.renderList = near;
     this.drawnAt = null;
   }

@@ -1,5 +1,6 @@
 // Skalní kusy na útesech — překrývající se kameny, které rozbijí rovnou stěnu, horní hranu i rohy.
 // Skládá se sám ze stran útesů, které zná terén; nic se neukládá a pokaždé to vypadá stejně.
+// Stejně obloží i stěny jeskyní (strana s inside: bez teras a mechu).
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CELL_SIZE } from '../../utils/gridMath.js';
@@ -104,7 +105,7 @@ export default class CliffDressSystem {
     for (const face of placed) this.dressFace(face, sides);
     this.dressCorners(placed);
     for (const face of placed) {
-      if (face.lintel || face.top - face.foot < TERRACE_MIN_WALL) continue;
+      if (face.lintel || face.inside || face.top - face.foot < TERRACE_MIN_WALL) continue;
       if (hash(face.x, face.z, 40) < TERRACE_CHANCE) this.dressTerrace(face);
     }
     this.buildChunks(materialFor);
@@ -164,6 +165,7 @@ export default class CliffDressSystem {
           if (second.dz === 0) continue;
           this.dressCorner({
             style: first.style,
+            inside: first.inside,
             x: first.x,
             z: second.z,
             dirX: first.dx * Math.SQRT1_2,
@@ -193,7 +195,7 @@ export default class CliffDressSystem {
         ...look,
         key: shape.key,
         style: corner.style,
-        mossy: capped && hash(corner.x, corner.z, row, 31) < PIECES[corner.style].moss,
+        mossy: !corner.inside && capped && hash(corner.x, corner.z, row, 31) < PIECES[corner.style].moss,
         yaw: yaw + look.turn,
         x: corner.x + corner.dirX * out,
         y: capped ? corner.top + hash(corner.x, corner.z, row, 9) * LIP_MAX * 0.5 - reach : y,
@@ -237,7 +239,7 @@ export default class CliffDressSystem {
           ...look,
           key: shape.key,
           style: face.style,
-          mossy: capped && hash(face.x, face.z, salt, 31) < pieces.moss,
+          mossy: !face.inside && capped && hash(face.x, face.z, salt, 31) < pieces.moss,
           yaw: yaw + look.turn + (hash(face.x, face.z, salt, 6) - 0.5) * YAW_JITTER,
           x: face.x + face.dx * out + alongX * along,
           y: capped ? face.top + lip - reach : y,
