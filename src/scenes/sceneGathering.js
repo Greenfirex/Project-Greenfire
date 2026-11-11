@@ -125,7 +125,7 @@ export default {
 
   receiveLoot(yields) {
     for (const { itemKey, amount } of yields) this.inventorySystem.add(itemKey, amount);
-    this.inventoryWindow.update(this.inventorySystem);
+    this.refreshInventory();
     this.logGain(yields);
   },
 
@@ -161,14 +161,6 @@ export default {
     return swung;
   },
 
-  takenAnchor(cell) {
-    for (const item of this.gatherSystem.entries) {
-      if (item.left > 0) continue;
-      if (item.entry.cx === cell.cx && item.entry.cz === cell.cz) return item.anchor;
-    }
-    return null;
-  },
-
   holdStrikeReady() {
     if (!this.inputSystem.leftDown || this.editor.active) return false;
     if (this.campfireSystem.pending) return false;
@@ -192,12 +184,12 @@ export default {
       const fromZ = root ? root.position.z : result.item.z;
       this.gatherSystem.beginFall(result.item, fromX, fromZ);
     } else {
-      this.releaseGatherCell(this.takenAnchor(cell) || result.item.anchor, cell);
-      if (result.item.def.byHand) this.harvestSystem.record(cell.cx, cell.cz, this.simSystem.time);
+      this.releaseGatherCell(result.item.anchor, cell);
+      if (result.item.def.byHand) this.harvestSystem.record(cell.cx, cell.cz, result.item.entry.key, this.simSystem.time);
     }
     this.refreshGatherTargets();
     for (const { itemKey, amount } of yields) this.inventorySystem.add(itemKey, amount);
-    this.inventoryWindow.update(this.inventorySystem);
+    this.refreshInventory();
     this.logGain(yields);
   },
 
@@ -233,14 +225,14 @@ export default {
     }
     this.decoHighlight.remove(cx, cz, anchor);
     this.decoSystem.releaseCell(cx, cz, anchor);
-    this.gatherSystem.markTaken(cx, cz);
+    this.gatherSystem.markTaken(anchor);
     if (record) this.fellingSystem.record(cx, cz, def, dir);
   },
 
   syncFelling() {
     for (const cell of this.fellingSystem.list()) {
-      const found = this.decoSystem.entryAt(cell.cx, cell.cz);
-      if (!found || !found.def || found.def.tree !== cell.tree) {
+      const found = this.decoSystem.entryAt(cell.cx, cell.cz, (def) => def.tree === cell.tree);
+      if (!found) {
         this.fellingSystem.drop(cell.cx, cell.cz);
         continue;
       }
@@ -262,38 +254,40 @@ export default {
     this.gatherSystem.update(0, this.playerSystem);
   },
 
+  harvestedEntry(cell) {
+    return this.decoSystem.entryAt(cell.cx, cell.cz, (def, entry) => def.byHand && entry && entry.key === cell.key);
+  },
+
   syncHarvest() {
     for (const cell of this.harvestSystem.list()) {
-      const found = this.decoSystem.entryAt(cell.cx, cell.cz);
-      if (!found || !found.def || !found.def.byHand) {
-        this.harvestSystem.drop(cell.cx, cell.cz);
+      const found = this.harvestedEntry(cell);
+      if (!found) {
+        this.harvestSystem.drop(cell);
         continue;
       }
       const anchor = found.anchor;
       if (anchor && !anchor.isDisposed()) anchor.setEnabled(false);
       this.decoHighlight.remove(cell.cx, cell.cz, anchor);
       this.decoSystem.releaseCell(cell.cx, cell.cz, anchor);
-      this.gatherSystem.markTaken(cell.cx, cell.cz);
+      this.gatherSystem.markTaken(anchor);
     }
   },
 
   updateHarvestRespawns() {
     const ripe = this.harvestSystem.ripe(this.simSystem.time);
     if (!ripe.length) return;
-    let restored = 0;
+    const names = [];
     for (const cell of ripe) {
-      const found = this.decoSystem.entryAt(cell.cx, cell.cz);
-      if (!found || !found.def || !found.def.byHand) {
-        this.harvestSystem.drop(cell.cx, cell.cz);
-        continue;
-      }
+      const found = this.harvestedEntry(cell);
+      this.harvestSystem.drop(cell);
+      if (!found) continue;
       this.restoreHarvested(found, cell);
-      this.harvestSystem.drop(cell.cx, cell.cz);
-      restored += 1;
+      names.push(found.def.displayName);
     }
-    if (restored) this.refreshGatherTargets();
-    if (restored === 1) this.log.add('Na místě vyrostla houba nebo mušle', 'info');
-    else if (restored > 1) this.log.add(`Na místě vyrostlo ${restored} hub a mušlí`, 'info');
+    if (!names.length) return;
+    this.refreshGatherTargets();
+    if (names.length === 1) this.log.add(`Znovu vyrostlo: ${names[0]}`, 'info');
+    else this.log.add(`Znovu vyrostlo ${names.length} věcí na sběr`, 'info');
   },
 
   restoreHarvested(found, cell) {

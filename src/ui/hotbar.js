@@ -39,6 +39,7 @@ export default class Hotbar {
       btn.title = `${tool.displayName} (${index + 1})`;
       btn.innerHTML = `<span class="hotbar__key">${index + 1}</span><span class="hotbar__icon">${tool.icon}</span><span class="hotbar__name">${tool.shortName}</span>`;
       btn.addEventListener('click', () => {
+        if (btn.classList.contains('is-locked')) return;
         if (this.onSelect) this.onSelect(key);
       });
       slots.appendChild(btn);
@@ -74,6 +75,16 @@ export default class Hotbar {
     }
     this.prompt.textContent = value;
     this.prompt.classList.add('is-open');
+  }
+
+  setAvailable(isAvailable) {
+    this.mount();
+    for (const [key, btn] of this.slotEls) {
+      const locked = !isAvailable(key);
+      const tool = getTool(key);
+      btn.classList.toggle('is-locked', locked);
+      btn.title = locked ? `${tool.displayName} — zatím ho nemáš` : `${tool.displayName} (${HOTBAR_ITEMS.indexOf(key) + 1})`;
+    }
   }
 
   setSelected(key) {

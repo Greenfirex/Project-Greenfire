@@ -6,10 +6,8 @@ import { PLAYER_BASE } from '../../data/catalogs/player.js';
 const REACH = PLAYER_BASE.handReach.distance;
 const REACH_HEIGHT = PLAYER_BASE.handReach.heightLimit;
 const BARE_COOLDOWN = 0.62;
-const BARE_KINDS = ['tree'];
 const BARE_SOUND = 'bare';
 export const PICKUP_SOUND = 'grassRip';
-const BARE_YIELDS = { wood: 1 };
 const SWAY_KINDS = ['tree'];
 const FALLBACK_DURATION = 0.5;
 const IMPACT_SHARE = 0.62;
@@ -122,18 +120,24 @@ export default class GatherSystem {
   canHarvest(item) {
     if (!item) return false;
     if (item.def.byHand) return true;
-    if (this.tool && this.tool.harvest) return this.tool.harvest.kinds.includes(item.def.kind);
-    return BARE_KINDS.includes(item.def.kind);
+    return Boolean(this.tool && this.tool.harvest && this.tool.harvest.kinds.includes(item.def.kind));
   }
 
-  itemAtCell(cx, cz) {
+  itemAtCell(cx, cz, point = null) {
     if (!Number.isFinite(cx) || !Number.isFinite(cz)) return null;
     const level = this.levelOf ? this.levelOf() : 0;
+    let best = null;
+    let bestDistance = Infinity;
     for (const item of this.entries) {
       if (item.left <= 0 || !this.canHarvest(item)) continue;
-      if (item.entry.cx === cx && item.entry.cz === cz && levelOfEntry(item.entry) === level) return item;
+      if (item.entry.cx !== cx || item.entry.cz !== cz || levelOfEntry(item.entry) !== level) continue;
+      if (!point) return item;
+      const distance = (item.x - point.x) ** 2 + (item.z - point.z) ** 2;
+      if (distance >= bestDistance) continue;
+      best = item;
+      bestDistance = distance;
     }
-    return null;
+    return best;
   }
 
   inReach(item) {
@@ -160,7 +164,7 @@ export default class GatherSystem {
     if (this.cooldown > 0) this.cooldown -= dt;
     this.syncEntryPositions();
     this.syncPlayerPos(player);
-    this.target = cell ? this.itemAtCell(cell.cx, cell.cz) : null;
+    this.target = cell ? this.itemAtCell(cell.cx, cell.cz, cell.point) : null;
     this.updateFalls(dt);
     this.updateSway(dt);
     return this.target;
@@ -212,7 +216,6 @@ export default class GatherSystem {
   }
 
   impactSound(withTool) {
-    if (!this.tool) return BARE_SOUND;
     if (withTool === 'mine' && this.tool.harvest && !this.tool.harvest.kinds.includes('rock')) return BARE_SOUND;
     return withTool;
   }
@@ -253,12 +256,9 @@ export default class GatherSystem {
     if (!source || source.left > 0) return null;
     if (this.target === source) this.target = null;
     if (hide && source.anchor && !source.anchor.isDisposed()) source.anchor.setEnabled(false);
-    const withTool = Boolean(this.tool && this.tool.harvest);
-    const fullYield = withTool || Boolean(source.def.byHand);
-    const yields = fullYield ? source.def.gather : BARE_YIELDS;
-    return Object.entries(yields)
+    return Object.entries(source.def.gather)
       .filter(([key, amount]) => typeof key === 'string' && Number.isFinite(amount) && amount > 0)
-      .map(([itemKey, amount]) => ({ itemKey, amount: fullYield ? amount : 1 }));
+      .map(([itemKey, amount]) => ({ itemKey, amount }));
   }
 
 
@@ -326,9 +326,9 @@ export default class GatherSystem {
     }
   }
 
-  markTaken(cx, cz) {
+  markTaken(anchor) {
     for (const item of this.entries) {
-      if (item.entry.cx !== cx || item.entry.cz !== cz) continue;
+      if (item.anchor !== anchor) continue;
       item.left = 0;
       item.hits = item.total;
       if (this.target === item) this.target = null;

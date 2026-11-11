@@ -9,10 +9,9 @@ export default class PlayerAttackSystem {
   constructor() {
     const punch = PLAYER_BASE.punch || {};
     this.attack = this.number(PLAYER_BASE.attack);
-    this.damage = this.number(punch.damage);
-    this.cooldownSeconds = this.number(punch.cooldown);
     this.reach = this.number(punch.reach);
     this.heightLimit = this.number(punch.heightLimit);
+    this.setWeapon(null);
     this.cooldown = 0;
     this.pending = null;
     this.impactTimer = 0;
@@ -26,6 +25,14 @@ export default class PlayerAttackSystem {
 
   number(value) {
     return Number.isFinite(value) && value >= 0 ? value : 0;
+  }
+
+  setWeapon(tool) {
+    const weapon = tool && tool.weapon ? tool.weapon : null;
+    const punch = PLAYER_BASE.punch || {};
+    this.weaponAnim = weapon ? weapon.anim : null;
+    this.damage = this.number(weapon ? weapon.damage : punch.damage);
+    this.cooldownSeconds = this.number(weapon ? weapon.cooldown : punch.cooldown);
   }
 
   canHit(creature, player) {
@@ -43,8 +50,8 @@ export default class PlayerAttackSystem {
     if (this.cooldown > 0 || this.pending) return false;
     if (!this.canHit(creature, player)) return false;
     if (player.faceTo) player.faceTo(creature.x, creature.z, this.reach);
-    const animKey = this.nextUnarmed;
-    this.nextUnarmed = animKey === 'punch' ? 'kick' : 'punch';
+    const animKey = this.weaponAnim || this.nextUnarmed;
+    if (!this.weaponAnim) this.nextUnarmed = animKey === 'punch' ? 'kick' : 'punch';
     player.strike(animKey);
     this.pending = { creature, damage: this.damage };
     this.impactTimer = 0;

@@ -10,9 +10,39 @@ import { getFishType, FISH_SWIM_DEPTH } from '../data/catalogs/fish.js';
 import { getCreatureType } from '../data/catalogs/creatures/index.js';
 import { hash01, valueNoise } from '../utils/noise.js';
 import { SIDES, onSurface, parseCell } from './editorSettings.js';
+import { decoPlacement } from '../utils/decoPlacement.js';
+
+const COCONUT_CHANCE = 1 / 3;
+const COCONUT_MAX = 2;
+const COCONUT_MAX_STEP = 1;
+const COCONUT_PULL = 0.75;
+const COCONUT_SPREAD = 0.4;
+const COCONUT_TRUNK_GAP = 0.85;
+const COCONUT_CELL_EDGE = 0.95;
+const JUMBLE_SHIFT = 0.35;
+const JUMBLE_SCALE = [0.85, 1.2];
+const AROUND = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 
 function round2(value) {
   return Math.round(value * 100) / 100;
+}
+
+function jumbleAt(cx, cz) {
+  return {
+    rotation: Math.floor(hash01(cx * 4.7 + 0.3, cz * 6.1 - 1.9) * 4),
+    offsetX: round2((hash01(cx * 2.9, cz * 7.3) - 0.5) * JUMBLE_SHIFT * 2),
+    offsetZ: round2((hash01(cx * 8.1, cz * 3.7) - 0.5) * JUMBLE_SHIFT * 2),
+    scale: round2(JUMBLE_SCALE[0] + hash01(cx * 5.3, cz * 9.7) * (JUMBLE_SCALE[1] - JUMBLE_SCALE[0])),
+  };
+}
+
+function beside(trunk, angle) {
+  const at = (turn) => ({
+    x: trunk.offsetX + Math.cos(turn) * COCONUT_TRUNK_GAP,
+    z: trunk.offsetZ + Math.sin(turn) * COCONUT_TRUNK_GAP,
+  });
+  const spot = at(angle);
+  return Math.abs(spot.x) <= COCONUT_CELL_EDGE && Math.abs(spot.z) <= COCONUT_CELL_EDGE ? spot : at(angle + Math.PI);
 }
 
 export default {
@@ -174,9 +204,11 @@ export default {
         if (Number.isFinite(cell.offsetX) && cell.offsetX) entry.offsetX = cell.offsetX;
         if (Number.isFinite(cell.offsetZ) && cell.offsetZ) entry.offsetZ = cell.offsetZ;
         if (Number.isFinite(cell.scale) && cell.scale) entry.scale = cell.scale;
+        if (brush.jumble && this.brushOptionValue(brushKey, 'random')) Object.assign(entry, jumbleAt(cx, cz));
         if (lift) entry.liftY = lift;
         this.layout.decorations.push(entry);
         changed += 1;
+        if (painted.tree && this.brushOptionValue(brushKey, 'coconuts')) this.dropCoconuts(entry, painted, level);
         continue;
       }
       if (brush.surfaceOnly) {
@@ -196,6 +228,41 @@ export default {
     this.fixMissingFloor();
     this.scheduleRegenerate(parts);
     return changed;
+  },
+
+  dropCoconuts(palm, def, level) {
+    const { cx, cz } = palm;
+    if (hash01(cx * 17.3 + 5.1, cz * 29.9 - 3.7) >= COCONUT_CHANCE) return 0;
+    const home = layerLiftAt(this.layout, cx, cz, level) || 0;
+    const water = Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
+    const decorations = this.layout.decorations;
+    const free = [[0, 0], ...AROUND].filter(([dx, dz]) => {
+      if (!dx && !dz) return true;
+      const nx = cx + dx;
+      const nz = cz + dz;
+      const lift = layerLiftAt(this.layout, nx, nz, level);
+      if (lift === null || Math.abs(lift - home) > COCONUT_MAX_STEP) return false;
+      if (water !== null && lift < water) return false;
+      return !decorations.some((item) => item && item.cx === nx && item.cz === nz && (item.level || 0) === level);
+    });
+    free.sort((a, b) => hash01(cx + a[0] * 3.1, cz + a[1] * 5.3) - hash01(cx + b[0] * 3.1, cz + b[1] * 5.3));
+    const count = Math.min(free.length, 1 + Math.floor(hash01(cx * 7.7, cz * 3.1) * COCONUT_MAX));
+    for (const [dx, dz] of free.slice(0, count)) {
+      const nx = cx + dx;
+      const nz = cz + dz;
+      const spot = dx || dz
+        ? {
+          x: -dx * COCONUT_PULL + (hash01(nx * 3.7, nz * 9.1) - 0.5) * COCONUT_SPREAD,
+          z: -dz * COCONUT_PULL + (hash01(nx * 8.3, nz * 2.9) - 0.5) * COCONUT_SPREAD,
+        }
+        : beside(decoPlacement(def, palm), hash01(cx * 5.9, cz * 4.3) * Math.PI * 2);
+      const entry = { key: 'coconut', cx: nx, cz: nz, rotation: 0, offsetX: round2(spot.x), offsetZ: round2(spot.z) };
+      const lift = layerLiftAt(this.layout, nx, nz, level) || 0;
+      if (level) entry.level = level;
+      if (lift) entry.liftY = lift;
+      decorations.push(entry);
+    }
+    return count;
   },
 
   applyBeach(brushKey, zone, mode) {

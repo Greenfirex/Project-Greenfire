@@ -65,7 +65,7 @@ import BestiaryWindow from '../ui/bestiaryWindow.js';
 import BestiarySystem from '../systems/creatures/bestiarySystem.js';
 import { takeModelError, preloadModel, loadContainer, loadImported } from '../utils/assetLoader.js';
 import { WAVE_TIME_WRAP, SEA_DIRECTION } from '../utils/waterWaves.js';
-import { HOTBAR_ITEMS, ITEM_TYPES } from '../data/catalogs/items.js';
+import { HOTBAR_ITEMS, ITEM_TYPES, getTool } from '../data/catalogs/items.js';
 import { worldToCellCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../data/catalogs/modelCatalog.js';
@@ -381,7 +381,7 @@ export default class GameScene {
       if (this.shouldDrawFrame()) this.s.render();
     });
     this.hotbar.setSelected(this.heldItemSystem.key);
-    this.inventoryWindow.update(this.inventorySystem);
+    this.refreshInventory();
     await this.prepareGame();
   }
 
@@ -498,7 +498,7 @@ export default class GameScene {
       return;
     }
     const pointer = this.inputSystem.lastCell;
-    const entry = pointer ? this.gatherSystem.itemAtCell(pointer.cx, pointer.cz) : null;
+    const entry = pointer ? this.gatherSystem.itemAtCell(pointer.cx, pointer.cz, pointer.point) : null;
     const tool = this.heldItemSystem.tool();
     if (!entry || entry.def.byHand || !tool || !tool.harvest || !tool.harvest.kinds.includes(entry.def.kind)) {
       this.gameCursor.setState('default');
@@ -641,7 +641,7 @@ export default class GameScene {
     this.interaction.register('gather', {
       priority: 50,
       pick: ({ cell }) => {
-        const item = cell ? this.gatherSystem.itemAtCell(cell.cx, cell.cz) : null;
+        const item = cell ? this.gatherSystem.itemAtCell(cell.cx, cell.cz, cell.point) : null;
         if (!item) return null;
         return {
           ref: item,
@@ -1045,7 +1045,7 @@ export default class GameScene {
     const sight = this.sightSystem.view();
     if (!root || !sight.active || sight.hide < 0.5) return true;
     const level = Number.isFinite(cell.level) ? cell.level : this.playerSystem.level;
-    const spot = this.decoHighlight.spotAt(cell.cx, cell.cz, level);
+    const spot = this.decoHighlight.spotAt(cell.cx, cell.cz, level, cell.point);
     const x = spot ? spot.x : cell.cx * CELL_SIZE;
     const z = spot ? spot.z : cell.cz * CELL_SIZE;
     const y = spot ? spot.y : this.terrainSystem.walkHeightAt(x, z, level);
@@ -1061,7 +1061,7 @@ export default class GameScene {
     for (const level of this.navigation.floorsInSight(x, z, viewer.level)) {
       const candidate = level === viewer.level ? cell : this.inputSystem.cellAtPointer(level);
       if (!candidate) continue;
-      const spot = this.decoHighlight.spotAt(candidate.cx, candidate.cz, level);
+      const spot = this.decoHighlight.spotAt(candidate.cx, candidate.cz, level, candidate.point);
       if (spot && this.navigation.seesAcrossFloors(viewer, { x: spot.x, y: spot.y, z: spot.z, level })) return { ...candidate, level };
     }
     return cell;
@@ -1091,7 +1091,7 @@ export default class GameScene {
     this.hud.onLoad = () => this.requestLoad();
     this.hud.mount();
     this.hotbar.mount();
-    this.hotbar.onSelect = (key) => this.heldItemSystem.set(key);
+    this.hotbar.onSelect = (key) => this.selectTool(key);
     this.hotbar.setSelected(this.heldItemSystem.key);
     this.bagButton.onClick = () => this.toggleInventoryWindow();
     this.characterButton.onClick = () => this.toggleCharacterWindow();
@@ -1122,7 +1122,7 @@ export default class GameScene {
     this.hoverHint.mount();
     this.deathScreen.onRespawn = () => this.respawnPlayer();
     this.deathScreen.mount();
-    this.inventoryWindow.update(this.inventorySystem);
+    this.refreshInventory();
     this.refreshClock();
   }
 
@@ -1132,7 +1132,7 @@ export default class GameScene {
       this.pairWindows();
       return;
     }
-    this.inventoryWindow.update(this.inventorySystem);
+    this.refreshInventory();
     this.inventoryWindow.show();
     this.bagButton.setActive(true);
     this.pairWindows();
@@ -1208,9 +1208,25 @@ export default class GameScene {
     if (parts.length) this.log.add(parts.join('   '), 'gain');
   }
 
+  ownsTool(key) {
+    const tool = getTool(key);
+    return Boolean(tool) && (!tool.item || this.inventorySystem.count(tool.item) > 0);
+  }
+
+  selectTool(key) {
+    if (this.ownsTool(key)) this.heldItemSystem.set(key);
+  }
+
+  refreshInventory() {
+    this.inventoryWindow.update(this.inventorySystem);
+    this.hotbar.setAvailable((key) => this.ownsTool(key));
+    if (this.heldItemSystem.key && !this.ownsTool(this.heldItemSystem.key)) this.heldItemSystem.set(null);
+  }
+
   onHeldItemChange() {
     this.hotbar.setSelected(this.heldItemSystem.key);
     this.playerSystem.setHeldTool(this.heldItemSystem.key);
+    this.playerAttackSystem.setWeapon(this.heldItemSystem.tool());
     this.gatherSystem.setTool(this.heldItemSystem.tool());
     this.gridSystem.hideHologram();
     this.setPointerCursorState();
@@ -1267,7 +1283,7 @@ export default class GameScene {
       serialize: () => this.inventorySystem.serialize(),
       apply: (data) => {
         this.inventorySystem.apply(data);
-        this.inventoryWindow.update(this.inventorySystem);
+        this.refreshInventory();
       },
       defaults: () => this.inventorySystem.defaultState(),
       order: 6,
@@ -1456,7 +1472,7 @@ export default class GameScene {
       if (!key) return;
       evt.preventDefault();
       if (this.heldItemSystem.key === key) this.heldItemSystem.set(null);
-      else this.heldItemSystem.set(key);
+      else this.selectTool(key);
       return;
     }
     if (evt.key === 'e' || evt.key === 'E') {
@@ -1563,7 +1579,7 @@ export default class GameScene {
     const level = Number.isFinite(cell.level) ? cell.level : this.gatherSystem.levelOf();
     const height = this.terrainSystem.walkHeightAt(cell.cx * CELL_SIZE, cell.cz * CELL_SIZE, level);
     const detail = `výška ${metersText(height)}`;
-    const deco = this.decoHighlight.labelAt(cell.cx, cell.cz, level);
+    const deco = this.decoHighlight.labelAt(cell.cx, cell.cz, level, cell.point);
     if (deco) {
       this.tooltipPanel.show(deco.label, detail);
       return;

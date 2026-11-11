@@ -13,7 +13,7 @@ export default class DecoHighlightSystem {
   constructor(scene) {
     this.s = scene;
     this.records = new Map();
-    this.hoverKey = null;
+    this.hovered = null;
     this.time = 0;
     this.visible = true;
     this.levelOf = null;
@@ -38,50 +38,75 @@ export default class DecoHighlightSystem {
     if (node.getTotalVertices && node.getTotalVertices() > 0) meshes.unshift(node);
     if (!meshes.length) return;
     const key = this.keyOf(entry.cx, entry.cz, levelOfEntry(entry));
-    this.removeKey(key);
-    this.records.set(key, {
+    const list = (this.records.get(key) || []).filter((record) => {
+      if (record.node !== node) return true;
+      this.drop(record);
+      return false;
+    });
+    list.push({
       node,
       meshes,
       label: def.displayName || entry.key,
       level: 0,
     });
+    this.records.set(key, list);
   }
 
   hasEntry(cx, cz) {
     return this.records.has(this.keyOf(cx, cz, this.currentLevel()));
   }
 
-  labelAt(cx, cz, level = this.currentLevel()) {
-    const record = this.records.get(this.keyOf(cx, cz, level));
+  recordAt(cx, cz, level, point = null) {
+    const list = this.records.get(this.keyOf(cx, cz, level));
+    if (!list) return null;
+    if (!point || list.length === 1) return list[0];
+    let best = null;
+    let bestDistance = Infinity;
+    for (const record of list) {
+      const spot = record.node.getAbsolutePosition();
+      const distance = (spot.x - point.x) ** 2 + (spot.z - point.z) ** 2;
+      if (distance >= bestDistance) continue;
+      best = record;
+      bestDistance = distance;
+    }
+    return best;
+  }
+
+  labelAt(cx, cz, level = this.currentLevel(), point = null) {
+    const record = this.recordAt(cx, cz, level, point);
     return record ? { label: record.label } : null;
   }
 
-  spotAt(cx, cz, level) {
-    const record = this.records.get(this.keyOf(cx, cz, level));
+  spotAt(cx, cz, level, point = null) {
+    const record = this.recordAt(cx, cz, level, point);
     return record ? record.node.getAbsolutePosition() : null;
   }
 
   setHover(cell) {
-    this.hoverKey = cell ? this.keyOf(cell.cx, cell.cz, Number.isFinite(cell.level) ? cell.level : this.currentLevel()) : null;
+    this.hovered = cell ? this.recordAt(cell.cx, cell.cz, Number.isFinite(cell.level) ? cell.level : this.currentLevel(), cell.point) : null;
   }
 
   setVisible(visible) {
     this.visible = visible !== false;
     if (this.visible) return;
-    this.hoverKey = null;
-    for (const record of this.records.values()) this.applyLevel(record, 0);
+    this.hovered = null;
+    for (const list of this.records.values()) {
+      for (const record of list) this.applyLevel(record, 0);
+    }
   }
 
   update(dt) {
     if (!this.records.size || !this.visible) return;
     this.time += dt;
     const step = OUTLINE_FADE_SPEED * dt;
-    for (const [key, record] of this.records) {
-      const goal = key === this.hoverKey ? 1 : 0;
-      const next = record.level + Math.max(-step, Math.min(step, goal - record.level));
-      if (next === record.level) continue;
-      record.level = next;
-      this.applyLevel(record, next);
+    for (const list of this.records.values()) {
+      for (const record of list) {
+        const goal = record === this.hovered ? 1 : 0;
+        const next = record.level + Math.max(-step, Math.min(step, goal - record.level));
+        if (next === record.level) continue;
+        record.level = next;
+        this.applyLevel(record, next);
+      }
     }
   }
 
@@ -98,20 +123,39 @@ export default class DecoHighlightSystem {
 
   remove(cx, cz, anchor = null) {
     const level = anchor && anchor.metadata ? levelOfEntry(anchor.metadata.entry) : this.currentLevel();
-    this.removeKey(this.keyOf(cx, cz, level));
+    const key = this.keyOf(cx, cz, level);
+    if (!anchor) {
+      this.removeKey(key);
+      return;
+    }
+    const list = this.records.get(key);
+    if (!list) return;
+    const kept = list.filter((record) => {
+      if (record.node !== anchor && !record.node.isDescendantOf(anchor)) return true;
+      this.drop(record);
+      return false;
+    });
+    if (kept.length) this.records.set(key, kept);
+    else this.records.delete(key);
   }
 
   removeKey(key) {
-    const record = this.records.get(key);
-    if (!record) return;
-    this.applyLevel(record, 0);
+    const list = this.records.get(key);
+    if (!list) return;
+    for (const record of list) this.drop(record);
     this.records.delete(key);
-    if (this.hoverKey === key) this.hoverKey = null;
+  }
+
+  drop(record) {
+    this.applyLevel(record, 0);
+    if (this.hovered === record) this.hovered = null;
   }
 
   clear() {
-    for (const record of this.records.values()) this.applyLevel(record, 0);
+    for (const list of this.records.values()) {
+      for (const record of list) this.applyLevel(record, 0);
+    }
     this.records.clear();
-    this.hoverKey = null;
+    this.hovered = null;
   }
 }

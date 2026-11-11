@@ -259,7 +259,9 @@
 }
 
 .hotbar__slot.is-empty,
-.hotbar__slot.is-empty:hover {
+.hotbar__slot.is-empty:hover,
+.hotbar__slot.is-locked,
+.hotbar__slot.is-locked:hover {
   color: rgba(166, 157, 134, 0.45);
   opacity: 0.55;
   cursor: default;

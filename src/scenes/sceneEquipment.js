@@ -25,7 +25,7 @@ export default {
   },
 
   refreshEquipment() {
-    this.inventoryWindow.update(this.inventorySystem);
+    this.refreshInventory();
     this.characterWindow.setEquipment(this.equipmentSystem.slots);
     for (const { key } of EQUIP_SLOTS) {
       const itemKey = this.equipmentSystem.get(key);

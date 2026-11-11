@@ -328,6 +328,12 @@ pozná kost, kterou animace nepřepsala, aby se otočení nesčítalo. Světlo p
 existuje od startu a jen se ztlumí; přidání světla by přepočítalo materiály celého
 světa (bliknutí). Výměna nástroje ve stoje se odehraje sáhnutím (`toolSwapLeft`).
 
+**Klacek** je první zbraň (`TOOL_TYPES.club`, `weapon`: poškození, prodleva, animace
+úderu). Nástroj s `item` je na liště zamčený, dokud hráč ten předmět nemá v batohu
+(`GameScene.ownsTool`); jméno a ikonu bere z předmětu. Na zemi leží čtyři tvary
+(`club_a`–`club_d`, uložené naležato), v ruce je jeden stojící (`props/club/club.glb`).
+Údery bez zbraně střídají pěst a kop, se zbraní se máchá jako sekyrou.
+
 Modely z Meshy se před vložením zmenšují (textury WebP 1024, nekovový materiál);
 nahraný model ztratí posun svých dílů, proto pohyblivé díly (víko truhly) mají osu
 otáčení spočítanou až ve hře z tvaru dílu.
@@ -355,6 +361,16 @@ drží zbytek, dokud se nepropadne. Okno se zavře při odchodu dál než dosah 
 + 1,2 m (nebo vzdálenost při otevření + 1,2 m). Víko truhly (`lid`) se
 zvedne kolem zadní horní hrany. `backToEdge` posune předmět zády ke kraji buňky
 podle natočení ze štětce (R).
+
+**Bez nástroje** jde sbírat jen to, co má `byHand` (houby, mušle, kokosy, klacky).
+Stromy jen sekerou, kameny jen krumpáčem (`gatherSystem.canHarvest`).
+
+**Víc věcí na buňce**: na jedné buňce smí ležet víc věcí ke sběru (palma a kokos).
+Sběr, zlatý obrys i popiska berou tu, která je nejblíž bodu pod kurzorem. Sebrání
+označí jen tu věc (`gatherSystem.markTaken(anchor)`), uvolnění místa
+(`decoSystem.releaseCell`) se týká jen věcí, které blokují cestu, nebo stromů. Evidence
+sebraných věcí (`harvestSystem`) si drží buňku i druh věci, takže dorůstání po
+3 dnech vrátí správný kus.
 
 **Dosah rukou** je v katalogu postavy (`handReach`: 2,6 m vodorovně, nejvýš 1 m výš
 nebo níž) a čte ho sběr, truhly i táborák (ten má vlastní vodorovný dosah 3,2 m).

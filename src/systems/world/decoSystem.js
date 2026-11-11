@@ -569,9 +569,10 @@ export default class DecoSystem {
     return out;
   }
 
-  entryAt(cx, cz) {
+  entryAt(cx, cz, match) {
     const anchor = this.nodes.find((node) => {
       if (!node || node.isDisposed() || !node.metadata?.def?.gather) return false;
+      if (!match(node.metadata.def, node.metadata.entry)) return false;
       return worldToCellCoords(node.position.x, node.position.z).cx === cx
         && worldToCellCoords(node.position.x, node.position.z).cz === cz;
     });
@@ -674,6 +675,8 @@ export default class DecoSystem {
   }
 
   releaseCell(cx, cz, anchor = null) {
+    const def = anchor && anchor.metadata ? anchor.metadata.def : null;
+    if (def && def.blocks === false && def.kind !== 'tree') return;
     const key = cellKey(cx, cz);
     const level = levelOfEntry(anchor && anchor.metadata ? anchor.metadata.entry : null);
     if (level !== 0) {

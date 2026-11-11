@@ -40,6 +40,13 @@ export const ITEM_TYPES = {
     kind: 'raw',
     color: [0.78, 0.55, 0.42],
   },
+  coconut: {
+    displayName: 'Kokos',
+    icon: '🥥',
+    stackSize: 20,
+    kind: 'raw',
+    color: [0.5, 0.33, 0.18],
+  },
   herb: {
     displayName: 'Léčivá bylina',
     stackSize: 10,
@@ -133,11 +140,22 @@ export const TOOL_TYPES = {
     file: `${ASSET_DIRS.props}torch/torch.glb`,
     grip: { scale: 0.6, upright: true, lean: 0.3, outward: 0.15, palm: 0.08, raise: -0.5, bend: -0.9, curl: 1.1, slide: -0.07, toThumb: 0.3 },
   },
+  club: {
+    item: 'stick',
+    kind: 'weapon',
+    model: 'club',
+    file: `${ASSET_DIRS.props}club/club.glb`,
+    grip: { scale: 1.6, position: [-0.12, -0.07, 0.04] },
+    weapon: { damage: 12, cooldown: 1.1, anim: 'chop' },
+  },
 };
 
-export const HOTBAR_ITEMS = ['axe', 'pickaxe', 'torch'];
+export const HOTBAR_ITEMS = ['axe', 'pickaxe', 'torch', 'club'];
 export const HOTBAR_SLOTS = 5;
 
 export function getTool(toolKey) {
-  return TOOL_TYPES[toolKey] || null;
+  const tool = TOOL_TYPES[toolKey];
+  if (!tool || !tool.item) return tool || null;
+  const item = ITEM_TYPES[tool.item] || {};
+  return { displayName: item.displayName, shortName: item.displayName, icon: item.icon, ...tool };
 }
