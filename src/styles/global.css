@@ -1,15 +1,24 @@
-/* Globální styl hry — barvy, pozadí, plátno. */
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;600;700&display=swap');
+/* Globální styl hry — barvy, písma, pozadí, plátno. */
+@import url('https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Nunito+Sans:wght@400;600;700&display=swap');
 
 :root {
-  --bg-dark: #0d1014;
-  --bg-panel: rgba(16, 22, 28, 0.88);
-  --border-glow: rgba(90, 200, 170, 0.35);
-  --glow-accent: #5ac8aa;
+  --bg-dark: #0e1612;
+  --bg-panel: rgba(16, 26, 20, 0.9);
+  --border-glow: rgba(201, 162, 94, 0.4);
+  --glow-accent: #3fd483;
   --glow-warm: #e0a458;
-  --text-main: #d6e2e0;
-  --text-dim: #7d8f8c;
+  --title-gold: #e3c27a;
+  --text-main: #ece3cc;
+  --text-dim: #a69d86;
   --editor-height: #d9a441;
+  --font-title: 'Marcellus SC', serif;
+  --ui-frame: url('/assets/ui/frame/window-frame.png');
+  --ui-fill: url('/assets/ui/frame/panel-fill.jpg');
+  --ui-gem: url('/assets/ui/frame/window-gem.png');
+  --ui-divider: url('/assets/ui/frame/divider.png');
+  --ui-slot: url('/assets/ui/frame/slot.png');
+  --ui-button: url('/assets/ui/frame/button.png');
+  --ui-close: url('/assets/ui/frame/close.png');
 }
 
 * {
@@ -24,7 +33,7 @@ body {
   height: 100%;
   background: var(--bg-dark);
   overflow: hidden;
-  font-family: 'Roboto Mono', monospace;
+  font-family: 'Nunito Sans', sans-serif;
   color: var(--text-main);
 }
 

@@ -1,8 +1,11 @@
 // Část herní scény: sběr, kácení a těžba — načasování úderu, výnos a obnova sebraných věcí.
 // Patří ke GameScene (sdílí její this); jen ji dělí, aby hlavní soubor zůstal přehledný.
 import { PICKUP_SOUND } from '../systems/gathering/gatherSystem.js';
+import { PLAYER_BASE } from '../data/catalogs/player.js';
 
 const IMPACT_DELAY = 0.28;
+const LOOT_LEAVE_MARGIN = 1.2;
+const LOOT_LEAVE_DISTANCE = PLAYER_BASE.handReach.distance + LOOT_LEAVE_MARGIN;
 
 export default {
   updateGathering(dt) {
@@ -13,6 +16,7 @@ export default {
     if (active) this.holdStrikeReady();
     this.updateGatherImpact(dt);
     this.updateLootPickup(dt);
+    this.updateLootWindow();
     this.hotbar.setPrompt(this.gatherPrompt());
   },
 
@@ -28,14 +32,75 @@ export default {
   },
 
   openLoot(box) {
-    const yields = this.lootSystem.open(box);
-    if (!yields) return false;
-    this.syncLootHighlights();
+    if (this.lootSource && this.lootSource.ref === box) return true;
+    if (!this.lootSystem.open(box)) return false;
     this.beginLootPickup(box.x, box.z, () => {
       this.lootSystem.swing(box);
-      this.receiveLoot(yields, `Vybráno: ${box.def.displayName}`);
+      this.showLoot({ kind: 'box', ref: box, x: box.x, z: box.z, title: box.def.displayName });
     });
     return true;
+  },
+
+  lootContents(source) {
+    if (source.kind === 'box') return this.lootSystem.contentsOf(source.ref);
+    return this.creatureSystem.loot(source.ref) || [];
+  },
+
+  showLoot(source) {
+    const root = this.playerSystem.root;
+    const opensAt = root ? Math.hypot(root.position.x - source.x, root.position.z - source.z) : 0;
+    this.lootSource = { ...source, leaveAt: Math.max(LOOT_LEAVE_DISTANCE, opensAt + LOOT_LEAVE_MARGIN) };
+    this.lootWindow.show(source.title, this.lootContents(source));
+  },
+
+  takeLoot(itemKey) {
+    const source = this.lootSource;
+    if (!source) return;
+    const taken = source.kind === 'box'
+      ? this.lootSystem.take(source.ref, itemKey)
+      : this.creatureSystem.takeLoot(source.ref, itemKey);
+    if (taken) this.receiveLoot([taken]);
+    this.refreshLootWindow();
+  },
+
+  takeAllLoot() {
+    const source = this.lootSource;
+    if (!source) return;
+    const taken = [];
+    for (const { itemKey } of this.lootContents(source)) {
+      const item = source.kind === 'box'
+        ? this.lootSystem.take(source.ref, itemKey)
+        : this.creatureSystem.takeLoot(source.ref, itemKey);
+      if (item) taken.push(item);
+    }
+    if (taken.length) this.receiveLoot(taken);
+    this.refreshLootWindow();
+  },
+
+  refreshLootWindow() {
+    const source = this.lootSource;
+    if (!source) return;
+    const items = this.lootContents(source);
+    if (items.length) {
+      this.lootWindow.update(items);
+      return;
+    }
+    if (source.kind === 'box') this.syncLootHighlights();
+    this.log.add(`Vybráno: ${source.title}`, 'action');
+    this.closeLoot();
+  },
+
+  closeLoot() {
+    this.lootSource = null;
+    if (this.lootWindow.open) this.lootWindow.close();
+  },
+
+  updateLootWindow() {
+    const source = this.lootSource;
+    if (!source) return;
+    const root = this.playerSystem.root;
+    const away = !root || Math.hypot(root.position.x - source.x, root.position.z - source.z) > source.leaveAt;
+    if (away || this.dying || this.editor.active || !this.lootContents(source).length) this.closeLoot();
   },
 
   beginLootPickup(x, z, onImpact) {
@@ -58,16 +123,15 @@ export default {
     pickup.onImpact();
   },
 
-  receiveLoot(yields, note = null) {
+  receiveLoot(yields) {
     for (const { itemKey, amount } of yields) this.inventorySystem.add(itemKey, amount);
     this.inventoryWindow.update(this.inventorySystem);
-    if (note) this.log.add(note, 'action');
     this.logGain(yields);
   },
 
   syncLootHighlights() {
     for (const box of this.lootSystem.boxes) {
-      if (!this.lootSystem.opened.has(box.key)) continue;
+      if (!this.lootSystem.isEmpty(box)) continue;
       this.decoHighlight.removeKey(this.decoHighlight.keyOf(box.cx, box.cz, box.level));
     }
   },

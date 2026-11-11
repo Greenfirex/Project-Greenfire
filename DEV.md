@@ -37,6 +37,12 @@ src/
   styles/                    global.css, hud.css, editor.css
 ```
 
+- Vzhled oken: barvy, písma (Marcellus SC nadpisy, Nunito Sans text) a cesty
+  k obrázkům rámu jsou proměnné v `global.css`. Rám okna se kreslí přes
+  `border-image` (9 dílů, roztahuje se); drahokam nahoře je zvlášť, aby se nedeformoval.
+  Obrázky z Gemini leží v `_sources/ui-frame/`, `node tools/prepareUiFrames.cjs`
+  z nich odstraní purpurové pozadí a uloží je do `public/assets/ui/frame/`.
+
 - Systémy jsou třídy, konstruktor dostane scénu, přístup přes `this.s`.
 - Velké soubory (scéna, terén, editor) jsou rozdělené na **části** připojené přes
   `Object.assign` (pravidla v `.clinerules`). Editor kódu (VS Code) části nevidí
@@ -340,8 +346,11 @@ operací (registrace v `GameScene.registerInteractions`):
 | 45 | truhla, kostlivec | otevřít / prohledat |
 | 40 | táborák | zapálit |
 
-**Truhly a kostlivci** (`world/lootSystem.js`): dekorace s `loot` jde jednou vybrat
-(E nebo klik), obsah jde do batohu a vybrané se ukládají. Víko truhly (`lid`) se
+**Truhly a kostlivci** (`world/lootSystem.js`): dekorace s `loot` se otevře (E nebo
+klik) do okna kořisti (`ui/lootWindow.js`): klik na předmět ho vezme, E nebo „Vzít vše"
+vezme zbytek. Co hráč nechá, zůstane v truhle i v savu (`remaining`); mrtvola tvora
+drží zbytek, dokud se nepropadne. Okno se zavře při odchodu dál než dosah ruky
++ 1,2 m (nebo vzdálenost při otevření + 1,2 m). Víko truhly (`lid`) se
 zvedne kolem zadní horní hrany. `backToEdge` posune předmět zády ke kraji buňky
 podle natočení ze štětce (R).
 

@@ -1,4 +1,4 @@
-// Truhly ve světě — co v nich je, jestli už je hráč vybral, a zvednutí víka při otevření.
+// Truhly ve světě — co v nich ještě zbylo, jestli už je hráč otevřel, a zvednutí víka při otevření.
 // Drží jen seznam truhel; kde stojí hráč a kam obsah putuje, řeší scéna.
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -26,6 +26,7 @@ export default class LootSystem {
     this.s = scene;
     this.boxes = [];
     this.opened = new Set();
+    this.remaining = new Map();
     this.nearest = null;
   }
 
@@ -82,12 +83,35 @@ export default class LootSystem {
     if (box) box.swinging = true;
   }
 
+  isEmpty(box) {
+    return Boolean(box) && this.opened.has(box.key) && !this.remaining.has(box.key);
+  }
+
   open(box) {
-    if (!box || this.opened.has(box.key)) return null;
-    this.opened.add(box.key);
-    return Object.entries(box.def.loot)
-      .filter(([, amount]) => Number.isFinite(amount) && amount > 0)
-      .map(([itemKey, amount]) => ({ itemKey, amount }));
+    if (!box || this.isEmpty(box)) return null;
+    if (!this.opened.has(box.key)) {
+      this.opened.add(box.key);
+      const fresh = {};
+      for (const [itemKey, amount] of Object.entries(box.def.loot)) {
+        if (Number.isFinite(amount) && amount > 0) fresh[itemKey] = amount;
+      }
+      if (Object.keys(fresh).length) this.remaining.set(box.key, fresh);
+    }
+    return this.contentsOf(box);
+  }
+
+  contentsOf(box) {
+    const left = box ? this.remaining.get(box.key) : null;
+    return left ? Object.entries(left).map(([itemKey, amount]) => ({ itemKey, amount })) : [];
+  }
+
+  take(box, itemKey) {
+    const left = box ? this.remaining.get(box.key) : null;
+    if (!left || !left[itemKey]) return null;
+    const taken = { itemKey, amount: left[itemKey] };
+    delete left[itemKey];
+    if (!Object.keys(left).length) this.remaining.delete(box.key);
+    return taken;
   }
 
   update(dt, root, level = 0) {
@@ -103,7 +127,7 @@ export default class LootSystem {
     let best = null;
     let bestDist = REACH;
     for (const box of this.boxes) {
-      if (box.level !== level || this.opened.has(box.key)) continue;
+      if (box.level !== level || this.isEmpty(box)) continue;
       if (Math.abs(box.y - from.y) > REACH_HEIGHT) continue;
       const dist = Math.hypot(box.x - from.x, box.z - from.z);
       if (dist > bestDist) continue;
@@ -114,16 +138,26 @@ export default class LootSystem {
   }
 
   serialize() {
-    return { opened: [...this.opened] };
+    return { opened: [...this.opened], remaining: Object.fromEntries(this.remaining) };
   }
 
   defaultState() {
-    return { opened: [] };
+    return { opened: [], remaining: {} };
   }
 
   apply(data) {
     const list = data && Array.isArray(data.opened) ? data.opened.filter((key) => typeof key === 'string') : [];
     this.opened = new Set(list);
+    this.remaining = new Map();
+    const saved = data && data.remaining && typeof data.remaining === 'object' ? data.remaining : {};
+    for (const [key, items] of Object.entries(saved)) {
+      if (!this.opened.has(key) || !items || typeof items !== 'object') continue;
+      const clean = {};
+      for (const [itemKey, amount] of Object.entries(items)) {
+        if (Number.isFinite(amount) && amount > 0) clean[itemKey] = amount;
+      }
+      if (Object.keys(clean).length) this.remaining.set(key, clean);
+    }
     for (const box of this.boxes) {
       box.open = this.opened.has(box.key) ? 1 : 0;
       this.pose(box);

@@ -36,6 +36,11 @@ export default class WindowFrame {
     return root;
   }
 
+  setTitle(title) {
+    this.title = title;
+    if (this.root) this.root.querySelector('.side-window__title').textContent = title;
+  }
+
   show() {
     this.mount();
     this.open = true;

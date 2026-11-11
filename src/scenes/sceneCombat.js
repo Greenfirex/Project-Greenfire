@@ -225,12 +225,15 @@ export default {
 
   lootCorpse(corpse) {
     if (!corpse) return false;
-    const yields = this.creatureSystem.loot(corpse);
-    if (!yields) return false;
+    if (this.lootSource && this.lootSource.ref === corpse) return true;
+    if (!this.creatureSystem.loot(corpse)) return false;
     this.creatureTooltipOn = false;
     this.tooltipPanel.hide();
     this.decoHighlight.setHover(null);
-    this.beginLootPickup(corpse.x, corpse.z, () => this.receiveLoot(yields));
+    const title = corpse.type ? corpse.type.label : 'Tvor';
+    this.beginLootPickup(corpse.x, corpse.z, () => {
+      this.showLoot({ kind: 'corpse', ref: corpse, x: corpse.x, z: corpse.z, title });
+    });
     return true;
   },
 

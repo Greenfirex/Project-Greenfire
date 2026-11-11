@@ -42,6 +42,7 @@ import HeldItemSystem from '../systems/player/heldItemSystem.js';
 import WaveSpraySystem from '../systems/water/waveSpraySystem.js';
 import AudioSystem from '../systems/atmosphere/audioSystem.js';
 import InventoryWindow from '../ui/inventoryWindow.js';
+import LootWindow from '../ui/lootWindow.js';
 import CharacterWindow from '../ui/characterWindow.js';
 import LogPanel from '../ui/logPanel.js';
 import FloatingNumbers from '../ui/floatingNumbers.js';
@@ -189,6 +190,8 @@ export default class GameScene {
     this.bestiaryWindow = new BestiaryWindow();
     this.log = new LogPanel();
     this.inventoryWindow = new InventoryWindow();
+    this.lootWindow = new LootWindow();
+    this.lootSource = null;
     this.characterWindow = new CharacterWindow();
     this.vitalsBar = new VitalsBar();
     this.hoverHint = new HoverHint();
@@ -664,7 +667,7 @@ export default class GameScene {
       priority: 45,
       pick: ({ cell }) => {
         const box = cell ? this.lootSystem.at(cell.cx, cell.cz, this.playerSystem.level) : null;
-        if (!box || this.lootSystem.opened.has(box.key)) return null;
+        if (!box || this.lootSystem.isEmpty(box)) return null;
         return { ref: box, inReach: this.lootSystem.nearest === box };
       },
       act: (target) => this.openLoot(target.ref),
@@ -1116,6 +1119,11 @@ export default class GameScene {
       this.pairWindows();
     };
     this.inventoryWindow.onUnequip = (slot) => this.unequipSlot(slot);
+    this.lootWindow.onTake = (itemKey) => this.takeLoot(itemKey);
+    this.lootWindow.onTakeAll = () => this.takeAllLoot();
+    this.lootWindow.onClose = () => {
+      this.lootSource = null;
+    };
     this.characterWindow.onEquip = (itemKey, slot) => this.equipItem(itemKey, slot);
     this.vitalsBar.setHealth(this.playerStats.health, this.playerStats.maxHealth);
     this.vitalsBar.setStamina(this.playerStats.stamina, this.playerStats.maxStamina);
@@ -1170,6 +1178,10 @@ export default class GameScene {
     }
     if (this.bestiaryWindow.open) {
       this.bestiaryWindow.close();
+      closed = true;
+    }
+    if (this.lootWindow.open) {
+      this.closeLoot();
       closed = true;
     }
     if (this.pinnedCreature) {
@@ -1444,6 +1456,11 @@ export default class GameScene {
       if (this.campfireSystem.pending) {
         evt.preventDefault();
         this.cancelCampfireIgnite();
+        return;
+      }
+      if (this.lootWindow.open) {
+        evt.preventDefault();
+        if (!evt.repeat) this.takeAllLoot();
         return;
       }
       const fire = this.campfireSystem.nearest;

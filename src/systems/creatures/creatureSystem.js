@@ -1367,19 +1367,30 @@ export default class CreatureSystem {
     if (!corpse || !corpse.dead) return null;
     const entry = this.corpses.find((item) => item.creature === corpse);
     if (!entry || entry.looted) return null;
-    const config = corpse.type && corpse.type.loot ? corpse.type.loot : null;
-    if (!config) return null;
-    const yields = [];
-    for (const [itemKey, amount] of Object.entries(config)) {
-      if (typeof itemKey !== 'string' || !Number.isFinite(amount) || amount <= 0) continue;
-      yields.push({ itemKey, amount });
+    if (!entry.remaining) {
+      const config = corpse.type && corpse.type.loot ? corpse.type.loot : {};
+      entry.remaining = {};
+      for (const [itemKey, amount] of Object.entries(config)) {
+        if (Number.isFinite(amount) && amount > 0) entry.remaining[itemKey] = amount;
+      }
     }
-    if (!yields.length) return null;
-    entry.looted = true;
-    entry.sinkAt = Math.min(entry.sinkAt, entry.age + CORPSE_LOOT_SINK_DELAY);
-    if (this.hoveredCorpse === corpse) this.hoveredCorpse = null;
-    for (const mesh of corpse.meshes || []) mesh.renderOutline = false;
-    return yields;
+    const left = Object.entries(entry.remaining).map(([itemKey, amount]) => ({ itemKey, amount }));
+    if (!left.length) return null;
+    return left;
+  }
+
+  takeLoot(corpse, itemKey) {
+    const entry = this.corpses.find((item) => item.creature === corpse);
+    if (!entry || entry.looted || !entry.remaining || !entry.remaining[itemKey]) return null;
+    const taken = { itemKey, amount: entry.remaining[itemKey] };
+    delete entry.remaining[itemKey];
+    if (!Object.keys(entry.remaining).length) {
+      entry.looted = true;
+      entry.sinkAt = Math.min(entry.sinkAt, entry.age + CORPSE_LOOT_SINK_DELAY);
+      if (this.hoveredCorpse === corpse) this.hoveredCorpse = null;
+      for (const mesh of corpse.meshes || []) mesh.renderOutline = false;
+    }
+    return taken;
   }
 
   despawn(creature) {
