@@ -9,21 +9,21 @@ const TABS = [
 ];
 
 const PRESETS = [
-  { value: 'high', label: 'Vysoká', title: 'Plná kvalita, plné stíny, hustá tráva' },
-  { value: 'balanced', label: 'Vyvážená', title: 'Střední kvalita, jednoduché stíny, střední tráva' },
-  { value: 'eco', label: 'Úsporná', title: 'Nízká kvalita, bez stínů, trávy a odrazů, 30 snímků' },
+  { value: 'eco', label: 'Nejrychlejší', hint: 'bez stínů, trávy a odrazů, 30 snímků' },
+  { value: 'balanced', label: 'Vyvážené', hint: 'jednodušší stíny, střední tráva' },
+  { value: 'high', label: 'Nejhezčí', hint: 'plné stíny, hustá tráva, odrazy' },
 ];
 
 const QUALITIES = [
-  { value: 'high', label: 'Vysoká' },
-  { value: 'medium', label: 'Střední' },
   { value: 'low', label: 'Nízká' },
+  { value: 'medium', label: 'Střední' },
+  { value: 'high', label: 'Vysoká' },
 ];
 
 const FPS_OPTIONS = [
-  { value: '0', label: 'Bez omezení' },
-  { value: '60', label: '60' },
   { value: '30', label: '30' },
+  { value: '60', label: '60' },
+  { value: '0', label: 'Bez omezení' },
 ];
 
 const GRASS_LEVELS = [
@@ -40,26 +40,17 @@ const SHADOW_LEVELS = [
 ];
 
 const SIGHT_LEVELS = [
-  { value: 'off', label: 'Vypnutý', title: 'Bez dohledu postavy, nejrychlejší' },
-  { value: 'simple', label: 'Jednoduchý', title: 'Hrubší hrana dohledu pro slabší počítače' },
-  { value: 'full', label: 'Plný', title: 'Ostrá hrana toho, kam postava dohlédne' },
-];
-
-const FERN_MODES = [
-  { value: 'light', label: 'Lehká', title: 'Kapradina s 437 trojúhelníky, doporučeno' },
-  { value: 'detail', label: 'Detailní', title: 'Kapradina s 7 581 trojúhelníky, jen na vyzkoušení' },
+  { value: 'simple', label: 'Jednoduchá', title: 'Hrubší hrana dohledu pro slabší počítače' },
+  { value: 'full', label: 'Plná', title: 'Ostrá hrana toho, kam postava dohlédne' },
 ];
 
 const ITEMS = [
   { kind: 'choice', key: 'quality', tab: 'view', label: 'Kvalita obrazu', note: 'Nižší kvalita zmenší rozlišení a zjednoduší vodu a odrazy, obraz bude měkčí.', options: QUALITIES },
   { kind: 'choice', key: 'grass', tab: 'view', label: 'Hustota trávy', note: 'Jak hustě se kreslí tráva, kterou namaluješ štětcem. Na mapě zůstane pořád.', options: GRASS_LEVELS },
-  { kind: 'choice', key: 'grassFern', tab: 'view', label: 'Kapradina', note: 'Lehká je na hraní, detailní je jen na porovnání vzhledu a výkonu.', options: FERN_MODES },
   { kind: 'choice', key: 'fpsCap', tab: 'view', label: 'Omezit snímky', note: 'Nižší číslo = chladnější počítač.', options: FPS_OPTIONS, numeric: true },
   { kind: 'choice', key: 'shadows', tab: 'view', label: 'Stíny', note: 'Stíny patří k tomu, co hru zpomaluje nejvíc. Bez nich bude krajina plošší.', options: SHADOW_LEVELS },
-  { kind: 'choice', key: 'sight', tab: 'view', label: 'Dohled postavy', note: 'Co postava nevidí, se ztratí v oparu nebo ve tmě. Hra kvůli tomu přepočítává pohled při každém pohybu.', options: SIGHT_LEVELS },
+  { kind: 'choice', key: 'sight', tab: 'view', label: 'Ostrost dohledu', note: 'Co postava nevidí, se ztratí v oparu nebo ve tmě. Jednoduchá má hrubší hranu a ušetří výkon.', options: SIGHT_LEVELS },
   { kind: 'toggle', key: 'reflections', tab: 'view', label: 'Odrazy ve vodě', note: 'Stromy a břehy se zrcadlí na hladině. Vypnutí hodně ušetří, voda odráží jen oblohu.' },
-  { kind: 'toggle', key: 'fireGlow', tab: 'view', label: 'Záře ohně', note: 'Měkká záře kolem plamenů. Oheň svítí do okolí i bez ní. Šetří jen ve chvíli, kdy něco hoří.' },
-  { kind: 'toggle', key: 'waterDetail', tab: 'view', label: 'Čeření vody', note: 'Jemné vlnky na hladině. Vypnutí ušetří výkon, hladina bude hladší.' },
   { kind: 'toggle', key: 'autoTune', tab: 'view', label: 'Automatická úprava výkonu', note: 'Při poklesu snímků hra sama sníží rozlišení, nejvýš na 70 %. Při limitu 30 snímků nepracuje.' },
   { kind: 'volume', key: 'sfxVolume', tab: 'sound', label: 'Zvuky hry', note: 'Sekání, kroky, těžba a padající stromy.' },
   { kind: 'volume', key: 'ambientVolume', tab: 'sound', label: 'Zvuky prostředí', note: 'Hučení lesa (ve dne jiné než v noci) a příboj u vody.' },
@@ -87,6 +78,7 @@ export default class OptionsPanel {
     this.button = null;
     this.values = { ...OPTION_DEFAULTS };
     this.onChange = null;
+    this.onToggle = null;
     this.tab = TABS[0].key;
   }
 
@@ -144,18 +136,23 @@ export default class OptionsPanel {
   }
 
   buildPresets(panel) {
-    const presets = document.createElement('div');
-    presets.className = 'options-panel__presets';
+    const block = document.createElement('div');
+    block.innerHTML = `
+      <div class="options-panel__section">Rychlé nastavení <em class="options-panel__custom">vlastní</em></div>
+      <small class="options-panel__note">Nastaví naráz všechny volby níže.</small>
+      <div class="options-panel__presets"></div>
+      <div class="options-panel__section options-panel__section--detail">Podrobné nastavení</div>
+    `;
+    const presets = block.querySelector('.options-panel__presets');
     for (const preset of PRESETS) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.dataset.preset = preset.value;
-      btn.textContent = preset.label;
-      btn.title = preset.title;
+      btn.innerHTML = `<span>${preset.label}</span><small>${preset.hint}</small>`;
       btn.addEventListener('click', () => this.patch(PRESET_OPTIONS[preset.value]));
       presets.appendChild(btn);
     }
-    panel.appendChild(presets);
+    panel.appendChild(block);
   }
 
   buildItems(panel, tabKey) {
@@ -255,16 +252,23 @@ export default class OptionsPanel {
     }
   }
 
+  get isOpen() {
+    return Boolean(this.root && this.root.classList.contains('is-open'));
+  }
+
   show() {
-    if (!this.root) return;
+    if (!this.root || this.isOpen) return;
+    for (const prop of ['left', 'top', 'right', 'bottom', 'transform']) this.root.style[prop] = '';
     this.root.classList.add('is-open');
     if (this.button) this.button.classList.add('is-open');
+    if (this.onToggle) this.onToggle(true);
   }
 
   hide() {
-    if (!this.root) return;
+    if (!this.isOpen) return;
     this.root.classList.remove('is-open');
     if (this.button) this.button.classList.remove('is-open');
+    if (this.onToggle) this.onToggle(false);
   }
 
   setButtonVisible(visible) {
@@ -273,7 +277,7 @@ export default class OptionsPanel {
   }
 
   toggle() {
-    if (this.root && this.root.classList.contains('is-open')) this.hide();
+    if (this.isOpen) this.hide();
     else this.show();
   }
 
@@ -315,11 +319,15 @@ export default class OptionsPanel {
         if (label) label.textContent = `${value} %`;
       }
     }
+    let anyPreset = false;
     for (const btn of this.root.querySelectorAll('[data-preset]')) {
       const preset = PRESET_OPTIONS[btn.dataset.preset];
-      const matches = preset && Object.entries(preset).every(([key, value]) => this.values[key] === value);
-      btn.classList.toggle('is-active', Boolean(matches));
+      const matches = Boolean(preset) && Object.entries(preset).every(([key, value]) => this.values[key] === value);
+      btn.classList.toggle('is-active', matches);
+      if (matches) anyPreset = true;
     }
+    const custom = this.root.querySelector('.options-panel__custom');
+    if (custom) custom.classList.toggle('is-shown', !anyPreset);
   }
 }
 

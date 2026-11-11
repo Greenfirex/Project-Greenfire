@@ -294,10 +294,7 @@ export default class PlayerSystem {
   }
 
   torchFireFor() {
-    if (!this.torchFire) {
-      this.torchFire = new TorchFire(this.s);
-      this.syncTorchGlow();
-    }
+    if (!this.torchFire) this.torchFire = new TorchFire(this.s);
     return this.torchFire;
   }
 
@@ -461,14 +458,6 @@ export default class PlayerSystem {
     const world = local.multiply(parent).multiply(Matrix.RotationAxis(axis, angle));
     Quaternion.FromRotationMatrixToRef(world.multiply(Matrix.Invert(parent)), node.rotationQuaternion);
     this.boneTurns.set(node, { base, turned: node.rotationQuaternion.clone() });
-  }
-
-  setTorchGlow(glow) {
-    this.torchGlow = glow;
-  }
-
-  syncTorchGlow() {
-    if (this.torchGlow && this.torchFire) this.torchGlow.addSource(this.torchFire);
   }
 
   animLength(key, fallback) {

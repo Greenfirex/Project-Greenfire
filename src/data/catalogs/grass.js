@@ -32,7 +32,6 @@ export const GRASS_TYPES = {
   fern: {
     label: 'Kapradina',
     models: ['fern.glb'],
-    detailModel: 'fern_detail.glb',
     height: 0.38,
     perCell: { low: 2, medium: 3, high: 5 },
     tint: [1, 1, 1],
@@ -66,14 +65,8 @@ export const GRASS_MIXES = {
   ferns: { label: 'Kapradiny', weights: { fern: 6, cushion: 3 } },
 };
 
-export function grassModelUrls(fernDetail = false) {
-  const list = [];
-  for (const key of GRASS_ORDER) {
-    const type = GRASS_TYPES[key];
-    const file = fernDetail && type.detailModel ? type.detailModel : type.models[0];
-    list.push({ species: key, url: `${PLANT_DIR}${file}` });
-  }
-  return list;
+export function grassModelUrls() {
+  return GRASS_ORDER.map((key) => ({ species: key, url: `${PLANT_DIR}${GRASS_TYPES[key].models[0]}` }));
 }
 
 export function grassStartupUrls() {
@@ -81,7 +74,6 @@ export function grassStartupUrls() {
   for (const key of GRASS_ORDER) {
     const type = GRASS_TYPES[key];
     for (const file of type.models) list.push(`${PLANT_DIR}${file}`);
-    if (type.detailModel) list.push(`${PLANT_DIR}${type.detailModel}`);
   }
   return list;
 }

@@ -22,8 +22,6 @@ const SHADOW_SIZE = 512;
 const SHADOW_BIAS = 0.006;
 const SHADOW_NEAR = 0.05;
 const SHADOW_REFRESH_SECONDS = 1.5;
-const GLOW_STRENGTH = 0.9;
-const GLOW_HOT = 0.28;
 const FLICKER_INTERVAL = 0.12;
 
 const CORE = {
@@ -210,15 +208,6 @@ export default class CampfireFire {
       intensity *= SPUTTER_LEVEL + (1 - SPUTTER_LEVEL) * Math.min(1, catchUp + blink * 0.35);
     }
     this.light.intensity = intensity;
-  }
-
-  glowStrength() {
-    const hot = this.igniteSparks.isStarted() && this.heat > 0 && this.heat < GLOW_HOT ? 1 : this.heat;
-    return hot * GLOW_STRENGTH * (this.sputter > 0 ? 0.5 + Math.random() * 0.5 : 1);
-  }
-
-  glowMeshes() {
-    return [].concat(this.layers, this.igniteSparks);
   }
 
   dispose() {

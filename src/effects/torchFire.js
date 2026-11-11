@@ -38,7 +38,6 @@ const LIGHT_DAY = 0.24;
 const LIGHT_NIGHT = 1.8;
 const LIGHT_RANGE = 9;
 const LIGHT_OFFSET_Y = 0.1;
-const GLOW_STRENGTH = 0.55;
 
 function startedLayer(scene, name, emitter, texture, cfg) {
   const system = fireLayer(scene, name, emitter, texture, cfg, FLAME_GRAVITY.clone());
@@ -100,15 +99,6 @@ export default class TorchFire {
     }
     const strength = LIGHT_DAY + (LIGHT_NIGHT - LIGHT_DAY) * (1 - this.dayness);
     this.light.intensity = strength * this.flicker;
-  }
-
-  glowStrength() {
-    if (!this.visible) return 0;
-    return GLOW_STRENGTH * this.flicker;
-  }
-
-  glowMeshes() {
-    return this.layers.slice();
   }
 
   dispose() {

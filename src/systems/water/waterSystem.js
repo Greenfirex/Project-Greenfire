@@ -176,7 +176,6 @@ export default class WaterSystem {
     this.mirrorEye = new Vector3();
     this.savedView = new Matrix();
     this.depthMap = null;
-    this.detail = true;
     this.depthOrigin = new Vector2(0, 0);
     this.clipPlane = new Plane(0, -1, 0, 0);
     this.savedClipPlane = null;
@@ -602,11 +601,6 @@ export default class WaterSystem {
     return this.sampleField(this.cliffData, this.cliffWidth, this.cliffHeight, x, z);
   }
 
-  setDetail(on) {
-    this.detail = on !== false;
-    if (this.material) this.material.setFloat('waterDetail', this.detail ? 1 : 0);
-  }
-
   setReflections(on) {
     this.reflectionsOn = on !== false;
     if (this.material) this.material.setFloat('reflectionOn', this.reflectionsOn ? 1 : 0);
@@ -964,7 +958,6 @@ export default class WaterSystem {
     const material = this.materialFor();
     material.setFloat('waterLevel', level);
     material.setTexture('depthMap', this.depthMap);
-    material.setFloat('waterDetail', this.detail ? 1 : 0);
     material.setFloat('reflectionOn', this.reflectionsOn ? 1 : 0);
     material.setVector2('depthOrigin', this.depthOrigin);
     material.setVector2('depthScale', this.depthScale);

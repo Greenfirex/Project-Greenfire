@@ -12,6 +12,7 @@
   --text-dim: #a69d86;
   --editor-height: #d9a441;
   --font-title: 'Marcellus SC', serif;
+  --font-text: 'Nunito Sans', sans-serif;
   --ui-frame: url('/assets/ui/frame/window-frame.png');
   --ui-fill: url('/assets/ui/frame/panel-fill.jpg');
   --ui-gem: url('/assets/ui/frame/window-gem.png');
@@ -33,8 +34,40 @@ body {
   height: 100%;
   background: var(--bg-dark);
   overflow: hidden;
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-text);
   color: var(--text-main);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(201, 162, 94, 0.25);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to right, #8a6a35, #d6b06a 50%, #8a6a35);
+  border: 1px solid #3b2c14;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to right, #a07c40, #ecc982 50%, #a07c40);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@supports (-moz-appearance: none) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #c9a25e rgba(0, 0, 0, 0.4);
+  }
 }
 
 #game-shell {

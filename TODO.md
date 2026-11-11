@@ -41,7 +41,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Projít novou trávu v dev serveru: měřítko trsů, barvu, hustotu a skvrny.
 - [ ] Koberec krátkých stébel: doladit hustotu (dnes 250 kusů po čtyřech stéblech) a výšku (28 cm).
 - [ ] Zem ze tří textur: doladit jas (`gain` v katalogu trávy), velikost skvrn a poměr textur.
-- [ ] Rozhodnout kapradinu: lehká (437 trojúhelníků), nebo detailní (7 581); poraženou verzi i s přepínačem v Možnostech pak smazat.
 - [ ] Zvážit zmenšení 2K textur trávy — Meshy menší rozlišení neumí, jde to jen zmenšením při importu.
 
 ## Editor

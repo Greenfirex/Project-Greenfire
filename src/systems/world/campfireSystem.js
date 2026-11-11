@@ -25,8 +25,6 @@ export default class CampfireSystem {
     this.pendingSparks = false;
     this.onIgniteStart = null;
     this.igniteBusy = null;
-    this.onFireAdded = null;
-    this.onFireRemoved = null;
     this.terrain = [];
   }
 
@@ -55,7 +53,6 @@ export default class CampfireSystem {
     const level = levelOfEntry(entry);
     fire.setDayness(level < 0 ? 0 : this.dayness);
     this.fires.push({ entry, cx: entry.cx, cz: entry.cz, level, x, y: surfaceY, z, fire, lift: cfg.y, lit: false });
-    if (this.onFireAdded) this.onFireAdded(fire);
   }
 
   reseatHeights(heightForEntry, entries) {
@@ -75,7 +72,6 @@ export default class CampfireSystem {
     const alive = this.fires.filter((item) => entries.some((entry) => sameEntry(item, entry)));
     for (const item of this.fires) {
       if (alive.includes(item)) continue;
-      if (this.onFireRemoved) this.onFireRemoved(item.fire);
       item.fire.dispose();
     }
     this.fires = alive;

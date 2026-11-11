@@ -21,7 +21,6 @@ import DecoHighlightSystem from '../systems/world/decoHighlightSystem.js';
 import CampfireSystem from '../systems/world/campfireSystem.js';
 import LootSystem from '../systems/world/lootSystem.js';
 import EquipmentSystem from '../systems/player/equipmentSystem.js';
-import GlowSystem from '../systems/world/glowSystem.js';
 import DayNightSystem from '../systems/atmosphere/dayNightSystem.js';
 import LightingSystem from '../systems/atmosphere/lightingSystem.js';
 import SimSystem from '../systems/core/simSystem.js';
@@ -142,7 +141,6 @@ export default class GameScene {
     this.lootSystem = new LootSystem(scene);
     this.equipmentSystem = new EquipmentSystem();
     this.lootPickup = null;
-    this.glowSystem = new GlowSystem(scene);
     this.decoHighlight = new DecoHighlightSystem(scene);
     this.decoHighlight.levelOf = () => this.gatherSystem.levelOf();
     this.dayNightSystem = new DayNightSystem(scene);
@@ -206,6 +204,7 @@ export default class GameScene {
     this.deathScreen = new DeathScreen();
     this.dialog = new Dialog();
     this.paused = false;
+    this.optionsPaused = false;
     this.dying = false;
     this.deathTimer = 0;
     this.deathShown = false;
@@ -279,7 +278,6 @@ export default class GameScene {
       this.audioSystem.play('ignite');
       this.log.add('Táborák zapálen', 'action');
     };
-    this.setupGlow();
     this.camera = this.cameraSystem.create();
     this.setupLighting();
     this.cameraSystem.setMaxZoom(PLAYER_ZOOM_MAX);
@@ -357,8 +355,6 @@ export default class GameScene {
       this.creatureSystem.update(dt);
       this.footprintSystem.update(dt);
       this.sandBursts.update(dt);
-      this.glowSystem.retryPending();
-      this.glowSystem.update();
       this.updateGathering(dt);
       this.updatePlayerAttack(dt);
       const root = this.playerSystem.root;
@@ -447,18 +443,6 @@ export default class GameScene {
     this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);
     this.audioSystem.setAmbientVolume(this.options.ambientVolume / 100);
     this.audioSystem.setMusicVolume(this.options.musicVolume / 100);
-  }
-
-  setupGlow() {
-    this.glowSystem.create();
-    this.campfireSystem.onFireAdded = (fire) => this.glowSystem.addSource(fire);
-    this.campfireSystem.onFireRemoved = (fire) => this.glowSystem.removeSource(fire);
-    this.playerSystem.setTorchGlow(this.glowSystem);
-    this.playerSystem.syncTorchGlow();
-    this.s.onAfterRenderObservable.addOnce(() => {
-      for (const item of this.campfireSystem.fires) this.glowSystem.addSource(item.fire);
-      this.playerSystem.syncTorchGlow();
-    });
   }
 
   updateCampfireSound(root) {
@@ -868,6 +852,7 @@ export default class GameScene {
       writeJSON(OPTIONS_STORAGE_KEY, values);
       this.applyOptions();
     };
+    this.optionsPanel.onToggle = (open) => this.holdGameForOptions(open);
     window.addEventListener('beforeunload', (event) => {
       if (!this.editor.mapDirty) return;
       event.preventDefault();
@@ -909,13 +894,8 @@ export default class GameScene {
     this.refreshShadowReach(true);
     this.decoHighlight.setVisible(this.options.highlights);
     this.gameCursor.setEnabled(this.options.customCursor);
-    this.glowSystem.setEnabled(this.options.fireGlow);
-    const fernMode = this.options.grassFern === 'detail' ? 'detail' : 'light';
-    const fernChanged = this.fernMode !== fernMode;
-    this.fernMode = fernMode;
     const densityChanged = this.floraSystem.density !== this.options.grass;
-    if ((fernChanged || densityChanged) && this.grassModelList) this.rebuildGrass();
-    this.waterSystem.setDetail(this.options.waterDetail);
+    if (densityChanged && this.grassModelList) this.rebuildGrass();
     this.waterSystem.setReflections(this.options.reflections);
     if (this.isLoading) return;
     this.audioSystem.setMasterVolume(this.options.sfxVolume / 100);
@@ -1311,6 +1291,18 @@ export default class GameScene {
     this.setPaused(!this.paused);
   }
 
+  holdGameForOptions(open) {
+    if (open) {
+      if (this.paused || this.editor.active) return;
+      this.optionsPaused = true;
+      this.setPaused(true);
+      return;
+    }
+    if (!this.optionsPaused) return;
+    this.optionsPaused = false;
+    this.setPaused(false);
+  }
+
   setPaused(on) {
     const paused = Boolean(on);
     if (paused === this.paused) return;
@@ -1320,7 +1312,7 @@ export default class GameScene {
     this.engine.maxFPS = paused ? 60 : this.defaultMaxFPS;
     if (paused) {
       this.pauseScreen.setSpeed(this.simSystem.speed);
-      if (!this.editor.active) this.pauseScreen.show();
+      if (!this.editor.active && !this.optionsPaused) this.pauseScreen.show();
       this.hoverHint.hide();
     } else {
       this.pauseScreen.hide();
@@ -1382,6 +1374,12 @@ export default class GameScene {
     }
     if (this.editor.active) {
       this.editor.handleKey(evt, typing);
+      return;
+    }
+    if (this.optionsPanel.isOpen) {
+      if (typing) return;
+      evt.preventDefault();
+      if (evt.key === 'Escape' || evt.key === 'o' || evt.key === 'O') this.optionsPanel.hide();
       return;
     }
     if ((evt.key === 'p' || evt.key === 'P') && !typing && !evt.ctrlKey && !evt.metaKey && !evt.altKey) {

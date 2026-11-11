@@ -33,7 +33,6 @@ export default class SightSystem {
     this.blockers = [];
     this.active = false;
     this.mapping = false;
-    this.enabled = true;
     this.underground = 0;
     this.range = OUTDOOR_RANGE;
     this.lookout = 0;
@@ -57,7 +56,6 @@ export default class SightSystem {
   }
 
   setDetail(level) {
-    this.enabled = level !== 'off';
     const size = MAP_SIZES[level] || MAP_SIZES.full;
     if (this.generator.mapSize !== size) {
       this.generator.mapSize = size;
@@ -78,7 +76,7 @@ export default class SightSystem {
     const step = Math.max(0, dt) / UNDERGROUND_FADE_SECONDS;
     const goal = underground ? 1 : 0;
     this.underground = goal > this.underground ? Math.min(goal, this.underground + step) : Math.max(goal, this.underground - step);
-    this.active = this.enabled && Boolean(eye);
+    this.active = Boolean(eye);
     this.lookoutClock += Math.max(0, dt);
     if (this.active && this.lookoutClock >= LOOKOUT_STEP_SECONDS) {
       this.lookoutClock = 0;

@@ -24,7 +24,7 @@ src/
     creatures/               creature, footprint
     player/                  player, attack, stats, heldItem, inventory
     gathering/               gather, harvest, felling
-    world/                   deco, decoHighlight, campfire, glow, path
+    world/                   deco, decoHighlight, campfire, loot, path
     atmosphere/              dayNight, lighting (světla a stíny), sky, audio
     materials/               modelRim, modelSaturation (pluginy materiálů modelů)
   editor/                    editor mapy (editorMode + části history, layoutEdits, heights,
@@ -218,7 +218,7 @@ samostatný mesh `_roof`), kolem otvoru se ukáže skalní lem (`terrainCaveRim`
 a skryjí se dekorace i tráva na těch buňkách. Strop je zeshora neviditelný.
 Terén výš než podlaha, na které hráč stojí, zmizí v celém rozsahu stejně jako
 v editoru pater (`revealColumn`), nezávisle na natočení kamery. Co z okolí je
-vidět, řeší dohled postavy (níž); bez dohledu (editor pater, volba vypnuta) zůstává
+vidět, řeší dohled postavy (níž); bez dohledu (editor pater) zůstává
 jen osvětlené okolí vchodu podle mapy `caveLightMap` a tma od 8–14 m.
 
 Táborák má vlastní stín do všech stran (`campfireFire.js`). Stín vrhají jen boky,
@@ -241,7 +241,8 @@ stín táboráku a překresluje se při každém posunu očí. Pravidla:
   Tvorové se v oparu rozplynou, dekorace jen zešednou.
 - Země se testuje o 0,6 m výš (za nízkým schodem není tma); modely podle své paty
   (`vRevealBase`), ne podle bodu modelu, aby koruny stromů nezahalil.
-- Volba Dohled postavy: vypnutý / jednoduchý (mapa 256) / plný (512).
+- Volba Ostrost dohledu: jednoduchá (mapa 256) / plná (512). Vypnout dohled ve hře
+  nejde, protože bez něj je vidět skrz skálu (tvorové, tma v jeskyni, zvýraznění).
 
 **Prstenec skály při řezu** (`runVolume.js`, kind `ringWall`/`ringCap`): kolem jeskyně
 se kreslí jedno políčko skály (i po úhlopříčce) od podlahy do výšky řezu
@@ -397,8 +398,7 @@ Tráva jsou čtyři modely (pobřežní tráva, širokolistý trs, polštářek,
 a pod nimi koberec krátkých stébel. Štětec Tráva umí Obojí / Jen trsy / Jen koberec.
 Zem i stébla počítají barvu stejným kódem, stéblo bere barvu země pod sebou. Druh
 určí poloha nebo předvolba Směs uložená k buňce. Trsy se kreslí jako kopie jednoho
-tvaru po čtvercích mapy. V Možnostech jde přepnout detailní kapradinu a vypnout
-míchání tří textur země.
+tvaru po čtvercích mapy. V Možnostech jde vypnout míchání tří textur země.
 
 ## Plány
 

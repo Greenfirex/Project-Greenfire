@@ -110,7 +110,6 @@ uniform vec3 foamColor;
 uniform float dayness;
 uniform float maxDepth;
 uniform float waterLevel;
-uniform float waterDetail;
 uniform float reflectionOn;
 uniform float detailPixel;
 uniform sampler2D depthMap;
@@ -172,7 +171,6 @@ ${rippleSlopeGlsl()}
 }
 
 vec2 bumpSlope(vec2 p, vec2 warp, float time, vec2 dir, vec2 perp) {
-  if (waterDetail < 0.5) return vec2(0.0);
   return rippleSlope(p + warp * 1.2 + rippleWarp(p), time, dir, perp);
 }
 
@@ -395,7 +393,7 @@ export function createWaterMaterial(scene, options) {
       'viewProjection', 'waterTime', 'sunDir', 'sunColor', 'sunIntensity', 'skyColor',
       'cameraDir', 'shallowColor', 'deepColor', 'foamColor', 'dayness', 'maxDepth',
       'reflectionSampler', 'reflectionViewProjection', 'waterLevel',
-      'depthMap', 'waterDetail', 'reflectionOn', 'detailPixel', 'depthOrigin', 'depthScale', 'depthRange', 'foamDir',
+      'depthMap', 'reflectionOn', 'detailPixel', 'depthOrigin', 'depthScale', 'depthRange', 'foamDir',
       ...REVEAL_UNIFORM_NAMES,
     ],
   });
@@ -414,7 +412,6 @@ export function createWaterMaterial(scene, options) {
   material.setFloat('dayness', 1);
   material.setFloat('maxDepth', options.maxDepth);
   material.setFloat('waterLevel', 0);
-  material.setFloat('waterDetail', 1);
   material.setFloat('reflectionOn', 1);
   material.setFloat('detailPixel', 0.02);
   material.setVector2('foamDir', new Vector2(0, -1));

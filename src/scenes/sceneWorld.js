@@ -333,10 +333,9 @@ export default {
   },
 
   async loadGrassModels() {
-    const detail = this.options.grassFern === 'detail';
     if (!this.grassTemplates) this.grassTemplates = new Map();
     const list = [];
-    for (const item of grassModelUrls(detail)) {
+    for (const item of grassModelUrls()) {
       let template = this.grassTemplates.get(item.url);
       if (!template) {
         template = await loadModel(this.s, item.url);
