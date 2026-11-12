@@ -16,17 +16,17 @@ function cellSetOf(cells) {
 export function fillLake(cx, cz, level, cells, heightAtCell, blocked = new Set()) {
   const present = cellSetOf(cells);
   const start = cellKey(cx, cz);
-  if (!Number.isFinite(level) || !present.has(start) || blocked.has(start) || !(heightAtCell(cx, cz) < level)) {
+  if (!Number.isFinite(level) || !present.has(start) || !(heightAtCell(cx, cz) < level)) {
     return { cells: [], overflow: false, lowest: null };
   }
   const seen = new Set([start]);
   const out = [];
   const stack = [[cx, cz]];
   let overflow = false;
-  let lowest = { cx, cz, height: heightAtCell(cx, cz) };
+  let lowest = blocked.has(start) ? null : { cx, cz, height: heightAtCell(cx, cz) };
   while (stack.length) {
     const [x, z] = stack.pop();
-    out.push([x, z]);
+    if (!blocked.has(cellKey(x, z))) out.push([x, z]);
     for (const [dx, dz] of SIDES) {
       const nx = x + dx;
       const nz = z + dz;
@@ -40,7 +40,7 @@ export function fillLake(cx, cz, level, cells, heightAtCell, blocked = new Set()
       if (!(height < level)) continue;
       seen.add(key);
       stack.push([nx, nz]);
-      if (height < lowest.height) lowest = { cx: nx, cz: nz, height };
+      if (!lowest || height < lowest.height) lowest = { cx: nx, cz: nz, height };
     }
   }
   return { cells: out, overflow, lowest };

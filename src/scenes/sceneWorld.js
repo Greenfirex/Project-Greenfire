@@ -104,9 +104,10 @@ export default {
   },
 
   waterBodies() {
+    const terrain = this.terrainSystem;
+    if (!terrain.field || !terrain.groundCells) return { list: [], cells: new Map(), falls: [] };
     if (!this.bodyCache) {
       const layout = this.mapLayout || {};
-      const terrain = this.terrainSystem;
       const present = new Set(terrain.groundCells.map(([cx, cz]) => cellKey(cx, cz)));
       const riverKeys = this.riverCellKeys(present);
       const lakes = fillLakes(layout.lakes, present, (cx, cz) => terrain.heightAtCell(cx, cz), riverKeys);
@@ -127,6 +128,17 @@ export default {
       this.bodyCache = { list, cells, falls };
     }
     return this.bodyCache;
+  },
+
+  waterfallFaces() {
+    const faces = new Set();
+    for (const fall of this.waterBodies().falls) {
+      const half = Math.floor((fall.width - 1) / 2);
+      for (let step = -half; step <= half; step += 1) {
+        faces.add(`${fall.cx - fall.dz * step},${fall.cz + fall.dx * step}|${fall.dx},${fall.dz}`);
+      }
+    }
+    return faces;
   },
 
   riverCellKeys(present) {

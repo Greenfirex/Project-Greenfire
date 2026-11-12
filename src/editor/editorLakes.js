@@ -52,6 +52,10 @@ export default {
       return;
     }
     const fill = fillLake(cell.cx, cell.cz, level, cells, heightAtCell, blocked);
+    if (!fill.lowest) {
+      this.hud.setReadout('Tady teče řeka — jezero udělej do prohlubně vedle ní');
+      return;
+    }
     const lake = { cx: fill.lowest.cx, cz: fill.lowest.cz, level };
     this.storeLakes([...this.lakesOutside(fill.cells), lake]);
     this.hud.setReadout(`Jezero: hladina ${formatMeters(level)} · ${fill.cells.length} ${cellWord(fill.cells.length)}`);

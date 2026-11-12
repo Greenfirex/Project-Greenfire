@@ -861,7 +861,9 @@ export default class GameScene {
     this.campfireSystem.setTerrain(this.terrainSystem.liveSurfaces());
     this.revealSystem.setLightMap(this.terrainSystem.caveLightMap());
     this.caveFrameSystem.create(this.terrainSystem.caveDoors(), (style) => this.terrainSystem.caveFrameMaterial(style));
-    this.cliffDressSystem.create(this.terrainSystem.cliffFaces(), (style, mossy) => this.terrainSystem.cliffDressMaterial(style, mossy));
+    const fallFaces = this.waterfallFaces();
+    const faces = this.terrainSystem.cliffFaces().filter((face) => !fallFaces.has(`${face.cx},${face.cz}|${face.dx},${face.dz}`));
+    this.cliffDressSystem.create(faces, (style, mossy) => this.terrainSystem.cliffDressMaterial(style, mossy));
     this.editor.syncFloorView();
   }
 

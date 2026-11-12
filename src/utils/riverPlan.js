@@ -1,12 +1,13 @@
 // Řeky — z trasy nakreslené od pramene k ústí spočítá hladinu v každé buňce, směr proudu a koryto.
 // Hladina po proudu nikdy nestoupá a drží se pod nejnižším okolním břehem, takže voda nikde nepřeteče.
+// Končí-li řeka v jiné vodě, neklesne pod její hladinu, aby do ní vtekla a ne „vylezla“.
 import { cellKey } from './gridMath.js';
 import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { AUTO_CLIFF_STEP } from './terrainField.js';
 import { valueNoise, hash01 } from './noise.js';
 
 export const RIVER_FREEBOARD = 0.25;
-const RIVER_BANK_REACH = 2;
+const RIVER_BANK_REACH = 1;
 const FLOW_BASE = 0.6;
 const FLOW_PER_DROP = 2.5;
 const FLOW_MAX = 3;
@@ -60,6 +61,7 @@ export function planRiver(path, width, depths, cells, heightAtCell, water = new 
     return water.has(key) ? water.get(key) + RIVER_FREEBOARD : heightAtCell(cx, cz);
   };
   const planned = [];
+  const banks = [];
   let level = Infinity;
   for (const [cx, cz] of path) {
     if (!present.has(cellKey(cx, cz))) continue;
@@ -76,6 +78,16 @@ export function planRiver(path, width, depths, cells, heightAtCell, water = new 
     const top = Math.floor((bank - RIVER_FREEBOARD) / HEIGHT_STEP + 1e-6) * HEIGHT_STEP;
     level = Math.max(floor, Math.min(level, top));
     planned.push([cx, cz, level]);
+    banks.push(bank);
+  }
+  const end = path[path.length - 1];
+  const join = end && water.has(cellKey(end[0], end[1])) ? water.get(cellKey(end[0], end[1])) : null;
+  let standing = 0;
+  if (join !== null && planned.length && join <= planned[0][2]) {
+    for (let index = 0; index < planned.length; index += 1) {
+      if (planned[index][2] < join) planned[index][2] = join;
+      if (join >= banks[index]) standing += 1;
+    }
   }
   const river = { cells: planned, width: halfWidth(width) * 2 + 1 };
   const carve = riverCells(river, present).filter((cell) => !water.has(cellKey(cell.cx, cell.cz))).map((cell) => {
@@ -83,7 +95,7 @@ export function planRiver(path, width, depths, cells, heightAtCell, water = new 
     return { cx: cell.cx, cz: cell.cz, ground, height: Math.min(ground, cell.level - depthAlong(depths, planned[0], cell.step)) };
   });
   river.ground = carve.filter((cell) => cell.height < cell.ground).map((cell) => [cell.cx, cell.cz, cell.ground]);
-  return { river, carve };
+  return { river, carve, standing };
 }
 
 export function riverGround(river) {
@@ -92,6 +104,20 @@ export function riverGround(river) {
     if (Array.isArray(entry) && entry.length >= 3 && entry.every(Number.isFinite)) ground.set(cellKey(entry[0], entry[1]), entry[2]);
   }
   return ground;
+}
+
+export function riverRestore(river, keys, cells) {
+  const ground = riverGround(river);
+  const estimate = new Map();
+  if (!ground.size) {
+    for (const cell of riverCells(river, cells)) estimate.set(cellKey(cell.cx, cell.cz), cell.level + RIVER_FREEBOARD);
+  }
+  const out = new Map();
+  for (const key of keys) {
+    if (ground.has(key)) out.set(key, ground.get(key));
+    else if (estimate.has(key)) out.set(key, estimate.get(key));
+  }
+  return out;
 }
 
 export function riverCellKeys(river, cells) {

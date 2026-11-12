@@ -315,16 +315,21 @@ a rychlost proudu a sílu peřejí; jezero je plocha se stejnou výškou a bez p
   Když doteče na kraj mapy, jezero přeteče a nekreslí se.
 - **Řeka:** v mapě `rivers: [{ cells: [[cx, cz, hladina], …], width, ground: [[cx, cz, výška], …] }]`, pořadí buněk je
   směr proudu (`src/utils/riverPlan.js`), `ground` je výška země před vykopáním koryta
-  (řeky nakreslené dřív ji nemají a koryto po nich zůstane). Hladinu spočítá editor při kreslení: po proudu
-  nikdy nestoupá a drží se 0,25 m pod nejnižším břehem do 2 buněk od koryta (terén se
-  mezi buňkami svažuje, s bližším okolím by voda vytekla na břeh). Koryto se vyhloubí jako
+  (řeky nakreslené dřív ji nemají — jejich koryto se zasype odhadem 0,25 m nad bývalou
+  hladinu, `riverRestore`, protože hladina se vždy držela tolik pod břehem). Hladinu spočítá editor při kreslení: po proudu
+  nikdy nestoupá a drží se 0,25 m pod nejnižším sousedním břehem (políčka o 2 m a víc
+  níž — pod útesem — se nepočítají). Hlídání do 2 buněk stahovalo hladinu na svazích
+  zbytečně hluboko; proti přetečení na svah stačí `SHORE_SPILL`. Koryto se vyhloubí jako
   obyčejná úprava výšek. Hloubka se volí jako rozmezí od–do zvlášť pro mělkou
   (0,25–0,5 m, přebrodí se) a hlubokou (0,75–2,5 m) řeku; rozdílné hodnoty se podél
   toku plynule střídají (šum po zhruba 5 buňkách, `depthAlong`). Buňky řeky
   v jezeře nebo v moři se nekreslí — tam už je jiná voda. Moře je jen to, co je spojené
   s otevřeným mořem (`limitToOcean`). Buňka řeky s hladinou nad mořem moře zastaví, i když
   má dno pod ním, takže moře koryto nezaplaví. Hladina řeky nikdy neklesne pod moře —
-  u ústí se s ním srovná a tam řeka přejde v moře.
+  u ústí se s ním srovná a tam řeka přejde v moře. Končí-li tah v jiné řece nebo jezeře,
+  hladina nové řeky po celé délce neklesne pod jejich hladinu v místě napojení
+  (odbočka, která se zase spojí, do řeky vteče, ne „vyleze“). Kde je terén nižší než
+  ta hladina, stojí voda nad zemí — editor to po Aplikovat napíše.
 - Plochy kreslí `waterBodies.js` (část WaterSystem): výška a proud se po 0,5 m vyhladí,
   takže řeka klesá plynule. Program vody je stejný jako u moře, bez vln a příboje
   (`swellScale` 0) a bez odrazu okolí (zrcadlí se jen rovina moře).
@@ -345,7 +350,8 @@ a rychlost proudu a sílu peřejí; jezero je plocha se stejnou výškou a bez p
   Hladina se přes výškový rozdíl nad 1 m nevyhlazuje, takže horní tůň je rovná až
   k hraně. Kreslí ho `waterFalls.js` (část WaterSystem) a `waterfallShader.js`:
   clona s pruhy stékajícími dolů v oblouku od skály, vířící pěna na dolní hladině
-  a mlha z částic. Funguje i pád do jezera nebo do moře.
+  a mlha z částic. Funguje i pád do jezera nebo do moře. Stěna útesu pod vodopádem se
+  neobkládá kameny ani terasami (`sceneWorld.waterfallFaces`), jinak by prolézaly clonou.
 - V editoru štětec Jezero (Terén): klik do prohlubně ji naplní po okraj, klik na jezero
   zvedne hladinu o 0,25 m, pravé tlačítko ji sníží, v režimu Mazat jezero zmizí.
   Splynou-li dvě jezera, zůstane jedno.

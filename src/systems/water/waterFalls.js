@@ -12,6 +12,8 @@ import { WATER_SINK, FLOW_TIME_WRAP } from './waterSettings.js';
 
 const FALL_SPAN = 0.9;
 const FALL_ROWS = 10;
+const FALL_SPREAD = 0.25;
+const LIP_ROWS = [[-0.35, 0.01], [0.05, 0]];
 const FALL_COLUMN = 0.5;
 const FALL_OUT = 0.2;
 const FALL_LEAN = 0.35;
@@ -80,28 +82,32 @@ export default {
     const cols = Math.max(2, Math.ceil(width / FALL_COLUMN));
     const positions = [];
     const uvs = [];
-    for (let row = 0; row <= FALL_ROWS; row += 1) {
-      const t = row / FALL_ROWS;
-      const forward = FALL_OUT + lean * t * t;
+    const addRow = (forward, y, down, rowWidth) => {
       for (let col = 0; col <= cols; col += 1) {
         const s = col / cols;
-        const [x, z] = at(forward, (s - 0.5) * width);
-        positions.push(x, top - length * t, z);
-        uvs.push(s * width, length * t);
+        const [x, z] = at(forward, (s - 0.5) * rowWidth);
+        positions.push(x, y, z);
+        uvs.push(s, down);
       }
+    };
+    for (const [forward, drop] of LIP_ROWS) addRow(forward, top + drop, forward - FALL_OUT, width);
+    for (let row = 0; row <= FALL_ROWS; row += 1) {
+      const t = row / FALL_ROWS;
+      addRow(FALL_OUT + lean * t * t, top - length * t, length * t, width * (1 + FALL_SPREAD * t));
     }
-    const curtain = gridMesh(`waterfall${index}`, this.s, positions, uvs, cols, FALL_ROWS);
+    const curtain = gridMesh(`waterfall${index}`, this.s, positions, uvs, cols, FALL_ROWS + LIP_ROWS.length);
     const curtainMaterial = createWaterfallMaterial(this.s, {
-      waterColor: colors.shallowColor, foamColor: colors.foamColor, width, length, pool: false,
+      waterColor: colors.shallowColor, foamColor: colors.foamColor, width, length, spread: FALL_SPREAD, pool: false,
     });
     curtain.material = curtainMaterial;
 
     const impact = FALL_OUT + lean;
-    const poolWidth = width * POOL_WIDEN;
-    const start = Math.max(0.05, impact - POOL_LENGTH * POOL_IMPACT);
+    const poolWidth = width * (1 + FALL_SPREAD) * POOL_WIDEN;
+    const poolLength = Math.min(POOL_LENGTH, impact + CELL_SIZE * 0.9);
+    const start = Math.max(0.05, impact - poolLength * POOL_IMPACT);
     const poolPositions = [];
     const poolUvs = [];
-    for (const forward of [start, start + POOL_LENGTH]) {
+    for (const forward of [start, start + poolLength]) {
       for (const across of [-poolWidth / 2, poolWidth / 2]) {
         const [x, z] = at(forward, across);
         poolPositions.push(x, bottom + POOL_LIFT, z);
@@ -110,7 +116,7 @@ export default {
     }
     const pool = gridMesh(`waterfallPool${index}`, this.s, poolPositions, poolUvs, 1, 1);
     const poolMaterial = createWaterfallMaterial(this.s, {
-      waterColor: colors.shallowColor, foamColor: colors.foamColor, width: poolWidth, length: POOL_LENGTH, pool: true,
+      waterColor: colors.shallowColor, foamColor: colors.foamColor, width: poolWidth, length: poolLength, pool: true,
     });
     pool.material = poolMaterial;
 
@@ -153,10 +159,15 @@ export default {
 
   updateFalls() {
     const time = this.time % FLOW_TIME_WRAP;
+    const sun = this.sunLight;
     for (const fall of this.falls) {
       for (const material of [fall.curtainMaterial, fall.poolMaterial]) {
         material.setFloat('fallTime', time);
         material.setFloat('dayness', this.dayness);
+        if (sun) {
+          material.setColor3('sunColor', sun.diffuse);
+          material.setFloat('sunIntensity', sun.intensity);
+        }
       }
     }
   },

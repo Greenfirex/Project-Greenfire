@@ -158,7 +158,8 @@ zahodí. Řeka si vyhloubí koryto a teče ve směru tahu; do kopce nepoteče, h
 nejnižším břehem. V panelu se volí šířka (1 nebo 3 buňky) a hloubka (mělká se dá
 přebrodit, hluboká ne). U zvolené hloubky jsou posuvníky od–do: stejné hodnoty dají
 jednu hloubku, rozdílné se podél toku plynule střídají (mělčiny a tůně). Pravé tlačítko nebo režim Mazat řeku smaže a koryto zasype
-(starší řeky koryto nezasypou, to se srovná nástrojem Výška). Tah přes existující řeku
+(starší řeky, které si nepamatují původní zem, ho zasypou odhadem těsně nad bývalou
+hladinu). Tah přes existující řeku
 zakreslený úsek nahradí novou řekou s novou hloubkou. Zpět vrátí řeku i s korytem. Řeky se ukládají jako
 seznam `rivers`. Vede-li trasa přes útes (spád aspoň 2 m mezi sousedními buňkami),
 vznikne tam sám vodopád; jejich počet editor napíše po postavení řeky.

@@ -5,7 +5,7 @@ import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
 import { MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP, DEFAULT_HEIGHT_LEVEL } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
 import { PLANE_LAYERS, dropDecorationCell } from '../data/maps/areaShape.js';
-import { riverGround, riverCellKeys } from '../utils/riverPlan.js';
+import { riverRestore, riverCellKeys } from '../utils/riverPlan.js';
 import { fillZone } from '../utils/zoneFill.js';
 import { decoPlacement } from '../utils/decoPlacement.js';
 import { onSurface, toWorld, rectCells, bresenham } from './editorSettings.js';
@@ -154,7 +154,7 @@ export default class EditorMode {
     const others = list.filter((_, at) => at !== index);
     const present = this.presentCells();
     const taken = new Set(others.flatMap((other) => [...riverCellKeys(other, present)]));
-    const restore = new Map([...riverGround(river)].filter(([key]) => !taken.has(key)));
+    const restore = riverRestore(river, [...riverCellKeys(river, present)].filter((key) => !taken.has(key)), present);
     this.changeRivers(others, restore);
   }
 
