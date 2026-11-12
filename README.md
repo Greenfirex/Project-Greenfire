@@ -27,9 +27,10 @@ vstup je zamčený, dokud obrazovka nezmizí.
 | **1–5** | Výběr předmětu v ruce z lišty dole; na lištu se věci přetahují z batohu, pravé tlačítko je z ní sundá |
 | **I / C / B / V** | Inventář / postava / bestiář / výroba — velká okna uprostřed obrazovky, jde s nimi tahat (také tlačítky v liště); výroba je zatím prázdná |
 | **Levé tlačítko u houby / kokosu / klacku** | Sebrání (podržet = opakovat) |
+| **Levé tlačítko u truhly / kostry / táboráku** | Otevřít / prohledat / zapálit (stačí stát u nich) |
 | **Levé tlačítko u tvora** | Útok rukou (podržet = opakovat) |
 | **Pravé kliknutí na tvora** | Panel se statistikami tvora (zavře ho křížek, Esc nebo pravé kliknutí jinam) |
-| **E** | Zapálit / zrušit táborák |
+| **E** | V otevřené truhle vzít vše |
 | **G** | Zobrazit / skrýt mřížku |
 | **N** | Posun času o 6 hodin |
 | **P** | Pauza / pokračovat (ztmaví obrazovku, zastaví celou hru) — v editoru jen zastaví hru |
@@ -54,7 +55,7 @@ pod kurzorem, držené tlačítko akci opakuje. Do ruky si bereš věci z lišty
 Sekera a krumpáč na kácení a těžení přibudou později. Nasbírané věci se ukládají
 do batohu (I), kde si je můžeš přeskládat, a postava má vlastní okno se staty (C).
 
-**Oheň.** Táborák se zapálí u připraveného místa (E), svítí do okolí a v noci
+**Oheň.** Táborák se zapálí kliknutím u připraveného místa, svítí do okolí a v noci
 zahřívá. Pochodeň v ruce svítí, kam jdeš.
 
 **Voda.** Mělká voda u břehu tě zpomalí, do hluboké se nedá vejít. Hladina má

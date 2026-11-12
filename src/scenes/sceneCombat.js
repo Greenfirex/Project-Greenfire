@@ -16,6 +16,8 @@ const BACK_HIT_DOT = -0.2;
 const SIGHT_CLEARANCE = 0.3;
 const CREATURE_GONE_FOG = 0.95;
 const CREATURE_EYE_SHARE = 0.6;
+const CORPSE_STAND = 0.9;
+const CORPSE_REACH_LIFT = 0.2;
 
 export default {
   async setupCreatures() {
@@ -226,8 +228,13 @@ export default {
     this.tooltipPanel.hide();
     this.decoHighlight.setHover(null);
     const title = corpse.type ? corpse.type.label : 'Tvor';
-    this.beginLootPickup(corpse.x, corpse.z, () => {
-      this.showLoot({ kind: 'corpse', ref: corpse, x: corpse.x, z: corpse.z, title });
+    const ground = corpse.holder && !corpse.holder.isDisposed() ? corpse.holder.getAbsolutePosition().y : this.playerSystem.root.position.y;
+    const reach = new Vector3(corpse.x, ground + CORPSE_REACH_LIFT, corpse.z);
+    this.approachLoot(corpse.x, corpse.z, CORPSE_STAND, () => {
+      if (this.lootSource && this.lootSource.ref === corpse) return;
+      this.beginLootPickup(corpse.x, corpse.z, () => {
+        this.showLoot({ kind: 'corpse', ref: corpse, x: corpse.x, z: corpse.z, title });
+      }, reach);
     });
     return true;
   },

@@ -34,6 +34,10 @@ export const PLAYER_HAND_BONES = [
 
 export const PLAYER_UPPER_ARM_BONES = ['RightArm', 'mixamorig:RightArm'];
 export const PLAYER_FOREARM_BONES = ['RightForeArm', 'mixamorig:RightForeArm'];
+export const PLAYER_LEFT_UPPER_ARM_BONES = ['LeftArm', 'mixamorig:LeftArm'];
+export const PLAYER_LEFT_FOREARM_BONES = ['LeftForeArm', 'mixamorig:LeftForeArm'];
+export const PLAYER_LEFT_HAND_BONES = ['LeftHand', 'mixamorig:LeftHand'];
+export const PLAYER_SPINE_BONES = ['Spine01', 'Spine02', 'mixamorig:Spine1', 'mixamorig:Spine2'];
 export const PLAYER_FINGER_BONES = [
   'RightHandIndex1', 'RightHandIndex2', 'RightHandIndex3',
   'RightHandMiddle1', 'RightHandMiddle2', 'RightHandMiddle3',
@@ -86,6 +90,8 @@ export const PLAYER_ANIM_NAMES = {
 };
 
 export const PLAYER_ANIM_SPEEDS = {
+  walk: 1.15,
+  run: 1.15,
   chop: 1.35,
   mine: 1.1,
   punch: 1.8,
@@ -98,6 +104,8 @@ export const PLAYER_ANIM_SPEEDS = {
 
 export const PLAYER_ANIM_RANGES = {
   punch: { start: 1.1, end: 2.7 },
+  kick: { start: 0.36, end: 1.0 },
+  pickup: { start: 0, end: 1.05 },
   flinch: { start: 0.0, end: 1.0 },
 };
 

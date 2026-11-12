@@ -1,6 +1,6 @@
-// Vývojový nástroj: vyfotí tvora ve fotoateliéru (tools/capture/stage.html) a složí snímky do jednoho obrázku.
+// Vývojový nástroj: vyfotí tvora nebo postavu ve fotoateliéru (tools/capture/stage.html) a složí snímky do jednoho obrázku.
 // Spouští se nad běžícím dev serverem: node tools/capture.cjs koa_tiki peck --view side
-// Scény: idle, walk, attack (--attack peck|jump), hit, death, peck. Pohledy: side, front, diag, top.
+// Scény: idle, walk, attack (--attack peck|jump), hit, death, peck. Pohledy: side, side2 (z druhé strany), front, diag, top.
 const fs = require('node:fs');
 const path = require('node:path');
 const puppeteer = require('puppeteer-core');
@@ -20,7 +20,7 @@ function readOptions(argv) {
     const key = argv[index].replace(/^--/, '');
     const value = argv[index + 1];
     index += 1;
-    options[key] = ['frames', 'zoom', 'seconds'].includes(key) ? Number(value) : value;
+    options[key] = ['frames', 'zoom', 'seconds', 'lead', 'kneel', 'lid'].includes(key) ? Number(value) : value;
   }
   return options;
 }
@@ -70,6 +70,28 @@ async function makeSheet(page, result) {
   }, { frames: result.frames, groundLine: result.groundLine });
 }
 
+function printCreature(result) {
+  console.log(`Tvor ${result.creature}: délka ${result.length} m, výška ${result.height} m`);
+  console.log('Výška nad zemí v m (záporné = pod zemí). Celé tělo: nejnižší bod a kde leží (vpředu +, vzadu −).');
+  console.log('Přední část: nejnižší bod v přední čtvrtině délky (hlava, krk).');
+  result.frames.forEach((frame, index) => {
+    const all = `${String(frame.lowest).padStart(7)} na ${String(frame.lowestAt).padStart(5)}`;
+    console.log(`  ${index}  ${frame.time.toFixed(2)} s ${frame.label.padEnd(4)} tělo ${all}   přední část ${String(frame.front).padStart(7)}`);
+  });
+}
+
+function printPlayer(result) {
+  console.log(`Postava ${result.creature}: výška ${result.height} m. Postava kouká na +z (k pohledu front).`);
+  console.log('Ruka: výška pravé ruky nad zemí. Nástroj: směr osy (x, y, z; y kladné = nahoru), výška spodku a vršku nad zemí, odstup úchopu od dlaně.');
+  result.frames.forEach((frame, index) => {
+    const tool = frame.tool;
+    const text = tool
+      ? `osa [${tool.axis.join(', ')}]  spodek ${tool.bottom} m  vršek ${tool.top} m  od dlaně ${tool.hand} m`
+      : 'bez nástroje';
+    console.log(`  ${index}  ${frame.time.toFixed(2)} s ${frame.label.padEnd(12)} ruka ${frame.hand} m  ${text}`);
+  });
+}
+
 async function run() {
   const options = readOptions(process.argv.slice(2));
   const browser = await puppeteer.launch({
@@ -95,15 +117,10 @@ async function run() {
     if (result.error) throw new Error(result.error);
     const png = await makeSheet(page, result);
     fs.mkdirSync(OUT_DIR, { recursive: true });
-    const file = path.join(OUT_DIR, `snimky-${result.creature}-${options.scene}-${options.view}.png`);
+    const file = path.join(OUT_DIR, `snimky-${result.creature}-${options.scene}-${options.view}${options.focus ? `-${options.focus}` : ''}.png`);
     fs.writeFileSync(file, Buffer.from(png.split(',')[1], 'base64'));
-    console.log(`Tvor ${result.creature}: délka ${result.length} m, výška ${result.height} m`);
-    console.log('Výška nad zemí v m (záporné = pod zemí). Celé tělo: nejnižší bod a kde leží (vpředu +, vzadu −).');
-    console.log('Přední část: nejnižší bod v přední čtvrtině délky (hlava, krk).');
-    result.frames.forEach((frame, index) => {
-      const all = `${String(frame.lowest).padStart(7)} na ${String(frame.lowestAt).padStart(5)}`;
-      console.log(`  ${index}  ${frame.time.toFixed(2)} s ${frame.label.padEnd(4)} tělo ${all}   přední část ${String(frame.front).padStart(7)}`);
-    });
+    if (result.player) printPlayer(result);
+    else printCreature(result);
     console.log(`Uloženo: ${path.relative(process.cwd(), file)}`);
   } finally {
     await browser.close();

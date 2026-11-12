@@ -6,6 +6,7 @@ import { PLAYER_BASE } from '../data/catalogs/player.js';
 const IMPACT_DELAY = 0.28;
 const LOOT_LEAVE_MARGIN = 1.2;
 const LOOT_LEAVE_DISTANCE = PLAYER_BASE.handReach.distance + LOOT_LEAVE_MARGIN;
+const LOOT_STAND_GAP = 0.4;
 
 export default {
   updateGathering(dt) {
@@ -17,27 +18,43 @@ export default {
     this.updateGatherImpact(dt);
     this.updateLootPickup(dt);
     this.updateLootWindow();
+    this.playerSystem.kneeling = Boolean(this.lootSource) && this.lootWindow.open;
     this.hotbar.setPrompt(this.gatherPrompt());
   },
 
   gatherPrompt() {
     if (this.editor.active) return '';
     if (this.campfireSystem.pending) return 'Zapaluji táborák…';
-    if (this.campfireSystem.nearest) return 'E — zapálit Táborák';
-    if (this.lootSystem.nearest) {
-      const def = this.lootSystem.nearest.def;
-      return `E — ${def.lootVerb} ${def.displayName}`;
-    }
     return '';
   },
 
   openLoot(box) {
     if (this.lootSource && this.lootSource.ref === box) return true;
+    if (this.lootSystem.isEmpty(box)) return false;
+    const spot = this.lootSystem.standSpot(box, LOOT_STAND_GAP, this.playerSystem.root.position);
+    if (!spot) return this.openBox(box);
+    this.playerSystem.walkTo(spot.x, spot.z, () => this.openBox(box));
+    return true;
+  },
+
+  approachLoot(x, z, distance, onArrive) {
+    const from = this.playerSystem.root.position;
+    const away = Math.hypot(from.x - x, from.z - z);
+    if (away <= distance || away < 1e-3) {
+      onArrive();
+      return;
+    }
+    const share = distance / away;
+    this.playerSystem.walkTo(x + (from.x - x) * share, z + (from.z - z) * share, onArrive);
+  },
+
+  openBox(box) {
     if (!this.lootSystem.open(box)) return false;
-    this.beginLootPickup(box.x, box.z, () => {
+    const middle = box.center || box;
+    this.beginLootPickup(middle.x, middle.z, () => {
       this.lootSystem.swing(box);
       this.showLoot({ kind: 'box', ref: box, x: box.x, z: box.z, title: box.def.displayName });
-    });
+    }, this.lootSystem.reachPoint(box));
     return true;
   },
 
@@ -91,7 +108,9 @@ export default {
   },
 
   closeLoot() {
+    const source = this.lootSource;
     this.lootSource = null;
+    if (source && source.kind === 'box') this.lootSystem.shut(source.ref);
     if (this.lootWindow.open) this.lootWindow.close();
   },
 
@@ -103,10 +122,11 @@ export default {
     if (away || this.dying || this.editor.active || !this.lootContents(source).length) this.closeLoot();
   },
 
-  beginLootPickup(x, z, onImpact) {
+  beginLootPickup(x, z, onImpact, reach = null) {
     if (this.lootPickup) this.finishLootPickup();
     this.playerSystem.faceTo(x, z);
     this.playerSystem.pickUp();
+    this.playerSystem.reachTarget = reach;
     this.lootPickup = { left: this.playerSystem.pickupImpactTime(), onImpact };
   },
 

@@ -552,7 +552,7 @@ export default class GameScene {
       }
       this.hideCreatureTooltip();
       this.setPointerCursorState();
-      this.setHoverHint(this.interaction.targetOf('gather', { cell: this.inputSystem.cellAtPointer() }));
+      this.setHoverHint(this.hintTarget(this.inputSystem.cellAtPointer()));
     }
     if (!moved) return;
     const pointer = this.inputSystem.lastCell;
@@ -563,6 +563,14 @@ export default class GameScene {
     }
     this.hoverDeco(this.pointedCell(this.inputSystem.cellAtPointer()));
     this.setPointerCursorState();
+  }
+
+  hintTarget(cell) {
+    for (const id of ['gather', 'loot', 'campfire']) {
+      const target = this.interaction.targetOf(id, { cell });
+      if (target) return target;
+    }
+    return null;
   }
 
   setHoverHint(target) {
@@ -658,9 +666,9 @@ export default class GameScene {
     this.interaction.register('campfire', {
       priority: 40,
       pick: ({ cell }) => {
-        if (!cell || !this.campfireSystem.nearest) return null;
-        if (!this.campfireSystem.has(cell.cx, cell.cz, this.playerSystem.level)) return null;
-        return { ref: cell, inReach: true };
+        const fire = this.campfireSystem.nearest;
+        if (!cell || !fire || fire.cx !== cell.cx || fire.cz !== cell.cz) return null;
+        return { ref: fire.entry, detail: 'Levé tlačítko — zapálit Táborák', inReach: true };
       },
       act: (target) => this.campfireSystem.ignite(target.ref),
     });
@@ -669,7 +677,12 @@ export default class GameScene {
       pick: ({ cell }) => {
         const box = cell ? this.lootSystem.at(cell.cx, cell.cz, this.playerSystem.level) : null;
         if (!box || this.lootSystem.isEmpty(box)) return null;
-        return { ref: box, inReach: this.lootSystem.nearest === box };
+        if (this.lootSource && this.lootSource.ref === box) return null;
+        return {
+          ref: box,
+          detail: `Levé tlačítko — ${box.def.lootVerb} ${box.def.displayName}`,
+          inReach: this.lootSystem.nearest === box,
+        };
       },
       act: (target) => this.openLoot(target.ref),
     });
@@ -1126,9 +1139,7 @@ export default class GameScene {
     this.inventoryWindow.onClearBar = (index) => this.heldItemSystem.clear(index);
     this.lootWindow.onTake = (itemKey) => this.takeLoot(itemKey);
     this.lootWindow.onTakeAll = () => this.takeAllLoot();
-    this.lootWindow.onClose = () => {
-      this.lootSource = null;
-    };
+    this.lootWindow.onClose = () => this.closeLoot();
     this.characterWindow.onEquip = (itemKey, slot) => this.equipItem(itemKey, slot);
     this.vitalsBar.setHealth(this.playerStats.health, this.playerStats.maxHealth);
     this.vitalsBar.setStamina(this.playerStats.stamina, this.playerStats.maxStamina);
@@ -1521,27 +1532,9 @@ export default class GameScene {
       return;
     }
     if (evt.key === 'e' || evt.key === 'E') {
-      if (evt.ctrlKey || evt.metaKey || evt.altKey || typing) return;
-      if (this.campfireSystem.pending) {
-        evt.preventDefault();
-        this.cancelCampfireIgnite();
-        return;
-      }
-      if (this.lootWindow.open) {
-        evt.preventDefault();
-        if (!evt.repeat) this.takeAllLoot();
-        return;
-      }
-      const fire = this.campfireSystem.nearest;
-      if (fire) {
-        evt.preventDefault();
-        this.campfireSystem.ignite(fire.entry);
-        return;
-      }
-      const box = this.lootSystem.nearest;
-      if (!box) return;
+      if (evt.ctrlKey || evt.metaKey || evt.altKey || typing || !this.lootWindow.open) return;
       evt.preventDefault();
-      this.openLoot(box);
+      if (!evt.repeat) this.takeAllLoot();
       return;
     }
     if (evt.key === 'F5') {

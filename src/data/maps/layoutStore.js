@@ -1,6 +1,7 @@
 // Pomocné výpočty k dlaždicím mapy a rozsah výšek editoru.
 // Nezná scénu ani editor, jen katalog dekorací.
 import { getDecoration, decoRadius } from '../catalogs/decorations.js';
+import { decoPlacement } from '../../utils/decoPlacement.js';
 
 export const MIN_HEIGHT = -60;
 export const MAX_HEIGHT = 96;
@@ -18,7 +19,8 @@ export function deriveBlocked(entries) {
     if (entry.blocks === false) continue;
     const def = getDecoration(entry.key);
     if (!def || def.blocks === false) continue;
-    out.push({ cx: entry.cx, cz: entry.cz, offsetX: entry.offsetX || 0, offsetZ: entry.offsetZ || 0, radius: decoRadius(def) });
+    const place = decoPlacement(def, entry);
+    out.push({ cx: entry.cx, cz: entry.cz, offsetX: place.offsetX - place.jitterX, offsetZ: place.offsetZ - place.jitterZ, radius: decoRadius(def) });
   }
   return out;
 }

@@ -134,7 +134,7 @@ export const TOOL_TYPES = {
     kind: 'weapon',
     model: 'stick',
     file: `${ASSET_DIRS.props}club/stick.glb`,
-    grip: { scale: 1.6, position: [-0.12, -0.07, 0.04] },
+    grip: { scale: 1.6, fist: 1, curl: 1.1, tilt: -0.3, hold: 0.07, wrist: 1 },
     weapon: { damage: 12, cooldown: 1.1, anim: 'chop' },
   },
 };

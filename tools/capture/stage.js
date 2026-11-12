@@ -1,4 +1,4 @@
-// Fotoateliér tvorů: prázdná scéna jen s jedním tvorem a rovnou zemí, bez zbytku hry.
+// Fotoateliér tvorů a postavy: prázdná scéna jen s jedním tvorem (nebo postavou) a rovnou zemí, bez zbytku hry.
 // Otevírá ho tools/capture.cjs v neviditelném prohlížeči; tvora hýbe stejnou animací jako hra
 // a ke každému snímku změří, kde je nejnižší bod těla vůči zemi.
 import '@babylonjs/core/Meshes/mesh';
@@ -19,11 +19,13 @@ import { loadContainer } from '../../src/utils/assetLoader.js';
 import {
   getCreatureType, getCreatureTier, creatureLength, creatureScale,
 } from '../../src/data/catalogs/creatures/index.js';
+import { runPlayer } from './stagePlayer.js';
 
 const TICK = 1 / 120;
 const FRONT_SHARE = 0.25;
 const VIEWS = {
   side: { alpha: 0, beta: Math.PI / 2 },
+  side2: { alpha: Math.PI, beta: Math.PI / 2 },
   front: { alpha: Math.PI / 2, beta: Math.PI / 2 },
   diag: { alpha: Math.PI / 4, beta: Math.PI / 3 },
   top: { alpha: 0, beta: 0.01 },
@@ -177,6 +179,7 @@ function groundLine() {
 }
 
 async function run(options) {
+  if (options.kind === 'player') return runPlayer(options, { scene, canvas, camera, aimCamera });
   const type = getCreatureType(options.kind);
   if (!type) return { error: `neznámý tvor: ${options.kind}` };
   const tier = getCreatureTier(type, options.tier);

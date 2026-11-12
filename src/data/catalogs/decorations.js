@@ -898,7 +898,7 @@ export const DECORATION_TYPES = {
     displayName: 'Truhla',
     model: `${ASSET_DIRS.props}chest/chest.glb`,
     scale: 1,
-    radius: 0.5,
+    radius: 0.36,
     blocks: true,
     castsShadow: true,
     noTint: true,

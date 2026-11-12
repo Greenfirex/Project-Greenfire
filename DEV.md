@@ -198,7 +198,7 @@ vhodná pro jiné vnitřky, třeba dům, přes registr `src/data/catalogs/maps.j
 - Mezi plochami se chodí **jen po spoji** (sekce `connectors` v mapě: odkud, kam,
   druh `stairs`/`ramp`/`ladder`/`shaft`/`passage`). Spoj znamená i díru ve stropě
   či podlaze a vynechanou stěnu. V buňkách spoje neplatí stěnová kolize útesu.
-- Světlá výška aspoň 2,6 m (postava měří 2,31 m), výchozí 3,0 m.
+- Světlá výška aspoň 2,6 m (postava měří 2,0 m, `MODEL_HEIGHT` v `playerSystem.js`), výchozí 3,0 m.
 - „Jsem pod střechou" se odvozuje ze stropu nade mnou, neukládá se.
 - Kde jeskynní buňka sousedí s venkovní ve stejné výšce (do 0,6 m), vznikne sama
   průchozí díra. Podlahy ve vchodu na sebe navážou jen ve stejné výšce, jinak
@@ -343,6 +343,59 @@ světa (bliknutí). Výměna nástroje ve stoje se odehraje sáhnutím (`toolSwa
 (`GameScene.ownsTool`); jméno a ikonu bere z předmětu. Na zemi leží osm tvarů větví
 (`club_a`–`club_h`, světlé a–d, tmavé e–h, uložené naležato), v ruce je stojící větev e
 (`props/club/stick.glb`). Opracovaný kyj `club.glb` čeká na výrobu.
+Klacek drží úchop `fist` (`holdInFist`): prsty se sevřou (`curl`) a klacek vede středem
+pěsti podél osy ruky „dopředu“ (`Forward` kosti `RightHand`, ve stoji míří ve směru
+pohledu; `fist` 1 / −1 = na kterou stranu pěsti trčí). `tilt` ho nakloní ke prstům
+(záporný = k zápěstí, tedy nahoru), `hold` je místo úchopu od spodního konce modelu.
+Úchop se počítá vůči ruce, takže klacek jde s rukou i při úderu. `wrist` srovná zápěstí
+do klidové polohy vůči předloktí (`lockWrist`), aby klacek nekroutila otevřená ruka
+z animace běhu; během úderu a sbírání se zámek plynule uvolní (`WRIST_BLEND`).
+Úder `chop` se přehraje celý (`STRIKE_PLAY_SHARE`), jinak se utnul uprostřed kroku
+a nohy skočily do bojového postoje; zásah je ve 35 % délky. Každá animace postavy
+začíná s pánví (`Hips`) v klidové poloze kostry (`settleRoot`); bojový postoj měl pánev
+trvale vystrčenou do strany a při přepnutí na úder postava sklouzla. Animace
+v `PLAYER_ANIM_ROOTLESS` mají pánev vodorovně přišpendlenou úplně.
+Ve stoji (`idle`, `holdTool`) `relaxIdle` přitáhne obě paže k tělu a pokrčí lokty
+(`IDLE_ARM_IN`, `IDLE_ELBOW`, náběh `IDLE_FADE`); pravou paži nechá, když drží svislý
+nástroj (pochodeň). `updateGlance` občas otočí hlavu do strany (`LOOK_*`). Kop má
+odříznuté úvodní přešlapování (`PLAYER_ANIM_RANGES.kick`), zásah je ve 30 % úderu.
+Sbírání (`pickUp`) hraje z animace jen dřep k zemi (`PLAYER_ANIM_RANGES.pickup`, bez
+smyčky, zbytek animace je přehrabování v dřepu), předmět se vezme na konci dřepu
+a postava se narovná pomalým prolnutím do stání (`RISE_BLEND` přes `nextBlend`).
+Animace sama sahá jen ke kolenům, proto `reachDown` během sbírání předkloní záda
+(`REACH_BEND`) a paži i předloktí natočí k bodu na zemi kousek před rameny
+(`aimBone`, `REACH_AHEAD`, `REACH_LIFT`). `turnBone` umí víc natočení jedné kosti
+za snímek (sčítají se). Na začátku každého snímku `restoreBones` vrátí kosti, které
+animace nepřepsala (zastavená animace), do polohy před natočením; jinak by měření
+polohy ruky v `aimBone` vidělo minulé natočení a paže by kmitaly.
+Po zmenšení postavy (`MODEL_HEIGHT` 2,31 → 2,0) běží chůze a běh o 15 % rychleji
+(`PLAYER_ANIM_SPEEDS`), aby nohy neklouzaly.
+Dokud je otevřené okno kořisti (truhla, mrtvý tvor), drží `sceneGathering` postavu
+v dřepu (`playerSystem.kneeling`); pohyb klávesami dřep zruší a okno se pak zavře
+vzdáleností jako dřív.
+Okno kořisti (truhla, kostlivec, mrtvý tvor) se otevírá vždy stejně: postava dojde
+krokem k věci (`playerSystem.walkTo`, ruší se pohybem klávesami), dřepne si a ruce
+natáhne k ní (`playerSystem.reachTarget`, záda se jen mírně narovnají,
+`REACH_LID_BEND`). Truhla s víkem si při stavbě spočítá čelo (`lootSystem.shapeOf`: víko
+má pant vzadu, čelo je místní +Z rodiče víka), takže se jde vždy před víko
+(`standSpot`) a sahá na jeho přední hranu (`reachPoint`). Kostlivec a tvor čelo nemají:
+postava dojde ze strany, odkud přichází (`standSpot`, `approachLoot`), a sahá na střed.
+Dokud je okno otevřené, ruce se přehrabují (`rummageOffset`, `RUMMAGE_*`).
+V dřepu se viditelné tělo přisune k cíli až o `LOOT_LEAN` (posouvá se jen `rig`, kořen
+postavy a kolize zůstávají), ruce u truhly míří kousek dovnitř (`REACH_INSIDE`).
+Po zavření okna se truhla, ve které něco zůstalo, zaklapne (`lootSystem.shut`, víko jde
+k `goal`); prázdná zůstane otevřená. Po načtení hry je víko podle toho, jestli je truhla
+prázdná (`settle`). Dokud je truhla otevřená v okně, nápověda „otevřít“ se neukazuje.
+Chůze k věci skončí i tehdy, když se postava přestane přibližovat (`AUTO_WALK_STUCK`).
+Překážka dekorace (`deriveBlocked`) stojí i s posunem `backToEdge`, jinak by kruh
+truhly ležel před ní a postava by k ní nedošla. Náhodné rozházení (`jitter`) do
+překážky nepatří.
+`animLength` vrací skutečnou délku úseku při rychlosti animace (`getLength` už
+rychlost započítává). Chop (`0.74`), mine (`0.41`), zapálení (`IGNITE_PLAY`) a ucuknutí
+(`FLINCH_PLAY`) trvají stejně jako před opravou; pěst a kop se přehrají celé (vejdou se
+do prodlevy úderu holou rukou 1 s). Údery se hrají jednou, ne ve smyčce: pauza
+`STRIKE_HOLD` po konci animace by jinak pustila úder znovu od začátku. Ladí se ve
+fotoateliéru: `node tools/capture.cjs player strike --tool club --view side2`.
 Údery bez zbraně střídají pěst a kop, se zbraní se máchá jako sekyrou.
 
 Modely z Meshy se před vložením zmenšují (textury WebP 1024, nekovový materiál);

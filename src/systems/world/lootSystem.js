@@ -9,7 +9,9 @@ import { PLAYER_BASE } from '../../data/catalogs/player.js';
 const REACH = PLAYER_BASE.handReach.distance;
 const REACH_HEIGHT = PLAYER_BASE.handReach.heightLimit;
 const OPEN_SECONDS = 0.7;
+const CLOSE_SECONDS = 0.5;
 const OPEN_ANGLE = 1.9;
+const REACH_INSIDE = 0.4;
 
 function boxKey(cx, cz, level) {
   return `${cellKey(cx, cz)}|${level}`;
@@ -37,10 +39,44 @@ export default class LootSystem {
     const hinge = this.hingeFor(node, def.lid);
     const existing = this.boxes.find((box) => box.key === key);
     const box = existing || { key, cx: entry.cx, cz: entry.cz, level, open: 0 };
-    Object.assign(box, { entry, def, hinge, x: position.x, y: position.y, z: position.z });
-    box.open = this.opened.has(key) ? 1 : 0;
-    this.pose(box);
+    Object.assign(box, { entry, def, hinge, x: position.x, y: position.y, z: position.z }, this.shapeOf(node, hinge));
+    this.settle(box);
     if (!existing) this.boxes.push(box);
+  }
+
+  shapeOf(node, hinge) {
+    const { min, max } = node.getHierarchyBoundingVectors(true);
+    const center = min.add(max).scale(0.5);
+    const shape = { front: null, center, halfDepth: Math.max(max.x - min.x, max.z - min.z) / 2, top: max.y };
+    if (!hinge || !hinge.parent) return shape;
+    hinge.parent.computeWorldMatrix(true);
+    const front = Vector3.TransformNormal(new Vector3(0, 0, 1), hinge.parent.getWorldMatrix());
+    front.y = 0;
+    if (front.lengthSquared() < 1e-6) return shape;
+    front.normalize();
+    shape.front = front;
+    shape.halfDepth = (Math.abs(front.x) * (max.x - min.x) + Math.abs(front.z) * (max.z - min.z)) / 2;
+    return shape;
+  }
+
+  standSpot(box, gap, from) {
+    if (!box || !box.center) return null;
+    let side = box.front;
+    if (!side) {
+      side = new Vector3(from.x - box.center.x, 0, from.z - box.center.z);
+      if (side.lengthSquared() < 1e-6) return null;
+      side.normalize();
+    }
+    const distance = Math.max(box.front ? box.halfDepth : 0, box.def.radius || 0) + gap;
+    return box.center.add(side.scale(distance));
+  }
+
+  reachPoint(box) {
+    if (!box || !box.center) return null;
+    if (!box.front) return box.center.clone();
+    const edge = box.center.add(box.front.scale(box.halfDepth * REACH_INSIDE));
+    edge.y = box.top;
+    return edge;
   }
 
   hingeFor(node, lidName) {
@@ -80,7 +116,17 @@ export default class LootSystem {
   }
 
   swing(box) {
-    if (box) box.swinging = true;
+    if (box) box.goal = 1;
+  }
+
+  shut(box) {
+    if (box && !this.isEmpty(box)) box.goal = 0;
+  }
+
+  settle(box) {
+    box.goal = this.isEmpty(box) ? 1 : 0;
+    box.open = box.goal;
+    this.pose(box);
   }
 
   isEmpty(box) {
@@ -117,8 +163,10 @@ export default class LootSystem {
   update(dt, root, level = 0) {
     this.nearest = root ? this.nearestClosed(root.position, level) : null;
     for (const box of this.boxes) {
-      if (!box.swinging || box.open >= 1) continue;
-      box.open = Math.min(1, box.open + dt / OPEN_SECONDS);
+      if (box.open === box.goal) continue;
+      box.open = box.goal > box.open
+        ? Math.min(box.goal, box.open + dt / OPEN_SECONDS)
+        : Math.max(box.goal, box.open - dt / CLOSE_SECONDS);
       this.pose(box);
     }
   }
@@ -158,9 +206,6 @@ export default class LootSystem {
       }
       if (Object.keys(clean).length) this.remaining.set(key, clean);
     }
-    for (const box of this.boxes) {
-      box.open = this.opened.has(box.key) ? 1 : 0;
-      this.pose(box);
-    }
+    for (const box of this.boxes) this.settle(box);
   }
 }

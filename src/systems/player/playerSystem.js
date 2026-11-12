@@ -18,6 +18,10 @@ import {
   PLAYER_HAND_BONES,
   PLAYER_UPPER_ARM_BONES,
   PLAYER_FOREARM_BONES,
+  PLAYER_LEFT_UPPER_ARM_BONES,
+  PLAYER_LEFT_FOREARM_BONES,
+  PLAYER_LEFT_HAND_BONES,
+  PLAYER_SPINE_BONES,
   PLAYER_FINGER_BONES,
   PLAYER_FIST_BONES,
   PLAYER_THUMB_BONES,
@@ -36,33 +40,61 @@ import {
 import { loadModel, instantiateModel, loadImported } from '../../utils/assetLoader.js';
 import TorchFire from '../../effects/torchFire.js';
 
-const ANIM_BLEND = 0.25;
+const ANIM_BLEND = 0.1;
 const STRIKE_PLAY_SHARE = {
+  chop: 0.74,
+  mine: 0.41,
   punch: 1,
   kick: 1,
 };
 const STRIKE_IMPACT_SHARE = {
-  chop: 0.55,
+  chop: 0.35,
   mine: 0.45,
   punch: 0.4,
-  kick: 0.55,
+  kick: 0.3,
 };
 const STRIKE_HOLD = 0.12;
+const WRIST_BLEND = 0.15;
+const IDLE_ARM_IN = 0.12;
+const IDLE_ELBOW = 0.3;
+const IDLE_FADE = 0.35;
+const REACH_BEND = 0.4;
+const REACH_LID_BEND = -0.15;
+const REACH_AHEAD = 0.3;
+const REACH_LIFT = 0.08;
+const REACH_FADE = 0.3;
+const REACH_SPREAD = 0.7;
+const LOOT_LEAN = 0.4;
+const LOOT_LEAN_CLEAR = 0.05;
+const RUMMAGE_FADE = 0.4;
+const RUMMAGE_REACH = [0.14, 0.1, 0.1];
+const RUMMAGE_PACE = [4.3, 6.1, 3.7];
+const AUTO_WALK_DONE = 0.06;
+const AUTO_WALK_LIMIT = 2;
+const AUTO_WALK_STUCK = 0.2;
+const AUTO_WALK_PROGRESS = 0.01;
+const LOOK_PAUSE = [4, 9];
+const LOOK_HOLD = [1.2, 2.4];
+const LOOK_YAW = 0.55;
+const LOOK_SPEED = 1.6;
 const STRIKE_FALLBACK = 0.5;
 const IGNITE_SHARE = 0.55;
+const IGNITE_PLAY = 0.22;
 const IGNITE_HOLD = 0.35;
 const IGNITE_FALLBACK = 0.75;
-const PICKUP_SHARE = 0.55;
+const PICKUP_SHARE = 1;
+const RISE_BLEND = 0.035;
 const PICKUP_HOLD = 0.12;
 const PICKUP_FALLBACK = 0.75;
 const FLINCH_FALLBACK = 0.5;
+const FLINCH_PLAY = 0.5;
 const DEATH_OVERLAY_FALLBACK = 0.8;
 const STEP_DISTANCE = 1.5;
 const FOOT_SIDES = ['left', 'right'];
 const FOOT_LAND_DISTANCE = 0.04;
 const FOOT_SHIFT_MAX = 0.35;
 const FOOT_FALLBACK = { walk: 1.25, sprint: 1.0 };
-const FOOT_SIDE_OFFSET = 0.12;
+const FOOT_SIDE_OFFSET = 0.1;
 const START_LYING = false;
 const TOOL_SCALE = 0.95;
 const TOOL_POSITION = new Vector3(-0.12, 0.12, 0.04);
@@ -79,7 +111,7 @@ const WALK_SPEED = 2.4;
 const TURN_SPEED = 12;
 const LOOK_TURN_SPEED = 6;
 const LOOK_DEAD_ZONE = 0.7;
-const MODEL_HEIGHT = 2.31;
+const MODEL_HEIGHT = 2.0;
 export const PLAYER_EYE_HEIGHT = MODEL_HEIGHT * 0.92;
 const MODEL_BASE_HEIGHT = PLAYER_BASE_HEIGHT;
 const MODEL_YAW = PLAYER_MODEL_YAW;
@@ -91,6 +123,26 @@ const MOVE_KEYS = {
   KeyD: 'right', ArrowRight: 'right',
   ShiftLeft: 'sprint', ShiftRight: 'sprint',
 };
+
+function refreshChain(node) {
+  const chain = [];
+  for (let item = node; item; item = item.parent) chain.unshift(item);
+  for (const item of chain) item.computeWorldMatrix(true);
+}
+
+function between([low, high]) {
+  return low + Math.random() * (high - low);
+}
+
+function isHips(name) {
+  return name === 'Hips' || String(name).endsWith(':Hips');
+}
+
+function restRotation(bone) {
+  const rotation = Quaternion.Identity();
+  bone.getRestPose().decompose(undefined, rotation);
+  return rotation;
+}
 
 export default class PlayerSystem {
 
@@ -141,6 +193,17 @@ export default class PlayerSystem {
     this.toolSwapLeft = 0;
     this.armNodes = null;
     this.boneTurns = new Map();
+    this.wristLock = 0;
+    this.nextBlend = 0;
+    this.kneeling = false;
+    this.reachTarget = null;
+    this.rummage = 0;
+    this.rummageTime = 0;
+    this.autoWalk = null;
+    this.idleRelax = 0;
+    this.reach = 0;
+    this.idleNodes = null;
+    this.glance = { wait: between(LOOK_PAUSE), hold: 0, target: 0, yaw: 0 };
     this.strikeTimer = 0;
     this.strikeAnim = 'punch';
     this.flinchTimer = 0;
@@ -191,6 +254,7 @@ export default class PlayerSystem {
     if (!this.mesh) return null;
     this.rig = this.mesh.parent;
     if (this.rig) this.rig.parent = root;
+    this.rigHome = this.rig ? this.rig.position.clone() : null;
     this.root = root;
     const scale = MODEL_HEIGHT / MODEL_BASE_HEIGHT;
     root.scaling = new Vector3(scale, scale, scale);
@@ -253,9 +317,17 @@ export default class PlayerSystem {
       upper: boneNode(PLAYER_UPPER_ARM_BONES),
       fore: boneNode(PLAYER_FOREARM_BONES),
       hand,
+      handRest: restRotation(bone),
       fingers: PLAYER_FINGER_BONES.map((name) => boneNode([name])).filter(Boolean),
       fist: PLAYER_FIST_BONES.map((name) => boneNode([name])).filter(Boolean),
       thumb: boneNode(PLAYER_THUMB_BONES),
+    };
+    this.idleNodes = {
+      leftUpper: boneNode(PLAYER_LEFT_UPPER_ARM_BONES),
+      leftFore: boneNode(PLAYER_LEFT_FOREARM_BONES),
+      leftHand: boneNode(PLAYER_LEFT_HAND_BONES),
+      head: boneNode(PLAYER_HEAD_BONES),
+      spine: PLAYER_SPINE_BONES.map((name) => boneNode([name])).filter(Boolean),
     };
     this.handSlot = new TransformNode('playerHandSlot', this.s);
     this.handSlot.parent = hand;
@@ -373,7 +445,7 @@ export default class PlayerSystem {
   setHeldTool(key) {
     if (this.heldToolKey === key) return;
     this.heldToolKey = key || null;
-    const moving = this.input.forward || this.input.back || this.input.left || this.input.right;
+    const moving = this.wantsMove();
     if (!this.ready || this.lying || this.dead || moving || this.strikeTimer > 0) {
       this.toolSwapLeft = 0;
       this.refreshToolNode();
@@ -390,8 +462,165 @@ export default class PlayerSystem {
       this.toolSwapLeft -= dt;
       if (this.toolSwapLeft <= 0) this.refreshToolNode();
     }
+    this.restoreBones();
+    this.relaxIdle(dt);
+    this.reachDown(dt);
     this.holdUpright();
+    this.holdInFist(dt);
     if (this.torchFire) this.torchFire.update(dt);
+  }
+
+  holdInFist(dt) {
+    const tool = TOOL_TYPES[this.heldToolKey];
+    const grip = tool && tool.grip;
+    if (!grip || !grip.fist || !this.toolNode || !this.handSlot || !this.armNodes || this.toolSwapLeft > 0) return;
+    this.lockWrist(grip.wrist || 0, dt);
+    for (const node of [this.armNodes.upper, this.armNodes.fore, this.armNodes.hand, this.handSlot]) {
+      if (node) node.computeWorldMatrix(true);
+    }
+    const fist = this.closeFist(grip.curl || 0);
+    if (!fist) return;
+    const handMatrix = this.armNodes.hand.getWorldMatrix();
+    const through = Vector3.TransformNormal(Vector3.Forward(), handMatrix).normalize().scale(grip.fist);
+    const fingers = Vector3.TransformNormal(Vector3.Up(), this.handSlot.getWorldMatrix()).normalize();
+    const axis = through.add(fingers.scale(grip.tilt || 0)).normalize();
+    const wanted = Quaternion.Identity();
+    Quaternion.FromUnitVectorsToRef(Vector3.Up(), axis, wanted);
+    const world = Matrix.Identity();
+    wanted.toRotationMatrix(world);
+    const parent = Matrix.Identity();
+    this.handSlot.absoluteRotationQuaternion.toRotationMatrix(parent);
+    if (!this.toolNode.rotationQuaternion) this.toolNode.rotationQuaternion = Quaternion.Identity();
+    Quaternion.FromRotationMatrixToRef(world.multiply(Matrix.Invert(parent)), this.toolNode.rotationQuaternion);
+    this.toolNode.computeWorldMatrix(true);
+    const hold = Vector3.TransformNormal(new Vector3(0, grip.hold || 0, 0), this.toolNode.getWorldMatrix());
+    this.toolNode.setAbsolutePosition(fist.subtract(hold));
+  }
+
+  restoreBones() {
+    for (const [node, last] of this.boneTurns) {
+      if (node.rotationQuaternion && node.rotationQuaternion.equalsWithEpsilon(last.turned, 1e-6)) {
+        node.rotationQuaternion.copyFrom(last.base);
+      }
+    }
+  }
+
+  relaxIdle(dt) {
+    if (!this.armNodes || !this.idleNodes || !this.root) return;
+    const calm = (this.currentKey === 'idle' || this.currentKey === 'holdTool')
+      && this.strikeTimer <= 0 && this.pickupTimer <= 0 && this.igniteTimer <= 0
+      && !this.lying && !this.dead && this.toolSwapLeft <= 0;
+    this.idleRelax = Math.max(0, Math.min(1, this.idleRelax + (calm ? dt : -dt) / IDLE_FADE));
+    this.updateGlance(dt, calm);
+    if (!this.idleRelax && !this.glance.yaw) return;
+    const forward = new Vector3(Math.sin(this.facing), 0, Math.cos(this.facing));
+    const right = new Vector3(forward.z, 0, -forward.x);
+    const tool = TOOL_TYPES[this.heldToolKey];
+    const arms = [[this.idleNodes.leftUpper, this.idleNodes.leftFore, -1]];
+    if (!(tool && tool.grip && tool.grip.upright)) arms.push([this.armNodes.upper, this.armNodes.fore, 1]);
+    for (const [upper, fore, side] of arms) {
+      this.turnBone(upper, forward, side * IDLE_ARM_IN * this.idleRelax);
+      this.turnBone(fore, right, -IDLE_ELBOW * this.idleRelax);
+    }
+    this.turnBone(this.idleNodes.head, Vector3.Up(), this.glance.yaw);
+  }
+
+  reachDown(dt) {
+    if (!this.armNodes || !this.idleNodes || !this.root) return;
+    this.reach = Math.max(0, Math.min(1, this.reach + (this.pickupTimer > 0 ? dt : -dt) / REACH_FADE));
+    this.leanToTarget();
+    if (!this.reach) {
+      if (this.pickupTimer <= 0) this.reachTarget = null;
+      return;
+    }
+    const forward = new Vector3(Math.sin(this.facing), 0, Math.cos(this.facing));
+    const right = new Vector3(forward.z, 0, -forward.x);
+    const rummaging = this.kneeling && this.reachTarget;
+    this.rummage = Math.max(0, Math.min(1, this.rummage + (rummaging ? dt : -dt) / RUMMAGE_FADE));
+    this.rummageTime += dt;
+    const up = Vector3.Up();
+    const bend = this.reachTarget ? REACH_LID_BEND : REACH_BEND;
+    for (const node of this.idleNodes.spine) this.turnBone(node, right, bend * this.reach);
+    const ground = this.root.position.y + REACH_LIFT;
+    const arms = [
+      [this.idleNodes.leftUpper, this.idleNodes.leftFore, this.idleNodes.leftHand],
+      [this.armNodes.upper, this.armNodes.fore, this.armNodes.hand],
+    ];
+    arms.forEach(([upper, fore, hand], index) => {
+      if (!upper || !fore || !hand) return;
+      refreshChain(hand);
+      const shoulder = upper.getAbsolutePosition();
+      const target = this.reachTarget
+        ? this.reachTarget.add(right.scale(Vector3.Dot(shoulder.subtract(this.root.position), right) * REACH_SPREAD))
+        : new Vector3(shoulder.x + forward.x * REACH_AHEAD, ground, shoulder.z + forward.z * REACH_AHEAD);
+      if (this.rummage) target.addInPlace(this.rummageOffset(index * Math.PI, [right, up, forward]));
+      this.aimBone(upper, hand, target);
+      refreshChain(hand);
+      this.aimBone(fore, hand, target);
+    });
+  }
+
+  leanToTarget() {
+    if (!this.rig || !this.rigHome) return;
+    let lean = 0;
+    if (this.reach && this.reachTarget) {
+      const away = Math.hypot(this.reachTarget.x - this.root.position.x, this.reachTarget.z - this.root.position.z);
+      lean = Math.max(0, Math.min(LOOT_LEAN, away - LOOT_LEAN_CLEAR)) * this.reach;
+    }
+    this.rig.position.copyFrom(this.rigHome);
+    this.rig.position.z += lean / (this.root.scaling.z || 1);
+  }
+
+  rummageOffset(phase, axes) {
+    const offset = Vector3.Zero();
+    axes.forEach((axis, index) => {
+      const wave = Math.sin(this.rummageTime * RUMMAGE_PACE[index] + phase + index);
+      offset.addInPlace(axis.scale(wave * RUMMAGE_REACH[index] * this.rummage));
+    });
+    return offset;
+  }
+
+  aimBone(node, tip, target) {
+    const from = node.getAbsolutePosition();
+    const now = tip.getAbsolutePosition().subtract(from).normalize();
+    const goal = target.subtract(from).normalize();
+    const axis = Vector3.Cross(now, goal);
+    if (axis.lengthSquared() < 1e-8) return;
+    const angle = Math.acos(Math.max(-1, Math.min(1, Vector3.Dot(now, goal))));
+    this.turnBone(node, axis.normalize(), angle * this.reach);
+  }
+
+  updateGlance(dt, calm) {
+    const glance = this.glance;
+    if (!calm) {
+      glance.target = 0;
+      glance.hold = 0;
+    } else if (glance.hold > 0) {
+      glance.hold -= dt;
+      if (glance.hold <= 0) {
+        glance.target = 0;
+        glance.wait = between(LOOK_PAUSE);
+      }
+    } else {
+      glance.wait -= dt;
+      if (glance.wait <= 0) {
+        glance.target = (Math.random() < 0.5 ? -1 : 1) * LOOK_YAW * (0.6 + Math.random() * 0.4);
+        glance.hold = between(LOOK_HOLD);
+      }
+    }
+    const step = LOOK_SPEED * dt;
+    glance.yaw += Math.max(-step, Math.min(step, glance.target - glance.yaw));
+  }
+
+  lockWrist(strength, dt) {
+    const { hand, handRest } = this.armNodes;
+    if (!strength || !handRest) return;
+    const busy = this.strikeTimer > 0 || this.pickupTimer > 0;
+    const step = dt / WRIST_BLEND;
+    this.wristLock = Math.max(0, Math.min(1, this.wristLock + (busy ? -step : step)));
+    if (!this.wristLock) return;
+    if (!hand.rotationQuaternion) hand.rotationQuaternion = Quaternion.FromEulerVector(hand.rotation);
+    Quaternion.SlerpToRef(hand.rotationQuaternion, handRest, this.wristLock * strength, hand.rotationQuaternion);
   }
 
   holdUpright() {
@@ -450,14 +679,18 @@ export default class PlayerSystem {
     node.parent.computeWorldMatrix(true);
     if (!node.rotationQuaternion) node.rotationQuaternion = Quaternion.FromEulerVector(node.rotation);
     const last = this.boneTurns.get(node);
-    const base = last && node.rotationQuaternion.equalsWithEpsilon(last.turned, 1e-6) ? last.base : node.rotationQuaternion.clone();
+    const frame = this.s.getFrameId();
+    const stacking = Boolean(last) && last.frame === frame;
+    const untouched = Boolean(last) && node.rotationQuaternion.equalsWithEpsilon(last.turned, 1e-6);
+    const from = !stacking && untouched ? last.base : node.rotationQuaternion.clone();
+    const base = stacking ? last.base : from;
     const local = Matrix.Identity();
-    base.toRotationMatrix(local);
+    from.toRotationMatrix(local);
     const parent = Matrix.Identity();
     node.parent.absoluteRotationQuaternion.toRotationMatrix(parent);
     const world = local.multiply(parent).multiply(Matrix.RotationAxis(axis, angle));
     Quaternion.FromRotationMatrixToRef(world.multiply(Matrix.Invert(parent)), node.rotationQuaternion);
-    this.boneTurns.set(node, { base, turned: node.rotationQuaternion.clone() });
+    this.boneTurns.set(node, { base, frame, turned: node.rotationQuaternion.clone() });
   }
 
   animLength(key, fallback) {
@@ -465,8 +698,8 @@ export default class PlayerSystem {
     if (!group) return fallback;
     let length = 0;
     try {
-      length = group.getLength(group.from, group.to) / (group.speedRatio || 1);
-      if (!length) length = (group.to - group.from) / (group.targetedAnimations[0]?.animation.framePerSecond || 0);
+      length = group.getLength(group.from, group.to);
+      if (!length) length = (group.to - group.from) / (group.targetedAnimations[0]?.animation.framePerSecond || 0) / (group.speedRatio || 1);
     } catch {
       length = 0;
     }
@@ -479,7 +712,7 @@ export default class PlayerSystem {
     const length = this.animLength(this.strikeAnim, STRIKE_FALLBACK);
     const playShare = STRIKE_PLAY_SHARE[this.strikeAnim] || STRIKE_IMPACT_SHARE[this.strikeAnim] || 1;
     this.strikeTimer = Math.max(0.15, length * playShare + STRIKE_HOLD);
-    this.play(this.strikeAnim, true);
+    this.play(this.strikeAnim, true, false);
     return this.strikeTimer;
   }
 
@@ -504,7 +737,7 @@ export default class PlayerSystem {
     this.strikeTimer = 0;
     this.flinchTimer = 0;
     const length = this.animLength('ignite', IGNITE_FALLBACK);
-    this.igniteTimer = Math.max(0.35, length * IGNITE_SHARE + IGNITE_HOLD);
+    this.igniteTimer = Math.max(0.35, length * IGNITE_PLAY + IGNITE_HOLD);
     this.igniteImpactAt = Math.max(0.15, this.igniteTimer * IGNITE_SHARE);
     this.play('ignite', true);
     return this.igniteTimer;
@@ -515,10 +748,55 @@ export default class PlayerSystem {
     this.flinchTimer = 0;
     this.pickupKey = 'pickup';
     const length = this.animLength('pickup', PICKUP_FALLBACK);
-    this.pickupTimer = Math.max(0.18, length * PICKUP_SHARE + PICKUP_HOLD);
-    this.pickupImpactAt = Math.max(0.12, this.pickupTimer * PICKUP_SHARE);
-    this.play('pickup', true);
+    this.pickupTimer = Math.max(0.18, length + PICKUP_HOLD);
+    this.pickupImpactAt = Math.max(0.12, length * PICKUP_SHARE);
+    this.play('pickup', true, false);
     return this.pickupTimer;
+  }
+
+  walkTo(x, z, onArrive) {
+    this.autoWalk = { x, z, onArrive, left: AUTO_WALK_LIMIT, best: Infinity, stuck: 0 };
+  }
+
+  stepAutoWalk(dt) {
+    const walk = this.autoWalk;
+    if (this.wantsMove()) {
+      this.autoWalk = null;
+      return false;
+    }
+    const pos = this.root.position;
+    const dx = walk.x - pos.x;
+    const dz = walk.z - pos.z;
+    const distance = Math.hypot(dx, dz);
+    walk.left -= dt;
+    if (distance < walk.best - AUTO_WALK_PROGRESS) {
+      walk.best = distance;
+      walk.stuck = 0;
+    } else {
+      walk.stuck += dt;
+    }
+    const step = Math.min(distance, WALK_SPEED * dt);
+    const dirX = distance > 0 ? dx / distance : 0;
+    const dirZ = distance > 0 ? dz / distance : 0;
+    const arrived = distance < AUTO_WALK_DONE || walk.left <= 0 || walk.stuck > AUTO_WALK_STUCK
+      || !this.tryMove(pos.x + dirX * step, pos.z + dirZ * step, dirX, dirZ, step);
+    if (arrived) {
+      this.autoWalk = null;
+      if (walk.onArrive) walk.onArrive();
+      return true;
+    }
+    this.updateSteps(false, step);
+    this.updateHome();
+    this.facing = turnToward(this.facing, Math.atan2(dirX, dirZ), TURN_SPEED * dt);
+    this.root.rotation.y = this.facing + MODEL_YAW;
+    this.play('walk');
+    this.updateFootprints(dt, false);
+    return true;
+  }
+
+  wantsMove() {
+    const input = this.input;
+    return input.forward || input.back || input.left || input.right;
   }
 
   pickupImpactTime() {
@@ -537,7 +815,7 @@ export default class PlayerSystem {
     if (!this.ready || this.dead || this.lying) return 0;
     if (this.strikeTimer > 0 || this.pickupTimer > 0 || this.igniteTimer > 0) return 0;
     if (!this.anims.flinch) return 0;
-    this.flinchTimer = Math.max(0.2, this.animLength('flinch', FLINCH_FALLBACK));
+    this.flinchTimer = Math.max(0.2, this.animLength('flinch', FLINCH_FALLBACK) * FLINCH_PLAY);
     this.play('flinch', true, false);
     return this.flinchTimer;
   }
@@ -614,6 +892,9 @@ export default class PlayerSystem {
       const node = bone.getTransformNode();
       if (node) nodeByName.set(bone.name, node);
     }
+    const hips = skeleton.bones.find((bone) => isHips(bone.name));
+    this.hipsRest = hips ? hips.getRestPose().getTranslation() : null;
+    this.settledRoots = new WeakSet();
 
     const embedded = modelResult && Array.isArray(modelResult.animationGroups)
       ? modelResult.animationGroups
@@ -672,7 +953,7 @@ export default class PlayerSystem {
 
   prepareAnimation(key, group) {
     if (!group) return;
-    if (PLAYER_ANIM_ROOTLESS.includes(key)) this.removeRootMotion(group);
+    this.settleRoot(group, PLAYER_ANIM_ROOTLESS.includes(key));
     const range = PLAYER_ANIM_RANGES[key];
     if (!range) return;
     const first = group.targetedAnimations && group.targetedAnimations[0];
@@ -684,21 +965,23 @@ export default class PlayerSystem {
     group.to = from + range.end * fps;
   }
 
-  removeRootMotion(group) {
+  settleRoot(group, flatten) {
     const list = group.targetedAnimations;
-    if (!list) return;
+    if (!list || !this.hipsRest) return;
     for (const item of list) {
       const target = item && item.target;
       const animation = item && item.animation;
-      if (!target || !animation || animation.targetProperty !== 'position') continue;
-      if (target.name !== 'Hips' && !String(target.name).endsWith(':Hips')) continue;
+      if (!target || !animation || animation.targetProperty !== 'position' || !isHips(target.name)) continue;
+      if (this.settledRoots.has(animation)) continue;
+      this.settledRoots.add(animation);
       const keys = animation.getKeys();
       if (!keys || !keys.length || !keys[0].value) continue;
-      const base = keys[0].value;
+      const shiftX = this.hipsRest.x - keys[0].value.x;
+      const shiftZ = this.hipsRest.z - keys[0].value.z;
       for (const key of keys) {
         if (!key.value) continue;
-        key.value.x = base.x;
-        key.value.z = base.z;
+        key.value.x = flatten ? this.hipsRest.x : key.value.x + shiftX;
+        key.value.z = flatten ? this.hipsRest.z : key.value.z + shiftZ;
       }
     }
   }
@@ -764,6 +1047,8 @@ export default class PlayerSystem {
       if (otherKey === key || other === group) continue;
       other.stop();
     }
+    group.blendingSpeed = this.nextBlend || ANIM_BLEND;
+    this.nextBlend = 0;
     group.start(loop, group.speedRatio, group.from, group.to);
     this.current = group;
     this.currentKey = key;
@@ -804,6 +1089,7 @@ export default class PlayerSystem {
   die(fromBehind) {
     if (this.dead || !this.ready) return 0;
     this.dead = true;
+    this.autoWalk = null;
     this.lying = false;
     this.waking = false;
     this.wakeTimer = 0;
@@ -845,7 +1131,7 @@ export default class PlayerSystem {
 
   ensurePlaying() {
     const group = this.current;
-    if (!group || group.isStarted) return;
+    if (!group || group.isStarted || this.pickupTimer > 0 || this.strikeTimer > 0) return;
     group.restart();
   }
 
@@ -1038,7 +1324,8 @@ export default class PlayerSystem {
       this.endStrike();
     }
     if (this.pickupTimer > 0) {
-      this.pickupTimer -= dt;
+      const stay = this.kneeling && !this.wantsMove();
+      this.pickupTimer = stay ? Math.max(this.pickupTimer - dt, dt) : this.pickupTimer - dt;
       this.pickupImpactAt -= dt;
       if (this.pickupTimer > 0) {
         this.play(this.pickupKey);
@@ -1048,6 +1335,7 @@ export default class PlayerSystem {
       if (finished) finished.pause();
       this.pickupImpactAt = 0;
       this.pickupKey = 'pickup';
+      this.nextBlend = RISE_BLEND;
     }
     if (this.igniteTimer > 0) {
       this.igniteTimer -= dt;
@@ -1060,6 +1348,8 @@ export default class PlayerSystem {
       if (finished) finished.pause();
       this.igniteImpactAt = 0;
     }
+
+    if (this.autoWalk && this.stepAutoWalk(dt)) return;
 
     const camera = this.s.activeCamera;
     const forward = this.cameraForward(camera);

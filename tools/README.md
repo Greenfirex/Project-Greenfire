@@ -4,7 +4,7 @@ Vývojářské nástroje mimo běh hry. Pouští se ručně z rootu projektu (No
 
 - `_temp/` — dočasné soubory, náhledy, logy a scratch skripty. Nekomituje se.
 
-## capture.cjs a capture/ — fotoateliér tvorů
+## capture.cjs a capture/ — fotoateliér tvorů a postavy
 
 Vyfotí jednoho tvora v prázdné scéně s rovnou zemí (`capture/stage.html`), bez zbytku
 hry, takže mu nepřekáží výhled hráče, mlha ani světlo dne. Tvora hýbe stejný rig jako
@@ -17,7 +17,7 @@ node tools/capture.cjs sand_devil walk --tier young --zoom 2.5
 ```
 
 Scény: `idle`, `walk`, `attack` (`--attack peck|jump` vynutí druh útoku), `hit`, `death`,
-`peck` (zobání Koa'tiki, snímky kolem každého ťuknutí). Pohledy: `side` a `front`
+`peck` (zobání Koa'tiki, snímky kolem každého ťuknutí). Pohledy: `side`, `side2` (z druhé strany) a `front`
 (s červenou čarou země), `diag`, `top`. Dál `--frames`, `--seconds`, `--tier`, `--zoom`
 (výška záběru v metrech).
 
@@ -28,6 +28,28 @@ pokrčeného modelu, ne odhadem.
 
 Umístění modelu (měřítko podle `length` a tieru, posun na zem) opakuje
 `creatureSystem.spawn`; když se tam změní, je potřeba ho změnit i v `capture/stage.js`.
+
+### Postava
+
+Místo tvora se zadá `player`. Postavu staví skutečný `PlayerSystem` ze hry
+(`capture/stagePlayer.js`), takže animace i úchop nástroje jsou stejné jako ve hře.
+
+```
+node tools/capture.cjs player idle --tool club --view side2
+node tools/capture.cjs player strike --tool club --view side2 --frames 8
+node tools/capture.cjs player idle --tool torch --view side2 --focus hand --zoom 0.7
+```
+
+Scény: `idle`, `walk`, `run`, `strike` (úder animací zbraně, jinak `--anim chop|mine|punch|kick`),
+`pickup`. `--tool` je klíč z `TOOL_TYPES`. `--combat 1` postaví postavu do bojového
+postoje, `--lead 0.3` počká před úderem nebo sbíráním (vidět je pak i přechod tam a zpět),
+`--glance 1` vynutí brzké rozhlédnutí ve stoji, `--kneel 2` nechá postavu po sbírání
+v dřepu 2 s (jako při otevřené truhle), `--lid 0.55` při tom natáhne ruce k víku
+v této výšce kousek před postavou. Nástroj drží pravá ruka, ta je vidět
+z pohledu `side2`. `--focus hand|head` míří záběr na ruku nebo hlavu (hodí se se
+`--zoom 0.6`–`1`). Do konzole
+se ke každému snímku vypíše směr osy nástroje (y kladné = nahoru), výška jeho spodku
+a vršku a odstup úchopu od kosti ruky. Výstup `tools/_temp/snimky-postava-<nástroj>-<scéna>-<pohled>.png`.
 
 ## glb_measure.mjs
 

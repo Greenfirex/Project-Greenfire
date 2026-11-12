@@ -83,10 +83,6 @@ export default class CampfireSystem {
     this.nearest = null;
   }
 
-  has(cx, cz, level = 0) {
-    return this.fires.some((item) => item.cx === cx && item.cz === cz && item.level === level);
-  }
-
   nearestUnlit(from, level = 0) {
     let best = null;
     let bestDist = REACH;
