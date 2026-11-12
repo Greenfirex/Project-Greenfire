@@ -40,9 +40,8 @@ import InventorySystem from '../systems/player/inventorySystem.js';
 import HeldItemSystem from '../systems/player/heldItemSystem.js';
 import WaveSpraySystem from '../systems/water/waveSpraySystem.js';
 import AudioSystem from '../systems/atmosphere/audioSystem.js';
-import InventoryWindow from '../ui/inventoryWindow.js';
+import CharacterPanel from '../ui/characterPanel.js';
 import LootWindow from '../ui/lootWindow.js';
-import CharacterWindow from '../ui/characterWindow.js';
 import LogPanel from '../ui/logPanel.js';
 import FloatingNumbers from '../ui/floatingNumbers.js';
 import { itemIcon } from '../ui/itemIcons.js';
@@ -66,6 +65,7 @@ import CraftingWindow from '../ui/craftingWindow.js';
 import BestiarySystem from '../systems/creatures/bestiarySystem.js';
 import { takeModelError, preloadModel, loadContainer, loadImported } from '../utils/assetLoader.js';
 import { WAVE_TIME_WRAP, SEA_DIRECTION } from '../utils/waterWaves.js';
+import { damageText } from '../utils/combatRoll.js';
 import { ITEM_TYPES, getTool, toolForItem } from '../data/catalogs/items.js';
 import { worldToCellCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
@@ -195,10 +195,9 @@ export default class GameScene {
     this.craftButton = new DockButton({ icon: '🔨', label: 'Výroba', title: 'Výroba (V)', slot: 'craft' });
     this.craftingWindow = new CraftingWindow();
     this.log = new LogPanel();
-    this.inventoryWindow = new InventoryWindow();
+    this.characterPanel = new CharacterPanel();
     this.lootWindow = new LootWindow();
     this.lootSource = null;
-    this.characterWindow = new CharacterWindow();
     this.vitalsBar = new VitalsBar();
     this.hoverHint = new HoverHint();
     this.creatureHealthBar = new CreatureHealthBar();
@@ -986,7 +985,7 @@ export default class GameScene {
     this.hud.setClockText(this.clockText);
     this.hud.setClockPhase(this.describeDayPhase(time, cfg));
     this.hud.setClockSpeed(this.paused || this.simSystem.halted, this.simSystem.speed);
-    if (this.characterWindow.open) this.refreshCharacterWindow();
+    if (this.characterPanel.open) this.refreshCharacterPanel();
   }
 
   refreshAmbient(dt = 0) {
@@ -1123,8 +1122,8 @@ export default class GameScene {
     this.hotbar.onClear = (index) => this.heldItemSystem.clear(index);
     this.hotbar.setSlots(this.heldItemSystem.bar);
     this.hotbar.setSelected(this.heldItemSystem.key);
-    this.bagButton.onClick = () => this.toggleInventoryWindow();
-    this.characterButton.onClick = () => this.toggleCharacterWindow();
+    this.bagButton.onClick = () => this.toggleCharacterPanel();
+    this.characterButton.onClick = () => this.toggleCharacterPanel();
     this.bestiaryButton.onClick = () => this.toggleBestiaryWindow();
     this.craftButton.onClick = () => this.toggleCraftingWindow();
     this.bagButton.mount();
@@ -1133,23 +1132,19 @@ export default class GameScene {
     this.craftButton.mount();
     this.bestiaryWindow.onClose = () => this.bestiaryButton.setActive(false);
     this.craftingWindow.onClose = () => this.craftButton.setActive(false);
-    this.inventoryWindow.onClose = () => {
+    this.characterPanel.onClose = () => {
       this.bagButton.setActive(false);
-      this.pairWindows();
-    };
-    this.characterWindow.onClose = () => {
       this.characterButton.setActive(false);
-      this.pairWindows();
     };
-    this.inventoryWindow.onUnequip = (slot) => this.unequipSlot(slot);
-    this.inventoryWindow.onMove = (from, to) => {
+    this.characterPanel.onUnequip = (slot) => this.unequipSlot(slot);
+    this.characterPanel.onMove = (from, to) => {
       if (this.inventorySystem.move(from, to)) this.refreshInventory();
     };
-    this.inventoryWindow.onClearBar = (index) => this.heldItemSystem.clear(index);
+    this.characterPanel.onClearBar = (index) => this.heldItemSystem.clear(index);
     this.lootWindow.onTake = (itemKey) => this.takeLoot(itemKey);
     this.lootWindow.onTakeAll = () => this.takeAllLoot();
     this.lootWindow.onClose = () => this.closeLoot();
-    this.characterWindow.onEquip = (itemKey, slot) => this.equipItem(itemKey, slot);
+    this.characterPanel.onEquip = (itemKey, slot) => this.equipItem(itemKey, slot);
     this.vitalsBar.setHealth(this.playerStats.health, this.playerStats.maxHealth);
     this.vitalsBar.setStamina(this.playerStats.stamina, this.playerStats.maxStamina);
     this.creatureHealthBar.mount();
@@ -1161,28 +1156,16 @@ export default class GameScene {
     this.refreshClock();
   }
 
-  toggleInventoryWindow() {
-    if (this.inventoryWindow.open) {
-      this.inventoryWindow.close();
-      this.pairWindows();
+  toggleCharacterPanel() {
+    if (this.characterPanel.open) {
+      this.characterPanel.close();
       return;
     }
     this.refreshInventory();
-    this.inventoryWindow.show();
+    this.refreshCharacterPanel();
+    this.characterPanel.show();
     this.bagButton.setActive(true);
-    this.pairWindows();
-  }
-
-  toggleCharacterWindow() {
-    if (this.characterWindow.open) {
-      this.characterWindow.close();
-      this.pairWindows();
-      return;
-    }
-    this.refreshCharacterWindow();
-    this.characterWindow.show();
     this.characterButton.setActive(true);
-    this.pairWindows();
   }
 
   toggleCraftingWindow() {
@@ -1194,20 +1177,10 @@ export default class GameScene {
     this.craftButton.setActive(true);
   }
 
-  pairWindows() {
-    const both = this.inventoryWindow.open && this.characterWindow.open;
-    if (this.characterWindow.frame.root) this.characterWindow.frame.root.classList.toggle('is-paired-left', both);
-    if (this.inventoryWindow.frame.root) this.inventoryWindow.frame.root.classList.toggle('is-paired-right', both);
-  }
-
   closeOpenWindows() {
     let closed = false;
-    if (this.inventoryWindow.open) {
-      this.inventoryWindow.close();
-      closed = true;
-    }
-    if (this.characterWindow.open) {
-      this.characterWindow.close();
+    if (this.characterPanel.open) {
+      this.characterPanel.close();
       closed = true;
     }
     if (this.bestiaryWindow.open) {
@@ -1229,22 +1202,17 @@ export default class GameScene {
     return closed;
   }
 
-  refreshCharacterWindow() {
-    const root = this.playerSystem.root;
-    const carrying = Object.values(this.inventorySystem.items || {})
-      .reduce((sum, count) => sum + (Number(count) || 0), 0);
-    let cell = '—';
-    if (root) {
-      const coords = worldToCellCoords(root.position.x, root.position.z);
-      cell = `${coords.cx}, ${coords.cz}`;
-    }
-    this.characterWindow.update({
-      health: `${Math.ceil(this.playerStats.health)} / ${this.playerStats.maxHealth}`,
-      stamina: `${Math.ceil(this.playerStats.stamina)} / ${this.playerStats.maxStamina}`,
-      cell,
-      height: root ? metersText(root.position.y) : '—',
-      carrying,
-      clock: this.clockText || '—',
+  refreshCharacterPanel() {
+    this.characterPanel.updateCharacter({
+      health: this.playerStats.health,
+      maxHealth: this.playerStats.maxHealth,
+      stamina: this.playerStats.stamina,
+      maxStamina: this.playerStats.maxStamina,
+      attack: this.playerAttackSystem.attack,
+      defense: this.playerStats.defense,
+      armor: this.playerStats.armor,
+      damage: damageText(this.playerAttackSystem.damage),
+      resistances: this.playerStats.resistances,
     });
   }
 
@@ -1277,9 +1245,10 @@ export default class GameScene {
   }
 
   refreshInventory() {
-    this.inventoryWindow.update(this.inventorySystem);
+    this.characterPanel.updateInventory(this.inventorySystem);
     this.hotbar.setAvailable((key) => this.ownsTool(key));
     if (this.heldItemSystem.key && !this.ownsTool(this.heldItemSystem.key)) this.heldItemSystem.set(null);
+    if (this.characterPanel.open) this.refreshCharacterPanel();
   }
 
   onHeldItemChange() {
@@ -1289,6 +1258,7 @@ export default class GameScene {
     this.gatherSystem.setTool(this.heldItemSystem.tool());
     this.gridSystem.hideHologram();
     this.setPointerCursorState();
+    if (this.characterPanel.open) this.refreshCharacterPanel();
   }
 
   setupInput() {
@@ -1500,13 +1470,13 @@ export default class GameScene {
     if ((evt.key === 'i' || evt.key === 'I') && !typing) {
       if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
       evt.preventDefault();
-      this.toggleInventoryWindow();
+      this.toggleCharacterPanel();
       return;
     }
     if ((evt.key === 'c' || evt.key === 'C') && !typing) {
       if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
       evt.preventDefault();
-      this.toggleCharacterWindow();
+      this.toggleCharacterPanel();
       return;
     }
     if ((evt.key === 'b' || evt.key === 'B') && !typing) {

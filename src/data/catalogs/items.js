@@ -11,9 +11,18 @@ export const EQUIP_SLOTS = [
   { key: 'weapon', label: 'Zbraň', icon: '⚔' },
 ];
 
+export const ITEM_TAG_LABELS = {
+  raw: 'Surovina',
+  product: 'Produkt',
+  tool: 'Nástroj',
+  weapon: 'Zbraň',
+  wear: 'Oblečení',
+};
+
 export const ITEM_TYPES = {
   wood: {
     displayName: 'Dřevo',
+    description: 'Ze dřeva se dá postavit skoro všechno. Skoro.',
     icon: '🪵',
     stackSize: 100,
     kind: 'raw',
@@ -21,6 +30,7 @@ export const ITEM_TYPES = {
   },
   stone: {
     displayName: 'Kámen',
+    description: 'Tvrdý, těžký a ve správné ruce i užitečný.',
     icon: '🪨',
     stackSize: 100,
     kind: 'raw',
@@ -28,6 +38,7 @@ export const ITEM_TYPES = {
   },
   shell: {
     displayName: 'Mušle',
+    description: 'Na ucho šumí moře. V batohu zabírá místo.',
     icon: '🐚',
     stackSize: 20,
     kind: 'raw',
@@ -35,6 +46,7 @@ export const ITEM_TYPES = {
   },
   mushroom: {
     displayName: 'Houba',
+    description: 'Jíst se dá. Ale nejdřív si buď jistý, že je to ta správná.',
     icon: '🍄',
     stackSize: 100,
     kind: 'raw',
@@ -42,6 +54,7 @@ export const ITEM_TYPES = {
   },
   coconut: {
     displayName: 'Kokos',
+    description: 'Padá ze stromu jen tehdy, když se díváš jinam.',
     icon: '🥥',
     stackSize: 20,
     kind: 'raw',
@@ -49,12 +62,15 @@ export const ITEM_TYPES = {
   },
   herb: {
     displayName: 'Léčivá bylina',
+    description: 'Neptej se, co je v ní. Prostě to vypij.',
+    icon: '🌿',
     stackSize: 10,
     kind: 'raw',
     color: [0.72, 0.34, 0.28],
   },
   stick: {
     displayName: 'Klacek',
+    description: 'Filozoficky nejstarší zbraň lidstva.',
     icon: '🥢',
     stackSize: 100,
     kind: 'product',
@@ -62,6 +78,7 @@ export const ITEM_TYPES = {
   },
   torch: {
     displayName: 'Pochodeň',
+    description: 'Svítí, hřeje a občas zapálí víc, než chceš.',
     icon: '🔥',
     stackSize: 5,
     kind: 'tool',
@@ -69,6 +86,7 @@ export const ITEM_TYPES = {
   },
   meat: {
     displayName: 'Maso',
+    description: 'Syrové. Oheň tomu dodá ten správný lesk.',
     icon: '🥩',
     stackSize: 20,
     kind: 'raw',
@@ -76,6 +94,7 @@ export const ITEM_TYPES = {
   },
   turtle_shell: {
     displayName: 'Krunýř',
+    description: 'Bývalý majitel už ho nepotřebuje.',
     icon: '🐢',
     stackSize: 20,
     kind: 'raw',
@@ -83,6 +102,7 @@ export const ITEM_TYPES = {
   },
   pirate_hat: {
     displayName: 'Pirátský klobouk',
+    description: 'Nezaručuje loď, posádku ani poklad.',
     icon: '🎩',
     stackSize: 1,
     kind: 'wear',
@@ -135,7 +155,7 @@ export const TOOL_TYPES = {
     model: 'stick',
     file: `${ASSET_DIRS.props}club/stick.glb`,
     grip: { scale: 1.6, fist: 1, curl: 1.1, tilt: -0.3, hold: 0.07, wrist: 1 },
-    weapon: { damage: 12, cooldown: 1.1, anim: 'chop' },
+    weapon: { damage: [10, 14], attack: 1, damageType: 'blunt', cooldown: 1.1, anim: 'chop' },
   },
 };
 
@@ -151,4 +171,21 @@ export function getTool(toolKey) {
 
 export function toolForItem(itemKey) {
   return Object.keys(TOOL_TYPES).find((key) => TOOL_TYPES[key].item === itemKey) || null;
+}
+
+export function itemWeapon(itemKey) {
+  const toolKey = toolForItem(itemKey);
+  const tool = toolKey ? TOOL_TYPES[toolKey] : null;
+  return tool && tool.weapon ? tool.weapon : null;
+}
+
+export function itemTags(itemKey) {
+  const def = ITEM_TYPES[itemKey];
+  if (!def) return [];
+  const keys = [];
+  if (def.kind) keys.push(def.kind);
+  const toolKey = toolForItem(itemKey);
+  const tool = toolKey ? TOOL_TYPES[toolKey] : null;
+  if (tool && tool.kind) keys.push(tool.kind);
+  return [...new Set(keys)].map((key) => ({ key, label: ITEM_TAG_LABELS[key] || key }));
 }

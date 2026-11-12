@@ -25,7 +25,7 @@ vstup je zamčený, dokud obrazovka nezmizí.
 | **Tažení pravým tlačítkem** | Rotace kamery (i v editoru); v editoru pravé kliknutí bez tažení odebírá buňku |
 | **Kolečko** | Zoom (v editoru jde oddálit víc než ve hře) |
 | **1–5** | Výběr předmětu v ruce z lišty dole; na lištu se věci přetahují z batohu, pravé tlačítko je z ní sundá |
-| **I / C / B / V** | Inventář / postava / bestiář / výroba — velká okna uprostřed obrazovky, jde s nimi tahat (také tlačítky v liště); výroba je zatím prázdná |
+| **I / C / B / V** | Postava a batoh (obojí I i C) / bestiář / výroba — velká okna uprostřed obrazovky, jde s nimi tahat (také tlačítky v liště); výroba je zatím prázdná |
 | **Levé tlačítko u houby / kokosu / klacku** | Sebrání (podržet = opakovat) |
 | **Levé tlačítko u truhly / kostry / táboráku** | Otevřít / prohledat / zapálit (stačí stát u nich) |
 | **Levé tlačítko u tvora** | Útok rukou (podržet = opakovat) |

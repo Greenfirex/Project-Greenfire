@@ -1,7 +1,7 @@
 // Okno kořisti — co je v truhle nebo u uloveného tvora a co si z toho hráč vezme.
 // Kliknutí na předmět nebo „Vzít vše" jen ohlásí scéně, co hráč chce; obsah drží hra.
 import { ITEM_TYPES } from '../data/catalogs/items.js';
-import { itemIcon } from './itemIcons.js';
+import { itemIconElement } from './itemIcons.js';
 import WindowFrame from './windowFrame.js';
 
 export default class LootWindow {
@@ -60,9 +60,7 @@ export default class LootWindow {
       cell.type = 'button';
       cell.className = 'inv-cell loot-cell';
       cell.title = `Vzít: ${label} × ${amount}`;
-      const icon = document.createElement('span');
-      icon.className = 'inv-cell__icon';
-      icon.textContent = itemIcon(itemKey);
+      const icon = itemIconElement(itemKey, 'inv-cell__icon');
       const count = document.createElement('span');
       count.className = 'inv-cell__count';
       count.textContent = String(amount);

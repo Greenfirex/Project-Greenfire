@@ -2,13 +2,14 @@
 // O zásahu i o critu rozhodne porovnání útoku s obranou cíle; ubrané zdraví hlásí scéně, sám ho nedrží.
 import { PLAYER_BASE } from '../../data/catalogs/player.js';
 import { creatureStat } from '../../data/catalogs/creatures/index.js';
-import { rollStrike, CRIT_MULTIPLIER } from '../../utils/combatRoll.js';
+import { rollStrike, rollDamage, normalizeRange, CRIT_MULTIPLIER } from '../../utils/combatRoll.js';
 
 export default class PlayerAttackSystem {
 
   constructor() {
     const punch = PLAYER_BASE.punch || {};
-    this.attack = this.number(PLAYER_BASE.attack);
+    this.baseAttack = this.number(PLAYER_BASE.attack);
+    this.attack = this.baseAttack;
     this.reach = this.number(punch.reach);
     this.heightLimit = this.number(punch.heightLimit);
     this.setWeapon(null);
@@ -31,7 +32,8 @@ export default class PlayerAttackSystem {
     const weapon = tool && tool.weapon ? tool.weapon : null;
     const punch = PLAYER_BASE.punch || {};
     this.weaponAnim = weapon ? weapon.anim : null;
-    this.damage = this.number(weapon ? weapon.damage : punch.damage);
+    this.attack = this.baseAttack + this.number(weapon ? weapon.attack : 0);
+    this.damage = normalizeRange(weapon ? weapon.damage : punch.damage);
     this.cooldownSeconds = this.number(weapon ? weapon.cooldown : punch.cooldown);
   }
 
@@ -76,7 +78,8 @@ export default class PlayerAttackSystem {
       if (this.onMiss) this.onMiss(creature);
       return;
     }
-    const damage = strike.crit ? pending.damage * CRIT_MULTIPLIER : pending.damage;
+    const rolled = rollDamage(pending.damage);
+    const damage = strike.crit ? rolled * CRIT_MULTIPLIER : rolled;
     if (this.onHit) this.onHit(creature, damage, strike.crit);
   }
 }

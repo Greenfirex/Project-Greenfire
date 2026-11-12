@@ -8,6 +8,29 @@ const MAX_CRIT = 0.4;
 
 export const CRIT_MULTIPLIER = 2;
 
+export function normalizeRange(value) {
+  if (Array.isArray(value)) {
+    const low = Number(value[0]);
+    const high = Number(value[1]);
+    if (Number.isFinite(low) && Number.isFinite(high)) {
+      return low <= high ? [low, high] : [high, low];
+    }
+  }
+  const fixed = Number(value);
+  return Number.isFinite(fixed) ? [fixed, fixed] : [0, 0];
+}
+
+export function rollDamage(value) {
+  const [low, high] = normalizeRange(value);
+  if (high <= low) return low;
+  return Math.floor(low + Math.random() * (high - low + 1));
+}
+
+export function damageText(value) {
+  const [low, high] = normalizeRange(value);
+  return low === high ? String(low) : `${low}–${high}`;
+}
+
 function chanceOf(attack, defense) {
   const a = Number.isFinite(attack) && attack > 0 ? attack : 0;
   const d = Number.isFinite(defense) && defense > 0 ? defense : 0;

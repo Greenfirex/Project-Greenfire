@@ -11,7 +11,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Meshes/Builders/sphereBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { createCreatureMarker, setMarkerIcon } from '../../utils/creatureMarker.js';
-import { rollStrike, CRIT_MULTIPLIER } from '../../utils/combatRoll.js';
+import { rollStrike, rollDamage, CRIT_MULTIPLIER } from '../../utils/combatRoll.js';
 import {
   getCreatureType,
   getCreatureTier,
@@ -999,9 +999,13 @@ export default class CreatureSystem {
       if (this.onBiteMiss) this.onBiteMiss(creature);
       return;
     }
-    const bite = creatureStat(creature.type, creature.tier, 'bite');
-    const damage = strike.crit ? bite * CRIT_MULTIPLIER : bite;
-    if (this.onBite) this.onBite(creature, damage, strike.crit);
+    const bite = creature.tier && creature.tier.bite !== undefined
+      ? creature.tier.bite
+      : creature.type.bite;
+    const rolled = rollDamage(bite);
+    const damage = strike.crit ? rolled * CRIT_MULTIPLIER : rolled;
+    const damageType = (creature.tier && creature.tier.damageType) || creature.type.damageType || null;
+    if (this.onBite) this.onBite(creature, damage, strike.crit, damageType);
   }
 
   idleCall(creature, dt) {

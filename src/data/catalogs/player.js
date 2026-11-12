@@ -1,9 +1,13 @@
 // Co je hráč zač — výchozí čísla postavy na jednom místě; systém stavů je jen čte.
 // Útok a obrana rozhodují o zásahu, zdraví o přežití; další vlastnosti přibudou později.
+import { zeroResistances } from './damage.js';
+
 export const PLAYER_BASE = {
   maxHealth: 100,
   attack: 12,
   defense: 10,
+  armor: 0,
+  resistances: zeroResistances(),
   regenDelaySeconds: 8,
   regenPerSecond: 1.5,
   reviveImmunitySeconds: 2,
@@ -12,7 +16,7 @@ export const PLAYER_BASE = {
     heightLimit: 1,
   },
   punch: {
-    damage: 6,
+    damage: [4, 8],
     cooldown: 1.0,
     reach: 1.8,
     heightLimit: 0.9,

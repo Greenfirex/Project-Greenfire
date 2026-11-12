@@ -48,6 +48,7 @@ Povinné je to, co systém čte bez náhrady. „Když chybí" říká, co se st
 | `chargeRange` | od jaké dálky rovnou útočí; dál jde nejdřív varování | povinné |
 | `alertSeconds` | rozsah `[min, max]`, jak dlouho varuje | `[2, 3]` |
 | `noWarning` | `true` = žádné varování, rovnou boj | `false` |
+| `damageType` | typ poškození (`piercing`, `slashing`, …) proti resistitám hráče | žádný |
 | `biteRange` | na jakou dálku dosáhne | povinné |
 | `biteWindup` | jak dlouho se napřahuje, než rána padne | povinné |
 | `biteCooldown` | pauza mezi útoky | povinné |
@@ -79,7 +80,8 @@ Tier je stáří tvora. Klíč tieru se ukládá do savu, takže přejmenování
 | `scale` | měřítko proti základu | 1 |
 | `tint` | `[r, g, b]` nádech barvy | `[1, 1, 1]` |
 | `health` | životy | povinné |
-| `bite` | zranění z rány | povinné |
+| `bite` | zranění z rány jako rozsah `[min, max]` | povinné |
+| `damageType` | přebije typ poškození z druhu tvora | typ tvora |
 | `attack` | síla útoku proti obraně hráče | povinné |
 | `defense` | obrana proti útoku hráče | povinné |
 | `speed` | násobek rychlosti | 1 |

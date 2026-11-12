@@ -1,0 +1,6 @@
+Ikony předmětů v této složce jsou vygenerované v Gemini (Google AI) pro tento projekt.
+Formát: čtvercové PNG 256 × 256, průhledné pozadí, bez textu a rámečku.
+
+Očekávané názvy souborů:
+wood.png, stone.png, shell.png, mushroom.png, coconut.png, herb.png,
+stick.png, torch.png, meat.png, turtle_shell.png, pirate_hat.png

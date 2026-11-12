@@ -39,7 +39,7 @@ export default {
       this.refreshReflectionExclusions();
     };
     system.onSound = (key, creature) => this.playCreatureSound(key, creature);
-    system.onBite = (creature, damage, crit) => this.onCreatureBite(creature, damage, crit);
+    system.onBite = (creature, damage, crit, damageType) => this.onCreatureBite(creature, damage, crit, damageType);
     system.onBiteMiss = (creature) => this.onCreatureBiteMiss(creature);
     await system.create(this.mapLayout);
     this.creatureLayoutKey = this.creatureLayoutSignature();
@@ -392,16 +392,16 @@ export default {
     this.creatureHealthBar.update(items);
   },
 
-  hurtPlayer(amount, label, crit = false, fromBehind = false) {
-    if (!this.loaded || this.paused || this.dying) return false;
-    if (!this.playerStats.hurt(amount)) return false;
+  hurtPlayer(amount, crit = false, fromBehind = false, damageType = null) {
+    if (!this.loaded || this.paused || this.dying) return 0;
+    const dealt = this.playerStats.hurt(amount, damageType);
+    if (!dealt) return 0;
     this.audioSystem.play(crit ? 'hurtCrit' : 'hurt');
     if (this.options.cameraShake) this.cameraSystem.shake(0.28, 0.32);
     if (this.options.damageFlash) this.vitalsBar.flash();
-    if (label) this.log.add(label, 'warn');
     if (this.playerStats.health <= 0) this.onPlayerDeath(fromBehind);
     else this.playerSystem.flinch();
-    return true;
+    return dealt;
   },
 
   isBehindPlayer(creature) {
@@ -416,12 +416,16 @@ export default {
     return dot < BACK_HIT_DOT;
   },
 
-  onCreatureBite(creature, damage, crit) {
+  onCreatureBite(creature, damage, crit, damageType) {
     const who = creature && creature.type ? creature.type.label : 'Útok';
     const critText = crit ? ' kriticky' : '';
     const behind = this.isBehindPlayer(creature);
-    const hurt = this.hurtPlayer(damage, `${who} — ${Math.round(damage)} poškození${critText}`, crit, behind);
-    if (hurt) this.showFloatingOverPlayer(damage, crit);
+    const dealt = this.hurtPlayer(damage, crit, behind, damageType);
+    if (!dealt) return;
+    const blocked = Math.max(0, Math.round(damage - dealt));
+    const blockedText = blocked > 0 ? ` (odoláno ${blocked})` : '';
+    this.log.add(`${who} — ${Math.round(dealt)} poškození${critText}${blockedText}`, 'warn');
+    this.showFloatingOverPlayer(dealt, crit);
   },
 
   onCreatureBiteMiss(creature) {

@@ -1,6 +1,7 @@
 // Hotbar dole uprostřed — sloty pro předměty v ruce, plní se přetažením z batohu.
 // Kliknutí a přetahování jen hlásí callbacky; sedí v dolní liště vedle panelů inventáře a postavy.
 import { getTool, HOTBAR_SLOTS } from '../data/catalogs/items.js';
+import { itemIconElement } from './itemIcons.js';
 import { HAND_DRAG_TYPE, BAR_DRAG_TYPE } from './dragTypes.js';
 
 export default class Hotbar {
@@ -136,7 +137,14 @@ export default class Hotbar {
       btn.title = locked
         ? `${tool.displayName} — zatím ho nemáš (pravé tlačítko odebere)`
         : `${tool.displayName} (${index + 1}) — pravé tlačítko odebere z lišty`;
-      btn.innerHTML = `<span class="hotbar__key">${index + 1}</span><span class="hotbar__icon">${tool.icon}</span><span class="hotbar__name">${tool.shortName}</span>`;
+      const keyLabel = document.createElement('span');
+      keyLabel.className = 'hotbar__key';
+      keyLabel.textContent = String(index + 1);
+      const icon = itemIconElement(tool.item, 'hotbar__icon');
+      const name = document.createElement('span');
+      name.className = 'hotbar__name';
+      name.textContent = tool.shortName;
+      btn.replaceChildren(keyLabel, icon, name);
     });
     this.root.classList.toggle('is-armed', Boolean(this.heldKey));
   }

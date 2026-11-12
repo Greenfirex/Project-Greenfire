@@ -1,6 +1,7 @@
-// Stavy postavy — zdraví, obrana a výdrž hráče, doplňování zdraví i výdrže a chvilka klidu po probuzení.
+// Stavy postavy — zdraví, obrana, zbroj, resistity a výdrž hráče, doplňování a chvilka klidu po probuzení.
 // Čísla bere z katalogu postavy; scéně jen hlásí změnu zdraví a výdrže.
 import { PLAYER_BASE } from '../../data/catalogs/player.js';
+import { DAMAGE_TYPES, DAMAGE_TYPE_KEYS, MAX_RESISTANCE } from '../../data/catalogs/damage.js';
 
 export default class PlayerStatsSystem {
 
@@ -8,6 +9,8 @@ export default class PlayerStatsSystem {
     this.maxHealth = this.amount(PLAYER_BASE.maxHealth, 100, 1);
     this.health = this.maxHealth;
     this.defense = this.amount(PLAYER_BASE.defense, 0, 0);
+    this.armor = this.amount(PLAYER_BASE.armor, 0, 0);
+    this.resistances = this.readResistances(PLAYER_BASE.resistances);
     this.sinceHurt = 0;
     this.immunity = 0;
     const stamina = PLAYER_BASE.stamina || {};
@@ -29,6 +32,26 @@ export default class PlayerStatsSystem {
   amount(value, fallback, min) {
     if (Number.isFinite(value) && value >= min) return value;
     return fallback;
+  }
+
+  readResistances(source) {
+    const out = {};
+    for (const key of DAMAGE_TYPE_KEYS) {
+      const value = source && Number.isFinite(source[key]) ? source[key] : 0;
+      out[key] = Math.max(0, Math.min(MAX_RESISTANCE, value));
+    }
+    return out;
+  }
+
+  mitigate(points, damageType) {
+    const damage = Number(points);
+    if (!Number.isFinite(damage) || damage <= 0) return 0;
+    const type = DAMAGE_TYPES[damageType] || null;
+    const rawShare = type && Number.isFinite(this.resistances[damageType]) ? this.resistances[damageType] : 0;
+    const share = Math.max(0, Math.min(MAX_RESISTANCE, rawShare));
+    const afterResistance = damage * (1 - share / 100);
+    const armor = type && type.group === 'physical' ? this.armor : 0;
+    return Math.max(1, Math.round(afterResistance - armor));
   }
 
   notifyStamina() {
@@ -92,14 +115,15 @@ export default class PlayerStatsSystem {
     this.notifyStamina();
   }
 
-  hurt(points) {
-    if (!Number.isFinite(points) || points <= 0) return false;
-    if (this.immunity > 0 || this.health <= 0) return false;
-    this.health = Math.max(0, this.health - points);
+  hurt(points, damageType) {
+    if (!Number.isFinite(points) || points <= 0) return 0;
+    if (this.immunity > 0 || this.health <= 0) return 0;
+    const dealt = this.mitigate(points, damageType);
+    this.health = Math.max(0, this.health - dealt);
     this.sinceHurt = 0;
     this.sinceEffort = 0;
     if (this.onChange) this.onChange(this.health, this.maxHealth);
-    return true;
+    return dealt;
   }
 
   resurrect() {

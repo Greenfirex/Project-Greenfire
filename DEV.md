@@ -373,14 +373,25 @@ v `src/data/catalogs/modelCatalog.js`, načtení a přepínání v `playerSystem
 Nový svět začíná na buňce **−1, −16**, hráč leží a vstane po stisku WASD nebo šipek.
 Uložená hra vstávání přeskočí. Když dojde zdraví, hráč se probudí na startu.
 
-Zdraví a výdrž drží `playerStatsSystem.js`, čísla jsou v `src/data/catalogs/player.js`,
-proužky kreslí `src/ui/vitalsBar.js`. Výdrž ubírá běh, útok a máchnutí do stromu či
-kamene; doplňuje se po prodlevě, kterou restartuje i kousnutí. Při prázdné výdrži
-postava přejde do chůze a běh povolí až nad mezí — Shift je potřeba pustit
-a stisknout znovu (jinak by kmitala). Útočit jde i bez výdrže.
+Zdraví, výdrž, zbroj a resistity drží `playerStatsSystem.js`, čísla jsou
+v `src/data/catalogs/player.js`, proužky kreslí `src/ui/vitalsBar.js`. Výdrž ubírá
+běh, útok a máchnutí do stromu či kamene; doplňuje se po prodlevě, kterou restartuje
+i kousnutí. Při prázdné výdrži postava přejde do chůze a běh povolí až nad mezí —
+Shift je potřeba pustit a stisknout znovu (jinak by kmitala). Útočit jde i bez výdrže.
 
-Okno **Postava** (C) a **Inventář** (I) jdou tahat myší a pamatují si pozici. Obě
-můžou být otevřená zároveň a postaví se vedle sebe.
+Poškození je rozsah (`bite: [3, 5]`, pěst `[4, 8]`). Losuje ho `rollDamage`
+v `combatRoll.js`. `defense` rozhoduje o zásahu, `armor` snižuje jen fyzické
+poškození pevným číslem a resistity ho snižují procenty (strop 75 %). Pořadí je
+los → kritický násobek → resistita → zbroj → nejméně 1. Typy poškození a výchozí
+nuly drží `src/data/catalogs/damage.js`.
+
+Okno **Postava a batoh** otevírá **I** i **C** a jde tahat myší. Vlevo drží výbavu
+a staty (zdraví, výdrž, obranu, útok, zbroj, rozsah rány a dva sloupce resistit),
+uprostřed batoh s počtem obsazených políček a vpravo detail předmětu. Najetí na
+stat ukáže vpravo jeho hodnotu a popis. Předmět má tagy odvozené z druhu a nástroje
+(klacek je Produkt i Zbraň), krátký popis a u zbraně typ poškození, rozsah a bonus
+útoku. Ikony předmětů mohou být PNG obrázky z `public/assets/ui/items/`; bez nich
+se použije emoji.
 
 **Batoh a lišta:** batoh má pevná políčka (`INVENTORY_SLOTS`, mřížka 6 sloupců).
 Každý druh předmětu leží na jednom políčku, `inventorySystem.slots` pamatuje kde;
@@ -531,6 +542,8 @@ Jak postavit nového tvora, všechna pole a rozhraní rigu popisuje
   vysoko dosáhne útokem, `noticeHeight` = z jaké výšky si hráče ještě všimne.
 - Zásah: útok² proti obraně², ohraničeno na 5–95 %. Kdo útok zahájí, dokončí ho.
   Citlivý zásah se odvozuje sám: (šance − 50 %) × 0,75, strop 40 %, poškození ×2.
+- Poškození je rozsah; losuje se až po zásahu. Hráč pak uplatní resistitu podle typu
+  a u fyzického poškození odečte zbroj. Minimum je 1.
 - Kopírovat model přes `LoadAssetContainerAsync` + `instantiateModelsToScene`;
   ruční `clone()` rozbije kostru.
 - Ladicí čísla patří do souboru tvora, ne do systému.
