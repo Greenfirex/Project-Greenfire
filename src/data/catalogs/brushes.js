@@ -339,6 +339,13 @@ export const BRUSHES = {
     ],
     falloff: true,
   },
+  lake: {
+    label: 'Jezero',
+    group: 'Terén',
+    note: 'Klikni do prohlubně — voda ji naplní až po okraj. Klik na jezero hladinu zvedne, pravé tlačítko ji sníží, v režimu Mazat jezero zmizí.',
+    shape: 'blob',
+    lake: true,
+  },
   beach: {
     label: 'Pláž',
     group: 'Terén',
@@ -461,13 +468,13 @@ export function brushAboveGroundOnly(brushKey) {
   const brush = BRUSHES[brushKey];
   if (!brush || brush.erase) return false;
   return Boolean(brush.height || brush.heights || brush.surface || brush.cliff || brush.join || brush.bridge
-    || brush.fish || brush.spawn || brush.flora || brush.shape === 'line');
+    || brush.fish || brush.spawn || brush.lake || brush.flora || brush.shape === 'line');
 }
 
 export function brushPaintParts(brushKey) {
   const brush = BRUSHES[brushKey];
   if (!brush) return PAINT_ALL;
-  if (brush.spawn) return PAINT_NOTHING;
+  if (brush.spawn || brush.lake) return PAINT_NOTHING;
   if (brush.erase === 'terrain') return PAINT_ALL;
   if (brush.erase === 'creatures') return [PAINT_CREATURES, PAINT_FISH];
   if (brush.erase === 'all') return [PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH];
@@ -481,7 +488,7 @@ export function brushPaintParts(brushKey) {
 export function brushOptions(brush) {
   if (!brush) return [];
   const list = [...(Array.isArray(brush.options) ? brush.options : (brush.option ? [brush.option] : []))];
-  if (brush.join || brush.bridge || brush.creature || brush.spawn) return list;
+  if (brush.join || brush.bridge || brush.creature || brush.spawn || brush.lake) return list;
   if (brush.rotate) list.push(ROTATION_OPTION);
   const size = Number.isFinite(brush.radius) ? Math.max(0, Math.min(SIZE_OPTION.max, Math.round(brush.radius))) : 0;
   return [...list, { ...SIZE_OPTION, default: size }];

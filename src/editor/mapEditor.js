@@ -21,6 +21,7 @@ import { CELL_SIZE } from '../utils/gridMath.js';
 import { SIDES } from './editorSettings.js';
 import { ENTRY_LAYERS } from '../data/maps/areaShape.js';
 import { NO_FLOOR_PICK_HEIGHT } from '../scenes/sceneSettings.js';
+import editorLakesParts from './editorLakes.js';
 
 const TAB_KEYS = { Digit1: 'zone', Digit2: 'height', Digit3: 'area', Digit4: 'floors' };
 const HEIGHT_LABEL_LIFT = 0.45;
@@ -750,6 +751,7 @@ export default class MapEditor {
     if (this.mode.isJoinBrush) this.hud.setReadout('Spojnice: klikni na vrchol, pak na spodek');
     else if (this.mode.isBridgeBrush) this.hud.setReadout('Most: klikni na první břeh, pak na protější');
     else if (this.mode.isSpawnBrush) this.hud.setReadout('Start hráče: klikni na buňku, kam má hráč začínat');
+    else if (this.mode.isLakeBrush) this.hud.setReadout('Jezero: klikni do prohlubně · klik na jezero zvedne hladinu, pravé tlačítko ji sníží');
     this.refreshUndoButton();
     this.refreshZoneOverlay();
     this.refreshCreatureMarks();
@@ -825,6 +827,8 @@ export default class MapEditor {
     for (const item of info.decorations || []) parts.push(item.name);
     const beast = info.creature;
     if (beast) parts.push(beast.tier ? `${beast.type.label} (${beast.tier.label})` : beast.type.label);
+    const lake = this.s.lakeLevelAtCell(cell.cx, cell.cz);
+    if (lake !== null) parts.push(`Jezero ${formatMeters(lake)}`);
     const lift = Math.round((Number(info.liftY) || 0) * 100) / 100;
     this.hud.setCursorValue(this.mode.mode === 'height' ? formatMeters(lift) : null);
     const staged = this.mode.mode === 'height' ? this.mode.heightLevelAt(cell.cx, cell.cz) : null;
@@ -865,6 +869,7 @@ export default class MapEditor {
     } else if (!this.mode.hasBrush) this.hud.setReadout(NO_BRUSH_HINT);
     else if (this.mode.isJoinBrush) this.pickJoinCell(cell);
     else if (this.mode.isBridgeBrush && this.mode.draftMode !== 'remove') this.pickBridgeCell(cell);
+    else if (this.mode.isLakeBrush) this.pickLake(cell, this.mode.draftMode === 'remove' ? 'remove' : 'add');
     else if (!this.mode.canDraftCell(cell.cx, cell.cz)) this.hud.setReadout('Mimo hrací plochu — přepni na Plochu');
     else this.mode.beginDraftDrag(cell.cx, cell.cz);
   }
@@ -915,7 +920,7 @@ export default class MapEditor {
     if (this.mode.mode === 'floors') this.mode.moveFloorDrag(cell.cx, cell.cz);
     else if (this.mode.mode === 'area') this.mode.moveAreaDrag(cell.cx, cell.cz);
     else if (this.mode.mode === 'height') this.mode.paintRun(from, cell);
-    else if (!this.mode.isJoinBrush && (!this.mode.isBridgeBrush || this.mode.draftMode === 'remove')) this.mode.moveDraftDrag(cell.cx, cell.cz);
+    else if (!this.mode.isJoinBrush && !this.mode.isLakeBrush && (!this.mode.isBridgeBrush || this.mode.draftMode === 'remove')) this.mode.moveDraftDrag(cell.cx, cell.cz);
     this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
   }
 
@@ -929,6 +934,10 @@ export default class MapEditor {
     if (this.mode.mode === 'zone' && this.mode.isBridgeBrush) {
       this.mode.cancelBridge();
       this.hud.setReadout('Most zrušen — klikni znovu na břeh');
+      return;
+    }
+    if (this.mode.mode === 'zone' && this.mode.isLakeBrush) {
+      this.pickLake(cell, 'lower');
       return;
     }
     if (this.mode.selectsArea) {
@@ -1337,3 +1346,5 @@ function brokenEntries(layout) {
   }
   return count;
 }
+
+Object.assign(MapEditor.prototype, editorLakesParts);

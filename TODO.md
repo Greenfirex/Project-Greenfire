@@ -100,7 +100,8 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Patra: ověřit v dev serveru krok 4 — jeskyně je tmavá i bez hráče (prostorová tma; pochodеň/oheň prosvětlí), povrch světlý, jeskynní ambient (`cave.ogg`) se přelévá; a skrývání ploch nade hráčem (z výšky vidět dovnitř) funguje. Model a stav jsou v `DEV.md`, sekce „Jeskyně a patra".
 - [ ] 4B pozastaveno do velké etapy: odkrývání střechy teď ukazuje prázdno/moře a dekorace nad odhalenou plochou visí — dočistí se ve fázi 7 objemového terénu (skála bude hmota + skrytí dekorací).
 - [ ] Patra: hloubka skály — **řeší se velkou etapou „objemový terén"** (viz `DEV.md`, sekce „Velká etapa: objemový terén"). Skalní kůže a jiné náplasti se nepoužijí.
-- [ ] Suché jámy pod hladinou a řeky s vodopády — dvě témata k rozhodnutí; rozbor (co to obnáší a co se může rozbít) je v `DEV.md`, sekce „Voda a podzemí".
+- [ ] Řeky (kreslí se jako cesta, hladina klesá po proudu) a pak vodopády — postup v `DEV.md`, sekce Plány.
+- [ ] Suché jámy pod hladinou — k rozhodnutí, rozbor v `DEV.md`, sekce Plány.
 - [ ] Rozhodnout, jestli recepty zůstanou jen jako přehled, nebo dostanou tlačítko pro výrobu.
 - [ ] Navrhnout nový systém stavění (starý byl odstraněn).
 - [ ] Rozhodnout o šířce plynulého okraje pláže.

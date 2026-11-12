@@ -110,6 +110,7 @@ uniform vec3 foamColor;
 uniform float dayness;
 uniform float maxDepth;
 uniform float waterLevel;
+uniform float swellScale;
 uniform float reflectionOn;
 uniform float detailPixel;
 uniform sampler2D depthMap;
@@ -180,6 +181,7 @@ void main(void) {
   vec4 depthSample = texture2D(depthMap, clamp(depthUv, vec2(0.0), vec2(1.0)));
   float rawDrop = (depthSample.r - 0.5) * 2.0 * depthRange;
   float cliff = clamp(depthSample.g, 0.0, 1.0);
+  float inside = clamp(depthSample.b, 0.0, 1.0);
   float depth = max(rawDrop, 0.0);
   float wet = vPosition.y - waterLevel + rawDrop;
   float d = max(vDist, 0.0);
@@ -187,9 +189,9 @@ void main(void) {
   depth = max(depth, cliffFill * 1.5);
   wet = max(wet, cliffFill * 0.5);
 
-  float amp = ${waveAmpGlsl('depth', 'maxDepth')};
+  float amp = ${waveAmpGlsl('depth', 'maxDepth')} * swellScale;
   float shoal = shoalWithCliff(d, cliff);
-  float swell = swellAt(d, p, waterTime);
+  float swell = swellAt(d, p, waterTime) * swellScale;
   vec2 grad = clamp(vDir, vec2(-2.0), vec2(2.0));
   vec2 bigSlope = grad * (swellSlopeAt(d, p, waterTime) * amp * shoal);
   vec2 toward = -normalize(grad + vec2(1e-5, 1e-5));
@@ -283,6 +285,7 @@ void main(void) {
   float shoreBand = 1.0 - smoothstep(0.0, shoreWidth, dShore);
   float shoreLace = shoreBand * (0.85 + 0.6 * foamPatch) * (0.65 + 0.35 * swash) * (1.0 - 0.9 * cliff);
   float shallowFoam = (1.0 - smoothstep(0.03, 0.5, rawDrop + shoreRise * ${glslFloat(SHORE_SWING)})) * (0.45 + 0.85 * foamPatch) * (0.6 + 0.4 * swash);
+  shallowFoam *= mix(0.3, 1.0, swellScale);
 
   float breaker = crestShape * (1.0 - smoothstep(2.5, 10.0, d)) * (0.2 + 0.9 * foamPatch);
   float whitecap = crestShape * smoothstep(10.0, 26.0, d) * 0.08 * foamPatch;
@@ -292,8 +295,8 @@ void main(void) {
   float foam = max(max(max(shoreLace, breaker), max(crash, whitecap)), shallowFoam);
   foam *= mix(0.6, 1.0, texFoam);
   float shoreCut = smoothstep(-0.015, 0.02, rawDrop);
-  float visible = max(smoothstep(-0.02, 0.04, wet) * shoreCut, cliffFill);
-  foam *= smoothstep(0.0, 0.03, wet) * max(shoreCut, cliffFill);
+  float visible = max(smoothstep(-0.02, 0.04, wet) * shoreCut, cliffFill) * inside;
+  foam *= smoothstep(0.0, 0.03, wet) * max(shoreCut, cliffFill) * inside;
   float foamAmount = clamp(foam, 0.0, 1.0);
   vec3 foamTint = foamColor * foamTexel * foamLift * (0.5 + 0.6 * dayness);
   color = mix(color, foamTint, foamAmount);
@@ -392,7 +395,7 @@ export function createWaterMaterial(scene, options) {
     uniforms: [
       'viewProjection', 'waterTime', 'sunDir', 'sunColor', 'sunIntensity', 'skyColor',
       'cameraDir', 'shallowColor', 'deepColor', 'foamColor', 'dayness', 'maxDepth',
-      'reflectionSampler', 'reflectionViewProjection', 'waterLevel',
+      'reflectionSampler', 'reflectionViewProjection', 'waterLevel', 'swellScale',
       'depthMap', 'reflectionOn', 'detailPixel', 'depthOrigin', 'depthScale', 'depthRange', 'foamDir',
       ...REVEAL_UNIFORM_NAMES,
     ],
@@ -412,6 +415,7 @@ export function createWaterMaterial(scene, options) {
   material.setFloat('dayness', 1);
   material.setFloat('maxDepth', options.maxDepth);
   material.setFloat('waterLevel', 0);
+  material.setFloat('swellScale', Number.isFinite(options.swellScale) ? options.swellScale : 1);
   material.setFloat('reflectionOn', 1);
   material.setFloat('detailPixel', 0.02);
   material.setVector2('foamDir', new Vector2(0, -1));

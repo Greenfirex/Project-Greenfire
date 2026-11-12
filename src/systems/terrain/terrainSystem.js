@@ -10,6 +10,7 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Constants } from '@babylonjs/core/Engines/constants';
 import { CELL_SIZE } from '../../utils/gridMath.js';
+import { warnMissingWiring } from '../../utils/missingWiring.js';
 import { createTerrainField } from '../../utils/terrainField.js';
 import { getMap } from '../../data/catalogs/maps.js';
 import { DEFAULT_FLOOR } from '../../data/catalogs/decorations.js';
@@ -107,6 +108,13 @@ export default class TerrainSystem {
     this.mouths = new Map();
     this.surfaceEdge = new Map();
     this.ready = Promise.resolve(null);
+    this.waterLevelAtCell = null;
+  }
+
+  waterAtCell(cx, cz) {
+    if (this.waterLevelAtCell) return this.waterLevelAtCell(cx, cz);
+    warnMissingWiring('terén: hladina vody');
+    return null;
   }
 
   whenReady() {
@@ -316,8 +324,10 @@ export default class TerrainSystem {
       const height = Math.max(2, Math.ceil(spanZ / SURFACE_BLEND_TEXEL));
       const data = new Uint8Array(width * height);
       const smooth = (t) => t * t * (3 - 2 * t);
-      const waterLevel = this.layout && Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
-      const isDry = (cx, cz) => waterLevel === null || field.heightAtCell(cx, cz) > waterLevel + 0.001;
+      const isDry = (cx, cz) => {
+        const water = this.waterAtCell(cx, cz);
+        return water === null || field.heightAtCell(cx, cz) > water + 0.001;
+      };
       const stepBetween = (cx, cz, nx, nz) => Math.abs(field.heightAtCell(cx, cz) - field.heightAtCell(nx, nz));
       const blockedFrom = (cx, cz, nx, nz) => {
         const dx = nx - cx;

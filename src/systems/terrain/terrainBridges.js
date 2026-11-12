@@ -2,7 +2,7 @@
 // Patří k TerrainSystem (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
-import { CELL_SIZE } from '../../utils/gridMath.js';
+import { CELL_SIZE, worldToCellCoords } from '../../utils/gridMath.js';
 import { buildBridge, deckHeightAt, bridgeSpan, bridgeCellOf, BRIDGE_BURIAL, BRIDGE_RISE } from '../../utils/bridgeShape.js';
 import { DEFAULT_FLOOR } from '../../data/catalogs/decorations.js';
 import { valueNoise, smoothstep } from '../../utils/noise.js';
@@ -93,7 +93,8 @@ export default {
     const gapX = alongX ? centerU : centerV;
     const gapZ = alongX ? centerV : centerU;
     const gapGround = this.heightAt(gapX, gapZ);
-    const waterLevel = this.layout && Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
+    const gapCell = worldToCellCoords(gapX, gapZ);
+    const waterLevel = this.waterAtCell(gapCell.cx, gapCell.cz);
     let springing = gapGround + 0.45;
     if (waterLevel !== null && gapGround < waterLevel) springing = waterLevel + 0.35;
     const deckMid = (bankA[mid].y + bankB[mid].y) / 2 + BRIDGE_RISE;

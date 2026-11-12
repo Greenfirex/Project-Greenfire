@@ -2,9 +2,12 @@
 import '@babylonjs/core/Engines/Extensions/engine.dynamicTexture';
 import '@babylonjs/core/Engines/Extensions/engine.rawTexture';
 import { Engine } from '@babylonjs/core/Engines/engine';
+import { Effect } from '@babylonjs/core/Materials/effect';
 import { Scene } from '@babylonjs/core/scene';
 import { Color4 } from '@babylonjs/core/Maths/math.color';
 import GameScene from './scenes/GameScene.js';
+
+Effect.PersistentMode = true;
 
 const canvas = document.getElementById('render-canvas');
 const engine = new Engine(canvas, false, {

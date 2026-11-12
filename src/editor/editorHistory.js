@@ -53,6 +53,8 @@ export default {
     const wasWater = Number.isFinite(before.waterLevel) ? before.waterLevel : null;
     const nowWater = this.layout && Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
     if (wasWater !== nowWater) patch.waterLevel = wasWater;
+    const wasLakes = (before.lakes || []).map((lake) => ({ ...lake }));
+    if (JSON.stringify(wasLakes) !== JSON.stringify(this.layout.lakes || [])) patch.lakes = wasLakes;
     return patch;
   },
 
@@ -92,6 +94,7 @@ export default {
       if (patch.waterLevel === null) delete this.layout.waterLevel;
       else this.layout.waterLevel = patch.waterLevel;
     }
+    if ('lakes' in patch) this.layout.lakes = patch.lakes.map((lake) => ({ ...lake }));
   },
 
   undo() {

@@ -45,6 +45,9 @@ export function quantizeMapFileHeights(file) {
     else delete entry.liftY;
   }
   if (Number.isFinite(file.waterLevel)) file.waterLevel = snapHeight(file.waterLevel);
+  for (const lake of file.lakes || []) {
+    if (lake && Number.isFinite(lake.level)) lake.level = snapHeight(lake.level);
+  }
   file.version = MAP_VERSION;
   return file;
 }
@@ -61,6 +64,7 @@ export function layoutFromMapFile(file, fallbackSeed = 1) {
     spawn: world.spawn && Number.isFinite(world.spawn.cx) ? { cx: world.spawn.cx, cz: world.spawn.cz } : defaultSpawn(),
     seed: Number.isFinite(world.seed) ? world.seed : fallbackSeed,
     waterLevel: Number.isFinite(world.waterLevel) ? world.waterLevel : null,
+    lakes: lakesOf(world.lakes),
     floor: copy(world.floor),
     path: copy(world.path),
     clearing: copy(world.clearing),
@@ -72,6 +76,13 @@ export function layoutFromMapFile(file, fallbackSeed = 1) {
     connectors: copy(world.connectors),
     floorNames: { ...(world.floorNames || {}) },
   };
+}
+
+function lakesOf(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((lake) => lake && Number.isFinite(lake.cx) && Number.isFinite(lake.cz) && Number.isFinite(lake.level))
+    .map((lake) => ({ cx: lake.cx, cz: lake.cz, level: lake.level }));
 }
 
 function storedEntry(entry) {
@@ -91,6 +102,7 @@ export function mapFileFromLayout(mapKey, layout) {
     seed: Number.isFinite(layout.seed) ? layout.seed : fallback.seed,
     spawn: layout.spawn ? { cx: layout.spawn.cx, cz: layout.spawn.cz } : defaultSpawn(),
     waterLevel: Number.isFinite(layout.waterLevel) ? layout.waterLevel : undefined,
+    lakes: (layout.lakes || []).length ? lakesOf(layout.lakes) : undefined,
     floor: copy(layout.floor),
     path: copy(layout.path),
     clearing: copy(layout.clearing),

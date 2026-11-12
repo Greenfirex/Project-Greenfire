@@ -8,6 +8,8 @@ import { mapFileFromLayout, layoutFromMapFile, isMapFile, MAP_VERSION, quantizeM
 import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
 import { PAINT_TERRAIN, PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH, PAINT_ALL } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
+import { fillLakes } from '../utils/lakeFill.js';
+import { cellKey, worldToCellCoords } from '../utils/gridMath.js';
 
 const WORLD_BATCH = 30;
 const WORLD_BATCH_BULK = 1500;
@@ -52,6 +54,7 @@ export default {
 
   refreshTerrain() {
     this.floatingNumbers.clear();
+    this.lakeCache = null;
     this.terrainSystem.clear();
     this.terrainSystem.create(this.mapKey, this.mapFile);
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);
@@ -63,6 +66,7 @@ export default {
   },
 
   setupTerrain() {
+    this.lakeCache = null;
     const ground = this.terrainSystem.create(this.mapKey, this.mapFile);
     if (ground && ground.length) this.s.clearColor = this.mapColor(this.mapKey, 'sky');
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);
@@ -78,7 +82,7 @@ export default {
   },
 
   onDecoPlaced(anchor, node, def, entry) {
-    const underWater = this.underWaterLevel(anchor.position.y);
+    const underWater = this.underWaterLevel(anchor.position);
     for (const child of node.getChildMeshes()) {
       child.isPickable = false;
       if (def.castsShadow && !underWater) this.addShadowCaster(child);
@@ -90,9 +94,36 @@ export default {
     if (def.loot) this.syncLootHighlights();
   },
 
-  underWaterLevel(y) {
-    const level = this.mapLayout ? this.mapLayout.waterLevel : null;
-    return Number.isFinite(level) && y < level;
+  underWaterLevel(position) {
+    const { cx, cz } = worldToCellCoords(position.x, position.z);
+    const lake = this.lakeLevelAtCell(cx, cz);
+    const level = lake !== null ? lake : (this.mapLayout ? this.mapLayout.waterLevel : null);
+    return Number.isFinite(level) && position.y < level;
+  },
+
+  lakeFill() {
+    if (!this.lakeCache) {
+      const lakes = this.mapLayout ? this.mapLayout.lakes : null;
+      this.lakeCache = fillLakes(lakes, this.terrainSystem.groundCells, (cx, cz) => this.terrainSystem.heightAtCell(cx, cz));
+    }
+    return this.lakeCache;
+  },
+
+  refreshLakes() {
+    this.lakeCache = null;
+    this.renderHeights();
+  },
+
+  lakeLevelAtCell(cx, cz) {
+    const level = this.lakeFill().levels.get(cellKey(cx, cz));
+    return level === undefined ? null : level;
+  },
+
+  waterLevelAtCell(cx, cz) {
+    const lake = this.lakeLevelAtCell(cx, cz);
+    if (lake !== null) return lake;
+    const sea = this.mapLayout ? this.mapLayout.waterLevel : null;
+    return Number.isFinite(sea) ? sea : null;
   },
 
   async buildWorldStages() {

@@ -4,12 +4,22 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { causticGlsl } from '../../utils/waterCaustics.js';
 import { SEA_DIRECTION, WATER_MAX_DEPTH, SEA_DISTANCE_REACH } from '../../utils/waterWaves.js';
+import { HEIGHT_STEP, MIN_HEIGHT } from '../../data/maps/layoutStore.js';
 
 const CAUSTIC_CODE = `${causticGlsl()}
 uniform sampler2D seaDrySampler;
 float seaDryAt(vec2 point, vec4 area) {
   vec2 cell = floor(point / ${CELL_SIZE.toFixed(1)} - area.xy + 0.5);
   return texture2D(seaDrySampler, (cell + 0.5) / area.zw).r;
+}
+float lakeLevelAt(vec2 point, vec4 area) {
+  vec2 cell = floor(point / ${CELL_SIZE.toFixed(1)} - area.xy + 0.5);
+  float code = floor(texture2D(seaDrySampler, (cell + 0.5) / area.zw).b * 255.0 + 0.5);
+  return code < 0.5 ? -1000.0 : (code - 1.0 + ${MIN_HEIGHT.toFixed(1)}) * ${HEIGHT_STEP.toFixed(2)};
+}
+float waterCellAt(vec2 point, vec4 area) {
+  vec2 cell = floor(point / ${CELL_SIZE.toFixed(1)} - area.xy + 0.5);
+  return texture2D(seaDrySampler, (cell + 0.5) / area.zw).g < 0.002 ? 1.0 : 0.0;
 }
 float seaDistanceAt(vec2 point, vec4 area) {
   vec2 grid = point / ${CELL_SIZE.toFixed(1)} - area.xy;
@@ -85,8 +95,10 @@ export default class TerrainCausticPlugin extends MaterialPluginBase {
     return {
       CUSTOM_FRAGMENT_DEFINITIONS: CAUSTIC_CODE,
       CUSTOM_FRAGMENT_BEFORE_FOG: `
-        float causticDepthNow = causticLevel - vPositionW.y;
-        if (causticDepthNow > 0.0 && seaDryAt(vPositionW.xz, seaDryArea) < 0.5) {
+        float causticLake = lakeLevelAt(vPositionW.xz, seaDryArea);
+        bool causticInLake = causticLake > -999.0 && waterCellAt(vPositionW.xz, seaDryArea) > 0.5;
+        float causticDepthNow = (causticInLake ? causticLake : causticLevel) - vPositionW.y;
+        if (causticDepthNow > 0.0 && (causticInLake || seaDryAt(vPositionW.xz, seaDryArea) < 0.5)) {
           float causticT = clamp(causticDepthNow / max(causticMaxDepth, 0.001), 0.0, 1.0);
           float causticFade = smoothstep(0.25, 0.7, causticT) * (1.0 - 0.3 * smoothstep(0.7, 1.0, causticT));
           float causticValue = causticPattern(vPositionW.xz, causticDir, causticTime);

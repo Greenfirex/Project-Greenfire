@@ -1,4 +1,4 @@
-// Mokrý pruh na zemi u vody — ztmaví a mírně ochladí písek i trávu jen kousek od moře a nízko nad hladinou.
+// Mokrý pruh na zemi u vody — ztmaví a mírně ochladí písek i trávu jen kousek od moře či jezera a nízko nad hladinou.
 // Drží jen tvar pruhu; kde je voda a jak vysoko, mu hlásí systém terénu.
 import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
@@ -58,9 +58,8 @@ export default class TerrainWetPlugin extends MaterialPluginBase {
   }
 
   bindForSubMesh(ubo) {
-    const wet = this.level !== null;
-    ubo.updateFloat('wetLevel', wet ? this.level : -1000);
-    ubo.updateFloat('wetStrength', wet ? this.baseStrength : 0);
+    ubo.updateFloat('wetLevel', this.level !== null ? this.level : -1000);
+    ubo.updateFloat('wetStrength', this.baseStrength);
     ubo.updateColor3('wetTint', this.tint);
   }
 
@@ -69,10 +68,13 @@ export default class TerrainWetPlugin extends MaterialPluginBase {
     return {
       CUSTOM_FRAGMENT_DEFINITIONS: WET_CODE,
       CUSTOM_FRAGMENT_BEFORE_FOG: `
-        if (wetStrength > 0.0 && seaDryAt(vPositionW.xz, seaDryArea) < 0.5) {
-          float wetAbove = vPositionW.y - wetLevel;
+        float wetLake = lakeLevelAt(vPositionW.xz, seaDryArea);
+        bool wetNearLake = wetLake > -999.0;
+        if (wetStrength > 0.0 && (wetNearLake || seaDryAt(vPositionW.xz, seaDryArea) < 0.5)) {
+          float wetAbove = vPositionW.y - (wetNearLake ? wetLake : wetLevel);
           float wetEdge = wetShape(vPositionW.xz * 0.85) - 0.5;
           float wetByHeight = 1.0 - smoothstep(-0.05, 0.30, wetAbove + wetEdge * 0.18);
+          if (wetNearLake && waterCellAt(vPositionW.xz, seaDryArea) < 0.5) wetByHeight *= smoothstep(-0.6, -0.2, wetAbove);
           float wetFromSea = seaDistanceAt(vPositionW.xz, seaDryArea) + wetEdge * ${WET_SEA_WOBBLE};
           float wetBySea = 1.0 - smoothstep(${WET_SEA_NEAR}, ${WET_SEA_FAR}, wetFromSea);
           float wetAmount = min(wetByHeight, wetBySea);

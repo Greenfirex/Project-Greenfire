@@ -115,6 +115,16 @@ export default class EditorMode {
     return next;
   }
 
+  lakeList() {
+    return (this.layout && this.layout.lakes) || [];
+  }
+
+  setLakes(lakes) {
+    if (!this.layout) return;
+    this.pushHistory([PAINT_TERRAIN]);
+    this.layout.lakes = lakes.map((lake) => ({ cx: lake.cx, cz: lake.cz, level: lake.level }));
+  }
+
   setWaterShown(shown) {
     const next = shown !== false;
     if (next === this.waterShown) return next;
@@ -362,6 +372,11 @@ export default class EditorMode {
   get isSpawnBrush() {
     const brush = BRUSHES[this.brushKey];
     return Boolean(brush && brush.spawn);
+  }
+
+  get isLakeBrush() {
+    const brush = BRUSHES[this.brushKey];
+    return Boolean(brush && brush.lake);
   }
 
   get eraseKind() {

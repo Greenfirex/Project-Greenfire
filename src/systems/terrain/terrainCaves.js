@@ -156,12 +156,13 @@ export default {
       }
       return lit;
     };
-    const waterLevel = Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : -Infinity;
     const outdoors = (id) => {
       if (caveCells.has(id) || rockCells.has(id)) return false;
       const ground = (columns.get(id) || []).find((plane) => plane.level === 0);
-      if (!ground || ground.lift <= waterLevel) return false;
+      if (!ground) return false;
       const [cx, cz] = id.split(',').map(Number);
+      const water = this.waterAtCell(cx, cz);
+      if (water !== null && ground.lift <= water) return false;
       return faces.some((face) => (cx - face.cx) * face.dx + (cz - face.cz) * face.dz >= 0);
     };
     const lit = spread(outerSeeds, OUTER_LIGHT_CELLS, 0, outdoors);

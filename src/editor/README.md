@@ -145,6 +145,12 @@ Voda je jedna hladina pro celou mapu, uložená jako nepovinné číslo `waterLe
 V editoru se zapíná tlačítkem **Voda** a hladina se ladí po **0,25 m**.
 Skrytí vody je jen vizuální; data se nemění.
 
+Jezera mají vlastní hladinu a ukládají se jako seznam `lakes` (buňka a výška hladiny).
+Štětec **Jezero** (skupina Terén): klik do prohlubně ji naplní až po okraj, klik na
+jezero zvedne hladinu o 0,25 m, pravé tlačítko ji o 0,25 m sníží a v režimu Mazat
+jezero zmizí. Když by voda vytekla z mapy, jezero nevznikne. Tlačítko Voda skrývá
+i jezera.
+
 ## Cesty
 
 Cesta je samostatná vrstva `path`, ne dlaždice. Záznam má pozici a styl

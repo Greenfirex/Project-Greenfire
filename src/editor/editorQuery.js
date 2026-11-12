@@ -40,7 +40,8 @@ export default {
     }
     const spawn = this.spawnCell();
     const water = this.layout && Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
-    const head = `${count}|${sum}|${spawn ? `${spawn.cx},${spawn.cz}` : '-'}|${water}|${this.layout ? this.layout.seed : ''}|${JSON.stringify((this.layout && this.layout.floorNames) || {})}`;
+    const lakes = JSON.stringify((this.layout && this.layout.lakes) || []);
+    const head = `${count}|${sum}|${spawn ? `${spawn.cx},${spawn.cz}` : '-'}|${water}|${lakes}|${this.layout ? this.layout.seed : ''}|${JSON.stringify((this.layout && this.layout.floorNames) || {})}`;
     return hashText(head);
   },
 

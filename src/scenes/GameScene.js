@@ -123,6 +123,8 @@ export default class GameScene {
     this.cameraSystem = new CameraSystem(scene);
     this.gridSystem = new GridSystem(scene);
     this.terrainSystem = new TerrainSystem(scene);
+    this.terrainSystem.waterLevelAtCell = (cx, cz) => this.waterLevelAtCell(cx, cz);
+    this.lakeCache = null;
     this.revealSystem = new RevealSystem(scene);
     this.sightSystem = new SightSystem(scene);
     this.sightSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z, 0);
@@ -481,7 +483,8 @@ export default class GameScene {
     const level = water && Number.isFinite(water.level) && !water.hidden ? water.surfaceY : null;
     const wetLevel = water && Number.isFinite(water.level) ? water.level : null;
     this.terrainSystem.updateWetLevel(wetLevel);
-    if (!water || !sun || level === null) {
+    const lakesShown = water && !water.hidden && water.lakes.length > 0;
+    if (!water || !sun || (level === null && !lakesShown)) {
       this.terrainSystem.updateCaustics(0, null, 0, 0, null, 0, 0);
       return;
     }
@@ -793,7 +796,7 @@ export default class GameScene {
     this.waterSystem.setSun(this.dayNightSystem ? this.dayNightSystem.sunLight : null);
     this.waterSystem.setDayness(this.waterDayness());
     this.waterSystem.setSkyTint(this.skySystem.tint());
-    this.waterSystem.create(this.terrainSystem.groundCells, level, (x, z) => this.terrainSystem.heightAt(x, z), rgb, quality);
+    this.waterSystem.create(this.terrainSystem.groundCells, level, (x, z) => this.terrainSystem.heightAt(x, z), rgb, quality, this.lakeFill().list);
     this.terrainSystem.setSeaDry(this.waterSystem.dryMap, this.waterSystem.dryArea);
     this.waveSpray.build(this.waterSystem);
     this.refreshWaterVisibility();

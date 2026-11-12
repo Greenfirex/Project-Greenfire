@@ -13,18 +13,16 @@ import { Constants } from '@babylonjs/core/Engines/constants';
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { swellAt, shoalWithCliff, waveAmpFor, WAVE_REACH, WAVE_TIME_WRAP, CLIFF_RISE_MIN, SEA_DIRECTION, WATER_MAX_DEPTH, SEA_DISTANCE_REACH } from '../../utils/waterWaves.js';
 import { createWaterMaterial, createWaterSideMaterial, tickWater } from './waterShader.js';
+import { WATER_SINK, DEPTH_STEP, DEPTH_MAX, DEPTH_RANGE, LAKE_SHORE_CELLS, CLIFF_DEPTH_JUMP } from './waterSettings.js';
+import waterLakesParts, { extendIntoCliffs } from './waterLakes.js';
 import { signedNoise } from '../../utils/noise.js';
+import { HEIGHT_STEP, MIN_HEIGHT } from '../../data/maps/layoutStore.js';
 
 const DRY_LAND_RISE = 0.05;
 const FOAM_COLOR = new Color3(0.82, 0.92, 0.94);
 
-const WATER_SINK = 0.02;
 const WATER_STEPS = { high: 0.5, medium: 1, low: 2 };
-const DEPTH_STEP = 0.5;
-const DEPTH_MAX = 256;
-const DEPTH_RANGE = 5;
 const SHORE_EDGE = 0.02;
-const CLIFF_DEPTH_JUMP = 1;
 const NEIGHBORS_4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const ISLAND_MIN_TEXELS = 24;
 const SHORE_BLUR_PASSES = 3;
@@ -196,6 +194,8 @@ export default class WaterSystem {
     this.maxDepth = WATER_MAX_DEPTH;
     this.ripples = [];
     this.hidden = false;
+    this.lakes = [];
+    this.groundAt = null;
   }
 
   setSun(light) {
@@ -221,6 +221,7 @@ export default class WaterSystem {
     this.hidden = visible === false;
     if (this.mesh && !this.mesh.isDisposed()) this.mesh.setEnabled(!this.hidden);
     if (this.sideMesh && !this.sideMesh.isDisposed()) this.sideMesh.setEnabled(!this.hidden);
+    for (const lake of this.lakes) lake.mesh.setEnabled(!this.hidden);
     if (!this.hidden) return;
     for (const ripple of this.ripples) {
       ripple.life = 0;
@@ -237,6 +238,8 @@ export default class WaterSystem {
     this.sideMaterial = null;
     this.level = null;
     this.heightAt = null;
+    this.groundAt = null;
+    this.clearLakes();
     this.shoreCells = [];
     for (const ripple of this.ripples) {
       ripple.life = 0;
@@ -251,7 +254,15 @@ export default class WaterSystem {
     this.cliffData = null;
   }
 
+  levelAt(x, z) {
+    const lake = this.lakeAt(x, z);
+    if (lake) return lake.level;
+    return Number.isFinite(this.level) ? this.level : null;
+  }
+
   depthAt(x, z) {
+    const lake = this.lakeAt(x, z);
+    if (lake) return this.lakeDepthAt(lake, x, z);
     if (!this.heightAt || !Number.isFinite(this.level)) return 0;
     const ground = this.heightAt(x, z);
     if (!Number.isFinite(ground)) return 0;
@@ -259,6 +270,8 @@ export default class WaterSystem {
   }
 
   surfaceHeightAt(x, z, ground = null) {
+    const lake = this.lakeAt(x, z);
+    if (lake) return lake.surfaceY;
     if (!Number.isFinite(this.level)) return 0;
     const height = Number.isFinite(ground) ? ground : (this.heightAt ? this.heightAt(x, z) : null);
     const deep = !Number.isFinite(height);
@@ -279,6 +292,8 @@ export default class WaterSystem {
   }
 
   waveDepthAt(x, z) {
+    const lake = this.lakeAt(x, z);
+    if (lake) return this.lakeDepthAt(lake, x, z);
     if (!this.heightAt || !Number.isFinite(this.level)) return 0;
     const ground = this.heightAt(x, z);
     if (!Number.isFinite(ground)) return 0;
@@ -413,22 +428,7 @@ export default class WaterSystem {
         smooth[index] = count ? sum / count : center;
       }
     }
-    for (let j = 0; j < height; j += 1) {
-      for (let i = 0; i < width; i += 1) {
-        const index = j * width + i;
-        if (raw[index] > 0) continue;
-        let deep = 0;
-        for (const [di, dj] of NEIGHBORS_4) {
-          const ii = i + di;
-          const jj = j + dj;
-          if (ii < 0 || jj < 0 || ii >= width || jj >= height) continue;
-          const value = raw[jj * width + ii];
-          if (value - raw[index] < CLIFF_DEPTH_JUMP) continue;
-          if (value > deep) deep = value;
-        }
-        if (deep > 0) smooth[index] = deep;
-      }
-    }
+    extendIntoCliffs(raw, smooth, width, height);
     const data = new Uint8Array(width * height * 4);
     const cliff = cliffField(raw, width, height);
     if (this.isDryLand) {
@@ -443,6 +443,7 @@ export default class WaterSystem {
       const normalized = Math.min(1, Math.max(0, 0.5 + smooth[index] / (2 * DEPTH_RANGE)));
       data[index * 4] = Math.round(normalized * 255);
       data[index * 4 + 1] = Math.round(Math.min(1, Math.max(0, cliff[index])) * 255);
+      data[index * 4 + 2] = 255;
       data[index * 4 + 3] = 255;
     }
     this.cliffData = cliff;
@@ -679,6 +680,7 @@ export default class WaterSystem {
       };
       hide(this.mesh);
       hide(this.sideMesh);
+      for (const lake of this.lakes) hide(lake.mesh);
       for (const mesh of this.s.meshes) {
         if (mesh.getClassName() === 'LinesMesh') hide(mesh);
       }
@@ -740,14 +742,14 @@ export default class WaterSystem {
   applyColors(rgb) {
     this.waterRgb = rgb || this.waterRgb;
     const base = this.waterRgb || FALLBACK_RGB;
-    if (this.material) {
-      this.material.setColor3('shallowColor', this.shallowColor(base));
-      this.material.setColor3('deepColor', this.deepColor(base));
-      this.material.setColor3('foamColor', FOAM_COLOR);
-      this.material.setFloat('dayness', this.dayness);
-      if (this.skyTint) this.material.setColor3('skyColor', this.skyTint);
-      if (this.reflection) this.reflection.clearColor = this.skyClearColor();
+    for (const material of this.surfaceMaterials()) {
+      material.setColor3('shallowColor', this.shallowColor(base));
+      material.setColor3('deepColor', this.deepColor(base));
+      material.setColor3('foamColor', FOAM_COLOR);
+      material.setFloat('dayness', this.dayness);
+      if (this.skyTint) material.setColor3('skyColor', this.skyTint);
     }
+    if (this.material && this.reflection) this.reflection.clearColor = this.skyClearColor();
     if (this.sideMaterial) {
       this.sideMaterial.setColor3('surfaceColor', this.sideColor(base, 1.9, 0.05));
       this.sideMaterial.setColor3('deepColor', this.sideColor(base, 0.45, 0));
@@ -808,9 +810,11 @@ export default class WaterSystem {
         pits[index * 4 + 3] = 255;
       }
     }
-    const fromSea = distanceField(ocean, width, height);
+    const water = Uint8Array.from(ocean);
+    this.markLakeLevels(pits, water, indexOf, inside);
+    const fromWater = distanceField(water, width, height);
     for (let index = 0; index < total; index += 1) {
-      pits[index * 4 + 1] = Math.round(Math.min(1, (fromSea[index] * CELL_SIZE) / SEA_DISTANCE_REACH) * 255);
+      pits[index * 4 + 1] = Math.round(Math.min(1, (fromWater[index] * CELL_SIZE) / SEA_DISTANCE_REACH) * 255);
     }
     this.buildDryMap(pits, width, height, minX, minZ);
     const half = CELL_SIZE / 2;
@@ -827,6 +831,32 @@ export default class WaterSystem {
     };
   }
 
+  markLakeLevels(pits, water, indexOf, inside) {
+    const codeOf = (level) => Math.min(255, Math.max(1, Math.round(level / HEIGHT_STEP) - MIN_HEIGHT + 1));
+    for (const lake of this.lakes) {
+      const code = codeOf(lake.level);
+      for (const [cx, cz] of lake.cells) {
+        if (!inside(cx, cz)) continue;
+        const index = indexOf(cx, cz);
+        water[index] = 1;
+        pits[index * 4 + 2] = code;
+      }
+    }
+    const reach = LAKE_SHORE_CELLS;
+    for (const lake of this.lakes) {
+      const code = codeOf(lake.level);
+      for (const [cx, cz] of lake.cells) {
+        for (let dz = -reach; dz <= reach; dz += 1) {
+          for (let dx = -reach; dx <= reach; dx += 1) {
+            if (!inside(cx + dx, cz + dz)) continue;
+            const index = indexOf(cx + dx, cz + dz);
+            if (!pits[index * 4 + 2] && !water[index]) pits[index * 4 + 2] = code;
+          }
+        }
+      }
+    }
+  }
+
   buildDryMap(data, width, height, minX, minZ) {
     this.dryMap = new RawTexture(data, width, height, Constants.TEXTUREFORMAT_RGBA, this.s, false, false, Texture.NEAREST_SAMPLINGMODE);
     this.dryMap.wrapU = Texture.CLAMP_ADDRESSMODE;
@@ -839,16 +869,15 @@ export default class WaterSystem {
     this.dryMap = null;
   }
 
-  create(cells, level, heightAt = null, waterRgb = null, quality = 'high') {
+  create(cells, level, heightAt = null, waterRgb = null, quality = 'high', lakes = []) {
     this.clear();
     this.releaseDryMap();
     if (this.reflection) this.reflection.refreshRate = 0;
     this.quality = quality;
     this.waterRgb = waterRgb || this.waterRgb;
     const step = WATER_STEPS[quality] || WATER_STEPS.medium;
-    if (!Number.isFinite(level) || typeof heightAt !== 'function' || !cells || !cells.length) return null;
-    this.level = level;
-    this.heightAt = heightAt;
+    if (typeof heightAt !== 'function' || !cells || !cells.length) return null;
+    this.groundAt = heightAt;
     let minX = Infinity;
     let maxX = -Infinity;
     let minZ = Infinity;
@@ -862,7 +891,15 @@ export default class WaterSystem {
       cellSet.add(`${cx},${cz}`);
     }
     if (!cellSet.size) return null;
-    heightAt = this.limitToOcean(cells, cellSet, { minX, maxX, minZ, maxZ }, level, heightAt);
+    this.buildLakes(lakes, heightAt, step);
+    const seaHeightAt = this.limitToOcean(cells, cellSet, { minX, maxX, minZ, maxZ }, Number.isFinite(level) ? level : -Infinity, heightAt);
+    if (!Number.isFinite(level)) {
+      this.applyColors();
+      this.update(0);
+      return null;
+    }
+    this.level = level;
+    heightAt = seaHeightAt;
     this.heightAt = heightAt;
     let seaDirX = 0;
     let seaDirZ = 0;
@@ -1038,34 +1075,41 @@ export default class WaterSystem {
   update(dt) {
     this.time += dt;
     this.updateRipples(dt);
-    const material = this.material;
-    if (!material) return;
-    tickWater(material, this.time);
+    const materials = this.surfaceMaterials();
+    if (!materials.length) return;
     if (this.sideMaterial) tickWater(this.sideMaterial, this.time);
-    this.syncReflection();
+    if (this.material) this.syncReflection();
     const sun = this.sunLight;
+    let sunDir = null;
     if (sun) {
       const direction = sun.direction;
-      const toward = new Vector3(-direction.x, -direction.y, -direction.z);
-      if (toward.lengthSquared() > 0) toward.normalize();
-      material.setVector3('sunDir', toward);
-      material.setColor3('sunColor', sun.diffuse);
-      material.setFloat('sunIntensity', sun.intensity);
+      sunDir = new Vector3(-direction.x, -direction.y, -direction.z);
+      if (sunDir.lengthSquared() > 0) sunDir.normalize();
     }
-    const sky = this.skyTint;
-    if (sky) material.setColor3('skyColor', sky);
     const camera = this.s.activeCamera;
+    let cameraDir = null;
     if (camera && typeof camera.getForwardRay === 'function') {
       const toward = camera.getForwardRay().direction.scale(-1);
-      if (toward.lengthSquared() > 0) {
-        toward.normalize();
-        material.setVector3('cameraDir', toward);
-      }
+      if (toward.lengthSquared() > 0) cameraDir = toward.normalize();
     }
+    let detailPixel = null;
     if (camera && Number.isFinite(camera.orthoTop) && Number.isFinite(camera.orthoBottom)) {
       const pixels = Math.max(1, this.s.getEngine().getRenderHeight());
-      material.setFloat('detailPixel', (camera.orthoTop - camera.orthoBottom) / pixels);
+      detailPixel = (camera.orthoTop - camera.orthoBottom) / pixels;
     }
-    material.setFloat('dayness', this.dayness);
+    for (const material of materials) {
+      tickWater(material, this.time);
+      if (sun) {
+        material.setVector3('sunDir', sunDir);
+        material.setColor3('sunColor', sun.diffuse);
+        material.setFloat('sunIntensity', sun.intensity);
+      }
+      if (this.skyTint) material.setColor3('skyColor', this.skyTint);
+      if (cameraDir) material.setVector3('cameraDir', cameraDir);
+      if (detailPixel !== null) material.setFloat('detailPixel', detailPixel);
+      material.setFloat('dayness', this.dayness);
+    }
   }
 }
+
+Object.assign(WaterSystem.prototype, waterLakesParts);
