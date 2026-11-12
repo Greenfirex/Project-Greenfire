@@ -71,6 +71,7 @@ export default class DecoSystem {
     this.pathNodes = [];
     this.pendingPieces = [];
     this.areas = new Map();
+    this.hidden = false;
     this.brokenCount = 0;
     this.pathSystem = new PathSystem(scene);
     this.contactShadow = new ContactShadow(scene);
@@ -477,14 +478,26 @@ export default class DecoSystem {
     const areaZ = Math.floor(z / AREA_WORLD);
     const key = `${areaX}|${areaZ}`;
     if (!this.areas.has(key)) {
+      const node = new TransformNode(`decoArea_${key}`, this.s);
+      node.setEnabled(!this.hidden);
       this.areas.set(key, {
-        node: new TransformNode(`decoArea_${key}`, this.s),
+        node,
         minX: areaX * AREA_WORLD,
         minZ: areaZ * AREA_WORLD,
         enabled: true,
       });
     }
     return this.areas.get(key).node;
+  }
+
+  setHidden(hidden) {
+    this.hidden = hidden === true;
+    for (const area of this.areas.values()) area.node.setEnabled(area.enabled && !this.hidden);
+    for (const mesh of this.pathSystem.meshes) {
+      if (mesh && !mesh.isDisposed()) mesh.setEnabled(!this.hidden);
+    }
+    const shadows = this.contactShadow.master;
+    if (shadows) shadows.setEnabled(!this.hidden && this.contactShadow.items.length > 0);
   }
 
   updateView(view) {
@@ -498,7 +511,7 @@ export default class DecoSystem {
       const enabled = area.enabled ? distance <= outer : distance <= inner;
       if (enabled === area.enabled) continue;
       area.enabled = enabled;
-      area.node.setEnabled(enabled);
+      area.node.setEnabled(enabled && !this.hidden);
     }
   }
 

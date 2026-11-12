@@ -7,7 +7,7 @@ import { PLANE_LAYERS, worldCells, levelOfEntry, planeLevels } from '../data/map
 
 const MARGIN = 2;
 const AROUND = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-const AUTO_CLIFF_STEP = 2.0;
+export const AUTO_CLIFF_STEP = 2.0;
 const STEP_EPSILON = 1e-6;
 const DOOR_HALF_CELL = 0.5;
 const DOOR_FADE_START = 0.3;

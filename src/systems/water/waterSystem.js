@@ -15,6 +15,7 @@ import { swellAt, shoalWithCliff, waveAmpFor, WAVE_REACH, WAVE_TIME_WRAP, CLIFF_
 import { createWaterMaterial, createWaterSideMaterial, tickWater } from './waterShader.js';
 import { WATER_SINK, DEPTH_STEP, DEPTH_MAX, DEPTH_RANGE, LAKE_SHORE_CELLS, CLIFF_DEPTH_JUMP } from './waterSettings.js';
 import waterBodiesParts, { extendIntoCliffs } from './waterBodies.js';
+import waterFallsParts from './waterFalls.js';
 import { signedNoise } from '../../utils/noise.js';
 import { HEIGHT_STEP, MIN_HEIGHT } from '../../data/maps/layoutStore.js';
 
@@ -195,6 +196,8 @@ export default class WaterSystem {
     this.ripples = [];
     this.hidden = false;
     this.bodies = [];
+    this.falls = [];
+    this.mistTexture = null;
     this.groundAt = null;
   }
 
@@ -222,6 +225,7 @@ export default class WaterSystem {
     if (this.mesh && !this.mesh.isDisposed()) this.mesh.setEnabled(!this.hidden);
     if (this.sideMesh && !this.sideMesh.isDisposed()) this.sideMesh.setEnabled(!this.hidden);
     for (const body of this.bodies) body.mesh.setEnabled(!this.hidden);
+    this.showFalls(!this.hidden);
     if (!this.hidden) return;
     for (const ripple of this.ripples) {
       ripple.life = 0;
@@ -241,6 +245,7 @@ export default class WaterSystem {
     this.heightAt = null;
     this.groundAt = null;
     this.clearBodies();
+    this.clearFalls();
     this.shoreCells = [];
     for (const ripple of this.ripples) {
       ripple.life = 0;
@@ -682,6 +687,7 @@ export default class WaterSystem {
       hide(this.mesh);
       hide(this.sideMesh);
       for (const body of this.bodies) hide(body.mesh);
+      for (const mesh of this.fallMeshes()) hide(mesh);
       for (const mesh of this.s.meshes) {
         if (mesh.getClassName() === 'LinesMesh') hide(mesh);
       }
@@ -877,7 +883,7 @@ export default class WaterSystem {
     this.dryMap = null;
   }
 
-  create(cells, level, heightAt = null, waterRgb = null, quality = 'high', bodies = []) {
+  create(cells, level, heightAt = null, waterRgb = null, quality = 'high', bodies = [], falls = []) {
     this.clear();
     this.releaseDryMap();
     if (this.reflection) this.reflection.refreshRate = 0;
@@ -899,6 +905,7 @@ export default class WaterSystem {
       cellSet.add(`${cx},${cz}`);
     }
     if (!cellSet.size) return null;
+    this.buildFalls(falls);
     const seaLevel = Number.isFinite(level) ? level : -Infinity;
     const seaHeightAt = this.limitToOcean(cells, cellSet, { minX, maxX, minZ, maxZ }, seaLevel, heightAt, bodies || [], step);
     if (!Number.isFinite(level)) {
@@ -1083,6 +1090,7 @@ export default class WaterSystem {
   update(dt) {
     this.time += dt;
     this.updateRipples(dt);
+    this.updateFalls();
     const materials = this.surfaceMaterials();
     if (!materials.length) return;
     if (this.sideMaterial) tickWater(this.sideMaterial, this.time);
@@ -1120,4 +1128,4 @@ export default class WaterSystem {
   }
 }
 
-Object.assign(WaterSystem.prototype, waterBodiesParts);
+Object.assign(WaterSystem.prototype, waterBodiesParts, waterFallsParts);

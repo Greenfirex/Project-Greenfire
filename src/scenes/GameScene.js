@@ -125,6 +125,9 @@ export default class GameScene {
     this.terrainSystem = new TerrainSystem(scene);
     this.terrainSystem.waterLevelAtCell = (cx, cz) => this.waterLevelAtCell(cx, cz);
     this.bodyCache = null;
+    this.decorShaping = false;
+    this.decorStale = null;
+    this.decorHidden = false;
     this.revealSystem = new RevealSystem(scene);
     this.sightSystem = new SightSystem(scene);
     this.sightSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z, 0);
@@ -330,7 +333,8 @@ export default class GameScene {
       this.refreshCreatureHealthBars();
       this.refreshPinnedCreature();
       this.updateReveal(dt);
-      if (this.paused) {
+      this.setDecorShaping(this.editor.shapesTerrain());
+      if (this.paused || this.decorShaping) {
         if (this.editor.active) {
           this.updateEditorCamera(dt);
           this.waterSystem.update(dt);
@@ -796,7 +800,7 @@ export default class GameScene {
     this.waterSystem.setSun(this.dayNightSystem ? this.dayNightSystem.sunLight : null);
     this.waterSystem.setDayness(this.waterDayness());
     this.waterSystem.setSkyTint(this.skySystem.tint());
-    this.waterSystem.create(this.terrainSystem.groundCells, level, (x, z) => this.terrainSystem.heightAt(x, z), rgb, quality, this.waterBodies().list);
+    this.waterSystem.create(this.terrainSystem.groundCells, level, (x, z) => this.terrainSystem.heightAt(x, z), rgb, quality, this.waterBodies().list, this.waterBodies().falls);
     this.terrainSystem.setSeaDry(this.waterSystem.dryMap, this.waterSystem.dryArea);
     this.waveSpray.build(this.waterSystem);
     this.refreshWaterVisibility();

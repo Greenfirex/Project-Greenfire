@@ -9,7 +9,7 @@ import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
 import { PAINT_TERRAIN, PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH, PAINT_ALL } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { fillLakes } from '../utils/lakeFill.js';
-import { riverCells } from '../utils/riverPlan.js';
+import { riverCells, riverFalls } from '../utils/riverPlan.js';
 import { cellKey, worldToCellCoords } from '../utils/gridMath.js';
 
 const WORLD_BATCH = 30;
@@ -18,10 +18,12 @@ const STAGE_LEAD_FRAMES = 2;
 const MODEL_LANES = 4;
 const LOAD_RETRIES = 2;
 const REBUILD_HEIGHTS = 'heights';
+const RESEAT_DECORATIONS = 'reseat';
 const REBUILD_LABELS = [
   { part: PAINT_TERRAIN, label: 'terén' },
   { part: REBUILD_HEIGHTS, label: 'výšky' },
   { part: PAINT_DECORATIONS, label: 'dekorace' },
+  { part: RESEAT_DECORATIONS, label: 'dekorace' },
   { part: PAINT_CREATURES, label: 'tvory' },
   { part: PAINT_FISH, label: 'ryby' },
 ];
@@ -106,7 +108,8 @@ export default {
       const layout = this.mapLayout || {};
       const terrain = this.terrainSystem;
       const present = new Set(terrain.groundCells.map(([cx, cz]) => cellKey(cx, cz)));
-      const lakes = fillLakes(layout.lakes, present, (cx, cz) => terrain.heightAtCell(cx, cz));
+      const riverKeys = this.riverCellKeys(present);
+      const lakes = fillLakes(layout.lakes, present, (cx, cz) => terrain.heightAtCell(cx, cz), riverKeys);
       const list = lakes.list.map((lake) => ({
         kind: 'lake',
         index: lake.index,
@@ -120,9 +123,18 @@ export default {
         for (const cell of own) cells.set(cellKey(cell.cx, cell.cz), { kind: 'river', level: cell.level });
         list.push({ kind: 'river', index, cells: own });
       }
-      this.bodyCache = { list, cells };
+      const falls = (layout.rivers || []).flatMap((river) => riverFalls(river));
+      this.bodyCache = { list, cells, falls };
     }
     return this.bodyCache;
+  },
+
+  riverCellKeys(present) {
+    const keys = new Set();
+    for (const river of (this.mapLayout && this.mapLayout.rivers) || []) {
+      for (const cell of riverCells(river, present)) keys.add(cellKey(cell.cx, cell.cz));
+    }
+    return keys;
   },
 
   refreshWaterBodies() {
@@ -316,13 +328,38 @@ export default {
       this.refreshTerrain();
       await this.terrainSystem.whenReady();
     }
-    if (parts.has(PAINT_DECORATIONS)) await this.rebuildDecorations();
-    else if (heightsOnly) this.reseatDecorations();
+    const decorations = parts.has(PAINT_DECORATIONS);
+    const reseat = !decorations && (heightsOnly || parts.has(RESEAT_DECORATIONS));
+    if (this.decorShaping && (decorations || reseat)) {
+      this.decorStale = decorations || this.decorStale === 'full' ? 'full' : 'reseat';
+    } else if (decorations) await this.rebuildDecorations();
+    else if (reseat) this.reseatDecorations();
     if (parts.has(PAINT_CREATURES)) {
       await this.refreshCreatures();
       this.handleHover(this.hoverCell);
     }
     if (!terrain && parts.has(PAINT_FISH)) this.refreshFish();
+    if (!this.decorShaping && this.decorHidden) this.hideDecor(false);
+  },
+
+  setDecorShaping(on) {
+    const next = on === true;
+    if (next === Boolean(this.decorShaping)) return;
+    this.decorShaping = next;
+    if (next) {
+      this.hideDecor(true);
+      return;
+    }
+    const stale = this.decorStale;
+    this.decorStale = null;
+    if (stale) this.renderMapLayout([stale === 'full' ? PAINT_DECORATIONS : RESEAT_DECORATIONS]);
+    else this.hideDecor(false);
+  },
+
+  hideDecor(hidden) {
+    this.decorHidden = hidden;
+    this.decoSystem.setHidden(hidden);
+    this.floraSystem.setHidden(hidden);
   },
 
   showRebuildBusy(parts) {

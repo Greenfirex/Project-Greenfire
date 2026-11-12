@@ -12,7 +12,8 @@ function cellWord(count) {
 export default {
   lakeGround() {
     const terrain = this.s.terrainSystem;
-    return { cells: terrain.groundCells, heightAtCell: (cx, cz) => terrain.heightAtCell(cx, cz) };
+    const cells = new Set(terrain.groundCells.map(([cx, cz]) => cellKey(cx, cz)));
+    return { cells, heightAtCell: (cx, cz) => terrain.heightAtCell(cx, cz), blocked: this.s.riverCellKeys(cells) };
   },
 
   waterBodyHitAt(cell, kind) {
@@ -44,27 +45,27 @@ export default {
   },
 
   addLake(cell) {
-    const { cells, heightAtCell } = this.lakeGround();
-    const level = brimLevel(cell.cx, cell.cz, cells, heightAtCell);
+    const { cells, heightAtCell, blocked } = this.lakeGround();
+    const level = brimLevel(cell.cx, cell.cz, cells, heightAtCell, blocked);
     if (level === null) {
       this.hud.setReadout('Tady voda nezůstane — prohlubeň nemá okraj a voda by vytekla z mapy');
       return;
     }
-    const fill = fillLake(cell.cx, cell.cz, level, cells, heightAtCell);
+    const fill = fillLake(cell.cx, cell.cz, level, cells, heightAtCell, blocked);
     const lake = { cx: fill.lowest.cx, cz: fill.lowest.cz, level };
     this.storeLakes([...this.lakesOutside(fill.cells), lake]);
     this.hud.setReadout(`Jezero: hladina ${formatMeters(level)} · ${fill.cells.length} ${cellWord(fill.cells.length)}`);
   },
 
   moveLakeLevel(hit, delta) {
-    const { cells, heightAtCell } = this.lakeGround();
+    const { cells, heightAtCell, blocked } = this.lakeGround();
     const stored = this.mode.lakeList()[hit.index];
     const level = Math.round((stored.level + delta) / HEIGHT_STEP) * HEIGHT_STEP;
     const lowest = hit.cells.reduce((best, { cx, cz }) => {
       const height = heightAtCell(cx, cz);
       return !best || height < best.height ? { cx, cz, height } : best;
     }, null);
-    const fill = fillLake(lowest.cx, lowest.cz, level, cells, heightAtCell);
+    const fill = fillLake(lowest.cx, lowest.cz, level, cells, heightAtCell, blocked);
     if (fill.overflow) {
       this.hud.setReadout(`Výš to nejde — voda by přetekla přes okraj (hladina zůstává ${formatMeters(stored.level)})`);
       return;

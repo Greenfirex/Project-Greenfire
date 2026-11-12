@@ -19,7 +19,7 @@ src/
                              settings), ladicí pohledy (terrainDebug), hmota (runVolume,
                              runBlocks), pluginy blend/relief/caustic/wet/grass, cliffSurface,
                              cliffVine
-    water/                   water, waterBodies, waterShader, waterSettings, waveSpray, fish
+    water/                   water, waterBodies, waterFalls, waterShader, waterfallShader, waterSettings, waveSpray, fish
     flora/                   flora, grassShader, treeWind
     creatures/               creature, footprint
     player/                  player, attack, stats, heldItem, inventory
@@ -111,7 +111,7 @@ Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů). 
 - Objemový terén, fáze 3 a dál (viz [Terén](#terén)).
 - Jeskyně: editor pater a spojů, voda po plochách, tvorové přes spoje
   (viz [Jeskyně a patra](#jeskyně-a-patra)).
-- Vodopády a zvuk řeky (viz [Plány](#plány)); k rozhodnutí suché jámy pod hladinou.
+- Zvuk řeky a vodopádů (viz [Plány](#plány)); k rozhodnutí suché jámy pod hladinou.
 - Recepty, plnění batohu a výroba předmětů.
 
 ## Klíčová rozhodnutí (nevrátit omylem)
@@ -313,11 +313,14 @@ a rychlost proudu a sílu peřejí; jezero je plocha se stejnou výškou a bez p
 - **Jezero:** v mapě `lakes: [{ cx, cz, level }]` — buňka, odkud se voda rozlévá, a výška
   hladiny. Voda se rozlije do sousedních buněk níž než hladina (`src/utils/lakeFill.js`).
   Když doteče na kraj mapy, jezero přeteče a nekreslí se.
-- **Řeka:** v mapě `rivers: [{ cells: [[cx, cz, hladina], …], width }]`, pořadí buněk je
-  směr proudu (`src/utils/riverPlan.js`). Hladinu spočítá editor při kreslení: po proudu
+- **Řeka:** v mapě `rivers: [{ cells: [[cx, cz, hladina], …], width, ground: [[cx, cz, výška], …] }]`, pořadí buněk je
+  směr proudu (`src/utils/riverPlan.js`), `ground` je výška země před vykopáním koryta
+  (řeky nakreslené dřív ji nemají a koryto po nich zůstane). Hladinu spočítá editor při kreslení: po proudu
   nikdy nestoupá a drží se 0,25 m pod nejnižším břehem do 2 buněk od koryta (terén se
   mezi buňkami svažuje, s bližším okolím by voda vytekla na břeh). Koryto se vyhloubí jako
-  obyčejná úprava výšek (mělká 0,5 m — přebrodí se, hluboká 1,25 m). Buňky řeky
+  obyčejná úprava výšek. Hloubka se volí jako rozmezí od–do zvlášť pro mělkou
+  (0,25–0,5 m, přebrodí se) a hlubokou (0,75–2,5 m) řeku; rozdílné hodnoty se podél
+  toku plynule střídají (šum po zhruba 5 buňkách, `depthAlong`). Buňky řeky
   v jezeře nebo v moři se nekreslí — tam už je jiná voda. Moře je jen to, co je spojené
   s otevřeným mořem (`limitToOcean`). Buňka řeky s hladinou nad mořem moře zastaví, i když
   má dno pod ním, takže moře koryto nezaplaví. Hladina řeky nikdy neklesne pod moře —
@@ -336,13 +339,24 @@ a rychlost proudu a sílu peřejí; jezero je plocha se stejnou výškou a bez p
   v buňkách plochy, mokrý pruh jen na zemi zhruba ve výšce hladiny.
 - Hloubka, brodění, šplouchání a zákaz vstupu do hloubky platí stejně jako u moře.
 - Ryby, sprej a zvuk příboje jsou jen u moře; řeka zatím nemá vlastní zvuk.
+- **Vodopád** vznikne sám tam, kde hladina řeky mezi dvěma buňkami trasy klesne aspoň
+  o hranici útesu (`AUTO_CLIFF_STEP`, 2 m; `riverFalls`). Při plánování se buňky pod
+  útesem nepočítají jako břeh horního toku, jinak by řeka před hranou vykopala kaňon.
+  Hladina se přes výškový rozdíl nad 1 m nevyhlazuje, takže horní tůň je rovná až
+  k hraně. Kreslí ho `waterFalls.js` (část WaterSystem) a `waterfallShader.js`:
+  clona s pruhy stékajícími dolů v oblouku od skály, vířící pěna na dolní hladině
+  a mlha z částic. Funguje i pád do jezera nebo do moře.
 - V editoru štětec Jezero (Terén): klik do prohlubně ji naplní po okraj, klik na jezero
   zvedne hladinu o 0,25 m, pravé tlačítko ji sníží, v režimu Mazat jezero zmizí.
   Splynou-li dvě jezera, zůstane jedno.
 - Štětec Řeka (Terén): tah od pramene k ústí je návrh, Aplikovat ho postaví; volí se šířka 1 nebo 3 buňky a hloubka.
-  Pravé tlačítko nebo Mazat řeku smaže; koryto zůstane.
-- Pozor: koryto řeky, které vede z jezera dolů, jezero vypustí (voda najde cestu
-  k okraji mapy a jezero přeteče).
+  Pravé tlačítko nebo Mazat řeku smaže i se zasypáním koryta. Tah přes existující řeku
+  (aspoň 2 společná políčka) zakreslený úsek nahradí: staré koryto se tam zasype,
+  vykope se nové a zbytek staré řeky zůstane jako samostatné kusy. Tah proti proudu
+  staré řeky se otočí po proudu, jinak by řeka tekla do kopce a vyhloubila kaňon.
+- Buňky řek jsou pro jezero zeď (`fillLake` s `blocked`): jezero se korytem nevylije,
+  řeka z něj vyteče ve výšce hladiny, kterou si vzala při kreslení. Změní-li se
+  potom hladina jezera, vznikne mezi nimi schod — řeku je pak třeba nakreslit znovu.
 
 ## Postava
 
@@ -522,6 +536,14 @@ cesty, pláž, útes, most, tvorové), výšky, razítko Herní plochy a vodu; u
 do `src/data/maps/<mapa>/map.json`. Podrobnosti v
 [dokumentaci editoru](src/editor/README.md).
 
+**Tvarování terénu:** se štětcem ze skupiny Terén nebo na záložce Výška
+(`mapEditor.shapesTerrain`) se schovají všechny předměty, cesty, stíny pod keři i tráva
+(`decoSystem.setHidden`, `floraSystem.setHidden`) a hra stojí jako v pauze. Terén a voda
+se přepočítávají hned; přestavba předmětů se odloží (`sceneWorld.setDecorShaping`,
+`decorStale`: celá přestavba, nebo jen přesazení na novou výšku) a proběhne jednou,
+až se přepne na jiný štětec nebo záložku nebo se editor zavře. Data mapy se ukládají
+celá vždy, odkládá se jen vykreslení.
+
 ## Tráva a podrost
 
 Tráva jsou čtyři modely (pobřežní tráva, širokolistý trs, polštářek, kapradina)
@@ -540,10 +562,8 @@ v `depthMapFor` šířit „mokré" buňky od okraje mapy a ohrazené jámy proh
 suché — bez nových dat. Ruční zóna Suchá jen kdyby bylo potřeba. Potřeba je maska
 ve shaderu, stěna na okraji jámy a vypnout v ní příboj, kaustiku a ryby.
 
-**Vodopády.** Jezera a řeky už jsou. Vodopád vznikne sám tam, kde řeka mezi sousedními
-buňkami klesne aspoň o hranici útesu (2 m): svislá clona padající vody, dole pěna,
-kruhy a kapky, hlasitější šum. Dnes se hladina řeky přes útes jen šikmo svažuje.
-Chybí i zvuk tekoucí řeky (potřebuje zvukový soubor).
+**Zvuk tekoucí vody.** Řeka ani vodopád zatím nemají zvuk — potřeba je zvukový soubor
+šumění (řeka) a hukotu (vodopád), hlasitost podle vzdálenosti jako u příboje.
 
 **Boj** (inspirace Rage of Mages): barva tvora znamená druh a sílu, takže se hráč
 na první pohled rozhodne; silnější varianta = stejný model, jiná barva a čísla.

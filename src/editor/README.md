@@ -156,9 +156,12 @@ z jeho posledního políčka jde táhnout dál. Šipky ukazují směr proudu, kr
 slabší modré šipky patří řekám, které už v mapě jsou. **Aplikovat** (Enter) řeku postaví, Esc návrh
 zahodí. Řeka si vyhloubí koryto a teče ve směru tahu; do kopce nepoteče, hladina se drží pod
 nejnižším břehem. V panelu se volí šířka (1 nebo 3 buňky) a hloubka (mělká se dá
-přebrodit, hluboká ne). Pravé tlačítko nebo režim Mazat řeku smaže; koryto zůstane
-a zasype se nástrojem Výška. Zpět vrátí řeku i s korytem. Řeky se ukládají jako
-seznam `rivers`.
+přebrodit, hluboká ne). U zvolené hloubky jsou posuvníky od–do: stejné hodnoty dají
+jednu hloubku, rozdílné se podél toku plynule střídají (mělčiny a tůně). Pravé tlačítko nebo režim Mazat řeku smaže a koryto zasype
+(starší řeky koryto nezasypou, to se srovná nástrojem Výška). Tah přes existující řeku
+zakreslený úsek nahradí novou řekou s novou hloubkou. Zpět vrátí řeku i s korytem. Řeky se ukládají jako
+seznam `rivers`. Vede-li trasa přes útes (spád aspoň 2 m mezi sousedními buňkami),
+vznikne tam sám vodopád; jejich počet editor napíše po postavení řeky.
 
 ## Cesty
 
@@ -191,6 +194,10 @@ celou — nic se tak nerozbije tiše.
 
 Dokud přestavba běží, svítí nahoře uprostřed proužek s tím, co se právě počítá.
 Klikání neblokuje: další tah se jen zařadí za běžící práci.
+
+Se štětci ze skupiny **Terén** a na záložce **Výška** se schovají všechny předměty
+a tráva a hra stojí. Přepočítává se jen terén a voda; předměty se postaví znovu
+jednou, až přepneš na jiný štětec nebo záložku nebo editor zavřeš.
 
 ## Kde editor bydlí
 

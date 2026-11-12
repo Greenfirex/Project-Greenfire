@@ -229,6 +229,13 @@ export default class MapEditor {
     return this.mode.floorView();
   }
 
+  shapesTerrain() {
+    if (!this.mode.active) return false;
+    if (this.mode.mode === 'height') return true;
+    const brush = this.mode.mode === 'zone' && this.mode.brushKey ? BRUSHES[this.mode.brushKey] : null;
+    return Boolean(brush && brush.group === 'Terén');
+  }
+
   syncFloorView() {
     const underground = this.mode.active && this.mode.undergroundView;
     this.s.revealSystem.setEditorMap(underground ? this.mode.floorViewMap() : null);

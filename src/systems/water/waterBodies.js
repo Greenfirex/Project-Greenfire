@@ -15,6 +15,7 @@ const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const AROUND = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 const SMOOTH_PASSES = 2;
 const SHORE_SPILL = 0.75;
+const FALL_BLEND_LIMIT = 1;
 const VALUES = 4;
 
 function cellOf(x, z) {
@@ -48,15 +49,16 @@ function cellValues(cells) {
     for (const [dx, dz] of AROUND) {
       const key = cellKey(cell.cx + dx, cell.cz + dz);
       if (own.has(key)) continue;
-      const sum = ring.get(key) || [0, 0, 0, 0, 0];
+      const sum = ring.get(key) || [Infinity, 0, 0, 0, 0];
       const values = own.get(cellKey(cell.cx, cell.cz));
-      for (let k = 0; k < VALUES; k += 1) sum[k] += values[k];
+      sum[0] = Math.min(sum[0], values[0]);
+      for (let k = 1; k < VALUES; k += 1) sum[k] += values[k];
       sum[VALUES] += 1;
       ring.set(key, sum);
     }
   }
   const all = new Map(own);
-  for (const [key, sum] of ring) all.set(key, sum.slice(0, VALUES).map((value) => value / sum[VALUES]));
+  for (const [key, sum] of ring) all.set(key, [sum[0], ...sum.slice(1, VALUES).map((value) => value / sum[VALUES])]);
   return { own, all };
 }
 
@@ -79,6 +81,7 @@ function smoothValues(values, inReach, width, height) {
             if (ii < 0 || jj < 0 || ii >= width || jj >= height) continue;
             const next = jj * width + ii;
             if (!inReach[next]) continue;
+            if (Math.abs(values[next * VALUES] - values[index * VALUES]) >= FALL_BLEND_LIMIT) continue;
             for (let k = 0; k < VALUES; k += 1) sum[k] += values[next * VALUES + k];
             count += 1;
           }

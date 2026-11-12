@@ -2,7 +2,7 @@
 // Patří k MapEditor (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { formatMeters } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
-import { planRiver, riverPath, RIVER_DEPTHS } from '../utils/riverPlan.js';
+import { planRiver, riverPath, riverFalls, riverGround, riverCellKeys, splitRiver } from '../utils/riverPlan.js';
 
 const STROKE_ARROW_COLOR = [0.75, 1, 0.95];
 const RIVER_ARROW_COLOR = [0.35, 0.7, 1];
@@ -105,10 +105,23 @@ export default {
     this.showRiverStroke();
     const terrain = this.s.terrainSystem;
     const width = Number(this.mode.brushOptionValue(this.mode.brushKey, 'width')) || 1;
-    const depth = RIVER_DEPTHS[this.mode.brushOptionValue(this.mode.brushKey, 'depth')] || RIVER_DEPTHS.shallow;
+    const kind = this.mode.brushOptionValue(this.mode.brushKey, 'depth') === 'deep' ? 'deep' : 'shallow';
+    const depths = {
+      min: Number(this.mode.brushOptionValue(this.mode.brushKey, `${kind}Min`)),
+      max: Number(this.mode.brushOptionValue(this.mode.brushKey, `${kind}Max`)),
+    };
+    const present = new Set(terrain.groundCells.map(([cx, cz]) => cellKey(cx, cz)));
+    const redraw = this.riverRedraw(stroke, present);
+    const groundAt = (cx, cz) => {
+      const key = cellKey(cx, cz);
+      return redraw.restore.has(key) ? redraw.restore.get(key) : terrain.heightAtCell(cx, cz);
+    };
     const water = new Map();
-    for (const [key, body] of this.s.waterBodies().cells) water.set(key, body.level);
-    const plan = planRiver(stroke, width, depth, terrain.groundCells, (cx, cz) => terrain.heightAtCell(cx, cz), water, this.mode.getWaterLevel());
+    for (const [key, body] of this.s.waterBodies().cells) {
+      if (!redraw.replaced.has(key)) water.set(key, body.level);
+    }
+    const path = redraw.upstream ? [...stroke].reverse() : stroke;
+    const plan = planRiver(path, width, depths, present, groundAt, water, this.mode.getWaterLevel());
     if (plan.river.cells.length < 2) {
       this.hud.setReadout('Tudy řeka nepoteče — trasa vede mimo hrací plochu');
       return;
@@ -116,11 +129,44 @@ export default {
     const cells = plan.river.cells;
     this.mode.setWaterShown(true);
     this.hud.setWater(this.mode.getWaterLevel(), this.mode.waterShown);
-    this.mode.addRiver(plan);
+    this.mode.changeRivers([...redraw.kept, plan.river], redraw.restore, plan.carve);
     this.refreshRiverArrows();
     this.refreshUndoButton();
     this.markDirty();
-    this.hud.setReadout(`Řeka: ${cells.length} buněk · hladina z ${formatMeters(cells[0][2])} na ${formatMeters(cells[cells.length - 1][2])}`);
+    const falls = riverFalls(plan.river).length;
+    const fallText = falls ? ` · vodopády: ${falls}` : '';
+    const redrawText = redraw.replaced.size ? ' · přes starou řeku nakreslena znovu' : '';
+    this.hud.setReadout(`Řeka: ${cells.length} buněk · hladina z ${formatMeters(cells[0][2])} na ${formatMeters(cells[cells.length - 1][2])}${fallText}${redrawText}`);
+  },
+
+  riverRedraw(stroke, present) {
+    const strokeKeys = new Set(stroke.map(([cx, cz]) => cellKey(cx, cz)));
+    const order = new Map(stroke.map(([cx, cz], index) => [cellKey(cx, cz), index]));
+    const kept = [];
+    const restore = new Map();
+    const replaced = new Set();
+    let mostShared = 0;
+    let upstream = false;
+    for (const river of this.mode.riverList()) {
+      const shared = (river.cells || []).filter(([cx, cz]) => strokeKeys.has(cellKey(cx, cz)));
+      if (shared.length < 2) {
+        kept.push(river);
+        continue;
+      }
+      if (shared.length > mostShared) {
+        mostShared = shared.length;
+        const first = shared[0];
+        const last = shared[shared.length - 1];
+        upstream = order.get(cellKey(first[0], first[1])) > order.get(cellKey(last[0], last[1]));
+      }
+      const ground = riverGround(river);
+      for (const key of riverCellKeys({ cells: shared, width: river.width }, present)) {
+        replaced.add(key);
+        if (ground.has(key)) restore.set(key, ground.get(key));
+      }
+      kept.push(...splitRiver(river, strokeKeys, present));
+    }
+    return { kept, restore, replaced, upstream };
   },
 
   removeRiverAt(cell) {
@@ -129,13 +175,14 @@ export default {
       this.hud.setReadout('Tady žádná řeka není');
       return;
     }
+    const remembered = riverGround(this.mode.riverList()[hit.index]).size > 0;
     this.mode.removeRiver(hit.index);
     this.refreshRiverArrows();
-    this.s.adoptEditorMap();
-    this.s.refreshWaterBodies();
     this.s.handleHover(this.s.hoverCell);
     this.refreshUndoButton();
     this.markDirty();
-    this.hud.setReadout('Řeka smazána — koryto zůstalo, zasypeš ho výškou');
+    this.hud.setReadout(remembered
+      ? 'Řeka smazána i s korytem'
+      : 'Řeka smazána — je starší, koryto si nepamatuje, zasypeš ho výškou');
   },
 };

@@ -1,5 +1,6 @@
 // Jezera — od jedné buňky rozlije vodu do prohlubně až po zadanou hladinu.
 // Když voda doteče na kraj mapy, jezero přeteče a nevznikne; nejvyšší hladinu, která ještě nepřeteče, umí najít.
+// Buňky řek jsou pro jezero zeď — řeka z jezera vytéká, jezero se jejím korytem nevylije.
 import { cellKey } from './gridMath.js';
 import { HEIGHT_STEP, MAX_HEIGHT } from '../data/maps/layoutStore.js';
 
@@ -12,10 +13,10 @@ function cellSetOf(cells) {
   return set;
 }
 
-export function fillLake(cx, cz, level, cells, heightAtCell) {
+export function fillLake(cx, cz, level, cells, heightAtCell, blocked = new Set()) {
   const present = cellSetOf(cells);
   const start = cellKey(cx, cz);
-  if (!Number.isFinite(level) || !present.has(start) || !(heightAtCell(cx, cz) < level)) {
+  if (!Number.isFinite(level) || !present.has(start) || blocked.has(start) || !(heightAtCell(cx, cz) < level)) {
     return { cells: [], overflow: false, lowest: null };
   }
   const seen = new Set([start]);
@@ -34,7 +35,7 @@ export function fillLake(cx, cz, level, cells, heightAtCell) {
         overflow = true;
         continue;
       }
-      if (seen.has(key)) continue;
+      if (seen.has(key) || blocked.has(key)) continue;
       const height = heightAtCell(nx, nz);
       if (!(height < level)) continue;
       seen.add(key);
@@ -45,29 +46,29 @@ export function fillLake(cx, cz, level, cells, heightAtCell) {
   return { cells: out, overflow, lowest };
 }
 
-export function brimLevel(cx, cz, cells, heightAtCell) {
+export function brimLevel(cx, cz, cells, heightAtCell, blocked = new Set()) {
   const present = cellSetOf(cells);
   if (!present.has(cellKey(cx, cz))) return null;
   const ground = heightAtCell(cx, cz);
   let low = Math.floor(ground / HEIGHT_STEP) + 1;
   let high = MAX_HEIGHT;
-  if (fillLake(cx, cz, low * HEIGHT_STEP, present, heightAtCell).overflow) return null;
+  if (fillLake(cx, cz, low * HEIGHT_STEP, present, heightAtCell, blocked).overflow) return null;
   while (low < high) {
     const mid = Math.ceil((low + high) / 2);
-    if (fillLake(cx, cz, mid * HEIGHT_STEP, present, heightAtCell).overflow) high = mid - 1;
+    if (fillLake(cx, cz, mid * HEIGHT_STEP, present, heightAtCell, blocked).overflow) high = mid - 1;
     else low = mid;
   }
   return low * HEIGHT_STEP;
 }
 
-export function fillLakes(lakes, cells, heightAtCell) {
+export function fillLakes(lakes, cells, heightAtCell, blocked = new Set()) {
   const present = cellSetOf(cells);
   const list = [];
   const levels = new Map();
   for (const [index, lake] of (lakes || []).entries()) {
     if (!lake || !Number.isFinite(lake.cx) || !Number.isFinite(lake.cz)) continue;
     if (levels.has(cellKey(lake.cx, lake.cz))) continue;
-    const fill = fillLake(lake.cx, lake.cz, lake.level, present, heightAtCell);
+    const fill = fillLake(lake.cx, lake.cz, lake.level, present, heightAtCell, blocked);
     if (!fill.cells.length || fill.overflow) continue;
     for (const [cx, cz] of fill.cells) levels.set(cellKey(cx, cz), lake.level);
     list.push({ index, level: lake.level, cells: fill.cells });

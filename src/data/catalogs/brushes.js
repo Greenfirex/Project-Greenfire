@@ -349,7 +349,7 @@ export const BRUSHES = {
   river: {
     label: 'Řeka',
     group: 'Terén',
-    note: 'Táhni od pramene k ústí a potvrď Aplikovat — řeka si vyhloubí koryto a poteče ve směru tahu, nikdy do kopce. Pravé tlačítko nebo režim Mazat řeku smaže, koryto zůstane.',
+    note: 'Táhni od pramene k ústí a potvrď Aplikovat — řeka si vyhloubí koryto a poteče ve směru tahu, nikdy do kopce. Tah přes existující řeku ji v tom úseku nahradí. Pravé tlačítko nebo režim Mazat řeku smaže i s korytem.',
     shape: 'blob',
     river: true,
     options: [
@@ -364,6 +364,10 @@ export const BRUSHES = {
           { value: 'deep', label: 'Hluboká (nepřejde se)' },
         ],
       },
+      { key: 'shallowMin', label: 'Hloubka od', kind: 'range', default: 0.5, min: 0.25, max: 0.5, step: 0.25, display: 'meters', showWhen: { key: 'depth', value: 'shallow' } },
+      { key: 'shallowMax', label: 'Hloubka do', kind: 'range', default: 0.5, min: 0.25, max: 0.5, step: 0.25, display: 'meters', showWhen: { key: 'depth', value: 'shallow' } },
+      { key: 'deepMin', label: 'Hloubka od', kind: 'range', default: 1.25, min: 0.75, max: 2.5, step: 0.25, display: 'meters', showWhen: { key: 'depth', value: 'deep' } },
+      { key: 'deepMax', label: 'Hloubka do', kind: 'range', default: 1.25, min: 0.75, max: 2.5, step: 0.25, display: 'meters', showWhen: { key: 'depth', value: 'deep' } },
     ],
   },
   beach: {

@@ -49,7 +49,7 @@ export function quantizeMapFileHeights(file) {
     if (lake && Number.isFinite(lake.level)) lake.level = snapHeight(lake.level);
   }
   for (const river of file.rivers || []) {
-    for (const cell of (river && river.cells) || []) {
+    for (const cell of [...((river && river.cells) || []), ...((river && river.ground) || [])]) {
       if (Array.isArray(cell) && Number.isFinite(cell[2])) cell[2] = snapHeight(cell[2]);
     }
   }
@@ -99,6 +99,9 @@ function riversOf(list) {
         .filter((cell) => Array.isArray(cell) && cell.length >= 3 && cell.slice(0, 3).every(Number.isFinite))
         .map((cell) => [cell[0], cell[1], cell[2]]),
       width: Number.isFinite(river && river.width) ? river.width : 1,
+      ground: ((river && river.ground) || [])
+        .filter((cell) => Array.isArray(cell) && cell.length >= 3 && cell.slice(0, 3).every(Number.isFinite))
+        .map((cell) => [cell[0], cell[1], cell[2]]),
     }))
     .filter((river) => river.cells.length > 1);
 }

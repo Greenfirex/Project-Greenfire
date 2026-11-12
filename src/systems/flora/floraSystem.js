@@ -175,6 +175,7 @@ export default class FloraSystem {
     this.models = null;
     this.assets = new Map();
     this.grass = null;
+    this.hidden = false;
     this.chunks = [];
     this.grassMeshes = [];
     this.viewProvider = null;
@@ -201,6 +202,11 @@ export default class FloraSystem {
   build() {
     if (!this.deco) return;
     this.buildGrass();
+  }
+
+  setHidden(hidden) {
+    this.hidden = hidden === true;
+    if (this.grass && !this.grass.isDisposed()) this.grass.setEnabled(!this.hidden);
   }
 
   dispose() {
@@ -251,6 +257,7 @@ export default class FloraSystem {
     if (!slots.length) return [];
     this.lastTime = performance.now();
     this.grass = new TransformNode('grassPatches', this.s);
+    this.grass.setEnabled(!this.hidden);
     this.buildChunks(slots, 'cell');
     this.animate();
     return this.grassMeshes.slice();

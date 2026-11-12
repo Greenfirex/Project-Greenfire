@@ -119,10 +119,11 @@ export default class BrushPanel {
   buildOptions(brush, values) {
     if (!this.options) return;
     this.options.innerHTML = '';
+    this.optionValues = { ...(values || {}) };
     const list = brushOptions(brush);
     for (const option of list) {
       if (option.kind === 'range') {
-        this.options.appendChild(this.buildRangeOption(option, values));
+        this.options.appendChild(this.conditionalRow(option, this.buildRangeOption(option, values)));
         continue;
       }
       if (option.kind === 'choice') {
@@ -142,6 +143,21 @@ export default class BrushPanel {
       text.textContent = option.label;
       label.append(input, text);
       this.options.appendChild(label);
+    }
+    this.refreshConditionalRows();
+  }
+
+  conditionalRow(option, row) {
+    if (!option.showWhen) return row;
+    row.dataset.showKey = option.showWhen.key;
+    row.dataset.showValue = option.showWhen.value;
+    return row;
+  }
+
+  refreshConditionalRows() {
+    if (!this.options) return;
+    for (const row of this.options.querySelectorAll('[data-show-key]')) {
+      row.classList.toggle('is-hidden', this.optionValues[row.dataset.showKey] !== row.dataset.showValue);
     }
   }
 
@@ -165,7 +181,8 @@ export default class BrushPanel {
     const showValue = (raw) => {
       const text = option.display === 'square'
         ? `${raw * 2 + 1}×${raw * 2 + 1}`
-        : option.display === 'angle' ? `${raw * 45}°` : String(raw);
+        : option.display === 'angle' ? `${raw * 45}°`
+          : option.display === 'meters' ? `${String(raw).replace('.', ',')} m` : String(raw);
       value.textContent = text;
     };
     showValue(Number(input.value));
@@ -194,6 +211,8 @@ export default class BrushPanel {
       btn.classList.toggle('is-active', choice.value === stored);
       btn.addEventListener('click', () => {
         for (const other of group.querySelectorAll('button')) other.classList.toggle('is-active', other === btn);
+        this.optionValues[option.key] = choice.value;
+        this.refreshConditionalRows();
         if (this.onOption) this.onOption(option.key, choice.value);
       });
       group.appendChild(btn);

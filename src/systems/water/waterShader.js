@@ -45,7 +45,7 @@ function foamTextureSet(scene) {
   return set;
 }
 
-const REVEAL_WATER = { above: '1.0', hide: '0.0', keep: '0.0', inside: '0.0', restore: '0.0', dark: '1.0' };
+export const REVEAL_WATER = { above: '1.0', hide: '0.0', keep: '0.0', inside: '0.0', restore: '0.0', dark: '1.0' };
 
 const WAVE = `
 float hash(vec2 p) {
