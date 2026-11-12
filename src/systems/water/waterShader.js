@@ -10,6 +10,7 @@ import {
   waveAmpGlsl, waveFieldGlsl, rippleSlopeGlsl, rippleWarpGlsl, glslFloat,
 } from '../../utils/waterWaves.js';
 import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
+import { WATER_SINK, FLOW_CYCLE, FLOW_TIME_WRAP } from './waterSettings.js';
 import { REVEAL_UNIFORMS, REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, revealBlock } from '../../utils/revealGlsl.js';
 
 const FOAM_DIR = ASSET_DIRS.textures;
@@ -72,6 +73,7 @@ attribute float waveDist;
 attribute float waveAmp;
 attribute vec2 waveDir;
 attribute float waveCliff;
+attribute vec3 waveFlow;
 
 uniform mat4 viewProjection;
 uniform float waterTime;
@@ -79,8 +81,12 @@ ${WAVE}
 varying vec3 vPosition;
 varying float vDist;
 varying vec2 vDir;
+varying float vRest;
+varying vec3 vFlow;
 
 void main(void) {
+  vRest = position.y;
+  vFlow = waveFlow;
   float d = max(waveDist, 0.0);
   float cliff = clamp(waveCliff, 0.0, 1.0);
   float swell = swellAt(d, position.xz, waterTime);
@@ -109,7 +115,7 @@ uniform vec3 deepColor;
 uniform vec3 foamColor;
 uniform float dayness;
 uniform float maxDepth;
-uniform float waterLevel;
+uniform float flowTime;
 uniform float swellScale;
 uniform float reflectionOn;
 uniform float detailPixel;
@@ -130,6 +136,8 @@ ${REVEAL_UNIFORMS}
 varying vec3 vPosition;
 varying float vDist;
 varying vec2 vDir;
+varying float vRest;
+varying vec3 vFlow;
 ${WAVE}
 vec2 hashGradient(vec2 p) {
   vec2 g = vec2(hash(p * 1.37), hash(p * 1.37 + vec2(19.7, 7.3))) * 2.0 - 1.0;
@@ -175,6 +183,36 @@ vec2 bumpSlope(vec2 p, vec2 warp, float time, vec2 dir, vec2 perp) {
   return rippleSlope(p + warp * 1.2 + rippleWarp(p), time, dir, perp);
 }
 
+vec2 warpAt(vec2 p) {
+  return vec2(
+    noise(p * 0.045 + vec2(11.3, 5.7)),
+    noise(p * 0.045 + vec2(-7.9, 19.1))
+  ) - 0.5;
+}
+
+vec4 foamLayers(vec2 q, vec2 drifts) {
+  vec2 warp = warpAt(q);
+  mat2 turnFine = mat2(0.98, -0.19, 0.19, 0.98);
+  mat2 turnMid = mat2(0.82, -0.57, 0.57, 0.82);
+  mat2 turnChop = mat2(0.55, 0.83, -0.83, 0.55);
+  vec2 uvFine = turnFine * q * 0.19 + warp * 1.2 - drifts * 0.19;
+  vec2 uvMid = turnMid * q * 0.08 + warp * 2.1 + vec2(0.37, 0.19) - drifts * 0.08;
+  vec2 uvChop = turnChop * q * 0.43 + warp * 0.6 + vec2(0.61, 0.43) - drifts * 0.43;
+  float fineWeight = detailWeight(0.2);
+  float chopWeight = detailWeight(0.1);
+  vec3 fineColor = texture2D(foamFineColor, uvFine).rgb;
+  vec3 coarseColor = texture2D(foamCoarseColor, uvMid).rgb;
+  vec3 chopColor = texture2D(foamFineColor, uvChop).rgb;
+  float fineAlpha = texture2D(foamFineOpacity, uvFine).r;
+  float coarseAlpha = texture2D(foamCoarseOpacity, uvMid).r;
+  float chopAlpha = texture2D(foamFineOpacity, uvChop).r;
+  vec3 fineNormal = texture2D(foamFineNormal, uvFine * 1.31).xyz * 2.0 - 1.0;
+  float texFoam = clamp(fineAlpha * 0.7 * fineWeight + coarseAlpha * 0.55 + chopAlpha * 0.35 * chopWeight, 0.0, 1.0);
+  vec3 foamTexel = fineColor * 0.55 + coarseColor * 0.45 + chopColor * 0.25;
+  float foamLift = 0.78 + 0.44 * clamp(fineNormal.y * 0.5 + 0.5, 0.0, 1.0);
+  return vec4(foamTexel * foamLift, texFoam);
+}
+
 void main(void) {
   vec2 p = vPosition.xz;
   vec2 depthUv = (p - depthOrigin) * depthScale;
@@ -183,7 +221,7 @@ void main(void) {
   float cliff = clamp(depthSample.g, 0.0, 1.0);
   float inside = clamp(depthSample.b, 0.0, 1.0);
   float depth = max(rawDrop, 0.0);
-  float wet = vPosition.y - waterLevel + rawDrop;
+  float wet = vPosition.y - vRest - ${glslFloat(WATER_SINK)} + rawDrop;
   float d = max(vDist, 0.0);
   float cliffFill = cliff * (1.0 - smoothstep(0.0, 1.6, d));
   depth = max(depth, cliffFill * 1.5);
@@ -197,16 +235,27 @@ void main(void) {
   vec2 toward = -normalize(grad + vec2(1e-5, 1e-5));
   vec2 blendDir = foamDir * 0.65 + toward * 0.35;
   vec2 rippleBase = length(blendDir) > 0.2 ? normalize(blendDir) : foamDir;
+  float flowSpeed = length(vFlow.xy);
+  bool flowing = flowSpeed > 0.01;
+  if (flowing) rippleBase = vFlow.xy / flowSpeed;
   vec2 ripplePerp = vec2(-rippleBase.y, rippleBase.x);
   float swash = swashAt(d, p, waterTime);
   float shoreRise = clamp(swell / ${glslFloat(WAVE_REACH)}, -1.0, 1.0);
   vec2 drifts = foamDir * (shoreRise * ${glslFloat(FOAM_SWING)});
 
-  vec2 surfaceWarp = vec2(
-    noise(p * 0.045 + vec2(11.3, 5.7)),
-    noise(p * 0.045 + vec2(-7.9, 19.1))
-  ) - 0.5;
+  float flowPhaseA = fract(flowTime / ${glslFloat(FLOW_CYCLE)});
+  float flowPhaseB = fract(flowTime / ${glslFloat(FLOW_CYCLE)} + 0.5);
+  float flowWeightA = 1.0 - abs(1.0 - 2.0 * flowPhaseA);
+  vec2 flowShiftA = vFlow.xy * (flowPhaseA * ${glslFloat(FLOW_CYCLE)});
+  vec2 flowShiftB = vFlow.xy * (flowPhaseB * ${glslFloat(FLOW_CYCLE)}) - vec2(17.3, 9.1);
+
+  vec2 surfaceWarp = warpAt(p);
   vec2 detailSlope = bumpSlope(p, surfaceWarp, waterTime, rippleBase, ripplePerp);
+  if (flowing) {
+    vec2 slopeA = bumpSlope(p - flowShiftA, warpAt(p - flowShiftA), waterTime, rippleBase, ripplePerp);
+    vec2 slopeB = bumpSlope(p - flowShiftB, warpAt(p - flowShiftB), waterTime, rippleBase, ripplePerp);
+    detailSlope = mix(slopeB, slopeA, flowWeightA);
+  }
   vec2 slope = detailSlope + bigSlope;
   float waveSlope = length(bigSlope);
   vec3 normal = normalize(vec3(-slope.x, 1.0, -slope.y));
@@ -253,24 +302,9 @@ void main(void) {
   float sparkle = pow(facing, 48.0) * sparkleNoise * 0.2 * rippleWeight(2.8);
   color += sunColor * (sheen + sparkle) * sunIntensity * dayness * 0.35;
 
-  mat2 turnFine = mat2(0.98, -0.19, 0.19, 0.98);
-  mat2 turnMid = mat2(0.82, -0.57, 0.57, 0.82);
-  mat2 turnChop = mat2(0.55, 0.83, -0.83, 0.55);
-  vec2 uvFine = turnFine * p * 0.19 + surfaceWarp * 1.2 - drifts * 0.19;
-  vec2 uvMid = turnMid * p * 0.08 + surfaceWarp * 2.1 + vec2(0.37, 0.19) - drifts * 0.08;
-  vec2 uvChop = turnChop * p * 0.43 + surfaceWarp * 0.6 + vec2(0.61, 0.43) - drifts * 0.43;
-  float fineWeight = detailWeight(0.2);
-  float chopWeight = detailWeight(0.1);
-  vec3 fineColor = texture2D(foamFineColor, uvFine).rgb;
-  vec3 coarseColor = texture2D(foamCoarseColor, uvMid).rgb;
-  vec3 chopColor = texture2D(foamFineColor, uvChop).rgb;
-  float fineAlpha = texture2D(foamFineOpacity, uvFine).r;
-  float coarseAlpha = texture2D(foamCoarseOpacity, uvMid).r;
-  float chopAlpha = texture2D(foamFineOpacity, uvChop).r;
-  vec3 fineNormal = texture2D(foamFineNormal, uvFine * 1.31).xyz * 2.0 - 1.0;
-  float texFoam = clamp(fineAlpha * 0.7 * fineWeight + coarseAlpha * 0.55 + chopAlpha * 0.35 * chopWeight, 0.0, 1.0);
-  vec3 foamTexel = fineColor * 0.55 + coarseColor * 0.45 + chopColor * 0.25;
-  float foamLift = 0.78 + 0.44 * clamp(fineNormal.y * 0.5 + 0.5, 0.0, 1.0);
+  vec4 layers = foamLayers(p, drifts);
+  if (flowing) layers = mix(foamLayers(p - flowShiftB, drifts), foamLayers(p - flowShiftA, drifts), flowWeightA);
+  float texFoam = layers.a;
   float patchNoise = rippleNoise(p * 0.075 + drifts * 0.06) * 1.6 + 0.5;
   float gateNoise = rippleNoise(p * 0.1 + drifts * 0.09) * 1.6 + 0.5;
   float foamPatch = smoothstep(0.22, 0.78, patchNoise);
@@ -292,13 +326,15 @@ void main(void) {
   float cliffReach = 1.0 - smoothstep(0.0, 2.2 + 2.6 * cliff, d);
   float crash = cliff * cliffReach * (0.35 + 0.95 * crestShape) * (0.45 + 0.75 * foamPatch);
 
-  float foam = max(max(max(shoreLace, breaker), max(crash, whitecap)), shallowFoam);
+  float rapids = clamp(vFlow.z, 0.0, 1.0) * (0.3 + 0.9 * texFoam);
+  float streaks = flowing ? smoothstep(0.5, 0.85, texFoam) * 0.3 : 0.0;
+  float foam = max(max(max(shoreLace, breaker), max(crash, whitecap)), max(shallowFoam, max(rapids, streaks)));
   foam *= mix(0.6, 1.0, texFoam);
   float shoreCut = smoothstep(-0.015, 0.02, rawDrop);
   float visible = max(smoothstep(-0.02, 0.04, wet) * shoreCut, cliffFill) * inside;
   foam *= smoothstep(0.0, 0.03, wet) * max(shoreCut, cliffFill) * inside;
   float foamAmount = clamp(foam, 0.0, 1.0);
-  vec3 foamTint = foamColor * foamTexel * foamLift * (0.5 + 0.6 * dayness);
+  vec3 foamTint = foamColor * layers.rgb * (0.5 + 0.6 * dayness);
   color = mix(color, foamTint, foamAmount);
   color += foamColor * crash * 0.1 * dayness;
 
@@ -390,12 +426,12 @@ function registerShaders() {
 export function createWaterMaterial(scene, options) {
   registerShaders();
   const material = new ShaderMaterial('waterSurfaceMat', scene, { vertex: 'water', fragment: 'water' }, {
-    attributes: ['position', 'waveDist', 'waveAmp', 'waveDir', 'waveCliff'],
+    attributes: ['position', 'waveDist', 'waveAmp', 'waveDir', 'waveCliff', 'waveFlow'],
     samplers: [REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER],
     uniforms: [
       'viewProjection', 'waterTime', 'sunDir', 'sunColor', 'sunIntensity', 'skyColor',
       'cameraDir', 'shallowColor', 'deepColor', 'foamColor', 'dayness', 'maxDepth',
-      'reflectionSampler', 'reflectionViewProjection', 'waterLevel', 'swellScale',
+      'reflectionSampler', 'reflectionViewProjection', 'flowTime', 'swellScale',
       'depthMap', 'reflectionOn', 'detailPixel', 'depthOrigin', 'depthScale', 'depthRange', 'foamDir',
       ...REVEAL_UNIFORM_NAMES,
     ],
@@ -414,7 +450,7 @@ export function createWaterMaterial(scene, options) {
   material.setColor3('foamColor', options.foamColor);
   material.setFloat('dayness', 1);
   material.setFloat('maxDepth', options.maxDepth);
-  material.setFloat('waterLevel', 0);
+  material.setFloat('flowTime', 0);
   material.setFloat('swellScale', Number.isFinite(options.swellScale) ? options.swellScale : 1);
   material.setFloat('reflectionOn', 1);
   material.setFloat('detailPixel', 0.02);
@@ -447,5 +483,6 @@ export function createWaterSideMaterial(scene, options) {
 
 export function tickWater(material, seconds) {
   material.setFloat('waterTime', seconds % WAVE_TIME_WRAP);
+  material.setFloat('flowTime', seconds % FLOW_TIME_WRAP);
 }
 

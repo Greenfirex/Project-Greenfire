@@ -21,6 +21,11 @@ const HOLOGRAM_ALPHA = 0.45;
 const CREATURE_RADIUS_LIFT = 0.06;
 const CREATURE_RADIUS_STEPS = 72;
 const OUTLINE_LIFT = 0.07;
+const ARROW_LIFT = 0.12;
+const ARROW_HALF = CELL_SIZE * 0.32;
+const ARROW_HEAD = CELL_SIZE * 0.16;
+const ARROW_RING = CELL_SIZE * 0.4;
+const ARROW_RING_STEPS = 16;
 const SINGLE_ITEM = { offsetX: 0, offsetZ: 0, yaw: 0 };
 
 function speciesOf(def) {
@@ -46,6 +51,7 @@ export default class GridSystem {
     this.zonesMaterials = [];
     this.zonesPool = [];
     this.draftOutline = null;
+    this.arrowLines = null;
     this.draftLinesAdd = null;
     this.draftAddPool = [];
     this.draftLinesRemove = null;
@@ -229,6 +235,46 @@ export default class GridSystem {
   clearEdges() {
     if (this.edgeLines) this.edgeLines.dispose();
     this.edgeLines = null;
+  }
+
+  showArrows(arrows) {
+    this.clearArrows();
+    if (!arrows.length) return;
+    const lines = [];
+    const colors = [];
+    const point = (x, y, z) => new Vector3(x, y, z);
+    for (const arrow of arrows) {
+      const color = new Color4(arrow.color[0], arrow.color[1], arrow.color[2], 1);
+      const x = arrow.cx * CELL_SIZE;
+      const z = arrow.cz * CELL_SIZE;
+      const y = arrow.y + ARROW_LIFT;
+      const sideX = -arrow.dz;
+      const sideZ = arrow.dx;
+      const tail = point(x - arrow.dx * ARROW_HALF, y, z - arrow.dz * ARROW_HALF);
+      const tip = point(x + arrow.dx * ARROW_HALF, y, z + arrow.dz * ARROW_HALF);
+      const backX = tip.x - arrow.dx * ARROW_HEAD;
+      const backZ = tip.z - arrow.dz * ARROW_HEAD;
+      lines.push([tail, tip]);
+      lines.push([tip, point(backX + sideX * ARROW_HEAD * 0.8, y, backZ + sideZ * ARROW_HEAD * 0.8)]);
+      lines.push([tip, point(backX - sideX * ARROW_HEAD * 0.8, y, backZ - sideZ * ARROW_HEAD * 0.8)]);
+      colors.push([color, color], [color, color], [color, color]);
+      if (!arrow.source) continue;
+      const ring = [];
+      for (let step = 0; step <= ARROW_RING_STEPS; step += 1) {
+        const angle = (step / ARROW_RING_STEPS) * Math.PI * 2;
+        ring.push(point(x + Math.cos(angle) * ARROW_RING, y, z + Math.sin(angle) * ARROW_RING));
+      }
+      lines.push(ring);
+      colors.push(ring.map(() => color));
+    }
+    this.arrowLines = MeshBuilder.CreateLineSystem('flowArrows', { lines, colors }, this.s);
+    this.arrowLines.isPickable = false;
+    this.arrowLines.renderingGroupId = this.overlayGroup;
+  }
+
+  clearArrows() {
+    if (this.arrowLines) this.arrowLines.dispose();
+    this.arrowLines = null;
   }
 
   clearBrush() {

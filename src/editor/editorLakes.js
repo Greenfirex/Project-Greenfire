@@ -15,9 +15,14 @@ export default {
     return { cells: terrain.groundCells, heightAtCell: (cx, cz) => terrain.heightAtCell(cx, cz) };
   },
 
+  waterBodyHitAt(cell, kind) {
+    return this.s.waterBodies().list.find((body) => (
+      body.kind === kind && body.cells.some(({ cx, cz }) => cx === cell.cx && cz === cell.cz)
+    )) || null;
+  },
+
   lakeHitAt(cell) {
-    const key = cellKey(cell.cx, cell.cz);
-    return this.s.lakeFill().list.find((lake) => lake.cells.some(([cx, cz]) => cellKey(cx, cz) === key)) || null;
+    return this.waterBodyHitAt(cell, 'lake');
   },
 
   pickLake(cell, action) {
@@ -55,7 +60,7 @@ export default {
     const { cells, heightAtCell } = this.lakeGround();
     const stored = this.mode.lakeList()[hit.index];
     const level = Math.round((stored.level + delta) / HEIGHT_STEP) * HEIGHT_STEP;
-    const lowest = hit.cells.reduce((best, [cx, cz]) => {
+    const lowest = hit.cells.reduce((best, { cx, cz }) => {
       const height = heightAtCell(cx, cz);
       return !best || height < best.height ? { cx, cz, height } : best;
     }, null);
@@ -85,7 +90,7 @@ export default {
     this.mode.setWaterShown(true);
     this.hud.setWater(this.mode.getWaterLevel(), this.mode.waterShown);
     this.s.adoptEditorMap();
-    this.s.refreshLakes();
+    this.s.refreshWaterBodies();
     this.s.handleHover(this.s.hoverCell);
     this.refreshUndoButton();
     this.markDirty();

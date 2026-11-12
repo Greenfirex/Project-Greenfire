@@ -19,7 +19,7 @@ src/
                              settings), ladicí pohledy (terrainDebug), hmota (runVolume,
                              runBlocks), pluginy blend/relief/caustic/wet/grass, cliffSurface,
                              cliffVine
-    water/                   water, waterLakes, waterShader, waterSettings, waveSpray, fish
+    water/                   water, waterBodies, waterShader, waterSettings, waveSpray, fish
     flora/                   flora, grassShader, treeWind
     creatures/               creature, footprint
     player/                  player, attack, stats, heldItem, inventory
@@ -111,7 +111,7 @@ Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů). 
 - Objemový terén, fáze 3 a dál (viz [Terén](#terén)).
 - Jeskyně: editor pater a spojů, voda po plochách, tvorové přes spoje
   (viz [Jeskyně a patra](#jeskyně-a-patra)).
-- Řeky a vodopády (viz [Plány](#plány)); k rozhodnutí suché jámy pod hladinou.
+- Vodopády a zvuk řeky (viz [Plány](#plány)); k rozhodnutí suché jámy pod hladinou.
 - Recepty, plnění batohu a výroba předmětů.
 
 ## Klíčová rozhodnutí (nevrátit omylem)
@@ -126,9 +126,13 @@ Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů). 
   Hladina vody je nepovinné číslo a verzi nemění, stejně jako nepovinný seznam jezer.
 - Hráčova výška se dopočítá z terénu; sav drží jen x, z a natočení.
 - `Effect.PersistentMode = true` (`src/main.js`): engine nikdy nemaže programy pro
-  grafickou kartu. Bez toho po přepočtu v editoru občas zmizela voda nebo tráva a konzole
-  hlásila `glGetProgramiv: Program object expected` — program se smazal, i když ho
-  materiál ještě používal.
+  grafickou kartu. Bez toho konzole po přepočtu v editoru hlásila
+  `glGetProgramiv: Program object expected` — program se smazal, i když ho materiál
+  ještě používal.
+- Materiály s vlastním programem (voda, tráva) se mažou bez obrázků:
+  `dispose(false, false)`, u meshe `mesh.dispose(false, false)`. Drží totiž i sdílené
+  mapy rentgenu a dohledu; smazání „i s obrázky“ je zahodí všem a voda i tráva se
+  tiše přestanou kreslit (materiál nikdy nebude připravený).
 - Výškový panel je samostatné okno; hlavní HUD výšky neobsahuje.
 - Výběr buněk: hover + levé přidá + pravé kliknutí odebere; 0 m srovnává.
 - Střed buňky zůstává přesný; kraj mapy a díry berou výšku nejbližší buňky.
@@ -300,25 +304,45 @@ tlačítkem Voda a ladí po 0,25 m.
   Vzdálenost od vody je v zeleném kanálu mapy suchých jam (`waterSystem.limitToOcean`,
   dosah `SEA_DISTANCE_REACH`), čte se plynule mezi buňkami.
 
-### Jezera
+### Jezera a řeky (vodní plochy)
 
-V mapě je seznam `lakes: [{ cx, cz, level }]` — buňka, odkud se voda rozlévá, a výška
-hladiny. Voda se rozlije do sousedních buněk, které jsou níž než hladina
-(`src/utils/lakeFill.js`). Když doteče na kraj mapy, jezero přeteče a nekreslí se.
-Rozlití počítá jen scéna (`sceneWorld.lakeFill`) a výsledek dává vodě i terénu.
+Mimo moře jsou dva druhy vodních ploch; obě skládá scéna (`sceneWorld.waterBodies`)
+a výsledek dává vodě i terénu. Každá buňka plochy má svou výšku hladiny, směr
+a rychlost proudu a sílu peřejí; jezero je plocha se stejnou výškou a bez proudu.
 
-- Hladina jezera má stejný program jako moře, jen bez vln a příboje (`swellScale` 0),
-  s jemnějším lemem u břehu a bez odrazu okolí (zrcadlí se jen rovina moře).
-- Kde přesně voda je, určuje maska v modrém kanálu mapy hloubky (po 0,5 m), takže voda
-  nepřeleze hřbet za břehem. Podle téže masky odpovídá `waterSystem.lakeAt`.
-- Pro terén je výška hladiny jezera v modrém kanálu mapy suchých jam (krok 0,25 m,
-  0 = žádné jezero), i 3 buňky kolem břehu kvůli mokrému pruhu. Podle ní se kreslí
-  kaustika na dně a mokrý pruh.
+- **Jezero:** v mapě `lakes: [{ cx, cz, level }]` — buňka, odkud se voda rozlévá, a výška
+  hladiny. Voda se rozlije do sousedních buněk níž než hladina (`src/utils/lakeFill.js`).
+  Když doteče na kraj mapy, jezero přeteče a nekreslí se.
+- **Řeka:** v mapě `rivers: [{ cells: [[cx, cz, hladina], …], width }]`, pořadí buněk je
+  směr proudu (`src/utils/riverPlan.js`). Hladinu spočítá editor při kreslení: po proudu
+  nikdy nestoupá a drží se 0,25 m pod nejnižším břehem do 2 buněk od koryta (terén se
+  mezi buňkami svažuje, s bližším okolím by voda vytekla na břeh). Koryto se vyhloubí jako
+  obyčejná úprava výšek (mělká 0,5 m — přebrodí se, hluboká 1,25 m). Buňky řeky
+  v jezeře nebo v moři se nekreslí — tam už je jiná voda. Moře je jen to, co je spojené
+  s otevřeným mořem (`limitToOcean`). Buňka řeky s hladinou nad mořem moře zastaví, i když
+  má dno pod ním, takže moře koryto nezaplaví. Hladina řeky nikdy neklesne pod moře —
+  u ústí se s ním srovná a tam řeka přejde v moře.
+- Plochy kreslí `waterBodies.js` (část WaterSystem): výška a proud se po 0,5 m vyhladí,
+  takže řeka klesá plynule. Program vody je stejný jako u moře, bez vln a příboje
+  (`swellScale` 0) a bez odrazu okolí (zrcadlí se jen rovina moře).
+- Proud: pěna a čeření se posouvají po proudu dvěma obrazy, které se střídají po
+  `FLOW_CYCLE` sekundách, takže se textura časem neroztahuje. Peřeje (pěna navíc) jsou
+  tam, kde hladina klesá víc než o 0,2 m na buňku.
+- Kde přesně voda je, určuje maska v modrém kanálu mapy hloubky, takže voda nepřeleze
+  hřbet za břehem. Mimo své buňky smí voda nejvýš 0,75 m (`SHORE_SPILL`), jen na svah břehu. U útesu se hloubka protáhne do skály (`extendIntoCliffs`, sdílí
+  i moře), aby voda dotekla až ke stěně. Podle masky odpovídá `waterSystem.bodyAt`.
+- Pro terén je výška hladiny v modrém kanálu mapy suchých jam (krok 0,25 m,
+  0 = žádná plocha), i 3 buňky kolem břehu kvůli mokrému pruhu. Kaustika se kreslí jen
+  v buňkách plochy, mokrý pruh jen na zemi zhruba ve výšce hladiny.
 - Hloubka, brodění, šplouchání a zákaz vstupu do hloubky platí stejně jako u moře.
-- Ryby, sprej a zvuk příboje jsou jen u moře.
+- Ryby, sprej a zvuk příboje jsou jen u moře; řeka zatím nemá vlastní zvuk.
 - V editoru štětec Jezero (Terén): klik do prohlubně ji naplní po okraj, klik na jezero
   zvedne hladinu o 0,25 m, pravé tlačítko ji sníží, v režimu Mazat jezero zmizí.
   Splynou-li dvě jezera, zůstane jedno.
+- Štětec Řeka (Terén): tah od pramene k ústí je návrh, Aplikovat ho postaví; volí se šířka 1 nebo 3 buňky a hloubka.
+  Pravé tlačítko nebo Mazat řeku smaže; koryto zůstane.
+- Pozor: koryto řeky, které vede z jezera dolů, jezero vypustí (voda najde cestu
+  k okraji mapy a jezero přeteče).
 
 ## Postava
 
@@ -516,10 +540,10 @@ v `depthMapFor` šířit „mokré" buňky od okraje mapy a ohrazené jámy proh
 suché — bez nových dat. Ruční zóna Suchá jen kdyby bylo potřeba. Potřeba je maska
 ve shaderu, stěna na okraji jámy a vypnout v ní příboj, kaustiku a ryby.
 
-**Řeky a vodopády.** Víc hladin už je (jezera). Rozhodnuto: řeka se kreslí jako cesta
-(pořadí buněk = směr proudu), hladina po proudu nestoupá, hráče pustí podle hloubky
-(mělko = brod) a proud ho neunáší. Vodopád vznikne sám tam, kde řeka nebo jezero
-přetéká přes útes do níž položené vody.
+**Vodopády.** Jezera a řeky už jsou. Vodopád vznikne sám tam, kde řeka mezi sousedními
+buňkami klesne aspoň o hranici útesu (2 m): svislá clona padající vody, dole pěna,
+kruhy a kapky, hlasitější šum. Dnes se hladina řeky přes útes jen šikmo svažuje.
+Chybí i zvuk tekoucí řeky (potřebuje zvukový soubor).
 
 **Boj** (inspirace Rage of Mages): barva tvora znamená druh a sílu, takže se hráč
 na první pohled rozhodne; silnější varianta = stejný model, jiná barva a čísla.

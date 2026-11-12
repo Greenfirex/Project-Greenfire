@@ -55,6 +55,8 @@ export default {
     if (wasWater !== nowWater) patch.waterLevel = wasWater;
     const wasLakes = (before.lakes || []).map((lake) => ({ ...lake }));
     if (JSON.stringify(wasLakes) !== JSON.stringify(this.layout.lakes || [])) patch.lakes = wasLakes;
+    const wasRivers = JSON.parse(JSON.stringify(before.rivers || []));
+    if (JSON.stringify(wasRivers) !== JSON.stringify(this.layout.rivers || [])) patch.rivers = wasRivers;
     return patch;
   },
 
@@ -95,6 +97,7 @@ export default {
       else this.layout.waterLevel = patch.waterLevel;
     }
     if ('lakes' in patch) this.layout.lakes = patch.lakes.map((lake) => ({ ...lake }));
+    if ('rivers' in patch) this.layout.rivers = JSON.parse(JSON.stringify(patch.rivers));
   },
 
   undo() {

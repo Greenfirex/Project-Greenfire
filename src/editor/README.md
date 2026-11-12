@@ -149,7 +149,16 @@ Jezera mají vlastní hladinu a ukládají se jako seznam `lakes` (buňka a vý�
 Štětec **Jezero** (skupina Terén): klik do prohlubně ji naplní až po okraj, klik na
 jezero zvedne hladinu o 0,25 m, pravé tlačítko ji o 0,25 m sníží a v režimu Mazat
 jezero zmizí. Když by voda vytekla z mapy, jezero nevznikne. Tlačítko Voda skrývá
-i jezera.
+i jezera a řeky.
+
+Štětec **Řeka** (skupina Terén): táhni myší od pramene k ústí — vznikne zvýrazněný návrh,
+z jeho posledního políčka jde táhnout dál. Šipky ukazují směr proudu, kroužek pramen;
+slabší modré šipky patří řekám, které už v mapě jsou. **Aplikovat** (Enter) řeku postaví, Esc návrh
+zahodí. Řeka si vyhloubí koryto a teče ve směru tahu; do kopce nepoteče, hladina se drží pod
+nejnižším břehem. V panelu se volí šířka (1 nebo 3 buňky) a hloubka (mělká se dá
+přebrodit, hluboká ne). Pravé tlačítko nebo režim Mazat řeku smaže; koryto zůstane
+a zasype se nástrojem Výška. Zpět vrátí řeku i s korytem. Řeky se ukládají jako
+seznam `rivers`.
 
 ## Cesty
 

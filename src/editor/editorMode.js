@@ -4,7 +4,7 @@ import { BRUSHES, brushOptions, brushAboveGroundOnly, PAINT_ALL, PAINT_TERRAIN }
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
 import { MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP, DEFAULT_HEIGHT_LEVEL } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
-import { PLANE_LAYERS } from '../data/maps/areaShape.js';
+import { PLANE_LAYERS, dropDecorationCell } from '../data/maps/areaShape.js';
 import { fillZone } from '../utils/zoneFill.js';
 import { decoPlacement } from '../utils/decoPlacement.js';
 import { onSurface, toWorld, rectCells, bresenham } from './editorSettings.js';
@@ -123,6 +123,30 @@ export default class EditorMode {
     if (!this.layout) return;
     this.pushHistory([PAINT_TERRAIN]);
     this.layout.lakes = lakes.map((lake) => ({ cx: lake.cx, cz: lake.cz, level: lake.level }));
+  }
+
+  riverList() {
+    return (this.layout && this.layout.rivers) || [];
+  }
+
+  addRiver(plan) {
+    if (!this.layout) return 0;
+    this.pushHistory(PAINT_ALL);
+    for (const { cx, cz, height } of plan.carve) {
+      if (height >= this.cellHeightValue(cx, cz)) continue;
+      dropDecorationCell(this.layout, cx, cz);
+      this.dropGrassCell(cx, cz);
+      this.setCellHeight(cx, cz, height);
+    }
+    this.layout.rivers = [...(this.layout.rivers || []), plan.river];
+    this.scheduleRegenerate(PAINT_ALL);
+    return plan.river.cells.length;
+  }
+
+  removeRiver(index) {
+    if (!this.layout || !(this.layout.rivers || [])[index]) return;
+    this.pushHistory([PAINT_TERRAIN]);
+    this.layout.rivers = this.layout.rivers.filter((_, at) => at !== index);
   }
 
   setWaterShown(shown) {
@@ -377,6 +401,11 @@ export default class EditorMode {
   get isLakeBrush() {
     const brush = BRUSHES[this.brushKey];
     return Boolean(brush && brush.lake);
+  }
+
+  get isRiverBrush() {
+    const brush = BRUSHES[this.brushKey];
+    return Boolean(brush && brush.river);
   }
 
   get eraseKind() {

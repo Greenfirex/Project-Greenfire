@@ -346,6 +346,26 @@ export const BRUSHES = {
     shape: 'blob',
     lake: true,
   },
+  river: {
+    label: 'Řeka',
+    group: 'Terén',
+    note: 'Táhni od pramene k ústí a potvrď Aplikovat — řeka si vyhloubí koryto a poteče ve směru tahu, nikdy do kopce. Pravé tlačítko nebo režim Mazat řeku smaže, koryto zůstane.',
+    shape: 'blob',
+    river: true,
+    options: [
+      { key: 'width', label: 'Šířka', kind: 'range', default: 1, min: 1, max: 3, step: 2 },
+      {
+        key: 'depth',
+        label: 'Hloubka',
+        kind: 'choice',
+        default: 'shallow',
+        values: [
+          { value: 'shallow', label: 'Mělká (přebrodí se)' },
+          { value: 'deep', label: 'Hluboká (nepřejde se)' },
+        ],
+      },
+    ],
+  },
   beach: {
     label: 'Pláž',
     group: 'Terén',
@@ -468,13 +488,13 @@ export function brushAboveGroundOnly(brushKey) {
   const brush = BRUSHES[brushKey];
   if (!brush || brush.erase) return false;
   return Boolean(brush.height || brush.heights || brush.surface || brush.cliff || brush.join || brush.bridge
-    || brush.fish || brush.spawn || brush.lake || brush.flora || brush.shape === 'line');
+    || brush.fish || brush.spawn || brush.lake || brush.river || brush.flora || brush.shape === 'line');
 }
 
 export function brushPaintParts(brushKey) {
   const brush = BRUSHES[brushKey];
   if (!brush) return PAINT_ALL;
-  if (brush.spawn || brush.lake) return PAINT_NOTHING;
+  if (brush.spawn || brush.lake || brush.river) return PAINT_NOTHING;
   if (brush.erase === 'terrain') return PAINT_ALL;
   if (brush.erase === 'creatures') return [PAINT_CREATURES, PAINT_FISH];
   if (brush.erase === 'all') return [PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH];
@@ -488,7 +508,7 @@ export function brushPaintParts(brushKey) {
 export function brushOptions(brush) {
   if (!brush) return [];
   const list = [...(Array.isArray(brush.options) ? brush.options : (brush.option ? [brush.option] : []))];
-  if (brush.join || brush.bridge || brush.creature || brush.spawn || brush.lake) return list;
+  if (brush.join || brush.bridge || brush.creature || brush.spawn || brush.lake || brush.river) return list;
   if (brush.rotate) list.push(ROTATION_OPTION);
   const size = Number.isFinite(brush.radius) ? Math.max(0, Math.min(SIZE_OPTION.max, Math.round(brush.radius))) : 0;
   return [...list, { ...SIZE_OPTION, default: size }];

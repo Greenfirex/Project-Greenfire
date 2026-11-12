@@ -14,7 +14,7 @@ import { CELL_SIZE } from '../../utils/gridMath.js';
 import { swellAt, shoalWithCliff, waveAmpFor, WAVE_REACH, WAVE_TIME_WRAP, CLIFF_RISE_MIN, SEA_DIRECTION, WATER_MAX_DEPTH, SEA_DISTANCE_REACH } from '../../utils/waterWaves.js';
 import { createWaterMaterial, createWaterSideMaterial, tickWater } from './waterShader.js';
 import { WATER_SINK, DEPTH_STEP, DEPTH_MAX, DEPTH_RANGE, LAKE_SHORE_CELLS, CLIFF_DEPTH_JUMP } from './waterSettings.js';
-import waterLakesParts, { extendIntoCliffs } from './waterLakes.js';
+import waterBodiesParts, { extendIntoCliffs } from './waterBodies.js';
 import { signedNoise } from '../../utils/noise.js';
 import { HEIGHT_STEP, MIN_HEIGHT } from '../../data/maps/layoutStore.js';
 
@@ -194,7 +194,7 @@ export default class WaterSystem {
     this.maxDepth = WATER_MAX_DEPTH;
     this.ripples = [];
     this.hidden = false;
-    this.lakes = [];
+    this.bodies = [];
     this.groundAt = null;
   }
 
@@ -221,7 +221,7 @@ export default class WaterSystem {
     this.hidden = visible === false;
     if (this.mesh && !this.mesh.isDisposed()) this.mesh.setEnabled(!this.hidden);
     if (this.sideMesh && !this.sideMesh.isDisposed()) this.sideMesh.setEnabled(!this.hidden);
-    for (const lake of this.lakes) lake.mesh.setEnabled(!this.hidden);
+    for (const body of this.bodies) body.mesh.setEnabled(!this.hidden);
     if (!this.hidden) return;
     for (const ripple of this.ripples) {
       ripple.life = 0;
@@ -232,14 +232,15 @@ export default class WaterSystem {
 
   clear() {
     if (this.mesh && !this.mesh.isDisposed()) this.mesh.dispose(false, false);
-    if (this.sideMesh && !this.sideMesh.isDisposed()) this.sideMesh.dispose(false, true);
+    if (this.sideMesh && !this.sideMesh.isDisposed()) this.sideMesh.dispose(false, false);
+    if (this.sideMaterial) this.sideMaterial.dispose(false, false);
     this.mesh = null;
     this.sideMesh = null;
     this.sideMaterial = null;
     this.level = null;
     this.heightAt = null;
     this.groundAt = null;
-    this.clearLakes();
+    this.clearBodies();
     this.shoreCells = [];
     for (const ripple of this.ripples) {
       ripple.life = 0;
@@ -255,14 +256,14 @@ export default class WaterSystem {
   }
 
   levelAt(x, z) {
-    const lake = this.lakeAt(x, z);
-    if (lake) return lake.level;
+    const body = this.bodyAt(x, z);
+    if (body) return this.bodyLevelAt(body, x, z);
     return Number.isFinite(this.level) ? this.level : null;
   }
 
   depthAt(x, z) {
-    const lake = this.lakeAt(x, z);
-    if (lake) return this.lakeDepthAt(lake, x, z);
+    const body = this.bodyAt(x, z);
+    if (body) return this.bodyDepthAt(body, x, z);
     if (!this.heightAt || !Number.isFinite(this.level)) return 0;
     const ground = this.heightAt(x, z);
     if (!Number.isFinite(ground)) return 0;
@@ -270,8 +271,8 @@ export default class WaterSystem {
   }
 
   surfaceHeightAt(x, z, ground = null) {
-    const lake = this.lakeAt(x, z);
-    if (lake) return lake.surfaceY;
+    const body = this.bodyAt(x, z);
+    if (body) return this.bodySurfaceAt(body, x, z);
     if (!Number.isFinite(this.level)) return 0;
     const height = Number.isFinite(ground) ? ground : (this.heightAt ? this.heightAt(x, z) : null);
     const deep = !Number.isFinite(height);
@@ -292,8 +293,8 @@ export default class WaterSystem {
   }
 
   waveDepthAt(x, z) {
-    const lake = this.lakeAt(x, z);
-    if (lake) return this.lakeDepthAt(lake, x, z);
+    const body = this.bodyAt(x, z);
+    if (body) return this.bodyDepthAt(body, x, z);
     if (!this.heightAt || !Number.isFinite(this.level)) return 0;
     const ground = this.heightAt(x, z);
     if (!Number.isFinite(ground)) return 0;
@@ -680,7 +681,7 @@ export default class WaterSystem {
       };
       hide(this.mesh);
       hide(this.sideMesh);
-      for (const lake of this.lakes) hide(lake.mesh);
+      for (const body of this.bodies) hide(body.mesh);
       for (const mesh of this.s.meshes) {
         if (mesh.getClassName() === 'LinesMesh') hide(mesh);
       }
@@ -757,7 +758,7 @@ export default class WaterSystem {
     }
   }
 
-  limitToOcean(cells, cellSet, { minX, maxX, minZ, maxZ }, level, heightAt) {
+  limitToOcean(cells, cellSet, { minX, maxX, minZ, maxZ }, level, heightAt, bodies, step) {
     const width = maxX - minX + 1;
     const height = maxZ - minZ + 1;
     const total = width * height;
@@ -770,6 +771,11 @@ export default class WaterSystem {
       const index = indexOf(cx, cz);
       exists[index] = 1;
       below[index] = heightAt(cx * CELL_SIZE, cz * CELL_SIZE) < level ? 1 : 0;
+    }
+    for (const body of bodies) {
+      for (const cell of body.cells) {
+        if (inside(cell.cx, cell.cz) && cell.level > level) below[indexOf(cell.cx, cell.cz)] = 0;
+      }
     }
     const frontier = [];
     for (const [cx, cz] of cells) {
@@ -793,6 +799,9 @@ export default class WaterSystem {
         frontier.push(nx, nz);
       }
     }
+    const isOcean = (cx, cz) => inside(cx, cz) && ocean[indexOf(cx, cz)] === 1;
+    const inland = bodies.map((body) => ({ ...body, cells: body.cells.filter((cell) => !isOcean(cell.cx, cell.cz)) }));
+    this.buildBodies(inland, heightAt, step);
     const dry = new Uint8Array(total);
     const pits = new Uint8Array(total * 4);
     for (const [cx, cz] of cells) {
@@ -811,7 +820,7 @@ export default class WaterSystem {
       }
     }
     const water = Uint8Array.from(ocean);
-    this.markLakeLevels(pits, water, indexOf, inside);
+    this.markBodyLevels(pits, water, indexOf, inside);
     const fromWater = distanceField(water, width, height);
     for (let index = 0; index < total; index += 1) {
       pits[index * 4 + 1] = Math.round(Math.min(1, (fromWater[index] * CELL_SIZE) / SEA_DISTANCE_REACH) * 255);
@@ -831,21 +840,20 @@ export default class WaterSystem {
     };
   }
 
-  markLakeLevels(pits, water, indexOf, inside) {
+  markBodyLevels(pits, water, indexOf, inside) {
     const codeOf = (level) => Math.min(255, Math.max(1, Math.round(level / HEIGHT_STEP) - MIN_HEIGHT + 1));
-    for (const lake of this.lakes) {
-      const code = codeOf(lake.level);
-      for (const [cx, cz] of lake.cells) {
+    for (const body of this.bodies) {
+      for (const { cx, cz, level } of body.cells) {
         if (!inside(cx, cz)) continue;
         const index = indexOf(cx, cz);
         water[index] = 1;
-        pits[index * 4 + 2] = code;
+        pits[index * 4 + 2] = codeOf(level);
       }
     }
     const reach = LAKE_SHORE_CELLS;
-    for (const lake of this.lakes) {
-      const code = codeOf(lake.level);
-      for (const [cx, cz] of lake.cells) {
+    for (const body of this.bodies) {
+      for (const { cx, cz, level } of body.cells) {
+        const code = codeOf(level);
         for (let dz = -reach; dz <= reach; dz += 1) {
           for (let dx = -reach; dx <= reach; dx += 1) {
             if (!inside(cx + dx, cz + dz)) continue;
@@ -869,7 +877,7 @@ export default class WaterSystem {
     this.dryMap = null;
   }
 
-  create(cells, level, heightAt = null, waterRgb = null, quality = 'high', lakes = []) {
+  create(cells, level, heightAt = null, waterRgb = null, quality = 'high', bodies = []) {
     this.clear();
     this.releaseDryMap();
     if (this.reflection) this.reflection.refreshRate = 0;
@@ -891,8 +899,8 @@ export default class WaterSystem {
       cellSet.add(`${cx},${cz}`);
     }
     if (!cellSet.size) return null;
-    this.buildLakes(lakes, heightAt, step);
-    const seaHeightAt = this.limitToOcean(cells, cellSet, { minX, maxX, minZ, maxZ }, Number.isFinite(level) ? level : -Infinity, heightAt);
+    const seaLevel = Number.isFinite(level) ? level : -Infinity;
+    const seaHeightAt = this.limitToOcean(cells, cellSet, { minX, maxX, minZ, maxZ }, seaLevel, heightAt, bodies || [], step);
     if (!Number.isFinite(level)) {
       this.applyColors();
       this.update(0);
@@ -990,10 +998,10 @@ export default class WaterSystem {
     mesh.setVerticesData('waveDist', new Float32Array(waveDists), false, 1);
     mesh.setVerticesData('waveDir', new Float32Array(waveDirs), false, 2);
     mesh.setVerticesData('waveCliff', new Float32Array(waveCliffs), false, 1);
+    mesh.setVerticesData('waveFlow', new Float32Array(waveCliffs.length * 3), false, 3);
     mesh.isPickable = false;
     mesh.alphaIndex = 2;
     const material = this.materialFor();
-    material.setFloat('waterLevel', level);
     material.setTexture('depthMap', this.depthMap);
     material.setFloat('reflectionOn', this.reflectionsOn ? 1 : 0);
     material.setVector2('depthOrigin', this.depthOrigin);
@@ -1112,4 +1120,4 @@ export default class WaterSystem {
   }
 }
 
-Object.assign(WaterSystem.prototype, waterLakesParts);
+Object.assign(WaterSystem.prototype, waterBodiesParts);

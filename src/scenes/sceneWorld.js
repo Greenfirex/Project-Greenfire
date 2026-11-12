@@ -9,6 +9,7 @@ import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
 import { PAINT_TERRAIN, PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH, PAINT_ALL } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { fillLakes } from '../utils/lakeFill.js';
+import { riverCells } from '../utils/riverPlan.js';
 import { cellKey, worldToCellCoords } from '../utils/gridMath.js';
 
 const WORLD_BATCH = 30;
@@ -54,7 +55,7 @@ export default {
 
   refreshTerrain() {
     this.floatingNumbers.clear();
-    this.lakeCache = null;
+    this.bodyCache = null;
     this.terrainSystem.clear();
     this.terrainSystem.create(this.mapKey, this.mapFile);
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);
@@ -66,7 +67,7 @@ export default {
   },
 
   setupTerrain() {
-    this.lakeCache = null;
+    this.bodyCache = null;
     const ground = this.terrainSystem.create(this.mapKey, this.mapFile);
     if (ground && ground.length) this.s.clearColor = this.mapColor(this.mapKey, 'sky');
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);
@@ -96,32 +97,46 @@ export default {
 
   underWaterLevel(position) {
     const { cx, cz } = worldToCellCoords(position.x, position.z);
-    const lake = this.lakeLevelAtCell(cx, cz);
-    const level = lake !== null ? lake : (this.mapLayout ? this.mapLayout.waterLevel : null);
-    return Number.isFinite(level) && position.y < level;
+    const level = this.waterLevelAtCell(cx, cz);
+    return level !== null && position.y < level;
   },
 
-  lakeFill() {
-    if (!this.lakeCache) {
-      const lakes = this.mapLayout ? this.mapLayout.lakes : null;
-      this.lakeCache = fillLakes(lakes, this.terrainSystem.groundCells, (cx, cz) => this.terrainSystem.heightAtCell(cx, cz));
+  waterBodies() {
+    if (!this.bodyCache) {
+      const layout = this.mapLayout || {};
+      const terrain = this.terrainSystem;
+      const present = new Set(terrain.groundCells.map(([cx, cz]) => cellKey(cx, cz)));
+      const lakes = fillLakes(layout.lakes, present, (cx, cz) => terrain.heightAtCell(cx, cz));
+      const list = lakes.list.map((lake) => ({
+        kind: 'lake',
+        index: lake.index,
+        cells: lake.cells.map(([cx, cz]) => ({ cx, cz, level: lake.level })),
+      }));
+      const cells = new Map();
+      for (const body of list) for (const cell of body.cells) cells.set(cellKey(cell.cx, cell.cz), { kind: body.kind, level: cell.level });
+      for (const [index, river] of (layout.rivers || []).entries()) {
+        const own = riverCells(river, present).filter((cell) => !cells.has(cellKey(cell.cx, cell.cz)));
+        if (!own.length) continue;
+        for (const cell of own) cells.set(cellKey(cell.cx, cell.cz), { kind: 'river', level: cell.level });
+        list.push({ kind: 'river', index, cells: own });
+      }
+      this.bodyCache = { list, cells };
     }
-    return this.lakeCache;
+    return this.bodyCache;
   },
 
-  refreshLakes() {
-    this.lakeCache = null;
+  refreshWaterBodies() {
+    this.bodyCache = null;
     this.renderHeights();
   },
 
-  lakeLevelAtCell(cx, cz) {
-    const level = this.lakeFill().levels.get(cellKey(cx, cz));
-    return level === undefined ? null : level;
+  waterBodyAtCell(cx, cz) {
+    return this.waterBodies().cells.get(cellKey(cx, cz)) || null;
   },
 
   waterLevelAtCell(cx, cz) {
-    const lake = this.lakeLevelAtCell(cx, cz);
-    if (lake !== null) return lake;
+    const body = this.waterBodyAtCell(cx, cz);
+    if (body) return body.level;
     const sea = this.mapLayout ? this.mapLayout.waterLevel : null;
     return Number.isFinite(sea) ? sea : null;
   },

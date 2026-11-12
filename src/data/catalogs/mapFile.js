@@ -48,6 +48,11 @@ export function quantizeMapFileHeights(file) {
   for (const lake of file.lakes || []) {
     if (lake && Number.isFinite(lake.level)) lake.level = snapHeight(lake.level);
   }
+  for (const river of file.rivers || []) {
+    for (const cell of (river && river.cells) || []) {
+      if (Array.isArray(cell) && Number.isFinite(cell[2])) cell[2] = snapHeight(cell[2]);
+    }
+  }
   file.version = MAP_VERSION;
   return file;
 }
@@ -65,6 +70,7 @@ export function layoutFromMapFile(file, fallbackSeed = 1) {
     seed: Number.isFinite(world.seed) ? world.seed : fallbackSeed,
     waterLevel: Number.isFinite(world.waterLevel) ? world.waterLevel : null,
     lakes: lakesOf(world.lakes),
+    rivers: riversOf(world.rivers),
     floor: copy(world.floor),
     path: copy(world.path),
     clearing: copy(world.clearing),
@@ -85,6 +91,18 @@ function lakesOf(list) {
     .map((lake) => ({ cx: lake.cx, cz: lake.cz, level: lake.level }));
 }
 
+function riversOf(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((river) => ({
+      cells: ((river && river.cells) || [])
+        .filter((cell) => Array.isArray(cell) && cell.length >= 3 && cell.slice(0, 3).every(Number.isFinite))
+        .map((cell) => [cell[0], cell[1], cell[2]]),
+      width: Number.isFinite(river && river.width) ? river.width : 1,
+    }))
+    .filter((river) => river.cells.length > 1);
+}
+
 function storedEntry(entry) {
   const out = { ...entry };
   if (!out.level) delete out.level;
@@ -103,6 +121,7 @@ export function mapFileFromLayout(mapKey, layout) {
     spawn: layout.spawn ? { cx: layout.spawn.cx, cz: layout.spawn.cz } : defaultSpawn(),
     waterLevel: Number.isFinite(layout.waterLevel) ? layout.waterLevel : undefined,
     lakes: (layout.lakes || []).length ? lakesOf(layout.lakes) : undefined,
+    rivers: (layout.rivers || []).length ? riversOf(layout.rivers) : undefined,
     floor: copy(layout.floor),
     path: copy(layout.path),
     clearing: copy(layout.clearing),

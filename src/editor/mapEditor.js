@@ -22,6 +22,7 @@ import { SIDES } from './editorSettings.js';
 import { ENTRY_LAYERS } from '../data/maps/areaShape.js';
 import { NO_FLOOR_PICK_HEIGHT } from '../scenes/sceneSettings.js';
 import editorLakesParts from './editorLakes.js';
+import editorRiversParts from './editorRivers.js';
 
 const TAB_KEYS = { Digit1: 'zone', Digit2: 'height', Digit3: 'area', Digit4: 'floors' };
 const HEIGHT_LABEL_LIFT = 0.45;
@@ -461,6 +462,8 @@ export default class MapEditor {
     this.s.gridSystem.clearHoverCell();
     this.s.gridSystem.clearCreatureRadius();
     this.s.gridSystem.clearZones();
+    this.s.gridSystem.clearArrows();
+    this.dropRiverStroke();
     this.s.gridSystem.clearDraftCells();
     this.s.gridSystem.clearDraftOutline();
     this.s.refreshWaterVisibility();
@@ -744,6 +747,7 @@ export default class MapEditor {
   }
 
   openBrushPanel(brushKey) {
+    this.dropRiverStroke();
     this.mode.beginDraft(brushKey);
     this.brushPanel.open(brushKey, 0, this.mode.pathStyle, this.mode.brushOptionValues(brushKey), this.mode.tileKey);
     this.brushPanel.setDraftMode(this.mode.draftMode);
@@ -752,6 +756,7 @@ export default class MapEditor {
     else if (this.mode.isBridgeBrush) this.hud.setReadout('Most: klikni na první břeh, pak na protější');
     else if (this.mode.isSpawnBrush) this.hud.setReadout('Start hráče: klikni na buňku, kam má hráč začínat');
     else if (this.mode.isLakeBrush) this.hud.setReadout('Jezero: klikni do prohlubně · klik na jezero zvedne hladinu, pravé tlačítko ji sníží');
+    else if (this.mode.isRiverBrush) this.hud.setReadout('Řeka: táhni myší od pramene k ústí a potvrď Aplikovat · pravé tlačítko řeku smaže');
     this.refreshUndoButton();
     this.refreshZoneOverlay();
     this.refreshCreatureMarks();
@@ -827,8 +832,8 @@ export default class MapEditor {
     for (const item of info.decorations || []) parts.push(item.name);
     const beast = info.creature;
     if (beast) parts.push(beast.tier ? `${beast.type.label} (${beast.tier.label})` : beast.type.label);
-    const lake = this.s.lakeLevelAtCell(cell.cx, cell.cz);
-    if (lake !== null) parts.push(`Jezero ${formatMeters(lake)}`);
+    const water = this.s.waterBodyAtCell(cell.cx, cell.cz);
+    if (water) parts.push(`${water.kind === 'river' ? 'Řeka' : 'Jezero'} ${formatMeters(water.level)}`);
     const lift = Math.round((Number(info.liftY) || 0) * 100) / 100;
     this.hud.setCursorValue(this.mode.mode === 'height' ? formatMeters(lift) : null);
     const staged = this.mode.mode === 'height' ? this.mode.heightLevelAt(cell.cx, cell.cz) : null;
@@ -870,6 +875,7 @@ export default class MapEditor {
     else if (this.mode.isJoinBrush) this.pickJoinCell(cell);
     else if (this.mode.isBridgeBrush && this.mode.draftMode !== 'remove') this.pickBridgeCell(cell);
     else if (this.mode.isLakeBrush) this.pickLake(cell, this.mode.draftMode === 'remove' ? 'remove' : 'add');
+    else if (this.mode.isRiverBrush) this.startRiver(cell);
     else if (!this.mode.canDraftCell(cell.cx, cell.cz)) this.hud.setReadout('Mimo hrací plochu — přepni na Plochu');
     else this.mode.beginDraftDrag(cell.cx, cell.cz);
   }
@@ -920,8 +926,14 @@ export default class MapEditor {
     if (this.mode.mode === 'floors') this.mode.moveFloorDrag(cell.cx, cell.cz);
     else if (this.mode.mode === 'area') this.mode.moveAreaDrag(cell.cx, cell.cz);
     else if (this.mode.mode === 'height') this.mode.paintRun(from, cell);
+    else if (this.mode.isRiverBrush) this.extendRiver(cell);
     else if (!this.mode.isJoinBrush && !this.mode.isLakeBrush && (!this.mode.isBridgeBrush || this.mode.draftMode === 'remove')) this.mode.moveDraftDrag(cell.cx, cell.cz);
     this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
+  }
+
+  endPaint() {
+    if (this.riverDrawing) this.endRiverStroke();
+    this.lastPaintCell = null;
   }
 
   rightClickCell(cell) {
@@ -938,6 +950,10 @@ export default class MapEditor {
     }
     if (this.mode.mode === 'zone' && this.mode.isLakeBrush) {
       this.pickLake(cell, 'lower');
+      return;
+    }
+    if (this.mode.mode === 'zone' && this.mode.isRiverBrush) {
+      this.removeRiverAt(cell);
       return;
     }
     if (this.mode.selectsArea) {
@@ -957,6 +973,10 @@ export default class MapEditor {
   }
 
   applyBrushDraft() {
+    if (this.mode.isRiverBrush) {
+      this.applyRiver();
+      return;
+    }
     const removing = this.mode.draftMode === 'remove';
     const heightBrush = this.mode.isHeightBrush;
     const surfaceBrush = this.mode.isSurfaceBrush;
@@ -1006,6 +1026,7 @@ export default class MapEditor {
   }
 
   cancelBrushDraft() {
+    this.dropRiverStroke();
     this.mode.setBrush(null);
     this.brushPanel.close();
     this.refreshZoneOverlay();
@@ -1014,7 +1035,10 @@ export default class MapEditor {
   }
 
   undo() {
-    if (!this.mode.undo()) {
+    this.dropRiverStroke();
+    const undone = this.mode.undo();
+    this.refreshRiverArrows();
+    if (!undone) {
       this.refreshUndoButton();
       this.refreshCreatureMarks();
       this.s.handleHover(this.s.hoverCell);
@@ -1073,6 +1097,7 @@ export default class MapEditor {
   }
 
   refreshZoneOverlay() {
+    this.refreshRiverArrows();
     if (!this.mode.active || !this.s.mapLayout) {
       this.s.gridSystem.clearZones();
       this.s.gridSystem.clearDraftCells();
@@ -1347,4 +1372,4 @@ function brokenEntries(layout) {
   return count;
 }
 
-Object.assign(MapEditor.prototype, editorLakesParts);
+Object.assign(MapEditor.prototype, editorLakesParts, editorRiversParts);
