@@ -5,6 +5,7 @@ export const ASSET_DIRS = {
   props: 'assets/props/',
   characters: 'assets/characters/',
   creatures: 'assets/creatures/',
+  fish: 'assets/fish/',
   audio: 'assets/audio/',
   itemIcons: 'assets/ui/items/',
   equipIcons: 'assets/ui/equip/',

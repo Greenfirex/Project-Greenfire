@@ -2,7 +2,7 @@
 // Systém jen čte mapu a hýbe hotovými tvary; do terénu ani do hry nezasahuje.
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { fishTemplate } from '../../utils/fishFactory.js';
+import { fishTemplate } from '../../utils/fishTemplate.js';
 import { FISH_KEYS, FISH_SWIM_DEPTH, getFishType } from '../../data/catalogs/fish.js';
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { hash01 } from '../../utils/noise.js';
@@ -39,6 +39,8 @@ export default class FishSystem {
     this.groundAt = null;
     this.playerAt = null;
     this.time = 0;
+    this.generation = 0;
+    this.onSchoolsChanged = null;
     this.position = new Vector3();
     this.scaling = new Vector3(1, 1, 1);
     this.rotation = Quaternion.Identity();
@@ -65,7 +67,7 @@ export default class FishSystem {
       const centerZ = school.cz * CELL_SIZE;
       const cruise = 1.6 * type.speed;
       const separation = Math.max(0.16, type.length * 1.3);
-      const group = byKind.get(kind) || { fish: [], schools: [], schoolFish: [], separation };
+      const group = byKind.get(kind) || { fish: [], schools: [], schoolFish: [], separation, type };
       const schoolIndex = group.schools.length;
       group.schoolFish[schoolIndex] = [];
       group.schools.push({
@@ -111,25 +113,35 @@ export default class FishSystem {
       }
       byKind.set(kind, group);
     }
+    const generation = this.generation;
     for (const [kind, group] of byKind) {
-      const mesh = fishTemplate(this.s, kind);
-      if (!mesh || !group.fish.length) continue;
-      const matrices = new Float32Array(group.fish.length * 16);
-      mesh.thinInstanceSetBuffer('matrix', matrices, 16, false);
-      mesh.alwaysSelectAsActiveMesh = true;
-      mesh.isPickable = false;
-      mesh.setEnabled(true);
-      this.schools.push({
-        mesh,
-        matrices,
-        fish: group.fish,
-        schools: group.schools,
-        schoolFish: group.schoolFish,
-        separation: group.separation,
+      if (!group.fish.length) continue;
+      fishTemplate(this.s, kind).then((mesh) => {
+        if (generation !== this.generation || !mesh || mesh.isDisposed()) return;
+        this.attach(group, mesh);
       });
     }
-    this.update(0);
     return this.schools.length ? this.schools[0].mesh : null;
+  }
+
+  attach(group, mesh) {
+    const matrices = new Float32Array(group.fish.length * 16);
+    mesh.thinInstanceSetBuffer('matrix', matrices, 16, false);
+    mesh.alwaysSelectAsActiveMesh = true;
+    mesh.isPickable = false;
+    mesh.setEnabled(true);
+    const length = mesh.metadata && mesh.metadata.modelLength ? mesh.metadata.modelLength : 1;
+    this.schools.push({
+      mesh,
+      matrices,
+      fish: group.fish,
+      schools: group.schools,
+      schoolFish: group.schoolFish,
+      separation: group.separation,
+      baseScale: group.type.length / length,
+    });
+    this.update(0);
+    if (this.onSchoolsChanged) this.onSchoolsChanged();
   }
 
   depthAt(x, z) {
@@ -339,7 +351,8 @@ export default class FishSystem {
     }
     this.position.set(item.x, y, item.z);
     Quaternion.RotationYawPitchRollToRef(item.yaw, bob * 0.14, 0, this.rotation);
-    this.scaling.set(item.scale, item.scale, item.scale);
+    const scale = item.scale * group.baseScale;
+    this.scaling.set(scale, scale, scale);
     Matrix.ComposeToRef(this.scaling, this.rotation, this.position, this.matrix);
     this.matrix.copyToArray(group.matrices, index * 16);
   }
@@ -353,7 +366,10 @@ export default class FishSystem {
   }
 
   clear() {
-    for (const group of this.schools) group.mesh.setEnabled(false);
+    this.generation += 1;
+    for (const group of this.schools) {
+      if (group.mesh && !group.mesh.isDisposed()) group.mesh.setEnabled(false);
+    }
     this.schools = [];
     this.level = null;
     this.water = null;

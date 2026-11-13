@@ -327,6 +327,10 @@ a rychlost proudu a sílu peřejí; jezero je plocha se stejnou výškou a bez p
 - Ryby a sprej jsou jen u moře. Zvuk má moře, řeka, vodopád i jezero — každý vlastní
   smyčku, hlasitost podle vzdálenosti (`waterSystem.waterDistancesAt`,
   `audioSystem.setWaterDistances`, dosahy ve `WATER_LOOPS`).
+- **Ryby** jsou modely z Meshy (`public/assets/fish/<druh>/`, textura 512 WebP), otočené
+  hlavou k +X a sjednocené na 1 m. Hejno z jedné šablony kreslí thin instances, takže
+  drží pohromadě i při stovkách kusů; ocas vlnit `FishWigglePlugin` ve shaderu, žádná
+  kostra se neanimuje. Modely se načítají při startu (`collectStartupUrls`).
 - **Vodopád** vznikne sám tam, kde hladina řeky mezi dvěma buňkami trasy klesne aspoň
   o hranici útesu (`AUTO_CLIFF_STEP`, 2 m; `riverFalls`). Při plánování se buňky pod
   útesem nepočítají jako břeh horního toku, jinak by řeka před hranou vykopala kaňon.

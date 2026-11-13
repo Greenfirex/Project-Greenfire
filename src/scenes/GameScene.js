@@ -134,6 +134,7 @@ export default class GameScene {
     this.waterSystem = new WaterSystem(scene);
     this.waveSpray = new WaveSpraySystem(scene);
     this.fishSystem = new FishSystem(scene);
+    this.fishSystem.onSchoolsChanged = () => this.refreshReflectionExclusions();
     this.creatureSystem = new CreatureSystem(scene);
     this.skySystem = new SkySystem(scene);
     this.decoSystem = new DecoSystem(scene);
