@@ -30,7 +30,7 @@ export default class GatherSystem {
     this.tool = null;
     this.decoSystem = null;
     this.falls = [];
-    this.onLand = null;
+    this.onTopple = null;
     this.onFell = null;
   }
 
@@ -269,8 +269,9 @@ export default class GatherSystem {
     const dz = item.z - fromZ;
     const length = Math.hypot(dx, dz) || 1;
     item.sway = 0;
-    item.fall = { time: 0, duration: 1.05, dirX: dx / length, dirZ: dz / length, landed: false };
+    item.fall = { time: 0, duration: 1.05, dirX: dx / length, dirZ: dz / length };
     this.falls.push(item);
+    if (this.onTopple) this.onTopple(item);
     return true;
   }
 
@@ -288,10 +289,6 @@ export default class GatherSystem {
       const angle = (Math.PI / 2) * t * t;
       anchor.rotation.x = angle * fall.dirZ;
       anchor.rotation.z = -angle * fall.dirX;
-      if (!fall.landed && t >= 0.88) {
-        fall.landed = true;
-        if (this.onLand) this.onLand(item);
-      }
       if (t >= 1) {
         this.falls.splice(this.falls.indexOf(item), 1);
         if (this.onFell) this.onFell(item);

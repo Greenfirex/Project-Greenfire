@@ -1,5 +1,5 @@
 // Zvuky hry — načte je jednou při startu a přehrává náhodné varianty bez vrstvení přes sebe.
-// Zvlášť k tomu drží zvuk lesa na pozadí, který se plynule přeladí mezi dnem a nocí.
+// Zvlášť k tomu drží zvuk lesa (den, noc, jeskyně), vodu podle vzdálenosti a občasné hlasy zvířat v pozadí.
 import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
 
 const CLIPS = {
@@ -9,15 +9,28 @@ const CLIPS = {
   miss: ['combat/miss_1.ogg', 'combat/miss_2.ogg', 'combat/miss_3.ogg', 'combat/miss_4.ogg', 'combat/miss_5.ogg', 'combat/miss_6.ogg'],
   hurt: ['combat/hurt_1.ogg', 'combat/hurt_2.ogg', 'combat/hurt_3.ogg'],
   hurtCrit: ['combat/hurt_crit_1.ogg', 'combat/hurt_crit_2.ogg'],
-  fall: ['gather/chop_2', 'gather/mine_5'],
+  fall: ['gather/treefall_1.ogg', 'gather/treefall_2.ogg', 'gather/treefall_3.ogg'],
+  hitPunch: ['combat/punch_1.ogg', 'combat/punch_2.ogg', 'combat/punch_3.ogg', 'combat/punch_4.ogg'],
+  hitClub: ['combat/club_1.ogg', 'combat/club_2.ogg', 'combat/club_3.ogg', 'combat/club_4.ogg'],
+  grunt: ['player/grunt_1.ogg', 'player/grunt_2.ogg', 'player/grunt_3.ogg', 'player/grunt_4.ogg'],
+  playerHurt: ['player/player_hurt_1.ogg', 'player/player_hurt_2.ogg', 'player/player_hurt_3.ogg', 'player/player_hurt_4.ogg'],
+  playerDeath: ['player/player_death_1.ogg', 'player/player_death_2.ogg'],
+  outOfBreath: ['player/out_of_breath_1.ogg', 'player/out_of_breath_2.ogg'],
+  wakeUp: ['player/wake_up_1.ogg'],
   stepGrass: ['steps/dirtstep_1', 'steps/dirtstep_2', 'steps/dirtstep_3'],
   stepWood: ['steps/woodstep_1', 'steps/woodstep_2', 'steps/woodstep_3'],
   stepStone: ['steps/stonestep_1', 'steps/stonestep_2', 'steps/stonestep_3'],
+  stepSand: ['steps/sandstep_1.ogg', 'steps/sandstep_2.ogg', 'steps/sandstep_3.ogg', 'steps/sandstep_4.ogg'],
   stepWater: ['steps/waterstep_1', 'steps/waterstep_2', 'steps/waterstep_3', 'steps/waterstep_4', 'steps/waterstep_5'],
   ignite: ['fire/ignite_1', 'fire/ignite_2'],
-  turtleHiss: ['creatures/turtle/turtle_hiss_1.ogg'],
+  turtleAlert: ['creatures/turtle/turtle_alert_1.ogg', 'creatures/turtle/turtle_alert_2.ogg'],
+  turtleCharge: ['creatures/turtle/turtle_charge_1.ogg', 'creatures/turtle/turtle_charge_2.ogg'],
   turtleBite: ['creatures/turtle/turtle_bite_1.ogg', 'creatures/turtle/turtle_bite_2.ogg', 'creatures/turtle/turtle_bite_3.ogg'],
-  turtleGrowl: ['creatures/turtle/turtle_growl_1.ogg'],
+  turtleSnapHiss: ['creatures/turtle/turtle_snap_hiss_1.ogg', 'creatures/turtle/turtle_snap_hiss_2.ogg', 'creatures/turtle/turtle_snap_hiss_3.ogg'],
+  turtleHit: ['creatures/turtle/turtle_hit_1.ogg', 'creatures/turtle/turtle_hit_2.ogg', 'creatures/turtle/turtle_hit_3.ogg'],
+  turtlePain: ['creatures/turtle/turtle_pain_1.ogg', 'creatures/turtle/turtle_pain_2.ogg', 'creatures/turtle/turtle_pain_3.ogg'],
+  turtleDeath: ['creatures/turtle/turtle_death_1.ogg', 'creatures/turtle/turtle_death_2.ogg'],
+  turtleIdle: ['creatures/turtle/turtle_idle_1.ogg', 'creatures/turtle/turtle_idle_2.ogg', 'creatures/turtle/turtle_idle_3.ogg', 'creatures/turtle/turtle_idle_4.ogg'],
   devilDig: ['creatures/devil/devil_dig_1.ogg', 'creatures/devil/devil_dig_2.ogg', 'creatures/devil/devil_dig_3.ogg'],
   devilBite: ['creatures/devil/devil_bite_1.ogg', 'creatures/devil/devil_bite_2.ogg', 'creatures/devil/devil_bite_3.ogg'],
   devilHit: ['creatures/devil/devil_hit_1.ogg', 'creatures/devil/devil_hit_2.ogg'],
@@ -32,6 +45,21 @@ const CLIPS = {
   koaChirp: ['creatures/koa/koa_chirp_1.ogg', 'creatures/koa/koa_chirp_2.ogg', 'creatures/koa/koa_chirp_3.ogg'],
   koaPeck: ['creatures/koa/koa_peck_1.ogg', 'creatures/koa/koa_peck_2.ogg'],
   grassRip: ['gather/grassrip_1.ogg', 'gather/grassrip_2.ogg'],
+  pickShell: ['gather/pickup_shell_1.ogg', 'gather/pickup_shell_2.ogg'],
+  pickCoconut: ['gather/pickup_coconut_1.ogg', 'gather/pickup_coconut_2.ogg'],
+  chestOpen: ['loot/chest_open_1.ogg', 'loot/chest_open_2.ogg'],
+  chestClose: ['loot/chest_close_1.ogg', 'loot/chest_close_2.ogg'],
+  rummage: ['loot/rummage_1.ogg', 'loot/rummage_2.ogg', 'loot/rummage_3.ogg'],
+  windowOpen: ['ui/window_open.ogg'],
+  windowClose: ['ui/window_close.ogg'],
+  itemGrab: ['ui/item_grab.ogg'],
+  itemDrop: ['ui/item_drop.ogg'],
+  equipCloth: ['ui/equip_cloth_1.ogg', 'ui/equip_cloth_2.ogg'],
+  birdDay: ['ambient/life/bird_day_1.ogg', 'ambient/life/bird_day_2.ogg', 'ambient/life/bird_day_3.ogg', 'ambient/life/bird_day_4.ogg', 'ambient/life/bird_day_5.ogg'],
+  cicadaDay: ['ambient/life/cicada_day_1.ogg', 'ambient/life/cicada_day_2.ogg'],
+  cricketNight: ['ambient/life/cricket_night_1.ogg', 'ambient/life/cricket_night_2.ogg'],
+  frogNight: ['ambient/life/frog_1.ogg', 'ambient/life/frog_2.ogg', 'ambient/life/frog_3.ogg'],
+  caveDrip: ['ambient/life/cave_drip_1.ogg', 'ambient/life/cave_drip_2.ogg', 'ambient/life/cave_drip_3.ogg'],
 };
 
 const VOICES = {
@@ -41,15 +69,28 @@ const VOICES = {
   miss: { volume: 0.45, voices: 6, pitch: 0.08 },
   hurt: { volume: 0.5, voices: 3, pitch: 0.06 },
   hurtCrit: { volume: 0.6, voices: 2, pitch: 0.05 },
-  fall: { volume: 0.36, voices: 2, pitch: 0.04 },
+  fall: { volume: 0.5, voices: 2, pitch: 0.04 },
+  hitPunch: { volume: 0.55, voices: 3, pitch: 0.07 },
+  hitClub: { volume: 0.55, voices: 3, pitch: 0.07 },
+  grunt: { volume: 0.35, voices: 1, pitch: 0.05, chance: 0.6 },
+  playerHurt: { volume: 0.45, voices: 1, pitch: 0.04 },
+  playerDeath: { volume: 0.5, voices: 1, pitch: 0.02 },
+  outOfBreath: { volume: 0.35, voices: 1, pitch: 0.03 },
+  wakeUp: { volume: 0.4, voices: 1, pitch: 0.02 },
   stepGrass: { volume: 0.07, voices: 3, pitch: 0.08 },
   stepWood: { volume: 0.08, voices: 3, pitch: 0.08 },
   stepStone: { volume: 0.08, voices: 3, pitch: 0.08 },
+  stepSand: { volume: 0.012, voices: 3, pitch: 0.08 },
   stepWater: { volume: 0.09, voices: 5, pitch: 0.08 },
   ignite: { volume: 0.6, voices: 2, pitch: 0.05 },
-  turtleHiss: { volume: 0.5, voices: 1, pitch: 0.04 },
-  turtleBite: { volume: 0.55, voices: 3, pitch: 0.06 },
-  turtleGrowl: { volume: 0.45, voices: 1, pitch: 0.05 },
+  turtleAlert: { volume: 0.45, voices: 2, pitch: 0.05, hearing: 18 },
+  turtleCharge: { volume: 0.45, voices: 2, pitch: 0.05, hearing: 18 },
+  turtleBite: { volume: 0.55, voices: 3, pitch: 0.06, hearing: 14, with: 'turtleSnapHiss' },
+  turtleSnapHiss: { volume: 0.4, voices: 3, pitch: 0.06, hearing: 14 },
+  turtleHit: { volume: 0.55, voices: 3, pitch: 0.06, hearing: 16, with: 'turtlePain' },
+  turtlePain: { volume: 0.4, voices: 3, pitch: 0.06, hearing: 16 },
+  turtleDeath: { volume: 0.45, voices: 2, pitch: 0.03, hearing: 18 },
+  turtleIdle: { volume: 0.25, voices: 2, pitch: 0.08, hearing: 8 },
   devilDig: { volume: 0.5, voices: 3, pitch: 0.07 },
   devilBite: { volume: 0.6, voices: 3, pitch: 0.06 },
   devilHit: { volume: 0.55, voices: 2, pitch: 0.08 },
@@ -64,6 +105,21 @@ const VOICES = {
   koaChirp: { volume: 0.3, voices: 3, pitch: 0.1, hearing: 16 },
   koaPeck: { volume: 0.3, voices: 2, pitch: 0.1, hearing: 7 },
   grassRip: { volume: 0.4, voices: 2, pitch: 0.08 },
+  pickShell: { volume: 0.4, voices: 2, pitch: 0.08 },
+  pickCoconut: { volume: 0.4, voices: 2, pitch: 0.06 },
+  chestOpen: { volume: 0.45, voices: 1, pitch: 0.04 },
+  chestClose: { volume: 0.45, voices: 1, pitch: 0.04 },
+  rummage: { volume: 0.35, voices: 1, pitch: 0.06 },
+  windowOpen: { volume: 0.1, voices: 1, pitch: 0.03 },
+  windowClose: { volume: 0.1, voices: 1, pitch: 0.03 },
+  itemGrab: { volume: 0.1, voices: 2, pitch: 0.06 },
+  itemDrop: { volume: 0.1, voices: 2, pitch: 0.06 },
+  equipCloth: { volume: 0.13, voices: 2, pitch: 0.05 },
+  birdDay: { volume: 0.18, voices: 5, pitch: 0.08 },
+  cicadaDay: { volume: 0.12, voices: 2, pitch: 0.06 },
+  cricketNight: { volume: 0.12, voices: 2, pitch: 0.08 },
+  frogNight: { volume: 0.18, voices: 3, pitch: 0.08 },
+  caveDrip: { volume: 0.25, voices: 3, pitch: 0.12 },
 };
 
 const DEFAULT_HEARING = 22;
@@ -71,20 +127,31 @@ const SILENT_GAIN = 0.02;
 
 const AMBIENT_LAYERS =['forest_day', 'forest_night', 'cave'];
 const AMBIENT_FOLDER = 'ambient/';
-const AMBIENT_FADE_SECONDS = 6;
+const AMBIENT_FADE_SECONDS = 2;
 const AMBIENT_LEVEL = 0.25;
 
-const FIRE_LOOP = 'fire/torch_loop';
+const FIRE_LOOP = 'fire/campfire_loop';
 const FIRE_FADE_SECONDS = 0.5;
 const FIRE_HEARING = 12;
 const FIRE_LEVELS = [0.3, 0.2, 0.12, 0.05];
 
-const SHORE_LAYER = 'ambient/sea';
-const SHORE_FADE_SECONDS = 2;
-const SHORE_LEVEL = 0.35;
-const SHORE_NEAR = 3;
-const SHORE_FAR = 26;
+const WATER_LOOPS = {
+  sea: { file: 'ambient/sea', level: 0.35, near: 3, far: 26 },
+  river: { file: 'ambient/river', level: 0.3, near: 1.5, far: 14 },
+  waterfall: { file: 'ambient/waterfall', level: 0.45, near: 2, far: 24 },
+  lake: { file: 'ambient/lake', level: 0.25, near: 1, far: 10 },
+};
+const WATER_FADE_SECONDS = 0.6;
 const FOREST_DUCK = 0.7;
+
+const LIFE_CALLS = [
+  { key: 'birdDay', when: 'day', every: [6, 16] },
+  { key: 'cicadaDay', when: 'day', every: [20, 45] },
+  { key: 'cricketNight', when: 'night', every: [8, 20] },
+  { key: 'frogNight', when: 'night', every: [5, 14], freshWater: 0.15 },
+  { key: 'caveDrip', when: 'cave', every: [3, 9] },
+];
+const LIFE_PAN = 0.7;
 
 const MUSIC_TRACKS = ['music/island_bamboo', 'music/island_drift', 'music/island_journey'];
 const MUSIC_FADE_SECONDS = 3;
@@ -110,9 +177,8 @@ export default class AudioSystem {
     this.fire = null;
     this.fireOn = false;
     this.fireDistance = Infinity;
-    this.shore = null;
-    this.shoreMix = 0;
-    this.shoreTarget = 0;
+    this.water = {};
+    this.lifeTimers = LIFE_CALLS.map((call) => between(call.every));
     this.music = null;
     this.musicVolume = 0;
     this.musicMix = 0;
@@ -139,7 +205,7 @@ export default class AudioSystem {
     if (this.ctx.state === 'suspended') this.ctx.resume();
     this.resumeAmbient();
     this.resumeFire();
-    this.resumeShore();
+    this.resumeWater();
     this.resumeMusic();
   }
 
@@ -177,7 +243,7 @@ export default class AudioSystem {
     this.available = false;
     this.buffers = {};
     this.stopAmbient();
-    this.stopShore();
+    this.stopWater();
     this.stopMusic();
     this.fire = null;
   }
@@ -281,53 +347,68 @@ export default class AudioSystem {
     this.fire.gain.gain.setTargetAtTime(this.fireLevel(), this.ctx.currentTime, FIRE_FADE_SECONDS / 3);
   }
 
-  setShoreDistance(distance) {
-    const value = Number.isFinite(distance) ? Math.max(0, distance) : Infinity;
-    let target = 0;
-    if (value <= SHORE_NEAR) target = 1;
-    else if (value < SHORE_FAR) target = 1 - (value - SHORE_NEAR) / (SHORE_FAR - SHORE_NEAR);
-    this.shoreTarget = target;
-    if (target <= 0) return;
-    this.ensureShore();
-    this.resumeShore();
+  setWaterDistances(distances) {
+    for (const [key, loop] of Object.entries(WATER_LOOPS)) {
+      const value = distances && Number.isFinite(distances[key]) ? Math.max(0, distances[key]) : Infinity;
+      let target = 0;
+      if (value <= loop.near) target = 1;
+      else if (value < loop.far) target = 1 - (value - loop.near) / (loop.far - loop.near);
+      const water = this.water[key];
+      if (water) water.target = target;
+      if (target <= 0) continue;
+      this.ensureWater(key);
+      if (!this.water[key]) continue;
+      this.water[key].target = target;
+      this.resumeWater();
+    }
   }
 
-  ensureShore() {
-    if (!this.ctx || this.shore) return;
+  ensureWater(key) {
+    if (!this.ctx || this.water[key]) return;
     const gain = this.ctx.createGain();
     gain.gain.value = 0;
     gain.connect(this.master || this.ctx.destination);
-    this.shore = { gain, source: null, buffer: null };
-    this.fetchClip(`${ASSET_DIRS.audio}${SHORE_LAYER}.ogg`, (buffer) => {
-      if (!this.shore) return;
-      this.shore.buffer = buffer;
-      this.resumeShore();
+    this.water[key] = { gain, source: null, buffer: null, mix: 0, target: 0 };
+    this.fetchClip(`${ASSET_DIRS.audio}${WATER_LOOPS[key].file}.ogg`, (buffer) => {
+      const water = this.water[key];
+      if (!water) return;
+      water.buffer = buffer;
+      this.resumeWater();
     });
   }
 
-  resumeShore() {
-    if (!this.shore || !this.shore.buffer || this.shore.source) return;
+  resumeWater() {
     if (!this.ctx || this.ctx.state === 'suspended') return;
-    if (this.shoreTarget <= 0) return;
-    const source = this.ctx.createBufferSource();
-    source.buffer = this.shore.buffer;
-    source.loop = true;
-    source.connect(this.shore.gain);
-    source.start();
-    this.shore.source = source;
-    this.applyShoreGain();
+    for (const [key, water] of Object.entries(this.water)) {
+      if (!water.buffer || water.source || water.target <= 0) continue;
+      const source = this.ctx.createBufferSource();
+      source.buffer = water.buffer;
+      source.loop = true;
+      source.connect(water.gain);
+      source.start();
+      water.source = source;
+      this.applyWaterGain(key);
+    }
   }
 
-  stopShore() {
-    if (!this.shore) return;
-    if (this.shore.source) this.shore.source.stop();
-    this.shore.source = null;
+  stopWater() {
+    for (const water of Object.values(this.water)) {
+      if (water.source) water.source.stop();
+      water.source = null;
+    }
   }
 
-  applyShoreGain() {
-    if (!this.shore || !this.ctx) return;
-    const level = this.ambientVolume * SHORE_LEVEL * this.shoreMix;
-    this.shore.gain.gain.setTargetAtTime(level, this.ctx.currentTime, SHORE_FADE_SECONDS / 3);
+  applyWaterGain(key) {
+    const water = this.water[key];
+    if (!water || !this.ctx) return;
+    const level = this.ambientVolume * WATER_LOOPS[key].level * water.mix;
+    water.gain.gain.setTargetAtTime(level, this.ctx.currentTime, WATER_FADE_SECONDS / 3);
+  }
+
+  waterMix(keys = Object.keys(this.water)) {
+    let mix = 0;
+    for (const key of keys) mix = Math.max(mix, this.water[key] ? this.water[key].mix : 0);
+    return mix;
   }
 
   musicLevel() {
@@ -411,7 +492,7 @@ export default class AudioSystem {
   setAmbientVolume(value) {
     this.ambientVolume = Math.max(0, Math.min(1, value));
     this.applyLayerGains();
-    this.applyShoreGain();
+    for (const key of Object.keys(this.water)) this.applyWaterGain(key);
   }
 
   setDayness(dayness) {
@@ -432,9 +513,10 @@ export default class AudioSystem {
 
   applyLayerGains() {
     if (!this.ambient || !this.ctx) return;
-    const duck = 1 - FOREST_DUCK * Math.sqrt(this.shoreMix);
+    const nearWater = this.waterMix();
+    const duck = 1 - FOREST_DUCK * Math.sqrt(nearWater);
     const level = this.ambientVolume * this.ambientBoost * duck;
-    const smoothing = this.shoreMix > 0 ? SHORE_FADE_SECONDS : AMBIENT_FADE_SECONDS;
+    const smoothing = nearWater > 0 ? WATER_FADE_SECONDS : AMBIENT_FADE_SECONDS;
     for (const key of AMBIENT_LAYERS) {
       const layer = this.ambient[key];
       if (!layer) continue;
@@ -444,6 +526,7 @@ export default class AudioSystem {
 
   update(dt) {
     this.updateMusic(dt);
+    this.updateLife(dt);
     if (!this.ambient) return;
     const step = Math.min(1, dt / AMBIENT_FADE_SECONDS);
     let changed = false;
@@ -456,19 +539,28 @@ export default class AudioSystem {
       this.ambientMix[key] += diff * step;
       changed = true;
     }
-    const shoreDiff = this.shoreTarget - this.shoreMix;
-    if (Math.abs(shoreDiff) < 0.005) {
-      if (shoreDiff !== 0) {
-        this.shoreMix = this.shoreTarget;
-        this.applyShoreGain();
-        changed = true;
-      }
-    } else {
-      this.shoreMix += shoreDiff * Math.min(1, dt / SHORE_FADE_SECONDS);
-      this.applyShoreGain();
+    for (const [key, water] of Object.entries(this.water)) {
+      const diff = water.target - water.mix;
+      if (diff === 0) continue;
+      water.mix = Math.abs(diff) < 0.005 ? water.target : water.mix + diff * Math.min(1, dt / WATER_FADE_SECONDS);
+      this.applyWaterGain(key);
       changed = true;
     }
     if (changed) this.applyLayerGains();
+  }
+
+  updateLife(dt) {
+    if (!this.ctx || this.ambientVolume <= 0) return;
+    const outside = this.indoor < 0.5;
+    const when = !outside ? 'cave' : (this.dayT >= 0.5 ? 'day' : 'night');
+    LIFE_CALLS.forEach((call, index) => {
+      this.lifeTimers[index] -= dt;
+      if (this.lifeTimers[index] > 0) return;
+      this.lifeTimers[index] = between(call.every);
+      if (call.when !== when) return;
+      if (call.freshWater && this.waterMix(['river', 'lake']) < call.freshWater) return;
+      this.play(call.key, { gain: this.ambientVolume, pan: (Math.random() * 2 - 1) * LIFE_PAN });
+    });
   }
 
   distanceGain(cfg, distance) {
@@ -483,6 +575,8 @@ export default class AudioSystem {
     const pool = this.buffers[key];
     if (!pool) return;
     const cfg = VOICES[key];
+    if (cfg.with) this.play(cfg.with, options);
+    if (Number.isFinite(cfg.chance) && Math.random() > cfg.chance) return;
     const distanceGain = this.distanceGain(cfg, options.distance);
     if (distanceGain <= SILENT_GAIN) return;
     const index = this.cursors[key] % pool.length;
@@ -492,12 +586,26 @@ export default class AudioSystem {
     if (this.ctx.state === 'suspended') this.ctx.resume();
     const gain = this.ctx.createGain();
     gain.gain.value = cfg.volume * (options.gain || 1) * distanceGain;
-    gain.connect(this.master || this.ctx.destination);
+    const panner = options.pan && this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
+    if (panner) {
+      panner.pan.value = Math.max(-1, Math.min(1, options.pan));
+      panner.connect(this.master || this.ctx.destination);
+      gain.connect(panner);
+    } else {
+      gain.connect(this.master || this.ctx.destination);
+    }
     const source = this.ctx.createBufferSource();
     source.buffer = buffer;
     source.playbackRate.value = 1 + (Math.random() * 2 - 1) * cfg.pitch;
     source.connect(gain);
-    source.onended = () => gain.disconnect();
+    source.onended = () => {
+      gain.disconnect();
+      if (panner) panner.disconnect();
+    };
     source.start();
   }
+}
+
+function between(range) {
+  return range[0] + Math.random() * (range[1] - range[0]);
 }

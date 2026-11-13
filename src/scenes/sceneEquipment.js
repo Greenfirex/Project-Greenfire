@@ -10,6 +10,7 @@ export default {
     const previous = this.equipmentSystem.set(slot, itemKey);
     if (previous) this.inventorySystem.add(previous, 1);
     this.log.add(`Nasazeno: ${def.displayName}`, 'action');
+    this.audioSystem.play('equipCloth');
     this.refreshEquipment();
     return true;
   },
@@ -20,6 +21,7 @@ export default {
     this.inventorySystem.add(itemKey, 1);
     const def = ITEM_TYPES[itemKey];
     this.log.add(`Sundáno: ${def ? def.displayName : itemKey}`, 'action');
+    this.audioSystem.play('itemDrop');
     this.refreshEquipment();
     return true;
   },

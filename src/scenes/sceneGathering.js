@@ -54,7 +54,7 @@ export default {
     this.beginLootPickup(middle.x, middle.z, () => {
       this.lootSystem.swing(box);
       this.showLoot({ kind: 'box', ref: box, x: box.x, z: box.z, title: box.def.displayName });
-    }, this.lootSystem.reachPoint(box));
+    }, this.lootSystem.reachPoint(box), 'chestOpen');
     return true;
   },
 
@@ -76,7 +76,10 @@ export default {
     const taken = source.kind === 'box'
       ? this.lootSystem.take(source.ref, itemKey)
       : this.creatureSystem.takeLoot(source.ref, itemKey);
-    if (taken) this.receiveItems([taken]);
+    if (taken) {
+      this.audioSystem.play('rummage');
+      this.receiveItems([taken]);
+    }
     this.refreshLootWindow();
   },
 
@@ -90,7 +93,10 @@ export default {
         : this.creatureSystem.takeLoot(source.ref, itemKey);
       if (item) taken.push(item);
     }
-    if (taken.length) this.receiveItems(taken);
+    if (taken.length) {
+      this.audioSystem.play('rummage');
+      this.receiveItems(taken);
+    }
     this.refreshLootWindow();
   },
 
@@ -110,7 +116,10 @@ export default {
   closeLoot() {
     const source = this.lootSource;
     this.lootSource = null;
-    if (source && source.kind === 'box') this.lootSystem.shut(source.ref);
+    if (source && source.kind === 'box') {
+      if (!this.lootSystem.isEmpty(source.ref)) this.audioSystem.play('chestClose');
+      this.lootSystem.shut(source.ref);
+    }
     if (this.lootWindow.open) this.lootWindow.close();
   },
 
@@ -122,12 +131,12 @@ export default {
     if (away || this.dying || this.editor.active || !this.lootContents(source).length) this.closeLoot();
   },
 
-  beginLootPickup(x, z, onImpact, reach = null) {
+  beginLootPickup(x, z, onImpact, reach = null, sound = PICKUP_SOUND) {
     if (this.lootPickup) this.finishLootPickup();
     this.playerSystem.faceTo(x, z);
     this.playerSystem.pickUp();
     this.playerSystem.reachTarget = reach;
-    this.lootPickup = { left: this.playerSystem.pickupImpactTime(), onImpact };
+    this.lootPickup = { left: this.playerSystem.pickupImpactTime(), onImpact, sound };
   },
 
   updateLootPickup(dt) {
@@ -139,7 +148,7 @@ export default {
   finishLootPickup() {
     const pickup = this.lootPickup;
     this.lootPickup = null;
-    this.audioSystem.play(PICKUP_SOUND);
+    this.audioSystem.play(pickup.sound);
     pickup.onImpact();
   },
 

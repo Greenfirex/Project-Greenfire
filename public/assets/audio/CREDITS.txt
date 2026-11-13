@@ -21,6 +21,27 @@ koa_death, koa_chirp, koa_peck) jsou vygenerované nástrojem ElevenLabs Sound E
 jako zdroj. Originální mp3 soubory jsou v _sources, do ogg je převedl ffmpeg
 (mono, 44,1 kHz, libvorbis q4, ořezané ticho na začátku, srovnaná hlasitost).
 
+Další zvuky vygenerované nástrojem ElevenLabs Sound Effects (https://elevenlabs.io/sound-effects),
+stejné podmínky (uvést elevenlabs.io jako zdroj) a stejný převod jako u Koa'tiki
+(ticho se hledá podle špiček, ořezané na začátku i na konci):
+  combat/   punch_1–4, club_1–4 (zásah pěstí a klackem)
+  creatures/turtle/  turtle_alert, turtle_charge, turtle_bite, turtle_snap_hiss,
+            turtle_hit, turtle_pain, turtle_death, turtle_idle
+  steps/    sandstep_1–4
+  gather/   treefall_1–3 (začátek zkrácený, aby dopad vyšel 0,95 s od začátku),
+            pickup_shell_1–2, pickup_coconut_1–2
+  player/   grunt_1–4, player_hurt_1–4, player_death_1–2, out_of_breath_1–2, wake_up_1
+  loot/     chest_open_1–2, chest_close_1–2, rummage_1–3
+  ui/       window_open, window_close, item_grab, item_drop, equip_cloth_1–2,
+            craft_1–2, denied (výroba a „nejde to“ zatím ve hře nejsou zapojené)
+  ambient/life/  bird_day_1–5, cicada_day_1–2, cricket_night_1–2, frog_1–3, cave_drip_1–3
+  ambient/lake.ogg a fire/campfire_loop.ogg (smyčky, 30 s, stereo, bez ořezu)
+Originální mp3 soubory jsou v _sources/elevenlabs.
+
+Smyčky vody (ambient/river.ogg a ambient/waterfall.ogg) jsou z balíčku Free Fantasy
+SFX Pack od TomMusic, soubory "River Stream Loop" a "Waterfall Loop" ze složky
+"Waterfalls Rivers and Streams".
+
 Švihnutí při minutí (miss_1 až miss_6) vzniklo z těchto stažených souborů:
 "biww-quick-air-swipe-sound-561932.mp3" (autor biww, čtyři švihy rozřezané)
 a "floraphonic-movement-swipe-whoosh-1-186575.mp3" / "...-3-186577.mp3"

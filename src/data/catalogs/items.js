@@ -178,7 +178,7 @@ export const TOOL_TYPES = {
     model: 'stick',
     file: `${ASSET_DIRS.props}club/stick.glb`,
     grip: { scale: 1.6, fist: 1, curl: 1.1, tilt: -0.3, hold: 0.07, wrist: 1 },
-    weapon: { damage: [10, 14], attack: 1, damageType: 'blunt', cooldown: 1.1, anim: 'chop' },
+    weapon: { damage: [10, 14], attack: 1, damageType: 'blunt', cooldown: 1.1, anim: 'chop', hitSound: 'hitClub' },
   },
 };
 

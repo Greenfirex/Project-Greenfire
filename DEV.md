@@ -591,6 +591,67 @@ Zem i stébla počítají barvu stejným kódem, stéblo bere barvu země pod se
 určí poloha nebo předvolba Směs uložená k buňce. Trsy se kreslí jako kopie jednoho
 tvaru po čtvercích mapy. V Možnostech jde vypnout míchání tří textur země.
 
+## Boj se zbraněmi — plán po etapách
+
+Schváleno 13. 11. 2026. Etapy jdou dělat a zkoušet po jedné; po každé je hra hratelná.
+Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
+
+**Rozhodnuto:**
+- Zbraň patří do políčka Zbraň ve výbavě (`EQUIP_SLOTS`, klíč `weapon`). Lišta rychlé
+  volby (`heldItemSystem.js`) zůstává pro nástroje a spotřební věci.
+- Zbraň se tasí a zandává. Útok ji tasí sám, po chvíli mimo boj se sama zandá,
+  sběr ji zandá. Tasená = bojový postoj (animace `combatStance` už existuje).
+- Útok míří ke kurzoru a zasáhne všechno ve výseči před postavou (dosah + úhel
+  podle zbraně). Jemné přitažení míření k nepříteli do zhruba ±20°.
+- O zásahu rozhoduje míření, ne kostka. `rollStrike` (útok proti obraně) dál rozhoduje,
+  jak rána sedla: kritická, běžná, nebo škrábnutí (poloviční poškození).
+- Mezerník zůstává volný pro pozdější úskok.
+
+**Etapa 1 — zbraň ve výbavě, tasení a zandávání**
+- Klacek dostane `slot: 'weapon'`; zbraň se bere z výbavy, ne z lišty. Útok a rána
+  (`playerAttackSystem.setWeapon`) se počítají z nasazené zbraně, jen když je tasená;
+  zandaná = pěsti.
+- Stav tasená/zandaná drží postava; klávesa (R nebo X, viz otázky) ho přepíná.
+  Neukládá se — po načtení je zbraň zandaná.
+- Model: tasená v ruce (`handSlot`), zandaná zatím skrytá (na záda později).
+- Hotovo, když: klacek jde nasadit do políčka Zbraň, klávesou se tasí a zandá,
+  postava s tasenou zbraní stojí v bojovém postoji a bije klackem; zandaná bije pěstí.
+
+**Etapa 2 — mířená rána do prostoru**
+- S tasenou zbraní levé tlačítko útočí směrem ke kurzoru (bod na zemi pod ním),
+  chodí se na WASD. Se zandanou zbraní levé tlačítko funguje jako dnes.
+- Katalog zbraně dostane dosah a úhel výseče; pěst má vlastní malou výseč v `player.js`.
+- V okamžiku dopadu rány se vyberou tvorové ve výseči (vzdálenost, úhel, výškový limit
+  jako dnes v `canHit`). Zatím jen nejbližší jeden. Prázdná rána = zvuk minutí.
+- Přitažení míření: nepřítel do ±20° od směru natočí ránu k sobě (navazuje na
+  dnešní `assistCreatureAtPointer`).
+- `rollStrike` přestane rozhodovat o minutí; výsledek je kritická / běžná / škrábnutí.
+- Hotovo, když: rána jde máchnout kamkoli, trefí tvora ve výseči, mimo výseč mine,
+  a „Minul“ se neukazuje, když rána geometricky sedla.
+
+**Etapa 3 — víc cílů a těžká rána**
+- Katalog zbraně: kolik cílů zasáhne (`maxTargets`) a kolik dostanou další
+  (např. 60 %); těžká rána s vlastní výsečí, násobkem poškození, cenou ve výdrži
+  a delším nápřahem.
+- Volitelně: odhození zasaženého, rána poseká trávu a keře ve výseči.
+- Hotovo, když: široká zbraň zasáhne dva tvory naráz a těžká rána je znatelně
+  silnější, pomalejší a dražší.
+
+**Etapa 4 — tvorové stejným systémem, úskok**
+- Kousnutí tvora se stane výsečí před ním v okamžiku dopadu, s viditelným nápřahem;
+  hráč, který z výseče uteče, není zasažen (`creatureSystem` dnes volá `rollStrike`
+  pro hod na zásah — změní se stejně jako u hráče).
+- Úskok na mezerník: krátký přískok, stojí výdrž, chvilka nezranitelnosti.
+- Hotovo, když: útoku Koa'tiki jde uhnout pohybem i úskokem.
+
+**Otevřené otázky (rozhodnout před danou etapou):**
+- Klávesa pro tasení: R, nebo X? (obě jsou volné; 1–5 lišta, E, I, C, B, V, G, N, O, P obsazené)
+- Těžká rána: podržet levé tlačítko, nebo pravé tlačítko? Pravé dnes otáčí kamerou
+  (tažení) a krátkým klikem připíná tvora.
+- Sekyra a krumpáč: jen nástroje, nebo i slabé zbraně, když jsou v ruce?
+- Pochodeň v ruce a tasená zbraň současně (pochodeň v levé ruce)?
+- Zandaná zbraň vidět na zádech / u pasu — kdy a jak.
+
 ## Plány
 
 Nic z toho není rozhodnuté.
@@ -601,12 +662,9 @@ v `depthMapFor` šířit „mokré" buňky od okraje mapy a ohrazené jámy proh
 suché — bez nových dat. Ruční zóna Suchá jen kdyby bylo potřeba. Potřeba je maska
 ve shaderu, stěna na okraji jámy a vypnout v ní příboj, kaustiku a ryby.
 
-**Zvuk tekoucí vody.** Řeka ani vodopád zatím nemají zvuk — potřeba je zvukový soubor
-šumění (řeka) a hukotu (vodopád), hlasitost podle vzdálenosti jako u příboje.
-
 **Boj** (inspirace Rage of Mages): barva tvora znamená druh a sílu, takže se hráč
 na první pohled rozhodne; silnější varianta = stejný model, jiná barva a čísla.
-Široká rána (cleave) těžkou zbraní zasáhne víc cílů v kuželu; parametry patří ke zbrani.
+Široká rána (cleave) je součástí plánu „Boj se zbraněmi" výše.
 
 **Vzhled:** kontaktní stíny pod objekty (musí kopírovat svah), mech a lišejník na
 kamenech, jednodušší vzdálené stromy, rostliny u břehu, zatopené kameny, odraz

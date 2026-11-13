@@ -58,6 +58,7 @@ export default class CharacterPanel {
     this.onMove = null;
     this.onClearBar = null;
     this.onPreview = null;
+    this.onGrab = null;
     this.frame.onClose = () => {
       if (this.onClose) this.onClose();
     };
@@ -231,6 +232,7 @@ export default class CharacterPanel {
         evt.preventDefault();
         return;
       }
+      if (this.onGrab) this.onGrab();
       evt.dataTransfer.setData(SLOT_DRAG_TYPE, slot.key);
       evt.dataTransfer.effectAllowed = 'move';
     });
@@ -511,6 +513,7 @@ export default class CharacterPanel {
     if (slot) cell.title = `${label} — přetáhni na postavu pro nasazení`;
     if (tool) cell.title = `${label} — přetáhni na lištu dole`;
     cell.addEventListener('dragstart', (evt) => {
+      if (this.onGrab) this.onGrab();
       evt.dataTransfer.setData(BAG_DRAG_TYPE, String(index));
       if (slot) evt.dataTransfer.setData(wearDragType(slot), key);
       if (tool) evt.dataTransfer.setData(HAND_DRAG_TYPE, tool);

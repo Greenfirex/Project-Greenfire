@@ -328,6 +328,20 @@ export default {
     return top * (1 - tz) + bottom * tz;
   },
 
+  bodyDistanceAt(kind, x, z) {
+    let best = Infinity;
+    for (const body of this.bodies) {
+      if (body.kind !== kind) continue;
+      for (const { cx, cz } of body.cells) {
+        const gapX = Math.max(0, Math.abs(x - cx * CELL_SIZE) - HALF);
+        const gapZ = Math.max(0, Math.abs(z - cz * CELL_SIZE) - HALF);
+        best = Math.min(best, Math.hypot(gapX, gapZ));
+        if (best === 0) return 0;
+      }
+    }
+    return best;
+  },
+
   bodyAt(x, z) {
     for (const body of this.bodies) {
       const i = Math.round((x - body.x0) / body.stepX);

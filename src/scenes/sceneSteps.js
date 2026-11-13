@@ -10,6 +10,7 @@ function surfaceStepSound(key) {
   const name = String(key || '').toLowerCase();
   if (/wood|plank|bridge|deck|board/.test(name)) return 'stepWood';
   if (/path|stone|rock|cobble|brick|tile|pavement|gravel/.test(name)) return 'stepStone';
+  if (/sand/.test(name)) return 'stepSand';
   return 'stepGrass';
 }
 
@@ -17,8 +18,14 @@ export default {
   onPlayerStep(x, z, sprint) {
     const onBridge = this.terrainSystem && this.terrainSystem.bridgeDeckAt(x, z) !== null;
     const inWater = !onBridge && this.waterDepthNowAt(x, z) > WATER_STEP_DEPTH;
-    const key = this.decoSystem.surfaceKeyAt(worldToCell(x), worldToCell(z)) || '';
+    const key = this.groundKeyAt(worldToCell(x), worldToCell(z));
     this.audioSystem.play(inWater ? 'stepWater' : surfaceStepSound(key), { gain: sprint ? 1.35 : 1 });
+  },
+
+  groundKeyAt(cx, cz) {
+    const pathKey = this.decoSystem.surfaceKeyAt(cx, cz) || '';
+    const floorKey = this.terrainSystem.floorKeyAt ? this.terrainSystem.floorKeyAt(cx, cz) : null;
+    return pathKey || floorKey || '';
   },
 
   onCreatureStep(creature, step) {
@@ -76,9 +83,7 @@ export default {
     if (this.terrainSystem && this.terrainSystem.bridgeDeckAt(x, z) !== null) return;
     const cx = worldToCell(x);
     const cz = worldToCell(z);
-    const pathKey = this.decoSystem.surfaceKeyAt(cx, cz) || '';
-    const floorKey = this.terrainSystem.floorKeyAt ? this.terrainSystem.floorKeyAt(cx, cz) : null;
-    const key = pathKey || floorKey || '';
+    const key = this.groundKeyAt(cx, cz);
     if (!/sand/i.test(key)) return;
     const depth = this.waterDepthNowAt(x, z);
     if (depth > FOOTPRINT_WATER_DEPTH) return;

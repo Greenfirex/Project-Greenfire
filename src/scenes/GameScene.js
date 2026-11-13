@@ -94,7 +94,7 @@ const AUTOTUNE_STEP = 0.1;
 const INDOOR_FADE_SECONDS = 2;
 const WADE_SPEED = 0.65;
 const WADE_RAMP = 0.2;
-const SHORE_CHECK_SECONDS = 0.3;
+const WATER_SOUND_SECONDS = 0.15;
 const MAX_STEP_SECONDS = 0.1;
 const SHADOW_REACH_STEP = 0.2;
 const EDITOR_CAM_SPEED = 12;
@@ -172,7 +172,7 @@ export default class GameScene {
     this.gatherSystem = new GatherSystem(scene);
     this.gatherSystem.decoSystem = this.decoSystem;
     this.gatherSystem.levelOf = () => (this.editor.active ? 0 : this.playerSystem.level);
-    this.gatherSystem.onLand = () => this.audioSystem.play('fall');
+    this.gatherSystem.onTopple = () => this.audioSystem.play('fall');
     this.gatherSystem.onFell = (item) => this.finishFelling(item);
     this.fellingSystem = new FellingSystem(scene);
     this.harvestSystem = new HarvestSystem(scene);
@@ -241,6 +241,7 @@ export default class GameScene {
     this.creatureSystem.onDig = (creature) => this.onCreatureDig(creature);
     this.playerStats.onChange = (health, maxHealth) => this.vitalsBar.setHealth(health, maxHealth);
     this.playerStats.onStamina = (stamina, maxStamina) => this.vitalsBar.setStamina(stamina, maxStamina);
+    this.playerStats.onExhausted = () => this.audioSystem.play('outOfBreath');
     this.unlockAudio = () => {
       this.audioSystem.unlock();
       this.audioSystem.startAmbient();
@@ -251,7 +252,7 @@ export default class GameScene {
     this.mapLayout = null;
     this.clockText = '';
     this.impactTimer = 0;
-    this.shoreClock = 0;
+    this.waterSoundClock = 0;
     this.creaturePickAt = 0;
     this.creatureTooltipOn = false;
     this.creatureLayoutKey = null;
@@ -376,7 +377,7 @@ export default class GameScene {
       this.fishSystem.update(dt);
       this.updateWaterCaustics();
       this.updateCampfireSound();
-      this.updateShoreSound(dt);
+      this.updateWaterSound(dt);
       if (root) {
         if (this.editor.active) this.updateEditorCamera(dt);
         else this.cameraSystem.follow(root.position.x, root.position.z, root.position.y, dt);
@@ -474,12 +475,12 @@ export default class GameScene {
     this.audioSystem.setFire(burning !== null, burning ? burning.distance : Infinity);
   }
 
-  updateShoreSound(dt) {
-    this.shoreClock += dt;
-    if (this.shoreClock < SHORE_CHECK_SECONDS) return;
-    this.shoreClock = 0;
+  updateWaterSound(dt) {
+    this.waterSoundClock += dt;
+    if (this.waterSoundClock < WATER_SOUND_SECONDS) return;
+    this.waterSoundClock = 0;
     const ear = this.listener();
-    this.audioSystem.setShoreDistance(this.waterSystem.shoreDistanceAt(ear.x, ear.z));
+    this.audioSystem.setWaterDistances(this.waterSystem.waterDistancesAt(ear.x, ear.z));
   }
 
   updateWaterCaustics() {
@@ -719,6 +720,7 @@ export default class GameScene {
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z, this.playerSystem.root ? this.playerSystem.root.position.y : 0);
     this.playerSystem.onIntroChange = (lying) => {
       if (lying) this.log.add('Stiskni WASD nebo šipky pro vstání', 'info');
+      else this.audioSystem.play('wakeUp');
     };
     this.playerSystem.spawnCell = this.mapLayout.spawn;
     this.playerSystem.setHeldTool(this.heldItemSystem.key);
@@ -1119,9 +1121,16 @@ export default class GameScene {
     this.hud.mount();
     this.hotbar.mount();
     this.hotbar.onSelect = (key) => this.selectTool(key);
-    this.hotbar.onAssign = (index, toolKey) => this.heldItemSystem.assign(index, toolKey);
-    this.hotbar.onSwap = (from, to) => this.heldItemSystem.swap(from, to);
+    this.hotbar.onAssign = (index, toolKey) => {
+      this.heldItemSystem.assign(index, toolKey);
+      this.audioSystem.play('itemDrop');
+    };
+    this.hotbar.onSwap = (from, to) => {
+      this.heldItemSystem.swap(from, to);
+      this.audioSystem.play('itemDrop');
+    };
     this.hotbar.onClear = (index) => this.heldItemSystem.clear(index);
+    this.hotbar.onGrab = () => this.audioSystem.play('itemGrab');
     this.hotbar.setSlots(this.heldItemSystem.bar);
     this.hotbar.setSelected(this.heldItemSystem.key);
     this.bagButton.onClick = () => this.toggleCharacterPanel();
@@ -1132,18 +1141,31 @@ export default class GameScene {
     this.characterButton.mount();
     this.bestiaryButton.mount();
     this.craftButton.mount();
-    this.bestiaryWindow.onClose = () => this.bestiaryButton.setActive(false);
-    this.craftingWindow.onClose = () => this.craftButton.setActive(false);
+    this.bestiaryWindow.onClose = () => {
+      this.bestiaryButton.setActive(false);
+      this.audioSystem.play('windowClose');
+    };
+    this.craftingWindow.onClose = () => {
+      this.craftButton.setActive(false);
+      this.audioSystem.play('windowClose');
+    };
     this.characterPanel.onClose = () => {
       this.portraitSystem.hide();
+      this.audioSystem.play('windowClose');
       this.bagButton.setActive(false);
       this.characterButton.setActive(false);
     };
     this.characterPanel.onUnequip = (slot) => this.unequipSlot(slot);
     this.characterPanel.onMove = (from, to) => {
-      if (this.inventorySystem.move(from, to)) this.refreshInventory();
+      if (!this.inventorySystem.move(from, to)) return;
+      this.audioSystem.play('itemDrop');
+      this.refreshInventory();
     };
-    this.characterPanel.onClearBar = (index) => this.heldItemSystem.clear(index);
+    this.characterPanel.onClearBar = (index) => {
+      this.heldItemSystem.clear(index);
+      this.audioSystem.play('itemDrop');
+    };
+    this.characterPanel.onGrab = () => this.audioSystem.play('itemGrab');
     this.lootWindow.onTake = (itemKey) => this.takeLoot(itemKey);
     this.lootWindow.onTakeAll = () => this.takeAllLoot();
     this.lootWindow.onClose = () => this.closeLoot();
@@ -1168,6 +1190,7 @@ export default class GameScene {
     this.refreshInventory();
     this.refreshCharacterPanel();
     this.characterPanel.show();
+    this.audioSystem.play('windowOpen');
     this.portraitSystem.show(this.characterPanel.portraitCanvas);
     this.bagButton.setActive(true);
     this.characterButton.setActive(true);
@@ -1179,6 +1202,7 @@ export default class GameScene {
       return;
     }
     this.craftingWindow.show();
+    this.audioSystem.play('windowOpen');
     this.craftButton.setActive(true);
   }
 

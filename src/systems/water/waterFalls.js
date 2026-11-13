@@ -145,7 +145,15 @@ export default {
     if (!this.hidden) mist.start();
     curtain.setEnabled(!this.hidden);
     pool.setEnabled(!this.hidden);
-    return { curtain, pool, curtainMaterial, poolMaterial, mist };
+    return { curtain, pool, curtainMaterial, poolMaterial, mist, x: lipX, z: lipZ, halfWidth: width / 2 };
+  },
+
+  fallDistanceAt(x, z) {
+    let best = Infinity;
+    for (const fall of this.falls) {
+      best = Math.min(best, Math.max(0, Math.hypot(x - fall.x, z - fall.z) - fall.halfWidth));
+    }
+    return best;
   },
 
   showFalls(visible) {

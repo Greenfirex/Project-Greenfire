@@ -30,6 +30,7 @@ export default class PlayerStatsSystem {
     this.sprintLocked = false;
     this.onChange = null;
     this.onStamina = null;
+    this.onExhausted = null;
   }
 
   amount(value, fallback, min) {
@@ -76,8 +77,10 @@ export default class PlayerStatsSystem {
   }
 
   refreshSprintLock() {
-    if (this.stamina <= 0) this.sprintLocked = true;
-    else if (this.sprintLocked && this.stamina >= this.sprintResume) this.sprintLocked = false;
+    if (this.stamina <= 0) {
+      if (!this.sprintLocked && this.onExhausted) this.onExhausted();
+      this.sprintLocked = true;
+    } else if (this.sprintLocked && this.stamina >= this.sprintResume) this.sprintLocked = false;
   }
 
   spendStamina(points) {

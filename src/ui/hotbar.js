@@ -17,6 +17,7 @@ export default class Hotbar {
     this.onAssign = null;
     this.onSwap = null;
     this.onClear = null;
+    this.onGrab = null;
     this.prompt = null;
     this.lastPrompt = '';
   }
@@ -58,6 +59,7 @@ export default class Hotbar {
         evt.preventDefault();
         return;
       }
+      if (this.onGrab) this.onGrab();
       evt.dataTransfer.setData(BAR_DRAG_TYPE, String(index));
       evt.dataTransfer.effectAllowed = 'move';
     });

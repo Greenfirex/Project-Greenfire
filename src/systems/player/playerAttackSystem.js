@@ -33,6 +33,7 @@ export default class PlayerAttackSystem {
     const punch = PLAYER_BASE.punch || {};
     const stats = this.weaponStats(tool);
     this.weaponAnim = weapon ? weapon.anim : null;
+    this.hitSound = (weapon && weapon.hitSound) || punch.hitSound || null;
     this.attack = stats.attack;
     this.damage = stats.damage;
     this.cooldownSeconds = this.number(weapon ? weapon.cooldown : punch.cooldown);

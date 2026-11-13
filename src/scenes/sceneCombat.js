@@ -88,7 +88,10 @@ export default {
 
   swingCreature(creature) {
     const swung = this.playerAttackSystem.swing(creature, this.playerSystem);
-    if (swung) this.playerStats.spendAttack();
+    if (swung) {
+      this.playerStats.spendAttack();
+      this.audioSystem.play('grunt');
+    }
     return swung;
   },
 
@@ -190,6 +193,7 @@ export default {
     }
     this.refreshBestiaryWindow();
     this.bestiaryWindow.show();
+    this.audioSystem.play('windowOpen');
     this.bestiaryButton.setActive(true);
   },
 
@@ -258,7 +262,7 @@ export default {
   damageCreature(creature, amount, crit) {
     if (!creature) return false;
     const killed = this.creatureSystem.damage(creature, amount, this.simSystem.time);
-    this.audioSystem.play('bare');
+    this.audioSystem.play(this.playerAttackSystem.hitSound);
     const label = creature.type ? creature.type.label : 'Tvor';
     this.showFloatingDamage(creature, amount, crit);
     if (killed) {
@@ -397,6 +401,7 @@ export default {
     const dealt = this.playerStats.hurt(amount, damageType);
     if (!dealt) return 0;
     this.audioSystem.play(crit ? 'hurtCrit' : 'hurt');
+    if (this.playerStats.health > 0) this.audioSystem.play('playerHurt');
     if (this.options.cameraShake) this.cameraSystem.shake(0.28, 0.32);
     if (this.options.damageFlash) this.vitalsBar.flash();
     if (this.playerStats.health <= 0) this.onPlayerDeath(fromBehind);
@@ -445,6 +450,7 @@ export default {
     if (this.dying) return;
     this.dying = true;
     this.deathShown = false;
+    this.audioSystem.play('playerDeath');
     this.deathTimer = this.playerSystem.die(Boolean(fromBehind));
     this.playerSystem.releaseKeys();
     this.closeOpenWindows();
@@ -471,6 +477,7 @@ export default {
     const spot = spawn ? cellToWorldCoords(spawn.cx, spawn.cz) : null;
     this.playerStats.resurrect();
     this.playerSystem.revive(spot ? spot.x : null, spot ? spot.z : null);
+    this.audioSystem.play('wakeUp');
     this.simSystem.setHalted(false);
     this.simSystem.resetAccumulator();
     this.log.add('Probral ses na pláži', 'warn');

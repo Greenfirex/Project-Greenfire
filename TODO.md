@@ -53,17 +53,23 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ## Tvorové a boj
 
+### Zbraně a mířené rány (plán v `DEV.md`, sekce „Boj se zbraněmi — plán po etapách")
+
+- [ ] Etapa 1: zbraň v políčku Zbraň, tasení a zandávání, bojový postoj.
+- [ ] Etapa 2: mířená rána ke kurzoru do výseče, přitažení míření, kostka jen na kvalitu rány.
+- [ ] Etapa 3: víc cílů naráz (cleave) a těžká rána.
+- [ ] Etapa 4: tvorové útočí výsečí s nápřahem, úskok na mezerník.
+- [ ] Před etapou rozhodnout otevřené otázky (klávesa tasení, ovládání těžké rány, sekyra jako zbraň, pochodeň s tasenou zbraní).
+
 ### Etapa 3 — kořist
 
 - [ ] Doladit množství kořisti podle stáří tvora a rozhodnout, jestli má část padat na zem.
-- [ ] Koa'tiki: doplnit zvuky (zavrčení, kousnutí, zásah, smrt) a zapsat je do CREDITS.
 - [ ] Koa'tiki: stopy ze skutečných chodidel místo jedné šmouhy.
 - [ ] Koa'tiki: u jednoho ze tří tvorů se nepovedla kalibrace čelisti (v konzoli „dolů o -0,187") — čelist se mu neotevře. Zjistit proč a opravit výpočet.
 - [ ] Tvor, kterého honička zavede za nepřelezný sráz, zůstane trčet u zdi — rozhodnout, jestli se má po chvíli vrátit domů zkratkou (přesunout), nebo se nechat odlákat jinam.
 
 ### Etapa 4 — doladění boje
 
-- [ ] Zbraně a nástroje: vlastní síla, dosah a tempo rány (dnes se bije jen rukama).
 - [ ] Výbava: brnění na sloty zvedá obranu o procento ze základu se stropem, zbraně útok.
 - [ ] Vlastnosti postavy (síla, obratnost, výdrž) a jejich vliv na ránu, zdraví a rychlost.
 - [ ] Záblesk obrysu při zásahu (zvuk zásahu už mají oba tvorové).
@@ -74,22 +80,20 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Kajmanka: stopy spočítat z reálných chodidel místo odhadu.
 - [ ] Koa'tiki: běh v honičce (předklon, natažený krk, rovný ocas), tápání jako rychlé rozhlížení bez zobání.
 - [ ] README tvorů uvádí u Koa'tiki zrychlení v honičce 1,35, v datech je 1,6 — sjednotit.
-- [ ] Do `public/assets/audio/CREDITS.txt` doplnit zdroj želvích zvuků (hiss, growl, bite).
 - [ ] Ověřit licenční podmínky balíčku Darkworld (License Agreement.pdf) a případně upravit CREDITS.
 
 ### Zvuky, které ve hře chybí
 
 - [ ] Hudba: vymyslet systém výběru (den/noc, klid versus souboj) místo dnešního náhodného střídání tří skladeb.
 
-- [ ] Smrt hráče.
-- [ ] Kroky po písku — dnes hrají jako hlína, i když máme pláž a pouštního tvora.
+- [ ] Tón smrti (`death_sting`) — vygenerovat a zapojit.
 - [ ] Kroky tvorů (aspoň tiché našlapování, dnes dělají jen stopy).
 - [ ] Švihnutí zbraně do prázdna (mine/chop bez zásahu).
 - [ ] Vstup do vody (šplouchnutí, ne jen kroky ve vodě).
-- [ ] Vkládání předmětů do batohu a přesouvání.
-- [ ] Rozhraní: klik, otevření panelu, chybová hláška.
-- [ ] Výroba předmětů.
-- [ ] Ryby ve vodě.
+- [ ] Rozhraní: zapojit „nejde to" (`ui/denied.ogg` je připravený), až bude kde.
+- [ ] Výroba: zapojit `ui/craft_1–2.ogg`, až bude výroba.
+- [ ] Ryby ve vodě (`fish_splash` — vygenerovat).
+- [ ] Pochodeň v ruce nemá zvuk; `fire/torch_loop.ogg` je volný — použít, nebo smazat.
 
 ## Výroba a svět
 
@@ -100,7 +104,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Patra: ověřit v dev serveru krok 4 — jeskyně je tmavá i bez hráče (prostorová tma; pochodеň/oheň prosvětlí), povrch světlý, jeskynní ambient (`cave.ogg`) se přelévá; a skrývání ploch nade hráčem (z výšky vidět dovnitř) funguje. Model a stav jsou v `DEV.md`, sekce „Jeskyně a patra".
 - [ ] 4B pozastaveno do velké etapy: odkrývání střechy teď ukazuje prázdno/moře a dekorace nad odhalenou plochou visí — dočistí se ve fázi 7 objemového terénu (skála bude hmota + skrytí dekorací).
 - [ ] Patra: hloubka skály — **řeší se velkou etapou „objemový terén"** (viz `DEV.md`, sekce „Velká etapa: objemový terén"). Skalní kůže a jiné náplasti se nepoužijí.
-- [ ] Zvuk řeky a vodopádů — potřeba zvukový soubor, viz `DEV.md`, sekce Plány.
 - [ ] Suché jámy pod hladinou — k rozhodnutí, rozbor v `DEV.md`, sekce Plány.
 - [ ] Rozhodnout, jestli recepty zůstanou jen jako přehled, nebo dostanou tlačítko pro výrobu.
 - [ ] Navrhnout nový systém stavění (starý byl odstraněn).

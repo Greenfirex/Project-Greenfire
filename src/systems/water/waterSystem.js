@@ -313,6 +313,15 @@ export default class WaterSystem {
     return this.surfaceY + WAVE_REACH > ground;
   }
 
+  waterDistancesAt(x, z) {
+    return {
+      sea: this.shoreDistanceAt(x, z),
+      river: this.bodyDistanceAt('river', x, z),
+      lake: this.bodyDistanceAt('lake', x, z),
+      waterfall: this.fallDistanceAt(x, z),
+    };
+  }
+
   shoreDistanceAt(x, z) {
     if (!this.shoreCells.length || !Number.isFinite(this.level)) return Infinity;
     let best = Infinity;
