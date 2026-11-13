@@ -12,7 +12,7 @@ src/
   scenes/                    herní scéna — GameScene.js (orchestrátor) a její části:
                              sceneWorld (stavba světa a přestavby), sceneCombat (tvorové
                              a souboj), sceneGathering (sběr), sceneSteps (kroky a stopy),
-                             sceneSettings (společná čísla)
+                             sceneEquipment (výbava a staty z ní), sceneSettings (společná čísla)
   systems/
     core/                    sim, save, input, interaction, camera, grid, navigation
     terrain/                 terrain + části (materials, bridges, caves, mass, picking,
@@ -21,10 +21,10 @@ src/
                              cliffVine
     water/                   water, waterBodies, waterFalls, waterShader, waterfallShader, waterSettings, waveSpray, fish
     flora/                   flora, grassShader, treeWind
-    creatures/               creature, footprint
-    player/                  player, attack, stats, heldItem, inventory
+    creatures/               creature, footprint, sandBurst, bestiary
+    player/                  player, attack, stats, heldItem, inventory, equipment, portrait
     gathering/               gather, harvest, felling
-    world/                   deco, decoHighlight, campfire, loot, path
+    world/                   deco, decoHighlight, campfire, loot, path, reveal, sight
     atmosphere/              dayNight, lighting (světla a stíny), sky, audio
     materials/               modelRim, modelSaturation (pluginy materiálů modelů)
   editor/                    editor mapy (editorMode + části history, layoutEdits, heights,
@@ -100,19 +100,11 @@ Tvorové: kajmanka, písečný běs a Koa'tiki — toulání, dvě zóny pozorno
 honička s návratem domů, kousnutí, smrt, tělo s kořistí a respawn. Chodí a vidí
 podle stejných pravidel jako hráč (schod, skála v cestě pohledu), jen na kratší
 dohled, a po ztrátě hráče jdou na místo, kde ho viděli naposledy. Panel tvora
-ukazuje statistiky odemčené počtem zabití (`bestiarySystem.js`), okno bestiáře je na B. Chybí
-vypadnutí suroviny a zvuky u Koa'tiki.
+ukazuje statistiky odemčené počtem zabití (`bestiarySystem.js`), okno bestiáře je na B.
 
 Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů). Okno Výroba
-(`craftingWindow.js`, klávesa V) je zatím jen prázdný panel.
-
-### Co zbývá
-
-- Objemový terén, fáze 3 a dál (viz [Terén](#terén)).
-- Jeskyně: editor pater a spojů, voda po plochách, tvorové přes spoje
-  (viz [Jeskyně a patra](#jeskyně-a-patra)).
-- Zvuk řeky a vodopádů (viz [Plány](#plány)); k rozhodnutí suché jámy pod hladinou.
-- Recepty, plnění batohu a výroba předmětů.
+(`craftingWindow.js`, klávesa V) je zatím jen prázdný panel. Rozpracované a plánované
+věci jsou v `TODO.md`.
 
 ## Klíčová rozhodnutí (nevrátit omylem)
 
@@ -124,7 +116,7 @@ Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů). 
 - Mapa má verzi 10 (`MAP_VERSION` v `src/data/catalogs/mapFile.js`). Mapa starší
   než 10 se při načtení převede na krok 0,25 m (`quantizeMapFileHeights`).
   Hladina vody je nepovinné číslo a verzi nemění, stejně jako nepovinný seznam jezer.
-- Hráčova výška se dopočítá z terénu; sav drží jen x, z a natočení.
+- Hráčova výška se dopočítá z terénu; sav drží jen x, z, natočení a patro.
 - `Effect.PersistentMode = true` (`src/main.js`): engine nikdy nemaže programy pro
   grafickou kartu. Bez toho konzole po přepočtu v editoru hlásila
   `glGetProgramiv: Program object expected` — program se smazal, i když ho materiál
@@ -188,9 +180,7 @@ boky, stěny jeskyní a stropy (`terrainMass.js`, `runVolume.js`).
 - procedurální kůže útesů s římsami — odstraněná; s ní zmizelo i dolícování mostů
   ke skále, mosty navazují jen na břehy.
 
-**Další fáze:** 3) pohyb a dotazy na pruzích, 4) voda, tráva, dekorace a kamera na
-nové dotazy, 5) editor (vykopat/vyplnit, díry, spoje), 6) nová verze mapy a savu
-s migrací. Vzhled útesů řeší skalní kusy nad stejnou hmotou (viz výš).
+Další fáze objemového terénu jsou v `TODO.md`.
 
 ## Jeskyně a patra
 
@@ -204,7 +194,7 @@ vhodná pro jiné vnitřky, třeba dům, přes registr `src/data/catalogs/maps.j
 - Číslo patra (0, −1, −2 …) je **jmenovka, ne pořadí** a nikdy se nepřečíslovává
   (rozbilo by mapy, spoje i savy). Pořadí si buňka spočítá z výšek.
 - Mezi plochami se chodí **jen po spoji** (sekce `connectors` v mapě: odkud, kam,
-  druh `stairs`/`ramp`/`ladder`/`shaft`/`passage`). Spoj znamená i díru ve stropě
+  druh; v mapě je zatím jen `passage` a kód druhy nerozlišuje). Spoj znamená i díru ve stropě
   či podlaze a vynechanou stěnu. V buňkách spoje neplatí stěnová kolize útesu.
 - Světlá výška aspoň 2,6 m (postava měří 2,0 m, `MODEL_HEIGHT` v `playerSystem.js`), výchozí 3,0 m.
 - „Jsem pod střechou" se odvozuje ze stropu nade mnou, neukládá se.
@@ -223,8 +213,7 @@ stínů (i do mapy dohledu) se skála kreslí z obou stran (`utils/bothSidesMate
 jinak by ji některé strany krychle i slunce viděly odvrácenou stranou a světlo by
 prošlo. Postava a tvorové zůstávají osvětlení normálně. Když je
 hráč pod stropem, schovají se přesně stropní dlaždice nad jeskyní (`overCave`,
-samostatný mesh `_roof`), kolem otvoru se ukáže skalní lem (`terrainCaveRim`)
-a skryjí se dekorace i tráva na těch buňkách. Strop je zeshora neviditelný.
+samostatný mesh `_roof`) a skryjí se dekorace i tráva na těch buňkách. Strop je zeshora neviditelný.
 Terén výš než podlaha, na které hráč stojí, zmizí v celém rozsahu stejně jako
 v editoru pater (`revealColumn`), nezávisle na natočení kamery. Co z okolí je
 vidět, řeší dohled postavy (níž); bez dohledu (editor pater) zůstává
@@ -271,14 +260,6 @@ na buňce −6,−10.
 **Pozor:** editor ukládá to, co má otevřená stránka. Když se mapa změní mimo hru,
 obnov stránku (F5) — jinak uložení starý stav vrátí (takhle jednou zmizel vchod).
 
-**Zbývá:** editor pater (přepínač, štětec díry a spoje, kontroly nízkého stropu
-a díry bez spoje), voda po plochách (jedna hladina dnes proteče stropem), tvorové
-přes spoje (hledání cesty je 2D nad jednou plochou), štítek patra v savu u hráče,
-tvorů a táboráků.
-
-**Otevřené otázky:** zastavit pod stropem denní dobu; co se v podzemí sbírá
-a jací tvorové tam žijí.
-
 ## Voda
 
 Jedna hladina pro celou mapu, uložená jako nepovinné číslo v souboru mapy; jen se
@@ -318,8 +299,8 @@ a rychlost proudu a sílu peřejí; jezero je plocha se stejnou výškou a bez p
   (řeky nakreslené dřív ji nemají — jejich koryto se zasype odhadem 0,25 m nad bývalou
   hladinu, `riverRestore`, protože hladina se vždy držela tolik pod břehem). Hladinu spočítá editor při kreslení: po proudu
   nikdy nestoupá a drží se 0,25 m pod nejnižším sousedním břehem (políčka o 2 m a víc
-  níž — pod útesem — se nepočítají). Hlídání do 2 buněk stahovalo hladinu na svazích
-  zbytečně hluboko; proti přetečení na svah stačí `SHORE_SPILL`. Koryto se vyhloubí jako
+  níž — pod útesem — se nepočítají); proti přetečení na svah stačí `SHORE_SPILL`
+  (hlídat víc sousedů stahovalo hladinu na svazích zbytečně hluboko). Koryto se vyhloubí jako
   obyčejná úprava výšek. Hloubka se volí jako rozmezí od–do zvlášť pro mělkou
   (0,25–0,5 m, přebrodí se) a hlubokou (0,75–2,5 m) řeku; rozdílné hodnoty se podél
   toku plynule střídají (šum po zhruba 5 buňkách, `depthAlong`). Buňky řeky
@@ -343,7 +324,9 @@ a rychlost proudu a sílu peřejí; jezero je plocha se stejnou výškou a bez p
   0 = žádná plocha), i 3 buňky kolem břehu kvůli mokrému pruhu. Kaustika se kreslí jen
   v buňkách plochy, mokrý pruh jen na zemi zhruba ve výšce hladiny.
 - Hloubka, brodění, šplouchání a zákaz vstupu do hloubky platí stejně jako u moře.
-- Ryby, sprej a zvuk příboje jsou jen u moře; řeka zatím nemá vlastní zvuk.
+- Ryby a sprej jsou jen u moře. Zvuk má moře, řeka, vodopád i jezero — každý vlastní
+  smyčku, hlasitost podle vzdálenosti (`waterSystem.waterDistancesAt`,
+  `audioSystem.setWaterDistances`, dosahy ve `WATER_LOOPS`).
 - **Vodopád** vznikne sám tam, kde hladina řeky mezi dvěma buňkami trasy klesne aspoň
   o hranici útesu (`AUTO_CLIFF_STEP`, 2 m; `riverFalls`). Při plánování se buňky pod
   útesem nepočítají jako břeh horního toku, jinak by řeka před hranou vykopala kaňon.
@@ -415,73 +398,46 @@ neukládá, po načtení se přepočítá z výbavy. Náhled v okně postavy (ze
 v ruce. `weight` u předmětu a `carryWeight` v `player.js` se zatím jen ukazují
 (`carriedLoad`, počítá batoh i výbavu), přetížení nemá žádný důsledek.
 
-**Pochodeň** je model z Meshy (`props/torch/torch.glb`). Nástroj může mít vlastní
-`grip`. U pochodně (`upright`) se každý snímek po animaci předpaží paže, sevřou
-prsty a pochodeň se postaví svisle s náklonem ve směru pohledu do středu pěsti
-(`holdUpright`, `turnBone`, `closeFist` v `playerSystem.js`). Pojistka v `turnBone`
-pozná kost, kterou animace nepřepsala, aby se otočení nesčítalo. Světlo pochodně
-existuje od startu a jen se ztlumí; přidání světla by přepočítalo materiály celého
-světa (bliknutí). Výměna nástroje ve stoje se odehraje sáhnutím (`toolSwapLeft`).
+**Nástroje v ruce.** Nástroj může mít vlastní `grip`; úchop se počítá vůči ruce, takže
+jde s rukou i při úderu.
+- Pochodeň (`props/torch/torch.glb`, `upright`): po animaci se předpaží paže, sevřou
+  prsty a pochodeň stojí svisle (`holdUpright`, `turnBone`, `closeFist`). Její světlo
+  existuje od startu a jen se ztlumí — přidání světla by přepočítalo materiály celého
+  světa (bliknutí). Výměna nástroje ve stoje se odehraje sáhnutím (`toolSwapLeft`).
+- Klacek (`TOOL_TYPES.club`, `weapon`: poškození, prodleva, animace, zvuk zásahu):
+  úchop `fist` (`holdInFist`) vede klacek středem pěsti podél osy ruky; `tilt` ho
+  nakloní, `hold` je místo úchopu. `wrist` zamkne zápěstí (`lockWrist`), během úderu
+  a sbírání se zámek plynule uvolní (`WRIST_BLEND`). Na zemi leží osm tvarů větví
+  (`club_a`–`club_h`), v ruce je `props/club/stick.glb`; opracovaný `club.glb` čeká na výrobu.
+- Nástroj je na liště zamčený, dokud hráč jeho předmět nemá v batohu (`GameScene.ownsTool`).
 
-**Klacek** je první zbraň (`TOOL_TYPES.club`, `weapon`: poškození, prodleva, animace
-úderu). Nástroj je na liště zamčený, dokud hráč jeho předmět (`item`) nemá v batohu
-(`GameScene.ownsTool`); jméno a ikonu bere z předmětu. Na zemi leží osm tvarů větví
-(`club_a`–`club_h`, světlé a–d, tmavé e–h, uložené naležato), v ruce je stojící větev e
-(`props/club/stick.glb`). Opracovaný kyj `club.glb` čeká na výrobu.
-Klacek drží úchop `fist` (`holdInFist`): prsty se sevřou (`curl`) a klacek vede středem
-pěsti podél osy ruky „dopředu“ (`Forward` kosti `RightHand`, ve stoji míří ve směru
-pohledu; `fist` 1 / −1 = na kterou stranu pěsti trčí). `tilt` ho nakloní ke prstům
-(záporný = k zápěstí, tedy nahoru), `hold` je místo úchopu od spodního konce modelu.
-Úchop se počítá vůči ruce, takže klacek jde s rukou i při úderu. `wrist` srovná zápěstí
-do klidové polohy vůči předloktí (`lockWrist`), aby klacek nekroutila otevřená ruka
-z animace běhu; během úderu a sbírání se zámek plynule uvolní (`WRIST_BLEND`).
-Úder `chop` se přehraje celý (`STRIKE_PLAY_SHARE`), jinak se utnul uprostřed kroku
-a nohy skočily do bojového postoje; zásah je ve 35 % délky. Každá animace postavy
-začíná s pánví (`Hips`) v klidové poloze kostry (`settleRoot`); bojový postoj měl pánev
-trvale vystrčenou do strany a při přepnutí na úder postava sklouzla. Animace
-v `PLAYER_ANIM_ROOTLESS` mají pánev vodorovně přišpendlenou úplně.
-Ve stoji (`idle`, `holdTool`) `relaxIdle` přitáhne obě paže k tělu a pokrčí lokty
-(`IDLE_ARM_IN`, `IDLE_ELBOW`, náběh `IDLE_FADE`); pravou paži nechá, když drží svislý
-nástroj (pochodeň). `updateGlance` občas otočí hlavu do strany (`LOOK_*`). Kop má
-odříznuté úvodní přešlapování (`PLAYER_ANIM_RANGES.kick`), zásah je ve 30 % úderu.
-Sbírání (`pickUp`) hraje z animace jen dřep k zemi (`PLAYER_ANIM_RANGES.pickup`, bez
-smyčky, zbytek animace je přehrabování v dřepu), předmět se vezme na konci dřepu
-a postava se narovná pomalým prolnutím do stání (`RISE_BLEND` přes `nextBlend`).
-Animace sama sahá jen ke kolenům, proto `reachDown` během sbírání předkloní záda
-(`REACH_BEND`) a paži i předloktí natočí k bodu na zemi kousek před rameny
-(`aimBone`, `REACH_AHEAD`, `REACH_LIFT`). `turnBone` umí víc natočení jedné kosti
-za snímek (sčítají se). Na začátku každého snímku `restoreBones` vrátí kosti, které
-animace nepřepsala (zastavená animace), do polohy před natočením; jinak by měření
-polohy ruky v `aimBone` vidělo minulé natočení a paže by kmitaly.
-Po zmenšení postavy (`MODEL_HEIGHT` 2,31 → 2,0) běží chůze a běh o 15 % rychleji
-(`PLAYER_ANIM_SPEEDS`), aby nohy neklouzaly.
-Dokud je otevřené okno kořisti (truhla, mrtvý tvor), drží `sceneGathering` postavu
-v dřepu (`playerSystem.kneeling`); pohyb klávesami dřep zruší a okno se pak zavře
-vzdáleností jako dřív.
+**Animace — pasti:**
+- Každá animace začíná s pánví v klidové poloze kostry (`settleRoot`), jinak postava
+  při přepnutí sklouzne; `PLAYER_ANIM_ROOTLESS` mají pánev přišpendlenou úplně.
+- Údery se hrají jednou, ne ve smyčce (`STRIKE_HOLD` by pustila úder znovu). Kolik
+  z úderu se přehraje a kdy je zásah, drží `STRIKE_PLAY_SHARE` a `STRIKE_IMPACT_SHARE`;
+  `animLength` vrací skutečnou délku úseku (rychlost už započítá). Bez zbraně se
+  střídá pěst a kop, se zbraní se máchá jako sekyrou.
+- Natáčení kostí: `turnBone` umí víc natočení jedné kosti za snímek (sčítají se);
+  `restoreBones` na začátku snímku vrátí kosti, které animace nepřepsala, jinak by
+  `aimBone` měřil minulé natočení a paže by kmitaly.
+- Ve stoji `relaxIdle` přitáhne paže k tělu (`IDLE_*`), `updateGlance` občas otočí hlavu.
+- Výřezy animací (`PLAYER_ANIM_RANGES`) a rychlosti (`PLAYER_ANIM_SPEEDS`) jsou
+  v `modelCatalog.js`. Ladí se ve fotoateliéru:
+  `node tools/capture.cjs player strike --tool club --view side2`.
+
+**Sbírání a kořist.** Sbírání (`pickUp`) hraje jen dřep k zemi; předmět se vezme na konci
+dřepu a postava se narovná prolnutím (`RISE_BLEND`). `reachDown` předkloní záda
+(`REACH_BEND`) a natočí paži k zemi (`aimBone`), protože animace sahá jen ke kolenům.
 Okno kořisti (truhla, kostlivec, mrtvý tvor) se otevírá vždy stejně: postava dojde
-krokem k věci (`playerSystem.walkTo`, ruší se pohybem klávesami), dřepne si a ruce
-natáhne k ní (`playerSystem.reachTarget`, záda se jen mírně narovnají,
-`REACH_LID_BEND`). Truhla s víkem si při stavbě spočítá čelo (`lootSystem.shapeOf`: víko
-má pant vzadu, čelo je místní +Z rodiče víka), takže se jde vždy před víko
-(`standSpot`) a sahá na jeho přední hranu (`reachPoint`). Kostlivec a tvor čelo nemají:
-postava dojde ze strany, odkud přichází (`standSpot`, `approachLoot`), a sahá na střed.
-Dokud je okno otevřené, ruce se přehrabují (`rummageOffset`, `RUMMAGE_*`).
-V dřepu se viditelné tělo přisune k cíli až o `LOOT_LEAN` (posouvá se jen `rig`, kořen
-postavy a kolize zůstávají), ruce u truhly míří kousek dovnitř (`REACH_INSIDE`).
-Po zavření okna se truhla, ve které něco zůstalo, zaklapne (`lootSystem.shut`, víko jde
-k `goal`); prázdná zůstane otevřená. Po načtení hry je víko podle toho, jestli je truhla
-prázdná (`settle`). Dokud je truhla otevřená v okně, nápověda „otevřít“ se neukazuje.
-Chůze k věci skončí i tehdy, když se postava přestane přibližovat (`AUTO_WALK_STUCK`).
-Překážka dekorace (`deriveBlocked`) stojí i s posunem `backToEdge`, jinak by kruh
-truhly ležel před ní a postava by k ní nedošla. Náhodné rozházení (`jitter`) do
-překážky nepatří.
-`animLength` vrací skutečnou délku úseku při rychlosti animace (`getLength` už
-rychlost započítává). Chop (`0.74`), mine (`0.41`), zapálení (`IGNITE_PLAY`) a ucuknutí
-(`FLINCH_PLAY`) trvají stejně jako před opravou; pěst a kop se přehrají celé (vejdou se
-do prodlevy úderu holou rukou 1 s). Údery se hrají jednou, ne ve smyčce: pauza
-`STRIKE_HOLD` po konci animace by jinak pustila úder znovu od začátku. Ladí se ve
-fotoateliéru: `node tools/capture.cjs player strike --tool club --view side2`.
-Údery bez zbraně střídají pěst a kop, se zbraní se máchá jako sekyrou.
+(`walkTo`, skončí i když se přestane přibližovat — `AUTO_WALK_STUCK`), dřepne si
+(`kneeling`) a natáhne ruce (`reachTarget`); dokud je okno otevřené, přehrabuje se
+(`rummageOffset`) a tělo se přisune až o `LOOT_LEAN` (posouvá se jen `rig`, kolize ne).
+Pohyb klávesami dřep zruší. Truhla si spočítá čelo (`lootSystem.shapeOf`), jde se vždy
+před víko (`standSpot`) a sahá kousek dovnitř (`reachPoint`, `REACH_INSIDE`); kostlivec
+a tvor čelo nemají. Truhla, ve které něco zůstalo, se po zavření zaklapne, prázdná
+zůstane otevřená (`settle` po načtení). Překážka truhly (`deriveBlocked`) stojí
+i s posunem `backToEdge`, jinak by k ní postava nedošla.
 
 Modely z Meshy se před vložením zmenšují (textury WebP 1024, nekovový materiál);
 nahraný model ztratí posun svých dílů, proto pohyblivé díly (víko truhly) mají osu
@@ -558,8 +514,6 @@ Jak postavit nového tvora, všechna pole a rozhraní rigu popisuje
 - Tělo leží přes tři minuty a jde z něj sebrat kořist, pak se propadne.
 - **Stav živý/mrtvý není v mapě**, patří do savu. **`kind` a `tier` jsou v savu** —
   nepřejmenovávat; při přejmenování tierů zvednout `SAVE_VERSION`.
-- `maxStepHeight` = jaký schod tvor zvládne (útes nepřeleze), `attackHeight` = jak
-  vysoko dosáhne útokem, `noticeHeight` = z jaké výšky si hráče ještě všimne.
 - Zásah: útok² proti obraně², ohraničeno na 5–95 %. Kdo útok zahájí, dokončí ho.
   Citlivý zásah se odvozuje sám: (šance − 50 %) × 0,75, strop 40 %, poškození ×2.
 - Poškození je rozsah; losuje se až po zásahu. Hráč pak uplatní resistitu podle typu
@@ -611,7 +565,7 @@ Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
 - Klacek dostane `slot: 'weapon'`; zbraň se bere z výbavy, ne z lišty. Útok a rána
   (`playerAttackSystem.setWeapon`) se počítají z nasazené zbraně, jen když je tasená;
   zandaná = pěsti.
-- Stav tasená/zandaná drží postava; klávesa (R nebo X, viz otázky) ho přepíná.
+- Stav tasená/zandaná drží postava; klávesa **X** ho přepíná (rozhodnuto).
   Neukládá se — po načtení je zbraň zandaná.
 - Model: tasená v ruce (`handSlot`), zandaná zatím skrytá (na záda později).
 - Hotovo, když: klacek jde nasadit do políčka Zbraň, klávesou se tasí a zandá,
@@ -645,27 +599,8 @@ Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
 - Hotovo, když: útoku Koa'tiki jde uhnout pohybem i úskokem.
 
 **Otevřené otázky (rozhodnout před danou etapou):**
-- Klávesa pro tasení: R, nebo X? (obě jsou volné; 1–5 lišta, E, I, C, B, V, G, N, O, P obsazené)
 - Těžká rána: podržet levé tlačítko, nebo pravé tlačítko? Pravé dnes otáčí kamerou
   (tažení) a krátkým klikem připíná tvora.
 - Sekyra a krumpáč: jen nástroje, nebo i slabé zbraně, když jsou v ruce?
 - Pochodeň v ruce a tasená zbraň současně (pochodeň v levé ruce)?
 - Zandaná zbraň vidět na zádech / u pasu — kdy a jak.
-
-## Plány
-
-Nic z toho není rozhodnuté.
-
-**Suché jámy pod hladinou** (lom, proláklina pod úrovní moře). Dnes nejdou, protože
-voda je všude, kde je terén pod hladinou (`waterSystem.depthAt`). Doporučená cesta:
-v `depthMapFor` šířit „mokré" buňky od okraje mapy a ohrazené jámy prohlásit za
-suché — bez nových dat. Ruční zóna Suchá jen kdyby bylo potřeba. Potřeba je maska
-ve shaderu, stěna na okraji jámy a vypnout v ní příboj, kaustiku a ryby.
-
-**Boj** (inspirace Rage of Mages): barva tvora znamená druh a sílu, takže se hráč
-na první pohled rozhodne; silnější varianta = stejný model, jiná barva a čísla.
-Široká rána (cleave) je součástí plánu „Boj se zbraněmi" výše.
-
-**Vzhled:** kontaktní stíny pod objekty (musí kopírovat svah), mech a lišejník na
-kamenech, jednodušší vzdálené stromy, rostliny u břehu, zatopené kameny, odraz
-oblohy, počasí.

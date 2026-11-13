@@ -16,6 +16,7 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ### Život v jeskyni
 - [ ] Rozhodnout trávu v jeskyni (stébla se tam nepřidala).
+- [ ] Rozhodnout: zastavit pod stropem denní dobu? Co se v podzemí sbírá a jací tvorové tam žijí?
 - [ ] Ověřit v praxi pokládání předmětů a táboráku v patře, zapálení a znovunačtení savu.
 
 ### Editor
@@ -99,12 +100,11 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 - [ ] Dekorace: léčivé byliny mohou být špatně umístěné ve skále (na strmých/útesových buňkách) — přeskočit nebo odsunout od stěny; dořešit s novým (objemovým) terénem.
 
-- [ ] **Velká etapa: objemový terén (skála jako hmota) + krok výšek 0,25** a oddělené limity (vylezu ~0,5; práh útesu zvlášť). Plán a fáze 0–7 v `DEV.md`, sekce „Velká etapa: objemový terén". **Fáze 0–2 hotové**: pruhy, krok 0,25, přeškálování výšek, krokový limit 0,55, odkrývání stropu, skutečná hmota (jeskyně, stropy, okraj mapy), boky rozřezané na pláty po 0,25 m s 1m pásem povrchu a správným měřítkem textury, smazané dutiny i sukně, hranice útesu 2,0 m; `?solid` je náhled hmoty jako kostek. **Rohy: přesná detekce hotová** (`?corners` obarví skutečné rohy, vnitřní kouty a diagonální doteky; švy se nekreslí); seříznutí rohů zkoušeno a zrušeno (viz DEV.md). Zbývá fáze 3 (dotazy na pruzích) a dál.
+- [ ] **Objemový terén — další fáze:** 3) pohyb a dotazy na pruzích, 4) voda, tráva, dekorace a kamera, 5) editor (vykopat/vyplnit, díry, spoje), 6) nová verze mapy a savu. Hotový stav a zamítnuté pokusy jsou v `DEV.md`, sekce „Terén".
 - [ ] Objemový terén: horní hrana boku u **vchodu do jeskyně** — hladká plocha tam srovnává okraj na úroveň podlahy jeskyně, hmota ne (může zůstat drobná škvíra); dořešit stejným úložištěm jako svažené rohy (`surfaceEdge`).
 - [ ] Patra: ověřit v dev serveru krok 4 — jeskyně je tmavá i bez hráče (prostorová tma; pochodеň/oheň prosvětlí), povrch světlý, jeskynní ambient (`cave.ogg`) se přelévá; a skrývání ploch nade hráčem (z výšky vidět dovnitř) funguje. Model a stav jsou v `DEV.md`, sekce „Jeskyně a patra".
-- [ ] 4B pozastaveno do velké etapy: odkrývání střechy teď ukazuje prázdno/moře a dekorace nad odhalenou plochou visí — dočistí se ve fázi 7 objemového terénu (skála bude hmota + skrytí dekorací).
-- [ ] Patra: hloubka skály — **řeší se velkou etapou „objemový terén"** (viz `DEV.md`, sekce „Velká etapa: objemový terén"). Skalní kůže a jiné náplasti se nepoužijí.
-- [ ] Suché jámy pod hladinou — k rozhodnutí, rozbor v `DEV.md`, sekce Plány.
+- [ ] Odkrývání střechy ukazuje prázdno/moře a dekorace nad odhalenou plochou visí — dočistit v dalších fázích objemového terénu.
+- [ ] Voda po patrech: jedna hladina dnes proteče stropem jeskyně.
 - [ ] Rozhodnout, jestli recepty zůstanou jen jako přehled, nebo dostanou tlačítko pro výrobu.
 - [ ] Navrhnout nový systém stavění (starý byl odstraněn).
 - [ ] Rozhodnout o šířce plynulého okraje pláže.
