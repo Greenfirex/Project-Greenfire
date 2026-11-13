@@ -38,6 +38,7 @@ import FootprintSystem from '../systems/creatures/footprintSystem.js';
 import SandBurstSystem from '../systems/creatures/sandBurstSystem.js';
 import InventorySystem from '../systems/player/inventorySystem.js';
 import HeldItemSystem from '../systems/player/heldItemSystem.js';
+import PortraitSystem from '../systems/player/portraitSystem.js';
 import WaveSpraySystem from '../systems/water/waveSpraySystem.js';
 import AudioSystem from '../systems/atmosphere/audioSystem.js';
 import CharacterPanel from '../ui/characterPanel.js';
@@ -65,7 +66,6 @@ import CraftingWindow from '../ui/craftingWindow.js';
 import BestiarySystem from '../systems/creatures/bestiarySystem.js';
 import { takeModelError, preloadModel, loadContainer, loadImported } from '../utils/assetLoader.js';
 import { WAVE_TIME_WRAP, SEA_DIRECTION } from '../utils/waterWaves.js';
-import { damageText } from '../utils/combatRoll.js';
 import { ITEM_TYPES, getTool, toolForItem } from '../data/catalogs/items.js';
 import { worldToCellCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
@@ -196,6 +196,7 @@ export default class GameScene {
     this.craftingWindow = new CraftingWindow();
     this.log = new LogPanel();
     this.characterPanel = new CharacterPanel();
+    this.portraitSystem = new PortraitSystem(scene);
     this.lootWindow = new LootWindow();
     this.lootSource = null;
     this.vitalsBar = new VitalsBar();
@@ -331,6 +332,7 @@ export default class GameScene {
       }
       this.refreshCreatureHealthBars();
       this.refreshPinnedCreature();
+      this.portraitSystem.update(this.playerSystem.root, this.playerSystem.anims.idle, this.playerSystem.handSlot);
       this.updateReveal(dt);
       this.setDecorShaping(this.editor.shapesTerrain());
       if (this.paused || this.decorShaping) {
@@ -1133,6 +1135,7 @@ export default class GameScene {
     this.bestiaryWindow.onClose = () => this.bestiaryButton.setActive(false);
     this.craftingWindow.onClose = () => this.craftButton.setActive(false);
     this.characterPanel.onClose = () => {
+      this.portraitSystem.hide();
       this.bagButton.setActive(false);
       this.characterButton.setActive(false);
     };
@@ -1145,6 +1148,7 @@ export default class GameScene {
     this.lootWindow.onTakeAll = () => this.takeAllLoot();
     this.lootWindow.onClose = () => this.closeLoot();
     this.characterPanel.onEquip = (itemKey, slot) => this.equipItem(itemKey, slot);
+    this.characterPanel.onPreview = (itemKey) => this.previewStats(itemKey);
     this.vitalsBar.setHealth(this.playerStats.health, this.playerStats.maxHealth);
     this.vitalsBar.setStamina(this.playerStats.stamina, this.playerStats.maxStamina);
     this.creatureHealthBar.mount();
@@ -1164,6 +1168,7 @@ export default class GameScene {
     this.refreshInventory();
     this.refreshCharacterPanel();
     this.characterPanel.show();
+    this.portraitSystem.show(this.characterPanel.portraitCanvas);
     this.bagButton.setActive(true);
     this.characterButton.setActive(true);
   }
@@ -1211,7 +1216,7 @@ export default class GameScene {
       attack: this.playerAttackSystem.attack,
       defense: this.playerStats.defense,
       armor: this.playerStats.armor,
-      damage: damageText(this.playerAttackSystem.damage),
+      damage: this.playerAttackSystem.damage,
       resistances: this.playerStats.resistances,
     });
   }
@@ -1245,7 +1250,7 @@ export default class GameScene {
   }
 
   refreshInventory() {
-    this.characterPanel.updateInventory(this.inventorySystem);
+    this.characterPanel.updateInventory(this.inventorySystem, this.carriedLoad());
     this.hotbar.setAvailable((key) => this.ownsTool(key));
     if (this.heldItemSystem.key && !this.ownsTool(this.heldItemSystem.key)) this.heldItemSystem.set(null);
     if (this.characterPanel.open) this.refreshCharacterPanel();

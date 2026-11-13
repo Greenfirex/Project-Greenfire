@@ -651,6 +651,13 @@
   opacity: 1;
 }
 
+.equip-slot.is-target {
+  border-color: rgba(63, 212, 131, 0.85);
+  background: rgba(63, 212, 131, 0.12);
+  box-shadow: 0 0 10px rgba(63, 212, 131, 0.35);
+  opacity: 1;
+}
+
 .equip-slot[draggable='true'],
 .inv-cell[draggable='true'],
 .hotbar__slot[draggable='true'] {
@@ -707,48 +714,14 @@
   overflow: hidden;
 }
 
-.equip-preview::after {
-  content: '';
+.equip-preview__canvas {
   position: absolute;
-  bottom: 12px;
-  left: 50%;
-  width: 82px;
-  height: 12px;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(63, 212, 131, 0.18), transparent 70%);
-}
-
-.character-silhouette__head,
-.character-silhouette__body,
-.character-silhouette__legs {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(180deg, rgba(201, 162, 94, 0.34), rgba(201, 162, 94, 0.08));
-  box-shadow: inset 0 0 12px rgba(201, 162, 94, 0.14);
-}
-
-.character-silhouette__head {
-  top: 18px;
-  width: 34px;
-  height: 38px;
-  border-radius: 50%;
-}
-
-.character-silhouette__body {
-  top: 62px;
-  width: 64px;
-  height: 78px;
-  border-radius: 28px 28px 18px 18px;
-}
-
-.character-silhouette__legs {
-  top: 136px;
-  width: 48px;
-  height: 58px;
-  clip-path: polygon(26% 0, 74% 0, 100% 100%, 0 100%);
-  border-radius: 0 0 14px 14px;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
 }
 
 .stat-bar {
@@ -821,6 +794,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+.character-panel__chip strong.is-up {
+  color: rgb(63, 212, 131);
+}
+
+.character-panel__chip strong.is-down {
+  color: rgb(230, 92, 80);
+}
+
 .resist-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -854,6 +835,10 @@
   color: var(--text-dim);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+.character-panel__summary.is-over {
+  color: rgb(230, 92, 80);
 }
 
 @media (max-width: 1100px) {
@@ -1054,6 +1039,17 @@
   background: rgba(201, 162, 94, 0.1);
   font-size: 9px;
   letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--title-gold);
+}
+
+.inv-detail__heading {
+  margin-top: 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid rgba(201, 162, 94, 0.22);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
   text-transform: uppercase;
   color: var(--title-gold);
 }

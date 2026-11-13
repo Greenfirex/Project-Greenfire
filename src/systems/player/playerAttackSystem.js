@@ -31,10 +31,20 @@ export default class PlayerAttackSystem {
   setWeapon(tool) {
     const weapon = tool && tool.weapon ? tool.weapon : null;
     const punch = PLAYER_BASE.punch || {};
+    const stats = this.weaponStats(tool);
     this.weaponAnim = weapon ? weapon.anim : null;
-    this.attack = this.baseAttack + this.number(weapon ? weapon.attack : 0);
-    this.damage = normalizeRange(weapon ? weapon.damage : punch.damage);
+    this.attack = stats.attack;
+    this.damage = stats.damage;
     this.cooldownSeconds = this.number(weapon ? weapon.cooldown : punch.cooldown);
+  }
+
+  weaponStats(tool) {
+    const weapon = tool && tool.weapon ? tool.weapon : null;
+    const punch = PLAYER_BASE.punch || {};
+    return {
+      attack: this.baseAttack + this.number(weapon ? weapon.attack : 0),
+      damage: normalizeRange(weapon ? weapon.damage : punch.damage),
+    };
   }
 
   canHit(creature, player) {

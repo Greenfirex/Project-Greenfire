@@ -7,6 +7,7 @@ export const PLAYER_BASE = {
   attack: 12,
   defense: 10,
   armor: 0,
+  carryWeight: 60,
   resistances: zeroResistances(),
   regenDelaySeconds: 8,
   regenPerSecond: 1.5,

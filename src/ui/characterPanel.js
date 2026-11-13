@@ -1,12 +1,28 @@
 // Okno postavy a batohu — výbava a staty vlevo, batoh uprostřed, detail předmětu vpravo.
 // Jen zobrazuje a hlásí callbacky; co hráč nese a má na sobě, drží systémy scény.
 import WindowFrame from './windowFrame.js';
-import { EQUIP_SLOTS, ITEM_TYPES, itemTags, itemWeapon, toolForItem } from '../data/catalogs/items.js';
+import { EQUIP_SLOTS, ITEM_TYPES, ITEM_TAG_LABELS, itemTags, itemWeapon, itemWeight, toolForItem } from '../data/catalogs/items.js';
 import { DAMAGE_GROUPS, DAMAGE_TYPES, DAMAGE_TYPE_KEYS } from '../data/catalogs/damage.js';
 import { PLAYER_STAT_INFO } from '../data/catalogs/statInfo.js';
 import { damageText } from '../utils/combatRoll.js';
-import { fillItemIcon, itemIconElement } from './itemIcons.js';
+import { fillIcon, fillItemIcon, itemIconElement } from './itemIcons.js';
 import { wearDragType, SLOT_DRAG_TYPE, BAG_DRAG_TYPE, HAND_DRAG_TYPE, BAR_DRAG_TYPE } from './dragTypes.js';
+
+const COMPARED_STATS = ['attack', 'defense', 'armor', 'damage'];
+
+function statScore(value) {
+  if (Array.isArray(value)) return (Number(value[0]) + Number(value[1])) / 2;
+  return Number(value) || 0;
+}
+
+function statText(value) {
+  if (Array.isArray(value)) return damageText(value);
+  return value === undefined || value === null || value === '' ? '—' : String(value);
+}
+
+function kilos(value) {
+  return (Number(value) || 0).toLocaleString('cs-CZ', { maximumFractionDigits: 2 });
+}
 
 export default class CharacterPanel {
 
@@ -26,10 +42,13 @@ export default class CharacterPanel {
     this.staminaValue = null;
     this.valueEls = new Map();
     this.slotEls = new Map();
+    this.portraitCanvas = null;
     this.equipped = {};
     this.hoverKey = null;
     this.hoverAmount = 0;
     this.hoverStat = null;
+    this.hoverWorn = false;
+    this.preview = null;
     this.characterData = null;
     this.lastInventorySignature = '';
     this.lastCharacterSignature = '';
@@ -38,6 +57,7 @@ export default class CharacterPanel {
     this.onUnequip = null;
     this.onMove = null;
     this.onClearBar = null;
+    this.onPreview = null;
     this.frame.onClose = () => {
       if (this.onClose) this.onClose();
     };
@@ -102,7 +122,7 @@ export default class CharacterPanel {
     const doll = layout.querySelector('.equip-doll');
     doll.append(
       this.slotColumn(EQUIP_SLOTS.slice(0, 3)),
-      this.silhouette(),
+      this.portrait(),
       this.slotColumn(EQUIP_SLOTS.slice(3)),
     );
 
@@ -168,6 +188,13 @@ export default class CharacterPanel {
       name.textContent = slot.label;
       btn.append(icon, name);
       this.watchSlot(btn, slot);
+      btn.addEventListener('pointerenter', () => {
+        const itemKey = this.equipped[slot.key];
+        if (itemKey) this.showDetail(itemKey, 1, true);
+      });
+      btn.addEventListener('pointerleave', () => {
+        if (this.hoverWorn) this.clearDetail();
+      });
       this.slotEls.set(slot.key, { btn, icon, name, slot });
       column.appendChild(btn);
     }
@@ -175,14 +202,12 @@ export default class CharacterPanel {
     return column;
   }
 
-  silhouette() {
+  portrait() {
     const box = document.createElement('div');
-    box.className = 'equip-preview character-silhouette';
-    box.innerHTML = `
-      <span class="character-silhouette__head"></span>
-      <span class="character-silhouette__body"></span>
-      <span class="character-silhouette__legs"></span>
-    `;
+    box.className = 'equip-preview';
+    this.portraitCanvas = document.createElement('canvas');
+    this.portraitCanvas.className = 'equip-preview__canvas';
+    box.appendChild(this.portraitCanvas);
     return box;
   }
 
@@ -225,8 +250,7 @@ export default class CharacterPanel {
       if (itemKey) {
         fillItemIcon(icon, itemKey);
       } else {
-        icon.replaceChildren();
-        icon.textContent = slot.icon;
+        fillIcon(icon, slot.image, slot.icon);
       }
       name.textContent = def ? def.displayName : slot.label;
       btn.title = def ? `${slot.label}: ${def.displayName} — přetáhni do batohu pro sundání` : slot.label;
@@ -277,13 +301,21 @@ export default class CharacterPanel {
     this.frame.close();
   }
 
-  showDetail(key, amount) {
+  showDetail(key, amount, worn = false) {
     this.hoverKey = key;
     this.hoverAmount = amount;
-    if (!this.hoverStat) this.renderItemDetail(key, amount);
+    this.hoverWorn = worn;
+    const def = ITEM_TYPES[key];
+    this.markSlot(!worn && def ? def.slot : null);
+    this.setPreview(!worn && this.onPreview ? this.onPreview(key) : null);
+    if (!this.hoverStat) this.renderItemDetail(key, amount, worn);
   }
 
-  renderItemDetail(key, amount) {
+  markSlot(slotKey) {
+    for (const { btn, slot } of this.slotEls.values()) btn.classList.toggle('is-target', slot.key === slotKey);
+  }
+
+  renderItemDetail(key, amount, worn = false) {
     if (!this.detailEl) return;
     const def = ITEM_TYPES[key] || null;
     this.detailEl.innerHTML = '';
@@ -308,21 +340,38 @@ export default class CharacterPanel {
       description.textContent = def.description;
       this.detailEl.appendChild(description);
     }
-    this.detailRow('Neseš', `${amount} ks`);
-    if (def && Number.isFinite(def.stackSize) && def.stackSize > 0) {
-      this.detailRow('Stoh', `${def.stackSize} ks`);
-      this.stackBar(amount, def.stackSize);
-    }
     const weapon = itemWeapon(key);
     if (weapon) {
+      this.detailHeading(ITEM_TAG_LABELS.weapon);
       const type = weapon.damageType ? DAMAGE_TYPES[weapon.damageType] : null;
       if (type) this.detailRow('Typ poškození', type.short);
       if (weapon.damage !== undefined) this.detailRow('Poškození', damageText(weapon.damage));
       this.detailRow('Útok', `+${Number(weapon.attack) || 0}`);
     }
+    const bonus = Object.entries((def && def.bonus) || {}).filter(([, value]) => Number.isFinite(value) && value !== 0);
+    if (bonus.length) {
+      this.detailHeading(ITEM_TAG_LABELS[def.kind] || 'Výbava');
+      for (const [stat, value] of bonus) {
+        const info = PLAYER_STAT_INFO[stat];
+        this.detailRow(info ? info.label : stat, `${value > 0 ? '+' : ''}${value}`);
+      }
+    }
+    const weight = itemWeight(key);
+    if (worn) {
+      this.detailHeading('Nasazeno');
+      this.detailRow('Váha', `${kilos(weight)} kg`);
+    } else {
+      this.detailHeading('V batohu');
+      this.detailRow('Neseš', `${amount} ks`);
+      if (def && Number.isFinite(def.stackSize) && def.stackSize > 0) {
+        this.detailRow('Stoh', `${def.stackSize} ks`);
+        this.stackBar(amount, def.stackSize);
+      }
+      this.detailRow('Váha', amount > 1 ? `${kilos(weight)} kg / ks · ${kilos(weight * amount)} kg` : `${kilos(weight)} kg`);
+    }
     const hint = document.createElement('div');
     hint.className = 'inv-detail__actions';
-    hint.textContent = this.usageHint(key, def);
+    hint.textContent = worn ? 'Přetáhni do batohu pro sundání.' : this.usageHint(key, def);
     this.detailEl.appendChild(hint);
   }
 
@@ -333,7 +382,7 @@ export default class CharacterPanel {
 
   clearStatDetail() {
     this.hoverStat = null;
-    if (this.hoverKey) this.renderItemDetail(this.hoverKey, this.hoverAmount);
+    if (this.hoverKey) this.renderItemDetail(this.hoverKey, this.hoverAmount, this.hoverWorn);
     else this.renderHint();
   }
 
@@ -365,7 +414,7 @@ export default class CharacterPanel {
       const max = Number.isFinite(data[maxKey]) ? Math.round(data[maxKey]) : 0;
       return `${current} / ${max}`;
     }
-    if (key === 'damage') return data.damage || '—';
+    if (key === 'damage') return statText(data.damage);
     if (Object.hasOwn(PLAYER_STAT_INFO, key)) {
       const value = data[key];
       return value === undefined || value === null ? '—' : String(value);
@@ -400,6 +449,13 @@ export default class CharacterPanel {
     this.detailEl.appendChild(bar);
   }
 
+  detailHeading(text) {
+    const heading = document.createElement('div');
+    heading.className = 'inv-detail__heading';
+    heading.textContent = text;
+    this.detailEl.appendChild(heading);
+  }
+
   detailRow(label, value) {
     const row = document.createElement('div');
     row.className = 'inv-detail__row';
@@ -423,6 +479,9 @@ export default class CharacterPanel {
   clearDetail() {
     this.hoverKey = null;
     this.hoverAmount = 0;
+    this.hoverWorn = false;
+    this.markSlot(null);
+    this.setPreview(null);
     if (!this.hoverStat) this.renderHint();
   }
 
@@ -461,13 +520,17 @@ export default class CharacterPanel {
     return cell;
   }
 
-  updateInventory(inventory) {
+  updateInventory(inventory, load) {
     this.mount();
     const layout = inventory ? inventory.layout() : [];
     const signature = layout.map((entry) => (entry ? entry.join(':') : '')).join(',');
     const used = layout.filter(Boolean).length;
-    const pieces = layout.reduce((sum, entry) => sum + (entry ? entry[1] : 0), 0);
-    if (this.summaryEl) this.summaryEl.textContent = `${used} / ${layout.length} · ${pieces} ks`;
+    if (this.summaryEl) {
+      const weight = load ? load.weight : 0;
+      const capacity = load ? load.capacity : 0;
+      this.summaryEl.textContent = `${used} / ${layout.length} políček · ${kilos(weight)} / ${kilos(capacity)} kg`;
+      this.summaryEl.classList.toggle('is-over', capacity > 0 && weight > capacity);
+    }
     if (signature === this.lastInventorySignature) return;
     this.lastInventorySignature = signature;
 
@@ -475,7 +538,7 @@ export default class CharacterPanel {
     layout.forEach((entry, index) => {
       this.itemsEl.appendChild(entry ? this.itemCell(entry[0], entry[1], index) : this.emptyCell(index));
     });
-    if (this.hoverKey) {
+    if (this.hoverKey && !this.hoverWorn) {
       const still = layout.find((entry) => entry && entry[0] === this.hoverKey);
       if (still) this.showDetail(still[0], still[1]);
       else this.clearDetail();
@@ -498,15 +561,32 @@ export default class CharacterPanel {
 
     this.setBar(this.healthFill, this.healthValue, source.health, source.maxHealth);
     this.setBar(this.staminaFill, this.staminaValue, source.stamina, source.maxStamina);
-    this.setValue('attack', source.attack);
-    this.setValue('defense', source.defense);
-    this.setValue('armor', source.armor);
-    this.setValue('damage', source.damage);
+    this.paintStats();
     for (const key of DAMAGE_TYPE_KEYS) {
       const value = Number(resistances[key]);
       this.setValue(key, `${Math.round(Number.isFinite(value) ? value : 0)} %`);
     }
     if (this.hoverStat) this.renderStatDetail(this.hoverStat);
+  }
+
+  setPreview(stats) {
+    this.preview = stats || null;
+    this.paintStats();
+  }
+
+  paintStats() {
+    const data = this.characterData || {};
+    const preview = this.preview || {};
+    for (const key of COMPARED_STATS) {
+      const el = this.valueEls.get(key);
+      if (!el) continue;
+      const now = data[key];
+      const next = preview[key];
+      const change = next === undefined || now === undefined ? 0 : Math.sign(statScore(next) - statScore(now));
+      el.textContent = statText(change ? next : now);
+      el.classList.toggle('is-up', change > 0);
+      el.classList.toggle('is-down', change < 0);
+    }
   }
 
   setBar(fill, valueEl, value, max) {

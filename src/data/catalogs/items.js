@@ -3,12 +3,12 @@
 import { ASSET_DIRS } from './assetPaths.js';
 
 export const EQUIP_SLOTS = [
-  { key: 'head', label: 'Hlava', icon: '⛑' },
-  { key: 'chest', label: 'Tělo', icon: '🥋' },
-  { key: 'legs', label: 'Nohy', icon: '👖' },
-  { key: 'hands', label: 'Ruce', icon: '🧤' },
-  { key: 'feet', label: 'Boty', icon: '🥾' },
-  { key: 'weapon', label: 'Zbraň', icon: '⚔' },
+  { key: 'head', label: 'Hlava', icon: '⛑', image: `${ASSET_DIRS.equipIcons}head.png` },
+  { key: 'chest', label: 'Tělo', icon: '🥋', image: `${ASSET_DIRS.equipIcons}chest.png` },
+  { key: 'legs', label: 'Nohy', icon: '👖', image: `${ASSET_DIRS.equipIcons}legs.png` },
+  { key: 'hands', label: 'Ruce', icon: '🧤', image: `${ASSET_DIRS.equipIcons}hands.png` },
+  { key: 'feet', label: 'Boty', icon: '🥾', image: `${ASSET_DIRS.equipIcons}feet.png` },
+  { key: 'weapon', label: 'Zbraň', icon: '⚔', image: `${ASSET_DIRS.equipIcons}weapon.png` },
 ];
 
 export const ITEM_TAG_LABELS = {
@@ -24,7 +24,9 @@ export const ITEM_TYPES = {
     displayName: 'Dřevo',
     description: 'Ze dřeva se dá postavit skoro všechno. Skoro.',
     icon: '🪵',
+    image: `${ASSET_DIRS.itemIcons}wood.png`,
     stackSize: 100,
+    weight: 1,
     kind: 'raw',
     color: [0.45, 0.32, 0.2],
   },
@@ -32,7 +34,9 @@ export const ITEM_TYPES = {
     displayName: 'Kámen',
     description: 'Tvrdý, těžký a ve správné ruce i užitečný.',
     icon: '🪨',
+    image: `${ASSET_DIRS.itemIcons}stone.png`,
     stackSize: 100,
+    weight: 1.5,
     kind: 'raw',
     color: [0.55, 0.55, 0.58],
   },
@@ -40,7 +44,9 @@ export const ITEM_TYPES = {
     displayName: 'Mušle',
     description: 'Na ucho šumí moře. V batohu zabírá místo.',
     icon: '🐚',
+    image: `${ASSET_DIRS.itemIcons}shell.png`,
     stackSize: 20,
+    weight: 0.1,
     kind: 'raw',
     color: [0.93, 0.86, 0.8],
   },
@@ -48,7 +54,9 @@ export const ITEM_TYPES = {
     displayName: 'Houba',
     description: 'Jíst se dá. Ale nejdřív si buď jistý, že je to ta správná.',
     icon: '🍄',
+    image: `${ASSET_DIRS.itemIcons}mushroom.png`,
     stackSize: 100,
+    weight: 0.1,
     kind: 'raw',
     color: [0.78, 0.55, 0.42],
   },
@@ -56,7 +64,9 @@ export const ITEM_TYPES = {
     displayName: 'Kokos',
     description: 'Padá ze stromu jen tehdy, když se díváš jinam.',
     icon: '🥥',
+    image: `${ASSET_DIRS.itemIcons}coconut.png`,
     stackSize: 20,
+    weight: 0.8,
     kind: 'raw',
     color: [0.5, 0.33, 0.18],
   },
@@ -64,7 +74,9 @@ export const ITEM_TYPES = {
     displayName: 'Léčivá bylina',
     description: 'Neptej se, co je v ní. Prostě to vypij.',
     icon: '🌿',
+    image: `${ASSET_DIRS.itemIcons}herb.png`,
     stackSize: 10,
+    weight: 0.05,
     kind: 'raw',
     color: [0.72, 0.34, 0.28],
   },
@@ -72,7 +84,9 @@ export const ITEM_TYPES = {
     displayName: 'Klacek',
     description: 'Filozoficky nejstarší zbraň lidstva.',
     icon: '🥢',
+    image: `${ASSET_DIRS.itemIcons}stick.png`,
     stackSize: 100,
+    weight: 0.6,
     kind: 'product',
     color: [0.52, 0.38, 0.24],
   },
@@ -80,7 +94,9 @@ export const ITEM_TYPES = {
     displayName: 'Pochodeň',
     description: 'Svítí, hřeje a občas zapálí víc, než chceš.',
     icon: '🔥',
+    image: `${ASSET_DIRS.itemIcons}torch.png`,
     stackSize: 5,
+    weight: 0.7,
     kind: 'tool',
     color: [0.62, 0.36, 0.16],
   },
@@ -88,7 +104,9 @@ export const ITEM_TYPES = {
     displayName: 'Maso',
     description: 'Syrové. Oheň tomu dodá ten správný lesk.',
     icon: '🥩',
+    image: `${ASSET_DIRS.itemIcons}meat.png`,
     stackSize: 20,
+    weight: 0.5,
     kind: 'raw',
     color: [0.72, 0.25, 0.22],
   },
@@ -96,7 +114,9 @@ export const ITEM_TYPES = {
     displayName: 'Krunýř',
     description: 'Bývalý majitel už ho nepotřebuje.',
     icon: '🐢',
+    image: `${ASSET_DIRS.itemIcons}turtle_shell.png`,
     stackSize: 20,
+    weight: 1.2,
     kind: 'raw',
     color: [0.38, 0.42, 0.28],
   },
@@ -104,9 +124,12 @@ export const ITEM_TYPES = {
     displayName: 'Pirátský klobouk',
     description: 'Nezaručuje loď, posádku ani poklad.',
     icon: '🎩',
+    image: `${ASSET_DIRS.itemIcons}pirate_hat.png`,
     stackSize: 1,
+    weight: 0.3,
     kind: 'wear',
     slot: 'head',
+    bonus: { defense: 1 },
     color: [0.3, 0.2, 0.12],
     wear: { model: `${ASSET_DIRS.props}pirate_hat/pirate_hat.glb`, width: 0.48, seat: 0.62, forward: 0.03, yaw: 0 },
   },
@@ -177,6 +200,22 @@ export function itemWeapon(itemKey) {
   const toolKey = toolForItem(itemKey);
   const tool = toolKey ? TOOL_TYPES[toolKey] : null;
   return tool && tool.weapon ? tool.weapon : null;
+}
+
+export function itemWeight(itemKey) {
+  const def = ITEM_TYPES[itemKey];
+  return def && Number.isFinite(def.weight) && def.weight > 0 ? def.weight : 0;
+}
+
+export function gearBonus(itemKeys) {
+  const total = {};
+  for (const itemKey of itemKeys) {
+    const def = ITEM_TYPES[itemKey];
+    for (const [stat, value] of Object.entries((def && def.bonus) || {})) {
+      if (Number.isFinite(value)) total[stat] = (total[stat] || 0) + value;
+    }
+  }
+  return total;
 }
 
 export function itemTags(itemKey) {

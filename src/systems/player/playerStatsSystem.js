@@ -8,8 +8,11 @@ export default class PlayerStatsSystem {
   constructor() {
     this.maxHealth = this.amount(PLAYER_BASE.maxHealth, 100, 1);
     this.health = this.maxHealth;
-    this.defense = this.amount(PLAYER_BASE.defense, 0, 0);
-    this.armor = this.amount(PLAYER_BASE.armor, 0, 0);
+    this.baseDefense = this.amount(PLAYER_BASE.defense, 0, 0);
+    this.baseArmor = this.amount(PLAYER_BASE.armor, 0, 0);
+    this.defense = this.baseDefense;
+    this.armor = this.baseArmor;
+    this.carryWeight = this.amount(PLAYER_BASE.carryWeight, 0, 0);
     this.resistances = this.readResistances(PLAYER_BASE.resistances);
     this.sinceHurt = 0;
     this.immunity = 0;
@@ -32,6 +35,20 @@ export default class PlayerStatsSystem {
   amount(value, fallback, min) {
     if (Number.isFinite(value) && value >= min) return value;
     return fallback;
+  }
+
+  gearStats(bonus) {
+    const extra = bonus || {};
+    return {
+      defense: Math.max(0, this.baseDefense + (Number(extra.defense) || 0)),
+      armor: Math.max(0, this.baseArmor + (Number(extra.armor) || 0)),
+    };
+  }
+
+  setGear(bonus) {
+    const stats = this.gearStats(bonus);
+    this.defense = stats.defense;
+    this.armor = stats.armor;
   }
 
   readResistances(source) {

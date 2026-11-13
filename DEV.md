@@ -408,6 +408,12 @@ hráč na sobě drží `equipmentSystem.js` (ukládá se), propojení dělá
 `sceneEquipment.js`. Model na hlavě sedí na uzlu odvozeném z kostí `Head`,
 `head_end` a `headfront`; velikost, výška, posun vpřed a natočení jsou v `wear`
 u předmětu. Ostatní sloty zatím nic neumí.
+`bonus` u předmětu (např. `{ defense: 1 }`) se sečte přes nasazené věci (`gearBonus`)
+a `playerStatsSystem.setGear` ho přičte k základu z `player.js`; nic z toho se
+neukládá, po načtení se přepočítá z výbavy. Náhled v okně postavy (zeleně lepší,
+červeně horší) počítá `previewStats`: u oblečení výměnu v jeho slotu, u zbraně držení
+v ruce. `weight` u předmětu a `carryWeight` v `player.js` se zatím jen ukazují
+(`carriedLoad`, počítá batoh i výbavu), přetížení nemá žádný důsledek.
 
 **Pochodeň** je model z Meshy (`props/torch/torch.glb`). Nástroj může mít vlastní
 `grip`. U pochodně (`upright`) se každý snímek po animaci předpaží paže, sevřou
@@ -480,6 +486,20 @@ fotoateliéru: `node tools/capture.cjs player strike --tool club --view side2`.
 Modely z Meshy se před vložením zmenšují (textury WebP 1024, nekovový materiál);
 nahraný model ztratí posun svých dílů, proto pohyblivé díly (víko truhly) mají osu
 otáčení spočítanou až ve hře z tvaru dílu.
+
+Živá postava v okně postavy (`portraitSystem`): dvojník hráče, kopie hierarchie pod
+`playerSystem.root` (`instantiateHierarchy`, sdílí model a materiály) s vlastní kopií
+kostry a vlastní kopií animace `idle`. Bez nástroje v ruce (`handSlot`), klobouk má.
+Stojí na místě hráče, otočený ke kameře okna, a je jen ve vrstvě `PORTRAIT_LAYER`.
+Hlavní kamera ho proto nevidí. Když se počet dílů hráče změní (nasazení, nástroj),
+dvojník se postaví znovu. Při otevřeném okně jde do `scene.activeCameras` hlavní
+kamera a za ní druhá, která vidí jen tuto vrstvu.
+Druhá kamera kreslí do výřezu pod rámečkem okna ve dvojnásobné velikosti (vyhlazení
+hran, hra nemá MSAA), výřez se smaže do průhledna a po vykreslení se zkopíruje
+(`drawImage`) do `<canvas>` v okně. Kopie místo „díry“ v okně, protože pozadí okna by
+plátno hry zakrylo. Po vykreslení se `scene.activeCamera` vrací na hlavní kameru,
+jinak by klikání a voda počítaly s portrétní. Druhá kamera prochází jen díly postavy
+(vlastní `getActiveMeshCandidates`).
 
 ## Klikání ve světě
 

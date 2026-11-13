@@ -12,10 +12,13 @@ export function itemImage(key) {
 }
 
 export function fillItemIcon(el, key) {
+  return fillIcon(el, itemImage(key), itemIcon(key));
+}
+
+export function fillIcon(el, src, fallback) {
   el.replaceChildren();
-  const src = itemImage(key);
   if (!src) {
-    el.textContent = itemIcon(key);
+    el.textContent = fallback;
     return el;
   }
   const img = document.createElement('img');
@@ -24,7 +27,7 @@ export function fillItemIcon(el, key) {
   img.draggable = false;
   img.addEventListener('error', () => {
     img.remove();
-    el.textContent = itemIcon(key);
+    el.textContent = fallback;
   });
   el.appendChild(img);
   return el;
