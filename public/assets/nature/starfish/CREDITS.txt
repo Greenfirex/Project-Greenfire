@@ -1,0 +1,2 @@
+Model hvězdice — zdroj: Meshy AI (Meshy_AI_Orange_Starfish_on_Wh_1113230801_texture.glb), upraveno pro tento projekt.
+Licence: podle licence účtu Meshy, na kterém byl model vytvořen.

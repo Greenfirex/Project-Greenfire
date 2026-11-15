@@ -96,16 +96,18 @@ Výstup: stejné názvy s příponou `.png` v cílové složce (výchozí
 
 ## scatter/ — sázení drobností do mapy
 
-Pět samostatných nástrojů se společným základem (`scatter/base.mjs`). Každý
+Šest samostatných nástrojů se společným základem (`scatter/base.mjs`). Každý
 načte soubor mapy, spočítá terén stejným kódem jako hra
 (`src/utils/terrainField.js`), takže všechno sedí na skutečný povrch, a nahradí
 **jen svoje vlastní** věci. Ostatní dekorace na mapě nechá být a vyhýbá se
 buňkám, kde už je výsledek jiného nástroje.
 
-- `scatter/shells.mjs` — lastury kolem hladiny (čtyři tvary, tři velikosti)
-  a jedna obrovská mušle u spawnu. Sází se tam, kde je buňka suchá nebo těsně
-  pod hladinou a sousedí s vodou; nikdy ne na sousední buňky, aby nevznikaly
-  hromady. Počet roste s délkou břehu, takže se nemusí nastavovat.
+- `scatter/shells.mjs` — lastury kolem hladiny (dva tvary: vějířová a točená).
+  Sází se tam, kde je buňka suchá nebo těsně pod hladinou a sousedí s vodou;
+  nikdy ne na sousední buňky, aby nevznikaly hromady. Počet roste s délkou
+  břehu, takže se nemusí nastavovat.
+- `scatter/starfish.mjs` — hvězdice na dno v hloubce 0,5–4 m. Nikdy se nesází
+  na suchou buňku; rozprostírají se po dně daleko od sebe.
 - `scatter/corals.mjs` — korály na dno (aspoň 2 m hloubky). Počet shluků se
   počítá z velikosti mapy (jeden shluk na ~450 vodních buněk), každý shluk má
   4 buňky a na každé 8–14 kusů s náhodným posunem a měřítkem. Shluky se

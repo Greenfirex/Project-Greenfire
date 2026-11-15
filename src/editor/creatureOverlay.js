@@ -15,6 +15,7 @@ const SQUARE_SIZE = CELL_SIZE * 0.34;
 const ALIVE_COLOR = new Color3(0.35, 0.95, 0.86);
 const WAITING_COLOR = new Color3(0.28, 0.62, 0.58);
 const NEW_COLOR = new Color3(0.82, 0.86, 0.86);
+const NOTICE_COLOR = new Color3(1, 0.42, 0.24);
 const SQUARE_COLOR = new Color3(0.3, 0.9, 0.8);
 const RING_ALPHA = 0.85;
 const WAITING_ALPHA = 0.55;
@@ -166,11 +167,18 @@ export default class CreatureOverlay {
       const ground = surfaceAt(mark.cx, mark.cz);
       const y = Number.isFinite(ground) ? ground : 0;
       const ring = this.ringAt(used);
-      ring.position = new Vector3(x, y + RING_LIFT, z);
-      ring.scaling.set(mark.radius, 1, mark.radius);
-      ring.color = state === 'alive' ? ALIVE_COLOR : state === 'waiting' ? WAITING_COLOR : NEW_COLOR;
-      ring.alpha = state === 'alive' ? RING_ALPHA : state === 'waiting' ? WAITING_ALPHA : NEW_ALPHA;
-      ring.setEnabled(true);
+      const radius = Number(mark.radius);
+      if (Number.isFinite(radius) && radius > 0) {
+        ring.position = new Vector3(x, y + RING_LIFT, z);
+        ring.scaling.set(radius, 1, radius);
+        ring.color = mark.radiusKind === 'notice'
+          ? NOTICE_COLOR
+          : state === 'alive' ? ALIVE_COLOR : state === 'waiting' ? WAITING_COLOR : NEW_COLOR;
+        ring.alpha = state === 'alive' ? RING_ALPHA : state === 'waiting' ? WAITING_ALPHA : NEW_ALPHA;
+        ring.setEnabled(true);
+      } else {
+        ring.setEnabled(false);
+      }
       const square = this.squareAt(used);
       const outline = this.outlineAt(used);
       if (state === 'alive') {

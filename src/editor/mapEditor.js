@@ -799,7 +799,7 @@ export default class MapEditor {
       grid.clearCreatureRadius();
       return;
     }
-    grid.showCreatureRadius(cell.cx, cell.cz, preview.radius, (cx, cz) => this.s.cellSurfaceAt(cx, cz));
+    grid.showCreatureRadius(cell.cx, cell.cz, preview.radius, (cx, cz) => this.s.cellSurfaceAt(cx, cz), preview.radiusKind);
   }
 
   refreshCreatureMarks() {
@@ -856,9 +856,12 @@ export default class MapEditor {
       const amount = count.max > 1 ? (count.min === count.max ? ` ×${count.min}` : ` ×${count.min}–${count.max}`) : '';
       draft = ` · kreslím: ${brushLabel(this.mode.draft.brushKey)}${amount}`;
     }
-    const roam = beast && Number.isFinite(beast.type.roamRadius)
-      ? ` · toulá se do ${formatMeters(beast.type.roamRadius)}`
-      : '';
+    const range = beast ? this.mode.creatureRangeInfo(beast.type, beast.tier) : null;
+    const roam = !range || range.radius <= 0
+      ? ''
+      : range.radiusKind === 'notice'
+        ? ` · všimne si do ${formatMeters(range.radius)}`
+        : ` · toulá se do ${formatMeters(range.radius)}`;
     const runtime = beast && this.s.creatureStatusAt
       ? this.s.creatureStatusAt(cell.cx, cell.cz, beast.entry.kind, beast.tierKey)
       : null;

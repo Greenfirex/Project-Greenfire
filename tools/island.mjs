@@ -29,19 +29,19 @@ const CLIFF_SHARE = 0.35;
 const CLIFF_STYLE = 'stone';
 const GRASS_CHANCE = 0.3;
 
-const PINE_KEYS = ['tree_pine_a', 'tree_pine_b', 'tree_pine_c', 'tree_pine_d', 'tree_pine_e'];
+const ARAUCARIA_KEYS = ['tree_araucaria_a', 'tree_araucaria_b', 'tree_araucaria_young_a', 'tree_araucaria_young_b'];
 const PALM_KEYS = [
   'tree_palm_a', 'tree_palm_b', 'tree_palm_c',
   'tree_palm_curved_a', 'tree_palm_curved_b', 'tree_palm_curved_c',
 ];
-const TREE_KEYS = new Set([...PINE_KEYS, ...PALM_KEYS, 'tree_almond', 'tree_seagrape']);
+const TREE_KEYS = new Set([...ARAUCARIA_KEYS, ...PALM_KEYS, 'tree_almond', 'tree_seagrape']);
 const ROCK_KEYS = ['rock_small', 'rock_small_flat', 'rock_pair', 'rock_large', 'rock_large_c', 'rock_tall', 'rock_jagged', 'rock_pebbles'];
 const SMALL_KEYS = ['bush', 'bush_small', 'mushroom_red', 'mushroom_tan'];
 
 const BANDS = {
-  top: { pine: 0.16, rock: 0.05, small: 0.02 },
-  mid: { pine: 0.1, almond: 0.1, rock: 0.03, small: 0.06 },
-  low: { pine: 0.05, almond: 0.04, rock: 0.04, small: 0.06 },
+  top: { araucaria: 0.16, rock: 0.05, small: 0.02 },
+  mid: { araucaria: 0.1, almond: 0.1, rock: 0.03, small: 0.06 },
+  low: { araucaria: 0.05, almond: 0.04, rock: 0.04, small: 0.06 },
   coast: { palm: 0.06, seagrape: 0.04, rock: 0.03, small: 0.02 },
 };
 
@@ -349,7 +349,7 @@ if (doPlants) {
       acc += chance;
       if (value < acc) chosen = pickKey(keys, cx, cz, salt);
     };
-    step(weights.pine, PINE_KEYS, 17);
+    step(weights.araucaria, ARAUCARIA_KEYS, 17);
     step(weights.almond, ['tree_almond'], 19);
     step(weights.palm, PALM_KEYS, 29);
     step(weights.seagrape, ['tree_seagrape'], 31);

@@ -3,16 +3,14 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createTerrainField } from '../../src/utils/terrainField.js';
-import { DECORATION_KEYS, getDecoration } from '../../src/data/catalogs/decorations.js';
+import { DECORATION_TYPES, getDecoration } from '../../src/data/catalogs/decorations.js';
 import { CELL_SIZE, cellKey } from '../../src/utils/gridMath.js';
 
 const DEFAULT_MAP = fileURLToPath(new URL('../../src/data/maps/glade/map.json', import.meta.url));
 
 export const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-export const SHELL_KEYS = [
-  'shore_shells', 'shore_shells_mid', 'shore_shells_wide', 'shore_shells_cup',
-  'shell_giant', 'shore_pebbles',
-];
+export const SHELL_KEYS = ['shore_shells', 'shore_shells_mid'];
+export const STARFISH_KEYS = ['starfish'];
 export const CORAL_KEYS = ['coral_clump_1', 'coral_clump_2', 'coral_clump_3', 'coral_clump_4', 'coral_clump_5', 'coral_clump_6', 'coral_clump_7', 'coral_clump_8', 'coral_clump_9', 'coral_clump_10'];
 export const FLOWER_KEYS = [
   'flower_white', 'flower_yellow', 'flower_pink', 'flower_coral', 'flower_purple', 'flower_red',
@@ -21,8 +19,8 @@ export const BUSH_KEYS = [
   'bush', 'bush_round', 'bush_bramble', 'bush_small',
   'bush_monstera', 'bush_monstera_small', 'bush_monstera_large',
 ];
-export const OWNED_KEYS = [...SHELL_KEYS, ...CORAL_KEYS, ...FLOWER_KEYS, ...BUSH_KEYS];
-export const SHELL_VARIANTS = ['shore_shells', 'shore_shells_mid', 'shore_shells_wide', 'shore_shells_cup'];
+export const OWNED_KEYS = [...SHELL_KEYS, ...STARFISH_KEYS, ...CORAL_KEYS, ...FLOWER_KEYS, ...BUSH_KEYS];
+export const SHELL_VARIANTS = SHELL_KEYS;
 export const CORAL_VARIANTS = ['coral_clump_1', 'coral_clump_2', 'coral_clump_3', 'coral_clump_4', 'coral_clump_5', 'coral_clump_6', 'coral_clump_7', 'coral_clump_8', 'coral_clump_9', 'coral_clump_10'];
 
 export function hash(ix, iz) {
@@ -62,11 +60,7 @@ export function cellEntry(key, cx, cz, lift) {
 }
 
 export function shellVariant(cx, cz) {
-  const value = roll(cx, cz, 29);
-  if (value < 0.3) return SHELL_VARIANTS[0];
-  if (value < 0.55) return SHELL_VARIANTS[1];
-  if (value < 0.78) return SHELL_VARIANTS[2];
-  return SHELL_VARIANTS[3];
+  return roll(cx, cz, 29) < 0.5 ? SHELL_VARIANTS[0] : SHELL_VARIANTS[1];
 }
 
 export function coralVariant(seed) {
@@ -75,7 +69,7 @@ export function coralVariant(seed) {
 }
 
 export function sandKeys() {
-  return DECORATION_KEYS.filter((key) => {
+  return Object.keys(DECORATION_TYPES).filter((key) => {
     const def = getDecoration(key);
     return Boolean(def && def.surface && def.surface.spreads);
   });

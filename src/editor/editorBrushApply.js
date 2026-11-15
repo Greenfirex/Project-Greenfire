@@ -27,6 +27,13 @@ function round2(value) {
   return Math.round(value * 100) / 100;
 }
 
+function waterDepthAt(layout, cx, cz, level) {
+  const water = Number.isFinite(layout.waterLevel) ? layout.waterLevel : null;
+  if (water === null) return null;
+  const ground = layerLiftAt(layout, cx, cz, level);
+  return Number.isFinite(ground) ? water - ground : null;
+}
+
 function jumbleAt(cx, cz) {
   return {
     rotation: Math.floor(hash01(cx * 4.7 + 0.3, cz * 6.1 - 1.9) * 4),
@@ -146,8 +153,16 @@ export default {
     const filled = this.zoneEntries(brushKey, brush, [...cells], mode);
     const clearedDeco = new Set();
     const level = this.paintLevel;
+    const targets = brush.waterOnly && mode !== 'remove'
+      ? filled.filter(({ cx, cz }) => {
+        const depth = waterDepthAt(this.layout, cx, cz, level);
+        const min = Number.isFinite(brush.minWaterDepth) ? brush.minWaterDepth : 0;
+        const max = Number.isFinite(brush.maxWaterDepth) ? brush.maxWaterDepth : Infinity;
+        return Number.isFinite(depth) && depth >= min && depth <= max;
+      })
+      : filled;
     let changed = 0;
-    for (const cell of filled) {
+    for (const cell of targets) {
       const { cx, cz } = cell;
       if (mode === 'remove') {
         if (brush.surfaceOnly) {

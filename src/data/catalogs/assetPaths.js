@@ -1,6 +1,8 @@
 // Jediné místo s adresáři assetů ve hře — kategorie modelů a efektů pod public/assets.
 export const ASSET_DIRS = {
   plants: 'assets/nature/plants/',
+  shells: 'assets/nature/shells/',
+  starfish: 'assets/nature/starfish/',
   textures: 'assets/nature/textures/',
   props: 'assets/props/',
   characters: 'assets/characters/',

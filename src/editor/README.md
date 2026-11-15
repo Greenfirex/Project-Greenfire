@@ -100,12 +100,13 @@ Když je vybraný štětec tvora, editor označí všechna spawní místa v map�
 - **obrysový a ztlumený čtvereček** znamená mrtvého tvora, který čeká na obnovu,
 - **neutrální značka** znamená nové místo, které ještě není potvrzené.
 
-Kruh kolem značky ukazuje poloměr toulání. Od živého čtverečku vede tenká
-spojnice k místu, kde tvor skutečně stojí — jakmile se zatoulá nebo vyrazí za
-hráčem, je to vidět. Stojí-li přímo na spawním místě, spojnice se nekreslí.
-Tooltip u buňky vypíše druh, stáří, poloměr a stav — živý, nebo přibližně kolik
-dní zbývá do obnovy. Prázdná mapa znamená žádná spawní místa; editor žádné
-tvory nedoplňuje sám.
+Kruh kolem značky ukazuje poloměr toulání. U tvorů, kteří zůstávají na místě
+(písečný běs), ukazuje oranžový kruh vzdálenost, na kterou si všimne hráče. Od
+živého čtverečku vede tenká spojnice k místu, kde tvor skutečně stojí — jakmile
+se zatoulá nebo vyrazí za hráčem, je to vidět. Stojí-li přímo na spawním místě,
+spojnice se nekreslí. Tooltip u buňky vypíše druh, stáří, poloměr nebo vzdálenost
+pozornosti a stav — živý, nebo přibližně kolik dní zbývá do obnovy. Prázdná mapa
+znamená žádná spawní místa; editor žádné tvory nedoplňuje sám.
 
 ### Výška
 

@@ -103,17 +103,31 @@ export const BRUSHES = {
     note: 'Nasadí hustý les ze všech druhů stromů.',
     shape: 'blob',
     pool: [
-      'tree_pine_a', 'tree_pine_b', 'tree_pine_c', 'tree_pine_d', 'tree_pine_e',
+      'tree_araucaria_a', 'tree_araucaria_b', 'tree_araucaria_young_a', 'tree_araucaria_young_b',
       'tree_seagrape', 'tree_almond',
     ],
     deco: true,
   },
-  saplings: {
-    label: 'Borovice',
+  araucarias: {
+    label: 'Araukárie',
     group: 'Rostliny',
-    note: 'Nasadí jen borovice, bez ostatních stromů.',
+    note: 'Nasadí araukárie, velké i mladé. Náhoda střídá tvary a k tomu i natočení, posun na buňce a velikost.',
     shape: 'blob',
-    pool: ['tree_pine_a', 'tree_pine_b', 'tree_pine_c', 'tree_pine_d', 'tree_pine_e'],
+    pool: ['tree_araucaria_a', 'tree_araucaria_b', 'tree_araucaria_young_a', 'tree_araucaria_young_b'],
+    options: [RANDOM_OPTION],
+    rotate: true,
+    jumble: true,
+    deco: true,
+  },
+  pandans: {
+    label: 'Pandány',
+    group: 'Rostliny',
+    note: 'Nasadí pandány, hodí se na přechod mezi pláží a vnitrozemím. Náhoda střídá oba tvary a k tomu i natočení, posun na buňce a velikost.',
+    shape: 'blob',
+    pool: ['tree_pandan_a', 'tree_pandan_b'],
+    options: [RANDOM_OPTION],
+    rotate: true,
+    jumble: true,
     deco: true,
   },
   palms: {
@@ -394,7 +408,18 @@ export const BRUSHES = {
     group: 'Objekty',
     note: 'Rozsype lastury po písku u vody.',
     shape: 'blob',
-    pool: ['shore_shells', 'shore_shells_mid', 'shore_shells_wide', 'shore_shells_cup'],
+    pool: ['shore_shells', 'shore_shells_mid'],
+    deco: true,
+  },
+  starfish: {
+    label: 'Hvězdice',
+    group: 'Objekty',
+    note: 'Položí hvězdici na dno v hloubce 0,5–4 m. Na suchu se nepoloží.',
+    shape: 'blob',
+    pool: ['starfish'],
+    waterOnly: true,
+    minWaterDepth: 0.5,
+    maxWaterDepth: 4,
     deco: true,
   },
   reef: {
@@ -492,7 +517,7 @@ export function brushAboveGroundOnly(brushKey) {
   const brush = BRUSHES[brushKey];
   if (!brush || brush.erase) return false;
   return Boolean(brush.height || brush.heights || brush.surface || brush.cliff || brush.join || brush.bridge
-    || brush.fish || brush.spawn || brush.lake || brush.river || brush.flora || brush.shape === 'line');
+    || brush.fish || brush.spawn || brush.lake || brush.river || brush.flora || brush.waterOnly || brush.shape === 'line');
 }
 
 export function brushPaintParts(brushKey) {

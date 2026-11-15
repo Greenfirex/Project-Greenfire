@@ -82,8 +82,8 @@ se uloží přímo do souboru mapy, takže si můžeš ostrov předělat k obraz
   Ctrl+Alt+I); do produkčního buildu se nebalí.
 - Zvuky: Free Fantasy SFX Pack od TomMusic (tommusic.itch.io).
 - Hudba: tři skladby z Pixabay Music (licence Pixabay Content License).
-- Modely postav, tvorů, ryb, rostlin a kamenů: Meshy a KayKit (podrobnosti
-  u jednotlivých souborů).
+- Modely postav, tvorů, ryb, mušlí, hvězdic, rostlin a kamenů: Meshy a KayKit
+  (podrobnosti u jednotlivých souborů).
 - Licence všech assetů a jejich původ jsou zapsané v `CREDITS.txt` ve složkách
   `public/assets/`.
 

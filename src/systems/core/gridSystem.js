@@ -18,6 +18,10 @@ const HOLO_VALID = new Color3(0.35, 0.95, 0.8);
 const HOLO_INVALID = new Color3(0.95, 0.38, 0.32);
 
 const HOLOGRAM_ALPHA = 0.45;
+const CREATURE_RADIUS_ROAM = new Color3(1, 0.82, 0.35);
+const CREATURE_RADIUS_ROAM_RING = new Color3(1, 0.86, 0.4);
+const CREATURE_RADIUS_NOTICE = new Color3(1, 0.42, 0.24);
+const CREATURE_RADIUS_NOTICE_RING = new Color3(1, 0.5, 0.3);
 const CREATURE_RADIUS_LIFT = 0.06;
 const CREATURE_RADIUS_STEPS = 72;
 const OUTLINE_LIFT = 0.07;
@@ -311,7 +315,7 @@ export default class GridSystem {
     if (this.hoverMaster) this.hoverMaster.setEnabled(false);
   }
 
-  showCreatureRadius(cx, cz, radiusMeters, surfaceAt) {
+  showCreatureRadius(cx, cz, radiusMeters, surfaceAt, kind = 'roam') {
     const radius = Number(radiusMeters);
     if (!Number.isFinite(radius) || radius <= 0) {
       this.clearCreatureRadius();
@@ -320,8 +324,6 @@ export default class GridSystem {
     if (!this.radiusDisc) {
       this.radiusDisc = MeshBuilder.CreateDisc('creatureRadiusDisc', { radius: 1, tessellation: 64 }, this.s);
       const mat = new StandardMaterial('creatureRadiusMat', this.s);
-      mat.diffuseColor = new Color3(1, 0.82, 0.35);
-      mat.emissiveColor = new Color3(0.9, 0.68, 0.2);
       mat.disableLighting = true;
       mat.backFaceCulling = false;
       mat.alpha = 0.14;
@@ -336,10 +338,13 @@ export default class GridSystem {
         points.push(new Vector3(Math.cos(angle), 0, Math.sin(angle)));
       }
       this.radiusRing = MeshBuilder.CreateLines('creatureRadiusRing', { points }, this.s);
-      this.radiusRing.color = new Color3(1, 0.86, 0.4);
       this.radiusRing.isPickable = false;
       this.radiusRing.setEnabled(false);
     }
+    const notice = kind === 'notice';
+    this.radiusMaterial.diffuseColor = notice ? CREATURE_RADIUS_NOTICE : CREATURE_RADIUS_ROAM;
+    this.radiusMaterial.emissiveColor = notice ? CREATURE_RADIUS_NOTICE_RING : CREATURE_RADIUS_ROAM_RING;
+    this.radiusRing.color = notice ? CREATURE_RADIUS_NOTICE_RING : CREATURE_RADIUS_ROAM_RING;
     const y = surfaceAt(cx, cz) + CREATURE_RADIUS_LIFT;
     this.radiusDisc.position.set(cx * CELL_SIZE, y, cz * CELL_SIZE);
     this.radiusDisc.scaling.set(radius, radius, 1);

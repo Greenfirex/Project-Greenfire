@@ -5,4 +5,6 @@ palm_curved.glb — Meshy AI (image to 3D), vygenerováno pro tento projekt
 monstera.glb — Meshy AI (image to 3D), vygenerováno pro tento projekt
 healing_plant.glb — Meshy AI (image to 3D), vygenerováno pro tento projekt
 cliff_vine.glb — Meshy AI (image to 3D), vygenerováno pro tento projekt
+pandan_a.glb, pandan_b.glb — Meshy AI (image to 3D), vygenerováno pro tento projekt
+araucaria_a.glb, araucaria_b.glb — Meshy AI (image to 3D), vygenerováno pro tento projekt
 Licence a podmínky použití: podle licence účtu Meshy, na kterém byly modely vytvořeny.

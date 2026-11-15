@@ -4,7 +4,6 @@
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { treeTemplate, treeLogTemplate, treeBranchTemplate } from './treeFactory.js';
 import { rockTemplate } from './rockFactory.js';
-import { shellTemplate } from './shellFactory.js';
 import { coralTemplate } from './coralFactory.js';
 import { flowerTemplate } from './flowerFactory.js';
 import { bushTemplate } from './bushFactory.js';
@@ -113,7 +112,6 @@ function proceduralTemplate(scene, def) {
   if (def.driftwood) return treeLogTemplate(scene, def.driftwood);
   if (def.tree) return treeTemplate(scene, def.tree);
   if (def.rock) return rockTemplate(scene, def.rock);
-  if (def.shell) return shellTemplate(scene, def.shell);
   if (def.coral) return coralTemplate(scene, def.coral);
   if (def.flower) return flowerTemplate(scene, def.flower);
   if (def.bush) return bushTemplate(scene, def.bush);

@@ -5,7 +5,7 @@ import { getDecoration } from '../data/catalogs/decorations.js';
 import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
 import { PLANE_LAYERS, ENTRY_LAYERS, layerAt, levelOfEntry, worldCells } from '../data/maps/areaShape.js';
-import { getCreatureType, getCreatureTier } from '../data/catalogs/creatures/index.js';
+import { getCreatureType, getCreatureTier, creatureStat } from '../data/catalogs/creatures/index.js';
 
 function hashText(text) {
   let hash = 2166136261;
@@ -69,15 +69,24 @@ export default {
     return type.tiers[style] ? style : type.defaultTier;
   },
 
+  creatureRangeInfo(type, tier) {
+    if (!type) return { radius: 0, radiusKind: 'none' };
+    const roam = Number(type.roamRadius);
+    if (Number.isFinite(roam) && roam > 0) return { radius: roam, radiusKind: 'roam' };
+    const notice = Number(creatureStat(type, tier, 'aggroRange'));
+    if (Number.isFinite(notice) && notice > 0) return { radius: notice, radiusKind: 'notice' };
+    return { radius: 0, radiusKind: 'none' };
+  },
+
   creaturePreviewAt(cx, cz) {
     if (!this.active || this.mode !== 'zone') return null;
     if (this.draftMode === 'remove') return null;
     const brush = BRUSHES[this.brushKey];
     const type = brush && brush.creatureKind ? getCreatureType(brush.creatureKind) : null;
     if (!type) return null;
-    const radius = Number(type.roamRadius);
-    if (!Number.isFinite(radius) || radius <= 0) return null;
-    return { type, tierKey: this.creatureTierFor(this.brushKey), radius, cx, cz };
+    const tierKey = this.creatureTierFor(this.brushKey);
+    const range = this.creatureRangeInfo(type, getCreatureTier(type, tierKey));
+    return { type, tierKey, radius: range.radius, radiusKind: range.radiusKind, cx, cz };
   },
 
   creatureMarks() {
@@ -86,10 +95,18 @@ export default {
     for (const entry of list) {
       if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz) || levelOfEntry(entry) !== this.paintLevel) continue;
       const type = getCreatureType(entry.kind);
-      const radius = Number(type && type.roamRadius);
-      if (!Number.isFinite(radius) || radius <= 0) continue;
+      if (!type) continue;
       const tierKey = entry.tier && type.tiers[entry.tier] ? entry.tier : type.defaultTier;
-      marks.push({ cx: entry.cx, cz: entry.cz, level: levelOfEntry(entry), radius, kind: entry.kind, tierKey });
+      const range = this.creatureRangeInfo(type, getCreatureTier(type, tierKey));
+      marks.push({
+        cx: entry.cx,
+        cz: entry.cz,
+        level: levelOfEntry(entry),
+        radius: range.radius,
+        radiusKind: range.radiusKind,
+        kind: entry.kind,
+        tierKey,
+      });
     }
     return marks;
   },

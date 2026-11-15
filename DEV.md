@@ -444,8 +444,14 @@ zůstane otevřená (`settle` po načtení). Překážka truhly (`deriveBlocked`
 i s posunem `backToEdge`, jinak by k ní postava nedošla.
 
 Modely z Meshy se před vložením zmenšují (textury WebP 1024, nekovový materiál);
+rostlinám se navíc listí posouvá do teplé žlutozelené jako u palem (Meshy dává studenou modrozelenou)
+a kůra do teple šedé, aby k sobě rostliny barevně seděly;
 nahraný model ztratí posun svých dílů, proto pohyblivé díly (víko truhly) mají osu
 otáčení spočítanou až ve hře z tvaru dílu.
+
+Mušle jsou dva modely (`shell_fan`, `shell_conch`) v `public/assets/nature/shells/`;
+oba se pokládají naplocho a sbírají se jako stejný předmět `shell`. Hvězdice
+(`starfish`) leží na dně v hloubce 0,5–4 m; štětec je pouští jen pod vodu.
 
 Živá postava v okně postavy (`portraitSystem`): dvojník hráče, kopie hierarchie pod
 `playerSystem.root` (`instantiateHierarchy`, sdílí model a materiály) s vlastní kopií

@@ -1,4 +1,4 @@
-// Lastury na břeh — rozsype je po písku kolem hladiny a přidá jednu obrovskou mušli.
+// Lastury na břeh — rozsype je po písku kolem hladiny.
 // Nahradí jen svoje vlastní lastury, ostatní dekorace na mapě nechá být.
 import { cellKey } from '../../src/utils/gridMath.js';
 import {
@@ -12,8 +12,6 @@ const NEIGHBOUR_WATER = 0.1;
 const PATCH_SCALE = 3.2;
 const PATCH_MIN = 0.55;
 const CELL_CHANCE = 0.6;
-const GIANT_ABOVE_MIN = -0.05;
-const GIANT_ABOVE_MAX = 0.35;
 
 const { map, mapPath, dryRun, level, field } = openMap();
 const taken = occupiedCells(map, SHELL_KEYS);
@@ -23,18 +21,6 @@ const candidates = sandCandidates(map, field, level, taken, {
   neighbourWater: NEIGHBOUR_WATER,
 });
 const added = [];
-const spawn = map.spawn || { cx: 0, cz: 0 };
-
-const giantSpot = candidates
-  .filter((cell) => cell.above >= GIANT_ABOVE_MIN && cell.above <= GIANT_ABOVE_MAX)
-  .sort((a, b) => (
-    Math.hypot(a.cx - spawn.cx, a.cz - spawn.cz) - Math.hypot(b.cx - spawn.cx, b.cz - spawn.cz)
-  ))[0] || null;
-
-if (giantSpot) {
-  added.push(cellEntry('shell_giant', giantSpot.cx, giantSpot.cz, giantSpot.lift));
-  taken.add(cellKey(giantSpot.cx, giantSpot.cz));
-}
 
 const spots = [];
 for (const cell of candidates) {
@@ -53,9 +39,7 @@ for (const spot of spots) {
   taken.add(cellKey(spot.cx, spot.cz));
 }
 
-const shellCount = added.filter((entry) => entry.key !== 'shell_giant').length;
-const giantNote = giantSpot ? ` a 1 obrovská mušle (na buňce ${giantSpot.cx},${giantSpot.cz})` : '';
-console.log(`Břeh: ${shellCount} lastur${giantNote}.`);
+console.log(`Břeh: ${added.length} lastur.`);
 
 replaceOwned(map, SHELL_KEYS, added);
 saveMap(map, mapPath, dryRun);

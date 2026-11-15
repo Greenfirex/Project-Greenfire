@@ -19,7 +19,7 @@ export function campfireTemplate(scene, style) {
     cached = new Map();
     templates.set(scene, cached);
   }
-  const key = style || 'pine_a';
+  const key = style || 'campfire_log';
   const existing = cached.get(key);
   if (existing && !existing.isDisposed()) return existing;
   const built = buildCampfire(scene, key);
