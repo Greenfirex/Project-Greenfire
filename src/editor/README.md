@@ -54,6 +54,8 @@ přesně v té podobě, v jaké se položí. Panel štětce se zavírá křížk
 tlačítkem Zrušit — tím se štětec odvybere a náhled pod kurzorem zmizí.
 
 Keře mají navíc hustotu, kolísání počtu a volbu střídání druhů podle polohy.
+Monstery mají vlastní štětec: osází zhruba polovinu buněk, na buňku jednu nebo dvě.
+Každý keř i monstera na buňce má vlastní natočení a velikost.
 Plocha je razítko: nové buňky vzniknou, existující se přepíšou i s objekty,
 mazání udělá v mapě skutečnou díru.
 

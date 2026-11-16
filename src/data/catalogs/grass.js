@@ -10,7 +10,7 @@ export const GRASS_TYPES = {
     models: ['grass_coastal.glb'],
     height: 0.55,
     perCell: { low: 3, medium: 5, high: 9 },
-    tint: [1, 1, 1],
+    tint: [0.39, 0.52, 0.27],
     gain: 1.1,
   },
   broadleaf: {
@@ -18,7 +18,7 @@ export const GRASS_TYPES = {
     models: ['grass_broadleaf.glb'],
     height: 0.5,
     perCell: { low: 3, medium: 5, high: 8 },
-    tint: [1, 1, 1],
+    tint: [0.93, 0.89, 0.47],
     gain: 1.2,
   },
   cushion: {
@@ -26,7 +26,7 @@ export const GRASS_TYPES = {
     models: ['grass_cushion.glb'],
     height: 0.32,
     perCell: { low: 3, medium: 6, high: 9 },
-    tint: [1, 1, 1],
+    tint: [0.44, 0.53, 1],
     gain: 1.1,
   },
   fern: {
@@ -34,7 +34,7 @@ export const GRASS_TYPES = {
     models: ['fern.glb'],
     height: 0.38,
     perCell: { low: 2, medium: 3, high: 5 },
-    tint: [1, 1, 1],
+    tint: [1.34, 0.71, 1.13],
     gain: 1.2,
   },
 };

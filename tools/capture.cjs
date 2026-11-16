@@ -86,7 +86,7 @@ function printPlayer(result) {
   result.frames.forEach((frame, index) => {
     const tool = frame.tool;
     const text = tool
-      ? `osa [${tool.axis.join(', ')}]  spodek ${tool.bottom} m  vršek ${tool.top} m  od dlaně ${tool.hand} m`
+      ? `osa [${tool.axis.join(', ')}]  spodek ${tool.bottom} m  vršek ${tool.top} m  od dlaně ${tool.hand} m${tool.sheath ? `  od úchytu na boku ${tool.sheath.total} m (vpřed ${tool.sheath.ahead}, nahoru ${tool.sheath.up})` : ''}`
       : 'bez nástroje';
     console.log(`  ${index}  ${frame.time.toFixed(2)} s ${frame.label.padEnd(12)} ruka ${frame.hand} m  ${text}`);
   });

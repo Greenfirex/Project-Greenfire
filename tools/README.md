@@ -41,7 +41,8 @@ node tools/capture.cjs player idle --tool torch --view side2 --focus hand --zoom
 ```
 
 Scény: `idle`, `walk`, `run`, `strike` (úder animací zbraně, jinak `--anim chop|mine|punch|kick`),
-`pickup`. `--tool` je klíč z `TOOL_TYPES`. `--combat 1` postaví postavu do bojového
+`pickup`, `draw` a `sheath` (tasení z boku a zandání, potřebují `--sheath club`;
+u `sheath` i `--tool club`). `--tool` je klíč z `TOOL_TYPES`, `--sheath` dá zbraň na bok. `--combat 1` postaví postavu do bojového
 postoje, `--lead 0.3` počká před úderem nebo sbíráním (vidět je pak i přechod tam a zpět),
 `--glance 1` vynutí brzké rozhlédnutí ve stoji, `--kneel 2` nechá postavu po sbírání
 v dřepu 2 s (jako při otevřené truhle), `--lid 0.55` při tom natáhne ruce k víku

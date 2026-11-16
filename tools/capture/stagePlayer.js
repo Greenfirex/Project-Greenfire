@@ -7,18 +7,20 @@ import { TOOL_TYPES } from '../../src/data/catalogs/items.js';
 const STEP = 1 / 60;
 const TOOL_WAIT_MS = 15000;
 const LID_AHEAD = 0.65;
-const SCENES = ['idle', 'walk', 'run', 'strike', 'pickup'];
+const HIP_LENGTH = 0.8;
+const SCENES = ['idle', 'walk', 'run', 'strike', 'pickup', 'draw', 'sheath'];
+const HIP_SCENES = ['draw', 'sheath'];
 
 function rounded(value, digits) {
   return Number.isFinite(value) ? Number(value.toFixed(digits)) : null;
 }
 
-async function waitForTool(player) {
+async function waitFor(check) {
   const until = performance.now() + TOOL_WAIT_MS;
-  while (!player.toolNode && performance.now() < until) {
+  while (!check() && performance.now() < until) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  return Boolean(player.toolNode);
+  return Boolean(check());
 }
 
 function toolReport(player) {
@@ -36,7 +38,17 @@ function toolReport(player) {
     top: bounds ? rounded(bounds.max.y, 2) : null,
     bottom: bounds ? rounded(bounds.min.y, 2) : null,
     hand: hand ? rounded(Vector3.Distance(hand, base), 3) : null,
+    sheath: sheathGap(player, node),
   };
+}
+
+function sheathGap(player, node) {
+  const tool = TOOL_TYPES[player.toolNodeKey];
+  if (!player.sheathSlot || !tool || !tool.grip) return null;
+  const grip = Vector3.TransformCoordinates(new Vector3(0, tool.grip.hold || 0, 0), node.getWorldMatrix());
+  const gap = grip.subtract(player.sheathSlot.getAbsolutePosition());
+  const forward = new Vector3(Math.sin(player.facing), 0, Math.cos(player.facing));
+  return { ahead: rounded(Vector3.Dot(gap, forward), 3), up: rounded(gap.y, 3), total: rounded(gap.length(), 3) };
 }
 
 export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
@@ -52,7 +64,14 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
   if (toolKey) {
     player.heldToolKey = toolKey;
     player.refreshToolNode();
-    if (!(await waitForTool(player))) return { error: `model nástroje se nenačetl: ${toolKey}` };
+    if (!(await waitFor(() => player.toolNode))) return { error: `model nástroje se nenačetl: ${toolKey}` };
+  }
+  const sheathKey = options.sheath || null;
+  if (sheathKey) {
+    if (!TOOL_TYPES[sheathKey]) return { error: `neznámá zbraň: ${sheathKey}` };
+    player.setSheathedTool(sheathKey);
+    if (!(await waitFor(() => player.sheathNode))) return { error: `zbraň na boku se neukázala: ${sheathKey}` };
+    player.weaponDrawn = Boolean(toolKey);
   }
   if (options.combat) player.inCombat = () => true;
   if (options.glance) player.glance.wait = 0.3;
@@ -70,12 +89,23 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
   const actions = {
     strike: () => player.strike(anim),
     pickup: () => player.pickUp(),
+    draw: () => {
+      player.weaponDrawn = true;
+      player.setHeldTool(sheathKey, false, true);
+      return HIP_LENGTH;
+    },
+    sheath: () => {
+      player.weaponDrawn = false;
+      player.setHeldTool(null, false, true);
+      return HIP_LENGTH;
+    },
   };
+  if (HIP_SCENES.includes(scenario) && !sheathKey) return { error: 'tasení potřebuje --sheath <zbraň>' };
   const action = actions[scenario] || null;
   const lead = action ? options.lead || 0 : 0;
   let seconds = options.seconds || 2;
   if (action) {
-    const length = action();
+    const length = HIP_SCENES.includes(scenario) ? HIP_LENGTH : action();
     player.strikeTimer = 0;
     player.pickupTimer = 0;
     player.play(player.idleAnim(), true);
@@ -114,7 +144,7 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
   }
   return {
     player: true,
-    creature: `postava-${toolKey || 'bez-nastroje'}`,
+    creature: `postava-${toolKey || sheathKey || 'bez-nastroje'}`,
     height: Number(height.toFixed(2)),
     groundLine: null,
     frames,

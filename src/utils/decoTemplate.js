@@ -12,7 +12,8 @@ import { resolveModel } from './assetLoader.js';
 import { getTreeRecipe } from '../data/catalogs/trees.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import TreeWindPlugin from '../systems/flora/treeWindPlugin.js';
-import ModelSaturationPlugin from '../systems/materials/modelSaturationPlugin.js';
+import FloraColorPlugin from '../systems/materials/floraColorPlugin.js';
+import { modelColorsFor } from '../data/catalogs/floraColor.js';
 import ModelRimPlugin from '../systems/materials/modelRimPlugin.js';
 
 const treeModels = new WeakMap();
@@ -53,14 +54,10 @@ function fitModelBase(template) {
   template.metadata = { ...(template.metadata || {}), modelHeight: Math.max(0.001, top - bottom) };
 }
 
-function addModelSaturation(template, amount) {
-  if (!Number.isFinite(amount) || amount === 1) return;
-  for (const mesh of template.getChildMeshes()) {
-    const material = mesh.material;
-    if (!material || tintedMaterials.has(material)) continue;
-    tintedMaterials.add(material);
-    new ModelSaturationPlugin(material, amount);
-  }
+function addFloraColor(material, colors) {
+  if (!material || !colors || tintedMaterials.has(material)) return;
+  tintedMaterials.add(material);
+  new FloraColorPlugin(material, colors);
 }
 
 function addModelRim(template, amount, power) {
@@ -141,6 +138,7 @@ export function treeModelTemplate(scene, key) {
       return treeModelTemplate(scene, key);
     });
   }
+  const colors = modelColorsFor(url);
   const promise = resolveModel(scene, url).then((template) => {
     if (!template) return null;
     const root = template.clone(`tplTreeModel_${key}`, null, false);
@@ -171,10 +169,7 @@ export function treeModelTemplate(scene, key) {
       mesh.receiveShadows = true;
       const material = mesh.material;
       if (material) {
-        if (recipe.modelSaturation && !tintedMaterials.has(material)) {
-          tintedMaterials.add(material);
-          new ModelSaturationPlugin(material, recipe.modelSaturation);
-        }
+        addFloraColor(material, colors);
         if (!windMaterials.has(material)) {
           windMaterials.add(material);
           new TreeWindPlugin(material, { height: recipe.height, strength: WIND_STRENGTH });
@@ -199,7 +194,8 @@ export function decorationTemplate(scene, def) {
   return resolveModel(scene, def.model).then((template) => {
     if (!template) return null;
     fitModelBase(template);
-    if (def.modelSaturation) addModelSaturation(template, def.modelSaturation);
+    const colors = modelColorsFor(def.model);
+    if (colors) for (const mesh of template.getChildMeshes()) addFloraColor(mesh.material, colors);
     if (def.modelRim) addModelRim(template, def.modelRim, def.modelRimPower);
     if (def.wind) addModelWind(template, def.wind);
     return template;

@@ -56,11 +56,11 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ### Zbraně a mířené rány (plán v `DEV.md`, sekce „Boj se zbraněmi — plán po etapách")
 
-- [ ] Etapa 1: zbraň v políčku Zbraň, tasení a zandávání, bojový postoj.
+- [ ] Etapa 1b: pochodeň v levé ruce, když je zbraň tasená (zatím se při tasení schová).
 - [ ] Etapa 2: mířená rána ke kurzoru do výseče, přitažení míření, kostka jen na kvalitu rány.
 - [ ] Etapa 3: víc cílů naráz (cleave) a těžká rána.
 - [ ] Etapa 4: tvorové útočí výsečí s nápřahem, úskok na mezerník.
-- [ ] Před etapou rozhodnout otevřené otázky (klávesa tasení, ovládání těžké rány, sekyra jako zbraň, pochodeň s tasenou zbraní).
+- [ ] Před etapou rozhodnout otevřené otázky (ovládání těžké rány, sekyra jako zbraň).
 
 ### Etapa 3 — kořist
 

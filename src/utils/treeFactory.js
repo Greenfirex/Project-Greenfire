@@ -11,6 +11,7 @@ import { buildTreeSkeleton } from './treeSkeleton.js';
 import { getTreeRecipe } from '../data/catalogs/trees.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import TreeWindPlugin from '../systems/flora/treeWindPlugin.js';
+import FloraColorPlugin from '../systems/materials/floraColorPlugin.js';
 
 const templates = new WeakMap();
 const stumps = new WeakMap();
@@ -120,6 +121,7 @@ function addWind(material, recipe) {
     strength: recipe.height * 0.013,
     height: recipe.height,
   });
+  new FloraColorPlugin(material);
 }
 
 function cutMaterial(scene) {

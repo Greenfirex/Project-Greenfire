@@ -444,8 +444,9 @@ zůstane otevřená (`settle` po načtení). Překážka truhly (`deriveBlocked`
 i s posunem `backToEdge`, jinak by k ní postava nedošla.
 
 Modely z Meshy se před vložením zmenšují (textury WebP 1024, nekovový materiál);
-rostlinám se navíc listí posouvá do teplé žlutozelené jako u palem (Meshy dává studenou modrozelenou)
-a kůra do teple šedé, aby k sobě rostliny barevně seděly;
+pandánům se listí posunulo do teplé žlutozelené přímo v textuře (Meshy dává studenou modrozelenou);
+hustý keř z Meshy vyšel uvnitř i z boku skoro černý, proto je ibišek procedurální
+(textura se dvěma větvičkami, `sprigs` v receptu určuje, kolik karet nese květ);
 nahraný model ztratí posun svých dílů, proto pohyblivé díly (víko truhly) mají osu
 otáčení spočítanou až ve hře z tvaru dílu.
 
@@ -555,6 +556,14 @@ Zem i stébla počítají barvu stejným kódem, stéblo bere barvu země pod se
 určí poloha nebo předvolba Směs uložená k buňce. Trsy se kreslí jako kopie jednoho
 tvaru po čtvercích mapy. V Možnostech jde vypnout míchání tří textur země.
 
+Barvy stromů a keřů drží `src/data/catalogs/floraColor.js`. `FLORA_GRADE` (jas,
+teplota, sytost) dolaďuje všechny rostliny najednou; `MODEL_COLORS` srovnává listí
+každého modelu z Meshy na společnou žlutozelenou (mezi palmou a banánovníkem).
+Procedurální keře a listnáče se na stejnou barvu srovnávají svými odstíny v katalogu.
+Obojí provádí `FloraColorPlugin`; listí pozná podle toho, že je zelenější než okolí.
+Tráva má vlastní barvení podle země; trsy se na společnou zelenou (o kousek světlejší
+než koberec stébel) srovnávají svým `tint` v `grass.js`, pobřežní tráva je o něco sušší.
+
 ## Boj se zbraněmi — plán po etapách
 
 Schváleno 13. 11. 2026. Etapy jdou dělat a zkoušet po jedné; po každé je hra hratelná.
@@ -575,9 +584,30 @@ Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
 - Klacek dostane `slot: 'weapon'`; zbraň se bere z výbavy, ne z lišty. Útok a rána
   (`playerAttackSystem.setWeapon`) se počítají z nasazené zbraně, jen když je tasená;
   zandaná = pěsti.
-- Stav tasená/zandaná drží postava; klávesa **X** ho přepíná (rozhodnuto).
-  Neukládá se — po načtení je zbraň zandaná.
-- Model: tasená v ruce (`handSlot`), zandaná zatím skrytá (na záda později).
+- Stav tasená/zandaná drží postava (`playerSystem.weaponDrawn`); klávesa **X** ho
+  přepíná. Ukládá se u postavy; starší uložení ho nemají a načtou se se zandanou zbraní.
+- Co je ve které ruce, rozhoduje jen `refreshHands` v `sceneEquipment.js` (tasená zbraň,
+  jinak věc z lišty). Zbraně na lištu nesmí (`hotbarTool`). Klik na tvora zbraň tasí
+  hned bez animace; zandá se po 8 s mimo boj, při sběru, otevírání kořisti, výběru věci
+  na liště a po smrti. První sebraný klacek se sám nasadí do prázdného políčka Zbraň.
+- Model: tasená v ruce (`handSlot`), zandaná visí na boku u ruky se zbraní (pozor: model je
+  ve scéně zrcadlený, kost `RightHand` je z pohledu `front` vpravo; `sheath.side` záporné
+  = strana ruky se zbraní; úchyt na kosti boků,
+  poloha a sklon v `sheath` u zbraně v `TOOL_TYPES`, měřeno v šířkách boků, takže sedí
+  při jakékoli velikosti modelu). Tasení i zandání klávesou X je naprogramovaný pohyb
+  pravé paže k boku (`reachHip`), v půlce se zbraň přehodí. Paže se ohýbá v lokti
+  (`reachArm`) a pěst se dorovnává několikrát za snímek i se sevřením prstů a natočením
+  zápěstí, aby dosedla přesně na úchyt; s předchozí pózou se prolíná kost po kosti
+  (částečné natočení kostí zvlášť dává skoky). Fotoateliér hlásí odstup úchopu od úchytu
+  na boku. Osy boků se počítají ze stehen a páteře; kvůli zrcadlení je dopředu
+  `Cross(side, up)`. Model postavy vlastní
+  animaci tasení nemá. Klik na tvora tasí stejně a rána přijde až po vytažení.
+- Bojový postoj (`Combat_Stance`) je dělaný pro štít; s tasenou zbraní ho `holdGuard`
+  přepíše: paže míří do bodů kolem ramene (`guard` u zbraně: loket, ruka, levá ruka
+  v metrech do strany / nahoru / dopředu) a zbraň drží směr `guard.club`. Při úderu,
+  tasení a sbírání se úprava plynule vypne.
+- Pochodeň s tasenou zbraní: rozhodnuto do levé ruky (krok 1b); do té doby se při
+  tasení schová.
 - Hotovo, když: klacek jde nasadit do políčka Zbraň, klávesou se tasí a zandá,
   postava s tasenou zbraní stojí v bojovém postoji a bije klackem; zandaná bije pěstí.
 
@@ -612,5 +642,3 @@ Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
 - Těžká rána: podržet levé tlačítko, nebo pravé tlačítko? Pravé dnes otáčí kamerou
   (tažení) a krátkým klikem připíná tvora.
 - Sekyra a krumpáč: jen nástroje, nebo i slabé zbraně, když jsou v ruce?
-- Pochodeň v ruce a tasená zbraň současně (pochodeň v levé ruce)?
-- Zandaná zbraň vidět na zádech / u pasu — kdy a jak.

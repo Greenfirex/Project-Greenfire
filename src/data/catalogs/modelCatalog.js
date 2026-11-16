@@ -39,6 +39,9 @@ export const PLAYER_LEFT_UPPER_ARM_BONES = ['LeftArm', 'mixamorig:LeftArm'];
 export const PLAYER_LEFT_FOREARM_BONES = ['LeftForeArm', 'mixamorig:LeftForeArm'];
 export const PLAYER_LEFT_HAND_BONES = ['LeftHand', 'mixamorig:LeftHand'];
 export const PLAYER_SPINE_BONES = ['Spine01', 'Spine02', 'mixamorig:Spine1', 'mixamorig:Spine2'];
+export const PLAYER_LOWER_SPINE_BONES = ['Spine', 'mixamorig:Spine'];
+export const PLAYER_LEFT_THIGH_BONES = ['LeftUpLeg', 'mixamorig:LeftUpLeg'];
+export const PLAYER_RIGHT_THIGH_BONES = ['RightUpLeg', 'mixamorig:RightUpLeg'];
 export const PLAYER_FINGER_BONES = [
   'RightHandIndex1', 'RightHandIndex2', 'RightHandIndex3',
   'RightHandMiddle1', 'RightHandMiddle2', 'RightHandMiddle3',

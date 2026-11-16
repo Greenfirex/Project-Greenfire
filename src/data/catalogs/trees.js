@@ -15,7 +15,6 @@ const LEAF_ATLAS_UV = [
 export const TREE_RECIPES = {
   araucaria_a: {
     file: 'araucaria_a.glb',
-    modelSaturation: 2,
     height: 8,
     lean: 0.1,
     trunkRadius: 0.24,
@@ -41,7 +40,6 @@ export const TREE_RECIPES = {
   },
   araucaria_b: {
     file: 'araucaria_b.glb',
-    modelSaturation: 2,
     height: 6.6,
     lean: 0.1,
     trunkRadius: 0.21,
@@ -67,7 +65,6 @@ export const TREE_RECIPES = {
   },
   araucaria_young_a: {
     file: 'araucaria_a.glb',
-    modelSaturation: 2,
     height: 3.8,
     lean: 0.1,
     trunkRadius: 0.13,
@@ -93,7 +90,6 @@ export const TREE_RECIPES = {
   },
   araucaria_young_b: {
     file: 'araucaria_b.glb',
-    modelSaturation: 2,
     height: 3.2,
     lean: 0.1,
     trunkRadius: 0.11,
@@ -120,7 +116,6 @@ export const TREE_RECIPES = {
   palm_a: {
     shape: 'palm',
     file: 'palm_a.glb',
-    modelSaturation: 2,
     height: 5.2,
     lean: 0.55,
     trunkRadius: 0.12,
@@ -142,7 +137,6 @@ export const TREE_RECIPES = {
   palm_b: {
     shape: 'palm',
     file: 'palm_a.glb',
-    modelSaturation: 2,
     height: 6.4,
     lean: 0.9,
     trunkRadius: 0.105,
@@ -164,7 +158,6 @@ export const TREE_RECIPES = {
   palm_c: {
     shape: 'palm',
     file: 'palm_a.glb',
-    modelSaturation: 2,
     height: 4.2,
     lean: 0.75,
     trunkRadius: 0.13,
@@ -186,7 +179,6 @@ export const TREE_RECIPES = {
   palm_curved_a: {
     shape: 'palm',
     file: 'palm_curved.glb',
-    modelSaturation: 2,
     height: 5,
     lean: 1.0,
     trunkRadius: 0.12,
@@ -208,7 +200,6 @@ export const TREE_RECIPES = {
   palm_curved_b: {
     shape: 'palm',
     file: 'palm_curved.glb',
-    modelSaturation: 2,
     height: 6.2,
     lean: 1.25,
     trunkRadius: 0.12,
@@ -230,7 +221,6 @@ export const TREE_RECIPES = {
   palm_curved_c: {
     shape: 'palm',
     file: 'palm_curved.glb',
-    modelSaturation: 2,
     height: 4,
     lean: 0.8,
     trunkRadius: 0.13,
@@ -252,7 +242,6 @@ export const TREE_RECIPES = {
   banana_a: {
     shape: 'palm',
     file: 'banana_a.glb',
-    modelSaturation: 2,
     height: 3.6,
     trunkRadius: 0.16,
     trunkSides: 9,
@@ -273,7 +262,6 @@ export const TREE_RECIPES = {
   banana_b: {
     shape: 'palm',
     file: 'banana_b.glb',
-    modelSaturation: 2,
     height: 3.3,
     trunkRadius: 0.15,
     trunkSides: 9,
@@ -294,7 +282,6 @@ export const TREE_RECIPES = {
   pandan_a: {
     shape: 'palm',
     file: 'pandan_a.glb',
-    modelSaturation: 2,
     height: 4.2,
     lean: 0.4,
     trunkRadius: 0.13,
@@ -316,7 +303,6 @@ export const TREE_RECIPES = {
   pandan_b: {
     shape: 'palm',
     file: 'pandan_b.glb',
-    modelSaturation: 2,
     height: 4.8,
     lean: 0.3,
     trunkRadius: 0.13,
@@ -355,8 +341,8 @@ export const TREE_RECIPES = {
     leafUv: LEAF_ATLAS_UV,
     barkTint: [0.92, 0.88, 0.82],
     barkTintTop: [1.02, 0.98, 0.9],
-    leafTint: [0.96, 1.1, 0.88],
-    leafTintTop: [1.05, 1.15, 0.96],
+    leafTint: [0.51, 0.76, 0.23],
+    leafTintTop: [0.56, 0.79, 0.25],
   },
   almond_a: {
     shape: 'skeleton',
@@ -378,8 +364,8 @@ export const TREE_RECIPES = {
     leafUv: LEAF_ATLAS_UV,
     barkTint: [0.88, 0.84, 0.78],
     barkTintTop: [1.0, 0.96, 0.9],
-    leafTint: [1.0, 1.1, 0.9],
-    leafTintTop: [1.08, 1.16, 0.98],
+    leafTint: [0.43, 0.66, 0.23],
+    leafTintTop: [0.46, 0.7, 0.25],
   },
   campfire_log: {
     height: 4.8,

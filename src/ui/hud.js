@@ -50,6 +50,7 @@ export default class Hud {
       <div class="hud-row"><span>Rotace kamery</span><strong>tažení myší</strong></div>
       <div class="hud-row"><span>Zoom</span><strong>kolečko</strong></div>
       <div class="hud-row"><span>Nástroj v ruce</span><span class="hud-key">1</span>–<span class="hud-key">5</span></div>
+      <div class="hud-row"><span>Tasit / zandat zbraň</span><span class="hud-key">X</span></div>
       <div class="hud-row"><span>Zapálit táborák</span><span class="hud-key">E</span></div>
       <div class="hud-row"><span>Mřížka</span><span class="hud-key">G</span></div>
       <div class="hud-row"><span>Přesunout den</span><span class="hud-key">N</span></div>

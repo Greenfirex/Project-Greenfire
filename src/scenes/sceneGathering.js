@@ -133,6 +133,7 @@ export default {
 
   beginLootPickup(x, z, onImpact, reach = null, sound = PICKUP_SOUND) {
     if (this.lootPickup) this.finishLootPickup();
+    this.sheathWeapon('instant');
     this.playerSystem.faceTo(x, z);
     this.playerSystem.pickUp();
     this.playerSystem.reachTarget = reach;
@@ -179,6 +180,7 @@ export default {
   },
 
   strikeGather(item) {
+    this.sheathWeapon('instant');
     const swung = item ? this.gatherSystem.hitItem(item) : this.gatherSystem.beginHit();
     if (swung) this.playerStats.spendGather();
     return swung;

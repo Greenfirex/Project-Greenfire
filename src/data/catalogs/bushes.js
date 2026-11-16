@@ -1,19 +1,7 @@
 // Recepty na keře — tvar, rozměry v metrech, počet karet listí a textura.
 // Keř nevzniká v modelovém souboru, takže se dá ladit jedním číslem.
+// sprigs = podíly větviček vedle sebe v textuře, leafTint = korekce jen listí (květy zůstanou).
 export const BUSH_TYPES = {
-  laurel: {
-    label: 'Vavřínový keř',
-    seed: 1301,
-    texture: 'bush_broadleaf.png',
-    shape: 'dome',
-    height: 2.5,
-    width: 3,
-    depth: 3,
-    cards: 52,
-    cardSize: 1.5,
-    lean: 0.55,
-    tint: [0.82, 0.94, 0.74],
-  },
   round: {
     label: 'Kulatý keř',
     seed: 1709,
@@ -26,7 +14,23 @@ export const BUSH_TYPES = {
     cards: 44,
     cardSize: 1.25,
     lean: 0.5,
-    tint: [0.74, 0.87, 0.68],
+    tint: [0.5, 0.7, 0.33],
+  },
+  hibiscus: {
+    label: 'Ibišek',
+    seed: 1301,
+    texture: 'bush_hibiscus.png',
+    sprigs: [0.8, 0.2],
+    shape: 'dome',
+    height: 1.7,
+    width: 2.3,
+    depth: 2.2,
+    cards: 54,
+    cardSize: 1.15,
+    inner: 1.4,
+    lean: 0.6,
+    tint: [0.85, 0.85, 0.85],
+    leafTint: [0.97, 1.27, 0.3],
   },
   bramble: {
     label: 'Ostružiník',
@@ -41,7 +45,7 @@ export const BUSH_TYPES = {
     cardSize: 1.12,
     inner: 2,
     lean: 0.85,
-    tint: [0.7, 0.85, 0.66],
+    tint: [0.65, 0.9, 0.38],
   },
   low: {
     label: 'Nízký divoký keř',
@@ -54,12 +58,12 @@ export const BUSH_TYPES = {
     cards: 50,
     cardSize: 1,
     lean: 0.4,
-    tint: [0.78, 0.91, 0.73],
+    tint: [0.61, 0.9, 0.28],
   },
 };
 
 export const BUSH_KEYS = Object.keys(BUSH_TYPES);
 
 export function getBushRecipe(key) {
-  return BUSH_TYPES[key] || BUSH_TYPES.laurel;
+  return BUSH_TYPES[key] || BUSH_TYPES.round;
 }

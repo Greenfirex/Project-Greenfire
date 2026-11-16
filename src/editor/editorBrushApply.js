@@ -492,6 +492,7 @@ export default {
   clusterConfigFor(brushKey, brush) {
     const base = brush && brush.cluster;
     if (!base) return null;
+    if (Number.isFinite(base.max)) return base.max > 1 ? base : null;
     const density = Math.round(Number(this.brushOptionValue(brushKey, 'density')) || 1);
     const jitter = this.brushOptionValue(brushKey, 'jitter');
     const min = Math.max(1, jitter ? density - 1 : density);

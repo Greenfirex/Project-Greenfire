@@ -2,6 +2,8 @@ Grass001_1K-JPG_Color.jpg – ambientCG (https://ambientcg.com/view?id=Grass001)
 Grass001_1K-JPG_NormalGL.jpg – ambientCG (https://ambientcg.com/view?id=Grass001), licence CC0
 Grass002_1K-JPG_Color.jpg – ambientCG (https://ambientcg.com/view?id=Grass002), licence CC0
 Grass003_1K-JPG_Color.jpg – ambientCG (https://ambientcg.com/view?id=Grass003), licence CC0
+Ground037_1K-JPG_Color.jpg – ambientCG (https://ambientcg.com/view?id=Ground037), licence CC0
+Ground037_1K-JPG_NormalGL.jpg – ambientCG (https://ambientcg.com/view?id=Ground037), licence CC0
 Ground052_1K-JPG_Color.jpg – ambientCG (https://ambientcg.com/view?id=Ground052), licence CC0
 Ground052_1K-JPG_NormalGL.jpg – ambientCG (https://ambientcg.com/view?id=Ground052), licence CC0
 aerial_beach_02_nor_gl_1k.jpg – Poly Haven (https://polyhaven.com/a/aerial_beach_02), licence CC0
@@ -34,3 +36,4 @@ foam_fine_opacity.jpg - ambientCG (https://ambientcg.com/view?id=Foam002), licen
 foam_fine_normal.jpg - ambientCG (https://ambientcg.com/view?id=Foam002), licence CC0
 foam_coarse_color.jpg - ambientCG (https://ambientcg.com/view?id=Foam003), licence CC0
 foam_coarse_opacity.jpg - ambientCG (https://ambientcg.com/view?id=Foam003), licence CC0
+bush_hibiscus.png - AI generated, upraveno: 2 vetvicky slozene do atlasu, odstranene modre pozadi, okraje prebarvene

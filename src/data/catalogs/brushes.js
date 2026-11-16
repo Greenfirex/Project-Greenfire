@@ -255,10 +255,7 @@ export const BRUSHES = {
     group: 'Rostliny',
     note: 'Nasadí keře; hustota říká, kolik jich na buňce vyroste, kolísání to nechá houpat o ±1. Skvrny = druh se střídá sám po plochách kolem sedmi buněk.',
     shape: 'blob',
-    pool: [
-      'bush', 'bush_round', 'bush_bramble', 'bush_small',
-      'bush_monstera', 'bush_monstera_small', 'bush_monstera_large',
-    ],
+    pool: ['bush', 'bush_round', 'bush_bramble', 'bush_small'],
     options: [
       { key: 'density', label: 'Hustota', kind: 'range', default: 2, min: 1, max: 5, step: 1 },
       { key: 'jitter', label: 'Kolísání ±1', default: true },
@@ -266,6 +263,17 @@ export const BRUSHES = {
     ],
     patch: 7,
     cluster: { spread: 0.65, scaleMin: 0.7, scaleMax: 1.3 },
+    deco: true,
+  },
+  monsteras: {
+    label: 'Monstery',
+    group: 'Rostliny',
+    note: 'Rozhází monstery po ploše: zhruba na polovinu buněk, na buňku jednu nebo dvě, každou jinak natočenou a jinak velkou.',
+    shape: 'blob',
+    pool: ['bush_monstera', 'bush_monstera_small', 'bush_monstera_large'],
+    options: [RANDOM_OPTION],
+    fill: 0.5,
+    cluster: { min: 1, max: 2, spread: 0.8, scaleMin: 0.75, scaleMax: 1.3 },
     deco: true,
   },
   grass: {

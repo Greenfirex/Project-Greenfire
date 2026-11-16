@@ -54,6 +54,7 @@ function fillBlob(makeRng, brush, cells) {
   const entries = [];
   for (const [cx, cz] of out) {
     const local = cellRng(makeRng, key(cx, cz));
+    if (brush.fill && local() > brush.fill) continue;
     const species = pick(local, pool);
     if (!cluster) {
       entries.push({ cx, cz, key: species });

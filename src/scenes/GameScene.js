@@ -724,7 +724,7 @@ export default class GameScene {
       else this.audioSystem.play('wakeUp');
     };
     this.playerSystem.spawnCell = this.mapLayout.spawn;
-    this.playerSystem.setHeldTool(this.heldItemSystem.key);
+    this.refreshHands('instant');
     this.playerSystem.onProgress = (done) => this.loader.floatProgress(done);
     const root = await this.playerSystem.create();
     if (!root) return;
@@ -1233,15 +1233,15 @@ export default class GameScene {
   }
 
   refreshCharacterPanel() {
+    const weapon = this.equippedWeapon();
     this.characterPanel.updateCharacter({
       health: this.playerStats.health,
       maxHealth: this.playerStats.maxHealth,
       stamina: this.playerStats.stamina,
       maxStamina: this.playerStats.maxStamina,
-      attack: this.playerAttackSystem.attack,
+      ...this.playerAttackSystem.weaponStats(weapon ? weapon.tool : null),
       defense: this.playerStats.defense,
       armor: this.playerStats.armor,
-      damage: this.playerAttackSystem.damage,
       resistances: this.playerStats.resistances,
     });
   }
@@ -1252,6 +1252,8 @@ export default class GameScene {
       this.inventorySystem.add(itemKey, amount);
       const tool = toolForItem(itemKey);
       if (fresh && tool) this.heldItemSystem.keep(tool);
+      const def = ITEM_TYPES[itemKey];
+      if (fresh && def && def.slot === 'weapon' && !this.equipmentSystem.get('weapon')) this.equipItem(itemKey, 'weapon');
     }
     this.refreshInventory();
     this.logGain(yields);
@@ -1271,7 +1273,9 @@ export default class GameScene {
   }
 
   selectTool(key) {
-    if (this.ownsTool(key)) this.heldItemSystem.set(key);
+    if (!this.ownsTool(key)) return;
+    this.sheathWeapon('instant');
+    this.heldItemSystem.set(key);
   }
 
   refreshInventory() {
@@ -1283,12 +1287,10 @@ export default class GameScene {
 
   onHeldItemChange() {
     this.hotbar.setSelected(this.heldItemSystem.key);
-    this.playerSystem.setHeldTool(this.heldItemSystem.key);
-    this.playerAttackSystem.setWeapon(this.heldItemSystem.tool());
+    this.refreshHands();
     this.gatherSystem.setTool(this.heldItemSystem.tool());
     this.gridSystem.hideHologram();
     this.setPointerCursorState();
-    if (this.characterPanel.open) this.refreshCharacterPanel();
   }
 
   setupInput() {
@@ -1524,6 +1526,12 @@ export default class GameScene {
     if (evt.key === 'g' || evt.key === 'G') {
       if (!evt.repeat) this.toggleGrid();
       evt.preventDefault();
+      return;
+    }
+    if ((evt.key === 'x' || evt.key === 'X') && !typing) {
+      if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+      evt.preventDefault();
+      if (!evt.repeat) this.toggleWeapon();
       return;
     }
     if ((evt.key === 'n' || evt.key === 'N') && !evt.ctrlKey && !evt.metaKey && !evt.altKey && !typing) {

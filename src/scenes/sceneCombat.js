@@ -87,8 +87,15 @@ export default {
   },
 
   swingCreature(creature) {
+    if (this.drawStrike) return false;
+    if (this.playerAttackSystem.canSwing(creature, this.playerSystem) && this.drawWeapon()) {
+      this.playerSystem.faceTo(creature.x, creature.z, this.playerAttackSystem.reach);
+      this.drawStrike = { creature, left: this.playerSystem.toolSwapLeft };
+      return true;
+    }
     const swung = this.playerAttackSystem.swing(creature, this.playerSystem);
     if (swung) {
+      this.keepWeaponDrawn();
       this.playerStats.spendAttack();
       this.audioSystem.play('grunt');
     }
@@ -246,6 +253,10 @@ export default {
   updatePlayerAttack(dt) {
     const active = this.loaded && !this.editor.active && !this.dying;
     this.playerAttackSystem.update(active ? dt : 0);
+    if (active) {
+      this.updateWeaponSheath(dt);
+      this.updateDrawStrike(dt);
+    }
     if (!active || !this.inputSystem.leftDown) return;
     const target = this.playerAttackSystem.target;
     if (!target || !this.creatureSystem.creatures.includes(target)) {
@@ -257,6 +268,16 @@ export default {
       return;
     }
     this.swingCreature(target);
+  },
+
+  updateDrawStrike(dt) {
+    const queued = this.drawStrike;
+    if (!queued) return;
+    queued.left -= dt;
+    if (queued.left > 0) return;
+    this.drawStrike = null;
+    const creature = queued.creature;
+    if (creature && !creature.dead && this.creatureSystem.creatures.includes(creature)) this.swingCreature(creature);
   },
 
   damageCreature(creature, amount, crit) {
@@ -476,6 +497,7 @@ export default {
     const spawn = this.mapLayout && this.mapLayout.spawn ? this.mapLayout.spawn : null;
     const spot = spawn ? cellToWorldCoords(spawn.cx, spawn.cz) : null;
     this.playerStats.resurrect();
+    this.sheathWeapon('instant');
     this.playerSystem.revive(spot ? spot.x : null, spot ? spot.z : null);
     this.audioSystem.play('wakeUp');
     this.simSystem.setHalted(false);

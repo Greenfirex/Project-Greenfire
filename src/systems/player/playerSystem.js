@@ -22,6 +22,9 @@ import {
   PLAYER_LEFT_FOREARM_BONES,
   PLAYER_LEFT_HAND_BONES,
   PLAYER_SPINE_BONES,
+  PLAYER_LOWER_SPINE_BONES,
+  PLAYER_LEFT_THIGH_BONES,
+  PLAYER_RIGHT_THIGH_BONES,
   PLAYER_FINGER_BONES,
   PLAYER_FIST_BONES,
   PLAYER_THUMB_BONES,
@@ -99,6 +102,14 @@ const START_LYING = false;
 const TOOL_SCALE = 0.95;
 const TOOL_POSITION = new Vector3(-0.12, 0.12, 0.04);
 const TOOL_ROTATION = new Vector3(0, 0, -0.45);
+const HIP_SWAP_TIME = 0.6;
+const HIP_SWAP_SHARE = 0.45;
+const HIP_REACH_HOLD = 1.5;
+const HIP_ELBOW_OUT = 0.6;
+const HIP_REACH_PASSES = 3;
+const GUARD_FADE = 0.25;
+const STANCE_UPRIGHT = -0.13;
+const STANCE_FADE = 0.3;
 const BODY_RADIUS = 0.3;
 const BODY_MARGIN = 0.08;
 const BODY_SAMPLES = 8;
@@ -182,6 +193,13 @@ export default class PlayerSystem {
     this.toolTemplates = {};
     this.toolLoading = {};
     this.heldToolKey = null;
+    this.weaponDrawn = false;
+    this.sheathedKey = null;
+    this.sheathFrame = null;
+    this.sheathSlot = null;
+    this.sheathNode = null;
+    this.toolNodeKey = null;
+    this.hipSwap = null;
     this.keysBound = false;
     this.toolNode = null;
     this.torchFire = null;
@@ -201,6 +219,9 @@ export default class PlayerSystem {
     this.rummageTime = 0;
     this.autoWalk = null;
     this.idleRelax = 0;
+    this.guardBlend = 0;
+    this.stanceBlend = 0;
+    this.hipWeight = 0;
     this.reach = 0;
     this.idleNodes = null;
     this.glance = { wait: between(LOOK_PAUSE), hold: 0, target: 0, yaw: 0 };
@@ -298,6 +319,7 @@ export default class PlayerSystem {
       this.toolTemplates[tool.model] = template;
       this.toolLoading[tool.model] = false;
       if (this.heldToolKey === key) this.refreshToolNode();
+      if (this.sheathedKey === key) this.refreshSheathNode();
     }).catch(() => {
       this.toolLoading[tool.model] = false;
     });
@@ -319,6 +341,9 @@ export default class PlayerSystem {
       hand,
       handRest: restRotation(bone),
       fingers: PLAYER_FINGER_BONES.map((name) => boneNode([name])).filter(Boolean),
+      fingerRest: new Map(skeleton.bones
+        .filter((item) => PLAYER_FINGER_BONES.includes(item.name) && item.getTransformNode())
+        .map((item) => [item.getTransformNode(), restRotation(item)])),
       fist: PLAYER_FIST_BONES.map((name) => boneNode([name])).filter(Boolean),
       thumb: boneNode(PLAYER_THUMB_BONES),
     };
@@ -336,6 +361,92 @@ export default class PlayerSystem {
     this.handSlot.scaling = new Vector3(TOOL_SCALE, TOOL_SCALE, TOOL_SCALE);
     this.torchFireFor();
     this.refreshToolNode();
+    this.measureHips(skeleton);
+    this.refreshSheathNode();
+  }
+
+  measureHips(skeleton) {
+    const node = (names) => {
+      const found = skeleton.bones.find((item) => names.includes(item.name));
+      return found ? found.getTransformNode() : null;
+    };
+    const hipsBone = skeleton.bones.find((item) => isHips(item.name));
+    const hips = hipsBone && hipsBone.getTransformNode();
+    const left = node(PLAYER_LEFT_THIGH_BONES);
+    const right = node(PLAYER_RIGHT_THIGH_BONES);
+    const spine = node(PLAYER_LOWER_SPINE_BONES);
+    if (!hips || !left || !right || !spine) return;
+    refreshChain(left);
+    refreshChain(right);
+    refreshChain(spine);
+    const toHips = hips.getWorldMatrix().clone().invert();
+    const local = (item) => Vector3.TransformCoordinates(item.getAbsolutePosition(), toHips);
+    const leftAt = local(left);
+    const rightAt = local(right);
+    const middle = leftAt.add(rightAt).scale(0.5);
+    const across = leftAt.subtract(rightAt);
+    const width = across.length();
+    const side = across.normalize();
+    const rise = local(spine).subtract(middle);
+    const up = rise.subtract(side.scale(Vector3.Dot(rise, side))).normalize();
+    const forward = Vector3.Cross(side, up).normalize();
+    this.sheathFrame = { hips, middle, side, up, forward, width };
+  }
+
+  setSheathedTool(key) {
+    const next = key || null;
+    if (this.sheathedKey === next) return;
+    this.sheathedKey = next;
+    this.refreshSheathNode();
+  }
+
+  refreshSheathNode() {
+    if (this.sheathSlot) {
+      this.sheathSlot.dispose(false, false);
+      this.sheathSlot = null;
+      this.sheathNode = null;
+    }
+    const frame = this.sheathFrame;
+    const tool = TOOL_TYPES[this.sheathedKey];
+    if (!frame || !this.handSlot || !tool || !tool.model || !tool.sheath) return;
+    const template = this.toolTemplates[tool.model];
+    if (template === undefined) {
+      this.prefetchTool(this.sheathedKey);
+      return;
+    }
+    const sheath = tool.sheath;
+    const { hips, middle, side, up, forward, width } = frame;
+    const node = instantiateModel(this.s, template, `playerSheathed_${tool.model}`);
+    if (!node) return;
+    const slot = new TransformNode('playerSheathSlot', this.s);
+    slot.parent = hips;
+    slot.position = middle
+      .add(side.scale(width * (sheath.side || 0)))
+      .add(up.scale(width * (sheath.lift || 0)))
+      .add(forward.scale(width * (sheath.ahead || 0)));
+    const along = up.scale(-1)
+      .add(forward.scale(-(sheath.back || 0)))
+      .add(side.scale(sheath.out || 0))
+      .normalize();
+    slot.rotationQuaternion = Quaternion.Identity();
+    Quaternion.FromUnitVectorsToRef(Vector3.Up(), along, slot.rotationQuaternion);
+    hips.computeWorldMatrix(true);
+    this.handSlot.computeWorldMatrix(true);
+    const handScale = Math.abs(this.handSlot.absoluteScaling.x) || 1;
+    const hipsScale = Math.abs(hips.absoluteScaling.x) || 1;
+    const grip = tool.grip || {};
+    const scale = handScale * TOOL_SCALE * (grip.scale || 1) / hipsScale;
+    node.parent = slot;
+    node.scaling = new Vector3(scale, scale, scale);
+    node.position = new Vector3(0, -(grip.hold || 0) * scale, 0);
+    for (const mesh of node.getChildMeshes()) mesh.isPickable = false;
+    this.sheathSlot = slot;
+    this.sheathNode = node;
+    this.showSheathed();
+  }
+
+  showSheathed() {
+    if (this.sheathNode) this.sheathNode.setEnabled(this.toolNodeKey !== this.sheathedKey);
   }
 
   refreshToolNode() {
@@ -345,6 +456,8 @@ export default class PlayerSystem {
       this.toolNode.dispose(false, false);
       this.toolNode = null;
     }
+    this.toolNodeKey = null;
+    this.showSheathed();
     if (!this.handSlot) return;
     const tool = TOOL_TYPES[this.heldToolKey];
     if (!tool || !tool.model) return;
@@ -355,6 +468,8 @@ export default class PlayerSystem {
     }
     this.toolNode = instantiateModel(this.s, template, `playerHeld_${tool.model}`);
     if (!this.toolNode) return;
+    this.toolNodeKey = this.heldToolKey;
+    this.showSheathed();
     const grip = tool.grip || {};
     const scale = TOOL_SCALE * (grip.scale || 1);
     this.toolNode.parent = this.handSlot;
@@ -442,11 +557,18 @@ export default class PlayerSystem {
     });
   }
 
-  setHeldTool(key) {
-    if (this.heldToolKey === key) return;
+  setHeldTool(key, instant = false, fromHip = false) {
+    if (this.heldToolKey === (key || null)) return;
     this.heldToolKey = key || null;
+    this.finishHipSwap();
+    if (fromHip && !instant && this.ready && !this.lying && !this.dead && this.sheathSlot && this.armNodes) {
+      this.strikeTimer = 0;
+      this.hipSwap = { time: 0 };
+      this.toolSwapLeft = HIP_SWAP_TIME * HIP_SWAP_SHARE;
+      return;
+    }
     const moving = this.wantsMove();
-    if (!this.ready || this.lying || this.dead || moving || this.strikeTimer > 0) {
+    if (instant || !this.ready || this.lying || this.dead || moving || this.strikeTimer > 0) {
       this.toolSwapLeft = 0;
       this.refreshToolNode();
       return;
@@ -465,6 +587,9 @@ export default class PlayerSystem {
     this.restoreBones();
     this.relaxIdle(dt);
     this.reachDown(dt);
+    this.standTaller(dt);
+    this.holdGuard(dt);
+    this.reachHip(dt);
     this.holdUpright();
     this.holdInFist(dt);
     if (this.torchFire) this.torchFire.update(dt);
@@ -473,17 +598,15 @@ export default class PlayerSystem {
   holdInFist(dt) {
     const tool = TOOL_TYPES[this.heldToolKey];
     const grip = tool && tool.grip;
-    if (!grip || !grip.fist || !this.toolNode || !this.handSlot || !this.armNodes || this.toolSwapLeft > 0) return;
-    this.lockWrist(grip.wrist || 0, dt);
+    if (!grip || !grip.fist || !this.toolNode || !this.handSlot || !this.armNodes) return;
+    if (this.toolSwapLeft > 0 && !this.hipSwap) return;
+    this.lockWrist((grip.wrist || 0) * (1 - this.guardBlend) * (1 - this.hipWeight), dt);
     for (const node of [this.armNodes.upper, this.armNodes.fore, this.armNodes.hand, this.handSlot]) {
       if (node) node.computeWorldMatrix(true);
     }
     const fist = this.closeFist(grip.curl || 0);
     if (!fist) return;
-    const handMatrix = this.armNodes.hand.getWorldMatrix();
-    const through = Vector3.TransformNormal(Vector3.Forward(), handMatrix).normalize().scale(grip.fist);
-    const fingers = Vector3.TransformNormal(Vector3.Up(), this.handSlot.getWorldMatrix()).normalize();
-    const axis = through.add(fingers.scale(grip.tilt || 0)).normalize();
+    const axis = this.gripAxis(grip);
     const wanted = Quaternion.Identity();
     Quaternion.FromUnitVectorsToRef(Vector3.Up(), axis, wanted);
     const world = Matrix.Identity();
@@ -560,6 +683,143 @@ export default class PlayerSystem {
     });
   }
 
+  reachHip(dt) {
+    const swap = this.hipSwap;
+    this.hipWeight = 0;
+    if (!swap) return;
+    swap.time += dt;
+    const t = swap.time / HIP_SWAP_TIME;
+    if (t >= 1 || !this.armNodes || !this.sheathSlot) {
+      this.hipSwap = null;
+      return;
+    }
+    const { upper, fore, hand } = this.armNodes;
+    if (!upper || !fore || !hand) return;
+    const weight = Math.min(1, Math.sin(Math.PI * t) * HIP_REACH_HOLD);
+    this.hipWeight = weight;
+    refreshChain(this.sheathSlot);
+    const slot = this.sheathSlot.getAbsolutePosition().clone();
+    const forward = new Vector3(Math.sin(this.facing), 0, Math.cos(this.facing));
+    const pole = forward.scale(-1).add(this.weaponSideOut(forward).scale(HIP_ELBOW_OUT));
+    const tool = TOOL_TYPES[this.sheathedKey];
+    const grip = (tool && tool.grip) || {};
+    const hangs = Vector3.TransformNormal(Vector3.Up(), this.sheathSlot.getWorldMatrix()).normalize();
+    const bones = [upper, fore, hand];
+    for (const bone of bones) {
+      if (!bone.rotationQuaternion) bone.rotationQuaternion = Quaternion.FromEulerVector(bone.rotation);
+    }
+    const before = bones.map((bone) => bone.rotationQuaternion.clone());
+    for (let pass = 0; pass < HIP_REACH_PASSES; pass += 1) {
+      refreshChain(hand);
+      const fist = this.closeFist(grip.curl || 0) || this.fistCenter();
+      const target = slot.subtract(fist.subtract(hand.getAbsolutePosition()));
+      this.reachArm(upper, fore, hand, target, pole, 1);
+      if (grip.fist) this.turnGrip(hangs, grip, 1);
+    }
+    bones.forEach((bone, index) => {
+      Quaternion.SlerpToRef(before[index], bone.rotationQuaternion, weight, bone.rotationQuaternion);
+      const turned = this.boneTurns.get(bone);
+      if (turned) turned.turned = bone.rotationQuaternion.clone();
+    });
+    refreshChain(hand);
+  }
+
+  standTaller(dt) {
+    const stance = this.currentKey === 'combatStance' && this.strikeTimer <= 0 && this.pickupTimer <= 0;
+    this.stanceBlend = Math.max(0, Math.min(1, this.stanceBlend + (stance ? dt : -dt) / STANCE_FADE));
+    if (!this.stanceBlend || !this.idleNodes) return;
+    const forward = new Vector3(Math.sin(this.facing), 0, Math.cos(this.facing));
+    const right = new Vector3(forward.z, 0, -forward.x);
+    for (const node of this.idleNodes.spine) this.turnBone(node, right, STANCE_UPRIGHT * this.stanceBlend);
+  }
+
+  holdGuard(dt) {
+    const tool = TOOL_TYPES[this.heldToolKey];
+    const guard = tool && tool.guard;
+    const ready = Boolean(guard) && this.weaponDrawn && this.currentKey === 'combatStance'
+      && this.strikeTimer <= 0 && this.pickupTimer <= 0 && this.toolSwapLeft <= 0
+      && this.toolNodeKey === this.heldToolKey;
+    this.guardBlend = Math.max(0, Math.min(1, this.guardBlend + (ready ? dt : -dt) / GUARD_FADE));
+    if (!this.guardBlend || !guard || !this.armNodes || !this.idleNodes) return;
+    const weight = this.guardBlend;
+    const forward = new Vector3(Math.sin(this.facing), 0, Math.cos(this.facing));
+    const up = Vector3.Up();
+    const { upper, fore, hand } = this.armNodes;
+    const { leftUpper, leftFore, leftHand } = this.idleNodes;
+    if (!upper || !fore || !hand || !leftUpper || !leftFore || !leftHand) return;
+    refreshChain(hand);
+    refreshChain(leftHand);
+    const out = this.weaponSideOut(forward);
+    const at = (origin, offset, side) => origin
+      .add(out.scale(offset[0] * side))
+      .add(up.scale(offset[1]))
+      .add(forward.scale(offset[2]));
+    const arms = [
+      [upper, fore, hand, guard.elbow, guard.hand, 1],
+      [leftUpper, leftFore, leftHand, guard.leftElbow, guard.leftHand, -1],
+    ];
+    for (const [top, middle, tip, elbow, palm, side] of arms) {
+      if (!elbow || !palm) continue;
+      const shoulder = top.getAbsolutePosition().clone();
+      this.aimBone(top, middle, at(shoulder, elbow, side), weight);
+      refreshChain(tip);
+      this.aimBone(middle, tip, at(shoulder, palm, side), weight);
+      refreshChain(tip);
+    }
+    if (guard.club) this.turnGrip(at(Vector3.Zero(), guard.club, 1).normalize(), tool.grip || {}, weight);
+  }
+
+  gripAxis(grip) {
+    const through = Vector3.TransformNormal(Vector3.Forward(), this.armNodes.hand.getWorldMatrix()).normalize().scale(grip.fist || 0);
+    const fingers = Vector3.TransformNormal(Vector3.Up(), this.handSlot.getWorldMatrix()).normalize();
+    return through.add(fingers.scale(grip.tilt || 0)).normalize();
+  }
+
+  turnGrip(wanted, grip, weight) {
+    if (!this.handSlot) return;
+    refreshChain(this.handSlot);
+    const now = this.gripAxis(grip);
+    const axis = Vector3.Cross(now, wanted);
+    if (axis.lengthSquared() < 1e-8) return;
+    const angle = Math.acos(Math.max(-1, Math.min(1, Vector3.Dot(now, wanted))));
+    this.turnBone(this.armNodes.hand, axis.normalize(), angle * weight);
+  }
+
+  weaponSideOut(forward) {
+    const across = this.armNodes.upper.getAbsolutePosition().subtract(this.idleNodes.leftUpper.getAbsolutePosition());
+    across.y = 0;
+    return across.subtract(forward.scale(Vector3.Dot(across, forward))).normalize();
+  }
+
+  reachArm(top, middle, tip, target, pole, weight) {
+    refreshChain(tip);
+    const shoulder = top.getAbsolutePosition().clone();
+    const upperLength = Vector3.Distance(shoulder, middle.getAbsolutePosition());
+    const foreLength = Vector3.Distance(middle.getAbsolutePosition(), tip.getAbsolutePosition());
+    const toward = target.subtract(shoulder);
+    const distance = Math.min(toward.length(), (upperLength + foreLength) * 0.999);
+    if (distance < 1e-4) return;
+    const along = toward.normalize();
+    const reach = (upperLength * upperLength - foreLength * foreLength + distance * distance) / (2 * distance);
+    const lift = Math.sqrt(Math.max(0, upperLength * upperLength - reach * reach));
+    const bend = pole.subtract(along.scale(Vector3.Dot(pole, along)));
+    if (bend.lengthSquared() < 1e-8) return;
+    const elbow = shoulder.add(along.scale(reach)).add(bend.normalize().scale(lift));
+    this.aimBone(top, middle, elbow, weight);
+    refreshChain(tip);
+    this.aimBone(middle, tip, target, weight);
+    refreshChain(tip);
+  }
+
+  finishHipSwap() {
+    if (!this.hipSwap) return;
+    this.hipSwap = null;
+    if (this.toolSwapLeft > 0) {
+      this.toolSwapLeft = 0;
+      this.refreshToolNode();
+    }
+  }
+
   leanToTarget() {
     if (!this.rig || !this.rigHome) return;
     let lean = 0;
@@ -580,14 +840,14 @@ export default class PlayerSystem {
     return offset;
   }
 
-  aimBone(node, tip, target) {
+  aimBone(node, tip, target, weight = this.reach) {
     const from = node.getAbsolutePosition();
     const now = tip.getAbsolutePosition().subtract(from).normalize();
     const goal = target.subtract(from).normalize();
     const axis = Vector3.Cross(now, goal);
     if (axis.lengthSquared() < 1e-8) return;
     const angle = Math.acos(Math.max(-1, Math.min(1, Vector3.Dot(now, goal))));
-    this.turnBone(node, axis.normalize(), angle * this.reach);
+    this.turnBone(node, axis.normalize(), angle * weight);
   }
 
   updateGlance(dt, calm) {
@@ -661,17 +921,31 @@ export default class PlayerSystem {
     this.toolNode.setAbsolutePosition(this.handSlot.getAbsolutePosition().add(fingers.scale(grip.palm || 0)));
   }
 
+  fistCenter() {
+    const arm = this.armNodes;
+    const center = Vector3.Zero();
+    if (!arm.fist.length) return arm.hand.getAbsolutePosition().clone();
+    for (const node of arm.fist) {
+      refreshChain(node);
+      center.addInPlace(node.getAbsolutePosition());
+    }
+    return center.scaleInPlace(1 / arm.fist.length);
+  }
+
   closeFist(curl) {
     const arm = this.armNodes;
     if (!arm || !curl || !arm.fingers.length || !arm.fist.length) return null;
     const side = Vector3.TransformNormal(Vector3.Right(), arm.hand.getWorldMatrix()).normalize();
     for (const node of arm.fingers) {
+      const rest = arm.fingerRest.get(node);
+      if (rest) {
+        if (!node.rotationQuaternion) node.rotationQuaternion = Quaternion.FromEulerVector(node.rotation);
+        node.rotationQuaternion.copyFrom(rest);
+      }
       this.turnBone(node, side, curl);
       node.computeWorldMatrix(true);
     }
-    const center = Vector3.Zero();
-    for (const node of arm.fist) center.addInPlace(node.getAbsolutePosition());
-    return center.scaleInPlace(1 / arm.fist.length);
+    return this.fistCenter();
   }
 
   turnBone(node, axis, angle) {
@@ -707,6 +981,7 @@ export default class PlayerSystem {
   }
 
   strike(animKey) {
+    this.finishHipSwap();
     this.flinchTimer = 0;
     this.strikeAnim = animKey || this.strikeAnimationForTool();
     const length = this.animLength(this.strikeAnim, STRIKE_FALLBACK);
@@ -744,6 +1019,7 @@ export default class PlayerSystem {
   }
 
   pickUp() {
+    this.finishHipSwap();
     this.strikeTimer = 0;
     this.flinchTimer = 0;
     this.pickupKey = 'pickup';
@@ -1031,7 +1307,7 @@ export default class PlayerSystem {
   }
 
   idleAnim() {
-    if (this.inCombat && this.inCombat() && this.anims.combatStance) return 'combatStance';
+    if ((this.weaponDrawn || (this.inCombat && this.inCombat())) && this.anims.combatStance) return 'combatStance';
     return this.heldToolKey ? 'holdTool' : 'idle';
   }
 
@@ -1498,16 +1774,18 @@ export default class PlayerSystem {
       z: this.root ? this.root.position.z : SPAWN.z,
       facing: this.facing,
       level: Number.isFinite(this.level) ? this.level : 0,
+      weaponDrawn: this.weaponDrawn,
     };
   }
 
   defaultState() {
-    return { x: SPAWN.x, z: SPAWN.z, facing: 0, level: 0 };
+    return { x: SPAWN.x, z: SPAWN.z, facing: 0, level: 0, weaponDrawn: false };
   }
 
   apply(data) {
     const d = data || {};
     this.dead = false;
+    this.weaponDrawn = d.weaponDrawn === true;
     if (!this.root) {
       this.pendingState = d;
       return;

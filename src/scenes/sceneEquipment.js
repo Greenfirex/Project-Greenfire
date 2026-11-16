@@ -1,6 +1,9 @@
 // Část herní scény: vybavení — nasazení předmětu z batohu do slotu, sundání zpět, model na postavě a co z toho plyne pro staty.
+// Taky tasení a zandávání zbraně a rozhodnutí, co má postava v ruce.
 // Patří ke GameScene (sdílí její this); jen ji dělí, aby hlavní soubor zůstal přehledný.
 import { ITEM_TYPES, EQUIP_SLOTS, gearBonus, itemWeight, toolForItem, getTool } from '../data/catalogs/items.js';
+
+const AUTO_SHEATH_SECONDS = 8;
 
 export default {
   equipItem(itemKey, slot) {
@@ -16,6 +19,7 @@ export default {
   },
 
   unequipSlot(slot) {
+    if (slot === 'weapon') this.sheathWeapon('instant');
     const itemKey = this.equipmentSystem.set(slot, null);
     if (!itemKey) return false;
     this.inventorySystem.add(itemKey, 1);
@@ -35,20 +39,76 @@ export default {
       const def = itemKey ? ITEM_TYPES[itemKey] : null;
       this.playerSystem.wear(key, def ? def.wear || null : null);
     }
+    this.refreshHands('instant');
+  },
+
+  equippedWeapon() {
+    const itemKey = this.equipmentSystem.get('weapon');
+    const toolKey = itemKey ? toolForItem(itemKey) : null;
+    const tool = toolKey ? getTool(toolKey) : null;
+    return tool && tool.weapon ? { toolKey, tool } : null;
+  },
+
+  drawWeapon(how = 'hip') {
+    if (this.playerSystem.weaponDrawn || !this.equippedWeapon()) return false;
+    this.playerSystem.weaponDrawn = true;
+    this.keepWeaponDrawn();
+    this.refreshHands(how);
+    return true;
+  },
+
+  sheathWeapon(how = 'hip') {
+    if (!this.playerSystem.weaponDrawn) return false;
+    this.playerSystem.weaponDrawn = false;
+    this.drawStrike = null;
+    this.refreshHands(how);
+    return true;
+  },
+
+  keepWeaponDrawn() {
+    this.sheathTimer = AUTO_SHEATH_SECONDS;
+  },
+
+  updateWeaponSheath(dt) {
+    if (!this.playerSystem.weaponDrawn || this.dying || this.editor.active) return;
+    const root = this.playerSystem.root;
+    if (root && this.creatureSystem.isPlayerInCombat(root.position)) {
+      this.keepWeaponDrawn();
+      return;
+    }
+    this.sheathTimer = (Number.isFinite(this.sheathTimer) ? this.sheathTimer : AUTO_SHEATH_SECONDS) - dt;
+    if (this.sheathTimer <= 0) this.sheathWeapon();
+  },
+
+  toggleWeapon() {
+    if (this.dying || this.editor.active) return;
+    if (this.sheathWeapon()) return;
+    if (!this.drawWeapon()) this.log.add('Nemáš nasazenou zbraň', 'info');
+  },
+
+  refreshHands(how = null) {
+    const weapon = this.equippedWeapon();
+    const drawn = Boolean(weapon) && this.playerSystem.weaponDrawn;
+    this.playerSystem.setSheathedTool(weapon ? weapon.toolKey : null);
+    this.playerSystem.setHeldTool(drawn ? weapon.toolKey : this.heldItemSystem.key, how === 'instant', how === 'hip');
+    this.playerAttackSystem.setWeapon(drawn ? weapon.tool : null);
+    if (this.characterPanel.open) this.refreshCharacterPanel();
   },
 
   previewStats(itemKey) {
     const def = ITEM_TYPES[itemKey];
     if (!def) return null;
+    if (def.slot === 'weapon') {
+      if (this.equipmentSystem.get('weapon') === itemKey) return null;
+      const toolKey = toolForItem(itemKey);
+      return this.playerAttackSystem.weaponStats(toolKey ? getTool(toolKey) : null);
+    }
     if (def.slot) {
       if (this.equipmentSystem.get(def.slot) === itemKey) return null;
       const slots = { ...this.equipmentSystem.slots, [def.slot]: itemKey };
       return this.playerStats.gearStats(gearBonus(Object.values(slots)));
     }
-    const toolKey = toolForItem(itemKey);
-    const tool = toolKey ? getTool(toolKey) : null;
-    if (!tool || !tool.weapon || this.heldItemSystem.key === toolKey) return null;
-    return this.playerAttackSystem.weaponStats(tool);
+    return null;
   },
 
   carriedLoad() {

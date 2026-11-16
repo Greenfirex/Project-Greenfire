@@ -10,6 +10,7 @@ import { createBuffer, pushVertex, buildMesh, mulberry32 } from './meshBuilder.j
 import { getBushRecipe } from '../data/catalogs/bushes.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import TreeWindPlugin from '../systems/flora/treeWindPlugin.js';
+import FloraColorPlugin from '../systems/materials/floraColorPlugin.js';
 
 const templates = new WeakMap();
 const textures = new WeakMap();
@@ -41,6 +42,7 @@ const SHAPES = {
 const INNER_LAYER = { share: 0.45, radius: 0.4, span: 0.2, size: 0.62, lean: 0.75 };
 const INNER_CARDS = 4;
 const TOP_CARDS = 2;
+const SPRIG_INSET = 0.004;
 
 export function bushTemplate(scene, key) {
   let byKey = templates.get(scene);
@@ -88,6 +90,8 @@ function buildBush(scene, key, recipe) {
         radiusZ,
         size: cardSize * ring.size * (0.88 + rng() * 0.24),
         lean: ring.lean * recipe.lean * shape.lean,
+        sprig: pickSprig(rng, recipe.sprigs),
+        sprigCount: sprigCount(recipe),
       });
     }
   });
@@ -106,6 +110,7 @@ function buildBush(scene, key, recipe) {
         radiusZ,
         size: cardSize * ring.size * INNER_LAYER.size * (0.85 + rng() * 0.3),
         lean: ring.lean * recipe.lean * shape.lean * INNER_LAYER.lean,
+        sprigCount: sprigCount(recipe),
       });
     }
   });
@@ -120,6 +125,7 @@ function buildBush(scene, key, recipe) {
       radiusZ,
       size: cardSize * (0.72 + rng() * 0.2),
       lean: 0.15,
+      sprigCount: sprigCount(recipe),
     });
   }
 
@@ -133,6 +139,7 @@ function buildBush(scene, key, recipe) {
       radiusZ,
       size: cardSize * (0.68 + rng() * 0.2),
       lean: -0.1,
+      sprigCount: sprigCount(recipe),
     });
   }
 
@@ -153,6 +160,9 @@ function addCard(buffer, rng, spec) {
   const right = new Vector3(-sin * spec.radiusX, 0, cos * spec.radiusZ).normalize();
   const roll = (rng() - 0.5) * 0.4;
   const side = right.scale(Math.cos(roll)).add(up.scale(Math.sin(roll)));
+  const count = spec.sprigCount || 1;
+  const uLeft = ((spec.sprig || 0) + SPRIG_INSET) / count;
+  const uRight = ((spec.sprig || 0) + 1 - SPRIG_INSET) / count;
   const grid = [];
   for (let step = 0; step <= CARD_SEGMENTS; step += 1) {
     const t = step / CARD_SEGMENTS;
@@ -163,8 +173,8 @@ function addCard(buffer, rng, spec) {
     const shade = shadeAt(center.y, spec.height);
     const color = new Color3(shade, shade, shade);
     const row = [];
-    row.push(pushVertex(buffer, center.subtract(side.scale(half)), normal, color, 0, t));
-    row.push(pushVertex(buffer, center.add(side.scale(half)), normal, color, 1, t));
+    row.push(pushVertex(buffer, center.subtract(side.scale(half)), normal, color, uLeft, t));
+    row.push(pushVertex(buffer, center.add(side.scale(half)), normal, color, uRight, t));
     grid.push(row);
   }
   for (let step = 0; step < grid.length - 1; step += 1) {
@@ -174,6 +184,21 @@ function addCard(buffer, rng, spec) {
     const d = grid[step + 1][0];
     buffer.indices.push(a, c, b, a, d, c);
   }
+}
+
+function sprigCount(recipe) {
+  return recipe.sprigs ? recipe.sprigs.length : 1;
+}
+
+function pickSprig(rng, sprigs) {
+  if (!sprigs) return 0;
+  const total = sprigs.reduce((sum, share) => sum + share, 0);
+  let roll = rng() * total;
+  for (let index = 0; index < sprigs.length; index += 1) {
+    roll -= sprigs[index];
+    if (roll < 0) return index;
+  }
+  return 0;
 }
 
 function shadeAt(y, height) {
@@ -196,6 +221,7 @@ function bushMaterial(scene, key, recipe) {
     strength: recipe.height * 0.014,
     height: recipe.height * TEMPLATE_UNITS,
   });
+  new FloraColorPlugin(material, { leafTint: recipe.leafTint });
   return material;
 }
 

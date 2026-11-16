@@ -39,11 +39,13 @@ function rockJitter(entry) {
 }
 
 function plantJitter(entry, fixedScale) {
+  const x = entry.cx + (entry.offsetX || 0) * 7.3;
+  const z = entry.cz + (entry.offsetZ || 0) * 5.9;
   return {
-    yaw: cellNoise(entry.cx, entry.cz, 23) * Math.PI * 2,
+    yaw: cellNoise(x, z, 23) * Math.PI * 2,
     x: (cellNoise(entry.cx, entry.cz, 19) - 0.5) * 0.5,
     z: (cellNoise(entry.cx, entry.cz, 37) - 0.5) * 0.5,
-    scale: fixedScale ? 1 : 0.94 + cellNoise(entry.cx, entry.cz, 31) * 0.12,
+    scale: fixedScale ? 1 : 0.94 + cellNoise(x, z, 31) * 0.12,
   };
 }
 

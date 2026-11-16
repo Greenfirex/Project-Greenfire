@@ -59,9 +59,12 @@ export default class PlayerAttackSystem {
     return Math.abs(root.position.y - ground) <= this.heightLimit;
   }
 
+  canSwing(creature, player) {
+    return this.cooldown <= 0 && !this.pending && this.canHit(creature, player);
+  }
+
   swing(creature, player) {
-    if (this.cooldown > 0 || this.pending) return false;
-    if (!this.canHit(creature, player)) return false;
+    if (!this.canSwing(creature, player)) return false;
     if (player.faceTo) player.faceTo(creature.x, creature.z, this.reach);
     const animKey = this.weaponAnim || this.nextUnarmed;
     if (!this.weaponAnim) this.nextUnarmed = animKey === 'punch' ? 'kick' : 'punch';
