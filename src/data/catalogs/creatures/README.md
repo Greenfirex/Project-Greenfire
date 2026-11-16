@@ -50,6 +50,9 @@ Povinné je to, co systém čte bez náhrady. „Když chybí" říká, co se st
 | `noWarning` | `true` = žádné varování, rovnou boj | `false` |
 | `damageType` | typ poškození (`piercing`, `slashing`, …) proti resistitám hráče | žádný |
 | `biteRange` | na jakou dálku dosáhne | povinné |
+| `biteArc` | úhel výseče kousnutí ve stupních; hráč mimo ni uhne | 90 |
+| `regenPerSecond` | kolik životů za sekundu se pořád doplňuje (i v boji) | 0 |
+| `biteLunge` | o kolik metrů tvor na konci nápřahu vyrazí vpřed | 0 |
 | `biteWindup` | jak dlouho se napřahuje, než rána padne | povinné |
 | `biteCooldown` | pauza mezi útoky | povinné |
 | `biteRecover` | jak dlouho se po ráně zotavuje | povinné |

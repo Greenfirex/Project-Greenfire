@@ -1536,6 +1536,12 @@ export default class GameScene {
       evt.preventDefault();
       return;
     }
+    if (evt.code === 'Space' && !typing) {
+      if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+      evt.preventDefault();
+      if (!evt.repeat) this.tryDodge();
+      return;
+    }
     if ((evt.key === 'x' || evt.key === 'X') && !typing) {
       if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
       evt.preventDefault();

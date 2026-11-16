@@ -28,6 +28,7 @@ vstup je zamčený, dokud obrazovka nezmizí.
 | **I / C / B / V** | Postava a batoh (obojí I i C) / bestiář / výroba — velká okna uprostřed obrazovky, jde s nimi tahat (také tlačítky v liště); výroba je zatím prázdná |
 | **Levé tlačítko u houby / kokosu / klacku** | Sebrání (podržet = opakovat) |
 | **Levé tlačítko u truhly / kostry / táboráku** | Otevřít / prohledat / zapálit (stačí stát u nich) |
+| **Mezerník** | Úskok směrem, kterým jdeš (bez pohybu dozadu od kurzoru); stojí výdrž a na chvilku tě nic nezraní. Tvor před kousnutím ukáže na zemi červenou výseč, z ní se dá utéct i uskočit |
 | **X** | Tasit / zandat zbraň z políčka Zbraň v okně postavy (tasená = bojový postoj; bez zbraně postoj s pěstmi; pochodeň je vždy v levé ruce). Sama se zandá jen při prohledávání truhly nebo těla |
 | **Levé tlačítko u tvora** | Útok (podržet = opakovat); nasazenou zbraň rovnou tasí, bez zbraně bije pěstí |
 | **Levé tlačítko v bojovém postoji** | Rána směrem ke kurzoru; dopadne na všechny tvory ve výseči před postavou a poškození se mezi ně rozdělí (podle útoku a obrany může i jen škrábnout nebo minout); bez výdrže se útočit nedá, tvora kousek vedle kurzoru rána sama trefí |

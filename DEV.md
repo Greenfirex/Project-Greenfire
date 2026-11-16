@@ -103,7 +103,9 @@ dohled, a po ztrátě hráče jdou na místo, kde ho viděli naposledy. Panel tv
 uprostřed, hodiny jsou vpravo nahoře) ukazuje statistiky odemčené počtem zabití
 (`bestiarySystem.js`, prahy `UNLOCKS`): životy, útok, obranu, poškození, zbroj, odolnosti,
 dohled a rychlost. Pro ladění je zatím odemčené všechno (`SHOW_ALL_STATS`). Okno bestiáře
-je na B. Tvorové mají zbroj a odolnosti jako hráč (`armor`, `resistances` u druhu nebo
+je na B. Tvorové i hráč se léčí pořád, i v boji a bez ohledu
+na zásahy (`regenerate` a `regenPerSecond` u druhu tvora; hráč 0,2 života za sekundu
+v `PLAYER_BASE`). Tvorové mají zbroj a odolnosti jako hráč (`armor`, `resistances` u druhu nebo
 stáří, zatím všude nula); hráčova rána je odečítá stejným výpočtem (`mitigateDamage`
 v `damage.js`). Při najetí na tvora ukazuje nápověda u kurzoru šanci na plný zásah
 a na škrábnutí (`strikeChances` v `combatRoll.js`, zbytek do sta je minutí).
@@ -575,8 +577,9 @@ než koberec stébel) srovnávají svým `tint` v `grass.js`, pobřežní tráva
 Schváleno 13. 11. 2026. Etapy jdou dělat a zkoušet po jedné; po každé je hra hratelná.
 Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
 
-**Stav (16. 11. 2026):** etapy 1, 1b a 2 hotové a vyzkoušené, etapa 3 napsaná a čeká na
-vyzkoušení ve hře. Sekyra a krumpáč jako zbraně odloženy na později.
+**Stav (16. 11. 2026):** etapy 1, 1b a 2 hotové a vyzkoušené, etapy 3 a 4 napsané a čekají
+na vyzkoušení ve hře. Úskok zatím nemá vlastní animaci (uživatel ji dodá; do té doby běh).
+Sekyra a krumpáč jako zbraně odloženy na později.
 
 **Rozhodnuto:**
 - Zbraň patří do políčka Zbraň ve výbavě (`EQUIP_SLOTS`, klíč `weapon`). Lišta rychlé
@@ -588,7 +591,7 @@ vyzkoušení ve hře. Sekyra a krumpáč jako zbraně odloženy na později.
 - Míření rozhoduje, na koho rána dopadne (tvor musí být ve výseči). Útok proti obraně pak
   rozhodne, jak sedla: kritická, běžná, škrábnutí (poloviční poškození), nebo minutí
   (změněno 16. 11. 2026, dřív rána ve výseči nikdy neminula).
-- Mezerník zůstává volný pro pozdější úskok.
+- Mezerník je úskok (etapa 4).
 
 **Etapa 1 — zbraň ve výbavě, tasení a zandávání**
 - Klacek dostane `slot: 'weapon'`; zbraň se bere z výbavy, ne z lišty. Útok a rána
@@ -646,7 +649,7 @@ vyzkoušení ve hře. Sekyra a krumpáč jako zbraně odloženy na později.
   kurzorem (`pointerGroundPoint`), přitažení do 20° bere tvory do dosahu + 0,4 m
   (`aimPoint`). Klik na tvora bez tasené zbraně míří na něj. Podržené tlačítko opakuje
   ránu ke kurzoru (`attackHeld`). Kostka `rollQuality`: kritická / běžná / škrábnutí
-  (poloviční poškození). Tvorové zatím dál používají `rollStrike` (etapa 4).
+  (poloviční poškození). Od etapy 4 stejně i tvorové.
   S tasenou zbraní ukazuje výseč na zemi `src/effects/attackArc.js` (dosah a úhel zbraně,
   míří tam, kam by šla příští rána; při úderu zesvětlí).
 
@@ -681,10 +684,25 @@ vyzkoušení ve hře. Sekyra a krumpáč jako zbraně odloženy na později.
 
 **Etapa 4 — tvorové stejným systémem, úskok**
 - Kousnutí tvora se stane výsečí před ním v okamžiku dopadu, s viditelným nápřahem;
-  hráč, který z výseče uteče, není zasažen (`creatureSystem` dnes volá `rollStrike`
-  pro hod na zásah — změní se stejně jako u hráče).
+  hráč, který z výseče uteče, není zasažen.
 - Úskok na mezerník: krátký přískok, stojí výdrž, chvilka nezranitelnosti.
 - Hotovo, když: útoku Koa'tiki jde uhnout pohybem i úskokem.
+- Jak je to udělané: na začátku nápřahu se tvor natočí k hráči a směr zamkne. Při dopadu
+  (`resolveBite`) musí hráč stát ve výseči (`biteRange` k okraji těla hráče 0,3 m,
+  úhel `biteArc` u tvora), jinak „Uhnul“. Ve výseči rozhodne stejná kostka jako u hráče
+  (`rollQuality`: zásah, kritický, škrábnutí, minutí); `rollStrike` zmizel. Během nápřahu
+  je pod tvorem slabá červená výseč a v ní se od tvora k okraji vyplňuje sytější výseč;
+  když dojde na konec, tvor kousne (`updateBiteArcs`, `biteView`, `AttackArc` s barvou
+  `DANGER_COLOR` a `progress`). Nápřahy: Koa'tiki 0,35 s, běs 0,4 s, kajmanka 0,45 s;
+  výseče 100° / 80° / 60°. V posledních 0,15 s nápřahu tvor vyrazí vpřed (`biteLunge`:
+  1 m / 0,8 m / 0,5 m, `lunge`; zastaví se, když je u hráče), takže chůzí se uhnout nedá,
+  na útěk je potřeba sprint nebo úskok. Výseč ukazuje skutečný dosah včetně výpadu
+  a okraje těla hráče.
+- Úskok (`tryDodge` ve scéně, `dodge`/`stepDodge` v `playerSystem`, čísla
+  `PLAYER_BASE.dodge`): 1,2 m za 0,18 s směrem WASD, bez pohybu pryč od kurzoru;
+  20 výdrže, 0,25 s nezranitelnost (`protect`), 0,4 s pauza do dalšího. Nejde během
+  nápřahu vlastní rány (do dopadu), po dopadu ránu přeruší. Kousnutí během
+  nezranitelnosti ukáže „Uhnul“.
 
 **Otevřené otázky (rozhodnout před danou etapou):**
 - Sekyra a krumpáč: jen nástroje, nebo i slabé zbraně, když jsou v ruce? (Odloženo.)

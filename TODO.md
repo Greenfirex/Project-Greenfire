@@ -58,7 +58,8 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ### Zbraně a mířené rány (plán v `DEV.md`, sekce „Boj se zbraněmi — plán po etapách")
 
 - [ ] Etapa 3: vyzkoušet ve hře rozdělení rány mezi víc tvorů a sekundární ránu na pravé tlačítko, doladit čísla a animaci úderu klackem.
-- [ ] Etapa 4: tvorové útočí výsečí s nápřahem, úskok na mezerník.
+- [ ] Etapa 4: vyzkoušet ve hře uhýbání kousnutí (červená výseč, délka nápřahu) a úskok; doladit čísla.
+- [ ] Úskok: dodat a zapojit animaci (dnes jen běh).
 - [ ] Později: sekyra a krumpáč jako slabé zbraně (zatím odloženo).
 
 ### Etapa 3 — kořist

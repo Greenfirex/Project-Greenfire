@@ -8,11 +8,12 @@ import { PLAYER_EYE_HEIGHT } from '../systems/player/playerSystem.js';
 import { SIGHT_GROUND_LIFT, SIGHT_RISE_START, SIGHT_RISE_FULL, SIGHT_HIGHER_START, SIGHT_HIGHER_FULL, SIGHT_EDGE } from '../utils/revealGlsl.js';
 import { smoothstep } from '../utils/noise.js';
 import { formatMeters } from '../data/maps/layoutStore.js';
+import { PLAYER_BASE } from '../data/catalogs/player.js';
 import { CREATURE_TYPES, CREATURE_KEYS, creatureStat, creatureResistances } from '../data/catalogs/creatures/index.js';
 import { DAMAGE_TYPES, DAMAGE_TYPE_KEYS } from '../data/catalogs/damage.js';
 import { strikeChances, damageText } from '../utils/combatRoll.js';
 import { angleGap } from '../utils/angles.js';
-import AttackArc from '../effects/attackArc.js';
+import AttackArc, { DANGER_COLOR } from '../effects/attackArc.js';
 
 const PLAYER_FLOAT_HEIGHT = 2.2;
 const CREATURE_BAR_LIFT = 0.4;
@@ -25,6 +26,7 @@ const CORPSE_REACH_LIFT = 0.2;
 const AIM_ASSIST = 20 * Math.PI / 180;
 const AIM_ASSIST_REACH = 0.4;
 const GRUNT_CHANCE = { primary: 0.08, secondary: 0.6 };
+const BITE_ARC_ALPHA = 0.1;
 
 export default {
   async setupCreatures() {
@@ -46,8 +48,8 @@ export default {
       this.refreshReflectionExclusions();
     };
     system.onSound = (key, creature) => this.playCreatureSound(key, creature);
-    system.onBite = (creature, damage, crit, damageType) => this.onCreatureBite(creature, damage, crit, damageType);
-    system.onBiteMiss = (creature) => this.onCreatureBiteMiss(creature);
+    system.onBite = (creature, damage, crit, damageType, graze) => this.onCreatureBite(creature, damage, crit, damageType, graze);
+    system.onBiteMiss = (creature, dodged) => this.onCreatureBiteMiss(creature, dodged);
     await system.create(this.mapLayout);
     this.creatureLayoutKey = this.creatureLayoutSignature();
     this.refreshReflectionExclusions();
@@ -121,6 +123,28 @@ export default {
 
   secondaryAttackToward() {
     return this.attackToward(null, 'secondary');
+  },
+
+  tryDodge() {
+    if (!this.loaded || this.editor.active || this.dying || this.paused) return false;
+    const player = this.playerSystem;
+    const root = player.root;
+    const dodge = PLAYER_BASE.dodge || {};
+    if (!root || !player.canDodge() || this.playerAttackSystem.pending) return false;
+    if (!this.playerStats.canSpend(dodge.cost)) return false;
+    let direction = player.inputDirection();
+    if (!direction) {
+      const point = this.pointerGroundPoint();
+      const away = point ? { x: root.position.x - point.x, z: root.position.z - point.z } : null;
+      direction = away && Math.hypot(away.x, away.z) > 0.01
+        ? away
+        : { x: -Math.sin(player.facing), z: -Math.cos(player.facing) };
+    }
+    if (!player.dodge(direction.x, direction.z)) return false;
+    this.drawStrike = null;
+    this.playerStats.spendStamina(dodge.cost);
+    this.playerStats.protect(dodge.immunity);
+    return true;
   },
 
   attackCandidates() {
@@ -320,6 +344,7 @@ export default {
       this.updateDrawStrike(dt);
     }
     this.updateAttackArc(dt, active);
+    this.updateBiteArcs(dt, active);
     if (!active || !this.inputSystem.leftDown) {
       this.attackHeld = false;
       return;
@@ -343,6 +368,30 @@ export default {
     }
     const { x, y, z } = root.position;
     this.attackArc.update(dt, { x, y, z, facing, reach: blow.reach, arc: blow.arc });
+  },
+
+  updateBiteArcs(dt, active) {
+    if (!this.biteArcs) this.biteArcs = new Map();
+    const level = this.playerSystem.level || 0;
+    const shown = new Set();
+    for (const creature of active ? this.creatureSystem.creatures : []) {
+      if (!creature || creature.unseen || (creature.level || 0) !== level) continue;
+      const view = this.creatureSystem.biteView(creature);
+      if (!view) continue;
+      let arc = this.biteArcs.get(creature);
+      if (!arc) {
+        arc = new AttackArc(this.s, DANGER_COLOR);
+        this.biteArcs.set(creature, arc);
+      }
+      shown.add(creature);
+      const y = this.terrainSystem.walkHeightAt(creature.x, creature.z, creature.level || 0);
+      arc.update(dt, { x: creature.x, y, z: creature.z, facing: view.facing, reach: view.reach, arc: view.arc, alpha: BITE_ARC_ALPHA, progress: view.progress });
+    }
+    for (const [creature, arc] of this.biteArcs) {
+      if (shown.has(creature)) continue;
+      arc.dispose();
+      this.biteArcs.delete(creature);
+    }
   },
 
   updateDrawStrike(dt) {
@@ -392,11 +441,12 @@ export default {
     this.spawnFloatingNumber(amount, creature.renderX, ground + creature.markHeight, creature.renderZ, kind, absorbed);
   },
 
-  showFloatingOverPlayer(amount, crit, absorbed = 0) {
+  showFloatingOverPlayer(amount, crit, absorbed = 0, graze = false) {
     const root = this.playerSystem.root;
     if (!root) return;
     const y = root.position.y + PLAYER_FLOAT_HEIGHT;
-    this.spawnFloatingNumber(amount, root.position.x, y, root.position.z, crit ? 'crit' : 'hurt', absorbed);
+    const kind = crit ? 'crit' : graze ? 'graze' : 'hurt';
+    this.spawnFloatingNumber(amount, root.position.x, y, root.position.z, kind, absorbed);
   },
 
   spawnFloatingNumber(amount, x, y, z, kind, absorbed = 0) {
@@ -520,23 +570,27 @@ export default {
     return dot < BACK_HIT_DOT;
   },
 
-  onCreatureBite(creature, damage, crit, damageType) {
+  onCreatureBite(creature, damage, crit, damageType, graze = false) {
+    if (this.playerStats.immunity > 0) {
+      this.onCreatureBiteMiss(creature, true);
+      return;
+    }
     const who = creature && creature.type ? creature.type.label : 'Útok';
-    const critText = crit ? ' kriticky' : '';
+    const critText = crit ? ' kriticky' : graze ? ' (škrábnutí)' : '';
     const behind = this.isBehindPlayer(creature);
     const dealt = this.hurtPlayer(damage, crit, behind, damageType);
     if (!dealt) return;
     const blocked = Math.max(0, Math.round(damage - dealt));
     const blockedText = blocked > 0 ? ` (odoláno ${blocked})` : '';
     this.log.add(`${who} — ${Math.round(dealt)} poškození${critText}${blockedText}`, 'warn');
-    this.showFloatingOverPlayer(dealt, crit, blocked);
+    this.showFloatingOverPlayer(dealt, crit, blocked, graze);
   },
 
-  onCreatureBiteMiss(creature) {
+  onCreatureBiteMiss(creature, dodged = false) {
     const who = creature && creature.type ? creature.type.label : 'Útok';
     this.audioSystem.play('miss');
-    this.log.add(`${who} — útok minul`, 'info');
-    this.showFloatingTextOverPlayer('Minul', 'miss');
+    this.log.add(dodged ? `${who} — uhnul jsi` : `${who} — útok minul`, 'info');
+    this.showFloatingTextOverPlayer(dodged ? 'Uhnul' : 'Minul', 'miss');
   },
 
   showFloatingTextOverPlayer(text, kind) {

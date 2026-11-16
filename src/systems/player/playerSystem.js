@@ -8,6 +8,7 @@ import { Vector3, Quaternion, Matrix } from '@babylonjs/core/Maths/math.vector';
 import { worldToCellCoords, cellToWorldCoords } from '../../utils/gridMath.js';
 import { warnMissingWiring } from '../../utils/missingWiring.js';
 import { TOOL_TYPES } from '../../data/catalogs/items.js';
+import { PLAYER_BASE } from '../../data/catalogs/player.js';
 import {
   toolModelUrl,
   PLAYER_MODEL,
@@ -245,6 +246,11 @@ export default class PlayerSystem {
     this.strikeTimer = 0;
     this.strikeAnim = 'punch';
     this.flinchTimer = 0;
+    this.dodgeTimer = 0;
+    this.dodgeWait = 0;
+    this.dodgeX = 0;
+    this.dodgeZ = 0;
+    this.dodgeSpeed = 0;
     this.pickupKey = 'pickup';
     this.footBones = { left: null, right: null };
     this.toeBones = { left: null, right: null };
@@ -1435,6 +1441,52 @@ export default class PlayerSystem {
     if (!this.mesh.isEnabled(false)) this.mesh.setEnabled(true);
   }
 
+  canDodge() {
+    if (!this.ready || !this.root || this.dead || this.lying) return false;
+    if (this.dodgeTimer > 0 || this.dodgeWait > 0 || this.flinchTimer > 0) return false;
+    return this.pickupTimer <= 0 && this.igniteTimer <= 0;
+  }
+
+  dodge(dirX, dirZ) {
+    const length = Math.hypot(dirX, dirZ);
+    if (!this.canDodge() || !(length > 0.0001)) return false;
+    const data = PLAYER_BASE.dodge || {};
+    const seconds = Number.isFinite(data.seconds) && data.seconds > 0 ? data.seconds : 0.3;
+    this.finishHipSwap();
+    if (this.strikeTimer > 0) this.endStrike();
+    this.autoWalk = null;
+    this.dodgeX = dirX / length;
+    this.dodgeZ = dirZ / length;
+    this.dodgeSpeed = (Number.isFinite(data.distance) ? data.distance : 0) / seconds;
+    this.dodgeTimer = seconds;
+    this.dodgeWait = Number.isFinite(data.cooldown) ? data.cooldown : 0;
+    return true;
+  }
+
+  stepDodge(dt) {
+    const step = this.dodgeSpeed * Math.min(dt, this.dodgeTimer);
+    this.dodgeTimer = Math.max(0, this.dodgeTimer - dt);
+    if (step > 0) {
+      const { x, z } = this.root.position;
+      this.tryMove(x + this.dodgeX * step, z + this.dodgeZ * step, this.dodgeX, this.dodgeZ, step);
+      this.updateHome();
+    }
+    this.play('run');
+  }
+
+  inputDirection() {
+    if (this.moveBlocked && this.moveBlocked()) return null;
+    const forward = this.cameraForward(this.s.activeCamera);
+    const right = new Vector3(forward.z, 0, -forward.x);
+    const move = new Vector3(0, 0, 0);
+    if (this.input.forward) move.addInPlace(forward);
+    if (this.input.back) move.subtractInPlace(forward);
+    if (this.input.right) move.addInPlace(right);
+    if (this.input.left) move.subtractInPlace(right);
+    if (move.lengthSquared() < 0.0001) return null;
+    return move.normalize();
+  }
+
   endStrike() {
     this.strikeTimer = 0;
     this.play(this.idleAnim());
@@ -1500,6 +1552,7 @@ export default class PlayerSystem {
     if (this.dead || !this.ready) return 0;
     this.dead = true;
     this.autoWalk = null;
+    this.dodgeTimer = 0;
     this.lying = false;
     this.waking = false;
     this.wakeTimer = 0;
@@ -1725,6 +1778,11 @@ export default class PlayerSystem {
       if (this.flinchTimer > 0) return;
     }
     this.ensurePlaying();
+    if (this.dodgeWait > 0 && this.dodgeTimer <= 0) this.dodgeWait = Math.max(0, this.dodgeWait - dt);
+    if (this.dodgeTimer > 0) {
+      this.stepDodge(dt);
+      return;
+    }
     if (this.strikeTimer > 0) {
       this.strikeTimer -= dt;
       this.play(this.strikeAnim);
@@ -1761,26 +1819,14 @@ export default class PlayerSystem {
 
     if (this.autoWalk && this.stepAutoWalk(dt)) return;
 
-    const camera = this.s.activeCamera;
-    const forward = this.cameraForward(camera);
-    const right = new Vector3(forward.z, 0, -forward.x);
-
-    const move = new Vector3(0, 0, 0);
-    if (!(this.moveBlocked && this.moveBlocked())) {
-      if (this.input.forward) move.addInPlace(forward);
-      if (this.input.back) move.subtractInPlace(forward);
-      if (this.input.right) move.addInPlace(right);
-      if (this.input.left) move.subtractInPlace(right);
-    }
-
-    if (move.lengthSquared() < 0.0001) {
+    const move = this.inputDirection();
+    if (!move) {
       this.footInitialized = false;
       this.lookAround(dt);
       this.play(this.idleAnim());
       return;
     }
 
-    move.normalize();
     const allowed = !this.canSprint || this.canSprint();
     if (!allowed && this.input.sprint) this.sprintSpent = true;
     const sprint = this.input.sprint && allowed && !this.sprintSpent;

@@ -58,9 +58,3 @@ export function rollQuality(attack, defense) {
   if (roll >= hit) return roll < hit + graze ? 'graze' : 'miss';
   return Math.random() < crit ? 'crit' : 'normal';
 }
-
-export function rollStrike(attack, defense) {
-  const chance = chanceOf(attack, defense);
-  if (Math.random() >= chance) return { hit: false, crit: false };
-  return { hit: true, crit: Math.random() < critChanceOf(chance) };
-}

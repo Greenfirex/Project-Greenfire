@@ -3,7 +3,7 @@ export const PLAYER_STAT_INFO = {
   health: {
     label: 'Zdraví',
     icon: '❤',
-    text: 'Kolik ran vydržíš, než se probudíš na startu. Doplňuje se po chvíli klidu.',
+    text: 'Kolik ran vydržíš, než se probudíš na startu. Pomalu se doplňuje pořád, i v boji.',
   },
   stamina: {
     label: 'Výdrž',

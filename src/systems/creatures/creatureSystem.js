@@ -11,7 +11,8 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Meshes/Builders/sphereBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { createCreatureMarker, setMarkerIcon } from '../../utils/creatureMarker.js';
-import { rollStrike, rollDamage, CRIT_MULTIPLIER } from '../../utils/combatRoll.js';
+import { rollQuality, rollDamage, CRIT_MULTIPLIER, GRAZE_MULTIPLIER } from '../../utils/combatRoll.js';
+import { angleGap } from '../../utils/angles.js';
 import {
   getCreatureType,
   getCreatureTier,
@@ -35,6 +36,9 @@ const PATH_SAMPLE = 0.3;
 const CHASE_STUCK_SECONDS = 1.2;
 const HOME_PATIENCE = 12;
 const ATTACK_HEIGHT = 1;
+const PLAYER_BODY = 0.3;
+const LUNGE_SECONDS = 0.15;
+const LUNGE_STOP = 0.5;
 const SIGHT_HOLD = 0.2;
 const CHASE_RANGE = 1.8;
 const SEARCH_PATIENCE = 8;
@@ -695,8 +699,20 @@ export default class CreatureSystem {
     if (!Number.isFinite(dt) || dt <= 0) return;
     if (Number.isFinite(now)) this.now = now;
     const player = this.playerAt ? this.playerAt() : null;
-    for (const creature of this.creatures) this.think(creature, dt, player);
+    for (const creature of this.creatures) {
+      this.think(creature, dt, player);
+      this.regenerate(creature, dt);
+    }
     this.respawnDue(this.now, player);
+  }
+
+  regenerate(creature, dt) {
+    if (!creature || creature.dead || !(creature.health > 0)) return;
+    const total = creature.tier && Number.isFinite(creature.tier.health) ? creature.tier.health : 0;
+    if (creature.health >= total) return;
+    const rate = Number.isFinite(creature.type.regenPerSecond) ? creature.type.regenPerSecond : 0;
+    if (rate <= 0) return;
+    creature.health = Math.min(total, creature.health + rate * dt);
   }
 
   respawnDue(now, player) {
@@ -803,6 +819,7 @@ export default class CreatureSystem {
     }
 
     if (creature.mode === 'windup') {
+      if (creature.lungeLeft > 0 && creature.timer < Math.min(type.biteWindup, LUNGE_SECONDS)) this.lunge(creature, player, dt);
       if (creature.timer <= 0) {
         creature.mode = 'recover';
         creature.timer = type.biteRecover;
@@ -881,6 +898,8 @@ export default class CreatureSystem {
       if (this.inBiteRange(creature, player) && creature.cooldown <= 0) {
         creature.mode = 'windup';
         creature.timer = type.biteWindup;
+        creature.lungeLeft = Number.isFinite(type.biteLunge) && type.biteLunge > 0 ? type.biteLunge : 0;
+        if (gap > 0.001) creature.facing = Math.atan2(player.x - creature.x, player.z - creature.z);
         return;
       }
       creature.mode = 'chase';
@@ -990,22 +1009,61 @@ export default class CreatureSystem {
     creature.mode = 'chase';
   }
 
+  biteReaches(creature, player) {
+    if (!player || this.heightGap(creature, player) > ATTACK_HEIGHT) return false;
+    const dx = player.x - creature.x;
+    const dz = player.z - creature.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance - PLAYER_BODY > creature.type.biteRange) return false;
+    if (distance <= PLAYER_BODY) return true;
+    const arc = (Number.isFinite(creature.type.biteArc) ? creature.type.biteArc : 90) * Math.PI / 180;
+    const turn = Math.abs(angleGap(creature.facing, Math.atan2(dx, dz)));
+    return turn <= arc / 2 + Math.asin(Math.min(1, PLAYER_BODY / distance));
+  }
+
+  lunge(creature, player, dt) {
+    const type = creature.type;
+    if (player && Math.hypot(player.x - creature.x, player.z - creature.z) <= type.biteRange * LUNGE_STOP) {
+      creature.lungeLeft = 0;
+      return;
+    }
+    const startX = creature.x;
+    const startZ = creature.z;
+    const facing = creature.facing;
+    const speed = type.biteLunge / Math.min(type.biteWindup, LUNGE_SECONDS);
+    this.walkTo(creature, startX + Math.sin(facing) * creature.lungeLeft, startZ + Math.cos(facing) * creature.lungeLeft, speed, dt);
+    creature.facing = facing;
+    const moved = Math.hypot(creature.x - startX, creature.z - startZ);
+    creature.lungeLeft = moved > 0.0001 ? Math.max(0, creature.lungeLeft - moved) : 0;
+  }
+
+  biteView(creature) {
+    if (!creature || creature.mode !== 'windup' || creature.dead) return null;
+    const windup = creature.type.biteWindup > 0 ? creature.type.biteWindup : 1;
+    const arc = (Number.isFinite(creature.type.biteArc) ? creature.type.biteArc : 90) * Math.PI / 180;
+    return { reach: creature.type.biteRange + PLAYER_BODY + (creature.lungeLeft || 0), arc, facing: creature.facing, progress: Math.max(0, Math.min(1, 1 - creature.timer / windup)) };
+  }
+
   resolveBite(creature, player) {
     if (!player) return;
+    if (!this.biteReaches(creature, player)) {
+      if (this.onBiteMiss) this.onBiteMiss(creature, true);
+      return;
+    }
     const attack = creatureStat(creature.type, creature.tier, 'attack');
     const defense = this.defenseAt ? this.defenseAt() : 0;
-    const strike = rollStrike(attack, defense);
-    if (!strike.hit) {
-      if (this.onBiteMiss) this.onBiteMiss(creature);
+    const quality = rollQuality(attack, defense);
+    if (quality === 'miss') {
+      if (this.onBiteMiss) this.onBiteMiss(creature, false);
       return;
     }
     const bite = creature.tier && creature.tier.bite !== undefined
       ? creature.tier.bite
       : creature.type.bite;
-    const rolled = rollDamage(bite);
-    const damage = strike.crit ? rolled * CRIT_MULTIPLIER : rolled;
+    const scale = quality === 'crit' ? CRIT_MULTIPLIER : quality === 'graze' ? GRAZE_MULTIPLIER : 1;
+    const damage = rollDamage(bite) * scale;
     const damageType = (creature.tier && creature.tier.damageType) || creature.type.damageType || null;
-    if (this.onBite) this.onBite(creature, damage, strike.crit, damageType);
+    if (this.onBite) this.onBite(creature, damage, quality === 'crit', damageType, quality === 'graze');
   }
 
   idleCall(creature, dt) {

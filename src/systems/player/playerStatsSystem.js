@@ -14,7 +14,6 @@ export default class PlayerStatsSystem {
     this.armor = this.baseArmor;
     this.carryWeight = this.amount(PLAYER_BASE.carryWeight, 0, 0);
     this.resistances = this.readResistances(PLAYER_BASE.resistances);
-    this.sinceHurt = 0;
     this.immunity = 0;
     const stamina = PLAYER_BASE.stamina || {};
     this.maxStamina = this.amount(stamina.max, 100, 1);
@@ -85,6 +84,10 @@ export default class PlayerStatsSystem {
     return true;
   }
 
+  protect(seconds) {
+    if (Number.isFinite(seconds) && seconds > 0) this.immunity = Math.max(this.immunity, seconds);
+  }
+
   canSpend(points) {
     if (this.health <= 0) return false;
     return !Number.isFinite(points) || points <= 0 || this.stamina >= points;
@@ -133,7 +136,6 @@ export default class PlayerStatsSystem {
     if (this.immunity > 0 || this.health <= 0) return 0;
     const dealt = this.mitigate(points, damageType);
     this.health = Math.max(0, this.health - dealt);
-    this.sinceHurt = 0;
     this.sinceEffort = 0;
     if (this.onChange) this.onChange(this.health, this.maxHealth);
     return dealt;
@@ -142,7 +144,6 @@ export default class PlayerStatsSystem {
   resurrect() {
     this.health = this.maxHealth;
     this.stamina = this.maxStamina;
-    this.sinceHurt = 0;
     this.sinceEffort = 0;
     this.sprintLocked = false;
     this.immunity = this.amount(PLAYER_BASE.reviveImmunitySeconds, 0, 0);
@@ -155,8 +156,6 @@ export default class PlayerStatsSystem {
     if (this.immunity > 0) this.immunity = Math.max(0, this.immunity - dt);
     this.tickStamina(dt, sprinting);
     if (this.health >= this.maxHealth) return;
-    this.sinceHurt += dt;
-    if (this.sinceHurt < this.amount(PLAYER_BASE.regenDelaySeconds, Infinity, 0)) return;
     const rate = this.amount(PLAYER_BASE.regenPerSecond, 0, 0);
     if (rate <= 0) return;
     const next = Math.min(this.maxHealth, this.health + rate * dt);
@@ -175,7 +174,6 @@ export default class PlayerStatsSystem {
     this.health = clamped > 0 ? clamped : this.maxHealth;
     const savedStamina = data && Number.isFinite(data.stamina) ? data.stamina : this.maxStamina;
     this.stamina = Math.max(0, Math.min(this.maxStamina, savedStamina));
-    this.sinceHurt = 0;
     this.sinceEffort = 0;
     this.immunity = 0;
     this.refreshSprintLock();
