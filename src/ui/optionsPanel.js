@@ -67,7 +67,6 @@ const ITEMS = [
   { kind: 'toggle', key: 'cameraShake', tab: 'game', label: 'Třes kamery', note: 'Kamera se otřese, když tě tvor zasáhne kriticky.' },
   { kind: 'toggle', key: 'damageFlash', tab: 'game', label: 'Červené bliknutí', note: 'Záblesk po okrajích obrazovky při zásahu.' },
   { kind: 'toggle', key: 'floatingNumbers', tab: 'game', label: 'Plovoucí čísla', note: 'Poškození vypluje nad postavou a zmizí.' },
-  { kind: 'toggle', key: 'lookAtPointer', tab: 'game', label: 'Otáčení za myší', note: 'Ve stoje se postava dívá tam, kde máš kurzor.' },
 ];
 
 function clampPercent(value) {

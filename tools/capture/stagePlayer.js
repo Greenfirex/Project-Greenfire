@@ -8,7 +8,7 @@ const STEP = 1 / 60;
 const TOOL_WAIT_MS = 15000;
 const LID_AHEAD = 0.65;
 const HIP_LENGTH = 0.8;
-const SCENES = ['idle', 'walk', 'run', 'strike', 'pickup', 'draw', 'sheath', 'grab', 'putaway'];
+const SCENES = ['idle', 'walk', 'run', 'strike', 'dodge', 'pickup', 'draw', 'sheath', 'grab', 'putaway'];
 const HIP_SCENES = ['draw', 'sheath', 'grab', 'putaway'];
 
 function rounded(value, digits) {
@@ -55,6 +55,7 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
   const scenario = SCENES.includes(options.scene) ? options.scene : 'idle';
   const toolKey = options.tool || null;
   if (toolKey && !TOOL_TYPES[toolKey]) return { error: `neznámý nástroj: ${toolKey}` };
+  if (toolKey && options.grip) Object.assign(TOOL_TYPES[toolKey].grip, JSON.parse(options.grip));
   scene.useConstantAnimationDeltaTime = true;
   const player = new PlayerSystem(scene);
   player.groundHeightAt = () => 0;
@@ -80,6 +81,24 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
     if (!(await waitFor(() => player.offNode))) return { error: `nástroj v levé ruce se neukázal: ${offHandKey}` };
   }
   if (options.combat) player.inCombat = () => true;
+  if (options.curlaxis) {
+    const local = Vector3.FromArray(JSON.parse(options.curlaxis)).normalize();
+    player.closeFist = function (curl, arm = this.armNodes) {
+      if (!arm || !curl || !arm.fingers.length || !arm.fist.length) return null;
+      const side = Vector3.TransformNormal(local, arm.hand.getWorldMatrix()).normalize();
+      for (const node of arm.fingers) {
+        const rest = arm.fingerRest.get(node);
+        if (rest) node.rotationQuaternion.copyFrom(rest);
+        this.turnBone(node, side, curl * (arm.curlSign || 1));
+        node.computeWorldMatrix(true);
+      }
+      return this.fistCenter(arm);
+    };
+  }
+  if (options.axis) {
+    const local = Vector3.FromArray(JSON.parse(options.axis)).normalize();
+    player.gripAxis = () => Vector3.TransformNormal(local, player.armNodes.hand.getWorldMatrix()).normalize();
+  }
   if (options.glance) player.glance.wait = 0.3;
   player.play(player.idleAnim(), true);
   await scene.whenReadyAsync();
@@ -91,9 +110,14 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
   const focusOn = { hand: () => player.handSlot, left: () => player.leftSlot, head: () => player.idleNodes && player.idleNodes.head }[options.focus];
 
   const tool = TOOL_TYPES[toolKey];
-  const anim = options.anim || (tool && tool.weapon ? tool.weapon.anim : undefined);
+  const weaponAnim = tool && tool.weapon && tool.weapon.primary ? tool.weapon.primary.anim : undefined;
+  const anim = options.anim || (Array.isArray(weaponAnim) ? weaponAnim[0] : weaponAnim);
   const actions = {
     strike: () => player.strike(anim),
+    dodge: () => {
+      player.dodge(0, 1);
+      return player.dodgeTimer;
+    },
     pickup: () => player.pickUp(),
     draw: () => {
       player.weaponDrawn = true;
@@ -131,6 +155,8 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
     const length = HIP_SCENES.includes(scenario) ? HIP_LENGTH : action();
     player.strikeTimer = 0;
     player.pickupTimer = 0;
+    player.dodgeTimer = 0;
+    player.dodgeWait = 0;
     player.play(player.idleAnim(), true);
     seconds = options.seconds || lead + length + (lead ? 0.5 : 0.2);
   }

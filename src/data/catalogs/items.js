@@ -180,13 +180,13 @@ export const TOOL_TYPES = {
     kind: 'weapon',
     model: 'stick',
     file: `${ASSET_DIRS.props}club/stick.glb`,
-    grip: { scale: 1.6, fist: 1, curl: 1.1, tilt: -0.3, hold: 0.07, wrist: 1 },
+    grip: { scale: 1.6, fist: 1, curl: 1.1, tilt: -0.3, hold: 0.07, wrist: 1, toThumb: 0.4 },
     sheath: { side: -0.95, lift: 0.5, ahead: 0.1, back: 0.15, out: -0.06 },
     guard: { hand: [0.2, -0.36, 0.38], elbow: [0.2, -0.27, -0.02], club: [0.15, 0.75, 0.8], leftHand: [-0.02, -0.32, 0.28], leftElbow: [0.12, -0.28, 0.02] },
     weapon: {
       damage: [3, 5], attack: 1, damageType: 'blunt', hitSound: 'hitClub',
-      primary: { reach: 1.7, arc: 70, cooldown: 1.1, anim: 'chop' },
-      secondary: { reach: 1.9, arc: 40, cooldown: 1.8, cost: 22, anim: 'heavySmash' },
+      primary: { reach: 1.7, arc: 70, cooldown: 1.0, anim: ['slash', 'double1'] },
+      secondary: { reach: 1.9, arc: 40, cooldown: 1.6, cost: 22, anim: 'slam' },
     },
   },
 };

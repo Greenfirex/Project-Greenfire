@@ -99,7 +99,11 @@ export default class RevealPlugin extends MaterialPluginBase {
     if (shaderType === 'vertex') {
       return {
         CUSTOM_VERTEX_DEFINITIONS: `varying vec3 ${BASE_VARYING};`,
-        CUSTOM_VERTEX_MAIN_END: `${BASE_VARYING} = (finalWorld * vec4(0.0, 0.0, 0.0, 1.0)).xyz;`,
+        CUSTOM_VERTEX_MAIN_END: `#ifdef INSTANCES
+${BASE_VARYING} = (finalWorld * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+#else
+${BASE_VARYING} = (world * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+#endif`,
       };
     }
     if (shaderType !== 'fragment') return null;

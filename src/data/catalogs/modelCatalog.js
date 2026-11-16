@@ -9,7 +9,7 @@ import { grassStartupUrls } from './grass.js';
 const CHARACTER_DIR = `${ASSET_DIRS.characters}castaway/`;
 
 export const PLAYER_MODEL = `${CHARACTER_DIR}castaway.glb`;
-export const PLAYER_ANIMS = [];
+export const PLAYER_ANIMS = [`${CHARACTER_DIR}castaway_combat.glb`, `${CHARACTER_DIR}castaway_double.glb`];
 export const PLAYER_ASSET_URLS = [PLAYER_MODEL, ...PLAYER_ANIMS];
 
 export const PLAYER_BASE_HEIGHT = 1.7;
@@ -50,6 +50,7 @@ export const PLAYER_FINGER_BONES = [
 ];
 export const PLAYER_FIST_BONES = ['RightHandMiddle1', 'RightHandMiddle3', 'RightHandIndex1', 'RightHandRing1'];
 export const PLAYER_THUMB_BONES = ['RightHandThumb2'];
+export const PLAYER_GRIP_LINE_BONES = { front: 'RightHandIndex1', back: 'RightHandPinky1' };
 export const PLAYER_LEFT_FINGER_BONES = PLAYER_FINGER_BONES.map((name) => name.replace('Right', 'Left'));
 export const PLAYER_LEFT_FIST_BONES = PLAYER_FIST_BONES.map((name) => name.replace('Right', 'Left'));
 export const PLAYER_LEFT_THUMB_BONES = PLAYER_THUMB_BONES.map((name) => name.replace('Right', 'Left'));
@@ -62,7 +63,6 @@ export const PLAYER_ANIM_LIBRARY = {
   running: 'Running',
   attack: 'Attack',
   boxingPunch: 'Boxing_Guard_Prep_Straight_Punch',
-  chargedSlash: 'Charged_Slash',
   collectObject: 'Collect_Object',
   combatStance: 'Combat_Stance',
   facePunch: 'Face_Punch_Reaction',
@@ -70,8 +70,11 @@ export const PLAYER_ANIM_LIBRARY = {
   idle11: 'Idle_11',
   leftSlash: 'Left_Slash',
   swordSlash: 'Right_Hand_Sword_Slash',
+  tripleCombo: 'Triple_Combo_Attack',
+  doubleCombo: 'Double_Combo_Attack',
   shotInBack: 'Shot_in_the_Back_and_Fall',
   kick: 'Boxing_Guard_Right_Straight_Kick',
+  rollDodge: 'Roll_Dodge_2',
   standUp1: 'Stand_Up1',
   drink: 'Stand_and_Drink',
   dyingBackwards: 'dying_backwards',
@@ -86,7 +89,10 @@ export const PLAYER_ANIM_NAMES = {
   mine: PLAYER_ANIM_LIBRARY.hammerSwing,
   punch: PLAYER_ANIM_LIBRARY.boxingPunch,
   kick: PLAYER_ANIM_LIBRARY.kick,
-  heavySmash: PLAYER_ANIM_LIBRARY.chargedSlash,
+  slam: PLAYER_ANIM_LIBRARY.tripleCombo,
+  slash: PLAYER_ANIM_LIBRARY.swordSlash,
+  double1: PLAYER_ANIM_LIBRARY.doubleCombo,
+  roll: PLAYER_ANIM_LIBRARY.rollDodge,
   heavyKick: PLAYER_ANIM_LIBRARY.kick,
   holdTool: PLAYER_ANIM_LIBRARY.idle11,
   ignite: PLAYER_ANIM_LIBRARY.collectObject,
@@ -105,7 +111,9 @@ export const PLAYER_ANIM_SPEEDS = {
   mine: 1.1,
   punch: 1.8,
   kick: 1.4,
-  heavySmash: 1.1,
+  slam: 0.8,
+  slash: 0.7,
+  double1: 1.25,
   heavyKick: 0.9,
   ignite: 2.5,
   pickup: 2.0,
@@ -117,11 +125,21 @@ export const PLAYER_ANIM_RANGES = {
   punch: { start: 1.1, end: 2.7 },
   kick: { start: 0.36, end: 1.0 },
   heavyKick: { start: 0.36, end: 1.0 },
+  slam: { start: 1.85, end: 2.7 },
+  slash: { start: 0.0, end: 0.7 },
+  double1: { start: 0.0, end: 1.02 },
+  roll: { start: 0.4, end: 1.8 },
   pickup: { start: 0, end: 1.05 },
   flinch: { start: 0.0, end: 1.0 },
 };
 
-export const PLAYER_ANIM_ROOTLESS = ['punch'];
+export const PLAYER_ANIM_SWING_ALONG = { slash: { share: 0.8, from: 0.6, full: 0.72 } };
+
+export const PLAYER_ANIM_SNAP = { slash: { at: 0.4, speed: 1.8 } };
+
+export const PLAYER_ANIM_ROOTLESS = ['punch', 'double1', 'slam', 'roll'];
+
+export const PLAYER_ROLL_HEADING = 0.79;
 
 export const PLAYER_DEATH_OVERLAY_SHARE = {
   dieFall: 0.8,
@@ -133,7 +151,9 @@ export const PLAYER_ANIM_FALLBACKS = {
   mine: ['mine', 'chop', 'punch', 'kick'],
   punch: ['punch', 'kick', 'chop'],
   kick: ['kick', 'punch', 'chop'],
-  heavySmash: ['heavySmash', 'mine', 'chop'],
+  slam: ['slam', 'mine', 'chop'],
+  slash: ['slash', 'chop'],
+  double1: ['double1', 'chop'],
   heavyKick: ['heavyKick', 'kick', 'punch'],
   holdTool: ['holdTool', 'idle'],
   ignite: ['ignite', 'pickup', 'punch', 'idle'],

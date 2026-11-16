@@ -373,6 +373,26 @@ a rychlost proudu a sílu peřejí; jezero je plocha se stejnou výškou a bez p
 Model `public/assets/characters/castaway/castaway.glb` má kostru i animace v GLB;
 nástroj se přichytí na kost `RightHand`. Mapování animací a nastavení modelu jsou
 v `src/data/catalogs/modelCatalog.js`, načtení a přepínání v `playerSystem.js`.
+Bojové animace leží v `castaway_combat.glb` a `castaway_double.glb` (`PLAYER_ANIMS`).
+`castaway_combat.glb` je stejná postava stažená z Meshy v pojmenování „mixamo“ (kosti `mixamorig:…`). Kostra je jinak totožná, takže se animace
+přenášejí podle pořadí kostí (`sameBoneNodes`), ne podle jmen. Další animační soubor stejné
+postavy stačí přidat do `PLAYER_ANIMS`. Z jedné animace jde vzít jen úsek
+(`PLAYER_ANIM_RANGES`); bojové animace se přehrávají na místě (`PLAYER_ANIM_ROOTLESS`).
+Násada vede pěstí podél řady kloubů od malíčku k ukazováčku (`gripAxis`,
+`PLAYER_GRIP_LINE_BONES`), takže z pěsti vychází jen jedním směrem; klacek je posunutý
+od středu pěsti kus k palci (`grip.toThumb`, jako u pochodně), aby seděl v dlani, ne u konečků prstů. Úchop se ladí jen v bojovém postoji
+(`guard` u zbraně); během rány se zápěstí zamkne v natočení z postoje (`guardWrist`,
+`holdSwingWrist`, náběh 0,1 s), takže klacek se hýbe jen s předloktím a animace ho nekroutí.
+Bez předchozího postoje se zamkne do klidové polohy ruky. U ran z `PLAYER_ANIM_SWING_ALONG` (vodorovný
+sek `slash`) se zápěstí během rány narovná a klacek míří víc v linii předloktí
+(`alignSwing`), jinak by při vodorovném máchnutí trčel nahoru. Narovnání najíždí až od vrcholu
+nápřahu (`from`/`full` jako podíl rány) a otočení zápěstí je omezené (`SWING_TURN_LIMIT`):
+na začátku seku míří předloktí dolů a klacek nahoru, takže by se ruka přetočila naruby. Prsty pravé ruky se ohýbají
+opačným směrem než levé (`RIGHT_CURL_SIGN` = −1, kostra je zrcadlená); s +1 se prsty ohýbaly
+dozadu a ruka s klackem vypadala otevřeně. Zkoušené a vrácené (16. 11. 2026):
+klacek obrácený v pěsti a klacek ve směru paže; oba při nápřahu mířily dolů nebo k tělu. Zkoušené a vyřazené (16. 11. 2026): `Charged_Axe_Chop` (úder trvá jediný snímek, nemá
+švih), `Axe_Spin_Attack` (chaotická otočka), `Thrust_Slash` (postava skončí bokem k cíli),
+`Roll_Dodge_1` (skok šipkou místo převalu).
 
 Nový svět začíná na buňce **−1, −16**, hráč leží a vstane po stisku WASD nebo šipek.
 Uložená hra vstávání přeskočí. Když dojde zdraví, hráč se probudí na startu.
@@ -587,7 +607,8 @@ Schváleno 13. 11. 2026. Etapy jdou dělat a zkoušet po jedné; po každé je h
 Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
 
 **Stav (16. 11. 2026):** etapy 1, 1b a 2 hotové a vyzkoušené, etapy 3 a 4 napsané a čekají
-na vyzkoušení ve hře. Úskok zatím nemá vlastní animaci (uživatel ji dodá; do té doby běh).
+na vyzkoušení ve hře. Úskok je kotoul (`Roll_Dodge_2`), rány klackem mají vlastní animace
+z `castaway_combat.glb` (16. 11. 2026, čeká na vyzkoušení).
 Sekyra a krumpáč jako zbraně odloženy na později.
 
 **Rozhodnuto:**
@@ -686,8 +707,18 @@ Sekyra a krumpáč jako zbraně odloženy na později.
   nad tvorem, `missCreature`). Žádná rána (primární ani sekundární) se neprovede, když na ni
   nestačí výdrž (`canSpend`); hráč počká, až se výdrž doplní. Poškození hráče je od
   16. 11. 2026 snížené na třetinu: pěst 1–3, klacek 3–5 (sekundární ×1,5). Klacek: primární
-  1,7 m / 70° / 1,1 s, sekundární 1,9 m / 40° / 1,8 s / 22 výdrže, animace `Charged_Slash`
-  (klíč `heavySmash`). Pěst: primární úder pěstí 1,4 m / 50° / 1 s (už se nestřídá s kopem),
+  1,7 m / 70° / 1 s, sekundární 1,9 m / 40° / 1,6 s / 22 výdrže. `anim` rány může být
+  seznam: rány jdoucí po sobě do 1,6 s (`CHAIN_WINDOW` v `playerAttackSystem.js`) berou další
+  položku, jinak se začíná od první. Klacek: primární střídá původní sek
+  `Right_Hand_Sword_Slash` (bojová kopie `slash`, aby se nezměnilo sbírání s `chop`) s prvním švihem z `Double_Combo_Attack` (`double1`, soubor
+  `castaway_double.glb`; první dva seky `Triple_Combo_Attack` vypadaly divně, 16. 11. 2026),
+  obě primární rány trvají zhruba stejně (asi 0,9 s; rychlost
+  a úsek v `PLAYER_ANIM_SPEEDS` a `PLAYER_ANIM_RANGES`). Vodorovný sek má švih: nápřah běží
+  pomalu (0,7) a od vrcholu nápřahu se animace zrychlí na 1,8 (`PLAYER_ANIM_SNAP`, `applySnap`;
+  `at` = vrchol nápřahu v sekundách animace), zásah přijde asi v 0,63 s, sekundární je třetí
+  sek z `Triple_Combo_Attack`, velký úder
+  přes hlavu (`slam`, zpomalený). Okamžik dopadu je podle nejrychlejšího pohybu ruky
+  v animaci (`STRIKE_IMPACT_SHARE`). Pěst: primární úder pěstí 1,4 m / 50° / 1 s (už se nestřídá s kopem),
   sekundární kopnutí 1,6 m / 50° / 1,5 s / 16 výdrže (klíč `heavyKick`, pomalejší `kick`).
   Výseč na zemi během sekundární rány ukazuje její výseč.
 
@@ -708,8 +739,10 @@ Sekyra a krumpáč jako zbraně odloženy na později.
   na útěk je potřeba sprint nebo úskok. Výseč ukazuje skutečný dosah včetně výpadu
   a okraje těla hráče.
 - Úskok (`tryDodge` ve scéně, `dodge`/`stepDodge` v `playerSystem`, čísla
-  `PLAYER_BASE.dodge`): 1,2 m za 0,18 s směrem WASD, bez pohybu pryč od kurzoru;
-  20 výdrže, 0,25 s nezranitelnost (`protect`), 0,4 s pauza do dalšího. Nejde během
+  `PLAYER_BASE.dodge`): kotoul 3 m za 1,1 s směrem WASD, bez pohybu pryč od kurzoru;
+  animace `roll` se přizpůsobí délce úskoku. Kotoul v animaci vede šikmo, o 0,79 rad
+  vpravo od pohledu (`PLAYER_ROLL_HEADING`), proto se postava natočí o tolik doleva od směru
+  úskoku (rychlým otočením `DODGE_TURN_SPEED`); 20 výdrže, 0,5 s nezranitelnost (`protect`), 0,4 s pauza do dalšího. Nejde během
   nápřahu vlastní rány (do dopadu), po dopadu ránu přeruší. Kousnutí během
   nezranitelnosti ukáže „Uhnul“.
 

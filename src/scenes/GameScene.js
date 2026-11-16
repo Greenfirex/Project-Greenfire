@@ -259,7 +259,6 @@ export default class GameScene {
     };
     this.playerSystem.onStep = (x, z, sprint) => this.onPlayerStep(x, z, sprint);
     this.playerSystem.onFootPlant = (x, z, facing, side, sprint) => this.footfall(x, z, facing, 1, 'human', sprint ? 1.25 : 1);
-    this.playerSystem.lookAt = () => this.playerLookPoint();
     this.creatureSystem.onStep = (creature, side) => this.onCreatureStep(creature, side);
     this.creatureSystem.onDig = (creature) => this.onCreatureDig(creature);
     this.playerStats.onChange = (health, maxHealth) => this.vitalsBar.setHealth(health, maxHealth);

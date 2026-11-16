@@ -24,11 +24,11 @@ export const PLAYER_BASE = {
     secondary: { reach: 1.6, arc: 50, cooldown: 1.5, cost: 16, anim: 'heavyKick' },
   },
   dodge: {
-    distance: 1.2,
-    seconds: 0.18,
+    distance: 3.0,
+    seconds: 1.1,
     cooldown: 0.4,
     cost: 20,
-    immunity: 0.25,
+    immunity: 0.5,
   },
   stamina: {
     max: 100,

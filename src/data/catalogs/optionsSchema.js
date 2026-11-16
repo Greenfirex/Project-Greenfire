@@ -15,7 +15,6 @@ export const OPTION_DEFAULTS = {
   damageFlash: true,
   floatingNumbers: true,
   playerBars: 'dock',
-  lookAtPointer: true,
   sfxVolume: 70,
   ambientVolume: 25,
   musicVolume: 40,

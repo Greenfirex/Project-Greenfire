@@ -9,6 +9,7 @@ import { weaponBlows } from '../../utils/weaponBlows.js';
 import { angleGap } from '../../utils/angles.js';
 
 const BODY_SHARE = 0.3;
+const CHAIN_WINDOW = 1.6;
 
 export default class PlayerAttackSystem {
 
@@ -28,6 +29,8 @@ export default class PlayerAttackSystem {
     this.onWhiff = null;
     this.onMiss = null;
     this.onStruck = null;
+    this.clock = 0;
+    this.chains = {};
   }
 
   number(value) {
@@ -97,7 +100,7 @@ export default class PlayerAttackSystem {
     if (!this.canSwing() || !player) return false;
     const blow = this.blow(kind);
     if (player.faceTo) player.faceTo(x, z);
-    player.strike(blow.anim);
+    player.strike(this.chainAnim(kind, blow.anim));
     this.pending = { player, blow };
     this.impactTimer = 0;
     this.impactDelay = player.strikeImpactTime();
@@ -105,8 +108,17 @@ export default class PlayerAttackSystem {
     return true;
   }
 
+  chainAnim(kind, anim) {
+    const list = Array.isArray(anim) ? anim : [anim];
+    const last = this.chains[kind];
+    const step = last && this.clock - last.at <= CHAIN_WINDOW ? (last.step + 1) % list.length : 0;
+    this.chains[kind] = { step, at: this.clock };
+    return list[step];
+  }
+
   update(dt) {
     const step = Number.isFinite(dt) && dt > 0 ? dt : 0;
+    this.clock += step;
     if (this.cooldown > 0) this.cooldown = Math.max(0, this.cooldown - step);
     const pending = this.pending;
     if (!pending) return;

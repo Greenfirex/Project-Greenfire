@@ -40,12 +40,14 @@ node tools/capture.cjs player strike --tool club --view side2 --frames 8
 node tools/capture.cjs player idle --tool torch --view side2 --focus hand --zoom 0.7
 ```
 
-Scény: `idle`, `walk`, `run`, `strike` (úder animací zbraně, jinak `--anim chop|mine|punch|kick`),
+Scény: `idle`, `walk`, `run`, `strike` (úder první animací primární rány zbraně, jinak `--anim` s klíčem
+animace, např. `combo2` nebo `slam`), `dodge` (kotoul dopředu),
 `pickup`, `draw` a `sheath` (tasení z boku a zandání, potřebují `--sheath club`;
 u `sheath` i `--tool club`), `grab` a `putaway` (vytažení pochodně do levé ruky
 s `--grab torch`, schování s `--offhand torch`). `--tool` je klíč z `TOOL_TYPES`, `--sheath` dá zbraň na bok. `--combat 1` postaví postavu do bojového
 postoje, `--lead 0.3` počká před úderem nebo sbíráním (vidět je pak i přechod tam a zpět),
-`--glance 1` vynutí brzké rozhlédnutí ve stoji, `--kneel 2` nechá postavu po sbírání
+`--grip '{"fist":-1}'` zkusmo přepíše úchop nástroje, `--axis '[0,0,1]'` nastaví směr nástroje
+podle osy ruky (obojí jen v ateliéru), `--glance 1` vynutí brzké rozhlédnutí ve stoji, `--kneel 2` nechá postavu po sbírání
 v dřepu 2 s (jako při otevřené truhle), `--lid 0.55` při tom natáhne ruce k víku
 v této výšce kousek před postavou. Nástroj drží pravá ruka, ta je vidět
 z pohledu `side2`. `--offhand torch` dá nástroj do levé ruky (pochodeň se ve hře drží vždy v levé). `--focus hand|left|head` míří záběr na ruku nebo hlavu (hodí se se

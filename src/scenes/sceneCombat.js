@@ -82,11 +82,6 @@ export default {
     this.audioSystem.play(key, { distance: Math.hypot(creature.renderX - ear.x, creature.renderZ - ear.z) });
   },
 
-  playerLookPoint() {
-    if (!this.options.lookAtPointer) return null;
-    return this.pointerGroundPoint();
-  },
-
   pointerGroundPoint() {
     if (this.editor.active) return null;
     const root = this.playerSystem.root;
