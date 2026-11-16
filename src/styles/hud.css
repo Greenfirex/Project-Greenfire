@@ -1194,11 +1194,10 @@
   color: var(--text-dim);
 }
 
-/* Hodiny v HUD — aktuální herní čas, fáze dne a rychlost simulace. */
+/* Hodiny v HUD vpravo nahoře — aktuální herní čas, fáze dne a rychlost simulace. */
 #hud-clock {
   top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 12px;
   min-width: 110px;
   text-align: center;
   padding: 0 6px 2px;
@@ -1846,8 +1845,9 @@
 
 .hud-creature {
   display: none;
-  top: 12px;
+  top: 50%;
   right: 12px;
+  transform: translateY(-50%);
   width: 300px;
 }
 
@@ -2089,10 +2089,10 @@ body.has-custom-cursor * {
   z-index: 22;
   transform: translate(-50%, -50%);
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  color: #ffe9a8;
+  color: #ffffff;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.75), 0 0 3px rgba(0, 0, 0, 0.9);
   will-change: transform, opacity;
 }
@@ -2102,8 +2102,23 @@ body.has-custom-cursor * {
 }
 
 .hud-float--crit {
-  font-size: 28px;
-  color: #ffd23f;
+  font-size: 30px;
+  font-weight: 900;
+  color: #ffd000;
+  text-shadow: 0 0 8px rgba(255, 190, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 3px rgba(0, 0, 0, 0.9);
+}
+
+.hud-float--graze {
+  font-size: 16px;
+  font-weight: 500;
+  color: #9a9a9a;
+}
+
+.hud-float__note {
+  margin-left: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #9fb4c4;
 }
 
 .hud-float--miss {

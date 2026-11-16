@@ -72,7 +72,7 @@ const VOICES = {
   fall: { volume: 0.5, voices: 2, pitch: 0.04 },
   hitPunch: { volume: 0.55, voices: 3, pitch: 0.07 },
   hitClub: { volume: 0.55, voices: 3, pitch: 0.07 },
-  grunt: { volume: 0.35, voices: 1, pitch: 0.05, chance: 0.6 },
+  grunt: { volume: 0.35, voices: 1, pitch: 0.05 },
   playerHurt: { volume: 0.45, voices: 1, pitch: 0.04 },
   playerDeath: { volume: 0.5, voices: 1, pitch: 0.02 },
   outOfBreath: { volume: 0.35, voices: 1, pitch: 0.03 },
@@ -576,7 +576,8 @@ export default class AudioSystem {
     if (!pool) return;
     const cfg = VOICES[key];
     if (cfg.with) this.play(cfg.with, options);
-    if (Number.isFinite(cfg.chance) && Math.random() > cfg.chance) return;
+    const chance = Number.isFinite(options.chance) ? options.chance : cfg.chance;
+    if (Number.isFinite(chance) && Math.random() > chance) return;
     const distanceGain = this.distanceGain(cfg, options.distance);
     if (distanceGain <= SILENT_GAIN) return;
     const index = this.cursors[key] % pool.length;

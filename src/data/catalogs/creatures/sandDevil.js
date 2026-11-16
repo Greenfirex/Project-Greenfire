@@ -366,6 +366,8 @@ export const SAND_DEVIL = {
   chargeRange: 2.6,
   noWarning: true,
   damageType: 'piercing',
+  armor: 0,
+  resistances: {},
   biteRange: 1.1,
   biteWindup: 0.45,
   biteCooldown: 1.6,

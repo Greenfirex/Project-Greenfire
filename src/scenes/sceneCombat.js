@@ -8,7 +8,9 @@ import { PLAYER_EYE_HEIGHT } from '../systems/player/playerSystem.js';
 import { SIGHT_GROUND_LIFT, SIGHT_RISE_START, SIGHT_RISE_FULL, SIGHT_HIGHER_START, SIGHT_HIGHER_FULL, SIGHT_EDGE } from '../utils/revealGlsl.js';
 import { smoothstep } from '../utils/noise.js';
 import { formatMeters } from '../data/maps/layoutStore.js';
-import { CREATURE_TYPES, CREATURE_KEYS } from '../data/catalogs/creatures/index.js';
+import { CREATURE_TYPES, CREATURE_KEYS, creatureStat, creatureResistances } from '../data/catalogs/creatures/index.js';
+import { DAMAGE_TYPES, DAMAGE_TYPE_KEYS } from '../data/catalogs/damage.js';
+import { strikeChances, damageText } from '../utils/combatRoll.js';
 import { angleGap } from '../utils/angles.js';
 import AttackArc from '../effects/attackArc.js';
 
@@ -22,6 +24,7 @@ const CORPSE_STAND = 0.9;
 const CORPSE_REACH_LIFT = 0.2;
 const AIM_ASSIST = 20 * Math.PI / 180;
 const AIM_ASSIST_REACH = 0.4;
+const GRUNT_CHANCE = { primary: 0.08, secondary: 0.6 };
 
 export default {
   async setupCreatures() {
@@ -94,23 +97,30 @@ export default {
     return { x: ray.origin.x + ray.direction.x * t, z: ray.origin.z + ray.direction.z * t };
   },
 
-  attackToward(creature = null) {
-    this.attackHeld = true;
-    if (this.drawStrike || !this.playerAttackSystem.canSwing()) return false;
-    const aim = this.aimPoint(creature);
+  attackToward(creature = null, kind = 'primary') {
+    if (kind === 'primary') this.attackHeld = true;
+    const attack = this.playerAttackSystem;
+    if (this.drawStrike || !attack.canSwing()) return false;
+    const blow = attack.blow(kind);
+    if (!this.playerStats.canSpend(blow.cost)) return false;
+    const aim = this.aimPoint(creature, blow);
     if (!aim) return false;
     if (this.drawWeapon()) {
       this.playerSystem.faceTo(aim.x, aim.z);
-      this.drawStrike = { creature, left: this.playerSystem.toolSwapLeft };
+      this.drawStrike = { creature, kind, left: this.playerSystem.toolSwapLeft };
       return true;
     }
-    const swung = this.playerAttackSystem.swingAt(aim.x, aim.z, this.playerSystem);
+    const swung = attack.swingAt(aim.x, aim.z, this.playerSystem, kind);
     if (swung) {
       if (this.attackArc) this.attackArc.pulse();
-      this.playerStats.spendAttack();
-      this.audioSystem.play('grunt');
+      this.playerStats.spendStamina(blow.cost);
+      this.audioSystem.play('grunt', { chance: GRUNT_CHANCE[kind] });
     }
     return swung;
+  },
+
+  secondaryAttackToward() {
+    return this.attackToward(null, 'secondary');
   },
 
   attackCandidates() {
@@ -118,7 +128,7 @@ export default {
     return this.creatureSystem.creatures.filter((creature) => creature && !creature.dead && !creature.buried && (creature.level || 0) === level);
   },
 
-  aimPoint(creature) {
+  aimPoint(creature, blow = this.playerAttackSystem.blow('primary')) {
     const root = this.playerSystem.root;
     if (!root) return null;
     if (creature) return { x: creature.x, z: creature.z };
@@ -131,7 +141,7 @@ export default {
     for (const candidate of this.attackCandidates()) {
       const dx = candidate.x - root.position.x;
       const dz = candidate.z - root.position.z;
-      if (Math.hypot(dx, dz) - attack.bodyRadius(candidate) > attack.reach + AIM_ASSIST_REACH) continue;
+      if (Math.hypot(dx, dz) - attack.bodyRadius(candidate) > blow.reach + AIM_ASSIST_REACH) continue;
       const turn = Math.abs(angleGap(aim, Math.atan2(dx, dz)));
       if (turn > bestTurn) continue;
       best = candidate;
@@ -190,13 +200,28 @@ export default {
     const row = (stat, label, value) => (this.bestiary.unlocked(kind, stat)
       ? { label, value }
       : { label, value: '???', locked: true });
+    const damageType = DAMAGE_TYPES[type.damageType];
+    const bite = tier.bite ?? type.bite;
+    const biteText = bite === undefined ? '—' : `${damageText(bite)}${damageType ? ` ${damageType.short.toLocaleLowerCase('cs')}` : ''}`;
+    const resistances = creatureResistances(type, tier);
     return [
       row('health', 'Životy', healthText),
       row('attack', 'Útok', String(tier.attack ?? '—')),
       row('defense', 'Obrana', String(tier.defense ?? '—')),
+      row('damage', 'Poškození', biteText),
+      row('armor', 'Zbroj', String(creatureStat(type, tier, 'armor'))),
+      ...DAMAGE_TYPE_KEYS.map((key) => row('resistances', `Odolnost: ${DAMAGE_TYPES[key].short}`, `${Math.round(resistances[key])} %`)),
       row('sight', 'Dohled', formatMeters(sight)),
       row('speed', 'Rychlost', `${String(Math.round(speed * 10) / 10).replace('.', ',')} m/s`),
     ];
+  },
+
+  hitChanceText(creature) {
+    if (!creature) return '';
+    const defense = creatureStat(creature.type, creature.tier, 'defense');
+    const { hit, graze } = strikeChances(this.playerAttackSystem.attack, defense);
+    const percent = (value) => `${Math.round(value * 100)} %`;
+    return `Zásah ${percent(hit)} · škrábnutí ${percent(graze)}`;
   },
 
   creatureName(creature) {
@@ -311,12 +336,13 @@ export default {
     }
     const attack = this.playerAttackSystem;
     let facing = this.playerSystem.facing;
+    const blow = attack.pending ? attack.pending.blow : attack.blow('primary');
     if (!attack.pending && this.playerSystem.strikeTimer <= 0) {
       const aim = this.aimPoint(null);
       if (aim) facing = Math.atan2(aim.x - root.position.x, aim.z - root.position.z);
     }
     const { x, y, z } = root.position;
-    this.attackArc.update(dt, { x, y, z, facing, reach: attack.reach, arc: attack.arc });
+    this.attackArc.update(dt, { x, y, z, facing, reach: blow.reach, arc: blow.arc });
   },
 
   updateDrawStrike(dt) {
@@ -327,15 +353,15 @@ export default {
     this.drawStrike = null;
     const creature = queued.creature;
     const alive = creature && !creature.dead && this.creatureSystem.creatures.includes(creature);
-    this.attackToward(alive ? creature : null);
+    this.attackToward(alive ? creature : null, queued.kind);
   },
 
-  damageCreature(creature, amount, crit, graze = false) {
+  damageCreature(creature, amount, crit, graze = false, absorbed = 0) {
     if (!creature) return false;
     const killed = this.creatureSystem.damage(creature, amount, this.simSystem.time);
     this.audioSystem.play(this.playerAttackSystem.hitSound);
     const label = creature.type ? creature.type.label : 'Tvor';
-    this.showFloatingDamage(creature, amount, crit);
+    this.showFloatingDamage(creature, amount, crit, graze, absorbed);
     if (killed) {
       this.recordKill(creature);
       this.log.add(`Porazil jsi: ${label}`, 'warn');
@@ -345,34 +371,45 @@ export default {
     const total = creature.tier && Number.isFinite(creature.tier.health) ? Math.round(creature.tier.health) : null;
     const suffix = total === null ? '' : ` (${left} / ${total})`;
     const critText = crit ? ' kriticky' : graze ? ' (škrábnutí)' : '';
-    this.log.add(`${label} — ${Math.round(amount)} poškození${critText}${suffix}`, 'action');
+    const absorbedText = absorbed >= 1 ? ` (odoláno ${Math.round(absorbed)})` : '';
+    this.log.add(`${label} — ${Math.round(amount)} poškození${critText}${absorbedText}${suffix}`, 'action');
     return false;
   },
 
-  showFloatingDamage(creature, amount, crit) {
+  missCreature(creature) {
     if (!creature) return;
+    this.audioSystem.play('miss');
+    const label = creature.type ? creature.type.label : 'Tvor';
+    this.log.add(`Minul jsi: ${label}`, 'action');
     const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ, creature.level || 0);
-    const kind = crit ? 'crit' : null;
-    this.spawnFloatingNumber(amount, creature.renderX, ground + creature.markHeight, creature.renderZ, kind);
+    this.spawnFloatingText('Minul', creature.renderX, ground + creature.markHeight, creature.renderZ, 'miss');
   },
 
-  showFloatingOverPlayer(amount, crit) {
+  showFloatingDamage(creature, amount, crit, graze = false, absorbed = 0) {
+    if (!creature) return;
+    const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ, creature.level || 0);
+    const kind = crit ? 'crit' : graze ? 'graze' : null;
+    this.spawnFloatingNumber(amount, creature.renderX, ground + creature.markHeight, creature.renderZ, kind, absorbed);
+  },
+
+  showFloatingOverPlayer(amount, crit, absorbed = 0) {
     const root = this.playerSystem.root;
     if (!root) return;
     const y = root.position.y + PLAYER_FLOAT_HEIGHT;
-    this.spawnFloatingNumber(amount, root.position.x, y, root.position.z, crit ? 'crit' : 'hurt');
+    this.spawnFloatingNumber(amount, root.position.x, y, root.position.z, crit ? 'crit' : 'hurt', absorbed);
   },
 
-  spawnFloatingNumber(amount, x, y, z, kind) {
+  spawnFloatingNumber(amount, x, y, z, kind, absorbed = 0) {
     if (!Number.isFinite(amount)) return;
-    this.spawnFloatingText(Math.round(amount), x, y, z, kind);
+    const note = Number.isFinite(absorbed) && absorbed >= 1 ? `(−${Math.round(absorbed)})` : null;
+    this.spawnFloatingText(Math.round(amount), x, y, z, kind, note);
   },
 
-  spawnFloatingText(text, x, y, z, kind) {
+  spawnFloatingText(text, x, y, z, kind, note = null) {
     if (!this.options.floatingNumbers) return;
     const point = this.screenPointOf(x, y, z);
     if (!point) return;
-    this.floatingNumbers.spawn(point, text, kind);
+    this.floatingNumbers.spawn(point, text, kind, note);
   },
 
   screenPointOf(x, y, z) {
@@ -492,7 +529,7 @@ export default {
     const blocked = Math.max(0, Math.round(damage - dealt));
     const blockedText = blocked > 0 ? ` (odoláno ${blocked})` : '';
     this.log.add(`${who} — ${Math.round(dealt)} poškození${critText}${blockedText}`, 'warn');
-    this.showFloatingOverPlayer(dealt, crit);
+    this.showFloatingOverPlayer(dealt, crit, blocked);
   },
 
   onCreatureBiteMiss(creature) {

@@ -168,8 +168,9 @@ export default class GameScene {
     this.playerAttackSystem = new PlayerAttackSystem();
     this.playerAttackSystem.groundHeightAt = (x, z, level) => this.terrainSystem.walkHeightAt(x, z, Number.isFinite(level) ? level : this.playerSystem.level);
     this.playerAttackSystem.candidates = () => this.attackCandidates();
-    this.playerAttackSystem.onHit = (creature, amount, crit, graze) => this.damageCreature(creature, amount, crit, graze);
+    this.playerAttackSystem.onHit = (creature, amount, crit, graze, absorbed) => this.damageCreature(creature, amount, crit, graze, absorbed);
     this.playerAttackSystem.onWhiff = () => this.audioSystem.play('miss');
+    this.playerAttackSystem.onMiss = (creature) => this.missCreature(creature);
     this.interaction = new InteractionSystem(scene);
     this.gatherSystem = new GatherSystem(scene);
     this.gatherSystem.decoSystem = this.decoSystem;
@@ -552,7 +553,7 @@ export default class GameScene {
       if (creature) {
         this.decoHighlight.setHover(null);
         this.showCreatureTooltip(creature);
-        this.setHoverHint(null);
+        this.setHoverHint({ inReach: true, detail: this.hitChanceText(creature) });
         this.gameCursor.setState(this.editor.active ? 'default' : 'attack');
         return;
       }
@@ -601,7 +602,8 @@ export default class GameScene {
     this.creatureTooltipOn = true;
     const total = creature.tier && Number.isFinite(creature.tier.health) ? Math.round(creature.tier.health) : null;
     const left = Number.isFinite(creature.health) ? Math.max(0, Math.round(creature.health)) : null;
-    const detail = total !== null && left !== null ? `Zdraví ${left} / ${total} · pravé tlačítko — podrobnosti` : '';
+    const more = this.playerSystem.weaponDrawn ? '' : ' · pravé tlačítko — podrobnosti';
+    const detail = total !== null && left !== null ? `Zdraví ${left} / ${total}${more}` : '';
     this.tooltipPanel.show(`${creature.type.label} (${creature.tier.label})`, detail);
   }
 
@@ -1713,7 +1715,12 @@ export default class GameScene {
 
   handleCellRightClick(cell) {
     if (!this.editor.active) {
-      if (this.loaded && !this.dying) this.pinCreatureAtPointer();
+      if (!this.loaded || this.dying) return;
+      if (this.playerSystem.weaponDrawn) {
+        if (!this.paused) this.secondaryAttackToward();
+        return;
+      }
+      this.pinCreatureAtPointer();
       return;
     }
     if (!cell) return;

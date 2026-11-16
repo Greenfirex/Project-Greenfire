@@ -3,6 +3,7 @@
 import { SNAPPING_TURTLE } from './snappingTurtle.js';
 import { SAND_DEVIL } from './sandDevil.js';
 import { KOA_TIKI } from './koaTiki.js';
+import { zeroResistances } from '../damage.js';
 
 export const CREATURE_TYPES = {
   snapping_turtle: SNAPPING_TURTLE,
@@ -19,6 +20,16 @@ export function getCreatureType(key) {
 export function getCreatureTier(type, key) {
   if (!type || !type.tiers) return null;
   return type.tiers[key] || type.tiers[type.defaultTier] || Object.values(type.tiers)[0];
+}
+
+export function creatureResistances(type, tier) {
+  const merged = zeroResistances();
+  for (const source of [type && type.resistances, tier && tier.resistances]) {
+    for (const [key, value] of Object.entries(source || {})) {
+      if (Object.hasOwn(merged, key) && Number.isFinite(value)) merged[key] = value;
+    }
+  }
+  return merged;
 }
 
 export function creatureLength(type) {

@@ -12,7 +12,8 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ### Bestiář
 - [ ] Bestiář: doplnit obsah okna (popis tvora, kde žije, obrázek); kostra se seznamem a statistikami je hotová.
-- [ ] Odolnosti tvorů a jejich řádek v panelu tvora.
+- [ ] Doplnit tvorům skutečnou zbroj a odolnosti (dnes všude nula; pozor, zbroj se odečítá od každé rány a hráč dnes dává 1–5).
+- [ ] Až bude bestiář hotový, vypnout ladicí odemčení všech statistik (`SHOW_ALL_STATS` v `bestiarySystem.js`).
 
 ### Život v jeskyni
 - [ ] Rozhodnout trávu v jeskyni (stébla se tam nepřidala).
@@ -56,7 +57,7 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ### Zbraně a mířené rány (plán v `DEV.md`, sekce „Boj se zbraněmi — plán po etapách")
 
-- [ ] Etapa 3 (další na řadě): víc cílů naráz (cleave) a těžká rána. Nejdřív rozhodnout ovládání těžké rány.
+- [ ] Etapa 3: vyzkoušet ve hře rozdělení rány mezi víc tvorů a sekundární ránu na pravé tlačítko, doladit čísla a animaci úderu klackem.
 - [ ] Etapa 4: tvorové útočí výsečí s nápřahem, úskok na mezerník.
 - [ ] Později: sekyra a krumpáč jako slabé zbraně (zatím odloženo).
 

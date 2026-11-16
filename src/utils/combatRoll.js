@@ -1,10 +1,11 @@
-// Hod v boji — porovná útok s obranou a rozhodne, jak rána sedla (tvorům zatím i jestli vůbec vyšla).
+// Hod v boji — porovná útok s obranou a rozhodne, jestli rána sedla, škrábla, nebo minula.
 // Stejné pravidlo pro hráče i tvory: čím větší převaha, tím víc ran sedne a tím častěji kriticky.
 
 const MIN_CHANCE = 0.05;
 const MAX_CHANCE = 0.95;
 const CRIT_SHARE = 0.75;
 const MAX_CRIT = 0.4;
+const GRAZE_SHARE = 0.5;
 
 export const CRIT_MULTIPLIER = 2;
 export const GRAZE_MULTIPLIER = 0.5;
@@ -45,10 +46,17 @@ function critChanceOf(chance) {
   return Math.min(MAX_CRIT, Math.max(0, extra));
 }
 
+export function strikeChances(attack, defense) {
+  const hit = chanceOf(attack, defense);
+  const graze = (1 - hit) * GRAZE_SHARE;
+  return { hit, graze, miss: 1 - hit - graze, crit: critChanceOf(hit) };
+}
+
 export function rollQuality(attack, defense) {
-  const chance = chanceOf(attack, defense);
-  if (Math.random() >= chance) return 'graze';
-  return Math.random() < critChanceOf(chance) ? 'crit' : 'normal';
+  const { hit, graze, crit } = strikeChances(attack, defense);
+  const roll = Math.random();
+  if (roll >= hit) return roll < hit + graze ? 'graze' : 'miss';
+  return Math.random() < crit ? 'crit' : 'normal';
 }
 
 export function rollStrike(attack, defense) {

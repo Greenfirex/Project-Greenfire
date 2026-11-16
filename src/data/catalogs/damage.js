@@ -1,5 +1,5 @@
 // Typy poškození a odolností — jediné místo, které zná jejich klíče, názvy a skupiny.
-// Výchozí odolnost je nula; strop 75 % platí pro souboj i panel.
+// Výchozí odolnost je nula; strop 75 % a odečtení zbroje platí stejně pro hráče i tvory.
 export const DAMAGE_TYPES = {
   blunt: {
     label: 'Tupé poškození',
@@ -59,4 +59,14 @@ export const MAX_RESISTANCE = 75;
 
 export function zeroResistances() {
   return Object.fromEntries(DAMAGE_TYPE_KEYS.map((key) => [key, 0]));
+}
+
+export function mitigateDamage(points, damageType, resistances, armor) {
+  const damage = Number(points);
+  if (!Number.isFinite(damage) || damage <= 0) return 0;
+  const type = DAMAGE_TYPES[damageType] || null;
+  const raw = type && resistances && Number.isFinite(resistances[damageType]) ? resistances[damageType] : 0;
+  const share = Math.max(0, Math.min(MAX_RESISTANCE, raw));
+  const flat = type && type.group === 'physical' && Number.isFinite(armor) && armor > 0 ? armor : 0;
+  return Math.max(1, Math.round(damage * (1 - share / 100) - flat));
 }

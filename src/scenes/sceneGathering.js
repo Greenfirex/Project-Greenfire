@@ -70,6 +70,10 @@ export default {
     this.lootWindow.show(source.title, this.lootContents(source));
   },
 
+  lootSound(source) {
+    return source.kind === 'box' ? 'rummage' : PICKUP_SOUND;
+  },
+
   takeLoot(itemKey) {
     const source = this.lootSource;
     if (!source) return;
@@ -77,7 +81,7 @@ export default {
       ? this.lootSystem.take(source.ref, itemKey)
       : this.creatureSystem.takeLoot(source.ref, itemKey);
     if (taken) {
-      this.audioSystem.play('rummage');
+      this.audioSystem.play(this.lootSound(source));
       this.receiveItems([taken]);
     }
     this.refreshLootWindow();
@@ -94,7 +98,7 @@ export default {
       if (item) taken.push(item);
     }
     if (taken.length) {
-      this.audioSystem.play('rummage');
+      this.audioSystem.play(this.lootSound(source));
       this.receiveItems(taken);
     }
     this.refreshLootWindow();

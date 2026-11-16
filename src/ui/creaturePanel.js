@@ -1,4 +1,4 @@
-// Panel vpravo nahoře se statistikami tvora, kterého si hráč klikem vybral.
+// Panel vpravo uprostřed se statistikami tvora, kterého si hráč klikem vybral.
 // Sám nic nepočítá: dostane hotové řádky, vykreslí je a kliknutí na křížek ohlásí přes onClose.
 export default class CreaturePanel {
 

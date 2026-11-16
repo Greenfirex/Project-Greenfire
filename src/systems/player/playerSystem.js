@@ -52,12 +52,16 @@ const STRIKE_PLAY_SHARE = {
   mine: 0.41,
   punch: 1,
   kick: 1,
+  heavySmash: 0.85,
+  heavyKick: 1,
 };
 const STRIKE_IMPACT_SHARE = {
   chop: 0.35,
   mine: 0.45,
   punch: 0.4,
   kick: 0.3,
+  heavySmash: 0.55,
+  heavyKick: 0.3,
 };
 const STRIKE_HOLD = 0.12;
 const WRIST_BLEND = 0.15;

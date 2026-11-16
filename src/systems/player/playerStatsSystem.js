@@ -1,7 +1,7 @@
 // Stavy postavy — zdraví, obrana, zbroj, resistity a výdrž hráče, doplňování a chvilka klidu po probuzení.
 // Čísla bere z katalogu postavy; scéně jen hlásí změnu zdraví a výdrže.
 import { PLAYER_BASE } from '../../data/catalogs/player.js';
-import { DAMAGE_TYPES, DAMAGE_TYPE_KEYS, MAX_RESISTANCE } from '../../data/catalogs/damage.js';
+import { DAMAGE_TYPE_KEYS, MAX_RESISTANCE, mitigateDamage } from '../../data/catalogs/damage.js';
 
 export default class PlayerStatsSystem {
 
@@ -20,7 +20,6 @@ export default class PlayerStatsSystem {
     this.maxStamina = this.amount(stamina.max, 100, 1);
     this.stamina = this.maxStamina;
     this.sprintDrainPerSecond = this.amount(stamina.sprintPerSecond, 0, 0);
-    this.attackCost = this.amount(stamina.attackCost, 0, 0);
     this.gatherCost = this.amount(stamina.gatherCost, 0, 0);
     this.staminaRegenDelay = this.amount(stamina.regenDelaySeconds, 0, 0);
     this.staminaRegenPerSecond = this.amount(stamina.regenPerSecond, 0, 0);
@@ -62,14 +61,7 @@ export default class PlayerStatsSystem {
   }
 
   mitigate(points, damageType) {
-    const damage = Number(points);
-    if (!Number.isFinite(damage) || damage <= 0) return 0;
-    const type = DAMAGE_TYPES[damageType] || null;
-    const rawShare = type && Number.isFinite(this.resistances[damageType]) ? this.resistances[damageType] : 0;
-    const share = Math.max(0, Math.min(MAX_RESISTANCE, rawShare));
-    const afterResistance = damage * (1 - share / 100);
-    const armor = type && type.group === 'physical' ? this.armor : 0;
-    return Math.max(1, Math.round(afterResistance - armor));
+    return mitigateDamage(points, damageType, this.resistances, this.armor);
   }
 
   notifyStamina() {
@@ -93,8 +85,9 @@ export default class PlayerStatsSystem {
     return true;
   }
 
-  spendAttack() {
-    return this.spendStamina(this.attackCost);
+  canSpend(points) {
+    if (this.health <= 0) return false;
+    return !Number.isFinite(points) || points <= 0 || this.stamina >= points;
   }
 
   spendGather() {

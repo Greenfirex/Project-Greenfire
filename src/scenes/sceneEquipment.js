@@ -75,7 +75,7 @@ export default {
     const right = drawn ? weapon.toolKey : offHand ? null : this.heldItemSystem.key;
     this.playerSystem.setHeldTool(right, how === 'instant', how === 'hip');
     this.playerSystem.setOffHandTool(offHand, how === 'instant');
-    this.playerAttackSystem.setWeapon(drawn ? weapon.tool : null);
+    this.playerAttackSystem.setWeapon(weapon ? weapon.tool : null);
     if (this.characterPanel.open) this.refreshCharacterPanel();
   },
 

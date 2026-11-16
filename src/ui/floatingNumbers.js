@@ -1,4 +1,5 @@
-// Plovoucí čísla nad postavami — dostane obrazové souřadnice a text, číslo nechá vyplout a zmizet.
+// Plovoucí čísla nad postavami — dostane obrazové souřadnice, text a případně menší poznámku (pohlcené poškození),
+// číslo nechá vyplout a zmizet.
 // O scéně neví nic; kam číslo patří, počítá hra a posílá hotovou pozici.
 const LIFETIME = 900;
 const RISE = 46;
@@ -16,12 +17,18 @@ export default class FloatingNumbers {
     return this.layer;
   }
 
-  spawn(point, text, kind) {
+  spawn(point, text, kind, note = null) {
     if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
     const layer = this.mount();
     const el = document.createElement('div');
     el.className = kind ? `hud-float hud-float--${kind}` : 'hud-float';
     el.textContent = String(text);
+    if (note) {
+      const small = document.createElement('span');
+      small.className = 'hud-float__note';
+      small.textContent = String(note);
+      el.appendChild(small);
+    }
     el.style.left = `${point.x}px`;
     el.style.top = `${point.y}px`;
     layer.appendChild(el);

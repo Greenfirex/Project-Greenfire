@@ -5,6 +5,7 @@ import { EQUIP_SLOTS, ITEM_TYPES, ITEM_TAG_LABELS, itemTags, itemWeapon, itemWei
 import { DAMAGE_GROUPS, DAMAGE_TYPES, DAMAGE_TYPE_KEYS } from '../data/catalogs/damage.js';
 import { PLAYER_STAT_INFO } from '../data/catalogs/statInfo.js';
 import { damageText } from '../utils/combatRoll.js';
+import { weaponBlows } from '../utils/weaponBlows.js';
 import { fillIcon, fillItemIcon, itemIconElement } from './itemIcons.js';
 import { wearDragType, SLOT_DRAG_TYPE, BAG_DRAG_TYPE, HAND_DRAG_TYPE, BAR_DRAG_TYPE } from './dragTypes.js';
 
@@ -22,6 +23,10 @@ function statText(value) {
 
 function kilos(value) {
   return (Number(value) || 0).toLocaleString('cs-CZ', { maximumFractionDigits: 2 });
+}
+
+function decimal(value) {
+  return (Number(value) || 0).toLocaleString('cs-CZ', { maximumFractionDigits: 1 });
 }
 
 export default class CharacterPanel {
@@ -192,6 +197,7 @@ export default class CharacterPanel {
       btn.addEventListener('pointerenter', () => {
         const itemKey = this.equipped[slot.key];
         if (itemKey) this.showDetail(itemKey, 1, true);
+        else if (slot.key === 'weapon') this.showUnarmedDetail();
       });
       btn.addEventListener('pointerleave', () => {
         if (this.hoverWorn) this.clearDetail();
@@ -347,8 +353,8 @@ export default class CharacterPanel {
       this.detailHeading(ITEM_TAG_LABELS.weapon);
       const type = weapon.damageType ? DAMAGE_TYPES[weapon.damageType] : null;
       if (type) this.detailRow('Typ poškození', type.short);
-      if (weapon.damage !== undefined) this.detailRow('Poškození', damageText(weapon.damage));
       this.detailRow('Útok', `+${Number(weapon.attack) || 0}`);
+      this.blowSections(weapon);
     }
     const bonus = Object.entries((def && def.bonus) || {}).filter(([, value]) => Number.isFinite(value) && value !== 0);
     if (bonus.length) {
@@ -375,6 +381,47 @@ export default class CharacterPanel {
     hint.className = 'inv-detail__actions';
     hint.textContent = worn ? 'Přetáhni do batohu pro sundání.' : this.usageHint(key, def);
     this.detailEl.appendChild(hint);
+  }
+
+  showUnarmedDetail() {
+    this.hoverKey = null;
+    this.hoverAmount = 0;
+    this.hoverWorn = true;
+    this.markSlot(null);
+    this.setPreview(null);
+    if (this.hoverStat || !this.detailEl) return;
+    this.detailEl.innerHTML = '';
+    const icon = document.createElement('div');
+    icon.className = 'inv-detail__icon';
+    icon.textContent = '✊';
+    const name = document.createElement('div');
+    name.className = 'inv-detail__name';
+    name.textContent = 'Bez zbraně';
+    const description = document.createElement('div');
+    description.className = 'inv-detail__description';
+    description.textContent = 'Bez nasazené zbraně se bojuje pěstmi a kopy.';
+    this.detailEl.append(icon, name, description);
+    this.blowSections(null);
+    const hint = document.createElement('div');
+    hint.className = 'inv-detail__actions';
+    hint.textContent = 'Přetáhni sem zbraň z batohu pro nasazení.';
+    this.detailEl.appendChild(hint);
+  }
+
+  blowSections(weapon) {
+    const { primary, secondary } = weaponBlows(weapon);
+    this.detailHeading('Primární rána · levé tlačítko');
+    this.blowRows(primary);
+    this.detailHeading('Sekundární rána · pravé tlačítko');
+    this.blowRows(secondary);
+  }
+
+  blowRows(blow) {
+    this.detailRow('Poškození', damageText(blow.damage));
+    this.detailRow('Dosah', `${decimal(blow.reach)} m`);
+    this.detailRow('Úhel', `${Math.round(blow.arc)}°`);
+    this.detailRow('Prodleva', `${decimal(blow.cooldown)} s`);
+    this.detailRow('Výdrž', String(Math.round(blow.cost)));
   }
 
   showStatDetail(key) {

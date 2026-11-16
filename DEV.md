@@ -99,8 +99,14 @@ s kořistí a první předmět na hlavu.
 Tvorové: kajmanka, písečný běs a Koa'tiki — toulání, dvě zóny pozornosti,
 honička s návratem domů, kousnutí, smrt, tělo s kořistí a respawn. Chodí a vidí
 podle stejných pravidel jako hráč (schod, skála v cestě pohledu), jen na kratší
-dohled, a po ztrátě hráče jdou na místo, kde ho viděli naposledy. Panel tvora
-ukazuje statistiky odemčené počtem zabití (`bestiarySystem.js`), okno bestiáře je na B.
+dohled, a po ztrátě hráče jdou na místo, kde ho viděli naposledy. Panel tvora (vpravo
+uprostřed, hodiny jsou vpravo nahoře) ukazuje statistiky odemčené počtem zabití
+(`bestiarySystem.js`, prahy `UNLOCKS`): životy, útok, obranu, poškození, zbroj, odolnosti,
+dohled a rychlost. Pro ladění je zatím odemčené všechno (`SHOW_ALL_STATS`). Okno bestiáře
+je na B. Tvorové mají zbroj a odolnosti jako hráč (`armor`, `resistances` u druhu nebo
+stáří, zatím všude nula); hráčova rána je odečítá stejným výpočtem (`mitigateDamage`
+v `damage.js`). Při najetí na tvora ukazuje nápověda u kurzoru šanci na plný zásah
+a na škrábnutí (`strikeChances` v `combatRoll.js`, zbytek do sta je minutí).
 
 Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů). Okno Výroba
 (`craftingWindow.js`, klávesa V) je zatím jen prázdný panel. Rozpracované a plánované
@@ -569,9 +575,8 @@ než koberec stébel) srovnávají svým `tint` v `grass.js`, pobřežní tráva
 Schváleno 13. 11. 2026. Etapy jdou dělat a zkoušet po jedné; po každé je hra hratelná.
 Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
 
-**Stav (16. 11. 2026):** etapy 1, 1b a 2 hotové a vyzkoušené. Další je etapa 3; před ní
-rozhodnout ovládání těžké rány (otevřená otázka níže). Sekyra a krumpáč jako zbraně
-odloženy na později.
+**Stav (16. 11. 2026):** etapy 1, 1b a 2 hotové a vyzkoušené, etapa 3 napsaná a čeká na
+vyzkoušení ve hře. Sekyra a krumpáč jako zbraně odloženy na později.
 
 **Rozhodnuto:**
 - Zbraň patří do políčka Zbraň ve výbavě (`EQUIP_SLOTS`, klíč `weapon`). Lišta rychlé
@@ -580,14 +585,15 @@ odloženy na později.
   otevírání kořisti a po smrti. Tasená = bojový postoj (animace `combatStance` už existuje).
 - Útok míří ke kurzoru a zasáhne všechno ve výseči před postavou (dosah + úhel
   podle zbraně). Jemné přitažení míření k nepříteli do zhruba ±20°.
-- O zásahu rozhoduje míření, ne kostka. `rollStrike` (útok proti obraně) dál rozhoduje,
-  jak rána sedla: kritická, běžná, nebo škrábnutí (poloviční poškození).
+- Míření rozhoduje, na koho rána dopadne (tvor musí být ve výseči). Útok proti obraně pak
+  rozhodne, jak sedla: kritická, běžná, škrábnutí (poloviční poškození), nebo minutí
+  (změněno 16. 11. 2026, dřív rána ve výseči nikdy neminula).
 - Mezerník zůstává volný pro pozdější úskok.
 
 **Etapa 1 — zbraň ve výbavě, tasení a zandávání**
 - Klacek dostane `slot: 'weapon'`; zbraň se bere z výbavy, ne z lišty. Útok a rána
-  (`playerAttackSystem.setWeapon`) se počítají z nasazené zbraně, jen když je tasená;
-  zandaná = pěsti.
+  (`playerAttackSystem.setWeapon`) se počítají z nasazené zbraně, i když je zandaná:
+  každý útok ji nejdřív vytáhne, takže s nasazenou zbraní se pěstmi bojovat nedá.
 - Stav tasená/zandaná drží postava (`playerSystem.weaponDrawn`); klávesa **X** ho
   přepíná. Bez nasazené zbraně X postaví postavu do bojového postoje s pěstmi (mířené
   rány pěstí a výseč fungují stejně). Ukládá se u postavy; starší uložení ho nemají.
@@ -636,7 +642,7 @@ odloženy na později.
   a „Minul“ se neukazuje, když rána geometricky sedla.
 - Jak je to udělané: dosah (`reach`) se měří k okraji těla tvora (poloměr = 0,3 × délka
   tvora, `BODY_SHARE` v `playerAttackSystem.js`), úhel výseče (`arc`) ve stupních, tělo
-  výseč o kus rozšíří. Pěst 1,4 m / 70°, klacek 1,7 m / 110°. Míří se na bod na zemi pod
+  výseč o kus rozšíří (čísla v etapě 3). Míří se na bod na zemi pod
   kurzorem (`pointerGroundPoint`), přitažení do 20° bere tvory do dosahu + 0,4 m
   (`aimPoint`). Klik na tvora bez tasené zbraně míří na něj. Podržené tlačítko opakuje
   ránu ke kurzoru (`attackHeld`). Kostka `rollQuality`: kritická / běžná / škrábnutí
@@ -644,13 +650,34 @@ odloženy na později.
   S tasenou zbraní ukazuje výseč na zemi `src/effects/attackArc.js` (dosah a úhel zbraně,
   míří tam, kam by šla příští rána; při úderu zesvětlí).
 
-**Etapa 3 — víc cílů a těžká rána**
-- Katalog zbraně: kolik cílů zasáhne (`maxTargets`) a kolik dostanou další
-  (např. 60 %); těžká rána s vlastní výsečí, násobkem poškození, cenou ve výdrži
-  a delším nápřahem.
-- Volitelně: odhození zasaženého, rána poseká trávu a keře ve výseči.
-- Hotovo, když: široká zbraň zasáhne dva tvory naráz a těžká rána je znatelně
-  silnější, pomalejší a dražší.
+**Etapa 3 — víc cílů, primární a sekundární rána**
+- Rozhodnuto 16. 11. 2026: každá rána zasáhne všechny tvory ve výseči a poškození se mezi
+  ně rozdělí (tři zasažení = každý třetinu). Výseče jsou proto úzké; víc tvorů naráz bude
+  trefovat až zbraň s obrovskou výsečí (třeba šavle).
+- Každá zbraň (i pěst) má dvě rány: primární (levé tlačítko) a sekundární (pravé).
+  Sekundární je pro všechny zbraně stejně silnější (`SECONDARY_DAMAGE_SCALE` = 1,5
+  v `src/utils/weaponBlows.js`); zbraně se liší dosahem, úhlem, prodlevou a cenou ve výdrži.
+  Sekundární rána = krátký klik pravým tlačítkem v bojovém postoji; tažení pravým dál otáčí
+  kamerou, tvor se připíná pravým klikem jen mimo bojový postoj (`handleCellRightClick`).
+- Odhození zasaženého a posekání trávy se nedělají (zatím).
+- Hotovo, když: dva tvorové těsně u sebe ve výseči dostanou každý zhruba polovinu a sekundární
+  rána je znatelně silnější, pomalejší a dražší.
+- Jak je to udělané: zbraň v `TOOL_TYPES` (pěst v `PLAYER_BASE.punch`) má `damage` a sekce
+  `primary` a `secondary` (`reach`, `arc`, `cooldown`, `anim`, sekundární i `cost`; co
+  sekundární neurčí, převezme z primární). Cena primární rány je společná
+  (`PLAYER_BASE.stamina.attackCost`). Obě rány spočítá `weaponBlows` a čte je útok
+  (`playerAttackSystem.blows`) i detail předmětu v okně postavy (sekce Primární a Sekundární
+  rána; prázdné políčko Zbraň ukazuje pěsti). `swingAt` dostane druh rány, dopad vybere
+  všechny ve výseči (`struckAll`) a kostka `rollQuality` se hází pro každého zvlášť.
+  Výsledky hodu `rollQuality`: z ran, které podle útoku proti obraně nesedly, je polovina
+  škrábnutí a polovina minutí (`GRAZE_SHARE` v `combatRoll.js`; minutí ukáže „Minul“
+  nad tvorem, `missCreature`). Žádná rána (primární ani sekundární) se neprovede, když na ni
+  nestačí výdrž (`canSpend`); hráč počká, až se výdrž doplní. Poškození hráče je od
+  16. 11. 2026 snížené na třetinu: pěst 1–3, klacek 3–5 (sekundární ×1,5). Klacek: primární
+  1,7 m / 70° / 1,1 s, sekundární 1,9 m / 40° / 1,8 s / 22 výdrže, animace `Charged_Slash`
+  (klíč `heavySmash`). Pěst: primární úder pěstí 1,4 m / 50° / 1 s (už se nestřídá s kopem),
+  sekundární kopnutí 1,6 m / 50° / 1,5 s / 16 výdrže (klíč `heavyKick`, pomalejší `kick`).
+  Výseč na zemi během sekundární rány ukazuje její výseč.
 
 **Etapa 4 — tvorové stejným systémem, úskok**
 - Kousnutí tvora se stane výsečí před ním v okamžiku dopadu, s viditelným nápřahem;
@@ -660,6 +687,4 @@ odloženy na později.
 - Hotovo, když: útoku Koa'tiki jde uhnout pohybem i úskokem.
 
 **Otevřené otázky (rozhodnout před danou etapou):**
-- Těžká rána: podržet levé tlačítko, nebo pravé tlačítko? Pravé dnes otáčí kamerou
-  (tažení) a krátkým klikem připíná tvora.
 - Sekyra a krumpáč: jen nástroje, nebo i slabé zbraně, když jsou v ruce? (Odloženo.)

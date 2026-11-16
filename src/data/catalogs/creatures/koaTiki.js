@@ -652,6 +652,8 @@ export const KOA_TIKI = {
   chargeRange: 3.5,
   alertSeconds: [1.2, 2.2],
   damageType: 'slashing',
+  armor: 0,
+  resistances: {},
   biteRange: 1.3,
   biteWindup: ATTACK_WINDUP,
   biteCooldown: 1.4,
