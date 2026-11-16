@@ -569,6 +569,10 @@ než koberec stébel) srovnávají svým `tint` v `grass.js`, pobřežní tráva
 Schváleno 13. 11. 2026. Etapy jdou dělat a zkoušet po jedné; po každé je hra hratelná.
 Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
 
+**Stav (16. 11. 2026):** etapy 1, 1b a 2 hotové a vyzkoušené. Další je etapa 3; před ní
+rozhodnout ovládání těžké rány (otevřená otázka níže). Sekyra a krumpáč jako zbraně
+odloženy na později.
+
 **Rozhodnuto:**
 - Zbraň patří do políčka Zbraň ve výbavě (`EQUIP_SLOTS`, klíč `weapon`). Lišta rychlé
   volby (`heldItemSystem.js`) zůstává pro nástroje a spotřební věci.
@@ -658,4 +662,4 @@ Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
 **Otevřené otázky (rozhodnout před danou etapou):**
 - Těžká rána: podržet levé tlačítko, nebo pravé tlačítko? Pravé dnes otáčí kamerou
   (tažení) a krátkým klikem připíná tvora.
-- Sekyra a krumpáč: jen nástroje, nebo i slabé zbraně, když jsou v ruce?
+- Sekyra a krumpáč: jen nástroje, nebo i slabé zbraně, když jsou v ruce? (Odloženo.)
