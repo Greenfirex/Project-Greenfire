@@ -89,7 +89,8 @@ export const PLAYER_ANIM_NAMES = {
   mine: PLAYER_ANIM_LIBRARY.hammerSwing,
   punch: PLAYER_ANIM_LIBRARY.boxingPunch,
   kick: PLAYER_ANIM_LIBRARY.kick,
-  slam: PLAYER_ANIM_LIBRARY.tripleCombo,
+  triple3: PLAYER_ANIM_LIBRARY.tripleCombo,
+  smash: PLAYER_ANIM_LIBRARY.attack,
   slash: PLAYER_ANIM_LIBRARY.swordSlash,
   double1: PLAYER_ANIM_LIBRARY.doubleCombo,
   roll: PLAYER_ANIM_LIBRARY.rollDodge,
@@ -111,7 +112,8 @@ export const PLAYER_ANIM_SPEEDS = {
   mine: 1.1,
   punch: 1.8,
   kick: 1.4,
-  slam: 0.8,
+  triple3: 0.95,
+  smash: 1.0,
   slash: 0.7,
   double1: 1.25,
   heavyKick: 0.9,
@@ -125,7 +127,8 @@ export const PLAYER_ANIM_RANGES = {
   punch: { start: 1.1, end: 2.7 },
   kick: { start: 0.36, end: 1.0 },
   heavyKick: { start: 0.36, end: 1.0 },
-  slam: { start: 1.85, end: 2.7 },
+  triple3: { start: 1.85, end: 2.7 },
+  smash: { start: 0.2, end: 2.5 },
   slash: { start: 0.0, end: 0.7 },
   double1: { start: 0.0, end: 1.02 },
   roll: { start: 0.4, end: 1.8 },
@@ -133,11 +136,14 @@ export const PLAYER_ANIM_RANGES = {
   flinch: { start: 0.0, end: 1.0 },
 };
 
-export const PLAYER_ANIM_SWING_ALONG = { slash: { share: 0.8, from: 0.6, full: 0.72 } };
+export const PLAYER_ANIM_SWING_ALONG = {
+  slash: { share: 0.8, from: 0.6, full: 0.72 },
+  smash: { share: 1, from: 0.43, full: 0.534, grab: 0.15, pitch: [165, -25], limit: 3 },
+};
 
-export const PLAYER_ANIM_SNAP = { slash: { at: 0.4, speed: 1.8 } };
+export const PLAYER_ANIM_SNAP = { slash: { at: 0.4, speed: 1.8 }, smash: { at: 1.15, speed: 2 } };
 
-export const PLAYER_ANIM_ROOTLESS = ['punch', 'double1', 'slam', 'roll'];
+export const PLAYER_ANIM_ROOTLESS = ['punch', 'double1', 'triple3', 'smash', 'roll'];
 
 export const PLAYER_ROLL_HEADING = 0.79;
 
@@ -151,7 +157,8 @@ export const PLAYER_ANIM_FALLBACKS = {
   mine: ['mine', 'chop', 'punch', 'kick'],
   punch: ['punch', 'kick', 'chop'],
   kick: ['kick', 'punch', 'chop'],
-  slam: ['slam', 'mine', 'chop'],
+  triple3: ['triple3', 'chop'],
+  smash: ['smash', 'mine', 'chop'],
   slash: ['slash', 'chop'],
   double1: ['double1', 'chop'],
   heavyKick: ['heavyKick', 'kick', 'punch'],

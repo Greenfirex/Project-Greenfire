@@ -185,8 +185,8 @@ export const TOOL_TYPES = {
     guard: { hand: [0.2, -0.36, 0.38], elbow: [0.2, -0.27, -0.02], club: [0.15, 0.75, 0.8], leftHand: [-0.02, -0.32, 0.28], leftElbow: [0.12, -0.28, 0.02] },
     weapon: {
       damage: [3, 5], attack: 1, damageType: 'blunt', hitSound: 'hitClub',
-      primary: { reach: 1.7, arc: 70, cooldown: 1.0, anim: ['slash', 'double1'] },
-      secondary: { reach: 1.9, arc: 40, cooldown: 1.6, cost: 22, anim: 'slam' },
+      primary: { reach: 1.7, arc: 70, cooldown: 1.0, anim: ['slash', 'double1', 'triple3'] },
+      secondary: { reach: 1.9, arc: 40, cooldown: 1.6, cost: 22, anim: 'smash' },
     },
   },
 };

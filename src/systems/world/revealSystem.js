@@ -19,7 +19,7 @@ const BACKDROP_RADIUS = 400;
 const BACKDROP_BELOW_FLOOR = 0.15;
 const PLUGIN_CLASSES = new Set(['StandardMaterial', 'PBRMaterial', 'PBRMetallicRoughnessMaterial', 'PBRSpecularGlossinessMaterial']);
 
-const OVERLAY_MATERIALS = /^(hologramMat_|brushMasterMat|hoverCellMat|creatureRadiusMat|zonesMaterial_|creatureMark)/;
+const OVERLAY_MATERIALS = /^(hologramMat_|brushMasterMat|hoverCellMat|creatureRadiusMat|zonesMaterial_|creatureMark|swingTrailMaterial)/;
 
 function materialKind(name) {
   if (name === 'revealBackdropMat') return 'backdrop';

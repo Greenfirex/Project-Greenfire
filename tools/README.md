@@ -41,7 +41,7 @@ node tools/capture.cjs player idle --tool torch --view side2 --focus hand --zoom
 ```
 
 Scény: `idle`, `walk`, `run`, `strike` (úder první animací primární rány zbraně, jinak `--anim` s klíčem
-animace, např. `combo2` nebo `slam`), `dodge` (kotoul dopředu),
+animace, např. `double1`, `triple3` nebo `smash`), `dodge` (kotoul dopředu),
 `pickup`, `draw` a `sheath` (tasení z boku a zandání, potřebují `--sheath club`;
 u `sheath` i `--tool club`), `grab` a `putaway` (vytažení pochodně do levé ruky
 s `--grab torch`, schování s `--offhand torch`). `--tool` je klíč z `TOOL_TYPES`, `--sheath` dá zbraň na bok. `--combat 1` postaví postavu do bojového
@@ -54,6 +54,8 @@ z pohledu `side2`. `--offhand torch` dá nástroj do levé ruky (pochodeň se ve
 `--zoom 0.6`–`1`). Do konzole
 se ke každému snímku vypíše směr osy nástroje (y kladné = nahoru), výška jeho spodku
 a vršku a odstup úchopu od kosti ruky. Výstup `tools/_temp/snimky-postava-<nástroj>-<scéna>-<pohled>.png`.
+Snímek se fotí z posledního kroku, žádné vykreslení navíc, takže animace nepředbíhá ostatní výpočty
+a časování odpovídá hře při jakémkoli `--frames` (do 16. 11. 2026 animace s počtem snímků předbíhala).
 
 ## glb_measure.mjs
 

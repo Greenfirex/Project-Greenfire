@@ -31,7 +31,7 @@ src/
                              area, joinBridge, brushApply, query, settings), panely, štětce
   data/catalogs/             předměty, dekorace, mapy, tvorové, uložený stav
   data/maps/                 tvar oblasti, nastavení výšek a soubor mapy
-  effects/                   oheň (táborák, pochodeň)
+  effects/                   oheň (táborák, pochodeň), výseč rány, vítr za zbraní
   ui/                        DOM HUD panely nad plátnem
   utils/                     výpočty mřížky, šum (noise), načítání modelů, ukládání do prohlížeče
   styles/                    global.css, hud.css, editor.css
@@ -385,7 +385,11 @@ od středu pěsti kus k palci (`grip.toThumb`, jako u pochodně), aby seděl v d
 `holdSwingWrist`, náběh 0,1 s), takže klacek se hýbe jen s předloktím a animace ho nekroutí.
 Bez předchozího postoje se zamkne do klidové polohy ruky. U ran z `PLAYER_ANIM_SWING_ALONG` (vodorovný
 sek `slash`) se zápěstí během rány narovná a klacek míří víc v linii předloktí
-(`alignSwing`), jinak by při vodorovném máchnutí trčel nahoru. Narovnání najíždí až od vrcholu
+(`alignSwing`), jinak by při vodorovném máchnutí trčel nahoru. Rána s `pitch` (silná `smash`)
+vede klacek místo podle předloktí po oblouku v rovině těla: od úhlu `pitch[0]` (stupně, 0 = dopředu,
+90 = nahoru, 180 = dozadu) k `pitch[1]` během okna `from`–`full` (`bodyPitch`); `grab` je část okna,
+za kterou se klacek do oblouku chytí, `limit` povolí větší otočení zápěstí. Bez toho trčel klacek po
+úderu za záda, a když mířil rovnou dopředu, předběhl ruce a mezi dvěma snímky se přetočil o půl kruhu. Po konci rány srovnání dobíhá spolu se zápěstím (`swingHold`), jinak klacek v prvním snímku postoje cukl. Narovnání najíždí až od vrcholu
 nápřahu (`from`/`full` jako podíl rány) a otočení zápěstí je omezené (`SWING_TURN_LIMIT`):
 na začátku seku míří předloktí dolů a klacek nahoru, takže by se ruka přetočila naruby. Prsty pravé ruky se ohýbají
 opačným směrem než levé (`RIGHT_CURL_SIGN` = −1, kostra je zrcadlená); s +1 se prsty ohýbaly
@@ -708,19 +712,26 @@ Sekyra a krumpáč jako zbraně odloženy na později.
   nestačí výdrž (`canSpend`); hráč počká, až se výdrž doplní. Poškození hráče je od
   16. 11. 2026 snížené na třetinu: pěst 1–3, klacek 3–5 (sekundární ×1,5). Klacek: primární
   1,7 m / 70° / 1 s, sekundární 1,9 m / 40° / 1,6 s / 22 výdrže. `anim` rány může být
-  seznam: rány jdoucí po sobě do 1,6 s (`CHAIN_WINDOW` v `playerAttackSystem.js`) berou další
-  položku, jinak se začíná od první. Klacek: primární střídá původní sek
+  seznam: každá rána vybere náhodně jednu položku, jen ne stejnou jako minule (`pickAnim`
+  v `playerAttackSystem.js`). Klacek: primární náhodně střídá tři rány: původní sek
   `Right_Hand_Sword_Slash` (bojová kopie `slash`, aby se nezměnilo sbírání s `chop`) s prvním švihem z `Double_Combo_Attack` (`double1`, soubor
   `castaway_double.glb`; první dva seky `Triple_Combo_Attack` vypadaly divně, 16. 11. 2026),
-  obě primární rány trvají zhruba stejně (asi 0,9 s; rychlost
+  a třetí sek z `Triple_Combo_Attack` (`triple3`, velký úder přes hlavu, do 16. 11. 2026
+  sekundární); všechny tři primární rány trvají zhruba stejně (asi 0,9 s; rychlost
   a úsek v `PLAYER_ANIM_SPEEDS` a `PLAYER_ANIM_RANGES`). Vodorovný sek má švih: nápřah běží
   pomalu (0,7) a od vrcholu nápřahu se animace zrychlí na 1,8 (`PLAYER_ANIM_SNAP`, `applySnap`;
-  `at` = vrchol nápřahu v sekundách animace), zásah přijde asi v 0,63 s, sekundární je třetí
-  sek z `Triple_Combo_Attack`, velký úder
-  přes hlavu (`slam`, zpomalený). Okamžik dopadu je podle nejrychlejšího pohybu ruky
+  `at` = vrchol nápřahu v sekundách animace), zásah přijde asi v 0,69 s, když klacek letí před tělem. Sekundární je `Attack`
+  (`smash`): nápřah oběma rukama za hlavu s výpadem a úder dopředu k zemi, zásah
+  asi v 0,95 s; pak se v animaci vlastním pohybem zvedne z výpadu (od 1,15 s dvojnásobnou rychlostí, `PLAYER_ANIM_SNAP`), celkem asi 1,85 s. Dřív končila ve výpadu a přechod do postoje přetáčel tělo. Vyzkoušené a nepoužité pro sekundární: `Heavy_Hammer_Swing` (pomalé, končí s klackem
+  za hlavou; zůstává na kopání), `Left_Slash` (rozmáchlá otočka bez síly). Okamžik dopadu je podle nejrychlejšího pohybu ruky
   v animaci (`STRIKE_IMPACT_SHARE`). Pěst: primární úder pěstí 1,4 m / 50° / 1 s (už se nestřídá s kopem),
   sekundární kopnutí 1,6 m / 50° / 1,5 s / 16 výdrže (klíč `heavyKick`, pomalejší `kick`).
   Výseč na zemi během sekundární rány ukazuje její výseč.
+  Za zbraní se při ráně táhne vítr (`src/effects/swingTrail.js`, volá ho `updateSwingTrail` v `playerSystem`):
+  pruh od třetiny zbraně ke špičce, kreslí se jen během rány a jen když špička letí vůči postavě
+  rychleji než 5 m/s (naplno od 12 m/s), takže pomalý nápřah ani chůze stopu nenechají; každý
+  vzorek zmizí za 0,14 s. Materiál `swingTrailMaterial` patří v rentgenu mezi překryvy, aby pruh
+  nemizel v jeskyních; připravuje se hned po vzetí zbraně, jinak by se při první ráně nestihl zkompilovat.
 
 **Etapa 4 — tvorové stejným systémem, úskok**
 - Kousnutí tvora se stane výsečí před ním v okamžiku dopadu, s viditelným nápřahem;

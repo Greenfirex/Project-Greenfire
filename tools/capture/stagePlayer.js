@@ -103,6 +103,7 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
   player.play(player.idleAnim(), true);
   await scene.whenReadyAsync();
   scene.render();
+  if (player.swingTrail) await player.swingTrail.mesh.material.forceCompilationAsync(player.swingTrail.mesh);
 
   const bounds = root.getHierarchyBoundingVectors(true);
   const height = bounds.max.y - bounds.min.y;
@@ -168,7 +169,12 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
   const frames = [];
   let clock = 0;
   let started = !action;
+  const aimFocus = () => {
+    const focus = focusOn ? focusOn() : null;
+    if (focus) camera.target.copyFrom(focus.getAbsolutePosition());
+  };
   for (const time of shots) {
+    let stepped = false;
     while (clock + STEP <= time + 1e-9) {
       if (!started && clock >= lead - 1e-9) {
         action();
@@ -177,12 +183,15 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
       }
       player.kneeling = Boolean(options.kneel) && clock < lead + options.kneel;
       if (!moving) player.update(STEP);
+      aimFocus();
       scene.render();
       clock += STEP;
+      stepped = true;
     }
-    const focus = focusOn ? focusOn() : null;
-    if (focus) camera.target.copyFrom(focus.getAbsolutePosition());
-    scene.render();
+    if (!stepped) {
+      aimFocus();
+      scene.render();
+    }
     frames.push({
       time: Number(time.toFixed(2)),
       label: player.currentKey || '',

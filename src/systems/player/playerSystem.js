@@ -50,6 +50,7 @@ import {
 } from '../../data/catalogs/modelCatalog.js';
 import { loadModel, instantiateModel, loadImported } from '../../utils/assetLoader.js';
 import TorchFire from '../../effects/torchFire.js';
+import SwingTrail from '../../effects/swingTrail.js';
 
 const ANIM_BLEND = 0.1;
 const STRIKE_PLAY_SHARE = {
@@ -60,7 +61,8 @@ const STRIKE_PLAY_SHARE = {
   heavyKick: 1,
   slash: 1,
   double1: 1,
-  slam: 1,
+  triple3: 1,
+  smash: 1,
 };
 const STRIKE_IMPACT_SHARE = {
   chop: 0.35,
@@ -68,9 +70,10 @@ const STRIKE_IMPACT_SHARE = {
   punch: 0.4,
   kick: 0.3,
   heavyKick: 0.3,
-  slash: 0.73,
+  slash: 0.8,
   double1: 0.58,
-  slam: 0.53,
+  triple3: 0.53,
+  smash: 0.512,
 };
 const STRIKE_HOLD = 0.12;
 const WRIST_BLEND = 0.15;
@@ -232,6 +235,7 @@ export default class PlayerSystem {
     this.keysBound = false;
     this.toolNode = null;
     this.torchFire = null;
+    this.swingTrail = null;
     this.handSlot = null;
     this.headSlot = null;
     this.headTop = 0;
@@ -716,7 +720,16 @@ export default class PlayerSystem {
     this.reachPocket(dt);
     this.holdInFist(dt);
     this.holdOffHand();
+    this.updateSwingTrail(dt);
     if (this.torchFire) this.torchFire.update(dt);
+  }
+
+  updateSwingTrail(dt) {
+    const tool = TOOL_TYPES[this.heldToolKey];
+    const held = tool && tool.weapon && this.toolNodeKey === this.heldToolKey && this.toolSwapLeft <= 0 ? this.toolNode : null;
+    if (!this.root || (!held && !this.swingTrail)) return;
+    if (!this.swingTrail) this.swingTrail = new SwingTrail(this.s, this.root);
+    this.swingTrail.update(dt, held, this.strikeTimer > 0);
   }
 
   holdInFist(dt) {
@@ -748,28 +761,34 @@ export default class PlayerSystem {
   }
 
   alignSwing(grip) {
-    const swing = this.strikeTimer > 0 ? PLAYER_ANIM_SWING_ALONG[this.strikeAnim] : null;
+    const swing = this.swingHold > 0 ? PLAYER_ANIM_SWING_ALONG[this.strikeAnim] : null;
     if (!swing || !this.strikeTotal) return;
-    const progress = 1 - this.strikeTimer / this.strikeTotal;
+    const progress = this.strikeTimer > 0 ? 1 - this.strikeTimer / this.strikeTotal : 1;
     const ramp = Math.max(0, Math.min(1, (progress - swing.from) / Math.max(0.01, swing.full - swing.from)));
-    const along = swing.share * ramp * this.swingHold;
+    const along = swing.share * Math.min(1, ramp / (swing.grab || 1)) * this.swingHold;
     if (!along) return;
     const { fore, hand } = this.armNodes;
     refreshChain(this.handSlot);
-    const forearm = hand.getAbsolutePosition().subtract(fore.getAbsolutePosition()).normalize();
+    const target = swing.pitch
+      ? this.bodyPitch(swing.pitch[0] + (swing.pitch[1] - swing.pitch[0]) * ramp)
+      : hand.getAbsolutePosition().subtract(fore.getAbsolutePosition()).normalize();
     const now = this.gripAxis(grip);
-    const wanted = Vector3.Lerp(now, forearm, along);
-    if (wanted.lengthSquared() < 1e-6) return;
-    wanted.normalize();
-    const axis = Vector3.Cross(now, wanted);
+    const axis = Vector3.Cross(now, target);
     if (axis.lengthSquared() < 1e-8) return;
-    const angle = Math.min(SWING_TURN_LIMIT, Math.acos(Math.max(-1, Math.min(1, Vector3.Dot(now, wanted)))));
+    const full = Math.acos(Math.max(-1, Math.min(1, Vector3.Dot(now, target))));
+    const angle = Math.min(swing.limit || SWING_TURN_LIMIT, full * along);
     const parent = Matrix.Identity();
     hand.parent.absoluteRotationQuaternion.toRotationMatrix(parent);
     const local = Matrix.Identity();
     hand.rotationQuaternion.toRotationMatrix(local);
     const world = local.multiply(parent).multiply(Matrix.RotationAxis(axis.normalize(), angle));
     Quaternion.FromRotationMatrixToRef(world.multiply(Matrix.Invert(parent)), hand.rotationQuaternion);
+  }
+
+  bodyPitch(degrees) {
+    const pitch = degrees * Math.PI / 180;
+    const ahead = Math.cos(pitch);
+    return new Vector3(Math.sin(this.bodyFacing) * ahead, Math.sin(pitch), Math.cos(this.bodyFacing) * ahead);
   }
 
   holdSwingWrist(dt) {
