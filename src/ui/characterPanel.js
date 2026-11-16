@@ -59,6 +59,7 @@ export default class CharacterPanel {
     this.lastCharacterSignature = '';
     this.onClose = null;
     this.onEquip = null;
+    this.onUse = null;
     this.onUnequip = null;
     this.onMove = null;
     this.onClearBar = null;
@@ -202,6 +203,12 @@ export default class CharacterPanel {
       btn.addEventListener('pointerleave', () => {
         if (this.hoverWorn) this.clearDetail();
       });
+      const takeOff = (evt) => {
+        evt.preventDefault();
+        if (this.equipped[slot.key] && this.onUnequip) this.onUnequip(slot.key);
+      };
+      btn.addEventListener('contextmenu', takeOff);
+      btn.addEventListener('dblclick', takeOff);
       this.slotEls.set(slot.key, { btn, icon, name, slot });
       column.appendChild(btn);
     }
@@ -261,7 +268,7 @@ export default class CharacterPanel {
         fillIcon(icon, slot.image, slot.icon);
       }
       name.textContent = def ? def.displayName : slot.label;
-      btn.title = def ? `${slot.label}: ${def.displayName} — přetáhni do batohu pro sundání` : slot.label;
+      btn.title = def ? `${slot.label}: ${def.displayName} — pravý klik, dvojklik nebo přetažení do batohu sundá` : slot.label;
     }
   }
 
@@ -379,7 +386,7 @@ export default class CharacterPanel {
     }
     const hint = document.createElement('div');
     hint.className = 'inv-detail__actions';
-    hint.textContent = worn ? 'Přetáhni do batohu pro sundání.' : this.usageHint(key, def);
+    hint.textContent = worn ? 'Pravý klik, dvojklik nebo přetažení do batohu sundá.' : this.usageHint(key, def);
     this.detailEl.appendChild(hint);
   }
 
@@ -480,8 +487,8 @@ export default class CharacterPanel {
   }
 
   usageHint(key, def) {
-    if (toolForItem(key)) return 'Přetáhni na lištu dole pro rychlé použití.';
-    if (def && def.slot) return 'Přetáhni na postavu pro nasazení.';
+    if (def && def.slot) return 'Pravý klik nebo dvojklik nasadí, jde i přetáhnout na postavu.';
+    if (toolForItem(key)) return 'Pravý klik nebo dvojklik dá na lištu dole (nebo z ní sundá), jde i přetáhnout.';
     return 'Přetáhni na jiné políčko pro přesun.';
   }
 
@@ -554,11 +561,17 @@ export default class CharacterPanel {
     count.textContent = String(amount);
     cell.append(icon, count);
     cell.addEventListener('pointerenter', () => this.showDetail(key, amount));
+    const use = (evt) => {
+      evt.preventDefault();
+      if (this.onUse) this.onUse(key);
+    };
+    cell.addEventListener('contextmenu', use);
+    cell.addEventListener('dblclick', use);
     const slot = def ? def.slot : null;
     const tool = toolForItem(key);
     cell.title = `${label} × ${amount}`;
-    if (slot) cell.title = `${label} — přetáhni na postavu pro nasazení`;
-    if (tool) cell.title = `${label} — přetáhni na lištu dole`;
+    if (slot) cell.title = `${label} — pravý klik nebo dvojklik nasadí`;
+    else if (tool) cell.title = `${label} — pravý klik nebo dvojklik dá na lištu (nebo z ní sundá)`;
     cell.addEventListener('dragstart', (evt) => {
       if (this.onGrab) this.onGrab();
       evt.dataTransfer.setData(BAG_DRAG_TYPE, String(index));

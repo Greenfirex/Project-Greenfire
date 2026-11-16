@@ -1,8 +1,9 @@
 // Hotbar dole uprostřed — sloty pro předměty v ruce, plní se přetažením z batohu.
-// Kliknutí a přetahování jen hlásí callbacky; sedí v dolní liště vedle panelů inventáře a postavy.
+// Kliknutí a přetahování jen hlásí callbacky; sedí uprostřed dolní lišty pod ukazateli zdraví a výdrže.
 import { getTool, HOTBAR_SLOTS } from '../data/catalogs/items.js';
 import { itemIconElement } from './itemIcons.js';
 import { HAND_DRAG_TYPE, BAR_DRAG_TYPE } from './dragTypes.js';
+import { dockArea } from './dock.js';
 
 export default class Hotbar {
 
@@ -24,10 +25,10 @@ export default class Hotbar {
 
   mount() {
     if (this.root) return this.root;
-    const dock = this.dock();
+    const dock = dockArea('center');
     const root = document.createElement('div');
     root.className = 'hotbar';
-    root.innerHTML = `<div class="hotbar__slots"></div><div class="hotbar__hint"><span class="hud-key">1</span>–<span class="hud-key">${HOTBAR_SLOTS}</span> výběr předmětu · přetáhni z batohu</div>`;
+    root.innerHTML = `<div class="hotbar__slots"></div><div class="hotbar__hint"><span class="hud-key">1</span>–<span class="hud-key">${HOTBAR_SLOTS}</span> výběr · pravý klik v batohu sem dá nástroj</div>`;
     this.slotsEl = root.querySelector('.hotbar__slots');
     for (let index = 0; index < HOTBAR_SLOTS; index += 1) this.slotEls.push(this.createSlot(index));
     dock.appendChild(root);
@@ -81,16 +82,6 @@ export default class Hotbar {
     });
     this.slotsEl.appendChild(btn);
     return btn;
-  }
-
-  dock() {
-    let dock = document.getElementById('hud-dock');
-    if (dock) return dock;
-    dock = document.createElement('div');
-    dock.className = 'hud-dock';
-    dock.id = 'hud-dock';
-    document.getElementById('hud-layer').appendChild(dock);
-    return dock;
   }
 
   setPrompt(text) {

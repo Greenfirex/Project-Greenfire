@@ -96,6 +96,11 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Ryby ve vodě (`fish_splash` — vygenerovat).
 - [ ] Pochodeň v ruce nemá zvuk; `fire/torch_loop.ogg` je volný — použít, nebo smazat.
 
+## Rozhraní
+
+- [ ] Deník: vymyslet obsah (zápisky, úkoly…); okno a tlačítko jsou zatím prázdné.
+- [ ] Projít novou dolní lištu (nápověda myši, ukazatele nad lištou, malá tlačítka oken) a doladit velikosti.
+
 ## Výroba a svět
 
 - [ ] Dekorace: léčivé byliny mohou být špatně umístěné ve skále (na strmých/útesových buňkách) — přeskočit nebo odsunout od stěny; dořešit s novým (objemovým) terénem.

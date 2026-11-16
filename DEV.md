@@ -103,7 +103,10 @@ dohled, a po ztrátě hráče jdou na místo, kde ho viděli naposledy. Panel tv
 uprostřed, hodiny jsou vpravo nahoře) ukazuje statistiky odemčené počtem zabití
 (`bestiarySystem.js`, prahy `UNLOCKS`): životy, útok, obranu, poškození, zbroj, odolnosti,
 dohled a rychlost. Pro ladění je zatím odemčené všechno (`SHOW_ALL_STATS`). Okno bestiáře
-je na B. Tvorové i hráč se léčí pořád, i v boji a bez ohledu
+je na B. Panel se připíná prostředním klikem (bez tažení; tažení otáčí kamerou). Bez
+připnutí ho v boji ukazuje `refreshCombatFocus`: tvor naposledy zasažený (`onStruck`,
+nejbližší z rány), jinak nejbližší útočící; 3 s po boji (`FOCUS_LINGER`) nebo po smrti zmizí.
+Zavřený panel se k témuž tvorovi nevrátí, dokud se boj nezmění (`mutedFocus`). Tvorové i hráč se léčí pořád, i v boji a bez ohledu
 na zásahy (`regenerate` a `regenPerSecond` u druhu tvora; hráč 0,2 života za sekundu
 v `PLAYER_BASE`). Tvorové mají zbroj a odolnosti jako hráč (`armor`, `resistances` u druhu nebo
 stáří, zatím všude nula); hráčova rána je odečítá stejným výpočtem (`mitigateDamage`
@@ -111,8 +114,14 @@ v `damage.js`). Při najetí na tvora ukazuje nápověda u kurzoru šanci na pln
 a na škrábnutí (`strikeChances` v `combatRoll.js`, zbytek do sta je minutí).
 
 Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů). Okno Výroba
-(`craftingWindow.js`, klávesa V) je zatím jen prázdný panel. Rozpracované a plánované
-věci jsou v `TODO.md`.
+(`craftingWindow.js`, klávesa V) a okno Deník (`journalWindow.js`, klávesa J) jsou zatím
+jen prázdné panely. Rozpracované a plánované věci jsou v `TODO.md`.
+
+Dolní lišta (`src/ui/dock.js`, `dockArea`) má tři části: vlevo nápověda myši
+(`mouseHint.js`; co udělá levé, pravé a prostřední tlačítko a klávesy, plní ji
+`refreshMouseHint` ve scéně podle toho, na co se míří, `pointerAction`), uprostřed
+ukazatele zdraví a výdrže nad lištou nástrojů a vpravo malá tlačítka oken
+(`DockButton` s písmenem klávesy; skládají se do dvou řad a další přibývají doprava).
 
 ## Klíčová rozhodnutí (nevrátit omylem)
 
@@ -661,7 +670,7 @@ Sekyra a krumpáč jako zbraně odloženy na později.
   Sekundární je pro všechny zbraně stejně silnější (`SECONDARY_DAMAGE_SCALE` = 1,5
   v `src/utils/weaponBlows.js`); zbraně se liší dosahem, úhlem, prodlevou a cenou ve výdrži.
   Sekundární rána = krátký klik pravým tlačítkem v bojovém postoji; tažení pravým dál otáčí
-  kamerou, tvor se připíná pravým klikem jen mimo bojový postoj (`handleCellRightClick`).
+  kamerou, tvor se připíná prostředním klikem; mimo bojový postoj pravý klik nic nedělá.
 - Odhození zasaženého a posekání trávy se nedělají (zatím).
 - Hotovo, když: dva tvorové těsně u sebe ve výseči dostanou každý zhruba polovinu a sekundární
   rána je znatelně silnější, pomalejší a dražší.

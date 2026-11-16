@@ -1,5 +1,7 @@
-// Proužky stavu postavy — zdraví a výdrž vedle sebe a červené bliknutí při zásahu.
+// Proužky stavu postavy — zdraví a výdrž vedle sebe nad lištou nástrojů a červené bliknutí při zásahu.
 // Sám nic nepočítá — dostane hodnoty s maximem, nebo pokyn bliknout.
+import { dockArea } from './dock.js';
+
 export default class VitalsBar {
 
   constructor() {
@@ -19,16 +21,22 @@ export default class VitalsBar {
     const root = document.createElement('div');
     root.className = 'hud-vitals';
     root.innerHTML = `
-      <div class="hud-vitals__group">
-        <div class="hud-vitals__bar"><div class="hud-vitals__fill hud-vitals__fill--health"></div></div>
-        <span class="hud-vitals__value hud-vitals__value--health"></span>
+      <div class="hud-vitals__group" title="Zdraví">
+        <span class="hud-vitals__icon">♥</span>
+        <div class="hud-vitals__bar">
+          <div class="hud-vitals__fill hud-vitals__fill--health"></div>
+          <span class="hud-vitals__value hud-vitals__value--health"></span>
+        </div>
       </div>
-      <div class="hud-vitals__group">
-        <div class="hud-vitals__bar"><div class="hud-vitals__fill hud-vitals__fill--stamina"></div></div>
-        <span class="hud-vitals__value hud-vitals__value--stamina"></span>
+      <div class="hud-vitals__group" title="Výdrž">
+        <span class="hud-vitals__icon hud-vitals__icon--stamina">⚡</span>
+        <div class="hud-vitals__bar">
+          <div class="hud-vitals__fill hud-vitals__fill--stamina"></div>
+          <span class="hud-vitals__value hud-vitals__value--stamina"></span>
+        </div>
       </div>
     `;
-    layer.appendChild(root);
+    dockArea('center').prepend(root);
     this.root = root;
     this.healthFill = root.querySelector('.hud-vitals__fill--health');
     this.healthValue = root.querySelector('.hud-vitals__value--health');
@@ -61,6 +69,11 @@ export default class VitalsBar {
     if (text === this.lastStaminaText) return;
     this.lastStaminaText = text;
     this.staminaValue.textContent = text;
+  }
+
+  setVisible(visible) {
+    this.mount();
+    this.root.classList.toggle('is-hidden', !visible);
   }
 
   measure(value, max) {

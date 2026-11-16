@@ -44,6 +44,12 @@ const SIGHT_LEVELS = [
   { value: 'full', label: 'Plná', title: 'Ostrá hrana toho, kam postava dohlédne' },
 ];
 
+const PLAYER_BAR_PLACES = [
+  { value: 'dock', label: 'Dole', title: 'Zdraví a výdrž nad lištou nástrojů' },
+  { value: 'head', label: 'Nad postavou', title: 'Malé proužky nad hlavou jako u tvorů' },
+  { value: 'both', label: 'Obojí', title: 'Dole i nad postavou' },
+];
+
 const ITEMS = [
   { kind: 'choice', key: 'quality', tab: 'view', label: 'Kvalita obrazu', note: 'Nižší kvalita zmenší rozlišení a zjednoduší vodu a odrazy, obraz bude měkčí.', options: QUALITIES },
   { kind: 'choice', key: 'grass', tab: 'view', label: 'Hustota trávy', note: 'Jak hustě se kreslí tráva, kterou namaluješ štětcem. Na mapě zůstane pořád.', options: GRASS_LEVELS },
@@ -55,11 +61,10 @@ const ITEMS = [
   { kind: 'volume', key: 'sfxVolume', tab: 'sound', label: 'Zvuky hry', note: 'Sekání, kroky, těžba a padající stromy.' },
   { kind: 'volume', key: 'ambientVolume', tab: 'sound', label: 'Zvuky prostředí', note: 'Hučení lesa (ve dne jiné než v noci) a příboj u vody.' },
   { kind: 'volume', key: 'musicVolume', tab: 'sound', label: 'Hudba', note: 'Ostrovní hudba na pozadí. Skladby se střídají náhodně.' },
-  { kind: 'toggle', key: 'footprints', tab: 'game', label: 'Stopy ve písku', note: 'Otisky kroků na písku a v hlíně.' },
-  { kind: 'toggle', key: 'dayCycle', tab: 'game', label: 'Denní cyklus', note: 'Zastavení nechá slunce stát na aktuálním času.' },
-  { kind: 'toggle', key: 'highlights', tab: 'game', label: 'Zvýrazňování pod myší', note: 'Kroužky pod stromy a rudou při najetí myší.' },
+  { kind: 'choice', key: 'playerBars', tab: 'game', label: 'Zdraví a výdrž', note: 'Kde se ukazují proužky zdraví a výdrže tvé postavy.', options: PLAYER_BAR_PLACES },
+  { kind: 'toggle', key: 'highlights', tab: 'game', label: 'Obrys pod myší', note: 'Světlý obrys věci, na kterou míříš myší (strom, houba, truhla…).' },
   { kind: 'toggle', key: 'customCursor', tab: 'game', label: 'Vlastní kurzor', note: 'Fantasy ruka a nástroje místo systémové šipky. Vypnutím vrátíš šipku Windows.' },
-  { kind: 'toggle', key: 'cameraShake', tab: 'game', label: 'Třes kamery', note: 'Kamera se otřese, když dostaneš zásah.' },
+  { kind: 'toggle', key: 'cameraShake', tab: 'game', label: 'Třes kamery', note: 'Kamera se otřese, když tě tvor zasáhne kriticky.' },
   { kind: 'toggle', key: 'damageFlash', tab: 'game', label: 'Červené bliknutí', note: 'Záblesk po okrajích obrazovky při zásahu.' },
   { kind: 'toggle', key: 'floatingNumbers', tab: 'game', label: 'Plovoucí čísla', note: 'Poškození vypluje nad postavou a zmizí.' },
   { kind: 'toggle', key: 'lookAtPointer', tab: 'game', label: 'Otáčení za myší', note: 'Ve stoje se postava dívá tam, kde máš kurzor.' },

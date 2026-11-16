@@ -25,7 +25,8 @@ vstup je zamčený, dokud obrazovka nezmizí.
 | **Tažení pravým tlačítkem** | Rotace kamery (i v editoru); v editoru pravé kliknutí bez tažení odebírá buňku |
 | **Kolečko** | Zoom (v editoru jde oddálit víc než ve hře) |
 | **1–5** | Výběr předmětu v ruce z lišty dole; na lištu se věci přetahují z batohu, pravé tlačítko je z ní sundá |
-| **I / C / B / V** | Postava a batoh (obojí I i C) / bestiář / výroba — velká okna uprostřed obrazovky, jde s nimi tahat (také tlačítky v liště); výroba je zatím prázdná |
+| **Pravý klik nebo dvojklik v batohu** | Chytré použití: výbavu nasadí (místo ní vrátí do batohu to, co bylo nasazené), nástroj dá na lištu dole, nebo z ní sundá; na nasazené věci ji sundá do batohu |
+| **I / C / B / J / V** | Postava a batoh (obojí I i C) / bestiář / deník / výroba — velká okna uprostřed obrazovky, jde s nimi tahat (také malými tlačítky vpravo od lišty); deník a výroba jsou zatím prázdné. Vlevo od lišty je nápověda, co teď udělá levé, pravé a prostřední tlačítko myši |
 | **Levé tlačítko u houby / kokosu / klacku** | Sebrání (podržet = opakovat) |
 | **Levé tlačítko u truhly / kostry / táboráku** | Otevřít / prohledat / zapálit (stačí stát u nich) |
 | **Mezerník** | Úskok směrem, kterým jdeš (bez pohybu dozadu od kurzoru); stojí výdrž a na chvilku tě nic nezraní. Tvor před kousnutím ukáže na zemi červenou výseč, z ní se dá utéct i uskočit |
@@ -33,7 +34,7 @@ vstup je zamčený, dokud obrazovka nezmizí.
 | **Levé tlačítko u tvora** | Útok (podržet = opakovat); nasazenou zbraň rovnou tasí, bez zbraně bije pěstí |
 | **Levé tlačítko v bojovém postoji** | Rána směrem ke kurzoru; dopadne na všechny tvory ve výseči před postavou a poškození se mezi ně rozdělí (podle útoku a obrany může i jen škrábnout nebo minout); bez výdrže se útočit nedá, tvora kousek vedle kurzoru rána sama trefí |
 | **Pravé kliknutí v bojovém postoji** | Sekundární rána zbraně ke kurzoru (klackem úder s nápřahem, bez zbraně kopnutí): o polovinu silnější, pomalejší a stojí víc výdrže. Čísla obou ran ukazuje zbraň v okně postavy, pěsti prázdné políčko Zbraň |
-| **Pravé kliknutí na tvora** | Mimo bojový postoj panel se statistikami tvora (zavře ho křížek, Esc nebo pravé kliknutí jinam) |
+| **Prostřední kliknutí na tvora** | Připne panel se statistikami tvora (zavře ho křížek, Esc nebo prostřední kliknutí jinam); tažení prostředním otáčí kamerou. V boji se panel ukáže sám: u tvora, kterého jsi naposledy zasáhl, jinak u nejbližšího útočícího, a pár sekund po boji zmizí |
 | **E** | V otevřené truhle vzít vše |
 | **G** | Zobrazit / skrýt mřížku |
 | **N** | Posun času o 6 hodin |

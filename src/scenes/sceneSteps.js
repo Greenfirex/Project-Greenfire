@@ -78,7 +78,6 @@ export default {
   },
 
   spawnFootprint(x, z, angle, scale, kind = 'human') {
-    if (!this.options.footprints) return;
     if (!Number.isFinite(x) || !Number.isFinite(z)) return;
     if (this.terrainSystem && this.terrainSystem.bridgeDeckAt(x, z) !== null) return;
     const cx = worldToCell(x);

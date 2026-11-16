@@ -21,6 +21,9 @@ export default class InputSystem {
     this.s = scene;
     this.game = game;
     this.rotating = false;
+    this.middleDragged = false;
+    this.middleStartX = 0;
+    this.middleStartY = 0;
     this.rightRotating = false;
     this.rightDragged = false;
     this.rightStartX = 0;
@@ -30,6 +33,7 @@ export default class InputSystem {
     this.lastCell = null;
     this.onHoverCell = null;
     this.onCellRightClick = null;
+    this.onMiddleClick = null;
     this.onPaintStart = null;
     this.onPaintMove = null;
     this.onPaintEnd = null;
@@ -82,6 +86,9 @@ export default class InputSystem {
         if (evt.button === 1) {
           if (onUi) return;
           this.rotating = true;
+          this.middleDragged = false;
+          this.middleStartX = evt.clientX;
+          this.middleStartY = evt.clientY;
           this.lastX = evt.clientX;
           evt.preventDefault();
           return;
@@ -102,7 +109,9 @@ export default class InputSystem {
 
       if (type === PointerEventTypes.POINTERUP) {
         if (evt.button === 1) {
+          if (!this.rotating) return;
           this.rotating = false;
+          if (!this.middleDragged && this.onMiddleClick) this.onMiddleClick();
           return;
         }
         if (evt.button === 2) {
@@ -130,6 +139,8 @@ export default class InputSystem {
           this.pointerMoved = true;
         }
         if (this.rotating) {
+          const travel = Math.abs(evt.clientX - this.middleStartX) + Math.abs(evt.clientY - this.middleStartY);
+          if (travel >= DRAG_THRESHOLD) this.middleDragged = true;
           const dx = evt.clientX - this.lastX;
           this.lastX = evt.clientX;
           if (Math.abs(dx) >= DRAG_THRESHOLD) this.camera.alpha += dx * ROTATE_SPEED;

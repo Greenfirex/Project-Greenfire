@@ -52,6 +52,7 @@ import Hotbar from '../ui/hotbar.js';
 import VitalsBar from '../ui/vitalsBar.js';
 import HoverHint from '../ui/hoverHint.js';
 import CreatureHealthBar from '../ui/creatureHealthBar.js';
+import PlayerOverheadBars from '../ui/playerOverheadBars.js';
 import DockButton from '../ui/dockButton.js';
 import MapEditor from '../editor/mapEditor.js';
 import EditorToggle from '../editor/editorToggle.js';
@@ -63,6 +64,8 @@ import TooltipPanel from '../ui/tooltipPanel.js';
 import CreaturePanel from '../ui/creaturePanel.js';
 import BestiaryWindow from '../ui/bestiaryWindow.js';
 import CraftingWindow from '../ui/craftingWindow.js';
+import JournalWindow from '../ui/journalWindow.js';
+import MouseHint from '../ui/mouseHint.js';
 import BestiarySystem from '../systems/creatures/bestiarySystem.js';
 import { takeModelError, preloadModel, loadContainer, loadImported } from '../utils/assetLoader.js';
 import { WAVE_TIME_WRAP, SEA_DIRECTION } from '../utils/waterWaves.js';
@@ -102,6 +105,13 @@ const EDITOR_CAM_SPRINT = 32;
 const PLAYER_ZOOM_MAX = 22;
 const TIME_SKIP = { hours: 6 };
 const AMBIENT_TIME_STEP = 0.0005;
+
+const LEFT_CLICK_PREFIX = 'Levé tlačítko — ';
+
+function leftAction(detail) {
+  const text = String(detail || '').replace(LEFT_CLICK_PREFIX, '');
+  return text ? `${text.charAt(0).toLocaleUpperCase('cs')}${text.slice(1)}` : null;
+}
 
 function metersText(value) {
   const rounded = Math.round((Number(value) || 0) * 10) / 10;
@@ -187,16 +197,22 @@ export default class GameScene {
     this.hud = new Hud();
     this.tooltipPanel = new TooltipPanel();
     this.creaturePanel = new CreaturePanel();
-    this.creaturePanel.onClose = () => this.unpinCreature();
+    this.creaturePanel.onClose = () => this.dismissCreaturePanel();
     this.pinnedCreature = null;
+    this.combatFocus = null;
+    this.mutedFocus = null;
+    this.focusShown = false;
+    this.focusSeenAt = 0;
     this.bestiary = new BestiarySystem();
     this.hotbar = new Hotbar();
-    this.bagButton = new DockButton({ icon: '🎒', label: 'Inventář', title: 'Inventář (I)', slot: 'bag' });
-    this.characterButton = new DockButton({ icon: '🧍', label: 'Postava', title: 'Postava (C)', slot: 'character' });
-    this.bestiaryButton = new DockButton({ icon: '📖', label: 'Bestiář', title: 'Bestiář (B)', slot: 'bestiary' });
+    this.bagButton = new DockButton({ icon: '🎒', label: 'Postava a batoh', key: 'I', slot: 'bag' });
+    this.bestiaryButton = new DockButton({ icon: '📖', label: 'Bestiář', key: 'B', slot: 'bestiary' });
     this.bestiaryWindow = new BestiaryWindow();
-    this.craftButton = new DockButton({ icon: '🔨', label: 'Výroba', title: 'Výroba (V)', slot: 'craft' });
+    this.journalButton = new DockButton({ icon: '📜', label: 'Deník', key: 'J', slot: 'journal' });
+    this.journalWindow = new JournalWindow();
+    this.craftButton = new DockButton({ icon: '🔨', label: 'Výroba', key: 'V', slot: 'craft' });
     this.craftingWindow = new CraftingWindow();
+    this.mouseHint = new MouseHint();
     this.log = new LogPanel();
     this.characterPanel = new CharacterPanel();
     this.portraitSystem = new PortraitSystem(scene);
@@ -205,6 +221,7 @@ export default class GameScene {
     this.vitalsBar = new VitalsBar();
     this.hoverHint = new HoverHint();
     this.creatureHealthBar = new CreatureHealthBar();
+    this.playerOverheadBars = new PlayerOverheadBars();
     this.floatingNumbers = new FloatingNumbers();
     this.walkStepLimit = STEP_LIMIT;
     this.editor = new MapEditor(this);
@@ -338,7 +355,9 @@ export default class GameScene {
         if (this.loaded) this.refreshCreatureSight();
       }
       this.refreshCreatureHealthBars();
+      this.refreshPlayerOverheadBars();
       this.refreshPinnedCreature();
+      this.refreshMouseHint();
       this.portraitSystem.update(this.playerSystem.root, this.playerSystem.anims.idle, this.playerSystem.handSlot);
       this.updateReveal(dt);
       this.setDecorShaping(this.editor.shapesTerrain());
@@ -355,7 +374,7 @@ export default class GameScene {
         return;
       }
       this.simSystem.update(dt);
-      if (this.options.dayCycle && !this.simSystem.halted) {
+      if (!this.simSystem.halted) {
         this.dayNightSystem.update(dt * this.simSystem.speed);
       }
       this.refreshAmbient(dt);
@@ -529,15 +548,8 @@ export default class GameScene {
   followPointer() {
     const now = performance.now();
     const moved = this.inputSystem.takeMoved();
-    if (!this.options.highlights) {
-      this.creatureSystem.clearHover();
-      this.creatureTooltipOn = false;
-      this.tooltipPanel.hide();
-      this.setHoverHint(null);
-      this.gameCursor.setState('default');
-      return;
-    }
     if (!this.inputSystem.pointerInside()) {
+      this.pointerAction = null;
       this.decoHighlight.setHover(null);
       this.creatureSystem.clearHover();
       this.creatureTooltipOn = false;
@@ -551,6 +563,7 @@ export default class GameScene {
       const creature = this.creatureSystem.hoverAt(this.s.pointerX, this.s.pointerY)
         || this.assistCreatureAtPointer();
       if (creature) {
+        this.pointerAction = { kind: 'creature' };
         this.decoHighlight.setHover(null);
         this.showCreatureTooltip(creature);
         this.setHoverHint({ inReach: true, detail: this.hitChanceText(creature) });
@@ -559,6 +572,7 @@ export default class GameScene {
       }
       const corpse = this.creatureSystem.corpseAt(this.s.pointerX, this.s.pointerY);
       if (corpse) {
+        this.pointerAction = { kind: 'corpse', left: 'Prohledat tělo' };
         this.decoHighlight.setHover(null);
         this.showCorpseTooltip(corpse);
         this.setHoverHint(null);
@@ -567,7 +581,9 @@ export default class GameScene {
       }
       this.hideCreatureTooltip();
       this.setPointerCursorState();
-      this.setHoverHint(this.hintTarget(this.inputSystem.cellAtPointer()));
+      const target = this.hintTarget(this.inputSystem.cellAtPointer());
+      this.pointerAction = target && target.inReach ? { kind: 'target', left: leftAction(target.detail) } : null;
+      this.setHoverHint(target);
     }
     if (!moved) return;
     const pointer = this.inputSystem.lastCell;
@@ -588,6 +604,40 @@ export default class GameScene {
     return null;
   }
 
+  refreshMouseHint() {
+    if (!this.loaded || this.editor.active || this.dying || this.paused) {
+      this.mouseHint.update(null);
+      return;
+    }
+    const action = this.pointerAction || null;
+    const stance = this.playerSystem.weaponDrawn;
+    const pin = action && action.kind === 'creature' ? { text: 'Připnout tvora' } : null;
+    if (stance) {
+      const attack = this.playerAttackSystem;
+      const blow = (kind, name) => {
+        const cost = attack.blow(kind).cost;
+        return { text: `${name} · ${Math.round(cost)} výdrže`, off: !this.playerStats.canSpend(cost) };
+      };
+      this.mouseHint.update({
+        left: blow('primary', 'Rána'),
+        right: blow('secondary', 'Silná rána'),
+        middle: pin,
+        keys: [['Mezerník', 'úskok'], ['X', 'zandat']],
+      });
+      return;
+    }
+    const left = !action ? null
+      : action.kind === 'creature' ? { text: 'Útok' }
+        : action.left ? { text: action.left } : null;
+    const armed = Boolean(this.equipmentSystem.get('weapon'));
+    this.mouseHint.update({
+      left,
+      right: null,
+      middle: pin,
+      keys: [['X', armed ? 'tasit zbraň' : 'bojový postoj']],
+    });
+  }
+
   setHoverHint(target) {
     if (!target || !target.inReach || this.editor.active || this.dying) {
       this.hoverHint.hide();
@@ -602,7 +652,7 @@ export default class GameScene {
     this.creatureTooltipOn = true;
     const total = creature.tier && Number.isFinite(creature.tier.health) ? Math.round(creature.tier.health) : null;
     const left = Number.isFinite(creature.health) ? Math.max(0, Math.round(creature.health)) : null;
-    const more = this.playerSystem.weaponDrawn ? '' : ' · pravé tlačítko — podrobnosti';
+    const more = ' · prostřední tlačítko — připnout';
     const detail = total !== null && left !== null ? `Zdraví ${left} / ${total}${more}` : '';
     this.tooltipPanel.show(`${creature.type.label} (${creature.tier.label})`, detail);
   }
@@ -843,7 +893,6 @@ export default class GameScene {
   waterDayness() {
     const system = this.dayNightSystem;
     if (!system || !system.config) return 1;
-    if (this.options && !this.options.dayCycle) return 1;
     return system.dayness(system.getTime());
   }
 
@@ -943,6 +992,7 @@ export default class GameScene {
     this.sightSystem.setDetail(this.options.sight);
     this.refreshShadowReach(true);
     this.decoHighlight.setVisible(this.options.highlights);
+    this.vitalsBar.setVisible(this.options.playerBars !== 'head');
     this.gameCursor.setEnabled(this.options.customCursor);
     const densityChanged = this.floraSystem.density !== this.options.grass;
     if (densityChanged && this.grassModelList) this.rebuildGrass();
@@ -1005,15 +1055,12 @@ export default class GameScene {
 
   refreshAmbient(dt = 0) {
     const time = this.dayNightSystem.getTime();
-    const dayness = this.dayNightSystem.config ? this.dayNightSystem.dayness(time) : 1;
-    const value = this.options.dayCycle ? dayness : 1;
-    const cycle = Boolean(this.options.dayCycle);
-    const settled = dt > 0 && cycle === this.ambientCycle && Math.abs(time - this.ambientTime) < AMBIENT_TIME_STEP;
+    const value = this.dayNightSystem.config ? this.dayNightSystem.dayness(time) : 1;
+    const settled = dt > 0 && Math.abs(time - this.ambientTime) < AMBIENT_TIME_STEP;
     if (settled) {
       this.updateIndoor(dt);
       return;
     }
-    this.ambientCycle = cycle;
     this.ambientTime = time;
     this.audioSystem.setDayness(value);
     this.floraSystem.setDayness(value);
@@ -1117,7 +1164,6 @@ export default class GameScene {
 
   describeDayPhase(time, cfg) {
     if (!cfg) return 'Bez denního cyklu';
-    if (!this.options.dayCycle) return 'Den a noc vypnutý';
     if (time < cfg.dawnTime || time > cfg.duskTime) return 'Noc';
     const t = (time - cfg.dawnTime) / (cfg.duskTime - cfg.dawnTime);
     if (t < 0.2) return 'Svitání';
@@ -1145,13 +1191,18 @@ export default class GameScene {
     this.hotbar.setSlots(this.heldItemSystem.bar);
     this.hotbar.setSelected(this.heldItemSystem.key);
     this.bagButton.onClick = () => this.toggleCharacterPanel();
-    this.characterButton.onClick = () => this.toggleCharacterPanel();
     this.bestiaryButton.onClick = () => this.toggleBestiaryWindow();
+    this.journalButton.onClick = () => this.toggleJournalWindow();
     this.craftButton.onClick = () => this.toggleCraftingWindow();
+    this.mouseHint.mount();
     this.bagButton.mount();
-    this.characterButton.mount();
     this.bestiaryButton.mount();
+    this.journalButton.mount();
     this.craftButton.mount();
+    this.journalWindow.onClose = () => {
+      this.journalButton.setActive(false);
+      this.audioSystem.play('windowClose');
+    };
     this.bestiaryWindow.onClose = () => {
       this.bestiaryButton.setActive(false);
       this.audioSystem.play('windowClose');
@@ -1164,7 +1215,6 @@ export default class GameScene {
       this.portraitSystem.hide();
       this.audioSystem.play('windowClose');
       this.bagButton.setActive(false);
-      this.characterButton.setActive(false);
     };
     this.characterPanel.onUnequip = (slot) => this.unequipSlot(slot);
     this.characterPanel.onMove = (from, to) => {
@@ -1181,6 +1231,7 @@ export default class GameScene {
     this.lootWindow.onTakeAll = () => this.takeAllLoot();
     this.lootWindow.onClose = () => this.closeLoot();
     this.characterPanel.onEquip = (itemKey, slot) => this.equipItem(itemKey, slot);
+    this.characterPanel.onUse = (itemKey) => this.useBagItem(itemKey);
     this.characterPanel.onPreview = (itemKey) => this.previewStats(itemKey);
     this.vitalsBar.setHealth(this.playerStats.health, this.playerStats.maxHealth);
     this.vitalsBar.setStamina(this.playerStats.stamina, this.playerStats.maxStamina);
@@ -1204,7 +1255,16 @@ export default class GameScene {
     this.audioSystem.play('windowOpen');
     this.portraitSystem.show(this.characterPanel.portraitCanvas);
     this.bagButton.setActive(true);
-    this.characterButton.setActive(true);
+  }
+
+  toggleJournalWindow() {
+    if (this.journalWindow.open) {
+      this.journalWindow.close();
+      return;
+    }
+    this.journalWindow.show();
+    this.audioSystem.play('windowOpen');
+    this.journalButton.setActive(true);
   }
 
   toggleCraftingWindow() {
@@ -1231,14 +1291,15 @@ export default class GameScene {
       this.craftingWindow.close();
       closed = true;
     }
+    if (this.journalWindow.open) {
+      this.journalWindow.close();
+      closed = true;
+    }
     if (this.lootWindow.open) {
       this.closeLoot();
       closed = true;
     }
-    if (this.pinnedCreature) {
-      this.unpinCreature();
-      closed = true;
-    }
+    if (this.dismissCreaturePanel()) closed = true;
     return closed;
   }
 
@@ -1316,6 +1377,9 @@ export default class GameScene {
     this.inputSystem.onLeftDown = () => this.handleLeftDown();
     this.inputSystem.onHoverCell = (cell) => this.handleHover(cell);
     this.inputSystem.onCellRightClick = (cell) => this.handleCellRightClick(cell);
+    this.inputSystem.onMiddleClick = () => {
+      if (this.loaded && !this.editor.active && !this.dying) this.pinCreatureAtPointer();
+    };
     this.inputSystem.onPaintStart = (cell) => this.handlePaintStart(cell);
     this.inputSystem.onPaintMove = (cell) => this.handlePaintMove(cell);
     this.inputSystem.onPaintEnd = () => this.handlePaintEnd();
@@ -1525,6 +1589,12 @@ export default class GameScene {
       this.toggleBestiaryWindow();
       return;
     }
+    if ((evt.key === 'j' || evt.key === 'J') && !typing) {
+      if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+      evt.preventDefault();
+      this.toggleJournalWindow();
+      return;
+    }
     if ((evt.key === 'v' || evt.key === 'V') && !typing) {
       if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
       evt.preventDefault();
@@ -1641,7 +1711,7 @@ export default class GameScene {
 
   refreshHoverTooltip(cell) {
     if (this.creatureTooltipOn) return;
-    if (!cell || !this.options.highlights || !this.cellInSight(cell)) {
+    if (!cell || !this.cellInSight(cell)) {
       this.tooltipPanel.hide();
       return;
     }
@@ -1721,12 +1791,8 @@ export default class GameScene {
 
   handleCellRightClick(cell) {
     if (!this.editor.active) {
-      if (!this.loaded || this.dying) return;
-      if (this.playerSystem.weaponDrawn) {
-        if (!this.paused) this.secondaryAttackToward();
-        return;
-      }
-      this.pinCreatureAtPointer();
+      if (!this.loaded || this.dying || this.paused) return;
+      if (this.playerSystem.weaponDrawn) this.secondaryAttackToward();
       return;
     }
     if (!cell) return;

@@ -15,7 +15,8 @@ import { strikeChances, damageText } from '../utils/combatRoll.js';
 import { angleGap } from '../utils/angles.js';
 import AttackArc, { DANGER_COLOR } from '../effects/attackArc.js';
 
-const PLAYER_FLOAT_HEIGHT = 2.2;
+const PLAYER_FLOAT_HEIGHT = 2.55;
+const PLAYER_BAR_HEIGHT = 2.3;
 const CREATURE_BAR_LIFT = 0.4;
 const BACK_HIT_DOT = -0.2;
 const SIGHT_CLEARANCE = 0.3;
@@ -27,6 +28,7 @@ const AIM_ASSIST = 20 * Math.PI / 180;
 const AIM_ASSIST_REACH = 0.4;
 const GRUNT_CHANCE = { primary: 0.08, secondary: 0.6 };
 const BITE_ARC_ALPHA = 0.1;
+const FOCUS_LINGER = 3;
 
 export default {
   async setupCreatures() {
@@ -50,6 +52,7 @@ export default {
     system.onSound = (key, creature) => this.playCreatureSound(key, creature);
     system.onBite = (creature, damage, crit, damageType, graze) => this.onCreatureBite(creature, damage, crit, damageType, graze);
     system.onBiteMiss = (creature, dodged) => this.onCreatureBiteMiss(creature, dodged);
+    this.playerAttackSystem.onStruck = (struck) => this.focusCreature(struck[0]);
     await system.create(this.mapLayout);
     this.creatureLayoutKey = this.creatureLayoutSignature();
     this.refreshReflectionExclusions();
@@ -306,16 +309,79 @@ export default {
     this.pinnedCreature = null;
     this.creatureSystem.selected = null;
     this.creaturePanel.hide();
+    this.focusShown = false;
+  },
+
+  dismissCreaturePanel() {
+    const shown = Boolean(this.pinnedCreature) || this.focusShown;
+    if (this.focusShown) this.mutedFocus = this.combatFocus;
+    this.unpinCreature();
+    return shown;
+  },
+
+  focusCreature(creature) {
+    if (!creature) return;
+    this.combatFocus = creature;
+    this.focusSeenAt = performance.now() / 1000;
+  },
+
+  creatureAlive(creature) {
+    return Boolean(creature) && !creature.dead && !creature.buried && this.creatureSystem.creatures.includes(creature);
+  },
+
+  nearestAttacker() {
+    const root = this.playerSystem.root;
+    if (!root) return null;
+    const level = this.playerSystem.level || 0;
+    let best = null;
+    let bestDistance = Infinity;
+    for (const creature of this.creatureSystem.creatures) {
+      if (!this.creatureAlive(creature) || (creature.level || 0) !== level) continue;
+      if (creature.mode === 'alert' || !(creature.engaged || this.creatureSystem.isHostile(creature))) continue;
+      const distance = Math.hypot(creature.x - root.position.x, creature.z - root.position.z);
+      if (distance >= bestDistance) continue;
+      best = creature;
+      bestDistance = distance;
+    }
+    return best;
   },
 
   refreshPinnedCreature() {
     const creature = this.pinnedCreature;
-    if (!creature) return;
+    if (!creature) {
+      this.refreshCombatFocus();
+      return;
+    }
     if (creature.dead || this.editor.active || !this.creatureSystem.creatures.includes(creature)) {
       this.unpinCreature();
       return;
     }
     this.showCreaturePanel(creature);
+  },
+
+  refreshCombatFocus() {
+    const now = performance.now() / 1000;
+    let focus = this.creatureAlive(this.combatFocus) ? this.combatFocus : null;
+    const fighting = focus && (focus.engaged || this.creatureSystem.isHostile(focus)) && focus.mode !== 'alert';
+    if (!fighting) {
+      const attacker = this.nearestAttacker();
+      if (attacker) {
+        focus = attacker;
+        this.combatFocus = attacker;
+      }
+    }
+    if (focus && (focus.engaged || this.creatureSystem.isHostile(focus)) && focus.mode !== 'alert') this.focusSeenAt = now;
+    if (this.mutedFocus && this.mutedFocus !== focus) this.mutedFocus = null;
+    const show = Boolean(focus) && !this.editor.active && !this.dying && focus !== this.mutedFocus
+      && now - (this.focusSeenAt || 0) < FOCUS_LINGER;
+    if (!show) {
+      if (this.focusShown) this.creaturePanel.hide();
+      this.focusShown = false;
+      if (!focus || now - (this.focusSeenAt || 0) >= FOCUS_LINGER) this.combatFocus = null;
+      return;
+    }
+    this.focusShown = true;
+    this.showCreaturePanel(focus);
   },
 
   lootCorpse(corpse) {
@@ -523,6 +589,23 @@ export default {
     return !(hit && hit.hit);
   },
 
+  refreshPlayerOverheadBars() {
+    const root = this.playerSystem.root;
+    const wanted = this.options.playerBars === 'head' || this.options.playerBars === 'both';
+    if (!wanted || !root || !this.loaded || this.paused || this.editor.active || this.dying) {
+      this.playerOverheadBars.update(null);
+      return;
+    }
+    const point = this.screenPointOf(root.position.x, root.position.y + PLAYER_BAR_HEIGHT, root.position.z);
+    const stats = this.playerStats;
+    this.playerOverheadBars.update(point ? {
+      x: point.x,
+      y: point.y,
+      health: stats.maxHealth > 0 ? stats.health / stats.maxHealth : 0,
+      stamina: stats.maxStamina > 0 ? stats.stamina / stats.maxStamina : 0,
+    } : null);
+  },
+
   refreshCreatureHealthBars() {
     if (!this.loaded || this.paused || this.editor.active) {
       this.creatureHealthBar.update([]);
@@ -551,7 +634,7 @@ export default {
     if (!dealt) return 0;
     this.audioSystem.play(crit ? 'hurtCrit' : 'hurt');
     if (this.playerStats.health > 0) this.audioSystem.play('playerHurt');
-    if (this.options.cameraShake) this.cameraSystem.shake(0.28, 0.32);
+    if (this.options.cameraShake && crit) this.cameraSystem.shake(0.28, 0.32);
     if (this.options.damageFlash) this.vitalsBar.flash();
     if (this.playerStats.health <= 0) this.onPlayerDeath(fromBehind);
     else this.playerSystem.flinch();
@@ -571,6 +654,7 @@ export default {
   },
 
   onCreatureBite(creature, damage, crit, damageType, graze = false) {
+    if (!this.creatureAlive(this.combatFocus)) this.focusCreature(creature);
     if (this.playerStats.immunity > 0) {
       this.onCreatureBiteMiss(creature, true);
       return;
@@ -587,6 +671,7 @@ export default {
   },
 
   onCreatureBiteMiss(creature, dodged = false) {
+    if (!this.creatureAlive(this.combatFocus)) this.focusCreature(creature);
     const who = creature && creature.type ? creature.type.label : 'Útok';
     this.audioSystem.play('miss');
     this.log.add(dodged ? `${who} — uhnul jsi` : `${who} — útok minul`, 'info');

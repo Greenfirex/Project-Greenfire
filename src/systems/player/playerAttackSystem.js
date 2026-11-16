@@ -27,6 +27,7 @@ export default class PlayerAttackSystem {
     this.onHit = null;
     this.onWhiff = null;
     this.onMiss = null;
+    this.onStruck = null;
   }
 
   number(value) {
@@ -117,6 +118,7 @@ export default class PlayerAttackSystem {
       if (this.onWhiff) this.onWhiff();
       return;
     }
+    if (this.onStruck) this.onStruck(struck);
     const share = 1 / struck.length;
     for (const creature of struck) {
       const defense = creatureStat(creature.type, creature.tier, 'defense');
@@ -136,6 +138,10 @@ export default class PlayerAttackSystem {
 
   struckAll(player, blow) {
     if (!player || !player.root || !this.candidates) return [];
-    return this.candidates().filter((creature) => this.inArc(creature, player, blow));
+    const { x, z } = player.root.position;
+    const distance = (creature) => Math.hypot(creature.x - x, creature.z - z);
+    return this.candidates()
+      .filter((creature) => this.inArc(creature, player, blow))
+      .sort((a, b) => distance(a) - distance(b));
   }
 }
