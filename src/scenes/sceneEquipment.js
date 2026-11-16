@@ -3,8 +3,6 @@
 // Patří ke GameScene (sdílí její this); jen ji dělí, aby hlavní soubor zůstal přehledný.
 import { ITEM_TYPES, EQUIP_SLOTS, gearBonus, itemWeight, toolForItem, getTool } from '../data/catalogs/items.js';
 
-const AUTO_SHEATH_SECONDS = 8;
-
 export default {
   equipItem(itemKey, slot) {
     const def = ITEM_TYPES[itemKey];
@@ -19,7 +17,6 @@ export default {
   },
 
   unequipSlot(slot) {
-    if (slot === 'weapon') this.sheathWeapon('instant');
     const itemKey = this.equipmentSystem.set(slot, null);
     if (!itemKey) return false;
     this.inventorySystem.add(itemKey, 1);
@@ -50,9 +47,8 @@ export default {
   },
 
   drawWeapon(how = 'hip') {
-    if (this.playerSystem.weaponDrawn || !this.equippedWeapon()) return false;
+    if (this.playerSystem.weaponDrawn) return false;
     this.playerSystem.weaponDrawn = true;
-    this.keepWeaponDrawn();
     this.refreshHands(how);
     return true;
   },
@@ -65,25 +61,9 @@ export default {
     return true;
   },
 
-  keepWeaponDrawn() {
-    this.sheathTimer = AUTO_SHEATH_SECONDS;
-  },
-
-  updateWeaponSheath(dt) {
-    if (!this.playerSystem.weaponDrawn || this.dying || this.editor.active) return;
-    const root = this.playerSystem.root;
-    if (root && this.creatureSystem.isPlayerInCombat(root.position)) {
-      this.keepWeaponDrawn();
-      return;
-    }
-    this.sheathTimer = (Number.isFinite(this.sheathTimer) ? this.sheathTimer : AUTO_SHEATH_SECONDS) - dt;
-    if (this.sheathTimer <= 0) this.sheathWeapon();
-  },
-
   toggleWeapon() {
     if (this.dying || this.editor.active) return;
-    if (this.sheathWeapon()) return;
-    if (!this.drawWeapon()) this.log.add('Nemáš nasazenou zbraň', 'info');
+    if (!this.sheathWeapon()) this.drawWeapon();
   },
 
   refreshHands(how = null) {

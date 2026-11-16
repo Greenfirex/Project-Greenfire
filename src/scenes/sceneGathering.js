@@ -180,7 +180,6 @@ export default {
   },
 
   strikeGather(item) {
-    this.sheathWeapon('instant');
     const swung = item ? this.gatherSystem.hitItem(item) : this.gatherSystem.beginHit();
     if (swung) this.playerStats.spendGather();
     return swung;
@@ -189,7 +188,7 @@ export default {
   holdStrikeReady() {
     if (!this.inputSystem.leftDown || this.editor.active) return false;
     if (this.campfireSystem.pending) return false;
-    if (this.playerAttackSystem.target) return false;
+    if (this.attackHeld) return false;
     if (this.creatureSystem.hovered || this.creatureSystem.hoveredCorpse) return false;
     const gather = this.gatherSystem;
     if (!gather.target || gather.cooldown > 0 || gather.pending) return false;

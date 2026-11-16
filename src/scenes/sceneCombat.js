@@ -9,6 +9,8 @@ import { SIGHT_GROUND_LIFT, SIGHT_RISE_START, SIGHT_RISE_FULL, SIGHT_HIGHER_STAR
 import { smoothstep } from '../utils/noise.js';
 import { formatMeters } from '../data/maps/layoutStore.js';
 import { CREATURE_TYPES, CREATURE_KEYS } from '../data/catalogs/creatures/index.js';
+import { angleGap } from '../utils/angles.js';
+import AttackArc from '../effects/attackArc.js';
 
 const PLAYER_FLOAT_HEIGHT = 2.2;
 const CREATURE_BAR_LIFT = 0.4;
@@ -18,6 +20,8 @@ const CREATURE_GONE_FOG = 0.95;
 const CREATURE_EYE_SHARE = 0.6;
 const CORPSE_STAND = 0.9;
 const CORPSE_REACH_LIFT = 0.2;
+const AIM_ASSIST = 20 * Math.PI / 180;
+const AIM_ASSIST_REACH = 0.4;
 
 export default {
   async setupCreatures() {
@@ -72,6 +76,10 @@ export default {
 
   playerLookPoint() {
     if (!this.options.lookAtPointer) return null;
+    return this.pointerGroundPoint();
+  },
+
+  pointerGroundPoint() {
     if (this.editor.active) return null;
     const root = this.playerSystem.root;
     if (!root || !this.inputSystem.pointerInside()) return null;
@@ -86,20 +94,50 @@ export default {
     return { x: ray.origin.x + ray.direction.x * t, z: ray.origin.z + ray.direction.z * t };
   },
 
-  swingCreature(creature) {
-    if (this.drawStrike) return false;
-    if (this.playerAttackSystem.canSwing(creature, this.playerSystem) && this.drawWeapon()) {
-      this.playerSystem.faceTo(creature.x, creature.z, this.playerAttackSystem.reach);
+  attackToward(creature = null) {
+    this.attackHeld = true;
+    if (this.drawStrike || !this.playerAttackSystem.canSwing()) return false;
+    const aim = this.aimPoint(creature);
+    if (!aim) return false;
+    if (this.drawWeapon()) {
+      this.playerSystem.faceTo(aim.x, aim.z);
       this.drawStrike = { creature, left: this.playerSystem.toolSwapLeft };
       return true;
     }
-    const swung = this.playerAttackSystem.swing(creature, this.playerSystem);
+    const swung = this.playerAttackSystem.swingAt(aim.x, aim.z, this.playerSystem);
     if (swung) {
-      this.keepWeaponDrawn();
+      if (this.attackArc) this.attackArc.pulse();
       this.playerStats.spendAttack();
       this.audioSystem.play('grunt');
     }
     return swung;
+  },
+
+  attackCandidates() {
+    const level = this.playerSystem.level || 0;
+    return this.creatureSystem.creatures.filter((creature) => creature && !creature.dead && !creature.buried && (creature.level || 0) === level);
+  },
+
+  aimPoint(creature) {
+    const root = this.playerSystem.root;
+    if (!root) return null;
+    if (creature) return { x: creature.x, z: creature.z };
+    const point = this.pointerGroundPoint();
+    if (!point) return null;
+    const aim = Math.atan2(point.x - root.position.x, point.z - root.position.z);
+    const attack = this.playerAttackSystem;
+    let best = null;
+    let bestTurn = AIM_ASSIST;
+    for (const candidate of this.attackCandidates()) {
+      const dx = candidate.x - root.position.x;
+      const dz = candidate.z - root.position.z;
+      if (Math.hypot(dx, dz) - attack.bodyRadius(candidate) > attack.reach + AIM_ASSIST_REACH) continue;
+      const turn = Math.abs(angleGap(aim, Math.atan2(dx, dz)));
+      if (turn > bestTurn) continue;
+      best = candidate;
+      bestTurn = turn;
+    }
+    return best ? { x: best.x, z: best.z } : point;
   },
 
   assistCreatureAtPointer() {
@@ -254,20 +292,31 @@ export default {
     const active = this.loaded && !this.editor.active && !this.dying;
     this.playerAttackSystem.update(active ? dt : 0);
     if (active) {
-      this.updateWeaponSheath(dt);
       this.updateDrawStrike(dt);
     }
-    if (!active || !this.inputSystem.leftDown) return;
-    const target = this.playerAttackSystem.target;
-    if (!target || !this.creatureSystem.creatures.includes(target)) {
-      this.playerAttackSystem.target = null;
+    this.updateAttackArc(dt, active);
+    if (!active || !this.inputSystem.leftDown) {
+      this.attackHeld = false;
       return;
     }
-    if (this.creatureSystem.hovered !== target && this.assistCreatureAtPointer() !== target) {
-      this.playerAttackSystem.target = null;
+    if (this.attackHeld) this.attackToward(null);
+  },
+
+  updateAttackArc(dt, active) {
+    if (!this.attackArc) this.attackArc = new AttackArc(this.s);
+    const root = this.playerSystem.root;
+    if (!active || !root || !this.playerSystem.weaponDrawn) {
+      this.attackArc.update(dt, null);
       return;
     }
-    this.swingCreature(target);
+    const attack = this.playerAttackSystem;
+    let facing = this.playerSystem.facing;
+    if (!attack.pending && this.playerSystem.strikeTimer <= 0) {
+      const aim = this.aimPoint(null);
+      if (aim) facing = Math.atan2(aim.x - root.position.x, aim.z - root.position.z);
+    }
+    const { x, y, z } = root.position;
+    this.attackArc.update(dt, { x, y, z, facing, reach: attack.reach, arc: attack.arc });
   },
 
   updateDrawStrike(dt) {
@@ -277,10 +326,11 @@ export default {
     if (queued.left > 0) return;
     this.drawStrike = null;
     const creature = queued.creature;
-    if (creature && !creature.dead && this.creatureSystem.creatures.includes(creature)) this.swingCreature(creature);
+    const alive = creature && !creature.dead && this.creatureSystem.creatures.includes(creature);
+    this.attackToward(alive ? creature : null);
   },
 
-  damageCreature(creature, amount, crit) {
+  damageCreature(creature, amount, crit, graze = false) {
     if (!creature) return false;
     const killed = this.creatureSystem.damage(creature, amount, this.simSystem.time);
     this.audioSystem.play(this.playerAttackSystem.hitSound);
@@ -294,18 +344,9 @@ export default {
     const left = Math.max(0, Math.round(creature.health));
     const total = creature.tier && Number.isFinite(creature.tier.health) ? Math.round(creature.tier.health) : null;
     const suffix = total === null ? '' : ` (${left} / ${total})`;
-    const critText = crit ? ' kriticky' : '';
+    const critText = crit ? ' kriticky' : graze ? ' (škrábnutí)' : '';
     this.log.add(`${label} — ${Math.round(amount)} poškození${critText}${suffix}`, 'action');
     return false;
-  },
-
-  missCreature(creature) {
-    if (!creature) return;
-    this.audioSystem.play('miss');
-    const label = creature.type ? creature.type.label : 'Tvor';
-    this.log.add(`Minul jsi: ${label}`, 'action');
-    const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ, creature.level || 0);
-    this.spawnFloatingText('Minul', creature.renderX, ground + creature.markHeight, creature.renderZ, 'miss');
   },
 
   showFloatingDamage(creature, amount, crit) {

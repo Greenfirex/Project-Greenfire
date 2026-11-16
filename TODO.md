@@ -56,7 +56,7 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ### Zbraně a mířené rány (plán v `DEV.md`, sekce „Boj se zbraněmi — plán po etapách")
 
-- [ ] Etapa 2: mířená rána ke kurzoru do výseče, přitažení míření, kostka jen na kvalitu rány.
+- [ ] Etapa 2: mířená rána ke kurzoru do výseče, přitažení míření, kostka jen na kvalitu rány (hotovo, čeká na vyzkoušení).
 - [ ] Etapa 3: víc cílů naráz (cleave) a těžká rána.
 - [ ] Etapa 4: tvorové útočí výsečí s nápřahem, úskok na mezerník.
 - [ ] Před etapou rozhodnout otevřené otázky (ovládání těžké rány, sekyra jako zbraň).

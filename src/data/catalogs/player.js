@@ -20,7 +20,8 @@ export const PLAYER_BASE = {
     damage: [4, 8],
     hitSound: 'hitPunch',
     cooldown: 1.0,
-    reach: 1.8,
+    reach: 1.4,
+    arc: 70,
     heightLimit: 0.9,
   },
   stamina: {

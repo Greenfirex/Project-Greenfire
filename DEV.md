@@ -572,8 +572,8 @@ Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
 **Rozhodnuto:**
 - Zbraň patří do políčka Zbraň ve výbavě (`EQUIP_SLOTS`, klíč `weapon`). Lišta rychlé
   volby (`heldItemSystem.js`) zůstává pro nástroje a spotřební věci.
-- Zbraň se tasí a zandává. Útok ji tasí sám, po chvíli mimo boj se sama zandá,
-  sběr ji zandá. Tasená = bojový postoj (animace `combatStance` už existuje).
+- Zbraň se tasí a zandává. Útok ji tasí sám; zandává hráč (X), sama se zandá jen při
+  otevírání kořisti a po smrti. Tasená = bojový postoj (animace `combatStance` už existuje).
 - Útok míří ke kurzoru a zasáhne všechno ve výseči před postavou (dosah + úhel
   podle zbraně). Jemné přitažení míření k nepříteli do zhruba ±20°.
 - O zásahu rozhoduje míření, ne kostka. `rollStrike` (útok proti obraně) dál rozhoduje,
@@ -585,11 +585,12 @@ Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
   (`playerAttackSystem.setWeapon`) se počítají z nasazené zbraně, jen když je tasená;
   zandaná = pěsti.
 - Stav tasená/zandaná drží postava (`playerSystem.weaponDrawn`); klávesa **X** ho
-  přepíná. Ukládá se u postavy; starší uložení ho nemají a načtou se se zandanou zbraní.
+  přepíná. Bez nasazené zbraně X postaví postavu do bojového postoje s pěstmi (mířené
+  rány pěstí a výseč fungují stejně). Ukládá se u postavy; starší uložení ho nemají.
 - Co je ve které ruce, rozhoduje jen `refreshHands` v `sceneEquipment.js` (tasená zbraň,
   jinak věc z lišty). Zbraně na lištu nesmí (`hotbarTool`). Klik na tvora zbraň tasí
-  hned bez animace; zandá se po 8 s mimo boj, při sběru, otevírání kořisti, výběru věci
-  na liště a po smrti. První sebraný klacek se sám nasadí do prázdného políčka Zbraň.
+  z boku a rána přijde po vytažení; zandá se jen klávesou X, při otevírání kořisti
+  (`beginLootPickup`) a po smrti. První sebraný klacek se sám nasadí do prázdného políčka Zbraň.
 - Model: tasená v ruce (`handSlot`), zandaná visí na boku u ruky se zbraní (pozor: model je
   ve scéně zrcadlený, kost `RightHand` je z pohledu `front` vpravo; `sheath.side` záporné
   = strana ruky se zbraní; úchyt na kosti boků,
@@ -629,6 +630,15 @@ Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
 - `rollStrike` přestane rozhodovat o minutí; výsledek je kritická / běžná / škrábnutí.
 - Hotovo, když: rána jde máchnout kamkoli, trefí tvora ve výseči, mimo výseč mine,
   a „Minul“ se neukazuje, když rána geometricky sedla.
+- Jak je to udělané: dosah (`reach`) se měří k okraji těla tvora (poloměr = 0,3 × délka
+  tvora, `BODY_SHARE` v `playerAttackSystem.js`), úhel výseče (`arc`) ve stupních, tělo
+  výseč o kus rozšíří. Pěst 1,4 m / 70°, klacek 1,7 m / 110°. Míří se na bod na zemi pod
+  kurzorem (`pointerGroundPoint`), přitažení do 20° bere tvory do dosahu + 0,4 m
+  (`aimPoint`). Klik na tvora bez tasené zbraně míří na něj. Podržené tlačítko opakuje
+  ránu ke kurzoru (`attackHeld`). Kostka `rollQuality`: kritická / běžná / škrábnutí
+  (poloviční poškození). Tvorové zatím dál používají `rollStrike` (etapa 4).
+  S tasenou zbraní ukazuje výseč na zemi `src/effects/attackArc.js` (dosah a úhel zbraně,
+  míří tam, kam by šla příští rána; při úderu zesvětlí).
 
 **Etapa 3 — víc cílů a těžká rána**
 - Katalog zbraně: kolik cílů zasáhne (`maxTargets`) a kolik dostanou další

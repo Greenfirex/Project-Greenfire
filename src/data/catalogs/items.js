@@ -183,7 +183,7 @@ export const TOOL_TYPES = {
     grip: { scale: 1.6, fist: 1, curl: 1.1, tilt: -0.3, hold: 0.07, wrist: 1 },
     sheath: { side: -0.95, lift: 0.5, ahead: 0.1, back: 0.15, out: -0.06 },
     guard: { hand: [0.2, -0.36, 0.38], elbow: [0.2, -0.27, -0.02], club: [0.15, 0.75, 0.8], leftHand: [-0.02, -0.32, 0.28], leftElbow: [0.12, -0.28, 0.02] },
-    weapon: { damage: [10, 14], attack: 1, damageType: 'blunt', cooldown: 1.1, anim: 'chop', hitSound: 'hitClub' },
+    weapon: { damage: [10, 14], attack: 1, damageType: 'blunt', cooldown: 1.1, reach: 1.7, arc: 110, anim: 'chop', hitSound: 'hitClub' },
   },
 };
 

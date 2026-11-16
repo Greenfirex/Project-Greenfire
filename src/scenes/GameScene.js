@@ -167,8 +167,9 @@ export default class GameScene {
     this.playerStats = new PlayerStatsSystem();
     this.playerAttackSystem = new PlayerAttackSystem();
     this.playerAttackSystem.groundHeightAt = (x, z, level) => this.terrainSystem.walkHeightAt(x, z, Number.isFinite(level) ? level : this.playerSystem.level);
-    this.playerAttackSystem.onHit = (creature, amount, crit) => this.damageCreature(creature, amount, crit);
-    this.playerAttackSystem.onMiss = (creature) => this.missCreature(creature);
+    this.playerAttackSystem.candidates = () => this.attackCandidates();
+    this.playerAttackSystem.onHit = (creature, amount, crit, graze) => this.damageCreature(creature, amount, crit, graze);
+    this.playerAttackSystem.onWhiff = () => this.audioSystem.play('miss');
     this.interaction = new InteractionSystem(scene);
     this.gatherSystem = new GatherSystem(scene);
     this.gatherSystem.decoSystem = this.decoSystem;
@@ -629,6 +630,10 @@ export default class GameScene {
       return;
     }
     const target = this.interactionTarget();
+    if (this.playerSystem.weaponDrawn && (!target || target.id === 'creature')) {
+      this.attackToward(target ? target.ref : null);
+      return;
+    }
     if (!target || !target.inReach) return;
     this.interaction.act(target);
   }
@@ -652,7 +657,7 @@ export default class GameScene {
           inReach: this.playerAttackSystem.canHit(creature, this.playerSystem),
         };
       },
-      act: (target) => this.swingCreature(target.ref),
+      act: (target) => this.attackToward(target.ref),
     });
     this.interaction.register('corpse', {
       priority: 90,
@@ -1276,10 +1281,7 @@ export default class GameScene {
   }
 
   selectTool(key) {
-    if (!this.ownsTool(key)) return;
-    const tool = getTool(key);
-    if (!tool || !tool.offHand) this.sheathWeapon('instant');
-    this.heldItemSystem.set(key);
+    if (this.ownsTool(key)) this.heldItemSystem.set(key);
   }
 
   refreshInventory() {
