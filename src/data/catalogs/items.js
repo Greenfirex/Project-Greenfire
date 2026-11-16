@@ -172,6 +172,8 @@ export const TOOL_TYPES = {
     model: 'torch',
     file: `${ASSET_DIRS.props}torch/torch.glb`,
     grip: { scale: 0.6, upright: true, lean: 0.3, outward: 0.15, palm: 0.08, raise: -0.5, bend: -0.9, curl: 1.1, slide: -0.07, toThumb: 0.3 },
+    offHand: { hand: [0.12, -0.2, 0.32], elbow: [0.16, -0.27, 0.02] },
+    stow: { side: 0.95, lift: 0.5, ahead: 0.1 },
   },
   club: {
     item: 'stick',

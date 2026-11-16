@@ -90,7 +90,11 @@ export default {
     const weapon = this.equippedWeapon();
     const drawn = Boolean(weapon) && this.playerSystem.weaponDrawn;
     this.playerSystem.setSheathedTool(weapon ? weapon.toolKey : null);
-    this.playerSystem.setHeldTool(drawn ? weapon.toolKey : this.heldItemSystem.key, how === 'instant', how === 'hip');
+    const held = this.heldItemSystem.tool();
+    const offHand = held && held.offHand ? this.heldItemSystem.key : null;
+    const right = drawn ? weapon.toolKey : offHand ? null : this.heldItemSystem.key;
+    this.playerSystem.setHeldTool(right, how === 'instant', how === 'hip');
+    this.playerSystem.setOffHandTool(offHand, how === 'instant');
     this.playerAttackSystem.setWeapon(drawn ? weapon.tool : null);
     if (this.characterPanel.open) this.refreshCharacterPanel();
   },

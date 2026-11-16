@@ -50,6 +50,9 @@ export const PLAYER_FINGER_BONES = [
 ];
 export const PLAYER_FIST_BONES = ['RightHandMiddle1', 'RightHandMiddle3', 'RightHandIndex1', 'RightHandRing1'];
 export const PLAYER_THUMB_BONES = ['RightHandThumb2'];
+export const PLAYER_LEFT_FINGER_BONES = PLAYER_FINGER_BONES.map((name) => name.replace('Right', 'Left'));
+export const PLAYER_LEFT_FIST_BONES = PLAYER_FIST_BONES.map((name) => name.replace('Right', 'Left'));
+export const PLAYER_LEFT_THUMB_BONES = PLAYER_THUMB_BONES.map((name) => name.replace('Right', 'Left'));
 export const PLAYER_HEAD_BONES = ['Head', 'mixamorig:Head'];
 export const PLAYER_HEAD_TOP = ['head_end', 'HeadTop_End', 'mixamorig:HeadTop_End'];
 export const PLAYER_HEAD_FRONT = ['headfront'];

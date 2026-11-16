@@ -8,8 +8,8 @@ const STEP = 1 / 60;
 const TOOL_WAIT_MS = 15000;
 const LID_AHEAD = 0.65;
 const HIP_LENGTH = 0.8;
-const SCENES = ['idle', 'walk', 'run', 'strike', 'pickup', 'draw', 'sheath'];
-const HIP_SCENES = ['draw', 'sheath'];
+const SCENES = ['idle', 'walk', 'run', 'strike', 'pickup', 'draw', 'sheath', 'grab', 'putaway'];
+const HIP_SCENES = ['draw', 'sheath', 'grab', 'putaway'];
 
 function rounded(value, digits) {
   return Number.isFinite(value) ? Number(value.toFixed(digits)) : null;
@@ -73,6 +73,12 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
     if (!(await waitFor(() => player.sheathNode))) return { error: `zbraň na boku se neukázala: ${sheathKey}` };
     player.weaponDrawn = Boolean(toolKey);
   }
+  const offHandKey = options.offhand || null;
+  if (offHandKey) {
+    if (!TOOL_TYPES[offHandKey]) return { error: `neznámý nástroj do levé ruky: ${offHandKey}` };
+    player.setOffHandTool(offHandKey, true);
+    if (!(await waitFor(() => player.offNode))) return { error: `nástroj v levé ruce se neukázal: ${offHandKey}` };
+  }
   if (options.combat) player.inCombat = () => true;
   if (options.glance) player.glance.wait = 0.3;
   player.play(player.idleAnim(), true);
@@ -82,7 +88,7 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
   const bounds = root.getHierarchyBoundingVectors(true);
   const height = bounds.max.y - bounds.min.y;
   aimCamera({ height, length: height * 0.6 }, options);
-  const focusOn = { hand: () => player.handSlot, head: () => player.idleNodes && player.idleNodes.head }[options.focus];
+  const focusOn = { hand: () => player.handSlot, left: () => player.leftSlot, head: () => player.idleNodes && player.idleNodes.head }[options.focus];
 
   const tool = TOOL_TYPES[toolKey];
   const anim = options.anim || (tool && tool.weapon ? tool.weapon.anim : undefined);
@@ -99,8 +105,25 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
       player.setHeldTool(null, false, true);
       return HIP_LENGTH;
     },
+    grab: () => {
+      player.setOffHandTool(options.grab);
+      return HIP_LENGTH;
+    },
+    putaway: () => {
+      player.setOffHandTool(null);
+      return HIP_LENGTH;
+    },
   };
-  if (HIP_SCENES.includes(scenario) && !sheathKey) return { error: 'tasení potřebuje --sheath <zbraň>' };
+  if ((scenario === 'draw' || scenario === 'sheath') && !sheathKey) return { error: 'tasení potřebuje --sheath <zbraň>' };
+  if (scenario === 'grab' && !TOOL_TYPES[options.grab]) return { error: 'vytažení potřebuje --grab <nástroj>' };
+  if (scenario === 'grab') {
+    player.prefetchTool(options.grab);
+    await waitFor(() => player.toolTemplates[TOOL_TYPES[options.grab].model]);
+    player.setOffHandTool(options.grab, true);
+    await scene.whenReadyAsync();
+    scene.render();
+    player.setOffHandTool(null, true);
+  }
   const action = actions[scenario] || null;
   const lead = action ? options.lead || 0 : 0;
   let seconds = options.seconds || 2;

@@ -606,8 +606,15 @@ Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
   přepíše: paže míří do bodů kolem ramene (`guard` u zbraně: loket, ruka, levá ruka
   v metrech do strany / nahoru / dopředu) a zbraň drží směr `guard.club`. Při úderu,
   tasení a sbírání se úprava plynule vypne.
-- Pochodeň s tasenou zbraní: rozhodnuto do levé ruky (krok 1b); do té doby se při
-  tasení schová.
+- Pochodeň se drží vždy v levé ruce (`offHand` u nástroje v `TOOL_TYPES`,
+  `setOffHandTool`, úchyt `leftSlot`, prsty levé ruky `PLAYER_LEFT_*`), pravá zůstává
+  volná pro zbraň, takže se nic nepředává. Mimo bojový postoj drží levá paže pochodeň
+  zvednutou (`grip.raise`/`bend`), v postoji míří do bodů `offHand.hand`/`elbow`.
+  Co v levé ruce opravdu je, říká `offNodeKey`. Výběr pochodně z lišty zbraň nezandá.
+  Vytažení a schování pochodně: levá ruka sáhne k levému boku (`stow` u nástroje, stejné
+  míry jako `sheath`; `reachPocket` sdílí s tasením `reachPoint`), v půlce se pochodeň
+  objeví nebo zmizí. Modely nástrojů z lišty se načítají předem, aby se pochodeň
+  při vytažení neobjevila pozdě.
 - Hotovo, když: klacek jde nasadit do políčka Zbraň, klávesou se tasí a zandá,
   postava s tasenou zbraní stojí v bojovém postoji a bije klackem; zandaná bije pěstí.
 

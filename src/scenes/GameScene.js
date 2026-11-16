@@ -234,7 +234,10 @@ export default class GameScene {
     this.fxaa = null;
     this.heldItemSystem = new HeldItemSystem();
     this.heldItemSystem.onChange = () => this.onHeldItemChange();
-    this.heldItemSystem.onBarChange = (bar) => this.hotbar.setSlots(bar);
+    this.heldItemSystem.onBarChange = (bar) => {
+      this.hotbar.setSlots(bar);
+      for (const key of bar) if (key) this.playerSystem.prefetchTool(key);
+    };
     this.playerSystem.onStep = (x, z, sprint) => this.onPlayerStep(x, z, sprint);
     this.playerSystem.onFootPlant = (x, z, facing, side, sprint) => this.footfall(x, z, facing, 1, 'human', sprint ? 1.25 : 1);
     this.playerSystem.lookAt = () => this.playerLookPoint();
@@ -1274,7 +1277,8 @@ export default class GameScene {
 
   selectTool(key) {
     if (!this.ownsTool(key)) return;
-    this.sheathWeapon('instant');
+    const tool = getTool(key);
+    if (!tool || !tool.offHand) this.sheathWeapon('instant');
     this.heldItemSystem.set(key);
   }
 

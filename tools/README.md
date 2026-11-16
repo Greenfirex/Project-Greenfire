@@ -42,12 +42,13 @@ node tools/capture.cjs player idle --tool torch --view side2 --focus hand --zoom
 
 Scény: `idle`, `walk`, `run`, `strike` (úder animací zbraně, jinak `--anim chop|mine|punch|kick`),
 `pickup`, `draw` a `sheath` (tasení z boku a zandání, potřebují `--sheath club`;
-u `sheath` i `--tool club`). `--tool` je klíč z `TOOL_TYPES`, `--sheath` dá zbraň na bok. `--combat 1` postaví postavu do bojového
+u `sheath` i `--tool club`), `grab` a `putaway` (vytažení pochodně do levé ruky
+s `--grab torch`, schování s `--offhand torch`). `--tool` je klíč z `TOOL_TYPES`, `--sheath` dá zbraň na bok. `--combat 1` postaví postavu do bojového
 postoje, `--lead 0.3` počká před úderem nebo sbíráním (vidět je pak i přechod tam a zpět),
 `--glance 1` vynutí brzké rozhlédnutí ve stoji, `--kneel 2` nechá postavu po sbírání
 v dřepu 2 s (jako při otevřené truhle), `--lid 0.55` při tom natáhne ruce k víku
 v této výšce kousek před postavou. Nástroj drží pravá ruka, ta je vidět
-z pohledu `side2`. `--focus hand|head` míří záběr na ruku nebo hlavu (hodí se se
+z pohledu `side2`. `--offhand torch` dá nástroj do levé ruky (pochodeň se ve hře drží vždy v levé). `--focus hand|left|head` míří záběr na ruku nebo hlavu (hodí se se
 `--zoom 0.6`–`1`). Do konzole
 se ke každému snímku vypíše směr osy nástroje (y kladné = nahoru), výška jeho spodku
 a vršku a odstup úchopu od kosti ruky. Výstup `tools/_temp/snimky-postava-<nástroj>-<scéna>-<pohled>.png`.
