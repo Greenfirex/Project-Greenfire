@@ -94,8 +94,6 @@ const REACH_AHEAD = 0.3;
 const REACH_LIFT = 0.08;
 const REACH_FADE = 0.3;
 const REACH_SPREAD = 0.7;
-const LOOT_LEAN = 0.4;
-const LOOT_LEAN_CLEAR = 0.05;
 const RUMMAGE_FADE = 0.4;
 const RUMMAGE_REACH = [0.14, 0.1, 0.1];
 const RUMMAGE_PACE = [4.3, 6.1, 3.7];
@@ -134,6 +132,8 @@ const HIP_SWAP_SHARE = 0.45;
 const HIP_REACH_HOLD = 1.5;
 const HIP_ELBOW_OUT = 0.6;
 const HIP_REACH_PASSES = 3;
+const HIP_GRIP_TURN = 0.5;
+const HIP_ELBOW_UP = 0.25;
 const LEFT_CURL_SIGN = 1;
 const RIGHT_CURL_SIGN = -1;
 const POCKET_TIME = 0.5;
@@ -333,9 +333,8 @@ export default class PlayerSystem {
       }
     }
     if (!this.mesh) return null;
-    this.rig = this.mesh.parent;
-    if (this.rig) this.rig.parent = root;
-    this.rigHome = this.rig ? this.rig.position.clone() : null;
+    const rig = this.mesh.parent;
+    if (rig) rig.parent = root;
     this.root = root;
     const scale = MODEL_HEIGHT / MODEL_BASE_HEIGHT;
     root.scaling = new Vector3(scale, scale, scale);
@@ -852,7 +851,6 @@ export default class PlayerSystem {
   reachDown(dt) {
     if (!this.armNodes || !this.idleNodes || !this.root) return;
     this.reach = Math.max(0, Math.min(1, this.reach + (this.pickupTimer > 0 ? dt : -dt) / REACH_FADE));
-    this.leanToTarget();
     if (!this.reach) {
       if (this.pickupTimer <= 0) this.reachTarget = null;
       return;
@@ -901,7 +899,7 @@ export default class PlayerSystem {
     refreshChain(this.sheathSlot);
     const slot = this.sheathSlot.getAbsolutePosition().clone();
     const forward = new Vector3(Math.sin(this.bodyFacing), 0, Math.cos(this.bodyFacing));
-    const pole = forward.scale(-1).add(this.weaponSideOut(forward).scale(HIP_ELBOW_OUT));
+    const pole = forward.scale(-1).add(this.weaponSideOut(forward).scale(HIP_ELBOW_OUT)).add(Vector3.Up().scale(HIP_ELBOW_UP));
     const tool = TOOL_TYPES[this.sheathedKey];
     const grip = (tool && tool.grip) || {};
     const hangs = Vector3.TransformNormal(Vector3.Up(), this.sheathSlot.getWorldMatrix()).normalize();
@@ -943,7 +941,7 @@ export default class PlayerSystem {
       const fist = this.closeFist(grip.curl || 0, arm) || this.fistCenter(arm);
       const target = point.subtract(fist.subtract(hand.getAbsolutePosition()));
       this.reachArm(upper, fore, hand, target, pole, 1);
-      if (along && grip.fist) this.turnGrip(along, grip, 1);
+      if (along && grip.fist) this.turnGrip(along, grip, HIP_GRIP_TURN);
     }
     bones.forEach((bone, index) => {
       Quaternion.SlerpToRef(before[index], bone.rotationQuaternion, weight, bone.rotationQuaternion);
@@ -1052,17 +1050,6 @@ export default class PlayerSystem {
       this.toolSwapLeft = 0;
       this.refreshToolNode();
     }
-  }
-
-  leanToTarget() {
-    if (!this.rig || !this.rigHome) return;
-    let lean = 0;
-    if (this.reach && this.reachTarget) {
-      const away = Math.hypot(this.reachTarget.x - this.root.position.x, this.reachTarget.z - this.root.position.z);
-      lean = Math.max(0, Math.min(LOOT_LEAN, away - LOOT_LEAN_CLEAR)) * this.reach;
-    }
-    this.rig.position.copyFrom(this.rigHome);
-    this.rig.position.z += lean / (this.root.scaling.z || 1);
   }
 
   rummageOffset(phase, axes) {

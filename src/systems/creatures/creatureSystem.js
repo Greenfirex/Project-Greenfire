@@ -38,7 +38,6 @@ const HOME_PATIENCE = 12;
 const ATTACK_HEIGHT = 1;
 const PLAYER_BODY = 0.3;
 const LUNGE_SECONDS = 0.15;
-const LUNGE_STOP = 0.5;
 const SIGHT_HOLD = 0.2;
 const CHASE_RANGE = 1.8;
 const SEARCH_PATIENCE = 8;
@@ -1023,7 +1022,8 @@ export default class CreatureSystem {
 
   lunge(creature, player, dt) {
     const type = creature.type;
-    if (player && Math.hypot(player.x - creature.x, player.z - creature.z) <= type.biteRange * LUNGE_STOP) {
+    const nose = creatureLength(type) * creatureScale(type, creature.tier) / 2;
+    if (player && Math.hypot(player.x - creature.x, player.z - creature.z) <= nose + PLAYER_BODY) {
       creature.lungeLeft = 0;
       return;
     }

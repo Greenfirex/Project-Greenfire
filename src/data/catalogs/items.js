@@ -196,7 +196,7 @@ export const TOOL_TYPES = {
     model: 'saber',
     file: `${ASSET_DIRS.props}saber/saber.glb`,
     grip: { scale: 0.72, fist: 1, curl: 1.1, tilt: -0.3, hold: 0.15, wrist: 1, toThumb: 0.4, edge: [-1, 0, 0] },
-    sheath: { side: -0.95, lift: 0.5, ahead: 0.1, back: 0.15, out: -0.06, edge: 1 },
+    sheath: { side: -0.95, lift: 0.5, ahead: 0.1, back: 0.15, out: -0.06, edge: -1 },
     guard: { hand: [0.2, -0.36, 0.38], elbow: [0.2, -0.27, -0.02], club: [0.15, 0.75, 0.8], leftHand: [-0.02, -0.32, 0.28], leftElbow: [0.12, -0.28, 0.02] },
     weapon: {
       damage: [4, 6], attack: 1, damageType: 'slashing', hitSound: 'hitClub',

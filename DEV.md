@@ -498,7 +498,7 @@ dřepu a postava se narovná prolnutím (`RISE_BLEND`). `reachDown` předkloní 
 Okno kořisti (truhla, kostlivec, mrtvý tvor) se otevírá vždy stejně: postava dojde
 (`walkTo`, skončí i když se přestane přibližovat — `AUTO_WALK_STUCK`), dřepne si
 (`kneeling`) a natáhne ruce (`reachTarget`); dokud je okno otevřené, přehrabuje se
-(`rummageOffset`) a tělo se přisune až o `LOOT_LEAN` (posouvá se jen `rig`, kolize ne).
+(`rummageOffset`). Tělo se k truhle nepřisouvá (dřívější posun modelu vypadal jako sklouznutí).
 Pohyb klávesami dřep zruší. Truhla si spočítá čelo (`lootSystem.shapeOf`), jde se vždy
 před víko (`standSpot`) a sahá kousek dovnitř (`reachPoint`, `REACH_INSIDE`); kostlivec
 a tvor čelo nemají. Truhla, ve které něco zůstalo, se po zavření zaklapne, prázdná
@@ -666,7 +666,9 @@ Sekyra a krumpáč jako zbraně odloženy na později.
   při jakékoli velikosti modelu). Tasení i zandání klávesou X je naprogramovaný pohyb
   pravé paže k boku (`reachHip`), v půlce se zbraň přehodí. Paže se ohýbá v lokti
   (`reachArm`) a pěst se dorovnává několikrát za snímek i se sevřením prstů a natočením
-  zápěstí, aby dosedla přesně na úchyt; s předchozí pózou se prolíná kost po kosti
+  zápěstí, aby dosedla přesně na úchyt. Zápěstí se natočí jen o půl cesty podle rukojeti
+  (`HIP_GRIP_TURN`) a loket jde víc dozadu a nahoru (`HIP_ELBOW_UP`) — plné natočení
+  zalomilo zápěstí dolů do nepřirozené polohy; s předchozí pózou se prolíná kost po kosti
   (částečné natočení kostí zvlášť dává skoky). Fotoateliér hlásí odstup úchopu od úchytu
   na boku. Osy boků se počítají ze stehen a páteře; kvůli zrcadlení je dopředu
   `Cross(side, up)`. Model postavy vlastní
@@ -767,7 +769,8 @@ Sekyra a krumpáč jako zbraně odloženy na později.
   když dojde na konec, tvor kousne (`updateBiteArcs`, `biteView`, `AttackArc` s barvou
   `DANGER_COLOR` a `progress`). Nápřahy: Koa'tiki 0,35 s, běs 0,4 s, kajmanka 0,45 s;
   výseče 100° / 80° / 60°. V posledních 0,15 s nápřahu tvor vyrazí vpřed (`biteLunge`:
-  1 m / 0,8 m / 0,5 m, `lunge`; zastaví se, když je u hráče), takže chůzí se uhnout nedá,
+  1 m / 0,8 m / 0,5 m, `lunge`; zastaví se, když se čumákem — půl délky těla od středu —
+  dotkne okraje těla hráče, aby nezajel do postavy), takže chůzí se uhnout nedá,
   na útěk je potřeba sprint nebo úskok. Výseč ukazuje skutečný dosah včetně výpadu
   a okraje těla hráče.
 - Úskok (`tryDodge` ve scéně, `dodge`/`stepDodge` v `playerSystem`, čísla
