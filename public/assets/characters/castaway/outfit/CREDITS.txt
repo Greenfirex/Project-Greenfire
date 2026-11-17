@@ -1,0 +1,5 @@
+Pirátské oblečení pro postavu Castaway (kabát, kalhoty, boty)
+
+Modely byly vygenerované v Meshy AI (podle obrázků z Gemini) a v Blenderu
+přizpůsobené postavě a napojené na její kostru.
+Licence a podmínky použití: podle licence účtu Meshy, na kterém byly modely vytvořeny.

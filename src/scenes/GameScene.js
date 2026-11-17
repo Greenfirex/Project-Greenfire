@@ -786,6 +786,7 @@ export default class GameScene {
     this.playerSystem.spawnCell = this.mapLayout.spawn;
     this.refreshHands('instant');
     this.playerSystem.onProgress = (done) => this.loader.floatProgress(done);
+    this.playerSystem.onWornMesh = (mesh) => this.addShadowCaster(mesh);
     const root = await this.playerSystem.create();
     if (!root) return;
     for (const child of root.getChildMeshes()) this.addShadowCaster(child);

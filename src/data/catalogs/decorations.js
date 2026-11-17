@@ -919,7 +919,7 @@ export const DECORATION_TYPES = {
     kind: 'container',
     backToEdge: 0.35,
     lootVerb: 'prohledat',
-    loot: { pirate_hat: 1 },
+    loot: { pirate_hat: 1, pirate_coat: 1, pirate_pants: 1, pirate_boots: 1 },
   },
   path: {
     displayName: 'Cesta',

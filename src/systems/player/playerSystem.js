@@ -36,8 +36,6 @@ import {
   PLAYER_LEFT_FIST_BONES,
   PLAYER_LEFT_THUMB_BONES,
   PLAYER_HEAD_BONES,
-  PLAYER_HEAD_TOP,
-  PLAYER_HEAD_FRONT,
   PLAYER_FOOT_BONES,
   PLAYER_TOE_BONES,
   PLAYER_ANIM_NAMES,
@@ -52,6 +50,7 @@ import {
 import { loadModel, instantiateModel, loadImported } from '../../utils/assetLoader.js';
 import TorchFire from '../../effects/torchFire.js';
 import SwingTrail from '../../effects/swingTrail.js';
+import playerWear from './playerWear.js';
 
 const ANIM_BLEND = 0.1;
 const STRIKE_PLAY_SHARE = {
@@ -260,6 +259,9 @@ export default class PlayerSystem {
     this.headTop = 0;
     this.worn = {};
     this.wornNode = null;
+    this.fittedShown = {};
+    this.fittedCache = {};
+    this.onWornMesh = null;
     this.toolSwapLeft = 0;
     this.armNodes = null;
     this.boneTurns = new Map();
@@ -357,6 +359,7 @@ export default class PlayerSystem {
     await this.attachToolNode();
     this.attachHeadSlot();
     this.refreshWorn();
+    this.refreshAllFitted();
     this.bindKeys();
     this.ready = true;
     if (hasSave || !START_LYING) this.play(this.idleAnim());
@@ -629,78 +632,6 @@ export default class PlayerSystem {
   torchFireFor() {
     if (!this.torchFire) this.torchFire = new TorchFire(this.s);
     return this.torchFire;
-  }
-
-  attachHeadSlot() {
-    const skeleton = this.mesh && this.mesh.skeleton;
-    const bone = skeleton ? skeleton.bones.find((item) => PLAYER_HEAD_BONES.includes(item.name)) : null;
-    const head = bone && bone.getTransformNode();
-    if (!head || !this.root) return;
-    const nodes = this.root.getDescendants(false);
-    const find = (names) => nodes.find((node) => names.includes(node.name)) || null;
-    head.computeWorldMatrix(true);
-    const toHead = head.getWorldMatrix().clone().invert();
-    const local = (node, fallback) => {
-      if (!node) return fallback;
-      node.computeWorldMatrix(true);
-      return Vector3.TransformCoordinates(node.getAbsolutePosition(), toHead);
-    };
-    const top = local(find(PLAYER_HEAD_TOP), new Vector3(0, 1, 0));
-    const ahead = local(find(PLAYER_HEAD_FRONT), new Vector3(0, 0, 1));
-    const up = top.normalizeToNew();
-    const forward = ahead.subtract(up.scale(Vector3.Dot(ahead, up))).normalize();
-    const right = Vector3.Cross(up, forward);
-    this.headSlot = new TransformNode('playerHeadSlot', this.s);
-    this.headSlot.parent = head;
-    this.headSlot.position = Vector3.Zero();
-    this.headSlot.rotationQuaternion = Quaternion.RotationQuaternionFromAxis(right, up, forward);
-    this.headTop = top.length();
-  }
-
-  wear(slot, wear) {
-    if (slot !== 'head') return;
-    if (this.worn.head === wear) return;
-    this.worn.head = wear || null;
-    this.refreshWorn();
-  }
-
-  refreshWorn() {
-    if (this.wornNode) {
-      this.wornNode.dispose(false, false);
-      this.wornNode = null;
-    }
-    const wear = this.worn.head;
-    if (!this.headSlot || !wear) return;
-    loadModel(this.s, wear.model).then((template) => {
-      if (!template || this.worn.head !== wear || this.wornNode) return;
-      const meshes = template.getChildMeshes();
-      if (!meshes.length) return;
-      const min = new Vector3(Infinity, Infinity, Infinity);
-      const max = new Vector3(-Infinity, -Infinity, -Infinity);
-      for (const mesh of meshes) {
-        const box = mesh.getBoundingInfo().boundingBox;
-        min.minimizeInPlace(box.minimum);
-        max.maximizeInPlace(box.maximum);
-      }
-      const node = instantiateModel(this.s, template, 'playerWorn_head');
-      if (!node) return;
-      this.headSlot.computeWorldMatrix(true);
-      const slotScale = Math.abs(this.headSlot.absoluteScaling.x) || 1;
-      const scale = wear.width / (Math.max(max.x - min.x, 0.001) * slotScale);
-      node.parent = this.headSlot;
-      node.scaling = new Vector3(scale, scale, scale);
-      node.rotation = new Vector3(0, wear.yaw || 0, 0);
-      node.position = new Vector3(
-        -(min.x + max.x) / 2 * scale,
-        this.headTop * wear.seat - min.y * scale,
-        -(min.z + max.z) / 2 * scale + (wear.forward || 0) / slotScale,
-      );
-      for (const mesh of node.getChildMeshes()) {
-        mesh.receiveShadows = true;
-        mesh.isPickable = false;
-      }
-      this.wornNode = node;
-    });
   }
 
   setHeldTool(key, instant = false, fromHip = false) {
@@ -2176,3 +2107,5 @@ function turnToward(current, target, maxDelta) {
   if (Math.abs(diff) <= maxDelta) return target;
   return current + Math.sign(diff) * maxDelta;
 }
+
+Object.assign(PlayerSystem.prototype, playerWear);

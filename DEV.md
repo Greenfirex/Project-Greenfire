@@ -433,12 +433,17 @@ z batohu, mezi sloty se prohazuje, pravé tlačítko nebo přetažení zpět do 
 z lišty sundá. První kus nového nástroje se na lištu přidá sám (`GameScene.receiveItems`).
 Každý nástroj má `item`; pochodeň je předmět a leží v truhlách.
 
-**Vybavení:** předmět s `slot` (zatím `pirate_hat` na hlavu) se přetáhne z batohu
+**Vybavení:** předmět s `slot` se přetáhne z batohu
 na slot v okně postavy, zpět ho sundá přetažení do batohu (`dragTypes.js`). Co má
 hráč na sobě drží `equipmentSystem.js` (ukládá se), propojení dělá
-`sceneEquipment.js`. Model na hlavě sedí na uzlu odvozeném z kostí `Head`,
-`head_end` a `headfront`; velikost, výška, posun vpřed a natočení jsou v `wear`
-u předmětu. Ostatní sloty zatím nic neumí.
+`sceneEquipment.js`, model na postavě `playerWear.js` (část `playerSystem`). Model na hlavě
+(`wear.model`) sedí na uzlu odvozeném z kostí `Head`, `head_end` a `headfront`; velikost,
+výška, posun vpřed a natočení jsou v `wear` u předmětu. Oblečení s `wear.fitted`
+(pirátský kabát, kalhoty, boty v `public/assets/characters/castaway/outfit/`) je
+přizpůsobené postavě a napojené na její kostru už v Blenderu; ve hře se jeho kosti
+přečíslují podle jmen na kostru postavy a ohýbá se s ní. Patří jen k modelu Castaway:
+nová postava = oblečení znovu napasovat. Rukavice zatím nejsou (rovné prsty z Meshy
+nesedí na pokrčenou ruku).
 `bonus` u předmětu (např. `{ defense: 1 }`) se sečte přes nasazené věci (`gearBonus`)
 a `playerStatsSystem.setGear` ho přičte k základu z `player.js`; nic z toho se
 neukládá, po načtení se přepočítá z výbavy. Náhled v okně postavy (zeleně lepší,
