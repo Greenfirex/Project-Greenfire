@@ -25,7 +25,7 @@ export const PLAYER_BASE = {
   },
   dodge: {
     distance: 3.0,
-    seconds: 1.1,
+    seconds: 0.9,
     cooldown: 0.4,
     cost: 20,
     immunity: 0.5,

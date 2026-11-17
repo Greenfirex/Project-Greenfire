@@ -113,9 +113,12 @@ stáří, zatím všude nula); hráčova rána je odečítá stejným výpočtem
 v `damage.js`). Při najetí na tvora ukazuje nápověda u kurzoru šanci na plný zásah
 a na škrábnutí (`strikeChances` v `combatRoll.js`, zbytek do sta je minutí).
 
-Připraveno, ale zatím nepoužité: recepty (`RECIPES` v seznamu předmětů). Okno Výroba
-(`craftingWindow.js`, klávesa V) a okno Deník (`journalWindow.js`, klávesa J) jsou zatím
-jen prázdné panely. Rozpracované a plánované věci jsou v `TODO.md`.
+Výroba: recept (`RECIPES` v seznamu předmětů) drží jen cenu; jeho klíč je klíč vyráběného
+předmětu, název a ikona se berou z předmětu. Okno Výroba (`craftingWindow.js`, klávesa V)
+ukazuje seznam receptů a tlačítko Vyrobit, co jde vyrobit z batohu, počítá a vyrábí
+`sceneCrafting.js` (`inventorySystem.craft`). Vyrábí se kdekoli, výbava na postavě se
+do ceny nepočítá. Okno Deník (`journalWindow.js`, klávesa J) je zatím prázdný panel.
+Rozpracované a plánované věci jsou v `TODO.md`.
 
 Dolní lišta (`src/ui/dock.js`, `dockArea`) má tři části: vlevo nápověda myši
 (`mouseHint.js`; co udělá levé, pravé a prostřední tlačítko a klávesy, plní ji
@@ -454,6 +457,24 @@ jde s rukou i při úderu.
   nakloní, `hold` je místo úchopu. `wrist` zamkne zápěstí (`lockWrist`), během úderu
   a sbírání se zámek plynule uvolní (`WRIST_BLEND`). Na zemi leží osm tvarů větví
   (`club_a`–`club_h`), v ruce je `props/club/stick.glb`; opracovaný `club.glb` čeká na výrobu.
+- Šavle (`TOOL_TYPES.saber`, sečná) a kopí (`TOOL_TYPES.spear`, bodné, dlouhý dosah a úzká
+  výseč) drží stejný úchop `fist` jako klacek. Modely z Meshy jsou při vložení narovnané:
+  zbraň stojí podél osy Y, konec rukojeti je v nule a délka je 1, takže `hold` je podíl
+  délky a velikost v ruce určuje jen `grip.scale`. Kopí má ztenčenou násadu (Meshy ho
+  udělal moc tlusté). `grip.edge` je směr ostří v modelu: v ruce se zbraň kolem své osy
+  natočí ostřím ke kloubům prstů (`rollEdgeToward`), u boku podle `sheath.edge` dopředu (1)
+  nebo dozadu (−1), aby čepel ležela naplocho podél stehna. Bez `edge` se zbraň nenatáčí.
+  Kopí bodá začátkem animace `Thrust_Slash` (`thrust`, 0–1 s: natažení volné ruky je
+  nápřah, výpad zbraní přijde kolem 0,85 s; dál pokračuje otočkou). Animace je dělaná pro
+  meč, při výpadu by kopí mířilo do strany, proto ho `PLAYER_ANIM_SWING_ALONG.thrust`
+  srovná s předloktím. Výpad je v `PLAYER_ANIM_PLANTED` (`plantLegs`): pánev se neposune
+  do strany ani dopředu (jen klesá a stoupá), otočí se o podíl `hips` (0,5) původního otočení
+  a zbytek dotočí spodní páteř; nohy se hýbou podílem `legs` (0,5) původního pohybu, měřeno
+  od první pozice výřezu. Postava nevykročí, ale kolena a váha pracují.
+  Přenést do páteře celé otočení nejde (trup se zalomí), odebrat ho úplně taky ne (trup
+  zůstane bokem a kopí bodá do strany); samotné přišpendlení pánve (`PLAYER_ANIM_ROOTLESS`)
+  nechá nohy klouzat. Sekundární rána kopí je otočka dokola (`spin`, animace
+  `Axe_Spin_Attack`, výseč 360°, pánev přišpendlená přes `PLAYER_ANIM_ROOTLESS`).
 - Nástroj je na liště zamčený, dokud hráč jeho předmět nemá v batohu (`GameScene.ownsTool`).
 
 **Animace — pasti:**
@@ -750,7 +771,7 @@ Sekyra a krumpáč jako zbraně odloženy na později.
   na útěk je potřeba sprint nebo úskok. Výseč ukazuje skutečný dosah včetně výpadu
   a okraje těla hráče.
 - Úskok (`tryDodge` ve scéně, `dodge`/`stepDodge` v `playerSystem`, čísla
-  `PLAYER_BASE.dodge`): kotoul 3 m za 1,1 s směrem WASD, bez pohybu pryč od kurzoru;
+  `PLAYER_BASE.dodge`): kotoul 3 m za 0,9 s směrem WASD, bez pohybu pryč od kurzoru;
   animace `roll` se přizpůsobí délce úskoku. Kotoul v animaci vede šikmo, o 0,79 rad
   vpravo od pohledu (`PLAYER_ROLL_HEADING`), proto se postava natočí o tolik doleva od směru
   úskoku (rychlým otočením `DODGE_TURN_SPEED`); 20 výdrže, 0,5 s nezranitelnost (`protect`), 0,4 s pauza do dalšího. Nejde během

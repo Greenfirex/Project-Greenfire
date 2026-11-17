@@ -86,6 +86,7 @@ import sceneCombatParts from './sceneCombat.js';
 import sceneGatheringParts from './sceneGathering.js';
 import sceneStepsParts from './sceneSteps.js';
 import sceneEquipmentParts from './sceneEquipment.js';
+import sceneCraftingParts from './sceneCrafting.js';
 
 const LOADING_DRAW_MS = 500;
 
@@ -1193,6 +1194,7 @@ export default class GameScene {
     this.bestiaryButton.onClick = () => this.toggleBestiaryWindow();
     this.journalButton.onClick = () => this.toggleJournalWindow();
     this.craftButton.onClick = () => this.toggleCraftingWindow();
+    this.craftingWindow.onCraft = (key) => this.craftRecipe(key);
     this.mouseHint.mount();
     this.bagButton.mount();
     this.bestiaryButton.mount();
@@ -1271,6 +1273,7 @@ export default class GameScene {
       this.craftingWindow.close();
       return;
     }
+    this.craftingWindow.setRecipes(this.craftingRecipes());
     this.craftingWindow.show();
     this.audioSystem.play('windowOpen');
     this.craftButton.setActive(true);
@@ -1351,6 +1354,7 @@ export default class GameScene {
     this.hotbar.setAvailable((key) => this.ownsTool(key));
     if (this.heldItemSystem.key && !this.ownsTool(this.heldItemSystem.key)) this.heldItemSystem.set(null);
     if (this.characterPanel.open) this.refreshCharacterPanel();
+    this.refreshCrafting();
   }
 
   onHeldItemChange() {
@@ -1872,4 +1876,4 @@ export default class GameScene {
   }
 }
 
-Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts);
+Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts, sceneCraftingParts);

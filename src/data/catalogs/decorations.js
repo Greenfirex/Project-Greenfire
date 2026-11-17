@@ -905,7 +905,7 @@ export const DECORATION_TYPES = {
     lid: 'chest_lid',
     backToEdge: 0.6,
     lootVerb: 'otevřít',
-    loot: { torch: 1, wood: 4, stone: 3, shell: 2 },
+    loot: { torch: 1, wood: 4, stone: 3, shell: 2, rusty_saber: 1, spear: 1 },
   },
   loot_skeleton: {
     displayName: 'Kostlivec',

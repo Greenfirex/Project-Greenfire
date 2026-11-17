@@ -61,6 +61,10 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Etapa 4: vyzkoušet ve hře uhýbání kousnutí (červená výseč, délka nápřahu) a úskok; doladit čísla.
 - [ ] Úskok: dodat a zapojit animaci (dnes jen běh).
 - [ ] Později: sekyra a krumpáč jako slabé zbraně (zatím odloženo).
+- [ ] Šavle a kopí: ověřit ve hře velikost, úchop a polohu u boku (kopí visí šikmo dozadu hrotem dolů).
+- [ ] Kopí: vyzkoušet ve hře otočku dokola na pravé tlačítko (zásah, výdrž, prodleva).
+- [ ] Šavle: vlastní zvuk zásahu čepelí (dnes zvuk klacku).
+- [ ] Šavli a kopí z truhly u spawnu po testu odebrat nebo přesunout (dnes jsou ve všech truhlách).
 
 ### Etapa 3 — kořist
 
@@ -92,7 +96,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Švihnutí zbraně do prázdna (mine/chop bez zásahu).
 - [ ] Vstup do vody (šplouchnutí, ne jen kroky ve vodě).
 - [ ] Rozhraní: zapojit „nejde to" (`ui/denied.ogg` je připravený), až bude kde.
-- [ ] Výroba: zapojit `ui/craft_1–2.ogg`, až bude výroba.
 - [ ] Ryby ve vodě (`fish_splash` — vygenerovat).
 - [ ] Pochodeň v ruce nemá zvuk; `fire/torch_loop.ogg` je volný — použít, nebo smazat.
 
@@ -110,6 +113,5 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Patra: ověřit v dev serveru krok 4 — jeskyně je tmavá i bez hráče (prostorová tma; pochodеň/oheň prosvětlí), povrch světlý, jeskynní ambient (`cave.ogg`) se přelévá; a skrývání ploch nade hráčem (z výšky vidět dovnitř) funguje. Model a stav jsou v `DEV.md`, sekce „Jeskyně a patra".
 - [ ] Odkrývání střechy ukazuje prázdno/moře a dekorace nad odhalenou plochou visí — dočistit v dalších fázích objemového terénu.
 - [ ] Voda po patrech: jedna hladina dnes proteče stropem jeskyně.
-- [ ] Rozhodnout, jestli recepty zůstanou jen jako přehled, nebo dostanou tlačítko pro výrobu.
 - [ ] Navrhnout nový systém stavění (starý byl odstraněn).
 - [ ] Rozhodnout o šířce plynulého okraje pláže.

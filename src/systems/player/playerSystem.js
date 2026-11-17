@@ -45,6 +45,7 @@ import {
   PLAYER_ANIM_FALLBACKS,
   PLAYER_ANIM_RANGES,
   PLAYER_ANIM_ROOTLESS,
+  PLAYER_ANIM_PLANTED,
   PLAYER_ROLL_HEADING,
   PLAYER_DEATH_OVERLAY_SHARE,
 } from '../../data/catalogs/modelCatalog.js';
@@ -63,6 +64,8 @@ const STRIKE_PLAY_SHARE = {
   double1: 1,
   triple3: 1,
   smash: 1,
+  thrust: 1,
+  spin: 1,
 };
 const STRIKE_IMPACT_SHARE = {
   chop: 0.35,
@@ -74,11 +77,14 @@ const STRIKE_IMPACT_SHARE = {
   double1: 0.58,
   triple3: 0.53,
   smash: 0.512,
+  thrust: 0.86,
+  spin: 0.63,
 };
 const STRIKE_HOLD = 0.12;
 const WRIST_BLEND = 0.15;
 const SWING_HOLD_FADE = 0.1;
 const SWING_TURN_LIMIT = 1.2;
+const LEG_BONE = /(Left|Right)(UpLeg|Leg|Foot|ToeBase|Toe_End)$/;
 const IDLE_ARM_IN = 0.12;
 const IDLE_ELBOW = 0.3;
 const IDLE_FADE = 0.35;
@@ -168,6 +174,19 @@ function refreshChain(node) {
 
 function between([low, high]) {
   return low + Math.random() * (high - low);
+}
+
+function rollEdgeToward(rotation, edge, target) {
+  if (!edge || !target) return rotation;
+  const axis = Vector3.Up().applyRotationQuaternion(rotation);
+  const now = Vector3.FromArray(edge).applyRotationQuaternion(rotation);
+  now.subtractInPlace(axis.scale(Vector3.Dot(now, axis)));
+  const wanted = target.subtract(axis.scale(Vector3.Dot(target, axis)));
+  if (now.lengthSquared() < 1e-8 || wanted.lengthSquared() < 1e-8) return rotation;
+  now.normalize();
+  wanted.normalize();
+  const angle = Math.atan2(Vector3.Dot(Vector3.Cross(now, wanted), axis), Vector3.Dot(now, wanted));
+  return Quaternion.RotationAxis(axis, angle).multiply(rotation);
 }
 
 function isHips(name) {
@@ -573,13 +592,14 @@ export default class PlayerSystem {
       .add(forward.scale(-(sheath.back || 0)))
       .add(side.scale(sheath.out || 0))
       .normalize();
-    slot.rotationQuaternion = Quaternion.Identity();
-    Quaternion.FromUnitVectorsToRef(Vector3.Up(), along, slot.rotationQuaternion);
+    const grip = tool.grip || {};
+    const hang = Quaternion.Identity();
+    Quaternion.FromUnitVectorsToRef(Vector3.Up(), along, hang);
+    slot.rotationQuaternion = sheath.edge ? rollEdgeToward(hang, grip.edge, forward.scale(sheath.edge)) : hang;
     hips.computeWorldMatrix(true);
     this.handSlot.computeWorldMatrix(true);
     const handScale = Math.abs(this.handSlot.absoluteScaling.x) || 1;
     const hipsScale = Math.abs(hips.absoluteScaling.x) || 1;
-    const grip = tool.grip || {};
     const scale = handScale * TOOL_SCALE * (grip.scale || 1) / hipsScale;
     node.parent = slot;
     node.scaling = new Vector3(scale, scale, scale);
@@ -747,8 +767,9 @@ export default class PlayerSystem {
     if (!fist) return;
     this.shiftToThumb(fist, this.armNodes, grip);
     const axis = this.gripAxis(grip);
-    const wanted = Quaternion.Identity();
+    let wanted = Quaternion.Identity();
     Quaternion.FromUnitVectorsToRef(Vector3.Up(), axis, wanted);
+    if (grip.edge) wanted = rollEdgeToward(wanted, grip.edge, Vector3.TransformNormal(Vector3.Up(), this.handSlot.getWorldMatrix()));
     const world = Matrix.Identity();
     wanted.toRotationMatrix(world);
     const parent = Matrix.Identity();
@@ -1488,6 +1509,42 @@ export default class PlayerSystem {
     const from = group.from;
     group.from = from + range.start * fps;
     group.to = from + range.end * fps;
+    if (PLAYER_ANIM_PLANTED[key]) this.plantLegs(group, PLAYER_ANIM_PLANTED[key]);
+  }
+
+  plantLegs(group, plant) {
+    if (this.settledRoots.has(group)) return;
+    this.settledRoots.add(group);
+    const list = [...(group.targetedAnimations || [])];
+    const track = (test, property) => list.find((item) => item && item.target && item.animation
+      && item.animation.targetProperty === property && test(String(item.target.name)));
+    const hips = track(isHips, 'rotationQuaternion');
+    const spine = track((name) => PLAYER_LOWER_SPINE_BONES.includes(name), 'rotationQuaternion');
+    if (hips && spine) {
+      const start = hips.animation.evaluate(group.from).clone();
+      const share = Math.max(0, Math.min(1, plant.hips || 0));
+      const pelvis = (frame) => Quaternion.Slerp(start, hips.animation.evaluate(frame), share);
+      for (const key of spine.animation.getKeys()) {
+        if (!key.value) continue;
+        key.value = Quaternion.Inverse(pelvis(key.frame)).multiply(hips.animation.evaluate(key.frame)).multiply(key.value);
+      }
+      const keys = hips.animation.getKeys();
+      const turned = keys.map((key) => pelvis(key.frame));
+      keys.forEach((key, index) => { key.value = turned[index]; });
+    }
+    for (const item of list) {
+      const name = item && item.target ? String(item.target.name) : '';
+      if (item === hips || (!isHips(name) && !LEG_BONE.test(name))) continue;
+      const still = item.animation.evaluate(group.from);
+      if (!still || typeof still.clone !== 'function') continue;
+      const property = item.animation.targetProperty;
+      const legs = Math.max(0, Math.min(1, plant.legs || 0));
+      for (const key of item.animation.getKeys()) {
+        if (property === 'rotationQuaternion' && key.value) key.value = Quaternion.Slerp(still, key.value, legs);
+        else if (property === 'position' && isHips(name) && key.value) key.value = new Vector3(still.x, key.value.y, still.z);
+        else key.value = still.clone();
+      }
+    }
   }
 
   settleRoot(group, flatten) {

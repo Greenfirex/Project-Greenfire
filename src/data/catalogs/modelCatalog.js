@@ -71,6 +71,8 @@ export const PLAYER_ANIM_LIBRARY = {
   leftSlash: 'Left_Slash',
   swordSlash: 'Right_Hand_Sword_Slash',
   tripleCombo: 'Triple_Combo_Attack',
+  thrustSlash: 'Thrust_Slash',
+  axeSpin: 'Axe_Spin_Attack',
   doubleCombo: 'Double_Combo_Attack',
   shotInBack: 'Shot_in_the_Back_and_Fall',
   kick: 'Boxing_Guard_Right_Straight_Kick',
@@ -93,6 +95,8 @@ export const PLAYER_ANIM_NAMES = {
   smash: PLAYER_ANIM_LIBRARY.attack,
   slash: PLAYER_ANIM_LIBRARY.swordSlash,
   double1: PLAYER_ANIM_LIBRARY.doubleCombo,
+  thrust: PLAYER_ANIM_LIBRARY.thrustSlash,
+  spin: PLAYER_ANIM_LIBRARY.axeSpin,
   roll: PLAYER_ANIM_LIBRARY.rollDodge,
   heavyKick: PLAYER_ANIM_LIBRARY.kick,
   holdTool: PLAYER_ANIM_LIBRARY.idle11,
@@ -116,6 +120,8 @@ export const PLAYER_ANIM_SPEEDS = {
   smash: 1.0,
   slash: 0.7,
   double1: 1.25,
+  thrust: 1,
+  spin: 1.2,
   heavyKick: 0.9,
   ignite: 2.5,
   pickup: 2.0,
@@ -131,6 +137,8 @@ export const PLAYER_ANIM_RANGES = {
   smash: { start: 0.2, end: 2.5 },
   slash: { start: 0.0, end: 0.7 },
   double1: { start: 0.0, end: 1.02 },
+  thrust: { start: 0.0, end: 1.0 },
+  spin: { start: 0.1, end: 1.6 },
   roll: { start: 0.4, end: 1.8 },
   pickup: { start: 0, end: 1.05 },
   flinch: { start: 0.0, end: 1.0 },
@@ -138,12 +146,15 @@ export const PLAYER_ANIM_RANGES = {
 
 export const PLAYER_ANIM_SWING_ALONG = {
   slash: { share: 0.8, from: 0.6, full: 0.72 },
+  thrust: { share: 1, from: 0.7, full: 0.82 },
   smash: { share: 1, from: 0.43, full: 0.534, grab: 0.15, pitch: [165, -25], limit: 3 },
 };
 
 export const PLAYER_ANIM_SNAP = { slash: { at: 0.4, speed: 1.8 }, smash: { at: 1.15, speed: 2 } };
 
-export const PLAYER_ANIM_ROOTLESS = ['punch', 'double1', 'triple3', 'smash', 'roll'];
+export const PLAYER_ANIM_ROOTLESS = ['punch', 'double1', 'triple3', 'smash', 'roll', 'spin'];
+
+export const PLAYER_ANIM_PLANTED = { thrust: { hips: 0.5, legs: 0.5 } };
 
 export const PLAYER_ROLL_HEADING = 0.79;
 
@@ -161,6 +172,8 @@ export const PLAYER_ANIM_FALLBACKS = {
   smash: ['smash', 'mine', 'chop'],
   slash: ['slash', 'chop'],
   double1: ['double1', 'chop'],
+  thrust: ['thrust', 'slash', 'chop'],
+  spin: ['spin', 'smash', 'chop'],
   heavyKick: ['heavyKick', 'kick', 'punch'],
   holdTool: ['holdTool', 'idle'],
   ignite: ['ignite', 'pickup', 'punch', 'idle'],

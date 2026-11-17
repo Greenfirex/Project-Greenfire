@@ -1,13 +1,13 @@
-// Ikona předmětu pro inventář a log — bere se z katalogu předmětů a receptů.
-import { ITEM_TYPES, RECIPES } from '../data/catalogs/items.js';
+// Ikona předmětu pro inventář, log a výrobu — bere se z katalogu předmětů.
+import { ITEM_TYPES } from '../data/catalogs/items.js';
 
 export function itemIcon(key) {
-  const def = ITEM_TYPES[key] || RECIPES[key];
+  const def = ITEM_TYPES[key];
   return (def && def.icon) || '•';
 }
 
 export function itemImage(key) {
-  const def = ITEM_TYPES[key] || RECIPES[key];
+  const def = ITEM_TYPES[key];
   return (def && def.image) || null;
 }
 

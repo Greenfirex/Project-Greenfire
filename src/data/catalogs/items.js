@@ -91,6 +91,28 @@ export const ITEM_TYPES = {
     slot: 'weapon',
     color: [0.52, 0.38, 0.24],
   },
+  rusty_saber: {
+    displayName: 'Rezavá pirátská šavle',
+    description: 'Ostří už pamatuje lepší časy. Rez ale řeže taky.',
+    icon: '🗡',
+    image: `${ASSET_DIRS.itemIcons}rusty_saber.png`,
+    stackSize: 1,
+    weight: 1.4,
+    kind: 'product',
+    slot: 'weapon',
+    color: [0.6, 0.45, 0.3],
+  },
+  spear: {
+    displayName: 'Kopí',
+    description: 'Klacek, který se rozhodl být nebezpečnější. Mušle mu v tom pomohla.',
+    icon: '🔱',
+    image: `${ASSET_DIRS.itemIcons}spear.png`,
+    stackSize: 1,
+    weight: 1.1,
+    kind: 'product',
+    slot: 'weapon',
+    color: [0.58, 0.4, 0.26],
+  },
   torch: {
     displayName: 'Pochodeň',
     description: 'Svítí, hřeje a občas zapálí víc, než chceš.',
@@ -139,31 +161,10 @@ export const ITEM_TYPES = {
 export const ITEM_KEYS = Object.keys(ITEM_TYPES);
 
 export const RECIPES = {
-  stone_axe: {
-    displayName: 'Kamenná sekyrka',
-    icon: '🪓',
-    place: 'camp',
-    cost: { wood: 2, stone: 3 },
-  },
-  stone_pickaxe: {
-    displayName: 'Kamenný krumpáč',
-    icon: '🎯',
-    place: 'camp',
-    cost: { wood: 2, stone: 3 },
-  },
-  workbench: {
-    displayName: 'Výrobní stůl',
-    icon: '🎪',
-    place: 'camp',
-    cost: { wood: 10, stone: 4 },
-  },
-  campfire: {
-    displayName: 'Táborák',
-    icon: '🔥',
-    place: 'camp',
-    cost: { wood: 4, stone: 6 },
-  },
+  spear: { cost: { stick: 1, shell: 2 } },
 };
+
+export const RECIPE_KEYS = Object.keys(RECIPES).filter((key) => ITEM_TYPES[key]);
 
 export const TOOL_TYPES = {
   torch: {
@@ -187,6 +188,34 @@ export const TOOL_TYPES = {
       damage: [3, 5], attack: 1, damageType: 'blunt', hitSound: 'hitClub',
       primary: { reach: 1.7, arc: 70, cooldown: 1.0, anim: ['slash', 'double1', 'triple3'] },
       secondary: { reach: 1.9, arc: 40, cooldown: 1.6, cost: 22, anim: 'smash' },
+    },
+  },
+  saber: {
+    item: 'rusty_saber',
+    kind: 'weapon',
+    model: 'saber',
+    file: `${ASSET_DIRS.props}saber/saber.glb`,
+    grip: { scale: 0.72, fist: 1, curl: 1.1, tilt: -0.3, hold: 0.15, wrist: 1, toThumb: 0.4, edge: [-1, 0, 0] },
+    sheath: { side: -0.95, lift: 0.5, ahead: 0.1, back: 0.15, out: -0.06, edge: 1 },
+    guard: { hand: [0.2, -0.36, 0.38], elbow: [0.2, -0.27, -0.02], club: [0.15, 0.75, 0.8], leftHand: [-0.02, -0.32, 0.28], leftElbow: [0.12, -0.28, 0.02] },
+    weapon: {
+      damage: [4, 6], attack: 1, damageType: 'slashing', hitSound: 'hitClub',
+      primary: { reach: 1.8, arc: 80, cooldown: 0.85, anim: ['slash', 'double1', 'triple3'] },
+      secondary: { reach: 1.9, arc: 50, cooldown: 1.5, cost: 22, anim: 'smash' },
+    },
+  },
+  spear: {
+    item: 'spear',
+    kind: 'weapon',
+    model: 'spear',
+    file: `${ASSET_DIRS.props}spear/spear.glb`,
+    grip: { scale: 1.3, fist: 1, curl: 1.1, tilt: -0.3, hold: 0.3, wrist: 1, toThumb: 0.4 },
+    sheath: { side: -0.95, lift: 0.5, ahead: -0.3, back: 1.2, out: -0.06 },
+    guard: { hand: [0.2, -0.36, 0.38], elbow: [0.2, -0.27, -0.02], club: [0.15, 0.75, 0.8], leftHand: [-0.02, -0.32, 0.28], leftElbow: [0.12, -0.28, 0.02] },
+    weapon: {
+      damage: [4, 7], attack: 1, damageType: 'piercing', hitSound: 'hitClub',
+      primary: { reach: 2.4, arc: 30, cooldown: 1.1, anim: 'thrust' },
+      secondary: { reach: 2.2, arc: 360, cooldown: 2.0, cost: 30, anim: 'spin' },
     },
   },
 };

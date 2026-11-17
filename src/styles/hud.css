@@ -30,6 +30,7 @@
 
 .hud-bar__btn,
 .loot-take-all,
+.craft-recipe__make,
 .confirm-card__btn,
 .pause-card__resume,
 .death-card__respawn,
@@ -51,6 +52,7 @@
 .hud-bar__btn:hover,
 .hud-bar__btn.is-open,
 .loot-take-all:hover,
+.craft-recipe__make:hover:not(:disabled),
 .confirm-card__btn:hover,
 .pause-card__resume:hover,
 .death-card__respawn:hover,
@@ -597,6 +599,88 @@
   align-self: center;
   min-width: 170px;
   padding: 7px 14px;
+}
+
+.craft-recipe {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "head make" "cost make";
+  align-items: center;
+  gap: 6px 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(201, 162, 94, 0.22);
+}
+
+.craft-recipe__head {
+  grid-area: head;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.craft-recipe__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  background: var(--ui-slot) center / 100% 100% no-repeat;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.craft-recipe__icon img,
+.craft-cost__icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.craft-recipe__name {
+  font-family: var(--font-title);
+  font-size: 15px;
+  color: var(--title-gold);
+}
+
+.craft-recipe__cost {
+  grid-area: cost;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-left: 62px;
+  color: var(--text-main);
+}
+
+.craft-cost {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.craft-cost.is-missing {
+  color: #e0634f;
+}
+
+.craft-cost__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.craft-recipe__make {
+  grid-area: make;
+  min-width: 110px;
+  padding: 7px 14px;
+}
+
+.craft-recipe__make:disabled {
+  cursor: default;
+  filter: grayscale(1) brightness(0.7);
 }
 
 .side-window__body {
@@ -1203,7 +1287,6 @@
   color: var(--text-dim);
 }
 
-.craft-placeholder,
 .journal-placeholder,
 .inv-detail__hint {
   margin: auto;

@@ -3,4 +3,4 @@ Formát: čtvercové PNG 256 × 256, průhledné pozadí, bez textu a rámečku.
 
 Očekávané názvy souborů:
 wood.png, stone.png, shell.png, mushroom.png, coconut.png, herb.png,
-stick.png, torch.png, meat.png, turtle_shell.png, pirate_hat.png
+stick.png, torch.png, meat.png, turtle_shell.png, pirate_hat.png, rusty_saber.png, spear.png
