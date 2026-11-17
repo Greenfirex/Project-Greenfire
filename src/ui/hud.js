@@ -53,7 +53,7 @@ export default class Hud {
       <div class="hud-row"><span>Tasit / zandat zbraň</span><span class="hud-key">X</span></div>
       <div class="hud-row"><span>Zapálit táborák</span><span class="hud-key">E</span></div>
       <div class="hud-row"><span>Mřížka</span><span class="hud-key">G</span></div>
-      <div class="hud-row"><span>Přesunout den</span><span class="hud-key">N</span></div>
+      <div class="hud-row"><span>Posunout čas</span><span class="hud-key">N</span></div>
       <div class="hud-row"><span>Editor mapy</span><span class="hud-key">F2</span></div>
       <div class="hud-row"><span>Zrušit výběr</span><span class="hud-key">Esc</span></div>
       <div class="hud-row"><span>Uložit</span><span class="hud-key">F5</span></div>

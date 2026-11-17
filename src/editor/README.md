@@ -199,7 +199,8 @@ celou — nic se tak nerozbije tiše.
 Dokud přestavba běží, svítí nahoře uprostřed proužek s tím, co se právě počítá.
 Klikání neblokuje: další tah se jen zařadí za běžící práci.
 
-Se štětci ze skupiny **Terén** a na záložce **Výška** se schovají všechny předměty
+Se štětci ze skupiny **Terén** a na záložkách **Výška**, **Plocha** a **Patra**
+(kopání a zasypávání) se schovají všechny předměty
 a tráva a hra stojí. Přepočítává se jen terén a voda; předměty se postaví znovu
 jednou, až přepneš na jiný štětec nebo záložku nebo editor zavřeš.
 

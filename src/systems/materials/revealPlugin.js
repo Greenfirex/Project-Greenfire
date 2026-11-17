@@ -34,7 +34,7 @@ const KIND_DEFINES = {
   backdrop: { above: '0.0', hide: '0.0', keep: '1.0', inside: '0.0', restore: '0.0', sight: '0.0' },
   frame: { above: '0.0', hide: '0.0', keep: '0.55', inside: '0.0', restore: '0.0' },
   overlay: { above: '1.0', hide: '0.0', keep: '1.0', inside: '0.0', restore: '0.0', sight: '0.0' },
-  model: { above: '1.0', hide: `(1.0 - ${KEEP_UNIFORM})`, keep: KEEP_UNIFORM, inside: '0.0', restore: '1.0', sightHide: `mix(${CREATURE_UNIFORM}, 1.0, revealSightDepth.w)`, rise: sightRiseByHeight(BASE_VARYING, '1.0'), point: sightPointOf(BASE_VARYING, '1.0') },
+  model: { above: '1.0', hide: `(1.0 - ${KEEP_UNIFORM})`, keep: KEEP_UNIFORM, inside: '0.0', restore: '1.0', sightHide: `mix(${CREATURE_UNIFORM}, 1.0, revealSightDepth.w)`, rise: `(${sightRiseByHeight(BASE_VARYING, '1.0')} * revealSightBlocked(vPositionW))`, point: sightPointOf(BASE_VARYING, '1.0') },
 };
 
 export default class RevealPlugin extends MaterialPluginBase {

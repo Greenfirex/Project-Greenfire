@@ -28,6 +28,7 @@ const TAB_KEYS = { Digit1: 'zone', Digit2: 'height', Digit3: 'area', Digit4: 'fl
 const HEIGHT_LABEL_LIFT = 0.45;
 const HEIGHT_LABEL_LIMIT = 240;
 const MARKS_FOLLOW_SECONDS = 0.25;
+const SHAPING_MODES = ['height', 'area', 'floors'];
 
 const NO_BRUSH_HINT = 'Vyber štětec v paletě — teprve pak jde do mapy kreslit';
 
@@ -233,7 +234,7 @@ export default class MapEditor {
 
   shapesTerrain() {
     if (!this.mode.active) return false;
-    if (this.mode.mode === 'height') return true;
+    if (SHAPING_MODES.includes(this.mode.mode)) return true;
     const brush = this.mode.mode === 'zone' && this.mode.brushKey ? BRUSHES[this.mode.brushKey] : null;
     return Boolean(brush && brush.group === 'Terén');
   }
@@ -531,6 +532,11 @@ export default class MapEditor {
     }
     if (evt.key === 'x' || evt.key === 'X') {
       this.setEraseMode(!this.erasing);
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'n' || evt.key === 'N') {
+      if (!evt.repeat) this.s.skipTime();
       evt.preventDefault();
       return;
     }

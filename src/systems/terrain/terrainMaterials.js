@@ -257,6 +257,7 @@ export default {
       maskTile: relief.maskTile || 7,
       macro: relief.macro || 0,
       macroTile: relief.macroTile || 19,
+      cavity: relief.cavity || 0,
       neighbour: this.reliefNeighbourFor(blend),
     };
   },

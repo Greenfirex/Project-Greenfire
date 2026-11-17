@@ -5,7 +5,7 @@ import { HEIGHT_STEP, formatMeters } from '../data/maps/layoutStore.js';
 import { makeDraggable } from '../ui/draggable.js';
 import { floorName } from './floorPanel.js';
 
-const COMMON_HINT = 'WASD pohled · Shift+1–4 záložky · Z zpět · Ctrl+S uložit';
+const COMMON_HINT = 'WASD pohled · Shift+1–4 záložky · Z zpět · N posunout čas · Ctrl+S uložit';
 const MODE_HINTS = {
   zone: 'Vyber štětec a táhni · X mazání',
   height: 'Táhni po buňkách · Q a E krok výšky · 1–9 předvolby',

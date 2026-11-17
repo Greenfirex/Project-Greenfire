@@ -1041,6 +1041,7 @@ export const DECORATION_TYPES = {
         maskTile: 6.7,
         macro: 0.05,
         macroTile: 19,
+        cavity: 1.6,
         map: {
           texture: `${ASSET_DIRS.textures}Ground052_1K-JPG_NormalGL.jpg`,
           tile: 1.5,

@@ -3,6 +3,7 @@
 // obloha i slunce do jeskyně pronikají jen vchodem a směrem dovnitř slábnou; povrch natočený k vchodu chytí víc oblohy.
 // Co je dál, než postava dohlédne, nebo venku výrazně výš než ona, se ztratí v oparu a zešedne; pod zemí ztmavne i vše za skálou.
 // Modely se řídí místem, kde stojí; pod zemí se mimo dohled schovají, venku se v oparu rozplynou jen tvorové.
+// Model na vyšší zemi zešedne jen tam, kam postavě brání ve výhledu skála (koruna palmy nad hranou útesu je vidět).
 // Povrch, na který postava z jeskyně nevidí, je úplně černý; jeskyně sama zůstane tušená.
 import { CELL_SIZE } from './gridMath.js';
 
@@ -56,8 +57,7 @@ float revealSightReach(vec3 direction) {
   return stored * revealSightDepth.y - revealSightDepth.x;
 }
 
-float revealSightHidden(vec3 point) {
-  if (revealSightEye.w <= 0.001) return 0.0;
+float revealSightBlocked(vec3 point) {
   vec3 ray = point - revealSightEye.xyz;
   float dist = length(ray);
   vec3 direction = ray / max(dist, 0.0001);
@@ -70,8 +70,14 @@ float revealSightHidden(vec3 point) {
     float reach = revealSightReach(direction + corner * ${SIGHT_SOFT});
     blocked += reach < mapRange - 0.01 && dist > reach + slack ? 0.25 : 0.0;
   }
+  return blocked;
+}
+
+float revealSightHidden(vec3 point) {
+  if (revealSightEye.w <= 0.001) return 0.0;
+  float dist = length(point - revealSightEye.xyz);
   float range = revealSightEye.w;
-  return max(blocked * revealSightDepth.w, smoothstep(range * ${SIGHT_EDGE.toFixed(2)}, range, dist));
+  return max(revealSightBlocked(point) * revealSightDepth.w, smoothstep(range * ${SIGHT_EDGE.toFixed(2)}, range, dist));
 }
 
 vec4 revealSampleAt(vec3 point, out vec4 own) {

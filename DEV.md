@@ -165,6 +165,12 @@ v krocích 0,25 m, mezi nimi je vzduch (`utils/terrainRuns.js`, `buildColumnAir`
 vršek zůstává hladká plocha (pohyb, tráva a voda se nemění), hmota k ní dodává
 boky, stěny jeskyní a stropy (`terrainMass.js`, `runVolume.js`).
 
+- **Reliéf povrchu** (`terrainReliefPlugin.js`) čte normálové mapy ve formátu GL
+  (zelená = +V) s texturou načtenou standardně (`invertY`), takže bitangenta míří
+  k +Z (`cross(tangent, n)`). Natočení vrstvy (`angle`) se musí otočit i ve sklonech
+  z mapy, jinak stín nesedí na tvar. Do 17. 11. 2026 byla osa Z obrácená a vlnky
+  písku vypadaly dopoledne ploše. `cavity` v nastavení povrchu ztmaví boky nerovností
+  přímo v barvě, aby byly vidět i při slunci shora (zatím jen písek).
 - **Boky terénu:** nahoře pás v materiálu buňky (na útesu 0,25 m, na měkkém schodu
   `SURFACE_DEPTH` 1 m), pod ním skála. Bok je rozřezaný na pláty po 0,25 m, každý
   s vlastním výřezem textury, aby se obrázek netáhl a mezi buňkami nevznikaly švy.
@@ -260,6 +266,9 @@ stín táboráku a překresluje se při každém posunu očí. Pravidla:
   Tvorové se v oparu rozplynou, dekorace jen zešednou.
 - Země se testuje o 0,6 m výš (za nízkým schodem není tma); modely podle své paty
   (`vRevealBase`), ne podle bodu modelu, aby koruny stromů nezahalil.
+- Model na vyšší zemi venku zešedne jen v místech, kam čáru od očí zakrývá skála
+  (`revealSightBlocked` pro bod modelu). Kmen palmy pod hranou útesu je v oparu,
+  koruna nad hranou je vidět. Zem na vyšší zemi se řídí dál jen výškou.
 - Volba Ostrost dohledu: jednoduchá (mapa 256) / plná (512). Vypnout dohled ve hře
   nejde, protože bez něj je vidět skrz skálu (tvorové, tma v jeskyni, zvýraznění).
 
@@ -643,8 +652,8 @@ cesty, pláž, útes, most, tvorové), výšky, razítko Herní plochy a vodu; u
 do `src/data/maps/<mapa>/map.json`. Podrobnosti v
 [dokumentaci editoru](src/editor/README.md).
 
-**Tvarování terénu:** se štětcem ze skupiny Terén nebo na záložce Výška
-(`mapEditor.shapesTerrain`) se schovají všechny předměty, cesty, stíny pod keři i tráva
+**Tvarování terénu:** se štětcem ze skupiny Terén nebo na záložkách Výška, Plocha
+a Patra (kopání a zasypávání; `mapEditor.shapesTerrain`, `SHAPING_MODES`) se schovají všechny předměty, cesty, stíny pod keři i tráva
 (`decoSystem.setHidden`, `floraSystem.setHidden`) a hra stojí jako v pauze. Terén a voda
 se přepočítávají hned; přestavba předmětů se odloží (`sceneWorld.setDecorShaping`,
 `decorStale`: celá přestavba, nebo jen přesazení na novou výšku) a proběhne jednou,

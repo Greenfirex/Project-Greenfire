@@ -106,7 +106,7 @@ const SHADOW_REACH_STEP = 0.2;
 const EDITOR_CAM_SPEED = 12;
 const EDITOR_CAM_SPRINT = 32;
 const PLAYER_ZOOM_MAX = 22;
-const TIME_SKIP = { hours: 6 };
+const TIME_SKIP = { hours: 4 };
 const AMBIENT_TIME_STEP = 0.0005;
 
 const LEFT_CLICK_PREFIX = 'Levé tlačítko — ';
@@ -1660,7 +1660,7 @@ export default class GameScene {
       return;
     }
     if ((evt.key === 'n' || evt.key === 'N') && !evt.ctrlKey && !evt.metaKey && !evt.altKey && !typing) {
-      if (!evt.repeat) this.toggleNight();
+      if (!evt.repeat) this.skipTime();
       evt.preventDefault();
       return;
     }
@@ -1693,7 +1693,7 @@ export default class GameScene {
     return this.terrainSystem.toggleGrid();
   }
 
-  toggleNight() {
+  skipTime() {
     const time = (this.dayNightSystem.getTime() + TIME_SKIP.hours / 24) % 1;
     this.dayNightSystem.setTime(time);
     this.refreshAmbient();

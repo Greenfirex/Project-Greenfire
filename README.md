@@ -37,7 +37,7 @@ vstup je zamčený, dokud obrazovka nezmizí.
 | **Prostřední kliknutí na tvora** | Připne panel se statistikami tvora (zavře ho křížek, Esc nebo prostřední kliknutí jinam); tažení prostředním otáčí kamerou. V boji se panel ukáže sám: u tvora, kterého jsi naposledy zasáhl, jinak u nejbližšího útočícího, a pár sekund po boji zmizí |
 | **E** | V otevřené truhle vzít vše |
 | **G** | Zobrazit / skrýt mřížku |
-| **N** | Posun času o 6 hodin |
+| **N** | Posun času o 4 hodiny (i v editoru) |
 | **P** | Pauza / pokračovat (ztmaví obrazovku, zastaví celou hru) — v editoru jen zastaví hru |
 | **F1** | Nápověda a ovládání (rozbalit / sbalit) — také tlačítkem ❔ Ovládání v liště |
 | **F2** | Editor mapy (zóny, výška, herní plocha, tvorové) — také tlačítkem 🧱 Editor v liště |
