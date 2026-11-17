@@ -207,6 +207,7 @@ export default {
     if (kind === 'creatures' || kind === 'all') {
       if (this.dropCreatureCell(cx, cz)) dropped = true;
       if (this.dropFishCell(cx, cz)) dropped = true;
+      if (this.dropCrabCell(cx, cz)) dropped = true;
     }
     if (surface && kind === 'terrain') {
       if (this.flattenCell(cx, cz)) dropped = true;
@@ -249,6 +250,14 @@ export default {
     const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz || levelOfEntry(entry) !== this.paintLevel);
     if (kept.length === entries.length) return false;
     this.layout.fish = kept;
+    return true;
+  },
+
+  dropCrabCell(cx, cz) {
+    const entries = this.layout.crabs || [];
+    const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+    if (kept.length === entries.length) return false;
+    this.layout.crabs = kept;
     return true;
   },
 

@@ -133,6 +133,16 @@ export const ITEM_TYPES = {
     kind: 'raw',
     color: [0.72, 0.25, 0.22],
   },
+  koa_egg: {
+    displayName: "Vejce Koa'tiki",
+    description: 'Těžké, kropenaté a pořád teplé. Matka o něm ví.',
+    icon: '🥚',
+    image: `${ASSET_DIRS.itemIcons}koa_egg.png`,
+    stackSize: 10,
+    weight: 0.4,
+    kind: 'raw',
+    color: [0.9, 0.88, 0.72],
+  },
   turtle_shell: {
     displayName: 'Krunýř',
     description: 'Bývalý majitel už ho nepotřebuje.',

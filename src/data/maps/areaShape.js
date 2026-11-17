@@ -9,7 +9,7 @@ export function caveOpensInto(plane, caveFloor) {
   return walkable && Math.abs(caveFloor - plane.lift) <= CAVE_OPEN_STEP;
 }
 export const PLANE_LAYERS = ['floor', 'clearing', 'grass', 'path'];
-export const ENTRY_LAYERS = [...PLANE_LAYERS, 'decorations', 'fish', 'creatures'];
+export const ENTRY_LAYERS = [...PLANE_LAYERS, 'decorations', 'fish', 'crabs', 'creatures'];
 export function levelOfEntry(entry) {
   return entry && Number.isFinite(entry.level) ? entry.level : 0;
 }

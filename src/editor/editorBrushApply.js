@@ -1,4 +1,4 @@
-// Část editoru: použití štětce — co který štětec do vybraných buněk zapíše (pláž, útes, ryby, tvorové, rostliny).
+// Část editoru: použití štětce — co který štětec do vybraných buněk zapíše (pláž, útes, ryby, krabi, tvorové, rostliny).
 // Patří k EditorMode (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { BRUSHES, brushPaintParts, PAINT_TERRAIN } from '../data/catalogs/brushes.js';
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
@@ -7,6 +7,7 @@ import { floorCellAt, layerLiftAt, dropLayerCell, dropDecorationCell } from '../
 import { fillZone } from '../utils/zoneFill.js';
 import { createRng, seedFor } from '../utils/rng.js';
 import { getFishType, FISH_SWIM_DEPTH } from '../data/catalogs/fish.js';
+import { CRAB } from '../data/catalogs/crabs.js';
 import { getCreatureType } from '../data/catalogs/creatures/index.js';
 import { hash01, valueNoise } from '../utils/noise.js';
 import { SIDES, onSurface, parseCell } from './editorSettings.js';
@@ -104,6 +105,15 @@ export default {
     if (brush.fish) {
       const zone = [...cells].map(parseCell);
       const count = this.applyFishBrush(brushKey, brush, zone, mode);
+      if (!count) this.history.pop();
+      this.draft.cells.clear();
+      if (this.onDraftChange) this.onDraftChange(this.draft);
+      this.scheduleRegenerate(parts);
+      return count;
+    }
+    if (brush.crabs) {
+      const zone = [...cells].map(parseCell);
+      const count = this.applyCrabBrush(zone, mode);
       if (!count) this.history.pop();
       this.draft.cells.clear();
       if (this.onDraftChange) this.onDraftChange(this.draft);
@@ -224,6 +234,7 @@ export default {
         this.layout.decorations.push(entry);
         changed += 1;
         if (painted.tree && this.brushOptionValue(brushKey, 'coconuts')) this.dropCoconuts(entry, painted, level);
+        if (painted.nest) this.dropNestEggs(entry, painted.nest, level);
         continue;
       }
       if (brush.surfaceOnly) {
@@ -278,6 +289,25 @@ export default {
       decorations.push(entry);
     }
     return count;
+  },
+
+  dropNestEggs(nest, setup, level) {
+    const { cx, cz } = nest;
+    const turn = hash01(cx * 6.1 + 2.3, cz * 3.9 - 1.1) * Math.PI * 2;
+    for (let index = 0; index < setup.eggs; index += 1) {
+      const angle = turn + (index / setup.eggs) * Math.PI * 2;
+      const entry = {
+        key: setup.egg,
+        cx,
+        cz,
+        rotation: index % 4,
+        offsetX: round2((nest.offsetX || 0) + Math.cos(angle) * setup.eggReach),
+        offsetZ: round2((nest.offsetZ || 0) + Math.sin(angle) * setup.eggReach),
+      };
+      if (level) entry.level = level;
+      if (nest.liftY) entry.liftY = nest.liftY;
+      this.layout.decorations.push(entry);
+    }
   },
 
   applyBeach(brushKey, zone, mode) {
@@ -365,6 +395,25 @@ export default {
   surfaceAt(cx, cz) {
     const cell = this.contentAt(cx, cz);
     return cell && cell.floor ? cell.floor.key : null;
+  },
+
+  applyCrabBrush(zone, mode) {
+    if (!this.layout.crabs) this.layout.crabs = [];
+    const level = Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
+    let changed = 0;
+    for (const { cx, cz } of zone) {
+      const before = this.layout.crabs.length;
+      this.layout.crabs = this.layout.crabs.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
+      if (mode === 'remove') {
+        if (this.layout.crabs.length !== before) changed += 1;
+        continue;
+      }
+      if (!floorCellAt(this.layout, cx, cz)) continue;
+      if (level !== null && (layerLiftAt(this.layout, cx, cz) || 0) <= level) continue;
+      this.layout.crabs.push({ cx, cz, count: CRAB.brushCount });
+      changed += 1;
+    }
+    return changed;
   },
 
   applyFishBrush(brushKey, brush, zone, mode) {

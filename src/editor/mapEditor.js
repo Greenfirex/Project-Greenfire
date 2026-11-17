@@ -27,6 +27,7 @@ import editorRiversParts from './editorRivers.js';
 const TAB_KEYS = { Digit1: 'zone', Digit2: 'height', Digit3: 'area', Digit4: 'floors' };
 const HEIGHT_LABEL_LIFT = 0.45;
 const HEIGHT_LABEL_LIMIT = 240;
+const MARKS_FOLLOW_SECONDS = 0.25;
 
 const NO_BRUSH_HINT = 'Vyber štětec v paletě — teprve pak jde do mapy kreslit';
 
@@ -34,6 +35,7 @@ export default class MapEditor {
 
   constructor(scene) {
     this.s = scene;
+    this.marksClock = 0;
     this.mode = new EditorMode();
     this.hud = new EditorHud();
     this.brushPanel = new BrushPanel();
@@ -807,8 +809,17 @@ export default class MapEditor {
     if (!overlay) return;
     const brush = this.mode.brushKey;
     const active = this.mode.active && this.mode.mode === 'zone';
+    const nests = active && brush && (this.mode.isCreatureBrush || this.mode.isNestBrush);
+    const nestMarks = nests ? this.mode.nestMarks() : [];
+    for (const nest of nestMarks) {
+      nest.guards = nest.guards.map((guard) => {
+        const state = this.s.creatureStatusAt ? this.s.creatureStatusAt(guard.cx, guard.cz, guard.kind, guard.tierKey, 0) : null;
+        return state && state.alive ? { ...guard, x: state.x, z: state.z, alive: true } : guard;
+      });
+    }
+    overlay.showNests(nestMarks, (cx, cz) => this.s.cellSurfaceAt(cx, cz));
     if (!active || !this.mode.isCreatureBrush || !brush) {
-      overlay.clear();
+      overlay.show([], (cx, cz) => this.s.cellSurfaceAt(cx, cz));
       return;
     }
     const marks = this.mode.creatureMarks().map((mark) => {
@@ -1225,6 +1236,14 @@ export default class MapEditor {
     this.s.gridSystem.clearZones();
     this.s.gridSystem.clearDraftCells();
     this.s.gridSystem.showDraftOutline(cells, surfaceAt);
+  }
+
+  followCreatureMarks(dt) {
+    if (!this.mode.active || !(this.mode.isCreatureBrush || this.mode.isNestBrush)) return;
+    this.marksClock += dt;
+    if (this.marksClock < MARKS_FOLLOW_SECONDS) return;
+    this.marksClock = 0;
+    this.refreshCreatureMarks();
   }
 
   updateHeightLabels() {

@@ -24,10 +24,12 @@ export const PAINT_TERRAIN = 'terrain';
 export const PAINT_DECORATIONS = 'decorations';
 export const PAINT_CREATURES = 'creatures';
 export const PAINT_FISH = 'fish';
+export const PAINT_CRABS = 'crabs';
 export const PAINT_ALL = [PAINT_TERRAIN, PAINT_DECORATIONS];
 const PAINT_DECO_ONLY = [PAINT_DECORATIONS];
 const PAINT_CREATURE_ONLY = [PAINT_CREATURES];
 const PAINT_FISH_ONLY = [PAINT_FISH];
+const PAINT_CRABS_ONLY = [PAINT_CRABS];
 const PAINT_NOTHING = [];
 
 function levelMeters(level) {
@@ -430,6 +432,14 @@ export const BRUSHES = {
     maxWaterDepth: 4,
     deco: true,
   },
+  koa_nest: {
+    label: "Hnízdo Koa'tiki",
+    group: 'Objekty',
+    note: "Postaví hnízdo s vejci. Koa'tiki v okolí ho hlídají a za krádež vejce zaútočí.",
+    shape: 'blob',
+    pool: ['koa_nest'],
+    deco: true,
+  },
   reef: {
     label: 'Koraly',
     group: 'Objekty',
@@ -451,6 +461,13 @@ export const BRUSHES = {
     style: FISH_KEYS[0],
     styles: FISH_KEYS,
     styleLabels: Object.fromEntries(FISH_KEYS.map((key) => [key, FISH_TYPES[key].label])),
+  },
+  crabs: {
+    label: 'Krabi',
+    group: 'Tvorové',
+    note: 'Vypustí pár krabů navíc. Krabi se sami objevují i na písku u moře; ve vodě se neuloží.',
+    shape: 'blob',
+    crabs: true,
   },
   cliff: {
     label: 'Útes',
@@ -525,7 +542,7 @@ export function brushAboveGroundOnly(brushKey) {
   const brush = BRUSHES[brushKey];
   if (!brush || brush.erase) return false;
   return Boolean(brush.height || brush.heights || brush.surface || brush.cliff || brush.join || brush.bridge
-    || brush.fish || brush.spawn || brush.lake || brush.river || brush.flora || brush.waterOnly || brush.shape === 'line');
+    || brush.fish || brush.crabs || brush.spawn || brush.lake || brush.river || brush.flora || brush.waterOnly || brush.shape === 'line');
 }
 
 export function brushPaintParts(brushKey) {
@@ -533,11 +550,12 @@ export function brushPaintParts(brushKey) {
   if (!brush) return PAINT_ALL;
   if (brush.spawn || brush.lake || brush.river) return PAINT_NOTHING;
   if (brush.erase === 'terrain') return PAINT_ALL;
-  if (brush.erase === 'creatures') return [PAINT_CREATURES, PAINT_FISH];
-  if (brush.erase === 'all') return [PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH];
+  if (brush.erase === 'creatures') return [PAINT_CREATURES, PAINT_FISH, PAINT_CRABS];
+  if (brush.erase === 'all') return [PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH, PAINT_CRABS];
   if (brush.erase) return PAINT_DECO_ONLY;
   if (brush.creature) return PAINT_CREATURE_ONLY;
   if (brush.fish) return PAINT_FISH_ONLY;
+  if (brush.crabs) return PAINT_CRABS_ONLY;
   if (brush.height || brush.heights || brush.cliff || brush.join || brush.bridge || brush.surface || brush.surfaceOnly) return PAINT_ALL;
   return PAINT_DECO_ONLY;
 }

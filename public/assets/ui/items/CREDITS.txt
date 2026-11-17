@@ -1,8 +1,8 @@
 Ikony předmětů v této složce jsou vygenerované v Gemini (Google AI) pro tento projekt.
-Výjimka: pirate_coat.png, pirate_pants.png a pirate_boots.png jsou vyrenderované v Blenderu z modelů z Meshy AI.
+Výjimka: pirate_coat.png, pirate_pants.png, pirate_boots.png a koa_egg.png jsou vyrenderované v Blenderu z modelů z Meshy AI.
 Formát: čtvercové PNG 256 × 256, průhledné pozadí, bez textu a rámečku.
 
 Očekávané názvy souborů:
 wood.png, stone.png, shell.png, mushroom.png, coconut.png, herb.png,
 stick.png, torch.png, meat.png, turtle_shell.png, pirate_hat.png, rusty_saber.png, spear.png,
-pirate_coat.png, pirate_pants.png, pirate_boots.png
+pirate_coat.png, pirate_pants.png, pirate_boots.png, koa_egg.png

@@ -7,6 +7,7 @@ import GridSystem from '../systems/core/gridSystem.js';
 import TerrainSystem from '../systems/terrain/terrainSystem.js';
 import WaterSystem from '../systems/water/waterSystem.js';
 import FishSystem from '../systems/water/fishSystem.js';
+import CrabSystem from '../systems/creatures/crabSystem.js';
 import CreatureSystem from '../systems/creatures/creatureSystem.js';
 import SkySystem from '../systems/atmosphere/skySystem.js';
 import DecoSystem from '../systems/world/decoSystem.js';
@@ -75,6 +76,7 @@ import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../data/catalogs/modelCatalog.js';
 import { describeWorld } from '../data/catalogs/worldStages.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
+import { CRAB } from '../data/catalogs/crabs.js';
 import { readJSON, writeJSON } from '../utils/storage.js';
 import { NO_FLOOR_PICK_HEIGHT } from './sceneSettings.js';
 import { mergeSavedOptions, OPTIONS_STORAGE_KEY, QUALITY_SCALES } from '../data/catalogs/optionsSchema.js';
@@ -146,6 +148,9 @@ export default class GameScene {
     this.waveSpray = new WaveSpraySystem(scene);
     this.fishSystem = new FishSystem(scene);
     this.fishSystem.onSchoolsChanged = () => this.refreshReflectionExclusions();
+    this.crabSystem = new CrabSystem(scene);
+    this.crabSystem.onReady = () => this.refreshReflectionExclusions();
+    this.crabSystem.onBurst = (x, y, z, scale, seconds) => this.sandBursts.burst(x, y, z, scale, seconds);
     this.creatureSystem = new CreatureSystem(scene);
     this.skySystem = new SkySystem(scene);
     this.decoSystem = new DecoSystem(scene);
@@ -400,6 +405,7 @@ export default class GameScene {
       this.waterSystem.update(dt);
       this.updateWaveSpray();
       this.fishSystem.update(dt);
+      this.crabSystem.update(dt);
       this.updateWaterCaustics();
       this.updateCampfireSound();
       this.updateWaterSound(dt);
@@ -407,7 +413,10 @@ export default class GameScene {
         if (this.editor.active) this.updateEditorCamera(dt);
         else this.cameraSystem.follow(root.position.x, root.position.z, root.position.y, dt);
       }
-      if (this.editor.active) this.editor.updateHeightLabels();
+      if (this.editor.active) {
+        this.editor.updateHeightLabels();
+        this.editor.followCreatureMarks(dt);
+      }
       this.autoTune(dt);
       this.audioSystem.update(dt);
       this.playerSystem.updateFire();
@@ -552,6 +561,7 @@ export default class GameScene {
       this.pointerAction = null;
       this.decoHighlight.setHover(null);
       this.creatureSystem.clearHover();
+      this.crabSystem.clearHover();
       this.creatureTooltipOn = false;
       this.tooltipPanel.hide();
       this.setHoverHint(null);
@@ -565,6 +575,7 @@ export default class GameScene {
       if (creature) {
         this.pointerAction = { kind: 'creature' };
         this.decoHighlight.setHover(null);
+        this.crabSystem.clearHover();
         this.showCreatureTooltip(creature);
         this.setHoverHint({ inReach: true, detail: this.hitChanceText(creature) });
         this.gameCursor.setState(this.editor.active ? 'default' : 'attack');
@@ -574,7 +585,17 @@ export default class GameScene {
       if (corpse) {
         this.pointerAction = { kind: 'corpse', left: 'Prohledat tělo' };
         this.decoHighlight.setHover(null);
+        this.crabSystem.clearHover();
         this.showCorpseTooltip(corpse);
+        this.setHoverHint(null);
+        this.gameCursor.setState('default');
+        return;
+      }
+      if (this.crabSystem.hoverAt(this.s.pointerX, this.s.pointerY)) {
+        this.pointerAction = null;
+        this.decoHighlight.setHover(null);
+        this.creatureTooltipOn = true;
+        this.tooltipPanel.show(CRAB.displayName, CRAB.description);
         this.setHoverHint(null);
         this.gameCursor.setState('default');
         return;
@@ -834,6 +855,9 @@ export default class GameScene {
     for (const school of this.fishSystem.schools) {
       if (school.mesh) excluded.push(school.mesh);
     }
+    for (const mesh of [this.crabSystem.mesh, this.crabSystem.outline]) {
+      if (mesh && !mesh.isDisposed()) excluded.push(mesh);
+    }
     for (const mesh of this.creatureSystem.meshes) {
       if (mesh && !mesh.isDisposed()) excluded.push(mesh);
     }
@@ -870,6 +894,7 @@ export default class GameScene {
     this.waveSpray.build(this.waterSystem);
     this.refreshWaterVisibility();
     this.refreshFish();
+    this.refreshCrabs();
     this.refreshReflectionExclusions();
     this.rescuePlayerFromWater();
   }
@@ -887,6 +912,17 @@ export default class GameScene {
       level,
       this.waterSystem,
       (x, z) => this.terrainSystem.heightAt(x, z),
+      () => (this.playerSystem.root ? this.playerSystem.root.position : null),
+    );
+  }
+
+  refreshCrabs() {
+    const level = this.mapLayout && Number.isFinite(this.mapLayout.waterLevel) ? this.mapLayout.waterLevel : null;
+    this.crabSystem.create(
+      this.mapLayout,
+      level,
+      (x, z) => this.terrainSystem.heightAt(x, z),
+      (cx, cz) => this.terrainSystem.floorKeyAt(cx, cz) === CRAB.sandFloor,
       () => (this.playerSystem.root ? this.playerSystem.root.position : null),
     );
   }
@@ -993,6 +1029,7 @@ export default class GameScene {
     this.sightSystem.setDetail(this.options.sight);
     this.refreshShadowReach(true);
     this.decoHighlight.setVisible(this.options.highlights);
+    this.crabSystem.setOutlineVisible(this.options.highlights);
     this.vitalsBar.setVisible(this.options.playerBars !== 'head');
     this.gameCursor.setEnabled(this.options.customCursor);
     const densityChanged = this.floraSystem.density !== this.options.grass;

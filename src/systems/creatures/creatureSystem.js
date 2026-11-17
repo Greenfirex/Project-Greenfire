@@ -1,6 +1,7 @@
 // Tvorové ve světě — načte model, rozhoduje v pevném tiku a plynule ho hýbe.
 // Nedrží žádný jiný systém; výšku terénu, průchodnost a hráče dostane od scény.
 import { loadContainer } from '../../utils/assetLoader.js';
+import { guardedNest } from '../../utils/nestGuard.js';
 import '@babylonjs/core/Meshes/mesh';
 import '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Materials/PBR/pbrMaterial';
@@ -24,7 +25,7 @@ import {
 import { cellToWorldCoords, worldToCell, CELL_SIZE } from '../../utils/gridMath.js';
 import { warnMissingWiring } from '../../utils/missingWiring.js';
 import { findCellPath } from '../../utils/gridPath.js';
-import { OUTLINE_GOLD, OUTLINE_PULSE, OUTLINE_PULSE_SPEED, OUTLINE_FADE_SPEED } from '../../utils/outlineStyle.js';
+import { OUTLINE_GOLD, OUTLINE_CALM, OUTLINE_PULSE, OUTLINE_PULSE_SPEED, OUTLINE_FADE_SPEED } from '../../utils/outlineStyle.js';
 
 const TURN_SPEED = 7;
 const EMERGE_TURN_SPEED = 18;
@@ -74,7 +75,6 @@ const MARK_BOB = 0.02;
 const MARK_PULSE = 0.06;
 const MARK_SPEED = 3;
 const COMBAT_COLOR = new Color3(0.92, 0.16, 0.12);
-const SELECT_COLOR = new Color3(0.45, 0.88, 0.78);
 const ATTACK_MODES = ['chase', 'windup', 'recover'];
 const HOSTILE_MODES = ['alert', ...ATTACK_MODES];
 const FIGHT_MODES = ['windup', 'recover'];
@@ -138,6 +138,37 @@ export default class CreatureSystem {
     this.hoverTime = 0;
     this.now = 0;
     this.daySeconds = 0;
+    this.nests = [];
+    this.nestsVersion = 0;
+  }
+
+  setNests(nests) {
+    this.nests = Array.isArray(nests) ? nests : [];
+    this.nestsVersion += 1;
+  }
+
+  guardOf(creature) {
+    if (creature.guardVersion === this.nestsVersion) return creature.guard;
+    creature.guard = guardedNest(this.nests, creature.kind, creature.homeX, creature.homeZ);
+    creature.guardVersion = this.nestsVersion;
+    return creature.guard;
+  }
+
+  provoked(creature, player) {
+    return Boolean(player) && this.now < (creature.provokedUntil || 0);
+  }
+
+  provoke(cx, cz) {
+    let count = 0;
+    for (const creature of this.creatures) {
+      if (!creature || creature.dead || creature.buried) continue;
+      const nest = this.guardOf(creature);
+      if (!nest || nest.cx !== cx || nest.cz !== cz) continue;
+      creature.provokedUntil = this.now + nest.provokeSeconds;
+      if (!ATTACK_MODES.includes(creature.mode)) this.beginCharge(creature);
+      count += 1;
+    }
+    return count;
   }
 
   configure(daySeconds) {
@@ -769,7 +800,8 @@ export default class CreatureSystem {
     this.idleCall(creature, dt);
     const gap = player ? Math.hypot(player.x - creature.x, player.z - creature.z) : Infinity;
     const heightGap = this.heightGap(creature, player);
-    const aggro = Number.isFinite(creature.tier.aggroRange) ? creature.tier.aggroRange : type.aggroRange;
+    const baseAggro = Number.isFinite(creature.tier.aggroRange) ? creature.tier.aggroRange : type.aggroRange;
+    const aggro = this.provoked(creature, player) ? Math.max(baseAggro, gap + 1) : baseAggro;
     const alertSeconds = Array.isArray(type.alertSeconds) ? type.alertSeconds : [2, 3];
     const playerFloor = this.playerLevel ? this.playerLevel() : 0;
     const sameFloor = playerFloor === creature.level;
@@ -1170,7 +1202,7 @@ export default class CreatureSystem {
       const hovered = creature === this.hovered;
       const selected = creature === this.selected;
       const calm = !alert && !combat;
-      const color = selected && calm ? SELECT_COLOR : alert && !combat ? OUTLINE_GOLD : COMBAT_COLOR;
+      const color = selected && calm ? OUTLINE_CALM : alert && !combat ? OUTLINE_GOLD : COMBAT_COLOR;
       const goal = hidden ? 0 : alert || combat || hovered || selected ? 1 : 0;
       const fade = OUTLINE_FADE_SPEED * seconds;
       creature.outlineLevel += Math.max(-fade, Math.min(fade, goal - creature.outlineLevel));

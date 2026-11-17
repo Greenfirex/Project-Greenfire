@@ -397,6 +397,14 @@ export default class EditorMode {
     return Boolean(brush && brush.bridge);
   }
 
+  get isNestBrush() {
+    const brush = BRUSHES[this.brushKey];
+    return Boolean(brush && Array.isArray(brush.pool) && brush.pool.some((key) => {
+      const def = getDecoration(key);
+      return Boolean(def && def.nest);
+    }));
+  }
+
   get isCreatureBrush() {
     const brush = BRUSHES[this.brushKey];
     return Boolean(brush && brush.creature);

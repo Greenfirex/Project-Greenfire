@@ -2,6 +2,7 @@
 // Patří ke GameScene (sdílí její this); jen ji dělí, aby hlavní soubor zůstal přehledný.
 import { screenPointOf } from '../utils/screenPoint.js';
 import { cellToWorldCoords } from '../utils/gridMath.js';
+import { nestSpots } from '../utils/nestGuard.js';
 import { Ray } from '@babylonjs/core/Culling/ray';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { PLAYER_EYE_HEIGHT } from '../systems/player/playerSystem.js';
@@ -53,6 +54,7 @@ export default {
     system.onBite = (creature, damage, crit, damageType, graze) => this.onCreatureBite(creature, damage, crit, damageType, graze);
     system.onBiteMiss = (creature, dodged) => this.onCreatureBiteMiss(creature, dodged);
     this.playerAttackSystem.onStruck = (struck) => this.focusCreature(struck[0]);
+    system.setNests(nestSpots(this.mapLayout));
     await system.create(this.mapLayout);
     this.creatureLayoutKey = this.creatureLayoutSignature();
     this.refreshReflectionExclusions();

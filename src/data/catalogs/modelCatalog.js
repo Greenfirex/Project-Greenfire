@@ -4,6 +4,7 @@ import { ASSET_DIRS } from './assetPaths.js';
 import { TOOL_TYPES } from './items.js';
 import { CREATURE_TYPES } from './creatures/index.js';
 import { FISH_MODEL_URLS } from './fish.js';
+import { CRAB } from './crabs.js';
 import { grassStartupUrls } from './grass.js';
 
 const CHARACTER_DIR = `${ASSET_DIRS.characters}castaway/`;
@@ -197,6 +198,7 @@ export function collectStartupUrls(heldTool = null) {
   if (tool && tool.model) urls.add(toolModelUrl(tool));
   for (const url of CREATURE_MODEL_URLS) urls.add(url);
   for (const url of FISH_MODEL_URLS) urls.add(url);
+  urls.add(CRAB.model);
   urls.add(PLAYER_MODEL);
   for (const url of PLAYER_ANIMS) urls.add(url);
   for (const url of grassStartupUrls()) urls.add(url);

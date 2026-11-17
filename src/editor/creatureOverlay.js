@@ -1,5 +1,7 @@
 // Zvýraznění spawních míst tvorů v editoru — kruhy toulání, čtverečky buněk
-// a spojnice od spawního místa k živému tvorovi.
+// a spojnice od spawního místa k živému tvorovi. U hnízd kruh, odkud se berou hlídači,
+// a spojnice k živým hlídačům (k mrtvým slabší spojnice k místu, kde se znovu objeví);
+// hnízdo bez hlídačů má jinou barvu.
 import '@babylonjs/core/Meshes/Builders/groundBuilder';
 import '@babylonjs/core/Meshes/Builders/linesBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
@@ -27,6 +29,12 @@ const LINK_POINTS = 17;
 const LINK_LIFT = 0.14;
 const LINK_MIN = CELL_SIZE * 0.3;
 const LINK_ALPHA = 0.5;
+const NEST_COLOR = new Color3(1, 0.78, 0.25);
+const LONELY_NEST_COLOR = new Color3(0.95, 0.35, 0.3);
+const NEST_RING_ALPHA = 0.8;
+const NEST_LINK_ALPHA = 0.85;
+const NEST_WAITING_ALPHA = 0.35;
+const NEST_CORE = CELL_SIZE * 0.3;
 
 function circlePoints() {
   const points = [];
@@ -62,7 +70,68 @@ export default class CreatureOverlay {
     this.squares = [];
     this.outlines = [];
     this.links = [];
+    this.nestRings = [];
+    this.nestCores = [];
+    this.nestLinks = [];
     this.squareMaterial = null;
+  }
+
+  linesFrom(pool, index, name, points, updatable = false) {
+    while (pool.length <= index) {
+      const lines = MeshBuilder.CreateLines(`${name}_${pool.length}`, { points, updatable }, this.s);
+      lines.alphaIndex = RING_ALPHA_INDEX;
+      lines.isPickable = false;
+      lines.setEnabled(false);
+      pool.push(lines);
+    }
+    return pool[index];
+  }
+
+  groundLine(fromX, fromZ, toX, toZ, surfaceAt) {
+    const points = [];
+    for (let step = 0; step < LINK_POINTS; step += 1) {
+      const share = step / (LINK_POINTS - 1);
+      const px = fromX + (toX - fromX) * share;
+      const pz = fromZ + (toZ - fromZ) * share;
+      const ground = surfaceAt(px / CELL_SIZE, pz / CELL_SIZE);
+      points.push(new Vector3(px, (Number.isFinite(ground) ? ground : 0) + LINK_LIFT, pz));
+    }
+    return points;
+  }
+
+  showNests(nests, surfaceAt) {
+    let rings = 0;
+    let links = 0;
+    for (const nest of Array.isArray(nests) ? nests : []) {
+      const guarded = nest.guards && nest.guards.length > 0;
+      const color = guarded ? NEST_COLOR : LONELY_NEST_COLOR;
+      const ground = surfaceAt(nest.x / CELL_SIZE, nest.z / CELL_SIZE);
+      const y = (Number.isFinite(ground) ? ground : 0) + RING_LIFT;
+      for (const [pool, radius, name] of [[this.nestRings, nest.guardLink, 'nestMarkRing'], [this.nestCores, NEST_CORE, 'nestMarkCore']]) {
+        const ring = this.linesFrom(pool, rings, name, circlePoints());
+        ring.position = new Vector3(nest.x, y, nest.z);
+        ring.scaling.set(radius, 1, radius);
+        ring.color = color;
+        ring.alpha = NEST_RING_ALPHA;
+        ring.setEnabled(true);
+      }
+      rings += 1;
+      for (const guard of nest.guards || []) {
+        const toX = guard.alive ? guard.x : guard.cx * CELL_SIZE;
+        const toZ = guard.alive ? guard.z : guard.cz * CELL_SIZE;
+        const points = this.groundLine(nest.x, nest.z, toX, toZ, surfaceAt);
+        const link = this.linesFrom(this.nestLinks, links, 'nestMarkLink', straightPoints(), true);
+        MeshBuilder.CreateLines(link.name, { points, instance: link }, this.s);
+        link.color = NEST_COLOR;
+        link.alpha = guard.alive ? NEST_LINK_ALPHA : NEST_WAITING_ALPHA;
+        link.setEnabled(true);
+        links += 1;
+      }
+    }
+    for (const pool of [this.nestRings, this.nestCores]) {
+      for (let i = rings; i < pool.length; i += 1) pool[i].setEnabled(false);
+    }
+    for (let i = links; i < this.nestLinks.length; i += 1) this.nestLinks[i].setEnabled(false);
   }
 
   ringAt(index) {
@@ -105,17 +174,7 @@ export default class CreatureOverlay {
   }
 
   linkAt(index) {
-    while (this.links.length <= index) {
-      const link = MeshBuilder.CreateLines(`creatureMarkLink_${this.links.length}`, {
-        points: straightPoints(),
-        updatable: true,
-      }, this.s);
-      link.alphaIndex = RING_ALPHA_INDEX;
-      link.isPickable = false;
-      link.setEnabled(false);
-      this.links.push(link);
-    }
-    return this.links[index];
+    return this.linesFrom(this.links, index, 'creatureMarkLink', straightPoints(), true);
   }
 
   linkReaches(mark, x, z) {
@@ -126,18 +185,7 @@ export default class CreatureOverlay {
   }
 
   showLink(index, mark, x, z, surfaceAt) {
-    const liveX = Number(mark.x);
-    const liveZ = Number(mark.z);
-    const points = [];
-    for (let step = 0; step < LINK_POINTS; step += 1) {
-      const share = step / (LINK_POINTS - 1);
-      const px = x + (liveX - x) * share;
-      const pz = z + (liveZ - z) * share;
-      const ground = step === 0
-        ? surfaceAt(mark.cx, mark.cz)
-        : surfaceAt(px / CELL_SIZE, pz / CELL_SIZE);
-      points.push(new Vector3(px, (Number.isFinite(ground) ? ground : 0) + LINK_LIFT, pz));
-    }
+    const points = this.groundLine(x, z, Number(mark.x), Number(mark.z), surfaceAt);
     const link = this.linkAt(index);
     MeshBuilder.CreateLines(link.name, { points, instance: link }, this.s);
     link.color = ALIVE_COLOR;
@@ -205,6 +253,7 @@ export default class CreatureOverlay {
   clear() {
     this.hideFrom(0);
     this.hideLinksFrom(0);
+    this.showNests([], () => 0);
   }
 
   hideLinksFrom(index) {

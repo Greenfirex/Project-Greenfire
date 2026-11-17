@@ -6,11 +6,12 @@ import { grassModelUrls } from '../data/catalogs/grass.js';
 import { getMap } from '../data/catalogs/maps.js';
 import { mapFileFromLayout, layoutFromMapFile, isMapFile, MAP_VERSION, quantizeMapFileHeights, defaultSpawn } from '../data/catalogs/mapFile.js';
 import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
-import { PAINT_TERRAIN, PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH, PAINT_ALL } from '../data/catalogs/brushes.js';
+import { PAINT_TERRAIN, PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH, PAINT_CRABS, PAINT_ALL } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { fillLakes } from '../utils/lakeFill.js';
 import { riverCells, riverFalls } from '../utils/riverPlan.js';
 import { cellKey, worldToCellCoords } from '../utils/gridMath.js';
+import { nestSpots } from '../utils/nestGuard.js';
 
 const WORLD_BATCH = 30;
 const WORLD_BATCH_BULK = 1500;
@@ -26,6 +27,7 @@ const REBUILD_LABELS = [
   { part: RESEAT_DECORATIONS, label: 'dekorace' },
   { part: PAINT_CREATURES, label: 'tvory' },
   { part: PAINT_FISH, label: 'ryby' },
+  { part: PAINT_CRABS, label: 'kraby' },
 ];
 
 export default {
@@ -351,6 +353,7 @@ export default {
       this.handleHover(this.hoverCell);
     }
     if (!terrain && parts.has(PAINT_FISH)) this.refreshFish();
+    if (!terrain && parts.has(PAINT_CRABS)) this.refreshCrabs();
     if (!this.decorShaping && this.decorHidden) this.hideDecor(false);
   },
 
@@ -418,6 +421,7 @@ export default {
     }
     this.decoSystem.finishStages();
     this.finishRebuild();
+    this.creatureSystem.setNests(nestSpots(this.mapLayout));
   },
 
   grassLook() {

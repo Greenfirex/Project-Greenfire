@@ -3,6 +3,8 @@ export const ASSET_DIRS = {
   plants: 'assets/nature/plants/',
   shells: 'assets/nature/shells/',
   starfish: 'assets/nature/starfish/',
+  crab: 'assets/nature/crab/',
+  koaNest: 'assets/nature/koa_nest/',
   textures: 'assets/nature/textures/',
   props: 'assets/props/',
   characters: 'assets/characters/',

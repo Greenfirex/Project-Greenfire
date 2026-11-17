@@ -1,0 +1,2 @@
+Model kraba — zdroj: Meshy AI (_sources/crab.glb), upraveno pro tento projekt.
+Licence: podle licence účtu Meshy, na kterém byl model vytvořen.

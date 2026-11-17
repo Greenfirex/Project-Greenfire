@@ -1,0 +1,3 @@
+Hnízdo Koa'tiki — zdroj: Meshy AI (Meshy_AI_Feathered_Driftwood_N_1117111902_texture.glb), upraveno pro tento projekt.
+Vejce Koa'tiki — zdroj: Meshy AI (Meshy_AI_Speckled_Garden_Egg_1117111545_texture.glb), upraveno pro tento projekt.
+Licence: podle licence účtu Meshy, na kterém byly modely vytvořeny.

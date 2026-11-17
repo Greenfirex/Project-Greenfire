@@ -21,7 +21,7 @@ src/
                              cliffVine
     water/                   water, waterBodies, waterFalls, waterShader, waterfallShader, waterSettings, waveSpray, fish
     flora/                   flora, grassShader, treeWind
-    creatures/               creature, footprint, sandBurst, bestiary
+    creatures/               creature, footprint, sandBurst, bestiary, crab
     player/                  player, attack, stats, heldItem, inventory, equipment, portrait
     gathering/               gather, harvest, felling
     world/                   deco, decoHighlight, campfire, loot, path, reveal, sight
@@ -351,6 +351,23 @@ a rychlost proudu a sílu peřejí; jezero je plocha se stejnou výškou a bez p
   hlavou k +X a sjednocené na 1 m. Hejno z jedné šablony kreslí thin instances, takže
   drží pohromadě i při stovkách kusů; ocas vlnit `FishWigglePlugin` ve shaderu, žádná
   kostra se neanimuje. Modely se načítají při startu (`collectStartupUrls`).
+- **Krabi** jsou jen ozdoba, nic se o nich neukládá do savu. Jeden model z Meshy
+  (`public/assets/nature/crab/`, klepety k +Z, šířka 1 m, nohy na nule), všichni krabi
+  jsou thin instances jedné šablony. Nohy a klepeta hýbe `CrabLegsPlugin` ve shaderu
+  podle čtyř čísel na kraba (`crabPose`: fáze kroku, síla chůze, zvednutí klepet,
+  vlastní posun). Oblasti modelu (tělo do |x| 0,2, klepeta vpředu od z 0,11 a pod
+  y 0,16 kvůli očím na stopkách) jsou vyměřené pro tento model; nový model je potřeba
+  vyměřit znovu. Krabi se objeví sami na suchém písku do `beachReach` buněk od moře
+  (podíl `beachShare` v `crabs.js`) a navíc tam, kde je položí štětec Krabi
+  (`layout.crabs`). Běhají bokem kolem svého místa, před hráčem utečou a na písku se
+  zahrabou (rozstřik přes `sandBursts`), jinde zvednou klepeta. Velikost se losuje
+  mezi `sizeMin` a `sizeMax`, malých je víc. Barva je v textuře ztlumená (`tools/_temp/prepareCrab.mjs`).
+  Kraba pod myší hledá `crabSystem.hoverAt` podle vzdálenosti na obrazovce (thin instances
+  nejdou rozumně pickovat a krab je malý), v pořadí až po tvorech a mrtvých tělech.
+  Vybraný krab se v hromadném bufferu schová a kreslí ho samostatný mesh s jednou instancí
+  a zeleným obrysem (`OUTLINE_CALM`, stejný jako klidný tvor); popisek jde do `tooltipPanel`.
+  Tento mesh musí mít vlastní geometrii (`makeGeometryUnique`), protože buffery thin
+  instances leží v geometrii a sdílená by přepsala buffery všech krabů. Dál než 45 m od hráče stojí.
 - **Vodopád** vznikne sám tam, kde hladina řeky mezi dvěma buňkami trasy klesne aspoň
   o hranici útesu (`AUTO_CLIFF_STEP`, 2 m; `riverFalls`). Při plánování se buňky pod
   útesem nepočítají jako břeh horního toku, jinak by řeka před hranou vykopala kaňon.
@@ -522,6 +539,23 @@ otáčení spočítanou až ve hře z tvaru dílu.
 Mušle jsou dva modely (`shell_fan`, `shell_conch`) v `public/assets/nature/shells/`;
 oba se pokládají naplocho a sbírají se jako stejný předmět `shell`. Hvězdice
 (`starfish`) leží na dně v hloubce 0,5–4 m; štětec je pouští jen pod vodu.
+
+Hnízdo Koa'tiki (`koa_nest`, `public/assets/nature/koa_nest/`) je dekorace s nastavením
+`nest` v katalogu dekorací (druh vejce, počet, kdo ho hlídá a na jakou vzdálenost).
+Štětec Hnízdo Koa'tiki k němu do stejné buňky položí vejce (`koa_egg`, sbírá se rukou)
+s posunem v buňce (`dropNestEggs`). Sebrané věci se proto v `harvestSystem` rozlišují
+i podle posunu v buňce, ne jen podle buňky a druhu. Scéna předá hnízda tvorům
+(`nestSpots` → `creatureSystem.setNests`) při stavbě tvorů a po přestavbě dekorací.
+Tvor hlídá nejbližší hnízdo svého druhu do `guardLink` od svého domova. Samotné
+přiblížení k hnízdu nic nespustí; až krádež vejce (`provoke`) pošle hlídače hned do útoku
+a na `provokeSeconds` jim prodlouží dosah zpozornění až k hráči.
+Kdo které hnízdo hlídá, počítá jedno pravidlo v `src/utils/nestGuard.js` (`nestSpots`,
+`guardedNest`) pro hru i editor. Editor při štětci na tvory nebo na hnízdo kreslí
+v `creatureOverlay.showNests` kruh `guardLink` kolem hnízda (zlatý, bez hlídačů červený)
+a spojnice k živým hlídačům (podle `creatureStatusAt`); k mrtvému hlídači vede slabší
+spojnice na místo, kde se znovu objeví.
+Hnízdo bylo z Meshy zjednodušené v Blenderu (`tools/_temp/bl_decimate.py`), protože
+meshoptimizer se na samostatných větvičkách zastavil kolem 10 000 trojúhelníků.
 
 Živá postava v okně postavy (`portraitSystem`): dvojník hráče, kopie hierarchie pod
 `playerSystem.root` (`instantiateHierarchy`, sdílí model a materiály) s vlastní kopií

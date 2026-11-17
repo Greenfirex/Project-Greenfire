@@ -213,7 +213,9 @@ export default {
       this.gatherSystem.beginFall(result.item, fromX, fromZ);
     } else {
       this.releaseGatherCell(result.item.anchor, cell);
-      if (result.item.def.byHand) this.harvestSystem.record(cell.cx, cell.cz, result.item.entry.key, this.simSystem.time);
+      const entry = result.item.entry;
+      if (result.item.def.byHand) this.harvestSystem.record(cell.cx, cell.cz, entry.key, this.simSystem.time, entry.offsetX, entry.offsetZ);
+      if (result.item.def.nestEgg) this.onEggTaken(cell);
     }
     this.refreshGatherTargets();
     this.receiveItems(yields);
@@ -281,7 +283,12 @@ export default {
   },
 
   harvestedEntry(cell) {
-    return this.decoSystem.entryAt(cell.cx, cell.cz, (def, entry) => def.byHand && entry && entry.key === cell.key);
+    return this.decoSystem.entryAt(cell.cx, cell.cz, (def, entry) => def.byHand && entry && entry.key === cell.key
+      && (entry.offsetX || 0) === (cell.offsetX || 0) && (entry.offsetZ || 0) === (cell.offsetZ || 0));
+  },
+
+  onEggTaken(cell) {
+    if (this.creatureSystem.provoke(cell.cx, cell.cz)) this.log.add("Koa'tiki si všimli, že jim bereš vejce!", 'warn');
   },
 
   syncHarvest() {

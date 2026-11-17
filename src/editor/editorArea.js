@@ -1,6 +1,6 @@
 // Část editoru: herní plocha — tažení obdélníku, výběr buněk a razítko podkladu a výšky.
 // Patří k EditorMode (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
-import { PAINT_ALL, PAINT_CREATURES, PAINT_FISH } from '../data/catalogs/brushes.js';
+import { PAINT_ALL, PAINT_CREATURES, PAINT_FISH, PAINT_CRABS } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
@@ -139,6 +139,7 @@ export default {
         if (dropDecorationCell(this.layout, cx, cz)) count += 1;
         if (this.dropCreatureCell(cx, cz)) count += 1;
         if (this.dropFishCell(cx, cz)) count += 1;
+        if (this.dropCrabCell(cx, cz)) count += 1;
       }
       this.dropOrphans();
     } else {
@@ -158,7 +159,7 @@ export default {
       return 0;
     }
     this.clearAreaSelection();
-    this.scheduleRegenerate(erasing ? [...PAINT_ALL, PAINT_CREATURES, PAINT_FISH] : PAINT_ALL);
+    this.scheduleRegenerate(erasing ? [...PAINT_ALL, PAINT_CREATURES, PAINT_FISH, PAINT_CRABS] : PAINT_ALL);
     return count;
   },
 };

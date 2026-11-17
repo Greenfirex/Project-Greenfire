@@ -3,7 +3,8 @@
 import { BRUSHES } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
-import { cellKey } from '../utils/gridMath.js';
+import { cellKey, cellToWorld } from '../utils/gridMath.js';
+import { nestSpots, guardedNest } from '../utils/nestGuard.js';
 import { PLANE_LAYERS, ENTRY_LAYERS, layerAt, levelOfEntry, worldCells } from '../data/maps/areaShape.js';
 import { getCreatureType, getCreatureTier, creatureStat } from '../data/catalogs/creatures/index.js';
 
@@ -109,6 +110,20 @@ export default {
       });
     }
     return marks;
+  },
+
+  nestMarks() {
+    if (this.paintLevel !== 0) return [];
+    const nests = nestSpots(this.layout).map((nest) => ({ ...nest, guards: [] }));
+    for (const entry of (this.layout && this.layout.creatures) || []) {
+      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz) || levelOfEntry(entry) !== 0) continue;
+      const type = getCreatureType(entry.kind);
+      const nest = type ? guardedNest(nests, entry.kind, cellToWorld(entry.cx), cellToWorld(entry.cz)) : null;
+      if (!nest) continue;
+      const tierKey = entry.tier && type.tiers[entry.tier] ? entry.tier : type.defaultTier;
+      nest.guards.push({ cx: entry.cx, cz: entry.cz, kind: entry.kind, tierKey });
+    }
+    return nests;
   },
 
   decorationsAt(cx, cz) {
