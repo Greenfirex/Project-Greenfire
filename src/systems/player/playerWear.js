@@ -40,9 +40,17 @@ export default {
 
   wear(slot, wear) {
     if ((this.worn[slot] || null) === (wear || null)) return;
+    const hip = this.wornSum('hipGap') + this.wornSum('hipTilt');
     this.worn[slot] = wear || null;
     if (slot === 'head') this.refreshWorn();
     else this.refreshFitted(slot);
+    if (this.wornSum('hipGap') + this.wornSum('hipTilt') !== hip) this.refreshSheathNode();
+  },
+
+  wornSum(key) {
+    let total = 0;
+    for (const wear of Object.values(this.worn)) total += (wear && wear[key]) || 0;
+    return total;
   },
 
   refreshWorn() {

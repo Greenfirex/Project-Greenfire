@@ -167,7 +167,7 @@ export const ITEM_TYPES = {
     slot: 'chest',
     bonus: { defense: 2 },
     color: [0.35, 0.12, 0.14],
-    wear: { fitted: `${ASSET_DIRS.characters}castaway/outfit/pirate_coat.glb` },
+    wear: { fitted: `${ASSET_DIRS.characters}castaway/outfit/pirate_coat.glb`, hipGap: 0.1, hipTilt: 0.05 },
   },
   pirate_pants: {
     displayName: 'Pirátské kalhoty',

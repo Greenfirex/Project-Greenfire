@@ -442,7 +442,9 @@ výška, posun vpřed a natočení jsou v `wear` u předmětu. Oblečení s `wea
 (pirátský kabát, kalhoty, boty v `public/assets/characters/castaway/outfit/`) je
 přizpůsobené postavě a napojené na její kostru už v Blenderu; ve hře se jeho kosti
 přečíslují podle jmen na kostru postavy a ohýbá se s ní. Patří jen k modelu Castaway:
-nová postava = oblečení znovu napasovat. Rukavice zatím nejsou (rovné prsty z Meshy
+nová postava = oblečení znovu napasovat. `wear.hipGap` a `wear.hipTilt` odsunou
+a vykloní zbraň zandanou na boku (v šířkách boků), aby do ní oblečení nelezlo; sčítají se
+přes všechno nasazené. Rukavice zatím nejsou (rovné prsty z Meshy
 nesedí na pokrčenou ruku).
 `bonus` u předmětu (např. `{ defense: 1 }`) se sečte přes nasazené věci (`gearBonus`)
 a `playerStatsSystem.setGear` ho přičte k základu z `player.js`; nic z toho se

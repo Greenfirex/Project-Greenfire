@@ -586,13 +586,15 @@ export default class PlayerSystem {
     if (!node) return;
     const slot = new TransformNode('playerSheathSlot', this.s);
     slot.parent = hips;
+    const outward = Math.sign(sheath.side || 0);
+    const gap = outward * this.wornSum('hipGap');
     slot.position = middle
-      .add(side.scale(width * (sheath.side || 0)))
+      .add(side.scale(width * ((sheath.side || 0) + gap)))
       .add(up.scale(width * (sheath.lift || 0)))
       .add(forward.scale(width * (sheath.ahead || 0)));
     const along = up.scale(-1)
       .add(forward.scale(-(sheath.back || 0)))
-      .add(side.scale(sheath.out || 0))
+      .add(side.scale((sheath.out || 0) + outward * this.wornSum('hipTilt')))
       .normalize();
     const grip = tool.grip || {};
     const hang = Quaternion.Identity();

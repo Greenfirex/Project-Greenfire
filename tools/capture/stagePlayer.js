@@ -2,7 +2,7 @@
 // Spouští ho stage.js, když se místo tvora zadá "player"; ke snímkům změří, kam míří nástroj v ruce.
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import PlayerSystem from '../../src/systems/player/playerSystem.js';
-import { TOOL_TYPES } from '../../src/data/catalogs/items.js';
+import { TOOL_TYPES, ITEM_TYPES } from '../../src/data/catalogs/items.js';
 
 const STEP = 1 / 60;
 const TOOL_WAIT_MS = 15000;
@@ -74,6 +74,12 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
     if (!(await waitFor(() => player.sheathNode))) return { error: `zbraň na boku se neukázala: ${sheathKey}` };
     player.weaponDrawn = Boolean(toolKey);
   }
+  for (const itemKey of (options.wear || '').split(',').filter(Boolean)) {
+    const def = ITEM_TYPES[itemKey];
+    if (!def || !def.slot || !def.wear) return { error: `neznámé oblečení: ${itemKey}` };
+    player.wear(def.slot, def.wear);
+    if (def.wear.fitted && !(await waitFor(() => player.fittedShown[def.slot]))) return { error: `oblečení se nenačetlo: ${itemKey}` };
+  }
   const offHandKey = options.offhand || null;
   if (offHandKey) {
     if (!TOOL_TYPES[offHandKey]) return { error: `neznámý nástroj do levé ruky: ${offHandKey}` };
@@ -108,7 +114,7 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
   const bounds = root.getHierarchyBoundingVectors(true);
   const height = bounds.max.y - bounds.min.y;
   aimCamera({ height, length: height * 0.6 }, options);
-  const focusOn = { hand: () => player.handSlot, left: () => player.leftSlot, head: () => player.idleNodes && player.idleNodes.head }[options.focus];
+  const focusOn = { hand: () => player.handSlot, left: () => player.leftSlot, head: () => player.idleNodes && player.idleNodes.head, hip: () => player.sheathSlot }[options.focus];
 
   const tool = TOOL_TYPES[toolKey];
   const weaponAnim = tool && tool.weapon && tool.weapon.primary ? tool.weapon.primary.anim : undefined;
