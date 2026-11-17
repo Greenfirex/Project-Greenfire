@@ -21,6 +21,7 @@ export function releaseFrame() {
 const MODEL_SCALE = CELL_SIZE;
 const MODEL_TIMEOUT_MS = 15000;
 const cache = new Map();
+const loaded = new Map();
 const importedCache = new Map();
 const containerCache = new Map();
 const reportedTextures = new Set();
@@ -60,12 +61,18 @@ export function loadModel(scene, url) {
       return null;
     }).then((root) => {
       pending -= 1;
+      if (root) loaded.set(url, root);
       notifyWaiters();
       return root;
     });
     cache.set(url, promise);
   }
   return cache.get(url);
+}
+
+export function loadedModel(url) {
+  const root = loaded.get(url);
+  return root && !root.isDisposed() ? root : null;
 }
 
 export async function resolveModel(scene, url) {

@@ -4,7 +4,8 @@
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CELL_SIZE } from '../../utils/gridMath.js';
-import { rockTemplate } from '../../utils/rockFactory.js';
+import { rockRoot } from '../../utils/rockFactory.js';
+import { rockModelUrl } from '../../data/catalogs/rocks.js';
 
 const CHUNK_WORLD = CELL_SIZE * 8;
 const VIEW_MARGIN = 6;
@@ -37,7 +38,7 @@ const CORNER_OUT = 0.05;
 const MIN_WALL = 0.6;
 const LOW_WALL = 1.2;
 const LOW_WALL_SCALE = 0.7;
-const SCALE_RANGE = [0.75, 1];
+const SCALE_RANGE = [0.85, 1.1];
 const END_ALONG = -0.55;
 const END_SLACK = 0.15;
 const STRETCH_WIDE = [0.85, 1.3];
@@ -49,7 +50,7 @@ const MAX_OUT = 0.35;
 const MIN_OUT = 0.1;
 const SINK = 0.15;
 const LIP_MAX = 0.18;
-const ROW_OVERLAP = 0.68;
+const ROW_OVERLAP = 0.6;
 const ROW_LIMIT = 40;
 const COLUMNS_EVEN = [-0.5, 0.5];
 const COLUMNS_ODD = [-1, 0];
@@ -83,11 +84,14 @@ export default class CliffDressSystem {
   shapeFor(key) {
     const known = this.shapes.get(key);
     if (known) return known;
-    const source = rockTemplate(this.s, key).getChildMeshes()[0];
+    const root = rockRoot(this.s, key);
+    const source = root ? root.getChildMeshes()[0] : null;
+    if (!source) return null;
     const box = source.getBoundingInfo().boundingBox;
     const shape = {
       key,
       source,
+      model: Boolean(rockModelUrl(key)),
       height: box.maximum.y - box.minimum.y,
       front: Math.max(box.maximum.z, -box.minimum.z),
       side: Math.max(box.maximum.x, -box.minimum.x),
@@ -113,6 +117,7 @@ export default class CliffDressSystem {
 
   dressTerrace(face) {
     const shape = this.shapeFor(PIECES[face.style].terrace);
+    if (!shape) return;
     const ledge = face.foot + (face.top - face.foot) * between(TERRACE_HEIGHT, hash(face.x, face.z, 41));
     const scaleX = between(TERRACE_WIDE, hash(face.x, face.z, 42));
     const scaleZ = between(TERRACE_DEEP, hash(face.x, face.z, 43));
@@ -184,6 +189,7 @@ export default class CliffDressSystem {
     let y = corner.foot - SINK;
     for (let row = 0; row < ROW_LIMIT; row += 1) {
       const shape = this.shapeFor(keys[Math.floor(hash(corner.x, corner.z, row, 21) * keys.length) % keys.length]);
+      if (!shape) return;
       const look = this.lookOf(corner.x, corner.z, row, between(CORNER_SCALE, hash(corner.x, corner.z, row, 7)));
       look.scaleX = Math.min(look.scaleX, look.scaleZ);
       look.pitch = 0;
@@ -212,8 +218,10 @@ export default class CliffDressSystem {
     const yaw = Math.atan2(face.dx, face.dz);
     const alongX = face.dx !== 0 ? 0 : 1;
     const alongZ = face.dx !== 0 ? 1 : 0;
-    const openBefore = !sides.has(`${face.cx - alongX},${face.cz - alongZ}|${face.dx},${face.dz}`);
-    const openAfter = !sides.has(`${face.cx + alongX},${face.cz + alongZ}|${face.dx},${face.dz}`);
+    const openAt = (step) => !sides.has(`${face.cx + alongX * step},${face.cz + alongZ * step}|${face.dx},${face.dz}`)
+      && !sides.has(`${face.cx + alongX * step + face.dx},${face.cz + alongZ * step + face.dz}|${-alongX * step},${-alongZ * step}`);
+    const openBefore = openAt(-1);
+    const openAfter = openAt(1);
     let y = face.lintel ? face.foot + LINTEL_GAP : face.foot - SINK;
     for (let row = 0; row < ROW_LIMIT; row += 1) {
       const columns = row % 2 ? COLUMNS_ODD : COLUMNS_EVEN;
@@ -222,6 +230,10 @@ export default class CliffDressSystem {
       columns.forEach((column, index) => {
         const salt = row * 10 + index;
         const shape = this.shapeFor(pieces.wall[Math.floor(hash(face.x, face.z, salt, 1) * pieces.wall.length) % pieces.wall.length]);
+        if (!shape) {
+          finished = true;
+          return;
+        }
         const scale = between(SCALE_RANGE, hash(face.x, face.z, salt, 2)) * low;
         const lip = hash(face.x, face.z, salt, 3) * LIP_MAX;
         const look = this.lookOf(face.x, face.z, salt, scale);
@@ -276,10 +288,11 @@ export default class CliffDressSystem {
       ));
     }
     for (const area of byArea.values()) {
-      const mesh = this.shapeFor(area.key).source.clone(`cliffDress_${area.key}_${area.mossy ? 'moss_' : ''}${area.areaX}_${area.areaZ}`, null, false);
+      const shape = this.shapeFor(area.key);
+      const mesh = shape.source.clone(`cliffDress_${area.key}_${area.mossy ? 'moss_' : ''}${area.areaX}_${area.areaZ}`, null, false);
       mesh.makeGeometryUnique();
       mesh.parent = null;
-      mesh.material = materialFor(area.style, area.mossy);
+      mesh.material = materialFor(area.style, area.mossy, shape.model ? shape.source.material : null);
       mesh.isPickable = false;
       mesh.receiveShadows = true;
       mesh.alwaysSelectAsActiveMesh = true;

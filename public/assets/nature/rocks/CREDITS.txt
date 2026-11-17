@@ -1,0 +1,2 @@
+Kameny — zdroj: Meshy AI (Meshy_AI_Stone_Study_Collectio_1117122151_texture.glb, Meshy_AI_Stone_Shapes_Study_1117174101_texture.glb), rozřezáno a upraveno pro tento projekt.
+Licence: podle licence účtu Meshy, na kterém byl model vytvořen.

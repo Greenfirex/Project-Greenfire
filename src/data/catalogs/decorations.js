@@ -183,7 +183,8 @@ export const DECORATION_TYPES = {
   rock_pebbles: {
     gather: { stone: 1 },
     displayName: 'Kamínky',
-    rock: 'pebbles',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}rock_pebbles.gltf`,
     scale: 1,
     radius: 0.3,
     blocks: false,
@@ -195,7 +196,8 @@ export const DECORATION_TYPES = {
   rock_pair: {
     gather: { stone: 3 },
     displayName: 'Dvojice balvanů',
-    rock: 'cluster_pair',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}rock_pair.gltf`,
     scale: 1,
     radius: 0.8,
     blocks: true,
@@ -206,7 +208,8 @@ export const DECORATION_TYPES = {
   rock_jagged: {
     gather: { stone: 5 },
     displayName: 'Rozeklaný shluk',
-    rock: 'cluster_jagged',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}rock_jagged.gltf`,
     scale: 1,
     radius: 0.9,
     blocks: true,
@@ -589,7 +592,8 @@ export const DECORATION_TYPES = {
   },
   rockfall_slab: {
     displayName: 'Spadlá skalní deska',
-    rock: 'cliff_slab',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}cliff_slab.gltf`,
     scale: 1,
     radius: 0.9,
     height: 0.32,
@@ -600,7 +604,8 @@ export const DECORATION_TYPES = {
   },
   rockfall_pile: {
     displayName: 'Hromada kamení',
-    rock: 'cliff_pile',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}cliff_pile.gltf`,
     scale: 1,
     radius: 0.9,
     height: 0.55,
@@ -611,7 +616,8 @@ export const DECORATION_TYPES = {
   },
   rockfall_mass_a: {
     displayName: 'Sesunutá skalní masa',
-    rock: 'cliff_mass_a',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}cliff_mass_a.gltf`,
     scale: 1.15,
     radius: 1.1,
     height: 1.25,
@@ -622,7 +628,8 @@ export const DECORATION_TYPES = {
   },
   rockfall_mass_b: {
     displayName: 'Sesunutá skalní masa',
-    rock: 'cliff_mass_b',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}cliff_mass_b.gltf`,
     scale: 1.15,
     radius: 1.1,
     height: 1.15,
@@ -633,7 +640,8 @@ export const DECORATION_TYPES = {
   },
   rockfall_dark_pile: {
     displayName: 'Tmavá kamenná hromada',
-    rock: 'cliff_dark_pile',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}cliff_dark_pile.gltf`,
     scale: 1,
     radius: 0.9,
     height: 0.55,
@@ -644,7 +652,8 @@ export const DECORATION_TYPES = {
   },
   rockfall_dark_slab: {
     displayName: 'Tmavá skalní deska',
-    rock: 'cliff_dark_slab',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}cliff_dark_slab.gltf`,
     scale: 1,
     radius: 0.9,
     height: 0.35,
@@ -655,7 +664,8 @@ export const DECORATION_TYPES = {
   },
   rockfall_dark_mass: {
     displayName: 'Tmavá skalní masa',
-    rock: 'cliff_dark_mass',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}cliff_dark_mass.gltf`,
     scale: 1.15,
     radius: 1.1,
     height: 1.2,
@@ -666,7 +676,8 @@ export const DECORATION_TYPES = {
   },
   rockfall_dark_spire: {
     displayName: 'Tmavá rozeklaná hromada',
-    rock: 'cliff_dark_spire',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}cliff_dark_spire.gltf`,
     scale: 1,
     radius: 0.8,
     height: 0.85,
@@ -699,7 +710,8 @@ export const DECORATION_TYPES = {
   },
   rockfall_spire: {
     displayName: 'Rozeklaná hromada',
-    rock: 'cliff_spire',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}cliff_spire.gltf`,
     scale: 1,
     radius: 0.75,
     height: 0.8,
@@ -710,7 +722,8 @@ export const DECORATION_TYPES = {
   },
   rockfall_scatter: {
     displayName: 'Rozsypané kamení',
-    rock: 'cliff_scatter',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}cliff_scatter.gltf`,
     scale: 1,
     radius: 0.8,
     blocks: false,
@@ -721,7 +734,8 @@ export const DECORATION_TYPES = {
   rock_small: {
     gather: { stone: 2 },
     displayName: 'Kámen',
-    rock: 'boulder_small',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}rock_small.gltf`,
     scale: 1,
     radius: 0.4,
     blocks: false,
@@ -732,7 +746,8 @@ export const DECORATION_TYPES = {
   rock_small_flat: {
     gather: { stone: 2 },
     displayName: 'Plochý kámen',
-    rock: 'boulder_flat',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}rock_small_flat.gltf`,
     scale: 1,
     radius: 0.4,
     blocks: false,
@@ -885,7 +900,8 @@ export const DECORATION_TYPES = {
   rock_large: {
     gather: { stone: 6 },
     displayName: 'Velký balvan',
-    rock: 'boulder_large',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}rock_large.gltf`,
     scale: 1,
     radius: 0.9,
     blocks: true,
@@ -896,7 +912,8 @@ export const DECORATION_TYPES = {
   rock_large_c: {
     gather: { stone: 6 },
     displayName: 'Velký balvan',
-    rock: 'boulder_large_c',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}rock_large_c.gltf`,
     scale: 1,
     radius: 0.9,
     blocks: true,
@@ -907,7 +924,8 @@ export const DECORATION_TYPES = {
   rock_tall: {
     gather: { stone: 5 },
     displayName: 'Vysoký kámen',
-    rock: 'boulder_tall',
+    stone: true,
+    model: `${ASSET_DIRS.rocks}rock_tall.gltf`,
     scale: 1,
     radius: 0.6,
     blocks: true,
@@ -1134,7 +1152,7 @@ export function decoFamily(key) {
   if (def.kind === 'tree' || def.kind === 'bush' || def.bush || def.flower) return 'plant';
   if (def.gather && def.gather.mushroom) return 'plant';
   if (def.kind === 'rock' || def.kind === 'campfire') return 'object';
-  if (def.shell || def.coral || def.rock) return 'object';
+  if (def.shell || def.coral || def.rock || def.stone) return 'object';
   if (def.kind === 'floor' || def.kind === 'path') return null;
   return 'object';
 }

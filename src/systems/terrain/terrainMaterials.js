@@ -10,8 +10,8 @@ import TerrainReliefPlugin from './terrainReliefPlugin.js';
 import TerrainCausticPlugin from './terrainCausticPlugin.js';
 import TerrainWetPlugin from './terrainWetPlugin.js';
 import CliffSurfacePlugin from './cliffSurfacePlugin.js';
-import CliffMossPlugin from './cliffMossPlugin.js';
-import { SURFACE_VERTEX_TINT, color3 } from './terrainSettings.js';
+import CliffStonePlugin from './cliffStonePlugin.js';
+import { SURFACE_VERTEX_TINT, WALL_TILE, color3 } from './terrainSettings.js';
 
 const CLIFF_TEXTURE = `${ASSET_DIRS.textures}Rock050_1K-JPG_Color.jpg`;
 const CLIFF_NORMAL = `${ASSET_DIRS.textures}Rock050_1K-JPG_NormalGL.jpg`;
@@ -20,6 +20,7 @@ const CLIFF_MOSS_TEXTURE = `${ASSET_DIRS.textures}Rock063_1K-JPG_Color.jpg`;
 const CLAY_CLIFF_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
 const CLAY_CLIFF_NORMAL = `${ASSET_DIRS.textures}Ground071_1K-JPG_NormalGL.jpg`;
 const DRESS_MOSS_TEXTURE = `${ASSET_DIRS.textures}Grass001_1K-JPG_Color.jpg`;
+const DRESS_STONE_SHADE = 0.8;
 
 export default {
   cliffMaterialFor(style) {
@@ -31,9 +32,10 @@ export default {
     return this.cliffMaterials[key];
   },
 
-  caveDressMaterial(style) {
+  caveDressMaterial(style, source = null) {
     if (!this.cliffMaterials) this.cliffMaterials = {};
-    const key = `caveDress_${style}`;
+    const key = `caveDress_${style}${source ? `_${source.name}` : ''}`;
+    if (!this.cliffMaterials[key] && source) this.cliffMaterials[key] = this.dressStoneMaterial(`terrainCaveDressMat_${style}_${source.name}`, style, source, false);
     if (!this.cliffMaterials[key]) {
       const cliff = this.cliffMaterialFor(style);
       const material = new StandardMaterial(`terrainCaveDressMat_${style}`, this.s);
@@ -47,12 +49,22 @@ export default {
     return this.cliffMaterials[key];
   },
 
-  caveFrameMaterial(style) {
+  caveFrameMaterial(style, source) {
     if (!this.cliffMaterials) this.cliffMaterials = {};
-    const cliff = this.cliffMaterialFor(style);
-    const key = `frame_${cliff.name}`;
+    const key = `frame_${style}_${source.name}`;
+    if (!this.cliffMaterials[key]) this.cliffMaterials[key] = this.dressStoneMaterial(`caveFrameMat_${style}_${source.name}`, style, source, false);
+    return this.cliffMaterials[key];
+  },
+
+  cliffDressMaterial(style, mossy = false, source = null) {
+    if (!this.cliffMaterials) this.cliffMaterials = {};
+    const key = `dress_${style}${mossy ? '_moss' : ''}${source ? `_${source.name}` : ''}`;
+    if (!this.cliffMaterials[key] && source) {
+      this.cliffMaterials[key] = this.dressStoneMaterial(`terrainCliffDressMat_${style}_${source.name}${mossy ? '_moss' : ''}`, style, source, mossy);
+    }
     if (!this.cliffMaterials[key]) {
-      const material = new StandardMaterial(`caveFrameMat_${style}`, this.s);
+      const cliff = this.cliffMaterialFor(style);
+      const material = new StandardMaterial(`terrainCliffDressMat_${style}${mossy ? '_moss' : ''}`, this.s);
       material.diffuseTexture = cliff.diffuseTexture;
       material.bumpTexture = cliff.bumpTexture;
       material.diffuseColor = cliff.diffuseColor.clone();
@@ -63,21 +75,24 @@ export default {
     return this.cliffMaterials[key];
   },
 
-  cliffDressMaterial(style, mossy = false) {
-    if (!this.cliffMaterials) this.cliffMaterials = {};
-    const key = `dress_${style}${mossy ? '_moss' : ''}`;
-    if (!this.cliffMaterials[key]) {
-      const cliff = this.cliffMaterialFor(style);
-      const material = new StandardMaterial(`terrainCliffDressMat_${style}${mossy ? '_moss' : ''}`, this.s);
-      material.diffuseTexture = cliff.diffuseTexture;
-      material.bumpTexture = cliff.bumpTexture;
-      material.diffuseColor = cliff.diffuseColor.clone();
-      material.specularColor = cliff.specularColor.clone();
-      material.backFaceCulling = false;
-      if (mossy) new CliffMossPlugin(material, this.cliffBlendTexture(DRESS_MOSS_TEXTURE));
-      this.cliffMaterials[key] = material;
-    }
-    return this.cliffMaterials[key];
+  dressStoneMaterial(name, style, source, mossy) {
+    const cliff = this.cliffMaterialFor(style);
+    const material = new StandardMaterial(name, this.s);
+    material.diffuseTexture = cliff.diffuseTexture;
+    material.diffuseColor = cliff.diffuseColor.clone();
+    material.specularColor = cliff.specularColor.clone();
+    material.bumpTexture = source.bumpTexture;
+    material.invertNormalMapX = source.invertNormalMapX;
+    material.invertNormalMapY = source.invertNormalMapY;
+    material.sideOrientation = source.sideOrientation;
+    material.backFaceCulling = source.backFaceCulling;
+    new CliffStonePlugin(material, {
+      tile: WALL_TILE,
+      shade: DRESS_STONE_SHADE,
+      strata: style === 'stone' ? this.cliffBlendTexture(CLIFF_STRATA_TEXTURE) : null,
+      moss: mossy ? this.cliffBlendTexture(DRESS_MOSS_TEXTURE) : null,
+    });
+    return material;
   },
 
   caveRockMaterial(ceiling) {

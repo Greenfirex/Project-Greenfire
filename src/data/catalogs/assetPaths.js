@@ -5,6 +5,7 @@ export const ASSET_DIRS = {
   starfish: 'assets/nature/starfish/',
   crab: 'assets/nature/crab/',
   koaNest: 'assets/nature/koa_nest/',
+  rocks: 'assets/nature/rocks/',
   textures: 'assets/nature/textures/',
   props: 'assets/props/',
   characters: 'assets/characters/',

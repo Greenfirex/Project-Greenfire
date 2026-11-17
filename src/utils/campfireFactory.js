@@ -1,8 +1,8 @@
-// Skládá ohniště z geometrie v kódu — kruh kamenů a přes sebe položená polena.
+// Skládá ohniště — kruh kamenů (model ze sady kamenů) a přes sebe položená polena z geometrie v kódu.
 // Šablona se staví jednou a do světa se vkládá jejím klonem.
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { rockTemplate } from './rockFactory.js';
+import { rockRoot } from './rockFactory.js';
 import { treeLogTemplate } from './treeFactory.js';
 
 const templates = new WeakMap();
@@ -28,7 +28,7 @@ export function campfireTemplate(scene, style) {
 }
 
 function buildCampfire(scene, key) {
-  const stone = rockTemplate(scene, 'boulder_small');
+  const stone = rockRoot(scene, 'boulder_small');
   const log = treeLogTemplate(scene, key);
   if (!stone || !log) return null;
   const root = new TransformNode(`tplCampfire_${key}`, scene);

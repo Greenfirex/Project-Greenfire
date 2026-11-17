@@ -3,7 +3,7 @@
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CELL_SIZE } from '../../utils/gridMath.js';
-import { rockTemplate } from '../../utils/rockFactory.js';
+import { rockRoot } from '../../utils/rockFactory.js';
 
 const SIDE_STONES = [
   { key: 'boulder_large_c', scale: 0.75 },
@@ -53,10 +53,12 @@ export default class CaveFrameSystem {
     const id = `${door.style}|${key}`;
     const known = this.stones.get(id);
     if (known) return known;
-    const source = rockTemplate(this.s, key).getChildMeshes()[0];
+    const root = rockRoot(this.s, key);
+    const source = root ? root.getChildMeshes()[0] : null;
+    if (!source) return null;
     const mesh = source.clone(`caveFrame_${door.style}_${key}`, null, false);
     mesh.makeGeometryUnique();
-    mesh.material = this.materialFor(door.style);
+    mesh.material = this.materialFor(door.style, source.material);
     mesh.parent = null;
     mesh.isPickable = false;
     mesh.alwaysSelectAsActiveMesh = true;
@@ -83,6 +85,7 @@ export default class CaveFrameSystem {
     for (let across = -TOP_REACH; across <= TOP_REACH + 1e-3; across += TOP_SPACING) {
       const spec = TOP_STONES[index % TOP_STONES.length];
       const stone = this.stoneFor(door, spec.key);
+      if (!stone) return;
       const scale = this.scaleOf(spec, door, across, 1);
       this.put(stone, door, across, TOP_OUT, door.top - stone.height * scale * TOP_EMBED, scale, index + 100);
       index += 1;
@@ -95,6 +98,7 @@ export default class CaveFrameSystem {
     for (let index = 0; index < STACK_LIMIT && y < top; index += 1) {
       const spec = SIDE_STONES[index % SIDE_STONES.length];
       const stone = this.stoneFor(door, spec.key);
+      if (!stone) return;
       const scale = this.scaleOf(spec, door, side, index);
       const across = side * (SIDE_ACROSS + (hash(door.cx, door.cz, side, index, 2) - 0.5) * PLACE_JITTER * 2);
       const out = SIDE_OUT + (hash(door.cx, door.cz, side, index, 3) - 0.5) * PLACE_JITTER * 2;
@@ -102,7 +106,7 @@ export default class CaveFrameSystem {
       y += stone.height * scale * STACK_OVERLAP;
     }
     const foot = this.stoneFor(door, FOOT_STONE.key);
-    this.put(foot, door, side * FOOT_ACROSS, FOOT_OUT, base - SINK, this.scaleOf(FOOT_STONE, door, side, 50), side * 50);
+    if (foot) this.put(foot, door, side * FOOT_ACROSS, FOOT_OUT, base - SINK, this.scaleOf(FOOT_STONE, door, side, 50), side * 50);
   }
 
   scaleOf(spec, door, salt, index) {

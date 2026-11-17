@@ -955,15 +955,15 @@ export default class GameScene {
 
   refreshCaveLighting() {
     if (!this.terrainSystem) return;
-    this.caveDressSystem.create(this.terrainSystem.caveWallFaces(), (style) => this.terrainSystem.caveDressMaterial(style));
+    this.caveDressSystem.create(this.terrainSystem.caveWallFaces(), (style, mossy, source) => this.terrainSystem.caveDressMaterial(style, source));
     this.lighting.setCaveMeshes([...this.terrainSystem.caveMeshes(), ...this.caveDressSystem.chunks.map((chunk) => chunk.mesh)]);
     this.sightSystem.setBlockers(this.terrainSystem.liveSurfaces());
     this.campfireSystem.setTerrain(this.terrainSystem.liveSurfaces());
     this.revealSystem.setLightMap(this.terrainSystem.caveLightMap());
-    this.caveFrameSystem.create(this.terrainSystem.caveDoors(), (style) => this.terrainSystem.caveFrameMaterial(style));
+    this.caveFrameSystem.create(this.terrainSystem.caveDoors(), (style, source) => this.terrainSystem.caveFrameMaterial(style, source));
     const fallFaces = this.waterfallFaces();
     const faces = this.terrainSystem.cliffFaces().filter((face) => !fallFaces.has(`${face.cx},${face.cz}|${face.dx},${face.dz}`));
-    this.cliffDressSystem.create(faces, (style, mossy) => this.terrainSystem.cliffDressMaterial(style, mossy));
+    this.cliffDressSystem.create(faces, (style, mossy, source) => this.terrainSystem.cliffDressMaterial(style, mossy, source));
     this.editor.syncFloorView();
   }
 

@@ -1,16 +1,22 @@
-// Skládá kameny z geometrie v kódu — koule rozkouskovaná šumem, potopená do země.
-// Šablona se staví jednou pro každý recept a do světa se vkládá jejím klonem.
+// Kameny pro obklad útesů, rámy jeskyní a ohniště: model ze sady (načtený při startu hry),
+// nebo kámen složený z geometrie v kódu — koule rozkouskovaná šumem, potopená do země.
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { createBuffer, pushVertex, buildMesh, mulberry32 } from './meshBuilder.js';
-import { getRockRecipe } from '../data/catalogs/rocks.js';
+import { getRockRecipe, rockModelUrl } from '../data/catalogs/rocks.js';
+import { loadedModel } from './assetLoader.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 
 const templates = new WeakMap();
 const materials = new WeakMap();
+
+export function rockRoot(scene, key) {
+  const url = rockModelUrl(key);
+  return url ? loadedModel(url) : rockTemplate(scene, key);
+}
 
 export function rockTemplate(scene, key) {
   let byKey = templates.get(scene);

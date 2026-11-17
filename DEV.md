@@ -186,12 +186,16 @@ boky, stěny jeskyní a stropy (`terrainMass.js`, `runVolume.js`).
   (`addShelfGrass`) i liany (`CliffVineSystem`, model `cliff_vine.glb`, zkrácená
   podle výšky stěny, pod 0,6 m se nedává). Ve větru se zatím nehýbe.
 - **Skalní kusy na útesech** (`terrain/cliffDressSystem.js`): stěna se nemění, jen
-  se obalí překrývajícími se kameny (kamenné útesy) nebo hroudami (hliněné), recepty
-  `cliff_stone_*` a `cliff_clod_*` v `rocks.js`. Pod kusy zůstává celá stěna, takže
+  se obalí překrývajícími se kameny (kamenné útesy, modely `cliff_stone_*` z tmavé sady)
+  nebo hroudami (hliněné, zatím recepty `cliff_clod_*` v `rocks.js`). Kamenné kusy mají
+  z modelu jen tvar a reliéf (normálovou mapu); barvu, texturu, vrstvy a výpočet světla mají
+  stejné jako stěna (`cliffStonePlugin.js`, textura promítnutá podle polohy ve světě), jinak
+  se od stěny odlišovaly odstínem i kresbou. Stejně jsou udělané kameny rámů jeskyní a obklad
+  v jeskyních. Obklad stíny nevrhá, jen přijímá. Pod kusy zůstává celá stěna, takže
   nevznikají díry. Seznam stran dává `terrainMass.cliffFaces()`; strana nad vchodem
   dostane jen řadu nad otvorem. Kusy u volného konce stěny se zúží a přitisknou, na
   vnějším rohu stojí menší zapuštěný kus (jinak převisy). Horní řada má občas mech
-  (`cliffMossPlugin.js`, zezelená jen plocha mířící vzhůru). Občas je ve stěně
+  (v `cliffStonePlugin.js`, vršek zezelená celý, boky v ostrůvcích ze šumu, spodek ne). Občas je ve stěně
   římsa — převrácený plochý kus s mechem, na který se sází podrost jako na hranu
   (`shelfGrassAnchors` ve scéně). Kusy jsou hromadné kopie po oblastech; každá má
   vlastní kopii tvaru (`makeGeometryUnique`), sdílený tvar si pozice přepisuje.
@@ -544,6 +548,21 @@ hustý keř z Meshy vyšel uvnitř i z boku skoro černý, proto je ibišek proc
 (textura se dvěma větvičkami, `sprigs` v receptu určuje, kolik karet nese květ);
 nahraný model ztratí posun svých dílů, proto pohyblivé díly (víko truhly) mají osu
 otáčení spočítanou až ve hře z tvaru dílu.
+
+**Volné kameny** (`rock_small`, `rock_small_flat`, `rock_large`, `rock_large_c`, `rock_tall`,
+`rock_jagged`, `rock_pair`, `rock_pebbles`) jsou modely z jedné sady z Meshy
+(`public/assets/nature/rocks/`). Sadu rozřeže a poskládá `tools/_temp/prepareRocks.mjs`
+s `bl_rocks.py` (slepení bodů na švech textury, rozdělení na oddělené kusy, zjednodušení,
+složené kameny z několika kusů). Kameny jsou `.gltf` se společnou texturou sady
+(`rocks_light_*.webp`, `rocks_dark_*.webp`), aby ji hra načetla jen jednou. V katalogu mají
+`stone: true` (náhodné natočení a velikost jako u kamenů z receptů). Světlá sada dává volné
+kameny a světlé sesuvy pod útesy, tmavá sada tmavé sesuvy, obklad kamenných útesů a kameny
+`boulder_*` pro rámy jeskyní a táborák. Kameny, které dřív stavěl recept, mají rozměry
+z uložených receptů (`tools/_temp/rock_recipes.json`) a kusy sady se na ně natáhnou.
+Obklad, rámy a táborák kameny potřebují hned, proto jsou v `ROCK_MODELS` (`rocks.js`),
+načítají se při startu hry a `rockRoot` (`rockFactory.js`) je bere z načtených modelů.
+Kameny rámů jeskyní mají texturu stěny, ve které je vchod (hlína nebo skála). Recepty zbývají
+jen pro hroudy hlíny a černé sesuvy (čekají na své sady).
 
 Mušle jsou dva modely (`shell_fan`, `shell_conch`) v `public/assets/nature/shells/`;
 oba se pokládají naplocho a sbírají se jako stejný předmět `shell`. Hvězdice
