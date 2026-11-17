@@ -59,8 +59,10 @@ export function buildRunVolumeBuckets(layout, options = {}) {
   const ringHeight = Number.isFinite(options.ringHeight) ? options.ringHeight : 3;
   const groundAt = typeof options.groundAt === 'function' ? options.groundAt : null;
   const doorSteps = new Map();
+  const doorOutsides = new Set();
   for (const door of options.doors || []) {
     const top = Math.max(door.floor, door.ground);
+    doorOutsides.add(`${door.cx + door.dx},${door.cz + door.dz}`);
     doorSteps.set(`${door.cx},${door.cz}|${door.dx},${door.dz}`, top);
     doorSteps.set(`${door.cx + door.dx},${door.cz + door.dz}|${-door.dx},${-door.dz}`, top);
   }
@@ -314,6 +316,7 @@ export function buildRunVolumeBuckets(layout, options = {}) {
       for (let dz = -1; dz <= 1; dz += 1) {
         if ((!dx && !dz) || caveAt(cx + dx, cz + dz)) continue;
         const ringId = `${cx + dx},${cz + dz}`;
+        if (doorOutsides.has(ringId)) continue;
         const known = ringFloors.get(ringId);
         if (known === undefined || floor < known) ringFloors.set(ringId, floor);
       }

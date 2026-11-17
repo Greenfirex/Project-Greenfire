@@ -144,7 +144,8 @@ export function revealBlock(color, position, rules, albedo = color, normal = 've
     float revealRestore = ${restore} * revealNear * revealOwnLit * (1.0 - revealOwn.b);
     float revealAbove = ${above} * step(revealParams.y, ${position}.y) * (1.0 - revealRestore);
     float revealWithoutSight = revealSightEye.w > 0.001 ? 0.0 : 1.0;
-    float revealColumn = ${column} * step(revealParams.w + 0.2, ${position}.y) * (1.0 - revealOwnLit * revealWithoutSight);
+    float revealColumnFloor = mix(revealParams.w + 0.2, max(revealParams.w + 0.2, revealSightEye.y), revealOwnLit);
+    float revealColumn = ${column} * step(revealColumnFloor, ${position}.y) * (1.0 - revealOwnLit * revealWithoutSight);
     float revealHide = ${hide} * (1.0 - revealRestore);
     float revealHole = max(max(max(revealAbove, revealHide), revealColumn), ${cameraCut}) * revealAmount;
     float revealGrain = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));

@@ -245,7 +245,9 @@ prošlo. Postava a tvorové zůstávají osvětlení normálně. Když je
 hráč pod stropem, schovají se přesně stropní dlaždice nad jeskyní (`overCave`,
 samostatný mesh `_roof`) a skryjí se dekorace i tráva na těch buňkách. Strop je zeshora neviditelný.
 Terén výš než podlaha, na které hráč stojí, zmizí v celém rozsahu stejně jako
-v editoru pater (`revealColumn`), nezávisle na natočení kamery. Co z okolí je
+v editoru pater (`revealColumn`), nezávisle na natočení kamery. Výjimka je zem venku
+osvětlená vchodem (`caveLightMap`): ta se ve hře řeže až nad výškou očí postavy, jinak
+by zmizela i zem za prahem, která je jen o kousek výš než podlaha jeskyně. Co z okolí je
 vidět, řeší dohled postavy (níž); bez dohledu (editor pater) zůstává
 jen osvětlené okolí vchodu podle mapy `caveLightMap` a tma od 8–14 m.
 
@@ -281,7 +283,7 @@ se kreslí jedno políčko skály (i po úhlopříčce) od podlahy do výšky ř
 (`REVEAL_CUT_ABOVE_FLOOR`); poklička kopíruje terén a v řezu se usekne, boky se zaoblí
 jako útesy. Je vidět jen při otevřeném řezu, nevrhá stín, neblokuje dohled
 a dohled ho neztmavuje. Část, za kterou z pohledu kamery leží jeskyně, se schová
-(`revealCaveAhead`). S dohledem řez schová všechen terén nad podlahou, i u vchodu.
+(`revealCaveAhead`). Buňka hned za vchodem prstenec nedostane (není to skála).
 V jeskyni se kolize počítá celým tělem postavy (ne jen středem), aby oči nevlezly do
 stěny. Oheň pod zemí svítí vždy naplno. Stěny jeskyně se kreslí odvrácenou stranou
 (blízká stěna ke kameře tak zmizí) a Babylon pak pro světlo stranu neotočí, proto mají
