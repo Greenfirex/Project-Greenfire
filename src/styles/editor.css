@@ -805,6 +805,14 @@
   color: var(--editor-height);
 }
 
+.floor-panel__target {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 .floor-panel__line {
   display: flex;
   align-items: center;

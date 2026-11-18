@@ -5,8 +5,7 @@ import { getDecoration } from '../data/catalogs/decorations.js';
 import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
 import { dropLayerCell, dropDecorationCell, dropAreaCells } from '../data/maps/areaShape.js';
-import { onSurface } from './editorSettings.js';
-import { rectCells } from './editorSettings.js';
+import { onSurface, rectCells } from './editorSettings.js';
 import { corridorCells } from './editorFloors.js';
 
 export default {
@@ -104,12 +103,12 @@ export default {
   },
 
   areaExists(cx, cz) {
-    if (this.realCells && this.realCells.some(([ax, az]) => ax === cx && az === cz)) return true;
+    if (this.realCells && this.realCells.has(cellKey(cx, cz))) return true;
     return (this.layout.path || []).some((entry) => onSurface(entry, cx, cz));
   },
 
   assignRealCells(cells) {
-    this.realCells = cells && cells.length ? cells.map(([cx, cz]) => [cx, cz]) : null;
+    this.realCells = cells && cells.length ? new Set(cells.map(([cx, cz]) => cellKey(cx, cz))) : null;
   },
 
   pendingAreaCells() {
@@ -159,7 +158,7 @@ export default {
       return 0;
     }
     this.clearAreaSelection();
-    this.scheduleRegenerate(erasing ? [...PAINT_ALL, PAINT_CREATURES, PAINT_FISH, PAINT_CRABS] : PAINT_ALL);
+    this.repaint(erasing ? [...PAINT_ALL, PAINT_CREATURES, PAINT_FISH, PAINT_CRABS] : PAINT_ALL);
     return count;
   },
 };

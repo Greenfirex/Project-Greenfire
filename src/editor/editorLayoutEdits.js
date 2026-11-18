@@ -2,19 +2,15 @@
 // Patří k EditorMode (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { getDecoration, DEFAULT_FLOOR, decoFamily } from '../data/catalogs/decorations.js';
 import { cellKey } from '../utils/gridMath.js';
-import { PLANE_LAYERS, layerAt, layerEntriesAt, floorCellAt, layerLiftAt, dropLayerCell, dropDecorationCell, worldCells, levelOfEntry } from '../data/maps/areaShape.js';
+import { PLANE_LAYERS, layerAt, layerEntriesAt, floorCellAt, layerLiftAt, dropLayerCell, worldCells, levelOfEntry } from '../data/maps/areaShape.js';
 import { bridgeCells } from '../utils/bridgeShape.js';
 import { onSurface } from './editorSettings.js';
 
 export default {
-  dropTopEntry(cx, cz) {
-    return dropDecorationCell(this.layout, cx, cz);
-  },
-
   dropStackableDecorations(cx, cz, level = 0) {
     const entries = this.layout.decorations || [];
     const kept = entries.filter((entry) => {
-      if (!entry || entry.cx !== cx || entry.cz !== cz || (entry.level || 0) !== level) return true;
+      if (!entry || entry.cx !== cx || entry.cz !== cz || levelOfEntry(entry) !== level) return true;
       const def = getDecoration(entry.key);
       return !def || !def.stackable;
     });
@@ -254,6 +250,7 @@ export default {
   },
 
   dropCrabCell(cx, cz) {
+    if (this.paintLevel !== 0) return false;
     const entries = this.layout.crabs || [];
     const kept = entries.filter((entry) => !entry || entry.cx !== cx || entry.cz !== cz);
     if (kept.length === entries.length) return false;

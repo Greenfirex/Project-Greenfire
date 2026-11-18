@@ -3,11 +3,7 @@
 import { HEIGHT_STEP, formatMeters } from '../data/maps/layoutStore.js';
 import { fillLake, brimLevel } from '../utils/lakeFill.js';
 import { cellKey } from '../utils/gridMath.js';
-
-function cellWord(count) {
-  if (count === 1) return 'buňka';
-  return count < 5 ? 'buňky' : 'buněk';
-}
+import { cellCount } from './editorSettings.js';
 
 export default {
   lakeGround() {
@@ -58,7 +54,7 @@ export default {
     }
     const lake = { cx: fill.lowest.cx, cz: fill.lowest.cz, level };
     this.storeLakes([...this.lakesOutside(fill.cells), lake]);
-    this.hud.setReadout(`Jezero: hladina ${formatMeters(level)} · ${fill.cells.length} ${cellWord(fill.cells.length)}`);
+    this.hud.setReadout(`Jezero: hladina ${formatMeters(level)} · ${cellCount(fill.cells.length)}`);
   },
 
   moveLakeLevel(hit, delta) {
@@ -82,7 +78,7 @@ export default {
     }
     const lake = { cx: fill.lowest.cx, cz: fill.lowest.cz, level };
     this.storeLakes([...this.lakesOutside(fill.cells, others), lake]);
-    this.hud.setReadout(`Jezero: hladina ${formatMeters(level)} · ${fill.cells.length} ${cellWord(fill.cells.length)}`);
+    this.hud.setReadout(`Jezero: hladina ${formatMeters(level)} · ${cellCount(fill.cells.length)}`);
   },
 
   lakesOutside(cells, list = this.mode.lakeList()) {

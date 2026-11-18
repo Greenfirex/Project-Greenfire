@@ -1549,9 +1549,7 @@ export default class GameScene {
   }
 
   toggleEditorMode() {
-    const active = this.editor.open();
-    this.editorToggle.setActive(active);
-    return active;
+    return this.editor.toggle();
   }
 
   syncZoomLimit() {

@@ -4,7 +4,7 @@ import { PAINT_ALL } from '../data/catalogs/brushes.js';
 import { cellKey } from '../utils/gridMath.js';
 import { ENTRY_LAYERS } from '../data/maps/areaShape.js';
 import { defaultSpawn } from '../data/catalogs/mapFile.js';
-import { toWorld } from './editorSettings.js';
+import { toWorld, parseCell } from './editorSettings.js';
 
 const HISTORY_LIMIT = 100;
 
@@ -36,7 +36,7 @@ export default {
       const second = now.get(key);
       if (first && second && JSON.stringify(first) === JSON.stringify(second)) continue;
       if (!first && !second) continue;
-      const [cx, cz] = key.split(',').map(Number);
+      const { cx, cz } = parseCell(key);
       const entries = {};
       for (const layer of ENTRY_LAYERS) entries[layer] = first ? first[layer] : [];
       cells.push({ cx, cz, entries });
@@ -57,6 +57,8 @@ export default {
     if (JSON.stringify(wasLakes) !== JSON.stringify(this.layout.lakes || [])) patch.lakes = wasLakes;
     const wasRivers = JSON.parse(JSON.stringify(before.rivers || []));
     if (JSON.stringify(wasRivers) !== JSON.stringify(this.layout.rivers || [])) patch.rivers = wasRivers;
+    const wasNames = { ...(before.floorNames || {}) };
+    if (JSON.stringify(wasNames) !== JSON.stringify(this.layout.floorNames || {})) patch.floorNames = wasNames;
     return patch;
   },
 
@@ -98,6 +100,7 @@ export default {
     }
     if ('lakes' in patch) this.layout.lakes = patch.lakes.map((lake) => ({ ...lake }));
     if ('rivers' in patch) this.layout.rivers = JSON.parse(JSON.stringify(patch.rivers));
+    if ('floorNames' in patch) this.layout.floorNames = { ...patch.floorNames };
   },
 
   undo() {

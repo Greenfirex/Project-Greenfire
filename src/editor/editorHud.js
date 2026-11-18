@@ -8,7 +8,7 @@ import { floorName } from './floorPanel.js';
 const COMMON_HINT = 'WASD pohled · Shift+1–4 záložky · Z zpět · N posunout čas · Ctrl+S uložit';
 const MODE_HINTS = {
   zone: 'Vyber štětec a táhni · X mazání',
-  height: 'Táhni po buňkách · Q a E krok výšky · 1–9 předvolby',
+  height: 'Táhni po buňkách · Q a E krok výšky · 1–9 předvolby · Enter použít · Esc zahodit',
   area: 'Táhni obdélník · Enter použít · Esc zahodit',
   floors: 'Na povrchu klikni na útes · v patře táhni výběr · Enter vykopat',
 };

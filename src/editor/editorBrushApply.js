@@ -3,14 +3,14 @@
 import { BRUSHES, brushPaintParts, PAINT_TERRAIN } from '../data/catalogs/brushes.js';
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
 import { cellKey } from '../utils/gridMath.js';
-import { floorCellAt, layerLiftAt, dropLayerCell, dropDecorationCell } from '../data/maps/areaShape.js';
+import { floorCellAt, layerLiftAt, dropLayerCell, dropDecorationCell, levelOfEntry } from '../data/maps/areaShape.js';
 import { fillZone } from '../utils/zoneFill.js';
 import { createRng, seedFor } from '../utils/rng.js';
 import { getFishType, FISH_SWIM_DEPTH } from '../data/catalogs/fish.js';
 import { CRAB } from '../data/catalogs/crabs.js';
 import { getCreatureType } from '../data/catalogs/creatures/index.js';
 import { hash01, valueNoise } from '../utils/noise.js';
-import { SIDES, onSurface, parseCell } from './editorSettings.js';
+import { SIDES, AROUND, onSurface, parseCell } from './editorSettings.js';
 import { decoPlacement } from '../utils/decoPlacement.js';
 
 const COCONUT_CHANCE = 1 / 3;
@@ -23,9 +23,10 @@ const COCONUT_CELL_EDGE = 0.95;
 const PALM_LEAF_CHANCE = 0.6;
 const PALM_LEAF_MAX = 2;
 const PALM_LEAF_KEYS = ['palm_frond_green', 'palm_frond_dry'];
+const FISH_BRUSH_RADIUS = 4;
+const FISH_ORBIT_CHANCE = 0.35;
 const JUMBLE_SHIFT = 0.35;
 const JUMBLE_SCALE = [0.85, 1.2];
-const AROUND = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 
 function round2(value) {
   return Math.round(value * 100) / 100;
@@ -66,100 +67,20 @@ export default {
       return 0;
     }
     const brush = BRUSHES[brushKey] || {};
-    const parts = brushPaintParts(brushKey);
+    let parts = brushPaintParts(brushKey);
     this.pushHistory(parts);
-    if (brush.bridge) {
-      const count = this.applyBridge(mode);
+    const special = this.specialBrushRun(brushKey, brush, [...cells].map(parseCell), mode);
+    if (special) {
+      const bridgesBefore = (this.layout.bridges || []).length;
+      const count = special();
+      if (brush.erase && (this.layout.bridges || []).length !== bridgesBefore) parts = [...new Set([...parts, PAINT_TERRAIN])];
       if (!count) this.history.pop();
+      else this.history[this.history.length - 1].parts = parts;
       this.draft.cells.clear();
       this.resetBridge();
-      if (this.onDraftChange) this.onDraftChange(this.draft);
-      this.scheduleRegenerate(parts);
-      return count;
-    }
-    if (brush.join) {
-      const joined = this.applyJoin(mode);
-      if (!joined) this.history.pop();
-      this.draft.cells.clear();
       this.resetJoin();
       if (this.onDraftChange) this.onDraftChange(this.draft);
-      this.scheduleRegenerate(parts);
-      return joined;
-    }
-    if (brush.cliff) {
-      const zone = [...cells].map(parseCell);
-      const foot = this.brushOptionValue(brushKey, 'foot');
-      const count = this.applyCliffMarks(zone, mode, this.styleFor(brushKey), foot);
-      if (!count) this.history.pop();
-      this.draft.cells.clear();
-      if (this.onDraftChange) this.onDraftChange(this.draft);
-      this.scheduleRegenerate(parts);
-      return count;
-    }
-    if (brush.creature) {
-      const zone = [...cells].map(parseCell);
-      const count = this.applyCreatureBrush(brushKey, brush, zone, mode);
-      if (!count) this.history.pop();
-      this.draft.cells.clear();
-      if (this.onDraftChange) this.onDraftChange(this.draft);
-      this.scheduleRegenerate(parts);
-      return count;
-    }
-    if (brush.fish) {
-      const zone = [...cells].map(parseCell);
-      const count = this.applyFishBrush(brushKey, brush, zone, mode);
-      if (!count) this.history.pop();
-      this.draft.cells.clear();
-      if (this.onDraftChange) this.onDraftChange(this.draft);
-      this.scheduleRegenerate(parts);
-      return count;
-    }
-    if (brush.crabs) {
-      const zone = [...cells].map(parseCell);
-      const count = this.applyCrabBrush(zone, mode);
-      if (!count) this.history.pop();
-      this.draft.cells.clear();
-      if (this.onDraftChange) this.onDraftChange(this.draft);
-      this.scheduleRegenerate(parts);
-      return count;
-    }
-    if (brush.spawn) {
-      const zone = [...cells].map(parseCell);
-      const count = this.applySpawnCell(zone);
-      if (!count) this.history.pop();
-      this.draft.cells.clear();
-      if (this.onDraftChange) this.onDraftChange(this.draft);
-      this.scheduleRegenerate(parts);
-      return count;
-    }
-    if (brush.erase) {
-      const zone = [...cells].map(parseCell);
-      const bridgesBefore = (this.layout.bridges || []).length;
-      const count = this.applyEraser(zone);
-      const eraseParts = (this.layout.bridges || []).length !== bridgesBefore ? [...new Set([...parts, PAINT_TERRAIN])] : parts;
-      if (!count) this.history.pop();
-      else this.history[this.history.length - 1].parts = eraseParts;
-      this.draft.cells.clear();
-      if (this.onDraftChange) this.onDraftChange(this.draft);
-      this.scheduleRegenerate(eraseParts);
-      return count;
-    }
-    if (brush.surface) {
-      const zone = [...cells].map(parseCell);
-      const count = this.applyBeach(brushKey, zone, mode);
-      if (!count) this.history.pop();
-      this.draft.cells.clear();
-      if (this.onDraftChange) this.onDraftChange(this.draft);
-      this.scheduleRegenerate(parts);
-      return count;
-    }
-    if (brush.height || brush.heights) {
-      const zone = [...cells].map(parseCell);
-      const count = this.applyHeightDraft(brushKey, zone, mode);
-      if (!count) this.history.pop();
-      this.draft.cells.clear();
-      if (this.onDraftChange) this.onDraftChange(this.draft);
-      this.scheduleRegenerate(parts);
+      this.repaint(parts);
       return count;
     }
     const shape = brush.shape;
@@ -194,7 +115,7 @@ export default {
           continue;
         }
         if (dropLayerCell(this.layout, cx, cz)) dropped = true;
-        if (this.dropTopEntry(cx, cz)) dropped = true;
+        if (dropDecorationCell(this.layout, cx, cz)) dropped = true;
         this.dropOrphans();
         if (dropped) changed += 1;
         continue;
@@ -256,8 +177,22 @@ export default {
       return 0;
     }
     this.fixMissingFloor();
-    this.scheduleRegenerate(parts);
+    this.repaint(parts);
     return changed;
+  },
+
+  specialBrushRun(brushKey, brush, zone, mode) {
+    if (brush.bridge) return () => this.applyBridge(mode);
+    if (brush.join) return () => this.applyJoin();
+    if (brush.cliff) return () => this.applyCliffMarks(zone, mode, this.styleFor(brushKey), this.brushOptionValue(brushKey, 'foot'));
+    if (brush.creature) return () => this.applyCreatureBrush(brushKey, brush, zone, mode);
+    if (brush.fish) return () => this.applyFishBrush(brushKey, brush, zone, mode);
+    if (brush.crabs) return () => this.applyCrabBrush(zone, mode);
+    if (brush.spawn) return () => this.applySpawnCell(zone);
+    if (brush.erase) return () => this.applyEraser(zone);
+    if (brush.surface) return () => this.applyBeach(brushKey, zone, mode);
+    if (brush.height || brush.heights) return () => this.applyHeightDraft(brushKey, zone, mode);
+    return null;
   },
 
   dropCoconuts(palm, def, level) {
@@ -287,7 +222,7 @@ export default {
       const lift = layerLiftAt(this.layout, nx, nz, level);
       if (lift === null || Math.abs(lift - home) > COCONUT_MAX_STEP) return false;
       if (water !== null && lift < water) return false;
-      return !decorations.some((item) => item && item.cx === nx && item.cz === nz && (item.level || 0) === level);
+      return !decorations.some((item) => item && item.cx === nx && item.cz === nz && levelOfEntry(item) === level);
     });
     free.sort((a, b) => hash01(cx + a[0] * 3.1 + salt, cz + a[1] * 5.3) - hash01(cx + b[0] * 3.1 + salt, cz + b[1] * 5.3));
     const count = Math.min(free.length, wanted);
@@ -437,7 +372,7 @@ export default {
   applyFishBrush(brushKey, brush, zone, mode) {
     if (!this.layout.fish) this.layout.fish = [];
     const style = this.styleFor(brushKey);
-    const kind = brush.styles && brush.styles.includes(style) ? style : 'fish_blue';
+    const kind = brush.styles && brush.styles.includes(style) ? style : brush.style;
     const type = getFishType(kind);
     const level = Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
     let changed = 0;
@@ -452,14 +387,13 @@ export default {
       if (level === null) continue;
       const depth = level - layerLiftAt(this.layout, cx, cz);
       if (depth < FISH_SWIM_DEPTH) continue;
-      const roll = Math.abs(Math.sin(cx * 127.1 + cz * 311.7) * 43758.5453) % 1;
       this.layout.fish.push({
         cx,
         cz,
-        radius: Math.min(type.radius, 4),
+        radius: Math.min(type.radius, FISH_BRUSH_RADIUS),
         count: type.count,
         kind,
-        mode: roll < 0.35 ? 'orbit' : 'wander',
+        mode: hash01(cx * 127.1, cz * 311.7) < FISH_ORBIT_CHANCE ? 'orbit' : 'wander',
       });
       changed += 1;
     }
@@ -476,7 +410,7 @@ export default {
     for (const { cx, cz } of zone) {
       const key = cellKey(cx, cz);
       const before = this.layout.creatures.length;
-      this.layout.creatures = this.layout.creatures.filter((entry) => !entry || (entry.level || 0) !== level || cellKey(entry.cx, entry.cz) !== key);
+      this.layout.creatures = this.layout.creatures.filter((entry) => !entry || levelOfEntry(entry) !== level || cellKey(entry.cx, entry.cz) !== key);
       if (mode === 'remove') {
         if (this.layout.creatures.length !== before) changed += 1;
         continue;

@@ -3,6 +3,7 @@
 import { surfaceEntries } from '../data/catalogs/decorations.js';
 import { makeDraggable } from '../ui/draggable.js';
 import { formatMeters } from '../data/maps/layoutStore.js';
+import { cellWord } from './editorSettings.js';
 
 const SURFACES = surfaceEntries();
 const SURFACE_LABELS = new Map(SURFACES.map((entry) => [entry.key, entry.label]));
@@ -162,7 +163,7 @@ export default class AreaPanel {
       btn.classList.toggle('is-active', btn.dataset.tool === this.tool);
     }
     const n = this.countValue || 0;
-    const word = n === 1 ? 'buňka' : n < 5 ? 'buňky' : 'buněk';
+    const word = cellWord(n);
     let label;
     if (erasing) {
       label = `Smaže se: ${n} ${word}`;

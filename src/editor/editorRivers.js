@@ -2,10 +2,9 @@
 // Patří k MapEditor (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { formatMeters } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
+import { cellCount, MARK_COLORS } from './editorSettings.js';
 import { planRiver, riverPath, riverFalls, riverGround, riverRestore, riverCellKeys, splitRiver } from '../utils/riverPlan.js';
 
-const STROKE_ARROW_COLOR = [0.75, 1, 0.95];
-const RIVER_ARROW_COLOR = [0.35, 0.7, 1];
 
 function riverArrow(path, index, y, color) {
   if (path.length < 2) return [];
@@ -41,7 +40,7 @@ export default {
       this.hud.setReadout('Řeka potřebuje aspoň dvě buňky — táhni myší od pramene k ústí');
       return;
     }
-    this.hud.setReadout(`Návrh řeky: ${count} buněk · Aplikovat (Enter) ji postaví, Esc zahodí · z posledního políčka jde táhnout dál`);
+    this.hud.setReadout(`Návrh řeky: ${cellCount(count)} · Aplikovat (Enter) ji postaví, Esc zahodí · z posledního políčka jde táhnout dál`);
   },
 
   dropRiverStroke() {
@@ -83,13 +82,13 @@ export default {
     for (const river of this.mode.riverList()) {
       const path = river.cells || [];
       for (let index = 0; index < path.length; index += 2) {
-        arrows.push(...riverArrow(path, index, path[index][2], RIVER_ARROW_COLOR));
+        arrows.push(...riverArrow(path, index, path[index][2], MARK_COLORS.river));
       }
     }
     const stroke = this.riverStroke || [];
     for (let index = 0; index < stroke.length; index += 1) {
       const [cx, cz] = stroke[index];
-      arrows.push(...riverArrow(stroke, index, this.s.cellSurfaceAt(cx, cz), STROKE_ARROW_COLOR));
+      arrows.push(...riverArrow(stroke, index, this.s.cellSurfaceAt(cx, cz), MARK_COLORS.riverStroke));
     }
     grid.showArrows(arrows);
   },
@@ -139,7 +138,7 @@ export default {
     const standingText = plan.standing
       ? ` · pozor: na ${plan.standing} políčkách je terén níž než hladina u ústí, voda tam stojí nad zemí`
       : '';
-    this.hud.setReadout(`Řeka: ${cells.length} buněk · hladina z ${formatMeters(cells[0][2])} na ${formatMeters(cells[cells.length - 1][2])}${fallText}${redrawText}${standingText}`);
+    this.hud.setReadout(`Řeka: ${cellCount(cells.length)} · hladina z ${formatMeters(cells[0][2])} na ${formatMeters(cells[cells.length - 1][2])}${fallText}${redrawText}${standingText}`);
   },
 
   riverRedraw(stroke, present) {

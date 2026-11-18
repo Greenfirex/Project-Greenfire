@@ -4,12 +4,11 @@ import { PAINT_ALL } from '../data/catalogs/brushes.js';
 import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { CELL_SIZE, cellKey } from '../utils/gridMath.js';
 import { CAVE_OPEN_STEP, caveOpensInto, columnsByCell, dropDecorationCell, dropLayerCell, layerLiftAt, levelOfEntry, planeLevels } from '../data/maps/areaShape.js';
-import { SIDES } from './editorSettings.js';
+import { SIDES, parseCell } from './editorSettings.js';
 
 export const MIN_CLEARANCE = 3;
 export const MAX_CORRIDOR_STEP = 1;
 export const DEFAULT_CLEARANCE = 3;
-export const FLOOR_MARKS = { door: [0.25, 0.95, 0.5], thin: [1, 0.6, 0.15], problem: [1, 0.2, 0.2] };
 
 const CAVE_START_REACH = 1;
 
@@ -79,8 +78,11 @@ export default {
     if (!this.layout || level === 0) return;
     if (!this.layout.floorNames) this.layout.floorNames = {};
     const text = String(name || '').trim();
+    if ((this.layout.floorNames[level] || '') === text) return;
+    this.pushHistory([]);
     if (text) this.layout.floorNames[level] = text;
     else delete this.layout.floorNames[level];
+    this.repaint([]);
   },
 
   selectFloor(level) {
@@ -91,8 +93,7 @@ export default {
   },
 
   addFloor() {
-    const lowest = Math.min(0, ...this.floorExtra, ...planeLevels(this.layout));
-    const level = lowest - 1;
+    const level = this.lowestFloor() - 1;
     this.floorExtra.add(level);
     this.selectFloor(level);
     return level;
@@ -119,13 +120,32 @@ export default {
     return best;
   },
 
-  freeCaveLevel(wall, columns) {
-    const lowest = Math.min(0, ...this.floorExtra, ...planeLevels(this.layout));
+  lowestFloor() {
+    return Math.min(0, ...this.floorExtra, ...planeLevels(this.layout));
+  },
+
+  caveSpotTaken(wall, columns, level) {
     const cells = [[wall.cx, wall.cz], ...SIDES.map(([dx, dz]) => [wall.cx + dx, wall.cz + dz])];
+    return cells.some(([cx, cz]) => (columns.get(`${cx},${cz}`) || []).some((plane) => plane.level === level));
+  },
+
+  freeCaveLevel(wall, columns) {
+    const lowest = this.lowestFloor();
     for (let level = -1; level >= lowest; level -= 1) {
-      if (!cells.some(([cx, cz]) => (columns.get(`${cx},${cz}`) || []).some((plane) => plane.level === level))) return level;
+      if (!this.caveSpotTaken(wall, columns, level)) return level;
     }
     return lowest - 1;
+  },
+
+  setCaveTarget(target) {
+    this.caveTarget = target === 'new' || (Number.isInteger(target) && target < 0) ? target : 'auto';
+  },
+
+  caveTargetLevel(wall, columns) {
+    if (this.caveTarget === 'new') return this.lowestFloor() - 1;
+    const known = [...this.floorExtra, ...planeLevels(this.layout)];
+    if (Number.isInteger(this.caveTarget) && known.includes(this.caveTarget)) return this.caveTarget;
+    return this.freeCaveLevel(wall, columns);
   },
 
   caveStartAt(cell) {
@@ -134,7 +154,9 @@ export default {
     const wall = this.caveWallAt(cell, columns);
     if (!wall) return null;
     const missing = this.floorClearance - wall.wall;
-    return { ...wall, level: this.freeCaveLevel(wall, columns), missing: missing > 0 ? missing : 0 };
+    const level = this.caveTargetLevel(wall, columns);
+    const overlap = Number.isInteger(this.caveTarget) && this.caveSpotTaken(wall, columns, level);
+    return { ...wall, level, overlap, missing: missing > 0 ? missing : 0 };
   },
 
   beginCave(plan) {
@@ -173,7 +195,7 @@ export default {
     const clearance = Math.ceil(MIN_CLEARANCE / HEIGHT_STEP) * HEIGHT_STEP;
     this.pushHistory();
     for (const entry of low) entry.ceilY = (entry.liftY || 0) + clearance;
-    this.scheduleRegenerate(PAINT_ALL);
+    this.repaint(PAINT_ALL);
     return low.length;
   },
 
@@ -204,7 +226,7 @@ export default {
       return 0;
     }
     this.clearAreaSelection();
-    this.scheduleRegenerate(PAINT_ALL);
+    this.repaint(PAINT_ALL);
     return count;
   },
 
@@ -265,7 +287,7 @@ export default {
       this.layout.floor.push(entry);
     });
     this.clearAreaSelection();
-    this.scheduleRegenerate(PAINT_ALL);
+    this.repaint(PAINT_ALL);
     return cells.length;
   },
 
@@ -342,7 +364,7 @@ export default {
     let minZ = 0;
     let maxZ = 0;
     for (const id of columns.keys()) {
-      const [cx, cz] = id.split(',').map(Number);
+      const { cx, cz } = parseCell(id);
       minX = Math.min(minX, cx);
       maxX = Math.max(maxX, cx);
       minZ = Math.min(minZ, cz);

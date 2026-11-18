@@ -3,7 +3,8 @@
 import { surfaceEntries } from '../data/catalogs/decorations.js';
 import { formatMeters } from '../data/maps/layoutStore.js';
 import { makeDraggable } from '../ui/draggable.js';
-import { FLOOR_MARKS, MIN_CLEARANCE } from './editorFloors.js';
+import { MIN_CLEARANCE } from './editorFloors.js';
+import { countWord, cellWord, MARK_COLORS } from './editorSettings.js';
 
 export function floorName(level, name = null) {
   if (name) return name;
@@ -11,13 +12,7 @@ export function floorName(level, name = null) {
 }
 
 function edgeWord(n) {
-  if (n === 1) return 'hrana';
-  return n >= 2 && n <= 4 ? 'hrany' : 'hran';
-}
-
-function cellWord(n) {
-  if (n === 1) return 'buňka';
-  return n < 5 && n > 0 ? 'buňky' : 'buněk';
+  return countWord(n, 'hrana', 'hrany', 'hran');
 }
 
 export default class FloorPanel {
@@ -36,6 +31,7 @@ export default class FloorPanel {
     this.onRaise = null;
     this.onRename = null;
     this.onDelete = null;
+    this.onCaveTarget = null;
   }
 
   mount() {
@@ -49,6 +45,7 @@ export default class FloorPanel {
       </div>
       <div class="floor-panel__list"></div>
       <div class="area-panel__tools"><button type="button" class="floor-panel__add">Nové patro</button></div>
+      <label class="floor-panel__target" title="Do kterého patra se zapíše nová jeskyně začatá z útesu">Kopat do <select></select></label>
       <div class="floor-panel__dig">
         <div class="area-panel__tools">
           <button type="button" data-tool="paint">Vykopat</button>
@@ -106,6 +103,10 @@ export default class FloorPanel {
     for (const btn of root.querySelectorAll('[data-tool]')) {
       btn.addEventListener('click', () => this.onTool && this.onTool(btn.dataset.tool));
     }
+    root.querySelector('.floor-panel__target select').addEventListener('change', (event) => {
+      const value = event.target.value;
+      if (this.onCaveTarget) this.onCaveTarget(value === 'auto' || value === 'new' ? value : Number(value));
+    });
     for (const btn of root.querySelectorAll('[data-floor-step]')) {
       btn.addEventListener('click', () => this.onHeightStep && this.onHeightStep(Number(btn.dataset.floorStep)));
     }
@@ -131,6 +132,7 @@ export default class FloorPanel {
     this.renderList(view.floors, view.level);
     const underground = view.level < 0;
     root.querySelector('.floor-panel__dig').style.display = underground ? '' : 'none';
+    this.renderTarget(view.floors, view.caveTarget, !underground);
     const erasing = view.tool === 'erase';
     root.classList.toggle('is-erasing', erasing);
     for (const btn of root.querySelectorAll('[data-tool]')) btn.classList.toggle('is-active', btn.dataset.tool === view.tool);
@@ -186,6 +188,31 @@ export default class FloorPanel {
     }
   }
 
+  renderTarget(floors, target, visible) {
+    const label = this.root.querySelector('.floor-panel__target');
+    label.style.display = visible ? '' : 'none';
+    if (!visible) return;
+    const select = label.querySelector('select');
+    const choices = [
+      ['auto', 'Automaticky'],
+      ...floors.filter((floor) => floor.level < 0).map((floor) => [String(floor.level), floorName(floor.level, floor.name)]),
+      ['new', 'Nové patro'],
+    ];
+    const signature = JSON.stringify(choices);
+    if (select.dataset.choices !== signature) {
+      select.dataset.choices = signature;
+      select.textContent = '';
+      for (const [value, text] of choices) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = text;
+        select.appendChild(option);
+      }
+    }
+    const wanted = String(target);
+    select.value = choices.some(([value]) => value === wanted) ? wanted : 'auto';
+  }
+
   renderWarnings(report, edges) {
     const box = this.root.querySelector('.floor-panel__warnings');
     box.textContent = '';
@@ -202,13 +229,13 @@ export default class FloorPanel {
       line.append(text);
       box.appendChild(line);
     };
-    if (edges && edges.door) addLine(`Výběr: vznikne vchod (${edges.door} ${edgeWord(edges.door)})`, FLOOR_MARKS.door);
-    if (edges && edges.thin) addLine(`Výběr: prokopnutí ven (${edges.thin} ${edgeWord(edges.thin)})`, FLOOR_MARKS.thin);
-    if (edges && edges.pierced) addLine(`Výběr: strop prorazí povrch (${edges.pierced} ${cellWord(edges.pierced)})`, FLOOR_MARKS.problem);
-    if (report.doors.length) addLine(`Vchod: ${report.doors.length} ${cellWord(report.doors.length)}`, FLOOR_MARKS.door);
-    if (report.low.length) addLine(`Nízký strop (pod ${formatMeters(MIN_CLEARANCE)}): ${report.low.length} ${cellWord(report.low.length)}`, FLOOR_MARKS.problem);
-    if (report.steep.length) addLine(`Příliš strmá chodba: ${report.steep.length} ${cellWord(report.steep.length)}`, FLOOR_MARKS.problem);
-    if (report.pierced.length) addLine(`Strop prorazil povrch: ${report.pierced.length} ${cellWord(report.pierced.length)}`, FLOOR_MARKS.problem);
+    if (edges && edges.door) addLine(`Výběr: vznikne vchod (${edges.door} ${edgeWord(edges.door)})`, MARK_COLORS.door);
+    if (edges && edges.thin) addLine(`Výběr: prokopnutí ven (${edges.thin} ${edgeWord(edges.thin)})`, MARK_COLORS.thin);
+    if (edges && edges.pierced) addLine(`Výběr: strop prorazí povrch (${edges.pierced} ${cellWord(edges.pierced)})`, MARK_COLORS.problem);
+    if (report.doors.length) addLine(`Vchod: ${report.doors.length} ${cellWord(report.doors.length)}`, MARK_COLORS.door);
+    if (report.low.length) addLine(`Nízký strop (pod ${formatMeters(MIN_CLEARANCE)}): ${report.low.length} ${cellWord(report.low.length)}`, MARK_COLORS.problem);
+    if (report.steep.length) addLine(`Příliš strmá chodba: ${report.steep.length} ${cellWord(report.steep.length)}`, MARK_COLORS.problem);
+    if (report.pierced.length) addLine(`Strop prorazil povrch: ${report.pierced.length} ${cellWord(report.pierced.length)}`, MARK_COLORS.problem);
     if (report.sealed) addLine(report.sealed === 1 ? 'Jedna jeskyně nemá vchod' : `Jeskyní bez vchodu: ${report.sealed}`, null);
     if (report.low.length) {
       const raise = document.createElement('button');

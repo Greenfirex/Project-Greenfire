@@ -19,22 +19,27 @@ jiná mapa v kódu není.
 
 Tlačítko **Uložit mapu** zapíše změny přímo do souboru. Pomáhá s tím vývojový
 server přes `vite.mapSaver.js`. Když server neběží nebo jde o zabalenou hru,
-mapa se místo toho stáhne jako `map.json` a musí se do projektu položit ručně.
+mapa se místo toho stáhne jako `<mapa>-map.json`, musí se přejmenovat na `map.json`
+a položit do projektu ručně. Uložit jde i zkratkou **Ctrl+S**.
 Po uložení je potřeba mapu znovu načíst; vývojový server obvykle stránku obnoví sám.
 
 ## Ovládání
 
 - **Levé tlačítko a tažení** vybere obdélník buněk. Vracením myši se obdélník zmenšuje.
 - **Klik bez tažení** vybere jednu buňku.
-- **Pravé tlačítko bez tažení** odebere buňku nebo objekt.
-- **Pravé tlačení** otáčí kameru.
+- **Pravé tlačítko bez tažení** odebere buňku z návrhu nebo z označené plochy.
+  U jezera sníží hladinu, u řeky ji smaže, u mostu a spojnice zruší rozdělaný výběr.
+- **Pravé tažení** otáčí kameru.
 - **WASD / šipky** posouvají pohled, Shift zrychluje.
 - **Kolečko** zoomuje; v editoru jde oddálit víc než ve hře.
-- **Enter** potvrdí rozpracovanou zónu nebo označenou plochu.
-- **Esc** zahodí rozepsaný návrh nebo označenou plochu.
+- **Enter** potvrdí rozpracovanou zónu, návrh výšek nebo označenou plochu.
+- **Esc** zahodí rozepsaný návrh, návrh výšek nebo označenou plochu; další Esc
+  odvybere štětec.
 - **Z** vrací poslední krok, **X** zapíná a vypíná mazání.
 - **H** přepíná režim výšek, **Q** výšku sníží, **E** zvýší a číslice 1–9 ladí výšku.
 - **R** pootočí náhled sázeného objektu o 45°, **Shift+R** zpět (u palem určuje směr prohnutí).
+- **Shift+1–4** přepíná záložky Zóny, Výška, Herní plocha a Patra.
+- **N** posune denní dobu.
 - **F2** editor zavře, **P** pozastaví nebo pustí hru (stejně jako tlačítko **Pauza**).
 
 Hra pod editorem běží dál. Když ji v editoru pozastavíš, po zavření editoru
@@ -142,6 +147,15 @@ Razítko pro zakládání a přepisování země. Vybírá se podklad a výška;
 předem ukáže, kolik buněk se přepíše a kolik už v mapě je. Levá buňka přidává,
 pravá odebírá, mazání se zapíná v panelu.
 
+### Patra
+
+Novou jeskyni začneš na povrchu kliknutím na stěnu útesu, pak táhneš výběr do skály
+a dáš Aplikovat. Volba **Kopat do** v panelu Pater určí, do kterého patra se jeskyně
+zapíše: **Automaticky** vezme první patro, které je u toho útesu volné, jinak jde
+vybrat konkrétní patro nebo **Nové patro**. Když už ve vybraném patře u útesu
+jeskyně je, značka vchodu zoranžoví a nápověda upozorní, že se nová jeskyně s tou
+starou spojí. V podzemním patře se dál kope, zasypává a táhnou chodby.
+
 ## Voda
 
 Voda je jedna hladina pro celou mapu, uložená jako nepovinné číslo `waterLevel`.
@@ -206,10 +220,17 @@ jednou, až přepneš na jiný štětec nebo záložku nebo editor zavřeš.
 
 ## Kde editor bydlí
 
-- `mapEditor.js` — spojuje režim, panely, scénu a ukládání mapy,
-- `editorMode.js` — výběr, štětce, výšky, plocha, historie,
-- `editorHud.js` — hlavní panel editoru,
-- `brushPanel.js`, `areaPanel.js`, `heightPanel.js` — panely jednotlivých režimů,
+- `mapEditor.js` — spojuje režim, panely, scénu a ukládání mapy; jeho části
+  `editorLakes.js` a `editorRivers.js` kreslí jezera a řeky,
+- `editorMode.js` — stav editoru (režim, štětec, návrh); zápis do mapy dělají jeho části:
+  `editorBrushApply.js` (použití štětce), `editorLayoutEdits.js` (úpravy buněk),
+  `editorHeights.js` (výšky), `editorArea.js` (herní plocha), `editorFloors.js` (patra),
+  `editorJoinBridge.js` (spojnice a mosty), `editorHistory.js` (Zpět),
+  `editorQuery.js` (co je v buňce, otisk mapy),
+- `editorSettings.js` — čísla a pomocné výpočty společné pro víc částí,
+- `editorHud.js` — hlavní panel editoru, `editorToggle.js` — tlačítko v horní liště,
+- `brushPanel.js`, `areaPanel.js`, `heightPanel.js`, `floorPanel.js` — panely jednotlivých režimů,
+- `heightHologram.js`, `heightLabels.js`, `heightRamp.js` — náhled změny výšek a barvy výšek,
 - `creatureOverlay.js` — značky spawních míst a náhledy tvorů,
 - `src/data/catalogs/brushes.js` — definice štětců,
 - `src/data/catalogs/mapFile.js` — formát souboru mapy,

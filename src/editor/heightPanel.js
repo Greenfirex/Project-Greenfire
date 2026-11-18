@@ -3,6 +3,7 @@
 import { HEIGHT_PRESETS, HEIGHT_STEP, MAX_HEIGHT, MIN_HEIGHT } from '../data/maps/layoutStore.js';
 import { formatLevel, heightRampColor, heightRampGradientCss } from './heightRamp.js';
 import { makeDraggable } from '../ui/draggable.js';
+import { cellCount } from './editorSettings.js';
 
 function zeroRatio() {
   const span = MAX_HEIGHT - MIN_HEIGHT;
@@ -247,8 +248,7 @@ export default class HeightPanel {
     }
     this.refreshStaged();
     const n = this.countValue || 0;
-    const word = n === 1 ? 'buňka' : n < 5 ? 'buňky' : 'buněk';
-    if (this.count) this.count.textContent = `Vybráno: ${n} ${word}`;
+    if (this.count) this.count.textContent = `Vybráno: ${cellCount(n)}`;
     const apply = this.root.querySelector('.area-panel__apply');
     if (apply) apply.disabled = n === 0;
     const clear = this.root.querySelector('.area-panel__clear');

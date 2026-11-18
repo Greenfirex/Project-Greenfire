@@ -3,6 +3,7 @@
 import { brushOptions, getBrush } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { makeDraggable } from '../ui/draggable.js';
+import { cellWord, creatureWord } from './editorSettings.js';
 
 const STYLE_LABELS = { dirt: 'Hlína', stone: 'Kámen', wood: 'Dřevo', iron: 'Železo', copper: 'Měď' };
 
@@ -341,9 +342,7 @@ export default class BrushPanel {
     const n = this.countValue || 0;
     const brush = getBrush(this.brushKey);
     const creatureBrush = Boolean(brush && brush.creature);
-    const word = creatureBrush
-      ? (n === 1 ? 'tvor' : n < 5 ? 'tvoři' : 'tvorů')
-      : (n === 1 ? 'buňka' : n < 5 ? 'buňky' : 'buněk');
+    const word = creatureBrush ? creatureWord(n) : cellWord(n);
     const heightOnly = Boolean(brush && (Number.isFinite(brush.height) || brush.heights));
     const surfaceOnly = Boolean(brush && brush.surfaceOnly);
     const surfaceBrush = Boolean(brush && brush.surface);

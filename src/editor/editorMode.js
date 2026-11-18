@@ -4,11 +4,11 @@ import { BRUSHES, brushOptions, brushAboveGroundOnly, PAINT_ALL, PAINT_TERRAIN }
 import { getDecoration, DEFAULT_FLOOR } from '../data/catalogs/decorations.js';
 import { MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP, DEFAULT_HEIGHT_LEVEL } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
-import { PLANE_LAYERS, dropDecorationCell } from '../data/maps/areaShape.js';
+import { PLANE_LAYERS, dropDecorationCell, levelOfEntry } from '../data/maps/areaShape.js';
 import { riverRestore, riverCellKeys } from '../utils/riverPlan.js';
 import { fillZone } from '../utils/zoneFill.js';
 import { decoPlacement } from '../utils/decoPlacement.js';
-import { onSurface, toWorld, rectCells, bresenham } from './editorSettings.js';
+import { onSurface, toWorld, rectCells, bresenham, parseCell } from './editorSettings.js';
 import editorHistoryParts from './editorHistory.js';
 import editorLayoutEditsParts from './editorLayoutEdits.js';
 import editorHeightsParts from './editorHeights.js';
@@ -65,6 +65,7 @@ export default class EditorMode {
     this.floorClearance = DEFAULT_CLEARANCE;
     this.floorExtra = new Set();
     this.floorDragShift = [0, 0];
+    this.caveTarget = 'auto';
     this.areaTool = 'paint';
     this.areaSurface = DEFAULT_FLOOR;
     this.areaSelection = null;
@@ -79,6 +80,11 @@ export default class EditorMode {
     this.onChange = null;
     this.onModeChange = null;
     this.onHeightChange = null;
+    this.onBrushChange = null;
+    this.onHeightBrushChange = null;
+    this.onHeightStepChange = null;
+    this.onHeightJitterChange = null;
+    this.onHeightNeighborsChange = null;
     this.onDraftChange = null;
     this.onHeightDraftChange = null;
     this.onHeightsChange = null;
@@ -134,7 +140,7 @@ export default class EditorMode {
     if (!this.layout) return;
     this.pushHistory(PAINT_ALL);
     for (const [key, height] of restore) {
-      const [cx, cz] = key.split(',').map(Number);
+      const { cx, cz } = parseCell(key);
       if (height > this.cellHeightValue(cx, cz)) this.setCellHeight(cx, cz, height);
     }
     for (const { cx, cz, height } of carve) {
@@ -144,7 +150,7 @@ export default class EditorMode {
       this.setCellHeight(cx, cz, height);
     }
     this.layout.rivers = rivers;
-    this.scheduleRegenerate(PAINT_ALL);
+    this.repaint(PAINT_ALL);
   }
 
   removeRiver(index) {
@@ -360,11 +366,6 @@ export default class EditorMode {
     }
   }
 
-  useLayout(world) {
-    if (!world) return;
-    this.restoreLayout(world);
-  }
-
   brushHeight(brushKey) {
     const brush = BRUSHES[brushKey];
     if (!brush) return 0;
@@ -461,26 +462,25 @@ export default class EditorMode {
   setDraftMode(mode) {
     if (this.isEraserBrush) return;
     const next = mode === 'remove' ? 'remove' : 'add';
-    if (this.erasing === (next === 'remove')) {
-      if (this.draft && this.draft.mode !== next) {
-        this.draft.mode = next;
-        this.resetDraftDrag();
-        this.resetJoin();
-        this.resetBridge();
-        this.draft.cells.clear();
-        if (this.onDraftChange) this.onDraftChange(this.draft);
-      }
-      return;
-    }
+    const changed = this.erasing !== (next === 'remove');
     this.erasing = next === 'remove';
-    if (this.draft) {
-      this.draft.mode = next;
-      this.resetDraftDrag();
-      this.resetJoin();
-      this.resetBridge();
-      this.draft.cells.clear();
-      if (this.onDraftChange) this.onDraftChange(this.draft);
-    }
+    if (!this.draft || (!changed && this.draft.mode === next)) return;
+    this.draft.mode = next;
+    this.clearDraft();
+  }
+
+  get draftStarted() {
+    return Boolean(this.draft && (this.draft.cells.size || this.joinTop || this.bridgeTop));
+  }
+
+  clearDraft() {
+    if (!this.draft) return false;
+    this.resetDraftDrag();
+    this.resetJoin();
+    this.resetBridge();
+    this.draft.cells.clear();
+    if (this.onDraftChange) this.onDraftChange(this.draft);
+    return true;
   }
 
   get hasDraft() {
@@ -497,7 +497,7 @@ export default class EditorMode {
       const painting = BRUSHES[this.draft.brushKey];
       if (!painting || !(painting.deco || painting.creature || painting.surfaceOnly)) return false;
       if (this.draft.mode !== 'remove' || painting.surfaceOnly) return this.floorEntries(this.paintLevel).some((entry) => entry.cx === cx && entry.cz === cz);
-      return (this.layout[painting.creature ? 'creatures' : 'decorations'] || []).some((entry) => entry && entry.cx === cx && entry.cz === cz && (entry.level || 0) === this.paintLevel);
+      return (this.layout[painting.creature ? 'creatures' : 'decorations'] || []).some((entry) => entry && entry.cx === cx && entry.cz === cz && levelOfEntry(entry) === this.paintLevel);
     }
     if (this.draft.mode === 'remove') {
       const brush = BRUSHES[this.draft.brushKey];
@@ -649,10 +649,6 @@ export default class EditorMode {
     return this.heightDraft ? this.heightDraft.size : 0;
   }
 
-  scheduleRegenerate(parts) {
-    this.repaint(parts);
-  }
-
   repaint(parts) {
     this.commitHistory();
     this.contentIndex = null;
@@ -664,10 +660,6 @@ export default class EditorMode {
     this.layout = toWorld(next);
     this.contentIndex = null;
     this.presentCache = null;
-  }
-
-  regenerate() {
-    this.repaint();
   }
 }
 

@@ -2,10 +2,9 @@
 // Patří k EditorMode (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { BRUSHES } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
-import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { cellKey, cellToWorld } from '../utils/gridMath.js';
 import { nestSpots, guardedNest } from '../utils/nestGuard.js';
-import { PLANE_LAYERS, ENTRY_LAYERS, layerAt, levelOfEntry, worldCells } from '../data/maps/areaShape.js';
+import { PLANE_LAYERS, ENTRY_LAYERS, levelOfEntry, worldCells } from '../data/maps/areaShape.js';
 import { getCreatureType, getCreatureTier, creatureStat } from '../data/catalogs/creatures/index.js';
 
 function hashText(text) {
@@ -41,7 +40,7 @@ export default {
     }
     const spawn = this.spawnCell();
     const water = this.layout && Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
-    const bodies = JSON.stringify([(this.layout && this.layout.lakes) || [], (this.layout && this.layout.rivers) || []]);
+    const bodies = JSON.stringify([(this.layout && this.layout.lakes) || [], (this.layout && this.layout.rivers) || [], (this.layout && this.layout.connectors) || []]);
     const head = `${count}|${sum}|${spawn ? `${spawn.cx},${spawn.cz}` : '-'}|${water}|${bodies}|${this.layout ? this.layout.seed : ''}|${JSON.stringify((this.layout && this.layout.floorNames) || {})}`;
     return hashText(head);
   },
@@ -137,22 +136,10 @@ export default {
   },
 
   describeAt(cx, cz) {
-    const layer = layerAt(this.layout, cx, cz);
     const entry = this.topEntryAt(cx, cz);
-    const layerEntry = this.layerTileAt(cx, cz);
-    const decorations = this.decorationsAt(cx, cz);
-    const level = entry && Number.isFinite(entry.liftY) ? Math.round(entry.liftY / HEIGHT_STEP) : 0;
     return {
-      brush: layer,
-      entry,
-      layerEntry,
-      decorations,
-      height: level || null,
-      override: entry,
-      isPath: layer === 'path',
-      style: layer === 'path' ? (entry && entry.style ? entry.style : this.styleFor(this.brushKey)) : null,
-      pool: this.brushPool(this.brushKey),
-      key: cellKey(cx, cz),
+      layerEntry: this.layerTileAt(cx, cz),
+      decorations: this.decorationsAt(cx, cz),
       liftY: entry && entry.liftY ? entry.liftY : 0,
       creature: this.creatureInfoAt(cx, cz),
     };

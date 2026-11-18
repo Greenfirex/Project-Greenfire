@@ -1,18 +1,19 @@
 // Část editoru: výšky — tvary kopců a prohlubní, pláž, a rozpracovaný výběr v režimu Výška.
 // Patří k EditorMode (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { BRUSHES } from '../data/catalogs/brushes.js';
-import { MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP } from '../data/maps/layoutStore.js';
+import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
 import { floorCellAt, layerLiftAt } from '../data/maps/areaShape.js';
 import { hash01, valueNoise } from '../utils/noise.js';
-import { SIDES, parseCell } from './editorSettings.js';
+import { SIDES, AROUND, parseCell, clampLevel } from './editorSettings.js';
 
 const ROUGH_SKIP = 0.32;
-const AROUND = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+const HEIGHT_BRUSH_MAX = 3;
+const HEIGHT_JITTER_MAX = 2;
 
 export default {
   setHeightLevel(level) {
-    const n = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, Math.round(Number(level))));
+    const n = clampLevel(Math.round(Number(level)));
     if (!Number.isFinite(n)) return;
     this.heightLevel = n;
     if (this.onHeightChange) this.onHeightChange(n);
@@ -23,7 +24,7 @@ export default {
   },
 
   setHeightBrushSize(size) {
-    const value = Math.max(0, Math.min(3, Math.round(Number(size) || 0)));
+    const value = Math.max(0, Math.min(HEIGHT_BRUSH_MAX, Math.round(Number(size) || 0)));
     if (value === this.heightBrushSize) return;
     this.heightBrushSize = value;
     if (this.onHeightBrushChange) this.onHeightBrushChange(value);
@@ -37,7 +38,7 @@ export default {
   },
 
   setHeightJitter(value) {
-    const next = Math.max(0, Math.min(2, Math.round(Number(value) || 0)));
+    const next = Math.max(0, Math.min(HEIGHT_JITTER_MAX, Math.round(Number(value) || 0)));
     if (next === this.heightJitter) return;
     this.heightJitter = next;
     if (this.onHeightJitterChange) this.onHeightJitterChange(next);
@@ -62,13 +63,13 @@ export default {
       count += 1;
     }
     const meters = count ? sum / count : this.cellHeightValue(cx, cz);
-    return Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, Math.round(meters / HEIGHT_STEP)));
+    return clampLevel(Math.round(meters / HEIGHT_STEP));
   },
 
   refreshAutoHeights() {
     if (!this.heightDraft) return;
     for (const key of this.heightAuto) {
-      const [cx, cz] = key.split(',').map(Number);
+      const { cx, cz } = parseCell(key);
       this.heightDraft.set(key, this.neighborHeightLevel(cx, cz));
     }
   },
@@ -270,12 +271,12 @@ export default {
     const jitter = this.heightJitter || 0;
     if (!jitter) return base;
     const offset = Math.round((hash01(cx * 7.31 + 3.7, cz * 5.13 - 1.9) * 2 - 1) * jitter);
-    return Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, base + offset));
+    return clampLevel(base + offset);
   },
 
   strokeHeightLevel() {
     const level = this.heightLevel + this.heightStepSign * this.heightStrokeStep;
-    return Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, level));
+    return clampLevel(level);
   },
 
   unmarkHeightCell(cx, cz) {
@@ -302,7 +303,7 @@ export default {
     if (!this.heightDraft || !this.heightDraft.size) return [];
     const groups = new Map();
     for (const [key, level] of this.heightDraft) {
-      const [cx, cz] = key.split(',').map(Number);
+      const { cx, cz } = parseCell(key);
       if (!groups.has(level)) groups.set(level, []);
       groups.get(level).push([cx, cz]);
     }
@@ -317,7 +318,7 @@ export default {
     let count = 0;
     const touched = [];
     for (const [key, level] of this.heightDraft) {
-      const [cx, cz] = key.split(',').map(Number);
+      const { cx, cz } = parseCell(key);
       const value = Number.isFinite(level) ? level : this.heightLevel;
       this.setCellHeight(cx, cz, value * HEIGHT_STEP);
       touched.push([cx, cz]);
@@ -337,7 +338,7 @@ export default {
       }
     }
     for (const key of seen) {
-      const [cx, cz] = key.split(',').map(Number);
+      const { cx, cz } = parseCell(key);
       const floor = floorCellAt(this.layout, cx, cz);
       if (!floor || floor.cliff !== true) continue;
       const height = floor.liftY || 0;

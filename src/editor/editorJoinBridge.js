@@ -1,13 +1,16 @@
 // Část editoru: spojnice mezi výškami a skalní mosty — výběr dvou bodů a jejich zapsání do mapy.
 // Patří k EditorMode (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
-import { MIN_HEIGHT, MAX_HEIGHT, HEIGHT_STEP } from '../data/maps/layoutStore.js';
+import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';
 import { bridgeSpan, bridgeCells } from '../utils/bridgeShape.js';
-import { parseCell, bresenham } from './editorSettings.js';
+import { parseCell, bresenham, clampLevel } from './editorSettings.js';
+
+const BRIDGE_MIN_GAP = 0.8;
+const BRIDGE_MAX_BANK_STEP = 3;
 
 function joinMeters(topMeters, bottomMeters, index, steps) {
   const raw = topMeters + (bottomMeters - topMeters) * (index / steps);
-  const level = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, Math.round(raw / HEIGHT_STEP)));
+  const level = clampLevel(Math.round(raw / HEIGHT_STEP));
   return level * HEIGHT_STEP;
 }
 
@@ -86,8 +89,7 @@ export default {
   },
 
   bridgeWidth() {
-    const value = Number(this.brushOptionValue(this.brushKey, 'width'));
-    return Number.isFinite(value) ? Math.max(1, Math.min(5, Math.round(value))) : 3;
+    return Math.round(Number(this.brushOptionValue(this.brushKey, 'width')));
   },
 
   bridgeAt(cx, cz) {
@@ -168,8 +170,8 @@ export default {
       if (isBank) bankLow = Math.min(bankLow, value);
       else gapHigh = Math.max(gapHigh, value);
     }
-    if (!(bankLow > gapHigh + 0.8)) return false;
-    if (!Number.isFinite(toHeight) || Math.abs(top.height - toHeight) > 3) return false;
+    if (!(bankLow > gapHigh + BRIDGE_MIN_GAP)) return false;
+    if (!Number.isFinite(toHeight) || Math.abs(top.height - toHeight) > BRIDGE_MAX_BANK_STEP) return false;
     if (this.bridgeOverlaps(cells)) return false;
     this.pendingBridge = { ...record, toHeight };
     this.bridgeInfo = {
@@ -208,18 +210,8 @@ export default {
     return 1;
   },
 
-  applyJoin(mode) {
-    if (!this.layout || !this.draft) return 0;
-    if (mode === 'remove') {
-      let count = 0;
-      for (const key of this.draft.cells) {
-        const { cx, cz } = parseCell(key);
-        this.setCellHeight(cx, cz, 0);
-        count += 1;
-      }
-      return count;
-    }
-    if (!this.joinHeights) return 0;
+  applyJoin() {
+    if (!this.layout || !this.draft || !this.joinHeights) return 0;
     let count = 0;
     for (const [key, meters] of this.joinHeights) {
       const { cx, cz } = parseCell(key);
