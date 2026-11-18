@@ -6,6 +6,7 @@ import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { rockRoot } from '../../utils/rockFactory.js';
 import { DOOR_OPEN_HALF, DOOR_OPEN_HEIGHT } from '../../data/maps/areaShape.js';
+import { CLIFF_STONE_MAX_OUT } from './terrainSettings.js';
 
 const SIDE_STONES = [
   { key: 'boulder_large_c', scale: 0.75 },
@@ -21,18 +22,16 @@ const TOP_STONES = [
 const FOOT_STONE = { key: 'boulder_small', scale: 0.55 };
 const ARCH_STONE = { key: 'boulder_small', scale: 0.6 };
 const ARCH_ANGLES = [0.3, 0.75, 1.15];
-const SIDE_OUT = 0.15;
 const STACK_OVERLAP = 0.8;
 const STACK_LIMIT = 8;
 const SINK = 0.08;
 const TOP_MARGIN = 0.3;
-const TOP_OUT = 0.12;
 const TOP_SPACING = 0.4;
 const TOP_REACH = 0.8;
 const TOP_ROW = 0.35;
-const FOOT_OUT = 0.45;
 const SCALE_JITTER = 0.15;
 const PLACE_JITTER = 0.08;
+const EDGE_SALT = 21;
 
 function hash(...values) {
   let h = 2166136261;
@@ -41,6 +40,10 @@ function hash(...values) {
     h = Math.imul(h, 16777619);
   }
   return ((h >>> 0) % 65536) / 65536;
+}
+
+function flushOut(stone, scale) {
+  return CLIFF_STONE_MAX_OUT - stone.half * scale;
 }
 
 export default class CaveFrameSystem {
@@ -95,7 +98,7 @@ export default class CaveFrameSystem {
         const stone = this.stoneFor(door, spec.key);
         if (!stone) return;
         const scale = this.scaleOf(spec, door, across, index);
-        this.put(stone, door, across, TOP_OUT, y, scale, index + 100);
+        this.put(stone, door, across, flushOut(stone, scale), y, scale, index + 100);
         index += 1;
       }
     }
@@ -110,7 +113,7 @@ export default class CaveFrameSystem {
         const reach = DOOR_OPEN_HALF + stone.half * scale;
         const across = side * reach * Math.cos(angle);
         const y = openTop - DOOR_OPEN_HALF + reach * Math.sin(angle) - (stone.height * scale) / 2;
-        this.put(stone, door, across, TOP_OUT, y, scale, side * (60 + index));
+        this.put(stone, door, across, flushOut(stone, scale), y, scale, side * (60 + index));
       });
     }
   }
@@ -120,22 +123,29 @@ export default class CaveFrameSystem {
   }
 
   frameSide(door, side, base) {
-    let y = base - SINK;
     const top = door.top - TOP_MARGIN;
-    for (let index = 0; index < STACK_LIMIT && y < top; index += 1) {
-      const spec = SIDE_STONES[index % SIDE_STONES.length];
-      const stone = this.stoneFor(door, spec.key);
-      if (!stone) return;
-      const scale = this.scaleOf(spec, door, side, index);
-      const across = side * (DOOR_OPEN_HALF + stone.half * scale + hash(door.cx, door.cz, side, index, 2) * PLACE_JITTER);
-      const out = SIDE_OUT + (hash(door.cx, door.cz, side, index, 3) - 0.5) * PLACE_JITTER * 2;
-      this.put(stone, door, across, out, y, scale, index + side * 10);
-      y += stone.height * scale * STACK_OVERLAP;
-    }
+    this.stackSide(door, side, base, top, 0, (stone, scale, index) => (
+      DOOR_OPEN_HALF + stone.half * scale + hash(door.cx, door.cz, side, index, 2) * PLACE_JITTER
+    ));
+    this.stackSide(door, side, base, top, EDGE_SALT, () => CELL_SIZE / 2);
     const foot = this.stoneFor(door, FOOT_STONE.key);
     if (!foot) return;
     const footScale = this.scaleOf(FOOT_STONE, door, side, 50);
-    this.put(foot, door, side * (DOOR_OPEN_HALF + foot.half * footScale), FOOT_OUT, base - SINK, footScale, side * 50);
+    this.put(foot, door, side * (DOOR_OPEN_HALF + foot.half * footScale), flushOut(foot, footScale), base - SINK, footScale, side * 50);
+  }
+
+  stackSide(door, side, base, top, salt, reachOf) {
+    let y = base - SINK;
+    for (let index = 0; index < STACK_LIMIT && y < top; index += 1) {
+      const spec = SIDE_STONES[(index + salt) % SIDE_STONES.length];
+      const stone = this.stoneFor(door, spec.key);
+      if (!stone) return;
+      const scale = this.scaleOf(spec, door, side, index + salt);
+      const across = side * reachOf(stone, scale, index);
+      const out = flushOut(stone, scale) + (hash(door.cx, door.cz, side, index + salt, 3) - 1) * PLACE_JITTER;
+      this.put(stone, door, across, out, y, scale, index + salt + side * 10);
+      y += stone.height * scale * STACK_OVERLAP;
+    }
   }
 
   scaleOf(spec, door, salt, index) {

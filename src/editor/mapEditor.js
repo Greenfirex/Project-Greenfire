@@ -19,6 +19,7 @@ import { BRUSHES, brushAboveGroundOnly } from '../data/catalogs/brushes.js';
 import { CELL_SIZE } from '../utils/gridMath.js';
 import { SIDES, MARK_COLORS, cellCount, creatureWord, parseCell } from './editorSettings.js';
 import { ENTRY_LAYERS } from '../data/maps/areaShape.js';
+import { nextDoorFrame } from './editorFloors.js';
 import { NO_FLOOR_PICK_HEIGHT } from '../scenes/sceneSettings.js';
 import editorLakesParts from './editorLakes.js';
 import editorRiversParts from './editorRivers.js';
@@ -31,7 +32,9 @@ const SHAPING_MODES = ['height', 'area', 'floors'];
 
 const ZONE = Object.fromEntries(Object.entries(MARK_COLORS).map(([name, rgb]) => [name, Color3.FromArray(rgb)]));
 
-const NO_BRUSH_HINT ='Vyber štětec v paletě — teprve pak jde do mapy kreslit';
+const FRAME_NAMES = { stone: 'kamenný', dirt: 'hliněný' };
+
+const NO_BRUSH_HINT = 'Vyber štětec v paletě — teprve pak jde do mapy kreslit';
 
 export default class MapEditor {
 
@@ -327,8 +330,14 @@ export default class MapEditor {
       this.s.tooltipPanel.show('Povrch', 'Najeď na stěnu útesu a klikni — začneš kopat jeskyni');
       return;
     }
-    const color = plan.missing ? MARK_COLORS.problem : plan.overlap ? MARK_COLORS.thin : MARK_COLORS.door;
+    const door = this.doorAtPlan(plan);
+    const color = door ? MARK_COLORS.door : plan.missing ? MARK_COLORS.problem : plan.overlap ? MARK_COLORS.thin : MARK_COLORS.door;
     this.s.gridSystem.showEdges([{ cx: plan.cx, cz: plan.cz, dx: plan.dx, dz: plan.dz, y: plan.floor, color }]);
+    if (door) {
+      const next = frameLabel(nextDoorFrame(door.frameStyle), door.autoStyle);
+      this.s.tooltipPanel.show('Vchod do jeskyně', `Rám: ${frameLabel(door.frameStyle, door.autoStyle)} · klikni → ${next}`);
+      return;
+    }
     if (plan.missing) {
       this.s.tooltipPanel.show('Sem jeskyně nepůjde', `Útes je moc nízký, chybí ${formatMeters(plan.missing)}`);
       return;
@@ -343,10 +352,26 @@ export default class MapEditor {
     return floorName(level, names[level]);
   }
 
+  doorAtPlan(plan) {
+    if (!plan) return null;
+    return this.s.terrainSystem.caveDoors().find((door) => (
+      door.cx === plan.cx && door.cz === plan.cz && door.dx === plan.dx && door.dz === plan.dz
+    )) || null;
+  }
+
   startCave(cell) {
     const plan = this.mode.caveStartAt(cell);
     if (!plan) {
       this.hud.setReadout('Klikni na stěnu útesu, tam začne vchod do jeskyně');
+      return;
+    }
+    const door = this.doorAtPlan(plan);
+    if (door) {
+      const next = this.mode.cycleDoorFrame(door);
+      if (next === undefined) return;
+      this.refreshUndoButton();
+      this.hud.setReadout(`Rám vchodu: ${frameLabel(next, door.autoStyle)}`);
+      this.s.handleHover(this.s.hoverCell);
       return;
     }
     if (plan.missing) {
@@ -1384,6 +1409,11 @@ export default class MapEditor {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+}
+
+function frameLabel(style, autoStyle) {
+  if (!style) return `podle útesu (${FRAME_NAMES[autoStyle] || autoStyle})`;
+  return FRAME_NAMES[style] || style;
 }
 
 function entryLabel(entry) {

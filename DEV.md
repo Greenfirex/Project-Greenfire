@@ -194,8 +194,10 @@ boky, stěny jeskyní a stropy (`terrainMass.js`, `runVolume.js`).
   Mají texturu stěny, mech na vršcích přidává `cliffMossPlugin.js`. Modely `cliff_stone_*`
   z tmavé sady vypadaly na stěně hůř, proto se obklad vrátil k receptům (modely jsou teď tmavé
   volné kameny). Kameny rámů jeskyní jsou
-  modely `boulder_*`; tvar a reliéf mají z modelu, barvu, texturu a světlo stejné jako stěna
-  (`cliffStonePlugin.js`, textura promítnutá podle polohy ve světě). Obklad stíny nevrhá, jen přijímá. Pod kusy zůstává celá stěna, takže
+  modely `boulder_*`; tvar mají z modelu, barvu, texturu a světlo stejné jako stěna
+  (`cliffStonePlugin.js`, textura promítnutá podle polohy ve světě). Rámy navíc dostanou
+  reliéf stěny (její mapa nerovností promítnutá ze tří stran) a kolísání odstínu jako
+  stěna (`wallTint` v `terrainMass.js`), aby splynuly se skálou; obklad útesů ne. Obklad stíny nevrhá, jen přijímá. Pod kusy zůstává celá stěna, takže
   nevznikají díry. Seznam stran dává `terrainMass.cliffFaces()`; strana nad vchodem
   dostane jen řadu nad otvorem. Kusy u volného konce stěny se zúží a přitisknou, na
   vnějším rohu stojí menší zapuštěný kus (jinak převisy). Horní řada má občas mech
@@ -245,6 +247,11 @@ vhodná pro jiné vnitřky, třeba dům, přes registr `src/data/catalogs/maps.j
   postava procházela kameny. Kameny rámu vrhají stín (bez nich svítil dovnitř pravoúhlý
   stín díry ve skále). Horní část otvoru tvoří oblouk z menších kamenů (půlkruh o poloměru půlky otvoru), aby nebyl hranatý;
   sedí nad výškou postavy.
+- Kameny rámu jsou zapuštěné do skály: přední hrana každého končí `CLIFF_STONE_MAX_OUT`
+  před stěnou, stejně daleko jako obklad útesu, zbytek kamene je ve skále.
+- Hlína nebo kámen rámu: podle útesu nad jeskyní a vedle vchodu (`cliffStyleAt`),
+  v editoru jde přepsat kliknutím na vchod (Patra, povrch). Volba se ukládá jako
+  `frameStyle` u buňky jeskyně za vchodem (`doorFrameStyleOf` v `areaShape.js`).
 
 **Hotovo:** data a dotazy, geometrie (podlahy, stropy, stěny, šachty, vchody),
 pohyb hráče po patrech i přes spoj, tma v jeskyni a jeskynní zvuk. Jeskyně nemá

@@ -156,6 +156,10 @@ vybrat konkrétní patro nebo **Nové patro**. Když už ve vybraném patře u �
 jeskyně je, značka vchodu zoranžoví a nápověda upozorní, že se nová jeskyně s tou
 starou spojí. V podzemním patře se dál kope, zasypává a táhnou chodby.
 
+Klik na **existující vchod** (na povrchu) přepíná jeho kamenný rám: Podle útesu →
+Kamenný → Hliněný. Nápověda u kurzoru ukáže, jaký rám je teď a na jaký se přepne.
+Volba se ukládá s mapou a jde vrátit klávesou Z.
+
 ## Voda
 
 Voda je jedna hladina pro celou mapu, uložená jako nepovinné číslo `waterLevel`.

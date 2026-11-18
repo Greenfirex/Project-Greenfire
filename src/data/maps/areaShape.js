@@ -8,6 +8,10 @@ export const DOOR_OPEN_HALF = 0.5;
 export const DOOR_OPEN_HEIGHT = 2.3;
 export const DOOR_WALK_HALF = 0.2;
 export const DOOR_FRAME_DEPTH = 0.6;
+export const DOOR_FRAME_STYLES = ['stone', 'dirt'];
+export function doorFrameStyleOf(entry) {
+  return entry && DOOR_FRAME_STYLES.includes(entry.frameStyle) ? entry.frameStyle : null;
+}
 export function caveOpensInto(plane, caveFloor) {
   const walkable = plane.level === 0 || (plane.level < 0 && Number.isFinite(plane.ceil));
   return walkable && Math.abs(caveFloor - plane.lift) <= CAVE_OPEN_STEP;

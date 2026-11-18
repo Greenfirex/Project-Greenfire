@@ -2,7 +2,7 @@
 // Patří k TerrainSystem (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { DOOR_LINTEL_DEPTH } from './runVolume.js';
-import { columnsByCell, layerLiftAt, floorCellAt, caveOpensInto } from '../../data/maps/areaShape.js';
+import { columnsByCell, layerLiftAt, floorCellAt, caveOpensInto, doorFrameStyleOf } from '../../data/maps/areaShape.js';
 
 const OUTER_LIGHT_CELLS = 6;
 const INNER_LIGHT_CELLS = 3;
@@ -181,9 +181,16 @@ export default {
       const cave = (columns.get(`${inside.cx},${inside.cz}`) || []).find((plane) => plane.level === levelOf(inside));
       const ground = (columns.get(`${outside.cx},${outside.cz}`) || []).find((plane) => plane.level === levelOf(outside));
       if (!cave || !ground || !Number.isFinite(cave.ceil)) continue;
-      const flanks = [[outside.cx - dz, outside.cz + dx], [outside.cx + dz, outside.cz - dx]];
-      const style = flanks.map(([cx, cz]) => (this.field ? this.field.cliffStyleAt(cx, cz) : null)).find(Boolean) || 'dirt';
-      doors.set(doorId(inside.cx, inside.cz, dx, dz), { cx: inside.cx, cz: inside.cz, dx, dz, level: levelOf(inside), otherLevel: levelOf(outside), floor: cave.lift, top: cave.ceil - DOOR_LINTEL_DEPTH, ground: ground.lift, style });
+      const rocks = [
+        [inside.cx, inside.cz],
+        [inside.cx - dz, inside.cz + dx],
+        [inside.cx + dz, inside.cz - dx],
+        [outside.cx - dz, outside.cz + dx],
+        [outside.cx + dz, outside.cz - dx],
+      ];
+      const autoStyle = rocks.map(([cx, cz]) => (this.field ? this.field.cliffStyleAt(cx, cz) : null)).find(Boolean) || 'dirt';
+      const frameStyle = doorFrameStyleOf(floorCellAt(this.layout || {}, inside.cx, inside.cz, levelOf(inside)));
+      doors.set(doorId(inside.cx, inside.cz, dx, dz), { cx: inside.cx, cz: inside.cz, dx, dz, level: levelOf(inside), otherLevel: levelOf(outside), floor: cave.lift, top: cave.ceil - DOOR_LINTEL_DEPTH, ground: ground.lift, style: frameStyle || autoStyle, autoStyle, frameStyle });
     }
     return [...doors.values()].map((door) => ({
       ...door,

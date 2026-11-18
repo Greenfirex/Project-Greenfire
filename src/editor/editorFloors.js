@@ -1,9 +1,9 @@
 // Část editoru: patra — výběr patra, vykopání a zasypání jeskyně a kontrola, jestli je použitelná.
 // Patří k EditorMode (sdílí jeho this); výběr buněk tažením si půjčuje od Herní plochy.
-import { PAINT_ALL } from '../data/catalogs/brushes.js';
+import { PAINT_ALL, PAINT_TERRAIN } from '../data/catalogs/brushes.js';
 import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { CELL_SIZE, cellKey } from '../utils/gridMath.js';
-import { CAVE_OPEN_STEP, caveOpensInto, columnsByCell, dropDecorationCell, dropLayerCell, layerLiftAt, levelOfEntry, planeLevels } from '../data/maps/areaShape.js';
+import { CAVE_OPEN_STEP, DOOR_FRAME_STYLES, caveOpensInto, columnsByCell, doorFrameStyleOf, dropDecorationCell, dropLayerCell, floorCellAt, layerLiftAt, levelOfEntry, planeLevels } from '../data/maps/areaShape.js';
 import { SIDES, parseCell } from './editorSettings.js';
 
 export const MIN_CLEARANCE = 3;
@@ -28,6 +28,11 @@ export function corridorCells(fromX, fromZ, toX, toZ) {
   const walkZ = () => { while (z !== toZ) { z += Math.sign(toZ - z); cells.push([x, z]); } };
   if (Math.abs(toX - fromX) >= Math.abs(toZ - fromZ)) { walkX(); walkZ(); } else { walkZ(); walkX(); }
   return cells;
+}
+
+export function nextDoorFrame(current) {
+  const order = [null, ...DOOR_FRAME_STYLES];
+  return order[(order.indexOf(current || null) + 1) % order.length];
 }
 
 function levelOfEnd(end) {
@@ -135,6 +140,17 @@ export default {
       if (!this.caveSpotTaken(wall, columns, level)) return level;
     }
     return lowest - 1;
+  },
+
+  cycleDoorFrame(door) {
+    const entry = this.layout ? floorCellAt(this.layout, door.cx, door.cz, door.level) : null;
+    if (!entry) return undefined;
+    const next = nextDoorFrame(doorFrameStyleOf(entry));
+    this.pushHistory([PAINT_TERRAIN]);
+    if (next) entry.frameStyle = next;
+    else delete entry.frameStyle;
+    this.repaint([PAINT_TERRAIN]);
+    return next;
   },
 
   setCaveTarget(target) {
