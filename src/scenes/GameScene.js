@@ -957,7 +957,6 @@ export default class GameScene {
   refreshCaveLighting() {
     if (!this.terrainSystem) return;
     this.caveDressSystem.create(this.terrainSystem.caveWallFaces(), (style, mossy, source) => this.terrainSystem.caveDressMaterial(style, source));
-    this.lighting.setCaveMeshes([...this.terrainSystem.caveMeshes(), ...this.caveDressSystem.chunks.map((chunk) => chunk.mesh)]);
     this.sightSystem.setBlockers(this.terrainSystem.liveSurfaces());
     this.campfireSystem.setTerrain(this.terrainSystem.liveSurfaces());
     this.revealSystem.setLightMap(this.terrainSystem.caveLightMap());
@@ -1106,7 +1105,6 @@ export default class GameScene {
     setNightLight(1 - value, light.sunIntensity + light.hemiIntensity);
     this.audioSystem.setDayness(value);
     this.floraSystem.setDayness(value);
-    this.revealSystem.setSkyLight(this.lighting.skyLight);
     const sun = this.dayNightSystem.sunLight;
     if (sun) this.floraSystem.setSunDirection(sun.direction.scale(-1));
     this.skySystem.setDayness(value, this.dayNightSystem.sunLight);
@@ -1126,6 +1124,7 @@ export default class GameScene {
     this.indoor = (this.indoor || 0) + (target - (this.indoor || 0)) * step;
     if (Math.abs(target - this.indoor) < 0.001) this.indoor = target;
     this.audioSystem.setIndoor(this.indoor);
+    if (this.playerSystem && this.playerSystem.torchFire) this.playerSystem.torchFire.setUnderground(level < 0);
   }
 
   updateReveal(dt) {

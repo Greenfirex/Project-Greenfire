@@ -1,5 +1,6 @@
-// Světla a stíny světa — slunce s oblohou, mlha, světlo jeskyně a seznam věcí, které vrhají stín.
-// Denní dobu neřídí (to dělá den a noc); co je kolem kamery a které plochy jsou jeskyně, mu řekne scéna.
+// Světla a stíny světa — slunce s oblohou, mlha a seznam věcí, které vrhají stín.
+// Jeskyně nemá vlastní světlo; slunce a obloha do ní pronikají vchodem (tlumí je rentgen v materiálech).
+// Denní dobu neřídí (to dělá den a noc); co je kolem kamery, mu řekne scéna.
 import '@babylonjs/core/Lights/hemisphericLight';
 import '@babylonjs/core/Lights/directionalLight';
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
@@ -40,7 +41,6 @@ export default class LightingSystem {
     this.s = scene;
     this.sunLight = null;
     this.skyLight = null;
-    this.caveLight = null;
     this.shadowGenerator = null;
     this.casters = [];
     this.fullShadowSize = 0;
@@ -92,20 +92,6 @@ export default class LightingSystem {
     this.s.fogEnd = fog.end;
     this.s.fogColor = new Color3(fog.color[0], fog.color[1], fog.color[2]);
     return this.s.fogColor;
-  }
-
-  setCaveMeshes(cave) {
-    if (!this.sunLight) return;
-    if (this.skyLight) this.skyLight.excludedMeshes = cave;
-    if (!this.caveLight) {
-      const light = new HemisphericLight('caveLight', new Vector3(0.45, 1, 0.3), this.s);
-      light.groundColor = new Color3(0.02, 0.02, 0.03);
-      light.diffuse = new Color3(0.2, 0.19, 0.17);
-      light.specular = new Color3(0, 0, 0);
-      light.intensity = 1;
-      this.caveLight = light;
-    }
-    this.caveLight.includedOnlyMeshes = cave;
   }
 
   addCaster(mesh, shadows) {

@@ -13,6 +13,14 @@ const surfaceStyle = (entry) => entry.key.replace(/^floor_/, '');
 const SIZE_OPTION = { key: 'radius', label: 'Velikost', kind: 'range', min: 0, max: 3, step: 1, display: 'square' };
 const ROTATION_OPTION = { key: 'rotation', label: 'Natočení', kind: 'range', min: 0, max: 7, step: 1, display: 'angle' };
 const RANDOM_OPTION = { key: 'random', label: 'Náhodně střídat varianty', default: true };
+const LIGHT_ROCKS = [
+  'rock_large', 'rock_large_c', 'rock_small', 'rock_small_flat', 'rock_tall',
+  'rock_pair', 'rock_jagged', 'rock_pebbles',
+];
+const DARK_ROCKS = [
+  'rock_dark_wide', 'rock_dark_wide_b', 'rock_dark_tall', 'rock_dark_tall_b',
+  'rock_dark_slab', 'rock_dark_block', 'rock_dark_ledge', 'rock_dark_stack',
+];
 const GRASS_MIX_VALUES = Object.entries(GRASS_MIXES).map(([value, mix]) => ({ value, label: mix.label }));
 const GRASS_LAYER_VALUES = [
   { value: 'both', label: 'Obojí' },
@@ -192,12 +200,18 @@ export const BRUSHES = {
   rocks: {
     label: 'Kameny',
     group: 'Objekty',
-    note: 'Nasadí velké i malé kameny a balvany.',
+    note: 'Nasadí velké i malé kameny a balvany. Tlačítky vybereš světlé, tmavé nebo všechny, náhoda střídá tvary ve vybrané skupině.',
     shape: 'blob',
-    pool: [
-      'rock_large', 'rock_large_c', 'rock_small', 'rock_small_flat', 'rock_tall',
-      'rock_pair', 'rock_jagged', 'rock_pebbles',
-    ],
+    style: 'all',
+    styles: ['all', 'light', 'dark'],
+    styleLabels: { all: 'Všechny', light: 'Světlé', dark: 'Tmavé' },
+    poolByStyle: {
+      all: [...LIGHT_ROCKS, ...DARK_ROCKS],
+      light: LIGHT_ROCKS,
+      dark: DARK_ROCKS,
+    },
+    randomInStyle: true,
+    options: [RANDOM_OPTION],
     deco: true,
   },
   deadwood: {

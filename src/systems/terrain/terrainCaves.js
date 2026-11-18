@@ -10,17 +10,6 @@ const ROCK_MAX_ABOVE_CEILING = 3;
 const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 export default {
-  caveMeshes() {
-    const list = [];
-    for (const mesh of this.surfaces) {
-      if (!mesh || mesh.isDisposed()) continue;
-      const name = mesh.name || '';
-      if (name.startsWith('terrainCaveWall') || name.startsWith('terrainCaveRing') || name.startsWith('terrainCeiling') || (mesh.metadata && mesh.metadata.level < 0)) {
-        list.push(mesh);
-      }
-    }
-    return list;
-  },
   showCaveRing(on) {
     const show = Boolean(on);
     if (show === this.caveRingOn && !this.caveRingDirty) return;

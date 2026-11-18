@@ -4,7 +4,7 @@ import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase
 import { REVEAL_UNIFORMS, REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, revealBlock, sightRiseByHeight, sightPointOf } from '../../utils/revealGlsl.js';
 
 const REVEAL_RULES = { above: 'REVEAL_ABOVE', hide: 'REVEAL_HIDE', keep: 'REVEAL_KEEP', inside: 'REVEAL_INSIDE', restore: 'REVEAL_RESTORE', column: 'REVEAL_COLUMN', far: 'REVEAL_FAR', sight: 'REVEAL_SIGHT', sightHide: 'REVEAL_SIGHT_HIDE', rise: 'REVEAL_RISE', point: 'REVEAL_POINT', surface: 'REVEAL_SURFACE', cameraCut: 'REVEAL_CAMERA_CUT' };
-const REVEAL_CODE_STANDARD = revealBlock('color', 'vPositionW', REVEAL_RULES, '(baseColor.rgb * vDiffuseColor.rgb)', 'normalW');
+const REVEAL_CODE_STANDARD = revealBlock('color', 'vPositionW', REVEAL_RULES, 'normalW');
 const REVEAL_CODE_PBR = revealBlock('finalColor', 'vPositionW', REVEAL_RULES);
 const KEEP_UNIFORM = 'revealKeep';
 const CREATURE_UNIFORM = 'revealCreature';
@@ -13,16 +13,16 @@ const BASE_VARYING = 'vRevealBase';
 const NEAR_WALL = `revealRockBehind(${BASE_VARYING}, vEyePosition.xyz)`;
 const RISE_BY_HEIGHT = sightRiseByHeight('vPositionW');
 const POINT_BY_HEIGHT = sightPointOf('vPositionW');
-const SUN_THROUGH_DOOR = `
-float revealSunOpen = 1.0;
+const DAYLIGHT_THROUGH_DOOR = `
+float revealDaylightOpen = 1.0;
 if (REVEAL_INSIDE > 0.5) {
-  vec4 revealSunOwn;
-  vec4 revealSunSample = revealSampleAt(vPositionW, revealSunOwn);
-  revealSunOpen = revealDoorGlow(revealSunOwn, revealSunSample.y);
+  vec4 revealDaylightOwn;
+  vec4 revealDaylightSample = revealSampleAt(vPositionW, revealDaylightOwn);
+  revealDaylightOpen = revealDoorGlow(revealDaylightOwn, revealDaylightSample.y);
 }
 `;
-const SUN_LIGHT_POINT = '!#define CUSTOM_LIGHT((\\d+))_COLOR';
-const SUN_LIGHT_GATE = '#ifdef DIRLIGHT$1\ndiffuse$2.rgb *= revealSunOpen;\n#endif\n';
+const DAYLIGHT_POINT = '!#define CUSTOM_LIGHT(((\\d+)))_COLOR';
+const DAYLIGHT_GATE = '#if defined(DIRLIGHT$1) || defined(HEMILIGHT$2)\ndiffuse$3.rgb *= revealDaylightOpen;\n#endif\n';
 const DEFAULT_DEFINES = { REVEAL_ABOVE: '0.0', REVEAL_HIDE: '0.0', REVEAL_KEEP: '1.0', REVEAL_INSIDE: '0.0', REVEAL_RESTORE: '0.0', REVEAL_COLUMN: '0.0', REVEAL_FAR: '0.0', REVEAL_SIGHT: '1.0', REVEAL_SIGHT_HIDE: '0.0', REVEAL_RISE: '0.0',REVEAL_POINT: 'vPositionW', REVEAL_SURFACE: '1.0', REVEAL_CAMERA_CUT: '0.0' };
 const DEFINE_FALLBACKS = Object.entries(DEFAULT_DEFINES).map(([name, value]) => `#ifndef ${name}\n#define ${name} ${value}\n#endif`).join('\n');
 const KIND_DEFINES = {
@@ -81,12 +81,11 @@ export default class RevealPlugin extends MaterialPluginBase {
   hardBindForSubMesh(ubo, scene, engine, subMesh) {
     const effect = subMesh.effect;
     if (!effect) return;
-    const { center, amount, cut, sightFade, floor, kept, map, mapMin, light, sightMap, sightEye, sightDepth, sightFog } = this.state;
+    const { center, amount, cut, sightFade, floor, kept, map, mapMin, sightMap, sightEye, sightDepth, sightFog } = this.state;
     effect.setVector3('revealCenter', center);
     effect.setFloat4('revealParams', amount, cut, sightFade, floor);
     effect.setTexture(REVEAL_SAMPLER, map);
     effect.setVector4('revealMapMin', mapMin);
-    effect.setVector3('revealLight', light);
     effect.setTexture(REVEAL_SIGHT_SAMPLER, sightMap);
     effect.setVector4('revealSightEye', sightEye);
     effect.setVector4('revealSightDepth', sightDepth);
@@ -115,8 +114,8 @@ varying vec3 ${BASE_VARYING};`;
     }
     return {
       CUSTOM_FRAGMENT_DEFINITIONS: definitions,
-      CUSTOM_FRAGMENT_BEFORE_LIGHTS: SUN_THROUGH_DOOR,
-      [SUN_LIGHT_POINT]: SUN_LIGHT_GATE,
+      CUSTOM_FRAGMENT_BEFORE_LIGHTS: DAYLIGHT_THROUGH_DOOR,
+      [DAYLIGHT_POINT]: DAYLIGHT_GATE,
       CUSTOM_FRAGMENT_BEFORE_FRAGCOLOR: REVEAL_CODE_STANDARD,
     };
   }

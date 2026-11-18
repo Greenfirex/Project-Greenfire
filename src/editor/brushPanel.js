@@ -222,7 +222,7 @@ export default class BrushPanel {
   }
 
   buildSpecies(brush, speciesKey = null) {
-    const pool = brush && brush.deco && Array.isArray(brush.pool) ? brush.pool : [];
+    const pool = this.speciesPool(brush);
     if (!this.species) return;
     this.species.classList.toggle('is-hidden', pool.length < 2);
     this.species.innerHTML = '';
@@ -249,6 +249,12 @@ export default class BrushPanel {
       });
       this.species.appendChild(btn);
     }
+  }
+
+  speciesPool(brush) {
+    if (!brush || !brush.deco) return [];
+    if (brush.randomInStyle && brush.poolByStyle) return brush.poolByStyle[this.pathStyle] || [];
+    return Array.isArray(brush.pool) ? brush.pool : [];
   }
 
   setSpecies(key) {
@@ -316,9 +322,11 @@ export default class BrushPanel {
     }
   }
 
-  setStyle(styleKey) {
+  setStyle(styleKey, speciesKey = null) {
     this.pathStyle = styleKey;
-    this.buildStyles(getBrush(this.brushKey));
+    const brush = getBrush(this.brushKey);
+    this.buildStyles(brush);
+    if (brush && brush.randomInStyle) this.buildSpecies(brush, speciesKey);
   }
 
   setCount(count, slopeCount = 0, rimCount = 0) {

@@ -219,7 +219,7 @@ export default class EditorMode {
     const brush = BRUSHES[brushKey || this.brushKey];
     if (!brush) return [];
     if (brush.poolByStyle) {
-      if (this.brushOptionValue(brushKey || this.brushKey, 'random')) {
+      if (!brush.randomInStyle && this.brushOptionValue(brushKey || this.brushKey, 'random')) {
         return [...new Set(Object.values(brush.poolByStyle).flat())];
       }
       return brush.poolByStyle[this.styleFor(brushKey || this.brushKey)] || [];

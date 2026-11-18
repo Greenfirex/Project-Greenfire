@@ -7,7 +7,7 @@
 // Povrch, na který postava z jeskyně nevidí, je úplně černý; jeskyně sama zůstane tušená.
 import { CELL_SIZE } from './gridMath.js';
 
-export const REVEAL_UNIFORM_NAMES = ['revealCenter', 'revealParams', 'revealMapMin', 'revealLight', 'revealSightEye', 'revealSightDepth', 'revealSightFog'];
+export const REVEAL_UNIFORM_NAMES = ['revealCenter', 'revealParams', 'revealMapMin', 'revealSightEye', 'revealSightDepth', 'revealSightFog'];
 export const REVEAL_SAMPLER = 'revealMap';
 export const REVEAL_SIGHT_SAMPLER = 'revealSightMap';
 export const REVEAL_CUT_ABOVE_FLOOR = 3;
@@ -26,9 +26,6 @@ export function sightRiseByHeight(position, up = 'sightUp') {
 export function sightPointOf(position, up = 'sightUp') {
   return `(${position} + vec3(0.0, ${SIGHT_GROUND_LIFT.toFixed(2)} * ${up}, 0.0))`;
 }
-const DOOR_LIGHT_RISE = '0.6';
-const DOOR_SLOPE_FULL = '0.1';
-const DOOR_FACING_MAX = '1.6';
 const SIGHT_FADE_START = '8.0';
 const SIGHT_FADE_END = '14.0';
 const SIGHT_BIAS = '0.15';
@@ -42,7 +39,6 @@ export const REVEAL_UNIFORMS = `
 uniform vec3 revealCenter;
 uniform vec4 revealParams;
 uniform vec4 revealMapMin;
-uniform vec3 revealLight;
 uniform sampler2D ${REVEAL_SAMPLER};
 uniform vec4 revealSightEye;
 uniform vec4 revealSightDepth;
@@ -87,17 +83,14 @@ vec4 revealSampleAt(vec3 point, out vec4 own) {
   vec2 base = floor(grid);
   vec2 frac = grid - base;
   vec2 lit = vec2(0.0);
-  vec2 slope = vec2(0.0);
   for (int index = 0; index < 4; index += 1) {
     vec2 corner = vec2(mod(float(index), 2.0), floor(float(index) / 2.0));
     vec4 texel = texture2D(${REVEAL_SAMPLER}, (base + corner + 0.5) / size);
     vec2 weights = mix(1.0 - frac, frac, corner);
     vec2 value = abs(texel.a - own.a) < 0.5 ? texel.rg : own.rg;
     lit += value * weights.x * weights.y;
-    vec2 side = corner * 2.0 - 1.0;
-    slope += value.g * vec2(side.x * weights.y, side.y * weights.x);
   }
-  return vec4(lit, slope);
+  return vec4(lit, 0.0, 0.0);
 }
 
 float revealCaveAhead(vec3 point, vec3 eye) {
@@ -124,7 +117,7 @@ float revealDoorGlow(vec4 own, float inner) {
 }
 `;
 
-export function revealBlock(color, position, rules, albedo = color, normal = 'vec3(0.0, 1.0, 0.0)') {
+export function revealBlock(color, position, rules, normal = 'vec3(0.0, 1.0, 0.0)') {
   const { above, hide, keep, inside, restore, column = '0.0', dark = '0.0', far = '0.0', sight = '1.0', sightHide = '0.0', rise = sightRiseByHeight(position), point = sightPointOf(position), surface = '1.0', cameraCut = '0.0' } = rules;
   return `
 {
@@ -134,12 +127,8 @@ export function revealBlock(color, position, rules, albedo = color, normal = 've
     vec4 revealOwn;
     vec4 revealSample = revealSampleAt(${position}, revealOwn);
     vec2 revealLit = revealSample.xy;
-    vec2 revealSlope = revealSample.zw;
     float revealNear = revealOwn.a > 0.5 ? revealLit.r : 0.0;
     float revealInner = revealOwn.a > 0.5 ? 0.0 : revealLit.g;
-    vec2 revealTowardDoor = revealOwn.a > 0.5 ? vec2(0.0) : revealSlope / max(length(revealSlope), ${DOOR_SLOPE_FULL});
-    vec3 revealDoorDir = normalize(vec3(revealTowardDoor.x, ${DOOR_LIGHT_RISE}, revealTowardDoor.y));
-    float revealFacing = clamp(dot(normalize(${normal}), revealDoorDir) / revealDoorDir.y, 0.0, ${DOOR_FACING_MAX});
     float revealOwnLit = revealOwn.a > 0.5 ? step(0.001, revealOwn.r) : 0.0;
     float revealRestore = ${restore} * revealNear * revealOwnLit * (1.0 - revealOwn.b);
     float revealAbove = ${above} * step(revealParams.y, ${position}.y) * (1.0 - revealRestore);
@@ -152,8 +141,6 @@ export function revealBlock(color, position, rules, albedo = color, normal = 've
     if (revealHole > revealGrain) discard;
     ${color}.rgb *= 1.0 - revealWithoutSight * revealAmount * (1.0 - ${keep}) * (1.0 - revealNear * (1.0 - ${dark}));
     float revealGlow = revealDoorGlow(revealOwn, revealInner);
-    float revealDoorLight = revealGlow * revealFacing;
-    ${color}.rgb += ${albedo}.rgb * revealLight * ${inside} * revealDoorLight;
     ${color}.rgb *= 1.0 - ${far} * revealAmount * revealParams.z * smoothstep(${SIGHT_FADE_START}, ${SIGHT_FADE_END}, length(revealDelta)) * (1.0 - revealGlow);
   }
   if (${sight} > 0.5 && revealSightEye.w > 0.001) {

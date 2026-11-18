@@ -87,7 +87,7 @@ export default class MapEditor {
       this.s.handleHover(this.s.hoverCell);
     };
     this.mode.onStyleChange = (brushKey, styleKey) => {
-      this.brushPanel.setStyle(styleKey);
+      this.brushPanel.setStyle(styleKey, this.mode.tileKey);
       if (this.mode.draft) this.updateDraftView(this.mode.draft);
       else this.refreshZoneOverlay();
       this.refreshCreatureMarks();

@@ -65,6 +65,7 @@ export default class TorchFire {
     this.flickerTimer = FLICKER_INTERVAL;
     this.flicker = 1;
     this.dayness = 1;
+    this.underground = false;
     this.visible = false;
     this.detach();
   }
@@ -89,6 +90,10 @@ export default class TorchFire {
     this.dayness = Math.max(0, Math.min(1, value));
   }
 
+  setUnderground(on) {
+    this.underground = Boolean(on);
+  }
+
   update(dt) {
     if (!this.visible) return;
     if (this.flickerTimer >= FLICKER_INTERVAL) {
@@ -97,7 +102,8 @@ export default class TorchFire {
     } else {
       this.flickerTimer += dt;
     }
-    const strength = LIGHT_DAY + (LIGHT_NIGHT - LIGHT_DAY) * (1 - this.dayness);
+    const dayness = this.underground ? 0 : this.dayness;
+    const strength = LIGHT_DAY + (LIGHT_NIGHT - LIGHT_DAY) * (1 - dayness);
     this.light.intensity = strength * this.flicker;
   }
 

@@ -46,7 +46,6 @@ export default class RevealSystem {
       creatures: new Set(),
       map: null,
       mapMin: new Vector4(0, 0, 1, 1),
-      light: new Vector3(0, 0, 0),
       sightMap: null,
       sightEye: new Vector4(0, 0, 0, 0),
       sightDepth: new Vector4(0, 1, 0, 0),
@@ -154,22 +153,6 @@ export default class RevealSystem {
     state.sightDepth.set(sight.near, sight.near + sight.mapRange, sight.packed ? 1 : 0, sight.hide);
   }
 
-  setSkyLight(light) {
-    if (!light) {
-      this.state.light.set(0, 0, 0);
-      return;
-    }
-    const up = 0.5 + 0.5 * Vector3.Normalize(light.direction).y;
-    const sky = light.diffuse;
-    const ground = light.groundColor;
-    const k = light.intensity;
-    this.state.light.set(
-      (ground.r + (sky.r - ground.r) * up) * k,
-      (ground.g + (sky.g - ground.g) * up) * k,
-      (ground.b + (sky.b - ground.b) * up) * k,
-    );
-  }
-
   forgetCompiled(material) {
     for (const mesh of material.getBindedMeshes()) {
       for (const subMesh of mesh.subMeshes || []) subMesh.materialDefines = null;
@@ -230,7 +213,7 @@ export default class RevealSystem {
   }
 
   pushShaderUniforms() {
-    const { center, amount, cut, sightFade, floor, map, mapMin, light, sightMap, sightEye, sightDepth, sightFog } = this.state;
+    const { center, amount, cut, sightFade, floor, map, mapMin, sightMap, sightEye, sightDepth, sightFog } = this.state;
     for (const material of this.shaders) {
       material.setTexture(REVEAL_SIGHT_SAMPLER, sightMap);
       material.setVector4('revealSightEye', sightEye);
@@ -239,7 +222,6 @@ export default class RevealSystem {
       material.setVector3('revealCenter', center);
       material.setTexture(REVEAL_SAMPLER, map);
       material.setVector4('revealMapMin', mapMin);
-      material.setVector3('revealLight', light);
       material.setVector4('revealParams', this.paramsVector.set(amount, cut, sightFade, floor));
     }
   }

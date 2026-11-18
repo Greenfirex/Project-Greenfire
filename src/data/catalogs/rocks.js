@@ -1,10 +1,8 @@
-// Kameny pro obklad útesů a rámy jeskyní: buď model ze sady (ROCK_MODELS), nebo recept,
-// ze kterého se geometrie složí rozkouskováním koule. Recepty zbývají jen pro kameny bez sady.
+// Kameny pro obklad útesů, rámy jeskyní a ohniště: buď model ze sady (ROCK_MODELS), nebo recept,
+// ze kterého se geometrie složí rozkouskováním koule (obklad útesů a jeskyní, hroudy).
 import { ASSET_DIRS } from './assetPaths.js';
 
 export const ROCK_MODELS = [
-  'cliff_stone_wide', 'cliff_stone_tall', 'cliff_stone_slab', 'cliff_stone_wide_b',
-  'cliff_stone_tall_b', 'cliff_stone_block', 'cliff_stone_ledge', 'cliff_stone_stack',
   'boulder_small', 'boulder_large', 'boulder_large_c', 'boulder_tall',
 ];
 
@@ -12,10 +10,89 @@ export function rockModelUrl(key) {
   return ROCK_MODELS.includes(key) ? `${ASSET_DIRS.rocks}${key}.gltf` : null;
 }
 
+const DARK_STONE = { texture: 'Rock050_1K-JPG_Color.jpg', normal: 'Rock050_1K-JPG_NormalGL.jpg' };
 const CLAY = { texture: 'Ground071_1K-JPG_Color.jpg', normal: 'Ground071_1K-JPG_NormalGL.jpg' };
 const BLACK_STONE = { texture: 'Rock063_1K-JPG_Color.jpg', normal: 'Rock063_1K-JPG_NormalGL.jpg' };
 
 export const ROCK_RECIPES = {
+  cliff_stone_wide: {
+    ...DARK_STONE,
+    seed: 7301,
+    size: [1, 0.72, 0.5],
+    detail: 2,
+    roughness: 0.3,
+    uvScale: 0.4,
+    tint: [0.94, 0.93, 0.9],
+  },
+  cliff_stone_tall: {
+    ...DARK_STONE,
+    seed: 2719,
+    size: [0.72, 1, 0.48],
+    detail: 2,
+    roughness: 0.34,
+    uvScale: 0.42,
+    tint: [0.9, 0.89, 0.86],
+  },
+  cliff_stone_slab: {
+    ...DARK_STONE,
+    seed: 6143,
+    size: [1.1, 0.5, 0.46],
+    detail: 2,
+    roughness: 0.26,
+    uvScale: 0.38,
+    tint: [0.98, 0.97, 0.93],
+  },
+  cliff_stone_wide_b: {
+    ...DARK_STONE,
+    seed: 9157,
+    size: [0.92, 0.62, 0.52],
+    detail: 2,
+    roughness: 0.38,
+    uvScale: 0.44,
+    tint: [0.86, 0.86, 0.84],
+  },
+  cliff_stone_tall_b: {
+    ...DARK_STONE,
+    seed: 1483,
+    size: [0.58, 0.92, 0.44],
+    detail: 2,
+    roughness: 0.4,
+    uvScale: 0.36,
+    tint: [1, 0.98, 0.93],
+  },
+  cliff_stone_block: {
+    ...DARK_STONE,
+    seed: 8263,
+    size: [0.78, 0.78, 0.5],
+    detail: 2,
+    roughness: 0.22,
+    uvScale: 0.46,
+    tint: [0.91, 0.9, 0.86],
+  },
+  cliff_stone_ledge: {
+    ...DARK_STONE,
+    seed: 3307,
+    detail: 2,
+    roughness: 0.3,
+    uvScale: 0.4,
+    tint: [0.95, 0.93, 0.88],
+    parts: [
+      { seed: 3307, size: [0.85, 0.42, 0.46], offset: [-0.3, 0, 0] },
+      { seed: 5519, size: [0.6, 0.5, 0.42], offset: [0.55, 0.22, 0] },
+    ],
+  },
+  cliff_stone_stack: {
+    ...DARK_STONE,
+    seed: 7741,
+    detail: 2,
+    roughness: 0.34,
+    uvScale: 0.42,
+    tint: [0.88, 0.87, 0.84],
+    parts: [
+      { seed: 7741, size: [0.7, 0.55, 0.46], offset: [0, 0, 0] },
+      { seed: 2293, size: [0.5, 0.5, 0.4], offset: [0.18, 0.62, 0] },
+    ],
+  },
   cliff_clod_round: {
     ...CLAY,
     seed: 6611,

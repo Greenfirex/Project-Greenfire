@@ -189,12 +189,13 @@ boky, stěny jeskyní a stropy (`terrainMass.js`, `runVolume.js`).
   nad každým vchodem do jeskyně; staví se v `refreshCaveLighting` až po kamenech.
   Houpou se přes `TreeWindPlugin` s volbou `hangFrom` (pevné nahoře, kmitá spodek).
 - **Skalní kusy na útesech** (`terrain/cliffDressSystem.js`): stěna se nemění, jen
-  se obalí překrývajícími se kameny (kamenné útesy, modely `cliff_stone_*` z tmavé sady)
-  nebo hroudami (hliněné, zatím recepty `cliff_clod_*` v `rocks.js`). Kamenné kusy mají
-  z modelu jen tvar a reliéf (normálovou mapu); barvu, texturu, vrstvy a výpočet světla mají
-  stejné jako stěna (`cliffStonePlugin.js`, textura promítnutá podle polohy ve světě), jinak
-  se od stěny odlišovaly odstínem i kresbou. Stejně jsou udělané kameny rámů jeskyní a obklad
-  v jeskyních. Obklad stíny nevrhá, jen přijímá. Pod kusy zůstává celá stěna, takže
+  se obalí překrývajícími se kameny (kamenné útesy, recepty `cliff_stone_*` v `rocks.js`)
+  nebo hroudami (hliněné, recepty `cliff_clod_*`). Stejné kameny tvoří obklad v jeskyních.
+  Mají texturu stěny, mech na vršcích přidává `cliffMossPlugin.js`. Modely `cliff_stone_*`
+  z tmavé sady vypadaly na stěně hůř, proto se obklad vrátil k receptům (modely jsou teď tmavé
+  volné kameny). Kameny rámů jeskyní jsou
+  modely `boulder_*`; tvar a reliéf mají z modelu, barvu, texturu a světlo stejné jako stěna
+  (`cliffStonePlugin.js`, textura promítnutá podle polohy ve světě). Obklad stíny nevrhá, jen přijímá. Pod kusy zůstává celá stěna, takže
   nevznikají díry. Seznam stran dává `terrainMass.cliffFaces()`; strana nad vchodem
   dostane jen řadu nad otvorem. Kusy u volného konce stěny se zúží a přitisknou, na
   vnějším rohu stojí menší zapuštěný kus (jinak převisy). Horní řada má občas mech
@@ -236,12 +237,14 @@ vhodná pro jiné vnitřky, třeba dům, přes registr `src/data/catalogs/maps.j
   vznikne schod (rampy a schody se zatím nekreslí).
 
 **Hotovo:** data a dotazy, geometrie (podlahy, stropy, stěny, šachty, vchody),
-pohyb hráče po patrech i přes spoj, tma v jeskyni a jeskynní zvuk. Jeskyni svítí
-vlastní slabé světlo; obloha je z ní vyloučená a slunce se v materiálu tlumí podle
-mapy vchodů (`revealPlugin.js`, `CUSTOM_LIGHT{X}_COLOR` jen pro směrové světlo), takže
-obloha i slunce pronikají jen vchodem a asi 3 buňky dovnitř slábnou. Světlo oblohy
-u vchodu je stejné jako venku (`revealSystem.setSkyLight`) a dopadá od otvoru, takže
-je vidět reliéf podlahy. Stěny a strop jeskyně vrhají stín od slunce i táboráku; do map
+pohyb hráče po patrech i přes spoj, tma v jeskyni a jeskynní zvuk. Jeskyně nemá
+vlastní světlo (svítí jen slunce a obloha vchodem, táborák a pochodeň; pochodeň i táborák
+svítí v podzemí naplno jako v noci). Slunce i obloha se v materiálu tlumí podle mapy vchodů
+stejně (`revealPlugin.js`, `CUSTOM_LIGHT{X}_COLOR` pro směrové a polokulové světlo), takže na
+prahu svítí jako venku a asi 3 buňky dovnitř plynule slábnou; dřív obloha do jeskyně
+nesvítila vůbec a na prahu byl skok v jasu. Pozor: Babylon v kódu vkládaném přes regulární výraz
+doplní každé `$1`, `$2` … jen jednou, proto má vzor tolik závorek, kolikrát se číslo světla použije. Zvláštní přisvícení podlahy
+od vchodu (světlo oblohy) bylo zrušené, dělalo za prahem ostře světlejší pruh. Stěny a strop jeskyně vrhají stín od slunce i táboráku; do map
 stínů (i do mapy dohledu) se skála kreslí z obou stran (`utils/bothSidesMaterial.js`),
 jinak by ji některé strany krychle i slunce viděly odvrácenou stranou a světlo by
 prošlo. Postava a tvorové zůstávají osvětlení normálně. Když je
@@ -561,13 +564,15 @@ s `bl_rocks.py` (slepení bodů na švech textury, rozdělení na oddělené kus
 složené kameny z několika kusů). Kameny jsou `.gltf` se společnou texturou sady
 (`rocks_light_*.webp`, `rocks_dark_*.webp`), aby ji hra načetla jen jednou. V katalogu mají
 `stone: true` (náhodné natočení a velikost jako u kamenů z receptů). Světlá sada dává volné
-kameny a světlé sesuvy pod útesy, tmavá sada tmavé sesuvy, obklad kamenných útesů a kameny
-`boulder_*` pro rámy jeskyní a táborák. Kameny, které dřív stavěl recept, mají rozměry
+kameny a světlé sesuvy pod útesy, tmavá sada tmavé sesuvy, tmavé volné kameny `rock_dark_*`
+(modely `cliff_stone_*`, dřív obklad útesů) a kameny `boulder_*` pro rámy jeskyní a táborák. Kameny, které dřív stavěl recept, mají rozměry
 z uložených receptů (`tools/_temp/rock_recipes.json`) a kusy sady se na ně natáhnou.
-Obklad, rámy a táborák kameny potřebují hned, proto jsou v `ROCK_MODELS` (`rocks.js`),
+Rámy a táborák kameny potřebují hned, proto jsou v `ROCK_MODELS` (`rocks.js`),
 načítají se při startu hry a `rockRoot` (`rockFactory.js`) je bere z načtených modelů.
 Kameny rámů jeskyní mají texturu stěny, ve které je vchod (hlína nebo skála). Recepty zbývají
-jen pro hroudy hlíny a černé sesuvy (čekají na své sady).
+pro obklad kamenných útesů a jeskyní, hroudy hlíny a černé sesuvy (čekají na své sady).
+Štětec Kameny má skupiny Všechny, Světlé a Tmavé (`poolByStyle`). S volbou `randomInStyle`
+střídá náhoda tvary jen ve vybrané skupině a výběr jednoho tvaru nabízí tvary té skupiny.
 
 Mušle jsou dva modely (`shell_fan`, `shell_conch`) v `public/assets/nature/shells/`;
 oba se pokládají naplocho a sbírají se jako stejný předmět `shell`. Hvězdice

@@ -11,6 +11,7 @@ import TerrainCausticPlugin from './terrainCausticPlugin.js';
 import TerrainWetPlugin from './terrainWetPlugin.js';
 import CliffSurfacePlugin from './cliffSurfacePlugin.js';
 import CliffStonePlugin from './cliffStonePlugin.js';
+import CliffMossPlugin from './cliffMossPlugin.js';
 import { SURFACE_VERTEX_TINT, WALL_TILE, color3 } from './terrainSettings.js';
 
 const CLIFF_TEXTURE = `${ASSET_DIRS.textures}Rock050_1K-JPG_Color.jpg`;
@@ -70,6 +71,7 @@ export default {
       material.diffuseColor = cliff.diffuseColor.clone();
       material.specularColor = cliff.specularColor.clone();
       material.backFaceCulling = false;
+      if (mossy) new CliffMossPlugin(material, this.cliffBlendTexture(DRESS_MOSS_TEXTURE));
       this.cliffMaterials[key] = material;
     }
     return this.cliffMaterials[key];
