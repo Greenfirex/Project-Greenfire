@@ -10,10 +10,6 @@ import { REVEAL_CUT_ABOVE_FLOOR } from '../../utils/revealGlsl.js';
 
 const EDGE_ANCHOR_DEPTH = 0.4;
 const SURFACE_DEPTH = 1;
-const DOOR_VINE_SPREAD = 0.9;
-const DOOR_VINE_OUT = 0.05;
-const DOOR_VINE_ABOVE = 0.1;
-const DOOR_VINE_DROP = 1.4;
 const RING_KINDS = ['ringWall', 'ringCap'];
 const CAVE_ROCK_KINDS = ['cave', 'ceiling', ...RING_KINDS];
 
@@ -206,20 +202,6 @@ export default {
         });
       }
     });
-    if (!this.field) return;
-    for (const door of this.caveDoors()) {
-      const across = (valueNoise(door.cx * 1.7, door.cz * 2.3) - 0.5) * DOOR_VINE_SPREAD;
-      this.shelfAnchors.push({
-        x: (door.cx + door.dx / 2) * CELL_SIZE + door.dx * DOOR_VINE_OUT - door.dz * across,
-        y: door.top + DOOR_VINE_ABOVE,
-        z: (door.cz + door.dz / 2) * CELL_SIZE + door.dz * DOOR_VINE_OUT + door.dx * across,
-        dirX: door.dx,
-        dirZ: door.dz,
-        depth: EDGE_ANCHOR_DEPTH,
-        drop: DOOR_VINE_DROP,
-        always: true,
-      });
-    }
   },
 
   edgeHeightAt(gx, gz, cx, cz, dx, dz, fallback) {

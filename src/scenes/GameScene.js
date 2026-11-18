@@ -12,6 +12,7 @@ import CreatureSystem from '../systems/creatures/creatureSystem.js';
 import SkySystem from '../systems/atmosphere/skySystem.js';
 import DecoSystem from '../systems/world/decoSystem.js';
 import RevealSystem from '../systems/world/revealSystem.js';
+import { setNightLight } from '../systems/materials/nightLightPlugin.js';
 import SightSystem from '../systems/world/sightSystem.js';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import FloraSystem from '../systems/flora/floraSystem.js';
@@ -964,6 +965,7 @@ export default class GameScene {
     const fallFaces = this.waterfallFaces();
     const faces = this.terrainSystem.cliffFaces().filter((face) => !fallFaces.has(`${face.cx},${face.cz}|${face.dx},${face.dz}`));
     this.cliffDressSystem.create(faces, (style, mossy, source) => this.terrainSystem.cliffDressMaterial(style, mossy, source));
+    this.cliffVineSystem.create({ edges: this.terrainSystem.shelfAnchors, terraces: this.cliffDressSystem.terraceAnchors, doors: this.terrainSystem.caveDoors() });
     this.editor.syncFloorView();
   }
 
@@ -1100,6 +1102,8 @@ export default class GameScene {
       return;
     }
     this.ambientTime = time;
+    const light = getMap(this.mapKey).light;
+    setNightLight(1 - value, light.sunIntensity + light.hemiIntensity);
     this.audioSystem.setDayness(value);
     this.floraSystem.setDayness(value);
     this.revealSystem.setSkyLight(this.lighting.skyLight);

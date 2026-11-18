@@ -26,7 +26,7 @@ src/
     gathering/               gather, harvest, felling
     world/                   deco, decoHighlight, campfire, loot, path, reveal, sight
     atmosphere/              dayNight, lighting (světla a stíny), sky, audio
-    materials/               modelRim, modelSaturation (pluginy materiálů modelů)
+    materials/               modelRim, floraColor, nightLight a další (pluginy materiálů)
   editor/                    editor mapy (editorMode + části history, layoutEdits, heights,
                              area, joinBridge, brushApply, query, settings), panely, štětce
   data/catalogs/             předměty, dekorace, mapy, tvorové, uložený stav
@@ -183,8 +183,11 @@ boky, stěny jeskyní a stropy (`terrainMass.js`, `runVolume.js`).
   bere ho povrch i bok. Rohy buněk zůstávají pevné.
 - **Okraj mapy** končí `EDGE_DEPTH` (2 m) pod povrchem; zvenčí je pod ním prázdno.
 - **Na hraně útesu rostou rostliny:** kotvy (`EDGE_ANCHOR_DEPTH`) berou tráva
-  (`addShelfGrass`) i liany (`CliffVineSystem`, model `cliff_vine.glb`, zkrácená
-  podle výšky stěny, pod 0,6 m se nedává). Ve větru se zatím nehýbe.
+  (`addShelfGrass`) i liany (`CliffVineSystem`, modely `cliff_vine.glb` a
+  `cliff_vine_2.glb`, zkrácené podle výšky stěny, pod 0,6 m se nedávají). Liany
+  visí z horní hrany, z poliček (`terraceAnchors` z `cliffDressSystem`) a po 3–5
+  nad každým vchodem do jeskyně; staví se v `refreshCaveLighting` až po kamenech.
+  Houpou se přes `TreeWindPlugin` s volbou `hangFrom` (pevné nahoře, kmitá spodek).
 - **Skalní kusy na útesech** (`terrain/cliffDressSystem.js`): stěna se nemění, jen
   se obalí překrývajícími se kameny (kamenné útesy, modely `cliff_stone_*` z tmavé sady)
   nebo hroudami (hliněné, zatím recepty `cliff_clod_*` v `rocks.js`). Kamenné kusy mají
@@ -696,6 +699,13 @@ Procedurální keře a listnáče se na stejnou barvu srovnávají svými odstí
 Obojí provádí `FloraColorPlugin`; listí pozná podle toho, že je zelenější než okolí.
 Tráva má vlastní barvení podle země; trsy se na společnou zelenou (o kousek světlejší
 než koberec stébel) srovnávají svým `tint` v `grass.js`, pobřežní tráva je o něco sušší.
+
+Modely z Meshy mají fyzikální materiál (PBRMaterial), který počítá světlo lineárně
+a slabé světlo pak při převodu na obrazovku zesílí; terén (StandardMaterial) ne.
+Bez korekce by v noci modely „svítily“. `materials/nightLightPlugin.js` se přes
+`RegisterMaterialPlugin` sám přidá ke každému PBR materiálu a v noci ztlumí slabé
+světlo křivkou `NIGHT_CURVE` (1,2 = přesná shoda s terénem, nechává se mírnější 0,7).
+Sílu noci a denní úroveň světla mu posílá `refreshAmbient` přes `setNightLight`.
 
 ## Boj se zbraněmi — plán po etapách
 

@@ -6,6 +6,7 @@ import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { rockRoot } from '../../utils/rockFactory.js';
 import { rockModelUrl } from '../../data/catalogs/rocks.js';
+import { CLIFF_STONE_MAX_OUT } from './terrainSettings.js';
 
 const CHUNK_WORLD = CELL_SIZE * 8;
 const VIEW_MARGIN = 6;
@@ -46,7 +47,6 @@ const STRETCH_TALL = [0.8, 1.25];
 const STRETCH_DEEP = [0.85, 1.15];
 const TILT = 0.28;
 const LINTEL_GAP = 0.08;
-const MAX_OUT = 0.35;
 const MIN_OUT = 0.1;
 const SINK = 0.15;
 const LIP_MAX = 0.18;
@@ -57,6 +57,9 @@ const COLUMNS_ODD = [-1, 0];
 const ALONG_JITTER = 0.15;
 const YAW_JITTER = 0.5;
 const DOOR_CLEAR = 0.25;
+const INSIDE_BACK = 0.35;
+const INSIDE_TILT = 0.4;
+const INSIDE_CEILING_GAP = 0.1;
 
 function hash(...values) {
   let h = 2166136261;
@@ -151,6 +154,7 @@ export default class CliffDressSystem {
         dirX: face.dx,
         dirZ: face.dz,
         depth: front,
+        drop: ledge - face.foot,
       });
     }
   }
@@ -191,11 +195,13 @@ export default class CliffDressSystem {
       const shape = this.shapeFor(keys[Math.floor(hash(corner.x, corner.z, row, 21) * keys.length) % keys.length]);
       if (!shape) return;
       const look = this.lookOf(corner.x, corner.z, row, between(CORNER_SCALE, hash(corner.x, corner.z, row, 7)));
+      if (corner.inside) look.scaleZ = Math.min(look.scaleZ, (CORNER_OUT + INSIDE_BACK) / (2 * shape.front));
       look.scaleX = Math.min(look.scaleX, look.scaleZ);
       look.pitch = 0;
       look.roll = 0;
       const reach = shape.height * look.scaleY;
       const capped = y + reach * ROW_OVERLAP >= corner.top;
+      const lip = corner.inside ? -INSIDE_CEILING_GAP : hash(corner.x, corner.z, row, 9) * LIP_MAX * 0.5;
       const out = CORNER_OUT - shape.front * look.scaleZ;
       this.pieces.push({
         ...look,
@@ -204,7 +210,7 @@ export default class CliffDressSystem {
         mossy: !corner.inside && capped && hash(corner.x, corner.z, row, 31) < PIECES[corner.style].moss,
         yaw: yaw + look.turn,
         x: corner.x + corner.dirX * out,
-        y: capped ? corner.top + hash(corner.x, corner.z, row, 9) * LIP_MAX * 0.5 - reach : y,
+        y: capped || (corner.inside && y + reach > corner.top + lip) ? corner.top + lip - reach : y,
         z: corner.z + corner.dirZ * out,
       });
       if (capped) return;
@@ -235,8 +241,12 @@ export default class CliffDressSystem {
           return;
         }
         const scale = between(SCALE_RANGE, hash(face.x, face.z, salt, 2)) * low;
-        const lip = hash(face.x, face.z, salt, 3) * LIP_MAX;
+        const lip = face.inside ? -INSIDE_CEILING_GAP : hash(face.x, face.z, salt, 3) * LIP_MAX;
         const look = this.lookOf(face.x, face.z, salt, scale);
+        if (face.inside) {
+          look.pitch *= INSIDE_TILT;
+          look.roll *= INSIDE_TILT;
+        }
         if (face.lintel) look.scaleY = Math.min(look.scaleY, (face.top + lip - face.foot - LINTEL_GAP) / shape.height);
         const reach = shape.height * look.scaleY;
         const capped = y + reach * ROW_OVERLAP >= face.top;
@@ -246,7 +256,9 @@ export default class CliffDressSystem {
         if ((face.doorAfter && along > DOOR_CLEAR) || (face.doorBefore && along < -DOOR_CLEAR)) return;
         const towardEnd = (openAfter && along > 0) || (openBefore && along < 0);
         if (towardEnd) look.scaleX = Math.min(look.scaleX, (1 + END_SLACK - Math.abs(along)) / shape.side);
-        const out = (towardEnd ? MIN_OUT : between([MIN_OUT, MAX_OUT], hash(face.x, face.z, salt, 5))) - shape.front * look.scaleZ;
+        const stick = towardEnd ? MIN_OUT : between([MIN_OUT, CLIFF_STONE_MAX_OUT], hash(face.x, face.z, salt, 5));
+        if (face.inside) look.scaleZ = Math.min(look.scaleZ, (stick + INSIDE_BACK) / (2 * shape.front));
+        const out = stick - shape.front * look.scaleZ;
         this.pieces.push({
           ...look,
           key: shape.key,
@@ -254,7 +266,7 @@ export default class CliffDressSystem {
           mossy: !face.inside && capped && hash(face.x, face.z, salt, 31) < pieces.moss,
           yaw: yaw + look.turn + (hash(face.x, face.z, salt, 6) - 0.5) * YAW_JITTER,
           x: face.x + face.dx * out + alongX * along,
-          y: capped ? face.top + lip - reach : y,
+          y: capped || (face.inside && y + reach > face.top + lip) ? face.top + lip - reach : y,
           z: face.z + face.dz * out + alongZ * along,
         });
       });

@@ -67,7 +67,6 @@ export default {
     this.creatureSystem.clearPathCache();
     this.refreshShadowCasters();
     this.renderWater();
-    this.cliffVineSystem.create(this.terrainSystem.shelfAnchors);
   },
 
   setupTerrain() {
@@ -78,7 +77,6 @@ export default {
     this.navigation.resetArea();
     this.creatureSystem.clearPathCache();
     this.renderWater();
-    this.cliffVineSystem.create(this.terrainSystem.shelfAnchors);
   },
 
   wireDecoReady() {

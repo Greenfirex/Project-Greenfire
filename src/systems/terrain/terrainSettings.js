@@ -5,6 +5,7 @@ export const SURFACE_SUB = 4;
 export const SURFACE_CHUNK = 4;
 export const WALL_TILE = 3;
 export const SURFACE_VERTEX_TINT = [0.72, 0.7, 0.64];
+export const CLIFF_STONE_MAX_OUT = 0.35;
 
 export function pointId(gx, gz) {
   return `${Math.round(gx * 2)},${Math.round(gz * 2)}`;

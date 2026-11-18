@@ -20,6 +20,9 @@ const COCONUT_PULL = 0.75;
 const COCONUT_SPREAD = 0.4;
 const COCONUT_TRUNK_GAP = 0.85;
 const COCONUT_CELL_EDGE = 0.95;
+const PALM_LEAF_CHANCE = 0.6;
+const PALM_LEAF_MAX = 2;
+const PALM_LEAF_KEYS = ['palm_frond_green', 'palm_frond_dry'];
 const JUMBLE_SHIFT = 0.35;
 const JUMBLE_SCALE = [0.85, 1.2];
 const AROUND = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
@@ -234,6 +237,7 @@ export default {
         this.layout.decorations.push(entry);
         changed += 1;
         if (painted.tree && this.brushOptionValue(brushKey, 'coconuts')) this.dropCoconuts(entry, painted, level);
+        if (painted.tree && this.brushOptionValue(brushKey, 'leaves')) this.dropPalmLeaves(entry, painted, level);
         if (painted.nest) this.dropNestEggs(entry, painted.nest, level);
         continue;
       }
@@ -259,6 +263,20 @@ export default {
   dropCoconuts(palm, def, level) {
     const { cx, cz } = palm;
     if (hash01(cx * 17.3 + 5.1, cz * 29.9 - 3.7) >= COCONUT_CHANCE) return 0;
+    const count = 1 + Math.floor(hash01(cx * 7.7, cz * 3.1) * COCONUT_MAX);
+    return this.dropAroundPalm(palm, def, level, count, 0, () => 'coconut');
+  },
+
+  dropPalmLeaves(palm, def, level) {
+    const { cx, cz } = palm;
+    if (hash01(cx * 13.9 + 2.7, cz * 21.1 - 8.3) >= PALM_LEAF_CHANCE) return 0;
+    const count = 1 + Math.floor(hash01(cx * 4.3, cz * 8.9) * PALM_LEAF_MAX);
+    const keyAt = (nx, nz) => PALM_LEAF_KEYS[Math.floor(hash01(nx * 6.7, nz * 2.3) * PALM_LEAF_KEYS.length) % PALM_LEAF_KEYS.length];
+    return this.dropAroundPalm(palm, def, level, count, 1.7, keyAt);
+  },
+
+  dropAroundPalm(palm, def, level, wanted, salt, keyAt) {
+    const { cx, cz } = palm;
     const home = layerLiftAt(this.layout, cx, cz, level) || 0;
     const water = Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
     const decorations = this.layout.decorations;
@@ -271,18 +289,18 @@ export default {
       if (water !== null && lift < water) return false;
       return !decorations.some((item) => item && item.cx === nx && item.cz === nz && (item.level || 0) === level);
     });
-    free.sort((a, b) => hash01(cx + a[0] * 3.1, cz + a[1] * 5.3) - hash01(cx + b[0] * 3.1, cz + b[1] * 5.3));
-    const count = Math.min(free.length, 1 + Math.floor(hash01(cx * 7.7, cz * 3.1) * COCONUT_MAX));
+    free.sort((a, b) => hash01(cx + a[0] * 3.1 + salt, cz + a[1] * 5.3) - hash01(cx + b[0] * 3.1 + salt, cz + b[1] * 5.3));
+    const count = Math.min(free.length, wanted);
     for (const [dx, dz] of free.slice(0, count)) {
       const nx = cx + dx;
       const nz = cz + dz;
       const spot = dx || dz
         ? {
-          x: -dx * COCONUT_PULL + (hash01(nx * 3.7, nz * 9.1) - 0.5) * COCONUT_SPREAD,
-          z: -dz * COCONUT_PULL + (hash01(nx * 8.3, nz * 2.9) - 0.5) * COCONUT_SPREAD,
+          x: -dx * COCONUT_PULL + (hash01(nx * 3.7 + salt, nz * 9.1) - 0.5) * COCONUT_SPREAD,
+          z: -dz * COCONUT_PULL + (hash01(nx * 8.3 + salt, nz * 2.9) - 0.5) * COCONUT_SPREAD,
         }
-        : beside(decoPlacement(def, palm), hash01(cx * 5.9, cz * 4.3) * Math.PI * 2);
-      const entry = { key: 'coconut', cx: nx, cz: nz, rotation: 0, offsetX: round2(spot.x), offsetZ: round2(spot.z) };
+        : beside(decoPlacement(def, palm), hash01(cx * 5.9 + salt, cz * 4.3) * Math.PI * 2);
+      const entry = { key: keyAt(nx, nz), cx: nx, cz: nz, rotation: 0, offsetX: round2(spot.x), offsetZ: round2(spot.z) };
       const lift = layerLiftAt(this.layout, nx, nz, level) || 0;
       if (level) entry.level = level;
       if (lift) entry.liftY = lift;

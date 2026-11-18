@@ -70,6 +70,16 @@ export const ITEM_TYPES = {
     kind: 'raw',
     color: [0.5, 0.33, 0.18],
   },
+  palm_leaf: {
+    displayName: 'Palmový list',
+    description: 'Velký, lehký a zatím k ničemu. To se brzy změní.',
+    icon: '🌿',
+    image: `${ASSET_DIRS.itemIcons}palm_leaf.png`,
+    stackSize: 20,
+    weight: 0.3,
+    kind: 'raw',
+    color: [0.56, 0.6, 0.3],
+  },
   herb: {
     displayName: 'Léčivá bylina',
     description: 'Neptej se, co je v ní. Prostě to vypij.',
