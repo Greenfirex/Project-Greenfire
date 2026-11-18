@@ -10,8 +10,7 @@ const AROUND = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 export const AUTO_CLIFF_STEP = 2.0;
 const STEP_EPSILON = 1e-6;
 const DOOR_HALF_CELL = 0.5;
-const DOOR_FADE_START = 0.3;
-const BOUNDARY_NUDGES = [[-1e-4, -1e-4], [1e-4, -1e-4], [-1e-4, 1e-4], [1e-4, 1e-4]];
+const DOOR_SIDE_FADE = 1;
 export const SAME_LEVEL_STEP = HEIGHT_STEP + 0.01;
 
 function catmull(p0, p1, p2, p3, t) {
@@ -169,30 +168,29 @@ function createPlane(world, level, below) {
     return false;
   }
 
-  const doorBlends = new Map();
+  const doorBlends = [];
 
-  function doorBlendAt(px, pz, cx, cz) {
-    if (!doorBlends.size) return 0;
-    let blend = doorBlends.get(cellKey(cx, cz));
-    if (!blend && heights.has(cellKey(cx, cz))) return 0;
-    let ownX = cx;
-    let ownZ = cz;
-    for (const [nudgeX, nudgeZ] of BOUNDARY_NUDGES) {
-      if (blend) break;
-      ownX = Math.round(px + nudgeX);
-      ownZ = Math.round(pz + nudgeZ);
-      blend = doorBlends.get(cellKey(ownX, ownZ));
+  function doorBlendAt(px, pz) {
+    let total = 0;
+    for (const door of doorBlends) {
+      const offsetX = px - door.cx;
+      const offsetZ = pz - door.cz;
+      const along = offsetX * door.dx + offsetZ * door.dz;
+      if (along <= 0 || along > DOOR_HALF_CELL) continue;
+      const side = offsetX * door.dz - offsetZ * door.dx;
+      if (Math.abs(side) >= DOOR_SIDE_FADE) continue;
+      const edgeSide = Math.max(-DOOR_HALF_CELL, Math.min(DOOR_HALF_CELL, side));
+      const edgeX = door.cx + door.dx * DOOR_HALF_CELL + door.dz * edgeSide;
+      const edgeZ = door.cz + door.dz * DOOR_HALF_CELL - door.dx * edgeSide;
+      const own = smoothed(edgeX, edgeZ, door.cx, door.cz);
+      const other = door.other.smoothedAt(edgeX, edgeZ, door.cx + door.dx, door.cz + door.dz);
+      const fade = 1 - ease((Math.abs(side) - DOOR_HALF_CELL) / (DOOR_SIDE_FADE - DOOR_HALF_CELL));
+      total += (other - own) * ease(along / DOOR_HALF_CELL) * fade;
     }
-    if (!blend) return 0;
-    const offsetX = px - ownX;
-    const offsetZ = pz - ownZ;
-    const along = offsetX * blend.dx + offsetZ * blend.dz;
-    const across = Math.abs(offsetX * blend.dz - offsetZ * blend.dx);
-    const fade = 1 - ease((across - DOOR_FADE_START) / (DOOR_HALF_CELL - DOOR_FADE_START));
-    return blend.delta * ease(along / DOOR_HALF_CELL) * fade;
+    return total;
   }
 
-  function patched(px, pz, cx, cz) {
+  function smoothed(px, pz, cx, cz) {
     const ix = Math.floor(px);
     const iz = Math.floor(pz);
     const fx = px - ix;
@@ -215,7 +213,11 @@ function createPlane(world, level, below) {
     const value = catmull(rows[0], rows[1], rows[2], rows[3], fz);
     const low = Math.min(...used);
     const high = Math.max(...used);
-    return Math.min(high, Math.max(low, value)) + doorBlendAt(px, pz, cx, cz);
+    return Math.min(high, Math.max(low, value));
+  }
+
+  function patched(px, pz, cx, cz) {
+    return smoothed(px, pz, cx, cz) + doorBlendAt(px, pz);
   }
 
   function heightAtSide(x, z, cx, cz) {
@@ -242,6 +244,7 @@ function createPlane(world, level, below) {
     heightAt,
     heightAtCell,
     heightAtSide,
+    smoothedAt: smoothed,
     isHardEdge: (cx, cz, dx, dz) => {
       const mask = hardMaskAt(cx, cz);
       if (!mask) return false;
@@ -259,10 +262,11 @@ function emptyPlane() {
     heightAt: () => 0,
     heightAtCell: () => 0,
     heightAtSide: () => 0,
+    smoothedAt: () => 0,
     isHardEdge: () => false,
     cliffStyleAt: () => null,
     isHole: () => false,
-    doorBlends: new Map(),
+    doorBlends: [],
   };
 }
 
@@ -285,9 +289,7 @@ export function createTerrainField(world) {
     isHole: (cx, cz, level = 0) => planeFor(level).isHole(cx, cz),
     setDoorBlends: (doors) => {
       for (const door of doors) {
-        const middle = (door.floor + door.ground) / 2;
-        planeFor(door.level).doorBlends.set(cellKey(door.cx, door.cz), { dx: door.dx, dz: door.dz, delta: middle - door.floor });
-        planeFor(door.otherLevel).doorBlends.set(cellKey(door.cx + door.dx, door.cz + door.dz), { dx: -door.dx, dz: -door.dz, delta: middle - door.ground });
+        planeFor(door.level).doorBlends.push({ cx: door.cx, cz: door.cz, dx: door.dx, dz: door.dz, other: planeFor(door.otherLevel) });
       }
     },
   };

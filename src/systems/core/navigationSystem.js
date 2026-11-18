@@ -1,7 +1,7 @@
 // Kudy se dá chodit — pochozí místa, přechody mezi patry po spojích, průchody a stropy nad hlavou.
 // Sám nic nestaví; mapu, mosty, hloubku vody a výšku dekorací mu dodá scéna jako dotazy.
 import { worldToCellCoords, CELL_SIZE } from '../../utils/gridMath.js';
-import { worldCells, levelOfEntry, ceilingLiftAt } from '../../data/maps/areaShape.js';
+import { worldCells, levelOfEntry, ceilingLiftAt, DOOR_WALK_HALF, DOOR_FRAME_DEPTH } from '../../data/maps/areaShape.js';
 
 const FLOOR_LINK_RADIUS = 8;
 const DOORWAY_SIGHT_HEIGHT = 3;
@@ -28,6 +28,8 @@ export default class NavigationSystem {
     this.connectorMapFor = null;
     this.passageSet = null;
     this.passageFor = null;
+    this.doorwayList = null;
+    this.doorwayFor = null;
   }
 
   layout() {
@@ -72,9 +74,39 @@ export default class NavigationSystem {
     return Boolean(this.waterDepthAt) && this.waterDepthAt(x, z) > WADE_DEPTH;
   }
 
+  doorways() {
+    const records = this.connectors();
+    if (this.doorwayList && this.doorwayFor === records) return this.doorwayList;
+    const list = [];
+    for (const record of records) {
+      const from = record && record.from;
+      const to = record && record.to;
+      if (!from || !to || levelOf(from) === levelOf(to)) continue;
+      const dx = to.cx - from.cx;
+      const dz = to.cz - from.cz;
+      if (Math.abs(dx) + Math.abs(dz) !== 1) continue;
+      list.push({ x: ((from.cx + to.cx) / 2) * CELL_SIZE, z: ((from.cz + to.cz) / 2) * CELL_SIZE, dx, dz });
+    }
+    this.doorwayList = list;
+    this.doorwayFor = records;
+    return list;
+  }
+
+  inDoorFrame(x, z) {
+    for (const door of this.doorways()) {
+      const rx = x - door.x;
+      const rz = z - door.z;
+      const along = Math.abs(rx * door.dx + rz * door.dz);
+      const across = Math.abs(rx * door.dz - rz * door.dx);
+      if (along < DOOR_FRAME_DEPTH && across > DOOR_WALK_HALF && across <= CELL_SIZE / 2) return true;
+    }
+    return false;
+  }
+
   isWalkableAt(x, z, level = 0) {
     if (level === 0 && this.onBridge(x, z)) return true;
     if (level === 0 && this.tooDeep(x, z)) return false;
+    if (this.inDoorFrame(x, z)) return false;
     const { cx, cz } = worldToCellCoords(x, z);
     if (this.floorCells(level).has(`${cx},${cz}`)) return true;
     if (level !== 0) return false;

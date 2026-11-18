@@ -93,7 +93,6 @@ export default {
     const outerSeeds = [];
     const faces = [];
     const innerSeeds = [];
-    const doors = [];
     const doorFloors = [];
     const levelOf = (end) => (Number.isFinite(end.level) ? end.level : 0);
     for (const record of this.movementConnectors || []) {
@@ -107,7 +106,6 @@ export default {
       innerSeeds.push([inside.cx, inside.cz]);
       const insidePlane = (columns.get(`${inside.cx},${inside.cz}`) || []).find((plane) => plane.level === levelOf(inside));
       if (insidePlane) doorFloors.push(insidePlane.lift);
-      doors.push({ cx: inside.cx, cz: inside.cz, dx: inside.cx - outside.cx, dz: inside.cz - outside.cz });
     }
     if (!outerSeeds.length) return null;
     minX -= OUTER_LIGHT_CELLS;
@@ -163,18 +161,7 @@ export default {
       const litAt = (x, z) => x >= minX && x <= maxX && z >= minZ && z <= maxZ && data[indexOf(x, z) * 4] > 0;
       if (litAt(cx, cz) || SIDES.some(([dx, dz]) => litAt(cx + dx, cz + dz))) lowestVisible = Math.min(lowestVisible, ground.lift);
     }
-    const inFrontOfDoor = (id) => {
-      if (!caveCells.has(id)) return false;
-      const [cx, cz] = id.split(',').map(Number);
-      return doors.some((door) => {
-        const rx = cx - door.cx;
-        const rz = cz - door.cz;
-        const inward = rx * door.dx + rz * door.dz;
-        const across = Math.abs(rx * door.dz - rz * door.dx);
-        return inward >= across;
-      });
-    };
-    spread(innerSeeds, INNER_LIGHT_CELLS, 1, inFrontOfDoor);
+    spread(innerSeeds, INNER_LIGHT_CELLS, 1, (id) => caveCells.has(id));
     return { data, width, height, minX, minZ, lit, floor: lowestDoor, lowestVisible };
   },
 

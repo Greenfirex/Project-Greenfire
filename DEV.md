@@ -186,7 +186,7 @@ boky, stěny jeskyní a stropy (`terrainMass.js`, `runVolume.js`).
   (`addShelfGrass`) i liany (`CliffVineSystem`, modely `cliff_vine.glb` a
   `cliff_vine_2.glb`, zkrácené podle výšky stěny, pod 0,6 m se nedávají). Liany
   visí z horní hrany, z poliček (`terraceAnchors` z `cliffDressSystem`) a po 3–5
-  nad každým vchodem do jeskyně; staví se v `refreshCaveLighting` až po kamenech.
+  nad každým vchodem do jeskyně (visí z překladu do otvoru, před kameny rámu); staví se v `refreshCaveLighting` až po kamenech.
   Houpou se přes `TreeWindPlugin` s volbou `hangFrom` (pevné nahoře, kmitá spodek).
 - **Skalní kusy na útesech** (`terrain/cliffDressSystem.js`): stěna se nemění, jen
   se obalí překrývajícími se kameny (kamenné útesy, recepty `cliff_stone_*` v `rocks.js`)
@@ -233,8 +233,18 @@ vhodná pro jiné vnitřky, třeba dům, přes registr `src/data/catalogs/maps.j
 - Světlá výška aspoň 2,6 m (postava měří 2,0 m, `MODEL_HEIGHT` v `playerSystem.js`), výchozí 3,0 m.
 - „Jsem pod střechou" se odvozuje ze stropu nade mnou, neukládá se.
 - Kde jeskynní buňka sousedí s venkovní ve stejné výšce (do 0,6 m), vznikne sama
-  průchozí díra. Podlahy ve vchodu na sebe navážou jen ve stejné výšce, jinak
-  vznikne schod (rampy a schody se zatím nekreslí).
+  průchozí díra. Zem venku se nemění; podlaha jeskyně se k ní na prahu přimkne
+  v každém bodě a rozdíl se rozlije do půl buňky dovnitř a do boků až o půl buňky
+  za ostění (`setDoorBlends` v `terrainField.js`). Úprava závisí jen na poloze, ne na
+  buňce, takže mezi buňkou vchodu a sousedy nevznikne škvíra. Každá plocha se jinak
+  vyhlazuje jen podle svých buněk; dřív tak na prahu vznikal zub a u ostění škvíra.
+- Otvor vchodu je užší a nižší než díra ve skále: kameny rámu (`caveFrameSystem.js`)
+  ho zúží na `DOOR_OPEN_HALF` od středu a sníží na `DOOR_OPEN_HEIGHT` nad podlahou
+  (`areaShape.js`). Chůze to hlídá stejně: v pásu `DOOR_FRAME_DEPTH` kolem prahu je
+  pochozí jen střed do `DOOR_WALK_HALF` (`navigationSystem.inDoorFrame`), jinak by
+  postava procházela kameny. Kameny rámu vrhají stín (bez nich svítil dovnitř pravoúhlý
+  stín díry ve skále). Horní část otvoru tvoří oblouk z menších kamenů (půlkruh o poloměru půlky otvoru), aby nebyl hranatý;
+  sedí nad výškou postavy.
 
 **Hotovo:** data a dotazy, geometrie (podlahy, stropy, stěny, šachty, vchody),
 pohyb hráče po patrech i přes spoj, tma v jeskyni a jeskynní zvuk. Jeskyně nemá
@@ -247,7 +257,8 @@ doplní každé `$1`, `$2` … jen jednou, proto má vzor tolik závorek, kolikr
 od vchodu (světlo oblohy) bylo zrušené, dělalo za prahem ostře světlejší pruh. Stěny a strop jeskyně vrhají stín od slunce i táboráku; do map
 stínů (i do mapy dohledu) se skála kreslí z obou stran (`utils/bothSidesMaterial.js`),
 jinak by ji některé strany krychle i slunce viděly odvrácenou stranou a světlo by
-prošlo. Postava a tvorové zůstávají osvětlení normálně. Když je
+prošlo. Modely v podzemí (postava, tvorové a dekorace v patře pod 0) tlumí slunce a oblohu stejně
+jako terén jeskyně (`revealUnder`, seznam drží `GameScene.updateUndergroundMeshes`). Když je
 hráč pod stropem, schovají se přesně stropní dlaždice nad jeskyní (`overCave`,
 samostatný mesh `_roof`) a skryjí se dekorace i tráva na těch buňkách. Strop je zeshora neviditelný.
 Terén výš než podlaha, na které hráč stojí, zmizí v celém rozsahu stejně jako

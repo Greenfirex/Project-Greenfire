@@ -99,6 +99,7 @@ const AUTOTUNE_HIGH_FPS = 57;
 const AUTOTUNE_MIN_SCALE = 0.7;
 const AUTOTUNE_STEP = 0.1;
 const INDOOR_FADE_SECONDS = 2;
+const CAVE_DECO_REFRESH_SECONDS = 1;
 const WADE_SPEED = 0.65;
 const WADE_RAMP = 0.2;
 const WATER_SOUND_SECONDS = 0.15;
@@ -961,6 +962,7 @@ export default class GameScene {
     this.campfireSystem.setTerrain(this.terrainSystem.liveSurfaces());
     this.revealSystem.setLightMap(this.terrainSystem.caveLightMap());
     this.caveFrameSystem.create(this.terrainSystem.caveDoors(), (style, source) => this.terrainSystem.caveFrameMaterial(style, source));
+    for (const mesh of this.caveFrameSystem.meshes()) this.addShadowCaster(mesh);
     const fallFaces = this.waterfallFaces();
     const faces = this.terrainSystem.cliffFaces().filter((face) => !fallFaces.has(`${face.cx},${face.cz}|${face.dx},${face.dz}`));
     this.cliffDressSystem.create(faces, (style, mossy, source) => this.terrainSystem.cliffDressMaterial(style, mossy, source));
@@ -1151,9 +1153,24 @@ export default class GameScene {
       }
       this.revealSystem.setKeptMeshes(own);
     }
+    this.updateUndergroundMeshes(dt, root, level);
     this.updateSight(dt, view, under);
     this.revealSystem.update(dt, under, root ? root.position : null, this.camera, view);
     this.terrainSystem.showCaveRing(this.revealSystem.isOpen());
+  }
+
+  updateUndergroundMeshes(dt, root, level) {
+    this.caveDecoTimer = (this.caveDecoTimer || 0) - dt;
+    if (!this.caveDecoList || this.caveDecoTimer <= 0) {
+      this.caveDecoTimer = CAVE_DECO_REFRESH_SECONDS;
+      this.caveDecoList = this.decoSystem.caveDecoInSight(() => true);
+    }
+    const meshes = [...this.caveDecoList];
+    if (root && level < 0) meshes.push(...root.getChildMeshes(false));
+    for (const creature of this.creatureSystem.creatures) {
+      if ((creature.level || 0) < 0) meshes.push(...creature.meshes);
+    }
+    this.revealSystem.setUndergroundMeshes(meshes);
   }
 
   updateSight(dt, view, under) {

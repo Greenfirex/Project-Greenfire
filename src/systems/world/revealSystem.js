@@ -44,6 +44,7 @@ export default class RevealSystem {
       floor: 0,
       kept: new Set(),
       creatures: new Set(),
+      underground: new Set(),
       map: null,
       mapMin: new Vector4(0, 0, 1, 1),
       sightMap: null,
@@ -165,6 +166,12 @@ export default class RevealSystem {
 
   setCreatureMeshes(meshes) {
     this.state.creatures = meshes;
+  }
+
+  setUndergroundMeshes(meshes) {
+    const { underground } = this.state;
+    underground.clear();
+    for (const mesh of meshes) underground.add(mesh);
   }
 
   setKeptMeshes(meshes) {

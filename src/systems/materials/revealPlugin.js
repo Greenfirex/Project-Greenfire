@@ -1,5 +1,6 @@
 // Rentgen v materiálech — přidá běžným materiálům mizení a ztmavení z revealGlsl.js.
 // Terén nad podlahou patra zmizí stejně ve hře i v editoru, venku zůstane jen osvětlené okolí vchodu; modely mizí, pokud nepatří hráči nebo tvorům v jeho patře.
+// Slunce a obloha se v jeskyni tlumí od vchodu dovnitř — u terénu jeskyně vždy, u modelů, když jsou v podzemí.
 import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase';
 import { REVEAL_UNIFORMS, REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, revealBlock, sightRiseByHeight, sightPointOf } from '../../utils/revealGlsl.js';
 
@@ -8,6 +9,7 @@ const REVEAL_CODE_STANDARD = revealBlock('color', 'vPositionW', REVEAL_RULES, 'n
 const REVEAL_CODE_PBR = revealBlock('finalColor', 'vPositionW', REVEAL_RULES);
 const KEEP_UNIFORM = 'revealKeep';
 const CREATURE_UNIFORM = 'revealCreature';
+const UNDER_UNIFORM = 'revealUnder';
 const CAMERA_SIDE = 'revealCaveAhead(vPositionW, vEyePosition.xyz)';
 const BASE_VARYING = 'vRevealBase';
 const NEAR_WALL = `revealRockBehind(${BASE_VARYING}, vEyePosition.xyz)`;
@@ -15,7 +17,7 @@ const RISE_BY_HEIGHT = sightRiseByHeight('vPositionW');
 const POINT_BY_HEIGHT = sightPointOf('vPositionW');
 const DAYLIGHT_THROUGH_DOOR = `
 float revealDaylightOpen = 1.0;
-if (REVEAL_INSIDE > 0.5) {
+if (REVEAL_INSIDE > 0.5 || revealUnder > 0.5) {
   vec4 revealDaylightOwn;
   vec4 revealDaylightSample = revealSampleAt(vPositionW, revealDaylightOwn);
   revealDaylightOpen = revealDoorGlow(revealDaylightOwn, revealDaylightSample.y);
@@ -75,7 +77,7 @@ export default class RevealPlugin extends MaterialPluginBase {
   }
 
   getUniforms() {
-    return { externalUniforms: [...REVEAL_UNIFORM_NAMES, KEEP_UNIFORM, CREATURE_UNIFORM] };
+    return { externalUniforms: [...REVEAL_UNIFORM_NAMES, KEEP_UNIFORM, CREATURE_UNIFORM, UNDER_UNIFORM] };
   }
 
   hardBindForSubMesh(ubo, scene, engine, subMesh) {
@@ -92,6 +94,7 @@ export default class RevealPlugin extends MaterialPluginBase {
     effect.setColor3('revealSightFog', sightFog);
     effect.setFloat(KEEP_UNIFORM, kept.has(subMesh.getMesh()) ? 1 : 0);
     effect.setFloat(CREATURE_UNIFORM, this.state.creatures.has(subMesh.getMesh()) ? 1 : 0);
+    effect.setFloat(UNDER_UNIFORM, this.state.underground.has(subMesh.getMesh()) ? 1 : 0);
   }
 
   getCustomCode(shaderType) {
@@ -108,9 +111,15 @@ ${BASE_VARYING} = (world * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
     if (shaderType !== 'fragment') return null;
     const definitions = `${DEFINE_FALLBACKS}\n${REVEAL_UNIFORMS}\nuniform float ${KEEP_UNIFORM};
 uniform float ${CREATURE_UNIFORM};
+uniform float ${UNDER_UNIFORM};
 varying vec3 ${BASE_VARYING};`;
     if (this._material.getClassName() !== 'StandardMaterial') {
-      return { CUSTOM_FRAGMENT_DEFINITIONS: definitions, CUSTOM_FRAGMENT_BEFORE_FRAGCOLOR: REVEAL_CODE_PBR };
+      return {
+        CUSTOM_FRAGMENT_DEFINITIONS: definitions,
+        CUSTOM_FRAGMENT_BEFORE_LIGHTS: DAYLIGHT_THROUGH_DOOR,
+        [DAYLIGHT_POINT]: DAYLIGHT_GATE,
+        CUSTOM_FRAGMENT_BEFORE_FRAGCOLOR: REVEAL_CODE_PBR,
+      };
     }
     return {
       CUSTOM_FRAGMENT_DEFINITIONS: definitions,

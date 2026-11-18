@@ -1,9 +1,11 @@
 // Skalní rám kolem vchodů do jeskyní — kameny po stranách otvoru, přes jeho horní hranu a u paty.
 // Skládá se sám z vchodů, které zná terén; nic se neukládá a každý vchod je jiný, ale pokaždé stejný.
+// Kameny zužují a snižují otvor na rozměr z areaShape.js (stejný hlídá chůze) a vrhají stín.
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { rockRoot } from '../../utils/rockFactory.js';
+import { DOOR_OPEN_HALF, DOOR_OPEN_HEIGHT } from '../../data/maps/areaShape.js';
 
 const SIDE_STONES = [
   { key: 'boulder_large_c', scale: 0.75 },
@@ -17,7 +19,8 @@ const TOP_STONES = [
   { key: 'boulder_small', scale: 0.9 },
 ];
 const FOOT_STONE = { key: 'boulder_small', scale: 0.55 };
-const SIDE_ACROSS = 1.02;
+const ARCH_STONE = { key: 'boulder_small', scale: 0.6 };
+const ARCH_ANGLES = [0.3, 0.75, 1.15];
 const SIDE_OUT = 0.15;
 const STACK_OVERLAP = 0.8;
 const STACK_LIMIT = 8;
@@ -26,8 +29,7 @@ const TOP_MARGIN = 0.3;
 const TOP_OUT = 0.12;
 const TOP_SPACING = 0.4;
 const TOP_REACH = 0.8;
-const TOP_EMBED = 0;
-const FOOT_ACROSS = 0.72;
+const TOP_ROW = 0.35;
 const FOOT_OUT = 0.45;
 const SCALE_JITTER = 0.15;
 const PLACE_JITTER = 0.08;
@@ -64,8 +66,11 @@ export default class CaveFrameSystem {
     mesh.alwaysSelectAsActiveMesh = true;
     mesh.setEnabled(false);
     mesh.refreshBoundingInfo();
+    mesh.receiveShadows = true;
+    mesh.metadata = { ...(mesh.metadata || {}), shadowAlways: true };
     const box = mesh.getBoundingInfo().boundingBox;
-    const stone = { mesh, height: box.maximum.y - box.minimum.y, matrices: [] };
+    const half = (Math.max(box.maximum.x, -box.minimum.x) + Math.max(box.maximum.z, -box.minimum.z)) / 2;
+    const stone = { mesh, height: box.maximum.y - box.minimum.y, half, matrices: [] };
     this.stones.set(id, stone);
     return stone;
   }
@@ -81,15 +86,37 @@ export default class CaveFrameSystem {
     const base = Math.min(door.floor, door.ground);
     if (!door.openLeft) this.frameSide(door, 1, base);
     if (!door.openRight) this.frameSide(door, -1, base);
+    const openTop = Math.min(door.top, base + DOOR_OPEN_HEIGHT);
+    this.frameArch(door, openTop);
     let index = 0;
-    for (let across = -TOP_REACH; across <= TOP_REACH + 1e-3; across += TOP_SPACING) {
-      const spec = TOP_STONES[index % TOP_STONES.length];
-      const stone = this.stoneFor(door, spec.key);
-      if (!stone) return;
-      const scale = this.scaleOf(spec, door, across, 1);
-      this.put(stone, door, across, TOP_OUT, door.top - stone.height * scale * TOP_EMBED, scale, index + 100);
-      index += 1;
+    for (let y = openTop; index === 0 || y < door.top; y += TOP_ROW) {
+      for (let across = -TOP_REACH; across <= TOP_REACH + 1e-3; across += TOP_SPACING) {
+        const spec = TOP_STONES[index % TOP_STONES.length];
+        const stone = this.stoneFor(door, spec.key);
+        if (!stone) return;
+        const scale = this.scaleOf(spec, door, across, index);
+        this.put(stone, door, across, TOP_OUT, y, scale, index + 100);
+        index += 1;
+      }
     }
+  }
+
+  frameArch(door, openTop) {
+    const stone = this.stoneFor(door, ARCH_STONE.key);
+    if (!stone) return;
+    for (const side of [1, -1]) {
+      ARCH_ANGLES.forEach((angle, index) => {
+        const scale = this.scaleOf(ARCH_STONE, door, side, 60 + index);
+        const reach = DOOR_OPEN_HALF + stone.half * scale;
+        const across = side * reach * Math.cos(angle);
+        const y = openTop - DOOR_OPEN_HALF + reach * Math.sin(angle) - (stone.height * scale) / 2;
+        this.put(stone, door, across, TOP_OUT, y, scale, side * (60 + index));
+      });
+    }
+  }
+
+  meshes() {
+    return [...this.stones.values()].map((stone) => stone.mesh);
   }
 
   frameSide(door, side, base) {
@@ -100,13 +127,15 @@ export default class CaveFrameSystem {
       const stone = this.stoneFor(door, spec.key);
       if (!stone) return;
       const scale = this.scaleOf(spec, door, side, index);
-      const across = side * (SIDE_ACROSS + (hash(door.cx, door.cz, side, index, 2) - 0.5) * PLACE_JITTER * 2);
+      const across = side * (DOOR_OPEN_HALF + stone.half * scale + hash(door.cx, door.cz, side, index, 2) * PLACE_JITTER);
       const out = SIDE_OUT + (hash(door.cx, door.cz, side, index, 3) - 0.5) * PLACE_JITTER * 2;
       this.put(stone, door, across, out, y, scale, index + side * 10);
       y += stone.height * scale * STACK_OVERLAP;
     }
     const foot = this.stoneFor(door, FOOT_STONE.key);
-    if (foot) this.put(foot, door, side * FOOT_ACROSS, FOOT_OUT, base - SINK, this.scaleOf(FOOT_STONE, door, side, 50), side * 50);
+    if (!foot) return;
+    const footScale = this.scaleOf(FOOT_STONE, door, side, 50);
+    this.put(foot, door, side * (DOOR_OPEN_HALF + foot.half * footScale), FOOT_OUT, base - SINK, footScale, side * 50);
   }
 
   scaleOf(spec, door, salt, index) {

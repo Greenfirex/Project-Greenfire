@@ -7,6 +7,7 @@ import { flowerTemplate } from '../../utils/flowerFactory.js';
 import { loadModel } from '../../utils/assetLoader.js';
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { CLIFF_STONE_MAX_OUT } from './terrainSettings.js';
+import { DOOR_OPEN_HALF, DOOR_OPEN_HEIGHT } from '../../data/maps/areaShape.js';
 import TreeWindPlugin from '../flora/treeWindPlugin.js';
 
 const CHUNK_WORLD = CELL_SIZE * 8;
@@ -22,11 +23,11 @@ const TERRACE_CHANCE = 0.45;
 const WIDTH_RANGE = [0.6, 1.5];
 const LENGTH_RANGE = [0.75, 1.35];
 const DOOR_VINES = [3, 5];
-const DOOR_SPREAD = 0.85;
-const DOOR_OUT = 0.05;
-const DOOR_ABOVE = 0.1;
-const DOOR_WIDTH = [0.45, 1];
-const DOOR_DROP = [0.25, 0.65];
+const DOOR_SPREAD = DOOR_OPEN_HALF + 0.15;
+const DOOR_OUT = 0.45;
+const DOOR_ABOVE = 0.15;
+const DOOR_WIDTH = [0.4, 0.8];
+const DOOR_DROP = [0.3, 0.6];
 const WIND_STRENGTH = 0.08;
 const MIN_DROP = 0.6;
 const DROP_SHARE = 0.9;
@@ -179,7 +180,8 @@ export default class CliffVineSystem {
 
   placeDoor(door) {
     if (!this.vines.length) return;
-    const opening = door.top - Math.max(door.floor, door.ground);
+    const top = Math.min(door.top, Math.min(door.floor, door.ground) + DOOR_OPEN_HEIGHT);
+    const opening = top - Math.max(door.floor, door.ground);
     if (!(opening > MIN_DROP)) return;
     const total = DOOR_VINES[0] + Math.floor(hash(door.cx, door.cz, door.dx, door.dz, 1) * (DOOR_VINES[1] - DOOR_VINES[0] + 1));
     for (let index = 0; index < total; index += 1) {
@@ -187,7 +189,7 @@ export default class CliffVineSystem {
       const across = (slot * 2 - 1) * DOOR_SPREAD + (hash(door.cx, door.cz, index, 2) - 0.5) * 0.25;
       const anchor = {
         x: (door.cx + door.dx / 2) * CELL_SIZE + door.dx * DOOR_OUT - door.dz * across,
-        y: door.top + DOOR_ABOVE,
+        y: top + DOOR_ABOVE,
         z: (door.cz + door.dz / 2) * CELL_SIZE + door.dz * DOOR_OUT + door.dx * across,
         dirX: door.dx,
         dirZ: door.dz,
