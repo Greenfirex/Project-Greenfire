@@ -15,3 +15,5 @@ export const ASSET_DIRS = {
   itemIcons: 'assets/ui/items/',
   equipIcons: 'assets/ui/equip/',
 };
+
+export const PLANKS_TEXTURE = `${ASSET_DIRS.textures}Planks004_1K-JPG_Color.jpg`;

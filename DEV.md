@@ -895,3 +895,34 @@ Sekyra a krumpáč jako zbraně odloženy na později.
 
 **Otevřené otázky (rozhodnout před danou etapou):**
 - Sekyra a krumpáč: jen nástroje, nebo i slabé zbraně, když jsou v ruce? (Odloženo.)
+
+## Stavby — plán po etapách (první: opuštěný pirátský srub)
+
+Srub u buňky (−18, 12) na rovině ve výšce 6,25 m, půdorys 4 × 3 buňky (8 × 6 m),
+ze západu ho kryje útes. Stavba se skládá z dílů na mřížce, ne z jednoho modelu:
+model z Meshy je dělaný na pohled zvenku (vnitřek bez tloušťky, dveře často jen
+namalované), z dílů jde postavit chůze dovnitř, otvírání dveří i pohled dovnitř.
+
+**Data.** Katalog `src/data/catalogs/buildings.js` popisuje stavbu: rozměr v buňkách,
+podlahu a později hrany (stěna, okno, dveře, nic) a střechu. Mapa drží seznam
+`buildings` (`key`, `cx`, `cz` = roh s nejmenšími souřadnicemi, `rotation` 0–3);
+nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildingSystem.js`.
+
+**Etapy (každou jde vyzkoušet zvlášť):**
+1. **Podlaha** (hotovo jako pokus): prkenná podlaha z textury dřevěné cesty
+   kousek nad zemí, s lemem z trámů; kroky po ní zní jako dřevo.
+2. **Díly z Meshy**: rovná stěna z kulatiny 2 m × ~2,6 m, stěna s otvorem pro dveře,
+   stěna s oknem, samotné dveře, rohový sloup, střecha; vybavení (stůl, sudy, síť).
+   Stejný popis stylu u všech dílů. Zpracování jako ostatní modely z Meshy
+   (zmenšení, WebP textury), díly srovnané na rozměr buňky. Stavba v katalogu dostane hrany.
+3. **Chůze dovnitř**: zeď na hraně buňky pro hráče i tvory (podobně jako rám vchodu
+   jeskyně, `navigationSystem.inDoorFrame`); stěny vrhají stín a zastaví dohled (`metadata.volume`).
+4. **Dveře**: otevření kliknutím jako truhla (`lootSystem` — pant kolem svislé osy místo víka);
+   zavřené blokují průchod. Stav dveří se ukládá do savu (registrace v `saveSystem`).
+5. **Pohled dovnitř**: když je hráč uvnitř, střecha zmizí (jako strop jeskyně) a stěny
+   na straně ke kameře se seříznou zhruba v pasu (řez jako u terénu v jeskyni).
+6. **Editor**: štětec Stavby — klik na roh, R otočí, guma smaže; zápis do historie (Zpět).
+
+**Otevřené otázky:** zvednutá podlaha (dnes jen o pár centimetrů, výš potřebuje výšku
+chůze ze stavby a schod u dveří); tráva a dekorace pod podlahou (dnes se neschovávají,
+na místě srubu tráva není); veranda.

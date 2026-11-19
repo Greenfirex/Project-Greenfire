@@ -11,6 +11,7 @@ import CrabSystem from '../systems/creatures/crabSystem.js';
 import CreatureSystem from '../systems/creatures/creatureSystem.js';
 import SkySystem from '../systems/atmosphere/skySystem.js';
 import DecoSystem from '../systems/world/decoSystem.js';
+import BuildingSystem from '../systems/world/buildingSystem.js';
 import RevealSystem from '../systems/world/revealSystem.js';
 import { setNightLight } from '../systems/materials/nightLightPlugin.js';
 import SightSystem from '../systems/world/sightSystem.js';
@@ -157,6 +158,8 @@ export default class GameScene {
     this.skySystem = new SkySystem(scene);
     this.decoSystem = new DecoSystem(scene);
     this.decoSystem.groundHeightAt = (x, z, level = 0) => this.terrainSystem.heightAt(x, z, level);
+    this.buildingSystem = new BuildingSystem(scene);
+    this.buildingSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z, 0);
     this.floraSystem = new FloraSystem(scene);
     this.cliffVineSystem = new CliffVineSystem(scene);
     this.caveFrameSystem = new CaveFrameSystem(scene);
@@ -341,6 +344,7 @@ export default class GameScene {
     } else {
       this.decoSystem.create(this.mapFile, map.colors);
     }
+    this.buildBuildings();
     this.setupDecorations();
     this.setupSimulation();
     this.setupHud();

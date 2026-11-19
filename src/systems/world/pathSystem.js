@@ -7,7 +7,7 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { CELL_SIZE, cellKey } from '../../utils/gridMath.js';
 import { warnMissingWiring } from '../../utils/missingWiring.js';
-import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
+import { ASSET_DIRS, PLANKS_TEXTURE } from '../../data/catalogs/assetPaths.js';
 
 const PATH_LIFT = 0.025;
 const STRAIGHT_ALONG = 4;
@@ -21,7 +21,7 @@ const UV_TILE = 1;
 const STYLE_TEXTURES = {
   dirt: `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`,
   stone: `${ASSET_DIRS.textures}PavingStones092_1K-JPG_Color.jpg`,
-  wood: `${ASSET_DIRS.textures}Planks004_1K-JPG_Color.jpg`,
+  wood: PLANKS_TEXTURE,
 };
 
 function styleOf(entry) {

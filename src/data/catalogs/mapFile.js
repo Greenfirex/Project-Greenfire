@@ -82,6 +82,7 @@ export function layoutFromMapFile(file, fallbackSeed = 1) {
     bridges: copy(world.bridges),
     connectors: copy(world.connectors),
     floorNames: { ...(world.floorNames || {}) },
+    buildings: copy(world.buildings),
   };
 }
 
@@ -137,5 +138,6 @@ export function mapFileFromLayout(mapKey, layout) {
     bridges: copy(layout.bridges),
     connectors: (layout.connectors || []).length ? layout.connectors.map((item) => ({ ...item })) : undefined,
     floorNames: Object.keys(layout.floorNames || {}).length ? { ...layout.floorNames } : undefined,
+    buildings: (layout.buildings || []).length ? copy(layout.buildings) : undefined,
   };
 }

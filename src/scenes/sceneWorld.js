@@ -390,9 +390,15 @@ export default {
     this.renderMapLayout([REBUILD_HEIGHTS]);
   },
 
+  buildBuildings() {
+    this.buildingSystem.build(this.mapFile || {});
+    for (const mesh of this.buildingSystem.meshes) this.addShadowCaster(mesh);
+  },
+
   reseatDecorations() {
     const layout = this.mapFile || {};
     this.decoSystem.beginHeights(layout, getMap(this.mapKey).colors);
+    this.buildBuildings();
     this.decoSystem.reseatHeights();
     this.floraSystem.reseatHeights();
     this.campfireSystem.reseatHeights((entry) => this.decoSystem.entryHeight(entry), layout.decorations);
@@ -411,6 +417,7 @@ export default {
     this.decoHighlight.clear();
     this.decoSystem.beginStages(layout, getMap(this.mapKey).colors);
     this.decoSystem.buildPath();
+    this.buildBuildings();
     for (const stage of stages) {
       const entries = stagePieces(layout, stage);
       if (!entries.length) continue;

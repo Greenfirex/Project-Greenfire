@@ -23,9 +23,10 @@ export default {
   },
 
   groundKeyAt(cx, cz) {
+    const buildingKey = this.buildingSystem.floorKeyAt(cx, cz) || '';
     const pathKey = this.decoSystem.surfaceKeyAt(cx, cz) || '';
     const floorKey = this.terrainSystem.floorKeyAt ? this.terrainSystem.floorKeyAt(cx, cz) : null;
-    return pathKey || floorKey || '';
+    return buildingKey || pathKey || floorKey || '';
   },
 
   onCreatureStep(creature, step) {
