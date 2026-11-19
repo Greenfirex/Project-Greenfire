@@ -113,5 +113,5 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Patra: ověřit v dev serveru krok 4 — jeskyně je tmavá i bez hráče (prostorová tma; pochodеň/oheň prosvětlí), povrch světlý, jeskynní ambient (`cave.ogg`) se přelévá; a skrývání ploch nade hráčem (z výšky vidět dovnitř) funguje. Model a stav jsou v `DEV.md`, sekce „Jeskyně a patra".
 - [ ] Odkrývání střechy ukazuje prázdno/moře a dekorace nad odhalenou plochou visí — dočistit v dalších fázích objemového terénu.
 - [ ] Voda po patrech: jedna hladina dnes proteče stropem jeskyně.
-- [ ] Pirátský srub u (−18, 12): plán po etapách v `DEV.md`, sekce „Stavby". Podlaha je hotová jako pokus; další krok jsou díly z Meshy.
+- [ ] Pirátský srub u útesu (−20…−18, 11…14): plán po etapách v `DEV.md`, sekce „Stavby". Podlaha, stěny s otvory, stáří a liany jsou hotové jako pokus; dál nábytek před tajný vchod (chodba −21,12 se dá v editoru prodloužit), střecha a vybavení z Meshy.
 - [ ] Rozhodnout o šířce plynulého okraje pláže.

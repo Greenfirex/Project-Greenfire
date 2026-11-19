@@ -12,6 +12,7 @@ import CreatureSystem from '../systems/creatures/creatureSystem.js';
 import SkySystem from '../systems/atmosphere/skySystem.js';
 import DecoSystem from '../systems/world/decoSystem.js';
 import BuildingSystem from '../systems/world/buildingSystem.js';
+import { buildingCellKeys } from '../data/catalogs/buildings.js';
 import RevealSystem from '../systems/world/revealSystem.js';
 import { setNightLight } from '../systems/materials/nightLightPlugin.js';
 import SightSystem from '../systems/world/sightSystem.js';
@@ -802,7 +803,7 @@ export default class GameScene {
     };
     this.playerSystem.decoSystem = this.decoSystem;
     this.creatureSystem.pointerLevel = () => this.viewLevel();
-    this.playerSystem.groundHeightAt = (x, z, level) => this.terrainSystem.walkHeightAt(x, z, level);
+    this.playerSystem.groundHeightAt = (x, z, level) => this.standHeightAt(x, z, level);
     this.playerSystem.wallRiseAt = (x, z, radius, level) => this.terrainSystem.riseNear(x, z, radius, level);
     this.playerSystem.cliffOverlapAt = (x, z, level) => this.terrainSystem.cliffOverlap(x, z, level);
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z, this.playerSystem.root ? this.playerSystem.root.position.y : 0);
@@ -965,13 +966,38 @@ export default class GameScene {
     this.sightSystem.setBlockers(this.terrainSystem.liveSurfaces());
     this.campfireSystem.setTerrain(this.terrainSystem.liveSurfaces());
     this.revealSystem.setLightMap(this.terrainSystem.caveLightMap());
-    this.caveFrameSystem.create(this.terrainSystem.caveDoors(), (style, source) => this.terrainSystem.caveFrameMaterial(style, source));
+    this.caveFrameSystem.create(this.caveDoorsAround(), (style, source) => this.terrainSystem.caveFrameMaterial(style, source));
     for (const mesh of this.caveFrameSystem.meshes()) this.addShadowCaster(mesh);
     const fallFaces = this.waterfallFaces();
-    const faces = this.terrainSystem.cliffFaces().filter((face) => !fallFaces.has(`${face.cx},${face.cz}|${face.dx},${face.dz}`));
+    const housed = buildingCellKeys((this.mapFile || {}).buildings);
+    const faces = this.terrainSystem.cliffFaces().filter((face) => !fallFaces.has(`${face.cx},${face.cz}|${face.dx},${face.dz}`)
+      && !housed.has(`${face.cx + face.dx},${face.cz + face.dz}`));
     this.cliffDressSystem.create(faces, (style, mossy, source) => this.terrainSystem.cliffDressMaterial(style, mossy, source));
-    this.cliffVineSystem.create({ edges: this.terrainSystem.shelfAnchors, terraces: this.cliffDressSystem.terraceAnchors, doors: this.terrainSystem.caveDoors() });
+    this.refreshVines();
     this.editor.syncFloorView();
+  }
+
+  caveDoorsAround() {
+    const housed = buildingCellKeys((this.mapFile || {}).buildings);
+    return this.terrainSystem.caveDoors().map((door) => (
+      housed.has(`${door.cx},${door.cz}`) || housed.has(`${door.cx + door.dx},${door.cz + door.dz}`) ? { ...door, sunk: true } : door
+    ));
+  }
+
+  standHeightAt(x, z, level) {
+    const ground = this.terrainSystem.walkHeightAt(x, z, level);
+    if ((level || 0) !== 0) return ground;
+    const deck = this.buildingSystem.walkHeightAt(x, z);
+    return deck === null ? ground : Math.max(ground, deck);
+  }
+
+  refreshVines() {
+    this.cliffVineSystem.create({
+      edges: this.terrainSystem.shelfAnchors,
+      terraces: this.cliffDressSystem.terraceAnchors,
+      doors: this.caveDoorsAround().filter((door) => !door.sunk),
+      walls: this.buildingSystem.vineAnchors(),
+    });
   }
 
   shelfGrassAnchors() {
@@ -1435,7 +1461,7 @@ export default class GameScene {
       if (plane !== null) return plane;
       const level = wanted !== null ? wanted : this.gatherSystem.levelOf();
       if (level !== 0 && !this.navigation.isWalkableAt(x, z, level)) return NO_FLOOR_PICK_HEIGHT;
-      return this.terrainSystem.walkHeightAt(x, z, level);
+      return this.standHeightAt(x, z, level);
     };
     this.inputSystem.shouldPickByRay = () => this.editor.active && this.editor.mode.selectsArea;
     this.inputSystem.attach(this.camera, this);

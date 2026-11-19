@@ -94,7 +94,7 @@ export default class CameraSystem {
     this.target.z += (z - this.target.z) * k;
     this.target.y += (goalY - this.target.y) * k;
     const offset = this.advanceShake(dt);
-    this.camera.setTarget(offset ? this.target.add(offset) : this.target);
+    this.camera.setTarget(offset ? this.target.add(offset) : this.target, false, false, true);
   }
 
   shake(strength = 0.25, seconds = 0.3) {
@@ -119,7 +119,7 @@ export default class CameraSystem {
 
   snapTo(x, z, y = 0) {
     this.target.set(x, Number.isFinite(y) ? y : 0, z);
-    if (this.camera) this.camera.setTarget(this.target);
+    if (this.camera) this.camera.setTarget(this.target, false, false, true);
   }
 
   onResize() {

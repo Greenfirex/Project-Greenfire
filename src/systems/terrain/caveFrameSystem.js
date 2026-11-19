@@ -1,6 +1,7 @@
 // Skalní rám kolem vchodů do jeskyní — kameny po stranách otvoru, přes jeho horní hranu a u paty.
 // Skládá se sám z vchodů, které zná terén; nic se neukládá a každý vchod je jiný, ale pokaždé stejný.
 // Kameny zužují a snižují otvor na rozměr z areaShape.js (stejný hlídá chůze) a vrhají stín.
+// Vchod uvnitř stavby (sunk) má rám zasunutý hlouběji do skály, aby kameny nelezly do místnosti.
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CELL_SIZE } from '../../utils/gridMath.js';
@@ -25,6 +26,7 @@ const ARCH_ANGLES = [0.3, 0.75, 1.15];
 const STACK_OVERLAP = 0.8;
 const STACK_LIMIT = 8;
 const SINK = 0.08;
+const SUNK_DEPTH = 0.55;
 const TOP_MARGIN = 0.3;
 const TOP_SPACING = 0.4;
 const TOP_REACH = 0.8;
@@ -152,8 +154,9 @@ export default class CaveFrameSystem {
     return spec.scale * (1 + (hash(door.cx, door.cz, salt, index, 1) - 0.5) * SCALE_JITTER * 2);
   }
 
-  put(stone, door, across, out, y, scale, salt) {
+  put(stone, door, across, outward, y, scale, salt) {
     const { cx, cz, dx, dz } = door;
+    const out = outward - (door.sunk ? SUNK_DEPTH : 0);
     const x = (cx + dx / 2) * CELL_SIZE + dx * out - dz * across;
     const z = (cz + dz / 2) * CELL_SIZE + dz * out + dx * across;
     const yaw = hash(cx, cz, dx, dz, salt) * Math.PI * 2;

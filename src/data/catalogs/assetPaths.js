@@ -17,3 +17,5 @@ export const ASSET_DIRS = {
 };
 
 export const PLANKS_TEXTURE = `${ASSET_DIRS.textures}Planks004_1K-JPG_Color.jpg`;
+export const LOG_TEXTURE = `${ASSET_DIRS.textures}Wood062_1K-JPG_Color.jpg`;
+export const LOG_NORMAL = `${ASSET_DIRS.textures}Wood062_1K-JPG_NormalGL.jpg`;

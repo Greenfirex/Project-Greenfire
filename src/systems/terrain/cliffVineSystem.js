@@ -1,4 +1,4 @@
-// Rostliny na útesech — visuté liany z horní hrany, z poliček a nad vchody do jeskyní, a kytičky na hraně.
+// Rostliny na útesech — visuté liany z horní hrany, z poliček, nad vchody do jeskyní a z vršku stěn staveb, a kytičky na hraně.
 // Liana se zkrátí podle výšky stěny, aby nesahala pod její patu; ve větru se houpe spodním koncem.
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -28,6 +28,9 @@ const DOOR_OUT = CLIFF_STONE_MAX_OUT * 0.6;
 const DOOR_ABOVE = 0.15;
 const DOOR_WIDTH = [0.4, 0.8];
 const DOOR_DROP = [0.3, 0.6];
+const WALL_CHANCE = 0.4;
+const WALL_WIDTH = [0.5, 1.1];
+const WALL_DROP = [0.35, 0.85];
 const WIND_STRENGTH = 0.08;
 const MIN_DROP = 0.6;
 const DROP_SHARE = 0.9;
@@ -107,7 +110,7 @@ export default class CliffVineSystem {
 
   create(places) {
     this.places = places || {};
-    const { edges = [], terraces = [], doors = [] } = this.places;
+    const { edges = [], terraces = [], doors = [], walls = [] } = this.places;
     for (const vine of this.vines) vine.matrices = [];
     for (const flower of this.flowers) flower.matrices = [];
     for (const anchor of edges) {
@@ -116,6 +119,7 @@ export default class CliffVineSystem {
     }
     for (const anchor of terraces) this.placeVine(anchor, TERRACE_CHANCE, 0);
     for (const door of doors) this.placeDoor(door);
+    for (const anchor of walls) this.placeWall(anchor);
     this.buildChunks();
     for (const flower of this.flowers) this.flush(flower.mesh, flower.matrices);
   }
@@ -176,6 +180,14 @@ export default class CliffVineSystem {
     const width = Math.min(between(WIDTH_RANGE, hash(anchor.x, anchor.z, 4)), vine.widest);
     const length = Math.min(width * between(LENGTH_RANGE, hash(anchor.x, anchor.z, 5)), (drop * DROP_SHARE) / vine.height);
     this.hang(vine, anchor, width, length, 0, out);
+  }
+
+  placeWall(anchor) {
+    if (!this.vines.length || hash(anchor.x, anchor.z, 2) > WALL_CHANCE) return;
+    const vine = this.vineAt(anchor.x, anchor.z, 3);
+    const width = Math.min(between(WALL_WIDTH, hash(anchor.x, anchor.z, 6)), vine.widest);
+    const wanted = (anchor.drop * between(WALL_DROP, hash(anchor.x, anchor.z, 7))) / vine.height;
+    this.hang(vine, anchor, width, Math.min(wanted, width * LENGTH_RANGE[1] * 1.6), 2, 0);
   }
 
   placeDoor(door) {

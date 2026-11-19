@@ -393,6 +393,7 @@ export default {
   buildBuildings() {
     this.buildingSystem.build(this.mapFile || {});
     for (const mesh of this.buildingSystem.meshes) this.addShadowCaster(mesh);
+    this.refreshVines();
   },
 
   reseatDecorations() {

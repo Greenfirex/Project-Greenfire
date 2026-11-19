@@ -898,23 +898,54 @@ Sekyra a krumpáč jako zbraně odloženy na později.
 
 ## Stavby — plán po etapách (první: opuštěný pirátský srub)
 
-Srub u buňky (−18, 12) na rovině ve výšce 6,25 m, půdorys 4 × 3 buňky (8 × 6 m),
-ze západu ho kryje útes. Stavba se skládá z dílů na mřížce, ne z jednoho modelu:
+Srub stojí v buňkách (−20…−18, 11…14), otočený o 90° (`rotation: 1`), zadní stěnou
+přitisknutý k útesu na západě; půdorys 4 × 3 buňky (8 × 6 m). Je to opuštěná, ne dokonalá
+stavba, kterou si bere příroda: nic nemá být podle pravítka ani zdobné (žádné rámy oken). Stavba se skládá z dílů na mřížce, ne z jednoho modelu:
 model z Meshy je dělaný na pohled zvenku (vnitřek bez tloušťky, dveře často jen
 namalované), z dílů jde postavit chůze dovnitř, otvírání dveří i pohled dovnitř.
+Stěny se staví v kódu z jednotlivých klád, ne z dílů z Meshy: samostatné modely by na
+sebe nenavazovaly (jiná tloušťka a rozestup klád, jiný odstín, nepřesné hrany).
 
 **Data.** Katalog `src/data/catalogs/buildings.js` popisuje stavbu: rozměr v buňkách,
-podlahu a později hrany (stěna, okno, dveře, nic) a střechu. Mapa drží seznam
+podlahu, stěny (`walls.sides`) s otvory (`walls.openings`: strana, posun od středu stěny,
+šířka, spodek a vršek) a později střechu. Strany a otvory platí pro neotočenou stavbu;
+`world/buildingSystem.js` ji poskládá kolem jejího středu a celou otočí podle `rotation`
+(podlaha na kůlech v `buildingFloor.js`, stěny v `buildingWalls.js`, terasa se zábradlím a schody
+v `buildingPorch.js`, vlajka a síť v `buildingProps.js`, tvary v `utils/buildingGeometry.js`, kreslené
+textury v `utils/pirateCloth.js`). `shift` posune stavbu v buňkách (srub o 25 cm od útesu, aby klády
+neprolézaly skálou). Vše se skládá do pár těles: prkna, klády, čela klád, vlajka, síť.
+**Chůze:** podlaha, terasa i schody jsou obdélníky s výškou (`plan.walk`); `buildingSystem.walkHeightAt`
+dává nejvyšší z nich a `GameScene.standHeightAt` ji na povrchu (patro 0) použije pro postavu
+a klikání místo země, když je výš. Stěny zatím nezastaví (etapa 3).
+Terasa je jen na jižní straně neotočené stavby (strana dveří), síť visí na jižní stěně.
+Rostliny kolem srubu a listí na terase jsou obyčejné dekorace v mapě (dají se upravit v editoru).
+Stáří (`age`): barva po bodech — mech dole, na horních plochách klád a u stěn na podlaze,
+špína u země; skvrny podle šumu. Klády (`walls.weather`) mají navíc oprýskaná vybledlá místa
+s ostrým okrajem a tmavé svislé šmouhy od deště, silnější nahoře.
+Z vršku vnějších stěn visí liany útesů (`buildingSystem.vineAnchors` → `cliffVineSystem`, druh `walls`).
+Na stěnách útesu, které míří do buňky stavby, se nestaví skalní obklad (`buildingCellKeys`
+v `GameScene.refreshCaveLighting`), jinak by kameny lezly dovnitř srubu.
+
+**Tajná chodba:** jeskyně v patře −3 („Tajná chodba", buňky −21,12 a −22,12, podlaha 6,5 m,
+strop 9,5 m) s průchodem z buňky −20,12 uvnitř srubu. Zadní stěna srubu má na tom místě
+otvor (`kind: 'cave'`). Kamenný rám vchodu, jehož buňka patří stavbě, je zasunutý o `SUNK_DEPTH`
+hlouběji do skály (`caveFrameSystem`, `GameScene.caveDoorsAround`) a liany nad ním nevisí.
+Před vchod se později postaví kus nábytku, který ho schová. Mapa drží seznam
 `buildings` (`key`, `cx`, `cz` = roh s nejmenšími souřadnicemi, `rotation` 0–3);
 nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildingSystem.js`.
 
 **Etapy (každou jde vyzkoušet zvlášť):**
-1. **Podlaha** (hotovo jako pokus): prkenná podlaha z textury dřevěné cesty
-   kousek nad zemí, s lemem z trámů; kroky po ní zní jako dřevo.
-2. **Díly z Meshy**: rovná stěna z kulatiny 2 m × ~2,6 m, stěna s otvorem pro dveře,
-   stěna s oknem, samotné dveře, rohový sloup, střecha; vybavení (stůl, sudy, síť).
-   Stejný popis stylu u všech dílů. Zpracování jako ostatní modely z Meshy
-   (zmenšení, WebP textury), díly srovnané na rozměr buňky. Stavba v katalogu dostane hrany.
+1. **Podlaha** (hotovo jako pokus): jednotlivá prkna z textury dřevěné cesty (každé
+   bere jedno prkno z textury), s mezerami, trochu zkroucená, některá chybí nebo jsou
+   ulomená; leží na trámech z kulatiny na křivých kůlech, pod podlahou žádná výplň (dírami je vidět zem); terasa a schody jsou taky jen z kulatiny a prken; kroky po ní zní jako dřevo.
+2. **Stěny z klád** (rozpracováno, čtyři stěny s otvory): každá kláda je křivý válec
+   s texturou dřeva Wood062 (vlákna podél klády) — prohnutá, zúžená, nestejně tlustá,
+   s jiným odstínem a přesahem konce; některé horní klády jsou ulomené. Otvory pro dveře
+   a okna jsou jen hrubě vyřezané klády (konce nestejně dlouhé), bez rámů. Klády sousedních stěn jsou posunuté o půl rozestupu a v rohu se
+   překříží; první kláda bočních stěn je napůl zapuštěná do podlahy. Čela mají letokruhy
+   kreslené v kódu (`utils/logEndTexture.js`). Klády jedné stavby jsou sloučené do
+   dvou těles (pláště a čela). Dál: střecha.
+   **Z Meshy jen vybavení**, kde na navazování nezáleží: dveře, okenice, stůl, sudy, síť.
 3. **Chůze dovnitř**: zeď na hraně buňky pro hráče i tvory (podobně jako rám vchodu
    jeskyně, `navigationSystem.inDoorFrame`); stěny vrhají stín a zastaví dohled (`metadata.volume`).
 4. **Dveře**: otevření kliknutím jako truhla (`lootSystem` — pant kolem svislé osy místo víka);
