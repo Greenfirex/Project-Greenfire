@@ -5,12 +5,12 @@ import { smoothstep } from '../../utils/noise.js';
 
 export default {
   buildPorch(plan, porch, floor) {
-    const { depth, rng } = plan;
+    const { depth } = plan;
     const z0 = depth / 2;
     const z1 = z0 + porch.depth;
     const cfg = { ...floor, ...porch.planks };
     const mossAt = (x, z) => 0.25 + 0.6 * smoothstep(z0, z1, z);
-    this.plankField(plan, { x0: porch.from, x1: porch.to, z0, z1 }, false, cfg, mossAt);
+    this.plankField(plan, { x0: porch.from, x1: porch.to, z0, z1 }, false, cfg, mossAt, (x, z) => this.holeGrowth(plan, x, z));
     plan.walk.push({ x0: porch.from, x1: porch.to, z0, z1, y: 0 });
 
     const span = porch.to - porch.from;
@@ -30,16 +30,11 @@ export default {
     this.porchPost(plan, porch, porch.from + porch.post, sideFrom);
     this.porchPost(plan, porch, porch.to - porch.post, sideFrom);
 
-    const rail = porch.rail;
     for (let i = 0; i < posts.length - 1; i++) {
       if (posts[i] >= gap[0] - porch.post && posts[i + 1] <= gap[1] + porch.post) continue;
       this.railRun(plan, porch.rail, placeAlongX(edge), posts[i], posts[i + 1]);
     }
     for (const x of [porch.from + porch.post, porch.to - porch.post]) this.railRun(plan, porch.rail, placeAlongZ(x), sideFrom, edge);
-    for (let x = porch.from + 0.4; x < porch.to; x += 1.1) {
-      if (x > gap[0] - 0.2 && x < gap[1] + 0.2) continue;
-      this.addVineAnchor(plan, x + (rng() - 0.5) * 0.4, rail.height, edge + porch.post, 0, 1, rail.height - plan.groundAt(x, edge) - 0.1);
-    }
 
     this.porchSteps(plan, porch, floor, z1);
   },
@@ -78,6 +73,7 @@ export default {
     const count = Math.max(1, Math.round(-ground / steps.rise));
     const x0 = steps.at - steps.width / 2;
     const x1 = steps.at + steps.width / 2;
+    plan.keepClear.push({ x0: x0 - 0.2, x1: x1 + 0.2, z0: z1 - 0.1, z1: z1 + count * steps.run + 0.6 });
     for (let k = 1; k <= count; k++) {
       const y = (ground * k) / (count + 1);
       const z = z1 + (k - 0.5) * steps.run;

@@ -35,3 +35,5 @@ foam_coarse_opacity.jpg - ambientCG (https://ambientcg.com/view?id=Foam003), lic
 bush_hibiscus.png - AI generated, upraveno: 2 vetvicky slozene do atlasu, odstranene modre pozadi, okraje prebarvene
 Wood062_1K-JPG_Color.jpg – ambientCG (https://ambientcg.com/view?id=Wood062), licence CC0
 Wood062_1K-JPG_NormalGL.jpg – ambientCG (https://ambientcg.com/view?id=Wood062), licence CC0
+Moss004_1K-JPG_Color.jpg – ambientCG (https://ambientcg.com/view?id=Moss004), licence CC0
+Moss004_1K-JPG_NormalGL.jpg – ambientCG (https://ambientcg.com/view?id=Moss004), licence CC0

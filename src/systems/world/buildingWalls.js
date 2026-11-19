@@ -53,12 +53,21 @@ export default {
       const overTo = run.to > run.inner[1] + 1e-6;
       const wallTop = (run.first + run.count - 1) * step + walls.log / 2;
       top = Math.max(top, storey.base + wallTop);
+      const dirX = run.alongX ? 0 : run.outward;
+      const dirZ = run.alongX ? run.outward : 0;
       for (let along = run.inner[0] + walls.vineStep / 2; along < run.inner[1]; along += walls.vineStep) {
         const spot = along + (rng() - 0.5) * walls.vineStep * 0.6;
-        const out = run.at + run.outward * walls.log / 2;
+        const out = run.at + run.outward * (walls.log / 2 + walls.vineGap);
         const x = run.alongX ? spot : out;
         const z = run.alongX ? out : spot;
-        this.addVineAnchor(plan, x, storey.base + wallTop, z, run.alongX ? 0 : run.outward, run.alongX ? run.outward : 0, storey.base + wallTop);
+        if (rng() < walls.vineDrape) {
+          const sign = rng() < 0.5 ? -1 : 1;
+          const y = storey.base + 0.5 + rng() * (wallTop - 0.8);
+          const shape = { kind: 'drape', alongX: run.alongX ? sign : 0, alongZ: run.alongX ? 0 : sign, span: 1.2 + rng() * 1.6 };
+          this.addVineAnchor(plan, x, y, z, dirX, dirZ, wallTop, walls.vineChance, 'wall', shape);
+          continue;
+        }
+        this.addVineAnchor(plan, x, storey.base + wallTop, z, dirX, dirZ, wallTop, walls.vineChance, 'wall');
       }
       for (let i = 0; i < run.count; i++) {
         const y = (run.first + i) * step;

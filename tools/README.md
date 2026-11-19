@@ -436,15 +436,20 @@ blokované buňce bez valu, což v hře vypadalo jako neviditelná kolize u boč
 
 
 
-## prepareCrab.mjs, prepareRocks.mjs, bl_rocks.py, bl_decimate.py — příprava modelů z Meshy
+## prepareCrab.mjs, prepareRocks.mjs, prepareRoof.mjs, bl_rocks.py, bl_decimate.py — příprava modelů z Meshy
 
-Převedou stažené modely z `_sources/` do podoby pro hru. Potřebují Blender (cesta je
-nahoře v `prepareRocks.mjs`).
+Převedou stažené modely z `_sources/` do podoby pro hru. Kameny a zjednodušení potřebují Blender
+(cesta je nahoře v `prepareRocks.mjs`).
 
 ```
 node tools/prepareCrab.mjs      # krab do public/assets/nature/crab
 node tools/prepareRocks.mjs     # kameny do public/assets/nature/rocks
+node tools/prepareRoof.mjs      # došková střecha srubu do public/assets/props/cabin_roof
+node tools/prepareVines.mjs     # popínavky srubu (vine_wall, vine_hang) do public/assets/nature/plants
 ```
+
+`prepareRoof.mjs` bere rozměr střechy z katalogu staveb (`roof.length`, `roof.width`) a ztmaví došky
+(`COLOR` nahoře v souboru).
 
 `prepareRocks.mjs` pouští Blender se skriptem `bl_rocks.py`, který sady kamenů rozřeže
 a poskládá. Rozměry kamenů, které dřív stavěl recept, bere z `rock_recipes.json`.

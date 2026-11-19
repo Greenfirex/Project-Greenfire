@@ -1,5 +1,6 @@
 // Stavby ve světě — z mapy a katalogu staveb postaví podlahu na kůlech, stěny z klád s otvory,
-// patro s místností a pavlačí, terasu se schody a pirátské věci. Stavba se skládá v neotočené poloze kolem svého středu
+// patro s místností a pavlačí, střechu, terasu se schody a pirátské věci, a místa, kde stavbu
+// porůstá tráva a liány. Stavba se skládá v neotočené poloze kolem svého středu
 // a celá se pak otočí podle mapy. Zná i výšku podlah, po kterých se chodí.
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -18,6 +19,8 @@ import buildingWallsParts from './buildingWalls.js';
 import buildingPorchParts from './buildingPorch.js';
 import buildingUpperParts from './buildingUpper.js';
 import buildingPropsParts from './buildingProps.js';
+import buildingRoofParts from './buildingRoof.js';
+import buildingGrowthParts from './buildingGrowth.js';
 
 const GROUND_SAMPLE = 0.5;
 const GROUND_INSET = 0.3;
@@ -31,10 +34,12 @@ export default class BuildingSystem {
     this.meshes = [];
     this.roots = [];
     this.anchors = [];
+    this.grass = [];
     this.decks = [];
     this.materials = new Map();
     this.floorKeys = new Map();
     this.groundHeightAt = null;
+    this.onMesh = null;
   }
 
   clear() {
@@ -42,6 +47,7 @@ export default class BuildingSystem {
     this.roots = [];
     this.meshes = [];
     this.anchors = [];
+    this.grass = [];
     this.decks = [];
     this.floorKeys.clear();
   }
@@ -71,6 +77,15 @@ export default class BuildingSystem {
 
   vineAnchors() {
     return this.anchors;
+  }
+
+  grassSpots() {
+    return this.grass;
+  }
+
+  addGrassSpot(plan, x, y, z, species, size) {
+    const point = Vector3.TransformCoordinates(new Vector3(x, y, z), plan.world);
+    this.grass.push({ x: point.x, y: point.y, z: point.z, species, size });
   }
 
   woodMaterial(name, texturePath, normalPath) {
@@ -141,10 +156,15 @@ export default class BuildingSystem {
     };
   }
 
-  addVineAnchor(plan, x, y, z, dirX, dirZ, drop) {
+  addVineAnchor(plan, x, y, z, dirX, dirZ, drop, chance, look = 'hang', shape = null) {
     const point = Vector3.TransformCoordinates(new Vector3(x, y, z), plan.world);
     const dir = Vector3.TransformNormal(new Vector3(dirX, 0, dirZ), plan.world);
-    this.anchors.push({ x: point.x, y: point.y, z: point.z, dirX: Math.round(dir.x), dirZ: Math.round(dir.z), drop });
+    const anchor = { x: point.x, y: point.y, z: point.z, dirX: Math.round(dir.x), dirZ: Math.round(dir.z), drop, chance, look };
+    if (shape) {
+      const along = Vector3.TransformNormal(new Vector3(shape.alongX, 0, shape.alongZ), plan.world);
+      Object.assign(anchor, { shape: shape.kind, alongX: along.x, alongZ: along.z, span: shape.span, out: shape.out || 0 });
+    }
+    this.anchors.push(anchor);
   }
 
   addLog(plan, log, place, base, capFrom = true, capTo = true) {
@@ -194,6 +214,9 @@ export default class BuildingSystem {
       rng: createRng(seed),
       paint: this.agePaint(def.age, seed),
       walls: def.walls,
+      growth: def.growth || null,
+      porchDepth: def.porch ? def.porch.depth : 0,
+      keepClear: [],
       logs: createBuffer(),
       ends: createBuffer(),
       planks: createBuffer(),
@@ -210,7 +233,9 @@ export default class BuildingSystem {
     this.buildWalls(plan, def.walls);
     if (def.upper) this.buildUpper(plan, def.upper, def.floor);
     if (def.porch) this.buildPorch(plan, def.porch, def.floor);
+    if (def.roof) this.buildRoof(plan, def.roof);
     if (def.props) this.buildProps(plan, def.props);
+    if (def.growth) this.overgrow(plan, def.growth);
 
     this.addMesh(plan, 'planks', plan.planks, this.woodMaterial(`buildingPlankMat_${entry.key}`, def.floor.texture, null));
     this.addMesh(plan, 'logs', plan.logs, this.woodMaterial(`buildingLogMat_${entry.key}`, def.walls.texture, def.walls.normal));
@@ -252,8 +277,9 @@ export default class BuildingSystem {
     mesh.receiveShadows = true;
     mesh.metadata = { building: true };
     this.meshes.push(mesh);
+    if (this.onMesh) this.onMesh(mesh);
     return mesh;
   }
 }
 
-Object.assign(BuildingSystem.prototype, buildingFloorParts, buildingWallsParts, buildingUpperParts, buildingPorchParts, buildingPropsParts);
+Object.assign(BuildingSystem.prototype, buildingFloorParts, buildingWallsParts, buildingUpperParts, buildingRoofParts, buildingPorchParts, buildingPropsParts, buildingGrowthParts);

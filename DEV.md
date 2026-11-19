@@ -921,9 +921,9 @@ postava zůstane dole a do patra se dostane jen po schodech. `GameScene.standHei
 **Patro** (`upper`, `buildingUpper.js`): na stěnách přízemí leží po obvodu věnec z klád překřížený
 v rozích (`walls.ringSeat` = jak hluboko sedí na horní kládě), aby mezi patry neprosvítalo přízemí;
 na něm trámy a pevná podlaha přes celý půdorys — spodní vrstva prken napříč (`upper.subfloor`)
-a horní vrstva bez chybějících a ulomených prken (`upper.planks`), aby shora nebylo vidět do přízemí; místnost z klád nad buňkami −20…−18 × 12…14 (`upper.room` v neotočených souřadnicích), ustoupená
+a horní vrstva bez chybějících a ulomených prken (`upper.planks`), aby shora nebylo vidět do přízemí; místnost z klád nad buňkami −20…−19 × 12…14 (`upper.room` v neotočených souřadnicích), ustoupená
 o 30 cm dovnitř, aby stěna nešla rovně odspodu (kolem zůstane římsa podlahy),
-zbytek otevřená pavlač se zábradlím (`upper.rails`) a schůdky z kulatiny na útes u −21,11 (`upper.sideSteps`). Dveře z venkovních schodů (od −18,15 nahoru
+zbytek otevřená pavlač do L (nad −20…−18, 11 a nad −18, 12…14) se zábradlím (`upper.rails`) a schůdky z kulatiny na útes u −21,11 (`upper.sideSteps`). Dveře z venkovních schodů (od −18,15 nahoru
 k plošině u −20,15) a dveře z místnosti na pavlač jsou otvory ve stěnách patra (`upper.openings`).
 Terasa je jen na jižní straně neotočené stavby (strana dveří), síť visí na jižní stěně.
 Sudy (`props.barrels`: stojící i povalené, prkna po obvodu přes `log.staves`, tmavé obruče) a bedny
@@ -933,7 +933,29 @@ Rostliny kolem srubu a listí na terase jsou obyčejné dekorace v mapě (dají 
 Stáří (`age`): barva po bodech — mech dole, na horních plochách klád a u stěn na podlaze,
 špína u země; skvrny podle šumu. Klády (`walls.weather`) mají navíc oprýskaná vybledlá místa
 s ostrým okrajem a tmavé svislé šmouhy od deště, silnější nahoře.
-Z vršku vnějších stěn visí liany útesů (`buildingSystem.vineAnchors` → `cliffVineSystem`, druh `walls`).
+Liany visí z vršku vnějších stěn přízemí i místnosti v patře a ze štítů střechy (vždy přímo na dřevě;
+z přečnívajících došků ani ze zábradlí ne — visely by ve vzduchu)
+(`buildingSystem.vineAnchors` → `cliffVineSystem`, druh `walls`; každý bod nese vlastní šanci `chance`).
+Liany jsou čtyři modely, které se náhodně míchají po celé mapě: dvě původní z útesů a dvě nové z Meshy
+(`tools/prepareVines.mjs`, barva přiladěná k původním) — plochá popínavka (`vine_wall.glb`) a visící šlahoun
+(`vine_hang.glb`); nové si drží proporce (`keep`). Každý model patří do skupin (`pools`: `cliff`, `wall`,
+`hang`), bod si skupinu volí přes `look`. Tvary: svislá (výchozí), vodorovná podél hrany (`shape: drape`, na útesech i stěnách srubu) a girlanda
+do U ze dvou šikmých kusů (`swag`, podél hrany útesu a přes vchod do jeskyně).
+Délky se losují v širokém rozsahu (`KEEP_LENGTH`, `KEEP_THICK` v `cliffVineSystem.js`).
+**Porůstání** (`growth`, `buildingGrowth.js`): dírami v podlaze přízemí a terasy prorůstá tráva a kapradí
+a trsy obrůstají obvod srubu i kousek pod okraj podlahy; místa u schodů zůstanou volná (`plan.keepClear`).
+Mech je dekorace pro editor (štětec Mech, `moss_small`, `moss_mid`, `moss_wide`): shluky nízkých hrbolatých
+polštářů s roztřepeným okrajem zanořeným do podkladu (`utils/mossFactory.js`, tvar `pushMossPad`, vzhled
+v `catalogs/moss.js`, textura Moss004 z ambientCG). Model mechu z Meshy nevyšel (dělal i prkna pod mechem).
+Jsou to body pro systém trávy (`buildingSystem.grassSpots` → `floraSystem.addGrassSpots`, volá
+`GameScene.sowAnchoredGrass`), takže mají stejné modely a vítr jako ostatní tráva. Na střechu se tráva
+nedává: dohled postavy zahaluje oparem trávu výrazně výš než postava, střecha by byla černá.
+**Střecha** (`roof`, `buildingRoof.js`): došková sedlová střecha z modelu z Meshy
+(`public/assets/props/cabin_roof/`), položená na štíty z ubývajících klád nad místností v patře.
+Model připraví `tools/prepareRoof.mjs`: natáhne ho na `roof.length` × `roof.width` (hřeben podél X, vršek
+hřebene v nule), ztmaví světlé došky a zmenší textury. Model se načítá zvlášť a připojí se pod stavbu,
+až je načtený; jeho stín přidá `buildingSystem.onMesh`. Dřívější střecha z prken a snítek z kódu
+vypadala uměle, proto model.
 Na stěnách útesu, které míří do buňky stavby, se nestaví skalní obklad (`buildingCellKeys`
 v `GameScene.refreshCaveLighting`), jinak by kameny lezly dovnitř srubu.
 
@@ -955,7 +977,7 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    a okna jsou jen hrubě vyřezané klády (konce nestejně dlouhé), bez rámů. Klády sousedních stěn jsou posunuté o půl rozestupu a v rohu se
    překříží; první kláda bočních stěn je napůl zapuštěná do podlahy. Čela mají letokruhy
    kreslené v kódu (`utils/logEndTexture.js`). Klády jedné stavby jsou sloučené do
-   dvou těles (pláště a čela). Dál: střecha.
+   dvou těles (pláště a čela).
    **Z Meshy jen vybavení**, kde na navazování nezáleží: dveře, okenice, stůl, sudy, síť.
 3. **Chůze dovnitř**: zeď na hraně buňky pro hráče i tvory (podobně jako rám vchodu
    jeskyně, `navigationSystem.inDoorFrame`); stěny vrhají stín a zastaví dohled (`metadata.volume`).

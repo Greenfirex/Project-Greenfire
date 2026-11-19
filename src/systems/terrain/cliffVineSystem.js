@@ -1,5 +1,8 @@
 // Rostliny na útesech — visuté liany z horní hrany, z poliček, nad vchody do jeskyní a z vršku stěn staveb, a kytičky na hraně.
 // Liana se zkrátí podle výšky stěny, aby nesahala pod její patu; ve větru se houpe spodním koncem.
+// Modely se náhodně míchají: každý patří do několika skupin (útes, stěna, visící). Nové popínavky si drží
+// proporce (keep). Kromě svislých visí liany i vodorovně (drape, podél hrany) a do U mezi dvěma body
+// (swag, girlanda podél hrany útesu a přes vchod do jeskyně).
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
@@ -14,9 +17,22 @@ const CHUNK_WORLD = CELL_SIZE * 8;
 const VIEW_MARGIN = 6;
 const VIEW_HYSTERESIS = 4;
 const VINE_MODELS = [
-  { url: `${ASSET_DIRS.plants}cliff_vine.glb`, span: 0.9, lift: 0.1, press: 0, turn: 0.4 },
-  { url: `${ASSET_DIRS.plants}cliff_vine_2.glb`, span: 0.85, lift: 0.02, press: 1, turn: 0 },
+  { url: `${ASSET_DIRS.plants}cliff_vine.glb`, span: 0.9, lift: 0.1, press: 0, turn: 0.4, pools: ['cliff', 'hang'] },
+  { url: `${ASSET_DIRS.plants}cliff_vine_2.glb`, span: 0.85, lift: 0.02, press: 1, turn: 0, pools: ['cliff', 'hang', 'wall'] },
+  { url: `${ASSET_DIRS.plants}vine_wall.glb`, span: 1, lift: 0, press: 1, turn: 0, pools: ['wall', 'cliff'], keep: 1.5 },
+  { url: `${ASSET_DIRS.plants}vine_hang.glb`, span: 1, lift: 0, press: 0.6, turn: 1.2, pools: ['hang', 'cliff'], keep: 1.4 },
 ];
+const KEEP_LENGTH = [0.7, 3.2];
+const KEEP_THICK = [0.7, 1.3];
+const EDGE_DRAPE = 0.2;
+const EDGE_DRAPE_SPAN = [1, 2.4];
+const DRAPE_DROOP = [0.05, 0.35];
+const DRAPE_SHARE = [0.6, 1];
+const SWAG_SAG = [0.2, 0.45];
+const EDGE_SWAG = 0.15;
+const EDGE_SWAG_SPAN = [1.2, 2.6];
+const DOOR_SWAG = 0.7;
+const DOOR_SWAG_SAG = [0.12, 0.25];
 const VINE_YAW = 0;
 const EDGE_CHANCE = 0.3;
 const TERRACE_CHANCE = 0.45;
@@ -91,6 +107,8 @@ export default class CliffVineSystem {
       lift: model.lift,
       press: model.press,
       turn: model.turn,
+      pools: model.pools,
+      keep: model.keep || 0,
       height,
       matrices: [],
     };
@@ -167,8 +185,17 @@ export default class CliffVineSystem {
     if (changed) this.showChunks();
   }
 
-  vineAt(x, z, salt) {
-    return this.vines[Math.floor(hash(x, z, salt, 11) * this.vines.length) % this.vines.length];
+  vineAt(x, z, salt, pool = 'cliff') {
+    const list = this.vines.filter((vine) => vine.pools.includes(pool));
+    const from = list.length ? list : this.vines;
+    return from[Math.floor(hash(x, z, salt, 11) * from.length) % from.length];
+  }
+
+  keepSize(vine, anchor, salt, maxLength) {
+    return {
+      width: between(KEEP_THICK, hash(anchor.x, anchor.z, salt, 12)),
+      length: Math.min(maxLength, between(KEEP_LENGTH, hash(anchor.x, anchor.z, salt, 13))) / vine.height,
+    };
   }
 
   placeVine(anchor, chance, out) {
@@ -176,18 +203,68 @@ export default class CliffVineSystem {
     const drop = Number.isFinite(anchor.drop) ? anchor.drop : 0;
     if ((anchor.depth || 0) < MIN_SHELF_DEPTH || drop < MIN_DROP) return;
     if (hash(anchor.x, anchor.z, 1) > chance) return;
-    const vine = this.vineAt(anchor.x, anchor.z, 0);
+    const vine = this.vineAt(anchor.x, anchor.z, 0, 'cliff');
+    const along = { x: -anchor.dirZ, z: anchor.dirX };
+    const shape = hash(anchor.x, anchor.z, 9);
+    if (shape < EDGE_SWAG) {
+      this.swag(vine, anchor, along, between(EDGE_SWAG_SPAN, hash(anchor.x, anchor.z, 10)), 0, out, SWAG_SAG);
+      return;
+    }
+    if (shape < EDGE_SWAG + EDGE_DRAPE) {
+      this.drape(vine, anchor, along, between(EDGE_DRAPE_SPAN, hash(anchor.x, anchor.z, 10)), 0, out);
+      return;
+    }
+    if (vine.keep) {
+      const size = this.keepSize(vine, anchor, 0, drop * DROP_SHARE);
+      this.hang(vine, anchor, size.width, size.length, 0, out);
+      return;
+    }
     const width = Math.min(between(WIDTH_RANGE, hash(anchor.x, anchor.z, 4)), vine.widest);
     const length = Math.min(width * between(LENGTH_RANGE, hash(anchor.x, anchor.z, 5)), (drop * DROP_SHARE) / vine.height);
     this.hang(vine, anchor, width, length, 0, out);
   }
 
   placeWall(anchor) {
-    if (!this.vines.length || hash(anchor.x, anchor.z, 2) > WALL_CHANCE) return;
-    const vine = this.vineAt(anchor.x, anchor.z, 3);
-    const width = Math.min(between(WALL_WIDTH, hash(anchor.x, anchor.z, 6)), vine.widest);
+    if (!this.vines.length || hash(anchor.x, anchor.z, 2) > (anchor.chance ?? WALL_CHANCE)) return;
+    const vine = this.vineAt(anchor.x, anchor.z, 3, anchor.look || 'hang');
+    const out = anchor.out || 0;
+    const along = { x: anchor.alongX || 0, z: anchor.alongZ || 0 };
+    if (anchor.shape === 'drape') {
+      this.drape(vine, anchor, along, anchor.span * between(DRAPE_SHARE, hash(anchor.x, anchor.z, 8)), 5, out);
+      return;
+    }
+    if (vine.keep) {
+      const size = this.keepSize(vine, anchor, 2, anchor.drop * 0.95);
+      this.hang(vine, anchor, size.width, size.length, 2, out);
+      return;
+    }
     const wanted = (anchor.drop * between(WALL_DROP, hash(anchor.x, anchor.z, 7))) / vine.height;
-    this.hang(vine, anchor, width, Math.min(wanted, width * LENGTH_RANGE[1] * 1.6), 2, 0);
+    const width = Math.min(between(WALL_WIDTH, hash(anchor.x, anchor.z, 6)), vine.widest);
+    this.hang(vine, anchor, width, Math.min(wanted, width * LENGTH_RANGE[1] * 1.6), 2, out);
+  }
+
+  sideSize(vine, anchor, salt, length) {
+    if (vine.keep) return { width: between(KEEP_THICK, hash(anchor.x, anchor.z, salt, 12)), length: length / vine.height };
+    return { width: Math.min(between(WALL_WIDTH, hash(anchor.x, anchor.z, salt, 6)), vine.widest), length: length / vine.height };
+  }
+
+  drape(vine, anchor, along, span, salt, out) {
+    const size = this.sideSize(vine, anchor, salt, span);
+    const roll = Math.PI / 2 - between(DRAPE_DROOP, hash(anchor.x, anchor.z, salt, 14));
+    this.hang(vine, anchor, size.width, size.length, salt, out, roll, along);
+  }
+
+  swag(vine, anchor, along, span, salt, out, sagRange) {
+    const sag = span * between(sagRange, hash(anchor.x, anchor.z, salt, 15));
+    const half = span / 2;
+    const reach = Math.hypot(half, sag);
+    const roll = Math.atan2(half, sag);
+    const size = this.sideSize(vine, anchor, salt, reach);
+    this.hang(vine, anchor, size.width, size.length, salt, out, roll, along);
+    const other = { ...anchor, x: anchor.x + along.x * span, z: anchor.z + along.z * span };
+    const partner = this.vineAt(other.x, other.z, salt + 1, 'cliff');
+    const second = this.sideSize(partner, other, salt + 1, reach);
+    this.hang(partner, other, second.width, second.length, salt + 1, out, roll, { x: -along.x, z: -along.z });
   }
 
   placeDoor(door) {
@@ -195,6 +272,17 @@ export default class CliffVineSystem {
     const top = Math.min(door.top, Math.min(door.floor, door.ground) + DOOR_OPEN_HEIGHT);
     const opening = top - Math.max(door.floor, door.ground);
     if (!(opening > MIN_DROP)) return;
+    if (hash(door.cx, door.cz, door.dx, door.dz, 7) < DOOR_SWAG) {
+      const anchor = {
+        x: (door.cx + door.dx / 2) * CELL_SIZE + door.dx * DOOR_OUT + door.dz * DOOR_SPREAD,
+        y: top + DOOR_ABOVE,
+        z: (door.cz + door.dz / 2) * CELL_SIZE + door.dz * DOOR_OUT - door.dx * DOOR_SPREAD,
+        dirX: door.dx,
+        dirZ: door.dz,
+      };
+      const vine = this.vineAt(anchor.x, anchor.z, 20, 'cliff');
+      this.swag(vine, anchor, { x: -door.dz, z: door.dx }, DOOR_SPREAD * 2, 20, 0, DOOR_SWAG_SAG);
+    }
     const total = DOOR_VINES[0] + Math.floor(hash(door.cx, door.cz, door.dx, door.dz, 1) * (DOOR_VINES[1] - DOOR_VINES[0] + 1));
     for (let index = 0; index < total; index += 1) {
       const slot = total > 1 ? index / (total - 1) : 0.5;
@@ -206,22 +294,34 @@ export default class CliffVineSystem {
         dirX: door.dx,
         dirZ: door.dz,
       };
-      const vine = this.vineAt(anchor.x, anchor.z, index);
+      const vine = this.vineAt(anchor.x, anchor.z, index, 'cliff');
+      const wanted = opening * between(DOOR_DROP, hash(anchor.x, anchor.z, index, 5));
+      if (vine.keep) {
+        const size = this.keepSize(vine, anchor, index, wanted);
+        this.hang(vine, anchor, size.width, size.length, index, 0);
+        continue;
+      }
       const width = Math.min(between(DOOR_WIDTH, hash(anchor.x, anchor.z, index, 4)), vine.widest);
-      const wanted = (opening * between(DOOR_DROP, hash(anchor.x, anchor.z, index, 5))) / vine.height;
-      this.hang(vine, anchor, width, Math.min(wanted, width * LENGTH_RANGE[1]), index, 0);
+      this.hang(vine, anchor, width, Math.min(wanted / vine.height, width * LENGTH_RANGE[1]), index, 0);
     }
   }
 
-  hang(vine, anchor, width, length, salt, out) {
-    const yaw = Math.atan2(anchor.dirX, anchor.dirZ) + VINE_YAW + (hash(anchor.x, anchor.z, salt, 3) - 0.5) * vine.turn;
-    const gap = out + vine.back * width * vine.press;
+  hang(vine, anchor, width, length, salt, out, roll = 0, along = null) {
+    const yaw = Math.atan2(anchor.dirX, anchor.dirZ) + VINE_YAW + (hash(anchor.x, anchor.z, salt, 3) - 0.5) * vine.turn * (roll ? 0.2 : 1);
+    const across = vine.keep ? length * vine.keep * width : width;
+    let turn = Quaternion.RotationYawPitchRoll(yaw, 0, roll);
+    if (roll && along) {
+      const down = new Vector3(0, -1, 0).applyRotationQuaternion(turn);
+      if (down.x * along.x + down.z * along.z < 0) turn = Quaternion.RotationYawPitchRoll(yaw, 0, -roll);
+    }
+    const gap = out + vine.back * across * vine.press;
+    const pivot = new Vector3(0, (vine.top - vine.lift * vine.height) * length, 0).applyRotationQuaternion(turn);
     const position = new Vector3(
-      anchor.x + anchor.dirX * gap,
-      anchor.y + TOP_OVERLAP + (vine.lift * vine.height - vine.top) * length,
-      anchor.z + anchor.dirZ * gap,
+      anchor.x + anchor.dirX * gap - pivot.x,
+      anchor.y + TOP_OVERLAP - pivot.y,
+      anchor.z + anchor.dirZ * gap - pivot.z,
     );
-    vine.matrices.push(Matrix.Compose(new Vector3(width, length, width), Quaternion.RotationYawPitchRoll(yaw, 0, 0), position));
+    vine.matrices.push(Matrix.Compose(new Vector3(across, length, across), turn, position));
   }
 
   placeFlowers(anchor) {

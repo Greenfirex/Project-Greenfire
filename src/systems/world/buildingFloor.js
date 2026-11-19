@@ -8,7 +8,7 @@ const EDGE_MOSS = 0.55;
 const EDGE_REACH = 1.1;
 
 export default {
-  plankField(plan, rect, alongX, cfg, mossAt) {
+  plankField(plan, rect, alongX, cfg, mossAt, onHole = null) {
     const { rng, paint } = plan;
     const tile = cfg.tile;
     const [a0, a1] = alongX ? [rect.x0, rect.x1] : [rect.z0, rect.z1];
@@ -26,12 +26,19 @@ export default {
         a += length;
         const pieceLength = length;
         length = cfg.pieceMin + rng() * (cfg.pieceMax - cfg.pieceMin);
-        if (rng() < cfg.missing) continue;
+        const hole = (along) => {
+          if (onHole) onHole(alongX ? along : b, alongX ? b : along);
+        };
+        if (rng() < cfg.missing) {
+          hole(start + pieceLength / 2);
+          continue;
+        }
         let size = pieceLength;
         let from = start;
         if (rng() < cfg.broken) {
           size = pieceLength * (0.4 + 0.35 * rng());
           if (rng() < 0.5) from = start + pieceLength - size;
+          hole(from === start ? start + size + (pieceLength - size) / 2 : start + (pieceLength - size) / 2);
         }
         const shade = 1 + (rng() - 0.5) * cfg.shadeSpread;
         const base = cfg.tint.map((value) => value * shade);
@@ -85,7 +92,7 @@ export default {
     const halfD = depth / 2;
 
     const edgeMoss = (x, z) => (1 - smoothstep(0, EDGE_REACH, Math.min(halfW - Math.abs(x), halfD - Math.abs(z)))) * EDGE_MOSS;
-    this.plankField(plan, { x0: -halfW, x1: halfW, z0: -halfD, z1: halfD }, true, floor, edgeMoss);
+    this.plankField(plan, { x0: -halfW, x1: halfW, z0: -halfD, z1: halfD }, true, floor, edgeMoss, (x, z) => this.holeGrowth(plan, x, z));
 
     const over = floor.joist;
     for (const z of [-halfD, halfD]) this.joist(plan, floor, true, z, -halfW - over, halfW + over);

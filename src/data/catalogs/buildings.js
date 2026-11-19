@@ -1,6 +1,6 @@
 // Stavby skládané z dílů na mřížce — rozměr v buňkách, prkenná podlaha a stěny z klád s otvory.
 // Strany a otvory jsou v neotočené stavbě; otočení z mapy se použije na celek. Plán je v DEV.md, sekce „Stavby".
-import { PLANKS_TEXTURE, LOG_TEXTURE, LOG_NORMAL } from './assetPaths.js';
+import { ASSET_DIRS, PLANKS_TEXTURE, LOG_TEXTURE, LOG_NORMAL } from './assetPaths.js';
 
 export const BUILDINGS = {
   pirate_cabin: {
@@ -72,6 +72,9 @@ export const BUILDINGS = {
       tint: [1, 1, 1],
       weather: 1,
       vineStep: 0.9,
+      vineChance: 0.7,
+      vineDrape: 0.3,
+      vineGap: 0.04,
       ends: { wood: '#9c8468', ring: '#5c4636', crack: '#3a2c22', bark: '#3b3029' },
       openings: [
         { side: 'north', at: 1, width: 1.3, bottom: 0, top: 2.35, kind: 'cave' },
@@ -82,7 +85,7 @@ export const BUILDINGS = {
       ],
     },
     upper: {
-      room: [-3.7, 2, -2.7, 2.7],
+      room: [-3.7, 2, -2.7, 1],
       height: 2.3,
       sides: ['north', 'south', 'west', 'east'],
       joistOut: 0.25,
@@ -99,7 +102,8 @@ export const BUILDINGS = {
         { alongX: false, at: 4, from: -3, to: 3 },
         { alongX: true, at: -3, from: 2.3, to: 2.7 },
         { alongX: true, at: -3, from: 3.6, to: 4 },
-        { alongX: true, at: 3, from: 2.3, to: 4 },
+        { alongX: true, at: 3, from: -4, to: 4 },
+        { alongX: false, at: -4, from: 1.35, to: 3 },
       ],
       sideSteps: { x: 3.15, width: 0.9, edge: -3, dir: -1, reach: 1.2, rise: 0.18, run: 0.3, log: 0.07, missing: 0.1 },
       stairs: {
@@ -119,6 +123,19 @@ export const BUILDINGS = {
         planks: { missing: 0.05, broken: 0.1, rotten: 0.1 },
         rail: { height: 0.95, low: 0.48, radius: 0.05, post: 0.085, lean: 0.08, spacing: 1.5, missing: 0.15, broken: 0.35, fallTo: 0.6 },
       },
+    },
+    roof: {
+      model: `${ASSET_DIRS.props}cabin_roof/cabin_roof.glb`,
+      length: 6.8,
+      width: 4.7,
+      pitch: 0.78,
+      thatch: 0.35,
+      vineStep: 0.55,
+      vineChance: 0.5,
+    },
+    growth: {
+      holes: { chance: 0.85, species: ['broadleaf', 'coastal', 'fern'], size: [1.2, 1.7] },
+      edge: { step: 0.4, out: [-0.35, 0.9], chance: 0.8, species: ['broadleaf', 'fern', 'coastal', 'cushion'], size: [0.9, 1.5] },
     },
     porch: {
       depth: 2.1,
@@ -154,6 +171,7 @@ export const BUILDINGS = {
           { at: [-2.35, 4.6], on: 'porch', scale: 0.9 },
           { at: [3.3, 6.4], on: 'ground', lying: 'x' },
           { at: [3.45, 2.1], on: 'upper' },
+          { at: [-2.7, 2.35], on: 'upper', scale: 0.85 },
         ],
       },
       crates: {

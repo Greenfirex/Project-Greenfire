@@ -161,6 +161,7 @@ export default class GameScene {
     this.decoSystem.groundHeightAt = (x, z, level = 0) => this.terrainSystem.heightAt(x, z, level);
     this.buildingSystem = new BuildingSystem(scene);
     this.buildingSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z, 0);
+    this.buildingSystem.onMesh = (mesh) => this.addShadowCaster(mesh);
     this.floraSystem = new FloraSystem(scene);
     this.cliffVineSystem = new CliffVineSystem(scene);
     this.caveFrameSystem = new CaveFrameSystem(scene);
@@ -458,7 +459,7 @@ export default class GameScene {
     this.loader.floatProgress(1, 1, 'Seju trávu…');
     this.grassModelList = await this.loadGrassModels();
     this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle(), this.grassModelList, this.grassLook());
-    this.floraSystem.addShelfGrass(this.shelfGrassAnchors());
+    this.sowAnchoredGrass();
     this.floraSystem.updateView(this.viewCircle());
     this.refreshReflectionExclusions();
     this.loader.floatProgress(1, 1, 'Nastavuji stíny…');
@@ -999,6 +1000,11 @@ export default class GameScene {
       doors: this.caveDoorsAround().filter((door) => !door.sunk),
       walls: this.buildingSystem.vineAnchors(),
     });
+  }
+
+  sowAnchoredGrass() {
+    this.floraSystem.addShelfGrass(this.shelfGrassAnchors());
+    this.floraSystem.addGrassSpots(this.buildingSystem.grassSpots());
   }
 
   shelfGrassAnchors() {

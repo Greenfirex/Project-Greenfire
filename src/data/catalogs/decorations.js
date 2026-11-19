@@ -1,6 +1,7 @@
 // Deklarace typů dekorací krajiny (stromy, kameny, tráva, tábořiště).
 // Drží jen deklarace (model, měřítko, blokace) a resolve helpery, žádné rozvržení mapy.
 import { ASSET_DIRS } from './assetPaths.js';
+import { MOSS_CLUMPS } from './moss.js';
 import { GRASS_GROUND, grassGroundUrl } from './grass.js';
 
 export const DECORATION_TYPES = {
@@ -410,6 +411,18 @@ export const DECORATION_TYPES = {
     castsShadow: true,
     noReflection: true,
     noTint: true,
+    kind: 'ground',
+  }])),
+  ...Object.fromEntries(Object.entries(MOSS_CLUMPS).map(([key, clump]) => [key, {
+    displayName: 'Mech',
+    moss: key,
+    scale: 1,
+    radius: clump.radius,
+    blocks: false,
+    castsShadow: false,
+    noReflection: true,
+    flat: true,
+    swatch: '#4d6b2e',
     kind: 'ground',
   }])),
   ...Object.fromEntries(['green', 'dry'].map((look) => [`palm_frond_${look}`, {

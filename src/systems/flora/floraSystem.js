@@ -553,6 +553,27 @@ export default class FloraSystem {
     );
   }
 
+  addGrassSpots(spots) {
+    if (!this.deco || !this.assets.size || !this.grass || !spots || !spots.length) return;
+    const slots = [];
+    for (const spot of spots) {
+      const species = this.resolveSpecies(spot.species);
+      if (!species) continue;
+      const variants = this.assets.get(species).variants.length;
+      slots.push({
+        x: spot.x,
+        z: spot.z,
+        y: spot.y + GRASS_LIFT,
+        species,
+        variant: Math.min(variants - 1, Math.floor(cellNoise(spot.x, spot.z, 31) * variants)),
+        size: spot.size,
+        yaw: spot.yaw ?? cellNoise(spot.x, spot.z, 51) * Math.PI * 2,
+        lean: spot.lean ?? 0,
+      });
+    }
+    if (slots.length) this.buildChunks(slots, 'spots');
+  }
+
   addShelfGrass(anchors) {
     if (!this.deco || !this.assets.size || !this.grass || !anchors || !anchors.length) return;
     const species = this.assets.has('cushion') ? 'cushion' : this.resolveSpecies('fern');

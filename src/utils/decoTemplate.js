@@ -8,6 +8,7 @@ import { coralTemplate } from './coralFactory.js';
 import { flowerTemplate } from './flowerFactory.js';
 import { bushTemplate } from './bushFactory.js';
 import { campfireTemplate } from './campfireFactory.js';
+import { mossTemplate } from './mossFactory.js';
 import { resolveModel } from './assetLoader.js';
 import { getTreeRecipe } from '../data/catalogs/trees.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
@@ -112,6 +113,7 @@ function proceduralTemplate(scene, def) {
   if (def.coral) return coralTemplate(scene, def.coral);
   if (def.flower) return flowerTemplate(scene, def.flower);
   if (def.bush) return bushTemplate(scene, def.bush);
+  if (def.moss) return mossTemplate(scene, def.moss);
   return null;
 }
 

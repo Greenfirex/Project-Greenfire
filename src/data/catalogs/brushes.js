@@ -290,6 +290,17 @@ export const BRUSHES = {
     cluster: { spread: 0.65, scaleMin: 0.7, scaleMax: 1.3 },
     deco: true,
   },
+  moss: {
+    label: 'Mech',
+    group: 'Rostliny',
+    note: 'Rozhází mechové polštáře: zhruba na dvě třetiny buněk jeden až tři shluky, různě velké a různě natočené. Náhoda střídá malý, střední a rozlezlý shluk.',
+    shape: 'blob',
+    pool: ['moss_small', 'moss_mid', 'moss_wide'],
+    options: [RANDOM_OPTION],
+    fill: 0.65,
+    cluster: { min: 1, max: 3, spread: 0.85, scaleMin: 0.7, scaleMax: 1.4 },
+    deco: true,
+  },
   monsteras: {
     label: 'Monstery',
     group: 'Rostliny',

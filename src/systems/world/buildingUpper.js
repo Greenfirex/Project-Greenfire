@@ -21,6 +21,7 @@ export default {
     plan.walk.push({ x0: -halfW, x1: halfW, z0: -halfD, z1: halfD, y: top });
 
     const [x0, x1, z0, z1] = upper.room;
+    plan.upperRoom = { x0, x1, z0, z1, base: top, height: upper.height };
     this.buildStorey(plan, plan.walls, { x0, x1, z0, z1, base: top, height: upper.height, sides: upper.sides, openings: upper.openings, brokenTop: true });
 
     for (const edge of upper.rails) this.railedEdge(plan, upper.rail, edge, top);
@@ -102,6 +103,7 @@ export default {
     const count = Math.max(2, Math.round((top - ground) / stairs.rise));
     const run = (stairs.bottom - stairs.top) / count;
     const heightAt = (z) => ground + (top - ground) * (stairs.bottom - z) / (stairs.bottom - stairs.top);
+    plan.keepClear.push({ x0: x0 - 0.8, x1: x1 + 0.3, z0: stairs.landing - 0.3, z1: stairs.bottom + 0.6 });
 
     for (let k = 1; k <= count; k++) {
       const zHigh = stairs.bottom - (k - 1) * run;

@@ -1,4 +1,5 @@
-// Tvary pro stavby skládané z mnoha kusů do jednoho tělesa: křivá kláda (i sud z prken), její čelo, prkno a plachta.
+// Tvary pro stavby skládané z mnoha kusů do jednoho tělesa: křivá kláda (i sud z prken), její čelo, prkno,
+// plachta a mechový polštář.
 // Každý kus dostane barvu po bodech (stáří, mech), celek se pak vytvoří jako jeden model.
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
@@ -155,6 +156,31 @@ export function pushBox(buffer, box, paint, tile) {
       pushVertex(buffer, point[0], point[1], point[2], uv[0], uv[1], color);
     }
     buffer.indices.push(first, first + 2, first + 1, first, first + 3, first + 2);
+  }
+}
+
+export function pushMossPad(buffer, pad, paint, tile) {
+  const { x, y, z, radius, height, sides, rings, sink, outline, bump } = pad;
+  const first = buffer.positions.length / 3;
+  const top = [x, y + height, z];
+  pushVertex(buffer, top[0], top[1], top[2], x / tile, z / tile, paint(top[0], top[1], top[2], 1));
+  for (let r = 1; r <= rings; r++) {
+    const t = r / rings;
+    for (let k = 0; k < sides; k++) {
+      const angle = (k / sides) * Math.PI * 2;
+      const lift = r === rings ? -sink : height * (1 - t * t) * bump(angle, t);
+      const reach = radius * t * outline(angle, t);
+      const px = x + Math.cos(angle) * reach;
+      const pz = z + Math.sin(angle) * reach;
+      pushVertex(buffer, px, y + lift, pz, px / tile, pz / tile, paint(px, y + lift, pz, 1));
+    }
+  }
+  const ring = (r, k) => first + 1 + (r - 1) * sides + (k % sides);
+  for (let k = 0; k < sides; k++) buffer.indices.push(first, ring(1, k), ring(1, k + 1));
+  for (let r = 1; r < rings; r++) {
+    for (let k = 0; k < sides; k++) {
+      buffer.indices.push(ring(r, k), ring(r + 1, k), ring(r + 1, k + 1), ring(r, k), ring(r + 1, k + 1), ring(r, k + 1));
+    }
   }
 }
 

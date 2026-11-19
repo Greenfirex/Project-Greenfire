@@ -392,7 +392,6 @@ export default {
 
   buildBuildings() {
     this.buildingSystem.build(this.mapFile || {});
-    for (const mesh of this.buildingSystem.meshes) this.addShadowCaster(mesh);
     this.refreshVines();
   },
 
@@ -455,7 +454,7 @@ export default {
     return this.withBusy('Přepočítávám trávu…', async () => {
       this.grassModelList = await this.loadGrassModels();
       this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle(), this.grassModelList, this.grassLook());
-      this.floraSystem.addShelfGrass(this.shelfGrassAnchors());
+      this.sowAnchoredGrass();
       this.floraSystem.updateView(this.viewCircle());
       this.refreshReflectionExclusions();
     });
@@ -474,7 +473,7 @@ export default {
 
   finishRebuild() {
     this.floraSystem.create(this.decoSystem, this.options.grass, () => this.viewCircle(), this.grassModelList, this.grassLook());
-    this.floraSystem.addShelfGrass(this.shelfGrassAnchors());
+    this.sowAnchoredGrass();
     this.floraSystem.updateView(this.viewCircle());
     this.refreshReflectionExclusions();
     this.gatherSystem.syncFromDeco();
