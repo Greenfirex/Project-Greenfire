@@ -33,9 +33,9 @@ export default {
     const rail = porch.rail;
     for (let i = 0; i < posts.length - 1; i++) {
       if (posts[i] >= gap[0] - porch.post && posts[i + 1] <= gap[1] + porch.post) continue;
-      this.railRun(plan, porch, placeAlongX(edge), posts[i], posts[i + 1]);
+      this.railRun(plan, porch.rail, placeAlongX(edge), posts[i], posts[i + 1]);
     }
-    for (const x of [porch.from + porch.post, porch.to - porch.post]) this.railRun(plan, porch, placeAlongZ(x), sideFrom, edge);
+    for (const x of [porch.from + porch.post, porch.to - porch.post]) this.railRun(plan, porch.rail, placeAlongZ(x), sideFrom, edge);
     for (let x = porch.from + 0.4; x < porch.to; x += 1.1) {
       if (x > gap[0] - 0.2 && x < gap[1] + 0.2) continue;
       this.addVineAnchor(plan, x + (rng() - 0.5) * 0.4, rail.height, edge + porch.post, 0, 1, rail.height - plan.groundAt(x, edge) - 0.1);
@@ -53,10 +53,9 @@ export default {
     this.addLog(plan, log, placeUpright(x, z), this.logShade(plan), false, true);
   },
 
-  railRun(plan, porch, place, from, to) {
+  railRun(plan, rail, place, from, to, base = 0) {
     const { rng } = plan;
-    const rail = porch.rail;
-    for (const lift of [rail.height, rail.low]) {
+    for (const lift of [base + rail.height, base + rail.low]) {
       if (rng() < rail.missing) continue;
       const log = roughLog(rng, plan.walls, from, to, lift, rail.radius * (0.85 + rng() * 0.3), 3);
       if (rng() < rail.broken) {

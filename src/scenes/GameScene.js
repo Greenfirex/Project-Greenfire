@@ -987,7 +987,8 @@ export default class GameScene {
   standHeightAt(x, z, level) {
     const ground = this.terrainSystem.walkHeightAt(x, z, level);
     if ((level || 0) !== 0) return ground;
-    const deck = this.buildingSystem.walkHeightAt(x, z);
+    const root = this.playerSystem && this.playerSystem.root;
+    const deck = this.buildingSystem.walkHeightAt(x, z, root ? Math.max(root.position.y, ground) : Infinity);
     return deck === null ? ground : Math.max(ground, deck);
   }
 

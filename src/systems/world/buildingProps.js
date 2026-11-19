@@ -1,12 +1,97 @@
-// Část staveb: pirátské věci přidělané ke stavbě — roztrhaná vlajka s lebkou na nakloněné tyči
-// a stará rybářská síť pověšená na stěně. Patří k BuildingSystem (sdílí jeho this).
-import { createBuffer, pushSheet, roughLog, placeUpright } from '../../utils/buildingGeometry.js';
+// Část staveb: pirátské věci u stavby — roztrhaná vlajka s lebkou na nakloněné tyči, stará rybářská
+// síť na stěně, sudy s obručemi (stojící i povalené) a bedny (i otevřená s víkem vedle).
+// Zatím kreslené v kódu; později je mohou nahradit modely. Patří k BuildingSystem (sdílí jeho this).
+import { createBuffer, pushSheet, pushLog, pushLogEnd, pushBox, roughLog, placeAlongX, placeAlongZ, placeUpright } from '../../utils/buildingGeometry.js';
 import { pirateFlagTexture, fishingNetTexture } from '../../utils/pirateCloth.js';
 
 export default {
   buildProps(plan, props) {
     if (props.flag) this.buildFlag(plan, props.flag);
     if (props.net) this.buildNet(plan, props.net);
+    for (const item of (props.barrels && props.barrels.items) || []) this.barrel(plan, props.barrels.style, item);
+    for (const item of (props.crates && props.crates.items) || []) this.crate(plan, props.crates.style, item);
+  },
+
+  surfaceY(plan, item) {
+    if (item.on === 'ground') return plan.groundAt(item.at[0], item.at[1]);
+    if (item.on === 'upper') return plan.upperTop || 0;
+    return 0;
+  },
+
+  barrel(plan, style, item) {
+    const { rng } = plan;
+    const [x, z] = item.at;
+    const scale = item.scale || 1;
+    const height = style.height * scale;
+    const radius = style.radius * scale;
+    const y0 = this.surfaceY(plan, item);
+    const shade = 1 + (rng() - 0.5) * style.shadeSpread;
+    const base = style.tint.map((value) => value * shade);
+    const paint = (px, py, pz, up) => plan.paint(base, px, py, pz, up);
+    const hoopPaint = (px, py, pz, up) => plan.paint(style.hoopTint, px, py, pz, up);
+    let place;
+    let from;
+    let lift = 0;
+    if (!item.lying) {
+      place = placeUpright(x, z);
+      from = y0;
+    } else {
+      place = item.lying === 'x' ? placeAlongX(z) : placeAlongZ(x);
+      from = (item.lying === 'x' ? x : z) - height / 2;
+      lift = y0 + radius * (1 + style.bulge);
+    }
+    const shape = (start, end, r, bulge, staves) => ({
+      from: start, to: end, radius: r, startLift: lift, endLift: lift, sag: 0, bow: 0, taper: 0,
+      bulge, bulgeWaves: 1, bulgePhase: 0, segments: 8, sides: style.sides, shiftU: rng(), shiftV: rng(), staves,
+    });
+    const rings = pushLog(plan.planks, shape(from, from + height, radius, style.bulge, style.staves / style.texturePlanks), place, paint, style.tile);
+    pushLogEnd(plan.planks, rings[0], style.sides, rng() * Math.PI * 2, -1, place, paint);
+    pushLogEnd(plan.planks, rings[rings.length - 1], style.sides, rng() * Math.PI * 2, 1, place, paint);
+    for (const at of style.hoops) {
+      const swell = radius * (1 + style.bulge * Math.sin(at * Math.PI)) + style.hoopOut;
+      const middle = from + at * height;
+      pushLog(plan.planks, shape(middle - style.hoopWidth / 2, middle + style.hoopWidth / 2, swell, 0), place, hoopPaint, style.tile);
+    }
+  },
+
+  crate(plan, style, item) {
+    const { rng } = plan;
+    const [x, z] = item.at;
+    const size = style.size * (item.scale || 1);
+    const t = style.thickness;
+    const y0 = this.surfaceY(plan, item);
+    const yaw = item.yaw || 0;
+    const shade = 1 + (rng() - 0.5) * style.shadeSpread;
+    const base = style.tint.map((value) => value * shade);
+    const paint = (px, py, pz, up) => plan.paint(base, px, py, pz, up);
+    const half = size / 2;
+    const panels = [
+      [[0, t / 2 - half, 0], [size, t, size]],
+      [[half - t / 2, 0, 0], [t, size, size]],
+      [[t / 2 - half, 0, 0], [t, size, size]],
+      [[0, 0, half - t / 2], [size, size, t]],
+      [[0, 0, t / 2 - half], [size, size, t]],
+    ];
+    if (!item.open) panels.push([[0, half - t / 2, 0], [size, t, size]]);
+    for (const [[ox, oy, oz], dims] of panels) {
+      pushBox(plan.planks, {
+        center: [x + ox * Math.cos(yaw) + oz * Math.sin(yaw), y0 + half + oy, z - ox * Math.sin(yaw) + oz * Math.cos(yaw)],
+        size: dims,
+        yaw,
+        shiftU: rng(),
+        shiftV: rng(),
+      }, paint, style.tile);
+    }
+    if (item.open) {
+      const out = size * 0.95;
+      pushBox(plan.planks, {
+        center: [x + out * Math.cos(yaw + 0.4), y0 + t / 2 + 0.01, z - out * Math.sin(yaw + 0.4)],
+        size: [size, t, size],
+        yaw: yaw + 0.7,
+        tiltX: 0.05,
+        shiftU: rng(),
+      }, paint, style.tile);
+    }
   },
 
   buildFlag(plan, flag) {

@@ -45,7 +45,7 @@ export default {
         };
         const middle = from + size / 2;
         const sink = rng() < cfg.rotten ? cfg.rotSag * rng() : 0;
-        const lift = -cfg.thickness / 2 + (rng() - 0.5) * 2 * cfg.warp - sink;
+        const lift = (rect.y || 0) - cfg.thickness / 2 + (rng() - 0.5) * 2 * cfg.warp - sink;
         pushBox(plan.planks, {
           center: alongX ? [middle, lift, b] : [b, lift, middle],
           size: alongX ? [size - cfg.gap, cfg.thickness, pitch - cfg.gap] : [pitch - cfg.gap, cfg.thickness, size - cfg.gap],
@@ -57,10 +57,10 @@ export default {
     }
   },
 
-  joist(plan, floor, alongX, at, from, to) {
+  joist(plan, floor, alongX, at, from, to, base = 0) {
     const { rng } = plan;
     const radius = floor.joist * (0.85 + rng() * 0.3);
-    const log = roughLog(rng, plan.walls, from, to, -floor.thickness - radius, radius, 4);
+    const log = roughLog(rng, plan.walls, from, to, base - floor.thickness - radius, radius, 4);
     this.addLog(plan, log, alongX ? placeAlongX(at) : placeAlongZ(at), this.logShade(plan));
   },
 

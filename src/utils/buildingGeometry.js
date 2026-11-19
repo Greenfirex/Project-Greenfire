@@ -1,4 +1,4 @@
-// Tvary pro stavby skládané z mnoha kusů do jednoho tělesa: křivá kláda, její čelo, prkno a plachta.
+// Tvary pro stavby skládané z mnoha kusů do jednoho tělesa: křivá kláda (i sud z prken), její čelo, prkno a plachta.
 // Každý kus dostane barvu po bodech (stáří, mech), celek se pak vytvoří jako jeden model.
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
@@ -85,7 +85,10 @@ export function pushLog(buffer, log, place, paint, tile) {
       const across = Math.cos(angle);
       const point = place(ring.along, ring.lift + up * ring.radius, ring.side + across * ring.radius);
       const color = paint(point[0], point[1], point[2], up);
-      pushVertex(buffer, point[0], point[1], point[2], travelled / tile + log.shiftU, (angle * ring.radius) / tile + log.shiftV, color);
+      const uv = log.staves
+        ? [(k / sides) * log.staves + log.shiftU, travelled / tile + log.shiftV]
+        : [travelled / tile + log.shiftU, (angle * ring.radius) / tile + log.shiftV];
+      pushVertex(buffer, point[0], point[1], point[2], uv[0], uv[1], color);
     }
   }
   const row = sides + 1;

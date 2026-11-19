@@ -1,5 +1,5 @@
 // Stavby ve světě — z mapy a katalogu staveb postaví podlahu na kůlech, stěny z klád s otvory,
-// terasu se schody a pirátské věci. Stavba se skládá v neotočené poloze kolem svého středu
+// patro s místností a pavlačí, terasu se schody a pirátské věci. Stavba se skládá v neotočené poloze kolem svého středu
 // a celá se pak otočí podle mapy. Zná i výšku podlah, po kterých se chodí.
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -16,11 +16,13 @@ import { createBuffer, meshFromBuffer, pushLog, pushLogEnd } from '../../utils/b
 import buildingFloorParts from './buildingFloor.js';
 import buildingWallsParts from './buildingWalls.js';
 import buildingPorchParts from './buildingPorch.js';
+import buildingUpperParts from './buildingUpper.js';
 import buildingPropsParts from './buildingProps.js';
 
 const GROUND_SAMPLE = 0.5;
 const GROUND_INSET = 0.3;
 const WALK_MARGIN = 0.05;
+const STEP_UP = 0.7;
 
 export default class BuildingSystem {
 
@@ -53,14 +55,15 @@ export default class BuildingSystem {
     return this.floorKeys.get(cellKey(cx, cz)) || null;
   }
 
-  walkHeightAt(x, z) {
+  walkHeightAt(x, z, fromY = Infinity) {
+    const reach = fromY + STEP_UP;
     let best = null;
     for (const deck of this.decks) {
       const p = Vector3.TransformCoordinates(new Vector3(x, 0, z), deck.inverse);
       for (const rect of deck.rects) {
         if (p.x < rect.x0 - WALK_MARGIN || p.x > rect.x1 + WALK_MARGIN || p.z < rect.z0 - WALK_MARGIN || p.z > rect.z1 + WALK_MARGIN) continue;
         const y = deck.top + rect.y;
-        if (best === null || y > best) best = y;
+        if (y <= reach && (best === null || y > best)) best = y;
       }
     }
     return best;
@@ -205,6 +208,7 @@ export default class BuildingSystem {
 
     this.buildFloor(plan, def.floor);
     this.buildWalls(plan, def.walls);
+    if (def.upper) this.buildUpper(plan, def.upper, def.floor);
     if (def.porch) this.buildPorch(plan, def.porch, def.floor);
     if (def.props) this.buildProps(plan, def.props);
 
@@ -252,4 +256,4 @@ export default class BuildingSystem {
   }
 }
 
-Object.assign(BuildingSystem.prototype, buildingFloorParts, buildingWallsParts, buildingPorchParts, buildingPropsParts);
+Object.assign(BuildingSystem.prototype, buildingFloorParts, buildingWallsParts, buildingUpperParts, buildingPorchParts, buildingPropsParts);

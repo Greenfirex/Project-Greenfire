@@ -914,10 +914,21 @@ podlahu, stěny (`walls.sides`) s otvory (`walls.openings`: strana, posun od st�
 v `buildingPorch.js`, vlajka a síť v `buildingProps.js`, tvary v `utils/buildingGeometry.js`, kreslené
 textury v `utils/pirateCloth.js`). `shift` posune stavbu v buňkách (srub o 25 cm od útesu, aby klády
 neprolézaly skálou). Vše se skládá do pár těles: prkna, klády, čela klád, vlajka, síť.
-**Chůze:** podlaha, terasa i schody jsou obdélníky s výškou (`plan.walk`); `buildingSystem.walkHeightAt`
-dává nejvyšší z nich a `GameScene.standHeightAt` ji na povrchu (patro 0) použije pro postavu
-a klikání místo země, když je výš. Stěny zatím nezastaví (etapa 3).
+**Chůze:** podlaha, terasa, patro i schody jsou obdélníky s výškou (`plan.walk`); `buildingSystem.walkHeightAt`
+dává nejvyšší z nich, na který se dá z výšky postavy vystoupit (`STEP_UP` 0,7 m), takže v přízemí
+postava zůstane dole a do patra se dostane jen po schodech. `GameScene.standHeightAt` to na povrchu
+(patro 0) použije pro postavu a klikání místo země, když je výš. Stěny zatím nezastaví (etapa 3).
+**Patro** (`upper`, `buildingUpper.js`): na stěnách přízemí leží po obvodu věnec z klád překřížený
+v rozích (`walls.ringSeat` = jak hluboko sedí na horní kládě), aby mezi patry neprosvítalo přízemí;
+na něm trámy a pevná podlaha přes celý půdorys — spodní vrstva prken napříč (`upper.subfloor`)
+a horní vrstva bez chybějících a ulomených prken (`upper.planks`), aby shora nebylo vidět do přízemí; místnost z klád nad buňkami −20…−18 × 12…14 (`upper.room` v neotočených souřadnicích), ustoupená
+o 30 cm dovnitř, aby stěna nešla rovně odspodu (kolem zůstane římsa podlahy),
+zbytek otevřená pavlač se zábradlím (`upper.rails`) a schůdky z kulatiny na útes u −21,11 (`upper.sideSteps`). Dveře z venkovních schodů (od −18,15 nahoru
+k plošině u −20,15) a dveře z místnosti na pavlač jsou otvory ve stěnách patra (`upper.openings`).
 Terasa je jen na jižní straně neotočené stavby (strana dveří), síť visí na jižní stěně.
+Sudy (`props.barrels`: stojící i povalené, prkna po obvodu přes `log.staves`, tmavé obruče) a bedny
+(`props.crates`, i otevřená s víkem vedle) jsou zatím kreslené v kódu; stojí na terase (`on: porch`),
+na zemi (`ground`) nebo na pavlači (`upper`). Detailnější pirátské věci se udělají v Meshy.
 Rostliny kolem srubu a listí na terase jsou obyčejné dekorace v mapě (dají se upravit v editoru).
 Stáří (`age`): barva po bodech — mech dole, na horních plochách klád a u stěn na podlaze,
 špína u země; skvrny podle šumu. Klády (`walls.weather`) mají navíc oprýskaná vybledlá místa
