@@ -436,6 +436,22 @@ blokované buňce bez valu, což v hře vypadalo jako neviditelná kolize u boč
 
 
 
+## prepareCrab.mjs, prepareRocks.mjs, bl_rocks.py, bl_decimate.py — příprava modelů z Meshy
+
+Převedou stažené modely z `_sources/` do podoby pro hru. Potřebují Blender (cesta je
+nahoře v `prepareRocks.mjs`).
+
+```
+node tools/prepareCrab.mjs      # krab do public/assets/nature/crab
+node tools/prepareRocks.mjs     # kameny do public/assets/nature/rocks
+```
+
+`prepareRocks.mjs` pouští Blender se skriptem `bl_rocks.py`, který sady kamenů rozřeže
+a poskládá. Rozměry kamenů, které dřív stavěl recept, bere z `rock_recipes.json`.
+Mezivýsledky ukládá do `tools/_temp/rocks_raw` a při každém běhu je přepíše.
+`bl_decimate.py` zjednoduší model v Blenderu (použito na hnízdo):
+`blender --background --factory-startup --python tools/bl_decimate.py -- '{"src": ..., "out": ..., "ratio": 0.15}'`.
+
 ## checkConsole.cjs
 
 Otevře hru na běžícím dev serveru ve skrytém prohlížeči, přesune hráče do jeskyně

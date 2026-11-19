@@ -1,0 +1,1397 @@
+{
+ "cliff_clod_round": {
+  "texture": "Ground071_1K-JPG_Color.jpg",
+  "normal": "Ground071_1K-JPG_NormalGL.jpg",
+  "seed": 6611,
+  "size": [
+   0.9,
+   0.7,
+   0.5
+  ],
+  "detail": 2,
+  "roughness": 0.16,
+  "uvScale": 0.45,
+  "tint": [
+   0.95,
+   0.92,
+   0.88
+  ]
+ },
+ "cliff_clod_wide": {
+  "texture": "Ground071_1K-JPG_Color.jpg",
+  "normal": "Ground071_1K-JPG_NormalGL.jpg",
+  "seed": 2087,
+  "size": [
+   1.05,
+   0.55,
+   0.48
+  ],
+  "detail": 2,
+  "roughness": 0.14,
+  "uvScale": 0.42,
+  "tint": [
+   0.9,
+   0.87,
+   0.82
+  ]
+ },
+ "cliff_clod_tall": {
+  "texture": "Ground071_1K-JPG_Color.jpg",
+  "normal": "Ground071_1K-JPG_NormalGL.jpg",
+  "seed": 4759,
+  "size": [
+   0.66,
+   0.9,
+   0.46
+  ],
+  "detail": 2,
+  "roughness": 0.18,
+  "uvScale": 0.44,
+  "tint": [
+   1,
+   0.96,
+   0.9
+  ]
+ },
+ "cliff_clod_pair": {
+  "texture": "Ground071_1K-JPG_Color.jpg",
+  "normal": "Ground071_1K-JPG_NormalGL.jpg",
+  "seed": 8329,
+  "detail": 2,
+  "roughness": 0.15,
+  "uvScale": 0.44,
+  "tint": [
+   0.92,
+   0.89,
+   0.84
+  ],
+  "parts": [
+   {
+    "seed": 8329,
+    "size": [
+     0.7,
+     0.5,
+     0.46
+    ],
+    "offset": [
+     -0.25,
+     0,
+     0
+    ]
+   },
+   {
+    "seed": 1151,
+    "size": [
+     0.55,
+     0.45,
+     0.42
+    ],
+    "offset": [
+     0.5,
+     0.18,
+     0
+    ]
+   }
+  ]
+ },
+ "cliff_stone_wide": {
+  "texture": "Rock050_1K-JPG_Color.jpg",
+  "normal": "Rock050_1K-JPG_NormalGL.jpg",
+  "seed": 7301,
+  "size": [
+   1,
+   0.72,
+   0.5
+  ],
+  "detail": 2,
+  "roughness": 0.3,
+  "uvScale": 0.4,
+  "tint": [
+   0.94,
+   0.93,
+   0.9
+  ]
+ },
+ "cliff_stone_tall": {
+  "texture": "Rock050_1K-JPG_Color.jpg",
+  "normal": "Rock050_1K-JPG_NormalGL.jpg",
+  "seed": 2719,
+  "size": [
+   0.72,
+   1,
+   0.48
+  ],
+  "detail": 2,
+  "roughness": 0.34,
+  "uvScale": 0.42,
+  "tint": [
+   0.9,
+   0.89,
+   0.86
+  ]
+ },
+ "cliff_stone_slab": {
+  "texture": "Rock050_1K-JPG_Color.jpg",
+  "normal": "Rock050_1K-JPG_NormalGL.jpg",
+  "seed": 6143,
+  "size": [
+   1.1,
+   0.5,
+   0.46
+  ],
+  "detail": 2,
+  "roughness": 0.26,
+  "uvScale": 0.38,
+  "tint": [
+   0.98,
+   0.97,
+   0.93
+  ]
+ },
+ "cliff_stone_wide_b": {
+  "texture": "Rock050_1K-JPG_Color.jpg",
+  "normal": "Rock050_1K-JPG_NormalGL.jpg",
+  "seed": 9157,
+  "size": [
+   0.92,
+   0.62,
+   0.52
+  ],
+  "detail": 2,
+  "roughness": 0.38,
+  "uvScale": 0.44,
+  "tint": [
+   0.86,
+   0.86,
+   0.84
+  ]
+ },
+ "cliff_stone_tall_b": {
+  "texture": "Rock050_1K-JPG_Color.jpg",
+  "normal": "Rock050_1K-JPG_NormalGL.jpg",
+  "seed": 1483,
+  "size": [
+   0.58,
+   0.92,
+   0.44
+  ],
+  "detail": 2,
+  "roughness": 0.4,
+  "uvScale": 0.36,
+  "tint": [
+   1,
+   0.98,
+   0.93
+  ]
+ },
+ "cliff_stone_block": {
+  "texture": "Rock050_1K-JPG_Color.jpg",
+  "normal": "Rock050_1K-JPG_NormalGL.jpg",
+  "seed": 8263,
+  "size": [
+   0.78,
+   0.78,
+   0.5
+  ],
+  "detail": 2,
+  "roughness": 0.22,
+  "uvScale": 0.46,
+  "tint": [
+   0.91,
+   0.9,
+   0.86
+  ]
+ },
+ "cliff_stone_ledge": {
+  "texture": "Rock050_1K-JPG_Color.jpg",
+  "normal": "Rock050_1K-JPG_NormalGL.jpg",
+  "seed": 3307,
+  "detail": 2,
+  "roughness": 0.3,
+  "uvScale": 0.4,
+  "tint": [
+   0.95,
+   0.93,
+   0.88
+  ],
+  "parts": [
+   {
+    "seed": 3307,
+    "size": [
+     0.85,
+     0.42,
+     0.46
+    ],
+    "offset": [
+     -0.3,
+     0,
+     0
+    ]
+   },
+   {
+    "seed": 5519,
+    "size": [
+     0.6,
+     0.5,
+     0.42
+    ],
+    "offset": [
+     0.55,
+     0.22,
+     0
+    ]
+   }
+  ]
+ },
+ "cliff_stone_stack": {
+  "texture": "Rock050_1K-JPG_Color.jpg",
+  "normal": "Rock050_1K-JPG_NormalGL.jpg",
+  "seed": 7741,
+  "detail": 2,
+  "roughness": 0.34,
+  "uvScale": 0.42,
+  "tint": [
+   0.88,
+   0.87,
+   0.84
+  ],
+  "parts": [
+   {
+    "seed": 7741,
+    "size": [
+     0.7,
+     0.55,
+     0.46
+    ],
+    "offset": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "seed": 2293,
+    "size": [
+     0.5,
+     0.5,
+     0.4
+    ],
+    "offset": [
+     0.18,
+     0.62,
+     0
+    ]
+   }
+  ]
+ },
+ "boulder_small": {
+  "texture": "Rock030_1K-JPG_Color.jpg",
+  "normal": "Rock030_1K-JPG_NormalGL.jpg",
+  "seed": 1201,
+  "size": [
+   0.42,
+   0.32,
+   0.4
+  ],
+  "detail": 2,
+  "roughness": 0.22,
+  "uvScale": 0.9,
+  "tint": [
+   0.96,
+   0.95,
+   0.92
+  ]
+ },
+ "boulder_large": {
+  "texture": "Rock045_1K-JPG_Color.jpg",
+  "normal": "Rock045_1K-JPG_NormalGL.jpg",
+  "seed": 8811,
+  "size": [
+   0.8,
+   0.58,
+   0.72
+  ],
+  "detail": 2,
+  "roughness": 0.28,
+  "uvScale": 0.4,
+  "tint": [
+   0.92,
+   0.92,
+   0.9
+  ]
+ },
+ "boulder_large_c": {
+  "texture": "Rock023_1K-JPG_Color.jpg",
+  "normal": "Rock023_1K-JPG_NormalGL.jpg",
+  "seed": 3179,
+  "size": [
+   0.72,
+   0.6,
+   0.68
+  ],
+  "detail": 2,
+  "roughness": 0.32,
+  "uvScale": 0.42,
+  "tint": [
+   0.98,
+   0.95,
+   0.9
+  ]
+ },
+ "boulder_tall": {
+  "texture": "Rock023_1K-JPG_Color.jpg",
+  "normal": "Rock023_1K-JPG_NormalGL.jpg",
+  "seed": 5591,
+  "size": [
+   0.38,
+   0.8,
+   0.38
+  ],
+  "detail": 2,
+  "roughness": 0.26,
+  "uvScale": 0.55,
+  "tint": [
+   0.94,
+   0.92,
+   0.88
+  ]
+ },
+ "cliff_slab": {
+  "texture": "Rock045_1K-JPG_Color.jpg",
+  "normal": "Rock045_1K-JPG_NormalGL.jpg",
+  "seed": 5241,
+  "detail": 2,
+  "roughness": 0.32,
+  "uvScale": 0.38,
+  "tint": [
+   0.9,
+   0.9,
+   0.87
+  ],
+  "parts": [
+   {
+    "seed": 7011,
+    "size": [
+     0.78,
+     0.3,
+     0.58
+    ],
+    "offset": [
+     -0.18,
+     0,
+     -0.08
+    ]
+   },
+   {
+    "seed": 7012,
+    "size": [
+     0.44,
+     0.22,
+     0.34
+    ],
+    "offset": [
+     0.34,
+     0,
+     0.22
+    ]
+   },
+   {
+    "seed": 7013,
+    "size": [
+     0.3,
+     0.18,
+     0.26
+    ],
+    "offset": [
+     0.08,
+     0,
+     0.36
+    ]
+   },
+   {
+    "seed": 7014,
+    "size": [
+     0.22,
+     0.14,
+     0.2
+    ],
+    "offset": [
+     -0.42,
+     0,
+     0.28
+    ]
+   }
+  ]
+ },
+ "cliff_pile": {
+  "texture": "Rock023_1K-JPG_Color.jpg",
+  "normal": "Rock023_1K-JPG_NormalGL.jpg",
+  "seed": 6359,
+  "detail": 2,
+  "roughness": 0.3,
+  "uvScale": 0.42,
+  "tint": [
+   0.96,
+   0.93,
+   0.88
+  ],
+  "parts": [
+   {
+    "seed": 7021,
+    "size": [
+     0.5,
+     0.4,
+     0.46
+    ],
+    "offset": [
+     -0.28,
+     0,
+     -0.18
+    ]
+   },
+   {
+    "seed": 7022,
+    "size": [
+     0.38,
+     0.3,
+     0.34
+    ],
+    "offset": [
+     0.22,
+     0,
+     0.02
+    ]
+   },
+   {
+    "seed": 7023,
+    "size": [
+     0.34,
+     0.28,
+     0.3
+    ],
+    "offset": [
+     -0.05,
+     0,
+     0.3
+    ]
+   },
+   {
+    "seed": 7024,
+    "size": [
+     0.24,
+     0.2,
+     0.22
+    ],
+    "offset": [
+     0.34,
+     0,
+     0.3
+    ]
+   },
+   {
+    "seed": 7025,
+    "size": [
+     0.2,
+     0.16,
+     0.18
+    ],
+    "offset": [
+     -0.36,
+     0,
+     0.28
+    ]
+   }
+  ]
+ },
+ "cliff_spire": {
+  "texture": "Rock030_1K-JPG_Color.jpg",
+  "normal": "Rock030_1K-JPG_NormalGL.jpg",
+  "seed": 8461,
+  "detail": 2,
+  "roughness": 0.28,
+  "uvScale": 0.5,
+  "tint": [
+   0.93,
+   0.92,
+   0.89
+  ],
+  "parts": [
+   {
+    "seed": 7031,
+    "size": [
+     0.42,
+     0.72,
+     0.39
+    ],
+    "offset": [
+     -0.18,
+     0,
+     -0.1
+    ]
+   },
+   {
+    "seed": 7032,
+    "size": [
+     0.3,
+     0.44,
+     0.28
+    ],
+    "offset": [
+     0.24,
+     0,
+     0.14
+    ]
+   },
+   {
+    "seed": 7033,
+    "size": [
+     0.22,
+     0.3,
+     0.2
+    ],
+    "offset": [
+     -0.08,
+     0,
+     0.3
+    ]
+   }
+  ]
+ },
+ "cliff_scatter": {
+  "texture": "Rock045_1K-JPG_Color.jpg",
+  "normal": "Rock045_1K-JPG_NormalGL.jpg",
+  "seed": 9571,
+  "detail": 2,
+  "roughness": 0.25,
+  "uvScale": 0.9,
+  "tint": [
+   0.94,
+   0.92,
+   0.88
+  ],
+  "parts": [
+   {
+    "seed": 7041,
+    "size": [
+     0.18,
+     0.13,
+     0.16
+    ],
+    "offset": [
+     -0.42,
+     0,
+     -0.28
+    ]
+   },
+   {
+    "seed": 7042,
+    "size": [
+     0.14,
+     0.1,
+     0.14
+    ],
+    "offset": [
+     0.1,
+     0,
+     -0.34
+    ]
+   },
+   {
+    "seed": 7043,
+    "size": [
+     0.17,
+     0.12,
+     0.15
+    ],
+    "offset": [
+     0.4,
+     0,
+     -0.08
+    ]
+   },
+   {
+    "seed": 7044,
+    "size": [
+     0.13,
+     0.09,
+     0.12
+    ],
+    "offset": [
+     -0.16,
+     0,
+     0.34
+    ]
+   },
+   {
+    "seed": 7045,
+    "size": [
+     0.15,
+     0.1,
+     0.13
+    ],
+    "offset": [
+     0.28,
+     0,
+     0.3
+    ]
+   }
+  ]
+ },
+ "cliff_mass_a": {
+  "texture": "Rock045_1K-JPG_Color.jpg",
+  "normal": "Rock045_1K-JPG_NormalGL.jpg",
+  "seed": 4681,
+  "detail": 2,
+  "roughness": 0.3,
+  "uvScale": 0.36,
+  "tint": [
+   0.91,
+   0.9,
+   0.87
+  ],
+  "parts": [
+   {
+    "seed": 7051,
+    "size": [
+     0.82,
+     0.38,
+     0.7
+    ],
+    "offset": [
+     -0.48,
+     0,
+     -0.45
+    ]
+   },
+   {
+    "seed": 7052,
+    "size": [
+     0.68,
+     0.3,
+     0.58
+    ],
+    "offset": [
+     0.46,
+     0,
+     -0.42
+    ]
+   },
+   {
+    "seed": 7053,
+    "size": [
+     0.7,
+     0.42,
+     0.62
+    ],
+    "offset": [
+     -0.36,
+     0,
+     0.46
+    ]
+   },
+   {
+    "seed": 7054,
+    "size": [
+     0.58,
+     0.34,
+     0.52
+    ],
+    "offset": [
+     0.44,
+     0,
+     0.38
+    ]
+   },
+   {
+    "seed": 7055,
+    "size": [
+     0.62,
+     0.46,
+     0.64
+    ],
+    "offset": [
+     0.02,
+     0.28,
+     -0.18
+    ]
+   },
+   {
+    "seed": 7056,
+    "size": [
+     0.54,
+     0.38,
+     0.5
+    ],
+    "offset": [
+     -0.18,
+     0.5,
+     0.42
+    ]
+   },
+   {
+    "seed": 7057,
+    "size": [
+     0.5,
+     0.44,
+     0.5
+    ],
+    "offset": [
+     0.38,
+     0.55,
+     0.22
+    ]
+   },
+   {
+    "seed": 7058,
+    "size": [
+     0.42,
+     0.5,
+     0.4
+    ],
+    "offset": [
+     0.02,
+     0.86,
+     0.05
+    ]
+   }
+  ]
+ },
+ "cliff_mass_b": {
+  "texture": "Rock023_1K-JPG_Color.jpg",
+  "normal": "Rock023_1K-JPG_NormalGL.jpg",
+  "seed": 5791,
+  "detail": 2,
+  "roughness": 0.28,
+  "uvScale": 0.4,
+  "tint": [
+   0.96,
+   0.93,
+   0.88
+  ],
+  "parts": [
+   {
+    "seed": 7061,
+    "size": [
+     0.75,
+     0.28,
+     0.78
+    ],
+    "offset": [
+     -0.42,
+     0,
+     -0.38
+    ]
+   },
+   {
+    "seed": 7062,
+    "size": [
+     0.66,
+     0.24,
+     0.64
+    ],
+    "offset": [
+     0.44,
+     0,
+     -0.32
+    ]
+   },
+   {
+    "seed": 7063,
+    "size": [
+     0.7,
+     0.32,
+     0.6
+    ],
+    "offset": [
+     -0.38,
+     0.2,
+     0.4
+    ]
+   },
+   {
+    "seed": 7064,
+    "size": [
+     0.58,
+     0.3,
+     0.62
+    ],
+    "offset": [
+     0.42,
+     0.22,
+     0.44
+    ]
+   },
+   {
+    "seed": 7065,
+    "size": [
+     0.6,
+     0.38,
+     0.66
+    ],
+    "offset": [
+     0.04,
+     0.42,
+     -0.06
+    ]
+   },
+   {
+    "seed": 7066,
+    "size": [
+     0.5,
+     0.34,
+     0.46
+    ],
+    "offset": [
+     -0.2,
+     0.66,
+     0.2
+    ]
+   },
+   {
+    "seed": 7067,
+    "size": [
+     0.46,
+     0.4,
+     0.44
+    ],
+    "offset": [
+     0.28,
+     0.72,
+     -0.16
+    ]
+   },
+   {
+    "seed": 7068,
+    "size": [
+     0.36,
+     0.36,
+     0.34
+    ],
+    "offset": [
+     0.02,
+     1.02,
+     0.08
+    ]
+   }
+  ]
+ },
+ "cliff_dark_pile": {
+  "texture": "Rock050_1K-JPG_Color.jpg",
+  "normal": "Rock050_1K-JPG_NormalGL.jpg",
+  "seed": 6811,
+  "detail": 2,
+  "roughness": 0.3,
+  "uvScale": 0.5,
+  "tint": [
+   0.48,
+   0.48,
+   0.46
+  ],
+  "parts": [
+   {
+    "seed": 7071,
+    "size": [
+     0.52,
+     0.4,
+     0.48
+    ],
+    "offset": [
+     -0.28,
+     0,
+     -0.18
+    ]
+   },
+   {
+    "seed": 7072,
+    "size": [
+     0.4,
+     0.3,
+     0.36
+    ],
+    "offset": [
+     0.22,
+     0,
+     0.02
+    ]
+   },
+   {
+    "seed": 7073,
+    "size": [
+     0.35,
+     0.28,
+     0.32
+    ],
+    "offset": [
+     -0.05,
+     0.28,
+     0.3
+    ]
+   },
+   {
+    "seed": 7074,
+    "size": [
+     0.26,
+     0.22,
+     0.24
+    ],
+    "offset": [
+     0.34,
+     0.3,
+     0.3
+    ]
+   }
+  ]
+ },
+ "cliff_black_mass": {
+  "texture": "Rock063_1K-JPG_Color.jpg",
+  "normal": "Rock063_1K-JPG_NormalGL.jpg",
+  "seed": 7927,
+  "detail": 2,
+  "roughness": 0.28,
+  "uvScale": 0.42,
+  "tint": [
+   0.3,
+   0.31,
+   0.3
+  ],
+  "parts": [
+   {
+    "seed": 7081,
+    "size": [
+     0.8,
+     0.35,
+     0.74
+    ],
+    "offset": [
+     -0.45,
+     0,
+     -0.4
+    ]
+   },
+   {
+    "seed": 7082,
+    "size": [
+     0.66,
+     0.28,
+     0.58
+    ],
+    "offset": [
+     0.44,
+     0,
+     -0.38
+    ]
+   },
+   {
+    "seed": 7083,
+    "size": [
+     0.7,
+     0.4,
+     0.62
+    ],
+    "offset": [
+     -0.34,
+     0.18,
+     0.44
+    ]
+   },
+   {
+    "seed": 7084,
+    "size": [
+     0.56,
+     0.32,
+     0.54
+    ],
+    "offset": [
+     0.42,
+     0.2,
+     0.4
+    ]
+   },
+   {
+    "seed": 7085,
+    "size": [
+     0.6,
+     0.44,
+     0.62
+    ],
+    "offset": [
+     0.04,
+     0.38,
+     -0.04
+    ]
+   },
+   {
+    "seed": 7086,
+    "size": [
+     0.5,
+     0.36,
+     0.48
+    ],
+    "offset": [
+     -0.2,
+     0.62,
+     0.22
+    ]
+   },
+   {
+    "seed": 7087,
+    "size": [
+     0.42,
+     0.38,
+     0.4
+    ],
+    "offset": [
+     0.28,
+     0.68,
+     -0.14
+    ]
+   }
+  ]
+ },
+ "cliff_dark_slab": {
+  "texture": "Rock050_1K-JPG_Color.jpg",
+  "normal": "Rock050_1K-JPG_NormalGL.jpg",
+  "seed": 8161,
+  "detail": 2,
+  "roughness": 0.32,
+  "uvScale": 0.45,
+  "tint": [
+   0.4,
+   0.41,
+   0.39
+  ],
+  "parts": [
+   {
+    "seed": 7091,
+    "size": [
+     0.78,
+     0.24,
+     0.64
+    ],
+    "offset": [
+     -0.34,
+     0,
+     -0.26
+    ]
+   },
+   {
+    "seed": 7092,
+    "size": [
+     0.48,
+     0.2,
+     0.42
+    ],
+    "offset": [
+     0.4,
+     0,
+     0.18
+    ]
+   },
+   {
+    "seed": 7093,
+    "size": [
+     0.34,
+     0.16,
+     0.3
+    ],
+    "offset": [
+     0.02,
+     0,
+     0.4
+    ]
+   },
+   {
+    "seed": 7094,
+    "size": [
+     0.28,
+     0.18,
+     0.24
+    ],
+    "offset": [
+     -0.46,
+     0.18,
+     0.32
+    ]
+   },
+   {
+    "seed": 7095,
+    "size": [
+     0.26,
+     0.15,
+     0.22
+    ],
+    "offset": [
+     0.24,
+     0.22,
+     -0.34
+    ]
+   }
+  ]
+ },
+ "cliff_dark_mass": {
+  "texture": "Rock050_1K-JPG_Color.jpg",
+  "normal": "Rock050_1K-JPG_NormalGL.jpg",
+  "seed": 9271,
+  "detail": 2,
+  "roughness": 0.3,
+  "uvScale": 0.38,
+  "tint": [
+   0.42,
+   0.43,
+   0.41
+  ],
+  "parts": [
+   {
+    "seed": 7101,
+    "size": [
+     0.84,
+     0.36,
+     0.7
+    ],
+    "offset": [
+     -0.48,
+     0,
+     -0.42
+    ]
+   },
+   {
+    "seed": 7102,
+    "size": [
+     0.68,
+     0.3,
+     0.6
+    ],
+    "offset": [
+     0.46,
+     0,
+     -0.38
+    ]
+   },
+   {
+    "seed": 7103,
+    "size": [
+     0.7,
+     0.4,
+     0.64
+    ],
+    "offset": [
+     -0.36,
+     0.16,
+     0.42
+    ]
+   },
+   {
+    "seed": 7104,
+    "size": [
+     0.58,
+     0.3,
+     0.54
+    ],
+    "offset": [
+     0.44,
+     0.18,
+     0.38
+    ]
+   },
+   {
+    "seed": 7105,
+    "size": [
+     0.62,
+     0.4,
+     0.64
+    ],
+    "offset": [
+     0.02,
+     0.4,
+     -0.1
+    ]
+   },
+   {
+    "seed": 7106,
+    "size": [
+     0.5,
+     0.34,
+     0.48
+    ],
+    "offset": [
+     -0.22,
+     0.64,
+     0.2
+    ]
+   },
+   {
+    "seed": 7107,
+    "size": [
+     0.42,
+     0.36,
+     0.4
+    ],
+    "offset": [
+     0.26,
+     0.7,
+     -0.16
+    ]
+   },
+   {
+    "seed": 7108,
+    "size": [
+     0.34,
+     0.3,
+     0.32
+    ],
+    "offset": [
+     0,
+     0.96,
+     0.08
+    ]
+   }
+  ]
+ },
+ "cliff_dark_spire": {
+  "texture": "Rock050_1K-JPG_Color.jpg",
+  "normal": "Rock050_1K-JPG_NormalGL.jpg",
+  "seed": 1837,
+  "detail": 2,
+  "roughness": 0.3,
+  "uvScale": 0.48,
+  "tint": [
+   0.46,
+   0.46,
+   0.44
+  ],
+  "parts": [
+   {
+    "seed": 7111,
+    "size": [
+     0.44,
+     0.8,
+     0.4
+    ],
+    "offset": [
+     -0.18,
+     0,
+     -0.12
+    ]
+   },
+   {
+    "seed": 7112,
+    "size": [
+     0.32,
+     0.5,
+     0.3
+    ],
+    "offset": [
+     0.24,
+     0,
+     0.16
+    ]
+   },
+   {
+    "seed": 7113,
+    "size": [
+     0.24,
+     0.38,
+     0.22
+    ],
+    "offset": [
+     -0.05,
+     0.48,
+     0.28
+    ]
+   },
+   {
+    "seed": 7114,
+    "size": [
+     0.2,
+     0.28,
+     0.2
+    ],
+    "offset": [
+     0.24,
+     0.62,
+     -0.12
+    ]
+   }
+  ]
+ },
+ "cliff_black_pile": {
+  "texture": "Rock063_1K-JPG_Color.jpg",
+  "normal": "Rock063_1K-JPG_NormalGL.jpg",
+  "seed": 2749,
+  "detail": 2,
+  "roughness": 0.26,
+  "uvScale": 0.55,
+  "tint": [
+   0.28,
+   0.29,
+   0.28
+  ],
+  "parts": [
+   {
+    "seed": 7121,
+    "size": [
+     0.54,
+     0.4,
+     0.5
+    ],
+    "offset": [
+     -0.3,
+     0,
+     -0.2
+    ]
+   },
+   {
+    "seed": 7122,
+    "size": [
+     0.44,
+     0.3,
+     0.4
+    ],
+    "offset": [
+     0.24,
+     0,
+     0.04
+    ]
+   },
+   {
+    "seed": 7123,
+    "size": [
+     0.36,
+     0.28,
+     0.34
+    ],
+    "offset": [
+     -0.04,
+     0.3,
+     0.3
+    ]
+   },
+   {
+    "seed": 7124,
+    "size": [
+     0.28,
+     0.22,
+     0.26
+    ],
+    "offset": [
+     0.36,
+     0.32,
+     0.26
+    ]
+   },
+   {
+    "seed": 7125,
+    "size": [
+     0.2,
+     0.2,
+     0.2
+    ],
+    "offset": [
+     -0.36,
+     0.22,
+     0.32
+    ]
+   }
+  ]
+ }
+}

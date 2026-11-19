@@ -408,7 +408,7 @@ a rychlost proudu a sílu peřejí; jezero je plocha se stejnou výškou a bez p
   (podíl `beachShare` v `crabs.js`) a navíc tam, kde je položí štětec Krabi
   (`layout.crabs`). Běhají bokem kolem svého místa, před hráčem utečou a na písku se
   zahrabou (rozstřik přes `sandBursts`), jinde zvednou klepeta. Velikost se losuje
-  mezi `sizeMin` a `sizeMax`, malých je víc. Barva je v textuře ztlumená (`tools/_temp/prepareCrab.mjs`).
+  mezi `sizeMin` a `sizeMax`, malých je víc. Barva je v textuře ztlumená (`tools/prepareCrab.mjs`).
   Kraba pod myší hledá `crabSystem.hoverAt` podle vzdálenosti na obrazovce (thin instances
   nejdou rozumně pickovat a krab je malý), v pořadí až po tvorech a mrtvých tělech.
   Vybraný krab se v hromadném bufferu schová a kreslí ho samostatný mesh s jednou instancí
@@ -585,14 +585,14 @@ otáčení spočítanou až ve hře z tvaru dílu.
 
 **Volné kameny** (`rock_small`, `rock_small_flat`, `rock_large`, `rock_large_c`, `rock_tall`,
 `rock_jagged`, `rock_pair`, `rock_pebbles`) jsou modely z jedné sady z Meshy
-(`public/assets/nature/rocks/`). Sadu rozřeže a poskládá `tools/_temp/prepareRocks.mjs`
+(`public/assets/nature/rocks/`). Sadu rozřeže a poskládá `tools/prepareRocks.mjs`
 s `bl_rocks.py` (slepení bodů na švech textury, rozdělení na oddělené kusy, zjednodušení,
 složené kameny z několika kusů). Kameny jsou `.gltf` se společnou texturou sady
 (`rocks_light_*.webp`, `rocks_dark_*.webp`), aby ji hra načetla jen jednou. V katalogu mají
 `stone: true` (náhodné natočení a velikost jako u kamenů z receptů). Světlá sada dává volné
 kameny a světlé sesuvy pod útesy, tmavá sada tmavé sesuvy, tmavé volné kameny `rock_dark_*`
 (modely `cliff_stone_*`, dřív obklad útesů) a kameny `boulder_*` pro rámy jeskyní a táborák. Kameny, které dřív stavěl recept, mají rozměry
-z uložených receptů (`tools/_temp/rock_recipes.json`) a kusy sady se na ně natáhnou.
+z uložených receptů (`tools/rock_recipes.json`) a kusy sady se na ně natáhnou.
 Rámy a táborák kameny potřebují hned, proto jsou v `ROCK_MODELS` (`rocks.js`),
 načítají se při startu hry a `rockRoot` (`rockFactory.js`) je bere z načtených modelů.
 Kameny rámů jeskyní mají texturu stěny, ve které je vchod (hlína nebo skála). Recepty zbývají
@@ -618,7 +618,7 @@ Kdo které hnízdo hlídá, počítá jedno pravidlo v `src/utils/nestGuard.js` 
 v `creatureOverlay.showNests` kruh `guardLink` kolem hnízda (zlatý, bez hlídačů červený)
 a spojnice k živým hlídačům (podle `creatureStatusAt`); k mrtvému hlídači vede slabší
 spojnice na místo, kde se znovu objeví.
-Hnízdo bylo z Meshy zjednodušené v Blenderu (`tools/_temp/bl_decimate.py`), protože
+Hnízdo bylo z Meshy zjednodušené v Blenderu (`tools/bl_decimate.py`), protože
 meshoptimizer se na samostatných větvičkách zastavil kolem 10 000 trojúhelníků.
 
 Živá postava v okně postavy (`portraitSystem`): dvojník hráče, kopie hierarchie pod
