@@ -80,9 +80,20 @@ export default class LightingSystem {
     this.shadowGenerator.bias = 0.00005;
     this.shadowGenerator.normalBias = 0.002;
     this.shadowGenerator.getShadowMap().clearColor = new Color4(1, 1, 1, 1);
+    this.keepRockWhole(this.shadowGenerator);
     this.sunLight = dir;
     this.skyLight = hemi;
     return { sun: dir, sky: hemi };
+  }
+
+  keepRockWhole(generator) {
+    let rock = false;
+    generator.onBeforeShadowMapRenderMeshObservable.add((mesh) => {
+      rock = Boolean(mesh.metadata && mesh.metadata.volume);
+    });
+    generator.onBeforeShadowMapRenderObservable.add((effect) => {
+      if (rock) effect.setFloat3('biasAndScaleSM', generator.bias, 0, generator.depthScale);
+    });
   }
 
   createFog(fog) {

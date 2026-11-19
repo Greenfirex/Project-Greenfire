@@ -264,7 +264,15 @@ doplní každé `$1`, `$2` … jen jednou, proto má vzor tolik závorek, kolikr
 od vchodu (světlo oblohy) bylo zrušené, dělalo za prahem ostře světlejší pruh. Stěny a strop jeskyně vrhají stín od slunce i táboráku; do map
 stínů (i do mapy dohledu) se skála kreslí z obou stran (`utils/bothSidesMaterial.js`),
 jinak by ji některé strany krychle i slunce viděly odvrácenou stranou a světlo by
-prošlo. Modely v podzemí (postava, tvorové a dekorace v patře pod 0) tlumí slunce a oblohu stejně
+prošlo. Skála (`metadata.volume`) se do stínu slunce kreslí bez posunu podél normály
+(`lightingSystem.keepRockWhole`): posun odsune každou plochu jinam a na hranách stropu
+a stěn otevře škvíru, kterou občas prosvítí čára světla (bliká s pohybem kamery).
+Ostatní vrhače (stromy, modely, mosty) posun dál mají.
+Schod ve stropě mezi dvěma buňkami jeskyně má svou svislou stěnku (`runVolume.js`, druh
+`ceilingStep`, bez přesahu dolů); vynechává se jen schod v podlaze, kterou vyhladí povrch.
+Stěnka je ve vrstvě `SHADOW_ONLY_LAYER` (`terrainSettings.js`): kamera ji nekreslí (strop je
+taky schovaný), stín slunce, táboráku i dohled ji mají. Dřív chyběla
+i u stropu a čtvrtmetrovou škvírou svítilo slunce na podlahu pravoúhlou čarou po obvodu buněk. Modely v podzemí (postava, tvorové a dekorace v patře pod 0) tlumí slunce a oblohu stejně
 jako terén jeskyně (`revealUnder`, seznam drží `GameScene.updateUndergroundMeshes`). Když je
 hráč pod stropem, schovají se přesně stropní dlaždice nad jeskyní (`overCave`,
 samostatný mesh `_roof`) a skryjí se dekorace i tráva na těch buňkách. Strop je zeshora neviditelný.

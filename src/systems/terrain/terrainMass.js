@@ -5,13 +5,14 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { buildRunVolumeBuckets } from './runVolume.js';
 import { valueNoise, smoothstep } from '../../utils/noise.js';
-import { SURFACE_SUB, SURFACE_CHUNK, WALL_TILE, SURFACE_VERTEX_TINT, pointId } from './terrainSettings.js';
+import { SURFACE_SUB, SURFACE_CHUNK, WALL_TILE, SURFACE_VERTEX_TINT, SHADOW_ONLY_LAYER, pointId } from './terrainSettings.js';
 import { REVEAL_CUT_ABOVE_FLOOR } from '../../utils/revealGlsl.js';
 
 const EDGE_ANCHOR_DEPTH = 0.4;
 const SURFACE_DEPTH = 1;
 const RING_KINDS = ['ringWall', 'ringCap'];
-const CAVE_ROCK_KINDS = ['cave', 'ceiling', ...RING_KINDS];
+const CAVE_ROCK_KINDS = ['cave', 'ceiling', 'ceilingStep', ...RING_KINDS];
+const SHADOW_ONLY_KINDS = ['ceilingStep'];
 
 function wallTint(x, y, z, t) {
   const grain = valueNoise(x * 0.37 + 4.1, z * 0.37 - 2.3);
@@ -99,12 +100,13 @@ export default {
       mesh.receiveShadows = true;
       mesh.metadata = {
         volume: !RING_KINDS.includes(group.kind),
-        shadowChunk: group.kind === 'cliff' || group.kind === 'cave' || group.kind === 'ceiling',
+        shadowChunk: group.kind === 'cliff' || group.kind === 'cave' || group.kind === 'ceiling' || SHADOW_ONLY_KINDS.includes(group.kind),
         kind: group.kind,
         key: group.name,
         chunkX: group.chunkX,
         chunkZ: group.chunkZ,
       };
+      if (SHADOW_ONLY_KINDS.includes(group.kind)) mesh.layerMask = SHADOW_ONLY_LAYER;
       if (RING_KINDS.includes(group.kind)) {
         mesh.setEnabled(Boolean(this.caveRingOn));
         this.caveRingDirty = true;
@@ -116,6 +118,7 @@ export default {
   volumeMeshName(group) {
     const suffix = `c${group.chunkX}_${group.chunkZ}`;
     if (group.kind === 'ceiling') return `terrainCeiling_vol_${suffix}_${group.name}`;
+    if (group.kind === 'ceilingStep') return `terrainCeilingStep_vol_${suffix}_${group.name}`;
     if (group.kind === 'cave') return `terrainCaveWall_vol_${suffix}_${group.name}`;
     if (RING_KINDS.includes(group.kind)) return `terrainCaveRing_vol_${suffix}_${group.kind}`;
     if (group.kind === 'soil') return `terrainSoil_vol_${suffix}_${group.name}`;

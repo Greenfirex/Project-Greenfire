@@ -288,11 +288,12 @@ export function buildRunVolumeBuckets(layout, options = {}) {
               continue;
             }
             const ownFloor = ownAir.find((span) => span.level === piece.level);
-            if (ownFloor && (piece.top <= ownFloor.bottom + EPS || piece.bottom >= ownFloor.top - EPS) && !hardEdge(cx, cz, dx, dz, piece.level)) continue;
+            if (ownFloor && piece.top <= ownFloor.bottom + EPS && !hardEdge(cx, cz, dx, dz, piece.level)) continue;
+            const ceilingStep = Boolean(ownFloor) && piece.bottom >= ownFloor.top - EPS;
             const key = floorKey(nx, nz, piece.level);
-            const caveWall = bucketOf(cx, cz, 'cave', key);
+            const caveWall = bucketOf(cx, cz, ceilingStep ? 'ceilingStep' : 'cave', key);
             const caveTile = tileOf('cave', key);
-            for (const [b, t] of plateBands(piece.bottom - CAVE_WALL_SKIRT, piece.top)) {
+            for (const [b, t] of plateBands(ceilingStep ? piece.bottom : piece.bottom - CAVE_WALL_SKIRT, piece.top)) {
               wall(caveWall, cx, cz, dx, dz, b, t, caveTile);
             }
           }
