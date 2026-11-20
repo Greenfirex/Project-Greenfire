@@ -1,10 +1,11 @@
 // Rentgen v materiálech — přidá běžným materiálům mizení a ztmavení z revealGlsl.js.
 // Terén nad podlahou patra zmizí stejně ve hře i v editoru, venku zůstane jen osvětlené okolí vchodu; modely mizí, pokud nepatří hráči nebo tvorům v jeho patře.
 // Slunce a obloha se v jeskyni tlumí od vchodu dovnitř — u terénu jeskyně vždy, u modelů, když jsou v podzemí.
+// Průhled ke kameře vyřezává terén, rámy vchodů a modely kromě tvorů.
 import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase';
 import { REVEAL_UNIFORMS, REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, revealBlock, sightRiseByHeight, sightPointOf } from '../../utils/revealGlsl.js';
 
-const REVEAL_RULES = { above: 'REVEAL_ABOVE', hide: 'REVEAL_HIDE', keep: 'REVEAL_KEEP', inside: 'REVEAL_INSIDE', restore: 'REVEAL_RESTORE', column: 'REVEAL_COLUMN', far: 'REVEAL_FAR', sight: 'REVEAL_SIGHT', sightHide: 'REVEAL_SIGHT_HIDE', rise: 'REVEAL_RISE', point: 'REVEAL_POINT', surface: 'REVEAL_SURFACE', cameraCut: 'REVEAL_CAMERA_CUT' };
+const REVEAL_RULES = { above: 'REVEAL_ABOVE', hide: 'REVEAL_HIDE', keep: 'REVEAL_KEEP', inside: 'REVEAL_INSIDE', restore: 'REVEAL_RESTORE', column: 'REVEAL_COLUMN', far: 'REVEAL_FAR', sight: 'REVEAL_SIGHT', sightHide: 'REVEAL_SIGHT_HIDE', rise: 'REVEAL_RISE', point: 'REVEAL_POINT', surface: 'REVEAL_SURFACE', cameraCut: 'REVEAL_CAMERA_CUT', peek: 'REVEAL_PEEK' };
 const REVEAL_CODE_STANDARD = revealBlock('color', 'vPositionW', REVEAL_RULES, 'normalW');
 const REVEAL_CODE_PBR = revealBlock('finalColor', 'vPositionW', REVEAL_RULES);
 const KEEP_UNIFORM = 'revealKeep';
@@ -25,18 +26,18 @@ if (REVEAL_INSIDE > 0.5 || revealUnder > 0.5) {
 `;
 const DAYLIGHT_POINT = '!#define CUSTOM_LIGHT(((\\d+)))_COLOR';
 const DAYLIGHT_GATE = '#if defined(DIRLIGHT$1) || defined(HEMILIGHT$2)\ndiffuse$3.rgb *= revealDaylightOpen;\n#endif\n';
-const DEFAULT_DEFINES = { REVEAL_ABOVE: '0.0', REVEAL_HIDE: '0.0', REVEAL_KEEP: '1.0', REVEAL_INSIDE: '0.0', REVEAL_RESTORE: '0.0', REVEAL_COLUMN: '0.0', REVEAL_FAR: '0.0', REVEAL_SIGHT: '1.0', REVEAL_SIGHT_HIDE: '0.0', REVEAL_RISE: '0.0',REVEAL_POINT: 'vPositionW', REVEAL_SURFACE: '1.0', REVEAL_CAMERA_CUT: '0.0' };
+const DEFAULT_DEFINES = { REVEAL_ABOVE: '0.0', REVEAL_HIDE: '0.0', REVEAL_KEEP: '1.0', REVEAL_INSIDE: '0.0', REVEAL_RESTORE: '0.0', REVEAL_COLUMN: '0.0', REVEAL_FAR: '0.0', REVEAL_SIGHT: '1.0', REVEAL_SIGHT_HIDE: '0.0', REVEAL_RISE: '0.0',REVEAL_POINT: 'vPositionW', REVEAL_SURFACE: '1.0', REVEAL_CAMERA_CUT: '0.0', REVEAL_PEEK: '0.0' };
 const DEFINE_FALLBACKS = Object.entries(DEFAULT_DEFINES).map(([name, value]) => `#ifndef ${name}\n#define ${name} ${value}\n#endif`).join('\n');
 const KIND_DEFINES = {
   cave: { above: '1.0', hide: '0.0', keep: '1.0', inside: '1.0', restore: '0.0', far: '1.0', surface: '0.0' },
   caveRing: { above: '1.0', hide: '0.0', keep: '1.0', inside: '1.0', restore: '0.0', far: '1.0', surface: '0.0', sight: '0.0', cameraCut: CAMERA_SIDE },
   caveDress: { above: '1.0', hide: '0.0', keep: '1.0', inside: '1.0', restore: '0.0', far: '1.0', surface: '0.0', cameraCut: NEAR_WALL },
   ceiling: { above: '1.0', hide: '1.0', keep: '1.0', inside: '0.0', restore: '0.0', surface: '0.0' },
-  terrain: { above: '0.0', hide: KEEP_UNIFORM, keep: '0.0', inside: '0.0', restore: '0.0', column: '1.0' },
+  terrain: { above: '0.0', hide: KEEP_UNIFORM, keep: '0.0', inside: '0.0', restore: '0.0', column: '1.0', peek: '1.0' },
   backdrop: { above: '0.0', hide: '0.0', keep: '1.0', inside: '0.0', restore: '0.0', sight: '0.0' },
-  frame: { above: '0.0', hide: '0.0', keep: '0.55', inside: '0.0', restore: '0.0' },
+  frame: { above: '0.0', hide: '0.0', keep: '0.55', inside: '0.0', restore: '0.0', peek: '1.0' },
   overlay: { above: '1.0', hide: '0.0', keep: '1.0', inside: '0.0', restore: '0.0', sight: '0.0' },
-  model: { above: '1.0', hide: `(1.0 - ${KEEP_UNIFORM})`, keep: KEEP_UNIFORM, inside: '0.0', restore: '1.0', sightHide: `mix(${CREATURE_UNIFORM}, 1.0, revealSightDepth.w)`, rise: `(${sightRiseByHeight(BASE_VARYING, '1.0')} * revealSightBlocked(vPositionW))`, point: sightPointOf(BASE_VARYING, '1.0') },
+  model: { above: '1.0', hide: `(1.0 - ${KEEP_UNIFORM})`, keep: KEEP_UNIFORM, inside: '0.0', restore: '1.0', sightHide: `mix(${CREATURE_UNIFORM}, 1.0, revealSightDepth.w)`, rise: `(${sightRiseByHeight(BASE_VARYING, '1.0')} * revealSightBlocked(vPositionW))`, point: sightPointOf(BASE_VARYING, '1.0'), peek: `(1.0 - ${CREATURE_UNIFORM})` },
 };
 
 export default class RevealPlugin extends MaterialPluginBase {
@@ -69,6 +70,7 @@ export default class RevealPlugin extends MaterialPluginBase {
     defines.REVEAL_POINT = kind.point || POINT_BY_HEIGHT;
     defines.REVEAL_SURFACE = kind.surface || '1.0';
     defines.REVEAL_CAMERA_CUT = kind.cameraCut || '0.0';
+    defines.REVEAL_PEEK = kind.peek || '0.0';
     defines.REVEAL_SET = this._material.pluginManager._plugins.map((plugin) => plugin.name).join('_');
   }
 
@@ -83,7 +85,7 @@ export default class RevealPlugin extends MaterialPluginBase {
   hardBindForSubMesh(ubo, scene, engine, subMesh) {
     const effect = subMesh.effect;
     if (!effect) return;
-    const { center, amount, cut, sightFade, floor, kept, map, mapMin, sightMap, sightEye, sightDepth, sightFog } = this.state;
+    const { center, amount, cut, sightFade, floor, kept, map, mapMin, sightMap, sightEye, sightDepth, sightFog, peek, peekEye } = this.state;
     effect.setVector3('revealCenter', center);
     effect.setFloat4('revealParams', amount, cut, sightFade, floor);
     effect.setTexture(REVEAL_SAMPLER, map);
@@ -92,6 +94,8 @@ export default class RevealPlugin extends MaterialPluginBase {
     effect.setVector4('revealSightEye', sightEye);
     effect.setVector4('revealSightDepth', sightDepth);
     effect.setColor3('revealSightFog', sightFog);
+    effect.setVector4('revealPeek', peek);
+    effect.setVector4('revealPeekEye', peekEye);
     effect.setFloat(KEEP_UNIFORM, kept.has(subMesh.getMesh()) ? 1 : 0);
     effect.setFloat(CREATURE_UNIFORM, this.state.creatures.has(subMesh.getMesh()) ? 1 : 0);
     effect.setFloat(UNDER_UNIFORM, this.state.underground.has(subMesh.getMesh()) ? 1 : 0);

@@ -46,6 +46,7 @@ export default class InputSystem {
     this.lastMoveX = null;
     this.lastMoveY = null;
     this.shouldPickByRay = null;
+    this.seesThrough = null;
   }
 
   hitsUi(evt) {
@@ -208,7 +209,7 @@ export default class InputSystem {
       const pz = origin.z + direction.z * distance;
       const height = this.groundHeightAt(px, pz, level);
       if (!Number.isFinite(height)) return null;
-      if (origin.y + direction.y * distance <= height) {
+      if (origin.y + direction.y * distance <= height && !(this.seesThrough && this.seesThrough(px, height, pz))) {
         let low = previous;
         let high = distance;
         for (let k = 0; k < PICK_REFINE; k += 1) {

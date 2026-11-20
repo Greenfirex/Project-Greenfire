@@ -5,9 +5,11 @@
 // Modely se řídí místem, kde stojí; pod zemí se mimo dohled schovají, venku se v oparu rozplynou jen tvorové.
 // Model na vyšší zemi zešedne jen tam, kam postavě brání ve výhledu skála (koruna palmy nad hranou útesu je vidět).
 // Povrch, na který postava z jeskyně nevidí, je úplně černý; jeskyně sama zůstane tušená.
+// Průhled: co stojí mezi kamerou a postavou, blízko spojnice a výš než její nohy, se vyřízne.
 import { CELL_SIZE } from './gridMath.js';
+import { smoothstep } from './noise.js';
 
-export const REVEAL_UNIFORM_NAMES = ['revealCenter', 'revealParams', 'revealMapMin', 'revealSightEye', 'revealSightDepth', 'revealSightFog'];
+export const REVEAL_UNIFORM_NAMES = ['revealCenter', 'revealParams', 'revealMapMin', 'revealSightEye', 'revealSightDepth', 'revealSightFog', 'revealPeek', 'revealPeekEye'];
 export const REVEAL_SAMPLER = 'revealMap';
 export const REVEAL_SIGHT_SAMPLER = 'revealSightMap';
 export const REVEAL_CUT_ABOVE_FLOOR = 3;
@@ -34,8 +36,46 @@ const SIGHT_SOFT = '0.012';
 const SIGHT_DARK = '0.22';
 const SIGHT_GREY = '0.6';
 const SIGHT_FOG_MAX = '0.6';
+export const PEEK = { chest: 1.0, frontGap: 0.6, frontSoft: 0.8, feetFrom: 0.3, feetTo: 0.7, edge: 0.55 };
+const PEEK_GLSL = Object.fromEntries(Object.entries(PEEK).map(([name, value]) => [name, value.toFixed(2)]));
+
+export function peekAmount(x, y, z, peek, eye) {
+  if (peek.w <= 0.001) return 0;
+  const ax = peek.x - eye.x;
+  const ay = peek.y + PEEK.chest - eye.y;
+  const az = peek.z - eye.z;
+  const span = Math.hypot(ax, ay, az) || 0.0001;
+  const ox = x - eye.x;
+  const oy = y - eye.y;
+  const oz = z - eye.z;
+  const along = (ox * ax + oy * ay + oz * az) / span;
+  if (along < 0) return 0;
+  const front = smoothstep(0, PEEK.frontSoft, span - PEEK.frontGap - along);
+  const across = Math.hypot(ox - (ax / span) * along, oy - (ay / span) * along, oz - (az / span) * along);
+  const near = 1 - smoothstep(eye.w * PEEK.edge, eye.w, across);
+  const above = smoothstep(peek.y + PEEK.feetFrom, peek.y + PEEK.feetTo, y);
+  return peek.w * front * near * above;
+}
 
 export const REVEAL_UNIFORMS = `
+uniform vec4 revealPeek;
+uniform vec4 revealPeekEye;
+
+float revealPeekAt(vec3 point) {
+  if (revealPeek.w <= 0.001) return 0.0;
+  vec3 chest = revealPeek.xyz + vec3(0.0, ${PEEK_GLSL.chest}, 0.0);
+  vec3 axis = chest - revealPeekEye.xyz;
+  float span = length(axis);
+  vec3 dir = axis / max(span, 0.0001);
+  vec3 offset = point - revealPeekEye.xyz;
+  float along = dot(offset, dir);
+  float front = smoothstep(0.0, ${PEEK_GLSL.frontSoft}, span - ${PEEK_GLSL.frontGap} - along) * step(0.0, along);
+  float radius = revealPeekEye.w;
+  float near = 1.0 - smoothstep(radius * ${PEEK_GLSL.edge}, radius, length(offset - dir * along));
+  float above = smoothstep(revealPeek.y + ${PEEK_GLSL.feetFrom}, revealPeek.y + ${PEEK_GLSL.feetTo}, point.y);
+  return revealPeek.w * front * near * above;
+}
+
 uniform vec3 revealCenter;
 uniform vec4 revealParams;
 uniform vec4 revealMapMin;
@@ -118,9 +158,10 @@ float revealDoorGlow(vec4 own, float inner) {
 `;
 
 export function revealBlock(color, position, rules, normal = 'vec3(0.0, 1.0, 0.0)') {
-  const { above, hide, keep, inside, restore, column = '0.0', dark = '0.0', far = '0.0', sight = '1.0', sightHide = '0.0', rise = sightRiseByHeight(position), point = sightPointOf(position), surface = '1.0', cameraCut = '0.0' } = rules;
+  const { above, hide, keep, inside, restore, column = '0.0', dark = '0.0', far = '0.0', sight = '1.0', sightHide = '0.0', rise = sightRiseByHeight(position), point = sightPointOf(position), surface = '1.0', cameraCut = '0.0', peek = '1.0' } = rules;
   return `
 {
+  if (${peek} * revealPeekAt(${position}) > fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))))) discard;
   float revealAmount = revealParams.x;
   if (revealAmount > 0.001 || ${inside} > 0.5) {
     vec3 revealDelta = ${position} - revealCenter;

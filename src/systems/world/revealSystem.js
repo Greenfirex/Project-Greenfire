@@ -1,6 +1,10 @@
 // Rentgen kamery v podzemí — plynule schová všechno nad výškou řezu a svět mimo jeskyni ztmaví.
 // Sám si připojí všechny materiály; pod jeskyní kreslí černé pozadí, aby nebylo vidět do prázdna.
+// Na povrchu drží průhled — co stojí mezi kamerou a postavou, se plynule vyřízne; kde je pod dírou skála,
+// kreslí na úrovni řezu tmavé kamenné dno, aby útes nevypadal dutý.
 import { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Material } from '@babylonjs/core/Materials/material';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
@@ -11,9 +15,18 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3, Vector4 } from '@babylonjs/core/Maths/math.vector';
 import { Scene } from '@babylonjs/core/scene';
 import RevealPlugin from '../materials/revealPlugin.js';
-import { REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, REVEAL_CUT_ABOVE_FLOOR } from '../../utils/revealGlsl.js';
+import { CLIFF_TEXTURE, CLIFF_NORMAL } from '../../data/catalogs/assetPaths.js';
+import { REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, REVEAL_CUT_ABOVE_FLOOR, PEEK, peekAmount } from '../../utils/revealGlsl.js';
 
 const FADE_SECONDS = 0.4;
+const PEEK_RADIUS = 2.2;
+const PEEK_FADE_SECONDS = 0.3;
+const CAP_RADIUS = 5;
+const CAP_STEP = 0.2;
+const CAP_REBUILD = 0.25;
+const CAP_ROCK_ABOVE = 0.05;
+const CAP_COLOR = new Color3(0.5, 0.47, 0.44);
+const CAP_TILE = 2;
 const CUT_FOLLOW = 10;
 const BACKDROP_RADIUS = 400;
 const BACKDROP_BELOW_FLOOR = 0.15;
@@ -51,6 +64,8 @@ export default class RevealSystem {
       sightEye: new Vector4(0, 0, 0, 0),
       sightDepth: new Vector4(0, 1, 0, 0),
       sightFog: new Color3(0, 0, 0),
+      peek: new Vector4(0, 0, 0, 0),
+      peekEye: new Vector4(0, 0, 0, PEEK_RADIUS),
     };
     this.paramsVector = new Vector4(0, 0, 0, 0);
     this.progress = 0;
@@ -58,6 +73,9 @@ export default class RevealSystem {
     this.pending = [];
     this.shaders = new Set();
     this.backdrop = null;
+    this.cap = null;
+    this.capAt = null;
+    this.rockHeightAt = null;
     this.lightMapTexture = null;
     this.lightBounds = new Vector4(0, 0, 1, 1);
     this.editorMapTexture = null;
@@ -160,6 +178,95 @@ export default class RevealSystem {
     }
   }
 
+  setPeek(dt, feet, eye) {
+    const { peek, peekEye } = this.state;
+    const on = Boolean(feet && eye);
+    const step = Math.max(0, dt) / PEEK_FADE_SECONDS;
+    const strength = on ? Math.min(1, peek.w + step) : Math.max(0, peek.w - step);
+    if (on) {
+      peek.set(feet.x, feet.y, feet.z, strength);
+      peekEye.set(eye.x, eye.y, eye.z, PEEK_RADIUS);
+    } else {
+      peek.w = strength;
+    }
+    this.updateCap(peek.w > 0.001 ? peek : null);
+  }
+
+  updateCap(feet) {
+    if (!feet || !this.rockHeightAt) {
+      if (this.cap) this.cap.setEnabled(false);
+      this.capAt = null;
+      return;
+    }
+    const y = feet.y + PEEK.feetFrom;
+    const at = this.capAt;
+    if (at && Math.abs(at.x - feet.x) < CAP_REBUILD && Math.abs(at.z - feet.z) < CAP_REBUILD && Math.abs(at.y - y) < CAP_REBUILD) {
+      this.cap.setEnabled(this.capFilled);
+      return;
+    }
+    this.capAt = new Vector3(feet.x, y, feet.z);
+    this.ensureCap();
+    const count = Math.round((CAP_RADIUS * 2) / CAP_STEP) + 1;
+    const cx = Math.round(feet.x / CAP_STEP) * CAP_STEP;
+    const cz = Math.round(feet.z / CAP_STEP) * CAP_STEP;
+    this.cap.position.set(cx, y, cz);
+    const positions = [];
+    const normals = [];
+    const uvs = [];
+    const rock = [];
+    for (let j = 0; j < count; j += 1) {
+      for (let i = 0; i < count; i += 1) {
+        const x = i * CAP_STEP - CAP_RADIUS;
+        const z = j * CAP_STEP - CAP_RADIUS;
+        positions.push(x, 0, z);
+        normals.push(0, 1, 0);
+        uvs.push((cx + x) / CAP_TILE, (cz + z) / CAP_TILE);
+        const height = this.rockHeightAt(cx + x, cz + z);
+        rock.push(Number.isFinite(height) && height > y + CAP_ROCK_ABOVE);
+      }
+    }
+    const indices = [];
+    for (let j = 0; j < count - 1; j += 1) {
+      for (let i = 0; i < count - 1; i += 1) {
+        const a = j * count + i;
+        const b = a + 1;
+        const c = a + count;
+        const d = c + 1;
+        if (rock[a] && rock[b] && rock[c] && rock[d]) indices.push(a, c, b, b, c, d);
+      }
+    }
+    this.capFilled = indices.length > 0;
+    if (this.capFilled) Object.assign(new VertexData(), { positions, normals, uvs, indices }).applyToMesh(this.cap, true);
+    this.cap.setEnabled(this.capFilled);
+  }
+
+  capTexture(url) {
+    const texture = new Texture(url, this.s);
+    texture.wrapU = Texture.WRAP_ADDRESSMODE;
+    texture.wrapV = Texture.WRAP_ADDRESSMODE;
+    texture.anisotropicFilteringLevel = 4;
+    return texture;
+  }
+
+  ensureCap() {
+    if (this.cap) return;
+    const material = new StandardMaterial('revealPeekCapMat', this.s);
+    material.diffuseTexture = this.capTexture(CLIFF_TEXTURE);
+    material.bumpTexture = this.capTexture(CLIFF_NORMAL);
+    material.bumpTexture.gammaSpace = false;
+    material.diffuseColor = CAP_COLOR;
+    material.specularColor = new Color3(0, 0, 0);
+    material.backFaceCulling = false;
+    this.cap = new Mesh('revealPeekCap', this.s);
+    this.cap.isPickable = false;
+    this.cap.material = material;
+    this.cap.setEnabled(false);
+  }
+
+  peekAt(x, y, z) {
+    return peekAmount(x, y, z, this.state.peek, this.state.peekEye);
+  }
+
   isOpen() {
     return this.progress > 0;
   }
@@ -220,12 +327,14 @@ export default class RevealSystem {
   }
 
   pushShaderUniforms() {
-    const { center, amount, cut, sightFade, floor, map, mapMin, sightMap, sightEye, sightDepth, sightFog } = this.state;
+    const { center, amount, cut, sightFade, floor, map, mapMin, sightMap, sightEye, sightDepth, sightFog, peek, peekEye } = this.state;
     for (const material of this.shaders) {
       material.setTexture(REVEAL_SIGHT_SAMPLER, sightMap);
       material.setVector4('revealSightEye', sightEye);
       material.setVector4('revealSightDepth', sightDepth);
       material.setColor3('revealSightFog', sightFog);
+      material.setVector4('revealPeek', peek);
+      material.setVector4('revealPeekEye', peekEye);
       material.setVector3('revealCenter', center);
       material.setTexture(REVEAL_SAMPLER, map);
       material.setVector4('revealMapMin', mapMin);

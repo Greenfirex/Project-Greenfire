@@ -307,6 +307,20 @@ stín táboráku a překresluje se při každém posunu očí. Pravidla:
 - Model na vyšší zemi venku zešedne jen v místech, kam čáru od očí zakrývá skála
   (`revealSightBlocked` pro bod modelu). Kmen palmy pod hranou útesu je v oparu,
   koruna nad hranou je vidět. Zem na vyšší zemi se řídí dál jen výškou.
+
+**Průhled ke kameře** (`revealPeekAt` v `utils/revealGlsl.js`, stav v `revealSystem.setPeek`, zapíná
+`GameScene.updateReveal` jen na povrchu a mimo editor, náběh 0,3 s). Od kamery k hrudi postavy vede trubka
+o poloměru 2,2 m (`PEEK_RADIUS`, měkký okraj od 55 %). Co v ní leží aspoň 0,6 m před postavou a výš než
+0,3–0,7 m nad jejíma nohama, se rozptýleně vyřízne (`discard` se zrnem jako rentgen). Platí pro terén,
+rámy vchodů, modely kromě tvorů (`REVEAL_PEEK` v `revealPlugin.js`) a pro trávu a vodu (výchozí `peek`
+v `revealBlock`). Jeskynní materiály, značky a pozadí se nevyřezávají. Čísla trubky jsou jednou v `PEEK`
+(`revealGlsl.js`); stejný výpočet v JS (`peekAmount`, `revealSystem.peekAt`) používá myš: paprsek
+(`inputSystem.surfacePoint`, `seesThrough`) ignoruje zem, která je z poloviny a víc vyříznutá, a jde skrz
+díru na okolí postavy. Terén je jen slupka (pod vrškem útesu nic není), proto `revealSystem.updateCap` kreslí
+ve výšce spodku řezu (nohy + `PEEK.feetFrom`) ztmavené kamenné dno s texturou skály útesů
+(`CLIFF_TEXTURE`, `CLIFF_NORMAL` v `assetPaths.js`, sdílí je s materiály terénu, opakování po 2 m): mřížka 0,2 m v okruhu 5 m kolem postavy,
+jen tam, kde je terén (`rockHeightAt`) nad touto výškou; přestaví se po posunu o 0,25 m. Rub útesu kreslit
+nejde — všechno, co je dírou vidět, leží v trubce a vyřízlo by se.
 - Volba Ostrost dohledu: jednoduchá (mapa 256) / plná (512). Vypnout dohled ve hře
   nejde, protože bez něj je vidět skrz skálu (tvorové, tma v jeskyni, zvýraznění).
 

@@ -104,6 +104,7 @@ const INDOOR_FADE_SECONDS = 2;
 const CAVE_DECO_REFRESH_SECONDS = 1;
 const SHELF_GRASS_CLEAR = 0.6;
 const DECK_ABOVE_GROUND = 0.05;
+const PEEK_PICK_THROUGH = 0.5;
 const WADE_SPEED = 0.65;
 const WADE_RAMP = 0.2;
 const WATER_SOUND_SECONDS = 0.15;
@@ -150,6 +151,7 @@ export default class GameScene {
     this.revealSystem = new RevealSystem(scene);
     this.sightSystem = new SightSystem(scene);
     this.sightSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z, 0);
+    this.revealSystem.rockHeightAt = (x, z) => this.terrainSystem.heightAt(x, z, 0);
     this.waterSystem = new WaterSystem(scene);
     this.waveSpray = new WaveSpraySystem(scene);
     this.fishSystem = new FishSystem(scene);
@@ -1201,6 +1203,8 @@ export default class GameScene {
     }
     this.updateUndergroundMeshes(dt, root, level);
     this.updateSight(dt, view, under);
+    const peeking = root && !view && !this.editor.active && level === 0;
+    this.revealSystem.setPeek(dt, peeking ? root.position : null, this.camera ? this.camera.globalPosition : null);
     this.revealSystem.update(dt, under, root ? root.position : null, this.camera, view);
     this.terrainSystem.showCaveRing(this.revealSystem.isOpen());
   }
@@ -1488,6 +1492,7 @@ export default class GameScene {
       return this.standHeightAt(x, z, level);
     };
     this.inputSystem.shouldPickByRay = () => this.editor.active && this.editor.mode.selectsArea;
+    this.inputSystem.seesThrough = (x, y, z) => this.revealSystem.peekAt(x, y, z) >= PEEK_PICK_THROUGH;
     this.inputSystem.attach(this.camera, this);
     this.inputSystem.onLeftDown = () => this.handleLeftDown();
     this.inputSystem.onHoverCell = (cell) => this.handleHover(cell);

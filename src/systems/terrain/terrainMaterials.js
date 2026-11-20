@@ -4,7 +4,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { getDecoration, DEFAULT_FLOOR } from '../../data/catalogs/decorations.js';
-import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
+import { ASSET_DIRS, CLIFF_TEXTURE, CLIFF_NORMAL } from '../../data/catalogs/assetPaths.js';
 import TerrainBlendPlugin from './terrainBlendPlugin.js';
 import TerrainReliefPlugin from './terrainReliefPlugin.js';
 import TerrainCausticPlugin from './terrainCausticPlugin.js';
@@ -14,8 +14,6 @@ import CliffStonePlugin from './cliffStonePlugin.js';
 import CliffMossPlugin from './cliffMossPlugin.js';
 import { SURFACE_VERTEX_TINT, WALL_TILE, color3 } from './terrainSettings.js';
 
-const CLIFF_TEXTURE = `${ASSET_DIRS.textures}Rock050_1K-JPG_Color.jpg`;
-const CLIFF_NORMAL = `${ASSET_DIRS.textures}Rock050_1K-JPG_NormalGL.jpg`;
 const CLIFF_STRATA_TEXTURE = `${ASSET_DIRS.textures}Rock023_1K-JPG_Color.jpg`;
 const CLIFF_MOSS_TEXTURE = `${ASSET_DIRS.textures}Rock063_1K-JPG_Color.jpg`;
 const CLAY_CLIFF_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
