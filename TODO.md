@@ -92,5 +92,5 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ## Výroba a svět
 
 - [ ] Dekorace: léčivé byliny mohou být špatně umístěné ve skále (na strmých/útesových buňkách) — přeskočit nebo odsunout od stěny; dořešit s novým (objemovým) terénem.
-- [ ] Pirátský srub u útesu (−20…−18, 11…14): plán po etapách v `DEV.md`, sekce „Stavby". Přízemí, patro s pavlačí, schody, střecha a porůstání jsou hotové jako pokus; dál chůze dovnitř po krocích (zdi pro postavu hotové jako pokus — ověřit průchod z pavlače na −21,11; pak schovávání patra a střechy, seříznutí stěn, tvorové v přízemí a v patře — `DEV.md`, etapa 3), rozbité dveře a okenice, nábytek před tajný vchod (chodba −21,12 se dá v editoru prodloužit) a vybavení z Meshy.
+- [ ] Pirátský srub u útesu (−20…−18, 11…14): plán po etapách v `DEV.md`, sekce „Stavby". Přízemí, patro s pavlačí, schody, střecha a porůstání jsou hotové jako pokus; dál chůze dovnitř po krocích (zdi pro postavu hotové jako pokus — ověřit průchod z pavlače na −21,11; schovávání patra a střechy hotové; seříznutí stěn ke kameře hotové jako pokus — ověřit ve hře; pak tvorové v přízemí a v patře — `DEV.md`, etapa 3), rozbité dveře a okenice, nábytek před tajný vchod (chodba −21,12 se dá v editoru prodloužit) a vybavení z Meshy.
 - [ ] Rozhodnout o šířce plynulého okraje pláže.

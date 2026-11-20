@@ -46,12 +46,7 @@ export default {
       node.parent = plan.root;
       node.scaling.setAll(1);
       node.position.set(xc, top, zc);
-      for (const mesh of node.getChildMeshes()) {
-        mesh.receiveShadows = true;
-        mesh.metadata = { building: true };
-        this.meshes.push(mesh);
-        if (this.onMesh) this.onMesh(mesh);
-      }
+      for (const mesh of node.getChildMeshes()) this.addPartMesh(plan, mesh, 'roof');
     });
   },
 };

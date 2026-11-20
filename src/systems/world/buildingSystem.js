@@ -2,7 +2,8 @@
 // patro s místností a pavlačí, střechu, terasu se schody a pirátské věci, a místa, kde stavbu
 // porůstá tráva a liány. Stavba se skládá v neotočené poloze kolem svého středu
 // a celá se pak otočí podle mapy. Zná výšku podlah, po kterých se chodí, a stěny se zábradlím,
-// které postavu zastaví.
+// které postavu zastaví. Skládá se ve vrstvách (přízemí, patro, střecha); když je postava uvnitř,
+// vrstvy nad ní plynule zmizí.
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
@@ -29,6 +30,10 @@ const WALK_MARGIN = 0.05;
 const STEP_UP = 0.7;
 const BLOCK_FEET_CLEAR = 0.25;
 const BLOCK_BODY_HEIGHT = 1.6;
+const LAYERS = ['lower', 'upper', 'roof'];
+const LAYER_FADE_SECONDS = 0.4;
+const LOWER_FEET_BELOW_UPPER = 1;
+const ROOM_FEET_BELOW_UPPER = 0.5;
 
 export default class BuildingSystem {
 
@@ -76,6 +81,87 @@ export default class BuildingSystem {
       }
     }
     return best;
+  }
+
+  updateInside(dt, position, eye) {
+    const step = Math.max(0, dt) / LAYER_FADE_SECONDS;
+    let flipped = false;
+    for (const deck of this.decks) {
+      const hide = this.partsToHide(deck, position, eye);
+      for (const [key, part] of Object.entries(deck.parts)) {
+        const target = hide.has(key) ? 0 : 1;
+        if (part.shown === target) continue;
+        const wasShown = part.shown >= 0.5;
+        part.shown = target > part.shown ? Math.min(1, part.shown + step) : Math.max(0, part.shown - step);
+        for (const mesh of part.meshes) this.showMesh(mesh);
+        if ((part.shown >= 0.5) !== wasShown) flipped = true;
+      }
+    }
+    return flipped ? this.hiddenGroups() : null;
+  }
+
+  partsToHide(deck, position, eye) {
+    const hide = new Set();
+    if (!position) return hide;
+    const p = Vector3.TransformCoordinates(new Vector3(position.x, 0, position.z), deck.inverse);
+    const feet = position.y - deck.top;
+    const upper = deck.upperTop;
+    const room = deck.room;
+    let inside = null;
+    if (Math.abs(p.x) < deck.halfW && Math.abs(p.z) < deck.halfD && (!Number.isFinite(upper) || feet < upper - LOWER_FEET_BELOW_UPPER)) {
+      inside = 'lower';
+      hide.add('upper');
+      hide.add('roof');
+    } else if (room && feet > upper - ROOM_FEET_BELOW_UPPER && p.x > room.x0 && p.x < room.x1 && p.z > room.z0 && p.z < room.z1) {
+      inside = 'upper';
+      hide.add('roof');
+    }
+    if (!inside || !eye) return hide;
+    const view = Vector3.TransformCoordinates(eye, deck.inverse);
+    for (const [key, part] of Object.entries(deck.parts)) {
+      if (part.layer !== inside || !part.side) continue;
+      const out = ((part.alongX ? view.z : view.x) - part.at) * part.outward;
+      if (out > 0) hide.add(key);
+    }
+    return hide;
+  }
+
+  hiddenGroups() {
+    const groups = new Set();
+    for (const deck of this.decks) {
+      for (const [key, part] of Object.entries(deck.parts)) {
+        const layer = part.layer ? deck.parts[part.layer] : null;
+        if (part.shown < 0.5 || (layer && layer.shown < 0.5)) groups.add(`${deck.name}:${key}`);
+      }
+    }
+    return groups;
+  }
+
+  showMesh(mesh) {
+    const { fadeLate: late, parts } = mesh.metadata;
+    const shown = Math.min(...parts.map((part) => part.shown));
+    const visibility = late ? Math.min(1, shown * 2) : Math.max(0, shown * 2 - 1);
+    mesh.visibility = visibility;
+    mesh.setEnabled(visibility > 0.001);
+  }
+
+  useLayer(plan, name) {
+    plan.layer = name;
+    this.usePart(plan, name);
+  }
+
+  useWallTop(plan, run) {
+    const key = `${plan.layer}|${run.side}`;
+    if (!plan.parts[key]) {
+      plan.parts[key] = { meshes: [], shown: 1, layer: plan.layer, side: run.side, alongX: run.alongX, at: run.at, outward: run.outward };
+    }
+    this.usePart(plan, key);
+  }
+
+  usePart(plan, key) {
+    if (!plan.buffers[key]) plan.buffers[key] = { logs: createBuffer(), ends: createBuffer(), planks: createBuffer() };
+    Object.assign(plan, plan.buffers[key]);
+    plan.part = key;
   }
 
   wallGapAt(x, z, feetY) {
@@ -196,7 +282,7 @@ export default class BuildingSystem {
   addVineAnchor(plan, x, y, z, dirX, dirZ, drop, chance, look = 'hang', shape = null) {
     const point = Vector3.TransformCoordinates(new Vector3(x, y, z), plan.world);
     const dir = Vector3.TransformNormal(new Vector3(dirX, 0, dirZ), plan.world);
-    const anchor = { x: point.x, y: point.y, z: point.z, dirX: Math.round(dir.x), dirZ: Math.round(dir.z), drop, chance, look };
+    const anchor = { x: point.x, y: point.y, z: point.z, dirX: Math.round(dir.x), dirZ: Math.round(dir.z), drop, chance, look, group: `${plan.name}:${plan.part}` };
     if (shape) {
       const along = Vector3.TransformNormal(new Vector3(shape.alongX, 0, shape.alongZ), plan.world);
       Object.assign(anchor, { shape: shape.kind, alongX: along.x, alongZ: along.z, span: shape.span, out: shape.out || 0 });
@@ -254,9 +340,8 @@ export default class BuildingSystem {
       growth: def.growth || null,
       porchDepth: def.porch ? def.porch.depth : 0,
       keepClear: [],
-      logs: createBuffer(),
-      ends: createBuffer(),
-      planks: createBuffer(),
+      buffers: {},
+      parts: Object.fromEntries(LAYERS.map((layer) => [layer, { meshes: [], shown: 1, layer: null }])),
       sheets: [],
       walk: [],
       blocks: [],
@@ -267,20 +352,45 @@ export default class BuildingSystem {
       return (Number.isFinite(y) ? y : top) - top;
     };
 
+    this.useLayer(plan, 'lower');
     this.buildFloor(plan, def.floor);
     this.buildWalls(plan, def.walls);
     if (def.upper) this.buildUpper(plan, def.upper, def.floor);
+    this.useLayer(plan, 'lower');
     if (def.porch) this.buildPorch(plan, def.porch, def.floor);
-    if (def.roof) this.buildRoof(plan, def.roof);
+    if (def.roof) {
+      this.useLayer(plan, 'roof');
+      this.buildRoof(plan, def.roof);
+      this.useLayer(plan, 'lower');
+    }
     if (def.props) this.buildProps(plan, def.props);
     if (def.growth) this.overgrow(plan, def.growth);
 
-    this.addMesh(plan, 'planks', plan.planks, this.woodMaterial(`buildingPlankMat_${entry.key}`, def.floor.texture, null));
-    this.addMesh(plan, 'logs', plan.logs, this.woodMaterial(`buildingLogMat_${entry.key}`, def.walls.texture, def.walls.normal));
-    this.addMesh(plan, 'logEnds', plan.ends, this.drawnMaterial(`buildingLogEndMat_${entry.key}`, () => logEndTexture(this.s, `buildingLogEnd_${entry.key}`, def.walls.ends), false));
+    const plankMat = this.woodMaterial(`buildingPlankMat_${entry.key}`, def.floor.texture, null);
+    const logMat = this.woodMaterial(`buildingLogMat_${entry.key}`, def.walls.texture, def.walls.normal);
+    const endMat = this.drawnMaterial(`buildingLogEndMat_${entry.key}`, () => logEndTexture(this.s, `buildingLogEnd_${entry.key}`, def.walls.ends), false);
+    for (const [key, buffers] of Object.entries(plan.buffers)) {
+      const suffix = key.replace('|', '_');
+      this.addMesh(plan, `planks_${suffix}`, buffers.planks, plankMat, key, true);
+      this.addMesh(plan, `logs_${suffix}`, buffers.logs, logMat, key);
+      this.addMesh(plan, `logEnds_${suffix}`, buffers.ends, endMat, key);
+    }
     for (const sheet of plan.sheets) this.addMesh(plan, sheet.suffix, sheet.buffer, sheet.material);
 
-    const deck = { inverse: world.clone().invert(), world, top, rects: plan.walk, blocks: plan.blocks, clear: plan.keepClear };
+    const deck = {
+      name,
+      inverse: world.clone().invert(),
+      world,
+      top,
+      rects: plan.walk,
+      blocks: plan.blocks,
+      clear: plan.keepClear,
+      parts: plan.parts,
+      halfW: plan.width / 2,
+      halfD: plan.depth / 2,
+      upperTop: plan.upperTop,
+      room: plan.upperRoom || null,
+    };
     this.decks.push(deck);
     this.markFloorCells(deck, def.floor.stepKey);
   }
@@ -306,17 +416,25 @@ export default class BuildingSystem {
     }
   }
 
-  addMesh(plan, suffix, buffer, material) {
+  addMesh(plan, suffix, buffer, material, part = 'lower', late = false) {
     const mesh = meshFromBuffer(`${plan.name}_${suffix}`, buffer, this.s);
     if (!mesh) return null;
     mesh.parent = plan.root;
     mesh.material = material;
     mesh.isPickable = false;
-    mesh.receiveShadows = true;
-    mesh.metadata = { building: true };
-    this.meshes.push(mesh);
-    if (this.onMesh) this.onMesh(mesh);
+    this.addPartMesh(plan, mesh, part, late);
     return mesh;
+  }
+
+  addPartMesh(plan, mesh, key, late = false) {
+    const part = plan.parts[key];
+    const parts = part.layer ? [part, plan.parts[part.layer]] : [part];
+    mesh.receiveShadows = true;
+    mesh.metadata = { building: true, fadeLate: late, parts };
+    this.meshes.push(mesh);
+    for (const owner of parts) owner.meshes.push(mesh);
+    this.showMesh(mesh);
+    if (this.onMesh) this.onMesh(mesh);
   }
 }
 

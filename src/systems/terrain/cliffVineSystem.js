@@ -79,6 +79,7 @@ export default class CliffVineSystem {
     this.flowers = FLOWER_KEYS.map((key) => this.flowerFor(key));
     this.places = {};
     this.chunks = [];
+    this.hidden = new Set();
     Promise.all(VINE_MODELS.map((model) => loadModel(this.s, model.url))).then((templates) => {
       this.vines = templates.map((template, index) => this.vineFor(template, index, VINE_MODELS[index])).filter(Boolean);
       if (this.vines.length) this.create(this.places);
@@ -137,9 +138,24 @@ export default class CliffVineSystem {
     }
     for (const anchor of terraces) this.placeVine(anchor, TERRACE_CHANCE, 0);
     for (const door of doors) this.placeDoor(door);
-    for (const anchor of walls) this.placeWall(anchor);
+    for (const anchor of walls) this.placeGrouped(anchor);
     this.buildChunks();
     for (const flower of this.flowers) this.flush(flower.mesh, flower.matrices);
+  }
+
+  placeGrouped(anchor) {
+    const before = this.vines.map((vine) => vine.matrices.length);
+    this.placeWall(anchor);
+    if (!anchor.group) return;
+    this.vines.forEach((vine, index) => {
+      for (let k = before[index]; k < vine.matrices.length; k += 1) vine.matrices[k].group = anchor.group;
+    });
+  }
+
+  hideGroups(groups) {
+    this.hidden = groups;
+    for (const chunk of this.chunks) chunk.hidden = Boolean(chunk.group) && groups.has(chunk.group);
+    this.showChunks();
   }
 
   buildChunks() {
@@ -149,8 +165,11 @@ export default class CliffVineSystem {
         const origin = matrix.getTranslation();
         const areaX = Math.floor(origin.x / CHUNK_WORLD);
         const areaZ = Math.floor(origin.z / CHUNK_WORLD);
-        const key = `${vineIndex}|${areaX}|${areaZ}`;
-        if (!byArea.has(key)) byArea.set(key, { vineIndex, minX: areaX * CHUNK_WORLD, minZ: areaZ * CHUNK_WORLD, matrices: [], enabled: true });
+        const group = matrix.group || '';
+        const key = `${vineIndex}|${areaX}|${areaZ}|${group}`;
+        if (!byArea.has(key)) {
+          byArea.set(key, { vineIndex, group, minX: areaX * CHUNK_WORLD, minZ: areaZ * CHUNK_WORLD, matrices: [], enabled: true, hidden: Boolean(group) && this.hidden.has(group) });
+        }
         byArea.get(key).matrices.push(matrix);
       }
     });
@@ -162,7 +181,7 @@ export default class CliffVineSystem {
     this.vines.forEach((vine, vineIndex) => {
       const shown = [];
       for (const chunk of this.chunks) {
-        if (chunk.enabled && chunk.vineIndex === vineIndex) shown.push(...chunk.matrices);
+        if (chunk.enabled && !chunk.hidden && chunk.vineIndex === vineIndex) shown.push(...chunk.matrices);
       }
       this.flush(vine.mesh, shown);
     });

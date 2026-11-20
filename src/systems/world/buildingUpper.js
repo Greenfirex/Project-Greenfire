@@ -1,6 +1,6 @@
 // Část staveb: patro — věnec z klád na stěnách přízemí, pevná dvouvrstvá prkenná podlaha na trámech, místnost z klád
 // na části patra (ustoupená dovnitř), zbytek otevřená pavlač se zábradlím a schůdky ven, a venkovní
-// schody s plošinou ke dveřím patra.
+// schody s plošinou ke dveřím patra. Schody a schůdky patří k vrstvě přízemí, aby nezmizely s patrem.
 // Patří k BuildingSystem (sdílí jeho this).
 import { roughLog, placeAlongX, placeAlongZ, placeUpright } from '../../utils/buildingGeometry.js';
 
@@ -11,6 +11,7 @@ export default {
     const halfD = depth / 2;
     const top = plan.lowerTop + floor.joist * 2 + floor.thickness;
     plan.upperTop = top;
+    this.useLayer(plan, 'upper');
     this.ringBeam(plan, plan.walls);
     const cfg = { ...floor, ...upper.planks };
     const joists = Math.max(1, Math.round(width / floor.joistSpacing));
@@ -25,6 +26,7 @@ export default {
     this.buildStorey(plan, plan.walls, { x0, x1, z0, z1, base: top, height: upper.height, sides: upper.sides, openings: upper.openings, brokenTop: true });
 
     for (const edge of upper.rails) this.railedEdge(plan, upper.rail, edge, top);
+    this.useLayer(plan, 'lower');
     if (upper.stairs) this.outerStairs(plan, upper.stairs, floor, top);
     if (upper.sideSteps) this.sideSteps(plan, upper.sideSteps, top);
   },

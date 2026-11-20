@@ -1,6 +1,7 @@
 // Část staveb: stěny z křivých klád překřížených v rozích, s hrubě vyřezanými otvory
 // pro dveře a okna — přízemí po obvodu stavby a místnost v patře. Stěna zastaví postavu, projde se
-// jen otvorem od podlahy (dveře), oknem ne. Patří k BuildingSystem (sdílí jeho this).
+// jen otvorem od podlahy (dveře), oknem ne. Klády nad pasem (`insideCut`) tvoří horní část stěny, kterou
+// jde schovat, když je postava uvnitř. Patří k BuildingSystem (sdílí jeho this).
 import { roughLog, placeAlongX, placeAlongZ } from '../../utils/buildingGeometry.js';
 
 const MIN_PIECE = 0.25;
@@ -63,6 +64,7 @@ export default {
       }
       const dirX = run.alongX ? 0 : run.outward;
       const dirZ = run.alongX ? run.outward : 0;
+      const wallPart = (y) => (y > walls.insideCut ? this.useWallTop(plan, run) : this.usePart(plan, plan.layer));
       for (let along = run.inner[0] + walls.vineStep / 2; along < run.inner[1]; along += walls.vineStep) {
         const spot = along + (rng() - 0.5) * walls.vineStep * 0.6;
         const out = run.at + run.outward * (walls.log / 2 + walls.vineGap);
@@ -72,9 +74,11 @@ export default {
           const sign = rng() < 0.5 ? -1 : 1;
           const y = storey.base + 0.5 + rng() * (wallTop - 0.8);
           const shape = { kind: 'drape', alongX: run.alongX ? sign : 0, alongZ: run.alongX ? 0 : sign, span: 1.2 + rng() * 1.6 };
+          wallPart(y - storey.base);
           this.addVineAnchor(plan, x, y, z, dirX, dirZ, wallTop, walls.vineChance, 'wall', shape);
           continue;
         }
+        wallPart(wallTop);
         this.addVineAnchor(plan, x, storey.base + wallTop, z, dirX, dirZ, wallTop, walls.vineChance, 'wall');
       }
       for (let i = 0; i < run.count; i++) {
@@ -89,12 +93,14 @@ export default {
         const to = run.to + (overTo ? rng() * walls.endSpread : 0);
         const radius = (walls.log / 2) * (1 + (rng() - 0.5) * walls.logSpread);
         const base = this.logShade(plan);
+        wallPart(y);
         for (const piece of cutPieces(from, to, gaps)) {
           let pieceTo = piece.to;
           if (storey.brokenTop && i === run.count - 1 && rng() < walls.brokenTop) pieceTo = piece.from + (piece.to - piece.from) * (0.45 + 0.3 * rng());
           this.addLog(plan, roughLog(rng, walls, piece.from, pieceTo, storey.base + y, radius, plan.width), place, base);
         }
       }
+      this.usePart(plan, plan.layer);
     }
     return top;
   },

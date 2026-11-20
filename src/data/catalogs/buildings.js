@@ -69,6 +69,7 @@ export const BUILDINGS = {
       brokenTop: 0.35,
       cutSpread: 0.12,
       ringSeat: 0.84,
+      insideCut: 1.1,
       tint: [1, 1, 1],
       weather: 1,
       vineStep: 0.9,

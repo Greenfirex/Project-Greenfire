@@ -8,8 +8,15 @@ export default {
   buildProps(plan, props) {
     if (props.flag) this.buildFlag(plan, props.flag);
     if (props.net) this.buildNet(plan, props.net);
-    for (const item of (props.barrels && props.barrels.items) || []) this.barrel(plan, props.barrels.style, item);
-    for (const item of (props.crates && props.crates.items) || []) this.crate(plan, props.crates.style, item);
+    for (const item of (props.barrels && props.barrels.items) || []) {
+      this.useLayer(plan, item.on === 'upper' ? 'upper' : 'lower');
+      this.barrel(plan, props.barrels.style, item);
+    }
+    for (const item of (props.crates && props.crates.items) || []) {
+      this.useLayer(plan, item.on === 'upper' ? 'upper' : 'lower');
+      this.crate(plan, props.crates.style, item);
+    }
+    this.useLayer(plan, 'lower');
   },
 
   surfaceY(plan, item) {

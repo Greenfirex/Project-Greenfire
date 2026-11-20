@@ -392,6 +392,7 @@ export default {
 
   buildBuildings() {
     this.buildingSystem.build(this.mapFile || {});
+    this.cliffVineSystem.hideGroups(this.buildingSystem.hiddenGroups());
     this.refreshVines();
   },
 

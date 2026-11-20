@@ -929,6 +929,19 @@ Na podlaze stavby (`GameScene.onBuildingDeck`) se nehlídá blízkost útesu (`c
 terénu (`riseNear`) se měří od podlahy, ne od země pod ní — jinak by z pavlače nešlo na schůdky na útes.
 Místa, která mají zůstat volná (`plan.keepClear`, i konec schůdků na útesu), zná stavba i ve světě
 (`buildingSystem.keepsClear`); tráva na hraně útesu se tam nesází (`GameScene.shelfGrassAnchors`).
+**Vrstvy a pohled dovnitř:** stavba se skládá do tří vrstev (`lower`, `upper`, `roof`); díly si vrstvu
+přepnou přes `buildingSystem.useLayer` (každá vrstva má vlastní prkna, klády a čela klád). Patro = věnec,
+podlaha patra, místnost a zábradlí pavlače a věci `on: 'upper'`; venkovní schody a schůdky na útes zůstanou
+v přízemí. Střecha = štíty a model střechy. `buildingSystem.updateInside` (volá `GameScene.updateBuildingInside`
+každý snímek, jen na povrchu a mimo editor) plynule schová vrstvy nad postavou (`mesh.visibility`, za 0,4 s; prkna až po kládách, `fadeLate`,
+aby přes mizející podlahu neprosvítaly trámy — při objevování obráceně):
+v půdorysu stěn pod patrem patro i střechu, v místnosti v patře střechu.
+Schovávají se **části** (`plan.parts`, `deck.parts`): tři vrstvy a k nim horní půlky stěn — klády nad
+`walls.insideCut` (1,1 m nad podlahou podlaží) si stěna dá do části `vrstva|strana` (`useWallTop`).
+Díl patří vrstvě i své části a je vidět jen tolik, kolik ta méně viditelná. Když je postava uvnitř podlaží,
+schovají se horní půlky jeho stěn, za kterými je kamera (kamera je na vnější straně stěny).
+Liany ze staveb mají skupinu `jméno stavby:část` a `cliffVineSystem.hideGroups` je schová, když jejich
+část nebo vrstva zmizí z víc než poloviny; liany z vršku stěny patří k její horní půlce.
 **Patro** (`upper`, `buildingUpper.js`): na stěnách přízemí leží po obvodu věnec z klád překřížený
 v rozích (`walls.ringSeat` = jak hluboko sedí na horní kládě), aby mezi patry neprosvítalo přízemí;
 na něm trámy a pevná podlaha přes celý půdorys — spodní vrstva prken napříč (`upper.subfloor`)
@@ -993,8 +1006,9 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
 3. **Chůze dovnitř** po krocích:
    1. Zdi zastaví postavu (hotovo jako pokus, viz **Zdi** výše).
    2. Srub rozdělený na tři vrstvy (přízemí, patro, střecha); uvnitř plynule zmizí vše nad postavou
-      (v přízemí patro i střecha, v místnosti v patře jen střecha).
+      (v přízemí patro i střecha, v místnosti v patře jen střecha). Hotovo jako pokus.
    3. Stěny mezi kamerou a postavou se uvnitř seříznou v pasu: horní klády každé stěny zvlášť a schovají se.
+      Hotovo jako pokus.
    4. Tvorové chodí po podlaze srubu ve správné výšce, zastaví je zdi a do přízemí jdou jen dveřmi
       (hledání cesty o dveřích ví).
    5. Tvorové po schodech a schůdcích z útesu do patra.

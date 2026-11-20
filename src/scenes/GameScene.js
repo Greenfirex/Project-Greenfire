@@ -375,6 +375,7 @@ export default class GameScene {
       this.refreshMouseHint();
       this.portraitSystem.update(this.playerSystem.root, this.playerSystem.anims.idle, this.playerSystem.handSlot);
       this.updateReveal(dt);
+      this.updateBuildingInside(dt);
       this.setDecorShaping(this.editor.shapesTerrain());
       if (this.paused || this.decorShaping) {
         if (this.editor.active) {
@@ -1202,6 +1203,14 @@ export default class GameScene {
     this.updateSight(dt, view, under);
     this.revealSystem.update(dt, under, root ? root.position : null, this.camera, view);
     this.terrainSystem.showCaveRing(this.revealSystem.isOpen());
+  }
+
+  updateBuildingInside(dt) {
+    const root = this.playerSystem ? this.playerSystem.root : null;
+    const watching = root && !this.editor.active && this.playerSystem.level === 0;
+    const eye = this.camera ? this.camera.globalPosition : null;
+    const hidden = this.buildingSystem.updateInside(dt, watching ? root.position : null, eye);
+    if (hidden) this.cliffVineSystem.hideGroups(hidden);
   }
 
   updateUndergroundMeshes(dt, root, level) {
