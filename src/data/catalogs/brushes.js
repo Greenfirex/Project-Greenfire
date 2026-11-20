@@ -245,6 +245,15 @@ export const BRUSHES = {
     options: [RANDOM_OPTION],
     deco: true,
   },
+  planks: {
+    label: 'Prkna',
+    group: 'Objekty',
+    note: 'Rozhodí prkna, která odpadla z rozpadlých staveb; jdou sebrat rukou jako dřevo. Náhoda střídá čtyři tvary.',
+    shape: 'blob',
+    pool: ['loose_plank_a', 'loose_plank_b', 'loose_plank_c', 'loose_plank_d'],
+    options: [RANDOM_OPTION],
+    deco: true,
+  },
   palmLeaves: {
     label: 'Palmové listy',
     group: 'Objekty',

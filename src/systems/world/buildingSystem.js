@@ -15,7 +15,7 @@ import { getBuilding, buildingSize } from '../../data/catalogs/buildings.js';
 import { createRng, seedFor } from '../../utils/rng.js';
 import { valueNoise, smoothstep } from '../../utils/noise.js';
 import { logEndTexture } from '../../utils/logEndTexture.js';
-import { createBuffer, meshFromBuffer, pushLog, pushLogEnd } from '../../utils/buildingGeometry.js';
+import { createBuffer, meshFromBuffer, pushLog, pushLogEnd, insideOutline } from '../../utils/buildingGeometry.js';
 import buildingFloorParts from './buildingFloor.js';
 import buildingWallsParts from './buildingWalls.js';
 import buildingPorchParts from './buildingPorch.js';
@@ -26,6 +26,7 @@ import buildingGrowthParts from './buildingGrowth.js';
 import buildingDoorsParts from './buildingDoors.js';
 import buildingFurnitureParts from './buildingFurniture.js';
 import buildingLampsParts from './buildingLamps.js';
+import buildingPirateParts from './buildingPirate.js';
 
 const GROUND_SAMPLE = 0.5;
 const GROUND_INSET = 0.3;
@@ -134,7 +135,7 @@ export default class BuildingSystem {
     const feet = position.y - deck.top;
     const upper = deck.upperTop;
     const room = deck.room;
-    if (Math.abs(p.x) < deck.halfW && Math.abs(p.z) < deck.halfD && (!Number.isFinite(upper) || feet < upper - LOWER_FEET_BELOW_UPPER)) return 'lower';
+    if (insideOutline(deck.outline, p.x, p.z) && (!Number.isFinite(upper) || feet < upper - LOWER_FEET_BELOW_UPPER)) return 'lower';
     if (room && feet > upper - ROOM_FEET_BELOW_UPPER && p.x > room.x0 && p.x < room.x1 && p.z > room.z0 && p.z < room.z1) return 'upper';
     return null;
   }
@@ -183,7 +184,7 @@ export default class BuildingSystem {
   }
 
   useWallTop(plan, run) {
-    const key = `${plan.layer}|${run.side}`;
+    const key = `${plan.layer}|${run.side}@${run.at}`;
     if (!plan.parts[key]) {
       plan.parts[key] = { meshes: [], shown: 1, layer: plan.layer, side: run.side, alongX: run.alongX, at: run.at, outward: run.outward };
     }
@@ -191,7 +192,7 @@ export default class BuildingSystem {
   }
 
   usePart(plan, key) {
-    if (!plan.buffers[key]) plan.buffers[key] = { logs: createBuffer(), ends: createBuffer(), planks: createBuffer() };
+    if (!plan.buffers[key]) plan.buffers[key] = { logs: createBuffer(), ends: createBuffer(), planks: createBuffer(), painted: createBuffer() };
     Object.assign(plan, plan.buffers[key]);
     plan.part = key;
   }
@@ -380,6 +381,7 @@ export default class BuildingSystem {
       paint: this.agePaint(def.age, seed),
       walls: def.walls,
       growth: def.growth || null,
+      netColors: def.props ? def.props.netColors : null,
       porchDepth: def.porch ? def.porch.depth : 0,
       keepClear: [],
       buffers: {},
@@ -414,11 +416,13 @@ export default class BuildingSystem {
     const plankMat = this.woodMaterial(`buildingPlankMat_${entry.key}`, def.floor.texture, null);
     const logMat = this.woodMaterial(`buildingLogMat_${entry.key}`, def.walls.texture, def.walls.normal);
     const endMat = this.drawnMaterial(`buildingLogEndMat_${entry.key}`, () => logEndTexture(this.s, `buildingLogEnd_${entry.key}`, def.walls.ends), false);
+    const paintMat = this.paintMaterial(`buildingPaintMat_${entry.key}`);
     for (const [key, buffers] of Object.entries(plan.buffers)) {
       const suffix = key.replace('|', '_');
       this.addMesh(plan, `planks_${suffix}`, buffers.planks, plankMat, key, true);
       this.addMesh(plan, `logs_${suffix}`, buffers.logs, logMat, key);
       this.addMesh(plan, `logEnds_${suffix}`, buffers.ends, endMat, key);
+      this.addMesh(plan, `painted_${suffix}`, buffers.painted, paintMat, key);
     }
     for (const sheet of plan.sheets) this.addMesh(plan, sheet.suffix, sheet.buffer, sheet.material, sheet.part || 'lower');
     this.finishDoors(plan, { planks: plankMat, paint: this.paintMaterial(`buildingPaintMat_${entry.key}`) });
@@ -433,8 +437,7 @@ export default class BuildingSystem {
       blocks: plan.blocks,
       clear: plan.keepClear,
       parts: plan.parts,
-      halfW: plan.width / 2,
-      halfD: plan.depth / 2,
+      outline: plan.outline,
       upperTop: plan.upperTop,
       room: plan.upperRoom || null,
     };
@@ -485,4 +488,4 @@ export default class BuildingSystem {
   }
 }
 
-Object.assign(BuildingSystem.prototype, buildingFloorParts, buildingWallsParts, buildingUpperParts, buildingRoofParts, buildingPorchParts, buildingPropsParts, buildingGrowthParts, buildingDoorsParts, buildingFurnitureParts, buildingLampsParts);
+Object.assign(BuildingSystem.prototype, buildingFloorParts, buildingWallsParts, buildingUpperParts, buildingRoofParts, buildingPorchParts, buildingPropsParts, buildingGrowthParts, buildingDoorsParts, buildingFurnitureParts, buildingLampsParts, buildingPirateParts);

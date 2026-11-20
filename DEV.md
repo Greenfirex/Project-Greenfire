@@ -929,7 +929,8 @@ Sekyra a krumpáč jako zbraně odloženy na později.
 ## Stavby — plán po etapách (první: opuštěný pirátský srub)
 
 Srub stojí v buňkách (−20…−18, 11…14), otočený o 90° (`rotation: 1`), zadní stěnou
-přitisknutý k útesu na západě; půdorys 4 × 3 buňky (8 × 6 m). Je to opuštěná, ne dokonalá
+přitisknutý k útesu na západě; půdorys 4 × 3 buňky (8 × 6 m), přízemí bez předních rohů −18,11 a −18,14
+(tam je kryté zápraží pod pavlačí, pavlač nesou kůly). Je to opuštěná, ne dokonalá
 stavba, kterou si bere příroda: nic nemá být podle pravítka ani zdobné (žádné rámy oken). Stavba se skládá z dílů na mřížce, ne z jednoho modelu:
 model z Meshy je dělaný na pohled zvenku (vnitřek bez tloušťky, dveře často jen
 namalované), z dílů jde postavit chůze dovnitř, otvírání dveří i pohled dovnitř.
@@ -937,8 +938,12 @@ Stěny se staví v kódu z jednotlivých klád, ne z dílů z Meshy: samostatné
 sebe nenavazovaly (jiná tloušťka a rozestup klád, jiný odstín, nepřesné hrany).
 
 **Data.** Katalog `src/data/catalogs/buildings.js` popisuje stavbu: rozměr v buňkách,
-podlahu, stěny (`walls.sides`) s otvory (`walls.openings`: strana, posun od středu stěny,
-šířka, spodek a vršek) a později střechu. Strany a otvory platí pro neotočenou stavbu;
+podlahu, stěny (`walls.sides`, obrys přízemí `walls.outline` = rohy v neotočené stavbě, bez něj obdélník)
+s otvory (`walls.openings`: strana, poloha podél stěny, šířka, spodek a vršek; otvor patří úseku obrysu s tou
+stranou, na kterém leží), kůly pod věncem tam, kde obrys vynechá roh (`walls.posts`), a střechu. Každý úsek obrysu
+je stěna se svou stranou; na vystupujícím rohu klády přečnívají, na vnitřním jen dosednou. Podlaha, věnec a patro
+zůstávají na celém obdélníku (vynechané rohy jsou zápraží), boční zábradlí terasy vede až k ustoupené stěně
+(`porch.sideFrom`). „Uvnitř“ se pozná podle obrysu (`storeyInside`). Strany a otvory platí pro neotočenou stavbu;
 `world/buildingSystem.js` ji poskládá kolem jejího středu a celou otočí podle `rotation`
 (podlaha na kůlech v `buildingFloor.js`, stěny v `buildingWalls.js`, terasa se zábradlím a schody
 v `buildingPorch.js`, vlajka a síť v `buildingProps.js`, tvary v `utils/buildingGeometry.js`, kreslené
@@ -1002,9 +1007,15 @@ v rozích (`walls.ringSeat` = jak hluboko sedí na horní kládě), aby mezi pat
 na něm trámy a pevná podlaha přes celý půdorys — spodní vrstva prken napříč (`upper.subfloor`)
 a horní vrstva bez chybějících a ulomených prken (`upper.planks`), aby shora nebylo vidět do přízemí; místnost z klád nad buňkami −20…−19 × 12…14 (`upper.room` v neotočených souřadnicích), ustoupená
 o 30 cm dovnitř, aby stěna nešla rovně odspodu (kolem zůstane římsa podlahy),
-zbytek otevřená pavlač do L (nad −20…−18, 11 a nad −18, 12…14) se zábradlím (`upper.rails`) a schůdky z kulatiny na útes u −21,11 (`upper.sideSteps`). Dveře z venkovních schodů (od −18,15 nahoru
-k plošině u −20,15) a dveře z místnosti na pavlač jsou otvory ve stěnách patra (`upper.openings`).
-Terasa je jen na jižní straně neotočené stavby (strana dveří), síť visí na jižní stěně.
+zbytek otevřená pavlač do L (nad −20…−18, 11 a nad −18, 12…14) se zábradlím (`upper.rails`) a schůdky z kulatiny na útes u −21,11 (`upper.sideSteps`). Venkovní schody: na −18,15 je mezipodesta
+na kůlech (`stairs.platform`, 70 cm nad podlahou, zábradlí na vnější straně) a z ní tři ramena (`stairFlight`: schody
+z kulatiny, nosníky, kůly pod vysokými místy, volitelně zábradlí) — nahoru k plošině u −20,15 před dveřmi patra,
+dolů na východ do rohu zápraží −18,14 (`stairs.terrace`; boční zábradlí terasy tam začíná dál, `porch.sideFrom`
+pro každou stranu) a dolů na zem (`stairs.run`). Dveře z plošiny a dveře z místnosti na pavlač jsou otvory ve
+stěnách patra (`upper.openings`).
+Terasa je jen na jižní straně neotočené stavby (strana dveří), rybářské sítě (`props.nets`, barvy jednou v `props.netColors`, sdílí je i houpací síť) visí na přední stěně přízemí
+a na přední stěně místnosti v patře (`on: upper`, `wall` = poloha stěny). Věci na pavlači stojí u stěn místnosti,
+aby podél zábradlí zůstal průchod; bednu jde položit na jinou (`lift`).
 Sudy (`props.barrels`: stojící i povalené, prkna po obvodu přes `log.staves`, tmavé obruče) a bedny
 (`props.crates`, i otevřená s víkem vedle) jsou zatím kreslené v kódu; stojí na terase (`on: porch`),
 na zemi (`ground`) nebo na pavlači (`upper`). Detailnější pirátské věci se udělají v Meshy.
@@ -1096,6 +1107,20 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    a podlahu patra; při rozsvícení a pohybu dveří či knihovny hlásí `dirty`. Ve dne slabě, v noci naplno, lehce
    bliká (`light` ve stylu).
    Rozsvícené lucerny se ukládají spolu s dveřmi (`lit`, verze savu 11).
+   **Pirátské věci** (`buildingPirate.js`, položky v `furniture.items` s druhem z `PIRATE_KINDS`, vzhled v `styles`):
+   kotva opřená o ustoupenou stěnu v pravém rohu zápraží a stočené lano, převrácená loďka na kozách vedle srubu
+   (pláž u srubu není, srub je na plošině), mapa pokladu na stole přišpendlená dýkou (`treasureMapTexture`
+   v `utils/pirateCloth.js`), láhve od rumu (na stole, v knihovně, rozbitá na zemi) a cínové hrnky, kormidelní kolo
+   na východní stěně, dalekohled a kompas na ponku, lavička z kulatiny na dvou špalcích u táboráku −14,11.
+   Tři police na stěnách (`kind: shelf`, prkno na dvou konzolích; zadní stěna, levá nad ponkem, vnitřní u dveří)
+   nesou položky `items` s polohou podél police: láhve, hrnky, sklenice, svíčky, mince, truhličku, svitek.
+   V místnosti v patře: velká okovaná truhla (`kind: chest`) s druhou lucernou, police na zadní stěně, rozbitá láhev
+   a hrnek u houpací sítě, stočené lano u západních dveří.
+   **Uvolněná prkna** kolem srubu jsou obyčejné dekorace v mapě (`loose_plank_a…d`, tvar z kódu `utils/plankFactory.js`,
+   vzhled `LOOSE_PLANKS` v `decorations.js`), sbírají se rukou jako 1 dřevo; v editoru je štětec Prkna. Počet prken
+   v textuře prken je jednou v `PLANKS_TEXTURE_PLANKS` (`assetPaths.js`).
+   Kov a sklo jsou v buferu `painted` (materiál bez textury `paintMaterial`, každá část stavby ho má), dřevo
+   v prknech nebo kládách. `on: ground` = položka stojí na terénu; `block` ve stylu = je překážkou.
    **Knihovna před tajným vchodem**: přihrádky (`rows` × `cols`), většina prázdných, v několika knihy, sklenice
    a svitek (`decor`, barvy přes materiál bez textury `paintMaterial`). Je to posuvné „dveře“ (`kind: 'slide'`
    v `buildingDoors.js`, `doorShift`): pod myší a na klik reaguje jen malá páka na boku (`secret` — bez hledání

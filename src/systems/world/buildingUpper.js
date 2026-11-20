@@ -1,6 +1,7 @@
 // Část staveb: patro — věnec z klád na stěnách přízemí, pevná dvouvrstvá prkenná podlaha na trámech, místnost z klád
 // na části patra (ustoupená dovnitř), zbytek otevřená pavlač se zábradlím a schůdky ven, a venkovní
-// schody s plošinou ke dveřím patra. Schody a schůdky patří k vrstvě přízemí, aby nezmizely s patrem.
+// schody: z mezipodesty na kůlech vedou tři ramena — nahoru k plošině u dveří patra, dolů do rohu zápraží a dolů
+// na zem. Schody a schůdky patří k vrstvě přízemí, aby nezmizely s patrem.
 // Patří k BuildingSystem (sdílí jeho this).
 import { roughLog, placeAlongX, placeAlongZ, placeUpright } from '../../utils/buildingGeometry.js';
 
@@ -100,43 +101,34 @@ export default {
   },
 
   outerStairs(plan, stairs, floor, top) {
-    const { rng } = plan;
     const x0 = stairs.x - stairs.width / 2;
     const x1 = stairs.x + stairs.width / 2;
-    const ground = plan.groundAt(stairs.x, stairs.bottom + 0.2);
-    const count = Math.max(2, Math.round((top - ground) / stairs.rise));
-    const run = (stairs.bottom - stairs.top) / count;
-    const heightAt = (z) => ground + (top - ground) * (stairs.bottom - z) / (stairs.bottom - stairs.top);
-    plan.keepClear.push({ x0: x0 - 0.8, x1: x1 + 0.3, z0: stairs.landing - 0.3, z1: stairs.bottom + 0.6 });
-
-    for (let k = 1; k <= count; k++) {
-      const zHigh = stairs.bottom - (k - 1) * run;
-      const zLow = stairs.bottom - k * run;
-      const y = ground + ((top - ground) * k) / (count + 1);
-      plan.walk.push({ x0, x1, z0: zLow, z1: zHigh, y });
-      for (const lane of [0.3, 0.7]) {
-        if (rng() < stairs.missing) continue;
-        const radius = stairs.log * (0.85 + rng() * 0.3);
-        const log = roughLog(rng, plan.walls, x0 - 0.1, x1 + 0.1, y - radius, radius, 3);
-        if (rng() < stairs.broken) {
-          if (rng() < 0.5) log.from += stairs.width * (0.3 + rng() * 0.3);
-          log.endLift -= stairs.brokenDrop * rng();
-        }
-        this.addLog(plan, log, placeAlongX(zHigh - lane * run), this.logShade(plan));
+    const pad = stairs.platform;
+    const deck = { x0: pad.x0, x1: pad.x1, z0: pad.z0, z1: pad.z1, y: pad.height };
+    this.plankField(plan, deck, true, { ...floor, ...stairs.planks }, () => 0.4);
+    plan.walk.push(deck);
+    for (const x of [deck.x0 + 0.05, deck.x1 - 0.05]) this.joist(plan, floor, false, x, deck.z0 - 0.05, deck.z1 + 0.05, pad.height);
+    for (const x of [deck.x0 + 0.08, deck.x1 - 0.08]) {
+      for (const z of [deck.z0 + 0.08, deck.z1 - 0.08]) {
+        this.railPost(plan, { post: stairs.log * 1.4, lean: 0.05 }, x, z, plan.groundAt(x, z) - stairs.postSink, pad.height - floor.joist * 2);
       }
     }
 
-    for (const x of [x0, x1]) {
-      const log = roughLog(rng, plan.walls, stairs.top - 0.1, stairs.bottom + 0.15, 0, stairs.log * 1.2, 3);
-      log.startLift = top - 0.25;
-      log.endLift = ground - 0.05;
-      this.addLog(plan, log, placeAlongZ(x), this.logShade(plan));
-      for (let z = stairs.bottom - stairs.postStep; z > stairs.top; z -= stairs.postStep) {
-        const foot = plan.groundAt(x, z) - stairs.postSink;
-        const head = heightAt(z) - 0.3;
-        if (head - foot > 0.2) this.railPost(plan, { post: stairs.log * 1.3, lean: 0.06 }, x, z, foot, head);
-      }
-    }
+    this.stairFlight(plan, stairs, { alongX: false, start: pad.z0, end: stairs.top, across: [x0, x1], startY: pad.height, endY: top, rail: x0 - 0.05 });
+    const groundGuess = plan.groundAt(stairs.x, pad.z1 + stairs.groundReach);
+    const downCount = Math.max(1, Math.round((pad.height - groundGuess) / stairs.rise));
+    const downEnd = pad.z1 + downCount * stairs.run;
+    this.stairFlight(plan, stairs, { alongX: false, start: pad.z1, end: downEnd, across: [x0, x1], startY: pad.height, endY: plan.groundAt(stairs.x, downEnd) });
+    const middle = (pad.z0 + pad.z1) / 2;
+    const side = stairs.terrace;
+    this.stairFlight(plan, stairs, { alongX: true, start: pad.x1, end: side.to, across: [middle - side.width / 2, middle + side.width / 2], startY: pad.height, endY: 0 });
+    plan.keepClear.push({ x0: pad.x0 - 0.8, x1: side.to + 0.3, z0: stairs.landing - 0.3, z1: downEnd + 0.6 });
+
+    const rail = stairs.rail;
+    const railX = x0 - 0.05;
+    const padRail = deck.x0 + 0.05;
+    for (const z of [deck.z0 + 0.05, deck.z1 - 0.05]) this.railPost(plan, rail, padRail, z, pad.height - 0.15, pad.height + rail.height + 0.12);
+    this.railRun(plan, rail, placeAlongZ(padRail), deck.z0 + 0.05, deck.z1 - 0.05, pad.height);
 
     const landing = { x0: x0 - 0.1, x1: stairs.wall, z0: stairs.landing, z1: stairs.top, y: top };
     this.plankField(plan, landing, true, { ...floor, ...stairs.planks }, () => 0.4);
@@ -145,23 +137,71 @@ export default {
     for (const z of [landing.z0 + 0.1, landing.z1 - 0.1]) {
       this.railPost(plan, { post: stairs.log * 1.4, lean: 0.05 }, landing.x0 + 0.05, z, plan.groundAt(landing.x0, z) - stairs.postSink, top - floor.joist * 2);
     }
-
-    const rail = stairs.rail;
-    const railX = x0 - 0.05;
-    for (let z = stairs.bottom - 0.2; z > stairs.top; z -= rail.spacing) this.railPost(plan, rail, railX, z, heightAt(z) - 0.2, heightAt(z) + rail.height);
-    this.railPost(plan, rail, railX, stairs.top, top - 0.15, top + rail.height + 0.12);
     this.railPost(plan, rail, railX, landing.z0 + 0.05, top - 0.15, top + rail.height + 0.12);
-    if (rng() >= rail.missing) {
-      const hand = roughLog(rng, plan.walls, stairs.top, stairs.bottom - 0.2, 0, rail.radius, 3);
-      hand.startLift = top + rail.height;
-      hand.endLift = heightAt(stairs.bottom - 0.2) + rail.height;
-      if (rng() < rail.broken) {
-        hand.to -= (stairs.bottom - stairs.top) * 0.3;
-        hand.endLift -= rail.fallTo * rng();
-      }
-      this.addLog(plan, hand, placeAlongZ(railX), this.logShade(plan));
-    }
     this.railRun(plan, rail, placeAlongZ(railX), landing.z0 + 0.05, stairs.top, top);
     this.railRun(plan, rail, placeAlongX(landing.z0 + 0.05), railX, stairs.wall, top);
+  },
+
+  stairFlight(plan, stairs, flight) {
+    const { rng } = plan;
+    const { alongX, start, end, startY, endY } = flight;
+    const [a, b] = flight.across;
+    const dir = Math.sign(end - start) || 1;
+    const length = Math.abs(end - start);
+    const count = Math.max(1, Math.round(Math.abs(endY - startY) / stairs.rise));
+    const run = length / count;
+    const heightAt = (along) => startY + ((endY - startY) * Math.abs(along - start)) / length;
+    const tread = alongX ? placeAlongZ : placeAlongX;
+    const beam = alongX ? placeAlongX : placeAlongZ;
+    const spot = (along, across) => (alongX ? [along, across] : [across, along]);
+    const low = Math.min(start, end);
+    const high = Math.max(start, end);
+    const liftAt = (along) => heightAt(along);
+    for (let k = 1; k <= count; k++) {
+      const near = start + dir * (k - 1) * run;
+      const far = start + dir * k * run;
+      const y = startY + ((endY - startY) * k) / (count + 1);
+      const from = Math.min(near, far);
+      const to = Math.max(near, far);
+      plan.walk.push(alongX ? { x0: from, x1: to, z0: a, z1: b, y } : { x0: a, x1: b, z0: from, z1: to, y });
+      for (const lane of [0.3, 0.7]) {
+        if (rng() < stairs.missing) continue;
+        const radius = stairs.log * (0.85 + rng() * 0.3);
+        const log = roughLog(rng, plan.walls, a - 0.1, b + 0.1, y - radius, radius, 3);
+        if (rng() < stairs.broken) {
+          if (rng() < 0.5) log.from += (b - a) * (0.3 + rng() * 0.3);
+          log.endLift -= stairs.brokenDrop * rng();
+        }
+        this.addLog(plan, log, tread(near + dir * lane * run), this.logShade(plan));
+      }
+    }
+    for (const edge of [a, b]) {
+      const log = roughLog(rng, plan.walls, low - 0.1, high + 0.1, 0, stairs.log * 1.2, 3);
+      log.startLift = liftAt(low) - 0.2;
+      log.endLift = liftAt(high) - 0.2;
+      this.addLog(plan, log, beam(edge), this.logShade(plan));
+      for (let along = start + dir * stairs.postStep; dir * (end - along) > 0; along += dir * stairs.postStep) {
+        const [x, z] = spot(along, edge);
+        const foot = plan.groundAt(x, z) - stairs.postSink;
+        const head = heightAt(along) - 0.3;
+        if (head - foot > 0.2) this.railPost(plan, { post: stairs.log * 1.3, lean: 0.06 }, x, z, foot, head);
+      }
+    }
+    if (!Number.isFinite(flight.rail)) return;
+    const rail = stairs.rail;
+    for (let along = start; dir * (end - along) >= -1e-6; along += dir * rail.spacing) {
+      const [x, z] = spot(along, flight.rail);
+      this.railPost(plan, rail, x, z, heightAt(along) - 0.2, heightAt(along) + rail.height);
+    }
+    if (rng() >= rail.missing) {
+      const hand = roughLog(rng, plan.walls, low, high, 0, rail.radius, 3);
+      hand.startLift = liftAt(low) + rail.height;
+      hand.endLift = liftAt(high) + rail.height;
+      if (rng() < rail.broken) {
+        hand.to -= length * 0.3;
+        hand.endLift -= rail.fallTo * rng();
+      }
+      this.addLog(plan, hand, beam(flight.rail), this.logShade(plan));
+    }
   },
 };

@@ -2,6 +2,14 @@
 // Drží jen deklarace (model, měřítko, blokace) a resolve helpery, žádné rozvržení mapy.
 import { ASSET_DIRS } from './assetPaths.js';
 import { MOSS_CLUMPS } from './moss.js';
+
+const LOOSE_PLANK = { width: 0.22, thickness: 0.035, tint: [0.52, 0.45, 0.37], shadeSpread: 0.2, tile: 2, tilt: 0.08, splinter: 0.14 };
+const LOOSE_PLANKS = {
+  loose_plank_a: { ...LOOSE_PLANK, length: 1.1, broken: 0.2, seed: 11 },
+  loose_plank_b: { ...LOOSE_PLANK, length: 0.75, broken: 0.35, seed: 23 },
+  loose_plank_c: { ...LOOSE_PLANK, length: 1.3, broken: 0, pair: 0.6, seed: 37 },
+  loose_plank_d: { ...LOOSE_PLANK, length: 0.55, broken: 0.25, width: 0.18, seed: 51 },
+};
 import { GRASS_GROUND, grassGroundUrl } from './grass.js';
 
 export const DECORATION_TYPES = {
@@ -411,6 +419,20 @@ export const DECORATION_TYPES = {
     castsShadow: true,
     noReflection: true,
     noTint: true,
+    kind: 'ground',
+  }])),
+  ...Object.fromEntries(Object.entries(LOOSE_PLANKS).map(([key, plank]) => [key, {
+    displayName: 'Prkno',
+    gather: { wood: 1 },
+    byHand: true,
+    loose: true,
+    flat: true,
+    plank,
+    scale: 1,
+    radius: 0.45,
+    blocks: false,
+    castsShadow: true,
+    noReflection: true,
     kind: 'ground',
   }])),
   ...Object.fromEntries(Object.entries(MOSS_CLUMPS).map(([key, clump]) => [key, {

@@ -4,6 +4,20 @@
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 
+export function insideOutline(points, x, z) {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i, i += 1) {
+    const [xi, zi] = points[i];
+    const [xj, zj] = points[j];
+    if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+export function rectOutline(x0, z0, x1, z1) {
+  return [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
+}
+
 export function createBuffer() {
   return { positions: [], uvs: [], colors: [], indices: [] };
 }

@@ -28,15 +28,15 @@ export default {
     const edge = z1 - porch.post;
     const posts = [porch.from + porch.post, gap[0] - porch.post * 0.5, gap[1] + porch.post * 0.5, porch.to - porch.post];
     for (const x of posts) this.porchPost(plan, porch, x, edge);
-    const sideFrom = z0 + plan.walls.log * 0.6;
-    this.porchPost(plan, porch, porch.from + porch.post, sideFrom);
-    this.porchPost(plan, porch, porch.to - porch.post, sideFrom);
+    const sideFrom = (index) => (Array.isArray(porch.sideFrom) ? porch.sideFrom[index] : z0 + plan.walls.log * 0.6);
+    this.porchPost(plan, porch, porch.from + porch.post, sideFrom(0));
+    this.porchPost(plan, porch, porch.to - porch.post, sideFrom(1));
 
     for (let i = 0; i < posts.length - 1; i++) {
       if (posts[i] >= gap[0] - porch.post && posts[i + 1] <= gap[1] + porch.post) continue;
       this.railRun(plan, porch.rail, placeAlongX(edge), posts[i], posts[i + 1]);
     }
-    for (const x of [porch.from + porch.post, porch.to - porch.post]) this.railRun(plan, porch.rail, placeAlongZ(x), sideFrom, edge);
+    for (const [index, x] of [porch.from + porch.post, porch.to - porch.post].entries()) this.railRun(plan, porch.rail, placeAlongZ(x), sideFrom(index), edge);
 
     this.porchSteps(plan, porch, floor, z1);
   },

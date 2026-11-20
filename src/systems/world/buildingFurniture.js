@@ -5,6 +5,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { createBuffer, meshFromBuffer, pushBox, pushSheet, pushLog, roughLog, placeAlongX, placeUpright } from '../../utils/buildingGeometry.js';
 import { fishingNetTexture } from '../../utils/pirateCloth.js';
+import { PIRATE_KINDS } from './buildingPirate.js';
 import { createRng, seedFor } from '../../utils/rng.js';
 
 function piece(buffer, place, offset, size, paint, tile, rng) {
@@ -25,13 +26,19 @@ function piece(buffer, place, offset, size, paint, tile, rng) {
 
 export default {
   buildFurniture(plan, furniture) {
+    plan.furnitureStyles = furniture.styles;
     for (const [index, item] of furniture.items.entries()) {
       const upper = item.on === 'upper';
       this.useLayer(plan, upper ? 'upper' : 'lower');
-      const base = upper ? plan.upperTop || 0 : 0;
+      const base = upper ? plan.upperTop || 0 : item.on === 'ground' ? plan.groundAt(item.at[0], item.at[1]) : 0;
       const rng = createRng(seedFor(0, `${plan.name}:furniture:${item.kind}`, index, 0));
       const style = furniture.styles[item.kind];
       const place = { x: item.at[0], y: base + (item.lift || 0), z: item.at[1], yaw: item.yaw || 0, tilt: item.tilt || 0 };
+      if (PIRATE_KINDS.has(item.kind)) {
+        this.pirateProp(plan, style, item, place);
+        if (style.block) this.furnitureBlock(plan, { ...place, tilt: 0 }, style.size, base, style.size[1]);
+        continue;
+      }
       const shade = 1 + (rng() - 0.5) * style.shadeSpread;
       const tint = style.tint.map((value) => value * shade);
       const paint = (x, y, z, up) => plan.paint(tint, x, y, z, up);
@@ -195,7 +202,7 @@ export default {
       const across = (v - 0.5) * width;
       return [from + (to - from) * u, hang - style.sag * 4 * u * (1 - u) + style.curl * (across / style.width) ** 2, z + across];
     }, white);
-    plan.sheets.push({ suffix: 'hammock', buffer: net, material: this.drawnMaterial(`buildingNetMat_${plan.key}`, () => fishingNetTexture(this.s, `buildingNet_${plan.key}`, style.netColors), true), part: 'upper' });
+    plan.sheets.push({ suffix: 'hammock', buffer: net, material: this.drawnMaterial(`buildingNetMat_${plan.key}`, () => fishingNetTexture(this.s, `buildingNet_${plan.key}`, plan.netColors), true), part: 'upper' });
     const ropeTint = style.ropeTint;
     for (const [end, anchor, top] of [[from, x0, item.anchorTop[0]], [to, x1, item.anchorTop[1]]]) {
       const rope = roughLog(rng, plan.walls, Math.min(end, anchor), Math.max(end, anchor), 0, style.ropeRadius, 3);
@@ -249,6 +256,8 @@ export default {
       } else if (thing.kind === 'jar') {
         piece(decor, origin, [left + thing.size[0] / 2 + thing.shift, floor + thing.size[1] / 2, 0.02], [thing.size[0], thing.size[1], thing.size[0]], colorOf(thing.color), 1);
         piece(decor, origin, [left + thing.size[0] / 2 + thing.shift, floor + thing.size[1] + 0.012, 0.02], [thing.size[0] * 0.7, 0.024, thing.size[0] * 0.7], colorOf(thing.lid), 1);
+      } else if (thing.kind === 'bottle') {
+        this.pirateBottle(decor, plan.furnitureStyles.bottle, { x: left + thing.shift, y: floor, z: 0.02, yaw: 0 }, thing.color);
       } else if (thing.kind === 'scroll') {
         const scroll = roughLog(rng, plan.walls, left + thing.shift, left + thing.shift + thing.length, floor + thing.radius, thing.radius, 3);
         pushLog(decor, scroll, placeAlongX(0.03), colorOf(thing.color), 1);

@@ -35,7 +35,7 @@ function liesFlat(def) {
 function hasModelDef(def) {
   if (!def) return false;
   return Boolean(def.model || def.tree || def.log || def.branch || def.driftwood
-    || def.rock || def.shell || def.coral || def.flower || def.bush || def.campfire || def.moss);
+    || def.rock || def.shell || def.coral || def.flower || def.bush || def.campfire || def.moss || def.plank);
 }
 
 function cellGap(shape, x, z) {

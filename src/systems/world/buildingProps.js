@@ -1,5 +1,5 @@
-// Část staveb: pirátské věci u stavby — roztrhaná vlajka s lebkou na nakloněné tyči, stará rybářská
-// síť na stěně, sudy s obručemi (stojící i povalené) a bedny (i otevřená s víkem vedle).
+// Část staveb: pirátské věci u stavby — roztrhaná vlajka s lebkou na nakloněné tyči, staré rybářské
+// sítě na stěnách (přízemí i místnost v patře), sudy s obručemi (stojící i povalené) a bedny (i otevřená s víkem vedle).
 // Zatím kreslené v kódu; později je mohou nahradit modely. Patří k BuildingSystem (sdílí jeho this).
 import { createBuffer, pushSheet, pushLog, pushLogEnd, pushBox, roughLog, placeAlongX, placeAlongZ, placeUpright } from '../../utils/buildingGeometry.js';
 import { pirateFlagTexture, fishingNetTexture } from '../../utils/pirateCloth.js';
@@ -7,7 +7,11 @@ import { pirateFlagTexture, fishingNetTexture } from '../../utils/pirateCloth.js
 export default {
   buildProps(plan, props) {
     if (props.flag) this.buildFlag(plan, props.flag);
-    if (props.net) this.buildNet(plan, props.net);
+    for (const net of props.nets || []) {
+      this.useLayer(plan, net.on === 'upper' ? 'upper' : 'lower');
+      this.buildNet(plan, net, props.netColors);
+    }
+    this.useLayer(plan, 'lower');
     for (const item of (props.barrels && props.barrels.items) || []) {
       this.useLayer(plan, item.on === 'upper' ? 'upper' : 'lower');
       this.barrel(plan, props.barrels.style, item);
@@ -20,9 +24,10 @@ export default {
   },
 
   surfaceY(plan, item) {
-    if (item.on === 'ground') return plan.groundAt(item.at[0], item.at[1]);
-    if (item.on === 'upper') return plan.upperTop || 0;
-    return 0;
+    const lift = item.lift || 0;
+    if (item.on === 'ground') return plan.groundAt(item.at[0], item.at[1]) + lift;
+    if (item.on === 'upper') return (plan.upperTop || 0) + lift;
+    return lift;
   },
 
   barrel(plan, style, item) {
@@ -128,23 +133,25 @@ export default {
     });
   },
 
-  buildNet(plan, net) {
-    const halfD = plan.depth / 2;
-    const out = halfD + plan.walls.log / 2 + 0.05;
+  buildNet(plan, net, colors) {
+    const wall = Number.isFinite(net.wall) ? net.wall : plan.depth / 2;
+    const out = wall + plan.walls.log / 2 + 0.05;
+    const base = net.on === 'upper' ? plan.upperTop || 0 : 0;
     const buffer = createBuffer();
     const paint = (px, py, pz, up) => plan.paint([1, 1, 1], px, py, pz, up);
     pushSheet(buffer, 12, 10, (u, v) => {
       const hang = net.sag * 4 * u * (1 - u);
       return [
         net.at - net.width / 2 + u * net.width + Math.sin(v * 2.1 + u * 5) * 0.04,
-        net.top - hang * (1 - v * 0.5) - v * net.height * (1 - 0.18 * Math.sin(u * Math.PI)),
+        base + net.top - hang * (1 - v * 0.5) - v * net.height * (1 - 0.18 * Math.sin(u * Math.PI)),
         out + Math.sin(v * Math.PI) * net.bulge * (0.5 + 0.5 * Math.sin(u * 7)),
       ];
     }, paint);
     plan.sheets.push({
       suffix: 'net',
       buffer,
-      material: this.drawnMaterial(`buildingNetMat_${plan.key}`, () => fishingNetTexture(this.s, `buildingNet_${plan.key}`, net.colors), true),
+      material: this.drawnMaterial(`buildingNetMat_${plan.key}`, () => fishingNetTexture(this.s, `buildingNet_${plan.key}`, colors), true),
+      part: plan.layer,
     });
   },
 };
