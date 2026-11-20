@@ -976,6 +976,14 @@ Díl patří vrstvě i své části a je vidět jen tolik, kolik ta méně vidit
 schovají se horní půlky jeho stěn, za kterými je kamera (kamera je na vnější straně stěny).
 Liany ze staveb mají skupinu `jméno stavby:část` a `cliffVineSystem.hideGroups` je schová, když jejich
 část nebo vrstva zmizí z víc než poloviny; liany z vršku stěny patří k její horní půlce.
+**Zvuk uvnitř:** stejné „uvnitř“ (`buildingSystem.storeyInside`, `shelterAt`) ztlumí venek: `GameScene.updateIndoor`
+plynule nastaví `audioSystem.setSheltered`. Venkovní zvuky (smyčky lesa ve dne a v noci, voda, hlasy zvířat
+kromě jeskyně) jdou přes společnou cestu `outdoor` → dolní propust; v úkrytu klesne na 55 % hlasitosti a
+řez na 700 Hz (`SHELTER_LEVEL`, `SHELTER_CUTOFF`). Jeskyně má dál vlastní přepnutí na jeskynní smyčku (`setIndoor`).
+Zvuky stavby (`audio/building/`): dveře mají vlastní otevření a zavření; každý krok po dřevě má šanci 16 %
+na vrzání prkna (`stepWood` → `with: plankCreak`); uvnitř občas zavrzají trámy (hlas prostředí `when: shelter`,
+netlumí se). Hlasy prostředí (`LIFE_CALLS`) mají `when` den, noc, jeskyně, úkryt nebo seznam; `sea` = jen u moře
+(vlny u skal).
 **Patro** (`upper`, `buildingUpper.js`): na stěnách přízemí leží po obvodu věnec z klád překřížený
 v rozích (`walls.ringSeat` = jak hluboko sedí na horní kládě), aby mezi patry neprosvítalo přízemí;
 na něm trámy a pevná podlaha přes celý půdorys — spodní vrstva prken napříč (`upper.subfloor`)
@@ -1047,14 +1055,19 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
       (hledání cesty o dveřích ví). Hotovo jako pokus.
    5. Tvorové po schodech a schůdcích z útesu do patra. Hotovo jako pokus.
    Později: stěny vrhají stín a zastaví dohled (`metadata.volume`).
-4. **Dveře**: otevření kliknutím jako truhla (`lootSystem` — pant kolem svislé osy místo víka);
-   zavřené blokují průchod postavě i tvorům. Stav dveří se ukládá do savu (registrace v `saveSystem`).
-   Tvor a zavřené dveře: dnes si tvor ve stejné výšce cestu neověřuje (`canGetTo` vrátí rovnou ano), takže
-   by u zdi zasekl, nebo se o ni dlouho otíral (klouzání se nepočítá jako zaseknutí). Plán: když je mezi
-   tvorem a postavou zeď (`crossesWall`), ověří cestu i ve stejné výšce a bez cesty se chová jako u postavy
-   na nedosažitelné skále (zpozorní, nehoní do zdi). Otevřená otázka, co potom: vzdá to a odejde domů,
-   obléhá dveře, dokud postava nevyjde (nebo ho to po čase nepřestane bavit), nebo silní tvorové dveře
-   vyrazí (a dají se opravit).
+4. **Dveře** (hotovo jako pokus, `buildingDoors.js`): každý otvor `kind: 'door'` v přízemí i v patře dostane
+   křídlo ze svislých prken se dvěma příčkami na vnitřní straně (vzhled `walls.door` v katalogu, vlastní
+   náhoda podle jména dveří, aby nepřeskládala zbytek srubu). Křídlo visí na pantu (`TransformNode` u kraje
+   otvoru, `hinge: 1` u otvoru = pant na druhé straně) a otáčí se dovnitř o `swing` za `seconds`.
+   Patří k vrstvě svého podlaží (schová se s patrem), ne k horní půlce stěny. Zavřené dveře jsou zeď
+   (`plan.blocks` s odkazem `door`; `wallGapAt` otevřené přeskočí), takže je hlídá postava, tvorové
+   i hledání cesty bez další úpravy. Pod myší (`doorAt`: zásah do křídla, jinak bod na zemi do 0,8 m
+   od středu otvoru) zlatý obrys; levým tlačítkem otevřít/zavřít do 2,2 m (`GameScene`, interakce `door`,
+   zvuk truhly). Které dveře jsou otevřené, drží `buildingSystem.openDoors` (přežije přestavbu srubu),
+   ukládá se jako `doors` (verze savu 10); na začátku jsou všechny zavřené.
+   Tvor a zavřené dveře: když je mezi tvorem a postavou zeď (`walledOff`), ověří si cestu i ve stejné výšce
+   (`canGetTo`). Bez cesty je zmatený (otazníky, `giveUpConfused`), vzdá to na 12 s navíc (`WALLED_GIVE_UP_SECONDS`)
+   a jde domů; když se dveře otevřou, cesta se najde a honička pokračuje. Později možná obléhání nebo vyražení dveří.
 5. **Editor**: štětec Stavby — klik na roh, R otočí, guma smaže; zápis do historie (Zpět).
 
 **Otevřené otázky:** zvednutá podlaha (dnes jen o pár centimetrů, výš potřebuje výšku

@@ -62,6 +62,9 @@ export default {
       for (const piece of cutPieces(run.from, run.to, doors)) {
         this.addBlock(plan, place, piece.from, piece.to, storey.base, storey.base + wallTop, walls.log / 2);
       }
+      for (const opening of openings) {
+        if (opening.kind === 'door') this.addDoor(plan, run, opening, storey);
+      }
       const dirX = run.alongX ? 0 : run.outward;
       const dirZ = run.alongX ? run.outward : 0;
       const wallPart = (y) => (y > walls.insideCut ? this.useWallTop(plan, run) : this.usePart(plan, plan.layer));

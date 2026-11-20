@@ -1,5 +1,6 @@
 // Zvuky hry — načte je jednou při startu a přehrává náhodné varianty bez vrstvení přes sebe.
 // Zvlášť k tomu drží zvuk lesa (den, noc, jeskyně), vodu podle vzdálenosti a občasné hlasy zvířat v pozadí.
+// Venkovní zvuky jdou přes společný filtr, který je v úkrytu (stavba) ztiší a ztlumí jako přes zeď.
 import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
 
 const CLIPS = {
@@ -61,6 +62,18 @@ const CLIPS = {
   cricketNight: ['ambient/life/cricket_night_1.ogg', 'ambient/life/cricket_night_2.ogg'],
   frogNight: ['ambient/life/frog_1.ogg', 'ambient/life/frog_2.ogg', 'ambient/life/frog_3.ogg'],
   caveDrip: ['ambient/life/cave_drip_1.ogg', 'ambient/life/cave_drip_2.ogg', 'ambient/life/cave_drip_3.ogg'],
+  cavePebble: ['ambient/life/cave_pebble_1.ogg', 'ambient/life/cave_pebble_2.ogg'],
+  toucan: ['ambient/life/toucan_1.ogg', 'ambient/life/toucan_2.ogg'],
+  insectFlyby: ['ambient/life/insect_flyby_1.ogg', 'ambient/life/insect_flyby_2.ogg'],
+  palmRustle: ['ambient/life/palm_rustle_1.ogg', 'ambient/life/palm_rustle_2.ogg', 'ambient/life/palm_rustle_3.ogg'],
+  owlNight: ['ambient/life/owl_night_1.ogg', 'ambient/life/owl_night_2.ogg'],
+  nightBird: ['ambient/life/nightbird_1.ogg', 'ambient/life/nightbird_2.ogg'],
+  treeFrog: ['ambient/life/treefrog_night_1.ogg', 'ambient/life/treefrog_night_2.ogg'],
+  surfRocks: ['ambient/life/surf_rocks_1.ogg', 'ambient/life/surf_rocks_2.ogg'],
+  doorOpen: ['building/door_open_1.ogg', 'building/door_open_2.ogg'],
+  doorClose: ['building/door_close_1.ogg', 'building/door_close_2.ogg'],
+  plankCreak: ['building/plank_creak_1.ogg', 'building/plank_creak_2.ogg', 'building/plank_creak_3.ogg'],
+  timberCreak: ['building/timber_creak_1.ogg', 'building/timber_creak_2.ogg', 'building/timber_creak_3.ogg'],
 };
 
 const VOICES = {
@@ -79,7 +92,7 @@ const VOICES = {
   outOfBreath: { volume: 0.35, voices: 1, pitch: 0.03 },
   wakeUp: { volume: 0.4, voices: 1, pitch: 0.02 },
   stepGrass: { volume: 0.07, voices: 3, pitch: 0.08 },
-  stepWood: { volume: 0.08, voices: 3, pitch: 0.08 },
+  stepWood: { volume: 0.08, voices: 3, pitch: 0.08, with: 'plankCreak' },
   stepStone: { volume: 0.08, voices: 3, pitch: 0.08 },
   stepSand: { volume: 0.012, voices: 3, pitch: 0.08 },
   stepWater: { volume: 0.09, voices: 5, pitch: 0.08 },
@@ -108,9 +121,9 @@ const VOICES = {
   grassRip: { volume: 0.4, voices: 2, pitch: 0.08 },
   pickShell: { volume: 0.4, voices: 2, pitch: 0.08 },
   pickCoconut: { volume: 0.4, voices: 2, pitch: 0.06 },
-  chestOpen: { volume: 0.45, voices: 1, pitch: 0.04 },
-  chestClose: { volume: 0.45, voices: 1, pitch: 0.04 },
-  rummage: { volume: 0.35, voices: 1, pitch: 0.06 },
+  chestOpen: { volume: 0.45, voices: 2, pitch: 0.04 },
+  chestClose: { volume: 0.45, voices: 2, pitch: 0.04 },
+  rummage: { volume: 0.35, voices: 3, pitch: 0.06 },
   windowOpen: { volume: 0.1, voices: 1, pitch: 0.03 },
   windowClose: { volume: 0.1, voices: 1, pitch: 0.03 },
   itemGrab: { volume: 0.1, voices: 2, pitch: 0.06 },
@@ -122,6 +135,18 @@ const VOICES = {
   cricketNight: { volume: 0.12, voices: 2, pitch: 0.08 },
   frogNight: { volume: 0.18, voices: 3, pitch: 0.08 },
   caveDrip: { volume: 0.25, voices: 3, pitch: 0.12 },
+  cavePebble: { volume: 0.2, voices: 2, pitch: 0.1 },
+  toucan: { volume: 0.14, voices: 2, pitch: 0.06 },
+  insectFlyby: { volume: 0.12, voices: 2, pitch: 0.1 },
+  palmRustle: { volume: 0.16, voices: 3, pitch: 0.06 },
+  owlNight: { volume: 0.14, voices: 2, pitch: 0.05 },
+  nightBird: { volume: 0.12, voices: 2, pitch: 0.06 },
+  treeFrog: { volume: 0.12, voices: 2, pitch: 0.08 },
+  surfRocks: { volume: 0.22, voices: 2, pitch: 0.05 },
+  doorOpen: { volume: 0.45, voices: 2, pitch: 0.05 },
+  doorClose: { volume: 0.45, voices: 2, pitch: 0.05 },
+  plankCreak: { volume: 0.1, voices: 3, pitch: 0.1, chance: 0.16 },
+  timberCreak: { volume: 0.18, voices: 3, pitch: 0.06 },
 };
 
 const DEFAULT_HEARING = 22;
@@ -131,6 +156,11 @@ const AMBIENT_LAYERS =['forest_day', 'forest_night', 'cave'];
 const AMBIENT_FOLDER = 'ambient/';
 const AMBIENT_FADE_SECONDS = 2;
 const AMBIENT_LEVEL = 0.25;
+const OUTDOOR_LAYERS = new Set(['forest_day', 'forest_night']);
+const OPEN_CUTOFF = 20000;
+const SHELTER_CUTOFF = 700;
+const SHELTER_LEVEL = 0.55;
+const SHELTER_SMOOTHING = 0.25;
 
 const FIRE_LOOP = 'fire/campfire_loop';
 const FIRE_FADE_SECONDS = 0.5;
@@ -152,6 +182,15 @@ const LIFE_CALLS = [
   { key: 'cricketNight', when: 'night', every: [8, 20] },
   { key: 'frogNight', when: 'night', every: [5, 14], freshWater: 0.15 },
   { key: 'caveDrip', when: 'cave', every: [3, 9] },
+  { key: 'cavePebble', when: 'cave', every: [14, 35] },
+  { key: 'toucan', when: 'day', every: [25, 60] },
+  { key: 'insectFlyby', when: 'day', every: [30, 75] },
+  { key: 'palmRustle', when: ['day', 'night'], every: [15, 40] },
+  { key: 'owlNight', when: 'night', every: [18, 45] },
+  { key: 'nightBird', when: 'night', every: [25, 60] },
+  { key: 'treeFrog', when: 'night', every: [10, 25] },
+  { key: 'surfRocks', when: ['day', 'night'], every: [8, 20], sea: 0.2 },
+  { key: 'timberCreak', when: 'shelter', every: [12, 30] },
 ];
 const LIFE_PAN = 0.7;
 
@@ -176,6 +215,8 @@ export default class AudioSystem {
     this.ambientTarget = { forest_day: 1, forest_night: 0, cave: 0 };
     this.dayT = 1;
     this.indoor = 0;
+    this.sheltered = 0;
+    this.outdoor = null;
     this.fire = null;
     this.fireOn = false;
     this.fireDistance = Infinity;
@@ -199,6 +240,12 @@ export default class AudioSystem {
         this.master = this.ctx.createGain();
         this.master.gain.value = this.masterVolume;
         this.master.connect(this.ctx.destination);
+        this.outdoorFilter = this.ctx.createBiquadFilter();
+        this.outdoorFilter.type = 'lowpass';
+        this.outdoorFilter.connect(this.master);
+        this.outdoor = this.ctx.createGain();
+        this.outdoor.connect(this.outdoorFilter);
+        this.applyShelter();
       } catch {
         this.disable();
         return;
@@ -216,10 +263,11 @@ export default class AudioSystem {
     if (!this.ctx) return;
     for (const [key, names] of Object.entries(CLIPS)) {
       const cfg = VOICES[key];
-      const pool = new Array(cfg.voices).fill(null);
+      const count = Math.max(cfg.voices, names.length);
+      const pool = new Array(count).fill(null);
       this.buffers[key] = pool;
       this.cursors[key] = 0;
-      for (let i = 0; i < cfg.voices; i += 1) {
+      for (let i = 0; i < count; i += 1) {
         const name = names[i % names.length];
         const file = name.includes('.') ? name : `${name}.ogg`;
         this.fetchClip(`${ASSET_DIRS.audio}${file}`, (buffer) => { pool[i] = buffer; });
@@ -256,7 +304,7 @@ export default class AudioSystem {
     for (const key of AMBIENT_LAYERS) {
       const gain = this.ctx.createGain();
       gain.gain.value = 0;
-      gain.connect(this.master);
+      gain.connect(OUTDOOR_LAYERS.has(key) ? this.outdoor : this.master);
       this.ambient[key] = { gain, source: null, buffer: null };
       this.fetchClip(`${ASSET_DIRS.audio}${AMBIENT_FOLDER}${key}.ogg`, (buffer) => this.playLayer(key, buffer));
     }
@@ -369,7 +417,7 @@ export default class AudioSystem {
     if (!this.ctx || this.water[key]) return;
     const gain = this.ctx.createGain();
     gain.gain.value = 0;
-    gain.connect(this.master || this.ctx.destination);
+    gain.connect(this.outdoor || this.ctx.destination);
     this.water[key] = { gain, source: null, buffer: null, mix: 0, target: 0 };
     this.fetchClip(`${ASSET_DIRS.audio}${WATER_LOOPS[key].file}.ogg`, (buffer) => {
       const water = this.water[key];
@@ -507,6 +555,19 @@ export default class AudioSystem {
     this.ambientTarget = this.ambientTargets();
   }
 
+  setSheltered(amount) {
+    this.sheltered = Math.max(0, Math.min(1, Number(amount) || 0));
+    this.applyShelter();
+  }
+
+  applyShelter() {
+    if (!this.outdoor || !this.ctx) return;
+    const cutoff = OPEN_CUTOFF * Math.pow(SHELTER_CUTOFF / OPEN_CUTOFF, this.sheltered);
+    const level = 1 - (1 - SHELTER_LEVEL) * this.sheltered;
+    this.outdoorFilter.frequency.setTargetAtTime(cutoff, this.ctx.currentTime, SHELTER_SMOOTHING);
+    this.outdoor.gain.setTargetAtTime(level, this.ctx.currentTime, SHELTER_SMOOTHING);
+  }
+
   ambientTargets() {
     const t = this.dayT;
     const out = 1 - this.indoor;
@@ -559,9 +620,11 @@ export default class AudioSystem {
       this.lifeTimers[index] -= dt;
       if (this.lifeTimers[index] > 0) return;
       this.lifeTimers[index] = between(call.every);
-      if (call.when !== when) return;
+      const inside = call.when === 'shelter';
+      if (inside ? this.sheltered < 0.5 : ![].concat(call.when).includes(when)) return;
       if (call.freshWater && this.waterMix(['river', 'lake']) < call.freshWater) return;
-      this.play(call.key, { gain: this.ambientVolume, pan: (Math.random() * 2 - 1) * LIFE_PAN });
+      if (call.sea && this.waterMix(['sea']) < call.sea) return;
+      this.play(call.key, { gain: this.ambientVolume, pan: (Math.random() * 2 - 1) * LIFE_PAN, outdoor: !inside && call.when !== 'cave' });
     });
   }
 
@@ -590,12 +653,13 @@ export default class AudioSystem {
     const gain = this.ctx.createGain();
     gain.gain.value = cfg.volume * (options.gain || 1) * distanceGain;
     const panner = options.pan && this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
+    const out = (options.outdoor && this.outdoor) || this.master || this.ctx.destination;
     if (panner) {
       panner.pan.value = Math.max(-1, Math.min(1, options.pan));
-      panner.connect(this.master || this.ctx.destination);
+      panner.connect(out);
       gain.connect(panner);
     } else {
-      gain.connect(this.master || this.ctx.destination);
+      gain.connect(out);
     }
     const source = this.ctx.createBufferSource();
     source.buffer = buffer;

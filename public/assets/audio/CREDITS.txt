@@ -34,7 +34,11 @@ stejné podmínky (uvést elevenlabs.io jako zdroj) a stejný převod jako u Koa
   loot/     chest_open_1–2, chest_close_1–2, rummage_1–3
   ui/       window_open, window_close, item_grab, item_drop, equip_cloth_1–2,
             craft_1–2, denied (výroba a „nejde to“ zatím ve hře nejsou zapojené)
-  ambient/life/  bird_day_1–5, cicada_day_1–2, cricket_night_1–2, frog_1–3, cave_drip_1–3
+  ambient/life/  bird_day_1–5, cicada_day_1–2, cricket_night_1–2, frog_1–3, cave_drip_1–3,
+            cave_pebble_1–2, toucan_1–2, insect_flyby_1–2, palm_rustle_1–3, owl_night_1–2,
+            nightbird_1–2, treefrog_night_1–2, surf_rocks_1–2 (ticho ořezané od 40 dB pod špičkou,
+            špička srovnaná na −1 dB)
+  building/ door_open_1–2, door_close_1–2, plank_creak_1–3, timber_creak_1–3 (stejně)
   ambient/lake.ogg a fire/campfire_loop.ogg (smyčky, 30 s, stereo, bez ořezu)
 Originální mp3 soubory jsou v _sources/elevenlabs.
 

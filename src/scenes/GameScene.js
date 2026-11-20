@@ -105,6 +105,7 @@ const CAVE_DECO_REFRESH_SECONDS = 1;
 const SHELF_GRASS_CLEAR = 0.6;
 const DECK_ABOVE_GROUND = 0.05;
 const PEEK_PICK_THROUGH = 0.5;
+const DOOR_SHUT_LEAD = 0.2;
 const WADE_SPEED = 0.65;
 const WADE_RAMP = 0.2;
 const WATER_SOUND_SECONDS = 0.15;
@@ -166,6 +167,8 @@ export default class GameScene {
     this.buildingSystem = new BuildingSystem(scene);
     this.buildingSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z, 0);
     this.buildingSystem.onMesh = (mesh) => this.addShadowCaster(mesh);
+    this.buildingSystem.doorShutLead = DOOR_SHUT_LEAD;
+    this.buildingSystem.onDoorShut = () => this.audioSystem.play('doorClose');
     this.floraSystem = new FloraSystem(scene);
     this.cliffVineSystem = new CliffVineSystem(scene);
     this.caveFrameSystem = new CaveFrameSystem(scene);
@@ -415,6 +418,7 @@ export default class GameScene {
       const root = this.playerSystem.root;
       this.campfireSystem.update(dt, root, this.playerSystem.level);
       this.lootSystem.update(dt, root, this.playerSystem.level);
+      this.buildingSystem.updateDoors(dt);
       this.waterSystem.update(dt);
       this.updateWaveSpray();
       this.fishSystem.update(dt);
@@ -631,7 +635,7 @@ export default class GameScene {
   }
 
   hintTarget(cell) {
-    for (const id of ['gather', 'loot', 'campfire']) {
+    for (const id of ['gather', 'loot', 'door', 'campfire']) {
       const target = this.interaction.targetOf(id, { cell });
       if (target) return target;
     }
@@ -673,6 +677,7 @@ export default class GameScene {
   }
 
   setHoverHint(target) {
+    this.buildingSystem.setDoorHover(target && target.id === 'door' && !this.editor.active ? target.ref : null);
     if (!target || !target.inReach || this.editor.active || this.dying) {
       this.hoverHint.hide();
       return;
@@ -775,6 +780,21 @@ export default class GameScene {
         return { ref: fire.entry, detail: 'Levé tlačítko — zapálit Táborák', inReach: true };
       },
       act: (target) => this.campfireSystem.ignite(target.ref),
+    });
+    this.interaction.register('door', {
+      priority: 44,
+      pick: ({ cell }) => {
+        const root = this.playerSystem.root;
+        if (!root || this.playerSystem.level !== 0) return null;
+        const door = this.buildingSystem.doorAt(this.s.pointerX, this.s.pointerY, cell ? cell.point : null);
+        if (!door) return null;
+        const verb = door.goal > 0 ? 'zavřít' : 'otevřít';
+        return { ref: door, detail: `Levé tlačítko — ${verb} ${this.buildingSystem.doorLabel(door)}`, inReach: this.buildingSystem.doorInReach(door, root.position) };
+      },
+      act: (target) => {
+        if (this.buildingSystem.toggleDoor(target.ref)) this.audioSystem.play('doorOpen');
+        return true;
+      },
     });
     this.interaction.register('loot', {
       priority: 45,
@@ -1179,6 +1199,10 @@ export default class GameScene {
     this.indoor = (this.indoor || 0) + (target - (this.indoor || 0)) * step;
     if (Math.abs(target - this.indoor) < 0.001) this.indoor = target;
     this.audioSystem.setIndoor(this.indoor);
+    const sheltered = Boolean(root) && level === 0 && !this.editor.active && this.buildingSystem.shelterAt(root.position) ? 1 : 0;
+    this.sheltered = (this.sheltered || 0) + (sheltered - (this.sheltered || 0)) * step;
+    if (Math.abs(sheltered - this.sheltered) < 0.001) this.sheltered = sheltered;
+    this.audioSystem.setSheltered(this.sheltered);
     if (this.playerSystem && this.playerSystem.torchFire) this.playerSystem.torchFire.setUnderground(level < 0);
   }
 
@@ -1521,6 +1545,7 @@ export default class GameScene {
     this.registerSavedState(this.playerSystem, 'player', 5);
     this.registerSavedState(this.heldItemSystem, 'heldItem', 7);
     this.registerSavedState(this.playerStats, 'playerStats', 8);
+    this.registerSavedState(this.buildingSystem, 'doors', 11);
     this.registerSavedState(this.campfireSystem, 'campfires', 12);
     this.saveSystem.register('loot', {
       serialize: () => this.lootSystem.serialize(),

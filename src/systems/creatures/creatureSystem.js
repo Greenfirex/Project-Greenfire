@@ -63,6 +63,8 @@ const BUILDING_WALL_CLEAR = 0.3;
 const BUILDING_WALL_HIT = 0.02;
 const WALL_CHECK_STEP = 0.2;
 const LAYER_SPLIT = 1;
+const GIVE_UP_SECONDS = 3;
+const WALLED_GIVE_UP_SECONDS = 12;
 const RISE_RATE = 2.2;
 const FALL_RATE = 6;
 const SLIDE_ANGLES = [0, 0.5, -0.5, 1, -1, 1.5, -1.5, Math.PI / 2, -Math.PI / 2];
@@ -624,9 +626,18 @@ export default class CreatureSystem {
     return creature.routeOpen;
   }
 
+  walledOff(creature, player) {
+    return Boolean(player) && this.crossesWall(creature.x, creature.z, player.x, player.z, creature.level || 0, this.footY(creature));
+  }
+
+  giveUpConfused(creature) {
+    creature.giveUpUntil = this.now + (creature.type.confusedSeconds || 1.4) + WALLED_GIVE_UP_SECONDS;
+    this.beginSearch(creature, false);
+  }
+
   canGetTo(creature, player, level, heightGap, aggro) {
     if (!player) return false;
-    if (heightGap <= ATTACK_HEIGHT) return true;
+    if (heightGap <= ATTACK_HEIGHT && !this.walledOff(creature, player)) return true;
     return level === creature.level && this.canWalkUpTo(creature, player, level, aggro);
   }
 
@@ -995,7 +1006,11 @@ export default class CreatureSystem {
         return;
       }
       if (creature.timer <= 0) {
-        creature.giveUpUntil = this.now + (type.confusedSeconds || 1.4) + 3;
+        if (this.walledOff(creature, player)) {
+          this.giveUpConfused(creature);
+          return;
+        }
+        creature.giveUpUntil = this.now + (type.confusedSeconds || 1.4) + GIVE_UP_SECONDS;
         creature.mode = 'roam';
         creature.targetX = creature.homeX;
         creature.targetZ = creature.homeZ;
@@ -1009,6 +1024,9 @@ export default class CreatureSystem {
       if (creature.mode !== 'chase') {
         if (gap <= type.chargeRange && reachable) {
           this.beginCharge(creature);
+        } else if (!reachable && this.walledOff(creature, player)) {
+          this.giveUpConfused(creature);
+          return;
         } else {
           this.beginAggro(creature, alertSeconds, reachable);
           return;
@@ -1026,7 +1044,8 @@ export default class CreatureSystem {
 
     if (creature.mode === 'chase') {
       if (!inView || (sameFloor ? !this.canGetTo(creature, player, playerFloor, heightGap, aggro) : !this.canReachFloor(creature, playerFloor))) {
-        this.beginSearch(creature, true);
+        if (inView && sameFloor && this.walledOff(creature, player)) this.giveUpConfused(creature);
+        else this.beginSearch(creature, true);
         return;
       }
       const walled = this.crossesWall(creature.x, creature.z, player.x, player.z, creature.level || 0, this.footY(creature)) || heightGap > ATTACK_HEIGHT;
@@ -1040,7 +1059,7 @@ export default class CreatureSystem {
       const blocked = !arrived && !creature.walking;
       creature.blockedTime = blocked ? creature.blockedTime + dt : 0;
       if (creature.blockedTime > CHASE_STUCK_SECONDS) {
-        creature.giveUpUntil = this.now + (type.confusedSeconds || 1.4) + 3;
+        creature.giveUpUntil = this.now + (type.confusedSeconds || 1.4) + GIVE_UP_SECONDS;
         this.beginSearch(creature, false);
       }
       return;

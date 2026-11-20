@@ -2,7 +2,7 @@
 // patro s místností a pavlačí, střechu, terasu se schody a pirátské věci, a místa, kde stavbu
 // porůstá tráva a liány. Stavba se skládá v neotočené poloze kolem svého středu
 // a celá se pak otočí podle mapy. Zná výšku podlah, po kterých se chodí, a stěny se zábradlím,
-// které postavu zastaví. Skládá se ve vrstvách (přízemí, patro, střecha); když je postava uvnitř,
+// které postavu zastaví, a dveře, které jdou otevřít. Skládá se ve vrstvách (přízemí, patro, střecha); když je postava uvnitř,
 // vrstvy nad ní plynule zmizí.
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -23,6 +23,7 @@ import buildingUpperParts from './buildingUpper.js';
 import buildingPropsParts from './buildingProps.js';
 import buildingRoofParts from './buildingRoof.js';
 import buildingGrowthParts from './buildingGrowth.js';
+import buildingDoorsParts from './buildingDoors.js';
 
 const GROUND_SAMPLE = 0.5;
 const GROUND_INSET = 0.3;
@@ -44,6 +45,11 @@ export default class BuildingSystem {
     this.anchors = [];
     this.grass = [];
     this.decks = [];
+    this.doors = [];
+    this.openDoors = new Set();
+    this.hoverDoor = null;
+    this.doorShutLead = 0;
+    this.onDoorShut = null;
     this.materials = new Map();
     this.floorKeys = new Map();
     this.groundHeightAt = null;
@@ -57,6 +63,8 @@ export default class BuildingSystem {
     this.anchors = [];
     this.grass = [];
     this.decks = [];
+    this.doors = [];
+    this.hoverDoor = null;
     this.floorKeys.clear();
   }
 
@@ -111,22 +119,26 @@ export default class BuildingSystem {
     return flipped ? this.hiddenGroups() : null;
   }
 
-  partsToHide(deck, position, eye) {
-    const hide = new Set();
-    if (!position) return hide;
+  storeyInside(deck, position) {
+    if (!position) return null;
     const p = Vector3.TransformCoordinates(new Vector3(position.x, 0, position.z), deck.inverse);
     const feet = position.y - deck.top;
     const upper = deck.upperTop;
     const room = deck.room;
-    let inside = null;
-    if (Math.abs(p.x) < deck.halfW && Math.abs(p.z) < deck.halfD && (!Number.isFinite(upper) || feet < upper - LOWER_FEET_BELOW_UPPER)) {
-      inside = 'lower';
-      hide.add('upper');
-      hide.add('roof');
-    } else if (room && feet > upper - ROOM_FEET_BELOW_UPPER && p.x > room.x0 && p.x < room.x1 && p.z > room.z0 && p.z < room.z1) {
-      inside = 'upper';
-      hide.add('roof');
-    }
+    if (Math.abs(p.x) < deck.halfW && Math.abs(p.z) < deck.halfD && (!Number.isFinite(upper) || feet < upper - LOWER_FEET_BELOW_UPPER)) return 'lower';
+    if (room && feet > upper - ROOM_FEET_BELOW_UPPER && p.x > room.x0 && p.x < room.x1 && p.z > room.z0 && p.z < room.z1) return 'upper';
+    return null;
+  }
+
+  shelterAt(position) {
+    return this.decks.some((deck) => this.storeyInside(deck, position) !== null);
+  }
+
+  partsToHide(deck, position, eye) {
+    const hide = new Set();
+    const inside = this.storeyInside(deck, position);
+    if (inside === 'lower') hide.add('upper');
+    if (inside) hide.add('roof');
     if (!inside || !eye) return hide;
     const view = Vector3.TransformCoordinates(eye, deck.inverse);
     for (const [key, part] of Object.entries(deck.parts)) {
@@ -181,6 +193,7 @@ export default class BuildingSystem {
       const p = Vector3.TransformCoordinates(new Vector3(x, 0, z), deck.inverse);
       const feet = feetY - deck.top;
       for (const block of deck.blocks) {
+        if (block.door && block.door.goal > 0) continue;
         if (feet + BLOCK_FEET_CLEAR >= block.top || feet + BLOCK_BODY_HEIGHT <= block.bottom) continue;
         const along = block.alongX ? p.x : p.z;
         const across = Math.abs((block.alongX ? p.z : p.x) - block.at);
@@ -356,6 +369,7 @@ export default class BuildingSystem {
       sheets: [],
       walk: [],
       blocks: [],
+      doorList: [],
     };
     plan.groundAt = (x, z) => {
       const point = Vector3.TransformCoordinates(new Vector3(x, 0, z), world);
@@ -387,6 +401,7 @@ export default class BuildingSystem {
       this.addMesh(plan, `logEnds_${suffix}`, buffers.ends, endMat, key);
     }
     for (const sheet of plan.sheets) this.addMesh(plan, sheet.suffix, sheet.buffer, sheet.material);
+    this.finishDoors(plan, plankMat);
 
     const deck = {
       name,
@@ -449,4 +464,4 @@ export default class BuildingSystem {
   }
 }
 
-Object.assign(BuildingSystem.prototype, buildingFloorParts, buildingWallsParts, buildingUpperParts, buildingRoofParts, buildingPorchParts, buildingPropsParts, buildingGrowthParts);
+Object.assign(BuildingSystem.prototype, buildingFloorParts, buildingWallsParts, buildingUpperParts, buildingRoofParts, buildingPorchParts, buildingPropsParts, buildingGrowthParts, buildingDoorsParts);
