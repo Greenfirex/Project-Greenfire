@@ -1,12 +1,12 @@
-// Oheň na pochodni v ruce — částečky plamene ze špičky pochodně a oranžové světlo, které bliká.
-// Ve dne jen slabounce přisvětluje, v noci svítí naplno; bez pochodně v ruce oheň zhasne a světlo
-// jen ztlumí na nulu, protože přidání nebo odebrání světla nutí celý svět přepočítat materiály.
+// Oheň na pochodni v ruce — částečky plamene ze špičky pochodně a blikající oranžový zdroj světla (skutečné světlo
+// přidělí systém světel ohně). Ve dne jen slabounce přisvětluje, v noci, v jeskyni a ve stavbě svítí naplno;
+// bez pochodně v ruce zhasne.
 import '@babylonjs/core/Particles/webgl2ParticleSystem';
-import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { fireParticleTexture, fireLayer } from './fireParticles.js';
+import { createFlicker, stepFlicker } from '../utils/flicker.js';
 
 const FLAME_SPOT = new Vector3(0, 0.78, 0);
 const FLAME_GRAVITY = new Vector3(0, 0.35, 0);
@@ -32,7 +32,8 @@ const TONGUE = {
   drift: 0.08,
   colors: [[1, 0.85, 0.35], [1, 0.52, 0.1], [0.5, 0.14, 0.03]],
 };
-const FLICKER_INTERVAL = 0.09;
+const FLICKER_INTERVAL = 0.12;
+const FLICKER_RANGE = [0.8, 1.1];
 const LIGHT_COLOR = new Color3(1, 0.6, 0.25);
 const LIGHT_DAY = 0.24;
 const LIGHT_NIGHT = 1.8;
@@ -55,17 +56,10 @@ export default class TorchFire {
       startedLayer(scene, 'torchFireCore', this.emitter, this.texture, CORE),
       startedLayer(scene, 'torchFireTongue', this.emitter, this.texture, TONGUE),
     ];
-    this.light = new PointLight('torchLight', new Vector3(0, LIGHT_OFFSET_Y, 0), scene);
-    this.light.diffuse = LIGHT_COLOR;
-    this.light.specular = Color3.Black();
-    this.light.radius = 0.05;
-    this.light.intensity = 0;
-    this.light.range = LIGHT_RANGE;
-    this.light.parent = this.emitter;
-    this.flickerTimer = FLICKER_INTERVAL;
-    this.flicker = 1;
+    this.source = { x: 0, y: 0, z: 0, intensity: 0, color: LIGHT_COLOR, range: LIGHT_RANGE, shadow: 'none', level: null, refresh: 0, dirty: false, own: null };
+    this.flicker = createFlicker(FLICKER_RANGE[0], FLICKER_RANGE[1], FLICKER_INTERVAL);
     this.dayness = 1;
-    this.underground = false;
+    this.indoors = false;
     this.visible = false;
     this.detach();
   }
@@ -83,33 +77,31 @@ export default class TorchFire {
     for (const system of this.layers) system.stop();
     this.emitter.parent = null;
     this.emitter.position = Vector3.Zero();
-    this.light.intensity = 0;
+    this.source.intensity = 0;
   }
 
   setDayness(value) {
     this.dayness = Math.max(0, Math.min(1, value));
   }
 
-  setUnderground(on) {
-    this.underground = Boolean(on);
+  setIndoors(on) {
+    this.indoors = Boolean(on);
   }
 
   update(dt) {
     if (!this.visible) return;
-    if (this.flickerTimer >= FLICKER_INTERVAL) {
-      this.flickerTimer = 0;
-      this.flicker = 0.7 + Math.random() * 0.45;
-    } else {
-      this.flickerTimer += dt;
-    }
-    const dayness = this.underground ? 0 : this.dayness;
+    const flicker = stepFlicker(this.flicker, dt);
+    const dayness = this.indoors ? 0 : this.dayness;
     const strength = LIGHT_DAY + (LIGHT_NIGHT - LIGHT_DAY) * (1 - dayness);
-    this.light.intensity = strength * this.flicker;
+    const at = this.emitter.getAbsolutePosition();
+    this.source.x = at.x;
+    this.source.y = at.y + LIGHT_OFFSET_Y;
+    this.source.z = at.z;
+    this.source.intensity = strength * flicker;
   }
 
   dispose() {
     for (const system of this.layers) system.dispose();
-    this.light.dispose();
     this.texture.dispose();
     this.emitter.dispose();
   }

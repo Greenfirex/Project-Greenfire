@@ -24,6 +24,8 @@ import buildingPropsParts from './buildingProps.js';
 import buildingRoofParts from './buildingRoof.js';
 import buildingGrowthParts from './buildingGrowth.js';
 import buildingDoorsParts from './buildingDoors.js';
+import buildingFurnitureParts from './buildingFurniture.js';
+import buildingLampsParts from './buildingLamps.js';
 
 const GROUND_SAMPLE = 0.5;
 const GROUND_INSET = 0.3;
@@ -46,8 +48,13 @@ export default class BuildingSystem {
     this.grass = [];
     this.decks = [];
     this.doors = [];
+    this.stations = [];
+    this.lamps = [];
     this.openDoors = new Set();
-    this.hoverDoor = null;
+    this.litLamps = new Set();
+    this.dayness = 1;
+    this.onLightSource = null;
+    this.hovered = null;
     this.doorShutLead = 0;
     this.onDoorShut = null;
     this.materials = new Map();
@@ -64,7 +71,9 @@ export default class BuildingSystem {
     this.grass = [];
     this.decks = [];
     this.doors = [];
-    this.hoverDoor = null;
+    this.stations = [];
+    this.dropLamps();
+    this.hovered = null;
     this.floorKeys.clear();
   }
 
@@ -193,9 +202,10 @@ export default class BuildingSystem {
       const p = Vector3.TransformCoordinates(new Vector3(x, 0, z), deck.inverse);
       const feet = feetY - deck.top;
       for (const block of deck.blocks) {
-        if (block.door && block.door.goal > 0) continue;
+        if (block.door && block.door.kind === 'hinge' && block.door.goal > 0) continue;
         if (feet + BLOCK_FEET_CLEAR >= block.top || feet + BLOCK_BODY_HEIGHT <= block.bottom) continue;
-        const along = block.alongX ? p.x : p.z;
+        const shift = block.door ? this.doorShift(block.door) : 0;
+        const along = (block.alongX ? p.x : p.z) - shift;
         const across = Math.abs((block.alongX ? p.z : p.x) - block.at);
         const past = Math.max(0, block.from - along, along - block.to);
         const gap = Math.hypot(past, Math.max(0, across - block.half));
@@ -251,6 +261,14 @@ export default class BuildingSystem {
       material.bumpTexture = bump;
     }
     material.specularColor = new Color3(0.03, 0.03, 0.03);
+    this.materials.set(name, material);
+    return material;
+  }
+
+  paintMaterial(name) {
+    if (this.materials.has(name)) return this.materials.get(name);
+    const material = new StandardMaterial(name, this.s);
+    material.specularColor = new Color3(0.04, 0.04, 0.04);
     this.materials.set(name, material);
     return material;
   }
@@ -370,6 +388,7 @@ export default class BuildingSystem {
       walk: [],
       blocks: [],
       doorList: [],
+      stationList: [],
     };
     plan.groundAt = (x, z) => {
       const point = Vector3.TransformCoordinates(new Vector3(x, 0, z), world);
@@ -389,6 +408,7 @@ export default class BuildingSystem {
       this.useLayer(plan, 'lower');
     }
     if (def.props) this.buildProps(plan, def.props);
+    if (def.furniture) this.buildFurniture(plan, def.furniture);
     if (def.growth) this.overgrow(plan, def.growth);
 
     const plankMat = this.woodMaterial(`buildingPlankMat_${entry.key}`, def.floor.texture, null);
@@ -400,8 +420,9 @@ export default class BuildingSystem {
       this.addMesh(plan, `logs_${suffix}`, buffers.logs, logMat, key);
       this.addMesh(plan, `logEnds_${suffix}`, buffers.ends, endMat, key);
     }
-    for (const sheet of plan.sheets) this.addMesh(plan, sheet.suffix, sheet.buffer, sheet.material);
-    this.finishDoors(plan, plankMat);
+    for (const sheet of plan.sheets) this.addMesh(plan, sheet.suffix, sheet.buffer, sheet.material, sheet.part || 'lower');
+    this.finishDoors(plan, { planks: plankMat, paint: this.paintMaterial(`buildingPaintMat_${entry.key}`) });
+    this.finishStations(plan, { planks: plankMat, paint: this.paintMaterial(`buildingPaintMat_${entry.key}`) });
 
     const deck = {
       name,
@@ -464,4 +485,4 @@ export default class BuildingSystem {
   }
 }
 
-Object.assign(BuildingSystem.prototype, buildingFloorParts, buildingWallsParts, buildingUpperParts, buildingRoofParts, buildingPorchParts, buildingPropsParts, buildingGrowthParts, buildingDoorsParts);
+Object.assign(BuildingSystem.prototype, buildingFloorParts, buildingWallsParts, buildingUpperParts, buildingRoofParts, buildingPorchParts, buildingPropsParts, buildingGrowthParts, buildingDoorsParts, buildingFurnitureParts, buildingLampsParts);

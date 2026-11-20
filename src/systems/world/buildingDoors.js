@@ -1,5 +1,6 @@
-// Část staveb: dveře v otvorech stěn — křídlo ze svislých prken se dvěma příčkami na pantu, otáčí se dovnitř.
-// Zavřené jsou pro postavu i tvory zeď; které dveře jsou otevřené, drží BuildingSystem (ukládá se).
+// Část staveb: dveře v otvorech stěn — křídlo ze svislých prken se dvěma příčkami na pantu, otáčí se dovnitř;
+// stejně se chová i posuvný kus nábytku (knihovna na páku). Zavřené jsou pro postavu i tvory zeď;
+// které dveře jsou otevřené, drží BuildingSystem (ukládá se).
 // Patří k BuildingSystem (sdílí jeho this).
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -65,7 +66,7 @@ export default {
     hinge.parent = plan.root;
     hinge.position.copyFrom(local(hingeEnd < 0 ? from : to, bottom, across));
     const middle = Vector3.TransformCoordinates(local(opening.at, bottom, run.at), plan.world);
-    const door = { id, hinge, yaw, sign, style, buffer, part: plan.layer, mesh: null, open: 0, goal: 0, x: middle.x, y: middle.y, z: middle.z };
+    const door = { id, kind: 'hinge', node: hinge, yaw, sign, style, pieces: [{ buffer, material: 'planks', handle: true }], part: plan.layer, mesh: null, open: 0, goal: 0, x: middle.x, y: middle.y, z: middle.z };
     plan.doorList.push(door);
     plan.blocks.push({
       alongX: run.alongX,
@@ -79,17 +80,20 @@ export default {
     });
   },
 
-  finishDoors(plan, material) {
+  finishDoors(plan, materials) {
     for (const door of plan.doorList) {
-      const mesh = meshFromBuffer(`${door.hinge.name}_leaf`, door.buffer, this.s);
-      door.buffer = null;
-      if (!mesh) continue;
-      mesh.parent = door.hinge;
-      mesh.material = material;
-      this.addPartMesh(plan, mesh, door.part, true);
-      mesh.isPickable = true;
-      mesh.metadata.door = door;
-      door.mesh = mesh;
+      for (const [index, piece] of door.pieces.entries()) {
+        const mesh = meshFromBuffer(`${door.node.name}_${index}`, piece.buffer, this.s);
+        if (!mesh) continue;
+        mesh.parent = door.node;
+        mesh.material = materials[piece.material];
+        this.addPartMesh(plan, mesh, door.part, true);
+        mesh.isPickable = Boolean(piece.handle);
+        if (!piece.handle) continue;
+        mesh.metadata.door = door;
+        door.mesh = mesh;
+      }
+      door.pieces = null;
       door.goal = this.openDoors.has(door.id) ? 1 : 0;
       door.open = door.goal;
       this.poseDoor(door);
@@ -98,33 +102,42 @@ export default {
   },
 
   poseDoor(door) {
-    door.hinge.rotation.y = door.yaw - door.sign * door.style.swing * ease(door.open);
+    if (door.kind === 'slide') door.node.position.copyFrom(door.home.add(door.axis.scale(this.doorShift(door))));
+    else door.node.rotation.y = door.yaw - door.sign * door.style.swing * ease(door.open);
+  },
+
+  doorShift(door) {
+    return door.kind === 'slide' ? door.slide * ease(door.open) : 0;
   },
 
   doorAt(pointerX, pointerY, point) {
-    const hit = this.doors.length ? this.s.pick(pointerX, pointerY, (mesh) => Boolean(mesh.metadata && mesh.metadata.door) && mesh.isEnabled()) : null;
-    if (hit && hit.hit && hit.pickedMesh) return hit.pickedMesh.metadata.door;
+    return this.pickInteractive(this.doors, 'door', pointerX, pointerY, point);
+  },
+
+  pickInteractive(list, key, pointerX, pointerY, point) {
+    const hit = list.length ? this.s.pick(pointerX, pointerY, (mesh) => Boolean(mesh.metadata && mesh.metadata[key]) && mesh.isEnabled()) : null;
+    if (hit && hit.hit && hit.pickedMesh) return hit.pickedMesh.metadata[key];
     if (!point) return null;
     let best = null;
     let bestGap = DOOR_PICK_RADIUS;
-    for (const door of this.doors) {
-      if (Math.abs(point.y - door.y) > DOOR_PICK_HEIGHT) continue;
-      const gap = Math.hypot(point.x - door.x, point.z - door.z);
+    for (const thing of list) {
+      if (thing.secret || Math.abs(point.y - thing.y) > DOOR_PICK_HEIGHT) continue;
+      const gap = Math.hypot(point.x - thing.x, point.z - thing.z);
       if (gap > bestGap) continue;
-      best = door;
+      best = thing;
       bestGap = gap;
     }
     return best;
   },
 
-  doorInReach(door, position) {
-    return Boolean(door && position)
-      && Math.hypot(position.x - door.x, position.z - door.z) <= DOOR_REACH
-      && Math.abs(position.y - door.y) <= DOOR_REACH_HEIGHT;
+  inReach(thing, position) {
+    return Boolean(thing && position)
+      && Math.hypot(position.x - thing.x, position.z - thing.z) <= DOOR_REACH
+      && Math.abs(position.y - thing.y) <= DOOR_REACH_HEIGHT;
   },
 
-  doorLabel(door) {
-    return door.style.label;
+  doorHint(door) {
+    return door.goal > 0 ? door.style.closeHint : door.style.openHint;
   },
 
   toggleDoor(door) {
@@ -136,13 +149,22 @@ export default {
     return door.goal > 0;
   },
 
-  setDoorHover(door) {
-    this.hoverDoor = door || null;
+  setHover(thing) {
+    this.hovered = thing || null;
   },
 
-  updateDoors(dt) {
+  updateInteractive(dt) {
+    this.updateLamps(dt);
     this.doorTime = (this.doorTime || 0) + dt;
     const pulse = 0.5 + 0.5 * Math.sin(this.doorTime * OUTLINE_PULSE_SPEED);
+    for (const thing of [...this.doors, ...this.stations]) {
+      if (!thing.mesh) continue;
+      const lit = thing === this.hovered;
+      thing.mesh.renderOutline = lit;
+      if (!lit) continue;
+      thing.mesh.outlineColor = OUTLINE_GOLD;
+      thing.mesh.outlineWidth = DOOR_OUTLINE + OUTLINE_PULSE * pulse;
+    }
     for (const door of this.doors) {
       if (door.open !== door.goal) {
         const step = Math.max(0, dt) / door.style.seconds;
@@ -153,25 +175,20 @@ export default {
           if (this.onDoorShut) this.onDoorShut(door);
         }
       }
-      if (!door.mesh) continue;
-      const lit = door === this.hoverDoor;
-      door.mesh.renderOutline = lit;
-      if (!lit) continue;
-      door.mesh.outlineColor = OUTLINE_GOLD;
-      door.mesh.outlineWidth = DOOR_OUTLINE + OUTLINE_PULSE * pulse;
     }
   },
 
   serialize() {
-    return { open: [...this.openDoors] };
+    return { open: [...this.openDoors], lit: [...this.litLamps] };
   },
 
   defaultState() {
-    return { open: [] };
+    return { open: [], lit: [] };
   },
 
   apply(data) {
     const list = data && Array.isArray(data.open) ? data.open.filter((id) => typeof id === 'string') : [];
+    this.applyLamps(data && Array.isArray(data.lit) ? data.lit.filter((id) => typeof id === 'string') : []);
     this.openDoors = new Set(list);
     for (const door of this.doors) {
       door.goal = this.openDoors.has(door.id) ? 1 : 0;

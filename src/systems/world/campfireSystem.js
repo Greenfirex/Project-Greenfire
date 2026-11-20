@@ -1,5 +1,5 @@
 // Táboráky ve světě — kde stojí, jestli hoří, a co udělá zapálení.
-// Drží jen seznam ohňů; kdo klikne a kde stojí hráč, mu hlásí scéna.
+// Drží jen seznam ohňů; kdo klikne a kde stojí hráč, mu hlásí scéna. Zdroj světla každého ohně ohlásí scéně.
 import { cellKey, cellToWorldCoords } from '../../utils/gridMath.js';
 import CampfireFire from '../../effects/campfireFire.js';
 import { levelOfEntry } from '../../data/maps/areaShape.js';
@@ -25,12 +25,7 @@ export default class CampfireSystem {
     this.pendingSparks = false;
     this.onIgniteStart = null;
     this.igniteBusy = null;
-    this.terrain = [];
-  }
-
-  setTerrain(surfaces) {
-    this.terrain = surfaces;
-    for (const item of this.fires) item.fire.setTerrain(surfaces);
+    this.onLightSource = null;
   }
 
   add(entry, def, surfaceY) {
@@ -49,8 +44,9 @@ export default class CampfireSystem {
     const fire = new CampfireFire(this.s);
     fire.setScale(cfg.size);
     fire.place(x, surfaceY + cfg.y, z);
-    fire.setTerrain(this.terrain);
     const level = levelOfEntry(entry);
+    fire.source.level = level;
+    if (this.onLightSource) this.onLightSource(fire.source, true);
     fire.setDayness(level < 0 ? 0 : this.dayness);
     this.fires.push({ entry, cx: entry.cx, cz: entry.cz, level, x, y: surfaceY, z, fire, lift: cfg.y, lit: false });
   }
@@ -72,7 +68,7 @@ export default class CampfireSystem {
     const alive = this.fires.filter((item) => entries.some((entry) => sameEntry(item, entry)));
     for (const item of this.fires) {
       if (alive.includes(item)) continue;
-      item.fire.dispose();
+      this.dropFire(item);
     }
     this.fires = alive;
     for (const item of alive) {
@@ -189,8 +185,13 @@ export default class CampfireSystem {
     }
   }
 
+  dropFire(item) {
+    if (this.onLightSource) this.onLightSource(item.fire.source, false);
+    item.fire.dispose();
+  }
+
   dispose() {
-    for (const item of this.fires) item.fire.dispose();
+    for (const item of this.fires) this.dropFire(item);
     this.fires = [];
     this.nearest = null;
     this.pending = null;

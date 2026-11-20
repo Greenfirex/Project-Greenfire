@@ -254,6 +254,7 @@ export default class PlayerSystem {
     this.keysBound = false;
     this.toolNode = null;
     this.torchFire = null;
+    this.onLightSource = null;
     this.swingTrail = null;
     this.handSlot = null;
     this.headSlot = null;
@@ -633,7 +634,10 @@ export default class PlayerSystem {
   }
 
   torchFireFor() {
-    if (!this.torchFire) this.torchFire = new TorchFire(this.s);
+    if (!this.torchFire) {
+      this.torchFire = new TorchFire(this.s);
+      if (this.onLightSource) this.onLightSource(this.torchFire.source, true);
+    }
     return this.torchFire;
   }
 

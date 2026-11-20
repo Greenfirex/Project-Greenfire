@@ -158,8 +158,8 @@ const AMBIENT_FADE_SECONDS = 2;
 const AMBIENT_LEVEL = 0.25;
 const OUTDOOR_LAYERS = new Set(['forest_day', 'forest_night']);
 const OPEN_CUTOFF = 20000;
-const SHELTER_CUTOFF = 700;
-const SHELTER_LEVEL = 0.55;
+const SHELTER_CUTOFF = 1600;
+const SHELTER_LEVEL = 0.75;
 const SHELTER_SMOOTHING = 0.25;
 
 const FIRE_LOOP = 'fire/campfire_loop';

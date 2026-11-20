@@ -27,6 +27,7 @@ import LootSystem from '../systems/world/lootSystem.js';
 import EquipmentSystem from '../systems/player/equipmentSystem.js';
 import DayNightSystem from '../systems/atmosphere/dayNightSystem.js';
 import LightingSystem from '../systems/atmosphere/lightingSystem.js';
+import FireLightSystem from '../systems/atmosphere/fireLightSystem.js';
 import SimSystem from '../systems/core/simSystem.js';
 import NavigationSystem, { WADE_DEPTH } from '../systems/core/navigationSystem.js';
 import InputSystem from '../systems/core/inputSystem.js';
@@ -182,6 +183,7 @@ export default class GameScene {
     this.decoHighlight.levelOf = () => this.gatherSystem.levelOf();
     this.dayNightSystem = new DayNightSystem(scene);
     this.lighting = new LightingSystem(scene);
+    this.fireLights = new FireLightSystem(scene);
     this.simSystem = new SimSystem(scene);
     this.navigation = new NavigationSystem(scene);
     this.navigation.layoutOf = () => this.decoSystem.layout || this.terrainSystem.layout || null;
@@ -194,6 +196,11 @@ export default class GameScene {
     this.navigation.topAt = (cx, cz) => this.decoSystem.topAt(cx, cz);
     this.inputSystem = new InputSystem(scene, this);
     this.playerSystem = new PlayerSystem(scene);
+    const fireSource = (source, on) => (on ? this.fireLights.add(source) : this.fireLights.remove(source));
+    this.campfireSystem.onLightSource = fireSource;
+    this.buildingSystem.onLightSource = fireSource;
+    this.playerSystem.onLightSource = fireSource;
+    this.fireLights.castersNear = (source) => this.fireCastersNear(source);
     this.playerStats = new PlayerStatsSystem();
     this.playerAttackSystem = new PlayerAttackSystem();
     this.playerAttackSystem.groundHeightAt = (x, z, level) => this.terrainSystem.walkHeightAt(x, z, Number.isFinite(level) ? level : this.playerSystem.level);
@@ -381,6 +388,7 @@ export default class GameScene {
       this.portraitSystem.update(this.playerSystem.root, this.playerSystem.anims.idle, this.playerSystem.handSlot);
       this.updateReveal(dt);
       this.updateBuildingInside(dt);
+      this.fireLights.update(dt, this.fireFocus());
       this.setDecorShaping(this.editor.shapesTerrain());
       if (this.paused || this.decorShaping) {
         if (this.editor.active) {
@@ -418,7 +426,7 @@ export default class GameScene {
       const root = this.playerSystem.root;
       this.campfireSystem.update(dt, root, this.playerSystem.level);
       this.lootSystem.update(dt, root, this.playerSystem.level);
-      this.buildingSystem.updateDoors(dt);
+      this.buildingSystem.updateInteractive(dt);
       this.waterSystem.update(dt);
       this.updateWaveSpray();
       this.fishSystem.update(dt);
@@ -635,7 +643,7 @@ export default class GameScene {
   }
 
   hintTarget(cell) {
-    for (const id of ['gather', 'loot', 'door', 'campfire']) {
+    for (const id of ['gather', 'loot', 'door', 'station', 'campfire']) {
       const target = this.interaction.targetOf(id, { cell });
       if (target) return target;
     }
@@ -677,7 +685,7 @@ export default class GameScene {
   }
 
   setHoverHint(target) {
-    this.buildingSystem.setDoorHover(target && target.id === 'door' && !this.editor.active ? target.ref : null);
+    this.buildingSystem.setHover(target && (target.id === 'door' || target.id === 'station') && !this.editor.active ? target.ref : null);
     if (!target || !target.inReach || this.editor.active || this.dying) {
       this.hoverHint.hide();
       return;
@@ -788,11 +796,25 @@ export default class GameScene {
         if (!root || this.playerSystem.level !== 0) return null;
         const door = this.buildingSystem.doorAt(this.s.pointerX, this.s.pointerY, cell ? cell.point : null);
         if (!door) return null;
-        const verb = door.goal > 0 ? 'zavřít' : 'otevřít';
-        return { ref: door, detail: `Levé tlačítko — ${verb} ${this.buildingSystem.doorLabel(door)}`, inReach: this.buildingSystem.doorInReach(door, root.position) };
+        return { ref: door, detail: `Levé tlačítko — ${this.buildingSystem.doorHint(door)}`, inReach: this.buildingSystem.inReach(door, root.position) };
       },
       act: (target) => {
         if (this.buildingSystem.toggleDoor(target.ref)) this.audioSystem.play('doorOpen');
+        return true;
+      },
+    });
+    this.interaction.register('station', {
+      priority: 43,
+      pick: ({ cell }) => {
+        const root = this.playerSystem.root;
+        if (!root || this.playerSystem.level !== 0) return null;
+        const station = this.buildingSystem.stationAt(this.s.pointerX, this.s.pointerY, cell ? cell.point : null);
+        if (!station) return null;
+        return { ref: station, detail: `Levé tlačítko — ${this.buildingSystem.stationHint(station)}`, inReach: this.buildingSystem.inReach(station, root.position) };
+      },
+      act: (target) => {
+        if (target.ref.use.kind === 'crafting' && !this.craftingWindow.open) this.toggleCraftingWindow();
+        if (target.ref.use.kind === 'lamp' && this.buildingSystem.toggleLamp(target.ref)) this.audioSystem.play('ignite');
         return true;
       },
     });
@@ -991,7 +1013,7 @@ export default class GameScene {
     if (!this.terrainSystem) return;
     this.caveDressSystem.create(this.terrainSystem.caveWallFaces(), (style, mossy, source) => this.terrainSystem.caveDressMaterial(style, source));
     this.sightSystem.setBlockers(this.terrainSystem.liveSurfaces());
-    this.campfireSystem.setTerrain(this.terrainSystem.liveSurfaces());
+    this.fireLights.refreshCasters();
     this.revealSystem.setLightMap(this.terrainSystem.caveLightMap());
     this.caveFrameSystem.create(this.caveDoorsAround(), (style, source) => this.terrainSystem.caveFrameMaterial(style, source));
     for (const mesh of this.caveFrameSystem.meshes()) this.addShadowCaster(mesh);
@@ -1186,6 +1208,7 @@ export default class GameScene {
     this.waterSystem.setDayness(value);
     this.waterSystem.setSkyTint(this.skySystem.tint());
     if (this.playerSystem.torchFire) this.playerSystem.torchFire.setDayness(value);
+    this.buildingSystem.setDayness(value);
     this.campfireSystem.setDayness(value);
     this.updateIndoor(dt);
   }
@@ -1203,7 +1226,7 @@ export default class GameScene {
     this.sheltered = (this.sheltered || 0) + (sheltered - (this.sheltered || 0)) * step;
     if (Math.abs(sheltered - this.sheltered) < 0.001) this.sheltered = sheltered;
     this.audioSystem.setSheltered(this.sheltered);
-    if (this.playerSystem && this.playerSystem.torchFire) this.playerSystem.torchFire.setUnderground(level < 0);
+    if (this.playerSystem && this.playerSystem.torchFire) this.playerSystem.torchFire.setIndoors(level < 0 || this.sheltered > 0.5);
   }
 
   updateReveal(dt) {
@@ -1236,6 +1259,26 @@ export default class GameScene {
     this.revealSystem.setPeek(dt, peeking ? root.position : null, this.camera ? this.camera.globalPosition : null);
     this.revealSystem.update(dt, under, root ? root.position : null, this.camera, view);
     this.terrainSystem.showCaveRing(this.revealSystem.isOpen());
+  }
+
+  fireFocus() {
+    const root = this.playerSystem ? this.playerSystem.root : null;
+    if (root && !this.editor.active) return { x: root.position.x, y: root.position.y, z: root.position.z, level: this.playerSystem.level };
+    const target = this.camera ? this.camera.target : null;
+    if (!target) return null;
+    return { x: target.x, y: target.y, z: target.z, level: this.editor.active ? this.editor.mode.floorLevel || 0 : 0 };
+  }
+
+  fireCastersNear(source) {
+    const at = new Vector3(source.x, source.y, source.z);
+    const near = (mesh) => {
+      mesh.computeWorldMatrix(true);
+      const { centerWorld, radiusWorld } = mesh.getBoundingInfo().boundingSphere;
+      return Vector3.Distance(centerWorld, at) <= source.range + radiusWorld;
+    };
+    const rock = this.terrainSystem.liveSurfaces().filter((mesh) => mesh.metadata && mesh.metadata.volume && near(mesh));
+    const building = this.buildingSystem.meshes.filter((mesh) => !mesh.isDisposed() && near(mesh));
+    return [...rock, ...building];
   }
 
   updateBuildingInside(dt) {

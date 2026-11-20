@@ -283,10 +283,23 @@ by zmizela i zem za prahem, která je jen o kousek výš než podlaha jeskyně. 
 vidět, řeší dohled postavy (níž); bez dohledu (editor pater) zůstává
 jen osvětlené okolí vchodu podle mapy `caveLightMap` a tma od 8–14 m.
 
-Táborák má vlastní stín do všech stran (`campfireFire.js`). Stín vrhají jen boky,
-stěny a stropy (`metadata.volume`), ploché podlahy ne, jinak by se pod ostrým úhlem
-kreslily pruhy. Stín se překresluje jednou za 1,5 s, ne každý snímek. Terén mimo
-dosah je z ohně vyloučený. Materiály země jsou blízko limitu 16 textur, proto je
+**Světla ohně** (`atmosphere/fireLightSystem.js`): pochodeň, táboráky i lucerny jsou jen zdroje (`source`:
+poloha, barva, síla, dosah, `shadow` none/prefer/need, patro, `refresh`, `dirty`, vlastní meshe `own`);
+skutečná světla jsou dvě a každý snímek (`GameScene.fireFocus` = postava, v editoru střed kamery) dostanou
+nejbližší hořící zdroje v dosahu a ve stejném patře: první se stínem (nejbližší táborák nebo lucerna), druhé
+bez stínu (pochodeň, jinak další táborák; lucerna bez stínu ne, svítila by skrz stěny). Přechod mezi zdroji
+je plynulý (0,25 s). Obloha + slunce + 2 = 4 světla = výchozí strop materiálu, takže nic nevypadne a zdrojů
+může být libovolně. Přidat nebo ubrat světlo by přepočítalo všechny materiály, proto světla existují
+pořád a zdroje jen mění sílu. Stín (krychlová mapa 512) vrhají boky, stěny a stropy terénu (`metadata.volume`,
+ploché podlahy ne, jinak pruhy pod ostrým úhlem) a díly staveb v dosahu (`GameScene.fireCastersNear`, bez `own`);
+při jeho kreslení se na okamžik zapnou i schované díly staveb. Překreslí se při přeskoku na jiný zdroj,
+u táboráku jednou za 1,5 s (`refresh`) a když zdroj hlásí `dirty` (lucerna při pohybu dveří).
+Zdroje ohlásí vlastníci přes `onLightSource` (táboráky, stavba, postava při první pochodni).
+Pochodeň svítí ve dne slabě, v noci naplno; v jeskyni a uvnitř stavby (`torchFire.setIndoors`, z `GameScene.updateIndoor`)
+naplno i ve dne, aby uvnitř dosvítila stíny od lucerny.
+Blikání všech tří zdrojů je plynulé (`utils/flicker.js`: síla se přelévá k náhodné hodnotě, ne skokem), jinak se
+pochodeň a lucerna přes sebe trhaně přeblikávaly. Zdroj může mít `darkness` (jak moc stín propouští, 0 = černý):
+lucerna 0,5 (`shadowDarkness` ve stylu) jako odraz od dřevěných stěn, táborák venku 0. Materiály země jsou blízko limitu 16 textur, proto je
 Půda jen z jedné textury a další textura na zemi se musí pohlídat. Nejhorší
 materiál země dnes používá 15 textur (včetně mapy dohledu).
 
@@ -978,8 +991,8 @@ Liany ze staveb mají skupinu `jméno stavby:část` a `cliffVineSystem.hideGrou
 část nebo vrstva zmizí z víc než poloviny; liany z vršku stěny patří k její horní půlce.
 **Zvuk uvnitř:** stejné „uvnitř“ (`buildingSystem.storeyInside`, `shelterAt`) ztlumí venek: `GameScene.updateIndoor`
 plynule nastaví `audioSystem.setSheltered`. Venkovní zvuky (smyčky lesa ve dne a v noci, voda, hlasy zvířat
-kromě jeskyně) jdou přes společnou cestu `outdoor` → dolní propust; v úkrytu klesne na 55 % hlasitosti a
-řez na 700 Hz (`SHELTER_LEVEL`, `SHELTER_CUTOFF`). Jeskyně má dál vlastní přepnutí na jeskynní smyčku (`setIndoor`).
+kromě jeskyně) jdou přes společnou cestu `outdoor` → dolní propust; v úkrytu klesne na 75 % hlasitosti a
+řez na 1 600 Hz (`SHELTER_LEVEL`, `SHELTER_CUTOFF`). Jeskyně má dál vlastní přepnutí na jeskynní smyčku (`setIndoor`).
 Zvuky stavby (`audio/building/`): dveře mají vlastní otevření a zavření; každý krok po dřevě má šanci 16 %
 na vrzání prkna (`stepWood` → `with: plankCreak`); uvnitř občas zavrzají trámy (hlas prostředí `when: shelter`,
 netlumí se). Hlasy prostředí (`LIFE_CALLS`) mají `when` den, noc, jeskyně, úkryt nebo seznam; `sea` = jen u moře
@@ -1068,6 +1081,26 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    Tvor a zavřené dveře: když je mezi tvorem a postavou zeď (`walledOff`), ověří si cestu i ve stejné výšce
    (`canGetTo`). Bez cesty je zmatený (otazníky, `giveUpConfused`), vzdá to na 12 s navíc (`WALLED_GIVE_UP_SECONDS`)
    a jde domů; když se dveře otevřou, cesta se najde a honička pokračuje. Později možná obléhání nebo vyražení dveří.
+   **Nábytek** (hotovo jako pokus, `buildingFurniture.js`, data `furniture` v katalogu: `styles` vzhled podle druhu,
+   `items` druh, místo v neotočené stavbě, `yaw`, `on: 'upper'`, převržení `tilt` + `lift`): stůl, židle (jedna
+   převržená), ponk s nářadím, v místnosti v patře síťová houpací síť mezi stěnou a sloupkem
+   (síť má materiál sítě na stěně). Každý kus má vlastní náhodu, nábytek je překážka (`furnitureBlock`, obdélník
+   jako blok zdi; převržená židle ne).
+   **Pracovní místa:** kus nábytku s `use` (`{ kind, hint }`) má vlastní mesh (`finishStations`), pod myší zlatý obrys
+   (`stationAt`, společné `pickInteractive`, `inReach` a `updateInteractive` s dveřmi) a klik ho použije
+   (`GameScene`, interakce `station`). Ponk v severozápadním rohu podél zdi s knihovnou (mimo dráhu jejího
+   odsunutí) otevře okno výroby (`kind: crafting`).
+   **Lucerna** na stole (`kind: lamp`, tvar `furnitureLantern`, svícení `buildingLamps.js`): kovový rámeček, sklíčka,
+   svíčka a plamínek; klik ji rozsvítí/zhasne (zvuk zapálení). Sklíčka a plamínek mají vlastní materiály se září.
+   Světlo je zdroj pro **světla ohně** (viz výše) se stínem povinným (`shadow: 'need'`), takže nesvítí skrz stěny
+   a podlahu patra; při rozsvícení a pohybu dveří či knihovny hlásí `dirty`. Ve dne slabě, v noci naplno, lehce
+   bliká (`light` ve stylu).
+   Rozsvícené lucerny se ukládají spolu s dveřmi (`lit`, verze savu 11).
+   **Knihovna před tajným vchodem**: přihrádky (`rows` × `cols`), většina prázdných, v několika knihy, sklenice
+   a svitek (`decor`, barvy přes materiál bez textury `paintMaterial`). Je to posuvné „dveře“ (`kind: 'slide'`
+   v `buildingDoors.js`, `doorShift`): pod myší a na klik reaguje jen malá páka na boku (`secret` — bez hledání
+   podle bodu na zemi), knihovna odjede o `slide` podél stěny a odkryje otvor; zeď knihovny se posouvá s ní
+   (`wallGapAt`). Stav se ukládá stejně jako dveře.
 5. **Editor**: štětec Stavby — klik na roh, R otočí, guma smaže; zápis do historie (Zpět).
 
 **Otevřené otázky:** zvednutá podlaha (dnes jen o pár centimetrů, výš potřebuje výšku

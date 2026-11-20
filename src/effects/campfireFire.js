@@ -1,14 +1,12 @@
 // Oheň v táboráku — široký nízký plamen, který se po zapálení postupně rozhořívá.
-// Drží jen částice, světlo a míru rozhoření; kde táborák stojí, mu řekne scéna.
+// Drží částice a míru rozhoření a hlásí zdroj světla (skutečné světlo přidělí systém světel ohně);
+// kde táborák stojí, mu řekne scéna.
 import '@babylonjs/core/Particles/particleSystem';
-import { PointLight } from '@babylonjs/core/Lights/pointLight';
-import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
-import { RenderTargetTexture } from '@babylonjs/core/Materials/Textures/renderTargetTexture';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { bothSidesMaterial } from '../utils/bothSidesMaterial.js';
 import { fireParticleTexture, fireLayer } from './fireParticles.js';
+import { createFlicker, stepFlicker } from '../utils/flicker.js';
 
 const LIT_SECONDS = 7;
 const SPUTTER_SECONDS = 1.1;
@@ -18,11 +16,9 @@ const LIGHT_DAY = 0.9;
 const LIGHT_NIGHT = 4.0;
 const LIGHT_RANGE = 16;
 const LIGHT_OFFSET_Y = 0.75;
-const SHADOW_SIZE = 512;
-const SHADOW_BIAS = 0.006;
-const SHADOW_NEAR = 0.05;
 const SHADOW_REFRESH_SECONDS = 1.5;
-const FLICKER_INTERVAL = 0.12;
+const FLICKER_INTERVAL = 0.14;
+const FLICKER_RANGE = [0.78, 1.12];
 
 const CORE = {
   boxHeight: 0.03,
@@ -87,24 +83,9 @@ export default class CampfireFire {
     this.layers[2].minEmitPower = 1.1;
     this.layers[2].maxEmitPower = 1.9;
     this.igniteSparks = fireLayer(scene, 'campfireIgnite', this.emitter, this.texture, IGNITE, new Vector3(0, 0.8, 0));
-    this.light = new PointLight('campfireLight', new Vector3(0, LIGHT_OFFSET_Y, 0), scene);
-    this.light.diffuse = LIGHT_COLOR;
-    this.light.specular = Color3.Black();
-    this.light.radius = 0.05;
-    this.light.intensity = 0;
-    this.light.range = LIGHT_RANGE;
-    this.light.parent = this.emitter;
-    this.light.shadowMinZ = SHADOW_NEAR;
-    this.light.shadowMaxZ = LIGHT_RANGE;
-    this.shadows = new ShadowGenerator(SHADOW_SIZE, this.light);
-    this.shadows.usePoissonSampling = true;
-    this.shadows.bias = SHADOW_BIAS;
-    this.shadows.getShadowMap().refreshRate = RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
-    this.shadowTimer = 0;
-    this.terrain = [];
+    this.source = { x: 0, y: 0, z: 0, intensity: 0, color: LIGHT_COLOR, range: LIGHT_RANGE, shadow: 'prefer', level: 0, refresh: SHADOW_REFRESH_SECONDS, dirty: true, own: null };
     this.heat = 0;
-    this.flickerTimer = FLICKER_INTERVAL;
-    this.flicker = 1;
+    this.flicker = createFlicker(FLICKER_RANGE[0], FLICKER_RANGE[1], FLICKER_INTERVAL);
     this.dayness = 1;
     this.scale = 1;
     this.sputter = 0;
@@ -115,30 +96,10 @@ export default class CampfireFire {
     this.emitter.position = new Vector3(x, y, z);
     this.emitter.setEnabled(true);
     this.emit(false);
-    this.fitTerrain();
-  }
-
-  setTerrain(surfaces) {
-    this.terrain = surfaces;
-    this.fitTerrain();
-  }
-
-  fitTerrain() {
-    const fire = this.emitter.position;
-    const near = [];
-    const far = [];
-    for (const mesh of this.terrain) {
-      mesh.computeWorldMatrix(true);
-      const { centerWorld, radiusWorld } = mesh.getBoundingInfo().boundingSphere;
-      (Vector3.Distance(centerWorld, fire) <= LIGHT_RANGE + radiusWorld ? near : far).push(mesh);
-    }
-    this.light.excludedMeshes = far;
-    const map = this.shadows.getShadowMap();
-    const casters = near.filter((mesh) => mesh.metadata && mesh.metadata.volume);
-    const bothSides = bothSidesMaterial(this.s);
-    for (const mesh of casters) map.setMaterialForRendering(mesh, bothSides);
-    map.renderList = casters;
-    map.resetRefreshCounter();
+    this.source.x = x;
+    this.source.y = y + LIGHT_OFFSET_Y;
+    this.source.z = z;
+    this.source.dirty = true;
   }
 
   ignite() {
@@ -152,7 +113,7 @@ export default class CampfireFire {
     this.heat = 0;
     this.sputter = 0;
     this.emit(false);
-    this.light.intensity = 0;
+    this.source.intensity = 0;
   }
 
   emit(on) {
@@ -177,11 +138,6 @@ export default class CampfireFire {
 
   update(dt) {
     if (this.heat <= 0) return;
-    this.shadowTimer -= dt;
-    if (this.shadowTimer <= 0) {
-      this.shadowTimer = SHADOW_REFRESH_SECONDS;
-      this.shadows.getShadowMap().resetRefreshCounter();
-    }
     this.heat = Math.min(1, this.heat + dt / LIT_SECONDS);
     const size = (0.3 + this.heat * 0.7) * this.scale;
     const [core, tongue, sparks] = this.layers;
@@ -193,28 +149,20 @@ export default class CampfireFire {
     tongue.maxSize = TONGUE.size[1] * size;
     sparks.emitRate = SPARKS.rate * this.heat;
     if (this.igniteSparks.manualEmitCount > 0) this.igniteSparks.manualEmitCount = 0;
-    if (this.flickerTimer >= FLICKER_INTERVAL) {
-      this.flickerTimer = 0;
-      this.flicker = 0.75 + Math.random() * 0.4;
-    } else {
-      this.flickerTimer += dt;
-    }
     const base = LIGHT_DAY + (LIGHT_NIGHT - LIGHT_DAY) * (1 - this.dayness);
-    let intensity = base * this.heat * this.flicker;
+    let intensity = base * this.heat * stepFlicker(this.flicker, dt);
     if (this.sputter > 0) {
       this.sputter = Math.max(0, this.sputter - dt);
       const catchUp = 1 - this.sputter / SPUTTER_SECONDS;
       const blink = 0.35 + Math.random() * 0.45;
       intensity *= SPUTTER_LEVEL + (1 - SPUTTER_LEVEL) * Math.min(1, catchUp + blink * 0.35);
     }
-    this.light.intensity = intensity;
+    this.source.intensity = intensity;
   }
 
   dispose() {
     for (const system of this.layers) system.dispose();
     this.igniteSparks.dispose();
-    this.shadows.dispose();
-    this.light.dispose();
     this.texture.dispose();
     this.emitter.dispose();
     this.layers.length = 0;
