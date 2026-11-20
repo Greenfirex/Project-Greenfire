@@ -35,6 +35,8 @@ export default {
     const x1 = steps.x + steps.width / 2;
     const ground = plan.groundAt(steps.x, steps.edge + steps.dir * steps.reach);
     const count = Math.max(1, Math.round(Math.abs(top - ground) / steps.rise));
+    const clearTo = steps.edge + steps.dir * (count * steps.run + steps.reach);
+    plan.keepClear.push({ x0: x0 - 0.6, x1: x1 + 0.6, z0: Math.min(steps.edge, clearTo), z1: Math.max(steps.edge, clearTo) });
     for (let k = 1; k <= count; k++) {
       const y = top + ((ground - top) * k) / (count + 1);
       const near = steps.edge + steps.dir * (k - 1) * steps.run;

@@ -224,6 +224,7 @@ export default class PlayerSystem {
     this.groundHeightAt = null;
     this.wallRiseAt = null;
     this.cliffOverlapAt = null;
+    this.buildingGapAt = null;
     this.moveBlocked = null;
     this.spawnCell = null;
     this.walkableCells = null;
@@ -1732,6 +1733,11 @@ export default class PlayerSystem {
     if (this.blockedTest && this.blockedTest(cx, cz)) return false;
     if (this.walkable && !this.walkable(x, z, level)) return false;
     if (this.decoSystem && this.decoSystem.overlaps(x, z, BODY_RADIUS + BODY_MARGIN, level)) return false;
+    if (this.buildingGapAt && this.root) {
+      const { x: hereX, y: feet, z: hereZ } = this.root.position;
+      const gap = this.buildingGapAt(x, z, feet, level);
+      if (gap < BODY_RADIUS + BODY_MARGIN && gap < this.buildingGapAt(hereX, hereZ, feet, this.level)) return false;
+    }
     const passage = this.passageAt ? this.passageAt(x, z, level) : false;
     if (!passage && this.cliffOverlapAt && this.root) {
       const overlap = this.cliffOverlapAt(x, z, level);

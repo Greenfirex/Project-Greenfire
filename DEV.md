@@ -917,7 +917,18 @@ neprolézaly skálou). Vše se skládá do pár těles: prkna, klády, čela kl�
 **Chůze:** podlaha, terasa, patro i schody jsou obdélníky s výškou (`plan.walk`); `buildingSystem.walkHeightAt`
 dává nejvyšší z nich, na který se dá z výšky postavy vystoupit (`STEP_UP` 0,7 m), takže v přízemí
 postava zůstane dole a do patra se dostane jen po schodech. `GameScene.standHeightAt` to na povrchu
-(patro 0) použije pro postavu a klikání místo země, když je výš. Stěny zatím nezastaví (etapa 3).
+(patro 0) použije pro postavu a klikání místo země, když je výš.
+**Zdi:** stěny přízemí a místnosti v patře a zábradlí (`railRun`, jen když z něj zbyla aspoň jedna tyč)
+si při stavbě zapíšou úsečku s tloušťkou a výškovým pásmem (`plan.blocks`, `addBlock`). Stěna se dělí jen
+otvory od podlahy (`PASSABLE_BOTTOM` v `buildingWalls.js`), okna jsou zeď. `buildingSystem.wallGapAt`
+dá vzdálenost postavy k nejbližší zdi v jejím výškovém pásmu (nohy až výška postavy), takže v patře
+nezastaví stěny přízemí. Postava (`playerSystem.free`, `buildingGapAt`) nesmí vkročit blíž ke zdi, než
+je její poloměr, ledaže se tím od zdi vzdaluje (aby se nezasekla). Šikmé zábradlí schodů zeď nemá
+(ze schodů se stejně nesestoupí). Tvorové zdi zatím neznají.
+Na podlaze stavby (`GameScene.onBuildingDeck`) se nehlídá blízkost útesu (`cliffOverlap`) a převýšení
+terénu (`riseNear`) se měří od podlahy, ne od země pod ní — jinak by z pavlače nešlo na schůdky na útes.
+Místa, která mají zůstat volná (`plan.keepClear`, i konec schůdků na útesu), zná stavba i ve světě
+(`buildingSystem.keepsClear`); tráva na hraně útesu se tam nesází (`GameScene.shelfGrassAnchors`).
 **Patro** (`upper`, `buildingUpper.js`): na stěnách přízemí leží po obvodu věnec z klád překřížený
 v rozích (`walls.ringSeat` = jak hluboko sedí na horní kládě), aby mezi patry neprosvítalo přízemí;
 na něm trámy a pevná podlaha přes celý půdorys — spodní vrstva prken napříč (`upper.subfloor`)
@@ -979,13 +990,18 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    kreslené v kódu (`utils/logEndTexture.js`). Klády jedné stavby jsou sloučené do
    dvou těles (pláště a čela).
    **Z Meshy jen vybavení**, kde na navazování nezáleží: dveře, okenice, stůl, sudy, síť.
-3. **Chůze dovnitř**: zeď na hraně buňky pro hráče i tvory (podobně jako rám vchodu
-   jeskyně, `navigationSystem.inDoorFrame`); stěny vrhají stín a zastaví dohled (`metadata.volume`).
+3. **Chůze dovnitř** po krocích:
+   1. Zdi zastaví postavu (hotovo jako pokus, viz **Zdi** výše).
+   2. Srub rozdělený na tři vrstvy (přízemí, patro, střecha); uvnitř plynule zmizí vše nad postavou
+      (v přízemí patro i střecha, v místnosti v patře jen střecha).
+   3. Stěny mezi kamerou a postavou se uvnitř seříznou v pasu: horní klády každé stěny zvlášť a schovají se.
+   4. Tvorové chodí po podlaze srubu ve správné výšce, zastaví je zdi a do přízemí jdou jen dveřmi
+      (hledání cesty o dveřích ví).
+   5. Tvorové po schodech a schůdcích z útesu do patra.
+   Později: stěny vrhají stín a zastaví dohled (`metadata.volume`).
 4. **Dveře**: otevření kliknutím jako truhla (`lootSystem` — pant kolem svislé osy místo víka);
-   zavřené blokují průchod. Stav dveří se ukládá do savu (registrace v `saveSystem`).
-5. **Pohled dovnitř**: když je hráč uvnitř, střecha zmizí (jako strop jeskyně) a stěny
-   na straně ke kameře se seříznou zhruba v pasu (řez jako u terénu v jeskyni).
-6. **Editor**: štětec Stavby — klik na roh, R otočí, guma smaže; zápis do historie (Zpět).
+   zavřené blokují průchod postavě i tvorům. Stav dveří se ukládá do savu (registrace v `saveSystem`).
+5. **Editor**: štětec Stavby — klik na roh, R otočí, guma smaže; zápis do historie (Zpět).
 
 **Otevřené otázky:** zvednutá podlaha (dnes jen o pár centimetrů, výš potřebuje výšku
 chůze ze stavby a schod u dveří); tráva a dekorace pod podlahou (dnes se neschovávají,

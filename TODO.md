@@ -2,8 +2,6 @@
 
 Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie patří do gitu.
 
-## CLAUDE KROKY NA PONDĚLÍ
-
 ### Odladit tvory přes patra (rozdělané, ve hře netestované)
 - [ ] Ověřit návrat domů přes průchody a to, že písečný ďábel a kajmanka se zastaví u vchodu z povrchu.
 - [ ] Doladit vnímání přes průchod (`FLOOR_LINK_RADIUS` 8 m v `navigationSystem.js`): viditelnost tvora a jeho reakce u průchodu.
@@ -16,8 +14,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Až bude bestiář hotový, vypnout ladicí odemčení všech statistik (`SHOW_ALL_STATS` v `bestiarySystem.js`).
 
 ### Život v jeskyni
-- [ ] Rozhodnout trávu v jeskyni (stébla se tam nepřidala).
-- [ ] Rozhodnout: zastavit pod stropem denní dobu? Co se v podzemí sbírá a jací tvorové tam žijí?
 - [ ] Ověřit v praxi pokládání předmětů a táboráku v patře, zapálení a znovunačtení savu.
 
 ### Editor
@@ -28,11 +24,9 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ### Úklid a dokumentace
 - [ ] Prověřit zbytky starého schovávání střechy (`roofMeshes` v `terrainSystem.js` a `GameScene.js`, dnes se ještě používají); smazat jen po souhlasu.
 - [ ] Zapsat patra, rentgen, chodby, rám vchodu a tvory přes patra do `DEV.md` a `src/editor/README.md`.
-- [ ] Zjistit příčinu občasného varování `glGetProgramiv: Program object expected` z `tools/checkConsole.cjs`.
 
 ### Až později
 - [ ] Vrátit ležení na začátku hry: `START_LYING` v `playerSystem.js` na `true`.
-- [ ] Při předělání mapy srovnat 8 vznášejících se předmětů ve sloupci x = −29 a smazat testovací chodbu a jeskyni −2, pokud nebudou potřeba.
 
 ## Postava
 
@@ -47,8 +41,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ## Editor
 
-- [ ] Doladit barvy a průhlednost značek živého a čekajícího tvora podle vizuálního testu.
-
 ## Voda
 
 - [ ] Doladit po novém vlnění: sytost barvy podle hloubky, síla nábřežní pěny a lesk slunce.
@@ -58,11 +50,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ### Zbraně a mířené rány (plán v `DEV.md`, sekce „Boj se zbraněmi — plán po etapách")
 
 - [ ] Etapa 3: vyzkoušet ve hře rozdělení rány mezi víc tvorů a sekundární ránu na pravé tlačítko, doladit čísla a animaci úderu klackem.
-- [ ] Etapa 4: vyzkoušet ve hře uhýbání kousnutí (červená výseč, délka nápřahu) a úskok; doladit čísla.
-- [ ] Úskok: dodat a zapojit animaci (dnes jen běh).
-- [ ] Později: sekyra a krumpáč jako slabé zbraně (zatím odloženo).
-- [ ] Šavle a kopí: ověřit ve hře velikost, úchop a polohu u boku (kopí visí šikmo dozadu hrotem dolů).
-- [ ] Kopí: vyzkoušet ve hře otočku dokola na pravé tlačítko (zásah, výdrž, prodleva).
 - [ ] Šavle: vlastní zvuk zásahu čepelí (dnes zvuk klacku).
 - [ ] Šavli a kopí z truhly u spawnu po testu odebrat nebo přesunout (dnes jsou ve všech truhlách).
 
@@ -71,7 +58,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Doladit množství kořisti podle stáří tvora a rozhodnout, jestli má část padat na zem.
 - [ ] Koa'tiki: stopy ze skutečných chodidel místo jedné šmouhy.
 - [ ] Koa'tiki: u jednoho ze tří tvorů se nepovedla kalibrace čelisti (v konzoli „dolů o -0,187") — čelist se mu neotevře. Zjistit proč a opravit výpočet.
-- [ ] Tvor, kterého honička zavede za nepřelezný sráz, zůstane trčet u zdi — rozhodnout, jestli se má po chvíli vrátit domů zkratkou (přesunout), nebo se nechat odlákat jinam.
 
 ### Etapa 4 — doladění boje
 
@@ -96,7 +82,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Švihnutí zbraně do prázdna (mine/chop bez zásahu).
 - [ ] Vstup do vody (šplouchnutí, ne jen kroky ve vodě).
 - [ ] Rozhraní: zapojit „nejde to" (`ui/denied.ogg` je připravený), až bude kde.
-- [ ] Ryby ve vodě (`fish_splash` — vygenerovat).
 - [ ] Pochodeň v ruce nemá zvuk; `fire/torch_loop.ogg` je volný — použít, nebo smazat.
 
 ## Rozhraní
@@ -107,11 +92,5 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ## Výroba a svět
 
 - [ ] Dekorace: léčivé byliny mohou být špatně umístěné ve skále (na strmých/útesových buňkách) — přeskočit nebo odsunout od stěny; dořešit s novým (objemovým) terénem.
-
-- [ ] **Objemový terén — další fáze:** 3) pohyb a dotazy na pruzích, 4) voda, tráva, dekorace a kamera, 5) editor (vykopat/vyplnit, díry, spoje), 6) nová verze mapy a savu. Hotový stav a zamítnuté pokusy jsou v `DEV.md`, sekce „Terén".
-- [ ] Objemový terén: horní hrana boku u **vchodu do jeskyně** — hladká plocha tam srovnává okraj na úroveň podlahy jeskyně, hmota ne (může zůstat drobná škvíra); dořešit stejným úložištěm jako svažené rohy (`surfaceEdge`).
-- [ ] Patra: ověřit v dev serveru krok 4 — jeskyně je tmavá i bez hráče (prostorová tma; pochodеň/oheň prosvětlí), povrch světlý, jeskynní ambient (`cave.ogg`) se přelévá; a skrývání ploch nade hráčem (z výšky vidět dovnitř) funguje. Model a stav jsou v `DEV.md`, sekce „Jeskyně a patra".
-- [ ] Odkrývání střechy ukazuje prázdno/moře a dekorace nad odhalenou plochou visí — dočistit v dalších fázích objemového terénu.
-- [ ] Voda po patrech: jedna hladina dnes proteče stropem jeskyně.
-- [ ] Pirátský srub u útesu (−20…−18, 11…14): plán po etapách v `DEV.md`, sekce „Stavby". Přízemí, patro s pavlačí, schody, střecha a porůstání jsou hotové jako pokus; dál stěny a zábradlí, které zastaví (etapa 3), rozbité dveře a okenice, nábytek před tajný vchod (chodba −21,12 se dá v editoru prodloužit) a vybavení z Meshy.
+- [ ] Pirátský srub u útesu (−20…−18, 11…14): plán po etapách v `DEV.md`, sekce „Stavby". Přízemí, patro s pavlačí, schody, střecha a porůstání jsou hotové jako pokus; dál chůze dovnitř po krocích (zdi pro postavu hotové jako pokus — ověřit průchod z pavlače na −21,11; pak schovávání patra a střechy, seříznutí stěn, tvorové v přízemí a v patře — `DEV.md`, etapa 3), rozbité dveře a okenice, nábytek před tajný vchod (chodba −21,12 se dá v editoru prodloužit) a vybavení z Meshy.
 - [ ] Rozhodnout o šířce plynulého okraje pláže.

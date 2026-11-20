@@ -102,6 +102,8 @@ const AUTOTUNE_MIN_SCALE = 0.7;
 const AUTOTUNE_STEP = 0.1;
 const INDOOR_FADE_SECONDS = 2;
 const CAVE_DECO_REFRESH_SECONDS = 1;
+const SHELF_GRASS_CLEAR = 0.6;
+const DECK_ABOVE_GROUND = 0.05;
 const WADE_SPEED = 0.65;
 const WADE_RAMP = 0.2;
 const WATER_SOUND_SECONDS = 0.15;
@@ -805,8 +807,9 @@ export default class GameScene {
     this.playerSystem.decoSystem = this.decoSystem;
     this.creatureSystem.pointerLevel = () => this.viewLevel();
     this.playerSystem.groundHeightAt = (x, z, level) => this.standHeightAt(x, z, level);
-    this.playerSystem.wallRiseAt = (x, z, radius, level) => this.terrainSystem.riseNear(x, z, radius, level);
-    this.playerSystem.cliffOverlapAt = (x, z, level) => this.terrainSystem.cliffOverlap(x, z, level);
+    this.playerSystem.wallRiseAt = (x, z, radius, level) => this.terrainSystem.riseNear(x, z, radius, level, this.standHeightAt(x, z, level));
+    this.playerSystem.cliffOverlapAt = (x, z, level) => (this.onBuildingDeck(x, z, level) ? -Infinity : this.terrainSystem.cliffOverlap(x, z, level));
+    this.playerSystem.buildingGapAt = (x, z, feetY, level) => ((level || 0) === 0 ? this.buildingSystem.wallGapAt(x, z, feetY) : Infinity);
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z, this.playerSystem.root ? this.playerSystem.root.position.y : 0);
     this.playerSystem.onIntroChange = (lying) => {
       if (lying) this.log.add('Stiskni WASD nebo šipky pro vstání', 'info');
@@ -993,6 +996,10 @@ export default class GameScene {
     return deck === null ? ground : Math.max(ground, deck);
   }
 
+  onBuildingDeck(x, z, level) {
+    return (level || 0) === 0 && this.standHeightAt(x, z, level) > this.terrainSystem.walkHeightAt(x, z, level) + DECK_ABOVE_GROUND;
+  }
+
   refreshVines() {
     this.cliffVineSystem.create({
       edges: this.terrainSystem.shelfAnchors,
@@ -1008,7 +1015,8 @@ export default class GameScene {
   }
 
   shelfGrassAnchors() {
-    return [...(this.terrainSystem.shelfAnchors || []), ...this.cliffDressSystem.terraceAnchors];
+    return [...(this.terrainSystem.shelfAnchors || []), ...this.cliffDressSystem.terraceAnchors]
+      .filter((anchor) => !this.buildingSystem.keepsClear(anchor.x, anchor.z, SHELF_GRASS_CLEAR));
   }
 
   refreshShadowCasters() {

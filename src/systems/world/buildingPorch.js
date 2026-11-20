@@ -1,6 +1,8 @@
 // Část staveb: terasa před dveřmi — prkna kolmo ke stěně (shnilá, propadlá, chybějící), kůly,
-// polorozpadlé zábradlí a vratké schody z kulatiny dolů na zem. Patří k BuildingSystem (sdílí jeho this).
+// polorozpadlé zábradlí a vratké schody z kulatiny dolů na zem. Z každého úseku zábradlí zbude
+// aspoň jedna tyč a zastaví postavu. Patří k BuildingSystem (sdílí jeho this).
 import { roughLog, placeAlongX, placeAlongZ, placeUpright } from '../../utils/buildingGeometry.js';
+import { createRng, seedFor } from '../../utils/rng.js';
 import { smoothstep } from '../../utils/noise.js';
 
 export default {
@@ -49,9 +51,13 @@ export default {
   },
 
   railRun(plan, rail, place, from, to, base = 0) {
-    const { rng } = plan;
-    for (const lift of [base + rail.height, base + rail.low]) {
-      if (rng() < rail.missing) continue;
+    let built = false;
+    const lifts = [base + rail.height, base + rail.low];
+    for (const [index, lift] of lifts.entries()) {
+      const missing = plan.rng() < rail.missing;
+      if (missing && (built || index < lifts.length - 1)) continue;
+      const rng = missing ? createRng(seedFor(0, plan.key, Math.round(from * 100), Math.round(to * 100))) : plan.rng;
+      built = true;
       const log = roughLog(rng, plan.walls, from, to, lift, rail.radius * (0.85 + rng() * 0.3), 3);
       if (rng() < rail.broken) {
         const dropped = rng() < 0.5;
@@ -61,8 +67,9 @@ export default {
         if (dropped) log.from += (to - from) * 0.15;
         else log.to -= (to - from) * 0.15;
       }
-      this.addLog(plan, log, place, this.logShade(plan));
+      this.addLog(plan, log, place, this.logShade({ rng, walls: plan.walls }));
     }
+    if (built) this.addBlock(plan, place, from, to, base, base + rail.height, rail.radius);
   },
 
   porchSteps(plan, porch, floor, z1) {

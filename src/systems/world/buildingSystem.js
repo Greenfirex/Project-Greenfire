@@ -1,7 +1,8 @@
 // Stavby ve světě — z mapy a katalogu staveb postaví podlahu na kůlech, stěny z klád s otvory,
 // patro s místností a pavlačí, střechu, terasu se schody a pirátské věci, a místa, kde stavbu
 // porůstá tráva a liány. Stavba se skládá v neotočené poloze kolem svého středu
-// a celá se pak otočí podle mapy. Zná i výšku podlah, po kterých se chodí.
+// a celá se pak otočí podle mapy. Zná výšku podlah, po kterých se chodí, a stěny se zábradlím,
+// které postavu zastaví.
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
@@ -26,6 +27,8 @@ const GROUND_SAMPLE = 0.5;
 const GROUND_INSET = 0.3;
 const WALK_MARGIN = 0.05;
 const STEP_UP = 0.7;
+const BLOCK_FEET_CLEAR = 0.25;
+const BLOCK_BODY_HEIGHT = 1.6;
 
 export default class BuildingSystem {
 
@@ -73,6 +76,40 @@ export default class BuildingSystem {
       }
     }
     return best;
+  }
+
+  wallGapAt(x, z, feetY) {
+    let best = Infinity;
+    for (const deck of this.decks) {
+      const p = Vector3.TransformCoordinates(new Vector3(x, 0, z), deck.inverse);
+      const feet = feetY - deck.top;
+      for (const block of deck.blocks) {
+        if (feet + BLOCK_FEET_CLEAR >= block.top || feet + BLOCK_BODY_HEIGHT <= block.bottom) continue;
+        const along = block.alongX ? p.x : p.z;
+        const across = Math.abs((block.alongX ? p.z : p.x) - block.at);
+        const past = Math.max(0, block.from - along, along - block.to);
+        const gap = Math.hypot(past, Math.max(0, across - block.half));
+        if (gap < best) best = gap;
+      }
+    }
+    return best;
+  }
+
+  keepsClear(x, z, margin = 0) {
+    for (const deck of this.decks) {
+      const p = Vector3.TransformCoordinates(new Vector3(x, 0, z), deck.inverse);
+      for (const box of deck.clear) {
+        if (p.x > box.x0 - margin && p.x < box.x1 + margin && p.z > box.z0 - margin && p.z < box.z1 + margin) return true;
+      }
+    }
+    return false;
+  }
+
+  addBlock(plan, place, from, to, bottom, top, half) {
+    const start = place(0, 0, 0);
+    const alongX = place(1, 0, 0)[0] !== start[0];
+    const at = alongX ? start[2] : start[0];
+    plan.blocks.push({ alongX, at, from: Math.min(from, to), to: Math.max(from, to), bottom, top, half });
   }
 
   vineAnchors() {
@@ -222,6 +259,7 @@ export default class BuildingSystem {
       planks: createBuffer(),
       sheets: [],
       walk: [],
+      blocks: [],
     };
     plan.groundAt = (x, z) => {
       const point = Vector3.TransformCoordinates(new Vector3(x, 0, z), world);
@@ -242,7 +280,7 @@ export default class BuildingSystem {
     this.addMesh(plan, 'logEnds', plan.ends, this.drawnMaterial(`buildingLogEndMat_${entry.key}`, () => logEndTexture(this.s, `buildingLogEnd_${entry.key}`, def.walls.ends), false));
     for (const sheet of plan.sheets) this.addMesh(plan, sheet.suffix, sheet.buffer, sheet.material);
 
-    const deck = { inverse: world.clone().invert(), world, top, rects: plan.walk };
+    const deck = { inverse: world.clone().invert(), world, top, rects: plan.walk, blocks: plan.blocks, clear: plan.keepClear };
     this.decks.push(deck);
     this.markFloorCells(deck, def.floor.stepKey);
   }

@@ -1,8 +1,10 @@
 // Část staveb: stěny z křivých klád překřížených v rozích, s hrubě vyřezanými otvory
-// pro dveře a okna — přízemí po obvodu stavby a místnost v patře. Patří k BuildingSystem (sdílí jeho this).
+// pro dveře a okna — přízemí po obvodu stavby a místnost v patře. Stěna zastaví postavu, projde se
+// jen otvorem od podlahy (dveře), oknem ne. Patří k BuildingSystem (sdílí jeho this).
 import { roughLog, placeAlongX, placeAlongZ } from '../../utils/buildingGeometry.js';
 
 const MIN_PIECE = 0.25;
+const PASSABLE_BOTTOM = 0.3;
 
 function cutPieces(from, to, gaps) {
   let pieces = [{ from, to }];
@@ -53,6 +55,12 @@ export default {
       const overTo = run.to > run.inner[1] + 1e-6;
       const wallTop = (run.first + run.count - 1) * step + walls.log / 2;
       top = Math.max(top, storey.base + wallTop);
+      const doors = openings
+        .filter((opening) => opening.bottom < PASSABLE_BOTTOM)
+        .map((opening) => ({ from: opening.at - opening.width / 2, to: opening.at + opening.width / 2 }));
+      for (const piece of cutPieces(run.from, run.to, doors)) {
+        this.addBlock(plan, place, piece.from, piece.to, storey.base, storey.base + wallTop, walls.log / 2);
+      }
       const dirX = run.alongX ? 0 : run.outward;
       const dirZ = run.alongX ? run.outward : 0;
       for (let along = run.inner[0] + walls.vineStep / 2; along < run.inner[1]; along += walls.vineStep) {

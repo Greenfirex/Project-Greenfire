@@ -756,8 +756,8 @@ export default class TerrainSystem {
     return deck === null ? this.heightAt(x, z, level) : deck;
   }
 
-  riseNear(x, z, radius, level = 0) {
-    const base = this.walkHeightAt(x, z, level);
+  riseNear(x, z, radius, level = 0, standY = null) {
+    const base = Number.isFinite(standY) ? standY : this.walkHeightAt(x, z, level);
     let rise = 0;
     for (let index = 0; index < RISE_SAMPLES; index += 1) {
       const angle = (index / RISE_SAMPLES) * Math.PI * 2;
