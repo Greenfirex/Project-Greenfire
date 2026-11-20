@@ -36,6 +36,7 @@ const OVERLAY_MATERIALS = /^(hologramMat_|brushMasterMat|hoverCellMat|creatureRa
 
 function materialKind(name) {
   if (name === 'revealBackdropMat') return 'backdrop';
+  if (name === 'revealPeekCapMat') return 'peekCap';
   if (name.startsWith('caveFrameMat_')) return 'frame';
   if (name === 'terrainCaveCeilingMat') return 'ceiling';
   if (name === 'terrainCaveRingMat') return 'caveRing';

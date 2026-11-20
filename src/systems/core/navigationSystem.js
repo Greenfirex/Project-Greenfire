@@ -30,6 +30,8 @@ export default class NavigationSystem {
     this.passageFor = null;
     this.doorwayList = null;
     this.doorwayFor = null;
+    this.caveSet = null;
+    this.caveSetFor = null;
   }
 
   layout() {
@@ -60,6 +62,18 @@ export default class NavigationSystem {
       this.floorSets.set(level, cells);
     }
     return this.floorSets.get(level);
+  }
+
+  hasCaveAt(cx, cz) {
+    const layout = this.layout();
+    if (this.caveSetFor !== layout) {
+      this.caveSetFor = layout;
+      this.caveSet = new Set();
+      for (const entry of (layout && layout.floor) || []) {
+        if (entry && levelOfEntry(entry) !== 0) this.caveSet.add(`${entry.cx},${entry.cz}`);
+      }
+    }
+    return this.caveSet.has(`${cx},${cz}`);
   }
 
   areaCells() {

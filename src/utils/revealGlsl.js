@@ -36,7 +36,7 @@ const SIGHT_SOFT = '0.012';
 const SIGHT_DARK = '0.22';
 const SIGHT_GREY = '0.6';
 const SIGHT_FOG_MAX = '0.6';
-export const PEEK = { chest: 1.0, frontGap: 0.6, frontSoft: 0.8, feetFrom: 0.3, feetTo: 0.7, edge: 0.55 };
+export const PEEK = { chest: 1.0, frontGap: 0.6, frontSoft: 0.8, feetFrom: 0.3, feetTo: 0.7, edge: 0.55, behind: 0.9 };
 const PEEK_GLSL = Object.fromEntries(Object.entries(PEEK).map(([name, value]) => [name, value.toFixed(2)]));
 
 export function peekAmount(x, y, z, peek, eye) {
@@ -74,6 +74,13 @@ float revealPeekAt(vec3 point) {
   float near = 1.0 - smoothstep(radius * ${PEEK_GLSL.edge}, radius, length(offset - dir * along));
   float above = smoothstep(revealPeek.y + ${PEEK_GLSL.feetFrom}, revealPeek.y + ${PEEK_GLSL.feetTo}, point.y);
   return revealPeek.w * front * near * above;
+}
+
+float revealPeekBehind(vec3 point) {
+  float lift = revealPeek.y + ${PEEK_GLSL.behind};
+  if (revealPeekEye.y <= lift || point.y >= lift) return 0.0;
+  vec3 seen = mix(point, revealPeekEye.xyz, (lift - point.y) / (revealPeekEye.y - point.y));
+  return revealPeekAt(seen);
 }
 
 uniform vec3 revealCenter;
@@ -158,9 +165,10 @@ float revealDoorGlow(vec4 own, float inner) {
 `;
 
 export function revealBlock(color, position, rules, normal = 'vec3(0.0, 1.0, 0.0)') {
-  const { above, hide, keep, inside, restore, column = '0.0', dark = '0.0', far = '0.0', sight = '1.0', sightHide = '0.0', rise = sightRiseByHeight(position), point = sightPointOf(position), surface = '1.0', cameraCut = '0.0', peek = '1.0' } = rules;
+  const { above, hide, keep, inside, restore, column = '0.0', dark = '0.0', far = '0.0', sight = '1.0', sightHide = '0.0', rise = sightRiseByHeight(position), point = sightPointOf(position), surface = '1.0', cameraCut = '0.0', peek = '1.0', peekOnly = '0.0' } = rules;
   return `
 {
+  if (${peekOnly} > 0.5 && revealPeekBehind(${position}) < 0.5) discard;
   if (${peek} * revealPeekAt(${position}) > fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))))) discard;
   float revealAmount = revealParams.x;
   if (revealAmount > 0.001 || ${inside} > 0.5) {

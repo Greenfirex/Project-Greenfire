@@ -319,7 +319,10 @@ v `revealBlock`). Jeskynní materiály, značky a pozadí se nevyřezávají. Č
 díru na okolí postavy. Terén je jen slupka (pod vrškem útesu nic není), proto `revealSystem.updateCap` kreslí
 ve výšce spodku řezu (nohy + `PEEK.feetFrom`) ztmavené kamenné dno s texturou skály útesů
 (`CLIFF_TEXTURE`, `CLIFF_NORMAL` v `assetPaths.js`, sdílí je s materiály terénu, opakování po 2 m): mřížka 0,2 m v okruhu 5 m kolem postavy,
-jen tam, kde je terén (`rockHeightAt`) nad touto výškou; přestaví se po posunu o 0,25 m. Rub útesu kreslit
+jen tam, kde je terén (`GameScene.rockHeightAt`) nad touto výškou a buňka nemá jeskyni (`navigation.hasCaveAt`
+— nad jeskyní je terén vysoko, ale uvnitř je dutý); přestaví se po posunu o 0,25 m. Dno má vlastní druh
+materiálu (`peekCap`) a kreslí se jen tam, kde pohled na něj vede dírou: bod na spojnici s kamerou ve výšce
+nohy + `PEEK.behind` musí být vyříznutý (`revealPeekBehind`), jinak by dno vykukovalo pod stěnami. Rub útesu kreslit
 nejde — všechno, co je dírou vidět, leží v trubce a vyřízlo by se.
 - Volba Ostrost dohledu: jednoduchá (mapa 256) / plná (512). Vypnout dohled ve hře
   nejde, protože bez něj je vidět skrz skálu (tvorové, tma v jeskyni, zvýraznění).
@@ -938,7 +941,16 @@ otvory od podlahy (`PASSABLE_BOTTOM` v `buildingWalls.js`), okna jsou zeď. `bui
 dá vzdálenost postavy k nejbližší zdi v jejím výškovém pásmu (nohy až výška postavy), takže v patře
 nezastaví stěny přízemí. Postava (`playerSystem.free`, `buildingGapAt`) nesmí vkročit blíž ke zdi, než
 je její poloměr, ledaže se tím od zdi vzdaluje (aby se nezasekla). Šikmé zábradlí schodů zeď nemá
-(ze schodů se stejně nesestoupí). Tvorové zdi zatím neznají.
+(ze schodů se stejně nesestoupí).
+**Tvorové a stavba:** výška pod tvorem je jedna funkce `sceneCombat.creatureGroundAt` (terén, na povrchu
+navíc podlaha stavby dosažitelná ze země — přízemí, terasa, spodní schody; patro ne). Zdi se ptají stejně
+(`creatureSystem.wallGapAt`): krok blíž než 0,3 m ke zdi projde, jen když se tím tvor od zdi vzdaluje
+(platí i při úniku ze zaseknutí), přímá chůze (`pathClear`) se zdi drží 0,3 m, hrana hledání cesty a
+narovnaná zkratka (`crossesWall`) neprojdou přes kládu — dveřmi ano, takže cesta dovnitř vede jen dveřmi.
+Stěny srubu neleží na hranách buněk (posun `shift`), proto se začátek i cíl cesty berou jen z buněk, jejichž
+střed je na stejné straně zdi jako tvor, resp. cíl (`searchRoute`, `sameSide`). Kousnutí přes zeď neprojde
+(`inBiteRange`, `biteReaches`); honička se za zdí nezastaví na dosah kousnutí a míří přímo na postavu
+(ne na bod před ní, ten by byl na straně tvora), takže cesta vede dveřmi.
 Na podlaze stavby (`GameScene.onBuildingDeck`) se nehlídá blízkost útesu (`cliffOverlap`) a převýšení
 terénu (`riseNear`) se měří od podlahy, ne od země pod ní — jinak by z pavlače nešlo na schůdky na útes.
 Místa, která mají zůstat volná (`plan.keepClear`, i konec schůdků na útesu), zná stavba i ve světě
@@ -1024,7 +1036,7 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    3. Stěny mezi kamerou a postavou se uvnitř seříznou v pasu: horní klády každé stěny zvlášť a schovají se.
       Hotovo jako pokus.
    4. Tvorové chodí po podlaze srubu ve správné výšce, zastaví je zdi a do přízemí jdou jen dveřmi
-      (hledání cesty o dveřích ví).
+      (hledání cesty o dveřích ví). Hotovo jako pokus.
    5. Tvorové po schodech a schůdcích z útesu do patra.
    Později: stěny vrhají stín a zastaví dohled (`metadata.volume`).
 4. **Dveře**: otevření kliknutím jako truhla (`lootSystem` — pant kolem svislé osy místo víka);

@@ -32,9 +32,17 @@ const BITE_ARC_ALPHA = 0.1;
 const FOCUS_LINGER = 3;
 
 export default {
+  creatureGroundAt(x, z, level = 0) {
+    const ground = this.terrainSystem.walkHeightAt(x, z, level);
+    if ((level || 0) !== 0) return ground;
+    const deck = this.buildingSystem.walkHeightAt(x, z, ground);
+    return deck === null ? ground : Math.max(ground, deck);
+  },
+
   async setupCreatures() {
     const system = this.creatureSystem;
-    system.groundHeightAt = (x, z, level) => this.terrainSystem.walkHeightAt(x, z, level);
+    system.groundHeightAt = (x, z, level) => this.creatureGroundAt(x, z, level);
+    system.wallGapAt = (x, z, level) => ((level || 0) === 0 ? this.buildingSystem.wallGapAt(x, z, this.creatureGroundAt(x, z, 0)) : Infinity);
     system.walkableAt = (x, z, level) => this.isWalkableAt(x, z, level);
     system.wallRiseAt = (x, z, radius, level) => this.terrainSystem.riseNear(x, z, radius, level);
     system.levelAcross = (fromX, fromZ, level, toX, toZ) => this.navigation.stepLevel(fromX, fromZ, level, toX, toZ);
@@ -447,7 +455,7 @@ export default {
         this.biteArcs.set(creature, arc);
       }
       shown.add(creature);
-      const y = this.terrainSystem.walkHeightAt(creature.x, creature.z, creature.level || 0);
+      const y = this.creatureGroundAt(creature.x, creature.z, creature.level || 0);
       arc.update(dt, { x: creature.x, y, z: creature.z, facing: view.facing, reach: view.reach, arc: view.arc, alpha: BITE_ARC_ALPHA, progress: view.progress });
     }
     for (const [creature, arc] of this.biteArcs) {
@@ -493,13 +501,13 @@ export default {
     this.audioSystem.play('miss');
     const label = creature.type ? creature.type.label : 'Tvor';
     this.log.add(`Minul jsi: ${label}`, 'action');
-    const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ, creature.level || 0);
+    const ground = this.creatureGroundAt(creature.renderX, creature.renderZ, creature.level || 0);
     this.spawnFloatingText('Minul', creature.renderX, ground + creature.markHeight, creature.renderZ, 'miss');
   },
 
   showFloatingDamage(creature, amount, crit, graze = false, absorbed = 0) {
     if (!creature) return;
-    const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ, creature.level || 0);
+    const ground = this.creatureGroundAt(creature.renderX, creature.renderZ, creature.level || 0);
     const kind = crit ? 'crit' : graze ? 'graze' : null;
     this.spawnFloatingNumber(amount, creature.renderX, ground + creature.markHeight, creature.renderZ, kind, absorbed);
   },
@@ -553,7 +561,7 @@ export default {
   },
 
   creatureFogAt(eye, feetY, creature, sight) {
-    const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ, creature.level || 0);
+    const ground = this.creatureGroundAt(creature.renderX, creature.renderZ, creature.level || 0);
     const distance = Math.hypot(creature.renderX - eye.x, ground + SIGHT_GROUND_LIFT - eye.y, creature.renderZ - eye.z);
     const far = smoothstep(sight.range * SIGHT_EDGE, sight.range, distance);
     const rise = smoothstep(SIGHT_RISE_START, SIGHT_RISE_FULL, ground - eye.y);
@@ -565,14 +573,14 @@ export default {
   creatureSeesPlayer(creature) {
     const root = this.playerSystem.root;
     if (!root || !creature) return false;
-    const ground = this.terrainSystem.walkHeightAt(creature.x, creature.z, creature.level || 0);
+    const ground = this.creatureGroundAt(creature.x, creature.z, creature.level || 0);
     const eye = new Vector3(creature.x, ground + (creature.markHeight || 0) * CREATURE_EYE_SHARE, creature.z);
     const target = root.position.y + PLAYER_EYE_HEIGHT - SIGHT_GROUND_LIFT;
     return this.seesSpot(eye, root.position.x, target, root.position.z, Infinity);
   },
 
   seesCreature(eye, creature, range) {
-    const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ, creature.level || 0);
+    const ground = this.creatureGroundAt(creature.renderX, creature.renderZ, creature.level || 0);
     return this.seesSpot(eye, creature.renderX, ground, creature.renderZ, range);
   },
 
@@ -616,7 +624,7 @@ export default {
     }
     const items = [];
     for (const { creature, ratio } of this.creatureSystem.healthBarTargets()) {
-      const ground = this.terrainSystem.walkHeightAt(creature.renderX, creature.renderZ, creature.level || 0);
+      const ground = this.creatureGroundAt(creature.renderX, creature.renderZ, creature.level || 0);
       const point = screenPointOf(this.s, this.cameraSystem.camera, rect, creature.renderX, ground + creature.markHeight + CREATURE_BAR_LIFT, creature.renderZ);
       if (!point) continue;
       if (point.x < 0 || point.y < 0 || point.x > rect.width || point.y > rect.height) continue;

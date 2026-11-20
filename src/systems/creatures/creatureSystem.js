@@ -1,5 +1,5 @@
 // Tvorové ve světě — načte model, rozhoduje v pevném tiku a plynule ho hýbe.
-// Nedrží žádný jiný systém; výšku terénu, průchodnost a hráče dostane od scény.
+// Nedrží žádný jiný systém; výšku terénu, průchodnost, zdi staveb a hráče dostane od scény.
 import { loadContainer } from '../../utils/assetLoader.js';
 import { guardedNest } from '../../utils/nestGuard.js';
 import '@babylonjs/core/Meshes/mesh';
@@ -59,6 +59,9 @@ const CELL_KEY_OFFSET = 4096;
 const CELL_KEY_SPAN = 8192;
 const STUCK_ESCAPE_SECONDS = 0.8;
 const CREATURE_WALL_MARGIN = 0.3;
+const BUILDING_WALL_CLEAR = 0.3;
+const BUILDING_WALL_HIT = 0.02;
+const WALL_CHECK_STEP = 0.2;
 const RISE_RATE = 2.2;
 const FALL_RATE = 6;
 const SLIDE_ANGLES = [0, 0.5, -0.5, 1, -1, 1.5, -1.5, Math.PI / 2, -Math.PI / 2];
@@ -119,6 +122,7 @@ export default class CreatureSystem {
     this.containers = new Map();
     this.groundHeightAt = null;
     this.walkableAt = null;
+    this.wallGapAt = null;
     this.wallRiseAt = null;
     this.pathCells = new Map();
     this.playerAt = null;
@@ -468,6 +472,7 @@ export default class CreatureSystem {
     if (!player) return false;
     const gap = Math.hypot(player.x - creature.x, player.z - creature.z);
     if (gap > creature.type.biteRange) return false;
+    if (this.crossesWall(creature.x, creature.z, player.x, player.z, creature.level || 0)) return false;
     return this.heightGap(creature, player) <= ATTACK_HEIGHT;
   }
 
@@ -486,8 +491,28 @@ export default class CreatureSystem {
     return across !== level && this.mayChangeFloor(creature, across) ? across : level;
   }
 
+  wallGap(x, z, level) {
+    return this.wallGapAt ? this.wallGapAt(x, z, level) : Infinity;
+  }
+
+  wallInWay(creature, x, z, level) {
+    const gap = this.wallGap(x, z, level);
+    return gap < BUILDING_WALL_CLEAR && gap < this.wallGap(creature.x, creature.z, creature.level || 0);
+  }
+
+  crossesWall(fromX, fromZ, toX, toZ, level) {
+    if (!this.wallGapAt) return false;
+    const steps = Math.max(1, Math.ceil(Math.hypot(toX - fromX, toZ - fromZ) / WALL_CHECK_STEP));
+    for (let index = 1; index < steps; index += 1) {
+      const t = index / steps;
+      if (this.wallGap(fromX + (toX - fromX) * t, fromZ + (toZ - fromZ) * t, level) < BUILDING_WALL_HIT) return true;
+    }
+    return false;
+  }
+
   canStep(creature, x, z, relaxed = false) {
     const level = this.levelAfterStep(creature, x, z);
+    if (this.wallInWay(creature, x, z, level)) return false;
     if (!relaxed && !this.canStand(x, z, level)) return false;
     const limit = this.stepLimit();
     if (Number.isFinite(limit)) {
@@ -510,6 +535,7 @@ export default class CreatureSystem {
       const x = fromX + dx * t;
       const z = fromZ + dz * t;
       if (!this.canStand(x, z, level)) return false;
+      if (this.wallGap(x, z, level) < BUILDING_WALL_CLEAR) return false;
       const y = this.groundAt(x, z, level);
       if (Number.isFinite(limit) && Math.abs(y - previousY) > limit) return false;
       previousY = y;
@@ -576,8 +602,12 @@ export default class CreatureSystem {
   searchRoute(creature, targetX, targetZ, targetLevel, goalRings, partial) {
     const limit = this.stepLimit();
     const cellData = this.cellInfo.bind(this);
-    const startCell = this.standableCellNear(this.cellAt(creature.x, creature.z), 2, (i, j) => cellData(i, j, creature.level));
-    const goalCell = this.standableCellNear(this.cellAt(targetX, targetZ), goalRings, (i, j) => cellData(i, j, targetLevel));
+    const sameSide = (i, j, x, z, level) => {
+      const cell = cellData(i, j, level);
+      return { ok: cell.ok && !this.crossesWall(i * CELL_SIZE, j * CELL_SIZE, x, z, level) };
+    };
+    const startCell = this.standableCellNear(this.cellAt(creature.x, creature.z), 2, (i, j) => sameSide(i, j, creature.x, creature.z, creature.level));
+    const goalCell = this.standableCellNear(this.cellAt(targetX, targetZ), goalRings, (i, j) => sameSide(i, j, targetX, targetZ, targetLevel));
     if (!startCell || !goalCell) return null;
     const start = { ...startCell, level: creature.level };
     const goal = { ...goalCell, level: targetLevel };
@@ -589,7 +619,7 @@ export default class CreatureSystem {
       if (cached !== undefined) return cached;
       const from = cellData(fromI, fromJ, level);
       const to = cellData(toI, toJ, level);
-      let open = from.ok && to.ok;
+      let open = from.ok && to.ok && !this.crossesWall(fromI * CELL_SIZE, fromJ * CELL_SIZE, toI * CELL_SIZE, toJ * CELL_SIZE, level);
       if (open && Number.isFinite(limit)) {
         open = this.edgeFits(from.y, to.y, fromI, fromJ, toI, toJ, limit, level);
       }
@@ -629,6 +659,7 @@ export default class CreatureSystem {
 
   lineOpen(fromI, fromJ, toI, toJ, limit, level = 0) {
     const steps = Math.max(Math.abs(toI - fromI), Math.abs(toJ - fromJ));
+    if (this.crossesWall(fromI * CELL_SIZE, fromJ * CELL_SIZE, toI * CELL_SIZE, toJ * CELL_SIZE, level)) return false;
     if (steps <= 1) return true;
     let previous = this.cellInfo(fromI, fromJ, level);
     for (let index = 1; index <= steps; index += 1) {
@@ -941,8 +972,9 @@ export default class CreatureSystem {
         this.beginSearch(creature, true);
         return;
       }
-      const standoff = type.biteRange * 0.85;
-      if ((sameFloor && gap <= standoff) || gap < 0.001) return;
+      const walled = this.crossesWall(creature.x, creature.z, player.x, player.z, creature.level || 0);
+      const standoff = walled ? 0 : type.biteRange * 0.85;
+      if ((sameFloor && !walled && gap <= standoff) || gap < 0.001) return;
       const dirX = (player.x - creature.x) / gap;
       const dirZ = (player.z - creature.z) / gap;
       const boost = Number.isFinite(type.chaseBoost) ? type.chaseBoost : 1;
@@ -1042,6 +1074,7 @@ export default class CreatureSystem {
 
   biteReaches(creature, player) {
     if (!player || this.heightGap(creature, player) > ATTACK_HEIGHT) return false;
+    if (this.crossesWall(creature.x, creature.z, player.x, player.z, creature.level || 0)) return false;
     const dx = player.x - creature.x;
     const dz = player.z - creature.z;
     const distance = Math.hypot(dx, dz);

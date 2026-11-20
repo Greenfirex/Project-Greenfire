@@ -151,7 +151,7 @@ export default class GameScene {
     this.revealSystem = new RevealSystem(scene);
     this.sightSystem = new SightSystem(scene);
     this.sightSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z, 0);
-    this.revealSystem.rockHeightAt = (x, z) => this.terrainSystem.heightAt(x, z, 0);
+    this.revealSystem.rockHeightAt = (x, z) => this.rockHeightAt(x, z);
     this.waterSystem = new WaterSystem(scene);
     this.waveSpray = new WaveSpraySystem(scene);
     this.fishSystem = new FishSystem(scene);
@@ -997,6 +997,11 @@ export default class GameScene {
     const root = this.playerSystem && this.playerSystem.root;
     const deck = this.buildingSystem.walkHeightAt(x, z, root ? Math.max(root.position.y, ground) : Infinity);
     return deck === null ? ground : Math.max(ground, deck);
+  }
+
+  rockHeightAt(x, z) {
+    const { cx, cz } = worldToCellCoords(x, z);
+    return this.navigation.hasCaveAt(cx, cz) ? -Infinity : this.terrainSystem.heightAt(x, z, 0);
   }
 
   onBuildingDeck(x, z, level) {
