@@ -942,15 +942,23 @@ dá vzdálenost postavy k nejbližší zdi v jejím výškovém pásmu (nohy až
 nezastaví stěny přízemí. Postava (`playerSystem.free`, `buildingGapAt`) nesmí vkročit blíž ke zdi, než
 je její poloměr, ledaže se tím od zdi vzdaluje (aby se nezasekla). Šikmé zábradlí schodů zeď nemá
 (ze schodů se stejně nesestoupí).
-**Tvorové a stavba:** výška pod tvorem je jedna funkce `sceneCombat.creatureGroundAt` (terén, na povrchu
-navíc podlaha stavby dosažitelná ze země — přízemí, terasa, spodní schody; patro ne). Zdi se ptají stejně
+**Tvorové a stavba:** výška pod tvorem je jedna funkce `sceneCombat.creatureGroundAt(x, z, patro, odkud)`:
+terén a na povrchu nejvyšší podlaha stavby, na kterou tvor z výšky `odkud` vystoupí (jako u postavy).
+Tvor si nese svou výšku (`creature.y`, ukládá se od verze savu 9; po načtení se ověří, že tam ta podlaha je — `savedFootY` —, jinak tvor stojí dole) a každý krok ji posune
+(`walkTo`); vykreslení, stopy a kousnutí ji používají taky. Zdi se ptají ve výšce tvora
 (`creatureSystem.wallGapAt`): krok blíž než 0,3 m ke zdi projde, jen když se tím tvor od zdi vzdaluje
-(platí i při úniku ze zaseknutí), přímá chůze (`pathClear`) se zdi drží 0,3 m, hrana hledání cesty a
-narovnaná zkratka (`crossesWall`) neprojdou přes kládu — dveřmi ano, takže cesta dovnitř vede jen dveřmi.
-Stěny srubu neleží na hranách buněk (posun `shift`), proto se začátek i cíl cesty berou jen z buněk, jejichž
-střed je na stejné straně zdi jako tvor, resp. cíl (`searchRoute`, `sameSide`). Kousnutí přes zeď neprojde
+(platí i při úniku ze zaseknutí); přímá chůze (`walkLine`) jde po 0,3 m, drží výšku a zdi se drží 0,3 m.
+**Hledání cesty ve stavbě:** uzel cesty má vedle buňky a patra i vrstvu (`layer` 0 dole, 1 přes 1 m nad
+zemí — patro, horní schody) a výšku (`gridPath` ji nese v uzlu). U stavby (`buildingSystem.nearCell`,
+buňka s podlahou ± 1) se hrana počítá „chůzí“ po čáře (`walkLine`) z výšky uzlu, takže tvor vyjde po
+schodech schod po schodu; hrana nesmí projít kládou (`BUILDING_WALL_HIT`). Jinde zůstává rychlý výpočet
+po buňkách. Narovnání cesty nepřeskočí změnu vrstvy. Přímá chůze k cíli platí, jen když dojde do výšky
+cíle (`directReach`), jinak se hledá cesta (po schodech).
+Stěny srubu neleží na hranách buněk (posun `shift`), proto se začátek i cíl cesty berou jen z buněk,
+kam se z tvora, resp. z cíle dojde (`searchRoute`, `reachable`). Kousnutí přes zeď neprojde
 (`inBiteRange`, `biteReaches`); honička se za zdí nezastaví na dosah kousnutí a míří přímo na postavu
-(ne na bod před ní, ten by byl na straně tvora), takže cesta vede dveřmi.
+(ne na bod před ní, ten by byl na straně tvora), takže cesta vede dveřmi. Stejně, když je postava o víc
+než 1 m výš nebo níž (patro): tvor míří přímo na ni a hledá cestu po schodech.
 Na podlaze stavby (`GameScene.onBuildingDeck`) se nehlídá blízkost útesu (`cliffOverlap`) a převýšení
 terénu (`riseNear`) se měří od podlahy, ne od země pod ní — jinak by z pavlače nešlo na schůdky na útes.
 Místa, která mají zůstat volná (`plan.keepClear`, i konec schůdků na útesu), zná stavba i ve světě
@@ -1037,10 +1045,16 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
       Hotovo jako pokus.
    4. Tvorové chodí po podlaze srubu ve správné výšce, zastaví je zdi a do přízemí jdou jen dveřmi
       (hledání cesty o dveřích ví). Hotovo jako pokus.
-   5. Tvorové po schodech a schůdcích z útesu do patra.
+   5. Tvorové po schodech a schůdcích z útesu do patra. Hotovo jako pokus.
    Později: stěny vrhají stín a zastaví dohled (`metadata.volume`).
 4. **Dveře**: otevření kliknutím jako truhla (`lootSystem` — pant kolem svislé osy místo víka);
    zavřené blokují průchod postavě i tvorům. Stav dveří se ukládá do savu (registrace v `saveSystem`).
+   Tvor a zavřené dveře: dnes si tvor ve stejné výšce cestu neověřuje (`canGetTo` vrátí rovnou ano), takže
+   by u zdi zasekl, nebo se o ni dlouho otíral (klouzání se nepočítá jako zaseknutí). Plán: když je mezi
+   tvorem a postavou zeď (`crossesWall`), ověří cestu i ve stejné výšce a bez cesty se chová jako u postavy
+   na nedosažitelné skále (zpozorní, nehoní do zdi). Otevřená otázka, co potom: vzdá to a odejde domů,
+   obléhá dveře, dokud postava nevyjde (nebo ho to po čase nepřestane bavit), nebo silní tvorové dveře
+   vyrazí (a dají se opravit).
 5. **Editor**: štětec Stavby — klik na roh, R otočí, guma smaže; zápis do historie (Zpět).
 
 **Otevřené otázky:** zvednutá podlaha (dnes jen o pár centimetrů, výš potřebuje výšku

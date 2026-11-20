@@ -62,7 +62,7 @@ export default {
   onCreatureDig(creature) {
     if (!creature || !Number.isFinite(creature.x) || !Number.isFinite(creature.z)) return;
     const tierScale = creature.tier && Number.isFinite(creature.tier.scale) ? creature.tier.scale : 1;
-    const y = this.creatureSystem.groundAt(creature.x, creature.z, creature.level);
+    const y = this.creatureSystem.groundAt(creature.x, creature.z, creature.level, creature.y);
     this.sandBursts.burst(creature.x, y, creature.z, tierScale, creature.emergeSeconds);
   },
 

@@ -65,6 +65,17 @@ export default class BuildingSystem {
     for (const entry of (layout && layout.buildings) || []) this.buildOne(entry);
   }
 
+  nearCell(x, z) {
+    const cx = Math.round(x / CELL_SIZE);
+    const cz = Math.round(z / CELL_SIZE);
+    for (let dx = -1; dx <= 1; dx += 1) {
+      for (let dz = -1; dz <= 1; dz += 1) {
+        if (this.floorKeys.has(cellKey(cx + dx, cz + dz))) return true;
+      }
+    }
+    return false;
+  }
+
   floorKeyAt(cx, cz) {
     return this.floorKeys.get(cellKey(cx, cz)) || null;
   }

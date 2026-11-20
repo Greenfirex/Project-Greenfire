@@ -1,15 +1,13 @@
 // Hledání cesty po mřížce buněk — A* s diagonálními kroky a omezeným počtem kroků.
-// O mapě nic neví: průchodnost a cenu kroků dostane jako funkci zvenčí.
+// O mapě nic neví: průchodnost a cenu kroků dostane jako funkci zvenčí. Buňka může mít víc vrstev nad sebou
+// (layer, např. přízemí a patro stavby); uzel si nese i vlastní data (y), která dostane zpět v cestě.
 
-function keyOf(i, j, level = 0) {
-  return ((i + 4096) * 8192 + (j + 4096)) * 64 + (level + 32);
+function keyOf(i, j, level = 0, layer = 0) {
+  return (((i + 4096) * 8192 + (j + 4096)) * 64 + (level + 32)) * 4 + layer;
 }
 
-function keyCell(key) {
-  const level = (key % 64) - 32;
-  const flat = Math.floor(key / 64);
-  const j = (flat % 8192) - 4096;
-  return { i: Math.floor(flat / 8192) - 4096, j, level };
+function nodeOf(node) {
+  return { i: node.i, j: node.j, level: node.level || 0, layer: node.layer || 0, y: node.y };
 }
 
 function heuristic(a, b) {
@@ -49,11 +47,11 @@ function pop(heap) {
   return top;
 }
 
-function rebuild(cameFrom, startKey, endKey) {
+function rebuild(cameFrom, nodes, startKey, endKey) {
   const path = [];
   let current = endKey;
   while (current !== undefined) {
-    path.push(keyCell(current));
+    path.push(nodes.get(current));
     if (current === startKey) break;
     current = cameFrom.get(current);
   }
@@ -62,22 +60,23 @@ function rebuild(cameFrom, startKey, endKey) {
 
 export function findCellPath({ start, goal, neighbours, bounds, limit = 2500, partial = false }) {
   if (!start || !goal) return null;
-  const startLevel = start.level || 0;
-  const goalLevel = goal.level || 0;
-  if (start.i === goal.i && start.j === goal.j && startLevel === goalLevel) return [{ i: start.i, j: start.j, level: startLevel }];
-  const startKey = keyOf(start.i, start.j, startLevel);
-  const goalKey = keyOf(goal.i, goal.j, goalLevel);
+  const first = nodeOf(start);
+  const last = nodeOf(goal);
+  const startKey = keyOf(first.i, first.j, first.level, first.layer);
+  const goalKey = keyOf(last.i, last.j, last.level, last.layer);
+  if (startKey === goalKey) return [first];
   const gScore = new Map([[startKey, 0]]);
   const cameFrom = new Map();
-  const heap = [{ i: start.i, j: start.j, level: startLevel, g: 0, f: heuristic(start, goal) }];
+  const nodes = new Map([[startKey, first]]);
+  const heap = [{ ...first, g: 0, f: heuristic(first, last) }];
   let bestKey = startKey;
   let bestGap = heuristic(start, goal);
   let expanded = 0;
   while (heap.length) {
     const current = pop(heap);
-    const currentKey = keyOf(current.i, current.j, current.level);
-    if (currentKey === goalKey) return rebuild(cameFrom, startKey, goalKey);
-    const gap = heuristic(current, goal);
+    const currentKey = keyOf(current.i, current.j, current.level, current.layer);
+    if (currentKey === goalKey) return rebuild(cameFrom, nodes, startKey, goalKey);
+    const gap = heuristic(current, last);
     if (gap < bestGap) {
       bestGap = gap;
       bestKey = currentKey;
@@ -86,18 +85,19 @@ export function findCellPath({ start, goal, neighbours, bounds, limit = 2500, pa
     if (known !== undefined && current.g > known + 1e-6) continue;
     expanded += 1;
     if (expanded > limit) break;
-    for (const next of neighbours(current.i, current.j, current.level) || []) {
-      const nextLevel = Number.isFinite(next.level) ? next.level : current.level;
+    for (const next of neighbours(current) || []) {
       if (bounds && (next.i < bounds.minI || next.i > bounds.maxI || next.j < bounds.minJ || next.j > bounds.maxJ)) continue;
-      const nextKey = keyOf(next.i, next.j, nextLevel);
+      const node = nodeOf({ ...next, level: Number.isFinite(next.level) ? next.level : current.level });
+      const nextKey = keyOf(node.i, node.j, node.level, node.layer);
       const tentative = current.g + (Number.isFinite(next.cost) ? next.cost : 1);
       const existing = gScore.get(nextKey);
       if (existing !== undefined && tentative >= existing - 1e-6) continue;
       gScore.set(nextKey, tentative);
       cameFrom.set(nextKey, currentKey);
-      push(heap, { i: next.i, j: next.j, level: nextLevel, g: tentative, f: tentative + heuristic(next, goal) });
+      nodes.set(nextKey, node);
+      push(heap, { ...node, g: tentative, f: tentative + heuristic(node, last) });
     }
   }
-  if (partial && bestKey !== startKey) return rebuild(cameFrom, startKey, bestKey);
+  if (partial && bestKey !== startKey) return rebuild(cameFrom, nodes, startKey, bestKey);
   return null;
 }

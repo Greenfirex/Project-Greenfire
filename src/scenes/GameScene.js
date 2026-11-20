@@ -1201,7 +1201,7 @@ export default class GameScene {
       const own = [...root.getChildMeshes(false), ...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoInSight(seen)];
       for (const creature of this.creatureSystem.creatures) {
         const floor = creature.level || 0;
-        const y = this.creatureSystem.groundAt(creature.x, creature.z, floor);
+        const y = this.creatureSystem.groundAt(creature.x, creature.z, floor, creature.y);
         if (seen({ x: creature.x, y, z: creature.z }, floor)) own.push(...creature.meshes);
       }
       this.revealSystem.setKeptMeshes(own);

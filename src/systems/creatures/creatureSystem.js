@@ -62,6 +62,7 @@ const CREATURE_WALL_MARGIN = 0.3;
 const BUILDING_WALL_CLEAR = 0.3;
 const BUILDING_WALL_HIT = 0.02;
 const WALL_CHECK_STEP = 0.2;
+const LAYER_SPLIT = 1;
 const RISE_RATE = 2.2;
 const FALL_RATE = 6;
 const SLIDE_ANGLES = [0, 0.5, -0.5, 1, -1, 1.5, -1.5, Math.PI / 2, -Math.PI / 2];
@@ -123,6 +124,7 @@ export default class CreatureSystem {
     this.groundHeightAt = null;
     this.walkableAt = null;
     this.wallGapAt = null;
+    this.nearBuildingAt = null;
     this.wallRiseAt = null;
     this.pathCells = new Map();
     this.playerAt = null;
@@ -413,7 +415,7 @@ export default class CreatureSystem {
 
   placeHolder(creature, bob = 0, seconds = 0) {
     if (!creature || !creature.holder) return;
-    const ground = this.groundAt(creature.renderX, creature.renderZ, creature.level);
+    const ground = this.groundAt(creature.renderX, creature.renderZ, creature.level, creature.y);
     const fall = Number.isFinite(creature.renderY) ? creature.renderY : ground;
     const rate = seconds > 0 ? (ground > fall ? RISE_RATE : FALL_RATE) * seconds : Infinity;
     creature.renderY = rate === Infinity ? ground : fall + Math.max(-rate, Math.min(rate, ground - fall));
@@ -432,7 +434,7 @@ export default class CreatureSystem {
     const proxy = creature && creature.pickProxy;
     if (!proxy || proxy.isDisposed()) return;
     const holder = creature.holder;
-    const baseY = holder && !holder.isDisposed() ? holder.position.y : this.groundAt(creature.renderX, creature.renderZ, creature.level);
+    const baseY = holder && !holder.isDisposed() ? holder.position.y : this.groundAt(creature.renderX, creature.renderZ, creature.level, creature.y);
     proxy.position.set(creature.renderX, baseY + creature.pickHeight, creature.renderZ);
   }
 
@@ -449,12 +451,12 @@ export default class CreatureSystem {
     return this.walkableAt(x, z, level);
   }
 
-  groundAt(x, z, level = 0) {
+  groundAt(x, z, level = 0, fromY = null) {
     if (!this.groundHeightAt) {
       warnMissingWiring('tvorové: výška země');
       return 0;
     }
-    const height = this.groundHeightAt(x, z, level);
+    const height = this.groundHeightAt(x, z, level, fromY);
     return Number.isFinite(height) ? height : 0;
   }
 
@@ -463,16 +465,24 @@ export default class CreatureSystem {
     return Number.isFinite(limit) && limit > 0 ? limit : Infinity;
   }
 
+  footY(creature) {
+    return Number.isFinite(creature.y) ? creature.y : this.groundAt(creature.x, creature.z, creature.level || 0);
+  }
+
+  layerOf(x, z, level, y) {
+    return y - this.groundAt(x, z, level) > LAYER_SPLIT ? 1 : 0;
+  }
+
   heightGap(creature, player) {
     if (!player || !Number.isFinite(player.y)) return 0;
-    return Math.abs(player.y - this.groundAt(creature.x, creature.z, creature.level));
+    return Math.abs(player.y - this.footY(creature));
   }
 
   inBiteRange(creature, player) {
     if (!player) return false;
     const gap = Math.hypot(player.x - creature.x, player.z - creature.z);
     if (gap > creature.type.biteRange) return false;
-    if (this.crossesWall(creature.x, creature.z, player.x, player.z, creature.level || 0)) return false;
+    if (this.crossesWall(creature.x, creature.z, player.x, player.z, creature.level || 0, this.footY(creature))) return false;
     return this.heightGap(creature, player) <= ATTACK_HEIGHT;
   }
 
@@ -491,56 +501,72 @@ export default class CreatureSystem {
     return across !== level && this.mayChangeFloor(creature, across) ? across : level;
   }
 
-  wallGap(x, z, level) {
-    return this.wallGapAt ? this.wallGapAt(x, z, level) : Infinity;
+  wallGap(x, z, level, y) {
+    return this.wallGapAt ? this.wallGapAt(x, z, level, y) : Infinity;
   }
 
-  wallInWay(creature, x, z, level) {
-    const gap = this.wallGap(x, z, level);
-    return gap < BUILDING_WALL_CLEAR && gap < this.wallGap(creature.x, creature.z, creature.level || 0);
+  wallInWay(creature, x, z, level, y) {
+    const gap = this.wallGap(x, z, level, y);
+    return gap < BUILDING_WALL_CLEAR && gap < this.wallGap(creature.x, creature.z, creature.level || 0, this.footY(creature));
   }
 
-  crossesWall(fromX, fromZ, toX, toZ, level) {
+  crossesWall(fromX, fromZ, toX, toZ, level, y) {
     if (!this.wallGapAt) return false;
     const steps = Math.max(1, Math.ceil(Math.hypot(toX - fromX, toZ - fromZ) / WALL_CHECK_STEP));
     for (let index = 1; index < steps; index += 1) {
       const t = index / steps;
-      if (this.wallGap(fromX + (toX - fromX) * t, fromZ + (toZ - fromZ) * t, level) < BUILDING_WALL_HIT) return true;
+      if (this.wallGap(fromX + (toX - fromX) * t, fromZ + (toZ - fromZ) * t, level, y) < BUILDING_WALL_HIT) return true;
+    }
+    return false;
+  }
+
+  lineNearBuilding(fromX, fromZ, toX, toZ) {
+    if (!this.nearBuildingAt) return false;
+    const steps = Math.max(1, Math.ceil(Math.hypot(toX - fromX, toZ - fromZ) / CELL_SIZE));
+    for (let index = 0; index <= steps; index += 1) {
+      const t = index / steps;
+      if (this.nearBuildingAt(fromX + (toX - fromX) * t, fromZ + (toZ - fromZ) * t)) return true;
     }
     return false;
   }
 
   canStep(creature, x, z, relaxed = false) {
     const level = this.levelAfterStep(creature, x, z);
-    if (this.wallInWay(creature, x, z, level)) return false;
+    const fromY = this.footY(creature);
+    const y = this.groundAt(x, z, level, fromY);
+    if (this.wallInWay(creature, x, z, level, y)) return false;
     if (!relaxed && !this.canStand(x, z, level)) return false;
     const limit = this.stepLimit();
     if (Number.isFinite(limit)) {
-      if (Math.abs(this.groundAt(x, z, level) - this.groundAt(creature.x, creature.z, creature.level)) > limit) return false;
+      if (Math.abs(y - fromY) > limit) return false;
       if (!relaxed && this.wallRiseAt && this.wallRiseAt(x, z, CREATURE_WALL_MARGIN, level) > limit) return false;
     }
     return true;
   }
 
-  pathClear(fromX, fromZ, toX, toZ, level = 0) {
+  walkLine(fromX, fromZ, fromY, toX, toZ, level = 0, clear = BUILDING_WALL_CLEAR) {
     const dx = toX - fromX;
     const dz = toZ - fromZ;
+    let y = Number.isFinite(fromY) ? fromY : this.groundAt(fromX, fromZ, level);
     const distance = Math.hypot(dx, dz);
-    if (distance < 1e-6) return true;
+    if (distance < 1e-6) return y;
     const samples = Math.max(1, Math.ceil(distance / PATH_SAMPLE));
     const limit = this.stepLimit();
-    let previousY = this.groundAt(fromX, fromZ, level);
     for (let index = 1; index <= samples; index += 1) {
       const t = index / samples;
       const x = fromX + dx * t;
       const z = fromZ + dz * t;
-      if (!this.canStand(x, z, level)) return false;
-      if (this.wallGap(x, z, level) < BUILDING_WALL_CLEAR) return false;
-      const y = this.groundAt(x, z, level);
-      if (Number.isFinite(limit) && Math.abs(y - previousY) > limit) return false;
-      previousY = y;
+      if (!this.canStand(x, z, level)) return null;
+      const next = this.groundAt(x, z, level, y);
+      if (Number.isFinite(limit) && Math.abs(next - y) > limit) return null;
+      if (this.wallGap(x, z, level, next) < clear) return null;
+      y = next;
     }
-    return true;
+    return y;
+  }
+
+  pathClear(fromX, fromZ, toX, toZ, level = 0, fromY = null) {
+    return this.walkLine(fromX, fromZ, fromY, toX, toZ, level) !== null;
   }
 
   cellAt(x, z) {
@@ -579,8 +605,13 @@ export default class CreatureSystem {
     return this.pathClear(fromI * CELL_SIZE, fromJ * CELL_SIZE, toI * CELL_SIZE, toJ * CELL_SIZE, level);
   }
 
-  buildPath(creature, targetX, targetZ, targetLevel = creature.level) {
-    const cells = this.searchRoute(creature, targetX, targetZ, targetLevel, PATH_GOAL_RINGS, true);
+  reachY(fromX, fromZ, fromY, toX, toZ, level) {
+    if (!this.lineNearBuilding(fromX, fromZ, toX, toZ)) return this.groundAt(toX, toZ, level);
+    return this.walkLine(fromX, fromZ, fromY, toX, toZ, level, BUILDING_WALL_HIT);
+  }
+
+  buildPath(creature, targetX, targetZ, targetLevel = creature.level, targetY = null) {
+    const cells = this.searchRoute(creature, targetX, targetZ, targetLevel, PATH_GOAL_RINGS, true, targetY);
     if (!cells) return null;
     return this.smoothCells(cells.slice(0, PATH_LOOKAHEAD), this.stepLimit());
   }
@@ -588,7 +619,7 @@ export default class CreatureSystem {
   canWalkUpTo(creature, player, level, aggro) {
     if (this.now < (creature.routeCheckAt || 0)) return Boolean(creature.routeOpen);
     creature.routeCheckAt = this.now + ROUTE_CHECK_SECONDS;
-    const cells = this.searchRoute(creature, player.x, player.z, level, ROUTE_GOAL_RINGS, false);
+    const cells = this.searchRoute(creature, player.x, player.z, level, ROUTE_GOAL_RINGS, false, player.y);
     creature.routeOpen = Boolean(cells) && cells.length * CELL_SIZE <= aggro * ROUTE_AGGRO_SHARE;
     return creature.routeOpen;
   }
@@ -599,46 +630,57 @@ export default class CreatureSystem {
     return level === creature.level && this.canWalkUpTo(creature, player, level, aggro);
   }
 
-  searchRoute(creature, targetX, targetZ, targetLevel, goalRings, partial) {
+  searchRoute(creature, targetX, targetZ, targetLevel, goalRings, partial, targetY = null) {
     const limit = this.stepLimit();
     const cellData = this.cellInfo.bind(this);
-    const sameSide = (i, j, x, z, level) => {
-      const cell = cellData(i, j, level);
-      return { ok: cell.ok && !this.crossesWall(i * CELL_SIZE, j * CELL_SIZE, x, z, level) };
+    const node = (i, j, level, y) => ({ i, j, level, y, layer: this.layerOf(i * CELL_SIZE, j * CELL_SIZE, level, y) });
+    const reachable = (fromX, fromZ, fromY, level) => (i, j) => {
+      if (!cellData(i, j, level).ok) return { ok: false };
+      const y = this.reachY(fromX, fromZ, fromY, i * CELL_SIZE, j * CELL_SIZE, level);
+      return { ok: y !== null, y };
     };
-    const startCell = this.standableCellNear(this.cellAt(creature.x, creature.z), 2, (i, j) => sameSide(i, j, creature.x, creature.z, creature.level));
-    const goalCell = this.standableCellNear(this.cellAt(targetX, targetZ), goalRings, (i, j) => sameSide(i, j, targetX, targetZ, targetLevel));
+    const startTest = reachable(creature.x, creature.z, this.footY(creature), creature.level);
+    const goalTest = reachable(targetX, targetZ, targetY, targetLevel);
+    const startCell = this.standableCellNear(this.cellAt(creature.x, creature.z), 2, startTest);
+    const goalCell = this.standableCellNear(this.cellAt(targetX, targetZ), goalRings, goalTest);
     if (!startCell || !goalCell) return null;
-    const start = { ...startCell, level: creature.level };
-    const goal = { ...goalCell, level: targetLevel };
+    const start = node(startCell.i, startCell.j, creature.level, startTest(startCell.i, startCell.j).y);
+    const goal = node(goalCell.i, goalCell.j, targetLevel, goalTest(goalCell.i, goalCell.j).y);
     const edgeCache = new Map();
-    const edgeOpen = (fromI, fromJ, toI, toJ, level) => {
-      const key = (((fromI + CELL_KEY_OFFSET) * CELL_KEY_SPAN + (fromJ + CELL_KEY_OFFSET)) * 9
-        + (toI - fromI + 1) * 3 + (toJ - fromJ + 1)) * 64 + (level + 32);
-      const cached = edgeCache.get(key);
-      if (cached !== undefined) return cached;
-      const from = cellData(fromI, fromJ, level);
+    const edgeY = (from, toI, toJ) => {
+      const key = `${from.i},${from.j},${from.level},${from.layer}>${toI},${toJ}`;
+      if (edgeCache.has(key)) return edgeCache.get(key);
+      const level = from.level;
+      const fromX = from.i * CELL_SIZE;
+      const fromZ = from.j * CELL_SIZE;
+      const toX = toI * CELL_SIZE;
+      const toZ = toJ * CELL_SIZE;
+      const here = cellData(from.i, from.j, level);
       const to = cellData(toI, toJ, level);
-      let open = from.ok && to.ok && !this.crossesWall(fromI * CELL_SIZE, fromJ * CELL_SIZE, toI * CELL_SIZE, toJ * CELL_SIZE, level);
-      if (open && Number.isFinite(limit)) {
-        open = this.edgeFits(from.y, to.y, fromI, fromJ, toI, toJ, limit, level);
+      let y = null;
+      if (here.ok && to.ok) {
+        if (this.lineNearBuilding(fromX, fromZ, toX, toZ)) y = this.walkLine(fromX, fromZ, from.y, toX, toZ, level, BUILDING_WALL_HIT);
+        else if (!Number.isFinite(limit) || this.edgeFits(here.y, to.y, from.i, from.j, toI, toJ, limit, level)) y = to.y;
       }
-      edgeCache.set(key, open);
-      return open;
+      edgeCache.set(key, y);
+      return y;
     };
-    const neighbours = (i, j, level) => {
+    const neighbours = (current) => {
+      const { i, j, level } = current;
       const out = [];
       for (const [di, dj] of NEIGHBOURS_8) {
         if (this.levelAcross && (di === 0 || dj === 0)) {
           const across = this.levelAcross(i * CELL_SIZE, j * CELL_SIZE, level, (i + di) * CELL_SIZE, (j + dj) * CELL_SIZE);
           if (across !== level && this.mayChangeFloor(creature, across)) {
-            if (cellData(i + di, j + dj, across).ok) out.push({ i: i + di, j: j + dj, level: across, cost: 1 });
+            const cell = cellData(i + di, j + dj, across);
+            if (cell.ok) out.push({ ...node(i + di, j + dj, across, cell.y), cost: 1 });
             continue;
           }
         }
-        if (!edgeOpen(i, j, i + di, j + dj, level)) continue;
-        if (di !== 0 && dj !== 0 && (!edgeOpen(i, j, i + di, j, level) || !edgeOpen(i, j, i, j + dj, level))) continue;
-        out.push({ i: i + di, j: j + dj, level, cost: Math.hypot(di, dj) });
+        const y = edgeY(current, i + di, j + dj);
+        if (y === null) continue;
+        if (di !== 0 && dj !== 0 && (edgeY(current, i + di, j) === null || edgeY(current, i, j + dj) === null)) continue;
+        out.push({ ...node(i + di, j + dj, level, y), cost: Math.hypot(di, dj) });
       }
       return out;
     };
@@ -657,16 +699,24 @@ export default class CreatureSystem {
     });
   }
 
-  lineOpen(fromI, fromJ, toI, toJ, limit, level = 0) {
-    const steps = Math.max(Math.abs(toI - fromI), Math.abs(toJ - fromJ));
-    if (this.crossesWall(fromI * CELL_SIZE, fromJ * CELL_SIZE, toI * CELL_SIZE, toJ * CELL_SIZE, level)) return false;
+  lineOpen(from, to, limit) {
+    const level = from.level;
+    const fromX = from.i * CELL_SIZE;
+    const fromZ = from.j * CELL_SIZE;
+    const toX = to.i * CELL_SIZE;
+    const toZ = to.j * CELL_SIZE;
+    if (this.lineNearBuilding(fromX, fromZ, toX, toZ)) {
+      const y = this.walkLine(fromX, fromZ, from.y, toX, toZ, level, BUILDING_WALL_HIT);
+      return y !== null && (!Number.isFinite(limit) || Math.abs(y - to.y) <= limit);
+    }
+    const steps = Math.max(Math.abs(to.i - from.i), Math.abs(to.j - from.j));
     if (steps <= 1) return true;
-    let previous = this.cellInfo(fromI, fromJ, level);
+    let previous = this.cellInfo(from.i, from.j, level);
     for (let index = 1; index <= steps; index += 1) {
       const t = index / steps;
       const cell = this.cellInfo(
-        Math.round(fromI + (toI - fromI) * t),
-        Math.round(fromJ + (toJ - fromJ) * t),
+        Math.round(from.i + (to.i - from.i) * t),
+        Math.round(from.j + (to.j - from.j) * t),
         level,
       );
       if (!cell.ok) return false;
@@ -681,9 +731,10 @@ export default class CreatureSystem {
     if (cells.length <= 2) return points;
     const out = [points[0]];
     let index = 0;
+    const sameFloor = (from, to) => cells.slice(from, to + 1).every((cell) => cell.level === cells[from].level && cell.layer === cells[from].layer);
     while (index < cells.length - 1) {
       let far = Math.min(index + SMOOTH_SPAN, cells.length - 1);
-      while (far > index + 1 && (cells[far].level !== cells[index].level || cells.slice(index, far + 1).some((cell) => cell.level !== cells[index].level) || !this.lineOpen(cells[index].i, cells[index].j, cells[far].i, cells[far].j, limit, cells[index].level))) {
+      while (far > index + 1 && (!sameFloor(index, far) || !this.lineOpen(cells[index], cells[far], limit))) {
         far -= 1;
       }
       out.push(points[far]);
@@ -692,7 +743,13 @@ export default class CreatureSystem {
     return out;
   }
 
-  moveTo(creature, targetX, targetZ, speed, dt, targetLevel = creature.level) {
+  directReach(creature, targetX, targetZ, targetLevel, targetY) {
+    if (targetLevel !== creature.level) return false;
+    const y = this.walkLine(creature.x, creature.z, this.footY(creature), targetX, targetZ, creature.level);
+    return y !== null && (!Number.isFinite(targetY) || Math.abs(y - targetY) <= ATTACK_HEIGHT);
+  }
+
+  moveTo(creature, targetX, targetZ, speed, dt, targetLevel = creature.level, targetY = null) {
     if (targetLevel === creature.level && Math.hypot(targetX - creature.x, targetZ - creature.z) <= ARRIVE) {
       creature.path = null;
       return true;
@@ -700,9 +757,9 @@ export default class CreatureSystem {
     creature.pathClock = (creature.pathClock || 0) - dt;
     if (creature.pathClock <= 0) {
       creature.pathClock = PATH_REPLAN;
-      creature.path = targetLevel === creature.level && this.pathClear(creature.x, creature.z, targetX, targetZ, creature.level)
+      creature.path = this.directReach(creature, targetX, targetZ, targetLevel, targetY)
         ? null
-        : this.buildPath(creature, targetX, targetZ, targetLevel);
+        : this.buildPath(creature, targetX, targetZ, targetLevel, targetY);
       creature.pathIndex = 1;
     }
     const path = creature.path;
@@ -972,14 +1029,14 @@ export default class CreatureSystem {
         this.beginSearch(creature, true);
         return;
       }
-      const walled = this.crossesWall(creature.x, creature.z, player.x, player.z, creature.level || 0);
+      const walled = this.crossesWall(creature.x, creature.z, player.x, player.z, creature.level || 0, this.footY(creature)) || heightGap > ATTACK_HEIGHT;
       const standoff = walled ? 0 : type.biteRange * 0.85;
       if ((sameFloor && !walled && gap <= standoff) || gap < 0.001) return;
       const dirX = (player.x - creature.x) / gap;
       const dirZ = (player.z - creature.z) / gap;
       const boost = Number.isFinite(type.chaseBoost) ? type.chaseBoost : 1;
       const speed = type.walkSpeed * creature.tier.speed * boost;
-      const arrived = this.moveTo(creature, player.x - dirX * standoff, player.z - dirZ * standoff, speed, dt, playerFloor);
+      const arrived = this.moveTo(creature, player.x - dirX * standoff, player.z - dirZ * standoff, speed, dt, playerFloor, player.y);
       const blocked = !arrived && !creature.walking;
       creature.blockedTime = blocked ? creature.blockedTime + dt : 0;
       if (creature.blockedTime > CHASE_STUCK_SECONDS) {
@@ -1074,7 +1131,7 @@ export default class CreatureSystem {
 
   biteReaches(creature, player) {
     if (!player || this.heightGap(creature, player) > ATTACK_HEIGHT) return false;
-    if (this.crossesWall(creature.x, creature.z, player.x, player.z, creature.level || 0)) return false;
+    if (this.crossesWall(creature.x, creature.z, player.x, player.z, creature.level || 0, this.footY(creature))) return false;
     const dx = player.x - creature.x;
     const dz = player.z - creature.z;
     const distance = Math.hypot(dx, dz);
@@ -1165,7 +1222,9 @@ export default class CreatureSystem {
       const tryX = creature.x + Math.sin(turn) * step;
       const tryZ = creature.z + Math.cos(turn) * step;
       if (!this.canStep(creature, tryX, tryZ, relaxed)) continue;
+      const fromY = this.footY(creature);
       creature.level = this.levelAfterStep(creature, tryX, tryZ);
+      creature.y = this.groundAt(tryX, tryZ, creature.level, fromY);
       creature.x = tryX;
       creature.z = tryZ;
       moved = true;
@@ -1468,12 +1527,13 @@ export default class CreatureSystem {
     const z = creature.renderZ;
     const reach = CORPSE_GROUND_SAMPLE;
     const level = creature.level;
+    const fromY = creature.y;
     return Math.max(
-      this.groundAt(x, z, level),
-      this.groundAt(x + reach, z, level),
-      this.groundAt(x - reach, z, level),
-      this.groundAt(x, z + reach, level),
-      this.groundAt(x, z - reach, level),
+      this.groundAt(x, z, level, fromY),
+      this.groundAt(x + reach, z, level, fromY),
+      this.groundAt(x - reach, z, level, fromY),
+      this.groundAt(x, z + reach, level, fromY),
+      this.groundAt(x, z - reach, level, fromY),
     );
   }
 
@@ -1579,6 +1639,7 @@ export default class CreatureSystem {
           health: creature.health,
           level: Number.isFinite(creature.level) ? creature.level : 0,
           homeLevel: creature.homeLevel,
+          y: Number.isFinite(creature.y) ? creature.y : null,
         });
       } else if (Number.isFinite(slot.deadAt)) {
         list.push({ ...base, alive: false, deadAt: slot.deadAt });
@@ -1612,6 +1673,13 @@ export default class CreatureSystem {
     }
   }
 
+  savedFootY(x, z, level, y) {
+    if (!Number.isFinite(y)) return null;
+    const ground = this.groundAt(x, z, level, y);
+    const limit = this.stepLimit();
+    return Math.abs(ground - y) <= (Number.isFinite(limit) ? limit : ATTACK_HEIGHT) ? ground : null;
+  }
+
   applyLive(creature, saved) {
     if (!creature || !saved) return;
     if (Number.isFinite(saved.level)) creature.level = saved.level;
@@ -1620,12 +1688,14 @@ export default class CreatureSystem {
       const spot = this.nearestSpot(saved.x, saved.z, creature.level);
       creature.x = spot.x;
       creature.z = spot.z;
+      creature.y = this.savedFootY(spot.x, spot.z, creature.level, saved.y);
       if (creature.level === creature.homeLevel) {
         creature.homeX = spot.x;
         creature.homeZ = spot.z;
       }
       creature.renderX = spot.x;
       creature.renderZ = spot.z;
+      creature.renderY = null;
     }
     if (Number.isFinite(saved.facing)) {
       creature.facing = saved.facing;
