@@ -71,7 +71,7 @@ const CLIPS = {
   treeFrog: ['ambient/life/treefrog_night_1.ogg', 'ambient/life/treefrog_night_2.ogg'],
   surfRocks: ['ambient/life/surf_rocks_1.ogg', 'ambient/life/surf_rocks_2.ogg'],
   doorOpen: ['building/door_open_1.ogg', 'building/door_open_2.ogg'],
-  doorClose: ['building/door_close_1.ogg', 'building/door_close_2.ogg'],
+  doorClose: ['building/door_close_1.ogg', 'building/door_close_2.ogg', 'building/door_close_3.ogg'],
   plankCreak: ['building/plank_creak_1.ogg', 'building/plank_creak_2.ogg', 'building/plank_creak_3.ogg'],
   timberCreak: ['building/timber_creak_1.ogg', 'building/timber_creak_2.ogg', 'building/timber_creak_3.ogg'],
 };
